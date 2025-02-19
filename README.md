@@ -6,37 +6,150 @@ GitLab MCP(Model Context Protocol) Server.
 
 <a href="https://glama.ai/mcp/servers/7jwbk4r6d7"><img width="380" height="200" src="https://glama.ai/mcp/servers/7jwbk4r6d7/badge" alt="gitlab mcp MCP server" /></a>
 
-## Installation and Execution
+## Features ✨
 
-### Installing via Smithery
+- **Automatic Branch Creation**: Automatically creates a branch if it doesn't exist when creating/updating files or pushing changes. 🌿
+- **Comprehensive Error Handling**: Provides clear error messages for common issues. ⚠️
+- **Git History Preservation**: Operates without force-pushing, maintaining Git history. 📜
+- **Batch Operations**: Supports both single and multi-file operations. 묶음
+- **Versatile Search**: Supports project search functionality. 🔍
 
-To install GitLab MCP Server for Claude Desktop automatically via [Smithery](https://smithery.ai/server/@zereight/gitlab-mcp):
+## Tools 🛠️
 
-```bash
-npx -y @smithery/cli install @zereight/gitlab-mcp --client claude
-```
+1. `create_or_update_file`
 
-### Manual Installation
-```bash
-npx @zereight/mcp-gitlab
-```
+   - Create or update a single file in a GitLab project. 📝
+   - Inputs:
+     - `project_id` (string): Project ID or namespace/project_path
+     - `file_path` (string): Path to create/update the file
+     - `content` (string): File content
+     - `commit_message` (string): Commit message
+     - `branch` (string): Branch to create/update the file in
+     - `previous_path` (optional string): Previous file path when renaming a file
+   - Returns: File content and commit details
+
+2. `push_files`
+
+   - Push multiple files in a single commit. 📤
+   - Inputs:
+     - `project_id` (string): Project ID or namespace/project_path
+     - `branch` (string): Branch to push to
+     - `files` (array): Array of files to push, each with `file_path` and `content` properties
+     - `commit_message` (string): Commit message
+   - Returns: Updated branch reference
+
+3. `search_repositories`
+
+   - Search for GitLab projects. 🔍
+   - Inputs:
+     - `search` (string): Search query
+     - `page` (optional number): Page number (default: 1)
+     - `per_page` (optional number): Results per page (default: 20, max: 100)
+   - Returns: Project search results
+
+4. `create_repository`
+
+   - Create a new GitLab project. ➕
+   - Inputs:
+     - `name` (string): Project name
+     - `description` (optional string): Project description
+     - `visibility` (optional string): Project visibility level (public, private, internal)
+     - `initialize_with_readme` (optional boolean): Initialize with README
+   - Returns: Details of the created project
+
+5. `get_file_contents`
+
+   - Get the contents of a file or directory. 📂
+   - Inputs:
+     - `project_id` (string): Project ID or namespace/project_path
+     - `file_path` (string): Path to the file/directory
+     - `ref` (optional string): Branch, tag, or commit SHA (default: default branch)
+   - Returns: File/directory content
+
+6. `create_issue`
+
+   - Create a new issue. 🐛
+   - Inputs:
+     - `project_id` (string): Project ID or namespace/project_path
+     - `title` (string): Issue title
+     - `description` (string): Issue description
+     - `assignee_ids` (optional number[]): Array of assignee IDs
+     - `milestone_id` (optional number): Milestone ID
+     - `labels` (optional string[]): Array of labels
+   - Returns: Details of the created issue
+
+7. `create_merge_request`
+
+   - Create a new merge request. 🚀
+   - Inputs:
+     - `project_id` (string): Project ID or namespace/project_path
+     - `title` (string): Merge request title
+     - `description` (string): Merge request description
+     - `source_branch` (string): Branch with changes
+     - `target_branch` (string): Branch to merge into
+     - `allow_collaboration` (optional boolean): Allow collaborators to push commits to the source branch
+     - `draft` (optional boolean): Create as a draft merge request
+   - Returns: Details of the created merge request
+
+8. `fork_repository`
+
+   - Fork a project. 🍴
+   - Inputs:
+     - `project_id` (string): Project ID or namespace/project_path to fork
+     - `namespace` (optional string): Namespace to fork into (default: user namespace)
+   - Returns: Details of the forked project
+
+9. `create_branch`
+
+   - Create a new branch. 🌿
+   - Inputs:
+     - `project_id` (string): Project ID or namespace/project_path
+     - `name` (string): New branch name
+     - `ref` (optional string): Ref to create the branch from (branch, tag, commit SHA, default: default branch)
+   - Returns: Created branch reference
+
+10. `get_merge_request`
+
+    - Get details of a merge request. ℹ️
+    - Inputs:
+      - `project_id` (string): Project ID or namespace/project_path
+      - `merge_request_iid` (number): Merge request IID
+    - Returns: Merge request details
+
+11. `get_merge_request_diffs`
+
+    - Get changes (diffs) of a merge request. diff
+    - Inputs:
+      - `project_id` (string): Project ID or namespace/project_path
+      - `merge_request_iid` (number): Merge request IID
+      - `view` (optional string): Diff view type ('inline' or 'parallel')
+    - Returns: Array of merge request diff information
+
+12. `update_merge_request`
+    - Update a merge request. 🔄
+    - Inputs:
+      - `project_id` (string): Project ID or namespace/project_path
+      - `merge_request_iid` (number): Merge request IID
+      - `title` (optional string): New title
+      - `description` (string): New description
+      - `target_branch` (optional string): New target branch
+      - `state_event` (optional string): Merge request state change event ('close', 'reopen')
+      - `remove_source_branch` (optional boolean): Remove source branch after merge
+      - `allow_collaboration` (optional boolean): Allow collaborators to push commits to the source branch
+    - Returns: Updated merge request details
 
 ## Environment Variable Configuration
 
 Before running the server, you need to set the following environment variables:
 
-```bash
+```
 GITLAB_PERSONAL_ACCESS_TOKEN=your_gitlab_token
 GITLAB_API_URL=your_gitlab_api_url  # Default: https://gitlab.com/api/v4
 ```
 
-## License
+## Usage
 
-MIT License
-
-## How to use
-
-## Using with Claude App, Cline, Roo Code
+### Using with Claude App, Cline, Roo Code
 
 When using with the Claude App, you need to set up your API key and URLs directly.
 
@@ -55,13 +168,17 @@ When using with the Claude App, you need to set up your API key and URLs directl
 }
 ```
 
-## Using with Cursor
+### Using with Cursor
 
 When using with Cursor, you can set up environment variables and run the server as follows:
 
-```bash
+```
 env GITLAB_PERSONAL_ACCESS_TOKEN=your_gitlab_token GITLAB_API_URL=your_gitlab_api_url npx @zereight/mcp-gitlab
 ```
 
 - `GITLAB_PERSONAL_ACCESS_TOKEN`: Your GitLab personal access token.
 - `GITLAB_API_URL`: Your GitLab API URL. (Default: `https://gitlab.com/api/v4`)
+
+## License
+
+MIT License
