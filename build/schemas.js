@@ -346,3 +346,11 @@ export const UpdateMergeRequestSchema = GetMergeRequestSchema.extend({
 export const GetMergeRequestDiffsSchema = GetMergeRequestSchema.extend({
     view: z.enum(["inline", "parallel"]).optional().describe("Diff view type"),
 });
+export const CreateNoteSchema = z.object({
+    project_id: z.string().describe("Project ID or namespace/project_path"),
+    noteable_type: z
+        .enum(["issue", "merge_request"])
+        .describe("Type of noteable (issue or merge_request)"),
+    noteable_iid: z.number().describe("IID of the issue or merge request"),
+    body: z.string().describe("Note content"),
+});
