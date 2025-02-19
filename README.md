@@ -1,4 +1,6 @@
-# @zereight/mcp-gitlab
+# Better GitLab MCP Server
+
+## @zereight/mcp-gitlab
 
 [![smithery badge](https://smithery.ai/badge/@zereight/gitlab-mcp)](https://smithery.ai/server/@zereight/gitlab-mcp)
 
@@ -126,6 +128,7 @@ GitLab MCP(Model Context Protocol) Server.
     - Returns: Array of merge request diff information
 
 12. `update_merge_request`
+
     - Update a merge request. 🔄
     - Inputs:
       - `project_id` (string): Project ID or namespace/project_path
@@ -137,6 +140,15 @@ GitLab MCP(Model Context Protocol) Server.
       - `remove_source_branch` (optional boolean): Remove source branch after merge
       - `allow_collaboration` (optional boolean): Allow collaborators to push commits to the source branch
     - Returns: Updated merge request details
+
+13. `create_note`
+    - Create a new note (comment) to an issue or merge request. 💬
+    - Inputs:
+      - `project_id` (string): Project ID or namespace/project_path
+      - `noteable_type` (string): Type of noteable ("issue" or "merge_request")
+      - `noteable_iid` (number): IID of the issue or merge request
+      - `body` (string): Note content
+    - Returns: Details of the created note
 
 ## Environment Variable Configuration
 

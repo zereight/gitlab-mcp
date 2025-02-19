@@ -51,6 +51,7 @@ import {
   type GitLabCommit,
   type FileOperation,
   type GitLabMergeRequestDiff,
+  CreateNoteSchema,
 } from "./schemas.js";
 
 const server = new Server(
@@ -573,6 +574,30 @@ async function updateMergeRequest(
   return GitLabMergeRequestSchema.parse(await response.json());
 }
 
+// 📦 새로운 함수: createNote - 이슈 또는 병합 요청에 노트(댓글)를 추가하는 함수
+async function createNote(
+  projectId: string,
+  noteableType: "issue" | "merge_request", // 'issue' 또는 'merge_request' 타입 명시
+  noteableIid: number,
+  body: string
+): Promise<any> {
+  // ⚙️ 응답 타입은 GitLab API 문서에 따라 조정 가능
+  const url = new URL(
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(
+      projectId
+    )}/${noteableType}/${noteableIid}/notes`
+  );
+
+  const response = await fetch(url.toString(), {
+    method: "POST",
+    headers: DEFAULT_HEADERS,
+    body: JSON.stringify({ body }),
+  });
+
+  await handleGitLabError(response);
+  return await response.json(); // ⚙️ 응답 타입은 GitLab API 문서에 따라 조정 가능, 필요하면 스키마 정의
+}
+
 server.setRequestHandler(ListToolsRequestSchema, async () => {
   return {
     tools: [
@@ -638,6 +663,11 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
         name: "update_merge_request",
         description: "Update a merge request",
         inputSchema: zodToJsonSchema(UpdateMergeRequestSchema),
+      },
+      {
+        name: "create_note",
+        description: "Create a new note (comment) to an issue or merge request",
+        inputSchema: zodToJsonSchema(CreateNoteSchema),
       },
     ],
   };
@@ -795,6 +825,31 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             { type: "text", text: JSON.stringify(mergeRequest, null, 2) },
           ],
         };
+      }
+
+      case "create_note": {
+        try {
+          const args = CreateNoteSchema.parse(request.params.arguments);
+          const { project_id, noteable_type, noteable_iid, body } = args;
+          const note = await createNote(
+            project_id,
+            noteable_type,
+            noteable_iid,
+            body
+          );
+          return {
+            content: [{ type: "text", text: JSON.stringify(note, null, 2) }],
+          };
+        } catch (error) {
+          if (error instanceof z.ZodError) {
+            throw new Error(
+              `Invalid arguments: ${error.errors
+                .map((e) => `${e.path.join(".")}: ${e.message}`)
+                .join(", ")}`
+            );
+          }
+          throw error;
+        }
       }
 
       default:
