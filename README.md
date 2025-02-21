@@ -8,13 +8,37 @@ GitLab MCP(Model Context Protocol) Server. **Includes bug fixes and improvements
 
 <a href="https://glama.ai/mcp/servers/7jwbk4r6d7"><img width="380" height="200" src="https://glama.ai/mcp/servers/7jwbk4r6d7/badge" alt="gitlab mcp MCP server" /></a>
 
-## Features ✨
+## Usage
 
-- **Automatic Branch Creation**: Automatically creates a branch if it doesn't exist when creating/updating files or pushing changes. 🌿
-- **Comprehensive Error Handling**: Provides clear error messages for common issues. ⚠️
-- **Git History Preservation**: Operates without force-pushing, maintaining Git history. 📜
-- **Batch Operations**: Supports both single and multi-file operations. 묶음
-- **Versatile Search**: Supports project search functionality. 🔍
+### Using with Claude App, Cline, Roo Code
+
+When using with the Claude App, you need to set up your API key and URLs directly.
+
+```json
+{
+  "mcpServers": {
+    "GitLab communication server": {
+      "command": "npx",
+      "args": ["-y", "@zereight/mcp-gitlab"],
+      "env": {
+        "GITLAB_PERSONAL_ACCESS_TOKEN": "your_gitlab_token",
+        "GITLAB_API_URL": "your_gitlab_api_url"
+      }
+    }
+  }
+}
+```
+
+### Using with Cursor
+
+When using with Cursor, you can set up environment variables and run the server as follows:
+
+```
+env GITLAB_PERSONAL_ACCESS_TOKEN=your_gitlab_token GITLAB_API_URL=your_gitlab_api_url npx @zereight/mcp-gitlab
+```
+
+- `GITLAB_PERSONAL_ACCESS_TOKEN`: Your GitLab personal access token.
+- `GITLAB_API_URL`: Your GitLab API URL. (Default: `https://gitlab.com/api/v4`)
 
 ## Tools 🛠️
 
@@ -158,38 +182,6 @@ Before running the server, you need to set the following environment variables:
 GITLAB_PERSONAL_ACCESS_TOKEN=your_gitlab_token
 GITLAB_API_URL=your_gitlab_api_url  # Default: https://gitlab.com/api/v4
 ```
-
-## Usage
-
-### Using with Claude App, Cline, Roo Code
-
-When using with the Claude App, you need to set up your API key and URLs directly.
-
-```json
-{
-  "mcpServers": {
-    "GitLab communication server": {
-      "command": "npx",
-      "args": ["-y", "@zereight/mcp-gitlab"],
-      "env": {
-        "GITLAB_PERSONAL_ACCESS_TOKEN": "your_gitlab_token",
-        "GITLAB_API_URL": "your_gitlab_api_url"
-      }
-    }
-  }
-}
-```
-
-### Using with Cursor
-
-When using with Cursor, you can set up environment variables and run the server as follows:
-
-```
-env GITLAB_PERSONAL_ACCESS_TOKEN=your_gitlab_token GITLAB_API_URL=your_gitlab_api_url npx @zereight/mcp-gitlab
-```
-
-- `GITLAB_PERSONAL_ACCESS_TOKEN`: Your GitLab personal access token.
-- `GITLAB_API_URL`: Your GitLab API URL. (Default: `https://gitlab.com/api/v4`)
 
 ## License
 
