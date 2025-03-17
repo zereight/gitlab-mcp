@@ -346,20 +346,32 @@ async function createNote(projectId, noteableType, // 'issue' 또는 'merge_requ
 noteableIid, body) {
     // ⚙️ 응답 타입은 GitLab API 문서에 따라 조정 가능
     // Don't add /api/v4 again since it's already included in GITLAB_API_URL
+    console.error("DEBUG - createNote - GITLAB_API_URL from env: " + process.env.GITLAB_API_URL);
+    console.error("DEBUG - createNote - GITLAB_API_URL in code: " + GITLAB_API_URL);
     const url = new URL(`${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/${noteableType}s/${noteableIid}/notes` // Using plural form (issues/merge_requests) as per GitLab API documentation
     );
     // Add some debug logging
-    console.log(`DEBUG - createNote function called`);
-    console.log(`DEBUG - createNote - URL: ${url.toString()}`);
-    console.log(`DEBUG - createNote - projectId: ${projectId}, noteableType: ${noteableType}, noteableIid: ${noteableIid}`);
-    console.log(`DEBUG - createNote - GITLAB_API_URL: ${GITLAB_API_URL}`);
-    const response = await fetch(url.toString(), {
-        method: "POST",
-        headers: DEFAULT_HEADERS,
-        body: JSON.stringify({ body }),
-    });
-    await handleGitLabError(response);
-    return await response.json(); // ⚙️ 응답 타입은 GitLab API 문서에 따라 조정 가능, 필요하면 스키마 정의
+    console.error("DEBUG - createNote function called");
+    console.error(`DEBUG - createNote - URL: ${url.toString()}`);
+    console.error(`DEBUG - createNote - projectId: ${projectId}, noteableType: ${noteableType}, noteableIid: ${noteableIid}`);
+    try {
+        const response = await fetch(url.toString(), {
+            method: "POST",
+            headers: DEFAULT_HEADERS,
+            body: JSON.stringify({ body }),
+        });
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error(`DEBUG - createNote - Error response: ${response.status} ${response.statusText}`);
+            console.error(`DEBUG - createNote - Error body: ${errorText}`);
+            throw new Error(`GitLab API error: ${response.status} ${response.statusText}\n${errorText}`);
+        }
+        return await response.json();
+    }
+    catch (error) {
+        console.error(`DEBUG - createNote - Exception: ${error instanceof Error ? error.message : String(error)}`);
+        throw error;
+    }
 }
 server.setRequestHandler(ListToolsRequestSchema, async () => {
     return {
@@ -586,6 +598,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     }
 });
 async function runServer() {
+    console.error("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+    console.error("!!! RUNNING VERSION 1.0.7-fix WITH URL DEBUGGING FIX !!!");
+    console.error("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
     const transport = new StdioServerTransport();
     await server.connect(transport);
     console.error("GitLab MCP Server running on stdio");
