@@ -583,7 +583,7 @@ async function createNote(
 ): Promise<any> {
   // ⚙️ 응답 타입은 GitLab API 문서에 따라 조정 가능
   const url = new URL(
-    `${GITLAB_API_URL}/api/v4/projects/${encodeURIComponent(
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(
       projectId
     )}/${noteableType}s/${noteableIid}/notes` // Using plural form (issues/merge_requests) as per GitLab API documentation
   );
