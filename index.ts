@@ -57,7 +57,7 @@ import {
 const server = new Server(
   {
     name: "better-gitlab-mcp-server",
-    version: "0.0.1",
+    version: "1.0.7-fix",
   },
   {
     capabilities: {
