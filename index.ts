@@ -835,15 +835,32 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         try {
           const args = CreateNoteSchema.parse(request.params.arguments);
           const { project_id, noteable_type, noteable_iid, body } = args;
-          const note = await createNote(
+
+          // Debug info that will be included in the response
+          const debugInfo = {
+            gitlab_api_url: GITLAB_API_URL,
             project_id,
             noteable_type,
             noteable_iid,
-            body
-          );
-          return {
-            content: [{ type: "text", text: JSON.stringify(note, null, 2) }],
+            constructed_url: `${GITLAB_API_URL}/projects/${encodeURIComponent(project_id)}/${noteable_type}s/${noteable_iid}/notes`
           };
+
+          try {
+            const note = await createNote(
+              project_id,
+              noteable_type,
+              noteable_iid,
+              body
+            );
+            return {
+              content: [{ type: "text", text: JSON.stringify(note, null, 2) }],
+            };
+          } catch (error) {
+            // Include debug info in the error message
+            throw new Error(
+              `Error with debug info: ${JSON.stringify(debugInfo)}\n${error instanceof Error ? error.message : String(error)}`
+            );
+          }
         } catch (error) {
           if (error instanceof z.ZodError) {
             throw new Error(
