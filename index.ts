@@ -582,12 +582,15 @@ async function createNote(
   body: string
 ): Promise<any> {
   // ⚙️ 응답 타입은 GitLab API 문서에 따라 조정 가능
+  // Don't add /api/v4 again since it's already included in GITLAB_API_URL
   const url = new URL(
     `${GITLAB_API_URL}/projects/${encodeURIComponent(
       projectId
     )}/${noteableType}s/${noteableIid}/notes` // Using plural form (issues/merge_requests) as per GitLab API documentation
   );
 
+  // Add some debug logging
+  console.log(`DEBUG - createNote function called`);
   console.log(`DEBUG - createNote - URL: ${url.toString()}`);
   console.log(`DEBUG - createNote - projectId: ${projectId}, noteableType: ${noteableType}, noteableIid: ${noteableIid}`);
   console.log(`DEBUG - createNote - GITLAB_API_URL: ${GITLAB_API_URL}`);
