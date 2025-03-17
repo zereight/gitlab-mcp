@@ -8,7 +8,7 @@ import { zodToJsonSchema } from "zod-to-json-schema";
 import { GitLabForkSchema, GitLabReferenceSchema, GitLabRepositorySchema, GitLabIssueSchema, GitLabMergeRequestSchema, GitLabContentSchema, GitLabCreateUpdateFileResponseSchema, GitLabSearchResponseSchema, GitLabTreeSchema, GitLabCommitSchema, CreateOrUpdateFileSchema, SearchRepositoriesSchema, CreateRepositorySchema, GetFileContentsSchema, PushFilesSchema, CreateIssueSchema, CreateMergeRequestSchema, ForkRepositorySchema, CreateBranchSchema, GitLabMergeRequestDiffSchema, GetMergeRequestSchema, GetMergeRequestDiffsSchema, UpdateMergeRequestSchema, CreateNoteSchema, } from "./schemas.js";
 const server = new Server({
     name: "better-gitlab-mcp-server",
-    version: "0.0.1",
+    version: "1.0.7-fix",
 }, {
     capabilities: {
         tools: {},
@@ -345,7 +345,11 @@ async function updateMergeRequest(projectId, mergeRequestIid, options) {
 async function createNote(projectId, noteableType, // 'issue' 또는 'merge_request' 타입 명시
 noteableIid, body) {
     // ⚙️ 응답 타입은 GitLab API 문서에 따라 조정 가능
-    const url = new URL(`${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/${noteableType}/${noteableIid}/notes`);
+    const url = new URL(`${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/${noteableType}s/${noteableIid}/notes` // Using plural form (issues/merge_requests) as per GitLab API documentation
+    );
+    console.log(`DEBUG - createNote - URL: ${url.toString()}`);
+    console.log(`DEBUG - createNote - projectId: ${projectId}, noteableType: ${noteableType}, noteableIid: ${noteableIid}`);
+    console.log(`DEBUG - createNote - GITLAB_API_URL: ${GITLAB_API_URL}`);
     const response = await fetch(url.toString(), {
         method: "POST",
         headers: DEFAULT_HEADERS,

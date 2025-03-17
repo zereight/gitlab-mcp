@@ -588,6 +588,10 @@ async function createNote(
     )}/${noteableType}s/${noteableIid}/notes` // Using plural form (issues/merge_requests) as per GitLab API documentation
   );
 
+  console.log(`DEBUG - createNote - URL: ${url.toString()}`);
+  console.log(`DEBUG - createNote - projectId: ${projectId}, noteableType: ${noteableType}, noteableIid: ${noteableIid}`);
+  console.log(`DEBUG - createNote - GITLAB_API_URL: ${GITLAB_API_URL}`);
+
   const response = await fetch(url.toString(), {
     method: "POST",
     headers: DEFAULT_HEADERS,
