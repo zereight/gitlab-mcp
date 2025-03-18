@@ -8,7 +8,7 @@ import { zodToJsonSchema } from "zod-to-json-schema";
 import { GitLabForkSchema, GitLabReferenceSchema, GitLabRepositorySchema, GitLabIssueSchema, GitLabMergeRequestSchema, GitLabContentSchema, GitLabCreateUpdateFileResponseSchema, GitLabSearchResponseSchema, GitLabTreeSchema, GitLabCommitSchema, CreateOrUpdateFileSchema, SearchRepositoriesSchema, CreateRepositorySchema, GetFileContentsSchema, PushFilesSchema, CreateIssueSchema, CreateMergeRequestSchema, ForkRepositorySchema, CreateBranchSchema, GitLabMergeRequestDiffSchema, GetMergeRequestSchema, GetMergeRequestDiffsSchema, UpdateMergeRequestSchema, CreateNoteSchema, } from "./schemas.js";
 const server = new Server({
     name: "better-gitlab-mcp-server",
-    version: "0.0.1",
+    version: "1.0.7-fix",
 }, {
     capabilities: {
         tools: {},
@@ -345,14 +345,33 @@ async function updateMergeRequest(projectId, mergeRequestIid, options) {
 async function createNote(projectId, noteableType, // 'issue' 또는 'merge_request' 타입 명시
 noteableIid, body) {
     // ⚙️ 응답 타입은 GitLab API 문서에 따라 조정 가능
-    const url = new URL(`${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/${noteableType}/${noteableIid}/notes`);
-    const response = await fetch(url.toString(), {
-        method: "POST",
-        headers: DEFAULT_HEADERS,
-        body: JSON.stringify({ body }),
-    });
-    await handleGitLabError(response);
-    return await response.json(); // ⚙️ 응답 타입은 GitLab API 문서에 따라 조정 가능, 필요하면 스키마 정의
+    // Don't add /api/v4 again since it's already included in GITLAB_API_URL
+    console.error("DEBUG - createNote - GITLAB_API_URL from env: " + process.env.GITLAB_API_URL);
+    console.error("DEBUG - createNote - GITLAB_API_URL in code: " + GITLAB_API_URL);
+    const url = new URL(`${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/${noteableType}s/${noteableIid}/notes` // Using plural form (issues/merge_requests) as per GitLab API documentation
+    );
+    // Add some debug logging
+    console.error("DEBUG - createNote function called");
+    console.error(`DEBUG - createNote - URL: ${url.toString()}`);
+    console.error(`DEBUG - createNote - projectId: ${projectId}, noteableType: ${noteableType}, noteableIid: ${noteableIid}`);
+    try {
+        const response = await fetch(url.toString(), {
+            method: "POST",
+            headers: DEFAULT_HEADERS,
+            body: JSON.stringify({ body }),
+        });
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error(`DEBUG - createNote - Error response: ${response.status} ${response.statusText}`);
+            console.error(`DEBUG - createNote - Error body: ${errorText}`);
+            throw new Error(`GitLab API error: ${response.status} ${response.statusText}\n${errorText}`);
+        }
+        return await response.json();
+    }
+    catch (error) {
+        console.error(`DEBUG - createNote - Exception: ${error instanceof Error ? error.message : String(error)}`);
+        throw error;
+    }
 }
 server.setRequestHandler(ListToolsRequestSchema, async () => {
     return {
@@ -537,10 +556,24 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
                 try {
                     const args = CreateNoteSchema.parse(request.params.arguments);
                     const { project_id, noteable_type, noteable_iid, body } = args;
-                    const note = await createNote(project_id, noteable_type, noteable_iid, body);
-                    return {
-                        content: [{ type: "text", text: JSON.stringify(note, null, 2) }],
+                    // Debug info that will be included in the response
+                    const debugInfo = {
+                        gitlab_api_url: GITLAB_API_URL,
+                        project_id,
+                        noteable_type,
+                        noteable_iid,
+                        constructed_url: `${GITLAB_API_URL}/projects/${encodeURIComponent(project_id)}/${noteable_type}s/${noteable_iid}/notes`
                     };
+                    try {
+                        const note = await createNote(project_id, noteable_type, noteable_iid, body);
+                        return {
+                            content: [{ type: "text", text: JSON.stringify(note, null, 2) }],
+                        };
+                    }
+                    catch (error) {
+                        // Include debug info in the error message
+                        throw new Error(`Error with debug info: ${JSON.stringify(debugInfo)}\n${error instanceof Error ? error.message : String(error)}`);
+                    }
                 }
                 catch (error) {
                     if (error instanceof z.ZodError) {
@@ -565,6 +598,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     }
 });
 async function runServer() {
+    console.error("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+    console.error("!!! RUNNING VERSION 1.0.7-fix WITH URL DEBUGGING FIX !!!");
+    console.error("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
     const transport = new StdioServerTransport();
     await server.connect(transport);
     console.error("GitLab MCP Server running on stdio");

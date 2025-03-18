@@ -11,6 +11,8 @@ import { z } from "zod";
 import { zodToJsonSchema } from "zod-to-json-schema";
 import { fileURLToPath } from "url";
 import { dirname, resolve } from "path";
+import fs from "fs";
+import path from "path";
 import {
   GitLabForkSchema,
   GitLabReferenceSchema,
@@ -54,10 +56,24 @@ import {
   CreateNoteSchema,
 } from "./schemas.js";
 
+// Read version from package.json
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+const packageJsonPath = path.resolve(__dirname, '../package.json');
+let SERVER_VERSION = "unknown";
+try {
+  if (fs.existsSync(packageJsonPath)) {
+    const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
+    SERVER_VERSION = packageJson.version || SERVER_VERSION;
+  }
+} catch (error) {
+  console.error("Warning: Could not read version from package.json:", error);
+}
+
 const server = new Server(
   {
     name: "better-gitlab-mcp-server",
-    version: "0.0.1",
+    version: SERVER_VERSION,
   },
   {
     capabilities: {
@@ -67,8 +83,34 @@ const server = new Server(
 );
 
 const GITLAB_PERSONAL_ACCESS_TOKEN = process.env.GITLAB_PERSONAL_ACCESS_TOKEN;
-const GITLAB_API_URL =
-  process.env.GITLAB_API_URL || "https://gitlab.com/api/v4";
+
+// Smart URL handling for GitLab API
+function normalizeGitLabApiUrl(url?: string): string {
+  if (!url) {
+    return "https://gitlab.com/api/v4";
+  }
+
+  // Remove trailing slash if present
+  let normalizedUrl = url.endsWith('/') ? url.slice(0, -1) : url;
+
+  // Check if URL already has /api/v4
+  if (!normalizedUrl.endsWith('/api/v4') && !normalizedUrl.endsWith('/api/v4/')) {
+    // Append /api/v4 if not already present
+    normalizedUrl = `${normalizedUrl}/api/v4`;
+  }
+
+  return normalizedUrl;
+}
+
+// Use the normalizeGitLabApiUrl function to handle various URL formats
+const GITLAB_API_URL = normalizeGitLabApiUrl(process.env.GITLAB_API_URL || "");
+
+// Add debug logging for API URL construction
+console.log("=== MCP Server Configuration ===");
+console.log(`GITLAB_API_URL = "${GITLAB_API_URL}"`);
+console.log(`Example project API URL = "${GITLAB_API_URL}/projects/123"`);
+console.log(`Example Notes API URL = "${GITLAB_API_URL}/projects/123/issues/1/notes"`);
+console.log("===============================");
 
 if (!GITLAB_PERSONAL_ACCESS_TOKEN) {
   console.error("GITLAB_PERSONAL_ACCESS_TOKEN environment variable is not set");
@@ -101,7 +143,7 @@ async function forkProject(
 ): Promise<GitLabFork> {
   // API 엔드포인트 URL 생성
   const url = new URL(
-    `${GITLAB_API_URL}/api/v4/projects/${encodeURIComponent(projectId)}/fork`
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/fork`
   );
 
   if (namespace) {
@@ -129,7 +171,7 @@ async function createBranch(
   options: z.infer<typeof CreateBranchOptionsSchema>
 ): Promise<GitLabReference> {
   const url = new URL(
-    `${GITLAB_API_URL}/api/v4/projects/${encodeURIComponent(
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(
       projectId
     )}/repository/branches`
   );
@@ -150,7 +192,7 @@ async function createBranch(
 // 프로젝트의 기본 브랜치 조회
 async function getDefaultBranchRef(projectId: string): Promise<string> {
   const url = new URL(
-    `${GITLAB_API_URL}/api/v4/projects/${encodeURIComponent(projectId)}`
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}`
   );
 
   const response = await fetch(url.toString(), {
@@ -176,7 +218,7 @@ async function getFileContents(
   }
 
   const url = new URL(
-    `${GITLAB_API_URL}/api/v4/projects/${encodeURIComponent(
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(
       projectId
     )}/repository/files/${encodedPath}`
   );
@@ -213,7 +255,7 @@ async function createIssue(
   options: z.infer<typeof CreateIssueOptionsSchema>
 ): Promise<GitLabIssue> {
   const url = new URL(
-    `${GITLAB_API_URL}/api/v4/projects/${encodeURIComponent(projectId)}/issues`
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/issues`
   );
 
   const response = await fetch(url.toString(), {
@@ -244,7 +286,7 @@ async function createMergeRequest(
   options: z.infer<typeof CreateMergeRequestOptionsSchema>
 ): Promise<GitLabMergeRequest> {
   const url = new URL(
-    `${GITLAB_API_URL}/api/v4/projects/${encodeURIComponent(
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(
       projectId
     )}/merge_requests`
   );
@@ -292,7 +334,7 @@ async function createOrUpdateFile(
 ): Promise<GitLabCreateUpdateFileResponse> {
   const encodedPath = encodeURIComponent(filePath);
   const url = new URL(
-    `${GITLAB_API_URL}/api/v4/projects/${encodeURIComponent(
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(
       projectId
     )}/repository/files/${encodedPath}`
   );
@@ -344,7 +386,7 @@ async function createTree(
   ref?: string
 ): Promise<GitLabTree> {
   const url = new URL(
-    `${GITLAB_API_URL}/api/v4/projects/${encodeURIComponent(
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(
       projectId
     )}/repository/tree`
   );
@@ -392,7 +434,7 @@ async function createCommit(
   actions: FileOperation[]
 ): Promise<GitLabCommit> {
   const url = new URL(
-    `${GITLAB_API_URL}/api/v4/projects/${encodeURIComponent(
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(
       projectId
     )}/repository/commits`
   );
@@ -437,7 +479,7 @@ async function searchProjects(
   page: number = 1,
   perPage: number = 20
 ): Promise<GitLabSearchResponse> {
-  const url = new URL(`${GITLAB_API_URL}/api/v4/projects`);
+  const url = new URL(`${GITLAB_API_URL}/projects`);
   url.searchParams.append("search", query);
   url.searchParams.append("page", page.toString());
   url.searchParams.append("per_page", perPage.toString());
@@ -477,7 +519,7 @@ async function searchProjects(
 async function createRepository(
   options: z.infer<typeof CreateRepositoryOptionsSchema>
 ): Promise<GitLabRepository> {
-  const response = await fetch(`${GITLAB_API_URL}/api/v4/projects`, {
+  const response = await fetch(`${GITLAB_API_URL}/projects`, {
     method: "POST",
     headers: {
       Accept: "application/json",
@@ -511,7 +553,7 @@ async function getMergeRequest(
   mergeRequestIid: number
 ): Promise<GitLabMergeRequest> {
   const url = new URL(
-    `${GITLAB_API_URL}/api/v4/projects/${encodeURIComponent(
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(
       projectId
     )}/merge_requests/${mergeRequestIid}`
   );
@@ -531,7 +573,7 @@ async function getMergeRequestDiffs(
   view?: "inline" | "parallel"
 ): Promise<GitLabMergeRequestDiff[]> {
   const url = new URL(
-    `${GITLAB_API_URL}/api/v4/projects/${encodeURIComponent(
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(
       projectId
     )}/merge_requests/${mergeRequestIid}/changes`
   );
@@ -559,7 +601,7 @@ async function updateMergeRequest(
   >
 ): Promise<GitLabMergeRequest> {
   const url = new URL(
-    `${GITLAB_API_URL}/api/v4/projects/${encodeURIComponent(
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(
       projectId
     )}/merge_requests/${mergeRequestIid}`
   );
@@ -594,8 +636,14 @@ async function createNote(
     body: JSON.stringify({ body }),
   });
 
-  await handleGitLabError(response);
-  return await response.json(); // ⚙️ 응답 타입은 GitLab API 문서에 따라 조정 가능, 필요하면 스키마 정의
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(
+      `GitLab API error: ${response.status} ${response.statusText}\n${errorText}`
+    );
+  }
+
+  return await response.json();
 }
 
 server.setRequestHandler(ListToolsRequestSchema, async () => {
@@ -828,28 +876,18 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       case "create_note": {
-        try {
-          const args = CreateNoteSchema.parse(request.params.arguments);
-          const { project_id, noteable_type, noteable_iid, body } = args;
-          const note = await createNote(
-            project_id,
-            noteable_type,
-            noteable_iid,
-            body
-          );
-          return {
-            content: [{ type: "text", text: JSON.stringify(note, null, 2) }],
-          };
-        } catch (error) {
-          if (error instanceof z.ZodError) {
-            throw new Error(
-              `Invalid arguments: ${error.errors
-                .map((e) => `${e.path.join(".")}: ${e.message}`)
-                .join(", ")}`
-            );
-          }
-          throw error;
-        }
+        const args = CreateNoteSchema.parse(request.params.arguments);
+        const { project_id, noteable_type, noteable_iid, body } = args;
+
+        const note = await createNote(
+          project_id,
+          noteable_type,
+          noteable_iid,
+          body
+        );
+        return {
+          content: [{ type: "text", text: JSON.stringify(note, null, 2) }],
+        };
       }
 
       default:
@@ -868,9 +906,19 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 });
 
 async function runServer() {
-  const transport = new StdioServerTransport();
-  await server.connect(transport);
-  console.error("GitLab MCP Server running on stdio");
+  try {
+    console.error("========================");
+    console.error(`GitLab MCP Server v${SERVER_VERSION}`);
+    console.error(`API URL: ${GITLAB_API_URL}`);
+    console.error("========================");
+
+    const transport = new StdioServerTransport();
+    await server.connect(transport);
+    console.error("GitLab MCP Server running on stdio");
+  } catch (error) {
+    console.error("Error initializing server:", error);
+    process.exit(1);
+  }
 }
 
 runServer().catch((error) => {
