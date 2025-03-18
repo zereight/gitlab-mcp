@@ -41,6 +41,10 @@ import {
   GetMergeRequestSchema,
   GetMergeRequestDiffsSchema,
   UpdateMergeRequestSchema,
+  ListIssuesSchema,
+  GetIssueSchema,
+  UpdateIssueSchema,
+  DeleteIssueSchema,
   type GitLabFork,
   type GitLabReference,
   type GitLabRepository,
@@ -330,6 +334,127 @@ async function createIssue(
   await handleGitLabError(response);
   const data = await response.json();
   return GitLabIssueSchema.parse(data);
+}
+
+/**
+ * List issues in a GitLab project
+ * 프로젝트의 이슈 목록 조회
+ *
+ * @param {string} projectId - The ID or URL-encoded path of the project
+ * @param {Object} options - Options for listing issues
+ * @returns {Promise<GitLabIssue[]>} List of issues
+ */
+async function listIssues(
+  projectId: string,
+  options: Omit<z.infer<typeof ListIssuesSchema>, "project_id"> = {}
+): Promise<GitLabIssue[]> {
+  const url = new URL(
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/issues`
+  );
+
+  // Add all query parameters
+  Object.entries(options).forEach(([key, value]) => {
+    if (value !== undefined) {
+      if (key === 'label_name' && Array.isArray(value)) {
+        // Handle array of labels
+        url.searchParams.append(key, value.join(','));
+      } else {
+        url.searchParams.append(key, value.toString());
+      }
+    }
+  });
+
+  const response = await fetch(url.toString(), {
+    headers: DEFAULT_HEADERS,
+  });
+
+  await handleGitLabError(response);
+  const data = await response.json();
+  return z.array(GitLabIssueSchema).parse(data);
+}
+
+/**
+ * Get a single issue from a GitLab project
+ * 단일 이슈 조회
+ *
+ * @param {string} projectId - The ID or URL-encoded path of the project
+ * @param {number} issueIid - The internal ID of the project issue
+ * @returns {Promise<GitLabIssue>} The issue
+ */
+async function getIssue(
+  projectId: string,
+  issueIid: number
+): Promise<GitLabIssue> {
+  const url = new URL(
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/issues/${issueIid}`
+  );
+
+  const response = await fetch(url.toString(), {
+    headers: DEFAULT_HEADERS,
+  });
+
+  await handleGitLabError(response);
+  const data = await response.json();
+  return GitLabIssueSchema.parse(data);
+}
+
+/**
+ * Update an issue in a GitLab project
+ * 이슈 업데이트
+ *
+ * @param {string} projectId - The ID or URL-encoded path of the project
+ * @param {number} issueIid - The internal ID of the project issue
+ * @param {Object} options - Update options for the issue
+ * @returns {Promise<GitLabIssue>} The updated issue
+ */
+async function updateIssue(
+  projectId: string,
+  issueIid: number,
+  options: Omit<z.infer<typeof UpdateIssueSchema>, "project_id" | "issue_iid">
+): Promise<GitLabIssue> {
+  const url = new URL(
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/issues/${issueIid}`
+  );
+
+  // Convert labels array to comma-separated string if present
+  const body: Record<string, any> = { ...options };
+  if (body.labels && Array.isArray(body.labels)) {
+    body.labels = body.labels.join(',');
+  }
+
+  const response = await fetch(url.toString(), {
+    method: "PUT",
+    headers: DEFAULT_HEADERS,
+    body: JSON.stringify(body),
+  });
+
+  await handleGitLabError(response);
+  const data = await response.json();
+  return GitLabIssueSchema.parse(data);
+}
+
+/**
+ * Delete an issue from a GitLab project
+ * 이슈 삭제
+ *
+ * @param {string} projectId - The ID or URL-encoded path of the project
+ * @param {number} issueIid - The internal ID of the project issue
+ * @returns {Promise<void>}
+ */
+async function deleteIssue(
+  projectId: string,
+  issueIid: number
+): Promise<void> {
+  const url = new URL(
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/issues/${issueIid}`
+  );
+
+  const response = await fetch(url.toString(), {
+    method: "DELETE",
+    headers: DEFAULT_HEADERS,
+  });
+
+  await handleGitLabError(response);
 }
 
 /**
@@ -882,6 +1007,26 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
         description: "Create a new note (comment) to an issue or merge request",
         inputSchema: zodToJsonSchema(CreateNoteSchema),
       },
+      {
+        name: "list_issues",
+        description: "List issues in a GitLab project with filtering options",
+        inputSchema: zodToJsonSchema(ListIssuesSchema),
+      },
+      {
+        name: "get_issue",
+        description: "Get details of a specific issue in a GitLab project",
+        inputSchema: zodToJsonSchema(GetIssueSchema),
+      },
+      {
+        name: "update_issue",
+        description: "Update an issue in a GitLab project",
+        inputSchema: zodToJsonSchema(UpdateIssueSchema),
+      },
+      {
+        name: "delete_issue",
+        description: "Delete an issue from a GitLab project",
+        inputSchema: zodToJsonSchema(DeleteIssueSchema),
+      },
     ],
   };
 });
@@ -1065,6 +1210,40 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         );
         return {
           content: [{ type: "text", text: JSON.stringify(note, null, 2) }],
+        };
+      }
+
+      case "list_issues": {
+        const args = ListIssuesSchema.parse(request.params.arguments);
+        const { project_id, ...options } = args;
+        const issues = await listIssues(project_id, options);
+        return {
+          content: [{ type: "text", text: JSON.stringify(issues, null, 2) }],
+        };
+      }
+
+      case "get_issue": {
+        const args = GetIssueSchema.parse(request.params.arguments);
+        const issue = await getIssue(args.project_id, args.issue_iid);
+        return {
+          content: [{ type: "text", text: JSON.stringify(issue, null, 2) }],
+        };
+      }
+
+      case "update_issue": {
+        const args = UpdateIssueSchema.parse(request.params.arguments);
+        const { project_id, issue_iid, ...options } = args;
+        const issue = await updateIssue(project_id, issue_iid, options);
+        return {
+          content: [{ type: "text", text: JSON.stringify(issue, null, 2) }],
+        };
+      }
+
+      case "delete_issue": {
+        const args = DeleteIssueSchema.parse(request.params.arguments);
+        await deleteIssue(args.project_id, args.issue_iid);
+        return {
+          content: [{ type: "text", text: JSON.stringify({ status: "success", message: "Issue deleted successfully" }, null, 2) }],
         };
       }
 

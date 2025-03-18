@@ -201,12 +201,75 @@ export const GitLabIssueSchema = z.object({
   state: z.string(),
   author: GitLabUserSchema,
   assignees: z.array(GitLabUserSchema),
-  labels: z.array(GitLabLabelSchema),
+  labels: z.array(GitLabLabelSchema).or(z.array(z.string())), // Support both label objects and strings
   milestone: GitLabMilestoneSchema.nullable(),
   created_at: z.string(),
   updated_at: z.string(),
   closed_at: z.string().nullable(),
   web_url: z.string(), // Changed from html_url to match GitLab API
+  references: z.object({
+    short: z.string(),
+    relative: z.string(),
+    full: z.string(),
+  }).optional(),
+  time_stats: z.object({
+    time_estimate: z.number(),
+    total_time_spent: z.number(),
+    human_time_estimate: z.string().nullable(),
+    human_total_time_spent: z.string().nullable(),
+  }).optional(),
+  confidential: z.boolean().optional(),
+  due_date: z.string().nullable().optional(),
+  discussion_locked: z.boolean().optional(),
+  weight: z.number().nullable().optional(),
+});
+
+// Issues API operation schemas
+export const ListIssuesSchema = z.object({
+  project_id: z.string().describe("Project ID or URL-encoded path"),
+  assignee_id: z.number().optional().describe("Return issues assigned to the given user ID"),
+  assignee_username: z.string().optional().describe("Return issues assigned to the given username"),
+  author_id: z.number().optional().describe("Return issues created by the given user ID"),
+  author_username: z.string().optional().describe("Return issues created by the given username"),
+  confidential: z.boolean().optional().describe("Filter confidential or public issues"),
+  created_after: z.string().optional().describe("Return issues created after the given time"),
+  created_before: z.string().optional().describe("Return issues created before the given time"),
+  due_date: z.string().optional().describe("Return issues that have the due date"),
+  label_name: z.array(z.string()).optional().describe("Array of label names"),
+  milestone: z.string().optional().describe("Milestone title"),
+  scope: z.enum(['created-by-me', 'assigned-to-me', 'all']).optional().describe("Return issues from a specific scope"),
+  search: z.string().optional().describe("Search for specific terms"),
+  state: z.enum(['opened', 'closed', 'all']).optional().describe("Return issues with a specific state"),
+  updated_after: z.string().optional().describe("Return issues updated after the given time"),
+  updated_before: z.string().optional().describe("Return issues updated before the given time"),
+  with_labels_details: z.boolean().optional().describe("Return more details for each label"),
+  page: z.number().optional().describe("Page number for pagination"),
+  per_page: z.number().optional().describe("Number of items per page"),
+});
+
+export const GetIssueSchema = z.object({
+  project_id: z.string().describe("Project ID or URL-encoded path"),
+  issue_iid: z.number().describe("The internal ID of the project issue"),
+});
+
+export const UpdateIssueSchema = z.object({
+  project_id: z.string().describe("Project ID or URL-encoded path"),
+  issue_iid: z.number().describe("The internal ID of the project issue"),
+  title: z.string().optional().describe("The title of the issue"),
+  description: z.string().optional().describe("The description of the issue"),
+  assignee_ids: z.array(z.number()).optional().describe("Array of user IDs to assign issue to"),
+  confidential: z.boolean().optional().describe("Set the issue to be confidential"),
+  discussion_locked: z.boolean().optional().describe("Flag to lock discussions"),
+  due_date: z.string().optional().describe("Date the issue is due (YYYY-MM-DD)"),
+  labels: z.array(z.string()).optional().describe("Array of label names"),
+  milestone_id: z.number().optional().describe("Milestone ID to assign"),
+  state_event: z.enum(['close', 'reopen']).optional().describe("Update issue state (close/reopen)"),
+  weight: z.number().optional().describe("Weight of the issue (0-9)"),
+});
+
+export const DeleteIssueSchema = z.object({
+  project_id: z.string().describe("Project ID or URL-encoded path"),
+  issue_iid: z.number().describe("The internal ID of the project issue"),
 });
 
 // Merge Request related schemas (equivalent to Pull Request)
