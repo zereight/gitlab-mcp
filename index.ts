@@ -1612,23 +1612,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
       case "list_projects": {
         const args = ListProjectsSchema.parse(request.params.arguments);
-        const url = new URL(`${GITLAB_API_URL}/projects`);
-
-        // Add query parameters for filtering
-        Object.entries(args).forEach(([key, value]) => {
-          if (value !== undefined) {
-            url.searchParams.append(key, value.toString());
-          }
-        });
-
-        const response = await fetch(url.toString(), {
-          headers: DEFAULT_HEADERS,
-        });
-
-        await handleGitLabError(response);
-        const data = await response.json();
-        const projects = z.array(GitLabProjectSchema).parse(data);
-
+        const projects = await listProjects(args);
         return {
           content: [{ type: "text", text: JSON.stringify(projects, null, 2) }],
         };
