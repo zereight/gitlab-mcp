@@ -894,11 +894,22 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
     switch (request.params.name) {
       case "fork_repository": {
-        const args = ForkRepositorySchema.parse(request.params.arguments);
-        const fork = await forkProject(args.project_id, args.namespace);
-        return {
-          content: [{ type: "text", text: JSON.stringify(fork, null, 2) }],
-        };
+        const forkArgs = ForkRepositorySchema.parse(request.params.arguments);
+        try {
+          const forkedProject = await forkProject(forkArgs.project_id, forkArgs.namespace);
+          return {
+            content: [{ type: "text", text: JSON.stringify(forkedProject, null, 2) }],
+          };
+        } catch (forkError) {
+          console.error("Error forking repository:", forkError);
+          let forkErrorMessage = "Failed to fork repository";
+          if (forkError instanceof Error) {
+            forkErrorMessage = `${forkErrorMessage}: ${forkError.message}`;
+          }
+          return {
+            content: [{ type: "text", text: JSON.stringify({ error: forkErrorMessage }, null, 2) }],
+          };
+        }
       }
 
       case "create_branch": {
