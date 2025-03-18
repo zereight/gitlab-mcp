@@ -58,6 +58,48 @@ export const GitLabRepositorySchema = z.object({
   created_at: z.string().optional(),
   last_activity_at: z.string().optional(),
   default_branch: z.string().optional(),
+  namespace: z.object({
+    id: z.number(),
+    name: z.string(),
+    path: z.string(),
+    kind: z.string(),
+    full_path: z.string(),
+    avatar_url: z.string().nullable().optional(),
+    web_url: z.string().optional(),
+  }).optional(),
+  readme_url: z.string().optional().nullable(),
+  topics: z.array(z.string()).optional(),
+  tag_list: z.array(z.string()).optional(), // deprecated but still present
+  open_issues_count: z.number().optional(),
+  archived: z.boolean().optional(),
+  forks_count: z.number().optional(),
+  star_count: z.number().optional(),
+  permissions: z.object({
+    project_access: z.object({
+      access_level: z.number(),
+      notification_level: z.number().optional(),
+    }).optional().nullable(),
+    group_access: z.object({
+      access_level: z.number(),
+      notification_level: z.number().optional(),
+    }).optional().nullable(),
+  }).optional(),
+  container_registry_enabled: z.boolean().optional(),
+  container_registry_access_level: z.string().optional(),
+  issues_enabled: z.boolean().optional(),
+  merge_requests_enabled: z.boolean().optional(),
+  wiki_enabled: z.boolean().optional(),
+  jobs_enabled: z.boolean().optional(),
+  snippets_enabled: z.boolean().optional(),
+  can_create_merge_request_in: z.boolean().optional(),
+  resolve_outdated_diff_discussions: z.boolean().optional(),
+  shared_runners_enabled: z.boolean().optional(),
+  shared_with_groups: z.array(z.object({
+    group_id: z.number(),
+    group_name: z.string(),
+    group_full_path: z.string(),
+    group_access_level: z.number(),
+  })).optional(),
 });
 
 // File content schemas
@@ -450,6 +492,36 @@ export const VerifyNamespaceSchema = z.object({
   parent_id: z.number().optional().describe("ID of the parent namespace. If unspecified, only returns top-level namespaces"),
 });
 
+// Project API operation schemas
+export const GetProjectSchema = z.object({
+  id: z.string().describe("ID or URL-encoded path of the project"),
+  license: z.boolean().optional().describe("Include project license data"),
+  statistics: z.boolean().optional().describe("Include project statistics"),
+  with_custom_attributes: z.boolean().optional().describe("Include custom attributes in response"),
+});
+
+export const ListProjectsSchema = z.object({
+  archived: z.boolean().optional().describe("Limit by archived status"),
+  id_after: z.number().optional().describe("Limit results to projects with IDs greater than the specified ID"),
+  id_before: z.number().optional().describe("Limit results to projects with IDs less than the specified ID"),
+  membership: z.boolean().optional().describe("Limit by projects that the current user is a member of"),
+  min_access_level: z.number().optional().describe("Limit by minimum access level"),
+  order_by: z.enum(['id', 'name', 'path', 'created_at', 'updated_at', 'last_activity_at']).optional().describe("Return projects ordered by field"),
+  owned: z.boolean().optional().describe("Limit by projects explicitly owned by the current user"),
+  search: z.string().optional().describe("Return list of projects matching the search criteria"),
+  simple: z.boolean().optional().describe("Return only limited fields for each project"),
+  sort: z.enum(['asc', 'desc']).optional().describe("Return projects sorted in ascending or descending order"),
+  starred: z.boolean().optional().describe("Limit by projects starred by the current user"),
+  visibility: z.enum(['public', 'internal', 'private']).optional().describe("Limit by visibility"),
+  with_custom_attributes: z.boolean().optional().describe("Include custom attributes in response"),
+  with_issues_enabled: z.boolean().optional().describe("Limit by enabled issues feature"),
+  with_merge_requests_enabled: z.boolean().optional().describe("Limit by enabled merge requests feature"),
+  with_programming_language: z.string().optional().describe("Limit by projects which use the given programming language"),
+  with_shared: z.boolean().optional().describe("Include projects shared to this group"),
+  page: z.number().optional().describe("Page number for pagination"),
+  per_page: z.number().optional().describe("Number of items per page"),
+});
+
 // Export types
 export type GitLabAuthor = z.infer<typeof GitLabAuthorSchema>;
 export type GitLabFork = z.infer<typeof GitLabForkSchema>;
@@ -483,3 +555,4 @@ export type GitLabMergeRequestDiff = z.infer<
 export type CreateNoteOptions = z.infer<typeof CreateNoteSchema>;
 export type GitLabNamespace = z.infer<typeof GitLabNamespaceSchema>;
 export type GitLabNamespaceExistsResponse = z.infer<typeof GitLabNamespaceExistsResponseSchema>;
+export type GitLabProject = z.infer<typeof GitLabRepositorySchema>;

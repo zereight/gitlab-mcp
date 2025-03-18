@@ -46,6 +46,8 @@ import {
   ListNamespacesSchema,
   GetNamespaceSchema,
   VerifyNamespaceSchema,
+  GetProjectSchema,
+  ListProjectsSchema,
   type GitLabFork,
   type GitLabReference,
   type GitLabRepository,
@@ -60,6 +62,7 @@ import {
   type GitLabMergeRequestDiff,
   type GitLabNamespace,
   type GitLabNamespaceExistsResponse,
+  type GitLabProject,
   CreateNoteSchema,
 } from "./schemas.js";
 
@@ -902,6 +905,74 @@ async function verifyNamespaceExistence(
   return GitLabNamespaceExistsResponseSchema.parse(data);
 }
 
+/**
+ * Get a single project
+ * 단일 프로젝트 조회
+ *
+ * @param {string} projectId - The ID or URL-encoded path of the project
+ * @param {Object} options - Options for getting project details
+ * @param {boolean} [options.license] - Include project license data
+ * @param {boolean} [options.statistics] - Include project statistics
+ * @param {boolean} [options.with_custom_attributes] - Include custom attributes in response
+ * @returns {Promise<GitLabProject>} Project details
+ */
+async function getProject(
+  projectId: string,
+  options: {
+    license?: boolean;
+    statistics?: boolean;
+    with_custom_attributes?: boolean;
+  } = {}
+): Promise<GitLabProject> {
+  const url = new URL(`${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}`);
+
+  if (options.license) {
+    url.searchParams.append("license", "true");
+  }
+
+  if (options.statistics) {
+    url.searchParams.append("statistics", "true");
+  }
+
+  if (options.with_custom_attributes) {
+    url.searchParams.append("with_custom_attributes", "true");
+  }
+
+  const response = await fetch(url.toString(), {
+    headers: DEFAULT_HEADERS,
+  });
+
+  await handleGitLabError(response);
+  const data = await response.json();
+  return GitLabRepositorySchema.parse(data);
+}
+
+/**
+ * List projects
+ * 프로젝트 목록 조회
+ *
+ * @param {Object} options - Options for listing projects
+ * @returns {Promise<GitLabProject[]>} List of projects
+ */
+async function listProjects(options: z.infer<typeof ListProjectsSchema> = {}): Promise<GitLabProject[]> {
+  const url = new URL(`${GITLAB_API_URL}/projects`);
+
+  // Add all the query parameters from options
+  Object.entries(options).forEach(([key, value]) => {
+    if (value !== undefined) {
+      url.searchParams.append(key, value.toString());
+    }
+  });
+
+  const response = await fetch(url.toString(), {
+    headers: DEFAULT_HEADERS,
+  });
+
+  await handleGitLabError(response);
+  const data = await response.json();
+  return z.array(GitLabRepositorySchema).parse(data);
+}
+
 server.setRequestHandler(ListToolsRequestSchema, async () => {
   return {
     tools: [
@@ -987,6 +1058,16 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
         name: "verify_namespace",
         description: "Verify if a specified namespace already exists",
         inputSchema: zodToJsonSchema(VerifyNamespaceSchema),
+      },
+      {
+        name: "get_project",
+        description: "Get details on a specified project",
+        inputSchema: zodToJsonSchema(GetProjectSchema),
+      },
+      {
+        name: "list_projects",
+        description: "List projects accessible by the current user",
+        inputSchema: zodToJsonSchema(ListProjectsSchema),
       },
     ],
   };
@@ -1180,6 +1261,23 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const result = await verifyNamespaceExistence(args.namespace, args.parent_id);
         return {
           content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+        };
+      }
+
+      case "get_project": {
+        const args = GetProjectSchema.parse(request.params.arguments);
+        const { id, ...options } = args;
+        const project = await getProject(id, options);
+        return {
+          content: [{ type: "text", text: JSON.stringify(project, null, 2) }],
+        };
+      }
+
+      case "list_projects": {
+        const args = ListProjectsSchema.parse(request.params.arguments);
+        const projects = await listProjects(args);
+        return {
+          content: [{ type: "text", text: JSON.stringify(projects, null, 2) }],
         };
       }
 
