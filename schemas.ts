@@ -7,6 +7,33 @@ export const GitLabAuthorSchema = z.object({
   date: z.string(),
 });
 
+// Namespace related schemas
+export const GitLabNamespaceSchema = z.object({
+  id: z.number(),
+  name: z.string(),
+  path: z.string(),
+  kind: z.enum(["user", "group"]),
+  full_path: z.string(),
+  parent_id: z.number().nullable(),
+  avatar_url: z.string().nullable(),
+  web_url: z.string(),
+  members_count_with_descendants: z.number().optional(),
+  billable_members_count: z.number().optional(),
+  max_seats_used: z.number().optional(),
+  seats_in_use: z.number().optional(),
+  plan: z.string().optional(),
+  end_date: z.string().nullable().optional(),
+  trial_ends_on: z.string().nullable().optional(),
+  trial: z.boolean().optional(),
+  root_repository_size: z.number().optional(),
+  projects_count: z.number().optional(),
+});
+
+export const GitLabNamespaceExistsResponseSchema = z.object({
+  exists: z.boolean(),
+  suggests: z.array(z.string()).optional(),
+});
+
 // Repository related schemas
 export const GitLabOwnerSchema = z.object({
   username: z.string(), // Changed from login to match GitLab API
@@ -407,6 +434,22 @@ export const CreateNoteSchema = z.object({
   body: z.string().describe("Note content"),
 });
 
+// Add namespace-related operation schemas
+export const ListNamespacesSchema = z.object({
+  search: z.string().optional().describe("Only returns namespaces accessible by the current user"),
+  owned_only: z.boolean().optional().describe("If true, only returns namespaces by the current user"),
+  top_level_only: z.boolean().optional().describe("In GitLab 16.8 and later, if true, only returns top-level namespaces"),
+});
+
+export const GetNamespaceSchema = z.object({
+  id: z.string().describe("ID or URL-encoded path of the namespace"),
+});
+
+export const VerifyNamespaceSchema = z.object({
+  namespace: z.string().describe("Path of the namespace"),
+  parent_id: z.number().optional().describe("ID of the parent namespace. If unspecified, only returns top-level namespaces"),
+});
+
 // Export types
 export type GitLabAuthor = z.infer<typeof GitLabAuthorSchema>;
 export type GitLabFork = z.infer<typeof GitLabForkSchema>;
@@ -438,3 +481,5 @@ export type GitLabMergeRequestDiff = z.infer<
   typeof GitLabMergeRequestDiffSchema
 >;
 export type CreateNoteOptions = z.infer<typeof CreateNoteSchema>;
+export type GitLabNamespace = z.infer<typeof GitLabNamespaceSchema>;
+export type GitLabNamespaceExistsResponse = z.infer<typeof GitLabNamespaceExistsResponseSchema>;
