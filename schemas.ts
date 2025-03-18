@@ -157,12 +157,12 @@ export const GitLabForkParentSchema = z.object({
     username: z.string(), // Changed from login to match GitLab API
     id: z.number(),
     avatar_url: z.string(),
-  }),
+  }).optional(), // Made optional to handle cases where GitLab API doesn't include it
   web_url: z.string(), // Changed from html_url to match GitLab API
 });
 
 export const GitLabForkSchema = GitLabRepositorySchema.extend({
-  forked_from_project: GitLabForkParentSchema, // Changed from parent to match GitLab API
+  forked_from_project: GitLabForkParentSchema.optional(), // Made optional to handle cases where GitLab API doesn't include it
 });
 
 // Issue related schemas
