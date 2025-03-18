@@ -43,7 +43,9 @@ export const GitLabFileContentSchema = z.object({
   content_sha256: z.string(), // Changed from sha to match GitLab API
   ref: z.string(), // Added as GitLab requires branch reference
   blob_id: z.string(), // Added to match GitLab API
+  commit_id: z.string(), // ID of the current file version
   last_commit_id: z.string(), // Added to match GitLab API
+  execute_filemode: z.boolean().optional(), // Added to match GitLab API
 });
 
 export const GitLabDirectoryContentSchema = z.object({
@@ -138,7 +140,7 @@ export const CreateBranchOptionsSchema = z.object({
 export const GitLabCreateUpdateFileResponseSchema = z.object({
   file_path: z.string(),
   branch: z.string(),
-  commit_id: z.string(), // Changed from sha to match GitLab API
+  commit_id: z.string().optional(), // Optional since it's not always returned by the API
   content: GitLabFileContentSchema.optional(),
 });
 
@@ -263,6 +265,14 @@ export const CreateOrUpdateFileSchema = ProjectParamsSchema.extend({
     .string()
     .optional()
     .describe("Path of the file to move/rename"),
+  last_commit_id: z
+    .string()
+    .optional()
+    .describe("Last known file commit ID"),
+  commit_id: z
+    .string()
+    .optional()
+    .describe("Current file commit ID (for update operations)"),
 });
 
 export const SearchRepositoriesSchema = z.object({
