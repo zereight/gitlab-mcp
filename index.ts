@@ -56,7 +56,9 @@ import {
   CreateNoteSchema,
 } from "./schemas.js";
 
-// Read version from package.json
+/**
+ * Read version from package.json
+ */
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const packageJsonPath = path.resolve(__dirname, '../package.json');
@@ -84,7 +86,12 @@ const server = new Server(
 
 const GITLAB_PERSONAL_ACCESS_TOKEN = process.env.GITLAB_PERSONAL_ACCESS_TOKEN;
 
-// Smart URL handling for GitLab API
+/**
+ * Smart URL handling for GitLab API
+ *
+ * @param {string | undefined} url - Input GitLab API URL
+ * @returns {string} Normalized GitLab API URL with /api/v4 path
+ */
 function normalizeGitLabApiUrl(url?: string): string {
   if (!url) {
     return "https://gitlab.com/api/v4";
@@ -117,14 +124,23 @@ if (!GITLAB_PERSONAL_ACCESS_TOKEN) {
   process.exit(1);
 }
 
-// GitLab API 공통 헤더
+/**
+ * Common headers for GitLab API requests
+ * GitLab API 공통 헤더 (Common headers for GitLab API)
+ */
 const DEFAULT_HEADERS = {
   Accept: "application/json",
   "Content-Type": "application/json",
   Authorization: `Bearer ${GITLAB_PERSONAL_ACCESS_TOKEN}`,
 };
 
-// API 에러 처리를 위한 유틸리티 함수
+/**
+ * Utility function for handling GitLab API errors
+ * API 에러 처리를 위한 유틸리티 함수 (Utility function for handling API errors)
+ *
+ * @param {import("node-fetch").Response} response - The response from GitLab API
+ * @throws {Error} Throws an error with response details if the request failed
+ */
 async function handleGitLabError(
   response: import("node-fetch").Response
 ): Promise<void> {
@@ -136,7 +152,14 @@ async function handleGitLabError(
   }
 }
 
-// 프로젝트 포크 생성
+/**
+ * Create a fork of a GitLab project
+ * 프로젝트 포크 생성 (Create a project fork)
+ *
+ * @param {string} projectId - The ID or URL-encoded path of the project
+ * @param {string} [namespace] - The namespace to fork the project to
+ * @returns {Promise<GitLabFork>} The created fork
+ */
 async function forkProject(
   projectId: string,
   namespace?: string
@@ -165,7 +188,14 @@ async function forkProject(
   return GitLabForkSchema.parse(data);
 }
 
-// 새로운 브랜치 생성
+/**
+ * Create a new branch in a GitLab project
+ * 새로운 브랜치 생성 (Create a new branch)
+ *
+ * @param {string} projectId - The ID or URL-encoded path of the project
+ * @param {z.infer<typeof CreateBranchOptionsSchema>} options - Branch creation options
+ * @returns {Promise<GitLabReference>} The created branch reference
+ */
 async function createBranch(
   projectId: string,
   options: z.infer<typeof CreateBranchOptionsSchema>
@@ -189,7 +219,13 @@ async function createBranch(
   return GitLabReferenceSchema.parse(await response.json());
 }
 
-// 프로젝트의 기본 브랜치 조회
+/**
+ * Get the default branch for a GitLab project
+ * 프로젝트의 기본 브랜치 조회 (Get the default branch of a project)
+ *
+ * @param {string} projectId - The ID or URL-encoded path of the project
+ * @returns {Promise<string>} The name of the default branch
+ */
 async function getDefaultBranchRef(projectId: string): Promise<string> {
   const url = new URL(
     `${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}`
@@ -204,7 +240,15 @@ async function getDefaultBranchRef(projectId: string): Promise<string> {
   return project.default_branch ?? "main";
 }
 
-// 파일 내용 조회
+/**
+ * Get the contents of a file from a GitLab project
+ * 파일 내용 조회 (Get file contents)
+ *
+ * @param {string} projectId - The ID or URL-encoded path of the project
+ * @param {string} filePath - The path of the file to get
+ * @param {string} [ref] - The name of the branch, tag or commit
+ * @returns {Promise<GitLabContent>} The file content
+ */
 async function getFileContents(
   projectId: string,
   filePath: string,
@@ -249,7 +293,14 @@ async function getFileContents(
   return parsedData;
 }
 
-// 이슈 생성
+/**
+ * Create a new issue in a GitLab project
+ * 이슈 생성 (Create an issue)
+ *
+ * @param {string} projectId - The ID or URL-encoded path of the project
+ * @param {z.infer<typeof CreateIssueOptionsSchema>} options - Issue creation options
+ * @returns {Promise<GitLabIssue>} The created issue
+ */
 async function createIssue(
   projectId: string,
   options: z.infer<typeof CreateIssueOptionsSchema>
@@ -281,6 +332,14 @@ async function createIssue(
   return GitLabIssueSchema.parse(data);
 }
 
+/**
+ * Create a new merge request in a GitLab project
+ * 병합 요청 생성
+ *
+ * @param {string} projectId - The ID or URL-encoded path of the project
+ * @param {z.infer<typeof CreateMergeRequestOptionsSchema>} options - Merge request creation options
+ * @returns {Promise<GitLabMergeRequest>} The created merge request
+ */
 async function createMergeRequest(
   projectId: string,
   options: z.infer<typeof CreateMergeRequestOptionsSchema>
@@ -324,6 +383,18 @@ async function createMergeRequest(
   return GitLabMergeRequestSchema.parse(data);
 }
 
+/**
+ * Create or update a file in a GitLab project
+ * 파일 생성 또는 업데이트
+ *
+ * @param {string} projectId - The ID or URL-encoded path of the project
+ * @param {string} filePath - The path of the file to create or update
+ * @param {string} content - The content of the file
+ * @param {string} commitMessage - The commit message
+ * @param {string} branch - The branch name
+ * @param {string} [previousPath] - The previous path of the file in case of rename
+ * @returns {Promise<GitLabCreateUpdateFileResponse>} The file update response
+ */
 async function createOrUpdateFile(
   projectId: string,
   filePath: string,
@@ -380,6 +451,15 @@ async function createOrUpdateFile(
   return GitLabCreateUpdateFileResponseSchema.parse(data);
 }
 
+/**
+ * Create a tree structure in a GitLab project repository
+ * 저장소에 트리 구조 생성
+ *
+ * @param {string} projectId - The ID or URL-encoded path of the project
+ * @param {FileOperation[]} files - Array of file operations
+ * @param {string} [ref] - The name of the branch, tag or commit
+ * @returns {Promise<GitLabTree>} The created tree
+ */
 async function createTree(
   projectId: string,
   files: FileOperation[],
@@ -427,6 +507,16 @@ async function createTree(
   return GitLabTreeSchema.parse(data);
 }
 
+/**
+ * Create a commit in a GitLab project repository
+ * 저장소에 커밋 생성
+ *
+ * @param {string} projectId - The ID or URL-encoded path of the project
+ * @param {string} message - The commit message
+ * @param {string} branch - The branch name
+ * @param {FileOperation[]} actions - Array of file operations for the commit
+ * @returns {Promise<GitLabCommit>} The created commit
+ */
 async function createCommit(
   projectId: string,
   message: string,
@@ -474,6 +564,15 @@ async function createCommit(
   return GitLabCommitSchema.parse(data);
 }
 
+/**
+ * Search for GitLab projects
+ * 프로젝트 검색
+ *
+ * @param {string} query - The search query
+ * @param {number} [page=1] - The page number
+ * @param {number} [perPage=20] - Number of items per page
+ * @returns {Promise<GitLabSearchResponse>} The search results
+ */
 async function searchProjects(
   query: string,
   page: number = 1,
@@ -516,6 +615,13 @@ async function searchProjects(
   });
 }
 
+/**
+ * Create a new GitLab repository
+ * 새 저장소 생성
+ *
+ * @param {z.infer<typeof CreateRepositoryOptionsSchema>} options - Repository creation options
+ * @returns {Promise<GitLabRepository>} The created repository
+ */
 async function createRepository(
   options: z.infer<typeof CreateRepositoryOptionsSchema>
 ): Promise<GitLabRepository> {
@@ -547,7 +653,14 @@ async function createRepository(
   return GitLabRepositorySchema.parse(data);
 }
 
-// MR 조회 함수
+/**
+ * Get merge request details
+ * MR 조회 함수 (Function to retrieve merge request)
+ *
+ * @param {string} projectId - The ID or URL-encoded path of the project
+ * @param {number} mergeRequestIid - The internal ID of the merge request
+ * @returns {Promise<GitLabMergeRequest>} The merge request details
+ */
 async function getMergeRequest(
   projectId: string,
   mergeRequestIid: number
@@ -566,7 +679,15 @@ async function getMergeRequest(
   return GitLabMergeRequestSchema.parse(await response.json());
 }
 
-// MR 변경사항 조회 함수
+/**
+ * Get merge request changes/diffs
+ * MR 변경사항 조회 함수 (Function to retrieve merge request changes)
+ *
+ * @param {string} projectId - The ID or URL-encoded path of the project
+ * @param {number} mergeRequestIid - The internal ID of the merge request
+ * @param {string} [view] - The view type for the diff (inline or parallel)
+ * @returns {Promise<GitLabMergeRequestDiff[]>} The merge request diffs
+ */
 async function getMergeRequestDiffs(
   projectId: string,
   mergeRequestIid: number,
@@ -591,7 +712,15 @@ async function getMergeRequestDiffs(
   return z.array(GitLabMergeRequestDiffSchema).parse(data.changes);
 }
 
-// MR 업데이트 함수
+/**
+ * Update a merge request
+ * MR 업데이트 함수 (Function to update merge request)
+ *
+ * @param {string} projectId - The ID or URL-encoded path of the project
+ * @param {number} mergeRequestIid - The internal ID of the merge request
+ * @param {Object} options - The update options
+ * @returns {Promise<GitLabMergeRequest>} The updated merge request
+ */
 async function updateMergeRequest(
   projectId: string,
   mergeRequestIid: number,
@@ -616,7 +745,17 @@ async function updateMergeRequest(
   return GitLabMergeRequestSchema.parse(await response.json());
 }
 
-// 📦 새로운 함수: createNote - 이슈 또는 병합 요청에 노트(댓글)를 추가하는 함수
+/**
+ * Create a new note (comment) on an issue or merge request
+ * 📦 새로운 함수: createNote - 이슈 또는 병합 요청에 노트(댓글)를 추가하는 함수
+ * (New function: createNote - Function to add a note (comment) to an issue or merge request)
+ *
+ * @param {string} projectId - The ID or URL-encoded path of the project
+ * @param {"issue" | "merge_request"} noteableType - The type of the item to add a note to (issue or merge_request)
+ * @param {number} noteableIid - The internal ID of the issue or merge request
+ * @param {string} body - The content of the note
+ * @returns {Promise<any>} The created note
+ */
 async function createNote(
   projectId: string,
   noteableType: "issue" | "merge_request", // 'issue' 또는 'merge_request' 타입 명시
@@ -905,6 +1044,10 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   }
 });
 
+/**
+ * Initialize and run the server
+ * 서버 초기화 및 실행
+ */
 async function runServer() {
   try {
     console.error("========================");
