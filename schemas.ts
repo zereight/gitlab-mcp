@@ -102,6 +102,9 @@ export const GitLabRepositorySchema = z.object({
   })).optional(),
 });
 
+// Project schema (extended from repository schema)
+export const GitLabProjectSchema = GitLabRepositorySchema;
+
 // File content schemas
 export const GitLabFileContentSchema = z.object({
   file_name: z.string(), // Changed from name to match GitLab API
@@ -220,22 +223,6 @@ export const GitLabSearchResponseSchema = z.object({
   items: z.array(GitLabRepositorySchema),
 });
 
-// Fork related schemas
-export const GitLabForkParentSchema = z.object({
-  name: z.string(),
-  path_with_namespace: z.string(), // Changed from full_name to match GitLab API
-  owner: z.object({
-    username: z.string(), // Changed from login to match GitLab API
-    id: z.number(),
-    avatar_url: z.string(),
-  }).optional(), // Made optional to handle cases where GitLab API doesn't include it
-  web_url: z.string(), // Changed from html_url to match GitLab API
-});
-
-export const GitLabForkSchema = GitLabRepositorySchema.extend({
-  forked_from_project: GitLabForkParentSchema.optional(), // Made optional to handle cases where GitLab API doesn't include it
-});
-
 // Issue related schemas
 export const GitLabLabelSchema = z.object({
   id: z.number(),
@@ -270,12 +257,51 @@ export const GitLabIssueSchema = z.object({
   state: z.string(),
   author: GitLabUserSchema,
   assignees: z.array(GitLabUserSchema),
-  labels: z.array(GitLabLabelSchema),
+  labels: z.array(GitLabLabelSchema).or(z.array(z.string())), // Support both label objects and strings
   milestone: GitLabMilestoneSchema.nullable(),
   created_at: z.string(),
   updated_at: z.string(),
   closed_at: z.string().nullable(),
   web_url: z.string(), // Changed from html_url to match GitLab API
+  references: z.object({
+    short: z.string(),
+    relative: z.string(),
+    full: z.string(),
+  }).optional(),
+  time_stats: z.object({
+    time_estimate: z.number(),
+    total_time_spent: z.number(),
+    human_time_estimate: z.string().nullable(),
+    human_total_time_spent: z.string().nullable(),
+  }).optional(),
+  confidential: z.boolean().optional(),
+  due_date: z.string().nullable().optional(),
+  discussion_locked: z.boolean().nullable().optional(),
+  weight: z.number().nullable().optional(),
+});
+
+// NEW SCHEMA: For issue with link details (used in listing issue links)
+export const GitLabIssueWithLinkDetailsSchema = GitLabIssueSchema.extend({
+  issue_link_id: z.number(),
+  link_type: z.enum(['relates_to', 'blocks', 'is_blocked_by']),
+  link_created_at: z.string(),
+  link_updated_at: z.string(),
+});
+
+// Fork related schemas
+export const GitLabForkParentSchema = z.object({
+  name: z.string(),
+  path_with_namespace: z.string(), // Changed from full_name to match GitLab API
+  owner: z.object({
+    username: z.string(), // Changed from login to match GitLab API
+    id: z.number(),
+    avatar_url: z.string(),
+  }).optional(), // Made optional to handle cases where GitLab API doesn't include it
+  web_url: z.string(), // Changed from html_url to match GitLab API
+});
+
+export const GitLabForkSchema = GitLabRepositorySchema.extend({
+  forked_from_project: GitLabForkParentSchema.optional(), // Made optional to handle cases where GitLab API doesn't include it
 });
 
 // Merge Request related schemas (equivalent to Pull Request)
@@ -476,83 +502,146 @@ export const CreateNoteSchema = z.object({
   body: z.string().describe("Note content"),
 });
 
-// Add namespace-related operation schemas
+// Issues API operation schemas
+export const ListIssuesSchema = z.object({
+  project_id: z.string().describe("Project ID or URL-encoded path"),
+  assignee_id: z.number().optional().describe("Return issues assigned to the given user ID"),
+  assignee_username: z.string().optional().describe("Return issues assigned to the given username"),
+  author_id: z.number().optional().describe("Return issues created by the given user ID"),
+  author_username: z.string().optional().describe("Return issues created by the given username"),
+  confidential: z.boolean().optional().describe("Filter confidential or public issues"),
+  created_after: z.string().optional().describe("Return issues created after the given time"),
+  created_before: z.string().optional().describe("Return issues created before the given time"),
+  due_date: z.string().optional().describe("Return issues that have the due date"),
+  label_name: z.array(z.string()).optional().describe("Array of label names"),
+  milestone: z.string().optional().describe("Milestone title"),
+  scope: z.enum(['created-by-me', 'assigned-to-me', 'all']).optional().describe("Return issues from a specific scope"),
+  search: z.string().optional().describe("Search for specific terms"),
+  state: z.enum(['opened', 'closed', 'all']).optional().describe("Return issues with a specific state"),
+  updated_after: z.string().optional().describe("Return issues updated after the given time"),
+  updated_before: z.string().optional().describe("Return issues updated before the given time"),
+  with_labels_details: z.boolean().optional().describe("Return more details for each label"),
+  page: z.number().optional().describe("Page number for pagination"),
+  per_page: z.number().optional().describe("Number of items per page"),
+});
+
+export const GetIssueSchema = z.object({
+  project_id: z.string().describe("Project ID or URL-encoded path"),
+  issue_iid: z.number().describe("The internal ID of the project issue"),
+});
+
+export const UpdateIssueSchema = z.object({
+  project_id: z.string().describe("Project ID or URL-encoded path"),
+  issue_iid: z.number().describe("The internal ID of the project issue"),
+  title: z.string().optional().describe("The title of the issue"),
+  description: z.string().optional().describe("The description of the issue"),
+  assignee_ids: z.array(z.number()).optional().describe("Array of user IDs to assign issue to"),
+  confidential: z.boolean().optional().describe("Set the issue to be confidential"),
+  discussion_locked: z.boolean().optional().describe("Flag to lock discussions"),
+  due_date: z.string().optional().describe("Date the issue is due (YYYY-MM-DD)"),
+  labels: z.array(z.string()).optional().describe("Array of label names"),
+  milestone_id: z.number().optional().describe("Milestone ID to assign"),
+  state_event: z.enum(['close', 'reopen']).optional().describe("Update issue state (close/reopen)"),
+  weight: z.number().optional().describe("Weight of the issue (0-9)"),
+});
+
+export const DeleteIssueSchema = z.object({
+  project_id: z.string().describe("Project ID or URL-encoded path"),
+  issue_iid: z.number().describe("The internal ID of the project issue"),
+});
+
+// Issue links related schemas
+export const GitLabIssueLinkSchema = z.object({
+  source_issue: GitLabIssueSchema,
+  target_issue: GitLabIssueSchema,
+  link_type: z.enum(['relates_to', 'blocks', 'is_blocked_by']),
+});
+
+export const ListIssueLinksSchema = z.object({
+  project_id: z.string().describe("Project ID or URL-encoded path"),
+  issue_iid: z.number().describe("The internal ID of a project's issue"),
+});
+
+export const GetIssueLinkSchema = z.object({
+  project_id: z.string().describe("Project ID or URL-encoded path"),
+  issue_iid: z.number().describe("The internal ID of a project's issue"),
+  issue_link_id: z.number().describe("ID of an issue relationship"),
+});
+
+export const CreateIssueLinkSchema = z.object({
+  project_id: z.string().describe("Project ID or URL-encoded path"),
+  issue_iid: z.number().describe("The internal ID of a project's issue"),
+  target_project_id: z.string().describe("The ID or URL-encoded path of a target project"),
+  target_issue_iid: z.number().describe("The internal ID of a target project's issue"),
+  link_type: z.enum(['relates_to', 'blocks', 'is_blocked_by']).optional().describe("The type of the relation, defaults to relates_to"),
+});
+
+export const DeleteIssueLinkSchema = z.object({
+  project_id: z.string().describe("Project ID or URL-encoded path"),
+  issue_iid: z.number().describe("The internal ID of a project's issue"),
+  issue_link_id: z.number().describe("The ID of an issue relationship"),
+});
+
+// Namespace API operation schemas
 export const ListNamespacesSchema = z.object({
-  search: z.string().optional().describe("Only returns namespaces accessible by the current user"),
-  owned_only: z.boolean().optional().describe("If true, only returns namespaces by the current user"),
-  top_level_only: z.boolean().optional().describe("In GitLab 16.8 and later, if true, only returns top-level namespaces"),
+  search: z.string().optional().describe("Search term for namespaces"),
+  page: z.number().optional().describe("Page number for pagination"),
+  per_page: z.number().optional().describe("Number of items per page"),
+  owned: z.boolean().optional().describe("Filter for namespaces owned by current user"),
 });
 
 export const GetNamespaceSchema = z.object({
-  id: z.string().describe("ID or URL-encoded path of the namespace"),
+  namespace_id: z.string().describe("Namespace ID or full path"),
 });
 
 export const VerifyNamespaceSchema = z.object({
-  namespace: z.string().describe("Path of the namespace"),
-  parent_id: z.number().optional().describe("ID of the parent namespace. If unspecified, only returns top-level namespaces"),
+  path: z.string().describe("Namespace path to verify"),
 });
 
 // Project API operation schemas
 export const GetProjectSchema = z.object({
-  id: z.string().describe("ID or URL-encoded path of the project"),
-  license: z.boolean().optional().describe("Include project license data"),
-  statistics: z.boolean().optional().describe("Include project statistics"),
-  with_custom_attributes: z.boolean().optional().describe("Include custom attributes in response"),
+  project_id: z.string().describe("Project ID or URL-encoded path"),
 });
 
 export const ListProjectsSchema = z.object({
-  archived: z.boolean().optional().describe("Limit by archived status"),
-  id_after: z.number().optional().describe("Limit results to projects with IDs greater than the specified ID"),
-  id_before: z.number().optional().describe("Limit results to projects with IDs less than the specified ID"),
-  membership: z.boolean().optional().describe("Limit by projects that the current user is a member of"),
-  min_access_level: z.number().optional().describe("Limit by minimum access level"),
-  order_by: z.enum(['id', 'name', 'path', 'created_at', 'updated_at', 'last_activity_at']).optional().describe("Return projects ordered by field"),
-  owned: z.boolean().optional().describe("Limit by projects explicitly owned by the current user"),
-  search: z.string().optional().describe("Return list of projects matching the search criteria"),
-  simple: z.boolean().optional().describe("Return only limited fields for each project"),
-  sort: z.enum(['asc', 'desc']).optional().describe("Return projects sorted in ascending or descending order"),
-  starred: z.boolean().optional().describe("Limit by projects starred by the current user"),
-  visibility: z.enum(['public', 'internal', 'private']).optional().describe("Limit by visibility"),
-  with_custom_attributes: z.boolean().optional().describe("Include custom attributes in response"),
-  with_issues_enabled: z.boolean().optional().describe("Limit by enabled issues feature"),
-  with_merge_requests_enabled: z.boolean().optional().describe("Limit by enabled merge requests feature"),
-  with_programming_language: z.string().optional().describe("Limit by projects which use the given programming language"),
-  with_shared: z.boolean().optional().describe("Include projects shared to this group"),
+  search: z.string().optional().describe("Search term for projects"),
   page: z.number().optional().describe("Page number for pagination"),
   per_page: z.number().optional().describe("Number of items per page"),
+  owned: z.boolean().optional().describe("Filter for projects owned by current user"),
+  membership: z.boolean().optional().describe("Filter for projects where current user is a member"),
+  simple: z.boolean().optional().describe("Return only limited fields"),
+  archived: z.boolean().optional().describe("Filter for archived projects"),
+  visibility: z.enum(["public", "internal", "private"]).optional().describe("Filter by project visibility"),
+  order_by: z.enum(["id", "name", "path", "created_at", "updated_at", "last_activity_at"]).optional().describe("Return projects ordered by field"),
+  sort: z.enum(["asc", "desc"]).optional().describe("Return projects sorted in ascending or descending order"),
+  with_issues_enabled: z.boolean().optional().describe("Filter projects with issues feature enabled"),
+  with_merge_requests_enabled: z.boolean().optional().describe("Filter projects with merge requests feature enabled"),
+  min_access_level: z.number().optional().describe("Filter by minimum access level"),
 });
 
 // Export types
 export type GitLabAuthor = z.infer<typeof GitLabAuthorSchema>;
 export type GitLabFork = z.infer<typeof GitLabForkSchema>;
 export type GitLabIssue = z.infer<typeof GitLabIssueSchema>;
+export type GitLabIssueWithLinkDetails = z.infer<typeof GitLabIssueWithLinkDetailsSchema>;
 export type GitLabMergeRequest = z.infer<typeof GitLabMergeRequestSchema>;
 export type GitLabRepository = z.infer<typeof GitLabRepositorySchema>;
 export type GitLabFileContent = z.infer<typeof GitLabFileContentSchema>;
-export type GitLabDirectoryContent = z.infer<
-  typeof GitLabDirectoryContentSchema
->;
+export type GitLabDirectoryContent = z.infer<typeof GitLabDirectoryContentSchema>;
 export type GitLabContent = z.infer<typeof GitLabContentSchema>;
 export type FileOperation = z.infer<typeof FileOperationSchema>;
 export type GitLabTree = z.infer<typeof GitLabTreeSchema>;
 export type GitLabCommit = z.infer<typeof GitLabCommitSchema>;
 export type GitLabReference = z.infer<typeof GitLabReferenceSchema>;
-export type CreateRepositoryOptions = z.infer<
-  typeof CreateRepositoryOptionsSchema
->;
+export type CreateRepositoryOptions = z.infer<typeof CreateRepositoryOptionsSchema>;
 export type CreateIssueOptions = z.infer<typeof CreateIssueOptionsSchema>;
-export type CreateMergeRequestOptions = z.infer<
-  typeof CreateMergeRequestOptionsSchema
->;
+export type CreateMergeRequestOptions = z.infer<typeof CreateMergeRequestOptionsSchema>;
 export type CreateBranchOptions = z.infer<typeof CreateBranchOptionsSchema>;
-export type GitLabCreateUpdateFileResponse = z.infer<
-  typeof GitLabCreateUpdateFileResponseSchema
->;
+export type GitLabCreateUpdateFileResponse = z.infer<typeof GitLabCreateUpdateFileResponseSchema>;
 export type GitLabSearchResponse = z.infer<typeof GitLabSearchResponseSchema>;
-export type GitLabMergeRequestDiff = z.infer<
-  typeof GitLabMergeRequestDiffSchema
->;
+export type GitLabMergeRequestDiff = z.infer<typeof GitLabMergeRequestDiffSchema>;
 export type CreateNoteOptions = z.infer<typeof CreateNoteSchema>;
+export type GitLabIssueLink = z.infer<typeof GitLabIssueLinkSchema>;
 export type GitLabNamespace = z.infer<typeof GitLabNamespaceSchema>;
 export type GitLabNamespaceExistsResponse = z.infer<typeof GitLabNamespaceExistsResponseSchema>;
-export type GitLabProject = z.infer<typeof GitLabRepositorySchema>;
+export type GitLabProject = z.infer<typeof GitLabProjectSchema>;

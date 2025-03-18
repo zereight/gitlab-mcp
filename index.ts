@@ -26,6 +26,7 @@ import {
   GitLabCommitSchema,
   GitLabNamespaceSchema,
   GitLabNamespaceExistsResponseSchema,
+  GitLabProjectSchema,
   CreateRepositoryOptionsSchema,
   CreateIssueOptionsSchema,
   CreateMergeRequestOptionsSchema,
@@ -43,11 +44,22 @@ import {
   GetMergeRequestSchema,
   GetMergeRequestDiffsSchema,
   UpdateMergeRequestSchema,
+  ListIssuesSchema,
+  GetIssueSchema,
+  UpdateIssueSchema,
+  DeleteIssueSchema,
+  GitLabIssueLinkSchema,
+  GitLabIssueWithLinkDetailsSchema,
+  ListIssueLinksSchema,
+  GetIssueLinkSchema,
+  CreateIssueLinkSchema,
+  DeleteIssueLinkSchema,
   ListNamespacesSchema,
   GetNamespaceSchema,
   VerifyNamespaceSchema,
   GetProjectSchema,
   ListProjectsSchema,
+  CreateNoteSchema,
   type GitLabFork,
   type GitLabReference,
   type GitLabRepository,
@@ -60,10 +72,11 @@ import {
   type GitLabCommit,
   type FileOperation,
   type GitLabMergeRequestDiff,
+  type GitLabIssueLink,
+  type GitLabIssueWithLinkDetails,
   type GitLabNamespace,
   type GitLabNamespaceExistsResponse,
   type GitLabProject,
-  CreateNoteSchema,
 } from "./schemas.js";
 
 /**
@@ -340,6 +353,242 @@ async function createIssue(
   await handleGitLabError(response);
   const data = await response.json();
   return GitLabIssueSchema.parse(data);
+}
+
+/**
+ * List issues in a GitLab project
+ * 프로젝트의 이슈 목록 조회
+ *
+ * @param {string} projectId - The ID or URL-encoded path of the project
+ * @param {Object} options - Options for listing issues
+ * @returns {Promise<GitLabIssue[]>} List of issues
+ */
+async function listIssues(
+  projectId: string,
+  options: Omit<z.infer<typeof ListIssuesSchema>, "project_id"> = {}
+): Promise<GitLabIssue[]> {
+  const url = new URL(
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/issues`
+  );
+
+  // Add all query parameters
+  Object.entries(options).forEach(([key, value]) => {
+    if (value !== undefined) {
+      if (key === 'label_name' && Array.isArray(value)) {
+        // Handle array of labels
+        url.searchParams.append(key, value.join(','));
+      } else {
+        url.searchParams.append(key, value.toString());
+      }
+    }
+  });
+
+  const response = await fetch(url.toString(), {
+    headers: DEFAULT_HEADERS,
+  });
+
+  await handleGitLabError(response);
+  const data = await response.json();
+  return z.array(GitLabIssueSchema).parse(data);
+}
+
+/**
+ * Get a single issue from a GitLab project
+ * 단일 이슈 조회
+ *
+ * @param {string} projectId - The ID or URL-encoded path of the project
+ * @param {number} issueIid - The internal ID of the project issue
+ * @returns {Promise<GitLabIssue>} The issue
+ */
+async function getIssue(
+  projectId: string,
+  issueIid: number
+): Promise<GitLabIssue> {
+  const url = new URL(
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/issues/${issueIid}`
+  );
+
+  const response = await fetch(url.toString(), {
+    headers: DEFAULT_HEADERS,
+  });
+
+  await handleGitLabError(response);
+  const data = await response.json();
+  return GitLabIssueSchema.parse(data);
+}
+
+/**
+ * Update an issue in a GitLab project
+ * 이슈 업데이트
+ *
+ * @param {string} projectId - The ID or URL-encoded path of the project
+ * @param {number} issueIid - The internal ID of the project issue
+ * @param {Object} options - Update options for the issue
+ * @returns {Promise<GitLabIssue>} The updated issue
+ */
+async function updateIssue(
+  projectId: string,
+  issueIid: number,
+  options: Omit<z.infer<typeof UpdateIssueSchema>, "project_id" | "issue_iid">
+): Promise<GitLabIssue> {
+  const url = new URL(
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/issues/${issueIid}`
+  );
+
+  // Convert labels array to comma-separated string if present
+  const body: Record<string, any> = { ...options };
+  if (body.labels && Array.isArray(body.labels)) {
+    body.labels = body.labels.join(',');
+  }
+
+  const response = await fetch(url.toString(), {
+    method: "PUT",
+    headers: DEFAULT_HEADERS,
+    body: JSON.stringify(body),
+  });
+
+  await handleGitLabError(response);
+  const data = await response.json();
+  return GitLabIssueSchema.parse(data);
+}
+
+/**
+ * Delete an issue from a GitLab project
+ * 이슈 삭제
+ *
+ * @param {string} projectId - The ID or URL-encoded path of the project
+ * @param {number} issueIid - The internal ID of the project issue
+ * @returns {Promise<void>}
+ */
+async function deleteIssue(
+  projectId: string,
+  issueIid: number
+): Promise<void> {
+  const url = new URL(
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/issues/${issueIid}`
+  );
+
+  const response = await fetch(url.toString(), {
+    method: "DELETE",
+    headers: DEFAULT_HEADERS,
+  });
+
+  await handleGitLabError(response);
+}
+
+/**
+ * List all issue links for a specific issue
+ * 이슈 관계 목록 조회
+ *
+ * @param {string} projectId - The ID or URL-encoded path of the project
+ * @param {number} issueIid - The internal ID of the project issue
+ * @returns {Promise<GitLabIssueWithLinkDetails[]>} List of issues with link details
+ */
+async function listIssueLinks(
+  projectId: string,
+  issueIid: number
+): Promise<GitLabIssueWithLinkDetails[]> {
+  const url = new URL(
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/issues/${issueIid}/links`
+  );
+
+  const response = await fetch(url.toString(), {
+    headers: DEFAULT_HEADERS,
+  });
+
+  await handleGitLabError(response);
+  const data = await response.json();
+  return z.array(GitLabIssueWithLinkDetailsSchema).parse(data);
+}
+
+/**
+ * Get a specific issue link
+ * 특정 이슈 관계 조회
+ *
+ * @param {string} projectId - The ID or URL-encoded path of the project
+ * @param {number} issueIid - The internal ID of the project issue
+ * @param {number} issueLinkId - The ID of the issue link
+ * @returns {Promise<GitLabIssueLink>} The issue link
+ */
+async function getIssueLink(
+  projectId: string,
+  issueIid: number,
+  issueLinkId: number
+): Promise<GitLabIssueLink> {
+  const url = new URL(
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/issues/${issueIid}/links/${issueLinkId}`
+  );
+
+  const response = await fetch(url.toString(), {
+    headers: DEFAULT_HEADERS,
+  });
+
+  await handleGitLabError(response);
+  const data = await response.json();
+  return GitLabIssueLinkSchema.parse(data);
+}
+
+/**
+ * Create an issue link between two issues
+ * 이슈 관계 생성
+ *
+ * @param {string} projectId - The ID or URL-encoded path of the project
+ * @param {number} issueIid - The internal ID of the project issue
+ * @param {string} targetProjectId - The ID or URL-encoded path of the target project
+ * @param {number} targetIssueIid - The internal ID of the target project issue
+ * @param {string} linkType - The type of the relation (relates_to, blocks, is_blocked_by)
+ * @returns {Promise<GitLabIssueLink>} The created issue link
+ */
+async function createIssueLink(
+  projectId: string,
+  issueIid: number,
+  targetProjectId: string,
+  targetIssueIid: number,
+  linkType: 'relates_to' | 'blocks' | 'is_blocked_by' = 'relates_to'
+): Promise<GitLabIssueLink> {
+  const url = new URL(
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/issues/${issueIid}/links`
+  );
+
+  const response = await fetch(url.toString(), {
+    method: "POST",
+    headers: DEFAULT_HEADERS,
+    body: JSON.stringify({
+      target_project_id: targetProjectId,
+      target_issue_iid: targetIssueIid,
+      link_type: linkType
+    }),
+  });
+
+  await handleGitLabError(response);
+  const data = await response.json();
+  return GitLabIssueLinkSchema.parse(data);
+}
+
+/**
+ * Delete an issue link
+ * 이슈 관계 삭제
+ *
+ * @param {string} projectId - The ID or URL-encoded path of the project
+ * @param {number} issueIid - The internal ID of the project issue
+ * @param {number} issueLinkId - The ID of the issue link
+ * @returns {Promise<void>}
+ */
+async function deleteIssueLink(
+  projectId: string,
+  issueIid: number,
+  issueLinkId: number
+): Promise<void> {
+  const url = new URL(
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/issues/${issueIid}/links/${issueLinkId}`
+  );
+
+  const response = await fetch(url.toString(), {
+    method: "DELETE",
+    headers: DEFAULT_HEADERS,
+  });
+
+  await handleGitLabError(response);
 }
 
 /**
@@ -1045,23 +1294,63 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
         inputSchema: zodToJsonSchema(CreateNoteSchema),
       },
       {
+        name: "list_issues",
+        description: "List issues in a GitLab project with filtering options",
+        inputSchema: zodToJsonSchema(ListIssuesSchema),
+      },
+      {
+        name: "get_issue",
+        description: "Get details of a specific issue in a GitLab project",
+        inputSchema: zodToJsonSchema(GetIssueSchema),
+      },
+      {
+        name: "update_issue",
+        description: "Update an issue in a GitLab project",
+        inputSchema: zodToJsonSchema(UpdateIssueSchema),
+      },
+      {
+        name: "delete_issue",
+        description: "Delete an issue from a GitLab project",
+        inputSchema: zodToJsonSchema(DeleteIssueSchema),
+      },
+      {
+        name: "list_issue_links",
+        description: "List all issue links for a specific issue",
+        inputSchema: zodToJsonSchema(ListIssueLinksSchema),
+      },
+      {
+        name: "get_issue_link",
+        description: "Get a specific issue link",
+        inputSchema: zodToJsonSchema(GetIssueLinkSchema),
+      },
+      {
+        name: "create_issue_link",
+        description: "Create an issue link between two issues",
+        inputSchema: zodToJsonSchema(CreateIssueLinkSchema),
+      },
+      {
+        name: "delete_issue_link",
+        description: "Delete an issue link",
+        inputSchema: zodToJsonSchema(DeleteIssueLinkSchema),
+      },
+      {
         name: "list_namespaces",
         description: "List all namespaces available to the current user",
         inputSchema: zodToJsonSchema(ListNamespacesSchema),
       },
       {
         name: "get_namespace",
-        description: "Get details on a specified namespace",
+        description: "Get details of a namespace by ID or path",
         inputSchema: zodToJsonSchema(GetNamespaceSchema),
       },
       {
         name: "verify_namespace",
-        description: "Verify if a specified namespace already exists",
+        description: "Verify if a namespace path exists",
         inputSchema: zodToJsonSchema(VerifyNamespaceSchema),
       },
       {
         name: "get_project",
-        description: "Get details on a specified project",
+        description: "Get details of a specific project",
         inputSchema: zodToJsonSchema(GetProjectSchema),
       },
       {
@@ -1242,7 +1531,29 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
       case "list_namespaces": {
         const args = ListNamespacesSchema.parse(request.params.arguments);
-        const namespaces = await listNamespaces(args);
+        const url = new URL(`${GITLAB_API_URL}/namespaces`);
+
+        if (args.search) {
+          url.searchParams.append("search", args.search);
+        }
+        if (args.page) {
+          url.searchParams.append("page", args.page.toString());
+        }
+        if (args.per_page) {
+          url.searchParams.append("per_page", args.per_page.toString());
+        }
+        if (args.owned) {
+          url.searchParams.append("owned", args.owned.toString());
+        }
+
+        const response = await fetch(url.toString(), {
+          headers: DEFAULT_HEADERS,
+        });
+
+        await handleGitLabError(response);
+        const data = await response.json();
+        const namespaces = z.array(GitLabNamespaceSchema).parse(data);
+
         return {
           content: [{ type: "text", text: JSON.stringify(namespaces, null, 2) }],
         };
@@ -1250,7 +1561,16 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
       case "get_namespace": {
         const args = GetNamespaceSchema.parse(request.params.arguments);
-        const namespace = await getNamespace(args.id);
+        const url = new URL(`${GITLAB_API_URL}/namespaces/${encodeURIComponent(args.namespace_id)}`);
+
+        const response = await fetch(url.toString(), {
+          headers: DEFAULT_HEADERS,
+        });
+
+        await handleGitLabError(response);
+        const data = await response.json();
+        const namespace = GitLabNamespaceSchema.parse(data);
+
         return {
           content: [{ type: "text", text: JSON.stringify(namespace, null, 2) }],
         };
@@ -1258,16 +1578,33 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
       case "verify_namespace": {
         const args = VerifyNamespaceSchema.parse(request.params.arguments);
-        const result = await verifyNamespaceExistence(args.namespace, args.parent_id);
+        const url = new URL(`${GITLAB_API_URL}/namespaces/${encodeURIComponent(args.path)}/exists`);
+
+        const response = await fetch(url.toString(), {
+          headers: DEFAULT_HEADERS,
+        });
+
+        await handleGitLabError(response);
+        const data = await response.json();
+        const namespaceExists = GitLabNamespaceExistsResponseSchema.parse(data);
+
         return {
-          content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+          content: [{ type: "text", text: JSON.stringify(namespaceExists, null, 2) }],
         };
       }
 
       case "get_project": {
         const args = GetProjectSchema.parse(request.params.arguments);
-        const { id, ...options } = args;
-        const project = await getProject(id, options);
+        const url = new URL(`${GITLAB_API_URL}/projects/${encodeURIComponent(args.project_id)}`);
+
+        const response = await fetch(url.toString(), {
+          headers: DEFAULT_HEADERS,
+        });
+
+        await handleGitLabError(response);
+        const data = await response.json();
+        const project = GitLabProjectSchema.parse(data);
+
         return {
           content: [{ type: "text", text: JSON.stringify(project, null, 2) }],
         };
@@ -1275,7 +1612,23 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
       case "list_projects": {
         const args = ListProjectsSchema.parse(request.params.arguments);
-        const projects = await listProjects(args);
+        const url = new URL(`${GITLAB_API_URL}/projects`);
+
+        // Add query parameters for filtering
+        Object.entries(args).forEach(([key, value]) => {
+          if (value !== undefined) {
+            url.searchParams.append(key, value.toString());
+          }
+        });
+
+        const response = await fetch(url.toString(), {
+          headers: DEFAULT_HEADERS,
+        });
+
+        await handleGitLabError(response);
+        const data = await response.json();
+        const projects = z.array(GitLabProjectSchema).parse(data);
+
         return {
           content: [{ type: "text", text: JSON.stringify(projects, null, 2) }],
         };
@@ -1293,6 +1646,72 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         );
         return {
           content: [{ type: "text", text: JSON.stringify(note, null, 2) }],
+        };
+      }
+
+      case "list_issues": {
+        const args = ListIssuesSchema.parse(request.params.arguments);
+        const { project_id, ...options } = args;
+        const issues = await listIssues(project_id, options);
+        return {
+          content: [{ type: "text", text: JSON.stringify(issues, null, 2) }],
+        };
+      }
+
+      case "get_issue": {
+        const args = GetIssueSchema.parse(request.params.arguments);
+        const issue = await getIssue(args.project_id, args.issue_iid);
+        return {
+          content: [{ type: "text", text: JSON.stringify(issue, null, 2) }],
+        };
+      }
+
+      case "update_issue": {
+        const args = UpdateIssueSchema.parse(request.params.arguments);
+        const { project_id, issue_iid, ...options } = args;
+        const issue = await updateIssue(project_id, issue_iid, options);
+        return {
+          content: [{ type: "text", text: JSON.stringify(issue, null, 2) }],
+        };
+      }
+
+      case "delete_issue": {
+        const args = DeleteIssueSchema.parse(request.params.arguments);
+        await deleteIssue(args.project_id, args.issue_iid);
+        return {
+          content: [{ type: "text", text: JSON.stringify({ status: "success", message: "Issue deleted successfully" }, null, 2) }],
+        };
+      }
+
+      case "list_issue_links": {
+        const args = ListIssueLinksSchema.parse(request.params.arguments);
+        const links = await listIssueLinks(args.project_id, args.issue_iid);
+        return {
+          content: [{ type: "text", text: JSON.stringify(links, null, 2) }],
+        };
+      }
+
+      case "get_issue_link": {
+        const args = GetIssueLinkSchema.parse(request.params.arguments);
+        const link = await getIssueLink(args.project_id, args.issue_iid, args.issue_link_id);
+        return {
+          content: [{ type: "text", text: JSON.stringify(link, null, 2) }],
+        };
+      }
+
+      case "create_issue_link": {
+        const args = CreateIssueLinkSchema.parse(request.params.arguments);
+        const link = await createIssueLink(args.project_id, args.issue_iid, args.target_project_id, args.target_issue_iid, args.link_type);
+        return {
+          content: [{ type: "text", text: JSON.stringify(link, null, 2) }],
+        };
+      }
+
+      case "delete_issue_link": {
+        const args = DeleteIssueLinkSchema.parse(request.params.arguments);
+        await deleteIssueLink(args.project_id, args.issue_iid, args.issue_link_id);
+        return {
+          content: [{ type: "text", text: JSON.stringify({ status: "success", message: "Issue link deleted successfully" }, null, 2) }],
         };
       }
 
