@@ -228,7 +228,15 @@ export const GitLabLabelSchema = z.object({
   id: z.number(),
   name: z.string(),
   color: z.string(),
-  description: z.string().optional(),
+  text_color: z.string(),
+  description: z.string().nullable(),
+  description_html: z.string().nullable(),
+  open_issues_count: z.number().optional(),
+  closed_issues_count: z.number().optional(),
+  open_merge_requests_count: z.number().optional(),
+  subscribed: z.boolean().optional(),
+  priority: z.number().nullable().optional(),
+  is_project_label: z.boolean().optional(),
 });
 
 export const GitLabUserSchema = z.object({
@@ -619,6 +627,42 @@ export const ListProjectsSchema = z.object({
   min_access_level: z.number().optional().describe("Filter by minimum access level"),
 });
 
+// Label operation schemas
+export const ListLabelsSchema = z.object({
+  project_id: z.string().describe("Project ID or URL-encoded path"),
+  with_counts: z.boolean().optional().describe("Whether or not to include issue and merge request counts"),
+  include_ancestor_groups: z.boolean().optional().describe("Include ancestor groups"),
+  search: z.string().optional().describe("Keyword to filter labels by"),
+});
+
+export const GetLabelSchema = z.object({
+  project_id: z.string().describe("Project ID or URL-encoded path"),
+  label_id: z.union([z.number(), z.string()]).describe("The ID or title of a project's label"),
+  include_ancestor_groups: z.boolean().optional().describe("Include ancestor groups"),
+});
+
+export const CreateLabelSchema = z.object({
+  project_id: z.string().describe("Project ID or URL-encoded path"),
+  name: z.string().describe("The name of the label"),
+  color: z.string().describe("The color of the label given in 6-digit hex notation with leading '#' sign"),
+  description: z.string().optional().describe("The description of the label"),
+  priority: z.number().nullable().optional().describe("The priority of the label"),
+});
+
+export const UpdateLabelSchema = z.object({
+  project_id: z.string().describe("Project ID or URL-encoded path"),
+  label_id: z.union([z.number(), z.string()]).describe("The ID or title of a project's label"),
+  new_name: z.string().optional().describe("The new name of the label"),
+  color: z.string().optional().describe("The color of the label given in 6-digit hex notation with leading '#' sign"),
+  description: z.string().optional().describe("The new description of the label"),
+  priority: z.number().nullable().optional().describe("The new priority of the label"),
+});
+
+export const DeleteLabelSchema = z.object({
+  project_id: z.string().describe("Project ID or URL-encoded path"),
+  label_id: z.union([z.number(), z.string()]).describe("The ID or title of a project's label"),
+});
+
 // Export types
 export type GitLabAuthor = z.infer<typeof GitLabAuthorSchema>;
 export type GitLabFork = z.infer<typeof GitLabForkSchema>;
@@ -645,3 +689,4 @@ export type GitLabIssueLink = z.infer<typeof GitLabIssueLinkSchema>;
 export type GitLabNamespace = z.infer<typeof GitLabNamespaceSchema>;
 export type GitLabNamespaceExistsResponse = z.infer<typeof GitLabNamespaceExistsResponseSchema>;
 export type GitLabProject = z.infer<typeof GitLabProjectSchema>;
+export type GitLabLabel = z.infer<typeof GitLabLabelSchema>;
