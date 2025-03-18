@@ -330,7 +330,9 @@ async function createOrUpdateFile(
   content: string,
   commitMessage: string,
   branch: string,
-  previousPath?: string
+  previousPath?: string,
+  last_commit_id?: string,
+  commit_id?: string
 ): Promise<GitLabCreateUpdateFileResponse> {
   const encodedPath = encodeURIComponent(filePath);
   const url = new URL(
@@ -339,7 +341,7 @@ async function createOrUpdateFile(
     )}/repository/files/${encodedPath}`
   );
 
-  const body = {
+  const body: Record<string, any> = {
     branch,
     content,
     commit_message: commitMessage,
@@ -350,13 +352,37 @@ async function createOrUpdateFile(
   // Check if file exists
   let method = "POST";
   try {
-    await getFileContents(projectId, filePath, branch);
+    // Get file contents to check existence and retrieve commit IDs
+    const fileData = await getFileContents(projectId, filePath, branch);
     method = "PUT";
+
+    // If fileData is not an array, it's a file content object with commit IDs
+    if (!Array.isArray(fileData)) {
+      // Use commit IDs from the file data if not provided in parameters
+      if (!commit_id && fileData.commit_id) {
+        body.commit_id = fileData.commit_id;
+      } else if (commit_id) {
+        body.commit_id = commit_id;
+      }
+
+      if (!last_commit_id && fileData.last_commit_id) {
+        body.last_commit_id = fileData.last_commit_id;
+      } else if (last_commit_id) {
+        body.last_commit_id = last_commit_id;
+      }
+    }
   } catch (error) {
     if (!(error instanceof Error && error.message.includes("File not found"))) {
       throw error;
     }
-    // File doesn't exist, use POST
+    // File doesn't exist, use POST - no need for commit IDs for new files
+    // But still use any provided as parameters if they exist
+    if (commit_id) {
+      body.commit_id = commit_id;
+    }
+    if (last_commit_id) {
+      body.last_commit_id = last_commit_id;
+    }
   }
 
   const response = await fetch(url.toString(), {
@@ -795,7 +821,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           args.content,
           args.commit_message,
           args.branch,
-          args.previous_path
+          args.previous_path,
+          args.last_commit_id,
+          args.commit_id
         );
         return {
           content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
