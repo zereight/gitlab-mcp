@@ -49,6 +49,7 @@ import {
   UpdateIssueSchema,
   DeleteIssueSchema,
   GitLabIssueLinkSchema,
+  GitLabIssueWithLinkDetailsSchema,
   ListIssueLinksSchema,
   GetIssueLinkSchema,
   CreateIssueLinkSchema,
@@ -72,6 +73,7 @@ import {
   type FileOperation,
   type GitLabMergeRequestDiff,
   type GitLabIssueLink,
+  type GitLabIssueWithLinkDetails,
   type GitLabNamespace,
   type GitLabNamespaceExistsResponse,
   type GitLabProject,
@@ -480,12 +482,12 @@ async function deleteIssue(
  *
  * @param {string} projectId - The ID or URL-encoded path of the project
  * @param {number} issueIid - The internal ID of the project issue
- * @returns {Promise<GitLabIssueLink[]>} List of issue links
+ * @returns {Promise<GitLabIssueWithLinkDetails[]>} List of issues with link details
  */
 async function listIssueLinks(
   projectId: string,
   issueIid: number
-): Promise<GitLabIssueLink[]> {
+): Promise<GitLabIssueWithLinkDetails[]> {
   const url = new URL(
     `${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/issues/${issueIid}/links`
   );
@@ -496,7 +498,7 @@ async function listIssueLinks(
 
   await handleGitLabError(response);
   const data = await response.json();
-  return z.array(GitLabIssueLinkSchema).parse(data);
+  return z.array(GitLabIssueWithLinkDetailsSchema).parse(data);
 }
 
 /**

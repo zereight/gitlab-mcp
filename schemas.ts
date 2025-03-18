@@ -280,6 +280,14 @@ export const GitLabIssueSchema = z.object({
   weight: z.number().nullable().optional(),
 });
 
+// NEW SCHEMA: For issue with link details (used in listing issue links)
+export const GitLabIssueWithLinkDetailsSchema = GitLabIssueSchema.extend({
+  issue_link_id: z.number(),
+  link_type: z.enum(['relates_to', 'blocks', 'is_blocked_by']),
+  link_created_at: z.string(),
+  link_updated_at: z.string(),
+});
+
 // Fork related schemas
 export const GitLabForkParentSchema = z.object({
   name: z.string(),
@@ -544,12 +552,9 @@ export const DeleteIssueSchema = z.object({
 
 // Issue links related schemas
 export const GitLabIssueLinkSchema = z.object({
-  id: z.number(),
-  link_type: z.enum(['relates_to', 'blocks', 'is_blocked_by']),
   source_issue: GitLabIssueSchema,
   target_issue: GitLabIssueSchema,
-  link_created_at: z.string().optional(),
-  link_updated_at: z.string().optional(),
+  link_type: z.enum(['relates_to', 'blocks', 'is_blocked_by']),
 });
 
 export const ListIssueLinksSchema = z.object({
@@ -618,6 +623,7 @@ export const ListProjectsSchema = z.object({
 export type GitLabAuthor = z.infer<typeof GitLabAuthorSchema>;
 export type GitLabFork = z.infer<typeof GitLabForkSchema>;
 export type GitLabIssue = z.infer<typeof GitLabIssueSchema>;
+export type GitLabIssueWithLinkDetails = z.infer<typeof GitLabIssueWithLinkDetailsSchema>;
 export type GitLabMergeRequest = z.infer<typeof GitLabMergeRequestSchema>;
 export type GitLabRepository = z.infer<typeof GitLabRepositorySchema>;
 export type GitLabFileContent = z.infer<typeof GitLabFileContentSchema>;
