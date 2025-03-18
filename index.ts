@@ -45,6 +45,12 @@ import {
   GetIssueSchema,
   UpdateIssueSchema,
   DeleteIssueSchema,
+  GitLabIssueLinkSchema,
+  ListIssueLinksSchema,
+  GetIssueLinkSchema,
+  CreateIssueLinkSchema,
+  DeleteIssueLinkSchema,
+  CreateNoteSchema,
   type GitLabFork,
   type GitLabReference,
   type GitLabRepository,
@@ -57,7 +63,7 @@ import {
   type GitLabCommit,
   type FileOperation,
   type GitLabMergeRequestDiff,
-  CreateNoteSchema,
+  type GitLabIssueLink,
 } from "./schemas.js";
 
 /**
@@ -447,6 +453,121 @@ async function deleteIssue(
 ): Promise<void> {
   const url = new URL(
     `${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/issues/${issueIid}`
+  );
+
+  const response = await fetch(url.toString(), {
+    method: "DELETE",
+    headers: DEFAULT_HEADERS,
+  });
+
+  await handleGitLabError(response);
+}
+
+/**
+ * List all issue links for a specific issue
+ * 이슈 관계 목록 조회
+ *
+ * @param {string} projectId - The ID or URL-encoded path of the project
+ * @param {number} issueIid - The internal ID of the project issue
+ * @returns {Promise<GitLabIssueLink[]>} List of issue links
+ */
+async function listIssueLinks(
+  projectId: string,
+  issueIid: number
+): Promise<GitLabIssueLink[]> {
+  const url = new URL(
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/issues/${issueIid}/links`
+  );
+
+  const response = await fetch(url.toString(), {
+    headers: DEFAULT_HEADERS,
+  });
+
+  await handleGitLabError(response);
+  const data = await response.json();
+  return z.array(GitLabIssueLinkSchema).parse(data);
+}
+
+/**
+ * Get a specific issue link
+ * 특정 이슈 관계 조회
+ *
+ * @param {string} projectId - The ID or URL-encoded path of the project
+ * @param {number} issueIid - The internal ID of the project issue
+ * @param {number} issueLinkId - The ID of the issue link
+ * @returns {Promise<GitLabIssueLink>} The issue link
+ */
+async function getIssueLink(
+  projectId: string,
+  issueIid: number,
+  issueLinkId: number
+): Promise<GitLabIssueLink> {
+  const url = new URL(
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/issues/${issueIid}/links/${issueLinkId}`
+  );
+
+  const response = await fetch(url.toString(), {
+    headers: DEFAULT_HEADERS,
+  });
+
+  await handleGitLabError(response);
+  const data = await response.json();
+  return GitLabIssueLinkSchema.parse(data);
+}
+
+/**
+ * Create an issue link between two issues
+ * 이슈 관계 생성
+ *
+ * @param {string} projectId - The ID or URL-encoded path of the project
+ * @param {number} issueIid - The internal ID of the project issue
+ * @param {string} targetProjectId - The ID or URL-encoded path of the target project
+ * @param {number} targetIssueIid - The internal ID of the target project issue
+ * @param {string} linkType - The type of the relation (relates_to, blocks, is_blocked_by)
+ * @returns {Promise<GitLabIssueLink>} The created issue link
+ */
+async function createIssueLink(
+  projectId: string,
+  issueIid: number,
+  targetProjectId: string,
+  targetIssueIid: number,
+  linkType: 'relates_to' | 'blocks' | 'is_blocked_by' = 'relates_to'
+): Promise<GitLabIssueLink> {
+  const url = new URL(
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/issues/${issueIid}/links`
+  );
+
+  const response = await fetch(url.toString(), {
+    method: "POST",
+    headers: DEFAULT_HEADERS,
+    body: JSON.stringify({
+      target_project_id: targetProjectId,
+      target_issue_iid: targetIssueIid,
+      link_type: linkType
+    }),
+  });
+
+  await handleGitLabError(response);
+  const data = await response.json();
+  return GitLabIssueLinkSchema.parse(data);
+}
+
+/**
+ * Delete an issue link
+ * 이슈 관계 삭제
+ *
+ * @param {string} projectId - The ID or URL-encoded path of the project
+ * @param {number} issueIid - The internal ID of the project issue
+ * @param {number} issueLinkId - The ID of the issue link
+ * @returns {Promise<void>}
+ */
+async function deleteIssueLink(
+  projectId: string,
+  issueIid: number,
+  issueLinkId: number
+): Promise<void> {
+  const url = new URL(
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/issues/${issueIid}/links/${issueLinkId}`
   );
 
   const response = await fetch(url.toString(), {
@@ -1027,6 +1148,26 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
         description: "Delete an issue from a GitLab project",
         inputSchema: zodToJsonSchema(DeleteIssueSchema),
       },
+      {
+        name: "list_issue_links",
+        description: "List all issue links for a specific issue",
+        inputSchema: zodToJsonSchema(ListIssueLinksSchema),
+      },
+      {
+        name: "get_issue_link",
+        description: "Get a specific issue link",
+        inputSchema: zodToJsonSchema(GetIssueLinkSchema),
+      },
+      {
+        name: "create_issue_link",
+        description: "Create an issue link between two issues",
+        inputSchema: zodToJsonSchema(CreateIssueLinkSchema),
+      },
+      {
+        name: "delete_issue_link",
+        description: "Delete an issue link",
+        inputSchema: zodToJsonSchema(DeleteIssueLinkSchema),
+      },
     ],
   };
 });
@@ -1244,6 +1385,38 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         await deleteIssue(args.project_id, args.issue_iid);
         return {
           content: [{ type: "text", text: JSON.stringify({ status: "success", message: "Issue deleted successfully" }, null, 2) }],
+        };
+      }
+
+      case "list_issue_links": {
+        const args = ListIssueLinksSchema.parse(request.params.arguments);
+        const links = await listIssueLinks(args.project_id, args.issue_iid);
+        return {
+          content: [{ type: "text", text: JSON.stringify(links, null, 2) }],
+        };
+      }
+
+      case "get_issue_link": {
+        const args = GetIssueLinkSchema.parse(request.params.arguments);
+        const link = await getIssueLink(args.project_id, args.issue_iid, args.issue_link_id);
+        return {
+          content: [{ type: "text", text: JSON.stringify(link, null, 2) }],
+        };
+      }
+
+      case "create_issue_link": {
+        const args = CreateIssueLinkSchema.parse(request.params.arguments);
+        const link = await createIssueLink(args.project_id, args.issue_iid, args.target_project_id, args.target_issue_iid, args.link_type);
+        return {
+          content: [{ type: "text", text: JSON.stringify(link, null, 2) }],
+        };
+      }
+
+      case "delete_issue_link": {
+        const args = DeleteIssueLinkSchema.parse(request.params.arguments);
+        await deleteIssueLink(args.project_id, args.issue_iid, args.issue_link_id);
+        return {
+          content: [{ type: "text", text: JSON.stringify({ status: "success", message: "Issue link deleted successfully" }, null, 2) }],
         };
       }
 

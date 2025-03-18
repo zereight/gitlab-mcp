@@ -470,6 +470,41 @@ export const CreateNoteSchema = z.object({
   body: z.string().describe("Note content"),
 });
 
+// Issue links related schemas
+export const GitLabIssueLinkSchema = z.object({
+  id: z.number(),
+  link_type: z.enum(['relates_to', 'blocks', 'is_blocked_by']),
+  source_issue: GitLabIssueSchema,
+  target_issue: GitLabIssueSchema,
+  link_created_at: z.string().optional(),
+  link_updated_at: z.string().optional(),
+});
+
+export const ListIssueLinksSchema = z.object({
+  project_id: z.string().describe("Project ID or URL-encoded path"),
+  issue_iid: z.number().describe("The internal ID of a project's issue"),
+});
+
+export const GetIssueLinkSchema = z.object({
+  project_id: z.string().describe("Project ID or URL-encoded path"),
+  issue_iid: z.number().describe("The internal ID of a project's issue"),
+  issue_link_id: z.number().describe("ID of an issue relationship"),
+});
+
+export const CreateIssueLinkSchema = z.object({
+  project_id: z.string().describe("Project ID or URL-encoded path"),
+  issue_iid: z.number().describe("The internal ID of a project's issue"),
+  target_project_id: z.string().describe("The ID or URL-encoded path of a target project"),
+  target_issue_iid: z.number().describe("The internal ID of a target project's issue"),
+  link_type: z.enum(['relates_to', 'blocks', 'is_blocked_by']).optional().describe("The type of the relation, defaults to relates_to"),
+});
+
+export const DeleteIssueLinkSchema = z.object({
+  project_id: z.string().describe("Project ID or URL-encoded path"),
+  issue_iid: z.number().describe("The internal ID of a project's issue"),
+  issue_link_id: z.number().describe("The ID of an issue relationship"),
+});
+
 // Export types
 export type GitLabAuthor = z.infer<typeof GitLabAuthorSchema>;
 export type GitLabFork = z.infer<typeof GitLabForkSchema>;
@@ -501,3 +536,4 @@ export type GitLabMergeRequestDiff = z.infer<
   typeof GitLabMergeRequestDiffSchema
 >;
 export type CreateNoteOptions = z.infer<typeof CreateNoteSchema>;
+export type GitLabIssueLink = z.infer<typeof GitLabIssueLinkSchema>;
