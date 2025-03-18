@@ -24,6 +24,8 @@ import {
   GitLabSearchResponseSchema,
   GitLabTreeSchema,
   GitLabCommitSchema,
+  GitLabNamespaceSchema,
+  GitLabNamespaceExistsResponseSchema,
   CreateRepositoryOptionsSchema,
   CreateIssueOptionsSchema,
   CreateMergeRequestOptionsSchema,
@@ -41,6 +43,9 @@ import {
   GetMergeRequestSchema,
   GetMergeRequestDiffsSchema,
   UpdateMergeRequestSchema,
+  ListNamespacesSchema,
+  GetNamespaceSchema,
+  VerifyNamespaceSchema,
   type GitLabFork,
   type GitLabReference,
   type GitLabRepository,
@@ -53,6 +58,8 @@ import {
   type GitLabCommit,
   type FileOperation,
   type GitLabMergeRequestDiff,
+  type GitLabNamespace,
+  type GitLabNamespaceExistsResponse,
   CreateNoteSchema,
 } from "./schemas.js";
 
@@ -811,6 +818,90 @@ async function createNote(
   return await response.json();
 }
 
+/**
+ * List all namespaces
+ * 사용 가능한 모든 네임스페이스 목록 조회
+ *
+ * @param {Object} options - Options for listing namespaces
+ * @param {string} [options.search] - Search query to filter namespaces
+ * @param {boolean} [options.owned_only] - Only return namespaces owned by the authenticated user
+ * @param {boolean} [options.top_level_only] - Only return top-level namespaces
+ * @returns {Promise<GitLabNamespace[]>} List of namespaces
+ */
+async function listNamespaces(options: {
+  search?: string;
+  owned_only?: boolean;
+  top_level_only?: boolean;
+}): Promise<GitLabNamespace[]> {
+  const url = new URL(`${GITLAB_API_URL}/namespaces`);
+
+  if (options.search) {
+    url.searchParams.append("search", options.search);
+  }
+
+  if (options.owned_only) {
+    url.searchParams.append("owned_only", "true");
+  }
+
+  if (options.top_level_only) {
+    url.searchParams.append("top_level_only", "true");
+  }
+
+  const response = await fetch(url.toString(), {
+    headers: DEFAULT_HEADERS,
+  });
+
+  await handleGitLabError(response);
+  const data = await response.json();
+  return z.array(GitLabNamespaceSchema).parse(data);
+}
+
+/**
+ * Get details on a namespace
+ * 네임스페이스 상세 정보 조회
+ *
+ * @param {string} id - The ID or URL-encoded path of the namespace
+ * @returns {Promise<GitLabNamespace>} The namespace details
+ */
+async function getNamespace(id: string): Promise<GitLabNamespace> {
+  const url = new URL(`${GITLAB_API_URL}/namespaces/${encodeURIComponent(id)}`);
+
+  const response = await fetch(url.toString(), {
+    headers: DEFAULT_HEADERS,
+  });
+
+  await handleGitLabError(response);
+  const data = await response.json();
+  return GitLabNamespaceSchema.parse(data);
+}
+
+/**
+ * Verify if a namespace exists
+ * 네임스페이스 존재 여부 확인
+ *
+ * @param {string} namespacePath - The path of the namespace to check
+ * @param {number} [parentId] - The ID of the parent namespace
+ * @returns {Promise<GitLabNamespaceExistsResponse>} The verification result
+ */
+async function verifyNamespaceExistence(
+  namespacePath: string,
+  parentId?: number
+): Promise<GitLabNamespaceExistsResponse> {
+  const url = new URL(`${GITLAB_API_URL}/namespaces/${encodeURIComponent(namespacePath)}/exists`);
+
+  if (parentId) {
+    url.searchParams.append("parent_id", parentId.toString());
+  }
+
+  const response = await fetch(url.toString(), {
+    headers: DEFAULT_HEADERS,
+  });
+
+  await handleGitLabError(response);
+  const data = await response.json();
+  return GitLabNamespaceExistsResponseSchema.parse(data);
+}
+
 server.setRequestHandler(ListToolsRequestSchema, async () => {
   return {
     tools: [
@@ -881,6 +972,21 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
         name: "create_note",
         description: "Create a new note (comment) to an issue or merge request",
         inputSchema: zodToJsonSchema(CreateNoteSchema),
+      },
+      {
+        name: "list_namespaces",
+        description: "List all namespaces available to the current user",
+        inputSchema: zodToJsonSchema(ListNamespacesSchema),
+      },
+      {
+        name: "get_namespace",
+        description: "Get details on a specified namespace",
+        inputSchema: zodToJsonSchema(GetNamespaceSchema),
+      },
+      {
+        name: "verify_namespace",
+        description: "Verify if a specified namespace already exists",
+        inputSchema: zodToJsonSchema(VerifyNamespaceSchema),
       },
     ],
   };
@@ -1050,6 +1156,30 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           content: [
             { type: "text", text: JSON.stringify(mergeRequest, null, 2) },
           ],
+        };
+      }
+
+      case "list_namespaces": {
+        const args = ListNamespacesSchema.parse(request.params.arguments);
+        const namespaces = await listNamespaces(args);
+        return {
+          content: [{ type: "text", text: JSON.stringify(namespaces, null, 2) }],
+        };
+      }
+
+      case "get_namespace": {
+        const args = GetNamespaceSchema.parse(request.params.arguments);
+        const namespace = await getNamespace(args.id);
+        return {
+          content: [{ type: "text", text: JSON.stringify(namespace, null, 2) }],
+        };
+      }
+
+      case "verify_namespace": {
+        const args = VerifyNamespaceSchema.parse(request.params.arguments);
+        const result = await verifyNamespaceExistence(args.namespace, args.parent_id);
+        return {
+          content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
         };
       }
 
