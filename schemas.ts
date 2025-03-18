@@ -276,7 +276,7 @@ export const GitLabIssueSchema = z.object({
   }).optional(),
   confidential: z.boolean().optional(),
   due_date: z.string().nullable().optional(),
-  discussion_locked: z.boolean().optional(),
+  discussion_locked: z.boolean().nullable().optional(),
   weight: z.number().nullable().optional(),
 });
 
