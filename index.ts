@@ -24,6 +24,9 @@ import {
   GitLabSearchResponseSchema,
   GitLabTreeSchema,
   GitLabCommitSchema,
+  GitLabNamespaceSchema,
+  GitLabNamespaceExistsResponseSchema,
+  GitLabProjectSchema,
   CreateRepositoryOptionsSchema,
   CreateIssueOptionsSchema,
   CreateMergeRequestOptionsSchema,
@@ -50,6 +53,11 @@ import {
   GetIssueLinkSchema,
   CreateIssueLinkSchema,
   DeleteIssueLinkSchema,
+  ListNamespacesSchema,
+  GetNamespaceSchema,
+  VerifyNamespaceSchema,
+  GetProjectSchema,
+  ListProjectsSchema,
   CreateNoteSchema,
   type GitLabFork,
   type GitLabReference,
@@ -64,6 +72,9 @@ import {
   type FileOperation,
   type GitLabMergeRequestDiff,
   type GitLabIssueLink,
+  type GitLabNamespace,
+  type GitLabNamespaceExistsResponse,
+  type GitLabProject,
 } from "./schemas.js";
 
 /**
@@ -1057,6 +1068,158 @@ async function createNote(
   return await response.json();
 }
 
+/**
+ * List all namespaces
+ * 사용 가능한 모든 네임스페이스 목록 조회
+ *
+ * @param {Object} options - Options for listing namespaces
+ * @param {string} [options.search] - Search query to filter namespaces
+ * @param {boolean} [options.owned_only] - Only return namespaces owned by the authenticated user
+ * @param {boolean} [options.top_level_only] - Only return top-level namespaces
+ * @returns {Promise<GitLabNamespace[]>} List of namespaces
+ */
+async function listNamespaces(options: {
+  search?: string;
+  owned_only?: boolean;
+  top_level_only?: boolean;
+}): Promise<GitLabNamespace[]> {
+  const url = new URL(`${GITLAB_API_URL}/namespaces`);
+
+  if (options.search) {
+    url.searchParams.append("search", options.search);
+  }
+
+  if (options.owned_only) {
+    url.searchParams.append("owned_only", "true");
+  }
+
+  if (options.top_level_only) {
+    url.searchParams.append("top_level_only", "true");
+  }
+
+  const response = await fetch(url.toString(), {
+    headers: DEFAULT_HEADERS,
+  });
+
+  await handleGitLabError(response);
+  const data = await response.json();
+  return z.array(GitLabNamespaceSchema).parse(data);
+}
+
+/**
+ * Get details on a namespace
+ * 네임스페이스 상세 정보 조회
+ *
+ * @param {string} id - The ID or URL-encoded path of the namespace
+ * @returns {Promise<GitLabNamespace>} The namespace details
+ */
+async function getNamespace(id: string): Promise<GitLabNamespace> {
+  const url = new URL(`${GITLAB_API_URL}/namespaces/${encodeURIComponent(id)}`);
+
+  const response = await fetch(url.toString(), {
+    headers: DEFAULT_HEADERS,
+  });
+
+  await handleGitLabError(response);
+  const data = await response.json();
+  return GitLabNamespaceSchema.parse(data);
+}
+
+/**
+ * Verify if a namespace exists
+ * 네임스페이스 존재 여부 확인
+ *
+ * @param {string} namespacePath - The path of the namespace to check
+ * @param {number} [parentId] - The ID of the parent namespace
+ * @returns {Promise<GitLabNamespaceExistsResponse>} The verification result
+ */
+async function verifyNamespaceExistence(
+  namespacePath: string,
+  parentId?: number
+): Promise<GitLabNamespaceExistsResponse> {
+  const url = new URL(`${GITLAB_API_URL}/namespaces/${encodeURIComponent(namespacePath)}/exists`);
+
+  if (parentId) {
+    url.searchParams.append("parent_id", parentId.toString());
+  }
+
+  const response = await fetch(url.toString(), {
+    headers: DEFAULT_HEADERS,
+  });
+
+  await handleGitLabError(response);
+  const data = await response.json();
+  return GitLabNamespaceExistsResponseSchema.parse(data);
+}
+
+/**
+ * Get a single project
+ * 단일 프로젝트 조회
+ *
+ * @param {string} projectId - The ID or URL-encoded path of the project
+ * @param {Object} options - Options for getting project details
+ * @param {boolean} [options.license] - Include project license data
+ * @param {boolean} [options.statistics] - Include project statistics
+ * @param {boolean} [options.with_custom_attributes] - Include custom attributes in response
+ * @returns {Promise<GitLabProject>} Project details
+ */
+async function getProject(
+  projectId: string,
+  options: {
+    license?: boolean;
+    statistics?: boolean;
+    with_custom_attributes?: boolean;
+  } = {}
+): Promise<GitLabProject> {
+  const url = new URL(`${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}`);
+
+  if (options.license) {
+    url.searchParams.append("license", "true");
+  }
+
+  if (options.statistics) {
+    url.searchParams.append("statistics", "true");
+  }
+
+  if (options.with_custom_attributes) {
+    url.searchParams.append("with_custom_attributes", "true");
+  }
+
+  const response = await fetch(url.toString(), {
+    headers: DEFAULT_HEADERS,
+  });
+
+  await handleGitLabError(response);
+  const data = await response.json();
+  return GitLabRepositorySchema.parse(data);
+}
+
+/**
+ * List projects
+ * 프로젝트 목록 조회
+ *
+ * @param {Object} options - Options for listing projects
+ * @returns {Promise<GitLabProject[]>} List of projects
+ */
+async function listProjects(options: z.infer<typeof ListProjectsSchema> = {}): Promise<GitLabProject[]> {
+  const url = new URL(`${GITLAB_API_URL}/projects`);
+
+  // Add all the query parameters from options
+  Object.entries(options).forEach(([key, value]) => {
+    if (value !== undefined) {
+      url.searchParams.append(key, value.toString());
+    }
+  });
+
+  const response = await fetch(url.toString(), {
+    headers: DEFAULT_HEADERS,
+  });
+
+  await handleGitLabError(response);
+  const data = await response.json();
+  return z.array(GitLabRepositorySchema).parse(data);
+}
+
 server.setRequestHandler(ListToolsRequestSchema, async () => {
   return {
     tools: [
@@ -1167,6 +1330,31 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
         name: "delete_issue_link",
         description: "Delete an issue link",
         inputSchema: zodToJsonSchema(DeleteIssueLinkSchema),
+      },
+      {
+        name: "list_namespaces",
+        description: "List all namespaces available to the current user",
+        inputSchema: zodToJsonSchema(ListNamespacesSchema),
+      },
+      {
+        name: "get_namespace",
+        description: "Get details of a namespace by ID or path",
+        inputSchema: zodToJsonSchema(GetNamespaceSchema),
+      },
+      {
+        name: "verify_namespace",
+        description: "Verify if a namespace path exists",
+        inputSchema: zodToJsonSchema(VerifyNamespaceSchema),
+      },
+      {
+        name: "get_project",
+        description: "Get details of a specific project",
+        inputSchema: zodToJsonSchema(GetProjectSchema),
+      },
+      {
+        name: "list_projects",
+        description: "List projects accessible by the current user",
+        inputSchema: zodToJsonSchema(ListProjectsSchema),
       },
     ],
   };
@@ -1336,6 +1524,111 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           content: [
             { type: "text", text: JSON.stringify(mergeRequest, null, 2) },
           ],
+        };
+      }
+
+      case "list_namespaces": {
+        const args = ListNamespacesSchema.parse(request.params.arguments);
+        const url = new URL(`${GITLAB_API_URL}/namespaces`);
+
+        if (args.search) {
+          url.searchParams.append("search", args.search);
+        }
+        if (args.page) {
+          url.searchParams.append("page", args.page.toString());
+        }
+        if (args.per_page) {
+          url.searchParams.append("per_page", args.per_page.toString());
+        }
+        if (args.owned) {
+          url.searchParams.append("owned", args.owned.toString());
+        }
+
+        const response = await fetch(url.toString(), {
+          headers: DEFAULT_HEADERS,
+        });
+
+        await handleGitLabError(response);
+        const data = await response.json();
+        const namespaces = z.array(GitLabNamespaceSchema).parse(data);
+
+        return {
+          content: [{ type: "text", text: JSON.stringify(namespaces, null, 2) }],
+        };
+      }
+
+      case "get_namespace": {
+        const args = GetNamespaceSchema.parse(request.params.arguments);
+        const url = new URL(`${GITLAB_API_URL}/namespaces/${encodeURIComponent(args.namespace_id)}`);
+
+        const response = await fetch(url.toString(), {
+          headers: DEFAULT_HEADERS,
+        });
+
+        await handleGitLabError(response);
+        const data = await response.json();
+        const namespace = GitLabNamespaceSchema.parse(data);
+
+        return {
+          content: [{ type: "text", text: JSON.stringify(namespace, null, 2) }],
+        };
+      }
+
+      case "verify_namespace": {
+        const args = VerifyNamespaceSchema.parse(request.params.arguments);
+        const url = new URL(`${GITLAB_API_URL}/namespaces/${encodeURIComponent(args.path)}/exists`);
+
+        const response = await fetch(url.toString(), {
+          headers: DEFAULT_HEADERS,
+        });
+
+        await handleGitLabError(response);
+        const data = await response.json();
+        const namespaceExists = GitLabNamespaceExistsResponseSchema.parse(data);
+
+        return {
+          content: [{ type: "text", text: JSON.stringify(namespaceExists, null, 2) }],
+        };
+      }
+
+      case "get_project": {
+        const args = GetProjectSchema.parse(request.params.arguments);
+        const url = new URL(`${GITLAB_API_URL}/projects/${encodeURIComponent(args.project_id)}`);
+
+        const response = await fetch(url.toString(), {
+          headers: DEFAULT_HEADERS,
+        });
+
+        await handleGitLabError(response);
+        const data = await response.json();
+        const project = GitLabProjectSchema.parse(data);
+
+        return {
+          content: [{ type: "text", text: JSON.stringify(project, null, 2) }],
+        };
+      }
+
+      case "list_projects": {
+        const args = ListProjectsSchema.parse(request.params.arguments);
+        const url = new URL(`${GITLAB_API_URL}/projects`);
+
+        // Add query parameters for filtering
+        Object.entries(args).forEach(([key, value]) => {
+          if (value !== undefined) {
+            url.searchParams.append(key, value.toString());
+          }
+        });
+
+        const response = await fetch(url.toString(), {
+          headers: DEFAULT_HEADERS,
+        });
+
+        await handleGitLabError(response);
+        const data = await response.json();
+        const projects = z.array(GitLabProjectSchema).parse(data);
+
+        return {
+          content: [{ type: "text", text: JSON.stringify(projects, null, 2) }],
         };
       }
 
