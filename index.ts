@@ -27,6 +27,7 @@ import {
   GitLabNamespaceSchema,
   GitLabNamespaceExistsResponseSchema,
   GitLabProjectSchema,
+  GitLabLabelSchema,
   CreateRepositoryOptionsSchema,
   CreateIssueOptionsSchema,
   CreateMergeRequestOptionsSchema,
@@ -59,6 +60,11 @@ import {
   VerifyNamespaceSchema,
   GetProjectSchema,
   ListProjectsSchema,
+  ListLabelsSchema,
+  GetLabelSchema,
+  CreateLabelSchema,
+  UpdateLabelSchema,
+  DeleteLabelSchema,
   CreateNoteSchema,
   type GitLabFork,
   type GitLabReference,
@@ -77,6 +83,7 @@ import {
   type GitLabNamespace,
   type GitLabNamespaceExistsResponse,
   type GitLabProject,
+  type GitLabLabel,
 } from "./schemas.js";
 
 /**
@@ -1204,22 +1211,187 @@ async function getProject(
  * @returns {Promise<GitLabProject[]>} List of projects
  */
 async function listProjects(options: z.infer<typeof ListProjectsSchema> = {}): Promise<GitLabProject[]> {
-  const url = new URL(`${GITLAB_API_URL}/projects`);
+  // Construct the query parameters
+  const params = new URLSearchParams();
+  for (const [key, value] of Object.entries(options)) {
+    if (value !== undefined && value !== null) {
+      if (typeof value === "boolean") {
+        params.append(key, value ? "true" : "false");
+      } else {
+        params.append(key, String(value));
+      }
+    }
+  }
 
-  // Add all the query parameters from options
+  // Make the API request
+  const response = await fetch(
+    `${GITLAB_API_URL}/projects?${params.toString()}`,
+    {
+      method: "GET",
+      headers: DEFAULT_HEADERS,
+    }
+  );
+
+  // Handle errors
+  await handleGitLabError(response);
+
+  // Parse and return the data
+  const data = await response.json();
+  return z.array(GitLabProjectSchema).parse(data);
+}
+
+/**
+ * List labels for a project
+ *
+ * @param projectId The ID or URL-encoded path of the project
+ * @param options Optional parameters for listing labels
+ * @returns Array of GitLab labels
+ */
+async function listLabels(
+  projectId: string,
+  options: Omit<z.infer<typeof ListLabelsSchema>, "project_id"> = {}
+): Promise<GitLabLabel[]> {
+  // Construct the URL with project path
+  const url = new URL(`${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/labels`);
+
+  // Add query parameters
   Object.entries(options).forEach(([key, value]) => {
     if (value !== undefined) {
-      url.searchParams.append(key, value.toString());
+      if (typeof value === "boolean") {
+        url.searchParams.append(key, value ? "true" : "false");
+      } else {
+        url.searchParams.append(key, String(value));
+      }
     }
   });
 
+  // Make the API request
   const response = await fetch(url.toString(), {
     headers: DEFAULT_HEADERS,
   });
 
+  // Handle errors
   await handleGitLabError(response);
+
+  // Parse and return the data
   const data = await response.json();
-  return z.array(GitLabRepositorySchema).parse(data);
+  return data as GitLabLabel[];
+}
+
+/**
+ * Get a single label from a project
+ *
+ * @param projectId The ID or URL-encoded path of the project
+ * @param labelId The ID or name of the label
+ * @param includeAncestorGroups Whether to include ancestor groups
+ * @returns GitLab label
+ */
+async function getLabel(
+  projectId: string,
+  labelId: number | string,
+  includeAncestorGroups?: boolean
+): Promise<GitLabLabel> {
+  const url = new URL(`${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/labels/${encodeURIComponent(String(labelId))}`);
+
+  // Add query parameters
+  if (includeAncestorGroups !== undefined) {
+    url.searchParams.append("include_ancestor_groups", includeAncestorGroups ? "true" : "false");
+  }
+
+  // Make the API request
+  const response = await fetch(url.toString(), {
+    headers: DEFAULT_HEADERS,
+  });
+
+  // Handle errors
+  await handleGitLabError(response);
+
+  // Parse and return the data
+  const data = await response.json();
+  return data as GitLabLabel;
+}
+
+/**
+ * Create a new label in a project
+ *
+ * @param projectId The ID or URL-encoded path of the project
+ * @param options Options for creating the label
+ * @returns Created GitLab label
+ */
+async function createLabel(
+  projectId: string,
+  options: Omit<z.infer<typeof CreateLabelSchema>, "project_id">
+): Promise<GitLabLabel> {
+  // Make the API request
+  const response = await fetch(
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/labels`,
+    {
+      method: "POST",
+      headers: DEFAULT_HEADERS,
+      body: JSON.stringify(options),
+    }
+  );
+
+  // Handle errors
+  await handleGitLabError(response);
+
+  // Parse and return the data
+  const data = await response.json();
+  return data as GitLabLabel;
+}
+
+/**
+ * Update an existing label in a project
+ *
+ * @param projectId The ID or URL-encoded path of the project
+ * @param labelId The ID or name of the label to update
+ * @param options Options for updating the label
+ * @returns Updated GitLab label
+ */
+async function updateLabel(
+  projectId: string,
+  labelId: number | string,
+  options: Omit<z.infer<typeof UpdateLabelSchema>, "project_id" | "label_id">
+): Promise<GitLabLabel> {
+  // Make the API request
+  const response = await fetch(
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/labels/${encodeURIComponent(String(labelId))}`,
+    {
+      method: "PUT",
+      headers: DEFAULT_HEADERS,
+      body: JSON.stringify(options),
+    }
+  );
+
+  // Handle errors
+  await handleGitLabError(response);
+
+  // Parse and return the data
+  const data = await response.json();
+  return data as GitLabLabel;
+}
+
+/**
+ * Delete a label from a project
+ *
+ * @param projectId The ID or URL-encoded path of the project
+ * @param labelId The ID or name of the label to delete
+ */
+async function deleteLabel(
+  projectId: string,
+  labelId: number | string
+): Promise<void> {
+  // Make the API request
+  const response = await fetch(
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/labels/${encodeURIComponent(String(labelId))}`,
+    {
+      method: "DELETE",
+      headers: DEFAULT_HEADERS,
+    }
+  );
+
+  // Handle errors
+  await handleGitLabError(response);
 }
 
 server.setRequestHandler(ListToolsRequestSchema, async () => {
@@ -1357,6 +1529,31 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
         name: "list_projects",
         description: "List projects accessible by the current user",
         inputSchema: zodToJsonSchema(ListProjectsSchema),
+      },
+      {
+        name: "list_labels",
+        description: "List labels for a project",
+        inputSchema: zodToJsonSchema(ListLabelsSchema),
+      },
+      {
+        name: "get_label",
+        description: "Get a single label from a project",
+        inputSchema: zodToJsonSchema(GetLabelSchema),
+      },
+      {
+        name: "create_label",
+        description: "Create a new label in a project",
+        inputSchema: zodToJsonSchema(CreateLabelSchema),
+      },
+      {
+        name: "update_label",
+        description: "Update an existing label in a project",
+        inputSchema: zodToJsonSchema(UpdateLabelSchema),
+      },
+      {
+        name: "delete_label",
+        description: "Delete a label from a project",
+        inputSchema: zodToJsonSchema(DeleteLabelSchema),
       },
     ],
   };
@@ -1622,10 +1819,14 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         });
 
         const response = await fetch(url.toString(), {
+          method: "GET",
           headers: DEFAULT_HEADERS,
         });
 
+        // Handle errors
         await handleGitLabError(response);
+
+        // Parse and return the data
         const data = await response.json();
         const projects = z.array(GitLabProjectSchema).parse(data);
 
@@ -1712,6 +1913,47 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         await deleteIssueLink(args.project_id, args.issue_iid, args.issue_link_id);
         return {
           content: [{ type: "text", text: JSON.stringify({ status: "success", message: "Issue link deleted successfully" }, null, 2) }],
+        };
+      }
+
+      case "list_labels": {
+        const args = ListLabelsSchema.parse(request.params.arguments);
+        const labels = await listLabels(args.project_id, args);
+        return {
+          content: [{ type: "text", text: JSON.stringify(labels, null, 2) }],
+        };
+      }
+
+      case "get_label": {
+        const args = GetLabelSchema.parse(request.params.arguments);
+        const label = await getLabel(args.project_id, args.label_id, args.include_ancestor_groups);
+        return {
+          content: [{ type: "text", text: JSON.stringify(label, null, 2) }],
+        };
+      }
+
+      case "create_label": {
+        const args = CreateLabelSchema.parse(request.params.arguments);
+        const label = await createLabel(args.project_id, args);
+        return {
+          content: [{ type: "text", text: JSON.stringify(label, null, 2) }],
+        };
+      }
+
+      case "update_label": {
+        const args = UpdateLabelSchema.parse(request.params.arguments);
+        const { project_id, label_id, ...options } = args;
+        const label = await updateLabel(project_id, label_id, options);
+        return {
+          content: [{ type: "text", text: JSON.stringify(label, null, 2) }],
+        };
+      }
+
+      case "delete_label": {
+        const args = DeleteLabelSchema.parse(request.params.arguments);
+        await deleteLabel(args.project_id, args.label_id);
+        return {
+          content: [{ type: "text", text: JSON.stringify({ status: "success", message: "Label deleted successfully" }, null, 2) }],
         };
       }
 
