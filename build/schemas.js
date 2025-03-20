@@ -207,7 +207,15 @@ export const GitLabLabelSchema = z.object({
     id: z.number(),
     name: z.string(),
     color: z.string(),
-    description: z.string().optional(),
+    text_color: z.string(),
+    description: z.string().nullable(),
+    description_html: z.string().nullable(),
+    open_issues_count: z.number().optional(),
+    closed_issues_count: z.number().optional(),
+    open_merge_requests_count: z.number().optional(),
+    subscribed: z.boolean().optional(),
+    priority: z.number().nullable().optional(),
+    is_project_label: z.boolean().optional(),
 });
 export const GitLabUserSchema = z.object({
     username: z.string(), // Changed from login to match GitLab API
@@ -295,7 +303,7 @@ export const GitLabMergeRequestSchema = z.object({
     assignees: z.array(GitLabUserSchema).optional(),
     source_branch: z.string(),
     target_branch: z.string(),
-    diff_refs: GitLabMergeRequestDiffRefSchema.optional(),
+    diff_refs: GitLabMergeRequestDiffRefSchema.nullable().optional(),
     web_url: z.string(),
     created_at: z.string(),
     updated_at: z.string(),
@@ -308,10 +316,10 @@ export const GitLabMergeRequestSchema = z.object({
     work_in_progress: z.boolean().optional(),
     blocking_discussions_resolved: z.boolean().optional(),
     should_remove_source_branch: z.boolean().nullable().optional(),
-    force_remove_source_branch: z.boolean().optional(),
+    force_remove_source_branch: z.boolean().nullable().optional(),
     allow_collaboration: z.boolean().optional(),
     allow_maintainer_to_push: z.boolean().optional(),
-    changes_count: z.string().optional(),
+    changes_count: z.string().nullable().optional(),
     merge_when_pipeline_succeeds: z.boolean().optional(),
     squash: z.boolean().optional(),
     labels: z.array(z.string()).optional(),
@@ -557,4 +565,35 @@ export const ListProjectsSchema = z.object({
     with_issues_enabled: z.boolean().optional().describe("Filter projects with issues feature enabled"),
     with_merge_requests_enabled: z.boolean().optional().describe("Filter projects with merge requests feature enabled"),
     min_access_level: z.number().optional().describe("Filter by minimum access level"),
+});
+// Label operation schemas
+export const ListLabelsSchema = z.object({
+    project_id: z.string().describe("Project ID or URL-encoded path"),
+    with_counts: z.boolean().optional().describe("Whether or not to include issue and merge request counts"),
+    include_ancestor_groups: z.boolean().optional().describe("Include ancestor groups"),
+    search: z.string().optional().describe("Keyword to filter labels by"),
+});
+export const GetLabelSchema = z.object({
+    project_id: z.string().describe("Project ID or URL-encoded path"),
+    label_id: z.union([z.number(), z.string()]).describe("The ID or title of a project's label"),
+    include_ancestor_groups: z.boolean().optional().describe("Include ancestor groups"),
+});
+export const CreateLabelSchema = z.object({
+    project_id: z.string().describe("Project ID or URL-encoded path"),
+    name: z.string().describe("The name of the label"),
+    color: z.string().describe("The color of the label given in 6-digit hex notation with leading '#' sign"),
+    description: z.string().optional().describe("The description of the label"),
+    priority: z.number().nullable().optional().describe("The priority of the label"),
+});
+export const UpdateLabelSchema = z.object({
+    project_id: z.string().describe("Project ID or URL-encoded path"),
+    label_id: z.union([z.number(), z.string()]).describe("The ID or title of a project's label"),
+    new_name: z.string().optional().describe("The new name of the label"),
+    color: z.string().optional().describe("The color of the label given in 6-digit hex notation with leading '#' sign"),
+    description: z.string().optional().describe("The new description of the label"),
+    priority: z.number().nullable().optional().describe("The new priority of the label"),
+});
+export const DeleteLabelSchema = z.object({
+    project_id: z.string().describe("Project ID or URL-encoded path"),
+    label_id: z.union([z.number(), z.string()]).describe("The ID or title of a project's label"),
 });
