@@ -66,6 +66,7 @@ import {
   UpdateLabelSchema,
   DeleteLabelSchema,
   CreateNoteSchema,
+  ListGroupProjectsSchema,
   type GitLabFork,
   type GitLabReference,
   type GitLabRepository,
@@ -1394,6 +1395,47 @@ async function deleteLabel(
   await handleGitLabError(response);
 }
 
+/**
+ * List all projects in a GitLab group
+ *
+ * @param {z.infer<typeof ListGroupProjectsSchema>} options - Options for listing group projects
+ * @returns {Promise<GitLabProject[]>} Array of projects in the group
+ */
+async function listGroupProjects(
+  options: z.infer<typeof ListGroupProjectsSchema>
+): Promise<GitLabProject[]> {
+  const url = new URL(
+    `${GITLAB_API_URL}/groups/${encodeURIComponent(options.group_id)}/projects`
+  );
+
+  // Add optional parameters to URL
+  if (options.include_subgroups) url.searchParams.append('include_subgroups', 'true');
+  if (options.search) url.searchParams.append('search', options.search);
+  if (options.order_by) url.searchParams.append('order_by', options.order_by);
+  if (options.sort) url.searchParams.append('sort', options.sort);
+  if (options.page) url.searchParams.append('page', options.page.toString());
+  if (options.per_page) url.searchParams.append('per_page', options.per_page.toString());
+  if (options.archived !== undefined) url.searchParams.append('archived', options.archived.toString());
+  if (options.visibility) url.searchParams.append('visibility', options.visibility);
+  if (options.with_issues_enabled !== undefined) url.searchParams.append('with_issues_enabled', options.with_issues_enabled.toString());
+  if (options.with_merge_requests_enabled !== undefined) url.searchParams.append('with_merge_requests_enabled', options.with_merge_requests_enabled.toString());
+  if (options.min_access_level !== undefined) url.searchParams.append('min_access_level', options.min_access_level.toString());
+  if (options.with_programming_language) url.searchParams.append('with_programming_language', options.with_programming_language);
+  if (options.starred !== undefined) url.searchParams.append('starred', options.starred.toString());
+  if (options.statistics !== undefined) url.searchParams.append('statistics', options.statistics.toString());
+  if (options.with_custom_attributes !== undefined) url.searchParams.append('with_custom_attributes', options.with_custom_attributes.toString());
+  if (options.with_security_reports !== undefined) url.searchParams.append('with_security_reports', options.with_security_reports.toString());
+
+  const response = await fetch(url.toString(), {
+    method: "GET",
+    headers: DEFAULT_HEADERS,
+  });
+
+  await handleGitLabError(response);
+  const projects = await response.json();
+  return GitLabProjectSchema.array().parse(projects);
+}
+
 server.setRequestHandler(ListToolsRequestSchema, async () => {
   return {
     tools: [
@@ -1554,6 +1596,11 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
         name: "delete_label",
         description: "Delete a label from a project",
         inputSchema: zodToJsonSchema(DeleteLabelSchema),
+      },
+      {
+        name: "list_group_projects",
+        description: "List projects in a GitLab group with filtering options",
+        inputSchema: zodToJsonSchema(ListGroupProjectsSchema),
       },
     ],
   };
@@ -1935,6 +1982,14 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         await deleteLabel(args.project_id, args.label_id);
         return {
           content: [{ type: "text", text: JSON.stringify({ status: "success", message: "Label deleted successfully" }, null, 2) }],
+        };
+      }
+
+      case "list_group_projects": {
+        const args = ListGroupProjectsSchema.parse(request.params.arguments);
+        const projects = await listGroupProjects(args);
+        return {
+          content: [{ type: "text", text: JSON.stringify(projects, null, 2) }],
         };
       }
 
