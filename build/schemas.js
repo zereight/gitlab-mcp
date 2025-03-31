@@ -6,6 +6,10 @@ export const GitLabAuthorSchema = z.object({
     date: z.string(),
 });
 // Namespace related schemas
+// Base schema for project-related operations
+const ProjectParamsSchema = z.object({
+    project_id: z.string().describe("Project ID or URL-encoded path"), // Changed from owner/repo to match GitLab API
+});
 export const GitLabNamespaceSchema = z.object({
     id: z.number(),
     name: z.string(),
@@ -324,10 +328,71 @@ export const GitLabMergeRequestSchema = z.object({
     squash: z.boolean().optional(),
     labels: z.array(z.string()).optional(),
 });
-// API Operation Parameter Schemas
-const ProjectParamsSchema = z.object({
-    project_id: z.string().describe("Project ID or URL-encoded path"), // Changed from owner/repo to match GitLab API
+// Discussion related schemas
+export const GitLabDiscussionNoteSchema = z.object({
+    id: z.number(),
+    type: z.enum(["DiscussionNote", "DiffNote", "Note"]).nullable(), // Allow null type for regular notes
+    body: z.string(),
+    attachment: z.any().nullable(), // Can be string or object, handle appropriately
+    author: GitLabUserSchema,
+    created_at: z.string(),
+    updated_at: z.string(),
+    system: z.boolean(),
+    noteable_id: z.number(),
+    noteable_type: z.enum(["Issue", "MergeRequest", "Snippet", "Commit", "Epic"]),
+    project_id: z.number().optional(), // Optional for group-level discussions like Epics
+    noteable_iid: z.number().nullable(),
+    resolvable: z.boolean().optional(),
+    resolved: z.boolean().optional(),
+    resolved_by: GitLabUserSchema.nullable().optional(),
+    resolved_at: z.string().nullable().optional(),
+    position: z.object({
+        base_sha: z.string(),
+        start_sha: z.string(),
+        head_sha: z.string(),
+        old_path: z.string(),
+        new_path: z.string(),
+        position_type: z.enum(["text", "image", "file"]),
+        old_line: z.number().nullable(),
+        new_line: z.number().nullable(),
+        line_range: z.object({
+            start: z.object({
+                line_code: z.string(),
+                type: z.enum(["new", "old"]),
+                old_line: z.number().nullable(),
+                new_line: z.number().nullable(),
+            }),
+            end: z.object({
+                line_code: z.string(),
+                type: z.enum(["new", "old"]),
+                old_line: z.number().nullable(),
+                new_line: z.number().nullable(),
+            }),
+        }).nullable().optional(), // For multi-line diff notes
+        width: z.number().optional(), // For image diff notes
+        height: z.number().optional(), // For image diff notes
+        x: z.number().optional(), // For image diff notes
+        y: z.number().optional(), // For image diff notes
+    }).optional(),
 });
+export const GitLabDiscussionSchema = z.object({
+    id: z.string(),
+    individual_note: z.boolean(),
+    notes: z.array(GitLabDiscussionNoteSchema),
+});
+// Input schema for listing merge request discussions
+export const ListMergeRequestDiscussionsSchema = ProjectParamsSchema.extend({
+    merge_request_iid: z.number().describe("The IID of a merge request"),
+});
+// Input schema for updating a merge request discussion note
+export const UpdateMergeRequestNoteSchema = ProjectParamsSchema.extend({
+    merge_request_iid: z.number().describe("The IID of a merge request"),
+    discussion_id: z.string().describe("The ID of a thread"),
+    note_id: z.number().describe("The ID of a thread note"),
+    body: z.string().describe("The content of the note or reply"),
+    resolved: z.boolean().optional().describe("Resolve or unresolve the note"), // Optional based on API docs
+});
+// API Operation Parameter Schemas
 export const CreateOrUpdateFileSchema = ProjectParamsSchema.extend({
     file_path: z.string().describe("Path where to create/update the file"),
     content: z.string().describe("Content of the file"),

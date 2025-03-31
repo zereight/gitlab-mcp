@@ -9,7 +9,11 @@ import { fileURLToPath } from "url";
 import { dirname } from "path";
 import fs from "fs";
 import path from "path";
-import { GitLabForkSchema, GitLabReferenceSchema, GitLabRepositorySchema, GitLabIssueSchema, GitLabMergeRequestSchema, GitLabContentSchema, GitLabCreateUpdateFileResponseSchema, GitLabSearchResponseSchema, GitLabTreeSchema, GitLabCommitSchema, GitLabNamespaceSchema, GitLabNamespaceExistsResponseSchema, GitLabProjectSchema, CreateOrUpdateFileSchema, SearchRepositoriesSchema, CreateRepositorySchema, GetFileContentsSchema, PushFilesSchema, CreateIssueSchema, CreateMergeRequestSchema, ForkRepositorySchema, CreateBranchSchema, GitLabMergeRequestDiffSchema, GetMergeRequestSchema, GetMergeRequestDiffsSchema, UpdateMergeRequestSchema, ListIssuesSchema, GetIssueSchema, UpdateIssueSchema, DeleteIssueSchema, GitLabIssueLinkSchema, GitLabIssueWithLinkDetailsSchema, ListIssueLinksSchema, GetIssueLinkSchema, CreateIssueLinkSchema, DeleteIssueLinkSchema, ListNamespacesSchema, GetNamespaceSchema, VerifyNamespaceSchema, GetProjectSchema, ListProjectsSchema, ListLabelsSchema, GetLabelSchema, CreateLabelSchema, UpdateLabelSchema, DeleteLabelSchema, CreateNoteSchema, ListGroupProjectsSchema, } from "./schemas.js";
+import { GitLabForkSchema, GitLabReferenceSchema, GitLabRepositorySchema, GitLabIssueSchema, GitLabMergeRequestSchema, GitLabContentSchema, GitLabCreateUpdateFileResponseSchema, GitLabSearchResponseSchema, GitLabTreeSchema, GitLabCommitSchema, GitLabNamespaceSchema, GitLabNamespaceExistsResponseSchema, GitLabProjectSchema, CreateOrUpdateFileSchema, SearchRepositoriesSchema, CreateRepositorySchema, GetFileContentsSchema, PushFilesSchema, CreateIssueSchema, CreateMergeRequestSchema, ForkRepositorySchema, CreateBranchSchema, GitLabMergeRequestDiffSchema, GetMergeRequestSchema, GetMergeRequestDiffsSchema, UpdateMergeRequestSchema, ListIssuesSchema, GetIssueSchema, UpdateIssueSchema, DeleteIssueSchema, GitLabIssueLinkSchema, GitLabIssueWithLinkDetailsSchema, ListIssueLinksSchema, GetIssueLinkSchema, CreateIssueLinkSchema, DeleteIssueLinkSchema, ListNamespacesSchema, GetNamespaceSchema, VerifyNamespaceSchema, GetProjectSchema, ListProjectsSchema, ListLabelsSchema, GetLabelSchema, CreateLabelSchema, UpdateLabelSchema, DeleteLabelSchema, CreateNoteSchema, ListGroupProjectsSchema, 
+// Discussion Schemas
+GitLabDiscussionNoteSchema, // Added
+GitLabDiscussionSchema, UpdateMergeRequestNoteSchema, // Added
+ListMergeRequestDiscussionsSchema, } from "./schemas.js";
 /**
  * Read version from package.json
  */
@@ -416,6 +420,51 @@ async function createMergeRequest(projectId, options) {
     }
     const data = await response.json();
     return GitLabMergeRequestSchema.parse(data);
+}
+/**
+ * List merge request discussion items
+ * 병합 요청 토론 목록 조회
+ *
+ * @param {string} projectId - The ID or URL-encoded path of the project
+ * @param {number} mergeRequestIid - The IID of a merge request
+ * @returns {Promise<GitLabDiscussion[]>} List of discussions
+ */
+async function listMergeRequestDiscussions(projectId, mergeRequestIid) {
+    const url = new URL(`${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/merge_requests/${mergeRequestIid}/discussions`);
+    const response = await fetch(url.toString(), {
+        headers: DEFAULT_HEADERS,
+    });
+    await handleGitLabError(response);
+    const data = await response.json();
+    // Ensure the response is parsed as an array of discussions
+    return z.array(GitLabDiscussionSchema).parse(data);
+}
+/**
+ * Modify an existing merge request thread note
+ * 병합 요청 토론 노트 수정
+ *
+ * @param {string} projectId - The ID or URL-encoded path of the project
+ * @param {number} mergeRequestIid - The IID of a merge request
+ * @param {string} discussionId - The ID of a thread
+ * @param {number} noteId - The ID of a thread note
+ * @param {string} body - The new content of the note
+ * @param {boolean} [resolved] - Resolve/unresolve state
+ * @returns {Promise<GitLabDiscussionNote>} The updated note
+ */
+async function updateMergeRequestNote(projectId, mergeRequestIid, discussionId, noteId, body, resolved) {
+    const url = new URL(`${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/merge_requests/${mergeRequestIid}/discussions/${discussionId}/notes/${noteId}`);
+    const payload = { body };
+    if (resolved !== undefined) {
+        payload.resolved = resolved;
+    }
+    const response = await fetch(url.toString(), {
+        method: "PUT",
+        headers: DEFAULT_HEADERS,
+        body: JSON.stringify(payload),
+    });
+    await handleGitLabError(response);
+    const data = await response.json();
+    return GitLabDiscussionNoteSchema.parse(data);
 }
 /**
  * Create or update a file in a GitLab project
@@ -1078,6 +1127,16 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
                 inputSchema: zodToJsonSchema(CreateNoteSchema),
             },
             {
+                name: "list_merge_request_discussions",
+                description: "List discussion items for a merge request",
+                inputSchema: zodToJsonSchema(ListMergeRequestDiscussionsSchema),
+            },
+            {
+                name: "update_merge_request_note",
+                description: "Modify an existing merge request thread note",
+                inputSchema: zodToJsonSchema(UpdateMergeRequestNoteSchema),
+            },
+            {
                 name: "list_issues",
                 description: "List issues in a GitLab project with filtering options",
                 inputSchema: zodToJsonSchema(ListIssuesSchema),
@@ -1269,6 +1328,14 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
                     ],
                 };
             }
+            case "update_merge_request_note": {
+                const args = UpdateMergeRequestNoteSchema.parse(request.params.arguments);
+                const note = await updateMergeRequestNote(args.project_id, args.merge_request_iid, args.discussion_id, args.note_id, args.body, args.resolved // Pass resolved if provided
+                );
+                return {
+                    content: [{ type: "text", text: JSON.stringify(note, null, 2) }],
+                };
+            }
             case "get_merge_request": {
                 const args = GetMergeRequestSchema.parse(request.params.arguments);
                 const mergeRequest = await getMergeRequest(args.project_id, args.merge_request_iid);
@@ -1292,6 +1359,15 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
                 return {
                     content: [
                         { type: "text", text: JSON.stringify(mergeRequest, null, 2) },
+                    ],
+                };
+            }
+            case "list_merge_request_discussions": {
+                const args = ListMergeRequestDiscussionsSchema.parse(request.params.arguments);
+                const discussions = await listMergeRequestDiscussions(args.project_id, args.merge_request_iid);
+                return {
+                    content: [
+                        { type: "text", text: JSON.stringify(discussions, null, 2) },
                     ],
                 };
             }
