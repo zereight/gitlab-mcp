@@ -237,6 +237,34 @@ env GITLAB_PERSONAL_ACCESS_TOKEN=your_gitlab_token GITLAB_API_URL=your_gitlab_ap
       - `label_id` (number/string): Label ID or name
     - Returns: Success message
 
+14. `list_group_projects`
+
+    - List all projects in a GitLab group. 📂
+    - Inputs:
+      - `group_id` (string): Project ID or namespace/project_path
+      - Filtering options:
+        - `include_subgroups` (optional boolean): Include projects from subgroups
+        - `search` (optional string): Search term to filter projects
+        - `archived` (optional boolean): Filter for archived projects
+        - `visibility` (optional string): Filter by project visibility (public/internal/private)
+        - `with_programming_language` (optional string): Filter by programming language
+        - `starred` (optional boolean): Filter by starred projects
+      - Feature filtering:
+        - `with_issues_enabled` (optional boolean): Filter projects with issues feature enabled
+        - `with_merge_requests_enabled` (optional boolean): Filter projects with merge requests feature enabled
+        - `min_access_level` (optional number): Filter by minimum access level
+      - Pagination:
+        - `page` (optional number): Page number
+        - `per_page` (optional number): Results per page
+      - Sorting:
+        - `order_by` (optional string): Field to sort by
+        - `sort` (optional string): Sort direction (asc/desc)
+      - Additional data:
+        - `statistics` (optional boolean): Include project statistics
+        - `with_custom_attributes` (optional boolean): Include custom attributes
+        - `with_security_reports` (optional boolean): Include security reports
+    - Returns: List of projects
+
 ## Environment Variable Configuration
 
 Before running the server, you need to set the following environment variables:

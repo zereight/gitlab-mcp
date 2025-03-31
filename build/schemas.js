@@ -597,3 +597,23 @@ export const DeleteLabelSchema = z.object({
     project_id: z.string().describe("Project ID or URL-encoded path"),
     label_id: z.union([z.number(), z.string()]).describe("The ID or title of a project's label"),
 });
+// Group projects schema
+export const ListGroupProjectsSchema = z.object({
+    group_id: z.string().describe("Group ID or path"),
+    include_subgroups: z.boolean().optional().describe("Include projects from subgroups"),
+    search: z.string().optional().describe("Search term to filter projects"),
+    order_by: z.enum(['name', 'path', 'created_at', 'updated_at', 'last_activity_at']).optional().describe("Field to sort by"),
+    sort: z.enum(['asc', 'desc']).optional().describe("Sort direction"),
+    page: z.number().optional().describe("Page number"),
+    per_page: z.number().optional().describe("Number of results per page"),
+    archived: z.boolean().optional().describe("Filter for archived projects"),
+    visibility: z.enum(["public", "internal", "private"]).optional().describe("Filter by project visibility"),
+    with_issues_enabled: z.boolean().optional().describe("Filter projects with issues feature enabled"),
+    with_merge_requests_enabled: z.boolean().optional().describe("Filter projects with merge requests feature enabled"),
+    min_access_level: z.number().optional().describe("Filter by minimum access level"),
+    with_programming_language: z.string().optional().describe("Filter by programming language"),
+    starred: z.boolean().optional().describe("Filter by starred projects"),
+    statistics: z.boolean().optional().describe("Include project statistics"),
+    with_custom_attributes: z.boolean().optional().describe("Include custom attributes"),
+    with_security_reports: z.boolean().optional().describe("Include security reports")
+});
