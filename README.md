@@ -174,12 +174,68 @@ env GITLAB_PERSONAL_ACCESS_TOKEN=your_gitlab_token GITLAB_API_URL=your_gitlab_ap
       - `body` (string): Note content
     - Returns: Details of the created note
 
-| **`list_projects`** | List accessible projects with rich filtering options 📊 | • Search/filtering: `search`, `owned`, `membership`, `archived`, `visibility`<br>• Features filtering: `with_issues_enabled`, `with_merge_requests_enabled`<br>• Sorting: `order_by`, `sort`<br>• Access control: `min_access_level`<br>• Pagination: `page`, `per_page`, `simple` | Array of projects |
-| **`list_labels`** | List all labels for a project with filtering options 🏷️ | • `project_id` (string): Project ID or path<br>• `with_counts` (optional): Include issue and merge request counts<br>• `include_ancestor_groups` (optional): Include ancestor groups<br>• `search` (optional): Filter labels by keyword | Array of labels |
-| **`get_label`** | Get a single label from a project 🏷️ | • `project_id` (string): Project ID or path<br>• `label_id` (number/string): Label ID or name<br>• `include_ancestor_groups` (optional): Include ancestor groups | Label details |
-| **`create_label`** | Create a new label in a project 🏷️➕ | • `project_id` (string): Project ID or path<br>• `name` (string): Label name<br>• `color` (string): Color in hex format (e.g., "#FF0000")<br>• `description` (optional): Label description<br>• `priority` (optional): Label priority | Created label details |
-| **`update_label`** | Update an existing label in a project 🏷️✏️ | • `project_id` (string): Project ID or path<br>• `label_id` (number/string): Label ID or name<br>• `new_name` (optional): New label name<br>• `color` (optional): New color in hex format<br>• `description` (optional): New description<br>• `priority` (optional): New priority | Updated label details |
-| **`delete_label`** | Delete a label from a project 🏷️❌ | • `project_id` (string): Project ID or path<br>• `label_id` (number/string): Label ID or name | Success message |
+14. `list_projects`
+    - List accessible projects with rich filtering options 📊
+    - Inputs:
+      - Search/filtering:
+        - `search`
+        - `owned`
+        - `membership`
+        - `archived`
+        - `visibility`
+      - Features filtering:
+        - `with_issues_enabled`
+        - `with_merge_requests_enabled`
+      - Sorting:
+        - `order_by`
+        - `sort`
+      - Access control:
+        - `min_access_level`
+      - Pagination:
+        - `page`
+        - `per_page`
+        - `simple`
+    - Returns: Array of projects 
+15. `list_labels`
+    - List all labels for a project with filtering options 🏷️
+    - Inputs:
+      - `project_id` (string): Project ID or path
+      - `with_counts` (optional): Include issue and merge request counts
+      - `include_ancestor_groups` (optional): Include ancestor groups
+      - `search` (optional): Filter labels by keyword
+    - Returns: Array of labels
+16. `get_label`
+    - Get a single label from a project
+    - Inputs:
+      -  `project_id` (string): Project ID or path
+      - `label_id` (number/string): Label ID or name
+      - `include_ancestor_groups` (optional): Include ancestor groups 
+    - Returns: label details
+17. `create_label`
+    - Create a new label in an object 🏷️➕
+    - Inputs:
+      - `project_id` (string): Project ID or path
+      - `name` (string): Label name
+      - `color` (string): Color in hex format (e.g., "#FF0000")
+      - `description` (optional): Label description
+      - `priority` (optional): Label priority
+    - Returns: Created label details
+18. `update_label`
+    - Update an existing label in a project 🏷️✏️
+    - Inputs:
+      - `project_id` (string): Project ID or path
+      - `label_id` (number/string): Label ID or name
+      - `new_name` (optional): New label name
+      - `color` (optional): New color in hex format
+      - `description` (optional): New description
+      - `priority` (optional): New priority
+    - Returns: Updated label details
+19. `delete_label`
+    - Delete a label from a project 🏷️❌
+    - Inputs:
+      - `project_id` (string): Project ID or path
+      - `label_id` (number/string): Label ID or name
+    - Returns: Success message
 
 ## Environment Variable Configuration
 
