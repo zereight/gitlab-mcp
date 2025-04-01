@@ -2161,15 +2161,6 @@ async function runServer() {
     const transport = new StdioServerTransport();
     await server.connect(transport);
     console.error("GitLab MCP Server running on stdio");
-
-    if (GITLAB_READ_ONLY_MODE) {
-      console.error("⚠️ Server running in READ-ONLY mode - write operations are disabled");
-      console.error(`Available tools: ${readOnlyTools.length}/${allTools.length}`);
-    }
-
-    // For stdio transport, the server is effectively running after connect.
-    // No need to call server.start() or return a URL.
-
   } catch (error) {
     console.error("Error initializing server:", error);
     process.exit(1);
