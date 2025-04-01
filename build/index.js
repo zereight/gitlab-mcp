@@ -60,12 +60,6 @@ function normalizeGitLabApiUrl(url) {
 }
 // Use the normalizeGitLabApiUrl function to handle various URL formats
 const GITLAB_API_URL = normalizeGitLabApiUrl(process.env.GITLAB_API_URL || "");
-// Add debug logging for API URL construction
-console.log("=== MCP Server Configuration ===");
-console.log(`GITLAB_API_URL = "${GITLAB_API_URL}"`);
-console.log(`Example project API URL = "${GITLAB_API_URL}/projects/123"`);
-console.log(`Example Notes API URL = "${GITLAB_API_URL}/projects/123/issues/1/notes"`);
-console.log("===============================");
 if (!GITLAB_PERSONAL_ACCESS_TOKEN) {
     console.error("GITLAB_PERSONAL_ACCESS_TOKEN environment variable is not set");
     process.exit(1);
