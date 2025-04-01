@@ -10,7 +10,7 @@ GitLab MCP(Model Context Protocol) Server. **Includes bug fixes and improvements
 
 ## Usage
 
-### Using with Claude App, Cline, Roo Code
+### Using with Claude App, Cline, Roo Code, Cursor
 
 When using with the Claude App, you need to set up your API key and URLs directly.
 
@@ -22,23 +22,20 @@ When using with the Claude App, you need to set up your API key and URLs directl
       "args": ["-y", "@zereight/mcp-gitlab"],
       "env": {
         "GITLAB_PERSONAL_ACCESS_TOKEN": "your_gitlab_token",
-        "GITLAB_API_URL": "your_gitlab_api_url"
+        "GITLAB_API_URL": "your_gitlab_api_url",
+        "GITLAB_READ_ONLY_MODE": "true"
       }
     }
   }
 }
 ```
 
-### Using with Cursor
+### Environment Variables
 
-When using with Cursor, you can set up environment variables and run the server as follows:
-
-```
-env GITLAB_PERSONAL_ACCESS_TOKEN=your_gitlab_token GITLAB_API_URL=your_gitlab_api_url npx @zereight/mcp-gitlab
-```
 
 - `GITLAB_PERSONAL_ACCESS_TOKEN`: Your GitLab personal access token.
 - `GITLAB_API_URL`: Your GitLab API URL. (Default: `https://gitlab.com/api/v4`)
+- `GITLAB_READ_ONLY_MODE`: When set to 'true', restricts the server to only expose read-only operations. Useful for enhanced security or when write access is not needed. Also useful for using with Cursor and it's 40 tool limit.
 
 ## Tools 🛠️
 
@@ -272,6 +269,7 @@ Before running the server, you need to set the following environment variables:
 ```
 GITLAB_PERSONAL_ACCESS_TOKEN=your_gitlab_token
 GITLAB_API_URL=your_gitlab_api_url  # Default: https://gitlab.com/api/v4
+GITLAB_READ_ONLY_MODE=true          # Optional: Enable read-only mode
 ```
 
 ## License
