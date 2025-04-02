@@ -124,6 +124,205 @@ const server = new Server(
 );
 
 const GITLAB_PERSONAL_ACCESS_TOKEN = process.env.GITLAB_PERSONAL_ACCESS_TOKEN;
+const GITLAB_READ_ONLY_MODE = process.env.GITLAB_READ_ONLY_MODE === 'true';
+
+// Define all available tools
+const allTools = [
+  {
+    name: "create_or_update_file",
+    description: "Create or update a single file in a GitLab project",
+    inputSchema: zodToJsonSchema(CreateOrUpdateFileSchema),
+  },
+  {
+    name: "search_repositories",
+    description: "Search for GitLab projects",
+    inputSchema: zodToJsonSchema(SearchRepositoriesSchema),
+  },
+  {
+    name: "create_repository",
+    description: "Create a new GitLab project",
+    inputSchema: zodToJsonSchema(CreateRepositorySchema),
+  },
+  {
+    name: "get_file_contents",
+    description:
+      "Get the contents of a file or directory from a GitLab project",
+    inputSchema: zodToJsonSchema(GetFileContentsSchema),
+  },
+  {
+    name: "push_files",
+    description:
+      "Push multiple files to a GitLab project in a single commit",
+    inputSchema: zodToJsonSchema(PushFilesSchema),
+  },
+  {
+    name: "create_issue",
+    description: "Create a new issue in a GitLab project",
+    inputSchema: zodToJsonSchema(CreateIssueSchema),
+  },
+  {
+    name: "create_merge_request",
+    description: "Create a new merge request in a GitLab project",
+    inputSchema: zodToJsonSchema(CreateMergeRequestSchema),
+  },
+  {
+    name: "fork_repository",
+    description:
+      "Fork a GitLab project to your account or specified namespace",
+    inputSchema: zodToJsonSchema(ForkRepositorySchema),
+  },
+  {
+    name: "create_branch",
+    description: "Create a new branch in a GitLab project",
+    inputSchema: zodToJsonSchema(CreateBranchSchema),
+  },
+  {
+    name: "get_merge_request",
+    description: "Get details of a merge request",
+    inputSchema: zodToJsonSchema(GetMergeRequestSchema),
+  },
+  {
+    name: "get_merge_request_diffs",
+    description: "Get the changes/diffs of a merge request",
+    inputSchema: zodToJsonSchema(GetMergeRequestDiffsSchema),
+  },
+  {
+    name: "update_merge_request",
+    description: "Update a merge request",
+    inputSchema: zodToJsonSchema(UpdateMergeRequestSchema),
+  },
+  {
+    name: "create_note",
+    description: "Create a new note (comment) to an issue or merge request",
+    inputSchema: zodToJsonSchema(CreateNoteSchema),
+  },
+  {
+    name: "list_merge_request_discussions",
+    description: "List discussion items for a merge request",
+    inputSchema: zodToJsonSchema(ListMergeRequestDiscussionsSchema),
+  },
+  {
+    name: "update_merge_request_note",
+    description: "Modify an existing merge request thread note",
+    inputSchema: zodToJsonSchema(UpdateMergeRequestNoteSchema),
+  },
+  {
+    name: "list_issues",
+    description: "List issues in a GitLab project with filtering options",
+    inputSchema: zodToJsonSchema(ListIssuesSchema),
+  },
+  {
+    name: "get_issue",
+    description: "Get details of a specific issue in a GitLab project",
+    inputSchema: zodToJsonSchema(GetIssueSchema),
+  },
+  {
+    name: "update_issue",
+    description: "Update an issue in a GitLab project",
+    inputSchema: zodToJsonSchema(UpdateIssueSchema),
+  },
+  {
+    name: "delete_issue",
+    description: "Delete an issue from a GitLab project",
+    inputSchema: zodToJsonSchema(DeleteIssueSchema),
+  },
+  {
+    name: "list_issue_links",
+    description: "List all issue links for a specific issue",
+    inputSchema: zodToJsonSchema(ListIssueLinksSchema),
+  },
+  {
+    name: "get_issue_link",
+    description: "Get a specific issue link",
+    inputSchema: zodToJsonSchema(GetIssueLinkSchema),
+  },
+  {
+    name: "create_issue_link",
+    description: "Create an issue link between two issues",
+    inputSchema: zodToJsonSchema(CreateIssueLinkSchema),
+  },
+  {
+    name: "delete_issue_link",
+    description: "Delete an issue link",
+    inputSchema: zodToJsonSchema(DeleteIssueLinkSchema),
+  },
+  {
+    name: "list_namespaces",
+    description: "List all namespaces available to the current user",
+    inputSchema: zodToJsonSchema(ListNamespacesSchema),
+  },
+  {
+    name: "get_namespace",
+    description: "Get details of a namespace by ID or path",
+    inputSchema: zodToJsonSchema(GetNamespaceSchema),
+  },
+  {
+    name: "verify_namespace",
+    description: "Verify if a namespace path exists",
+    inputSchema: zodToJsonSchema(VerifyNamespaceSchema),
+  },
+  {
+    name: "get_project",
+    description: "Get details of a specific project",
+    inputSchema: zodToJsonSchema(GetProjectSchema),
+  },
+  {
+    name: "list_projects",
+    description: "List projects accessible by the current user",
+    inputSchema: zodToJsonSchema(ListProjectsSchema),
+  },
+  {
+    name: "list_labels",
+    description: "List labels for a project",
+    inputSchema: zodToJsonSchema(ListLabelsSchema),
+  },
+  {
+    name: "get_label",
+    description: "Get a single label from a project",
+    inputSchema: zodToJsonSchema(GetLabelSchema),
+  },
+  {
+    name: "create_label",
+    description: "Create a new label in a project",
+    inputSchema: zodToJsonSchema(CreateLabelSchema),
+  },
+  {
+    name: "update_label",
+    description: "Update an existing label in a project",
+    inputSchema: zodToJsonSchema(UpdateLabelSchema),
+  },
+  {
+    name: "delete_label",
+    description: "Delete a label from a project",
+    inputSchema: zodToJsonSchema(DeleteLabelSchema),
+  },
+  {
+    name: "list_group_projects",
+    description: "List projects in a GitLab group with filtering options",
+    inputSchema: zodToJsonSchema(ListGroupProjectsSchema),
+  },
+];
+
+// Define which tools are read-only
+const readOnlyTools = [
+  "search_repositories",
+  "get_file_contents",
+  "get_merge_request",
+  "get_merge_request_diffs",
+  "list_merge_request_discussions",
+  "list_issues",
+  "get_issue",
+  "list_issue_links",
+  "get_issue_link",
+  "list_namespaces",
+  "get_namespace",
+  "verify_namespace",
+  "get_project",
+  "list_projects",
+  "list_labels",
+  "get_label",
+  "list_group_projects"
+];
 
 /**
  * Smart URL handling for GitLab API
@@ -1508,182 +1707,13 @@ async function listGroupProjects(
 }
 
 server.setRequestHandler(ListToolsRequestSchema, async () => {
+  // If read-only mode is enabled, filter out write operations
+  const tools = GITLAB_READ_ONLY_MODE
+    ? allTools.filter(tool => readOnlyTools.includes(tool.name))
+    : allTools;
+
   return {
-    tools: [
-      {
-        name: "create_or_update_file",
-        description: "Create or update a single file in a GitLab project",
-        inputSchema: zodToJsonSchema(CreateOrUpdateFileSchema),
-      },
-      {
-        name: "search_repositories",
-        description: "Search for GitLab projects",
-        inputSchema: zodToJsonSchema(SearchRepositoriesSchema),
-      },
-      {
-        name: "create_repository",
-        description: "Create a new GitLab project",
-        inputSchema: zodToJsonSchema(CreateRepositorySchema),
-      },
-      {
-        name: "get_file_contents",
-        description:
-          "Get the contents of a file or directory from a GitLab project",
-        inputSchema: zodToJsonSchema(GetFileContentsSchema),
-      },
-      {
-        name: "push_files",
-        description:
-          "Push multiple files to a GitLab project in a single commit",
-        inputSchema: zodToJsonSchema(PushFilesSchema),
-      },
-      {
-        name: "create_issue",
-        description: "Create a new issue in a GitLab project",
-        inputSchema: zodToJsonSchema(CreateIssueSchema),
-      },
-      {
-        name: "create_merge_request",
-        description: "Create a new merge request in a GitLab project",
-        inputSchema: zodToJsonSchema(CreateMergeRequestSchema),
-      },
-      {
-        name: "fork_repository",
-        description:
-          "Fork a GitLab project to your account or specified namespace",
-        inputSchema: zodToJsonSchema(ForkRepositorySchema),
-      },
-      {
-        name: "create_branch",
-        description: "Create a new branch in a GitLab project",
-        inputSchema: zodToJsonSchema(CreateBranchSchema),
-      },
-      {
-        name: "get_merge_request",
-        description: "Get details of a merge request",
-        inputSchema: zodToJsonSchema(GetMergeRequestSchema),
-      },
-      {
-        name: "get_merge_request_diffs",
-        description: "Get the changes/diffs of a merge request",
-        inputSchema: zodToJsonSchema(GetMergeRequestDiffsSchema),
-      },
-      {
-        name: "update_merge_request",
-        description: "Update a merge request",
-        inputSchema: zodToJsonSchema(UpdateMergeRequestSchema),
-      },
-      {
-        name: "create_note",
-        description: "Create a new note (comment) to an issue or merge request",
-        inputSchema: zodToJsonSchema(CreateNoteSchema),
-      },
-      {
-        name: "list_merge_request_discussions",
-        description: "List discussion items for a merge request",
-        inputSchema: zodToJsonSchema(ListMergeRequestDiscussionsSchema),
-      },
-      {
-        name: "update_merge_request_note",
-        description: "Modify an existing merge request thread note",
-        inputSchema: zodToJsonSchema(UpdateMergeRequestNoteSchema),
-      },
-      {
-        name: "list_issues",
-        description: "List issues in a GitLab project with filtering options",
-        inputSchema: zodToJsonSchema(ListIssuesSchema),
-      },
-      {
-        name: "get_issue",
-        description: "Get details of a specific issue in a GitLab project",
-        inputSchema: zodToJsonSchema(GetIssueSchema),
-      },
-      {
-        name: "update_issue",
-        description: "Update an issue in a GitLab project",
-        inputSchema: zodToJsonSchema(UpdateIssueSchema),
-      },
-      {
-        name: "delete_issue",
-        description: "Delete an issue from a GitLab project",
-        inputSchema: zodToJsonSchema(DeleteIssueSchema),
-      },
-      {
-        name: "list_issue_links",
-        description: "List all issue links for a specific issue",
-        inputSchema: zodToJsonSchema(ListIssueLinksSchema),
-      },
-      {
-        name: "get_issue_link",
-        description: "Get a specific issue link",
-        inputSchema: zodToJsonSchema(GetIssueLinkSchema),
-      },
-      {
-        name: "create_issue_link",
-        description: "Create an issue link between two issues",
-        inputSchema: zodToJsonSchema(CreateIssueLinkSchema),
-      },
-      {
-        name: "delete_issue_link",
-        description: "Delete an issue link",
-        inputSchema: zodToJsonSchema(DeleteIssueLinkSchema),
-      },
-      {
-        name: "list_namespaces",
-        description: "List all namespaces available to the current user",
-        inputSchema: zodToJsonSchema(ListNamespacesSchema),
-      },
-      {
-        name: "get_namespace",
-        description: "Get details of a namespace by ID or path",
-        inputSchema: zodToJsonSchema(GetNamespaceSchema),
-      },
-      {
-        name: "verify_namespace",
-        description: "Verify if a namespace path exists",
-        inputSchema: zodToJsonSchema(VerifyNamespaceSchema),
-      },
-      {
-        name: "get_project",
-        description: "Get details of a specific project",
-        inputSchema: zodToJsonSchema(GetProjectSchema),
-      },
-      {
-        name: "list_projects",
-        description: "List projects accessible by the current user",
-        inputSchema: zodToJsonSchema(ListProjectsSchema),
-      },
-      {
-        name: "list_labels",
-        description: "List labels for a project",
-        inputSchema: zodToJsonSchema(ListLabelsSchema),
-      },
-      {
-        name: "get_label",
-        description: "Get a single label from a project",
-        inputSchema: zodToJsonSchema(GetLabelSchema),
-      },
-      {
-        name: "create_label",
-        description: "Create a new label in a project",
-        inputSchema: zodToJsonSchema(CreateLabelSchema),
-      },
-      {
-        name: "update_label",
-        description: "Update an existing label in a project",
-        inputSchema: zodToJsonSchema(UpdateLabelSchema),
-      },
-      {
-        name: "delete_label",
-        description: "Delete a label from a project",
-        inputSchema: zodToJsonSchema(DeleteLabelSchema),
-      },
-      {
-        name: "list_group_projects",
-        description: "List projects in a GitLab group with filtering options",
-        inputSchema: zodToJsonSchema(ListGroupProjectsSchema),
-      },
-    ],
+    tools,
   };
 });
 
