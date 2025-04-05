@@ -1,6 +1,6 @@
 {
   "name": "@zereight/mcp-gitlab",
-  "version": "1.0.25",
+  "version": "1.0.27",
   "description": "MCP server for using the GitLab API",
   "license": "MIT",
   "author": "zereight",
@@ -19,7 +19,7 @@
     "build": "tsc && node -e \"require('fs').chmodSync('build/index.js', '755')\"",
     "prepare": "npm run build",
     "watch": "tsc --watch",
-    "deploy": "npm run build && npm publish"
+    "deploy": "npm publish --access public"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "1.8.0",

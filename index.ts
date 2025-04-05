@@ -10,7 +10,7 @@ import fetch from "node-fetch";
 import { z } from "zod";
 import { zodToJsonSchema } from "zod-to-json-schema";
 import { fileURLToPath } from "url";
-import { dirname, resolve } from "path";
+import { dirname } from "path";
 import fs from "fs";
 import path from "path";
 import {
@@ -100,11 +100,11 @@ import {
  */
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-const packageJsonPath = path.resolve(__dirname, '../package.json');
+const packageJsonPath = path.resolve(__dirname, "../package.json");
 let SERVER_VERSION = "unknown";
 try {
   if (fs.existsSync(packageJsonPath)) {
-    const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
+    const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, "utf8"));
     SERVER_VERSION = packageJson.version || SERVER_VERSION;
   }
 } catch (error) {
@@ -124,7 +124,7 @@ const server = new Server(
 );
 
 const GITLAB_PERSONAL_ACCESS_TOKEN = process.env.GITLAB_PERSONAL_ACCESS_TOKEN;
-const GITLAB_READ_ONLY_MODE = process.env.GITLAB_READ_ONLY_MODE === 'true';
+const GITLAB_READ_ONLY_MODE = process.env.GITLAB_READ_ONLY_MODE === "true";
 
 // Define all available tools
 const allTools = [
@@ -151,8 +151,7 @@ const allTools = [
   },
   {
     name: "push_files",
-    description:
-      "Push multiple files to a GitLab project in a single commit",
+    description: "Push multiple files to a GitLab project in a single commit",
     inputSchema: zodToJsonSchema(PushFilesSchema),
   },
   {
@@ -167,8 +166,7 @@ const allTools = [
   },
   {
     name: "fork_repository",
-    description:
-      "Fork a GitLab project to your account or specified namespace",
+    description: "Fork a GitLab project to your account or specified namespace",
     inputSchema: zodToJsonSchema(ForkRepositorySchema),
   },
   {
@@ -321,7 +319,7 @@ const readOnlyTools = [
   "list_projects",
   "list_labels",
   "get_label",
-  "list_group_projects"
+  "list_group_projects",
 ];
 
 /**
@@ -336,10 +334,13 @@ function normalizeGitLabApiUrl(url?: string): string {
   }
 
   // Remove trailing slash if present
-  let normalizedUrl = url.endsWith('/') ? url.slice(0, -1) : url;
+  let normalizedUrl = url.endsWith("/") ? url.slice(0, -1) : url;
 
   // Check if URL already has /api/v4
-  if (!normalizedUrl.endsWith('/api/v4') && !normalizedUrl.endsWith('/api/v4/')) {
+  if (
+    !normalizedUrl.endsWith("/api/v4") &&
+    !normalizedUrl.endsWith("/api/v4/")
+  ) {
     // Append /api/v4 if not already present
     normalizedUrl = `${normalizedUrl}/api/v4`;
   }
@@ -582,9 +583,9 @@ async function listIssues(
   // Add all query parameters
   Object.entries(options).forEach(([key, value]) => {
     if (value !== undefined) {
-      if (key === 'label_name' && Array.isArray(value)) {
+      if (key === "label_name" && Array.isArray(value)) {
         // Handle array of labels
-        url.searchParams.append(key, value.join(','));
+        url.searchParams.append(key, value.join(","));
       } else {
         url.searchParams.append(key, value.toString());
       }
@@ -613,7 +614,9 @@ async function getIssue(
   issueIid: number
 ): Promise<GitLabIssue> {
   const url = new URL(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/issues/${issueIid}`
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(
+      projectId
+    )}/issues/${issueIid}`
   );
 
   const response = await fetch(url.toString(), {
@@ -640,13 +643,15 @@ async function updateIssue(
   options: Omit<z.infer<typeof UpdateIssueSchema>, "project_id" | "issue_iid">
 ): Promise<GitLabIssue> {
   const url = new URL(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/issues/${issueIid}`
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(
+      projectId
+    )}/issues/${issueIid}`
   );
 
   // Convert labels array to comma-separated string if present
   const body: Record<string, any> = { ...options };
   if (body.labels && Array.isArray(body.labels)) {
-    body.labels = body.labels.join(',');
+    body.labels = body.labels.join(",");
   }
 
   const response = await fetch(url.toString(), {
@@ -668,12 +673,11 @@ async function updateIssue(
  * @param {number} issueIid - The internal ID of the project issue
  * @returns {Promise<void>}
  */
-async function deleteIssue(
-  projectId: string,
-  issueIid: number
-): Promise<void> {
+async function deleteIssue(projectId: string, issueIid: number): Promise<void> {
   const url = new URL(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/issues/${issueIid}`
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(
+      projectId
+    )}/issues/${issueIid}`
   );
 
   const response = await fetch(url.toString(), {
@@ -697,7 +701,9 @@ async function listIssueLinks(
   issueIid: number
 ): Promise<GitLabIssueWithLinkDetails[]> {
   const url = new URL(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/issues/${issueIid}/links`
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(
+      projectId
+    )}/issues/${issueIid}/links`
   );
 
   const response = await fetch(url.toString(), {
@@ -724,7 +730,9 @@ async function getIssueLink(
   issueLinkId: number
 ): Promise<GitLabIssueLink> {
   const url = new URL(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/issues/${issueIid}/links/${issueLinkId}`
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(
+      projectId
+    )}/issues/${issueIid}/links/${issueLinkId}`
   );
 
   const response = await fetch(url.toString(), {
@@ -752,10 +760,12 @@ async function createIssueLink(
   issueIid: number,
   targetProjectId: string,
   targetIssueIid: number,
-  linkType: 'relates_to' | 'blocks' | 'is_blocked_by' = 'relates_to'
+  linkType: "relates_to" | "blocks" | "is_blocked_by" = "relates_to"
 ): Promise<GitLabIssueLink> {
   const url = new URL(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/issues/${issueIid}/links`
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(
+      projectId
+    )}/issues/${issueIid}/links`
   );
 
   const response = await fetch(url.toString(), {
@@ -764,7 +774,7 @@ async function createIssueLink(
     body: JSON.stringify({
       target_project_id: targetProjectId,
       target_issue_iid: targetIssueIid,
-      link_type: linkType
+      link_type: linkType,
     }),
   });
 
@@ -788,7 +798,9 @@ async function deleteIssueLink(
   issueLinkId: number
 ): Promise<void> {
   const url = new URL(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/issues/${issueIid}/links/${issueLinkId}`
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(
+      projectId
+    )}/issues/${issueIid}/links/${issueLinkId}`
   );
 
   const response = await fetch(url.toString(), {
@@ -812,9 +824,7 @@ async function createMergeRequest(
   options: z.infer<typeof CreateMergeRequestOptionsSchema>
 ): Promise<GitLabMergeRequest> {
   const url = new URL(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(
-      projectId
-    )}/merge_requests`
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/merge_requests`
   );
 
   const response = await fetch(url.toString(), {
@@ -1417,7 +1427,9 @@ async function verifyNamespaceExistence(
   namespacePath: string,
   parentId?: number
 ): Promise<GitLabNamespaceExistsResponse> {
-  const url = new URL(`${GITLAB_API_URL}/namespaces/${encodeURIComponent(namespacePath)}/exists`);
+  const url = new URL(
+    `${GITLAB_API_URL}/namespaces/${encodeURIComponent(namespacePath)}/exists`
+  );
 
   if (parentId) {
     url.searchParams.append("parent_id", parentId.toString());
@@ -1451,7 +1463,9 @@ async function getProject(
     with_custom_attributes?: boolean;
   } = {}
 ): Promise<GitLabProject> {
-  const url = new URL(`${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}`);
+  const url = new URL(
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}`
+  );
 
   if (options.license) {
     url.searchParams.append("license", "true");
@@ -1481,7 +1495,9 @@ async function getProject(
  * @param {Object} options - Options for listing projects
  * @returns {Promise<GitLabProject[]>} List of projects
  */
-async function listProjects(options: z.infer<typeof ListProjectsSchema> = {}): Promise<GitLabProject[]> {
+async function listProjects(
+  options: z.infer<typeof ListProjectsSchema> = {}
+): Promise<GitLabProject[]> {
   // Construct the query parameters
   const params = new URLSearchParams();
   for (const [key, value] of Object.entries(options)) {
@@ -1523,7 +1539,9 @@ async function listLabels(
   options: Omit<z.infer<typeof ListLabelsSchema>, "project_id"> = {}
 ): Promise<GitLabLabel[]> {
   // Construct the URL with project path
-  const url = new URL(`${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/labels`);
+  const url = new URL(
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/labels`
+  );
 
   // Add query parameters
   Object.entries(options).forEach(([key, value]) => {
@@ -1562,11 +1580,18 @@ async function getLabel(
   labelId: number | string,
   includeAncestorGroups?: boolean
 ): Promise<GitLabLabel> {
-  const url = new URL(`${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/labels/${encodeURIComponent(String(labelId))}`);
+  const url = new URL(
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(
+      projectId
+    )}/labels/${encodeURIComponent(String(labelId))}`
+  );
 
   // Add query parameters
   if (includeAncestorGroups !== undefined) {
-    url.searchParams.append("include_ancestor_groups", includeAncestorGroups ? "true" : "false");
+    url.searchParams.append(
+      "include_ancestor_groups",
+      includeAncestorGroups ? "true" : "false"
+    );
   }
 
   // Make the API request
@@ -1626,7 +1651,9 @@ async function updateLabel(
 ): Promise<GitLabLabel> {
   // Make the API request
   const response = await fetch(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/labels/${encodeURIComponent(String(labelId))}`,
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(
+      projectId
+    )}/labels/${encodeURIComponent(String(labelId))}`,
     {
       method: "PUT",
       headers: DEFAULT_HEADERS,
@@ -1654,7 +1681,9 @@ async function deleteLabel(
 ): Promise<void> {
   // Make the API request
   const response = await fetch(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/labels/${encodeURIComponent(String(labelId))}`,
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(
+      projectId
+    )}/labels/${encodeURIComponent(String(labelId))}`,
     {
       method: "DELETE",
       headers: DEFAULT_HEADERS,
@@ -1679,22 +1708,52 @@ async function listGroupProjects(
   );
 
   // Add optional parameters to URL
-  if (options.include_subgroups) url.searchParams.append('include_subgroups', 'true');
-  if (options.search) url.searchParams.append('search', options.search);
-  if (options.order_by) url.searchParams.append('order_by', options.order_by);
-  if (options.sort) url.searchParams.append('sort', options.sort);
-  if (options.page) url.searchParams.append('page', options.page.toString());
-  if (options.per_page) url.searchParams.append('per_page', options.per_page.toString());
-  if (options.archived !== undefined) url.searchParams.append('archived', options.archived.toString());
-  if (options.visibility) url.searchParams.append('visibility', options.visibility);
-  if (options.with_issues_enabled !== undefined) url.searchParams.append('with_issues_enabled', options.with_issues_enabled.toString());
-  if (options.with_merge_requests_enabled !== undefined) url.searchParams.append('with_merge_requests_enabled', options.with_merge_requests_enabled.toString());
-  if (options.min_access_level !== undefined) url.searchParams.append('min_access_level', options.min_access_level.toString());
-  if (options.with_programming_language) url.searchParams.append('with_programming_language', options.with_programming_language);
-  if (options.starred !== undefined) url.searchParams.append('starred', options.starred.toString());
-  if (options.statistics !== undefined) url.searchParams.append('statistics', options.statistics.toString());
-  if (options.with_custom_attributes !== undefined) url.searchParams.append('with_custom_attributes', options.with_custom_attributes.toString());
-  if (options.with_security_reports !== undefined) url.searchParams.append('with_security_reports', options.with_security_reports.toString());
+  if (options.include_subgroups)
+    url.searchParams.append("include_subgroups", "true");
+  if (options.search) url.searchParams.append("search", options.search);
+  if (options.order_by) url.searchParams.append("order_by", options.order_by);
+  if (options.sort) url.searchParams.append("sort", options.sort);
+  if (options.page) url.searchParams.append("page", options.page.toString());
+  if (options.per_page)
+    url.searchParams.append("per_page", options.per_page.toString());
+  if (options.archived !== undefined)
+    url.searchParams.append("archived", options.archived.toString());
+  if (options.visibility)
+    url.searchParams.append("visibility", options.visibility);
+  if (options.with_issues_enabled !== undefined)
+    url.searchParams.append(
+      "with_issues_enabled",
+      options.with_issues_enabled.toString()
+    );
+  if (options.with_merge_requests_enabled !== undefined)
+    url.searchParams.append(
+      "with_merge_requests_enabled",
+      options.with_merge_requests_enabled.toString()
+    );
+  if (options.min_access_level !== undefined)
+    url.searchParams.append(
+      "min_access_level",
+      options.min_access_level.toString()
+    );
+  if (options.with_programming_language)
+    url.searchParams.append(
+      "with_programming_language",
+      options.with_programming_language
+    );
+  if (options.starred !== undefined)
+    url.searchParams.append("starred", options.starred.toString());
+  if (options.statistics !== undefined)
+    url.searchParams.append("statistics", options.statistics.toString());
+  if (options.with_custom_attributes !== undefined)
+    url.searchParams.append(
+      "with_custom_attributes",
+      options.with_custom_attributes.toString()
+    );
+  if (options.with_security_reports !== undefined)
+    url.searchParams.append(
+      "with_security_reports",
+      options.with_security_reports.toString()
+    );
 
   const response = await fetch(url.toString(), {
     method: "GET",
@@ -1709,7 +1768,7 @@ async function listGroupProjects(
 server.setRequestHandler(ListToolsRequestSchema, async () => {
   // If read-only mode is enabled, filter out write operations
   const tools = GITLAB_READ_ONLY_MODE
-    ? allTools.filter(tool => readOnlyTools.includes(tool.name))
+    ? allTools.filter((tool) => readOnlyTools.includes(tool.name))
     : allTools;
 
   return {
@@ -1727,9 +1786,14 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       case "fork_repository": {
         const forkArgs = ForkRepositorySchema.parse(request.params.arguments);
         try {
-          const forkedProject = await forkProject(forkArgs.project_id, forkArgs.namespace);
+          const forkedProject = await forkProject(
+            forkArgs.project_id,
+            forkArgs.namespace
+          );
           return {
-            content: [{ type: "text", text: JSON.stringify(forkedProject, null, 2) }],
+            content: [
+              { type: "text", text: JSON.stringify(forkedProject, null, 2) },
+            ],
           };
         } catch (forkError) {
           console.error("Error forking repository:", forkError);
@@ -1738,7 +1802,12 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             forkErrorMessage = `${forkErrorMessage}: ${forkError.message}`;
           }
           return {
-            content: [{ type: "text", text: JSON.stringify({ error: forkErrorMessage }, null, 2) }],
+            content: [
+              {
+                type: "text",
+                text: JSON.stringify({ error: forkErrorMessage }, null, 2),
+              },
+            ],
           };
         }
       }
@@ -1845,7 +1914,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       case "update_merge_request_note": {
-        const args = UpdateMergeRequestNoteSchema.parse(request.params.arguments);
+        const args = UpdateMergeRequestNoteSchema.parse(
+          request.params.arguments
+        );
         const note = await updateMergeRequestNote(
           args.project_id,
           args.merge_request_iid,
@@ -1900,7 +1971,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       case "list_merge_request_discussions": {
-        const args = ListMergeRequestDiscussionsSchema.parse(request.params.arguments);
+        const args = ListMergeRequestDiscussionsSchema.parse(
+          request.params.arguments
+        );
         const discussions = await listMergeRequestDiscussions(
           args.project_id,
           args.merge_request_iid
@@ -1938,13 +2011,19 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const namespaces = z.array(GitLabNamespaceSchema).parse(data);
 
         return {
-          content: [{ type: "text", text: JSON.stringify(namespaces, null, 2) }],
+          content: [
+            { type: "text", text: JSON.stringify(namespaces, null, 2) },
+          ],
         };
       }
 
       case "get_namespace": {
         const args = GetNamespaceSchema.parse(request.params.arguments);
-        const url = new URL(`${GITLAB_API_URL}/namespaces/${encodeURIComponent(args.namespace_id)}`);
+        const url = new URL(
+          `${GITLAB_API_URL}/namespaces/${encodeURIComponent(
+            args.namespace_id
+          )}`
+        );
 
         const response = await fetch(url.toString(), {
           headers: DEFAULT_HEADERS,
@@ -1961,7 +2040,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
       case "verify_namespace": {
         const args = VerifyNamespaceSchema.parse(request.params.arguments);
-        const url = new URL(`${GITLAB_API_URL}/namespaces/${encodeURIComponent(args.path)}/exists`);
+        const url = new URL(
+          `${GITLAB_API_URL}/namespaces/${encodeURIComponent(args.path)}/exists`
+        );
 
         const response = await fetch(url.toString(), {
           headers: DEFAULT_HEADERS,
@@ -1972,13 +2053,17 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const namespaceExists = GitLabNamespaceExistsResponseSchema.parse(data);
 
         return {
-          content: [{ type: "text", text: JSON.stringify(namespaceExists, null, 2) }],
+          content: [
+            { type: "text", text: JSON.stringify(namespaceExists, null, 2) },
+          ],
         };
       }
 
       case "get_project": {
         const args = GetProjectSchema.parse(request.params.arguments);
-        const url = new URL(`${GITLAB_API_URL}/projects/${encodeURIComponent(args.project_id)}`);
+        const url = new URL(
+          `${GITLAB_API_URL}/projects/${encodeURIComponent(args.project_id)}`
+        );
 
         const response = await fetch(url.toString(), {
           headers: DEFAULT_HEADERS,
@@ -2047,7 +2132,16 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const args = DeleteIssueSchema.parse(request.params.arguments);
         await deleteIssue(args.project_id, args.issue_iid);
         return {
-          content: [{ type: "text", text: JSON.stringify({ status: "success", message: "Issue deleted successfully" }, null, 2) }],
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(
+                { status: "success", message: "Issue deleted successfully" },
+                null,
+                2
+              ),
+            },
+          ],
         };
       }
 
@@ -2061,7 +2155,11 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
       case "get_issue_link": {
         const args = GetIssueLinkSchema.parse(request.params.arguments);
-        const link = await getIssueLink(args.project_id, args.issue_iid, args.issue_link_id);
+        const link = await getIssueLink(
+          args.project_id,
+          args.issue_iid,
+          args.issue_link_id
+        );
         return {
           content: [{ type: "text", text: JSON.stringify(link, null, 2) }],
         };
@@ -2069,7 +2167,13 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
       case "create_issue_link": {
         const args = CreateIssueLinkSchema.parse(request.params.arguments);
-        const link = await createIssueLink(args.project_id, args.issue_iid, args.target_project_id, args.target_issue_iid, args.link_type);
+        const link = await createIssueLink(
+          args.project_id,
+          args.issue_iid,
+          args.target_project_id,
+          args.target_issue_iid,
+          args.link_type
+        );
         return {
           content: [{ type: "text", text: JSON.stringify(link, null, 2) }],
         };
@@ -2077,9 +2181,25 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
       case "delete_issue_link": {
         const args = DeleteIssueLinkSchema.parse(request.params.arguments);
-        await deleteIssueLink(args.project_id, args.issue_iid, args.issue_link_id);
+        await deleteIssueLink(
+          args.project_id,
+          args.issue_iid,
+          args.issue_link_id
+        );
         return {
-          content: [{ type: "text", text: JSON.stringify({ status: "success", message: "Issue link deleted successfully" }, null, 2) }],
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(
+                {
+                  status: "success",
+                  message: "Issue link deleted successfully",
+                },
+                null,
+                2
+              ),
+            },
+          ],
         };
       }
 
@@ -2093,7 +2213,11 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
       case "get_label": {
         const args = GetLabelSchema.parse(request.params.arguments);
-        const label = await getLabel(args.project_id, args.label_id, args.include_ancestor_groups);
+        const label = await getLabel(
+          args.project_id,
+          args.label_id,
+          args.include_ancestor_groups
+        );
         return {
           content: [{ type: "text", text: JSON.stringify(label, null, 2) }],
         };
@@ -2120,7 +2244,16 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const args = DeleteLabelSchema.parse(request.params.arguments);
         await deleteLabel(args.project_id, args.label_id);
         return {
-          content: [{ type: "text", text: JSON.stringify({ status: "success", message: "Label deleted successfully" }, null, 2) }],
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(
+                { status: "success", message: "Label deleted successfully" },
+                null,
+                2
+              ),
+            },
+          ],
         };
       }
 
