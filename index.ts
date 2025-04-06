@@ -378,9 +378,19 @@ async function handleGitLabError(
 ): Promise<void> {
   if (!response.ok) {
     const errorBody = await response.text();
-    throw new Error(
-      `GitLab API error: ${response.status} ${response.statusText}\n${errorBody}`
-    );
+    // Check specifically for Rate Limit error
+    if (response.status === 403 && errorBody.includes("User API Key Rate limit exceeded")) {
+        console.error("GitLab API Rate Limit Exceeded:", errorBody);
+        console.log("User API Key Rate limit exceeded. Please try again later.");
+        throw new Error(
+          `GitLab API Rate Limit Exceeded: ${errorBody}`
+        );
+    } else {
+        // Handle other API errors
+        throw new Error(
+          `GitLab API error: ${response.status} ${response.statusText}\n${errorBody}`
+        );
+    }
   }
 }
 
