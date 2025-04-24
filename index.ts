@@ -244,7 +244,7 @@ const allTools = [
     inputSchema: zodToJsonSchema(CreateNoteSchema),
   },
   {
-    name: "list_merge_request_discussions",
+    name: "mr_discussions",
     description: "List discussion items for a merge request",
     inputSchema: zodToJsonSchema(ListMergeRequestDiscussionsSchema),
   },
@@ -356,7 +356,7 @@ const readOnlyTools = [
   "get_file_contents",
   "get_merge_request",
   "get_merge_request_diffs",
-  "list_merge_request_discussions",
+  "mr_discussions",
   "list_issues",
   "get_issue",
   "list_issue_links",
@@ -1992,7 +1992,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         };
       }
 
-      case "list_merge_request_discussions": {
+      case "mr_discussions": {
         const args = ListMergeRequestDiscussionsSchema.parse(
           request.params.arguments
         );
