@@ -24,7 +24,10 @@
   "dependencies": {
     "@modelcontextprotocol/sdk": "1.8.0",
     "@types/node-fetch": "^2.6.12",
+    "http-proxy-agent": "^7.0.2",
+    "https-proxy-agent": "^7.0.6",
     "node-fetch": "^3.3.2",
+    "socks-proxy-agent": "^8.0.5",
     "zod-to-json-schema": "^3.23.5"
   },
   "devDependencies": {
