@@ -19,7 +19,8 @@
     "build": "tsc && node -e \"require('fs').chmodSync('build/index.js', '755')\"",
     "prepare": "npm run build",
     "watch": "tsc --watch",
-    "deploy": "npm publish --access public"
+    "deploy": "npm publish --access public",
+    "generate-tools": "npx ts-node scripts/generate-tools-readme.ts"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "1.8.0",
