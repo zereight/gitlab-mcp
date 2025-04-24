@@ -6,6 +6,7 @@ import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
+import FormData from "form-data";
 import fetch from "node-fetch";
 import { SocksProxyAgent } from 'socks-proxy-agent';
 import { HttpsProxyAgent } from 'https-proxy-agent';
@@ -75,6 +76,12 @@ import {
   DeleteLabelSchema,
   CreateNoteSchema,
   ListGroupProjectsSchema,
+  ListWikiPagesSchema,
+  GetWikiPageSchema,
+  CreateWikiPageSchema,
+  UpdateWikiPageSchema,
+  DeleteWikiPageSchema,
+  GitLabWikiPageSchema,
   // Discussion Schemas
   GitLabDiscussionNoteSchema, // Added
   GitLabDiscussionSchema,
@@ -101,6 +108,11 @@ import {
   // Discussion Types
   type GitLabDiscussionNote, // Added
   type GitLabDiscussion,
+  type GetWikiPageOptions,
+  type CreateWikiPageOptions,
+  type UpdateWikiPageOptions,
+  type DeleteWikiPageOptions,
+  type GitLabWikiPage,
 } from "./schemas.js";
 
 /**
@@ -133,6 +145,7 @@ const server = new Server(
 
 const GITLAB_PERSONAL_ACCESS_TOKEN = process.env.GITLAB_PERSONAL_ACCESS_TOKEN;
 const GITLAB_READ_ONLY_MODE = process.env.GITLAB_READ_ONLY_MODE === "true";
+const USE_GITLAB_WIKI = process.env.USE_GITLAB_WIKI === "true";
 
 // Add proxy configuration
 const HTTP_PROXY = process.env.HTTP_PROXY;
@@ -348,6 +361,31 @@ const allTools = [
     description: "List projects in a GitLab group with filtering options",
     inputSchema: zodToJsonSchema(ListGroupProjectsSchema),
   },
+  {
+    name: "list_wiki_pages",
+    description: "List wiki pages in a GitLab project",
+    inputSchema: zodToJsonSchema(ListWikiPagesSchema),
+  },
+  {
+    name: "get_wiki_page",
+    description: "Get details of a specific wiki page",
+    inputSchema: zodToJsonSchema(GetWikiPageSchema),
+  },
+  {
+    name: "create_wiki_page",
+    description: "Create a new wiki page in a GitLab project",
+    inputSchema: zodToJsonSchema(CreateWikiPageSchema),
+  },
+  {
+    name: "update_wiki_page",
+    description: "Update an existing wiki page in a GitLab project",
+    inputSchema: zodToJsonSchema(UpdateWikiPageSchema),
+  },
+  {
+    name: "delete_wiki_page",
+    description: "Delete a wiki page from a GitLab project",
+    inputSchema: zodToJsonSchema(DeleteWikiPageSchema),
+  }
 ];
 
 // Define which tools are read-only
@@ -369,6 +407,16 @@ const readOnlyTools = [
   "list_labels",
   "get_label",
   "list_group_projects",
+];
+
+// Define which tools are related to wiki and can be toggled by USE_GITLAB_WIKI
+const wikiToolNames = [
+  "list_wiki_pages",
+  "get_wiki_page",
+  "create_wiki_page",
+  "update_wiki_page",
+  "delete_wiki_page",
+  "upload_wiki_attachment",
 ];
 
 /**
@@ -1787,11 +1835,126 @@ async function listGroupProjects(
   return GitLabProjectSchema.array().parse(projects);
 }
 
+// Wiki API helper functions
+/**
+ * List wiki pages in a project
+ */
+async function listWikiPages(
+  projectId: string,
+  options: Omit<z.infer<typeof ListWikiPagesSchema>, 'project_id'> = {}
+): Promise<GitLabWikiPage[]> {
+  const url = new URL(
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/wikis`
+  );
+  if (options.page) url.searchParams.append('page', options.page.toString());
+  if (options.per_page) url.searchParams.append('per_page', options.per_page.toString());
+  const response = await fetch(url.toString(), {
+    ...DEFAULT_FETCH_CONFIG,
+  });
+  await handleGitLabError(response);
+  const data = await response.json();
+  return GitLabWikiPageSchema.array().parse(data);
+}
+
+/**
+ * Get a specific wiki page
+ */
+async function getWikiPage(
+  projectId: string,
+  slug: string
+): Promise<GitLabWikiPage> {
+  const response = await fetch(
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/wikis/${encodeURIComponent(
+      slug
+    )}`,
+    { ...DEFAULT_FETCH_CONFIG }
+  );
+  await handleGitLabError(response);
+  const data = await response.json();
+  return GitLabWikiPageSchema.parse(data);
+}
+
+/**
+ * Create a new wiki page
+ */
+async function createWikiPage(
+  projectId: string,
+  title: string,
+  content: string,
+  format?: string
+): Promise<GitLabWikiPage> {
+  const body: Record<string, any> = { title, content };
+  if (format) body.format = format;
+  const response = await fetch(
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/wikis`,
+    {
+      ...DEFAULT_FETCH_CONFIG,
+      method: 'POST',
+      body: JSON.stringify(body),
+    }
+  );
+  await handleGitLabError(response);
+  const data = await response.json();
+  return GitLabWikiPageSchema.parse(data);
+}
+
+/**
+ * Update an existing wiki page
+ */
+async function updateWikiPage(
+  projectId: string,
+  slug: string,
+  title?: string,
+  content?: string,
+  format?: string
+): Promise<GitLabWikiPage> {
+  const body: Record<string, any> = {};
+  if (title) body.title = title;
+  if (content) body.content = content;
+  if (format) body.format = format;
+  const response = await fetch(
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/wikis/${encodeURIComponent(
+      slug
+    )}`,
+    {
+      ...DEFAULT_FETCH_CONFIG,
+      method: 'PUT',
+      body: JSON.stringify(body),
+    }
+  );
+  await handleGitLabError(response);
+  const data = await response.json();
+  return GitLabWikiPageSchema.parse(data);
+}
+
+/**
+ * Delete a wiki page
+ */
+async function deleteWikiPage(
+  projectId: string,
+  slug: string
+): Promise<void> {
+  const response = await fetch(
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/wikis/${encodeURIComponent(
+      slug
+    )}`,
+    {
+      ...DEFAULT_FETCH_CONFIG,
+      method: 'DELETE',
+    }
+  );
+  await handleGitLabError(response);
+}
+
 server.setRequestHandler(ListToolsRequestSchema, async () => {
-  // If read-only mode is enabled, filter out write operations
-  const tools = GITLAB_READ_ONLY_MODE
+  // Apply read-only filter first
+  const tools0 = GITLAB_READ_ONLY_MODE
     ? allTools.filter((tool) => readOnlyTools.includes(tool.name))
     : allTools;
+  // Toggle wiki tools by USE_GITLAB_WIKI flag
+  const tools = USE_GITLAB_WIKI
+    ? tools0
+    : tools0.filter((tool) => !wikiToolNames.includes(tool.name));
 
   return {
     tools,
@@ -2285,6 +2448,36 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         return {
           content: [{ type: "text", text: JSON.stringify(projects, null, 2) }],
         };
+      }
+
+      case "list_wiki_pages": {
+        const { project_id, page, per_page } = ListWikiPagesSchema.parse(request.params.arguments);
+        const wikiPages = await listWikiPages(project_id, { page, per_page });
+        return { content: [{ type: "text", text: JSON.stringify(wikiPages, null, 2) }] };
+      }
+
+      case "get_wiki_page": {
+        const { project_id, slug } = GetWikiPageSchema.parse(request.params.arguments);
+        const wikiPage = await getWikiPage(project_id, slug);
+        return { content: [{ type: "text", text: JSON.stringify(wikiPage, null, 2) }] };
+      }
+
+      case "create_wiki_page": {
+        const { project_id, title, content, format } = CreateWikiPageSchema.parse(request.params.arguments);
+        const wikiPage = await createWikiPage(project_id, title, content, format);
+        return { content: [{ type: "text", text: JSON.stringify(wikiPage, null, 2) }] };
+      }
+
+      case "update_wiki_page": {
+        const { project_id, slug, title, content, format } = UpdateWikiPageSchema.parse(request.params.arguments);
+        const wikiPage = await updateWikiPage(project_id, slug, title, content, format);
+        return { content: [{ type: "text", text: JSON.stringify(wikiPage, null, 2) }] };
+      }
+
+      case "delete_wiki_page": {
+        const { project_id, slug } = DeleteWikiPageSchema.parse(request.params.arguments);
+        await deleteWikiPage(project_id, slug);
+        return { content: [{ type: "text", text: JSON.stringify({ status: "success", message: "Wiki page deleted successfully" }, null, 2) }] };
       }
 
       default:

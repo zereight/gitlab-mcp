@@ -756,6 +756,44 @@ export const ListGroupProjectsSchema = z.object({
   with_security_reports: z.boolean().optional().describe("Include security reports")
 });
 
+// Add wiki operation schemas
+export const ListWikiPagesSchema = z.object({
+  project_id: z.string().describe("Project ID or URL-encoded path"),
+  page: z.number().optional().describe("Page number for pagination"),
+  per_page: z.number().optional().describe("Number of items per page"),
+});
+export const GetWikiPageSchema = z.object({
+  project_id: z.string().describe("Project ID or URL-encoded path"),
+  slug: z.string().describe("URL-encoded slug of the wiki page"),
+});
+export const CreateWikiPageSchema = z.object({
+  project_id: z.string().describe("Project ID or URL-encoded path"),
+  title: z.string().describe("Title of the wiki page"),
+  content: z.string().describe("Content of the wiki page"),
+  format: z.string().optional().describe("Content format, e.g., markdown, rdoc"),
+});
+export const UpdateWikiPageSchema = z.object({
+  project_id: z.string().describe("Project ID or URL-encoded path"),
+  slug: z.string().describe("URL-encoded slug of the wiki page"),
+  title: z.string().optional().describe("New title of the wiki page"),
+  content: z.string().optional().describe("New content of the wiki page"),
+  format: z.string().optional().describe("Content format, e.g., markdown, rdoc"),
+});
+export const DeleteWikiPageSchema = z.object({
+  project_id: z.string().describe("Project ID or URL-encoded path"),
+  slug: z.string().describe("URL-encoded slug of the wiki page"),
+});
+
+// Define wiki response schemas
+export const GitLabWikiPageSchema = z.object({
+  title: z.string(),
+  slug: z.string(),
+  format: z.string(),
+  content: z.string(),
+  created_at: z.string().optional(),
+  updated_at: z.string().optional(),
+});
+
 // Export types
 export type GitLabAuthor = z.infer<typeof GitLabAuthorSchema>;
 export type GitLabFork = z.infer<typeof GitLabForkSchema>;
@@ -783,3 +821,9 @@ export type GitLabNamespace = z.infer<typeof GitLabNamespaceSchema>;
 export type GitLabNamespaceExistsResponse = z.infer<typeof GitLabNamespaceExistsResponseSchema>;
 export type GitLabProject = z.infer<typeof GitLabProjectSchema>;
 export type GitLabLabel = z.infer<typeof GitLabLabelSchema>;
+export type ListWikiPagesOptions = z.infer<typeof ListWikiPagesSchema>;
+export type GetWikiPageOptions = z.infer<typeof GetWikiPageSchema>;
+export type CreateWikiPageOptions = z.infer<typeof CreateWikiPageSchema>;
+export type UpdateWikiPageOptions = z.infer<typeof UpdateWikiPageSchema>;
+export type DeleteWikiPageOptions = z.infer<typeof DeleteWikiPageSchema>;
+export type GitLabWikiPage = z.infer<typeof GitLabWikiPageSchema>;
