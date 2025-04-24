@@ -23,7 +23,8 @@ When using with the Claude App, you need to set up your API key and URLs directl
       "env": {
         "GITLAB_PERSONAL_ACCESS_TOKEN": "your_gitlab_token",
         "GITLAB_API_URL": "your_gitlab_api_url",
-        "GITLAB_READ_ONLY_MODE": "true"
+        "GITLAB_READ_ONLY_MODE": "false",
+        "USE_GITLAB_WIKI":"true"
       }
     }
   }
@@ -36,6 +37,7 @@ When using with the Claude App, you need to set up your API key and URLs directl
 - `GITLAB_PERSONAL_ACCESS_TOKEN`: Your GitLab personal access token.
 - `GITLAB_API_URL`: Your GitLab API URL. (Default: `https://gitlab.com/api/v4`)
 - `GITLAB_READ_ONLY_MODE`: When set to 'true', restricts the server to only expose read-only operations. Useful for enhanced security or when write access is not needed. Also useful for using with Cursor and it's 40 tool limit.
+- `USE_GITLAB_WIKI`: When set to 'true', enables the wiki-related tools (list_wiki_pages, get_wiki_page, create_wiki_page, update_wiki_page, delete_wiki_page). By default, wiki features are disabled.
 
 ## Tools 🛠️
 
