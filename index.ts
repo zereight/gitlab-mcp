@@ -8,9 +8,9 @@ import {
 } from "@modelcontextprotocol/sdk/types.js";
 import FormData from "form-data";
 import fetch from "node-fetch";
-import { SocksProxyAgent } from 'socks-proxy-agent';
-import { HttpsProxyAgent } from 'https-proxy-agent';
-import { HttpProxyAgent } from 'http-proxy-agent';
+import { SocksProxyAgent } from "socks-proxy-agent";
+import { HttpsProxyAgent } from "https-proxy-agent";
+import { HttpProxyAgent } from "http-proxy-agent";
 import { z } from "zod";
 import { zodToJsonSchema } from "zod-to-json-schema";
 import { fileURLToPath } from "url";
@@ -19,8 +19,8 @@ import fs from "fs";
 import path from "path";
 
 // Add type imports for proxy agents
-import { Agent } from 'http';
-import { URL } from 'url';
+import { Agent } from "http";
+import { URL } from "url";
 
 import {
   GitLabForkSchema,
@@ -156,14 +156,14 @@ let httpAgent: Agent | undefined = undefined;
 let httpsAgent: Agent | undefined = undefined;
 
 if (HTTP_PROXY) {
-  if (HTTP_PROXY.startsWith('socks')) {
+  if (HTTP_PROXY.startsWith("socks")) {
     httpAgent = new SocksProxyAgent(HTTP_PROXY);
   } else {
     httpAgent = new HttpProxyAgent(HTTP_PROXY);
   }
 }
 if (HTTPS_PROXY) {
-  if (HTTPS_PROXY.startsWith('socks')) {
+  if (HTTPS_PROXY.startsWith("socks")) {
     httpsAgent = new SocksProxyAgent(HTTPS_PROXY);
   } else {
     httpsAgent = new HttpsProxyAgent(HTTPS_PROXY);
@@ -181,11 +181,11 @@ const DEFAULT_HEADERS = {
 const DEFAULT_FETCH_CONFIG = {
   headers: DEFAULT_HEADERS,
   agent: (parsedUrl: URL) => {
-    if (parsedUrl.protocol === 'https:') {
+    if (parsedUrl.protocol === "https:") {
       return httpsAgent;
     }
     return httpAgent;
-  }
+  },
 };
 
 // Define all available tools
@@ -238,17 +238,20 @@ const allTools = [
   },
   {
     name: "get_merge_request",
-    description: "Get details of a merge request",
+    description:
+      "Get details of a merge request (Either mergeRequestIid or branchName must be provided)",
     inputSchema: zodToJsonSchema(GetMergeRequestSchema),
   },
   {
     name: "get_merge_request_diffs",
-    description: "Get the changes/diffs of a merge request",
+    description:
+      "Get the changes/diffs of a merge request (Either mergeRequestIid or branchName must be provided)",
     inputSchema: zodToJsonSchema(GetMergeRequestDiffsSchema),
   },
   {
     name: "update_merge_request",
-    description: "Update a merge request",
+    description:
+      "Update a merge request (Either mergeRequestIid or branchName must be provided)",
     inputSchema: zodToJsonSchema(UpdateMergeRequestSchema),
   },
   {
@@ -385,7 +388,7 @@ const allTools = [
     name: "delete_wiki_page",
     description: "Delete a wiki page from a GitLab project",
     inputSchema: zodToJsonSchema(DeleteWikiPageSchema),
-  }
+  },
 ];
 
 // Define which tools are read-only
@@ -466,17 +469,18 @@ async function handleGitLabError(
   if (!response.ok) {
     const errorBody = await response.text();
     // Check specifically for Rate Limit error
-    if (response.status === 403 && errorBody.includes("User API Key Rate limit exceeded")) {
-        console.error("GitLab API Rate Limit Exceeded:", errorBody);
-        console.log("User API Key Rate limit exceeded. Please try again later.");
-        throw new Error(
-          `GitLab API Rate Limit Exceeded: ${errorBody}`
-        );
+    if (
+      response.status === 403 &&
+      errorBody.includes("User API Key Rate limit exceeded")
+    ) {
+      console.error("GitLab API Rate Limit Exceeded:", errorBody);
+      console.log("User API Key Rate limit exceeded. Please try again later.");
+      throw new Error(`GitLab API Rate Limit Exceeded: ${errorBody}`);
     } else {
-        // Handle other API errors
-        throw new Error(
-          `GitLab API error: ${response.status} ${response.statusText}\n${errorBody}`
-        );
+      // Handle other API errors
+      throw new Error(
+        `GitLab API error: ${response.status} ${response.statusText}\n${errorBody}`
+      );
     }
   }
 }
@@ -1303,25 +1307,47 @@ async function createRepository(
  * MR 조회 함수 (Function to retrieve merge request)
  *
  * @param {string} projectId - The ID or URL-encoded path of the project
- * @param {number} mergeRequestIid - The internal ID of the merge request
+ * @param {number} mergeRequestIid - The internal ID of the merge request (Optional)
+ * @param {string} [branchName] - The name of the branch to search for merge request by branch name (Optional)
  * @returns {Promise<GitLabMergeRequest>} The merge request details
  */
 async function getMergeRequest(
   projectId: string,
-  mergeRequestIid: number
+  mergeRequestIid?: number,
+  branchName?: string
 ): Promise<GitLabMergeRequest> {
-  const url = new URL(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(
-      projectId
-    )}/merge_requests/${mergeRequestIid}`
-  );
+  let url: URL;
+
+  if (mergeRequestIid) {
+    url = new URL(
+      `${GITLAB_API_URL}/projects/${encodeURIComponent(
+        projectId
+      )}/merge_requests/${mergeRequestIid}`
+    );
+  } else if (branchName) {
+    url = new URL(
+      `${GITLAB_API_URL}/projects/${encodeURIComponent(
+        projectId
+      )}/merge_requests?source_branch=${encodeURIComponent(branchName)}`
+    );
+  } else {
+    throw new Error("Either mergeRequestIid or branchName must be provided");
+  }
 
   const response = await fetch(url.toString(), {
     ...DEFAULT_FETCH_CONFIG,
   });
 
   await handleGitLabError(response);
-  return GitLabMergeRequestSchema.parse(await response.json());
+
+  const data = await response.json();
+
+  // If response is an array (Comes from branchName search), return the first item if exist
+  if (Array.isArray(data) && data.length > 0) {
+    return GitLabMergeRequestSchema.parse(data[0]);
+  }
+
+  return GitLabMergeRequestSchema.parse(data);
 }
 
 /**
@@ -1329,15 +1355,30 @@ async function getMergeRequest(
  * MR 변경사항 조회 함수 (Function to retrieve merge request changes)
  *
  * @param {string} projectId - The ID or URL-encoded path of the project
- * @param {number} mergeRequestIid - The internal ID of the merge request
+ * @param {number} mergeRequestIid - The internal ID of the merge request (Either mergeRequestIid or branchName must be provided)
+ * @param {string} [branchName] - The name of the branch to search for merge request by branch name (Either mergeRequestIid or branchName must be provided)
  * @param {string} [view] - The view type for the diff (inline or parallel)
  * @returns {Promise<GitLabMergeRequestDiff[]>} The merge request diffs
  */
 async function getMergeRequestDiffs(
   projectId: string,
-  mergeRequestIid: number,
+  mergeRequestIid?: number,
+  branchName?: string,
   view?: "inline" | "parallel"
 ): Promise<GitLabMergeRequestDiff[]> {
+  if (!mergeRequestIid && !branchName) {
+    throw new Error("Either mergeRequestIid or branchName must be provided");
+  }
+
+  if (branchName && !mergeRequestIid) {
+    const mergeRequest = await getMergeRequest(
+      projectId,
+      undefined,
+      branchName
+    );
+    mergeRequestIid = mergeRequest.iid;
+  }
+
   const url = new URL(
     `${GITLAB_API_URL}/projects/${encodeURIComponent(
       projectId
@@ -1362,18 +1403,33 @@ async function getMergeRequestDiffs(
  * MR 업데이트 함수 (Function to update merge request)
  *
  * @param {string} projectId - The ID or URL-encoded path of the project
- * @param {number} mergeRequestIid - The internal ID of the merge request
+ * @param {number} mergeRequestIid - The internal ID of the merge request (Optional)
+ * @param {string} branchName - The name of the branch to search for merge request by branch name (Optional)
  * @param {Object} options - The update options
  * @returns {Promise<GitLabMergeRequest>} The updated merge request
  */
 async function updateMergeRequest(
   projectId: string,
-  mergeRequestIid: number,
   options: Omit<
     z.infer<typeof UpdateMergeRequestSchema>,
-    "project_id" | "merge_request_iid"
-  >
+    "project_id" | "merge_request_iid" | "branch_name"
+  >,
+  mergeRequestIid?: number,
+  branchName?: string
 ): Promise<GitLabMergeRequest> {
+  if (!mergeRequestIid && !branchName) {
+    throw new Error("Either mergeRequestIid or branchName must be provided");
+  }
+
+  if (branchName && !mergeRequestIid) {
+    const mergeRequest = await getMergeRequest(
+      projectId,
+      undefined,
+      branchName
+    );
+    mergeRequestIid = mergeRequest.iid;
+  }
+
   const url = new URL(
     `${GITLAB_API_URL}/projects/${encodeURIComponent(
       projectId
@@ -1841,13 +1897,14 @@ async function listGroupProjects(
  */
 async function listWikiPages(
   projectId: string,
-  options: Omit<z.infer<typeof ListWikiPagesSchema>, 'project_id'> = {}
+  options: Omit<z.infer<typeof ListWikiPagesSchema>, "project_id"> = {}
 ): Promise<GitLabWikiPage[]> {
   const url = new URL(
     `${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/wikis`
   );
-  if (options.page) url.searchParams.append('page', options.page.toString());
-  if (options.per_page) url.searchParams.append('per_page', options.per_page.toString());
+  if (options.page) url.searchParams.append("page", options.page.toString());
+  if (options.per_page)
+    url.searchParams.append("per_page", options.per_page.toString());
   const response = await fetch(url.toString(), {
     ...DEFAULT_FETCH_CONFIG,
   });
@@ -1864,9 +1921,9 @@ async function getWikiPage(
   slug: string
 ): Promise<GitLabWikiPage> {
   const response = await fetch(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/wikis/${encodeURIComponent(
-      slug
-    )}`,
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(
+      projectId
+    )}/wikis/${encodeURIComponent(slug)}`,
     { ...DEFAULT_FETCH_CONFIG }
   );
   await handleGitLabError(response);
@@ -1889,7 +1946,7 @@ async function createWikiPage(
     `${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/wikis`,
     {
       ...DEFAULT_FETCH_CONFIG,
-      method: 'POST',
+      method: "POST",
       body: JSON.stringify(body),
     }
   );
@@ -1913,12 +1970,12 @@ async function updateWikiPage(
   if (content) body.content = content;
   if (format) body.format = format;
   const response = await fetch(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/wikis/${encodeURIComponent(
-      slug
-    )}`,
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(
+      projectId
+    )}/wikis/${encodeURIComponent(slug)}`,
     {
       ...DEFAULT_FETCH_CONFIG,
-      method: 'PUT',
+      method: "PUT",
       body: JSON.stringify(body),
     }
   );
@@ -1930,17 +1987,14 @@ async function updateWikiPage(
 /**
  * Delete a wiki page
  */
-async function deleteWikiPage(
-  projectId: string,
-  slug: string
-): Promise<void> {
+async function deleteWikiPage(projectId: string, slug: string): Promise<void> {
   const response = await fetch(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/wikis/${encodeURIComponent(
-      slug
-    )}`,
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(
+      projectId
+    )}/wikis/${encodeURIComponent(slug)}`,
     {
       ...DEFAULT_FETCH_CONFIG,
-      method: 'DELETE',
+      method: "DELETE",
     }
   );
   await handleGitLabError(response);
@@ -2119,7 +2173,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const args = GetMergeRequestSchema.parse(request.params.arguments);
         const mergeRequest = await getMergeRequest(
           args.project_id,
-          args.merge_request_iid
+          args.merge_request_iid,
+          args.branch_name
         );
         return {
           content: [
@@ -2133,6 +2188,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const diffs = await getMergeRequestDiffs(
           args.project_id,
           args.merge_request_iid,
+          args.branch_name,
           args.view
         );
         return {
@@ -2142,11 +2198,12 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
       case "update_merge_request": {
         const args = UpdateMergeRequestSchema.parse(request.params.arguments);
-        const { project_id, merge_request_iid, ...options } = args;
+        const { project_id, merge_request_iid, branch_name, ...options } = args;
         const mergeRequest = await updateMergeRequest(
           project_id,
+          options,
           merge_request_iid,
-          options
+          branch_name
         );
         return {
           content: [
@@ -2451,33 +2508,74 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       case "list_wiki_pages": {
-        const { project_id, page, per_page } = ListWikiPagesSchema.parse(request.params.arguments);
+        const { project_id, page, per_page } = ListWikiPagesSchema.parse(
+          request.params.arguments
+        );
         const wikiPages = await listWikiPages(project_id, { page, per_page });
-        return { content: [{ type: "text", text: JSON.stringify(wikiPages, null, 2) }] };
+        return {
+          content: [{ type: "text", text: JSON.stringify(wikiPages, null, 2) }],
+        };
       }
 
       case "get_wiki_page": {
-        const { project_id, slug } = GetWikiPageSchema.parse(request.params.arguments);
+        const { project_id, slug } = GetWikiPageSchema.parse(
+          request.params.arguments
+        );
         const wikiPage = await getWikiPage(project_id, slug);
-        return { content: [{ type: "text", text: JSON.stringify(wikiPage, null, 2) }] };
+        return {
+          content: [{ type: "text", text: JSON.stringify(wikiPage, null, 2) }],
+        };
       }
 
       case "create_wiki_page": {
-        const { project_id, title, content, format } = CreateWikiPageSchema.parse(request.params.arguments);
-        const wikiPage = await createWikiPage(project_id, title, content, format);
-        return { content: [{ type: "text", text: JSON.stringify(wikiPage, null, 2) }] };
+        const { project_id, title, content, format } =
+          CreateWikiPageSchema.parse(request.params.arguments);
+        const wikiPage = await createWikiPage(
+          project_id,
+          title,
+          content,
+          format
+        );
+        return {
+          content: [{ type: "text", text: JSON.stringify(wikiPage, null, 2) }],
+        };
       }
 
       case "update_wiki_page": {
-        const { project_id, slug, title, content, format } = UpdateWikiPageSchema.parse(request.params.arguments);
-        const wikiPage = await updateWikiPage(project_id, slug, title, content, format);
-        return { content: [{ type: "text", text: JSON.stringify(wikiPage, null, 2) }] };
+        const { project_id, slug, title, content, format } =
+          UpdateWikiPageSchema.parse(request.params.arguments);
+        const wikiPage = await updateWikiPage(
+          project_id,
+          slug,
+          title,
+          content,
+          format
+        );
+        return {
+          content: [{ type: "text", text: JSON.stringify(wikiPage, null, 2) }],
+        };
       }
 
       case "delete_wiki_page": {
-        const { project_id, slug } = DeleteWikiPageSchema.parse(request.params.arguments);
+        const { project_id, slug } = DeleteWikiPageSchema.parse(
+          request.params.arguments
+        );
         await deleteWikiPage(project_id, slug);
-        return { content: [{ type: "text", text: JSON.stringify({ status: "success", message: "Wiki page deleted successfully" }, null, 2) }] };
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(
+                {
+                  status: "success",
+                  message: "Wiki page deleted successfully",
+                },
+                null,
+                2
+              ),
+            },
+          ],
+        };
       }
 
       default:
