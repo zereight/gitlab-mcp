@@ -564,7 +564,7 @@ export const GetMergeRequestSchema = ProjectParamsSchema.extend({
     .number()
     .optional()
     .describe("The IID of a merge request"),
-  branch_name: z.string().optional().describe("Source branch name"),
+  source_branch: z.string().optional().describe("Source branch name"),
 });
 
 export const UpdateMergeRequestSchema = GetMergeRequestSchema.extend({

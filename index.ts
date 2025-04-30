@@ -1412,7 +1412,7 @@ async function updateMergeRequest(
   projectId: string,
   options: Omit<
     z.infer<typeof UpdateMergeRequestSchema>,
-    "project_id" | "merge_request_iid" | "branch_name"
+    "project_id" | "merge_request_iid" | "source_branch"
   >,
   mergeRequestIid?: number,
   branchName?: string
@@ -2174,7 +2174,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const mergeRequest = await getMergeRequest(
           args.project_id,
           args.merge_request_iid,
-          args.branch_name
+          args.source_branch
         );
         return {
           content: [
@@ -2188,7 +2188,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const diffs = await getMergeRequestDiffs(
           args.project_id,
           args.merge_request_iid,
-          args.branch_name,
+          args.source_branch,
           args.view
         );
         return {
@@ -2198,12 +2198,13 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
       case "update_merge_request": {
         const args = UpdateMergeRequestSchema.parse(request.params.arguments);
-        const { project_id, merge_request_iid, branch_name, ...options } = args;
+        const { project_id, merge_request_iid, source_branch, ...options } =
+          args;
         const mergeRequest = await updateMergeRequest(
           project_id,
           options,
           merge_request_iid,
-          branch_name
+          source_branch
         );
         return {
           content: [
