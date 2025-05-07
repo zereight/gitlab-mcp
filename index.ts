@@ -113,6 +113,10 @@ import {
   type UpdateWikiPageOptions,
   type DeleteWikiPageOptions,
   type GitLabWikiPage,
+  GitLabTreeItemSchema,
+  GetRepositoryTreeSchema,
+  type GitLabTreeItem,
+  type GetRepositoryTreeOptions,
 } from "./schemas.js";
 
 /**
@@ -388,6 +392,11 @@ const allTools = [
     name: "delete_wiki_page",
     description: "Delete a wiki page from a GitLab project",
     inputSchema: zodToJsonSchema(DeleteWikiPageSchema),
+  },
+  {
+    name: "get_repository_tree",
+    description: "Get the repository tree for a GitLab project (list files and directories)",
+    inputSchema: zodToJsonSchema(GetRepositoryTreeSchema),
   },
 ];
 
@@ -2000,6 +2009,45 @@ async function deleteWikiPage(projectId: string, slug: string): Promise<void> {
   await handleGitLabError(response);
 }
 
+/**
+ * Get the repository tree for a project
+ * @param {string} projectId - The ID or URL-encoded path of the project
+ * @param {GetRepositoryTreeOptions} options - Options for the tree
+ * @returns {Promise<GitLabTreeItem[]>}
+ */
+async function getRepositoryTree(
+  options: GetRepositoryTreeOptions
+): Promise<GitLabTreeItem[]> {
+  const queryParams = new URLSearchParams();
+  if (options.path) queryParams.append("path", options.path);
+  if (options.ref) queryParams.append("ref", options.ref);
+  if (options.recursive) queryParams.append("recursive", "true");
+  if (options.per_page) queryParams.append("per_page", options.per_page.toString());
+  if (options.page_token) queryParams.append("page_token", options.page_token);
+  if (options.pagination) queryParams.append("pagination", options.pagination);
+
+  const response = await fetch(
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(options.project_id)}/repository/tree?${queryParams.toString()}`,
+    {
+      headers: {
+        Authorization: `Bearer ${GITLAB_PERSONAL_ACCESS_TOKEN}`,
+        "Content-Type": "application/json",
+      },
+    }
+  );
+
+  if (response.status === 404) {
+    throw new Error("Repository or path not found");
+  }
+
+  if (!response.ok) {
+    throw new Error(`Failed to get repository tree: ${response.statusText}`);
+  }
+
+  const data = await response.json();
+  return z.array(GitLabTreeItemSchema).parse(data);
+}
+
 server.setRequestHandler(ListToolsRequestSchema, async () => {
   // Apply read-only filter first
   const tools0 = GITLAB_READ_ONLY_MODE
@@ -2576,6 +2624,14 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
               ),
             },
           ],
+        };
+      }
+
+      case "get_repository_tree": {
+        const args = GetRepositoryTreeSchema.parse(request.params.arguments);
+        const tree = await getRepositoryTree(args);
+        return {
+          content: [{ type: "text", text: JSON.stringify(tree, null, 2) }],
         };
       }
 

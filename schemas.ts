@@ -160,17 +160,27 @@ export const FileOperationSchema = z.object({
 });
 
 // Tree and commit schemas
-export const GitLabTreeEntrySchema = z.object({
-  id: z.string(), // Changed from sha to match GitLab API
+export const GitLabTreeItemSchema = z.object({
+  id: z.string(),
   name: z.string(),
-  type: z.enum(["blob", "tree"]),
+  type: z.enum(["tree", "blob"]),
   path: z.string(),
   mode: z.string(),
 });
 
+export const GetRepositoryTreeSchema = z.object({
+  project_id: z.string().describe("The ID or URL-encoded path of the project"),
+  path: z.string().optional().describe("The path inside the repository"),
+  ref: z.string().optional().describe("The name of a repository branch or tag. Defaults to the default branch."),
+  recursive: z.boolean().optional().describe("Boolean value to get a recursive tree"),
+  per_page: z.number().optional().describe("Number of results to show per page"),
+  page_token: z.string().optional().describe("The tree record ID for pagination"),
+  pagination: z.string().optional().describe("Pagination method (keyset)")
+});
+
 export const GitLabTreeSchema = z.object({
   id: z.string(), // Changed from sha to match GitLab API
-  tree: z.array(GitLabTreeEntrySchema),
+  tree: z.array(GitLabTreeItemSchema),
 });
 
 export const GitLabCommitSchema = z.object({
@@ -1033,3 +1043,5 @@ export type CreateWikiPageOptions = z.infer<typeof CreateWikiPageSchema>;
 export type UpdateWikiPageOptions = z.infer<typeof UpdateWikiPageSchema>;
 export type DeleteWikiPageOptions = z.infer<typeof DeleteWikiPageSchema>;
 export type GitLabWikiPage = z.infer<typeof GitLabWikiPageSchema>;
+export type GitLabTreeItem = z.infer<typeof GitLabTreeItemSchema>;
+export type GetRepositoryTreeOptions = z.infer<typeof GetRepositoryTreeSchema>;
