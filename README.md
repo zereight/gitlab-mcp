@@ -51,9 +51,9 @@ When using with the Claude App, you need to set up your API key and URLs directl
 7. `create_merge_request` - Create a new merge request in a GitLab project
 8. `fork_repository` - Fork a GitLab project to your account or specified namespace
 9. `create_branch` - Create a new branch in a GitLab project
-10. `get_merge_request` - Get details of a merge request
-11. `get_merge_request_diffs` - Get the changes/diffs of a merge request
-12. `update_merge_request` - Update a merge request
+10. `get_merge_request` - Get details of a merge request (Either mergeRequestIid or branchName must be provided)
+11. `get_merge_request_diffs` - Get the changes/diffs of a merge request (Either mergeRequestIid or branchName must be provided)
+12. `update_merge_request` - Update a merge request (Either mergeRequestIid or branchName must be provided)
 13. `create_note` - Create a new note (comment) to an issue or merge request
 14. `mr_discussions` - List discussion items for a merge request
 15. `update_merge_request_note` - Modify an existing merge request thread note
@@ -81,4 +81,5 @@ When using with the Claude App, you need to set up your API key and URLs directl
 37. `create_wiki_page` - Create a new wiki page in a GitLab project
 38. `update_wiki_page` - Update an existing wiki page in a GitLab project
 39. `delete_wiki_page` - Delete a wiki page from a GitLab project
+40. `get_repository_tree` - Get the repository tree for a GitLab project (list files and directories)
 <!-- TOOLS-END -->
