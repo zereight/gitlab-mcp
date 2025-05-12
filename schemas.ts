@@ -171,11 +171,25 @@ export const GitLabTreeItemSchema = z.object({
 export const GetRepositoryTreeSchema = z.object({
   project_id: z.string().describe("The ID or URL-encoded path of the project"),
   path: z.string().optional().describe("The path inside the repository"),
-  ref: z.string().optional().describe("The name of a repository branch or tag. Defaults to the default branch."),
-  recursive: z.boolean().optional().describe("Boolean value to get a recursive tree"),
-  per_page: z.number().optional().describe("Number of results to show per page"),
-  page_token: z.string().optional().describe("The tree record ID for pagination"),
-  pagination: z.string().optional().describe("Pagination method (keyset)")
+  ref: z
+    .string()
+    .optional()
+    .describe(
+      "The name of a repository branch or tag. Defaults to the default branch."
+    ),
+  recursive: z
+    .boolean()
+    .optional()
+    .describe("Boolean value to get a recursive tree"),
+  per_page: z
+    .number()
+    .optional()
+    .describe("Number of results to show per page"),
+  page_token: z
+    .string()
+    .optional()
+    .describe("The tree record ID for pagination"),
+  pagination: z.string().optional().describe("Pagination method (keyset)"),
 });
 
 export const GitLabTreeSchema = z.object({
@@ -849,9 +863,7 @@ export const ListLabelsSchema = z.object({
 
 export const GetLabelSchema = z.object({
   project_id: z.string().describe("Project ID or URL-encoded path"),
-  label_id: z
-    .union([z.number(), z.string()])
-    .describe("The ID or title of a project's label"),
+  label_id: z.string().describe("The ID or title of a project's label"),
   include_ancestor_groups: z
     .boolean()
     .optional()
@@ -876,9 +888,7 @@ export const CreateLabelSchema = z.object({
 
 export const UpdateLabelSchema = z.object({
   project_id: z.string().describe("Project ID or URL-encoded path"),
-  label_id: z
-    .union([z.number(), z.string()])
-    .describe("The ID or title of a project's label"),
+  label_id: z.string().describe("The ID or title of a project's label"),
   new_name: z.string().optional().describe("The new name of the label"),
   color: z
     .string()
@@ -899,9 +909,7 @@ export const UpdateLabelSchema = z.object({
 
 export const DeleteLabelSchema = z.object({
   project_id: z.string().describe("Project ID or URL-encoded path"),
-  label_id: z
-    .union([z.number(), z.string()])
-    .describe("The ID or title of a project's label"),
+  label_id: z.string().describe("The ID or title of a project's label"),
 });
 
 // Group projects schema
