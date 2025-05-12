@@ -395,7 +395,8 @@ const allTools = [
   },
   {
     name: "get_repository_tree",
-    description: "Get the repository tree for a GitLab project (list files and directories)",
+    description:
+      "Get the repository tree for a GitLab project (list files and directories)",
     inputSchema: zodToJsonSchema(GetRepositoryTreeSchema),
   },
 ];
@@ -506,6 +507,7 @@ async function forkProject(
   projectId: string,
   namespace?: string
 ): Promise<GitLabFork> {
+  projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
     `${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/fork`
   );
@@ -541,6 +543,7 @@ async function createBranch(
   projectId: string,
   options: z.infer<typeof CreateBranchOptionsSchema>
 ): Promise<GitLabReference> {
+  projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
     `${GITLAB_API_URL}/projects/${encodeURIComponent(
       projectId
@@ -568,6 +571,7 @@ async function createBranch(
  * @returns {Promise<string>} The name of the default branch
  */
 async function getDefaultBranchRef(projectId: string): Promise<string> {
+  projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
     `${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}`
   );
@@ -595,6 +599,7 @@ async function getFileContents(
   filePath: string,
   ref?: string
 ): Promise<GitLabContent> {
+  projectId = decodeURIComponent(projectId); // Decode project ID
   const encodedPath = encodeURIComponent(filePath);
 
   // ref가 없는 경우 default branch를 가져옴
@@ -646,6 +651,7 @@ async function createIssue(
   projectId: string,
   options: z.infer<typeof CreateIssueOptionsSchema>
 ): Promise<GitLabIssue> {
+  projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
     `${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/issues`
   );
@@ -685,6 +691,7 @@ async function listIssues(
   projectId: string,
   options: Omit<z.infer<typeof ListIssuesSchema>, "project_id"> = {}
 ): Promise<GitLabIssue[]> {
+  projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
     `${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/issues`
   );
@@ -722,6 +729,7 @@ async function getIssue(
   projectId: string,
   issueIid: number
 ): Promise<GitLabIssue> {
+  projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
     `${GITLAB_API_URL}/projects/${encodeURIComponent(
       projectId
@@ -751,6 +759,7 @@ async function updateIssue(
   issueIid: number,
   options: Omit<z.infer<typeof UpdateIssueSchema>, "project_id" | "issue_iid">
 ): Promise<GitLabIssue> {
+  projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
     `${GITLAB_API_URL}/projects/${encodeURIComponent(
       projectId
@@ -783,6 +792,7 @@ async function updateIssue(
  * @returns {Promise<void>}
  */
 async function deleteIssue(projectId: string, issueIid: number): Promise<void> {
+  projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
     `${GITLAB_API_URL}/projects/${encodeURIComponent(
       projectId
@@ -809,6 +819,7 @@ async function listIssueLinks(
   projectId: string,
   issueIid: number
 ): Promise<GitLabIssueWithLinkDetails[]> {
+  projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
     `${GITLAB_API_URL}/projects/${encodeURIComponent(
       projectId
@@ -838,6 +849,7 @@ async function getIssueLink(
   issueIid: number,
   issueLinkId: number
 ): Promise<GitLabIssueLink> {
+  projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
     `${GITLAB_API_URL}/projects/${encodeURIComponent(
       projectId
@@ -871,6 +883,8 @@ async function createIssueLink(
   targetIssueIid: number,
   linkType: "relates_to" | "blocks" | "is_blocked_by" = "relates_to"
 ): Promise<GitLabIssueLink> {
+  projectId = decodeURIComponent(projectId); // Decode project ID
+  targetProjectId = decodeURIComponent(targetProjectId); // Decode target project ID as well
   const url = new URL(
     `${GITLAB_API_URL}/projects/${encodeURIComponent(
       projectId
@@ -906,6 +920,7 @@ async function deleteIssueLink(
   issueIid: number,
   issueLinkId: number
 ): Promise<void> {
+  projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
     `${GITLAB_API_URL}/projects/${encodeURIComponent(
       projectId
@@ -932,6 +947,7 @@ async function createMergeRequest(
   projectId: string,
   options: z.infer<typeof CreateMergeRequestOptionsSchema>
 ): Promise<GitLabMergeRequest> {
+  projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
     `${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/merge_requests`
   );
@@ -977,6 +993,7 @@ async function listMergeRequestDiscussions(
   projectId: string,
   mergeRequestIid: number
 ): Promise<GitLabDiscussion[]> {
+  projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
     `${GITLAB_API_URL}/projects/${encodeURIComponent(
       projectId
@@ -1013,6 +1030,7 @@ async function updateMergeRequestNote(
   body: string,
   resolved?: boolean
 ): Promise<GitLabDiscussionNote> {
+  projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
     `${GITLAB_API_URL}/projects/${encodeURIComponent(
       projectId
@@ -1057,6 +1075,7 @@ async function createOrUpdateFile(
   last_commit_id?: string,
   commit_id?: string
 ): Promise<GitLabCreateUpdateFileResponse> {
+  projectId = decodeURIComponent(projectId); // Decode project ID
   const encodedPath = encodeURIComponent(filePath);
   const url = new URL(
     `${GITLAB_API_URL}/projects/${encodeURIComponent(
@@ -1139,6 +1158,7 @@ async function createTree(
   files: FileOperation[],
   ref?: string
 ): Promise<GitLabTree> {
+  projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
     `${GITLAB_API_URL}/projects/${encodeURIComponent(
       projectId
@@ -1193,6 +1213,7 @@ async function createCommit(
   branch: string,
   actions: FileOperation[]
 ): Promise<GitLabCommit> {
+  projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
     `${GITLAB_API_URL}/projects/${encodeURIComponent(
       projectId
@@ -1325,6 +1346,7 @@ async function getMergeRequest(
   mergeRequestIid?: number,
   branchName?: string
 ): Promise<GitLabMergeRequest> {
+  projectId = decodeURIComponent(projectId); // Decode project ID
   let url: URL;
 
   if (mergeRequestIid) {
@@ -1375,6 +1397,7 @@ async function getMergeRequestDiffs(
   branchName?: string,
   view?: "inline" | "parallel"
 ): Promise<GitLabMergeRequestDiff[]> {
+  projectId = decodeURIComponent(projectId); // Decode project ID
   if (!mergeRequestIid && !branchName) {
     throw new Error("Either mergeRequestIid or branchName must be provided");
   }
@@ -1426,6 +1449,7 @@ async function updateMergeRequest(
   mergeRequestIid?: number,
   branchName?: string
 ): Promise<GitLabMergeRequest> {
+  projectId = decodeURIComponent(projectId); // Decode project ID
   if (!mergeRequestIid && !branchName) {
     throw new Error("Either mergeRequestIid or branchName must be provided");
   }
@@ -1472,6 +1496,7 @@ async function createNote(
   noteableIid: number,
   body: string
 ): Promise<any> {
+  projectId = decodeURIComponent(projectId); // Decode project ID
   // ⚙️ 응답 타입은 GitLab API 문서에 따라 조정 가능
   const url = new URL(
     `${GITLAB_API_URL}/projects/${encodeURIComponent(
@@ -1600,6 +1625,7 @@ async function getProject(
     with_custom_attributes?: boolean;
   } = {}
 ): Promise<GitLabProject> {
+  projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
     `${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}`
   );
@@ -1674,6 +1700,7 @@ async function listLabels(
   projectId: string,
   options: Omit<z.infer<typeof ListLabelsSchema>, "project_id"> = {}
 ): Promise<GitLabLabel[]> {
+  projectId = decodeURIComponent(projectId); // Decode project ID
   // Construct the URL with project path
   const url = new URL(
     `${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/labels`
@@ -1716,6 +1743,7 @@ async function getLabel(
   labelId: number | string,
   includeAncestorGroups?: boolean
 ): Promise<GitLabLabel> {
+  projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
     `${GITLAB_API_URL}/projects/${encodeURIComponent(
       projectId
@@ -1754,6 +1782,7 @@ async function createLabel(
   projectId: string,
   options: Omit<z.infer<typeof CreateLabelSchema>, "project_id">
 ): Promise<GitLabLabel> {
+  projectId = decodeURIComponent(projectId); // Decode project ID
   // Make the API request
   const response = await fetch(
     `${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/labels`,
@@ -1785,6 +1814,7 @@ async function updateLabel(
   labelId: number | string,
   options: Omit<z.infer<typeof UpdateLabelSchema>, "project_id" | "label_id">
 ): Promise<GitLabLabel> {
+  projectId = decodeURIComponent(projectId); // Decode project ID
   // Make the API request
   const response = await fetch(
     `${GITLAB_API_URL}/projects/${encodeURIComponent(
@@ -1815,6 +1845,7 @@ async function deleteLabel(
   projectId: string,
   labelId: number | string
 ): Promise<void> {
+  projectId = decodeURIComponent(projectId); // Decode project ID
   // Make the API request
   const response = await fetch(
     `${GITLAB_API_URL}/projects/${encodeURIComponent(
@@ -1908,6 +1939,7 @@ async function listWikiPages(
   projectId: string,
   options: Omit<z.infer<typeof ListWikiPagesSchema>, "project_id"> = {}
 ): Promise<GitLabWikiPage[]> {
+  projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
     `${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/wikis`
   );
@@ -1929,6 +1961,7 @@ async function getWikiPage(
   projectId: string,
   slug: string
 ): Promise<GitLabWikiPage> {
+  projectId = decodeURIComponent(projectId); // Decode project ID
   const response = await fetch(
     `${GITLAB_API_URL}/projects/${encodeURIComponent(
       projectId
@@ -1949,6 +1982,7 @@ async function createWikiPage(
   content: string,
   format?: string
 ): Promise<GitLabWikiPage> {
+  projectId = decodeURIComponent(projectId); // Decode project ID
   const body: Record<string, any> = { title, content };
   if (format) body.format = format;
   const response = await fetch(
@@ -1974,6 +2008,7 @@ async function updateWikiPage(
   content?: string,
   format?: string
 ): Promise<GitLabWikiPage> {
+  projectId = decodeURIComponent(projectId); // Decode project ID
   const body: Record<string, any> = {};
   if (title) body.title = title;
   if (content) body.content = content;
@@ -1997,6 +2032,7 @@ async function updateWikiPage(
  * Delete a wiki page
  */
 async function deleteWikiPage(projectId: string, slug: string): Promise<void> {
+  projectId = decodeURIComponent(projectId); // Decode project ID
   const response = await fetch(
     `${GITLAB_API_URL}/projects/${encodeURIComponent(
       projectId
@@ -2018,16 +2054,20 @@ async function deleteWikiPage(projectId: string, slug: string): Promise<void> {
 async function getRepositoryTree(
   options: GetRepositoryTreeOptions
 ): Promise<GitLabTreeItem[]> {
+  options.project_id = decodeURIComponent(options.project_id); // Decode project_id within options
   const queryParams = new URLSearchParams();
   if (options.path) queryParams.append("path", options.path);
   if (options.ref) queryParams.append("ref", options.ref);
   if (options.recursive) queryParams.append("recursive", "true");
-  if (options.per_page) queryParams.append("per_page", options.per_page.toString());
+  if (options.per_page)
+    queryParams.append("per_page", options.per_page.toString());
   if (options.page_token) queryParams.append("page_token", options.page_token);
   if (options.pagination) queryParams.append("pagination", options.pagination);
 
   const response = await fetch(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(options.project_id)}/repository/tree?${queryParams.toString()}`,
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(
+      options.project_id
+    )}/repository/tree?${queryParams.toString()}`,
     {
       headers: {
         Authorization: `Bearer ${GITLAB_PERSONAL_ACCESS_TOKEN}`,
@@ -2054,12 +2094,33 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
     ? allTools.filter((tool) => readOnlyTools.includes(tool.name))
     : allTools;
   // Toggle wiki tools by USE_GITLAB_WIKI flag
-  const tools = USE_GITLAB_WIKI
+  let tools = USE_GITLAB_WIKI
     ? tools0
     : tools0.filter((tool) => !wikiToolNames.includes(tool.name));
 
+  // <<< START: Gemini 호환성을 위해 $schema 제거 >>>
+  tools = tools.map((tool) => {
+    // inputSchema가 존재하고 객체인지 확인
+    if (
+      tool.inputSchema &&
+      typeof tool.inputSchema === "object" &&
+      tool.inputSchema !== null
+    ) {
+      // $schema 키가 존재하면 삭제
+      if ("$schema" in tool.inputSchema) {
+        // 불변성을 위해 새로운 객체 생성 (선택적이지만 권장)
+        const modifiedSchema = { ...tool.inputSchema };
+        delete modifiedSchema.$schema;
+        return { ...tool, inputSchema: modifiedSchema };
+      }
+    }
+    // 변경이 필요 없으면 그대로 반환
+    return tool;
+  });
+  // <<< END: Gemini 호환성을 위해 $schema 제거 >>>
+
   return {
-    tools,
+    tools, // $schema가 제거된 도구 목록 반환
   };
 });
 
