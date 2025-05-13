@@ -75,6 +75,7 @@ import {
   UpdateLabelSchema,
   DeleteLabelSchema,
   CreateNoteSchema,
+  CreateMergeRequestThreadSchema,
   ListGroupProjectsSchema,
   ListWikiPagesSchema,
   GetWikiPageSchema,
@@ -108,6 +109,7 @@ import {
   // Discussion Types
   type GitLabDiscussionNote, // Added
   type GitLabDiscussion,
+  type MergeRequestThreadPosition,
   type GetWikiPageOptions,
   type CreateWikiPageOptions,
   type UpdateWikiPageOptions,
@@ -262,6 +264,11 @@ const allTools = [
     name: "create_note",
     description: "Create a new note (comment) to an issue or merge request",
     inputSchema: zodToJsonSchema(CreateNoteSchema),
+  },
+  {
+    name: "create_merge_request_thread",
+    description: "Create a new thread on a merge request",
+    inputSchema: zodToJsonSchema(CreateMergeRequestThreadSchema),
   },
   {
     name: "mr_discussions",
@@ -1521,6 +1528,59 @@ async function createNote(
 }
 
 /**
+ * Create a new thread on a merge request
+ * 📦 새로운 함수: createMergeRequestThread - 병합 요청에 새로운 스레드(토론)를 생성하는 함수
+ * (New function: createMergeRequestThread - Function to create a new thread (discussion) on a merge request)
+ * 
+ * This function provides more capabilities than createNote, including the ability to:
+ * - Create diff notes (comments on specific lines of code)
+ * - Specify exact positions for comments
+ * - Set creation timestamps
+ *
+ * @param {string} projectId - The ID or URL-encoded path of the project
+ * @param {number} mergeRequestIid - The internal ID of the merge request
+ * @param {string} body - The content of the thread
+ * @param {MergeRequestThreadPosition} [position] - Position information for diff notes
+ * @param {string} [createdAt] - ISO 8601 formatted creation date
+ * @returns {Promise<GitLabDiscussion>} The created discussion thread
+ */
+async function createMergeRequestThread(
+  projectId: string,
+  mergeRequestIid: number,
+  body: string,
+  position?: MergeRequestThreadPosition,
+  createdAt?: string
+): Promise<GitLabDiscussion> {
+  projectId = decodeURIComponent(projectId); // Decode project ID
+  const url = new URL(
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(
+      projectId
+    )}/merge_requests/${mergeRequestIid}/discussions`
+  );
+
+  const payload: Record<string, any> = { body };
+  
+  // Add optional parameters if provided
+  if (position) {
+    payload.position = position;
+  }
+  
+  if (createdAt) {
+    payload.created_at = createdAt;
+  }
+
+  const response = await fetch(url.toString(), {
+    ...DEFAULT_FETCH_CONFIG,
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+
+  await handleGitLabError(response);
+  const data = await response.json();
+  return GitLabDiscussionSchema.parse(data);
+}
+
+/**
  * List all namespaces
  * 사용 가능한 모든 네임스페이스 목록 조회
  *
@@ -2451,6 +2511,22 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         );
         return {
           content: [{ type: "text", text: JSON.stringify(note, null, 2) }],
+        };
+      }
+
+      case "create_merge_request_thread": {
+        const args = CreateMergeRequestThreadSchema.parse(request.params.arguments);
+        const { project_id, merge_request_iid, body, position, created_at } = args;
+
+        const thread = await createMergeRequestThread(
+          project_id,
+          merge_request_iid,
+          body,
+          position,
+          created_at
+        );
+        return {
+          content: [{ type: "text", text: JSON.stringify(thread, null, 2) }],
         };
       }
 
