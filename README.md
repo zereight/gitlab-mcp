@@ -58,29 +58,30 @@ When using with the Claude App, you need to set up your API key and URLs directl
 14. `create_merge_request_thread` - Create a new thread on a merge request
 15. `mr_discussions` - List discussion items for a merge request
 16. `update_merge_request_note` - Modify an existing merge request thread note
-17. `list_issues` - List issues in a GitLab project with filtering options
-18. `get_issue` - Get details of a specific issue in a GitLab project
-19. `update_issue` - Update an issue in a GitLab project
-20. `delete_issue` - Delete an issue from a GitLab project
-21. `list_issue_links` - List all issue links for a specific issue
-22. `get_issue_link` - Get a specific issue link
-23. `create_issue_link` - Create an issue link between two issues
-24. `delete_issue_link` - Delete an issue link
-25. `list_namespaces` - List all namespaces available to the current user
-26. `get_namespace` - Get details of a namespace by ID or path
-27. `verify_namespace` - Verify if a namespace path exists
-28. `get_project` - Get details of a specific project
-29. `list_projects` - List projects accessible by the current user
-30. `list_labels` - List labels for a project
-31. `get_label` - Get a single label from a project
-32. `create_label` - Create a new label in a project
-33. `update_label` - Update an existing label in a project
-34. `delete_label` - Delete a label from a project
-35. `list_group_projects` - List projects in a GitLab group with filtering options
-36. `list_wiki_pages` - List wiki pages in a GitLab project
-37. `get_wiki_page` - Get details of a specific wiki page
-38. `create_wiki_page` - Create a new wiki page in a GitLab project
-39. `update_wiki_page` - Update an existing wiki page in a GitLab project
-40. `delete_wiki_page` - Delete a wiki page from a GitLab project
-41. `get_repository_tree` - Get the repository tree for a GitLab project (list files and directories)
+17. `add_merge_request_thread_note` - Add a new note to an existing merge request thread
+18. `list_issues` - List issues in a GitLab project with filtering options
+19. `get_issue` - Get details of a specific issue in a GitLab project
+20. `update_issue` - Update an issue in a GitLab project
+21. `delete_issue` - Delete an issue from a GitLab project
+22. `list_issue_links` - List all issue links for a specific issue
+23. `get_issue_link` - Get a specific issue link
+24. `create_issue_link` - Create an issue link between two issues
+25. `delete_issue_link` - Delete an issue link
+26. `list_namespaces` - List all namespaces available to the current user
+27. `get_namespace` - Get details of a namespace by ID or path
+28. `verify_namespace` - Verify if a namespace path exists
+29. `get_project` - Get details of a specific project
+30. `list_projects` - List projects accessible by the current user
+31. `list_labels` - List labels for a project
+32. `get_label` - Get a single label from a project
+33. `create_label` - Create a new label in a project
+34. `update_label` - Update an existing label in a project
+35. `delete_label` - Delete a label from a project
+36. `list_group_projects` - List projects in a GitLab group with filtering options
+37. `list_wiki_pages` - List wiki pages in a GitLab project
+38. `get_wiki_page` - Get details of a specific wiki page
+39. `create_wiki_page` - Create a new wiki page in a GitLab project
+40. `update_wiki_page` - Update an existing wiki page in a GitLab project
+41. `delete_wiki_page` - Delete a wiki page from a GitLab project
+42. `get_repository_tree` - Get the repository tree for a GitLab project (list files and directories)
 <!-- TOOLS-END -->

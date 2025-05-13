@@ -87,6 +87,7 @@ import {
   GitLabDiscussionNoteSchema, // Added
   GitLabDiscussionSchema,
   UpdateMergeRequestNoteSchema, // Added
+  AddMergeRequestThreadNoteSchema, // Added
   ListMergeRequestDiscussionsSchema,
   type GitLabFork,
   type GitLabReference,
@@ -279,6 +280,11 @@ const allTools = [
     name: "update_merge_request_note",
     description: "Modify an existing merge request thread note",
     inputSchema: zodToJsonSchema(UpdateMergeRequestNoteSchema),
+  },
+  {
+    name: "add_merge_request_thread_note",
+    description: "Add a new note to an existing merge request thread",
+    inputSchema: zodToJsonSchema(AddMergeRequestThreadNoteSchema),
   },
   {
     name: "list_issues",
@@ -1052,6 +1058,47 @@ async function updateMergeRequestNote(
   const response = await fetch(url.toString(), {
     ...DEFAULT_FETCH_CONFIG,
     method: "PUT",
+    body: JSON.stringify(payload),
+  });
+
+  await handleGitLabError(response);
+  const data = await response.json();
+  return GitLabDiscussionNoteSchema.parse(data);
+}
+
+/**
+ * Add a new note to an existing merge request thread
+ * 기존 병합 요청 스레드에 새 노트 추가
+ *
+ * @param {string} projectId - The ID or URL-encoded path of the project
+ * @param {number} mergeRequestIid - The IID of a merge request
+ * @param {string} discussionId - The ID of a thread
+ * @param {string} body - The content of the new note
+ * @param {string} [createdAt] - The creation date of the note (ISO 8601 format)
+ * @returns {Promise<GitLabDiscussionNote>} The created note
+ */
+async function addMergeRequestThreadNote(
+  projectId: string,
+  mergeRequestIid: number,
+  discussionId: string,
+  body: string,
+  createdAt?: string
+): Promise<GitLabDiscussionNote> {
+  projectId = decodeURIComponent(projectId); // Decode project ID
+  const url = new URL(
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(
+      projectId
+    )}/merge_requests/${mergeRequestIid}/discussions/${discussionId}/notes`
+  );
+
+  const payload: { body: string; created_at?: string } = { body };
+  if (createdAt) {
+    payload.created_at = createdAt;
+  }
+
+  const response = await fetch(url.toString(), {
+    ...DEFAULT_FETCH_CONFIG,
+    method: "POST",
     body: JSON.stringify(payload),
   });
 
@@ -2332,6 +2379,22 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           args.note_id,
           args.body,
           args.resolved // Pass resolved if provided
+        );
+        return {
+          content: [{ type: "text", text: JSON.stringify(note, null, 2) }],
+        };
+      }
+      
+      case "add_merge_request_thread_note": {
+        const args = AddMergeRequestThreadNoteSchema.parse(
+          request.params.arguments
+        );
+        const note = await addMergeRequestThreadNote(
+          args.project_id,
+          args.merge_request_iid,
+          args.discussion_id,
+          args.body,
+          args.created_at
         );
         return {
           content: [{ type: "text", text: JSON.stringify(note, null, 2) }],
