@@ -87,7 +87,7 @@ import {
   GitLabDiscussionNoteSchema, // Added
   GitLabDiscussionSchema,
   UpdateMergeRequestNoteSchema, // Added
-  AddMergeRequestThreadNoteSchema, // Added
+  CreateMergeRequestNoteSchema, // Added
   ListMergeRequestDiscussionsSchema,
   type GitLabFork,
   type GitLabReference,
@@ -282,9 +282,9 @@ const allTools = [
     inputSchema: zodToJsonSchema(UpdateMergeRequestNoteSchema),
   },
   {
-    name: "add_merge_request_thread_note",
+    name: "create_merge_request_note",
     description: "Add a new note to an existing merge request thread",
-    inputSchema: zodToJsonSchema(AddMergeRequestThreadNoteSchema),
+    inputSchema: zodToJsonSchema(CreateMergeRequestNoteSchema),
   },
   {
     name: "list_issues",
@@ -1077,7 +1077,7 @@ async function updateMergeRequestNote(
  * @param {string} [createdAt] - The creation date of the note (ISO 8601 format)
  * @returns {Promise<GitLabDiscussionNote>} The created note
  */
-async function addMergeRequestThreadNote(
+async function createMergeRequestNote(
   projectId: string,
   mergeRequestIid: number,
   discussionId: string,
@@ -2385,11 +2385,11 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         };
       }
       
-      case "add_merge_request_thread_note": {
-        const args = AddMergeRequestThreadNoteSchema.parse(
+      case "create_merge_request_note": {
+        const args = CreateMergeRequestNoteSchema.parse(
           request.params.arguments
         );
-        const note = await addMergeRequestThreadNote(
+        const note = await createMergeRequestNote(
           args.project_id,
           args.merge_request_iid,
           args.discussion_id,

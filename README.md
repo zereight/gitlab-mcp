@@ -58,7 +58,7 @@ When using with the Claude App, you need to set up your API key and URLs directl
 14. `create_merge_request_thread` - Create a new thread on a merge request
 15. `mr_discussions` - List discussion items for a merge request
 16. `update_merge_request_note` - Modify an existing merge request thread note
-17. `add_merge_request_thread_note` - Add a new note to an existing merge request thread
+17. `create_merge_request_note` - Add a new note to an existing merge request thread
 18. `list_issues` - List issues in a GitLab project with filtering options
 19. `get_issue` - Get details of a specific issue in a GitLab project
 20. `update_issue` - Update an issue in a GitLab project

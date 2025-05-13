@@ -480,7 +480,7 @@ export const UpdateMergeRequestNoteSchema = ProjectParamsSchema.extend({
 });
 
 // Input schema for adding a note to an existing merge request discussion
-export const AddMergeRequestThreadNoteSchema = ProjectParamsSchema.extend({
+export const CreateMergeRequestNoteSchema = ProjectParamsSchema.extend({
   merge_request_iid: z.number().describe("The IID of a merge request"),
   discussion_id: z.string().describe("The ID of a thread"),
   body: z.string().describe("The content of the note or reply"),
@@ -1087,4 +1087,4 @@ export type GitLabTreeItem = z.infer<typeof GitLabTreeItemSchema>;
 export type GetRepositoryTreeOptions = z.infer<typeof GetRepositoryTreeSchema>;
 export type MergeRequestThreadPosition = z.infer<typeof MergeRequestThreadPositionSchema>;
 export type CreateMergeRequestThreadOptions = z.infer<typeof CreateMergeRequestThreadSchema>;
-export type AddMergeRequestThreadNoteOptions = z.infer<typeof AddMergeRequestThreadNoteSchema>;
+export type CreateMergeRequestNoteOptions = z.infer<typeof CreateMergeRequestNoteSchema>;
