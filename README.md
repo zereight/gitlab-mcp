@@ -1,3 +1,5 @@
+[![MseeP.ai Security Assessment Badge](https://mseep.net/pr/zereight-gitlab-mcp-badge.png)](https://mseep.ai/app/zereight-gitlab-mcp)
+
 # Better GitLab MCP Server
 
 ## @zereight/mcp-gitlab
