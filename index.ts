@@ -75,6 +75,7 @@ import {
   UpdateLabelSchema,
   DeleteLabelSchema,
   CreateNoteSchema,
+  CreateMergeRequestThreadSchema,
   ListGroupProjectsSchema,
   ListWikiPagesSchema,
   GetWikiPageSchema,
@@ -86,6 +87,7 @@ import {
   GitLabDiscussionNoteSchema, // Added
   GitLabDiscussionSchema,
   UpdateMergeRequestNoteSchema, // Added
+  CreateMergeRequestNoteSchema, // Added
   ListMergeRequestDiscussionsSchema,
   type GitLabFork,
   type GitLabReference,
@@ -108,6 +110,7 @@ import {
   // Discussion Types
   type GitLabDiscussionNote, // Added
   type GitLabDiscussion,
+  type MergeRequestThreadPosition,
   type GetWikiPageOptions,
   type CreateWikiPageOptions,
   type UpdateWikiPageOptions,
@@ -264,6 +267,11 @@ const allTools = [
     inputSchema: zodToJsonSchema(CreateNoteSchema),
   },
   {
+    name: "create_merge_request_thread",
+    description: "Create a new thread on a merge request",
+    inputSchema: zodToJsonSchema(CreateMergeRequestThreadSchema),
+  },
+  {
     name: "mr_discussions",
     description: "List discussion items for a merge request",
     inputSchema: zodToJsonSchema(ListMergeRequestDiscussionsSchema),
@@ -272,6 +280,11 @@ const allTools = [
     name: "update_merge_request_note",
     description: "Modify an existing merge request thread note",
     inputSchema: zodToJsonSchema(UpdateMergeRequestNoteSchema),
+  },
+  {
+    name: "create_merge_request_note",
+    description: "Add a new note to an existing merge request thread",
+    inputSchema: zodToJsonSchema(CreateMergeRequestNoteSchema),
   },
   {
     name: "list_issues",
@@ -1057,6 +1070,47 @@ async function updateMergeRequestNote(
 }
 
 /**
+ * Add a new note to an existing merge request thread
+ * 기존 병합 요청 스레드에 새 노트 추가
+ *
+ * @param {string} projectId - The ID or URL-encoded path of the project
+ * @param {number} mergeRequestIid - The IID of a merge request
+ * @param {string} discussionId - The ID of a thread
+ * @param {string} body - The content of the new note
+ * @param {string} [createdAt] - The creation date of the note (ISO 8601 format)
+ * @returns {Promise<GitLabDiscussionNote>} The created note
+ */
+async function createMergeRequestNote(
+  projectId: string,
+  mergeRequestIid: number,
+  discussionId: string,
+  body: string,
+  createdAt?: string
+): Promise<GitLabDiscussionNote> {
+  projectId = decodeURIComponent(projectId); // Decode project ID
+  const url = new URL(
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(
+      projectId
+    )}/merge_requests/${mergeRequestIid}/discussions/${discussionId}/notes`
+  );
+
+  const payload: { body: string; created_at?: string } = { body };
+  if (createdAt) {
+    payload.created_at = createdAt;
+  }
+
+  const response = await fetch(url.toString(), {
+    ...DEFAULT_FETCH_CONFIG,
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+
+  await handleGitLabError(response);
+  const data = await response.json();
+  return GitLabDiscussionNoteSchema.parse(data);
+}
+
+/**
  * Create or update a file in a GitLab project
  * 파일 생성 또는 업데이트
  *
@@ -1521,6 +1575,59 @@ async function createNote(
   }
 
   return await response.json();
+}
+
+/**
+ * Create a new thread on a merge request
+ * 📦 새로운 함수: createMergeRequestThread - 병합 요청에 새로운 스레드(토론)를 생성하는 함수
+ * (New function: createMergeRequestThread - Function to create a new thread (discussion) on a merge request)
+ * 
+ * This function provides more capabilities than createNote, including the ability to:
+ * - Create diff notes (comments on specific lines of code)
+ * - Specify exact positions for comments
+ * - Set creation timestamps
+ *
+ * @param {string} projectId - The ID or URL-encoded path of the project
+ * @param {number} mergeRequestIid - The internal ID of the merge request
+ * @param {string} body - The content of the thread
+ * @param {MergeRequestThreadPosition} [position] - Position information for diff notes
+ * @param {string} [createdAt] - ISO 8601 formatted creation date
+ * @returns {Promise<GitLabDiscussion>} The created discussion thread
+ */
+async function createMergeRequestThread(
+  projectId: string,
+  mergeRequestIid: number,
+  body: string,
+  position?: MergeRequestThreadPosition,
+  createdAt?: string
+): Promise<GitLabDiscussion> {
+  projectId = decodeURIComponent(projectId); // Decode project ID
+  const url = new URL(
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(
+      projectId
+    )}/merge_requests/${mergeRequestIid}/discussions`
+  );
+
+  const payload: Record<string, any> = { body };
+  
+  // Add optional parameters if provided
+  if (position) {
+    payload.position = position;
+  }
+  
+  if (createdAt) {
+    payload.created_at = createdAt;
+  }
+
+  const response = await fetch(url.toString(), {
+    ...DEFAULT_FETCH_CONFIG,
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+
+  await handleGitLabError(response);
+  const data = await response.json();
+  return GitLabDiscussionSchema.parse(data);
 }
 
 /**
@@ -2280,6 +2387,22 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           content: [{ type: "text", text: JSON.stringify(note, null, 2) }],
         };
       }
+      
+      case "create_merge_request_note": {
+        const args = CreateMergeRequestNoteSchema.parse(
+          request.params.arguments
+        );
+        const note = await createMergeRequestNote(
+          args.project_id,
+          args.merge_request_iid,
+          args.discussion_id,
+          args.body,
+          args.created_at
+        );
+        return {
+          content: [{ type: "text", text: JSON.stringify(note, null, 2) }],
+        };
+      }
 
       case "get_merge_request": {
         const args = GetMergeRequestSchema.parse(request.params.arguments);
@@ -2454,6 +2577,22 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         );
         return {
           content: [{ type: "text", text: JSON.stringify(note, null, 2) }],
+        };
+      }
+
+      case "create_merge_request_thread": {
+        const args = CreateMergeRequestThreadSchema.parse(request.params.arguments);
+        const { project_id, merge_request_iid, body, position, created_at } = args;
+
+        const thread = await createMergeRequestThread(
+          project_id,
+          merge_request_iid,
+          body,
+          position,
+          created_at
+        );
+        return {
+          content: [{ type: "text", text: JSON.stringify(thread, null, 2) }],
         };
       }
 

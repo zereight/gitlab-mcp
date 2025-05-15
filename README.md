@@ -55,31 +55,33 @@ When using with the Claude App, you need to set up your API key and URLs directl
 11. `get_merge_request_diffs` - Get the changes/diffs of a merge request (Either mergeRequestIid or branchName must be provided)
 12. `update_merge_request` - Update a merge request (Either mergeRequestIid or branchName must be provided)
 13. `create_note` - Create a new note (comment) to an issue or merge request
-14. `mr_discussions` - List discussion items for a merge request
-15. `update_merge_request_note` - Modify an existing merge request thread note
-16. `list_issues` - List issues in a GitLab project with filtering options
-17. `get_issue` - Get details of a specific issue in a GitLab project
-18. `update_issue` - Update an issue in a GitLab project
-19. `delete_issue` - Delete an issue from a GitLab project
-20. `list_issue_links` - List all issue links for a specific issue
-21. `get_issue_link` - Get a specific issue link
-22. `create_issue_link` - Create an issue link between two issues
-23. `delete_issue_link` - Delete an issue link
-24. `list_namespaces` - List all namespaces available to the current user
-25. `get_namespace` - Get details of a namespace by ID or path
-26. `verify_namespace` - Verify if a namespace path exists
-27. `get_project` - Get details of a specific project
-28. `list_projects` - List projects accessible by the current user
-29. `list_labels` - List labels for a project
-30. `get_label` - Get a single label from a project
-31. `create_label` - Create a new label in a project
-32. `update_label` - Update an existing label in a project
-33. `delete_label` - Delete a label from a project
-34. `list_group_projects` - List projects in a GitLab group with filtering options
-35. `list_wiki_pages` - List wiki pages in a GitLab project
-36. `get_wiki_page` - Get details of a specific wiki page
-37. `create_wiki_page` - Create a new wiki page in a GitLab project
-38. `update_wiki_page` - Update an existing wiki page in a GitLab project
-39. `delete_wiki_page` - Delete a wiki page from a GitLab project
-40. `get_repository_tree` - Get the repository tree for a GitLab project (list files and directories)
+14. `create_merge_request_thread` - Create a new thread on a merge request
+15. `mr_discussions` - List discussion items for a merge request
+16. `update_merge_request_note` - Modify an existing merge request thread note
+17. `create_merge_request_note` - Add a new note to an existing merge request thread
+18. `list_issues` - List issues in a GitLab project with filtering options
+19. `get_issue` - Get details of a specific issue in a GitLab project
+20. `update_issue` - Update an issue in a GitLab project
+21. `delete_issue` - Delete an issue from a GitLab project
+22. `list_issue_links` - List all issue links for a specific issue
+23. `get_issue_link` - Get a specific issue link
+24. `create_issue_link` - Create an issue link between two issues
+25. `delete_issue_link` - Delete an issue link
+26. `list_namespaces` - List all namespaces available to the current user
+27. `get_namespace` - Get details of a namespace by ID or path
+28. `verify_namespace` - Verify if a namespace path exists
+29. `get_project` - Get details of a specific project
+30. `list_projects` - List projects accessible by the current user
+31. `list_labels` - List labels for a project
+32. `get_label` - Get a single label from a project
+33. `create_label` - Create a new label in a project
+34. `update_label` - Update an existing label in a project
+35. `delete_label` - Delete a label from a project
+36. `list_group_projects` - List projects in a GitLab group with filtering options
+37. `list_wiki_pages` - List wiki pages in a GitLab project
+38. `get_wiki_page` - Get details of a specific wiki page
+39. `create_wiki_page` - Create a new wiki page in a GitLab project
+40. `update_wiki_page` - Update an existing wiki page in a GitLab project
+41. `delete_wiki_page` - Delete a wiki page from a GitLab project
+42. `get_repository_tree` - Get the repository tree for a GitLab project (list files and directories)
 <!-- TOOLS-END -->
