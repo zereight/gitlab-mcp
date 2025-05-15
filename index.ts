@@ -1027,7 +1027,7 @@ async function updateMergeRequestNote(
   mergeRequestIid: number,
   discussionId: string,
   noteId: number,
-  body: string,
+  body?: string,
   resolved?: boolean
 ): Promise<GitLabDiscussionNote> {
   projectId = decodeURIComponent(projectId); // Decode project ID
@@ -1037,8 +1037,11 @@ async function updateMergeRequestNote(
     )}/merge_requests/${mergeRequestIid}/discussions/${discussionId}/notes/${noteId}`
   );
 
-  const payload: { body: string; resolved?: boolean } = { body };
-  if (resolved !== undefined) {
+  // Only one of body or resolved can be sent according to GitLab API
+  const payload: { body?: string; resolved?: boolean } = {};
+  if (body !== undefined) {
+    payload.body = body;
+  } else if (resolved !== undefined) {
     payload.resolved = resolved;
   }
 
@@ -2270,8 +2273,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           args.merge_request_iid,
           args.discussion_id,
           args.note_id,
-          args.body,
-          args.resolved // Pass resolved if provided
+          args.body, // Now optional
+          args.resolved // Now one of body or resolved must be provided, not both
         );
         return {
           content: [{ type: "text", text: JSON.stringify(note, null, 2) }],

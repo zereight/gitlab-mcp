@@ -475,8 +475,12 @@ export const UpdateMergeRequestNoteSchema = ProjectParamsSchema.extend({
   merge_request_iid: z.number().describe("The IID of a merge request"),
   discussion_id: z.string().describe("The ID of a thread"),
   note_id: z.number().describe("The ID of a thread note"),
-  body: z.string().describe("The content of the note or reply"),
-  resolved: z.boolean().optional().describe("Resolve or unresolve the note"), // Optional based on API docs
+  body: z.string().optional().describe("The content of the note or reply"),
+  resolved: z.boolean().optional().describe("Resolve or unresolve the note"),
+}).refine(data => data.body !== undefined || data.resolved !== undefined, {
+  message: "At least one of 'body' or 'resolved' must be provided"
+}).refine(data => !(data.body !== undefined && data.resolved !== undefined), {
+  message: "Only one of 'body' or 'resolved' can be provided, not both"
 });
 
 // API Operation Parameter Schemas
