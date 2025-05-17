@@ -436,13 +436,13 @@ export const GitLabDiscussionNoteSchema = z.object({
         .object({
           start: z.object({
             line_code: z.string(),
-            type: z.enum(["new", "old"]),
+            type: z.enum(["new", "old", "expanded"]),
             old_line: z.number().nullable(),
             new_line: z.number().nullable(),
           }),
           end: z.object({
             line_code: z.string(),
-            type: z.enum(["new", "old"]),
+            type: z.enum(["new", "old", "expanded"]),
             old_line: z.number().nullable(),
             new_line: z.number().nullable(),
           }),
