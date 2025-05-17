@@ -1,5 +1,8 @@
-## [Released] - 2025-05-13
+## [1.0.38] - 2025-05-17
 
 ### Fixed
 
-- **GitLab MCP Server:** Modified GitLab API helper functions to decode the `project_id` using `decodeURIComponent()` before processing. This resolves API call failures caused by differences in project ID encoding between Gemini and other AI models. API requests are now handled consistently regardless of the model.
+- Added `expanded` property to `start` and `end` in `GitLabDiscussionNoteSchema`  
+  Now you can expand or collapse more information at the start and end of discussion notes.  
+  Example: In code review, you can choose to show or hide specific parts of the discussion.  
+  (See: [PR #40](https://github.com/zereight/gitlab-mcp/pull/40))
