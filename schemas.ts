@@ -442,7 +442,7 @@ export const GitLabDiscussionNoteSchema = z.object({
           }),
           end: z.object({
             line_code: z.string(),
-            type: z.enum(["new", "old", "expanded"]),
+            type: z.enum(["new", "old", "expanded"]).nullable(),
             old_line: z.number().nullable(),
             new_line: z.number().nullable(),
           }),
@@ -477,18 +477,23 @@ export const UpdateMergeRequestNoteSchema = ProjectParamsSchema.extend({
   note_id: z.number().describe("The ID of a thread note"),
   body: z.string().optional().describe("The content of the note or reply"),
   resolved: z.boolean().optional().describe("Resolve or unresolve the note"),
-}).refine(data => data.body !== undefined || data.resolved !== undefined, {
-  message: "At least one of 'body' or 'resolved' must be provided"
-}).refine(data => !(data.body !== undefined && data.resolved !== undefined), {
-  message: "Only one of 'body' or 'resolved' can be provided, not both"
-});
+})
+  .refine((data) => data.body !== undefined || data.resolved !== undefined, {
+    message: "At least one of 'body' or 'resolved' must be provided",
+  })
+  .refine((data) => !(data.body !== undefined && data.resolved !== undefined), {
+    message: "Only one of 'body' or 'resolved' can be provided, not both",
+  });
 
 // Input schema for adding a note to an existing merge request discussion
 export const CreateMergeRequestNoteSchema = ProjectParamsSchema.extend({
   merge_request_iid: z.number().describe("The IID of a merge request"),
   discussion_id: z.string().describe("The ID of a thread"),
   body: z.string().describe("The content of the note or reply"),
-  created_at: z.string().optional().describe("Date the note was created at (ISO 8601 format)"),
+  created_at: z
+    .string()
+    .optional()
+    .describe("Date the note was created at (ISO 8601 format)"),
 });
 
 // API Operation Parameter Schemas
@@ -1020,24 +1025,67 @@ export const GitLabWikiPageSchema = z.object({
 export const MergeRequestThreadPositionSchema = z.object({
   base_sha: z.string().describe("Base commit SHA in the source branch"),
   head_sha: z.string().describe("SHA referencing HEAD of the source branch"),
-  start_sha: z.string().describe("SHA referencing the start commit of the source branch"),
-  position_type: z.enum(["text", "image", "file"]).describe("Type of position reference"),
+  start_sha: z
+    .string()
+    .describe("SHA referencing the start commit of the source branch"),
+  position_type: z
+    .enum(["text", "image", "file"])
+    .describe("Type of position reference"),
   new_path: z.string().optional().describe("File path after change"),
   old_path: z.string().optional().describe("File path before change"),
-  new_line: z.number().nullable().optional().describe("Line number after change"),
-  old_line: z.number().nullable().optional().describe("Line number before change"),
+  new_line: z
+    .number()
+    .nullable()
+    .optional()
+    .describe("Line number after change"),
+  old_line: z
+    .number()
+    .nullable()
+    .optional()
+    .describe("Line number before change"),
   width: z.number().optional().describe("Width of the image (for image diffs)"),
-  height: z.number().optional().describe("Height of the image (for image diffs)"),
-  x: z.number().optional().describe("X coordinate on the image (for image diffs)"),
-  y: z.number().optional().describe("Y coordinate on the image (for image diffs)"),
+  height: z
+    .number()
+    .optional()
+    .describe("Height of the image (for image diffs)"),
+  x: z
+    .number()
+    .optional()
+    .describe("X coordinate on the image (for image diffs)"),
+  y: z
+    .number()
+    .optional()
+    .describe("Y coordinate on the image (for image diffs)"),
+  line_range: z
+    .object({
+      start: z.object({
+        line_code: z.string().optional(),
+        type: z.enum(["new", "old"]),
+        old_line: z.number().nullable(),
+        new_line: z.number().nullable(),
+      }),
+      end: z.object({
+        line_code: z.string().optional(),
+        type: z.enum(["new", "old"]),
+        old_line: z.number().nullable(),
+        new_line: z.number().nullable(),
+      }),
+    })
+    .optional()
+    .describe("Line range for the diff note"),
 });
 
 // Schema for creating a new merge request thread
 export const CreateMergeRequestThreadSchema = ProjectParamsSchema.extend({
   merge_request_iid: z.number().describe("The IID of a merge request"),
   body: z.string().describe("The content of the thread"),
-  position: MergeRequestThreadPositionSchema.optional().describe("Position when creating a diff note"),
-  created_at: z.string().optional().describe("Date the thread was created at (ISO 8601 format)"),
+  position: MergeRequestThreadPositionSchema.optional().describe(
+    "Position when creating a diff note"
+  ),
+  created_at: z
+    .string()
+    .optional()
+    .describe("Date the thread was created at (ISO 8601 format)"),
 });
 
 // Export types
@@ -1089,6 +1137,12 @@ export type DeleteWikiPageOptions = z.infer<typeof DeleteWikiPageSchema>;
 export type GitLabWikiPage = z.infer<typeof GitLabWikiPageSchema>;
 export type GitLabTreeItem = z.infer<typeof GitLabTreeItemSchema>;
 export type GetRepositoryTreeOptions = z.infer<typeof GetRepositoryTreeSchema>;
-export type MergeRequestThreadPosition = z.infer<typeof MergeRequestThreadPositionSchema>;
-export type CreateMergeRequestThreadOptions = z.infer<typeof CreateMergeRequestThreadSchema>;
-export type CreateMergeRequestNoteOptions = z.infer<typeof CreateMergeRequestNoteSchema>;
+export type MergeRequestThreadPosition = z.infer<
+  typeof MergeRequestThreadPositionSchema
+>;
+export type CreateMergeRequestThreadOptions = z.infer<
+  typeof CreateMergeRequestThreadSchema
+>;
+export type CreateMergeRequestNoteOptions = z.infer<
+  typeof CreateMergeRequestNoteSchema
+>;

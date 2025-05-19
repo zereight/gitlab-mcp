@@ -6,120 +6,112 @@ import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
-import FormData from "form-data";
-import fetch from "node-fetch";
-import { SocksProxyAgent } from "socks-proxy-agent";
-import { HttpsProxyAgent } from "https-proxy-agent";
+import fs from "fs";
 import { HttpProxyAgent } from "http-proxy-agent";
+import { HttpsProxyAgent } from "https-proxy-agent";
+import fetch from "node-fetch";
+import path, { dirname } from "path";
+import { SocksProxyAgent } from "socks-proxy-agent";
+import { fileURLToPath, URL } from "url";
 import { z } from "zod";
 import { zodToJsonSchema } from "zod-to-json-schema";
-import { fileURLToPath } from "url";
-import { dirname } from "path";
-import fs from "fs";
-import path from "path";
 
 // Add type imports for proxy agents
 import { Agent } from "http";
-import { URL } from "url";
 
 import {
-  GitLabForkSchema,
-  GitLabReferenceSchema,
-  GitLabRepositorySchema,
-  GitLabIssueSchema,
-  GitLabMergeRequestSchema,
+  CreateBranchOptionsSchema,
+  CreateBranchSchema,
+  CreateIssueLinkSchema,
+  CreateIssueOptionsSchema,
+  CreateIssueSchema,
+  CreateLabelSchema, // Added
+  CreateMergeRequestNoteSchema,
+  CreateMergeRequestOptionsSchema,
+  CreateMergeRequestSchema,
+  CreateMergeRequestThreadSchema,
+  CreateNoteSchema,
+  CreateOrUpdateFileSchema,
+  CreateRepositoryOptionsSchema,
+  CreateRepositorySchema,
+  CreateWikiPageSchema,
+  DeleteIssueLinkSchema,
+  DeleteIssueSchema,
+  DeleteLabelSchema,
+  DeleteWikiPageSchema,
+  ForkRepositorySchema,
+  GetFileContentsSchema,
+  GetIssueLinkSchema,
+  GetIssueSchema,
+  GetLabelSchema,
+  GetMergeRequestDiffsSchema,
+  GetMergeRequestSchema,
+  GetNamespaceSchema,
+  GetProjectSchema,
+  GetRepositoryTreeSchema,
+  GetWikiPageSchema,
+  GitLabCommitSchema,
   GitLabContentSchema,
   GitLabCreateUpdateFileResponseSchema,
-  GitLabSearchResponseSchema,
-  GitLabTreeSchema,
-  GitLabCommitSchema,
-  GitLabNamespaceSchema,
-  GitLabNamespaceExistsResponseSchema,
-  GitLabProjectSchema,
-  GitLabLabelSchema,
-  CreateRepositoryOptionsSchema,
-  CreateIssueOptionsSchema,
-  CreateMergeRequestOptionsSchema,
-  CreateBranchOptionsSchema,
-  CreateOrUpdateFileSchema,
-  SearchRepositoriesSchema,
-  CreateRepositorySchema,
-  GetFileContentsSchema,
-  PushFilesSchema,
-  CreateIssueSchema,
-  CreateMergeRequestSchema,
-  ForkRepositorySchema,
-  CreateBranchSchema,
-  GitLabMergeRequestDiffSchema,
-  GetMergeRequestSchema,
-  GetMergeRequestDiffsSchema,
-  UpdateMergeRequestSchema,
-  ListIssuesSchema,
-  GetIssueSchema,
-  UpdateIssueSchema,
-  DeleteIssueSchema,
-  GitLabIssueLinkSchema,
-  GitLabIssueWithLinkDetailsSchema,
-  ListIssueLinksSchema,
-  GetIssueLinkSchema,
-  CreateIssueLinkSchema,
-  DeleteIssueLinkSchema,
-  ListNamespacesSchema,
-  GetNamespaceSchema,
-  VerifyNamespaceSchema,
-  GetProjectSchema,
-  ListProjectsSchema,
-  ListLabelsSchema,
-  GetLabelSchema,
-  CreateLabelSchema,
-  UpdateLabelSchema,
-  DeleteLabelSchema,
-  CreateNoteSchema,
-  CreateMergeRequestThreadSchema,
-  ListGroupProjectsSchema,
-  ListWikiPagesSchema,
-  GetWikiPageSchema,
-  CreateWikiPageSchema,
-  UpdateWikiPageSchema,
-  DeleteWikiPageSchema,
-  GitLabWikiPageSchema,
   // Discussion Schemas
   GitLabDiscussionNoteSchema, // Added
   GitLabDiscussionSchema,
-  UpdateMergeRequestNoteSchema, // Added
-  CreateMergeRequestNoteSchema, // Added
+  GitLabForkSchema,
+  GitLabIssueLinkSchema,
+  GitLabIssueSchema,
+  GitLabIssueWithLinkDetailsSchema,
+  GitLabMergeRequestDiffSchema,
+  GitLabMergeRequestSchema,
+  GitLabNamespaceExistsResponseSchema,
+  GitLabNamespaceSchema,
+  GitLabProjectSchema,
+  GitLabReferenceSchema,
+  GitLabRepositorySchema,
+  GitLabSearchResponseSchema,
+  GitLabTreeItemSchema,
+  GitLabTreeSchema,
+  GitLabWikiPageSchema,
+  ListGroupProjectsSchema,
+  ListIssueLinksSchema,
+  ListIssuesSchema,
+  ListLabelsSchema, // Added
   ListMergeRequestDiscussionsSchema,
-  type GitLabFork,
-  type GitLabReference,
-  type GitLabRepository,
-  type GitLabIssue,
-  type GitLabMergeRequest,
-  type GitLabContent,
-  type GitLabCreateUpdateFileResponse,
-  type GitLabSearchResponse,
-  type GitLabTree,
-  type GitLabCommit,
+  ListNamespacesSchema,
+  ListProjectsSchema,
+  ListWikiPagesSchema,
+  PushFilesSchema,
+  SearchRepositoriesSchema,
+  UpdateIssueSchema,
+  UpdateLabelSchema,
+  UpdateMergeRequestNoteSchema,
+  UpdateMergeRequestSchema,
+  UpdateWikiPageSchema,
+  VerifyNamespaceSchema,
   type FileOperation,
-  type GitLabMergeRequestDiff,
+  type GetRepositoryTreeOptions,
+  type GitLabCommit,
+  type GitLabContent,
+  type GitLabCreateUpdateFileResponse, // Added
+  type GitLabDiscussion,
+  // Discussion Types
+  type GitLabDiscussionNote,
+  type GitLabFork,
+  type GitLabIssue,
   type GitLabIssueLink,
   type GitLabIssueWithLinkDetails,
+  type GitLabLabel,
+  type GitLabMergeRequest,
+  type GitLabMergeRequestDiff,
   type GitLabNamespace,
   type GitLabNamespaceExistsResponse,
   type GitLabProject,
-  type GitLabLabel,
-  // Discussion Types
-  type GitLabDiscussionNote, // Added
-  type GitLabDiscussion,
-  type MergeRequestThreadPosition,
-  type GetWikiPageOptions,
-  type CreateWikiPageOptions,
-  type UpdateWikiPageOptions,
-  type DeleteWikiPageOptions,
-  type GitLabWikiPage,
-  GitLabTreeItemSchema,
-  GetRepositoryTreeSchema,
+  type GitLabReference,
+  type GitLabRepository,
+  type GitLabSearchResponse,
+  type GitLabTree,
   type GitLabTreeItem,
-  type GetRepositoryTreeOptions,
+  type GitLabWikiPage,
+  type MergeRequestThreadPosition,
 } from "./schemas.js";
 
 /**
@@ -616,9 +608,7 @@ async function getFileContents(
   const encodedPath = encodeURIComponent(filePath);
 
   // ref가 없는 경우 default branch를 가져옴
-  if (!ref) {
-    ref = await getDefaultBranchRef(projectId);
-  }
+  ref ??= await getDefaultBranchRef(projectId);
 
   const url = new URL(
     `${GITLAB_API_URL}/projects/${encodeURIComponent(
@@ -1581,7 +1571,7 @@ async function createNote(
  * Create a new thread on a merge request
  * 📦 새로운 함수: createMergeRequestThread - 병합 요청에 새로운 스레드(토론)를 생성하는 함수
  * (New function: createMergeRequestThread - Function to create a new thread (discussion) on a merge request)
- * 
+ *
  * This function provides more capabilities than createNote, including the ability to:
  * - Create diff notes (comments on specific lines of code)
  * - Specify exact positions for comments
@@ -1608,21 +1598,80 @@ async function createMergeRequestThread(
     )}/merge_requests/${mergeRequestIid}/discussions`
   );
 
-  const payload: Record<string, any> = { body };
-  
-  // Add optional parameters if provided
+  url.searchParams.append("body", body);
+
+  const form = new URLSearchParams();
+
   if (position) {
-    payload.position = position;
-  }
-  
-  if (createdAt) {
-    payload.created_at = createdAt;
+    form.append("position[position_type]", "text");
+    form.append("position[base_sha]", position.base_sha);
+    form.append("position[head_sha]", position.head_sha);
+    form.append("position[start_sha]", position.start_sha);
+
+    if (position.new_path) {
+      form.append("position[new_path]", position.new_path);
+    }
+    if (position.old_path) {
+      form.append("position[old_path]", position.old_path);
+    }
+
+    // Optional single-line position fields
+    if (position.new_line) {
+      form.append("position[new_line]", position.new_line.toString());
+    }
+    if (position.old_line) {
+      form.append("position[old_line]", position.old_line.toString());
+    }
+
+    // Optional created_at
+    if (createdAt) {
+      form.append("created_at", createdAt);
+    }
+
+    // Optional line_range block
+    if (position.line_range) {
+      const { start, end } = position.line_range;
+
+      form.append("position[line_range][start][type]", start.type);
+      if (start.new_line) {
+        form.append(
+          "position[line_range][start][new_line]",
+          start.new_line.toString()
+        );
+      }
+      if (start.old_line) {
+        form.append(
+          "position[line_range][start][old_line]",
+          start.old_line.toString()
+        );
+      }
+
+      form.append("position[line_range][end][type]", end.type);
+
+      if (end.new_line) {
+        form.append(
+          "position[line_range][end][new_line]",
+          end.new_line.toString()
+        );
+      }
+      if (end.old_line) {
+        form.append(
+          "position[line_range][end][old_line]",
+          end.old_line.toString()
+        );
+      }
+    }
   }
 
+  const headers = {
+    ...DEFAULT_FETCH_CONFIG.headers,
+    "Content-Type": "application/x-www-form-urlencoded",
+  };
+
   const response = await fetch(url.toString(), {
-    ...DEFAULT_FETCH_CONFIG,
+    headers,
     method: "POST",
-    body: JSON.stringify(payload),
+    body: form.toString(),
   });
 
   await handleGitLabError(response);
@@ -2273,9 +2322,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       case "create_branch": {
         const args = CreateBranchSchema.parse(request.params.arguments);
         let ref = args.ref;
-        if (!ref) {
-          ref = await getDefaultBranchRef(args.project_id);
-        }
+        ref ??= await getDefaultBranchRef(args.project_id);
 
         const branch = await createBranch(args.project_id, {
           name: args.branch,
@@ -2387,7 +2434,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           content: [{ type: "text", text: JSON.stringify(note, null, 2) }],
         };
       }
-      
+
       case "create_merge_request_note": {
         const args = CreateMergeRequestNoteSchema.parse(
           request.params.arguments
@@ -2581,8 +2628,11 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       case "create_merge_request_thread": {
-        const args = CreateMergeRequestThreadSchema.parse(request.params.arguments);
-        const { project_id, merge_request_iid, body, position, created_at } = args;
+        const args = CreateMergeRequestThreadSchema.parse(
+          request.params.arguments
+        );
+        const { project_id, merge_request_iid, body, position, created_at } =
+          args;
 
         const thread = await createMergeRequestThread(
           project_id,
