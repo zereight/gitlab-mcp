@@ -1602,6 +1602,8 @@ async function createMergeRequestThread(
 
   const form = new URLSearchParams();
 
+  let positionNewLine = null;
+
   if (position) {
     form.append("position[position_type]", "text");
     form.append("position[base_sha]", position.base_sha);
@@ -1618,6 +1620,7 @@ async function createMergeRequestThread(
     // Optional single-line position fields
     if (position.new_line) {
       form.append("position[new_line]", position.new_line.toString());
+      positionNewLine = position.new_line.toString();
     }
     if (position.old_line) {
       form.append("position[old_line]", position.old_line.toString());
@@ -1638,6 +1641,10 @@ async function createMergeRequestThread(
           "position[line_range][start][new_line]",
           start.new_line.toString()
         );
+
+        if (!positionNewLine) {
+          form.append("position[new_line]", start.new_line.toString());
+        }
       }
       if (start.old_line) {
         form.append(
@@ -1653,6 +1660,10 @@ async function createMergeRequestThread(
           "position[line_range][end][new_line]",
           end.new_line.toString()
         );
+
+        if (!positionNewLine) {
+          form.append("position[new_line]", end.new_line.toString());
+        }
       }
       if (end.old_line) {
         form.append(
