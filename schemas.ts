@@ -757,6 +757,15 @@ export const ListIssueLinksSchema = z.object({
   issue_iid: z.number().describe("The internal ID of a project's issue"),
 });
 
+export const ListIssueDiscussionsSchema = z.object({
+  project_id: z.string().describe("Project ID or URL-encoded path"),
+  issue_iid: z.number().describe("The internal ID of the project issue"),
+  page: z.number().optional().describe("Page number for pagination"),
+  per_page: z.number().optional().describe("Number of items per page"),
+  sort: z.enum(["asc", "desc"]).optional().describe("Return issue discussions sorted in ascending or descending order"),
+  order_by: z.enum(["created_at", "updated_at"]).optional().describe("Return issue discussions ordered by created_at or updated_at fields"),
+});
+
 export const GetIssueLinkSchema = z.object({
   project_id: z.string().describe("Project ID or URL-encoded path"),
   issue_iid: z.number().describe("The internal ID of a project's issue"),
@@ -1075,6 +1084,7 @@ export type GitLabMergeRequestDiff = z.infer<
 >;
 export type CreateNoteOptions = z.infer<typeof CreateNoteSchema>;
 export type GitLabIssueLink = z.infer<typeof GitLabIssueLinkSchema>;
+export type ListIssueDiscussionsOptions = z.infer<typeof ListIssueDiscussionsSchema>;
 export type GitLabNamespace = z.infer<typeof GitLabNamespaceSchema>;
 export type GitLabNamespaceExistsResponse = z.infer<
   typeof GitLabNamespaceExistsResponseSchema

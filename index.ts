@@ -61,6 +61,7 @@ import {
   GitLabIssueLinkSchema,
   GitLabIssueWithLinkDetailsSchema,
   ListIssueLinksSchema,
+  ListIssueDiscussionsSchema,
   GetIssueLinkSchema,
   CreateIssueLinkSchema,
   DeleteIssueLinkSchema,
@@ -312,6 +313,11 @@ const allTools = [
     inputSchema: zodToJsonSchema(ListIssueLinksSchema),
   },
   {
+    name: "list_issue_discussions",
+    description: "List discussions for an issue in a GitLab project",
+    inputSchema: zodToJsonSchema(ListIssueDiscussionsSchema),
+  },
+  {
     name: "get_issue_link",
     description: "Get a specific issue link",
     inputSchema: zodToJsonSchema(GetIssueLinkSchema),
@@ -424,6 +430,7 @@ const readOnlyTools = [
   "list_issues",
   "get_issue",
   "list_issue_links",
+  "list_issue_discussions",
   "get_issue_link",
   "list_namespaces",
   "get_namespace",
@@ -1024,6 +1031,56 @@ async function listMergeRequestDiscussions(
 }
 
 /**
+ * List discussions for an issue
+ *
+ * @param {string} projectId - The ID or URL-encoded path of the project
+ * @param {number} issueIid - The internal ID of the project issue
+ * @param {Object} options - Pagination and sorting options
+ * @returns {Promise<GitLabDiscussion[]>} List of issue discussions
+ */
+async function listIssueDiscussions(
+  projectId: string,
+  issueIid: number,
+  options: {
+    page?: number,
+    per_page?: number,
+    sort?: "asc" | "desc",
+    order_by?: "created_at" | "updated_at"
+  } = {}
+): Promise<GitLabDiscussion[]> {
+  projectId = decodeURIComponent(projectId); // Decode project ID
+  const url = new URL(
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(
+      projectId
+    )}/issues/${issueIid}/discussions`
+  );
+
+  // Add query parameters for pagination and sorting
+  if (options.page) {
+    url.searchParams.append("page", options.page.toString());
+  }
+  if (options.per_page) {
+    url.searchParams.append("per_page", options.per_page.toString());
+  }
+  if (options.sort) {
+    url.searchParams.append("sort", options.sort);
+  }
+  if (options.order_by) {
+    url.searchParams.append("order_by", options.order_by);
+  }
+
+  const response = await fetch(url.toString(), {
+    ...DEFAULT_FETCH_CONFIG,
+  });
+
+  await handleGitLabError(response);
+  const data = await response.json();
+
+  // Parse the response as an array of discussions
+  return z.array(GitLabDiscussionSchema).parse(data);
+}
+
+/**
  * Modify an existing merge request thread note
  * 병합 요청 토론 노트 수정
  *
@@ -1581,7 +1638,7 @@ async function createNote(
  * Create a new thread on a merge request
  * 📦 새로운 함수: createMergeRequestThread - 병합 요청에 새로운 스레드(토론)를 생성하는 함수
  * (New function: createMergeRequestThread - Function to create a new thread (discussion) on a merge request)
- * 
+ *
  * This function provides more capabilities than createNote, including the ability to:
  * - Create diff notes (comments on specific lines of code)
  * - Specify exact positions for comments
@@ -1609,12 +1666,12 @@ async function createMergeRequestThread(
   );
 
   const payload: Record<string, any> = { body };
-  
+
   // Add optional parameters if provided
   if (position) {
     payload.position = position;
   }
-  
+
   if (createdAt) {
     payload.created_at = createdAt;
   }
@@ -2387,7 +2444,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           content: [{ type: "text", text: JSON.stringify(note, null, 2) }],
         };
       }
-      
+
       case "create_merge_request_note": {
         const args = CreateMergeRequestNoteSchema.parse(
           request.params.arguments
@@ -2644,6 +2701,16 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const links = await listIssueLinks(args.project_id, args.issue_iid);
         return {
           content: [{ type: "text", text: JSON.stringify(links, null, 2) }],
+        };
+      }
+
+      case "list_issue_discussions": {
+        const args = ListIssueDiscussionsSchema.parse(request.params.arguments);
+        const { project_id, issue_iid, ...options } = args;
+
+        const discussions = await listIssueDiscussions(project_id, issue_iid, options);
+        return {
+          content: [{ type: "text", text: JSON.stringify(discussions, null, 2) }],
         };
       }
 
