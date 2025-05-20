@@ -14,6 +14,8 @@ GitLab MCP(Model Context Protocol) Server. **Includes bug fixes and improvements
 
 When using with the Claude App, you need to set up your API key and URLs directly.
 
+#### npx
+
 ```json
 {
   "mcpServers": {
@@ -24,7 +26,39 @@ When using with the Claude App, you need to set up your API key and URLs directl
         "GITLAB_PERSONAL_ACCESS_TOKEN": "your_gitlab_token",
         "GITLAB_API_URL": "your_gitlab_api_url",
         "GITLAB_READ_ONLY_MODE": "false",
-        "USE_GITLAB_WIKI":"true"
+        "USE_GITLAB_WIKI": "true"
+      }
+    }
+  }
+}
+```
+
+#### Docker
+
+```json
+{
+  "mcpServers": {
+    "GitLab communication server": {
+      "command": "docker",
+      "args": [
+        "run",
+        "-i",
+        "--rm",
+        "-e",
+        "GITLAB_PERSONAL_ACCESS_TOKEN",
+        "-e",
+        "GITLAB_API_URL",
+        "-e",
+        "GITLAB_READ_ONLY_MODE",
+        "-e",
+        "USE_GITLAB_WIKI",
+        "nkwd/mcp-gitlab"
+      ],
+      "env": {
+        "GITLAB_PERSONAL_ACCESS": "your_gitlab_token",
+        "GITLAB_API_URL": "https://gitlab.com/api/v4", // Optional, for self-hosted GitLab
+        "GITLAB_READ_ONLY_MODE": "false",
+        "USE_GITLAB_WIKI": "true"
       }
     }
   }
@@ -32,7 +66,6 @@ When using with the Claude App, you need to set up your API key and URLs directl
 ```
 
 ### Environment Variables
-
 
 - `GITLAB_PERSONAL_ACCESS_TOKEN`: Your GitLab personal access token.
 - `GITLAB_API_URL`: Your GitLab API URL. (Default: `https://gitlab.com/api/v4`)
@@ -42,6 +75,7 @@ When using with the Claude App, you need to set up your API key and URLs directl
 ## Tools 🛠️
 
 +<!-- TOOLS-START -->
+
 1. `create_or_update_file` - Create or update a single file in a GitLab project
 2. `search_repositories` - Search for GitLab projects
 3. `create_repository` - Create a new GitLab project
