@@ -608,7 +608,9 @@ async function getFileContents(
   const encodedPath = encodeURIComponent(filePath);
 
   // ref가 없는 경우 default branch를 가져옴
-  ref ??= await getDefaultBranchRef(projectId);
+  if (!ref) {
+    ref = await getDefaultBranchRef(projectId);
+  }
 
   const url = new URL(
     `${GITLAB_API_URL}/projects/${encodeURIComponent(
@@ -2333,7 +2335,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       case "create_branch": {
         const args = CreateBranchSchema.parse(request.params.arguments);
         let ref = args.ref;
-        ref ??= await getDefaultBranchRef(args.project_id);
+        if (!ref) {
+          ref = await getDefaultBranchRef(args.project_id);
+        }
 
         const branch = await createBranch(args.project_id, {
           name: args.branch,
