@@ -1,6 +1,5 @@
-### Fixed
+### 1.0.40 (2025-05-21)
 
-- Added `expanded` property to `start` and `end` in `GitLabDiscussionNoteSchema`  
-  Now you can expand or collapse more information at the start and end of discussion notes.  
-  Example: In code review, you can choose to show or hide specific parts of the discussion.  
-  (See: [PR #40](https://github.com/zereight/gitlab-mcp/pull/40))
+- Added support for listing discussions (comments/notes) on GitLab issues.
+  - Example: You can now easily fetch all conversations (comments) attached to an issue via the API.
+  - Related PR: [#44](https://github.com/zereight/gitlab-mcp/pull/44)
