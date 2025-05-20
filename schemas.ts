@@ -107,7 +107,7 @@ export const GitLabRepositorySchema = z.object({
   jobs_enabled: z.boolean().optional(),
   snippets_enabled: z.boolean().optional(),
   can_create_merge_request_in: z.boolean().optional(),
-  resolve_outdated_diff_discussions: z.boolean().optional(),
+  resolve_outdated_diff_discussions: z.boolean().nullable().optional(),
   shared_runners_enabled: z.boolean().optional(),
   shared_with_groups: z
     .array(
