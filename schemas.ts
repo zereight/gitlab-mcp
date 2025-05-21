@@ -103,6 +103,7 @@ export const GitLabRepositorySchema = z.object({
   container_registry_access_level: z.string().optional(),
   issues_enabled: z.boolean().optional(),
   merge_requests_enabled: z.boolean().optional(),
+  merge_requests_template: z.string().optional(),
   wiki_enabled: z.boolean().optional(),
   jobs_enabled: z.boolean().optional(),
   snippets_enabled: z.boolean().optional(),
