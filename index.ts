@@ -37,6 +37,9 @@ import {
   GitLabNamespaceExistsResponseSchema,
   GitLabProjectSchema,
   GitLabLabelSchema,
+  GitLabUserSchema,
+  GitLabUsersResponseSchema,
+  GetUsersSchema,
   CreateRepositoryOptionsSchema,
   CreateIssueOptionsSchema,
   CreateMergeRequestOptionsSchema,
@@ -108,6 +111,8 @@ import {
   type GitLabNamespaceExistsResponse,
   type GitLabProject,
   type GitLabLabel,
+  type GitLabUser,
+  type GitLabUsersResponse,
   // Discussion Types
   type GitLabDiscussionNote, // Added
   type GitLabDiscussion,
@@ -418,6 +423,11 @@ const allTools = [
       "Get the repository tree for a GitLab project (list files and directories)",
     inputSchema: zodToJsonSchema(GetRepositoryTreeSchema),
   },
+  {
+    name: "get_users",
+    description: "Get GitLab user details by usernames",
+    inputSchema: zodToJsonSchema(GetUsersSchema),
+  },
 ];
 
 // Define which tools are read-only
@@ -440,6 +450,7 @@ const readOnlyTools = [
   "list_labels",
   "get_label",
   "list_group_projects",
+  "get_users",
 ];
 
 // Define which tools are related to wiki and can be toggled by USE_GITLAB_WIKI
@@ -2255,6 +2266,65 @@ async function getRepositoryTree(
   return z.array(GitLabTreeItemSchema).parse(data);
 }
 
+/**
+ * Get a single user from GitLab
+ *
+ * @param {string} username - The username to look up
+ * @returns {Promise<GitLabUser | null>} The user data or null if not found
+ */
+async function getUser(username: string): Promise<GitLabUser | null> {
+  try {
+    const url = new URL(`${GITLAB_API_URL}/users`);
+    url.searchParams.append("username", username);
+
+    const response = await fetch(url.toString(), {
+      ...DEFAULT_FETCH_CONFIG,
+    });
+
+    await handleGitLabError(response);
+    
+    const users = await response.json();
+    
+    // GitLab returns an array of users that match the username
+    if (Array.isArray(users) && users.length > 0) {
+      // Find exact match for username (case-sensitive)
+      const exactMatch = users.find(user => user.username === username);
+      if (exactMatch) {
+        return GitLabUserSchema.parse(exactMatch);
+      }
+    }
+    
+    // No matching user found
+    return null;
+  } catch (error) {
+    console.error(`Error fetching user by username '${username}':`, error);
+    return null;
+  }
+}
+
+/**
+ * Get multiple users from GitLab
+ * 
+ * @param {string[]} usernames - Array of usernames to look up
+ * @returns {Promise<GitLabUsersResponse>} Object with usernames as keys and user objects or null as values
+ */
+async function getUsers(usernames: string[]): Promise<GitLabUsersResponse> {
+  const users: Record<string, GitLabUser | null> = {};
+  
+  // Process usernames sequentially to avoid rate limiting
+  for (const username of usernames) {
+    try {
+      const user = await getUser(username);
+      users[username] = user;
+    } catch (error) {
+      console.error(`Error processing username '${username}':`, error);
+      users[username] = null;
+    }
+  }
+
+  return GitLabUsersResponseSchema.parse(users);
+}
+
 server.setRequestHandler(ListToolsRequestSchema, async () => {
   // Apply read-only filter first
   const tools0 = GITLAB_READ_ONLY_MODE
@@ -2619,6 +2689,15 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
         return {
           content: [{ type: "text", text: JSON.stringify(projects, null, 2) }],
+        };
+      }
+      
+      case "get_users": {
+        const args = GetUsersSchema.parse(request.params.arguments);
+        const usersMap = await getUsers(args.usernames);
+        
+        return {
+          content: [{ type: "text", text: JSON.stringify(usersMap, null, 2) }],
         };
       }
 

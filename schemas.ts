@@ -7,6 +7,30 @@ export const GitLabAuthorSchema = z.object({
   date: z.string(),
 });
 
+// User schemas
+export const GitLabUserSchema = z.object({
+  username: z.string(), // Changed from login to match GitLab API
+  id: z.number(),
+  name: z.string(),
+  avatar_url: z.string(),
+  web_url: z.string(), // Changed from html_url to match GitLab API
+});
+
+export const GetUsersSchema = z.object({
+  usernames: z.array(z.string()).describe("Array of usernames to search for"),
+});
+
+export const GitLabUsersResponseSchema = z.record(
+  z.string(),
+  z.object({
+    id: z.number(),
+    username: z.string(),
+    name: z.string(),
+    avatar_url: z.string(),
+    web_url: z.string(),
+  }).nullable()
+);
+
 // Namespace related schemas
 
 // Base schema for project-related operations
@@ -281,14 +305,6 @@ export const GitLabLabelSchema = z.object({
   subscribed: z.boolean().optional(),
   priority: z.number().nullable().optional(),
   is_project_label: z.boolean().optional(),
-});
-
-export const GitLabUserSchema = z.object({
-  username: z.string(), // Changed from login to match GitLab API
-  id: z.number(),
-  name: z.string(),
-  avatar_url: z.string(),
-  web_url: z.string(), // Changed from html_url to match GitLab API
 });
 
 export const GitLabMilestoneSchema = z.object({
@@ -1103,3 +1119,5 @@ export type GetRepositoryTreeOptions = z.infer<typeof GetRepositoryTreeSchema>;
 export type MergeRequestThreadPosition = z.infer<typeof MergeRequestThreadPositionSchema>;
 export type CreateMergeRequestThreadOptions = z.infer<typeof CreateMergeRequestThreadSchema>;
 export type CreateMergeRequestNoteOptions = z.infer<typeof CreateMergeRequestNoteSchema>;
+export type GitLabUser = z.infer<typeof GitLabUserSchema>;
+export type GitLabUsersResponse = z.infer<typeof GitLabUsersResponseSchema>;
