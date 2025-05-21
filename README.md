@@ -52,10 +52,10 @@ When using with the Claude App, you need to set up your API key and URLs directl
         "GITLAB_READ_ONLY_MODE",
         "-e",
         "USE_GITLAB_WIKI",
-        "nkwd/mcp-gitlab"
+        "nkwd/gitlab-mcp"
       ],
       "env": {
-        "GITLAB_PERSONAL_ACCESS": "your_gitlab_token",
+        "GITLAB_PERSONAL_ACCESS_TOKEN": "your_gitlab_token",
         "GITLAB_API_URL": "https://gitlab.com/api/v4", // Optional, for self-hosted GitLab
         "GITLAB_READ_ONLY_MODE": "false",
         "USE_GITLAB_WIKI": "true"
