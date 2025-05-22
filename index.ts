@@ -452,6 +452,7 @@ const readOnlyTools = [
   "list_labels",
   "get_label",
   "list_group_projects",
+  "get_repository_tree",
 ];
 
 // Define which tools are related to wiki and can be toggled by USE_GITLAB_WIKI
@@ -1054,10 +1055,10 @@ async function listIssueDiscussions(
   projectId: string,
   issueIid: number,
   options: {
-    page?: number,
-    per_page?: number,
-    sort?: "asc" | "desc",
-    order_by?: "created_at" | "updated_at"
+    page?: number;
+    per_page?: number;
+    sort?: "asc" | "desc";
+    order_by?: "created_at" | "updated_at";
   } = {}
 ): Promise<GitLabDiscussion[]> {
   projectId = decodeURIComponent(projectId); // Decode project ID
@@ -2549,9 +2550,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       case "update_issue_note": {
-        const args = UpdateIssueNoteSchema.parse(
-          request.params.arguments
-        );
+        const args = UpdateIssueNoteSchema.parse(request.params.arguments);
         const note = await updateIssueNote(
           args.project_id,
           args.issue_iid,
@@ -2565,9 +2564,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       case "create_issue_note": {
-        const args = CreateIssueNoteSchema.parse(
-          request.params.arguments
-        );
+        const args = CreateIssueNoteSchema.parse(request.params.arguments);
         const note = await createIssueNote(
           args.project_id,
           args.issue_iid,
@@ -2757,8 +2754,11 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       case "create_merge_request_thread": {
-        const args = CreateMergeRequestThreadSchema.parse(request.params.arguments);
-        const { project_id, merge_request_iid, body, position, created_at } = args;
+        const args = CreateMergeRequestThreadSchema.parse(
+          request.params.arguments
+        );
+        const { project_id, merge_request_iid, body, position, created_at } =
+          args;
 
         const thread = await createMergeRequestThread(
           project_id,
@@ -2827,9 +2827,15 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const args = ListIssueDiscussionsSchema.parse(request.params.arguments);
         const { project_id, issue_iid, ...options } = args;
 
-        const discussions = await listIssueDiscussions(project_id, issue_iid, options);
+        const discussions = await listIssueDiscussions(
+          project_id,
+          issue_iid,
+          options
+        );
         return {
-          content: [{ type: "text", text: JSON.stringify(discussions, null, 2) }],
+          content: [
+            { type: "text", text: JSON.stringify(discussions, null, 2) },
+          ],
         };
       }
 
