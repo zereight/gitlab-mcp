@@ -121,6 +121,8 @@ import {
   GetRepositoryTreeSchema,
   type GitLabTreeItem,
   type GetRepositoryTreeOptions,
+  UpdateIssueNoteSchema,
+  CreateIssueNoteSchema,
 } from "./schemas.js";
 
 /**
@@ -286,6 +288,16 @@ const allTools = [
     name: "create_merge_request_note",
     description: "Add a new note to an existing merge request thread",
     inputSchema: zodToJsonSchema(CreateMergeRequestNoteSchema),
+  },
+  {
+    name: "update_issue_note",
+    description: "Modify an existing issue thread note",
+    inputSchema: zodToJsonSchema(UpdateIssueNoteSchema),
+  },
+  {
+    name: "create_issue_note",
+    description: "Add a new note to an existing issue thread",
+    inputSchema: zodToJsonSchema(CreateIssueNoteSchema),
   },
   {
     name: "list_issues",
@@ -1118,6 +1130,81 @@ async function updateMergeRequestNote(
   const response = await fetch(url.toString(), {
     ...DEFAULT_FETCH_CONFIG,
     method: "PUT",
+    body: JSON.stringify(payload),
+  });
+
+  await handleGitLabError(response);
+  const data = await response.json();
+  return GitLabDiscussionNoteSchema.parse(data);
+}
+
+/**
+ * Update an issue discussion note
+ * @param {string} projectId - The ID or URL-encoded path of the project
+ * @param {number} issueIid - The IID of an issue
+ * @param {string} discussionId - The ID of a thread
+ * @param {number} noteId - The ID of a thread note
+ * @param {string} body - The new content of the note
+ * @returns {Promise<GitLabDiscussionNote>} The updated note
+ */
+async function updateIssueNote(
+  projectId: string,
+  issueIid: number,
+  discussionId: string,
+  noteId: number,
+  body: string
+): Promise<GitLabDiscussionNote> {
+  projectId = decodeURIComponent(projectId); // Decode project ID
+  const url = new URL(
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(
+      projectId
+    )}/issues/${issueIid}/discussions/${discussionId}/notes/${noteId}`
+  );
+
+  const payload = { body };
+
+  const response = await fetch(url.toString(), {
+    ...DEFAULT_FETCH_CONFIG,
+    method: "PUT",
+    body: JSON.stringify(payload),
+  });
+
+  await handleGitLabError(response);
+  const data = await response.json();
+  return GitLabDiscussionNoteSchema.parse(data);
+}
+
+/**
+ * Create a note in an issue discussion
+ * @param {string} projectId - The ID or URL-encoded path of the project
+ * @param {number} issueIid - The IID of an issue
+ * @param {string} discussionId - The ID of a thread
+ * @param {string} body - The content of the new note
+ * @param {string} [createdAt] - The creation date of the note (ISO 8601 format)
+ * @returns {Promise<GitLabDiscussionNote>} The created note
+ */
+async function createIssueNote(
+  projectId: string,
+  issueIid: number,
+  discussionId: string,
+  body: string,
+  createdAt?: string
+): Promise<GitLabDiscussionNote> {
+  projectId = decodeURIComponent(projectId); // Decode project ID
+  const url = new URL(
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(
+      projectId
+    )}/issues/${issueIid}/discussions/${discussionId}/notes`
+  );
+
+  const payload: { body: string; created_at?: string } = { body };
+  if (createdAt) {
+    payload.created_at = createdAt;
+  }
+
+  const response = await fetch(url.toString(), {
+    ...DEFAULT_FETCH_CONFIG,
+    method: "POST",
     body: JSON.stringify(payload),
   });
 
@@ -2452,6 +2539,38 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const note = await createMergeRequestNote(
           args.project_id,
           args.merge_request_iid,
+          args.discussion_id,
+          args.body,
+          args.created_at
+        );
+        return {
+          content: [{ type: "text", text: JSON.stringify(note, null, 2) }],
+        };
+      }
+
+      case "update_issue_note": {
+        const args = UpdateIssueNoteSchema.parse(
+          request.params.arguments
+        );
+        const note = await updateIssueNote(
+          args.project_id,
+          args.issue_iid,
+          args.discussion_id,
+          args.note_id,
+          args.body
+        );
+        return {
+          content: [{ type: "text", text: JSON.stringify(note, null, 2) }],
+        };
+      }
+
+      case "create_issue_note": {
+        const args = CreateIssueNoteSchema.parse(
+          request.params.arguments
+        );
+        const note = await createIssueNote(
+          args.project_id,
+          args.issue_iid,
           args.discussion_id,
           args.body,
           args.created_at

@@ -491,6 +491,22 @@ export const CreateMergeRequestNoteSchema = ProjectParamsSchema.extend({
   created_at: z.string().optional().describe("Date the note was created at (ISO 8601 format)"),
 });
 
+// Input schema for updating an issue discussion note
+export const UpdateIssueNoteSchema = ProjectParamsSchema.extend({
+  issue_iid: z.number().describe("The IID of an issue"),
+  discussion_id: z.string().describe("The ID of a thread"),
+  note_id: z.number().describe("The ID of a thread note"),
+  body: z.string().describe("The content of the note or reply"),
+});
+
+// Input schema for adding a note to an existing issue discussion
+export const CreateIssueNoteSchema = ProjectParamsSchema.extend({
+  issue_iid: z.number().describe("The IID of an issue"),
+  discussion_id: z.string().describe("The ID of a thread"),
+  body: z.string().describe("The content of the note or reply"),
+  created_at: z.string().optional().describe("Date the note was created at (ISO 8601 format)"),
+});
+
 // API Operation Parameter Schemas
 
 export const CreateOrUpdateFileSchema = ProjectParamsSchema.extend({
@@ -1085,6 +1101,8 @@ export type GitLabMergeRequestDiff = z.infer<
 export type CreateNoteOptions = z.infer<typeof CreateNoteSchema>;
 export type GitLabIssueLink = z.infer<typeof GitLabIssueLinkSchema>;
 export type ListIssueDiscussionsOptions = z.infer<typeof ListIssueDiscussionsSchema>;
+export type UpdateIssueNoteOptions = z.infer<typeof UpdateIssueNoteSchema>;
+export type CreateIssueNoteOptions = z.infer<typeof CreateIssueNoteSchema>;
 export type GitLabNamespace = z.infer<typeof GitLabNamespaceSchema>;
 export type GitLabNamespaceExistsResponse = z.infer<
   typeof GitLabNamespaceExistsResponseSchema
