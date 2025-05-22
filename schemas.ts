@@ -35,7 +35,7 @@ export const GitLabUsersResponseSchema = z.record(
 
 // Base schema for project-related operations
 const ProjectParamsSchema = z.object({
-  project_id: z.string().describe("Project ID or URL-encoded path"), // Changed from owner/repo to match GitLab API
+  project_id: z.string().describe("Project ID or complete URL-encoded path to project"), // Changed from owner/repo to match GitLab API
 });
 export const GitLabNamespaceSchema = z.object({
   id: z.number(),
@@ -633,7 +633,9 @@ export const GetBranchDiffsSchema = ProjectParamsSchema.extend({
   from: z.string().describe("The base branch or commit SHA to compare from"),
   to: z.string().describe("The target branch or commit SHA to compare to"),
   straight: z.boolean().optional().describe("Comparison method: false for '...' (default), true for '--'"),
-  ignored_files_regex: z.array(z.string()).optional().describe("Regex patterns to exclude files from diff results (e.g., 'test/mocks.*', 'go\\.sum')"),
+  excluded_file_patterns: z.array(z.string()).optional().describe(
+    "Array of regex patterns to exclude files from the diff results. Each pattern is a JavaScript-compatible regular expression that matches file paths to ignore. Examples: [\"^test/mocks/\", \"\\.spec\\.ts$\", \"package-lock\\.json\"]"
+  ),
 });
 
 export const GetMergeRequestSchema = ProjectParamsSchema.extend({

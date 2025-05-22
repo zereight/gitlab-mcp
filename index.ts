@@ -2476,8 +2476,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           args.straight
         );
 
-        if (args.ignored_files_regex?.length) {
-          const regexPatterns = args.ignored_files_regex.map(pattern => new RegExp(pattern));
+        if (args.excluded_file_patterns?.length) {
+          const regexPatterns = args.excluded_file_patterns.map(pattern => new RegExp(pattern));
           
           // Helper function to check if a path matches any regex pattern
           const matchesAnyPattern = (path: string): boolean => {
