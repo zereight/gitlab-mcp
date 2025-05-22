@@ -271,9 +271,15 @@ export const CreateMergeRequestOptionsSchema = z.object({
   draft: z.boolean().optional(),
 });
 
-export const CreateBranchOptionsSchema = z.object({
-  name: z.string(), // Changed from ref to match GitLab API
-  ref: z.string(), // The source branch/commit for the new branch
+export const GitLabDiffSchema = z.object({
+  old_path: z.string(),
+  new_path: z.string(),
+  a_mode: z.string(),
+  b_mode: z.string(),
+  diff: z.string(),
+  new_file: z.boolean(),
+  renamed_file: z.boolean(),
+  deleted_file: z.boolean(),
 });
 
 // Response schemas for operations
@@ -289,6 +295,27 @@ export const GitLabSearchResponseSchema = z.object({
   total_pages: z.number().optional(),
   current_page: z.number().optional(),
   items: z.array(GitLabRepositorySchema),
+});
+
+// create branch schemas
+export const CreateBranchOptionsSchema = z.object({
+  name: z.string(), // Changed from ref to match GitLab API
+  ref: z.string(), // The source branch/commit for the new branch
+});
+
+export const GitLabCompareResultSchema = z.object({
+  commit: z.object({
+    id: z.string().optional(),
+    short_id: z.string().optional(),
+    title: z.string().optional(),
+    author_name: z.string().optional(),
+    author_email: z.string().optional(),
+    created_at: z.string().optional(),
+  }).optional(),
+  commits: z.array(GitLabCommitSchema),
+  diffs: z.array(GitLabDiffSchema),
+  compare_timeout: z.boolean().optional(),
+  compare_same_ref: z.boolean().optional(),
 });
 
 // Issue related schemas
@@ -596,20 +623,16 @@ export const ForkRepositorySchema = ProjectParamsSchema.extend({
   namespace: z.string().optional().describe("Namespace to fork to (full path)"),
 });
 
+// Branch related schemas
 export const CreateBranchSchema = ProjectParamsSchema.extend({
   branch: z.string().describe("Name for the new branch"),
   ref: z.string().optional().describe("Source branch/commit for new branch"),
 });
 
-export const GitLabMergeRequestDiffSchema = z.object({
-  old_path: z.string(),
-  new_path: z.string(),
-  a_mode: z.string(),
-  b_mode: z.string(),
-  diff: z.string(),
-  new_file: z.boolean(),
-  renamed_file: z.boolean(),
-  deleted_file: z.boolean(),
+export const GetBranchDiffsSchema = ProjectParamsSchema.extend({
+  from: z.string().describe("The base branch or commit SHA to compare from"),
+  to: z.string().describe("The target branch or commit SHA to compare to"),
+  straight: z.boolean().optional().describe("Comparison method: false for '...' (default), true for '--'"),
 });
 
 export const GetMergeRequestSchema = ProjectParamsSchema.extend({
@@ -1082,6 +1105,7 @@ export type GitLabDirectoryContent = z.infer<
 export type GitLabContent = z.infer<typeof GitLabContentSchema>;
 export type FileOperation = z.infer<typeof FileOperationSchema>;
 export type GitLabTree = z.infer<typeof GitLabTreeSchema>;
+export type GitLabCompareResult = z.infer<typeof GitLabCompareResultSchema>;
 export type GitLabCommit = z.infer<typeof GitLabCommitSchema>;
 export type GitLabReference = z.infer<typeof GitLabReferenceSchema>;
 export type CreateRepositoryOptions = z.infer<
@@ -1097,7 +1121,7 @@ export type GitLabCreateUpdateFileResponse = z.infer<
 >;
 export type GitLabSearchResponse = z.infer<typeof GitLabSearchResponseSchema>;
 export type GitLabMergeRequestDiff = z.infer<
-  typeof GitLabMergeRequestDiffSchema
+  typeof GitLabDiffSchema
 >;
 export type CreateNoteOptions = z.infer<typeof CreateNoteSchema>;
 export type GitLabIssueLink = z.infer<typeof GitLabIssueLinkSchema>;

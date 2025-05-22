@@ -53,7 +53,7 @@ import {
   CreateMergeRequestSchema,
   ForkRepositorySchema,
   CreateBranchSchema,
-  GitLabMergeRequestDiffSchema,
+  GitLabDiffSchema,
   GetMergeRequestSchema,
   GetMergeRequestDiffsSchema,
   UpdateMergeRequestSchema,
@@ -126,6 +126,9 @@ import {
   GetRepositoryTreeSchema,
   type GitLabTreeItem,
   type GetRepositoryTreeOptions,
+  GitLabCompareResult,
+  GitLabCompareResultSchema,
+  GetBranchDiffsSchema,
 } from "./schemas.js";
 
 /**
@@ -260,6 +263,12 @@ const allTools = [
     description:
       "Get the changes/diffs of a merge request (Either mergeRequestIid or branchName must be provided)",
     inputSchema: zodToJsonSchema(GetMergeRequestDiffsSchema),
+  },
+  {
+    name: "get_branch_diffs",
+    description:
+      "Get the changes/diffs between two branches or commits in a GitLab project",
+    inputSchema: zodToJsonSchema(GetBranchDiffsSchema),
   },
   {
     name: "update_merge_request",
@@ -436,6 +445,7 @@ const readOnlyTools = [
   "get_file_contents",
   "get_merge_request",
   "get_merge_request_diffs",
+  "get_branch_diffs",
   "mr_discussions",
   "list_issues",
   "get_issue",
@@ -1552,7 +1562,50 @@ async function getMergeRequestDiffs(
 
   await handleGitLabError(response);
   const data = (await response.json()) as { changes: unknown };
-  return z.array(GitLabMergeRequestDiffSchema).parse(data.changes);
+  return z.array(GitLabDiffSchema).parse(data.changes);
+}
+
+/**
+ * Get branch comparison diffs
+ *
+ * @param {string} projectId - The ID or URL-encoded path of the project
+ * @param {string} from - The branch name or commit SHA to compare from
+ * @param {string} to - The branch name or commit SHA to compare to
+ * @param {boolean} [straight] - Comparison method: false for '...' (default), true for '--'
+ * @returns {Promise<GitLabCompareResult>} Branch comparison results
+ */
+async function getBranchDiffs(
+  projectId: string,
+  from: string,
+  to: string,
+  straight?: boolean
+): Promise<GitLabCompareResult> {
+  projectId = decodeURIComponent(projectId); // Decode project ID
+  
+  const url = new URL(
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/repository/compare`
+  );
+  
+  url.searchParams.append("from", from);
+  url.searchParams.append("to", to);
+  
+  if (straight !== undefined) {
+    url.searchParams.append("straight", straight.toString());
+  }
+
+  const response = await fetch(url.toString(), {
+    ...DEFAULT_FETCH_CONFIG,
+  });
+
+  if (!response.ok) {
+    const errorBody = await response.text();
+    throw new Error(
+      `GitLab API error: ${response.status} ${response.statusText}\n${errorBody}`
+    );
+  }
+
+  const data = await response.json();
+  return GitLabCompareResultSchema.parse(data);
 }
 
 /**
@@ -2411,6 +2464,19 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
         return {
           content: [{ type: "text", text: JSON.stringify(branch, null, 2) }],
+        };
+      }
+
+      case "get_branch_diffs": {
+        const args = GetBranchDiffsSchema.parse(request.params.arguments);
+        const diffs = await getBranchDiffs(
+          args.project_id,
+          args.from,
+          args.to,
+          args.straight
+        );
+        return {
+          content: [{ type: "text", text: JSON.stringify(diffs, null, 2) }],
         };
       }
 
