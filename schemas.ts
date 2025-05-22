@@ -633,6 +633,7 @@ export const GetBranchDiffsSchema = ProjectParamsSchema.extend({
   from: z.string().describe("The base branch or commit SHA to compare from"),
   to: z.string().describe("The target branch or commit SHA to compare to"),
   straight: z.boolean().optional().describe("Comparison method: false for '...' (default), true for '--'"),
+  ignored_files_regex: z.array(z.string()).optional().describe("Regex patterns to exclude files from diff results (e.g., 'test/mocks.*', 'go\\.sum')"),
 });
 
 export const GetMergeRequestSchema = ProjectParamsSchema.extend({

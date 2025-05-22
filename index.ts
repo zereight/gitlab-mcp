@@ -2469,14 +2469,29 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
       case "get_branch_diffs": {
         const args = GetBranchDiffsSchema.parse(request.params.arguments);
-        const diffs = await getBranchDiffs(
+        const diffResp = await getBranchDiffs(
           args.project_id,
           args.from,
           args.to,
           args.straight
         );
+
+        if (args.ignored_files_regex?.length) {
+          const regexPatterns = args.ignored_files_regex.map(pattern => new RegExp(pattern));
+          
+          // Helper function to check if a path matches any regex pattern
+          const matchesAnyPattern = (path: string): boolean => {
+            if (!path) return false;
+            return regexPatterns.some(regex => regex.test(path));
+          };
+          
+          // Filter out files that match any of the regex patterns on new files
+          diffResp.diffs = diffResp.diffs.filter(diff => 
+            !matchesAnyPattern(diff.new_path)
+          );
+        }
         return {
-          content: [{ type: "text", text: JSON.stringify(diffs, null, 2) }],
+          content: [{ type: "text", text: JSON.stringify(diffResp, null, 2) }],
         };
       }
 
