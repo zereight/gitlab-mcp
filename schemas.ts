@@ -267,6 +267,13 @@ export const CreateMergeRequestOptionsSchema = z.object({
   description: z.string().optional(), // Changed from body to match GitLab API
   source_branch: z.string(), // Changed from head to match GitLab API
   target_branch: z.string(), // Changed from base to match GitLab API
+  assignee_ids: z
+    .array(z.number())
+    .optional(),
+  reviewer_ids: z
+    .array(z.number())
+    .optional(),
+  labels: z.array(z.string()).optional(),
   allow_collaboration: z.boolean().optional(), // Changed from maintainer_can_modify to match GitLab API
   draft: z.boolean().optional(),
 });
@@ -423,6 +430,7 @@ export const GitLabMergeRequestSchema = z.object({
   draft: z.boolean().optional(),
   author: GitLabUserSchema,
   assignees: z.array(GitLabUserSchema).optional(),
+  reviewers: z.array(GitLabUserSchema).optional(),
   source_branch: z.string(),
   target_branch: z.string(),
   diff_refs: GitLabMergeRequestDiffRefSchema.nullable().optional(),
@@ -612,6 +620,15 @@ export const CreateMergeRequestSchema = ProjectParamsSchema.extend({
   description: z.string().optional().describe("Merge request description"),
   source_branch: z.string().describe("Branch containing changes"),
   target_branch: z.string().describe("Branch to merge into"),
+  assignee_ids: z
+    .array(z.number())
+    .optional()
+    .describe("The ID of the users to assign the MR to"),
+  reviewer_ids: z
+    .array(z.number())
+    .optional()
+    .describe("The ID of the users to assign as reviewers of the MR"),
+  labels: z.array(z.string()).optional().describe("Labels for the MR"),
   draft: z.boolean().optional().describe("Create as draft merge request"),
   allow_collaboration: z
     .boolean()
