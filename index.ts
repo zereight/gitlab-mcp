@@ -17,7 +17,6 @@ import { fileURLToPath } from "url";
 import { dirname } from "path";
 import fs from "fs";
 import path from "path";
-
 // Add type imports for proxy agents
 import { Agent } from "http";
 import { URL } from "url";
@@ -84,6 +83,15 @@ import {
   UpdateWikiPageSchema,
   DeleteWikiPageSchema,
   GitLabWikiPageSchema,
+  GetRepositoryTreeSchema,
+  GitLabTreeItemSchema,
+  GitLabPipelineSchema,
+  GetPipelineSchema,
+  ListPipelinesSchema,
+  ListPipelineJobsSchema,
+  // pipeline job schemas
+  GetPipelineJobOutputSchema,
+  GitLabPipelineJobSchema,
   // Discussion Schemas
   GitLabDiscussionNoteSchema, // Added
   GitLabDiscussionSchema,
@@ -108,6 +116,11 @@ import {
   type GitLabNamespaceExistsResponse,
   type GitLabProject,
   type GitLabLabel,
+  type GitLabPipeline,
+  type ListPipelinesOptions,
+  type GetPipelineOptions,
+  type ListPipelineJobsOptions,
+  type GitLabPipelineJob,
   // Discussion Types
   type GitLabDiscussionNote, // Added
   type GitLabDiscussion,
@@ -117,8 +130,6 @@ import {
   type UpdateWikiPageOptions,
   type DeleteWikiPageOptions,
   type GitLabWikiPage,
-  GitLabTreeItemSchema,
-  GetRepositoryTreeSchema,
   type GitLabTreeItem,
   type GetRepositoryTreeOptions,
   UpdateIssueNoteSchema,
@@ -430,6 +441,31 @@ const allTools = [
       "Get the repository tree for a GitLab project (list files and directories)",
     inputSchema: zodToJsonSchema(GetRepositoryTreeSchema),
   },
+  {
+    name: "list_pipelines",
+    description: "List pipelines in a GitLab project with filtering options",
+    inputSchema: zodToJsonSchema(ListPipelinesSchema),
+  },
+  {
+    name: "get_pipeline",
+    description: "Get details of a specific pipeline in a GitLab project",
+    inputSchema: zodToJsonSchema(GetPipelineSchema),
+  },
+  {
+    name: "list_pipeline_jobs",
+    description: "List all jobs in a specific pipeline",
+    inputSchema: zodToJsonSchema(ListPipelineJobsSchema),
+  },
+  {
+    name: "get_pipeline_job",
+    description: "Get details of a GitLab pipeline job number",
+    inputSchema: zodToJsonSchema(GetPipelineJobOutputSchema),
+  },
+  {
+    name: "get_pipeline_job_output",
+    description: "Get the output/trace of a GitLab pipeline job number",
+    inputSchema: zodToJsonSchema(GetPipelineJobOutputSchema),
+  },
 ];
 
 // Define which tools are read-only
@@ -448,6 +484,11 @@ const readOnlyTools = [
   "get_namespace",
   "verify_namespace",
   "get_project",
+  "get_pipeline",
+  "list_pipelines",
+  "list_pipeline_jobs",
+  "get_pipeline_job",
+  "get_pipeline_job_output",
   "list_projects",
   "list_labels",
   "get_label",
@@ -2301,6 +2342,166 @@ async function deleteWikiPage(projectId: string, slug: string): Promise<void> {
 }
 
 /**
+ * List pipelines in a GitLab project
+ *
+ * @param {string} projectId - The ID or URL-encoded path of the project
+ * @param {ListPipelinesOptions} options - Options for filtering pipelines
+ * @returns {Promise<GitLabPipeline[]>} List of pipelines
+ */
+async function listPipelines(
+  projectId: string,
+  options: Omit<ListPipelinesOptions, "project_id"> = {}
+): Promise<GitLabPipeline[]> {
+  projectId = decodeURIComponent(projectId); // Decode project ID
+  const url = new URL(
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/pipelines`
+  );
+
+  // Add all query parameters
+  Object.entries(options).forEach(([key, value]) => {
+    if (value !== undefined) {
+      url.searchParams.append(key, value.toString());
+    }
+  });
+
+  const response = await fetch(url.toString(), {
+    ...DEFAULT_FETCH_CONFIG,
+  });
+
+  await handleGitLabError(response);
+  const data = await response.json();
+  return z.array(GitLabPipelineSchema).parse(data);
+}
+
+/**
+ * Get details of a specific pipeline
+ *
+ * @param {string} projectId - The ID or URL-encoded path of the project
+ * @param {number} pipelineId - The ID of the pipeline
+ * @returns {Promise<GitLabPipeline>} Pipeline details
+ */
+async function getPipeline(
+  projectId: string,
+  pipelineId: number
+): Promise<GitLabPipeline> {
+  projectId = decodeURIComponent(projectId); // Decode project ID
+  const url = new URL(
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/pipelines/${pipelineId}`
+  );
+
+  const response = await fetch(url.toString(), {
+    ...DEFAULT_FETCH_CONFIG,
+  });
+
+  if (response.status === 404) {
+    throw new Error(`Pipeline not found`);
+  }
+
+  await handleGitLabError(response);
+  const data = await response.json();
+  return GitLabPipelineSchema.parse(data);
+}
+
+/**
+ * List all jobs in a specific pipeline
+ *
+ * @param {string} projectId - The ID or URL-encoded path of the project
+ * @param {number} pipelineId - The ID of the pipeline
+ * @param {Object} options - Options for filtering jobs
+ * @returns {Promise<GitLabPipelineJob[]>} List of pipeline jobs
+ */
+async function listPipelineJobs(
+  projectId: string,
+  pipelineId: number,
+  options: Omit<ListPipelineJobsOptions, "project_id" | "pipeline_id"> = {}
+): Promise<GitLabPipelineJob[]> {
+  projectId = decodeURIComponent(projectId); // Decode project ID
+  const url = new URL(
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/pipelines/${pipelineId}/jobs`
+  );
+
+  // Add all query parameters
+  Object.entries(options).forEach(([key, value]) => {
+    if (value !== undefined) {
+      if (typeof value === "boolean") {
+        url.searchParams.append(key, value ? "true" : "false");
+      } else {
+        url.searchParams.append(key, value.toString());
+      }
+    }
+  });
+
+  const response = await fetch(url.toString(), {
+    ...DEFAULT_FETCH_CONFIG,
+  });
+
+  if (response.status === 404) {
+    throw new Error(`Pipeline not found`);
+  }
+
+  await handleGitLabError(response);
+  const data = await response.json();
+  return z.array(GitLabPipelineJobSchema).parse(data);
+}
+async function getPipelineJob(
+  projectId: string,
+  jobId: number
+): Promise<GitLabPipelineJob> {
+  projectId = decodeURIComponent(projectId); // Decode project ID
+  const url = new URL(
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(
+      projectId
+    )}/jobs/${jobId}`
+  );
+
+  const response = await fetch(url.toString(), {
+    ...DEFAULT_FETCH_CONFIG,
+  });
+
+  if (response.status === 404) {
+    throw new Error(`Job not found`);
+  }
+
+  await handleGitLabError(response);
+  const data = await response.json();
+  return GitLabPipelineJobSchema.parse(data);
+}
+
+/**
+ * Get the output/trace of a pipeline job
+ *
+ * @param {string} projectId - The ID or URL-encoded path of the project
+ * @param {number} jobId - The ID of the job
+ * @returns {Promise<string>} The job output/trace
+ */
+async function getPipelineJobOutput(
+  projectId: string,
+  jobId: number
+): Promise<string> {
+  projectId = decodeURIComponent(projectId); // Decode project ID
+  const url = new URL(
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(
+      projectId
+    )}/jobs/${jobId}/trace`
+  );
+
+  const response = await fetch(url.toString(), {
+    ...DEFAULT_FETCH_CONFIG,
+    headers: {
+      ...DEFAULT_HEADERS,
+      Accept: "text/plain", // Override Accept header to get plain text
+    },
+  });
+
+  if (response.status === 404) {
+    throw new Error(`Job trace not found or job is not finished yet`);
+  }
+
+  await handleGitLabError(response);
+  return await response.text();
+}
+
+/**
  * Get the repository tree for a project
  * @param {string} projectId - The ID or URL-encoded path of the project
  * @param {GetRepositoryTreeOptions} options - Options for the tree
@@ -3027,6 +3228,75 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const tree = await getRepositoryTree(args);
         return {
           content: [{ type: "text", text: JSON.stringify(tree, null, 2) }],
+        };
+      }
+
+      case "list_pipelines": {
+        const args = ListPipelinesSchema.parse(request.params.arguments);
+        const { project_id, ...options } = args;
+        const pipelines = await listPipelines(project_id, options);
+        return {
+          content: [{ type: "text", text: JSON.stringify(pipelines, null, 2) }],
+        };
+      }
+
+      case "get_pipeline": {
+        const { project_id, pipeline_id } = GetPipelineSchema.parse(
+          request.params.arguments
+        );
+        const pipeline = await getPipeline(project_id, pipeline_id);
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(pipeline, null, 2),
+            },
+          ],
+        };
+      }
+
+      case "list_pipeline_jobs": {
+        const { project_id, pipeline_id, ...options } = ListPipelineJobsSchema.parse(
+          request.params.arguments
+        );
+        const jobs = await listPipelineJobs(project_id, pipeline_id, options);
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(jobs, null, 2),
+            },
+          ],
+        };
+      }
+
+      case "get_pipeline_job": {
+        const { project_id, job_id } = GetPipelineJobOutputSchema.parse(
+          request.params.arguments
+        );
+        const jobDetails = await getPipelineJob(project_id, job_id);
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(jobDetails, null, 2),
+            },
+          ],
+        };
+      }
+
+      case "get_pipeline_job_output": {
+        const { project_id, job_id } = GetPipelineJobOutputSchema.parse(
+          request.params.arguments
+        );
+        const jobOutput = await getPipelineJobOutput(project_id, job_id);
+        return {
+          content: [
+            {
+              type: "text",
+              text: jobOutput,
+            },
+          ],
         };
       }
 

@@ -7,6 +7,119 @@ export const GitLabAuthorSchema = z.object({
   date: z.string(),
 });
 
+// Pipeline related schemas
+export const GitLabPipelineSchema = z.object({
+  id: z.number(),
+  project_id: z.number(),
+  sha: z.string(),
+  ref: z.string(),
+  status: z.string(),
+  source: z.string().optional(),
+  created_at: z.string(),
+  updated_at: z.string(),
+  web_url: z.string(),
+  duration: z.number().nullable().optional(),
+  started_at: z.string().nullable().optional(),
+  finished_at: z.string().nullable().optional(),
+  coverage: z.number().nullable().optional(),
+  user: z.object({
+    id: z.number(),
+    name: z.string(),
+    username: z.string(),
+    avatar_url: z.string().nullable().optional(),
+  }).optional(),
+  detailed_status: z.object({
+    icon: z.string().optional(),
+    text: z.string().optional(),
+    label: z.string().optional(),
+    group: z.string().optional(),
+    tooltip: z.string().optional(),
+    has_details: z.boolean().optional(),
+    details_path: z.string().optional(),
+    illustration: z.object({
+      image: z.string().optional(),
+      size: z.string().optional(),
+      title: z.string().optional(),
+    }).optional(),
+    favicon: z.string().optional(),
+  }).optional(),
+});
+
+// Pipeline job related schemas
+export const GitLabPipelineJobSchema = z.object({
+  id: z.number(),
+  status: z.string(),
+  stage: z.string(),
+  name: z.string(),
+  ref: z.string(),
+  tag: z.boolean(),
+  coverage: z.number().nullable().optional(),
+  created_at: z.string(),
+  started_at: z.string().nullable().optional(),
+  finished_at: z.string().nullable().optional(),
+  duration: z.number().nullable().optional(),
+  user: z.object({
+    id: z.number(),
+    name: z.string(),
+    username: z.string(),
+    avatar_url: z.string().nullable().optional(),
+  }).optional(),
+  commit: z.object({
+    id: z.string(),
+    short_id: z.string(),
+    title: z.string(),
+    author_name: z.string(),
+    author_email: z.string(),
+  }).optional(),
+  pipeline: z.object({
+    id: z.number(),
+    project_id: z.number(),
+    status: z.string(),
+    ref: z.string(),
+    sha: z.string(),
+  }).optional(),
+  web_url: z.string().optional(),
+});
+
+// Schema for listing pipelines
+export const ListPipelinesSchema = z.object({
+  project_id: z.string().describe("Project ID or URL-encoded path"),
+  scope: z.enum(['running', 'pending', 'finished', 'branches', 'tags']).optional().describe("The scope of pipelines"),
+  status: z.enum(['created', 'waiting_for_resource', 'preparing', 'pending', 'running', 'success', 'failed', 'canceled', 'skipped', 'manual', 'scheduled']).optional().describe("The status of pipelines"),
+  ref: z.string().optional().describe("The ref of pipelines"),
+  sha: z.string().optional().describe("The SHA of pipelines"),
+  yaml_errors: z.boolean().optional().describe("Returns pipelines with invalid configurations"),
+  username: z.string().optional().describe("The username of the user who triggered pipelines"),
+  updated_after: z.string().optional().describe("Return pipelines updated after the specified date"),
+  updated_before: z.string().optional().describe("Return pipelines updated before the specified date"),
+  order_by: z.enum(['id', 'status', 'ref', 'updated_at', 'user_id']).optional().describe("Order pipelines by"),
+  sort: z.enum(['asc', 'desc']).optional().describe("Sort pipelines"),
+  page: z.number().optional().describe("Page number for pagination"),
+  per_page: z.number().optional().describe("Number of items per page (max 100)"),
+});
+
+// Schema for getting a specific pipeline
+export const GetPipelineSchema = z.object({
+  project_id: z.string().describe("Project ID or URL-encoded path"),
+  pipeline_id: z.number().describe("The ID of the pipeline"),
+});
+
+// Schema for listing jobs in a pipeline
+export const ListPipelineJobsSchema = z.object({
+  project_id: z.string().describe("Project ID or URL-encoded path"),
+  pipeline_id: z.number().describe("The ID of the pipeline"),
+  scope: z.enum(['created', 'pending', 'running', 'failed', 'success', 'canceled', 'skipped', 'manual']).optional().describe("The scope of jobs to show"),
+  include_retried: z.boolean().optional().describe("Whether to include retried jobs"),
+  page: z.number().optional().describe("Page number for pagination"),
+  per_page: z.number().optional().describe("Number of items per page (max 100)"),
+});
+
+// Schema for the input parameters for pipeline job operations
+export const GetPipelineJobOutputSchema = z.object({
+  project_id: z.string().describe("Project ID or URL-encoded path"),
+  job_id: z.number().describe("The ID of the job"),
+});
+
 // Namespace related schemas
 
 // Base schema for project-related operations
@@ -1120,3 +1233,8 @@ export type GetRepositoryTreeOptions = z.infer<typeof GetRepositoryTreeSchema>;
 export type MergeRequestThreadPosition = z.infer<typeof MergeRequestThreadPositionSchema>;
 export type CreateMergeRequestThreadOptions = z.infer<typeof CreateMergeRequestThreadSchema>;
 export type CreateMergeRequestNoteOptions = z.infer<typeof CreateMergeRequestNoteSchema>;
+export type GitLabPipelineJob = z.infer<typeof GitLabPipelineJobSchema>;
+export type GitLabPipeline = z.infer<typeof GitLabPipelineSchema>;
+export type ListPipelinesOptions = z.infer<typeof ListPipelinesSchema>;
+export type GetPipelineOptions = z.infer<typeof GetPipelineSchema>;
+export type ListPipelineJobsOptions = z.infer<typeof ListPipelineJobsSchema>;

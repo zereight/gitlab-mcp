@@ -75,7 +75,6 @@ When using with the Claude App, you need to set up your API key and URLs directl
 ## Tools 🛠️
 
 +<!-- TOOLS-START -->
-
 1. `create_or_update_file` - Create or update a single file in a GitLab project
 2. `search_repositories` - Search for GitLab projects
 3. `create_repository` - Create a new GitLab project
@@ -93,7 +92,7 @@ When using with the Claude App, you need to set up your API key and URLs directl
 15. `mr_discussions` - List discussion items for a merge request
 16. `update_merge_request_note` - Modify an existing merge request thread note
 17. `create_merge_request_note` - Add a new note to an existing merge request thread
-18. `update_issue_note` - Update the content of an existing issue note
+18. `update_issue_note` - Modify an existing issue thread note
 19. `create_issue_note` - Add a new note to an existing issue thread
 20. `list_issues` - List issues in a GitLab project with filtering options
 21. `get_issue` - Get details of a specific issue in a GitLab project
@@ -121,4 +120,9 @@ When using with the Claude App, you need to set up your API key and URLs directl
 43. `update_wiki_page` - Update an existing wiki page in a GitLab project
 44. `delete_wiki_page` - Delete a wiki page from a GitLab project
 45. `get_repository_tree` - Get the repository tree for a GitLab project (list files and directories)
+46. `list_pipelines` - List pipelines in a GitLab project with filtering options
+47. `get_pipeline` - Get details of a specific pipeline in a GitLab project
+48. `list_pipeline_jobs` - List all jobs in a specific pipeline
+49. `get_pipeline_job` - Get details of a GitLab pipeline job number
+50. `get_pipeline_job_output` - Get the output/trace of a GitLab pipeline job number
 <!-- TOOLS-END -->
