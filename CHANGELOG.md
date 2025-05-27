@@ -1,3 +1,14 @@
+## [1.0.46] - 2025-05-27
+
+### Fixed
+
+- Fixed issue where GitLab issues and milestones with null descriptions would cause JSON-RPC errors
+  - Changed `description` field to be nullable with default empty string in schemas
+  - This allows proper handling of GitLab issues/milestones without descriptions
+  - See: [PR #53](https://github.com/zereight/gitlab-mcp/pull/53), [Issue #51](https://github.com/zereight/gitlab-mcp/issues/51)
+
+---
+
 ## [1.0.45] - 2025-05-24
 
 ### Added
