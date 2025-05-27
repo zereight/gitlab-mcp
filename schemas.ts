@@ -407,7 +407,7 @@ export const GitLabMilestoneSchema = z.object({
   id: z.number(),
   iid: z.number(), // Added to match GitLab API
   title: z.string(),
-  description: z.string(),
+  description: z.string().nullable().default(""),
   state: z.string(),
   web_url: z.string(), // Changed from html_url to match GitLab API
 });
@@ -417,7 +417,7 @@ export const GitLabIssueSchema = z.object({
   iid: z.number(), // Added to match GitLab API
   project_id: z.number(), // Added to match GitLab API
   title: z.string(),
-  description: z.string(), // Changed from body to match GitLab API
+  description: z.string().nullable().default(""), // Changed from body to match GitLab API
   state: z.string(),
   author: GitLabUserSchema,
   assignees: z.array(GitLabUserSchema),
