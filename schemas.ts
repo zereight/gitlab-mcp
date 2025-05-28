@@ -40,7 +40,7 @@ export const GitLabPipelineSchema = z.object({
       image: z.string().optional(),
       size: z.string().optional(),
       title: z.string().optional(),
-    }).optional(),
+    }).nullable().optional(),
     favicon: z.string().optional(),
   }).optional(),
 });
