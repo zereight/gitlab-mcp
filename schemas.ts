@@ -834,6 +834,88 @@ export const ListIssuesSchema = z.object({
   per_page: z.number().optional().describe("Number of items per page"),
 });
 
+// Merge Requests API operation schemas
+export const ListMergeRequestsSchema = z.object({
+  project_id: z.string().describe("Project ID or URL-encoded path"),
+  assignee_id: z
+    .number()
+    .optional()
+    .describe("Returns merge requests assigned to the given user ID"),
+  assignee_username: z
+    .string()
+    .optional()
+    .describe("Returns merge requests assigned to the given username"),
+  author_id: z
+    .number()
+    .optional()
+    .describe("Returns merge requests created by the given user ID"),
+  author_username: z
+    .string()
+    .optional()
+    .describe("Returns merge requests created by the given username"),
+  reviewer_id: z
+    .number()
+    .optional()
+    .describe("Returns merge requests which have the user as a reviewer"),
+  reviewer_username: z
+    .string()
+    .optional()
+    .describe("Returns merge requests which have the user as a reviewer"),
+  created_after: z
+    .string()
+    .optional()
+    .describe("Return merge requests created after the given time"),
+  created_before: z
+    .string()
+    .optional()
+    .describe("Return merge requests created before the given time"),
+  updated_after: z
+    .string()
+    .optional()
+    .describe("Return merge requests updated after the given time"),
+  updated_before: z
+    .string()
+    .optional()
+    .describe("Return merge requests updated before the given time"),
+  labels: z.array(z.string()).optional().describe("Array of label names"),
+  milestone: z.string().optional().describe("Milestone title"),
+  scope: z
+    .enum(["created_by_me", "assigned_to_me", "all"])
+    .optional()
+    .describe("Return merge requests from a specific scope"),
+  search: z.string().optional().describe("Search for specific terms"),
+  state: z
+    .enum(["opened", "closed", "locked", "merged", "all"])
+    .optional()
+    .describe("Return merge requests with a specific state"),
+  order_by: z
+    .enum(["created_at", "updated_at", "priority", "label_priority", "milestone_due", "popularity"])
+    .optional()
+    .describe("Return merge requests ordered by the given field"),
+  sort: z
+    .enum(["asc", "desc"])
+    .optional()
+    .describe("Return merge requests sorted in ascending or descending order"),
+  target_branch: z
+    .string()
+    .optional()
+    .describe("Return merge requests targeting a specific branch"),
+  source_branch: z
+    .string()
+    .optional()
+    .describe("Return merge requests from a specific source branch"),
+  wip: z
+    .enum(["yes", "no"])
+    .optional()
+    .describe("Filter merge requests against their wip status"),
+  with_labels_details: z
+    .boolean()
+    .optional()
+    .describe("Return more details for each label"),
+  page: z.number().optional().describe("Page number for pagination"),
+  per_page: z.number().optional().describe("Number of items per page"),
+});
+
 export const GetIssueSchema = z.object({
   project_id: z.string().describe("Project ID or URL-encoded path"),
   issue_iid: z.number().describe("The internal ID of the project issue"),
