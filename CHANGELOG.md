@@ -1,3 +1,27 @@
+## [1.0.47] - 2025-05-29
+
+### Added
+
+- 🔄 **List Merge Requests Tool**: Added functionality to list and filter merge requests in GitLab projects
+  - `list_merge_requests`: List merge requests with comprehensive filtering options
+  - Supports filtering by state, scope, author, assignee, reviewer, labels, and more
+  - Includes pagination support for large result sets
+  - See: [PR #56](https://github.com/zereight/gitlab-mcp/pull/56)
+
+### Fixed
+
+- Fixed issue where GitLab users without profile pictures would cause JSON-RPC errors
+  - Changed `avatar_url` field to be nullable in GitLabUserSchema
+  - This allows proper handling of users without avatars in GitLab API responses
+  - See: [PR #55](https://github.com/zereight/gitlab-mcp/pull/55)
+
+- Fixed issue where GitLab pipelines without illustrations would cause JSON-RPC errors
+  - Changed `illustration` field to be nullable in GitLabPipelineSchema
+  - This allows proper handling of pipelines without illustrations
+  - See: [PR #58](https://github.com/zereight/gitlab-mcp/pull/58), [Issue #57](https://github.com/zereight/gitlab-mcp/issues/57)
+
+---
+
 ## [1.0.46] - 2025-05-27
 
 ### Fixed
