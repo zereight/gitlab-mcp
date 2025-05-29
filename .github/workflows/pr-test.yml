@@ -34,6 +34,7 @@ jobs:
       env:
         GITLAB_API_URL: ${{ secrets.GITLAB_API_URL }}
         GITLAB_TOKEN: ${{ secrets.GITLAB_TOKEN_TEST }}
+        GITLAB_PERSONAL_ACCESS_TOKEN: ${{ secrets.GITLAB_PERSONAL_ACCESS_TOKEN }}
     
     - name: Type check
       run: npx tsc --noEmit
@@ -62,6 +63,7 @@ jobs:
       env:
         GITLAB_API_URL: ${{ secrets.GITLAB_API_URL }}
         GITLAB_TOKEN: ${{ secrets.GITLAB_TOKEN_TEST }}
+        GITLAB_PERSONAL_ACCESS_TOKEN: ${{ secrets.GITLAB_PERSONAL_ACCESS_TOKEN }}
 
   integration-test:
     runs-on: ubuntu-latest
@@ -92,6 +94,7 @@ jobs:
       env:
         GITLAB_API_URL: ${{ secrets.GITLAB_API_URL }}
         GITLAB_TOKEN: ${{ secrets.GITLAB_TOKEN_TEST }}
+        GITLAB_PERSONAL_ACCESS_TOKEN: ${{ secrets.GITLAB_PERSONAL_ACCESS_TOKEN }}
         PROJECT_ID: ${{ secrets.TEST_PROJECT_ID }}
     
     - name: Test Docker build
