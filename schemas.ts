@@ -333,6 +333,22 @@ export const GitLabReferenceSchema = z.object({
   }),
 });
 
+// Milestones rest api output schemas
+export const GitLabMilestonesSchema = z.object({
+  id: z.number(),
+  iid: z.number(),
+  project_id: z.number(),
+  title: z.string(),
+  description: z.string().nullable(),
+  due_date: z.string().nullable(),
+  start_date: z.string().nullable(),
+  state: z.string(),
+  updated_at: z.string(),
+  created_at: z.string(),
+  expired: z.boolean(),
+  web_url: z.string().optional()
+});
+
 // Input schemas for operations
 export const CreateRepositoryOptionsSchema = z.object({
   name: z.string(),
@@ -1260,6 +1276,63 @@ export const CreateMergeRequestThreadSchema = ProjectParamsSchema.extend({
   created_at: z.string().optional().describe("Date the thread was created at (ISO 8601 format)"),
 });
 
+// Milestone related schemas
+// Schema for listing project milestones
+export const ListProjectMilestonesSchema = ProjectParamsSchema.extend({
+  iids: z.array(z.number()).optional().describe("Return only the milestones having the given iid"),
+  state: z.enum(["active", "closed"]).optional().describe("Return only active or closed milestones"),
+  title: z.string().optional().describe("Return only milestones with a title matching the provided string"),
+  search: z.string().optional().describe("Return only milestones with a title or description matching the provided string"),
+  include_ancestors: z.boolean().optional().describe("Include ancestor groups"),
+  updated_before: z.string().optional().describe("Return milestones updated before the specified date (ISO 8601 format)"),
+  updated_after: z.string().optional().describe("Return milestones updated after the specified date (ISO 8601 format)"),
+  page: z.number().optional().describe("Page number for pagination"),
+  per_page: z.number().optional().describe("Number of items per page (max 100)"),
+});
+
+// Schema for getting a single milestone
+export const GetProjectMilestoneSchema = ProjectParamsSchema.extend({
+  milestone_id: z.number().describe("The ID of a project milestone"),
+});
+
+// Schema for creating a new milestone
+export const CreateProjectMilestoneSchema = ProjectParamsSchema.extend({
+  title: z.string().describe("The title of the milestone"),
+  description: z.string().optional().describe("The description of the milestone"),
+  due_date: z.string().optional().describe("The due date of the milestone (YYYY-MM-DD)"),
+  start_date: z.string().optional().describe("The start date of the milestone (YYYY-MM-DD)"),
+});
+
+// Schema for editing a milestone
+export const EditProjectMilestoneSchema = GetProjectMilestoneSchema.extend({
+  title: z.string().optional().describe("The title of the milestone"),
+  description: z.string().optional().describe("The description of the milestone"),
+  due_date: z.string().optional().describe("The due date of the milestone (YYYY-MM-DD)"),
+  start_date: z.string().optional().describe("The start date of the milestone (YYYY-MM-DD)"),
+  state_event: z.enum(["close", "activate"]).optional().describe("The state event of the milestone"),
+});
+
+// Schema for deleting a milestone
+export const DeleteProjectMilestoneSchema = GetProjectMilestoneSchema;
+
+// Schema for getting issues assigned to a milestone
+export const GetMilestoneIssuesSchema = GetProjectMilestoneSchema;
+
+// Schema for getting merge requests assigned to a milestone
+export const GetMilestoneMergeRequestsSchema = GetProjectMilestoneSchema.extend({
+  page: z.number().optional().describe("Page number for pagination"),
+  per_page: z.number().optional().describe("Number of items per page (max 100)"),
+});
+
+// Schema for promoting a project milestone to a group milestone
+export const PromoteProjectMilestoneSchema = GetProjectMilestoneSchema;
+
+// Schema for getting burndown chart events for a milestone
+export const GetMilestoneBurndownEventsSchema = GetProjectMilestoneSchema.extend({
+  page: z.number().optional().describe("Page number for pagination"),
+  per_page: z.number().optional().describe("Number of items per page (max 100)"),
+});
+
 // Export types
 export type GitLabAuthor = z.infer<typeof GitLabAuthorSchema>;
 export type GitLabFork = z.infer<typeof GitLabForkSchema>;
@@ -1320,3 +1393,13 @@ export type GitLabPipeline = z.infer<typeof GitLabPipelineSchema>;
 export type ListPipelinesOptions = z.infer<typeof ListPipelinesSchema>;
 export type GetPipelineOptions = z.infer<typeof GetPipelineSchema>;
 export type ListPipelineJobsOptions = z.infer<typeof ListPipelineJobsSchema>;
+export type GitLabMilestones = z.infer<typeof GitLabMilestonesSchema>;
+export type ListProjectMilestonesOptions = z.infer<typeof ListProjectMilestonesSchema>;
+export type GetProjectMilestoneOptions = z.infer<typeof GetProjectMilestoneSchema>;
+export type CreateProjectMilestoneOptions = z.infer<typeof CreateProjectMilestoneSchema>;
+export type EditProjectMilestoneOptions = z.infer<typeof EditProjectMilestoneSchema>;
+export type DeleteProjectMilestoneOptions = z.infer<typeof DeleteProjectMilestoneSchema>;
+export type GetMilestoneIssuesOptions = z.infer<typeof GetMilestoneIssuesSchema>;
+export type GetMilestoneMergeRequestsOptions = z.infer<typeof GetMilestoneMergeRequestsSchema>;
+export type PromoteProjectMilestoneOptions = z.infer<typeof PromoteProjectMilestoneSchema>;
+export type GetMilestoneBurndownEventsOptions = z.infer<typeof GetMilestoneBurndownEventsSchema>;

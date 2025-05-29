@@ -121,6 +121,16 @@ import {
   type GetPipelineOptions,
   type ListPipelineJobsOptions,
   type GitLabPipelineJob,
+  type GitLabMilestones,
+  type ListProjectMilestonesOptions,
+  type GetProjectMilestoneOptions,
+  type CreateProjectMilestoneOptions,
+  type EditProjectMilestoneOptions,
+  type DeleteProjectMilestoneOptions,
+  type GetMilestoneIssuesOptions,
+  type GetMilestoneMergeRequestsOptions,
+  type PromoteProjectMilestoneOptions,
+  type GetMilestoneBurndownEventsOptions,
   // Discussion Types
   type GitLabDiscussionNote, // Added
   type GitLabDiscussion,
@@ -135,6 +145,16 @@ import {
   UpdateIssueNoteSchema,
   CreateIssueNoteSchema,
   ListMergeRequestsSchema,
+  GitLabMilestonesSchema,
+  ListProjectMilestonesSchema,
+  GetProjectMilestoneSchema,
+  CreateProjectMilestoneSchema,
+  EditProjectMilestoneSchema,
+  DeleteProjectMilestoneSchema,
+  GetMilestoneIssuesSchema,
+  GetMilestoneMergeRequestsSchema,
+  PromoteProjectMilestoneSchema,
+  GetMilestoneBurndownEventsSchema,
 } from "./schemas.js";
 
 /**
@@ -472,6 +492,51 @@ const allTools = [
     description: "List merge requests in a GitLab project with filtering options",
     inputSchema: zodToJsonSchema(ListMergeRequestsSchema),
   },
+  { 
+    name: "list_milestones",
+    description: "List milestones in a GitLab project with filtering options",
+    inputSchema: zodToJsonSchema(ListProjectMilestonesSchema),
+  },
+  {
+    name: "get_milestone",
+    description: "Get details of a specific milestone",
+    inputSchema: zodToJsonSchema(GetProjectMilestoneSchema),
+  },
+  {
+    name: "create_milestone",
+    description: "Create a new milestone in a GitLab project",
+    inputSchema: zodToJsonSchema(CreateProjectMilestoneSchema),
+  },
+  {
+    name: "edit_milestone ",
+    description: "Edit an existing milestone in a GitLab project",
+    inputSchema: zodToJsonSchema(EditProjectMilestoneSchema),
+  },
+  {
+    name: "delete_milestone",
+    description: "Delete a milestone from a GitLab project",
+    inputSchema: zodToJsonSchema(DeleteProjectMilestoneSchema),
+  },
+  {
+    name: "get_milestone_issue",
+    description: "Get issues associated with a specific milestone",
+    inputSchema: zodToJsonSchema(GetMilestoneIssuesSchema),
+  },
+  {
+    name: "get_milestone_merge_requests",
+    description: "Get merge requests associated with a specific milestone",
+    inputSchema: zodToJsonSchema(GetMilestoneMergeRequestsSchema),
+  },
+  {
+    name: "promote_milestone",
+    description: "Promote a milestone to the next stage",
+    inputSchema: zodToJsonSchema(PromoteProjectMilestoneSchema),
+  },
+  {
+    name: "get_milestone_burndown_events",
+    description: "Get burndown events for a specific milestone",
+    inputSchema: zodToJsonSchema(GetMilestoneBurndownEventsSchema),
+  },
 ];
 
 // Define which tools are read-only
@@ -501,6 +566,11 @@ const readOnlyTools = [
   "get_label",
   "list_group_projects",
   "get_repository_tree",
+  "list_milestones",
+  "get_milestone",
+  "get_milestone_issue",
+  "get_milestone_merge_requests",
+  "get_milestone_burndown_events"
 ];
 
 // Define which tools are related to wiki and can be toggled by USE_GITLAB_WIKI
@@ -2588,6 +2658,231 @@ async function getRepositoryTree(
   return z.array(GitLabTreeItemSchema).parse(data);
 }
 
+/**
+ * List project milestones in a GitLab project
+ * @param {string} projectId - The ID or URL-encoded path of the project
+ * @param {Object} options - Options for listing milestones
+ * @returns {Promise<GitLabMilestones[]>} List of milestones
+ */
+async function listProjectMilestones(
+  projectId: string,
+  options: Omit<z.infer<typeof ListProjectMilestonesSchema>, "project_id">
+): Promise<GitLabMilestones[]> {
+  projectId = decodeURIComponent(projectId);
+  const url = new URL(
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/milestones`
+  );
+
+  Object.entries(options).forEach(([key, value]) => {
+    if (value !== undefined) {
+      if (key === "iids" && Array.isArray(value) && value.length > 0) {
+        value.forEach((iid) => {
+          url.searchParams.append("iids[]", iid.toString());
+        });
+      } else if (value !== undefined) {
+        url.searchParams.append(key, value.toString());
+      }
+    }
+  });
+
+  const response = await fetch(url.toString(), {
+    ...DEFAULT_FETCH_CONFIG,
+  });
+  await handleGitLabError(response);
+  const data = await response.json();
+  return z.array(GitLabMilestonesSchema).parse(data);
+}
+
+/**
+ * Get a single milestone in a GitLab project
+ * @param {string} projectId - The ID or URL-encoded path of the project
+ * @param {number} milestoneId - The ID of the milestone
+ * @returns {Promise<GitLabMilestones>} Milestone details
+ */
+async function getProjectMilestone(
+  projectId: string,
+  milestoneId: number
+): Promise<GitLabMilestones> {
+  projectId = decodeURIComponent(projectId);
+  const url = new URL(
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/milestones/${milestoneId}`
+  );
+
+  const response = await fetch(url.toString(), {
+    ...DEFAULT_FETCH_CONFIG,
+  });
+  await handleGitLabError(response);
+  const data = await response.json();
+  return GitLabMilestonesSchema.parse(data);
+}
+
+/**
+ * Create a new milestone in a GitLab project
+ * @param {string} projectId - The ID or URL-encoded path of the project
+ * @param {Object} options - Options for creating a milestone
+ * @returns {Promise<GitLabMilestones>} Created milestone
+ */
+async function createProjectMilestone(
+  projectId: string,
+  options: Omit<z.infer<typeof CreateProjectMilestoneSchema>, "project_id">
+): Promise<GitLabMilestones> {
+  projectId = decodeURIComponent(projectId);
+  const url = new URL(
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/milestones`
+  );
+
+  const response = await fetch(url.toString(), {
+    ...DEFAULT_FETCH_CONFIG,
+    method: "POST",
+    body: JSON.stringify(options),
+  });
+  await handleGitLabError(response);
+  const data = await response.json();
+  return GitLabMilestonesSchema.parse(data);
+}
+
+/**
+ * Edit an existing milestone in a GitLab project
+ * @param {string} projectId - The ID or URL-encoded path of the project
+ * @param {number} milestoneId - The ID of the milestone
+ * @param {Object} options - Options for editing a milestone
+ * @returns {Promise<GitLabMilestones>} Updated milestone
+ */
+async function editProjectMilestone(
+  projectId: string,
+  milestoneId: number,
+  options: Omit<z.infer<typeof EditProjectMilestoneSchema>, "project_id" | "milestone_id">
+): Promise<GitLabMilestones> {
+  projectId = decodeURIComponent(projectId);
+  const url = new URL(
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/milestones/${milestoneId}`
+  );
+
+  const response = await fetch(url.toString(), {
+    ...DEFAULT_FETCH_CONFIG,
+    method: "PUT",
+    body: JSON.stringify(options),
+  });
+  await handleGitLabError(response);
+  const data = await response.json();
+  return GitLabMilestonesSchema.parse(data);
+}
+
+/**
+ * Delete a milestone from a GitLab project
+ * @param {string} projectId - The ID or URL-encoded path of the project
+ * @param {number} milestoneId - The ID of the milestone
+ * @returns {Promise<void>}
+ */
+async function deleteProjectMilestone(
+  projectId: string,
+  milestoneId: number
+): Promise<void> {
+  projectId = decodeURIComponent(projectId);
+  const url = new URL(
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/milestones/${milestoneId}`
+  );
+
+  const response = await fetch(url.toString(), {
+    ...DEFAULT_FETCH_CONFIG,
+    method: "DELETE",
+  });
+  await handleGitLabError(response);
+}
+
+/**
+ * Get all issues assigned to a single milestone
+ * @param {string} projectId - The ID or URL-encoded path of the project
+ * @param {number} milestoneId - The ID of the milestone
+ * @returns {Promise<GitLabIssue[]>} List of issues
+ */
+async function getMilestoneIssues(
+  projectId: string,
+  milestoneId: number
+): Promise<GitLabIssue[]> {
+  projectId = decodeURIComponent(projectId);
+  const url = new URL(
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/milestones/${milestoneId}/issues`
+  );
+
+  const response = await fetch(url.toString(), {
+    ...DEFAULT_FETCH_CONFIG,
+  });
+  await handleGitLabError(response);
+  const data = await response.json();
+  return z.array(GitLabIssueSchema).parse(data);
+}
+
+/**
+ * Get all merge requests assigned to a single milestone
+ * @param {string} projectId - The ID or URL-encoded path of the project
+ * @param {number} milestoneId - The ID of the milestone
+ * @returns {Promise<GitLabMergeRequest[]>} List of merge requests
+ */
+async function getMilestoneMergeRequests(
+  projectId: string,
+  milestoneId: number
+): Promise<GitLabMergeRequest[]> {
+  projectId = decodeURIComponent(projectId);
+  const url = new URL(
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/milestones/${milestoneId}/merge_requests`
+  );
+
+  const response = await fetch(url.toString(), {
+    ...DEFAULT_FETCH_CONFIG,
+  });
+  await handleGitLabError(response);
+  const data = await response.json();
+  return z.array(GitLabMergeRequestSchema).parse(data);
+}
+
+/**
+ * Promote a project milestone to a group milestone
+ * @param {string} projectId - The ID or URL-encoded path of the project
+ * @param {number} milestoneId - The ID of the milestone
+ * @returns {Promise<GitLabMilestones>} Promoted milestone
+ */
+async function promoteProjectMilestone(
+  projectId: string,
+  milestoneId: number
+): Promise<GitLabMilestones> {
+  projectId = decodeURIComponent(projectId);
+  const url = new URL(
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/milestones/${milestoneId}/promote`
+  );
+
+  const response = await fetch(url.toString(), {
+    ...DEFAULT_FETCH_CONFIG,
+    method: "POST",
+  });
+  await handleGitLabError(response);
+  const data = await response.json();
+  return GitLabMilestonesSchema.parse(data);
+}
+
+/**
+ * Get all burndown chart events for a single milestone
+ * @param {string} projectId - The ID or URL-encoded path of the project
+ * @param {number} milestoneId - The ID of the milestone
+ * @returns {Promise<any[]>} Burndown chart events
+ */
+async function getMilestoneBurndownEvents(
+  projectId: string,
+  milestoneId: number
+): Promise<any[]> {
+  projectId = decodeURIComponent(projectId);
+  const url = new URL(
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/milestones/${milestoneId}/burndown_events`
+  );
+
+  const response = await fetch(url.toString(), {
+    ...DEFAULT_FETCH_CONFIG,
+  });
+  await handleGitLabError(response);
+  const data = await response.json();
+  return data as any[];
+}
+
 server.setRequestHandler(ListToolsRequestSchema, async () => {
   // Apply read-only filter first
   const tools0 = GITLAB_READ_ONLY_MODE
@@ -3343,7 +3638,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           ],
         };
       }
-
+         
       case "list_merge_requests": {
         const args = ListMergeRequestsSchema.parse(request.params.arguments);
         const mergeRequests = await listMergeRequests(args.project_id, args);
@@ -3351,7 +3646,149 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           content: [{ type: "text", text: JSON.stringify(mergeRequests, null, 2) }],
         };
       }
+      
+      case "list_milestones": {
+        const { project_id, ...options } = ListProjectMilestonesSchema.parse(
+          request.params.arguments
+        );
+        const milestones = await listProjectMilestones(project_id, options);
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(milestones, null, 2),
+            },
+          ],
+        };
+      }
+      
+      case "get_milestone": {
+        const { project_id, milestone_id } = GetProjectMilestoneSchema.parse(
+          request.params.arguments
+        );
+        const milestone = await getProjectMilestone(project_id, milestone_id);
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(milestone, null, 2),
+            },
+          ],
+        };
+      }
+        
+      case "create_milestone": {
+        const { project_id, ...options } = CreateProjectMilestoneSchema.parse(
+          request.params.arguments
+        );
+        const milestone = await createProjectMilestone(project_id, options);
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(milestone, null, 2),
+            },
+          ],
+        };
+      }
+        
+      case "edit_milestone": {
+        const { project_id, milestone_id, ...options } = EditProjectMilestoneSchema.parse(
+          request.params.arguments
+        );
+        const milestone = await editProjectMilestone(project_id, milestone_id, options);
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(milestone, null, 2),
+            },
+          ],
+        };
+      }
 
+      case "delete_milestone": {
+        const { project_id, milestone_id } = DeleteProjectMilestoneSchema.parse(
+          request.params.arguments
+        );
+        await deleteProjectMilestone(project_id, milestone_id);
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(
+                {
+                  status: "success",
+                  message: "Milestone deleted successfully",
+                },
+                null,
+                2
+              ),
+            },
+          ],
+        };
+      }
+
+      case "get_milestone_issue": {
+        const { project_id, milestone_id } = GetMilestoneIssuesSchema.parse(
+          request.params.arguments
+        );
+        const issues = await getMilestoneIssues(project_id, milestone_id);
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(issues, null, 2),
+            },
+          ],
+        };
+      }
+
+      case "get_milestone_merge_requests": {
+        const { project_id, milestone_id } = GetMilestoneMergeRequestsSchema.parse(
+          request.params.arguments
+        );
+        const mergeRequests = await getMilestoneMergeRequests(project_id, milestone_id);
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(mergeRequests, null, 2),
+            },
+          ],
+        };
+      }
+
+      case "promote_milestone": {
+        const { project_id, milestone_id } = PromoteProjectMilestoneSchema.parse(
+          request.params.arguments
+        );
+        const milestone = await promoteProjectMilestone(project_id, milestone_id);
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(milestone, null, 2),
+            },
+          ],
+        };
+      }
+
+      case "get_milestone_burndown_events": {
+        const { project_id, milestone_id } = GetMilestoneBurndownEventsSchema.parse(
+          request.params.arguments
+        );
+        const events = await getMilestoneBurndownEvents(project_id, milestone_id);
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(events, null, 2),
+            },
+          ],
+        };
+      }
+      
       default:
         throw new Error(`Unknown tool: ${request.params.name}`);
     }
