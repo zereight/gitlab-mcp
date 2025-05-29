@@ -52,7 +52,7 @@ When using with the Claude App, you need to set up your API key and URLs directl
         "GITLAB_READ_ONLY_MODE",
         "-e",
         "USE_GITLAB_WIKI",
-        "nkwd/gitlab-mcp"
+        "iwakitakuma/gitlab-mcp"
       ],
       "env": {
         "GITLAB_PERSONAL_ACCESS_TOKEN": "your_gitlab_token",
@@ -63,6 +63,12 @@ When using with the Claude App, you need to set up your API key and URLs directl
     }
   }
 }
+```
+
+#### Docker Image Push
+
+```shell
+$ sh scripts/image_push.sh docker_user_name
 ```
 
 ### Environment Variables
