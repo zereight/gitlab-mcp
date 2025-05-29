@@ -27,7 +27,8 @@ When using with the Claude App, you need to set up your API key and URLs directl
         "GITLAB_API_URL": "your_gitlab_api_url",
         "GITLAB_READ_ONLY_MODE": "false",
         "USE_GITLAB_WIKI": "false", // use wiki api?
-        "USE_MILESTONE": "false" // use milestone api?
+        "USE_MILESTONE": "false", // use milestone api?
+        "USE_PIPELINE": "false" // use pipeline api?
       }
     }
   }
@@ -55,6 +56,8 @@ When using with the Claude App, you need to set up your API key and URLs directl
         "USE_GITLAB_WIKI",
         "-e",
         "USE_MILESTONE",
+        "-e",
+        "USE_PIPELINE",
         "iwakitakuma/gitlab-mcp"
       ],
       "env": {
@@ -62,7 +65,8 @@ When using with the Claude App, you need to set up your API key and URLs directl
         "GITLAB_API_URL": "https://gitlab.com/api/v4", // Optional, for self-hosted GitLab
         "GITLAB_READ_ONLY_MODE": "false",
         "USE_GITLAB_WIKI": "true",
-        "USE_MILESTONE": "true"
+        "USE_MILESTONE": "true",
+        "USE_PIPELINE": "true"
       }
     }
   }
@@ -82,6 +86,7 @@ $ sh scripts/image_push.sh docker_user_name
 - `GITLAB_READ_ONLY_MODE`: When set to 'true', restricts the server to only expose read-only operations. Useful for enhanced security or when write access is not needed. Also useful for using with Cursor and it's 40 tool limit.
 - `USE_GITLAB_WIKI`: When set to 'true', enables the wiki-related tools (list_wiki_pages, get_wiki_page, create_wiki_page, update_wiki_page, delete_wiki_page). By default, wiki features are disabled.
 - `USE_MILESTONE`: When set to 'true', enables the milestone-related tools (list_milestones, get_milestone, create_milestone, edit_milestone, delete_milestone, get_milestone_issue, get_milestone_merge_requests, promote_milestone, get_milestone_burndown_events). By default, milestone features are disabled.
+- `USE_PIPELINE`: When set to 'true', enables the pipeline-related tools (list_pipelines, get_pipeline, list_pipeline_jobs, get_pipeline_job, get_pipeline_job_output, create_pipeline, retry_pipeline, cancel_pipeline). By default, pipeline features are disabled.
 
 ## Tools 🛠️
 

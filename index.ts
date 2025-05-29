@@ -192,6 +192,7 @@ const GITLAB_PERSONAL_ACCESS_TOKEN = process.env.GITLAB_PERSONAL_ACCESS_TOKEN;
 const GITLAB_READ_ONLY_MODE = process.env.GITLAB_READ_ONLY_MODE === "true";
 const USE_GITLAB_WIKI = process.env.USE_GITLAB_WIKI === "true";
 const USE_MILESTONE = process.env.USE_MILESTONE === "true";
+const USE_PIPELINE = process.env.USE_PIPELINE === "true";
 
 // Add proxy configuration
 const HTTP_PROXY = process.env.HTTP_PROXY;
@@ -612,6 +613,18 @@ const milestoneToolNames = [
   "get_milestone_merge_requests",
   "promote_milestone",
   "get_milestone_burndown_events",
+];
+
+// Define which tools are related to pipelines and can be toggled by USE_PIPELINE
+const pipelineToolNames = [
+  "list_pipelines",
+  "get_pipeline",
+  "list_pipeline_jobs",
+  "get_pipeline_job",
+  "get_pipeline_job_output",
+  "create_pipeline",
+  "retry_pipeline",
+  "cancel_pipeline",
 ];
 
 /**
@@ -2852,9 +2865,13 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
     ? tools0
     : tools0.filter(tool => !wikiToolNames.includes(tool.name));
   // Toggle milestone tools by USE_MILESTONE flag
-  let tools = USE_MILESTONE
+  const tools2 = USE_MILESTONE
     ? tools1
     : tools1.filter(tool => !milestoneToolNames.includes(tool.name));
+  // Toggle pipeline tools by USE_PIPELINE flag
+  let tools = USE_PIPELINE
+    ? tools2
+    : tools2.filter(tool => !pipelineToolNames.includes(tool.name));
 
   // <<< START: Gemini 호환성을 위해 $schema 제거 >>>
   tools = tools.map(tool => {
