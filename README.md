@@ -8,20 +8,6 @@ GitLab MCP(Model Context Protocol) Server. **Includes bug fixes and improvements
 
 <a href="https://glama.ai/mcp/servers/7jwbk4r6d7"><img width="380" height="200" src="https://glama.ai/mcp/servers/7jwbk4r6d7/badge" alt="gitlab mcp MCP server" /></a>
 
-## 🚀 Automated Testing
-
-This project uses GitHub Actions for automated PR testing. All pull requests are automatically tested across multiple Node.js versions (18.x, 20.x, 22.x) with:
-
-- ✅ Build verification
-- ✅ Type checking
-- ✅ Code linting (ESLint)
-- ✅ Code formatting (Prettier)
-- ✅ API validation tests
-- ✅ Docker build verification
-- ✅ Security audit
-
-For integration testing setup, see [GitHub Secrets Setup Guide](docs/setup-github-secrets.md).
-
 ## Usage
 
 ### Using with Claude App, Cline, Roo Code, Cursor
