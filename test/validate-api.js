@@ -43,9 +43,15 @@ async function validateGitLabAPI() {
       url: `${GITLAB_API_URL}/api/v4/projects/${encodeURIComponent(TEST_PROJECT_ID)}/repository/branches?per_page=1`,
       validate: data => Array.isArray(data),
     },
+    {
+      name: "List pipelines",
+      url: `${GITLAB_API_URL}/api/v4/projects/${encodeURIComponent(TEST_PROJECT_ID)}/pipelines?per_page=5`,
+      validate: data => Array.isArray(data),
+    },
   ];
 
   let allPassed = true;
+  let firstPipelineId = null;
 
   for (const test of tests) {
     try {
@@ -65,6 +71,11 @@ async function validateGitLabAPI() {
 
       if (test.validate(data)) {
         console.log(`✅ ${test.name} - PASSED\n`);
+        
+        // If we found pipelines, save the first one for additional testing
+        if (test.name === "List pipelines" && data.length > 0) {
+          firstPipelineId = data[0].id;
+        }
       } else {
         console.log(`❌ ${test.name} - FAILED (invalid response format)\n`);
         allPassed = false;
@@ -73,6 +84,53 @@ async function validateGitLabAPI() {
       console.log(`❌ ${test.name} - FAILED`);
       console.log(`   Error: ${error.message}\n`);
       allPassed = false;
+    }
+  }
+
+  // Test pipeline-specific endpoints if we have a pipeline ID
+  if (firstPipelineId) {
+    console.log(`Found pipeline #${firstPipelineId}, testing pipeline-specific endpoints...\n`);
+    
+    const pipelineTests = [
+      {
+        name: `Get pipeline #${firstPipelineId} details`,
+        url: `${GITLAB_API_URL}/api/v4/projects/${encodeURIComponent(TEST_PROJECT_ID)}/pipelines/${firstPipelineId}`,
+        validate: data => data.id === firstPipelineId && data.status,
+      },
+      {
+        name: `List pipeline #${firstPipelineId} jobs`,
+        url: `${GITLAB_API_URL}/api/v4/projects/${encodeURIComponent(TEST_PROJECT_ID)}/pipelines/${firstPipelineId}/jobs`,
+        validate: data => Array.isArray(data),
+      },
+    ];
+
+    for (const test of pipelineTests) {
+      try {
+        console.log(`Testing: ${test.name}`);
+        const response = await fetch(test.url, {
+          headers: {
+            Authorization: `Bearer ${GITLAB_TOKEN}`,
+            Accept: "application/json",
+          },
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+
+        const data = await response.json();
+
+        if (test.validate(data)) {
+          console.log(`✅ ${test.name} - PASSED\n`);
+        } else {
+          console.log(`❌ ${test.name} - FAILED (invalid response format)\n`);
+          allPassed = false;
+        }
+      } catch (error) {
+        console.log(`❌ ${test.name} - FAILED`);
+        console.log(`   Error: ${error.message}\n`);
+        allPassed = false;
+      }
     }
   }
 

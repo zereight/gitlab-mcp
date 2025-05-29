@@ -157,6 +157,33 @@ export const ListPipelineJobsSchema = z.object({
   per_page: z.number().optional().describe("Number of items per page (max 100)"),
 });
 
+// Schema for creating a new pipeline
+export const CreatePipelineSchema = z.object({
+  project_id: z.string().describe("Project ID or URL-encoded path"),
+  ref: z.string().describe("The branch or tag to run the pipeline on"),
+  variables: z
+    .array(
+      z.object({
+        key: z.string().describe("The key of the variable"),
+        value: z.string().describe("The value of the variable"),
+      })
+    )
+    .optional()
+    .describe("An array of variables to use for the pipeline"),
+});
+
+// Schema for retrying a pipeline
+export const RetryPipelineSchema = z.object({
+  project_id: z.string().describe("Project ID or URL-encoded path"),
+  pipeline_id: z.number().describe("The ID of the pipeline to retry"),
+});
+
+// Schema for canceling a pipeline
+export const CancelPipelineSchema = z.object({
+  project_id: z.string().describe("Project ID or URL-encoded path"),
+  pipeline_id: z.number().describe("The ID of the pipeline to cancel"),
+});
+
 // Schema for the input parameters for pipeline job operations
 export const GetPipelineJobOutputSchema = z.object({
   project_id: z.string().describe("Project ID or URL-encoded path"),
@@ -1281,6 +1308,9 @@ export type GitLabPipeline = z.infer<typeof GitLabPipelineSchema>;
 export type ListPipelinesOptions = z.infer<typeof ListPipelinesSchema>;
 export type GetPipelineOptions = z.infer<typeof GetPipelineSchema>;
 export type ListPipelineJobsOptions = z.infer<typeof ListPipelineJobsSchema>;
+export type CreatePipelineOptions = z.infer<typeof CreatePipelineSchema>;
+export type RetryPipelineOptions = z.infer<typeof RetryPipelineSchema>;
+export type CancelPipelineOptions = z.infer<typeof CancelPipelineSchema>;
 export type GitLabMilestones = z.infer<typeof GitLabMilestonesSchema>;
 export type ListProjectMilestonesOptions = z.infer<typeof ListProjectMilestonesSchema>;
 export type GetProjectMilestoneOptions = z.infer<typeof GetProjectMilestoneSchema>;

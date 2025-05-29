@@ -86,6 +86,9 @@ import {
   GetPipelineSchema,
   ListPipelinesSchema,
   ListPipelineJobsSchema,
+  CreatePipelineSchema,
+  RetryPipelineSchema,
+  CancelPipelineSchema,
   // pipeline job schemas
   GetPipelineJobOutputSchema,
   GitLabPipelineJobSchema,
@@ -117,6 +120,9 @@ import {
   type ListPipelinesOptions,
   type GetPipelineOptions,
   type ListPipelineJobsOptions,
+  type CreatePipelineOptions,
+  type RetryPipelineOptions,
+  type CancelPipelineOptions,
   type GitLabPipelineJob,
   type GitLabMilestones,
   type ListProjectMilestonesOptions,
@@ -481,6 +487,21 @@ const allTools = [
     name: "get_pipeline_job_output",
     description: "Get the output/trace of a GitLab pipeline job number",
     inputSchema: zodToJsonSchema(GetPipelineJobOutputSchema),
+  },
+  {
+    name: "create_pipeline",
+    description: "Create a new pipeline for a branch or tag",
+    inputSchema: zodToJsonSchema(CreatePipelineSchema),
+  },
+  {
+    name: "retry_pipeline",
+    description: "Retry a failed or canceled pipeline",
+    inputSchema: zodToJsonSchema(RetryPipelineSchema),
+  },
+  {
+    name: "cancel_pipeline",
+    description: "Cancel a running pipeline",
+    inputSchema: zodToJsonSchema(CancelPipelineSchema),
   },
   {
     name: "list_merge_requests",
@@ -2485,6 +2506,87 @@ async function getPipelineJobOutput(projectId: string, jobId: number): Promise<s
 }
 
 /**
+ * Create a new pipeline
+ *
+ * @param {string} projectId - The ID or URL-encoded path of the project
+ * @param {string} ref - The branch or tag to run the pipeline on
+ * @param {Array} variables - Optional variables for the pipeline
+ * @returns {Promise<GitLabPipeline>} The created pipeline
+ */
+async function createPipeline(
+  projectId: string,
+  ref: string,
+  variables?: Array<{ key: string; value: string }>
+): Promise<GitLabPipeline> {
+  projectId = decodeURIComponent(projectId); // Decode project ID
+  const url = new URL(`${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/pipeline`);
+
+  const body: any = { ref };
+  if (variables && variables.length > 0) {
+    body.variables = variables.reduce((acc, { key, value }) => {
+      acc[key] = value;
+      return acc;
+    }, {} as Record<string, string>);
+  }
+
+  const response = await fetch(url.toString(), {
+    method: "POST",
+    headers: DEFAULT_HEADERS,
+    body: JSON.stringify(body),
+  });
+
+  await handleGitLabError(response);
+  const data = await response.json();
+  return GitLabPipelineSchema.parse(data);
+}
+
+/**
+ * Retry a pipeline
+ *
+ * @param {string} projectId - The ID or URL-encoded path of the project
+ * @param {number} pipelineId - The ID of the pipeline to retry
+ * @returns {Promise<GitLabPipeline>} The retried pipeline
+ */
+async function retryPipeline(projectId: string, pipelineId: number): Promise<GitLabPipeline> {
+  projectId = decodeURIComponent(projectId); // Decode project ID
+  const url = new URL(
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/pipelines/${pipelineId}/retry`
+  );
+
+  const response = await fetch(url.toString(), {
+    method: "POST",
+    headers: DEFAULT_HEADERS,
+  });
+
+  await handleGitLabError(response);
+  const data = await response.json();
+  return GitLabPipelineSchema.parse(data);
+}
+
+/**
+ * Cancel a pipeline
+ *
+ * @param {string} projectId - The ID or URL-encoded path of the project
+ * @param {number} pipelineId - The ID of the pipeline to cancel
+ * @returns {Promise<GitLabPipeline>} The canceled pipeline
+ */
+async function cancelPipeline(projectId: string, pipelineId: number): Promise<GitLabPipeline> {
+  projectId = decodeURIComponent(projectId); // Decode project ID
+  const url = new URL(
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/pipelines/${pipelineId}/cancel`
+  );
+
+  const response = await fetch(url.toString(), {
+    method: "POST",
+    headers: DEFAULT_HEADERS,
+  });
+
+  await handleGitLabError(response);
+  const data = await response.json();
+  return GitLabPipelineSchema.parse(data);
+}
+
+/**
  * Get the repository tree for a project
  * @param {string} projectId - The ID or URL-encoded path of the project
  * @param {GetRepositoryTreeOptions} options - Options for the tree
@@ -3404,6 +3506,45 @@ server.setRequestHandler(CallToolRequestSchema, async request => {
             {
               type: "text",
               text: jobOutput,
+            },
+          ],
+        };
+      }
+
+      case "create_pipeline": {
+        const { project_id, ref, variables } = CreatePipelineSchema.parse(request.params.arguments);
+        const pipeline = await createPipeline(project_id, ref, variables);
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Created pipeline #${pipeline.id} for ${ref}. Status: ${pipeline.status}\nWeb URL: ${pipeline.web_url}`,
+            },
+          ],
+        };
+      }
+
+      case "retry_pipeline": {
+        const { project_id, pipeline_id } = RetryPipelineSchema.parse(request.params.arguments);
+        const pipeline = await retryPipeline(project_id, pipeline_id);
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Retried pipeline #${pipeline.id}. Status: ${pipeline.status}\nWeb URL: ${pipeline.web_url}`,
+            },
+          ],
+        };
+      }
+
+      case "cancel_pipeline": {
+        const { project_id, pipeline_id } = CancelPipelineSchema.parse(request.params.arguments);
+        const pipeline = await cancelPipeline(project_id, pipeline_id);
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Canceled pipeline #${pipeline.id}. Status: ${pipeline.status}\nWeb URL: ${pipeline.web_url}`,
             },
           ],
         };
