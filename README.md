@@ -125,4 +125,5 @@ When using with the Claude App, you need to set up your API key and URLs directl
 48. `list_pipeline_jobs` - List all jobs in a specific pipeline
 49. `get_pipeline_job` - Get details of a GitLab pipeline job number
 50. `get_pipeline_job_output` - Get the output/trace of a GitLab pipeline job number
+51. `list_merge_requests` - List merge requests in a GitLab project with filtering options
 <!-- TOOLS-END -->

@@ -134,6 +134,7 @@ import {
   type GetRepositoryTreeOptions,
   UpdateIssueNoteSchema,
   CreateIssueNoteSchema,
+  ListMergeRequestsSchema,
 } from "./schemas.js";
 
 /**
@@ -466,6 +467,11 @@ const allTools = [
     description: "Get the output/trace of a GitLab pipeline job number",
     inputSchema: zodToJsonSchema(GetPipelineJobOutputSchema),
   },
+  {
+    name: "list_merge_requests",
+    description: "List merge requests in a GitLab project with filtering options",
+    inputSchema: zodToJsonSchema(ListMergeRequestsSchema),
+  },
 ];
 
 // Define which tools are read-only
@@ -476,6 +482,7 @@ const readOnlyTools = [
   "get_merge_request_diffs",
   "mr_discussions",
   "list_issues",
+  "list_merge_requests",
   "get_issue",
   "list_issue_links",
   "list_issue_discussions",
@@ -789,6 +796,43 @@ async function listIssues(
   await handleGitLabError(response);
   const data = await response.json();
   return z.array(GitLabIssueSchema).parse(data);
+}
+
+/**
+ * List merge requests in a GitLab project with optional filtering
+ *
+ * @param {string} projectId - The ID or URL-encoded path of the project
+ * @param {Object} options - Optional filtering parameters
+ * @returns {Promise<GitLabMergeRequest[]>} List of merge requests
+ */
+async function listMergeRequests(
+  projectId: string,
+  options: Omit<z.infer<typeof ListMergeRequestsSchema>, "project_id"> = {}
+): Promise<GitLabMergeRequest[]> {
+  projectId = decodeURIComponent(projectId); // Decode project ID
+  const url = new URL(
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/merge_requests`
+  );
+
+  // Add all query parameters
+  Object.entries(options).forEach(([key, value]) => {
+    if (value !== undefined) {
+      if (key === "labels" && Array.isArray(value)) {
+        // Handle array of labels
+        url.searchParams.append(key, value.join(","));
+      } else {
+        url.searchParams.append(key, value.toString());
+      }
+    }
+  });
+
+  const response = await fetch(url.toString(), {
+    ...DEFAULT_FETCH_CONFIG,
+  });
+
+  await handleGitLabError(response);
+  const data = await response.json();
+  return z.array(GitLabMergeRequestSchema).parse(data);
 }
 
 /**
@@ -3297,6 +3341,14 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
               text: jobOutput,
             },
           ],
+        };
+      }
+
+      case "list_merge_requests": {
+        const args = ListMergeRequestsSchema.parse(request.params.arguments);
+        const mergeRequests = await listMergeRequests(args.project_id, args);
+        return {
+          content: [{ type: "text", text: JSON.stringify(mergeRequests, null, 2) }],
         };
       }
 
