@@ -32,7 +32,7 @@ jobs:
     - name: Run tests
       run: npm test
       env:
-        GITLAB_API_URL: ${{ secrets.GITLAB_API_URL || 'https://gitlab.com' }}
+        GITLAB_API_URL: ${{ secrets.GITLAB_API_URL }}
         GITLAB_TOKEN: ${{ secrets.GITLAB_TOKEN_TEST }}
     
     - name: Type check
@@ -60,8 +60,8 @@ jobs:
           exit 1
         fi
       env:
-        GITLAB_API_URL: ${{ secrets.GITLAB_API_URL || 'https://gitlab.com' }}
-        GITLAB_TOKEN: ${{ secrets.GITLAB_TOKEN_TEST || 'dummy-token-for-test' }}
+        GITLAB_API_URL: ${{ secrets.GITLAB_API_URL }}
+        GITLAB_TOKEN: ${{ secrets.GITLAB_TOKEN_TEST }}
 
   integration-test:
     runs-on: ubuntu-latest
@@ -90,7 +90,7 @@ jobs:
         echo "Running integration tests with real GitLab API..."
         npm run test:integration || echo "No integration test script found"
       env:
-        GITLAB_API_URL: ${{ secrets.GITLAB_API_URL || 'https://gitlab.com' }}
+        GITLAB_API_URL: ${{ secrets.GITLAB_API_URL }}
         GITLAB_TOKEN: ${{ secrets.GITLAB_TOKEN_TEST }}
         PROJECT_ID: ${{ secrets.TEST_PROJECT_ID }}
     
@@ -160,6 +160,6 @@ jobs:
     - name: Run tests
       run: npm test
       env:
-        GITLAB_API_URL: ${{ secrets.GITLAB_API_URL || 'https://gitlab.com' }}
+        GITLAB_API_URL: ${{ secrets.GITLAB_API_URL }}
         GITLAB_TOKEN_TEST: ${{ secrets.GITLAB_TOKEN_TEST }}
         TEST_PROJECT_ID: ${{ secrets.TEST_PROJECT_ID }}
