@@ -489,10 +489,11 @@ const allTools = [
   },
   {
     name: "list_merge_requests",
-    description: "List merge requests in a GitLab project with filtering options",
+    description:
+      "List merge requests in a GitLab project with filtering options",
     inputSchema: zodToJsonSchema(ListMergeRequestsSchema),
   },
-  { 
+  {
     name: "list_milestones",
     description: "List milestones in a GitLab project with filtering options",
     inputSchema: zodToJsonSchema(ListProjectMilestonesSchema),
@@ -508,7 +509,7 @@ const allTools = [
     inputSchema: zodToJsonSchema(CreateProjectMilestoneSchema),
   },
   {
-    name: "edit_milestone ",
+    name: "edit_milestone",
     description: "Edit an existing milestone in a GitLab project",
     inputSchema: zodToJsonSchema(EditProjectMilestoneSchema),
   },
@@ -570,7 +571,7 @@ const readOnlyTools = [
   "get_milestone",
   "get_milestone_issue",
   "get_milestone_merge_requests",
-  "get_milestone_burndown_events"
+  "get_milestone_burndown_events",
 ];
 
 // Define which tools are related to wiki and can be toggled by USE_GITLAB_WIKI
@@ -2500,7 +2501,9 @@ async function getPipeline(
 ): Promise<GitLabPipeline> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/pipelines/${pipelineId}`
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(
+      projectId
+    )}/pipelines/${pipelineId}`
   );
 
   const response = await fetch(url.toString(), {
@@ -2531,7 +2534,9 @@ async function listPipelineJobs(
 ): Promise<GitLabPipelineJob[]> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/pipelines/${pipelineId}/jobs`
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(
+      projectId
+    )}/pipelines/${pipelineId}/jobs`
   );
 
   // Add all query parameters
@@ -2563,9 +2568,7 @@ async function getPipelineJob(
 ): Promise<GitLabPipelineJob> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(
-      projectId
-    )}/jobs/${jobId}`
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/jobs/${jobId}`
   );
 
   const response = await fetch(url.toString(), {
@@ -2705,7 +2708,9 @@ async function getProjectMilestone(
 ): Promise<GitLabMilestones> {
   projectId = decodeURIComponent(projectId);
   const url = new URL(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/milestones/${milestoneId}`
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(
+      projectId
+    )}/milestones/${milestoneId}`
   );
 
   const response = await fetch(url.toString(), {
@@ -2751,11 +2756,16 @@ async function createProjectMilestone(
 async function editProjectMilestone(
   projectId: string,
   milestoneId: number,
-  options: Omit<z.infer<typeof EditProjectMilestoneSchema>, "project_id" | "milestone_id">
+  options: Omit<
+    z.infer<typeof EditProjectMilestoneSchema>,
+    "project_id" | "milestone_id"
+  >
 ): Promise<GitLabMilestones> {
   projectId = decodeURIComponent(projectId);
   const url = new URL(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/milestones/${milestoneId}`
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(
+      projectId
+    )}/milestones/${milestoneId}`
   );
 
   const response = await fetch(url.toString(), {
@@ -2780,7 +2790,9 @@ async function deleteProjectMilestone(
 ): Promise<void> {
   projectId = decodeURIComponent(projectId);
   const url = new URL(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/milestones/${milestoneId}`
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(
+      projectId
+    )}/milestones/${milestoneId}`
   );
 
   const response = await fetch(url.toString(), {
@@ -2802,7 +2814,9 @@ async function getMilestoneIssues(
 ): Promise<GitLabIssue[]> {
   projectId = decodeURIComponent(projectId);
   const url = new URL(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/milestones/${milestoneId}/issues`
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(
+      projectId
+    )}/milestones/${milestoneId}/issues`
   );
 
   const response = await fetch(url.toString(), {
@@ -2825,7 +2839,9 @@ async function getMilestoneMergeRequests(
 ): Promise<GitLabMergeRequest[]> {
   projectId = decodeURIComponent(projectId);
   const url = new URL(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/milestones/${milestoneId}/merge_requests`
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(
+      projectId
+    )}/milestones/${milestoneId}/merge_requests`
   );
 
   const response = await fetch(url.toString(), {
@@ -2848,7 +2864,9 @@ async function promoteProjectMilestone(
 ): Promise<GitLabMilestones> {
   projectId = decodeURIComponent(projectId);
   const url = new URL(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/milestones/${milestoneId}/promote`
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(
+      projectId
+    )}/milestones/${milestoneId}/promote`
   );
 
   const response = await fetch(url.toString(), {
@@ -2872,7 +2890,9 @@ async function getMilestoneBurndownEvents(
 ): Promise<any[]> {
   projectId = decodeURIComponent(projectId);
   const url = new URL(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/milestones/${milestoneId}/burndown_events`
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(
+      projectId
+    )}/milestones/${milestoneId}/burndown_events`
   );
 
   const response = await fetch(url.toString(), {
@@ -3595,9 +3615,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       case "list_pipeline_jobs": {
-        const { project_id, pipeline_id, ...options } = ListPipelineJobsSchema.parse(
-          request.params.arguments
-        );
+        const { project_id, pipeline_id, ...options } =
+          ListPipelineJobsSchema.parse(request.params.arguments);
         const jobs = await listPipelineJobs(project_id, pipeline_id, options);
         return {
           content: [
@@ -3638,15 +3657,17 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           ],
         };
       }
-         
+
       case "list_merge_requests": {
         const args = ListMergeRequestsSchema.parse(request.params.arguments);
         const mergeRequests = await listMergeRequests(args.project_id, args);
         return {
-          content: [{ type: "text", text: JSON.stringify(mergeRequests, null, 2) }],
+          content: [
+            { type: "text", text: JSON.stringify(mergeRequests, null, 2) },
+          ],
         };
       }
-      
+
       case "list_milestones": {
         const { project_id, ...options } = ListProjectMilestonesSchema.parse(
           request.params.arguments
@@ -3661,7 +3682,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           ],
         };
       }
-      
+
       case "get_milestone": {
         const { project_id, milestone_id } = GetProjectMilestoneSchema.parse(
           request.params.arguments
@@ -3676,7 +3697,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           ],
         };
       }
-        
+
       case "create_milestone": {
         const { project_id, ...options } = CreateProjectMilestoneSchema.parse(
           request.params.arguments
@@ -3691,12 +3712,15 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           ],
         };
       }
-        
+
       case "edit_milestone": {
-        const { project_id, milestone_id, ...options } = EditProjectMilestoneSchema.parse(
-          request.params.arguments
+        const { project_id, milestone_id, ...options } =
+          EditProjectMilestoneSchema.parse(request.params.arguments);
+        const milestone = await editProjectMilestone(
+          project_id,
+          milestone_id,
+          options
         );
-        const milestone = await editProjectMilestone(project_id, milestone_id, options);
         return {
           content: [
             {
@@ -3745,10 +3769,12 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       case "get_milestone_merge_requests": {
-        const { project_id, milestone_id } = GetMilestoneMergeRequestsSchema.parse(
-          request.params.arguments
+        const { project_id, milestone_id } =
+          GetMilestoneMergeRequestsSchema.parse(request.params.arguments);
+        const mergeRequests = await getMilestoneMergeRequests(
+          project_id,
+          milestone_id
         );
-        const mergeRequests = await getMilestoneMergeRequests(project_id, milestone_id);
         return {
           content: [
             {
@@ -3760,10 +3786,12 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       case "promote_milestone": {
-        const { project_id, milestone_id } = PromoteProjectMilestoneSchema.parse(
-          request.params.arguments
+        const { project_id, milestone_id } =
+          PromoteProjectMilestoneSchema.parse(request.params.arguments);
+        const milestone = await promoteProjectMilestone(
+          project_id,
+          milestone_id
         );
-        const milestone = await promoteProjectMilestone(project_id, milestone_id);
         return {
           content: [
             {
@@ -3775,10 +3803,12 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       case "get_milestone_burndown_events": {
-        const { project_id, milestone_id } = GetMilestoneBurndownEventsSchema.parse(
-          request.params.arguments
+        const { project_id, milestone_id } =
+          GetMilestoneBurndownEventsSchema.parse(request.params.arguments);
+        const events = await getMilestoneBurndownEvents(
+          project_id,
+          milestone_id
         );
-        const events = await getMilestoneBurndownEvents(project_id, milestone_id);
         return {
           content: [
             {
@@ -3788,7 +3818,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           ],
         };
       }
-      
+
       default:
         throw new Error(`Unknown tool: ${request.params.name}`);
     }
