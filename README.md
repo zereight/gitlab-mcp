@@ -26,8 +26,8 @@ When using with the Claude App, you need to set up your API key and URLs directl
         "GITLAB_PERSONAL_ACCESS_TOKEN": "your_gitlab_token",
         "GITLAB_API_URL": "your_gitlab_api_url",
         "GITLAB_READ_ONLY_MODE": "false",
-        "USE_GITLAB_WIKI": "false",
-        "USE_MILESTONE": "false"
+        "USE_GITLAB_WIKI": "false", // use wiki api?
+        "USE_MILESTONE": "false" // use milestone api?
       }
     }
   }
