@@ -399,7 +399,7 @@ export const GitLabUserSchema = z.object({
   username: z.string(), // Changed from login to match GitLab API
   id: z.number(),
   name: z.string(),
-  avatar_url: z.string(),
+  avatar_url: z.string().nullable(),
   web_url: z.string(), // Changed from html_url to match GitLab API
 });
 
