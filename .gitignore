@@ -1,3 +1,8 @@
 node_modules
 .DS_Store
 build
+.env
+.env.local
+.env.test
+coverage/
+*.log

@@ -33,9 +33,7 @@ async function testCreateIssueNote() {
 
     if (!response.ok) {
       const errorBody = await response.text();
-      throw new Error(
-        `GitLab API error: ${response.status} ${response.statusText}\n${errorBody}`
-      );
+      throw new Error(`GitLab API error: ${response.status} ${response.statusText}\n${errorBody}`);
     }
 
     const data = await response.json();

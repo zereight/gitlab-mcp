@@ -31,6 +31,7 @@
 ### Fixed
 
 - Fixed issue where GitLab users without profile pictures would cause JSON-RPC errors
+
   - Changed `avatar_url` field to be nullable in GitLabUserSchema
   - This allows proper handling of users without avatars in GitLab API responses
   - See: [PR #55](https://github.com/zereight/gitlab-mcp/pull/55)
