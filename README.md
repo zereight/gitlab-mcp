@@ -132,4 +132,13 @@ $ sh scripts/image_push.sh docker_user_name
 49. `get_pipeline_job` - Get details of a GitLab pipeline job number
 50. `get_pipeline_job_output` - Get the output/trace of a GitLab pipeline job number
 51. `list_merge_requests` - List merge requests in a GitLab project with filtering options
+52. `list_milestones` - List milestones in a GitLab project with filtering options
+53. `get_milestone` - Get details of a specific milestone
+54. `create_milestone` - Create a new milestone in a GitLab project
+55. `edit_milestone ` - Edit an existing milestone in a GitLab project
+56. `delete_milestone` - Delete a milestone from a GitLab project
+57. `get_milestone_issue` - Get issues associated with a specific milestone
+58. `get_milestone_merge_requests` - Get merge requests associated with a specific milestone
+59. `promote_milestone` - Promote a milestone to the next stage
+60. `get_milestone_burndown_events` - Get burndown events for a specific milestone
 <!-- TOOLS-END -->
