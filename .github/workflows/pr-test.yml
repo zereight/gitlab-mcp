@@ -85,7 +85,7 @@ jobs:
       run: npm run build
     
     - name: Run integration tests
-      if: ${{ secrets.GITLAB_TOKEN_TEST }}
+      if: ${{ github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository }}
       run: |
         echo "Running integration tests with real GitLab API..."
         npm run test:integration || echo "No integration test script found"
