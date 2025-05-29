@@ -1,3 +1,23 @@
+## [1.0.48] - 2025-05-29
+
+### Added
+
+- 🎯 **Milestone Management Tools**: Added comprehensive milestone management functionality
+  - `create_milestone`: Create new milestones for GitLab projects
+  - `update_milestone`: Update existing milestone properties (title, description, dates, state)
+  - `delete_milestone`: Delete milestones from projects
+  - `list_milestones`: List and filter project milestones
+  - `get_milestone`: Get detailed information about specific milestones
+  - See: [PR #59](https://github.com/zereight/gitlab-mcp/pull/59)
+
+### Fixed
+
+- 🐳 **Docker Image Push Script**: Added automated Docker image push script for easier deployment
+  - Simplifies the Docker image build and push process
+  - See: [PR #60](https://github.com/zereight/gitlab-mcp/pull/60)
+
+---
+
 ## [1.0.47] - 2025-05-29
 
 ### Added
