@@ -28,7 +28,8 @@ When using with the Claude App, you need to set up your API key and URLs directl
         "GITLAB_READ_ONLY_MODE": "false",
         "USE_GITLAB_WIKI": "false", // use wiki api?
         "USE_MILESTONE": "false", // use milestone api?
-        "USE_PIPELINE": "false" // use pipeline api?
+        "USE_PIPELINE": "false", // use pipeline api?
+        "ENABLED_TOOLS": "get_file_contents,list_issues,create_merge_request" // optional: comma-separated list of tools to enable
       }
     }
   }
@@ -58,6 +59,8 @@ When using with the Claude App, you need to set up your API key and URLs directl
         "USE_MILESTONE",
         "-e",
         "USE_PIPELINE",
+        "-e",
+        "ENABLED_TOOLS",
         "iwakitakuma/gitlab-mcp"
       ],
       "env": {
@@ -66,7 +69,8 @@ When using with the Claude App, you need to set up your API key and URLs directl
         "GITLAB_READ_ONLY_MODE": "false",
         "USE_GITLAB_WIKI": "true",
         "USE_MILESTONE": "true",
-        "USE_PIPELINE": "true"
+        "USE_PIPELINE": "true",
+        "ENABLED_TOOLS": "get_file_contents,list_issues,create_merge_request" // optional: comma-separated list of tools to enable
       }
     }
   }
@@ -87,6 +91,7 @@ $ sh scripts/image_push.sh docker_user_name
 - `USE_GITLAB_WIKI`: When set to 'true', enables the wiki-related tools (list_wiki_pages, get_wiki_page, create_wiki_page, update_wiki_page, delete_wiki_page). By default, wiki features are disabled.
 - `USE_MILESTONE`: When set to 'true', enables the milestone-related tools (list_milestones, get_milestone, create_milestone, edit_milestone, delete_milestone, get_milestone_issue, get_milestone_merge_requests, promote_milestone, get_milestone_burndown_events). By default, milestone features are disabled.
 - `USE_PIPELINE`: When set to 'true', enables the pipeline-related tools (list_pipelines, get_pipeline, list_pipeline_jobs, get_pipeline_job, get_pipeline_job_output, create_pipeline, retry_pipeline, cancel_pipeline). By default, pipeline features are disabled.
+- `ENABLED_TOOLS`: When set to a comma-separated list of tool names, only the specified tools will be enabled. This overrides all other tool filtering options. Example: `ENABLED_TOOLS="get_file_contents,list_issues,create_merge_request"`. If not set, all tools are enabled based on other environment variables.
 
 ## Tools 🛠️
 

@@ -193,6 +193,14 @@ const GITLAB_READ_ONLY_MODE = process.env.GITLAB_READ_ONLY_MODE === "true";
 const USE_GITLAB_WIKI = process.env.USE_GITLAB_WIKI === "true";
 const USE_MILESTONE = process.env.USE_MILESTONE === "true";
 const USE_PIPELINE = process.env.USE_PIPELINE === "true";
+const ENABLED_TOOLS = process.env.ENABLED_TOOLS;
+
+// Parse ENABLED_TOOLS as comma-separated list if provided
+const enabledToolsList = ENABLED_TOOLS
+  ? ENABLED_TOOLS.split(",")
+      .map(tool => tool.trim())
+      .filter(tool => tool.length > 0)
+  : null;
 
 // Add proxy configuration
 const HTTP_PROXY = process.env.HTTP_PROXY;
@@ -2869,9 +2877,14 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
     ? tools1
     : tools1.filter(tool => !milestoneToolNames.includes(tool.name));
   // Toggle pipeline tools by USE_PIPELINE flag
-  let tools = USE_PIPELINE
+  const tools3 = USE_PIPELINE
     ? tools2
     : tools2.filter(tool => !pipelineToolNames.includes(tool.name));
+
+  // Apply ENABLED_TOOLS filter if specified (overrides other filters)
+  let tools = enabledToolsList
+    ? tools3.filter(tool => enabledToolsList.includes(tool.name))
+    : tools3;
 
   // <<< START: Gemini 호환성을 위해 $schema 제거 >>>
   tools = tools.map(tool => {
