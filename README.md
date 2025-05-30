@@ -26,7 +26,9 @@ When using with the Claude App, you need to set up your API key and URLs directl
         "GITLAB_PERSONAL_ACCESS_TOKEN": "your_gitlab_token",
         "GITLAB_API_URL": "your_gitlab_api_url",
         "GITLAB_READ_ONLY_MODE": "false",
-        "USE_GITLAB_WIKI": "true"
+        "USE_GITLAB_WIKI": "false", // use wiki api?
+        "USE_MILESTONE": "false", // use milestone api?
+        "USE_PIPELINE": "false" // use pipeline api?
       }
     }
   }
@@ -52,17 +54,29 @@ When using with the Claude App, you need to set up your API key and URLs directl
         "GITLAB_READ_ONLY_MODE",
         "-e",
         "USE_GITLAB_WIKI",
-        "nkwd/gitlab-mcp"
+        "-e",
+        "USE_MILESTONE",
+        "-e",
+        "USE_PIPELINE",
+        "iwakitakuma/gitlab-mcp"
       ],
       "env": {
         "GITLAB_PERSONAL_ACCESS_TOKEN": "your_gitlab_token",
         "GITLAB_API_URL": "https://gitlab.com/api/v4", // Optional, for self-hosted GitLab
         "GITLAB_READ_ONLY_MODE": "false",
-        "USE_GITLAB_WIKI": "true"
+        "USE_GITLAB_WIKI": "true",
+        "USE_MILESTONE": "true",
+        "USE_PIPELINE": "true"
       }
     }
   }
 }
+```
+
+#### Docker Image Push
+
+```shell
+$ sh scripts/image_push.sh docker_user_name
 ```
 
 ### Environment Variables
@@ -71,6 +85,8 @@ When using with the Claude App, you need to set up your API key and URLs directl
 - `GITLAB_API_URL`: Your GitLab API URL. (Default: `https://gitlab.com/api/v4`)
 - `GITLAB_READ_ONLY_MODE`: When set to 'true', restricts the server to only expose read-only operations. Useful for enhanced security or when write access is not needed. Also useful for using with Cursor and it's 40 tool limit.
 - `USE_GITLAB_WIKI`: When set to 'true', enables the wiki-related tools (list_wiki_pages, get_wiki_page, create_wiki_page, update_wiki_page, delete_wiki_page). By default, wiki features are disabled.
+- `USE_MILESTONE`: When set to 'true', enables the milestone-related tools (list_milestones, get_milestone, create_milestone, edit_milestone, delete_milestone, get_milestone_issue, get_milestone_merge_requests, promote_milestone, get_milestone_burndown_events). By default, milestone features are disabled.
+- `USE_PIPELINE`: When set to 'true', enables the pipeline-related tools (list_pipelines, get_pipeline, list_pipeline_jobs, get_pipeline_job, get_pipeline_job_output, create_pipeline, retry_pipeline, cancel_pipeline). By default, pipeline features are disabled.
 
 ## Tools 🛠️
 
@@ -93,30 +109,50 @@ When using with the Claude App, you need to set up your API key and URLs directl
 15. `mr_discussions` - List discussion items for a merge request
 16. `update_merge_request_note` - Modify an existing merge request thread note
 17. `create_merge_request_note` - Add a new note to an existing merge request thread
-18. `list_issues` - List issues in a GitLab project with filtering options
-19. `get_issue` - Get details of a specific issue in a GitLab project
-20. `update_issue` - Update an issue in a GitLab project
-21. `delete_issue` - Delete an issue from a GitLab project
-22. `list_issue_links` - List all issue links for a specific issue
-23. `list_issue_discussions` - List discussions for an issue in a GitLab project
-24. `get_issue_link` - Get a specific issue link
-25. `create_issue_link` - Create an issue link between two issues
-26. `delete_issue_link` - Delete an issue link
-27. `list_namespaces` - List all namespaces available to the current user
-28. `get_namespace` - Get details of a namespace by ID or path
-29. `verify_namespace` - Verify if a namespace path exists
-30. `get_project` - Get details of a specific project
-31. `list_projects` - List projects accessible by the current user
-32. `list_labels` - List labels for a project
-33. `get_label` - Get a single label from a project
-34. `create_label` - Create a new label in a project
-35. `update_label` - Update an existing label in a project
-36. `delete_label` - Delete a label from a project
-37. `list_group_projects` - List projects in a GitLab group with filtering options
-38. `list_wiki_pages` - List wiki pages in a GitLab project
-39. `get_wiki_page` - Get details of a specific wiki page
-40. `create_wiki_page` - Create a new wiki page in a GitLab project
-41. `update_wiki_page` - Update an existing wiki page in a GitLab project
-42. `delete_wiki_page` - Delete a wiki page from a GitLab project
-43. `get_repository_tree` - Get the repository tree for a GitLab project (list files and directories)
+18. `update_issue_note` - Modify an existing issue thread note
+19. `create_issue_note` - Add a new note to an existing issue thread
+20. `list_issues` - List issues in a GitLab project with filtering options
+21. `get_issue` - Get details of a specific issue in a GitLab project
+22. `update_issue` - Update an issue in a GitLab project
+23. `delete_issue` - Delete an issue from a GitLab project
+24. `list_issue_links` - List all issue links for a specific issue
+25. `list_issue_discussions` - List discussions for an issue in a GitLab project
+26. `get_issue_link` - Get a specific issue link
+27. `create_issue_link` - Create an issue link between two issues
+28. `delete_issue_link` - Delete an issue link
+29. `list_namespaces` - List all namespaces available to the current user
+30. `get_namespace` - Get details of a namespace by ID or path
+31. `verify_namespace` - Verify if a namespace path exists
+32. `get_project` - Get details of a specific project
+33. `list_projects` - List projects accessible by the current user
+34. `list_labels` - List labels for a project
+35. `get_label` - Get a single label from a project
+36. `create_label` - Create a new label in a project
+37. `update_label` - Update an existing label in a project
+38. `delete_label` - Delete a label from a project
+39. `list_group_projects` - List projects in a GitLab group with filtering options
+40. `list_wiki_pages` - List wiki pages in a GitLab project
+41. `get_wiki_page` - Get details of a specific wiki page
+42. `create_wiki_page` - Create a new wiki page in a GitLab project
+43. `update_wiki_page` - Update an existing wiki page in a GitLab project
+44. `delete_wiki_page` - Delete a wiki page from a GitLab project
+45. `get_repository_tree` - Get the repository tree for a GitLab project (list files and directories)
+46. `list_pipelines` - List pipelines in a GitLab project with filtering options
+47. `get_pipeline` - Get details of a specific pipeline in a GitLab project
+48. `list_pipeline_jobs` - List all jobs in a specific pipeline
+49. `get_pipeline_job` - Get details of a GitLab pipeline job number
+50. `get_pipeline_job_output` - Get the output/trace of a GitLab pipeline job number
+51. `create_pipeline` - Create a new pipeline for a branch or tag
+52. `retry_pipeline` - Retry a failed or canceled pipeline
+53. `cancel_pipeline` - Cancel a running pipeline
+54. `list_merge_requests` - List merge requests in a GitLab project with filtering options
+55. `list_milestones` - List milestones in a GitLab project with filtering options
+56. `get_milestone` - Get details of a specific milestone
+57. `create_milestone` - Create a new milestone in a GitLab project
+58. `edit_milestone ` - Edit an existing milestone in a GitLab project
+59. `delete_milestone` - Delete a milestone from a GitLab project
+60. `get_milestone_issue` - Get issues associated with a specific milestone
+61. `get_milestone_merge_requests` - Get merge requests associated with a specific milestone
+62. `promote_milestone` - Promote a milestone to the next stage
+63. `get_milestone_burndown_events` - Get burndown events for a specific milestone
 <!-- TOOLS-END -->
