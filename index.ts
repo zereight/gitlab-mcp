@@ -309,12 +309,6 @@ const allTools = [
     inputSchema: zodToJsonSchema(GetBranchDiffsSchema),
   },
   {
-    name: "get_branch_diffs",
-    description:
-      "Get the changes/diffs between two branches or commits in a GitLab project",
-    inputSchema: zodToJsonSchema(GetBranchDiffsSchema),
-  },
-  {
     name: "update_merge_request",
     description: "Update a merge request (Either mergeRequestIid or branchName must be provided)",
     inputSchema: zodToJsonSchema(UpdateMergeRequestSchema),
