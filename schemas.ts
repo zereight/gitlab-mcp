@@ -618,21 +618,21 @@ export const GitLabDiscussionNoteSchema = z.object({
       old_path: z.string(),
       new_path: z.string(),
       position_type: z.enum(["text", "image", "file"]),
-      old_line: z.number().nullable(),
-      new_line: z.number().nullable(),
+      old_line: z.number().nullish(), // This is missing for image diffs
+      new_line: z.number().nullish(), // This is missing for image diffs
       line_range: z
         .object({
           start: z.object({
             line_code: z.string(),
             type: z.enum(["new", "old", "expanded"]),
-            old_line: z.number().nullable(),
-            new_line: z.number().nullable(),
+            old_line: z.number().nullish(), // This is missing for image diffs
+            new_line: z.number().nullish(), // This is missing for image diffs
           }),
           end: z.object({
             line_code: z.string(),
             type: z.enum(["new", "old", "expanded"]),
-            old_line: z.number().nullable(),
-            new_line: z.number().nullable(),
+            old_line: z.number().nullish(), // This is missing for image diffs
+            new_line: z.number().nullish(), // This is missing for image diffs
           }),
         })
         .nullable()
