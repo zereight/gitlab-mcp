@@ -135,6 +135,18 @@ import {
   type GetRepositoryTreeOptions,
   UpdateIssueNoteSchema,
   CreateIssueNoteSchema,
+  // Vulnerability schemas
+  GitLabVulnerabilitySchema,
+  GitLabVulnerabilityFindingSchema,
+  GitLabVulnerabilityProjectSchema,
+  GitLabVulnerabilityFindingLocationSchema,
+  ListVulnerabilitiesSchema,
+  // Vulnerability types
+  type GitLabVulnerability,
+  type GitLabVulnerabilityFinding,
+  type GitLabVulnerabilityProject,
+  type GitLabVulnerabilityFindingLocation,
+  type ListVulnerabilitiesOptions,
 } from "./schemas.js";
 
 /**
@@ -233,12 +245,18 @@ const allTools = [
     description: "Append label in MR - Update a merge request including adding labels (Either mergeRequestIid or branchName must be provided)",
     inputSchema: zodToJsonSchema(UpdateMergeRequestSchema),
   },
+  {
+    name: "list_vulnerabilities",
+    description: "List vulnerabilities - List security vulnerabilities found in a GitLab project with filtering options",
+    inputSchema: zodToJsonSchema(ListVulnerabilitiesSchema),
+  },
 ];
 
 // Define which tools are read-only - Custom MR-only version
 const readOnlyTools = [
   "get_merge_request",
   "mr_discussions",
+  "list_vulnerabilities",
 ];
 
 // Define which tools are related to wiki and can be toggled by USE_GITLAB_WIKI - Custom MR-only version (no wiki tools)
@@ -2374,6 +2392,49 @@ async function getRepositoryTree(
   return z.array(GitLabTreeItemSchema).parse(data);
 }
 
+/**
+ * List vulnerabilities in a GitLab project
+ * @param {string} projectId - The ID or URL-encoded path of the project
+ * @param {ListVulnerabilitiesOptions} options - Options for filtering vulnerabilities
+ * @returns {Promise<GitLabVulnerability[]>}
+ */
+async function listVulnerabilities(
+  projectId: string,
+  options: Omit<ListVulnerabilitiesOptions, "project_id"> = {}
+): Promise<GitLabVulnerability[]> {
+  projectId = decodeURIComponent(projectId); // Decode project ID
+  const queryParams = new URLSearchParams();
+  
+  if (options.page) queryParams.append("page", options.page.toString());
+  if (options.per_page) queryParams.append("per_page", options.per_page.toString());
+  if (options.state) queryParams.append("state", options.state);
+  if (options.severity) queryParams.append("severity", options.severity);
+  if (options.report_type) queryParams.append("report_type", options.report_type);
+  if (options.scanner) {
+    options.scanner.forEach(scanner => queryParams.append("scanner", scanner));
+  }
+  if (options.sort) queryParams.append("sort", options.sort);
+  if (options.sort_direction) queryParams.append("sort_direction", options.sort_direction);
+
+  const url = new URL(
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/vulnerabilities`
+  );
+  url.search = queryParams.toString();
+
+  const response = await fetch(url.toString(), {
+    ...DEFAULT_FETCH_CONFIG,
+    headers: DEFAULT_HEADERS,
+  });
+
+  if (response.status === 404) {
+    throw new Error("Project not found or vulnerabilities feature not enabled");
+  }
+
+  await handleGitLabError(response);
+  const data = await response.json();
+  return z.array(GitLabVulnerabilitySchema).parse(data);
+}
+
 server.setRequestHandler(ListToolsRequestSchema, async () => {
   // Apply read-only filter first
   const tools0 = GITLAB_READ_ONLY_MODE
@@ -2663,6 +2724,17 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         return {
           content: [
             { type: "text", text: JSON.stringify(discussions, null, 2) },
+          ],
+        };
+      }
+
+      case "list_vulnerabilities": {
+        const args = ListVulnerabilitiesSchema.parse(request.params.arguments);
+        const { project_id, ...options } = args;
+        const vulnerabilities = await listVulnerabilities(project_id, options);
+        return {
+          content: [
+            { type: "text", text: JSON.stringify(vulnerabilities, null, 2) },
           ],
         };
       }
