@@ -549,13 +549,13 @@ export const GitLabDiscussionNoteSchema = z.object({
         .object({
           start: z.object({
             line_code: z.string(),
-            type: z.enum(["new", "old", "expanded"]),
+            type: z.enum(["new", "old", "expanded"]).nullable(),
             old_line: z.number().nullable(),
             new_line: z.number().nullable(),
           }),
           end: z.object({
             line_code: z.string(),
-            type: z.enum(["new", "old", "expanded"]),
+            type: z.enum(["new", "old", "expanded"]).nullable(),
             old_line: z.number().nullable(),
             new_line: z.number().nullable(),
           }),
@@ -577,6 +577,11 @@ export const GitLabDiscussionSchema = z.object({
   notes: z.array(GitLabDiscussionNoteSchema),
 });
 export type GitLabDiscussion = z.infer<typeof GitLabDiscussionSchema>;
+
+// Input schema for listing merge request notes (filtered for unresolved diff notes)
+export const ListMergeRequestNotesSchema = ProjectParamsSchema.extend({
+  merge_request_iid: z.number().describe("The IID of a merge request"),
+});
 
 // Input schema for listing merge request discussions
 export const ListMergeRequestDiscussionsSchema = ProjectParamsSchema.extend({
@@ -1238,3 +1243,4 @@ export type GitLabPipeline = z.infer<typeof GitLabPipelineSchema>;
 export type ListPipelinesOptions = z.infer<typeof ListPipelinesSchema>;
 export type GetPipelineOptions = z.infer<typeof GetPipelineSchema>;
 export type ListPipelineJobsOptions = z.infer<typeof ListPipelineJobsSchema>;
+export type ListMergeRequestNotesOptions = z.infer<typeof ListMergeRequestNotesSchema>;
