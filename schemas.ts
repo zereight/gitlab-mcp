@@ -1267,6 +1267,36 @@ export const ListVulnerabilitiesSchema = z.object({
   sort_direction: z.enum(["asc", "desc"]).optional().describe("Sort direction"),
 });
 
+// GraphQL Vulnerability schemas
+export const GitLabGraphQLUserSchema = z.object({
+  id: z.string().describe("GraphQL ID of the user"),
+  username: z.string().describe("Username of the user"),
+}).describe("User information from GraphQL");
+
+export const GitLabGraphQLProjectSchema = z.object({
+  id: z.string().describe("GraphQL ID of the project"),
+  name: z.string().describe("Project name"),
+  fullPath: z.string().describe("Full path of the project"),
+}).describe("Project information from GraphQL");
+
+export const GitLabGraphQLVulnerabilitySchema = z.object({
+  title: z.string().describe("Title of the vulnerability"),
+  description: z.string().nullable().describe("Description of the vulnerability"),
+  state: z.string().describe("State of the vulnerability (DETECTED, CONFIRMED, RESOLVED, etc.)"),
+  severity: z.string().describe("Severity level of the vulnerability"),
+  reportType: z.string().describe("Type of security report"),
+  project: GitLabGraphQLProjectSchema.describe("Project where the vulnerability was found"),
+  detectedAt: z.string().nullable().describe("Date when the vulnerability was detected"),
+  confirmedAt: z.string().nullable().describe("Date when the vulnerability was confirmed"),
+  resolvedAt: z.string().nullable().describe("Date when the vulnerability was resolved"),
+  resolvedBy: GitLabGraphQLUserSchema.nullable().describe("User who resolved the vulnerability"),
+}).describe("Vulnerability details from GraphQL API");
+
+export const GetVulnerabilityByIdSchema = z.object({
+  project_id: z.string().describe("Project ID or URL-encoded path"),
+  vulnerability_id: z.string().describe("The vulnerability ID (numeric part only, without gid prefix)"),
+}).describe("Parameters for fetching a specific vulnerability by ID using GraphQL");
+
 // Export types
 export type GitLabAuthor = z.infer<typeof GitLabAuthorSchema>;
 export type GitLabFork = z.infer<typeof GitLabForkSchema>;
@@ -1335,3 +1365,9 @@ export type GitLabVulnerabilityFinding = z.infer<typeof GitLabVulnerabilityFindi
 export type GitLabVulnerabilityProject = z.infer<typeof GitLabVulnerabilityProjectSchema>;
 export type GitLabVulnerability = z.infer<typeof GitLabVulnerabilitySchema>;
 export type ListVulnerabilitiesOptions = z.infer<typeof ListVulnerabilitiesSchema>;
+
+// GraphQL Vulnerability types
+export type GitLabGraphQLUser = z.infer<typeof GitLabGraphQLUserSchema>;
+export type GitLabGraphQLProject = z.infer<typeof GitLabGraphQLProjectSchema>;
+export type GitLabGraphQLVulnerability = z.infer<typeof GitLabGraphQLVulnerabilitySchema>;
+export type GetVulnerabilityByIdOptions = z.infer<typeof GetVulnerabilityByIdSchema>;

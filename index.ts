@@ -147,6 +147,16 @@ import {
   type GitLabVulnerabilityProject,
   type GitLabVulnerabilityFindingLocation,
   type ListVulnerabilitiesOptions,
+  // GraphQL Vulnerability schemas
+  GitLabGraphQLVulnerabilitySchema,
+  GitLabGraphQLUserSchema,
+  GitLabGraphQLProjectSchema,
+  GetVulnerabilityByIdSchema,
+  // GraphQL Vulnerability types
+  type GitLabGraphQLVulnerability,
+  type GitLabGraphQLUser,
+  type GitLabGraphQLProject,
+  type GetVulnerabilityByIdOptions,
 } from "./schemas.js";
 
 /**
@@ -250,6 +260,11 @@ const allTools = [
     description: "List vulnerabilities - List security vulnerabilities found in a GitLab project with filtering options",
     inputSchema: zodToJsonSchema(ListVulnerabilitiesSchema),
   },
+  {
+    name: "get_vulnerability_by_id",
+    description: "Get vulnerability by ID - Fetch detailed information about a specific vulnerability using GraphQL",
+    inputSchema: zodToJsonSchema(GetVulnerabilityByIdSchema),
+  },
 ];
 
 // Define which tools are read-only - Custom MR-only version
@@ -257,6 +272,7 @@ const readOnlyTools = [
   "get_merge_request",
   "mr_discussions",
   "list_vulnerabilities",
+  "get_vulnerability_by_id",
 ];
 
 // Define which tools are related to wiki and can be toggled by USE_GITLAB_WIKI - Custom MR-only version (no wiki tools)
@@ -2435,6 +2451,76 @@ async function listVulnerabilities(
   return z.array(GitLabVulnerabilitySchema).parse(data);
 }
 
+/**
+ * Get a specific vulnerability by ID using GraphQL
+ * @param {string} projectId - The ID or URL-encoded path of the project
+ * @param {string} vulnerabilityId - The vulnerability ID (numeric part only)
+ * @returns {Promise<GitLabGraphQLVulnerability>}
+ */
+async function getVulnerabilityById(
+  projectId: string,
+  vulnerabilityId: string
+): Promise<GitLabGraphQLVulnerability> {
+  projectId = decodeURIComponent(projectId); // Decode project ID
+  
+  const graphqlQuery = {
+    query: `
+      query GetVulnerability($id: VulnerabilityID!) {
+        vulnerability(id: $id) {
+          title
+          description
+          state
+          severity
+          reportType
+          project {
+            id
+            name
+            fullPath
+          }
+          detectedAt
+          confirmedAt
+          resolvedAt
+          resolvedBy {
+            id
+            username
+          }
+        }
+      }
+    `,
+    variables: {
+      id: `gid://gitlab/Vulnerability/${vulnerabilityId}`
+    }
+  };
+
+  const graphqlUrl = `${GITLAB_API_URL}/graphql`;
+  
+  const response = await fetch(graphqlUrl, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${GITLAB_PERSONAL_ACCESS_TOKEN}`,
+    },
+    body: JSON.stringify(graphqlQuery),
+  });
+
+  if (response.status === 404) {
+    throw new Error("Vulnerability not found or GraphQL API not available");
+  }
+
+  await handleGitLabError(response);
+  const result: any = await response.json();
+  
+  if (result.errors) {
+    throw new Error(`GraphQL Error: ${result.errors.map((e: any) => e.message).join(', ')}`);
+  }
+  
+  if (!result.data || !result.data.vulnerability) {
+    throw new Error("Vulnerability not found");
+  }
+  
+  return GitLabGraphQLVulnerabilitySchema.parse(result.data.vulnerability);
+}
+
 server.setRequestHandler(ListToolsRequestSchema, async () => {
   // Apply read-only filter first
   const tools0 = GITLAB_READ_ONLY_MODE
@@ -2735,6 +2821,16 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         return {
           content: [
             { type: "text", text: JSON.stringify(vulnerabilities, null, 2) },
+          ],
+        };
+      }
+
+      case "get_vulnerability_by_id": {
+        const args = GetVulnerabilityByIdSchema.parse(request.params.arguments);
+        const vulnerability = await getVulnerabilityById(args.project_id, args.vulnerability_id);
+        return {
+          content: [
+            { type: "text", text: JSON.stringify(vulnerability, null, 2) },
           ],
         };
       }
