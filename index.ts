@@ -16,6 +16,7 @@ import fs from "fs";
 import path from "path";
 // Add type imports for proxy agents
 import { Agent } from "http";
+import { Agent as HttpsAgent } from 'https';
 import { URL } from "url";
 
 import {
@@ -197,6 +198,16 @@ const USE_PIPELINE = process.env.USE_PIPELINE === "true";
 // Add proxy configuration
 const HTTP_PROXY = process.env.HTTP_PROXY;
 const HTTPS_PROXY = process.env.HTTPS_PROXY;
+const NODE_TLS_REJECT_UNAUTHORIZED = process.env.NODE_TLS_REJECT_UNAUTHORIZED;
+const GITLAB_CA_CERT_PATH = process.env.GITLAB_CA_CERT_PATH;
+
+let sslOptions= undefined;
+if (NODE_TLS_REJECT_UNAUTHORIZED === '0') {
+  sslOptions = { rejectUnauthorized: false };
+} else if (GITLAB_CA_CERT_PATH) {
+    const ca = fs.readFileSync(GITLAB_CA_CERT_PATH);
+    sslOptions = { ca };
+}
 
 // Configure proxy agents if proxies are set
 let httpAgent: Agent | undefined = undefined;
@@ -213,9 +224,11 @@ if (HTTPS_PROXY) {
   if (HTTPS_PROXY.startsWith("socks")) {
     httpsAgent = new SocksProxyAgent(HTTPS_PROXY);
   } else {
-    httpsAgent = new HttpsProxyAgent(HTTPS_PROXY);
+    httpsAgent = new HttpsProxyAgent(HTTPS_PROXY, sslOptions);
   }
 }
+httpsAgent = httpsAgent || new HttpsAgent(sslOptions);
+httpAgent = httpAgent || new Agent();
 
 // Modify DEFAULT_HEADERS to include agent configuration
 const DEFAULT_HEADERS = {
