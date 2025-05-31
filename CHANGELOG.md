@@ -1,3 +1,20 @@
+## [1.0.54] - 2025-05-31
+
+### Added
+
+- 🌐 **Multi-Platform Support**: Added support for multiple platforms to improve compatibility across different environments
+  - Enhanced platform detection and configuration handling
+  - Improved cross-platform functionality for GitLab MCP server
+  - See: [PR #71](https://github.com/zereight/gitlab-mcp/pull/71), [Issue #69](https://github.com/zereight/gitlab-mcp/issues/69)
+
+- 🔐 **Custom SSL Configuration**: Added custom SSL options for enhanced security and flexibility
+  - Support for custom SSL certificates and configurations
+  - Improved HTTPS connection handling with custom SSL settings
+  - Better support for self-signed certificates and custom CA configurations
+  - See: [PR #72](https://github.com/zereight/gitlab-mcp/pull/72), [Issue #70](https://github.com/zereight/gitlab-mcp/issues/70)
+
+---
+
 ## [1.0.48] - 2025-05-29
 
 ### Added
