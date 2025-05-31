@@ -10,9 +10,9 @@ IMAGE_NAME=gitlab-mcp
 IMAGE_VERSION=$(jq -r '.version' package.json)
 
 echo "${DOCKER_USER}/${IMAGE_NAME}:${IMAGE_VERSION}"
-docker build --platform=linux/arm64 -t "${DOCKER_USER}/${IMAGE_NAME}:latest" .
 
-docker tag "${DOCKER_USER}/${IMAGE_NAME}:latest" "${DOCKER_USER}/${IMAGE_NAME}:${IMAGE_VERSION}"
-
-docker push "${DOCKER_USER}/${IMAGE_NAME}:latest"
-docker push "${DOCKER_USER}/${IMAGE_NAME}:${IMAGE_VERSION}"
+docker buildx build --platform linux/arm64,linux/amd64 \
+  -t "${DOCKER_USER}/${IMAGE_NAME}:latest" \
+  -t "${DOCKER_USER}/${IMAGE_NAME}:${IMAGE_VERSION}" \
+  --push \
+  .
