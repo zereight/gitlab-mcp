@@ -240,39 +240,33 @@ const allTools = [
     description: "Get MR metadata - details of a merge request (Either mergeRequestIid or branchName must be provided)",
     inputSchema: zodToJsonSchema(GetMergeRequestSchema),
   },
-  // {
-  //   name: "mr_discussions",
-  //   description: "List unresolved diff discussions - List discussion items for a merge request filtered for unresolved diff notes (DiffNote type, resolvable=true, resolved=false)",
-  //   inputSchema: zodToJsonSchema(ListMergeRequestDiscussionsSchema),
-  // },
-  // {
-  //   name: "create_merge_request_note",
-  //   description: "Add MR notes - Add a reply note to an existing merge request thread",
-  //   inputSchema: zodToJsonSchema(CreateMergeRequestNoteSchema),
-  // },
-  // {
-  //   name: "update_merge_request",
-  //   description: "Append label in MR - Update a merge request including adding labels (Either mergeRequestIid or branchName must be provided)",
-  //   inputSchema: zodToJsonSchema(UpdateMergeRequestSchema),
-  // },
-  // {
-  //   name: "list_vulnerabilities",
-  //   description: "List vulnerabilities - List security vulnerabilities found in a GitLab project with filtering options",
-  //   inputSchema: zodToJsonSchema(ListVulnerabilitiesSchema),
-  // },
-  // {
-  //   name: "get_vulnerability_by_id",
-  //   description: "Get vulnerability by ID - Fetch detailed information about a specific vulnerability using GraphQL",
-  //   inputSchema: zodToJsonSchema(GetVulnerabilityByIdSchema),
-  // },
+  {
+    name: "mr_discussions",
+    description: "List unresolved diff discussions - List discussion items for a merge request filtered for unresolved diff notes (DiffNote type, resolvable=true, resolved=false)",
+    inputSchema: zodToJsonSchema(ListMergeRequestDiscussionsSchema),
+  },
+  {
+    name: "create_merge_request_note",
+    description: "Add MR notes - Add a reply note to an existing merge request thread",
+    inputSchema: zodToJsonSchema(CreateMergeRequestNoteSchema),
+  },
+  {
+    name: "update_merge_request",
+    description: "Append label in MR - Update a merge request including adding labels (Either mergeRequestIid or branchName must be provided)",
+    inputSchema: zodToJsonSchema(UpdateMergeRequestSchema),
+  },
+  {
+    name: "get_vulnerability_by_id",
+    description: "Get vulnerability by ID - Fetch detailed information about a specific vulnerability using GraphQL",
+    inputSchema: zodToJsonSchema(GetVulnerabilityByIdSchema),
+  },
 ];
 
 // Define which tools are read-only - Custom MR-only version
 const readOnlyTools = [
   "get_merge_request",
-  // "mr_discussions",
-  // "list_vulnerabilities",
-  // "get_vulnerability_by_id",
+  "mr_discussions",
+  "get_vulnerability_by_id",
 ];
 
 // Define which tools are related to wiki and can be toggled by USE_GITLAB_WIKI - Custom MR-only version (no wiki tools)
