@@ -240,39 +240,39 @@ const allTools = [
     description: "Get MR metadata - details of a merge request (Either mergeRequestIid or branchName must be provided)",
     inputSchema: zodToJsonSchema(GetMergeRequestSchema),
   },
-  {
-    name: "mr_discussions",
-    description: "List unresolved diff discussions - List discussion items for a merge request filtered for unresolved diff notes (DiffNote type, resolvable=true, resolved=false)",
-    inputSchema: zodToJsonSchema(ListMergeRequestDiscussionsSchema),
-  },
-  {
-    name: "create_merge_request_note",
-    description: "Add MR notes - Add a reply note to an existing merge request thread",
-    inputSchema: zodToJsonSchema(CreateMergeRequestNoteSchema),
-  },
-  {
-    name: "update_merge_request",
-    description: "Append label in MR - Update a merge request including adding labels (Either mergeRequestIid or branchName must be provided)",
-    inputSchema: zodToJsonSchema(UpdateMergeRequestSchema),
-  },
-  {
-    name: "list_vulnerabilities",
-    description: "List vulnerabilities - List security vulnerabilities found in a GitLab project with filtering options",
-    inputSchema: zodToJsonSchema(ListVulnerabilitiesSchema),
-  },
-  {
-    name: "get_vulnerability_by_id",
-    description: "Get vulnerability by ID - Fetch detailed information about a specific vulnerability using GraphQL",
-    inputSchema: zodToJsonSchema(GetVulnerabilityByIdSchema),
-  },
+  // {
+  //   name: "mr_discussions",
+  //   description: "List unresolved diff discussions - List discussion items for a merge request filtered for unresolved diff notes (DiffNote type, resolvable=true, resolved=false)",
+  //   inputSchema: zodToJsonSchema(ListMergeRequestDiscussionsSchema),
+  // },
+  // {
+  //   name: "create_merge_request_note",
+  //   description: "Add MR notes - Add a reply note to an existing merge request thread",
+  //   inputSchema: zodToJsonSchema(CreateMergeRequestNoteSchema),
+  // },
+  // {
+  //   name: "update_merge_request",
+  //   description: "Append label in MR - Update a merge request including adding labels (Either mergeRequestIid or branchName must be provided)",
+  //   inputSchema: zodToJsonSchema(UpdateMergeRequestSchema),
+  // },
+  // {
+  //   name: "list_vulnerabilities",
+  //   description: "List vulnerabilities - List security vulnerabilities found in a GitLab project with filtering options",
+  //   inputSchema: zodToJsonSchema(ListVulnerabilitiesSchema),
+  // },
+  // {
+  //   name: "get_vulnerability_by_id",
+  //   description: "Get vulnerability by ID - Fetch detailed information about a specific vulnerability using GraphQL",
+  //   inputSchema: zodToJsonSchema(GetVulnerabilityByIdSchema),
+  // },
 ];
 
 // Define which tools are read-only - Custom MR-only version
 const readOnlyTools = [
   "get_merge_request",
-  "mr_discussions",
-  "list_vulnerabilities",
-  "get_vulnerability_by_id",
+  // "mr_discussions",
+  // "list_vulnerabilities",
+  // "get_vulnerability_by_id",
 ];
 
 // Define which tools are related to wiki and can be toggled by USE_GITLAB_WIKI - Custom MR-only version (no wiki tools)
@@ -2461,6 +2461,7 @@ async function getVulnerabilityById(
   projectId: string,
   vulnerabilityId: string
 ): Promise<GitLabGraphQLVulnerability> {
+  validateGitLabToken(); // Add token validation
   projectId = decodeURIComponent(projectId); // Decode project ID
   
   const graphqlQuery = {
@@ -2498,7 +2499,7 @@ async function getVulnerabilityById(
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'PRIVATE-TOKEN': GITLAB_PERSONAL_ACCESS_TOKEN,
+      'PRIVATE-TOKEN': GITLAB_PERSONAL_ACCESS_TOKEN!,
     },
     body: JSON.stringify(graphqlQuery),
   });
@@ -2510,6 +2511,8 @@ async function getVulnerabilityById(
   await handleGitLabError(response);
   const result: any = await response.json();
   
+  console.log('GraphQL Response:', JSON.stringify(result, null, 2)); // Debug log
+  
   if (result.errors) {
     throw new Error(`GraphQL Error: ${result.errors.map((e: any) => e.message).join(', ')}`);
   }
@@ -2518,7 +2521,15 @@ async function getVulnerabilityById(
     throw new Error("Vulnerability not found");
   }
   
-  return GitLabGraphQLVulnerabilitySchema.parse(result.data.vulnerability);
+  console.log('Vulnerability data:', JSON.stringify(result.data.vulnerability, null, 2)); // Debug log
+  
+  try {
+    return GitLabGraphQLVulnerabilitySchema.parse(result.data.vulnerability);
+  } catch (parseError) {
+    console.error('Schema parse error:', parseError);
+    console.error('Raw vulnerability data:', JSON.stringify(result.data.vulnerability, null, 2));
+    throw new Error(`Failed to parse vulnerability data: ${parseError instanceof Error ? parseError.message : 'Unknown error'}`);
+  }
 }
 
 server.setRequestHandler(ListToolsRequestSchema, async () => {
@@ -2559,6 +2570,10 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
 
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
   try {
+    console.log('CallToolRequestSchema handler called');
+    console.log('request.params.name:', request.params.name);
+    console.log('request.params.arguments:', JSON.stringify(request.params.arguments, null, 2));
+    
     if (!request.params.arguments) {
       throw new Error("Arguments are required");
     }
@@ -2826,7 +2841,11 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       case "get_vulnerability_by_id": {
+        console.log('get_vulnerability_by_id case reached');
+        console.log('request.params.arguments:', JSON.stringify(request.params.arguments, null, 2));
+        console.log('GetVulnerabilityByIdSchema:', GetVulnerabilityByIdSchema);
         const args = GetVulnerabilityByIdSchema.parse(request.params.arguments);
+        console.log('Parsed args:', args);
         const vulnerability = await getVulnerabilityById(args.project_id, args.vulnerability_id);
         return {
           content: [
