@@ -2457,7 +2457,7 @@ async function getVulnerabilityById(
 ): Promise<GitLabGraphQLVulnerability> {
   validateGitLabToken(); // Add token validation
   projectId = decodeURIComponent(projectId); // Decode project ID
-  
+
   const graphqlQuery = {
     query: `
       query GetVulnerability($id: VulnerabilityID!) {
@@ -2504,24 +2504,18 @@ async function getVulnerabilityById(
 
   await handleGitLabError(response);
   const result: any = await response.json();
-  
-  console.log('GraphQL Response:', JSON.stringify(result, null, 2)); // Debug log
-  
+
   if (result.errors) {
     throw new Error(`GraphQL Error: ${result.errors.map((e: any) => e.message).join(', ')}`);
   }
-  
+
   if (!result.data || !result.data.vulnerability) {
     throw new Error("Vulnerability not found");
   }
-  
-  console.log('Vulnerability data:', JSON.stringify(result.data.vulnerability, null, 2)); // Debug log
-  
+
   try {
     return GitLabGraphQLVulnerabilitySchema.parse(result.data.vulnerability);
   } catch (parseError) {
-    console.error('Schema parse error:', parseError);
-    console.error('Raw vulnerability data:', JSON.stringify(result.data.vulnerability, null, 2));
     throw new Error(`Failed to parse vulnerability data: ${parseError instanceof Error ? parseError.message : 'Unknown error'}`);
   }
 }
@@ -2564,10 +2558,6 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
 
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
   try {
-    console.log('CallToolRequestSchema handler called');
-    console.log('request.params.name:', request.params.name);
-    console.log('request.params.arguments:', JSON.stringify(request.params.arguments, null, 2));
-    
     if (!request.params.arguments) {
       throw new Error("Arguments are required");
     }
@@ -2835,11 +2825,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       case "get_vulnerability_by_id": {
-        console.log('get_vulnerability_by_id case reached');
-        console.log('request.params.arguments:', JSON.stringify(request.params.arguments, null, 2));
-        console.log('GetVulnerabilityByIdSchema:', GetVulnerabilityByIdSchema);
         const args = GetVulnerabilityByIdSchema.parse(request.params.arguments);
-        console.log('Parsed args:', args);
         const vulnerability = await getVulnerabilityById(args.project_id, args.vulnerability_id);
         return {
           content: [
