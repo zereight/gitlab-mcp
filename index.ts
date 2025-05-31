@@ -2492,13 +2492,13 @@ async function getVulnerabilityById(
     }
   };
 
-  const graphqlUrl = `${GITLAB_API_URL}/graphql`;
+  const graphqlUrl = `${GITLAB_API_URL.replace('/api/v4', '/api')}/graphql`;
   
   const response = await fetch(graphqlUrl, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${GITLAB_PERSONAL_ACCESS_TOKEN}`,
+      'PRIVATE-TOKEN': GITLAB_PERSONAL_ACCESS_TOKEN,
     },
     body: JSON.stringify(graphqlQuery),
   });
