@@ -190,11 +190,35 @@ export const GetPipelineJobOutputSchema = z.object({
   job_id: z.number().describe("The ID of the job"),
 });
 
+// User schemas
+export const GitLabUserSchema = z.object({
+  username: z.string(), // Changed from login to match GitLab API
+  id: z.number(),
+  name: z.string(),
+  avatar_url: z.string().nullable(),
+  web_url: z.string(), // Changed from html_url to match GitLab API
+});
+
+export const GetUsersSchema = z.object({
+  usernames: z.array(z.string()).describe("Array of usernames to search for"),
+});
+
+export const GitLabUsersResponseSchema = z.record(
+  z.string(),
+  z.object({
+    id: z.number(),
+    username: z.string(),
+    name: z.string(),
+    avatar_url: z.string(),
+    web_url: z.string(),
+  }).nullable()
+);
+
 // Namespace related schemas
 
 // Base schema for project-related operations
 const ProjectParamsSchema = z.object({
-  project_id: z.string().describe("Project ID or URL-encoded path"), // Changed from owner/repo to match GitLab API
+  project_id: z.string().describe("Project ID or complete URL-encoded path to project"), // Changed from owner/repo to match GitLab API
 });
 export const GitLabNamespaceSchema = z.object({
   id: z.number(),
@@ -286,6 +310,7 @@ export const GitLabRepositorySchema = z.object({
   container_registry_access_level: z.string().optional(),
   issues_enabled: z.boolean().optional(),
   merge_requests_enabled: z.boolean().optional(),
+  merge_requests_template: z.string().optional(),
   wiki_enabled: z.boolean().optional(),
   jobs_enabled: z.boolean().optional(),
   snippets_enabled: z.boolean().optional(),
@@ -430,13 +455,26 @@ export const CreateMergeRequestOptionsSchema = z.object({
   description: z.string().optional(), // Changed from body to match GitLab API
   source_branch: z.string(), // Changed from head to match GitLab API
   target_branch: z.string(), // Changed from base to match GitLab API
+  assignee_ids: z
+    .array(z.number())
+    .optional(),
+  reviewer_ids: z
+    .array(z.number())
+    .optional(),
+  labels: z.array(z.string()).optional(),
   allow_collaboration: z.boolean().optional(), // Changed from maintainer_can_modify to match GitLab API
   draft: z.boolean().optional(),
 });
 
-export const CreateBranchOptionsSchema = z.object({
-  name: z.string(), // Changed from ref to match GitLab API
-  ref: z.string(), // The source branch/commit for the new branch
+export const GitLabDiffSchema = z.object({
+  old_path: z.string(),
+  new_path: z.string(),
+  a_mode: z.string(),
+  b_mode: z.string(),
+  diff: z.string(),
+  new_file: z.boolean(),
+  renamed_file: z.boolean(),
+  deleted_file: z.boolean(),
 });
 
 // Response schemas for operations
@@ -454,6 +492,27 @@ export const GitLabSearchResponseSchema = z.object({
   items: z.array(GitLabRepositorySchema),
 });
 
+// create branch schemas
+export const CreateBranchOptionsSchema = z.object({
+  name: z.string(), // Changed from ref to match GitLab API
+  ref: z.string(), // The source branch/commit for the new branch
+});
+
+export const GitLabCompareResultSchema = z.object({
+  commit: z.object({
+    id: z.string().optional(),
+    short_id: z.string().optional(),
+    title: z.string().optional(),
+    author_name: z.string().optional(),
+    author_email: z.string().optional(),
+    created_at: z.string().optional(),
+  }).optional(),
+  commits: z.array(GitLabCommitSchema),
+  diffs: z.array(GitLabDiffSchema),
+  compare_timeout: z.boolean().optional(),
+  compare_same_ref: z.boolean().optional(),
+});
+
 // Issue related schemas
 export const GitLabLabelSchema = z.object({
   id: z.number(),
@@ -468,14 +527,6 @@ export const GitLabLabelSchema = z.object({
   subscribed: z.boolean().optional(),
   priority: z.number().nullable().optional(),
   is_project_label: z.boolean().optional(),
-});
-
-export const GitLabUserSchema = z.object({
-  username: z.string(), // Changed from login to match GitLab API
-  id: z.number(),
-  name: z.string(),
-  avatar_url: z.string().nullable(),
-  web_url: z.string(), // Changed from html_url to match GitLab API
 });
 
 export const GitLabMilestoneSchema = z.object({
@@ -567,6 +618,7 @@ export const GitLabMergeRequestSchema = z.object({
   draft: z.boolean().optional(),
   author: GitLabUserSchema,
   assignees: z.array(GitLabUserSchema).optional(),
+  reviewers: z.array(GitLabUserSchema).optional(),
   source_branch: z.string(),
   target_branch: z.string(),
   diff_refs: GitLabMergeRequestDiffRefSchema.nullable().optional(),
@@ -756,28 +808,39 @@ export const CreateMergeRequestSchema = ProjectParamsSchema.extend({
   description: z.string().optional().describe("Merge request description"),
   source_branch: z.string().describe("Branch containing changes"),
   target_branch: z.string().describe("Branch to merge into"),
+  assignee_ids: z
+    .array(z.number())
+    .optional()
+    .describe("The ID of the users to assign the MR to"),
+  reviewer_ids: z
+    .array(z.number())
+    .optional()
+    .describe("The ID of the users to assign as reviewers of the MR"),
+  labels: z.array(z.string()).optional().describe("Labels for the MR"),
   draft: z.boolean().optional().describe("Create as draft merge request"),
-  allow_collaboration: z.boolean().optional().describe("Allow commits from upstream members"),
+  allow_collaboration: z
+    .boolean()
+    .optional()
+    .describe("Allow commits from upstream members"),
 });
 
 export const ForkRepositorySchema = ProjectParamsSchema.extend({
   namespace: z.string().optional().describe("Namespace to fork to (full path)"),
 });
 
+// Branch related schemas
 export const CreateBranchSchema = ProjectParamsSchema.extend({
   branch: z.string().describe("Name for the new branch"),
   ref: z.string().optional().describe("Source branch/commit for new branch"),
 });
 
-export const GitLabMergeRequestDiffSchema = z.object({
-  old_path: z.string(),
-  new_path: z.string(),
-  a_mode: z.string(),
-  b_mode: z.string(),
-  diff: z.string(),
-  new_file: z.boolean(),
-  renamed_file: z.boolean(),
-  deleted_file: z.boolean(),
+export const GetBranchDiffsSchema = ProjectParamsSchema.extend({
+  from: z.string().describe("The base branch or commit SHA to compare from"),
+  to: z.string().describe("The target branch or commit SHA to compare to"),
+  straight: z.boolean().optional().describe("Comparison method: false for '...' (default), true for '--'"),
+  excluded_file_patterns: z.array(z.string()).optional().describe(
+    "Array of regex patterns to exclude files from the diff results. Each pattern is a JavaScript-compatible regular expression that matches file paths to ignore. Examples: [\"^test/mocks/\", \"\\.spec\\.ts$\", \"package-lock\\.json\"]"
+  ),
 });
 
 export const GetMergeRequestSchema = ProjectParamsSchema.extend({
@@ -1274,6 +1337,7 @@ export type GitLabDirectoryContent = z.infer<typeof GitLabDirectoryContentSchema
 export type GitLabContent = z.infer<typeof GitLabContentSchema>;
 export type FileOperation = z.infer<typeof FileOperationSchema>;
 export type GitLabTree = z.infer<typeof GitLabTreeSchema>;
+export type GitLabCompareResult = z.infer<typeof GitLabCompareResultSchema>;
 export type GitLabCommit = z.infer<typeof GitLabCommitSchema>;
 export type GitLabReference = z.infer<typeof GitLabReferenceSchema>;
 export type CreateRepositoryOptions = z.infer<typeof CreateRepositoryOptionsSchema>;
@@ -1282,7 +1346,9 @@ export type CreateMergeRequestOptions = z.infer<typeof CreateMergeRequestOptions
 export type CreateBranchOptions = z.infer<typeof CreateBranchOptionsSchema>;
 export type GitLabCreateUpdateFileResponse = z.infer<typeof GitLabCreateUpdateFileResponseSchema>;
 export type GitLabSearchResponse = z.infer<typeof GitLabSearchResponseSchema>;
-export type GitLabMergeRequestDiff = z.infer<typeof GitLabMergeRequestDiffSchema>;
+export type GitLabMergeRequestDiff = z.infer<
+  typeof GitLabDiffSchema
+>;
 export type CreateNoteOptions = z.infer<typeof CreateNoteSchema>;
 export type GitLabIssueLink = z.infer<typeof GitLabIssueLinkSchema>;
 export type ListIssueDiscussionsOptions = z.infer<typeof ListIssueDiscussionsSchema>;
@@ -1321,3 +1387,5 @@ export type GetMilestoneIssuesOptions = z.infer<typeof GetMilestoneIssuesSchema>
 export type GetMilestoneMergeRequestsOptions = z.infer<typeof GetMilestoneMergeRequestsSchema>;
 export type PromoteProjectMilestoneOptions = z.infer<typeof PromoteProjectMilestoneSchema>;
 export type GetMilestoneBurndownEventsOptions = z.infer<typeof GetMilestoneBurndownEventsSchema>;
+export type GitLabUser = z.infer<typeof GitLabUserSchema>;
+export type GitLabUsersResponse = z.infer<typeof GitLabUsersResponseSchema>;
