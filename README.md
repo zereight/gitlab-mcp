@@ -71,6 +71,7 @@ When using with the Claude App, you need to set up your API key and URLs directl
     }
   }
 }
+```
 
 - sse
 ```shell
@@ -85,6 +86,7 @@ docker run -i --rm \
   -p 3333:3002 \
   gitlab-mcp
 ```
+
 ```json
 {
   "mcpServers": {
