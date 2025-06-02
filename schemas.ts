@@ -890,7 +890,7 @@ export const ListIssuesSchema = z.object({
   created_after: z.string().optional().describe("Return issues created after the given time"),
   created_before: z.string().optional().describe("Return issues created before the given time"),
   due_date: z.string().optional().describe("Return issues that have the due date"),
-  label_name: z.array(z.string()).optional().describe("Array of label names"),
+  labels: z.array(z.string()).optional().describe("Array of label names"),
   milestone: z.string().optional().describe("Milestone title"),
   scope: z
     .enum(["created-by-me", "assigned-to-me", "all"])
