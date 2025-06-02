@@ -94,6 +94,13 @@ export const GitLabPipelineJobSchema = z.object({
   web_url: z.string().optional(),
 });
 
+// Shared base schema for various pagination options
+// See https://docs.gitlab.com/api/rest/#pagination
+export const PaginationOptionsSchema = z.object({
+  page: z.number().optional().describe("Page number for pagination (default: 1)"),
+  per_page: z.number().optional().describe("Number of items per page (max: 100, default: 20)"),
+});
+
 // Schema for listing pipelines
 export const ListPipelinesSchema = z.object({
   project_id: z.string().describe("Project ID or URL-encoded path"),
@@ -134,9 +141,7 @@ export const ListPipelinesSchema = z.object({
     .optional()
     .describe("Order pipelines by"),
   sort: z.enum(["asc", "desc"]).optional().describe("Sort pipelines"),
-  page: z.number().optional().describe("Page number for pagination"),
-  per_page: z.number().optional().describe("Number of items per page (max 100)"),
-});
+}).merge(PaginationOptionsSchema);
 
 // Schema for getting a specific pipeline
 export const GetPipelineSchema = z.object({
@@ -153,9 +158,7 @@ export const ListPipelineJobsSchema = z.object({
     .optional()
     .describe("The scope of jobs to show"),
   include_retried: z.boolean().optional().describe("Whether to include retried jobs"),
-  page: z.number().optional().describe("Page number for pagination"),
-  per_page: z.number().optional().describe("Number of items per page (max 100)"),
-});
+}).merge(PaginationOptionsSchema);
 
 // Schema for creating a new pipeline
 export const CreatePipelineSchema = z.object({
@@ -698,6 +701,24 @@ export const GitLabDiscussionNoteSchema = z.object({
 });
 export type GitLabDiscussionNote = z.infer<typeof GitLabDiscussionNoteSchema>;
 
+// Reusable pagination schema for GitLab API responses.
+// See https://docs.gitlab.com/api/rest/#pagination
+export const GitLabPaginationSchema = z.object({
+  x_next_page: z.number().nullable().optional(),
+  x_page: z.number().optional(),
+  x_per_page: z.number().optional(),
+  x_prev_page: z.number().nullable().optional(),
+  x_total: z.number().nullable().optional(),
+  x_total_pages: z.number().nullable().optional(),
+});
+export type GitLabPagination = z.infer<typeof GitLabPaginationSchema>;
+
+// Base paginated response schema that can be extended.
+// See https://docs.gitlab.com/api/rest/#pagination
+export const PaginatedResponseSchema = z.object({
+  pagination: GitLabPaginationSchema.optional(),
+});
+
 export const GitLabDiscussionSchema = z.object({
   id: z.string(),
   individual_note: z.boolean(),
@@ -705,10 +726,24 @@ export const GitLabDiscussionSchema = z.object({
 });
 export type GitLabDiscussion = z.infer<typeof GitLabDiscussionSchema>;
 
+// Create a schema for paginated discussions response
+export const PaginatedDiscussionsResponseSchema = z.object({
+  items: z.array(GitLabDiscussionSchema),
+  pagination: GitLabPaginationSchema,
+});
+
+// Export the paginated response type for discussions
+export type PaginatedDiscussionsResponse = z.infer<typeof PaginatedDiscussionsResponseSchema>;
+
+export const ListIssueDiscussionsSchema = z.object({
+  project_id: z.string().describe("Project ID or URL-encoded path"),
+  issue_iid: z.number().describe("The internal ID of the project issue"),
+}).merge(PaginationOptionsSchema);
+
 // Input schema for listing merge request discussions
 export const ListMergeRequestDiscussionsSchema = ProjectParamsSchema.extend({
   merge_request_iid: z.number().describe("The IID of a merge request"),
-});
+}).merge(PaginationOptionsSchema);
 
 // Input schema for updating a merge request discussion note
 export const UpdateMergeRequestNoteSchema = ProjectParamsSchema.extend({
@@ -763,9 +798,7 @@ export const CreateOrUpdateFileSchema = ProjectParamsSchema.extend({
 
 export const SearchRepositoriesSchema = z.object({
   search: z.string().describe("Search query"), // Changed from query to match GitLab API
-  page: z.number().optional().describe("Page number for pagination (default: 1)"),
-  per_page: z.number().optional().describe("Number of results per page (default: 20)"),
-});
+}).merge(PaginationOptionsSchema);
 
 export const CreateRepositorySchema = z.object({
   name: z.string().describe("Repository name"),
@@ -904,9 +937,7 @@ export const ListIssuesSchema = z.object({
   updated_after: z.string().optional().describe("Return issues updated after the given time"),
   updated_before: z.string().optional().describe("Return issues updated before the given time"),
   with_labels_details: z.boolean().optional().describe("Return more details for each label"),
-  page: z.number().optional().describe("Page number for pagination"),
-  per_page: z.number().optional().describe("Number of items per page"),
-});
+}).merge(PaginationOptionsSchema);
 
 // Merge Requests API operation schemas
 export const ListMergeRequestsSchema = z.object({
@@ -977,9 +1008,7 @@ export const ListMergeRequestsSchema = z.object({
     .describe("Return merge requests from a specific source branch"),
   wip: z.enum(["yes", "no"]).optional().describe("Filter merge requests against their wip status"),
   with_labels_details: z.boolean().optional().describe("Return more details for each label"),
-  page: z.number().optional().describe("Page number for pagination"),
-  per_page: z.number().optional().describe("Number of items per page"),
-});
+}).merge(PaginationOptionsSchema);
 
 export const GetIssueSchema = z.object({
   project_id: z.string().describe("Project ID or URL-encoded path"),
@@ -1018,21 +1047,6 @@ export const ListIssueLinksSchema = z.object({
   issue_iid: z.number().describe("The internal ID of a project's issue"),
 });
 
-export const ListIssueDiscussionsSchema = z.object({
-  project_id: z.string().describe("Project ID or URL-encoded path"),
-  issue_iid: z.number().describe("The internal ID of the project issue"),
-  page: z.number().optional().describe("Page number for pagination"),
-  per_page: z.number().optional().describe("Number of items per page"),
-  sort: z
-    .enum(["asc", "desc"])
-    .optional()
-    .describe("Return issue discussions sorted in ascending or descending order"),
-  order_by: z
-    .enum(["created_at", "updated_at"])
-    .optional()
-    .describe("Return issue discussions ordered by created_at or updated_at fields"),
-});
-
 export const GetIssueLinkSchema = z.object({
   project_id: z.string().describe("Project ID or URL-encoded path"),
   issue_iid: z.number().describe("The internal ID of a project's issue"),
@@ -1059,10 +1073,8 @@ export const DeleteIssueLinkSchema = z.object({
 // Namespace API operation schemas
 export const ListNamespacesSchema = z.object({
   search: z.string().optional().describe("Search term for namespaces"),
-  page: z.number().optional().describe("Page number for pagination"),
-  per_page: z.number().optional().describe("Number of items per page"),
   owned: z.boolean().optional().describe("Filter for namespaces owned by current user"),
-});
+}).merge(PaginationOptionsSchema);
 
 export const GetNamespaceSchema = z.object({
   namespace_id: z.string().describe("Namespace ID or full path"),
@@ -1079,8 +1091,6 @@ export const GetProjectSchema = z.object({
 
 export const ListProjectsSchema = z.object({
   search: z.string().optional().describe("Search term for projects"),
-  page: z.number().optional().describe("Page number for pagination"),
-  per_page: z.number().optional().describe("Number of items per page"),
   search_namespaces: z.boolean().optional().describe("Needs to be true if search is full path"),
   owned: z.boolean().optional().describe("Filter for projects owned by current user"),
   membership: z.boolean().optional().describe("Filter for projects where current user is a member"),
@@ -1107,7 +1117,7 @@ export const ListProjectsSchema = z.object({
     .optional()
     .describe("Filter projects with merge requests feature enabled"),
   min_access_level: z.number().optional().describe("Filter by minimum access level"),
-});
+}).merge(PaginationOptionsSchema);
 
 // Label operation schemas
 export const ListLabelsSchema = z.object({
@@ -1163,8 +1173,6 @@ export const ListGroupProjectsSchema = z.object({
     .optional()
     .describe("Field to sort by"),
   sort: z.enum(["asc", "desc"]).optional().describe("Sort direction"),
-  page: z.number().optional().describe("Page number"),
-  per_page: z.number().optional().describe("Number of results per page"),
   archived: z.boolean().optional().describe("Filter for archived projects"),
   visibility: z
     .enum(["public", "internal", "private"])
@@ -1184,14 +1192,12 @@ export const ListGroupProjectsSchema = z.object({
   statistics: z.boolean().optional().describe("Include project statistics"),
   with_custom_attributes: z.boolean().optional().describe("Include custom attributes"),
   with_security_reports: z.boolean().optional().describe("Include security reports"),
-});
+}).merge(PaginationOptionsSchema);
 
 // Add wiki operation schemas
 export const ListWikiPagesSchema = z.object({
   project_id: z.string().describe("Project ID or URL-encoded path"),
-  page: z.number().optional().describe("Page number for pagination"),
-  per_page: z.number().optional().describe("Number of items per page"),
-});
+}).merge(PaginationOptionsSchema);
 export const GetWikiPageSchema = z.object({
   project_id: z.string().describe("Project ID or URL-encoded path"),
   slug: z.string().describe("URL-encoded slug of the wiki page"),
@@ -1209,6 +1215,7 @@ export const UpdateWikiPageSchema = z.object({
   content: z.string().optional().describe("New content of the wiki page"),
   format: z.string().optional().describe("Content format, e.g., markdown, rdoc"),
 });
+
 export const DeleteWikiPageSchema = z.object({
   project_id: z.string().describe("Project ID or URL-encoded path"),
   slug: z.string().describe("URL-encoded slug of the wiki page"),
@@ -1275,9 +1282,7 @@ export const ListProjectMilestonesSchema = ProjectParamsSchema.extend({
     .string()
     .optional()
     .describe("Return milestones updated after the specified date (ISO 8601 format)"),
-  page: z.number().optional().describe("Page number for pagination"),
-  per_page: z.number().optional().describe("Number of items per page (max 100)"),
-});
+}).merge(PaginationOptionsSchema);
 
 // Schema for getting a single milestone
 export const GetProjectMilestoneSchema = ProjectParamsSchema.extend({
@@ -1311,19 +1316,13 @@ export const DeleteProjectMilestoneSchema = GetProjectMilestoneSchema;
 export const GetMilestoneIssuesSchema = GetProjectMilestoneSchema;
 
 // Schema for getting merge requests assigned to a milestone
-export const GetMilestoneMergeRequestsSchema = GetProjectMilestoneSchema.extend({
-  page: z.number().optional().describe("Page number for pagination"),
-  per_page: z.number().optional().describe("Number of items per page (max 100)"),
-});
+export const GetMilestoneMergeRequestsSchema = GetProjectMilestoneSchema.merge(PaginationOptionsSchema);
 
 // Schema for promoting a project milestone to a group milestone
 export const PromoteProjectMilestoneSchema = GetProjectMilestoneSchema;
 
 // Schema for getting burndown chart events for a milestone
-export const GetMilestoneBurndownEventsSchema = GetProjectMilestoneSchema.extend({
-  page: z.number().optional().describe("Page number for pagination"),
-  per_page: z.number().optional().describe("Number of items per page (max 100)"),
-});
+export const GetMilestoneBurndownEventsSchema = GetProjectMilestoneSchema.merge(PaginationOptionsSchema);
 
 // Export types
 export type GitLabAuthor = z.infer<typeof GitLabAuthorSchema>;
@@ -1352,6 +1351,7 @@ export type GitLabMergeRequestDiff = z.infer<
 export type CreateNoteOptions = z.infer<typeof CreateNoteSchema>;
 export type GitLabIssueLink = z.infer<typeof GitLabIssueLinkSchema>;
 export type ListIssueDiscussionsOptions = z.infer<typeof ListIssueDiscussionsSchema>;
+export type ListMergeRequestDiscussionsOptions = z.infer<typeof ListMergeRequestDiscussionsSchema>;
 export type UpdateIssueNoteOptions = z.infer<typeof UpdateIssueNoteSchema>;
 export type CreateIssueNoteOptions = z.infer<typeof CreateIssueNoteSchema>;
 export type GitLabNamespace = z.infer<typeof GitLabNamespaceSchema>;
@@ -1389,3 +1389,4 @@ export type PromoteProjectMilestoneOptions = z.infer<typeof PromoteProjectMilest
 export type GetMilestoneBurndownEventsOptions = z.infer<typeof GetMilestoneBurndownEventsSchema>;
 export type GitLabUser = z.infer<typeof GitLabUserSchema>;
 export type GitLabUsersResponse = z.infer<typeof GitLabUsersResponseSchema>;
+export type PaginationOptions = z.infer<typeof PaginationOptionsSchema>;

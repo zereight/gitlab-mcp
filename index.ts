@@ -100,6 +100,7 @@ import {
   // Discussion Schemas
   GitLabDiscussionNoteSchema, // Added
   GitLabDiscussionSchema,
+  PaginatedDiscussionsResponseSchema,
   UpdateMergeRequestNoteSchema, // Added
   CreateMergeRequestNoteSchema, // Added
   ListMergeRequestDiscussionsSchema,
@@ -142,8 +143,10 @@ import {
   type PromoteProjectMilestoneOptions,
   type GetMilestoneBurndownEventsOptions,
   // Discussion Types
-  type GitLabDiscussionNote, // Added
+  type GitLabDiscussionNote,
   type GitLabDiscussion,
+  type PaginatedDiscussionsResponse,
+  type PaginationOptions,
   type MergeRequestThreadPosition,
   type GetWikiPageOptions,
   type CreateWikiPageOptions,
@@ -1209,55 +1212,26 @@ async function createMergeRequest(
 }
 
 /**
- * List merge request discussion items
- * 병합 요청 토론 목록 조회
+ * Shared helper function for listing discussions
+ * 토론 목록 조회를 위한 공유 헬퍼 함수
  *
  * @param {string} projectId - The ID or URL-encoded path of the project
- * @param {number} mergeRequestIid - The IID of a merge request
- * @returns {Promise<GitLabDiscussion[]>} List of discussions
+ * @param {"issues" | "merge_requests"} resourceType - The type of resource (issues or merge_requests)
+ * @param {number} resourceIid - The IID of the issue or merge request
+ * @param {PaginationOptions} options - Pagination and sorting options
+ * @returns {Promise<PaginatedDiscussionsResponse>} Paginated list of discussions
  */
-async function listMergeRequestDiscussions(
+async function listDiscussions(
   projectId: string,
-  mergeRequestIid: number
-): Promise<GitLabDiscussion[]> {
+  resourceType: "issues" | "merge_requests",
+  resourceIid: number,
+  options: PaginationOptions = {}
+): Promise<PaginatedDiscussionsResponse> {  
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
     `${GITLAB_API_URL}/projects/${encodeURIComponent(
       projectId
-    )}/merge_requests/${mergeRequestIid}/discussions`
-  );
-
-  const response = await fetch(url.toString(), {
-    ...DEFAULT_FETCH_CONFIG,
-  });
-
-  await handleGitLabError(response);
-  const data = await response.json();
-  // Ensure the response is parsed as an array of discussions
-  return z.array(GitLabDiscussionSchema).parse(data);
-}
-
-/**
- * List discussions for an issue
- *
- * @param {string} projectId - The ID or URL-encoded path of the project
- * @param {number} issueIid - The internal ID of the project issue
- * @param {Object} options - Pagination and sorting options
- * @returns {Promise<GitLabDiscussion[]>} List of issue discussions
- */
-async function listIssueDiscussions(
-  projectId: string,
-  issueIid: number,
-  options: {
-    page?: number;
-    per_page?: number;
-    sort?: "asc" | "desc";
-    order_by?: "created_at" | "updated_at";
-  } = {}
-): Promise<GitLabDiscussion[]> {
-  projectId = decodeURIComponent(projectId); // Decode project ID
-  const url = new URL(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/issues/${issueIid}/discussions`
+    )}/${resourceType}/${resourceIid}/discussions`
   );
 
   // Add query parameters for pagination and sorting
@@ -1267,22 +1241,61 @@ async function listIssueDiscussions(
   if (options.per_page) {
     url.searchParams.append("per_page", options.per_page.toString());
   }
-  if (options.sort) {
-    url.searchParams.append("sort", options.sort);
-  }
-  if (options.order_by) {
-    url.searchParams.append("order_by", options.order_by);
-  }
 
   const response = await fetch(url.toString(), {
     ...DEFAULT_FETCH_CONFIG,
   });
 
   await handleGitLabError(response);
-  const data = await response.json();
+  const discussions = await response.json();
 
-  // Parse the response as an array of discussions
-  return z.array(GitLabDiscussionSchema).parse(data);
+  // Extract pagination headers
+  const pagination = {
+    x_next_page: response.headers.get("x-next-page") ? parseInt(response.headers.get("x-next-page")!) : null,
+    x_page: response.headers.get("x-page") ? parseInt(response.headers.get("x-page")!) : undefined,
+    x_per_page: response.headers.get("x-per-page") ? parseInt(response.headers.get("x-per-page")!) : undefined,
+    x_prev_page: response.headers.get("x-prev-page") ? parseInt(response.headers.get("x-prev-page")!) : null,
+    x_total: response.headers.get("x-total") ? parseInt(response.headers.get("x-total")!) : null,
+    x_total_pages: response.headers.get("x-total-pages") ? parseInt(response.headers.get("x-total-pages")!) : null,
+  };
+
+  return PaginatedDiscussionsResponseSchema.parse({
+    items: discussions,
+    pagination: pagination,
+  });
+}
+
+/**
+ * List merge request discussion items
+ * 병합 요청 토론 목록 조회
+ *
+ * @param {string} projectId - The ID or URL-encoded path of the project
+ * @param {number} mergeRequestIid - The IID of a merge request
+ * @param {DiscussionPaginationOptions} options - Pagination and sorting options
+ * @returns {Promise<GitLabDiscussion[]>} List of discussions
+ */
+async function listMergeRequestDiscussions(
+  projectId: string,
+  mergeRequestIid: number,
+  options: PaginationOptions = {}
+): Promise<PaginatedDiscussionsResponse> {
+  return listDiscussions(projectId, "merge_requests", mergeRequestIid, options);
+}
+
+/**
+ * List discussions for an issue
+ *
+ * @param {string} projectId - The ID or URL-encoded path of the project
+ * @param {number} issueIid - The internal ID of the project issue
+ * @param {DiscussionPaginationOptions} options - Pagination and sorting options
+ * @returns {Promise<GitLabDiscussion[]>} List of issue discussions
+ */
+async function listIssueDiscussions(
+  projectId: string,
+  issueIid: number,
+  options: PaginationOptions = {}
+): Promise<PaginatedDiscussionsResponse> {
+  return listDiscussions(projectId, "issues", issueIid, options);
 }
 
 /**
@@ -3284,9 +3297,11 @@ server.setRequestHandler(CallToolRequestSchema, async request => {
 
       case "mr_discussions": {
         const args = ListMergeRequestDiscussionsSchema.parse(request.params.arguments);
+        const { project_id, merge_request_iid, ...options } = args;
         const discussions = await listMergeRequestDiscussions(
-          args.project_id,
-          args.merge_request_iid
+          project_id,
+          merge_request_iid,
+          options
         );
         return {
           content: [{ type: "text", text: JSON.stringify(discussions, null, 2) }],
