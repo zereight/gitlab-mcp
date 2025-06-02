@@ -893,7 +893,7 @@ export const ListIssuesSchema = z.object({
   label_name: z.array(z.string()).optional().describe("Array of label names"),
   milestone: z.string().optional().describe("Milestone title"),
   scope: z
-    .enum(["created-by-me", "assigned-to-me", "all"])
+    .enum(["created_by_me", "assigned_to_me", "all"])
     .optional()
     .describe("Return issues from a specific scope"),
   search: z.string().optional().describe("Search for specific terms"),
