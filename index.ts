@@ -34,6 +34,9 @@ import {
   GitLabNamespaceExistsResponseSchema,
   GitLabProjectSchema,
   GitLabLabelSchema,
+  GitLabUserSchema,
+  GitLabUsersResponseSchema,
+  GetUsersSchema,
   CreateRepositoryOptionsSchema,
   CreateIssueOptionsSchema,
   CreateMergeRequestOptionsSchema,
@@ -47,7 +50,7 @@ import {
   CreateMergeRequestSchema,
   ForkRepositorySchema,
   CreateBranchSchema,
-  GitLabMergeRequestDiffSchema,
+  GitLabDiffSchema,
   GetMergeRequestSchema,
   GetMergeRequestDiffsSchema,
   UpdateMergeRequestSchema,
@@ -117,6 +120,8 @@ import {
   type GitLabNamespaceExistsResponse,
   type GitLabProject,
   type GitLabLabel,
+  type GitLabUser,
+  type GitLabUsersResponse,
   type GitLabPipeline,
   type ListPipelinesOptions,
   type GetPipelineOptions,
@@ -159,6 +164,9 @@ import {
   GetMilestoneMergeRequestsSchema,
   PromoteProjectMilestoneSchema,
   GetMilestoneBurndownEventsSchema,
+  GitLabCompareResult,
+  GitLabCompareResultSchema,
+  GetBranchDiffsSchema,
 } from "./schemas.js";
 
 /**
@@ -306,6 +314,12 @@ const allTools = [
     description:
       "Get the changes/diffs of a merge request (Either mergeRequestIid or branchName must be provided)",
     inputSchema: zodToJsonSchema(GetMergeRequestDiffsSchema),
+  },
+  {
+    name: "get_branch_diffs",
+    description:
+      "Get the changes/diffs between two branches or commits in a GitLab project",
+    inputSchema: zodToJsonSchema(GetBranchDiffsSchema),
   },
   {
     name: "update_merge_request",
@@ -567,6 +581,11 @@ const allTools = [
     description: "Get burndown events for a specific milestone",
     inputSchema: zodToJsonSchema(GetMilestoneBurndownEventsSchema),
   },
+  {
+    name: "get_users",
+    description: "Get GitLab user details by usernames",
+    inputSchema: zodToJsonSchema(GetUsersSchema),
+  },
 ];
 
 // Define which tools are read-only
@@ -575,6 +594,7 @@ const readOnlyTools = [
   "get_file_contents",
   "get_merge_request",
   "get_merge_request_diffs",
+  "get_branch_diffs",
   "mr_discussions",
   "list_issues",
   "list_merge_requests",
@@ -603,6 +623,7 @@ const readOnlyTools = [
   "get_milestone_burndown_events",
   "list_wiki_pages",
   "get_wiki_page",
+  "get_users",
 ];
 
 // Define which tools are related to wiki and can be toggled by USE_GITLAB_WIKI
@@ -1161,6 +1182,9 @@ async function createMergeRequest(
       description: options.description,
       source_branch: options.source_branch,
       target_branch: options.target_branch,
+      assignee_ids: options.assignee_ids,
+      reviewer_ids: options.reviewer_ids,
+      labels: options.labels?.join(","),
       allow_collaboration: options.allow_collaboration,
       draft: options.draft,
     }),
@@ -1773,7 +1797,50 @@ async function getMergeRequestDiffs(
 
   await handleGitLabError(response);
   const data = (await response.json()) as { changes: unknown };
-  return z.array(GitLabMergeRequestDiffSchema).parse(data.changes);
+  return z.array(GitLabDiffSchema).parse(data.changes);
+}
+
+/**
+ * Get branch comparison diffs
+ *
+ * @param {string} projectId - The ID or URL-encoded path of the project
+ * @param {string} from - The branch name or commit SHA to compare from
+ * @param {string} to - The branch name or commit SHA to compare to
+ * @param {boolean} [straight] - Comparison method: false for '...' (default), true for '--'
+ * @returns {Promise<GitLabCompareResult>} Branch comparison results
+ */
+async function getBranchDiffs(
+  projectId: string,
+  from: string,
+  to: string,
+  straight?: boolean
+): Promise<GitLabCompareResult> {
+  projectId = decodeURIComponent(projectId); // Decode project ID
+  
+  const url = new URL(
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/repository/compare`
+  );
+  
+  url.searchParams.append("from", from);
+  url.searchParams.append("to", to);
+  
+  if (straight !== undefined) {
+    url.searchParams.append("straight", straight.toString());
+  }
+
+  const response = await fetch(url.toString(), {
+    ...DEFAULT_FETCH_CONFIG,
+  });
+
+  if (!response.ok) {
+    const errorBody = await response.text();
+    throw new Error(
+      `GitLab API error: ${response.status} ${response.statusText}\n${errorBody}`
+    );
+  }
+
+  const data = await response.json();
+  return GitLabCompareResultSchema.parse(data);
 }
 
 /**
@@ -2868,6 +2935,65 @@ async function getMilestoneBurndownEvents(projectId: string, milestoneId: number
   return data as any[];
 }
 
+/**
+ * Get a single user from GitLab
+ *
+ * @param {string} username - The username to look up
+ * @returns {Promise<GitLabUser | null>} The user data or null if not found
+ */
+async function getUser(username: string): Promise<GitLabUser | null> {
+  try {
+    const url = new URL(`${GITLAB_API_URL}/users`);
+    url.searchParams.append("username", username);
+
+    const response = await fetch(url.toString(), {
+      ...DEFAULT_FETCH_CONFIG,
+    });
+
+    await handleGitLabError(response);
+    
+    const users = await response.json();
+    
+    // GitLab returns an array of users that match the username
+    if (Array.isArray(users) && users.length > 0) {
+      // Find exact match for username (case-sensitive)
+      const exactMatch = users.find(user => user.username === username);
+      if (exactMatch) {
+        return GitLabUserSchema.parse(exactMatch);
+      }
+    }
+    
+    // No matching user found
+    return null;
+  } catch (error) {
+    console.error(`Error fetching user by username '${username}':`, error);
+    return null;
+  }
+}
+
+/**
+ * Get multiple users from GitLab
+ * 
+ * @param {string[]} usernames - Array of usernames to look up
+ * @returns {Promise<GitLabUsersResponse>} Object with usernames as keys and user objects or null as values
+ */
+async function getUsers(usernames: string[]): Promise<GitLabUsersResponse> {
+  const users: Record<string, GitLabUser | null> = {};
+  
+  // Process usernames sequentially to avoid rate limiting
+  for (const username of usernames) {
+    try {
+      const user = await getUser(username);
+      users[username] = user;
+    } catch (error) {
+      console.error(`Error processing username '${username}':`, error);
+      users[username] = null;
+    }
+  }
+
+  return GitLabUsersResponseSchema.parse(users);
+}
+
 server.setRequestHandler(ListToolsRequestSchema, async () => {
   // Apply read-only filter first
   const tools0 = GITLAB_READ_ONLY_MODE
@@ -2953,6 +3079,34 @@ server.setRequestHandler(CallToolRequestSchema, async request => {
 
         return {
           content: [{ type: "text", text: JSON.stringify(branch, null, 2) }],
+        };
+      }
+
+      case "get_branch_diffs": {
+        const args = GetBranchDiffsSchema.parse(request.params.arguments);
+        const diffResp = await getBranchDiffs(
+          args.project_id,
+          args.from,
+          args.to,
+          args.straight
+        );
+
+        if (args.excluded_file_patterns?.length) {
+          const regexPatterns = args.excluded_file_patterns.map(pattern => new RegExp(pattern));
+          
+          // Helper function to check if a path matches any regex pattern
+          const matchesAnyPattern = (path: string): boolean => {
+            if (!path) return false;
+            return regexPatterns.some(regex => regex.test(path));
+          };
+          
+          // Filter out files that match any of the regex patterns on new files
+          diffResp.diffs = diffResp.diffs.filter(diff => 
+            !matchesAnyPattern(diff.new_path)
+          );
+        }
+        return {
+          content: [{ type: "text", text: JSON.stringify(diffResp, null, 2) }],
         };
       }
 
@@ -3224,6 +3378,15 @@ server.setRequestHandler(CallToolRequestSchema, async request => {
 
         return {
           content: [{ type: "text", text: JSON.stringify(projects, null, 2) }],
+        };
+      }
+      
+      case "get_users": {
+        const args = GetUsersSchema.parse(request.params.arguments);
+        const usersMap = await getUsers(args.usernames);
+        
+        return {
+          content: [{ type: "text", text: JSON.stringify(usersMap, null, 2) }],
         };
       }
 
