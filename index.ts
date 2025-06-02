@@ -2,8 +2,8 @@
 
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
 import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
-import FormData from "form-data";
 import fetch from "node-fetch";
 import { SocksProxyAgent } from "socks-proxy-agent";
 import { HttpsProxyAgent } from "https-proxy-agent";
@@ -14,6 +14,7 @@ import { fileURLToPath } from "url";
 import { dirname } from "path";
 import fs from "fs";
 import path from "path";
+import express, { Request, Response } from "express";
 // Add type imports for proxy agents
 import { Agent } from "http";
 import { Agent as HttpsAgent } from 'https';
@@ -202,6 +203,7 @@ const GITLAB_READ_ONLY_MODE = process.env.GITLAB_READ_ONLY_MODE === "true";
 const USE_GITLAB_WIKI = process.env.USE_GITLAB_WIKI === "true";
 const USE_MILESTONE = process.env.USE_MILESTONE === "true";
 const USE_PIPELINE = process.env.USE_PIPELINE === "true";
+const SSE = process.env.SSE === "true";
 
 // Add proxy configuration
 const HTTP_PROXY = process.env.HTTP_PROXY;
@@ -3918,9 +3920,37 @@ async function runServer() {
     console.error(`GitLab MCP Server v${SERVER_VERSION}`);
     console.error(`API URL: ${GITLAB_API_URL}`);
     console.error("========================");
-
-    const transport = new StdioServerTransport();
-    await server.connect(transport);
+    if ( !SSE )
+    {
+      const transport = new StdioServerTransport();
+      await server.connect(transport);      
+    } else {
+      const app = express();
+      const transports: { [sessionId: string]: SSEServerTransport } = {};
+      app.get("/sse", async (_: Request, res: Response) => {
+        const transport = new SSEServerTransport("/messages", res);
+        transports[transport.sessionId] = transport;
+        res.on("close", () => {
+          delete transports[transport.sessionId];
+        });
+        await server.connect(transport);
+      });
+      
+      app.post("/messages", async (req: Request, res: Response) => {
+        const sessionId = req.query.sessionId as string;
+        const transport = transports[sessionId];
+        if (transport) {
+          await transport.handlePostMessage(req, res);
+        } else {
+          res.status(400).send("No transport found for sessionId");
+        }
+      });
+      
+      const PORT = process.env.PORT || 3002;
+      app.listen(PORT, () => {
+        console.log(`Server is running on port ${PORT}`);
+      });
+    }
     console.error("GitLab MCP Server running on stdio");
   } catch (error) {
     console.error("Error initializing server:", error);

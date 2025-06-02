@@ -36,8 +36,8 @@ When using with the Claude App, you need to set up your API key and URLs directl
 ```
 
 #### Docker
-
-```json
+- stdio
+```mcp.json
 {
   "mcpServers": {
     "GitLab communication server": {
@@ -68,6 +68,30 @@ When using with the Claude App, you need to set up your API key and URLs directl
         "USE_MILESTONE": "true",
         "USE_PIPELINE": "true"
       }
+    }
+  }
+}
+```
+
+- sse
+```shell
+docker run -i --rm \
+  -e GITLAB_PERSONAL_ACCESS_TOKEN=your_gitlab_token \
+  -e GITLAB_API_URL= "https://gitlab.com/api/v4"\
+  -e GITLAB_READ_ONLY_MODE=true \
+  -e USE_GITLAB_WIKI=true \
+  -e USE_MILESTONE=true \
+  -e USE_PIPELINE=true \
+  -e SSE=true \
+  -p 3333:3002 \
+  gitlab-mcp
+```
+
+```json
+{
+  "mcpServers": {
+    "GitLab communication server": {
+      "url": "http://localhost:3333/sse"
     }
   }
 }
