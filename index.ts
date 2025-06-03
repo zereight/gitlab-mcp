@@ -907,13 +907,17 @@ async function listIssues(
   // Add all query parameters
   Object.entries(options).forEach(([key, value]) => {
     if (value !== undefined) {
-      if (key === "labels" && Array.isArray(value)) {
-        // Handle array of labels
-        value.forEach(label => {
-          url.searchParams.append("labels[]", label.toString());
-        });
+      if (key === "labels" ) {
+        if (Array.isArray(value)) {
+          // Handle array of labels
+          value.forEach(label => {
+            url.searchParams.append("labels[]", label.toString());
+          });
+        } else {
+          url.searchParams.append("labels[]", value.toString());
+        }
       } else {
-        url.searchParams.append("labels[]", value.toString());
+        url.searchParams.append(key, value.toString());
       }
     }
   });
