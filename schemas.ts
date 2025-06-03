@@ -1197,7 +1197,9 @@ export const ListGroupProjectsSchema = z.object({
 // Add wiki operation schemas
 export const ListWikiPagesSchema = z.object({
   project_id: z.string().describe("Project ID or URL-encoded path"),
+  with_content: z.boolean().optional().describe("Include content of the wiki pages"),
 }).merge(PaginationOptionsSchema);
+
 export const GetWikiPageSchema = z.object({
   project_id: z.string().describe("Project ID or URL-encoded path"),
   slug: z.string().describe("URL-encoded slug of the wiki page"),
@@ -1226,7 +1228,7 @@ export const GitLabWikiPageSchema = z.object({
   title: z.string(),
   slug: z.string(),
   format: z.string(),
-  content: z.string(),
+  content: z.string().optional(),
   created_at: z.string().optional(),
   updated_at: z.string().optional(),
 });
