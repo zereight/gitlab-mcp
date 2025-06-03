@@ -171,6 +171,7 @@ import {
   GitLabCompareResult,
   GitLabCompareResultSchema,
   GetBranchDiffsSchema,
+  ListWikiPagesOptions,
 } from "./schemas.js";
 
 /**
@@ -2376,12 +2377,14 @@ async function listGroupProjects(
  */
 async function listWikiPages(
   projectId: string,
-  options: Omit<z.infer<typeof ListWikiPagesSchema>, "project_id"> = {}
+  options: Omit<ListWikiPagesOptions, "project_id"> = {}
 ): Promise<GitLabWikiPage[]> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(`${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/wikis`);
   if (options.page) url.searchParams.append("page", options.page.toString());
   if (options.per_page) url.searchParams.append("per_page", options.per_page.toString());
+  if (options.with_content)
+    url.searchParams.append("with_content", options.with_content.toString());
   const response = await fetch(url.toString(), {
     ...DEFAULT_FETCH_CONFIG,
   });
@@ -3597,8 +3600,10 @@ server.setRequestHandler(CallToolRequestSchema, async request => {
       }
 
       case "list_wiki_pages": {
-        const { project_id, page, per_page } = ListWikiPagesSchema.parse(request.params.arguments);
-        const wikiPages = await listWikiPages(project_id, { page, per_page });
+        const { project_id, page, per_page, with_content } = ListWikiPagesSchema.parse(
+          request.params.arguments
+        );
+        const wikiPages = await listWikiPages(project_id, { page, per_page, with_content });
         return {
           content: [{ type: "text", text: JSON.stringify(wikiPages, null, 2) }],
         };
