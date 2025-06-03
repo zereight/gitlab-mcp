@@ -84,7 +84,7 @@ docker run -i --rm \
   -e USE_PIPELINE=true \
   -e SSE=true \
   -p 3333:3002 \
-  gitlab-mcp
+  iwakitakuma/gitlab-mcp
 ```
 
 ```json
