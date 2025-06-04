@@ -916,7 +916,7 @@ export const CreateNoteSchema = z.object({
 export const ListIssuesSchema = z.object({
   project_id: z.string().describe("Project ID or URL-encoded path"),
   assignee_id: z.number().optional().describe("Return issues assigned to the given user ID"),
-  assignee_username: z.string().optional().describe("Return issues assigned to the given username"),
+  assignee_username: z.array(z.string()).optional().describe("Return issues assigned to the given username"),
   author_id: z.number().optional().describe("Return issues created by the given user ID"),
   author_username: z.string().optional().describe("Return issues created by the given username"),
   confidential: z.boolean().optional().describe("Filter confidential or public issues"),
