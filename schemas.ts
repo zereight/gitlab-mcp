@@ -212,7 +212,7 @@ export const GitLabUsersResponseSchema = z.record(
     id: z.number(),
     username: z.string(),
     name: z.string(),
-    avatar_url: z.string(),
+    avatar_url: z.string().nullable(),
     web_url: z.string(),
   }).nullable()
 );
@@ -253,7 +253,7 @@ export const GitLabNamespaceExistsResponseSchema = z.object({
 export const GitLabOwnerSchema = z.object({
   username: z.string(), // Changed from login to match GitLab API
   id: z.number(),
-  avatar_url: z.string(),
+  avatar_url: z.string().nullable(),
   web_url: z.string(), // Changed from html_url to match GitLab API
   name: z.string(), // Added as GitLab includes full name
   state: z.string(), // Added as GitLab includes user state
@@ -593,7 +593,7 @@ export const GitLabForkParentSchema = z.object({
     .object({
       username: z.string(), // Changed from login to match GitLab API
       id: z.number(),
-      avatar_url: z.string(),
+      avatar_url: z.string().nullable(),
     })
     .optional(), // Made optional to handle cases where GitLab API doesn't include it
   web_url: z.string(), // Changed from html_url to match GitLab API
