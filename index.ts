@@ -1199,6 +1199,8 @@ async function createMergeRequest(
       labels: options.labels?.join(","),
       allow_collaboration: options.allow_collaboration,
       draft: options.draft,
+      remove_source_branch: options.remove_source_branch,
+      squash: options.squash,
     }),
   });
 
