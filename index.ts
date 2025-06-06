@@ -907,14 +907,15 @@ async function listIssues(
   // Add all query parameters
   Object.entries(options).forEach(([key, value]) => {
     if (value !== undefined) {
-      if (key === "labels" ) {
+      const keys = ["labels", "assignee_username"];
+      if ( keys.includes(key)) {
         if (Array.isArray(value)) {
           // Handle array of labels
           value.forEach(label => {
-            url.searchParams.append("labels[]", label.toString());
+            url.searchParams.append(`${key}[]`, label.toString());
           });
         } else {
-          url.searchParams.append("labels[]", value.toString());
+          url.searchParams.append(`${key}[]`, value.toString());
         }
       } else {
         url.searchParams.append(key, value.toString());
