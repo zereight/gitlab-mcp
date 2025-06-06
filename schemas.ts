@@ -467,6 +467,8 @@ export const CreateMergeRequestOptionsSchema = z.object({
   labels: z.array(z.string()).optional(),
   allow_collaboration: z.boolean().optional(), // Changed from maintainer_can_modify to match GitLab API
   draft: z.boolean().optional(),
+  remove_source_branch: z.boolean().optional().describe("Flag indicating if a merge request should remove the source branch when merging."),
+  squash: z.boolean().optional().describe("If true, squash all commits into a single commit on merge.")
 });
 
 export const GitLabDiffSchema = z.object({
