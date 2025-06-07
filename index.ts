@@ -17,7 +17,7 @@ import path from "path";
 import express, { Request, Response } from "express";
 // Add type imports for proxy agents
 import { Agent } from "http";
-import { Agent as HttpsAgent } from 'https';
+import { Agent as HttpsAgent } from "https";
 import { URL } from "url";
 
 import {
@@ -187,7 +187,7 @@ try {
     SERVER_VERSION = packageJson.version || SERVER_VERSION;
   }
 } catch (error) {
-  console.error("Warning: Could not read version from package.json:", error);
+  // Warning: Could not read version from package.json - silently continue
 }
 
 const server = new Server(
@@ -215,12 +215,12 @@ const HTTPS_PROXY = process.env.HTTPS_PROXY;
 const NODE_TLS_REJECT_UNAUTHORIZED = process.env.NODE_TLS_REJECT_UNAUTHORIZED;
 const GITLAB_CA_CERT_PATH = process.env.GITLAB_CA_CERT_PATH;
 
-let sslOptions= undefined;
-if (NODE_TLS_REJECT_UNAUTHORIZED === '0') {
+let sslOptions = undefined;
+if (NODE_TLS_REJECT_UNAUTHORIZED === "0") {
   sslOptions = { rejectUnauthorized: false };
 } else if (GITLAB_CA_CERT_PATH) {
-    const ca = fs.readFileSync(GITLAB_CA_CERT_PATH);
-    sslOptions = { ca };
+  const ca = fs.readFileSync(GITLAB_CA_CERT_PATH);
+  sslOptions = { ca };
 }
 
 // Configure proxy agents if proxies are set
@@ -323,8 +323,7 @@ const allTools = [
   },
   {
     name: "get_branch_diffs",
-    description:
-      "Get the changes/diffs between two branches or commits in a GitLab project",
+    description: "Get the changes/diffs between two branches or commits in a GitLab project",
     inputSchema: zodToJsonSchema(GetBranchDiffsSchema),
   },
   {
@@ -908,7 +907,7 @@ async function listIssues(
   Object.entries(options).forEach(([key, value]) => {
     if (value !== undefined) {
       const keys = ["labels", "assignee_username"];
-      if ( keys.includes(key)) {
+      if (keys.includes(key)) {
         if (Array.isArray(value)) {
           // Handle array of labels
           value.forEach(label => {
@@ -1234,7 +1233,7 @@ async function listDiscussions(
   resourceType: "issues" | "merge_requests",
   resourceIid: number,
   options: PaginationOptions = {}
-): Promise<PaginatedDiscussionsResponse> {  
+): Promise<PaginatedDiscussionsResponse> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
     `${GITLAB_API_URL}/projects/${encodeURIComponent(
@@ -1259,12 +1258,20 @@ async function listDiscussions(
 
   // Extract pagination headers
   const pagination = {
-    x_next_page: response.headers.get("x-next-page") ? parseInt(response.headers.get("x-next-page")!) : null,
+    x_next_page: response.headers.get("x-next-page")
+      ? parseInt(response.headers.get("x-next-page")!)
+      : null,
     x_page: response.headers.get("x-page") ? parseInt(response.headers.get("x-page")!) : undefined,
-    x_per_page: response.headers.get("x-per-page") ? parseInt(response.headers.get("x-per-page")!) : undefined,
-    x_prev_page: response.headers.get("x-prev-page") ? parseInt(response.headers.get("x-prev-page")!) : null,
+    x_per_page: response.headers.get("x-per-page")
+      ? parseInt(response.headers.get("x-per-page")!)
+      : undefined,
+    x_prev_page: response.headers.get("x-prev-page")
+      ? parseInt(response.headers.get("x-prev-page")!)
+      : null,
     x_total: response.headers.get("x-total") ? parseInt(response.headers.get("x-total")!) : null,
-    x_total_pages: response.headers.get("x-total-pages") ? parseInt(response.headers.get("x-total-pages")!) : null,
+    x_total_pages: response.headers.get("x-total-pages")
+      ? parseInt(response.headers.get("x-total-pages")!)
+      : null,
   };
 
   return PaginatedDiscussionsResponseSchema.parse({
@@ -1841,14 +1848,14 @@ async function getBranchDiffs(
   straight?: boolean
 ): Promise<GitLabCompareResult> {
   projectId = decodeURIComponent(projectId); // Decode project ID
-  
+
   const url = new URL(
     `${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/repository/compare`
   );
-  
+
   url.searchParams.append("from", from);
   url.searchParams.append("to", to);
-  
+
   if (straight !== undefined) {
     url.searchParams.append("straight", straight.toString());
   }
@@ -1859,9 +1866,7 @@ async function getBranchDiffs(
 
   if (!response.ok) {
     const errorBody = await response.text();
-    throw new Error(
-      `GitLab API error: ${response.status} ${response.statusText}\n${errorBody}`
-    );
+    throw new Error(`GitLab API error: ${response.status} ${response.statusText}\n${errorBody}`);
   }
 
   const data = await response.json();
@@ -2643,10 +2648,13 @@ async function createPipeline(
 
   const body: any = { ref };
   if (variables && variables.length > 0) {
-    body.variables = variables.reduce((acc, { key, value }) => {
-      acc[key] = value;
-      return acc;
-    }, {} as Record<string, string>);
+    body.variables = variables.reduce(
+      (acc, { key, value }) => {
+        acc[key] = value;
+        return acc;
+      },
+      {} as Record<string, string>
+    );
   }
 
   const response = await fetch(url.toString(), {
@@ -2978,9 +2986,9 @@ async function getUser(username: string): Promise<GitLabUser | null> {
     });
 
     await handleGitLabError(response);
-    
+
     const users = await response.json();
-    
+
     // GitLab returns an array of users that match the username
     if (Array.isArray(users) && users.length > 0) {
       // Find exact match for username (case-sensitive)
@@ -2989,7 +2997,7 @@ async function getUser(username: string): Promise<GitLabUser | null> {
         return GitLabUserSchema.parse(exactMatch);
       }
     }
-    
+
     // No matching user found
     return null;
   } catch (error) {
@@ -3000,13 +3008,13 @@ async function getUser(username: string): Promise<GitLabUser | null> {
 
 /**
  * Get multiple users from GitLab
- * 
+ *
  * @param {string[]} usernames - Array of usernames to look up
  * @returns {Promise<GitLabUsersResponse>} Object with usernames as keys and user objects or null as values
  */
 async function getUsers(usernames: string[]): Promise<GitLabUsersResponse> {
   const users: Record<string, GitLabUser | null> = {};
-  
+
   // Process usernames sequentially to avoid rate limiting
   for (const username of usernames) {
     try {
@@ -3035,9 +3043,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
     ? tools1
     : tools1.filter(tool => !milestoneToolNames.includes(tool.name));
   // Toggle pipeline tools by USE_PIPELINE flag
-  let tools = USE_PIPELINE
-    ? tools2
-    : tools2.filter(tool => !pipelineToolNames.includes(tool.name));
+  let tools = USE_PIPELINE ? tools2 : tools2.filter(tool => !pipelineToolNames.includes(tool.name));
 
   // <<< START: Gemini 호환성을 위해 $schema 제거 >>>
   tools = tools.map(tool => {
@@ -3111,26 +3117,19 @@ server.setRequestHandler(CallToolRequestSchema, async request => {
 
       case "get_branch_diffs": {
         const args = GetBranchDiffsSchema.parse(request.params.arguments);
-        const diffResp = await getBranchDiffs(
-          args.project_id,
-          args.from,
-          args.to,
-          args.straight
-        );
+        const diffResp = await getBranchDiffs(args.project_id, args.from, args.to, args.straight);
 
         if (args.excluded_file_patterns?.length) {
           const regexPatterns = args.excluded_file_patterns.map(pattern => new RegExp(pattern));
-          
+
           // Helper function to check if a path matches any regex pattern
           const matchesAnyPattern = (path: string): boolean => {
             if (!path) return false;
             return regexPatterns.some(regex => regex.test(path));
           };
-          
+
           // Filter out files that match any of the regex patterns on new files
-          diffResp.diffs = diffResp.diffs.filter(diff => 
-            !matchesAnyPattern(diff.new_path)
-          );
+          diffResp.diffs = diffResp.diffs.filter(diff => !matchesAnyPattern(diff.new_path));
         }
         return {
           content: [{ type: "text", text: JSON.stringify(diffResp, null, 2) }],
@@ -3409,11 +3408,11 @@ server.setRequestHandler(CallToolRequestSchema, async request => {
           content: [{ type: "text", text: JSON.stringify(projects, null, 2) }],
         };
       }
-      
+
       case "get_users": {
         const args = GetUsersSchema.parse(request.params.arguments);
         const usersMap = await getUsers(args.usernames);
-        
+
         return {
           content: [{ type: "text", text: JSON.stringify(usersMap, null, 2) }],
         };
@@ -3945,14 +3944,13 @@ server.setRequestHandler(CallToolRequestSchema, async request => {
  */
 async function runServer() {
   try {
-    console.error("========================");
-    console.error(`GitLab MCP Server v${SERVER_VERSION}`);
-    console.error(`API URL: ${GITLAB_API_URL}`);
-    console.error("========================");
-    if ( !SSE )
-    {
+    // Server startup banner removed - inappropriate use of console.error for logging
+    // Server version banner removed - inappropriate use of console.error for logging
+    // API URL banner removed - inappropriate use of console.error for logging
+    // Server startup banner removed - inappropriate use of console.error for logging
+    if (!SSE) {
       const transport = new StdioServerTransport();
-      await server.connect(transport);      
+      await server.connect(transport);
     } else {
       const app = express();
       const transports: { [sessionId: string]: SSEServerTransport } = {};
@@ -3964,7 +3962,7 @@ async function runServer() {
         });
         await server.connect(transport);
       });
-      
+
       app.post("/messages", async (req: Request, res: Response) => {
         const sessionId = req.query.sessionId as string;
         const transport = transports[sessionId];
@@ -3974,13 +3972,12 @@ async function runServer() {
           res.status(400).send("No transport found for sessionId");
         }
       });
-      
+
       const PORT = process.env.PORT || 3002;
       app.listen(PORT, () => {
         console.log(`Server is running on port ${PORT}`);
       });
     }
-    console.error("GitLab MCP Server running on stdio");
   } catch (error) {
     console.error("Error initializing server:", error);
     process.exit(1);
