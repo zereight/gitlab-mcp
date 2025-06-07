@@ -1,6 +1,6 @@
 {
   "name": "@zereight/mcp-gitlab",
-  "version": "1.0.59",
+  "version": "1.0.60",
   "description": "MCP server for using the GitLab API",
   "license": "MIT",
   "author": "zereight",
@@ -21,6 +21,7 @@
     "watch": "tsc --watch",
     "deploy": "npm publish --access public",
     "generate-tools": "npx ts-node scripts/generate-tools-readme.ts",
+    "changelog": "auto-changelog -p",
     "test": "node test/validate-api.js",
     "test:integration": "node test/validate-api.js",
     "lint": "eslint . --ext .ts",
@@ -48,6 +49,7 @@
     "prettier": "^3.4.2",
     "ts-node": "^10.9.2",
     "typescript": "^5.8.2",
-    "zod": "^3.24.2"
+    "zod": "^3.24.2",
+    "auto-changelog": "^2.4.0"
   }
 }
