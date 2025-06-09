@@ -203,6 +203,7 @@ const server = new Server(
 );
 
 const GITLAB_PERSONAL_ACCESS_TOKEN = process.env.GITLAB_PERSONAL_ACCESS_TOKEN;
+const IS_OLD = process.env.GITLAB_IS_OLD === "true";
 const GITLAB_READ_ONLY_MODE = process.env.GITLAB_READ_ONLY_MODE === "true";
 const USE_GITLAB_WIKI = process.env.USE_GITLAB_WIKI === "true";
 const USE_MILESTONE = process.env.USE_MILESTONE === "true";
@@ -245,11 +246,15 @@ httpsAgent = httpsAgent || new HttpsAgent(sslOptions);
 httpAgent = httpAgent || new Agent();
 
 // Modify DEFAULT_HEADERS to include agent configuration
-const DEFAULT_HEADERS = {
+const DEFAULT_HEADERS: Record<string, string> = {
   Accept: "application/json",
   "Content-Type": "application/json",
-  Authorization: `Bearer ${GITLAB_PERSONAL_ACCESS_TOKEN}`,
 };
+if (IS_OLD) {
+  DEFAULT_HEADERS["Private-Token"] = `Bearer ${GITLAB_PERSONAL_ACCESS_TOKEN}`;
+} else {
+  DEFAULT_HEADERS["Authorization"] = `Bearer ${GITLAB_PERSONAL_ACCESS_TOKEN}`;
+}
 
 // Create a default fetch configuration object that includes proxy agents if set
 const DEFAULT_FETCH_CONFIG = {
@@ -2730,15 +2735,20 @@ async function getRepositoryTree(options: GetRepositoryTreeOptions): Promise<Git
   if (options.page_token) queryParams.append("page_token", options.page_token);
   if (options.pagination) queryParams.append("pagination", options.pagination);
 
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
+  if (IS_OLD) {
+    headers["Private-Token"] = `Bearer ${GITLAB_PERSONAL_ACCESS_TOKEN}`;
+  } else {
+    headers["Authorization"] = `Bearer ${GITLAB_PERSONAL_ACCESS_TOKEN}`;
+  }
   const response = await fetch(
     `${GITLAB_API_URL}/projects/${encodeURIComponent(
       options.project_id
     )}/repository/tree?${queryParams.toString()}`,
     {
-      headers: {
-        Authorization: `Bearer ${GITLAB_PERSONAL_ACCESS_TOKEN}`,
-        "Content-Type": "application/json",
-      },
+      headers,
     }
   );
 
