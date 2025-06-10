@@ -407,8 +407,17 @@ export const GitLabCommitSchema = z.object({
   committer_name: z.string(),
   committer_email: z.string(),
   committed_date: z.string(),
+  created_at: z.string().optional(), // Add created_at field
+  message: z.string().optional(), // Add full message field
   web_url: z.string(), // Changed from html_url to match GitLab API
   parent_ids: z.array(z.string()), // Changed from parents to match GitLab API
+  stats: z.object({
+    additions: z.number().optional().nullable(),
+    deletions: z.number().optional().nullable(),
+    total: z.number().optional().nullable(),
+  }).optional(), // Only present when with_stats=true
+  trailers: z.record(z.string()).optional().default({}), // Git trailers, may be empty object
+  extended_trailers: z.record(z.array(z.string())).optional().default({}), // Extended trailers, may be empty object
 });
 
 // Reference schema
@@ -1328,6 +1337,34 @@ export const PromoteProjectMilestoneSchema = GetProjectMilestoneSchema;
 // Schema for getting burndown chart events for a milestone
 export const GetMilestoneBurndownEventsSchema = GetProjectMilestoneSchema.merge(PaginationOptionsSchema);
 
+// Add schemas for commit operations
+export const ListCommitsSchema = z.object({
+  project_id: z.string().describe("Project ID or complete URL-encoded path to project"),
+  ref_name: z.string().optional().describe("The name of a repository branch, tag or revision range, or if not given the default branch"),
+  since: z.string().optional().describe("Only commits after or on this date are returned in ISO 8601 format YYYY-MM-DDTHH:MM:SSZ"),
+  until: z.string().optional().describe("Only commits before or on this date are returned in ISO 8601 format YYYY-MM-DDTHH:MM:SSZ"),
+  path: z.string().optional().describe("The file path"),
+  author: z.string().optional().describe("Search commits by commit author"),
+  all: z.boolean().optional().describe("Retrieve every commit from the repository"),
+  with_stats: z.boolean().optional().describe("Stats about each commit are added to the response"),
+  first_parent: z.boolean().optional().describe("Follow only the first parent commit upon seeing a merge commit"),
+  order: z.enum(["default", "topo"]).optional().describe("List commits in order"),
+  trailers: z.boolean().optional().describe("Parse and include Git trailers for every commit"),
+  page: z.number().optional().describe("Page number for pagination (default: 1)"),
+  per_page: z.number().optional().describe("Number of items per page (max: 100, default: 20)"),
+});
+
+export const GetCommitSchema = z.object({
+  project_id: z.string().describe("Project ID or complete URL-encoded path to project"),
+  sha: z.string().describe("The commit hash or name of a repository branch or tag"),
+  stats: z.boolean().optional().describe("Include commit stats"),
+});
+
+export const GetCommitDiffSchema = z.object({
+  project_id: z.string().describe("Project ID or complete URL-encoded path to project"),
+  sha: z.string().describe("The commit hash or name of a repository branch or tag"),
+});
+
 // Export types
 export type GitLabAuthor = z.infer<typeof GitLabAuthorSchema>;
 export type GitLabFork = z.infer<typeof GitLabForkSchema>;
@@ -1394,3 +1431,6 @@ export type GetMilestoneBurndownEventsOptions = z.infer<typeof GetMilestoneBurnd
 export type GitLabUser = z.infer<typeof GitLabUserSchema>;
 export type GitLabUsersResponse = z.infer<typeof GitLabUsersResponseSchema>;
 export type PaginationOptions = z.infer<typeof PaginationOptionsSchema>;
+export type ListCommitsOptions = z.infer<typeof ListCommitsSchema>;
+export type GetCommitOptions = z.infer<typeof GetCommitSchema>;
+export type GetCommitDiffOptions = z.infer<typeof GetCommitDiffSchema>;
