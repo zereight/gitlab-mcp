@@ -251,7 +251,7 @@ const DEFAULT_HEADERS: Record<string, string> = {
   "Content-Type": "application/json",
 };
 if (IS_OLD) {
-  DEFAULT_HEADERS["Private-Token"] = `Bearer ${GITLAB_PERSONAL_ACCESS_TOKEN}`;
+  DEFAULT_HEADERS["Private-Token"] = `${GITLAB_PERSONAL_ACCESS_TOKEN}`;
 } else {
   DEFAULT_HEADERS["Authorization"] = `Bearer ${GITLAB_PERSONAL_ACCESS_TOKEN}`;
 }
@@ -2739,7 +2739,7 @@ async function getRepositoryTree(options: GetRepositoryTreeOptions): Promise<Git
     "Content-Type": "application/json",
   };
   if (IS_OLD) {
-    headers["Private-Token"] = `Bearer ${GITLAB_PERSONAL_ACCESS_TOKEN}`;
+    headers["Private-Token"] = `${GITLAB_PERSONAL_ACCESS_TOKEN}`;
   } else {
     headers["Authorization"] = `Bearer ${GITLAB_PERSONAL_ACCESS_TOKEN}`;
   }
