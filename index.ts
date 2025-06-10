@@ -15,6 +15,7 @@ import { dirname } from "path";
 import fs from "fs";
 import path from "path";
 import express, { Request, Response } from "express";
+import crypto from "crypto";
 // Add type imports for proxy agents
 import { Agent } from "http";
 import { Agent as HttpsAgent } from "https";
@@ -1996,6 +1997,27 @@ async function createMergeRequestThread(
   // Add optional parameters if provided
   if (position) {
     payload.position = position;
+    let line_range = position.line_range;
+    const path = position.new_path || position.old_path;
+    if (line_range && path) {
+      const hashedPath = crypto.createHash('sha1').update(path).digest('hex');
+      const _start = line_range?.start;
+      const start = {
+        line_code: `${hashedPath}_${_start.old_line || 'null'}_${_start.new_line || 'null'}`,
+        type: _start.type || "old"
+      }
+      let _end = line_range?.end;
+      const end = {
+        line_code: `${hashedPath}_${_end.old_line || 'null'}_${_end.new_line || 'null'}`,
+        type: _end.type || "old"
+      }
+      payload.position.line_range = {
+        start,
+        end
+      };
+    } else {
+      delete payload.position.line_range;
+    }
   }
 
   if (createdAt) {

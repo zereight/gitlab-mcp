@@ -672,15 +672,15 @@ export const GitLabDiscussionNoteSchema = z.object({
       base_sha: z.string(),
       start_sha: z.string(),
       head_sha: z.string(),
-      old_path: z.string(),
-      new_path: z.string(),
+      old_path: z.string().nullable().optional(),
+      new_path: z.string().nullable().optional(),
       position_type: z.enum(["text", "image", "file"]),
       old_line: z.number().nullish(), // This is missing for image diffs
       new_line: z.number().nullish(), // This is missing for image diffs
       line_range: z
         .object({
           start: z.object({
-            line_code: z.string(),
+            line_code: z.string(),// maybe shold fix
             type: z.enum(["new", "old", "expanded"]),
             old_line: z.number().nullish(), // This is missing for image diffs
             new_line: z.number().nullish(), // This is missing for image diffs
@@ -1235,6 +1235,18 @@ export const GitLabWikiPageSchema = z.object({
   updated_at: z.string().optional(),
 });
 
+// Define line range position schema for multiline comments
+export const LineRangePositionSchema = z.object({
+  type: z.enum(["new", "old"]).describe("Use new for lines added by this commit, otherwise old"),
+  old_line: z.number().nullable().optional().describe("Old line number before change"),
+  new_line: z.number().nullable().optional().describe("New line number after change"),
+});
+
+export const LineRangeSchema = z.object({
+  start: LineRangePositionSchema.describe("Start line position for multiline comment"),
+  end: LineRangePositionSchema.describe("End line position for multiline comment"),
+});
+
 // Merge Request Thread position schema - used for diff notes
 export const MergeRequestThreadPositionSchema = z.object({
   base_sha: z.string().describe("Base commit SHA in the source branch"),
@@ -1245,6 +1257,7 @@ export const MergeRequestThreadPositionSchema = z.object({
   old_path: z.string().optional().describe("File path before change"),
   new_line: z.number().nullable().optional().describe("Line number after change"),
   old_line: z.number().nullable().optional().describe("Line number before change"),
+  line_range: LineRangeSchema.optional().describe("Line range for multiline comments (start and end positions)"),
   width: z.number().optional().describe("Width of the image (for image diffs)"),
   height: z.number().optional().describe("Height of the image (for image diffs)"),
   x: z.number().optional().describe("X coordinate on the image (for image diffs)"),
@@ -1394,3 +1407,5 @@ export type GetMilestoneBurndownEventsOptions = z.infer<typeof GetMilestoneBurnd
 export type GitLabUser = z.infer<typeof GitLabUserSchema>;
 export type GitLabUsersResponse = z.infer<typeof GitLabUsersResponseSchema>;
 export type PaginationOptions = z.infer<typeof PaginationOptionsSchema>;
+export type LineRangePosition = z.infer<typeof LineRangePositionSchema>;
+export type LineRange = z.infer<typeof LineRangeSchema>;
