@@ -1279,6 +1279,40 @@ export const GitLabGraphQLProjectSchema = z.object({
   fullPath: z.string().describe("Full path of the project"),
 }).describe("Project information from GraphQL");
 
+// New schemas for enhanced vulnerability data
+export const GitLabGraphQLVulnerabilityDependencyPackageSchema = z.object({
+  name: z.string().describe("Package name"),
+}).describe("Vulnerable package information");
+
+export const GitLabGraphQLVulnerabilityDependencySchema = z.object({
+  package: GitLabGraphQLVulnerabilityDependencyPackageSchema.describe("Package information"),
+  version: z.string().describe("Package version"),
+}).describe("Vulnerable dependency information");
+
+export const GitLabGraphQLVulnerabilityLocationSchema = z.object({
+  file: z.string().optional().describe("File path where vulnerability was found"),
+  startLine: z.number().optional().describe("Starting line number of the vulnerability"),
+  endLine: z.number().optional().describe("Ending line number of the vulnerability"),
+  dependency: GitLabGraphQLVulnerabilityDependencySchema.optional().describe("Dependency information for dependency scanning"),
+  image: z.string().optional().describe("Container image for container scanning"),
+  operatingSystem: z.string().optional().describe("Operating system for container scanning"),
+}).describe("Location information for the vulnerability");
+
+export const GitLabGraphQLVulnerabilityIdentifierSchema = z.object({
+  name: z.string().describe("Name of the identifier"),
+  externalType: z.string().describe("External type of the identifier (e.g., cve, cwe)"),
+  externalId: z.string().describe("External ID of the identifier"),
+  url: z.string().optional().describe("URL for more information about the identifier"),
+}).describe("Vulnerability identifier information");
+
+
+
+export const GitLabGraphQLVulnerabilityScannerSchema = z.object({
+  id: z.string().describe("Scanner ID"),
+  name: z.string().describe("Scanner name"),
+  vendor: z.string().optional().describe("Scanner vendor"),
+}).describe("Vulnerability scanner information");
+
 export const GitLabGraphQLVulnerabilitySchema = z.object({
   title: z.string().describe("Title of the vulnerability"),
   description: z.string().nullable().describe("Description of the vulnerability"),
@@ -1290,12 +1324,20 @@ export const GitLabGraphQLVulnerabilitySchema = z.object({
   confirmedAt: z.string().nullable().describe("Date when the vulnerability was confirmed"),
   resolvedAt: z.string().nullable().describe("Date when the vulnerability was resolved"),
   resolvedBy: GitLabGraphQLUserSchema.nullable().describe("User who resolved the vulnerability"),
+  // Enhanced fields for location and solution information
+  location: GitLabGraphQLVulnerabilityLocationSchema.nullable().describe("Location metadata for the vulnerability"),
+  solution: z.string().nullable().describe("Recommended solution for the vulnerability"),
+  identifiers: z.array(GitLabGraphQLVulnerabilityIdentifierSchema).describe("Identifiers of the vulnerability (CVE, CWE, etc.)"),
+  scanner: GitLabGraphQLVulnerabilityScannerSchema.nullable().describe("Scanner metadata for the vulnerability"),
+  primaryIdentifier: GitLabGraphQLVulnerabilityIdentifierSchema.nullable().describe("Primary identifier of the vulnerability"),
 }).describe("Vulnerability details from GraphQL API");
 
-export const GetVulnerabilityByIdSchema = z.object({
+
+
+export const GetVulnerabilitiesByIdsSchema = z.object({
   project_id: z.string().describe("Project ID or URL-encoded path"),
-  vulnerability_id: z.string().describe("The vulnerability ID (numeric part only, without gid prefix)"),
-}).describe("Parameters for fetching a specific vulnerability by ID using GraphQL");
+  vulnerability_ids: z.array(z.string()).describe("Array of vulnerability IDs (numeric parts only, without gid prefix)"),
+}).describe("Parameters for fetching multiple vulnerabilities by IDs using GraphQL");
 
 // Export types
 export type GitLabAuthor = z.infer<typeof GitLabAuthorSchema>;
@@ -1369,5 +1411,12 @@ export type ListVulnerabilitiesOptions = z.infer<typeof ListVulnerabilitiesSchem
 // GraphQL Vulnerability types
 export type GitLabGraphQLUser = z.infer<typeof GitLabGraphQLUserSchema>;
 export type GitLabGraphQLProject = z.infer<typeof GitLabGraphQLProjectSchema>;
+export type GitLabGraphQLVulnerabilityDependencyPackage = z.infer<typeof GitLabGraphQLVulnerabilityDependencyPackageSchema>;
+export type GitLabGraphQLVulnerabilityDependency = z.infer<typeof GitLabGraphQLVulnerabilityDependencySchema>;
+export type GitLabGraphQLVulnerabilityLocation = z.infer<typeof GitLabGraphQLVulnerabilityLocationSchema>;
+export type GitLabGraphQLVulnerabilityIdentifier = z.infer<typeof GitLabGraphQLVulnerabilityIdentifierSchema>;
+
+export type GitLabGraphQLVulnerabilityScanner = z.infer<typeof GitLabGraphQLVulnerabilityScannerSchema>;
 export type GitLabGraphQLVulnerability = z.infer<typeof GitLabGraphQLVulnerabilitySchema>;
-export type GetVulnerabilityByIdOptions = z.infer<typeof GetVulnerabilityByIdSchema>;
+
+export type GetVulnerabilitiesByIdsOptions = z.infer<typeof GetVulnerabilitiesByIdsSchema>;

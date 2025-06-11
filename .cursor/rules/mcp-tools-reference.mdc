@@ -1,0 +1,182 @@
+---
+description:
+globs:
+alwaysApply: false
+---
+# GitLab MCP Tools Quick Reference
+
+## Vulnerability Tools
+
+### `get_vulnerabilities_by_ids` 🔍 **PRIMARY VULNERABILITY TOOL**
+**Purpose**: Fetch detailed vulnerability information with enhanced location and solution data
+
+**Parameters**:
+- `project_id` (string) - Project ID or URL-encoded path
+- `vulnerability_ids` (array) - Array of vulnerability IDs (numeric parts only)
+
+**Usage Examples**:
+```json
+// Single vulnerability
+{
+  "project_id": "connectivity/bulk-upload",
+  "vulnerability_ids": ["11442396"]
+}
+
+// Multiple vulnerabilities  
+{
+  "project_id": "connectivity/bulk-upload", 
+  "vulnerability_ids": ["11442396", "12345678", "98765432"]
+}
+```
+
+**Enhanced Data Returned**:
+- **Location**: File path, line numbers, package name and version
+- **Solution**: Upgrade instructions with specific version recommendations
+- **Identifiers**: CVE numbers, external references with URLs
+- **Scanner**: Scanner name and vendor information
+
+## Merge Request Tools
+
+### `get_merge_request` 📋 
+**Purpose**: Fetch merge request details (supports both IID and branch name)
+
+**Parameters**:
+- `project_id` (string) - Project ID or URL-encoded path
+- `merge_request_iid` (number, optional) - MR internal ID
+- `source_branch` (string, optional) - Source branch name
+
+**Usage**: Either `merge_request_iid` OR `source_branch` must be provided
+
+### `mr_discussions` 💬
+**Purpose**: List unresolved diff discussions for a merge request
+
+**Parameters**:
+- `project_id` (string) - Project ID or URL-encoded path  
+- `merge_request_iid` (number) - MR internal ID
+
+**Returns**: Only unresolved diff notes (DiffNote type, resolvable=true, resolved=false)
+
+### `create_merge_request_note` ✍️
+**Purpose**: Add a reply note to an existing merge request thread
+
+**Parameters**:
+- `project_id` (string) - Project ID or URL-encoded path
+- `merge_request_iid` (number) - MR internal ID
+- `discussion_id` (string) - The ID of the thread to reply to
+- `body` (string) - The content of the note or reply
+- `created_at` (string, optional) - Date the note was created at (ISO 8601 format)
+
+### `update_merge_request` 🏷️
+**Purpose**: Update merge request properties including adding labels
+
+**Parameters**:
+- `project_id` (string) - Project ID or URL-encoded path
+- `merge_request_iid` (number, optional) - MR internal ID
+- `source_branch` (string, optional) - Source branch name
+- `title` (string, optional) - MR title
+- `description` (string, optional) - MR description
+- `labels` (array, optional) - Labels to add/update
+- `assignee_ids` (array, optional) - User IDs to assign
+- `state_event` (string, optional) - "close" or "reopen"
+- `target_branch` (string, optional) - Target branch
+- `remove_source_branch` (boolean, optional) - Remove source branch after merge
+- `squash` (boolean, optional) - Squash commits when merging
+- `draft` (boolean, optional) - Mark as work in progress
+
+## Tool Usage Patterns
+
+### Vulnerability Investigation Workflow
+```json
+// 1. Get vulnerability details with location info
+{
+  "name": "get_vulnerabilities_by_ids",
+  "arguments": {
+    "project_id": "my-project",
+    "vulnerability_ids": ["12345"]
+  }
+}
+
+// Response includes:
+// - file: "src/package.json" 
+// - dependency: {"package": {"name": "lodash"}, "version": "4.17.20"}
+// - solution: "Upgrade lodash to version 4.17.21 or higher"
+// - identifiers: [{"name": "CVE-2021-23337", "externalType": "cve", ...}]
+```
+
+### MR Comment Resolution Workflow
+```json
+// 1. Get unresolved discussions
+{
+  "name": "mr_discussions", 
+  "arguments": {
+    "project_id": "my-project",
+    "merge_request_iid": 123
+  }
+}
+
+// 2. Add response to specific discussion
+{
+  "name": "create_merge_request_note",
+  "arguments": {
+    "project_id": "my-project", 
+    "merge_request_iid": 123,
+    "discussion_id": "abc123",
+    "body": "Fixed the issue by updating the validation logic."
+  }
+}
+
+// 3. Update MR labels after resolution
+{
+  "name": "update_merge_request",
+  "arguments": {
+    "project_id": "my-project",
+    "merge_request_iid": 123, 
+    "labels": ["reviewed", "ready-for-merge"]
+  }
+}
+```
+
+## Read-Only vs Write Operations
+
+### Read-Only Tools (Safe for exploration)
+- `get_merge_request` - Fetch MR information
+- `mr_discussions` - List discussions 
+- `get_vulnerabilities_by_ids` - Get vulnerability data
+
+### Write Tools (Require caution)
+- `create_merge_request_note` - Adds comments/replies
+- `update_merge_request` - Modifies MR properties
+
+## Error Handling
+
+### Common Error Cases
+1. **Invalid Token**: `GITLAB_PERSONAL_ACCESS_TOKEN` not set or expired
+2. **Project Not Found**: Invalid `project_id` or insufficient permissions
+3. **MR Not Found**: Invalid `merge_request_iid` or `source_branch`
+4. **Rate Limiting**: Too many API requests (403 with rate limit message)
+5. **Vulnerability Not Found**: Invalid `vulnerability_ids` or access denied
+
+### Best Practices
+- Always provide context in error messages
+- Use descriptive `project_id` values (prefer path over numeric ID)
+- Batch vulnerability requests when possible (multiple IDs in one call)
+- Handle optional fields gracefully (many fields may be null)
+
+## Parameter Guidelines
+
+### Project IDs
+- **Preferred**: URL-encoded paths like `"connectivity/bulk-upload"`
+- **Alternative**: Numeric IDs like `"36689"`
+- **Encoding**: Will be automatically decoded/encoded as needed
+
+### Vulnerability IDs
+- **Format**: Numeric strings without `gid://` prefix
+- **Single ID**: Pass as array `["12345"]` 
+- **Multiple IDs**: Array of strings `["12345", "67890"]`
+- **Limit**: Maximum 100 vulnerability IDs per request
+
+### Branch Names vs MR IIDs
+- Both are supported for MR operations
+- **Branch name**: More intuitive for development workflow
+- **MR IID**: More direct for specific MR operations
+- Only one is required, not both

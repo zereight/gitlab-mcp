@@ -151,12 +151,14 @@ import {
   GitLabGraphQLVulnerabilitySchema,
   GitLabGraphQLUserSchema,
   GitLabGraphQLProjectSchema,
-  GetVulnerabilityByIdSchema,
+
+  GetVulnerabilitiesByIdsSchema,
   // GraphQL Vulnerability types
   type GitLabGraphQLVulnerability,
   type GitLabGraphQLUser,
   type GitLabGraphQLProject,
-  type GetVulnerabilityByIdOptions,
+
+  type GetVulnerabilitiesByIdsOptions,
 } from "./schemas.js";
 
 /**
@@ -255,10 +257,11 @@ const allTools = [
     description: "Append label in MR - Update a merge request including adding labels (Either mergeRequestIid or branchName must be provided)",
     inputSchema: zodToJsonSchema(UpdateMergeRequestSchema),
   },
+
   {
-    name: "get_vulnerability_by_id",
-    description: "Get vulnerability by ID - Fetch detailed information about a specific vulnerability using GraphQL",
-    inputSchema: zodToJsonSchema(GetVulnerabilityByIdSchema),
+    name: "get_vulnerabilities_by_ids",
+    description: "Get vulnerabilities by IDs - Fetch detailed information about multiple vulnerabilities using GraphQL",
+    inputSchema: zodToJsonSchema(GetVulnerabilitiesByIdsSchema),
   },
 ];
 
@@ -266,7 +269,7 @@ const allTools = [
 const readOnlyTools = [
   "get_merge_request",
   "mr_discussions",
-  "get_vulnerability_by_id",
+  "get_vulnerabilities_by_ids",
 ];
 
 // Define which tools are related to wiki and can be toggled by USE_GITLAB_WIKI - Custom MR-only version (no wiki tools)
@@ -2445,46 +2448,101 @@ async function listVulnerabilities(
   return z.array(GitLabVulnerabilitySchema).parse(data);
 }
 
+
+
 /**
- * Get a specific vulnerability by ID using GraphQL
+ * Get multiple vulnerabilities by IDs using GraphQL
  * @param {string} projectId - The ID or URL-encoded path of the project
- * @param {string} vulnerabilityId - The vulnerability ID (numeric part only)
- * @returns {Promise<GitLabGraphQLVulnerability>}
+ * @param {string[]} vulnerabilityIds - Array of vulnerability IDs (numeric parts only)
+ * @returns {Promise<GitLabGraphQLVulnerability[]>}
  */
-async function getVulnerabilityById(
+async function getVulnerabilitiesByIds(
   projectId: string,
-  vulnerabilityId: string
-): Promise<GitLabGraphQLVulnerability> {
+  vulnerabilityIds: string[]
+): Promise<GitLabGraphQLVulnerability[]> {
   validateGitLabToken(); // Add token validation
   projectId = decodeURIComponent(projectId); // Decode project ID
 
-  const graphqlQuery = {
-    query: `
-      query GetVulnerability($id: VulnerabilityID!) {
-        vulnerability(id: $id) {
-          title
-          description
-          state
-          severity
-          reportType
-          project {
-            id
-            name
-            fullPath
-          }
-          detectedAt
-          confirmedAt
-          resolvedAt
-          resolvedBy {
-            id
-            username
+  if (!vulnerabilityIds || vulnerabilityIds.length === 0) {
+    throw new Error("At least one vulnerability ID must be provided");
+  }
+
+  if (vulnerabilityIds.length > 100) {
+    throw new Error("Maximum 100 vulnerability IDs allowed per request");
+  }
+
+  // Build the GraphQL query dynamically for multiple vulnerabilities
+  const vulnerabilityQueries = vulnerabilityIds.map((id, index) => `
+    vuln${index}: vulnerability(id: "gid://gitlab/Vulnerability/${id}") {
+      title
+      description
+      state
+      severity
+      reportType
+      project {
+        id
+        name
+        fullPath
+      }
+      detectedAt
+      confirmedAt
+      resolvedAt
+      resolvedBy {
+        id
+        username
+      }
+      location {
+        ... on VulnerabilityLocationDependencyScanning {
+          file
+          dependency {
+            package {
+              name
+            }
+            version
           }
         }
+        ... on VulnerabilityLocationSast {
+          file
+          startLine
+          endLine
+        }
+        ... on VulnerabilityLocationSecretDetection {
+          file
+          startLine
+          endLine
+        }
+        ... on VulnerabilityLocationContainerScanning {
+          image
+          operatingSystem
+        }
       }
-    `,
-    variables: {
-      id: `gid://gitlab/Vulnerability/${vulnerabilityId}`
+      solution
+              identifiers {
+          name
+          externalType
+          externalId
+          url
+        }
+        scanner {
+        id
+        name
+        vendor
+      }
+      primaryIdentifier {
+        name
+        externalType
+        externalId
+        url
+      }
     }
+  `).join('\n');
+
+  const graphqlQuery = {
+    query: `
+      query GetMultipleVulnerabilities {
+        ${vulnerabilityQueries}
+      }
+    `
   };
 
   const graphqlUrl = `${GITLAB_API_URL.replace('/api/v4', '/api')}/graphql`;
@@ -2499,7 +2557,7 @@ async function getVulnerabilityById(
   });
 
   if (response.status === 404) {
-    throw new Error("Vulnerability not found or GraphQL API not available");
+    throw new Error("GraphQL API not available");
   }
 
   await handleGitLabError(response);
@@ -2509,15 +2567,25 @@ async function getVulnerabilityById(
     throw new Error(`GraphQL Error: ${result.errors.map((e: any) => e.message).join(', ')}`);
   }
 
-  if (!result.data || !result.data.vulnerability) {
-    throw new Error("Vulnerability not found");
+  if (!result.data) {
+    throw new Error("No data returned from GraphQL query");
   }
 
-  try {
-    return GitLabGraphQLVulnerabilitySchema.parse(result.data.vulnerability);
-  } catch (parseError) {
-    throw new Error(`Failed to parse vulnerability data: ${parseError instanceof Error ? parseError.message : 'Unknown error'}`);
+  // Extract vulnerabilities from the response, filtering out null values
+  const vulnerabilities: GitLabGraphQLVulnerability[] = [];
+  for (let i = 0; i < vulnerabilityIds.length; i++) {
+    const vulnData = result.data[`vuln${i}`];
+    if (vulnData) {
+      try {
+        vulnerabilities.push(GitLabGraphQLVulnerabilitySchema.parse(vulnData));
+      } catch (parseError) {
+        console.warn(`Failed to parse vulnerability ${vulnerabilityIds[i]}: ${parseError instanceof Error ? parseError.message : 'Unknown error'}`);
+        // Continue processing other vulnerabilities instead of failing completely
+      }
+    }
   }
+
+  return vulnerabilities;
 }
 
 server.setRequestHandler(ListToolsRequestSchema, async () => {
@@ -2824,12 +2892,14 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         };
       }
 
-      case "get_vulnerability_by_id": {
-        const args = GetVulnerabilityByIdSchema.parse(request.params.arguments);
-        const vulnerability = await getVulnerabilityById(args.project_id, args.vulnerability_id);
+
+
+      case "get_vulnerabilities_by_ids": {
+        const args = GetVulnerabilitiesByIdsSchema.parse(request.params.arguments);
+        const vulnerabilities = await getVulnerabilitiesByIds(args.project_id, args.vulnerability_ids);
         return {
           content: [
-            { type: "text", text: JSON.stringify(vulnerability, null, 2) },
+            { type: "text", text: JSON.stringify(vulnerabilities, null, 2) },
           ],
         };
       }
