@@ -929,6 +929,12 @@ export const GetMergeRequestDiffsSchema = GetMergeRequestSchema.extend({
   view: z.enum(["inline", "parallel"]).optional().describe("Diff view type"),
 });
 
+export const ListMergeRequestDiffsSchema = GetMergeRequestSchema.extend({
+  page: z.number().optional().describe("Page number for pagination (default: 1)"),
+  per_page: z.number().optional().describe("Number of items per page (max: 100, default: 20)"),
+  unidiff: z.boolean().optional().describe("Present diffs in the unified diff format. Default is false. Introduced in GitLab 16.5."),
+});
+
 export const CreateNoteSchema = z.object({
   project_id: z.string().describe("Project ID or namespace/project_path"),
   noteable_type: z

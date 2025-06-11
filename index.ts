@@ -178,6 +178,7 @@ import {
   type ListCommitsOptions,
   type GetCommitOptions,
   type GetCommitDiffOptions,
+  ListMergeRequestDiffsSchema,
 } from "./schemas.js";
 
 /**
@@ -331,6 +332,12 @@ const allTools = [
     description:
       "Get the changes/diffs of a merge request (Either mergeRequestIid or branchName must be provided)",
     inputSchema: zodToJsonSchema(GetMergeRequestDiffsSchema),
+  },
+  {
+    name: "list_merge_request_diffs",
+    description:
+      "List merge request diffs with pagination support (Either mergeRequestIid or branchName must be provided)",
+    inputSchema: zodToJsonSchema(ListMergeRequestDiffsSchema),
   },
   {
     name: "get_branch_diffs",
@@ -1859,6 +1866,60 @@ async function getMergeRequestDiffs(
   await handleGitLabError(response);
   const data = (await response.json()) as { changes: unknown };
   return z.array(GitLabDiffSchema).parse(data.changes);
+}
+
+/**
+ * Get merge request changes with detailed information including commits, diff_refs, and more
+ * 마지막으로 추가된 상세한 MR 변경사항 조회 함수 (Detailed merge request changes retrieval function)
+ *
+ * @param {string} projectId - The ID or URL-encoded path of the project
+ * @param {number} mergeRequestIid - The internal ID of the merge request (Either mergeRequestIid or branchName must be provided)
+ * @param {string} [branchName] - The name of the branch to search for merge request by branch name (Either mergeRequestIid or branchName must be provided)
+ * @param {boolean} [unidiff] - Return diff in unidiff format
+ * @returns {Promise<any>} The complete merge request changes response
+ */
+async function listMergeRequestDiffs(
+  projectId: string,
+  mergeRequestIid?: number,
+  branchName?: string,
+  page?: number,
+  perPage?: number,
+  unidiff?: boolean
+): Promise<any> {
+  projectId = decodeURIComponent(projectId); // Decode project ID
+  if (!mergeRequestIid && !branchName) {
+    throw new Error("Either mergeRequestIid or branchName must be provided");
+  }
+
+  if (branchName && !mergeRequestIid) {
+    const mergeRequest = await getMergeRequest(projectId, undefined, branchName);
+    mergeRequestIid = mergeRequest.iid;
+  }
+
+  const url = new URL(
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(
+      projectId
+    )}/merge_requests/${mergeRequestIid}/diffs`
+  );
+
+  if (page) {
+    url.searchParams.append("page", page.toString());
+  }
+
+  if (perPage) {
+    url.searchParams.append("per_page", perPage.toString());
+  }
+
+  if (unidiff) {
+    url.searchParams.append("unidiff", "true");
+  }
+
+  const response = await fetch(url.toString(), {
+    ...DEFAULT_FETCH_CONFIG,
+  });
+
+  await handleGitLabError(response);
+  return await response.json(); // Return full response including commits, diff_refs, changes, etc.
 }
 
 /**
@@ -3422,6 +3483,21 @@ server.setRequestHandler(CallToolRequestSchema, async request => {
         );
         return {
           content: [{ type: "text", text: JSON.stringify(diffs, null, 2) }],
+        };
+      }
+
+      case "list_merge_request_diffs": {
+        const args = ListMergeRequestDiffsSchema.parse(request.params.arguments);
+        const changes = await listMergeRequestDiffs(
+          args.project_id,
+          args.merge_request_iid,
+          args.source_branch,
+          args.page,
+          args.per_page,
+          args.unidiff
+        );
+        return {
+          content: [{ type: "text", text: JSON.stringify(changes, null, 2) }],
         };
       }
 
