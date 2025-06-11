@@ -65,6 +65,42 @@ When using with the Claude App, you need to set up your API key and URLs directl
 }
 ```
 
+## AI-Assisted Installation
+
+### Quick Setup with AI Agent
+
+Clone this repository and navigate to the project folder, then use this prompt with your AI agent (like Claude/Cursor):
+
+```
+@mcp.json 
+current open folder is MCP tool. build and add this mcp server with name gitlab-mpc-test
+```
+
+**What this does:**
+1. **Builds the project** - Installs dependencies and compiles TypeScript
+2. **Adds to mcp.json** - Automatically configures the MCP server in your client
+3. **Ready to use** - Server will be available after restarting your MCP client
+
+### Manual Configuration (Alternative)
+
+If you prefer manual setup, ensure you have Node.js installed and add this to your mcp.json:
+
+```json
+{
+  "mcpServers": {
+    "your-server-name": {
+      "command": "node",
+      "args": ["/path/to/gitlab-mcp-2/build/index.js"],
+      "env": {
+        "GITLAB_PERSONAL_ACCESS_TOKEN": "your_gitlab_token",
+        "GITLAB_API_URL": "https://your-gitlab-instance.com/api/v4",
+        "GITLAB_READ_ONLY_MODE": "false",
+        "USE_GITLAB_WIKI": "true"
+      }
+    }
+  }
+}
+
 ### Environment Variables
 
 - `GITLAB_PERSONAL_ACCESS_TOKEN`: Your GitLab personal access token.
