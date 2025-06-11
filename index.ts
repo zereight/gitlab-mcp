@@ -172,6 +172,12 @@ import {
   GitLabCompareResultSchema,
   GetBranchDiffsSchema,
   ListWikiPagesOptions,
+  ListCommitsSchema,
+  GetCommitSchema,
+  GetCommitDiffSchema,
+  type ListCommitsOptions,
+  type GetCommitOptions,
+  type GetCommitDiffOptions,
 } from "./schemas.js";
 
 /**
@@ -596,6 +602,21 @@ const allTools = [
     description: "Get GitLab user details by usernames",
     inputSchema: zodToJsonSchema(GetUsersSchema),
   },
+  {
+    name: "list_commits",
+    description: "List repository commits with filtering options",
+    inputSchema: zodToJsonSchema(ListCommitsSchema),
+  },
+  {
+    name: "get_commit",
+    description: "Get details of a specific commit",
+    inputSchema: zodToJsonSchema(GetCommitSchema),
+  },
+  {
+    name: "get_commit_diff",
+    description: "Get changes/diffs of a specific commit",
+    inputSchema: zodToJsonSchema(GetCommitDiffSchema),
+  },
 ];
 
 // Define which tools are read-only
@@ -634,6 +655,9 @@ const readOnlyTools = [
   "list_wiki_pages",
   "get_wiki_page",
   "get_users",
+  "list_commits",
+  "get_commit",
+  "get_commit_diff",
 ];
 
 // Define which tools are related to wiki and can be toggled by USE_GITLAB_WIKI
@@ -3039,6 +3063,107 @@ async function getUsers(usernames: string[]): Promise<GitLabUsersResponse> {
   return GitLabUsersResponseSchema.parse(users);
 }
 
+/**
+ * List repository commits
+ * 저장소 커밋 목록 조회
+ *
+ * @param {string} projectId - Project ID or URL-encoded path
+ * @param {ListCommitsOptions} options - List commits options
+ * @returns {Promise<GitLabCommit[]>} List of commits
+ */
+async function listCommits(
+  projectId: string,
+  options: Omit<ListCommitsOptions, "project_id"> = {}
+): Promise<GitLabCommit[]> {
+  projectId = decodeURIComponent(projectId);
+  const url = new URL(
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/repository/commits`
+  );
+
+  // Add query parameters
+  if (options.ref_name) url.searchParams.append("ref_name", options.ref_name);
+  if (options.since) url.searchParams.append("since", options.since);
+  if (options.until) url.searchParams.append("until", options.until);
+  if (options.path) url.searchParams.append("path", options.path);
+  if (options.author) url.searchParams.append("author", options.author);
+  if (options.all) url.searchParams.append("all", options.all.toString());
+  if (options.with_stats) url.searchParams.append("with_stats", options.with_stats.toString());
+  if (options.first_parent) url.searchParams.append("first_parent", options.first_parent.toString());
+  if (options.order) url.searchParams.append("order", options.order);
+  if (options.trailers) url.searchParams.append("trailers", options.trailers.toString());
+  if (options.page) url.searchParams.append("page", options.page.toString());
+  if (options.per_page) url.searchParams.append("per_page", options.per_page.toString());
+
+  const response = await fetch(url.toString(), {
+    ...DEFAULT_FETCH_CONFIG,
+  });
+
+  await handleGitLabError(response);
+
+  const data = await response.json();
+  return z.array(GitLabCommitSchema).parse(data);
+}
+
+/**
+ * Get a single commit
+ * 단일 커밋 정보 조회
+ *
+ * @param {string} projectId - Project ID or URL-encoded path
+ * @param {string} sha - The commit hash or name of a repository branch or tag
+ * @param {boolean} [stats] - Include commit stats
+ * @returns {Promise<GitLabCommit>} The commit details
+ */
+async function getCommit(
+  projectId: string,
+  sha: string,
+  stats?: boolean
+): Promise<GitLabCommit> {
+  projectId = decodeURIComponent(projectId);
+  const url = new URL(
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/repository/commits/${encodeURIComponent(sha)}`
+  );
+
+  if (stats) {
+    url.searchParams.append("stats", "true");
+  }
+
+  const response = await fetch(url.toString(), {
+    ...DEFAULT_FETCH_CONFIG,
+  });
+
+  await handleGitLabError(response);
+
+  const data = await response.json();
+  return GitLabCommitSchema.parse(data);
+}
+
+/**
+ * Get commit diff
+ * 커밋 변경사항 조회
+ *
+ * @param {string} projectId - Project ID or URL-encoded path
+ * @param {string} sha - The commit hash or name of a repository branch or tag
+ * @returns {Promise<GitLabMergeRequestDiff[]>} The commit diffs
+ */
+async function getCommitDiff(
+  projectId: string,
+  sha: string
+): Promise<GitLabMergeRequestDiff[]> {
+  projectId = decodeURIComponent(projectId);
+  const url = new URL(
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/repository/commits/${encodeURIComponent(sha)}/diff`
+  );
+
+  const response = await fetch(url.toString(), {
+    ...DEFAULT_FETCH_CONFIG,
+  });
+
+  await handleGitLabError(response);
+
+  const data = await response.json();
+  return z.array(GitLabDiffSchema).parse(data);
+}
+
 server.setRequestHandler(ListToolsRequestSchema, async () => {
   // Apply read-only filter first
   const tools0 = GITLAB_READ_ONLY_MODE
@@ -3930,6 +4055,30 @@ server.setRequestHandler(CallToolRequestSchema, async request => {
               text: JSON.stringify(events, null, 2),
             },
           ],
+        };
+      }
+
+      case "list_commits": {
+        const args = ListCommitsSchema.parse(request.params.arguments);
+        const commits = await listCommits(args.project_id, args);
+        return {
+          content: [{ type: "text", text: JSON.stringify(commits, null, 2) }],
+        };
+      }
+
+      case "get_commit": {
+        const args = GetCommitSchema.parse(request.params.arguments);
+        const commit = await getCommit(args.project_id, args.sha, args.stats);
+        return {
+          content: [{ type: "text", text: JSON.stringify(commit, null, 2) }],
+        };
+      }
+
+      case "get_commit_diff": {
+        const args = GetCommitDiffSchema.parse(request.params.arguments);
+        const diff = await getCommitDiff(args.project_id, args.sha);
+        return {
+          content: [{ type: "text", text: JSON.stringify(diff, null, 2) }],
         };
       }
 
