@@ -88,7 +88,7 @@ This is a specialized **MR-focused version** with enhanced vulnerability support
 
 The `get_vulnerabilities_by_ids` tool provides comprehensive vulnerability information including:
 
-- **File Location**: Exact file paths and line numbers (e.g., `src/Agoda.BulkUpload.ClientSide/pnpm-lock.yaml:1117`)
+- **File Location**: Exact file paths and line numbers (e.g., `src/frontend/package-lock.json:1117`)
 - **Package Details**: Affected package names and versions
 - **CVE Information**: CVE identifiers with external reference links
 - **Solution Instructions**: Specific upgrade commands and version recommendations
