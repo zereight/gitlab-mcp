@@ -8,6 +8,13 @@ export const GitLabAuthorSchema = z.object({
 });
 
 // Pipeline related schemas
+export const GitLabHeadPipelineSchema = z.object({
+  id: z.number(),
+  iid: z.number().optional(),
+  project_id: z.number(),
+  status: z.string(),
+});
+
 export const GitLabPipelineSchema = z.object({
   id: z.number(),
   iid: z.number().optional(),
@@ -19,15 +26,23 @@ export const GitLabPipelineSchema = z.object({
   created_at: z.string(),
   updated_at: z.string(),
   web_url: z.string(),
+  before_sha: z.string().optional(),
+  tag: z.boolean().optional(),
+  yaml_errors: z.string().nullable().optional(),
   duration: z.number().nullable().optional(),
+  queued_duration: z.number().nullable().optional(),
   started_at: z.string().nullable().optional(),
   finished_at: z.string().nullable().optional(),
+  committed_at: z.string().nullable().optional(),
   coverage: z.number().nullable().optional(),
   user: z.object({
     id: z.number(),
     name: z.string(),
     username: z.string(),
     avatar_url: z.string().nullable().optional(),
+    state: z.string().optional(),
+    locked: z.boolean().optional(),
+    web_url: z.string().optional(),
   }).optional(),
   detailed_status: z.object({
     icon: z.string().optional(),
@@ -41,7 +56,7 @@ export const GitLabPipelineSchema = z.object({
       image: z.string().optional(),
       size: z.string().optional(),
       title: z.string().optional(),
-    }).optional(),
+    }).nullable().optional(),
     favicon: z.string().optional(),
   }).optional(),
 });
@@ -533,6 +548,7 @@ export const GitLabMergeRequestSchema = z.object({
   source_branch: z.string(),
   target_branch: z.string(),
   diff_refs: GitLabMergeRequestDiffRefSchema.nullable().optional(),
+  head_pipeline: GitLabHeadPipelineSchema.nullable().optional(),
   web_url: z.string(),
   created_at: z.string(),
   updated_at: z.string(),
@@ -1433,6 +1449,7 @@ export type MergeRequestThreadPosition = z.infer<typeof MergeRequestThreadPositi
 export type CreateMergeRequestThreadOptions = z.infer<typeof CreateMergeRequestThreadSchema>;
 export type CreateMergeRequestNoteOptions = z.infer<typeof CreateMergeRequestNoteSchema>;
 export type GitLabPipelineJob = z.infer<typeof GitLabPipelineJobSchema>;
+export type GitLabHeadPipeline = z.infer<typeof GitLabHeadPipelineSchema>;
 export type GitLabPipeline = z.infer<typeof GitLabPipelineSchema>;
 export type ListPipelinesOptions = z.infer<typeof ListPipelinesSchema>;
 export type GetPipelineOptions = z.infer<typeof GetPipelineSchema>;
