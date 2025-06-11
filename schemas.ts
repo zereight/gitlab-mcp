@@ -549,13 +549,13 @@ export const GitLabDiscussionNoteSchema = z.object({
         .object({
           start: z.object({
             line_code: z.string(),
-            type: z.enum(["new", "old", "expanded"]),
+            type: z.enum(["new", "old", "expanded"]).nullable(),
             old_line: z.number().nullable(),
             new_line: z.number().nullable(),
           }),
           end: z.object({
             line_code: z.string(),
-            type: z.enum(["new", "old", "expanded"]),
+            type: z.enum(["new", "old", "expanded"]).nullable(),
             old_line: z.number().nullable(),
             new_line: z.number().nullable(),
           }),
@@ -577,6 +577,11 @@ export const GitLabDiscussionSchema = z.object({
   notes: z.array(GitLabDiscussionNoteSchema),
 });
 export type GitLabDiscussion = z.infer<typeof GitLabDiscussionSchema>;
+
+// Input schema for listing merge request notes (filtered for unresolved diff notes)
+export const ListMergeRequestNotesSchema = ProjectParamsSchema.extend({
+  merge_request_iid: z.number().describe("The IID of a merge request"),
+});
 
 // Input schema for listing merge request discussions
 export const ListMergeRequestDiscussionsSchema = ProjectParamsSchema.extend({
@@ -1178,6 +1183,162 @@ export const CreateMergeRequestThreadSchema = ProjectParamsSchema.extend({
   created_at: z.string().optional().describe("Date the thread was created at (ISO 8601 format)"),
 });
 
+// Vulnerability schemas
+export const GitLabVulnerabilityFindingLocationSchema = z.object({
+  file: z.string().describe("File path where vulnerability was found"),
+  start_line: z.number().optional().describe("Starting line number of the vulnerability"),
+  end_line: z.number().optional().describe("Ending line number of the vulnerability"),
+});
+
+export const GitLabVulnerabilityFindingSchema = z.object({
+  id: z.number().describe("Unique identifier of the finding"),
+  created_at: z.string().describe("Date when the finding was created"),
+  updated_at: z.string().describe("Date when the finding was last updated"),
+  severity: z.string().describe("Severity level of the vulnerability"),
+  report_type: z.string().describe("Type of security report (sast, dast, etc.)"),
+  project_id: z.number().describe("ID of the project"),
+  scanner_id: z.number().describe("ID of the scanner that found the vulnerability"),
+  primary_identifier_id: z.number().describe("Primary identifier ID"),
+  project_fingerprint: z.string().describe("Project-specific fingerprint"),
+  location_fingerprint: z.string().describe("Location-specific fingerprint"),
+  name: z.string().describe("Name of the vulnerability"),
+  metadata_version: z.string().describe("Version of the metadata"),
+  raw_metadata: z.string().describe("Raw metadata as JSON string"),
+  vulnerability_id: z.number().describe("ID of the associated vulnerability"),
+  details: z.record(z.any()).describe("Additional details about the finding"),
+  description: z.string().nullable().describe("Description of the vulnerability"),
+  solution: z.string().nullable().describe("Suggested solution for the vulnerability"),
+  cve: z.string().nullable().describe("CVE identifier if applicable"),
+  location: GitLabVulnerabilityFindingLocationSchema.describe("Location information of the vulnerability"),
+  detection_method: z.string().describe("Method used to detect the vulnerability"),
+  uuid: z.string().describe("Unique UUID of the finding"),
+  initial_pipeline_id: z.number().nullable().describe("ID of the initial pipeline"),
+  latest_pipeline_id: z.number().nullable().describe("ID of the latest pipeline"),
+  config_options: z.record(z.any()).nullable().describe("Configuration options"),
+});
+
+export const GitLabVulnerabilityProjectSchema = z.object({
+  id: z.number().describe("Project ID"),
+  description: z.string().describe("Project description"),
+  name: z.string().describe("Project name"),
+  name_with_namespace: z.string().describe("Project name with namespace"),
+  path: z.string().describe("Project path"),
+  path_with_namespace: z.string().describe("Project path with namespace"),
+  created_at: z.string().describe("Date when the project was created"),
+});
+
+export const GitLabVulnerabilitySchema = z.object({
+  id: z.number().describe("Unique identifier of the vulnerability"),
+  title: z.string().describe("Title of the vulnerability"),
+  description: z.string().nullable().describe("Description of the vulnerability"),
+  state: z.string().describe("Current state of the vulnerability (detected, resolved, dismissed, etc.)"),
+  severity: z.string().describe("Severity level (critical, high, medium, low)"),
+  confidence: z.string().describe("Confidence level of the vulnerability detection"),
+  report_type: z.string().describe("Type of security report (sast, dast, dependency_scanning, etc.)"),
+  project: GitLabVulnerabilityProjectSchema.describe("Project information"),
+  finding: GitLabVulnerabilityFindingSchema.describe("Detailed finding information"),
+  resolved_on_default_branch: z.boolean().describe("Whether the vulnerability is resolved on the default branch"),
+  project_default_branch: z.string().describe("Default branch name of the project"),
+  author_id: z.number().describe("ID of the user who created the vulnerability"),
+  resolved_by_id: z.number().nullable().describe("ID of the user who resolved the vulnerability"),
+  dismissed_by_id: z.number().nullable().describe("ID of the user who dismissed the vulnerability"),
+  confirmed_by_id: z.number().nullable().describe("ID of the user who confirmed the vulnerability"),
+  created_at: z.string().describe("Date when the vulnerability was created"),
+  updated_at: z.string().describe("Date when the vulnerability was last updated"),
+  resolved_at: z.string().nullable().describe("Date when the vulnerability was resolved"),
+  dismissed_at: z.string().nullable().describe("Date when the vulnerability was dismissed"),
+  confirmed_at: z.string().nullable().describe("Date when the vulnerability was confirmed"),
+  last_edited_at: z.string().nullable().describe("Date when the vulnerability was last edited"),
+  start_date: z.string().nullable().describe("Start date for the vulnerability"),
+  updated_by_id: z.number().nullable().describe("ID of the user who last updated the vulnerability"),
+  last_edited_by_id: z.number().nullable().describe("ID of the user who last edited the vulnerability"),
+  due_date: z.string().nullable().describe("Due date for resolving the vulnerability"),
+});
+
+export const ListVulnerabilitiesSchema = z.object({
+  project_id: z.string().describe("Project ID or URL-encoded path"),
+  page: z.number().optional().describe("Page number for pagination (default: 1)"),
+  per_page: z.number().optional().describe("Number of vulnerabilities per page (default: 20, max: 100)"),
+  state: z.enum(["detected", "confirmed", "resolved", "dismissed"]).optional().describe("Filter by vulnerability state"),
+  severity: z.enum(["critical", "high", "medium", "low", "info", "unknown"]).optional().describe("Filter by severity"),
+  report_type: z.enum(["sast", "dast", "dependency_scanning", "container_scanning", "secret_detection", "coverage_fuzzing", "api_fuzzing"]).optional().describe("Filter by report type"),
+  scanner: z.array(z.string()).optional().describe("Filter by scanner names"),
+  sort: z.enum(["detected_at", "severity", "state"]).optional().describe("Sort vulnerabilities by field"),
+  sort_direction: z.enum(["asc", "desc"]).optional().describe("Sort direction"),
+});
+
+// GraphQL Vulnerability schemas
+export const GitLabGraphQLUserSchema = z.object({
+  id: z.string().describe("GraphQL ID of the user"),
+  username: z.string().describe("Username of the user"),
+}).describe("User information from GraphQL");
+
+export const GitLabGraphQLProjectSchema = z.object({
+  id: z.string().describe("GraphQL ID of the project"),
+  name: z.string().describe("Project name"),
+  fullPath: z.string().describe("Full path of the project"),
+}).describe("Project information from GraphQL");
+
+// New schemas for enhanced vulnerability data
+export const GitLabGraphQLVulnerabilityDependencyPackageSchema = z.object({
+  name: z.string().describe("Package name"),
+}).describe("Vulnerable package information");
+
+export const GitLabGraphQLVulnerabilityDependencySchema = z.object({
+  package: GitLabGraphQLVulnerabilityDependencyPackageSchema.describe("Package information"),
+  version: z.string().describe("Package version"),
+}).describe("Vulnerable dependency information");
+
+export const GitLabGraphQLVulnerabilityLocationSchema = z.object({
+  file: z.string().optional().describe("File path where vulnerability was found"),
+  startLine: z.number().optional().describe("Starting line number of the vulnerability"),
+  endLine: z.number().optional().describe("Ending line number of the vulnerability"),
+  dependency: GitLabGraphQLVulnerabilityDependencySchema.optional().describe("Dependency information for dependency scanning"),
+  image: z.string().optional().describe("Container image for container scanning"),
+  operatingSystem: z.string().optional().describe("Operating system for container scanning"),
+}).describe("Location information for the vulnerability");
+
+export const GitLabGraphQLVulnerabilityIdentifierSchema = z.object({
+  name: z.string().describe("Name of the identifier"),
+  externalType: z.string().describe("External type of the identifier (e.g., cve, cwe)"),
+  externalId: z.string().describe("External ID of the identifier"),
+  url: z.string().optional().describe("URL for more information about the identifier"),
+}).describe("Vulnerability identifier information");
+
+
+
+export const GitLabGraphQLVulnerabilityScannerSchema = z.object({
+  id: z.string().describe("Scanner ID"),
+  name: z.string().describe("Scanner name"),
+  vendor: z.string().optional().describe("Scanner vendor"),
+}).describe("Vulnerability scanner information");
+
+export const GitLabGraphQLVulnerabilitySchema = z.object({
+  title: z.string().describe("Title of the vulnerability"),
+  description: z.string().nullable().describe("Description of the vulnerability"),
+  state: z.string().describe("State of the vulnerability (DETECTED, CONFIRMED, RESOLVED, etc.)"),
+  severity: z.string().describe("Severity level of the vulnerability"),
+  reportType: z.string().describe("Type of security report"),
+  project: GitLabGraphQLProjectSchema.describe("Project where the vulnerability was found"),
+  detectedAt: z.string().nullable().describe("Date when the vulnerability was detected"),
+  confirmedAt: z.string().nullable().describe("Date when the vulnerability was confirmed"),
+  resolvedAt: z.string().nullable().describe("Date when the vulnerability was resolved"),
+  resolvedBy: GitLabGraphQLUserSchema.nullable().describe("User who resolved the vulnerability"),
+  // Enhanced fields for location and solution information
+  location: GitLabGraphQLVulnerabilityLocationSchema.nullable().describe("Location metadata for the vulnerability"),
+  solution: z.string().nullable().describe("Recommended solution for the vulnerability"),
+  identifiers: z.array(GitLabGraphQLVulnerabilityIdentifierSchema).describe("Identifiers of the vulnerability (CVE, CWE, etc.)"),
+  scanner: GitLabGraphQLVulnerabilityScannerSchema.nullable().describe("Scanner metadata for the vulnerability"),
+  primaryIdentifier: GitLabGraphQLVulnerabilityIdentifierSchema.nullable().describe("Primary identifier of the vulnerability"),
+}).describe("Vulnerability details from GraphQL API");
+
+
+
+export const GetVulnerabilitiesByIdsSchema = z.object({
+  project_id: z.string().describe("Project ID or URL-encoded path"),
+  vulnerability_ids: z.array(z.string()).describe("Array of vulnerability IDs (numeric parts only, without gid prefix)"),
+}).describe("Parameters for fetching multiple vulnerabilities by IDs using GraphQL");
+
 // Export types
 export type GitLabAuthor = z.infer<typeof GitLabAuthorSchema>;
 export type GitLabFork = z.infer<typeof GitLabForkSchema>;
@@ -1238,3 +1399,24 @@ export type GitLabPipeline = z.infer<typeof GitLabPipelineSchema>;
 export type ListPipelinesOptions = z.infer<typeof ListPipelinesSchema>;
 export type GetPipelineOptions = z.infer<typeof GetPipelineSchema>;
 export type ListPipelineJobsOptions = z.infer<typeof ListPipelineJobsSchema>;
+export type ListMergeRequestNotesOptions = z.infer<typeof ListMergeRequestNotesSchema>;
+
+// Vulnerability types
+export type GitLabVulnerabilityFindingLocation = z.infer<typeof GitLabVulnerabilityFindingLocationSchema>;
+export type GitLabVulnerabilityFinding = z.infer<typeof GitLabVulnerabilityFindingSchema>;
+export type GitLabVulnerabilityProject = z.infer<typeof GitLabVulnerabilityProjectSchema>;
+export type GitLabVulnerability = z.infer<typeof GitLabVulnerabilitySchema>;
+export type ListVulnerabilitiesOptions = z.infer<typeof ListVulnerabilitiesSchema>;
+
+// GraphQL Vulnerability types
+export type GitLabGraphQLUser = z.infer<typeof GitLabGraphQLUserSchema>;
+export type GitLabGraphQLProject = z.infer<typeof GitLabGraphQLProjectSchema>;
+export type GitLabGraphQLVulnerabilityDependencyPackage = z.infer<typeof GitLabGraphQLVulnerabilityDependencyPackageSchema>;
+export type GitLabGraphQLVulnerabilityDependency = z.infer<typeof GitLabGraphQLVulnerabilityDependencySchema>;
+export type GitLabGraphQLVulnerabilityLocation = z.infer<typeof GitLabGraphQLVulnerabilityLocationSchema>;
+export type GitLabGraphQLVulnerabilityIdentifier = z.infer<typeof GitLabGraphQLVulnerabilityIdentifierSchema>;
+
+export type GitLabGraphQLVulnerabilityScanner = z.infer<typeof GitLabGraphQLVulnerabilityScannerSchema>;
+export type GitLabGraphQLVulnerability = z.infer<typeof GitLabGraphQLVulnerabilitySchema>;
+
+export type GetVulnerabilitiesByIdsOptions = z.infer<typeof GetVulnerabilitiesByIdsSchema>;

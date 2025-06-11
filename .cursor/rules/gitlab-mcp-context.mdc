@@ -1,0 +1,205 @@
+---
+description:
+globs:
+alwaysApply: false
+---
+# GitLab MCP Server - AI Agent Context
+
+## Project Overview
+This is a **Model Context Protocol (MCP) Server** for GitLab integration, providing AI agents with tools to interact with GitLab APIs. The server exposes GitLab functionality through structured tools that can be called by AI agents.
+
+## Core Architecture
+
+### Main Files
+- **`index.ts`** - Main server implementation with all tool handlers and GitLab API functions
+- **`schemas.ts`** - Zod schemas for validation and TypeScript types
+- **`tests/`** - Organized test files by category (vulnerabilities, merge-requests, tools, general)
+
+### Key Components
+1. **Tool Definitions** - Array of available MCP tools with descriptions and input schemas
+2. **API Functions** - GitLab API wrappers with proper error handling and validation
+3. **GraphQL Integration** - Enhanced vulnerability queries with location and solution data
+4. **Schema Validation** - Comprehensive Zod schemas for type safety
+
+## Important Patterns & Conventions
+
+### Function Naming
+- API functions: `camelCase` (e.g., `getMergeRequest`, `listVulnerabilities`)
+- Tool names: `snake_case` (e.g., `get_merge_request`, `mr_discussions`)
+- Schema names: `PascalCase` + `Schema` suffix (e.g., `GitLabMergeRequestSchema`)
+
+### Error Handling
+```typescript
+// Always use this pattern for GitLab API calls
+await handleGitLabError(response);
+const data = await response.json();
+return SchemaName.parse(data);
+```
+
+### Project ID Handling
+```typescript
+// Always decode project IDs first
+projectId = decodeURIComponent(projectId);
+const url = `${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/...`;
+```
+
+### Token Validation
+```typescript
+// Add to functions that require authentication
+validateGitLabToken();
+```
+
+## Schema Organization
+
+### Vulnerability Schemas (Enhanced)
+- **REST API schemas**: `GitLabVulnerability*` - for listing/basic operations
+- **GraphQL schemas**: `GitLabGraphQLVulnerability*` - for detailed data with location/solution
+- GraphQL provides: location (file, line numbers), solution text, identifiers (CVE), scanner info
+
+### Key Schema Patterns
+```typescript
+// Input schemas for tools
+export const ToolNameSchema = z.object({
+  project_id: z.string().describe("Project ID or URL-encoded path"),
+  // ... other fields
+});
+
+// Response schemas for GitLab objects
+export const GitLabObjectSchema = z.object({
+  id: z.number().describe("Unique identifier"),
+  // ... other fields
+});
+```
+
+## Tool Categories & Organization
+
+### Vulnerability Tools (Enhanced Features)
+- `get_vulnerabilities_by_ids` - **Primary tool** for vulnerability lookups (handles single or multiple IDs)
+- Supports enhanced GraphQL queries with location data and solutions
+- Returns file paths, line numbers, package info, CVE identifiers, upgrade instructions
+
+### Merge Request Tools
+- `get_merge_request` - Fetch MR details (supports both IID and branch name)
+- `mr_discussions` - List unresolved diff discussions
+- `create_merge_request_note` - Add replies to MR threads
+- `update_merge_request` - Update MR properties including labels
+
+### Read-Only vs Write Tools
+```typescript
+const readOnlyTools = [
+  "get_merge_request",
+  "mr_discussions", 
+  "get_vulnerabilities_by_ids",
+];
+```
+
+## Development Workflow
+
+### Adding New Tools
+1. Define schema in `schemas.ts`
+2. Add tool definition to `allTools` array
+3. Implement API function
+4. Add case handler in `CallToolRequestSchema` handler
+5. Add to `readOnlyTools` if applicable
+6. Create tests in appropriate `tests/` subdirectory
+
+### Schema Development
+1. Create Zod schema with detailed descriptions
+2. Export TypeScript type using `z.infer<typeof SchemaName>`
+3. Import both schema and type in `index.ts`
+4. Use schema for validation in API functions
+
+### Testing Patterns
+```typescript
+// Standard test structure
+const testRequest = {
+  jsonrpc: "2.0",
+  id: 1,
+  method: "tools/call",
+  params: {
+    name: "tool_name",
+    arguments: { /* tool args */ }
+  }
+};
+```
+
+## GitLab API Specifics
+
+### Authentication
+- Uses `PRIVATE-TOKEN` header with personal access token
+- Environment variable: `GITLAB_PERSONAL_ACCESS_TOKEN`
+- Validate token availability before API calls
+
+### API Endpoints
+- **REST API**: `${GITLAB_API_URL}/api/v4/...`
+- **GraphQL API**: `${GITLAB_API_URL}/api/graphql`
+- URL normalization handles various input formats
+
+### Rate Limiting
+- Handle 403 errors with rate limit messages
+- Implemented in `handleGitLabError` function
+
+## Configuration
+
+### Environment Variables
+- `GITLAB_API_URL` - GitLab instance URL (defaults to gitlab.com)
+- `GITLAB_PERSONAL_ACCESS_TOKEN` - Authentication token
+- `GITLAB_READ_ONLY_MODE` - Filter to read-only tools
+- `USE_GITLAB_WIKI` - Enable/disable wiki tools
+
+### Build & Deployment
+```bash
+npm run build          # Compile TypeScript
+node build/index.js    # Run MCP server
+```
+
+## Common Pitfalls & Solutions
+
+### GraphQL Vulnerabilities
+- Use union type fragments for location data (VulnerabilityLocationDependencyScanning, etc.)
+- Field names differ from REST API (`externalType` vs `type`, `externalId` vs `value`)
+- Some fields (like `details`) may be union types that can't be queried directly
+
+### URL Encoding
+- Always decode project IDs: `decodeURIComponent(projectId)`
+- Always encode for URLs: `encodeURIComponent(projectId)`
+- Handle special characters in project paths
+
+### Schema Validation
+- Always parse responses through Zod schemas
+- Handle validation errors gracefully
+- Use `.optional()` for fields that might be null/undefined
+
+### Tool Consolidation
+- Prefer multi-purpose tools over single-purpose ones
+- Example: `get_vulnerabilities_by_ids` handles both single and multiple IDs
+- Reduces API surface area and maintenance burden
+
+## Recent Enhancements
+
+### Vulnerability System Improvements
+- Enhanced GraphQL queries with location data (file paths, line numbers)
+- Solution text with upgrade instructions and version recommendations
+- CVE identifiers and scanner information
+- Consolidated single/multiple vulnerability lookup into one tool
+
+### Code Organization
+- Moved all test files to organized `tests/` directory structure
+- Removed redundant functions (`get_vulnerability_by_id`)
+- Improved schema organization with proper TypeScript types
+
+## Best Practices for AI Agents
+
+1. **Use Enhanced Tools**: Prefer `get_vulnerabilities_by_ids` for vulnerability data
+2. **Handle Arrays**: Single IDs should be passed as arrays: `["12345"]`
+3. **Check Schemas**: Always reference schema descriptions for required fields
+4. **Error Context**: Include project context when errors occur
+5. **Batch Operations**: Use tools that support multiple items when possible
+6. **Test Organization**: Place new tests in appropriate subdirectories
+
+## MCP Integration Notes
+
+- Server implements MCP protocol version 2024-11-05
+- Tools use JSON Schema for validation (converted from Zod)
+- Supports both stdio and custom transport methods
+- Compatible with various MCP clients and AI agents

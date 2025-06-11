@@ -97,7 +97,8 @@ import {
   GitLabDiscussionSchema,
   UpdateMergeRequestNoteSchema, // Added
   CreateMergeRequestNoteSchema, // Added
-  ListMergeRequestDiscussionsSchema,
+  ListMergeRequestNotesSchema,
+  ListMergeRequestDiscussionsSchema, // Added
   type GitLabFork,
   type GitLabReference,
   type GitLabRepository,
@@ -134,6 +135,30 @@ import {
   type GetRepositoryTreeOptions,
   UpdateIssueNoteSchema,
   CreateIssueNoteSchema,
+  // Vulnerability schemas
+  GitLabVulnerabilitySchema,
+  GitLabVulnerabilityFindingSchema,
+  GitLabVulnerabilityProjectSchema,
+  GitLabVulnerabilityFindingLocationSchema,
+  ListVulnerabilitiesSchema,
+  // Vulnerability types
+  type GitLabVulnerability,
+  type GitLabVulnerabilityFinding,
+  type GitLabVulnerabilityProject,
+  type GitLabVulnerabilityFindingLocation,
+  type ListVulnerabilitiesOptions,
+  // GraphQL Vulnerability schemas
+  GitLabGraphQLVulnerabilitySchema,
+  GitLabGraphQLUserSchema,
+  GitLabGraphQLProjectSchema,
+
+  GetVulnerabilitiesByIdsSchema,
+  // GraphQL Vulnerability types
+  type GitLabGraphQLVulnerability,
+  type GitLabGraphQLUser,
+  type GitLabGraphQLProject,
+
+  type GetVulnerabilitiesByIdsOptions,
 } from "./schemas.js";
 
 /**
@@ -167,6 +192,7 @@ const server = new Server(
 const GITLAB_PERSONAL_ACCESS_TOKEN = process.env.GITLAB_PERSONAL_ACCESS_TOKEN;
 const GITLAB_READ_ONLY_MODE = process.env.GITLAB_READ_ONLY_MODE === "true";
 const USE_GITLAB_WIKI = process.env.USE_GITLAB_WIKI === "true";
+const GITLAB_EXCLUDED_TOOLS = process.env.GITLAB_EXCLUDED_TOOLS?.split(',').map(tool => tool.trim()) || [];
 
 // Add proxy configuration
 const HTTP_PROXY = process.env.HTTP_PROXY;
@@ -209,302 +235,45 @@ const DEFAULT_FETCH_CONFIG = {
   },
 };
 
-// Define all available tools
+// Define all available tools - Custom MR-only version
 const allTools = [
   {
-    name: "create_or_update_file",
-    description: "Create or update a single file in a GitLab project",
-    inputSchema: zodToJsonSchema(CreateOrUpdateFileSchema),
-  },
-  {
-    name: "search_repositories",
-    description: "Search for GitLab projects",
-    inputSchema: zodToJsonSchema(SearchRepositoriesSchema),
-  },
-  {
-    name: "create_repository",
-    description: "Create a new GitLab project",
-    inputSchema: zodToJsonSchema(CreateRepositorySchema),
-  },
-  {
-    name: "get_file_contents",
-    description:
-      "Get the contents of a file or directory from a GitLab project",
-    inputSchema: zodToJsonSchema(GetFileContentsSchema),
-  },
-  {
-    name: "push_files",
-    description: "Push multiple files to a GitLab project in a single commit",
-    inputSchema: zodToJsonSchema(PushFilesSchema),
-  },
-  {
-    name: "create_issue",
-    description: "Create a new issue in a GitLab project",
-    inputSchema: zodToJsonSchema(CreateIssueSchema),
-  },
-  {
-    name: "create_merge_request",
-    description: "Create a new merge request in a GitLab project",
-    inputSchema: zodToJsonSchema(CreateMergeRequestSchema),
-  },
-  {
-    name: "fork_repository",
-    description: "Fork a GitLab project to your account or specified namespace",
-    inputSchema: zodToJsonSchema(ForkRepositorySchema),
-  },
-  {
-    name: "create_branch",
-    description: "Create a new branch in a GitLab project",
-    inputSchema: zodToJsonSchema(CreateBranchSchema),
-  },
-  {
     name: "get_merge_request",
-    description:
-      "Get details of a merge request (Either mergeRequestIid or branchName must be provided)",
+    description: "Get MR metadata - details of a merge request (Either mergeRequestIid or branchName must be provided)",
     inputSchema: zodToJsonSchema(GetMergeRequestSchema),
   },
   {
-    name: "get_merge_request_diffs",
-    description:
-      "Get the changes/diffs of a merge request (Either mergeRequestIid or branchName must be provided)",
-    inputSchema: zodToJsonSchema(GetMergeRequestDiffsSchema),
-  },
-  {
-    name: "update_merge_request",
-    description:
-      "Update a merge request (Either mergeRequestIid or branchName must be provided)",
-    inputSchema: zodToJsonSchema(UpdateMergeRequestSchema),
-  },
-  {
-    name: "create_note",
-    description: "Create a new note (comment) to an issue or merge request",
-    inputSchema: zodToJsonSchema(CreateNoteSchema),
-  },
-  {
-    name: "create_merge_request_thread",
-    description: "Create a new thread on a merge request",
-    inputSchema: zodToJsonSchema(CreateMergeRequestThreadSchema),
-  },
-  {
     name: "mr_discussions",
-    description: "List discussion items for a merge request",
+    description: "List unresolved diff discussions - List discussion items for a merge request filtered for unresolved diff notes (DiffNote type, resolvable=true, resolved=false)",
     inputSchema: zodToJsonSchema(ListMergeRequestDiscussionsSchema),
   },
   {
-    name: "update_merge_request_note",
-    description: "Modify an existing merge request thread note",
-    inputSchema: zodToJsonSchema(UpdateMergeRequestNoteSchema),
-  },
-  {
     name: "create_merge_request_note",
-    description: "Add a new note to an existing merge request thread",
+    description: "Add MR notes - Add a reply note to an existing merge request thread",
     inputSchema: zodToJsonSchema(CreateMergeRequestNoteSchema),
   },
   {
-    name: "update_issue_note",
-    description: "Modify an existing issue thread note",
-    inputSchema: zodToJsonSchema(UpdateIssueNoteSchema),
+    name: "update_merge_request",
+    description: "Append label in MR - Update a merge request including adding labels (Either mergeRequestIid or branchName must be provided)",
+    inputSchema: zodToJsonSchema(UpdateMergeRequestSchema),
   },
+
   {
-    name: "create_issue_note",
-    description: "Add a new note to an existing issue thread",
-    inputSchema: zodToJsonSchema(CreateIssueNoteSchema),
-  },
-  {
-    name: "list_issues",
-    description: "List issues in a GitLab project with filtering options",
-    inputSchema: zodToJsonSchema(ListIssuesSchema),
-  },
-  {
-    name: "get_issue",
-    description: "Get details of a specific issue in a GitLab project",
-    inputSchema: zodToJsonSchema(GetIssueSchema),
-  },
-  {
-    name: "update_issue",
-    description: "Update an issue in a GitLab project",
-    inputSchema: zodToJsonSchema(UpdateIssueSchema),
-  },
-  {
-    name: "delete_issue",
-    description: "Delete an issue from a GitLab project",
-    inputSchema: zodToJsonSchema(DeleteIssueSchema),
-  },
-  {
-    name: "list_issue_links",
-    description: "List all issue links for a specific issue",
-    inputSchema: zodToJsonSchema(ListIssueLinksSchema),
-  },
-  {
-    name: "list_issue_discussions",
-    description: "List discussions for an issue in a GitLab project",
-    inputSchema: zodToJsonSchema(ListIssueDiscussionsSchema),
-  },
-  {
-    name: "get_issue_link",
-    description: "Get a specific issue link",
-    inputSchema: zodToJsonSchema(GetIssueLinkSchema),
-  },
-  {
-    name: "create_issue_link",
-    description: "Create an issue link between two issues",
-    inputSchema: zodToJsonSchema(CreateIssueLinkSchema),
-  },
-  {
-    name: "delete_issue_link",
-    description: "Delete an issue link",
-    inputSchema: zodToJsonSchema(DeleteIssueLinkSchema),
-  },
-  {
-    name: "list_namespaces",
-    description: "List all namespaces available to the current user",
-    inputSchema: zodToJsonSchema(ListNamespacesSchema),
-  },
-  {
-    name: "get_namespace",
-    description: "Get details of a namespace by ID or path",
-    inputSchema: zodToJsonSchema(GetNamespaceSchema),
-  },
-  {
-    name: "verify_namespace",
-    description: "Verify if a namespace path exists",
-    inputSchema: zodToJsonSchema(VerifyNamespaceSchema),
-  },
-  {
-    name: "get_project",
-    description: "Get details of a specific project",
-    inputSchema: zodToJsonSchema(GetProjectSchema),
-  },
-  {
-    name: "list_projects",
-    description: "List projects accessible by the current user",
-    inputSchema: zodToJsonSchema(ListProjectsSchema),
-  },
-  {
-    name: "list_labels",
-    description: "List labels for a project",
-    inputSchema: zodToJsonSchema(ListLabelsSchema),
-  },
-  {
-    name: "get_label",
-    description: "Get a single label from a project",
-    inputSchema: zodToJsonSchema(GetLabelSchema),
-  },
-  {
-    name: "create_label",
-    description: "Create a new label in a project",
-    inputSchema: zodToJsonSchema(CreateLabelSchema),
-  },
-  {
-    name: "update_label",
-    description: "Update an existing label in a project",
-    inputSchema: zodToJsonSchema(UpdateLabelSchema),
-  },
-  {
-    name: "delete_label",
-    description: "Delete a label from a project",
-    inputSchema: zodToJsonSchema(DeleteLabelSchema),
-  },
-  {
-    name: "list_group_projects",
-    description: "List projects in a GitLab group with filtering options",
-    inputSchema: zodToJsonSchema(ListGroupProjectsSchema),
-  },
-  {
-    name: "list_wiki_pages",
-    description: "List wiki pages in a GitLab project",
-    inputSchema: zodToJsonSchema(ListWikiPagesSchema),
-  },
-  {
-    name: "get_wiki_page",
-    description: "Get details of a specific wiki page",
-    inputSchema: zodToJsonSchema(GetWikiPageSchema),
-  },
-  {
-    name: "create_wiki_page",
-    description: "Create a new wiki page in a GitLab project",
-    inputSchema: zodToJsonSchema(CreateWikiPageSchema),
-  },
-  {
-    name: "update_wiki_page",
-    description: "Update an existing wiki page in a GitLab project",
-    inputSchema: zodToJsonSchema(UpdateWikiPageSchema),
-  },
-  {
-    name: "delete_wiki_page",
-    description: "Delete a wiki page from a GitLab project",
-    inputSchema: zodToJsonSchema(DeleteWikiPageSchema),
-  },
-  {
-    name: "get_repository_tree",
-    description:
-      "Get the repository tree for a GitLab project (list files and directories)",
-    inputSchema: zodToJsonSchema(GetRepositoryTreeSchema),
-  },
-  {
-    name: "list_pipelines",
-    description: "List pipelines in a GitLab project with filtering options",
-    inputSchema: zodToJsonSchema(ListPipelinesSchema),
-  },
-  {
-    name: "get_pipeline",
-    description: "Get details of a specific pipeline in a GitLab project",
-    inputSchema: zodToJsonSchema(GetPipelineSchema),
-  },
-  {
-    name: "list_pipeline_jobs",
-    description: "List all jobs in a specific pipeline",
-    inputSchema: zodToJsonSchema(ListPipelineJobsSchema),
-  },
-  {
-    name: "get_pipeline_job",
-    description: "Get details of a GitLab pipeline job number",
-    inputSchema: zodToJsonSchema(GetPipelineJobOutputSchema),
-  },
-  {
-    name: "get_pipeline_job_output",
-    description: "Get the output/trace of a GitLab pipeline job number",
-    inputSchema: zodToJsonSchema(GetPipelineJobOutputSchema),
+    name: "get_vulnerabilities_by_ids",
+    description: "Get vulnerabilities by IDs - Fetch detailed information about multiple vulnerabilities using GraphQL",
+    inputSchema: zodToJsonSchema(GetVulnerabilitiesByIdsSchema),
   },
 ];
 
-// Define which tools are read-only
+// Define which tools are read-only - Custom MR-only version
 const readOnlyTools = [
-  "search_repositories",
-  "get_file_contents",
   "get_merge_request",
-  "get_merge_request_diffs",
   "mr_discussions",
-  "list_issues",
-  "get_issue",
-  "list_issue_links",
-  "list_issue_discussions",
-  "get_issue_link",
-  "list_namespaces",
-  "get_namespace",
-  "verify_namespace",
-  "get_project",
-  "get_pipeline",
-  "list_pipelines",
-  "list_pipeline_jobs",
-  "get_pipeline_job",
-  "get_pipeline_job_output",
-  "list_projects",
-  "list_labels",
-  "get_label",
-  "list_group_projects",
-  "get_repository_tree",
+  "get_vulnerabilities_by_ids",
 ];
 
-// Define which tools are related to wiki and can be toggled by USE_GITLAB_WIKI
-const wikiToolNames = [
-  "list_wiki_pages",
-  "get_wiki_page",
-  "create_wiki_page",
-  "update_wiki_page",
-  "delete_wiki_page",
-  "upload_wiki_attachment",
-];
+// Define which tools are related to wiki and can be toggled by USE_GITLAB_WIKI - Custom MR-only version (no wiki tools)
+const wikiToolNames: string[] = [];
 
 /**
  * Smart URL handling for GitLab API
@@ -535,9 +304,21 @@ function normalizeGitLabApiUrl(url?: string): string {
 // Use the normalizeGitLabApiUrl function to handle various URL formats
 const GITLAB_API_URL = normalizeGitLabApiUrl(process.env.GITLAB_API_URL || "");
 
+// Note: Token validation is now done per-operation basis
+// Some operations like listing tools don't require a token
 if (!GITLAB_PERSONAL_ACCESS_TOKEN) {
-  console.error("GITLAB_PERSONAL_ACCESS_TOKEN environment variable is not set");
-  process.exit(1);
+  console.error("Warning: GITLAB_PERSONAL_ACCESS_TOKEN environment variable is not set");
+  console.error("Some operations will not work without a valid token");
+}
+
+/**
+ * Validate that GitLab token is available for API operations
+ * @throws {Error} If token is not set
+ */
+function validateGitLabToken(): void {
+  if (!GITLAB_PERSONAL_ACCESS_TOKEN) {
+    throw new Error("GitLab API operation requires GITLAB_PERSONAL_ACCESS_TOKEN to be set");
+  }
 }
 
 /**
@@ -1056,22 +837,89 @@ async function createMergeRequest(
 }
 
 /**
- * List merge request discussion items
- * 병합 요청 토론 목록 조회
+ * List merge request discussion items, filtered for unresolved diff notes
+ * 병합 요청 토론 목록 조회 (해결되지 않은 DiffNote만 필터링)
+ * Supports pagination to fetch all discussions across multiple pages
  *
  * @param {string} projectId - The ID or URL-encoded path of the project
  * @param {number} mergeRequestIid - The IID of a merge request
- * @returns {Promise<GitLabDiscussion[]>} List of discussions
+ * @returns {Promise<GitLabDiscussion[]>} List of discussions containing unresolved diff notes
  */
 async function listMergeRequestDiscussions(
   projectId: string,
   mergeRequestIid: number
 ): Promise<GitLabDiscussion[]> {
+  validateGitLabToken(); // Ensure token is available for API calls
+  projectId = decodeURIComponent(projectId); // Decode project ID
+  
+  let allDiscussions: GitLabDiscussion[] = [];
+  let currentPage = 1;
+  let totalPages = 1;
+
+  // Fetch all pages of discussions
+  do {
+    const url = new URL(
+      `${GITLAB_API_URL}/projects/${encodeURIComponent(
+        projectId
+      )}/merge_requests/${mergeRequestIid}/discussions`
+    );
+    
+    // Add pagination parameters - use max per_page of 100
+    url.searchParams.append("per_page", "100");
+    url.searchParams.append("page", currentPage.toString());
+
+    const response = await fetch(url.toString(), {
+      ...DEFAULT_FETCH_CONFIG,
+    });
+
+    await handleGitLabError(response);
+    const data = await response.json();
+
+    // Parse the response as an array of discussions
+    const pageDiscussions = z.array(GitLabDiscussionSchema).parse(data);
+    allDiscussions = allDiscussions.concat(pageDiscussions);
+
+    // Check pagination headers
+    const totalPagesHeader = response.headers.get("x-total-pages");
+    if (totalPagesHeader) {
+      totalPages = parseInt(totalPagesHeader, 10);
+    }
+
+    currentPage++;
+  } while (currentPage <= totalPages);
+  
+  // Filter discussions to only include those with unresolved diff notes
+  const filteredDiscussions = allDiscussions.filter(discussion => {
+    // Check if any note in the discussion matches our criteria
+    return discussion.notes.some(note => {
+      return note.type === "DiffNote" && 
+             note.resolvable === true && 
+             note.resolved === false;
+    });
+  });
+  
+  return filteredDiscussions;
+}
+
+
+/**
+ * List merge request notes, filtered for unresolved diff notes (DiffNote type)
+ * 병합 요청 노트 목록 조회 (해결되지 않은 DiffNote 타입만 필터링)
+ * 
+ * @param {string} projectId - The ID or URL-encoded path of the project
+ * @param {number} mergeRequestIid - The IID of a merge request
+ * @returns {Promise<GitLabDiscussionNote[]>} Filtered notes with only unresolved DiffNote type
+ */
+async function listMergeRequestNotes(
+  projectId: string,
+  mergeRequestIid: number
+): Promise<GitLabDiscussionNote[]> {
+  validateGitLabToken(); // Ensure token is available for API calls
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
     `${GITLAB_API_URL}/projects/${encodeURIComponent(
       projectId
-    )}/merge_requests/${mergeRequestIid}/discussions`
+    )}/merge_requests/${mergeRequestIid}/notes`
   );
 
   const response = await fetch(url.toString(), {
@@ -1080,8 +928,21 @@ async function listMergeRequestDiscussions(
 
   await handleGitLabError(response);
   const data = await response.json();
-  // Ensure the response is parsed as an array of discussions
-  return z.array(GitLabDiscussionSchema).parse(data);
+  
+  // Parse and validate the response
+  const allNotes = z.array(GitLabDiscussionNoteSchema).parse(data);
+  
+  // Filter notes based on the specified criteria:
+  // 1. type: "DiffNote"
+  // 2. resolvable: true
+  // 3. resolved: false
+  const filteredNotes = allNotes.filter(note => {
+    return note.type === "DiffNote" && 
+           note.resolvable === true && 
+           note.resolved === false;
+  });
+  
+  return filteredNotes;
 }
 
 /**
@@ -2544,6 +2405,189 @@ async function getRepositoryTree(
   return z.array(GitLabTreeItemSchema).parse(data);
 }
 
+/**
+ * List vulnerabilities in a GitLab project
+ * @param {string} projectId - The ID or URL-encoded path of the project
+ * @param {ListVulnerabilitiesOptions} options - Options for filtering vulnerabilities
+ * @returns {Promise<GitLabVulnerability[]>}
+ */
+async function listVulnerabilities(
+  projectId: string,
+  options: Omit<ListVulnerabilitiesOptions, "project_id"> = {}
+): Promise<GitLabVulnerability[]> {
+  projectId = decodeURIComponent(projectId); // Decode project ID
+  const queryParams = new URLSearchParams();
+  
+  if (options.page) queryParams.append("page", options.page.toString());
+  if (options.per_page) queryParams.append("per_page", options.per_page.toString());
+  if (options.state) queryParams.append("state", options.state);
+  if (options.severity) queryParams.append("severity", options.severity);
+  if (options.report_type) queryParams.append("report_type", options.report_type);
+  if (options.scanner) {
+    options.scanner.forEach(scanner => queryParams.append("scanner", scanner));
+  }
+  if (options.sort) queryParams.append("sort", options.sort);
+  if (options.sort_direction) queryParams.append("sort_direction", options.sort_direction);
+
+  const url = new URL(
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/vulnerabilities`
+  );
+  url.search = queryParams.toString();
+
+  const response = await fetch(url.toString(), {
+    ...DEFAULT_FETCH_CONFIG,
+    headers: DEFAULT_HEADERS,
+  });
+
+  if (response.status === 404) {
+    throw new Error("Project not found or vulnerabilities feature not enabled");
+  }
+
+  await handleGitLabError(response);
+  const data = await response.json();
+  return z.array(GitLabVulnerabilitySchema).parse(data);
+}
+
+
+
+/**
+ * Get multiple vulnerabilities by IDs using GraphQL
+ * @param {string} projectId - The ID or URL-encoded path of the project
+ * @param {string[]} vulnerabilityIds - Array of vulnerability IDs (numeric parts only)
+ * @returns {Promise<GitLabGraphQLVulnerability[]>}
+ */
+async function getVulnerabilitiesByIds(
+  projectId: string,
+  vulnerabilityIds: string[]
+): Promise<GitLabGraphQLVulnerability[]> {
+  validateGitLabToken(); // Add token validation
+  projectId = decodeURIComponent(projectId); // Decode project ID
+
+  if (!vulnerabilityIds || vulnerabilityIds.length === 0) {
+    throw new Error("At least one vulnerability ID must be provided");
+  }
+
+  if (vulnerabilityIds.length > 100) {
+    throw new Error("Maximum 100 vulnerability IDs allowed per request");
+  }
+
+  // Build the GraphQL query dynamically for multiple vulnerabilities
+  const vulnerabilityQueries = vulnerabilityIds.map((id, index) => `
+    vuln${index}: vulnerability(id: "gid://gitlab/Vulnerability/${id}") {
+      title
+      description
+      state
+      severity
+      reportType
+      project {
+        id
+        name
+        fullPath
+      }
+      detectedAt
+      confirmedAt
+      resolvedAt
+      resolvedBy {
+        id
+        username
+      }
+      location {
+        ... on VulnerabilityLocationDependencyScanning {
+          file
+          dependency {
+            package {
+              name
+            }
+            version
+          }
+        }
+        ... on VulnerabilityLocationSast {
+          file
+          startLine
+          endLine
+        }
+        ... on VulnerabilityLocationSecretDetection {
+          file
+          startLine
+          endLine
+        }
+        ... on VulnerabilityLocationContainerScanning {
+          image
+          operatingSystem
+        }
+      }
+      solution
+              identifiers {
+          name
+          externalType
+          externalId
+          url
+        }
+        scanner {
+        id
+        name
+        vendor
+      }
+      primaryIdentifier {
+        name
+        externalType
+        externalId
+        url
+      }
+    }
+  `).join('\n');
+
+  const graphqlQuery = {
+    query: `
+      query GetMultipleVulnerabilities {
+        ${vulnerabilityQueries}
+      }
+    `
+  };
+
+  const graphqlUrl = `${GITLAB_API_URL.replace('/api/v4', '/api')}/graphql`;
+  
+  const response = await fetch(graphqlUrl, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'PRIVATE-TOKEN': GITLAB_PERSONAL_ACCESS_TOKEN!,
+    },
+    body: JSON.stringify(graphqlQuery),
+  });
+
+  if (response.status === 404) {
+    throw new Error("GraphQL API not available");
+  }
+
+  await handleGitLabError(response);
+  const result: any = await response.json();
+
+  if (result.errors) {
+    throw new Error(`GraphQL Error: ${result.errors.map((e: any) => e.message).join(', ')}`);
+  }
+
+  if (!result.data) {
+    throw new Error("No data returned from GraphQL query");
+  }
+
+  // Extract vulnerabilities from the response, filtering out null values
+  const vulnerabilities: GitLabGraphQLVulnerability[] = [];
+  for (let i = 0; i < vulnerabilityIds.length; i++) {
+    const vulnData = result.data[`vuln${i}`];
+    if (vulnData) {
+      try {
+        vulnerabilities.push(GitLabGraphQLVulnerabilitySchema.parse(vulnData));
+      } catch (parseError) {
+        console.warn(`Failed to parse vulnerability ${vulnerabilityIds[i]}: ${parseError instanceof Error ? parseError.message : 'Unknown error'}`);
+        // Continue processing other vulnerabilities instead of failing completely
+      }
+    }
+  }
+
+  return vulnerabilities;
+}
+
 server.setRequestHandler(ListToolsRequestSchema, async () => {
   // Apply read-only filter first
   const tools0 = GITLAB_READ_ONLY_MODE
@@ -2833,6 +2877,44 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         return {
           content: [
             { type: "text", text: JSON.stringify(discussions, null, 2) },
+          ],
+        };
+      }
+
+      case "list_vulnerabilities": {
+        const args = ListVulnerabilitiesSchema.parse(request.params.arguments);
+        const { project_id, ...options } = args;
+        const vulnerabilities = await listVulnerabilities(project_id, options);
+        return {
+          content: [
+            { type: "text", text: JSON.stringify(vulnerabilities, null, 2) },
+          ],
+        };
+      }
+
+
+
+      case "get_vulnerabilities_by_ids": {
+        const args = GetVulnerabilitiesByIdsSchema.parse(request.params.arguments);
+        const vulnerabilities = await getVulnerabilitiesByIds(args.project_id, args.vulnerability_ids);
+        return {
+          content: [
+            { type: "text", text: JSON.stringify(vulnerabilities, null, 2) },
+          ],
+        };
+      }
+
+      case "mr_notes": {
+        const args = ListMergeRequestNotesSchema.parse(
+          request.params.arguments
+        );
+        const notes = await listMergeRequestNotes(
+          args.project_id,
+          args.merge_request_iid
+        );
+        return {
+          content: [
+            { type: "text", text: JSON.stringify(notes, null, 2) },
           ],
         };
       }
