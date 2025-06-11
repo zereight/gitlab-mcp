@@ -10,6 +10,7 @@ export const GitLabAuthorSchema = z.object({
 // Pipeline related schemas
 export const GitLabPipelineSchema = z.object({
   id: z.number(),
+  iid: z.number().optional(),
   project_id: z.number(),
   sha: z.string(),
   ref: z.string(),
@@ -79,6 +80,43 @@ export const GitLabPipelineJobSchema = z.object({
     sha: z.string(),
   }).optional(),
   web_url: z.string().optional(),
+});
+
+// Insert the following new schemas just after the pipeline job related schemas
+
+export const GitLabTestCaseSchema = z.object({
+  status: z.string(),
+  classname: z.string().optional(),
+  name: z.string().optional(),
+  execution_time: z.number().optional(),
+  system_output: z.string().nullable().optional(),
+});
+
+export const GitLabTestSuiteSchema = z.object({
+  name: z.string().optional(),
+  total_time: z.number().optional(),
+  total_count: z.number().optional(),
+  success_count: z.number().optional(),
+  failed_count: z.number().optional(),
+  skipped_count: z.number().optional(),
+  error_count: z.number().optional(),
+  test_cases: z.array(GitLabTestCaseSchema),
+});
+
+export const GitLabTestReportSchema = z.object({
+  total_time: z.number().optional(),
+  total_count: z.number().optional(),
+  success_count: z.number().optional(),
+  failed_count: z.number().optional(),
+  skipped_count: z.number().optional(),
+  error_count: z.number().optional(),
+  test_suites: z.array(GitLabTestSuiteSchema),
+});
+
+// Schema for getting failed test cases from a pipeline's test report
+export const GetFailedTestReportSchema = z.object({
+  project_id: z.string().describe("Project ID or URL-encoded path"),
+  pipeline_id: z.number().describe("The ID of the pipeline"),
 });
 
 // Schema for listing pipelines
@@ -1420,3 +1458,8 @@ export type GitLabGraphQLVulnerabilityScanner = z.infer<typeof GitLabGraphQLVuln
 export type GitLabGraphQLVulnerability = z.infer<typeof GitLabGraphQLVulnerabilitySchema>;
 
 export type GetVulnerabilitiesByIdsOptions = z.infer<typeof GetVulnerabilitiesByIdsSchema>;
+
+export type GitLabTestCase = z.infer<typeof GitLabTestCaseSchema>;
+export type GitLabTestSuite = z.infer<typeof GitLabTestSuiteSchema>;
+export type GitLabTestReport = z.infer<typeof GitLabTestReportSchema>;
+export type GetFailedTestReportOptions = z.infer<typeof GetFailedTestReportSchema>;
