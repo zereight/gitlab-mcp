@@ -1,10 +1,10 @@
-# Better GitLab MCP Server
+# GitLab MCP Server - MR-focused Edition
 
-## @zereight/mcp-gitlab
+## Enhanced Merge Request & Vulnerability Management
 
 [![smithery badge](https://smithery.ai/badge/@zereight/gitlab-mcp)](https://smithery.ai/server/@zereight/gitlab-mcp)
 
-GitLab MCP(Model Context Protocol) Server. **Includes bug fixes and improvements over the original GitLab MCP server.**
+GitLab MCP(Model Context Protocol) Server with specialized focus on **Merge Request management and Vulnerability analysis**. This version provides enhanced vulnerability data including file locations, CVE identifiers, package details, and upgrade instructions.
 
 <a href="https://glama.ai/mcp/servers/7jwbk4r6d7"><img width="380" height="200" src="https://glama.ai/mcp/servers/7jwbk4r6d7/badge" alt="gitlab mcp MCP server" /></a>
 
@@ -74,55 +74,25 @@ When using with the Claude App, you need to set up your API key and URLs directl
 
 ## Tools 🛠️
 
-+<!-- TOOLS-START -->
-1. `create_or_update_file` - Create or update a single file in a GitLab project
-2. `search_repositories` - Search for GitLab projects
-3. `create_repository` - Create a new GitLab project
-4. `get_file_contents` - Get the contents of a file or directory from a GitLab project
-5. `push_files` - Push multiple files to a GitLab project in a single commit
-6. `create_issue` - Create a new issue in a GitLab project
-7. `create_merge_request` - Create a new merge request in a GitLab project
-8. `fork_repository` - Fork a GitLab project to your account or specified namespace
-9. `create_branch` - Create a new branch in a GitLab project
-10. `get_merge_request` - Get details of a merge request (Either mergeRequestIid or branchName must be provided)
-11. `get_merge_request_diffs` - Get the changes/diffs of a merge request (Either mergeRequestIid or branchName must be provided)
-12. `update_merge_request` - Update a merge request (Either mergeRequestIid or branchName must be provided)
-13. `create_note` - Create a new note (comment) to an issue or merge request
-14. `create_merge_request_thread` - Create a new thread on a merge request
-15. `mr_discussions` - List discussion items for a merge request
-16. `update_merge_request_note` - Modify an existing merge request thread note
-17. `create_merge_request_note` - Add a new note to an existing merge request thread
-18. `update_issue_note` - Modify an existing issue thread note
-19. `create_issue_note` - Add a new note to an existing issue thread
-20. `list_issues` - List issues in a GitLab project with filtering options
-21. `get_issue` - Get details of a specific issue in a GitLab project
-22. `update_issue` - Update an issue in a GitLab project
-23. `delete_issue` - Delete an issue from a GitLab project
-24. `list_issue_links` - List all issue links for a specific issue
-25. `list_issue_discussions` - List discussions for an issue in a GitLab project
-26. `get_issue_link` - Get a specific issue link
-27. `create_issue_link` - Create an issue link between two issues
-28. `delete_issue_link` - Delete an issue link
-29. `list_namespaces` - List all namespaces available to the current user
-30. `get_namespace` - Get details of a namespace by ID or path
-31. `verify_namespace` - Verify if a namespace path exists
-32. `get_project` - Get details of a specific project
-33. `list_projects` - List projects accessible by the current user
-34. `list_labels` - List labels for a project
-35. `get_label` - Get a single label from a project
-36. `create_label` - Create a new label in a project
-37. `update_label` - Update an existing label in a project
-38. `delete_label` - Delete a label from a project
-39. `list_group_projects` - List projects in a GitLab group with filtering options
-40. `list_wiki_pages` - List wiki pages in a GitLab project
-41. `get_wiki_page` - Get details of a specific wiki page
-42. `create_wiki_page` - Create a new wiki page in a GitLab project
-43. `update_wiki_page` - Update an existing wiki page in a GitLab project
-44. `delete_wiki_page` - Delete a wiki page from a GitLab project
-45. `get_repository_tree` - Get the repository tree for a GitLab project (list files and directories)
-46. `list_pipelines` - List pipelines in a GitLab project with filtering options
-47. `get_pipeline` - Get details of a specific pipeline in a GitLab project
-48. `list_pipeline_jobs` - List all jobs in a specific pipeline
-49. `get_pipeline_job` - Get details of a GitLab pipeline job number
-50. `get_pipeline_job_output` - Get the output/trace of a GitLab pipeline job number
+This is a specialized **MR-focused version** with enhanced vulnerability support:
+
+<!-- TOOLS-START -->
+1. `get_merge_request` - Get MR metadata - details of a merge request (Either mergeRequestIid or branchName must be provided)
+2. `mr_discussions` - List unresolved diff discussions - List discussion items for a merge request filtered for unresolved diff notes (DiffNote type, resolvable=true, resolved=false)
+3. `create_merge_request_note` - Add MR notes - Add a reply note to an existing merge request thread
+4. `update_merge_request` - Append label in MR - Update a merge request including adding labels (Either mergeRequestIid or branchName must be provided)
+5. `get_vulnerabilities_by_ids` - Get vulnerabilities by IDs - Fetch detailed information about multiple vulnerabilities using GraphQL
 <!-- TOOLS-END -->
+
+## Enhanced Vulnerability Data 🔍
+
+The `get_vulnerabilities_by_ids` tool provides comprehensive vulnerability information including:
+
+- **File Location**: Exact file paths and line numbers (e.g., `src/Agoda.BulkUpload.ClientSide/pnpm-lock.yaml:1117`)
+- **Package Details**: Affected package names and versions
+- **CVE Information**: CVE identifiers with external reference links
+- **Solution Instructions**: Specific upgrade commands and version recommendations
+- **Scanner Data**: Information about the security scanner that detected the vulnerability
+- **Dependency Context**: Complete dependency chain analysis for vulnerability impact assessment
+
+This enhanced data enables precise vulnerability remediation by providing all the context needed to understand and fix security issues.
