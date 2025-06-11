@@ -191,6 +191,8 @@ export const CancelPipelineSchema = z.object({
 export const GetPipelineJobOutputSchema = z.object({
   project_id: z.string().describe("Project ID or URL-encoded path"),
   job_id: z.number().describe("The ID of the job"),
+  limit: z.number().optional().describe("Maximum number of lines to return from the end of the log (default: 1000)"),
+  offset: z.number().optional().describe("Number of lines to skip from the end of the log (default: 0)"),
 });
 
 // User schemas
