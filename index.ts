@@ -159,6 +159,15 @@ import {
   type GitLabGraphQLProject,
 
   type GetVulnerabilitiesByIdsOptions,
+  GitLabTestCaseSchema,
+  GitLabTestSuiteSchema,
+  GitLabTestReportSchema,
+  GetFailedTestReportSchema,
+  // Test report types
+  type GitLabTestCase,
+  type GitLabTestSuite,
+  type GitLabTestReport,
+  type GetFailedTestReportOptions,
 } from "./schemas.js";
 
 /**
@@ -263,6 +272,11 @@ const allTools = [
     description: "Get vulnerabilities by IDs - Fetch detailed information about multiple vulnerabilities using GraphQL",
     inputSchema: zodToJsonSchema(GetVulnerabilitiesByIdsSchema),
   },
+  {
+    name: "get_failed_test_cases",
+    description: "Get failed test cases from a pipeline's test report (requires project_id and pipeline_id)",
+    inputSchema: zodToJsonSchema(GetFailedTestReportSchema),
+  },
 ];
 
 // Define which tools are read-only - Custom MR-only version
@@ -270,6 +284,7 @@ const readOnlyTools = [
   "get_merge_request",
   "mr_discussions",
   "get_vulnerabilities_by_ids",
+  "get_failed_test_cases",
 ];
 
 // Define which tools are related to wiki and can be toggled by USE_GITLAB_WIKI - Custom MR-only version (no wiki tools)
@@ -1450,6 +1465,7 @@ async function getMergeRequest(
   mergeRequestIid?: number,
   branchName?: string
 ): Promise<GitLabMergeRequest> {
+  validateGitLabToken(); // Ensure token is available for API calls
   projectId = decodeURIComponent(projectId); // Decode project ID
   let url: URL;
 
@@ -2360,6 +2376,41 @@ async function getPipelineJobOutput(
 
   await handleGitLabError(response);
   return await response.text();
+}
+
+// New helper: Fetch and return failed test cases from a pipeline's test report
+async function getFailedTestCases(
+  projectId: string,
+  pipelineId: number
+): Promise<GitLabTestCase[]> {
+  projectId = decodeURIComponent(projectId); // Decode project ID first
+  const url = new URL(
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/pipelines/${pipelineId}/test_report`
+  );
+
+  const response = await fetch(url.toString(), {
+    ...DEFAULT_FETCH_CONFIG,
+  });
+
+  if (response.status === 404) {
+    throw new Error("Pipeline or test report not found");
+  }
+
+  // GitLab can return 204 (No Content) when the report is still being generated
+  if (response.status === 204) {
+    throw new Error("Test report is not ready yet, please retry later");
+  }
+
+  await handleGitLabError(response);
+  const data = await response.json();
+  const report = GitLabTestReportSchema.parse(data);
+
+  // Extract failed test cases from all suites
+  const failedCases: GitLabTestCase[] = report.test_suites.flatMap((suite) =>
+    suite.test_cases.filter((test) => test.status === "failed")
+  );
+
+  return failedCases;
 }
 
 /**
@@ -3377,6 +3428,21 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             {
               type: "text",
               text: jobOutput,
+            },
+          ],
+        };
+      }
+
+      case "get_failed_test_cases": {
+        const { project_id, pipeline_id } = GetFailedTestReportSchema.parse(
+          request.params.arguments
+        );
+        const failedCases = await getFailedTestCases(project_id, pipeline_id);
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(failedCases, null, 2),
             },
           ],
         };
