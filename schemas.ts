@@ -648,6 +648,21 @@ export const GitLabMergeRequestSchema = z.object({
   labels: z.array(z.string()).optional(),
 });
 
+export const LineRangeSchema = z.object({
+  start: z.object({
+    line_code: z.string().nullable().optional().describe("CRITICAL: Line identifier in format '{file_path_sha1_hash}_{old_line_number}_{new_line_number}'. USUALLY REQUIRED for GitLab diff comments despite being optional in schema. Example: 'a1b2c3d4e5f6_10_15'. Get this from GitLab diff API response, never fabricate."),
+    type: z.enum(["new", "old"]).nullable().optional().describe("Line type: 'old' = deleted/original line, 'new' = added/modified line, null = unchanged context. MUST match the line_code format and old_line/new_line values."),
+    old_line: z.number().nullable().optional().describe("Line number in original file (before changes). REQUIRED when type='old', NULL when type='new' (for purely added lines), can be present for context lines."),
+    new_line: z.number().nullable().optional().describe("Line number in modified file (after changes). REQUIRED when type='new', NULL when type='old' (for purely deleted lines), can be present for context lines."),
+  }).describe("Start line position for multiline comment range. MUST specify either old_line OR new_line (or both for context), never neither."),
+  end: z.object({
+    line_code: z.string().nullable().optional().describe("CRITICAL: Line identifier in format '{file_path_sha1_hash}_{old_line_number}_{new_line_number}'. USUALLY REQUIRED for GitLab diff comments despite being optional in schema. Example: 'a1b2c3d4e5f6_12_17'. Must be from same file as start.line_code."),
+    type: z.enum(["new", "old"]).nullable().optional().describe("Line type: 'old' = deleted/original line, 'new' = added/modified line, null = unchanged context. SHOULD MATCH start.type for consistent ranges (don't mix old/new types)."),
+    old_line: z.number().nullable().optional().describe("Line number in original file (before changes). REQUIRED when type='old', NULL when type='new' (for purely added lines), can be present for context lines. MUST be >= start.old_line if both specified."),
+    new_line: z.number().nullable().optional().describe("Line number in modified file (after changes). REQUIRED when type='new', NULL when type='old' (for purely deleted lines), can be present for context lines. MUST be >= start.new_line if both specified."),
+  }).describe("End line position for multiline comment range. MUST specify either old_line OR new_line (or both for context), never neither. Range must be valid (end >= start)."),
+}).describe("Line range for multiline comments on GitLab merge request diffs. VALIDATION RULES: 1) line_code is critical for GitLab API success, 2) start/end must have consistent types, 3) line numbers must form valid range, 4) get line_code from GitLab diff API, never generate manually.");
+
 // Discussion related schemas
 export const GitLabDiscussionNoteSchema = z.object({
   id: z.number(),
@@ -675,21 +690,21 @@ export const GitLabDiscussionNoteSchema = z.object({
       old_path: z.string().optional().describe("File path before change"),
       new_path: z.string().optional().describe("File path after change"),
       position_type: z.enum(["text", "image", "file"]),
-      new_line: z.number().nullable().optional().describe("For text diff notes, the line number after change. Used when commenting on added or modified lines. Null for deleted lines."),
-      old_line: z.number().nullable().optional().describe("For text diff notes, the line number before change. Used when commenting on deleted or original lines. Null for newly added lines."),
+      new_line: z.number().nullable().optional().describe("Line number in the modified file (after changes). Used for added lines and context lines. Null for deleted lines."),
+      old_line: z.number().nullable().optional().describe("Line number in the original file (before changes). Used for deleted lines and context lines. Null for newly added lines."),
       line_range: z
         .object({
           start: z.object({
-            line_code: z.string(),// maybe shold fix
+            line_code: z.string().nullable().optional().describe("Line identifier in format: '{file_path_sha1_hash}_{old_line_number}_{new_line_number}'. Used to uniquely identify a specific line in the diff."),
             type: z.enum(["new", "old", "expanded"]),
-            old_line: z.number().nullish(), // This is missing for image diffs
-            new_line: z.number().nullish(), // This is missing for image diffs
+            old_line: z.number().nullable().optional().describe("Line number in the original file (before changes). Null for newly added lines or unchanged context lines."),
+            new_line: z.number().nullable().optional().describe("Line number in the modified file (after changes). Null for deleted lines or unchanged context lines."),
           }),
           end: z.object({
-            line_code: z.string(),
+            line_code: z.string().nullable().optional().describe("Line identifier in format: '{file_path_sha1_hash}_{old_line_number}_{new_line_number}'. Used to uniquely identify a specific line in the diff."),
             type: z.enum(["new", "old", "expanded"]),
-            old_line: z.number().nullish(), // This is missing for image diffs
-            new_line: z.number().nullish(), // This is missing for image diffs
+            old_line: z.number().nullable().optional().describe("Line number in the original file (before changes). Null for newly added lines or unchanged context lines."),
+            new_line: z.number().nullable().optional().describe("Line number in the modified file (after changes). Null for deleted lines or unchanged context lines."),
           }),
         })
         .nullable()
@@ -1235,35 +1250,21 @@ export const GitLabWikiPageSchema = z.object({
   updated_at: z.string().optional(),
 });
 
-// Define line range position schema for multiline comments
-export const LineRangeSchema = z.object({
-  start: z.object({
-    type: z.enum(["new", "old"]).describe("Use 'new' for lines added by this commit, 'old' for lines that existed before this commit. Required for multiline comments to identify which part of the diff each line belongs to."),
-    old_line: z.number().nullable().optional().describe("Line number in the file before the commit was applied. Used for 'old' type lines or context lines. Null for newly added lines."),
-    new_line: z.number().nullable().optional().describe("Line number in the file after the commit was applied. Used for 'new' type lines or context lines. Null for deleted lines."),
-  }).describe("Start line position for multiline comment range"),
-  end: z.object({
-    type: z.enum(["new", "old"]).describe("Use 'new' for lines added by this commit, 'old' for lines that existed before this commit. Required for multiline comments to identify which part of the diff each line belongs to."),
-    old_line: z.number().nullable().optional().describe("Line number in the file before the commit was applied. Used for 'old' type lines or context lines. Null for newly added lines."),
-    new_line: z.number().nullable().optional().describe("Line number in the file after the commit was applied. Used for 'new' type lines or context lines. Null for deleted lines."),
-  }).describe("End line position for multiline comment range"),
-}).describe("Line range for multiline comments spanning multiple lines in diff. Allows commenting on a range of lines rather than a single line.");
-
 // Merge Request Thread position schema - used for diff notes
 export const MergeRequestThreadPositionSchema = z.object({
-  base_sha: z.string().describe("Base commit SHA in the source branch"),
-  head_sha: z.string().describe("SHA referencing HEAD of the source branch"),
-  start_sha: z.string().describe("SHA referencing the start commit of the source branch"),
-  position_type: z.enum(["text", "image", "file"]).describe("Type of position reference"),
-  new_path: z.string().optional().describe("File path after change"),
-  old_path: z.string().optional().describe("File path before change"),
-  new_line: z.number().nullable().optional().describe("For text diff notes, the line number after change. Used when commenting on added or modified lines. Null for deleted lines."),
-  old_line: z.number().nullable().optional().describe("For text diff notes, the line number before change. Used when commenting on deleted or original lines. Null for newly added lines."),
-  line_range: LineRangeSchema.optional().describe("Line range for multiline comments (start and end positions)"),
-  width: z.number().optional().describe("Width of the image (for image diffs)"),
-  height: z.number().optional().describe("Height of the image (for image diffs)"),
-  x: z.number().optional().describe("X coordinate on the image (for image diffs)"),
-  y: z.number().optional().describe("Y coordinate on the image (for image diffs)"),
+  base_sha: z.string().describe("REQUIRED: Base commit SHA in the source branch. Get this from merge request diff_refs.base_sha."),
+  head_sha: z.string().describe("REQUIRED: SHA referencing HEAD of the source branch. Get this from merge request diff_refs.head_sha."),
+  start_sha: z.string().describe("REQUIRED: SHA referencing the start commit of the source branch. Get this from merge request diff_refs.start_sha."),
+  position_type: z.enum(["text", "image", "file"]).describe("REQUIRED: Position type. Use 'text' for code diffs, 'image' for image diffs, 'file' for file-level comments."),
+  new_path: z.string().optional().describe("File path after changes. REQUIRED for most diff comments. Use same as old_path if file wasn't renamed."),
+  old_path: z.string().optional().describe("File path before changes. REQUIRED for most diff comments. Use same as new_path if file wasn't renamed."),
+  new_line: z.number().nullable().optional().describe("Line number in modified file (after changes). Use for added lines or context lines. NULL for deleted lines. For single-line comments on new lines."),
+  old_line: z.number().nullable().optional().describe("Line number in original file (before changes). Use for deleted lines or context lines. NULL for added lines. For single-line comments on old lines."),
+  line_range: LineRangeSchema.optional().describe("MULTILINE COMMENTS: Specify start/end line positions for commenting on multiple lines. Alternative to single old_line/new_line."),
+  width: z.number().optional().describe("IMAGE DIFFS ONLY: Width of the image (for position_type='image')."),
+  height: z.number().optional().describe("IMAGE DIFFS ONLY: Height of the image (for position_type='image')."),
+  x: z.number().optional().describe("IMAGE DIFFS ONLY: X coordinate on the image (for position_type='image')."),
+  y: z.number().optional().describe("IMAGE DIFFS ONLY: Y coordinate on the image (for position_type='image')."),
 });
 
 // Schema for creating a new merge request thread
