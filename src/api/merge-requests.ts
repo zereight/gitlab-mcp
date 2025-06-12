@@ -7,7 +7,8 @@ import {
 } from '../config/gitlab.js';
 import { 
   handleGitLabError, 
-  validateGitLabToken 
+  validateGitLabToken,
+  fetchAllPages
 } from '../utils/index.js';
 import {
   GitLabMergeRequestSchema,
@@ -77,15 +78,17 @@ export async function listMergeRequestDiscussions(
   validateGitLabToken();
   projectId = decodeURIComponent(projectId);
 
-  const url = `${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/merge_requests/${mergeRequestIid}/discussions`;
-  const response = await fetch(url, DEFAULT_FETCH_CONFIG);
-  await handleGitLabError(response);
-  const data = await response.json();
-
-  const discussions = z.array(GitLabDiscussionSchema).parse(data);
+  const baseUrl = `${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/merge_requests/${mergeRequestIid}/discussions`;
+  
+  // Fetch all pages of discussions
+  const allDiscussions = await fetchAllPages(
+    baseUrl,
+    (data) => z.array(GitLabDiscussionSchema).parse(data),
+    50 // Reasonable limit for discussions (50 pages * 100 per page = 5000 discussions max)
+  );
   
   // Filter for unresolved diff discussions and streamline
-  const unresolvedDiscussions = discussions.filter(discussion => {
+  const unresolvedDiscussions = allDiscussions.filter(discussion => {
     const hasUnresolvedDiffNotes = discussion.notes?.some(note => 
       note.type === 'DiffNote' && 
       note.resolvable === true && 
