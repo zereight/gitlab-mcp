@@ -11,7 +11,7 @@ import {
 import {
   GitLabGraphQLVulnerabilitySchema,
   type GitLabGraphQLVulnerability
-} from '../../schemas.js';
+} from '../schemas/index.js';
 
 /**
  * Get vulnerabilities by IDs using GraphQL API

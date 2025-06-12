@@ -15,7 +15,7 @@ import {
   UpdateMergeRequestSchema,
   GetVulnerabilitiesByIdsSchema,
   GetFailedTestReportSchema
-} from '../../schemas.js';
+} from '../schemas/index.js';
 
 // Type for MCP tool call request
 interface ToolCallRequest {

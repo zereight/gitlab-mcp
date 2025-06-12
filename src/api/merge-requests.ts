@@ -20,7 +20,7 @@ import {
   type GitLabMergeRequest,
   type GitLabDiscussion,
   type GitLabDiscussionNote
-} from '../../schemas.js';
+} from '../schemas/index.js';
 
 /**
  * Get merge request details by IID or branch name
