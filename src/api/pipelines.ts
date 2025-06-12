@@ -8,7 +8,7 @@ import { handleGitLabError } from '../utils/index.js';
 import {
   GitLabTestReportSchema,
   type GitLabTestCase
-} from '../../schemas.js';
+} from '../schemas/index.js';
 
 /**
  * Get failed test cases from a pipeline's test report

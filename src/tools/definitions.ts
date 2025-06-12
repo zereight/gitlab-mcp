@@ -7,7 +7,7 @@ import {
   UpdateMergeRequestSchema,
   GetVulnerabilitiesByIdsSchema,
   GetFailedTestReportSchema
-} from '../../schemas.js';
+} from '../schemas/index.js';
 
 // Define all available tools - Custom MR-only version (6 tools only)
 export const allTools = [
