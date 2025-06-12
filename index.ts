@@ -203,6 +203,7 @@ const server = new Server(
 );
 
 const GITLAB_PERSONAL_ACCESS_TOKEN = process.env.GITLAB_PERSONAL_ACCESS_TOKEN;
+const GITLAB_AUTH_COOKIE_PATH = process.env.GITLAB_AUTH_COOKIE_PATH;
 const IS_OLD = process.env.GITLAB_IS_OLD === "true";
 const GITLAB_READ_ONLY_MODE = process.env.GITLAB_READ_ONLY_MODE === "true";
 const USE_GITLAB_WIKI = process.env.USE_GITLAB_WIKI === "true";
@@ -245,6 +246,61 @@ if (HTTPS_PROXY) {
 httpsAgent = httpsAgent || new HttpsAgent(sslOptions);
 httpAgent = httpAgent || new Agent();
 
+/**
+ * Read and parse the authentication cookie file
+ * @returns {string|null} The cookie string or null if not available
+ */
+function readAuthCookie(): string | null {
+  if (!GITLAB_AUTH_COOKIE_PATH) {
+    return null;
+  }
+
+  try {
+    // Expand tilde in path if present
+    const cookiePath = GITLAB_AUTH_COOKIE_PATH.startsWith("~/")
+      ? path.join(process.env.HOME || "", GITLAB_AUTH_COOKIE_PATH.slice(2))
+      : GITLAB_AUTH_COOKIE_PATH;
+
+    if (!fs.existsSync(cookiePath)) {
+      console.error(`Auth cookie file not found at ${cookiePath}`);
+      return null;
+    }
+
+    const cookieContent = fs.readFileSync(cookiePath, "utf8");
+    const cookies = cookieContent
+      .split("\n")
+      .map((line) => {
+        // Handle #HttpOnly_ prefix if present
+        if (line.startsWith("#HttpOnly_")) {
+          return line.slice(10);
+        }
+        // Skip other comment lines and empty lines
+        if (line.startsWith("#") || !line.trim()) {
+          return null;
+        }
+        return line;
+      })
+      .filter((line): line is string => Boolean(line))
+      .map((line) => {
+        const parts = line.split("\t");
+        if (parts.length >= 7) {
+          return `${parts[5]}=${parts[6]}`;
+        }
+        return null;
+      })
+      .filter(Boolean)
+      .join("; ");
+
+    return cookies;
+  } catch (error) {
+    console.error("Error reading auth cookie file:", error);
+    return null;
+  }
+}
+
+// Get the auth cookie if available
+const authCookie = readAuthCookie();
+
 // Modify DEFAULT_HEADERS to include agent configuration
 const DEFAULT_HEADERS: Record<string, string> = {
   Accept: "application/json",
@@ -254,10 +310,15 @@ if (IS_OLD) {
   DEFAULT_HEADERS["Private-Token"] = `${GITLAB_PERSONAL_ACCESS_TOKEN}`;
 } else {
   DEFAULT_HEADERS["Authorization"] = `Bearer ${GITLAB_PERSONAL_ACCESS_TOKEN}`;
+
+// Add auth cookie if available
+if (authCookie) {
+  DEFAULT_HEADERS["Cookie"] = authCookie;
+}
 }
 
 // Create a default fetch configuration object that includes proxy agents if set
-const DEFAULT_FETCH_CONFIG = {
+const DEFAULT_FETCH_CONFIG: any = {
   headers: DEFAULT_HEADERS,
   agent: (parsedUrl: URL) => {
     if (parsedUrl.protocol === "https:") {
@@ -266,6 +327,11 @@ const DEFAULT_FETCH_CONFIG = {
     return httpAgent;
   },
 };
+
+// Only add redirect following if we have a cookie
+if (authCookie) {
+  DEFAULT_FETCH_CONFIG.redirect = 'follow';
+}
 
 // Define all available tools
 const allTools = [
