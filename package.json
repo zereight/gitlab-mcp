@@ -5,7 +5,7 @@
   "license": "MIT",
   "author": "zereight",
   "type": "module",
-  "bin": "./build/index.js",
+  "bin": "./build/src/index.js",
   "files": [
     "build"
   ],
@@ -16,7 +16,7 @@
     "node": ">=14"
   },
   "scripts": {
-    "build": "tsc && node -e \"require('fs').chmodSync('build/index.js', '755')\"",
+    "build": "tsc && node -e \"require('fs').chmodSync('build/src/index.js', '755')\"",
     "prepare": "npm run build",
     "watch": "tsc --watch",
     "deploy": "npm publish --access public",
