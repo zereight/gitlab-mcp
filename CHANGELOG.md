@@ -1,3 +1,17 @@
+## [1.0.63] - 2025-06-12
+
+### Added
+
+- 📊 **CI Job Log Pagination**: Added pagination support for CI job logs to prevent context window flooding
+  - `get_pipeline_job_output` now supports optional `limit` and `offset` parameters
+  - Default limit is 1000 lines when pagination is used
+  - Returns lines from the end of the log, with configurable offset
+  - Includes truncation metadata showing what was skipped
+  - Maintains backward compatibility (no parameters = full log)
+  - See: [PR #97](https://github.com/zereight/gitlab-mcp/pull/97)
+
+---
+
 ## [1.0.62] - 2025-06-10
 
 ### Fixed
