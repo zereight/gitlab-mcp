@@ -11,6 +11,8 @@ import {
 } from '../utils/index.js';
 import {
   GitLabMergeRequestSchema,
+  OptimizedGitLabMergeRequestSchema,
+  streamlineMergeRequest,
   GitLabDiscussionSchema,
   GitLabDiscussionNoteSchema,
   GetMergeRequestSchema,
@@ -18,6 +20,7 @@ import {
   CreateMergeRequestNoteSchema,
   UpdateMergeRequestSchema,
   type GitLabMergeRequest,
+  type OptimizedGitLabMergeRequest,
   type GitLabDiscussion,
   type GitLabDiscussionNote
 } from '../schemas/index.js';
@@ -30,7 +33,7 @@ export async function getMergeRequest(
   projectId: string,
   mergeRequestIid?: number,
   branchName?: string
-): Promise<GitLabMergeRequest> {
+): Promise<OptimizedGitLabMergeRequest> {
   validateGitLabToken();
   projectId = decodeURIComponent(projectId);
 
@@ -49,13 +52,15 @@ export async function getMergeRequest(
 
   if (branchName) {
     if (Array.isArray(data) && data.length > 0) {
-      return GitLabMergeRequestSchema.parse(data[0]);
+      const fullMR = GitLabMergeRequestSchema.parse(data[0]);
+      return streamlineMergeRequest(fullMR);
     } else {
       throw new Error(`No open merge request found for branch: ${branchName}`);
     }
   }
 
-  return GitLabMergeRequestSchema.parse(data);
+  const fullMR = GitLabMergeRequestSchema.parse(data);
+  return streamlineMergeRequest(fullMR);
 }
 
 /**
@@ -131,7 +136,7 @@ export async function updateMergeRequest(
   >,
   mergeRequestIid?: number,
   branchName?: string
-): Promise<GitLabMergeRequest> {
+): Promise<OptimizedGitLabMergeRequest> {
   validateGitLabToken();
   projectId = decodeURIComponent(projectId);
 
@@ -157,5 +162,6 @@ export async function updateMergeRequest(
 
   await handleGitLabError(response);
   const data = await response.json();
-  return GitLabMergeRequestSchema.parse(data);
+  const fullMR = GitLabMergeRequestSchema.parse(data);
+  return streamlineMergeRequest(fullMR);
 } 

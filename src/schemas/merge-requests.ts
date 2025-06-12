@@ -1,7 +1,42 @@
 import { z } from "zod";
 import { GitLabUserSchema, GitLabHeadPipelineSchema, GitLabMergeRequestDiffRefSchema, ProjectParamsSchema } from "./base.js";
 
-// Merge Request schema
+// Optimized Merge Request schema - only essential fields for AI agents
+export const OptimizedGitLabMergeRequestSchema = z.object({
+  id: z.number(),
+  iid: z.number(),
+  project_id: z.number(),
+  title: z.string(),
+  description: z.string().nullable(),
+  state: z.string(),
+  merged: z.boolean().optional(),
+  draft: z.boolean().optional(),
+  author: z.object({
+    username: z.string(),
+  }),
+  assignees: z.array(z.object({
+    username: z.string(),
+  })).optional(),
+  source_branch: z.string(),
+  target_branch: z.string(),
+  head_pipeline: z.object({
+    id: z.number(),
+    iid: z.number().optional(),
+    project_id: z.number(),
+    status: z.string(),
+  }).nullable().optional(),
+  web_url: z.string(),
+  created_at: z.string(),
+  updated_at: z.string(),
+  merged_at: z.string().nullable(),
+  closed_at: z.string().nullable(),
+  changes_count: z.string().nullable().optional(),
+  merge_when_pipeline_succeeds: z.boolean().optional(),
+  squash: z.boolean().optional(),
+  labels: z.array(z.string()).optional(),
+});
+
+// Full Merge Request schema (for validation of GitLab API responses)
 export const GitLabMergeRequestSchema = z.object({
   id: z.number(),
   iid: z.number(),
@@ -37,6 +72,45 @@ export const GitLabMergeRequestSchema = z.object({
   squash: z.boolean().optional(),
   labels: z.array(z.string()).optional(),
 });
+
+/**
+ * Transform full GitLab MR response to optimized format for AI agents
+ */
+export function streamlineMergeRequest(fullMR: any): z.infer<typeof OptimizedGitLabMergeRequestSchema> {
+  return {
+    id: fullMR.id,
+    iid: fullMR.iid,
+    project_id: fullMR.project_id,
+    title: fullMR.title,
+    description: fullMR.description,
+    state: fullMR.state,
+    merged: fullMR.merged,
+    draft: fullMR.draft,
+    author: {
+      username: fullMR.author?.username,
+    },
+    assignees: fullMR.assignees?.map((assignee: any) => ({
+      username: assignee.username,
+    })),
+    source_branch: fullMR.source_branch,
+    target_branch: fullMR.target_branch,
+    head_pipeline: fullMR.head_pipeline ? {
+      id: fullMR.head_pipeline.id,
+      iid: fullMR.head_pipeline.iid,
+      project_id: fullMR.head_pipeline.project_id,
+      status: fullMR.head_pipeline.status,
+    } : null,
+    web_url: fullMR.web_url,
+    created_at: fullMR.created_at,
+    updated_at: fullMR.updated_at,
+    merged_at: fullMR.merged_at,
+    closed_at: fullMR.closed_at,
+    changes_count: fullMR.changes_count,
+    merge_when_pipeline_succeeds: fullMR.merge_when_pipeline_succeeds,
+    squash: fullMR.squash,
+    labels: fullMR.labels,
+  };
+}
 
 // Discussion Note schema
 export const GitLabDiscussionNoteSchema = z.object({
@@ -126,5 +200,6 @@ export const UpdateMergeRequestSchema = ProjectParamsSchema.extend({
 
 // Types
 export type GitLabMergeRequest = z.infer<typeof GitLabMergeRequestSchema>;
+export type OptimizedGitLabMergeRequest = z.infer<typeof OptimizedGitLabMergeRequestSchema>;
 export type GitLabDiscussionNote = z.infer<typeof GitLabDiscussionNoteSchema>;
 export type GitLabDiscussion = z.infer<typeof GitLabDiscussionSchema>; 
