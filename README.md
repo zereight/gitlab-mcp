@@ -2,8 +2,6 @@
 
 ## Enhanced Merge Request & Vulnerability Management
 
-[![smithery badge](https://smithery.ai/badge/@zereight/gitlab-mcp)](https://smithery.ai/server/@zereight/gitlab-mcp)
-
 A specialized fork of the GitLab MCP(Model Context Protocol) Server, optimized for **AI effectiveness** in Merge Request management and Vulnerability analysis.
 
 ## Why This Fork Exists 🎯
@@ -56,15 +54,33 @@ src/
 - **Type-safe** - Full TypeScript support with clean imports
 - **AI-optimized** - Smaller, focused files for better LLM processing
 
-<a href="https://glama.ai/mcp/servers/7jwbk4r6d7"><img width="380" height="200" src="https://glama.ai/mcp/servers/7jwbk4r6d7/badge" alt="gitlab mcp MCP server" /></a>
-
 ## Usage
 
 ### Using with Claude App, Cline, Roo Code, Cursor
 
 When using with the Claude App, you need to set up your API key and URLs directly.
 
-#### npx
+#### Local Installation (Recommended)
+
+```json
+{
+  "mcpServers": {
+    "GitLab MR-focused server": {
+      "command": "node",
+      "args": ["/path/to/gitlab-mcp/build/src/index.js"],
+      "env": {
+        "GITLAB_PERSONAL_ACCESS_TOKEN": "your_gitlab_token",
+        "GITLAB_API_URL": "your_gitlab_api_url",
+        "GITLAB_READ_ONLY_MODE": "false"
+      }
+    }
+  }
+}
+```
+
+#### Alternative: npx (Original Package)
+
+If you want to use the original package with all tools:
 
 ```json
 {
@@ -75,45 +91,14 @@ When using with the Claude App, you need to set up your API key and URLs directl
       "env": {
         "GITLAB_PERSONAL_ACCESS_TOKEN": "your_gitlab_token",
         "GITLAB_API_URL": "your_gitlab_api_url",
-        "GITLAB_READ_ONLY_MODE": "false",
-        "USE_GITLAB_WIKI": "true"
+        "GITLAB_READ_ONLY_MODE": "true"
       }
     }
   }
 }
 ```
 
-#### Docker
-
-```json
-{
-  "mcpServers": {
-    "GitLab communication server": {
-      "command": "docker",
-      "args": [
-        "run",
-        "-i",
-        "--rm",
-        "-e",
-        "GITLAB_PERSONAL_ACCESS_TOKEN",
-        "-e",
-        "GITLAB_API_URL",
-        "-e",
-        "GITLAB_READ_ONLY_MODE",
-        "-e",
-        "USE_GITLAB_WIKI",
-        "nkwd/gitlab-mcp"
-      ],
-      "env": {
-        "GITLAB_PERSONAL_ACCESS_TOKEN": "your_gitlab_token",
-        "GITLAB_API_URL": "https://gitlab.com/api/v4", // Optional, for self-hosted GitLab
-        "GITLAB_READ_ONLY_MODE": "false",
-        "USE_GITLAB_WIKI": "true"
-      }
-    }
-  }
-}
-```
+> **Note**: This fork is specifically optimized for AI effectiveness. For the full original feature set, use the command above with `GITLAB_READ_ONLY_MODE: "true"` to limit to essential tools.
 
 ## AI-Assisted Installation
 
@@ -123,7 +108,7 @@ Clone this repository and navigate to the project folder, then use this prompt w
 
 ```
 @mcp.json 
-current open folder is MCP tool. build and add this mcp server with name gitlab-mpc-test
+current open folder is GitLab MCP fork. build and add this optimized MR-focused server with name gitlab-mr-focused
 ```
 
 **What this does:**
@@ -138,14 +123,13 @@ If you prefer manual setup, ensure you have Node.js installed and add this to yo
 ```json
 {
   "mcpServers": {
-    "your-server-name": {
+    "gitlab-mr-focused": {
       "command": "node",
-      "args": ["/path/to/gitlab-mcp-2/build/src/index.js"],
+      "args": ["/path/to/gitlab-mcp/build/src/index.js"],
       "env": {
         "GITLAB_PERSONAL_ACCESS_TOKEN": "your_gitlab_token",
         "GITLAB_API_URL": "https://your-gitlab-instance.com/api/v4",
-        "GITLAB_READ_ONLY_MODE": "false",
-        "USE_GITLAB_WIKI": "true"
+        "GITLAB_READ_ONLY_MODE": "false"
       }
     }
   }
@@ -154,10 +138,9 @@ If you prefer manual setup, ensure you have Node.js installed and add this to yo
 
 ### Environment Variables
 
-- `GITLAB_PERSONAL_ACCESS_TOKEN`: Your GitLab personal access token.
-- `GITLAB_API_URL`: Your GitLab API URL. (Default: `https://gitlab.com/api/v4`)
-- `GITLAB_READ_ONLY_MODE`: When set to 'true', restricts the server to only expose read-only operations. Useful for enhanced security or when write access is not needed. Also useful for using with Cursor and it's 40 tool limit.
-- `USE_GITLAB_WIKI`: When set to 'true', enables the wiki-related tools (list_wiki_pages, get_wiki_page, create_wiki_page, update_wiki_page, delete_wiki_page). By default, wiki features are disabled.
+- `GITLAB_PERSONAL_ACCESS_TOKEN`: Your GitLab personal access token (required)
+- `GITLAB_API_URL`: Your GitLab API URL (Default: `https://gitlab.com/api/v4`)
+- `GITLAB_READ_ONLY_MODE`: When set to 'true', restricts to read-only operations (`get_merge_request`, `mr_discussions`, `get_vulnerabilities_by_ids`, `get_failed_test_cases`). Useful for enhanced security or when write access is not needed.
 
 ## Tools 🛠️
 
@@ -169,6 +152,7 @@ This is a specialized **MR-focused version** with enhanced vulnerability support
 3. `create_merge_request_note` - Add MR notes - Add a reply note to an existing merge request thread
 4. `update_merge_request` - Append label in MR - Update a merge request including adding labels (Either mergeRequestIid or branchName must be provided)
 5. `get_vulnerabilities_by_ids` - Get vulnerabilities by IDs - Fetch detailed information about multiple vulnerabilities using GraphQL
+6. `get_failed_test_cases` - Get failed test cases from a pipeline's test report (requires project_id and pipeline_id)
 <!-- TOOLS-END -->
 
 ## Enhanced Vulnerability Data 🔍
