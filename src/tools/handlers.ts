@@ -50,7 +50,7 @@ export async function handleToolCall(request: ToolCallRequest): Promise<ToolResp
         );
         return {
           content: [
-            { type: "text", text: JSON.stringify(mergeRequest, null, 2) },
+            { type: "text", text: JSON.stringify(mergeRequest) },
           ],
         };
       }
@@ -65,7 +65,7 @@ export async function handleToolCall(request: ToolCallRequest): Promise<ToolResp
         );
         return {
           content: [
-            { type: "text", text: JSON.stringify(discussions, null, 2) },
+            { type: "text", text: JSON.stringify(discussions) },
           ],
         };
       }
@@ -82,7 +82,7 @@ export async function handleToolCall(request: ToolCallRequest): Promise<ToolResp
           args.created_at
         );
         return {
-          content: [{ type: "text", text: JSON.stringify(note, null, 2) }],
+          content: [{ type: "text", text: JSON.stringify(note) }],
         };
       }
 
@@ -98,7 +98,7 @@ export async function handleToolCall(request: ToolCallRequest): Promise<ToolResp
         );
         return {
           content: [
-            { type: "text", text: JSON.stringify(mergeRequest, null, 2) },
+            { type: "text", text: JSON.stringify(mergeRequest) },
           ],
         };
       }
@@ -108,7 +108,7 @@ export async function handleToolCall(request: ToolCallRequest): Promise<ToolResp
         const vulnerabilities = await getVulnerabilitiesByIds(args.project_id, args.vulnerability_ids);
         return {
           content: [
-            { type: "text", text: JSON.stringify(vulnerabilities, null, 2) },
+            { type: "text", text: JSON.stringify(vulnerabilities) },
           ],
         };
       }
@@ -122,7 +122,7 @@ export async function handleToolCall(request: ToolCallRequest): Promise<ToolResp
           content: [
             {
               type: "text",
-              text: JSON.stringify(failedCases, null, 2),
+              text: JSON.stringify(failedCases),
             },
           ],
         };
