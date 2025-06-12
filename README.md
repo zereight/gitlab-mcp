@@ -4,7 +4,57 @@
 
 [![smithery badge](https://smithery.ai/badge/@zereight/gitlab-mcp)](https://smithery.ai/server/@zereight/gitlab-mcp)
 
-GitLab MCP(Model Context Protocol) Server with specialized focus on **Merge Request management and Vulnerability analysis**. This version provides enhanced vulnerability data including file locations, CVE identifiers, package details, and upgrade instructions.
+A specialized fork of the GitLab MCP(Model Context Protocol) Server, optimized for **AI effectiveness** in Merge Request management and Vulnerability analysis.
+
+## Why This Fork Exists 🎯
+
+This fork addresses key limitations that made the original less effective for AI agents:
+
+- **🧠 AI-Optimized Responses**: Filtered, focused data instead of raw GitLab API bloat
+- **🎯 Essential Tools Only**: 6 carefully selected tools vs 40+ scattered operations
+- **🔍 Smart Filtering**: Only unresolved discussions, not resolved noise
+- **🏗️ Clean Architecture**: 85% code reduction with modular structure
+- **🐛 Bug Fixes**: npx compatibility, error handling, new GraphQL endpoints
+- **📊 Enhanced Data**: Vulnerability location, CVE details, upgrade instructions
+
+**Result**: More effective AI interactions with precise, actionable GitLab data.
+
+## 🏗️ Clean Modular Architecture
+
+This refactored version features a **clean, maintainable structure** optimized for AI effectiveness:
+
+```
+src/
+├── index.ts              # Main entry point (~9 lines)
+├── server.ts             # MCP server setup (~100 lines)
+├── config/
+│   └── gitlab.ts         # GitLab configuration and environment setup
+├── utils/
+│   ├── errors.ts         # Error handling utilities
+│   ├── validation.ts     # Token validation
+│   └── index.ts          # Re-exports
+├── api/
+│   ├── merge-requests.ts # MR-related API calls (4 tools)
+│   ├── vulnerabilities.ts# Enhanced GraphQL vulnerability API
+│   ├── pipelines.ts      # Test report API calls
+│   └── index.ts          # Re-exports all API functions
+├── tools/
+│   ├── definitions.ts    # Tool definitions (6 tools only)
+│   ├── handlers.ts       # Tool request handlers
+│   └── index.ts          # Re-exports
+└── schemas/
+    ├── base.ts           # Common base schemas
+    ├── merge-requests.ts # MR schemas (discussions, notes, etc.)
+    ├── vulnerabilities.ts# Enhanced GraphQL vulnerability schemas
+    ├── test-reports.ts   # Pipeline test report schemas
+    └── index.ts          # Re-exports all schemas
+```
+
+**Benefits:**
+- **85% code reduction** (3,490 lines → ~500 lines)
+- **Focused modules** - Each file handles one specific domain
+- **Type-safe** - Full TypeScript support with clean imports
+- **AI-optimized** - Smaller, focused files for better LLM processing
 
 <a href="https://glama.ai/mcp/servers/7jwbk4r6d7"><img width="380" height="200" src="https://glama.ai/mcp/servers/7jwbk4r6d7/badge" alt="gitlab mcp MCP server" /></a>
 
@@ -90,7 +140,7 @@ If you prefer manual setup, ensure you have Node.js installed and add this to yo
   "mcpServers": {
     "your-server-name": {
       "command": "node",
-      "args": ["/path/to/gitlab-mcp-2/build/index.js"],
+      "args": ["/path/to/gitlab-mcp-2/build/src/index.js"],
       "env": {
         "GITLAB_PERSONAL_ACCESS_TOKEN": "your_gitlab_token",
         "GITLAB_API_URL": "https://your-gitlab-instance.com/api/v4",
@@ -100,6 +150,7 @@ If you prefer manual setup, ensure you have Node.js installed and add this to yo
     }
   }
 }
+```
 
 ### Environment Variables
 
