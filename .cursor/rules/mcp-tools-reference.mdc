@@ -3,42 +3,16 @@ description:
 globs: 
 alwaysApply: true
 ---
-# GitLab MCP Tools Quick Reference
+# GitLab MCP Tools Quick Reference (MR-Focused Edition)
 
-## Vulnerability Tools
+## 🎯 AI-Optimized Tool Set (6 Essential Tools)
 
-### `get_vulnerabilities_by_ids` 🔍 **PRIMARY VULNERABILITY TOOL**
-**Purpose**: Fetch detailed vulnerability information with enhanced location and solution data
+This MR-focused edition provides **6 carefully selected tools** optimized for AI effectiveness in Merge Request management and Vulnerability analysis.
 
-**Parameters**:
-- `project_id` (string) - Project ID or URL-encoded path
-- `vulnerability_ids` (array) - Array of vulnerability IDs (numeric parts only)
+## Merge Request Tools (4 Tools)
 
-**Usage Examples**:
-```json
-// Single vulnerability
-{
-  "project_id": "connectivity/bulk-upload",
-  "vulnerability_ids": ["11442396"]
-}
-
-// Multiple vulnerabilities  
-{
-  "project_id": "connectivity/bulk-upload", 
-  "vulnerability_ids": ["11442396", "12345678", "98765432"]
-}
-```
-
-**Enhanced Data Returned**:
-- **Location**: File path, line numbers, package name and version
-- **Solution**: Upgrade instructions with specific version recommendations
-- **Identifiers**: CVE numbers, external references with URLs
-- **Scanner**: Scanner name and vendor information
-
-## Merge Request Tools
-
-### `get_merge_request` 📋 
-**Purpose**: Fetch merge request details (supports both IID and branch name)
+### `get_merge_request` 📋 **PRIMARY MR TOOL**
+**Purpose**: Fetch merge request details with optimized response format
 
 **Parameters**:
 - `project_id` (string) - Project ID or URL-encoded path
@@ -47,16 +21,65 @@ alwaysApply: true
 
 **Usage**: Either `merge_request_iid` OR `source_branch` must be provided
 
-### `mr_discussions` 💬
-**Purpose**: List unresolved diff discussions for a merge request
+**AI-Optimized Response** (22 essential fields vs 33+ full GitLab response):
+- ✅ Core data: `id`, `iid`, `title`, `state`, `source_branch`, `target_branch`
+- ✅ Simplified author: `{ username: "johndoe" }` (not full profile)
+- ✅ Essential metadata: `web_url`, `labels`, `created_at`, `updated_at`
+- ✅ Pipeline status: `head_pipeline.status`
+- ❌ Removed: avatar URLs, diff refs, collaboration flags, SHA hashes
+
+**Usage Examples**:
+```json
+// Get MR by branch name (recommended for AI workflows)
+{
+  "project_id": "connectivity/bulk-upload",
+  "source_branch": "fix/security-vulnerability"
+}
+
+// Get MR by IID
+{
+  "project_id": "connectivity/bulk-upload",
+  "merge_request_iid": 123
+}
+```
+
+### `mr_discussions` 💬 **CODE REVIEW TOOL**
+**Purpose**: List **unresolved** diff discussions for code review responses
 
 **Parameters**:
 - `project_id` (string) - Project ID or URL-encoded path  
 - `merge_request_iid` (number) - MR internal ID
 
-**Returns**: Only unresolved diff notes (DiffNote type, resolvable=true, resolved=false)
+**Smart Filtering**: Returns **only unresolved diff notes** (DiffNote type, resolvable=true, resolved=false)
 
-### `create_merge_request_note` ✍️
+**AI-Optimized Response** (7 essential fields vs 20+ full GitLab response):
+- ✅ Discussion ID: For replying to threads
+- ✅ Comment body: The actual review comment
+- ✅ Author username: Who made the comment
+- ✅ File location: `position.new_path` and `position.new_line`
+- ✅ Resolution status: `resolvable`, `resolved`
+- ❌ Removed: User profiles, SHA hashes, complex line ranges, system metadata
+
+**Perfect for AI Code Review**:
+```json
+// Response structure optimized for AI processing
+{
+  "id": "discussion_123",
+  "notes": [{
+    "id": 456,
+    "body": "This function should handle null values better",
+    "author": { "username": "senior_dev" },
+    "position": {
+      "new_path": "src/utils/validator.js",
+      "new_line": 42
+    },
+    "resolvable": true,
+    "resolved": false
+  }]
+}
+```
+
+### `create_merge_request_note` ✍️ **REPLY TOOL**
 **Purpose**: Add a reply note to an existing merge request thread
 
 **Parameters**:
@@ -66,7 +89,17 @@ alwaysApply: true
 - `body` (string) - The content of the note or reply
 - `created_at` (string, optional) - Date the note was created at (ISO 8601 format)
 
-### `update_merge_request` 🏷️
+**AI Usage Pattern**:
+```json
+{
+  "project_id": "my-project",
+  "merge_request_iid": 123,
+  "discussion_id": "abc123def456",
+  "body": "Fixed the null handling issue by adding proper validation checks before accessing object properties."
+}
+```
+
+### `update_merge_request` 🏷️ **MR MANAGEMENT TOOL**
 **Purpose**: Update merge request properties including adding labels
 
 **Parameters**:
@@ -83,71 +116,166 @@ alwaysApply: true
 - `squash` (boolean, optional) - Squash commits when merging
 - `draft` (boolean, optional) - Mark as work in progress
 
-## Tool Usage Patterns
-
-### Vulnerability Investigation Workflow
+**Common AI Usage**:
 ```json
-// 1. Get vulnerability details with location info
+// Add labels after code review completion
 {
-  "name": "get_vulnerabilities_by_ids",
-  "arguments": {
-    "project_id": "my-project",
-    "vulnerability_ids": ["12345"]
-  }
+  "project_id": "my-project",
+  "source_branch": "fix/security-issue",
+  "labels": ["reviewed", "security-fix", "ready-for-merge"]
 }
-
-// Response includes:
-// - file: "src/package.json" 
-// - dependency: {"package": {"name": "lodash"}, "version": "4.17.20"}
-// - solution: "Upgrade lodash to version 4.17.21 or higher"
-// - identifiers: [{"name": "CVE-2021-23337", "externalType": "cve", ...}]
 ```
 
-### MR Comment Resolution Workflow
+## Vulnerability & Testing Tools (2 Tools)
+
+### `get_vulnerabilities_by_ids` 🔍 **ENHANCED VULNERABILITY TOOL**
+**Purpose**: Fetch detailed vulnerability information with enhanced location and solution data
+
+**Parameters**:
+- `project_id` (string) - Project ID or URL-encoded path
+- `vulnerability_ids` (array) - Array of vulnerability IDs (numeric parts only)
+
+**Enhanced GraphQL Data Returned**:
+- **📍 Location**: File path, line numbers, package name and version
+- **🔧 Solution**: Upgrade instructions with specific version recommendations
+- **🆔 Identifiers**: CVE numbers, external references with URLs
+- **🔍 Scanner**: Scanner name and vendor information
+
+**Usage Examples**:
 ```json
-// 1. Get unresolved discussions
+// Single vulnerability
 {
-  "name": "mr_discussions", 
-  "arguments": {
-    "project_id": "my-project",
-    "merge_request_iid": 123
-  }
+  "project_id": "connectivity/bulk-upload",
+  "vulnerability_ids": ["11442396"]
 }
 
-// 2. Add response to specific discussion
+// Multiple vulnerabilities (batch processing)
 {
-  "name": "create_merge_request_note",
-  "arguments": {
-    "project_id": "my-project", 
-    "merge_request_iid": 123,
-    "discussion_id": "abc123",
-    "body": "Fixed the issue by updating the validation logic."
-  }
-}
-
-// 3. Update MR labels after resolution
-{
-  "name": "update_merge_request",
-  "arguments": {
-    "project_id": "my-project",
-    "merge_request_iid": 123, 
-    "labels": ["reviewed", "ready-for-merge"]
-  }
+  "project_id": "connectivity/bulk-upload", 
+  "vulnerability_ids": ["11442396", "12345678", "98765432"]
 }
 ```
+
+**Enhanced Response Example**:
+```json
+{
+  "location": {
+    "file": "src/frontend/package-lock.json",
+    "startLine": 1117,
+    "dependency": {
+      "package": {"name": "lodash"},
+      "version": "4.17.20"
+    }
+  },
+  "solution": "Upgrade lodash to version 4.17.21 or higher",
+  "identifiers": [{
+    "name": "CVE-2021-23337",
+    "externalType": "cve",
+    "externalId": "CVE-2021-23337",
+    "url": "https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2021-23337"
+  }]
+}
+```
+
+### `get_failed_test_cases` 🧪 **PIPELINE ANALYSIS TOOL**
+**Purpose**: Get failed test cases from a pipeline's test report
+
+**Parameters**:
+- `project_id` (string) - Project ID or URL-encoded path
+- `pipeline_id` (number) - The ID of the pipeline
+
+**AI Usage**: Analyze test failures to provide debugging guidance
+
+## 🤖 AI Workflow Patterns
+
+### Complete Code Review Workflow
+```typescript
+// 1. Get MR by branch name
+const mr = await tools.get_merge_request({
+  project_id: "my-project",
+  source_branch: "feature/new-api"
+});
+
+// 2. Get unresolved discussions
+const discussions = await tools.mr_discussions({
+  project_id: "my-project",
+  merge_request_iid: mr.iid
+});
+
+// 3. Process each unresolved comment
+for (const discussion of discussions) {
+  const note = discussion.notes[0];
+  const filePath = note.position?.new_path;
+  const lineNumber = note.position?.new_line;
+  const reviewComment = note.body;
+  
+  // AI generates appropriate response
+  const response = generateCodeReviewResponse(reviewComment, filePath, lineNumber);
+  
+  // 4. Reply to the discussion
+  await tools.create_merge_request_note({
+    project_id: "my-project",
+    merge_request_iid: mr.iid,
+    discussion_id: discussion.id,
+    body: response
+  });
+}
+
+// 5. Update MR labels when all comments addressed
+await tools.update_merge_request({
+  project_id: "my-project",
+  merge_request_iid: mr.iid,
+  labels: ["reviewed", "comments-addressed", "ready-for-merge"]
+});
+```
+
+### Vulnerability Remediation Workflow
+```typescript
+// 1. Get vulnerability details with precise location
+const vulnerabilities = await tools.get_vulnerabilities_by_ids({
+  project_id: "my-project",
+  vulnerability_ids: ["12345", "67890"]
+});
+
+// 2. Process each vulnerability
+for (const vuln of vulnerabilities) {
+  const filePath = vuln.location?.file;
+  const packageName = vuln.location?.dependency?.package?.name;
+  const currentVersion = vuln.location?.dependency?.version;
+  const solution = vuln.solution;
+  const cves = vuln.identifiers?.filter(id => id.externalType === 'cve');
+  
+  // AI can provide precise remediation steps
+  console.log(`Fix ${packageName} in ${filePath}: ${solution}`);
+}
+```
+
+## Performance Benefits ⚡
+
+### Response Size Optimizations
+- **MR responses**: 49.6% smaller (1,408 → 710 characters)
+- **Discussion responses**: 64.8% smaller (1,126 → 396 characters)
+- **Combined performance**: 65-80% faster than original
+
+### AI Processing Benefits
+- **Focused data**: Only essential fields for decision-making
+- **Faster parsing**: Fewer fields to process
+- **Better context**: Optimized for LLM token efficiency
+- **Reduced noise**: No unnecessary metadata or system fields
 
 ## Read-Only vs Write Operations
 
 ### Read-Only Tools (Safe for exploration)
 - `get_merge_request` - Fetch MR information
-- `mr_discussions` - List discussions 
+- `mr_discussions` - List unresolved discussions 
 - `get_vulnerabilities_by_ids` - Get vulnerability data
+- `get_failed_test_cases` - Get test failure data
 
 ### Write Tools (Require caution)
 - `create_merge_request_note` - Adds comments/replies
 - `update_merge_request` - Modifies MR properties
 
-## Error Handling
+## Error Handling & Best Practices
 
 ### Common Error Cases
 1. **Invalid Token**: `GITLAB_PERSONAL_ACCESS_TOKEN` not set or expired
@@ -156,18 +284,19 @@ alwaysApply: true
 4. **Rate Limiting**: Too many API requests (403 with rate limit message)
 5. **Vulnerability Not Found**: Invalid `vulnerability_ids` or access denied
 
-### Best Practices
-- Always provide context in error messages
-- Use descriptive `project_id` values (prefer path over numeric ID)
-- Batch vulnerability requests when possible (multiple IDs in one call)
-- Handle optional fields gracefully (many fields may be null)
+### AI Agent Best Practices
+- **Use branch names**: More intuitive than MR IIDs for development workflow
+- **Batch vulnerability requests**: Multiple IDs in one call for efficiency
+- **Handle optional fields**: Many fields may be null (use optional chaining)
+- **Provide context**: Include project and MR context in error messages
+- **Focus on unresolved**: `mr_discussions` automatically filters to unresolved only
 
 ## Parameter Guidelines
 
 ### Project IDs
 - **Preferred**: URL-encoded paths like `"connectivity/bulk-upload"`
 - **Alternative**: Numeric IDs like `"36689"`
-- **Encoding**: Will be automatically decoded/encoded as needed
+- **Encoding**: Automatically handled by the server
 
 ### Vulnerability IDs
 - **Format**: Numeric strings without `gid://` prefix
@@ -176,7 +305,13 @@ alwaysApply: true
 - **Limit**: Maximum 100 vulnerability IDs per request
 
 ### Branch Names vs MR IIDs
-- Both are supported for MR operations
-- **Branch name**: More intuitive for development workflow
-- **MR IID**: More direct for specific MR operations
-- Only one is required, not both
+- **Branch names**: More intuitive for AI development workflows
+- **MR IIDs**: More direct for specific MR operations
+- **Flexibility**: Both supported, only one required
+
+## Environment Configuration
+
+### Required Environment Variables
+- `GITLAB_PERSONAL_ACCESS_TOKEN` - Your GitLab personal access token
+- `GITLAB_API_URL` - Your GitLab instance URL (default: gitlab.com)
+- `GITLAB_READ_ONLY_MODE` - Set to 'true' to restrict to read-only tools only

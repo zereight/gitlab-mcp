@@ -112,60 +112,7 @@ export function streamlineMergeRequest(fullMR: any): z.infer<typeof OptimizedGit
   };
 }
 
-// Discussion Note schema
-export const GitLabDiscussionNoteSchema = z.object({
-  id: z.number(),
-  type: z.enum(["DiscussionNote", "DiffNote", "Note"]).nullable(),
-  body: z.string(),
-  attachment: z.any().nullable(),
-  author: GitLabUserSchema,
-  created_at: z.string(),
-  updated_at: z.string(),
-  system: z.boolean(),
-  noteable_id: z.number(),
-  noteable_type: z.enum(["Issue", "MergeRequest", "Snippet", "Commit", "Epic"]),
-  project_id: z.number().optional(),
-  noteable_iid: z.number().nullable(),
-  resolvable: z.boolean().optional(),
-  resolved: z.boolean().optional(),
-  resolved_by: GitLabUserSchema.nullable().optional(),
-  resolved_at: z.string().nullable().optional(),
-  position: z.object({
-    base_sha: z.string(),
-    start_sha: z.string(),
-    head_sha: z.string(),
-    old_path: z.string(),
-    new_path: z.string(),
-    position_type: z.enum(["text", "image", "file"]),
-    old_line: z.number().nullable(),
-    new_line: z.number().nullable(),
-    line_range: z.object({
-      start: z.object({
-        line_code: z.string(),
-        type: z.enum(["new", "old", "expanded"]).nullable(),
-        old_line: z.number().nullable(),
-        new_line: z.number().nullable(),
-      }),
-      end: z.object({
-        line_code: z.string(),
-        type: z.enum(["new", "old", "expanded"]).nullable(),
-        old_line: z.number().nullable(),
-        new_line: z.number().nullable(),
-      }),
-    }).nullable().optional(),
-    width: z.number().optional(),
-    height: z.number().optional(),
-    x: z.number().optional(),
-    y: z.number().optional(),
-  }).optional(),
-});
 
-// Discussion schema
-export const GitLabDiscussionSchema = z.object({
-  id: z.string(),
-  individual_note: z.boolean(),
-  notes: z.array(GitLabDiscussionNoteSchema),
-});
 
 // Input schemas for MR operations
 export const GetMergeRequestSchema = ProjectParamsSchema.extend({
@@ -200,6 +147,4 @@ export const UpdateMergeRequestSchema = ProjectParamsSchema.extend({
 
 // Types
 export type GitLabMergeRequest = z.infer<typeof GitLabMergeRequestSchema>;
-export type OptimizedGitLabMergeRequest = z.infer<typeof OptimizedGitLabMergeRequestSchema>;
-export type GitLabDiscussionNote = z.infer<typeof GitLabDiscussionNoteSchema>;
-export type GitLabDiscussion = z.infer<typeof GitLabDiscussionSchema>; 
+export type OptimizedGitLabMergeRequest = z.infer<typeof OptimizedGitLabMergeRequestSchema>; 

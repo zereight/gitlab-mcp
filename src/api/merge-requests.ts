@@ -7,13 +7,16 @@ import {
 } from '../config/gitlab.js';
 import { 
   handleGitLabError, 
-  validateGitLabToken 
+  validateGitLabToken,
+  fetchAllPages
 } from '../utils/index.js';
 import {
   GitLabMergeRequestSchema,
   OptimizedGitLabMergeRequestSchema,
   streamlineMergeRequest,
   GitLabDiscussionSchema,
+  OptimizedGitLabDiscussionSchema,
+  streamlineDiscussion,
   GitLabDiscussionNoteSchema,
   GetMergeRequestSchema,
   ListMergeRequestDiscussionsSchema,
@@ -22,6 +25,7 @@ import {
   type GitLabMergeRequest,
   type OptimizedGitLabMergeRequest,
   type GitLabDiscussion,
+  type OptimizedGitLabDiscussion,
   type GitLabDiscussionNote
 } from '../schemas/index.js';
 
@@ -70,19 +74,21 @@ export async function getMergeRequest(
 export async function listMergeRequestDiscussions(
   projectId: string,
   mergeRequestIid: number
-): Promise<GitLabDiscussion[]> {
+): Promise<OptimizedGitLabDiscussion[]> {
   validateGitLabToken();
   projectId = decodeURIComponent(projectId);
 
-  const url = `${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/merge_requests/${mergeRequestIid}/discussions`;
-  const response = await fetch(url, DEFAULT_FETCH_CONFIG);
-  await handleGitLabError(response);
-  const data = await response.json();
-
-  const discussions = z.array(GitLabDiscussionSchema).parse(data);
+  const baseUrl = `${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/merge_requests/${mergeRequestIid}/discussions`;
   
-  // Filter for unresolved diff discussions
-  return discussions.filter(discussion => {
+  // Fetch all pages of discussions
+  const allDiscussions = await fetchAllPages(
+    baseUrl,
+    (data) => z.array(GitLabDiscussionSchema).parse(data),
+    50 // Reasonable limit for discussions (50 pages * 100 per page = 5000 discussions max)
+  );
+  
+  // Filter for unresolved diff discussions and streamline
+  const unresolvedDiscussions = allDiscussions.filter(discussion => {
     const hasUnresolvedDiffNotes = discussion.notes?.some(note => 
       note.type === 'DiffNote' && 
       note.resolvable === true && 
@@ -90,6 +96,9 @@ export async function listMergeRequestDiscussions(
     );
     return hasUnresolvedDiffNotes;
   });
+
+  // Transform to optimized format for AI agents
+  return unresolvedDiscussions.map(discussion => streamlineDiscussion(discussion));
 }
 
 /**
