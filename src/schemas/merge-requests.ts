@@ -112,7 +112,32 @@ export function streamlineMergeRequest(fullMR: any): z.infer<typeof OptimizedGit
   };
 }
 
-// Discussion Note schema
+// Optimized Discussion Note schema - only essential fields for AI code review responses
+export const OptimizedGitLabDiscussionNoteSchema = z.object({
+  id: z.number(),
+  type: z.enum(["DiscussionNote", "DiffNote", "Note"]).nullable(),
+  body: z.string(),
+  author: z.object({
+    username: z.string(),
+  }),
+  created_at: z.string(),
+  resolvable: z.boolean().optional(),
+  resolved: z.boolean().optional(),
+  position: z.object({
+    new_path: z.string(),
+    old_path: z.string(),
+    new_line: z.number().nullable(),
+    old_line: z.number().nullable(),
+  }).optional(),
+});
+
+// Optimized Discussion schema - streamlined for AI agents
+export const OptimizedGitLabDiscussionSchema = z.object({
+  id: z.string(),
+  notes: z.array(OptimizedGitLabDiscussionNoteSchema),
+});
+
+// Full Discussion Note schema (for validation of GitLab API responses)
 export const GitLabDiscussionNoteSchema = z.object({
   id: z.number(),
   type: z.enum(["DiscussionNote", "DiffNote", "Note"]).nullable(),
@@ -160,12 +185,38 @@ export const GitLabDiscussionNoteSchema = z.object({
   }).optional(),
 });
 
-// Discussion schema
+// Full Discussion schema (for validation of GitLab API responses)
 export const GitLabDiscussionSchema = z.object({
   id: z.string(),
   individual_note: z.boolean(),
   notes: z.array(GitLabDiscussionNoteSchema),
 });
+
+/**
+ * Transform full GitLab discussion response to optimized format for AI code review
+ */
+export function streamlineDiscussion(fullDiscussion: any): z.infer<typeof OptimizedGitLabDiscussionSchema> {
+  return {
+    id: fullDiscussion.id,
+    notes: fullDiscussion.notes?.map((note: any) => ({
+      id: note.id,
+      type: note.type,
+      body: note.body,
+      author: {
+        username: note.author?.username,
+      },
+      created_at: note.created_at,
+      resolvable: note.resolvable,
+      resolved: note.resolved,
+      position: note.position ? {
+        new_path: note.position.new_path,
+        old_path: note.position.old_path,
+        new_line: note.position.new_line,
+        old_line: note.position.old_line,
+      } : undefined,
+    })) || [],
+  };
+}
 
 // Input schemas for MR operations
 export const GetMergeRequestSchema = ProjectParamsSchema.extend({
@@ -202,4 +253,6 @@ export const UpdateMergeRequestSchema = ProjectParamsSchema.extend({
 export type GitLabMergeRequest = z.infer<typeof GitLabMergeRequestSchema>;
 export type OptimizedGitLabMergeRequest = z.infer<typeof OptimizedGitLabMergeRequestSchema>;
 export type GitLabDiscussionNote = z.infer<typeof GitLabDiscussionNoteSchema>;
-export type GitLabDiscussion = z.infer<typeof GitLabDiscussionSchema>; 
+export type OptimizedGitLabDiscussionNote = z.infer<typeof OptimizedGitLabDiscussionNoteSchema>;
+export type GitLabDiscussion = z.infer<typeof GitLabDiscussionSchema>;
+export type OptimizedGitLabDiscussion = z.infer<typeof OptimizedGitLabDiscussionSchema>; 
