@@ -298,14 +298,14 @@ export const GitLabRepositorySchema = z.object({
       project_access: z
         .object({
           access_level: z.number(),
-          notification_level: z.number().optional(),
+          notification_level: z.number().nullable().optional(),
         })
         .optional()
         .nullable(),
       group_access: z
         .object({
           access_level: z.number(),
-          notification_level: z.number().optional(),
+          notification_level: z.number().nullable().optional(),
         })
         .optional()
         .nullable(),
