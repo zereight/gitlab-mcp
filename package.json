@@ -1,55 +1,47 @@
 {
-  "name": "@zereight/mcp-gitlab",
-  "version": "1.0.62",
-  "description": "MCP server for using the GitLab API",
-  "license": "MIT",
-  "author": "zereight",
+  "name": "@mattweg/gitlab-mcp",
+  "version": "1.0.0",
+  "description": "GitLab MCP server with authentication cookie support",
+  "main": "index.js",
   "type": "module",
-  "bin": "./build/index.js",
-  "files": [
-    "build"
-  ],
-  "publishConfig": {
-    "access": "public"
-  },
-  "engines": {
-    "node": ">=14"
-  },
   "scripts": {
-    "build": "tsc && node -e \"require('fs').chmodSync('build/index.js', '755')\"",
-    "prepare": "npm run build",
-    "watch": "tsc --watch",
-    "deploy": "npm publish --access public",
-    "generate-tools": "npx ts-node scripts/generate-tools-readme.ts",
-    "changelog": "auto-changelog -p",
-    "test": "node test/validate-api.js",
-    "test:integration": "node test/validate-api.js",
-    "lint": "eslint . --ext .ts",
-    "lint:fix": "eslint . --ext .ts --fix",
-    "format": "prettier --write \"**/*.{js,ts,json,md}\"",
-    "format:check": "prettier --check \"**/*.{js,ts,json,md}\""
+    "build": "tsc",
+    "start": "node index.js",
+    "test": "node test-auth-cookie.js"
   },
+  "keywords": [
+    "gitlab",
+    "mcp",
+    "model-context-protocol",
+    "authentication",
+    "cookie"
+  ],
+  "author": "Matt Weg <matt@mattweg.dev>",
+  "contributors": [
+    "Moon (mattweg's AI assistant) <moon+ai-assistant@mattweg.dev>"
+  ],
+  "license": "MIT",
   "dependencies": {
-    "@modelcontextprotocol/sdk": "1.8.0",
-    "@types/node-fetch": "^2.6.12",
-    "express": "^5.1.0",
-    "form-data": "^4.0.0",
-    "http-proxy-agent": "^7.0.2",
-    "https-proxy-agent": "^7.0.6",
+    "@modelcontextprotocol/sdk": "^0.1.0",
+    "express": "^4.18.2",
+    "http-proxy-agent": "^7.0.0",
+    "https-proxy-agent": "^7.0.2",
     "node-fetch": "^3.3.2",
-    "socks-proxy-agent": "^8.0.5",
-    "zod-to-json-schema": "^3.23.5"
+    "socks-proxy-agent": "^8.0.2",
+    "zod": "^3.22.4",
+    "zod-to-json-schema": "^3.22.3"
   },
   "devDependencies": {
-    "@types/express": "^5.0.2",
-    "@types/node": "^22.13.10",
-    "@typescript-eslint/eslint-plugin": "^8.21.0",
-    "@typescript-eslint/parser": "^8.21.0",
-    "eslint": "^9.18.0",
-    "prettier": "^3.4.2",
-    "ts-node": "^10.9.2",
-    "typescript": "^5.8.2",
-    "zod": "^3.24.2",
-    "auto-changelog": "^2.4.0"
-  }
+    "@types/express": "^4.17.21",
+    "@types/node": "^20.10.5",
+    "typescript": "^5.3.3"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mattweg/gitlab-mcp.git"
+  },
+  "bugs": {
+    "url": "https://github.com/mattweg/gitlab-mcp/issues"
+  },
+  "homepage": "https://github.com/mattweg/gitlab-mcp#readme"
 }
