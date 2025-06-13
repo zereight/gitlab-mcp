@@ -21,54 +21,22 @@ This fork addresses key limitations that made the original less effective for AI
 
 ### The Problem: Missing Discussions in Large MRs
 
-The original GitLab MCP server had a critical flaw when dealing with MRs containing many discussions:
+The original GitLab MCP server sends ALL discussions at once (100+ discussions = 50,000+ tokens), overwhelming LLM context windows and causing **missing critical code review comments**.
 
-```
-❌ Original Behavior:
-- Fetches ALL discussions at once (could be 100+ discussions)
-- Sends massive response to LLM (50,000+ tokens)
-- LLM context window gets overwhelmed
-- LLM truncates or ignores many discussions
-- Result: Missing critical code review comments!
-```
-
-### Our Solution: Intelligent Pagination
-
-This fork introduces **smart client-side pagination** that solves the context problem:
+### Our Solution: Smart Pagination
 
 ```json
-✅ Our Paginated Response:
 {
   "total_unresolved": 45,     ← LLM knows there are more
   "total_pages": 3,           ← Clear pagination info  
   "current_page": 1,          ← Current position
-  "per_page": 20,             ← Manageable chunk size
-  "discussions": [...]        ← Only 20 discussions (not 45!)
+  "discussions": [...]        ← Only 20 discussions per page
 }
 ```
 
-### Key Benefits
+**Benefits:** 🎯 No missing discussions • ⚡ 80% faster • 🧠 Better focus • 💰 Token efficient
 
-- **🎯 No Missing Discussions**: LLM clearly sees "page 1 of 3" and requests more
-- **⚡ Faster Processing**: 20 discussions vs 100+ = 80% faster LLM responses
-- **🧠 Better Context**: LLM can focus on current batch without overwhelming
-- **🔄 Complete Coverage**: Natural pagination flow ensures all discussions get reviewed
-- **💰 Token Efficient**: Smaller responses = lower API costs
-
-### Example: Large MR Workflow
-
-```typescript
-// LLM sees: "total_unresolved: 45, current_page: 1, total_pages: 3"
-// LLM naturally requests all pages:
-
-page1 = mr_discussions(mr_id=123, page=1)  // 20 discussions
-page2 = mr_discussions(mr_id=123, page=2)  // 20 discussions  
-page3 = mr_discussions(mr_id=123, page=3)  // 5 discussions
-
-// Result: ALL 45 discussions processed vs missing 30+ in original!
-```
-
-**This intelligent pagination ensures no discussion gets lost in large MRs!**
+**Result:** LLM naturally requests all pages (`page=1`, `page=2`, `page=3`) ensuring ALL discussions get reviewed vs missing 30+ in original!
 
 ## 🏗️ Clean Modular Architecture
 
