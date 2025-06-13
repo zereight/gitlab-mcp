@@ -1,11 +1,13 @@
 {
-  "name": "@zereight/mcp-gitlab",
-  "version": "1.0.46",
-  "description": "MCP server for using the GitLab API",
+  "name": "@arm5556/gitlab-mcp-ai",
+  "version": "1.0.0",
+  "description": "AI-optimized GitLab MCP server with smart pagination and streamlined responses for better LLM integration",
   "license": "MIT",
-  "author": "zereight",
+  "author": "arm5556",
   "type": "module",
-  "bin": "./build/src/index.js",
+  "bin": {
+    "gitlab-mcp-ai": "build/src/index.js"
+  },
   "files": [
     "build"
   ],
@@ -21,6 +23,24 @@
     "watch": "tsc --watch",
     "deploy": "npm publish --access public",
     "generate-tools": "npx ts-node scripts/generate-tools-readme.ts"
+  },
+  "keywords": [
+    "gitlab",
+    "mcp-server",
+    "ai-tools",
+    "model-context-protocol",
+    "typescript",
+    "llm",
+    "code-review",
+    "pagination"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/arm5556/gitlab-mcp.git"
+  },
+  "homepage": "https://github.com/arm5556/gitlab-mcp",
+  "bugs": {
+    "url": "https://github.com/arm5556/gitlab-mcp/issues"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "1.8.0",

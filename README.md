@@ -62,6 +62,27 @@ This format helps AI assistants understand when there's more data to retrieve.
 
 ## Setup Options
 
+### NPX Installation (Recommended)
+```bash
+npx @arm5556/gitlab-mcp-ai
+```
+
+Configuration for `mcp.json`:
+```json
+{
+  "mcpServers": {
+    "gitlab-ai-optimized": {
+      "command": "npx",
+      "args": ["-y", "@arm5556/gitlab-mcp-ai"],
+      "env": {
+        "GITLAB_PERSONAL_ACCESS_TOKEN": "your_token_here",
+        "GITLAB_API_URL": "https://your-gitlab.com/api/v4"
+      }
+    }
+  }
+}
+```
+
 ### Local Installation
 ```bash
 git clone https://github.com/arm5556/gitlab-mcp.git
@@ -69,7 +90,7 @@ cd gitlab-mcp
 npm install && npm run build
 ```
 
-Configuration for `mcp.json`:
+Alternative configuration for `mcp.json`:
 ```json
 {
   "mcpServers": {
