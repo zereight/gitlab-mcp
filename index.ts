@@ -310,11 +310,11 @@ if (IS_OLD) {
   DEFAULT_HEADERS["Private-Token"] = `${GITLAB_PERSONAL_ACCESS_TOKEN}`;
 } else {
   DEFAULT_HEADERS["Authorization"] = `Bearer ${GITLAB_PERSONAL_ACCESS_TOKEN}`;
+}
 
 // Add auth cookie if available
 if (authCookie) {
   DEFAULT_HEADERS["Cookie"] = authCookie;
-}
 }
 
 // Create a default fetch configuration object that includes proxy agents if set
