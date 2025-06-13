@@ -107,8 +107,18 @@ export function streamlineDiscussion(fullDiscussion: any): z.infer<typeof Optimi
   };
 }
 
+// Paginated Discussion Response schema - for client-side pagination
+export const PaginatedDiscussionResponseSchema = z.object({
+  total_unresolved: z.number().describe("Total number of unresolved discussions"),
+  total_pages: z.number().describe("Total number of pages"),
+  current_page: z.number().describe("Current page number"),
+  per_page: z.number().describe("Number of discussions per page"),
+  discussions: z.array(OptimizedGitLabDiscussionSchema).describe("Discussions for current page"),
+});
+
 // Types
 export type GitLabDiscussionNote = z.infer<typeof GitLabDiscussionNoteSchema>;
 export type OptimizedGitLabDiscussionNote = z.infer<typeof OptimizedGitLabDiscussionNoteSchema>;
 export type GitLabDiscussion = z.infer<typeof GitLabDiscussionSchema>;
-export type OptimizedGitLabDiscussion = z.infer<typeof OptimizedGitLabDiscussionSchema>; 
+export type OptimizedGitLabDiscussion = z.infer<typeof OptimizedGitLabDiscussionSchema>;
+export type PaginatedDiscussionResponse = z.infer<typeof PaginatedDiscussionResponseSchema>; 

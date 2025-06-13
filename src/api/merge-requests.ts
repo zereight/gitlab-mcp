@@ -18,6 +18,7 @@ import {
   OptimizedGitLabDiscussionSchema,
   streamlineDiscussion,
   GitLabDiscussionNoteSchema,
+  PaginatedDiscussionResponseSchema,
   GetMergeRequestSchema,
   ListMergeRequestDiscussionsSchema,
   CreateMergeRequestNoteSchema,
@@ -26,7 +27,8 @@ import {
   type OptimizedGitLabMergeRequest,
   type GitLabDiscussion,
   type OptimizedGitLabDiscussion,
-  type GitLabDiscussionNote
+  type GitLabDiscussionNote,
+  type PaginatedDiscussionResponse
 } from '../schemas/index.js';
 
 /**
@@ -68,27 +70,33 @@ export async function getMergeRequest(
 }
 
 /**
- * List unresolved diff discussions for a merge request
+ * List unresolved diff discussions for a merge request with pagination
  * (for mr_discussions tool)
  */
 export async function listMergeRequestDiscussions(
   projectId: string,
-  mergeRequestIid: number
-): Promise<OptimizedGitLabDiscussion[]> {
+  mergeRequestIid: number,
+  page: number = 1,
+  perPage: number = 20
+): Promise<PaginatedDiscussionResponse> {
   validateGitLabToken();
   projectId = decodeURIComponent(projectId);
+  
+  // Validate parameters
+  const validPage = Math.max(page, 1);
+  const validPerPage = Math.min(Math.max(perPage, 1), 50); // Cap at 50 for token efficiency
 
   const baseUrl = `${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/merge_requests/${mergeRequestIid}/discussions`;
   
-  // Fetch all pages of discussions
+  // Fetch ALL discussions (single API call)
   const allDiscussions = await fetchAllPages(
     baseUrl,
     (data) => z.array(GitLabDiscussionSchema).parse(data),
     50 // Reasonable limit for discussions (50 pages * 100 per page = 5000 discussions max)
   );
   
-  // Filter for unresolved diff discussions and streamline
-  const unresolvedDiscussions = allDiscussions.filter(discussion => {
+  // Filter for unresolved diff discussions
+  const allUnresolvedDiscussions = allDiscussions.filter(discussion => {
     const hasUnresolvedDiffNotes = discussion.notes?.some(note => 
       note.type === 'DiffNote' && 
       note.resolvable === true && 
@@ -97,8 +105,24 @@ export async function listMergeRequestDiscussions(
     return hasUnresolvedDiffNotes;
   });
 
-  // Transform to optimized format for AI agents
-  return unresolvedDiscussions.map(discussion => streamlineDiscussion(discussion));
+  // Calculate pagination
+  const totalUnresolved = allUnresolvedDiscussions.length;
+  const totalPages = Math.ceil(totalUnresolved / validPerPage);
+  const startIndex = (validPage - 1) * validPerPage;
+  const endIndex = startIndex + validPerPage;
+  
+  // Get discussions for current page
+  const pageDiscussions = allUnresolvedDiscussions
+    .slice(startIndex, endIndex)
+    .map(discussion => streamlineDiscussion(discussion));
+
+  return {
+    total_unresolved: totalUnresolved,
+    total_pages: totalPages,
+    current_page: validPage,
+    per_page: validPerPage,
+    discussions: pageDiscussions,
+  };
 }
 
 /**

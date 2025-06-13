@@ -61,7 +61,9 @@ export async function handleToolCall(request: ToolCallRequest): Promise<ToolResp
         );
         const discussions = await listMergeRequestDiscussions(
           args.project_id,
-          args.merge_request_iid
+          args.merge_request_iid,
+          args.page,
+          args.per_page
         );
         return {
           content: [
