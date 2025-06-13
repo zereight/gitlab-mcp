@@ -122,6 +122,8 @@ export const GetMergeRequestSchema = ProjectParamsSchema.extend({
 
 export const ListMergeRequestDiscussionsSchema = ProjectParamsSchema.extend({
   merge_request_iid: z.number().describe("The IID of a merge request"),
+  page: z.number().optional().describe("Page number (default: 1)"),
+  per_page: z.number().optional().describe("Discussions per page (default: 20, max: 50)"),
 });
 
 export const CreateMergeRequestNoteSchema = ProjectParamsSchema.extend({

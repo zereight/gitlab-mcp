@@ -18,7 +18,7 @@ export const allTools = [
   },
   {
     name: "mr_discussions",
-    description: "List unresolved diff discussions - List discussion items for a merge request filtered for unresolved diff notes (DiffNote type, resolvable=true, resolved=false)",
+    description: "List unresolved diff discussions with pagination - List discussion items for a merge request filtered for unresolved diff notes (DiffNote type, resolvable=true, resolved=false). Returns paginated results with metadata.",
     inputSchema: zodToJsonSchema(ListMergeRequestDiscussionsSchema),
   },
   {
