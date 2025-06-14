@@ -4,7 +4,9 @@ import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
 import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
-import fetch from "node-fetch";
+import nodeFetch from "node-fetch";
+import fetchCookie from "fetch-cookie";
+import { CookieJar } from "tough-cookie";
 import { SocksProxyAgent } from "socks-proxy-agent";
 import { HttpsProxyAgent } from "https-proxy-agent";
 import { HttpProxyAgent } from "http-proxy-agent";
@@ -203,6 +205,7 @@ const server = new Server(
 );
 
 const GITLAB_PERSONAL_ACCESS_TOKEN = process.env.GITLAB_PERSONAL_ACCESS_TOKEN;
+const GITLAB_AUTH_COOKIE_PATH = process.env.GITLAB_AUTH_COOKIE_PATH;
 const IS_OLD = process.env.GITLAB_IS_OLD === "true";
 const GITLAB_READ_ONLY_MODE = process.env.GITLAB_READ_ONLY_MODE === "true";
 const USE_GITLAB_WIKI = process.env.USE_GITLAB_WIKI === "true";
@@ -244,6 +247,72 @@ if (HTTPS_PROXY) {
 }
 httpsAgent = httpsAgent || new HttpsAgent(sslOptions);
 httpAgent = httpAgent || new Agent();
+
+/**
+ * Create and populate a cookie jar from the authentication cookie file
+ * @returns {CookieJar} Cookie jar with loaded cookies
+ */
+function createCookieJar(): CookieJar {
+  const jar = new CookieJar();
+  
+  if (!GITLAB_AUTH_COOKIE_PATH) {
+    return jar;
+  }
+
+  try {
+    // Expand tilde in path if present
+    const cookiePath = GITLAB_AUTH_COOKIE_PATH.startsWith("~/")
+      ? path.join(process.env.HOME || "", GITLAB_AUTH_COOKIE_PATH.slice(2))
+      : GITLAB_AUTH_COOKIE_PATH;
+
+    if (!fs.existsSync(cookiePath)) {
+      console.error(`Auth cookie file not found at ${cookiePath}`);
+      return jar;
+    }
+
+    const cookieContent = fs.readFileSync(cookiePath, "utf8");
+    cookieContent.split("\n").forEach((line) => {
+      // Handle #HttpOnly_ prefix if present
+      if (line.startsWith("#HttpOnly_")) {
+        line = line.slice(10);
+      }
+      // Skip comment lines and empty lines
+      if (line.startsWith("#") || !line.trim()) {
+        return;
+      }
+      
+      try {
+        // Parse Netscape cookie format manually and add to jar
+        const parts = line.split("\t");
+        if (parts.length >= 7) {
+          const domain = parts[0];
+          const path = parts[2];
+          const secure = parts[3] === "TRUE";
+          const expires = parts[4];
+          const name = parts[5];
+          const value = parts[6];
+          
+          // Create proper URL for the cookie domain
+          const protocol = secure ? "https" : "http";
+          const cookieUrl = `${protocol}://${domain.startsWith('.') ? domain.slice(1) : domain}${path}`;
+          
+          // Set cookie with proper domain context
+          jar.setCookieSync(`${name}=${value}; Domain=${domain}; Path=${path}${secure ? '; Secure' : ''}${expires !== '0' ? `; Expires=${new Date(parseInt(expires) * 1000).toUTCString()}` : ''}`, cookieUrl);
+        }
+      } catch (error) {
+        // Ignore individual cookie parsing errors
+      }
+    });
+  } catch (error) {
+    console.error("Error reading auth cookie file:", error);
+  }
+  
+  return jar;
+}
+
+// Create cookie jar and conditionally enable cookie handling
+const cookieJar = createCookieJar();
+const fetch = GITLAB_AUTH_COOKIE_PATH ? fetchCookie(nodeFetch, cookieJar) : nodeFetch;
 
 // Modify DEFAULT_HEADERS to include agent configuration
 const DEFAULT_HEADERS: Record<string, string> = {
