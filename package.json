@@ -1,9 +1,9 @@
 {
-  "name": "@mattweg/gitlab-mcp",
-  "version": "1.0.63-fork.4",
-  "description": "MCP server for using the GitLab API with cookie authentication support. Fork of @zereight/mcp-gitlab - will be deprecated once https://github.com/zereight/gitlab-mcp/pull/100 is merged.",
+  "name": "@zereight/mcp-gitlab",
+  "version": "1.0.62",
+  "description": "MCP server for using the GitLab API",
   "license": "MIT",
-  "author": "zereight (original), mattweg (fork)",
+  "author": "zereight",
   "type": "module",
   "bin": "./build/index.js",
   "files": [
@@ -33,11 +33,13 @@
     "@modelcontextprotocol/sdk": "1.8.0",
     "@types/node-fetch": "^2.6.12",
     "express": "^5.1.0",
+    "fetch-cookie": "^3.1.0",
     "form-data": "^4.0.0",
     "http-proxy-agent": "^7.0.2",
     "https-proxy-agent": "^7.0.6",
     "node-fetch": "^3.3.2",
     "socks-proxy-agent": "^8.0.5",
+    "tough-cookie": "^5.1.2",
     "zod-to-json-schema": "^3.23.5"
   },
   "devDependencies": {
@@ -51,20 +53,5 @@
     "typescript": "^5.8.2",
     "zod": "^3.24.2",
     "auto-changelog": "^2.4.0"
-  },
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/mattweg/gitlab-mcp.git"
-  },
-  "homepage": "https://github.com/mattweg/gitlab-mcp",
-  "bugs": {
-    "url": "https://github.com/mattweg/gitlab-mcp/issues"
-  },
-  "keywords": [
-    "mcp",
-    "gitlab",
-    "model-context-protocol",
-    "cookie-auth",
-    "fork"
-  ]
+  }
 }

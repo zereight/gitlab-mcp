@@ -4,7 +4,7 @@ import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
 import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
-import fetch from "node-fetch";
+import nodeFetch from "node-fetch";
 import fetchCookie from "fetch-cookie";
 import { CookieJar } from "tough-cookie";
 import { SocksProxyAgent } from "socks-proxy-agent";
@@ -310,9 +310,9 @@ function createCookieJar(): CookieJar {
   return jar;
 }
 
-// Create cookie jar and fetch with cookies
+// Create cookie jar and conditionally enable cookie handling
 const cookieJar = createCookieJar();
-const fetchWithCookies = fetchCookie(fetch, cookieJar);
+const fetch = GITLAB_AUTH_COOKIE_PATH ? fetchCookie(nodeFetch, cookieJar) : nodeFetch;
 
 // Modify DEFAULT_HEADERS to include agent configuration
 const DEFAULT_HEADERS: Record<string, string> = {
@@ -325,10 +325,8 @@ if (IS_OLD) {
   DEFAULT_HEADERS["Authorization"] = `Bearer ${GITLAB_PERSONAL_ACCESS_TOKEN}`;
 }
 
-// Cookie handling is now managed by fetchWithCookies
-
 // Create a default fetch configuration object that includes proxy agents if set
-const DEFAULT_FETCH_CONFIG: any = {
+const DEFAULT_FETCH_CONFIG = {
   headers: DEFAULT_HEADERS,
   agent: (parsedUrl: URL) => {
     if (parsedUrl.protocol === "https:") {
@@ -337,9 +335,6 @@ const DEFAULT_FETCH_CONFIG: any = {
     return httpAgent;
   },
 };
-
-// Always follow redirects when using cookie jar
-DEFAULT_FETCH_CONFIG.redirect = 'follow';
 
 // Define all available tools
 const allTools = [
@@ -814,7 +809,7 @@ async function forkProject(projectId: string, namespace?: string): Promise<GitLa
     url.searchParams.append("namespace", namespace);
   }
 
-  const response = await fetchWithCookies(url.toString(), {
+  const response = await fetch(url.toString(), {
     ...DEFAULT_FETCH_CONFIG,
     method: "POST",
   });
@@ -846,7 +841,7 @@ async function createBranch(
     `${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/repository/branches`
   );
 
-  const response = await fetchWithCookies(url.toString(), {
+  const response = await fetch(url.toString(), {
     ...DEFAULT_FETCH_CONFIG,
     method: "POST",
     body: JSON.stringify({
@@ -870,7 +865,7 @@ async function getDefaultBranchRef(projectId: string): Promise<string> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(`${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}`);
 
-  const response = await fetchWithCookies(url.toString(), {
+  const response = await fetch(url.toString(), {
     ...DEFAULT_FETCH_CONFIG,
   });
 
@@ -907,7 +902,7 @@ async function getFileContents(
 
   url.searchParams.append("ref", ref);
 
-  const response = await fetchWithCookies(url.toString(), {
+  const response = await fetch(url.toString(), {
     ...DEFAULT_FETCH_CONFIG,
   });
 
@@ -944,7 +939,7 @@ async function createIssue(
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(`${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/issues`);
 
-  const response = await fetchWithCookies(url.toString(), {
+  const response = await fetch(url.toString(), {
     ...DEFAULT_FETCH_CONFIG,
     method: "POST",
     body: JSON.stringify({
@@ -1001,7 +996,7 @@ async function listIssues(
     }
   });
 
-  const response = await fetchWithCookies(url.toString(), {
+  const response = await fetch(url.toString(), {
     ...DEFAULT_FETCH_CONFIG,
   });
 
@@ -1036,7 +1031,7 @@ async function listMergeRequests(
     }
   });
 
-  const response = await fetchWithCookies(url.toString(), {
+  const response = await fetch(url.toString(), {
     ...DEFAULT_FETCH_CONFIG,
   });
 
@@ -1059,7 +1054,7 @@ async function getIssue(projectId: string, issueIid: number): Promise<GitLabIssu
     `${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/issues/${issueIid}`
   );
 
-  const response = await fetchWithCookies(url.toString(), {
+  const response = await fetch(url.toString(), {
     ...DEFAULT_FETCH_CONFIG,
   });
 
@@ -1093,7 +1088,7 @@ async function updateIssue(
     body.labels = body.labels.join(",");
   }
 
-  const response = await fetchWithCookies(url.toString(), {
+  const response = await fetch(url.toString(), {
     ...DEFAULT_FETCH_CONFIG,
     method: "PUT",
     body: JSON.stringify(body),
@@ -1118,7 +1113,7 @@ async function deleteIssue(projectId: string, issueIid: number): Promise<void> {
     `${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/issues/${issueIid}`
   );
 
-  const response = await fetchWithCookies(url.toString(), {
+  const response = await fetch(url.toString(), {
     ...DEFAULT_FETCH_CONFIG,
     method: "DELETE",
   });
@@ -1143,7 +1138,7 @@ async function listIssueLinks(
     `${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/issues/${issueIid}/links`
   );
 
-  const response = await fetchWithCookies(url.toString(), {
+  const response = await fetch(url.toString(), {
     ...DEFAULT_FETCH_CONFIG,
   });
 
@@ -1173,7 +1168,7 @@ async function getIssueLink(
     )}/issues/${issueIid}/links/${issueLinkId}`
   );
 
-  const response = await fetchWithCookies(url.toString(), {
+  const response = await fetch(url.toString(), {
     ...DEFAULT_FETCH_CONFIG,
   });
 
@@ -1206,7 +1201,7 @@ async function createIssueLink(
     `${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/issues/${issueIid}/links`
   );
 
-  const response = await fetchWithCookies(url.toString(), {
+  const response = await fetch(url.toString(), {
     ...DEFAULT_FETCH_CONFIG,
     method: "POST",
     body: JSON.stringify({
@@ -1242,7 +1237,7 @@ async function deleteIssueLink(
     )}/issues/${issueIid}/links/${issueLinkId}`
   );
 
-  const response = await fetchWithCookies(url.toString(), {
+  const response = await fetch(url.toString(), {
     ...DEFAULT_FETCH_CONFIG,
     method: "DELETE",
   });
@@ -1265,7 +1260,7 @@ async function createMergeRequest(
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(`${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/merge_requests`);
 
-  const response = await fetchWithCookies(url.toString(), {
+  const response = await fetch(url.toString(), {
     ...DEFAULT_FETCH_CONFIG,
     method: "POST",
     body: JSON.stringify({
@@ -1328,7 +1323,7 @@ async function listDiscussions(
     url.searchParams.append("per_page", options.per_page.toString());
   }
 
-  const response = await fetchWithCookies(url.toString(), {
+  const response = await fetch(url.toString(), {
     ...DEFAULT_FETCH_CONFIG,
   });
 
@@ -1427,7 +1422,7 @@ async function updateMergeRequestNote(
     payload.resolved = resolved;
   }
 
-  const response = await fetchWithCookies(url.toString(), {
+  const response = await fetch(url.toString(), {
     ...DEFAULT_FETCH_CONFIG,
     method: "PUT",
     body: JSON.stringify(payload),
@@ -1463,7 +1458,7 @@ async function updateIssueNote(
 
   const payload = { body };
 
-  const response = await fetchWithCookies(url.toString(), {
+  const response = await fetch(url.toString(), {
     ...DEFAULT_FETCH_CONFIG,
     method: "PUT",
     body: JSON.stringify(payload),
@@ -1502,7 +1497,7 @@ async function createIssueNote(
     payload.created_at = createdAt;
   }
 
-  const response = await fetchWithCookies(url.toString(), {
+  const response = await fetch(url.toString(), {
     ...DEFAULT_FETCH_CONFIG,
     method: "POST",
     body: JSON.stringify(payload),
@@ -1543,7 +1538,7 @@ async function createMergeRequestNote(
     payload.created_at = createdAt;
   }
 
-  const response = await fetchWithCookies(url.toString(), {
+  const response = await fetch(url.toString(), {
     ...DEFAULT_FETCH_CONFIG,
     method: "POST",
     body: JSON.stringify(payload),
@@ -1626,7 +1621,7 @@ async function createOrUpdateFile(
     }
   }
 
-  const response = await fetchWithCookies(url.toString(), {
+  const response = await fetch(url.toString(), {
     ...DEFAULT_FETCH_CONFIG,
     method,
     body: JSON.stringify(body),
@@ -1664,7 +1659,7 @@ async function createTree(
     url.searchParams.append("ref", ref);
   }
 
-  const response = await fetchWithCookies(url.toString(), {
+  const response = await fetch(url.toString(), {
     ...DEFAULT_FETCH_CONFIG,
     method: "POST",
     body: JSON.stringify({
@@ -1711,7 +1706,7 @@ async function createCommit(
     `${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/repository/commits`
   );
 
-  const response = await fetchWithCookies(url.toString(), {
+  const response = await fetch(url.toString(), {
     ...DEFAULT_FETCH_CONFIG,
     method: "POST",
     body: JSON.stringify({
@@ -1761,7 +1756,7 @@ async function searchProjects(
   url.searchParams.append("order_by", "id");
   url.searchParams.append("sort", "desc");
 
-  const response = await fetchWithCookies(url.toString(), {
+  const response = await fetch(url.toString(), {
     ...DEFAULT_FETCH_CONFIG,
   });
 
@@ -1795,7 +1790,7 @@ async function searchProjects(
 async function createRepository(
   options: z.infer<typeof CreateRepositoryOptionsSchema>
 ): Promise<GitLabRepository> {
-  const response = await fetchWithCookies(`${GITLAB_API_URL}/projects`, {
+  const response = await fetch(`${GITLAB_API_URL}/projects`, {
     ...DEFAULT_FETCH_CONFIG,
     method: "POST",
     body: JSON.stringify({
@@ -1850,7 +1845,7 @@ async function getMergeRequest(
     throw new Error("Either mergeRequestIid or branchName must be provided");
   }
 
-  const response = await fetchWithCookies(url.toString(), {
+  const response = await fetch(url.toString(), {
     ...DEFAULT_FETCH_CONFIG,
   });
 
@@ -1902,7 +1897,7 @@ async function getMergeRequestDiffs(
     url.searchParams.append("view", view);
   }
 
-  const response = await fetchWithCookies(url.toString(), {
+  const response = await fetch(url.toString(), {
     ...DEFAULT_FETCH_CONFIG,
   });
 
@@ -1939,7 +1934,7 @@ async function getBranchDiffs(
     url.searchParams.append("straight", straight.toString());
   }
 
-  const response = await fetchWithCookies(url.toString(), {
+  const response = await fetch(url.toString(), {
     ...DEFAULT_FETCH_CONFIG,
   });
 
@@ -1985,7 +1980,7 @@ async function updateMergeRequest(
     `${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/merge_requests/${mergeRequestIid}`
   );
 
-  const response = await fetchWithCookies(url.toString(), {
+  const response = await fetch(url.toString(), {
     ...DEFAULT_FETCH_CONFIG,
     method: "PUT",
     body: JSON.stringify(options),
@@ -2020,7 +2015,7 @@ async function createNote(
     )}/${noteableType}s/${noteableIid}/notes` // Using plural form (issues/merge_requests) as per GitLab API documentation
   );
 
-  const response = await fetchWithCookies(url.toString(), {
+  const response = await fetch(url.toString(), {
     ...DEFAULT_FETCH_CONFIG,
     method: "POST",
     body: JSON.stringify({ body }),
@@ -2076,7 +2071,7 @@ async function createMergeRequestThread(
     payload.created_at = createdAt;
   }
 
-  const response = await fetchWithCookies(url.toString(), {
+  const response = await fetch(url.toString(), {
     ...DEFAULT_FETCH_CONFIG,
     method: "POST",
     body: JSON.stringify(payload),
@@ -2116,7 +2111,7 @@ async function listNamespaces(options: {
     url.searchParams.append("top_level_only", "true");
   }
 
-  const response = await fetchWithCookies(url.toString(), {
+  const response = await fetch(url.toString(), {
     ...DEFAULT_FETCH_CONFIG,
   });
 
@@ -2135,7 +2130,7 @@ async function listNamespaces(options: {
 async function getNamespace(id: string): Promise<GitLabNamespace> {
   const url = new URL(`${GITLAB_API_URL}/namespaces/${encodeURIComponent(id)}`);
 
-  const response = await fetchWithCookies(url.toString(), {
+  const response = await fetch(url.toString(), {
     ...DEFAULT_FETCH_CONFIG,
   });
 
@@ -2162,7 +2157,7 @@ async function verifyNamespaceExistence(
     url.searchParams.append("parent_id", parentId.toString());
   }
 
-  const response = await fetchWithCookies(url.toString(), {
+  const response = await fetch(url.toString(), {
     ...DEFAULT_FETCH_CONFIG,
   });
 
@@ -2205,7 +2200,7 @@ async function getProject(
     url.searchParams.append("with_custom_attributes", "true");
   }
 
-  const response = await fetchWithCookies(url.toString(), {
+  const response = await fetch(url.toString(), {
     ...DEFAULT_FETCH_CONFIG,
   });
 
@@ -2237,7 +2232,7 @@ async function listProjects(
   }
 
   // Make the API request
-  const response = await fetchWithCookies(`${GITLAB_API_URL}/projects?${params.toString()}`, {
+  const response = await fetch(`${GITLAB_API_URL}/projects?${params.toString()}`, {
     ...DEFAULT_FETCH_CONFIG,
   });
 
@@ -2276,7 +2271,7 @@ async function listLabels(
   });
 
   // Make the API request
-  const response = await fetchWithCookies(url.toString(), {
+  const response = await fetch(url.toString(), {
     ...DEFAULT_FETCH_CONFIG,
   });
 
@@ -2314,7 +2309,7 @@ async function getLabel(
   }
 
   // Make the API request
-  const response = await fetchWithCookies(url.toString(), {
+  const response = await fetch(url.toString(), {
     ...DEFAULT_FETCH_CONFIG,
   });
 
@@ -2339,7 +2334,7 @@ async function createLabel(
 ): Promise<GitLabLabel> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   // Make the API request
-  const response = await fetchWithCookies(
+  const response = await fetch(
     `${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/labels`,
     {
       ...DEFAULT_FETCH_CONFIG,
@@ -2371,7 +2366,7 @@ async function updateLabel(
 ): Promise<GitLabLabel> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   // Make the API request
-  const response = await fetchWithCookies(
+  const response = await fetch(
     `${GITLAB_API_URL}/projects/${encodeURIComponent(
       projectId
     )}/labels/${encodeURIComponent(String(labelId))}`,
@@ -2399,7 +2394,7 @@ async function updateLabel(
 async function deleteLabel(projectId: string, labelId: number | string): Promise<void> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   // Make the API request
-  const response = await fetchWithCookies(
+  const response = await fetch(
     `${GITLAB_API_URL}/projects/${encodeURIComponent(
       projectId
     )}/labels/${encodeURIComponent(String(labelId))}`,
@@ -2453,7 +2448,7 @@ async function listGroupProjects(
   if (options.with_security_reports !== undefined)
     url.searchParams.append("with_security_reports", options.with_security_reports.toString());
 
-  const response = await fetchWithCookies(url.toString(), {
+  const response = await fetch(url.toString(), {
     ...DEFAULT_FETCH_CONFIG,
   });
 
@@ -2476,7 +2471,7 @@ async function listWikiPages(
   if (options.per_page) url.searchParams.append("per_page", options.per_page.toString());
   if (options.with_content)
     url.searchParams.append("with_content", options.with_content.toString());
-  const response = await fetchWithCookies(url.toString(), {
+  const response = await fetch(url.toString(), {
     ...DEFAULT_FETCH_CONFIG,
   });
   await handleGitLabError(response);
@@ -2489,7 +2484,7 @@ async function listWikiPages(
  */
 async function getWikiPage(projectId: string, slug: string): Promise<GitLabWikiPage> {
   projectId = decodeURIComponent(projectId); // Decode project ID
-  const response = await fetchWithCookies(
+  const response = await fetch(
     `${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/wikis/${encodeURIComponent(slug)}`,
     { ...DEFAULT_FETCH_CONFIG }
   );
@@ -2510,7 +2505,7 @@ async function createWikiPage(
   projectId = decodeURIComponent(projectId); // Decode project ID
   const body: Record<string, any> = { title, content };
   if (format) body.format = format;
-  const response = await fetchWithCookies(
+  const response = await fetch(
     `${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/wikis`,
     {
       ...DEFAULT_FETCH_CONFIG,
@@ -2538,7 +2533,7 @@ async function updateWikiPage(
   if (title) body.title = title;
   if (content) body.content = content;
   if (format) body.format = format;
-  const response = await fetchWithCookies(
+  const response = await fetch(
     `${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/wikis/${encodeURIComponent(slug)}`,
     {
       ...DEFAULT_FETCH_CONFIG,
@@ -2556,7 +2551,7 @@ async function updateWikiPage(
  */
 async function deleteWikiPage(projectId: string, slug: string): Promise<void> {
   projectId = decodeURIComponent(projectId); // Decode project ID
-  const response = await fetchWithCookies(
+  const response = await fetch(
     `${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/wikis/${encodeURIComponent(slug)}`,
     {
       ...DEFAULT_FETCH_CONFIG,
@@ -2587,7 +2582,7 @@ async function listPipelines(
     }
   });
 
-  const response = await fetchWithCookies(url.toString(), {
+  const response = await fetch(url.toString(), {
     ...DEFAULT_FETCH_CONFIG,
   });
 
@@ -2609,7 +2604,7 @@ async function getPipeline(projectId: string, pipelineId: number): Promise<GitLa
     `${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/pipelines/${pipelineId}`
   );
 
-  const response = await fetchWithCookies(url.toString(), {
+  const response = await fetch(url.toString(), {
     ...DEFAULT_FETCH_CONFIG,
   });
 
@@ -2651,7 +2646,7 @@ async function listPipelineJobs(
     }
   });
 
-  const response = await fetchWithCookies(url.toString(), {
+  const response = await fetch(url.toString(), {
     ...DEFAULT_FETCH_CONFIG,
   });
 
@@ -2667,7 +2662,7 @@ async function getPipelineJob(projectId: string, jobId: number): Promise<GitLabP
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(`${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/jobs/${jobId}`);
 
-  const response = await fetchWithCookies(url.toString(), {
+  const response = await fetch(url.toString(), {
     ...DEFAULT_FETCH_CONFIG,
   });
 
@@ -2693,7 +2688,7 @@ async function getPipelineJobOutput(projectId: string, jobId: number): Promise<s
     `${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/jobs/${jobId}/trace`
   );
 
-  const response = await fetchWithCookies(url.toString(), {
+  const response = await fetch(url.toString(), {
     ...DEFAULT_FETCH_CONFIG,
     headers: {
       ...DEFAULT_HEADERS,
@@ -2736,7 +2731,7 @@ async function createPipeline(
     );
   }
 
-  const response = await fetchWithCookies(url.toString(), {
+  const response = await fetch(url.toString(), {
     method: "POST",
     headers: DEFAULT_HEADERS,
     body: JSON.stringify(body),
@@ -2760,7 +2755,7 @@ async function retryPipeline(projectId: string, pipelineId: number): Promise<Git
     `${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/pipelines/${pipelineId}/retry`
   );
 
-  const response = await fetchWithCookies(url.toString(), {
+  const response = await fetch(url.toString(), {
     method: "POST",
     headers: DEFAULT_HEADERS,
   });
@@ -2783,7 +2778,7 @@ async function cancelPipeline(projectId: string, pipelineId: number): Promise<Gi
     `${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/pipelines/${pipelineId}/cancel`
   );
 
-  const response = await fetchWithCookies(url.toString(), {
+  const response = await fetch(url.toString(), {
     method: "POST",
     headers: DEFAULT_HEADERS,
   });
@@ -2817,7 +2812,7 @@ async function getRepositoryTree(options: GetRepositoryTreeOptions): Promise<Git
   } else {
     headers["Authorization"] = `Bearer ${GITLAB_PERSONAL_ACCESS_TOKEN}`;
   }
-  const response = await fetchWithCookies(
+  const response = await fetch(
     `${GITLAB_API_URL}/projects/${encodeURIComponent(
       options.project_id
     )}/repository/tree?${queryParams.toString()}`,
@@ -2863,7 +2858,7 @@ async function listProjectMilestones(
     }
   });
 
-  const response = await fetchWithCookies(url.toString(), {
+  const response = await fetch(url.toString(), {
     ...DEFAULT_FETCH_CONFIG,
   });
   await handleGitLabError(response);
@@ -2886,7 +2881,7 @@ async function getProjectMilestone(
     `${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/milestones/${milestoneId}`
   );
 
-  const response = await fetchWithCookies(url.toString(), {
+  const response = await fetch(url.toString(), {
     ...DEFAULT_FETCH_CONFIG,
   });
   await handleGitLabError(response);
@@ -2907,7 +2902,7 @@ async function createProjectMilestone(
   projectId = decodeURIComponent(projectId);
   const url = new URL(`${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/milestones`);
 
-  const response = await fetchWithCookies(url.toString(), {
+  const response = await fetch(url.toString(), {
     ...DEFAULT_FETCH_CONFIG,
     method: "POST",
     body: JSON.stringify(options),
@@ -2934,7 +2929,7 @@ async function editProjectMilestone(
     `${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/milestones/${milestoneId}`
   );
 
-  const response = await fetchWithCookies(url.toString(), {
+  const response = await fetch(url.toString(), {
     ...DEFAULT_FETCH_CONFIG,
     method: "PUT",
     body: JSON.stringify(options),
@@ -2956,7 +2951,7 @@ async function deleteProjectMilestone(projectId: string, milestoneId: number): P
     `${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/milestones/${milestoneId}`
   );
 
-  const response = await fetchWithCookies(url.toString(), {
+  const response = await fetch(url.toString(), {
     ...DEFAULT_FETCH_CONFIG,
     method: "DELETE",
   });
@@ -2975,7 +2970,7 @@ async function getMilestoneIssues(projectId: string, milestoneId: number): Promi
     `${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/milestones/${milestoneId}/issues`
   );
 
-  const response = await fetchWithCookies(url.toString(), {
+  const response = await fetch(url.toString(), {
     ...DEFAULT_FETCH_CONFIG,
   });
   await handleGitLabError(response);
@@ -3000,7 +2995,7 @@ async function getMilestoneMergeRequests(
     )}/milestones/${milestoneId}/merge_requests`
   );
 
-  const response = await fetchWithCookies(url.toString(), {
+  const response = await fetch(url.toString(), {
     ...DEFAULT_FETCH_CONFIG,
   });
   await handleGitLabError(response);
@@ -3023,7 +3018,7 @@ async function promoteProjectMilestone(
     `${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/milestones/${milestoneId}/promote`
   );
 
-  const response = await fetchWithCookies(url.toString(), {
+  const response = await fetch(url.toString(), {
     ...DEFAULT_FETCH_CONFIG,
     method: "POST",
   });
@@ -3046,7 +3041,7 @@ async function getMilestoneBurndownEvents(projectId: string, milestoneId: number
     )}/milestones/${milestoneId}/burndown_events`
   );
 
-  const response = await fetchWithCookies(url.toString(), {
+  const response = await fetch(url.toString(), {
     ...DEFAULT_FETCH_CONFIG,
   });
   await handleGitLabError(response);
@@ -3065,7 +3060,7 @@ async function getUser(username: string): Promise<GitLabUser | null> {
     const url = new URL(`${GITLAB_API_URL}/users`);
     url.searchParams.append("username", username);
 
-    const response = await fetchWithCookies(url.toString(), {
+    const response = await fetch(url.toString(), {
       ...DEFAULT_FETCH_CONFIG,
     });
 
@@ -3418,7 +3413,7 @@ server.setRequestHandler(CallToolRequestSchema, async request => {
           url.searchParams.append("owned", args.owned.toString());
         }
 
-        const response = await fetchWithCookies(url.toString(), {
+        const response = await fetch(url.toString(), {
           ...DEFAULT_FETCH_CONFIG,
         });
 
@@ -3437,7 +3432,7 @@ server.setRequestHandler(CallToolRequestSchema, async request => {
           `${GITLAB_API_URL}/namespaces/${encodeURIComponent(args.namespace_id)}`
         );
 
-        const response = await fetchWithCookies(url.toString(), {
+        const response = await fetch(url.toString(), {
           ...DEFAULT_FETCH_CONFIG,
         });
 
@@ -3454,7 +3449,7 @@ server.setRequestHandler(CallToolRequestSchema, async request => {
         const args = VerifyNamespaceSchema.parse(request.params.arguments);
         const url = new URL(`${GITLAB_API_URL}/namespaces/${encodeURIComponent(args.path)}/exists`);
 
-        const response = await fetchWithCookies(url.toString(), {
+        const response = await fetch(url.toString(), {
           ...DEFAULT_FETCH_CONFIG,
         });
 
@@ -3471,7 +3466,7 @@ server.setRequestHandler(CallToolRequestSchema, async request => {
         const args = GetProjectSchema.parse(request.params.arguments);
         const url = new URL(`${GITLAB_API_URL}/projects/${encodeURIComponent(args.project_id)}`);
 
-        const response = await fetchWithCookies(url.toString(), {
+        const response = await fetch(url.toString(), {
           ...DEFAULT_FETCH_CONFIG,
         });
 
