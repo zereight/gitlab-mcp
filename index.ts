@@ -6,7 +6,7 @@ import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
 import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
 import nodeFetch from "node-fetch";
 import fetchCookie from "fetch-cookie";
-import { CookieJar } from "tough-cookie";
+import { CookieJar, parse as parseCookie } from "tough-cookie";
 import { SocksProxyAgent } from "socks-proxy-agent";
 import { HttpsProxyAgent } from "https-proxy-agent";
 import { HttpProxyAgent } from "http-proxy-agent";
@@ -248,71 +248,79 @@ if (HTTPS_PROXY) {
 httpsAgent = httpsAgent || new HttpsAgent(sslOptions);
 httpAgent = httpAgent || new Agent();
 
-/**
- * Create and populate a cookie jar from the authentication cookie file
- * @returns {CookieJar} Cookie jar with loaded cookies
- */
-function createCookieJar(): CookieJar {
-  const jar = new CookieJar();
+// Create cookie jar with clean Netscape file parsing
+const createCookieJar = (): CookieJar | null => {
+  if (!GITLAB_AUTH_COOKIE_PATH) return null;
   
-  if (!GITLAB_AUTH_COOKIE_PATH) {
-    return jar;
-  }
-
   try {
-    // Expand tilde in path if present
     const cookiePath = GITLAB_AUTH_COOKIE_PATH.startsWith("~/")
       ? path.join(process.env.HOME || "", GITLAB_AUTH_COOKIE_PATH.slice(2))
       : GITLAB_AUTH_COOKIE_PATH;
-
-    if (!fs.existsSync(cookiePath)) {
-      console.error(`Auth cookie file not found at ${cookiePath}`);
-      return jar;
-    }
-
+    
+    const jar = new CookieJar();
     const cookieContent = fs.readFileSync(cookiePath, "utf8");
-    cookieContent.split("\n").forEach((line) => {
-      // Handle #HttpOnly_ prefix if present
+    
+    cookieContent.split("\n").forEach(line => {
+      // Handle #HttpOnly_ prefix
       if (line.startsWith("#HttpOnly_")) {
         line = line.slice(10);
       }
-      // Skip comment lines and empty lines
+      // Skip comments and empty lines
       if (line.startsWith("#") || !line.trim()) {
         return;
       }
       
-      try {
-        // Parse Netscape cookie format manually and add to jar
-        const parts = line.split("\t");
-        if (parts.length >= 7) {
-          const domain = parts[0];
-          const path = parts[2];
-          const secure = parts[3] === "TRUE";
-          const expires = parts[4];
-          const name = parts[5];
-          const value = parts[6];
-          
-          // Create proper URL for the cookie domain
-          const protocol = secure ? "https" : "http";
-          const cookieUrl = `${protocol}://${domain.startsWith('.') ? domain.slice(1) : domain}${path}`;
-          
-          // Set cookie with proper domain context
-          jar.setCookieSync(`${name}=${value}; Domain=${domain}; Path=${path}${secure ? '; Secure' : ''}${expires !== '0' ? `; Expires=${new Date(parseInt(expires) * 1000).toUTCString()}` : ''}`, cookieUrl);
+      // Parse Netscape format: domain, flag, path, secure, expires, name, value
+      const parts = line.split("\t");
+      if (parts.length >= 7) {
+        const [domain, , path, secure, expires, name, value] = parts;
+        
+        // Build cookie string in standard format
+        const cookieStr = `${name}=${value}; Domain=${domain}; Path=${path}${secure === "TRUE" ? "; Secure" : ""}${expires !== "0" ? `; Expires=${new Date(parseInt(expires) * 1000).toUTCString()}` : ""}`;
+        
+        // Use tough-cookie's parse function for robust parsing
+        const cookie = parseCookie(cookieStr);
+        if (cookie) {
+          const url = `${secure === "TRUE" ? "https" : "http"}://${domain.startsWith(".") ? domain.slice(1) : domain}`;
+          jar.setCookieSync(cookie, url);
         }
-      } catch (error) {
-        // Ignore individual cookie parsing errors
       }
     });
+    
+    return jar;
   } catch (error) {
-    console.error("Error reading auth cookie file:", error);
+    console.error("Error loading cookie file:", error);
+    return new CookieJar(); // Fallback to empty jar
   }
-  
-  return jar;
-}
+};
 
-// Create cookie jar and conditionally enable cookie handling
+// Initialize cookie jar
 const cookieJar = createCookieJar();
-const fetch = GITLAB_AUTH_COOKIE_PATH ? fetchCookie(nodeFetch, cookieJar) : nodeFetch;
+const fetch = cookieJar ? fetchCookie(nodeFetch, cookieJar) : nodeFetch;
+
+// Ensure session is established for the current request
+async function ensureSessionForRequest(): Promise<void> {
+  if (!cookieJar) return;
+  
+  // Check if we already have GitLab session cookies
+  const gitlabCookies = cookieJar.getCookiesSync('https://gitlab.aws.dev');
+  if (gitlabCookies.length === 0) {
+    try {
+      // Establish session with a lightweight request
+      await fetch(`${GITLAB_API_URL}/user`, {
+        ...DEFAULT_FETCH_CONFIG,
+        redirect: 'follow'
+      }).catch(() => {
+        // Ignore errors - the important thing is that cookies get set during redirects
+      });
+      
+      // Small delay to ensure cookies are fully processed
+      await new Promise(resolve => setTimeout(resolve, 100));
+    } catch (error) {
+      // Ignore session establishment errors
+    }
+  }
+}
 
 // Modify DEFAULT_HEADERS to include agent configuration
 const DEFAULT_HEADERS: Record<string, string> = {
@@ -3216,6 +3224,7 @@ server.setRequestHandler(CallToolRequestSchema, async request => {
       }
 
       case "search_repositories": {
+        await ensureSessionForRequest();
         const args = SearchRepositoriesSchema.parse(request.params.arguments);
         const results = await searchProjects(args.search, args.page, args.per_page);
         return {
