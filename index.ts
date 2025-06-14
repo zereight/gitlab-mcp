@@ -286,6 +286,11 @@ function readAuthCookie(): string | null {
         if (parts.length >= 7) {
           return `${parts[5]}=${parts[6]}`;
         }
+        // Handle macOS cookie format which might have different structure
+        const match = line.match(/(\S+)\s+\S+\s+\S+\s+\S+\s+\S+\s+(\S+)\s+(\S+)/);
+        if (match) {
+          return `${match[2]}=${match[3]}`;
+        }
         return null;
       })
       .filter(Boolean)
