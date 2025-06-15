@@ -304,10 +304,27 @@ async function ensureSessionForRequest(): Promise<void> {
   
   // Check if we already have GitLab session cookies
   const gitlabCookies = cookieJar.getCookiesSync('https://gitlab.aws.dev');
-  if (gitlabCookies.length === 0) {
+  const hasSessionCookie = gitlabCookies.some(cookie => 
+    cookie.key === '_gitlab_session' || cookie.key === 'remember_user_token'
+  );
+  
+  if (!hasSessionCookie) {
     try {
       // Establish session with a lightweight request
       await fetch(`${GITLAB_API_URL}/user`, {
+        ...DEFAULT_FETCH_CONFIG,
+        redirect: 'follow'
+      }).catch(() => {
+        // Ignore errors - the important thing is that cookies get set during redirects
+      });
+      
+      // Small delay to ensure cookies are fully processed
+      await new Promise(resolve => setTimeout(resolve, 100));
+    } catch (error) {
+      // Ignore session establishment errors
+    }
+  }
+}/user`, {
         ...DEFAULT_FETCH_CONFIG,
         redirect: 'follow'
       }).catch(() => {
@@ -2227,6 +2244,9 @@ async function getProject(
 async function listProjects(
   options: z.infer<typeof ListProjectsSchema> = {}
 ): Promise<GitLabProject[]> {
+  // Ensure session is established before making API calls
+  await ensureSessionForRequest();
+
   // Construct the query parameters
   const params = new URLSearchParams();
   for (const [key, value] of Object.entries(options)) {
