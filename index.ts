@@ -4,7 +4,9 @@ import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
 import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
-import fetch from "node-fetch";
+import nodeFetch from "node-fetch";
+import fetchCookie from "fetch-cookie";
+import { CookieJar, parse as parseCookie } from "tough-cookie";
 import { SocksProxyAgent } from "socks-proxy-agent";
 import { HttpsProxyAgent } from "https-proxy-agent";
 import { HttpProxyAgent } from "http-proxy-agent";
@@ -203,6 +205,7 @@ const server = new Server(
 );
 
 const GITLAB_PERSONAL_ACCESS_TOKEN = process.env.GITLAB_PERSONAL_ACCESS_TOKEN;
+const GITLAB_AUTH_COOKIE_PATH = process.env.GITLAB_AUTH_COOKIE_PATH;
 const IS_OLD = process.env.GITLAB_IS_OLD === "true";
 const GITLAB_READ_ONLY_MODE = process.env.GITLAB_READ_ONLY_MODE === "true";
 const USE_GITLAB_WIKI = process.env.USE_GITLAB_WIKI === "true";
@@ -244,6 +247,88 @@ if (HTTPS_PROXY) {
 }
 httpsAgent = httpsAgent || new HttpsAgent(sslOptions);
 httpAgent = httpAgent || new Agent();
+
+// Create cookie jar with clean Netscape file parsing
+const createCookieJar = (): CookieJar | null => {
+  if (!GITLAB_AUTH_COOKIE_PATH) return null;
+  
+  try {
+    const cookiePath = GITLAB_AUTH_COOKIE_PATH.startsWith("~/")
+      ? path.join(process.env.HOME || "", GITLAB_AUTH_COOKIE_PATH.slice(2))
+      : GITLAB_AUTH_COOKIE_PATH;
+    
+    const jar = new CookieJar();
+    const cookieContent = fs.readFileSync(cookiePath, "utf8");
+    
+    cookieContent.split("\n").forEach(line => {
+      // Handle #HttpOnly_ prefix
+      if (line.startsWith("#HttpOnly_")) {
+        line = line.slice(10);
+      }
+      // Skip comments and empty lines
+      if (line.startsWith("#") || !line.trim()) {
+        return;
+      }
+      
+      // Parse Netscape format: domain, flag, path, secure, expires, name, value
+      const parts = line.split("\t");
+      if (parts.length >= 7) {
+        const [domain, , path, secure, expires, name, value] = parts;
+        
+        // Build cookie string in standard format
+        const cookieStr = `${name}=${value}; Domain=${domain}; Path=${path}${secure === "TRUE" ? "; Secure" : ""}${expires !== "0" ? `; Expires=${new Date(parseInt(expires) * 1000).toUTCString()}` : ""}`;
+        
+        // Use tough-cookie's parse function for robust parsing
+        const cookie = parseCookie(cookieStr);
+        if (cookie) {
+          const url = `${secure === "TRUE" ? "https" : "http"}://${domain.startsWith(".") ? domain.slice(1) : domain}`;
+          jar.setCookieSync(cookie, url);
+        }
+      }
+    });
+    
+    return jar;
+  } catch (error) {
+    console.error("Error loading cookie file:", error);
+    return null;
+  }
+};
+
+// Initialize cookie jar and fetch
+const cookieJar = createCookieJar();
+const fetch = cookieJar ? fetchCookie(nodeFetch, cookieJar) : nodeFetch;
+
+// Ensure session is established for the current request
+async function ensureSessionForRequest(): Promise<void> {
+  if (!cookieJar || !GITLAB_AUTH_COOKIE_PATH) return;
+  
+  // Extract the base URL from GITLAB_API_URL
+  const apiUrl = new URL(GITLAB_API_URL);
+  const baseUrl = `${apiUrl.protocol}//${apiUrl.hostname}`;
+  
+  // Check if we already have GitLab session cookies
+  const gitlabCookies = cookieJar.getCookiesSync(baseUrl);
+  const hasSessionCookie = gitlabCookies.some(cookie => 
+    cookie.key === '_gitlab_session' || cookie.key === 'remember_user_token'
+  );
+  
+  if (!hasSessionCookie) {
+    try {
+      // Establish session with a lightweight request
+      await fetch(`${GITLAB_API_URL}/user`, {
+        ...DEFAULT_FETCH_CONFIG,
+        redirect: 'follow'
+      }).catch(() => {
+        // Ignore errors - the important thing is that cookies get set during redirects
+      });
+      
+      // Small delay to ensure cookies are fully processed
+      await new Promise(resolve => setTimeout(resolve, 100));
+    } catch (error) {
+      // Ignore session establishment errors
+    }
+  }
+}
 
 // Modify DEFAULT_HEADERS to include agent configuration
 const DEFAULT_HEADERS: Record<string, string> = {
@@ -3111,6 +3196,11 @@ server.setRequestHandler(CallToolRequestSchema, async request => {
   try {
     if (!request.params.arguments) {
       throw new Error("Arguments are required");
+    }
+    
+    // Ensure session is established for every request if cookie authentication is enabled
+    if (GITLAB_AUTH_COOKIE_PATH) {
+      await ensureSessionForRequest();
     }
 
     switch (request.params.name) {

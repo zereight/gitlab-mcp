@@ -33,11 +33,13 @@
     "@modelcontextprotocol/sdk": "1.8.0",
     "@types/node-fetch": "^2.6.12",
     "express": "^5.1.0",
+    "fetch-cookie": "^3.1.0",
     "form-data": "^4.0.0",
     "http-proxy-agent": "^7.0.2",
     "https-proxy-agent": "^7.0.6",
     "node-fetch": "^3.3.2",
     "socks-proxy-agent": "^8.0.5",
+    "tough-cookie": "^5.1.2",
     "zod-to-json-schema": "^3.23.5"
   },
   "devDependencies": {
