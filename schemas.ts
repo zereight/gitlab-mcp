@@ -409,8 +409,17 @@ export const GitLabCommitSchema = z.object({
   committer_name: z.string(),
   committer_email: z.string(),
   committed_date: z.string(),
+  created_at: z.string().optional(), // Add created_at field
+  message: z.string().optional(), // Add full message field
   web_url: z.string(), // Changed from html_url to match GitLab API
   parent_ids: z.array(z.string()), // Changed from parents to match GitLab API
+  stats: z.object({
+    additions: z.number().optional().nullable(),
+    deletions: z.number().optional().nullable(),
+    total: z.number().optional().nullable(),
+  }).optional(), // Only present when with_stats=true
+  trailers: z.record(z.string()).optional().default({}), // Git trailers, may be empty object
+  extended_trailers: z.record(z.array(z.string())).optional().default({}), // Extended trailers, may be empty object
 });
 
 // Reference schema
@@ -650,6 +659,21 @@ export const GitLabMergeRequestSchema = z.object({
   labels: z.array(z.string()).optional(),
 });
 
+export const LineRangeSchema = z.object({
+  start: z.object({
+    line_code: z.string().nullable().optional().describe("CRITICAL: Line identifier in format '{file_path_sha1_hash}_{old_line_number}_{new_line_number}'. USUALLY REQUIRED for GitLab diff comments despite being optional in schema. Example: 'a1b2c3d4e5f6_10_15'. Get this from GitLab diff API response, never fabricate."),
+    type: z.enum(["new", "old"]).nullable().optional().describe("Line type: 'old' = deleted/original line, 'new' = added/modified line, null = unchanged context. MUST match the line_code format and old_line/new_line values."),
+    old_line: z.number().nullable().optional().describe("Line number in original file (before changes). REQUIRED when type='old', NULL when type='new' (for purely added lines), can be present for context lines."),
+    new_line: z.number().nullable().optional().describe("Line number in modified file (after changes). REQUIRED when type='new', NULL when type='old' (for purely deleted lines), can be present for context lines."),
+  }).describe("Start line position for multiline comment range. MUST specify either old_line OR new_line (or both for context), never neither."),
+  end: z.object({
+    line_code: z.string().nullable().optional().describe("CRITICAL: Line identifier in format '{file_path_sha1_hash}_{old_line_number}_{new_line_number}'. USUALLY REQUIRED for GitLab diff comments despite being optional in schema. Example: 'a1b2c3d4e5f6_12_17'. Must be from same file as start.line_code."),
+    type: z.enum(["new", "old"]).nullable().optional().describe("Line type: 'old' = deleted/original line, 'new' = added/modified line, null = unchanged context. SHOULD MATCH start.type for consistent ranges (don't mix old/new types)."),
+    old_line: z.number().nullable().optional().describe("Line number in original file (before changes). REQUIRED when type='old', NULL when type='new' (for purely added lines), can be present for context lines. MUST be >= start.old_line if both specified."),
+    new_line: z.number().nullable().optional().describe("Line number in modified file (after changes). REQUIRED when type='new', NULL when type='old' (for purely deleted lines), can be present for context lines. MUST be >= start.new_line if both specified."),
+  }).describe("End line position for multiline comment range. MUST specify either old_line OR new_line (or both for context), never neither. Range must be valid (end >= start)."),
+}).describe("Line range for multiline comments on GitLab merge request diffs. VALIDATION RULES: 1) line_code is critical for GitLab API success, 2) start/end must have consistent types, 3) line numbers must form valid range, 4) get line_code from GitLab diff API, never generate manually.");
+
 // Discussion related schemas
 export const GitLabDiscussionNoteSchema = z.object({
   id: z.number(),
@@ -674,24 +698,24 @@ export const GitLabDiscussionNoteSchema = z.object({
       base_sha: z.string(),
       start_sha: z.string(),
       head_sha: z.string(),
-      old_path: z.string(),
-      new_path: z.string(),
+      old_path: z.string().optional().describe("File path before change"),
+      new_path: z.string().optional().describe("File path after change"),
       position_type: z.enum(["text", "image", "file"]),
-      old_line: z.number().nullish(), // This is missing for image diffs
-      new_line: z.number().nullish(), // This is missing for image diffs
+      new_line: z.number().nullable().optional().describe("Line number in the modified file (after changes). Used for added lines and context lines. Null for deleted lines."),
+      old_line: z.number().nullable().optional().describe("Line number in the original file (before changes). Used for deleted lines and context lines. Null for newly added lines."),
       line_range: z
         .object({
           start: z.object({
-            line_code: z.string(),
+            line_code: z.string().nullable().optional().describe("Line identifier in format: '{file_path_sha1_hash}_{old_line_number}_{new_line_number}'. Used to uniquely identify a specific line in the diff."),
             type: z.enum(["new", "old", "expanded"]),
-            old_line: z.number().nullish(), // This is missing for image diffs
-            new_line: z.number().nullish(), // This is missing for image diffs
+            old_line: z.number().nullable().optional().describe("Line number in the original file (before changes). Null for newly added lines or unchanged context lines."),
+            new_line: z.number().nullable().optional().describe("Line number in the modified file (after changes). Null for deleted lines or unchanged context lines."),
           }),
           end: z.object({
-            line_code: z.string(),
+            line_code: z.string().nullable().optional().describe("Line identifier in format: '{file_path_sha1_hash}_{old_line_number}_{new_line_number}'. Used to uniquely identify a specific line in the diff."),
             type: z.enum(["new", "old", "expanded"]),
-            old_line: z.number().nullish(), // This is missing for image diffs
-            new_line: z.number().nullish(), // This is missing for image diffs
+            old_line: z.number().nullable().optional().describe("Line number in the original file (before changes). Null for newly added lines or unchanged context lines."),
+            new_line: z.number().nullable().optional().describe("Line number in the modified file (after changes). Null for deleted lines or unchanged context lines."),
           }),
         })
         .nullable()
@@ -905,6 +929,12 @@ export const UpdateMergeRequestSchema = GetMergeRequestSchema.extend({
 
 export const GetMergeRequestDiffsSchema = GetMergeRequestSchema.extend({
   view: z.enum(["inline", "parallel"]).optional().describe("Diff view type"),
+});
+
+export const ListMergeRequestDiffsSchema = GetMergeRequestSchema.extend({
+  page: z.number().optional().describe("Page number for pagination (default: 1)"),
+  per_page: z.number().optional().describe("Number of items per page (max: 100, default: 20)"),
+  unidiff: z.boolean().optional().describe("Present diffs in the unified diff format. Default is false. Introduced in GitLab 16.5."),
 });
 
 export const CreateNoteSchema = z.object({
@@ -1239,18 +1269,19 @@ export const GitLabWikiPageSchema = z.object({
 
 // Merge Request Thread position schema - used for diff notes
 export const MergeRequestThreadPositionSchema = z.object({
-  base_sha: z.string().describe("Base commit SHA in the source branch"),
-  head_sha: z.string().describe("SHA referencing HEAD of the source branch"),
-  start_sha: z.string().describe("SHA referencing the start commit of the source branch"),
-  position_type: z.enum(["text", "image", "file"]).describe("Type of position reference"),
-  new_path: z.string().optional().describe("File path after change"),
-  old_path: z.string().optional().describe("File path before change"),
-  new_line: z.number().nullable().optional().describe("Line number after change"),
-  old_line: z.number().nullable().optional().describe("Line number before change"),
-  width: z.number().optional().describe("Width of the image (for image diffs)"),
-  height: z.number().optional().describe("Height of the image (for image diffs)"),
-  x: z.number().optional().describe("X coordinate on the image (for image diffs)"),
-  y: z.number().optional().describe("Y coordinate on the image (for image diffs)"),
+  base_sha: z.string().describe("REQUIRED: Base commit SHA in the source branch. Get this from merge request diff_refs.base_sha."),
+  head_sha: z.string().describe("REQUIRED: SHA referencing HEAD of the source branch. Get this from merge request diff_refs.head_sha."),
+  start_sha: z.string().describe("REQUIRED: SHA referencing the start commit of the source branch. Get this from merge request diff_refs.start_sha."),
+  position_type: z.enum(["text", "image", "file"]).describe("REQUIRED: Position type. Use 'text' for code diffs, 'image' for image diffs, 'file' for file-level comments."),
+  new_path: z.string().optional().describe("File path after changes. REQUIRED for most diff comments. Use same as old_path if file wasn't renamed."),
+  old_path: z.string().optional().describe("File path before changes. REQUIRED for most diff comments. Use same as new_path if file wasn't renamed."),
+  new_line: z.number().nullable().optional().describe("Line number in modified file (after changes). Use for added lines or context lines. NULL for deleted lines. For single-line comments on new lines."),
+  old_line: z.number().nullable().optional().describe("Line number in original file (before changes). Use for deleted lines or context lines. NULL for added lines. For single-line comments on old lines."),
+  line_range: LineRangeSchema.optional().describe("MULTILINE COMMENTS: Specify start/end line positions for commenting on multiple lines. Alternative to single old_line/new_line."),
+  width: z.number().optional().describe("IMAGE DIFFS ONLY: Width of the image (for position_type='image')."),
+  height: z.number().optional().describe("IMAGE DIFFS ONLY: Height of the image (for position_type='image')."),
+  x: z.number().optional().describe("IMAGE DIFFS ONLY: X coordinate on the image (for position_type='image')."),
+  y: z.number().optional().describe("IMAGE DIFFS ONLY: Y coordinate on the image (for position_type='image')."),
 });
 
 // Schema for creating a new merge request thread
@@ -1330,6 +1361,34 @@ export const PromoteProjectMilestoneSchema = GetProjectMilestoneSchema;
 // Schema for getting burndown chart events for a milestone
 export const GetMilestoneBurndownEventsSchema = GetProjectMilestoneSchema.merge(PaginationOptionsSchema);
 
+// Add schemas for commit operations
+export const ListCommitsSchema = z.object({
+  project_id: z.string().describe("Project ID or complete URL-encoded path to project"),
+  ref_name: z.string().optional().describe("The name of a repository branch, tag or revision range, or if not given the default branch"),
+  since: z.string().optional().describe("Only commits after or on this date are returned in ISO 8601 format YYYY-MM-DDTHH:MM:SSZ"),
+  until: z.string().optional().describe("Only commits before or on this date are returned in ISO 8601 format YYYY-MM-DDTHH:MM:SSZ"),
+  path: z.string().optional().describe("The file path"),
+  author: z.string().optional().describe("Search commits by commit author"),
+  all: z.boolean().optional().describe("Retrieve every commit from the repository"),
+  with_stats: z.boolean().optional().describe("Stats about each commit are added to the response"),
+  first_parent: z.boolean().optional().describe("Follow only the first parent commit upon seeing a merge commit"),
+  order: z.enum(["default", "topo"]).optional().describe("List commits in order"),
+  trailers: z.boolean().optional().describe("Parse and include Git trailers for every commit"),
+  page: z.number().optional().describe("Page number for pagination (default: 1)"),
+  per_page: z.number().optional().describe("Number of items per page (max: 100, default: 20)"),
+});
+
+export const GetCommitSchema = z.object({
+  project_id: z.string().describe("Project ID or complete URL-encoded path to project"),
+  sha: z.string().describe("The commit hash or name of a repository branch or tag"),
+  stats: z.boolean().optional().describe("Include commit stats"),
+});
+
+export const GetCommitDiffSchema = z.object({
+  project_id: z.string().describe("Project ID or complete URL-encoded path to project"),
+  sha: z.string().describe("The commit hash or name of a repository branch or tag"),
+});
+
 // Export types
 export type GitLabAuthor = z.infer<typeof GitLabAuthorSchema>;
 export type GitLabFork = z.infer<typeof GitLabForkSchema>;
@@ -1396,3 +1455,6 @@ export type GetMilestoneBurndownEventsOptions = z.infer<typeof GetMilestoneBurnd
 export type GitLabUser = z.infer<typeof GitLabUserSchema>;
 export type GitLabUsersResponse = z.infer<typeof GitLabUsersResponseSchema>;
 export type PaginationOptions = z.infer<typeof PaginationOptionsSchema>;
+export type ListCommitsOptions = z.infer<typeof ListCommitsSchema>;
+export type GetCommitOptions = z.infer<typeof GetCommitSchema>;
+export type GetCommitDiffOptions = z.infer<typeof GetCommitDiffSchema>;
