@@ -94,6 +94,7 @@ docker run -i --rm \
 {
   "mcpServers": {
     "GitLab communication server": {
+      "type": "sse",
       "url": "http://localhost:3333/sse"
     }
   }
