@@ -36,7 +36,9 @@ When using with the Claude App, you need to set up your API key and URLs directl
 ```
 
 #### Docker
+
 - stdio
+
 ```mcp.json
 {
   "mcpServers": {
@@ -74,6 +76,7 @@ When using with the Claude App, you need to set up your API key and URLs directl
 ```
 
 - sse
+
 ```shell
 docker run -i --rm \
   -e GITLAB_PERSONAL_ACCESS_TOKEN=your_gitlab_token \
@@ -113,9 +116,12 @@ $ sh scripts/image_push.sh docker_user_name
 - `USE_PIPELINE`: When set to 'true', enables the pipeline-related tools (list_pipelines, get_pipeline, list_pipeline_jobs, get_pipeline_job, get_pipeline_job_output, create_pipeline, retry_pipeline, cancel_pipeline). By default, pipeline features are disabled.
 - `GITLAB_AUTH_COOKIE_PATH`: Path to an authentication cookie file for GitLab instances that require cookie-based authentication. When provided, the cookie will be included in all GitLab API requests.
 
+[![Star History Chart](https://api.star-history.com/svg?repos=zereight/gitlab-mcp&type=Date)](https://www.star-history.com/#zereight/gitlab-mcp&Date)
+
 ## Tools 🛠️
 
 +<!-- TOOLS-START -->
+
 1. `create_or_update_file` - Create or update a single file in a GitLab project
 2. `search_repositories` - Search for GitLab projects
 3. `create_repository` - Create a new GitLab project
