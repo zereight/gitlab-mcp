@@ -290,20 +290,24 @@ const createCookieJar = (): CookieJar | null => {
     return jar;
   } catch (error) {
     console.error("Error loading cookie file:", error);
-    return new CookieJar(); // Fallback to empty jar
+    return null;
   }
 };
 
-// Initialize cookie jar
+// Initialize cookie jar and fetch
 const cookieJar = createCookieJar();
 const fetch = cookieJar ? fetchCookie(nodeFetch, cookieJar) : nodeFetch;
 
 // Ensure session is established for the current request
 async function ensureSessionForRequest(): Promise<void> {
-  if (!cookieJar) return;
+  if (!cookieJar || !GITLAB_AUTH_COOKIE_PATH) return;
+  
+  // Extract the base URL from GITLAB_API_URL
+  const apiUrl = new URL(GITLAB_API_URL);
+  const baseUrl = `${apiUrl.protocol}//${apiUrl.hostname}`;
   
   // Check if we already have GitLab session cookies
-  const gitlabCookies = cookieJar.getCookiesSync('https://gitlab.aws.dev');
+  const gitlabCookies = cookieJar.getCookiesSync(baseUrl);
   const hasSessionCookie = gitlabCookies.some(cookie => 
     cookie.key === '_gitlab_session' || cookie.key === 'remember_user_token'
   );
@@ -312,19 +316,6 @@ async function ensureSessionForRequest(): Promise<void> {
     try {
       // Establish session with a lightweight request
       await fetch(`${GITLAB_API_URL}/user`, {
-        ...DEFAULT_FETCH_CONFIG,
-        redirect: 'follow'
-      }).catch(() => {
-        // Ignore errors - the important thing is that cookies get set during redirects
-      });
-      
-      // Small delay to ensure cookies are fully processed
-      await new Promise(resolve => setTimeout(resolve, 100));
-    } catch (error) {
-      // Ignore session establishment errors
-    }
-  }
-}/user`, {
         ...DEFAULT_FETCH_CONFIG,
         redirect: 'follow'
       }).catch(() => {
@@ -617,7 +608,7 @@ const allTools = [
   },
   {
     name: "get_pipeline_job_output",
-    description: "Get the output/trace of a GitLab pipeline job number",
+    description: "Get the output/trace of a GitLab pipeline job with optional pagination to limit context window usage",
     inputSchema: zodToJsonSchema(GetPipelineJobOutputSchema),
   },
   {
@@ -2244,9 +2235,6 @@ async function getProject(
 async function listProjects(
   options: z.infer<typeof ListProjectsSchema> = {}
 ): Promise<GitLabProject[]> {
-  // Ensure session is established before making API calls
-  await ensureSessionForRequest();
-
   // Construct the query parameters
   const params = new URLSearchParams();
   for (const [key, value] of Object.entries(options)) {
@@ -2708,9 +2696,11 @@ async function getPipelineJob(projectId: string, jobId: number): Promise<GitLabP
  *
  * @param {string} projectId - The ID or URL-encoded path of the project
  * @param {number} jobId - The ID of the job
+ * @param {number} limit - Maximum number of lines to return from the end (default: 1000)
+ * @param {number} offset - Number of lines to skip from the end (default: 0)
  * @returns {Promise<string>} The job output/trace
  */
-async function getPipelineJobOutput(projectId: string, jobId: number): Promise<string> {
+async function getPipelineJobOutput(projectId: string, jobId: number, limit?: number, offset?: number): Promise<string> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
     `${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/jobs/${jobId}/trace`
@@ -2729,7 +2719,35 @@ async function getPipelineJobOutput(projectId: string, jobId: number): Promise<s
   }
 
   await handleGitLabError(response);
-  return await response.text();
+  const fullTrace = await response.text();
+  
+  // Apply client-side pagination to limit context window usage
+  if (limit !== undefined || offset !== undefined) {
+    const lines = fullTrace.split('\n');
+    const startOffset = offset || 0;
+    const maxLines = limit || 1000;
+    
+    // Return lines from the end, skipping offset lines and limiting to maxLines
+    const startIndex = Math.max(0, lines.length - startOffset - maxLines);
+    const endIndex = lines.length - startOffset;
+    
+    const selectedLines = lines.slice(startIndex, endIndex);
+    const result = selectedLines.join('\n');
+    
+    // Add metadata about truncation
+    if (startIndex > 0 || endIndex < lines.length) {
+      const totalLines = lines.length;
+      const shownLines = selectedLines.length;
+      const skippedFromStart = startIndex;
+      const skippedFromEnd = startOffset;
+      
+      return `[Log truncated: showing ${shownLines} of ${totalLines} lines, skipped ${skippedFromStart} from start, ${skippedFromEnd} from end]\n\n${result}`;
+    }
+    
+    return result;
+  }
+  
+  return fullTrace;
 }
 
 /**
@@ -3179,6 +3197,11 @@ server.setRequestHandler(CallToolRequestSchema, async request => {
     if (!request.params.arguments) {
       throw new Error("Arguments are required");
     }
+    
+    // Ensure session is established for every request if cookie authentication is enabled
+    if (GITLAB_AUTH_COOKIE_PATH) {
+      await ensureSessionForRequest();
+    }
 
     switch (request.params.name) {
       case "fork_repository": {
@@ -3244,7 +3267,6 @@ server.setRequestHandler(CallToolRequestSchema, async request => {
       }
 
       case "search_repositories": {
-        await ensureSessionForRequest();
         const args = SearchRepositoriesSchema.parse(request.params.arguments);
         const results = await searchProjects(args.search, args.page, args.per_page);
         return {
@@ -3830,8 +3852,8 @@ server.setRequestHandler(CallToolRequestSchema, async request => {
       }
 
       case "get_pipeline_job_output": {
-        const { project_id, job_id } = GetPipelineJobOutputSchema.parse(request.params.arguments);
-        const jobOutput = await getPipelineJobOutput(project_id, job_id);
+        const { project_id, job_id, limit, offset } = GetPipelineJobOutputSchema.parse(request.params.arguments);
+        const jobOutput = await getPipelineJobOutput(project_id, job_id, limit, offset);
         return {
           content: [
             {
