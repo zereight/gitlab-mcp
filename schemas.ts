@@ -662,13 +662,13 @@ export const GitLabMergeRequestSchema = z.object({
 export const LineRangeSchema = z.object({
   start: z.object({
     line_code: z.string().nullable().optional().describe("CRITICAL: Line identifier in format '{file_path_sha1_hash}_{old_line_number}_{new_line_number}'. USUALLY REQUIRED for GitLab diff comments despite being optional in schema. Example: 'a1b2c3d4e5f6_10_15'. Get this from GitLab diff API response, never fabricate."),
-    type: z.enum(["new", "old"]).nullable().optional().describe("Line type: 'old' = deleted/original line, 'new' = added/modified line, null = unchanged context. MUST match the line_code format and old_line/new_line values."),
+    type: z.enum(["new", "old", "expanded"]).nullable().optional().describe("Line type: 'old' = deleted/original line, 'new' = added/modified line, null = unchanged context. MUST match the line_code format and old_line/new_line values."),
     old_line: z.number().nullable().optional().describe("Line number in original file (before changes). REQUIRED when type='old', NULL when type='new' (for purely added lines), can be present for context lines."),
     new_line: z.number().nullable().optional().describe("Line number in modified file (after changes). REQUIRED when type='new', NULL when type='old' (for purely deleted lines), can be present for context lines."),
   }).describe("Start line position for multiline comment range. MUST specify either old_line OR new_line (or both for context), never neither."),
   end: z.object({
     line_code: z.string().nullable().optional().describe("CRITICAL: Line identifier in format '{file_path_sha1_hash}_{old_line_number}_{new_line_number}'. USUALLY REQUIRED for GitLab diff comments despite being optional in schema. Example: 'a1b2c3d4e5f6_12_17'. Must be from same file as start.line_code."),
-    type: z.enum(["new", "old"]).nullable().optional().describe("Line type: 'old' = deleted/original line, 'new' = added/modified line, null = unchanged context. SHOULD MATCH start.type for consistent ranges (don't mix old/new types)."),
+    type: z.enum(["new", "old", "expanded"]).nullable().optional().describe("Line type: 'old' = deleted/original line, 'new' = added/modified line, null = unchanged context. SHOULD MATCH start.type for consistent ranges (don't mix old/new types)."),
     old_line: z.number().nullable().optional().describe("Line number in original file (before changes). REQUIRED when type='old', NULL when type='new' (for purely added lines), can be present for context lines. MUST be >= start.old_line if both specified."),
     new_line: z.number().nullable().optional().describe("Line number in modified file (after changes). REQUIRED when type='new', NULL when type='old' (for purely deleted lines), can be present for context lines. MUST be >= start.new_line if both specified."),
   }).describe("End line position for multiline comment range. MUST specify either old_line OR new_line (or both for context), never neither. Range must be valid (end >= start)."),
@@ -703,23 +703,7 @@ export const GitLabDiscussionNoteSchema = z.object({
       position_type: z.enum(["text", "image", "file"]),
       new_line: z.number().nullable().optional().describe("Line number in the modified file (after changes). Used for added lines and context lines. Null for deleted lines."),
       old_line: z.number().nullable().optional().describe("Line number in the original file (before changes). Used for deleted lines and context lines. Null for newly added lines."),
-      line_range: z
-        .object({
-          start: z.object({
-            line_code: z.string().nullable().optional().describe("Line identifier in format: '{file_path_sha1_hash}_{old_line_number}_{new_line_number}'. Used to uniquely identify a specific line in the diff."),
-            type: z.enum(["new", "old", "expanded"]),
-            old_line: z.number().nullable().optional().describe("Line number in the original file (before changes). Null for newly added lines or unchanged context lines."),
-            new_line: z.number().nullable().optional().describe("Line number in the modified file (after changes). Null for deleted lines or unchanged context lines."),
-          }),
-          end: z.object({
-            line_code: z.string().nullable().optional().describe("Line identifier in format: '{file_path_sha1_hash}_{old_line_number}_{new_line_number}'. Used to uniquely identify a specific line in the diff."),
-            type: z.enum(["new", "old", "expanded"]),
-            old_line: z.number().nullable().optional().describe("Line number in the original file (before changes). Null for newly added lines or unchanged context lines."),
-            new_line: z.number().nullable().optional().describe("Line number in the modified file (after changes). Null for deleted lines or unchanged context lines."),
-          }),
-        })
-        .nullable()
-        .optional(), // For multi-line diff notes
+      line_range: LineRangeSchema.nullable().optional(), // For multi-line diff notes
       width: z.number().optional(), // For image diff notes
       height: z.number().optional(), // For image diff notes
       x: z.number().optional(), // For image diff notes
