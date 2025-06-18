@@ -21,7 +21,7 @@ When using with the Claude App, you need to set up your API key and URLs directl
   "mcpServers": {
     "GitLab communication server": {
       "command": "npx",
-      "args": ["-y", "@zereight/mcp-gitlab"],
+      "args": ["-y", "@it-era/mcp-gitlab"],
       "env": {
         "GITLAB_PERSONAL_ACCESS_TOKEN": "your_gitlab_token",
         "GITLAB_API_URL": "your_gitlab_api_url",
