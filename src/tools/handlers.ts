@@ -1,4 +1,4 @@
-// Tool handlers for the 6 exposed GitLab MCP tools
+// Tool handlers for the 9 exposed GitLab MCP tools
 import * as z from 'zod';
 import {
   getMergeRequest,
@@ -6,7 +6,10 @@ import {
   createMergeRequestNote,
   updateMergeRequest,
   getVulnerabilitiesByIds,
-  getFailedTestCases
+  getFailedTestCases,
+  createIssue,
+  getIssue,
+  updateIssue
 } from '../api/index.js';
 import {
   GetMergeRequestSchema,
@@ -14,7 +17,10 @@ import {
   CreateMergeRequestNoteSchema,
   UpdateMergeRequestSchema,
   GetVulnerabilitiesByIdsSchema,
-  GetFailedTestReportSchema
+  GetFailedTestReportSchema,
+  CreateIssueSchema,
+  GetIssueSchema,
+  UpdateIssueSchema
 } from '../schemas/index.js';
 
 // Type for MCP tool call request
@@ -32,7 +38,7 @@ interface ToolResponse {
 }
 
 /**
- * Handle tool requests for the 6 exposed GitLab MCP tools
+ * Handle tool requests for the 9 exposed GitLab MCP tools
  */
 export async function handleToolCall(request: ToolCallRequest): Promise<ToolResponse> {
   try {
@@ -126,6 +132,38 @@ export async function handleToolCall(request: ToolCallRequest): Promise<ToolResp
               type: "text",
               text: JSON.stringify(failedCases),
             },
+          ],
+        };
+      }
+
+      case "create_issue": {
+        const args = CreateIssueSchema.parse(request.params.arguments);
+        const { project_id, ...options } = args;
+        const issue = await createIssue(project_id, options);
+        return {
+          content: [
+            { type: "text", text: JSON.stringify(issue) },
+          ],
+        };
+      }
+
+      case "get_issue": {
+        const args = GetIssueSchema.parse(request.params.arguments);
+        const issue = await getIssue(args.project_id, args.issue_iid);
+        return {
+          content: [
+            { type: "text", text: JSON.stringify(issue) },
+          ],
+        };
+      }
+
+      case "update_issue": {
+        const args = UpdateIssueSchema.parse(request.params.arguments);
+        const { project_id, issue_iid, ...options } = args;
+        const issue = await updateIssue(project_id, issue_iid, options);
+        return {
+          content: [
+            { type: "text", text: JSON.stringify(issue) },
           ],
         };
       }
