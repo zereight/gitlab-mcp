@@ -1,4 +1,4 @@
-// Tool definitions for the 6 exposed GitLab MCP tools
+// Tool definitions for the 9 exposed GitLab MCP tools
 import { zodToJsonSchema } from 'zod-to-json-schema';
 import {
   GetMergeRequestSchema,
@@ -6,10 +6,13 @@ import {
   CreateMergeRequestNoteSchema,
   UpdateMergeRequestSchema,
   GetVulnerabilitiesByIdsSchema,
-  GetFailedTestReportSchema
+  GetFailedTestReportSchema,
+  CreateIssueSchema,
+  GetIssueSchema,
+  UpdateIssueSchema
 } from '../schemas/index.js';
 
-// Define all available tools - Custom MR-only version (6 tools only)
+// Define all available tools - Extended version (9 tools)
 export const allTools = [
   {
     name: "get_merge_request",
@@ -41,15 +44,31 @@ export const allTools = [
     description: "Get failed test cases from a pipeline's test report (requires project_id and pipeline_id)",
     inputSchema: zodToJsonSchema(GetFailedTestReportSchema),
   },
+  {
+    name: "create_issue",
+    description: "Create a new issue in a GitLab project with title, description, assignees, labels, and milestone",
+    inputSchema: zodToJsonSchema(CreateIssueSchema),
+  },
+  {
+    name: "get_issue",
+    description: "Get details of a specific issue by its IID (internal ID)",
+    inputSchema: zodToJsonSchema(GetIssueSchema),
+  },
+  {
+    name: "update_issue",
+    description: "Update an existing issue - modify title, description, assignees, labels, state, etc.",
+    inputSchema: zodToJsonSchema(UpdateIssueSchema),
+  },
 ];
 
-// Define which tools are read-only - Custom MR-only version (4 read-only tools)
+// Define which tools are read-only - Extended version (5 read-only tools)
 export const readOnlyTools = [
   "get_merge_request",
   "mr_discussions",
   "get_vulnerabilities_by_ids",
   "get_failed_test_cases",
+  "get_issue",
 ];
 
-// Define which tools are related to wiki and can be toggled by USE_GITLAB_WIKI - Custom MR-only version (no wiki tools)
+// Define which tools are related to wiki and can be toggled by USE_GITLAB_WIKI - Extended version (no wiki tools)
 export const wikiToolNames: string[] = []; 

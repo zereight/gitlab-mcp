@@ -1,4 +1,4 @@
-// MCP server setup and request handlers for the 6 exposed GitLab tools
+// MCP server setup and request handlers for the 9 exposed GitLab tools
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import {
@@ -54,7 +54,7 @@ export function setupServer() {
       ? allTools.filter((tool) => readOnlyTools.includes(tool.name))
       : allTools;
       
-    // Toggle wiki tools by USE_GITLAB_WIKI flag (currently no wiki tools in the 6 exposed)
+    // Toggle wiki tools by USE_GITLAB_WIKI flag (currently no wiki tools in the 9 exposed)
     let tools = USE_GITLAB_WIKI
       ? tools0
       : tools0.filter((tool) => !wikiToolNames.includes(tool.name));
