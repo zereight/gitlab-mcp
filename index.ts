@@ -812,6 +812,7 @@ function normalizeGitLabApiUrl(url?: string): string {
 
 // Use the normalizeGitLabApiUrl function to handle various URL formats
 const GITLAB_API_URL = normalizeGitLabApiUrl(process.env.GITLAB_API_URL || "");
+const GITLAB_PROJECT_ID = process.env.GITLAB_PROJECT_ID;
 
 if (!GITLAB_PERSONAL_ACCESS_TOKEN) {
   console.error("GITLAB_PERSONAL_ACCESS_TOKEN environment variable is not set");
@@ -841,6 +842,14 @@ async function handleGitLabError(response: import("node-fetch").Response): Promi
 }
 
 /**
+ * @param {string} projectId - The project ID parameter passed to the function
+ * @returns {string} The project ID to use for the API call
+ */
+function getEffectiveProjectId(projectId: string): string {
+  return GITLAB_PROJECT_ID || projectId;
+}
+
+/**
  * Create a fork of a GitLab project
  * 프로젝트 포크 생성 (Create a project fork)
  *
@@ -850,7 +859,8 @@ async function handleGitLabError(response: import("node-fetch").Response): Promi
  */
 async function forkProject(projectId: string, namespace?: string): Promise<GitLabFork> {
   projectId = decodeURIComponent(projectId); // Decode project ID
-  const url = new URL(`${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/fork`);
+  const effectiveProjectId = getEffectiveProjectId(projectId);
+  const url = new URL(`${GITLAB_API_URL}/projects/${encodeURIComponent(effectiveProjectId)}/fork`);
 
   if (namespace) {
     url.searchParams.append("namespace", namespace);
@@ -884,8 +894,9 @@ async function createBranch(
   options: z.infer<typeof CreateBranchOptionsSchema>
 ): Promise<GitLabReference> {
   projectId = decodeURIComponent(projectId); // Decode project ID
+  const effectiveProjectId = getEffectiveProjectId(projectId);
   const url = new URL(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/repository/branches`
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(effectiveProjectId)}/repository/branches`
   );
 
   const response = await fetch(url.toString(), {
@@ -910,7 +921,8 @@ async function createBranch(
  */
 async function getDefaultBranchRef(projectId: string): Promise<string> {
   projectId = decodeURIComponent(projectId); // Decode project ID
-  const url = new URL(`${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}`);
+  const effectiveProjectId = getEffectiveProjectId(projectId);
+  const url = new URL(`${GITLAB_API_URL}/projects/${encodeURIComponent(effectiveProjectId)}`);
 
   const response = await fetch(url.toString(), {
     ...DEFAULT_FETCH_CONFIG,
@@ -936,6 +948,7 @@ async function getFileContents(
   ref?: string
 ): Promise<GitLabContent> {
   projectId = decodeURIComponent(projectId); // Decode project ID
+  const effectiveProjectId = getEffectiveProjectId(projectId);
   const encodedPath = encodeURIComponent(filePath);
 
   // ref가 없는 경우 default branch를 가져옴
@@ -944,7 +957,7 @@ async function getFileContents(
   }
 
   const url = new URL(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/repository/files/${encodedPath}`
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(effectiveProjectId)}/repository/files/${encodedPath}`
   );
 
   url.searchParams.append("ref", ref);
@@ -984,7 +997,8 @@ async function createIssue(
   options: z.infer<typeof CreateIssueOptionsSchema>
 ): Promise<GitLabIssue> {
   projectId = decodeURIComponent(projectId); // Decode project ID
-  const url = new URL(`${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/issues`);
+  const effectiveProjectId = getEffectiveProjectId(projectId);
+  const url = new URL(`${GITLAB_API_URL}/projects/${encodeURIComponent(effectiveProjectId)}/issues`);
 
   const response = await fetch(url.toString(), {
     ...DEFAULT_FETCH_CONFIG,
@@ -1022,7 +1036,8 @@ async function listIssues(
   options: Omit<z.infer<typeof ListIssuesSchema>, "project_id"> = {}
 ): Promise<GitLabIssue[]> {
   projectId = decodeURIComponent(projectId); // Decode project ID
-  const url = new URL(`${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/issues`);
+  const effectiveProjectId = getEffectiveProjectId(projectId);
+  const url = new URL(`${GITLAB_API_URL}/projects/${encodeURIComponent(effectiveProjectId)}/issues`);
 
   // Add all query parameters
   Object.entries(options).forEach(([key, value]) => {
@@ -1064,7 +1079,7 @@ async function listMergeRequests(
   options: Omit<z.infer<typeof ListMergeRequestsSchema>, "project_id"> = {}
 ): Promise<GitLabMergeRequest[]> {
   projectId = decodeURIComponent(projectId); // Decode project ID
-  const url = new URL(`${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/merge_requests`);
+  const url = new URL(`${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/merge_requests`);
 
   // Add all query parameters
   Object.entries(options).forEach(([key, value]) => {
@@ -1098,7 +1113,7 @@ async function listMergeRequests(
 async function getIssue(projectId: string, issueIid: number): Promise<GitLabIssue> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/issues/${issueIid}`
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/issues/${issueIid}`
   );
 
   const response = await fetch(url.toString(), {
@@ -1126,7 +1141,7 @@ async function updateIssue(
 ): Promise<GitLabIssue> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/issues/${issueIid}`
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/issues/${issueIid}`
   );
 
   // Convert labels array to comma-separated string if present
@@ -1157,7 +1172,7 @@ async function updateIssue(
 async function deleteIssue(projectId: string, issueIid: number): Promise<void> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/issues/${issueIid}`
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/issues/${issueIid}`
   );
 
   const response = await fetch(url.toString(), {
@@ -1182,7 +1197,7 @@ async function listIssueLinks(
 ): Promise<GitLabIssueWithLinkDetails[]> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/issues/${issueIid}/links`
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/issues/${issueIid}/links`
   );
 
   const response = await fetch(url.toString(), {
@@ -1211,7 +1226,7 @@ async function getIssueLink(
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
     `${GITLAB_API_URL}/projects/${encodeURIComponent(
-      projectId
+      getEffectiveProjectId(projectId)
     )}/issues/${issueIid}/links/${issueLinkId}`
   );
 
@@ -1245,7 +1260,7 @@ async function createIssueLink(
   projectId = decodeURIComponent(projectId); // Decode project ID
   targetProjectId = decodeURIComponent(targetProjectId); // Decode target project ID as well
   const url = new URL(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/issues/${issueIid}/links`
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/issues/${issueIid}/links`
   );
 
   const response = await fetch(url.toString(), {
@@ -1280,7 +1295,7 @@ async function deleteIssueLink(
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
     `${GITLAB_API_URL}/projects/${encodeURIComponent(
-      projectId
+      getEffectiveProjectId(projectId)
     )}/issues/${issueIid}/links/${issueLinkId}`
   );
 
@@ -1305,7 +1320,7 @@ async function createMergeRequest(
   options: z.infer<typeof CreateMergeRequestOptionsSchema>
 ): Promise<GitLabMergeRequest> {
   projectId = decodeURIComponent(projectId); // Decode project ID
-  const url = new URL(`${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/merge_requests`);
+  const url = new URL(`${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/merge_requests`);
 
   const response = await fetch(url.toString(), {
     ...DEFAULT_FETCH_CONFIG,
@@ -1358,7 +1373,7 @@ async function listDiscussions(
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
     `${GITLAB_API_URL}/projects/${encodeURIComponent(
-      projectId
+      getEffectiveProjectId(projectId)
     )}/${resourceType}/${resourceIid}/discussions`
   );
 
@@ -1457,7 +1472,7 @@ async function updateMergeRequestNote(
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
     `${GITLAB_API_URL}/projects/${encodeURIComponent(
-      projectId
+      getEffectiveProjectId(projectId)
     )}/merge_requests/${mergeRequestIid}/discussions/${discussionId}/notes/${noteId}`
   );
 
@@ -1499,7 +1514,7 @@ async function updateIssueNote(
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
     `${GITLAB_API_URL}/projects/${encodeURIComponent(
-      projectId
+      getEffectiveProjectId(projectId)
     )}/issues/${issueIid}/discussions/${discussionId}/notes/${noteId}`
   );
 
@@ -1535,7 +1550,7 @@ async function createIssueNote(
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
     `${GITLAB_API_URL}/projects/${encodeURIComponent(
-      projectId
+      getEffectiveProjectId(projectId)
     )}/issues/${issueIid}/discussions/${discussionId}/notes`
   );
 
@@ -1576,7 +1591,7 @@ async function createMergeRequestNote(
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
     `${GITLAB_API_URL}/projects/${encodeURIComponent(
-      projectId
+      getEffectiveProjectId(projectId)
     )}/merge_requests/${mergeRequestIid}/discussions/${discussionId}/notes`
   );
 
@@ -1621,7 +1636,7 @@ async function createOrUpdateFile(
   projectId = decodeURIComponent(projectId); // Decode project ID
   const encodedPath = encodeURIComponent(filePath);
   const url = new URL(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/repository/files/${encodedPath}`
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/repository/files/${encodedPath}`
   );
 
   const body: Record<string, any> = {
@@ -1699,7 +1714,7 @@ async function createTree(
 ): Promise<GitLabTree> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/repository/tree`
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/repository/tree`
   );
 
   if (ref) {
@@ -1750,7 +1765,7 @@ async function createCommit(
 ): Promise<GitLabCommit> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/repository/commits`
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/repository/commits`
   );
 
   const response = await fetch(url.toString(), {
@@ -1879,13 +1894,13 @@ async function getMergeRequest(
   if (mergeRequestIid) {
     url = new URL(
       `${GITLAB_API_URL}/projects/${encodeURIComponent(
-        projectId
+        getEffectiveProjectId(projectId)
       )}/merge_requests/${mergeRequestIid}`
     );
   } else if (branchName) {
     url = new URL(
       `${GITLAB_API_URL}/projects/${encodeURIComponent(
-        projectId
+        getEffectiveProjectId(projectId)
       )}/merge_requests?source_branch=${encodeURIComponent(branchName)}`
     );
   } else {
@@ -1936,7 +1951,7 @@ async function getMergeRequestDiffs(
 
   const url = new URL(
     `${GITLAB_API_URL}/projects/${encodeURIComponent(
-      projectId
+      getEffectiveProjectId(projectId)
     )}/merge_requests/${mergeRequestIid}/changes`
   );
 
@@ -1983,7 +1998,7 @@ async function listMergeRequestDiffs(
 
   const url = new URL(
     `${GITLAB_API_URL}/projects/${encodeURIComponent(
-      projectId
+      getEffectiveProjectId(projectId)
     )}/merge_requests/${mergeRequestIid}/diffs`
   );
 
@@ -2025,7 +2040,7 @@ async function getBranchDiffs(
   projectId = decodeURIComponent(projectId); // Decode project ID
 
   const url = new URL(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/repository/compare`
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/repository/compare`
   );
 
   url.searchParams.append("from", from);
@@ -2078,7 +2093,7 @@ async function updateMergeRequest(
   }
 
   const url = new URL(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/merge_requests/${mergeRequestIid}`
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/merge_requests/${mergeRequestIid}`
   );
 
   const response = await fetch(url.toString(), {
@@ -2112,7 +2127,7 @@ async function createNote(
   // ⚙️ 응답 타입은 GitLab API 문서에 따라 조정 가능
   const url = new URL(
     `${GITLAB_API_URL}/projects/${encodeURIComponent(
-      projectId
+      getEffectiveProjectId(projectId)
     )}/${noteableType}s/${noteableIid}/notes` // Using plural form (issues/merge_requests) as per GitLab API documentation
   );
 
@@ -2157,7 +2172,7 @@ async function createMergeRequestThread(
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
     `${GITLAB_API_URL}/projects/${encodeURIComponent(
-      projectId
+      getEffectiveProjectId(projectId)
     )}/merge_requests/${mergeRequestIid}/discussions`
   );
 
@@ -2287,7 +2302,7 @@ async function getProject(
   } = {}
 ): Promise<GitLabProject> {
   projectId = decodeURIComponent(projectId); // Decode project ID
-  const url = new URL(`${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}`);
+  const url = new URL(`${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}`);
 
   if (options.license) {
     url.searchParams.append("license", "true");
@@ -2358,7 +2373,7 @@ async function listLabels(
 ): Promise<GitLabLabel[]> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   // Construct the URL with project path
-  const url = new URL(`${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/labels`);
+  const url = new URL(`${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/labels`);
 
   // Add query parameters
   Object.entries(options).forEach(([key, value]) => {
@@ -2400,7 +2415,7 @@ async function getLabel(
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
     `${GITLAB_API_URL}/projects/${encodeURIComponent(
-      projectId
+      getEffectiveProjectId(projectId)
     )}/labels/${encodeURIComponent(String(labelId))}`
   );
 
@@ -2436,7 +2451,7 @@ async function createLabel(
   projectId = decodeURIComponent(projectId); // Decode project ID
   // Make the API request
   const response = await fetch(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/labels`,
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/labels`,
     {
       ...DEFAULT_FETCH_CONFIG,
       method: "POST",
@@ -2469,7 +2484,7 @@ async function updateLabel(
   // Make the API request
   const response = await fetch(
     `${GITLAB_API_URL}/projects/${encodeURIComponent(
-      projectId
+      getEffectiveProjectId(projectId)
     )}/labels/${encodeURIComponent(String(labelId))}`,
     {
       ...DEFAULT_FETCH_CONFIG,
@@ -2497,7 +2512,7 @@ async function deleteLabel(projectId: string, labelId: number | string): Promise
   // Make the API request
   const response = await fetch(
     `${GITLAB_API_URL}/projects/${encodeURIComponent(
-      projectId
+      getEffectiveProjectId(projectId)
     )}/labels/${encodeURIComponent(String(labelId))}`,
     {
       ...DEFAULT_FETCH_CONFIG,
@@ -2567,7 +2582,7 @@ async function listWikiPages(
   options: Omit<ListWikiPagesOptions, "project_id"> = {}
 ): Promise<GitLabWikiPage[]> {
   projectId = decodeURIComponent(projectId); // Decode project ID
-  const url = new URL(`${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/wikis`);
+  const url = new URL(`${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/wikis`);
   if (options.page) url.searchParams.append("page", options.page.toString());
   if (options.per_page) url.searchParams.append("per_page", options.per_page.toString());
   if (options.with_content)
@@ -2586,7 +2601,7 @@ async function listWikiPages(
 async function getWikiPage(projectId: string, slug: string): Promise<GitLabWikiPage> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const response = await fetch(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/wikis/${encodeURIComponent(slug)}`,
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/wikis/${encodeURIComponent(slug)}`,
     { ...DEFAULT_FETCH_CONFIG }
   );
   await handleGitLabError(response);
@@ -2607,7 +2622,7 @@ async function createWikiPage(
   const body: Record<string, any> = { title, content };
   if (format) body.format = format;
   const response = await fetch(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/wikis`,
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/wikis`,
     {
       ...DEFAULT_FETCH_CONFIG,
       method: "POST",
@@ -2635,7 +2650,7 @@ async function updateWikiPage(
   if (content) body.content = content;
   if (format) body.format = format;
   const response = await fetch(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/wikis/${encodeURIComponent(slug)}`,
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/wikis/${encodeURIComponent(slug)}`,
     {
       ...DEFAULT_FETCH_CONFIG,
       method: "PUT",
@@ -2653,7 +2668,7 @@ async function updateWikiPage(
 async function deleteWikiPage(projectId: string, slug: string): Promise<void> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const response = await fetch(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/wikis/${encodeURIComponent(slug)}`,
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/wikis/${encodeURIComponent(slug)}`,
     {
       ...DEFAULT_FETCH_CONFIG,
       method: "DELETE",
@@ -2674,7 +2689,7 @@ async function listPipelines(
   options: Omit<ListPipelinesOptions, "project_id"> = {}
 ): Promise<GitLabPipeline[]> {
   projectId = decodeURIComponent(projectId); // Decode project ID
-  const url = new URL(`${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/pipelines`);
+  const url = new URL(`${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/pipelines`);
 
   // Add all query parameters
   Object.entries(options).forEach(([key, value]) => {
@@ -2702,7 +2717,7 @@ async function listPipelines(
 async function getPipeline(projectId: string, pipelineId: number): Promise<GitLabPipeline> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/pipelines/${pipelineId}`
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/pipelines/${pipelineId}`
   );
 
   const response = await fetch(url.toString(), {
@@ -2733,7 +2748,7 @@ async function listPipelineJobs(
 ): Promise<GitLabPipelineJob[]> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/pipelines/${pipelineId}/jobs`
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/pipelines/${pipelineId}/jobs`
   );
 
   // Add all query parameters
@@ -2761,7 +2776,7 @@ async function listPipelineJobs(
 }
 async function getPipelineJob(projectId: string, jobId: number): Promise<GitLabPipelineJob> {
   projectId = decodeURIComponent(projectId); // Decode project ID
-  const url = new URL(`${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/jobs/${jobId}`);
+  const url = new URL(`${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/jobs/${jobId}`);
 
   const response = await fetch(url.toString(), {
     ...DEFAULT_FETCH_CONFIG,
@@ -2788,7 +2803,7 @@ async function getPipelineJob(projectId: string, jobId: number): Promise<GitLabP
 async function getPipelineJobOutput(projectId: string, jobId: number, limit?: number, offset?: number): Promise<string> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/jobs/${jobId}/trace`
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/jobs/${jobId}/trace`
   );
 
   const response = await fetch(url.toString(), {
@@ -2849,7 +2864,7 @@ async function createPipeline(
   variables?: Array<{ key: string; value: string }>
 ): Promise<GitLabPipeline> {
   projectId = decodeURIComponent(projectId); // Decode project ID
-  const url = new URL(`${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/pipeline`);
+  const url = new URL(`${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/pipeline`);
 
   const body: any = { ref };
   if (variables && variables.length > 0) {
@@ -2883,7 +2898,7 @@ async function createPipeline(
 async function retryPipeline(projectId: string, pipelineId: number): Promise<GitLabPipeline> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/pipelines/${pipelineId}/retry`
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/pipelines/${pipelineId}/retry`
   );
 
   const response = await fetch(url.toString(), {
@@ -2906,7 +2921,7 @@ async function retryPipeline(projectId: string, pipelineId: number): Promise<Git
 async function cancelPipeline(projectId: string, pipelineId: number): Promise<GitLabPipeline> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/pipelines/${pipelineId}/cancel`
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/pipelines/${pipelineId}/cancel`
   );
 
   const response = await fetch(url.toString(), {
@@ -2975,7 +2990,7 @@ async function listProjectMilestones(
   options: Omit<z.infer<typeof ListProjectMilestonesSchema>, "project_id">
 ): Promise<GitLabMilestones[]> {
   projectId = decodeURIComponent(projectId);
-  const url = new URL(`${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/milestones`);
+  const url = new URL(`${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/milestones`);
 
   Object.entries(options).forEach(([key, value]) => {
     if (value !== undefined) {
@@ -3009,7 +3024,7 @@ async function getProjectMilestone(
 ): Promise<GitLabMilestones> {
   projectId = decodeURIComponent(projectId);
   const url = new URL(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/milestones/${milestoneId}`
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/milestones/${milestoneId}`
   );
 
   const response = await fetch(url.toString(), {
@@ -3031,7 +3046,7 @@ async function createProjectMilestone(
   options: Omit<z.infer<typeof CreateProjectMilestoneSchema>, "project_id">
 ): Promise<GitLabMilestones> {
   projectId = decodeURIComponent(projectId);
-  const url = new URL(`${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/milestones`);
+  const url = new URL(`${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/milestones`);
 
   const response = await fetch(url.toString(), {
     ...DEFAULT_FETCH_CONFIG,
@@ -3057,7 +3072,7 @@ async function editProjectMilestone(
 ): Promise<GitLabMilestones> {
   projectId = decodeURIComponent(projectId);
   const url = new URL(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/milestones/${milestoneId}`
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/milestones/${milestoneId}`
   );
 
   const response = await fetch(url.toString(), {
@@ -3079,7 +3094,7 @@ async function editProjectMilestone(
 async function deleteProjectMilestone(projectId: string, milestoneId: number): Promise<void> {
   projectId = decodeURIComponent(projectId);
   const url = new URL(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/milestones/${milestoneId}`
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/milestones/${milestoneId}`
   );
 
   const response = await fetch(url.toString(), {
@@ -3098,7 +3113,7 @@ async function deleteProjectMilestone(projectId: string, milestoneId: number): P
 async function getMilestoneIssues(projectId: string, milestoneId: number): Promise<GitLabIssue[]> {
   projectId = decodeURIComponent(projectId);
   const url = new URL(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/milestones/${milestoneId}/issues`
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/milestones/${milestoneId}/issues`
   );
 
   const response = await fetch(url.toString(), {
@@ -3122,7 +3137,7 @@ async function getMilestoneMergeRequests(
   projectId = decodeURIComponent(projectId);
   const url = new URL(
     `${GITLAB_API_URL}/projects/${encodeURIComponent(
-      projectId
+      getEffectiveProjectId(projectId)
     )}/milestones/${milestoneId}/merge_requests`
   );
 
@@ -3146,7 +3161,7 @@ async function promoteProjectMilestone(
 ): Promise<GitLabMilestones> {
   projectId = decodeURIComponent(projectId);
   const url = new URL(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/milestones/${milestoneId}/promote`
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/milestones/${milestoneId}/promote`
   );
 
   const response = await fetch(url.toString(), {
@@ -3168,7 +3183,7 @@ async function getMilestoneBurndownEvents(projectId: string, milestoneId: number
   projectId = decodeURIComponent(projectId);
   const url = new URL(
     `${GITLAB_API_URL}/projects/${encodeURIComponent(
-      projectId
+      getEffectiveProjectId(projectId)
     )}/milestones/${milestoneId}/burndown_events`
   );
 
@@ -3253,7 +3268,7 @@ async function listCommits(
 ): Promise<GitLabCommit[]> {
   projectId = decodeURIComponent(projectId);
   const url = new URL(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/repository/commits`
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/repository/commits`
   );
 
   // Add query parameters
@@ -3296,7 +3311,7 @@ async function getCommit(
 ): Promise<GitLabCommit> {
   projectId = decodeURIComponent(projectId);
   const url = new URL(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/repository/commits/${encodeURIComponent(sha)}`
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/repository/commits/${encodeURIComponent(sha)}`
   );
 
   if (stats) {
@@ -3327,7 +3342,7 @@ async function getCommitDiff(
 ): Promise<GitLabMergeRequestDiff[]> {
   projectId = decodeURIComponent(projectId);
   const url = new URL(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/repository/commits/${encodeURIComponent(sha)}/diff`
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/repository/commits/${encodeURIComponent(sha)}/diff`
   );
 
   const response = await fetch(url.toString(), {
