@@ -114,8 +114,7 @@ Alternative configuration for `mcp.json`:
       "command": "npx",
       "args": ["-y", "@zereight/mcp-gitlab"],
       "env": {
-        "GITLAB_PERSONAL_ACCESS_TOKEN": "your_token_here",
-        "GITLAB_READ_ONLY_MODE": "true"
+        "GITLAB_PERSONAL_ACCESS_TOKEN": "your_token_here"
       }
     }
   }

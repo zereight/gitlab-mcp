@@ -400,7 +400,6 @@ validateGitLabToken();
 ### Environment Variables
 - `GITLAB_API_URL` - GitLab instance URL (defaults to gitlab.com)
 - `GITLAB_PERSONAL_ACCESS_TOKEN` - Authentication token
-- `GITLAB_READ_ONLY_MODE` - Filter to read-only tools when set to 'true'
 
 ### Build & Deployment
 ```bash
@@ -408,21 +407,6 @@ npm run build          # Compile TypeScript
 npm run watch          # Watch mode for development
 node build/src/index.js    # Run MCP server
 ```
-
-## Read-Only vs Write Operations
-
-### Read-Only Tools (Safe for exploration) - 5 Tools
-- `get_merge_request` - Fetch MR information
-- `get_mr_discussions` - List unresolved discussions 
-- `get_vulnerabilities_by_ids` - Get vulnerability data
-- `get_failed_test_cases` - Get test failure data
-- `get_issue` - **NEW** - Get issue information
-
-### Write Tools (Require caution) - 4 Tools
-- `create_merge_request_note` - Adds comments/replies
-- `update_merge_request` - Modifies MR properties
-- `create_issue` - **NEW** - Creates new issues
-- `update_issue` - **NEW** - Modifies issue properties
 
 ## Development Workflow
 

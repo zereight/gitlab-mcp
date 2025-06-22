@@ -73,14 +73,6 @@ export const allTools = [
   },
 ];
 
-// Define which tools are read-only - Extended version (5 read-only tools)
-export const readOnlyTools = [
-  "get_merge_request",
-  "get_mr_discussions",
-  "get_vulnerabilities_by_ids",
-  "get_failed_test_cases",
-  "get_issue",
-];
 
 // Define which tools are related to wiki and can be toggled by USE_GITLAB_WIKI - Extended version (no wiki tools)
 export const wikiToolNames: string[] = []; 
