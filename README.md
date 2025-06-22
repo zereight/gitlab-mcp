@@ -50,7 +50,7 @@ This format helps AI assistants understand when there's more data to retrieve.
 
 **Merge Request Management:**
 - `get_merge_request` - Retrieve MR details by ID or branch name
-- `mr_discussions` - Get paginated unresolved discussions  
+- `get_mr_discussions` - Get paginated unresolved discussions  
 - `create_merge_request_note` - Add replies to discussion threads
 - `update_merge_request` - Modify MR properties and labels
 
@@ -114,8 +114,7 @@ Alternative configuration for `mcp.json`:
       "command": "npx",
       "args": ["-y", "@zereight/mcp-gitlab"],
       "env": {
-        "GITLAB_PERSONAL_ACCESS_TOKEN": "your_token_here",
-        "GITLAB_READ_ONLY_MODE": "true"
+        "GITLAB_PERSONAL_ACCESS_TOKEN": "your_token_here"
       }
     }
   }

@@ -1,12 +1,12 @@
-// Re-export all schemas and types needed for our 9 MCP tools
+// Re-export all schemas and types needed for our 11 MCP tools
 
 // Base schemas
 export * from "./base.js";
 
-// Merge Request schemas (3 tools: get_merge_request, update_merge_request)
+// Merge Request schemas (4 tools: get_merge_request, update_merge_request, create_merge_request)
 export * from "./merge-requests.js";
 
-// Discussion schemas (2 tools: mr_discussions, create_merge_request_note)
+// Discussion schemas (3 tools: get_mr_discussions, reply_to_thread, create_merge_request_note)
 export * from "./discussions.js";
 
 // Vulnerability schemas (1 tool: get_vulnerabilities_by_ids)

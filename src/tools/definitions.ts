@@ -1,18 +1,20 @@
-// Tool definitions for the 9 exposed GitLab MCP tools
+// Tool definitions for the 11 exposed GitLab MCP tools
 import { zodToJsonSchema } from 'zod-to-json-schema';
 import {
   GetMergeRequestSchema,
   ListMergeRequestDiscussionsSchema,
-  CreateMergeRequestNoteSchema,
+  ReplyToThreadSchema,
   UpdateMergeRequestSchema,
   GetVulnerabilitiesByIdsSchema,
   GetFailedTestReportSchema,
   CreateIssueSchema,
   GetIssueSchema,
-  UpdateIssueSchema
+  UpdateIssueSchema,
+  CreateMergeRequestSchema,
+  CreateMergeRequestNoteSchema
 } from '../schemas/index.js';
 
-// Define all available tools - Extended version (9 tools)
+// Define all available tools - Extended version (11 tools)
 export const allTools = [
   {
     name: "get_merge_request",
@@ -20,14 +22,14 @@ export const allTools = [
     inputSchema: zodToJsonSchema(GetMergeRequestSchema),
   },
   {
-    name: "mr_discussions",
-    description: "List unresolved diff discussions with pagination - List discussion items for a merge request filtered for unresolved diff notes (DiffNote type, resolvable=true, resolved=false). Returns paginated results with metadata.",
+    name: "get_mr_discussions",
+    description: "Get code review comments that need responses - Lists unresolved discussion threads on specific code lines in a merge request. Perfect for finding comments from reviewers that require action or replies.",
     inputSchema: zodToJsonSchema(ListMergeRequestDiscussionsSchema),
   },
   {
-    name: "create_merge_request_note",
-    description: "Add MR notes - Add a reply note to an existing merge request thread",
-    inputSchema: zodToJsonSchema(CreateMergeRequestNoteSchema),
+    name: "reply_to_thread",
+    description: "Reply to an existing merge request discussion thread",
+    inputSchema: zodToJsonSchema(ReplyToThreadSchema),
   },
   {
     name: "update_merge_request",
@@ -59,16 +61,18 @@ export const allTools = [
     description: "Update an existing issue - modify title, description, assignees, labels, state, etc.",
     inputSchema: zodToJsonSchema(UpdateIssueSchema),
   },
+  {
+    name: "create_merge_request",
+    description: "Create a new merge request in a GitLab project",
+    inputSchema: zodToJsonSchema(CreateMergeRequestSchema),
+  },
+  {
+    name: "create_merge_request_note",
+    description: "Create a new note on a merge request (resolvable=false, optionally on specific diff lines)",
+    inputSchema: zodToJsonSchema(CreateMergeRequestNoteSchema),
+  },
 ];
 
-// Define which tools are read-only - Extended version (5 read-only tools)
-export const readOnlyTools = [
-  "get_merge_request",
-  "mr_discussions",
-  "get_vulnerabilities_by_ids",
-  "get_failed_test_cases",
-  "get_issue",
-];
 
 // Define which tools are related to wiki and can be toggled by USE_GITLAB_WIKI - Extended version (no wiki tools)
 export const wikiToolNames: string[] = []; 

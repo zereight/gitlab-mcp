@@ -1,22 +1,18 @@
 import { z } from "zod";
-import { GitLabUserSchema } from "./base.js";
+import { GitLabUserSchema, ProjectParamsSchema } from "./base.js";
 
 // Optimized Discussion Note schema - only essential fields for AI code review responses
 export const OptimizedGitLabDiscussionNoteSchema = z.object({
   id: z.number(),
-  type: z.enum(["DiscussionNote", "DiffNote", "Note"]).nullable(),
   body: z.string(),
   author: z.object({
     username: z.string(),
   }),
-  created_at: z.string(),
   resolvable: z.boolean().optional(),
   resolved: z.boolean().optional(),
   position: z.object({
     new_path: z.string(),
-    old_path: z.string(),
     new_line: z.number().nullable(),
-    old_line: z.number().nullable(),
   }).optional(),
 });
 
@@ -89,19 +85,15 @@ export function streamlineDiscussion(fullDiscussion: any): z.infer<typeof Optimi
     id: fullDiscussion.id,
     notes: fullDiscussion.notes?.map((note: any) => ({
       id: note.id,
-      type: note.type,
       body: note.body,
       author: {
         username: note.author?.username,
       },
-      created_at: note.created_at,
       resolvable: note.resolvable,
       resolved: note.resolved,
       position: note.position ? {
         new_path: note.position.new_path,
-        old_path: note.position.old_path,
         new_line: note.position.new_line,
-        old_line: note.position.old_line,
       } : undefined,
     })) || [],
   };
@@ -116,9 +108,27 @@ export const PaginatedDiscussionResponseSchema = z.object({
   discussions: z.array(OptimizedGitLabDiscussionSchema).describe("Discussions for current page"),
 });
 
+// Schema for creating a new merge request note/discussion
+export const CreateMergeRequestNoteSchema = ProjectParamsSchema.extend({
+  merge_request_iid: z.number().describe("The IID of a merge request"),
+  body: z.string().describe("The content of the note"),
+  position: z.object({
+    base_sha: z.string().describe("Base commit SHA in the source branch"),
+    head_sha: z.string().describe("SHA referencing HEAD of the source branch"),
+    start_sha: z.string().describe("SHA referencing commit in the target branch"),
+    position_type: z.enum(["text", "image", "file"]).describe("Type of position reference"),
+    new_path: z.string().optional().describe("File path after change"),
+    old_path: z.string().optional().describe("File path before change"),
+    new_line: z.number().nullable().optional().describe("Line number after change"),
+    old_line: z.number().nullable().optional().describe("Line number before change"),
+  }).optional().describe("Position when creating a diff note"),
+  created_at: z.string().optional().describe("Date the note was created at (ISO 8601 format)"),
+});
+
 // Types
 export type GitLabDiscussionNote = z.infer<typeof GitLabDiscussionNoteSchema>;
 export type OptimizedGitLabDiscussionNote = z.infer<typeof OptimizedGitLabDiscussionNoteSchema>;
 export type GitLabDiscussion = z.infer<typeof GitLabDiscussionSchema>;
 export type OptimizedGitLabDiscussion = z.infer<typeof OptimizedGitLabDiscussionSchema>;
-export type PaginatedDiscussionResponse = z.infer<typeof PaginatedDiscussionResponseSchema>; 
+export type PaginatedDiscussionResponse = z.infer<typeof PaginatedDiscussionResponseSchema>;
+export type CreateMergeRequestNoteOptions = z.infer<typeof CreateMergeRequestNoteSchema>; 

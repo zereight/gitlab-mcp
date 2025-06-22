@@ -21,14 +21,18 @@ import {
   PaginatedDiscussionResponseSchema,
   GetMergeRequestSchema,
   ListMergeRequestDiscussionsSchema,
-  CreateMergeRequestNoteSchema,
+  ReplyToThreadSchema,
   UpdateMergeRequestSchema,
+  CreateMergeRequestSchema,
+  CreateMergeRequestNoteSchema,
   type GitLabMergeRequest,
   type OptimizedGitLabMergeRequest,
   type GitLabDiscussion,
   type OptimizedGitLabDiscussion,
   type GitLabDiscussionNote,
-  type PaginatedDiscussionResponse
+  type PaginatedDiscussionResponse,
+  type CreateMergeRequestOptions,
+  type CreateMergeRequestNoteOptions
 } from '../schemas/index.js';
 
 /**
@@ -71,7 +75,7 @@ export async function getMergeRequest(
 
 /**
  * List unresolved diff discussions for a merge request with pagination
- * (for mr_discussions tool)
+ * (for get_mr_discussions tool)
  */
 export async function listMergeRequestDiscussions(
   projectId: string,
@@ -126,10 +130,10 @@ export async function listMergeRequestDiscussions(
 }
 
 /**
- * Create a reply note to an existing merge request thread
- * (for create_merge_request_note tool)
+ * Reply to an existing merge request thread
+ * (for reply_to_thread tool)
  */
-export async function createMergeRequestNote(
+export async function replyToThread(
   projectId: string,
   mergeRequestIid: number,
   discussionId: string,
@@ -197,4 +201,64 @@ export async function updateMergeRequest(
   const data = await response.json();
   const fullMR = GitLabMergeRequestSchema.parse(data);
   return streamlineMergeRequest(fullMR);
+}
+
+/**
+ * Create a new merge request
+ * (for create_merge_request tool)
+ */
+export async function createMergeRequest(
+  projectId: string,
+  options: Omit<CreateMergeRequestOptions, "project_id">
+): Promise<OptimizedGitLabMergeRequest> {
+  validateGitLabToken();
+  projectId = decodeURIComponent(projectId);
+
+  const url = `${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/merge_requests`;
+
+  const response = await fetch(url, {
+    ...DEFAULT_FETCH_CONFIG,
+    method: "POST",
+    body: JSON.stringify(options),
+  });
+
+  await handleGitLabError(response);
+  const data = await response.json();
+  const fullMR = GitLabMergeRequestSchema.parse(data);
+  return streamlineMergeRequest(fullMR);
+}
+
+/**
+ * Create a new note on a merge request (resolvable = false)
+ * (for create_merge_request_note tool)
+ */
+export async function createMergeRequestNote(
+  projectId: string,
+  mergeRequestIid: number,
+  body: string,
+  position?: CreateMergeRequestNoteOptions['position'],
+  createdAt?: string
+): Promise<GitLabDiscussionNote> {
+  validateGitLabToken();
+  projectId = decodeURIComponent(projectId);
+
+  const url = `${GITLAB_API_URL}/projects/${encodeURIComponent(projectId)}/merge_requests/${mergeRequestIid}/notes`;
+
+  const requestBody: any = { body };
+  if (position) {
+    requestBody.position = position;
+  }
+  if (createdAt) {
+    requestBody.created_at = createdAt;
+  }
+
+  const response = await fetch(url, {
+    ...DEFAULT_FETCH_CONFIG,
+    method: "POST",
+    body: JSON.stringify(requestBody),
+  });
+
+  await handleGitLabError(response);
+  const data = await response.json();
+  return GitLabDiscussionNoteSchema.parse(data);
 } 

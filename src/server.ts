@@ -1,4 +1,4 @@
-// MCP server setup and request handlers for the 9 exposed GitLab tools
+// MCP server setup and request handlers for the 11 exposed GitLab tools
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import {
@@ -10,10 +10,9 @@ import { dirname } from 'path';
 import fs from 'fs';
 import path from 'path';
 import { GITLAB_API_URL } from './config/gitlab.js';
-import { allTools, readOnlyTools, wikiToolNames, handleToolCall } from './tools/index.js';
+import { allTools, wikiToolNames, handleToolCall } from './tools/index.js';
 
 // Environment variables for tool filtering
-const GITLAB_READ_ONLY_MODE = process.env.GITLAB_READ_ONLY_MODE === "true";
 const USE_GITLAB_WIKI = process.env.USE_GITLAB_WIKI === "true";
 
 /**
@@ -49,15 +48,10 @@ const server = new Server(
 export function setupServer() {
   // Handle list tools requests
   server.setRequestHandler(ListToolsRequestSchema, async () => {
-    // Apply read-only filter first
-    const tools0 = GITLAB_READ_ONLY_MODE
-      ? allTools.filter((tool) => readOnlyTools.includes(tool.name))
-      : allTools;
-      
-    // Toggle wiki tools by USE_GITLAB_WIKI flag (currently no wiki tools in the 9 exposed)
+    // Toggle wiki tools by USE_GITLAB_WIKI flag (currently no wiki tools in the 11 exposed)
     let tools = USE_GITLAB_WIKI
-      ? tools0
-      : tools0.filter((tool) => !wikiToolNames.includes(tool.name));
+      ? allTools
+      : allTools.filter((tool) => !wikiToolNames.includes(tool.name));
 
     // Remove $schema for Gemini compatibility
     tools = tools.map((tool) => {

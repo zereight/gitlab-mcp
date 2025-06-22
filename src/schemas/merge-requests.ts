@@ -3,9 +3,7 @@ import { GitLabUserSchema, GitLabHeadPipelineSchema, GitLabMergeRequestDiffRefSc
 
 // Optimized Merge Request schema - only essential fields for AI agents
 export const OptimizedGitLabMergeRequestSchema = z.object({
-  id: z.number(),
   iid: z.number(),
-  project_id: z.number(),
   title: z.string(),
   description: z.string().nullable(),
   state: z.string(),
@@ -28,11 +26,6 @@ export const OptimizedGitLabMergeRequestSchema = z.object({
   web_url: z.string(),
   created_at: z.string(),
   updated_at: z.string(),
-  merged_at: z.string().nullable(),
-  closed_at: z.string().nullable(),
-  changes_count: z.string().nullable().optional(),
-  merge_when_pipeline_succeeds: z.boolean().optional(),
-  squash: z.boolean().optional(),
   labels: z.array(z.string()).optional(),
 });
 
@@ -78,9 +71,7 @@ export const GitLabMergeRequestSchema = z.object({
  */
 export function streamlineMergeRequest(fullMR: any): z.infer<typeof OptimizedGitLabMergeRequestSchema> {
   return {
-    id: fullMR.id,
     iid: fullMR.iid,
-    project_id: fullMR.project_id,
     title: fullMR.title,
     description: fullMR.description,
     state: fullMR.state,
@@ -103,11 +94,6 @@ export function streamlineMergeRequest(fullMR: any): z.infer<typeof OptimizedGit
     web_url: fullMR.web_url,
     created_at: fullMR.created_at,
     updated_at: fullMR.updated_at,
-    merged_at: fullMR.merged_at,
-    closed_at: fullMR.closed_at,
-    changes_count: fullMR.changes_count,
-    merge_when_pipeline_succeeds: fullMR.merge_when_pipeline_succeeds,
-    squash: fullMR.squash,
     labels: fullMR.labels,
   };
 }
@@ -126,7 +112,7 @@ export const ListMergeRequestDiscussionsSchema = ProjectParamsSchema.extend({
   per_page: z.number().optional().describe("Discussions per page (default: 20, max: 50)"),
 });
 
-export const CreateMergeRequestNoteSchema = ProjectParamsSchema.extend({
+export const ReplyToThreadSchema = ProjectParamsSchema.extend({
   merge_request_iid: z.number().describe("The IID of a merge request"),
   discussion_id: z.string().describe("The ID of a thread"),
   body: z.string().describe("The content of the note or reply"),
@@ -147,6 +133,19 @@ export const UpdateMergeRequestSchema = ProjectParamsSchema.extend({
   draft: z.boolean().optional().describe("Work in progress merge request"),
 });
 
+// Input schema for creating a merge request
+export const CreateMergeRequestSchema = ProjectParamsSchema.extend({
+  title: z.string().describe("The title of the merge request"),
+  description: z.string().optional().describe("The description of the merge request"),
+  source_branch: z.string().describe("The name of the source branch"),
+  target_branch: z.string().describe("The name of the target branch"),
+  draft: z.boolean().optional().describe("Mark the merge request as a draft"),
+  allow_collaboration: z.boolean().optional().describe("Allow commits from members who can merge to the target branch"),
+  assignee_ids: z.array(z.number()).optional().describe("The ID of the users to assign the MR to"),
+  labels: z.array(z.string()).optional().describe("Labels for the MR"),
+});
+
 // Types
 export type GitLabMergeRequest = z.infer<typeof GitLabMergeRequestSchema>;
-export type OptimizedGitLabMergeRequest = z.infer<typeof OptimizedGitLabMergeRequestSchema>; 
+export type OptimizedGitLabMergeRequest = z.infer<typeof OptimizedGitLabMergeRequestSchema>;
+export type CreateMergeRequestOptions = z.infer<typeof CreateMergeRequestSchema>; 
