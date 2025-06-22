@@ -3,9 +3,7 @@ import { GitLabUserSchema, GitLabHeadPipelineSchema, GitLabMergeRequestDiffRefSc
 
 // Optimized Merge Request schema - only essential fields for AI agents
 export const OptimizedGitLabMergeRequestSchema = z.object({
-  id: z.number(),
   iid: z.number(),
-  project_id: z.number(),
   title: z.string(),
   description: z.string().nullable(),
   state: z.string(),
@@ -28,11 +26,6 @@ export const OptimizedGitLabMergeRequestSchema = z.object({
   web_url: z.string(),
   created_at: z.string(),
   updated_at: z.string(),
-  merged_at: z.string().nullable(),
-  closed_at: z.string().nullable(),
-  changes_count: z.string().nullable().optional(),
-  merge_when_pipeline_succeeds: z.boolean().optional(),
-  squash: z.boolean().optional(),
   labels: z.array(z.string()).optional(),
 });
 
@@ -78,9 +71,7 @@ export const GitLabMergeRequestSchema = z.object({
  */
 export function streamlineMergeRequest(fullMR: any): z.infer<typeof OptimizedGitLabMergeRequestSchema> {
   return {
-    id: fullMR.id,
     iid: fullMR.iid,
-    project_id: fullMR.project_id,
     title: fullMR.title,
     description: fullMR.description,
     state: fullMR.state,
@@ -103,11 +94,6 @@ export function streamlineMergeRequest(fullMR: any): z.infer<typeof OptimizedGit
     web_url: fullMR.web_url,
     created_at: fullMR.created_at,
     updated_at: fullMR.updated_at,
-    merged_at: fullMR.merged_at,
-    closed_at: fullMR.closed_at,
-    changes_count: fullMR.changes_count,
-    merge_when_pipeline_succeeds: fullMR.merge_when_pipeline_succeeds,
-    squash: fullMR.squash,
     labels: fullMR.labels,
   };
 }

@@ -4,19 +4,15 @@ import { GitLabUserSchema, ProjectParamsSchema } from "./base.js";
 // Optimized Discussion Note schema - only essential fields for AI code review responses
 export const OptimizedGitLabDiscussionNoteSchema = z.object({
   id: z.number(),
-  type: z.enum(["DiscussionNote", "DiffNote", "Note"]).nullable(),
   body: z.string(),
   author: z.object({
     username: z.string(),
   }),
-  created_at: z.string(),
   resolvable: z.boolean().optional(),
   resolved: z.boolean().optional(),
   position: z.object({
     new_path: z.string(),
-    old_path: z.string(),
     new_line: z.number().nullable(),
-    old_line: z.number().nullable(),
   }).optional(),
 });
 
@@ -89,19 +85,15 @@ export function streamlineDiscussion(fullDiscussion: any): z.infer<typeof Optimi
     id: fullDiscussion.id,
     notes: fullDiscussion.notes?.map((note: any) => ({
       id: note.id,
-      type: note.type,
       body: note.body,
       author: {
         username: note.author?.username,
       },
-      created_at: note.created_at,
       resolvable: note.resolvable,
       resolved: note.resolved,
       position: note.position ? {
         new_path: note.position.new_path,
-        old_path: note.position.old_path,
         new_line: note.position.new_line,
-        old_line: note.position.old_line,
       } : undefined,
     })) || [],
   };
