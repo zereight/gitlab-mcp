@@ -57,7 +57,7 @@ src/
 
 ### Merge Request Tools (4)
 1. **`get_merge_request`** - Get MR metadata (supports IID or branch name)
-2. **`mr_discussions`** - List **unresolved** diff discussions only
+2. **`get_mr_discussions`** - List **unresolved** diff discussions only
 3. **`create_merge_request_note`** - Add replies to MR threads
 4. **`update_merge_request`** - Update MR properties including labels
 
@@ -89,7 +89,7 @@ src/
 - ✅ Pipeline status: `head_pipeline.status`
 - ❌ Removed: avatar URLs, diff refs, collaboration flags, SHA hashes
 
-### `mr_discussions` 💬 **CODE REVIEW TOOL**
+### `get_mr_discussions` 💬 **CODE REVIEW TOOL**
 **Purpose**: List **unresolved** diff discussions for code review responses
 
 **Parameters**:
@@ -252,7 +252,7 @@ const mr = await tools.get_merge_request({
 });
 
 // 2. Get unresolved discussions
-const discussions = await tools.mr_discussions({
+const discussions = await tools.get_mr_discussions({
   project_id: "my-project",
   merge_request_iid: mr.iid
 });
@@ -355,7 +355,7 @@ const optimizedMR = streamlineMergeRequest(fullMR);
 
 ### Function Naming
 - API functions: `camelCase` (e.g., `getMergeRequest`, `listMergeRequestDiscussions`)
-- Tool names: `snake_case` (e.g., `get_merge_request`, `mr_discussions`)
+- Tool names: `snake_case` (e.g., `get_merge_request`, `get_mr_discussions`)
 - Schema names: `PascalCase` + `Schema` suffix (e.g., `OptimizedGitLabMergeRequestSchema`)
 
 ### Error Handling
@@ -413,7 +413,7 @@ node build/src/index.js    # Run MCP server
 
 ### Read-Only Tools (Safe for exploration) - 5 Tools
 - `get_merge_request` - Fetch MR information
-- `mr_discussions` - List unresolved discussions 
+- `get_mr_discussions` - List unresolved discussions 
 - `get_vulnerabilities_by_ids` - Get vulnerability data
 - `get_failed_test_cases` - Get test failure data
 - `get_issue` - **NEW** - Get issue information
@@ -464,7 +464,7 @@ node build/src/index.js    # Run MCP server
 3. **Check Schemas**: Reference schema descriptions for required fields
 4. **Error Context**: Include project context when errors occur
 5. **Batch Operations**: Use tools that support multiple items when possible
-6. **Focus on Unresolved**: `mr_discussions` only returns unresolved items
+6. **Focus on Unresolved**: `get_mr_discussions` only returns unresolved items
 7. **Use Branch Names**: More intuitive than MR IIDs for development workflow
 8. **Issue Workflow Integration**: Combine issue and MR tools for complete project management
 
@@ -483,7 +483,7 @@ node build/src/index.js    # Run MCP server
 - **Batch vulnerability requests**: Multiple IDs in one call for efficiency
 - **Handle optional fields**: Many fields may be null (use optional chaining)
 - **Provide context**: Include project and MR context in error messages
-- **Focus on unresolved**: `mr_discussions` automatically filters to unresolved only
+- **Focus on unresolved**: `get_mr_discussions` automatically filters to unresolved only
 - **Issue management**: Use issue tools for bug tracking and feature requests
 
 ## MCP Integration Notes

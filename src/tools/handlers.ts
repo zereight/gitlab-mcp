@@ -1,26 +1,30 @@
-// Tool handlers for the 9 exposed GitLab MCP tools
+// Tool handlers for the 11 exposed GitLab MCP tools
 import * as z from 'zod';
 import {
   getMergeRequest,
   listMergeRequestDiscussions,
-  createMergeRequestNote,
+  replyToThread,
   updateMergeRequest,
   getVulnerabilitiesByIds,
   getFailedTestCases,
   createIssue,
   getIssue,
-  updateIssue
+  updateIssue,
+  createMergeRequest,
+  createMergeRequestNote
 } from '../api/index.js';
 import {
   GetMergeRequestSchema,
   ListMergeRequestDiscussionsSchema,
-  CreateMergeRequestNoteSchema,
+  ReplyToThreadSchema,
   UpdateMergeRequestSchema,
   GetVulnerabilitiesByIdsSchema,
   GetFailedTestReportSchema,
   CreateIssueSchema,
   GetIssueSchema,
-  UpdateIssueSchema
+  UpdateIssueSchema,
+  CreateMergeRequestSchema,
+  CreateMergeRequestNoteSchema
 } from '../schemas/index.js';
 
 // Type for MCP tool call request
@@ -38,7 +42,7 @@ interface ToolResponse {
 }
 
 /**
- * Handle tool requests for the 9 exposed GitLab MCP tools
+ * Handle tool requests for the 11 exposed GitLab MCP tools
  */
 export async function handleToolCall(request: ToolCallRequest): Promise<ToolResponse> {
   try {
@@ -61,7 +65,7 @@ export async function handleToolCall(request: ToolCallRequest): Promise<ToolResp
         };
       }
 
-      case "mr_discussions": {
+      case "get_mr_discussions": {
         const args = ListMergeRequestDiscussionsSchema.parse(
           request.params.arguments
         );
@@ -78,11 +82,11 @@ export async function handleToolCall(request: ToolCallRequest): Promise<ToolResp
         };
       }
 
-      case "create_merge_request_note": {
-        const args = CreateMergeRequestNoteSchema.parse(
+      case "reply_to_thread": {
+        const args = ReplyToThreadSchema.parse(
           request.params.arguments
         );
-        const note = await createMergeRequestNote(
+        const note = await replyToThread(
           args.project_id,
           args.merge_request_iid,
           args.discussion_id,
@@ -164,6 +168,34 @@ export async function handleToolCall(request: ToolCallRequest): Promise<ToolResp
         return {
           content: [
             { type: "text", text: JSON.stringify(issue) },
+          ],
+        };
+      }
+
+      case "create_merge_request": {
+        const args = CreateMergeRequestSchema.parse(request.params.arguments);
+        const { project_id, ...options } = args;
+        const mergeRequest = await createMergeRequest(project_id, options);
+        return {
+          content: [
+            { type: "text", text: JSON.stringify(mergeRequest) },
+          ],
+        };
+      }
+
+      case "create_merge_request_note": {
+        const args = CreateMergeRequestNoteSchema.parse(request.params.arguments);
+        const { project_id, merge_request_iid, body, position, created_at } = args;
+        const discussion = await createMergeRequestNote(
+          project_id,
+          merge_request_iid,
+          body,
+          position,
+          created_at
+        );
+        return {
+          content: [
+            { type: "text", text: JSON.stringify(discussion) },
           ],
         };
       }

@@ -126,7 +126,7 @@ export const ListMergeRequestDiscussionsSchema = ProjectParamsSchema.extend({
   per_page: z.number().optional().describe("Discussions per page (default: 20, max: 50)"),
 });
 
-export const CreateMergeRequestNoteSchema = ProjectParamsSchema.extend({
+export const ReplyToThreadSchema = ProjectParamsSchema.extend({
   merge_request_iid: z.number().describe("The IID of a merge request"),
   discussion_id: z.string().describe("The ID of a thread"),
   body: z.string().describe("The content of the note or reply"),
@@ -147,6 +147,19 @@ export const UpdateMergeRequestSchema = ProjectParamsSchema.extend({
   draft: z.boolean().optional().describe("Work in progress merge request"),
 });
 
+// Input schema for creating a merge request
+export const CreateMergeRequestSchema = ProjectParamsSchema.extend({
+  title: z.string().describe("The title of the merge request"),
+  description: z.string().optional().describe("The description of the merge request"),
+  source_branch: z.string().describe("The name of the source branch"),
+  target_branch: z.string().describe("The name of the target branch"),
+  draft: z.boolean().optional().describe("Mark the merge request as a draft"),
+  allow_collaboration: z.boolean().optional().describe("Allow commits from members who can merge to the target branch"),
+  assignee_ids: z.array(z.number()).optional().describe("The ID of the users to assign the MR to"),
+  labels: z.array(z.string()).optional().describe("Labels for the MR"),
+});
+
 // Types
 export type GitLabMergeRequest = z.infer<typeof GitLabMergeRequestSchema>;
-export type OptimizedGitLabMergeRequest = z.infer<typeof OptimizedGitLabMergeRequestSchema>; 
+export type OptimizedGitLabMergeRequest = z.infer<typeof OptimizedGitLabMergeRequestSchema>;
+export type CreateMergeRequestOptions = z.infer<typeof CreateMergeRequestSchema>; 
