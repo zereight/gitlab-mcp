@@ -64,6 +64,10 @@ $RECYCLE.BIN/
 # MCP specific
 *.mcp-debug.log
 
+# Test and development files  
+tests/
+tmp/
+
 # Optional npm cache directory
 .npm
 
