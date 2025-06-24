@@ -3406,6 +3406,9 @@ server.setRequestHandler(CallToolRequestSchema, async request => {
 
     switch (request.params.name) {
       case "fork_repository": {
+        if (GITLAB_PROJECT_ID) {
+          throw new Error("Direct project ID is set. So fork_repository is not allowed");
+        }
         const forkArgs = ForkRepositorySchema.parse(request.params.arguments);
         try {
           const forkedProject = await forkProject(forkArgs.project_id, forkArgs.namespace);
@@ -3476,6 +3479,9 @@ server.setRequestHandler(CallToolRequestSchema, async request => {
       }
 
       case "create_repository": {
+        if (GITLAB_PROJECT_ID) {
+          throw new Error("Direct project ID is set. So fork_repository is not allowed");
+        }
         const args = CreateRepositorySchema.parse(request.params.arguments);
         const repository = await createRepository(args);
         return {
