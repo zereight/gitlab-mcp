@@ -897,7 +897,14 @@ export const UpdateMergeRequestSchema = GetMergeRequestSchema.extend({
   title: z.string().optional().describe("The title of the merge request"),
   description: z.string().optional().describe("The description of the merge request"),
   target_branch: z.string().optional().describe("The target branch"),
-  assignee_ids: z.array(z.number()).optional().describe("The ID of the users to assign the MR to"),
+  assignee_ids: z
+    .array(z.number())
+    .optional()
+    .describe("The ID of the users to assign the MR to"),
+  reviewer_ids: z
+    .array(z.number())
+    .optional()
+    .describe("The ID of the users to assign as reviewers of the MR"),
   labels: z.array(z.string()).optional().describe("Labels for the MR"),
   state_event: z
     .enum(["close", "reopen"])
