@@ -1,6 +1,6 @@
 {
   "name": "@arm5556/gitlab-mcp-ai",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "AI-optimized GitLab MCP server with smart pagination and streamlined responses for better LLM integration",
   "license": "MIT",
   "author": "arm5556",
