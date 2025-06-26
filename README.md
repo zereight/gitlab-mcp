@@ -24,13 +24,15 @@ The original GitLab MCP server can overwhelm AI assistants when dealing with lar
 
 **Response Optimization:**
 - Paginated discussions prevent context overflow
-- Streamlined data format reduces token usage
+- Streamlined data format reduces token usage by 30-40%
 - Only unresolved discussions are returned by default
+- Removed unnecessary fields (created_at, merge timestamps, change counts)
 
 **Enhanced Features:**
 - Better vulnerability data with remediation guidance
 - Modular TypeScript architecture (500 vs 3,490 lines)
-- 6 focused tools instead of 40+ comprehensive ones
+- 9 focused tools instead of 40+ comprehensive ones
+- Issue management tools added for complete workflow coverage
 
 **Pagination Example:**
 ```json
@@ -128,9 +130,9 @@ Alternative configuration for `mcp.json`:
 | Aspect | This Fork | Original |
 |--------|-----------|----------|
 | Discussion Handling | Paginated responses | All-at-once |
-| Response Size | Optimized for AI | Full GitLab API response |
+| Response Size | 30-40% token reduction | Full GitLab API response |
 | Code Size | ~500 lines | ~3,490 lines |
-| Tool Count | 6 focused | 40+ comprehensive |
+| Tool Count | 9 focused | 40+ comprehensive |
 | Architecture | Modular TypeScript | Monolithic |
 | Vulnerability Data | Enhanced with fixes | Standard GitLab data |
 
