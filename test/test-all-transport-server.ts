@@ -6,7 +6,7 @@
 import * as path from 'path';
 import { describe, test, after, before } from 'node:test';
 import assert from 'node:assert';
-import { launchServer, findAvailablePort, cleanupServers, ServerInstance, TransportMode, checkHealthEndpoint } from './utils/server-launcher.js';
+import { launchServer, findAvailablePort, cleanupServers, ServerInstance, TransportMode, checkHealthEndpoint, HOST } from './utils/server-launcher.js';
 import { StdioTestClient } from './clients/stdio-client.js';
 import { SSETestClient } from './clients/sse-client.js';
 import { StreamableHTTPTestClient } from './clients/streamable-http-client.js';
@@ -172,7 +172,7 @@ describe('GitLab MCP Server - SSE Transport', () => {
     
     // Create and connect client
     client = new SSETestClient();
-    await client.connect(`http://localhost:${port}/sse`);
+    await client.connect(`http://${HOST}:${port}/sse`);
     assert.ok(client.isConnected, 'Client should be connected');
     assert.ok(await client.testConnection(), 'Connection test should pass');
     console.log('Client connected to SSE server');
@@ -248,7 +248,7 @@ describe('GitLab MCP Server - Streamable HTTP Transport', () => {
     
     // Create and connect client
     client = new StreamableHTTPTestClient();
-    await client.connect(`http://localhost:${port}/mcp`);
+    await client.connect(`http://${HOST}:${port}/mcp`);
     assert.ok(client.isConnected, 'Client should be connected');
     assert.ok(await client.testConnection(), 'Connection test should pass');
 

@@ -6,6 +6,8 @@
 import { spawn, ChildProcess } from 'child_process';
 import * as path from 'path';
 
+export const HOST = process.env.HOST || '127.0.0.1';
+
 export enum TransportMode {
   STDIO = 'stdio',
   SSE = 'sse',
@@ -240,7 +242,7 @@ export async function checkHealthEndpoint(port: number, maxRetries: number = 5):
   for (let i = 0; i < maxRetries; i++) {
     try {
       const controller = createTimeoutController(5000);
-      const response = await fetch(`http://localhost:${port}/health`, {
+      const response = await fetch(`http://${HOST}:${port}/health`, {
         method: 'GET',
         signal: controller.signal
       });
