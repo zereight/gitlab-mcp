@@ -4,8 +4,24 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
 import express, { Request, Response } from "express";
 import {mcpserver} from "./src/mcpserver.js";
+import { config } from "./src/config.js";
+import { createOAuth2Router, createTokenVerifier } from "./src/oauth.js";
+import { requireBearerAuth } from "@modelcontextprotocol/sdk/server/auth/middleware/bearerAuth.js";
 
 const SSE = process.env.SSE === "true";
+
+// ensure there is a valid configuration
+if (config.GITLAB_PERSONAL_ACCESS_TOKEN) {
+  if (config.GITLAB_OAUTH2_CLIENT_ID) {
+    console.error("only one of GITLAB_OAUTH2_CLIENT_ID or GITLAB_PERSONAL_ACCESS_TOKEN must be set");
+    process.exit(1);
+  }
+}else {
+  if(!config.GITLAB_OAUTH2_CLIENT_ID) {
+    console.error("one of GITLAB_OAUTH2_CLIENT_ID or GITLAB_PERSONAL_ACCESS_TOKEN must be set");
+    process.exit(1);
+  }
+}
 
 /**
  * Initialize and run the server
@@ -23,7 +39,23 @@ async function runServer() {
     } else {
       const app = express();
       const transports: { [sessionId: string]: SSEServerTransport } = {};
-      app.get("/sse", async (_: Request, res: Response) => {
+
+      let authMiddleware: express.RequestHandler  = (req: Request, res: Response, next: express.NextFunction) => {
+        next();
+      }
+      // if gitlab oauth client id is set, then we attempt to enable the oauth proxy
+      if (config.GITLAB_OAUTH2_CLIENT_ID) {
+        const oauth2Proxy = createOAuth2Router()
+        console.log("Gitlab OAuth2 proxy enabled");
+        app.use(oauth2Proxy);
+
+        const tokenVerifier = createTokenVerifier()
+        authMiddleware = requireBearerAuth({
+          verifier:tokenVerifier,
+        })
+      }
+
+      app.get("/sse", authMiddleware, async (req: Request, res: Response) => {
         const transport = new SSEServerTransport("/messages", res);
         transports[transport.sessionId] = transport;
         res.on("close", () => {
@@ -32,7 +64,7 @@ async function runServer() {
         await mcpserver.connect(transport);
       });
 
-      app.post("/messages", async (req: Request, res: Response) => {
+      app.post("/messages",authMiddleware,  async (req: Request, res: Response) => {
         const sessionId = req.query.sessionId as string;
         const transport = transports[sessionId];
         if (transport) {

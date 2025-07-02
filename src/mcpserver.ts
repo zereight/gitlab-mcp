@@ -597,8 +597,9 @@ server.setRequestHandler(CallToolRequestSchema, async request => {
 
     // Create GitlabSession instance
     const gitlabSession = new GitlabHandler(cookieJar);
-    await gitlabSession.ensureSessionForCookieJar();
-
+    if(cookieJar) {
+      await gitlabSession.ensureSessionForCookieJar();
+    }
     switch (request.params.name) {
       case "fork_repository": {
         if (config.GITLAB_PROJECT_ID) {

@@ -14,11 +14,25 @@ export const config = {
   // Use the normalizeGitLabApiUrl function to handle various URL formats
   GITLAB_API_URL: normalizeGitLabApiUrl(process.env.GITLAB_API_URL || ""),
   GITLAB_PROJECT_ID: process.env.GITLAB_PROJECT_ID,
+
+  // GitLab OAuth2 configuration
+  GITLAB_OAUTH2_CLIENT_ID: process.env.GITLAB_OAUTH2_CLIENT_ID,
+  GITLAB_OAUTH2_CLIENT_SECRET: process.env.GITLAB_OAUTH2_CLIENT_SECRET,
+  GITLAB_OAUTH2_REDIRECT_URL: process.env.GITLAB_OAUTH2_REDIRECT_URL,
+
+  // base url matters for the redirect url, i think?
+  GITLAB_OAUTH2_BASE_URL: process.env.GITLAB_OAUTH2_BASE_URL, // http://localhost:3002
+
+  // TODO: maybe thse can be formed based off of the ISSUER_URL? im not sure... (could introduce problems if gitlab ever changes these endpoints, though i doubt they will)
+  GITLAB_OAUTH2_TOKEN_URL: process.env.GITLAB_OAUTH2_TOKEN_URL, // https://gitlab.com/oauth/token
+  GITLAB_OAUTH2_AUTHORIZATION_URL: process.env.GITLAB_OAUTH2_AUTHORIZATION_URL, // https://gitlab.com/oauth/authorize
+  GITLAB_OAUTH2_REVOCATION_URL: process.env.GITLAB_OAUTH2_REVOCATION_URL, // https://gitlab.com/oauth/revoke
+  GITLAB_OAUTH2_INTROSPECTION_URL: process.env.GITLAB_OAUTH2_INTROSPECTION_URL, // https://gitlab.com/oauth/introspect
+  GITLAB_OAUTH2_REGISTRATION_URL: process.env.GITLAB_OAUTH2_REGISTRATION_URL, // ?
+
+  GITLAB_OAUTH2_ISSUER_URL: process.env.GITLAB_OAUTH2_ISSUER_URL, // https://gitlab.com
 }
-if (!config.GITLAB_PERSONAL_ACCESS_TOKEN) {
-  console.error("GITLAB_PERSONAL_ACCESS_TOKEN environment variable is not set");
-  process.exit(1);
-}
+
 /**
  * Smart URL handling for GitLab API
  *
