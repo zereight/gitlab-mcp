@@ -687,7 +687,7 @@ export const GitLabDiscussionNoteSchema = z.object({
   noteable_id: z.number(),
   noteable_type: z.enum(["Issue", "MergeRequest", "Snippet", "Commit", "Epic"]),
   project_id: z.number().optional(), // Optional for group-level discussions like Epics
-  noteable_iid: z.number().nullable(),
+  noteable_iid: z.coerce.number().nullable(),
   resolvable: z.boolean().optional(),
   resolved: z.boolean().optional(),
   resolved_by: GitLabUserSchema.nullable().optional(),
@@ -933,7 +933,7 @@ export const CreateNoteSchema = z.object({
   noteable_type: z
     .enum(["issue", "merge_request"])
     .describe("Type of noteable (issue or merge_request)"),
-  noteable_iid: z.number().describe("IID of the issue or merge request"),
+  noteable_iid: z.coerce.number().describe("IID of the issue or merge request"),
   body: z.string().describe("Note content"),
 });
 
