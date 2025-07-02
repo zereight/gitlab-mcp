@@ -14,19 +14,6 @@ const clientRedirectUris = new Map<string, string[]>();
 // Map OAuth state parameters to client redirect URIs
 const stateToRedirectUri = new Map<string, string>();
 
-// Clean up expired state mappings every 5 minutes
-setInterval(() => {
-  const expirationTime = 10 * 60 * 1000; // 10 minutes
-  const now = Date.now();
-  
-  // In a production system, you'd store timestamps with the state
-  // For now, we'll just clear all mappings older than the interval
-  if (stateToRedirectUri.size > 100) {
-    console.log(`Clearing ${stateToRedirectUri.size} state mappings`);
-    stateToRedirectUri.clear();
-  }
-}, 5 * 60 * 1000);
-
 // Custom provider that handles dynamic registration and maps to GitLab OAuth
 class GitLabProxyProvider extends ProxyOAuthServerProvider {
   get clientsStore() {
@@ -37,7 +24,7 @@ class GitLabProxyProvider extends ProxyOAuthServerProvider {
         if (client) {
           return client;
         }
-        
+
         // Check if this is the actual GitLab client
         if (clientId === config.GITLAB_OAUTH2_CLIENT_ID) {
           return {
@@ -49,17 +36,17 @@ class GitLabProxyProvider extends ProxyOAuthServerProvider {
             token_endpoint_auth_method: 'client_secret_post'
           };
         }
-        
+
         return undefined;
       },
-      
+
       registerClient: async (clientMetadata: any) => {
         // Generate a unique client ID for this MCP client
         const clientId = `mcp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-        
+
         // Store the client's redirect URIs
         clientRedirectUris.set(clientId, clientMetadata.redirect_uris || []);
-        
+
         // Create the client registration
         const client: OAuthClientInformationFull = {
           ...clientMetadata,
@@ -70,15 +57,15 @@ class GitLabProxyProvider extends ProxyOAuthServerProvider {
           response_types: clientMetadata.response_types || ['code'],
           token_endpoint_auth_method: clientMetadata.token_endpoint_auth_method || 'client_secret_post'
         };
-        
+
         // Store the client
         clientRegistry.set(clientId, client);
-        
+
         return client;
       }
     };
   }
-  
+
   // Override authorization to use GitLab OAuth credentials
   async authorize(client: OAuthClientInformationFull, params: AuthorizationParams, res: Response): Promise<void> {
     // Store the mapping between state and client's actual redirect URI
@@ -86,25 +73,38 @@ class GitLabProxyProvider extends ProxyOAuthServerProvider {
       stateToRedirectUri.set(params.state, params.redirectUri);
       console.log(`Stored state mapping: ${params.state} -> ${params.redirectUri}`);
     }
-    
-    // Use GitLab OAuth credentials for the actual authorization
-    const gitlabClient = {
-      ...client,
-      client_id: config.GITLAB_OAUTH2_CLIENT_ID!,
-      client_secret: config.GITLAB_OAUTH2_CLIENT_SECRET!,
-      // Use GitLab's registered redirect URI
-      redirect_uris: [config.GITLAB_OAUTH2_REDIRECT_URL!]
-    };
-    
-    // Use GitLab's redirect URI for the authorization
-    const gitlabParams = {
-      ...params,
-      redirectUri: config.GITLAB_OAUTH2_REDIRECT_URL!
-    };
-    
-    return super.authorize(gitlabClient, gitlabParams, res);
+
+    // Construct the authorization URL directly to ensure proper formatting
+    const authUrl = new URL(this._endpoints.authorizationUrl);
+
+    // Add required OAuth parameters
+    authUrl.searchParams.set('client_id', config.GITLAB_OAUTH2_CLIENT_ID!);
+    authUrl.searchParams.set('response_type', 'code');
+    authUrl.searchParams.set('redirect_uri', config.GITLAB_OAUTH2_REDIRECT_URL!.trim());
+    authUrl.searchParams.set('code_challenge', params.codeChallenge);
+    authUrl.searchParams.set('code_challenge_method', 'S256');
+
+    // Add optional parameters
+    if (params.state) {
+      authUrl.searchParams.set('state', params.state);
+    }
+
+
+    const gitlabScopes = ['api', 'openid','profile','email'];
+    authUrl.searchParams.set('scope', gitlabScopes.join(' '));
+
+    // GitLab doesn't support the 'resource' parameter, so we skip it
+
+    console.log(`Redirecting to GitLab OAuth:`, {
+      url: authUrl.toString(),
+      scopes: gitlabScopes,
+      requested_scopes: params.scopes
+    });
+
+    // Redirect to GitLab
+    res.redirect(authUrl.toString());
   }
-  
+
   // Override token exchange to use GitLab OAuth credentials
   async exchangeAuthorizationCode(
     client: OAuthClientInformationFull,
@@ -120,7 +120,7 @@ class GitLabProxyProvider extends ProxyOAuthServerProvider {
       client_secret: config.GITLAB_OAUTH2_CLIENT_SECRET!,
       redirect_uris: [config.GITLAB_OAUTH2_REDIRECT_URL!]
     };
-    
+
     // Use GitLab's redirect URI for the token exchange
     return super.exchangeAuthorizationCode(
       gitlabClient,
@@ -138,37 +138,37 @@ class GitLabProxyProvider extends ProxyOAuthServerProvider {
 // Handle OAuth callback and redirect to client's actual callback URL
 export const handleOAuthCallback = (req: Request, res: Response): void => {
   const { code, state, error, error_description } = req.query;
-  
+
   console.log('OAuth callback received:', { code: !!code, state, error });
-  
+
   if (!state) {
     res.status(400).send('Missing state parameter');
     return;
   }
-  
+
   // Get the client's actual redirect URI
   const clientRedirectUri = stateToRedirectUri.get(state as string);
-  
+
   if (!clientRedirectUri) {
     console.error(`No redirect URI found for state: ${state}`);
     res.status(400).send('Invalid state parameter');
     return;
   }
-  
+
   // Clean up the state mapping
   stateToRedirectUri.delete(state as string);
-  
+
   // Build the redirect URL with all parameters
   const redirectUrl = new URL(clientRedirectUri);
-  
+
   // Pass through all query parameters
   if (code) redirectUrl.searchParams.set('code', code as string);
   if (state) redirectUrl.searchParams.set('state', state as string);
   if (error) redirectUrl.searchParams.set('error', error as string);
   if (error_description) redirectUrl.searchParams.set('error_description', error_description as string);
-  
+
   console.log(`Redirecting to client callback: ${redirectUrl.toString()}`);
-  
+
   // Redirect to the client's actual callback URL
   res.redirect(redirectUrl.toString());
 };

@@ -589,6 +589,8 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
   };
 });
 
+// TODO: im pretty sure that the cookie jar should be scoped by token? instead of being global
+// but i need to look into it. just don't use the cookie jar feature with oauth or passthrough...
 const globalCookieJar = createCookieJar();
 
 server.setRequestHandler(CallToolRequestSchema, async (request, extra) => {
