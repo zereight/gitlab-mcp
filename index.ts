@@ -3,12 +3,7 @@
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
 import express, { Request, Response } from "express";
-// Add type imports for proxy agents
-import { Agent } from "http";
-import { Agent as HttpsAgent } from "https";
-import { URL } from "url";
-
-import {mcpserver} from "./mcpserver.js";
+import {mcpserver} from "./src/mcpserver.js";
 
 const SSE = process.env.SSE === "true";
 

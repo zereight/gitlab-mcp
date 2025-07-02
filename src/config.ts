@@ -15,6 +15,10 @@ export const config = {
   GITLAB_API_URL: normalizeGitLabApiUrl(process.env.GITLAB_API_URL || ""),
   GITLAB_PROJECT_ID: process.env.GITLAB_PROJECT_ID,
 }
+if (!config.GITLAB_PERSONAL_ACCESS_TOKEN) {
+  console.error("GITLAB_PERSONAL_ACCESS_TOKEN environment variable is not set");
+  process.exit(1);
+}
 /**
  * Smart URL handling for GitLab API
  *
