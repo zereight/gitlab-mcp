@@ -129,34 +129,6 @@ docker run -i --rm \
 }
 ```
 
-
-- streamable-http
-
-
-```shell
-docker run -i --rm \
-  -e GITLAB_PERSONAL_ACCESS_TOKEN=your_gitlab_token \
-  -e GITLAB_API_URL="https://gitlab.com/api/v4" \
-  -e GITLAB_READ_ONLY_MODE=true \
-  -e USE_GITLAB_WIKI=true \
-  -e USE_MILESTONE=true \
-  -e USE_PIPELINE=true \
-  -e STREAMABLE_HTTP=true \
-  -p 3333:3002 \
-  iwakitakuma/gitlab-mcp
-```
-
-```json
-{
-  "mcpServers": {
-    "GitLab communication server": {
-      "url": "http://localhost:3333/mcp"
-    }
-  }
-}
-```
-
-
 #### Docker Image Push
 
 ```shell
@@ -173,8 +145,6 @@ $ sh scripts/image_push.sh docker_user_name
 - `USE_MILESTONE`: When set to 'true', enables the milestone-related tools (list_milestones, get_milestone, create_milestone, edit_milestone, delete_milestone, get_milestone_issue, get_milestone_merge_requests, promote_milestone, get_milestone_burndown_events). By default, milestone features are disabled.
 - `USE_PIPELINE`: When set to 'true', enables the pipeline-related tools (list_pipelines, get_pipeline, list_pipeline_jobs, get_pipeline_job, get_pipeline_job_output, create_pipeline, retry_pipeline, cancel_pipeline). By default, pipeline features are disabled.
 - `GITLAB_AUTH_COOKIE_PATH`: Path to an authentication cookie file for GitLab instances that require cookie-based authentication. When provided, the cookie will be included in all GitLab API requests.
-- `SSE`: When set to 'true', enables the Server-Sent Events transport.
-- `STREAMABLE_HTTP`: When set to 'true', enables the Streamable HTTP transport. If both **SSE** and **STREAMABLE_HTTP** are set to 'true', the server will prioritize Streamable HTTP over SSE transport.
 
 [![Star History Chart](https://api.star-history.com/svg?repos=zereight/gitlab-mcp&type=Date)](https://www.star-history.com/#zereight/gitlab-mcp&Date)
 

@@ -18,21 +18,19 @@
   "scripts": {
     "build": "tsc && node -e \"require('fs').chmodSync('build/index.js', '755')\"",
     "prepare": "npm run build",
-    "dev": "npm run build && node build/index.js",
     "watch": "tsc --watch",
     "deploy": "npm publish --access public",
     "generate-tools": "npx ts-node scripts/generate-tools-readme.ts",
     "changelog": "auto-changelog -p",
-    "test": "node test/validate-api.js && npm run test:server",
+    "test": "node test/validate-api.js",
     "test:integration": "node test/validate-api.js",
-    "test:server": "npm run build && node build/test/test-all-transport-server.js",
     "lint": "eslint . --ext .ts",
     "lint:fix": "eslint . --ext .ts --fix",
     "format": "prettier --write \"**/*.{js,ts,json,md}\"",
     "format:check": "prettier --check \"**/*.{js,ts,json,md}\""
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.10.0",
+    "@modelcontextprotocol/sdk": "1.8.0",
     "@types/node-fetch": "^2.6.12",
     "express": "^5.1.0",
     "fetch-cookie": "^3.1.0",
