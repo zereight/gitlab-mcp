@@ -3,6 +3,7 @@
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
+import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
 import nodeFetch from "node-fetch";
 import fetchCookie from "fetch-cookie";
@@ -182,6 +183,16 @@ import {
   type GetCommitDiffOptions,
   ListMergeRequestDiffsSchema,
 } from "./schemas.js";
+import { randomUUID } from "crypto";
+
+/**
+ * Available transport modes for MCP server
+ */
+enum TransportMode {
+  STDIO = 'stdio',
+  SSE = 'sse', 
+  STREAMABLE_HTTP = 'streamable-http'
+}
 
 /**
  * Read version from package.json
@@ -219,7 +230,9 @@ const USE_GITLAB_WIKI = process.env.USE_GITLAB_WIKI === "true";
 const USE_MILESTONE = process.env.USE_MILESTONE === "true";
 const USE_PIPELINE = process.env.USE_PIPELINE === "true";
 const SSE = process.env.SSE === "true";
-
+const STREAMABLE_HTTP = process.env.STREAMABLE_HTTP === "true";
+const HOST = process.env.HOST || '127.0.0.1';
+const PORT = process.env.PORT || 3002;
 // Add proxy configuration
 const HTTP_PROXY = process.env.HTTP_PROXY;
 const HTTPS_PROXY = process.env.HTTPS_PROXY;
@@ -4314,53 +4327,199 @@ server.setRequestHandler(CallToolRequestSchema, async request => {
   }
 });
 
+
+
+/**
+ *  Color constants for terminal output
+ */
+const colorGreen = "\x1b[32m";
+const colorReset = "\x1b[0m";
+
+/**
+ * Determine the transport mode based on environment variables and availability
+ * 
+ * Transport mode priority (highest to lowest):
+ * 1. STREAMABLE_HTTP
+ * 2. SSE
+ * 3. STDIO
+ */
+function determineTransportMode(): TransportMode {
+  // Check for streamable-http support (highest priority)
+  if (STREAMABLE_HTTP) {
+    return TransportMode.STREAMABLE_HTTP;
+  }
+  
+  // Check for SSE support (medium priority)  
+  if (SSE) {
+    return TransportMode.SSE;
+  }
+  
+  // Default to stdio (lowest priority)
+  return TransportMode.STDIO;
+}
+
+
+
+
+/**
+ * Start server with stdio transport
+ */
+async function startStdioServer(): Promise<void> {
+  const transport = new StdioServerTransport();
+  await server.connect(transport);
+}
+
+
+
+/**
+ * Start server with traditional SSE transport
+ */
+async function startSSEServer(): Promise<void> {
+  const app = express();
+  const transports: { [sessionId: string]: SSEServerTransport } = {};
+  
+  app.get("/sse", async (_: Request, res: Response) => {
+    const transport = new SSEServerTransport("/messages", res);
+    transports[transport.sessionId] = transport;
+    res.on("close", () => {
+      delete transports[transport.sessionId];
+    });
+    await server.connect(transport);
+  });
+
+  app.post("/messages", async (req: Request, res: Response) => {
+    const sessionId = req.query.sessionId as string;
+    const transport = transports[sessionId];
+    if (transport) {
+      await transport.handlePostMessage(req, res);
+    } else {
+      res.status(400).send("No transport found for sessionId");
+    }
+  });
+
+  app.get("/health", (_: Request, res: Response) => {
+    res.status(200).json({
+      status: "healthy",
+      version: SERVER_VERSION,
+      transport: TransportMode.SSE
+    });
+  });
+
+  app.listen(Number(PORT), HOST, () => {
+    console.log(`GitLab MCP Server running with SSE transport`);
+    const colorGreen = "\x1b[32m";
+    const colorReset = "\x1b[0m";
+    console.log(`${colorGreen}Endpoint: http://${HOST}:${PORT}/sse${colorReset}`);
+  });
+}
+
+/**
+ * Start server with Streamable HTTP transport  
+ */
+async function startStreamableHTTPServer(): Promise<void> {
+  const app = express();
+  const streamableTransports: { [sessionId: string]: StreamableHTTPServerTransport } = {};
+  
+  // Configure Express middleware
+  app.use(express.json());
+  
+  // Streamable HTTP endpoint - handles both session creation and message handling
+  app.post('/mcp', async (req: Request, res: Response) => {
+    const sessionId = req.headers['mcp-session-id'] as string;
+    
+    try {
+      let transport: StreamableHTTPServerTransport;
+      
+      if (sessionId && streamableTransports[sessionId]) {
+        // Reuse existing transport for ongoing session
+        transport = streamableTransports[sessionId];
+        await transport.handleRequest(req, res, req.body);
+      } else {
+        // Create new transport for new session
+        transport = new StreamableHTTPServerTransport({
+          sessionIdGenerator: () => randomUUID(),
+          onsessioninitialized: (newSessionId: string) => {
+            streamableTransports[newSessionId] = transport;
+            console.warn(`Streamable HTTP session initialized: ${newSessionId}`);
+          }
+        });
+        
+        // Set up cleanup handler when transport closes
+        transport.onclose = () => {
+          const sid = transport.sessionId;
+          if (sid && streamableTransports[sid]) {
+            console.warn(`Streamable HTTP transport closed for session ${sid}, cleaning up`);
+            delete streamableTransports[sid];
+          }
+        };
+        
+        // Connect transport to MCP server before handling the request
+        await server.connect(transport);
+        await transport.handleRequest(req, res, req.body);
+      }
+    } catch (error) {
+      console.error('Streamable HTTP error:', error);
+      res.status(500).json({ 
+        error: 'Internal server error',
+        message: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+  
+  // Health check endpoint
+  app.get("/health", (_: Request, res: Response) => {
+    res.status(200).json({
+      status: "healthy",
+      version: SERVER_VERSION,
+      transport: TransportMode.STREAMABLE_HTTP,
+      activeSessions: Object.keys(streamableTransports).length
+    });
+  });
+  
+  // Start server
+  app.listen(Number(PORT), HOST, () => {
+    console.log(`GitLab MCP Server running with Streamable HTTP transport`);
+    console.log(`${colorGreen}Endpoint: http://${HOST}:${PORT}/mcp${colorReset}`);
+  });
+}
+
+/**
+ * Initialize server with specific transport mode
+ * Handle transport-specific initialization logic
+ */
+async function initializeServerByTransportMode(mode: TransportMode): Promise<void> {
+  console.log('Initializing server with transport mode:', mode);
+  switch (mode) {
+    case TransportMode.STDIO:
+      console.warn('Starting GitLab MCP Server with stdio transport');
+      await startStdioServer();
+      break;
+      
+    case TransportMode.SSE:
+      console.warn('Starting GitLab MCP Server with SSE transport');
+      await startSSEServer();
+      break;
+      
+    case TransportMode.STREAMABLE_HTTP:
+      console.warn('Starting GitLab MCP Server with Streamable HTTP transport');
+      await startStreamableHTTPServer();
+      break;
+      
+    default:
+      // This should never happen with proper enum usage, but TypeScript requires it
+      const exhaustiveCheck: never = mode;
+      throw new Error(`Unknown transport mode: ${exhaustiveCheck}`);
+  }
+}
+
 /**
  * Initialize and run the server
- * 서버 초기화 및 실행
+ * Main entry point for server startup
  */
 async function runServer() {
   try {
-    // Server startup banner removed - inappropriate use of console.error for logging
-    // Server version banner removed - inappropriate use of console.error for logging
-    // API URL banner removed - inappropriate use of console.error for logging
-    // Server startup banner removed - inappropriate use of console.error for logging
-    if (!SSE) {
-      const transport = new StdioServerTransport();
-      await server.connect(transport);
-    } else {
-      const app = express();
-      const transports: { [sessionId: string]: SSEServerTransport } = {};
-      app.get("/sse", async (_: Request, res: Response) => {
-        const transport = new SSEServerTransport("/messages", res);
-        transports[transport.sessionId] = transport;
-        res.on("close", () => {
-          delete transports[transport.sessionId];
-        });
-        await server.connect(transport);
-      });
-
-      app.post("/messages", async (req: Request, res: Response) => {
-        const sessionId = req.query.sessionId as string;
-        const transport = transports[sessionId];
-        if (transport) {
-          await transport.handlePostMessage(req, res);
-        } else {
-          res.status(400).send("No transport found for sessionId");
-        }
-      });
-
-      app.get("/health", (_: Request, res: Response) => {
-        res.status(200).json({
-          status: "healthy",
-          version: process.env.npm_package_version || "unknown",
-        });
-      });
-
-      const PORT = process.env.PORT || 3002;
-      app.listen(PORT, () => {
-        console.log(`Server is running on port ${PORT}`);
-      });
-    }
+    const transportMode = determineTransportMode();
+    await initializeServerByTransportMode(transportMode);
   } catch (error) {
     console.error("Error initializing server:", error);
     process.exit(1);
