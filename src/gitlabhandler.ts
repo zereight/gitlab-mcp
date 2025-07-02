@@ -192,9 +192,7 @@ export class GitlabHandler extends GitlabSession {
     const effectiveProjectId = this.getEffectiveProjectId(projectId);
     const url = new URL(`${config.GITLAB_API_URL}/projects/${encodeURIComponent(effectiveProjectId)}`);
 
-    const response = await this.fetch(url.toString(), {
-
-    });
+    const response = await this.fetch(url.toString(), {});
 
     await this.handleGitLabError(response);
     const project = GitLabRepositorySchema.parse(await response.json());
@@ -223,9 +221,7 @@ export class GitlabHandler extends GitlabSession {
 
     url.searchParams.append("ref", ref);
 
-    const response = await this.fetch(url.toString(), {
-
-    });
+    const response = await this.fetch(url.toString(), {});
 
     if (response.status === 404) {
       throw new Error(`File not found: ${filePath}`);
@@ -305,9 +301,7 @@ export class GitlabHandler extends GitlabSession {
       }
     });
 
-    const response = await this.fetch(url.toString(), {
-
-    });
+    const response = await this.fetch(url.toString(), {});
 
     await this.handleGitLabError(response);
     const data = await response.json();
@@ -334,9 +328,7 @@ export class GitlabHandler extends GitlabSession {
       }
     });
 
-    const response = await this.fetch(url.toString(), {
-
-    });
+    const response = await this.fetch(url.toString(), {});
 
     await this.handleGitLabError(response);
     const data = await response.json();
@@ -352,9 +344,7 @@ export class GitlabHandler extends GitlabSession {
       `${config.GITLAB_API_URL}/projects/${encodeURIComponent(this.getEffectiveProjectId(projectId))}/issues/${issueIid}`
     );
 
-    const response = await this.fetch(url.toString(), {
-
-    });
+    const response = await this.fetch(url.toString(), {});
 
     await this.handleGitLabError(response);
     const data = await response.json();
@@ -419,9 +409,7 @@ export class GitlabHandler extends GitlabSession {
       `${config.GITLAB_API_URL}/projects/${encodeURIComponent(this.getEffectiveProjectId(projectId))}/issues/${issueIid}/links`
     );
 
-    const response = await this.fetch(url.toString(), {
-
-    });
+    const response = await this.fetch(url.toString(), {});
 
     await this.handleGitLabError(response);
     const data = await response.json();
@@ -443,9 +431,7 @@ this.getEffectiveProjectId(projectId)
 )}/issues/${issueIid}/links/${issueLinkId}`
     );
 
-    const response = await this.fetch(url.toString(), {
-
-    });
+    const response = await this.fetch(url.toString(), {});
 
     await this.handleGitLabError(response);
     const data = await response.json();
@@ -571,9 +557,7 @@ this.getEffectiveProjectId(projectId)
       url.searchParams.append("per_page", options.per_page.toString());
     }
 
-    const response = await this.fetch(url.toString(), {
-
-    });
+    const response = await this.fetch(url.toString(), {});
 
     await this.handleGitLabError(response);
     const discussions = await response.json();
@@ -928,9 +912,7 @@ this.getEffectiveProjectId(projectId)
     url.searchParams.append("order_by", "id");
     url.searchParams.append("sort", "desc");
 
-    const response = await this.fetch(url.toString(), {
-
-    });
+    const response = await this.fetch(url.toString(), {});
 
     if (!response.ok) {
       const errorBody = await response.text();
@@ -1006,9 +988,7 @@ this.getEffectiveProjectId(projectId)
       throw new Error("Either mergeRequestIid or branchName must be provided");
     }
 
-    const response = await this.fetch(url.toString(), {
-
-    });
+    const response = await this.fetch(url.toString(), {});
 
     await this.handleGitLabError(response);
 
@@ -1050,9 +1030,7 @@ this.getEffectiveProjectId(projectId)
       url.searchParams.append("view", view);
     }
 
-    const response = await this.fetch(url.toString(), {
-
-    });
+    const response = await this.fetch(url.toString(), {});
 
     await this.handleGitLabError(response);
     const data = (await response.json()) as { changes: unknown };
@@ -1098,9 +1076,7 @@ this.getEffectiveProjectId(projectId)
       url.searchParams.append("unidiff", "true");
     }
 
-    const response = await this.fetch(url.toString(), {
-
-    });
+    const response = await this.fetch(url.toString(), {});
 
     await this.handleGitLabError(response);
     return await response.json();
@@ -1128,9 +1104,7 @@ this.getEffectiveProjectId(projectId)
       url.searchParams.append("straight", straight.toString());
     }
 
-    const response = await this.fetch(url.toString(), {
-
-    });
+    const response = await this.fetch(url.toString(), {});
 
     if (!response.ok) {
       const errorBody = await response.text();
@@ -1267,9 +1241,7 @@ const url = new URL(`${config.GITLAB_API_URL}/namespaces`);
       url.searchParams.append("top_level_only", "true");
     }
 
-    const response = await this.fetch(url.toString(), {
-
-    });
+    const response = await this.fetch(url.toString(), {});
 
     await this.handleGitLabError(response);
     const data = await response.json();
@@ -1282,9 +1254,7 @@ const url = new URL(`${config.GITLAB_API_URL}/namespaces`);
   async getNamespace(id: string): Promise<GitLabNamespace> {
     const url = new URL(`${config.GITLAB_API_URL}/namespaces/${encodeURIComponent(id)}`);
 
-    const response = await this.fetch(url.toString(), {
-
-    });
+    const response = await this.fetch(url.toString(), {});
 
     await this.handleGitLabError(response);
     const data = await response.json();
@@ -1304,9 +1274,7 @@ const url = new URL(`${config.GITLAB_API_URL}/namespaces`);
       url.searchParams.append("parent_id", parentId.toString());
     }
 
-    const response = await this.fetch(url.toString(), {
-
-    });
+    const response = await this.fetch(url.toString(), {});
 
     await this.handleGitLabError(response);
     const data = await response.json();
@@ -1339,9 +1307,7 @@ const url = new URL(`${config.GITLAB_API_URL}/namespaces`);
       url.searchParams.append("with_custom_attributes", "true");
     }
 
-    const response = await this.fetch(url.toString(), {
-
-    });
+    const response = await this.fetch(url.toString(), {});
 
     await this.handleGitLabError(response);
     const data = await response.json();
@@ -1365,9 +1331,7 @@ const url = new URL(`${config.GITLAB_API_URL}/namespaces`);
       }
     }
 
-    const response = await this.fetch(`${config.GITLAB_API_URL}/projects?${params.toString()}`, {
-
-    });
+    const response = await this.fetch(`${config.GITLAB_API_URL}/projects?${params.toString()}`, {});
 
     await this.handleGitLabError(response);
 
@@ -1395,9 +1359,7 @@ const url = new URL(`${config.GITLAB_API_URL}/namespaces`);
       }
     });
 
-    const response = await this.fetch(url.toString(), {
-
-    });
+    const response = await this.fetch(url.toString(), {});
 
     await this.handleGitLabError(response);
 
@@ -1424,9 +1386,7 @@ const url = new URL(`${config.GITLAB_API_URL}/namespaces`);
       url.searchParams.append("include_ancestor_groups", includeAncestorGroups ? "true" : "false");
     }
 
-    const response = await this.fetch(url.toString(), {
-
-    });
+    const response = await this.fetch(url.toString(), {});
 
     await this.handleGitLabError(response);
 
@@ -1537,9 +1497,7 @@ const url = new URL(`${config.GITLAB_API_URL}/namespaces`);
     if (options.with_security_reports !== undefined)
       url.searchParams.append("with_security_reports", options.with_security_reports.toString());
 
-    const response = await this.fetch(url.toString(), {
-
-    });
+    const response = await this.fetch(url.toString(), {});
 
     await this.handleGitLabError(response);
     const projects = await response.json();
@@ -1560,9 +1518,7 @@ const url = new URL(`${config.GITLAB_API_URL}/namespaces`);
     if (options.per_page) url.searchParams.append("per_page", options.per_page.toString());
     if (options.with_content)
       url.searchParams.append("with_content", options.with_content.toString());
-    const response = await this.fetch(url.toString(), {
-
-    });
+    const response = await this.fetch(url.toString(), {});
     await this.handleGitLabError(response);
     const data = await response.json();
     return GitLabWikiPageSchema.array().parse(data);
@@ -1666,9 +1622,7 @@ const url = new URL(`${config.GITLAB_API_URL}/namespaces`);
       }
     });
 
-    const response = await this.fetch(url.toString(), {
-
-    });
+    const response = await this.fetch(url.toString(), {});
 
     await this.handleGitLabError(response);
     const data = await response.json();
@@ -1684,9 +1638,7 @@ const url = new URL(`${config.GITLAB_API_URL}/namespaces`);
       `${config.GITLAB_API_URL}/projects/${encodeURIComponent(this.getEffectiveProjectId(projectId))}/pipelines/${pipelineId}`
     );
 
-    const response = await this.fetch(url.toString(), {
-
-    });
+    const response = await this.fetch(url.toString(), {});
 
     if (response.status === 404) {
       throw new Error(`Pipeline not found`);
@@ -1720,9 +1672,7 @@ const url = new URL(`${config.GITLAB_API_URL}/namespaces`);
       }
     });
 
-    const response = await this.fetch(url.toString(), {
-
-    });
+    const response = await this.fetch(url.toString(), {});
 
     if (response.status === 404) {
       throw new Error(`Pipeline not found`);
@@ -1740,9 +1690,7 @@ const url = new URL(`${config.GITLAB_API_URL}/namespaces`);
     projectId = decodeURIComponent(projectId);
     const url = new URL(`${config.GITLAB_API_URL}/projects/${encodeURIComponent(this.getEffectiveProjectId(projectId))}/jobs/${jobId}`);
 
-    const response = await this.fetch(url.toString(), {
-
-    });
+    const response = await this.fetch(url.toString(), {});
 
     if (response.status === 404) {
       throw new Error(`Job not found`);
@@ -1934,9 +1882,7 @@ const url = new URL(`${config.GITLAB_API_URL}/namespaces`);
       }
     });
 
-    const response = await this.fetch(url.toString(), {
-
-    });
+    const response = await this.fetch(url.toString(), {});
     await this.handleGitLabError(response);
     const data = await response.json();
     return z.array(GitLabMilestonesSchema).parse(data);
@@ -1954,9 +1900,7 @@ const url = new URL(`${config.GITLAB_API_URL}/namespaces`);
       `${config.GITLAB_API_URL}/projects/${encodeURIComponent(this.getEffectiveProjectId(projectId))}/milestones/${milestoneId}`
     );
 
-    const response = await this.fetch(url.toString(), {
-
-    });
+    const response = await this.fetch(url.toString(), {});
     await this.handleGitLabError(response);
     const data = await response.json();
     return GitLabMilestonesSchema.parse(data);
@@ -2030,9 +1974,7 @@ const url = new URL(`${config.GITLAB_API_URL}/namespaces`);
       `${config.GITLAB_API_URL}/projects/${encodeURIComponent(this.getEffectiveProjectId(projectId))}/milestones/${milestoneId}/issues`
     );
 
-    const response = await this.fetch(url.toString(), {
-
-    });
+    const response = await this.fetch(url.toString(), {});
     await this.handleGitLabError(response);
     const data = await response.json();
     return z.array(GitLabIssueSchema).parse(data);
@@ -2052,9 +1994,7 @@ const url = new URL(`${config.GITLAB_API_URL}/namespaces`);
       )}/milestones/${milestoneId}/merge_requests`
     );
 
-    const response = await this.fetch(url.toString(), {
-
-    });
+    const response = await this.fetch(url.toString(), {});
     await this.handleGitLabError(response);
     const data = await response.json();
     return z.array(GitLabMergeRequestSchema).parse(data);
@@ -2092,9 +2032,7 @@ const url = new URL(`${config.GITLAB_API_URL}/namespaces`);
       )}/milestones/${milestoneId}/burndown_events`
     );
 
-    const response = await this.fetch(url.toString(), {
-
-    });
+    const response = await this.fetch(url.toString(), {});
     await this.handleGitLabError(response);
     const data = await response.json();
     return data as any[];
@@ -2174,9 +2112,7 @@ const url = new URL(`${config.GITLAB_API_URL}/namespaces`);
     if (options.page) url.searchParams.append("page", options.page.toString());
     if (options.per_page) url.searchParams.append("per_page", options.per_page.toString());
 
-    const response = await this.fetch(url.toString(), {
-
-    });
+    const response = await this.fetch(url.toString(), {});
 
     await this.handleGitLabError(response);
 
@@ -2201,9 +2137,7 @@ const url = new URL(`${config.GITLAB_API_URL}/namespaces`);
       url.searchParams.append("stats", "true");
     }
 
-    const response = await this.fetch(url.toString(), {
-
-    });
+    const response = await this.fetch(url.toString(), {});
 
     await this.handleGitLabError(response);
 
@@ -2223,13 +2157,24 @@ const url = new URL(`${config.GITLAB_API_URL}/namespaces`);
       `${config.GITLAB_API_URL}/projects/${encodeURIComponent(this.getEffectiveProjectId(projectId))}/repository/commits/${encodeURIComponent(sha)}/diff`
     );
 
-    const response = await this.fetch(url.toString(), {
-
-    });
+    const response = await this.fetch(url.toString(), {});
 
     await this.handleGitLabError(response);
 
     const data = await response.json();
     return z.array(GitLabDiffSchema).parse(data);
+  }
+
+  /**
+   * Get details of the current authenticated User
+   */
+  async getCurrentUser(): Promise<GitLabUser> {
+    const url = new URL(`${config.GITLAB_API_URL}/user`);
+    const response = await this.fetch(url.toString(), {});
+
+    await this.handleGitLabError(response);
+
+    const data = await response.json();
+    return GitLabUserSchema.parse(data);
   }
 }

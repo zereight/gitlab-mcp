@@ -80,6 +80,7 @@ import {
   GetCommitSchema,
   GetCommitDiffSchema,
   ListMergeRequestDiffsSchema,
+  GetCurrentUserSchema,
 } from "./schemas.js";
 import { createCookieJar } from "./authhelpers.js";
 import { CookieJar } from "tough-cookie";
@@ -465,6 +466,11 @@ const allTools = [
     description: "Get changes/diffs of a specific commit",
     inputSchema: zodToJsonSchema(GetCommitDiffSchema),
   },
+  {
+    name: "get_current_user",
+    description: "Get details of the current authenticated user",
+    inputSchema: zodToJsonSchema(GetCurrentUserSchema),
+  }
 ];
 
 // Define which tools are read-only
@@ -506,6 +512,7 @@ const readOnlyTools = [
   "list_commits",
   "get_commit",
   "get_commit_diff",
+  "get_current_user",
 ];
 
 // Define which tools are related to wiki and can be toggled by USE_GITLAB_WIKI
@@ -584,19 +591,18 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
 
 const globalCookieJar = createCookieJar();
 
-server.setRequestHandler(CallToolRequestSchema, async request => {
+server.setRequestHandler(CallToolRequestSchema, async (request, extra) => {
   try {
     if (!request.params.arguments) {
       throw new Error("Arguments are required");
     }
-
     let cookieJar: CookieJar | undefined = undefined;
     if(config.GITLAB_AUTH_COOKIE_PATH) {
       cookieJar = globalCookieJar;
     }
-
     // Create GitlabSession instance
-    const gitlabSession = new GitlabHandler(cookieJar);
+    // TODO: we silently do nothing if the authInfo is not properly forwared. should we do something?
+    const gitlabSession = new GitlabHandler(extra.authInfo?.token || "", cookieJar);
     if(cookieJar) {
       await gitlabSession.ensureSessionForCookieJar();
     }
@@ -1449,6 +1455,12 @@ server.setRequestHandler(CallToolRequestSchema, async request => {
         const diff = await gitlabSession.getCommitDiff(args.project_id, args.sha);
         return {
           content: [{ type: "text", text: JSON.stringify(diff, null, 2) }],
+        };
+      }
+      case "get_current_user": {
+        const user = await gitlabSession.getCurrentUser();
+        return {
+          content: [{ type: "text", text: JSON.stringify(user, null, 2) }],
         };
       }
 

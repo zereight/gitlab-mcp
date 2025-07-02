@@ -17,7 +17,10 @@ export class GitlabSession {
   private defaultConfig: RequestInit
   private defaultHeaders: Record<string, string>
 
-  constructor(private readonly cookieJar?: CookieJar) {
+  constructor(
+    private readonly authToken: string,
+    private readonly cookieJar?: CookieJar
+  ) {
     // Configure proxy agents if proxies are set
     let httpAgent: Agent | undefined = undefined;
     let httpsAgent: Agent | undefined = undefined;
@@ -52,9 +55,9 @@ export class GitlabSession {
     };
 
     if (config.IS_OLD) {
-      this.defaultHeaders["Private-Token"] = `${config.GITLAB_PERSONAL_ACCESS_TOKEN}`;
+      this.defaultHeaders["Private-Token"] = `${this.authToken}`;
     } else {
-      this.defaultHeaders["Authorization"] = `Bearer ${config.GITLAB_PERSONAL_ACCESS_TOKEN}`;
+      this.defaultHeaders["Authorization"] = `Bearer ${this.authToken}`;
     }
 
     this.defaultConfig = {
