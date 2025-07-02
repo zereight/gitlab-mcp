@@ -128,7 +128,6 @@ async function runServer() {
             salt: argon2Salt,
           });
         }
-        console.log("accessed with token hash", transports[transport.sessionId].tokenHash);
         res.on("close", () => {
           delete transports[transport.sessionId];
         });
