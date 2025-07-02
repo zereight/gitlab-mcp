@@ -5,11 +5,10 @@ import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
 import express, { Request, Response } from "express";
 import {mcpserver} from "./src/mcpserver.js";
 import { config, validateConfiguration} from "./src/config.js";
-import { createOAuth2Router, createTokenVerifier, handleOAuthCallback } from "./src/oauth.js";
+import { createGitLabOAuthProvider, GitLabProxyProvider } from "./src/oauth.js";
 import { requireBearerAuth } from "@modelcontextprotocol/sdk/server/auth/middleware/bearerAuth.js";
 import { logger } from "./src/logger.js";
 import argon2 from "@node-rs/argon2";
-import { AuthInfo } from "@modelcontextprotocol/sdk/server/auth/types.js";
 
 
 validateConfiguration()
@@ -20,11 +19,9 @@ validateConfiguration()
  */
 async function runServer() {
   try {
-    // Server startup banner removed - inappropriate use of console.error for logging
-    // Server version banner removed - inappropriate use of console.error for logging
-    // API URL banner removed - inappropriate use of console.error for logging
-    // Server startup banner removed - inappropriate use of console.error for logging
+    // SSE is actually used to determine whether or not to run in http mode.
     if (!config.SSE) {
+      // no authorization in stdio mode
       const transport = new StdioServerTransport();
       await mcpserver.connect(transport);
     } else {
@@ -47,14 +44,16 @@ async function runServer() {
       // if gitlab oauth client id is set, then we attempt to enable the oauth proxy
       // NOTE: this is... incredibly insecure. you shouldn't really be using this until more has been worked on it and some semi-proper security review.
       if (config.GITLAB_OAUTH2_CLIENT_ID) {
-        // Add the callback handler route BEFORE the OAuth router
-        app.get("/callback", handleOAuthCallback);
+        // Create the provider
+        const provider = createGitLabOAuthProvider();
 
-        const oauth2Proxy = createOAuth2Router()
+        // Add the callback handler route BEFORE the OAuth router
+        app.get("/callback", (req, res) => provider.handleOAuthCallback(req, res));
+
+        const oauth2Proxy = provider.createOAuth2Router()
         console.log("Gitlab OAuth2 proxy enabled");
         app.use(oauth2Proxy);
-
-        const tokenVerifier = createTokenVerifier()
+        const tokenVerifier = provider.createTokenVerifier()
         const bearerAuthMiddleware = requireBearerAuth({
           verifier:tokenVerifier,
           resourceMetadataUrl: `${config.GITLAB_OAUTH2_BASE_URL}/.well-known/oauth-protected-resource`
@@ -65,13 +64,24 @@ async function runServer() {
             res.status(401).send("Gitlab-Token header must not be set when MCP is running in OAuth2 mode");
             return;
           }
-          bearerAuthMiddleware(req, res, next)
-          const authState = req.auth
-          if(authState)  {
-            // so this means that auth was successful and we have a token
-            // supposedly, if our server is implemented correctly, we would issue the token that corresponded to the correct user token on the gitlab side
-            res.locals["gitlabAuthToken"] = authState.token
-          }
+          bearerAuthMiddleware(req, res, (err) => {
+            if (err) {
+              next(err);
+              return;
+            }
+            // If authentication was successful, get the GitLab token
+            if (req.auth && req.auth.token) {
+              const gitlabAccessToken = provider.getGitLabTokenFromProxyToken(req.auth.token);
+              if (gitlabAccessToken) {
+                // Update the auth state with the GitLab token
+                req.auth = {
+                  ...req.auth,
+                  token: gitlabAccessToken
+                };
+              }
+            }
+            next();
+          })
         }
       } else if(config.GITLAB_PAT_PASSTHROUGH) {
         console.log("Gitlab PAT passthrough enabled");
