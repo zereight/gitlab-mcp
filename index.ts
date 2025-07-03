@@ -14,34 +14,28 @@ import { randomUUID } from "crypto";
 
 validateConfiguration()
 
-enum TransportMode {
-  STDIO = 'stdio',
-  SSE = 'sse',
-  STREAMABLE_HTTP = 'streamable-http'
+interface TransportModes {
+  stdio: boolean;
+  sse: boolean;
+  streamableHttp: boolean;
 }
 
-
 /**
- * Determine the transport mode based on environment variables and availability
- *
- * Transport mode priority (highest to lowest):
- * 1. STREAMABLE_HTTP
- * 2. SSE
- * 3. STDIO
+ * Determine which transport modes are enabled based on environment variables
+ * If both SSE and STREAMABLE_HTTP are disabled, defaults to STDIO
  */
-function determineTransportMode(): TransportMode {
-  // Check for streamable-http support (highest priority)
-  if (config.STREAMABLE_HTTP) {
-    return TransportMode.STREAMABLE_HTTP;
-  }
-
-  // Check for SSE support (medium priority)
-  if (config.SSE) {
-    return TransportMode.SSE;
-  }
-
-  // Default to stdio (lowest priority)
-  return TransportMode.STDIO;
+function determineTransportModes(): TransportModes {
+  const sseEnabled = config.SSE;
+  const streamableHttpEnabled = config.STREAMABLE_HTTP;
+  
+  // If neither SSE nor STREAMABLE_HTTP are enabled, use STDIO
+  const stdioEnabled = !sseEnabled && !streamableHttpEnabled;
+  
+  return {
+    stdio: stdioEnabled,
+    sse: sseEnabled,
+    streamableHttp: streamableHttpEnabled
+  };
 }
 
 /**
@@ -52,13 +46,20 @@ async function startStdioServer(): Promise<void> {
   await mcpserver.connect(transport);
 }
 
+interface ExpressServerOptions {
+  sseEnabled: boolean;
+  streamableHttpEnabled: boolean;
+}
+
 // used for the sse and streamable http transports to share auth
-async function startExpressServer(mode: TransportMode): Promise<void> {
+async function startExpressServer(options: ExpressServerOptions): Promise<void> {
+  const { sseEnabled, streamableHttpEnabled } = options;
   const app = express();
 
   const authMiddleware = await configureAuthentication(app);
   const argon2Salt = new TextEncoder().encode(config.ARGON2_SALT)
-  if(mode === TransportMode.SSE) {
+  
+  if(sseEnabled) {
     const transports: {
       [sessionId: string]: {
         transport: SSEServerTransport
@@ -116,7 +117,9 @@ async function startExpressServer(mode: TransportMode): Promise<void> {
       }
     });
 
-  } else if (mode === TransportMode.STREAMABLE_HTTP) {
+  }
+  
+  if (streamableHttpEnabled) {
   const transports : { [sessionId: string]: {
     transport: StreamableHTTPServerTransport
     tokenHash?: string
@@ -189,8 +192,6 @@ async function startExpressServer(mode: TransportMode): Promise<void> {
       }
     });
 
-  } else {
-    throw new Error("Unknown transport mode for express server: " +mode);
   }
 
   app.get("/health", (_: Request, res: Response) => {
@@ -202,33 +203,36 @@ async function startExpressServer(mode: TransportMode): Promise<void> {
 
 
   app.listen(Number(config.PORT), config.HOST, () => {
-    logger.log(`GitLab MCP Server running with ${mode} transport`);
+    const enabledModes = [];
+    if (sseEnabled) enabledModes.push('SSE');
+    if (streamableHttpEnabled) enabledModes.push('Streamable HTTP');
+    logger.log(`GitLab MCP Server running with ${enabledModes.join(' and ')} transport(s)`);
     const colorGreen = "\x1b[32m";
     const colorReset = "\x1b[0m";
-    logger.log(`${colorGreen}Endpoint: http://${config.HOST}:${config.PORT}/sse${colorReset}`);
+    if (sseEnabled) {
+      logger.log(`${colorGreen}SSE Endpoint: http://${config.HOST}:${config.PORT}/sse${colorReset}`);
+    }
+    if (streamableHttpEnabled) {
+      logger.log(`${colorGreen}Streamable HTTP Endpoint: http://${config.HOST}:${config.PORT}/mcp${colorReset}`);
+    }
   });
 }
 
 /**
- * Initialize server with specific transport mode
- * Handle transport-specific initialization logic
+ * Initialize server based on enabled transport modes
  */
-async function initializeServerByTransportMode(mode: TransportMode): Promise<void> {
-  logger.log('Initializing server with transport mode:', mode);
-  switch (mode) {
-    case TransportMode.STDIO:
-      logger.warn('Starting GitLab MCP Server with stdio transport');
-      await startStdioServer();
-      break;
-    case TransportMode.SSE:
-    case TransportMode.STREAMABLE_HTTP:
-      logger.warn('Starting GitLab MCP Server with SSE transport');
-      await startExpressServer(mode);
-      break;
-    default:
-      // This should never happen with proper enum usage, but TypeScript requires it
-      const exhaustiveCheck: never = mode;
-      throw new Error(`Unknown transport mode: ${exhaustiveCheck}`);
+async function initializeServer(modes: TransportModes): Promise<void> {
+  if (modes.stdio) {
+    logger.warn('Starting GitLab MCP Server with stdio transport');
+    await startStdioServer();
+  } else if (modes.sse || modes.streamableHttp) {
+    logger.warn('Starting GitLab MCP Server with HTTP transport(s)');
+    await startExpressServer({
+      sseEnabled: modes.sse,
+      streamableHttpEnabled: modes.streamableHttp
+    });
+  } else {
+    throw new Error('No transport mode enabled');
   }
 }
 
@@ -238,8 +242,8 @@ async function initializeServerByTransportMode(mode: TransportMode): Promise<voi
  */
 async function runServer() {
   try {
-    const transportMode = determineTransportMode();
-    await initializeServerByTransportMode(transportMode);
+    const transportModes = determineTransportModes();
+    await initializeServer(transportModes);
   } catch (error) {
     logger.error("Error initializing server:", error);
     process.exit(1);
