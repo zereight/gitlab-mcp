@@ -9,6 +9,7 @@ import { Request, Response } from 'express';
 import { logger } from './logger.js';
 import { Database } from 'better-sqlite3';
 import * as argon2 from 'argon2';
+import { randomBytes } from 'crypto';
 
 // Custom provider that handles dynamic registration and maps to GitLab OAuth
 class GitLabProxyProvider extends ProxyOAuthServerProvider {
@@ -132,14 +133,18 @@ class GitLabProxyProvider extends ProxyOAuthServerProvider {
       },
 
       registerClient: async (clientMetadata: any) => {
-        // Generate a unique client ID for this MCP client
-        const clientId = `mcp_${Date.now()}_${Math.random().toString(36)}`;
+        // Generate a unique client ID for this MCP client using crypto-safe random
+        const randomId = randomBytes(16).toString('hex');
+        const clientId = `mcp_${Date.now()}_${randomId}`;
 
+        // Generate a secure client secret
+        const randomSecret = randomBytes(32).toString('hex');
+        
         // Create the client registration
         const client: OAuthClientInformationFull = {
           ...clientMetadata,
           client_id: clientId,
-          client_secret: `secret_${Math.random().toString(36)}`,
+          client_secret: `secret_${randomSecret}`,
           client_id_issued_at: Math.floor(Date.now() / 1000),
           grant_types: clientMetadata.grant_types || ['authorization_code', 'refresh_token'],
           response_types: clientMetadata.response_types || ['code'],
