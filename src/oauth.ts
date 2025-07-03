@@ -8,6 +8,7 @@ import { OAuthRegisteredClientsStore } from '@modelcontextprotocol/sdk/server/au
 import { Request, Response } from 'express';
 import { logger } from './logger.js';
 import { Database } from 'better-sqlite3';
+import * as argon2 from 'argon2';
 
 // Custom provider that handles dynamic registration and maps to GitLab OAuth
 class GitLabProxyProvider extends ProxyOAuthServerProvider {
@@ -42,11 +43,10 @@ class GitLabProxyProvider extends ProxyOAuthServerProvider {
       );
 
       CREATE TABLE IF NOT EXISTS access_tokens (
-        token TEXT PRIMARY KEY,
+        token_hash TEXT PRIMARY KEY,
         client_id TEXT NOT NULL,
         scopes TEXT NOT NULL,
         expires_at INTEGER,
-        gitlab_token TEXT NOT NULL,
         timestamp INTEGER NOT NULL
       );
     `);
@@ -246,50 +246,64 @@ class GitLabProxyProvider extends ProxyOAuthServerProvider {
 
   // Method to verify token
   async verifyToken(token: string): Promise<{ authInfo: AuthInfo; gitlabToken: string; timestamp: number } | undefined> {
-    const row = this.db.prepare('SELECT * FROM access_tokens WHERE token = ?').get(token) as {
-      token: string;
+    // Get all token hashes to check against
+    const rows = this.db.prepare('SELECT * FROM access_tokens').all() as Array<{
+      token_hash: string;
       client_id: string;
       scopes: string;
       expires_at: number | null;
-      gitlab_token: string;
       timestamp: number;
-    } | undefined;
+    }>;
 
-    if (!row) {
+    // Find the matching token by verifying against each hash
+    let matchingRow = null;
+    for (const row of rows) {
+      try {
+        if (await argon2.verify(row.token_hash, token)) {
+          matchingRow = row;
+          break;
+        }
+      } catch (err) {
+        // Skip invalid hashes
+        continue;
+      }
+    }
+
+    if (!matchingRow) {
       return undefined;
     }
 
     const now = Date.now();
 
     // Check if token has expired by timestamp
-    if (now - row.timestamp > this.TOKEN_EXPIRY_MS) {
-      await this.deleteAccessToken(token);
+    if (now - matchingRow.timestamp > this.TOKEN_EXPIRY_MS) {
+      await this.deleteAccessTokenByHash(matchingRow.token_hash);
       return undefined;
     }
 
     // Check if token has an explicit expiry time
-    if (row.expires_at && row.expires_at < Math.floor(now / 1000)) {
-      await this.deleteAccessToken(token);
+    if (matchingRow.expires_at && matchingRow.expires_at < Math.floor(now / 1000)) {
+      await this.deleteAccessTokenByHash(matchingRow.token_hash);
       return undefined;
     }
 
     const authInfo: AuthInfo = {
-      token: row.token,
-      clientId: row.client_id,
-      scopes: JSON.parse(row.scopes),
-      expiresAt: row.expires_at ?? undefined
+      token: token, // Return the original token
+      clientId: matchingRow.client_id,
+      scopes: JSON.parse(matchingRow.scopes),
+      expiresAt: matchingRow.expires_at ?? undefined
     };
 
     return {
       authInfo,
-      gitlabToken: row.gitlab_token,
-      timestamp: row.timestamp
+      gitlabToken: token, // Return the original token since we don't store gitlab_token anymore
+      timestamp: matchingRow.timestamp
     };
   }
 
-  // Helper method to delete access token
-  private async deleteAccessToken(token: string): Promise<void> {
-    this.db.prepare('DELETE FROM access_tokens WHERE token = ?').run(token);
+  // Helper method to delete access token by hash
+  private async deleteAccessTokenByHash(tokenHash: string): Promise<void> {
+    this.db.prepare('DELETE FROM access_tokens WHERE token_hash = ?').run(tokenHash);
   }
 
   // Override token exchange to use GitLab OAuth credentials
@@ -323,16 +337,18 @@ class GitLabProxyProvider extends ProxyOAuthServerProvider {
       const scopes = tokens.scope ? tokens.scope.split(' ') : [];
 
       try {
+        // Hash the token before storing
+        const tokenHash = await argon2.hash(tokens.access_token);
+
         this.db.prepare(`
           INSERT OR REPLACE INTO access_tokens
-          (token, client_id, scopes, expires_at, gitlab_token, timestamp)
-          VALUES (?, ?, ?, ?, ?, ?)
+          (token_hash, client_id, scopes, expires_at, timestamp)
+          VALUES (?, ?, ?, ?, ?)
         `).run(
-          tokens.access_token,
+          tokenHash,
           client.client_id,
           JSON.stringify(scopes),
           expiresAt,
-          tokens.access_token, // The GitLab token is the same as our proxy token
           Date.now()
         );
       } catch (err) {
@@ -432,12 +448,6 @@ class GitLabProxyProvider extends ProxyOAuthServerProvider {
     }
 
     return tokenVerifier
-  }
-
-  // Get GitLab token from our proxy token
-  async getGitLabTokenFromProxyToken(proxyToken: string): Promise<string | undefined> {
-    const tokenInfo = await this.verifyToken(proxyToken);
-    return tokenInfo?.gitlabToken;
   }
 }
 
