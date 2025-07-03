@@ -18,7 +18,7 @@ declare global {
  * Configure authentication middleware based on the configuration
  * Supports OAuth2, PAT passthrough, and static PAT modes
  */
-export function configureAuthentication(app: Express): RequestHandler {
+export async function configureAuthentication(app: Express): Promise<RequestHandler> {
   // Default middleware that does nothing
   let authMiddleware: RequestHandler = (_req: Request, _res: Response, next: NextFunction) => {
     next();
@@ -30,7 +30,7 @@ export function configureAuthentication(app: Express): RequestHandler {
     logger.warn("Please note that GitLab OAuth2 proxy authentication is not yet fully supported. Use this feature at your own risk");
 
     // Create the provider
-    const provider = createGitLabOAuthProvider();
+    const provider = await createGitLabOAuthProvider();
 
     // Add the callback handler route BEFORE the OAuth router
     app.get("/callback", (req, res) => provider.handleOAuthCallback(req, res));
@@ -53,26 +53,7 @@ export function configureAuthentication(app: Express): RequestHandler {
         res.status(401).send("Gitlab-Token header must not be set when MCP is running in OAuth2 mode");
         return;
       }
-
-      bearerAuthMiddleware(req, res, (err) => {
-        if (err) {
-          next(err);
-          return;
-        }
-
-        // If authentication was successful, get the GitLab token
-        if (req.auth && req.auth.token) {
-          const gitlabAccessToken = provider.getGitLabTokenFromProxyToken(req.auth.token);
-          if (gitlabAccessToken) {
-            // Update the auth state with the GitLab token
-            req.auth = {
-              ...req.auth,
-              token: gitlabAccessToken
-            };
-          }
-        }
-        next();
-      });
+      bearerAuthMiddleware(req, res, next);
     };
   }
   // PAT passthrough mode

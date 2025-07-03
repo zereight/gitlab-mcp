@@ -38,6 +38,9 @@ export const config = {
   GITLAB_OAUTH2_CLIENT_SECRET: process.env.GITLAB_OAUTH2_CLIENT_SECRET,
   GITLAB_OAUTH2_REDIRECT_URL: process.env.GITLAB_OAUTH2_REDIRECT_URL,
 
+  // we need a database in order for the oauth2 provider to persist clients across restarts.
+  GITLAB_OAUTH2_DB_PATH: process.env.GITLAB_OAUTH2_DB_PATH || ":memory:",
+
   // base url matters for the redirect url, i think?
   GITLAB_OAUTH2_BASE_URL: process.env.GITLAB_OAUTH2_BASE_URL, // http://localhost:3002
 
@@ -49,6 +52,7 @@ export const config = {
   GITLAB_OAUTH2_REGISTRATION_URL: process.env.GITLAB_OAUTH2_REGISTRATION_URL, // ?
 
   GITLAB_OAUTH2_ISSUER_URL: process.env.GITLAB_OAUTH2_ISSUER_URL, // https://gitlab.com
+
 }
 
 export const validateConfiguration  = ()=> {

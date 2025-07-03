@@ -1,25 +1,59 @@
-import { ProxyOAuthServerProvider } from '@modelcontextprotocol/sdk/server/auth/providers/proxyProvider.js';
+import { ProxyOAuthServerProvider, ProxyOptions } from '@modelcontextprotocol/sdk/server/auth/providers/proxyProvider.js';
 import { config } from './config.js';
 import { mcpAuthRouter } from '@modelcontextprotocol/sdk/server/auth/router.js';
 import { OAuthClientInformationFull, OAuthTokens } from '@modelcontextprotocol/sdk/shared/auth.js';
 import { AuthorizationParams } from '@modelcontextprotocol/sdk/server/auth/provider.js';
 import { AuthInfo } from '@modelcontextprotocol/sdk/server/auth/types.js';
+import { OAuthRegisteredClientsStore } from '@modelcontextprotocol/sdk/server/auth/clients.js';
 import { Request, Response } from 'express';
 import { logger } from './logger.js';
+import { Database } from 'better-sqlite3';
 
 // Custom provider that handles dynamic registration and maps to GitLab OAuth
 class GitLabProxyProvider extends ProxyOAuthServerProvider {
-  // Store for dynamically registered clients
-  private clientRegistry = new Map<string, OAuthClientInformationFull>();
+  // Static async factory method
+  static async New(options: any): Promise<GitLabProxyProvider> {
+    // we put this here so we dont initialize this unless we are using the oauth provider
+    const Database = (await import('better-sqlite3')).default;
+    const db = new Database(config.GITLAB_OAUTH2_DB_PATH);
 
-  // Map client IDs to their redirect URIs
-  private clientRedirectUris = new Map<string, string[]>();
+    // Create tables if they don't exist
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS oauth_clients (
+        client_id TEXT PRIMARY KEY,
+        client_secret TEXT NOT NULL,
+        redirect_uris TEXT NOT NULL,
+        grant_types TEXT NOT NULL,
+        response_types TEXT NOT NULL,
+        token_endpoint_auth_method TEXT NOT NULL,
+        client_id_issued_at INTEGER NOT NULL,
+        metadata TEXT NOT NULL
+      );
 
-  // Map OAuth state parameters to client redirect URIs with timestamps
-  private stateToRedirectUri = new Map<string, { redirectUri: string; timestamp: number }>();
+      CREATE TABLE IF NOT EXISTS client_redirect_uris (
+        client_id TEXT PRIMARY KEY,
+        redirect_uris TEXT NOT NULL
+      );
 
-  // Map access tokens to auth info
-  private tokenToAuthInfo = new Map<string, { authInfo: AuthInfo; gitlabToken: string; timestamp: number }>();
+      CREATE TABLE IF NOT EXISTS state_mappings (
+        state TEXT PRIMARY KEY,
+        redirect_uri TEXT NOT NULL,
+        timestamp INTEGER NOT NULL
+      );
+
+      CREATE TABLE IF NOT EXISTS access_tokens (
+        token TEXT PRIMARY KEY,
+        client_id TEXT NOT NULL,
+        scopes TEXT NOT NULL,
+        expires_at INTEGER,
+        gitlab_token TEXT NOT NULL,
+        timestamp INTEGER NOT NULL
+      );
+    `);
+
+    const provider = new GitLabProxyProvider(options, db);
+    return provider;
+  }
 
   // State expiry time in milliseconds (15 minutes)
   private readonly STATE_EXPIRY_MS = 15 * 60 * 1000;
@@ -30,39 +64,31 @@ class GitLabProxyProvider extends ProxyOAuthServerProvider {
   // Cleanup interval
   private cleanupInterval: NodeJS.Timeout;
 
-  constructor(options: any) {
+  private db: Database
+
+  constructor(options: ProxyOptions, db: Database) {
     super(options);
+    this.db = db;
 
     // Start cleanup interval
     this.cleanupInterval = setInterval(() => {
       const now = Date.now();
 
-      // Clean up expired state mappings
-      for (const [state, mapping] of this.stateToRedirectUri.entries()) {
-        if (now - mapping.timestamp > this.STATE_EXPIRY_MS) {
-          this.stateToRedirectUri.delete(state);
-          logger.debug(`Cleaned up expired state mapping: ${state}`);
-        }
-      }
+      try {
+        // Clean up expired state mappings
+        db.prepare('DELETE FROM state_mappings WHERE timestamp < ?').run(now - this.STATE_EXPIRY_MS);
 
-      // Clean up expired tokens
-      for (const [token, info] of this.tokenToAuthInfo.entries()) {
-        if (now - info.timestamp > this.TOKEN_EXPIRY_MS) {
-          this.tokenToAuthInfo.delete(token);
-          logger.debug(`Cleaned up expired token`);
-        }
+        // Clean up expired tokens
+        db.prepare('DELETE FROM access_tokens WHERE timestamp < ? OR (expires_at IS NOT NULL AND expires_at < ?)')
+          .run(now - this.TOKEN_EXPIRY_MS, Math.floor(now / 1000));
+      } catch (err) {
+        logger.error('Error during cleanup:', err);
       }
     }, 5 * 60 * 1000);
   }
-  get clientsStore() {
+  get clientsStore(): OAuthRegisteredClientsStore {
     return {
       getClient: async (clientId: string) => {
-        // Check if this is a registered dynamic client
-        const client = this.clientRegistry.get(clientId);
-        if (client) {
-          return client;
-        }
-
         // Check if this is the actual GitLab client
         if (clientId === config.GITLAB_OAUTH2_CLIENT_ID) {
           return {
@@ -75,31 +101,78 @@ class GitLabProxyProvider extends ProxyOAuthServerProvider {
           };
         }
 
-        return undefined;
+        // Check if this is a registered dynamic client
+        const row = this.db.prepare('SELECT * FROM oauth_clients WHERE client_id = ?').get(clientId) as {
+          client_id: string;
+          client_secret: string;
+          redirect_uris: string;
+          grant_types: string;
+          response_types: string;
+          token_endpoint_auth_method: string;
+          client_id_issued_at: number;
+          metadata: string;
+        } | undefined;
+
+        if (!row) {
+          return undefined;
+        }
+
+        const client: OAuthClientInformationFull = {
+          ...JSON.parse(row.metadata),
+          client_id: row.client_id,
+          client_secret: row.client_secret,
+          redirect_uris: JSON.parse(row.redirect_uris),
+          grant_types: JSON.parse(row.grant_types),
+          response_types: JSON.parse(row.response_types),
+          token_endpoint_auth_method: row.token_endpoint_auth_method,
+          client_id_issued_at: row.client_id_issued_at
+        };
+
+        return client;
       },
 
       registerClient: async (clientMetadata: any) => {
         // Generate a unique client ID for this MCP client
-        const clientId = `mcp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-
-        // Store the client's redirect URIs
-        this.clientRedirectUris.set(clientId, clientMetadata.redirect_uris || []);
+        const clientId = `mcp_${Date.now()}_${Math.random().toString(36)}`;
 
         // Create the client registration
         const client: OAuthClientInformationFull = {
           ...clientMetadata,
           client_id: clientId,
-          client_secret: `secret_${Math.random().toString(36).substr(2, 20)}`,
+          client_secret: `secret_${Math.random().toString(36)}`,
           client_id_issued_at: Math.floor(Date.now() / 1000),
           grant_types: clientMetadata.grant_types || ['authorization_code', 'refresh_token'],
           response_types: clientMetadata.response_types || ['code'],
           token_endpoint_auth_method: clientMetadata.token_endpoint_auth_method || 'client_secret_post'
         };
 
-        // Store the client
-        this.clientRegistry.set(clientId, client);
+        // Store the client in database
+        try {
+          // Store client
+          this.db.prepare(`
+            INSERT INTO oauth_clients
+            (client_id, client_secret, redirect_uris, grant_types, response_types,
+             token_endpoint_auth_method, client_id_issued_at, metadata)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+          `).run(
+            client.client_id,
+            client.client_secret,
+            JSON.stringify(client.redirect_uris),
+            JSON.stringify(client.grant_types),
+            JSON.stringify(client.response_types),
+            client.token_endpoint_auth_method,
+            client.client_id_issued_at,
+            JSON.stringify(clientMetadata)
+          );
 
-        return client;
+          // Store redirect URIs
+          this.db.prepare('INSERT INTO client_redirect_uris (client_id, redirect_uris) VALUES (?, ?)')
+            .run(clientId, JSON.stringify(clientMetadata.redirect_uris || []));
+
+          return client;
+        } catch (err) {
+          throw err;
+        }
       }
     };
   }
@@ -108,11 +181,14 @@ class GitLabProxyProvider extends ProxyOAuthServerProvider {
   async authorize(client: OAuthClientInformationFull, params: AuthorizationParams, res: Response): Promise<void> {
     // Store the mapping between state and client's actual redirect URI with timestamp
     if (params.state && params.redirectUri) {
-      this.stateToRedirectUri.set(params.state, {
-        redirectUri: params.redirectUri,
-        timestamp: Date.now()
-      });
-      console.log(`Stored state mapping: ${params.state} -> ${params.redirectUri} at ${new Date().toISOString()}`);
+      try {
+        this.db.prepare('INSERT OR REPLACE INTO state_mappings (state, redirect_uri, timestamp) VALUES (?, ?, ?)')
+          .run(params.state, params.redirectUri, Date.now());
+        logger.debug(`Stored state mapping: ${params.state} -> ${params.redirectUri} at ${new Date().toISOString()}`);
+      } catch (err) {
+        logger.error('Error storing state mapping:', err);
+        throw err;
+      }
     }
 
     // Construct the authorization URL directly to ensure proper formatting
@@ -136,7 +212,7 @@ class GitLabProxyProvider extends ProxyOAuthServerProvider {
 
     // GitLab doesn't support the 'resource' parameter, so we skip it
 
-    console.log(`Redirecting to GitLab OAuth:`, {
+    logger.debug(`Redirecting to GitLab OAuth:`, {
       url: authUrl.toString(),
       scopes: gitlabScopes,
       requested_scopes: params.scopes
@@ -147,36 +223,73 @@ class GitLabProxyProvider extends ProxyOAuthServerProvider {
   }
 
   // Method to get redirect URI from state
-  getRedirectUriFromState(state: string): { redirectUri: string; timestamp: number } | undefined {
-    return this.stateToRedirectUri.get(state);
-  }
+  async getRedirectUriFromState(state: string): Promise<{ redirectUri: string; timestamp: number } | undefined> {
+    const row = this.db.prepare('SELECT redirect_uri, timestamp FROM state_mappings WHERE state = ?').get(state) as {
+      redirect_uri: string;
+      timestamp: number;
+    } | undefined;
 
-  // Method to delete state mapping
-  deleteStateMapping(state: string): void {
-    this.stateToRedirectUri.delete(state);
-  }
-
-  // Method to verify token
-  verifyToken(token: string): { authInfo: AuthInfo; gitlabToken: string; timestamp: number } | undefined {
-    const tokenInfo = this.tokenToAuthInfo.get(token);
-
-    if (!tokenInfo) {
+    if (!row) {
       return undefined;
     }
 
-    // Check if token has expired
-    if (Date.now() - tokenInfo.timestamp > this.TOKEN_EXPIRY_MS) {
-      this.tokenToAuthInfo.delete(token);
+    return {
+      redirectUri: row.redirect_uri,
+      timestamp: row.timestamp
+    };
+  }
+
+  // Method to delete state mapping
+  async deleteStateMapping(state: string): Promise<void> {
+    this.db.prepare('DELETE FROM state_mappings WHERE state = ?').run(state);
+  }
+
+  // Method to verify token
+  async verifyToken(token: string): Promise<{ authInfo: AuthInfo; gitlabToken: string; timestamp: number } | undefined> {
+    const row = this.db.prepare('SELECT * FROM access_tokens WHERE token = ?').get(token) as {
+      token: string;
+      client_id: string;
+      scopes: string;
+      expires_at: number | null;
+      gitlab_token: string;
+      timestamp: number;
+    } | undefined;
+
+    if (!row) {
+      return undefined;
+    }
+
+    const now = Date.now();
+
+    // Check if token has expired by timestamp
+    if (now - row.timestamp > this.TOKEN_EXPIRY_MS) {
+      await this.deleteAccessToken(token);
       return undefined;
     }
 
     // Check if token has an explicit expiry time
-    if (tokenInfo.authInfo.expiresAt && tokenInfo.authInfo.expiresAt < Math.floor(Date.now() / 1000)) {
-      this.tokenToAuthInfo.delete(token);
+    if (row.expires_at && row.expires_at < Math.floor(now / 1000)) {
+      await this.deleteAccessToken(token);
       return undefined;
     }
 
-    return tokenInfo;
+    const authInfo: AuthInfo = {
+      token: row.token,
+      clientId: row.client_id,
+      scopes: JSON.parse(row.scopes),
+      expiresAt: row.expires_at ?? undefined
+    };
+
+    return {
+      authInfo,
+      gitlabToken: row.gitlab_token,
+      timestamp: row.timestamp
+    };
+  }
+
+  // Helper method to delete access token
+  private async deleteAccessToken(token: string): Promise<void> {
+    this.db.prepare('DELETE FROM access_tokens WHERE token = ?').run(token);
   }
 
   // Override token exchange to use GitLab OAuth credentials
@@ -203,22 +316,29 @@ class GitLabProxyProvider extends ProxyOAuthServerProvider {
       config.GITLAB_OAUTH2_REDIRECT_URL!,
       resource
     );
-    logger.debug("GitLab OAuth2 token exchange response:", tokens);
 
     // Store the token mapping for our own verification
     if (tokens.access_token) {
-      const authInfo: AuthInfo = {
-        token: tokens.access_token,
-        clientId: client.client_id,
-        scopes: tokens.scope ? tokens.scope.split(' ') : [],
-        expiresAt: tokens.expires_in ? Math.floor(Date.now() / 1000) + tokens.expires_in : undefined
-      };
+      const expiresAt = tokens.expires_in ? Math.floor(Date.now() / 1000) + tokens.expires_in : null;
+      const scopes = tokens.scope ? tokens.scope.split(' ') : [];
 
-      this.tokenToAuthInfo.set(tokens.access_token, {
-        authInfo,
-        gitlabToken: tokens.access_token, // The GitLab token is the same as our proxy token
-        timestamp: Date.now()
-      });
+      try {
+        this.db.prepare(`
+          INSERT OR REPLACE INTO access_tokens
+          (token, client_id, scopes, expires_at, gitlab_token, timestamp)
+          VALUES (?, ?, ?, ?, ?, ?)
+        `).run(
+          tokens.access_token,
+          client.client_id,
+          JSON.stringify(scopes),
+          expiresAt,
+          tokens.access_token, // The GitLab token is the same as our proxy token
+          Date.now()
+        );
+      } catch (err) {
+        logger.error('Error storing access token:', err);
+        throw err;
+      }
     }
 
     return tokens;
@@ -226,7 +346,7 @@ class GitLabProxyProvider extends ProxyOAuthServerProvider {
 
   // Override verifyAccessToken to use our internal token store
   async verifyAccessToken(token: string): Promise<AuthInfo> {
-    const tokenInfo = this.verifyToken(token);
+    const tokenInfo = await this.verifyToken(token);
 
     if (!tokenInfo) {
       throw new Error('Invalid or expired token');
@@ -236,7 +356,7 @@ class GitLabProxyProvider extends ProxyOAuthServerProvider {
   }
 
   // Handle OAuth callback and redirect to client's actual callback URL
-  handleOAuthCallback = (req: Request, res: Response): void => {
+  handleOAuthCallback = async (req: Request, res: Response): Promise<void> => {
     const { code, state, error, error_description } = req.query;
 
     logger.debug('OAuth callback received:', { code: !!code, state, error });
@@ -246,41 +366,46 @@ class GitLabProxyProvider extends ProxyOAuthServerProvider {
       return;
     }
 
-    // Get the client's actual redirect URI with timestamp
-    const stateMapping = this.getRedirectUriFromState(state as string);
+    try {
+      // Get the client's actual redirect URI with timestamp
+      const stateMapping = await this.getRedirectUriFromState(state as string);
 
-    if (!stateMapping) {
-      console.error(`No redirect URI found for state: ${state}`);
-      res.status(400).send('Invalid state parameter');
-      return;
+      if (!stateMapping) {
+        logger.error(`No redirect URI found for state: ${state}`);
+        res.status(400).send('Invalid state parameter');
+        return;
+      }
+
+      // Check if the state mapping has expired
+      if (Date.now() - stateMapping.timestamp > this.STATE_EXPIRY_MS) {
+        logger.error(`State mapping expired for state: ${state}`);
+        await this.deleteStateMapping(state as string);
+        res.status(400).send('State parameter expired');
+        return;
+      }
+
+      const clientRedirectUri = stateMapping.redirectUri;
+
+      // Clean up the state mapping
+      await this.deleteStateMapping(state as string);
+
+      // Build the redirect URL with all parameters
+      const redirectUrl = new URL(clientRedirectUri);
+
+      // Pass through all query parameters
+      if (code) redirectUrl.searchParams.set('code', code as string);
+      if (state) redirectUrl.searchParams.set('state', state as string);
+      if (error) redirectUrl.searchParams.set('error', error as string);
+      if (error_description) redirectUrl.searchParams.set('error_description', error_description as string);
+
+      logger.debug(`Redirecting to client callback: ${redirectUrl.toString()}`);
+
+      // Redirect to the client's actual callback URL
+      res.redirect(redirectUrl.toString());
+    } catch (err) {
+      logger.error('Error handling OAuth callback:', err);
+      res.status(500).send('Internal server error');
     }
-
-    // Check if the state mapping has expired
-    if (Date.now() - stateMapping.timestamp > this.STATE_EXPIRY_MS) {
-      console.error(`State mapping expired for state: ${state}`);
-      this.deleteStateMapping(state as string);
-      res.status(400).send('State parameter expired');
-      return;
-    }
-
-    const clientRedirectUri = stateMapping.redirectUri;
-
-    // Clean up the state mapping
-    this.deleteStateMapping(state as string);
-
-    // Build the redirect URL with all parameters
-    const redirectUrl = new URL(clientRedirectUri);
-
-    // Pass through all query parameters
-    if (code) redirectUrl.searchParams.set('code', code as string);
-    if (state) redirectUrl.searchParams.set('state', state as string);
-    if (error) redirectUrl.searchParams.set('error', error as string);
-    if (error_description) redirectUrl.searchParams.set('error_description', error_description as string);
-
-    logger.debug(`Redirecting to client callback: ${redirectUrl.toString()}`);
-
-    // Redirect to the client's actual callback URL
-    res.redirect(redirectUrl.toString());
   }
 
   // Create OAuth2 router
@@ -310,8 +435,8 @@ class GitLabProxyProvider extends ProxyOAuthServerProvider {
   }
 
   // Get GitLab token from our proxy token
-  getGitLabTokenFromProxyToken(proxyToken: string): string | undefined {
-    const tokenInfo = this.verifyToken(proxyToken);
+  async getGitLabTokenFromProxyToken(proxyToken: string): Promise<string | undefined> {
+    const tokenInfo = await this.verifyToken(proxyToken);
     return tokenInfo?.gitlabToken;
   }
 }
@@ -320,7 +445,7 @@ class GitLabProxyProvider extends ProxyOAuthServerProvider {
 export { GitLabProxyProvider };
 
 // Create the GitLab OAuth provider
-export const createGitLabOAuthProvider = () => {
+export const createGitLabOAuthProvider = async () => {
   if(!config.GITLAB_OAUTH2_AUTHORIZATION_URL) {
     throw new Error("GITLAB_OAUTH2_AUTHORIZATION_URL is not set")
   }
@@ -340,7 +465,7 @@ export const createGitLabOAuthProvider = () => {
     throw new Error("GITLAB_OAUTH2_BASE_URL is not set")
   }
 
-  const provider = new GitLabProxyProvider({
+  const provider = await GitLabProxyProvider.New({
     endpoints: {
       authorizationUrl: config.GITLAB_OAUTH2_AUTHORIZATION_URL,
       tokenUrl: config.GITLAB_OAUTH2_TOKEN_URL,

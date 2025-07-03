@@ -56,16 +56,9 @@ async function startStdioServer(): Promise<void> {
 async function startExpressServer(mode: TransportMode): Promise<void> {
   const app = express();
 
-  // Add request logging middleware
-  app.use((req, res, next) => {
-    logger.debug(`got request ${req.method} ${req.url}`);
-    next();
-  });
-
-  // Configure authentication based on the environment
-  const authMiddleware = configureAuthentication(app);
+  const authMiddleware = await configureAuthentication(app);
   const argon2Salt = new TextEncoder().encode(config.ARGON2_SALT)
-  if(mode === TransportMode.STREAMABLE_HTTP) {
+  if(mode === TransportMode.SSE) {
     const transports: {
       [sessionId: string]: {
         transport: SSEServerTransport
@@ -123,7 +116,7 @@ async function startExpressServer(mode: TransportMode): Promise<void> {
       }
     });
 
-  } else if (mode === TransportMode.SSE) {
+  } else if (mode === TransportMode.STREAMABLE_HTTP) {
   const transports : { [sessionId: string]: {
     transport: StreamableHTTPServerTransport
     tokenHash?: string
