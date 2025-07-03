@@ -1,5 +1,8 @@
 export const config = {
+  HOST: process.env.HOST || '127.0.0.1',
+  PORT: process.env.PORT || 3002,
   SSE: process.env.SSE === "true",
+  STREAMABLE_HTTP: process.env.STREAMABLE_HTTP === "true",
   IS_OLD : process.env.GITLAB_IS_OLD === "true",
   GITLAB_READ_ONLY_MODE : process.env.GITLAB_READ_ONLY_MODE === "true",
   VERBOSE: ["true","TRUE","1"].includes(process.env.VERBOSE || "0"),

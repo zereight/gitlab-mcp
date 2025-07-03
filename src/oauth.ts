@@ -203,6 +203,7 @@ class GitLabProxyProvider extends ProxyOAuthServerProvider {
       config.GITLAB_OAUTH2_REDIRECT_URL!,
       resource
     );
+    logger.debug("GitLab OAuth2 token exchange response:", tokens);
 
     // Store the token mapping for our own verification
     if (tokens.access_token) {

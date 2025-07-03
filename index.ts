@@ -3,190 +3,257 @@
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
 import express, { Request, Response } from "express";
-import {mcpserver} from "./src/mcpserver.js";
+import {mcpserver } from "./src/mcpserver.js";
+import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { config, validateConfiguration} from "./src/config.js";
-import { createGitLabOAuthProvider, GitLabProxyProvider } from "./src/oauth.js";
-import { requireBearerAuth } from "@modelcontextprotocol/sdk/server/auth/middleware/bearerAuth.js";
+import { configureAuthentication } from "./src/authentication.js";
 import { logger } from "./src/logger.js";
 import argon2 from "@node-rs/argon2";
+import { randomUUID } from "crypto";
 
 
 validateConfiguration()
 
+enum TransportMode {
+  STDIO = 'stdio',
+  SSE = 'sse',
+  STREAMABLE_HTTP = 'streamable-http'
+}
+
+
+/**
+ * Determine the transport mode based on environment variables and availability
+ *
+ * Transport mode priority (highest to lowest):
+ * 1. STREAMABLE_HTTP
+ * 2. SSE
+ * 3. STDIO
+ */
+function determineTransportMode(): TransportMode {
+  // Check for streamable-http support (highest priority)
+  if (config.STREAMABLE_HTTP) {
+    return TransportMode.STREAMABLE_HTTP;
+  }
+
+  // Check for SSE support (medium priority)
+  if (config.SSE) {
+    return TransportMode.SSE;
+  }
+
+  // Default to stdio (lowest priority)
+  return TransportMode.STDIO;
+}
+
+/**
+ * Start server with stdio transport
+ */
+async function startStdioServer(): Promise<void> {
+  const transport = new StdioServerTransport();
+  await mcpserver.connect(transport);
+}
+
+// used for the sse and streamable http transports to share auth
+async function startExpressServer(mode: TransportMode): Promise<void> {
+  const app = express();
+
+  // Add request logging middleware
+  app.use((req, res, next) => {
+    logger.debug(`got request ${req.method} ${req.url}`);
+    next();
+  });
+
+  // Configure authentication based on the environment
+  const authMiddleware = configureAuthentication(app);
+  const argon2Salt = new TextEncoder().encode(config.ARGON2_SALT)
+  if(mode === TransportMode.STREAMABLE_HTTP) {
+    const transports: {
+      [sessionId: string]: {
+        transport: SSEServerTransport
+        tokenHash?: string
+      }
+    } = {};
+    app.get("/sse", authMiddleware, async (req: Request, res: Response) => {
+      const transport = new SSEServerTransport("/messages", res);
+      transports[transport.sessionId] = {
+        transport,
+      };
+      // if we have a valid auth info here, either obtained from the passthrough token or oauth, we tie it to a session.
+      if(req.auth) {
+        transports[transport.sessionId].tokenHash = await argon2.hash(req.auth.token, {
+          salt: argon2Salt,
+        });
+      }
+      res.on("close", () => {
+        delete transports[transport.sessionId];
+      });
+      await mcpserver.connect(transport);
+    });
+
+    app.post("/messages",authMiddleware,  async (req: Request, res: Response) => {
+      const sessionId = req.query.sessionId as string;
+      const transportDetails = transports[sessionId];
+      if(!transportDetails) {
+        res.status(400).send("No transport found for sessionId");
+        return;
+      }
+      const {transport, tokenHash} = transportDetails
+      // means we have a token hash to verify.
+      if(tokenHash) {
+        // NOTE: at this point, we assume that this req.auth is a "valid" AuthInfo
+        // TODO: consider the security implications of this when verifying dcr clients.
+        if(!req.auth) {
+          res.status(401).send("No authorization information sent");
+          return;
+        }
+        const gitlabToken = req.auth.token;
+        if(!gitlabToken) {
+          res.status(401).send("No valid token info found in request");
+          return;
+        }
+        const verified = await argon2.verify(tokenHash, gitlabToken, {
+          salt: argon2Salt,
+        });
+        if(!verified) {
+          res.status(401).send("Token does not match session");
+          return;
+        }
+      }
+      if (transport) {
+        await transport.handlePostMessage(req, res);
+      }
+    });
+
+  } else if (mode === TransportMode.SSE) {
+  const transports : { [sessionId: string]: {
+    transport: StreamableHTTPServerTransport
+    tokenHash?: string
+  }} = {};
+    // Streamable HTTP endpoint - handles both session creation and message handling
+    app.post('/mcp', authMiddleware, async (req: Request, res: Response) => {
+      const sessionId = req.headers['mcp-session-id'] as string;
+      try {
+        let transport: StreamableHTTPServerTransport
+        if (sessionId && transports[sessionId]) {
+          // Reuse existing transport for ongoing session
+          const session = transports[sessionId];
+          if(session.tokenHash) {
+            if(!req.auth) {
+              res.status(401).send("No authorization information sent");
+              return;
+            }
+            const gitlabToken = req.auth.token;
+            if(!gitlabToken) {
+              res.status(401).send("No valid token info found in request");
+              return;
+            }
+            const verified = await argon2.verify(session.tokenHash, gitlabToken, {
+              salt: argon2Salt,
+            });
+            if(!verified) {
+              res.status(401).send("Token does not match session");
+              return;
+            }
+          }
+          transport = session.transport;
+          await transport.handleRequest(req, res, req.body);
+        } else {
+          // Create new transport for new session
+          transport = new StreamableHTTPServerTransport({
+            sessionIdGenerator: () => randomUUID(),
+            onsessioninitialized: (newSessionId: string) => {
+              transports[newSessionId] = {
+                transport,
+              };
+              // if we have a valid auth info here, either obtained from the passthrough token or oauth, we tie it to a session.
+              if(req.auth) {
+                transports[newSessionId].tokenHash = argon2.hashSync(req.auth.token, {
+                  salt: argon2Salt,
+                });
+              }
+              logger.warn(`Streamable HTTP session initialized: ${newSessionId}`);
+            }
+          });
+
+          // Set up cleanup handler when transport closes
+          transport.onclose = () => {
+            const sid = transport.sessionId;
+            if (sid && transports[sid]) {
+              logger.warn(`Streamable HTTP transport closed for session ${sid}, cleaning up`);
+              delete transports[sid];
+            }
+          };
+
+          // Connect transport to MCP server before handling the request
+          await mcpserver.connect(transport);
+          await transport.handleRequest(req, res, req.body);
+        }
+      } catch (error) {
+        logger.error('Streamable HTTP error:', error);
+        res.status(500).json({
+          error: 'Internal server error',
+          message: error instanceof Error ? error.message : 'Unknown error'
+        });
+      }
+    });
+
+  } else {
+    throw new Error("Unknown transport mode for express server: " +mode);
+  }
+
+  app.get("/health", (_: Request, res: Response) => {
+    res.status(200).json({
+      status: "healthy",
+      version: process.env.npm_package_version || "unknown",
+    });
+  });
+
+
+  app.listen(Number(config.PORT), config.HOST, () => {
+    logger.log(`GitLab MCP Server running with ${mode} transport`);
+    const colorGreen = "\x1b[32m";
+    const colorReset = "\x1b[0m";
+    logger.log(`${colorGreen}Endpoint: http://${config.HOST}:${config.PORT}/sse${colorReset}`);
+  });
+}
+
+/**
+ * Initialize server with specific transport mode
+ * Handle transport-specific initialization logic
+ */
+async function initializeServerByTransportMode(mode: TransportMode): Promise<void> {
+  logger.log('Initializing server with transport mode:', mode);
+  switch (mode) {
+    case TransportMode.STDIO:
+      logger.warn('Starting GitLab MCP Server with stdio transport');
+      await startStdioServer();
+      break;
+    case TransportMode.SSE:
+    case TransportMode.STREAMABLE_HTTP:
+      logger.warn('Starting GitLab MCP Server with SSE transport');
+      await startExpressServer(mode);
+      break;
+    default:
+      // This should never happen with proper enum usage, but TypeScript requires it
+      const exhaustiveCheck: never = mode;
+      throw new Error(`Unknown transport mode: ${exhaustiveCheck}`);
+  }
+}
+
 /**
  * Initialize and run the server
- * 서버 초기화 및 실행
+ * Main entry point for server startup
  */
 async function runServer() {
   try {
-    // SSE is actually used to determine whether or not to run in http mode.
-    if (!config.SSE) {
-      // no authorization in stdio mode
-      const transport = new StdioServerTransport();
-      await mcpserver.connect(transport);
-    } else {
-      const app = express();
-      const transports: {
-        [sessionId: string]: {
-          transport: SSEServerTransport
-          tokenHash?: string
-        }
-      } = {};
-
-      // TODO: this should be refactored into a function that returns the auth middleware and mount any required middleware
-      let authMiddleware: express.RequestHandler  = (_req: Request, _res: Response, next: express.NextFunction) => {
-        next();
-      }
-      app.use((req, res, next) => {
-        logger.debug(`got request ${req.method} ${req.url}`);
-        next();
-      })
-      // if gitlab oauth client id is set, then we attempt to enable the oauth proxy
-      // NOTE: this is... incredibly insecure. you shouldn't really be using this until more has been worked on it and some semi-proper security review.
-      if (config.GITLAB_OAUTH2_CLIENT_ID) {
-        // Create the provider
-        const provider = createGitLabOAuthProvider();
-
-        // Add the callback handler route BEFORE the OAuth router
-        app.get("/callback", (req, res) => provider.handleOAuthCallback(req, res));
-
-        const oauth2Proxy = provider.createOAuth2Router()
-        console.log("Gitlab OAuth2 proxy enabled");
-        app.use(oauth2Proxy);
-        const tokenVerifier = provider.createTokenVerifier()
-        const bearerAuthMiddleware = requireBearerAuth({
-          verifier:tokenVerifier,
-          resourceMetadataUrl: `${config.GITLAB_OAUTH2_BASE_URL}/.well-known/oauth-protected-resource`
-        })
-        authMiddleware = (req: Request, res: Response, next: express.NextFunction) => {
-          const gitlabToken = req.headers["gitlab-token"];
-          if(gitlabToken) {
-            res.status(401).send("Gitlab-Token header must not be set when MCP is running in OAuth2 mode");
-            return;
-          }
-          bearerAuthMiddleware(req, res, (err) => {
-            if (err) {
-              next(err);
-              return;
-            }
-            // If authentication was successful, get the GitLab token
-            if (req.auth && req.auth.token) {
-              const gitlabAccessToken = provider.getGitLabTokenFromProxyToken(req.auth.token);
-              if (gitlabAccessToken) {
-                // Update the auth state with the GitLab token
-                req.auth = {
-                  ...req.auth,
-                  token: gitlabAccessToken
-                };
-              }
-            }
-            next();
-          })
-        }
-      } else if(config.GITLAB_PAT_PASSTHROUGH) {
-        console.log("Gitlab PAT passthrough enabled");
-        authMiddleware  = (req: Request, res: Response, next: express.NextFunction) => {
-          // check the Gitlab-Token header
-          const token = req.headers["gitlab-token"];
-          if(!token) {
-            res.status(401).send("Please set a Gitlab-Token header in your request");
-            return;
-          }
-          if(typeof token !== "string") {
-            res.status(401).send("Gitlab-Token must only be set once");
-            return;
-          }
-          req.auth = {
-            token: token,
-            clientId: "!passthrough",
-            scopes: [],
-          }
-          next();
-        }
-      }else if(config.GITLAB_PERSONAL_ACCESS_TOKEN){
-        console.log("Using GITLAB_PERSONAL_ACCESS_TOKEN for all requests")
-        const accessToken = config.GITLAB_PERSONAL_ACCESS_TOKEN
-        authMiddleware  = (req: Request, res: Response, next: express.NextFunction) => {
-          req.auth = {
-            token: accessToken,
-            clientId: "!global",
-            scopes: [],
-          }
-          next();
-        }
-      }
-      const argon2Salt = new TextEncoder().encode(config.ARGON2_SALT)
-
-      app.get("/sse", authMiddleware, async (req: Request, res: Response) => {
-        const transport = new SSEServerTransport("/messages", res);
-        transports[transport.sessionId] = {
-          transport,
-        };
-        // if we have a valid auth info here, either obtained from the passthrough token or oauth, we tie it to a session.
-        if(req.auth) {
-          transports[transport.sessionId].tokenHash = await argon2.hash(req.auth.token, {
-            salt: argon2Salt,
-          });
-        }
-        res.on("close", () => {
-          delete transports[transport.sessionId];
-        });
-        await mcpserver.connect(transport);
-      });
-
-      app.post("/messages",authMiddleware,  async (req: Request, res: Response) => {
-        const sessionId = req.query.sessionId as string;
-        const transportDetails = transports[sessionId];
-        if(!transportDetails) {
-          res.status(400).send("No transport found for sessionId");
-          return;
-        }
-        const {transport, tokenHash} = transportDetails
-        // means we have a token hash to verify.
-        if(tokenHash) {
-          // NOTE: at this point, we assume that this req.auth is a "valid" AuthInfo
-          // TODO: consider the security implications of this when verifying dcr clients.
-          if(!req.auth) {
-            res.status(401).send("No authorization information sent");
-            return;
-          }
-          const gitlabToken = req.auth.token;
-          if(!gitlabToken) {
-            res.status(401).send("No valid token info found in request");
-            return;
-          }
-          const verified = await argon2.verify(tokenHash, gitlabToken, {
-            salt: argon2Salt,
-          });
-          if(!verified) {
-            res.status(401).send("Token does not match session");
-            return;
-          }
-        }
-        if (transport) {
-          await transport.handlePostMessage(req, res);
-        }
-      });
-
-      app.get("/health", (_: Request, res: Response) => {
-        res.status(200).json({
-          status: "healthy",
-          version: process.env.npm_package_version || "unknown",
-        });
-      });
-
-      const PORT = process.env.PORT || 3002;
-      app.listen(PORT, () => {
-        console.log(`Server is running on port ${PORT}`);
-      });
-    }
+    const transportMode = determineTransportMode();
+    await initializeServerByTransportMode(transportMode);
   } catch (error) {
-    console.error("Error initializing server:", error);
+    logger.error("Error initializing server:", error);
     process.exit(1);
   }
 }
 
 runServer().catch(error => {
-  console.error("Fatal error in main():", error);
+  logger.error("Fatal error in main():", error);
   process.exit(1);
 });
