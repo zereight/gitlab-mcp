@@ -25,6 +25,8 @@ When using with the Claude App, you need to set up your API key and URLs directl
       "env": {
         "GITLAB_PERSONAL_ACCESS_TOKEN": "your_gitlab_token",
         "GITLAB_API_URL": "your_gitlab_api_url",
+        "GITLAB_PROJECT_ID": "your_project_id", // Optional: default project
+        "GITLAB_LOCK_PROJECT": "false", // Optional: lock to single project
         "GITLAB_READ_ONLY_MODE": "false",
         "USE_GITLAB_WIKI": "false", // use wiki api?
         "USE_MILESTONE": "false", // use milestone api?
@@ -168,6 +170,7 @@ $ sh scripts/image_push.sh docker_user_name
 - `GITLAB_PERSONAL_ACCESS_TOKEN`: Your GitLab personal access token.
 - `GITLAB_API_URL`: Your GitLab API URL. (Default: `https://gitlab.com/api/v4`)
 - `GITLAB_PROJECT_ID`: Default project ID. If set, Overwrite this value when making an API request.
+- `GITLAB_LOCK_PROJECT`: When set to 'true', locks the MCP server to only access the project specified in `GITLAB_PROJECT_ID`. Any attempts to access other projects will be denied. Requires `GITLAB_PROJECT_ID` to be set.
 - `GITLAB_READ_ONLY_MODE`: When set to 'true', restricts the server to only expose read-only operations. Useful for enhanced security or when write access is not needed. Also useful for using with Cursor and it's 40 tool limit.
 - `USE_GITLAB_WIKI`: When set to 'true', enables the wiki-related tools (list_wiki_pages, get_wiki_page, create_wiki_page, update_wiki_page, delete_wiki_page). By default, wiki features are disabled.
 - `USE_MILESTONE`: When set to 'true', enables the milestone-related tools (list_milestones, get_milestone, create_milestone, edit_milestone, delete_milestone, get_milestone_issue, get_milestone_merge_requests, promote_milestone, get_milestone_burndown_events). By default, milestone features are disabled.
