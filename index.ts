@@ -826,9 +826,15 @@ function normalizeGitLabApiUrl(url?: string): string {
 // Use the normalizeGitLabApiUrl function to handle various URL formats
 const GITLAB_API_URL = normalizeGitLabApiUrl(process.env.GITLAB_API_URL || "");
 const GITLAB_PROJECT_ID = process.env.GITLAB_PROJECT_ID;
+const GITLAB_LOCK_PROJECT = process.env.GITLAB_LOCK_PROJECT === "true";
 
 if (!GITLAB_PERSONAL_ACCESS_TOKEN) {
   console.error("GITLAB_PERSONAL_ACCESS_TOKEN environment variable is not set");
+  process.exit(1);
+}
+
+if (GITLAB_LOCK_PROJECT && !GITLAB_PROJECT_ID) {
+  console.error("GITLAB_PROJECT_ID must be set when GITLAB_LOCK_PROJECT is enabled");
   process.exit(1);
 }
 
@@ -857,8 +863,18 @@ async function handleGitLabError(response: import("node-fetch").Response): Promi
 /**
  * @param {string} projectId - The project ID parameter passed to the function
  * @returns {string} The project ID to use for the API call
+ * @throws {Error} If GITLAB_LOCK_PROJECT is enabled and a different project is requested
  */
 function getEffectiveProjectId(projectId: string): string {
+  if (GITLAB_LOCK_PROJECT) {
+    if (!GITLAB_PROJECT_ID) {
+      throw new Error("GITLAB_PROJECT_ID must be set when GITLAB_LOCK_PROJECT is enabled");
+    }
+    if (projectId && projectId !== GITLAB_PROJECT_ID) {
+      throw new Error(`Access denied: This MCP server is locked to project ${GITLAB_PROJECT_ID}. Cannot access project ${projectId}`);
+    }
+    return GITLAB_PROJECT_ID;
+  }
   return GITLAB_PROJECT_ID || projectId;
 }
 
