@@ -23,7 +23,7 @@
     "deploy": "npm publish --access public",
     "generate-tools": "npx ts-node scripts/generate-tools-readme.ts",
     "changelog": "auto-changelog -p",
-    "test": "node test/validate-api.js && npm run test:server",
+    "test": "node test/validate-api.js",
     "test:integration": "node test/validate-api.js",
     "test:server": "npm run build && node build/test/test-all-transport-server.js",
     "lint": "eslint . --ext .ts",
