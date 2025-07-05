@@ -1380,6 +1380,8 @@ export const GetCommitDiffSchema = z.object({
   sha: z.string().describe("The commit hash or name of a repository branch or tag"),
 });
 
+export const GetCurrentUserSchema = z.object({});
+
 // Export types
 export type GitLabAuthor = z.infer<typeof GitLabAuthorSchema>;
 export type GitLabFork = z.infer<typeof GitLabForkSchema>;

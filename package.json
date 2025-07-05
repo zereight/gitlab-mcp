@@ -32,8 +32,11 @@
     "format:check": "prettier --check \"**/*.{js,ts,json,md}\""
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.10.0",
+    "@modelcontextprotocol/sdk": "1.13.3",
+    "@node-rs/argon2": "^2.0.2",
+    "@types/better-sqlite3": "^7.6.13",
     "@types/node-fetch": "^2.6.12",
+    "better-sqlite3": "^12.2.0",
     "express": "^5.1.0",
     "fetch-cookie": "^3.1.0",
     "form-data": "^4.0.0",
@@ -41,6 +44,7 @@
     "https-proxy-agent": "^7.0.6",
     "node-fetch": "^3.3.2",
     "socks-proxy-agent": "^8.0.5",
+    "sqlite3": "^5.1.7",
     "tough-cookie": "^5.1.2",
     "zod-to-json-schema": "^3.23.5"
   },
@@ -49,11 +53,11 @@
     "@types/node": "^22.13.10",
     "@typescript-eslint/eslint-plugin": "^8.21.0",
     "@typescript-eslint/parser": "^8.21.0",
+    "auto-changelog": "^2.4.0",
     "eslint": "^9.18.0",
     "prettier": "^3.4.2",
     "ts-node": "^10.9.2",
     "typescript": "^5.8.2",
-    "zod": "^3.24.2",
-    "auto-changelog": "^2.4.0"
+    "zod": "^3.24.2"
   }
 }
