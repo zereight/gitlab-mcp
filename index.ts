@@ -185,6 +185,19 @@ import {
 } from "./schemas.js";
 import { randomUUID } from "crypto";
 
+const pino = require('pino')
+const logger = pino({
+  level: process.env.LOG_LEVEL || 'info',
+  prettyPrint: {
+    levelFirst: true,
+    colorize: true,
+  },
+  options: {
+    destination: 2,
+  }
+})
+
+  
 /**
  * Available transport modes for MCP server
  */
@@ -309,7 +322,7 @@ const createCookieJar = (): CookieJar | null => {
     
     return jar;
   } catch (error) {
-    console.error("Error loading cookie file:", error);
+    logger.error("Error loading cookie file:", error);
     return null;
   }
 };
@@ -828,7 +841,7 @@ const GITLAB_API_URL = normalizeGitLabApiUrl(process.env.GITLAB_API_URL || "");
 const GITLAB_PROJECT_ID = process.env.GITLAB_PROJECT_ID;
 
 if (!GITLAB_PERSONAL_ACCESS_TOKEN) {
-  console.error("GITLAB_PERSONAL_ACCESS_TOKEN environment variable is not set");
+  logger.error("GITLAB_PERSONAL_ACCESS_TOKEN environment variable is not set");
   process.exit(1);
 }
 
@@ -844,8 +857,8 @@ async function handleGitLabError(response: import("node-fetch").Response): Promi
     const errorBody = await response.text();
     // Check specifically for Rate Limit error
     if (response.status === 403 && errorBody.includes("User API Key Rate limit exceeded")) {
-      console.error("GitLab API Rate Limit Exceeded:", errorBody);
-      console.log("User API Key Rate limit exceeded. Please try again later.");
+      logger.error("GitLab API Rate Limit Exceeded:", errorBody);
+      logger.error("User API Key Rate limit exceeded. Please try again later.");
       throw new Error(`GitLab API Rate Limit Exceeded: ${errorBody}`);
     } else {
       // Handle other API errors
@@ -3239,7 +3252,7 @@ async function getUser(username: string): Promise<GitLabUser | null> {
     // No matching user found
     return null;
   } catch (error) {
-    console.error(`Error fetching user by username '${username}':`, error);
+    logger.error(`Error fetching user by username '${username}':`, error);
     return null;
   }
 }
@@ -3259,7 +3272,7 @@ async function getUsers(usernames: string[]): Promise<GitLabUsersResponse> {
       const user = await getUser(username);
       users[username] = user;
     } catch (error) {
-      console.error(`Error processing username '${username}':`, error);
+      logger.error(`Error processing username '${username}':`, error);
       users[username] = null;
     }
   }
@@ -3429,7 +3442,7 @@ server.setRequestHandler(CallToolRequestSchema, async request => {
             content: [{ type: "text", text: JSON.stringify(forkedProject, null, 2) }],
           };
         } catch (forkError) {
-          console.error("Error forking repository:", forkError);
+          logger.error("Error forking repository:", forkError);
           let forkErrorMessage = "Failed to fork repository";
           if (forkError instanceof Error) {
             forkErrorMessage = `${forkErrorMessage}: ${forkError.message}`;
@@ -4406,10 +4419,10 @@ async function startSSEServer(): Promise<void> {
   });
 
   app.listen(Number(PORT), HOST, () => {
-    console.log(`GitLab MCP Server running with SSE transport`);
+    logger.log(`GitLab MCP Server running with SSE transport`);
     const colorGreen = "\x1b[32m";
     const colorReset = "\x1b[0m";
-    console.log(`${colorGreen}Endpoint: http://${HOST}:${PORT}/sse${colorReset}`);
+    logger.log(`${colorGreen}Endpoint: http://${HOST}:${PORT}/sse${colorReset}`);
   });
 }
 
@@ -4440,7 +4453,7 @@ async function startStreamableHTTPServer(): Promise<void> {
           sessionIdGenerator: () => randomUUID(),
           onsessioninitialized: (newSessionId: string) => {
             streamableTransports[newSessionId] = transport;
-            console.warn(`Streamable HTTP session initialized: ${newSessionId}`);
+            logger.warn(`Streamable HTTP session initialized: ${newSessionId}`);
           }
         });
         
@@ -4448,7 +4461,7 @@ async function startStreamableHTTPServer(): Promise<void> {
         transport.onclose = () => {
           const sid = transport.sessionId;
           if (sid && streamableTransports[sid]) {
-            console.warn(`Streamable HTTP transport closed for session ${sid}, cleaning up`);
+            logger.warn(`Streamable HTTP transport closed for session ${sid}, cleaning up`);
             delete streamableTransports[sid];
           }
         };
@@ -4458,7 +4471,7 @@ async function startStreamableHTTPServer(): Promise<void> {
         await transport.handleRequest(req, res, req.body);
       }
     } catch (error) {
-      console.error('Streamable HTTP error:', error);
+      logger.error('Streamable HTTP error:', error);
       res.status(500).json({ 
         error: 'Internal server error',
         message: error instanceof Error ? error.message : 'Unknown error'
@@ -4478,8 +4491,8 @@ async function startStreamableHTTPServer(): Promise<void> {
   
   // Start server
   app.listen(Number(PORT), HOST, () => {
-    console.log(`GitLab MCP Server running with Streamable HTTP transport`);
-    console.log(`${colorGreen}Endpoint: http://${HOST}:${PORT}/mcp${colorReset}`);
+    logger.log(`GitLab MCP Server running with Streamable HTTP transport`);
+    logger.log(`${colorGreen}Endpoint: http://${HOST}:${PORT}/mcp${colorReset}`);
   });
 }
 
@@ -4488,20 +4501,20 @@ async function startStreamableHTTPServer(): Promise<void> {
  * Handle transport-specific initialization logic
  */
 async function initializeServerByTransportMode(mode: TransportMode): Promise<void> {
-  console.log('Initializing server with transport mode:', mode);
+  logger.log('Initializing server with transport mode:', mode);
   switch (mode) {
     case TransportMode.STDIO:
-      console.warn('Starting GitLab MCP Server with stdio transport');
+      logger.warn('Starting GitLab MCP Server with stdio transport');
       await startStdioServer();
       break;
       
     case TransportMode.SSE:
-      console.warn('Starting GitLab MCP Server with SSE transport');
+      logger.warn('Starting GitLab MCP Server with SSE transport');
       await startSSEServer();
       break;
       
     case TransportMode.STREAMABLE_HTTP:
-      console.warn('Starting GitLab MCP Server with Streamable HTTP transport');
+      logger.warn('Starting GitLab MCP Server with Streamable HTTP transport');
       await startStreamableHTTPServer();
       break;
       
@@ -4521,12 +4534,12 @@ async function runServer() {
     const transportMode = determineTransportMode();
     await initializeServerByTransportMode(transportMode);
   } catch (error) {
-    console.error("Error initializing server:", error);
+    logger.error("Error initializing server:", error);
     process.exit(1);
   }
 }
 
 runServer().catch(error => {
-  console.error("Fatal error in main():", error);
+  logger.error("Fatal error in main():", error);
   process.exit(1);
 });
