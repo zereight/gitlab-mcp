@@ -8,7 +8,7 @@ import { OAuthRegisteredClientsStore } from '@modelcontextprotocol/sdk/server/au
 import { Request, Response } from 'express';
 import { logger } from './logger.js';
 import { Database } from 'better-sqlite3';
-import * as argon2 from 'argon2';
+import argon2 from '@node-rs/argon2';
 import { randomBytes } from 'crypto';
 
 // Custom provider that handles dynamic registration and maps to GitLab OAuth
@@ -139,7 +139,7 @@ class GitLabProxyProvider extends ProxyOAuthServerProvider {
 
         // Generate a secure client secret
         const randomSecret = randomBytes(32).toString('hex');
-        
+
         // Create the client registration
         const client: OAuthClientInformationFull = {
           ...clientMetadata,
