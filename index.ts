@@ -2973,7 +2973,7 @@ async function getRepositoryTree(options: GetRepositoryTreeOptions): Promise<Git
   }
   const response = await fetch(
     `${GITLAB_API_URL}/projects/${encodeURIComponent(
-      options.project_id
+      getEffectiveProjectId(options.project_id)
     )}/repository/tree?${queryParams.toString()}`,
     {
       headers,
@@ -3750,7 +3750,7 @@ server.setRequestHandler(CallToolRequestSchema, async request => {
 
       case "get_project": {
         const args = GetProjectSchema.parse(request.params.arguments);
-        const url = new URL(`${GITLAB_API_URL}/projects/${encodeURIComponent(args.project_id)}`);
+        const url = new URL(`${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(args.project_id))}`);
 
         const response = await fetch(url.toString(), {
           ...DEFAULT_FETCH_CONFIG,
