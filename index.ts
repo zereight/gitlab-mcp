@@ -2881,13 +2881,7 @@ async function createPipeline(
 
   const body: any = { ref };
   if (variables && variables.length > 0) {
-    body.variables = variables.reduce(
-      (acc, { key, value }) => {
-        acc[key] = value;
-        return acc;
-      },
-      {} as Record<string, string>
-    );
+    body.variables = variables;
   }
 
   const response = await fetch(url.toString(), {
