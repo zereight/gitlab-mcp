@@ -184,18 +184,18 @@ import {
   ListMergeRequestDiffsSchema,
 } from "./schemas.js";
 import { randomUUID } from "crypto";
+import { pino } from 'pino';
 
-const pino = require('pino')
 const logger = pino({
   level: process.env.LOG_LEVEL || 'info',
-  prettyPrint: {
-    levelFirst: true,
-    colorize: true,
+  transport: {
+    target: 'pino-pretty',
+    options: {
+      colorize: true,
+      levelFirst: true,
+    },
   },
-  options: {
-    destination: 2,
-  }
-})
+});
 
   
 /**
@@ -4419,10 +4419,10 @@ async function startSSEServer(): Promise<void> {
   });
 
   app.listen(Number(PORT), HOST, () => {
-    logger.log(`GitLab MCP Server running with SSE transport`);
+    logger.info(`GitLab MCP Server running with SSE transport`);
     const colorGreen = "\x1b[32m";
     const colorReset = "\x1b[0m";
-    logger.log(`${colorGreen}Endpoint: http://${HOST}:${PORT}/sse${colorReset}`);
+    logger.info(`${colorGreen}Endpoint: http://${HOST}:${PORT}/sse${colorReset}`);
   });
 }
 
@@ -4491,8 +4491,8 @@ async function startStreamableHTTPServer(): Promise<void> {
   
   // Start server
   app.listen(Number(PORT), HOST, () => {
-    logger.log(`GitLab MCP Server running with Streamable HTTP transport`);
-    logger.log(`${colorGreen}Endpoint: http://${HOST}:${PORT}/mcp${colorReset}`);
+    logger.info(`GitLab MCP Server running with Streamable HTTP transport`);
+    logger.info(`${colorGreen}Endpoint: http://${HOST}:${PORT}/mcp${colorReset}`);
   });
 }
 
@@ -4501,7 +4501,7 @@ async function startStreamableHTTPServer(): Promise<void> {
  * Handle transport-specific initialization logic
  */
 async function initializeServerByTransportMode(mode: TransportMode): Promise<void> {
-  logger.log('Initializing server with transport mode:', mode);
+  logger.info('Initializing server with transport mode:', mode);
   switch (mode) {
     case TransportMode.STDIO:
       logger.warn('Starting GitLab MCP Server with stdio transport');
