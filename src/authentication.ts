@@ -58,7 +58,7 @@ export async function configureAuthentication(app: Express): Promise<RequestHand
   }
   // PAT passthrough mode
   else if (config.GITLAB_PAT_PASSTHROUGH) {
-    logger.log("Configuring GitLab PAT passthrough authentication. Users must set the Gitlab-Token header in their requests");
+    logger.info("Configuring GitLab PAT passthrough authentication. Users must set the Gitlab-Token header in their requests");
 
     authMiddleware = (req: Request, res: Response, next: NextFunction) => {
       // Check the Gitlab-Token header
@@ -82,7 +82,7 @@ export async function configureAuthentication(app: Express): Promise<RequestHand
   }
   // Static PAT mode
   else if (config.GITLAB_PERSONAL_ACCESS_TOKEN) {
-    logger.log("Configuring static GitLab Personal Access Token authentication");
+    logger.info("Configuring static GitLab Personal Access Token authentication");
 
     const accessToken = config.GITLAB_PERSONAL_ACCESS_TOKEN;
     authMiddleware = (req: Request, res: Response, next: NextFunction) => {

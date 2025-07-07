@@ -1,27 +1,12 @@
-import { config } from './config.js'
-import { format } from 'util'
-export const logger = {
-  error: (...data: any[]) => {
-    console.error(...data)
+import { pino } from 'pino';
+
+export const logger = pino({
+  level: process.env.LOG_LEVEL || 'info',
+  transport: {
+    target: 'pino-pretty',
+    options: {
+      colorize: true,
+      levelFirst: true,
+    },
   },
-  warn: (...data: any[]) => {
-    const yellow = '\x1b[33m';
-    const reset = '\x1b[0m';
-    console.warn(yellow + format(...data) + reset)
-  },
-  log: (...data: any[]) => {
-    console.log(...data)
-  },
-  info: (...data: any[]) => {
-    if(!config.VERBOSE) {
-      return
-    }
-    console.log('[info]', ...data)
-  },
-  debug: (...data: any[]) => {
-    if(!config.VERBOSE) {
-      return
-    }
-    console.debug('[debug]', ...data)
-  },
-}
+});

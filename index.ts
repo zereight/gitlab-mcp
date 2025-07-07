@@ -10,6 +10,7 @@ import { configureAuthentication } from "./src/authentication.js";
 import { logger } from "./src/logger.js";
 import argon2 from "@node-rs/argon2";
 import { randomUUID } from "crypto";
+import { pino } from 'pino';
 
 
 validateConfiguration()
@@ -27,10 +28,10 @@ interface TransportModes {
 function determineTransportModes(): TransportModes {
   const sseEnabled = config.SSE;
   const streamableHttpEnabled = config.STREAMABLE_HTTP;
-  
+
   // If neither SSE nor STREAMABLE_HTTP are enabled, use STDIO
   const stdioEnabled = !sseEnabled && !streamableHttpEnabled;
-  
+
   return {
     stdio: stdioEnabled,
     sse: sseEnabled,
@@ -58,7 +59,7 @@ async function startExpressServer(options: ExpressServerOptions): Promise<void> 
 
   const authMiddleware = await configureAuthentication(app);
   const argon2Salt = new TextEncoder().encode(config.ARGON2_SALT)
-  
+
   if(sseEnabled) {
     const transports: {
       [sessionId: string]: {
@@ -118,7 +119,7 @@ async function startExpressServer(options: ExpressServerOptions): Promise<void> 
     });
 
   }
-  
+
   if (streamableHttpEnabled) {
   const transports : { [sessionId: string]: {
     transport: StreamableHTTPServerTransport
@@ -206,14 +207,14 @@ async function startExpressServer(options: ExpressServerOptions): Promise<void> 
     const enabledModes = [];
     if (sseEnabled) enabledModes.push('SSE');
     if (streamableHttpEnabled) enabledModes.push('Streamable HTTP');
-    logger.log(`GitLab MCP Server running with ${enabledModes.join(' and ')} transport(s)`);
+    logger.info(`GitLab MCP Server running with ${enabledModes.join(' and ')} transport(s)`);
     const colorGreen = "\x1b[32m";
     const colorReset = "\x1b[0m";
     if (sseEnabled) {
-      logger.log(`${colorGreen}SSE Endpoint: http://${config.HOST}:${config.PORT}/sse${colorReset}`);
+      logger.info(`${colorGreen}SSE Endpoint: http://${config.HOST}:${config.PORT}/sse${colorReset}`);
     }
     if (streamableHttpEnabled) {
-      logger.log(`${colorGreen}Streamable HTTP Endpoint: http://${config.HOST}:${config.PORT}/mcp${colorReset}`);
+      logger.info(`${colorGreen}Streamable HTTP Endpoint: http://${config.HOST}:${config.PORT}/mcp${colorReset}`);
     }
   });
 }

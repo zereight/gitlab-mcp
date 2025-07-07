@@ -1763,13 +1763,7 @@ const url = new URL(`${config.GITLAB_API_URL}/namespaces`);
 
     const body: any = { ref };
     if (variables && variables.length > 0) {
-      body.variables = variables.reduce(
-        (acc, { key, value }) => {
-          acc[key] = value;
-          return acc;
-        },
-        {} as Record<string, string>
-      );
+      body.variables = variables
     }
 
     const response = await this.fetch(url.toString(), {
