@@ -463,24 +463,6 @@ export const CreateIssueOptionsSchema = z.object({
   labels: z.array(z.string()).optional(),
 });
 
-export const CreateMergeRequestOptionsSchema = z.object({
-  // Changed from CreatePullRequestOptionsSchema
-  title: z.string(),
-  description: z.string().optional(), // Changed from body to match GitLab API
-  source_branch: z.string(), // Changed from head to match GitLab API
-  target_branch: z.string(), // Changed from base to match GitLab API
-  assignee_ids: z
-    .array(z.number())
-    .optional(),
-  reviewer_ids: z
-    .array(z.number())
-    .optional(),
-  labels: z.array(z.string()).optional(),
-  allow_collaboration: z.boolean().optional(), // Changed from maintainer_can_modify to match GitLab API
-  draft: z.boolean().optional(),
-  remove_source_branch: z.boolean().optional().describe("Flag indicating if a merge request should remove the source branch when merging."),
-  squash: z.boolean().optional().describe("If true, squash all commits into a single commit on merge.")
-});
 
 export const GitLabDiffSchema = z.object({
   old_path: z.string(),
@@ -867,6 +849,8 @@ export const CreateMergeRequestSchema = ProjectParamsSchema.extend({
     .boolean()
     .optional()
     .describe("Allow commits from upstream members"),
+  remove_source_branch: z.boolean().optional().nullable().describe("Flag indicating if a merge request should remove the source branch when merging."),
+  squash: z.boolean().optional().nullable().describe("If true, squash all commits into a single commit on merge."),
 });
 
 export const ForkRepositorySchema = ProjectParamsSchema.extend({
@@ -1397,7 +1381,6 @@ export type GitLabCommit = z.infer<typeof GitLabCommitSchema>;
 export type GitLabReference = z.infer<typeof GitLabReferenceSchema>;
 export type CreateRepositoryOptions = z.infer<typeof CreateRepositoryOptionsSchema>;
 export type CreateIssueOptions = z.infer<typeof CreateIssueOptionsSchema>;
-export type CreateMergeRequestOptions = z.infer<typeof CreateMergeRequestOptionsSchema>;
 export type CreateBranchOptions = z.infer<typeof CreateBranchOptionsSchema>;
 export type GitLabCreateUpdateFileResponse = z.infer<typeof GitLabCreateUpdateFileResponseSchema>;
 export type GitLabSearchResponse = z.infer<typeof GitLabSearchResponseSchema>;
