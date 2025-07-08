@@ -16,12 +16,10 @@ import {
   GitLabNamespaceSchema,
   GitLabNamespaceExistsResponseSchema,
   GitLabProjectSchema,
-  GitLabLabelSchema,
   GitLabUserSchema,
   GitLabUsersResponseSchema,
   CreateRepositoryOptionsSchema,
   CreateIssueOptionsSchema,
-  CreateMergeRequestOptionsSchema,
   CreateBranchOptionsSchema,
   GitLabDiffSchema,
   GitLabIssueLinkSchema,
@@ -102,6 +100,7 @@ import {
   CreateLabelSchema,
   CreateProjectMilestoneSchema,
   EditProjectMilestoneSchema,
+  CreateMergeRequestSchema,
 } from "./schemas.js";
 import {GitlabSession} from "./gitlabsession.js";
 
@@ -497,13 +496,12 @@ this.getEffectiveProjectId(projectId)
    */
   async createMergeRequest(
     projectId: string,
-    options: z.infer<typeof CreateMergeRequestOptionsSchema>
+    options: Omit<z.infer<typeof CreateMergeRequestSchema>, "project_id">
   ): Promise<GitLabMergeRequest> {
     projectId = decodeURIComponent(projectId);
     const url = new URL(`${config.GITLAB_API_URL}/projects/${encodeURIComponent(this.getEffectiveProjectId(projectId))}/merge_requests`);
 
     const response = await this.fetch(url.toString(), {
-
       method: "POST",
       body: JSON.stringify({
         title: options.title,
