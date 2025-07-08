@@ -181,7 +181,6 @@ import {
   type GetCommitDiffOptions,
   ListMergeRequestDiffsSchema,
 } from "./schemas.js";
-import { formatBoolean } from "./utils.js"
 
 import { randomUUID } from "crypto";
 import { pino } from 'pino';
