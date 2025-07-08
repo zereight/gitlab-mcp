@@ -844,15 +844,10 @@ function normalizeGitLabApiUrl(url?: string): string {
 // Use the normalizeGitLabApiUrl function to handle various URL formats
 const GITLAB_API_URL = normalizeGitLabApiUrl(process.env.GITLAB_API_URL || "");
 const GITLAB_PROJECT_ID = process.env.GITLAB_PROJECT_ID;
-const GITLAB_LOCK_PROJECT = process.env.GITLAB_LOCK_PROJECT === "true";
+const GITLAB_ALLOWED_PROJECT_IDS = process.env.GITLAB_ALLOWED_PROJECT_IDS?.split(',').map(id => id.trim()).filter(Boolean) || [];
 
 if (!GITLAB_PERSONAL_ACCESS_TOKEN) {
   console.error("GITLAB_PERSONAL_ACCESS_TOKEN environment variable is not set");
-  process.exit(1);
-}
-
-if (GITLAB_LOCK_PROJECT && !GITLAB_PROJECT_ID) {
-  console.error("GITLAB_PROJECT_ID must be set when GITLAB_LOCK_PROJECT is enabled");
   process.exit(1);
 }
 
@@ -881,17 +876,26 @@ async function handleGitLabError(response: import("node-fetch").Response): Promi
 /**
  * @param {string} projectId - The project ID parameter passed to the function
  * @returns {string} The project ID to use for the API call
- * @throws {Error} If GITLAB_LOCK_PROJECT is enabled and a different project is requested
+ * @throws {Error} If GITLAB_ALLOWED_PROJECT_IDS is set and the requested project is not in the whitelist
  */
 function getEffectiveProjectId(projectId: string): string {
-  if (GITLAB_LOCK_PROJECT) {
-    if (!GITLAB_PROJECT_ID) {
-      throw new Error("GITLAB_PROJECT_ID must be set when GITLAB_LOCK_PROJECT is enabled");
+  if (GITLAB_ALLOWED_PROJECT_IDS.length > 0) {
+    // If there's only one allowed project, use it as default
+    if (GITLAB_ALLOWED_PROJECT_IDS.length === 1 && !projectId) {
+      return GITLAB_ALLOWED_PROJECT_IDS[0];
     }
-    if (projectId && projectId !== GITLAB_PROJECT_ID) {
-      throw new Error(`Access denied: This MCP server is locked to project ${GITLAB_PROJECT_ID}. Cannot access project ${projectId}`);
+    
+    // If a project ID is provided, check if it's in the whitelist
+    if (projectId && !GITLAB_ALLOWED_PROJECT_IDS.includes(projectId)) {
+      throw new Error(`Access denied: Project ${projectId} is not in the allowed project list: ${GITLAB_ALLOWED_PROJECT_IDS.join(', ')}`);
     }
-    return GITLAB_PROJECT_ID;
+    
+    // If no project ID provided but we have multiple allowed projects, require an explicit choice
+    if (!projectId && GITLAB_ALLOWED_PROJECT_IDS.length > 1) {
+      throw new Error(`Multiple projects allowed (${GITLAB_ALLOWED_PROJECT_IDS.join(', ')}). Please specify a project ID.`);
+    }
+    
+    return projectId || GITLAB_ALLOWED_PROJECT_IDS[0];
   }
   return GITLAB_PROJECT_ID || projectId;
 }
@@ -3427,11 +3431,8 @@ async function myIssues(options: MyIssuesOptions = {}): Promise<GitLabIssue[]> {
   // Get current user to find their username
   const currentUser = await getCurrentUser();
   
-  // If project_id is provided, use it; otherwise rely on GITLAB_PROJECT_ID
-  let projectId = options.project_id;
-  if (!projectId && !GITLAB_PROJECT_ID) {
-    throw new Error("Either project_id must be provided or GITLAB_PROJECT_ID must be set");
-  }
+  // Use getEffectiveProjectId to handle project ID resolution
+  const effectiveProjectId = getEffectiveProjectId(options.project_id || "");
   
   // Use listIssues with assignee_username filter
   const listIssuesOptions: Omit<z.infer<typeof ListIssuesSchema>, "project_id"> = {
@@ -3448,7 +3449,7 @@ async function myIssues(options: MyIssuesOptions = {}): Promise<GitLabIssue[]> {
     page: options.page,
   };
   
-  return listIssues(projectId || GITLAB_PROJECT_ID!, listIssuesOptions);
+  return listIssues(effectiveProjectId, listIssuesOptions);
 }
 
 /**
