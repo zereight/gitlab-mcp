@@ -59,8 +59,8 @@ class GitLabProxyProvider extends ProxyOAuthServerProvider {
   // State expiry time in milliseconds (15 minutes)
   private readonly STATE_EXPIRY_MS = 15 * 60 * 1000;
 
-  // Token expiry time in milliseconds (1 hour)
-  private readonly TOKEN_EXPIRY_MS = 60 * 60 * 1000;
+  // Token expiry time in milliseconds (7 days)
+  private readonly TOKEN_EXPIRY_MS = 7 * 24 * 60 * 60 * 1000;
 
   // Cleanup interval
   private cleanupInterval: NodeJS.Timeout;
