@@ -830,7 +830,7 @@ export const CreateIssueSchema = ProjectParamsSchema.extend({
   milestone_id: z.number().optional().describe("Milestone ID to assign"),
 });
 
-export const CreateMergeRequestSchema = ProjectParamsSchema.extend({
+const MergeRequestOptionsSchema = {
   title: z.string().describe("Merge request title"),
   description: z.string().optional().describe("Merge request description"),
   source_branch: z.string().describe("Branch containing changes"),
@@ -851,7 +851,9 @@ export const CreateMergeRequestSchema = ProjectParamsSchema.extend({
     .describe("Allow commits from upstream members"),
   remove_source_branch: z.boolean().optional().nullable().describe("Flag indicating if a merge request should remove the source branch when merging."),
   squash: z.boolean().optional().nullable().describe("If true, squash all commits into a single commit on merge."),
-});
+}
+export const CreateMergeRequestOptionsSchema = z.object(MergeRequestOptionsSchema);
+export const CreateMergeRequestSchema = ProjectParamsSchema.extend(MergeRequestOptionsSchema);
 
 export const ForkRepositorySchema = ProjectParamsSchema.extend({
   namespace: z.string().optional().describe("Namespace to fork to (full path)"),
@@ -1381,6 +1383,7 @@ export type GitLabCommit = z.infer<typeof GitLabCommitSchema>;
 export type GitLabReference = z.infer<typeof GitLabReferenceSchema>;
 export type CreateRepositoryOptions = z.infer<typeof CreateRepositoryOptionsSchema>;
 export type CreateIssueOptions = z.infer<typeof CreateIssueOptionsSchema>;
+export type CreateMergeRequestOptions = z.infer<typeof CreateMergeRequestOptionsSchema>;
 export type CreateBranchOptions = z.infer<typeof CreateBranchOptionsSchema>;
 export type GitLabCreateUpdateFileResponse = z.infer<typeof GitLabCreateUpdateFileResponseSchema>;
 export type GitLabSearchResponse = z.infer<typeof GitLabSearchResponseSchema>;
