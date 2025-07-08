@@ -41,6 +41,7 @@
     "https-proxy-agent": "^7.0.6",
     "node-fetch": "^3.3.2",
     "pino": "^9.7.0",
+    "pino-pretty": "^13.0.0",
     "socks-proxy-agent": "^8.0.5",
     "tough-cookie": "^5.1.2",
     "zod-to-json-schema": "^3.23.5"

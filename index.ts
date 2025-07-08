@@ -245,7 +245,7 @@ const USE_MILESTONE = process.env.USE_MILESTONE === "true";
 const USE_PIPELINE = process.env.USE_PIPELINE === "true";
 const SSE = process.env.SSE === "true";
 const STREAMABLE_HTTP = process.env.STREAMABLE_HTTP === "true";
-const HOST = process.env.HOST || '127.0.0.1';
+const HOST = process.env.HOST || '0.0.0.0';
 const PORT = process.env.PORT || 3002;
 // Add proxy configuration
 const HTTP_PROXY = process.env.HTTP_PROXY;
