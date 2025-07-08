@@ -22,7 +22,6 @@ import express, { Request, Response } from "express";
 import { Agent } from "http";
 import { Agent as HttpsAgent } from "https";
 import { URL } from "url";
-
 import {
   GitLabForkSchema,
   GitLabReferenceSchema,
@@ -183,6 +182,8 @@ import {
   type GetCommitDiffOptions,
   ListMergeRequestDiffsSchema,
 } from "./schemas.js";
+import { formatBoolean } from "./utils.js"
+
 import { randomUUID } from "crypto";
 import { pino } from 'pino';
 
@@ -1361,7 +1362,7 @@ async function createMergeRequest(
       labels: options.labels?.join(","),
       allow_collaboration: options.allow_collaboration,
       draft: options.draft,
-      remove_source_branch: options.remove_source_branch,
+      remove_source_branch: formatBoolean(options.remove_source_branch),
       squash: options.squash,
     }),
   });
