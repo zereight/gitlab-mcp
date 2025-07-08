@@ -193,6 +193,7 @@ const logger = pino({
     options: {
       colorize: true,
       levelFirst: true,
+      destination: 2,
     },
   },
 });
