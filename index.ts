@@ -42,6 +42,7 @@ import {
   GetUsersSchema,
   CreateRepositoryOptionsSchema,
   CreateIssueOptionsSchema,
+  CreateMergeRequestOptionsSchema,
   CreateBranchOptionsSchema,
   CreateOrUpdateFileSchema,
   SearchRepositoriesSchema,
@@ -1337,12 +1338,12 @@ async function deleteIssueLink(
  * 병합 요청 생성
  *
  * @param {string} projectId - The ID or URL-encoded path of the project
- * @param {z.infer<typeof CreateMergeRequestSchema>} options - Merge request creation options
+ * @param {z.infer<typeof CreateMergeRequestOptionsSchema>} options - Merge request creation options
  * @returns {Promise<GitLabMergeRequest>} The created merge request
  */
 async function createMergeRequest(
   projectId: string,
-  options: z.infer<typeof CreateMergeRequestSchema>
+  options: z.infer<typeof CreateMergeRequestOptionsSchema>
 ): Promise<GitLabMergeRequest> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(`${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/merge_requests`);
