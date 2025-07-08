@@ -463,24 +463,6 @@ export const CreateIssueOptionsSchema = z.object({
   labels: z.array(z.string()).optional(),
 });
 
-export const CreateMergeRequestOptionsSchema = z.object({
-  // Changed from CreatePullRequestOptionsSchema
-  title: z.string(),
-  description: z.string().optional(), // Changed from body to match GitLab API
-  source_branch: z.string(), // Changed from head to match GitLab API
-  target_branch: z.string(), // Changed from base to match GitLab API
-  assignee_ids: z
-    .array(z.number())
-    .optional(),
-  reviewer_ids: z
-    .array(z.number())
-    .optional(),
-  labels: z.array(z.string()).optional(),
-  allow_collaboration: z.boolean().optional(), // Changed from maintainer_can_modify to match GitLab API
-  draft: z.boolean().optional(),
-  remove_source_branch: z.boolean().optional().describe("Flag indicating if a merge request should remove the source branch when merging."),
-  squash: z.boolean().optional().describe("If true, squash all commits into a single commit on merge.")
-});
 
 export const GitLabDiffSchema = z.object({
   old_path: z.string(),
@@ -848,7 +830,7 @@ export const CreateIssueSchema = ProjectParamsSchema.extend({
   milestone_id: z.number().optional().describe("Milestone ID to assign"),
 });
 
-export const CreateMergeRequestSchema = ProjectParamsSchema.extend({
+const MergeRequestOptionsSchema = {
   title: z.string().describe("Merge request title"),
   description: z.string().optional().describe("Merge request description"),
   source_branch: z.string().describe("Branch containing changes"),
@@ -867,7 +849,11 @@ export const CreateMergeRequestSchema = ProjectParamsSchema.extend({
     .boolean()
     .optional()
     .describe("Allow commits from upstream members"),
-});
+  remove_source_branch: z.boolean().optional().nullable().describe("Flag indicating if a merge request should remove the source branch when merging."),
+  squash: z.boolean().optional().nullable().describe("If true, squash all commits into a single commit on merge."),
+}
+export const CreateMergeRequestOptionsSchema = z.object(MergeRequestOptionsSchema);
+export const CreateMergeRequestSchema = ProjectParamsSchema.extend(MergeRequestOptionsSchema);
 
 export const ForkRepositorySchema = ProjectParamsSchema.extend({
   namespace: z.string().optional().describe("Namespace to fork to (full path)"),
