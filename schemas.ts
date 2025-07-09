@@ -9,8 +9,8 @@ export const GitLabAuthorSchema = z.object({
 
 // Pipeline related schemas
 export const GitLabPipelineSchema = z.object({
-  id: z.number(),
-  project_id: z.number(),
+  id: z.string().or(z.number()),
+  project_id: z.string().or(z.number()),
   sha: z.string(),
   ref: z.string(),
   status: z.string(),
@@ -24,7 +24,7 @@ export const GitLabPipelineSchema = z.object({
   coverage: z.number().nullable().optional(),
   user: z
     .object({
-      id: z.number(),
+      id: z.string().or(z.number()),
       name: z.string(),
       username: z.string(),
       avatar_url: z.string().nullable().optional(),
@@ -54,7 +54,7 @@ export const GitLabPipelineSchema = z.object({
 
 // Pipeline job related schemas
 export const GitLabPipelineJobSchema = z.object({
-  id: z.number(),
+  id: z.string().or(z.number()),
   status: z.string(),
   stage: z.string(),
   name: z.string(),
@@ -67,7 +67,7 @@ export const GitLabPipelineJobSchema = z.object({
   duration: z.number().nullable().optional(),
   user: z
     .object({
-      id: z.number(),
+      id: z.string().or(z.number()),
       name: z.string(),
       username: z.string(),
       avatar_url: z.string().nullable().optional(),
@@ -84,8 +84,8 @@ export const GitLabPipelineJobSchema = z.object({
     .optional(),
   pipeline: z
     .object({
-      id: z.number(),
-      project_id: z.number(),
+      id: z.string().or(z.number()),
+      project_id: z.string().or(z.number()),
       status: z.string(),
       ref: z.string(),
       sha: z.string(),
@@ -146,13 +146,13 @@ export const ListPipelinesSchema = z.object({
 // Schema for getting a specific pipeline
 export const GetPipelineSchema = z.object({
   project_id: z.string().describe("Project ID or URL-encoded path"),
-  pipeline_id: z.number().describe("The ID of the pipeline"),
+  pipeline_id: z.string().or(z.number().describe("The ID of the pipeline")),
 });
 
 // Schema for listing jobs in a pipeline
 export const ListPipelineJobsSchema = z.object({
   project_id: z.string().describe("Project ID or URL-encoded path"),
-  pipeline_id: z.number().describe("The ID of the pipeline"),
+  pipeline_id: z.string().or(z.number().describe("The ID of the pipeline")),
   scope: z
     .enum(["created", "pending", "running", "failed", "success", "canceled", "skipped", "manual"])
     .optional()
@@ -178,19 +178,19 @@ export const CreatePipelineSchema = z.object({
 // Schema for retrying a pipeline
 export const RetryPipelineSchema = z.object({
   project_id: z.string().describe("Project ID or URL-encoded path"),
-  pipeline_id: z.number().describe("The ID of the pipeline to retry"),
+  pipeline_id: z.string().or(z.number().describe("The ID of the pipeline to retry")),
 });
 
 // Schema for canceling a pipeline
 export const CancelPipelineSchema = z.object({
   project_id: z.string().describe("Project ID or URL-encoded path"),
-  pipeline_id: z.number().describe("The ID of the pipeline to cancel"),
+  pipeline_id: z.string().or(z.number().describe("The ID of the pipeline to cancel")),
 });
 
 // Schema for the input parameters for pipeline job operations
 export const GetPipelineJobOutputSchema = z.object({
   project_id: z.string().describe("Project ID or URL-encoded path"),
-  job_id: z.number().describe("The ID of the job"),
+  job_id: z.string().or(z.number().describe("The ID of the job")),
   limit: z.number().optional().describe("Maximum number of lines to return from the end of the log (default: 1000)"),
   offset: z.number().optional().describe("Number of lines to skip from the end of the log (default: 0)"),
 });
@@ -198,7 +198,7 @@ export const GetPipelineJobOutputSchema = z.object({
 // User schemas
 export const GitLabUserSchema = z.object({
   username: z.string(), // Changed from login to match GitLab API
-  id: z.number(),
+  id: z.string().or(z.number()),
   name: z.string(),
   avatar_url: z.string().nullable(),
   web_url: z.string(), // Changed from html_url to match GitLab API
@@ -211,7 +211,7 @@ export const GetUsersSchema = z.object({
 export const GitLabUsersResponseSchema = z.record(
   z.string(),
   z.object({
-    id: z.number(),
+    id: z.string().or(z.number()),
     username: z.string(),
     name: z.string(),
     avatar_url: z.string().nullable(),
@@ -226,12 +226,12 @@ const ProjectParamsSchema = z.object({
   project_id: z.string().describe("Project ID or complete URL-encoded path to project"), // Changed from owner/repo to match GitLab API
 });
 export const GitLabNamespaceSchema = z.object({
-  id: z.number(),
+  id: z.string().or(z.number()),
   name: z.string(),
   path: z.string(),
   kind: z.enum(["user", "group"]),
   full_path: z.string(),
-  parent_id: z.number().nullable(),
+  parent_id: z.string().or(z.number().nullable()),
   avatar_url: z.string().nullable(),
   web_url: z.string(),
   members_count_with_descendants: z.number().optional(),
@@ -254,7 +254,7 @@ export const GitLabNamespaceExistsResponseSchema = z.object({
 // Repository related schemas
 export const GitLabOwnerSchema = z.object({
   username: z.string(), // Changed from login to match GitLab API
-  id: z.number(),
+  id: z.string().or(z.number()),
   avatar_url: z.string().nullable(),
   web_url: z.string(), // Changed from html_url to match GitLab API
   name: z.string(), // Added as GitLab includes full name
@@ -262,7 +262,7 @@ export const GitLabOwnerSchema = z.object({
 });
 
 export const GitLabRepositorySchema = z.object({
-  id: z.number(),
+  id: z.string().or(z.number()),
   name: z.string(),
   path_with_namespace: z.string(),
   visibility: z.string().optional(),
@@ -277,7 +277,7 @@ export const GitLabRepositorySchema = z.object({
   default_branch: z.string().optional(),
   namespace: z
     .object({
-      id: z.number(),
+      id: z.string().or(z.number()),
       name: z.string(),
       path: z.string(),
       kind: z.string(),
@@ -325,7 +325,7 @@ export const GitLabRepositorySchema = z.object({
   shared_with_groups: z
     .array(
       z.object({
-        group_id: z.number(),
+        group_id: z.string().or(z.number()),
         group_name: z.string(),
         group_full_path: z.string(),
         group_access_level: z.number(),
@@ -433,9 +433,9 @@ export const GitLabReferenceSchema = z.object({
 
 // Milestones rest api output schemas
 export const GitLabMilestonesSchema = z.object({
-  id: z.number(),
-  iid: z.number(),
-  project_id: z.number(),
+  id: z.string().or(z.number()),
+  iid: z.string().or(z.number()),
+  project_id: z.string().or(z.number()),
   title: z.string(),
   description: z.string().nullable(),
   due_date: z.string().nullable(),
@@ -459,7 +459,7 @@ export const CreateIssueOptionsSchema = z.object({
   title: z.string(),
   description: z.string().optional(), // Changed from body to match GitLab API
   assignee_ids: z.array(z.number()).optional(), // Changed from assignees to match GitLab API
-  milestone_id: z.number().optional(), // Changed from milestone to match GitLab API
+  milestone_id: z.string().or(z.number().optional()), // Changed from milestone to match GitLab API
   labels: z.array(z.string()).optional(),
 });
 
@@ -513,7 +513,7 @@ export const GitLabCompareResultSchema = z.object({
 
 // Issue related schemas
 export const GitLabLabelSchema = z.object({
-  id: z.number(),
+  id: z.string().or(z.number()),
   name: z.string(),
   color: z.string(),
   text_color: z.string(),
@@ -528,8 +528,8 @@ export const GitLabLabelSchema = z.object({
 });
 
 export const GitLabMilestoneSchema = z.object({
-  id: z.number(),
-  iid: z.number(), // Added to match GitLab API
+  id: z.string().or(z.number()),
+  iid: z.string().or(z.number()), // Added to match GitLab API
   title: z.string(),
   description: z.string().nullable().default(""),
   state: z.string(),
@@ -537,9 +537,9 @@ export const GitLabMilestoneSchema = z.object({
 });
 
 export const GitLabIssueSchema = z.object({
-  id: z.number(),
-  iid: z.number(), // Added to match GitLab API
-  project_id: z.number(), // Added to match GitLab API
+  id: z.string().or(z.number()),
+  iid: z.string().or(z.number()), // Added to match GitLab API
+  project_id: z.string().or(z.number()), // Added to match GitLab API
   title: z.string(),
   description: z.string().nullable().default(""), // Changed from body to match GitLab API
   state: z.string(),
@@ -574,7 +574,7 @@ export const GitLabIssueSchema = z.object({
 
 // NEW SCHEMA: For issue with link details (used in listing issue links)
 export const GitLabIssueWithLinkDetailsSchema = GitLabIssueSchema.extend({
-  issue_link_id: z.number(),
+  issue_link_id: z.string().or(z.number()),
   link_type: z.enum(["relates_to", "blocks", "is_blocked_by"]),
   link_created_at: z.string(),
   link_updated_at: z.string(),
@@ -587,7 +587,7 @@ export const GitLabForkParentSchema = z.object({
   owner: z
     .object({
       username: z.string(), // Changed from login to match GitLab API
-      id: z.number(),
+      id: z.string().or(z.number()),
       avatar_url: z.string().nullable(),
     })
     .optional(), // Made optional to handle cases where GitLab API doesn't include it
@@ -606,9 +606,9 @@ export const GitLabMergeRequestDiffRefSchema = z.object({
 });
 
 export const GitLabMergeRequestSchema = z.object({
-  id: z.number(),
-  iid: z.number(),
-  project_id: z.number(),
+  id: z.string().or(z.number()),
+  iid: z.string().or(z.number()),
+  project_id: z.string().or(z.number()),
   title: z.string(),
   description: z.string().nullable(),
   state: z.string(),
@@ -658,7 +658,7 @@ export const LineRangeSchema = z.object({
 
 // Discussion related schemas
 export const GitLabDiscussionNoteSchema = z.object({
-  id: z.number(),
+  id: z.string().or(z.number()),
   type: z.enum(["DiscussionNote", "DiffNote", "Note"]).nullable(), // Allow null type for regular notes
   body: z.string(),
   attachment: z.any().nullable(), // Can be string or object, handle appropriately
@@ -666,9 +666,9 @@ export const GitLabDiscussionNoteSchema = z.object({
   created_at: z.string(),
   updated_at: z.string(),
   system: z.boolean(),
-  noteable_id: z.number(),
+  noteable_id: z.string().or(z.number()),
   noteable_type: z.enum(["Issue", "MergeRequest", "Snippet", "Commit", "Epic"]),
-  project_id: z.number().optional(), // Optional for group-level discussions like Epics
+  project_id: z.string().or(z.number().optional()), // Optional for group-level discussions like Epics
   noteable_iid: z.coerce.number().nullable(),
   resolvable: z.boolean().optional(),
   resolved: z.boolean().optional(),
@@ -731,19 +731,19 @@ export type PaginatedDiscussionsResponse = z.infer<typeof PaginatedDiscussionsRe
 
 export const ListIssueDiscussionsSchema = z.object({
   project_id: z.string().describe("Project ID or URL-encoded path"),
-  issue_iid: z.number().describe("The internal ID of the project issue"),
+  issue_iid: z.string().or(z.number().describe("The internal ID of the project issue")),
 }).merge(PaginationOptionsSchema);
 
 // Input schema for listing merge request discussions
 export const ListMergeRequestDiscussionsSchema = ProjectParamsSchema.extend({
-  merge_request_iid: z.number().describe("The IID of a merge request"),
+  merge_request_iid: z.string().or(z.number().describe("The IID of a merge request")),
 }).merge(PaginationOptionsSchema);
 
 // Input schema for updating a merge request discussion note
 export const UpdateMergeRequestNoteSchema = ProjectParamsSchema.extend({
-  merge_request_iid: z.number().describe("The IID of a merge request"),
+  merge_request_iid: z.string().or(z.number().describe("The IID of a merge request")),
   discussion_id: z.string().describe("The ID of a thread"),
-  note_id: z.number().describe("The ID of a thread note"),
+  note_id: z.string().or(z.number().describe("The ID of a thread note")),
   body: z.string().optional().describe("The content of the note or reply"),
   resolved: z.boolean().optional().describe("Resolve or unresolve the note"),
 })
@@ -756,7 +756,7 @@ export const UpdateMergeRequestNoteSchema = ProjectParamsSchema.extend({
 
 // Input schema for adding a note to an existing merge request discussion
 export const CreateMergeRequestNoteSchema = ProjectParamsSchema.extend({
-  merge_request_iid: z.number().describe("The IID of a merge request"),
+  merge_request_iid: z.string().or(z.number().describe("The IID of a merge request")),
   discussion_id: z.string().describe("The ID of a thread"),
   body: z.string().describe("The content of the note or reply"),
   created_at: z.string().optional().describe("Date the note was created at (ISO 8601 format)"),
@@ -764,15 +764,15 @@ export const CreateMergeRequestNoteSchema = ProjectParamsSchema.extend({
 
 // Input schema for updating an issue discussion note
 export const UpdateIssueNoteSchema = ProjectParamsSchema.extend({
-  issue_iid: z.number().describe("The IID of an issue"),
+  issue_iid: z.string().or(z.number().describe("The IID of an issue")),
   discussion_id: z.string().describe("The ID of a thread"),
-  note_id: z.number().describe("The ID of a thread note"),
+  note_id: z.string().or(z.number().describe("The ID of a thread note")),
   body: z.string().describe("The content of the note or reply"),
 });
 
 // Input schema for adding a note to an existing issue discussion
 export const CreateIssueNoteSchema = ProjectParamsSchema.extend({
-  issue_iid: z.number().describe("The IID of an issue"),
+  issue_iid: z.string().or(z.number().describe("The IID of an issue")),
   discussion_id: z.string().describe("The ID of a thread"),
   body: z.string().describe("The content of the note or reply"),
   created_at: z.string().optional().describe("Date the note was created at (ISO 8601 format)"),
@@ -827,7 +827,7 @@ export const CreateIssueSchema = ProjectParamsSchema.extend({
   description: z.string().optional().describe("Issue description"),
   assignee_ids: z.array(z.number()).optional().describe("Array of user IDs to assign"),
   labels: z.array(z.string()).optional().describe("Array of label names"),
-  milestone_id: z.number().optional().describe("Milestone ID to assign"),
+  milestone_id: z.string().or(z.number().optional().describe("Milestone ID to assign")),
 });
 
 const MergeRequestOptionsSchema = {
@@ -875,7 +875,7 @@ export const GetBranchDiffsSchema = ProjectParamsSchema.extend({
 });
 
 export const GetMergeRequestSchema = ProjectParamsSchema.extend({
-  merge_request_iid: z.number().optional().describe("The IID of a merge request"),
+  merge_request_iid: z.string().or(z.number().optional().describe("The IID of a merge request")),
   source_branch: z.string().optional().describe("Source branch name"),
 });
 
@@ -926,9 +926,9 @@ export const CreateNoteSchema = z.object({
 // Issues API operation schemas
 export const ListIssuesSchema = z.object({
   project_id: z.string().describe("Project ID or URL-encoded path"),
-  assignee_id: z.number().optional().describe("Return issues assigned to the given user ID"),
+  assignee_id: z.string().or(z.number().optional().describe("Return issues assigned to the given user ID")),
   assignee_username: z.array(z.string()).optional().describe("Return issues assigned to the given username"),
-  author_id: z.number().optional().describe("Return issues created by the given user ID"),
+  author_id: z.string().or(z.number().optional().describe("Return issues created by the given user ID")),
   author_username: z.string().optional().describe("Return issues created by the given username"),
   confidential: z.boolean().optional().describe("Filter confidential or public issues"),
   created_after: z.string().optional().describe("Return issues created after the given time"),
@@ -961,7 +961,7 @@ export const ListMergeRequestsSchema = z.object({
     .string()
     .optional()
     .describe("Returns merge requests assigned to the given username"),
-  author_id: z.number().optional().describe("Returns merge requests created by the given user ID"),
+  author_id: z.string().or(z.number().optional().describe("Returns merge requests created by the given user ID")),
   author_username: z
     .string()
     .optional()
@@ -1023,12 +1023,12 @@ export const ListMergeRequestsSchema = z.object({
 
 export const GetIssueSchema = z.object({
   project_id: z.string().describe("Project ID or URL-encoded path"),
-  issue_iid: z.number().describe("The internal ID of the project issue"),
+  issue_iid: z.string().or(z.number().describe("The internal ID of the project issue")),
 });
 
 export const UpdateIssueSchema = z.object({
   project_id: z.string().describe("Project ID or URL-encoded path"),
-  issue_iid: z.number().describe("The internal ID of the project issue"),
+  issue_iid: z.string().or(z.number().describe("The internal ID of the project issue")),
   title: z.string().optional().describe("The title of the issue"),
   description: z.string().optional().describe("The description of the issue"),
   assignee_ids: z.array(z.number()).optional().describe("Array of user IDs to assign issue to"),
@@ -1036,14 +1036,14 @@ export const UpdateIssueSchema = z.object({
   discussion_locked: z.boolean().optional().describe("Flag to lock discussions"),
   due_date: z.string().optional().describe("Date the issue is due (YYYY-MM-DD)"),
   labels: z.array(z.string()).optional().describe("Array of label names"),
-  milestone_id: z.number().optional().describe("Milestone ID to assign"),
+  milestone_id: z.string().or(z.number().optional().describe("Milestone ID to assign")),
   state_event: z.enum(["close", "reopen"]).optional().describe("Update issue state (close/reopen)"),
   weight: z.number().optional().describe("Weight of the issue (0-9)"),
 });
 
 export const DeleteIssueSchema = z.object({
   project_id: z.string().describe("Project ID or URL-encoded path"),
-  issue_iid: z.number().describe("The internal ID of the project issue"),
+  issue_iid: z.string().or(z.number().describe("The internal ID of the project issue")),
 });
 
 // Issue links related schemas
@@ -1055,20 +1055,20 @@ export const GitLabIssueLinkSchema = z.object({
 
 export const ListIssueLinksSchema = z.object({
   project_id: z.string().describe("Project ID or URL-encoded path"),
-  issue_iid: z.number().describe("The internal ID of a project's issue"),
+  issue_iid: z.string().or(z.number().describe("The internal ID of a project's issue")),
 });
 
 export const GetIssueLinkSchema = z.object({
   project_id: z.string().describe("Project ID or URL-encoded path"),
-  issue_iid: z.number().describe("The internal ID of a project's issue"),
-  issue_link_id: z.number().describe("ID of an issue relationship"),
+  issue_iid: z.string().or(z.number().describe("The internal ID of a project's issue")),
+  issue_link_id: z.string().or(z.number().describe("ID of an issue relationship")),
 });
 
 export const CreateIssueLinkSchema = z.object({
   project_id: z.string().describe("Project ID or URL-encoded path"),
-  issue_iid: z.number().describe("The internal ID of a project's issue"),
+  issue_iid: z.string().or(z.number().describe("The internal ID of a project's issue")),
   target_project_id: z.string().describe("The ID or URL-encoded path of a target project"),
-  target_issue_iid: z.number().describe("The internal ID of a target project's issue"),
+  target_issue_iid: z.string().or(z.number().describe("The internal ID of a target project's issue")),
   link_type: z
     .enum(["relates_to", "blocks", "is_blocked_by"])
     .optional()
@@ -1077,8 +1077,8 @@ export const CreateIssueLinkSchema = z.object({
 
 export const DeleteIssueLinkSchema = z.object({
   project_id: z.string().describe("Project ID or URL-encoded path"),
-  issue_iid: z.number().describe("The internal ID of a project's issue"),
-  issue_link_id: z.number().describe("The ID of an issue relationship"),
+  issue_iid: z.string().or(z.number().describe("The internal ID of a project's issue")),
+  issue_link_id: z.string().or(z.number().describe("The ID of an issue relationship")),
 });
 
 // Namespace API operation schemas
@@ -1263,7 +1263,7 @@ export const MergeRequestThreadPositionSchema = z.object({
 
 // Schema for creating a new merge request thread
 export const CreateMergeRequestThreadSchema = ProjectParamsSchema.extend({
-  merge_request_iid: z.number().describe("The IID of a merge request"),
+  merge_request_iid: z.string().or(z.number().describe("The IID of a merge request")),
   body: z.string().describe("The content of the thread"),
   position: MergeRequestThreadPositionSchema.optional().describe(
     "Position when creating a diff note"
@@ -1300,7 +1300,7 @@ export const ListProjectMilestonesSchema = ProjectParamsSchema.extend({
 
 // Schema for getting a single milestone
 export const GetProjectMilestoneSchema = ProjectParamsSchema.extend({
-  milestone_id: z.number().describe("The ID of a project milestone"),
+  milestone_id: z.string().or(z.number().describe("The ID of a project milestone")),
 });
 
 // Schema for creating a new milestone
