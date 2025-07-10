@@ -10,7 +10,7 @@ git checkout main
 
 DOCKER_USER=$1
 IMAGE_NAME=gitlab-mcp
-IMAGE_VERSION=$(git describe --tags --abbrev=0)
+IMAGE_VERSION=$(git describe --tags --abbrev=0 --match "v[0-9]*.[0-9]*.[0-9]*" main)
 git checkout "${IMAGE_VERSION}"
 IMAGE_VERSION=${IMAGE_VERSION#v}
 echo "${DOCKER_USER}/${IMAGE_NAME}:${IMAGE_VERSION}"
