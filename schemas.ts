@@ -951,9 +951,7 @@ export const ListIssuesSchema = z.object({
 // Merge Requests API operation schemas
 export const ListMergeRequestsSchema = z.object({
   project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
-  assignee_id: numericStringSchemaNullable
-    .optional()
-    .describe("Returns merge requests assigned to the given user ID"),
+  assignee_id: z.coerce.string().optional().describe("Return issues assigned to the given user ID. user id or none or any"),
   assignee_username: z
     .string()
     .optional()
@@ -963,9 +961,9 @@ export const ListMergeRequestsSchema = z.object({
     .string()
     .optional()
     .describe("Returns merge requests created by the given username"),
-  reviewer_id: numericStringSchemaNullable
+  reviewer_id: z.coerce.string()
     .optional()
-    .describe("Returns merge requests which have the user as a reviewer"),
+    .describe("Returns merge requests which have the user as a reviewer. user id or none or any"),
   reviewer_username: z
     .string()
     .optional()
