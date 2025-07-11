@@ -10,7 +10,7 @@ export const GitLabAuthorSchema = z.object({
 
 // Pipeline related schemas
 export const GitLabPipelineSchema = z.object({
-  id: numericStringSchema,
+  id: z.coerce.string(),
   project_id: z.coerce.string(),
   sha: z.string(),
   ref: z.string(),
@@ -25,7 +25,7 @@ export const GitLabPipelineSchema = z.object({
   coverage: z.number().nullable().optional(),
   user: z
     .object({
-      id: numericStringSchema,
+      id: z.coerce.string(),
       name: z.string(),
       username: z.string(),
       avatar_url: z.string().nullable().optional(),
@@ -55,7 +55,7 @@ export const GitLabPipelineSchema = z.object({
 
 // Pipeline job related schemas
 export const GitLabPipelineJobSchema = z.object({
-  id: numericStringSchema,
+  id: z.coerce.string(),
   status: z.string(),
   stage: z.string(),
   name: z.string(),
@@ -68,7 +68,7 @@ export const GitLabPipelineJobSchema = z.object({
   duration: z.number().nullable().optional(),
   user: z
     .object({
-      id: numericStringSchema,
+      id: z.coerce.string(),
       name: z.string(),
       username: z.string(),
       avatar_url: z.string().nullable().optional(),
@@ -85,7 +85,7 @@ export const GitLabPipelineJobSchema = z.object({
     .optional(),
   pipeline: z
     .object({
-      id: numericStringSchema,
+      id: z.coerce.string(),
       project_id: z.coerce.string(),
       status: z.string(),
       ref: z.string(),
@@ -196,7 +196,7 @@ export const GetPipelineJobOutputSchema = z.object({
 // User schemas
 export const GitLabUserSchema = z.object({
   username: z.string(), // Changed from login to match GitLab API
-  id: numericStringSchema,
+  id: z.coerce.string(),
   name: z.string(),
   avatar_url: z.string().nullable(),
   web_url: z.string(), // Changed from html_url to match GitLab API
@@ -209,7 +209,7 @@ export const GetUsersSchema = z.object({
 export const GitLabUsersResponseSchema = z.record(
   z.string(),
   z.object({
-    id: numericStringSchema,
+    id: z.coerce.string(),
     username: z.string(),
     name: z.string(),
     avatar_url: z.string().nullable(),
@@ -252,7 +252,7 @@ export const GitLabNamespaceExistsResponseSchema = z.object({
 // Repository related schemas
 export const GitLabOwnerSchema = z.object({
   username: z.string(), // Changed from login to match GitLab API
-  id: numericStringSchema,
+  id: z.coerce.string(),
   avatar_url: z.string().nullable(),
   web_url: z.string(), // Changed from html_url to match GitLab API
   name: z.string(), // Added as GitLab includes full name
@@ -431,7 +431,7 @@ export const GitLabReferenceSchema = z.object({
 
 // Milestones rest api output schemas
 export const GitLabMilestonesSchema = z.object({
-  id: numericStringSchema,
+  id: z.coerce.string(),
   iid: numericStringSchema,
   project_id: z.coerce.string(),
   title: z.string(),
@@ -526,7 +526,7 @@ export const GitLabLabelSchema = z.object({
 });
 
 export const GitLabMilestoneSchema = z.object({
-  id: numericStringSchema,
+  id: z.coerce.string(),
   iid: numericStringSchema, // Added to match GitLab API
   title: z.string(),
   description: z.string().nullable().default(""),
@@ -535,7 +535,7 @@ export const GitLabMilestoneSchema = z.object({
 });
 
 export const GitLabIssueSchema = z.object({
-  id: numericStringSchema,
+  id: z.coerce.string(),
   iid: numericStringSchema, // Added to match GitLab API
   project_id: z.coerce.string(), // Added to match GitLab API
   title: z.string(),
@@ -585,7 +585,7 @@ export const GitLabForkParentSchema = z.object({
   owner: z
     .object({
       username: z.string(), // Changed from login to match GitLab API
-      id: numericStringSchema,
+      id: z.coerce.string(),
       avatar_url: z.string().nullable(),
     })
     .optional(), // Made optional to handle cases where GitLab API doesn't include it
@@ -604,7 +604,7 @@ export const GitLabMergeRequestDiffRefSchema = z.object({
 });
 
 export const GitLabMergeRequestSchema = z.object({
-  id: numericStringSchema,
+  id: z.coerce.string(),
   iid: numericStringSchema,
   project_id: z.coerce.string(),
   title: z.string(),
@@ -656,7 +656,7 @@ export const LineRangeSchema = z.object({
 
 // Discussion related schemas
 export const GitLabDiscussionNoteSchema = z.object({
-  id: numericStringSchema,
+  id: z.coerce.string(),
   type: z.enum(["DiscussionNote", "DiffNote", "Note"]).nullable(), // Allow null type for regular notes
   body: z.string(),
   attachment: z.any().nullable(), // Can be string or object, handle appropriately
@@ -712,7 +712,7 @@ export const PaginatedResponseSchema = z.object({
 });
 
 export const GitLabDiscussionSchema = z.object({
-  id: numericStringSchema,
+  id: z.coerce.string(),
   individual_note: flexibleBoolean,
   notes: z.array(GitLabDiscussionNoteSchema),
 });
