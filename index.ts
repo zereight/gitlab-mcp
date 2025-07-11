@@ -1076,11 +1076,11 @@ async function listIssues(
           value.forEach(label => {
             url.searchParams.append(`${key}[]`, label.toString());
           });
-        } else {
+        } else if (value) {
           url.searchParams.append(`${key}[]`, value.toString());
         }
       } else {
-        url.searchParams.append(key, value.toString());
+        url.searchParams.append(key, String(value));
       }
     }
   });
@@ -1115,7 +1115,7 @@ async function listMergeRequests(
         // Handle array of labels
         url.searchParams.append(key, value.join(","));
       } else {
-        url.searchParams.append(key, value.toString());
+        url.searchParams.append(key, String(value));
       }
     }
   });
