@@ -734,12 +734,12 @@ export const ListIssueDiscussionsSchema = z.object({
 
 // Input schema for listing merge request discussions
 export const ListMergeRequestDiscussionsSchema = ProjectParamsSchema.extend({
-  merge_request_iid: z.coerce.string().describe("The IID of a merge request"),
+  merge_request_iid: z.union([z.string(), z.number()]).transform(String).describe("The IID of a merge request"),
 }).merge(PaginationOptionsSchema);
 
 // Input schema for updating a merge request discussion note
 export const UpdateMergeRequestNoteSchema = ProjectParamsSchema.extend({
-  merge_request_iid: z.coerce.string().describe("The IID of a merge request"),
+  merge_request_iid: z.union([z.string(), z.number()]).transform(String).describe("The IID of a merge request"),
   discussion_id: z.coerce.string().describe("The ID of a thread"),
   note_id: z.coerce.string().describe("The ID of a thread note"),
   body: z.string().optional().describe("The content of the note or reply"),
@@ -754,7 +754,7 @@ export const UpdateMergeRequestNoteSchema = ProjectParamsSchema.extend({
 
 // Input schema for adding a note to an existing merge request discussion
 export const CreateMergeRequestNoteSchema = ProjectParamsSchema.extend({
-  merge_request_iid: z.coerce.string().describe("The IID of a merge request"),
+  merge_request_iid: z.union([z.string(), z.number()]).transform(String).describe("The IID of a merge request"),
   discussion_id: z.coerce.string().describe("The ID of a thread"),
   body: z.string().describe("The content of the note or reply"),
   created_at: z.string().optional().describe("Date the note was created at (ISO 8601 format)"),
@@ -1257,7 +1257,7 @@ export const MergeRequestThreadPositionSchema = z.object({
 
 // Schema for creating a new merge request thread
 export const CreateMergeRequestThreadSchema = ProjectParamsSchema.extend({
-  merge_request_iid: z.coerce.string().describe("The IID of a merge request"),
+  merge_request_iid: z.union([z.string(), z.number()]).transform(String).describe("The IID of a merge request"),
   body: z.string().describe("The content of the thread"),
   position: MergeRequestThreadPositionSchema.optional().describe(
     "Position when creating a diff note"
