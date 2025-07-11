@@ -3424,7 +3424,7 @@ server.setRequestHandler(CallToolRequestSchema, async request => {
     if (GITLAB_AUTH_COOKIE_PATH) {
       await ensureSessionForRequest();
     }
-
+    logger.info(request.params.name)
     switch (request.params.name) {
       case "fork_repository": {
         if (GITLAB_PROJECT_ID) {
@@ -4324,6 +4324,7 @@ server.setRequestHandler(CallToolRequestSchema, async request => {
         throw new Error(`Unknown tool: ${request.params.name}`);
     }
   } catch (error) {
+    logger.debug(request.params)
     if (error instanceof z.ZodError) {
       throw new Error(
         `Invalid arguments: ${error.errors
