@@ -917,14 +917,14 @@ export const CreateNoteSchema = z.object({
   noteable_type: z
     .enum(["issue", "merge_request"])
     .describe("Type of noteable (issue or merge_request)"),
-  noteable_iid: numericStringSchemaNullable.optional().describe("IID of the issue or merge request"),
+  noteable_iid: numericStringSchema.describe("IID of the issue or merge request"),
   body: z.string().describe("Note content"),
 });
 
 // Issues API operation schemas
 export const ListIssuesSchema = z.object({
   project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
-  assignee_id: numericStringSchemaNullable.optional().describe("Return issues assigned to the given user ID"),
+  assignee_id: z.coerce.string().optional().describe("Return issues assigned to the given user ID. user id or none or any"),
   assignee_username: z.array(z.string()).optional().describe("Return issues assigned to the given username"),
   author_id: numericStringSchema.optional().describe("Return issues created by the given user ID"),
   author_username: z.string().optional().describe("Return issues created by the given username"),
