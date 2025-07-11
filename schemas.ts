@@ -1,5 +1,5 @@
 import { z } from "zod";
-import {flexibleBoolean,numericStringSchema} from "./customSchemas.js"
+import {flexibleBoolean,numericStringSchema,numericStringSchemaNullable} from "./customSchemas.js"
 
 // Base schemas for common types
 export const GitLabAuthorSchema = z.object({
@@ -667,7 +667,7 @@ export const GitLabDiscussionNoteSchema = z.object({
   noteable_id: numericStringSchema,
   noteable_type: z.enum(["Issue", "MergeRequest", "Snippet", "Commit", "Epic"]),
   project_id: z.coerce.string().optional(),
-  noteable_iid: z.coerce.number().nullable(),
+  noteable_iid: numericStringSchemaNullable.optional(),
   resolvable: flexibleBoolean.optional(),
   resolved: flexibleBoolean.optional(),
   resolved_by: GitLabUserSchema.nullable().optional(),
@@ -917,14 +917,14 @@ export const CreateNoteSchema = z.object({
   noteable_type: z
     .enum(["issue", "merge_request"])
     .describe("Type of noteable (issue or merge_request)"),
-  noteable_iid: z.coerce.number().describe("IID of the issue or merge request"),
+  noteable_iid: numericStringSchema.describe("IID of the issue or merge request"),
   body: z.string().describe("Note content"),
 });
 
 // Issues API operation schemas
 export const ListIssuesSchema = z.object({
   project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
-  assignee_id: numericStringSchema.optional().describe("Return issues assigned to the given user ID"),
+  assignee_id: z.coerce.string().optional().describe("Return issues assigned to the given user ID. user id or none or any"),
   assignee_username: z.array(z.string()).optional().describe("Return issues assigned to the given username"),
   author_id: numericStringSchema.optional().describe("Return issues created by the given user ID"),
   author_username: z.string().optional().describe("Return issues created by the given username"),
@@ -951,10 +951,7 @@ export const ListIssuesSchema = z.object({
 // Merge Requests API operation schemas
 export const ListMergeRequestsSchema = z.object({
   project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
-  assignee_id: z
-    .number()
-    .optional()
-    .describe("Returns merge requests assigned to the given user ID"),
+  assignee_id: z.coerce.string().optional().describe("Return issues assigned to the given user ID. user id or none or any"),
   assignee_username: z
     .string()
     .optional()
@@ -964,10 +961,9 @@ export const ListMergeRequestsSchema = z.object({
     .string()
     .optional()
     .describe("Returns merge requests created by the given username"),
-  reviewer_id: z
-    .number()
+  reviewer_id: z.coerce.string()
     .optional()
-    .describe("Returns merge requests which have the user as a reviewer"),
+    .describe("Returns merge requests which have the user as a reviewer. user id or none or any"),
   reviewer_username: z
     .string()
     .optional()
