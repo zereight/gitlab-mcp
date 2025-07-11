@@ -1,4 +1,17 @@
 import { z } from "zod";
+import { pino } from 'pino';
+
+const logger = pino({
+  level: process.env.LOG_LEVEL || 'info',
+  transport: {
+    target: 'pino-pretty',
+    options: {
+      colorize: true,
+      levelFirst: true,
+      destination: 2,
+    },
+  },
+});
 
 export const flexibleBoolean = z.preprocess((val) => {
     if (typeof val === 'string') {
@@ -32,23 +45,8 @@ export const numericStringSchemaNullable = z.coerce.string().or(z.number()).tran
   return String(trimmedStrValue);
 }).nullable();
   
-import { pino } from 'pino';
-
-const logger = pino({
-  level: process.env.LOG_LEVEL || 'info',
-  transport: {
-    target: 'pino-pretty',
-    options: {
-      colorize: true,
-      levelFirst: true,
-      destination: 2,
-    },
-  },
-});
-
   
-  export const numericStringSchema = z.coerce.string().transform((val, ctx) => {
-  logger.info(`st ${val}`)
+export const numericStringSchema = z.coerce.string().transform((val, ctx) => {
   const strValue = String(val); 
   const trimmedStrValue = strValue.trim();
 
@@ -73,6 +71,5 @@ const logger = pino({
     });
     return z.NEVER;
   }
-  logger.info(`hiii ${trimmedStrValue}`)
   return String(trimmedStrValue);
 });
