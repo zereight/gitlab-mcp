@@ -840,6 +840,7 @@ function normalizeGitLabApiUrl(url?: string): string {
 // Use the normalizeGitLabApiUrl function to handle various URL formats
 const GITLAB_API_URL = normalizeGitLabApiUrl(process.env.GITLAB_API_URL || "");
 const GITLAB_PROJECT_ID = process.env.GITLAB_PROJECT_ID;
+const GITLAB_GROUP_NAME = process.env.GITLAB_GROUP_NAME;
 
 if (!GITLAB_PERSONAL_ACCESS_TOKEN) {
   logger.error("GITLAB_PERSONAL_ACCESS_TOKEN environment variable is not set");
@@ -873,7 +874,24 @@ async function handleGitLabError(response: import("node-fetch").Response): Promi
  * @returns {string} The project ID to use for the API call
  */
 function getEffectiveProjectId(projectId: string): string {
-  return GITLAB_PROJECT_ID || projectId;
+
+  if (GITLAB_PROJECT_ID) {
+    return GITLAB_PROJECT_ID || projectId;
+  }
+
+  if (GITLAB_GROUP_NAME) {
+    if (projectId.includes("/")) {
+      if (projectId.startsWith(GITLAB_GROUP_NAME)) {
+        return projectId;
+      } else {
+        throw new Error(`projectId "${projectId}" does not start with GITLAB_GROUP_NAME "${GITLAB_GROUP_NAME}"`);
+      }
+    } else {
+      return `${GITLAB_GROUP_NAME}/${projectId}`;
+    }
+  }
+
+  return projectId;
 }
 
 /**
