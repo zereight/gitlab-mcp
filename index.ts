@@ -498,7 +498,7 @@ const allTools = [
   },
   {
     name: "list_issues",
-    description: "List issues across all accessible projects or within a specific project",
+    description: "List issues (default: created by current user only; use scope='all' for all accessible issues)",
     inputSchema: zodToJsonSchema(ListIssuesSchema),
   },
   {
