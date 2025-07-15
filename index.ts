@@ -498,7 +498,7 @@ const allTools = [
   },
   {
     name: "list_issues",
-    description: "List issues in a GitLab project with filtering options",
+    description: "List issues across all accessible projects or within a specific project",
     inputSchema: zodToJsonSchema(ListIssuesSchema),
   },
   {
@@ -1051,20 +1051,25 @@ async function createIssue(
 }
 
 /**
- * List issues in a GitLab project
+ * List issues across all accessible projects or within a specific project
  * 프로젝트의 이슈 목록 조회
  *
- * @param {string} projectId - The ID or URL-encoded path of the project
+ * @param {string} projectId - The ID or URL-encoded path of the project (optional)
  * @param {Object} options - Options for listing issues
  * @returns {Promise<GitLabIssue[]>} List of issues
  */
 async function listIssues(
-  projectId: string,
+  projectId?: string,
   options: Omit<z.infer<typeof ListIssuesSchema>, "project_id"> = {}
 ): Promise<GitLabIssue[]> {
-  projectId = decodeURIComponent(projectId); // Decode project ID
-  const effectiveProjectId = getEffectiveProjectId(projectId);
-  const url = new URL(`${GITLAB_API_URL}/projects/${encodeURIComponent(effectiveProjectId)}/issues`);
+  let url: URL;
+  if (projectId) {
+    projectId = decodeURIComponent(projectId); // Decode project ID
+    const effectiveProjectId = getEffectiveProjectId(projectId);
+    url = new URL(`${GITLAB_API_URL}/projects/${encodeURIComponent(effectiveProjectId)}/issues`);
+  } else {
+    url = new URL(`${GITLAB_API_URL}/issues`);
+  }
 
   // Add all query parameters
   Object.entries(options).forEach(([key, value]) => {
