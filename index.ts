@@ -1357,6 +1357,7 @@ async function createMergeRequest(
       description: options.description,
       source_branch: options.source_branch,
       target_branch: options.target_branch,
+      target_project_id: options.target_project_id,
       assignee_ids: options.assignee_ids,
       reviewer_ids: options.reviewer_ids,
       labels: options.labels?.join(","),
