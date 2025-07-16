@@ -10,7 +10,6 @@ import { configureAuthentication } from "./src/authentication.js";
 import { logger } from "./src/logger.js";
 import argon2 from "@node-rs/argon2";
 import { randomUUID } from "crypto";
-import { pino } from 'pino';
 
 
 validateConfiguration()
