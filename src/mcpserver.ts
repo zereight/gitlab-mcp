@@ -608,6 +608,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request, extra) => {
     if(cookieJar) {
       await gitlabSession.ensureSessionForCookieJar();
     }
+    logger.info(request.params.name)
     switch (request.params.name) {
       case "fork_repository": {
         if (config.GITLAB_PROJECT_ID) {
@@ -1470,6 +1471,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request, extra) => {
         throw new Error(`Unknown tool: ${request.params.name}`);
     }
   } catch (error) {
+    logger.debug(request.params)
     if (error instanceof z.ZodError) {
       throw new Error(
         `Invalid arguments: ${error.errors
