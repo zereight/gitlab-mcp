@@ -62,6 +62,8 @@ GITLAB_OAUTH2_DB_PATH=/path/to/oauth.db
 
 ```bash
 # .env file
+GITLAB_API_URL=https://gitlab.com
+
 GITLAB_OAUTH2_CLIENT_ID=your_app_id_here
 GITLAB_OAUTH2_CLIENT_SECRET=your_app_secret_here
 GITLAB_OAUTH2_AUTHORIZATION_URL=https://gitlab.com/oauth/authorize
@@ -75,6 +77,8 @@ GITLAB_OAUTH2_REDIRECT_URL=http://localhost:3000/callback
 
 ```bash
 # .env file
+GITLAB_API_URL=https://gitlab.company.com
+
 GITLAB_OAUTH2_CLIENT_ID=your_app_id_here
 GITLAB_OAUTH2_CLIENT_SECRET=your_app_secret_here
 GITLAB_OAUTH2_AUTHORIZATION_URL=https://gitlab.company.com/oauth/authorize
