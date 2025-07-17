@@ -76,11 +76,19 @@ async function startExpressServer(options: ExpressServerOptions): Promise<void> 
         transports[transport.sessionId].tokenHash = await argon2.hash(req.auth.token, {
           salt: argon2Salt,
         });
+        logger.debug({
+          tokenHash: transports[transport.sessionId].tokenHash?.slice(-8),
+        }, "created new auth session")
       }
       res.on("close", () => {
         delete transports[transport.sessionId];
       });
-      await mcpserver.connect(transport);
+      try {
+        await mcpserver.connect(transport);
+      }catch(e) {
+        logger.error({e}, "Transport error connecting to MCP server:");
+        res.status(500).send("Internal server error");
+      }
     });
 
     app.post("/messages",authMiddleware,  async (req: Request, res: Response) => {
@@ -104,6 +112,7 @@ async function startExpressServer(options: ExpressServerOptions): Promise<void> 
           res.status(401).send("No valid token info found in request");
           return;
         }
+
         const verified = await argon2.verify(tokenHash, gitlabToken, {
           salt: argon2Salt,
         });
@@ -111,19 +120,27 @@ async function startExpressServer(options: ExpressServerOptions): Promise<void> 
           res.status(401).send("Token does not match session");
           return;
         }
+        logger.debug({
+          tokenHash: tokenHash.slice(-8),
+        }, "auth token verified")
       }
       if (transport) {
-        await transport.handlePostMessage(req, res);
+        try {
+          await transport.handlePostMessage(req, res);
+        } catch (e) {
+          logger.error({e}, "Transport error handling message");
+          res.status(500).send("Internal server error");
+        }
       }
     });
 
   }
 
   if (streamableHttpEnabled) {
-  const transports : { [sessionId: string]: {
-    transport: StreamableHTTPServerTransport
-    tokenHash?: string
-  }} = {};
+    const transports : { [sessionId: string]: {
+      transport: StreamableHTTPServerTransport
+      tokenHash?: string
+    }} = {};
     // Streamable HTTP endpoint - handles both session creation and message handling
     app.post('/mcp', authMiddleware, async (req: Request, res: Response) => {
       const sessionId = req.headers['mcp-session-id'] as string;
@@ -149,9 +166,18 @@ async function startExpressServer(options: ExpressServerOptions): Promise<void> 
               res.status(401).send("Token does not match session");
               return;
             }
+            logger.debug({
+              tokenHash: session.tokenHash.slice(-8),
+            }, "auth token verified")
           }
           transport = session.transport;
-          await transport.handleRequest(req, res, req.body);
+          try {
+            await transport.handleRequest(req, res, req.body);
+          } catch (e) {
+            logger.error("Transport error handling request:", e);
+            res.status(500).send("Internal server error");
+            return
+          }
         } else {
           // Create new transport for new session
           transport = new StreamableHTTPServerTransport({
@@ -165,6 +191,9 @@ async function startExpressServer(options: ExpressServerOptions): Promise<void> 
                 transports[newSessionId].tokenHash = argon2.hashSync(req.auth.token, {
                   salt: argon2Salt,
                 });
+                logger.debug({
+                  tokenHash: transports[newSessionId].tokenHash.slice(-8),
+                }, "auth session created for token")
               }
               logger.warn(`Streamable HTTP session initialized: ${newSessionId}`);
             }
@@ -180,8 +209,20 @@ async function startExpressServer(options: ExpressServerOptions): Promise<void> 
           };
 
           // Connect transport to MCP server before handling the request
-          await mcpserver.connect(transport);
-          await transport.handleRequest(req, res, req.body);
+          try {
+            await mcpserver.connect(transport);
+          } catch (e) {
+            logger.error({e}, "Transport error connecting to MCP server:");
+            res.status(500).send("Internal server error");
+            return
+          }
+          try {
+            await transport.handleRequest(req, res, req.body);
+          } catch (e) {
+            logger.error({e},"Transport error handling request:");
+            res.status(500).send("Internal server error");
+            return
+          }
         }
       } catch (error) {
         logger.error('Streamable HTTP error:', error);

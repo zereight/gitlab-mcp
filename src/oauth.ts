@@ -217,11 +217,11 @@ class GitLabProxyProvider extends ProxyOAuthServerProvider {
 
     // GitLab doesn't support the 'resource' parameter, so we skip it
 
-    logger.debug(`Redirecting to GitLab OAuth:`, {
+    logger.debug({
       url: authUrl.toString(),
       scopes: gitlabScopes,
       requested_scopes: params.scopes
-    });
+    },`Redirecting to GitLab OAuth`);
 
     // Redirect to GitLab
     res.redirect(authUrl.toString());
@@ -380,7 +380,7 @@ class GitLabProxyProvider extends ProxyOAuthServerProvider {
   handleOAuthCallback = async (req: Request, res: Response): Promise<void> => {
     const { code, state, error, error_description } = req.query;
 
-    logger.debug('OAuth callback received:', { code: !!code, state, error });
+    logger.debug({ code: !!code, state, error }, 'OAuth callback received');
 
     if (!state) {
       res.status(400).send('Missing state parameter');
@@ -418,8 +418,11 @@ class GitLabProxyProvider extends ProxyOAuthServerProvider {
       if (state) redirectUrl.searchParams.set('state', state as string);
       if (error) redirectUrl.searchParams.set('error', error as string);
       if (error_description) redirectUrl.searchParams.set('error_description', error_description as string);
+      if(error) {
+        logger.debug({error}, "oauth callback error");
+      }
 
-      logger.debug(`Redirecting to client callback: ${redirectUrl.toString()}`);
+      logger.debug(`sending redirecting to client callback ${state}`);
 
       // Redirect to the client's actual callback URL
       res.redirect(redirectUrl.toString());
