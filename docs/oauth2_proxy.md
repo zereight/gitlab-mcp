@@ -122,13 +122,6 @@ The database stores:
    - Ensure your GitLab OAuth app has the required scopes enabled
    - The MCP server requests: `api`, `openid`, `profile`, `email`
 
-### Debug Mode
-
-Enable debug logging to troubleshoot OAuth2 issues:
-
-```bash
-export VERBOSE="true"
-```
 
 ## Starting the Server
 

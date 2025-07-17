@@ -5,7 +5,6 @@ export const config = {
   STREAMABLE_HTTP: process.env.STREAMABLE_HTTP === "true",
   IS_OLD : process.env.GITLAB_IS_OLD === "true",
   GITLAB_READ_ONLY_MODE : process.env.GITLAB_READ_ONLY_MODE === "true",
-  VERBOSE: ["true","TRUE","1"].includes(process.env.VERBOSE || "0"),
   USE_GITLAB_WIKI : process.env.USE_GITLAB_WIKI === "true",
   USE_MILESTONE : process.env.USE_MILESTONE === "true",
   USE_PIPELINE : process.env.USE_PIPELINE === "true",
