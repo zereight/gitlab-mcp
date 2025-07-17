@@ -337,7 +337,7 @@ export class GitlabHandler extends GitlabSession {
   /**
    * Get a single issue from a GitLab project
    */
-  async getIssue(projectId: string, issueIid: number): Promise<GitLabIssue> {
+  async getIssue(projectId: string, issueIid: number | string): Promise<GitLabIssue> {
     projectId = decodeURIComponent(projectId);
     const url = new URL(
       `${config.GITLAB_API_URL}/projects/${encodeURIComponent(this.getEffectiveProjectId(projectId))}/issues/${issueIid}`
@@ -355,7 +355,7 @@ export class GitlabHandler extends GitlabSession {
    */
   async updateIssue(
     projectId: string,
-    issueIid: number,
+    issueIid: number | string,
     options: Omit<z.infer<typeof UpdateIssueSchema>, "project_id" | "issue_iid">
   ): Promise<GitLabIssue> {
     projectId = decodeURIComponent(projectId);
@@ -382,7 +382,7 @@ export class GitlabHandler extends GitlabSession {
   /**
    * Delete an issue from a GitLab project
    */
-  async deleteIssue(projectId: string, issueIid: number): Promise<void> {
+  async deleteIssue(projectId: string, issueIid: number | string): Promise<void> {
     projectId = decodeURIComponent(projectId);
     const url = new URL(
       `${config.GITLAB_API_URL}/projects/${encodeURIComponent(this.getEffectiveProjectId(projectId))}/issues/${issueIid}`
@@ -401,7 +401,7 @@ export class GitlabHandler extends GitlabSession {
    */
   async listIssueLinks(
     projectId: string,
-    issueIid: number
+    issueIid: number | string
   ): Promise<GitLabIssueWithLinkDetails[]> {
     projectId = decodeURIComponent(projectId);
     const url = new URL(
@@ -420,8 +420,8 @@ export class GitlabHandler extends GitlabSession {
    */
   async getIssueLink(
     projectId: string,
-    issueIid: number,
-    issueLinkId: number
+    issueIid: number | string,
+    issueLinkId: number | string
   ): Promise<GitLabIssueLink> {
     projectId = decodeURIComponent(projectId);
     const url = new URL(
@@ -442,9 +442,9 @@ this.getEffectiveProjectId(projectId)
    */
   async createIssueLink(
     projectId: string,
-    issueIid: number,
+    issueIid: number | string,
     targetProjectId: string,
-    targetIssueIid: number,
+    targetIssueIid: number | string,
     linkType: "relates_to" | "blocks" | "is_blocked_by" = "relates_to"
   ): Promise<GitLabIssueLink> {
     projectId = decodeURIComponent(projectId);
@@ -473,8 +473,8 @@ this.getEffectiveProjectId(projectId)
    */
   async deleteIssueLink(
     projectId: string,
-    issueIid: number,
-    issueLinkId: number
+    issueIid: number | string,
+    issueLinkId: number | string
   ): Promise<void> {
     projectId = decodeURIComponent(projectId);
     const url = new URL(
@@ -538,7 +538,7 @@ this.getEffectiveProjectId(projectId)
   async listDiscussions(
     projectId: string,
     resourceType: "issues" | "merge_requests",
-    resourceIid: number,
+    resourceIid: number | string,
     options: PaginationOptions = {}
   ): Promise<PaginatedDiscussionsResponse> {
     projectId = decodeURIComponent(projectId);
@@ -588,7 +588,7 @@ this.getEffectiveProjectId(projectId)
    */
   async listMergeRequestDiscussions(
     projectId: string,
-    mergeRequestIid: number,
+    mergeRequestIid: number | string,
     options: PaginationOptions = {}
   ): Promise<PaginatedDiscussionsResponse> {
     return this.listDiscussions(projectId, "merge_requests", mergeRequestIid, options);
@@ -599,7 +599,7 @@ this.getEffectiveProjectId(projectId)
    */
   async listIssueDiscussions(
     projectId: string,
-    issueIid: number,
+    issueIid: number | string,
     options: PaginationOptions = {}
   ): Promise<PaginatedDiscussionsResponse> {
     return this.listDiscussions(projectId, "issues", issueIid, options);
@@ -610,9 +610,9 @@ this.getEffectiveProjectId(projectId)
    */
   async updateMergeRequestNote(
     projectId: string,
-    mergeRequestIid: number,
+    mergeRequestIid: number | string,
     discussionId: string,
-    noteId: number,
+    noteId: number | string,
     body?: string,
     resolved?: boolean
   ): Promise<GitLabDiscussionNote> {
@@ -646,9 +646,9 @@ this.getEffectiveProjectId(projectId)
    */
   async updateIssueNote(
     projectId: string,
-    issueIid: number,
+    issueIid: number | string,
     discussionId: string,
-    noteId: number,
+    noteId: number | string,
     body: string
   ): Promise<GitLabDiscussionNote> {
     projectId = decodeURIComponent(projectId);
@@ -676,7 +676,7 @@ this.getEffectiveProjectId(projectId)
    */
   async createIssueNote(
     projectId: string,
-    issueIid: number,
+    issueIid: number | string,
     discussionId: string,
     body: string,
     createdAt?: string
@@ -709,7 +709,7 @@ this.getEffectiveProjectId(projectId)
    */
   async createMergeRequestNote(
     projectId: string,
-    mergeRequestIid: number,
+    mergeRequestIid: number | string,
     discussionId: string,
     body: string,
     createdAt?: string
@@ -964,7 +964,7 @@ this.getEffectiveProjectId(projectId)
    */
   async getMergeRequest(
     projectId: string,
-    mergeRequestIid?: number,
+    mergeRequestIid?: number | string,
     branchName?: string
   ): Promise<GitLabMergeRequest> {
     projectId = decodeURIComponent(projectId);
@@ -1004,7 +1004,7 @@ this.getEffectiveProjectId(projectId)
    */
   async getMergeRequestDiffs(
     projectId: string,
-    mergeRequestIid?: number,
+    mergeRequestIid?: number | string,
     branchName?: string,
     view?: "inline" | "parallel"
   ): Promise<GitLabMergeRequestDiff[]> {
@@ -1040,7 +1040,7 @@ this.getEffectiveProjectId(projectId)
    */
   async listMergeRequestDiffs(
     projectId: string,
-    mergeRequestIid?: number,
+    mergeRequestIid?: number | string,
     branchName?: string,
     page?: number,
     perPage?: number,
@@ -1122,7 +1122,7 @@ this.getEffectiveProjectId(projectId)
     z.infer<typeof UpdateMergeRequestSchema>,
     "project_id" | "merge_request_iid" | "source_branch"
     >,
-    mergeRequestIid?: number,
+    mergeRequestIid?: number | string,
     branchName?: string
   ): Promise<GitLabMergeRequest> {
     projectId = decodeURIComponent(projectId);
@@ -1155,7 +1155,7 @@ this.getEffectiveProjectId(projectId)
   async createNote(
     projectId: string,
     noteableType: "issue" | "merge_request",
-    noteableIid: number,
+    noteableIid: number | string,
     body: string
   ): Promise<any> {
     projectId = decodeURIComponent(projectId);
@@ -1184,7 +1184,7 @@ this.getEffectiveProjectId(projectId)
    */
   async createMergeRequestThread(
     projectId: string,
-    mergeRequestIid: number,
+    mergeRequestIid: number | string,
     body: string,
     position?: MergeRequestThreadPosition,
     createdAt?: string
@@ -1630,7 +1630,7 @@ const url = new URL(`${config.GITLAB_API_URL}/namespaces`);
   /**
    * Get details of a specific pipeline
    */
-  async getPipeline(projectId: string, pipelineId: number): Promise<GitLabPipeline> {
+  async getPipeline(projectId: string, pipelineId: number | string): Promise<GitLabPipeline> {
     projectId = decodeURIComponent(projectId);
     const url = new URL(
       `${config.GITLAB_API_URL}/projects/${encodeURIComponent(this.getEffectiveProjectId(projectId))}/pipelines/${pipelineId}`
@@ -1652,7 +1652,7 @@ const url = new URL(`${config.GITLAB_API_URL}/namespaces`);
    */
   async listPipelineJobs(
     projectId: string,
-    pipelineId: number,
+    pipelineId: number | string,
     options: Omit<ListPipelineJobsOptions, "project_id" | "pipeline_id"> = {}
   ): Promise<GitLabPipelineJob[]> {
     projectId = decodeURIComponent(projectId);
@@ -1684,7 +1684,7 @@ const url = new URL(`${config.GITLAB_API_URL}/namespaces`);
   /**
    * Get a specific pipeline job
    */
-  async getPipelineJob(projectId: string, jobId: number): Promise<GitLabPipelineJob> {
+  async getPipelineJob(projectId: string, jobId: number | string): Promise<GitLabPipelineJob> {
     projectId = decodeURIComponent(projectId);
     const url = new URL(`${config.GITLAB_API_URL}/projects/${encodeURIComponent(this.getEffectiveProjectId(projectId))}/jobs/${jobId}`);
 
@@ -1702,7 +1702,7 @@ const url = new URL(`${config.GITLAB_API_URL}/namespaces`);
   /**
    * Get the output/trace of a pipeline job
    */
-  async getPipelineJobOutput(projectId: string, jobId: number, limit?: number, offset?: number): Promise<string> {
+  async getPipelineJobOutput(projectId: string, jobId: number | string, limit?: number, offset?: number): Promise<string> {
     projectId = decodeURIComponent(projectId);
     const url = new URL(
       `${config.GITLAB_API_URL}/projects/${encodeURIComponent(this.getEffectiveProjectId(projectId))}/jobs/${jobId}/trace`
@@ -1777,7 +1777,7 @@ const url = new URL(`${config.GITLAB_API_URL}/namespaces`);
   /**
    * Retry a pipeline
    */
-  async retryPipeline(projectId: string, pipelineId: number): Promise<GitLabPipeline> {
+  async retryPipeline(projectId: string, pipelineId: number | string): Promise<GitLabPipeline> {
     projectId = decodeURIComponent(projectId);
     const url = new URL(
       `${config.GITLAB_API_URL}/projects/${encodeURIComponent(this.getEffectiveProjectId(projectId))}/pipelines/${pipelineId}/retry`
@@ -1795,7 +1795,7 @@ const url = new URL(`${config.GITLAB_API_URL}/namespaces`);
   /**
    * Cancel a pipeline
    */
-  async cancelPipeline(projectId: string, pipelineId: number): Promise<GitLabPipeline> {
+  async cancelPipeline(projectId: string, pipelineId: number | string): Promise<GitLabPipeline> {
     projectId = decodeURIComponent(projectId);
     const url = new URL(
       `${config.GITLAB_API_URL}/projects/${encodeURIComponent(this.getEffectiveProjectId(projectId))}/pipelines/${pipelineId}/cancel`
@@ -1885,7 +1885,7 @@ const url = new URL(`${config.GITLAB_API_URL}/namespaces`);
    */
   async getProjectMilestone(
     projectId: string,
-    milestoneId: number
+    milestoneId: number | string
   ): Promise<GitLabMilestones> {
     projectId = decodeURIComponent(projectId);
     const url = new URL(
@@ -1923,7 +1923,7 @@ const url = new URL(`${config.GITLAB_API_URL}/namespaces`);
    */
   async editProjectMilestone(
     projectId: string,
-    milestoneId: number,
+    milestoneId: number | string,
     options: Omit<z.infer<typeof EditProjectMilestoneSchema>, "project_id" | "milestone_id">
   ): Promise<GitLabMilestones> {
     projectId = decodeURIComponent(projectId);
@@ -1944,7 +1944,7 @@ const url = new URL(`${config.GITLAB_API_URL}/namespaces`);
   /**
    * Delete a milestone from a GitLab project
    */
-  async deleteProjectMilestone(projectId: string, milestoneId: number): Promise<void> {
+  async deleteProjectMilestone(projectId: string, milestoneId: number | string): Promise<void> {
     projectId = decodeURIComponent(projectId);
     const url = new URL(
       `${config.GITLAB_API_URL}/projects/${encodeURIComponent(this.getEffectiveProjectId(projectId))}/milestones/${milestoneId}`
@@ -1960,7 +1960,7 @@ const url = new URL(`${config.GITLAB_API_URL}/namespaces`);
   /**
    * Get all issues assigned to a single milestone
    */
-  async getMilestoneIssues(projectId: string, milestoneId: number): Promise<GitLabIssue[]> {
+  async getMilestoneIssues(projectId: string, milestoneId: number | string): Promise<GitLabIssue[]> {
     projectId = decodeURIComponent(projectId);
     const url = new URL(
       `${config.GITLAB_API_URL}/projects/${encodeURIComponent(this.getEffectiveProjectId(projectId))}/milestones/${milestoneId}/issues`
@@ -1977,7 +1977,7 @@ const url = new URL(`${config.GITLAB_API_URL}/namespaces`);
    */
   async getMilestoneMergeRequests(
     projectId: string,
-    milestoneId: number
+    milestoneId: number | string
   ): Promise<GitLabMergeRequest[]> {
     projectId = decodeURIComponent(projectId);
     const url = new URL(
@@ -1997,7 +1997,7 @@ const url = new URL(`${config.GITLAB_API_URL}/namespaces`);
    */
   async promoteProjectMilestone(
     projectId: string,
-    milestoneId: number
+    milestoneId: number | string
   ): Promise<GitLabMilestones> {
     projectId = decodeURIComponent(projectId);
     const url = new URL(
@@ -2016,7 +2016,7 @@ const url = new URL(`${config.GITLAB_API_URL}/namespaces`);
   /**
    * Get all burndown chart events for a single milestone
    */
-  async getMilestoneBurndownEvents(projectId: string, milestoneId: number): Promise<any[]> {
+  async getMilestoneBurndownEvents(projectId: string, milestoneId: number | string): Promise<any[]> {
     projectId = decodeURIComponent(projectId);
     const url = new URL(
       `${config.GITLAB_API_URL}/projects/${encodeURIComponent(
