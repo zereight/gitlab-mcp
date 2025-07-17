@@ -14,6 +14,7 @@ IMAGE_VERSION=$(git describe --tags --abbrev=0 --match "v[0-9]*.[0-9]*.[0-9]*" m
 git checkout "${IMAGE_VERSION}"
 IMAGE_VERSION=${IMAGE_VERSION#v}
 echo "${DOCKER_USER}/${IMAGE_NAME}:${IMAGE_VERSION}"
+npm install && npm run build
 docker buildx build --platform linux/arm64,linux/amd64 \
   -t "${DOCKER_USER}/${IMAGE_NAME}:latest" \
   -t "${DOCKER_USER}/${IMAGE_NAME}:${IMAGE_VERSION}" \
