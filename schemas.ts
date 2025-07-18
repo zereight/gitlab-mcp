@@ -924,7 +924,7 @@ export const CreateNoteSchema = z.object({
 
 // Issues API operation schemas
 export const ListIssuesSchema = z.object({
-  project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
+  project_id: z.coerce.string().optional().describe("Project ID or URL-encoded path (optional - if not provided, lists issues across all accessible projects)"),
   assignee_id: z.coerce.string().optional().describe("Return issues assigned to the given user ID. user id or none or any"),
   assignee_username: z.array(z.string()).optional().describe("Return issues assigned to the given username"),
   author_id: z.coerce.string().optional().describe("Return issues created by the given user ID"),
