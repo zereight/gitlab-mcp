@@ -833,6 +833,7 @@ const MergeRequestOptionsSchema = {
   description: z.string().optional().describe("Merge request description"),
   source_branch: z.string().describe("Branch containing changes"),
   target_branch: z.string().describe("Branch to merge into"),
+  target_project_id: z.coerce.string().optional().describe("Numeric ID of the target project."),
   assignee_ids: z
     .array(z.number())
     .optional()
