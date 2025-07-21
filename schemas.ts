@@ -935,6 +935,8 @@ export const ListIssuesSchema = z.object({
   due_date: z.string().optional().describe("Return issues that have the due date"),
   labels: z.array(z.string()).optional().describe("Array of label names"),
   milestone: z.string().optional().describe("Milestone title"),
+  issue_type: z.string().optional().nullable().describe("Filter to a given type of issue. One of issue, incident, test_case or task"),
+  iteration_id: z.coerce.string().optional().nullable().describe("Return issues assigned to the given iteration ID. None returns issues that do not belong to an iteration. Any returns issues that belong to an iteration. "),
   scope: z
     .enum(["created_by_me", "assigned_to_me", "all"])
     .optional()
@@ -1361,6 +1363,32 @@ export const GetCommitDiffSchema = z.object({
   sha: z.string().describe("The commit hash or name of a repository branch or tag"),
 });
 
+export const GroupIteration = z.object({
+  id: z.coerce.string(),
+  iid: z.coerce.string(),
+  sequence: z.number(),
+  group_id: z.coerce.string(),
+  title: z.string().optional().nullable(),
+  description: z.string().optional().nullable(),
+  state: z.number(),
+  created_at: z.string(),
+  updated_at: z.string(),
+  due_date: z.string().optional().nullable(),
+  start_date: z.string().optional().nullable(),
+  web_url: z.string().optional().nullable(),
+});
+
+export const ListGroupIterationsSchema = z.object({
+  group_id: z.coerce.string().describe("Group ID or URL-encoded path"),
+  state: z.enum(["opened", "upcoming", "current", "closed", "all"]).optional().describe("Return opened, upcoming, current, closed, or all iterations."),
+  search: z.string().optional().describe("Return only iterations with a title matching the provided string."),
+  in: z.array(z.enum(["title", "cadence_title"])).optional().describe("Fields in which fuzzy search should be performed with the query given in the argument search. The available options are title and cadence_title. Default is [title]."),
+  include_ancestors: flexibleBoolean.optional().describe("Include iterations for group and its ancestors. Defaults to true."),
+  include_descendants: flexibleBoolean.optional().describe("Include iterations for group and its descendants. Defaults to false."),
+  updated_before: z.string().optional().describe("Return only iterations updated before the given datetime. Expected in ISO 8601 format (2019-03-15T08:00:00Z)."),
+  updated_after: z.string().optional().describe("Return only iterations updated after the given datetime. Expected in ISO 8601 format (2019-03-15T08:00:00Z)."),
+}).merge(PaginationOptionsSchema);
+
 // Export types
 export type GitLabAuthor = z.infer<typeof GitLabAuthorSchema>;
 export type GitLabFork = z.infer<typeof GitLabForkSchema>;
@@ -1430,3 +1458,5 @@ export type PaginationOptions = z.infer<typeof PaginationOptionsSchema>;
 export type ListCommitsOptions = z.infer<typeof ListCommitsSchema>;
 export type GetCommitOptions = z.infer<typeof GetCommitSchema>;
 export type GetCommitDiffOptions = z.infer<typeof GetCommitDiffSchema>;
+export type GroupIteration = z.infer<typeof GroupIteration>;
+export type ListGroupIterationsOptions = z.infer<typeof ListGroupIterationsSchema>;
