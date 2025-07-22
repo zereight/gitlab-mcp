@@ -318,7 +318,7 @@ export const GitLabRepositorySchema = z.object({
   jobs_enabled: flexibleBoolean.optional(),
   snippets_enabled: flexibleBoolean.optional(),
   can_create_merge_request_in: flexibleBoolean.optional(),
-  resolve_outdated_diff_discussions: flexibleBoolean.nullable().optional(),
+  resolve_outdated_diff_discussions: flexibleBoolean.nullable().default(null).optional(),
   shared_runners_enabled: flexibleBoolean.optional(),
   shared_with_groups: z
     .array(
@@ -566,7 +566,7 @@ export const GitLabIssueSchema = z.object({
     .optional(),
   confidential: flexibleBoolean.optional(),
   due_date: z.string().nullable().optional(),
-  discussion_locked: flexibleBoolean.nullable().optional(),
+  discussion_locked: flexibleBoolean.nullable().default(null).optional(),
   weight: z.number().nullable().optional(),
 });
 
@@ -629,8 +629,8 @@ export const GitLabMergeRequestSchema = z.object({
   merge_error: z.string().nullable().optional(),
   work_in_progress: flexibleBoolean.optional(),
   blocking_discussions_resolved: flexibleBoolean.optional(),
-  should_remove_source_branch: flexibleBoolean.nullable().optional(),
-  force_remove_source_branch: flexibleBoolean.nullable().optional(),
+  should_remove_source_branch: flexibleBoolean.nullable().default(null).optional(),
+  force_remove_source_branch: flexibleBoolean.nullable().default(null).optional(),
   allow_collaboration: flexibleBoolean.optional(),
   allow_maintainer_to_push: flexibleBoolean.optional(),
   changes_count: z.string().nullable().optional(),
@@ -848,8 +848,8 @@ const MergeRequestOptionsSchema = {
     .boolean()
     .optional()
     .describe("Allow commits from upstream members"),
-  remove_source_branch: flexibleBoolean.optional().nullable().describe("Flag indicating if a merge request should remove the source branch when merging."),
-  squash: flexibleBoolean.optional().nullable().describe("If true, squash all commits into a single commit on merge."),
+  remove_source_branch: flexibleBoolean.nullable().default(null).optional().describe("Flag indicating if a merge request should remove the source branch when merging."),
+  squash: flexibleBoolean.nullable().default(null).optional().describe("If true, squash all commits into a single commit on merge."),
 }
 export const CreateMergeRequestOptionsSchema = z.object(MergeRequestOptionsSchema);
 export const CreateMergeRequestSchema = ProjectParamsSchema.extend(MergeRequestOptionsSchema);
