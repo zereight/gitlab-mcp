@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { pino } from 'pino';
-const DEFAULT_NULL = process.env.DEFAULT_NULL;
+const DEFAULT_NULL = process.env.DEFAULT_NULL === "true";
 
 
 const logger = pino({
