@@ -181,6 +181,8 @@ import {
   type GetCommitOptions,
   type GetCommitDiffOptions,
   ListMergeRequestDiffsSchema,
+  ListGroupIterationsSchema,
+  GroupIteration,
 } from "./schemas.js";
 
 import { randomUUID } from "crypto";
@@ -736,6 +738,11 @@ const allTools = [
     description: "Get changes/diffs of a specific commit",
     inputSchema: zodToJsonSchema(GetCommitDiffSchema),
   },
+  {
+    name: "list_group_iterations",
+    description: "List group iterations with filtering options",
+    inputSchema: zodToJsonSchema(ListGroupIterationsSchema),
+  },
 ];
 
 // Define which tools are read-only
@@ -777,6 +784,8 @@ const readOnlyTools = [
   "list_commits",
   "get_commit",
   "get_commit_diff",
+  "list_group_iterations",
+  "get_group_iteration",
 ];
 
 // Define which tools are related to wiki and can be toggled by USE_GITLAB_WIKI
@@ -3382,6 +3391,41 @@ async function getCommitDiff(
   return z.array(GitLabDiffSchema).parse(data);
 }
 
+/**
+ * list group iterations
+ *
+ * @param {string} groupId 
+ * @param {Omit<ListGroupIterationsOptions, "group_id">} options
+ * @returns {Promise<GetIt[]>}
+ */
+async function listGroupIterations(
+  groupId: string,
+  options: Omit<z.infer<typeof ListGroupIterationsSchema>, "group_id"> = {}
+): Promise<GroupIteration[]> {
+  groupId = decodeURIComponent(groupId);
+  const url = new URL(`${GITLAB_API_URL}/groups/${encodeURIComponent(groupId)}/iterations`);
+
+  // クエリパラメータの追加
+  if (options.state) url.searchParams.append("state", options.state);
+  if (options.search) url.searchParams.append("search", options.search);
+  if (options.in) url.searchParams.append("in", options.in.join(","));
+  if (options.include_ancestors !== undefined) url.searchParams.append("include_ancestors", options.include_ancestors.toString());
+  if (options.include_descendants !== undefined) url.searchParams.append("include_descendants", options.include_descendants.toString());
+  if (options.updated_before) url.searchParams.append("updated_before", options.updated_before);
+  if (options.updated_after) url.searchParams.append("updated_after", options.updated_after);
+  if (options.page) url.searchParams.append("page", options.page.toString());
+  if (options.per_page) url.searchParams.append("per_page", options.per_page.toString());
+
+  const response = await fetch(url.toString(), DEFAULT_FETCH_CONFIG);
+
+  if (!response.ok) {
+    await handleGitLabError(response);
+  }
+
+  const data = await response.json();
+  return z.array(GroupIteration).parse(data);
+}
+
 server.setRequestHandler(ListToolsRequestSchema, async () => {
   // Apply read-only filter first
   const tools0 = GITLAB_READ_ONLY_MODE
@@ -4323,6 +4367,14 @@ server.setRequestHandler(CallToolRequestSchema, async request => {
         const diff = await getCommitDiff(args.project_id, args.sha);
         return {
           content: [{ type: "text", text: JSON.stringify(diff, null, 2) }],
+        };
+      }
+
+      case "list_group_iterations": {
+        const args = ListGroupIterationsSchema.parse(request.params.arguments);
+        const iterations = await listGroupIterations(args.group_id, args);
+        return {
+          content: [{ type: "text", text: JSON.stringify(iterations, null, 2) }],
         };
       }
 
