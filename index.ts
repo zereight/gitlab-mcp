@@ -106,6 +106,14 @@ import {
   UpdateMergeRequestNoteSchema, // Added
   CreateMergeRequestNoteSchema, // Added
   ListMergeRequestDiscussionsSchema,
+  // Draft Notes Schemas
+  GitLabDraftNoteSchema,
+  ListDraftNotesSchema,
+  CreateDraftNoteSchema,
+  UpdateDraftNoteSchema,
+  DeleteDraftNoteSchema,
+  PublishDraftNoteSchema,
+  BulkPublishDraftNotesSchema,
   type GitLabFork,
   type GitLabReference,
   type GitLabRepository,
@@ -148,8 +156,17 @@ import {
   type GitLabDiscussionNote,
   type GitLabDiscussion,
   type PaginatedDiscussionsResponse,
+  // Draft Notes Types
+  type GitLabDraftNote,
+  type ListDraftNotesOptions,
+  type CreateDraftNoteOptions,
+  type UpdateDraftNoteOptions,
+  type DeleteDraftNoteOptions,
+  type PublishDraftNoteOptions,
+  type BulkPublishDraftNotesOptions,
   type PaginationOptions,
   type MergeRequestThreadPosition,
+  type MergeRequestThreadPositionCreate,
   type GetWikiPageOptions,
   type CreateWikiPageOptions,
   type UpdateWikiPageOptions,
@@ -487,6 +504,36 @@ const allTools = [
     name: "create_merge_request_note",
     description: "Add a new note to an existing merge request thread",
     inputSchema: zodToJsonSchema(CreateMergeRequestNoteSchema),
+  },
+  {
+    name: "list_draft_notes",
+    description: "List draft notes for a merge request",
+    inputSchema: zodToJsonSchema(ListDraftNotesSchema),
+  },
+  {
+    name: "create_draft_note",
+    description: "Create a draft note for a merge request",
+    inputSchema: zodToJsonSchema(CreateDraftNoteSchema),
+  },
+  {
+    name: "update_draft_note",
+    description: "Update an existing draft note",
+    inputSchema: zodToJsonSchema(UpdateDraftNoteSchema),
+  },
+  {
+    name: "delete_draft_note",
+    description: "Delete a draft note",
+    inputSchema: zodToJsonSchema(DeleteDraftNoteSchema),
+  },
+  {
+    name: "publish_draft_note",
+    description: "Publish a single draft note",
+    inputSchema: zodToJsonSchema(PublishDraftNoteSchema),
+  },
+  {
+    name: "bulk_publish_draft_notes",
+    description: "Publish all draft notes for a merge request",
+    inputSchema: zodToJsonSchema(BulkPublishDraftNotesSchema),
   },
   {
     name: "update_issue_note",
@@ -2188,6 +2235,275 @@ async function createNote(
 }
 
 /**
+ * List draft notes for a merge request
+ * @param {string} projectId - The ID or URL-encoded path of the project
+ * @param {number|string} mergeRequestIid - The internal ID of the merge request
+ * @returns {Promise<GitLabDraftNote[]>} Array of draft notes
+ */
+async function listDraftNotes(
+  projectId: string,
+  mergeRequestIid: number | string
+): Promise<GitLabDraftNote[]> {
+  projectId = decodeURIComponent(projectId);
+  const url = new URL(
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(
+      getEffectiveProjectId(projectId)
+    )}/merge_requests/${mergeRequestIid}/draft_notes`
+  );
+
+  const response = await fetch(url.toString(), {
+    ...DEFAULT_FETCH_CONFIG,
+    method: "GET",
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`GitLab API error: ${response.status} ${response.statusText}\n${errorText}`);
+  }
+
+  const data = await response.json();
+  return z.array(GitLabDraftNoteSchema).parse(data);
+}
+
+/**
+ * Create a draft note for a merge request
+ * @param {string} projectId - The ID or URL-encoded path of the project
+ * @param {number|string} mergeRequestIid - The internal ID of the merge request
+ * @param {string} body - The content of the draft note
+ * @param {MergeRequestThreadPosition} [position] - Position information for diff notes
+ * @param {boolean} [resolveDiscussion] - Whether to resolve the discussion when publishing
+ * @returns {Promise<GitLabDraftNote>} The created draft note
+ */
+async function createDraftNote(
+  projectId: string,
+  mergeRequestIid: number | string,
+  body: string,
+  position?: MergeRequestThreadPositionCreate,
+  resolveDiscussion?: boolean
+): Promise<GitLabDraftNote> {
+  projectId = decodeURIComponent(projectId);
+  const url = new URL(
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(
+      getEffectiveProjectId(projectId)
+    )}/merge_requests/${mergeRequestIid}/draft_notes`
+  );
+
+  const requestBody: any = { note: body };
+  if (position) {
+    requestBody.position = position;
+  }
+  if (resolveDiscussion !== undefined) {
+    requestBody.resolve_discussion = resolveDiscussion;
+  }
+
+  const response = await fetch(url.toString(), {
+    ...DEFAULT_FETCH_CONFIG,
+    method: "POST",
+    body: JSON.stringify(requestBody),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`GitLab API error: ${response.status} ${response.statusText}\n${errorText}`);
+  }
+
+  const data = await response.json();
+  return GitLabDraftNoteSchema.parse(data);
+}
+
+/**
+ * Update an existing draft note
+ * @param {string} projectId - The ID or URL-encoded path of the project
+ * @param {number|string} mergeRequestIid - The internal ID of the merge request
+ * @param {number|string} draftNoteId - The ID of the draft note
+ * @param {string} [body] - The updated content of the draft note
+ * @param {MergeRequestThreadPosition} [position] - Updated position information
+ * @param {boolean} [resolveDiscussion] - Whether to resolve the discussion when publishing
+ * @returns {Promise<GitLabDraftNote>} The updated draft note
+ */
+async function updateDraftNote(
+  projectId: string,
+  mergeRequestIid: number | string,
+  draftNoteId: number | string,
+  body?: string,
+  position?: MergeRequestThreadPositionCreate,
+  resolveDiscussion?: boolean
+): Promise<GitLabDraftNote> {
+  projectId = decodeURIComponent(projectId);
+  const url = new URL(
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(
+      getEffectiveProjectId(projectId)
+    )}/merge_requests/${mergeRequestIid}/draft_notes/${draftNoteId}`
+  );
+
+  const requestBody: any = {};
+  if (body !== undefined) {
+    requestBody.note = body;
+  }
+  if (position) {
+    requestBody.position = position;
+  }
+  if (resolveDiscussion !== undefined) {
+    requestBody.resolve_discussion = resolveDiscussion;
+  }
+
+  const response = await fetch(url.toString(), {
+    ...DEFAULT_FETCH_CONFIG,
+    method: "PUT",
+    body: JSON.stringify(requestBody),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`GitLab API error: ${response.status} ${response.statusText}\n${errorText}`);
+  }
+
+  const data = await response.json();
+  return GitLabDraftNoteSchema.parse(data);
+}
+
+/**
+ * Delete a draft note
+ * @param {string} projectId - The ID or URL-encoded path of the project
+ * @param {number|string} mergeRequestIid - The internal ID of the merge request
+ * @param {number|string} draftNoteId - The ID of the draft note
+ * @returns {Promise<void>}
+ */
+async function deleteDraftNote(
+  projectId: string,
+  mergeRequestIid: number | string,
+  draftNoteId: number | string
+): Promise<void> {
+  projectId = decodeURIComponent(projectId);
+  const url = new URL(
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(
+      getEffectiveProjectId(projectId)
+    )}/merge_requests/${mergeRequestIid}/draft_notes/${draftNoteId}`
+  );
+
+  const response = await fetch(url.toString(), {
+    ...DEFAULT_FETCH_CONFIG,
+    method: "DELETE",
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`GitLab API error: ${response.status} ${response.statusText}\n${errorText}`);
+  }
+}
+
+/**
+ * Publish a single draft note
+ * @param {string} projectId - The ID or URL-encoded path of the project
+ * @param {number|string} mergeRequestIid - The internal ID of the merge request
+ * @param {number|string} draftNoteId - The ID of the draft note
+ * @returns {Promise<GitLabDiscussionNote>} The published note
+ */
+async function publishDraftNote(
+  projectId: string,
+  mergeRequestIid: number | string,
+  draftNoteId: number | string
+): Promise<GitLabDiscussionNote> {
+  projectId = decodeURIComponent(projectId);
+  const url = new URL(
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(
+      getEffectiveProjectId(projectId)
+    )}/merge_requests/${mergeRequestIid}/draft_notes/${draftNoteId}/publish`
+  );
+
+  const response = await fetch(url.toString(), {
+    ...DEFAULT_FETCH_CONFIG,
+    method: "PUT",
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`GitLab API error: ${response.status} ${response.statusText}\n${errorText}`);
+  }
+
+  // Handle empty response (204 No Content) or successful response
+  const responseText = await response.text();
+  if (!responseText || responseText.trim() === '') {
+    // Return a success indicator for empty responses
+    return {
+      id: draftNoteId.toString(),
+      body: "Draft note published successfully",
+      author: { id: "unknown", username: "unknown" },
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      system: false,
+      noteable_id: mergeRequestIid.toString(),
+      noteable_type: "MergeRequest"
+    } as any;
+  }
+
+  try {
+    const data = JSON.parse(responseText);
+    return GitLabDiscussionNoteSchema.parse(data);
+  } catch (parseError) {
+    // If JSON parsing fails but the operation was successful (2xx status),
+    // return a success indicator
+    console.warn(`JSON parse error for successful publish operation: ${parseError}`);
+    return {
+      id: draftNoteId.toString(),
+      body: "Draft note published successfully (response parse error)",
+      author: { id: "unknown", username: "unknown" },
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      system: false,
+      noteable_id: mergeRequestIid.toString(),
+      noteable_type: "MergeRequest"
+    } as any;
+  }
+}
+
+/**
+ * Publish all draft notes for a merge request
+ * @param {string} projectId - The ID or URL-encoded path of the project
+ * @param {number|string} mergeRequestIid - The internal ID of the merge request
+ * @returns {Promise<GitLabDiscussionNote[]>} Array of published notes
+ */
+async function bulkPublishDraftNotes(
+  projectId: string,
+  mergeRequestIid: number | string
+): Promise<GitLabDiscussionNote[]> {
+  projectId = decodeURIComponent(projectId);
+  const url = new URL(
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(
+      getEffectiveProjectId(projectId)
+    )}/merge_requests/${mergeRequestIid}/draft_notes/bulk_publish`
+  );
+
+  const response = await fetch(url.toString(), {
+    ...DEFAULT_FETCH_CONFIG,
+    method: "POST", // Changed from PUT to POST
+    body: JSON.stringify({}), // Send empty body for POST request
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`GitLab API error: ${response.status} ${response.statusText}\n${errorText}`);
+  }
+
+  // Handle empty response (204 No Content) or successful response
+  const responseText = await response.text();
+  if (!responseText || responseText.trim() === '') {
+    // Return empty array for successful bulk publish with no content
+    return [];
+  }
+
+  try {
+    const data = JSON.parse(responseText);
+    return z.array(GitLabDiscussionNoteSchema).parse(data);
+  } catch (parseError) {
+    // If JSON parsing fails but the operation was successful (2xx status),
+    // return empty array indicating successful bulk publish
+    console.warn(`JSON parse error for successful bulk publish operation: ${parseError}`);
+    return [];
+  }
+}
+
+/**
  * Create a new thread on a merge request
  * 📦 새로운 함수: createMergeRequestThread - 병합 요청에 새로운 스레드(토론)를 생성하는 함수
  * (New function: createMergeRequestThread - Function to create a new thread (discussion) on a merge request)
@@ -3848,6 +4164,66 @@ server.setRequestHandler(CallToolRequestSchema, async request => {
         const note = await createNote(project_id, noteable_type, noteable_iid, body);
         return {
           content: [{ type: "text", text: JSON.stringify(note, null, 2) }],
+        };
+      }
+
+      case "list_draft_notes": {
+        const args = ListDraftNotesSchema.parse(request.params.arguments);
+        const { project_id, merge_request_iid } = args;
+
+        const draftNotes = await listDraftNotes(project_id, merge_request_iid);
+        return {
+          content: [{ type: "text", text: JSON.stringify(draftNotes, null, 2) }],
+        };
+      }
+
+      case "create_draft_note": {
+        const args = CreateDraftNoteSchema.parse(request.params.arguments);
+        const { project_id, merge_request_iid, body, position, resolve_discussion } = args;
+
+        const draftNote = await createDraftNote(project_id, merge_request_iid, body, position, resolve_discussion);
+        return {
+          content: [{ type: "text", text: JSON.stringify(draftNote, null, 2) }],
+        };
+      }
+
+      case "update_draft_note": {
+        const args = UpdateDraftNoteSchema.parse(request.params.arguments);
+        const { project_id, merge_request_iid, draft_note_id, body, position, resolve_discussion } = args;
+
+        const draftNote = await updateDraftNote(project_id, merge_request_iid, draft_note_id, body, position, resolve_discussion);
+        return {
+          content: [{ type: "text", text: JSON.stringify(draftNote, null, 2) }],
+        };
+      }
+
+      case "delete_draft_note": {
+        const args = DeleteDraftNoteSchema.parse(request.params.arguments);
+        const { project_id, merge_request_iid, draft_note_id } = args;
+
+        await deleteDraftNote(project_id, merge_request_iid, draft_note_id);
+        return {
+          content: [{ type: "text", text: "Draft note deleted successfully" }],
+        };
+      }
+
+      case "publish_draft_note": {
+        const args = PublishDraftNoteSchema.parse(request.params.arguments);
+        const { project_id, merge_request_iid, draft_note_id } = args;
+
+        const publishedNote = await publishDraftNote(project_id, merge_request_iid, draft_note_id);
+        return {
+          content: [{ type: "text", text: JSON.stringify(publishedNote, null, 2) }],
+        };
+      }
+
+      case "bulk_publish_draft_notes": {
+        const args = BulkPublishDraftNotesSchema.parse(request.params.arguments);
+        const { project_id, merge_request_iid } = args;
+
+        const publishedNotes = await bulkPublishDraftNotes(project_id, merge_request_iid);
+        return {
+          content: [{ type: "text", text: JSON.stringify(publishedNotes, null, 2) }],
         };
       }
 
