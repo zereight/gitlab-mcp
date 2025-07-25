@@ -203,7 +203,13 @@ $ sh scripts/image_push.sh docker_user_name
 19. `create_merge_request_note` - Add a new note to an existing merge request thread
 20. `update_issue_note` - Modify an existing issue thread note
 21. `create_issue_note` - Add a new note to an existing issue thread
-22. `list_issues` - List issues in a GitLab project with filtering options
+22. `list_draft_notes` - List draft notes for a merge request
+23. `create_draft_note` - Create a draft note for a merge request
+24. `update_draft_note` - Update an existing draft note
+25. `delete_draft_note` - Delete a draft note
+26. `publish_draft_note` - Publish a single draft note
+27. `bulk_publish_draft_notes` - Publish all draft notes for a merge request
+28. `list_issues` - List issues in a GitLab project with filtering options
 23. `get_issue` - Get details of a specific issue in a GitLab project
 24. `update_issue` - Update an issue in a GitLab project
 25. `delete_issue` - Delete an issue from a GitLab project
