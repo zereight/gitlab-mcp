@@ -102,6 +102,11 @@ async function validateGitLabAPI() {
         url: `${GITLAB_API_URL}/api/v4/projects/${encodeURIComponent(TEST_PROJECT_ID)}/pipelines/${firstPipelineId}/jobs`,
         validate: data => Array.isArray(data),
       },
+      {
+        name: `List pipeline #${firstPipelineId} trigger jobs (bridges)`,
+        url: `${GITLAB_API_URL}/api/v4/projects/${encodeURIComponent(TEST_PROJECT_ID)}/pipelines/${firstPipelineId}/bridges`,
+        validate: data => Array.isArray(data),
+      },
     ];
 
     for (const test of pipelineTests) {
