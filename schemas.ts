@@ -1,5 +1,5 @@
 import { z } from "zod";
-import {flexibleBoolean,flexibleBooleanNullable} from "./customSchemas.js"
+import { flexibleBoolean, flexibleBooleanNullable } from "./customSchemas.js";
 
 // Base schemas for common types
 export const GitLabAuthorSchema = z.object({
@@ -95,6 +95,73 @@ export const GitLabPipelineJobSchema = z.object({
   web_url: z.string().optional(),
 });
 
+// Pipeline trigger job (bridge) schema
+export const GitLabPipelineTriggerJobSchema = z.object({
+  id: z.coerce.string(),
+  status: z.string(),
+  stage: z.string(),
+  name: z.string(),
+  ref: z.string(),
+  tag: flexibleBoolean,
+  coverage: z.number().nullable().optional(),
+  created_at: z.string(),
+  started_at: z.string().nullable().optional(),
+  finished_at: z.string().nullable().optional(),
+  duration: z.number().nullable().optional(),
+  queued_duration: z.number().nullable().optional(),
+  user: z
+    .object({
+      id: z.coerce.string(),
+      name: z.string(),
+      username: z.string(),
+      avatar_url: z.string().nullable().optional(),
+    })
+    .optional(),
+  commit: z
+    .object({
+      id: z.string(),
+      short_id: z.string(),
+      title: z.string(),
+      author_name: z.string(),
+      author_email: z.string(),
+    })
+    .optional(),
+  pipeline: z
+    .object({
+      id: z.coerce.string(),
+      project_id: z.coerce.string(),
+      status: z.string(),
+      ref: z.string(),
+      sha: z.string(),
+      created_at: z.string().optional(),
+      updated_at: z.string().optional(),
+      web_url: z.string().optional(),
+    })
+    .optional(),
+  web_url: z.string().optional(),
+  allow_failure: flexibleBoolean.optional(),
+  archived: flexibleBoolean.optional(),
+  source: z.string().optional(),
+  erased_at: z.string().nullable().optional(),
+  project: z
+    .object({
+      ci_job_token_scope_enabled: flexibleBoolean.optional(),
+    })
+    .optional(),
+  downstream_pipeline: z
+    .object({
+      id: z.coerce.string(),
+      sha: z.string(),
+      ref: z.string(),
+      status: z.string(),
+      created_at: z.string(),
+      updated_at: z.string(),
+      web_url: z.string(),
+    })
+    .nullable()
+    .optional(),
+});
+
 // Shared base schema for various pagination options
 // See https://docs.gitlab.com/api/rest/#pagination
 export const PaginationOptionsSchema = z.object({
@@ -103,46 +170,50 @@ export const PaginationOptionsSchema = z.object({
 });
 
 // Schema for listing pipelines
-export const ListPipelinesSchema = z.object({
-  project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
-  scope: z
-    .enum(["running", "pending", "finished", "branches", "tags"])
-    .optional()
-    .describe("The scope of pipelines"),
-  status: z
-    .enum([
-      "created",
-      "waiting_for_resource",
-      "preparing",
-      "pending",
-      "running",
-      "success",
-      "failed",
-      "canceled",
-      "skipped",
-      "manual",
-      "scheduled",
-    ])
-    .optional()
-    .describe("The status of pipelines"),
-  ref: z.string().optional().describe("The ref of pipelines"),
-  sha: z.string().optional().describe("The SHA of pipelines"),
-  yaml_errors: flexibleBoolean.optional().describe("Returns pipelines with invalid configurations"),
-  username: z.string().optional().describe("The username of the user who triggered pipelines"),
-  updated_after: z
-    .string()
-    .optional()
-    .describe("Return pipelines updated after the specified date"),
-  updated_before: z
-    .string()
-    .optional()
-    .describe("Return pipelines updated before the specified date"),
-  order_by: z
-    .enum(["id", "status", "ref", "updated_at", "user_id"])
-    .optional()
-    .describe("Order pipelines by"),
-  sort: z.enum(["asc", "desc"]).optional().describe("Sort pipelines"),
-}).merge(PaginationOptionsSchema);
+export const ListPipelinesSchema = z
+  .object({
+    project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
+    scope: z
+      .enum(["running", "pending", "finished", "branches", "tags"])
+      .optional()
+      .describe("The scope of pipelines"),
+    status: z
+      .enum([
+        "created",
+        "waiting_for_resource",
+        "preparing",
+        "pending",
+        "running",
+        "success",
+        "failed",
+        "canceled",
+        "skipped",
+        "manual",
+        "scheduled",
+      ])
+      .optional()
+      .describe("The status of pipelines"),
+    ref: z.string().optional().describe("The ref of pipelines"),
+    sha: z.string().optional().describe("The SHA of pipelines"),
+    yaml_errors: flexibleBoolean
+      .optional()
+      .describe("Returns pipelines with invalid configurations"),
+    username: z.string().optional().describe("The username of the user who triggered pipelines"),
+    updated_after: z
+      .string()
+      .optional()
+      .describe("Return pipelines updated after the specified date"),
+    updated_before: z
+      .string()
+      .optional()
+      .describe("Return pipelines updated before the specified date"),
+    order_by: z
+      .enum(["id", "status", "ref", "updated_at", "user_id"])
+      .optional()
+      .describe("Order pipelines by"),
+    sort: z.enum(["asc", "desc"]).optional().describe("Sort pipelines"),
+  })
+  .merge(PaginationOptionsSchema);
 
 // Schema for getting a specific pipeline
 export const GetPipelineSchema = z.object({
@@ -151,15 +222,43 @@ export const GetPipelineSchema = z.object({
 });
 
 // Schema for listing jobs in a pipeline
-export const ListPipelineJobsSchema = z.object({
-  project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
-  pipeline_id: z.coerce.string().describe("The ID of the pipeline"),
-  scope: z
-    .enum(["created", "pending", "running", "failed", "success", "canceled", "skipped", "manual"])
-    .optional()
-    .describe("The scope of jobs to show"),
-  include_retried: flexibleBoolean.optional().describe("Whether to include retried jobs"),
-}).merge(PaginationOptionsSchema);
+export const ListPipelineJobsSchema = z
+  .object({
+    project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
+    pipeline_id: z.coerce.string().describe("The ID of the pipeline"),
+    scope: z
+      .enum(["created", "pending", "running", "failed", "success", "canceled", "skipped", "manual"])
+      .optional()
+      .describe("The scope of jobs to show"),
+    include_retried: flexibleBoolean.optional().describe("Whether to include retried jobs"),
+  })
+  .merge(PaginationOptionsSchema);
+
+// Schema for listing trigger jobs (bridges) in a pipeline
+export const ListPipelineTriggerJobsSchema = z
+  .object({
+    project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
+    pipeline_id: z.coerce.string().describe("The ID of the pipeline"),
+    scope: z
+      // https://docs.gitlab.com/api/jobs/#job-status-values
+      .enum([
+        "canceled",
+        "canceling",
+        "created",
+        "failed",
+        "manual",
+        "pending",
+        "preparing",
+        "running",
+        "scheduled",
+        "skipped",
+        "success",
+        "waiting_for_resource",
+      ])
+      .optional()
+      .describe("The scope of trigger jobs to show"),
+  })
+  .merge(PaginationOptionsSchema);
 
 // Schema for creating a new pipeline
 export const CreatePipelineSchema = z.object({
@@ -183,14 +282,20 @@ export const RetryPipelineSchema = z.object({
 });
 
 // Schema for canceling a pipeline
-export const CancelPipelineSchema = RetryPipelineSchema
+export const CancelPipelineSchema = RetryPipelineSchema;
 
 // Schema for the input parameters for pipeline job operations
 export const GetPipelineJobOutputSchema = z.object({
   project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
   job_id: z.coerce.string().describe("The ID of the job"),
-  limit: z.number().optional().describe("Maximum number of lines to return from the end of the log (default: 1000)"),
-  offset: z.number().optional().describe("Number of lines to skip from the end of the log (default: 0)"),
+  limit: z
+    .number()
+    .optional()
+    .describe("Maximum number of lines to return from the end of the log (default: 1000)"),
+  offset: z
+    .number()
+    .optional()
+    .describe("Number of lines to skip from the end of the log (default: 0)"),
 });
 
 // User schemas
@@ -208,13 +313,15 @@ export const GetUsersSchema = z.object({
 
 export const GitLabUsersResponseSchema = z.record(
   z.string(),
-  z.object({
-    id: z.coerce.string(),
-    username: z.string(),
-    name: z.string(),
-    avatar_url: z.string().nullable(),
-    web_url: z.string(),
-  }).nullable()
+  z
+    .object({
+      id: z.coerce.string(),
+      username: z.string(),
+      name: z.string(),
+      avatar_url: z.string().nullable(),
+      web_url: z.string(),
+    })
+    .nullable()
 );
 
 // Namespace related schemas
@@ -411,11 +518,13 @@ export const GitLabCommitSchema = z.object({
   message: z.string().optional(), // Add full message field
   web_url: z.string(), // Changed from html_url to match GitLab API
   parent_ids: z.array(z.string()), // Changed from parents to match GitLab API
-  stats: z.object({
-    additions: z.number().optional().nullable(),
-    deletions: z.number().optional().nullable(),
-    total: z.number().optional().nullable(),
-  }).optional(), // Only present when with_stats=true
+  stats: z
+    .object({
+      additions: z.number().optional().nullable(),
+      deletions: z.number().optional().nullable(),
+      total: z.number().optional().nullable(),
+    })
+    .optional(), // Only present when with_stats=true
   trailers: z.record(z.string()).optional().default({}), // Git trailers, may be empty object
   extended_trailers: z.record(z.array(z.string())).optional().default({}), // Extended trailers, may be empty object
 });
@@ -461,7 +570,6 @@ export const CreateIssueOptionsSchema = z.object({
   labels: z.array(z.string()).optional(),
 });
 
-
 export const GitLabDiffSchema = z.object({
   old_path: z.string(),
   new_path: z.string(),
@@ -495,14 +603,16 @@ export const CreateBranchOptionsSchema = z.object({
 });
 
 export const GitLabCompareResultSchema = z.object({
-  commit: z.object({
-    id: z.string().optional(),
-    short_id: z.string().optional(),
-    title: z.string().optional(),
-    author_name: z.string().optional(),
-    author_email: z.string().optional(),
-    created_at: z.string().optional(),
-  }).optional(),
+  commit: z
+    .object({
+      id: z.string().optional(),
+      short_id: z.string().optional(),
+      title: z.string().optional(),
+      author_name: z.string().optional(),
+      author_email: z.string().optional(),
+      created_at: z.string().optional(),
+    })
+    .optional(),
   commits: z.array(GitLabCommitSchema),
   diffs: z.array(GitLabDiffSchema),
   compare_timeout: flexibleBoolean.optional(),
@@ -639,20 +749,80 @@ export const GitLabMergeRequestSchema = z.object({
   labels: z.array(z.string()).optional(),
 });
 
-export const LineRangeSchema = z.object({
-  start: z.object({
-    line_code: z.string().nullable().optional().describe("CRITICAL: Line identifier in format '{file_path_sha1_hash}_{old_line_number}_{new_line_number}'. USUALLY REQUIRED for GitLab diff comments despite being optional in schema. Example: 'a1b2c3d4e5f6_10_15'. Get this from GitLab diff API response, never fabricate."),
-    type: z.enum(["new", "old", "expanded"]).nullable().optional().describe("Line type: 'old' = deleted/original line, 'new' = added/modified line, null = unchanged context. MUST match the line_code format and old_line/new_line values."),
-    old_line: z.number().nullable().optional().describe("Line number in original file (before changes). REQUIRED when type='old', NULL when type='new' (for purely added lines), can be present for context lines."),
-    new_line: z.number().nullable().optional().describe("Line number in modified file (after changes). REQUIRED when type='new', NULL when type='old' (for purely deleted lines), can be present for context lines."),
-  }).describe("Start line position for multiline comment range. MUST specify either old_line OR new_line (or both for context), never neither."),
-  end: z.object({
-    line_code: z.string().nullable().optional().describe("CRITICAL: Line identifier in format '{file_path_sha1_hash}_{old_line_number}_{new_line_number}'. USUALLY REQUIRED for GitLab diff comments despite being optional in schema. Example: 'a1b2c3d4e5f6_12_17'. Must be from same file as start.line_code."),
-    type: z.enum(["new", "old", "expanded"]).nullable().optional().describe("Line type: 'old' = deleted/original line, 'new' = added/modified line, null = unchanged context. SHOULD MATCH start.type for consistent ranges (don't mix old/new types)."),
-    old_line: z.number().nullable().optional().describe("Line number in original file (before changes). REQUIRED when type='old', NULL when type='new' (for purely added lines), can be present for context lines. MUST be >= start.old_line if both specified."),
-    new_line: z.number().nullable().optional().describe("Line number in modified file (after changes). REQUIRED when type='new', NULL when type='old' (for purely deleted lines), can be present for context lines. MUST be >= start.new_line if both specified."),
-  }).describe("End line position for multiline comment range. MUST specify either old_line OR new_line (or both for context), never neither. Range must be valid (end >= start)."),
-}).describe("Line range for multiline comments on GitLab merge request diffs. VALIDATION RULES: 1) line_code is critical for GitLab API success, 2) start/end must have consistent types, 3) line numbers must form valid range, 4) get line_code from GitLab diff API, never generate manually.");
+export const LineRangeSchema = z
+  .object({
+    start: z
+      .object({
+        line_code: z
+          .string()
+          .nullable()
+          .optional()
+          .describe(
+            "CRITICAL: Line identifier in format '{file_path_sha1_hash}_{old_line_number}_{new_line_number}'. USUALLY REQUIRED for GitLab diff comments despite being optional in schema. Example: 'a1b2c3d4e5f6_10_15'. Get this from GitLab diff API response, never fabricate."
+          ),
+        type: z
+          .enum(["new", "old", "expanded"])
+          .nullable()
+          .optional()
+          .describe(
+            "Line type: 'old' = deleted/original line, 'new' = added/modified line, null = unchanged context. MUST match the line_code format and old_line/new_line values."
+          ),
+        old_line: z
+          .number()
+          .nullable()
+          .optional()
+          .describe(
+            "Line number in original file (before changes). REQUIRED when type='old', NULL when type='new' (for purely added lines), can be present for context lines."
+          ),
+        new_line: z
+          .number()
+          .nullable()
+          .optional()
+          .describe(
+            "Line number in modified file (after changes). REQUIRED when type='new', NULL when type='old' (for purely deleted lines), can be present for context lines."
+          ),
+      })
+      .describe(
+        "Start line position for multiline comment range. MUST specify either old_line OR new_line (or both for context), never neither."
+      ),
+    end: z
+      .object({
+        line_code: z
+          .string()
+          .nullable()
+          .optional()
+          .describe(
+            "CRITICAL: Line identifier in format '{file_path_sha1_hash}_{old_line_number}_{new_line_number}'. USUALLY REQUIRED for GitLab diff comments despite being optional in schema. Example: 'a1b2c3d4e5f6_12_17'. Must be from same file as start.line_code."
+          ),
+        type: z
+          .enum(["new", "old", "expanded"])
+          .nullable()
+          .optional()
+          .describe(
+            "Line type: 'old' = deleted/original line, 'new' = added/modified line, null = unchanged context. SHOULD MATCH start.type for consistent ranges (don't mix old/new types)."
+          ),
+        old_line: z
+          .number()
+          .nullable()
+          .optional()
+          .describe(
+            "Line number in original file (before changes). REQUIRED when type='old', NULL when type='new' (for purely added lines), can be present for context lines. MUST be >= start.old_line if both specified."
+          ),
+        new_line: z
+          .number()
+          .nullable()
+          .optional()
+          .describe(
+            "Line number in modified file (after changes). REQUIRED when type='new', NULL when type='old' (for purely deleted lines), can be present for context lines. MUST be >= start.new_line if both specified."
+          ),
+      })
+      .describe(
+        "End line position for multiline comment range. MUST specify either old_line OR new_line (or both for context), never neither. Range must be valid (end >= start)."
+      ),
+  })
+  .describe(
+    "Line range for multiline comments on GitLab merge request diffs. VALIDATION RULES: 1) line_code is critical for GitLab API success, 2) start/end must have consistent types, 3) line numbers must form valid range, 4) get line_code from GitLab diff API, never generate manually."
+  );
 
 // Discussion related schemas
 export const GitLabDiscussionNoteSchema = z.object({
@@ -681,8 +851,20 @@ export const GitLabDiscussionNoteSchema = z.object({
       old_path: z.string().nullable().optional().describe("File path before change"),
       new_path: z.string().nullable().optional().describe("File path after change"),
       position_type: z.enum(["text", "image", "file"]),
-      new_line: z.number().nullable().optional().describe("Line number in the modified file (after changes). Used for added lines and context lines. Null for deleted lines."),
-      old_line: z.number().nullable().optional().describe("Line number in the original file (before changes). Used for deleted lines and context lines. Null for newly added lines."),
+      new_line: z
+        .number()
+        .nullable()
+        .optional()
+        .describe(
+          "Line number in the modified file (after changes). Used for added lines and context lines. Null for deleted lines."
+        ),
+      old_line: z
+        .number()
+        .nullable()
+        .optional()
+        .describe(
+          "Line number in the original file (before changes). Used for deleted lines and context lines. Null for newly added lines."
+        ),
       line_range: LineRangeSchema.nullable().optional(), // For multi-line diff notes
       width: z.number().optional(), // For image diff notes
       height: z.number().optional(), // For image diff notes
@@ -727,10 +909,12 @@ export const PaginatedDiscussionsResponseSchema = z.object({
 // Export the paginated response type for discussions
 export type PaginatedDiscussionsResponse = z.infer<typeof PaginatedDiscussionsResponseSchema>;
 
-export const ListIssueDiscussionsSchema = z.object({
-  project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
-  issue_iid: z.coerce.string().describe("The internal ID of the project issue"),
-}).merge(PaginationOptionsSchema);
+export const ListIssueDiscussionsSchema = z
+  .object({
+    project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
+    issue_iid: z.coerce.string().describe("The internal ID of the project issue"),
+  })
+  .merge(PaginationOptionsSchema);
 
 // Input schema for listing merge request discussions
 export const ListMergeRequestDiscussionsSchema = ProjectParamsSchema.extend({
@@ -788,9 +972,11 @@ export const CreateOrUpdateFileSchema = ProjectParamsSchema.extend({
   commit_id: z.string().optional().describe("Current file commit ID (for update operations)"),
 });
 
-export const SearchRepositoriesSchema = z.object({
-  search: z.string().describe("Search query"), // Changed from query to match GitLab API
-}).merge(PaginationOptionsSchema);
+export const SearchRepositoriesSchema = z
+  .object({
+    search: z.string().describe("Search query"), // Changed from query to match GitLab API
+  })
+  .merge(PaginationOptionsSchema);
 
 export const CreateRepositorySchema = z.object({
   name: z.string().describe("Repository name"),
@@ -834,23 +1020,21 @@ const MergeRequestOptionsSchema = {
   source_branch: z.string().describe("Branch containing changes"),
   target_branch: z.string().describe("Branch to merge into"),
   target_project_id: z.coerce.string().optional().describe("Numeric ID of the target project."),
-  assignee_ids: z
-    .array(z.number())
-    .optional()
-    .describe("The ID of the users to assign the MR to"),
+  assignee_ids: z.array(z.number()).optional().describe("The ID of the users to assign the MR to"),
   reviewer_ids: z
     .array(z.number())
     .optional()
     .describe("The ID of the users to assign as reviewers of the MR"),
   labels: z.array(z.string()).optional().describe("Labels for the MR"),
   draft: flexibleBoolean.optional().describe("Create as draft merge request"),
-  allow_collaboration: z
-    .boolean()
+  allow_collaboration: z.boolean().optional().describe("Allow commits from upstream members"),
+  remove_source_branch: flexibleBooleanNullable
     .optional()
-    .describe("Allow commits from upstream members"),
-  remove_source_branch: flexibleBooleanNullable.optional().describe("Flag indicating if a merge request should remove the source branch when merging."),
-  squash: flexibleBooleanNullable.optional().describe("If true, squash all commits into a single commit on merge."),
-}
+    .describe("Flag indicating if a merge request should remove the source branch when merging."),
+  squash: flexibleBooleanNullable
+    .optional()
+    .describe("If true, squash all commits into a single commit on merge."),
+};
 export const CreateMergeRequestOptionsSchema = z.object(MergeRequestOptionsSchema);
 export const CreateMergeRequestSchema = ProjectParamsSchema.extend(MergeRequestOptionsSchema);
 
@@ -867,10 +1051,15 @@ export const CreateBranchSchema = ProjectParamsSchema.extend({
 export const GetBranchDiffsSchema = ProjectParamsSchema.extend({
   from: z.string().describe("The base branch or commit SHA to compare from"),
   to: z.string().describe("The target branch or commit SHA to compare to"),
-  straight: flexibleBoolean.optional().describe("Comparison method: false for '...' (default), true for '--'"),
-  excluded_file_patterns: z.array(z.string()).optional().describe(
-    "Array of regex patterns to exclude files from the diff results. Each pattern is a JavaScript-compatible regular expression that matches file paths to ignore. Examples: [\"^test/mocks/\", \"\\.spec\\.ts$\", \"package-lock\\.json\"]"
-  ),
+  straight: flexibleBoolean
+    .optional()
+    .describe("Comparison method: false for '...' (default), true for '--'"),
+  excluded_file_patterns: z
+    .array(z.string())
+    .optional()
+    .describe(
+      'Array of regex patterns to exclude files from the diff results. Each pattern is a JavaScript-compatible regular expression that matches file paths to ignore. Examples: ["^test/mocks/", "\\.spec\\.ts$", "package-lock\\.json"]'
+    ),
 });
 
 export const GetMergeRequestSchema = ProjectParamsSchema.extend({
@@ -882,10 +1071,7 @@ export const UpdateMergeRequestSchema = GetMergeRequestSchema.extend({
   title: z.string().optional().describe("The title of the merge request"),
   description: z.string().optional().describe("The description of the merge request"),
   target_branch: z.string().optional().describe("The target branch"),
-  assignee_ids: z
-    .array(z.number())
-    .optional()
-    .describe("The ID of the users to assign the MR to"),
+  assignee_ids: z.array(z.number()).optional().describe("The ID of the users to assign the MR to"),
   reviewer_ids: z
     .array(z.number())
     .optional()
@@ -910,7 +1096,11 @@ export const GetMergeRequestDiffsSchema = GetMergeRequestSchema.extend({
 export const ListMergeRequestDiffsSchema = GetMergeRequestSchema.extend({
   page: z.number().optional().describe("Page number for pagination (default: 1)"),
   per_page: z.number().optional().describe("Number of items per page (max: 100, default: 20)"),
-  unidiff: flexibleBoolean.optional().describe("Present diffs in the unified diff format. Default is false. Introduced in GitLab 16.5."),
+  unidiff: flexibleBoolean
+    .optional()
+    .describe(
+      "Present diffs in the unified diff format. Default is false. Introduced in GitLab 16.5."
+    ),
 });
 
 export const CreateNoteSchema = z.object({
@@ -923,100 +1113,142 @@ export const CreateNoteSchema = z.object({
 });
 
 // Issues API operation schemas
-export const ListIssuesSchema = z.object({
-  project_id: z.coerce.string().optional().describe("Project ID or URL-encoded path (optional - if not provided, lists issues across all accessible projects)"),
-  assignee_id: z.coerce.string().optional().describe("Return issues assigned to the given user ID. user id or none or any"),
-  assignee_username: z.array(z.string()).optional().describe("Return issues assigned to the given username"),
-  author_id: z.coerce.string().optional().describe("Return issues created by the given user ID"),
-  author_username: z.string().optional().describe("Return issues created by the given username"),
-  confidential: flexibleBoolean.optional().describe("Filter confidential or public issues"),
-  created_after: z.string().optional().describe("Return issues created after the given time"),
-  created_before: z.string().optional().describe("Return issues created before the given time"),
-  due_date: z.string().optional().describe("Return issues that have the due date"),
-  labels: z.array(z.string()).optional().describe("Array of label names"),
-  milestone: z.string().optional().describe("Milestone title"),
-  issue_type: z.string().optional().nullable().describe("Filter to a given type of issue. One of issue, incident, test_case or task"),
-  iteration_id: z.coerce.string().optional().nullable().describe("Return issues assigned to the given iteration ID. None returns issues that do not belong to an iteration. Any returns issues that belong to an iteration. "),
-  scope: z
-    .enum(["created_by_me", "assigned_to_me", "all"])
-    .optional()
-    .describe("Return issues from a specific scope"),
-  search: z.string().optional().describe("Search for specific terms"),
-  state: z
-    .enum(["opened", "closed", "all"])
-    .optional()
-    .describe("Return issues with a specific state"),
-  updated_after: z.string().optional().describe("Return issues updated after the given time"),
-  updated_before: z.string().optional().describe("Return issues updated before the given time"),
-  with_labels_details: flexibleBoolean.optional().describe("Return more details for each label"),
-}).merge(PaginationOptionsSchema);
+export const ListIssuesSchema = z
+  .object({
+    project_id: z.coerce
+      .string()
+      .optional()
+      .describe(
+        "Project ID or URL-encoded path (optional - if not provided, lists issues across all accessible projects)"
+      ),
+    assignee_id: z.coerce
+      .string()
+      .optional()
+      .describe("Return issues assigned to the given user ID. user id or none or any"),
+    assignee_username: z
+      .array(z.string())
+      .optional()
+      .describe("Return issues assigned to the given username"),
+    author_id: z.coerce.string().optional().describe("Return issues created by the given user ID"),
+    author_username: z.string().optional().describe("Return issues created by the given username"),
+    confidential: flexibleBoolean.optional().describe("Filter confidential or public issues"),
+    created_after: z.string().optional().describe("Return issues created after the given time"),
+    created_before: z.string().optional().describe("Return issues created before the given time"),
+    due_date: z.string().optional().describe("Return issues that have the due date"),
+    labels: z.array(z.string()).optional().describe("Array of label names"),
+    milestone: z.string().optional().describe("Milestone title"),
+    issue_type: z
+      .string()
+      .optional()
+      .nullable()
+      .describe("Filter to a given type of issue. One of issue, incident, test_case or task"),
+    iteration_id: z.coerce
+      .string()
+      .optional()
+      .nullable()
+      .describe(
+        "Return issues assigned to the given iteration ID. None returns issues that do not belong to an iteration. Any returns issues that belong to an iteration. "
+      ),
+    scope: z
+      .enum(["created_by_me", "assigned_to_me", "all"])
+      .optional()
+      .describe("Return issues from a specific scope"),
+    search: z.string().optional().describe("Search for specific terms"),
+    state: z
+      .enum(["opened", "closed", "all"])
+      .optional()
+      .describe("Return issues with a specific state"),
+    updated_after: z.string().optional().describe("Return issues updated after the given time"),
+    updated_before: z.string().optional().describe("Return issues updated before the given time"),
+    with_labels_details: flexibleBoolean.optional().describe("Return more details for each label"),
+  })
+  .merge(PaginationOptionsSchema);
 
 // Merge Requests API operation schemas
-export const ListMergeRequestsSchema = z.object({
-  project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
-  assignee_id: z.coerce.string().optional().describe("Return issues assigned to the given user ID. user id or none or any"),
-  assignee_username: z
-    .string()
-    .optional()
-    .describe("Returns merge requests assigned to the given username"),
-  author_id: z.coerce.string().optional().describe("Returns merge requests created by the given user ID"),
-  author_username: z
-    .string()
-    .optional()
-    .describe("Returns merge requests created by the given username"),
-  reviewer_id: z.coerce.string()
-    .optional()
-    .describe("Returns merge requests which have the user as a reviewer. user id or none or any"),
-  reviewer_username: z
-    .string()
-    .optional()
-    .describe("Returns merge requests which have the user as a reviewer"),
-  created_after: z
-    .string()
-    .optional()
-    .describe("Return merge requests created after the given time"),
-  created_before: z
-    .string()
-    .optional()
-    .describe("Return merge requests created before the given time"),
-  updated_after: z
-    .string()
-    .optional()
-    .describe("Return merge requests updated after the given time"),
-  updated_before: z
-    .string()
-    .optional()
-    .describe("Return merge requests updated before the given time"),
-  labels: z.array(z.string()).optional().describe("Array of label names"),
-  milestone: z.string().optional().describe("Milestone title"),
-  scope: z
-    .enum(["created_by_me", "assigned_to_me", "all"])
-    .optional()
-    .describe("Return merge requests from a specific scope"),
-  search: z.string().optional().describe("Search for specific terms"),
-  state: z
-    .enum(["opened", "closed", "locked", "merged", "all"])
-    .optional()
-    .describe("Return merge requests with a specific state"),
-  order_by: z
-    .enum(["created_at", "updated_at", "priority", "label_priority", "milestone_due", "popularity"])
-    .optional()
-    .describe("Return merge requests ordered by the given field"),
-  sort: z
-    .enum(["asc", "desc"])
-    .optional()
-    .describe("Return merge requests sorted in ascending or descending order"),
-  target_branch: z
-    .string()
-    .optional()
-    .describe("Return merge requests targeting a specific branch"),
-  source_branch: z
-    .string()
-    .optional()
-    .describe("Return merge requests from a specific source branch"),
-  wip: z.enum(["yes", "no"]).optional().describe("Filter merge requests against their wip status"),
-  with_labels_details: flexibleBoolean.optional().describe("Return more details for each label"),
-}).merge(PaginationOptionsSchema);
+export const ListMergeRequestsSchema = z
+  .object({
+    project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
+    assignee_id: z.coerce
+      .string()
+      .optional()
+      .describe("Return issues assigned to the given user ID. user id or none or any"),
+    assignee_username: z
+      .string()
+      .optional()
+      .describe("Returns merge requests assigned to the given username"),
+    author_id: z.coerce
+      .string()
+      .optional()
+      .describe("Returns merge requests created by the given user ID"),
+    author_username: z
+      .string()
+      .optional()
+      .describe("Returns merge requests created by the given username"),
+    reviewer_id: z.coerce
+      .string()
+      .optional()
+      .describe("Returns merge requests which have the user as a reviewer. user id or none or any"),
+    reviewer_username: z
+      .string()
+      .optional()
+      .describe("Returns merge requests which have the user as a reviewer"),
+    created_after: z
+      .string()
+      .optional()
+      .describe("Return merge requests created after the given time"),
+    created_before: z
+      .string()
+      .optional()
+      .describe("Return merge requests created before the given time"),
+    updated_after: z
+      .string()
+      .optional()
+      .describe("Return merge requests updated after the given time"),
+    updated_before: z
+      .string()
+      .optional()
+      .describe("Return merge requests updated before the given time"),
+    labels: z.array(z.string()).optional().describe("Array of label names"),
+    milestone: z.string().optional().describe("Milestone title"),
+    scope: z
+      .enum(["created_by_me", "assigned_to_me", "all"])
+      .optional()
+      .describe("Return merge requests from a specific scope"),
+    search: z.string().optional().describe("Search for specific terms"),
+    state: z
+      .enum(["opened", "closed", "locked", "merged", "all"])
+      .optional()
+      .describe("Return merge requests with a specific state"),
+    order_by: z
+      .enum([
+        "created_at",
+        "updated_at",
+        "priority",
+        "label_priority",
+        "milestone_due",
+        "popularity",
+      ])
+      .optional()
+      .describe("Return merge requests ordered by the given field"),
+    sort: z
+      .enum(["asc", "desc"])
+      .optional()
+      .describe("Return merge requests sorted in ascending or descending order"),
+    target_branch: z
+      .string()
+      .optional()
+      .describe("Return merge requests targeting a specific branch"),
+    source_branch: z
+      .string()
+      .optional()
+      .describe("Return merge requests from a specific source branch"),
+    wip: z
+      .enum(["yes", "no"])
+      .optional()
+      .describe("Filter merge requests against their wip status"),
+    with_labels_details: flexibleBoolean.optional().describe("Return more details for each label"),
+  })
+  .merge(PaginationOptionsSchema);
 
 export const GetIssueSchema = z.object({
   project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
@@ -1079,10 +1311,12 @@ export const DeleteIssueLinkSchema = z.object({
 });
 
 // Namespace API operation schemas
-export const ListNamespacesSchema = z.object({
-  search: z.string().optional().describe("Search term for namespaces"),
-  owned: flexibleBoolean.optional().describe("Filter for namespaces owned by current user"),
-}).merge(PaginationOptionsSchema);
+export const ListNamespacesSchema = z
+  .object({
+    search: z.string().optional().describe("Search term for namespaces"),
+    owned: flexibleBoolean.optional().describe("Filter for namespaces owned by current user"),
+  })
+  .merge(PaginationOptionsSchema);
 
 export const GetNamespaceSchema = z.object({
   namespace_id: z.coerce.string().describe("Namespace ID or full path"),
@@ -1097,35 +1331,41 @@ export const GetProjectSchema = z.object({
   project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
 });
 
-export const ListProjectsSchema = z.object({
-  search: z.string().optional().describe("Search term for projects"),
-  search_namespaces: flexibleBoolean.optional().describe("Needs to be true if search is full path"),
-  owned: flexibleBoolean.optional().describe("Filter for projects owned by current user"),
-  membership: flexibleBoolean.optional().describe("Filter for projects where current user is a member"),
-  simple: flexibleBoolean.optional().describe("Return only limited fields"),
-  archived: flexibleBoolean.optional().describe("Filter for archived projects"),
-  visibility: z
-    .enum(["public", "internal", "private"])
-    .optional()
-    .describe("Filter by project visibility"),
-  order_by: z
-    .enum(["id", "name", "path", "created_at", "updated_at", "last_activity_at"])
-    .optional()
-    .describe("Return projects ordered by field"),
-  sort: z
-    .enum(["asc", "desc"])
-    .optional()
-    .describe("Return projects sorted in ascending or descending order"),
-  with_issues_enabled: z
-    .boolean()
-    .optional()
-    .describe("Filter projects with issues feature enabled"),
-  with_merge_requests_enabled: z
-    .boolean()
-    .optional()
-    .describe("Filter projects with merge requests feature enabled"),
-  min_access_level: z.number().optional().describe("Filter by minimum access level"),
-}).merge(PaginationOptionsSchema);
+export const ListProjectsSchema = z
+  .object({
+    search: z.string().optional().describe("Search term for projects"),
+    search_namespaces: flexibleBoolean
+      .optional()
+      .describe("Needs to be true if search is full path"),
+    owned: flexibleBoolean.optional().describe("Filter for projects owned by current user"),
+    membership: flexibleBoolean
+      .optional()
+      .describe("Filter for projects where current user is a member"),
+    simple: flexibleBoolean.optional().describe("Return only limited fields"),
+    archived: flexibleBoolean.optional().describe("Filter for archived projects"),
+    visibility: z
+      .enum(["public", "internal", "private"])
+      .optional()
+      .describe("Filter by project visibility"),
+    order_by: z
+      .enum(["id", "name", "path", "created_at", "updated_at", "last_activity_at"])
+      .optional()
+      .describe("Return projects ordered by field"),
+    sort: z
+      .enum(["asc", "desc"])
+      .optional()
+      .describe("Return projects sorted in ascending or descending order"),
+    with_issues_enabled: z
+      .boolean()
+      .optional()
+      .describe("Filter projects with issues feature enabled"),
+    with_merge_requests_enabled: z
+      .boolean()
+      .optional()
+      .describe("Filter projects with merge requests feature enabled"),
+    min_access_level: z.number().optional().describe("Filter by minimum access level"),
+  })
+  .merge(PaginationOptionsSchema);
 
 // Label operation schemas
 export const ListLabelsSchema = z.object({
@@ -1172,41 +1412,45 @@ export const DeleteLabelSchema = z.object({
 });
 
 // Group projects schema
-export const ListGroupProjectsSchema = z.object({
-  group_id: z.coerce.string().describe("Group ID or path"),
-  include_subgroups: flexibleBoolean.optional().describe("Include projects from subgroups"),
-  search: z.string().optional().describe("Search term to filter projects"),
-  order_by: z
-    .enum(["name", "path", "created_at", "updated_at", "last_activity_at"])
-    .optional()
-    .describe("Field to sort by"),
-  sort: z.enum(["asc", "desc"]).optional().describe("Sort direction"),
-  archived: flexibleBoolean.optional().describe("Filter for archived projects"),
-  visibility: z
-    .enum(["public", "internal", "private"])
-    .optional()
-    .describe("Filter by project visibility"),
-  with_issues_enabled: z
-    .boolean()
-    .optional()
-    .describe("Filter projects with issues feature enabled"),
-  with_merge_requests_enabled: z
-    .boolean()
-    .optional()
-    .describe("Filter projects with merge requests feature enabled"),
-  min_access_level: z.number().optional().describe("Filter by minimum access level"),
-  with_programming_language: z.string().optional().describe("Filter by programming language"),
-  starred: flexibleBoolean.optional().describe("Filter by starred projects"),
-  statistics: flexibleBoolean.optional().describe("Include project statistics"),
-  with_custom_attributes: flexibleBoolean.optional().describe("Include custom attributes"),
-  with_security_reports: flexibleBoolean.optional().describe("Include security reports"),
-}).merge(PaginationOptionsSchema);
+export const ListGroupProjectsSchema = z
+  .object({
+    group_id: z.coerce.string().describe("Group ID or path"),
+    include_subgroups: flexibleBoolean.optional().describe("Include projects from subgroups"),
+    search: z.string().optional().describe("Search term to filter projects"),
+    order_by: z
+      .enum(["name", "path", "created_at", "updated_at", "last_activity_at"])
+      .optional()
+      .describe("Field to sort by"),
+    sort: z.enum(["asc", "desc"]).optional().describe("Sort direction"),
+    archived: flexibleBoolean.optional().describe("Filter for archived projects"),
+    visibility: z
+      .enum(["public", "internal", "private"])
+      .optional()
+      .describe("Filter by project visibility"),
+    with_issues_enabled: z
+      .boolean()
+      .optional()
+      .describe("Filter projects with issues feature enabled"),
+    with_merge_requests_enabled: z
+      .boolean()
+      .optional()
+      .describe("Filter projects with merge requests feature enabled"),
+    min_access_level: z.number().optional().describe("Filter by minimum access level"),
+    with_programming_language: z.string().optional().describe("Filter by programming language"),
+    starred: flexibleBoolean.optional().describe("Filter by starred projects"),
+    statistics: flexibleBoolean.optional().describe("Include project statistics"),
+    with_custom_attributes: flexibleBoolean.optional().describe("Include custom attributes"),
+    with_security_reports: flexibleBoolean.optional().describe("Include security reports"),
+  })
+  .merge(PaginationOptionsSchema);
 
 // Add wiki operation schemas
-export const ListWikiPagesSchema = z.object({
-  project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
-  with_content: flexibleBoolean.optional().describe("Include content of the wiki pages"),
-}).merge(PaginationOptionsSchema);
+export const ListWikiPagesSchema = z
+  .object({
+    project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
+    with_content: flexibleBoolean.optional().describe("Include content of the wiki pages"),
+  })
+  .merge(PaginationOptionsSchema);
 
 export const GetWikiPageSchema = z.object({
   project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
@@ -1243,19 +1487,73 @@ export const GitLabWikiPageSchema = z.object({
 
 // Merge Request Thread position schema - used for diff notes
 export const MergeRequestThreadPositionSchema = z.object({
-  base_sha: z.string().describe("REQUIRED: Base commit SHA in the source branch. Get this from merge request diff_refs.base_sha."),
-  head_sha: z.string().describe("REQUIRED: SHA referencing HEAD of the source branch. Get this from merge request diff_refs.head_sha."),
-  start_sha: z.string().describe("REQUIRED: SHA referencing the start commit of the source branch. Get this from merge request diff_refs.start_sha."),
-  position_type: z.enum(["text", "image", "file"]).describe("REQUIRED: Position type. Use 'text' for code diffs, 'image' for image diffs, 'file' for file-level comments."),
-  new_path: z.string().nullable().optional().describe("File path after changes. REQUIRED for most diff comments. Use same as old_path if file wasn't renamed."),
-  old_path: z.string().nullable().optional().describe("File path before changes. REQUIRED for most diff comments. Use same as new_path if file wasn't renamed."),
-  new_line: z.number().nullable().optional().describe("Line number in modified file (after changes). Use for added lines or context lines. NULL for deleted lines. For single-line comments on new lines."),
-  old_line: z.number().nullable().optional().describe("Line number in original file (before changes). Use for deleted lines or context lines. NULL for added lines. For single-line comments on old lines."),
-  line_range: LineRangeSchema.optional().describe("MULTILINE COMMENTS: Specify start/end line positions for commenting on multiple lines. Alternative to single old_line/new_line."),
-  width: z.number().optional().describe("IMAGE DIFFS ONLY: Width of the image (for position_type='image')."),
-  height: z.number().optional().describe("IMAGE DIFFS ONLY: Height of the image (for position_type='image')."),
-  x: z.number().optional().describe("IMAGE DIFFS ONLY: X coordinate on the image (for position_type='image')."),
-  y: z.number().optional().describe("IMAGE DIFFS ONLY: Y coordinate on the image (for position_type='image')."),
+  base_sha: z
+    .string()
+    .describe(
+      "REQUIRED: Base commit SHA in the source branch. Get this from merge request diff_refs.base_sha."
+    ),
+  head_sha: z
+    .string()
+    .describe(
+      "REQUIRED: SHA referencing HEAD of the source branch. Get this from merge request diff_refs.head_sha."
+    ),
+  start_sha: z
+    .string()
+    .describe(
+      "REQUIRED: SHA referencing the start commit of the source branch. Get this from merge request diff_refs.start_sha."
+    ),
+  position_type: z
+    .enum(["text", "image", "file"])
+    .describe(
+      "REQUIRED: Position type. Use 'text' for code diffs, 'image' for image diffs, 'file' for file-level comments."
+    ),
+  new_path: z
+    .string()
+    .nullable()
+    .optional()
+    .describe(
+      "File path after changes. REQUIRED for most diff comments. Use same as old_path if file wasn't renamed."
+    ),
+  old_path: z
+    .string()
+    .nullable()
+    .optional()
+    .describe(
+      "File path before changes. REQUIRED for most diff comments. Use same as new_path if file wasn't renamed."
+    ),
+  new_line: z
+    .number()
+    .nullable()
+    .optional()
+    .describe(
+      "Line number in modified file (after changes). Use for added lines or context lines. NULL for deleted lines. For single-line comments on new lines."
+    ),
+  old_line: z
+    .number()
+    .nullable()
+    .optional()
+    .describe(
+      "Line number in original file (before changes). Use for deleted lines or context lines. NULL for added lines. For single-line comments on old lines."
+    ),
+  line_range: LineRangeSchema.optional().describe(
+    "MULTILINE COMMENTS: Specify start/end line positions for commenting on multiple lines. Alternative to single old_line/new_line."
+  ),
+  width: z
+    .number()
+    .optional()
+    .describe("IMAGE DIFFS ONLY: Width of the image (for position_type='image')."),
+  height: z
+    .number()
+    .optional()
+    .describe("IMAGE DIFFS ONLY: Height of the image (for position_type='image')."),
+  x: z
+    .number()
+    .optional()
+    .describe("IMAGE DIFFS ONLY: X coordinate on the image (for position_type='image')."),
+  y: z
+    .number()
+    .optional()
+    .describe("IMAGE DIFFS ONLY: Y coordinate on the image (for position_type='image')."),
 });
 
 // Schema for creating a new merge request thread
@@ -1327,25 +1625,46 @@ export const DeleteProjectMilestoneSchema = GetProjectMilestoneSchema;
 export const GetMilestoneIssuesSchema = GetProjectMilestoneSchema;
 
 // Schema for getting merge requests assigned to a milestone
-export const GetMilestoneMergeRequestsSchema = GetProjectMilestoneSchema.merge(PaginationOptionsSchema);
+export const GetMilestoneMergeRequestsSchema =
+  GetProjectMilestoneSchema.merge(PaginationOptionsSchema);
 
 // Schema for promoting a project milestone to a group milestone
 export const PromoteProjectMilestoneSchema = GetProjectMilestoneSchema;
 
 // Schema for getting burndown chart events for a milestone
-export const GetMilestoneBurndownEventsSchema = GetProjectMilestoneSchema.merge(PaginationOptionsSchema);
+export const GetMilestoneBurndownEventsSchema =
+  GetProjectMilestoneSchema.merge(PaginationOptionsSchema);
 
 // Add schemas for commit operations
 export const ListCommitsSchema = z.object({
   project_id: z.coerce.string().describe("Project ID or complete URL-encoded path to project"),
-  ref_name: z.string().optional().describe("The name of a repository branch, tag or revision range, or if not given the default branch"),
-  since: z.string().optional().describe("Only commits after or on this date are returned in ISO 8601 format YYYY-MM-DDTHH:MM:SSZ"),
-  until: z.string().optional().describe("Only commits before or on this date are returned in ISO 8601 format YYYY-MM-DDTHH:MM:SSZ"),
+  ref_name: z
+    .string()
+    .optional()
+    .describe(
+      "The name of a repository branch, tag or revision range, or if not given the default branch"
+    ),
+  since: z
+    .string()
+    .optional()
+    .describe(
+      "Only commits after or on this date are returned in ISO 8601 format YYYY-MM-DDTHH:MM:SSZ"
+    ),
+  until: z
+    .string()
+    .optional()
+    .describe(
+      "Only commits before or on this date are returned in ISO 8601 format YYYY-MM-DDTHH:MM:SSZ"
+    ),
   path: z.string().optional().describe("The file path"),
   author: z.string().optional().describe("Search commits by commit author"),
   all: flexibleBoolean.optional().describe("Retrieve every commit from the repository"),
-  with_stats: flexibleBoolean.optional().describe("Stats about each commit are added to the response"),
-  first_parent: flexibleBoolean.optional().describe("Follow only the first parent commit upon seeing a merge commit"),
+  with_stats: flexibleBoolean
+    .optional()
+    .describe("Stats about each commit are added to the response"),
+  first_parent: flexibleBoolean
+    .optional()
+    .describe("Follow only the first parent commit upon seeing a merge commit"),
   order: z.enum(["default", "topo"]).optional().describe("List commits in order"),
   trailers: flexibleBoolean.optional().describe("Parse and include Git trailers for every commit"),
   page: z.number().optional().describe("Page number for pagination (default: 1)"),
@@ -1378,16 +1697,43 @@ export const GroupIteration = z.object({
   web_url: z.string().optional().nullable(),
 });
 
-export const ListGroupIterationsSchema = z.object({
-  group_id: z.coerce.string().describe("Group ID or URL-encoded path"),
-  state: z.enum(["opened", "upcoming", "current", "closed", "all"]).optional().describe("Return opened, upcoming, current, closed, or all iterations."),
-  search: z.string().optional().describe("Return only iterations with a title matching the provided string."),
-  in: z.array(z.enum(["title", "cadence_title"])).optional().describe("Fields in which fuzzy search should be performed with the query given in the argument search. The available options are title and cadence_title. Default is [title]."),
-  include_ancestors: flexibleBoolean.optional().describe("Include iterations for group and its ancestors. Defaults to true."),
-  include_descendants: flexibleBoolean.optional().describe("Include iterations for group and its descendants. Defaults to false."),
-  updated_before: z.string().optional().describe("Return only iterations updated before the given datetime. Expected in ISO 8601 format (2019-03-15T08:00:00Z)."),
-  updated_after: z.string().optional().describe("Return only iterations updated after the given datetime. Expected in ISO 8601 format (2019-03-15T08:00:00Z)."),
-}).merge(PaginationOptionsSchema);
+export const ListGroupIterationsSchema = z
+  .object({
+    group_id: z.coerce.string().describe("Group ID or URL-encoded path"),
+    state: z
+      .enum(["opened", "upcoming", "current", "closed", "all"])
+      .optional()
+      .describe("Return opened, upcoming, current, closed, or all iterations."),
+    search: z
+      .string()
+      .optional()
+      .describe("Return only iterations with a title matching the provided string."),
+    in: z
+      .array(z.enum(["title", "cadence_title"]))
+      .optional()
+      .describe(
+        "Fields in which fuzzy search should be performed with the query given in the argument search. The available options are title and cadence_title. Default is [title]."
+      ),
+    include_ancestors: flexibleBoolean
+      .optional()
+      .describe("Include iterations for group and its ancestors. Defaults to true."),
+    include_descendants: flexibleBoolean
+      .optional()
+      .describe("Include iterations for group and its descendants. Defaults to false."),
+    updated_before: z
+      .string()
+      .optional()
+      .describe(
+        "Return only iterations updated before the given datetime. Expected in ISO 8601 format (2019-03-15T08:00:00Z)."
+      ),
+    updated_after: z
+      .string()
+      .optional()
+      .describe(
+        "Return only iterations updated after the given datetime. Expected in ISO 8601 format (2019-03-15T08:00:00Z)."
+      ),
+  })
+  .merge(PaginationOptionsSchema);
 
 // Export types
 export type GitLabAuthor = z.infer<typeof GitLabAuthorSchema>;
@@ -1410,9 +1756,7 @@ export type CreateMergeRequestOptions = z.infer<typeof CreateMergeRequestOptions
 export type CreateBranchOptions = z.infer<typeof CreateBranchOptionsSchema>;
 export type GitLabCreateUpdateFileResponse = z.infer<typeof GitLabCreateUpdateFileResponseSchema>;
 export type GitLabSearchResponse = z.infer<typeof GitLabSearchResponseSchema>;
-export type GitLabMergeRequestDiff = z.infer<
-  typeof GitLabDiffSchema
->;
+export type GitLabMergeRequestDiff = z.infer<typeof GitLabDiffSchema>;
 export type CreateNoteOptions = z.infer<typeof CreateNoteSchema>;
 export type GitLabIssueLink = z.infer<typeof GitLabIssueLinkSchema>;
 export type ListIssueDiscussionsOptions = z.infer<typeof ListIssueDiscussionsSchema>;
@@ -1435,10 +1779,12 @@ export type MergeRequestThreadPosition = z.infer<typeof MergeRequestThreadPositi
 export type CreateMergeRequestThreadOptions = z.infer<typeof CreateMergeRequestThreadSchema>;
 export type CreateMergeRequestNoteOptions = z.infer<typeof CreateMergeRequestNoteSchema>;
 export type GitLabPipelineJob = z.infer<typeof GitLabPipelineJobSchema>;
+export type GitLabPipelineTriggerJob = z.infer<typeof GitLabPipelineTriggerJobSchema>;
 export type GitLabPipeline = z.infer<typeof GitLabPipelineSchema>;
 export type ListPipelinesOptions = z.infer<typeof ListPipelinesSchema>;
 export type GetPipelineOptions = z.infer<typeof GetPipelineSchema>;
 export type ListPipelineJobsOptions = z.infer<typeof ListPipelineJobsSchema>;
+export type ListPipelineTriggerJobsOptions = z.infer<typeof ListPipelineTriggerJobsSchema>;
 export type CreatePipelineOptions = z.infer<typeof CreatePipelineSchema>;
 export type RetryPipelineOptions = z.infer<typeof RetryPipelineSchema>;
 export type CancelPipelineOptions = z.infer<typeof CancelPipelineSchema>;

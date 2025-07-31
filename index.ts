@@ -93,12 +93,14 @@ import {
   GetPipelineSchema,
   ListPipelinesSchema,
   ListPipelineJobsSchema,
+  ListPipelineTriggerJobsSchema,
   CreatePipelineSchema,
   RetryPipelineSchema,
   CancelPipelineSchema,
   // pipeline job schemas
   GetPipelineJobOutputSchema,
   GitLabPipelineJobSchema,
+  GitLabPipelineTriggerJobSchema,
   // Discussion Schemas
   GitLabDiscussionNoteSchema, // Added
   GitLabDiscussionSchema,
@@ -130,10 +132,12 @@ import {
   type ListPipelinesOptions,
   type GetPipelineOptions,
   type ListPipelineJobsOptions,
+  type ListPipelineTriggerJobsOptions,
   type CreatePipelineOptions,
   type RetryPipelineOptions,
   type CancelPipelineOptions,
   type GitLabPipelineJob,
+  type GitLabPipelineTriggerJob,
   type GitLabMilestones,
   type ListProjectMilestonesOptions,
   type GetProjectMilestoneOptions,
@@ -644,6 +648,11 @@ const allTools = [
     inputSchema: zodToJsonSchema(ListPipelineJobsSchema),
   },
   {
+    name: "list_pipeline_trigger_jobs",
+    description: "List all trigger jobs (bridges) in a specific pipeline that trigger downstream pipelines",
+    inputSchema: zodToJsonSchema(ListPipelineTriggerJobsSchema),
+  },
+  {
     name: "get_pipeline_job",
     description: "Get details of a GitLab pipeline job number",
     inputSchema: zodToJsonSchema(GetPipelineJobOutputSchema),
@@ -766,6 +775,7 @@ const readOnlyTools = [
   "get_pipeline",
   "list_pipelines",
   "list_pipeline_jobs",
+  "list_pipeline_trigger_jobs",
   "get_pipeline_job",
   "get_pipeline_job_output",
   "list_projects",
@@ -816,6 +826,7 @@ const pipelineToolNames = [
   "list_pipelines",
   "get_pipeline",
   "list_pipeline_jobs",
+  "list_pipeline_trigger_jobs",
   "get_pipeline_job",
   "get_pipeline_job_output",
   "create_pipeline",
@@ -2816,6 +2827,49 @@ async function listPipelineJobs(
   const data = await response.json();
   return z.array(GitLabPipelineJobSchema).parse(data);
 }
+
+/**
+ * List all trigger jobs (bridges) in a specific pipeline
+ *
+ * @param {string} projectId - The ID or URL-encoded path of the project
+ * @param {number} pipelineId - The ID of the pipeline
+ * @param {Object} options - Options for filtering trigger jobs
+ * @returns {Promise<GitLabPipelineTriggerJob[]>} List of pipeline trigger jobs
+ */
+async function listPipelineTriggerJobs(
+  projectId: string,
+  pipelineId: number | string,
+  options: Omit<ListPipelineTriggerJobsOptions, "project_id" | "pipeline_id"> = {}
+): Promise<GitLabPipelineTriggerJob[]> {
+  projectId = decodeURIComponent(projectId); // Decode project ID
+  const url = new URL(
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/pipelines/${pipelineId}/bridges`
+  );
+
+  // Add all query parameters
+  Object.entries(options).forEach(([key, value]) => {
+    if (value !== undefined) {
+      if (typeof value === "boolean") {
+        url.searchParams.append(key, value ? "true" : "false");
+      } else {
+        url.searchParams.append(key, value.toString());
+      }
+    }
+  });
+
+  const response = await fetch(url.toString(), {
+    ...DEFAULT_FETCH_CONFIG,
+  });
+
+  if (response.status === 404) {
+    throw new Error(`Pipeline not found`);
+  }
+
+  await handleGitLabError(response);
+  const data = await response.json();
+  return z.array(GitLabPipelineTriggerJobSchema).parse(data);
+}
+
 async function getPipelineJob(projectId: string, jobId: number | string): Promise<GitLabPipelineJob> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(`${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/jobs/${jobId}`);
@@ -4126,6 +4180,21 @@ server.setRequestHandler(CallToolRequestSchema, async request => {
             {
               type: "text",
               text: JSON.stringify(jobs, null, 2),
+            },
+          ],
+        };
+      }
+
+      case "list_pipeline_trigger_jobs": {
+        const { project_id, pipeline_id, ...options } = ListPipelineTriggerJobsSchema.parse(
+          request.params.arguments
+        );
+        const triggerJobs = await listPipelineTriggerJobs(project_id, pipeline_id, options);
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(triggerJobs, null, 2),
             },
           ],
         };
