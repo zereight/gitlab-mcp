@@ -184,7 +184,7 @@ import {
   ListGroupIterationsSchema,
   GroupIteration,
 } from "./schemas.js";
-
+import { AsyncLocalStorage } from 'async_hooks';
 import { randomUUID } from "crypto";
 import { pino } from 'pino';
 
@@ -200,7 +200,13 @@ const logger = pino({
   },
 });
 
-  
+type authTokenContext = { authToken: string };
+const authTokenStorage = new AsyncLocalStorage<authTokenContext>();
+
+function getAuthToken() {
+  const context = authTokenStorage.getStore();
+  return context?.authToken ? context.authToken : GITLAB_PERSONAL_ACCESS_TOKEN
+}
 /**
  * Available transport modes for MCP server
  */
@@ -255,34 +261,45 @@ const HTTPS_PROXY = process.env.HTTPS_PROXY;
 const NODE_TLS_REJECT_UNAUTHORIZED = process.env.NODE_TLS_REJECT_UNAUTHORIZED;
 const GITLAB_CA_CERT_PATH = process.env.GITLAB_CA_CERT_PATH;
 
-let sslOptions = undefined;
-if (NODE_TLS_REJECT_UNAUTHORIZED === "0") {
-  sslOptions = { rejectUnauthorized: false };
-} else if (GITLAB_CA_CERT_PATH) {
-  const ca = fs.readFileSync(GITLAB_CA_CERT_PATH);
-  sslOptions = { ca };
-}
 
+function getSslOptions() {
+  let sslOptions = undefined;
+  if (NODE_TLS_REJECT_UNAUTHORIZED === "0") {
+    sslOptions = { rejectUnauthorized: false };
+  } else if (GITLAB_CA_CERT_PATH) {
+    const ca = fs.readFileSync(GITLAB_CA_CERT_PATH);
+    sslOptions = { ca };
+  }
+  return sslOptions
+}
 // Configure proxy agents if proxies are set
 let httpAgent: Agent | undefined = undefined;
 let httpsAgent: Agent | undefined = undefined;
 
-if (HTTP_PROXY) {
-  if (HTTP_PROXY.startsWith("socks")) {
-    httpAgent = new SocksProxyAgent(HTTP_PROXY);
-  } else {
-    httpAgent = new HttpProxyAgent(HTTP_PROXY);
+function getAgents() {
+  const sslOptions = getSslOptions()
+  if (HTTP_PROXY) {
+    if (HTTP_PROXY.startsWith("socks")) {
+      httpAgent = new SocksProxyAgent(HTTP_PROXY);
+    } else {
+      httpAgent = new HttpProxyAgent(HTTP_PROXY);
+    }
   }
-}
-if (HTTPS_PROXY) {
-  if (HTTPS_PROXY.startsWith("socks")) {
-    httpsAgent = new SocksProxyAgent(HTTPS_PROXY);
-  } else {
-    httpsAgent = new HttpsProxyAgent(HTTPS_PROXY, sslOptions);
+  if (HTTPS_PROXY) {
+    if (HTTPS_PROXY.startsWith("socks")) {
+      httpsAgent = new SocksProxyAgent(HTTPS_PROXY);
+    } else {
+      httpsAgent = new HttpsProxyAgent(HTTPS_PROXY, sslOptions);
+    }
   }
+  httpsAgent = httpsAgent || new HttpsAgent(sslOptions);
+  httpAgent = httpAgent || new Agent();
+  return {httpsAgent,httpAgent}
 }
-httpsAgent = httpsAgent || new HttpsAgent(sslOptions);
-httpAgent = httpAgent || new Agent();
+const agent = getAgents();
+httpsAgent = agent.httpsAgent
+httpAgent = agent.httpAgent
+
 
 // Create cookie jar with clean Netscape file parsing
 const createCookieJar = (): CookieJar | null => {
@@ -351,8 +368,9 @@ async function ensureSessionForRequest(): Promise<void> {
   if (!hasSessionCookie) {
     try {
       // Establish session with a lightweight request
+      const fetchHeader = getFetchHeaders()
       await fetch(`${GITLAB_API_URL}/user`, {
-        ...DEFAULT_FETCH_CONFIG,
+        ...fetchHeader,
         redirect: 'follow'
       }).catch(() => {
         // Ignore errors - the important thing is that cookies get set during redirects
@@ -366,27 +384,36 @@ async function ensureSessionForRequest(): Promise<void> {
   }
 }
 
-// Modify DEFAULT_HEADERS to include agent configuration
-const DEFAULT_HEADERS: Record<string, string> = {
-  Accept: "application/json",
-  "Content-Type": "application/json",
-};
-if (IS_OLD) {
-  DEFAULT_HEADERS["Private-Token"] = `${GITLAB_PERSONAL_ACCESS_TOKEN}`;
-} else {
-  DEFAULT_HEADERS["Authorization"] = `Bearer ${GITLAB_PERSONAL_ACCESS_TOKEN}`;
+function getRequestHeaders(): Record<string, string> {
+  const headers: Record<string, string> = {
+    Accept: "application/json",
+    "Content-Type": "application/json",
+  };
+  const authToken = getAuthToken()
+  if (IS_OLD) {
+    headers["Private-Token"] = `${authToken}`;
+  } else {
+    headers["Authorization"] = `Bearer ${authToken}`;
+  }
+  return headers;
 }
 
-// Create a default fetch configuration object that includes proxy agents if set
-const DEFAULT_FETCH_CONFIG = {
-  headers: DEFAULT_HEADERS,
-  agent: (parsedUrl: URL) => {
-    if (parsedUrl.protocol === "https:") {
-      return httpsAgent;
-    }
-    return httpAgent;
-  },
-};
+function getFetchHeaders(): {
+  headers: Record<string, string>;
+  agent: (parsedUrl: URL) => Agent;
+} {
+  const requestHeaders = getRequestHeaders()
+  const agents = getAgents()
+  return {
+    headers: requestHeaders,
+    agent: (parsedUrl: URL) => {
+      if (parsedUrl.protocol === "https:") {
+        return agents.httpsAgent;
+      }
+      return agents.httpAgent;
+    },
+  };
+}
 
 // Define all available tools
 const allTools = [
@@ -850,11 +877,6 @@ function normalizeGitLabApiUrl(url?: string): string {
 const GITLAB_API_URL = normalizeGitLabApiUrl(process.env.GITLAB_API_URL || "");
 const GITLAB_PROJECT_ID = process.env.GITLAB_PROJECT_ID;
 
-if (!GITLAB_PERSONAL_ACCESS_TOKEN) {
-  logger.error("GITLAB_PERSONAL_ACCESS_TOKEN environment variable is not set");
-  process.exit(1);
-}
-
 /**
  * Utility function for handling GitLab API errors
  * API 에러 처리를 위한 유틸리티 함수 (Utility function for handling API errors)
@@ -902,8 +924,9 @@ async function forkProject(projectId: string, namespace?: string): Promise<GitLa
     url.searchParams.append("namespace", namespace);
   }
 
-  const response = await fetch(url.toString(), {
-    ...DEFAULT_FETCH_CONFIG,
+    const fetchHeader = getFetchHeaders()
+    const response = await fetch(url.toString(), {
+    ...fetchHeader,
     method: "POST",
   });
 
@@ -935,8 +958,9 @@ async function createBranch(
     `${GITLAB_API_URL}/projects/${encodeURIComponent(effectiveProjectId)}/repository/branches`
   );
 
+  const fetchHeader = getFetchHeaders()
   const response = await fetch(url.toString(), {
-    ...DEFAULT_FETCH_CONFIG,
+    ...fetchHeader,
     method: "POST",
     body: JSON.stringify({
       branch: options.name,
@@ -959,9 +983,9 @@ async function getDefaultBranchRef(projectId: string): Promise<string> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const effectiveProjectId = getEffectiveProjectId(projectId);
   const url = new URL(`${GITLAB_API_URL}/projects/${encodeURIComponent(effectiveProjectId)}`);
-
+  const fetchHeader = getFetchHeaders()
   const response = await fetch(url.toString(), {
-    ...DEFAULT_FETCH_CONFIG,
+    ...fetchHeader,
   });
 
   await handleGitLabError(response);
@@ -997,9 +1021,9 @@ async function getFileContents(
   );
 
   url.searchParams.append("ref", ref);
-
+  const fetchHeader = getFetchHeaders()
   const response = await fetch(url.toString(), {
-    ...DEFAULT_FETCH_CONFIG,
+    ...fetchHeader,
   });
 
   // 파일을 찾을 수 없는 경우 처리
@@ -1035,9 +1059,9 @@ async function createIssue(
   projectId = decodeURIComponent(projectId); // Decode project ID
   const effectiveProjectId = getEffectiveProjectId(projectId);
   const url = new URL(`${GITLAB_API_URL}/projects/${encodeURIComponent(effectiveProjectId)}/issues`);
-
+  const fetchHeader = getFetchHeaders()
   const response = await fetch(url.toString(), {
-    ...DEFAULT_FETCH_CONFIG,
+    ...fetchHeader,
     method: "POST",
     body: JSON.stringify({
       title: options.title,
@@ -1098,9 +1122,9 @@ async function listIssues(
       }
     }
   });
-
+  const fetchHeader = getFetchHeaders()
   const response = await fetch(url.toString(), {
-    ...DEFAULT_FETCH_CONFIG,
+    ...fetchHeader,
   });
 
   await handleGitLabError(response);
@@ -1133,9 +1157,9 @@ async function listMergeRequests(
       }
     }
   });
-
+  const fetchHeader = getFetchHeaders()
   const response = await fetch(url.toString(), {
-    ...DEFAULT_FETCH_CONFIG,
+    ...fetchHeader,
   });
 
   await handleGitLabError(response);
@@ -1156,9 +1180,9 @@ async function getIssue(projectId: string, issueIid: number | string): Promise<G
   const url = new URL(
     `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/issues/${issueIid}`
   );
-
+  const fetchHeader = getFetchHeaders()
   const response = await fetch(url.toString(), {
-    ...DEFAULT_FETCH_CONFIG,
+    ...fetchHeader,
   });
 
   await handleGitLabError(response);
@@ -1190,9 +1214,9 @@ async function updateIssue(
   if (body.labels && Array.isArray(body.labels)) {
     body.labels = body.labels.join(",");
   }
-
+  const fetchHeader = getFetchHeaders()
   const response = await fetch(url.toString(), {
-    ...DEFAULT_FETCH_CONFIG,
+    ...fetchHeader,
     method: "PUT",
     body: JSON.stringify(body),
   });
@@ -1215,9 +1239,9 @@ async function deleteIssue(projectId: string, issueIid: number | string): Promis
   const url = new URL(
     `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/issues/${issueIid}`
   );
-
+  const fetchHeader = getFetchHeaders()
   const response = await fetch(url.toString(), {
-    ...DEFAULT_FETCH_CONFIG,
+    ...fetchHeader,
     method: "DELETE",
   });
 
@@ -1240,9 +1264,9 @@ async function listIssueLinks(
   const url = new URL(
     `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/issues/${issueIid}/links`
   );
-
+  const fetchHeader = getFetchHeaders()
   const response = await fetch(url.toString(), {
-    ...DEFAULT_FETCH_CONFIG,
+    ...fetchHeader,
   });
 
   await handleGitLabError(response);
@@ -1270,9 +1294,9 @@ async function getIssueLink(
       getEffectiveProjectId(projectId)
     )}/issues/${issueIid}/links/${issueLinkId}`
   );
-
+  const fetchHeader = getFetchHeaders()
   const response = await fetch(url.toString(), {
-    ...DEFAULT_FETCH_CONFIG,
+    ...fetchHeader,
   });
 
   await handleGitLabError(response);
@@ -1303,9 +1327,9 @@ async function createIssueLink(
   const url = new URL(
     `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/issues/${issueIid}/links`
   );
-
+  const fetchHeader = getFetchHeaders()
   const response = await fetch(url.toString(), {
-    ...DEFAULT_FETCH_CONFIG,
+    ...fetchHeader,
     method: "POST",
     body: JSON.stringify({
       target_project_id: targetProjectId,
@@ -1339,9 +1363,9 @@ async function deleteIssueLink(
       getEffectiveProjectId(projectId)
     )}/issues/${issueIid}/links/${issueLinkId}`
   );
-
+  const fetchHeader = getFetchHeaders()
   const response = await fetch(url.toString(), {
-    ...DEFAULT_FETCH_CONFIG,
+    ...fetchHeader,
     method: "DELETE",
   });
 
@@ -1362,9 +1386,9 @@ async function createMergeRequest(
 ): Promise<GitLabMergeRequest> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(`${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/merge_requests`);
-
+  const fetchHeader = getFetchHeaders()
   const response = await fetch(url.toString(), {
-    ...DEFAULT_FETCH_CONFIG,
+    ...fetchHeader,
     method: "POST",
     body: JSON.stringify({
       title: options.title,
@@ -1426,9 +1450,9 @@ async function listDiscussions(
   if (options.per_page) {
     url.searchParams.append("per_page", options.per_page.toString());
   }
-
+  const fetchHeader = getFetchHeaders()
   const response = await fetch(url.toString(), {
-    ...DEFAULT_FETCH_CONFIG,
+    ...fetchHeader,
   });
 
   await handleGitLabError(response);
@@ -1525,9 +1549,9 @@ async function updateMergeRequestNote(
   } else if (resolved !== undefined) {
     payload.resolved = resolved;
   }
-
+  const fetchHeader = getFetchHeaders()
   const response = await fetch(url.toString(), {
-    ...DEFAULT_FETCH_CONFIG,
+    ...fetchHeader,
     method: "PUT",
     body: JSON.stringify(payload),
   });
@@ -1561,9 +1585,9 @@ async function updateIssueNote(
   );
 
   const payload = { body };
-
+  const fetchHeader = getFetchHeaders()
   const response = await fetch(url.toString(), {
-    ...DEFAULT_FETCH_CONFIG,
+    ...fetchHeader,
     method: "PUT",
     body: JSON.stringify(payload),
   });
@@ -1600,9 +1624,9 @@ async function createIssueNote(
   if (createdAt) {
     payload.created_at = createdAt;
   }
-
+  const fetchHeader = getFetchHeaders()
   const response = await fetch(url.toString(), {
-    ...DEFAULT_FETCH_CONFIG,
+    ...fetchHeader,
     method: "POST",
     body: JSON.stringify(payload),
   });
@@ -1641,9 +1665,9 @@ async function createMergeRequestNote(
   if (createdAt) {
     payload.created_at = createdAt;
   }
-
+  const fetchHeader = getFetchHeaders()
   const response = await fetch(url.toString(), {
-    ...DEFAULT_FETCH_CONFIG,
+    ...fetchHeader,
     method: "POST",
     body: JSON.stringify(payload),
   });
@@ -1724,9 +1748,9 @@ async function createOrUpdateFile(
       body.last_commit_id = last_commit_id;
     }
   }
-
+  const fetchHeader = getFetchHeaders()
   const response = await fetch(url.toString(), {
-    ...DEFAULT_FETCH_CONFIG,
+    ...fetchHeader,
     method,
     body: JSON.stringify(body),
   });
@@ -1762,9 +1786,9 @@ async function createTree(
   if (ref) {
     url.searchParams.append("ref", ref);
   }
-
+  const fetchHeader = getFetchHeaders()
   const response = await fetch(url.toString(), {
-    ...DEFAULT_FETCH_CONFIG,
+    ...fetchHeader,
     method: "POST",
     body: JSON.stringify({
       files: files.map(file => ({
@@ -1809,9 +1833,9 @@ async function createCommit(
   const url = new URL(
     `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/repository/commits`
   );
-
+  const fetchHeader = getFetchHeaders()
   const response = await fetch(url.toString(), {
-    ...DEFAULT_FETCH_CONFIG,
+    ...fetchHeader,
     method: "POST",
     body: JSON.stringify({
       branch,
@@ -1859,9 +1883,9 @@ async function searchProjects(
   url.searchParams.append("per_page", perPage.toString());
   url.searchParams.append("order_by", "id");
   url.searchParams.append("sort", "desc");
-
+  const fetchHeader = getFetchHeaders()
   const response = await fetch(url.toString(), {
-    ...DEFAULT_FETCH_CONFIG,
+    ...fetchHeader,
   });
 
   if (!response.ok) {
@@ -1894,8 +1918,9 @@ async function searchProjects(
 async function createRepository(
   options: z.infer<typeof CreateRepositoryOptionsSchema>
 ): Promise<GitLabRepository> {
+  const fetchHeader = getFetchHeaders()
   const response = await fetch(`${GITLAB_API_URL}/projects`, {
-    ...DEFAULT_FETCH_CONFIG,
+    ...fetchHeader,
     method: "POST",
     body: JSON.stringify({
       name: options.name,
@@ -1948,9 +1973,9 @@ async function getMergeRequest(
   } else {
     throw new Error("Either mergeRequestIid or branchName must be provided");
   }
-
+  const fetchHeader = getFetchHeaders()
   const response = await fetch(url.toString(), {
-    ...DEFAULT_FETCH_CONFIG,
+    ...fetchHeader,
   });
 
   await handleGitLabError(response);
@@ -2000,9 +2025,9 @@ async function getMergeRequestDiffs(
   if (view) {
     url.searchParams.append("view", view);
   }
-
+  const fetchHeader = getFetchHeaders()
   const response = await fetch(url.toString(), {
-    ...DEFAULT_FETCH_CONFIG,
+    ...fetchHeader,
   });
 
   await handleGitLabError(response);
@@ -2055,9 +2080,9 @@ async function listMergeRequestDiffs(
   if (unidiff) {
     url.searchParams.append("unidiff", "true");
   }
-
+  const fetchHeader = getFetchHeaders()
   const response = await fetch(url.toString(), {
-    ...DEFAULT_FETCH_CONFIG,
+    ...fetchHeader,
   });
 
   await handleGitLabError(response);
@@ -2091,9 +2116,9 @@ async function getBranchDiffs(
   if (straight !== undefined) {
     url.searchParams.append("straight", straight.toString());
   }
-
+  const fetchHeader = getFetchHeaders()
   const response = await fetch(url.toString(), {
-    ...DEFAULT_FETCH_CONFIG,
+    ...fetchHeader,
   });
 
   if (!response.ok) {
@@ -2137,9 +2162,9 @@ async function updateMergeRequest(
   const url = new URL(
     `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/merge_requests/${mergeRequestIid}`
   );
-
+  const fetchHeader = getFetchHeaders()
   const response = await fetch(url.toString(), {
-    ...DEFAULT_FETCH_CONFIG,
+    ...fetchHeader,
     method: "PUT",
     body: JSON.stringify(options),
   });
@@ -2172,9 +2197,9 @@ async function createNote(
       getEffectiveProjectId(projectId)
     )}/${noteableType}s/${noteableIid}/notes` // Using plural form (issues/merge_requests) as per GitLab API documentation
   );
-
+  const fetchHeader = getFetchHeaders()
   const response = await fetch(url.toString(), {
-    ...DEFAULT_FETCH_CONFIG,
+    ...fetchHeader,
     method: "POST",
     body: JSON.stringify({ body }),
   });
@@ -2229,8 +2254,9 @@ async function createMergeRequestThread(
     payload.created_at = createdAt;
   }
 
+  const fetchHeader = getFetchHeaders()
   const response = await fetch(url.toString(), {
-    ...DEFAULT_FETCH_CONFIG,
+    ...fetchHeader,
     method: "POST",
     body: JSON.stringify(payload),
   });
@@ -2268,9 +2294,9 @@ async function listNamespaces(options: {
   if (options.top_level_only) {
     url.searchParams.append("top_level_only", "true");
   }
-
+  const fetchHeader = getFetchHeaders()
   const response = await fetch(url.toString(), {
-    ...DEFAULT_FETCH_CONFIG,
+    ...fetchHeader,
   });
 
   await handleGitLabError(response);
@@ -2287,9 +2313,9 @@ async function listNamespaces(options: {
  */
 async function getNamespace(id: string): Promise<GitLabNamespace> {
   const url = new URL(`${GITLAB_API_URL}/namespaces/${encodeURIComponent(id)}`);
-
+  const fetchHeader = getFetchHeaders()
   const response = await fetch(url.toString(), {
-    ...DEFAULT_FETCH_CONFIG,
+    ...fetchHeader,
   });
 
   await handleGitLabError(response);
@@ -2314,9 +2340,9 @@ async function verifyNamespaceExistence(
   if (parentId) {
     url.searchParams.append("parent_id", parentId.toString());
   }
-
+  const fetchHeader = getFetchHeaders()
   const response = await fetch(url.toString(), {
-    ...DEFAULT_FETCH_CONFIG,
+    ...fetchHeader,
   });
 
   await handleGitLabError(response);
@@ -2357,9 +2383,9 @@ async function getProject(
   if (options.with_custom_attributes) {
     url.searchParams.append("with_custom_attributes", "true");
   }
-
+  const fetchHeader = getFetchHeaders()
   const response = await fetch(url.toString(), {
-    ...DEFAULT_FETCH_CONFIG,
+    ...fetchHeader,
   });
 
   await handleGitLabError(response);
@@ -2389,9 +2415,10 @@ async function listProjects(
     }
   }
 
+  const fetchHeader = getFetchHeaders()
   // Make the API request
   const response = await fetch(`${GITLAB_API_URL}/projects?${params.toString()}`, {
-    ...DEFAULT_FETCH_CONFIG,
+    ...fetchHeader,
   });
 
   // Handle errors
@@ -2428,9 +2455,10 @@ async function listLabels(
     }
   });
 
+  const fetchHeader = getFetchHeaders()
   // Make the API request
   const response = await fetch(url.toString(), {
-    ...DEFAULT_FETCH_CONFIG,
+    ...fetchHeader,
   });
 
   // Handle errors
@@ -2466,9 +2494,10 @@ async function getLabel(
     url.searchParams.append("include_ancestor_groups", includeAncestorGroups ? "true" : "false");
   }
 
+  const fetchHeader = getFetchHeaders()
   // Make the API request
   const response = await fetch(url.toString(), {
-    ...DEFAULT_FETCH_CONFIG,
+    ...fetchHeader,
   });
 
   // Handle errors
@@ -2492,10 +2521,11 @@ async function createLabel(
 ): Promise<GitLabLabel> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   // Make the API request
+  const fetchHeader = getFetchHeaders()
   const response = await fetch(
     `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/labels`,
     {
-      ...DEFAULT_FETCH_CONFIG,
+      ...fetchHeader,
       method: "POST",
       body: JSON.stringify(options),
     }
@@ -2523,13 +2553,14 @@ async function updateLabel(
   options: Omit<z.infer<typeof UpdateLabelSchema>, "project_id" | "label_id">
 ): Promise<GitLabLabel> {
   projectId = decodeURIComponent(projectId); // Decode project ID
+  const fetchHeader = getFetchHeaders()
   // Make the API request
   const response = await fetch(
     `${GITLAB_API_URL}/projects/${encodeURIComponent(
       getEffectiveProjectId(projectId)
     )}/labels/${encodeURIComponent(String(labelId))}`,
     {
-      ...DEFAULT_FETCH_CONFIG,
+      ...fetchHeader,
       method: "PUT",
       body: JSON.stringify(options),
     }
@@ -2552,12 +2583,13 @@ async function updateLabel(
 async function deleteLabel(projectId: string, labelId: number | string): Promise<void> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   // Make the API request
+  const fetchHeader = getFetchHeaders()
   const response = await fetch(
     `${GITLAB_API_URL}/projects/${encodeURIComponent(
       getEffectiveProjectId(projectId)
     )}/labels/${encodeURIComponent(String(labelId))}`,
     {
-      ...DEFAULT_FETCH_CONFIG,
+      ...fetchHeader,
       method: "DELETE",
     }
   );
@@ -2606,8 +2638,9 @@ async function listGroupProjects(
   if (options.with_security_reports !== undefined)
     url.searchParams.append("with_security_reports", options.with_security_reports.toString());
 
+  const fetchHeader = getFetchHeaders()
   const response = await fetch(url.toString(), {
-    ...DEFAULT_FETCH_CONFIG,
+    ...fetchHeader,
   });
 
   await handleGitLabError(response);
@@ -2629,8 +2662,9 @@ async function listWikiPages(
   if (options.per_page) url.searchParams.append("per_page", options.per_page.toString());
   if (options.with_content)
     url.searchParams.append("with_content", options.with_content.toString());
+  const fetchHeader = getFetchHeaders()
   const response = await fetch(url.toString(), {
-    ...DEFAULT_FETCH_CONFIG,
+    ...fetchHeader,
   });
   await handleGitLabError(response);
   const data = await response.json();
@@ -2642,9 +2676,10 @@ async function listWikiPages(
  */
 async function getWikiPage(projectId: string, slug: string): Promise<GitLabWikiPage> {
   projectId = decodeURIComponent(projectId); // Decode project ID
+  const fetchHeader = getFetchHeaders()
   const response = await fetch(
     `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/wikis/${encodeURIComponent(slug)}`,
-    { ...DEFAULT_FETCH_CONFIG }
+    { ...fetchHeader }
   );
   await handleGitLabError(response);
   const data = await response.json();
@@ -2663,10 +2698,11 @@ async function createWikiPage(
   projectId = decodeURIComponent(projectId); // Decode project ID
   const body: Record<string, any> = { title, content };
   if (format) body.format = format;
+  const fetchHeader = getFetchHeaders()
   const response = await fetch(
     `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/wikis`,
     {
-      ...DEFAULT_FETCH_CONFIG,
+      ...fetchHeader,
       method: "POST",
       body: JSON.stringify(body),
     }
@@ -2691,10 +2727,11 @@ async function updateWikiPage(
   if (title) body.title = title;
   if (content) body.content = content;
   if (format) body.format = format;
+  const fetchHeader = getFetchHeaders()
   const response = await fetch(
     `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/wikis/${encodeURIComponent(slug)}`,
     {
-      ...DEFAULT_FETCH_CONFIG,
+      ...fetchHeader,
       method: "PUT",
       body: JSON.stringify(body),
     }
@@ -2709,10 +2746,11 @@ async function updateWikiPage(
  */
 async function deleteWikiPage(projectId: string, slug: string): Promise<void> {
   projectId = decodeURIComponent(projectId); // Decode project ID
+  const fetchHeader = getFetchHeaders()
   const response = await fetch(
     `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/wikis/${encodeURIComponent(slug)}`,
     {
-      ...DEFAULT_FETCH_CONFIG,
+      ...fetchHeader,
       method: "DELETE",
     }
   );
@@ -2739,9 +2777,10 @@ async function listPipelines(
       url.searchParams.append(key, value.toString());
     }
   });
+  const fetchHeader = getFetchHeaders()
 
   const response = await fetch(url.toString(), {
-    ...DEFAULT_FETCH_CONFIG,
+    ...fetchHeader,
   });
 
   await handleGitLabError(response);
@@ -2761,9 +2800,10 @@ async function getPipeline(projectId: string, pipelineId: number | string): Prom
   const url = new URL(
     `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/pipelines/${pipelineId}`
   );
+  const fetchHeader = getFetchHeaders()
 
   const response = await fetch(url.toString(), {
-    ...DEFAULT_FETCH_CONFIG,
+    ...fetchHeader,
   });
 
   if (response.status === 404) {
@@ -2803,9 +2843,10 @@ async function listPipelineJobs(
       }
     }
   });
+  const fetchHeader = getFetchHeaders()
 
   const response = await fetch(url.toString(), {
-    ...DEFAULT_FETCH_CONFIG,
+    ...fetchHeader,
   });
 
   if (response.status === 404) {
@@ -2819,9 +2860,10 @@ async function listPipelineJobs(
 async function getPipelineJob(projectId: string, jobId: number | string): Promise<GitLabPipelineJob> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(`${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/jobs/${jobId}`);
+  const fetchHeader = getFetchHeaders()
 
   const response = await fetch(url.toString(), {
-    ...DEFAULT_FETCH_CONFIG,
+    ...fetchHeader,
   });
 
   if (response.status === 404) {
@@ -2848,10 +2890,13 @@ async function getPipelineJobOutput(projectId: string, jobId: number | string, l
     `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/jobs/${jobId}/trace`
   );
 
+
+  const requestHeaders = getRequestHeaders()
+  const fetchHeader = getFetchHeaders()
   const response = await fetch(url.toString(), {
-    ...DEFAULT_FETCH_CONFIG,
+    ...fetchHeader,
     headers: {
-      ...DEFAULT_HEADERS,
+      ...requestHeaders,
       Accept: "text/plain", // Override Accept header to get plain text
     },
   });
@@ -2912,10 +2957,10 @@ async function createPipeline(
   if (variables && variables.length > 0) {
     body.variables = variables;
   }
-
+  const requestHeaders = getRequestHeaders()
   const response = await fetch(url.toString(), {
     method: "POST",
-    headers: DEFAULT_HEADERS,
+    headers: requestHeaders,
     body: JSON.stringify(body),
   });
 
@@ -2937,9 +2982,10 @@ async function retryPipeline(projectId: string, pipelineId: number | string): Pr
     `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/pipelines/${pipelineId}/retry`
   );
 
+  const requestHeaders = getRequestHeaders()
   const response = await fetch(url.toString(), {
     method: "POST",
-    headers: DEFAULT_HEADERS,
+    headers: requestHeaders,
   });
 
   await handleGitLabError(response);
@@ -2959,10 +3005,10 @@ async function cancelPipeline(projectId: string, pipelineId: number | string): P
   const url = new URL(
     `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/pipelines/${pipelineId}/cancel`
   );
-
+  const requestHeaders = getRequestHeaders()
   const response = await fetch(url.toString(), {
     method: "POST",
-    headers: DEFAULT_HEADERS,
+    headers: requestHeaders,
   });
 
   await handleGitLabError(response);
@@ -2986,21 +3032,12 @@ async function getRepositoryTree(options: GetRepositoryTreeOptions): Promise<Git
   if (options.page_token) queryParams.append("page_token", options.page_token);
   if (options.pagination) queryParams.append("pagination", options.pagination);
 
-  const headers: Record<string, string> = {
-    "Content-Type": "application/json",
-  };
-  if (IS_OLD) {
-    headers["Private-Token"] = `${GITLAB_PERSONAL_ACCESS_TOKEN}`;
-  } else {
-    headers["Authorization"] = `Bearer ${GITLAB_PERSONAL_ACCESS_TOKEN}`;
-  }
+  const requestHeaders = getRequestHeaders()
   const response = await fetch(
     `${GITLAB_API_URL}/projects/${encodeURIComponent(
       getEffectiveProjectId(options.project_id)
     )}/repository/tree?${queryParams.toString()}`,
-    {
-      headers,
-    }
+      requestHeaders,
   );
 
   if (response.status === 404) {
@@ -3040,8 +3077,9 @@ async function listProjectMilestones(
     }
   });
 
+  const fetchHeader = getFetchHeaders()
   const response = await fetch(url.toString(), {
-    ...DEFAULT_FETCH_CONFIG,
+    ...fetchHeader,
   });
   await handleGitLabError(response);
   const data = await response.json();
@@ -3063,8 +3101,9 @@ async function getProjectMilestone(
     `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/milestones/${milestoneId}`
   );
 
+  const fetchHeader = getFetchHeaders()
   const response = await fetch(url.toString(), {
-    ...DEFAULT_FETCH_CONFIG,
+    ...fetchHeader,
   });
   await handleGitLabError(response);
   const data = await response.json();
@@ -3084,8 +3123,9 @@ async function createProjectMilestone(
   projectId = decodeURIComponent(projectId);
   const url = new URL(`${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/milestones`);
 
+  const fetchHeader = getFetchHeaders()
   const response = await fetch(url.toString(), {
-    ...DEFAULT_FETCH_CONFIG,
+    ...fetchHeader,
     method: "POST",
     body: JSON.stringify(options),
   });
@@ -3111,8 +3151,9 @@ async function editProjectMilestone(
     `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/milestones/${milestoneId}`
   );
 
+  const fetchHeader = getFetchHeaders()
   const response = await fetch(url.toString(), {
-    ...DEFAULT_FETCH_CONFIG,
+    ...fetchHeader,
     method: "PUT",
     body: JSON.stringify(options),
   });
@@ -3133,8 +3174,9 @@ async function deleteProjectMilestone(projectId: string, milestoneId: number | s
     `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/milestones/${milestoneId}`
   );
 
+  const fetchHeader = getFetchHeaders()
   const response = await fetch(url.toString(), {
-    ...DEFAULT_FETCH_CONFIG,
+    ...fetchHeader,
     method: "DELETE",
   });
   await handleGitLabError(response);
@@ -3152,8 +3194,9 @@ async function getMilestoneIssues(projectId: string, milestoneId: number | strin
     `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/milestones/${milestoneId}/issues`
   );
 
+  const fetchHeader = getFetchHeaders()
   const response = await fetch(url.toString(), {
-    ...DEFAULT_FETCH_CONFIG,
+    ...fetchHeader,
   });
   await handleGitLabError(response);
   const data = await response.json();
@@ -3177,8 +3220,9 @@ async function getMilestoneMergeRequests(
     )}/milestones/${milestoneId}/merge_requests`
   );
 
+  const fetchHeader = getFetchHeaders()
   const response = await fetch(url.toString(), {
-    ...DEFAULT_FETCH_CONFIG,
+    ...fetchHeader,
   });
   await handleGitLabError(response);
   const data = await response.json();
@@ -3200,8 +3244,9 @@ async function promoteProjectMilestone(
     `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/milestones/${milestoneId}/promote`
   );
 
+  const fetchHeader = getFetchHeaders()
   const response = await fetch(url.toString(), {
-    ...DEFAULT_FETCH_CONFIG,
+    ...fetchHeader,
     method: "POST",
   });
   await handleGitLabError(response);
@@ -3223,8 +3268,9 @@ async function getMilestoneBurndownEvents(projectId: string, milestoneId: number
     )}/milestones/${milestoneId}/burndown_events`
   );
 
+  const fetchHeader = getFetchHeaders()
   const response = await fetch(url.toString(), {
-    ...DEFAULT_FETCH_CONFIG,
+    ...fetchHeader,
   });
   await handleGitLabError(response);
   const data = await response.json();
@@ -3242,8 +3288,9 @@ async function getUser(username: string): Promise<GitLabUser | null> {
     const url = new URL(`${GITLAB_API_URL}/users`);
     url.searchParams.append("username", username);
 
-    const response = await fetch(url.toString(), {
-      ...DEFAULT_FETCH_CONFIG,
+  const fetchHeader = getFetchHeaders()
+  const response = await fetch(url.toString(), {
+      ...fetchHeader,
     });
 
     await handleGitLabError(response);
@@ -3321,8 +3368,9 @@ async function listCommits(
   if (options.page) url.searchParams.append("page", options.page.toString());
   if (options.per_page) url.searchParams.append("per_page", options.per_page.toString());
 
+  const fetchHeader = getFetchHeaders()
   const response = await fetch(url.toString(), {
-    ...DEFAULT_FETCH_CONFIG,
+    ...fetchHeader,
   });
 
   await handleGitLabError(response);
@@ -3354,8 +3402,9 @@ async function getCommit(
     url.searchParams.append("stats", "true");
   }
 
+  const fetchHeader = getFetchHeaders()
   const response = await fetch(url.toString(), {
-    ...DEFAULT_FETCH_CONFIG,
+    ...fetchHeader,
   });
 
   await handleGitLabError(response);
@@ -3381,8 +3430,9 @@ async function getCommitDiff(
     `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/repository/commits/${encodeURIComponent(sha)}/diff`
   );
 
+  const fetchHeader = getFetchHeaders()
   const response = await fetch(url.toString(), {
-    ...DEFAULT_FETCH_CONFIG,
+    ...fetchHeader,
   });
 
   await handleGitLabError(response);
@@ -3416,7 +3466,8 @@ async function listGroupIterations(
   if (options.page) url.searchParams.append("page", options.page.toString());
   if (options.per_page) url.searchParams.append("per_page", options.per_page.toString());
 
-  const response = await fetch(url.toString(), DEFAULT_FETCH_CONFIG);
+  const fetchHeader = getFetchHeaders()
+  const response = await fetch(url.toString(), fetchHeader);
 
   if (!response.ok) {
     await handleGitLabError(response);
@@ -3469,7 +3520,7 @@ server.setRequestHandler(CallToolRequestSchema, async request => {
     if (!request.params.arguments) {
       throw new Error("Arguments are required");
     }
-    
+    const fetchHeader = getFetchHeaders()
     // Ensure session is established for every request if cookie authentication is enabled
     if (GITLAB_AUTH_COOKIE_PATH) {
       await ensureSessionForRequest();
@@ -3758,7 +3809,7 @@ server.setRequestHandler(CallToolRequestSchema, async request => {
         }
 
         const response = await fetch(url.toString(), {
-          ...DEFAULT_FETCH_CONFIG,
+          ...fetchHeader,
         });
 
         await handleGitLabError(response);
@@ -3777,7 +3828,7 @@ server.setRequestHandler(CallToolRequestSchema, async request => {
         );
 
         const response = await fetch(url.toString(), {
-          ...DEFAULT_FETCH_CONFIG,
+          ...fetchHeader,
         });
 
         await handleGitLabError(response);
@@ -3794,7 +3845,7 @@ server.setRequestHandler(CallToolRequestSchema, async request => {
         const url = new URL(`${GITLAB_API_URL}/namespaces/${encodeURIComponent(args.path)}/exists`);
 
         const response = await fetch(url.toString(), {
-          ...DEFAULT_FETCH_CONFIG,
+          ...fetchHeader,
         });
 
         await handleGitLabError(response);
@@ -3811,7 +3862,7 @@ server.setRequestHandler(CallToolRequestSchema, async request => {
         const url = new URL(`${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(args.project_id))}`);
 
         const response = await fetch(url.toString(), {
-          ...DEFAULT_FETCH_CONFIG,
+          ...fetchHeader,
         });
 
         await handleGitLabError(response);
@@ -4458,7 +4509,11 @@ async function startSSEServer(): Promise<void> {
     const sessionId = req.query.sessionId as string;
     const transport = transports[sessionId];
     if (transport) {
-      await transport.handlePostMessage(req, res);
+      const authToken = req.headers?.["authorization"]?.replace("Token ", "");
+      const context = { authToken: authToken ? authToken : "" };
+      authTokenStorage.run(context, async () => {
+        await transport.handlePostMessage(req, res);
+      });
     } else {
       res.status(400).send("No transport found for sessionId");
     }
@@ -4496,7 +4551,6 @@ async function startStreamableHTTPServer(): Promise<void> {
     
     try {
       let transport: StreamableHTTPServerTransport;
-      
       if (sessionId && streamableTransports[sessionId]) {
         // Reuse existing transport for ongoing session
         transport = streamableTransports[sessionId];
@@ -4522,7 +4576,11 @@ async function startStreamableHTTPServer(): Promise<void> {
         
         // Connect transport to MCP server before handling the request
         await server.connect(transport);
-        await transport.handleRequest(req, res, req.body);
+        const authToken = req.headers?.["authorization"]?.replace("Token ", "");
+        const context = { authToken: authToken ? authToken : "" };
+        authTokenStorage.run(context, async () => {
+          await transport.handleRequest(req, res, req.body);
+        });
       }
     } catch (error) {
       logger.error('Streamable HTTP error:', error);
