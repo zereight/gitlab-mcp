@@ -56,6 +56,7 @@ import {
   GitLabDiffSchema,
   GetMergeRequestSchema,
   GetMergeRequestDiffsSchema,
+  MergeMergeRequestSchema,
   UpdateMergeRequestSchema,
   ListIssuesSchema,
   GetIssueSchema,
@@ -390,6 +391,11 @@ const DEFAULT_FETCH_CONFIG = {
 
 // Define all available tools
 const allTools = [
+  {
+    name: "merge_merge_request",
+    description: "Merge a merge request in a GitLab project",
+    inputSchema: zodToJsonSchema(MergeMergeRequestSchema),
+  },
   {
     name: "create_or_update_file",
     description: "Create or update a single file in a GitLab project",
@@ -2149,6 +2155,38 @@ async function updateMergeRequest(
 }
 
 /**
+ * Merge a merge request
+ * マージリクエストをマージする
+ *
+ * @param {string} projectId - The ID or URL-encoded path of the project
+ * @param {number} mergeRequestIid - The internal ID of the merge request
+ * @param {Object} options - Options for merging the merge request
+ * @returns {Promise<GitLabMergeRequest>} The merged merge request
+ */
+async function mergeMergeRequest(
+  projectId: string,
+  options: Omit<
+    z.infer<typeof MergeMergeRequestSchema>,
+    "project_id" | "merge_request_iid" 
+  >,
+  mergeRequestIid?: number | string,
+): Promise<GitLabMergeRequest> {
+  projectId = decodeURIComponent(projectId); // Decode project ID
+  const url = new URL(
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/merge_requests/${mergeRequestIid}/merge`
+  );
+
+  const response = await fetch(url.toString(), {
+    ...DEFAULT_FETCH_CONFIG,
+    method: "PUT",
+    body: JSON.stringify(options),
+  });
+
+  await handleGitLabError(response);
+  return GitLabMergeRequestSchema.parse(await response.json());
+}
+
+/**
  * Create a new note (comment) on an issue or merge request
  * 📦 새로운 함수: createNote - 이슈 또는 병합 요청에 노트(댓글)를 추가하는 함수
  * (New function: createNote - Function to add a note (comment) to an issue or merge request)
@@ -3721,6 +3759,19 @@ server.setRequestHandler(CallToolRequestSchema, async request => {
           options,
           merge_request_iid,
           source_branch
+        );
+        return {
+          content: [{ type: "text", text: JSON.stringify(mergeRequest, null, 2) }],
+        };
+      }
+
+      case "merge_merge_request": {
+        const args = MergeMergeRequestSchema.parse(request.params.arguments);
+        const { project_id, merge_request_iid, ...options } = args;
+        const mergeRequest = await mergeMergeRequest(
+          project_id,
+          options,
+          merge_request_iid,
         );
         return {
           content: [{ type: "text", text: JSON.stringify(mergeRequest, null, 2) }],
