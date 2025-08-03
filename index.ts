@@ -1,188 +1,170 @@
 #!/usr/bin/env node
 
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
-import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
+import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
-import nodeFetch from "node-fetch";
+import express, { Request, Response } from "express";
 import fetchCookie from "fetch-cookie";
-import { CookieJar, parse as parseCookie } from "tough-cookie";
-import { SocksProxyAgent } from "socks-proxy-agent";
-import { HttpsProxyAgent } from "https-proxy-agent";
+import fs from "fs";
 import { HttpProxyAgent } from "http-proxy-agent";
+import { HttpsProxyAgent } from "https-proxy-agent";
+import nodeFetch from "node-fetch";
+import path, { dirname } from "path";
+import { SocksProxyAgent } from "socks-proxy-agent";
+import { CookieJar, parse as parseCookie } from "tough-cookie";
+import { fileURLToPath } from "url";
 import { z } from "zod";
 import { zodToJsonSchema } from "zod-to-json-schema";
-import { fileURLToPath } from "url";
-import { dirname } from "path";
-import fs from "fs";
-import path from "path";
-import express, { Request, Response } from "express";
 // Add type imports for proxy agents
 import { Agent } from "http";
 import { Agent as HttpsAgent } from "https";
 import { URL } from "url";
 import {
-  GitLabForkSchema,
-  GitLabReferenceSchema,
-  GitLabRepositorySchema,
-  GitLabIssueSchema,
-  GitLabMergeRequestSchema,
-  GitLabContentSchema,
-  GitLabCreateUpdateFileResponseSchema,
-  GitLabSearchResponseSchema,
-  GitLabTreeSchema,
-  GitLabCommitSchema,
-  GitLabNamespaceSchema,
-  GitLabNamespaceExistsResponseSchema,
-  GitLabProjectSchema,
-  GitLabLabelSchema,
-  GitLabUserSchema,
-  GitLabUsersResponseSchema,
-  GetUsersSchema,
-  CreateRepositoryOptionsSchema,
-  CreateIssueOptionsSchema,
-  CreateMergeRequestOptionsSchema,
-  CreateBranchOptionsSchema,
-  CreateOrUpdateFileSchema,
-  SearchRepositoriesSchema,
-  CreateRepositorySchema,
-  GetFileContentsSchema,
-  PushFilesSchema,
-  CreateIssueSchema,
-  CreateMergeRequestSchema,
-  ForkRepositorySchema,
-  CreateBranchSchema,
-  GitLabDiffSchema,
-  GetMergeRequestSchema,
-  GetMergeRequestDiffsSchema,
-  UpdateMergeRequestSchema,
-  ListIssuesSchema,
-  GetIssueSchema,
-  UpdateIssueSchema,
-  DeleteIssueSchema,
-  GitLabIssueLinkSchema,
-  GitLabIssueWithLinkDetailsSchema,
-  ListIssueLinksSchema,
-  ListIssueDiscussionsSchema,
-  GetIssueLinkSchema,
-  CreateIssueLinkSchema,
-  DeleteIssueLinkSchema,
-  ListNamespacesSchema,
-  GetNamespaceSchema,
-  VerifyNamespaceSchema,
-  GetProjectSchema,
-  ListProjectsSchema,
-  ListLabelsSchema,
-  GetLabelSchema,
-  CreateLabelSchema,
-  UpdateLabelSchema,
-  DeleteLabelSchema,
-  CreateNoteSchema,
-  CreateMergeRequestThreadSchema,
-  ListGroupProjectsSchema,
-  ListWikiPagesSchema,
-  GetWikiPageSchema,
-  CreateWikiPageSchema,
-  UpdateWikiPageSchema,
-  DeleteWikiPageSchema,
-  GitLabWikiPageSchema,
-  GetRepositoryTreeSchema,
-  GitLabTreeItemSchema,
-  GitLabPipelineSchema,
-  GetPipelineSchema,
-  ListPipelinesSchema,
-  ListPipelineJobsSchema,
-  CreatePipelineSchema,
-  RetryPipelineSchema,
   CancelPipelineSchema,
+  CreateBranchOptionsSchema,
+  CreateBranchSchema,
+  CreateIssueLinkSchema,
+  CreateIssueNoteSchema,
+  CreateIssueOptionsSchema,
+  CreateIssueSchema,
+  CreateLabelSchema, // Added
+  CreateMergeRequestNoteSchema,
+  CreateMergeRequestOptionsSchema,
+  CreateMergeRequestSchema,
+  CreateMergeRequestThreadSchema,
+  CreateNoteSchema,
+  CreateOrUpdateFileSchema,
+  CreatePipelineSchema,
+  CreateProjectMilestoneSchema,
+  CreateRepositoryOptionsSchema,
+  CreateRepositorySchema,
+  CreateWikiPageSchema,
+  DeleteIssueLinkSchema,
+  DeleteIssueSchema,
+  DeleteLabelSchema,
+  DeleteProjectMilestoneSchema,
+  DeleteWikiPageSchema,
+  EditProjectMilestoneSchema,
+  type FileOperation,
+  ForkRepositorySchema,
+  GetBranchDiffsSchema,
+  GetCommitDiffSchema,
+  GetCommitSchema,
+  GetFileContentsSchema,
+  GetIssueLinkSchema,
+  GetIssueSchema,
+  GetLabelSchema,
+  GetMergeRequestDiffsSchema,
+  GetMergeRequestSchema,
+  GetMilestoneBurndownEventsSchema,
+  GetMilestoneIssuesSchema,
+  GetMilestoneMergeRequestsSchema,
+  GetNamespaceSchema,
   // pipeline job schemas
   GetPipelineJobOutputSchema,
-  GitLabPipelineJobSchema,
+  GetPipelineSchema,
+  GetProjectMilestoneSchema,
+  GetProjectSchema,
+  type GetRepositoryTreeOptions,
+  GetRepositoryTreeSchema,
+  GetUsersSchema,
+  GetWikiPageSchema,
+  type GitLabCommit,
+  GitLabCommitSchema,
+  GitLabCompareResult,
+  GitLabCompareResultSchema,
+  type GitLabContent,
+  GitLabContentSchema,
+  type GitLabCreateUpdateFileResponse,
+  GitLabCreateUpdateFileResponseSchema,
+  GitLabDiffSchema,
+  type GitLabDiscussion,
+  // Discussion Types
+  type GitLabDiscussionNote,
   // Discussion Schemas
   GitLabDiscussionNoteSchema, // Added
   GitLabDiscussionSchema,
-  PaginatedDiscussionsResponseSchema,
-  UpdateMergeRequestNoteSchema, // Added
-  CreateMergeRequestNoteSchema, // Added
-  ListMergeRequestDiscussionsSchema,
   type GitLabFork,
-  type GitLabReference,
-  type GitLabRepository,
+  GitLabForkSchema,
   type GitLabIssue,
-  type GitLabMergeRequest,
-  type GitLabContent,
-  type GitLabCreateUpdateFileResponse,
-  type GitLabSearchResponse,
-  type GitLabTree,
-  type GitLabCommit,
-  type FileOperation,
-  type GitLabMergeRequestDiff,
   type GitLabIssueLink,
+  GitLabIssueLinkSchema,
+  GitLabIssueSchema,
   type GitLabIssueWithLinkDetails,
+  GitLabIssueWithLinkDetailsSchema,
+  type GitLabLabel,
+  GitLabMarkdownUpload,
+  GitLabMarkdownUploadSchema,
+  type GitLabMergeRequest,
+  type GitLabMergeRequestDiff,
+  GitLabMergeRequestSchema,
+  type GitLabMilestones,
+  GitLabMilestonesSchema,
   type GitLabNamespace,
   type GitLabNamespaceExistsResponse,
-  type GitLabProject,
-  type GitLabLabel,
-  type GitLabUser,
-  type GitLabUsersResponse,
+  GitLabNamespaceExistsResponseSchema,
+  GitLabNamespaceSchema,
   type GitLabPipeline,
-  type ListPipelinesOptions,
-  type GetPipelineOptions,
-  type ListPipelineJobsOptions,
-  type CreatePipelineOptions,
-  type RetryPipelineOptions,
-  type CancelPipelineOptions,
   type GitLabPipelineJob,
-  type GitLabMilestones,
-  type ListProjectMilestonesOptions,
-  type GetProjectMilestoneOptions,
-  type CreateProjectMilestoneOptions,
-  type EditProjectMilestoneOptions,
-  type DeleteProjectMilestoneOptions,
-  type GetMilestoneIssuesOptions,
-  type GetMilestoneMergeRequestsOptions,
-  type PromoteProjectMilestoneOptions,
-  type GetMilestoneBurndownEventsOptions,
-  // Discussion Types
-  type GitLabDiscussionNote,
-  type GitLabDiscussion,
-  type PaginatedDiscussionsResponse,
-  type PaginationOptions,
-  type MergeRequestThreadPosition,
-  type GetWikiPageOptions,
-  type CreateWikiPageOptions,
-  type UpdateWikiPageOptions,
-  type DeleteWikiPageOptions,
-  type GitLabWikiPage,
+  GitLabPipelineJobSchema,
+  GitLabPipelineSchema,
+  type GitLabProject,
+  GitLabProjectSchema,
+  type GitLabReference,
+  GitLabReferenceSchema,
+  type GitLabRepository,
+  GitLabRepositorySchema,
+  type GitLabSearchResponse,
+  GitLabSearchResponseSchema,
+  type GitLabTree,
   type GitLabTreeItem,
-  type GetRepositoryTreeOptions,
-  UpdateIssueNoteSchema,
-  CreateIssueNoteSchema,
-  ListMergeRequestsSchema,
-  GitLabMilestonesSchema,
-  ListProjectMilestonesSchema,
-  GetProjectMilestoneSchema,
-  CreateProjectMilestoneSchema,
-  EditProjectMilestoneSchema,
-  DeleteProjectMilestoneSchema,
-  GetMilestoneIssuesSchema,
-  GetMilestoneMergeRequestsSchema,
-  PromoteProjectMilestoneSchema,
-  GetMilestoneBurndownEventsSchema,
-  GitLabCompareResult,
-  GitLabCompareResultSchema,
-  GetBranchDiffsSchema,
-  ListWikiPagesOptions,
-  ListCommitsSchema,
-  GetCommitSchema,
-  GetCommitDiffSchema,
-  type ListCommitsOptions,
-  type GetCommitOptions,
-  type GetCommitDiffOptions,
-  ListMergeRequestDiffsSchema,
-  ListGroupIterationsSchema,
+  GitLabTreeItemSchema,
+  GitLabTreeSchema,
+  type GitLabUser,
+  GitLabUserSchema,
+  type GitLabUsersResponse,
+  GitLabUsersResponseSchema,
+  type GitLabWikiPage,
+  GitLabWikiPageSchema,
   GroupIteration,
+  type ListCommitsOptions,
+  ListCommitsSchema,
+  ListGroupIterationsSchema,
+  ListGroupProjectsSchema,
+  ListIssueDiscussionsSchema,
+  ListIssueLinksSchema,
+  ListIssuesSchema,
+  ListLabelsSchema,
+  ListMergeRequestDiffsSchema, // Added
+  ListMergeRequestDiscussionsSchema,
+  ListMergeRequestsSchema,
+  ListNamespacesSchema,
+  type ListPipelineJobsOptions,
+  ListPipelineJobsSchema,
+  type ListPipelinesOptions,
+  ListPipelinesSchema,
+  ListProjectMilestonesSchema,
+  ListProjectsSchema,
+  ListWikiPagesOptions,
+  ListWikiPagesSchema,
+  MarkdownUploadSchema,
+  type MergeRequestThreadPosition,
+  type PaginatedDiscussionsResponse,
+  PaginatedDiscussionsResponseSchema,
+  type PaginationOptions,
+  PromoteProjectMilestoneSchema,
+  PushFilesSchema,
+  RetryPipelineSchema,
+  SearchRepositoriesSchema,
+  UpdateIssueNoteSchema,
+  UpdateIssueSchema,
+  UpdateLabelSchema,
+  UpdateMergeRequestNoteSchema,
+  UpdateMergeRequestSchema,
+  UpdateWikiPageSchema,
+  VerifyNamespaceSchema
 } from "./schemas.js";
 
 import { randomUUID } from "crypto";
@@ -742,6 +724,11 @@ const allTools = [
     name: "list_group_iterations",
     description: "List group iterations with filtering options",
     inputSchema: zodToJsonSchema(ListGroupIterationsSchema),
+  },
+  {
+    name: "upload_markdown",
+    description: "Upload a file to a GitLab project for use in markdown content",
+    inputSchema: zodToJsonSchema(MarkdownUploadSchema),
   },
 ];
 
@@ -3426,6 +3413,57 @@ async function listGroupIterations(
   return z.array(GroupIteration).parse(data);
 }
 
+/**
+ * Upload a file to a GitLab project for use in markdown content
+ * 
+ * @param {string} projectId - The ID or URL-encoded path of the project
+ * @param {string} filePath - Path to the local file to upload
+ * @returns {Promise<GitLabMarkdownUpload>} The upload response
+ */
+async function markdownUpload(
+  projectId: string,
+  filePath: string
+): Promise<GitLabMarkdownUpload> {
+  projectId = decodeURIComponent(projectId);
+  const effectiveProjectId = getEffectiveProjectId(projectId);
+  
+  // Check if file exists
+  if (!fs.existsSync(filePath)) {
+    throw new Error(`File not found: ${filePath}`);
+  }
+
+  // Read the file
+  const fileBuffer = fs.readFileSync(filePath);
+  const fileName = path.basename(filePath);
+
+  // Create form data
+  const FormData = (await import('form-data')).default;
+  const form = new FormData();
+  form.append('file', fileBuffer, {
+    filename: fileName,
+    contentType: 'application/octet-stream'
+  });
+
+  const url = new URL(`${GITLAB_API_URL}/projects/${encodeURIComponent(effectiveProjectId)}/uploads`);
+
+  const response = await fetch(url.toString(), {
+    method: 'POST',
+    headers: {
+      ...DEFAULT_HEADERS,
+      // Remove Content-Type header to let form-data set it with boundary
+      'Content-Type': undefined as any,
+    },
+    body: form,
+  });
+
+  if (!response.ok) {
+    await handleGitLabError(response);
+  }
+
+  const data = await response.json();
+  return GitLabMarkdownUploadSchema.parse(data);
+}
+
 server.setRequestHandler(ListToolsRequestSchema, async () => {
   // Apply read-only filter first
   const tools0 = GITLAB_READ_ONLY_MODE
@@ -4375,6 +4413,14 @@ server.setRequestHandler(CallToolRequestSchema, async request => {
         const iterations = await listGroupIterations(args.group_id, args);
         return {
           content: [{ type: "text", text: JSON.stringify(iterations, null, 2) }],
+        };
+      }
+
+      case "upload_markdown": {
+        const args = MarkdownUploadSchema.parse(request.params.arguments);
+        const upload = await markdownUpload(args.project_id, args.file_path);
+        return {
+          content: [{ type: "text", text: JSON.stringify(upload, null, 2) }],
         };
       }
 
