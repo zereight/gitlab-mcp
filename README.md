@@ -232,20 +232,21 @@ $ sh scripts/image_push.sh docker_user_name
 48. `list_pipelines` - List pipelines in a GitLab project with filtering options
 49. `get_pipeline` - Get details of a specific pipeline in a GitLab project
 50. `list_pipeline_jobs` - List all jobs in a specific pipeline
-51. `get_pipeline_job` - Get details of a GitLab pipeline job number
-52. `get_pipeline_job_output` - Get the output/trace of a GitLab pipeline job number
-53. `create_pipeline` - Create a new pipeline for a branch or tag
-54. `retry_pipeline` - Retry a failed or canceled pipeline
-55. `cancel_pipeline` - Cancel a running pipeline
-56. `list_merge_requests` - List merge requests in a GitLab project with filtering options
-57. `list_milestones` - List milestones in a GitLab project with filtering options
-58. `get_milestone` - Get details of a specific milestone
-59. `create_milestone` - Create a new milestone in a GitLab project
-60. `edit_milestone` - Edit an existing milestone in a GitLab project
-61. `delete_milestone` - Delete a milestone from a GitLab project
-62. `get_milestone_issue` - Get issues associated with a specific milestone
-63. `get_milestone_merge_requests` - Get merge requests associated with a specific milestone
-64. `promote_milestone` - Promote a milestone to the next stage
-65. `get_milestone_burndown_events` - Get burndown events for a specific milestone
-66. `get_users` - Get GitLab user details by usernames
+51. `list_pipeline_trigger_jobs` - List all trigger jobs (bridges) in a specific pipeline that trigger downstream pipelines
+52. `get_pipeline_job` - Get details of a GitLab pipeline job number
+53. `get_pipeline_job_output` - Get the output/trace of a GitLab pipeline job number
+54. `create_pipeline` - Create a new pipeline for a branch or tag
+55. `retry_pipeline` - Retry a failed or canceled pipeline
+56. `cancel_pipeline` - Cancel a running pipeline
+57. `list_merge_requests` - List merge requests in a GitLab project with filtering options
+58. `list_milestones` - List milestones in a GitLab project with filtering options
+59. `get_milestone` - Get details of a specific milestone
+60. `create_milestone` - Create a new milestone in a GitLab project
+61. `edit_milestone` - Edit an existing milestone in a GitLab project
+62. `delete_milestone` - Delete a milestone from a GitLab project
+63. `get_milestone_issue` - Get issues associated with a specific milestone
+64. `get_milestone_merge_requests` - Get merge requests associated with a specific milestone
+65. `promote_milestone` - Promote a milestone to the next stage
+66. `get_milestone_burndown_events` - Get burndown events for a specific milestone
+67. `get_users` - Get GitLab user details by usernames
 <!-- TOOLS-END -->
