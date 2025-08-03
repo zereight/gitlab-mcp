@@ -678,6 +678,7 @@ export const GitLabIssueSchema = z.object({
   due_date: z.string().nullable().optional(),
   discussion_locked: flexibleBooleanNullable.optional(),
   weight: z.number().nullable().optional(),
+  issue_type: z.string().describe("the type of issue.").nullish(),
 });
 
 // NEW SCHEMA: For issue with link details (used in listing issue links)
@@ -1013,6 +1014,7 @@ export const CreateIssueSchema = ProjectParamsSchema.extend({
   assignee_ids: z.array(z.number()).optional().describe("Array of user IDs to assign"),
   labels: z.array(z.string()).optional().describe("Array of label names"),
   milestone_id: z.coerce.string().optional().describe("Milestone ID to assign"),
+  issue_type: z.enum(["issue", "incident", "test_case", "task"]).describe("the type of issue. One of issue, incident, test_case or task.").nullish().default("issue"),
 });
 
 const MergeRequestOptionsSchema = {
@@ -1269,6 +1271,8 @@ export const UpdateIssueSchema = z.object({
   milestone_id: z.coerce.string().optional().describe("Milestone ID to assign"),
   state_event: z.enum(["close", "reopen"]).optional().describe("Update issue state (close/reopen)"),
   weight: z.number().optional().describe("Weight of the issue (0-9)"),
+  issue_type: z.enum(["issue", "incident", "test_case", "task"]).describe("the type of issue. One of issue, incident, test_case or task."),
+
 });
 
 export const DeleteIssueSchema = z.object({
