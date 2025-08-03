@@ -1,203 +1,192 @@
 #!/usr/bin/env node
 
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
-import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
+import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
-import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
-import nodeFetch from "node-fetch";
+import {
+  CallToolRequestSchema,
+  ListToolsRequestSchema,
+} from "@modelcontextprotocol/sdk/types.js";
+import express, { Request, Response } from "express";
 import fetchCookie from "fetch-cookie";
-import { CookieJar, parse as parseCookie } from "tough-cookie";
-import { SocksProxyAgent } from "socks-proxy-agent";
-import { HttpsProxyAgent } from "https-proxy-agent";
+import fs from "fs";
 import { HttpProxyAgent } from "http-proxy-agent";
+import { HttpsProxyAgent } from "https-proxy-agent";
+import nodeFetch from "node-fetch";
+import path, { dirname } from "path";
+import { SocksProxyAgent } from "socks-proxy-agent";
+import { CookieJar, parse as parseCookie } from "tough-cookie";
+import { fileURLToPath } from "url";
 import { z } from "zod";
 import { zodToJsonSchema } from "zod-to-json-schema";
-import { fileURLToPath } from "url";
-import { dirname } from "path";
-import fs from "fs";
-import path from "path";
-import express, { Request, Response } from "express";
 // Add type imports for proxy agents
 import { Agent } from "http";
 import { Agent as HttpsAgent } from "https";
 import { URL } from "url";
 import {
-  GitLabForkSchema,
-  GitLabReferenceSchema,
-  GitLabRepositorySchema,
-  GitLabIssueSchema,
-  GitLabMergeRequestSchema,
-  GitLabContentSchema,
-  GitLabCreateUpdateFileResponseSchema,
-  GitLabSearchResponseSchema,
-  GitLabTreeSchema,
-  GitLabCommitSchema,
-  GitLabNamespaceSchema,
-  GitLabNamespaceExistsResponseSchema,
-  GitLabProjectSchema,
-  GitLabLabelSchema,
-  GitLabUserSchema,
-  GitLabUsersResponseSchema,
-  GetUsersSchema,
-  CreateRepositoryOptionsSchema,
-  CreateIssueOptionsSchema,
-  CreateMergeRequestOptionsSchema,
-  CreateBranchOptionsSchema,
-  CreateOrUpdateFileSchema,
-  SearchRepositoriesSchema,
-  CreateRepositorySchema,
-  GetFileContentsSchema,
-  PushFilesSchema,
-  CreateIssueSchema,
-  CreateMergeRequestSchema,
-  ForkRepositorySchema,
-  CreateBranchSchema,
-  GitLabDiffSchema,
-  GetMergeRequestSchema,
-  GetMergeRequestDiffsSchema,
-  UpdateMergeRequestSchema,
-  ListIssuesSchema,
-  GetIssueSchema,
-  UpdateIssueSchema,
-  DeleteIssueSchema,
-  GitLabIssueLinkSchema,
-  GitLabIssueWithLinkDetailsSchema,
-  ListIssueLinksSchema,
-  ListIssueDiscussionsSchema,
-  GetIssueLinkSchema,
-  CreateIssueLinkSchema,
-  DeleteIssueLinkSchema,
-  ListNamespacesSchema,
-  GetNamespaceSchema,
-  VerifyNamespaceSchema,
-  GetProjectSchema,
-  ListProjectsSchema,
-  ListLabelsSchema,
-  GetLabelSchema,
-  CreateLabelSchema,
-  UpdateLabelSchema,
-  DeleteLabelSchema,
-  CreateNoteSchema,
-  CreateMergeRequestThreadSchema,
-  ListGroupProjectsSchema,
-  ListWikiPagesSchema,
-  GetWikiPageSchema,
-  CreateWikiPageSchema,
-  UpdateWikiPageSchema,
-  DeleteWikiPageSchema,
-  GitLabWikiPageSchema,
-  GetRepositoryTreeSchema,
-  GitLabTreeItemSchema,
-  GitLabPipelineSchema,
-  GetPipelineSchema,
-  ListPipelinesSchema,
-  ListPipelineJobsSchema,
-  CreatePipelineSchema,
-  RetryPipelineSchema,
   CancelPipelineSchema,
+  CreateBranchOptionsSchema,
+  CreateBranchSchema,
+  CreateIssueLinkSchema,
+  CreateIssueNoteSchema,
+  CreateIssueOptionsSchema,
+  CreateIssueSchema,
+  CreateLabelSchema, // Added
+  CreateMergeRequestNoteSchema,
+  CreateMergeRequestOptionsSchema,
+  CreateMergeRequestSchema,
+  CreateMergeRequestThreadSchema,
+  CreateNoteSchema,
+  CreateOrUpdateFileSchema,
+  CreatePipelineSchema,
+  CreateProjectMilestoneSchema,
+  CreateRepositoryOptionsSchema,
+  CreateRepositorySchema,
+  CreateWikiPageSchema,
+  DeleteIssueLinkSchema,
+  DeleteIssueSchema,
+  DeleteLabelSchema,
+  DeleteProjectMilestoneSchema,
+  DeleteWikiPageSchema,
+  EditProjectMilestoneSchema,
+  type FileOperation,
+  ForkRepositorySchema,
+  GetBranchDiffsSchema,
+  GetCommitDiffSchema,
+  GetCommitSchema,
+  GetFileContentsSchema,
+  GetIssueLinkSchema,
+  GetIssueSchema,
+  GetLabelSchema,
+  GetMergeRequestDiffsSchema,
+  GetMergeRequestSchema,
+  GetMilestoneBurndownEventsSchema,
+  GetMilestoneIssuesSchema,
+  GetMilestoneMergeRequestsSchema,
+  GetNamespaceSchema,
   // pipeline job schemas
   GetPipelineJobOutputSchema,
-  GitLabPipelineJobSchema,
+  GetPipelineSchema,
+  GetProjectMilestoneSchema,
+  GetProjectSchema,
+  type GetRepositoryTreeOptions,
+  GetRepositoryTreeSchema,
+  GetUsersSchema,
+  GetWikiPageSchema,
+  type GitLabCommit,
+  GitLabCommitSchema,
+  GitLabCompareResult,
+  GitLabCompareResultSchema,
+  type GitLabContent,
+  GitLabContentSchema,
+  type GitLabCreateUpdateFileResponse,
+  GitLabCreateUpdateFileResponseSchema,
+  GitLabDiffSchema,
+  type GitLabDiscussion,
+  // Discussion Types
+  type GitLabDiscussionNote,
   // Discussion Schemas
   GitLabDiscussionNoteSchema, // Added
   GitLabDiscussionSchema,
-  PaginatedDiscussionsResponseSchema,
-  UpdateMergeRequestNoteSchema, // Added
-  CreateMergeRequestNoteSchema, // Added
-  ListMergeRequestDiscussionsSchema,
   type GitLabFork,
-  type GitLabReference,
-  type GitLabRepository,
+  GitLabForkSchema,
   type GitLabIssue,
-  type GitLabMergeRequest,
-  type GitLabContent,
-  type GitLabCreateUpdateFileResponse,
-  type GitLabSearchResponse,
-  type GitLabTree,
-  type GitLabCommit,
-  type FileOperation,
-  type GitLabMergeRequestDiff,
   type GitLabIssueLink,
+  GitLabIssueLinkSchema,
+  GitLabIssueSchema,
   type GitLabIssueWithLinkDetails,
+  GitLabIssueWithLinkDetailsSchema,
+  type GitLabLabel,
+  GitLabMarkdownUpload,
+  GitLabMarkdownUploadSchema,
+  type GitLabMergeRequest,
+  type GitLabMergeRequestDiff,
+  GitLabMergeRequestSchema,
+  type GitLabMilestones,
+  GitLabMilestonesSchema,
   type GitLabNamespace,
   type GitLabNamespaceExistsResponse,
-  type GitLabProject,
-  type GitLabLabel,
-  type GitLabUser,
-  type GitLabUsersResponse,
+  GitLabNamespaceExistsResponseSchema,
+  GitLabNamespaceSchema,
   type GitLabPipeline,
-  type ListPipelinesOptions,
-  type GetPipelineOptions,
-  type ListPipelineJobsOptions,
-  type CreatePipelineOptions,
-  type RetryPipelineOptions,
-  type CancelPipelineOptions,
   type GitLabPipelineJob,
-  type GitLabMilestones,
-  type ListProjectMilestonesOptions,
-  type GetProjectMilestoneOptions,
-  type CreateProjectMilestoneOptions,
-  type EditProjectMilestoneOptions,
-  type DeleteProjectMilestoneOptions,
-  type GetMilestoneIssuesOptions,
-  type GetMilestoneMergeRequestsOptions,
-  type PromoteProjectMilestoneOptions,
-  type GetMilestoneBurndownEventsOptions,
-  // Discussion Types
-  type GitLabDiscussionNote,
-  type GitLabDiscussion,
-  type PaginatedDiscussionsResponse,
-  type PaginationOptions,
-  type MergeRequestThreadPosition,
-  type GetWikiPageOptions,
-  type CreateWikiPageOptions,
-  type UpdateWikiPageOptions,
-  type DeleteWikiPageOptions,
-  type GitLabWikiPage,
-  type GitLabTreeItem,
-  type GetRepositoryTreeOptions,
-  UpdateIssueNoteSchema,
-  CreateIssueNoteSchema,
-  ListMergeRequestsSchema,
-  GitLabMilestonesSchema,
-  ListProjectMilestonesSchema,
-  GetProjectMilestoneSchema,
-  CreateProjectMilestoneSchema,
-  EditProjectMilestoneSchema,
-  DeleteProjectMilestoneSchema,
-  GetMilestoneIssuesSchema,
-  GetMilestoneMergeRequestsSchema,
-  PromoteProjectMilestoneSchema,
-  GetMilestoneBurndownEventsSchema,
-  GitLabCompareResult,
-  GitLabCompareResultSchema,
-  GetBranchDiffsSchema,
-  ListWikiPagesOptions,
-  ListCommitsSchema,
-  GetCommitSchema,
-  GetCommitDiffSchema,
-  type ListCommitsOptions,
-  type GetCommitOptions,
-  type GetCommitDiffOptions,
-  ListMergeRequestDiffsSchema,
-  MyIssuesSchema,
-  ListProjectMembersSchema,
-  GitLabProjectMemberSchema,
-  type MyIssuesOptions,
-  type ListProjectMembersOptions,
+  GitLabPipelineJobSchema,
+  GitLabPipelineSchema,
+  type GitLabPipelineTriggerJob,
+  GitLabPipelineTriggerJobSchema,
+  type GitLabProject,
   type GitLabProjectMember,
-  ListGroupIterationsSchema,
+  GitLabProjectMemberSchema,
+  GitLabProjectSchema,
+  type GitLabReference,
+  GitLabReferenceSchema,
+  type GitLabRepository,
+  GitLabRepositorySchema,
+  type GitLabSearchResponse,
+  GitLabSearchResponseSchema,
+  type GitLabTree,
+  type GitLabTreeItem,
+  GitLabTreeItemSchema,
+  GitLabTreeSchema,
+  type GitLabUser,
+  GitLabUserSchema,
+  type GitLabUsersResponse,
+  GitLabUsersResponseSchema,
+  type GitLabWikiPage,
+  GitLabWikiPageSchema,
   GroupIteration,
+  type ListCommitsOptions,
+  ListCommitsSchema,
+  ListGroupIterationsSchema,
+  ListGroupProjectsSchema,
+  ListIssueDiscussionsSchema,
+  ListIssueLinksSchema,
+  ListIssuesSchema,
+  ListLabelsSchema,
+  ListMergeRequestDiffsSchema, // Added
+  ListMergeRequestDiscussionsSchema,
+  ListMergeRequestsSchema,
+  ListNamespacesSchema,
+  type ListPipelineJobsOptions,
+  ListPipelineJobsSchema,
+  type ListPipelinesOptions,
+  ListPipelinesSchema,
+  type ListPipelineTriggerJobsOptions,
+  ListPipelineTriggerJobsSchema,
+  type ListProjectMembersOptions,
+  ListProjectMembersSchema,
+  ListProjectMilestonesSchema,
+  ListProjectsSchema,
+  ListWikiPagesOptions,
+  ListWikiPagesSchema,
+  MarkdownUploadSchema,
+  type MergeRequestThreadPosition,
+  type MyIssuesOptions,
+  MyIssuesSchema,
+  type PaginatedDiscussionsResponse,
+  PaginatedDiscussionsResponseSchema,
+  type PaginationOptions,
+  PromoteProjectMilestoneSchema,
+  PushFilesSchema,
+  RetryPipelineSchema,
+  SearchRepositoriesSchema,
+  UpdateIssueNoteSchema,
+  UpdateIssueSchema,
+  UpdateLabelSchema,
+  UpdateMergeRequestNoteSchema,
+  UpdateMergeRequestSchema,
+  UpdateWikiPageSchema,
+  VerifyNamespaceSchema
 } from "./schemas.js";
 
 import { randomUUID } from "crypto";
-import { pino } from 'pino';
+import { pino } from "pino";
 
 const logger = pino({
-  level: process.env.LOG_LEVEL || 'info',
+  level: process.env.LOG_LEVEL || "info",
   transport: {
-    target: 'pino-pretty',
+    target: "pino-pretty",
     options: {
       colorize: true,
       levelFirst: true,
@@ -206,14 +195,13 @@ const logger = pino({
   },
 });
 
-  
 /**
  * Available transport modes for MCP server
  */
 enum TransportMode {
-  STDIO = 'stdio',
-  SSE = 'sse', 
-  STREAMABLE_HTTP = 'streamable-http'
+  STDIO = "stdio",
+  SSE = "sse",
+  STREAMABLE_HTTP = "streamable-http",
 }
 
 /**
@@ -241,7 +229,7 @@ const server = new Server(
     capabilities: {
       tools: {},
     },
-  }
+  },
 );
 
 const GITLAB_PERSONAL_ACCESS_TOKEN = process.env.GITLAB_PERSONAL_ACCESS_TOKEN;
@@ -253,7 +241,7 @@ const USE_MILESTONE = process.env.USE_MILESTONE === "true";
 const USE_PIPELINE = process.env.USE_PIPELINE === "true";
 const SSE = process.env.SSE === "true";
 const STREAMABLE_HTTP = process.env.STREAMABLE_HTTP === "true";
-const HOST = process.env.HOST || '0.0.0.0';
+const HOST = process.env.HOST || "0.0.0.0";
 const PORT = process.env.PORT || 3002;
 // Add proxy configuration
 const HTTP_PROXY = process.env.HTTP_PROXY;
@@ -293,16 +281,16 @@ httpAgent = httpAgent || new Agent();
 // Create cookie jar with clean Netscape file parsing
 const createCookieJar = (): CookieJar | null => {
   if (!GITLAB_AUTH_COOKIE_PATH) return null;
-  
+
   try {
     const cookiePath = GITLAB_AUTH_COOKIE_PATH.startsWith("~/")
       ? path.join(process.env.HOME || "", GITLAB_AUTH_COOKIE_PATH.slice(2))
       : GITLAB_AUTH_COOKIE_PATH;
-    
+
     const jar = new CookieJar();
     const cookieContent = fs.readFileSync(cookiePath, "utf8");
-    
-    cookieContent.split("\n").forEach(line => {
+
+    cookieContent.split("\n").forEach((line) => {
       // Handle #HttpOnly_ prefix
       if (line.startsWith("#HttpOnly_")) {
         line = line.slice(10);
@@ -311,15 +299,15 @@ const createCookieJar = (): CookieJar | null => {
       if (line.startsWith("#") || !line.trim()) {
         return;
       }
-      
+
       // Parse Netscape format: domain, flag, path, secure, expires, name, value
       const parts = line.split("\t");
       if (parts.length >= 7) {
         const [domain, , path, secure, expires, name, value] = parts;
-        
+
         // Build cookie string in standard format
         const cookieStr = `${name}=${value}; Domain=${domain}; Path=${path}${secure === "TRUE" ? "; Secure" : ""}${expires !== "0" ? `; Expires=${new Date(parseInt(expires) * 1000).toUTCString()}` : ""}`;
-        
+
         // Use tough-cookie's parse function for robust parsing
         const cookie = parseCookie(cookieStr);
         if (cookie) {
@@ -328,7 +316,7 @@ const createCookieJar = (): CookieJar | null => {
         }
       }
     });
-    
+
     return jar;
   } catch (error) {
     logger.error("Error loading cookie file:", error);
@@ -343,29 +331,30 @@ const fetch = cookieJar ? fetchCookie(nodeFetch, cookieJar) : nodeFetch;
 // Ensure session is established for the current request
 async function ensureSessionForRequest(): Promise<void> {
   if (!cookieJar || !GITLAB_AUTH_COOKIE_PATH) return;
-  
+
   // Extract the base URL from GITLAB_API_URL
   const apiUrl = new URL(GITLAB_API_URL);
   const baseUrl = `${apiUrl.protocol}//${apiUrl.hostname}`;
-  
+
   // Check if we already have GitLab session cookies
   const gitlabCookies = cookieJar.getCookiesSync(baseUrl);
-  const hasSessionCookie = gitlabCookies.some(cookie => 
-    cookie.key === '_gitlab_session' || cookie.key === 'remember_user_token'
+  const hasSessionCookie = gitlabCookies.some(
+    (cookie) =>
+      cookie.key === "_gitlab_session" || cookie.key === "remember_user_token",
   );
-  
+
   if (!hasSessionCookie) {
     try {
       // Establish session with a lightweight request
       await fetch(`${GITLAB_API_URL}/user`, {
         ...DEFAULT_FETCH_CONFIG,
-        redirect: 'follow'
+        redirect: "follow",
       }).catch(() => {
         // Ignore errors - the important thing is that cookies get set during redirects
       });
-      
+
       // Small delay to ensure cookies are fully processed
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await new Promise((resolve) => setTimeout(resolve, 100));
     } catch (error) {
       // Ignore session establishment errors
     }
@@ -413,7 +402,8 @@ const allTools = [
   },
   {
     name: "get_file_contents",
-    description: "Get the contents of a file or directory from a GitLab project",
+    description:
+      "Get the contents of a file or directory from a GitLab project",
     inputSchema: zodToJsonSchema(GetFileContentsSchema),
   },
   {
@@ -461,12 +451,14 @@ const allTools = [
   },
   {
     name: "get_branch_diffs",
-    description: "Get the changes/diffs between two branches or commits in a GitLab project",
+    description:
+      "Get the changes/diffs between two branches or commits in a GitLab project",
     inputSchema: zodToJsonSchema(GetBranchDiffsSchema),
   },
   {
     name: "update_merge_request",
-    description: "Update a merge request (Either mergeRequestIid or branchName must be provided)",
+    description:
+      "Update a merge request (Either mergeRequestIid or branchName must be provided)",
     inputSchema: zodToJsonSchema(UpdateMergeRequestSchema),
   },
   {
@@ -506,7 +498,8 @@ const allTools = [
   },
   {
     name: "list_issues",
-    description: "List issues (default: created by current user only; use scope='all' for all accessible issues)",
+    description:
+      "List issues (default: created by current user only; use scope='all' for all accessible issues)",
     inputSchema: zodToJsonSchema(ListIssuesSchema),
   },
   {
@@ -641,7 +634,8 @@ const allTools = [
   },
   {
     name: "get_repository_tree",
-    description: "Get the repository tree for a GitLab project (list files and directories)",
+    description:
+      "Get the repository tree for a GitLab project (list files and directories)",
     inputSchema: zodToJsonSchema(GetRepositoryTreeSchema),
   },
   {
@@ -660,13 +654,20 @@ const allTools = [
     inputSchema: zodToJsonSchema(ListPipelineJobsSchema),
   },
   {
+    name: "list_pipeline_trigger_jobs",
+    description:
+      "List all trigger jobs (bridges) in a specific pipeline that trigger downstream pipelines",
+    inputSchema: zodToJsonSchema(ListPipelineTriggerJobsSchema),
+  },
+  {
     name: "get_pipeline_job",
     description: "Get details of a GitLab pipeline job number",
     inputSchema: zodToJsonSchema(GetPipelineJobOutputSchema),
   },
   {
     name: "get_pipeline_job_output",
-    description: "Get the output/trace of a GitLab pipeline job with optional pagination to limit context window usage",
+    description:
+      "Get the output/trace of a GitLab pipeline job with optional pagination to limit context window usage",
     inputSchema: zodToJsonSchema(GetPipelineJobOutputSchema),
   },
   {
@@ -686,7 +687,8 @@ const allTools = [
   },
   {
     name: "list_merge_requests",
-    description: "List merge requests in a GitLab project with filtering options",
+    description:
+      "List merge requests in a GitLab project with filtering options",
     inputSchema: zodToJsonSchema(ListMergeRequestsSchema),
   },
   {
@@ -759,6 +761,12 @@ const allTools = [
     description: "List group iterations with filtering options",
     inputSchema: zodToJsonSchema(ListGroupIterationsSchema),
   },
+  {
+    name: "upload_markdown",
+    description:
+      "Upload a file to a GitLab project for use in markdown content",
+    inputSchema: zodToJsonSchema(MarkdownUploadSchema),
+  },
 ];
 
 // Define which tools are read-only
@@ -785,6 +793,7 @@ const readOnlyTools = [
   "get_pipeline",
   "list_pipelines",
   "list_pipeline_jobs",
+  "list_pipeline_trigger_jobs",
   "get_pipeline_job",
   "get_pipeline_job_output",
   "list_labels",
@@ -834,6 +843,7 @@ const pipelineToolNames = [
   "list_pipelines",
   "get_pipeline",
   "list_pipeline_jobs",
+  "list_pipeline_trigger_jobs",
   "get_pipeline_job",
   "get_pipeline_job_output",
   "create_pipeline",
@@ -856,7 +866,10 @@ function normalizeGitLabApiUrl(url?: string): string {
   let normalizedUrl = url.endsWith("/") ? url.slice(0, -1) : url;
 
   // Check if URL already has /api/v4
-  if (!normalizedUrl.endsWith("/api/v4") && !normalizedUrl.endsWith("/api/v4/")) {
+  if (
+    !normalizedUrl.endsWith("/api/v4") &&
+    !normalizedUrl.endsWith("/api/v4/")
+  ) {
     // Append /api/v4 if not already present
     normalizedUrl = `${normalizedUrl}/api/v4`;
   }
@@ -881,17 +894,24 @@ if (!GITLAB_PERSONAL_ACCESS_TOKEN) {
  * @param {import("node-fetch").Response} response - The response from GitLab API
  * @throws {Error} Throws an error with response details if the request failed
  */
-async function handleGitLabError(response: import("node-fetch").Response): Promise<void> {
+async function handleGitLabError(
+  response: import("node-fetch").Response,
+): Promise<void> {
   if (!response.ok) {
     const errorBody = await response.text();
     // Check specifically for Rate Limit error
-    if (response.status === 403 && errorBody.includes("User API Key Rate limit exceeded")) {
+    if (
+      response.status === 403 &&
+      errorBody.includes("User API Key Rate limit exceeded")
+    ) {
       logger.error("GitLab API Rate Limit Exceeded:", errorBody);
       logger.error("User API Key Rate limit exceeded. Please try again later.");
       throw new Error(`GitLab API Rate Limit Exceeded: ${errorBody}`);
     } else {
       // Handle other API errors
-      throw new Error(`GitLab API error: ${response.status} ${response.statusText}\n${errorBody}`);
+      throw new Error(
+        `GitLab API error: ${response.status} ${response.statusText}\n${errorBody}`,
+      );
     }
   }
 }
@@ -931,10 +951,15 @@ function getEffectiveProjectId(projectId: string): string {
  * @param {string} [namespace] - The namespace to fork the project to
  * @returns {Promise<GitLabFork>} The created fork
  */
-async function forkProject(projectId: string, namespace?: string): Promise<GitLabFork> {
+async function forkProject(
+  projectId: string,
+  namespace?: string,
+): Promise<GitLabFork> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const effectiveProjectId = getEffectiveProjectId(projectId);
-  const url = new URL(`${GITLAB_API_URL}/projects/${encodeURIComponent(effectiveProjectId)}/fork`);
+  const url = new URL(
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(effectiveProjectId)}/fork`,
+  );
 
   if (namespace) {
     url.searchParams.append("namespace", namespace);
@@ -965,12 +990,12 @@ async function forkProject(projectId: string, namespace?: string): Promise<GitLa
  */
 async function createBranch(
   projectId: string,
-  options: z.infer<typeof CreateBranchOptionsSchema>
+  options: z.infer<typeof CreateBranchOptionsSchema>,
 ): Promise<GitLabReference> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const effectiveProjectId = getEffectiveProjectId(projectId);
   const url = new URL(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(effectiveProjectId)}/repository/branches`
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(effectiveProjectId)}/repository/branches`,
   );
 
   const response = await fetch(url.toString(), {
@@ -996,7 +1021,9 @@ async function createBranch(
 async function getDefaultBranchRef(projectId: string): Promise<string> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const effectiveProjectId = getEffectiveProjectId(projectId);
-  const url = new URL(`${GITLAB_API_URL}/projects/${encodeURIComponent(effectiveProjectId)}`);
+  const url = new URL(
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(effectiveProjectId)}`,
+  );
 
   const response = await fetch(url.toString(), {
     ...DEFAULT_FETCH_CONFIG,
@@ -1019,7 +1046,7 @@ async function getDefaultBranchRef(projectId: string): Promise<string> {
 async function getFileContents(
   projectId: string,
   filePath: string,
-  ref?: string
+  ref?: string,
 ): Promise<GitLabContent> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const effectiveProjectId = getEffectiveProjectId(projectId);
@@ -1031,7 +1058,7 @@ async function getFileContents(
   }
 
   const url = new URL(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(effectiveProjectId)}/repository/files/${encodedPath}`
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(effectiveProjectId)}/repository/files/${encodedPath}`,
   );
 
   url.searchParams.append("ref", ref);
@@ -1051,7 +1078,9 @@ async function getFileContents(
 
   // Base64로 인코딩된 파일 내용을 UTF-8로 디코딩
   if (!Array.isArray(parsedData) && parsedData.content) {
-    parsedData.content = Buffer.from(parsedData.content, "base64").toString("utf8");
+    parsedData.content = Buffer.from(parsedData.content, "base64").toString(
+      "utf8",
+    );
     parsedData.encoding = "utf8";
   }
 
@@ -1068,11 +1097,13 @@ async function getFileContents(
  */
 async function createIssue(
   projectId: string,
-  options: z.infer<typeof CreateIssueOptionsSchema>
+  options: z.infer<typeof CreateIssueOptionsSchema>,
 ): Promise<GitLabIssue> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const effectiveProjectId = getEffectiveProjectId(projectId);
-  const url = new URL(`${GITLAB_API_URL}/projects/${encodeURIComponent(effectiveProjectId)}/issues`);
+  const url = new URL(
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(effectiveProjectId)}/issues`,
+  );
 
   const response = await fetch(url.toString(), {
     ...DEFAULT_FETCH_CONFIG,
@@ -1107,13 +1138,15 @@ async function createIssue(
  */
 async function listIssues(
   projectId?: string,
-  options: Omit<z.infer<typeof ListIssuesSchema>, "project_id"> = {}
+  options: Omit<z.infer<typeof ListIssuesSchema>, "project_id"> = {},
 ): Promise<GitLabIssue[]> {
   let url: URL;
   if (projectId) {
     projectId = decodeURIComponent(projectId); // Decode project ID
     const effectiveProjectId = getEffectiveProjectId(projectId);
-    url = new URL(`${GITLAB_API_URL}/projects/${encodeURIComponent(effectiveProjectId)}/issues`);
+    url = new URL(
+      `${GITLAB_API_URL}/projects/${encodeURIComponent(effectiveProjectId)}/issues`,
+    );
   } else {
     url = new URL(`${GITLAB_API_URL}/issues`);
   }
@@ -1125,7 +1158,7 @@ async function listIssues(
       if (keys.includes(key)) {
         if (Array.isArray(value)) {
           // Handle array of labels
-          value.forEach(label => {
+          value.forEach((label) => {
             url.searchParams.append(`${key}[]`, label.toString());
           });
         } else if (value) {
@@ -1155,10 +1188,12 @@ async function listIssues(
  */
 async function listMergeRequests(
   projectId: string,
-  options: Omit<z.infer<typeof ListMergeRequestsSchema>, "project_id"> = {}
+  options: Omit<z.infer<typeof ListMergeRequestsSchema>, "project_id"> = {},
 ): Promise<GitLabMergeRequest[]> {
   projectId = decodeURIComponent(projectId); // Decode project ID
-  const url = new URL(`${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/merge_requests`);
+  const url = new URL(
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/merge_requests`,
+  );
 
   // Add all query parameters
   Object.entries(options).forEach(([key, value]) => {
@@ -1189,10 +1224,13 @@ async function listMergeRequests(
  * @param {number} issueIid - The internal ID of the project issue
  * @returns {Promise<GitLabIssue>} The issue
  */
-async function getIssue(projectId: string, issueIid: number | string): Promise<GitLabIssue> {
+async function getIssue(
+  projectId: string,
+  issueIid: number | string,
+): Promise<GitLabIssue> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/issues/${issueIid}`
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/issues/${issueIid}`,
   );
 
   const response = await fetch(url.toString(), {
@@ -1216,11 +1254,11 @@ async function getIssue(projectId: string, issueIid: number | string): Promise<G
 async function updateIssue(
   projectId: string,
   issueIid: number | string,
-  options: Omit<z.infer<typeof UpdateIssueSchema>, "project_id" | "issue_iid">
+  options: Omit<z.infer<typeof UpdateIssueSchema>, "project_id" | "issue_iid">,
 ): Promise<GitLabIssue> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/issues/${issueIid}`
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/issues/${issueIid}`,
   );
 
   // Convert labels array to comma-separated string if present
@@ -1248,10 +1286,13 @@ async function updateIssue(
  * @param {number} issueIid - The internal ID of the project issue
  * @returns {Promise<void>}
  */
-async function deleteIssue(projectId: string, issueIid: number | string): Promise<void> {
+async function deleteIssue(
+  projectId: string,
+  issueIid: number | string,
+): Promise<void> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/issues/${issueIid}`
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/issues/${issueIid}`,
   );
 
   const response = await fetch(url.toString(), {
@@ -1272,11 +1313,11 @@ async function deleteIssue(projectId: string, issueIid: number | string): Promis
  */
 async function listIssueLinks(
   projectId: string,
-  issueIid: number | string
+  issueIid: number | string,
 ): Promise<GitLabIssueWithLinkDetails[]> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/issues/${issueIid}/links`
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/issues/${issueIid}/links`,
   );
 
   const response = await fetch(url.toString(), {
@@ -1300,13 +1341,13 @@ async function listIssueLinks(
 async function getIssueLink(
   projectId: string,
   issueIid: number | string,
-  issueLinkId: number | string
+  issueLinkId: number | string,
 ): Promise<GitLabIssueLink> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
     `${GITLAB_API_URL}/projects/${encodeURIComponent(
-      getEffectiveProjectId(projectId)
-    )}/issues/${issueIid}/links/${issueLinkId}`
+      getEffectiveProjectId(projectId),
+    )}/issues/${issueIid}/links/${issueLinkId}`,
   );
 
   const response = await fetch(url.toString(), {
@@ -1334,12 +1375,12 @@ async function createIssueLink(
   issueIid: number | string,
   targetProjectId: string,
   targetIssueIid: number | string,
-  linkType: "relates_to" | "blocks" | "is_blocked_by" = "relates_to"
+  linkType: "relates_to" | "blocks" | "is_blocked_by" = "relates_to",
 ): Promise<GitLabIssueLink> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   targetProjectId = decodeURIComponent(targetProjectId); // Decode target project ID as well
   const url = new URL(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/issues/${issueIid}/links`
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/issues/${issueIid}/links`,
   );
 
   const response = await fetch(url.toString(), {
@@ -1369,13 +1410,13 @@ async function createIssueLink(
 async function deleteIssueLink(
   projectId: string,
   issueIid: number | string,
-  issueLinkId: number | string
+  issueLinkId: number | string,
 ): Promise<void> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
     `${GITLAB_API_URL}/projects/${encodeURIComponent(
-      getEffectiveProjectId(projectId)
-    )}/issues/${issueIid}/links/${issueLinkId}`
+      getEffectiveProjectId(projectId),
+    )}/issues/${issueIid}/links/${issueLinkId}`,
   );
 
   const response = await fetch(url.toString(), {
@@ -1396,10 +1437,12 @@ async function deleteIssueLink(
  */
 async function createMergeRequest(
   projectId: string,
-  options: z.infer<typeof CreateMergeRequestOptionsSchema>
+  options: z.infer<typeof CreateMergeRequestOptionsSchema>,
 ): Promise<GitLabMergeRequest> {
   projectId = decodeURIComponent(projectId); // Decode project ID
-  const url = new URL(`${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/merge_requests`);
+  const url = new URL(
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/merge_requests`,
+  );
 
   const response = await fetch(url.toString(), {
     ...DEFAULT_FETCH_CONFIG,
@@ -1427,7 +1470,9 @@ async function createMergeRequest(
 
   if (!response.ok) {
     const errorBody = await response.text();
-    throw new Error(`GitLab API error: ${response.status} ${response.statusText}\n${errorBody}`);
+    throw new Error(
+      `GitLab API error: ${response.status} ${response.statusText}\n${errorBody}`,
+    );
   }
 
   const data = await response.json();
@@ -1448,13 +1493,13 @@ async function listDiscussions(
   projectId: string,
   resourceType: "issues" | "merge_requests",
   resourceIid: number | string,
-  options: PaginationOptions = {}
+  options: PaginationOptions = {},
 ): Promise<PaginatedDiscussionsResponse> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
     `${GITLAB_API_URL}/projects/${encodeURIComponent(
-      getEffectiveProjectId(projectId)
-    )}/${resourceType}/${resourceIid}/discussions`
+      getEffectiveProjectId(projectId),
+    )}/${resourceType}/${resourceIid}/discussions`,
   );
 
   // Add query parameters for pagination and sorting
@@ -1477,14 +1522,18 @@ async function listDiscussions(
     x_next_page: response.headers.get("x-next-page")
       ? parseInt(response.headers.get("x-next-page")!)
       : null,
-    x_page: response.headers.get("x-page") ? parseInt(response.headers.get("x-page")!) : undefined,
+    x_page: response.headers.get("x-page")
+      ? parseInt(response.headers.get("x-page")!)
+      : undefined,
     x_per_page: response.headers.get("x-per-page")
       ? parseInt(response.headers.get("x-per-page")!)
       : undefined,
     x_prev_page: response.headers.get("x-prev-page")
       ? parseInt(response.headers.get("x-prev-page")!)
       : null,
-    x_total: response.headers.get("x-total") ? parseInt(response.headers.get("x-total")!) : null,
+    x_total: response.headers.get("x-total")
+      ? parseInt(response.headers.get("x-total")!)
+      : null,
     x_total_pages: response.headers.get("x-total-pages")
       ? parseInt(response.headers.get("x-total-pages")!)
       : null,
@@ -1508,7 +1557,7 @@ async function listDiscussions(
 async function listMergeRequestDiscussions(
   projectId: string,
   mergeRequestIid: number | string,
-  options: PaginationOptions = {}
+  options: PaginationOptions = {},
 ): Promise<PaginatedDiscussionsResponse> {
   return listDiscussions(projectId, "merge_requests", mergeRequestIid, options);
 }
@@ -1524,7 +1573,7 @@ async function listMergeRequestDiscussions(
 async function listIssueDiscussions(
   projectId: string,
   issueIid: number | string,
-  options: PaginationOptions = {}
+  options: PaginationOptions = {},
 ): Promise<PaginatedDiscussionsResponse> {
   return listDiscussions(projectId, "issues", issueIid, options);
 }
@@ -1547,13 +1596,13 @@ async function updateMergeRequestNote(
   discussionId: string,
   noteId: number | string,
   body?: string,
-  resolved?: boolean
+  resolved?: boolean,
 ): Promise<GitLabDiscussionNote> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
     `${GITLAB_API_URL}/projects/${encodeURIComponent(
-      getEffectiveProjectId(projectId)
-    )}/merge_requests/${mergeRequestIid}/discussions/${discussionId}/notes/${noteId}`
+      getEffectiveProjectId(projectId),
+    )}/merge_requests/${mergeRequestIid}/discussions/${discussionId}/notes/${noteId}`,
   );
 
   // Only one of body or resolved can be sent according to GitLab API
@@ -1589,13 +1638,13 @@ async function updateIssueNote(
   issueIid: number | string,
   discussionId: string,
   noteId: number | string,
-  body: string
+  body: string,
 ): Promise<GitLabDiscussionNote> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
     `${GITLAB_API_URL}/projects/${encodeURIComponent(
-      getEffectiveProjectId(projectId)
-    )}/issues/${issueIid}/discussions/${discussionId}/notes/${noteId}`
+      getEffectiveProjectId(projectId),
+    )}/issues/${issueIid}/discussions/${discussionId}/notes/${noteId}`,
   );
 
   const payload = { body };
@@ -1625,13 +1674,13 @@ async function createIssueNote(
   issueIid: number | string,
   discussionId: string,
   body: string,
-  createdAt?: string
+  createdAt?: string,
 ): Promise<GitLabDiscussionNote> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
     `${GITLAB_API_URL}/projects/${encodeURIComponent(
-      getEffectiveProjectId(projectId)
-    )}/issues/${issueIid}/discussions/${discussionId}/notes`
+      getEffectiveProjectId(projectId),
+    )}/issues/${issueIid}/discussions/${discussionId}/notes`,
   );
 
   const payload: { body: string; created_at?: string } = { body };
@@ -1666,13 +1715,13 @@ async function createMergeRequestNote(
   mergeRequestIid: number | string,
   discussionId: string,
   body: string,
-  createdAt?: string
+  createdAt?: string,
 ): Promise<GitLabDiscussionNote> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
     `${GITLAB_API_URL}/projects/${encodeURIComponent(
-      getEffectiveProjectId(projectId)
-    )}/merge_requests/${mergeRequestIid}/discussions/${discussionId}/notes`
+      getEffectiveProjectId(projectId),
+    )}/merge_requests/${mergeRequestIid}/discussions/${discussionId}/notes`,
   );
 
   const payload: { body: string; created_at?: string } = { body };
@@ -1711,12 +1760,12 @@ async function createOrUpdateFile(
   branch: string,
   previousPath?: string,
   last_commit_id?: string,
-  commit_id?: string
+  commit_id?: string,
 ): Promise<GitLabCreateUpdateFileResponse> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const encodedPath = encodeURIComponent(filePath);
   const url = new URL(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/repository/files/${encodedPath}`
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/repository/files/${encodedPath}`,
   );
 
   const body: Record<string, any> = {
@@ -1771,7 +1820,9 @@ async function createOrUpdateFile(
 
   if (!response.ok) {
     const errorBody = await response.text();
-    throw new Error(`GitLab API error: ${response.status} ${response.statusText}\n${errorBody}`);
+    throw new Error(
+      `GitLab API error: ${response.status} ${response.statusText}\n${errorBody}`,
+    );
   }
 
   const data = await response.json();
@@ -1790,11 +1841,11 @@ async function createOrUpdateFile(
 async function createTree(
   projectId: string,
   files: FileOperation[],
-  ref?: string
+  ref?: string,
 ): Promise<GitLabTree> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/repository/tree`
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/repository/tree`,
   );
 
   if (ref) {
@@ -1805,7 +1856,7 @@ async function createTree(
     ...DEFAULT_FETCH_CONFIG,
     method: "POST",
     body: JSON.stringify({
-      files: files.map(file => ({
+      files: files.map((file) => ({
         file_path: file.path,
         content: file.content,
         encoding: "text",
@@ -1820,7 +1871,9 @@ async function createTree(
 
   if (!response.ok) {
     const errorBody = await response.text();
-    throw new Error(`GitLab API error: ${response.status} ${response.statusText}\n${errorBody}`);
+    throw new Error(
+      `GitLab API error: ${response.status} ${response.statusText}\n${errorBody}`,
+    );
   }
 
   const data = await response.json();
@@ -1841,11 +1894,11 @@ async function createCommit(
   projectId: string,
   message: string,
   branch: string,
-  actions: FileOperation[]
+  actions: FileOperation[],
 ): Promise<GitLabCommit> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/repository/commits`
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/repository/commits`,
   );
 
   const response = await fetch(url.toString(), {
@@ -1854,7 +1907,7 @@ async function createCommit(
     body: JSON.stringify({
       branch,
       commit_message: message,
-      actions: actions.map(action => ({
+      actions: actions.map((action) => ({
         action: "create",
         file_path: action.path,
         content: action.content,
@@ -1870,7 +1923,9 @@ async function createCommit(
 
   if (!response.ok) {
     const errorBody = await response.text();
-    throw new Error(`GitLab API error: ${response.status} ${response.statusText}\n${errorBody}`);
+    throw new Error(
+      `GitLab API error: ${response.status} ${response.statusText}\n${errorBody}`,
+    );
   }
 
   const data = await response.json();
@@ -1889,7 +1944,7 @@ async function createCommit(
 async function searchProjects(
   query: string,
   page: number = 1,
-  perPage: number = 20
+  perPage: number = 20,
 ): Promise<GitLabSearchResponse> {
   const url = new URL(`${GITLAB_API_URL}/projects`);
   url.searchParams.append("search", query);
@@ -1904,7 +1959,9 @@ async function searchProjects(
 
   if (!response.ok) {
     const errorBody = await response.text();
-    throw new Error(`GitLab API error: ${response.status} ${response.statusText}\n${errorBody}`);
+    throw new Error(
+      `GitLab API error: ${response.status} ${response.statusText}\n${errorBody}`,
+    );
   }
 
   const projects = (await response.json()) as GitLabRepository[];
@@ -1930,7 +1987,7 @@ async function searchProjects(
  * @returns {Promise<GitLabRepository>} The created repository
  */
 async function createRepository(
-  options: z.infer<typeof CreateRepositoryOptionsSchema>
+  options: z.infer<typeof CreateRepositoryOptionsSchema>,
 ): Promise<GitLabRepository> {
   const response = await fetch(`${GITLAB_API_URL}/projects`, {
     ...DEFAULT_FETCH_CONFIG,
@@ -1947,7 +2004,9 @@ async function createRepository(
 
   if (!response.ok) {
     const errorBody = await response.text();
-    throw new Error(`GitLab API error: ${response.status} ${response.statusText}\n${errorBody}`);
+    throw new Error(
+      `GitLab API error: ${response.status} ${response.statusText}\n${errorBody}`,
+    );
   }
 
   const data = await response.json();
@@ -1966,7 +2025,7 @@ async function createRepository(
 async function getMergeRequest(
   projectId: string,
   mergeRequestIid?: number | string,
-  branchName?: string
+  branchName?: string,
 ): Promise<GitLabMergeRequest> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   let url: URL;
@@ -1974,14 +2033,14 @@ async function getMergeRequest(
   if (mergeRequestIid) {
     url = new URL(
       `${GITLAB_API_URL}/projects/${encodeURIComponent(
-        getEffectiveProjectId(projectId)
-      )}/merge_requests/${mergeRequestIid}`
+        getEffectiveProjectId(projectId),
+      )}/merge_requests/${mergeRequestIid}`,
     );
   } else if (branchName) {
     url = new URL(
       `${GITLAB_API_URL}/projects/${encodeURIComponent(
-        getEffectiveProjectId(projectId)
-      )}/merge_requests?source_branch=${encodeURIComponent(branchName)}`
+        getEffectiveProjectId(projectId),
+      )}/merge_requests?source_branch=${encodeURIComponent(branchName)}`,
     );
   } else {
     throw new Error("Either mergeRequestIid or branchName must be provided");
@@ -2017,7 +2076,7 @@ async function getMergeRequestDiffs(
   projectId: string,
   mergeRequestIid?: number | string,
   branchName?: string,
-  view?: "inline" | "parallel"
+  view?: "inline" | "parallel",
 ): Promise<GitLabMergeRequestDiff[]> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   if (!mergeRequestIid && !branchName) {
@@ -2025,14 +2084,18 @@ async function getMergeRequestDiffs(
   }
 
   if (branchName && !mergeRequestIid) {
-    const mergeRequest = await getMergeRequest(projectId, undefined, branchName);
+    const mergeRequest = await getMergeRequest(
+      projectId,
+      undefined,
+      branchName,
+    );
     mergeRequestIid = mergeRequest.iid;
   }
 
   const url = new URL(
     `${GITLAB_API_URL}/projects/${encodeURIComponent(
-      getEffectiveProjectId(projectId)
-    )}/merge_requests/${mergeRequestIid}/changes`
+      getEffectiveProjectId(projectId),
+    )}/merge_requests/${mergeRequestIid}/changes`,
   );
 
   if (view) {
@@ -2064,7 +2127,7 @@ async function listMergeRequestDiffs(
   branchName?: string,
   page?: number,
   perPage?: number,
-  unidiff?: boolean
+  unidiff?: boolean,
 ): Promise<any> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   if (!mergeRequestIid && !branchName) {
@@ -2072,14 +2135,18 @@ async function listMergeRequestDiffs(
   }
 
   if (branchName && !mergeRequestIid) {
-    const mergeRequest = await getMergeRequest(projectId, undefined, branchName);
+    const mergeRequest = await getMergeRequest(
+      projectId,
+      undefined,
+      branchName,
+    );
     mergeRequestIid = mergeRequest.iid;
   }
 
   const url = new URL(
     `${GITLAB_API_URL}/projects/${encodeURIComponent(
-      getEffectiveProjectId(projectId)
-    )}/merge_requests/${mergeRequestIid}/diffs`
+      getEffectiveProjectId(projectId),
+    )}/merge_requests/${mergeRequestIid}/diffs`,
   );
 
   if (page) {
@@ -2115,12 +2182,12 @@ async function getBranchDiffs(
   projectId: string,
   from: string,
   to: string,
-  straight?: boolean
+  straight?: boolean,
 ): Promise<GitLabCompareResult> {
   projectId = decodeURIComponent(projectId); // Decode project ID
 
   const url = new URL(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/repository/compare`
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/repository/compare`,
   );
 
   url.searchParams.append("from", from);
@@ -2136,7 +2203,9 @@ async function getBranchDiffs(
 
   if (!response.ok) {
     const errorBody = await response.text();
-    throw new Error(`GitLab API error: ${response.status} ${response.statusText}\n${errorBody}`);
+    throw new Error(
+      `GitLab API error: ${response.status} ${response.statusText}\n${errorBody}`,
+    );
   }
 
   const data = await response.json();
@@ -2160,7 +2229,7 @@ async function updateMergeRequest(
     "project_id" | "merge_request_iid" | "source_branch"
   >,
   mergeRequestIid?: number | string,
-  branchName?: string
+  branchName?: string,
 ): Promise<GitLabMergeRequest> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   if (!mergeRequestIid && !branchName) {
@@ -2168,12 +2237,16 @@ async function updateMergeRequest(
   }
 
   if (branchName && !mergeRequestIid) {
-    const mergeRequest = await getMergeRequest(projectId, undefined, branchName);
+    const mergeRequest = await getMergeRequest(
+      projectId,
+      undefined,
+      branchName,
+    );
     mergeRequestIid = mergeRequest.iid;
   }
 
   const url = new URL(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/merge_requests/${mergeRequestIid}`
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/merge_requests/${mergeRequestIid}`,
   );
 
   const response = await fetch(url.toString(), {
@@ -2201,14 +2274,14 @@ async function createNote(
   projectId: string,
   noteableType: "issue" | "merge_request", // 'issue' 또는 'merge_request' 타입 명시
   noteableIid: number | string,
-  body: string
+  body: string,
 ): Promise<any> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   // ⚙️ 응답 타입은 GitLab API 문서에 따라 조정 가능
   const url = new URL(
     `${GITLAB_API_URL}/projects/${encodeURIComponent(
-      getEffectiveProjectId(projectId)
-    )}/${noteableType}s/${noteableIid}/notes` // Using plural form (issues/merge_requests) as per GitLab API documentation
+      getEffectiveProjectId(projectId),
+    )}/${noteableType}s/${noteableIid}/notes`, // Using plural form (issues/merge_requests) as per GitLab API documentation
   );
 
   const response = await fetch(url.toString(), {
@@ -2219,7 +2292,9 @@ async function createNote(
 
   if (!response.ok) {
     const errorText = await response.text();
-    throw new Error(`GitLab API error: ${response.status} ${response.statusText}\n${errorText}`);
+    throw new Error(
+      `GitLab API error: ${response.status} ${response.statusText}\n${errorText}`,
+    );
   }
 
   return await response.json();
@@ -2247,13 +2322,13 @@ async function createMergeRequestThread(
   mergeRequestIid: number | string,
   body: string,
   position?: MergeRequestThreadPosition,
-  createdAt?: string
+  createdAt?: string,
 ): Promise<GitLabDiscussion> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
     `${GITLAB_API_URL}/projects/${encodeURIComponent(
-      getEffectiveProjectId(projectId)
-    )}/merge_requests/${mergeRequestIid}/discussions`
+      getEffectiveProjectId(projectId),
+    )}/merge_requests/${mergeRequestIid}/discussions`,
   );
 
   const payload: Record<string, any> = { body };
@@ -2345,9 +2420,11 @@ async function getNamespace(id: string): Promise<GitLabNamespace> {
  */
 async function verifyNamespaceExistence(
   namespacePath: string,
-  parentId?: number
+  parentId?: number,
 ): Promise<GitLabNamespaceExistsResponse> {
-  const url = new URL(`${GITLAB_API_URL}/namespaces/${encodeURIComponent(namespacePath)}/exists`);
+  const url = new URL(
+    `${GITLAB_API_URL}/namespaces/${encodeURIComponent(namespacePath)}/exists`,
+  );
 
   if (parentId) {
     url.searchParams.append("parent_id", parentId.toString());
@@ -2379,10 +2456,12 @@ async function getProject(
     license?: boolean;
     statistics?: boolean;
     with_custom_attributes?: boolean;
-  } = {}
+  } = {},
 ): Promise<GitLabProject> {
   projectId = decodeURIComponent(projectId); // Decode project ID
-  const url = new URL(`${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}`);
+  const url = new URL(
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}`,
+  );
 
   if (options.license) {
     url.searchParams.append("license", "true");
@@ -2413,7 +2492,7 @@ async function getProject(
  * @returns {Promise<GitLabProject[]>} List of projects
  */
 async function listProjects(
-  options: z.infer<typeof ListProjectsSchema> = {}
+  options: z.infer<typeof ListProjectsSchema> = {},
 ): Promise<GitLabProject[]> {
   // Construct the query parameters
   const params = new URLSearchParams();
@@ -2428,9 +2507,12 @@ async function listProjects(
   }
 
   // Make the API request
-  const response = await fetch(`${GITLAB_API_URL}/projects?${params.toString()}`, {
-    ...DEFAULT_FETCH_CONFIG,
-  });
+  const response = await fetch(
+    `${GITLAB_API_URL}/projects?${params.toString()}`,
+    {
+      ...DEFAULT_FETCH_CONFIG,
+    },
+  );
 
   // Handle errors
   await handleGitLabError(response);
@@ -2449,11 +2531,13 @@ async function listProjects(
  */
 async function listLabels(
   projectId: string,
-  options: Omit<z.infer<typeof ListLabelsSchema>, "project_id"> = {}
+  options: Omit<z.infer<typeof ListLabelsSchema>, "project_id"> = {},
 ): Promise<GitLabLabel[]> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   // Construct the URL with project path
-  const url = new URL(`${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/labels`);
+  const url = new URL(
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/labels`,
+  );
 
   // Add query parameters
   Object.entries(options).forEach(([key, value]) => {
@@ -2490,18 +2574,21 @@ async function listLabels(
 async function getLabel(
   projectId: string,
   labelId: number | string,
-  includeAncestorGroups?: boolean
+  includeAncestorGroups?: boolean,
 ): Promise<GitLabLabel> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
     `${GITLAB_API_URL}/projects/${encodeURIComponent(
-      getEffectiveProjectId(projectId)
-    )}/labels/${encodeURIComponent(String(labelId))}`
+      getEffectiveProjectId(projectId),
+    )}/labels/${encodeURIComponent(String(labelId))}`,
   );
 
   // Add query parameters
   if (includeAncestorGroups !== undefined) {
-    url.searchParams.append("include_ancestor_groups", includeAncestorGroups ? "true" : "false");
+    url.searchParams.append(
+      "include_ancestor_groups",
+      includeAncestorGroups ? "true" : "false",
+    );
   }
 
   // Make the API request
@@ -2526,7 +2613,7 @@ async function getLabel(
  */
 async function createLabel(
   projectId: string,
-  options: Omit<z.infer<typeof CreateLabelSchema>, "project_id">
+  options: Omit<z.infer<typeof CreateLabelSchema>, "project_id">,
 ): Promise<GitLabLabel> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   // Make the API request
@@ -2536,7 +2623,7 @@ async function createLabel(
       ...DEFAULT_FETCH_CONFIG,
       method: "POST",
       body: JSON.stringify(options),
-    }
+    },
   );
 
   // Handle errors
@@ -2558,19 +2645,19 @@ async function createLabel(
 async function updateLabel(
   projectId: string,
   labelId: number | string,
-  options: Omit<z.infer<typeof UpdateLabelSchema>, "project_id" | "label_id">
+  options: Omit<z.infer<typeof UpdateLabelSchema>, "project_id" | "label_id">,
 ): Promise<GitLabLabel> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   // Make the API request
   const response = await fetch(
     `${GITLAB_API_URL}/projects/${encodeURIComponent(
-      getEffectiveProjectId(projectId)
+      getEffectiveProjectId(projectId),
     )}/labels/${encodeURIComponent(String(labelId))}`,
     {
       ...DEFAULT_FETCH_CONFIG,
       method: "PUT",
       body: JSON.stringify(options),
-    }
+    },
   );
 
   // Handle errors
@@ -2587,17 +2674,20 @@ async function updateLabel(
  * @param projectId The ID or URL-encoded path of the project
  * @param labelId The ID or name of the label to delete
  */
-async function deleteLabel(projectId: string, labelId: number | string): Promise<void> {
+async function deleteLabel(
+  projectId: string,
+  labelId: number | string,
+): Promise<void> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   // Make the API request
   const response = await fetch(
     `${GITLAB_API_URL}/projects/${encodeURIComponent(
-      getEffectiveProjectId(projectId)
+      getEffectiveProjectId(projectId),
     )}/labels/${encodeURIComponent(String(labelId))}`,
     {
       ...DEFAULT_FETCH_CONFIG,
       method: "DELETE",
-    }
+    },
   );
 
   // Handle errors
@@ -2611,38 +2701,59 @@ async function deleteLabel(projectId: string, labelId: number | string): Promise
  * @returns {Promise<GitLabProject[]>} Array of projects in the group
  */
 async function listGroupProjects(
-  options: z.infer<typeof ListGroupProjectsSchema>
+  options: z.infer<typeof ListGroupProjectsSchema>,
 ): Promise<GitLabProject[]> {
-  const url = new URL(`${GITLAB_API_URL}/groups/${encodeURIComponent(options.group_id)}/projects`);
+  const url = new URL(
+    `${GITLAB_API_URL}/groups/${encodeURIComponent(options.group_id)}/projects`,
+  );
 
   // Add optional parameters to URL
-  if (options.include_subgroups) url.searchParams.append("include_subgroups", "true");
+  if (options.include_subgroups)
+    url.searchParams.append("include_subgroups", "true");
   if (options.search) url.searchParams.append("search", options.search);
   if (options.order_by) url.searchParams.append("order_by", options.order_by);
   if (options.sort) url.searchParams.append("sort", options.sort);
   if (options.page) url.searchParams.append("page", options.page.toString());
-  if (options.per_page) url.searchParams.append("per_page", options.per_page.toString());
+  if (options.per_page)
+    url.searchParams.append("per_page", options.per_page.toString());
   if (options.archived !== undefined)
     url.searchParams.append("archived", options.archived.toString());
-  if (options.visibility) url.searchParams.append("visibility", options.visibility);
+  if (options.visibility)
+    url.searchParams.append("visibility", options.visibility);
   if (options.with_issues_enabled !== undefined)
-    url.searchParams.append("with_issues_enabled", options.with_issues_enabled.toString());
+    url.searchParams.append(
+      "with_issues_enabled",
+      options.with_issues_enabled.toString(),
+    );
   if (options.with_merge_requests_enabled !== undefined)
     url.searchParams.append(
       "with_merge_requests_enabled",
-      options.with_merge_requests_enabled.toString()
+      options.with_merge_requests_enabled.toString(),
     );
   if (options.min_access_level !== undefined)
-    url.searchParams.append("min_access_level", options.min_access_level.toString());
+    url.searchParams.append(
+      "min_access_level",
+      options.min_access_level.toString(),
+    );
   if (options.with_programming_language)
-    url.searchParams.append("with_programming_language", options.with_programming_language);
-  if (options.starred !== undefined) url.searchParams.append("starred", options.starred.toString());
+    url.searchParams.append(
+      "with_programming_language",
+      options.with_programming_language,
+    );
+  if (options.starred !== undefined)
+    url.searchParams.append("starred", options.starred.toString());
   if (options.statistics !== undefined)
     url.searchParams.append("statistics", options.statistics.toString());
   if (options.with_custom_attributes !== undefined)
-    url.searchParams.append("with_custom_attributes", options.with_custom_attributes.toString());
+    url.searchParams.append(
+      "with_custom_attributes",
+      options.with_custom_attributes.toString(),
+    );
   if (options.with_security_reports !== undefined)
-    url.searchParams.append("with_security_reports", options.with_security_reports.toString());
+    url.searchParams.append(
+      "with_security_reports",
+      options.with_security_reports.toString(),
+    );
 
   const response = await fetch(url.toString(), {
     ...DEFAULT_FETCH_CONFIG,
@@ -2659,12 +2770,15 @@ async function listGroupProjects(
  */
 async function listWikiPages(
   projectId: string,
-  options: Omit<ListWikiPagesOptions, "project_id"> = {}
+  options: Omit<ListWikiPagesOptions, "project_id"> = {},
 ): Promise<GitLabWikiPage[]> {
   projectId = decodeURIComponent(projectId); // Decode project ID
-  const url = new URL(`${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/wikis`);
+  const url = new URL(
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/wikis`,
+  );
   if (options.page) url.searchParams.append("page", options.page.toString());
-  if (options.per_page) url.searchParams.append("per_page", options.per_page.toString());
+  if (options.per_page)
+    url.searchParams.append("per_page", options.per_page.toString());
   if (options.with_content)
     url.searchParams.append("with_content", options.with_content.toString());
   const response = await fetch(url.toString(), {
@@ -2678,11 +2792,14 @@ async function listWikiPages(
 /**
  * Get a specific wiki page
  */
-async function getWikiPage(projectId: string, slug: string): Promise<GitLabWikiPage> {
+async function getWikiPage(
+  projectId: string,
+  slug: string,
+): Promise<GitLabWikiPage> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const response = await fetch(
     `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/wikis/${encodeURIComponent(slug)}`,
-    { ...DEFAULT_FETCH_CONFIG }
+    { ...DEFAULT_FETCH_CONFIG },
   );
   await handleGitLabError(response);
   const data = await response.json();
@@ -2696,7 +2813,7 @@ async function createWikiPage(
   projectId: string,
   title: string,
   content: string,
-  format?: string
+  format?: string,
 ): Promise<GitLabWikiPage> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const body: Record<string, any> = { title, content };
@@ -2707,7 +2824,7 @@ async function createWikiPage(
       ...DEFAULT_FETCH_CONFIG,
       method: "POST",
       body: JSON.stringify(body),
-    }
+    },
   );
   await handleGitLabError(response);
   const data = await response.json();
@@ -2722,7 +2839,7 @@ async function updateWikiPage(
   slug: string,
   title?: string,
   content?: string,
-  format?: string
+  format?: string,
 ): Promise<GitLabWikiPage> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const body: Record<string, any> = {};
@@ -2735,7 +2852,7 @@ async function updateWikiPage(
       ...DEFAULT_FETCH_CONFIG,
       method: "PUT",
       body: JSON.stringify(body),
-    }
+    },
   );
   await handleGitLabError(response);
   const data = await response.json();
@@ -2752,7 +2869,7 @@ async function deleteWikiPage(projectId: string, slug: string): Promise<void> {
     {
       ...DEFAULT_FETCH_CONFIG,
       method: "DELETE",
-    }
+    },
   );
   await handleGitLabError(response);
 }
@@ -2766,10 +2883,12 @@ async function deleteWikiPage(projectId: string, slug: string): Promise<void> {
  */
 async function listPipelines(
   projectId: string,
-  options: Omit<ListPipelinesOptions, "project_id"> = {}
+  options: Omit<ListPipelinesOptions, "project_id"> = {},
 ): Promise<GitLabPipeline[]> {
   projectId = decodeURIComponent(projectId); // Decode project ID
-  const url = new URL(`${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/pipelines`);
+  const url = new URL(
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/pipelines`,
+  );
 
   // Add all query parameters
   Object.entries(options).forEach(([key, value]) => {
@@ -2794,10 +2913,13 @@ async function listPipelines(
  * @param {number} pipelineId - The ID of the pipeline
  * @returns {Promise<GitLabPipeline>} Pipeline details
  */
-async function getPipeline(projectId: string, pipelineId: number | string): Promise<GitLabPipeline> {
+async function getPipeline(
+  projectId: string,
+  pipelineId: number | string,
+): Promise<GitLabPipeline> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/pipelines/${pipelineId}`
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/pipelines/${pipelineId}`,
   );
 
   const response = await fetch(url.toString(), {
@@ -2824,11 +2946,11 @@ async function getPipeline(projectId: string, pipelineId: number | string): Prom
 async function listPipelineJobs(
   projectId: string,
   pipelineId: number | string,
-  options: Omit<ListPipelineJobsOptions, "project_id" | "pipeline_id"> = {}
+  options: Omit<ListPipelineJobsOptions, "project_id" | "pipeline_id"> = {},
 ): Promise<GitLabPipelineJob[]> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/pipelines/${pipelineId}/jobs`
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/pipelines/${pipelineId}/jobs`,
   );
 
   // Add all query parameters
@@ -2854,9 +2976,60 @@ async function listPipelineJobs(
   const data = await response.json();
   return z.array(GitLabPipelineJobSchema).parse(data);
 }
-async function getPipelineJob(projectId: string, jobId: number | string): Promise<GitLabPipelineJob> {
+
+/**
+ * List all trigger jobs (bridges) in a specific pipeline
+ *
+ * @param {string} projectId - The ID or URL-encoded path of the project
+ * @param {number} pipelineId - The ID of the pipeline
+ * @param {Object} options - Options for filtering trigger jobs
+ * @returns {Promise<GitLabPipelineTriggerJob[]>} List of pipeline trigger jobs
+ */
+async function listPipelineTriggerJobs(
+  projectId: string,
+  pipelineId: number | string,
+  options: Omit<
+    ListPipelineTriggerJobsOptions,
+    "project_id" | "pipeline_id"
+  > = {},
+): Promise<GitLabPipelineTriggerJob[]> {
   projectId = decodeURIComponent(projectId); // Decode project ID
-  const url = new URL(`${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/jobs/${jobId}`);
+  const url = new URL(
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/pipelines/${pipelineId}/bridges`,
+  );
+
+  // Add all query parameters
+  Object.entries(options).forEach(([key, value]) => {
+    if (value !== undefined) {
+      if (typeof value === "boolean") {
+        url.searchParams.append(key, value ? "true" : "false");
+      } else {
+        url.searchParams.append(key, value.toString());
+      }
+    }
+  });
+
+  const response = await fetch(url.toString(), {
+    ...DEFAULT_FETCH_CONFIG,
+  });
+
+  if (response.status === 404) {
+    throw new Error(`Pipeline not found`);
+  }
+
+  await handleGitLabError(response);
+  const data = await response.json();
+  return z.array(GitLabPipelineTriggerJobSchema).parse(data);
+}
+
+async function getPipelineJob(
+  projectId: string,
+  jobId: number | string,
+): Promise<GitLabPipelineJob> {
+  projectId = decodeURIComponent(projectId); // Decode project ID
+  const url = new URL(
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/jobs/${jobId}`,
+  );
 
   const response = await fetch(url.toString(), {
     ...DEFAULT_FETCH_CONFIG,
@@ -2880,10 +3053,15 @@ async function getPipelineJob(projectId: string, jobId: number | string): Promis
  * @param {number} offset - Number of lines to skip from the end (default: 0)
  * @returns {Promise<string>} The job output/trace
  */
-async function getPipelineJobOutput(projectId: string, jobId: number | string, limit?: number, offset?: number): Promise<string> {
+async function getPipelineJobOutput(
+  projectId: string,
+  jobId: number | string,
+  limit?: number,
+  offset?: number,
+): Promise<string> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/jobs/${jobId}/trace`
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/jobs/${jobId}/trace`,
   );
 
   const response = await fetch(url.toString(), {
@@ -2900,33 +3078,33 @@ async function getPipelineJobOutput(projectId: string, jobId: number | string, l
 
   await handleGitLabError(response);
   const fullTrace = await response.text();
-  
+
   // Apply client-side pagination to limit context window usage
   if (limit !== undefined || offset !== undefined) {
-    const lines = fullTrace.split('\n');
+    const lines = fullTrace.split("\n");
     const startOffset = offset || 0;
     const maxLines = limit || 1000;
-    
+
     // Return lines from the end, skipping offset lines and limiting to maxLines
     const startIndex = Math.max(0, lines.length - startOffset - maxLines);
     const endIndex = lines.length - startOffset;
-    
+
     const selectedLines = lines.slice(startIndex, endIndex);
-    const result = selectedLines.join('\n');
-    
+    const result = selectedLines.join("\n");
+
     // Add metadata about truncation
     if (startIndex > 0 || endIndex < lines.length) {
       const totalLines = lines.length;
       const shownLines = selectedLines.length;
       const skippedFromStart = startIndex;
       const skippedFromEnd = startOffset;
-      
+
       return `[Log truncated: showing ${shownLines} of ${totalLines} lines, skipped ${skippedFromStart} from start, ${skippedFromEnd} from end]\n\n${result}`;
     }
-    
+
     return result;
   }
-  
+
   return fullTrace;
 }
 
@@ -2941,10 +3119,12 @@ async function getPipelineJobOutput(projectId: string, jobId: number | string, l
 async function createPipeline(
   projectId: string,
   ref: string,
-  variables?: Array<{ key: string; value: string }>
+  variables?: Array<{ key: string; value: string }>,
 ): Promise<GitLabPipeline> {
   projectId = decodeURIComponent(projectId); // Decode project ID
-  const url = new URL(`${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/pipeline`);
+  const url = new URL(
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/pipeline`,
+  );
 
   const body: any = { ref };
   if (variables && variables.length > 0) {
@@ -2969,10 +3149,13 @@ async function createPipeline(
  * @param {number} pipelineId - The ID of the pipeline to retry
  * @returns {Promise<GitLabPipeline>} The retried pipeline
  */
-async function retryPipeline(projectId: string, pipelineId: number | string): Promise<GitLabPipeline> {
+async function retryPipeline(
+  projectId: string,
+  pipelineId: number | string,
+): Promise<GitLabPipeline> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/pipelines/${pipelineId}/retry`
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/pipelines/${pipelineId}/retry`,
   );
 
   const response = await fetch(url.toString(), {
@@ -2992,10 +3175,13 @@ async function retryPipeline(projectId: string, pipelineId: number | string): Pr
  * @param {number} pipelineId - The ID of the pipeline to cancel
  * @returns {Promise<GitLabPipeline>} The canceled pipeline
  */
-async function cancelPipeline(projectId: string, pipelineId: number | string): Promise<GitLabPipeline> {
+async function cancelPipeline(
+  projectId: string,
+  pipelineId: number | string,
+): Promise<GitLabPipeline> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/pipelines/${pipelineId}/cancel`
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/pipelines/${pipelineId}/cancel`,
   );
 
   const response = await fetch(url.toString(), {
@@ -3014,13 +3200,16 @@ async function cancelPipeline(projectId: string, pipelineId: number | string): P
  * @param {GetRepositoryTreeOptions} options - Options for the tree
  * @returns {Promise<GitLabTreeItem[]>}
  */
-async function getRepositoryTree(options: GetRepositoryTreeOptions): Promise<GitLabTreeItem[]> {
+async function getRepositoryTree(
+  options: GetRepositoryTreeOptions,
+): Promise<GitLabTreeItem[]> {
   options.project_id = decodeURIComponent(options.project_id); // Decode project_id within options
   const queryParams = new URLSearchParams();
   if (options.path) queryParams.append("path", options.path);
   if (options.ref) queryParams.append("ref", options.ref);
   if (options.recursive) queryParams.append("recursive", "true");
-  if (options.per_page) queryParams.append("per_page", options.per_page.toString());
+  if (options.per_page)
+    queryParams.append("per_page", options.per_page.toString());
   if (options.page_token) queryParams.append("page_token", options.page_token);
   if (options.pagination) queryParams.append("pagination", options.pagination);
 
@@ -3034,11 +3223,11 @@ async function getRepositoryTree(options: GetRepositoryTreeOptions): Promise<Git
   }
   const response = await fetch(
     `${GITLAB_API_URL}/projects/${encodeURIComponent(
-      getEffectiveProjectId(options.project_id)
+      getEffectiveProjectId(options.project_id),
     )}/repository/tree?${queryParams.toString()}`,
     {
       headers,
-    }
+    },
   );
 
   if (response.status === 404) {
@@ -3061,15 +3250,17 @@ async function getRepositoryTree(options: GetRepositoryTreeOptions): Promise<Git
  */
 async function listProjectMilestones(
   projectId: string,
-  options: Omit<z.infer<typeof ListProjectMilestonesSchema>, "project_id">
+  options: Omit<z.infer<typeof ListProjectMilestonesSchema>, "project_id">,
 ): Promise<GitLabMilestones[]> {
   projectId = decodeURIComponent(projectId);
-  const url = new URL(`${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/milestones`);
+  const url = new URL(
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/milestones`,
+  );
 
   Object.entries(options).forEach(([key, value]) => {
     if (value !== undefined) {
       if (key === "iids" && Array.isArray(value) && value.length > 0) {
-        value.forEach(iid => {
+        value.forEach((iid) => {
           url.searchParams.append("iids[]", iid.toString());
         });
       } else if (value !== undefined) {
@@ -3094,11 +3285,11 @@ async function listProjectMilestones(
  */
 async function getProjectMilestone(
   projectId: string,
-  milestoneId: number | string
+  milestoneId: number | string,
 ): Promise<GitLabMilestones> {
   projectId = decodeURIComponent(projectId);
   const url = new URL(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/milestones/${milestoneId}`
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/milestones/${milestoneId}`,
   );
 
   const response = await fetch(url.toString(), {
@@ -3117,10 +3308,12 @@ async function getProjectMilestone(
  */
 async function createProjectMilestone(
   projectId: string,
-  options: Omit<z.infer<typeof CreateProjectMilestoneSchema>, "project_id">
+  options: Omit<z.infer<typeof CreateProjectMilestoneSchema>, "project_id">,
 ): Promise<GitLabMilestones> {
   projectId = decodeURIComponent(projectId);
-  const url = new URL(`${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/milestones`);
+  const url = new URL(
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/milestones`,
+  );
 
   const response = await fetch(url.toString(), {
     ...DEFAULT_FETCH_CONFIG,
@@ -3142,11 +3335,14 @@ async function createProjectMilestone(
 async function editProjectMilestone(
   projectId: string,
   milestoneId: number | string,
-  options: Omit<z.infer<typeof EditProjectMilestoneSchema>, "project_id" | "milestone_id">
+  options: Omit<
+    z.infer<typeof EditProjectMilestoneSchema>,
+    "project_id" | "milestone_id"
+  >,
 ): Promise<GitLabMilestones> {
   projectId = decodeURIComponent(projectId);
   const url = new URL(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/milestones/${milestoneId}`
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/milestones/${milestoneId}`,
   );
 
   const response = await fetch(url.toString(), {
@@ -3165,10 +3361,13 @@ async function editProjectMilestone(
  * @param {number} milestoneId - The ID of the milestone
  * @returns {Promise<void>}
  */
-async function deleteProjectMilestone(projectId: string, milestoneId: number | string): Promise<void> {
+async function deleteProjectMilestone(
+  projectId: string,
+  milestoneId: number | string,
+): Promise<void> {
   projectId = decodeURIComponent(projectId);
   const url = new URL(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/milestones/${milestoneId}`
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/milestones/${milestoneId}`,
   );
 
   const response = await fetch(url.toString(), {
@@ -3184,10 +3383,13 @@ async function deleteProjectMilestone(projectId: string, milestoneId: number | s
  * @param {number} milestoneId - The ID of the milestone
  * @returns {Promise<GitLabIssue[]>} List of issues
  */
-async function getMilestoneIssues(projectId: string, milestoneId: number | string): Promise<GitLabIssue[]> {
+async function getMilestoneIssues(
+  projectId: string,
+  milestoneId: number | string,
+): Promise<GitLabIssue[]> {
   projectId = decodeURIComponent(projectId);
   const url = new URL(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/milestones/${milestoneId}/issues`
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/milestones/${milestoneId}/issues`,
   );
 
   const response = await fetch(url.toString(), {
@@ -3206,13 +3408,13 @@ async function getMilestoneIssues(projectId: string, milestoneId: number | strin
  */
 async function getMilestoneMergeRequests(
   projectId: string,
-  milestoneId: number | string
+  milestoneId: number | string,
 ): Promise<GitLabMergeRequest[]> {
   projectId = decodeURIComponent(projectId);
   const url = new URL(
     `${GITLAB_API_URL}/projects/${encodeURIComponent(
-      getEffectiveProjectId(projectId)
-    )}/milestones/${milestoneId}/merge_requests`
+      getEffectiveProjectId(projectId),
+    )}/milestones/${milestoneId}/merge_requests`,
   );
 
   const response = await fetch(url.toString(), {
@@ -3231,11 +3433,11 @@ async function getMilestoneMergeRequests(
  */
 async function promoteProjectMilestone(
   projectId: string,
-  milestoneId: number | string
+  milestoneId: number | string,
 ): Promise<GitLabMilestones> {
   projectId = decodeURIComponent(projectId);
   const url = new URL(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/milestones/${milestoneId}/promote`
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/milestones/${milestoneId}/promote`,
   );
 
   const response = await fetch(url.toString(), {
@@ -3253,12 +3455,15 @@ async function promoteProjectMilestone(
  * @param {number} milestoneId - The ID of the milestone
  * @returns {Promise<any[]>} Burndown chart events
  */
-async function getMilestoneBurndownEvents(projectId: string, milestoneId: number | string): Promise<any[]> {
+async function getMilestoneBurndownEvents(
+  projectId: string,
+  milestoneId: number | string,
+): Promise<any[]> {
   projectId = decodeURIComponent(projectId);
   const url = new URL(
     `${GITLAB_API_URL}/projects/${encodeURIComponent(
-      getEffectiveProjectId(projectId)
-    )}/milestones/${milestoneId}/burndown_events`
+      getEffectiveProjectId(projectId),
+    )}/milestones/${milestoneId}/burndown_events`,
   );
 
   const response = await fetch(url.toString(), {
@@ -3291,7 +3496,7 @@ async function getUser(username: string): Promise<GitLabUser | null> {
     // GitLab returns an array of users that match the username
     if (Array.isArray(users) && users.length > 0) {
       // Find exact match for username (case-sensitive)
-      const exactMatch = users.find(user => user.username === username);
+      const exactMatch = users.find((user) => user.username === username);
       if (exactMatch) {
         return GitLabUserSchema.parse(exactMatch);
       }
@@ -3338,11 +3543,11 @@ async function getUsers(usernames: string[]): Promise<GitLabUsersResponse> {
  */
 async function listCommits(
   projectId: string,
-  options: Omit<ListCommitsOptions, "project_id"> = {}
+  options: Omit<ListCommitsOptions, "project_id"> = {},
 ): Promise<GitLabCommit[]> {
   projectId = decodeURIComponent(projectId);
   const url = new URL(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/repository/commits`
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/repository/commits`,
   );
 
   // Add query parameters
@@ -3352,12 +3557,16 @@ async function listCommits(
   if (options.path) url.searchParams.append("path", options.path);
   if (options.author) url.searchParams.append("author", options.author);
   if (options.all) url.searchParams.append("all", options.all.toString());
-  if (options.with_stats) url.searchParams.append("with_stats", options.with_stats.toString());
-  if (options.first_parent) url.searchParams.append("first_parent", options.first_parent.toString());
+  if (options.with_stats)
+    url.searchParams.append("with_stats", options.with_stats.toString());
+  if (options.first_parent)
+    url.searchParams.append("first_parent", options.first_parent.toString());
   if (options.order) url.searchParams.append("order", options.order);
-  if (options.trailers) url.searchParams.append("trailers", options.trailers.toString());
+  if (options.trailers)
+    url.searchParams.append("trailers", options.trailers.toString());
   if (options.page) url.searchParams.append("page", options.page.toString());
-  if (options.per_page) url.searchParams.append("per_page", options.per_page.toString());
+  if (options.per_page)
+    url.searchParams.append("per_page", options.per_page.toString());
 
   const response = await fetch(url.toString(), {
     ...DEFAULT_FETCH_CONFIG,
@@ -3381,11 +3590,11 @@ async function listCommits(
 async function getCommit(
   projectId: string,
   sha: string,
-  stats?: boolean
+  stats?: boolean,
 ): Promise<GitLabCommit> {
   projectId = decodeURIComponent(projectId);
   const url = new URL(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/repository/commits/${encodeURIComponent(sha)}`
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/repository/commits/${encodeURIComponent(sha)}`,
   );
 
   if (stats) {
@@ -3412,11 +3621,11 @@ async function getCommit(
  */
 async function getCommitDiff(
   projectId: string,
-  sha: string
+  sha: string,
 ): Promise<GitLabMergeRequestDiff[]> {
   projectId = decodeURIComponent(projectId);
   const url = new URL(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/repository/commits/${encodeURIComponent(sha)}/diff`
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/repository/commits/${encodeURIComponent(sha)}/diff`,
   );
 
   const response = await fetch(url.toString(), {
@@ -3509,29 +3718,43 @@ async function listProjectMembers(
   return z.array(GitLabProjectMemberSchema).parse(data);
 }
 
+/**
  * list group iterations
  *
- * @param {string} groupId 
+ * @param {string} groupId
  * @param {Omit<ListGroupIterationsOptions, "group_id">} options
  * @returns {Promise<GetIt[]>}
  */
 async function listGroupIterations(
   groupId: string,
-  options: Omit<z.infer<typeof ListGroupIterationsSchema>, "group_id"> = {}
+  options: Omit<z.infer<typeof ListGroupIterationsSchema>, "group_id"> = {},
 ): Promise<GroupIteration[]> {
   groupId = decodeURIComponent(groupId);
-  const url = new URL(`${GITLAB_API_URL}/groups/${encodeURIComponent(groupId)}/iterations`);
+  const url = new URL(
+    `${GITLAB_API_URL}/groups/${encodeURIComponent(groupId)}/iterations`,
+  );
 
   // クエリパラメータの追加
   if (options.state) url.searchParams.append("state", options.state);
   if (options.search) url.searchParams.append("search", options.search);
   if (options.in) url.searchParams.append("in", options.in.join(","));
-  if (options.include_ancestors !== undefined) url.searchParams.append("include_ancestors", options.include_ancestors.toString());
-  if (options.include_descendants !== undefined) url.searchParams.append("include_descendants", options.include_descendants.toString());
-  if (options.updated_before) url.searchParams.append("updated_before", options.updated_before);
-  if (options.updated_after) url.searchParams.append("updated_after", options.updated_after);
+  if (options.include_ancestors !== undefined)
+    url.searchParams.append(
+      "include_ancestors",
+      options.include_ancestors.toString(),
+    );
+  if (options.include_descendants !== undefined)
+    url.searchParams.append(
+      "include_descendants",
+      options.include_descendants.toString(),
+    );
+  if (options.updated_before)
+    url.searchParams.append("updated_before", options.updated_before);
+  if (options.updated_after)
+    url.searchParams.append("updated_after", options.updated_after);
   if (options.page) url.searchParams.append("page", options.page.toString());
-  if (options.per_page) url.searchParams.append("per_page", options.per_page.toString());
+  if (options.per_page)
+    url.searchParams.append("per_page", options.per_page.toString());
 
   const response = await fetch(url.toString(), DEFAULT_FETCH_CONFIG);
 
@@ -3543,26 +3766,85 @@ async function listGroupIterations(
   return z.array(GroupIteration).parse(data);
 }
 
+/**
+ * Upload a file to a GitLab project for use in markdown content
+ *
+ * @param {string} projectId - The ID or URL-encoded path of the project
+ * @param {string} filePath - Path to the local file to upload
+ * @returns {Promise<GitLabMarkdownUpload>} The upload response
+ */
+async function markdownUpload(
+  projectId: string,
+  filePath: string,
+): Promise<GitLabMarkdownUpload> {
+  projectId = decodeURIComponent(projectId);
+  const effectiveProjectId = getEffectiveProjectId(projectId);
+
+  // Check if file exists
+  if (!fs.existsSync(filePath)) {
+    throw new Error(`File not found: ${filePath}`);
+  }
+
+  // Read the file
+  const fileBuffer = fs.readFileSync(filePath);
+  const fileName = path.basename(filePath);
+
+  // Create form data
+  const FormData = (await import("form-data")).default;
+  const form = new FormData();
+  form.append("file", fileBuffer, {
+    filename: fileName,
+    contentType: "application/octet-stream",
+  });
+
+  const url = new URL(
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(effectiveProjectId)}/uploads`,
+  );
+
+  const response = await fetch(url.toString(), {
+    method: "POST",
+    headers: {
+      ...DEFAULT_HEADERS,
+      // Remove Content-Type header to let form-data set it with boundary
+      "Content-Type": undefined as any,
+    },
+    body: form,
+  });
+
+  if (!response.ok) {
+    await handleGitLabError(response);
+  }
+
+  const data = await response.json();
+  return GitLabMarkdownUploadSchema.parse(data);
+}
+
 server.setRequestHandler(ListToolsRequestSchema, async () => {
   // Apply read-only filter first
   const tools0 = GITLAB_READ_ONLY_MODE
-    ? allTools.filter(tool => readOnlyTools.includes(tool.name))
+    ? allTools.filter((tool) => readOnlyTools.includes(tool.name))
     : allTools;
   // Toggle wiki tools by USE_GITLAB_WIKI flag
   const tools1 = USE_GITLAB_WIKI
     ? tools0
-    : tools0.filter(tool => !wikiToolNames.includes(tool.name));
+    : tools0.filter((tool) => !wikiToolNames.includes(tool.name));
   // Toggle milestone tools by USE_MILESTONE flag
   const tools2 = USE_MILESTONE
     ? tools1
-    : tools1.filter(tool => !milestoneToolNames.includes(tool.name));
+    : tools1.filter((tool) => !milestoneToolNames.includes(tool.name));
   // Toggle pipeline tools by USE_PIPELINE flag
-  let tools = USE_PIPELINE ? tools2 : tools2.filter(tool => !pipelineToolNames.includes(tool.name));
+  let tools = USE_PIPELINE
+    ? tools2
+    : tools2.filter((tool) => !pipelineToolNames.includes(tool.name));
 
   // <<< START: Gemini 호환성을 위해 $schema 제거 >>>
-  tools = tools.map(tool => {
+  tools = tools.map((tool) => {
     // inputSchema가 존재하고 객체인지 확인
-    if (tool.inputSchema && typeof tool.inputSchema === "object" && tool.inputSchema !== null) {
+    if (
+      tool.inputSchema &&
+      typeof tool.inputSchema === "object" &&
+      tool.inputSchema !== null
+    ) {
       // $schema 키가 존재하면 삭제
       if ("$schema" in tool.inputSchema) {
         // 불변성을 위해 새로운 객체 생성 (선택적이지만 권장)
@@ -3581,27 +3863,34 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
   };
 });
 
-server.setRequestHandler(CallToolRequestSchema, async request => {
+server.setRequestHandler(CallToolRequestSchema, async (request) => {
   try {
     if (!request.params.arguments) {
       throw new Error("Arguments are required");
     }
-    
+
     // Ensure session is established for every request if cookie authentication is enabled
     if (GITLAB_AUTH_COOKIE_PATH) {
       await ensureSessionForRequest();
     }
-    logger.info(request.params.name)
+    logger.info(request.params.name);
     switch (request.params.name) {
       case "fork_repository": {
         if (GITLAB_PROJECT_ID) {
-          throw new Error("Direct project ID is set. So fork_repository is not allowed");
+          throw new Error(
+            "Direct project ID is set. So fork_repository is not allowed",
+          );
         }
         const forkArgs = ForkRepositorySchema.parse(request.params.arguments);
         try {
-          const forkedProject = await forkProject(forkArgs.project_id, forkArgs.namespace);
+          const forkedProject = await forkProject(
+            forkArgs.project_id,
+            forkArgs.namespace,
+          );
           return {
-            content: [{ type: "text", text: JSON.stringify(forkedProject, null, 2) }],
+            content: [
+              { type: "text", text: JSON.stringify(forkedProject, null, 2) },
+            ],
           };
         } catch (forkError) {
           logger.error("Error forking repository:", forkError);
@@ -3639,19 +3928,28 @@ server.setRequestHandler(CallToolRequestSchema, async request => {
 
       case "get_branch_diffs": {
         const args = GetBranchDiffsSchema.parse(request.params.arguments);
-        const diffResp = await getBranchDiffs(args.project_id, args.from, args.to, args.straight);
+        const diffResp = await getBranchDiffs(
+          args.project_id,
+          args.from,
+          args.to,
+          args.straight,
+        );
 
         if (args.excluded_file_patterns?.length) {
-          const regexPatterns = args.excluded_file_patterns.map(pattern => new RegExp(pattern));
+          const regexPatterns = args.excluded_file_patterns.map(
+            (pattern) => new RegExp(pattern),
+          );
 
           // Helper function to check if a path matches any regex pattern
           const matchesAnyPattern = (path: string): boolean => {
             if (!path) return false;
-            return regexPatterns.some(regex => regex.test(path));
+            return regexPatterns.some((regex) => regex.test(path));
           };
 
           // Filter out files that match any of the regex patterns on new files
-          diffResp.diffs = diffResp.diffs.filter(diff => !matchesAnyPattern(diff.new_path));
+          diffResp.diffs = diffResp.diffs.filter(
+            (diff) => !matchesAnyPattern(diff.new_path),
+          );
         }
         return {
           content: [{ type: "text", text: JSON.stringify(diffResp, null, 2) }],
@@ -3660,7 +3958,11 @@ server.setRequestHandler(CallToolRequestSchema, async request => {
 
       case "search_repositories": {
         const args = SearchRepositoriesSchema.parse(request.params.arguments);
-        const results = await searchProjects(args.search, args.page, args.per_page);
+        const results = await searchProjects(
+          args.search,
+          args.page,
+          args.per_page,
+        );
         return {
           content: [{ type: "text", text: JSON.stringify(results, null, 2) }],
         };
@@ -3668,18 +3970,26 @@ server.setRequestHandler(CallToolRequestSchema, async request => {
 
       case "create_repository": {
         if (GITLAB_PROJECT_ID) {
-          throw new Error("Direct project ID is set. So fork_repository is not allowed");
+          throw new Error(
+            "Direct project ID is set. So fork_repository is not allowed",
+          );
         }
         const args = CreateRepositorySchema.parse(request.params.arguments);
         const repository = await createRepository(args);
         return {
-          content: [{ type: "text", text: JSON.stringify(repository, null, 2) }],
+          content: [
+            { type: "text", text: JSON.stringify(repository, null, 2) },
+          ],
         };
       }
 
       case "get_file_contents": {
         const args = GetFileContentsSchema.parse(request.params.arguments);
-        const contents = await getFileContents(args.project_id, args.file_path, args.ref);
+        const contents = await getFileContents(
+          args.project_id,
+          args.file_path,
+          args.ref,
+        );
         return {
           content: [{ type: "text", text: JSON.stringify(contents, null, 2) }],
         };
@@ -3695,7 +4005,7 @@ server.setRequestHandler(CallToolRequestSchema, async request => {
           args.branch,
           args.previous_path,
           args.last_commit_id,
-          args.commit_id
+          args.commit_id,
         );
         return {
           content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
@@ -3708,7 +4018,7 @@ server.setRequestHandler(CallToolRequestSchema, async request => {
           args.project_id,
           args.commit_message,
           args.branch,
-          args.files.map(f => ({ path: f.file_path, content: f.content }))
+          args.files.map((f) => ({ path: f.file_path, content: f.content })),
         );
         return {
           content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
@@ -3729,19 +4039,23 @@ server.setRequestHandler(CallToolRequestSchema, async request => {
         const { project_id, ...options } = args;
         const mergeRequest = await createMergeRequest(project_id, options);
         return {
-          content: [{ type: "text", text: JSON.stringify(mergeRequest, null, 2) }],
+          content: [
+            { type: "text", text: JSON.stringify(mergeRequest, null, 2) },
+          ],
         };
       }
 
       case "update_merge_request_note": {
-        const args = UpdateMergeRequestNoteSchema.parse(request.params.arguments);
+        const args = UpdateMergeRequestNoteSchema.parse(
+          request.params.arguments,
+        );
         const note = await updateMergeRequestNote(
           args.project_id,
           args.merge_request_iid,
           args.discussion_id,
           args.note_id,
           args.body, // Now optional
-          args.resolved // Now one of body or resolved must be provided, not both
+          args.resolved, // Now one of body or resolved must be provided, not both
         );
         return {
           content: [{ type: "text", text: JSON.stringify(note, null, 2) }],
@@ -3749,13 +4063,15 @@ server.setRequestHandler(CallToolRequestSchema, async request => {
       }
 
       case "create_merge_request_note": {
-        const args = CreateMergeRequestNoteSchema.parse(request.params.arguments);
+        const args = CreateMergeRequestNoteSchema.parse(
+          request.params.arguments,
+        );
         const note = await createMergeRequestNote(
           args.project_id,
           args.merge_request_iid,
           args.discussion_id,
           args.body,
-          args.created_at
+          args.created_at,
         );
         return {
           content: [{ type: "text", text: JSON.stringify(note, null, 2) }],
@@ -3769,7 +4085,7 @@ server.setRequestHandler(CallToolRequestSchema, async request => {
           args.issue_iid,
           args.discussion_id,
           args.note_id,
-          args.body
+          args.body,
         );
         return {
           content: [{ type: "text", text: JSON.stringify(note, null, 2) }],
@@ -3783,7 +4099,7 @@ server.setRequestHandler(CallToolRequestSchema, async request => {
           args.issue_iid,
           args.discussion_id,
           args.body,
-          args.created_at
+          args.created_at,
         );
         return {
           content: [{ type: "text", text: JSON.stringify(note, null, 2) }],
@@ -3795,10 +4111,12 @@ server.setRequestHandler(CallToolRequestSchema, async request => {
         const mergeRequest = await getMergeRequest(
           args.project_id,
           args.merge_request_iid,
-          args.source_branch
+          args.source_branch,
         );
         return {
-          content: [{ type: "text", text: JSON.stringify(mergeRequest, null, 2) }],
+          content: [
+            { type: "text", text: JSON.stringify(mergeRequest, null, 2) },
+          ],
         };
       }
 
@@ -3808,7 +4126,7 @@ server.setRequestHandler(CallToolRequestSchema, async request => {
           args.project_id,
           args.merge_request_iid,
           args.source_branch,
-          args.view
+          args.view,
         );
         return {
           content: [{ type: "text", text: JSON.stringify(diffs, null, 2) }],
@@ -3816,14 +4134,16 @@ server.setRequestHandler(CallToolRequestSchema, async request => {
       }
 
       case "list_merge_request_diffs": {
-        const args = ListMergeRequestDiffsSchema.parse(request.params.arguments);
+        const args = ListMergeRequestDiffsSchema.parse(
+          request.params.arguments,
+        );
         const changes = await listMergeRequestDiffs(
           args.project_id,
           args.merge_request_iid,
           args.source_branch,
           args.page,
           args.per_page,
-          args.unidiff
+          args.unidiff,
         );
         return {
           content: [{ type: "text", text: JSON.stringify(changes, null, 2) }],
@@ -3832,28 +4152,35 @@ server.setRequestHandler(CallToolRequestSchema, async request => {
 
       case "update_merge_request": {
         const args = UpdateMergeRequestSchema.parse(request.params.arguments);
-        const { project_id, merge_request_iid, source_branch, ...options } = args;
+        const { project_id, merge_request_iid, source_branch, ...options } =
+          args;
         const mergeRequest = await updateMergeRequest(
           project_id,
           options,
           merge_request_iid,
-          source_branch
+          source_branch,
         );
         return {
-          content: [{ type: "text", text: JSON.stringify(mergeRequest, null, 2) }],
+          content: [
+            { type: "text", text: JSON.stringify(mergeRequest, null, 2) },
+          ],
         };
       }
 
       case "mr_discussions": {
-        const args = ListMergeRequestDiscussionsSchema.parse(request.params.arguments);
+        const args = ListMergeRequestDiscussionsSchema.parse(
+          request.params.arguments,
+        );
         const { project_id, merge_request_iid, ...options } = args;
         const discussions = await listMergeRequestDiscussions(
           project_id,
           merge_request_iid,
-          options
+          options,
         );
         return {
-          content: [{ type: "text", text: JSON.stringify(discussions, null, 2) }],
+          content: [
+            { type: "text", text: JSON.stringify(discussions, null, 2) },
+          ],
         };
       }
 
@@ -3883,14 +4210,16 @@ server.setRequestHandler(CallToolRequestSchema, async request => {
         const namespaces = z.array(GitLabNamespaceSchema).parse(data);
 
         return {
-          content: [{ type: "text", text: JSON.stringify(namespaces, null, 2) }],
+          content: [
+            { type: "text", text: JSON.stringify(namespaces, null, 2) },
+          ],
         };
       }
 
       case "get_namespace": {
         const args = GetNamespaceSchema.parse(request.params.arguments);
         const url = new URL(
-          `${GITLAB_API_URL}/namespaces/${encodeURIComponent(args.namespace_id)}`
+          `${GITLAB_API_URL}/namespaces/${encodeURIComponent(args.namespace_id)}`,
         );
 
         const response = await fetch(url.toString(), {
@@ -3908,7 +4237,9 @@ server.setRequestHandler(CallToolRequestSchema, async request => {
 
       case "verify_namespace": {
         const args = VerifyNamespaceSchema.parse(request.params.arguments);
-        const url = new URL(`${GITLAB_API_URL}/namespaces/${encodeURIComponent(args.path)}/exists`);
+        const url = new URL(
+          `${GITLAB_API_URL}/namespaces/${encodeURIComponent(args.path)}/exists`,
+        );
 
         const response = await fetch(url.toString(), {
           ...DEFAULT_FETCH_CONFIG,
@@ -3919,13 +4250,17 @@ server.setRequestHandler(CallToolRequestSchema, async request => {
         const namespaceExists = GitLabNamespaceExistsResponseSchema.parse(data);
 
         return {
-          content: [{ type: "text", text: JSON.stringify(namespaceExists, null, 2) }],
+          content: [
+            { type: "text", text: JSON.stringify(namespaceExists, null, 2) },
+          ],
         };
       }
 
       case "get_project": {
         const args = GetProjectSchema.parse(request.params.arguments);
-        const url = new URL(`${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(args.project_id))}`);
+        const url = new URL(
+          `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(args.project_id))}`,
+        );
 
         const response = await fetch(url.toString(), {
           ...DEFAULT_FETCH_CONFIG,
@@ -3971,22 +4306,30 @@ server.setRequestHandler(CallToolRequestSchema, async request => {
         const args = CreateNoteSchema.parse(request.params.arguments);
         const { project_id, noteable_type, noteable_iid, body } = args;
 
-        const note = await createNote(project_id, noteable_type, noteable_iid, body);
+        const note = await createNote(
+          project_id,
+          noteable_type,
+          noteable_iid,
+          body,
+        );
         return {
           content: [{ type: "text", text: JSON.stringify(note, null, 2) }],
         };
       }
 
       case "create_merge_request_thread": {
-        const args = CreateMergeRequestThreadSchema.parse(request.params.arguments);
-        const { project_id, merge_request_iid, body, position, created_at } = args;
+        const args = CreateMergeRequestThreadSchema.parse(
+          request.params.arguments,
+        );
+        const { project_id, merge_request_iid, body, position, created_at } =
+          args;
 
         const thread = await createMergeRequestThread(
           project_id,
           merge_request_iid,
           body,
           position,
-          created_at
+          created_at,
         );
         return {
           content: [{ type: "text", text: JSON.stringify(thread, null, 2) }],
@@ -4037,7 +4380,7 @@ server.setRequestHandler(CallToolRequestSchema, async request => {
               text: JSON.stringify(
                 { status: "success", message: "Issue deleted successfully" },
                 null,
-                2
+                2,
               ),
             },
           ],
@@ -4056,15 +4399,25 @@ server.setRequestHandler(CallToolRequestSchema, async request => {
         const args = ListIssueDiscussionsSchema.parse(request.params.arguments);
         const { project_id, issue_iid, ...options } = args;
 
-        const discussions = await listIssueDiscussions(project_id, issue_iid, options);
+        const discussions = await listIssueDiscussions(
+          project_id,
+          issue_iid,
+          options,
+        );
         return {
-          content: [{ type: "text", text: JSON.stringify(discussions, null, 2) }],
+          content: [
+            { type: "text", text: JSON.stringify(discussions, null, 2) },
+          ],
         };
       }
 
       case "get_issue_link": {
         const args = GetIssueLinkSchema.parse(request.params.arguments);
-        const link = await getIssueLink(args.project_id, args.issue_iid, args.issue_link_id);
+        const link = await getIssueLink(
+          args.project_id,
+          args.issue_iid,
+          args.issue_link_id,
+        );
         return {
           content: [{ type: "text", text: JSON.stringify(link, null, 2) }],
         };
@@ -4077,7 +4430,7 @@ server.setRequestHandler(CallToolRequestSchema, async request => {
           args.issue_iid,
           args.target_project_id,
           args.target_issue_iid,
-          args.link_type
+          args.link_type,
         );
         return {
           content: [{ type: "text", text: JSON.stringify(link, null, 2) }],
@@ -4086,7 +4439,11 @@ server.setRequestHandler(CallToolRequestSchema, async request => {
 
       case "delete_issue_link": {
         const args = DeleteIssueLinkSchema.parse(request.params.arguments);
-        await deleteIssueLink(args.project_id, args.issue_iid, args.issue_link_id);
+        await deleteIssueLink(
+          args.project_id,
+          args.issue_iid,
+          args.issue_link_id,
+        );
         return {
           content: [
             {
@@ -4097,7 +4454,7 @@ server.setRequestHandler(CallToolRequestSchema, async request => {
                   message: "Issue link deleted successfully",
                 },
                 null,
-                2
+                2,
               ),
             },
           ],
@@ -4114,7 +4471,11 @@ server.setRequestHandler(CallToolRequestSchema, async request => {
 
       case "get_label": {
         const args = GetLabelSchema.parse(request.params.arguments);
-        const label = await getLabel(args.project_id, args.label_id, args.include_ancestor_groups);
+        const label = await getLabel(
+          args.project_id,
+          args.label_id,
+          args.include_ancestor_groups,
+        );
         return {
           content: [{ type: "text", text: JSON.stringify(label, null, 2) }],
         };
@@ -4147,7 +4508,7 @@ server.setRequestHandler(CallToolRequestSchema, async request => {
               text: JSON.stringify(
                 { status: "success", message: "Label deleted successfully" },
                 null,
-                2
+                2,
               ),
             },
           ],
@@ -4163,17 +4524,22 @@ server.setRequestHandler(CallToolRequestSchema, async request => {
       }
 
       case "list_wiki_pages": {
-        const { project_id, page, per_page, with_content } = ListWikiPagesSchema.parse(
-          request.params.arguments
-        );
-        const wikiPages = await listWikiPages(project_id, { page, per_page, with_content });
+        const { project_id, page, per_page, with_content } =
+          ListWikiPagesSchema.parse(request.params.arguments);
+        const wikiPages = await listWikiPages(project_id, {
+          page,
+          per_page,
+          with_content,
+        });
         return {
           content: [{ type: "text", text: JSON.stringify(wikiPages, null, 2) }],
         };
       }
 
       case "get_wiki_page": {
-        const { project_id, slug } = GetWikiPageSchema.parse(request.params.arguments);
+        const { project_id, slug } = GetWikiPageSchema.parse(
+          request.params.arguments,
+        );
         const wikiPage = await getWikiPage(project_id, slug);
         return {
           content: [{ type: "text", text: JSON.stringify(wikiPage, null, 2) }],
@@ -4181,27 +4547,38 @@ server.setRequestHandler(CallToolRequestSchema, async request => {
       }
 
       case "create_wiki_page": {
-        const { project_id, title, content, format } = CreateWikiPageSchema.parse(
-          request.params.arguments
+        const { project_id, title, content, format } =
+          CreateWikiPageSchema.parse(request.params.arguments);
+        const wikiPage = await createWikiPage(
+          project_id,
+          title,
+          content,
+          format,
         );
-        const wikiPage = await createWikiPage(project_id, title, content, format);
         return {
           content: [{ type: "text", text: JSON.stringify(wikiPage, null, 2) }],
         };
       }
 
       case "update_wiki_page": {
-        const { project_id, slug, title, content, format } = UpdateWikiPageSchema.parse(
-          request.params.arguments
+        const { project_id, slug, title, content, format } =
+          UpdateWikiPageSchema.parse(request.params.arguments);
+        const wikiPage = await updateWikiPage(
+          project_id,
+          slug,
+          title,
+          content,
+          format,
         );
-        const wikiPage = await updateWikiPage(project_id, slug, title, content, format);
         return {
           content: [{ type: "text", text: JSON.stringify(wikiPage, null, 2) }],
         };
       }
 
       case "delete_wiki_page": {
-        const { project_id, slug } = DeleteWikiPageSchema.parse(request.params.arguments);
+        const { project_id, slug } = DeleteWikiPageSchema.parse(
+          request.params.arguments,
+        );
         await deleteWikiPage(project_id, slug);
         return {
           content: [
@@ -4213,7 +4590,7 @@ server.setRequestHandler(CallToolRequestSchema, async request => {
                   message: "Wiki page deleted successfully",
                 },
                 null,
-                2
+                2,
               ),
             },
           ],
@@ -4238,7 +4615,9 @@ server.setRequestHandler(CallToolRequestSchema, async request => {
       }
 
       case "get_pipeline": {
-        const { project_id, pipeline_id } = GetPipelineSchema.parse(request.params.arguments);
+        const { project_id, pipeline_id } = GetPipelineSchema.parse(
+          request.params.arguments,
+        );
         const pipeline = await getPipeline(project_id, pipeline_id);
         return {
           content: [
@@ -4251,9 +4630,8 @@ server.setRequestHandler(CallToolRequestSchema, async request => {
       }
 
       case "list_pipeline_jobs": {
-        const { project_id, pipeline_id, ...options } = ListPipelineJobsSchema.parse(
-          request.params.arguments
-        );
+        const { project_id, pipeline_id, ...options } =
+          ListPipelineJobsSchema.parse(request.params.arguments);
         const jobs = await listPipelineJobs(project_id, pipeline_id, options);
         return {
           content: [
@@ -4265,8 +4643,28 @@ server.setRequestHandler(CallToolRequestSchema, async request => {
         };
       }
 
+      case "list_pipeline_trigger_jobs": {
+        const { project_id, pipeline_id, ...options } =
+          ListPipelineTriggerJobsSchema.parse(request.params.arguments);
+        const triggerJobs = await listPipelineTriggerJobs(
+          project_id,
+          pipeline_id,
+          options,
+        );
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(triggerJobs, null, 2),
+            },
+          ],
+        };
+      }
+
       case "get_pipeline_job": {
-        const { project_id, job_id } = GetPipelineJobOutputSchema.parse(request.params.arguments);
+        const { project_id, job_id } = GetPipelineJobOutputSchema.parse(
+          request.params.arguments,
+        );
         const jobDetails = await getPipelineJob(project_id, job_id);
         return {
           content: [
@@ -4279,8 +4677,14 @@ server.setRequestHandler(CallToolRequestSchema, async request => {
       }
 
       case "get_pipeline_job_output": {
-        const { project_id, job_id, limit, offset } = GetPipelineJobOutputSchema.parse(request.params.arguments);
-        const jobOutput = await getPipelineJobOutput(project_id, job_id, limit, offset);
+        const { project_id, job_id, limit, offset } =
+          GetPipelineJobOutputSchema.parse(request.params.arguments);
+        const jobOutput = await getPipelineJobOutput(
+          project_id,
+          job_id,
+          limit,
+          offset,
+        );
         return {
           content: [
             {
@@ -4292,7 +4696,9 @@ server.setRequestHandler(CallToolRequestSchema, async request => {
       }
 
       case "create_pipeline": {
-        const { project_id, ref, variables } = CreatePipelineSchema.parse(request.params.arguments);
+        const { project_id, ref, variables } = CreatePipelineSchema.parse(
+          request.params.arguments,
+        );
         const pipeline = await createPipeline(project_id, ref, variables);
         return {
           content: [
@@ -4305,7 +4711,9 @@ server.setRequestHandler(CallToolRequestSchema, async request => {
       }
 
       case "retry_pipeline": {
-        const { project_id, pipeline_id } = RetryPipelineSchema.parse(request.params.arguments);
+        const { project_id, pipeline_id } = RetryPipelineSchema.parse(
+          request.params.arguments,
+        );
         const pipeline = await retryPipeline(project_id, pipeline_id);
         return {
           content: [
@@ -4318,7 +4726,9 @@ server.setRequestHandler(CallToolRequestSchema, async request => {
       }
 
       case "cancel_pipeline": {
-        const { project_id, pipeline_id } = CancelPipelineSchema.parse(request.params.arguments);
+        const { project_id, pipeline_id } = CancelPipelineSchema.parse(
+          request.params.arguments,
+        );
         const pipeline = await cancelPipeline(project_id, pipeline_id);
         return {
           content: [
@@ -4334,13 +4744,15 @@ server.setRequestHandler(CallToolRequestSchema, async request => {
         const args = ListMergeRequestsSchema.parse(request.params.arguments);
         const mergeRequests = await listMergeRequests(args.project_id, args);
         return {
-          content: [{ type: "text", text: JSON.stringify(mergeRequests, null, 2) }],
+          content: [
+            { type: "text", text: JSON.stringify(mergeRequests, null, 2) },
+          ],
         };
       }
 
       case "list_milestones": {
         const { project_id, ...options } = ListProjectMilestonesSchema.parse(
-          request.params.arguments
+          request.params.arguments,
         );
         const milestones = await listProjectMilestones(project_id, options);
         return {
@@ -4355,7 +4767,7 @@ server.setRequestHandler(CallToolRequestSchema, async request => {
 
       case "get_milestone": {
         const { project_id, milestone_id } = GetProjectMilestoneSchema.parse(
-          request.params.arguments
+          request.params.arguments,
         );
         const milestone = await getProjectMilestone(project_id, milestone_id);
         return {
@@ -4370,7 +4782,7 @@ server.setRequestHandler(CallToolRequestSchema, async request => {
 
       case "create_milestone": {
         const { project_id, ...options } = CreateProjectMilestoneSchema.parse(
-          request.params.arguments
+          request.params.arguments,
         );
         const milestone = await createProjectMilestone(project_id, options);
         return {
@@ -4384,10 +4796,13 @@ server.setRequestHandler(CallToolRequestSchema, async request => {
       }
 
       case "edit_milestone": {
-        const { project_id, milestone_id, ...options } = EditProjectMilestoneSchema.parse(
-          request.params.arguments
+        const { project_id, milestone_id, ...options } =
+          EditProjectMilestoneSchema.parse(request.params.arguments);
+        const milestone = await editProjectMilestone(
+          project_id,
+          milestone_id,
+          options,
         );
-        const milestone = await editProjectMilestone(project_id, milestone_id, options);
         return {
           content: [
             {
@@ -4400,7 +4815,7 @@ server.setRequestHandler(CallToolRequestSchema, async request => {
 
       case "delete_milestone": {
         const { project_id, milestone_id } = DeleteProjectMilestoneSchema.parse(
-          request.params.arguments
+          request.params.arguments,
         );
         await deleteProjectMilestone(project_id, milestone_id);
         return {
@@ -4413,7 +4828,7 @@ server.setRequestHandler(CallToolRequestSchema, async request => {
                   message: "Milestone deleted successfully",
                 },
                 null,
-                2
+                2,
               ),
             },
           ],
@@ -4422,7 +4837,7 @@ server.setRequestHandler(CallToolRequestSchema, async request => {
 
       case "get_milestone_issue": {
         const { project_id, milestone_id } = GetMilestoneIssuesSchema.parse(
-          request.params.arguments
+          request.params.arguments,
         );
         const issues = await getMilestoneIssues(project_id, milestone_id);
         return {
@@ -4436,10 +4851,12 @@ server.setRequestHandler(CallToolRequestSchema, async request => {
       }
 
       case "get_milestone_merge_requests": {
-        const { project_id, milestone_id } = GetMilestoneMergeRequestsSchema.parse(
-          request.params.arguments
+        const { project_id, milestone_id } =
+          GetMilestoneMergeRequestsSchema.parse(request.params.arguments);
+        const mergeRequests = await getMilestoneMergeRequests(
+          project_id,
+          milestone_id,
         );
-        const mergeRequests = await getMilestoneMergeRequests(project_id, milestone_id);
         return {
           content: [
             {
@@ -4451,10 +4868,12 @@ server.setRequestHandler(CallToolRequestSchema, async request => {
       }
 
       case "promote_milestone": {
-        const { project_id, milestone_id } = PromoteProjectMilestoneSchema.parse(
-          request.params.arguments
+        const { project_id, milestone_id } =
+          PromoteProjectMilestoneSchema.parse(request.params.arguments);
+        const milestone = await promoteProjectMilestone(
+          project_id,
+          milestone_id,
         );
-        const milestone = await promoteProjectMilestone(project_id, milestone_id);
         return {
           content: [
             {
@@ -4466,10 +4885,12 @@ server.setRequestHandler(CallToolRequestSchema, async request => {
       }
 
       case "get_milestone_burndown_events": {
-        const { project_id, milestone_id } = GetMilestoneBurndownEventsSchema.parse(
-          request.params.arguments
+        const { project_id, milestone_id } =
+          GetMilestoneBurndownEventsSchema.parse(request.params.arguments);
+        const events = await getMilestoneBurndownEvents(
+          project_id,
+          milestone_id,
         );
-        const events = await getMilestoneBurndownEvents(project_id, milestone_id);
         return {
           content: [
             {
@@ -4508,7 +4929,17 @@ server.setRequestHandler(CallToolRequestSchema, async request => {
         const args = ListGroupIterationsSchema.parse(request.params.arguments);
         const iterations = await listGroupIterations(args.group_id, args);
         return {
-          content: [{ type: "text", text: JSON.stringify(iterations, null, 2) }],
+          content: [
+            { type: "text", text: JSON.stringify(iterations, null, 2) },
+          ],
+        };
+      }
+
+      case "upload_markdown": {
+        const args = MarkdownUploadSchema.parse(request.params.arguments);
+        const upload = await markdownUpload(args.project_id, args.file_path);
+        return {
+          content: [{ type: "text", text: JSON.stringify(upload, null, 2) }],
         };
       }
 
@@ -4516,19 +4947,17 @@ server.setRequestHandler(CallToolRequestSchema, async request => {
         throw new Error(`Unknown tool: ${request.params.name}`);
     }
   } catch (error) {
-    logger.debug(request.params)
+    logger.debug(request.params);
     if (error instanceof z.ZodError) {
       throw new Error(
         `Invalid arguments: ${error.errors
-          .map(e => `${e.path.join(".")}: ${e.message}`)
-          .join(", ")}`
+          .map((e) => `${e.path.join(".")}: ${e.message}`)
+          .join(", ")}`,
       );
     }
     throw error;
   }
 });
-
-
 
 /**
  *  Color constants for terminal output
@@ -4538,7 +4967,7 @@ const colorReset = "\x1b[0m";
 
 /**
  * Determine the transport mode based on environment variables and availability
- * 
+ *
  * Transport mode priority (highest to lowest):
  * 1. STREAMABLE_HTTP
  * 2. SSE
@@ -4549,18 +4978,15 @@ function determineTransportMode(): TransportMode {
   if (STREAMABLE_HTTP) {
     return TransportMode.STREAMABLE_HTTP;
   }
-  
-  // Check for SSE support (medium priority)  
+
+  // Check for SSE support (medium priority)
   if (SSE) {
     return TransportMode.SSE;
   }
-  
+
   // Default to stdio (lowest priority)
   return TransportMode.STDIO;
 }
-
-
-
 
 /**
  * Start server with stdio transport
@@ -4570,15 +4996,13 @@ async function startStdioServer(): Promise<void> {
   await server.connect(transport);
 }
 
-
-
 /**
  * Start server with traditional SSE transport
  */
 async function startSSEServer(): Promise<void> {
   const app = express();
   const transports: { [sessionId: string]: SSEServerTransport } = {};
-  
+
   app.get("/sse", async (_: Request, res: Response) => {
     const transport = new SSEServerTransport("/messages", res);
     transports[transport.sessionId] = transport;
@@ -4602,7 +5026,7 @@ async function startSSEServer(): Promise<void> {
     res.status(200).json({
       status: "healthy",
       version: SERVER_VERSION,
-      transport: TransportMode.SSE
+      transport: TransportMode.SSE,
     });
   });
 
@@ -4610,27 +5034,31 @@ async function startSSEServer(): Promise<void> {
     logger.info(`GitLab MCP Server running with SSE transport`);
     const colorGreen = "\x1b[32m";
     const colorReset = "\x1b[0m";
-    logger.info(`${colorGreen}Endpoint: http://${HOST}:${PORT}/sse${colorReset}`);
+    logger.info(
+      `${colorGreen}Endpoint: http://${HOST}:${PORT}/sse${colorReset}`,
+    );
   });
 }
 
 /**
- * Start server with Streamable HTTP transport  
+ * Start server with Streamable HTTP transport
  */
 async function startStreamableHTTPServer(): Promise<void> {
   const app = express();
-  const streamableTransports: { [sessionId: string]: StreamableHTTPServerTransport } = {};
-  
+  const streamableTransports: {
+    [sessionId: string]: StreamableHTTPServerTransport;
+  } = {};
+
   // Configure Express middleware
   app.use(express.json());
-  
+
   // Streamable HTTP endpoint - handles both session creation and message handling
-  app.post('/mcp', async (req: Request, res: Response) => {
-    const sessionId = req.headers['mcp-session-id'] as string;
-    
+  app.post("/mcp", async (req: Request, res: Response) => {
+    const sessionId = req.headers["mcp-session-id"] as string;
+
     try {
       let transport: StreamableHTTPServerTransport;
-      
+
       if (sessionId && streamableTransports[sessionId]) {
         // Reuse existing transport for ongoing session
         transport = streamableTransports[sessionId];
@@ -4642,45 +5070,49 @@ async function startStreamableHTTPServer(): Promise<void> {
           onsessioninitialized: (newSessionId: string) => {
             streamableTransports[newSessionId] = transport;
             logger.warn(`Streamable HTTP session initialized: ${newSessionId}`);
-          }
+          },
         });
-        
+
         // Set up cleanup handler when transport closes
         transport.onclose = () => {
           const sid = transport.sessionId;
           if (sid && streamableTransports[sid]) {
-            logger.warn(`Streamable HTTP transport closed for session ${sid}, cleaning up`);
+            logger.warn(
+              `Streamable HTTP transport closed for session ${sid}, cleaning up`,
+            );
             delete streamableTransports[sid];
           }
         };
-        
+
         // Connect transport to MCP server before handling the request
         await server.connect(transport);
         await transport.handleRequest(req, res, req.body);
       }
     } catch (error) {
-      logger.error('Streamable HTTP error:', error);
-      res.status(500).json({ 
-        error: 'Internal server error',
-        message: error instanceof Error ? error.message : 'Unknown error'
+      logger.error("Streamable HTTP error:", error);
+      res.status(500).json({
+        error: "Internal server error",
+        message: error instanceof Error ? error.message : "Unknown error",
       });
     }
   });
-  
+
   // Health check endpoint
   app.get("/health", (_: Request, res: Response) => {
     res.status(200).json({
       status: "healthy",
       version: SERVER_VERSION,
       transport: TransportMode.STREAMABLE_HTTP,
-      activeSessions: Object.keys(streamableTransports).length
+      activeSessions: Object.keys(streamableTransports).length,
     });
   });
-  
+
   // Start server
   app.listen(Number(PORT), HOST, () => {
     logger.info(`GitLab MCP Server running with Streamable HTTP transport`);
-    logger.info(`${colorGreen}Endpoint: http://${HOST}:${PORT}/mcp${colorReset}`);
+    logger.info(
+      `${colorGreen}Endpoint: http://${HOST}:${PORT}/mcp${colorReset}`,
+    );
   });
 }
 
@@ -4688,24 +5120,26 @@ async function startStreamableHTTPServer(): Promise<void> {
  * Initialize server with specific transport mode
  * Handle transport-specific initialization logic
  */
-async function initializeServerByTransportMode(mode: TransportMode): Promise<void> {
-  logger.info('Initializing server with transport mode:', mode);
+async function initializeServerByTransportMode(
+  mode: TransportMode,
+): Promise<void> {
+  logger.info("Initializing server with transport mode:", mode);
   switch (mode) {
     case TransportMode.STDIO:
-      logger.warn('Starting GitLab MCP Server with stdio transport');
+      logger.warn("Starting GitLab MCP Server with stdio transport");
       await startStdioServer();
       break;
-      
+
     case TransportMode.SSE:
-      logger.warn('Starting GitLab MCP Server with SSE transport');
+      logger.warn("Starting GitLab MCP Server with SSE transport");
       await startSSEServer();
       break;
-      
+
     case TransportMode.STREAMABLE_HTTP:
-      logger.warn('Starting GitLab MCP Server with Streamable HTTP transport');
+      logger.warn("Starting GitLab MCP Server with Streamable HTTP transport");
       await startStreamableHTTPServer();
       break;
-      
+
     default:
       // This should never happen with proper enum usage, but TypeScript requires it
       const exhaustiveCheck: never = mode;
@@ -4727,7 +5161,8 @@ async function runServer() {
   }
 }
 
-runServer().catch(error => {
+// 下記の２行を追記
+runServer().catch((error) => {
   logger.error("Fatal error in main():", error);
   process.exit(1);
 });
