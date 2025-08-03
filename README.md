@@ -193,9 +193,11 @@ $ sh scripts/image_push.sh docker_user_name
 `update_label` - Update an existing label in a project
 `update_issue` - Update an issue in a GitLab project
 `update_issue_note` - Modify an existing issue thread note
+`update_draft_note` - Update an existing draft note
 `search_repositories` - Search for GitLab projects
 `retry_pipeline` - Retry a failed or canceled pipeline
 `push_files` - Push multiple files to a GitLab project in a single commit
+`publish_draft_note` - Publish a single draft note
 `promote_milestone` - Promote a milestone to the next stage
 `my_issues` - List issues assigned to the authenticated user
 `mr_discussions` - List discussion items for a merge request
@@ -214,6 +216,7 @@ $ sh scripts/image_push.sh docker_user_name
 `list_issue_links` - List all issue links for a specific issue
 `list_issue_discussions` - List discussions for an issue in a GitLab project
 `list_group_projects` - List projects in a GitLab group with filtering options
+`list_draft_notes` - List draft notes for a merge request
 `get_wiki_page` - Get details of a specific wiki page
 `get_users` - Get GitLab user details by usernames
 `get_repository_tree` - Get the repository tree for a GitLab project (list files and directories)
@@ -240,6 +243,7 @@ $ sh scripts/image_push.sh docker_user_name
 `delete_label` - Delete a label from a project
 `delete_issue` - Delete an issue from a GitLab project
 `delete_issue_link` - Delete an issue link
+`delete_draft_note` - Delete a draft note
 `create_wiki_page` - Create a new wiki page in a GitLab project
 `create_repository` - Create a new GitLab project
 `create_pipeline` - Create a new pipeline for a branch or tag
@@ -253,6 +257,8 @@ $ sh scripts/image_push.sh docker_user_name
 `create_issue` - Create a new issue in a GitLab project
 `create_issue_note` - Add a new note to an existing issue thread
 `create_issue_link` - Create an issue link between two issues
+`create_draft_note` - Create a draft note for a merge request
 `create_branch` - Create a new branch in a GitLab project
 `cancel_pipeline` - Cancel a running pipeline
+`bulk_publish_draft_notes` - Publish all draft notes for a merge request
 <!-- TOOLS-END -->

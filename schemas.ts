@@ -300,11 +300,11 @@ export const GetPipelineJobOutputSchema = z.object({
 
 // User schemas
 export const GitLabUserSchema = z.object({
-  username: z.string(), // Changed from login to match GitLab API
+  username: z.string().optional(), // Changed from login to match GitLab API
   id: z.coerce.string(),
-  name: z.string(),
-  avatar_url: z.string().nullable(),
-  web_url: z.string(), // Changed from html_url to match GitLab API
+  name: z.string().optional(),
+  avatar_url: z.string().nullable().optional(),
+  web_url: z.string().optional(), // Changed from html_url to match GitLab API
 });
 
 export const GetUsersSchema = z.object({
@@ -827,15 +827,15 @@ export const LineRangeSchema = z
 // Discussion related schemas
 export const GitLabDiscussionNoteSchema = z.object({
   id: z.coerce.string(),
-  type: z.enum(["DiscussionNote", "DiffNote", "Note"]).nullable(), // Allow null type for regular notes
-  body: z.string(),
-  attachment: z.any().nullable(), // Can be string or object, handle appropriately
-  author: GitLabUserSchema,
-  created_at: z.string(),
-  updated_at: z.string(),
-  system: flexibleBoolean,
-  noteable_id: z.coerce.string(),
-  noteable_type: z.enum(["Issue", "MergeRequest", "Snippet", "Commit", "Epic"]),
+  type: z.enum(["DiscussionNote", "DiffNote", "Note"]).nullable().optional(), // Allow null type for regular notes
+  body: z.string().optional(),
+  attachment: z.any().nullable().optional(), // Can be string or object, handle appropriately
+  author: GitLabUserSchema.optional(),
+  created_at: z.string().optional(),
+  updated_at: z.string().optional(),
+  system: flexibleBoolean.optional(),
+  noteable_id: z.coerce.string().optional(),
+  noteable_type: z.enum(["Issue", "MergeRequest", "Snippet", "Commit", "Epic"]).optional(),
   project_id: z.coerce.string().optional(),
   noteable_iid: z.coerce.string().nullable().optional(),
   resolvable: flexibleBoolean.optional(),
@@ -845,12 +845,12 @@ export const GitLabDiscussionNoteSchema = z.object({
   position: z
     .object({
       // Only present for DiffNote
-      base_sha: z.string(),
-      start_sha: z.string(),
-      head_sha: z.string(),
+      base_sha: z.string().optional(),
+      start_sha: z.string().optional(),
+      head_sha: z.string().optional(),
       old_path: z.string().nullable().optional().describe("File path before change"),
       new_path: z.string().nullable().optional().describe("File path after change"),
-      position_type: z.enum(["text", "image", "file"]),
+      position_type: z.enum(["text", "image", "file"]).optional(),
       new_line: z
         .number()
         .nullable()
@@ -871,8 +871,9 @@ export const GitLabDiscussionNoteSchema = z.object({
       x: z.number().optional(), // For image diff notes
       y: z.number().optional(), // For image diff notes
     })
+    .passthrough() // Allow additional fields
     .optional(),
-});
+}).passthrough(); // Allow additional fields that GitLab might return
 export type GitLabDiscussionNote = z.infer<typeof GitLabDiscussionNoteSchema>;
 
 // Reusable pagination schema for GitLab API responses.
@@ -1486,6 +1487,25 @@ export const GitLabWikiPageSchema = z.object({
 });
 
 // Merge Request Thread position schema - used for diff notes
+// Extremely flexible position schema for API responses - accepts any structure
+
+// Strict position schema for creating draft notes and merge request threads
+export const MergeRequestThreadPositionCreateSchema = z.object({
+  base_sha: z.string().describe("REQUIRED: Base commit SHA in the source branch. Get this from merge request diff_refs.base_sha."),
+  head_sha: z.string().describe("REQUIRED: SHA referencing HEAD of the source branch. Get this from merge request diff_refs.head_sha."),
+  start_sha: z.string().describe("REQUIRED: SHA referencing the start commit of the source branch. Get this from merge request diff_refs.start_sha."),
+  position_type: z.enum(["text", "image", "file"]).describe("REQUIRED: Position type. Use 'text' for code diffs, 'image' for image diffs, 'file' for file-level comments."),
+  new_path: z.string().nullable().optional().describe("File path after changes. REQUIRED for most diff comments. Use same as old_path if file wasn't renamed."),
+  old_path: z.string().nullable().optional().describe("File path before changes. REQUIRED for most diff comments. Use same as new_path if file wasn't renamed."),
+  new_line: z.number().nullable().optional().describe("Line number in modified file (after changes). Use for added lines or context lines. NULL for deleted lines. For single-line comments on new lines."),
+  old_line: z.number().nullable().optional().describe("Line number in original file (before changes). Use for deleted lines or context lines. NULL for added lines. For single-line comments on old lines."),
+  line_range: LineRangeSchema.optional().describe("MULTILINE COMMENTS: Specify start/end line positions for commenting on multiple lines. Alternative to single old_line/new_line."),
+  width: z.number().optional().describe("IMAGE DIFFS ONLY: Width of the image (for position_type='image')."),
+  height: z.number().optional().describe("IMAGE DIFFS ONLY: Height of the image (for position_type='image')."),
+  x: z.number().optional().describe("IMAGE DIFFS ONLY: X coordinate on the image (for position_type='image')."),
+  y: z.number().optional().describe("IMAGE DIFFS ONLY: Y coordinate on the image (for position_type='image')."),
+});
+
 export const MergeRequestThreadPositionSchema = z.object({
   base_sha: z
     .string()
@@ -1554,6 +1574,68 @@ export const MergeRequestThreadPositionSchema = z.object({
     .number()
     .optional()
     .describe("IMAGE DIFFS ONLY: Y coordinate on the image (for position_type='image')."),
+});
+
+// Draft Notes API schemas
+export const GitLabDraftNoteSchema = z.object({
+  id: z.coerce.string(),
+  author: GitLabUserSchema.optional(),
+  body: z.string().optional(),
+  note: z.string().optional(), // Some APIs might use 'note' instead of 'body'
+  created_at: z.string().optional(),
+  updated_at: z.string().optional(),
+  position: MergeRequestThreadPositionSchema.nullable().optional(),
+  resolve_discussion: flexibleBoolean.optional(),
+}).transform((data) => ({
+  // Normalize the response to always have consistent field names
+  id: data.id,
+  author: data.author,
+  body: data.body || data.note || "",
+  created_at: data.created_at || "",
+  updated_at: data.updated_at || "",
+  position: data.position,
+  resolve_discussion: data.resolve_discussion,
+}));
+
+export type GitLabDraftNote = z.infer<typeof GitLabDraftNoteSchema>;
+
+// List draft notes schema
+export const ListDraftNotesSchema = ProjectParamsSchema.extend({
+  merge_request_iid: z.coerce.string().describe("The IID of a merge request"),
+});
+
+// Create draft note schema
+export const CreateDraftNoteSchema = ProjectParamsSchema.extend({
+  merge_request_iid: z.coerce.string().describe("The IID of a merge request"),
+  body: z.string().describe("The content of the draft note"),
+  position: MergeRequestThreadPositionCreateSchema.optional().describe("Position when creating a diff note"),
+  resolve_discussion: flexibleBoolean.optional().describe("Whether to resolve the discussion when publishing"),
+});
+
+// Update draft note schema
+export const UpdateDraftNoteSchema = ProjectParamsSchema.extend({
+  merge_request_iid: z.coerce.string().describe("The IID of a merge request"),
+  draft_note_id: z.coerce.string().describe("The ID of the draft note"),
+  body: z.string().optional().describe("The content of the draft note"),
+  position: MergeRequestThreadPositionCreateSchema.optional().describe("Position when creating a diff note"),
+  resolve_discussion: flexibleBoolean.optional().describe("Whether to resolve the discussion when publishing"),
+});
+
+// Delete draft note schema
+export const DeleteDraftNoteSchema = ProjectParamsSchema.extend({
+  merge_request_iid: z.coerce.string().describe("The IID of a merge request"),
+  draft_note_id: z.coerce.string().describe("The ID of the draft note"),
+});
+
+// Publish draft note schema
+export const PublishDraftNoteSchema = ProjectParamsSchema.extend({
+  merge_request_iid: z.coerce.string().describe("The IID of a merge request"),
+  draft_note_id: z.coerce.string().describe("The ID of the draft note"),
+});
+
+// Bulk publish draft notes schema
+export const BulkPublishDraftNotesSchema = ProjectParamsSchema.extend({
+  merge_request_iid: z.coerce.string().describe("The IID of a merge request"),
 });
 
 // Schema for creating a new merge request thread
@@ -1834,6 +1916,7 @@ export type GitLabWikiPage = z.infer<typeof GitLabWikiPageSchema>;
 export type GitLabTreeItem = z.infer<typeof GitLabTreeItemSchema>;
 export type GetRepositoryTreeOptions = z.infer<typeof GetRepositoryTreeSchema>;
 export type MergeRequestThreadPosition = z.infer<typeof MergeRequestThreadPositionSchema>;
+export type MergeRequestThreadPositionCreate = z.infer<typeof MergeRequestThreadPositionCreateSchema>;
 export type CreateMergeRequestThreadOptions = z.infer<typeof CreateMergeRequestThreadSchema>;
 export type CreateMergeRequestNoteOptions = z.infer<typeof CreateMergeRequestNoteSchema>;
 export type GitLabPipelineJob = z.infer<typeof GitLabPipelineJobSchema>;
@@ -1867,5 +1950,13 @@ export type ListProjectMembersOptions = z.infer<typeof ListProjectMembersSchema>
 export type GitLabProjectMember = z.infer<typeof GitLabProjectMemberSchema>;
 export type GroupIteration = z.infer<typeof GroupIteration>;
 export type ListGroupIterationsOptions = z.infer<typeof ListGroupIterationsSchema>;
+
+// Draft Notes type exports
+export type ListDraftNotesOptions = z.infer<typeof ListDraftNotesSchema>;
+export type CreateDraftNoteOptions = z.infer<typeof CreateDraftNoteSchema>;
+export type UpdateDraftNoteOptions = z.infer<typeof UpdateDraftNoteSchema>;
+export type DeleteDraftNoteOptions = z.infer<typeof DeleteDraftNoteSchema>;
+export type PublishDraftNoteOptions = z.infer<typeof PublishDraftNoteSchema>;
+export type BulkPublishDraftNotesOptions = z.infer<typeof BulkPublishDraftNotesSchema>;
 export type GitLabMarkdownUpload = z.infer<typeof GitLabMarkdownUploadSchema>;
 export type MarkdownUploadOptions = z.infer<typeof MarkdownUploadSchema>;
