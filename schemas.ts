@@ -1682,6 +1682,50 @@ export const GetCommitDiffSchema = z.object({
   sha: z.string().describe("The commit hash or name of a repository branch or tag"),
 });
 
+// Schema for listing issues assigned to the current user
+export const MyIssuesSchema = z.object({
+  project_id: z.string().optional().describe("Project ID or URL-encoded path (optional when GITLAB_PROJECT_ID is set)"),
+  state: z
+    .enum(["opened", "closed", "all"])
+    .optional()
+    .describe("Return issues with a specific state (default: opened)"),
+  labels: z.array(z.string()).optional().describe("Array of label names to filter by"),
+  milestone: z.string().optional().describe("Milestone title to filter by"),
+  search: z.string().optional().describe("Search for specific terms in title and description"),
+  created_after: z.string().optional().describe("Return issues created after the given time (ISO 8601)"),
+  created_before: z.string().optional().describe("Return issues created before the given time (ISO 8601)"),
+  updated_after: z.string().optional().describe("Return issues updated after the given time (ISO 8601)"),
+  updated_before: z.string().optional().describe("Return issues updated before the given time (ISO 8601)"),
+  per_page: z.number().optional().describe("Number of items per page (default: 20, max: 100)"),
+  page: z.number().optional().describe("Page number for pagination (default: 1)"),
+});
+
+// Schema for listing project members
+export const ListProjectMembersSchema = z.object({
+  project_id: z.string().describe("Project ID or URL-encoded path"),
+  query: z.string().optional().describe("Search for members by name or username"),
+  user_ids: z.array(z.number()).optional().describe("Filter by user IDs"),
+  skip_users: z.array(z.number()).optional().describe("User IDs to exclude"),
+  per_page: z.number().optional().describe("Number of items per page (default: 20, max: 100)"),
+  page: z.number().optional().describe("Page number for pagination (default: 1)"),
+});
+
+// Schema for GitLab project member
+export const GitLabProjectMemberSchema = z.object({
+  id: z.number(),
+  username: z.string(),
+  name: z.string(),
+  state: z.string(),
+  avatar_url: z.string().nullable(),
+  web_url: z.string(),
+  access_level: z.number(),
+  access_level_description: z.string().optional(),
+  created_at: z.string(),
+  expires_at: z.string().nullable().optional(),
+  email: z.string().optional(),
+
+});
+
 // Markdown upload schemas
 export const GitLabMarkdownUploadSchema = z.object({
   id: z.number(),
@@ -1818,6 +1862,9 @@ export type PaginationOptions = z.infer<typeof PaginationOptionsSchema>;
 export type ListCommitsOptions = z.infer<typeof ListCommitsSchema>;
 export type GetCommitOptions = z.infer<typeof GetCommitSchema>;
 export type GetCommitDiffOptions = z.infer<typeof GetCommitDiffSchema>;
+export type MyIssuesOptions = z.infer<typeof MyIssuesSchema>;
+export type ListProjectMembersOptions = z.infer<typeof ListProjectMembersSchema>;
+export type GitLabProjectMember = z.infer<typeof GitLabProjectMemberSchema>;
 export type GroupIteration = z.infer<typeof GroupIteration>;
 export type ListGroupIterationsOptions = z.infer<typeof ListGroupIterationsSchema>;
 export type GitLabMarkdownUpload = z.infer<typeof GitLabMarkdownUploadSchema>;

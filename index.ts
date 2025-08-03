@@ -116,6 +116,8 @@ import {
   type GitLabPipelineTriggerJob,
   GitLabPipelineTriggerJobSchema,
   type GitLabProject,
+  type GitLabProjectMember,
+  GitLabProjectMemberSchema,
   GitLabProjectSchema,
   type GitLabReference,
   GitLabReferenceSchema,
@@ -152,12 +154,16 @@ import {
   ListPipelinesSchema,
   type ListPipelineTriggerJobsOptions,
   ListPipelineTriggerJobsSchema,
+  type ListProjectMembersOptions,
+  ListProjectMembersSchema,
   ListProjectMilestonesSchema,
   ListProjectsSchema,
   ListWikiPagesOptions,
   ListWikiPagesSchema,
   MarkdownUploadSchema,
   type MergeRequestThreadPosition,
+  type MyIssuesOptions,
+  MyIssuesSchema,
   type PaginatedDiscussionsResponse,
   PaginatedDiscussionsResponseSchema,
   type PaginationOptions,
@@ -171,7 +177,7 @@ import {
   UpdateMergeRequestNoteSchema,
   UpdateMergeRequestSchema,
   UpdateWikiPageSchema,
-  VerifyNamespaceSchema,
+  VerifyNamespaceSchema
 } from "./schemas.js";
 
 import { randomUUID } from "crypto";
@@ -497,6 +503,11 @@ const allTools = [
     inputSchema: zodToJsonSchema(ListIssuesSchema),
   },
   {
+    name: "my_issues",
+    description: "List issues assigned to the authenticated user (defaults to open issues)",
+    inputSchema: zodToJsonSchema(MyIssuesSchema),
+  },
+  {
     name: "get_issue",
     description: "Get details of a specific issue in a GitLab project",
     inputSchema: zodToJsonSchema(GetIssueSchema),
@@ -560,6 +571,11 @@ const allTools = [
     name: "list_projects",
     description: "List projects accessible by the current user",
     inputSchema: zodToJsonSchema(ListProjectsSchema),
+  },
+  {
+    name: "list_project_members",
+    description: "List members of a GitLab project",
+    inputSchema: zodToJsonSchema(ListProjectMembersSchema),
   },
   {
     name: "list_labels",
@@ -762,6 +778,7 @@ const readOnlyTools = [
   "get_branch_diffs",
   "mr_discussions",
   "list_issues",
+  "my_issues",
   "list_merge_requests",
   "get_issue",
   "list_issue_links",
@@ -771,13 +788,14 @@ const readOnlyTools = [
   "get_namespace",
   "verify_namespace",
   "get_project",
+  "list_projects",
+  "list_project_members",
   "get_pipeline",
   "list_pipelines",
   "list_pipeline_jobs",
   "list_pipeline_trigger_jobs",
   "get_pipeline_job",
   "get_pipeline_job_output",
-  "list_projects",
   "list_labels",
   "get_label",
   "list_group_projects",
@@ -862,6 +880,7 @@ function normalizeGitLabApiUrl(url?: string): string {
 // Use the normalizeGitLabApiUrl function to handle various URL formats
 const GITLAB_API_URL = normalizeGitLabApiUrl(process.env.GITLAB_API_URL || "");
 const GITLAB_PROJECT_ID = process.env.GITLAB_PROJECT_ID;
+const GITLAB_ALLOWED_PROJECT_IDS = process.env.GITLAB_ALLOWED_PROJECT_IDS?.split(',').map(id => id.trim()).filter(Boolean) || [];
 
 if (!GITLAB_PERSONAL_ACCESS_TOKEN) {
   logger.error("GITLAB_PERSONAL_ACCESS_TOKEN environment variable is not set");
@@ -900,8 +919,27 @@ async function handleGitLabError(
 /**
  * @param {string} projectId - The project ID parameter passed to the function
  * @returns {string} The project ID to use for the API call
+ * @throws {Error} If GITLAB_ALLOWED_PROJECT_IDS is set and the requested project is not in the whitelist
  */
 function getEffectiveProjectId(projectId: string): string {
+  if (GITLAB_ALLOWED_PROJECT_IDS.length > 0) {
+    // If there's only one allowed project, use it as default
+    if (GITLAB_ALLOWED_PROJECT_IDS.length === 1 && !projectId) {
+      return GITLAB_ALLOWED_PROJECT_IDS[0];
+    }
+    
+    // If a project ID is provided, check if it's in the whitelist
+    if (projectId && !GITLAB_ALLOWED_PROJECT_IDS.includes(projectId)) {
+      throw new Error(`Access denied: Project ${projectId} is not in the allowed project list: ${GITLAB_ALLOWED_PROJECT_IDS.join(', ')}`);
+    }
+    
+    // If no project ID provided but we have multiple allowed projects, require an explicit choice
+    if (!projectId && GITLAB_ALLOWED_PROJECT_IDS.length > 1) {
+      throw new Error(`Multiple projects allowed (${GITLAB_ALLOWED_PROJECT_IDS.join(', ')}). Please specify a project ID.`);
+    }
+    
+    return projectId || GITLAB_ALLOWED_PROJECT_IDS[0];
+  }
   return GITLAB_PROJECT_ID || projectId;
 }
 
@@ -3601,6 +3639,86 @@ async function getCommitDiff(
 }
 
 /**
+ * Get the current authenticated user
+ * 현재 인증된 사용자 가져오기
+ *
+ * @returns {Promise<GitLabUser>} The current user
+ */
+async function getCurrentUser(): Promise<GitLabUser> {
+  const response = await fetch(`${GITLAB_API_URL}/user`, DEFAULT_FETCH_CONFIG);
+
+  await handleGitLabError(response);
+  const data = await response.json();
+  return GitLabUserSchema.parse(data);
+}
+
+/**
+ * List issues assigned to the current authenticated user
+ * 현재 인증된 사용자에게 할당된 이슈 목록 조회
+ *
+ * @param {MyIssuesOptions} options - Options for filtering issues
+ * @returns {Promise<GitLabIssue[]>} List of issues assigned to the current user
+ */
+async function myIssues(options: MyIssuesOptions = {}): Promise<GitLabIssue[]> {
+  // Get current user to find their username
+  const currentUser = await getCurrentUser();
+  
+  // Use getEffectiveProjectId to handle project ID resolution
+  const effectiveProjectId = getEffectiveProjectId(options.project_id || "");
+  
+  // Use listIssues with assignee_username filter
+  const listIssuesOptions: Omit<z.infer<typeof ListIssuesSchema>, "project_id"> = {
+    assignee_username: [currentUser.username],
+    state: options.state || "opened", // Default to "opened" if not specified
+    labels: options.labels,
+    milestone: options.milestone,
+    search: options.search,
+    created_after: options.created_after,
+    created_before: options.created_before,
+    updated_after: options.updated_after,
+    updated_before: options.updated_before,
+    per_page: options.per_page,
+    page: options.page,
+  };
+  
+  return listIssues(effectiveProjectId, listIssuesOptions);
+}
+
+/**
+ * List members of a GitLab project
+ * GitLab 프로젝트 멤버 목록 조회
+ *
+ * @param {string} projectId - Project ID or URL-encoded path
+ * @param {Omit<ListProjectMembersOptions, "project_id">} options - Options for filtering members
+ * @returns {Promise<GitLabProjectMember[]>} List of project members
+ */
+async function listProjectMembers(
+  projectId: string,
+  options: Omit<ListProjectMembersOptions, "project_id"> = {}
+): Promise<GitLabProjectMember[]> {
+  projectId = decodeURIComponent(projectId);
+  const effectiveProjectId = getEffectiveProjectId(projectId);
+  const url = new URL(`${GITLAB_API_URL}/projects/${encodeURIComponent(effectiveProjectId)}/members`);
+
+  // Add query parameters
+  if (options.query) url.searchParams.append("query", options.query);
+  if (options.user_ids) {
+    options.user_ids.forEach(id => url.searchParams.append("user_ids[]", id.toString()));
+  }
+  if (options.skip_users) {
+    options.skip_users.forEach(id => url.searchParams.append("skip_users[]", id.toString()));
+  }
+  if (options.per_page) url.searchParams.append("per_page", options.per_page.toString());
+  if (options.page) url.searchParams.append("page", options.page.toString());
+
+  const response = await fetch(url.toString(), DEFAULT_FETCH_CONFIG);
+
+  await handleGitLabError(response);
+  const data = await response.json();
+  return z.array(GitLabProjectMemberSchema).parse(data);
+}
+
+/**
  * list group iterations
  *
  * @param {string} groupId
@@ -4166,6 +4284,15 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         };
       }
 
+      case "list_project_members": {
+        const args = ListProjectMembersSchema.parse(request.params.arguments);
+        const { project_id, ...options } = args;
+        const members = await listProjectMembers(project_id, options);
+        return {
+          content: [{ type: "text", text: JSON.stringify(members, null, 2) }],
+        };
+      }
+
       case "get_users": {
         const args = GetUsersSchema.parse(request.params.arguments);
         const usersMap = await getUsers(args.usernames);
@@ -4213,6 +4340,14 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const args = ListIssuesSchema.parse(request.params.arguments);
         const { project_id, ...options } = args;
         const issues = await listIssues(project_id, options);
+        return {
+          content: [{ type: "text", text: JSON.stringify(issues, null, 2) }],
+        };
+      }
+
+      case "my_issues": {
+        const args = MyIssuesSchema.parse(request.params.arguments);
+        const issues = await myIssues(args);
         return {
           content: [{ type: "text", text: JSON.stringify(issues, null, 2) }],
         };
