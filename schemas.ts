@@ -1682,6 +1682,20 @@ export const GetCommitDiffSchema = z.object({
   sha: z.string().describe("The commit hash or name of a repository branch or tag"),
 });
 
+// Markdown upload schemas
+export const GitLabMarkdownUploadSchema = z.object({
+  id: z.number(),
+  alt: z.string(),
+  url: z.string(),
+  full_path: z.string(),
+  markdown: z.string(),
+});
+
+export const MarkdownUploadSchema = z.object({
+  project_id: z.string().describe("Project ID or URL-encoded path of the project"),
+  file_path: z.string().describe("Path to the file to upload"),
+});
+
 export const GroupIteration = z.object({
   id: z.coerce.string(),
   iid: z.coerce.string(),
@@ -1806,3 +1820,5 @@ export type GetCommitOptions = z.infer<typeof GetCommitSchema>;
 export type GetCommitDiffOptions = z.infer<typeof GetCommitDiffSchema>;
 export type GroupIteration = z.infer<typeof GroupIteration>;
 export type ListGroupIterationsOptions = z.infer<typeof ListGroupIterationsSchema>;
+export type GitLabMarkdownUpload = z.infer<typeof GitLabMarkdownUploadSchema>;
+export type MarkdownUploadOptions = z.infer<typeof MarkdownUploadSchema>;
