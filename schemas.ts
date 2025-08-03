@@ -1599,6 +1599,12 @@ export const GitLabDraftNoteSchema = z.object({
 
 export type GitLabDraftNote = z.infer<typeof GitLabDraftNoteSchema>;
 
+// Get draft note schema
+export const GetDraftNoteSchema = ProjectParamsSchema.extend({
+  merge_request_iid: z.coerce.string().describe("The IID of a merge request"),
+  draft_note_id: z.coerce.string().describe("The ID of the draft note"),
+});
+
 // List draft notes schema
 export const ListDraftNotesSchema = ProjectParamsSchema.extend({
   merge_request_iid: z.coerce.string().describe("The IID of a merge request"),
