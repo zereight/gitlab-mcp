@@ -58,6 +58,7 @@ import {
   GetBranchDiffsSchema,
   GetCommitDiffSchema,
   GetCommitSchema,
+  GetDraftNoteSchema,
   GetFileContentsSchema,
   GetIssueLinkSchema,
   GetIssueSchema,
@@ -496,6 +497,11 @@ const allTools = [
     name: "create_merge_request_note",
     description: "Add a new note to an existing merge request thread",
     inputSchema: zodToJsonSchema(CreateMergeRequestNoteSchema),
+  },
+  {
+    name: "get_draft_note",
+    description: "Get a single draft note from a merge request",
+    inputSchema: zodToJsonSchema(GetDraftNoteSchema),
   },
   {
     name: "list_draft_notes",
@@ -2347,6 +2353,24 @@ async function createNote(
  * @param {number|string} mergeRequestIid - The internal ID of the merge request
  * @returns {Promise<GitLabDraftNote[]>} Array of draft notes
  */
+async function getDraftNote(
+  project_id: string,
+  merge_request_iid: string,
+  draft_note_id: string
+): Promise<GitLabDraftNote> {
+  const response = await fetch(
+    `/projects/${encodeURIComponent(project_id)}/merge_requests/${merge_request_iid}/draft_notes/${draft_note_id}`
+  );
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`GitLab API error: ${response.status} ${response.statusText}\n${errorText}`);
+  }
+
+  const data = await response.json();
+  return GitLabDraftNoteSchema.parse(data);
+}
+
 async function listDraftNotes(
   projectId: string,
   mergeRequestIid: number | string
@@ -4628,6 +4652,16 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         );
         return {
           content: [{ type: "text", text: JSON.stringify(note, null, 2) }],
+        };
+      }
+
+      case "get_draft_note": {
+        const args = GetDraftNoteSchema.parse(request.params.arguments);
+        const { project_id, merge_request_iid, draft_note_id } = args;
+
+        const draftNote = await getDraftNote(project_id, merge_request_iid, draft_note_id);
+        return {
+          content: [{ type: "text", text: JSON.stringify(draftNote, null, 2) }],
         };
       }
 
