@@ -1092,6 +1092,16 @@ export const UpdateMergeRequestSchema = GetMergeRequestSchema.extend({
   draft: flexibleBoolean.optional().describe("Work in progress merge request"),
 });
 
+export const MergeMergeRequestSchema = ProjectParamsSchema.extend({
+  merge_request_iid: z.coerce.string().optional().describe("The IID of a merge request"),
+  auto_merge: flexibleBoolean.optional().default(false).describe("If true, the merge request merges when the pipeline succeeds."),
+  merge_commit_message: z.string().optional().describe("Custom merge commit message"),
+  merge_when_pipeline_succeeds: flexibleBoolean.optional().default(false).describe("If true, the merge request merges when the pipeline succeeds.in GitLab 17.11. Use"),
+  should_remove_source_branch: flexibleBoolean.optional().default(false).describe("Remove source branch after merge"),
+  squash_commit_message: z.string().optional().describe("Custom squash commit message"),
+  squash: flexibleBoolean.optional().default(false).describe("Squash commits into a single commit when merging"),
+});
+
 export const GetMergeRequestDiffsSchema = GetMergeRequestSchema.extend({
   view: z.enum(["inline", "parallel"]).optional().describe("Diff view type"),
 });
