@@ -8,7 +8,7 @@ import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/
 import { config, validateConfiguration} from "./src/config.js";
 import { configureAuthentication } from "./src/authentication.js";
 import { logger } from "./src/logger.js";
-import argon2 from "@node-rs/argon2";
+import argon2 from "./src/argon2wrapper.js";
 import { randomUUID } from "crypto";
 
 

@@ -57,7 +57,23 @@ export const config = {
 }
 
 export const validateConfiguration  = ()=> {
-
+  // Check if using default ARGON2_SALT
+  if (config.ARGON2_SALT === unsafeDefaultArgon2Salt) {
+    console.error('\n' + '='.repeat(80));
+    console.error('⚠️  WARNING: USING DEFAULT ARGON2_SALT VALUE!');
+    console.error('='.repeat(80));
+    console.error('');
+    console.error('You are using the default ARGON2_SALT value which is INSECURE.');
+    console.error('This salt is publicly known and makes your password hashes vulnerable.');
+    console.error('');
+    console.error('Please set the ARGON2_SALT environment variable to a unique, random value:');
+    console.error('  export ARGON2_SALT="your-unique-random-salt-here"');
+    console.error('');
+    console.error('You can generate a secure salt with:');
+    console.error('  openssl rand -base64 32');
+    console.error('');
+    console.error('='.repeat(80) + '\n');
+  }
 
   // check that only one of GITLAB_PERSONAL_ACCESS_TOKEN, GITLAB_OAUTH2_CLIENT_ID, GITLAB_PAT_PASSTHROUGH is set
   const onlyOnOf = [

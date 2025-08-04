@@ -8,7 +8,7 @@ import { OAuthRegisteredClientsStore } from '@modelcontextprotocol/sdk/server/au
 import { Request, Response } from 'express';
 import { logger } from './logger.js';
 import { Database } from 'better-sqlite3';
-import argon2 from '@node-rs/argon2';
+import argon2 from './argon2wrapper.js';
 import { randomBytes } from 'crypto';
 
 // Custom provider that handles dynamic registration and maps to GitLab OAuth

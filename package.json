@@ -33,7 +33,7 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "1.13.3",
-    "@node-rs/argon2": "^2.0.2",
+    "@noble/hashes": "^1.8.0",
     "@types/better-sqlite3": "^7.6.13",
     "@types/node-fetch": "^2.6.12",
     "better-sqlite3": "^12.2.0",
