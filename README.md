@@ -25,6 +25,8 @@ When using with the Claude App, you need to set up your API key and URLs directl
       "env": {
         "GITLAB_PERSONAL_ACCESS_TOKEN": "your_gitlab_token",
         "GITLAB_API_URL": "your_gitlab_api_url",
+        "GITLAB_PROJECT_ID": "your_project_id", // Optional: default project
+        "GITLAB_ALLOWED_PROJECT_IDS": "", // Optional: comma-separated list of allowed project IDs
         "GITLAB_READ_ONLY_MODE": "false",
         "USE_GITLAB_WIKI": "false", // use wiki api?
         "USE_MILESTONE": "false", // use milestone api?
@@ -168,6 +170,9 @@ $ sh scripts/image_push.sh docker_user_name
 - `GITLAB_PERSONAL_ACCESS_TOKEN`: Your GitLab personal access token.
 - `GITLAB_API_URL`: Your GitLab API URL. (Default: `https://gitlab.com/api/v4`)
 - `GITLAB_PROJECT_ID`: Default project ID. If set, Overwrite this value when making an API request.
+- `GITLAB_ALLOWED_PROJECT_IDS`: Optional comma-separated list of allowed project IDs. When set with a single value, acts as a default project (like the old "lock" mode). When set with multiple values, restricts access to only those projects. Examples:
+  - Single value `123`: MCP server can only access project 123 and uses it as default
+  - Multiple values `123,456,789`: MCP server can access projects 123, 456, and 789 but requires explicit project ID in requests
 - `GITLAB_READ_ONLY_MODE`: When set to 'true', restricts the server to only expose read-only operations. Useful for enhanced security or when write access is not needed. Also useful for using with Cursor and it's 40 tool limit.
 - `USE_GITLAB_WIKI`: When set to 'true', enables the wiki-related tools (list_wiki_pages, get_wiki_page, create_wiki_page, update_wiki_page, delete_wiki_page). By default, wiki features are disabled.
 - `USE_MILESTONE`: When set to 'true', enables the milestone-related tools (list_milestones, get_milestone, create_milestone, edit_milestone, delete_milestone, get_milestone_issue, get_milestone_merge_requests, promote_milestone, get_milestone_burndown_events). By default, milestone features are disabled.
@@ -181,71 +186,79 @@ $ sh scripts/image_push.sh docker_user_name
 ## Tools 🛠️
 
 +<!-- TOOLS-START -->
-
-1. `create_or_update_file` - Create or update a single file in a GitLab project
-2. `search_repositories` - Search for GitLab projects
-3. `create_repository` - Create a new GitLab project
-4. `get_file_contents` - Get the contents of a file or directory from a GitLab project
-5. `push_files` - Push multiple files to a GitLab project in a single commit
-6. `create_issue` - Create a new issue in a GitLab project
-7. `create_merge_request` - Create a new merge request in a GitLab project
-8. `fork_repository` - Fork a GitLab project to your account or specified namespace
-9. `create_branch` - Create a new branch in a GitLab project
-10. `get_merge_request` - Get details of a merge request (Either mergeRequestIid or branchName must be provided)
-11. `get_merge_request_diffs` - Get the changes/diffs of a merge request (Either mergeRequestIid or branchName must be provided)
-12. `list_merge_request_diffs` - List merge request diffs with pagination support (Either mergeRequestIid or branchName must be provided)
-13. `get_branch_diffs` - Get the changes/diffs between two branches or commits in a GitLab project
-14. `update_merge_request` - Update a merge request (Either mergeRequestIid or branchName must be provided)
-15. `create_note` - Create a new note (comment) to an issue or merge request
-16. `create_merge_request_thread` - Create a new thread on a merge request
-17. `mr_discussions` - List discussion items for a merge request
-18. `update_merge_request_note` - Modify an existing merge request thread note
-19. `create_merge_request_note` - Add a new note to an existing merge request thread
-20. `update_issue_note` - Modify an existing issue thread note
-21. `create_issue_note` - Add a new note to an existing issue thread
-22. `list_issues` - List issues in a GitLab project with filtering options
-23. `get_issue` - Get details of a specific issue in a GitLab project
-24. `update_issue` - Update an issue in a GitLab project
-25. `delete_issue` - Delete an issue from a GitLab project
-26. `list_issue_links` - List all issue links for a specific issue
-27. `list_issue_discussions` - List discussions for an issue in a GitLab project
-28. `get_issue_link` - Get a specific issue link
-29. `create_issue_link` - Create an issue link between two issues
-30. `delete_issue_link` - Delete an issue link
-31. `list_namespaces` - List all namespaces available to the current user
-32. `get_namespace` - Get details of a namespace by ID or path
-33. `verify_namespace` - Verify if a namespace path exists
-34. `get_project` - Get details of a specific project
-35. `list_projects` - List projects accessible by the current user
-36. `list_labels` - List labels for a project
-37. `get_label` - Get a single label from a project
-38. `create_label` - Create a new label in a project
-39. `update_label` - Update an existing label in a project
-40. `delete_label` - Delete a label from a project
-41. `list_group_projects` - List projects in a GitLab group with filtering options
-42. `list_wiki_pages` - List wiki pages in a GitLab project
-43. `get_wiki_page` - Get details of a specific wiki page
-44. `create_wiki_page` - Create a new wiki page in a GitLab project
-45. `update_wiki_page` - Update an existing wiki page in a GitLab project
-46. `delete_wiki_page` - Delete a wiki page from a GitLab project
-47. `get_repository_tree` - Get the repository tree for a GitLab project (list files and directories)
-48. `list_pipelines` - List pipelines in a GitLab project with filtering options
-49. `get_pipeline` - Get details of a specific pipeline in a GitLab project
-50. `list_pipeline_jobs` - List all jobs in a specific pipeline
-51. `get_pipeline_job` - Get details of a GitLab pipeline job number
-52. `get_pipeline_job_output` - Get the output/trace of a GitLab pipeline job number
-53. `create_pipeline` - Create a new pipeline for a branch or tag
-54. `retry_pipeline` - Retry a failed or canceled pipeline
-55. `cancel_pipeline` - Cancel a running pipeline
-56. `list_merge_requests` - List merge requests in a GitLab project with filtering options
-57. `list_milestones` - List milestones in a GitLab project with filtering options
-58. `get_milestone` - Get details of a specific milestone
-59. `create_milestone` - Create a new milestone in a GitLab project
-60. `edit_milestone` - Edit an existing milestone in a GitLab project
-61. `delete_milestone` - Delete a milestone from a GitLab project
-62. `get_milestone_issue` - Get issues associated with a specific milestone
-63. `get_milestone_merge_requests` - Get merge requests associated with a specific milestone
-64. `promote_milestone` - Promote a milestone to the next stage
-65. `get_milestone_burndown_events` - Get burndown events for a specific milestone
-66. `get_users` - Get GitLab user details by usernames
+`verify_namespace` - Verify if a namespace path exists
+`update_wiki_page` - Update an existing wiki page in a GitLab project
+`update_merge_request` - Update a merge request (Either mergeRequestIid or branchName must be provided)
+`update_merge_request_note` - Modify an existing merge request thread note
+`update_label` - Update an existing label in a project
+`update_issue` - Update an issue in a GitLab project
+`update_issue_note` - Modify an existing issue thread note
+`update_draft_note` - Update an existing draft note
+`search_repositories` - Search for GitLab projects
+`retry_pipeline` - Retry a failed or canceled pipeline
+`push_files` - Push multiple files to a GitLab project in a single commit
+`publish_draft_note` - Publish a single draft note
+`promote_milestone` - Promote a milestone to the next stage
+`my_issues` - List issues assigned to the authenticated user
+`mr_discussions` - List discussion items for a merge request
+`list_wiki_pages` - List wiki pages in a GitLab project
+`list_projects` - List projects accessible by the current user
+`list_project_members` - List members of a GitLab project
+`list_pipelines` - List pipelines in a GitLab project with filtering options
+`list_pipeline_trigger_jobs` - List all trigger jobs (bridges) in a specific pipeline that trigger downstream pipelines
+`list_pipeline_jobs` - List all jobs in a specific pipeline
+`list_namespaces` - List all namespaces available to the current user
+`list_milestones` - List milestones in a GitLab project with filtering options
+`list_merge_requests` - List merge requests in a GitLab project with filtering options
+`list_merge_request_diffs` - List merge request diffs with pagination support (Either mergeRequestIid or branchName must be provided)
+`list_labels` - List labels for a project
+`list_issues` - List issues in a GitLab project with filtering options
+`list_issue_links` - List all issue links for a specific issue
+`list_issue_discussions` - List discussions for an issue in a GitLab project
+`list_group_projects` - List projects in a GitLab group with filtering options
+`list_draft_notes` - List draft notes for a merge request
+`get_wiki_page` - Get details of a specific wiki page
+`get_users` - Get GitLab user details by usernames
+`get_repository_tree` - Get the repository tree for a GitLab project (list files and directories)
+`get_project` - Get details of a specific project
+`get_pipeline` - Get details of a specific pipeline in a GitLab project
+`get_pipeline_job` - Get details of a GitLab pipeline job number
+`get_pipeline_job_output` - Get the output/trace of a GitLab pipeline job number
+`get_namespace` - Get details of a namespace by ID or path
+`get_milestone` - Get details of a specific milestone
+`get_milestone_merge_requests` - Get merge requests associated with a specific milestone
+`get_milestone_issue` - Get issues associated with a specific milestone
+`get_milestone_burndown_events` - Get burndown events for a specific milestone
+`get_merge_request` - Get details of a merge request (Either mergeRequestIid or branchName must be provided)
+`get_merge_request_diffs` - Get the changes/diffs of a merge request (Either mergeRequestIid or branchName must be provided)
+`get_label` - Get a single label from a project
+`get_issue` - Get details of a specific issue in a GitLab project
+`get_issue_link` - Get a specific issue link
+`get_file_contents` - Get the contents of a file or directory from a GitLab project
+`get_branch_diffs` - Get the changes/diffs between two branches or commits in a GitLab project
+`fork_repository` - Fork a GitLab project to your account or specified namespace
+`edit_milestone` - Edit an existing milestone in a GitLab project
+`delete_wiki_page` - Delete a wiki page from a GitLab project
+`delete_milestone` - Delete a milestone from a GitLab project
+`delete_label` - Delete a label from a project
+`delete_issue` - Delete an issue from a GitLab project
+`delete_issue_link` - Delete an issue link
+`delete_draft_note` - Delete a draft note
+`create_wiki_page` - Create a new wiki page in a GitLab project
+`create_repository` - Create a new GitLab project
+`create_pipeline` - Create a new pipeline for a branch or tag
+`create_or_update_file` - Create or update a single file in a GitLab project
+`create_note` - Create a new note (comment) to an issue or merge request
+`create_milestone` - Create a new milestone in a GitLab project
+`create_merge_request` - Create a new merge request in a GitLab project
+`create_merge_request_thread` - Create a new thread on a merge request
+`create_merge_request_note` - Add a new note to an existing merge request thread
+`create_label` - Create a new label in a project
+`create_issue` - Create a new issue in a GitLab project
+`create_issue_note` - Add a new note to an existing issue thread
+`create_issue_link` - Create an issue link between two issues
+`create_draft_note` - Create a draft note for a merge request
+`create_branch` - Create a new branch in a GitLab project
+`cancel_pipeline` - Cancel a running pipeline
+`bulk_publish_draft_notes` - Publish all draft notes for a merge request
 <!-- TOOLS-END -->

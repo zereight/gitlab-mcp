@@ -20,10 +20,7 @@ declare global {
  */
 export async function configureAuthentication(app: Express): Promise<RequestHandler> {
   // Default middleware that does nothing
-  let authMiddleware: RequestHandler = (_req: Request, _res: Response, next: NextFunction) => {
-    next();
-  };
-
+  let authMiddleware: RequestHandler| undefined = undefined
   // OAuth2 mode
   if (config.GITLAB_OAUTH2_CLIENT_ID) {
     logger.warn("Configuring GitLab OAuth2 proxy authentication");
@@ -93,6 +90,10 @@ export async function configureAuthentication(app: Express): Promise<RequestHand
       };
       next();
     };
+  }
+
+  if(authMiddleware === undefined) {
+    throw new Error("No authMiddleware configured. This is a bug. Please report it.");
   }
 
   return authMiddleware;

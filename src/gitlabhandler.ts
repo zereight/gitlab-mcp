@@ -1,6 +1,8 @@
 import { z } from "zod";
 import { URL } from "url";
 import { Response, RequestInit } from "node-fetch";
+import fs from "fs";
+import path from "path";
 import { config } from "./config.js";
 import {
   GitLabForkSchema,
@@ -33,6 +35,16 @@ import {
   GitLabPipelineJobSchema,
   GitLabMilestonesSchema,
   GitLabCompareResultSchema,
+  GitLabDraftNoteSchema,
+  GitLabProjectMemberSchema,
+  GitLabMarkdownUploadSchema,
+  MergeMergeRequestSchema,
+  ListProjectMembersSchema,
+  MyIssuesSchema,
+  type GitLabDraftNote,
+  type MergeRequestThreadPositionCreate,
+  type GitLabProjectMember,
+  type GitLabMarkdownUpload,
   type GitLabFork,
   type GitLabReference,
   type GitLabRepository,
@@ -284,7 +296,7 @@ export class GitlabHandler extends GitlabSession {
     const url = new URL(`${config.GITLAB_API_URL}/projects/${encodeURIComponent(effectiveProjectId)}/issues`);
 
     Object.entries(options).forEach(([key, value]) => {
-      if (value !== undefined) {
+      if (value !== undefined && value !== null) {
         const keys = ["labels", "assignee_username"];
         if (keys.includes(key)) {
           if (Array.isArray(value)) {
@@ -2168,5 +2180,348 @@ const url = new URL(`${config.GITLAB_API_URL}/namespaces`);
 
     const data = await response.json();
     return GitLabUserSchema.parse(data);
+  }
+
+  /**
+   * Get a draft note
+   */
+  async getDraftNote(
+    projectId: string,
+    mergeRequestIid: string,
+    draftNoteId: string
+  ): Promise<GitLabDraftNote> {
+    projectId = decodeURIComponent(projectId);
+    const url = new URL(
+      `${config.GITLAB_API_URL}/projects/${encodeURIComponent(
+        this.getEffectiveProjectId(projectId)
+      )}/merge_requests/${mergeRequestIid}/draft_notes/${draftNoteId}`
+    );
+
+    const response = await this.fetch(url.toString(), {});
+
+    await this.handleGitLabError(response);
+
+    const data = await response.json();
+    return GitLabDraftNoteSchema.parse(data);
+  }
+
+  /**
+   * List draft notes
+   */
+  async listDraftNotes(
+    projectId: string,
+    mergeRequestIid: number | string
+  ): Promise<GitLabDraftNote[]> {
+    projectId = decodeURIComponent(projectId);
+    const url = new URL(
+      `${config.GITLAB_API_URL}/projects/${encodeURIComponent(
+        this.getEffectiveProjectId(projectId)
+      )}/merge_requests/${mergeRequestIid}/draft_notes`
+    );
+
+    const response = await this.fetch(url.toString(), {});
+
+    await this.handleGitLabError(response);
+
+    const data = await response.json();
+    return z.array(GitLabDraftNoteSchema).parse(data);
+  }
+
+  /**
+   * Create a draft note
+   */
+  async createDraftNote(
+    projectId: string,
+    mergeRequestIid: number | string,
+    body: string,
+    position?: MergeRequestThreadPositionCreate,
+    resolveDiscussion?: boolean
+  ): Promise<GitLabDraftNote> {
+    projectId = decodeURIComponent(projectId);
+    const url = new URL(
+      `${config.GITLAB_API_URL}/projects/${encodeURIComponent(
+        this.getEffectiveProjectId(projectId)
+      )}/merge_requests/${mergeRequestIid}/draft_notes`
+    );
+
+    const requestBody: any = { note: body };
+    if (position) {
+      requestBody.position = position;
+    }
+    if (resolveDiscussion !== undefined) {
+      requestBody.resolve_discussion = resolveDiscussion;
+    }
+
+    const response = await this.fetch(url.toString(), {
+      method: "POST",
+      body: JSON.stringify(requestBody),
+    });
+
+    await this.handleGitLabError(response);
+
+    const data = await response.json();
+    return GitLabDraftNoteSchema.parse(data);
+  }
+
+  /**
+   * Update a draft note
+   */
+  async updateDraftNote(
+    projectId: string,
+    mergeRequestIid: number | string,
+    draftNoteId: number | string,
+    body?: string,
+    position?: MergeRequestThreadPositionCreate,
+    resolveDiscussion?: boolean
+  ): Promise<GitLabDraftNote> {
+    projectId = decodeURIComponent(projectId);
+    const url = new URL(
+      `${config.GITLAB_API_URL}/projects/${encodeURIComponent(
+        this.getEffectiveProjectId(projectId)
+      )}/merge_requests/${mergeRequestIid}/draft_notes/${draftNoteId}`
+    );
+
+    const requestBody: any = {};
+    if (body !== undefined) {
+      requestBody.note = body;
+    }
+    if (position) {
+      requestBody.position = position;
+    }
+    if (resolveDiscussion !== undefined) {
+      requestBody.resolve_discussion = resolveDiscussion;
+    }
+
+    const response = await this.fetch(url.toString(), {
+      method: "PUT",
+      body: JSON.stringify(requestBody),
+    });
+
+    await this.handleGitLabError(response);
+
+    const data = await response.json();
+    return GitLabDraftNoteSchema.parse(data);
+  }
+
+  /**
+   * Delete a draft note
+   */
+  async deleteDraftNote(
+    projectId: string,
+    mergeRequestIid: number | string,
+    draftNoteId: number | string
+  ): Promise<void> {
+    projectId = decodeURIComponent(projectId);
+    const url = new URL(
+      `${config.GITLAB_API_URL}/projects/${encodeURIComponent(
+        this.getEffectiveProjectId(projectId)
+      )}/merge_requests/${mergeRequestIid}/draft_notes/${draftNoteId}`
+    );
+
+    const response = await this.fetch(url.toString(), {
+      method: "DELETE",
+    });
+
+    await this.handleGitLabError(response);
+  }
+
+  /**
+   * Publish a draft note
+   */
+  async publishDraftNote(
+    projectId: string,
+    mergeRequestIid: number | string,
+    draftNoteId: number | string
+  ): Promise<GitLabDiscussionNote> {
+    projectId = decodeURIComponent(projectId);
+    const url = new URL(
+      `${config.GITLAB_API_URL}/projects/${encodeURIComponent(
+        this.getEffectiveProjectId(projectId)
+      )}/merge_requests/${mergeRequestIid}/draft_notes/${draftNoteId}/publish`
+    );
+
+    const response = await this.fetch(url.toString(), {
+      method: "PUT",
+    });
+
+    await this.handleGitLabError(response);
+
+    // Handle empty response (204 No Content) or successful response
+    const responseText = await response.text();
+    if (!responseText || responseText.trim() === '') {
+      // Return a success indicator for empty responses
+      return {
+        id: draftNoteId.toString(),
+        body: "Draft note published successfully",
+        author: { id: "unknown", username: "unknown" },
+        created_at: new Date().toISOString(),
+      } as any;
+    }
+
+    const data = JSON.parse(responseText);
+    return GitLabDiscussionNoteSchema.parse(data);
+  }
+
+  /**
+   * Bulk publish draft notes
+   */
+  async bulkPublishDraftNotes(
+    projectId: string,
+    mergeRequestIid: number | string
+  ): Promise<GitLabDiscussionNote[]> {
+    projectId = decodeURIComponent(projectId);
+    const url = new URL(
+      `${config.GITLAB_API_URL}/projects/${encodeURIComponent(
+        this.getEffectiveProjectId(projectId)
+      )}/merge_requests/${mergeRequestIid}/draft_notes/bulk_publish`
+    );
+
+    const response = await this.fetch(url.toString(), {
+      method: "POST",
+      body: JSON.stringify({}),
+    });
+
+    await this.handleGitLabError(response);
+
+    // Handle empty response (204 No Content) or successful response
+    const responseText = await response.text();
+    if (!responseText || responseText.trim() === '') {
+      // Return empty array for successful bulk publish with no content
+      return [];
+    }
+
+    try {
+      const data = JSON.parse(responseText);
+      return z.array(GitLabDiscussionNoteSchema).parse(data);
+    } catch (error) {
+      return [];
+    }
+  }
+
+  /**
+   * Merge a merge request
+   */
+  async mergeMergeRequest(
+    projectId: string,
+    options: Omit<z.infer<typeof MergeMergeRequestSchema>, "project_id" | "merge_request_iid">,
+    mergeRequestIid?: number | string
+  ): Promise<GitLabMergeRequest> {
+    projectId = decodeURIComponent(projectId);
+    const url = new URL(
+      `${config.GITLAB_API_URL}/projects/${encodeURIComponent(
+        this.getEffectiveProjectId(projectId)
+      )}/merge_requests/${mergeRequestIid}/merge`
+    );
+
+    const response = await this.fetch(url.toString(), {
+      method: "PUT",
+      body: JSON.stringify(options),
+    });
+
+    await this.handleGitLabError(response);
+    return GitLabMergeRequestSchema.parse(await response.json());
+  }
+
+  /**
+   * Get issues assigned to the current user
+   */
+  async myIssues(options: z.infer<typeof MyIssuesSchema> = {}): Promise<GitLabIssue[]> {
+    // Get current user to find their username
+    const currentUser = await this.getCurrentUser();
+    
+    // Use getEffectiveProjectId to handle project ID resolution
+    const effectiveProjectId = this.getEffectiveProjectId(options.project_id || "");
+    
+    // Use listIssues with assignee_username filter
+    let listIssuesOptions: any = {
+      state: options.state || "opened",
+      labels: options.labels,
+      milestone: options.milestone,
+      search: options.search,
+      created_after: options.created_after,
+      created_before: options.created_before,
+      updated_after: options.updated_after,
+      updated_before: options.updated_before,
+      per_page: options.per_page,
+      page: options.page,
+    };
+    
+    if (currentUser.username) {
+      listIssuesOptions.assignee_username = [currentUser.username];
+    } else {
+      listIssuesOptions.assignee_id = currentUser.id;
+    }
+    return this.listIssues(effectiveProjectId, listIssuesOptions);
+  }
+
+  /**
+   * List project members
+   */
+  async listProjectMembers(
+    projectId: string,
+    options: Omit<z.infer<typeof ListProjectMembersSchema>, "project_id"> = {}
+  ): Promise<GitLabProjectMember[]> {
+    projectId = decodeURIComponent(projectId);
+    const effectiveProjectId = this.getEffectiveProjectId(projectId);
+    const url = new URL(`${config.GITLAB_API_URL}/projects/${encodeURIComponent(effectiveProjectId)}/members`);
+
+    // Add query parameters
+    if (options.query) url.searchParams.append("query", options.query);
+    if (options.user_ids) {
+      options.user_ids.forEach(id => url.searchParams.append("user_ids[]", id.toString()));
+    }
+    if (options.skip_users) {
+      options.skip_users.forEach(id => url.searchParams.append("skip_users[]", id.toString()));
+    }
+    if (options.per_page) url.searchParams.append("per_page", options.per_page.toString());
+    if (options.page) url.searchParams.append("page", options.page.toString());
+
+    const response = await this.fetch(url.toString(), {});
+
+    await this.handleGitLabError(response);
+    const data = await response.json();
+    return z.array(GitLabProjectMemberSchema).parse(data);
+  }
+
+  /**
+   * Upload a file for markdown usage
+   */
+  async markdownUpload(projectId: string, filePath: string): Promise<GitLabMarkdownUpload> {
+    projectId = decodeURIComponent(projectId);
+    const effectiveProjectId = this.getEffectiveProjectId(projectId);
+
+    // Check if file exists
+    if (!fs.existsSync(filePath)) {
+      throw new Error(`File not found: ${filePath}`);
+    }
+
+    // Read the file
+    const fileBuffer = fs.readFileSync(filePath);
+    const fileName = path.basename(filePath);
+
+    // Create form data
+    const FormData = (await import("form-data")).default;
+    const form = new FormData();
+    form.append("file", fileBuffer, {
+      filename: fileName,
+      contentType: "application/octet-stream",
+    });
+
+    const url = new URL(
+      `${config.GITLAB_API_URL}/projects/${encodeURIComponent(effectiveProjectId)}/uploads`
+    );
+
+    // Need to handle form data specially
+    const headers = form.getHeaders();
+    
+    const response = await this.fetch(url.toString(), {
+      method: "POST",
+      body: form as any,
+      headers: headers as any,
+    });
+
+    await this.handleGitLabError(response);
+    const data = await response.json();
+    return GitLabMarkdownUploadSchema.parse(data);
   }
 }

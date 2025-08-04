@@ -1,3 +1,5 @@
+export const unsafeDefaultArgon2Salt = "change-me-in-production";
+
 export const config = {
   HOST: process.env.HOST || '127.0.0.1',
   PORT: process.env.PORT || 3002,
@@ -18,7 +20,7 @@ export const config = {
   GITLAB_PROJECT_ID: process.env.GITLAB_PROJECT_ID,
 
 
-  ARGON2_SALT: process.env.ARGON2_SALT || "change-me-in-production",
+  ARGON2_SALT: process.env.ARGON2_SALT || unsafeDefaultArgon2Salt,
   // Configure cookie auth path, for gitlab instances which require it
   // TODO: investigate the consequences of this with oauth2 and pat passthrough. should it only be used in PAT mode and not passthrough?
   GITLAB_AUTH_COOKIE_PATH : process.env.GITLAB_AUTH_COOKIE_PATH,

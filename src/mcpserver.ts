@@ -82,6 +82,17 @@ import {
   GetCommitDiffSchema,
   ListMergeRequestDiffsSchema,
   GetCurrentUserSchema,
+  GetDraftNoteSchema,
+  ListDraftNotesSchema,
+  CreateDraftNoteSchema,
+  UpdateDraftNoteSchema,
+  DeleteDraftNoteSchema,
+  PublishDraftNoteSchema,
+  BulkPublishDraftNotesSchema,
+  MergeMergeRequestSchema,
+  MyIssuesSchema,
+  ListProjectMembersSchema,
+  MarkdownUploadSchema,
 } from "./schemas.js";
 import { createCookieJar } from "./authhelpers.js";
 import { CookieJar } from "tough-cookie";
@@ -471,6 +482,61 @@ const allTools = [
     name: "get_current_user",
     description: "Get details of the current authenticated user",
     inputSchema: zodToJsonSchema(GetCurrentUserSchema),
+  },
+  {
+    name: "get_draft_note",
+    description: "Get a single draft note from a merge request",
+    inputSchema: zodToJsonSchema(GetDraftNoteSchema),
+  },
+  {
+    name: "list_draft_notes",
+    description: "List all draft notes for a merge request",
+    inputSchema: zodToJsonSchema(ListDraftNotesSchema),
+  },
+  {
+    name: "create_draft_note",
+    description: "Create a draft note for a merge request",
+    inputSchema: zodToJsonSchema(CreateDraftNoteSchema),
+  },
+  {
+    name: "update_draft_note",
+    description: "Update an existing draft note",
+    inputSchema: zodToJsonSchema(UpdateDraftNoteSchema),
+  },
+  {
+    name: "delete_draft_note",
+    description: "Delete a draft note",
+    inputSchema: zodToJsonSchema(DeleteDraftNoteSchema),
+  },
+  {
+    name: "publish_draft_note",
+    description: "Publish a single draft note",
+    inputSchema: zodToJsonSchema(PublishDraftNoteSchema),
+  },
+  {
+    name: "bulk_publish_draft_notes",
+    description: "Publish all draft notes for a merge request",
+    inputSchema: zodToJsonSchema(BulkPublishDraftNotesSchema),
+  },
+  {
+    name: "merge_merge_request",
+    description: "Merge a merge request in a GitLab project",
+    inputSchema: zodToJsonSchema(MergeMergeRequestSchema),
+  },
+  {
+    name: "my_issues",
+    description: "List issues assigned to the authenticated user",
+    inputSchema: zodToJsonSchema(MyIssuesSchema),
+  },
+  {
+    name: "list_project_members",
+    description: "List members of a GitLab project",
+    inputSchema: zodToJsonSchema(ListProjectMembersSchema),
+  },
+  {
+    name: "upload_markdown",
+    description: "Upload a file to a GitLab project for use in markdown content",
+    inputSchema: zodToJsonSchema(MarkdownUploadSchema),
   }
 ];
 
@@ -962,7 +1028,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request, extra) => {
       case "list_issues": {
         const args = ListIssuesSchema.parse(request.params.arguments);
         const { project_id, ...options } = args;
-        const issues = await gitlabSession.listIssues(project_id, options);
+        const issues = await gitlabSession.listIssues(project_id || "", options);
         return {
           content: [{ type: "text", text: JSON.stringify(issues, null, 2) }],
         };
@@ -1465,6 +1531,110 @@ server.setRequestHandler(CallToolRequestSchema, async (request, extra) => {
         const user = await gitlabSession.getCurrentUser();
         return {
           content: [{ type: "text", text: JSON.stringify(user, null, 2) }],
+        };
+      }
+
+      case "get_draft_note": {
+        const args = GetDraftNoteSchema.parse(request.params.arguments);
+        const { project_id, merge_request_iid, draft_note_id } = args;
+
+        const draftNote = await gitlabSession.getDraftNote(project_id, merge_request_iid, draft_note_id);
+        return {
+          content: [{ type: "text", text: JSON.stringify(draftNote, null, 2) }],
+        };
+      }
+
+      case "list_draft_notes": {
+        const args = ListDraftNotesSchema.parse(request.params.arguments);
+        const { project_id, merge_request_iid } = args;
+
+        const draftNotes = await gitlabSession.listDraftNotes(project_id, merge_request_iid);
+        return {
+          content: [{ type: "text", text: JSON.stringify(draftNotes, null, 2) }],
+        };
+      }
+
+      case "create_draft_note": {
+        const args = CreateDraftNoteSchema.parse(request.params.arguments);
+        const { project_id, merge_request_iid, body, position, resolve_discussion } = args;
+
+        const draftNote = await gitlabSession.createDraftNote(project_id, merge_request_iid, body, position, resolve_discussion);
+        return {
+          content: [{ type: "text", text: JSON.stringify(draftNote, null, 2) }],
+        };
+      }
+
+      case "update_draft_note": {
+        const args = UpdateDraftNoteSchema.parse(request.params.arguments);
+        const { project_id, merge_request_iid, draft_note_id, body, position, resolve_discussion } = args;
+
+        const draftNote = await gitlabSession.updateDraftNote(project_id, merge_request_iid, draft_note_id, body, position, resolve_discussion);
+        return {
+          content: [{ type: "text", text: JSON.stringify(draftNote, null, 2) }],
+        };
+      }
+
+      case "delete_draft_note": {
+        const args = DeleteDraftNoteSchema.parse(request.params.arguments);
+        const { project_id, merge_request_iid, draft_note_id } = args;
+
+        await gitlabSession.deleteDraftNote(project_id, merge_request_iid, draft_note_id);
+        return {
+          content: [{ type: "text", text: "Draft note deleted successfully" }],
+        };
+      }
+
+      case "publish_draft_note": {
+        const args = PublishDraftNoteSchema.parse(request.params.arguments);
+        const { project_id, merge_request_iid, draft_note_id } = args;
+
+        const publishedNote = await gitlabSession.publishDraftNote(project_id, merge_request_iid, draft_note_id);
+        return {
+          content: [{ type: "text", text: JSON.stringify(publishedNote, null, 2) }],
+        };
+      }
+
+      case "bulk_publish_draft_notes": {
+        const args = BulkPublishDraftNotesSchema.parse(request.params.arguments);
+        const { project_id, merge_request_iid } = args;
+
+        const publishedNotes = await gitlabSession.bulkPublishDraftNotes(project_id, merge_request_iid);
+        return {
+          content: [{ type: "text", text: JSON.stringify(publishedNotes, null, 2) }],
+        };
+      }
+
+      case "merge_merge_request": {
+        const args = MergeMergeRequestSchema.parse(request.params.arguments);
+        const { project_id, merge_request_iid, ...options } = args;
+        const mergeRequest = await gitlabSession.mergeMergeRequest(project_id, options, merge_request_iid);
+        return {
+          content: [{ type: "text", text: JSON.stringify(mergeRequest, null, 2) }],
+        };
+      }
+
+      case "my_issues": {
+        const args = MyIssuesSchema.parse(request.params.arguments);
+        const issues = await gitlabSession.myIssues(args);
+        return {
+          content: [{ type: "text", text: JSON.stringify(issues, null, 2) }],
+        };
+      }
+
+      case "list_project_members": {
+        const args = ListProjectMembersSchema.parse(request.params.arguments);
+        const { project_id, ...options } = args;
+        const members = await gitlabSession.listProjectMembers(project_id, options);
+        return {
+          content: [{ type: "text", text: JSON.stringify(members, null, 2) }],
+        };
+      }
+
+      case "upload_markdown": {
+        const args = MarkdownUploadSchema.parse(request.params.arguments);
+        const upload = await gitlabSession.markdownUpload(args.project_id, args.file_path);
+        return {
+          content: [{ type: "text", text: JSON.stringify(upload, null, 2) }],
         };
       }
 
