@@ -244,6 +244,7 @@ $ sh scripts/image_push.sh docker_user_name
 `delete_issue` - Delete an issue from a GitLab project
 `delete_issue_link` - Delete an issue link
 `delete_draft_note` - Delete a draft note
+`download_attachment` - Download an uploaded file from a GitLab project by secret and filename
 `create_wiki_page` - Create a new wiki page in a GitLab project
 `create_repository` - Create a new GitLab project
 `create_pipeline` - Create a new pipeline for a branch or tag
