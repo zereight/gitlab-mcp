@@ -167,6 +167,7 @@ import {
   ListWikiPagesOptions,
   ListWikiPagesSchema,
   MarkdownUploadSchema,
+  DownloadAttachmentSchema,
   MergeMergeRequestSchema,
   type MergeRequestThreadPosition,
   type MergeRequestThreadPositionCreate,
@@ -810,6 +811,11 @@ const allTools = [
     description: "Upload a file to a GitLab project for use in markdown content",
     inputSchema: zodToJsonSchema(MarkdownUploadSchema),
   },
+  {
+    name: "download_attachment",
+    description: "Download an uploaded file from a GitLab project by secret and filename",
+    inputSchema: zodToJsonSchema(DownloadAttachmentSchema),
+  },
 ];
 
 // Define which tools are read-only
@@ -856,6 +862,7 @@ const readOnlyTools = [
   "get_commit_diff",
   "list_group_iterations",
   "get_group_iteration",
+  "download_attachment",
 ];
 
 // Define which tools are related to wiki and can be toggled by USE_GITLAB_WIKI
@@ -4054,6 +4061,34 @@ async function markdownUpload(projectId: string, filePath: string): Promise<GitL
   return GitLabMarkdownUploadSchema.parse(data);
 }
 
+async function downloadAttachment(projectId: string, secret: string, filename: string, localPath?: string): Promise<string> {
+  const effectiveProjectId = getEffectiveProjectId(projectId);
+
+  const url = new URL(
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(effectiveProjectId)}/uploads/${secret}/${filename}`
+  );
+
+  const response = await fetch(url.toString(), {
+    method: "GET",
+    headers: DEFAULT_HEADERS,
+  });
+
+  if (!response.ok) {
+    await handleGitLabError(response);
+  }
+
+  // Get the file content as buffer
+  const buffer = await response.arrayBuffer();
+  
+  // Determine the save path
+  const savePath = localPath ? path.join(localPath, filename) : filename;
+  
+  // Write the file to disk
+  fs.writeFileSync(savePath, Buffer.from(buffer));
+  
+  return savePath;
+}
+
 server.setRequestHandler(ListToolsRequestSchema, async () => {
   // Apply read-only filter first
   const tools0 = GITLAB_READ_ONLY_MODE
@@ -5130,6 +5165,14 @@ server.setRequestHandler(CallToolRequestSchema, async request => {
         const upload = await markdownUpload(args.project_id, args.file_path);
         return {
           content: [{ type: "text", text: JSON.stringify(upload, null, 2) }],
+        };
+      }
+
+      case "download_attachment": {
+        const args = DownloadAttachmentSchema.parse(request.params.arguments);
+        const filePath = await downloadAttachment(args.project_id, args.secret, args.filename, args.local_path);
+        return {
+          content: [{ type: "text", text: JSON.stringify({ success: true, file_path: filePath }, null, 2) }],
         };
       }
 
