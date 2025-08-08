@@ -1,0 +1,44 @@
+version: '3.8' 
+
+services:
+  web:
+    image: 'gitlab/gitlab-ce:18.1.2-ce.0'
+    hostname: 'gitlab.example.com'
+    environment:
+      GITLAB_OMNIBUS_CONFIG: |
+        external_url 'http://localhost:8080' 
+        postgresql['enable'] = false 
+        gitlab_rails['initial_root_password'] = 'avaefacaweaef'
+        gitlab_rails['db_adapter'] = 'postgresql'
+        gitlab_rails['db_encoding'] = 'unicode'
+        gitlab_rails['db_host'] = 'postgresql' 
+        gitlab_rails['db_port'] = 5432
+        gitlab_rails['db_username'] = 'gitlab' 
+        gitlab_rails['db_password'] = 'gitlabpassword' 
+        gitlab_rails['db_database'] = 'gitlab' 
+        puma['worker_processes'] = 1
+        nginx['listen_port'] = 8081
+        nginx['listen_https'] = false
+    ports:
+      - '8080:8081' 
+    shm_size: '256m'
+    mem_limit: 6g
+    depends_on:
+      - postgresql 
+      - redis 
+    volumes:
+      - ./dump:/etc/dump
+
+  postgresql:
+    image: postgres:16
+    hostname: 'postgresql'
+    environment:
+      POSTGRES_DB: 'gitlab'
+      POSTGRES_USER: 'gitlab'
+      POSTGRES_PASSWORD: 'gitlabpassword' 
+    restart: always
+
+  redis:
+    image: 'redis:7-alpine'
+    hostname: 'redis'
+    restart: always
