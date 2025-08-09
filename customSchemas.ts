@@ -22,4 +22,4 @@ export const flexibleBoolean = z.preprocess((val) => {
     return val;
 }, z.boolean());
 
-export const flexibleBooleanNullable = DEFAULT_NULL ? flexibleBoolean.nullable().default(null) : flexibleBoolean.nullable();
+export const flexibleBooleanNullable = DEFAULT_NULL ? flexibleBoolean : flexibleBoolean;

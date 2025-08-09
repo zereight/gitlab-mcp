@@ -19,16 +19,16 @@ export const GitLabPipelineSchema = z.object({
   created_at: z.string(),
   updated_at: z.string(),
   web_url: z.string(),
-  duration: z.number().nullable().optional(),
-  started_at: z.string().nullable().optional(),
-  finished_at: z.string().nullable().optional(),
-  coverage: z.number().nullable().optional(),
+  duration: z.number().optional(),
+  started_at: z.string().optional(),
+  finished_at: z.string().optional(),
+  coverage: z.number().optional(),
   user: z
     .object({
       id: z.coerce.string(),
       name: z.string(),
       username: z.string(),
-      avatar_url: z.string().nullable().optional(),
+      avatar_url: z.string().optional(),
     })
     .optional(),
   detailed_status: z
@@ -46,7 +46,7 @@ export const GitLabPipelineSchema = z.object({
           size: z.string().optional(),
           title: z.string().optional(),
         })
-        .nullable()
+        
         .optional(),
       favicon: z.string().optional(),
     })
@@ -61,17 +61,17 @@ export const GitLabPipelineJobSchema = z.object({
   name: z.string(),
   ref: z.string(),
   tag: flexibleBoolean,
-  coverage: z.number().nullable().optional(),
+  coverage: z.number().optional(),
   created_at: z.string(),
-  started_at: z.string().nullable().optional(),
-  finished_at: z.string().nullable().optional(),
-  duration: z.number().nullable().optional(),
+  started_at: z.string().optional(),
+  finished_at: z.string().optional(),
+  duration: z.number().optional(),
   user: z
     .object({
       id: z.coerce.string(),
       name: z.string(),
       username: z.string(),
-      avatar_url: z.string().nullable().optional(),
+      avatar_url: z.string().optional(),
     })
     .optional(),
   commit: z
@@ -103,18 +103,18 @@ export const GitLabPipelineTriggerJobSchema = z.object({
   name: z.string(),
   ref: z.string(),
   tag: flexibleBoolean,
-  coverage: z.number().nullable().optional(),
+  coverage: z.number().optional(),
   created_at: z.string(),
-  started_at: z.string().nullable().optional(),
-  finished_at: z.string().nullable().optional(),
-  duration: z.number().nullable().optional(),
-  queued_duration: z.number().nullable().optional(),
+  started_at: z.string().optional(),
+  finished_at: z.string().optional(),
+  duration: z.number().optional(),
+  queued_duration: z.number().optional(),
   user: z
     .object({
       id: z.coerce.string(),
       name: z.string(),
       username: z.string(),
-      avatar_url: z.string().nullable().optional(),
+      avatar_url: z.string().optional(),
     })
     .optional(),
   commit: z
@@ -142,7 +142,7 @@ export const GitLabPipelineTriggerJobSchema = z.object({
   allow_failure: flexibleBoolean.optional(),
   archived: flexibleBoolean.optional(),
   source: z.string().optional(),
-  erased_at: z.string().nullable().optional(),
+  erased_at: z.string().optional(),
   project: z
     .object({
       ci_job_token_scope_enabled: flexibleBoolean.optional(),
@@ -158,7 +158,7 @@ export const GitLabPipelineTriggerJobSchema = z.object({
       updated_at: z.string(),
       web_url: z.string(),
     })
-    .nullable()
+    
     .optional(),
 });
 
@@ -303,7 +303,7 @@ export const GitLabUserSchema = z.object({
   username: z.string().optional(), // Changed from login to match GitLab API
   id: z.coerce.string(),
   name: z.string().optional(),
-  avatar_url: z.string().nullable().optional(),
+  avatar_url: z.string().optional(),
   web_url: z.string().optional(), // Changed from html_url to match GitLab API
 });
 
@@ -318,10 +318,10 @@ export const GitLabUsersResponseSchema = z.record(
       id: z.coerce.string(),
       username: z.string(),
       name: z.string(),
-      avatar_url: z.string().nullable(),
+      avatar_url: z.string(),
       web_url: z.string(),
     })
-    .nullable()
+    
 );
 
 // Namespace related schemas
@@ -336,16 +336,16 @@ export const GitLabNamespaceSchema = z.object({
   path: z.string(),
   kind: z.enum(["user", "group"]),
   full_path: z.string(),
-  parent_id: z.coerce.string().nullable(),
-  avatar_url: z.string().nullable(),
+  parent_id: z.coerce.string(),
+  avatar_url: z.string(),
   web_url: z.string(),
   members_count_with_descendants: z.number().optional(),
   billable_members_count: z.number().optional(),
   max_seats_used: z.number().optional(),
   seats_in_use: z.number().optional(),
   plan: z.string().optional(),
-  end_date: z.string().nullable().optional(),
-  trial_ends_on: z.string().nullable().optional(),
+  end_date: z.string().optional(),
+  trial_ends_on: z.string().optional(),
   trial: flexibleBoolean.optional(),
   root_repository_size: z.number().optional(),
   projects_count: z.number().optional(),
@@ -360,7 +360,7 @@ export const GitLabNamespaceExistsResponseSchema = z.object({
 export const GitLabOwnerSchema = z.object({
   username: z.string(), // Changed from login to match GitLab API
   id: z.coerce.string(),
-  avatar_url: z.string().nullable(),
+  avatar_url: z.string(),
   web_url: z.string(), // Changed from html_url to match GitLab API
   name: z.string(), // Added as GitLab includes full name
   state: z.string(), // Added as GitLab includes user state
@@ -373,7 +373,7 @@ export const GitLabRepositorySchema = z.object({
   visibility: z.string().optional(),
   owner: GitLabOwnerSchema.optional(),
   web_url: z.string().optional(),
-  description: z.string().nullable(),
+  description: z.string(),
   fork: flexibleBoolean.optional(),
   ssh_url_to_repo: z.string().optional(),
   http_url_to_repo: z.string().optional(),
@@ -387,11 +387,11 @@ export const GitLabRepositorySchema = z.object({
       path: z.string(),
       kind: z.string(),
       full_path: z.string(),
-      avatar_url: z.string().nullable().optional(),
+      avatar_url: z.string().optional(),
       web_url: z.string().optional(),
     })
     .optional(),
-  readme_url: z.string().optional().nullable(),
+  readme_url: z.string().optional(),
   topics: z.array(z.string()).optional(),
   tag_list: z.array(z.string()).optional(), // deprecated but still present
   open_issues_count: z.number().optional(),
@@ -403,24 +403,24 @@ export const GitLabRepositorySchema = z.object({
       project_access: z
         .object({
           access_level: z.number(),
-          notification_level: z.number().nullable().optional(),
+          notification_level: z.number().optional(),
         })
         .optional()
-        .nullable(),
+        ,
       group_access: z
         .object({
           access_level: z.number(),
-          notification_level: z.number().nullable().optional(),
+          notification_level: z.number().optional(),
         })
         .optional()
-        .nullable(),
+        ,
     })
     .optional(),
   container_registry_enabled: flexibleBoolean.optional(),
   container_registry_access_level: z.string().optional(),
   issues_enabled: flexibleBoolean.optional(),
   merge_requests_enabled: flexibleBoolean.optional(),
-  merge_requests_template: z.string().nullable().optional(),
+  merge_requests_template: z.string().optional(),
   wiki_enabled: flexibleBoolean.optional(),
   jobs_enabled: flexibleBoolean.optional(),
   snippets_enabled: flexibleBoolean.optional(),
@@ -520,9 +520,9 @@ export const GitLabCommitSchema = z.object({
   parent_ids: z.array(z.string()), // Changed from parents to match GitLab API
   stats: z
     .object({
-      additions: z.number().optional().nullable(),
-      deletions: z.number().optional().nullable(),
-      total: z.number().optional().nullable(),
+      additions: z.number().optional(),
+      deletions: z.number().optional(),
+      total: z.number().optional(),
     })
     .optional(), // Only present when with_stats=true
   trailers: z.record(z.string()).optional().default({}), // Git trailers, may be empty object
@@ -544,9 +544,9 @@ export const GitLabMilestonesSchema = z.object({
   iid: z.coerce.string(),
   project_id: z.coerce.string(),
   title: z.string(),
-  description: z.string().nullable(),
-  due_date: z.string().nullable(),
-  start_date: z.string().nullable(),
+  description: z.string(),
+  due_date: z.string(),
+  start_date: z.string(),
   state: z.string(),
   updated_at: z.string(),
   created_at: z.string(),
@@ -625,13 +625,13 @@ export const GitLabLabelSchema = z.object({
   name: z.string(),
   color: z.string(),
   text_color: z.string(),
-  description: z.string().nullable(),
-  description_html: z.string().nullable(),
+  description: z.string(),
+  description_html: z.string(),
   open_issues_count: z.number().optional(),
   closed_issues_count: z.number().optional(),
   open_merge_requests_count: z.number().optional(),
   subscribed: flexibleBoolean.optional(),
-  priority: z.number().nullable().optional(),
+  priority: z.number().optional(),
   is_project_label: flexibleBoolean.optional(),
 });
 
@@ -639,7 +639,7 @@ export const GitLabMilestoneSchema = z.object({
   id: z.coerce.string(),
   iid: z.coerce.string(), // Added to match GitLab API
   title: z.string(),
-  description: z.string().nullable().default(""),
+  description: z.string().default(""),
   state: z.string(),
   web_url: z.string(), // Changed from html_url to match GitLab API
 });
@@ -649,15 +649,15 @@ export const GitLabIssueSchema = z.object({
   iid: z.coerce.string(), // Added to match GitLab API
   project_id: z.coerce.string(), // Added to match GitLab API
   title: z.string(),
-  description: z.string().nullable().default(""), // Changed from body to match GitLab API
+  description: z.string().default(""), // Changed from body to match GitLab API
   state: z.string(),
   author: GitLabUserSchema,
   assignees: z.array(GitLabUserSchema),
   labels: z.array(GitLabLabelSchema).or(z.array(z.string())), // Support both label objects and strings
-  milestone: GitLabMilestoneSchema.nullable(),
+  milestone: GitLabMilestoneSchema,
   created_at: z.string(),
   updated_at: z.string(),
-  closed_at: z.string().nullable(),
+  closed_at: z.string(),
   web_url: z.string(), // Changed from html_url to match GitLab API
   references: z
     .object({
@@ -670,15 +670,15 @@ export const GitLabIssueSchema = z.object({
     .object({
       time_estimate: z.number(),
       total_time_spent: z.number(),
-      human_time_estimate: z.string().nullable(),
-      human_total_time_spent: z.string().nullable(),
+      human_time_estimate: z.string(),
+      human_total_time_spent: z.string(),
     })
     .optional(),
   confidential: flexibleBoolean.optional(),
-  due_date: z.string().nullable().optional(),
+  due_date: z.string().optional(),
   discussion_locked: flexibleBooleanNullable.optional(),
-  weight: z.number().nullable().optional(),
-  issue_type: z.string().describe("the type of issue.").nullish(),
+  weight: z.number().optional(),
+  issue_type: z.string().describe("the type of issue."),
 });
 
 // NEW SCHEMA: For issue with link details (used in listing issue links)
@@ -697,7 +697,7 @@ export const GitLabForkParentSchema = z.object({
     .object({
       username: z.string(), // Changed from login to match GitLab API
       id: z.coerce.string(),
-      avatar_url: z.string().nullable(),
+      avatar_url: z.string(),
     })
     .optional(), // Made optional to handle cases where GitLab API doesn't include it
   web_url: z.string(), // Changed from html_url to match GitLab API
@@ -719,7 +719,7 @@ export const GitLabMergeRequestSchema = z.object({
   iid: z.coerce.string(),
   project_id: z.coerce.string(),
   title: z.string(),
-  description: z.string().nullable(),
+  description: z.string(),
   state: z.string(),
   merged: flexibleBoolean.optional(),
   draft: flexibleBoolean.optional(),
@@ -728,23 +728,23 @@ export const GitLabMergeRequestSchema = z.object({
   reviewers: z.array(GitLabUserSchema).optional(),
   source_branch: z.string(),
   target_branch: z.string(),
-  diff_refs: GitLabMergeRequestDiffRefSchema.nullable().optional(),
+  diff_refs: GitLabMergeRequestDiffRefSchema.optional(),
   web_url: z.string(),
   created_at: z.string(),
   updated_at: z.string(),
-  merged_at: z.string().nullable(),
-  closed_at: z.string().nullable(),
-  merge_commit_sha: z.string().nullable(),
+  merged_at: z.string(),
+  closed_at: z.string(),
+  merge_commit_sha: z.string(),
   detailed_merge_status: z.string().optional(),
   merge_status: z.string().optional(),
-  merge_error: z.string().nullable().optional(),
+  merge_error: z.string().optional(),
   work_in_progress: flexibleBoolean.optional(),
   blocking_discussions_resolved: flexibleBoolean.optional(),
   should_remove_source_branch: flexibleBooleanNullable.optional(),
   force_remove_source_branch: flexibleBooleanNullable.optional(),
   allow_collaboration: flexibleBoolean.optional(),
   allow_maintainer_to_push: flexibleBoolean.optional(),
-  changes_count: z.string().nullable().optional(),
+  changes_count: z.string().optional(),
   merge_when_pipeline_succeeds: flexibleBoolean.optional(),
   squash: flexibleBoolean.optional(),
   labels: z.array(z.string()).optional(),
@@ -756,28 +756,28 @@ export const LineRangeSchema = z
       .object({
         line_code: z
           .string()
-          .nullable()
+          
           .optional()
           .describe(
             "CRITICAL: Line identifier in format '{file_path_sha1_hash}_{old_line_number}_{new_line_number}'. USUALLY REQUIRED for GitLab diff comments despite being optional in schema. Example: 'a1b2c3d4e5f6_10_15'. Get this from GitLab diff API response, never fabricate."
           ),
         type: z
           .enum(["new", "old", "expanded"])
-          .nullable()
+          
           .optional()
           .describe(
             "Line type: 'old' = deleted/original line, 'new' = added/modified line, null = unchanged context. MUST match the line_code format and old_line/new_line values."
           ),
         old_line: z
           .number()
-          .nullable()
+          
           .optional()
           .describe(
             "Line number in original file (before changes). REQUIRED when type='old', NULL when type='new' (for purely added lines), can be present for context lines."
           ),
         new_line: z
           .number()
-          .nullable()
+          
           .optional()
           .describe(
             "Line number in modified file (after changes). REQUIRED when type='new', NULL when type='old' (for purely deleted lines), can be present for context lines."
@@ -790,28 +790,28 @@ export const LineRangeSchema = z
       .object({
         line_code: z
           .string()
-          .nullable()
+          
           .optional()
           .describe(
             "CRITICAL: Line identifier in format '{file_path_sha1_hash}_{old_line_number}_{new_line_number}'. USUALLY REQUIRED for GitLab diff comments despite being optional in schema. Example: 'a1b2c3d4e5f6_12_17'. Must be from same file as start.line_code."
           ),
         type: z
           .enum(["new", "old", "expanded"])
-          .nullable()
+          
           .optional()
           .describe(
             "Line type: 'old' = deleted/original line, 'new' = added/modified line, null = unchanged context. SHOULD MATCH start.type for consistent ranges (don't mix old/new types)."
           ),
         old_line: z
           .number()
-          .nullable()
+          
           .optional()
           .describe(
             "Line number in original file (before changes). REQUIRED when type='old', NULL when type='new' (for purely added lines), can be present for context lines. MUST be >= start.old_line if both specified."
           ),
         new_line: z
           .number()
-          .nullable()
+          
           .optional()
           .describe(
             "Line number in modified file (after changes). REQUIRED when type='new', NULL when type='old' (for purely deleted lines), can be present for context lines. MUST be >= start.new_line if both specified."
@@ -828,9 +828,9 @@ export const LineRangeSchema = z
 // Discussion related schemas
 export const GitLabDiscussionNoteSchema = z.object({
   id: z.coerce.string(),
-  type: z.enum(["DiscussionNote", "DiffNote", "Note"]).nullable().optional(), // Allow null type for regular notes
+  type: z.enum(["DiscussionNote", "DiffNote", "Note"]).optional(), // Allow null type for regular notes
   body: z.string().optional(),
-  attachment: z.any().nullable().optional(), // Can be string or object, handle appropriately
+  attachment: z.any().optional(), // Can be string or object, handle appropriately
   author: GitLabUserSchema.optional(),
   created_at: z.string().optional(),
   updated_at: z.string().optional(),
@@ -838,35 +838,35 @@ export const GitLabDiscussionNoteSchema = z.object({
   noteable_id: z.coerce.string().optional(),
   noteable_type: z.enum(["Issue", "MergeRequest", "Snippet", "Commit", "Epic"]).optional(),
   project_id: z.coerce.string().optional(),
-  noteable_iid: z.coerce.string().nullable().optional(),
+  noteable_iid: z.coerce.string().optional(),
   resolvable: flexibleBoolean.optional(),
   resolved: flexibleBoolean.optional(),
-  resolved_by: GitLabUserSchema.nullable().optional(),
-  resolved_at: z.string().nullable().optional(),
+  resolved_by: GitLabUserSchema.optional(),
+  resolved_at: z.string().optional(),
   position: z
     .object({
       // Only present for DiffNote
       base_sha: z.string().optional(),
       start_sha: z.string().optional(),
       head_sha: z.string().optional(),
-      old_path: z.string().nullable().optional().describe("File path before change"),
-      new_path: z.string().nullable().optional().describe("File path after change"),
+      old_path: z.string().optional().describe("File path before change"),
+      new_path: z.string().optional().describe("File path after change"),
       position_type: z.enum(["text", "image", "file"]).optional(),
       new_line: z
         .number()
-        .nullable()
+        
         .optional()
         .describe(
           "Line number in the modified file (after changes). Used for added lines and context lines. Null for deleted lines."
         ),
       old_line: z
         .number()
-        .nullable()
+        
         .optional()
         .describe(
           "Line number in the original file (before changes). Used for deleted lines and context lines. Null for newly added lines."
         ),
-      line_range: LineRangeSchema.nullable().optional(), // For multi-line diff notes
+      line_range: LineRangeSchema.optional(), // For multi-line diff notes
       width: z.number().optional(), // For image diff notes
       height: z.number().optional(), // For image diff notes
       x: z.number().optional(), // For image diff notes
@@ -880,12 +880,12 @@ export type GitLabDiscussionNote = z.infer<typeof GitLabDiscussionNoteSchema>;
 // Reusable pagination schema for GitLab API responses.
 // See https://docs.gitlab.com/api/rest/#pagination
 export const GitLabPaginationSchema = z.object({
-  x_next_page: z.number().nullable().optional(),
+  x_next_page: z.number().optional(),
   x_page: z.number().optional(),
   x_per_page: z.number().optional(),
-  x_prev_page: z.number().nullable().optional(),
-  x_total: z.number().nullable().optional(),
-  x_total_pages: z.number().nullable().optional(),
+  x_prev_page: z.number().optional(),
+  x_total: z.number().optional(),
+  x_total_pages: z.number().optional(),
 });
 export type GitLabPagination = z.infer<typeof GitLabPaginationSchema>;
 
@@ -1014,7 +1014,7 @@ export const CreateIssueSchema = ProjectParamsSchema.extend({
   assignee_ids: z.array(z.number()).optional().describe("Array of user IDs to assign"),
   labels: z.array(z.string()).optional().describe("Array of label names"),
   milestone_id: z.coerce.string().optional().describe("Milestone ID to assign"),
-  issue_type: z.enum(["issue", "incident", "test_case", "task"]).describe("the type of issue. One of issue, incident, test_case or task.").nullish().default("issue"),
+  issue_type: z.enum(["issue", "incident", "test_case", "task"]).describe("the type of issue. One of issue, incident, test_case or task.").default("issue"),
 });
 
 const MergeRequestOptionsSchema = {
@@ -1153,12 +1153,12 @@ export const ListIssuesSchema = z
     issue_type: z
       .string()
       .optional()
-      .nullable()
+      
       .describe("Filter to a given type of issue. One of issue, incident, test_case or task"),
     iteration_id: z.coerce
       .string()
       .optional()
-      .nullable()
+      
       .describe(
         "Return issues assigned to the given iteration ID. None returns issues that do not belong to an iteration. Any returns issues that belong to an iteration. "
       ),
@@ -1406,7 +1406,7 @@ export const CreateLabelSchema = z.object({
     .string()
     .describe("The color of the label given in 6-digit hex notation with leading '#' sign"),
   description: z.string().optional().describe("The description of the label"),
-  priority: z.number().nullable().optional().describe("The priority of the label"),
+  priority: z.number().optional().describe("The priority of the label"),
 });
 
 export const UpdateLabelSchema = z.object({
@@ -1418,7 +1418,7 @@ export const UpdateLabelSchema = z.object({
     .optional()
     .describe("The color of the label given in 6-digit hex notation with leading '#' sign"),
   description: z.string().optional().describe("The new description of the label"),
-  priority: z.number().nullable().optional().describe("The new priority of the label"),
+  priority: z.number().optional().describe("The new priority of the label"),
 });
 
 export const DeleteLabelSchema = z.object({
@@ -1509,10 +1509,10 @@ export const MergeRequestThreadPositionCreateSchema = z.object({
   head_sha: z.string().describe("REQUIRED: SHA referencing HEAD of the source branch. Get this from merge request diff_refs.head_sha."),
   start_sha: z.string().describe("REQUIRED: SHA referencing the start commit of the source branch. Get this from merge request diff_refs.start_sha."),
   position_type: z.enum(["text", "image", "file"]).describe("REQUIRED: Position type. Use 'text' for code diffs, 'image' for image diffs, 'file' for file-level comments."),
-  new_path: z.string().nullable().optional().describe("File path after changes. REQUIRED for most diff comments. Use same as old_path if file wasn't renamed."),
-  old_path: z.string().nullable().optional().describe("File path before changes. REQUIRED for most diff comments. Use same as new_path if file wasn't renamed."),
-  new_line: z.number().nullable().optional().describe("Line number in modified file (after changes). Use for added lines or context lines. NULL for deleted lines. For single-line comments on new lines."),
-  old_line: z.number().nullable().optional().describe("Line number in original file (before changes). Use for deleted lines or context lines. NULL for added lines. For single-line comments on old lines."),
+  new_path: z.string().optional().describe("File path after changes. REQUIRED for most diff comments. Use same as old_path if file wasn't renamed."),
+  old_path: z.string().optional().describe("File path before changes. REQUIRED for most diff comments. Use same as new_path if file wasn't renamed."),
+  new_line: z.number().optional().describe("Line number in modified file (after changes). Use for added lines or context lines. NULL for deleted lines. For single-line comments on new lines."),
+  old_line: z.number().optional().describe("Line number in original file (before changes). Use for deleted lines or context lines. NULL for added lines. For single-line comments on old lines."),
   line_range: LineRangeSchema.optional().describe("MULTILINE COMMENTS: Specify start/end line positions for commenting on multiple lines. Alternative to single old_line/new_line."),
   width: z.number().optional().describe("IMAGE DIFFS ONLY: Width of the image (for position_type='image')."),
   height: z.number().optional().describe("IMAGE DIFFS ONLY: Height of the image (for position_type='image')."),
@@ -1543,28 +1543,28 @@ export const MergeRequestThreadPositionSchema = z.object({
     ),
   new_path: z
     .string()
-    .nullable()
+    
     .optional()
     .describe(
       "File path after changes. REQUIRED for most diff comments. Use same as old_path if file wasn't renamed."
     ),
   old_path: z
     .string()
-    .nullable()
+    
     .optional()
     .describe(
       "File path before changes. REQUIRED for most diff comments. Use same as new_path if file wasn't renamed."
     ),
   new_line: z
     .number()
-    .nullable()
+    
     .optional()
     .describe(
       "Line number in modified file (after changes). Use for added lines or context lines. NULL for deleted lines. For single-line comments on new lines."
     ),
   old_line: z
     .number()
-    .nullable()
+    
     .optional()
     .describe(
       "Line number in original file (before changes). Use for deleted lines or context lines. NULL for added lines. For single-line comments on old lines."
@@ -1598,7 +1598,7 @@ export const GitLabDraftNoteSchema = z.object({
   note: z.string().optional(), // Some APIs might use 'note' instead of 'body'
   created_at: z.string().optional(),
   updated_at: z.string().optional(),
-  position: MergeRequestThreadPositionSchema.nullable().optional(),
+  position: MergeRequestThreadPositionSchema.optional(),
   resolve_discussion: flexibleBoolean.optional(),
 }).transform((data) => ({
   // Normalize the response to always have consistent field names
@@ -1818,12 +1818,12 @@ export const GitLabProjectMemberSchema = z.object({
   username: z.string(),
   name: z.string(),
   state: z.string(),
-  avatar_url: z.string().nullable(),
+  avatar_url: z.string(),
   web_url: z.string(),
   access_level: z.number(),
   access_level_description: z.string().optional(),
   created_at: z.string(),
-  expires_at: z.string().nullable().optional(),
+  expires_at: z.string().optional(),
   email: z.string().optional(),
 
 });
@@ -1854,14 +1854,14 @@ export const GroupIteration = z.object({
   iid: z.coerce.string(),
   sequence: z.number(),
   group_id: z.coerce.string(),
-  title: z.string().optional().nullable(),
-  description: z.string().optional().nullable(),
+  title: z.string().optional(),
+  description: z.string().optional(),
   state: z.number(),
   created_at: z.string(),
   updated_at: z.string(),
-  due_date: z.string().optional().nullable(),
-  start_date: z.string().optional().nullable(),
-  web_url: z.string().optional().nullable(),
+  due_date: z.string().optional(),
+  start_date: z.string().optional(),
+  web_url: z.string().optional(),
 });
 
 export const ListGroupIterationsSchema = z
