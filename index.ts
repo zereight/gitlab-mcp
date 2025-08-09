@@ -4127,11 +4127,14 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
   };
 });
 
-server.setRequestHandler(CallToolRequestSchema, async request => {
+server.setRequestHandler(CallToolRequestSchema, async (request, extra) => {
   try {
     if (!request.params.arguments) {
       throw new Error("Arguments are required");
     }
+
+    // Retrieve custom HTTP request headers from extra param, so user can extend some custom logic
+    // eg: x_name = extra.requestInfo.headers['x-name'] as string
 
     // Ensure session is established for every request if cookie authentication is enabled
     if (GITLAB_AUTH_COOKIE_PATH) {
