@@ -71,7 +71,7 @@ async function validateGitLabAPI() {
 
       if (test.validate(data)) {
         console.log(`✅ ${test.name} - PASSED\n`);
-        
+
         // If we found pipelines, save the first one for additional testing
         if (test.name === "List pipelines" && data.length > 0) {
           firstPipelineId = data[0].id;
@@ -90,7 +90,7 @@ async function validateGitLabAPI() {
   // Test pipeline-specific endpoints if we have a pipeline ID
   if (firstPipelineId) {
     console.log(`Found pipeline #${firstPipelineId}, testing pipeline-specific endpoints...\n`);
-    
+
     const pipelineTests = [
       {
         name: `Get pipeline #${firstPipelineId} details`,

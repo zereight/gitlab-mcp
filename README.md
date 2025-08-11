@@ -131,9 +131,7 @@ docker run -i --rm \
 }
 ```
 
-
 - streamable-http
-
 
 ```shell
 docker run -i --rm \
@@ -157,7 +155,6 @@ docker run -i --rm \
   }
 }
 ```
-
 
 #### Docker Image Push
 
@@ -262,4 +259,6 @@ $ sh scripts/image_push.sh docker_user_name
 `create_branch` - Create a new branch in a GitLab project
 `cancel_pipeline` - Cancel a running pipeline
 `bulk_publish_draft_notes` - Publish all draft notes for a merge request
+`greeting` - Respond to greetings in Korean or English
+
 <!-- TOOLS-END -->

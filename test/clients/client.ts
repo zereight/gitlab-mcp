@@ -40,9 +40,12 @@ export interface MCPClientInterface {
  * Base error class for MCP client errors
  */
 export class MCPClientError extends Error {
-  constructor(message: string, public readonly cause?: Error) {
+  constructor(
+    message: string,
+    public readonly cause?: Error
+  ) {
     super(message);
-    this.name = 'MCPClientError';
+    this.name = "MCPClientError";
   }
 }
 
@@ -52,7 +55,7 @@ export class MCPClientError extends Error {
 export class MCPConnectionError extends MCPClientError {
   constructor(message: string, cause?: Error) {
     super(message, cause);
-    this.name = 'MCPConnectionError';
+    this.name = "MCPConnectionError";
   }
 }
 
@@ -60,8 +63,12 @@ export class MCPConnectionError extends MCPClientError {
  * Tool call error for MCP clients
  */
 export class MCPToolCallError extends MCPClientError {
-  constructor(message: string, public readonly toolName?: string, cause?: Error) {
+  constructor(
+    message: string,
+    public readonly toolName?: string,
+    cause?: Error
+  ) {
     super(message, cause);
-    this.name = 'MCPToolCallError';
+    this.name = "MCPToolCallError";
   }
-} 
+}

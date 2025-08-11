@@ -188,7 +188,8 @@ import {
   UpdateMergeRequestNoteSchema,
   UpdateMergeRequestSchema,
   UpdateWikiPageSchema,
-  VerifyNamespaceSchema
+  VerifyNamespaceSchema,
+  GreetingSchema,
 } from "./schemas.js";
 
 import { randomUUID } from "crypto";
@@ -816,6 +817,11 @@ const allTools = [
     description: "Download an uploaded file from a GitLab project by secret and filename",
     inputSchema: zodToJsonSchema(DownloadAttachmentSchema),
   },
+  {
+    name: "greeting",
+    description: "Respond to greetings in Korean or English",
+    inputSchema: zodToJsonSchema(GreetingSchema),
+  },
 ];
 
 // Define which tools are read-only
@@ -863,6 +869,7 @@ const readOnlyTools = [
   "list_group_iterations",
   "get_group_iteration",
   "download_attachment",
+  "greeting",
 ];
 
 // Define which tools are related to wiki and can be toggled by USE_GITLAB_WIKI
@@ -927,7 +934,10 @@ function normalizeGitLabApiUrl(url?: string): string {
 // Use the normalizeGitLabApiUrl function to handle various URL formats
 const GITLAB_API_URL = normalizeGitLabApiUrl(process.env.GITLAB_API_URL || "");
 const GITLAB_PROJECT_ID = process.env.GITLAB_PROJECT_ID;
-const GITLAB_ALLOWED_PROJECT_IDS = process.env.GITLAB_ALLOWED_PROJECT_IDS?.split(',').map(id => id.trim()).filter(Boolean) || [];
+const GITLAB_ALLOWED_PROJECT_IDS =
+  process.env.GITLAB_ALLOWED_PROJECT_IDS?.split(",")
+    .map(id => id.trim())
+    .filter(Boolean) || [];
 
 if (!GITLAB_PERSONAL_ACCESS_TOKEN) {
   logger.error("GITLAB_PERSONAL_ACCESS_TOKEN environment variable is not set");
@@ -967,17 +977,21 @@ function getEffectiveProjectId(projectId: string): string {
     if (GITLAB_ALLOWED_PROJECT_IDS.length === 1 && !projectId) {
       return GITLAB_ALLOWED_PROJECT_IDS[0];
     }
-    
+
     // If a project ID is provided, check if it's in the whitelist
     if (projectId && !GITLAB_ALLOWED_PROJECT_IDS.includes(projectId)) {
-      throw new Error(`Access denied: Project ${projectId} is not in the allowed project list: ${GITLAB_ALLOWED_PROJECT_IDS.join(', ')}`);
+      throw new Error(
+        `Access denied: Project ${projectId} is not in the allowed project list: ${GITLAB_ALLOWED_PROJECT_IDS.join(", ")}`
+      );
     }
-    
+
     // If no project ID provided but we have multiple allowed projects, require an explicit choice
     if (!projectId && GITLAB_ALLOWED_PROJECT_IDS.length > 1) {
-      throw new Error(`Multiple projects allowed (${GITLAB_ALLOWED_PROJECT_IDS.join(', ')}). Please specify a project ID.`);
+      throw new Error(
+        `Multiple projects allowed (${GITLAB_ALLOWED_PROJECT_IDS.join(", ")}). Please specify a project ID.`
+      );
     }
-    
+
     return projectId || GITLAB_ALLOWED_PROJECT_IDS[0];
   }
   return GITLAB_PROJECT_ID || projectId;
@@ -2527,7 +2541,7 @@ async function publishDraftNote(
 
   // Handle empty response (204 No Content) or successful response
   const responseText = await response.text();
-  if (!responseText || responseText.trim() === '') {
+  if (!responseText || responseText.trim() === "") {
     // Return a success indicator for empty responses
     return {
       id: draftNoteId.toString(),
@@ -2537,7 +2551,7 @@ async function publishDraftNote(
       updated_at: new Date().toISOString(),
       system: false,
       noteable_id: mergeRequestIid.toString(),
-      noteable_type: "MergeRequest"
+      noteable_type: "MergeRequest",
     } as any;
   }
 
@@ -2556,7 +2570,7 @@ async function publishDraftNote(
       updated_at: new Date().toISOString(),
       system: false,
       noteable_id: mergeRequestIid.toString(),
-      noteable_type: "MergeRequest"
+      noteable_type: "MergeRequest",
     } as any;
   }
 }
@@ -2591,7 +2605,7 @@ async function bulkPublishDraftNotes(
 
   // Handle empty response (204 No Content) or successful response
   const responseText = await response.text();
-  if (!responseText || responseText.trim() === '') {
+  if (!responseText || responseText.trim() === "") {
     // Return empty array for successful bulk publish with no content
     return [];
   }
@@ -3914,10 +3928,10 @@ async function getCurrentUser(): Promise<GitLabUser> {
 async function myIssues(options: MyIssuesOptions = {}): Promise<GitLabIssue[]> {
   // Get current user to find their username
   const currentUser = await getCurrentUser();
-  
+
   // Use getEffectiveProjectId to handle project ID resolution
   const effectiveProjectId = getEffectiveProjectId(options.project_id || "");
-  
+
   // Use listIssues with assignee_username filter
   let listIssuesOptions: Omit<z.infer<typeof ListIssuesSchema>, "project_id"> = {
     state: options.state || "opened", // Default to "opened" if not specified
@@ -3931,11 +3945,11 @@ async function myIssues(options: MyIssuesOptions = {}): Promise<GitLabIssue[]> {
     per_page: options.per_page,
     page: options.page,
   };
-  
+
   if (currentUser.username) {
-    listIssuesOptions.assignee_username = [currentUser.username]
+    listIssuesOptions.assignee_username = [currentUser.username];
   } else {
-    listIssuesOptions.assignee_id = currentUser.id
+    listIssuesOptions.assignee_id = currentUser.id;
   }
   return listIssues(effectiveProjectId, listIssuesOptions);
 }
@@ -3954,7 +3968,9 @@ async function listProjectMembers(
 ): Promise<GitLabProjectMember[]> {
   projectId = decodeURIComponent(projectId);
   const effectiveProjectId = getEffectiveProjectId(projectId);
-  const url = new URL(`${GITLAB_API_URL}/projects/${encodeURIComponent(effectiveProjectId)}/members`);
+  const url = new URL(
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(effectiveProjectId)}/members`
+  );
 
   // Add query parameters
   if (options.query) url.searchParams.append("query", options.query);
@@ -4061,7 +4077,12 @@ async function markdownUpload(projectId: string, filePath: string): Promise<GitL
   return GitLabMarkdownUploadSchema.parse(data);
 }
 
-async function downloadAttachment(projectId: string, secret: string, filename: string, localPath?: string): Promise<string> {
+async function downloadAttachment(
+  projectId: string,
+  secret: string,
+  filename: string,
+  localPath?: string
+): Promise<string> {
   const effectiveProjectId = getEffectiveProjectId(projectId);
 
   const url = new URL(
@@ -4079,13 +4100,13 @@ async function downloadAttachment(projectId: string, secret: string, filename: s
 
   // Get the file content as buffer
   const buffer = await response.arrayBuffer();
-  
+
   // Determine the save path
   const savePath = localPath ? path.join(localPath, filename) : filename;
-  
+
   // Write the file to disk
   fs.writeFileSync(savePath, Buffer.from(buffer));
-  
+
   return savePath;
 }
 
@@ -4558,7 +4579,13 @@ server.setRequestHandler(CallToolRequestSchema, async request => {
         const args = CreateDraftNoteSchema.parse(request.params.arguments);
         const { project_id, merge_request_iid, body, position, resolve_discussion } = args;
 
-        const draftNote = await createDraftNote(project_id, merge_request_iid, body, position, resolve_discussion);
+        const draftNote = await createDraftNote(
+          project_id,
+          merge_request_iid,
+          body,
+          position,
+          resolve_discussion
+        );
         return {
           content: [{ type: "text", text: JSON.stringify(draftNote, null, 2) }],
         };
@@ -4566,9 +4593,17 @@ server.setRequestHandler(CallToolRequestSchema, async request => {
 
       case "update_draft_note": {
         const args = UpdateDraftNoteSchema.parse(request.params.arguments);
-        const { project_id, merge_request_iid, draft_note_id, body, position, resolve_discussion } = args;
+        const { project_id, merge_request_iid, draft_note_id, body, position, resolve_discussion } =
+          args;
 
-        const draftNote = await updateDraftNote(project_id, merge_request_iid, draft_note_id, body, position, resolve_discussion);
+        const draftNote = await updateDraftNote(
+          project_id,
+          merge_request_iid,
+          draft_note_id,
+          body,
+          position,
+          resolve_discussion
+        );
         return {
           content: [{ type: "text", text: JSON.stringify(draftNote, null, 2) }],
         };
@@ -5170,9 +5205,24 @@ server.setRequestHandler(CallToolRequestSchema, async request => {
 
       case "download_attachment": {
         const args = DownloadAttachmentSchema.parse(request.params.arguments);
-        const filePath = await downloadAttachment(args.project_id, args.secret, args.filename, args.local_path);
+        const filePath = await downloadAttachment(
+          args.project_id,
+          args.secret,
+          args.filename,
+          args.local_path
+        );
         return {
-          content: [{ type: "text", text: JSON.stringify({ success: true, file_path: filePath }, null, 2) }],
+          content: [
+            { type: "text", text: JSON.stringify({ success: true, file_path: filePath }, null, 2) },
+          ],
+        };
+      }
+
+      case "greeting": {
+        const args = GreetingSchema.parse(request.params.arguments);
+        const response = handleGreeting(args.message, args.language);
+        return {
+          content: [{ type: "text", text: response }],
         };
       }
 
@@ -5197,6 +5247,66 @@ server.setRequestHandler(CallToolRequestSchema, async request => {
  */
 const colorGreen = "\x1b[32m";
 const colorReset = "\x1b[0m";
+
+/**
+ * Handle greeting messages with Korean and English support
+ */
+function handleGreeting(message?: string, language: "ko" | "en" | "auto" = "auto"): string {
+  // Korean greeting patterns
+  const koreanGreetings = [
+    /안녕/,
+    /hello/i,
+    /hi/i,
+    /hey/i,
+    /좋은\s*(아침|오후|저녁)/,
+    /반가[워웠]/,
+  ];
+
+  // Detect if message contains Korean
+  const hasKorean = message ? /[ㄱ-ㅎ|ㅏ-ㅣ|가-힣]/.test(message) : false;
+
+  // Determine response language
+  const responseLanguage = language === "auto" ? (hasKorean ? "ko" : "en") : language;
+
+  // Generate response based on language
+  if (responseLanguage === "ko") {
+    const responses = [
+      "안녕하세요! GitLab MCP 서버입니다. 🚀",
+      "반갑습니다! GitLab API를 통해 도와드릴게요. ✨",
+      "안녕하세요! 무엇을 도와드릴까요? 🤖",
+    ];
+
+    if (message) {
+      // Check if it's a greeting
+      const isGreeting = koreanGreetings.some(pattern => pattern.test(message));
+      if (isGreeting) {
+        return responses[Math.floor(Math.random() * responses.length)];
+      } else {
+        return `안녕하세요! "${message}"라고 하셨군요. GitLab MCP 서버로 무엇을 도와드릴까요? 🤖`;
+      }
+    }
+
+    return responses[0];
+  } else {
+    const responses = [
+      "Hello! I'm the GitLab MCP Server. 🚀",
+      "Hi there! I can help you with GitLab API operations. ✨",
+      "Hello! How can I assist you today? 🤖",
+    ];
+
+    if (message) {
+      // Check if it's a greeting
+      const isGreeting = koreanGreetings.some(pattern => pattern.test(message));
+      if (isGreeting) {
+        return responses[Math.floor(Math.random() * responses.length)];
+      } else {
+        return `Hello! You said "${message}". How can I help you with GitLab today? 🤖`;
+      }
+    }
+
+    return responses[0];
+  }
+}
 
 /**
  * Determine the transport mode based on environment variables and availability

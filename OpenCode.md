@@ -1,6 +1,7 @@
 # OpenCode Configuration
 
 ## Build/Test Commands
+
 - `npm run build` - Compile TypeScript to build/
 - `npm run dev` - Build and run the server
 - `npm run watch` - Watch mode compilation
@@ -13,6 +14,7 @@
 - `npm run format:check` - Check formatting
 
 ## Code Style Guidelines
+
 - **Language**: TypeScript with strict mode enabled
 - **Module System**: ES modules (type: "module" in package.json)
 - **Imports**: Use .js extensions for local imports, named imports preferred

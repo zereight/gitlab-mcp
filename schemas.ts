@@ -826,55 +826,57 @@ export const LineRangeSchema = z
   );
 
 // Discussion related schemas
-export const GitLabDiscussionNoteSchema = z.object({
-  id: z.coerce.string(),
-  type: z.enum(["DiscussionNote", "DiffNote", "Note"]).nullable().optional(), // Allow null type for regular notes
-  body: z.string().optional(),
-  attachment: z.any().nullable().optional(), // Can be string or object, handle appropriately
-  author: GitLabUserSchema.optional(),
-  created_at: z.string().optional(),
-  updated_at: z.string().optional(),
-  system: flexibleBoolean.optional(),
-  noteable_id: z.coerce.string().optional(),
-  noteable_type: z.enum(["Issue", "MergeRequest", "Snippet", "Commit", "Epic"]).optional(),
-  project_id: z.coerce.string().optional(),
-  noteable_iid: z.coerce.string().nullable().optional(),
-  resolvable: flexibleBoolean.optional(),
-  resolved: flexibleBoolean.optional(),
-  resolved_by: GitLabUserSchema.nullable().optional(),
-  resolved_at: z.string().nullable().optional(),
-  position: z
-    .object({
-      // Only present for DiffNote
-      base_sha: z.string().optional(),
-      start_sha: z.string().optional(),
-      head_sha: z.string().optional(),
-      old_path: z.string().nullable().optional().describe("File path before change"),
-      new_path: z.string().nullable().optional().describe("File path after change"),
-      position_type: z.enum(["text", "image", "file"]).optional(),
-      new_line: z
-        .number()
-        .nullable()
-        .optional()
-        .describe(
-          "Line number in the modified file (after changes). Used for added lines and context lines. Null for deleted lines."
-        ),
-      old_line: z
-        .number()
-        .nullable()
-        .optional()
-        .describe(
-          "Line number in the original file (before changes). Used for deleted lines and context lines. Null for newly added lines."
-        ),
-      line_range: LineRangeSchema.nullable().optional(), // For multi-line diff notes
-      width: z.number().optional(), // For image diff notes
-      height: z.number().optional(), // For image diff notes
-      x: z.number().optional(), // For image diff notes
-      y: z.number().optional(), // For image diff notes
-    })
-    .passthrough() // Allow additional fields
-    .optional(),
-}).passthrough(); // Allow additional fields that GitLab might return
+export const GitLabDiscussionNoteSchema = z
+  .object({
+    id: z.coerce.string(),
+    type: z.enum(["DiscussionNote", "DiffNote", "Note"]).nullable().optional(), // Allow null type for regular notes
+    body: z.string().optional(),
+    attachment: z.any().nullable().optional(), // Can be string or object, handle appropriately
+    author: GitLabUserSchema.optional(),
+    created_at: z.string().optional(),
+    updated_at: z.string().optional(),
+    system: flexibleBoolean.optional(),
+    noteable_id: z.coerce.string().optional(),
+    noteable_type: z.enum(["Issue", "MergeRequest", "Snippet", "Commit", "Epic"]).optional(),
+    project_id: z.coerce.string().optional(),
+    noteable_iid: z.coerce.string().nullable().optional(),
+    resolvable: flexibleBoolean.optional(),
+    resolved: flexibleBoolean.optional(),
+    resolved_by: GitLabUserSchema.nullable().optional(),
+    resolved_at: z.string().nullable().optional(),
+    position: z
+      .object({
+        // Only present for DiffNote
+        base_sha: z.string().optional(),
+        start_sha: z.string().optional(),
+        head_sha: z.string().optional(),
+        old_path: z.string().nullable().optional().describe("File path before change"),
+        new_path: z.string().nullable().optional().describe("File path after change"),
+        position_type: z.enum(["text", "image", "file"]).optional(),
+        new_line: z
+          .number()
+          .nullable()
+          .optional()
+          .describe(
+            "Line number in the modified file (after changes). Used for added lines and context lines. Null for deleted lines."
+          ),
+        old_line: z
+          .number()
+          .nullable()
+          .optional()
+          .describe(
+            "Line number in the original file (before changes). Used for deleted lines and context lines. Null for newly added lines."
+          ),
+        line_range: LineRangeSchema.nullable().optional(), // For multi-line diff notes
+        width: z.number().optional(), // For image diff notes
+        height: z.number().optional(), // For image diff notes
+        x: z.number().optional(), // For image diff notes
+        y: z.number().optional(), // For image diff notes
+      })
+      .passthrough() // Allow additional fields
+      .optional(),
+  })
+  .passthrough(); // Allow additional fields that GitLab might return
 export type GitLabDiscussionNote = z.infer<typeof GitLabDiscussionNoteSchema>;
 
 // Reusable pagination schema for GitLab API responses.
@@ -1014,7 +1016,11 @@ export const CreateIssueSchema = ProjectParamsSchema.extend({
   assignee_ids: z.array(z.number()).optional().describe("Array of user IDs to assign"),
   labels: z.array(z.string()).optional().describe("Array of label names"),
   milestone_id: z.coerce.string().optional().describe("Milestone ID to assign"),
-  issue_type: z.enum(["issue", "incident", "test_case", "task"]).describe("the type of issue. One of issue, incident, test_case or task.").nullish().default("issue"),
+  issue_type: z
+    .enum(["issue", "incident", "test_case", "task"])
+    .describe("the type of issue. One of issue, incident, test_case or task.")
+    .nullish()
+    .default("issue"),
 });
 
 const MergeRequestOptionsSchema = {
@@ -1094,12 +1100,24 @@ export const UpdateMergeRequestSchema = GetMergeRequestSchema.extend({
 
 export const MergeMergeRequestSchema = ProjectParamsSchema.extend({
   merge_request_iid: z.coerce.string().optional().describe("The IID of a merge request"),
-  auto_merge: flexibleBoolean.optional().default(false).describe("If true, the merge request merges when the pipeline succeeds."),
+  auto_merge: flexibleBoolean
+    .optional()
+    .default(false)
+    .describe("If true, the merge request merges when the pipeline succeeds."),
   merge_commit_message: z.string().optional().describe("Custom merge commit message"),
-  merge_when_pipeline_succeeds: flexibleBoolean.optional().default(false).describe("If true, the merge request merges when the pipeline succeeds.in GitLab 17.11. Use"),
-  should_remove_source_branch: flexibleBoolean.optional().default(false).describe("Remove source branch after merge"),
+  merge_when_pipeline_succeeds: flexibleBoolean
+    .optional()
+    .default(false)
+    .describe("If true, the merge request merges when the pipeline succeeds.in GitLab 17.11. Use"),
+  should_remove_source_branch: flexibleBoolean
+    .optional()
+    .default(false)
+    .describe("Remove source branch after merge"),
   squash_commit_message: z.string().optional().describe("Custom squash commit message"),
-  squash: flexibleBoolean.optional().default(false).describe("Squash commits into a single commit when merging"),
+  squash: flexibleBoolean
+    .optional()
+    .default(false)
+    .describe("Squash commits into a single commit when merging"),
 });
 
 export const GetMergeRequestDiffsSchema = GetMergeRequestSchema.extend({
@@ -1281,8 +1299,9 @@ export const UpdateIssueSchema = z.object({
   milestone_id: z.coerce.string().optional().describe("Milestone ID to assign"),
   state_event: z.enum(["close", "reopen"]).optional().describe("Update issue state (close/reopen)"),
   weight: z.number().optional().describe("Weight of the issue (0-9)"),
-  issue_type: z.enum(["issue", "incident", "test_case", "task"]).describe("the type of issue. One of issue, incident, test_case or task."),
-
+  issue_type: z
+    .enum(["issue", "incident", "test_case", "task"])
+    .describe("the type of issue. One of issue, incident, test_case or task."),
 });
 
 export const DeleteIssueSchema = z.object({
@@ -1505,19 +1524,73 @@ export const GitLabWikiPageSchema = z.object({
 
 // Strict position schema for creating draft notes and merge request threads
 export const MergeRequestThreadPositionCreateSchema = z.object({
-  base_sha: z.string().describe("REQUIRED: Base commit SHA in the source branch. Get this from merge request diff_refs.base_sha."),
-  head_sha: z.string().describe("REQUIRED: SHA referencing HEAD of the source branch. Get this from merge request diff_refs.head_sha."),
-  start_sha: z.string().describe("REQUIRED: SHA referencing the start commit of the source branch. Get this from merge request diff_refs.start_sha."),
-  position_type: z.enum(["text", "image", "file"]).describe("REQUIRED: Position type. Use 'text' for code diffs, 'image' for image diffs, 'file' for file-level comments."),
-  new_path: z.string().nullable().optional().describe("File path after changes. REQUIRED for most diff comments. Use same as old_path if file wasn't renamed."),
-  old_path: z.string().nullable().optional().describe("File path before changes. REQUIRED for most diff comments. Use same as new_path if file wasn't renamed."),
-  new_line: z.number().nullable().optional().describe("Line number in modified file (after changes). Use for added lines or context lines. NULL for deleted lines. For single-line comments on new lines."),
-  old_line: z.number().nullable().optional().describe("Line number in original file (before changes). Use for deleted lines or context lines. NULL for added lines. For single-line comments on old lines."),
-  line_range: LineRangeSchema.optional().describe("MULTILINE COMMENTS: Specify start/end line positions for commenting on multiple lines. Alternative to single old_line/new_line."),
-  width: z.number().optional().describe("IMAGE DIFFS ONLY: Width of the image (for position_type='image')."),
-  height: z.number().optional().describe("IMAGE DIFFS ONLY: Height of the image (for position_type='image')."),
-  x: z.number().optional().describe("IMAGE DIFFS ONLY: X coordinate on the image (for position_type='image')."),
-  y: z.number().optional().describe("IMAGE DIFFS ONLY: Y coordinate on the image (for position_type='image')."),
+  base_sha: z
+    .string()
+    .describe(
+      "REQUIRED: Base commit SHA in the source branch. Get this from merge request diff_refs.base_sha."
+    ),
+  head_sha: z
+    .string()
+    .describe(
+      "REQUIRED: SHA referencing HEAD of the source branch. Get this from merge request diff_refs.head_sha."
+    ),
+  start_sha: z
+    .string()
+    .describe(
+      "REQUIRED: SHA referencing the start commit of the source branch. Get this from merge request diff_refs.start_sha."
+    ),
+  position_type: z
+    .enum(["text", "image", "file"])
+    .describe(
+      "REQUIRED: Position type. Use 'text' for code diffs, 'image' for image diffs, 'file' for file-level comments."
+    ),
+  new_path: z
+    .string()
+    .nullable()
+    .optional()
+    .describe(
+      "File path after changes. REQUIRED for most diff comments. Use same as old_path if file wasn't renamed."
+    ),
+  old_path: z
+    .string()
+    .nullable()
+    .optional()
+    .describe(
+      "File path before changes. REQUIRED for most diff comments. Use same as new_path if file wasn't renamed."
+    ),
+  new_line: z
+    .number()
+    .nullable()
+    .optional()
+    .describe(
+      "Line number in modified file (after changes). Use for added lines or context lines. NULL for deleted lines. For single-line comments on new lines."
+    ),
+  old_line: z
+    .number()
+    .nullable()
+    .optional()
+    .describe(
+      "Line number in original file (before changes). Use for deleted lines or context lines. NULL for added lines. For single-line comments on old lines."
+    ),
+  line_range: LineRangeSchema.optional().describe(
+    "MULTILINE COMMENTS: Specify start/end line positions for commenting on multiple lines. Alternative to single old_line/new_line."
+  ),
+  width: z
+    .number()
+    .optional()
+    .describe("IMAGE DIFFS ONLY: Width of the image (for position_type='image')."),
+  height: z
+    .number()
+    .optional()
+    .describe("IMAGE DIFFS ONLY: Height of the image (for position_type='image')."),
+  x: z
+    .number()
+    .optional()
+    .describe("IMAGE DIFFS ONLY: X coordinate on the image (for position_type='image')."),
+  y: z
+    .number()
+    .optional()
+    .describe("IMAGE DIFFS ONLY: Y coordinate on the image (for position_type='image')."),
 });
 
 export const MergeRequestThreadPositionSchema = z.object({
@@ -1591,25 +1664,27 @@ export const MergeRequestThreadPositionSchema = z.object({
 });
 
 // Draft Notes API schemas
-export const GitLabDraftNoteSchema = z.object({
-  id: z.coerce.string(),
-  author: GitLabUserSchema.optional(),
-  body: z.string().optional(),
-  note: z.string().optional(), // Some APIs might use 'note' instead of 'body'
-  created_at: z.string().optional(),
-  updated_at: z.string().optional(),
-  position: MergeRequestThreadPositionSchema.nullable().optional(),
-  resolve_discussion: flexibleBoolean.optional(),
-}).transform((data) => ({
-  // Normalize the response to always have consistent field names
-  id: data.id,
-  author: data.author,
-  body: data.body || data.note || "",
-  created_at: data.created_at || "",
-  updated_at: data.updated_at || "",
-  position: data.position,
-  resolve_discussion: data.resolve_discussion,
-}));
+export const GitLabDraftNoteSchema = z
+  .object({
+    id: z.coerce.string(),
+    author: GitLabUserSchema.optional(),
+    body: z.string().optional(),
+    note: z.string().optional(), // Some APIs might use 'note' instead of 'body'
+    created_at: z.string().optional(),
+    updated_at: z.string().optional(),
+    position: MergeRequestThreadPositionSchema.nullable().optional(),
+    resolve_discussion: flexibleBoolean.optional(),
+  })
+  .transform(data => ({
+    // Normalize the response to always have consistent field names
+    id: data.id,
+    author: data.author,
+    body: data.body || data.note || "",
+    created_at: data.created_at || "",
+    updated_at: data.updated_at || "",
+    position: data.position,
+    resolve_discussion: data.resolve_discussion,
+  }));
 
 export type GitLabDraftNote = z.infer<typeof GitLabDraftNoteSchema>;
 
@@ -1628,8 +1703,12 @@ export const ListDraftNotesSchema = ProjectParamsSchema.extend({
 export const CreateDraftNoteSchema = ProjectParamsSchema.extend({
   merge_request_iid: z.coerce.string().describe("The IID of a merge request"),
   body: z.string().describe("The content of the draft note"),
-  position: MergeRequestThreadPositionCreateSchema.optional().describe("Position when creating a diff note"),
-  resolve_discussion: flexibleBoolean.optional().describe("Whether to resolve the discussion when publishing"),
+  position: MergeRequestThreadPositionCreateSchema.optional().describe(
+    "Position when creating a diff note"
+  ),
+  resolve_discussion: flexibleBoolean
+    .optional()
+    .describe("Whether to resolve the discussion when publishing"),
 });
 
 // Update draft note schema
@@ -1637,8 +1716,12 @@ export const UpdateDraftNoteSchema = ProjectParamsSchema.extend({
   merge_request_iid: z.coerce.string().describe("The IID of a merge request"),
   draft_note_id: z.coerce.string().describe("The ID of the draft note"),
   body: z.string().optional().describe("The content of the draft note"),
-  position: MergeRequestThreadPositionCreateSchema.optional().describe("Position when creating a diff note"),
-  resolve_discussion: flexibleBoolean.optional().describe("Whether to resolve the discussion when publishing"),
+  position: MergeRequestThreadPositionCreateSchema.optional().describe(
+    "Position when creating a diff note"
+  ),
+  resolve_discussion: flexibleBoolean
+    .optional()
+    .describe("Whether to resolve the discussion when publishing"),
 });
 
 // Delete draft note schema
@@ -1786,7 +1869,10 @@ export const GetCommitDiffSchema = z.object({
 
 // Schema for listing issues assigned to the current user
 export const MyIssuesSchema = z.object({
-  project_id: z.string().optional().describe("Project ID or URL-encoded path (optional when GITLAB_PROJECT_ID is set)"),
+  project_id: z
+    .string()
+    .optional()
+    .describe("Project ID or URL-encoded path (optional when GITLAB_PROJECT_ID is set)"),
   state: z
     .enum(["opened", "closed", "all"])
     .optional()
@@ -1794,10 +1880,22 @@ export const MyIssuesSchema = z.object({
   labels: z.array(z.string()).optional().describe("Array of label names to filter by"),
   milestone: z.string().optional().describe("Milestone title to filter by"),
   search: z.string().optional().describe("Search for specific terms in title and description"),
-  created_after: z.string().optional().describe("Return issues created after the given time (ISO 8601)"),
-  created_before: z.string().optional().describe("Return issues created before the given time (ISO 8601)"),
-  updated_after: z.string().optional().describe("Return issues updated after the given time (ISO 8601)"),
-  updated_before: z.string().optional().describe("Return issues updated before the given time (ISO 8601)"),
+  created_after: z
+    .string()
+    .optional()
+    .describe("Return issues created after the given time (ISO 8601)"),
+  created_before: z
+    .string()
+    .optional()
+    .describe("Return issues created before the given time (ISO 8601)"),
+  updated_after: z
+    .string()
+    .optional()
+    .describe("Return issues updated after the given time (ISO 8601)"),
+  updated_before: z
+    .string()
+    .optional()
+    .describe("Return issues updated before the given time (ISO 8601)"),
   per_page: z.number().optional().describe("Number of items per page (default: 20, max: 100)"),
   page: z.number().optional().describe("Page number for pagination (default: 1)"),
 });
@@ -1825,7 +1923,6 @@ export const GitLabProjectMemberSchema = z.object({
   created_at: z.string(),
   expires_at: z.string().nullable().optional(),
   email: z.string().optional(),
-
 });
 
 // Markdown upload schemas
@@ -1846,7 +1943,10 @@ export const DownloadAttachmentSchema = z.object({
   project_id: z.string().describe("Project ID or URL-encoded path of the project"),
   secret: z.string().describe("The 32-character secret of the upload"),
   filename: z.string().describe("The filename of the upload"),
-  local_path: z.string().optional().describe("Local path to save the file (optional, defaults to current directory)"),
+  local_path: z
+    .string()
+    .optional()
+    .describe("Local path to save the file (optional, defaults to current directory)"),
 });
 
 export const GroupIteration = z.object({
@@ -1943,7 +2043,9 @@ export type GitLabWikiPage = z.infer<typeof GitLabWikiPageSchema>;
 export type GitLabTreeItem = z.infer<typeof GitLabTreeItemSchema>;
 export type GetRepositoryTreeOptions = z.infer<typeof GetRepositoryTreeSchema>;
 export type MergeRequestThreadPosition = z.infer<typeof MergeRequestThreadPositionSchema>;
-export type MergeRequestThreadPositionCreate = z.infer<typeof MergeRequestThreadPositionCreateSchema>;
+export type MergeRequestThreadPositionCreate = z.infer<
+  typeof MergeRequestThreadPositionCreateSchema
+>;
 export type CreateMergeRequestThreadOptions = z.infer<typeof CreateMergeRequestThreadSchema>;
 export type CreateMergeRequestNoteOptions = z.infer<typeof CreateMergeRequestNoteSchema>;
 export type GitLabPipelineJob = z.infer<typeof GitLabPipelineJobSchema>;
@@ -1987,3 +2089,15 @@ export type PublishDraftNoteOptions = z.infer<typeof PublishDraftNoteSchema>;
 export type BulkPublishDraftNotesOptions = z.infer<typeof BulkPublishDraftNotesSchema>;
 export type GitLabMarkdownUpload = z.infer<typeof GitLabMarkdownUploadSchema>;
 export type MarkdownUploadOptions = z.infer<typeof MarkdownUploadSchema>;
+
+// Greeting schema
+export const GreetingSchema = z.object({
+  message: z.string().optional().describe("Optional greeting message to respond to"),
+  language: z
+    .enum(["ko", "en", "auto"])
+    .optional()
+    .default("auto")
+    .describe("Language for the response (ko=Korean, en=English, auto=detect)"),
+});
+
+export type GreetingOptions = z.infer<typeof GreetingSchema>;
