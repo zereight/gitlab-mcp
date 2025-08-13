@@ -25,7 +25,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ secrets.DOCKERHUB_USERNAME }}/gitlab-mcp
+          images: ${{ secrets.DOCKERHUB_REPO_USERNAME }}/gitlab-mcp
           tags: |
             type=semver,pattern={{version}}
             latest
