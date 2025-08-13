@@ -242,6 +242,7 @@ const GITLAB_PERSONAL_ACCESS_TOKEN = process.env.GITLAB_PERSONAL_ACCESS_TOKEN;
 const GITLAB_AUTH_COOKIE_PATH = process.env.GITLAB_AUTH_COOKIE_PATH;
 const IS_OLD = process.env.GITLAB_IS_OLD === "true";
 const GITLAB_READ_ONLY_MODE = process.env.GITLAB_READ_ONLY_MODE === "true";
+const GITLAB_DENIED_TOOLS_REGEX = process.env.GITLAB_DENIED_TOOLS_REGEX ? new RegExp(process.env.GITLAB_DENIED_TOOLS_REGEX):undefined;
 const USE_GITLAB_WIKI = process.env.USE_GITLAB_WIKI === "true";
 const USE_MILESTONE = process.env.USE_MILESTONE === "true";
 const USE_PIPELINE = process.env.USE_PIPELINE === "true";
@@ -3441,6 +3442,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
     : tools1.filter(tool => !milestoneToolNames.includes(tool.name));
   // Toggle pipeline tools by USE_PIPELINE flag
   let tools = USE_PIPELINE ? tools2 : tools2.filter(tool => !pipelineToolNames.includes(tool.name));
+  tools = GITLAB_DENIED_TOOLS_REGEX ? tools.filter(tool => !GITLAB_DENIED_TOOLS_REGEX.test(tool.name)) : tools;
 
   // <<< START: Gemini 호환성을 위해 $schema 제거 >>>
   tools = tools.map(tool => {
