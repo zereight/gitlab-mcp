@@ -21,7 +21,7 @@
     "dev": "npm run build && node build/index.js",
     "watch": "tsc --watch",
     "deploy": "npm publish --access public",
-    "deploy:canary": "npm publish --access public --tag canary",
+    "deploy:beta": "npm publish --access public --tag beta",
     "generate-tools": "npx ts-node scripts/generate-tools-readme.ts",
     "changelog": "auto-changelog -p",
     "test": "node test/validate-api.js",
