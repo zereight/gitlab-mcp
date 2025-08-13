@@ -1,6 +1,6 @@
 {
   "name": "@zereight/mcp-gitlab",
-  "version": "2.0.0",
+  "version": "2.0.0-beta.0",
   "description": "MCP server for using the GitLab API",
   "license": "MIT",
   "author": "zereight",
@@ -20,8 +20,8 @@
     "prepare": "npm run build",
     "dev": "npm run build && node build/index.js",
     "watch": "tsc --watch",
-    "deploy": "npm publish --access public",
-    "deploy:beta": "npm publish --access public --tag beta",
+    "npm:deploy": "npm publish --access public",
+    "npm:deploy:beta": "npm publish --access public --tag beta",
     "generate-tools": "npx ts-node scripts/generate-tools-readme.ts",
     "changelog": "auto-changelog -p",
     "test": "node test/validate-api.js",
