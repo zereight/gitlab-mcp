@@ -6,3 +6,7 @@ build
 .env.test
 coverage/
 *.log
+
+# ai
+.opencode*
+.aider*

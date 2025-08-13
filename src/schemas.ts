@@ -1844,6 +1844,13 @@ export const MarkdownUploadSchema = z.object({
   file_path: z.string().describe("Path to the file to upload"),
 });
 
+export const DownloadAttachmentSchema = z.object({
+  project_id: z.string().describe("Project ID or URL-encoded path of the project"),
+  secret: z.string().describe("The 32-character secret of the upload"),
+  filename: z.string().describe("The filename of the upload"),
+  local_path: z.string().optional().describe("Local path to save the file (optional, defaults to current directory)"),
+});
+
 export const GroupIteration = z.object({
   id: z.coerce.string(),
   iid: z.coerce.string(),

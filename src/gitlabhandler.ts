@@ -2524,4 +2524,31 @@ const url = new URL(`${config.GITLAB_API_URL}/namespaces`);
     const data = await response.json();
     return GitLabMarkdownUploadSchema.parse(data);
   }
+
+  /**
+   * Download an attachment from a GitLab project
+   */
+  async downloadAttachment(projectId: string, secret: string, filename: string, localPath?: string): Promise<string> {
+    projectId = decodeURIComponent(projectId);
+    const effectiveProjectId = this.getEffectiveProjectId(projectId);
+
+    const url = new URL(
+      `${config.GITLAB_API_URL}/projects/${encodeURIComponent(effectiveProjectId)}/uploads/${secret}/${filename}`
+    );
+
+    const response = await this.fetch(url.toString(), {});
+
+    await this.handleGitLabError(response);
+
+    // Get the file content as buffer
+    const buffer = await response.arrayBuffer();
+    
+    // Determine the save path
+    const savePath = localPath ? path.join(localPath, filename) : filename;
+    
+    // Write the file to disk
+    fs.writeFileSync(savePath, Buffer.from(buffer));
+    
+    return savePath;
+  }
 }

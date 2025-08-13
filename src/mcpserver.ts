@@ -93,6 +93,7 @@ import {
   MyIssuesSchema,
   ListProjectMembersSchema,
   MarkdownUploadSchema,
+  DownloadAttachmentSchema,
 } from "./schemas.js";
 import { createCookieJar } from "./authhelpers.js";
 import { CookieJar } from "tough-cookie";
@@ -537,6 +538,11 @@ const allTools = [
     name: "upload_markdown",
     description: "Upload a file to a GitLab project for use in markdown content",
     inputSchema: zodToJsonSchema(MarkdownUploadSchema),
+  },
+  {
+    name: "download_attachment",
+    description: "Download an uploaded file from a GitLab project by secret and filename",
+    inputSchema: zodToJsonSchema(DownloadAttachmentSchema),
   }
 ];
 
@@ -580,6 +586,7 @@ const readOnlyTools = [
   "get_commit",
   "get_commit_diff",
   "get_current_user",
+  "download_attachment",
 ];
 
 // Define which tools are related to wiki and can be toggled by USE_GITLAB_WIKI
@@ -1635,6 +1642,14 @@ server.setRequestHandler(CallToolRequestSchema, async (request, extra) => {
         const upload = await gitlabSession.markdownUpload(args.project_id, args.file_path);
         return {
           content: [{ type: "text", text: JSON.stringify(upload, null, 2) }],
+        };
+      }
+
+      case "download_attachment": {
+        const args = DownloadAttachmentSchema.parse(request.params.arguments);
+        const filePath = await gitlabSession.downloadAttachment(args.project_id, args.secret, args.filename, args.local_path);
+        return {
+          content: [{ type: "text", text: JSON.stringify({ success: true, file_path: filePath }, null, 2) }],
         };
       }
 
