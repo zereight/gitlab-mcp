@@ -113,6 +113,16 @@ import {
   CreateProjectMilestoneSchema,
   EditProjectMilestoneSchema,
   CreateMergeRequestSchema,
+  // Tags
+  ListTagsSchema,
+  GetTagSchema,
+  CreateTagSchema,
+  DeleteTagSchema,
+  GetTagSignatureSchema,
+  GitLabTagSchema,
+  GitLabTagSignatureSchema,
+  type GitLabTag,
+  type GitLabTagSignature,
 } from "./schemas.js";
 import {GitlabSession} from "./gitlabsession.js";
 
@@ -2550,5 +2560,118 @@ const url = new URL(`${config.GITLAB_API_URL}/namespaces`);
     fs.writeFileSync(savePath, Buffer.from(buffer));
     
     return savePath;
+  }
+
+  /**
+   * List project repository tags
+   */
+  async listTags(
+    projectId: string,
+    options: Omit<z.infer<typeof ListTagsSchema>, "project_id"> = {}
+  ): Promise<GitLabTag[]> {
+    projectId = decodeURIComponent(projectId);
+    const effectiveProjectId = this.getEffectiveProjectId(projectId);
+    const url = new URL(
+      `${config.GITLAB_API_URL}/projects/${encodeURIComponent(effectiveProjectId)}/repository/tags`
+    );
+    
+    Object.entries(options).forEach(([key, value]) => {
+      if (value !== undefined && value !== null) {
+        url.searchParams.append(key, String(value));
+      }
+    });
+    
+    const response = await this.fetch(url.toString(), {});
+    await this.handleGitLabError(response);
+    const data = await response.json();
+    return z.array(GitLabTagSchema).parse(data);
+  }
+
+  /**
+   * Get a single repository tag by name
+   */
+  async getTag(projectId: string, tagName: string): Promise<GitLabTag> {
+    projectId = decodeURIComponent(projectId);
+    const effectiveProjectId = this.getEffectiveProjectId(projectId);
+    const url = new URL(
+      `${config.GITLAB_API_URL}/projects/${encodeURIComponent(effectiveProjectId)}/repository/tags/${encodeURIComponent(tagName)}`
+    );
+    
+    const response = await this.fetch(url.toString(), {});
+    await this.handleGitLabError(response);
+    const data = await response.json();
+    return GitLabTagSchema.parse(data);
+  }
+
+  /**
+   * Create a new repository tag
+   */
+  async createTag(
+    projectId: string,
+    options: Omit<z.infer<typeof CreateTagSchema>, "project_id">
+  ): Promise<GitLabTag> {
+    projectId = decodeURIComponent(projectId);
+    const effectiveProjectId = this.getEffectiveProjectId(projectId);
+    const url = new URL(
+      `${config.GITLAB_API_URL}/projects/${encodeURIComponent(effectiveProjectId)}/repository/tags`
+    );
+    
+    const body: any = {
+      tag_name: options.tag_name,
+      ref: options.ref,
+    };
+    
+    if (options.message) {
+      body.message = options.message;
+    }
+    
+    if (options.release_description) {
+      body.release_description = options.release_description;
+    }
+    
+    const response = await this.fetch(url.toString(), {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
+    });
+    
+    await this.handleGitLabError(response);
+    const data = await response.json();
+    return GitLabTagSchema.parse(data);
+  }
+
+  /**
+   * Delete a repository tag
+   */
+  async deleteTag(projectId: string, tagName: string): Promise<void> {
+    projectId = decodeURIComponent(projectId);
+    const effectiveProjectId = this.getEffectiveProjectId(projectId);
+    const url = new URL(
+      `${config.GITLAB_API_URL}/projects/${encodeURIComponent(effectiveProjectId)}/repository/tags/${encodeURIComponent(tagName)}`
+    );
+    
+    const response = await this.fetch(url.toString(), {
+      method: "DELETE",
+    });
+    
+    await this.handleGitLabError(response);
+  }
+
+  /**
+   * Get the X.509 signature of a tag
+   */
+  async getTagSignature(projectId: string, tagName: string): Promise<GitLabTagSignature> {
+    projectId = decodeURIComponent(projectId);
+    const effectiveProjectId = this.getEffectiveProjectId(projectId);
+    const url = new URL(
+      `${config.GITLAB_API_URL}/projects/${encodeURIComponent(effectiveProjectId)}/repository/tags/${encodeURIComponent(tagName)}/signature`
+    );
+    
+    const response = await this.fetch(url.toString(), {});
+    await this.handleGitLabError(response);
+    const data = await response.json();
+    return GitLabTagSignatureSchema.parse(data);
   }
 }

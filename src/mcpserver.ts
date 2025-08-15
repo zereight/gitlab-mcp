@@ -94,6 +94,12 @@ import {
   ListProjectMembersSchema,
   MarkdownUploadSchema,
   DownloadAttachmentSchema,
+  // Tags
+  ListTagsSchema,
+  GetTagSchema,
+  CreateTagSchema,
+  DeleteTagSchema,
+  GetTagSignatureSchema,
 } from "./schemas.js";
 import { createCookieJar } from "./authhelpers.js";
 import { CookieJar } from "tough-cookie";
@@ -333,6 +339,31 @@ const allTools = [
     name: "delete_label",
     description: "Delete a label from a project",
     inputSchema: zodToJsonSchema(DeleteLabelSchema),
+  },
+  {
+    name: "list_tags",
+    description: "List repository tags for a GitLab project",
+    inputSchema: zodToJsonSchema(ListTagsSchema),
+  },
+  {
+    name: "get_tag",
+    description: "Get a single repository tag by name",
+    inputSchema: zodToJsonSchema(GetTagSchema),
+  },
+  {
+    name: "create_tag",
+    description: "Create a new repository tag",
+    inputSchema: zodToJsonSchema(CreateTagSchema),
+  },
+  {
+    name: "delete_tag",
+    description: "Delete a repository tag",
+    inputSchema: zodToJsonSchema(DeleteTagSchema),
+  },
+  {
+    name: "get_tag_signature",
+    description: "Get the X.509 signature of a tag (404 if unsigned)",
+    inputSchema: zodToJsonSchema(GetTagSignatureSchema),
   },
   {
     name: "list_group_projects",
@@ -587,6 +618,10 @@ const readOnlyTools = [
   "get_commit_diff",
   "get_current_user",
   "download_attachment",
+  // tags
+  "list_tags",
+  "get_tag",
+  "get_tag_signature",
 ];
 
 // Define which tools are related to wiki and can be toggled by USE_GITLAB_WIKI
@@ -1182,6 +1217,55 @@ server.setRequestHandler(CallToolRequestSchema, async (request, extra) => {
               ),
             },
           ],
+        };
+      }
+
+      case "list_tags": {
+        const args = ListTagsSchema.parse(request.params.arguments);
+        const tags = await gitlabSession.listTags(args.project_id, args);
+        return {
+          content: [{ type: "text", text: JSON.stringify(tags, null, 2) }],
+        };
+      }
+
+      case "get_tag": {
+        const args = GetTagSchema.parse(request.params.arguments);
+        const tag = await gitlabSession.getTag(args.project_id, args.tag_name);
+        return {
+          content: [{ type: "text", text: JSON.stringify(tag, null, 2) }],
+        };
+      }
+
+      case "create_tag": {
+        const args = CreateTagSchema.parse(request.params.arguments);
+        const tag = await gitlabSession.createTag(args.project_id, args);
+        return {
+          content: [{ type: "text", text: JSON.stringify(tag, null, 2) }],
+        };
+      }
+
+      case "delete_tag": {
+        const args = DeleteTagSchema.parse(request.params.arguments);
+        await gitlabSession.deleteTag(args.project_id, args.tag_name);
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(
+                { status: "success", message: "Tag deleted successfully" },
+                null,
+                2
+              ),
+            },
+          ],
+        };
+      }
+
+      case "get_tag_signature": {
+        const args = GetTagSignatureSchema.parse(request.params.arguments);
+        const signature = await gitlabSession.getTagSignature(args.project_id, args.tag_name);
+        return {
+          content: [{ type: "text", text: JSON.stringify(signature, null, 2) }],
         };
       }
 
