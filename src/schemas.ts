@@ -1784,6 +1784,8 @@ export const GetCommitDiffSchema = z.object({
   sha: z.string().describe("The commit hash or name of a repository branch or tag"),
 });
 
+export const GetCurrentUserSchema = z.object({});
+
 // Schema for listing issues assigned to the current user
 export const MyIssuesSchema = z.object({
   project_id: z.string().optional().describe("Project ID or URL-encoded path (optional when GITLAB_PROJECT_ID is set)"),
