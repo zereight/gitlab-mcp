@@ -273,6 +273,10 @@ export const CreatePipelineSchema = z.object({
     )
     .optional()
     .describe("An array of variables to use for the pipeline"),
+  inputs: z
+    .record(z.string())
+    .optional()
+    .describe("Input values for spec-based pipelines (key-value pairs)"),
 });
 
 // Schema for retrying a pipeline
