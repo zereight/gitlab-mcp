@@ -1426,6 +1426,74 @@ export const DeleteLabelSchema = z.object({
   label_id: z.coerce.string().describe("The ID or title of a project's label"),
 });
 
+// Tag operation schemas
+export const ListTagsSchema = z
+  .object({
+    project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
+    order_by: z
+      .enum(["name", "updated", "version"]) // Default is updated
+      .optional()
+      .describe("Return tags ordered by name, updated, or version. Default is updated."),
+    sort: z.enum(["asc", "desc"]).optional().describe("Sort direction"),
+    search: z.string().optional().describe("Keyword to filter tags by"),
+  })
+  .merge(PaginationOptionsSchema);
+
+export const GetTagSchema = z.object({
+  project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
+  tag_name: z.string().describe("The name of the tag"),
+});
+
+export const CreateTagSchema = z.object({
+  project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
+  tag_name: z.string().describe("The name of the tag"),
+  ref: z.string().describe("Create tag using commit SHA, another tag name, or branch name"),
+  message: z.string().optional().describe("Create annotated tag with message"),
+  release_description: z.string().optional().describe("Release notes for the tag"),
+});
+
+export const DeleteTagSchema = z.object({
+  project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
+  tag_name: z.string().describe("The name of the tag"),
+});
+
+export const GetTagSignatureSchema = z.object({
+  project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
+  tag_name: z.string().describe("The name of the tag"),
+});
+
+// Tag data schemas
+export const GitLabTagSchema = z.object({
+  name: z.string(),
+  message: z.string().nullable(),
+  target: z.string(),
+  commit: z.object({
+    id: z.string(),
+    short_id: z.string(),
+    title: z.string(),
+    created_at: z.string(),
+    parent_ids: z.array(z.string()),
+    message: z.string(),
+    author_name: z.string(),
+    author_email: z.string(),
+    authored_date: z.string(),
+    committer_name: z.string(),
+    committer_email: z.string(),
+    committed_date: z.string(),
+  }),
+  release: z.object({
+    tag_name: z.string(),
+    description: z.string(),
+  }).nullable(),
+  protected: z.boolean(),
+});
+
+export const GitLabTagSignatureSchema = z.object({
+  signature_type: z.string(),
+  signature: z.string(),
+  public_key: z.string(),
+});
+
 // Group projects schema
 export const ListGroupProjectsSchema = z
   .object({
@@ -1989,3 +2057,7 @@ export type PublishDraftNoteOptions = z.infer<typeof PublishDraftNoteSchema>;
 export type BulkPublishDraftNotesOptions = z.infer<typeof BulkPublishDraftNotesSchema>;
 export type GitLabMarkdownUpload = z.infer<typeof GitLabMarkdownUploadSchema>;
 export type MarkdownUploadOptions = z.infer<typeof MarkdownUploadSchema>;
+
+// Tag type exports
+export type GitLabTag = z.infer<typeof GitLabTagSchema>;
+export type GitLabTagSignature = z.infer<typeof GitLabTagSignatureSchema>;
