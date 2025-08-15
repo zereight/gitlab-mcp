@@ -678,7 +678,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request, extra) => {
     }
     // Create GitlabSession instance
     // TODO: we silently do nothing if the authInfo is not properly forwared. should we do something?
-    const gitlabSession = new GitlabHandler(extra.authInfo?.token || "", cookieJar);
+    const gitlabSession = new GitlabHandler(extra.authInfo?.token || config.GITLAB_PERSONAL_ACCESS_TOKEN || "", cookieJar);
     if(cookieJar) {
       await gitlabSession.ensureSessionForCookieJar();
     }
