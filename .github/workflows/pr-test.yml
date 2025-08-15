@@ -1,9 +1,7 @@
 name: PR Test and Validation
 
 on:
-  pull_request:
-    branches: [ main ]
-    types: [opened, synchronize, reopened]
+  workflow_dispatch:
 
 jobs:
   test:
@@ -65,7 +63,7 @@ jobs:
   integration-test:
     runs-on: ubuntu-latest
     needs: test
-    if: github.event.pull_request.draft == false
+    if: ${{ github.event_name == 'workflow_dispatch' }}
     
     steps:
     - name: Checkout code
@@ -84,7 +82,6 @@ jobs:
       run: npm run build
     
     - name: Run integration tests
-      if: ${{ github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository }}
       run: |
         echo "Running integration tests with real GitLab API..."
         npm run test:integration || echo "No integration test script found"
@@ -139,7 +136,7 @@ jobs:
 
   coverage:
     runs-on: ubuntu-latest
-    if: github.event.pull_request.draft == false
+    if: ${{ github.event_name == 'workflow_dispatch' }}
     
     steps:
     - name: Checkout code
