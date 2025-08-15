@@ -1,4 +1,4 @@
-### [2.0.0](https://github.com/zereight/gitlab-mcp/compare/v1.0.76...2.0.0)
+### [2.0.1](https://github.com/zereight/gitlab-mcp/compare/v1.0.76...2.0.0)
 
 > 15 August 2025
 
