@@ -1,9 +1,8 @@
-#### [v1.0.77](https://github.com/zereight/gitlab-mcp/compare/v1.0.76...v1.0.77)
+### [2.0.0](https://github.com/zereight/gitlab-mcp/compare/v1.0.76...2.0.0)
 
-- v1.0.77 [`#209`](https://github.com/zereight/gitlab-mcp/pull/209)
-- FIX: docker hub repo user name [`#210`](https://github.com/zereight/gitlab-mcp/pull/210)
-- feat: Add NPM publish workflow for automated package publishing [`#208`](https://github.com/zereight/gitlab-mcp/pull/208)
-- Fix list of tools in `README.md` [`#205`](https://github.com/zereight/gitlab-mcp/pull/205)
+> 15 August 2025
+
+- User based authentication methods [`#130`](https://github.com/zereight/gitlab-mcp/pull/130)
 - FIX: flexible boolean [`#201`](https://github.com/zereight/gitlab-mcp/pull/201)
 - feat(attachement):download attachement, e.g. images [`#200`](https://github.com/zereight/gitlab-mcp/pull/200)
 - FEAT: merge MR [`#193`](https://github.com/zereight/gitlab-mcp/pull/193)
@@ -12,9 +11,9 @@
 - feat: add my_issues and list_project_members tools [`#133`](https://github.com/zereight/gitlab-mcp/pull/133)
 - feat(pipeline): Add list_pipeline_trigger_jobs tools [`#194`](https://github.com/zereight/gitlab-mcp/pull/194)
 - (feat): add tool to upload file for markdown content [`#196`](https://github.com/zereight/gitlab-mcp/pull/196)
-- Fix list of tools [`4ab6eb1`](https://github.com/zereight/gitlab-mcp/commit/4ab6eb186c16cc8534f649fe76b71f5e4dc82b9d)
+- feat: replace GITLAB_LOCK_PROJECT with GITLAB_ALLOWED_PROJECT_IDS [`009ad97`](https://github.com/zereight/gitlab-mcp/commit/009ad97ef74f06b58319a08fdda11253e629b077)
+- feat: add GITLAB_LOCK_PROJECT environment variable [`c899a7d`](https://github.com/zereight/gitlab-mcp/commit/c899a7dc3be63bbfce25a715cd3d910255604c0b)
 - FIX [`19b7254`](https://github.com/zereight/gitlab-mcp/commit/19b725447acfbc35d4c6ae3d6f07de7df6d5d0c8)
-- Merge pull request #192 from zereight/feat/188-1 [`449de4d`](https://github.com/zereight/gitlab-mcp/commit/449de4dab8f9578e212636e414aea471bcae6125)
 
 #### [v1.0.76](https://github.com/zereight/gitlab-mcp/compare/v1.0.75...v1.0.76)
 
