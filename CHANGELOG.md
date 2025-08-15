@@ -3,17 +3,6 @@
 > 15 August 2025
 
 - User based authentication methods [`#130`](https://github.com/zereight/gitlab-mcp/pull/130)
-- FIX: flexible boolean [`#201`](https://github.com/zereight/gitlab-mcp/pull/201)
-- feat(attachement):download attachement, e.g. images [`#200`](https://github.com/zereight/gitlab-mcp/pull/200)
-- FEAT: merge MR [`#193`](https://github.com/zereight/gitlab-mcp/pull/193)
-- FEAT: get draft note [`#197`](https://github.com/zereight/gitlab-mcp/pull/197)
-- feat: Add createDraftNote api support, useful for bulk code review [`#183`](https://github.com/zereight/gitlab-mcp/pull/183)
-- feat: add my_issues and list_project_members tools [`#133`](https://github.com/zereight/gitlab-mcp/pull/133)
-- feat(pipeline): Add list_pipeline_trigger_jobs tools [`#194`](https://github.com/zereight/gitlab-mcp/pull/194)
-- (feat): add tool to upload file for markdown content [`#196`](https://github.com/zereight/gitlab-mcp/pull/196)
-- feat: replace GITLAB_LOCK_PROJECT with GITLAB_ALLOWED_PROJECT_IDS [`009ad97`](https://github.com/zereight/gitlab-mcp/commit/009ad97ef74f06b58319a08fdda11253e629b077)
-- feat: add GITLAB_LOCK_PROJECT environment variable [`c899a7d`](https://github.com/zereight/gitlab-mcp/commit/c899a7dc3be63bbfce25a715cd3d910255604c0b)
-- FIX [`19b7254`](https://github.com/zereight/gitlab-mcp/commit/19b725447acfbc35d4c6ae3d6f07de7df6d5d0c8)
 
 #### [v1.0.76](https://github.com/zereight/gitlab-mcp/compare/v1.0.75...v1.0.76)
 
