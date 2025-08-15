@@ -33,8 +33,11 @@
     "format:check": "prettier --check \"**/*.{js,ts,json,md}\""
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.10.0",
+    "@modelcontextprotocol/sdk": "1.13.3",
+    "@noble/hashes": "^1.8.0",
+    "@types/better-sqlite3": "^7.6.13",
     "@types/node-fetch": "^2.6.12",
+    "better-sqlite3": "^12.2.0",
     "express": "^5.1.0",
     "fetch-cookie": "^3.1.0",
     "form-data": "^4.0.0",
@@ -44,6 +47,7 @@
     "pino": "^9.7.0",
     "pino-pretty": "^13.0.0",
     "socks-proxy-agent": "^8.0.5",
+    "sqlite3": "^5.1.7",
     "tough-cookie": "^5.1.2",
     "zod-to-json-schema": "^3.23.5"
   },
