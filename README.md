@@ -1,4 +1,6 @@
-# Better GitLab MCP Server
+# GitLab MCP Server
+
+[![Star History Chart](https://api.star-history.com/svg?repos=zereight/gitlab-mcp&type=Date)](https://www.star-history.com/#zereight/gitlab-mcp&Date)
 
 ## @zereight/mcp-gitlab
 
@@ -131,9 +133,7 @@ docker run -i --rm \
 }
 ```
 
-
 - streamable-http
-
 
 ```shell
 docker run -i --rm \
@@ -158,7 +158,6 @@ docker run -i --rm \
 }
 ```
 
-
 #### Docker Image Push
 
 ```shell
@@ -181,11 +180,10 @@ $ sh scripts/image_push.sh docker_user_name
 - `SSE`: When set to 'true', enables the Server-Sent Events transport.
 - `STREAMABLE_HTTP`: When set to 'true', enables the Streamable HTTP transport. If both **SSE** and **STREAMABLE_HTTP** are set to 'true', the server will prioritize Streamable HTTP over SSE transport.
 
-[![Star History Chart](https://api.star-history.com/svg?repos=zereight/gitlab-mcp&type=Date)](https://www.star-history.com/#zereight/gitlab-mcp&Date)
-
 ## Tools 🛠️
 
 +<!-- TOOLS-START -->
+
 1. `merge_merge_request` - Merge a merge request in a GitLab project
 2. `create_or_update_file` - Create or update a single file in a GitLab project
 3. `search_repositories` - Search for GitLab projects
