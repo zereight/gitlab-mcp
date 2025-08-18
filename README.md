@@ -112,7 +112,7 @@ When using with the Claude App, you need to set up your API key and URLs directl
 ```shell
 docker run -i --rm \
   -e GITLAB_PERSONAL_ACCESS_TOKEN=your_gitlab_token \
-  -e GITLAB_API_URL= "https://gitlab.com/api/v4"\
+  -e GITLAB_API_URL="https://gitlab.com/api/v4" \
   -e GITLAB_READ_ONLY_MODE=true \
   -e USE_GITLAB_WIKI=true \
   -e USE_MILESTONE=true \
