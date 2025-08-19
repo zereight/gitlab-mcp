@@ -12,7 +12,7 @@ GitLab MCP(Model Context Protocol) Server. **Includes bug fixes and improvements
 
 ## Usage
 
-### Using with Claude App, Cline, Roo Code, Cursor
+### Using with Claude App, Cline, Roo Code, Cursor, Kilo Code
 
 When using with the Claude App, you need to set up your API key and URLs directly.
 
@@ -21,7 +21,7 @@ When using with the Claude App, you need to set up your API key and URLs directl
 ```json
 {
   "mcpServers": {
-    "GitLab communication server": {
+    "gitlab": {
       "command": "npx",
       "args": ["-y", "@zereight/mcp-gitlab"],
       "env": {
@@ -74,7 +74,7 @@ When using with the Claude App, you need to set up your API key and URLs directl
 ```json
 {
   "mcpServers": {
-    "GitLab communication server": {
+    "gitlab": {
       "command": "docker",
       "args": [
         "run",
