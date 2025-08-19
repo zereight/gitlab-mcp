@@ -21,7 +21,6 @@
     "dev": "npm run build && node build/index.js",
     "watch": "tsc --watch",
     "deploy": "npm publish --access public",
-    "generate-tools": "npx ts-node scripts/generate-tools-readme.ts",
     "changelog": "auto-changelog -p",
     "test": "node test/validate-api.js",
     "test:integration": "node test/validate-api.js",
