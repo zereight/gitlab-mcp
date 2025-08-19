@@ -125,7 +125,7 @@ docker run -i --rm \
 ```json
 {
   "mcpServers": {
-    "GitLab communication server": {
+    "gitlab": {
       "type": "sse",
       "url": "http://localhost:3333/sse"
     }
@@ -151,17 +151,12 @@ docker run -i --rm \
 ```json
 {
   "mcpServers": {
-    "GitLab communication server": {
+    "gitlab": {
+      "type": "streamable-http",
       "url": "http://localhost:3333/mcp"
     }
   }
 }
-```
-
-#### Docker Image Push
-
-```shell
-$ sh scripts/image_push.sh docker_user_name
 ```
 
 ### Environment Variables
@@ -182,7 +177,10 @@ $ sh scripts/image_push.sh docker_user_name
 
 ## Tools 🛠️
 
-+<!-- TOOLS-START -->
+<details>
+<summary>Click to expand</summary>
+
+<!-- TOOLS-START -->
 
 1. `merge_merge_request` - Merge a merge request in a GitLab project
 2. `create_or_update_file` - Create or update a single file in a GitLab project
@@ -268,3 +266,5 @@ $ sh scripts/image_push.sh docker_user_name
 82. `upload_markdown` - Upload a file to a GitLab project for use in markdown content
 83. `download_attachment` - Download an uploaded file from a GitLab project by secret and filename
 <!-- TOOLS-END -->
+
+</details>
