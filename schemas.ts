@@ -1987,3 +1987,65 @@ export type PublishDraftNoteOptions = z.infer<typeof PublishDraftNoteSchema>;
 export type BulkPublishDraftNotesOptions = z.infer<typeof BulkPublishDraftNotesSchema>;
 export type GitLabMarkdownUpload = z.infer<typeof GitLabMarkdownUploadSchema>;
 export type MarkdownUploadOptions = z.infer<typeof MarkdownUploadSchema>;
+
+// MR Feedback Analysis Schemas
+export const DetectCurrentBranchSchema = z.object({
+  workingDirectory: z.string().optional().describe("Path to git working directory (defaults to current directory)"),
+});
+
+export const FindMergeRequestForBranchSchema = z.object({
+  projectId: z.coerce.string().optional().describe("GitLab project ID"),
+  branchName: z.string().optional().describe("Branch name (defaults to current branch)"),
+  workingDirectory: z.string().optional().describe("Path to git working directory"),
+});
+
+export const CommentAnalysisSchema = z.object({
+  id: z.string(),
+  body: z.string(),
+  author: z.string(),
+  category: z.enum(["critical", "functional", "security", "style", "minor", "question"]),
+  severity: z.number().min(1).max(10),
+  confidence: z.number().min(0).max(1),
+  isValid: z.boolean(),
+  reasoning: z.string(),
+  suggestedResponse: z.string().optional(),
+});
+
+export const AnalyzeMrFeedbackSchema = z.object({
+  projectId: z.coerce.string().optional().describe("GitLab project ID"),
+  mergeRequestIid: z.coerce.string().optional().describe("Merge request IID"),
+  branchName: z.string().optional().describe("Branch name (if MR IID not provided)"),
+  workingDirectory: z.string().optional().describe("Path to git working directory"),
+});
+
+export const AutoResponseConfigSchema = z.object({
+  enabled: z.boolean().optional().default(false).describe("Enable automatic responses to MR comments"),
+  dryRun: z.boolean().optional().default(true).describe("If true, show planned responses but don't actually post them"),
+  maxResponsesPerSession: z.number().min(0).max(50).optional().default(5).describe("Maximum number of automatic responses to post in a single session"),
+  requireApprovalForDisagreements: z.boolean().optional().default(true).describe("Require human approval before posting disagreement responses"),
+  requireApprovalForAnswers: z.boolean().optional().default(false).describe("Require human approval before posting question answers"),
+});
+
+export const AnalyzeMrFeedbackWithResponsesSchema = z.object({
+  projectId: z.coerce.string().optional().describe("GitLab project ID"),
+  mergeRequestIid: z.coerce.string().optional().describe("Merge request IID"),
+  branchName: z.string().optional().describe("Branch name (if MR IID not provided)"),
+  workingDirectory: z.string().optional().describe("Path to git working directory"),
+  autoResponseConfig: AutoResponseConfigSchema.optional().describe("Configuration for automatic response behavior"),
+});
+
+export const GetMrWithAnalysisSchema = z.object({
+  projectId: z.coerce.string().optional().describe("GitLab project ID"),
+  mergeRequestIid: z.coerce.string().optional().describe("Merge request IID"), 
+  branchName: z.string().optional().describe("Branch name (if MR IID not provided)"),
+  workingDirectory: z.string().optional().describe("Path to git working directory"),
+});
+
+// Type exports for MR feedback analysis
+export type DetectCurrentBranchOptions = z.infer<typeof DetectCurrentBranchSchema>;
+export type FindMergeRequestForBranchOptions = z.infer<typeof FindMergeRequestForBranchSchema>;
+export type CommentAnalysis = z.infer<typeof CommentAnalysisSchema>;
+export type AnalyzeMrFeedbackOptions = z.infer<typeof AnalyzeMrFeedbackSchema>;
+export type AutoResponseConfigOptions = z.infer<typeof AutoResponseConfigSchema>;
+export type AnalyzeMrFeedbackWithResponsesOptions = z.infer<typeof AnalyzeMrFeedbackWithResponsesSchema>;
+export type GetMrWithAnalysisOptions = z.infer<typeof GetMrWithAnalysisSchema>;

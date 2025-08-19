@@ -188,8 +188,24 @@ import {
   UpdateMergeRequestNoteSchema,
   UpdateMergeRequestSchema,
   UpdateWikiPageSchema,
-  VerifyNamespaceSchema
+  VerifyNamespaceSchema,
+  // MR Feedback Analysis Schemas
+  DetectCurrentBranchSchema,
+  FindMergeRequestForBranchSchema,
+  AnalyzeMrFeedbackSchema,
+  AnalyzeMrFeedbackWithResponsesSchema,
+  GetMrWithAnalysisSchema,
+  type CommentAnalysis
 } from "./schemas.js";
+
+// Import MR Feedback functionality
+import { detectCurrentBranch as detectCurrentGitBranch } from "./src/utils/git.js";
+import { 
+  findMergeRequestForBranch as findMrForBranch,
+  analyzeMrFeedback as analyzeFeedback,
+  getMrWithAnalysis as getMrAnalysis
+} from "./src/services/mr-feedback.js";
+import { initializeClaudeClient } from "./src/utils/comment-analysis.js";
 
 import { randomUUID } from "crypto";
 import { pino } from "pino";
@@ -247,6 +263,12 @@ const GITLAB_PERSONAL_ACCESS_TOKEN = process.env.GITLAB_PERSONAL_ACCESS_TOKEN;
 const GITLAB_AUTH_COOKIE_PATH = process.env.GITLAB_AUTH_COOKIE_PATH;
 const IS_OLD = process.env.GITLAB_IS_OLD === "true";
 const GITLAB_READ_ONLY_MODE = process.env.GITLAB_READ_ONLY_MODE === "true";
+
+// Claude API Configuration
+const CLAUDE_API_KEY = process.env.CLAUDE_API_KEY || process.env.ANTHROPIC_API_KEY;
+const CLAUDE_MODEL = process.env.CLAUDE_MODEL || 'claude-sonnet-4-20250514';
+const CLAUDE_MAX_TOKENS = parseInt(process.env.CLAUDE_MAX_TOKENS || '1000');
+const CLAUDE_TEMPERATURE = parseFloat(process.env.CLAUDE_TEMPERATURE || '0.1');
 const USE_GITLAB_WIKI = process.env.USE_GITLAB_WIKI === "true";
 const USE_MILESTONE = process.env.USE_MILESTONE === "true";
 const USE_PIPELINE = process.env.USE_PIPELINE === "true";
@@ -816,6 +838,32 @@ const allTools = [
     description: "Download an uploaded file from a GitLab project by secret and filename",
     inputSchema: zodToJsonSchema(DownloadAttachmentSchema),
   },
+  // MR Feedback Analysis Tools
+  {
+    name: "detect_current_branch",
+    description: "Detect the current git branch in the working directory",
+    inputSchema: zodToJsonSchema(DetectCurrentBranchSchema),
+  },
+  {
+    name: "find_merge_request_for_branch",
+    description: "Find the merge request associated with a git branch",
+    inputSchema: zodToJsonSchema(FindMergeRequestForBranchSchema),
+  },
+  {
+    name: "analyze_mr_feedback",
+    description: "Analyze merge request comments and provide intelligent scoring and categorization",
+    inputSchema: zodToJsonSchema(AnalyzeMrFeedbackSchema),
+  },
+  {
+    name: "analyze_mr_feedback_with_responses",
+    description: "Analyze merge request comments with optional automatic response generation and posting",
+    inputSchema: zodToJsonSchema(AnalyzeMrFeedbackWithResponsesSchema),
+  },
+  {
+    name: "get_mr_with_analysis",
+    description: "Get complete merge request context with intelligent comment analysis",
+    inputSchema: zodToJsonSchema(GetMrWithAnalysisSchema),
+  },
 ];
 
 // Define which tools are read-only
@@ -863,6 +911,11 @@ const readOnlyTools = [
   "list_group_iterations",
   "get_group_iteration",
   "download_attachment",
+  // MR Feedback Analysis Tools (read-only)
+  "detect_current_branch",
+  "find_merge_request_for_branch", 
+  "analyze_mr_feedback",
+  "get_mr_with_analysis",
 ];
 
 // Define which tools are related to wiki and can be toggled by USE_GITLAB_WIKI
@@ -932,6 +985,24 @@ const GITLAB_ALLOWED_PROJECT_IDS = process.env.GITLAB_ALLOWED_PROJECT_IDS?.split
 if (!GITLAB_PERSONAL_ACCESS_TOKEN) {
   logger.error("GITLAB_PERSONAL_ACCESS_TOKEN environment variable is not set");
   process.exit(1);
+}
+
+// Initialize Claude API client if API key is provided
+if (CLAUDE_API_KEY) {
+  try {
+    initializeClaudeClient({
+      apiKey: CLAUDE_API_KEY,
+      model: CLAUDE_MODEL,
+      maxTokens: CLAUDE_MAX_TOKENS,
+      temperature: CLAUDE_TEMPERATURE
+    });
+    logger.info(`Claude API initialized with model: ${CLAUDE_MODEL}`);
+  } catch (error) {
+    logger.warn('Failed to initialize Claude API client:', error);
+    logger.info('Falling back to heuristic-based comment analysis');
+  }
+} else {
+  logger.info('Claude API key not provided. Using heuristic-based comment analysis');
 }
 
 /**
@@ -1735,9 +1806,14 @@ async function createMergeRequestNote(
   createdAt?: string
 ): Promise<GitLabDiscussionNote> {
   projectId = decodeURIComponent(projectId); // Decode project ID
+  const effectiveProjectId = getEffectiveProjectId(projectId);
+  
+  // Enhanced logging for debugging
+  logger.info(`Creating note in discussion ${discussionId} for MR ${mergeRequestIid} in project ${effectiveProjectId}`);
+  
   const url = new URL(
     `${GITLAB_API_URL}/projects/${encodeURIComponent(
-      getEffectiveProjectId(projectId)
+      effectiveProjectId
     )}/merge_requests/${mergeRequestIid}/discussions/${discussionId}/notes`
   );
 
@@ -1746,15 +1822,61 @@ async function createMergeRequestNote(
     payload.created_at = createdAt;
   }
 
-  const response = await fetch(url.toString(), {
-    ...DEFAULT_FETCH_CONFIG,
-    method: "POST",
-    body: JSON.stringify(payload),
-  });
+  try {
+    const response = await fetch(url.toString(), {
+      ...DEFAULT_FETCH_CONFIG,
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
 
-  await handleGitLabError(response);
-  const data = await response.json();
-  return GitLabDiscussionNoteSchema.parse(data);
+    // Enhanced error handling for discussion not found
+    if (!response.ok) {
+      const errorBody = await response.text();
+      
+      if (response.status === 404 && errorBody.includes("Discussion Not Found")) {
+        // First, try to verify if the discussion exists by fetching all discussions
+        logger.warn(`Discussion ${discussionId} not found. Attempting to verify discussion existence...`);
+        
+        try {
+          const discussionsUrl = new URL(
+            `${GITLAB_API_URL}/projects/${encodeURIComponent(
+              effectiveProjectId
+            )}/merge_requests/${mergeRequestIid}/discussions`
+          );
+          
+          const discussionsResponse = await fetch(discussionsUrl.toString(), DEFAULT_FETCH_CONFIG);
+          if (discussionsResponse.ok) {
+            const discussions = await discussionsResponse.json() as any[];
+            const discussionIds = discussions.map((d: any) => d.id?.toString());
+            
+            logger.error(`Available discussion IDs: ${discussionIds.join(', ')}`);
+            logger.error(`Requested discussion ID: ${discussionId}`);
+            
+            // Check if this is a resolved discussion that can't accept new notes
+            const targetDiscussion = discussions.find((d: any) => d.id?.toString() === discussionId);
+            if (targetDiscussion) {
+              logger.warn(`Discussion ${discussionId} exists but may be resolved or closed`);
+              logger.warn(`Discussion details: individual_note=${targetDiscussion.individual_note}, notes_count=${targetDiscussion.notes?.length}`);
+            }
+          }
+        } catch (verifyError) {
+          logger.error(`Failed to verify discussion existence: ${verifyError}`);
+        }
+        
+        throw new Error(`GitLab API error: Discussion ${discussionId} not found for MR ${mergeRequestIid}. This may indicate the discussion was deleted, resolved, or the ID is incorrect.\n${errorBody}`);
+      } else {
+        // Handle other API errors
+        throw new Error(`GitLab API error: ${response.status} ${response.statusText}\n${errorBody}`);
+      }
+    }
+
+    const data = await response.json();
+    return GitLabDiscussionNoteSchema.parse(data);
+    
+  } catch (error) {
+    logger.error(`Failed to create note in discussion ${discussionId}:`, error);
+    throw error;
+  }
 }
 
 /**
@@ -5176,6 +5298,47 @@ server.setRequestHandler(CallToolRequestSchema, async request => {
         };
       }
 
+      // MR Feedback Analysis Tool Handlers
+      case "detect_current_branch": {
+        const args = DetectCurrentBranchSchema.parse(request.params.arguments);
+        const branch = await detectCurrentBranch(args.workingDirectory);
+        return {
+          content: [{ type: "text", text: JSON.stringify({ currentBranch: branch }, null, 2) }],
+        };
+      }
+
+      case "find_merge_request_for_branch": {
+        const args = FindMergeRequestForBranchSchema.parse(request.params.arguments);
+        const mergeRequest = await findMergeRequestForBranch(args);
+        return {
+          content: [{ type: "text", text: JSON.stringify(mergeRequest, null, 2) }],
+        };
+      }
+
+      case "analyze_mr_feedback": {
+        const args = AnalyzeMrFeedbackSchema.parse(request.params.arguments);
+        const analysis = await analyzeMrFeedback(args);
+        return {
+          content: [{ type: "text", text: JSON.stringify(analysis, null, 2) }],
+        };
+      }
+
+      case "analyze_mr_feedback_with_responses": {
+        const args = AnalyzeMrFeedbackWithResponsesSchema.parse(request.params.arguments);
+        const analysis = await analyzeMrFeedbackWithResponses(args);
+        return {
+          content: [{ type: "text", text: JSON.stringify(analysis, null, 2) }],
+        };
+      }
+
+      case "get_mr_with_analysis": {
+        const args = GetMrWithAnalysisSchema.parse(request.params.arguments);
+        const mrWithAnalysis = await getMrWithAnalysis(args);
+        return {
+          content: [{ type: "text", text: JSON.stringify(mrWithAnalysis, null, 2) }],
+        };
+      }
+
       default:
         throw new Error(`Unknown tool: ${request.params.name}`);
     }
@@ -5191,6 +5354,83 @@ server.setRequestHandler(CallToolRequestSchema, async request => {
     throw error;
   }
 });
+
+// =============================================================================
+// MR Feedback Analysis Function Wrappers
+// =============================================================================
+
+// Create GitLab API client adapter
+const gitlabApiClient = {
+  getMergeRequest,
+  getMergeRequestDiffs,
+  listMergeRequestDiscussions,
+  getEffectiveProjectId: (projectId: string) => getEffectiveProjectId(projectId || GITLAB_PROJECT_ID || '')
+};
+
+/**
+ * Find the merge request associated with a git branch
+ */
+async function findMergeRequestForBranch(args: {
+  projectId?: string;
+  branchName?: string;
+  workingDirectory?: string;
+}): Promise<any> {
+  return findMrForBranch(args, gitlabApiClient, GITLAB_PROJECT_ID);
+}
+
+/**
+ * Analyze merge request feedback/comments  
+ */
+async function analyzeMrFeedback(args: {
+  projectId?: string;
+  mergeRequestIid?: string;
+  branchName?: string;
+  workingDirectory?: string;
+}): Promise<{ mergeRequest: any; commentAnalysis: CommentAnalysis[]; summary: any }> {
+  return analyzeFeedback(args, gitlabApiClient, GITLAB_PROJECT_ID);
+}
+
+/**
+ * Get complete merge request context with analysis
+ */
+async function getMrWithAnalysis(args: {
+  projectId?: string;
+  mergeRequestIid?: string;
+  branchName?: string;
+  workingDirectory?: string;
+}): Promise<any> {
+  return getMrAnalysis(args, gitlabApiClient, GITLAB_PROJECT_ID);
+}
+
+/**
+ * Analyze merge request feedback with automatic response capabilities
+ */
+async function analyzeMrFeedbackWithResponses(args: {
+  projectId?: string;
+  mergeRequestIid?: string;
+  branchName?: string;
+  workingDirectory?: string;
+  autoResponseConfig?: any;
+}): Promise<any> {
+  // Create extended GitLab API client that includes response posting
+  const extendedGitlabApiClient = {
+    ...gitlabApiClient,
+    createMergeRequestNote: createMergeRequestNote
+  };
+
+  return analyzeFeedback(
+    { ...args, autoResponseConfig: args.autoResponseConfig },
+    extendedGitlabApiClient,
+    GITLAB_PROJECT_ID
+  );
+}
+
+/**
+ * Detect the current git branch in the working directory
+ */
+async function detectCurrentBranch(workingDirectory?: string): Promise<string> {
+  return detectCurrentGitBranch(workingDirectory);
+}
 
 /**
  *  Color constants for terminal output

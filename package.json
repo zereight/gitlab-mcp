@@ -1,7 +1,7 @@
 {
-  "name": "@zereight/mcp-gitlab",
-  "version": "2.0.3",
-  "description": "MCP server for using the GitLab API",
+  "name": "mr-feedback-processor",
+  "version": "1.0.0",
+  "description": "MCP server for GitLab merge request feedback analysis and response assistance",
   "license": "MIT",
   "author": "zereight",
   "type": "module",
@@ -25,6 +25,8 @@
     "changelog": "auto-changelog -p",
     "test": "node test/validate-api.js",
     "test:integration": "node test/validate-api.js",
+    "test:harness": "node test-harness.js",
+    "test:demo": "node demo-analysis.js",
     "test:server": "npm run build && node build/test/test-all-transport-server.js",
     "lint": "eslint . --ext .ts",
     "lint:fix": "eslint . --ext .ts --fix",
@@ -32,6 +34,7 @@
     "format:check": "prettier --check \"**/*.{js,ts,json,md}\""
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.60.0",
     "@modelcontextprotocol/sdk": "^1.10.0",
     "@types/node-fetch": "^2.6.12",
     "express": "^5.1.0",
@@ -42,6 +45,7 @@
     "node-fetch": "^3.3.2",
     "pino": "^9.7.0",
     "pino-pretty": "^13.0.0",
+    "simple-git": "^3.25.0",
     "socks-proxy-agent": "^8.0.5",
     "tough-cookie": "^5.1.2",
     "zod-to-json-schema": "^3.23.5"
