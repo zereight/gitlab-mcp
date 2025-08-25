@@ -191,6 +191,14 @@ import {
   VerifyNamespaceSchema
 } from "./schemas.js";
 
+// Import GitLab MCP Extensions
+import { 
+  allExtensionTools, 
+  extensionHandlers, 
+  readOnlyExtensionTools,
+  type ExtensionHandlerContext 
+} from "./extensions/index.js";
+
 import { randomUUID } from "crypto";
 import { pino } from "pino";
 
@@ -816,6 +824,8 @@ const allTools = [
     description: "Download an uploaded file from a GitLab project by secret and filename",
     inputSchema: zodToJsonSchema(DownloadAttachmentSchema),
   },
+  // Add GitLab MCP Extensions
+  ...allExtensionTools,
 ];
 
 // Define which tools are read-only
@@ -863,6 +873,8 @@ const readOnlyTools = [
   "list_group_iterations",
   "get_group_iteration",
   "download_attachment",
+  // Add read-only extension tools
+  ...readOnlyExtensionTools,
 ];
 
 // Define which tools are related to wiki and can be toggled by USE_GITLAB_WIKI
@@ -5177,6 +5189,19 @@ server.setRequestHandler(CallToolRequestSchema, async request => {
       }
 
       default:
+        // Check if it's an extension tool
+        if (extensionHandlers[request.params.name as keyof typeof extensionHandlers]) {
+          const handler = extensionHandlers[request.params.name as keyof typeof extensionHandlers];
+          const context: ExtensionHandlerContext = {
+            GITLAB_API_URL,
+            DEFAULT_FETCH_CONFIG,
+            getEffectiveProjectId,
+            handleGitLabError,
+            logger,
+            fetch,
+          };
+          return await handler(request.params.arguments, context);
+        }
         throw new Error(`Unknown tool: ${request.params.name}`);
     }
   } catch (error) {
