@@ -22,7 +22,7 @@ export const GitLabPipelineSchema = z.object({
   duration: z.number().nullable().optional(),
   started_at: z.string().nullable().optional(),
   finished_at: z.string().nullable().optional(),
-  coverage: z.number().nullable().optional(),
+  coverage: z.coerce.number().nullable().optional(),
   user: z
     .object({
       id: z.coerce.string(),
@@ -61,7 +61,7 @@ export const GitLabPipelineJobSchema = z.object({
   name: z.string(),
   ref: z.string(),
   tag: flexibleBoolean,
-  coverage: z.number().nullable().optional(),
+  coverage: z.coerce.number().nullable().optional(),
   created_at: z.string(),
   started_at: z.string().nullable().optional(),
   finished_at: z.string().nullable().optional(),
