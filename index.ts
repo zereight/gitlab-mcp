@@ -5411,6 +5411,13 @@ async function runServer() {
   }
 }
 
+/**
+ * Create and return the server instance for testing
+ */
+export function createServer() {
+  return server;
+}
+
 // 下記の２行を追記
 runServer().catch(error => {
   logger.error("Fatal error in main():", error);

@@ -16,6 +16,12 @@ import {
   AddTimeSpentSchema,
   GetTimeTrackingSchema,
   UpdateTimeEstimateSchema,
+  ResetTimeEstimateSchema,
+  GetTimeEstimateSchema,
+  AddTimeEstimateSchema,
+  AddToTimeEstimateSchema,
+  CompareTimeEstimateSchema,
+  BulkEstimateIssuesSchema,
   ListTimeEntriesSchema,
   DeleteTimeEntrySchema,
   
@@ -126,9 +132,39 @@ export const timeTrackingTools = [
     inputSchema: zodToJsonSchema(GetTimeTrackingSchema),
   },
   {
+    name: "add_time_estimate",
+    description: "Add initial time estimate for an issue",
+    inputSchema: zodToJsonSchema(AddTimeEstimateSchema),
+  },
+  {
     name: "update_time_estimate",
-    description: "Update time estimate for an issue",
+    description: "Update existing time estimate for an issue",
     inputSchema: zodToJsonSchema(UpdateTimeEstimateSchema),
+  },
+  {
+    name: "reset_time_estimate",
+    description: "Reset time estimate for an issue to zero",
+    inputSchema: zodToJsonSchema(ResetTimeEstimateSchema),
+  },
+  {
+    name: "get_time_estimate",
+    description: "Get only the time estimate for an issue",
+    inputSchema: zodToJsonSchema(GetTimeEstimateSchema),
+  },
+  {
+    name: "add_to_time_estimate",
+    description: "Add additional time to existing estimate for an issue",
+    inputSchema: zodToJsonSchema(AddToTimeEstimateSchema),
+  },
+  {
+    name: "compare_time_estimate",
+    description: "Compare time estimate vs actual time spent with analysis",
+    inputSchema: zodToJsonSchema(CompareTimeEstimateSchema),
+  },
+  {
+    name: "bulk_estimate_issues",
+    description: "Set or add time estimates to multiple issues",
+    inputSchema: zodToJsonSchema(BulkEstimateIssuesSchema),
   },
   {
     name: "list_time_entries",
@@ -318,6 +354,8 @@ export const readOnlyExtensionTools = [
   "list_board_lists",
   "get_board_list_issues",
   "get_time_tracking",
+  "get_time_estimate",
+  "compare_time_estimate",
   "list_time_entries",
   "list_releases",
   "get_release",

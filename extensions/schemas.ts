@@ -120,10 +120,45 @@ export const GetTimeTrackingSchema = z.object({
   issue_iid: z.coerce.string().describe("The internal ID of the issue"),
 });
 
+export const AddTimeEstimateSchema = z.object({
+  project_id: z.coerce.string().describe("The ID or path of the project"),
+  issue_iid: z.coerce.string().describe("The internal ID of the issue"),
+  duration: z.string().describe("Time estimate (e.g., '2h', '1d 4h', '30m')"),
+});
+
 export const UpdateTimeEstimateSchema = z.object({
   project_id: z.coerce.string().describe("The ID or path of the project"),
   issue_iid: z.coerce.string().describe("The internal ID of the issue"),
   duration: z.string().describe("Time estimate (e.g., '2h', '1d 4h', '30m')"),
+});
+
+export const ResetTimeEstimateSchema = z.object({
+  project_id: z.coerce.string().describe("The ID or path of the project"),
+  issue_iid: z.coerce.string().describe("The internal ID of the issue"),
+});
+
+export const GetTimeEstimateSchema = z.object({
+  project_id: z.coerce.string().describe("The ID or path of the project"),
+  issue_iid: z.coerce.string().describe("The internal ID of the issue"),
+});
+
+export const AddToTimeEstimateSchema = z.object({
+  project_id: z.coerce.string().describe("The ID or path of the project"),
+  issue_iid: z.coerce.string().describe("The internal ID of the issue"),
+  duration: z.string().describe("Time estimate to add (e.g., '2h', '1d 4h', '30m')"),
+});
+
+export const CompareTimeEstimateSchema = z.object({
+  project_id: z.coerce.string().describe("The ID or path of the project"),
+  issue_iid: z.coerce.string().describe("The internal ID of the issue"),
+  include_breakdown: z.boolean().optional().describe("Include detailed breakdown of time entries"),
+});
+
+export const BulkEstimateIssuesSchema = z.object({
+  project_id: z.coerce.string().describe("The ID or path of the project"),
+  issue_iids: z.array(z.number()).describe("Array of issue internal IDs"),
+  duration: z.string().describe("Time estimate to apply to all issues"),
+  action: z.enum(["set", "add"]).describe("Whether to set or add to existing estimates"),
 });
 
 export const ListTimeEntriesSchema = GetTimeTrackingSchema.merge(PaginationOptionsSchema);
