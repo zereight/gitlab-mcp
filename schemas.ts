@@ -298,6 +298,37 @@ export const GetPipelineJobOutputSchema = z.object({
     .describe("Number of lines to skip from the end of the log (default: 0)"),
 });
 
+// Schema for pipeline job control operations
+export const PipelineJobControlSchema = z.object({
+  project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
+  job_id: z.coerce.string().describe("The ID of the job"),
+});
+
+// Schema for running a manual job
+export const PlayPipelineJobSchema = z.object({
+  project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
+  job_id: z.coerce.string().describe("The ID of the job"),
+  job_variables_attributes: z
+    .array(
+      z.object({
+        key: z.string().describe("Variable key"),
+        value: z.string().describe("Variable value"),
+      })
+    )
+    .optional()
+    .describe("Custom job variables to use when running the job"),
+});
+
+// Schema for retrying a job
+export const RetryPipelineJobSchema = PipelineJobControlSchema;
+
+// Schema for canceling a job  
+export const CancelPipelineJobSchema = z.object({
+  project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
+  job_id: z.coerce.string().describe("The ID of the job"),
+  force: z.boolean().optional().describe("Force cancellation of the job"),
+});
+
 // User schemas
 export const GitLabUserSchema = z.object({
   username: z.string().optional(), // Changed from login to match GitLab API
