@@ -188,7 +188,10 @@ import {
   UpdateMergeRequestNoteSchema,
   UpdateMergeRequestSchema,
   UpdateWikiPageSchema,
-  VerifyNamespaceSchema
+  VerifyNamespaceSchema,
+  GitLabEventSchema,
+  ListEventsSchema,
+  GetProjectEventsSchema
 } from "./schemas.js";
 
 import { randomUUID } from "crypto";
@@ -816,6 +819,16 @@ const allTools = [
     description: "Download an uploaded file from a GitLab project by secret and filename",
     inputSchema: zodToJsonSchema(DownloadAttachmentSchema),
   },
+  {
+    name: "list_events",
+    description: "List all events for the currently authenticated user. Note: before/after parameters accept date format YYYY-MM-DD only",
+    inputSchema: zodToJsonSchema(ListEventsSchema),
+  },
+  {
+    name: "get_project_events",
+    description: "List all visible events for a specified project. Note: before/after parameters accept date format YYYY-MM-DD only",
+    inputSchema: zodToJsonSchema(GetProjectEventsSchema),
+  },
 ];
 
 // Define which tools are read-only
@@ -863,6 +876,8 @@ const readOnlyTools = [
   "list_group_iterations",
   "get_group_iteration",
   "download_attachment",
+  "list_events",
+  "get_project_events",
 ];
 
 // Define which tools are related to wiki and can be toggled by USE_GITLAB_WIKI
@@ -4089,6 +4104,64 @@ async function downloadAttachment(projectId: string, secret: string, filename: s
   return savePath;
 }
 
+/**
+ * List all events for the currently authenticated user
+ * @param {Object} options - Options for listing events
+ * @returns {Promise<GitLabEvent[]>} List of events
+ */
+async function listEvents(options: z.infer<typeof ListEventsSchema> = {}): Promise<any[]> {
+  const url = new URL(`${GITLAB_API_URL}/events`);
+
+  // Add all query parameters
+  Object.entries(options).forEach(([key, value]) => {
+    if (value !== undefined) {
+      url.searchParams.append(key, value.toString());
+    }
+  });
+
+  const response = await fetch(url.toString(), {
+    method: "GET",
+    headers: DEFAULT_HEADERS,
+  });
+
+  if (!response.ok) {
+    await handleGitLabError(response);
+  }
+
+  const data = await response.json();
+  return GitLabEventSchema.array().parse(data);
+}
+
+/**
+ * List all visible events for a specified project
+ * @param {string} projectId - Project ID or URL-encoded path
+ * @param {Object} options - Options for getting project events
+ * @returns {Promise<GitLabEvent[]>} List of project events
+ */
+async function getProjectEvents(projectId: string, options: Omit<z.infer<typeof GetProjectEventsSchema>, "project_id"> = {}): Promise<any[]> {
+  const effectiveProjectId = getEffectiveProjectId(projectId);
+  const url = new URL(`${GITLAB_API_URL}/projects/${encodeURIComponent(effectiveProjectId)}/events`);
+
+  // Add all query parameters
+  Object.entries(options).forEach(([key, value]) => {
+    if (value !== undefined) {
+      url.searchParams.append(key, value.toString());
+    }
+  });
+
+  const response = await fetch(url.toString(), {
+    method: "GET",
+    headers: DEFAULT_HEADERS,
+  });
+
+  if (!response.ok) {
+    await handleGitLabError(response);
+  }
+
+  const data = await response.json();
+  return GitLabEventSchema.array().parse(data);
+}
+
 server.setRequestHandler(ListToolsRequestSchema, async () => {
   // Apply read-only filter first
   const tools0 = GITLAB_READ_ONLY_MODE
@@ -5173,6 +5246,23 @@ server.setRequestHandler(CallToolRequestSchema, async request => {
         const filePath = await downloadAttachment(args.project_id, args.secret, args.filename, args.local_path);
         return {
           content: [{ type: "text", text: JSON.stringify({ success: true, file_path: filePath }, null, 2) }],
+        };
+      }
+
+      case "list_events": {
+        const args = ListEventsSchema.parse(request.params.arguments);
+        const events = await listEvents(args);
+        return {
+          content: [{ type: "text", text: JSON.stringify(events, null, 2) }],
+        };
+      }
+
+      case "get_project_events": {
+        const args = GetProjectEventsSchema.parse(request.params.arguments);
+        const { project_id, ...options } = args;
+        const events = await getProjectEvents(project_id, options);
+        return {
+          content: [{ type: "text", text: JSON.stringify(events, null, 2) }],
         };
       }
 
