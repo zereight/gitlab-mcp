@@ -589,13 +589,6 @@ export const GitLabCreateUpdateFileResponseSchema = z.object({
   content: GitLabFileContentSchema.optional(),
 });
 
-export const GitLabSearchResponseSchema = z.object({
-  count: z.number().optional(),
-  total_pages: z.number().optional(),
-  current_page: z.number().optional(),
-  items: z.array(GitLabRepositorySchema),
-});
-
 // create branch schemas
 export const CreateBranchOptionsSchema = z.object({
   name: z.string(), // Changed from ref to match GitLab API
@@ -748,6 +741,26 @@ export const GitLabMergeRequestSchema = z.object({
   merge_when_pipeline_succeeds: flexibleBoolean.optional(),
   squash: flexibleBoolean.optional(),
   labels: z.array(z.string()).optional(),
+});
+
+// Generic search response base
+export const BaseSearchResponseSchema = z.object({
+  count: z.number().optional(),
+  total_pages: z.number().optional(),
+  current_page: z.number().optional(),
+});
+
+// Search response variants
+export const GitLabSearchProjectsResponseSchema = BaseSearchResponseSchema.extend({
+  items: z.array(GitLabRepositorySchema),
+});
+
+export const GitLabSearchIssuesResponseSchema = BaseSearchResponseSchema.extend({
+  items: z.array(GitLabIssueSchema),
+});
+
+export const GitLabSearchMergeRequestsResponseSchema = BaseSearchResponseSchema.extend({
+  items: z.array(GitLabMergeRequestSchema),
 });
 
 export const LineRangeSchema = z
@@ -977,6 +990,48 @@ export const CreateOrUpdateFileSchema = ProjectParamsSchema.extend({
 export const SearchRepositoriesSchema = z
   .object({
     search: z.string().describe("Search query"), // Changed from query to match GitLab API
+  })
+  .merge(PaginationOptionsSchema);
+
+// Group-scoped search schemas
+export const SearchGroupProjectsSchema = z
+  .object({
+    group_id: z.coerce.string().describe("Group ID or path"),
+    search: z.string().describe("Search query for projects within the group"),
+    include_subgroups: flexibleBoolean.optional().describe("Include projects from subgroups"),
+    order_by: z
+      .enum(["created_at", "updated_at", "name", "path"])
+      .optional()
+      .describe("Field to sort projects by"),
+    sort: z.enum(["asc", "desc"]).optional().describe("Sort direction"),
+  })
+  .merge(PaginationOptionsSchema);
+
+export const SearchGroupIssuesSchema = z
+  .object({
+    group_id: z.coerce.string().describe("Group ID or path"),
+    search: z.string().describe("Search query for issues within the group"),
+    include_subgroups: flexibleBoolean.optional().describe("Include issues from subgroups"),
+    state: z.enum(["opened", "closed", "all"]).optional().describe("Filter by issue state"),
+    order_by: z
+      .enum(["created_at", "updated_at", "priority", "due_date", "relative_position", "label_priority", "milestone_due", "popularity", "weight"])
+      .optional()
+      .describe("Field to sort issues by"),
+    sort: z.enum(["asc", "desc"]).optional().describe("Sort direction"),
+  })
+  .merge(PaginationOptionsSchema);
+
+export const SearchGroupMergeRequestsSchema = z
+  .object({
+    group_id: z.coerce.string().describe("Group ID or path"),
+    search: z.string().describe("Search query for merge requests within the group"),
+    include_subgroups: flexibleBoolean.optional().describe("Include merge requests from subgroups"),
+    state: z.enum(["opened", "closed", "locked", "merged", "all"]).optional().describe("Filter by merge request state"),
+    order_by: z
+      .enum(["created_at", "updated_at", "priority", "label_priority", "milestone_due", "popularity"])
+      .optional()
+      .describe("Field to sort merge requests by"),
+    sort: z.enum(["asc", "desc"]).optional().describe("Sort direction"),
   })
   .merge(PaginationOptionsSchema);
 
@@ -1922,7 +1977,6 @@ export type CreateIssueOptions = z.infer<typeof CreateIssueOptionsSchema>;
 export type CreateMergeRequestOptions = z.infer<typeof CreateMergeRequestOptionsSchema>;
 export type CreateBranchOptions = z.infer<typeof CreateBranchOptionsSchema>;
 export type GitLabCreateUpdateFileResponse = z.infer<typeof GitLabCreateUpdateFileResponseSchema>;
-export type GitLabSearchResponse = z.infer<typeof GitLabSearchResponseSchema>;
 export type GitLabMergeRequestDiff = z.infer<typeof GitLabDiffSchema>;
 export type CreateNoteOptions = z.infer<typeof CreateNoteSchema>;
 export type GitLabIssueLink = z.infer<typeof GitLabIssueLinkSchema>;
