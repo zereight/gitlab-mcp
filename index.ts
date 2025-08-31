@@ -191,7 +191,8 @@ import {
   VerifyNamespaceSchema,
   GitLabEventSchema,
   ListEventsSchema,
-  GetProjectEventsSchema
+  GetProjectEventsSchema,
+  GitLabEvent
 } from "./schemas.js";
 
 import { randomUUID } from "crypto";
@@ -4109,7 +4110,7 @@ async function downloadAttachment(projectId: string, secret: string, filename: s
  * @param {Object} options - Options for listing events
  * @returns {Promise<GitLabEvent[]>} List of events
  */
-async function listEvents(options: z.infer<typeof ListEventsSchema> = {}): Promise<any[]> {
+async function listEvents(options: z.infer<typeof ListEventsSchema> = {}): Promise<GitLabEvent[]> {
   const url = new URL(`${GITLAB_API_URL}/events`);
 
   // Add all query parameters
@@ -4138,7 +4139,7 @@ async function listEvents(options: z.infer<typeof ListEventsSchema> = {}): Promi
  * @param {Object} options - Options for getting project events
  * @returns {Promise<GitLabEvent[]>} List of project events
  */
-async function getProjectEvents(projectId: string, options: Omit<z.infer<typeof GetProjectEventsSchema>, "project_id"> = {}): Promise<any[]> {
+async function getProjectEvents(projectId: string, options: Omit<z.infer<typeof GetProjectEventsSchema>, "project_id"> = {}): Promise<GitLabEvent[]> {
   const effectiveProjectId = getEffectiveProjectId(projectId);
   const url = new URL(`${GITLAB_API_URL}/projects/${encodeURIComponent(effectiveProjectId)}/events`);
 
