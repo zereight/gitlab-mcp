@@ -266,6 +266,8 @@ docker run -i --rm \
 81. `list_group_iterations` - List group iterations with filtering options
 82. `upload_markdown` - Upload a file to a GitLab project for use in markdown content
 83. `download_attachment` - Download an uploaded file from a GitLab project by secret and filename
+84. `list_events` - List all events for the currently authenticated user
+85. `get_project_events` - List all visible events for a specified project
 <!-- TOOLS-END -->
 
 </details>
