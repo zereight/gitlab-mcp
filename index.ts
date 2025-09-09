@@ -191,7 +191,11 @@ import {
   UpdateMergeRequestNoteSchema,
   UpdateMergeRequestSchema,
   UpdateWikiPageSchema,
-  VerifyNamespaceSchema
+  VerifyNamespaceSchema,
+  GitLabEventSchema,
+  ListEventsSchema,
+  GetProjectEventsSchema,
+  GitLabEvent
 } from "./schemas.js";
 
 import { randomUUID } from "crypto";
@@ -250,6 +254,7 @@ const GITLAB_PERSONAL_ACCESS_TOKEN = process.env.GITLAB_PERSONAL_ACCESS_TOKEN;
 const GITLAB_AUTH_COOKIE_PATH = process.env.GITLAB_AUTH_COOKIE_PATH;
 const IS_OLD = process.env.GITLAB_IS_OLD === "true";
 const GITLAB_READ_ONLY_MODE = process.env.GITLAB_READ_ONLY_MODE === "true";
+const GITLAB_DENIED_TOOLS_REGEX = process.env.GITLAB_DENIED_TOOLS_REGEX ? new RegExp(process.env.GITLAB_DENIED_TOOLS_REGEX):undefined;
 const USE_GITLAB_WIKI = process.env.USE_GITLAB_WIKI === "true";
 const USE_MILESTONE = process.env.USE_MILESTONE === "true";
 const USE_PIPELINE = process.env.USE_PIPELINE === "true";
@@ -834,6 +839,16 @@ const allTools = [
     description: "Download an uploaded file from a GitLab project by secret and filename",
     inputSchema: zodToJsonSchema(DownloadAttachmentSchema),
   },
+  {
+    name: "list_events",
+    description: "List all events for the currently authenticated user. Note: before/after parameters accept date format YYYY-MM-DD only",
+    inputSchema: zodToJsonSchema(ListEventsSchema),
+  },
+  {
+    name: "get_project_events",
+    description: "List all visible events for a specified project. Note: before/after parameters accept date format YYYY-MM-DD only",
+    inputSchema: zodToJsonSchema(GetProjectEventsSchema),
+  },
 ];
 
 // Define which tools are read-only
@@ -881,6 +896,8 @@ const readOnlyTools = [
   "list_group_iterations",
   "get_group_iteration",
   "download_attachment",
+  "list_events",
+  "get_project_events",
 ];
 
 // Define which tools are related to wiki and can be toggled by USE_GITLAB_WIKI
@@ -4202,6 +4219,64 @@ async function downloadAttachment(projectId: string, secret: string, filename: s
   return savePath;
 }
 
+/**
+ * List all events for the currently authenticated user
+ * @param {Object} options - Options for listing events
+ * @returns {Promise<GitLabEvent[]>} List of events
+ */
+async function listEvents(options: z.infer<typeof ListEventsSchema> = {}): Promise<GitLabEvent[]> {
+  const url = new URL(`${GITLAB_API_URL}/events`);
+
+  // Add all query parameters
+  Object.entries(options).forEach(([key, value]) => {
+    if (value !== undefined) {
+      url.searchParams.append(key, value.toString());
+    }
+  });
+
+  const response = await fetch(url.toString(), {
+    method: "GET",
+    headers: DEFAULT_HEADERS,
+  });
+
+  if (!response.ok) {
+    await handleGitLabError(response);
+  }
+
+  const data = await response.json();
+  return GitLabEventSchema.array().parse(data);
+}
+
+/**
+ * List all visible events for a specified project
+ * @param {string} projectId - Project ID or URL-encoded path
+ * @param {Object} options - Options for getting project events
+ * @returns {Promise<GitLabEvent[]>} List of project events
+ */
+async function getProjectEvents(projectId: string, options: Omit<z.infer<typeof GetProjectEventsSchema>, "project_id"> = {}): Promise<GitLabEvent[]> {
+  const effectiveProjectId = getEffectiveProjectId(projectId);
+  const url = new URL(`${GITLAB_API_URL}/projects/${encodeURIComponent(effectiveProjectId)}/events`);
+
+  // Add all query parameters
+  Object.entries(options).forEach(([key, value]) => {
+    if (value !== undefined) {
+      url.searchParams.append(key, value.toString());
+    }
+  });
+
+  const response = await fetch(url.toString(), {
+    method: "GET",
+    headers: DEFAULT_HEADERS,
+  });
+
+  if (!response.ok) {
+    await handleGitLabError(response);
+  }
+
+  const data = await response.json();
+  return GitLabEventSchema.array().parse(data);
+}
+
 server.setRequestHandler(ListToolsRequestSchema, async () => {
   // Apply read-only filter first
   const tools0 = GITLAB_READ_ONLY_MODE
@@ -4217,6 +4292,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
     : tools1.filter(tool => !milestoneToolNames.includes(tool.name));
   // Toggle pipeline tools by USE_PIPELINE flag
   let tools = USE_PIPELINE ? tools2 : tools2.filter(tool => !pipelineToolNames.includes(tool.name));
+  tools = GITLAB_DENIED_TOOLS_REGEX ? tools.filter(tool => !GITLAB_DENIED_TOOLS_REGEX.test(tool.name)) : tools;
 
   // <<< START: Gemini 호환성을 위해 $schema 제거 >>>
   tools = tools.map(tool => {
@@ -5325,6 +5401,23 @@ server.setRequestHandler(CallToolRequestSchema, async request => {
         const filePath = await downloadAttachment(args.project_id, args.secret, args.filename, args.local_path);
         return {
           content: [{ type: "text", text: JSON.stringify({ success: true, file_path: filePath }, null, 2) }],
+        };
+      }
+
+      case "list_events": {
+        const args = ListEventsSchema.parse(request.params.arguments);
+        const events = await listEvents(args);
+        return {
+          content: [{ type: "text", text: JSON.stringify(events, null, 2) }],
+        };
+      }
+
+      case "get_project_events": {
+        const args = GetProjectEventsSchema.parse(request.params.arguments);
+        const { project_id, ...options } = args;
+        const events = await getProjectEvents(project_id, options);
+        return {
+          content: [{ type: "text", text: JSON.stringify(events, null, 2) }],
         };
       }
 

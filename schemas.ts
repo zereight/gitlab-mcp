@@ -22,7 +22,7 @@ export const GitLabPipelineSchema = z.object({
   duration: z.number().nullable().optional(),
   started_at: z.string().nullable().optional(),
   finished_at: z.string().nullable().optional(),
-  coverage: z.number().nullable().optional(),
+  coverage: z.coerce.number().nullable().optional(),
   user: z
     .object({
       id: z.coerce.string(),
@@ -61,7 +61,7 @@ export const GitLabPipelineJobSchema = z.object({
   name: z.string(),
   ref: z.string(),
   tag: flexibleBoolean,
-  coverage: z.number().nullable().optional(),
+  coverage: z.coerce.number().nullable().optional(),
   created_at: z.string(),
   started_at: z.string().nullable().optional(),
   finished_at: z.string().nullable().optional(),
@@ -1933,6 +1933,58 @@ export const ListGroupIterationsSchema = z
   })
   .merge(PaginationOptionsSchema);
 
+
+
+// Events API schemas
+export const GitLabEventAuthorSchema = z.object({
+  id: z.coerce.string(),
+  name: z.string(),
+  username: z.string(),
+  state: z.string(),
+  avatar_url: z.string().nullable(),
+  web_url: z.string(),
+});
+
+export const GitLabEventSchema = z.object({
+  id: z.coerce.string(),
+  project_id: z.coerce.string(),
+  action_name: z.string(),
+  target_id: z.coerce.string().nullable(),
+  target_iid: z.coerce.string().nullable(),
+  target_type: z.string().nullable(),
+  author_id: z.coerce.string(),
+  target_title: z.string().nullable(),
+  created_at: z.string(),
+  author: GitLabEventAuthorSchema,
+  author_username: z.string(),
+  imported: flexibleBoolean,
+  imported_from: z.string(),
+}).passthrough(); // Allow additional fields
+
+// List events schema
+export const ListEventsSchema = z.object({
+  action: z.string().optional().describe("If defined, returns events with the specified action type"),
+  target_type: z.enum(["epic", "issue", "merge_request", "milestone", "note", "project", "snippet", "user"]).optional().describe("If defined, returns events with the specified target type"),
+  before: z.string().optional().describe("If defined, Returns events created before the specified date (YYYY-MM-DD format). To include events on 2025-08-29, use before=2025-08-30"),
+  after: z.string().optional().describe("If defined, Returns events created after the specified date (YYYY-MM-DD format). To include events on 2025-08-29, use after=2025-08-28"),
+  scope: z.string().optional().describe("Include all events across a user's projects"),
+  sort: z.enum(["asc", "desc"]).optional().describe("Direction to sort the results by creation date. Default: desc"),
+  page: z.number().optional().describe("Returns the specified results page. Default: 1"),
+  per_page: z.number().optional().describe("Number of results per page. Default: 20"),
+});
+
+// Get project events schema
+export const GetProjectEventsSchema = z.object({
+  project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
+  action: z.string().optional().describe("If defined, returns events with the specified action type"),
+  target_type: z.enum(["epic", "issue", "merge_request", "milestone", "note", "project", "snippet", "user"]).optional().describe("If defined, returns events with the specified target type"),
+  before: z.string().optional().describe("If defined, Returns events created before the specified date (YYYY-MM-DD format). To include events on 2025-08-29, use before=2025-08-30"),
+  after: z.string().optional().describe("If defined, Returns events created after the specified date (YYYY-MM-DD format). To include events on 2025-08-29, use after=2025-08-28"),
+  sort: z.enum(["asc", "desc"]).optional().describe("Direction to sort the results by creation date. Default: desc"),
+  page: z.number().optional().describe("Returns the specified results page. Default: 1"),
+  per_page: z.number().optional().describe("Number of results per page. Default: 20"),
+});
+
 // Export types
 export type GitLabAuthor = z.infer<typeof GitLabAuthorSchema>;
 export type GitLabFork = z.infer<typeof GitLabForkSchema>;
@@ -2018,3 +2070,9 @@ export type PublishDraftNoteOptions = z.infer<typeof PublishDraftNoteSchema>;
 export type BulkPublishDraftNotesOptions = z.infer<typeof BulkPublishDraftNotesSchema>;
 export type GitLabMarkdownUpload = z.infer<typeof GitLabMarkdownUploadSchema>;
 export type MarkdownUploadOptions = z.infer<typeof MarkdownUploadSchema>;
+
+// Events API type exports
+export type GitLabEvent = z.infer<typeof GitLabEventSchema>;
+export type GitLabEventAuthor = z.infer<typeof GitLabEventAuthorSchema>;
+export type ListEventsOptions = z.infer<typeof ListEventsSchema>;
+export type GetProjectEventsOptions = z.infer<typeof GetProjectEventsSchema>;
