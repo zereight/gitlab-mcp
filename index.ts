@@ -23,6 +23,7 @@ import { Agent as HttpsAgent } from "https";
 import { URL } from "url";
 import {
   BulkPublishDraftNotesSchema,
+  CancelPipelineJobSchema,
   CancelPipelineSchema,
   CreateBranchOptionsSchema,
   CreateBranchSchema,
@@ -178,7 +179,9 @@ import {
   type PaginationOptions,
   PromoteProjectMilestoneSchema,
   PublishDraftNoteSchema,
+  PlayPipelineJobSchema,
   PushFilesSchema,
+  RetryPipelineJobSchema,
   RetryPipelineSchema,
   SearchRepositoriesSchema,
   UpdateDraftNoteSchema,
@@ -737,6 +740,21 @@ const allTools = [
     inputSchema: zodToJsonSchema(CancelPipelineSchema),
   },
   {
+    name: "play_pipeline_job",
+    description: "Run a manual pipeline job",
+    inputSchema: zodToJsonSchema(PlayPipelineJobSchema),
+  },
+  {
+    name: "retry_pipeline_job", 
+    description: "Retry a failed or canceled pipeline job",
+    inputSchema: zodToJsonSchema(RetryPipelineJobSchema),
+  },
+  {
+    name: "cancel_pipeline_job",
+    description: "Cancel a running pipeline job",
+    inputSchema: zodToJsonSchema(CancelPipelineJobSchema),
+  },
+  {
     name: "list_merge_requests",
     description: "List merge requests in a GitLab project with filtering options",
     inputSchema: zodToJsonSchema(ListMergeRequestsSchema),
@@ -916,6 +934,9 @@ const pipelineToolNames = [
   "create_pipeline",
   "retry_pipeline",
   "cancel_pipeline",
+  "play_pipeline_job",
+  "retry_pipeline_job",
+  "cancel_pipeline_job",
 ];
 
 /**
@@ -3480,6 +3501,98 @@ async function cancelPipeline(
 }
 
 /**
+ * Run a manual job
+ *
+ * @param {string} projectId - The ID or URL-encoded path of the project
+ * @param {number} jobId - The ID of the job to run
+ * @param {Object} variables - Optional job variables
+ * @returns {Promise<GitLabPipelineJob>} The run job
+ */
+async function playPipelineJob(
+  projectId: string,
+  jobId: number | string,
+  variables?: Array<{ key: string; value: string }>
+): Promise<GitLabPipelineJob> {
+  projectId = decodeURIComponent(projectId);
+  const url = new URL(
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/jobs/${jobId}/play`
+  );
+
+  const body: any = {};
+  if (variables && variables.length > 0) {
+    body.job_variables_attributes = variables;
+  }
+
+  const response = await fetch(url.toString(), {
+    ...DEFAULT_FETCH_CONFIG,
+    method: "POST",
+    body: Object.keys(body).length > 0 ? JSON.stringify(body) : undefined,
+  });
+
+  await handleGitLabError(response);
+  const data = await response.json();
+  return GitLabPipelineJobSchema.parse(data);
+}
+
+/**
+ * Retry a job
+ *
+ * @param {string} projectId - The ID or URL-encoded path of the project
+ * @param {number} jobId - The ID of the job to retry
+ * @returns {Promise<GitLabPipelineJob>} The retried job
+ */
+async function retryPipelineJob(
+  projectId: string,
+  jobId: number | string
+): Promise<GitLabPipelineJob> {
+  projectId = decodeURIComponent(projectId);
+  const url = new URL(
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/jobs/${jobId}/retry`
+  );
+
+  const response = await fetch(url.toString(), {
+    ...DEFAULT_FETCH_CONFIG,
+    method: "POST",
+  });
+
+  await handleGitLabError(response);
+  const data = await response.json();
+  return GitLabPipelineJobSchema.parse(data);
+}
+
+/**
+ * Cancel a job
+ *
+ * @param {string} projectId - The ID or URL-encoded path of the project
+ * @param {number} jobId - The ID of the job to cancel
+ * @param {boolean} force - Force cancellation of the job
+ * @returns {Promise<GitLabPipelineJob>} The canceled job
+ */
+async function cancelPipelineJob(
+  projectId: string,
+  jobId: number | string,
+  force?: boolean
+): Promise<GitLabPipelineJob> {
+  projectId = decodeURIComponent(projectId);
+  const url = new URL(
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/jobs/${jobId}/cancel`
+  );
+
+  if (force !== undefined) {
+    url.searchParams.append('force', force.toString());
+  }
+
+  const response = await fetch(url.toString(), {
+    ...DEFAULT_FETCH_CONFIG,
+    method: "POST",
+  });
+
+  await handleGitLabError(response);
+  const data = await response.json();
+  return GitLabPipelineJobSchema.parse(data);
+}
+
+/**
  * Get the repository tree for a project
  * @param {string} projectId - The ID or URL-encoded path of the project
  * @param {GetRepositoryTreeOptions} options - Options for the tree
@@ -5049,6 +5162,45 @@ server.setRequestHandler(CallToolRequestSchema, async request => {
             {
               type: "text",
               text: `Canceled pipeline #${pipeline.id}. Status: ${pipeline.status}\nWeb URL: ${pipeline.web_url}`,
+            },
+          ],
+        };
+      }
+
+      case "play_pipeline_job": {
+        const { project_id, job_id, job_variables_attributes } = PlayPipelineJobSchema.parse(request.params.arguments);
+        const job = await playPipelineJob(project_id, job_id, job_variables_attributes);
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Ran job #${job.id} (${job.name}). Status: ${job.status}\nWeb URL: ${job.web_url}`,
+            },
+          ],
+        };
+      }
+
+      case "retry_pipeline_job": {
+        const { project_id, job_id } = RetryPipelineJobSchema.parse(request.params.arguments);
+        const job = await retryPipelineJob(project_id, job_id);
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Retried job #${job.id} (${job.name}). Status: ${job.status}\nWeb URL: ${job.web_url}`,
+            },
+          ],
+        };
+      }
+
+      case "cancel_pipeline_job": {
+        const { project_id, job_id, force } = CancelPipelineJobSchema.parse(request.params.arguments);
+        const job = await cancelPipelineJob(project_id, job_id, force);
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Canceled job #${job.id} (${job.name}). Status: ${job.status}\nWeb URL: ${job.web_url}`,
             },
           ],
         };
