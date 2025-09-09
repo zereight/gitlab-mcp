@@ -171,7 +171,7 @@ docker run -i --rm \
 - `GITLAB_DENIED_TOOLS_REGEX`: When set as a regular expression, it excludes the matching tools.
 - `USE_GITLAB_WIKI`: When set to 'true', enables the wiki-related tools (list_wiki_pages, get_wiki_page, create_wiki_page, update_wiki_page, delete_wiki_page). By default, wiki features are disabled.
 - `USE_MILESTONE`: When set to 'true', enables the milestone-related tools (list_milestones, get_milestone, create_milestone, edit_milestone, delete_milestone, get_milestone_issue, get_milestone_merge_requests, promote_milestone, get_milestone_burndown_events). By default, milestone features are disabled.
-- `USE_PIPELINE`: When set to 'true', enables the pipeline-related tools (list_pipelines, get_pipeline, list_pipeline_jobs, get_pipeline_job, get_pipeline_job_output, create_pipeline, retry_pipeline, cancel_pipeline). By default, pipeline features are disabled.
+- `USE_PIPELINE`: When set to 'true', enables the pipeline-related tools (list_pipelines, get_pipeline, list_pipeline_jobs, get_pipeline_job, get_pipeline_job_output, create_pipeline, retry_pipeline, cancel_pipeline, play_pipeline_job, retry_pipeline_job, cancel_pipeline_job). By default, pipeline features are disabled.
 - `GITLAB_AUTH_COOKIE_PATH`: Path to an authentication cookie file for GitLab instances that require cookie-based authentication. When provided, the cookie will be included in all GitLab API requests.
 - `SSE`: When set to 'true', enables the Server-Sent Events transport.
 - `STREAMABLE_HTTP`: When set to 'true', enables the Streamable HTTP transport. If both **SSE** and **STREAMABLE_HTTP** are set to 'true', the server will prioritize Streamable HTTP over SSE transport.
@@ -249,25 +249,28 @@ docker run -i --rm \
 64. `create_pipeline` - Create a new pipeline for a branch or tag
 65. `retry_pipeline` - Retry a failed or canceled pipeline
 66. `cancel_pipeline` - Cancel a running pipeline
-67. `list_merge_requests` - List merge requests in a GitLab project with filtering options
-68. `list_milestones` - List milestones in a GitLab project with filtering options
-69. `get_milestone` - Get details of a specific milestone
-70. `create_milestone` - Create a new milestone in a GitLab project
-71. `edit_milestone` - Edit an existing milestone in a GitLab project
-72. `delete_milestone` - Delete a milestone from a GitLab project
-73. `get_milestone_issue` - Get issues associated with a specific milestone
-74. `get_milestone_merge_requests` - Get merge requests associated with a specific milestone
-75. `promote_milestone` - Promote a milestone to the next stage
-76. `get_milestone_burndown_events` - Get burndown events for a specific milestone
-77. `get_users` - Get GitLab user details by usernames
-78. `list_commits` - List repository commits with filtering options
-79. `get_commit` - Get details of a specific commit
-80. `get_commit_diff` - Get changes/diffs of a specific commit
-81. `list_group_iterations` - List group iterations with filtering options
-82. `upload_markdown` - Upload a file to a GitLab project for use in markdown content
-83. `download_attachment` - Download an uploaded file from a GitLab project by secret and filename
-84. `list_events` - List all events for the currently authenticated user
-85. `get_project_events` - List all visible events for a specified project
+67. `play_pipeline_job` - Run a manual pipeline job
+68. `retry_pipeline_job` - Retry a failed or canceled pipeline job
+69. `cancel_pipeline_job` - Cancel a running pipeline job
+70. `list_merge_requests` - List merge requests in a GitLab project with filtering options
+71. `list_milestones` - List milestones in a GitLab project with filtering options
+72. `get_milestone` - Get details of a specific milestone
+73. `create_milestone` - Create a new milestone in a GitLab project
+74. `edit_milestone` - Edit an existing milestone in a GitLab project
+75. `delete_milestone` - Delete a milestone from a GitLab project
+76. `get_milestone_issue` - Get issues associated with a specific milestone
+77. `get_milestone_merge_requests` - Get merge requests associated with a specific milestone
+78. `promote_milestone` - Promote a milestone to the next stage
+79. `get_milestone_burndown_events` - Get burndown events for a specific milestone
+80. `get_users` - Get GitLab user details by usernames
+81. `list_commits` - List repository commits with filtering options
+82. `get_commit` - Get details of a specific commit
+83. `get_commit_diff` - Get changes/diffs of a specific commit
+84. `list_group_iterations` - List group iterations with filtering options
+85. `upload_markdown` - Upload a file to a GitLab project for use in markdown content
+86. `download_attachment` - Download an uploaded file from a GitLab project by secret and filename
+87. `list_events` - List all events for the currently authenticated user
+88. `get_project_events` - List all visible events for a specified project
 <!-- TOOLS-END -->
 
 </details>
