@@ -401,12 +401,14 @@ const DEFAULT_FETCH_CONFIG = {
   },
 };
 
+var zodConfig = { $refStrategy: 'none' };
+
 // Define all available tools
 const allTools = [
   {
     name: "merge_merge_request",
     description: "Merge a merge request in a GitLab project",
-    inputSchema: zodToJsonSchema(MergeMergeRequestSchema),
+    inputSchema: zodToJsonSchema(MergeMergeRequestSchema, { $refStrategy: 'none' }),
   },
   {
     name: "create_or_update_file",
@@ -441,7 +443,7 @@ const allTools = [
   {
     name: "create_merge_request",
     description: "Create a new merge request in a GitLab project",
-    inputSchema: zodToJsonSchema(CreateMergeRequestSchema),
+    inputSchema: zodToJsonSchema(CreateMergeRequestSchema, { $refStrategy: 'none' }),
   },
   {
     name: "fork_repository",
@@ -479,7 +481,7 @@ const allTools = [
   {
     name: "update_merge_request",
     description: "Update a merge request (Either mergeRequestIid or branchName must be provided)",
-    inputSchema: zodToJsonSchema(UpdateMergeRequestSchema),
+    inputSchema: zodToJsonSchema(UpdateMergeRequestSchema, { $refStrategy: 'none' }),
   },
   {
     name: "create_note",
@@ -555,7 +557,7 @@ const allTools = [
     name: "list_issues",
     description:
       "List issues (default: created by current user only; use scope='all' for all accessible issues)",
-    inputSchema: zodToJsonSchema(ListIssuesSchema),
+    inputSchema: zodToJsonSchema(ListIssuesSchema, { $refStrategy: 'none' }),
   },
   {
     name: "my_issues",
@@ -570,7 +572,7 @@ const allTools = [
   {
     name: "update_issue",
     description: "Update an issue in a GitLab project",
-    inputSchema: zodToJsonSchema(UpdateIssueSchema),
+    inputSchema: zodToJsonSchema(UpdateIssueSchema, { $refStrategy: 'none' }),
   },
   {
     name: "delete_issue",
@@ -625,7 +627,7 @@ const allTools = [
   {
     name: "list_projects",
     description: "List projects accessible by the current user",
-    inputSchema: zodToJsonSchema(ListProjectsSchema),
+    inputSchema: zodToJsonSchema(ListProjectsSchema, { $refStrategy: 'none' }),
   },
   {
     name: "list_project_members",
@@ -660,7 +662,7 @@ const allTools = [
   {
     name: "list_group_projects",
     description: "List projects in a GitLab group with filtering options",
-    inputSchema: zodToJsonSchema(ListGroupProjectsSchema),
+    inputSchema: zodToJsonSchema(ListGroupProjectsSchema, { $refStrategy: 'none' }),
   },
   {
     name: "list_wiki_pages",
@@ -812,7 +814,7 @@ const allTools = [
   {
     name: "list_commits",
     description: "List repository commits with filtering options",
-    inputSchema: zodToJsonSchema(ListCommitsSchema),
+    inputSchema: zodToJsonSchema(ListCommitsSchema, { $refStrategy: 'none' }),
   },
   {
     name: "get_commit",
@@ -827,7 +829,7 @@ const allTools = [
   {
     name: "list_group_iterations",
     description: "List group iterations with filtering options",
-    inputSchema: zodToJsonSchema(ListGroupIterationsSchema),
+    inputSchema: zodToJsonSchema(ListGroupIterationsSchema, { $refStrategy: 'none' }),
   },
   {
     name: "upload_markdown",
