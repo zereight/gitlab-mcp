@@ -1156,7 +1156,6 @@ export const CreateNoteSchema = z.object({
   body: z.string().describe("Note content"),
 });
 
-// Issues API operation schemas
 export const ListIssuesSchema = z
   .object({
     project_id: z.coerce
@@ -1181,18 +1180,15 @@ export const ListIssuesSchema = z
     due_date: z.string().optional().describe("Return issues that have the due date"),
     labels: z.array(z.string()).optional().describe("Array of label names"),
     milestone: z.string().optional().describe("Milestone title"),
+
     issue_type: z
-      .string()
+      .enum(["issue","incident","test_case","task"])
       .optional()
-      .nullable()
       .describe("Filter to a given type of issue. One of issue, incident, test_case or task"),
     iteration_id: z.coerce
       .string()
       .optional()
-      .nullable()
-      .describe(
-        "Return issues assigned to the given iteration ID. None returns issues that do not belong to an iteration. Any returns issues that belong to an iteration. "
-      ),
+      .describe("Return issues assigned to the given iteration ID. None returns issues that do not belong to an iteration. Any returns issues that belong to an iteration. "),
     scope: z
       .enum(["created_by_me", "assigned_to_me", "all"])
       .optional()
@@ -1906,7 +1902,7 @@ export const ListGroupIterationsSchema = z
       .string()
       .optional()
       .describe("Return only iterations with a title matching the provided string."),
-    in: z
+    search_in: z
       .array(z.enum(["title", "cadence_title"]))
       .optional()
       .describe(
