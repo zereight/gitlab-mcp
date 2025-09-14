@@ -1156,6 +1156,7 @@ export const CreateNoteSchema = z.object({
   body: z.string().describe("Note content"),
 });
 
+// Issues API operation schemas
 export const ListIssuesSchema = z
   .object({
     project_id: z.coerce
