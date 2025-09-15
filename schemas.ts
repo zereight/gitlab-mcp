@@ -1813,6 +1813,7 @@ export const GetCommitSchema = z.object({
 export const GetCommitDiffSchema = z.object({
   project_id: z.coerce.string().describe("Project ID or complete URL-encoded path to project"),
   sha: z.string().describe("The commit hash or name of a repository branch or tag"),
+  full_diff: flexibleBoolean.optional().describe("Whether to return the full diff or only first page (default: false)"),
 });
 
 // Schema for listing issues assigned to the current user
