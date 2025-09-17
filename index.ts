@@ -5594,7 +5594,7 @@ async function startStreamableHTTPServer(): Promise<void> {
     } else {
       res.status(404).json({ error: "Session not found" });
     }
-});
+  });
 
 
   // Health check endpoint
