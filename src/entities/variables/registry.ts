@@ -1,11 +1,11 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
-import { zodToJsonSchema } from 'zod-to-json-schema';
-import { ListVariablesSchema, GetVariableSchema } from './schema-readonly';
-import { CreateVariableSchema, UpdateVariableSchema, DeleteVariableSchema } from './schema';
-import { enhancedFetch } from '../../utils/fetch';
-import { cleanGidsFromObject } from '../../utils/idConversion';
-import { resolveNamespaceForAPI } from '../../utils/namespace';
-import { ToolRegistry, EnhancedToolDefinition } from '../../types';
+import { zodToJsonSchema } from "zod-to-json-schema";
+import { ListVariablesSchema, GetVariableSchema } from "./schema-readonly";
+import { CreateVariableSchema, UpdateVariableSchema, DeleteVariableSchema } from "./schema";
+import { enhancedFetch } from "../../utils/fetch";
+import { cleanGidsFromObject } from "../../utils/idConversion";
+import { resolveNamespaceForAPI } from "../../utils/namespace";
+import { ToolRegistry, EnhancedToolDefinition } from "../../types";
 
 /**
  * Variables tools registry - unified registry containing all variable operation tools with their handlers
@@ -13,11 +13,11 @@ import { ToolRegistry, EnhancedToolDefinition } from '../../types';
 export const variablesToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefinition>([
   // Read-only tools
   [
-    'list_variables',
+    "list_variables",
     {
-      name: 'list_variables',
+      name: "list_variables",
       description:
-        'View all CI/CD environment variables configured for pipelines. Use to audit secrets, review configuration, or understand pipeline environment. Shows variable keys (values are masked for security). Returns protection status, masking, and environment scopes. Group variables are inherited by all projects.',
+        "View all CI/CD environment variables configured for pipelines. Use to audit secrets, review configuration, or understand pipeline environment. Shows variable keys (values are masked for security). Returns protection status, masking, and environment scopes. Group variables are inherited by all projects.",
       inputSchema: zodToJsonSchema(ListVariablesSchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = ListVariablesSchema.parse(args);
@@ -43,11 +43,11 @@ export const variablesToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
     },
   ],
   [
-    'get_variable',
+    "get_variable",
     {
-      name: 'get_variable',
+      name: "get_variable",
       description:
-        'Retrieve specific CI/CD variable details including value (if not masked), type, and security settings. Use for debugging pipeline issues, verifying configuration, or checking environment-specific values. Supports scoped variables for different environments (production/staging).',
+        "Retrieve specific CI/CD variable details including value (if not masked), type, and security settings. Use for debugging pipeline issues, verifying configuration, or checking environment-specific values. Supports scoped variables for different environments (production/staging).",
       inputSchema: zodToJsonSchema(GetVariableSchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = GetVariableSchema.parse(args);
@@ -58,7 +58,7 @@ export const variablesToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
 
         const queryParams = new URLSearchParams();
         if (filter?.environment_scope) {
-          queryParams.set('filter[environment_scope]', filter.environment_scope);
+          queryParams.set("filter[environment_scope]", filter.environment_scope);
         }
 
         const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/${entityType}/${encodedPath}/variables/${encodeURIComponent(key)}?${queryParams}`;
@@ -79,11 +79,11 @@ export const variablesToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
   ],
   // Write tools
   [
-    'create_variable',
+    "create_variable",
     {
-      name: 'create_variable',
+      name: "create_variable",
       description:
-        'Add new CI/CD environment variable for pipeline configuration, secrets, or deployment settings. Use for API keys, database URLs, feature flags. Supports masking sensitive values, protection for specific branches, environment scoping, and file type for certificates/configs. Group variables apply to all child projects.',
+        "Add new CI/CD environment variable for pipeline configuration, secrets, or deployment settings. Use for API keys, database URLs, feature flags. Supports masking sensitive values, protection for specific branches, environment scoping, and file type for certificates/configs. Group variables apply to all child projects.",
       inputSchema: zodToJsonSchema(CreateVariableSchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = CreateVariableSchema.parse(args);
@@ -94,17 +94,17 @@ export const variablesToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
 
         const body: Record<string, unknown> = {};
         Object.entries(options).forEach(([key, value]) => {
-          if (value !== undefined && value !== null && key !== 'namespacePath') {
+          if (value !== undefined && value !== null && key !== "namespacePath") {
             body[key] = value;
           }
         });
 
         const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/${entityType}/${encodedPath}/variables`;
         const response = await enhancedFetch(apiUrl, {
-          method: 'POST',
+          method: "POST",
           headers: {
             Authorization: `Bearer ${process.env.GITLAB_TOKEN}`,
-            'Content-Type': 'application/json',
+            "Content-Type": "application/json",
           },
           body: JSON.stringify(body),
         });
@@ -119,11 +119,11 @@ export const variablesToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
     },
   ],
   [
-    'update_variable',
+    "update_variable",
     {
-      name: 'update_variable',
+      name: "update_variable",
       description:
-        'Modify CI/CD variable value or configuration. Use to rotate secrets, update endpoints, change security settings, or adjust environment scopes. Can convert between env_var and file types. Changes take effect in next pipeline run. Be cautious with production variables.',
+        "Modify CI/CD variable value or configuration. Use to rotate secrets, update endpoints, change security settings, or adjust environment scopes. Can convert between env_var and file types. Changes take effect in next pipeline run. Be cautious with production variables.",
       inputSchema: zodToJsonSchema(UpdateVariableSchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = UpdateVariableSchema.parse(args);
@@ -137,9 +137,9 @@ export const variablesToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
           if (
             value !== undefined &&
             value !== null &&
-            k !== 'namespacePath' &&
-            k !== 'key' &&
-            k !== 'filter'
+            k !== "namespacePath" &&
+            k !== "key" &&
+            k !== "filter"
           ) {
             body[k] = value;
           }
@@ -148,15 +148,15 @@ export const variablesToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
         // Add filter as query parameter if provided
         const queryParams = new URLSearchParams();
         if (filter?.environment_scope) {
-          queryParams.set('filter[environment_scope]', filter.environment_scope);
+          queryParams.set("filter[environment_scope]", filter.environment_scope);
         }
 
         const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/${entityType}/${encodedPath}/variables/${encodeURIComponent(key)}?${queryParams}`;
         const response = await enhancedFetch(apiUrl, {
-          method: 'PUT',
+          method: "PUT",
           headers: {
             Authorization: `Bearer ${process.env.GITLAB_TOKEN}`,
-            'Content-Type': 'application/json',
+            "Content-Type": "application/json",
           },
           body: JSON.stringify(body),
         });
@@ -171,11 +171,11 @@ export const variablesToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
     },
   ],
   [
-    'delete_variable',
+    "delete_variable",
     {
-      name: 'delete_variable',
+      name: "delete_variable",
       description:
-        'Delete CI/CD variable permanently from configuration. Use to remove unused secrets, clean up after migrations, or revoke access. Can target specific environment-scoped variants. Warning: may break pipelines depending on the variable. Cannot be undone.',
+        "Delete CI/CD variable permanently from configuration. Use to remove unused secrets, clean up after migrations, or revoke access. Can target specific environment-scoped variants. Warning: may break pipelines depending on the variable. Cannot be undone.",
       inputSchema: zodToJsonSchema(DeleteVariableSchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = DeleteVariableSchema.parse(args);
@@ -187,12 +187,12 @@ export const variablesToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
         // Add filter as query parameter if provided
         const queryParams = new URLSearchParams();
         if (filter?.environment_scope) {
-          queryParams.set('filter[environment_scope]', filter.environment_scope);
+          queryParams.set("filter[environment_scope]", filter.environment_scope);
         }
 
         const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/${entityType}/${encodedPath}/variables/${encodeURIComponent(key)}?${queryParams}`;
         const response = await enhancedFetch(apiUrl, {
-          method: 'DELETE',
+          method: "DELETE",
           headers: {
             Authorization: `Bearer ${process.env.GITLAB_TOKEN}`,
           },
@@ -213,7 +213,7 @@ export const variablesToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
  * Get read-only tool names from the registry
  */
 export function getVariablesReadOnlyToolNames(): string[] {
-  return ['list_variables', 'get_variable'];
+  return ["list_variables", "get_variable"];
 }
 
 /**
@@ -229,8 +229,8 @@ export function getVariablesToolDefinitions(): EnhancedToolDefinition[] {
 export function getFilteredVariablesTools(readOnlyMode: boolean = false): EnhancedToolDefinition[] {
   if (readOnlyMode) {
     const readOnlyNames = getVariablesReadOnlyToolNames();
-    return Array.from(variablesToolRegistry.values()).filter((tool) =>
-      readOnlyNames.includes(tool.name),
+    return Array.from(variablesToolRegistry.values()).filter(tool =>
+      readOnlyNames.includes(tool.name)
     );
   }
   return getVariablesToolDefinitions();

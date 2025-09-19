@@ -1,12 +1,12 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
-import { zodToJsonSchema } from 'zod-to-json-schema';
+import { zodToJsonSchema } from "zod-to-json-schema";
 import {
   ListPipelinesSchema,
   GetPipelineSchema,
   ListPipelineJobsSchema,
   ListPipelineTriggerJobsSchema,
   GetPipelineJobOutputSchema,
-} from './schema-readonly';
+} from "./schema-readonly";
 import {
   CreatePipelineSchema,
   RetryPipelineSchema,
@@ -14,10 +14,10 @@ import {
   PlayPipelineJobSchema,
   RetryPipelineJobSchema,
   CancelPipelineJobSchema,
-} from './schema';
-import { enhancedFetch } from '../../utils/fetch';
-import { cleanGidsFromObject } from '../../utils/idConversion';
-import { ToolRegistry, EnhancedToolDefinition } from '../../types';
+} from "./schema";
+import { enhancedFetch } from "../../utils/fetch";
+import { cleanGidsFromObject } from "../../utils/idConversion";
+import { ToolRegistry, EnhancedToolDefinition } from "../../types";
 
 /**
  * Pipelines tools registry - unified registry containing all pipeline operation tools with their handlers
@@ -25,18 +25,18 @@ import { ToolRegistry, EnhancedToolDefinition } from '../../types';
 export const pipelinesToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefinition>([
   // Read-only tools
   [
-    'list_pipelines',
+    "list_pipelines",
     {
-      name: 'list_pipelines',
+      name: "list_pipelines",
       description:
-        'BROWSE: Search and monitor CI/CD pipelines in a project. Use when: Monitoring build/deployment status, Finding specific pipeline runs, Analyzing CI/CD history and trends. Supports filtering by status, branch, user, and date range. Returns pipeline ID, status, ref, commit SHA, and timing information.',
+        "BROWSE: Search and monitor CI/CD pipelines in a project. Use when: Monitoring build/deployment status, Finding specific pipeline runs, Analyzing CI/CD history and trends. Supports filtering by status, branch, user, and date range. Returns pipeline ID, status, ref, commit SHA, and timing information.",
       inputSchema: zodToJsonSchema(ListPipelinesSchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = ListPipelinesSchema.parse(args);
 
         const queryParams = new URLSearchParams();
         Object.entries(options).forEach(([key, value]) => {
-          if (value !== undefined && value !== null && key !== 'project_id') {
+          if (value !== undefined && value !== null && key !== "project_id") {
             queryParams.set(key, String(value));
           }
         });
@@ -58,11 +58,11 @@ export const pipelinesToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
     },
   ],
   [
-    'get_pipeline',
+    "get_pipeline",
     {
-      name: 'get_pipeline',
+      name: "get_pipeline",
       description:
-        'ANALYZE: Get comprehensive details about a specific pipeline run. Use when: Debugging CI/CD failures and issues, Inspecting pipeline configuration and timing, Understanding what triggered the run. Returns commit details, branch/tag info, duration metrics, and failure reasons. Essential for pipeline troubleshooting.',
+        "ANALYZE: Get comprehensive details about a specific pipeline run. Use when: Debugging CI/CD failures and issues, Inspecting pipeline configuration and timing, Understanding what triggered the run. Returns commit details, branch/tag info, duration metrics, and failure reasons. Essential for pipeline troubleshooting.",
       inputSchema: zodToJsonSchema(GetPipelineSchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = GetPipelineSchema.parse(args);
@@ -85,11 +85,11 @@ export const pipelinesToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
     },
   ],
   [
-    'list_pipeline_jobs',
+    "list_pipeline_jobs",
     {
-      name: 'list_pipeline_jobs',
+      name: "list_pipeline_jobs",
       description:
-        'INSPECT: Get all CI/CD jobs within a pipeline run. Use when: Identifying failed jobs and stages, Understanding pipeline job structure, Analyzing job timing and performance. Returns job names, stages, status, duration, and runner info. Supports filtering by scope (failed, success, manual) for targeted troubleshooting.',
+        "INSPECT: Get all CI/CD jobs within a pipeline run. Use when: Identifying failed jobs and stages, Understanding pipeline job structure, Analyzing job timing and performance. Returns job names, stages, status, duration, and runner info. Supports filtering by scope (failed, success, manual) for targeted troubleshooting.",
       inputSchema: zodToJsonSchema(ListPipelineJobsSchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = ListPipelineJobsSchema.parse(args);
@@ -100,8 +100,8 @@ export const pipelinesToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
           if (
             value !== undefined &&
             value !== null &&
-            key !== 'project_id' &&
-            key !== 'pipeline_id'
+            key !== "project_id" &&
+            key !== "pipeline_id"
           ) {
             queryParams.set(key, String(value));
           }
@@ -124,11 +124,11 @@ export const pipelinesToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
     },
   ],
   [
-    'list_pipeline_trigger_jobs',
+    "list_pipeline_trigger_jobs",
     {
-      name: 'list_pipeline_trigger_jobs',
+      name: "list_pipeline_trigger_jobs",
       description:
-        'BRIDGE: List jobs that trigger downstream pipelines in multi-project setups. Use when: Understanding cross-project CI/CD flows, Debugging pipeline dependencies, Analyzing parent-child pipeline connections. Bridge jobs link projects together. Returns trigger configuration and downstream pipeline status.',
+        "BRIDGE: List jobs that trigger downstream pipelines in multi-project setups. Use when: Understanding cross-project CI/CD flows, Debugging pipeline dependencies, Analyzing parent-child pipeline connections. Bridge jobs link projects together. Returns trigger configuration and downstream pipeline status.",
       inputSchema: zodToJsonSchema(ListPipelineTriggerJobsSchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = ListPipelineTriggerJobsSchema.parse(args);
@@ -139,8 +139,8 @@ export const pipelinesToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
           if (
             value !== undefined &&
             value !== null &&
-            key !== 'project_id' &&
-            key !== 'pipeline_id'
+            key !== "project_id" &&
+            key !== "pipeline_id"
           ) {
             queryParams.set(key, String(value));
           }
@@ -163,11 +163,11 @@ export const pipelinesToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
     },
   ],
   [
-    'get_pipeline_job',
+    "get_pipeline_job",
     {
-      name: 'get_pipeline_job',
+      name: "get_pipeline_job",
       description:
-        'DETAILS: Get detailed information about a specific CI/CD job. Use when: Debugging individual job failures, Inspecting job configuration and variables, Understanding job dependencies and artifacts. Shows job script, runner tags, artifact paths, and failure details. Essential for job-level troubleshooting.',
+        "DETAILS: Get detailed information about a specific CI/CD job. Use when: Debugging individual job failures, Inspecting job configuration and variables, Understanding job dependencies and artifacts. Shows job script, runner tags, artifact paths, and failure details. Essential for job-level troubleshooting.",
       inputSchema: zodToJsonSchema(GetPipelineJobOutputSchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = GetPipelineJobOutputSchema.parse(args);
@@ -190,11 +190,11 @@ export const pipelinesToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
     },
   ],
   [
-    'get_pipeline_job_output',
+    "get_pipeline_job_output",
     {
-      name: 'get_pipeline_job_output',
+      name: "get_pipeline_job_output",
       description:
-        'LOGS: Fetch console output/logs from a CI/CD job execution. Use when: Debugging job failures and errors, Reviewing test results and build output, Analyzing command execution traces. Supports output limiting for large logs. Returns raw text showing all commands and output. Critical for troubleshooting CI/CD issues.',
+        "LOGS: Fetch console output/logs from a CI/CD job execution. Use when: Debugging job failures and errors, Reviewing test results and build output, Analyzing command execution traces. Supports output limiting for large logs. Returns raw text showing all commands and output. Critical for troubleshooting CI/CD issues.",
       inputSchema: zodToJsonSchema(GetPipelineJobOutputSchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = GetPipelineJobOutputSchema.parse(args);
@@ -215,7 +215,7 @@ export const pipelinesToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
 
         // Apply output limiting if requested
         if (limit && trace.length > limit) {
-          const lines = trace.split('\n');
+          const lines = trace.split("\n");
           const totalLines = lines.length;
           const maxLines = Math.floor(limit / 50); // Roughly 50 chars per line
 
@@ -227,7 +227,7 @@ export const pipelinesToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
               ...startLines,
               `... [${totalLines - maxLines} lines truncated] ...`,
               ...endLines,
-            ].join('\n');
+            ].join("\n");
           }
         }
 
@@ -237,11 +237,11 @@ export const pipelinesToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
   ],
   // Write tools
   [
-    'create_pipeline',
+    "create_pipeline",
     {
-      name: 'create_pipeline',
+      name: "create_pipeline",
       description:
-        'CREATE: Trigger a new CI/CD pipeline run on demand. Use when: Manually starting builds or deployments, Running tests on specific branches, Initiating custom pipeline workflows. Requires ref (branch/tag) specification. Can pass variables to customize pipeline behavior. Returns created pipeline details immediately.',
+        "CREATE: Trigger a new CI/CD pipeline run on demand. Use when: Manually starting builds or deployments, Running tests on specific branches, Initiating custom pipeline workflows. Requires ref (branch/tag) specification. Can pass variables to customize pipeline behavior. Returns created pipeline details immediately.",
       inputSchema: zodToJsonSchema(CreatePipelineSchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = CreatePipelineSchema.parse(args);
@@ -249,17 +249,17 @@ export const pipelinesToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
 
         const body: Record<string, unknown> = {};
         Object.entries(options).forEach(([key, value]) => {
-          if (value !== undefined && value !== null && key !== 'project_id') {
+          if (value !== undefined && value !== null && key !== "project_id") {
             body[key] = value;
           }
         });
 
         const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${encodeURIComponent(project_id)}/pipeline`;
         const response = await enhancedFetch(apiUrl, {
-          method: 'POST',
+          method: "POST",
           headers: {
             Authorization: `Bearer ${process.env.GITLAB_TOKEN}`,
-            'Content-Type': 'application/json',
+            "Content-Type": "application/json",
           },
           body: JSON.stringify(body),
         });
@@ -274,11 +274,11 @@ export const pipelinesToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
     },
   ],
   [
-    'retry_pipeline',
+    "retry_pipeline",
     {
-      name: 'retry_pipeline',
+      name: "retry_pipeline",
       description:
-        'RETRY: Re-run a previously failed or canceled pipeline with same configuration. Use when: Retrying after fixing flaky tests, Recovering from temporary failures, Re-running without losing successful job results. Retries failed/canceled jobs while preserving successful ones. More efficient than creating new pipeline.',
+        "RETRY: Re-run a previously failed or canceled pipeline with same configuration. Use when: Retrying after fixing flaky tests, Recovering from temporary failures, Re-running without losing successful job results. Retries failed/canceled jobs while preserving successful ones. More efficient than creating new pipeline.",
       inputSchema: zodToJsonSchema(RetryPipelineSchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = RetryPipelineSchema.parse(args);
@@ -286,7 +286,7 @@ export const pipelinesToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
 
         const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${encodeURIComponent(project_id)}/pipelines/${pipeline_id}/retry`;
         const response = await enhancedFetch(apiUrl, {
-          method: 'POST',
+          method: "POST",
           headers: {
             Authorization: `Bearer ${process.env.GITLAB_TOKEN}`,
           },
@@ -302,9 +302,9 @@ export const pipelinesToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
     },
   ],
   [
-    'cancel_pipeline',
+    "cancel_pipeline",
     {
-      name: 'cancel_pipeline',
+      name: "cancel_pipeline",
       description:
         'CANCEL: Stop a currently executing pipeline and all its jobs. Use when: Halting unnecessary or incorrect runs, Stopping problematic deployments, Freeing up busy runners. Cancels all pending and running jobs immediately. Pipeline status changes to "canceled" and cannot be resumed.',
       inputSchema: zodToJsonSchema(CancelPipelineSchema),
@@ -314,7 +314,7 @@ export const pipelinesToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
 
         const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${encodeURIComponent(project_id)}/pipelines/${pipeline_id}/cancel`;
         const response = await enhancedFetch(apiUrl, {
-          method: 'POST',
+          method: "POST",
           headers: {
             Authorization: `Bearer ${process.env.GITLAB_TOKEN}`,
           },
@@ -330,11 +330,11 @@ export const pipelinesToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
     },
   ],
   [
-    'play_pipeline_job',
+    "play_pipeline_job",
     {
-      name: 'play_pipeline_job',
+      name: "play_pipeline_job",
       description:
-        'PLAY: Trigger a manual job that requires user intervention. Use when: Executing deployment gates and approvals, Running optional or conditional jobs, Proceeding with manual pipeline steps. Manual jobs pause pipeline flow until explicitly triggered. Can pass job variables for runtime configuration.',
+        "PLAY: Trigger a manual job that requires user intervention. Use when: Executing deployment gates and approvals, Running optional or conditional jobs, Proceeding with manual pipeline steps. Manual jobs pause pipeline flow until explicitly triggered. Can pass job variables for runtime configuration.",
       inputSchema: zodToJsonSchema(PlayPipelineJobSchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = PlayPipelineJobSchema.parse(args);
@@ -342,17 +342,17 @@ export const pipelinesToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
 
         const body: Record<string, unknown> = {};
         Object.entries(options).forEach(([key, value]) => {
-          if (value !== undefined && value !== null && key !== 'project_id' && key !== 'job_id') {
+          if (value !== undefined && value !== null && key !== "project_id" && key !== "job_id") {
             body[key] = value;
           }
         });
 
         const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${encodeURIComponent(project_id)}/jobs/${job_id}/play`;
         const response = await enhancedFetch(apiUrl, {
-          method: 'POST',
+          method: "POST",
           headers: {
             Authorization: `Bearer ${process.env.GITLAB_TOKEN}`,
-            'Content-Type': 'application/json',
+            "Content-Type": "application/json",
           },
           body: JSON.stringify(body),
         });
@@ -367,11 +367,11 @@ export const pipelinesToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
     },
   ],
   [
-    'retry_pipeline_job',
+    "retry_pipeline_job",
     {
-      name: 'retry_pipeline_job',
+      name: "retry_pipeline_job",
       description:
-        'RETRY JOB: Re-run a specific failed or canceled job within a pipeline. Use when: Retrying individual job failures, Avoiding full pipeline re-run, Fixing targeted job issues. Preserves pipeline context and job dependencies. More efficient and targeted than full pipeline retry.',
+        "RETRY JOB: Re-run a specific failed or canceled job within a pipeline. Use when: Retrying individual job failures, Avoiding full pipeline re-run, Fixing targeted job issues. Preserves pipeline context and job dependencies. More efficient and targeted than full pipeline retry.",
       inputSchema: zodToJsonSchema(RetryPipelineJobSchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = RetryPipelineJobSchema.parse(args);
@@ -379,7 +379,7 @@ export const pipelinesToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
 
         const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${encodeURIComponent(project_id)}/jobs/${job_id}/retry`;
         const response = await enhancedFetch(apiUrl, {
-          method: 'POST',
+          method: "POST",
           headers: {
             Authorization: `Bearer ${process.env.GITLAB_TOKEN}`,
           },
@@ -395,9 +395,9 @@ export const pipelinesToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
     },
   ],
   [
-    'cancel_pipeline_job',
+    "cancel_pipeline_job",
     {
-      name: 'cancel_pipeline_job',
+      name: "cancel_pipeline_job",
       description:
         'CANCEL JOB: Stop a specific running job without affecting other pipeline jobs. Use when: Canceling long-running or stuck jobs, Stopping problematic jobs while preserving others, Freeing specific job resources. Job status changes to "canceled". Pipeline continues if other jobs can proceed.',
       inputSchema: zodToJsonSchema(CancelPipelineJobSchema),
@@ -407,7 +407,7 @@ export const pipelinesToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
 
         const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${encodeURIComponent(project_id)}/jobs/${job_id}/cancel`;
         const response = await enhancedFetch(apiUrl, {
-          method: 'POST',
+          method: "POST",
           headers: {
             Authorization: `Bearer ${process.env.GITLAB_TOKEN}`,
           },
@@ -429,12 +429,12 @@ export const pipelinesToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
  */
 export function getPipelinesReadOnlyToolNames(): string[] {
   return [
-    'list_pipelines',
-    'get_pipeline',
-    'list_pipeline_jobs',
-    'list_pipeline_trigger_jobs',
-    'get_pipeline_job',
-    'get_pipeline_job_output',
+    "list_pipelines",
+    "get_pipeline",
+    "list_pipeline_jobs",
+    "list_pipeline_trigger_jobs",
+    "get_pipeline_job",
+    "get_pipeline_job_output",
   ];
 }
 
@@ -451,8 +451,8 @@ export function getPipelinesToolDefinitions(): EnhancedToolDefinition[] {
 export function getFilteredPipelinesTools(readOnlyMode: boolean = false): EnhancedToolDefinition[] {
   if (readOnlyMode) {
     const readOnlyNames = getPipelinesReadOnlyToolNames();
-    return Array.from(pipelinesToolRegistry.values()).filter((tool) =>
-      readOnlyNames.includes(tool.name),
+    return Array.from(pipelinesToolRegistry.values()).filter(tool =>
+      readOnlyNames.includes(tool.name)
     );
   }
   return getPipelinesToolDefinitions();

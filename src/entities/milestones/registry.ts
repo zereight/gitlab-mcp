@@ -1,22 +1,22 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
-import { zodToJsonSchema } from 'zod-to-json-schema';
+import { zodToJsonSchema } from "zod-to-json-schema";
 import {
   ListProjectMilestonesSchema,
   GetProjectMilestoneSchema,
   GetMilestoneIssuesSchema,
   GetMilestoneMergeRequestsSchema,
   GetMilestoneBurndownEventsSchema,
-} from './schema-readonly';
+} from "./schema-readonly";
 import {
   CreateProjectMilestoneSchema,
   EditProjectMilestoneSchema,
   DeleteProjectMilestoneSchema,
   PromoteProjectMilestoneSchema,
-} from './schema';
-import { enhancedFetch } from '../../utils/fetch';
-import { resolveNamespaceForAPI } from '../../utils/namespace';
-import { cleanGidsFromObject } from '../../utils/idConversion';
-import { ToolRegistry, EnhancedToolDefinition } from '../../types';
+} from "./schema";
+import { enhancedFetch } from "../../utils/fetch";
+import { resolveNamespaceForAPI } from "../../utils/namespace";
+import { cleanGidsFromObject } from "../../utils/idConversion";
+import { ToolRegistry, EnhancedToolDefinition } from "../../types";
 
 /**
  * Milestones tools registry - unified registry containing all milestone operation tools with their handlers
@@ -24,11 +24,11 @@ import { ToolRegistry, EnhancedToolDefinition } from '../../types';
 export const milestonesToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefinition>([
   // Read-only tools
   [
-    'list_milestones',
+    "list_milestones",
     {
-      name: 'list_milestones',
+      name: "list_milestones",
       description:
-        'Browse release milestones for planning and tracking. Use to see upcoming releases, sprint cycles, or project phases. Supports filtering by state (active/closed) and timeframe. Returns milestone titles, dates, progress statistics. Group milestones apply across all projects.',
+        "Browse release milestones for planning and tracking. Use to see upcoming releases, sprint cycles, or project phases. Supports filtering by state (active/closed) and timeframe. Returns milestone titles, dates, progress statistics. Group milestones apply across all projects.",
       inputSchema: zodToJsonSchema(ListProjectMilestonesSchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = ListProjectMilestonesSchema.parse(args);
@@ -39,7 +39,7 @@ export const milestonesToolRegistry: ToolRegistry = new Map<string, EnhancedTool
 
         const queryParams = new URLSearchParams();
         Object.entries(options).forEach(([key, value]) => {
-          if (value !== undefined && value !== null && key !== 'namespacePath') {
+          if (value !== undefined && value !== null && key !== "namespacePath") {
             queryParams.set(key, String(value));
           }
         });
@@ -61,11 +61,11 @@ export const milestonesToolRegistry: ToolRegistry = new Map<string, EnhancedTool
     },
   ],
   [
-    'get_milestone',
+    "get_milestone",
     {
-      name: 'get_milestone',
+      name: "get_milestone",
       description:
-        'Retrieve comprehensive milestone information including dates, description, and progress metrics. Use to track release status, see associated work, or analyze milestone completion. Shows open/closed issue counts and completion percentage.',
+        "Retrieve comprehensive milestone information including dates, description, and progress metrics. Use to track release status, see associated work, or analyze milestone completion. Shows open/closed issue counts and completion percentage.",
       inputSchema: zodToJsonSchema(GetProjectMilestoneSchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = GetProjectMilestoneSchema.parse(args);
@@ -91,11 +91,11 @@ export const milestonesToolRegistry: ToolRegistry = new Map<string, EnhancedTool
     },
   ],
   [
-    'get_milestone_issue',
+    "get_milestone_issue",
     {
-      name: 'get_milestone_issue',
+      name: "get_milestone_issue",
       description:
-        'List all issues targeted for a milestone release. Use to track milestone progress, identify blockers, or plan work. Returns issue details with status, assignees, and labels. Essential for release management and sprint planning.',
+        "List all issues targeted for a milestone release. Use to track milestone progress, identify blockers, or plan work. Returns issue details with status, assignees, and labels. Essential for release management and sprint planning.",
       inputSchema: zodToJsonSchema(GetMilestoneIssuesSchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = GetMilestoneIssuesSchema.parse(args);
@@ -109,8 +109,8 @@ export const milestonesToolRegistry: ToolRegistry = new Map<string, EnhancedTool
           if (
             value !== undefined &&
             value !== null &&
-            key !== 'namespacePath' &&
-            key !== 'milestone_id'
+            key !== "namespacePath" &&
+            key !== "milestone_id"
           ) {
             queryParams.set(key, String(value));
           }
@@ -133,11 +133,11 @@ export const milestonesToolRegistry: ToolRegistry = new Map<string, EnhancedTool
     },
   ],
   [
-    'get_milestone_merge_requests',
+    "get_milestone_merge_requests",
     {
-      name: 'get_milestone_merge_requests',
+      name: "get_milestone_merge_requests",
       description:
-        'List merge requests scheduled for a milestone. Use to track feature completion, review code changes for release, or identify pending work. Shows MR status, approvals, and pipeline status. Critical for release readiness assessment.',
+        "List merge requests scheduled for a milestone. Use to track feature completion, review code changes for release, or identify pending work. Shows MR status, approvals, and pipeline status. Critical for release readiness assessment.",
       inputSchema: zodToJsonSchema(GetMilestoneMergeRequestsSchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = GetMilestoneMergeRequestsSchema.parse(args);
@@ -151,8 +151,8 @@ export const milestonesToolRegistry: ToolRegistry = new Map<string, EnhancedTool
           if (
             value !== undefined &&
             value !== null &&
-            key !== 'namespacePath' &&
-            key !== 'milestone_id'
+            key !== "namespacePath" &&
+            key !== "milestone_id"
           ) {
             queryParams.set(key, String(value));
           }
@@ -175,11 +175,11 @@ export const milestonesToolRegistry: ToolRegistry = new Map<string, EnhancedTool
     },
   ],
   [
-    'get_milestone_burndown_events',
+    "get_milestone_burndown_events",
     {
-      name: 'get_milestone_burndown_events',
+      name: "get_milestone_burndown_events",
       description:
-        'Track milestone progress with burndown chart data. Use for agile metrics, velocity tracking, and sprint analysis. Returns time-series events showing work completion rate. Premium/Ultimate feature for advanced project analytics.',
+        "Track milestone progress with burndown chart data. Use for agile metrics, velocity tracking, and sprint analysis. Returns time-series events showing work completion rate. Premium/Ultimate feature for advanced project analytics.",
       inputSchema: zodToJsonSchema(GetMilestoneBurndownEventsSchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = GetMilestoneBurndownEventsSchema.parse(args);
@@ -206,11 +206,11 @@ export const milestonesToolRegistry: ToolRegistry = new Map<string, EnhancedTool
   ],
   // Write tools
   [
-    'create_milestone',
+    "create_milestone",
     {
-      name: 'create_milestone',
+      name: "create_milestone",
       description:
-        'Define a new release milestone or sprint cycle. Use to establish delivery targets, organize work phases, or plan releases. Set title, description, start/due dates. Group milestones coordinate releases across multiple projects.',
+        "Define a new release milestone or sprint cycle. Use to establish delivery targets, organize work phases, or plan releases. Set title, description, start/due dates. Group milestones coordinate releases across multiple projects.",
       inputSchema: zodToJsonSchema(CreateProjectMilestoneSchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = CreateProjectMilestoneSchema.parse(args);
@@ -221,17 +221,17 @@ export const milestonesToolRegistry: ToolRegistry = new Map<string, EnhancedTool
 
         const body: Record<string, unknown> = {};
         Object.entries(options).forEach(([key, value]) => {
-          if (value !== undefined && value !== null && key !== 'namespacePath') {
+          if (value !== undefined && value !== null && key !== "namespacePath") {
             body[key] = value;
           }
         });
 
         const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/${entityType}/${encodedPath}/milestones`;
         const response = await enhancedFetch(apiUrl, {
-          method: 'POST',
+          method: "POST",
           headers: {
             Authorization: `Bearer ${process.env.GITLAB_TOKEN}`,
-            'Content-Type': 'application/json',
+            "Content-Type": "application/json",
           },
           body: JSON.stringify(body),
         });
@@ -246,11 +246,11 @@ export const milestonesToolRegistry: ToolRegistry = new Map<string, EnhancedTool
     },
   ],
   [
-    'edit_milestone',
+    "edit_milestone",
     {
-      name: 'edit_milestone',
+      name: "edit_milestone",
       description:
-        'Update milestone properties like dates, description, or state. Use to adjust release schedules, extend sprints, or close completed milestones. Changes apply immediately to all associated issues and MRs.',
+        "Update milestone properties like dates, description, or state. Use to adjust release schedules, extend sprints, or close completed milestones. Changes apply immediately to all associated issues and MRs.",
       inputSchema: zodToJsonSchema(EditProjectMilestoneSchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = EditProjectMilestoneSchema.parse(args);
@@ -264,8 +264,8 @@ export const milestonesToolRegistry: ToolRegistry = new Map<string, EnhancedTool
           if (
             value !== undefined &&
             value !== null &&
-            key !== 'namespacePath' &&
-            key !== 'milestone_id'
+            key !== "namespacePath" &&
+            key !== "milestone_id"
           ) {
             body[key] = value;
           }
@@ -273,10 +273,10 @@ export const milestonesToolRegistry: ToolRegistry = new Map<string, EnhancedTool
 
         const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/${entityType}/${encodedPath}/milestones/${milestone_id}`;
         const response = await enhancedFetch(apiUrl, {
-          method: 'PUT',
+          method: "PUT",
           headers: {
             Authorization: `Bearer ${process.env.GITLAB_TOKEN}`,
-            'Content-Type': 'application/json',
+            "Content-Type": "application/json",
           },
           body: JSON.stringify(body),
         });
@@ -291,11 +291,11 @@ export const milestonesToolRegistry: ToolRegistry = new Map<string, EnhancedTool
     },
   ],
   [
-    'delete_milestone',
+    "delete_milestone",
     {
-      name: 'delete_milestone',
+      name: "delete_milestone",
       description:
-        'Remove a milestone permanently. Use to clean up cancelled releases or obsolete milestones. Warning: removes milestone association from all issues and MRs. Consider closing instead of deleting for historical tracking.',
+        "Remove a milestone permanently. Use to clean up cancelled releases or obsolete milestones. Warning: removes milestone association from all issues and MRs. Consider closing instead of deleting for historical tracking.",
       inputSchema: zodToJsonSchema(DeleteProjectMilestoneSchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = DeleteProjectMilestoneSchema.parse(args);
@@ -306,7 +306,7 @@ export const milestonesToolRegistry: ToolRegistry = new Map<string, EnhancedTool
 
         const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/${entityType}/${encodedPath}/milestones/${milestone_id}`;
         const response = await enhancedFetch(apiUrl, {
-          method: 'DELETE',
+          method: "DELETE",
           headers: {
             Authorization: `Bearer ${process.env.GITLAB_TOKEN}`,
           },
@@ -322,11 +322,11 @@ export const milestonesToolRegistry: ToolRegistry = new Map<string, EnhancedTool
     },
   ],
   [
-    'promote_milestone',
+    "promote_milestone",
     {
-      name: 'promote_milestone',
+      name: "promote_milestone",
       description:
-        'Elevate project milestone to group level for cross-project coordination. Use when a milestone needs to span multiple projects. Consolidates related project milestones into single group milestone. Useful for organizational release planning.',
+        "Elevate project milestone to group level for cross-project coordination. Use when a milestone needs to span multiple projects. Consolidates related project milestones into single group milestone. Useful for organizational release planning.",
       inputSchema: zodToJsonSchema(PromoteProjectMilestoneSchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = PromoteProjectMilestoneSchema.parse(args);
@@ -335,13 +335,13 @@ export const milestonesToolRegistry: ToolRegistry = new Map<string, EnhancedTool
         // Resolve namespace - for promote, we need to ensure it's a project
         const { entityType, encodedPath } = await resolveNamespaceForAPI(namespacePath);
 
-        if (entityType !== 'projects') {
-          throw new Error('Milestone promotion is only available for projects, not groups');
+        if (entityType !== "projects") {
+          throw new Error("Milestone promotion is only available for projects, not groups");
         }
 
         const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${encodedPath}/milestones/${encodeURIComponent(milestone_id)}/promote`;
         const response = await enhancedFetch(apiUrl, {
-          method: 'POST',
+          method: "POST",
           headers: {
             Authorization: `Bearer ${process.env.GITLAB_TOKEN}`,
           },
@@ -363,11 +363,11 @@ export const milestonesToolRegistry: ToolRegistry = new Map<string, EnhancedTool
  */
 export function getMilestonesReadOnlyToolNames(): string[] {
   return [
-    'list_milestones',
-    'get_milestone',
-    'get_milestone_issue',
-    'get_milestone_merge_requests',
-    'get_milestone_burndown_events',
+    "list_milestones",
+    "get_milestone",
+    "get_milestone_issue",
+    "get_milestone_merge_requests",
+    "get_milestone_burndown_events",
   ];
 }
 
@@ -382,12 +382,12 @@ export function getMilestonesToolDefinitions(): EnhancedToolDefinition[] {
  * Get filtered tools based on read-only mode
  */
 export function getFilteredMilestonesTools(
-  readOnlyMode: boolean = false,
+  readOnlyMode: boolean = false
 ): EnhancedToolDefinition[] {
   if (readOnlyMode) {
     const readOnlyNames = getMilestonesReadOnlyToolNames();
-    return Array.from(milestonesToolRegistry.values()).filter((tool) =>
-      readOnlyNames.includes(tool.name),
+    return Array.from(milestonesToolRegistry.values()).filter(tool =>
+      readOnlyNames.includes(tool.name)
     );
   }
   return getMilestonesToolDefinitions();

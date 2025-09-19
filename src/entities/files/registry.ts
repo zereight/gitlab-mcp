@@ -1,10 +1,10 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
-import { zodToJsonSchema } from 'zod-to-json-schema';
-import { GetRepositoryTreeSchema, GetFileContentsSchema } from './schema-readonly';
-import { CreateOrUpdateFileSchema, PushFilesSchema, MarkdownUploadSchema } from './schema';
-import { enhancedFetch } from '../../utils/fetch';
-import { cleanGidsFromObject } from '../../utils/idConversion';
-import { ToolRegistry, EnhancedToolDefinition } from '../../types';
+import { zodToJsonSchema } from "zod-to-json-schema";
+import { GetRepositoryTreeSchema, GetFileContentsSchema } from "./schema-readonly";
+import { CreateOrUpdateFileSchema, PushFilesSchema, MarkdownUploadSchema } from "./schema";
+import { enhancedFetch } from "../../utils/fetch";
+import { cleanGidsFromObject } from "../../utils/idConversion";
+import { ToolRegistry, EnhancedToolDefinition } from "../../types";
 
 /**
  * Files tools registry - unified registry containing all file operation tools with their handlers
@@ -12,11 +12,11 @@ import { ToolRegistry, EnhancedToolDefinition } from '../../types';
 export const filesToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefinition>([
   // Read-only tools
   [
-    'get_repository_tree',
+    "get_repository_tree",
     {
-      name: 'get_repository_tree',
+      name: "get_repository_tree",
       description:
-        'BROWSE: List files/folders WITHOUT reading content. Use when: Exploring project structure, Finding file locations, Checking what exists. Returns: names, types (blob=file, tree=folder), sizes. Set recursive=true for full tree. Does NOT return file contents! See also: get_file_contents to READ actual content.',
+        "BROWSE: List files/folders WITHOUT reading content. Use when: Exploring project structure, Finding file locations, Checking what exists. Returns: names, types (blob=file, tree=folder), sizes. Set recursive=true for full tree. Does NOT return file contents! See also: get_file_contents to READ actual content.",
       inputSchema: zodToJsonSchema(GetRepositoryTreeSchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = GetRepositoryTreeSchema.parse(args);
@@ -24,7 +24,7 @@ export const filesToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefin
 
         const queryParams = new URLSearchParams();
         Object.entries(options).forEach(([key, value]) => {
-          if (value !== undefined && key !== 'project_id') {
+          if (value !== undefined && key !== "project_id") {
             queryParams.set(key, String(value));
           }
         });
@@ -46,11 +46,11 @@ export const filesToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefin
     },
   ],
   [
-    'get_file_contents',
+    "get_file_contents",
     {
-      name: 'get_file_contents',
+      name: "get_file_contents",
       description:
-        'READ: Get actual file content from repository. Use when: Reading source code, Viewing configs/docs, Getting file data. Returns base64-encoded content (decode required!) plus metadata. For browsing structure use get_repository_tree instead. Supports any branch/tag/commit via ref param.',
+        "READ: Get actual file content from repository. Use when: Reading source code, Viewing configs/docs, Getting file data. Returns base64-encoded content (decode required!) plus metadata. For browsing structure use get_repository_tree instead. Supports any branch/tag/commit via ref param.",
       inputSchema: zodToJsonSchema(GetFileContentsSchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = GetFileContentsSchema.parse(args);
@@ -58,7 +58,7 @@ export const filesToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefin
 
         const queryParams = new URLSearchParams();
         if (ref) {
-          queryParams.set('ref', ref);
+          queryParams.set("ref", ref);
         }
 
         const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${encodeURIComponent(project_id)}/repository/files/${encodeURIComponent(file_path)}?${queryParams}`;
@@ -79,11 +79,11 @@ export const filesToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefin
   ],
   // Write tools
   [
-    'create_or_update_file',
+    "create_or_update_file",
     {
-      name: 'create_or_update_file',
+      name: "create_or_update_file",
       description:
-        'SINGLE FILE: Create new OR update existing file in one commit. Use when: Changing ONE file only, Quick edits, Adding single document. Auto-detects create vs update. Content must be base64-encoded! For multiple files use push_files instead. Creates commit with your message.',
+        "SINGLE FILE: Create new OR update existing file in one commit. Use when: Changing ONE file only, Quick edits, Adding single document. Auto-detects create vs update. Content must be base64-encoded! For multiple files use push_files instead. Creates commit with your message.",
       inputSchema: zodToJsonSchema(CreateOrUpdateFileSchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = CreateOrUpdateFileSchema.parse(args);
@@ -91,17 +91,17 @@ export const filesToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefin
 
         const body = new URLSearchParams();
         Object.entries(options).forEach(([key, value]) => {
-          if (value !== undefined && key !== 'project_id' && key !== 'file_path') {
+          if (value !== undefined && key !== "project_id" && key !== "file_path") {
             body.set(key, String(value));
           }
         });
 
         const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${encodeURIComponent(project_id)}/repository/files/${encodeURIComponent(file_path)}`;
         const response = await enhancedFetch(apiUrl, {
-          method: 'POST',
+          method: "POST",
           headers: {
             Authorization: `Bearer ${process.env.GITLAB_TOKEN}`,
-            'Content-Type': 'application/x-www-form-urlencoded',
+            "Content-Type": "application/x-www-form-urlencoded",
           },
           body: body.toString(),
         });
@@ -116,22 +116,22 @@ export const filesToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefin
     },
   ],
   [
-    'push_files',
+    "push_files",
     {
-      name: 'push_files',
+      name: "push_files",
       description:
-        'BATCH: Commit MULTIPLE file changes atomically. Use when: Changing 2+ files together, Refactoring across files, Coordinated updates. More efficient than multiple single commits. Supports: create/update/delete/move operations. All changes in ONE commit. For single file use create_or_update_file.',
+        "BATCH: Commit MULTIPLE file changes atomically. Use when: Changing 2+ files together, Refactoring across files, Coordinated updates. More efficient than multiple single commits. Supports: create/update/delete/move operations. All changes in ONE commit. For single file use create_or_update_file.",
       inputSchema: zodToJsonSchema(PushFilesSchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = PushFilesSchema.parse(args);
         const { project_id } = options;
 
         // Convert files to actions format for GitLab API
-        const actions = options.files.map((file) => ({
-          action: 'create',
+        const actions = options.files.map(file => ({
+          action: "create",
           file_path: file.file_path,
           content: file.content,
-          encoding: file.encoding ?? 'text',
+          encoding: file.encoding ?? "text",
           execute_filemode: file.execute_filemode ?? false,
         }));
 
@@ -145,7 +145,7 @@ export const filesToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefin
         };
 
         // Remove undefined fields
-        Object.keys(body).forEach((key) => {
+        Object.keys(body).forEach(key => {
           if (body[key as keyof typeof body] === undefined) {
             delete body[key as keyof typeof body];
           }
@@ -153,10 +153,10 @@ export const filesToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefin
 
         const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${encodeURIComponent(project_id)}/repository/commits`;
         const response = await enhancedFetch(apiUrl, {
-          method: 'POST',
+          method: "POST",
           headers: {
             Authorization: `Bearer ${process.env.GITLAB_TOKEN}`,
-            'Content-Type': 'application/json',
+            "Content-Type": "application/json",
           },
           body: JSON.stringify(body),
         });
@@ -171,11 +171,11 @@ export const filesToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefin
     },
   ],
   [
-    'upload_markdown',
+    "upload_markdown",
     {
-      name: 'upload_markdown',
+      name: "upload_markdown",
       description:
-        'UPLOAD ASSET: Add images/docs for markdown embedding. Use when: Adding screenshots to issues/MRs, Uploading diagrams for wikis, Attaching files to documentation. Returns markdown-ready URL like ![](url). Stored in uploads, NOT repository. Supports: images, PDFs, any binary files.',
+        "UPLOAD ASSET: Add images/docs for markdown embedding. Use when: Adding screenshots to issues/MRs, Uploading diagrams for wikis, Attaching files to documentation. Returns markdown-ready URL like ![](url). Stored in uploads, NOT repository. Supports: images, PDFs, any binary files.",
       inputSchema: zodToJsonSchema(MarkdownUploadSchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = MarkdownUploadSchema.parse(args);
@@ -186,9 +186,9 @@ export const filesToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefin
 
         // Convert base64 file content to blob if needed
         let fileBlob: Blob;
-        if (typeof file === 'string') {
+        if (typeof file === "string") {
           // Assume it's base64 encoded
-          const binaryString = Buffer.from(file, 'base64').toString('binary');
+          const binaryString = Buffer.from(file, "base64").toString("binary");
           const bytes = new Uint8Array(binaryString.length);
           for (let i = 0; i < binaryString.length; i++) {
             bytes[i] = binaryString.charCodeAt(i);
@@ -198,11 +198,11 @@ export const filesToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefin
           fileBlob = file as Blob;
         }
 
-        formData.append('file', fileBlob, filename);
+        formData.append("file", fileBlob, filename);
 
         const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${encodeURIComponent(project_id)}/uploads`;
         const response = await enhancedFetch(apiUrl, {
-          method: 'POST',
+          method: "POST",
           headers: {
             Authorization: `Bearer ${process.env.GITLAB_TOKEN}`,
           },
@@ -224,7 +224,7 @@ export const filesToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefin
  * Get read-only tool names from the registry
  */
 export function getFilesReadOnlyToolNames(): string[] {
-  return ['get_repository_tree', 'get_file_contents'];
+  return ["get_repository_tree", "get_file_contents"];
 }
 
 /**
@@ -240,9 +240,7 @@ export function getFilesToolDefinitions(): EnhancedToolDefinition[] {
 export function getFilteredFilesTools(readOnlyMode: boolean = false): EnhancedToolDefinition[] {
   if (readOnlyMode) {
     const readOnlyNames = getFilesReadOnlyToolNames();
-    return Array.from(filesToolRegistry.values()).filter((tool) =>
-      readOnlyNames.includes(tool.name),
-    );
+    return Array.from(filesToolRegistry.values()).filter(tool => readOnlyNames.includes(tool.name));
   }
   return getFilesToolDefinitions();
 }

@@ -1,9 +1,9 @@
-import { z } from 'zod';
+import { z } from "zod";
 import {
   WorkItemIdSchema,
   WorkItemTypeEnumSchema,
   WorkItemStateEventSchema,
-} from './schema-readonly';
+} from "./schema-readonly";
 
 /**
  * CRITICAL: GitLab Work Items Hierarchy Rules for MCP Agents
@@ -35,26 +35,26 @@ export const CreateWorkItemSchema = z.object({
   namespacePath: z
     .string()
     .describe(
-      'CRITICAL: Namespace path (group OR project). For Epics use GROUP path (e.g. "my-group"). For Issues/Tasks use PROJECT path (e.g. "my-group/my-project"). Wrong level will cause creation to fail.',
+      'CRITICAL: Namespace path (group OR project). For Epics use GROUP path (e.g. "my-group"). For Issues/Tasks use PROJECT path (e.g. "my-group/my-project"). Wrong level will cause creation to fail.'
     ),
-  title: z.string().describe('Title of the work item'),
+  title: z.string().describe("Title of the work item"),
   workItemType: WorkItemTypeEnumSchema,
-  description: z.string().optional().describe('Description of the work item'),
-  assigneeIds: z.array(z.string()).optional().describe('Array of assignee user IDs'),
-  labelIds: z.array(z.string()).optional().describe('Array of label IDs'),
-  milestoneId: z.string().optional().describe('Milestone ID'),
+  description: z.string().optional().describe("Description of the work item"),
+  assigneeIds: z.array(z.string()).optional().describe("Array of assignee user IDs"),
+  labelIds: z.array(z.string()).optional().describe("Array of label IDs"),
+  milestoneId: z.string().optional().describe("Milestone ID"),
 });
 
 export const UpdateWorkItemSchema = z.object({
   id: WorkItemIdSchema,
-  title: z.string().optional().describe('New title for the work item'),
-  description: z.string().optional().describe('New description for the work item'),
+  title: z.string().optional().describe("New title for the work item"),
+  description: z.string().optional().describe("New description for the work item"),
   state: WorkItemStateEventSchema.optional().describe(
-    'State event for the work item (CLOSE, REOPEN)',
+    "State event for the work item (CLOSE, REOPEN)"
   ),
-  assigneeIds: z.array(z.string()).optional().describe('Array of assignee user IDs'),
-  labelIds: z.array(z.string()).optional().describe('Array of label IDs'),
-  milestoneId: z.string().optional().describe('Milestone ID'),
+  assigneeIds: z.array(z.string()).optional().describe("Array of assignee user IDs"),
+  labelIds: z.array(z.string()).optional().describe("Array of label IDs"),
+  milestoneId: z.string().optional().describe("Milestone ID"),
 });
 
 export const DeleteWorkItemSchema = z.object({

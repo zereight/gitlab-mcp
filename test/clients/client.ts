@@ -8,7 +8,8 @@ export interface MCPClientInterface {
   /**
    * Connect to MCP server
    */
-  connect(connectionString: string, options?: Record<string, any>): Promise<void>;
+  // eslint-disable-next-line no-unused-vars
+  connect(connectionString: string, options?: Record<string, unknown>): Promise<void>;
 
   /**
    * Disconnect from server
@@ -23,7 +24,8 @@ export interface MCPClientInterface {
   /**
    * Call a tool on the server
    */
-  callTool(name: string, arguments_?: Record<string, any>): Promise<CallToolResult>;
+  // eslint-disable-next-line no-unused-vars
+  callTool(name: string, arguments_?: Record<string, unknown>): Promise<CallToolResult>;
 
   /**
    * Test connection by listing tools
@@ -40,9 +42,13 @@ export interface MCPClientInterface {
  * Base error class for MCP client errors
  */
 export class MCPClientError extends Error {
-  constructor(message: string, public readonly cause?: Error) {
+  constructor(
+    message: string,
+    // eslint-disable-next-line no-unused-vars
+    public readonly _cause?: Error
+  ) {
     super(message);
-    this.name = 'MCPClientError';
+    this.name = "MCPClientError";
   }
 }
 
@@ -50,9 +56,9 @@ export class MCPClientError extends Error {
  * Connection error for MCP clients
  */
 export class MCPConnectionError extends MCPClientError {
-  constructor(message: string, cause?: Error) {
-    super(message, cause);
-    this.name = 'MCPConnectionError';
+  constructor(message: string, _cause?: Error) {
+    super(message, _cause);
+    this.name = "MCPConnectionError";
   }
 }
 
@@ -60,8 +66,13 @@ export class MCPConnectionError extends MCPClientError {
  * Tool call error for MCP clients
  */
 export class MCPToolCallError extends MCPClientError {
-  constructor(message: string, public readonly toolName?: string, cause?: Error) {
-    super(message, cause);
-    this.name = 'MCPToolCallError';
+  constructor(
+    message: string,
+    // eslint-disable-next-line no-unused-vars
+    public readonly _toolName?: string,
+    _cause?: Error
+  ) {
+    super(message, _cause);
+    this.name = "MCPToolCallError";
   }
-} 
+}

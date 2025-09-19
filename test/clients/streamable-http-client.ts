@@ -20,7 +20,7 @@ export class StreamableHTTPTestClient implements MCPClientInterface {
    */
   async connect(url: string): Promise<void> {
     if (this.transport) {
-      throw new MCPConnectionError('Client is already connected');
+      throw new MCPConnectionError("Client is already connected");
     }
 
     try {
@@ -44,7 +44,7 @@ export class StreamableHTTPTestClient implements MCPClientInterface {
         await this.transport.close();
       } catch (error) {
         // Log but don't throw on disconnect errors
-        console.warn('Warning during disconnect:', error);
+        console.warn("Warning during disconnect:", error);
       } finally {
         this.transport = null;
       }
@@ -56,7 +56,7 @@ export class StreamableHTTPTestClient implements MCPClientInterface {
    */
   async listTools(): Promise<ListToolsResult> {
     if (!this.transport) {
-      throw new MCPConnectionError('Client is not connected');
+      throw new MCPConnectionError("Client is not connected");
     }
 
     try {
@@ -65,7 +65,7 @@ export class StreamableHTTPTestClient implements MCPClientInterface {
     } catch (error) {
       throw new MCPToolCallError(
         `Failed to list tools: ${error instanceof Error ? error.message : String(error)}`,
-        'listTools',
+        "listTools",
         error instanceof Error ? error : undefined
       );
     }
@@ -74,9 +74,9 @@ export class StreamableHTTPTestClient implements MCPClientInterface {
   /**
    * Call a tool on the server
    */
-  async callTool(name: string, arguments_: Record<string, any> = {}): Promise<CallToolResult> {
+  async callTool(name: string, arguments_: Record<string, unknown> = {}): Promise<CallToolResult> {
     if (!this.transport) {
-      throw new MCPConnectionError('Client is not connected');
+      throw new MCPConnectionError("Client is not connected");
     }
 
     try {
@@ -99,7 +99,7 @@ export class StreamableHTTPTestClient implements MCPClientInterface {
     try {
       const tools = await this.listTools();
       return Array.isArray(tools.tools) && tools.tools.length > 0;
-    } catch (error) {
+    } catch {
       return false;
     }
   }
@@ -110,4 +110,4 @@ export class StreamableHTTPTestClient implements MCPClientInterface {
   get isConnected(): boolean {
     return this.transport !== null;
   }
-} 
+}

@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
-import { zodToJsonSchema } from 'zod-to-json-schema';
+import { zodToJsonSchema } from "zod-to-json-schema";
 import {
   SearchRepositoriesSchema,
   ListNamespacesSchema,
@@ -16,17 +16,17 @@ import {
   GetProjectEventsSchema,
   ListGroupIterationsSchema,
   DownloadAttachmentSchema,
-} from './schema-readonly';
+} from "./schema-readonly";
 import {
   CreateRepositorySchema,
   ForkRepositorySchema,
   CreateBranchSchema,
   CreateGroupSchema,
-} from './schema';
-import { enhancedFetch } from '../../utils/fetch';
-import { smartUserSearch, type UserSearchParams } from '../../utils/smart-user-search';
-import { cleanGidsFromObject } from '../../utils/idConversion';
-import { ToolRegistry, EnhancedToolDefinition } from '../../types';
+} from "./schema";
+import { enhancedFetch } from "../../utils/fetch";
+import { smartUserSearch, type UserSearchParams } from "../../utils/smart-user-search";
+import { cleanGidsFromObject } from "../../utils/idConversion";
+import { ToolRegistry, EnhancedToolDefinition } from "../../types";
 
 /**
  * Core tools registry - unified registry containing all core tools with their handlers
@@ -34,9 +34,9 @@ import { ToolRegistry, EnhancedToolDefinition } from '../../types';
 export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefinition>([
   // Read-only tools
   [
-    'search_repositories',
+    "search_repositories",
     {
-      name: 'search_repositories',
+      name: "search_repositories",
       description:
         "DISCOVER projects across ALL of GitLab using search criteria. Use when: You DON'T know the project name/path, Looking for ANY project (not just yours), Searching by language/keywords/topics. Use with_programming_language parameter for efficient language filtering. See also: Use list_projects for YOUR accessible projects only.",
       inputSchema: zodToJsonSchema(SearchRepositoriesSchema),
@@ -49,14 +49,14 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
 
         // Handle programming language filtering
         let finalLanguage = with_programming_language;
-        let finalSearchTerms = q ?? '';
+        let finalSearchTerms = q ?? "";
 
         // Parse operators from q parameter
         if (q && !with_programming_language) {
           const languageMatch = q.match(/language:(\w+)/);
           if (languageMatch) {
             finalLanguage = languageMatch[1];
-            finalSearchTerms = q.replace(/language:\w+/g, '').trim();
+            finalSearchTerms = q.replace(/language:\w+/g, "").trim();
           }
         }
 
@@ -66,8 +66,8 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
           if (userMatch) {
             // For now, we'll use owned=true as a proxy since we can't easily map username to user_id
             // This is a limitation of GitLab API requiring user_id rather than username
-            queryParams.set('owned', 'true');
-            finalSearchTerms = finalSearchTerms.replace(/user:\w+/g, '').trim();
+            queryParams.set("owned", "true");
+            finalSearchTerms = finalSearchTerms.replace(/user:\w+/g, "").trim();
           }
         }
 
@@ -75,21 +75,21 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
         if (q) {
           const topicMatches = q.match(/topic:(\w+)/g);
           if (topicMatches) {
-            const topics = topicMatches.map((match) => match.replace('topic:', ''));
-            queryParams.set('topic', topics.join(','));
-            finalSearchTerms = finalSearchTerms.replace(/topic:\w+/g, '').trim();
+            const topics = topicMatches.map(match => match.replace("topic:", ""));
+            queryParams.set("topic", topics.join(","));
+            finalSearchTerms = finalSearchTerms.replace(/topic:\w+/g, "").trim();
           }
         }
 
         // Set programming language filter
         if (finalLanguage) {
-          queryParams.set('with_programming_language', finalLanguage);
+          queryParams.set("with_programming_language", finalLanguage);
         }
 
         // Set search terms
         if (finalSearchTerms) {
           // Convert spaces to + for GitLab API
-          queryParams.set('search', finalSearchTerms.replace(/\s+/g, '+'));
+          queryParams.set("search", finalSearchTerms.replace(/\s+/g, "+"));
         }
 
         // Add other options
@@ -100,7 +100,7 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
         });
 
         // Only return active projects (exclude archived and marked for deletion)
-        queryParams.set('active', 'true');
+        queryParams.set("active", "true");
 
         // Make REAL GitLab API call to search projects
         const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects?${queryParams}`;
@@ -136,11 +136,11 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
     },
   ],
   [
-    'list_projects',
+    "list_projects",
     {
-      name: 'list_projects',
+      name: "list_projects",
       description:
-        'List GitLab projects with flexible scoping. DEFAULT (no group_id): Lists YOUR accessible projects across GitLab (owned/member/starred). Use for: browsing your projects, finding your work, managing personal project lists. GROUP SCOPE (with group_id): Lists all projects within a specific group/organization. Use for: exploring team structure, finding organizational projects, auditing group resources. Parameters automatically validate based on scope.',
+        "List GitLab projects with flexible scoping. DEFAULT (no group_id): Lists YOUR accessible projects across GitLab (owned/member/starred). Use for: browsing your projects, finding your work, managing personal project lists. GROUP SCOPE (with group_id): Lists all projects within a specific group/organization. Use for: exploring team structure, finding organizational projects, auditing group resources. Parameters automatically validate based on scope.",
       inputSchema: zodToJsonSchema(ListProjectsSchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = ListProjectsSchema.parse(args);
@@ -150,24 +150,24 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
         if (group_id) {
           // GROUP SCOPE: Validate no user-only parameters
           const userOnlyParams = [
-            'active',
-            'imported',
-            'membership',
-            'statistics',
-            'with_programming_language',
-            'wiki_checksum_failed',
-            'repository_checksum_failed',
-            'id_after',
-            'id_before',
-            'last_activity_after',
-            'last_activity_before',
-            'marked_for_deletion_on',
-            'repository_storage',
+            "active",
+            "imported",
+            "membership",
+            "statistics",
+            "with_programming_language",
+            "wiki_checksum_failed",
+            "repository_checksum_failed",
+            "id_after",
+            "id_before",
+            "last_activity_after",
+            "last_activity_before",
+            "marked_for_deletion_on",
+            "repository_storage",
           ];
-          const invalidParams = userOnlyParams.filter((param) => otherOptions[param] !== undefined);
+          const invalidParams = userOnlyParams.filter(param => otherOptions[param] !== undefined);
           if (invalidParams.length > 0) {
             throw new Error(
-              `Invalid parameters for group scope: ${invalidParams.join(', ')}. These parameters are only valid without group_id (user scope).`,
+              `Invalid parameters for group scope: ${invalidParams.join(", ")}. These parameters are only valid without group_id (user scope).`
             );
           }
 
@@ -176,8 +176,8 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
 
           // Set sensible defaults for group scope
           const groupDefaults = {
-            order_by: 'created_at',
-            sort: 'desc',
+            order_by: "created_at",
+            sort: "desc",
             simple: true,
             per_page: 20,
           };
@@ -208,19 +208,17 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
         } else {
           // USER SCOPE: Validate no group-only parameters
           const groupOnlyParams = [
-            'include_subgroups',
-            'with_shared',
-            'with_security_reports',
-            'topic',
-            'with_issues_enabled',
-            'with_merge_requests_enabled',
+            "include_subgroups",
+            "with_shared",
+            "with_security_reports",
+            "topic",
+            "with_issues_enabled",
+            "with_merge_requests_enabled",
           ];
-          const invalidParams = groupOnlyParams.filter(
-            (param) => otherOptions[param] !== undefined,
-          );
+          const invalidParams = groupOnlyParams.filter(param => otherOptions[param] !== undefined);
           if (invalidParams.length > 0) {
             throw new Error(
-              `Invalid parameters for user scope: ${invalidParams.join(', ')}. These parameters require group_id (group scope).`,
+              `Invalid parameters for user scope: ${invalidParams.join(", ")}. These parameters require group_id (group scope).`
             );
           }
 
@@ -230,8 +228,8 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
           // Set sensible defaults
           const defaults = {
             active: true,
-            order_by: 'created_at',
-            sort: 'desc',
+            order_by: "created_at",
+            sort: "desc",
             simple: true,
             per_page: 20,
           };
@@ -264,11 +262,11 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
     },
   ],
   [
-    'list_namespaces',
+    "list_namespaces",
     {
-      name: 'list_namespaces',
+      name: "list_namespaces",
       description:
-        'BROWSE: List GitLab namespaces (groups and user namespaces) accessible to you. Use when: Discovering available groups for project creation, Browsing organizational structure, Finding where to create/fork projects. Returns both user and group namespaces. See also: get_namespace for specific namespace details.',
+        "BROWSE: List GitLab namespaces (groups and user namespaces) accessible to you. Use when: Discovering available groups for project creation, Browsing organizational structure, Finding where to create/fork projects. Returns both user and group namespaces. See also: get_namespace for specific namespace details.",
       inputSchema: zodToJsonSchema(ListNamespacesSchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = ListNamespacesSchema.parse(args);
@@ -297,9 +295,9 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
     },
   ],
   [
-    'get_users',
+    "get_users",
     {
-      name: 'get_users',
+      name: "get_users",
       description:
         'FIND USERS: Search and retrieve GitLab users with intelligent pattern detection. RECOMMENDED: Use "search" parameter for most queries - automatically detects emails, usernames, or names with automatic transliteration and multi-phase fallback search. ADVANCED: Use "username" or "public_email" for exact matches when you need precise control. Supports filtering by active status, creation date, and user type (human/bot).',
       inputSchema: zodToJsonSchema(GetUsersSchema),
@@ -319,12 +317,12 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
 
         if (shouldUseSmartSearch && (search || username || public_email)) {
           // Smart search mode: auto-detect pattern and use intelligent search strategy
-          const query = search ?? username ?? public_email ?? '';
+          const query = search ?? username ?? public_email ?? "";
           const additionalParams: UserSearchParams = {};
 
           // Pass through all other filter parameters
           Object.entries(otherParams).forEach(([key, value]) => {
-            if (value !== undefined && key !== 'smart_search') {
+            if (value !== undefined && key !== "smart_search") {
               additionalParams[key] = value;
             }
           });
@@ -335,7 +333,7 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
           // Legacy mode: direct GitLab API call with all provided parameters
           const queryParams = new URLSearchParams();
           Object.entries(options).forEach(([key, value]) => {
-            if (value !== undefined && key !== 'smart_search') {
+            if (value !== undefined && key !== "smart_search") {
               queryParams.set(key, String(value));
             }
           });
@@ -358,11 +356,11 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
     },
   ],
   [
-    'get_project',
+    "get_project",
     {
-      name: 'get_project',
+      name: "get_project",
       description:
-        'GET DETAILS: Retrieve comprehensive project information including settings and metadata. Use when: Need complete project details, Checking project configuration, Getting project statistics. Requires project ID or URL-encoded path (group%2Fproject). See also: list_projects to find projects first.',
+        "GET DETAILS: Retrieve comprehensive project information including settings and metadata. Use when: Need complete project details, Checking project configuration, Getting project statistics. Requires project ID or URL-encoded path (group%2Fproject). See also: list_projects to find projects first.",
       inputSchema: zodToJsonSchema(GetProjectSchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = GetProjectSchema.parse(args);
@@ -370,7 +368,7 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
 
         const queryParams = new URLSearchParams();
         Object.entries(options).forEach(([key, value]) => {
-          if (value !== undefined && key !== 'project_id') {
+          if (value !== undefined && key !== "project_id") {
             queryParams.set(key, String(value));
           }
         });
@@ -393,11 +391,11 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
   ],
   // Additional core read-only tools
   [
-    'get_namespace',
+    "get_namespace",
     {
-      name: 'get_namespace',
+      name: "get_namespace",
       description:
-        'GET DETAILS: Retrieve comprehensive namespace information (group or user). Use when: Need complete namespace metadata, Checking namespace settings, Getting storage statistics. Requires namespace ID or URL-encoded path. See also: list_namespaces to browse all namespaces.',
+        "GET DETAILS: Retrieve comprehensive namespace information (group or user). Use when: Need complete namespace metadata, Checking namespace settings, Getting storage statistics. Requires namespace ID or URL-encoded path. See also: list_namespaces to browse all namespaces.",
       inputSchema: zodToJsonSchema(GetNamespaceSchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = GetNamespaceSchema.parse(args);
@@ -420,11 +418,11 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
     },
   ],
   [
-    'verify_namespace',
+    "verify_namespace",
     {
-      name: 'verify_namespace',
+      name: "verify_namespace",
       description:
-        'CHECK EXISTS: Verify if a namespace path exists and is accessible. Use when: Checking namespace availability before creation, Validating namespace references, Testing access permissions. Returns exists=true/false with namespace details if found. Faster than list_namespaces for existence checks.',
+        "CHECK EXISTS: Verify if a namespace path exists and is accessible. Use when: Checking namespace availability before creation, Validating namespace references, Testing access permissions. Returns exists=true/false with namespace details if found. Faster than list_namespaces for existence checks.",
       inputSchema: zodToJsonSchema(VerifyNamespaceSchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = VerifyNamespaceSchema.parse(args);
@@ -447,11 +445,11 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
     },
   ],
   [
-    'list_project_members',
+    "list_project_members",
     {
-      name: 'list_project_members',
+      name: "list_project_members",
       description:
-        'TEAM MEMBERS: List all members of a project with their access levels. Use when: Auditing project access, Finding collaborators, Checking user permissions. Shows access levels: 10=Guest, 20=Reporter, 30=Developer, 40=Maintainer, 50=Owner. Supports username filtering.',
+        "TEAM MEMBERS: List all members of a project with their access levels. Use when: Auditing project access, Finding collaborators, Checking user permissions. Shows access levels: 10=Guest, 20=Reporter, 30=Developer, 40=Maintainer, 50=Owner. Supports username filtering.",
       inputSchema: zodToJsonSchema(ListProjectMembersSchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = ListProjectMembersSchema.parse(args);
@@ -459,7 +457,7 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
 
         const queryParams = new URLSearchParams();
         Object.entries(options).forEach(([key, value]) => {
-          if (value !== undefined && key !== 'project_id') {
+          if (value !== undefined && key !== "project_id") {
             queryParams.set(key, String(value));
           }
         });
@@ -481,11 +479,11 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
     },
   ],
   [
-    'list_commits',
+    "list_commits",
     {
-      name: 'list_commits',
+      name: "list_commits",
       description:
-        'HISTORY: List repository commit history with filtering. Use when: Analyzing project history, Finding commits by author/date, Tracking file changes. Supports date ranges (since/until), author filter, and specific file paths. See also: get_commit for specific commit details.',
+        "HISTORY: List repository commit history with filtering. Use when: Analyzing project history, Finding commits by author/date, Tracking file changes. Supports date ranges (since/until), author filter, and specific file paths. See also: get_commit for specific commit details.",
       inputSchema: zodToJsonSchema(ListCommitsSchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = ListCommitsSchema.parse(args);
@@ -493,7 +491,7 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
 
         const queryParams = new URLSearchParams();
         Object.entries(options).forEach(([key, value]) => {
-          if (value !== undefined && key !== 'project_id') {
+          if (value !== undefined && key !== "project_id") {
             queryParams.set(key, String(value));
           }
         });
@@ -515,11 +513,11 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
     },
   ],
   [
-    'get_commit',
+    "get_commit",
     {
-      name: 'get_commit',
+      name: "get_commit",
       description:
-        'COMMIT DETAILS: Get comprehensive information about a specific commit. Use when: Inspecting commit metadata, Reviewing change statistics, Getting commit message/author. Shows additions/deletions per file with stats=true. See also: get_commit_diff for actual code changes.',
+        "COMMIT DETAILS: Get comprehensive information about a specific commit. Use when: Inspecting commit metadata, Reviewing change statistics, Getting commit message/author. Shows additions/deletions per file with stats=true. See also: get_commit_diff for actual code changes.",
       inputSchema: zodToJsonSchema(GetCommitSchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = GetCommitSchema.parse(args);
@@ -527,7 +525,7 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
 
         const queryParams = new URLSearchParams();
         Object.entries(options).forEach(([key, value]) => {
-          if (value !== undefined && key !== 'project_id' && key !== 'commit_sha') {
+          if (value !== undefined && key !== "project_id" && key !== "commit_sha") {
             queryParams.set(key, String(value));
           }
         });
@@ -549,11 +547,11 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
     },
   ],
   [
-    'get_commit_diff',
+    "get_commit_diff",
     {
-      name: 'get_commit_diff',
+      name: "get_commit_diff",
       description:
-        'COMMIT DIFF: Get actual code changes from a commit. Use when: Reviewing code modifications, Generating patches, Analyzing line-by-line changes. Returns unified diff format (git diff style). See also: get_commit for metadata without diff.',
+        "COMMIT DIFF: Get actual code changes from a commit. Use when: Reviewing code modifications, Generating patches, Analyzing line-by-line changes. Returns unified diff format (git diff style). See also: get_commit for metadata without diff.",
       inputSchema: zodToJsonSchema(GetCommitDiffSchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = GetCommitDiffSchema.parse(args);
@@ -561,7 +559,7 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
 
         const queryParams = new URLSearchParams();
         Object.entries(options).forEach(([key, value]) => {
-          if (value !== undefined && key !== 'project_id' && key !== 'commit_sha') {
+          if (value !== undefined && key !== "project_id" && key !== "commit_sha") {
             queryParams.set(key, String(value));
           }
         });
@@ -583,11 +581,11 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
     },
   ],
   [
-    'list_group_iterations',
+    "list_group_iterations",
     {
-      name: 'list_group_iterations',
+      name: "list_group_iterations",
       description:
-        'SPRINTS: List iterations/sprints for agile planning (Premium feature). Use when: Viewing sprint schedules, Tracking iteration progress, Planning releases. Filter by state: current=active sprint, upcoming=future, closed=completed. Requires GitLab Premium or higher.',
+        "SPRINTS: List iterations/sprints for agile planning (Premium feature). Use when: Viewing sprint schedules, Tracking iteration progress, Planning releases. Filter by state: current=active sprint, upcoming=future, closed=completed. Requires GitLab Premium or higher.",
       inputSchema: zodToJsonSchema(ListGroupIterationsSchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = ListGroupIterationsSchema.parse(args);
@@ -595,7 +593,7 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
 
         const queryParams = new URLSearchParams();
         Object.entries(options).forEach(([key, value]) => {
-          if (value !== undefined && key !== 'group_id') {
+          if (value !== undefined && key !== "group_id") {
             queryParams.set(key, String(value));
           }
         });
@@ -617,11 +615,11 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
     },
   ],
   [
-    'download_attachment',
+    "download_attachment",
     {
-      name: 'download_attachment',
+      name: "download_attachment",
       description:
-        'DOWNLOAD: Retrieve uploaded file attachments from issues/MRs/wikis. Use when: Downloading images from issues, Getting attached documents, Retrieving uploaded files. Requires secret token and filename from the attachment URL (/uploads/[secret]/[filename]).',
+        "DOWNLOAD: Retrieve uploaded file attachments from issues/MRs/wikis. Use when: Downloading images from issues, Getting attached documents, Retrieving uploaded files. Requires secret token and filename from the attachment URL (/uploads/[secret]/[filename]).",
       inputSchema: zodToJsonSchema(DownloadAttachmentSchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = DownloadAttachmentSchema.parse(args);
@@ -641,18 +639,18 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
         const attachment = await response.arrayBuffer();
         return {
           filename,
-          content: Buffer.from(attachment).toString('base64'),
-          contentType: response.headers.get('content-type') ?? 'application/octet-stream',
+          content: Buffer.from(attachment).toString("base64"),
+          contentType: response.headers.get("content-type") ?? "application/octet-stream",
         };
       },
     },
   ],
   [
-    'list_events',
+    "list_events",
     {
-      name: 'list_events',
+      name: "list_events",
       description:
-        'USER ACTIVITY: List YOUR activity events across all projects. Use when: Tracking your contributions, Auditing your actions, Reviewing your history. Date format: YYYY-MM-DD only (not timestamps). Filters: action=created/updated/pushed, target_type=issue/merge_request.',
+        "USER ACTIVITY: List YOUR activity events across all projects. Use when: Tracking your contributions, Auditing your actions, Reviewing your history. Date format: YYYY-MM-DD only (not timestamps). Filters: action=created/updated/pushed, target_type=issue/merge_request.",
       inputSchema: zodToJsonSchema(ListEventsSchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = ListEventsSchema.parse(args);
@@ -681,11 +679,11 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
     },
   ],
   [
-    'get_project_events',
+    "get_project_events",
     {
-      name: 'get_project_events',
+      name: "get_project_events",
       description:
-        'PROJECT ACTIVITY: List all events within a specific project. Use when: Monitoring project activity, Tracking team contributions, Auditing project changes. Date format: YYYY-MM-DD only (not timestamps). Shows: commits, issues, MRs, member changes.',
+        "PROJECT ACTIVITY: List all events within a specific project. Use when: Monitoring project activity, Tracking team contributions, Auditing project changes. Date format: YYYY-MM-DD only (not timestamps). Shows: commits, issues, MRs, member changes.",
       inputSchema: zodToJsonSchema(GetProjectEventsSchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = GetProjectEventsSchema.parse(args);
@@ -693,7 +691,7 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
 
         const queryParams = new URLSearchParams();
         Object.entries(options).forEach(([key, value]) => {
-          if (value !== undefined && key !== 'project_id') {
+          if (value !== undefined && key !== "project_id") {
             queryParams.set(key, String(value));
           }
         });
@@ -717,11 +715,11 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
 
   // Write tools
   [
-    'create_repository',
+    "create_repository",
     {
-      name: 'create_repository',
+      name: "create_repository",
       description:
-        'CREATE NEW: Initialize a new GitLab project/repository with automatic validation. Features: (1) Automatically checks if project already exists before creation, (2) Resolves namespace paths to IDs automatically, (3) Generates URL-safe project path from name, (4) Returns detailed validation information. Use when: Starting new projects, Setting up repository structure, Automating project creation. Creates in your namespace by default if no namespace specified.',
+        "CREATE NEW: Initialize a new GitLab project/repository with automatic validation. Features: (1) Automatically checks if project already exists before creation, (2) Resolves namespace paths to IDs automatically, (3) Generates URL-safe project path from name, (4) Returns detailed validation information. Use when: Starting new projects, Setting up repository structure, Automating project creation. Creates in your namespace by default if no namespace specified.",
       inputSchema: zodToJsonSchema(CreateRepositorySchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = CreateRepositorySchema.parse(args);
@@ -752,7 +750,7 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
         // Step 2: Check if project already exists in target namespace
         const targetNamespacePath = resolvedNamespace
           ? resolvedNamespace.full_path
-          : 'current-user';
+          : "current-user";
         const projectPath = `${targetNamespacePath}/${name}`;
 
         const checkProjectUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${encodeURIComponent(projectPath)}`;
@@ -765,7 +763,7 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
         if (checkResponse.ok) {
           const existingProject = (await checkResponse.json()) as { id: string };
           throw new Error(
-            `Project '${projectPath}' already exists (ID: ${existingProject.id}). Use a different name or update the existing project.`,
+            `Project '${projectPath}' already exists (ID: ${existingProject.id}). Use a different name or update the existing project.`
           );
         }
 
@@ -773,26 +771,26 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
         const body = new URLSearchParams();
 
         // Add required name
-        body.set('name', name);
+        body.set("name", name);
 
         // Generate path from name (replace spaces and special chars)
         const generatedPath = name
           .toLowerCase()
-          .replace(/[^a-z0-9-]/g, '-')
-          .replace(/-+/g, '-')
-          .replace(/^-|-$/g, '');
-        body.set('path', generatedPath);
+          .replace(/[^a-z0-9-]/g, "-")
+          .replace(/-+/g, "-")
+          .replace(/^-|-$/g, "");
+        body.set("path", generatedPath);
 
         // Add namespace_id if resolved
         if (namespaceId) {
-          body.set('namespace_id', namespaceId);
+          body.set("namespace_id", namespaceId);
         }
 
         // Add all other options
         Object.entries(otherOptions).forEach(([key, value]) => {
           if (value !== undefined) {
             if (Array.isArray(value)) {
-              body.set(key, value.join(','));
+              body.set(key, value.join(","));
             } else {
               body.set(key, String(value));
             }
@@ -801,17 +799,17 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
 
         const createApiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects`;
         const createResponse = await enhancedFetch(createApiUrl, {
-          method: 'POST',
+          method: "POST",
           headers: {
             Authorization: `Bearer ${process.env.GITLAB_TOKEN}`,
-            'Content-Type': 'application/x-www-form-urlencoded',
+            "Content-Type": "application/x-www-form-urlencoded",
           },
           body: body.toString(),
         });
 
         if (!createResponse.ok) {
           throw new Error(
-            `GitLab API error: ${createResponse.status} ${createResponse.statusText}`,
+            `GitLab API error: ${createResponse.status} ${createResponse.statusText}`
           );
         }
 
@@ -823,7 +821,7 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
           validation: {
             namespace_resolved: namespacePath
               ? `${namespacePath} → ${namespaceId}`
-              : 'current-user',
+              : "current-user",
             project_name_available: true,
             created_in_expected_namespace:
               !namespacePath ||
@@ -836,28 +834,28 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
     },
   ],
   [
-    'fork_repository',
+    "fork_repository",
     {
-      name: 'fork_repository',
+      name: "fork_repository",
       description:
-        'FORK: Create your own copy of an existing project. Use when: Contributing to other projects, Creating experimental versions, Maintaining custom forks. Preserves fork relationship for MRs back to parent. Target namespace optional (defaults to your namespace).',
+        "FORK: Create your own copy of an existing project. Use when: Contributing to other projects, Creating experimental versions, Maintaining custom forks. Preserves fork relationship for MRs back to parent. Target namespace optional (defaults to your namespace).",
       inputSchema: zodToJsonSchema(ForkRepositorySchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = ForkRepositorySchema.parse(args);
 
         const body = new URLSearchParams();
         Object.entries(options).forEach(([key, value]) => {
-          if (value !== undefined && key !== 'project_id') {
+          if (value !== undefined && key !== "project_id") {
             body.set(key, String(value));
           }
         });
 
         const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${encodeURIComponent(options.project_id)}/fork`;
         const response = await enhancedFetch(apiUrl, {
-          method: 'POST',
+          method: "POST",
           headers: {
             Authorization: `Bearer ${process.env.GITLAB_TOKEN}`,
-            'Content-Type': 'application/x-www-form-urlencoded',
+            "Content-Type": "application/x-www-form-urlencoded",
           },
           body: body.toString(),
         });
@@ -872,25 +870,25 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
     },
   ],
   [
-    'create_branch',
+    "create_branch",
     {
-      name: 'create_branch',
+      name: "create_branch",
       description:
-        'NEW BRANCH: Create a Git branch from existing ref. Use when: Starting new features, Preparing bug fixes, Creating release branches. REQUIRED before creating MRs. Ref can be: branch name (main), tag (v1.0), or commit SHA. Branch names cannot contain spaces.',
+        "NEW BRANCH: Create a Git branch from existing ref. Use when: Starting new features, Preparing bug fixes, Creating release branches. REQUIRED before creating MRs. Ref can be: branch name (main), tag (v1.0), or commit SHA. Branch names cannot contain spaces.",
       inputSchema: zodToJsonSchema(CreateBranchSchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = CreateBranchSchema.parse(args);
 
         const body = new URLSearchParams();
-        body.set('branch', options.branch);
-        body.set('ref', options.ref);
+        body.set("branch", options.branch);
+        body.set("ref", options.ref);
 
         const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${encodeURIComponent(options.project_id)}/repository/branches`;
         const response = await enhancedFetch(apiUrl, {
-          method: 'POST',
+          method: "POST",
           headers: {
             Authorization: `Bearer ${process.env.GITLAB_TOKEN}`,
-            'Content-Type': 'application/x-www-form-urlencoded',
+            "Content-Type": "application/x-www-form-urlencoded",
           },
           body: body.toString(),
         });
@@ -905,37 +903,37 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
     },
   ],
   [
-    'create_group',
+    "create_group",
     {
-      name: 'create_group',
+      name: "create_group",
       description:
-        'CREATE GROUP: Create a new GitLab group/namespace for organizing projects and teams. Use when: Setting up team spaces, Creating organizational structure, Establishing project hierarchies. Groups can contain projects and subgroups.',
+        "CREATE GROUP: Create a new GitLab group/namespace for organizing projects and teams. Use when: Setting up team spaces, Creating organizational structure, Establishing project hierarchies. Groups can contain projects and subgroups.",
       inputSchema: zodToJsonSchema(CreateGroupSchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = CreateGroupSchema.parse(args);
         const body = new URLSearchParams();
 
         // Add required fields
-        body.set('name', options.name);
-        body.set('path', options.path);
+        body.set("name", options.name);
+        body.set("path", options.path);
 
         // Add optional fields
-        if (options.description) body.set('description', options.description);
-        if (options.visibility) body.set('visibility', options.visibility);
-        if (options.parent_id !== undefined) body.set('parent_id', String(options.parent_id));
-        if (options.lfs_enabled !== undefined) body.set('lfs_enabled', String(options.lfs_enabled));
+        if (options.description) body.set("description", options.description);
+        if (options.visibility) body.set("visibility", options.visibility);
+        if (options.parent_id !== undefined) body.set("parent_id", String(options.parent_id));
+        if (options.lfs_enabled !== undefined) body.set("lfs_enabled", String(options.lfs_enabled));
         if (options.request_access_enabled !== undefined)
-          body.set('request_access_enabled', String(options.request_access_enabled));
+          body.set("request_access_enabled", String(options.request_access_enabled));
         if (options.default_branch_protection !== undefined)
-          body.set('default_branch_protection', String(options.default_branch_protection));
-        if (options.avatar) body.set('avatar', options.avatar);
+          body.set("default_branch_protection", String(options.default_branch_protection));
+        if (options.avatar) body.set("avatar", options.avatar);
 
         const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/groups`;
         const response = await enhancedFetch(apiUrl, {
-          method: 'POST',
+          method: "POST",
           headers: {
             Authorization: `Bearer ${process.env.GITLAB_TOKEN}`,
-            'Content-Type': 'application/x-www-form-urlencoded',
+            "Content-Type": "application/x-www-form-urlencoded",
           },
           body: body.toString(),
         });
@@ -957,21 +955,21 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
 export function getCoreReadOnlyToolNames(): string[] {
   // Return tools that are considered read-only
   return [
-    'search_repositories',
-    'list_namespaces',
-    'get_namespace',
-    'verify_namespace',
-    'get_project',
-    'list_projects',
-    'list_project_members',
-    'get_users',
-    'list_commits',
-    'get_commit',
-    'get_commit_diff',
-    'list_group_iterations',
-    'download_attachment',
-    'list_events',
-    'get_project_events',
+    "search_repositories",
+    "list_namespaces",
+    "get_namespace",
+    "verify_namespace",
+    "get_project",
+    "list_projects",
+    "list_project_members",
+    "get_users",
+    "list_commits",
+    "get_commit",
+    "get_commit_diff",
+    "list_group_iterations",
+    "download_attachment",
+    "list_events",
+    "get_project_events",
   ];
 }
 
@@ -988,9 +986,7 @@ export function getCoreToolDefinitions(): EnhancedToolDefinition[] {
 export function getFilteredCoreTools(readOnlyMode: boolean = false): EnhancedToolDefinition[] {
   if (readOnlyMode) {
     const readOnlyNames = getCoreReadOnlyToolNames();
-    return Array.from(coreToolRegistry.values()).filter((tool) =>
-      readOnlyNames.includes(tool.name),
-    );
+    return Array.from(coreToolRegistry.values()).filter(tool => readOnlyNames.includes(tool.name));
   }
   return getCoreToolDefinitions();
 }

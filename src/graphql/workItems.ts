@@ -1,5 +1,5 @@
-import { gql } from 'graphql-tag';
-import { TypedDocumentNode } from '@graphql-typed-document-node/core';
+import { gql } from "graphql-tag";
+import { TypedDocumentNode } from "@graphql-typed-document-node/core";
 
 // Work Item Types
 export interface WorkItem {
@@ -39,51 +39,51 @@ export interface WorkItemUpdateInput {
 }
 
 // Work Item State enum - defines possible states
-export type WorkItemState = 'OPEN' | 'CLOSED';
+export type WorkItemState = "OPEN" | "CLOSED";
 
 // Work Item Type enum - defines all available work item types
 export type WorkItemTypeEnum =
-  | 'EPIC'
-  | 'ISSUE'
-  | 'TASK'
-  | 'INCIDENT'
-  | 'TEST_CASE'
-  | 'REQUIREMENT'
-  | 'OBJECTIVE'
-  | 'KEY_RESULT';
+  | "EPIC"
+  | "ISSUE"
+  | "TASK"
+  | "INCIDENT"
+  | "TEST_CASE"
+  | "REQUIREMENT"
+  | "OBJECTIVE"
+  | "KEY_RESULT";
 
 // Work Item Widget Type constants
 export const WorkItemWidgetTypes = {
-  ASSIGNEES: 'ASSIGNEES',
-  DESCRIPTION: 'DESCRIPTION',
-  HIERARCHY: 'HIERARCHY',
-  LABELS: 'LABELS',
-  MILESTONE: 'MILESTONE',
-  NOTES: 'NOTES',
-  START_AND_DUE_DATE: 'START_AND_DUE_DATE',
-  HEALTH_STATUS: 'HEALTH_STATUS',
-  WEIGHT: 'WEIGHT',
-  ITERATION: 'ITERATION',
-  PROGRESS: 'PROGRESS',
-  STATUS: 'STATUS',
-  REQUIREMENT_LEGACY: 'REQUIREMENT_LEGACY',
-  TEST_REPORTS: 'TEST_REPORTS',
-  NOTIFICATIONS: 'NOTIFICATIONS',
-  CURRENT_USER_TODOS: 'CURRENT_USER_TODOS',
-  AWARD_EMOJI: 'AWARD_EMOJI',
-  LINKED_ITEMS: 'LINKED_ITEMS',
-  COLOR: 'COLOR',
+  ASSIGNEES: "ASSIGNEES",
+  DESCRIPTION: "DESCRIPTION",
+  HIERARCHY: "HIERARCHY",
+  LABELS: "LABELS",
+  MILESTONE: "MILESTONE",
+  NOTES: "NOTES",
+  START_AND_DUE_DATE: "START_AND_DUE_DATE",
+  HEALTH_STATUS: "HEALTH_STATUS",
+  WEIGHT: "WEIGHT",
+  ITERATION: "ITERATION",
+  PROGRESS: "PROGRESS",
+  STATUS: "STATUS",
+  REQUIREMENT_LEGACY: "REQUIREMENT_LEGACY",
+  TEST_REPORTS: "TEST_REPORTS",
+  NOTIFICATIONS: "NOTIFICATIONS",
+  CURRENT_USER_TODOS: "CURRENT_USER_TODOS",
+  AWARD_EMOJI: "AWARD_EMOJI",
+  LINKED_ITEMS: "LINKED_ITEMS",
+  COLOR: "COLOR",
   // New widgets discovered on GitLab instance
-  PARTICIPANTS: 'PARTICIPANTS',
-  DESIGNS: 'DESIGNS',
-  DEVELOPMENT: 'DEVELOPMENT',
-  CRM_CONTACTS: 'CRM_CONTACTS',
-  TIME_TRACKING: 'TIME_TRACKING',
-  EMAIL_PARTICIPANTS: 'EMAIL_PARTICIPANTS',
-  CUSTOM_FIELDS: 'CUSTOM_FIELDS',
-  ERROR_TRACKING: 'ERROR_TRACKING',
-  LINKED_RESOURCES: 'LINKED_RESOURCES',
-  VULNERABILITIES: 'VULNERABILITIES',
+  PARTICIPANTS: "PARTICIPANTS",
+  DESIGNS: "DESIGNS",
+  DEVELOPMENT: "DEVELOPMENT",
+  CRM_CONTACTS: "CRM_CONTACTS",
+  TIME_TRACKING: "TIME_TRACKING",
+  EMAIL_PARTICIPANTS: "EMAIL_PARTICIPANTS",
+  CUSTOM_FIELDS: "CUSTOM_FIELDS",
+  ERROR_TRACKING: "ERROR_TRACKING",
+  LINKED_RESOURCES: "LINKED_RESOURCES",
+  VULNERABILITIES: "VULNERABILITIES",
 } as const;
 
 // Work Item Widget Type type - defines all available widget types
@@ -94,7 +94,7 @@ export interface WorkItemWidget {
 }
 
 export interface WorkItemAssigneesWidget extends WorkItemWidget {
-  type: 'ASSIGNEES';
+  type: "ASSIGNEES";
   allowsMultipleAssignees: boolean;
   canInviteMembers: boolean;
   assignees: {
@@ -103,7 +103,7 @@ export interface WorkItemAssigneesWidget extends WorkItemWidget {
 }
 
 export interface WorkItemDescriptionWidget extends WorkItemWidget {
-  type: 'DESCRIPTION';
+  type: "DESCRIPTION";
   description: string;
   descriptionHtml: string;
   edited: boolean;
@@ -112,7 +112,7 @@ export interface WorkItemDescriptionWidget extends WorkItemWidget {
 }
 
 export interface WorkItemHierarchyWidget extends WorkItemWidget {
-  type: 'HIERARCHY';
+  type: "HIERARCHY";
   parent?: WorkItem;
   children: {
     nodes: WorkItem[];
@@ -121,7 +121,7 @@ export interface WorkItemHierarchyWidget extends WorkItemWidget {
 }
 
 export interface WorkItemLabelsWidget extends WorkItemWidget {
-  type: 'LABELS';
+  type: "LABELS";
   allowsScopedLabels: boolean;
   labels: {
     nodes: Label[];
@@ -154,45 +154,45 @@ export interface Milestone {
   webUrl: string;
 }
 
-export type MilestoneStateEnum = 'active' | 'closed';
+export type MilestoneStateEnum = "active" | "closed";
 
 // New widget interfaces for GitLab Ultimate features
 export interface WorkItemMilestoneWidget extends WorkItemWidget {
-  type: 'MILESTONE';
+  type: "MILESTONE";
   milestone?: Milestone;
 }
 
 export interface WorkItemNotesWidget extends WorkItemWidget {
-  type: 'NOTES';
+  type: "NOTES";
   discussions: {
     nodes: Discussion[];
   };
 }
 
 export interface WorkItemStartAndDueDateWidget extends WorkItemWidget {
-  type: 'START_AND_DUE_DATE';
+  type: "START_AND_DUE_DATE";
   startDate?: string;
   dueDate?: string;
   isFixed: boolean;
 }
 
 export interface WorkItemHealthStatusWidget extends WorkItemWidget {
-  type: 'HEALTH_STATUS';
+  type: "HEALTH_STATUS";
   healthStatus?: HealthStatusEnum;
 }
 
 export interface WorkItemWeightWidget extends WorkItemWidget {
-  type: 'WEIGHT';
+  type: "WEIGHT";
   weight?: number;
 }
 
 export interface WorkItemStatusWidget extends WorkItemWidget {
-  type: 'STATUS';
+  type: "STATUS";
   status?: string;
 }
 
 export interface WorkItemTimeTrackingWidget extends WorkItemWidget {
-  type: 'TIME_TRACKING';
+  type: "TIME_TRACKING";
   timeEstimate?: number;
   totalTimeSpent?: number;
   humanTimeEstimate?: string;
@@ -200,14 +200,14 @@ export interface WorkItemTimeTrackingWidget extends WorkItemWidget {
 }
 
 export interface WorkItemParticipantsWidget extends WorkItemWidget {
-  type: 'PARTICIPANTS';
+  type: "PARTICIPANTS";
   participants: {
     nodes: User[];
   };
 }
 
 export interface WorkItemProgressWidget extends WorkItemWidget {
-  type: 'PROGRESS';
+  type: "PROGRESS";
   currentValue?: number;
   endValue?: number;
   progress?: number;
@@ -215,29 +215,29 @@ export interface WorkItemProgressWidget extends WorkItemWidget {
 }
 
 export interface WorkItemRequirementLegacyWidget extends WorkItemWidget {
-  type: 'REQUIREMENT_LEGACY';
+  type: "REQUIREMENT_LEGACY";
 }
 
 export interface WorkItemTestReportsWidget extends WorkItemWidget {
-  type: 'TEST_REPORTS';
+  type: "TEST_REPORTS";
   testReports?: TestReport[];
 }
 
 export interface WorkItemNotificationsWidget extends WorkItemWidget {
-  type: 'NOTIFICATIONS';
+  type: "NOTIFICATIONS";
   subscribed: boolean;
   emailsDisabled: boolean;
 }
 
 export interface WorkItemCurrentUserTodosWidget extends WorkItemWidget {
-  type: 'CURRENT_USER_TODOS';
+  type: "CURRENT_USER_TODOS";
   currentUserTodos: {
     nodes: Todo[];
   };
 }
 
 export interface WorkItemAwardEmojiWidget extends WorkItemWidget {
-  type: 'AWARD_EMOJI';
+  type: "AWARD_EMOJI";
   awardEmoji: {
     nodes: AwardEmoji[];
   };
@@ -246,26 +246,26 @@ export interface WorkItemAwardEmojiWidget extends WorkItemWidget {
 }
 
 export interface WorkItemLinkedItemsWidget extends WorkItemWidget {
-  type: 'LINKED_ITEMS';
+  type: "LINKED_ITEMS";
   linkedItems: {
     nodes: WorkItem[];
   };
 }
 
 export interface WorkItemColorWidget extends WorkItemWidget {
-  type: 'COLOR';
+  type: "COLOR";
   color?: string;
 }
 
 export interface WorkItemDesignsWidget extends WorkItemWidget {
-  type: 'DESIGNS';
+  type: "DESIGNS";
   designs: {
     nodes: Design[];
   };
 }
 
 export interface WorkItemDevelopmentWidget extends WorkItemWidget {
-  type: 'DEVELOPMENT';
+  type: "DEVELOPMENT";
   closingMergeRequests: {
     nodes: MergeRequest[];
   };
@@ -275,28 +275,28 @@ export interface WorkItemDevelopmentWidget extends WorkItemWidget {
 }
 
 export interface WorkItemCrmContactsWidget extends WorkItemWidget {
-  type: 'CRM_CONTACTS';
+  type: "CRM_CONTACTS";
   contacts: {
     nodes: Contact[];
   };
 }
 
 export interface WorkItemEmailParticipantsWidget extends WorkItemWidget {
-  type: 'EMAIL_PARTICIPANTS';
+  type: "EMAIL_PARTICIPANTS";
   emailParticipants: {
     nodes: Array<{ email: string }>;
   };
 }
 
 export interface WorkItemCustomFieldsWidget extends WorkItemWidget {
-  type: 'CUSTOM_FIELDS';
+  type: "CUSTOM_FIELDS";
   customFields: {
     nodes: CustomField[];
   };
 }
 
 export interface WorkItemErrorTrackingWidget extends WorkItemWidget {
-  type: 'ERROR_TRACKING';
+  type: "ERROR_TRACKING";
   errorTrackingEnabled: boolean;
   errors: {
     nodes: Error[];
@@ -304,14 +304,14 @@ export interface WorkItemErrorTrackingWidget extends WorkItemWidget {
 }
 
 export interface WorkItemLinkedResourcesWidget extends WorkItemWidget {
-  type: 'LINKED_RESOURCES';
+  type: "LINKED_RESOURCES";
   linkedResources: {
     nodes: LinkedResource[];
   };
 }
 
 export interface WorkItemVulnerabilitiesWidget extends WorkItemWidget {
-  type: 'VULNERABILITIES';
+  type: "VULNERABILITIES";
   relatedVulnerabilities: {
     nodes: Vulnerability[];
     pageInfo: {
@@ -341,7 +341,7 @@ export interface Note {
   system: boolean;
 }
 
-export type HealthStatusEnum = 'onTrack' | 'needsAttention' | 'atRisk';
+export type HealthStatusEnum = "onTrack" | "needsAttention" | "atRisk";
 
 // Supporting types for new widgets
 export interface TestReport {

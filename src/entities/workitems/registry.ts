@@ -1,15 +1,15 @@
-import { zodToJsonSchema } from 'zod-to-json-schema';
-import { ListWorkItemsSchema, GetWorkItemSchema } from './schema-readonly';
-import { CreateWorkItemSchema, UpdateWorkItemSchema, DeleteWorkItemSchema } from './schema';
-import { ToolRegistry, EnhancedToolDefinition } from '../../types';
-import { ConnectionManager } from '../../services/ConnectionManager';
-import { getWorkItemTypes } from '../../utils/workItemTypes';
+import { zodToJsonSchema } from "zod-to-json-schema";
+import { ListWorkItemsSchema, GetWorkItemSchema } from "./schema-readonly";
+import { CreateWorkItemSchema, UpdateWorkItemSchema, DeleteWorkItemSchema } from "./schema";
+import { ToolRegistry, EnhancedToolDefinition } from "../../types";
+import { ConnectionManager } from "../../services/ConnectionManager";
+import { getWorkItemTypes } from "../../utils/workItemTypes";
 import {
   cleanWorkItemResponse,
   toGid,
   toGids,
   type GitLabWorkItem,
-} from '../../utils/idConversion';
+} from "../../utils/idConversion";
 
 // Define interface for work item type objects
 interface WorkItemType {
@@ -25,7 +25,7 @@ import {
   DELETE_WORK_ITEM,
   WorkItemUpdateInput,
   WorkItem as GraphQLWorkItem,
-} from '../../graphql/workItems';
+} from "../../graphql/workItems";
 
 /**
  * Work items tools registry - unified registry containing all work item operation tools with their handlers
@@ -33,17 +33,17 @@ import {
 export const workitemsToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefinition>([
   // Read-only tools
   [
-    'list_work_items',
+    "list_work_items",
     {
-      name: 'list_work_items',
+      name: "list_work_items",
       description:
-        'List work items from a namespace (groups or projects). Core tool for tracking issues, epics, tasks, and incidents. Shows existing label usage patterns for better labeling decisions. Supports 9 work item types including Test Cases and Requirements. Returns open items by default. Filter by type, state, with pagination. Groups contain Epics; projects contain Issues/Tasks/Incidents. Use with list_labels to understand complete taxonomy.',
+        "List work items from a namespace (groups or projects). Core tool for tracking issues, epics, tasks, and incidents. Shows existing label usage patterns for better labeling decisions. Supports 9 work item types including Test Cases and Requirements. Returns open items by default. Filter by type, state, with pagination. Groups contain Epics; projects contain Issues/Tasks/Incidents. Use with list_labels to understand complete taxonomy.",
       inputSchema: zodToJsonSchema(ListWorkItemsSchema),
       handler: async (args: unknown): Promise<unknown> => {
-        console.log('list_work_items called with args:', JSON.stringify(args, null, 2));
+        console.log("list_work_items called with args:", JSON.stringify(args, null, 2));
         const options = ListWorkItemsSchema.parse(args);
         const { namespacePath, types, state, first, after, simple, active } = options;
-        console.log('Parsed options:', {
+        console.log("Parsed options:", {
           namespacePath,
           types,
           state,
@@ -123,7 +123,7 @@ export const workitemsToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
 
         // Function to simplify work item structure for agent consumption
         const simplifyWorkItem = (
-          workItem: GraphQLWorkItem,
+          workItem: GraphQLWorkItem
         ): GraphQLWorkItem | SimplifiedWorkItem => {
           if (!simple) return workItem;
 
@@ -133,36 +133,36 @@ export const workitemsToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
             title: workItem.title,
             state: workItem.state,
             workItemType:
-              typeof workItem.workItemType === 'string'
+              typeof workItem.workItemType === "string"
                 ? workItem.workItemType
-                : workItem.workItemType?.name || 'Unknown',
+                : workItem.workItemType?.name || "Unknown",
             webUrl: workItem.webUrl,
             createdAt: workItem.createdAt,
             updatedAt: workItem.updatedAt,
           };
 
           // Add description if it exists and is not too long
-          if (workItem.description && typeof workItem.description === 'string') {
+          if (workItem.description && typeof workItem.description === "string") {
             simplified.description =
               workItem.description.length > 200
-                ? workItem.description.substring(0, 200) + '...'
+                ? workItem.description.substring(0, 200) + "..."
                 : workItem.description;
           }
 
           // Extract essential widgets only
           if (workItem.widgets && Array.isArray(workItem.widgets)) {
-            const essentialWidgets: SimplifiedWorkItem['widgets'] = [];
+            const essentialWidgets: SimplifiedWorkItem["widgets"] = [];
 
             for (const widget of workItem.widgets) {
               // Use type assertion to access widget properties dynamically
               const flexWidget = widget as unknown as FlexibleWorkItemWidget;
 
               switch (flexWidget.type) {
-                case 'ASSIGNEES':
+                case "ASSIGNEES":
                   if (flexWidget.assignees?.nodes && flexWidget.assignees.nodes.length > 0) {
                     essentialWidgets.push({
-                      type: 'ASSIGNEES',
-                      assignees: flexWidget.assignees.nodes.map((assignee) => ({
+                      type: "ASSIGNEES",
+                      assignees: flexWidget.assignees.nodes.map(assignee => ({
                         id: assignee.id,
                         username: assignee.username,
                         name: assignee.name,
@@ -170,11 +170,11 @@ export const workitemsToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
                     });
                   }
                   break;
-                case 'LABELS':
+                case "LABELS":
                   if (flexWidget.labels?.nodes && flexWidget.labels.nodes.length > 0) {
                     essentialWidgets.push({
-                      type: 'LABELS',
-                      labels: flexWidget.labels.nodes.map((label) => ({
+                      type: "LABELS",
+                      labels: flexWidget.labels.nodes.map(label => ({
                         id: label.id,
                         title: label.title,
                         color: label.color,
@@ -182,10 +182,10 @@ export const workitemsToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
                     });
                   }
                   break;
-                case 'MILESTONE':
+                case "MILESTONE":
                   if (flexWidget.milestone) {
                     essentialWidgets.push({
-                      type: 'MILESTONE',
+                      type: "MILESTONE",
                       milestone: {
                         id: flexWidget.milestone.id,
                         title: flexWidget.milestone.title,
@@ -194,10 +194,10 @@ export const workitemsToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
                     });
                   }
                   break;
-                case 'HIERARCHY':
+                case "HIERARCHY":
                   if (flexWidget.parent || flexWidget.hasChildren) {
                     essentialWidgets.push({
-                      type: 'HIERARCHY',
+                      type: "HIERARCHY",
                       parent: flexWidget.parent
                         ? {
                             id: flexWidget.parent.id,
@@ -225,7 +225,7 @@ export const workitemsToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
         const connectionManager = ConnectionManager.getInstance();
         const client = connectionManager.getClient();
 
-        console.log('Querying namespace:', namespacePath);
+        console.log("Querying namespace:", namespacePath);
 
         // For list_work_items GraphQL query, use type names as-is (GraphQL expects enum values)
         // No conversion needed - the GraphQL API expects EPIC, ISSUE, TASK enum values, not GIDs
@@ -246,17 +246,17 @@ export const workitemsToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
           hasNextPage: workItemsData?.pageInfo?.hasNextPage ?? false,
           endCursor: workItemsData?.pageInfo?.endCursor ?? null,
         };
-        const namespaceType = workItemsResponse.namespace?.__typename ?? 'Unknown';
+        const namespaceType = workItemsResponse.namespace?.__typename ?? "Unknown";
 
         console.log(`Found ${allItems.length} work items from ${namespaceType} query`);
 
         // Apply state filtering (client-side since GitLab API doesn't support it reliably)
         const filteredItems = allItems.filter((item: GraphQLWorkItem) => {
-          return state.includes(item.state as 'OPEN' | 'CLOSED');
+          return state.includes(item.state as "OPEN" | "CLOSED");
         });
 
         console.log(
-          `State filtering: ${allItems.length} → ${filteredItems.length} items (keeping: ${state.join(', ')})`,
+          `State filtering: ${allItems.length} → ${filteredItems.length} items (keeping: ${state.join(", ")})`
         );
 
         // Apply simplification if requested and clean GIDs
@@ -265,9 +265,9 @@ export const workitemsToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
           return simplifyWorkItem(cleanedItem as GraphQLWorkItem);
         });
 
-        console.log('Final result - total work items found:', finalResults.length);
+        console.log("Final result - total work items found:", finalResults.length);
         if (simple) {
-          console.log('Using simplified structure for agent consumption');
+          console.log("Using simplified structure for agent consumption");
         }
 
         // Return object with items and server-side pagination info
@@ -280,11 +280,11 @@ export const workitemsToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
     },
   ],
   [
-    'get_work_item',
+    "get_work_item",
     {
-      name: 'get_work_item',
+      name: "get_work_item",
       description:
-        'Get complete work item details by ID. Returns full data including widgets (assignees, labels, milestones, hierarchy, time tracking, custom fields). Essential for issue/epic management and tracking project progress. Each work item type has different widget capabilities.',
+        "Get complete work item details by ID. Returns full data including widgets (assignees, labels, milestones, hierarchy, time tracking, custom fields). Essential for issue/epic management and tracking project progress. Each work item type has different widget capabilities.",
       inputSchema: zodToJsonSchema(GetWorkItemSchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = GetWorkItemSchema.parse(args);
@@ -295,7 +295,7 @@ export const workitemsToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
         const client = connectionManager.getClient();
 
         // Convert simple ID to GID for API call
-        const workItemGid = toGid(id, 'WorkItem');
+        const workItemGid = toGid(id, "WorkItem");
 
         // Use GraphQL query for getting work item details
         const response = await client.request(GET_WORK_ITEM, { id: workItemGid });
@@ -310,11 +310,11 @@ export const workitemsToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
   ],
   // Write tools
   [
-    'create_work_item',
+    "create_work_item",
     {
-      name: 'create_work_item',
+      name: "create_work_item",
       description:
-        'Create work items for issue tracking and project management. LABEL WORKFLOW: Run list_labels first to discover existing labels, then use label IDs from response. CRITICAL: Epics require GROUP namespace, Issues/Tasks/Incidents require PROJECT namespace. Supports 9 types: Epic, Issue, Task, Incident, Test Case, Requirement, Objective, Key Result, Ticket. NOTE: Test Cases and Requirements do not support labels widget. Automatically assigns widgets (assignees, labels, milestones) based on type capabilities.',
+        "Create work items for issue tracking and project management. LABEL WORKFLOW: Run list_labels first to discover existing labels, then use label IDs from response. CRITICAL: Epics require GROUP namespace, Issues/Tasks/Incidents require PROJECT namespace. Supports 9 types: Epic, Issue, Task, Incident, Test Case, Requirement, Objective, Key Result, Ticket. NOTE: Test Cases and Requirements do not support labels widget. Automatically assigns widgets (assignees, labels, milestones) based on type capabilities.",
       inputSchema: zodToJsonSchema(CreateWorkItemSchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = CreateWorkItemSchema.parse(args);
@@ -336,13 +336,13 @@ export const workitemsToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
         const workItemTypes = await getWorkItemTypes(namespacePath);
         const workItemTypeObj = workItemTypes.find(
           (t: WorkItemType) =>
-            t.name.toUpperCase().replace(/\s+/g, '_') ===
-            workItemType.toUpperCase().replace(/\s+/g, '_'),
+            t.name.toUpperCase().replace(/\s+/g, "_") ===
+            workItemType.toUpperCase().replace(/\s+/g, "_")
         );
 
         if (!workItemTypeObj) {
           throw new Error(
-            `Work item type "${workItemType}" not found in namespace "${namespacePath}". Available types: ${workItemTypes.map((t) => t.name).join(', ')}`,
+            `Work item type "${workItemType}" not found in namespace "${namespacePath}". Available types: ${workItemTypes.map(t => t.name).join(", ")}`
           );
         }
 
@@ -360,26 +360,26 @@ export const workitemsToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
 
         // Add widgets only if data is provided
         if (assigneeIds !== undefined && assigneeIds.length > 0) {
-          input.assigneesWidget = { assigneeIds: toGids(assigneeIds, 'User') };
+          input.assigneesWidget = { assigneeIds: toGids(assigneeIds, "User") };
         }
 
         if (labelIds !== undefined && labelIds.length > 0) {
-          input.labelsWidget = { labelIds: toGids(labelIds, 'Label') };
+          input.labelsWidget = { labelIds: toGids(labelIds, "Label") };
         }
 
         if (milestoneId !== undefined) {
-          input.milestoneWidget = { milestoneId: toGid(milestoneId, 'Milestone') };
+          input.milestoneWidget = { milestoneId: toGid(milestoneId, "Milestone") };
         }
 
         // Use comprehensive mutation with widgets support
         const response = await client.request(CREATE_WORK_ITEM_WITH_WIDGETS, { input });
 
         if (response.workItemCreate?.errors?.length && response.workItemCreate.errors.length > 0) {
-          throw new Error(`GitLab GraphQL errors: ${response.workItemCreate.errors.join(', ')}`);
+          throw new Error(`GitLab GraphQL errors: ${response.workItemCreate.errors.join(", ")}`);
         }
 
         if (!response.workItemCreate?.workItem) {
-          throw new Error('Work item creation failed - no work item returned');
+          throw new Error("Work item creation failed - no work item returned");
         }
 
         return cleanWorkItemResponse(response.workItemCreate.workItem as unknown as GitLabWorkItem);
@@ -387,11 +387,11 @@ export const workitemsToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
     },
   ],
   [
-    'update_work_item',
+    "update_work_item",
     {
-      name: 'update_work_item',
+      name: "update_work_item",
       description:
-        'Update work item properties for issue/epic management. LABEL WORKFLOW: Run list_labels first to discover existing labels, then use label IDs from response. Modify title, description, assignees, labels, milestones, and state (open/close). Supports widget updates including clearing assignees with empty arrays. NOTE: Test Cases and Requirements do not support labels widget. Essential for project workflow and status tracking.',
+        "Update work item properties for issue/epic management. LABEL WORKFLOW: Run list_labels first to discover existing labels, then use label IDs from response. Modify title, description, assignees, labels, milestones, and state (open/close). Supports widget updates including clearing assignees with empty arrays. NOTE: Test Cases and Requirements do not support labels widget. Essential for project workflow and status tracking.",
       inputSchema: zodToJsonSchema(UpdateWorkItemSchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = UpdateWorkItemSchema.parse(args);
@@ -402,7 +402,7 @@ export const workitemsToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
         const client = connectionManager.getClient();
 
         // Convert simple ID to GID for API call
-        const workItemGid = toGid(id, 'WorkItem');
+        const workItemGid = toGid(id, "WorkItem");
 
         // Build dynamic input object based on provided values
         const input: WorkItemUpdateInput = { id: workItemGid };
@@ -418,28 +418,28 @@ export const workitemsToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
 
         if (assigneeIds !== undefined) {
           // Convert assignee IDs to GIDs (empty array clears assignees)
-          input.assigneesWidget = { assigneeIds: toGids(assigneeIds, 'User') };
+          input.assigneesWidget = { assigneeIds: toGids(assigneeIds, "User") };
         }
 
         if (labelIds !== undefined) {
           // Convert label IDs to GIDs (empty array clears labels)
-          input.labelsWidget = { addLabelIds: toGids(labelIds, 'Label') };
+          input.labelsWidget = { addLabelIds: toGids(labelIds, "Label") };
         }
 
         if (milestoneId !== undefined) {
           // Convert milestone ID to GID
-          input.milestoneWidget = { milestoneId: toGid(milestoneId, 'Milestone') };
+          input.milestoneWidget = { milestoneId: toGid(milestoneId, "Milestone") };
         }
 
         // Use single GraphQL mutation with dynamic input
         const response = await client.request(UPDATE_WORK_ITEM, { input });
 
         if (response.workItemUpdate?.errors?.length && response.workItemUpdate.errors.length > 0) {
-          throw new Error(`GitLab GraphQL errors: ${response.workItemUpdate.errors.join(', ')}`);
+          throw new Error(`GitLab GraphQL errors: ${response.workItemUpdate.errors.join(", ")}`);
         }
 
         if (!response.workItemUpdate?.workItem) {
-          throw new Error('Work item update failed - no work item returned');
+          throw new Error("Work item update failed - no work item returned");
         }
 
         return cleanWorkItemResponse(response.workItemUpdate.workItem as unknown as GitLabWorkItem);
@@ -447,11 +447,11 @@ export const workitemsToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
     },
   ],
   [
-    'delete_work_item',
+    "delete_work_item",
     {
-      name: 'delete_work_item',
+      name: "delete_work_item",
       description:
-        'Permanently delete work items. WARNING: Cannot be undone. Removes all data, comments, time tracking, and references. Use for cleanup or removing invalid issues/epics. Consider closing instead of deleting for audit trails.',
+        "Permanently delete work items. WARNING: Cannot be undone. Removes all data, comments, time tracking, and references. Use for cleanup or removing invalid issues/epics. Consider closing instead of deleting for audit trails.",
       inputSchema: zodToJsonSchema(DeleteWorkItemSchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = DeleteWorkItemSchema.parse(args);
@@ -462,13 +462,13 @@ export const workitemsToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
         const client = connectionManager.getClient();
 
         // Convert simple ID to GID for API call
-        const workItemGid = toGid(id, 'WorkItem');
+        const workItemGid = toGid(id, "WorkItem");
 
         // Use GraphQL mutation for deleting work item
         const response = await client.request(DELETE_WORK_ITEM, { id: workItemGid });
 
         if (response.workItemDelete?.errors?.length && response.workItemDelete.errors.length > 0) {
-          throw new Error(`GitLab GraphQL errors: ${response.workItemDelete.errors.join(', ')}`);
+          throw new Error(`GitLab GraphQL errors: ${response.workItemDelete.errors.join(", ")}`);
         }
 
         // Return success indicator for deletion
@@ -482,7 +482,7 @@ export const workitemsToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
  * Get read-only tool names from the registry
  */
 export function getWorkitemsReadOnlyToolNames(): string[] {
-  return ['list_work_items', 'get_work_item'];
+  return ["list_work_items", "get_work_item"];
 }
 
 /**
@@ -498,8 +498,8 @@ export function getWorkitemsToolDefinitions(): EnhancedToolDefinition[] {
 export function getFilteredWorkitemsTools(readOnlyMode: boolean = false): EnhancedToolDefinition[] {
   if (readOnlyMode) {
     const readOnlyNames = getWorkitemsReadOnlyToolNames();
-    return Array.from(workitemsToolRegistry.values()).filter((tool) =>
-      readOnlyNames.includes(tool.name),
+    return Array.from(workitemsToolRegistry.values()).filter(tool =>
+      readOnlyNames.includes(tool.name)
     );
   }
   return getWorkitemsToolDefinitions();

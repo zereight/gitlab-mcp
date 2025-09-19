@@ -1,11 +1,11 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
-import { zodToJsonSchema } from 'zod-to-json-schema';
-import { ListWikiPagesSchema, GetWikiPageSchema } from './schema-readonly';
-import { CreateWikiPageSchema, UpdateWikiPageSchema, DeleteWikiPageSchema } from './schema';
-import { enhancedFetch } from '../../utils/fetch';
-import { cleanGidsFromObject } from '../../utils/idConversion';
-import { resolveNamespaceForAPI } from '../../utils/namespace';
-import { ToolRegistry, EnhancedToolDefinition } from '../../types';
+import { zodToJsonSchema } from "zod-to-json-schema";
+import { ListWikiPagesSchema, GetWikiPageSchema } from "./schema-readonly";
+import { CreateWikiPageSchema, UpdateWikiPageSchema, DeleteWikiPageSchema } from "./schema";
+import { enhancedFetch } from "../../utils/fetch";
+import { cleanGidsFromObject } from "../../utils/idConversion";
+import { resolveNamespaceForAPI } from "../../utils/namespace";
+import { ToolRegistry, EnhancedToolDefinition } from "../../types";
 
 /**
  * Wiki tools registry - unified registry containing all wiki operation tools with their handlers
@@ -13,11 +13,11 @@ import { ToolRegistry, EnhancedToolDefinition } from '../../types';
 export const wikiToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefinition>([
   // Read-only tools
   [
-    'list_wiki_pages',
+    "list_wiki_pages",
     {
-      name: 'list_wiki_pages',
+      name: "list_wiki_pages",
       description:
-        'BROWSE: Explore all wiki pages in project or group documentation. Use when: Discovering available guides and documentation, Understanding project knowledge base structure, Finding existing pages before creating new ones. Wiki provides collaborative documentation separate from code repository. Returns page titles, slugs, content formats, and creation dates.',
+        "BROWSE: Explore all wiki pages in project or group documentation. Use when: Discovering available guides and documentation, Understanding project knowledge base structure, Finding existing pages before creating new ones. Wiki provides collaborative documentation separate from code repository. Returns page titles, slugs, content formats, and creation dates.",
       inputSchema: zodToJsonSchema(ListWikiPagesSchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = ListWikiPagesSchema.parse(args);
@@ -28,7 +28,7 @@ export const wikiToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
 
         const queryParams = new URLSearchParams();
         Object.entries(options).forEach(([key, value]) => {
-          if (value !== undefined && value !== null && key !== 'namespacePath') {
+          if (value !== undefined && value !== null && key !== "namespacePath") {
             queryParams.set(key, String(value));
           }
         });
@@ -50,11 +50,11 @@ export const wikiToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
     },
   ],
   [
-    'get_wiki_page',
+    "get_wiki_page",
     {
-      name: 'get_wiki_page',
+      name: "get_wiki_page",
       description:
-        'READ: Get complete wiki page content and metadata by slug. Use when: Reading technical documentation and guides, Accessing project knowledge base content, Getting full markdown with formatting. Returns complete page content, metadata, edit history, and author information. Perfect for content analysis and documentation review.',
+        "READ: Get complete wiki page content and metadata by slug. Use when: Reading technical documentation and guides, Accessing project knowledge base content, Getting full markdown with formatting. Returns complete page content, metadata, edit history, and author information. Perfect for content analysis and documentation review.",
       inputSchema: zodToJsonSchema(GetWikiPageSchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = GetWikiPageSchema.parse(args);
@@ -65,7 +65,7 @@ export const wikiToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
 
         const queryParams = new URLSearchParams();
         Object.entries(options).forEach(([key, value]) => {
-          if (value !== undefined && value !== null && key !== 'namespacePath' && key !== 'slug') {
+          if (value !== undefined && value !== null && key !== "namespacePath" && key !== "slug") {
             queryParams.set(key, String(value));
           }
         });
@@ -88,11 +88,11 @@ export const wikiToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
   ],
   // Write tools
   [
-    'create_wiki_page',
+    "create_wiki_page",
     {
-      name: 'create_wiki_page',
+      name: "create_wiki_page",
       description:
-        'CREATE: Add new documentation page to project or group wiki. Use when: Adding technical documentation, user guides, or FAQs, Creating project knowledge base content, Establishing team documentation standards. Check list_wiki_pages FIRST to avoid duplicate topics. Supports GitLab Flavored Markdown with extensions. Creates version-controlled documentation.',
+        "CREATE: Add new documentation page to project or group wiki. Use when: Adding technical documentation, user guides, or FAQs, Creating project knowledge base content, Establishing team documentation standards. Check list_wiki_pages FIRST to avoid duplicate topics. Supports GitLab Flavored Markdown with extensions. Creates version-controlled documentation.",
       inputSchema: zodToJsonSchema(CreateWikiPageSchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = CreateWikiPageSchema.parse(args);
@@ -103,17 +103,17 @@ export const wikiToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
 
         const body: Record<string, unknown> = {};
         Object.entries(options).forEach(([key, value]) => {
-          if (value !== undefined && value !== null && key !== 'namespacePath') {
+          if (value !== undefined && value !== null && key !== "namespacePath") {
             body[key] = value;
           }
         });
 
         const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/${entityType}/${encodedPath}/wikis`;
         const response = await enhancedFetch(apiUrl, {
-          method: 'POST',
+          method: "POST",
           headers: {
             Authorization: `Bearer ${process.env.GITLAB_TOKEN}`,
-            'Content-Type': 'application/json',
+            "Content-Type": "application/json",
           },
           body: JSON.stringify(body),
         });
@@ -128,11 +128,11 @@ export const wikiToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
     },
   ],
   [
-    'update_wiki_page',
+    "update_wiki_page",
     {
-      name: 'update_wiki_page',
+      name: "update_wiki_page",
       description:
-        'UPDATE: Modify existing wiki page content or properties. Use when: Updating documentation with new information, Fixing errors or improving clarity, Reorganizing content structure. Maintains complete version history with change tracking. Supports collaborative editing with author attribution and diff viewing.',
+        "UPDATE: Modify existing wiki page content or properties. Use when: Updating documentation with new information, Fixing errors or improving clarity, Reorganizing content structure. Maintains complete version history with change tracking. Supports collaborative editing with author attribution and diff viewing.",
       inputSchema: zodToJsonSchema(UpdateWikiPageSchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = UpdateWikiPageSchema.parse(args);
@@ -143,17 +143,17 @@ export const wikiToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
 
         const body: Record<string, unknown> = {};
         Object.entries(options).forEach(([key, value]) => {
-          if (value !== undefined && value !== null && key !== 'namespacePath' && key !== 'slug') {
+          if (value !== undefined && value !== null && key !== "namespacePath" && key !== "slug") {
             body[key] = value;
           }
         });
 
         const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/${entityType}/${encodedPath}/wikis/${encodeURIComponent(slug)}`;
         const response = await enhancedFetch(apiUrl, {
-          method: 'PUT',
+          method: "PUT",
           headers: {
             Authorization: `Bearer ${process.env.GITLAB_TOKEN}`,
-            'Content-Type': 'application/json',
+            "Content-Type": "application/json",
           },
           body: JSON.stringify(body),
         });
@@ -168,11 +168,11 @@ export const wikiToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
     },
   ],
   [
-    'delete_wiki_page',
+    "delete_wiki_page",
     {
-      name: 'delete_wiki_page',
+      name: "delete_wiki_page",
       description:
-        'DELETE: Permanently remove wiki page from documentation. Use when: Cleaning up outdated or obsolete content, Removing duplicate or incorrect pages, Reorganizing wiki structure. WARNING: Deletes page and ALL version history permanently - cannot be undone. Consider archiving important content first.',
+        "DELETE: Permanently remove wiki page from documentation. Use when: Cleaning up outdated or obsolete content, Removing duplicate or incorrect pages, Reorganizing wiki structure. WARNING: Deletes page and ALL version history permanently - cannot be undone. Consider archiving important content first.",
       inputSchema: zodToJsonSchema(DeleteWikiPageSchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = DeleteWikiPageSchema.parse(args);
@@ -183,7 +183,7 @@ export const wikiToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
 
         const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/${entityType}/${encodedPath}/wikis/${encodeURIComponent(slug)}`;
         const response = await enhancedFetch(apiUrl, {
-          method: 'DELETE',
+          method: "DELETE",
           headers: {
             Authorization: `Bearer ${process.env.GITLAB_TOKEN}`,
           },
@@ -205,7 +205,7 @@ export const wikiToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
  * Get read-only tool names from the registry
  */
 export function getWikiReadOnlyToolNames(): string[] {
-  return ['list_wiki_pages', 'get_wiki_page'];
+  return ["list_wiki_pages", "get_wiki_page"];
 }
 
 /**
@@ -221,9 +221,7 @@ export function getWikiToolDefinitions(): EnhancedToolDefinition[] {
 export function getFilteredWikiTools(readOnlyMode: boolean = false): EnhancedToolDefinition[] {
   if (readOnlyMode) {
     const readOnlyNames = getWikiReadOnlyToolNames();
-    return Array.from(wikiToolRegistry.values()).filter((tool) =>
-      readOnlyNames.includes(tool.name),
-    );
+    return Array.from(wikiToolRegistry.values()).filter(tool => readOnlyNames.includes(tool.name));
   }
   return getWikiToolDefinitions();
 }

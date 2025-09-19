@@ -1,5 +1,5 @@
-import { ConnectionManager } from '../services/ConnectionManager';
-import { GET_WORK_ITEM_TYPES } from '../graphql/workItems';
+import { ConnectionManager } from "../services/ConnectionManager";
+import { GET_WORK_ITEM_TYPES } from "../graphql/workItems";
 
 // Define interface for work item type objects
 interface WorkItemType {

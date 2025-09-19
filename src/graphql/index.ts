@@ -1,2 +1,2 @@
-export { GraphQLClient } from './client';
-export * from './workItems';
+export { GraphQLClient } from "./client";
+export * from "./workItems";

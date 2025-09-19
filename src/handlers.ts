@@ -1,7 +1,7 @@
-import { Server } from '@modelcontextprotocol/sdk/server/index.js';
-import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
-import { ConnectionManager } from './services/ConnectionManager';
-import { logger } from './logger';
+import { Server } from "@modelcontextprotocol/sdk/server/index.js";
+import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
+import { ConnectionManager } from "./services/ConnectionManager";
+import { logger } from "./logger";
 
 interface JsonSchemaProperty {
   type?: string;
@@ -24,38 +24,38 @@ export async function setupHandlers(server: Server): Promise<void> {
   const connectionManager = ConnectionManager.getInstance();
   try {
     await connectionManager.initialize();
-    logger.info('Connection initialized during server setup');
+    logger.info("Connection initialized during server setup");
   } catch (error) {
     logger.warn(
-      `Initial connection failed during setup, will retry on first tool call: ${error instanceof Error ? error.message : String(error)}`,
+      `Initial connection failed during setup, will retry on first tool call: ${error instanceof Error ? error.message : String(error)}`
     );
     // Continue without initialization - tools will handle gracefully on first call
   }
   // List tools handler
   server.setRequestHandler(ListToolsRequestSchema, async () => {
     // Get tools from registry manager (already filtered)
-    const { RegistryManager } = await import('./registry-manager');
+    const { RegistryManager } = await import("./registry-manager");
     const registryManager = RegistryManager.getInstance();
     const tools = registryManager.getAllToolDefinitions();
 
     // Helper function to resolve $ref references in JSON schema
     function resolveRefs(
       schema: JsonSchemaProperty | JsonSchemaProperty[],
-      rootSchema?: JsonSchema,
+      rootSchema?: JsonSchema
     ): JsonSchemaProperty | JsonSchemaProperty[] {
-      if (!schema || typeof schema !== 'object') return schema;
+      if (!schema || typeof schema !== "object") return schema;
 
       // Set root schema for reference resolution
       rootSchema ??= schema as JsonSchema;
 
       // Handle arrays
       if (Array.isArray(schema)) {
-        return schema.map((item) => resolveRefs(item, rootSchema) as JsonSchemaProperty);
+        return schema.map(item => resolveRefs(item, rootSchema) as JsonSchemaProperty);
       }
 
       // Handle $ref resolution
-      if (schema.$ref && typeof schema.$ref === 'string') {
-        const refPath = schema.$ref.replace('#/properties/', '');
+      if (schema.$ref && typeof schema.$ref === "string") {
+        const refPath = schema.$ref.replace("#/properties/", "");
         const referencedProperty = rootSchema.properties?.[refPath];
 
         if (referencedProperty) {
@@ -75,16 +75,16 @@ export async function setupHandlers(server: Server): Promise<void> {
       // Recursively process all object properties
       const result: JsonSchemaProperty = {};
       for (const [key, value] of Object.entries(schema)) {
-        if (key === 'properties' && typeof value === 'object' && value !== null) {
+        if (key === "properties" && typeof value === "object" && value !== null) {
           // Special handling for properties object
           const resolvedProperties: Record<string, JsonSchemaProperty> = {};
           for (const [propKey, propValue] of Object.entries(
-            value as Record<string, JsonSchemaProperty>,
+            value as Record<string, JsonSchemaProperty>
           )) {
             resolvedProperties[propKey] = resolveRefs(propValue, rootSchema) as JsonSchemaProperty;
           }
           result[key] = resolvedProperties;
-        } else if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+        } else if (typeof value === "object" && value !== null && !Array.isArray(value)) {
           result[key] = resolveRefs(value as JsonSchemaProperty, rootSchema);
         } else {
           result[key] = value;
@@ -95,25 +95,25 @@ export async function setupHandlers(server: Server): Promise<void> {
     }
 
     // Remove $schema for Gemini compatibility and ensure proper JSON schema format
-    const modifiedTools = tools.map((tool) => {
+    const modifiedTools = tools.map(tool => {
       let inputSchema = tool.inputSchema;
 
       // Force all input schemas to be type: "object" for MCP compatibility
-      if (inputSchema && typeof inputSchema === 'object') {
-        inputSchema = { ...inputSchema, type: 'object' };
+      if (inputSchema && typeof inputSchema === "object") {
+        inputSchema = { ...inputSchema, type: "object" };
       }
 
       // Resolve $ref references for MCP agent compatibility
-      if (inputSchema && typeof inputSchema === 'object') {
+      if (inputSchema && typeof inputSchema === "object") {
         const resolved = resolveRefs(inputSchema);
         // Only assign if resolved is an object (not array)
-        if (resolved && typeof resolved === 'object' && !Array.isArray(resolved)) {
+        if (resolved && typeof resolved === "object" && !Array.isArray(resolved)) {
           inputSchema = resolved;
         }
       }
 
       // Remove $schema for Gemini compatibility
-      if (inputSchema && typeof inputSchema === 'object' && '$schema' in inputSchema) {
+      if (inputSchema && typeof inputSchema === "object" && "$schema" in inputSchema) {
         const cleanedSchema = { ...inputSchema } as Record<string, unknown>;
         delete cleanedSchema.$schema;
         inputSchema = cleanedSchema;
@@ -128,10 +128,10 @@ export async function setupHandlers(server: Server): Promise<void> {
   });
 
   // Call tool handler
-  server.setRequestHandler(CallToolRequestSchema, async (request) => {
+  server.setRequestHandler(CallToolRequestSchema, async request => {
     try {
       if (!request.params.arguments) {
-        throw new Error('Arguments are required');
+        throw new Error("Arguments are required");
       }
 
       logger.info(`Tool called: ${request.params.name}`);
@@ -144,7 +144,7 @@ export async function setupHandlers(server: Server): Promise<void> {
         const instanceInfo = connectionManager.getInstanceInfo();
         logger.info(`Connection verified: ${instanceInfo.version} ${instanceInfo.tier}`);
       } catch {
-        logger.info('Connection not initialized, attempting to initialize...');
+        logger.info("Connection not initialized, attempting to initialize...");
         try {
           await connectionManager.initialize();
           connectionManager.getClient();
@@ -152,9 +152,9 @@ export async function setupHandlers(server: Server): Promise<void> {
           logger.info(`Connection initialized: ${instanceInfo.version} ${instanceInfo.tier}`);
         } catch (initError) {
           logger.error(
-            `Connection initialization failed: ${initError instanceof Error ? initError.message : String(initError)}`,
+            `Connection initialization failed: ${initError instanceof Error ? initError.message : String(initError)}`
           );
-          throw new Error('Bad Request: Server not initialized');
+          throw new Error("Bad Request: Server not initialized");
         }
       }
 
@@ -163,7 +163,7 @@ export async function setupHandlers(server: Server): Promise<void> {
 
       try {
         // Import the registry manager
-        const { RegistryManager } = await import('./registry-manager');
+        const { RegistryManager } = await import("./registry-manager");
         const registryManager = RegistryManager.getInstance();
 
         // Check if tool exists and passes all filtering (applied at registry level)
@@ -179,7 +179,7 @@ export async function setupHandlers(server: Server): Promise<void> {
         return {
           content: [
             {
-              type: 'text',
+              type: "text",
               text: JSON.stringify(result, null, 2),
             },
           ],
@@ -190,13 +190,13 @@ export async function setupHandlers(server: Server): Promise<void> {
       }
     } catch (error) {
       logger.error(
-        `Error in tool handler: ${error instanceof Error ? error.message : String(error)}`,
+        `Error in tool handler: ${error instanceof Error ? error.message : String(error)}`
       );
       const errorMessage = error instanceof Error ? error.message : String(error);
       return {
         content: [
           {
-            type: 'text',
+            type: "text",
             text: JSON.stringify({ error: errorMessage }, null, 2),
           },
         ],

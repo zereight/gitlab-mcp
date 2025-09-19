@@ -1,13 +1,13 @@
-import { coreToolRegistry } from '../registry';
-import { smartUserSearch } from '../../../utils/smart-user-search';
-import { enhancedFetch } from '../../../utils/fetch';
+import { coreToolRegistry } from "../registry";
+import { smartUserSearch } from "../../../utils/smart-user-search";
+import { enhancedFetch } from "../../../utils/fetch";
 
 // Mock dependencies
-jest.mock('../../../utils/smart-user-search', () => ({
+jest.mock("../../../utils/smart-user-search", () => ({
   smartUserSearch: jest.fn(),
 }));
 
-jest.mock('../../../utils/fetch', () => ({
+jest.mock("../../../utils/fetch", () => ({
   enhancedFetch: jest.fn(),
 }));
 
@@ -20,8 +20,8 @@ const originalEnv = process.env;
 beforeAll(() => {
   process.env = {
     ...originalEnv,
-    GITLAB_API_URL: 'https://gitlab.example.com',
-    GITLAB_TOKEN: 'test-token-12345',
+    GITLAB_API_URL: "https://gitlab.example.com",
+    GITLAB_TOKEN: "test-token-12345",
   };
 });
 
@@ -36,11 +36,11 @@ beforeEach(() => {
   mockEnhancedFetch.mockReset();
 });
 
-describe('get_users handler smart search logic', () => {
-  const getUsersHandler = coreToolRegistry.get('get_users')?.handler;
+describe("get_users handler smart search logic", () => {
+  const getUsersHandler = coreToolRegistry.get("get_users")?.handler;
 
   if (!getUsersHandler) {
-    throw new Error('get_users handler not found in registry');
+    throw new Error("get_users handler not found in registry");
   }
 
   const mockApiResponse = (users: unknown[]) => {
@@ -52,37 +52,37 @@ describe('get_users handler smart search logic', () => {
   };
 
   const mockSmartSearchResult = {
-    users: [{ id: 1, username: 'testuser' }],
+    users: [{ id: 1, username: "testuser" }],
     searchMetadata: {
-      query: 'test',
-      pattern: { type: 'username' as const, hasTransliteration: false, originalQuery: 'test' },
+      query: "test",
+      pattern: { type: "username" as const, hasTransliteration: false, originalQuery: "test" },
       searchPhases: [],
       totalApiCalls: 1,
     },
   };
 
-  describe('AUTO-ENABLED smart search scenarios', () => {
+  describe("AUTO-ENABLED smart search scenarios", () => {
     it('should auto-enable smart search when only "search" parameter provided', async () => {
       mockSmartUserSearch.mockResolvedValueOnce(mockSmartSearchResult);
 
-      await getUsersHandler({ search: 'ivan' });
+      await getUsersHandler({ search: "ivan" });
 
-      expect(mockSmartUserSearch).toHaveBeenCalledWith('ivan', { per_page: 20 });
+      expect(mockSmartUserSearch).toHaveBeenCalledWith("ivan", { per_page: 20 });
       expect(mockEnhancedFetch).not.toHaveBeenCalled();
     });
 
-    it('should auto-enable smart search for search with other filter params', async () => {
+    it("should auto-enable smart search for search with other filter params", async () => {
       mockSmartUserSearch.mockResolvedValueOnce(mockSmartSearchResult);
 
       await getUsersHandler({
-        search: 'ivan',
+        search: "ivan",
         active: true,
         humans: true,
         page: 1,
         per_page: 10,
       });
 
-      expect(mockSmartUserSearch).toHaveBeenCalledWith('ivan', {
+      expect(mockSmartUserSearch).toHaveBeenCalledWith("ivan", {
         active: true,
         humans: true,
         page: 1,
@@ -92,59 +92,59 @@ describe('get_users handler smart search logic', () => {
     });
   });
 
-  describe('LEGACY behavior scenarios', () => {
+  describe("LEGACY behavior scenarios", () => {
     it('should use legacy API when only "username" parameter provided', async () => {
-      const mockUsers = [{ id: 1, username: 'ivan' }];
+      const mockUsers = [{ id: 1, username: "ivan" }];
       mockEnhancedFetch.mockResolvedValueOnce(mockApiResponse(mockUsers));
 
-      const result = await getUsersHandler({ username: 'ivan' });
+      const result = await getUsersHandler({ username: "ivan" });
 
       expect(mockEnhancedFetch).toHaveBeenCalledWith(
-        expect.stringContaining('username=ivan'),
-        expect.any(Object),
+        expect.stringContaining("username=ivan"),
+        expect.any(Object)
       );
       expect(mockSmartUserSearch).not.toHaveBeenCalled();
       expect(result).toEqual(mockUsers);
     });
 
     it('should use legacy API when only "public_email" parameter provided', async () => {
-      const mockUsers = [{ id: 1, email: 'test@example.com' }];
+      const mockUsers = [{ id: 1, email: "test@example.com" }];
       mockEnhancedFetch.mockResolvedValueOnce(mockApiResponse(mockUsers));
 
-      const result = await getUsersHandler({ public_email: 'test@example.com' });
+      const result = await getUsersHandler({ public_email: "test@example.com" });
 
       expect(mockEnhancedFetch).toHaveBeenCalledWith(
-        expect.stringContaining('public_email=test%40example.com'),
-        expect.any(Object),
+        expect.stringContaining("public_email=test%40example.com"),
+        expect.any(Object)
       );
       expect(mockSmartUserSearch).not.toHaveBeenCalled();
       expect(result).toEqual(mockUsers);
     });
 
     it('should use legacy API when both "search" and "username" provided', async () => {
-      const mockUsers = [{ id: 1, username: 'ivan' }];
+      const mockUsers = [{ id: 1, username: "ivan" }];
       mockEnhancedFetch.mockResolvedValueOnce(mockApiResponse(mockUsers));
 
-      await getUsersHandler({ search: 'ivan', username: 'exact_user' });
+      await getUsersHandler({ search: "ivan", username: "exact_user" });
 
       expect(mockEnhancedFetch).toHaveBeenCalledWith(
-        expect.stringContaining('search=ivan'),
-        expect.any(Object),
+        expect.stringContaining("search=ivan"),
+        expect.any(Object)
       );
       expect(mockEnhancedFetch).toHaveBeenCalledWith(
-        expect.stringContaining('username=exact_user'),
-        expect.any(Object),
+        expect.stringContaining("username=exact_user"),
+        expect.any(Object)
       );
       expect(mockSmartUserSearch).not.toHaveBeenCalled();
     });
 
     it('should use legacy API when both "search" and "public_email" provided', async () => {
-      const mockUsers = [{ id: 1, email: 'test@example.com' }];
+      const mockUsers = [{ id: 1, email: "test@example.com" }];
       mockEnhancedFetch.mockResolvedValueOnce(mockApiResponse(mockUsers));
 
       await getUsersHandler({
-        search: 'ivan',
-        public_email: 'test@example.com',
+        search: "ivan",
+        public_email: "test@example.com",
       });
 
       expect(mockEnhancedFetch).toHaveBeenCalled();
@@ -152,63 +152,63 @@ describe('get_users handler smart search logic', () => {
     });
   });
 
-  describe('EXPLICIT smart_search parameter scenarios', () => {
-    it('should disable smart search when search + smart_search=false', async () => {
-      const mockUsers = [{ id: 1, username: 'ivan' }];
+  describe("EXPLICIT smart_search parameter scenarios", () => {
+    it("should disable smart search when search + smart_search=false", async () => {
+      const mockUsers = [{ id: 1, username: "ivan" }];
       mockEnhancedFetch.mockResolvedValueOnce(mockApiResponse(mockUsers));
 
       await getUsersHandler({
-        search: 'ivan',
+        search: "ivan",
         smart_search: false,
       });
 
       expect(mockEnhancedFetch).toHaveBeenCalledWith(
-        expect.stringContaining('search=ivan'),
-        expect.any(Object),
+        expect.stringContaining("search=ivan"),
+        expect.any(Object)
       );
       expect(mockSmartUserSearch).not.toHaveBeenCalled();
     });
 
-    it('should enable smart search when username + smart_search=true', async () => {
+    it("should enable smart search when username + smart_search=true", async () => {
       mockSmartUserSearch.mockResolvedValueOnce(mockSmartSearchResult);
 
       await getUsersHandler({
-        username: 'ivan',
+        username: "ivan",
         smart_search: true,
       });
 
-      expect(mockSmartUserSearch).toHaveBeenCalledWith('ivan', { per_page: 20 });
+      expect(mockSmartUserSearch).toHaveBeenCalledWith("ivan", { per_page: 20 });
       expect(mockEnhancedFetch).not.toHaveBeenCalled();
     });
 
-    it('should enable smart search when public_email + smart_search=true', async () => {
+    it("should enable smart search when public_email + smart_search=true", async () => {
       mockSmartUserSearch.mockResolvedValueOnce(mockSmartSearchResult);
 
       await getUsersHandler({
-        public_email: 'test@example.com',
+        public_email: "test@example.com",
         smart_search: true,
       });
 
-      expect(mockSmartUserSearch).toHaveBeenCalledWith('test@example.com', { per_page: 20 });
+      expect(mockSmartUserSearch).toHaveBeenCalledWith("test@example.com", { per_page: 20 });
       expect(mockEnhancedFetch).not.toHaveBeenCalled();
     });
 
-    it('should enable smart search when search + smart_search=true (explicit)', async () => {
+    it("should enable smart search when search + smart_search=true (explicit)", async () => {
       mockSmartUserSearch.mockResolvedValueOnce(mockSmartSearchResult);
 
       await getUsersHandler({
-        search: 'ivan',
+        search: "ivan",
         smart_search: true,
       });
 
-      expect(mockSmartUserSearch).toHaveBeenCalledWith('ivan', { per_page: 20 });
+      expect(mockSmartUserSearch).toHaveBeenCalledWith("ivan", { per_page: 20 });
       expect(mockEnhancedFetch).not.toHaveBeenCalled();
     });
   });
 
-  describe('Edge cases', () => {
-    it('should use legacy API when no search parameters provided', async () => {
-      const mockUsers = [{ id: 1, username: 'user1' }];
+  describe("Edge cases", () => {
+    it("should use legacy API when no search parameters provided", async () => {
+      const mockUsers = [{ id: 1, username: "user1" }];
       mockEnhancedFetch.mockResolvedValueOnce(mockApiResponse(mockUsers));
 
       await getUsersHandler({ active: true, humans: true });
@@ -217,44 +217,44 @@ describe('get_users handler smart search logic', () => {
       expect(mockSmartUserSearch).not.toHaveBeenCalled();
     });
 
-    it('should filter out smart_search parameter from legacy API calls', async () => {
-      const mockUsers = [{ id: 1, username: 'ivan' }];
+    it("should filter out smart_search parameter from legacy API calls", async () => {
+      const mockUsers = [{ id: 1, username: "ivan" }];
       mockEnhancedFetch.mockResolvedValueOnce(mockApiResponse(mockUsers));
 
       await getUsersHandler({
-        username: 'ivan',
+        username: "ivan",
         smart_search: false,
         active: true,
       });
 
       expect(mockEnhancedFetch).toHaveBeenCalledWith(
-        expect.not.stringContaining('smart_search'),
-        expect.any(Object),
+        expect.not.stringContaining("smart_search"),
+        expect.any(Object)
       );
       expect(mockEnhancedFetch).toHaveBeenCalledWith(
-        expect.stringContaining('username=ivan'),
-        expect.any(Object),
+        expect.stringContaining("username=ivan"),
+        expect.any(Object)
       );
       expect(mockEnhancedFetch).toHaveBeenCalledWith(
-        expect.stringContaining('active=true'),
-        expect.any(Object),
+        expect.stringContaining("active=true"),
+        expect.any(Object)
       );
     });
 
-    it('should pass through additional parameters to smart search', async () => {
+    it("should pass through additional parameters to smart search", async () => {
       mockSmartUserSearch.mockResolvedValueOnce(mockSmartSearchResult);
 
       await getUsersHandler({
-        search: 'ivan',
+        search: "ivan",
         active: true,
         humans: true,
-        created_after: '2024-01-01T00:00:00Z',
+        created_after: "2024-01-01T00:00:00Z",
       });
 
-      expect(mockSmartUserSearch).toHaveBeenCalledWith('ivan', {
+      expect(mockSmartUserSearch).toHaveBeenCalledWith("ivan", {
         active: true,
         humans: true,
-        created_after: '2024-01-01T00:00:00Z',
+        created_after: "2024-01-01T00:00:00Z",
         per_page: 20,
       });
     });

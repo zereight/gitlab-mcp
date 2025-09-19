@@ -308,4 +308,83 @@ describe('Enhanced Fetch Utilities', () => {
       );
     });
   });
+
+  describe('Edge Cases and Error Handling', () => {
+    it('should handle missing Authorization header when no token', async () => {
+      const originalHeaders = { ...DEFAULT_HEADERS };
+      delete DEFAULT_HEADERS.Authorization;
+
+      const mockResponse = createMockResponse();
+      mockFetch.mockResolvedValue(mockResponse);
+
+      await enhancedFetch('https://example.com');
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        'https://example.com',
+        expect.objectContaining({
+          headers: expect.not.objectContaining({
+            Authorization: expect.any(String)
+          })
+        })
+      );
+
+      // Restore original headers
+      Object.assign(DEFAULT_HEADERS, originalHeaders);
+    });
+
+    it('should handle array-like headers correctly', async () => {
+      const mockResponse = createMockResponse();
+      mockFetch.mockResolvedValue(mockResponse);
+
+      await enhancedFetch('https://example.com', {
+        headers: [['X-Custom', 'value'], ['Another-Header', 'value2']]
+      });
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        'https://example.com',
+        expect.objectContaining({
+          headers: expect.objectContaining({
+            'User-Agent': 'GitLab MCP Server'
+          })
+        })
+      );
+    });
+
+    it('should preserve different content types', async () => {
+      const mockResponse = createMockResponse();
+      mockFetch.mockResolvedValue(mockResponse);
+
+      await enhancedFetch('https://example.com', {
+        headers: { 'Content-Type': 'text/plain' }
+      });
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        'https://example.com',
+        expect.objectContaining({
+          headers: expect.objectContaining({
+            'Content-Type': 'text/plain'
+          })
+        })
+      );
+    });
+
+    it('should handle request with no headers option', async () => {
+      const mockResponse = createMockResponse();
+      mockFetch.mockResolvedValue(mockResponse);
+
+      await enhancedFetch('https://example.com', {
+        method: 'DELETE'
+      });
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        'https://example.com',
+        expect.objectContaining({
+          method: 'DELETE',
+          headers: expect.objectContaining({
+            'User-Agent': 'GitLab MCP Server'
+          })
+        })
+      );
+    });
+  });
 });

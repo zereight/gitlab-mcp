@@ -1,9 +1,9 @@
-import { GraphQLClient } from '../graphql/client';
-import { gql } from 'graphql-tag';
-import { enhancedFetch } from '../utils/fetch';
-import { logger } from '../logger';
+import { GraphQLClient } from "../graphql/client";
+import { gql } from "graphql-tag";
+import { enhancedFetch } from "../utils/fetch";
+import { logger } from "../logger";
 
-export type GitLabTier = 'free' | 'premium' | 'ultimate';
+export type GitLabTier = "free" | "premium" | "ultimate";
 
 export interface GitLabFeatures {
   // Core features
@@ -111,7 +111,7 @@ const FEATURE_DETECTION_QUERY = gql`
 export class GitLabVersionDetector {
   private client: GraphQLClient;
   private cachedInfo: GitLabInstanceInfo | null = null;
-  private testGroupPath: string = 'test';
+  private testGroupPath: string = "test";
 
   constructor(client: GraphQLClient) {
     this.client = client;
@@ -146,7 +146,7 @@ export class GitLabVersionDetector {
       return response.metadata.version;
     } catch (error) {
       logger.warn(
-        `Failed to detect GitLab version via GraphQL, trying alternative methods: ${error instanceof Error ? error.message : String(error)}`,
+        `Failed to detect GitLab version via GraphQL, trying alternative methods: ${error instanceof Error ? error.message : String(error)}`
       );
       return await this.detectVersionFallback();
     }
@@ -154,7 +154,7 @@ export class GitLabVersionDetector {
 
   private async detectVersionFallback(): Promise<string> {
     try {
-      const baseUrl = this.client.endpoint.replace('/api/graphql', '');
+      const baseUrl = this.client.endpoint.replace("/api/graphql", "");
       const response = await enhancedFetch(`${baseUrl}/api/v4/version`);
       if (response.ok) {
         const data = (await response.json()) as { version: string };
@@ -162,11 +162,11 @@ export class GitLabVersionDetector {
       }
     } catch (error) {
       logger.warn(
-        `Failed to detect version via REST API: ${error instanceof Error ? error.message : String(error)}`,
+        `Failed to detect version via REST API: ${error instanceof Error ? error.message : String(error)}`
       );
     }
 
-    return 'unknown';
+    return "unknown";
   }
 
   private async detectTier(): Promise<GitLabTier> {
@@ -179,17 +179,17 @@ export class GitLabVersionDetector {
       const response = await this.client.request<LicenseResponse>(LICENSE_QUERY);
 
       if (response.currentLicense) {
-        const plan = response.currentLicense.plan?.toLowerCase() ?? '';
+        const plan = response.currentLicense.plan?.toLowerCase() ?? "";
 
-        if (plan.includes('ultimate') || plan.includes('gold')) {
-          return 'ultimate';
-        } else if (plan.includes('premium') || plan.includes('silver')) {
-          return 'premium';
+        if (plan.includes("ultimate") || plan.includes("gold")) {
+          return "ultimate";
+        } else if (plan.includes("premium") || plan.includes("silver")) {
+          return "premium";
         }
       }
     } catch (error) {
       logger.debug(
-        `License query not available, attempting feature detection: ${error instanceof Error ? error.message : String(error)}`,
+        `License query not available, attempting feature detection: ${error instanceof Error ? error.message : String(error)}`
       );
     }
 
@@ -217,25 +217,25 @@ export class GitLabVersionDetector {
         const hasIterations = (group.iterationsEnabled?.nodes?.length ?? 0) > 0;
 
         const hasAdvancedWorkItems =
-          group.workItemTypesEnabled?.nodes?.some((type) =>
-            ['OBJECTIVE', 'KEY_RESULT', 'REQUIREMENT'].includes(type.name),
+          group.workItemTypesEnabled?.nodes?.some(type =>
+            ["OBJECTIVE", "KEY_RESULT", "REQUIREMENT"].includes(type.name)
           ) ?? false;
 
         if (hasAdvancedWorkItems) {
-          return 'ultimate';
+          return "ultimate";
         } else if (hasIterations) {
-          return 'premium';
+          return "premium";
         } else {
-          return 'premium';
+          return "premium";
         }
       }
     } catch (error) {
       logger.debug(
-        `Feature detection failed, assuming free tier: ${error instanceof Error ? error.message : String(error)}`,
+        `Feature detection failed, assuming free tier: ${error instanceof Error ? error.message : String(error)}`
       );
     }
 
-    return 'free';
+    return "free";
   }
 
   private determineFeatures(version: string, tier: GitLabTier): GitLabFeatures {
@@ -244,39 +244,39 @@ export class GitLabVersionDetector {
     const features: GitLabFeatures = {
       // Core features aligned with WORK.md Feature Availability Matrix
       workItems: versionNumber >= 15.0,
-      epics: tier !== 'free' && versionNumber >= 10.2,
-      iterations: tier !== 'free' && versionNumber >= 13.1,
-      roadmaps: tier !== 'free' && versionNumber >= 10.8,
-      portfolioManagement: tier === 'ultimate' && versionNumber >= 12.0,
-      advancedSearch: tier !== 'free' && versionNumber >= 11.0,
-      codeReview: tier !== 'free' && versionNumber >= 11.0,
-      securityDashboard: tier === 'ultimate' && versionNumber >= 11.1,
-      complianceFramework: tier === 'ultimate' && versionNumber >= 13.0,
-      valueStreamAnalytics: tier !== 'free' && versionNumber >= 12.3,
-      customFields: tier === 'ultimate' && versionNumber >= 17.0,
-      okrs: tier === 'ultimate' && versionNumber >= 15.7,
-      healthStatus: tier === 'ultimate' && versionNumber >= 13.1,
-      weight: tier !== 'free' && versionNumber >= 12.0,
-      multiLevelEpics: tier === 'ultimate' && versionNumber >= 11.7,
-      serviceDesk: tier !== 'free' && versionNumber >= 9.1,
-      requirements: tier === 'ultimate' && versionNumber >= 13.1,
-      qualityManagement: tier === 'ultimate' && versionNumber >= 13.0,
+      epics: tier !== "free" && versionNumber >= 10.2,
+      iterations: tier !== "free" && versionNumber >= 13.1,
+      roadmaps: tier !== "free" && versionNumber >= 10.8,
+      portfolioManagement: tier === "ultimate" && versionNumber >= 12.0,
+      advancedSearch: tier !== "free" && versionNumber >= 11.0,
+      codeReview: tier !== "free" && versionNumber >= 11.0,
+      securityDashboard: tier === "ultimate" && versionNumber >= 11.1,
+      complianceFramework: tier === "ultimate" && versionNumber >= 13.0,
+      valueStreamAnalytics: tier !== "free" && versionNumber >= 12.3,
+      customFields: tier === "ultimate" && versionNumber >= 17.0,
+      okrs: tier === "ultimate" && versionNumber >= 15.7,
+      healthStatus: tier === "ultimate" && versionNumber >= 13.1,
+      weight: tier !== "free" && versionNumber >= 12.0,
+      multiLevelEpics: tier === "ultimate" && versionNumber >= 11.7,
+      serviceDesk: tier !== "free" && versionNumber >= 9.1,
+      requirements: tier === "ultimate" && versionNumber >= 13.1,
+      qualityManagement: tier === "ultimate" && versionNumber >= 13.0,
 
       // Widget-specific features aligned with WORK.md
-      timeTracking: tier !== 'free' && versionNumber >= 8.14,
-      crmContacts: tier === 'ultimate' && versionNumber >= 14.0,
-      vulnerabilities: tier === 'ultimate' && versionNumber >= 12.5,
-      errorTracking: tier === 'ultimate' && versionNumber >= 12.7,
-      designManagement: tier !== 'free' && versionNumber >= 12.2,
-      linkedResources: tier !== 'free' && versionNumber >= 16.5,
-      emailParticipants: tier !== 'free' && versionNumber >= 16.0,
+      timeTracking: tier !== "free" && versionNumber >= 8.14,
+      crmContacts: tier === "ultimate" && versionNumber >= 14.0,
+      vulnerabilities: tier === "ultimate" && versionNumber >= 12.5,
+      errorTracking: tier === "ultimate" && versionNumber >= 12.7,
+      designManagement: tier !== "free" && versionNumber >= 12.2,
+      linkedResources: tier !== "free" && versionNumber >= 16.5,
+      emailParticipants: tier !== "free" && versionNumber >= 16.0,
     };
 
     return features;
   }
 
   private parseVersion(version: string): number {
-    if (!version || version === 'unknown') return 0;
+    if (!version || version === "unknown") return 0;
 
     const match = version.match(/^(\d+)\.(\d+)/);
     if (!match) return 0;
@@ -294,7 +294,7 @@ export class GitLabVersionDetector {
 
   public isFeatureAvailable(feature: keyof GitLabFeatures): boolean {
     if (!this.cachedInfo) {
-      throw new Error('Instance info not detected yet. Call detectInstance() first.');
+      throw new Error("Instance info not detected yet. Call detectInstance() first.");
     }
 
     return this.cachedInfo.features[feature];
@@ -302,7 +302,7 @@ export class GitLabVersionDetector {
 
   public getTier(): GitLabTier {
     if (!this.cachedInfo) {
-      throw new Error('Instance info not detected yet. Call detectInstance() first.');
+      throw new Error("Instance info not detected yet. Call detectInstance() first.");
     }
 
     return this.cachedInfo.tier;
@@ -310,7 +310,7 @@ export class GitLabVersionDetector {
 
   public getVersion(): string {
     if (!this.cachedInfo) {
-      throw new Error('Instance info not detected yet. Call detectInstance() first.');
+      throw new Error("Instance info not detected yet. Call detectInstance() first.");
     }
 
     return this.cachedInfo.version;

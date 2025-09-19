@@ -1,9 +1,9 @@
-import * as https from 'https';
-import * as fs from 'fs';
-import { HttpProxyAgent } from 'http-proxy-agent';
-import { HttpsProxyAgent } from 'https-proxy-agent';
-import { SocksProxyAgent } from 'socks-proxy-agent';
-import { logger } from '../logger';
+import * as https from "https";
+import * as fs from "fs";
+import { HttpProxyAgent } from "http-proxy-agent";
+import { HttpsProxyAgent } from "https-proxy-agent";
+import { SocksProxyAgent } from "socks-proxy-agent";
+import { logger } from "../logger";
 import {
   SKIP_TLS_VERIFY,
   GITLAB_AUTH_COOKIE_PATH,
@@ -12,7 +12,7 @@ import {
   HTTPS_PROXY,
   NODE_TLS_REJECT_UNAUTHORIZED,
   GITLAB_TOKEN,
-} from '../config';
+} from "../config";
 
 /**
  * Cookie handling - parse cookies from file and format for HTTP Cookie header
@@ -23,14 +23,14 @@ function loadCookieHeader(): string | null {
   }
 
   try {
-    const cookieString = fs.readFileSync(GITLAB_AUTH_COOKIE_PATH, 'utf-8');
+    const cookieString = fs.readFileSync(GITLAB_AUTH_COOKIE_PATH, "utf-8");
     const cookies: string[] = [];
 
-    cookieString.split('\n').forEach((line) => {
+    cookieString.split("\n").forEach(line => {
       const trimmed = line.trim();
-      if (trimmed && !trimmed.startsWith('#')) {
+      if (trimmed && !trimmed.startsWith("#")) {
         // Parse cookie line format: domain flag path secure expiration name value
-        const parts = trimmed.split('\t');
+        const parts = trimmed.split("\t");
         if (parts.length >= 7) {
           const name = parts[5];
           const value = parts[6];
@@ -39,9 +39,9 @@ function loadCookieHeader(): string | null {
       }
     });
 
-    return cookies.length > 0 ? cookies.join('; ') : null;
+    return cookies.length > 0 ? cookies.join("; ") : null;
   } catch (error: unknown) {
-    logger.warn({ err: error }, 'Failed to load GitLab authentication cookies');
+    logger.warn({ err: error }, "Failed to load GitLab authentication cookies");
     return null;
   }
 }
@@ -59,9 +59,9 @@ function getProxyAgent():
     return undefined;
   }
 
-  if (proxyUrl.startsWith('socks4://') || proxyUrl.startsWith('socks5://')) {
+  if (proxyUrl.startsWith("socks4://") || proxyUrl.startsWith("socks5://")) {
     return new SocksProxyAgent(proxyUrl);
-  } else if (proxyUrl.startsWith('https://')) {
+  } else if (proxyUrl.startsWith("https://")) {
     return new HttpsProxyAgent(proxyUrl);
   } else {
     return new HttpProxyAgent(proxyUrl);
@@ -90,9 +90,9 @@ function loadCACertificate(): Buffer | undefined {
  * HTTP headers and configuration
  */
 export const DEFAULT_HEADERS: Record<string, string> = {
-  'User-Agent': 'GitLab MCP Server',
-  'Content-Type': 'application/json',
-  Accept: 'application/json',
+  "User-Agent": "GitLab MCP Server",
+  "Content-Type": "application/json",
+  Accept: "application/json",
 };
 
 if (GITLAB_TOKEN) {
@@ -117,17 +117,17 @@ export function createFetchOptions(): RequestInit & {
   }
 
   // TLS configuration
-  if (SKIP_TLS_VERIFY || NODE_TLS_REJECT_UNAUTHORIZED === '0') {
+  if (SKIP_TLS_VERIFY || NODE_TLS_REJECT_UNAUTHORIZED === "0") {
     const agent = new https.Agent({
       rejectUnauthorized: false,
     });
     options.agent = agent;
 
     if (SKIP_TLS_VERIFY) {
-      logger.warn('TLS certificate verification disabled via SKIP_TLS_VERIFY');
+      logger.warn("TLS certificate verification disabled via SKIP_TLS_VERIFY");
     }
-    if (NODE_TLS_REJECT_UNAUTHORIZED === '0') {
-      logger.warn('TLS certificate verification disabled via NODE_TLS_REJECT_UNAUTHORIZED');
+    if (NODE_TLS_REJECT_UNAUTHORIZED === "0") {
+      logger.warn("TLS certificate verification disabled via NODE_TLS_REJECT_UNAUTHORIZED");
     }
   }
 

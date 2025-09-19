@@ -1,10 +1,10 @@
-import { enhancedFetch } from './fetch';
-import { transliterate } from 'transliteration';
+import { enhancedFetch } from "./fetch";
+import { transliterate } from "transliteration";
 
 /**
  * User query type detected by pattern analysis
  */
-export type QueryType = 'email' | 'username' | 'name';
+export type QueryType = "email" | "username" | "name";
 
 /**
  * Pattern detection result
@@ -71,7 +71,7 @@ export function analyzeQuery(query: string): QueryPattern {
   // Email pattern: basic validation for @domain format
   if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedQuery)) {
     return {
-      type: 'email',
+      type: "email",
       hasTransliteration: false,
       originalQuery: trimmedQuery,
     };
@@ -82,7 +82,7 @@ export function analyzeQuery(query: string): QueryPattern {
   if (trimmedQuery.length >= 3 && trimmedQuery.length <= 30 && !/\s/.test(trimmedQuery)) {
     const hasTransliterationNeeded = hasNonLatin(trimmedQuery);
     return {
-      type: 'username',
+      type: "username",
       hasTransliteration: hasTransliterationNeeded,
       originalQuery: trimmedQuery,
       transliteratedQuery: hasTransliterationNeeded ? transliterateText(trimmedQuery) : undefined,
@@ -92,7 +92,7 @@ export function analyzeQuery(query: string): QueryPattern {
   // Name pattern: everything else (contains spaces, long text, or anything not matching username)
   const hasTransliterationNeeded = hasNonLatin(trimmedQuery);
   return {
-    type: 'name',
+    type: "name",
     hasTransliteration: hasTransliterationNeeded,
     originalQuery: trimmedQuery,
     transliteratedQuery: hasTransliterationNeeded ? transliterateText(trimmedQuery) : undefined,
@@ -138,7 +138,7 @@ async function callUsersAPI(params: UserSearchParams): Promise<unknown[]> {
  */
 export async function smartUserSearch(
   query: string,
-  additionalParams: Partial<UserSearchParams> = {},
+  additionalParams: Partial<UserSearchParams> = {}
 ): Promise<SmartSearchResult> {
   const pattern = analyzeQuery(query);
   const searchPhases: Array<{ phase: string; params: UserSearchParams; resultCount: number }> = [];
@@ -148,13 +148,13 @@ export async function smartUserSearch(
   // Phase 1: Targeted search based on detected pattern
   let targetParams: UserSearchParams;
   switch (pattern.type) {
-    case 'email':
+    case "email":
       targetParams = { public_email: pattern.originalQuery, ...additionalParams };
       break;
-    case 'username':
+    case "username":
       targetParams = { username: pattern.originalQuery, ...additionalParams };
       break;
-    case 'name':
+    case "name":
       targetParams = { search: pattern.originalQuery, ...additionalParams };
       break;
   }
@@ -182,12 +182,12 @@ export async function smartUserSearch(
     }
 
     // Phase 2: Broad search fallback if targeted search returned empty
-    if (pattern.type !== 'name') {
+    if (pattern.type !== "name") {
       const broadParams = { search: pattern.originalQuery, ...additionalParams };
       users = await callUsersAPI(broadParams);
       totalApiCalls++;
       searchPhases.push({
-        phase: 'broad-search',
+        phase: "broad-search",
         params: broadParams,
         resultCount: users.length,
       });
@@ -211,14 +211,14 @@ export async function smartUserSearch(
       users = await callUsersAPI(translitParams);
       totalApiCalls++;
       searchPhases.push({
-        phase: 'transliteration',
+        phase: "transliteration",
         params: translitParams,
         resultCount: users.length,
       });
     }
   } catch (error) {
     // Log error but don't fail completely - return empty result with metadata
-    console.error('Smart user search error:', error);
+    console.error("Smart user search error:", error);
   }
 
   return {

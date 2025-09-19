@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
-import { startServer } from './server';
-import { logger } from './logger';
+import { startServer } from "./server";
+import { logger } from "./logger";
 
 // Start the server
 startServer().catch((error: unknown) => {

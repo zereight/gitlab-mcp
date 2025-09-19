@@ -1,8 +1,8 @@
-import { GraphQLClient } from '../graphql/client';
-import { GitLabVersionDetector, GitLabInstanceInfo } from './GitLabVersionDetector';
-import { SchemaIntrospector, SchemaInfo } from './SchemaIntrospector';
-import { GITLAB_BASE_URL, GITLAB_TOKEN } from '../config';
-import { logger } from '../logger';
+import { GraphQLClient } from "../graphql/client";
+import { GitLabVersionDetector, GitLabInstanceInfo } from "./GitLabVersionDetector";
+import { SchemaIntrospector, SchemaInfo } from "./SchemaIntrospector";
+import { GITLAB_BASE_URL, GITLAB_TOKEN } from "../config";
+import { logger } from "../logger";
 
 interface CacheEntry {
   schemaInfo: SchemaInfo;
@@ -35,7 +35,7 @@ export class ConnectionManager {
 
     try {
       if (!GITLAB_BASE_URL || !GITLAB_TOKEN) {
-        throw new Error('GitLab base URL and token are required');
+        throw new Error("GitLab base URL and token are required");
       }
 
       // Construct GraphQL endpoint from base URL
@@ -55,11 +55,11 @@ export class ConnectionManager {
       const now = Date.now();
 
       if (cached && now - cached.timestamp < ConnectionManager.CACHE_TTL) {
-        logger.info('Using cached GraphQL introspection data');
+        logger.info("Using cached GraphQL introspection data");
         this.instanceInfo = cached.instanceInfo;
         this.schemaInfo = cached.schemaInfo;
       } else {
-        logger.debug('Introspecting GitLab GraphQL schema...');
+        logger.debug("Introspecting GitLab GraphQL schema...");
 
         // Detect instance info and introspect schema in parallel
         const [instanceInfo, schemaInfo] = await Promise.all([
@@ -77,7 +77,7 @@ export class ConnectionManager {
           timestamp: now,
         });
 
-        logger.info('GraphQL schema introspection completed');
+        logger.info("GraphQL schema introspection completed");
       }
 
       this.isInitialized = true;
@@ -94,50 +94,50 @@ export class ConnectionManager {
           widgetTypes: this.schemaInfo?.workItemWidgetTypes.length || 0,
           schemaTypes: this.schemaInfo?.typeDefinitions.size || 0,
         },
-        'GitLab instance and schema detected',
+        "GitLab instance and schema detected"
       );
     } catch (error) {
-      logger.error({ err: error as Error }, 'Failed to initialize connection');
+      logger.error({ err: error as Error }, "Failed to initialize connection");
       throw error;
     }
   }
 
   public getClient(): GraphQLClient {
     if (!this.client) {
-      throw new Error('Connection not initialized. Call initialize() first.');
+      throw new Error("Connection not initialized. Call initialize() first.");
     }
     return this.client;
   }
 
   public getVersionDetector(): GitLabVersionDetector {
     if (!this.versionDetector) {
-      throw new Error('Connection not initialized. Call initialize() first.');
+      throw new Error("Connection not initialized. Call initialize() first.");
     }
     return this.versionDetector;
   }
 
   public getSchemaIntrospector(): SchemaIntrospector {
     if (!this.schemaIntrospector) {
-      throw new Error('Connection not initialized. Call initialize() first.');
+      throw new Error("Connection not initialized. Call initialize() first.");
     }
     return this.schemaIntrospector;
   }
 
   public getInstanceInfo(): GitLabInstanceInfo {
     if (!this.instanceInfo) {
-      throw new Error('Connection not initialized. Call initialize() first.');
+      throw new Error("Connection not initialized. Call initialize() first.");
     }
     return this.instanceInfo;
   }
 
   public getSchemaInfo(): SchemaInfo {
     if (!this.schemaInfo) {
-      throw new Error('Connection not initialized. Call initialize() first.');
+      throw new Error("Connection not initialized. Call initialize() first.");
     }
     return this.schemaInfo;
   }
 
-  public isFeatureAvailable(feature: keyof GitLabInstanceInfo['features']): boolean {
+  public isFeatureAvailable(feature: keyof GitLabInstanceInfo["features"]): boolean {
     if (!this.instanceInfo) {
       return false;
     }
@@ -146,14 +146,14 @@ export class ConnectionManager {
 
   public getTier(): string {
     if (!this.instanceInfo) {
-      return 'unknown';
+      return "unknown";
     }
     return this.instanceInfo.tier;
   }
 
   public getVersion(): string {
     if (!this.instanceInfo) {
-      return 'unknown';
+      return "unknown";
     }
     return this.instanceInfo.version;
   }

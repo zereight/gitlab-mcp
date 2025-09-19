@@ -1,9 +1,9 @@
-import { z } from 'zod';
-import { flexibleBoolean, flexibleBooleanNullable } from './utils';
+import { z } from "zod";
+import { flexibleBoolean, flexibleBooleanNullable } from "./utils";
 
 // Shared schemas that are used across multiple entities
 export const PaginationOptionsSchema = z.object({
-  page: z.number().int().min(1).optional().describe('Page number'),
+  page: z.number().int().min(1).optional().describe("Page number"),
   per_page: z
     .number()
     .int()
@@ -11,7 +11,7 @@ export const PaginationOptionsSchema = z.object({
     .max(100)
     .optional()
     .default(20)
-    .describe('Number of items per page (max 100)'),
+    .describe("Number of items per page (max 100)"),
 });
 
 // Basic milestone schema to avoid circular dependencies
@@ -19,7 +19,7 @@ export const GitLabMilestoneSchema = z.object({
   id: z.coerce.string(),
   iid: z.coerce.string(),
   title: z.string(),
-  description: z.string().nullable().default(''),
+  description: z.string().nullable().default(""),
   state: z.string(),
   web_url: z.string(),
 });
@@ -50,7 +50,7 @@ export const GitLabNamespaceSchema = z.object({
 });
 
 export const ProjectParamsSchema = z.object({
-  project_id: z.coerce.string().describe('Project ID or URL-encoded path'),
+  project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
 });
 
 // GitLab Project schema (complete response structure for GitLab 18.3)
@@ -73,7 +73,7 @@ export const GitLabProjectSchema = z.object({
   avatar_url: z.string().nullable(),
   star_count: z.number(),
   last_activity_at: z.string(),
-  visibility: z.enum(['private', 'internal', 'public']),
+  visibility: z.enum(["private", "internal", "public"]),
   namespace: GitLabNamespaceSchema,
   repository_storage: z.string().optional(),
   container_registry_image_prefix: z.string().optional(),
@@ -247,13 +247,13 @@ export const GitLabIssueSchema = z.object({
   iid: z.coerce.string(),
   project_id: z.coerce.string(),
   title: z.string(),
-  description: z.string().nullable().default(''),
+  description: z.string().nullable().default(""),
   state: z.string(),
   author: GitLabUserSchema,
   assignees: z.array(GitLabUserSchema),
   labels: z.array(z.string()),
   milestone: GitLabMilestoneSchema.nullable(),
-  type: z.enum(['ISSUE', 'INCIDENT', 'TEST_CASE', 'TASK']).optional(),
+  type: z.enum(["ISSUE", "INCIDENT", "TEST_CASE", "TASK"]).optional(),
   user_notes_count: z.number().optional(),
   merge_requests_count: z.number().optional(),
   upvotes: z.number().optional(),
