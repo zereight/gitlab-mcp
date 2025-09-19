@@ -1,3 +1,11 @@
+# [5.2.0](https://github.com/structured-world/gitlab-mcp/compare/v5.1.0...v5.2.0) (2025-09-19)
+
+
+### Features
+
+* comprehensive project cleanup and test verification ([5815eb8](https://github.com/structured-world/gitlab-mcp/commit/5815eb8888affe1e9412e11229bd9ed5902b4077))
+* move test_mcp.sh to scripts directory and update documentation ([71a24d5](https://github.com/structured-world/gitlab-mcp/commit/71a24d54e3e768f720851a05125c5659ef22a1de))
+
 # [5.1.0](https://github.com/structured-world/gitlab-mcp/compare/v5.0.0...v5.1.0) (2025-09-19)
 
 
