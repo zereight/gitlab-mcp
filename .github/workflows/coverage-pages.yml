@@ -1,0 +1,318 @@
+# GitHub Actions Workflow: Deploy Coverage Reports to GitHub Pages
+#
+# This workflow runs tests with coverage, generates HTML reports, and deploys
+# them to GitHub Pages for easy viewing of test coverage metrics.
+#
+# The coverage reports will be available at:
+# https://structured-world.github.io/project-nexus-mcp/coverage/
+#
+# Triggers:
+# - Push to main branch (updates coverage reports)
+# - Pull requests (generates preview but doesn't deploy)
+# - Manual workflow dispatch
+
+name: Deploy Coverage to GitHub Pages
+
+on:
+  # Trigger on pushes to main branch
+  push:
+    branches:
+      - main
+    # Only run if relevant files changed
+    paths:
+      - "src/**"
+      - "package.json"
+      - "yarn.lock"
+      - "tsconfig.json"
+      - "jest.config.*"
+      - ".github/workflows/coverage-pages.yml"
+
+  # Trigger on pull requests for preview
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "src/**"
+      - "package.json"
+      - "yarn.lock"
+      - "tsconfig.json"
+      - "jest.config.*"
+
+  # Allow manual triggering
+  workflow_dispatch:
+
+# Ensure only one deployment runs at a time
+concurrency:
+  group: pages-${{ github.ref }}
+  cancel-in-progress: true
+
+# Set permissions for GitHub Pages deployment and PR comments
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+  pull-requests: write
+  issues: write
+  actions: read
+
+jobs:
+  # Job 1: Generate coverage reports
+  coverage:
+    name: Generate Coverage Reports
+    runs-on: ubuntu-latest
+
+    # Set outputs for use in deployment job
+    outputs:
+      coverage-percentage: ${{ steps.coverage.outputs.percentage }}
+      should-deploy: ${{ steps.should-deploy.outputs.result }}
+
+    steps:
+      # Step 1: Check out the repository
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # Step 2: Set up Node.js environment
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          # Don't cache yarn yet - enable corepack first
+
+      # Step 3: Enable Corepack for Yarn 4
+      - name: Enable Corepack
+        run: corepack enable
+
+      # Step 4: Install dependencies
+      - name: Install dependencies
+        run: yarn install --immutable
+
+      # Step 5: Run tests with coverage
+      - name: Run tests with coverage
+        run: yarn test:cov
+
+      # Step 6: Extract coverage percentage for badge/display
+      - name: Extract coverage percentage
+        id: coverage
+        run: |
+          # Extract coverage percentage from Jest output
+          COVERAGE=$(cat coverage/lcov-report/index.html | grep -o 'class="strong">[0-9.]*%' | head -1 | grep -o '[0-9.]*')
+          echo "percentage=${COVERAGE:-0}" >> $GITHUB_OUTPUT
+          echo "Coverage: ${COVERAGE:-0}%"
+
+      # Step 7: Create coverage summary for PR comments
+      - name: Generate coverage summary
+        if: github.event_name == 'pull_request'
+        run: |
+          # Create a markdown summary of coverage
+          cat > coverage-summary.md << 'EOF'
+          ## 📊 Test Coverage Report
+
+          **Overall Coverage:** ${{ steps.coverage.outputs.percentage }}%
+
+          ### Coverage Details
+          | Metric | Percentage |
+          |--------|------------|
+          | Statements | $(cat coverage/lcov-report/index.html | grep -A1 'Statements' | tail -1 | grep -o '[0-9.]*%' | head -1) |
+          | Branches | $(cat coverage/lcov-report/index.html | grep -A1 'Branches' | tail -1 | grep -o '[0-9.]*%' | head -1) |
+          | Functions | $(cat coverage/lcov-report/index.html | grep -A1 'Functions' | tail -1 | grep -o '[0-9.]*%' | head -1) |
+          | Lines | $(cat coverage/lcov-report/index.html | grep -A1 'Lines' | tail -1 | grep -o '[0-9.]*%' | head -1) |
+
+          📈 **Coverage Report:** [View detailed coverage report](https://structured-world.github.io/project-nexus-mcp/coverage/)
+
+          > This report was generated automatically from your PR changes.
+          EOF
+
+      # Step 8: Comment coverage summary on PR
+      - name: Comment coverage on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require('fs');
+            const summary = fs.readFileSync('coverage-summary.md', 'utf8');
+
+            try {
+              // Find existing coverage comment
+              const comments = await github.rest.issues.listComments({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+              });
+              
+              const existingComment = comments.data.find(comment => 
+                comment.body.includes('## 📊 Test Coverage Report')
+              );
+              
+              if (existingComment) {
+                // Update existing comment
+                await github.rest.issues.updateComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  comment_id: existingComment.id,
+                  body: summary
+                });
+                console.log('Updated existing coverage comment');
+              } else {
+                // Create new comment
+                await github.rest.issues.createComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: context.issue.number,
+                  body: summary
+                });
+                console.log('Created new coverage comment');
+              }
+            } catch (error) {
+              console.log('Failed to comment on PR (this may be due to organization permissions):', error.message);
+              // Don't fail the workflow if commenting fails
+            }
+
+      # Step 9: Prepare coverage reports for deployment
+      - name: Prepare coverage for deployment
+        run: |
+          # Create deployment directory
+          mkdir -p pages-deploy/coverage
+
+          # Copy coverage reports to match expected URL structure
+          cp -r coverage/* pages-deploy/coverage/
+
+          # Create index.html that redirects to coverage report
+          cat > pages-deploy/index.html << 'EOF'
+          <!DOCTYPE html>
+          <html lang="en">
+          <head>
+              <meta charset="UTF-8">
+              <meta name="viewport" content="width=device-width, initial-scale=1.0">
+              <title>Project Nexus MCP - Coverage Reports</title>
+              <meta http-equiv="refresh" content="0; url=./coverage/lcov-report/">
+              <style>
+                  body {
+                      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                      max-width: 800px;
+                      margin: 2rem auto;
+                      padding: 2rem;
+                      line-height: 1.6;
+                  }
+                  .header {
+                      text-align: center;
+                      margin-bottom: 2rem;
+                  }
+                  .coverage-badge {
+                      display: inline-block;
+                      padding: 0.5rem 1rem;
+                      background: #28a745;
+                      color: white;
+                      border-radius: 4px;
+                      text-decoration: none;
+                      font-weight: bold;
+                  }
+                  .links {
+                      margin-top: 2rem;
+                  }
+                  .links a {
+                      display: inline-block;
+                      margin: 0.5rem 1rem 0.5rem 0;
+                      padding: 0.5rem 1rem;
+                      background: #007bff;
+                      color: white;
+                      text-decoration: none;
+                      border-radius: 4px;
+                  }
+                  .links a:hover {
+                      background: #0056b3;
+                  }
+              </style>
+          </head>
+          <body>
+              <div class="header">
+                  <h1>Project Nexus MCP</h1>
+                  <h2>Test Coverage Reports</h2>
+                  <div class="coverage-badge">
+                      Coverage: ${{ steps.coverage.outputs.percentage }}%
+                  </div>
+              </div>
+              
+              <p>You will be automatically redirected to the coverage report. If not, click the link below:</p>
+              
+              <div class="links">
+                  <a href="./coverage/lcov-report/">📊 View Coverage Report</a>
+                  <a href="https://github.com/structured-world/project-nexus-mcp">📁 View Source Code</a>
+                  <a href="https://github.com/structured-world/project-nexus-mcp/actions">🔄 View CI/CD</a>
+              </div>
+              
+              <div style="margin-top: 2rem; padding: 1rem; background: #f8f9fa; border-radius: 4px;">
+                  <h3>About This Report</h3>
+                  <p>This coverage report is automatically generated from the latest tests on the main branch. 
+                  It shows which parts of the codebase are covered by tests and helps identify areas that may need additional testing.</p>
+                  
+                  <p><strong>Last Updated:</strong> ${{ steps.coverage.outputs.timestamp || 'Unknown' }}</p>
+                  <p><strong>Generated by:</strong> Jest + GitHub Actions</p>
+              </div>
+          </body>
+          </html>
+          EOF
+
+          # Add timestamp
+          echo "timestamp=$(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_OUTPUT
+
+      # Step 10: Determine if we should deploy (only on main branch pushes)
+      - name: Determine deployment
+        id: should-deploy
+        run: |
+          if [[ "${{ github.ref }}" == "refs/heads/main" && "${{ github.event_name }}" == "push" ]]; then
+            echo "result=true" >> $GITHUB_OUTPUT
+          else
+            echo "result=false" >> $GITHUB_OUTPUT
+          fi
+
+      # Step 11: Upload coverage artifacts for PR preview
+      - name: Upload coverage artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-reports-${{ github.sha }}
+          path: pages-deploy/
+          retention-days: 30
+
+      # Step 12: Upload pages artifact (for deployment)
+      - name: Upload Pages artifact
+        if: steps.should-deploy.outputs.result == 'true'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: pages-deploy/
+
+  # Job 2: Deploy to GitHub Pages (only on main branch)
+  deploy:
+    name: Deploy to GitHub Pages
+    runs-on: ubuntu-latest
+    needs: coverage
+    if: needs.coverage.outputs.should-deploy == 'true'
+
+    # Deploy to the github-pages environment
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      # Step 1: Deploy to GitHub Pages
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+      # Step 2: Create deployment summary
+      - name: Create deployment summary
+        run: |
+          echo "## 🚀 Coverage Report Deployed" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Coverage Percentage:** ${{ needs.coverage.outputs.coverage-percentage }}%" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**📊 Live Coverage Report:** ${{ steps.deployment.outputs.page_url }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "The coverage report has been successfully deployed and is now available at the link above." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Quick Links" >> $GITHUB_STEP_SUMMARY
+          echo "- [Coverage Report](${{ steps.deployment.outputs.page_url }})" >> $GITHUB_STEP_SUMMARY
+          echo "- [Detailed Coverage](${{ steps.deployment.outputs.page_url }}coverage/lcov-report/)" >> $GITHUB_STEP_SUMMARY
+          echo "- [Repository](https://github.com/${{ github.repository }})" >> $GITHUB_STEP_SUMMARY

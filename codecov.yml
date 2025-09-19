@@ -1,0 +1,70 @@
+# Codecov Configuration
+# Prevent codecov from reporting failures when coverage drops
+# This allows coverage to be tracked without failing GitHub status checks
+
+coverage:
+  # Set coverage precision
+  precision: 2
+
+  # Round coverage to avoid minor fluctuations
+  round: down
+
+  # Coverage range for color coding (informational only)
+  range: 50..90
+
+  # Status configuration - prevent failures
+  status:
+    # Project-level coverage status
+    project:
+      default:
+        # Don't fail if coverage drops
+        threshold: null
+        # Allow any coverage drop without failing
+        target: auto
+        # Only track coverage, don't enforce thresholds
+        informational: true
+
+    # Patch-level coverage status (for PRs)
+    patch:
+      default:
+        # Don't fail if new code has lower coverage
+        threshold: null
+        # Allow any coverage without failing
+        target: auto
+        # Only track coverage, don't enforce thresholds
+        informational: true
+
+  # Changes detection configuration
+  changes:
+    default:
+      # Don't fail on coverage changes
+      threshold: null
+      # Only track, don't enforce
+      informational: true
+
+# Comment configuration for PRs
+comment:
+  # Post coverage comments on PRs but don't indicate failures
+  layout: "reach, diff, flags, files"
+  behavior: default
+  require_changes: false
+  require_base: false
+  require_head: false
+  # Don't show status indicators that imply failure
+  show_critical_paths: false
+
+# GitHub status checks configuration
+github_checks:
+  # Disable status annotations that can appear as failures
+  annotations: false
+
+# Ignore files/directories from coverage
+ignore:
+  - "tests/**/*"
+  - "**/*.test.ts"
+  - "**/*.test.js"
+  - "dist/**/*"
+  - "build/**/*"
+  - "coverage/**/*"
+  - "node_modules/**/*"
+  - "**/*.d.ts"

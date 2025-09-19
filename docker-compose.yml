@@ -1,0 +1,369 @@
+# GitLab MCP Server Docker Compose Configuration
+#
+# This docker-compose.yml provides multiple deployment scenarios for the GitLab MCP Server.
+# Choose the appropriate service based on your needs:
+#
+# 1. gitlab-mcp-http: HTTP mode with dual transport (default, provides both /sse and /mcp endpoints)
+# 2. gitlab-mcp-stdio: Standard I/O mode (for command-line integration)
+# 3. gitlab-mcp-readonly: Read-only HTTP mode (for security-sensitive environments)
+#
+# Transport Mode Selection:
+# - PORT environment variable present: HTTP mode with both SSE and StreamableHTTP endpoints
+# - No PORT environment variable: stdio mode for direct MCP communication
+#
+# Quick Start:
+# 1. Copy this file to your project directory
+# 2. Create a .env file with your GitLab credentials (see .env.example)
+# 3. Run: docker-compose up gitlab-mcp-http
+#
+# For production use:
+# 1. Review and customize environment variables below
+# 2. Configure reverse proxy/load balancer if needed
+# 3. Set up proper logging and monitoring
+# 4. Use Docker secrets for sensitive data
+
+version: '3.8'
+
+# ============================================================================
+# SERVICES
+# ============================================================================
+
+services:
+  # ----------------------------------------------------------------------------
+  # HTTP Mode with Dual Transport (Default/Recommended)
+  # ----------------------------------------------------------------------------
+  # Best for: Web applications, API integrations, most MCP clients
+  # Port: 3000 (provides both /sse and /mcp endpoints simultaneously)
+  gitlab-mcp-http:
+    image: ghcr.io/structured-world/gitlab-mcp:latest
+    container_name: gitlab-mcp-http
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      # ========================================================================
+      # REQUIRED CONFIGURATION
+      # ========================================================================
+
+      # GitLab Personal Access Token (REQUIRED)
+      # Create at: GitLab → Settings → Access Tokens
+      # Required scopes: api, read_user, read_repository
+      # For full functionality also add: write_repository, read_api, write_api
+      GITLAB_TOKEN: ${GITLAB_TOKEN:-}
+
+      # GitLab API Base URL (REQUIRED)
+      # Examples:
+      #   - GitLab.com: https://gitlab.com
+      #   - Self-hosted: https://gitlab.company.com
+      #   - With custom port: https://gitlab.company.com:8443
+      GITLAB_API_URL: ${GITLAB_API_URL:-}
+
+      # ========================================================================
+      # TRANSPORT CONFIGURATION
+      # ========================================================================
+
+      # Server port (default: 3000)
+      # When PORT is set, server runs in HTTP mode with both SSE and StreamableHTTP endpoints
+      PORT: 3000
+
+      # ========================================================================
+      # OPTIONAL GITLAB TARGETING
+      # ========================================================================
+
+      # Default project for operations that don't specify a target
+      # Format: "username/project-name" or "group/project-name" or project ID
+      # Leave empty if not using default targeting
+      GITLAB_PROJECT_ID: ${GITLAB_PROJECT_ID:-}
+
+      # Default group for group-level operations
+      # Format: "group-name" or "parent-group/sub-group"
+      # Leave empty if not using default group targeting
+      GITLAB_GROUP_PATH: ${GITLAB_GROUP_PATH:-}
+
+      # ========================================================================
+      # FEATURE FLAGS (GitLab Tier-specific)
+      # ========================================================================
+
+      # Enable Work Items (GitLab Premium/Ultimate)
+      # Set to false for GitLab Free tier
+      USE_WORKITEMS: ${USE_WORKITEMS:-true}
+
+      # Enable Milestones (GitLab Premium/Ultimate for group milestones)
+      # Project milestones available in all tiers
+      USE_MILESTONE: ${USE_MILESTONE:-true}
+
+      # Enable CI/CD Pipelines (available in all tiers)
+      USE_PIPELINE: ${USE_PIPELINE:-true}
+
+      # Enable Wiki functionality (available in all tiers)
+      USE_GITLAB_WIKI: ${USE_GITLAB_WIKI:-true}
+
+      # Enable Labels functionality (available in all tiers)
+      USE_LABELS: ${USE_LABELS:-true}
+
+      # Enable Merge Requests functionality (available in all tiers)
+      USE_MRS: ${USE_MRS:-true}
+
+      # Enable File operations (available in all tiers)
+      USE_FILES: ${USE_FILES:-true}
+
+      # Enable CI/CD Variables (available in all tiers)
+      # Supports both project-level and group-level variables
+      USE_VARIABLES: ${USE_VARIABLES:-true}
+
+      # ========================================================================
+      # SECURITY AND ACCESS CONTROL
+      # ========================================================================
+
+      # Read-only mode (disables all write operations)
+      # Recommended for security-sensitive environments
+      GITLAB_READ_ONLY_MODE: ${GITLAB_READ_ONLY_MODE:-false}
+
+      # Regex pattern to deny specific tools
+      # Example: "delete.*|create.*" to block delete and create operations
+      # Leave empty to allow all tools
+      GITLAB_DENIED_TOOLS_REGEX: ${GITLAB_DENIED_TOOLS_REGEX:-}
+
+      # ========================================================================
+      # LOGGING AND DEBUGGING
+      # ========================================================================
+
+      # Log level: error, warn, info, debug, trace
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+
+      # Node.js environment
+      NODE_ENV: production
+
+      # ========================================================================
+      # NETWORK AND PROXY SETTINGS
+      # ========================================================================
+
+      # HTTP proxy for outbound requests
+      HTTP_PROXY: ${HTTP_PROXY:-}
+
+      # HTTPS proxy for outbound requests
+      HTTPS_PROXY: ${HTTPS_PROXY:-}
+
+      # Comma-separated list of hosts to bypass proxy
+      NO_PROXY: ${NO_PROXY:-}
+
+      # ========================================================================
+      # SSL/TLS CONFIGURATION
+      # ========================================================================
+
+      # Skip TLS certificate verification (DEVELOPMENT ONLY)
+      # WARNING: Only use for testing with self-signed certificates
+      # Never enable in production environments
+      SKIP_TLS_VERIFY: ${SKIP_TLS_VERIFY:-false}
+
+      # GitLab authentication cookie file path (for cookie-based auth)
+      # Leave empty unless using cookie-based authentication
+      GITLAB_AUTH_COOKIE_PATH: ${GITLAB_AUTH_COOKIE_PATH:-}
+
+      # ========================================================================
+      # PERFORMANCE TUNING
+      # ========================================================================
+
+      # Node.js memory limit and options
+      NODE_OPTIONS: "--max-old-space-size=512"
+
+      # Health check endpoint
+      HEALTH_CHECK_ENABLED: true
+
+    # Health check configuration
+    healthcheck:
+      test: ["CMD", "node", "-e", "const http = require('http'); const options = { host: 'localhost', port: 3000, path: '/health', timeout: 2000 }; const req = http.request(options, (res) => { process.exit(res.statusCode === 200 ? 0 : 1); }); req.on('error', () => process.exit(1)); req.end();"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s
+
+    # Resource limits (adjust based on your needs)
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
+        reservations:
+          memory: 256M
+          cpus: '0.25'
+
+    # Logging configuration
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+    # Network configuration
+    networks:
+      - gitlab-mcp-network
+
+
+  # ----------------------------------------------------------------------------
+  # Standard I/O Mode
+  # ----------------------------------------------------------------------------
+  # Best for: Command-line integration, stdio-based MCP clients
+  # No port exposure (uses stdio)
+  gitlab-mcp-stdio:
+    image: ghcr.io/structured-world/gitlab-mcp:latest
+    container_name: gitlab-mcp-stdio
+    restart: "no"  # stdio mode typically runs on-demand
+    environment:
+      # Inherit base configuration
+      GITLAB_TOKEN: ${GITLAB_TOKEN:-}
+      GITLAB_API_URL: ${GITLAB_API_URL:-}
+      GITLAB_PROJECT_ID: ${GITLAB_PROJECT_ID:-}
+      GITLAB_GROUP_PATH: ${GITLAB_GROUP_PATH:-}
+
+      # Feature flags
+      USE_WORKITEMS: ${USE_WORKITEMS:-true}
+      USE_MILESTONE: ${USE_MILESTONE:-true}
+      USE_PIPELINE: ${USE_PIPELINE:-true}
+      USE_GITLAB_WIKI: ${USE_GITLAB_WIKI:-true}
+      USE_LABELS: ${USE_LABELS:-true}
+      USE_MRS: ${USE_MRS:-true}
+      USE_FILES: ${USE_FILES:-true}
+      USE_VARIABLES: ${USE_VARIABLES:-true}
+
+      # Security
+      GITLAB_READ_ONLY_MODE: ${GITLAB_READ_ONLY_MODE:-false}
+
+      # SSL/TLS Configuration
+      SKIP_TLS_VERIFY: ${SKIP_TLS_VERIFY:-false}
+      GITLAB_AUTH_COOKIE_PATH: ${GITLAB_AUTH_COOKIE_PATH:-}
+
+      # Logging
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      NODE_ENV: production
+
+    # Override command for stdio mode
+    command: ["stdio"]
+
+    # stdio mode doesn't need network
+    network_mode: "none"
+
+    # stdio mode is typically not the primary service
+    profiles:
+      - stdio
+
+  # ----------------------------------------------------------------------------
+  # Read-Only Mode (Security-focused)
+  # ----------------------------------------------------------------------------
+  # Best for: Security-sensitive environments, monitoring, read-only access
+  # Port: 3002 (HTTP with read-only restrictions)
+  gitlab-mcp-readonly:
+    image: ghcr.io/structured-world/gitlab-mcp:latest
+    container_name: gitlab-mcp-readonly
+    restart: unless-stopped
+    ports:
+      - "3002:3000"
+    environment:
+      # Inherit base configuration
+      GITLAB_TOKEN: ${GITLAB_TOKEN:-}
+      GITLAB_API_URL: ${GITLAB_API_URL:-}
+      GITLAB_PROJECT_ID: ${GITLAB_PROJECT_ID:-}
+      GITLAB_GROUP_PATH: ${GITLAB_GROUP_PATH:-}
+
+      # Transport configuration
+      PORT: 3000
+
+      # Feature flags (read-only compatible)
+      USE_WORKITEMS: ${USE_WORKITEMS:-true}
+      USE_MILESTONE: ${USE_MILESTONE:-true}
+      USE_PIPELINE: ${USE_PIPELINE:-true}
+      USE_GITLAB_WIKI: ${USE_GITLAB_WIKI:-true}
+      USE_LABELS: ${USE_LABELS:-true}
+      USE_MRS: ${USE_MRS:-true}
+      USE_FILES: ${USE_FILES:-true}
+      USE_VARIABLES: ${USE_VARIABLES:-true}
+
+      # SECURITY: Enable read-only mode
+      GITLAB_READ_ONLY_MODE: true
+
+      # Additional security: Block potentially sensitive tools
+      GITLAB_DENIED_TOOLS_REGEX: "delete.*|remove.*"
+
+      # SSL/TLS Configuration
+      SKIP_TLS_VERIFY: ${SKIP_TLS_VERIFY:-false}
+      GITLAB_AUTH_COOKIE_PATH: ${GITLAB_AUTH_COOKIE_PATH:-}
+
+      # Logging
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      NODE_ENV: production
+
+    healthcheck:
+      test: ["CMD", "node", "-e", "const http = require('http'); const options = { host: 'localhost', port: 3000, path: '/health', timeout: 2000 }; const req = http.request(options, (res) => { process.exit(res.statusCode === 200 ? 0 : 1); }); req.on('error', () => process.exit(1)); req.end();"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s
+
+    deploy:
+      resources:
+        limits:
+          memory: 256M  # Lower memory for read-only
+          cpus: '0.25'
+        reservations:
+          memory: 128M
+          cpus: '0.1'
+
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+    networks:
+      - gitlab-mcp-network
+
+    # Read-only mode is typically not the primary service
+    profiles:
+      - readonly
+
+# ============================================================================
+# NETWORKS
+# ============================================================================
+
+networks:
+  gitlab-mcp-network:
+    driver: bridge
+    name: gitlab-mcp-network
+
+# ============================================================================
+# VOLUMES (if needed for persistence)
+# ============================================================================
+
+#volumes:
+  # Uncomment if you need persistent storage
+  # gitlab-mcp-data:
+  #   driver: local
+  #   name: gitlab-mcp-data
+
+# ============================================================================
+# USAGE EXAMPLES
+# ============================================================================
+
+# Start the default HTTP service:
+#   docker-compose up gitlab-mcp-http
+#
+# Start all services:
+#   docker-compose --profile stdio --profile readonly up
+#
+# Start read-only mode for security:
+#   docker-compose --profile readonly up gitlab-mcp-readonly
+#
+# Build and start:
+#   docker-compose up --build gitlab-mcp-http
+#
+# Run in background:
+#   docker-compose up -d gitlab-mcp-http
+#
+# View logs:
+#   docker-compose logs -f gitlab-mcp-http
+#
+# Stop all services:
+#   docker-compose down
+#
+# Stop and remove volumes:
+#   docker-compose down -v

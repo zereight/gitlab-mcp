@@ -1,0 +1,24 @@
+# EditorConfig helps developers define and maintain consistent coding styles between different editors and IDEs
+# This config is aligned with your Prettier settings for best compatibility with WebStorm and other editors
+
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+indent_style = space
+indent_size = 2
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+[*.js]
+quote_type = single
+
+[*.ts]
+quote_type = single
+
+[*.json]
+indent_size = 2
+
+[*.md]
+trim_trailing_whitespace = false

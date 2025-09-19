@@ -1,3 +1,427 @@
+# [4.4.0](https://github.com/structured-world/gitlab-mcp/compare/v4.3.3...v4.4.0) (2025-09-18)
+
+
+### Features
+
+* **workitems:** enhance agentic label workflow guidance and case-insensitive type handling ([ac6d970](https://github.com/structured-world/gitlab-mcp/commit/ac6d9702e047f828dcb7961c7d9c2ff4e7f0c35c))
+
+## [4.3.3](https://github.com/structured-world/gitlab-mcp/compare/v4.3.2...v4.3.3) (2025-09-18)
+
+
+### Bug Fixes
+
+* **workitems:** resolve critical widget and assignee bugs in work item operations ([9b4c830](https://github.com/structured-world/gitlab-mcp/commit/9b4c8301ab48bb816a5052ec24af075d6248c798))
+
+## [4.3.2](https://github.com/structured-world/gitlab-mcp/compare/v4.3.1...v4.3.2) (2025-09-18)
+
+
+### Bug Fixes
+
+* improve TypeScript typing and eliminate unnecessary ESLint disables ([6b82412](https://github.com/structured-world/gitlab-mcp/commit/6b82412fd33ee3b25c9ec9f1b400047cfe9dff05))
+
+## [4.3.1](https://github.com/structured-world/gitlab-mcp/compare/v4.3.0...v4.3.1) (2025-09-17)
+
+
+### Bug Fixes
+
+* enhance search_repositories with operator parsing and test coverage ([fbc61d5](https://github.com/structured-world/gitlab-mcp/commit/fbc61d579971f6b74c00dcbecfda2ba1be640a14))
+
+# [4.3.0](https://github.com/structured-world/gitlab-mcp/compare/v4.2.1...v4.3.0) (2025-09-17)
+
+
+### Features
+
+* optimize work items performance with parallel execution and simplification ([3fda75c](https://github.com/structured-world/gitlab-mcp/commit/3fda75c1525a84e1230ddbbb075df7c9bf8672d0))
+
+## [4.2.1](https://github.com/structured-world/gitlab-mcp/compare/v4.2.0...v4.2.1) (2025-09-17)
+
+
+### Bug Fixes
+
+* improve work items registry with unified strategy and enhance test coverage ([ec5f139](https://github.com/structured-world/gitlab-mcp/commit/ec5f139d7041194e00b03ae03796b8f52ada22d5))
+
+# [4.2.0](https://github.com/structured-world/gitlab-mcp/compare/v4.1.1...v4.2.0) (2025-09-17)
+
+
+### Bug Fixes
+
+* update unit tests for dual transport mode architecture ([a70a726](https://github.com/structured-world/gitlab-mcp/commit/a70a726a50acefc74b2f6c5f910d052092880648))
+
+
+### Features
+
+* implement PORT-based transport mode selection with dual endpoints ([8a42e67](https://github.com/structured-world/gitlab-mcp/commit/8a42e67e27f4f0e86622edb41461e6fd7cffb560))
+* implement smart user search with pattern detection and transliteration ([50b7c5e](https://github.com/structured-world/gitlab-mcp/commit/50b7c5e0a4762c9c8565ffa93c3ea6795ad7ad6a))
+
+## [4.1.1](https://github.com/structured-world/gitlab-mcp/compare/v4.1.0...v4.1.1) (2025-09-17)
+
+
+### Bug Fixes
+
+* improve dual environment testing support and code quality ([55588a3](https://github.com/structured-world/gitlab-mcp/commit/55588a300561fbc2ce7d375c2e592b763a8728f2))
+* resolve unit test failures by adding namespace detection mocks ([b856d46](https://github.com/structured-world/gitlab-mcp/commit/b856d460058fbbcc320e3c6883c215db773e20dd))
+
+# [4.1.0](https://github.com/structured-world/gitlab-mcp/compare/v4.0.0...v4.1.0) (2025-09-17)
+
+
+### Features
+
+* add missing 'active' parameter to list_projects schema and fix dual environment testing ([1f56e33](https://github.com/structured-world/gitlab-mcp/commit/1f56e33923ce2c5f95f6d48128c768cc5a1ee16a))
+
+# [4.0.0](https://github.com/structured-world/gitlab-mcp/compare/v3.2.0...v4.0.0) (2025-09-16)
+
+
+* feat!: rename package to @structured-world/gitlab-mcp ([3849c3e](https://github.com/structured-world/gitlab-mcp/commit/3849c3e70bb35510720c1fe75f0c67342473a6d8))
+
+
+### BREAKING CHANGES
+
+* The package and Docker image names have changed to
+@structured-world/gitlab-mcp and ghcr.io/structured-world/gitlab-mcp
+respectively. Update your configurations accordingly.
+
+# [3.2.0](https://github.com/structured-world/gitlab-mcp/compare/v3.1.2...v3.2.0) (2025-09-16)
+
+
+### Features
+
+* improve unit test coverage from 86% to 90.65% ([a853967](https://github.com/structured-world/gitlab-mcp/commit/a853967402fc3aa6ff92439158bfed1042f5cea3))
+
+## [3.1.2](https://github.com/structured-world/gitlab-mcp/compare/v3.1.1...v3.1.2) (2025-09-16)
+
+
+### Bug Fixes
+
+* align workitems test parameter names with GitLab API schema ([950e0eb](https://github.com/structured-world/gitlab-mcp/commit/950e0eb59a7f88a4c0d88eff3094d23d54874df3))
+* improve test infrastructure for cross-platform compatibility ([5eb62c0](https://github.com/structured-world/gitlab-mcp/commit/5eb62c05ccfdeec77239f1c7c7b04189956be667))
+
+## [3.1.1](https://github.com/structured-world/gitlab-mcp/compare/v3.1.0...v3.1.1) (2025-09-16)
+
+
+### Bug Fixes
+
+* implement per-file mock isolation for parallel unit tests ([7839d0c](https://github.com/structured-world/gitlab-mcp/commit/7839d0ce271ce7d9bb29aad264770aa41e15feea))
+* resolve test module loading and improve test infrastructure ([0da17ff](https://github.com/structured-world/gitlab-mcp/commit/0da17ff57779b493e3d7e428d1d757c5653d1b61))
+
+# [3.1.0](https://github.com/structured-world/gitlab-mcp/compare/v3.0.0...v3.1.0) (2025-09-16)
+
+
+### Bug Fixes
+
+* improve error handling and logging consistency ([96d962e](https://github.com/structured-world/gitlab-mcp/commit/96d962e668147318a26bdc8bd133c5f94d56580a))
+
+
+### Features
+
+* enhance GitLab API schema compliance and validation ([55f90b3](https://github.com/structured-world/gitlab-mcp/commit/55f90b3339e6c5cc158f4cb3d24355ceab8edb0f))
+
+# [3.0.0](https://github.com/structured-world/gitlab-mcp/compare/v2.8.0...v3.0.0) (2025-09-16)
+
+
+### Bug Fixes
+
+* convert work items registry to use GraphQL API instead of REST ([75f9161](https://github.com/structured-world/gitlab-mcp/commit/75f91616a177329b763136367f5ca464c7bbff4f))
+* resolve GraphQL WorkItemWidgetVulnerabilities schema error ([99b7794](https://github.com/structured-world/gitlab-mcp/commit/99b7794edd81cad3dea1bb784854dab39066b1b2))
+
+
+### Features
+
+* add subgroup creation with epic hierarchy and parent relationships ([6cf3e24](https://github.com/structured-world/gitlab-mcp/commit/6cf3e2476d739d53fa317db49f18ae54762f4cbf))
+* Complete integration test migration to handler functions ([3a16c50](https://github.com/structured-world/gitlab-mcp/commit/3a16c500d7b398c0f60267cbc670a5dd0cdbadaf))
+* migrate integration tests to use handler functions and fix registry initialization ([a818c7f](https://github.com/structured-world/gitlab-mcp/commit/a818c7f1e3c28c1eedfd677dc3dae9e4c7c206b3))
+* migrate work items to GraphQL-only with dynamic type discovery and widget support ([ace59c5](https://github.com/structured-world/gitlab-mcp/commit/ace59c55f74d38105fa5c1c46ac24727080da80d))
+
+
+### BREAKING CHANGES
+
+* Work items now use GraphQL API exclusively, no REST fallback
+
+# [2.8.0](https://github.com/structured-world/gitlab-mcp/compare/v2.7.0...v2.8.0) (2025-09-15)
+
+
+### Features
+
+* implement dynamic tool description customization via environment variables ([e28dcd9](https://github.com/structured-world/gitlab-mcp/commit/e28dcd913bd8b518e5cedb84482b6c3e5442ecc9))
+
+# [2.7.0](https://github.com/structured-world/gitlab-mcp/compare/v2.6.2...v2.7.0) (2025-09-15)
+
+
+### Features
+
+* implement fully dynamic tool registry system with enhanced security ([2c4fe5a](https://github.com/structured-world/gitlab-mcp/commit/2c4fe5a85710aa980c1ced9eeaddc60cf87c01d4))
+
+## [2.6.2](https://github.com/structured-world/gitlab-mcp/compare/v2.6.1...v2.6.2) (2025-09-15)
+
+
+### Bug Fixes
+
+* Complete unit test infrastructure rewrite and test suite fixes ([05b3f02](https://github.com/structured-world/gitlab-mcp/commit/05b3f024709ec33365cadb5401a47ac154048a59))
+
+## [2.6.1](https://github.com/structured-world/gitlab-mcp/compare/v2.6.0...v2.6.1) (2025-09-15)
+
+
+### Bug Fixes
+
+* correct FUNDING.yml format according to GitHub documentation ([071ff87](https://github.com/structured-world/gitlab-mcp/commit/071ff879f324f9e0386912050132cb6c7fe581fe))
+
+# [2.6.0](https://github.com/structured-world/gitlab-mcp/compare/v2.5.1...v2.6.0) (2025-09-15)
+
+
+### Features
+
+* enhance Labels, Milestones, and Wiki entities with dual project/group scope support ([6e406e6](https://github.com/structured-world/gitlab-mcp/commit/6e406e6d50de66770d9614407e589ff4895533fb))
+
+## [2.5.1](https://github.com/structured-world/gitlab-mcp/compare/v2.5.0...v2.5.1) (2025-09-15)
+
+
+### Bug Fixes
+
+* correct GetUsersSchema validation test expectations ([50b7e04](https://github.com/structured-world/gitlab-mcp/commit/50b7e04512517ca715736d305f2dbb14a5688a81))
+
+# [2.5.0](https://github.com/structured-world/gitlab-mcp/compare/v2.4.0...v2.5.0) (2025-09-15)
+
+
+### Features
+
+* complete GitLab MCP handler implementation with 100% tool coverage ([843886a](https://github.com/structured-world/gitlab-mcp/commit/843886a7f0b744223e3f44344314ce4441f46a8d))
+
+# [2.4.0](https://github.com/structured-world/gitlab-mcp/compare/v2.3.1...v2.4.0) (2025-09-15)
+
+
+### Features
+
+* implement dynamic tool handler dispatch system ([5bfe1c3](https://github.com/structured-world/gitlab-mcp/commit/5bfe1c33b8d02f7705a4bf33c583691b44708e59))
+
+## [2.3.1](https://github.com/structured-world/gitlab-mcp/compare/v2.3.0...v2.3.1) (2025-09-15)
+
+
+### Bug Fixes
+
+* **sse:** implement missing SSE transport and fix schema validation ([e6aed28](https://github.com/structured-world/gitlab-mcp/commit/e6aed2848ec0b48e18d96935557d3a5cf9a92f90))
+
+# [2.3.0](https://github.com/structured-world/gitlab-mcp/compare/v2.2.0...v2.3.0) (2025-09-15)
+
+
+### Features
+
+* **test:** add user infrastructure setup and assignment to test data lifecycle ([e88f5bb](https://github.com/structured-world/gitlab-mcp/commit/e88f5bb048c8d40d83edeb2fbb2c171906e503b5))
+
+# [2.2.0](https://github.com/structured-world/gitlab-mcp/compare/v2.1.2...v2.2.0) (2025-09-15)
+
+
+### Bug Fixes
+
+* add esModuleInterop for Zod v4 compatibility ([e3010bb](https://github.com/structured-world/gitlab-mcp/commit/e3010bbe02e03091e07b1774d1ef7a0437b80e8f))
+* Docker build and test cleanup improvements ([79a7d9e](https://github.com/structured-world/gitlab-mcp/commit/79a7d9e58508bc2ece922dbd5852b2e15a894599))
+* prevent Yarn re-download in Docker build stages ([5807776](https://github.com/structured-world/gitlab-mcp/commit/5807776c704dbe7490469723db314e7e8a99f7e9))
+* Resolve critical test infrastructure issues and eliminate soft-fail patterns ([528d34c](https://github.com/structured-world/gitlab-mcp/commit/528d34c0e6fbd0ae5da584878f3c2f68bfff19cf))
+* resolve data lifecycle test dependency chain issues ([282ac42](https://github.com/structured-world/gitlab-mcp/commit/282ac42de91e74a98cca2b038ca4a284dbdf8e42))
+* resolve TypeScript/ESLint errors in GraphQL introspection code ([f50ea1a](https://github.com/structured-world/gitlab-mcp/commit/f50ea1a367d7e0741817167cc52d7ab673145fe3))
+
+
+### Features
+
+* reorganize integration tests into dependency chain pattern ([6d8c05e](https://github.com/structured-world/gitlab-mcp/commit/6d8c05e84a5fb8daa30084073cb5905b62a2dbeb))
+* **test:** add user infrastructure setup and assignment to test data lifecycle ([3915773](https://github.com/structured-world/gitlab-mcp/commit/39157736cb01791e7e0e4c18c1d7610b28422731))
+
+## [2.1.2](https://github.com/structured-world/gitlab-mcp/compare/v2.1.1...v2.1.2) (2025-09-15)
+
+
+### Bug Fixes
+
+* remove duplicate docker-publish.yml workflow ([a9a6921](https://github.com/structured-world/gitlab-mcp/commit/a9a692186c1c7db18217a82c387a7fe00536d694))
+* remove duplicate release.yml workflow to prevent concurrent releases ([b69fc9d](https://github.com/structured-world/gitlab-mcp/commit/b69fc9d1b78b674b5991d974c376d7080f83ae34))
+
+## [1.1.1](https://github.com/structured-world/gitlab-mcp/compare/v1.1.0...v1.1.1) (2025-09-15)
+
+
+### Bug Fixes
+
+* enable Corepack in GitHub Actions for Yarn 4 support ([7e170e2](https://github.com/structured-world/gitlab-mcp/commit/7e170e2f186fae60e0b10924261f1fd67ded0a0b))
+
+# [1.1.0](https://github.com/structured-world/gitlab-mcp/compare/v1.0.2...v1.1.0) (2025-09-15)
+
+
+### Features
+
+* add comprehensive CI/CD pipeline with semantic versioning ([4e6822f](https://github.com/structured-world/gitlab-mcp/commit/4e6822ff865fb2045bfeeb015891e4281cc6c26e))
+
+## [1.0.2](https://github.com/structured-world/gitlab-mcp/compare/v1.0.1...v1.0.2) (2025-09-15)
+
+
+### Bug Fixes
+
+* correct Docker build configuration for production deployment ([d9b089f](https://github.com/structured-world/gitlab-mcp/commit/d9b089f6c76fda01bd19e96997fa99e37602aec3))
+
+## [1.0.1](https://github.com/structured-world/gitlab-mcp/compare/v1.0.0...v1.0.1) (2025-09-15)
+
+
+### Bug Fixes
+
+* Add repository field to package.json for npm publish ([a405435](https://github.com/structured-world/gitlab-mcp/commit/a405435432a0b31569bd8c78840c453d5bfa2ee9))
+
+# 1.0.0 (2025-09-15)
+
+
+### Bug Fixes
+
+* add `expanded` to `start` and `end` for GitLabDiscussionNoteSchema ([5024a2a](https://github.com/structured-world/gitlab-mcp/commit/5024a2a5afb138b2fcd76407edf414bdec6a76f2))
+* add `expanded` to `start` and `end` for GitLabDiscussionNoteSchema ([d99c483](https://github.com/structured-world/gitlab-mcp/commit/d99c483ab33bdbd368d804cf68e79f008f026c41))
+* add missing @eslint/js dependency ([cd85a8d](https://github.com/structured-world/gitlab-mcp/commit/cd85a8dff086f3202f64c55f9d1a14ef823f2a80))
+* add package-lock.json to .gitignore ([067586c](https://github.com/structured-world/gitlab-mcp/commit/067586c665bd81ad4695c2fbbab5582b67e77cb2))
+* add package-lock.json to .gitignore ([e7e49f0](https://github.com/structured-world/gitlab-mcp/commit/e7e49f0a93c8c0d542843f4a7c2d0a7d8481b674))
+* avoid error caused by line_range: null in discussion ([d50b7fd](https://github.com/structured-world/gitlab-mcp/commit/d50b7fd1ac01802889bd383e39d767378204aa66))
+* avoid error caused by line_range: null in discussion ([ac2cee2](https://github.com/structured-world/gitlab-mcp/commit/ac2cee27629f5833d1251dc097742c8576e44b5a))
+* Correct formatting of GITLAB_API_URL environment variable in README ([06598d7](https://github.com/structured-world/gitlab-mcp/commit/06598d7adb98b146ae2a36a2cf8bcf807f59b465))
+* Correct formatting of GITLAB_API_URL environment variable in README ([83f395d](https://github.com/structured-world/gitlab-mcp/commit/83f395df0547875381da5f0ab5892e34d1ef7bf0))
+* Fix build errors and optimize Docker build ([ee60995](https://github.com/structured-world/gitlab-mcp/commit/ee60995ad4e0e1a64801fdb17a80279b5d5ca643))
+* fix README ([f4b265b](https://github.com/structured-world/gitlab-mcp/commit/f4b265bf2eaca6960e28aa6b444dda25b0ed596e))
+* fix README ([7323405](https://github.com/structured-world/gitlab-mcp/commit/73234055d2c3785eec03ee0f2b3c835ed741eca8))
+* GitHub Actions workflow syntax errors ([6d6110c](https://github.com/structured-world/gitlab-mcp/commit/6d6110c78bcef3987799c98a9fd48241236e7cf7))
+* GitHub Actions workflow syntax errors ([55d9a5e](https://github.com/structured-world/gitlab-mcp/commit/55d9a5e3103f2b9f1ff17c7c56f17c52ad3ffea4))
+* improve error handling for GitLab API rate limit exceeded ([11685d7](https://github.com/structured-world/gitlab-mcp/commit/11685d7a906eade7f586af1fcd08eaf270972b5e))
+* improve error handling for GitLab API rate limit exceeded ([1a30d2c](https://github.com/structured-world/gitlab-mcp/commit/1a30d2ccc3abf4a7f22b07268ec207253144815c))
+* **list_issues:** add hint for scope all ([478df19](https://github.com/structured-world/gitlab-mcp/commit/478df197615ce60b475bf9f27ab6ba415e3d2f04))
+* **list_issues:** add hint for scope all ([aa3b2ab](https://github.com/structured-world/gitlab-mcp/commit/aa3b2ab267da609ce0e64d67a2a0282742c3848c))
+* **list_issues:** make project_id optional ([b242522](https://github.com/structured-world/gitlab-mcp/commit/b2425221a6077c7fdba343e8681d1938a24d3a39))
+* **list_issues:** make project_id optional ([7cd4731](https://github.com/structured-world/gitlab-mcp/commit/7cd4731cb21b5b94161ad59264b4e0b85d641eb7))
+* merge_requests_template can be null ([#79](https://github.com/structured-world/gitlab-mcp/issues/79)) ([cd8f0e5](https://github.com/structured-world/gitlab-mcp/commit/cd8f0e5525a2f570d2fcb825181ca61c2ba113af))
+* merge_requests_template can be null ([#79](https://github.com/structured-world/gitlab-mcp/issues/79)) ([73fdd8f](https://github.com/structured-world/gitlab-mcp/commit/73fdd8fee70e7479bfbd8ab071119bfe07884ad6))
+* Remove deprecated create_issue tool and update ESLint configuration ([b9737ef](https://github.com/structured-world/gitlab-mcp/commit/b9737efd3f45eb2ddf8744f31c4b5a9ac10a5cbe))
+* remove duplicate entry for get_branch_diffs in tools list ([6bc1379](https://github.com/structured-world/gitlab-mcp/commit/6bc13794c8cfe09dafa2fddeae2d05589700cac6))
+* remove duplicate entry for get_branch_diffs in tools list ([8398109](https://github.com/structured-world/gitlab-mcp/commit/839810934e8ecde7a85580405b7512074a95cb81))
+* rename to source branch ([7b8cbc0](https://github.com/structured-world/gitlab-mcp/commit/7b8cbc0806ed9123e033d98f4965fd6fbc532c07))
+* rename to source branch ([5baa2d1](https://github.com/structured-world/gitlab-mcp/commit/5baa2d14742372571bb857c9c3cbf8299862beff))
+* **schemas:** make avatar_url nullable in GitLabUserSchema ([ab571d2](https://github.com/structured-world/gitlab-mcp/commit/ab571d211de494f116a74bb403267b10e75460a8))
+* **schemas:** make avatar_url nullable in GitLabUserSchema ([3f630ca](https://github.com/structured-world/gitlab-mcp/commit/3f630cac3407de2918d58fd6202dca0b61ee44fc))
+* **schemas:** make illustration nullable in GitLabPipelineSchema ([40e39d7](https://github.com/structured-world/gitlab-mcp/commit/40e39d7b36362cdadcfc8315861b08484743c5d7))
+* **schemas:** make illustration nullable in GitLabPipelineSchema ([87efa04](https://github.com/structured-world/gitlab-mcp/commit/87efa045868f5344699f95bb006cd6ebf86d7f65))
+* temporarily disable lint in CI to fix release process ([d552d06](https://github.com/structured-world/gitlab-mcp/commit/d552d06d6489c3990e22e7217f3b018146fba5b1))
+* Update Docker image repository name in workflow ([b97b264](https://github.com/structured-world/gitlab-mcp/commit/b97b2642c954e6cea8d3ce0c1092d04229cfd1f9))
+* Update Docker image repository name in workflow ([29ac699](https://github.com/structured-world/gitlab-mcp/commit/29ac699a4c65c0c7a707c46951fa43e633d8651f))
+* Update README title and remove duplicate star history chart ([92a3e95](https://github.com/structured-world/gitlab-mcp/commit/92a3e95d38048d0f4fb26a74b2bf19d95021f0a6))
+* Update README title and remove duplicate star history chart ([126fa8c](https://github.com/structured-world/gitlab-mcp/commit/126fa8c2b3d79bea63748b960d8b9f6148216017))
+
+
+### Features
+
+* add branch comparison functionality and update related schemas ([c834ebc](https://github.com/structured-world/gitlab-mcp/commit/c834ebc135bf5896ab4f7982ae417f0c32d8ea42))
+* add branch comparison functionality and update related schemas ([af81bd4](https://github.com/structured-world/gitlab-mcp/commit/af81bd402aeff1a6f03afcf7853d83d89231a8fe))
+* add configuration files and scripts for project setup ✨ ([5b35bc1](https://github.com/structured-world/gitlab-mcp/commit/5b35bc163c3277523fbf264523601f55103d714b))
+* add configuration files and scripts for project setup ✨ ([4aac7f5](https://github.com/structured-world/gitlab-mcp/commit/4aac7f576a91b14fcf7d379c5baa13df3762ef86))
+* add cookie-based authentication support for enterprise GitLab  ([#101](https://github.com/structured-world/gitlab-mcp/issues/101)) ([402f068](https://github.com/structured-world/gitlab-mcp/commit/402f06847056903058a5bf5bed0b65d81e0c5757)), closes [#100](https://github.com/structured-world/gitlab-mcp/issues/100)
+* add cookie-based authentication support for enterprise GitLab  ([#101](https://github.com/structured-world/gitlab-mcp/issues/101)) ([17b8574](https://github.com/structured-world/gitlab-mcp/commit/17b85746b5c3d9fa64f7c912dbefc7fa1184c59d)), closes [#100](https://github.com/structured-world/gitlab-mcp/issues/100)
+* Add create_merge_request_thread tool for diff notes ([026dd58](https://github.com/structured-world/gitlab-mcp/commit/026dd58887079bb60187d6acacaafc6fa28d0c3d))
+* Add create_merge_request_thread tool for diff notes ([23b0348](https://github.com/structured-world/gitlab-mcp/commit/23b03481eacc2b32a1f4afdf5a125ca23f87bdcf))
+* Add createDraftNote api support, useful for bulk code review ([5f08153](https://github.com/structured-world/gitlab-mcp/commit/5f08153da675a6fbec780329c82c6a3395f3f691))
+* Add createDraftNote api support, useful for bulk code review ([73f0c48](https://github.com/structured-world/gitlab-mcp/commit/73f0c484176796e706635f4357efc24d7c5af292))
+* add docker image and push to dockerhub ([6f78969](https://github.com/structured-world/gitlab-mcp/commit/6f789692be12cf9623bd5b0d1698713385f37b88))
+* add docker image and push to dockerhub ([4fd7124](https://github.com/structured-world/gitlab-mcp/commit/4fd7124ef112bdc5a6eeb41ee8af891adfa322ad))
+* add GITLAB_LOCK_PROJECT environment variable ([c899a7d](https://github.com/structured-world/gitlab-mcp/commit/c899a7dc3be63bbfce25a715cd3d910255604c0b))
+* add GITLAB_LOCK_PROJECT environment variable ([a102e94](https://github.com/structured-world/gitlab-mcp/commit/a102e94e4020efc9f96f3fa472e0b2cc50a87615))
+* add issue discussions support ([4c57c37](https://github.com/structured-world/gitlab-mcp/commit/4c57c378886bf6e3eda8f815c654fda0d29dcd44))
+* add issue discussions support ([3d06892](https://github.com/structured-world/gitlab-mcp/commit/3d06892a860e8918d4a1dad56f77ee16bdd33409))
+* add milestone management commands to README ([5762b32](https://github.com/structured-world/gitlab-mcp/commit/5762b32a69c3aa13ae819335ba7549be6f36722e))
+* add milestone management commands to README ([bd75140](https://github.com/structured-world/gitlab-mcp/commit/bd75140e77988cbfdef628233bbe437847b22680))
+* add my_issues and list_project_members tools ([a519a56](https://github.com/structured-world/gitlab-mcp/commit/a519a56493ac40b2b6ae06e3d639cacf864b53dd))
+* add my_issues and list_project_members tools ([f33f330](https://github.com/structured-world/gitlab-mcp/commit/f33f330f2b5f928feb91db78adecc6bfdc2cf5ff))
+* Add NPM publish workflow for automated package publishing ([#208](https://github.com/structured-world/gitlab-mcp/issues/208)) ([7e985af](https://github.com/structured-world/gitlab-mcp/commit/7e985afadf3d99fe8596d89d2ffb1c92dda6276d))
+* Add NPM publish workflow for automated package publishing ([#208](https://github.com/structured-world/gitlab-mcp/issues/208)) ([5a4d416](https://github.com/structured-world/gitlab-mcp/commit/5a4d416bd73bf79e12d4d898a16da1f2fb598d1d))
+* add pagination support for CI job logs to prevent context window flooding ([2905f30](https://github.com/structured-world/gitlab-mcp/commit/2905f30af7bea788be340a3b74792dcd1e305aef))
+* add pagination support for CI job logs to prevent context window flooding ([f05d8bf](https://github.com/structured-world/gitlab-mcp/commit/f05d8bf75e124ccdd3263c2d6fefe56f00c3213d))
+* add read-only mode support via GITLAB_READ_ONLY_MODE environment variable ([7be17b7](https://github.com/structured-world/gitlab-mcp/commit/7be17b7afcaa407e0e0cd264e887b84b2a8bb688))
+* add read-only mode support via GITLAB_READ_ONLY_MODE environment variable ([916a65a](https://github.com/structured-world/gitlab-mcp/commit/916a65ae5253f8a8f83f84edf73deafe18d4960d))
+* add support for creating and updating issue notes ([dc6cc59](https://github.com/structured-world/gitlab-mcp/commit/dc6cc59434a14d102a8357034cbce719142c3b0f))
+* add support for creating and updating issue notes ([96d5e49](https://github.com/structured-world/gitlab-mcp/commit/96d5e49b71bad624be8c4fb3733f066f936ff6e8))
+* add support for ignoring files in branch diff results using regex patterns ([75fd5e8](https://github.com/structured-world/gitlab-mcp/commit/75fd5e83e095b218cd9230e7133d4716c51ffc9a))
+* add support for ignoring files in branch diff results using regex patterns ([946c49a](https://github.com/structured-world/gitlab-mcp/commit/946c49a3eaf8ea8ca5c1bc2eb52cd535a876ce58))
+* add tools for milestones ([fd1c8b9](https://github.com/structured-world/gitlab-mcp/commit/fd1c8b9704473c38413aa6bac71a3899b7413657))
+* add tools for milestones ([bb0da0a](https://github.com/structured-world/gitlab-mcp/commit/bb0da0a86296a17ba71569e9ef603385f6eed9a3))
+* add user retrieval functions and schemas for GitLab API integration ([005b46a](https://github.com/structured-world/gitlab-mcp/commit/005b46a1a66d2d72bc922f9f98f2df2f58c5f084))
+* add user retrieval functions and schemas for GitLab API integration ([440921a](https://github.com/structured-world/gitlab-mcp/commit/440921ab10f7f71e07434fb54bf2f923b5d67ff5))
+* bump version to 1.0.61 🎉 ([ed032ba](https://github.com/structured-world/gitlab-mcp/commit/ed032bad48ee7a43d59d2c57e8ac1984d4d30dc8))
+* bump version to 1.0.61 🎉 ([9a2bc5e](https://github.com/structured-world/gitlab-mcp/commit/9a2bc5ef4b0c909772e9e59e68e52cf803022b50))
+* Decode project_id for GitLab API calls ([08ab135](https://github.com/structured-world/gitlab-mcp/commit/08ab1357a0bfdef0bf6360f0c61759f25405652b))
+* Decode project_id for GitLab API calls ([95ad321](https://github.com/structured-world/gitlab-mcp/commit/95ad3211eb534ba8e482640ef38473512605f86d))
+* enhance CreateMergeRequest options with assignee, reviewer, and label support ([bf369a4](https://github.com/structured-world/gitlab-mcp/commit/bf369a43dad22d0de8117c7909948f863e90e61d))
+* enhance CreateMergeRequest options with assignee, reviewer, and label support ([e692ddc](https://github.com/structured-world/gitlab-mcp/commit/e692ddc54ad35fbde8c767c357b1ae4639b6cf6c))
+* get merge request default description template on project retrieval ([808c34d](https://github.com/structured-world/gitlab-mcp/commit/808c34d0ee04fd4ec95e77dce040b3a18036e347))
+* get merge request default description template on project retrieval ([886faf5](https://github.com/structured-world/gitlab-mcp/commit/886faf566a9eaf6a11f349e804f4ef06828e888f))
+* Gitlab list repository tree tool ([bccd5f2](https://github.com/structured-world/gitlab-mcp/commit/bccd5f29c398a994de29e4b01fdf14cd6f6cf55c))
+* Gitlab list repository tree tool ([58f51a4](https://github.com/structured-world/gitlab-mcp/commit/58f51a43e61547e3687e56d5cddb381c13297229))
+* Implement add_merge_request_thread_note function for adding notes to existing MR threads ([3f2b355](https://github.com/structured-world/gitlab-mcp/commit/3f2b35535ee93b14a6649074608842d1ff8de208))
+* Implement add_merge_request_thread_note function for adding notes to existing MR threads ([5f9aecd](https://github.com/structured-world/gitlab-mcp/commit/5f9aecdf21bd83a3b3928e32cec5d503809e88ad))
+* implement list_merge_requests functionality ([cc84777](https://github.com/structured-world/gitlab-mcp/commit/cc847772f1f8560d9ce9cba25acbb232cbbf618d))
+* implement list_merge_requests functionality ([6acecd2](https://github.com/structured-world/gitlab-mcp/commit/6acecd290d1820f4d24aa719b2f845551a05c51b))
+* Implement proxy configuration for HTTP/HTTPS/SOCKS ([7c2578f](https://github.com/structured-world/gitlab-mcp/commit/7c2578fd4ba140242b5f00a792a97488263cd3fc))
+* Implement proxy configuration for HTTP/HTTPS/SOCKS ([94b206f](https://github.com/structured-world/gitlab-mcp/commit/94b206f72f888e53a838f64349a43449d5eaaada))
+* major release v2.1.0 with comprehensive improvements ([0fabf17](https://github.com/structured-world/gitlab-mcp/commit/0fabf1722538154aaa3ba3c875c73edf5e52a59a))
+* **pipeline:** Add list_pipeline_trigger_jobs tools ([56a53b3](https://github.com/structured-world/gitlab-mcp/commit/56a53b3ab9930ca51e1e080805c402b7baa1b1a0))
+* **pipeline:** Add list_pipeline_trigger_jobs tools ([0006e67](https://github.com/structured-world/gitlab-mcp/commit/0006e675a5a718f78452db995d86617871d3910c))
+* **release:** 1.0.44  adds pipeline jobs tool ([ea06c21](https://github.com/structured-world/gitlab-mcp/commit/ea06c21f298feb84e93540fa3bfb8b315562fe1f))
+* **release:** 1.0.44  adds pipeline jobs tool ([4e4eb46](https://github.com/structured-world/gitlab-mcp/commit/4e4eb469c6c74c4fcdb7492f15a75f99c57e1388))
+* rename ignored_files_regex to excluded_file_patterns and update descriptions for clarity ([fef3606](https://github.com/structured-world/gitlab-mcp/commit/fef360664e0577f4d5ff1238f149ee2ffcb1d471))
+* rename ignored_files_regex to excluded_file_patterns and update descriptions for clarity ([159da36](https://github.com/structured-world/gitlab-mcp/commit/159da36d9c25de4b58730fd5805492b89b26faba))
+* replace GITLAB_LOCK_PROJECT with GITLAB_ALLOWED_PROJECT_IDS ([009ad97](https://github.com/structured-world/gitlab-mcp/commit/009ad97ef74f06b58319a08fdda11253e629b077))
+* replace GITLAB_LOCK_PROJECT with GITLAB_ALLOWED_PROJECT_IDS ([6a77b04](https://github.com/structured-world/gitlab-mcp/commit/6a77b043d64778746ea5d1976720d2df8d002ad0))
+* support resolving merge request notes ([bde83c0](https://github.com/structured-world/gitlab-mcp/commit/bde83c0a912ba60026abd1954e764bb09d5a013d))
+* support resolving merge request notes ([4c349a3](https://github.com/structured-world/gitlab-mcp/commit/4c349a32340f47e46e900d23231d0bada30ee4ef))
+* support search by branch for get_merge_request ([20f6275](https://github.com/structured-world/gitlab-mcp/commit/20f62756c197a00f334fc8b63e2cbfe22cf99a2e))
+* support search by branch for get_merge_request ([eaadf24](https://github.com/structured-world/gitlab-mcp/commit/eaadf24a1df40e281dcfff32b7e8aa66d86bea10))
+* trigger workflow after fix ([435c8f1](https://github.com/structured-world/gitlab-mcp/commit/435c8f1223daeb7cbb321e7be6f63e0295cd6fb4))
+* trigger workflow after fix ([40e2a5d](https://github.com/structured-world/gitlab-mcp/commit/40e2a5d835e0b8eae6a79dcd4fad61d3ff11ff3c))
+* trigger workflow after jq fix ([5c67d68](https://github.com/structured-world/gitlab-mcp/commit/5c67d68be41a011014dc8315cc57d4b0bf452453))
+* trigger workflow after jq fix ([116d1f4](https://github.com/structured-world/gitlab-mcp/commit/116d1f4e738ee26caba8b8fffb203e12986b862a))
+* trigger workflow run ([7acdff9](https://github.com/structured-world/gitlab-mcp/commit/7acdff90ef09edc88334ddc18efc9a3c51095971))
+* trigger workflow run ([c047571](https://github.com/structured-world/gitlab-mcp/commit/c0475710b9e4916a21072022c1f230e150cfab4a))
+* trigger workflow with GITLAB_PERSONAL_ACCESS_TOKEN ([e967bb5](https://github.com/structured-world/gitlab-mcp/commit/e967bb51c8295b3a511273d4547e4eedcc15d38a))
+* trigger workflow with GITLAB_PERSONAL_ACCESS_TOKEN ([ebec8b1](https://github.com/structured-world/gitlab-mcp/commit/ebec8b19f81a7ee19549e0cebd169bb11997b178))
+
+## [2.1.0] - 2024-12-15
+
+### Added
+- Comprehensive Docker support with multi-stage builds
+- Docker Compose configuration with multiple deployment scenarios (HTTP, SSE, stdio, read-only)
+- Work Items GraphQL support for GitLab Premium/Ultimate instances
+- Enhanced environment variable configuration
+- Complete test suite with Zero Data Validation Rule implementation
+- Comprehensive test lifecycle management (create → use → cleanup pattern)
+- Support for all GitLab tiers with automatic feature detection
+- Enhanced security with non-root Docker user and health checks
+
+### Changed
+- **BREAKING**: Package name changed from `@zereight/gitlab-mcp` to `@structured-world/gitlab-mcp`
+- Updated Docker image repository to `ghcr.io/structured-world/gitlab-mcp`
+- Improved README with categorized tools list (94 total tools)
+- Enhanced documentation with comprehensive Docker deployment instructions
+- Refactored test architecture to follow strict data lifecycle rules
+- Updated all test files to create their own test infrastructure
+- Improved error handling and validation across all test suites
+
+### Fixed
+- Removed hardcoded test values and replaced with dynamic test data
+- Fixed URL encoding issues in test scripts
+- Corrected package references throughout documentation
+- Fixed test dependencies on external test infrastructure
+- Improved test reliability and isolation
+
+### Infrastructure
+- Updated Dockerfile with comprehensive environment variable support
+- Added multi-stage Docker build for optimized image size
+- Enhanced GitHub Actions integration
+- Improved Jest test coverage reporting
+- Added semantic release automation
+- Comprehensive environment configuration documentation
+
+### Documentation
+- Complete rewrite of tools documentation with categorization
+- Added comprehensive Docker deployment guide
+- Updated environment variable documentation
+- Enhanced development setup instructions
+- Added contribution guidelines and testing procedures
+
+---
+
 #### [v2.0.5](https://github.com/zereight/gitlab-mcp/compare/v2.0.4...v2.0.5)
 
 - Add ability to trigger / retry / cancel individual jobs [`#233`](https://github.com/zereight/gitlab-mcp/pull/233)
