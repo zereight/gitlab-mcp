@@ -24,6 +24,7 @@ coverage/
 # Scripts directory (local tools and utilities)
 scripts/
 !scripts/cleanup-test-groups.js
+!scripts/test_mcp.sh
 
 # Keep assets
 !assets/

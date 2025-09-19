@@ -565,6 +565,23 @@ yarn test tests/integration/data-lifecycle.test.ts
 yarn test tests/integration/schemas/workitems.test.ts
 ```
 
+### Quick Tool Testing
+
+For rapid testing of individual MCP tools:
+
+```bash
+# Test specific tools directly
+./scripts/test_mcp.sh '{"name": "list_work_items", "arguments": {"namespacePath": "test"}}'
+./scripts/test_mcp.sh '{"name": "get_work_item_types", "arguments": {"namespacePath": "test"}}'
+./scripts/test_mcp.sh '{"name": "create_work_item", "arguments": {"namespacePath": "test", "workItemType": "EPIC", "title": "Test Epic"}}'
+```
+
+The `test_mcp.sh` script automatically:
+- Loads environment from `.env.test`
+- Sends proper MCP initialization sequence
+- Executes your tool call with proper JSON-RPC formatting
+- Perfect for debugging individual tools and handlers
+
 ### Test Architecture
 
 - **200+ integration tests** running against real GitLab 18.3 Ultimate instance
