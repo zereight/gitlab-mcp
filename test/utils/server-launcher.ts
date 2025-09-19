@@ -77,7 +77,7 @@ export async function launchServer(config: ServerConfig): Promise<ServerInstance
       );
   }
 
-  const serverPath = path.resolve(process.cwd(), "build/index.js");
+  const serverPath = path.resolve(process.cwd(), "dist/main.js");
 
   const serverProcess = spawn("node", [serverPath], {
     env: serverEnv,

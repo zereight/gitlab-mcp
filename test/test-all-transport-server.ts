@@ -83,7 +83,7 @@ void describe("GitLab MCP Server - Stdio Transport", () => {
 
   before(async () => {
     client = new StdioTestClient();
-    const serverPath = path.resolve(process.cwd(), "build/index.js");
+    const serverPath = path.resolve(process.cwd(), "dist/main.js");
     await client.connect(serverPath, stdioEnv);
     assert.ok(client.isConnected, "Client should be connected");
     console.log("Client connected to stdio server");
