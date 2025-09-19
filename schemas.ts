@@ -793,7 +793,7 @@ export const LineRangeSchema = z
             "CRITICAL: Line identifier in format '{file_path_sha1_hash}_{old_line_number}_{new_line_number}'. USUALLY REQUIRED for GitLab diff comments despite being optional in schema. Example: 'a1b2c3d4e5f6_10_15'. Get this from GitLab diff API response, never fabricate."
           ),
         type: z
-          .enum(["new", "old", "expanded", "logic"])
+          .enum(["new", "old", "expanded", "logic", "style"])
           .nullable()
           .optional()
           .describe(
@@ -827,7 +827,7 @@ export const LineRangeSchema = z
             "CRITICAL: Line identifier in format '{file_path_sha1_hash}_{old_line_number}_{new_line_number}'. USUALLY REQUIRED for GitLab diff comments despite being optional in schema. Example: 'a1b2c3d4e5f6_12_17'. Must be from same file as start.line_code."
           ),
         type: z
-          .enum(["new", "old", "expanded", "logic"])
+          .enum(["new", "old", "expanded", "logic", "style"])
           .nullable()
           .optional()
           .describe(
