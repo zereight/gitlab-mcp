@@ -596,3 +596,4 @@ This GitLab MCP Server is developed and maintained with care for the community. 
 
 **Maintained with ❤️ by [Dmitry Prudnikov](https://github.com/polaz)**
 **Original work by [zereight](https://github.com/zereight) - Thank you for the foundation!**
+# Version 5.0.0
