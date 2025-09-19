@@ -1,3 +1,10 @@
+# [5.1.0](https://github.com/structured-world/gitlab-mcp/compare/v5.0.0...v5.1.0) (2025-09-19)
+
+
+### Features
+
+* establish v5.0.0 baseline for semantic versioning ([f5ac7a5](https://github.com/structured-world/gitlab-mcp/commit/f5ac7a50df9c6f8bff723824ab0e7bdf392fea6b))
+
 # 1.0.0 (2025-09-19)
 
 
