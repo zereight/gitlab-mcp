@@ -10,3 +10,6 @@ coverage/
 # ai
 .opencode*
 .aider*
+.cursor/**
+.specify/**
+specs/**
