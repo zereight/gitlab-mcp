@@ -27,10 +27,9 @@ When using with the Claude App, you need to set up your API key and URLs directl
       "env": {
         "GITLAB_PERSONAL_ACCESS_TOKEN": "your_gitlab_token",
         "GITLAB_API_URL": "your_gitlab_api_url",
-        // GITLAB_PROJECT_ID removed - use GITLAB_ALLOWED_PROJECT_IDS instead
-        "GITLAB_ALLOWED_PROJECT_IDS": "your_project_id", // Required: your GitLab project ID(s)
+        "GITLAB_ALLOWED_PROJECT_IDS": "your_project_id",
         "GITLAB_READ_ONLY_MODE": "false",
-        "GITLAB_DENIED_TOOLS_REGEX": "create.*|delete.*|update.*", // Optional: exclude dangerous operations
+        "GITLAB_DENIED_TOOLS_REGEX": "",// Optional: exclude dangerous operations. ex) create.*|delete.*|update.*
         "USE_GITLAB_WIKI": "false", // use wiki api?
         "USE_MILESTONE": "false", // use milestone api?
         "USE_PIPELINE": "false" // use pipeline api?
@@ -60,9 +59,11 @@ When using with the Claude App, you need to set up your API key and URLs directl
       "env": {
         "GITLAB_PERSONAL_ACCESS_TOKEN": "${input:gitlab-token}",
         "GITLAB_API_URL": "your-fancy-gitlab-url",
-        "GITLAB_READ_ONLY_MODE": "true",
-        "GITLAB_DENIED_TOOLS_REGEX": "create.*|delete.*|update.*", // Optional: exclude dangerous operations
-        ...
+        "GITLAB_READ_ONLY_MODE": "false",
+        "GITLAB_DENIED_TOOLS_REGEX": "", // Optional: exclude dangerous operations. ex) create.*|delete.*|update.*
+        "USE_GITLAB_WIKI": "false", // use wiki api?
+        "USE_MILESTONE": "false", // use milestone api?
+        "USE_PIPELINE": "false" // use pipeline api?
       }
     }
   }
@@ -100,7 +101,7 @@ When using with the Claude App, you need to set up your API key and URLs directl
         "GITLAB_PERSONAL_ACCESS_TOKEN": "your_gitlab_token",
         "GITLAB_API_URL": "https://gitlab.com/api/v4", // Optional, for self-hosted GitLab
         "GITLAB_READ_ONLY_MODE": "false",
-        "GITLAB_DENIED_TOOLS_REGEX": "create.*|delete.*|update.*", // Optional: exclude dangerous operations
+        "GITLAB_DENIED_TOOLS_REGEX": "create.*|delete.*|update.*",// Optional: exclude dangerous operations. ex) create.*|delete.*|update.*
         "USE_GITLAB_WIKI": "true",
         "USE_MILESTONE": "true",
         "USE_PIPELINE": "true"
