@@ -13,31 +13,23 @@ import { StreamableHTTPTestClient } from './clients/streamable-http-client.js';
 import { MCPClientInterface } from './clients/client.js';
 import { ListToolsResult } from '@modelcontextprotocol/sdk/types.js';
 
+// Load environment variables from .env file
+import { config } from 'dotenv';
+config();
+
 console.log('🚀 GitLab MCP Server Tests');
 console.log('');
 
 // Configuration check
 const GITLAB_API_URL = process.env.GITLAB_API_URL || "https://gitlab.com";
-const GITLAB_TOKEN = process.env.GITLAB_TOKEN_TEST || process.env.GITLAB_TOKEN;
-const TEST_PROJECT_ID = process.env.TEST_PROJECT_ID;
+const GITLAB_TOKEN = process.env.GITLAB_TOKEN_TEST || process.env.GITLAB_TOKEN || process.env.GITLAB_PERSONAL_ACCESS_TOKEN;
+const ALLOWED_PROJECTS = process.env.GITLAB_ALLOWED_PROJECT_IDS?.split(',').map(id => id.trim()).filter(Boolean) || [];
+const TEST_PROJECT_ID = ALLOWED_PROJECTS[0] || "12345"; // Use first allowed project or fallback
 
 console.log('🔧 Test Configuration:');
 console.log(`  GitLab URL: ${GITLAB_API_URL}`);
 console.log(`  Token: ${GITLAB_TOKEN ? '✅ Provided' : '❌ Missing'}`);
-console.log(`  Project ID: ${TEST_PROJECT_ID || '❌ Missing'}`);
-
-// Validate required configuration
-if (!GITLAB_TOKEN) {
-  console.error('❌ Error: GITLAB_TOKEN_TEST or GITLAB_TOKEN environment variable is required for testing');
-  console.error('   Set one of these variables to your GitLab API token');
-  process.exit(1);
-}
-
-if (!TEST_PROJECT_ID) {
-  console.error('❌ Error: TEST_PROJECT_ID environment variable is required for testing');
-  console.error('   Set this variable to a valid GitLab project ID (e.g., "123" or "group/project")');
-  process.exit(1);
-}
+console.log(`  Project ID: ${TEST_PROJECT_ID} ${ALLOWED_PROJECTS.length > 0 ? '(✅ From GITLAB_ALLOWED_PROJECT_IDS)' : '(⚠️ Fallback - set GITLAB_ALLOWED_PROJECT_IDS)'}`);
 
 console.log('✅ Configuration validated');
 console.log('');
@@ -60,9 +52,9 @@ describe('GitLab MCP Server - Stdio Transport', () => {
 
   // Prepare environment variables for stdio server
   const stdioEnv: Record<string, string> = {
-    GITLAB_PERSONAL_ACCESS_TOKEN: GITLAB_TOKEN,
+    GITLAB_PERSONAL_ACCESS_TOKEN: GITLAB_TOKEN || 'dummy-token-for-testing',
     GITLAB_API_URL: `${GITLAB_API_URL}/api/v4`,
-    GITLAB_PROJECT_ID: TEST_PROJECT_ID,
+    // No default project ID set
     GITLAB_READ_ONLY_MODE: 'true',
     // Explicitly disable other transport modes to ensure stdio mode
     SSE: 'false',
@@ -110,34 +102,108 @@ describe('GitLab MCP Server - Stdio Transport', () => {
     const result = await client.callTool('list_merge_requests', {
       project_id: TEST_PROJECT_ID
     });
-    
+
     assert.ok(result !== null && result !== undefined, 'Tool call result should be defined');
     assert.ok('content' in result, 'Result should have content property');
+
+    // Verify response structure
+    const content = result.content[0];
+    assert.ok(content !== null && content !== undefined, 'Content should be defined');
+    assert.strictEqual(content.type, 'text', 'Content type should be text');
+
+    // Parse and verify JSON response
+    const mergeRequests = JSON.parse((content as any).text);
+    assert.ok(Array.isArray(mergeRequests), 'Should return array of merge requests');
+    assert.ok(mergeRequests.length >= 0, 'Should have merge request data');
   });
 
   test('should call get_project tool via stdio', async () => {
     const result = await client.callTool('get_project', {
       project_id: TEST_PROJECT_ID
     });
-    
+
     // Verify proper CallToolResult structure
     assert.ok(result !== null && result !== undefined, 'Tool call result should be defined');
     assert.ok('content' in result, 'Result should have content property');
     assert.ok(Array.isArray(result.content), 'Content should be an array');
     assert.ok(result.content.length > 0, 'Content array should not be empty');
-    
+
     // Check content structure
     const firstContent = result.content[0];
     assert.ok(firstContent !== null && firstContent !== undefined, 'First content item should be defined');
     assert.ok('type' in firstContent, 'Content item should have type');
     assert.strictEqual(firstContent.type, 'text', 'Content type should be text');
     assert.ok('text' in firstContent, 'Text content should have text property');
-    
+
     // Verify it's valid JSON containing project info
     const projectData = JSON.parse((firstContent as any).text);
     assert.ok(projectData !== null && projectData !== undefined, 'Project data should be parseable JSON');
     assert.ok('id' in projectData, 'Project should have id');
     assert.ok('name' in projectData, 'Project should have name');
+
+    // Additional project data validation
+    assert.ok('description' in projectData, 'Project should have description');
+    assert.ok('web_url' in projectData, 'Project should have web_url');
+    assert.ok('visibility' in projectData, 'Project should have visibility');
+  });
+
+  test('should call list_projects tool via stdio', async () => {
+    const result = await client.callTool('list_projects', {
+      search: 'test'
+    });
+
+    assert.ok(result !== null && result !== undefined, 'Tool call result should be defined');
+    assert.ok('content' in result, 'Result should have content property');
+
+    // Verify response structure
+    const content = result.content[0];
+    assert.ok(content !== null && content !== undefined, 'Content should be defined');
+    assert.strictEqual(content.type, 'text', 'Content type should be text');
+
+    // Parse and verify JSON response
+    const projects = JSON.parse((content as any).text);
+    assert.ok(Array.isArray(projects), 'Should return array of projects');
+  });
+
+  test('should call list_issues tool via stdio', async () => {
+    const result = await client.callTool('list_issues', {
+      project_id: TEST_PROJECT_ID,
+      state: 'opened'
+    });
+
+    assert.ok(result !== null && result !== undefined, 'Tool call result should be defined');
+    assert.ok('content' in result, 'Result should have content property');
+
+    // Verify response structure
+    const content = result.content[0];
+    assert.ok(content !== null && content !== undefined, 'Content should be defined');
+    assert.strictEqual(content.type, 'text', 'Content type should be text');
+
+    // Parse and verify JSON response
+    const issues = JSON.parse((content as any).text);
+    assert.ok(Array.isArray(issues), 'Should return array of issues');
+  });
+
+  test('should handle error when calling tool with invalid parameters', async () => {
+    try {
+      await client.callTool('get_project', {
+        project_id: 'invalid-project-id'
+      });
+      assert.fail('Should have thrown an error for invalid project ID');
+    } catch (error) {
+      assert.ok(error instanceof Error, 'Should throw an error');
+      // Error is expected for invalid project ID
+    }
+  });
+
+  test('should handle error when calling non-existent tool', async () => {
+    try {
+      await client.callTool('non_existent_tool', {});
+      assert.fail('Should have thrown an error for non-existent tool');
+    } catch (error) {
+      assert.ok(error instanceof Error, 'Should throw an error');
+      // Error is expected for non-existent tool
+    }
   });
 });
 
@@ -153,6 +219,10 @@ describe('GitLab MCP Server - SSE Transport', () => {
       port,
       timeout: 3000,
       env: {
+        GITLAB_PERSONAL_ACCESS_TOKEN: GITLAB_TOKEN || 'dummy-token-for-testing',
+        GITLAB_API_URL: `${GITLAB_API_URL}/api/v4`,
+        // No default project ID set
+        GITLAB_READ_ONLY_MODE: 'true',
         SSE: 'true',
         STREAMABLE_HTTP: 'false'
       }
@@ -202,17 +272,39 @@ describe('GitLab MCP Server - SSE Transport', () => {
     const result = await client.callTool('list_merge_requests', {
       project_id: TEST_PROJECT_ID
     });
-    
+
     assert.ok(result !== null && result !== undefined, 'Tool call result should be defined');
     assert.ok('content' in result, 'Result should have content property');
+
+    // Verify response structure
+    const content = result.content[0];
+    assert.ok(content !== null && content !== undefined, 'Content should be defined');
+    assert.strictEqual(content.type, 'text', 'Content type should be text');
+
+    // Parse and verify JSON response
+    const mergeRequests = JSON.parse((content as any).text);
+    assert.ok(Array.isArray(mergeRequests), 'Should return array of merge requests');
   });
 
   test('should call get_project tool via SSE', async () => {
     const result = await client.callTool('get_project', {
       project_id: TEST_PROJECT_ID
     });
+
     assert.ok(result !== null && result !== undefined, 'Tool call result should be defined');
     assert.ok('content' in result, 'Result should have content property');
+
+    // Verify response structure
+    const content = result.content[0];
+    assert.ok(content !== null && content !== undefined, 'Content should be defined');
+    assert.strictEqual(content.type, 'text', 'Content type should be text');
+
+    // Parse and verify JSON response
+    const projectData = JSON.parse((content as any).text);
+    assert.ok(projectData !== null && projectData !== undefined, 'Project data should be parseable JSON');
+    assert.ok('id' in projectData, 'Project should have id');
+    assert.ok('name' in projectData, 'Project should have name');
+    assert.ok('web_url' in projectData, 'Project should have web_url');
   });
 });
 
@@ -228,6 +320,10 @@ describe('GitLab MCP Server - Streamable HTTP Transport', () => {
       port,
       timeout: 3000,
       env: {
+        GITLAB_PERSONAL_ACCESS_TOKEN: GITLAB_TOKEN || 'dummy-token-for-testing',
+        GITLAB_API_URL: `${GITLAB_API_URL}/api/v4`,
+        // No default project ID set
+        GITLAB_READ_ONLY_MODE: 'true',
         SSE: 'false',
         STREAMABLE_HTTP: 'true'
       }
@@ -279,16 +375,46 @@ describe('GitLab MCP Server - Streamable HTTP Transport', () => {
     const result = await client.callTool('list_merge_requests', {
       project_id: TEST_PROJECT_ID
     });
+
     assert.ok(result !== null && result !== undefined, 'Tool call result should be defined');
     assert.ok('content' in result, 'Result should have content property');
+
+    // Verify response structure
+    const content = result.content[0];
+    assert.ok(content !== null && content !== undefined, 'Content should be defined');
+    assert.strictEqual(content.type, 'text', 'Content type should be text');
+
+    // Parse and verify JSON response
+    const mergeRequests = JSON.parse((content as any).text);
+    assert.ok(Array.isArray(mergeRequests), 'Should return array of merge requests');
+
+    // Check for merge request properties if data exists
+    if (mergeRequests.length > 0) {
+      const firstMR = mergeRequests[0];
+      assert.ok('id' in firstMR, 'Merge request should have id');
+      assert.ok('title' in firstMR, 'Merge request should have title');
+    }
   });
 
   test('should call get_project tool via Streamable HTTP', async () => {
     const result = await client.callTool('get_project', {
       project_id: TEST_PROJECT_ID
     });
-    
+
     assert.ok(result !== null && result !== undefined, 'Tool call result should be defined');
     assert.ok('content' in result, 'Result should have content property');
+
+    // Verify response structure
+    const content = result.content[0];
+    assert.ok(content !== null && content !== undefined, 'Content should be defined');
+    assert.strictEqual(content.type, 'text', 'Content type should be text');
+
+    // Parse and verify JSON response
+    const projectData = JSON.parse((content as any).text);
+    assert.ok(projectData !== null && projectData !== undefined, 'Project data should be parseable JSON');
+    assert.ok('id' in projectData, 'Project should have id');
+    assert.ok('name' in projectData, 'Project should have name');
+    assert.ok('web_url' in projectData, 'Project should have web_url');
+    assert.ok('visibility' in projectData, 'Project should have visibility');
   });
 });

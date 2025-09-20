@@ -40,24 +40,26 @@ export async function launchServer(config: ServerConfig): Promise<ServerInstance
   } = config;
 
   // Prepare environment variables based on transport mode
-  // Use same configuration pattern as existing validate-api.js
+  // Use simplified configuration - only need GITLAB_PERSONAL_ACCESS_TOKEN and GITLAB_ALLOWED_PROJECT_IDS
   const GITLAB_API_URL = process.env.GITLAB_API_URL || "https://gitlab.com";
-  const GITLAB_TOKEN = process.env.GITLAB_TOKEN_TEST || process.env.GITLAB_TOKEN;
-  const TEST_PROJECT_ID = process.env.TEST_PROJECT_ID;
+  const GITLAB_TOKEN = process.env.GITLAB_PERSONAL_ACCESS_TOKEN;
+  const ALLOWED_PROJECTS = process.env.GITLAB_ALLOWED_PROJECT_IDS?.split(',').map(id => id.trim()).filter(Boolean) || [];
+  const TEST_PROJECT_ID = ALLOWED_PROJECTS[0] || "12345";
   
   // Validate that we have required configuration
   if (!GITLAB_TOKEN) {
-    throw new Error('GITLAB_TOKEN_TEST or GITLAB_TOKEN environment variable is required for server testing');
+    throw new Error('GITLAB_PERSONAL_ACCESS_TOKEN environment variable is required for server testing');
   }
-  if (!TEST_PROJECT_ID) {
-    throw new Error('TEST_PROJECT_ID environment variable is required for server testing');
+  if (ALLOWED_PROJECTS.length === 0) {
+    throw new Error('GITLAB_ALLOWED_PROJECT_IDS environment variable is required for server testing');
   }
 
   const serverEnv: Record<string, string> = {
     // Add all environment variables from the current process
     ...process.env,
     GITLAB_API_URL: `${GITLAB_API_URL}/api/v4`,
-    GITLAB_PROJECT_ID: TEST_PROJECT_ID,
+    GITLAB_PERSONAL_ACCESS_TOKEN: GITLAB_TOKEN,
+    GITLAB_ALLOWED_PROJECT_IDS: ALLOWED_PROJECTS.join(','),
     GITLAB_READ_ONLY_MODE: 'true', // Use read-only mode for testing
     ...env,
   };

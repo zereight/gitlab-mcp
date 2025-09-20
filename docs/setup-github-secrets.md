@@ -10,16 +10,12 @@
 
 Click the "New repository secret" button and add the following secrets:
 
-### GITLAB_TOKEN_TEST
 
-- **Name**: `GITLAB_TOKEN_TEST`
 - **Value**: Your GitLab Personal Access Token
 - Used for integration tests to call the real GitLab API
 
-### TEST_PROJECT_ID
 
-- **Name**: `TEST_PROJECT_ID`
-- **Value**: Your test project ID (e.g., `70322092`)
+- **Value**: Your test project ID (e.g., `your_project_id`)
 - The GitLab project ID used for testing
 
 ### GITLAB_API_URL (Optional)
@@ -47,8 +43,6 @@ To verify your secrets are properly configured:
 To run integration tests locally:
 
 ```bash
-export GITLAB_TOKEN_TEST="your-token-here"
-export TEST_PROJECT_ID="70322092"
 export GITLAB_API_URL="https://gitlab.com"
 
 npm run test:integration

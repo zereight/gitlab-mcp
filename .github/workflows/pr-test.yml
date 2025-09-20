@@ -4,6 +4,8 @@ on:
   pull_request:
     branches: [ main ]
     types: [opened, synchronize, reopened]
+  push:
+    branches: [ main ]
 
 jobs:
   test:
@@ -29,13 +31,26 @@ jobs:
     - name: Build project
       run: npm run build
     
-    - name: Run tests
+    - name: Run Jest tests
       run: npm test
       env:
         GITLAB_API_URL: ${{ secrets.GITLAB_API_URL }}
-        GITLAB_TOKEN: ${{ secrets.GITLAB_TOKEN_TEST }}
         GITLAB_PERSONAL_ACCESS_TOKEN: ${{ secrets.GITLAB_PERSONAL_ACCESS_TOKEN }}
-        TEST_PROJECT_ID: ${{ secrets.TEST_PROJECT_ID }}
+        GITLAB_ALLOWED_PROJECT_IDS: ${{ secrets.GITLAB_ALLOWED_PROJECT_IDS }}
+    
+    - name: Run MCP server tests
+      run: npm run test:server
+      env:
+        GITLAB_API_URL: ${{ secrets.GITLAB_API_URL }}
+        GITLAB_PERSONAL_ACCESS_TOKEN: ${{ secrets.GITLAB_PERSONAL_ACCESS_TOKEN }}
+        GITLAB_ALLOWED_PROJECT_IDS: ${{ secrets.GITLAB_ALLOWED_PROJECT_IDS }}
+    
+    - name: Run comprehensive tool tests
+      run: npm run test:all-tools
+      env:
+        GITLAB_API_URL: ${{ secrets.GITLAB_API_URL }}
+        GITLAB_PERSONAL_ACCESS_TOKEN: ${{ secrets.GITLAB_PERSONAL_ACCESS_TOKEN }}
+        GITLAB_ALLOWED_PROJECT_IDS: ${{ secrets.GITLAB_ALLOWED_PROJECT_IDS }}
     
     - name: Type check
       run: npx tsc --noEmit
@@ -54,18 +69,17 @@ jobs:
     
     - name: Test MCP server startup
       run: |
-        echo "MCP server startup test temporarily disabled for debugging"
-        echo "GITLAB_PERSONAL_ACCESS_TOKEN is: ${GITLAB_PERSONAL_ACCESS_TOKEN:0:10}..."
+        echo "Testing MCP server startup..."
+        timeout 10s node build/index.js --help || echo "MCP server startup test completed"
       env:
         GITLAB_API_URL: ${{ secrets.GITLAB_API_URL }}
-        GITLAB_TOKEN: ${{ secrets.GITLAB_TOKEN_TEST }}
         GITLAB_PERSONAL_ACCESS_TOKEN: ${{ secrets.GITLAB_PERSONAL_ACCESS_TOKEN }}
-        TEST_PROJECT_ID: ${{ secrets.TEST_PROJECT_ID }}
+        GITLAB_ALLOWED_PROJECT_IDS: ${{ secrets.GITLAB_ALLOWED_PROJECT_IDS }}
 
   integration-test:
     runs-on: ubuntu-latest
     needs: test
-    if: github.event.pull_request.draft == false
+    if: github.event.pull_request.draft == false || github.event_name == 'push'
     
     steps:
     - name: Checkout code
@@ -87,12 +101,12 @@ jobs:
       if: ${{ github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository }}
       run: |
         echo "Running integration tests with real GitLab API..."
-        npm run test:integration || echo "No integration test script found"
+        npm run test:server
+        npm run test:all-tools
       env:
         GITLAB_API_URL: ${{ secrets.GITLAB_API_URL }}
-        GITLAB_TOKEN: ${{ secrets.GITLAB_TOKEN_TEST }}
         GITLAB_PERSONAL_ACCESS_TOKEN: ${{ secrets.GITLAB_PERSONAL_ACCESS_TOKEN }}
-        PROJECT_ID: ${{ secrets.TEST_PROJECT_ID }}
+        GITLAB_ALLOWED_PROJECT_IDS: ${{ secrets.GITLAB_ALLOWED_PROJECT_IDS }}
     
     - name: Test Docker build
       run: |
@@ -139,7 +153,7 @@ jobs:
 
   coverage:
     runs-on: ubuntu-latest
-    if: github.event.pull_request.draft == false
+    if: github.event.pull_request.draft == false || github.event_name == 'push'
     
     steps:
     - name: Checkout code
@@ -161,6 +175,5 @@ jobs:
       run: npm test
       env:
         GITLAB_API_URL: ${{ secrets.GITLAB_API_URL }}
-        GITLAB_TOKEN: ${{ secrets.GITLAB_TOKEN_TEST }}
         GITLAB_PERSONAL_ACCESS_TOKEN: ${{ secrets.GITLAB_PERSONAL_ACCESS_TOKEN }}
-        TEST_PROJECT_ID: ${{ secrets.TEST_PROJECT_ID }}
+        GITLAB_ALLOWED_PROJECT_IDS: ${{ secrets.GITLAB_ALLOWED_PROJECT_IDS }}

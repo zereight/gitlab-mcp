@@ -8,8 +8,25 @@
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
-    "forceConsistentCasingInFileNames": true
+    "forceConsistentCasingInFileNames": true,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "resolveJsonModule": true,
+    "allowSyntheticDefaultImports": true,
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "isolatedModules": true,
+    "types": ["jest", "node"]
   },
-  "include": ["./**/*"],
-  "exclude": ["node_modules", "build"]
+  "include": [
+    "./src/**/*",
+    "./tests/**/*",
+    "./*.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "build",
+    "coverage"
+  ]
 }

@@ -966,7 +966,6 @@ function normalizeGitLabApiUrl(url?: string): string {
 
 // Use the normalizeGitLabApiUrl function to handle various URL formats
 const GITLAB_API_URL = normalizeGitLabApiUrl(process.env.GITLAB_API_URL || "");
-const GITLAB_PROJECT_ID = process.env.GITLAB_PROJECT_ID;
 const GITLAB_ALLOWED_PROJECT_IDS = process.env.GITLAB_ALLOWED_PROJECT_IDS?.split(',').map(id => id.trim()).filter(Boolean) || [];
 
 const GITLAB_COMMIT_FILES_PER_PAGE = process.env.GITLAB_COMMIT_FILES_PER_PAGE ? parseInt(process.env.GITLAB_COMMIT_FILES_PER_PAGE) : 20;
@@ -1022,7 +1021,13 @@ function getEffectiveProjectId(projectId: string): string {
 
     return projectId || GITLAB_ALLOWED_PROJECT_IDS[0];
   }
-  return GITLAB_PROJECT_ID || projectId;
+
+  // If no allowed project list is set, use the provided project ID or throw error
+  if (!projectId) {
+    throw new Error("No project ID provided and no default project configured. Please specify a project ID or set GITLAB_ALLOWED_PROJECT_IDS.");
+  }
+
+  return projectId;
 }
 
 /**
@@ -4357,7 +4362,7 @@ server.setRequestHandler(CallToolRequestSchema, async request => {
     logger.info(request.params.name);
     switch (request.params.name) {
       case "fork_repository": {
-        if (GITLAB_PROJECT_ID) {
+        if (GITLAB_ALLOWED_PROJECT_IDS.length > 0) {
           throw new Error("Direct project ID is set. So fork_repository is not allowed");
         }
         const forkArgs = ForkRepositorySchema.parse(request.params.arguments);
@@ -4430,7 +4435,7 @@ server.setRequestHandler(CallToolRequestSchema, async request => {
       }
 
       case "create_repository": {
-        if (GITLAB_PROJECT_ID) {
+        if (GITLAB_ALLOWED_PROJECT_IDS.length > 0) {
           throw new Error("Direct project ID is set. So fork_repository is not allowed");
         }
         const args = CreateRepositorySchema.parse(request.params.arguments);

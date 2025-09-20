@@ -1,5 +1,5 @@
 import { z } from "zod";
-// Removed flexibleBoolean import - using z.boolean() instead
+import { flexibleBoolean } from "./customSchemas.js";
 
 // Base schemas for common types
 export const GitLabAuthorSchema = z.object({
@@ -1810,12 +1810,12 @@ export const GetCommitSchema = z.object({
 export const GetCommitDiffSchema = z.object({
   project_id: z.coerce.string().describe("Project ID or complete URL-encoded path to project"),
   sha: z.string().describe("The commit hash or name of a repository branch or tag"),
-  full_diff: flexibleBoolean.optional().describe("Whether to return the full diff or only first page (default: false)"),
+  full_diff: z.boolean().optional().describe("Whether to return the full diff or only first page (default: false)"),
 });
 
 // Schema for listing issues assigned to the current user
 export const MyIssuesSchema = z.object({
-  project_id: z.string().optional().describe("Project ID or URL-encoded path (optional when GITLAB_PROJECT_ID is set)"),
+  project_id: z.string().optional().describe("Project ID or URL-encoded path"),
   state: z
     .enum(["opened", "closed", "all"])
     .optional()
