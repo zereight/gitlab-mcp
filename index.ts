@@ -401,453 +401,455 @@ const DEFAULT_FETCH_CONFIG = {
   },
 };
 
+const toJSONSchema = (schema: z.ZodTypeAny) => zodToJsonSchema(schema, { $refStrategy: 'none' });
+
 // Define all available tools
 const allTools = [
   {
     name: "merge_merge_request",
     description: "Merge a merge request in a GitLab project",
-    inputSchema: zodToJsonSchema(MergeMergeRequestSchema),
+    inputSchema: toJSONSchema(MergeMergeRequestSchema),
   },
   {
     name: "create_or_update_file",
     description: "Create or update a single file in a GitLab project",
-    inputSchema: zodToJsonSchema(CreateOrUpdateFileSchema),
+    inputSchema: toJSONSchema(CreateOrUpdateFileSchema),
   },
   {
     name: "search_repositories",
     description: "Search for GitLab projects",
-    inputSchema: zodToJsonSchema(SearchRepositoriesSchema),
+    inputSchema: toJSONSchema(SearchRepositoriesSchema),
   },
   {
     name: "create_repository",
     description: "Create a new GitLab project",
-    inputSchema: zodToJsonSchema(CreateRepositorySchema),
+    inputSchema: toJSONSchema(CreateRepositorySchema),
   },
   {
     name: "get_file_contents",
     description: "Get the contents of a file or directory from a GitLab project",
-    inputSchema: zodToJsonSchema(GetFileContentsSchema),
+    inputSchema: toJSONSchema(GetFileContentsSchema),
   },
   {
     name: "push_files",
     description: "Push multiple files to a GitLab project in a single commit",
-    inputSchema: zodToJsonSchema(PushFilesSchema),
+    inputSchema: toJSONSchema(PushFilesSchema),
   },
   {
     name: "create_issue",
     description: "Create a new issue in a GitLab project",
-    inputSchema: zodToJsonSchema(CreateIssueSchema),
+    inputSchema: toJSONSchema(CreateIssueSchema),
   },
   {
     name: "create_merge_request",
     description: "Create a new merge request in a GitLab project",
-    inputSchema: zodToJsonSchema(CreateMergeRequestSchema),
+    inputSchema: toJSONSchema(CreateMergeRequestSchema),
   },
   {
     name: "fork_repository",
     description: "Fork a GitLab project to your account or specified namespace",
-    inputSchema: zodToJsonSchema(ForkRepositorySchema),
+    inputSchema: toJSONSchema(ForkRepositorySchema),
   },
   {
     name: "create_branch",
     description: "Create a new branch in a GitLab project",
-    inputSchema: zodToJsonSchema(CreateBranchSchema),
+    inputSchema: toJSONSchema(CreateBranchSchema),
   },
   {
     name: "get_merge_request",
     description:
       "Get details of a merge request (Either mergeRequestIid or branchName must be provided)",
-    inputSchema: zodToJsonSchema(GetMergeRequestSchema),
+    inputSchema: toJSONSchema(GetMergeRequestSchema),
   },
   {
     name: "get_merge_request_diffs",
     description:
       "Get the changes/diffs of a merge request (Either mergeRequestIid or branchName must be provided)",
-    inputSchema: zodToJsonSchema(GetMergeRequestDiffsSchema),
+    inputSchema: toJSONSchema(GetMergeRequestDiffsSchema),
   },
   {
     name: "list_merge_request_diffs",
     description:
       "List merge request diffs with pagination support (Either mergeRequestIid or branchName must be provided)",
-    inputSchema: zodToJsonSchema(ListMergeRequestDiffsSchema),
+    inputSchema: toJSONSchema(ListMergeRequestDiffsSchema),
   },
   {
     name: "get_branch_diffs",
     description: "Get the changes/diffs between two branches or commits in a GitLab project",
-    inputSchema: zodToJsonSchema(GetBranchDiffsSchema),
+    inputSchema: toJSONSchema(GetBranchDiffsSchema),
   },
   {
     name: "update_merge_request",
     description: "Update a merge request (Either mergeRequestIid or branchName must be provided)",
-    inputSchema: zodToJsonSchema(UpdateMergeRequestSchema),
+    inputSchema: toJSONSchema(UpdateMergeRequestSchema),
   },
   {
     name: "create_note",
     description: "Create a new note (comment) to an issue or merge request",
-    inputSchema: zodToJsonSchema(CreateNoteSchema),
+    inputSchema: toJSONSchema(CreateNoteSchema),
   },
   {
     name: "create_merge_request_thread",
     description: "Create a new thread on a merge request",
-    inputSchema: zodToJsonSchema(CreateMergeRequestThreadSchema),
+    inputSchema: toJSONSchema(CreateMergeRequestThreadSchema),
   },
   {
     name: "mr_discussions",
     description: "List discussion items for a merge request",
-    inputSchema: zodToJsonSchema(ListMergeRequestDiscussionsSchema),
+    inputSchema: toJSONSchema(ListMergeRequestDiscussionsSchema),
   },
   {
     name: "update_merge_request_note",
     description: "Modify an existing merge request thread note",
-    inputSchema: zodToJsonSchema(UpdateMergeRequestNoteSchema),
+    inputSchema: toJSONSchema(UpdateMergeRequestNoteSchema),
   },
   {
     name: "create_merge_request_note",
     description: "Add a new note to an existing merge request thread",
-    inputSchema: zodToJsonSchema(CreateMergeRequestNoteSchema),
+    inputSchema: toJSONSchema(CreateMergeRequestNoteSchema),
   },
   {
     name: "get_draft_note",
     description: "Get a single draft note from a merge request",
-    inputSchema: zodToJsonSchema(GetDraftNoteSchema),
+    inputSchema: toJSONSchema(GetDraftNoteSchema),
   },
   {
     name: "list_draft_notes",
     description: "List draft notes for a merge request",
-    inputSchema: zodToJsonSchema(ListDraftNotesSchema),
+    inputSchema: toJSONSchema(ListDraftNotesSchema),
   },
   {
     name: "create_draft_note",
     description: "Create a draft note for a merge request",
-    inputSchema: zodToJsonSchema(CreateDraftNoteSchema),
+    inputSchema: toJSONSchema(CreateDraftNoteSchema),
   },
   {
     name: "update_draft_note",
     description: "Update an existing draft note",
-    inputSchema: zodToJsonSchema(UpdateDraftNoteSchema),
+    inputSchema: toJSONSchema(UpdateDraftNoteSchema),
   },
   {
     name: "delete_draft_note",
     description: "Delete a draft note",
-    inputSchema: zodToJsonSchema(DeleteDraftNoteSchema),
+    inputSchema: toJSONSchema(DeleteDraftNoteSchema),
   },
   {
     name: "publish_draft_note",
     description: "Publish a single draft note",
-    inputSchema: zodToJsonSchema(PublishDraftNoteSchema),
+    inputSchema: toJSONSchema(PublishDraftNoteSchema),
   },
   {
     name: "bulk_publish_draft_notes",
     description: "Publish all draft notes for a merge request",
-    inputSchema: zodToJsonSchema(BulkPublishDraftNotesSchema),
+    inputSchema: toJSONSchema(BulkPublishDraftNotesSchema),
   },
   {
     name: "update_issue_note",
     description: "Modify an existing issue thread note",
-    inputSchema: zodToJsonSchema(UpdateIssueNoteSchema),
+    inputSchema: toJSONSchema(UpdateIssueNoteSchema),
   },
   {
     name: "create_issue_note",
     description: "Add a new note to an existing issue thread",
-    inputSchema: zodToJsonSchema(CreateIssueNoteSchema),
+    inputSchema: toJSONSchema(CreateIssueNoteSchema),
   },
   {
     name: "list_issues",
     description:
       "List issues (default: created by current user only; use scope='all' for all accessible issues)",
-    inputSchema: zodToJsonSchema(ListIssuesSchema),
+    inputSchema: toJSONSchema(ListIssuesSchema),
   },
   {
     name: "my_issues",
     description: "List issues assigned to the authenticated user (defaults to open issues)",
-    inputSchema: zodToJsonSchema(MyIssuesSchema),
+    inputSchema: toJSONSchema(MyIssuesSchema),
   },
   {
     name: "get_issue",
     description: "Get details of a specific issue in a GitLab project",
-    inputSchema: zodToJsonSchema(GetIssueSchema),
+    inputSchema: toJSONSchema(GetIssueSchema),
   },
   {
     name: "update_issue",
     description: "Update an issue in a GitLab project",
-    inputSchema: zodToJsonSchema(UpdateIssueSchema),
+    inputSchema: toJSONSchema(UpdateIssueSchema),
   },
   {
     name: "delete_issue",
     description: "Delete an issue from a GitLab project",
-    inputSchema: zodToJsonSchema(DeleteIssueSchema),
+    inputSchema: toJSONSchema(DeleteIssueSchema),
   },
   {
     name: "list_issue_links",
     description: "List all issue links for a specific issue",
-    inputSchema: zodToJsonSchema(ListIssueLinksSchema),
+    inputSchema: toJSONSchema(ListIssueLinksSchema),
   },
   {
     name: "list_issue_discussions",
     description: "List discussions for an issue in a GitLab project",
-    inputSchema: zodToJsonSchema(ListIssueDiscussionsSchema),
+    inputSchema: toJSONSchema(ListIssueDiscussionsSchema),
   },
   {
     name: "get_issue_link",
     description: "Get a specific issue link",
-    inputSchema: zodToJsonSchema(GetIssueLinkSchema),
+    inputSchema: toJSONSchema(GetIssueLinkSchema),
   },
   {
     name: "create_issue_link",
     description: "Create an issue link between two issues",
-    inputSchema: zodToJsonSchema(CreateIssueLinkSchema),
+    inputSchema: toJSONSchema(CreateIssueLinkSchema),
   },
   {
     name: "delete_issue_link",
     description: "Delete an issue link",
-    inputSchema: zodToJsonSchema(DeleteIssueLinkSchema),
+    inputSchema: toJSONSchema(DeleteIssueLinkSchema),
   },
   {
     name: "list_namespaces",
     description: "List all namespaces available to the current user",
-    inputSchema: zodToJsonSchema(ListNamespacesSchema),
+    inputSchema: toJSONSchema(ListNamespacesSchema),
   },
   {
     name: "get_namespace",
     description: "Get details of a namespace by ID or path",
-    inputSchema: zodToJsonSchema(GetNamespaceSchema),
+    inputSchema: toJSONSchema(GetNamespaceSchema),
   },
   {
     name: "verify_namespace",
     description: "Verify if a namespace path exists",
-    inputSchema: zodToJsonSchema(VerifyNamespaceSchema),
+    inputSchema: toJSONSchema(VerifyNamespaceSchema),
   },
   {
     name: "get_project",
     description: "Get details of a specific project",
-    inputSchema: zodToJsonSchema(GetProjectSchema),
+    inputSchema: toJSONSchema(GetProjectSchema),
   },
   {
     name: "list_projects",
     description: "List projects accessible by the current user",
-    inputSchema: zodToJsonSchema(ListProjectsSchema),
+    inputSchema: toJSONSchema(ListProjectsSchema),
   },
   {
     name: "list_project_members",
     description: "List members of a GitLab project",
-    inputSchema: zodToJsonSchema(ListProjectMembersSchema),
+    inputSchema: toJSONSchema(ListProjectMembersSchema),
   },
   {
     name: "list_labels",
     description: "List labels for a project",
-    inputSchema: zodToJsonSchema(ListLabelsSchema),
+    inputSchema: toJSONSchema(ListLabelsSchema),
   },
   {
     name: "get_label",
     description: "Get a single label from a project",
-    inputSchema: zodToJsonSchema(GetLabelSchema),
+    inputSchema: toJSONSchema(GetLabelSchema),
   },
   {
     name: "create_label",
     description: "Create a new label in a project",
-    inputSchema: zodToJsonSchema(CreateLabelSchema),
+    inputSchema: toJSONSchema(CreateLabelSchema),
   },
   {
     name: "update_label",
     description: "Update an existing label in a project",
-    inputSchema: zodToJsonSchema(UpdateLabelSchema),
+    inputSchema: toJSONSchema(UpdateLabelSchema),
   },
   {
     name: "delete_label",
     description: "Delete a label from a project",
-    inputSchema: zodToJsonSchema(DeleteLabelSchema),
+    inputSchema: toJSONSchema(DeleteLabelSchema),
   },
   {
     name: "list_group_projects",
     description: "List projects in a GitLab group with filtering options",
-    inputSchema: zodToJsonSchema(ListGroupProjectsSchema),
+    inputSchema: toJSONSchema(ListGroupProjectsSchema),
   },
   {
     name: "list_wiki_pages",
     description: "List wiki pages in a GitLab project",
-    inputSchema: zodToJsonSchema(ListWikiPagesSchema),
+    inputSchema: toJSONSchema(ListWikiPagesSchema),
   },
   {
     name: "get_wiki_page",
     description: "Get details of a specific wiki page",
-    inputSchema: zodToJsonSchema(GetWikiPageSchema),
+    inputSchema: toJSONSchema(GetWikiPageSchema),
   },
   {
     name: "create_wiki_page",
     description: "Create a new wiki page in a GitLab project",
-    inputSchema: zodToJsonSchema(CreateWikiPageSchema),
+    inputSchema: toJSONSchema(CreateWikiPageSchema),
   },
   {
     name: "update_wiki_page",
     description: "Update an existing wiki page in a GitLab project",
-    inputSchema: zodToJsonSchema(UpdateWikiPageSchema),
+    inputSchema: toJSONSchema(UpdateWikiPageSchema),
   },
   {
     name: "delete_wiki_page",
     description: "Delete a wiki page from a GitLab project",
-    inputSchema: zodToJsonSchema(DeleteWikiPageSchema),
+    inputSchema: toJSONSchema(DeleteWikiPageSchema),
   },
   {
     name: "get_repository_tree",
     description: "Get the repository tree for a GitLab project (list files and directories)",
-    inputSchema: zodToJsonSchema(GetRepositoryTreeSchema),
+    inputSchema: toJSONSchema(GetRepositoryTreeSchema),
   },
   {
     name: "list_pipelines",
     description: "List pipelines in a GitLab project with filtering options",
-    inputSchema: zodToJsonSchema(ListPipelinesSchema),
+    inputSchema: toJSONSchema(ListPipelinesSchema),
   },
   {
     name: "get_pipeline",
     description: "Get details of a specific pipeline in a GitLab project",
-    inputSchema: zodToJsonSchema(GetPipelineSchema),
+    inputSchema: toJSONSchema(GetPipelineSchema),
   },
   {
     name: "list_pipeline_jobs",
     description: "List all jobs in a specific pipeline",
-    inputSchema: zodToJsonSchema(ListPipelineJobsSchema),
+    inputSchema: toJSONSchema(ListPipelineJobsSchema),
   },
   {
     name: "list_pipeline_trigger_jobs",
     description:
       "List all trigger jobs (bridges) in a specific pipeline that trigger downstream pipelines",
-    inputSchema: zodToJsonSchema(ListPipelineTriggerJobsSchema),
+    inputSchema: toJSONSchema(ListPipelineTriggerJobsSchema),
   },
   {
     name: "get_pipeline_job",
     description: "Get details of a GitLab pipeline job number",
-    inputSchema: zodToJsonSchema(GetPipelineJobOutputSchema),
+    inputSchema: toJSONSchema(GetPipelineJobOutputSchema),
   },
   {
     name: "get_pipeline_job_output",
     description:
       "Get the output/trace of a GitLab pipeline job with optional pagination to limit context window usage",
-    inputSchema: zodToJsonSchema(GetPipelineJobOutputSchema),
+    inputSchema: toJSONSchema(GetPipelineJobOutputSchema),
   },
   {
     name: "create_pipeline",
     description: "Create a new pipeline for a branch or tag",
-    inputSchema: zodToJsonSchema(CreatePipelineSchema),
+    inputSchema: toJSONSchema(CreatePipelineSchema),
   },
   {
     name: "retry_pipeline",
     description: "Retry a failed or canceled pipeline",
-    inputSchema: zodToJsonSchema(RetryPipelineSchema),
+    inputSchema: toJSONSchema(RetryPipelineSchema),
   },
   {
     name: "cancel_pipeline",
     description: "Cancel a running pipeline",
-    inputSchema: zodToJsonSchema(CancelPipelineSchema),
+    inputSchema: toJSONSchema(CancelPipelineSchema),
   },
   {
     name: "play_pipeline_job",
     description: "Run a manual pipeline job",
-    inputSchema: zodToJsonSchema(PlayPipelineJobSchema),
+    inputSchema: toJSONSchema(PlayPipelineJobSchema),
   },
   {
-    name: "retry_pipeline_job", 
+    name: "retry_pipeline_job",
     description: "Retry a failed or canceled pipeline job",
-    inputSchema: zodToJsonSchema(RetryPipelineJobSchema),
+    inputSchema: toJSONSchema(RetryPipelineJobSchema),
   },
   {
     name: "cancel_pipeline_job",
     description: "Cancel a running pipeline job",
-    inputSchema: zodToJsonSchema(CancelPipelineJobSchema),
+    inputSchema: toJSONSchema(CancelPipelineJobSchema),
   },
   {
     name: "list_merge_requests",
     description: "List merge requests in a GitLab project with filtering options",
-    inputSchema: zodToJsonSchema(ListMergeRequestsSchema),
+    inputSchema: toJSONSchema(ListMergeRequestsSchema),
   },
   {
     name: "list_milestones",
     description: "List milestones in a GitLab project with filtering options",
-    inputSchema: zodToJsonSchema(ListProjectMilestonesSchema),
+    inputSchema: toJSONSchema(ListProjectMilestonesSchema),
   },
   {
     name: "get_milestone",
     description: "Get details of a specific milestone",
-    inputSchema: zodToJsonSchema(GetProjectMilestoneSchema),
+    inputSchema: toJSONSchema(GetProjectMilestoneSchema),
   },
   {
     name: "create_milestone",
     description: "Create a new milestone in a GitLab project",
-    inputSchema: zodToJsonSchema(CreateProjectMilestoneSchema),
+    inputSchema: toJSONSchema(CreateProjectMilestoneSchema),
   },
   {
     name: "edit_milestone",
     description: "Edit an existing milestone in a GitLab project",
-    inputSchema: zodToJsonSchema(EditProjectMilestoneSchema),
+    inputSchema: toJSONSchema(EditProjectMilestoneSchema),
   },
   {
     name: "delete_milestone",
     description: "Delete a milestone from a GitLab project",
-    inputSchema: zodToJsonSchema(DeleteProjectMilestoneSchema),
+    inputSchema: toJSONSchema(DeleteProjectMilestoneSchema),
   },
   {
     name: "get_milestone_issue",
     description: "Get issues associated with a specific milestone",
-    inputSchema: zodToJsonSchema(GetMilestoneIssuesSchema),
+    inputSchema: toJSONSchema(GetMilestoneIssuesSchema),
   },
   {
     name: "get_milestone_merge_requests",
     description: "Get merge requests associated with a specific milestone",
-    inputSchema: zodToJsonSchema(GetMilestoneMergeRequestsSchema),
+    inputSchema: toJSONSchema(GetMilestoneMergeRequestsSchema),
   },
   {
     name: "promote_milestone",
     description: "Promote a milestone to the next stage",
-    inputSchema: zodToJsonSchema(PromoteProjectMilestoneSchema),
+    inputSchema: toJSONSchema(PromoteProjectMilestoneSchema),
   },
   {
     name: "get_milestone_burndown_events",
     description: "Get burndown events for a specific milestone",
-    inputSchema: zodToJsonSchema(GetMilestoneBurndownEventsSchema),
+    inputSchema: toJSONSchema(GetMilestoneBurndownEventsSchema),
   },
   {
     name: "get_users",
     description: "Get GitLab user details by usernames",
-    inputSchema: zodToJsonSchema(GetUsersSchema),
+    inputSchema: toJSONSchema(GetUsersSchema),
   },
   {
     name: "list_commits",
     description: "List repository commits with filtering options",
-    inputSchema: zodToJsonSchema(ListCommitsSchema),
+    inputSchema: toJSONSchema(ListCommitsSchema),
   },
   {
     name: "get_commit",
     description: "Get details of a specific commit",
-    inputSchema: zodToJsonSchema(GetCommitSchema),
+    inputSchema: toJSONSchema(GetCommitSchema),
   },
   {
     name: "get_commit_diff",
     description: "Get changes/diffs of a specific commit",
-    inputSchema: zodToJsonSchema(GetCommitDiffSchema),
+    inputSchema: toJSONSchema(GetCommitDiffSchema),
   },
   {
     name: "list_group_iterations",
     description: "List group iterations with filtering options",
-    inputSchema: zodToJsonSchema(ListGroupIterationsSchema),
+    inputSchema: toJSONSchema(ListGroupIterationsSchema),
   },
   {
     name: "upload_markdown",
     description: "Upload a file to a GitLab project for use in markdown content",
-    inputSchema: zodToJsonSchema(MarkdownUploadSchema),
+    inputSchema: toJSONSchema(MarkdownUploadSchema),
   },
   {
     name: "download_attachment",
     description: "Download an uploaded file from a GitLab project by secret and filename",
-    inputSchema: zodToJsonSchema(DownloadAttachmentSchema),
+    inputSchema: toJSONSchema(DownloadAttachmentSchema),
   },
   {
     name: "list_events",
     description: "List all events for the currently authenticated user. Note: before/after parameters accept date format YYYY-MM-DD only",
-    inputSchema: zodToJsonSchema(ListEventsSchema),
+    inputSchema: toJSONSchema(ListEventsSchema),
   },
   {
     name: "get_project_events",
     description: "List all visible events for a specified project. Note: before/after parameters accept date format YYYY-MM-DD only",
-    inputSchema: zodToJsonSchema(GetProjectEventsSchema),
+    inputSchema: toJSONSchema(GetProjectEventsSchema),
   },
 ];
 
@@ -1007,17 +1009,17 @@ function getEffectiveProjectId(projectId: string): string {
     if (GITLAB_ALLOWED_PROJECT_IDS.length === 1 && !projectId) {
       return GITLAB_ALLOWED_PROJECT_IDS[0];
     }
-    
+
     // If a project ID is provided, check if it's in the whitelist
     if (projectId && !GITLAB_ALLOWED_PROJECT_IDS.includes(projectId)) {
       throw new Error(`Access denied: Project ${projectId} is not in the allowed project list: ${GITLAB_ALLOWED_PROJECT_IDS.join(', ')}`);
     }
-    
+
     // If no project ID provided but we have multiple allowed projects, require an explicit choice
     if (!projectId && GITLAB_ALLOWED_PROJECT_IDS.length > 1) {
       throw new Error(`Multiple projects allowed (${GITLAB_ALLOWED_PROJECT_IDS.join(', ')}). Please specify a project ID.`);
     }
-    
+
     return projectId || GITLAB_ALLOWED_PROJECT_IDS[0];
   }
   return GITLAB_PROJECT_ID || projectId;
@@ -4070,10 +4072,10 @@ async function getCurrentUser(): Promise<GitLabUser> {
 async function myIssues(options: MyIssuesOptions = {}): Promise<GitLabIssue[]> {
   // Get current user to find their username
   const currentUser = await getCurrentUser();
-  
+
   // Use getEffectiveProjectId to handle project ID resolution
   const effectiveProjectId = getEffectiveProjectId(options.project_id || "");
-  
+
   // Use listIssues with assignee_username filter
   let listIssuesOptions: Omit<z.infer<typeof ListIssuesSchema>, "project_id"> = {
     state: options.state || "opened", // Default to "opened" if not specified
@@ -4087,7 +4089,7 @@ async function myIssues(options: MyIssuesOptions = {}): Promise<GitLabIssue[]> {
     per_page: options.per_page,
     page: options.page,
   };
-  
+
   if (currentUser.username) {
     listIssuesOptions.assignee_username = [currentUser.username]
   } else {
@@ -4147,7 +4149,7 @@ async function listGroupIterations(
   // クエリパラメータの追加
   if (options.state) url.searchParams.append("state", options.state);
   if (options.search) url.searchParams.append("search", options.search);
-  if (options.in) url.searchParams.append("in", options.in.join(","));
+  if (options.search_in) url.searchParams.append("in", options.search_in.join(","));
   if (options.include_ancestors !== undefined)
     url.searchParams.append("include_ancestors", options.include_ancestors.toString());
   if (options.include_descendants !== undefined)
@@ -4235,13 +4237,13 @@ async function downloadAttachment(projectId: string, secret: string, filename: s
 
   // Get the file content as buffer
   const buffer = await response.arrayBuffer();
-  
+
   // Determine the save path
   const savePath = localPath ? path.join(localPath, filename) : filename;
-  
+
   // Write the file to disk
   fs.writeFileSync(savePath, Buffer.from(buffer));
-  
+
   return savePath;
 }
 
