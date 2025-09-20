@@ -967,6 +967,8 @@ const GITLAB_API_URL = normalizeGitLabApiUrl(process.env.GITLAB_API_URL || "");
 const GITLAB_PROJECT_ID = process.env.GITLAB_PROJECT_ID;
 const GITLAB_ALLOWED_PROJECT_IDS = process.env.GITLAB_ALLOWED_PROJECT_IDS?.split(',').map(id => id.trim()).filter(Boolean) || [];
 
+const GITLAB_COMMIT_FILES_PER_PAGE = process.env.GITLAB_COMMIT_FILES_PER_PAGE ? parseInt(process.env.GITLAB_COMMIT_FILES_PER_PAGE) : 20;
+
 if (!GITLAB_PERSONAL_ACCESS_TOKEN) {
   logger.error("GITLAB_PERSONAL_ACCESS_TOKEN environment variable is not set");
   process.exit(1);
@@ -4002,22 +4004,46 @@ async function getCommit(projectId: string, sha: string, stats?: boolean): Promi
  *
  * @param {string} projectId - Project ID or URL-encoded path
  * @param {string} sha - The commit hash or name of a repository branch or tag
+ * @param {boolean} [full_diff] - Whether to return the full diff or only first page
  * @returns {Promise<GitLabMergeRequestDiff[]>} The commit diffs
  */
-async function getCommitDiff(projectId: string, sha: string): Promise<GitLabMergeRequestDiff[]> {
+async function getCommitDiff(projectId: string, sha: string, full_diff?: boolean): Promise<GitLabMergeRequestDiff[]> {
   projectId = decodeURIComponent(projectId);
-  const url = new URL(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/repository/commits/${encodeURIComponent(sha)}/diff`
-  );
+  const baseUrl = `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/repository/commits/${encodeURIComponent(sha)}/diff`;
+  
+  let allDiffs: GitLabMergeRequestDiff[] = [];
+  let page = 1;
+  
+  while (true) {
+    const url = new URL(baseUrl);
+    
+    if (full_diff) {
+      url.searchParams.append("page", page.toString());
+    }
 
-  const response = await fetch(url.toString(), {
-    ...DEFAULT_FETCH_CONFIG,
-  });
+    const response = await fetch(url.toString(), {
+      ...DEFAULT_FETCH_CONFIG,
+    });
 
-  await handleGitLabError(response);
+    await handleGitLabError(response);
 
-  const data = await response.json();
-  return z.array(GitLabDiffSchema).parse(data);
+    const data = await response.json();
+    const diffs = z.array(GitLabDiffSchema).parse(data);
+    
+    allDiffs.push(...diffs);
+    
+    if (!full_diff) {
+      break;
+    }
+    
+    if (diffs.length < GITLAB_COMMIT_FILES_PER_PAGE) {
+      break;
+    }
+    
+    page++;
+  }
+  
+  return allDiffs;
 }
 
 /**
@@ -5374,7 +5400,7 @@ server.setRequestHandler(CallToolRequestSchema, async request => {
 
       case "get_commit_diff": {
         const args = GetCommitDiffSchema.parse(request.params.arguments);
-        const diff = await getCommitDiff(args.project_id, args.sha);
+        const diff = await getCommitDiff(args.project_id, args.sha, args.full_diff);
         return {
           content: [{ type: "text", text: JSON.stringify(diff, null, 2) }],
         };
