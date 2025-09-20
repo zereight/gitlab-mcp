@@ -5571,6 +5571,32 @@ async function startStreamableHTTPServer(): Promise<void> {
     }
   });
 
+  // to delete a mcp server session explicitly
+  app.delete("/mcp", async (req: Request, res: Response) => {
+    const sessionId = req.headers["mcp-session-id"] as string;
+
+    if (!sessionId) {
+      res.status(400).json({ error: "mcp-session-id header is required" });
+      return;
+    }
+
+    const transport = streamableTransports[sessionId];
+
+    if (transport) {
+      try {
+        await transport.close();
+        logger.info(`Explicitly closed session via DELETE request: ${sessionId}`);
+        res.status(204).send();
+      } catch (error) {
+        logger.error(`Error closing session ${sessionId}:`, error);
+        res.status(500).json({ error: "Failed to close session" });
+      }
+    } else {
+      res.status(404).json({ error: "Session not found" });
+    }
+  });
+
+
   // Health check endpoint
   app.get("/health", (_: Request, res: Response) => {
     res.status(200).json({
