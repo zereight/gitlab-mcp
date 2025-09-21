@@ -1,3 +1,10 @@
+# [5.4.0](https://github.com/structured-world/gitlab-mcp/compare/v5.3.0...v5.4.0) (2025-09-21)
+
+
+### Features
+
+* enhance pipeline job output handling and improve test coverage ([86be293](https://github.com/structured-world/gitlab-mcp/commit/86be293043e4ab30fc327c933fc31a87065806ec))
+
 # [5.3.0](https://github.com/structured-world/gitlab-mcp/compare/v5.2.0...v5.3.0) (2025-09-21)
 
 
