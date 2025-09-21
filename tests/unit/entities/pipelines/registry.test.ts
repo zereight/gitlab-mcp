@@ -607,6 +607,41 @@ describe('Pipelines Registry', () => {
         expect(result).toEqual({ trace: mockTrace, totalLines: 3, shownLines: 3 });
       });
 
+      it('should default to 200 lines when no limit specified (to prevent token overload)', async () => {
+        // Create a large trace with 300 lines
+        const lines = Array.from({length: 300}, (_, i) => `Line ${i + 1}: Some output here`);
+        const longTrace = lines.join('\n');
+
+        mockEnhancedFetch.mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          statusText: 'OK',
+          text: jest.fn().mockResolvedValue(longTrace)
+        } as any);
+
+        const tool = pipelinesToolRegistry.get('get_pipeline_job_output')!;
+        const result = await tool.handler({
+          project_id: 'test/project',
+          job_id: 1
+          // No limit or max_lines specified - should default to 200
+        });
+
+        expect(result).toHaveProperty('trace');
+        expect(result).toHaveProperty('totalLines', 300);
+        expect(result).toHaveProperty('shownLines', 200); // Should be limited to 200 by default
+
+        const trace = (result as any).trace;
+        const traceLines = trace.split('\n');
+
+        // Should contain exactly 200 lines + 1 truncation info line
+        expect(traceLines).toHaveLength(201);
+        expect(trace).toContain('100 lines hidden');
+        expect(trace).toContain('Showing last 200 of 300 lines');
+        expect(trace).toContain('Line 101: Some output here'); // First shown line
+        expect(trace).toContain('Line 300: Some output here'); // Last shown line
+        expect(trace).not.toContain('Line 100: Some output here'); // Should not show earlier lines
+      });
+
       it('should truncate long job trace when limit is provided', async () => {
         const longTrace = Array(1000).fill('Very long line with lots of content here').join('\n');
         mockEnhancedFetch.mockResolvedValueOnce({

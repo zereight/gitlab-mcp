@@ -15,7 +15,8 @@ jest.mock('../../../src/logger', () => ({
 }));
 
 const mockGraphQLClient = {
-  request: jest.fn()
+  request: jest.fn(),
+  endpoint: 'https://gitlab.example.com/api/graphql'
 } as unknown as jest.Mocked<GraphQLClient>;
 
 const mockEnhancedFetch = enhancedFetch as jest.MockedFunction<typeof enhancedFetch>;
@@ -74,7 +75,7 @@ describe('GitLabVersionDetector', () => {
       mockGraphQLClient.request.mockRejectedValueOnce(new Error('Feature query failed'));
 
       const info = await detector.detectInstance();
-      expect(info.version).toBe('unknown'); // REST fallback also handled in private method
+      expect(info.version).toBe('16.3.0'); // REST fallback successful
       expect(info.tier).toBe('free');
     });
   });
@@ -245,6 +246,140 @@ describe('GitLabVersionDetector', () => {
         const info = await detector.detectInstance();
         expect(info.tier).toBe(testCase.expectedTier);
       }
+    });
+  });
+
+  describe('Error Handling for Uninitialized State', () => {
+    it('should throw error when isFeatureAvailable is called before detectInstance', () => {
+      expect(() => detector.isFeatureAvailable('workItems')).toThrow(
+        'Instance info not detected yet. Call detectInstance() first.'
+      );
+    });
+
+    it('should throw error when getTier is called before detectInstance', () => {
+      expect(() => detector.getTier()).toThrow(
+        'Instance info not detected yet. Call detectInstance() first.'
+      );
+    });
+
+    it('should throw error when getVersion is called before detectInstance', () => {
+      expect(() => detector.getVersion()).toThrow(
+        'Instance info not detected yet. Call detectInstance() first.'
+      );
+    });
+  });
+
+  describe('Fallback Version Detection', () => {
+    it('should use REST API fallback when GraphQL fails', async () => {
+      // Mock GraphQL to fail
+      mockGraphQLClient.request.mockRejectedValueOnce(new Error('GraphQL failed'));
+
+      // Mock successful REST API response
+      mockEnhancedFetch.mockResolvedValueOnce({
+        ok: true,
+        json: jest.fn().mockResolvedValue({ version: '16.8.0' })
+      } as any);
+
+      // Mock subsequent GraphQL calls
+      mockGraphQLClient.request.mockResolvedValueOnce({ currentLicense: null });
+      mockGraphQLClient.request.mockResolvedValueOnce({
+        group: { epicsEnabled: false, iterationsEnabled: { nodes: [] }, workItemTypesEnabled: { nodes: [] } }
+      });
+
+      const info = await detector.detectInstance();
+      expect(info.version).toBe('16.8.0');
+      expect(mockEnhancedFetch).toHaveBeenCalled();
+    });
+
+    it('should handle REST API failure in fallback', async () => {
+      // Mock GraphQL to fail
+      mockGraphQLClient.request.mockRejectedValueOnce(new Error('GraphQL failed'));
+
+      // Mock REST API to fail
+      mockEnhancedFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 404
+      } as any);
+
+      // Mock subsequent GraphQL calls
+      mockGraphQLClient.request.mockResolvedValueOnce({ currentLicense: null });
+      mockGraphQLClient.request.mockResolvedValueOnce({
+        group: { epicsEnabled: false, iterationsEnabled: { nodes: [] }, workItemTypesEnabled: { nodes: [] } }
+      });
+
+      const info = await detector.detectInstance();
+      expect(info.version).toBe('unknown');
+    });
+  });
+
+  describe('Advanced Tier Detection Edge Cases', () => {
+    it('should detect ultimate tier with advanced work items', async () => {
+      jest.clearAllMocks();
+      (detector as any).cachedInfo = null;
+
+      mockGraphQLClient.request.mockResolvedValueOnce({ metadata: { version: '16.5.0' } });
+      mockGraphQLClient.request.mockResolvedValueOnce({ currentLicense: null });
+      mockGraphQLClient.request.mockResolvedValueOnce({
+        group: {
+          epicsEnabled: true,
+          iterationsEnabled: { nodes: [] },
+          workItemTypesEnabled: {
+            nodes: [
+              { name: 'OBJECTIVE' },
+              { name: 'ISSUE' }
+            ]
+          }
+        }
+      });
+
+      const info = await detector.detectInstance();
+      expect(info.tier).toBe('ultimate');
+    });
+
+    it('should detect premium tier with iterations but no advanced work items', async () => {
+      jest.clearAllMocks();
+      (detector as any).cachedInfo = null;
+
+      mockGraphQLClient.request.mockResolvedValueOnce({ metadata: { version: '16.5.0' } });
+      mockGraphQLClient.request.mockResolvedValueOnce({ currentLicense: null });
+      mockGraphQLClient.request.mockResolvedValueOnce({
+        group: {
+          epicsEnabled: true,
+          iterationsEnabled: { nodes: [{ id: 'iteration1' }] },
+          workItemTypesEnabled: {
+            nodes: [
+              { name: 'ISSUE' },
+              { name: 'EPIC' }
+            ]
+          }
+        }
+      });
+
+      const info = await detector.detectInstance();
+      expect(info.tier).toBe('premium');
+    });
+
+    it('should detect premium tier with epics but no iterations', async () => {
+      jest.clearAllMocks();
+      (detector as any).cachedInfo = null;
+
+      mockGraphQLClient.request.mockResolvedValueOnce({ metadata: { version: '16.5.0' } });
+      mockGraphQLClient.request.mockResolvedValueOnce({ currentLicense: null });
+      mockGraphQLClient.request.mockResolvedValueOnce({
+        group: {
+          epicsEnabled: true,
+          iterationsEnabled: { nodes: [] },
+          workItemTypesEnabled: {
+            nodes: [
+              { name: 'ISSUE' },
+              { name: 'EPIC' }
+            ]
+          }
+        }
+      });
+
+      const info = await detector.detectInstance();
+      expect(info.tier).toBe('premium');
     });
   });
 });

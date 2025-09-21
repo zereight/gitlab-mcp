@@ -18,6 +18,7 @@ import {
 import { enhancedFetch } from "../../utils/fetch";
 import { normalizeProjectId } from "../../utils/projectIdentifier";
 import { cleanGidsFromObject } from "../../utils/idConversion";
+import { logger } from "../../logger";
 import { ToolRegistry, EnhancedToolDefinition } from "../../types";
 
 /**
@@ -216,8 +217,8 @@ export const pipelinesToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
         const lines = trace.split("\n");
         const totalLines = lines.length;
 
-        // Default to 500 lines if no limit specified (to prevent token overflow)
-        const defaultMaxLines = 500;
+        // Default to 200 lines if no limit specified (to prevent token overflow)
+        const defaultMaxLines = 200;
         let processedLines: string[] = [];
 
         // Determine the number of lines to show
@@ -319,7 +320,64 @@ export const pipelinesToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
         const response = await enhancedFetch(apiUrl, requestOptions);
 
         if (!response.ok) {
-          throw new Error(`GitLab API error: ${response.status} ${response.statusText}`);
+          let errorMessage = `GitLab API error: ${response.status} ${response.statusText}`;
+          try {
+            const errorBody = (await response.json()) as Record<string, unknown>;
+
+            // Handle different error message formats from GitLab API
+            if (errorBody.message) {
+              if (typeof errorBody.message === "string") {
+                errorMessage += ` - ${errorBody.message}`;
+              } else if (typeof errorBody.message === "object" && errorBody.message !== null) {
+                // Handle structured error messages like { base: ["error1", "error2"] }
+                const errorDetails: string[] = [];
+                const messageObj = errorBody.message as Record<string, unknown>;
+
+                Object.keys(messageObj).forEach(key => {
+                  const value = messageObj[key];
+                  if (Array.isArray(value)) {
+                    errorDetails.push(`${key}: ${value.join(", ")}`);
+                  } else {
+                    errorDetails.push(`${key}: ${String(value)}`);
+                  }
+                });
+
+                if (errorDetails.length > 0) {
+                  errorMessage += ` - ${errorDetails.join("; ")}`;
+                }
+              }
+            }
+            if (typeof errorBody.error === "string") {
+              errorMessage += ` - ${errorBody.error}`;
+            }
+            if (Array.isArray(errorBody.errors)) {
+              const errors = errorBody.errors.map(e => String(e));
+              errorMessage += ` - ${errors.join(", ")}`;
+            }
+
+            logger.error(
+              {
+                status: response.status,
+                statusText: response.statusText,
+                errorBody,
+                url: apiUrl,
+                requestBody: body,
+              },
+              "create_pipeline failed"
+            );
+          } catch {
+            // If parsing error response fails, use the basic error message
+            logger.error(
+              {
+                status: response.status,
+                statusText: response.statusText,
+                url: apiUrl,
+                requestBody: body,
+              },
+              "create_pipeline failed (could not parse error response)"
+            );
+          }
+          throw new Error(errorMessage);
         }
 
         const pipeline = await response.json();
