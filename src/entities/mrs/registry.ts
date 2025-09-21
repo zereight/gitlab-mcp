@@ -25,6 +25,7 @@ import {
   BulkPublishDraftNotesSchema,
 } from "./schema";
 import { enhancedFetch } from "../../utils/fetch";
+import { normalizeProjectId } from "../../utils/projectIdentifier";
 import { cleanGidsFromObject } from "../../utils/idConversion";
 import { ToolRegistry, EnhancedToolDefinition } from "../../types";
 
@@ -49,7 +50,7 @@ export const mrsToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefinit
           queryParams.set("straight", String(straight));
         }
 
-        const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${encodeURIComponent(project_id)}/repository/compare?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}&${queryParams}`;
+        const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${normalizeProjectId(project_id)}/repository/compare?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}&${queryParams}`;
         const response = await enhancedFetch(apiUrl, {
           headers: {
             Authorization: `Bearer ${process.env.GITLAB_TOKEN}`,
@@ -80,10 +81,10 @@ export const mrsToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefinit
 
         if (merge_request_iid) {
           // Get specific MR by IID
-          apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${encodeURIComponent(project_id)}/merge_requests/${merge_request_iid}`;
+          apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${normalizeProjectId(project_id)}/merge_requests/${merge_request_iid}`;
         } else if (branch_name) {
           // Search for MR by source branch
-          apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${encodeURIComponent(project_id)}/merge_requests?source_branch=${encodeURIComponent(branch_name)}`;
+          apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${normalizeProjectId(project_id)}/merge_requests?source_branch=${encodeURIComponent(branch_name)}`;
         } else {
           throw new Error("Either merge_request_iid or branch_name must be provided");
         }
@@ -169,7 +170,7 @@ export const mrsToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefinit
           queryParams.set("per_page", String(per_page));
         }
 
-        const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${encodeURIComponent(project_id)}/merge_requests/${merge_request_iid}/changes?${queryParams}`;
+        const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${normalizeProjectId(project_id)}/merge_requests/${merge_request_iid}/changes?${queryParams}`;
         const response = await enhancedFetch(apiUrl, {
           headers: {
             Authorization: `Bearer ${process.env.GITLAB_TOKEN}`,
@@ -204,7 +205,7 @@ export const mrsToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefinit
           queryParams.set("per_page", String(per_page));
         }
 
-        const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${encodeURIComponent(project_id)}/merge_requests/${merge_request_iid}/diffs?${queryParams}`;
+        const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${normalizeProjectId(project_id)}/merge_requests/${merge_request_iid}/diffs?${queryParams}`;
         const response = await enhancedFetch(apiUrl, {
           headers: {
             Authorization: `Bearer ${process.env.GITLAB_TOKEN}`,
@@ -238,7 +239,7 @@ export const mrsToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefinit
           }
         });
 
-        const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${encodeURIComponent(project_id)}/merge_requests/${merge_request_iid}/discussions?${queryParams}`;
+        const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${normalizeProjectId(project_id)}/merge_requests/${merge_request_iid}/discussions?${queryParams}`;
         const response = await enhancedFetch(apiUrl, {
           headers: {
             Authorization: `Bearer ${process.env.GITLAB_TOKEN}`,
@@ -265,7 +266,7 @@ export const mrsToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefinit
         const options = GetDraftNoteSchema.parse(args);
         const { project_id, merge_request_iid, draft_note_id } = options;
 
-        const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${encodeURIComponent(project_id)}/merge_requests/${merge_request_iid}/draft_notes/${draft_note_id}`;
+        const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${normalizeProjectId(project_id)}/merge_requests/${merge_request_iid}/draft_notes/${draft_note_id}`;
         const response = await enhancedFetch(apiUrl, {
           headers: {
             Authorization: `Bearer ${process.env.GITLAB_TOKEN}`,
@@ -299,7 +300,7 @@ export const mrsToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefinit
           }
         });
 
-        const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${encodeURIComponent(project_id)}/merge_requests/${merge_request_iid}/draft_notes?${queryParams}`;
+        const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${normalizeProjectId(project_id)}/merge_requests/${merge_request_iid}/draft_notes?${queryParams}`;
         const response = await enhancedFetch(apiUrl, {
           headers: {
             Authorization: `Bearer ${process.env.GITLAB_TOKEN}`,

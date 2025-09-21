@@ -16,6 +16,7 @@ import {
   CancelPipelineJobSchema,
 } from "./schema";
 import { enhancedFetch } from "../../utils/fetch";
+import { normalizeProjectId } from "../../utils/projectIdentifier";
 import { cleanGidsFromObject } from "../../utils/idConversion";
 import { ToolRegistry, EnhancedToolDefinition } from "../../types";
 
@@ -41,7 +42,7 @@ export const pipelinesToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
           }
         });
 
-        const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${encodeURIComponent(options.project_id)}/pipelines?${queryParams}`;
+        const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${normalizeProjectId(options.project_id)}/pipelines?${queryParams}`;
         const response = await enhancedFetch(apiUrl, {
           headers: {
             Authorization: `Bearer ${process.env.GITLAB_TOKEN}`,
@@ -68,7 +69,7 @@ export const pipelinesToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
         const options = GetPipelineSchema.parse(args);
         const { project_id, pipeline_id } = options;
 
-        const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${encodeURIComponent(project_id)}/pipelines/${pipeline_id}`;
+        const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${normalizeProjectId(project_id)}/pipelines/${pipeline_id}`;
         const response = await enhancedFetch(apiUrl, {
           headers: {
             Authorization: `Bearer ${process.env.GITLAB_TOKEN}`,
@@ -107,7 +108,7 @@ export const pipelinesToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
           }
         });
 
-        const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${encodeURIComponent(project_id)}/pipelines/${pipeline_id}/jobs?${queryParams}`;
+        const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${normalizeProjectId(project_id)}/pipelines/${pipeline_id}/jobs?${queryParams}`;
         const response = await enhancedFetch(apiUrl, {
           headers: {
             Authorization: `Bearer ${process.env.GITLAB_TOKEN}`,
@@ -146,7 +147,7 @@ export const pipelinesToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
           }
         });
 
-        const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${encodeURIComponent(project_id)}/pipelines/${pipeline_id}/bridges?${queryParams}`;
+        const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${normalizeProjectId(project_id)}/pipelines/${pipeline_id}/bridges?${queryParams}`;
         const response = await enhancedFetch(apiUrl, {
           headers: {
             Authorization: `Bearer ${process.env.GITLAB_TOKEN}`,
@@ -173,7 +174,7 @@ export const pipelinesToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
         const options = GetPipelineJobOutputSchema.parse(args);
         const { project_id, job_id } = options;
 
-        const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${encodeURIComponent(project_id)}/jobs/${job_id}`;
+        const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${normalizeProjectId(project_id)}/jobs/${job_id}`;
         const response = await enhancedFetch(apiUrl, {
           headers: {
             Authorization: `Bearer ${process.env.GITLAB_TOKEN}`,
@@ -200,7 +201,7 @@ export const pipelinesToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
         const options = GetPipelineJobOutputSchema.parse(args);
         const { project_id, job_id, limit } = options;
 
-        const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${encodeURIComponent(project_id)}/jobs/${job_id}/trace`;
+        const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${normalizeProjectId(project_id)}/jobs/${job_id}/trace`;
         const response = await enhancedFetch(apiUrl, {
           headers: {
             Authorization: `Bearer ${process.env.GITLAB_TOKEN}`,
@@ -245,24 +246,36 @@ export const pipelinesToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
       inputSchema: zodToJsonSchema(CreatePipelineSchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = CreatePipelineSchema.parse(args);
-        const { project_id } = options;
+        const { project_id, ref, variables } = options;
 
+        // Build query parameters - ref is required in query string
+        const queryParams = new URLSearchParams();
+        queryParams.set("ref", ref);
+
+        // Build request body - variables go in body if provided
         const body: Record<string, unknown> = {};
-        Object.entries(options).forEach(([key, value]) => {
-          if (value !== undefined && value !== null && key !== "project_id") {
-            body[key] = value;
-          }
-        });
+        if (variables && variables.length > 0) {
+          body.variables = variables;
+        }
 
-        const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${encodeURIComponent(project_id)}/pipeline`;
-        const response = await enhancedFetch(apiUrl, {
+        const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${normalizeProjectId(project_id)}/pipeline?${queryParams}`;
+
+        const headers: Record<string, string> = {
+          Authorization: `Bearer ${process.env.GITLAB_TOKEN}`,
+        };
+
+        const requestOptions: RequestInit = {
           method: "POST",
-          headers: {
-            Authorization: `Bearer ${process.env.GITLAB_TOKEN}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(body),
-        });
+          headers,
+        };
+
+        // Only add Content-Type and body if we have variables
+        if (variables && variables.length > 0) {
+          headers["Content-Type"] = "application/json";
+          requestOptions.body = JSON.stringify(body);
+        }
+
+        const response = await enhancedFetch(apiUrl, requestOptions);
 
         if (!response.ok) {
           throw new Error(`GitLab API error: ${response.status} ${response.statusText}`);
@@ -284,7 +297,7 @@ export const pipelinesToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
         const options = RetryPipelineSchema.parse(args);
         const { project_id, pipeline_id } = options;
 
-        const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${encodeURIComponent(project_id)}/pipelines/${pipeline_id}/retry`;
+        const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${normalizeProjectId(project_id)}/pipelines/${pipeline_id}/retry`;
         const response = await enhancedFetch(apiUrl, {
           method: "POST",
           headers: {
@@ -312,7 +325,7 @@ export const pipelinesToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
         const options = CancelPipelineSchema.parse(args);
         const { project_id, pipeline_id } = options;
 
-        const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${encodeURIComponent(project_id)}/pipelines/${pipeline_id}/cancel`;
+        const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${normalizeProjectId(project_id)}/pipelines/${pipeline_id}/cancel`;
         const response = await enhancedFetch(apiUrl, {
           method: "POST",
           headers: {
@@ -347,7 +360,7 @@ export const pipelinesToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
           }
         });
 
-        const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${encodeURIComponent(project_id)}/jobs/${job_id}/play`;
+        const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${normalizeProjectId(project_id)}/jobs/${job_id}/play`;
         const response = await enhancedFetch(apiUrl, {
           method: "POST",
           headers: {
@@ -377,7 +390,7 @@ export const pipelinesToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
         const options = RetryPipelineJobSchema.parse(args);
         const { project_id, job_id } = options;
 
-        const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${encodeURIComponent(project_id)}/jobs/${job_id}/retry`;
+        const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${normalizeProjectId(project_id)}/jobs/${job_id}/retry`;
         const response = await enhancedFetch(apiUrl, {
           method: "POST",
           headers: {
@@ -405,7 +418,7 @@ export const pipelinesToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
         const options = CancelPipelineJobSchema.parse(args);
         const { project_id, job_id } = options;
 
-        const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${encodeURIComponent(project_id)}/jobs/${job_id}/cancel`;
+        const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${normalizeProjectId(project_id)}/jobs/${job_id}/cancel`;
         const response = await enhancedFetch(apiUrl, {
           method: "POST",
           headers: {

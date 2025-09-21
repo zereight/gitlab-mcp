@@ -3,6 +3,7 @@ import { zodToJsonSchema } from "zod-to-json-schema";
 import { GetRepositoryTreeSchema, GetFileContentsSchema } from "./schema-readonly";
 import { CreateOrUpdateFileSchema, PushFilesSchema, MarkdownUploadSchema } from "./schema";
 import { enhancedFetch } from "../../utils/fetch";
+import { normalizeProjectId } from "../../utils/projectIdentifier";
 import { cleanGidsFromObject } from "../../utils/idConversion";
 import { ToolRegistry, EnhancedToolDefinition } from "../../types";
 
@@ -29,7 +30,7 @@ export const filesToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefin
           }
         });
 
-        const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${encodeURIComponent(project_id)}/repository/tree?${queryParams}`;
+        const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${normalizeProjectId(project_id)}/repository/tree?${queryParams}`;
         const response = await enhancedFetch(apiUrl, {
           headers: {
             Authorization: `Bearer ${process.env.GITLAB_TOKEN}`,
@@ -61,7 +62,7 @@ export const filesToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefin
           queryParams.set("ref", ref);
         }
 
-        const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${encodeURIComponent(project_id)}/repository/files/${encodeURIComponent(file_path)}?${queryParams}`;
+        const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${normalizeProjectId(project_id)}/repository/files/${encodeURIComponent(file_path)}?${queryParams}`;
         const response = await enhancedFetch(apiUrl, {
           headers: {
             Authorization: `Bearer ${process.env.GITLAB_TOKEN}`,
@@ -96,7 +97,7 @@ export const filesToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefin
           }
         });
 
-        const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${encodeURIComponent(project_id)}/repository/files/${encodeURIComponent(file_path)}`;
+        const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${normalizeProjectId(project_id)}/repository/files/${encodeURIComponent(file_path)}`;
         const response = await enhancedFetch(apiUrl, {
           method: "POST",
           headers: {
@@ -151,7 +152,7 @@ export const filesToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefin
           }
         });
 
-        const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${encodeURIComponent(project_id)}/repository/commits`;
+        const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${normalizeProjectId(project_id)}/repository/commits`;
         const response = await enhancedFetch(apiUrl, {
           method: "POST",
           headers: {
@@ -200,7 +201,7 @@ export const filesToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefin
 
         formData.append("file", fileBlob, filename);
 
-        const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${encodeURIComponent(project_id)}/uploads`;
+        const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${normalizeProjectId(project_id)}/uploads`;
         const response = await enhancedFetch(apiUrl, {
           method: "POST",
           headers: {

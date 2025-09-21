@@ -647,14 +647,12 @@ describe('Pipelines Registry', () => {
         });
 
         expect(mockEnhancedFetch).toHaveBeenCalledWith(
-          'https://gitlab.example.com/api/v4/projects/test%2Fproject/pipeline',
+          'https://gitlab.example.com/api/v4/projects/test%2Fproject/pipeline?ref=main',
           {
             method: 'POST',
             headers: {
-              Authorization: 'Bearer test-token-12345',
-              'Content-Type': 'application/json'
-            },
-            body: expect.stringContaining('"ref":"main"')
+              Authorization: 'Bearer test-token-12345'
+            }
           }
         );
         expect(result).toEqual(mockPipeline);

@@ -24,6 +24,7 @@ import {
   CreateGroupSchema,
 } from "./schema";
 import { enhancedFetch } from "../../utils/fetch";
+import { normalizeProjectId } from "../../utils/projectIdentifier";
 import { smartUserSearch, type UserSearchParams } from "../../utils/smart-user-search";
 import { cleanGidsFromObject } from "../../utils/idConversion";
 import { ToolRegistry, EnhancedToolDefinition } from "../../types";
@@ -360,20 +361,26 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
     {
       name: "get_project",
       description:
-        "GET DETAILS: Retrieve comprehensive project information including settings and metadata. Use when: Need complete project details, Checking project configuration, Getting project statistics. Requires project ID or URL-encoded path (group%2Fproject). See also: list_projects to find projects first.",
+        "GET DETAILS: Retrieve comprehensive project information including settings and metadata. Use when: Need complete project details, Checking project configuration, Getting project statistics. Accepts either project_id (numeric ID or URL-encoded path) or namespacePath (group/project format). See also: list_projects to find projects first.",
       inputSchema: zodToJsonSchema(GetProjectSchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = GetProjectSchema.parse(args);
-        const { project_id } = options;
+        const { project_id, namespacePath } = options;
+
+        // Determine project identifier: use namespacePath if provided, otherwise project_id
+        const projectIdentifier = namespacePath ?? project_id;
+        if (!projectIdentifier) {
+          throw new Error("Either project_id or namespacePath must be provided");
+        }
 
         const queryParams = new URLSearchParams();
         Object.entries(options).forEach(([key, value]) => {
-          if (value !== undefined && key !== "project_id") {
+          if (value !== undefined && key !== "project_id" && key !== "namespacePath") {
             queryParams.set(key, String(value));
           }
         });
 
-        const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${encodeURIComponent(project_id)}?${queryParams}`;
+        const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${normalizeProjectId(projectIdentifier)}?${queryParams}`;
         const response = await enhancedFetch(apiUrl, {
           headers: {
             Authorization: `Bearer ${process.env.GITLAB_TOKEN}`,

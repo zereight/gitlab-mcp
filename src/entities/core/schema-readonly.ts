@@ -200,8 +200,15 @@ export const VerifyNamespaceSchema = z.object({
 export const GetProjectSchema = z.object({
   project_id: z.coerce
     .string()
+    .optional()
     .describe(
       'Project identifier: numeric ID or URL-encoded path (e.g., "42" or "gitlab-org%2Fgitlab"). Path separator "/" must be encoded as %2F.'
+    ),
+  namespacePath: z.coerce
+    .string()
+    .optional()
+    .describe(
+      'Alternative project identifier using namespace path (e.g., "gitlab-org/gitlab"). Can be URL-encoded or plain format.'
     ),
   statistics: flexibleBoolean
     .optional()
