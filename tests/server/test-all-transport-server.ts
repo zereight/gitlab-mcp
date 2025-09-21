@@ -38,7 +38,7 @@ const ALLOWED_PROJECTS =
   process.env.GITLAB_ALLOWED_PROJECT_IDS?.split(",")
     .map(id => id.trim())
     .filter(Boolean) || [];
-const TEST_PROJECT_ID = ALLOWED_PROJECTS[0] || "12345"; // Use first allowed project or fallback
+const TEST_PROJECT_ID = ALLOWED_PROJECTS[0] || "70322092"; // Use first allowed project or fallback
 
 console.log("🔧 Test Configuration:");
 console.log(`  GitLab URL: ${GITLAB_API_URL}`);
