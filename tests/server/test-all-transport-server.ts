@@ -43,6 +43,9 @@ const TEST_PROJECT_ID = ALLOWED_PROJECTS[0] || "70322092"; // Use first allowed 
 console.log("🔧 Test Configuration:");
 console.log(`  GitLab URL: ${GITLAB_API_URL}`);
 console.log(`  Token: ${GITLAB_TOKEN ? "✅ Provided" : "❌ Missing"}`);
+console.log(`  GITLAB_ALLOWED_PROJECT_IDS: "${process.env.GITLAB_ALLOWED_PROJECT_IDS}"`);
+console.log(`  ALLOWED_PROJECTS: [${ALLOWED_PROJECTS.join(", ")}]`);
+console.log(`  TEST_PROJECT_ID: "${TEST_PROJECT_ID}"`);
 console.log(
   `  Project ID: ${TEST_PROJECT_ID} ${ALLOWED_PROJECTS.length > 0 ? "(✅ From GITLAB_ALLOWED_PROJECT_IDS)" : "(⚠️ Fallback - set GITLAB_ALLOWED_PROJECT_IDS)"}`
 );
