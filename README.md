@@ -27,7 +27,7 @@ When using with the Claude App, you need to set up your API key and URLs directl
       "env": {
         "GITLAB_PERSONAL_ACCESS_TOKEN": "your_gitlab_token",
         "GITLAB_API_URL": "your_gitlab_api_url",
-        "GITLAB_ALLOWED_PROJECT_IDS": "your_project_id",
+        "GITLAB_ALLOWED_PROJECT_IDS": "your_project_id", // Optional: restrict access to specific projects
         "GITLAB_READ_ONLY_MODE": "false",
         "GITLAB_DENIED_TOOLS_REGEX": "",// Optional: exclude dangerous operations. ex) create.*|delete.*|update.*
         "USE_GITLAB_WIKI": "false", // use wiki api?
@@ -59,6 +59,7 @@ When using with the Claude App, you need to set up your API key and URLs directl
       "env": {
         "GITLAB_PERSONAL_ACCESS_TOKEN": "${input:gitlab-token}",
         "GITLAB_API_URL": "your-fancy-gitlab-url",
+        "GITLAB_ALLOWED_PROJECT_IDS": "", // Optional: leave empty for unrestricted access
         "GITLAB_READ_ONLY_MODE": "false",
         "GITLAB_DENIED_TOOLS_REGEX": "", // Optional: exclude dangerous operations. ex) create.*|delete.*|update.*
         "USE_GITLAB_WIKI": "false", // use wiki api?
@@ -100,6 +101,7 @@ When using with the Claude App, you need to set up your API key and URLs directl
       "env": {
         "GITLAB_PERSONAL_ACCESS_TOKEN": "your_gitlab_token",
         "GITLAB_API_URL": "https://gitlab.com/api/v4", // Optional, for self-hosted GitLab
+        "GITLAB_ALLOWED_PROJECT_IDS": "", // Optional: leave empty for unrestricted access
         "GITLAB_READ_ONLY_MODE": "false",
         "GITLAB_DENIED_TOOLS_REGEX": "create.*|delete.*|update.*",// Optional: exclude dangerous operations. ex) create.*|delete.*|update.*
         "USE_GITLAB_WIKI": "true",
@@ -117,6 +119,7 @@ When using with the Claude App, you need to set up your API key and URLs directl
 docker run -i --rm \
   -e GITLAB_PERSONAL_ACCESS_TOKEN=your_gitlab_token \
   -e GITLAB_API_URL="https://gitlab.com/api/v4" \
+  -e GITLAB_ALLOWED_PROJECT_IDS="" \
   -e GITLAB_READ_ONLY_MODE=true \
   -e USE_GITLAB_WIKI=true \
   -e USE_MILESTONE=true \
@@ -143,6 +146,7 @@ docker run -i --rm \
 docker run -i --rm \
   -e GITLAB_PERSONAL_ACCESS_TOKEN=your_gitlab_token \
   -e GITLAB_API_URL="https://gitlab.com/api/v4" \
+  -e GITLAB_ALLOWED_PROJECT_IDS="" \
   -e GITLAB_READ_ONLY_MODE=true \
   -e USE_GITLAB_WIKI=true \
   -e USE_MILESTONE=true \
@@ -167,9 +171,10 @@ docker run -i --rm \
 
 - `GITLAB_PERSONAL_ACCESS_TOKEN`: Your GitLab personal access token.
 - `GITLAB_API_URL`: Your GitLab API URL. (Default: `https://gitlab.com/api/v4`)
-- `GITLAB_ALLOWED_PROJECT_IDS`: Comma-separated list of allowed project IDs for security. Required for API access. Examples:
-  - Single value `your_project_id`: MCP server can only access that project and uses it as default
-  - Multiple values `123,456,789`: MCP server can access all three projects but requires explicit project ID in requests
+- `GITLAB_ALLOWED_PROJECT_IDS`: Comma-separated list of allowed project IDs for security. **Optional** - when not set, allows access to all projects the token has permission for. Examples:
+  - **Not set (Unrestricted Mode)**: Access to any project the token has permission for. `project_id` parameter must be provided for each operation. `fork_repository` and `create_repository` are enabled.
+  - **Single value `your_project_id` (Restricted Mode)**: MCP server can only access that project and uses it as default
+  - **Multiple values `123,456,789` (Restricted Mode)**: MCP server can access all three projects but requires explicit project ID in requests
 - `GITLAB_READ_ONLY_MODE`: When set to 'true', restricts the server to only expose read-only operations. Useful for enhanced security or when write access is not needed. Also useful for using with Cursor and it's 40 tool limit.
 - `GITLAB_DENIED_TOOLS_REGEX`: When set as a regular expression, it excludes the matching tools. This is crucial for security and tool limitation. Examples:
   - `create.*|delete.*|update.*` - exclude all create, delete, and update operations

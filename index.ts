@@ -1005,6 +1005,19 @@ async function handleGitLabError(response: import("node-fetch").Response): Promi
  * @param {string} projectId - The project ID parameter passed to the function
  * @returns {string} The project ID to use for the API call
  * @throws {Error} If GITLAB_ALLOWED_PROJECT_IDS is set and the requested project is not in the whitelist
+ * 
+ * Security Modes:
+ * 1. GITLAB_ALLOWED_PROJECT_IDS is set (Restricted Mode):
+ *    - Only projects in the whitelist can be accessed
+ *    - If only one project is allowed, it becomes the default
+ *    - If multiple projects are allowed, projectId must be explicitly provided
+ *    - fork_repository and create_repository are disabled
+ * 
+ * 2. GITLAB_ALLOWED_PROJECT_IDS is not set (Unrestricted Mode):
+ *    - Any project can be accessed if projectId is provided
+ *    - projectId must be explicitly provided for each operation
+ *    - fork_repository and create_repository are enabled
+ *    - WARNING: This allows access to all projects the token has permission for
  */
 function getEffectiveProjectId(projectId: string): string {
   if (GITLAB_ALLOWED_PROJECT_IDS.length > 0) {
@@ -1026,11 +1039,12 @@ function getEffectiveProjectId(projectId: string): string {
     return projectId || GITLAB_ALLOWED_PROJECT_IDS[0];
   }
 
-  // If no allowed project list is set, use the provided project ID or throw error
+  // If no allowed project list is set (Unrestricted Mode), use the provided project ID or throw error
   if (!projectId) {
     throw new Error("No project ID provided and no default project configured. Please specify a project ID or set GITLAB_ALLOWED_PROJECT_IDS.");
   }
 
+  // In unrestricted mode, return the provided project ID (any project the token has access to)
   return projectId;
 }
 
