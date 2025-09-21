@@ -199,7 +199,7 @@ export const pipelinesToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
       inputSchema: zodToJsonSchema(GetPipelineJobOutputSchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = GetPipelineJobOutputSchema.parse(args);
-        const { project_id, job_id, limit } = options;
+        const { project_id, job_id, limit, max_lines, start } = options;
 
         const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${normalizeProjectId(project_id)}/jobs/${job_id}/trace`;
         const response = await enhancedFetch(apiUrl, {
@@ -213,26 +213,69 @@ export const pipelinesToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
         }
 
         let trace = await response.text();
+        const lines = trace.split("\n");
+        const totalLines = lines.length;
 
-        // Apply output limiting if requested
-        if (limit && trace.length > limit) {
-          const lines = trace.split("\n");
-          const totalLines = lines.length;
-          const maxLines = Math.floor(limit / 50); // Roughly 50 chars per line
+        // Default to 500 lines if no limit specified (to prevent token overflow)
+        const defaultMaxLines = 500;
+        let processedLines: string[] = [];
 
-          if (totalLines > maxLines) {
-            const keepLines = Math.floor(maxLines / 2);
-            const startLines = lines.slice(0, keepLines);
-            const endLines = lines.slice(-keepLines);
-            trace = [
-              ...startLines,
-              `... [${totalLines - maxLines} lines truncated] ...`,
-              ...endLines,
-            ].join("\n");
-          }
+        // Determine the number of lines to show
+        let maxLinesToShow = defaultMaxLines;
+        if (max_lines !== undefined) {
+          maxLinesToShow = max_lines;
+        } else if (limit !== undefined) {
+          // Always treat limit as line count, not character count
+          maxLinesToShow = limit;
         }
 
-        return { trace };
+        // Apply start and limit logic
+        let outOfBoundsMessage = "";
+
+        if (start !== undefined && start < 0) {
+          // Negative start means from end
+          processedLines = lines.slice(start);
+          if (processedLines.length > maxLinesToShow) {
+            processedLines = processedLines.slice(-maxLinesToShow);
+          }
+        } else if (start !== undefined && start >= 0) {
+          // Positive start means from beginning
+          if (start >= totalLines) {
+            // Start position is beyond available lines
+            processedLines = [];
+            outOfBoundsMessage = `[OUT OF BOUNDS: Start position ${start} exceeds total lines ${totalLines}. Available range: 0-${totalLines - 1}]`;
+          } else {
+            processedLines = lines.slice(start, start + maxLinesToShow);
+            if (start + maxLinesToShow > totalLines) {
+              // Requested range partially out of bounds
+              const availableFromStart = totalLines - start;
+              outOfBoundsMessage = `[PARTIAL REQUEST: Requested ${maxLinesToShow} lines from position ${start}, but only ${availableFromStart} lines available]`;
+            }
+          }
+        } else {
+          // No start, just take last maxLinesToShow
+          processedLines = lines.slice(-maxLinesToShow);
+        }
+
+        // Store the actual data lines count before adding info headers
+        const actualDataLines = processedLines.length;
+
+        // Add out-of-bounds info if applicable
+        if (outOfBoundsMessage) {
+          processedLines.unshift(outOfBoundsMessage);
+        }
+
+        // Add truncation info if we truncated (and not already out of bounds)
+        if (processedLines.length < totalLines && !outOfBoundsMessage) {
+          const truncatedCount = totalLines - actualDataLines;
+          processedLines.unshift(
+            `[LOG TRUNCATED: Showing last ${actualDataLines} of ${totalLines} lines - ${truncatedCount} lines hidden]`
+          );
+        }
+
+        trace = processedLines.join("\n");
+
+        return { trace, totalLines, shownLines: actualDataLines };
       },
     },
   ],
@@ -262,6 +305,7 @@ export const pipelinesToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
 
         const headers: Record<string, string> = {
           Authorization: `Bearer ${process.env.GITLAB_TOKEN}`,
+          "Content-Type": "application/json",
         };
 
         const requestOptions: RequestInit = {
@@ -269,11 +313,8 @@ export const pipelinesToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
           headers,
         };
 
-        // Only add Content-Type and body if we have variables
-        if (variables && variables.length > 0) {
-          headers["Content-Type"] = "application/json";
-          requestOptions.body = JSON.stringify(body);
-        }
+        // Always send body as JSON, even if empty
+        requestOptions.body = JSON.stringify(body);
 
         const response = await enhancedFetch(apiUrl, requestOptions);
 

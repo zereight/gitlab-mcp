@@ -259,12 +259,22 @@ export const ListPipelineTriggerJobsSchema = z
 export const GetPipelineJobOutputSchema = z.object({
   project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
   job_id: z.coerce.string().describe("The ID of the job"),
-  limit: z.number().optional().describe("Limit the number of lines of output to return (optional)"),
+  limit: z
+    .number()
+    .optional()
+    .describe(
+      "Maximum number of lines to return. When combined with start, acts as line count from that position"
+    ),
   max_lines: z
     .number()
     .optional()
     .describe("Maximum number of lines to return (alternative to limit)"),
-  start: z.number().optional().describe("Start from specific line number"),
+  start: z
+    .number()
+    .optional()
+    .describe(
+      "Start from specific line number (0-based). Positive values start from beginning, negative values start from end (e.g., -100 = last 100 lines)"
+    ),
 });
 
 // Export types

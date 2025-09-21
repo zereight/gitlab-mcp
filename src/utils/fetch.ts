@@ -12,6 +12,7 @@ import {
   HTTPS_PROXY,
   NODE_TLS_REJECT_UNAUTHORIZED,
   GITLAB_TOKEN,
+  API_TIMEOUT_MS,
 } from "../config";
 
 /**
@@ -150,6 +151,7 @@ export function createFetchOptions(): RequestInit & {
  * - Cookie authentication
  * - Proxy support
  * - Custom CA certificates
+ * - Configurable timeout handling
  */
 export async function enhancedFetch(url: string, options: RequestInit = {}): Promise<Response> {
   const fetchOptions = createFetchOptions();
@@ -176,12 +178,29 @@ export async function enhancedFetch(url: string, options: RequestInit = {}): Pro
     headers.Cookie = cookieHeader;
   }
 
-  // Merge all options
+  // Create timeout controller
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => {
+    controller.abort();
+  }, API_TIMEOUT_MS);
+
+  // Merge all options with timeout signal
   const mergedOptions: RequestInit = {
     ...fetchOptions,
     ...options,
     headers,
+    signal: controller.signal,
   };
 
-  return fetch(url, mergedOptions);
+  try {
+    const response = await fetch(url, mergedOptions);
+    clearTimeout(timeoutId);
+    return response;
+  } catch (error) {
+    clearTimeout(timeoutId);
+    if (error instanceof Error && error.name === "AbortError") {
+      throw new Error(`GitLab API timeout after ${API_TIMEOUT_MS}ms`);
+    }
+    throw error;
+  }
 }

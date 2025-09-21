@@ -604,11 +604,11 @@ describe('Pipelines Registry', () => {
             }
           }
         );
-        expect(result).toEqual({ trace: mockTrace });
+        expect(result).toEqual({ trace: mockTrace, totalLines: 3, shownLines: 3 });
       });
 
       it('should truncate long job trace when limit is provided', async () => {
-        const longTrace = Array(100).fill('Very long line with lots of content here').join('\n');
+        const longTrace = Array(1000).fill('Very long line with lots of content here').join('\n');
         mockEnhancedFetch.mockResolvedValueOnce({
           ok: true,
           status: 200,
@@ -620,12 +620,76 @@ describe('Pipelines Registry', () => {
         const result = await tool.handler({
           project_id: 'test/project',
           job_id: 1,
-          limit: 500
+          limit: 50  // Request only 50 lines from 1000
         });
 
         expect(result).toHaveProperty('trace');
-        expect((result as any).trace).toContain('lines truncated');
+        expect((result as any).trace).toContain('lines hidden');
         expect((result as any).trace.length).toBeLessThan(longTrace.length);
+        expect((result as any).totalLines).toBe(1000);
+        expect((result as any).shownLines).toBe(50);
+      });
+
+      it('should handle start + limit combination correctly', async () => {
+        // Create 100 lines of output
+        const lines = Array.from({length: 100}, (_, i) => `Line ${i + 1} content`);
+        const fullTrace = lines.join('\n');
+
+        mockEnhancedFetch.mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          statusText: 'OK',
+          text: jest.fn().mockResolvedValue(fullTrace)
+        } as any);
+
+        const tool = pipelinesToolRegistry.get('get_pipeline_job_output')!;
+        const result = await tool.handler({
+          project_id: 'test/project',
+          job_id: 1,
+          start: 50,  // Start from line 51
+          limit: 10   // Take 10 lines
+        });
+
+        const trace = (result as any).trace;
+        const traceLines = trace.split('\n');
+
+        // Should contain exactly 10 data lines plus 1 truncation header
+        expect(traceLines).toHaveLength(11);
+        expect(trace).toContain('Line 51 content');
+        expect(trace).toContain('Line 60 content');
+        expect(trace).not.toContain('Line 61 content');
+        expect((result as any).totalLines).toBe(100);
+        expect((result as any).shownLines).toBe(10);
+      });
+
+      it('should handle negative start correctly', async () => {
+        // Create 200 lines of output
+        const lines = Array.from({length: 200}, (_, i) => `Line ${i + 1} content`);
+        const fullTrace = lines.join('\n');
+
+        mockEnhancedFetch.mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          statusText: 'OK',
+          text: jest.fn().mockResolvedValue(fullTrace)
+        } as any);
+
+        const tool = pipelinesToolRegistry.get('get_pipeline_job_output')!;
+        const result = await tool.handler({
+          project_id: 'test/project',
+          job_id: 1,
+          start: -50,  // Last 50 lines
+          max_lines: 30  // But limit to 30 lines
+        });
+
+        const trace = (result as any).trace;
+
+        // Should contain exactly 30 data lines (last 30 of the last 50)
+        expect(trace).toContain('Line 171 content'); // Line 200-30+1 = 171
+        expect(trace).toContain('Line 200 content'); // Last line
+        expect(trace).not.toContain('Line 170 content'); // Should not include earlier lines
+        expect((result as any).totalLines).toBe(200);
+        expect((result as any).shownLines).toBe(30);
       });
     });
 
@@ -651,8 +715,10 @@ describe('Pipelines Registry', () => {
           {
             method: 'POST',
             headers: {
-              Authorization: 'Bearer test-token-12345'
-            }
+              Authorization: 'Bearer test-token-12345',
+              'Content-Type': 'application/json'
+            },
+            body: '{}'
           }
         );
         expect(result).toEqual(mockPipeline);

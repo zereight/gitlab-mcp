@@ -22,6 +22,9 @@ export const USE_VARIABLES = process.env.USE_VARIABLES !== "false";
 export const HOST = process.env.HOST ?? "0.0.0.0";
 export const PORT = process.env.PORT ?? 3002;
 
+// API timeout configuration (in milliseconds)
+export const API_TIMEOUT_MS = parseInt(process.env.GITLAB_API_TIMEOUT_MS ?? "20000", 10);
+
 // Transport mode selection:
 // - If PORT env var is present: HTTP mode with dual transport (SSE + StreamableHTTP)
 // - If no PORT env var: stdio mode for direct MCP communication
