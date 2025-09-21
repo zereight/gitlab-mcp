@@ -1,3 +1,10 @@
+# [5.3.0](https://github.com/structured-world/gitlab-mcp/compare/v5.2.0...v5.3.0) (2025-09-21)
+
+
+### Features
+
+* fix double URL encoding issue and improve pipeline API compliance ([dc886d9](https://github.com/structured-world/gitlab-mcp/commit/dc886d946119a8de5324bd32c0ae95a5a241b1ee))
+
 # [5.2.0](https://github.com/structured-world/gitlab-mcp/compare/v5.1.0...v5.2.0) (2025-09-19)
 
 
