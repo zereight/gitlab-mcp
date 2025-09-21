@@ -5,7 +5,10 @@ import fetch from "node-fetch";
 
 const GITLAB_API_URL = process.env.GITLAB_API_URL || "https://gitlab.com";
 const GITLAB_TOKEN = process.env.GITLAB_PERSONAL_ACCESS_TOKEN;
-const ALLOWED_PROJECTS = process.env.GITLAB_ALLOWED_PROJECT_IDS?.split(',').map(id => id.trim()).filter(Boolean) || [];
+const ALLOWED_PROJECTS =
+  process.env.GITLAB_ALLOWED_PROJECT_IDS?.split(",")
+    .map(id => id.trim())
+    .filter(Boolean) || [];
 const TEST_PROJECT_ID = ALLOWED_PROJECTS[0] || "12345";
 
 async function runTest(test) {
@@ -24,13 +27,13 @@ async function runTest(test) {
 
     const data = await response.json();
     const passed = test.validate(data);
-    
+
     if (passed) {
       console.log(`✅ ${test.name} - PASSED\n`);
     } else {
       console.log(`❌ ${test.name} - FAILED (invalid response format)\n`);
     }
-    
+
     return { passed, data };
   } catch (error) {
     console.log(`❌ ${test.name} - FAILED`);
@@ -82,7 +85,7 @@ async function validateGitLabAPI() {
   for (const test of tests) {
     const result = await runTest(test);
     allPassed = allPassed && result.passed;
-    
+
     if (test.name === "List pipelines" && result.data?.length > 0) {
       firstPipelineId = result.data[0].id;
     }
@@ -90,7 +93,7 @@ async function validateGitLabAPI() {
 
   if (firstPipelineId) {
     console.log(`Found pipeline #${firstPipelineId}, testing pipeline-specific endpoints...\n`);
-    
+
     const pipelineTests = [
       {
         name: `Get pipeline #${firstPipelineId} details`,
@@ -115,7 +118,9 @@ async function validateGitLabAPI() {
     }
   }
 
-  console.log(allPassed ? "✅ All API validation tests passed!" : "❌ Some API validation tests failed!");
+  console.log(
+    allPassed ? "✅ All API validation tests passed!" : "❌ Some API validation tests failed!"
+  );
   return allPassed;
 }
 

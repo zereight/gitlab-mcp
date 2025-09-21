@@ -20,7 +20,7 @@ export class StdioTestClient implements MCPClientInterface {
    */
   async connect(serverPath: string, env?: Record<string, string>): Promise<void> {
     if (this.transport) {
-      throw new MCPConnectionError('Client is already connected');
+      throw new MCPConnectionError("Client is already connected");
     }
 
     try {
@@ -29,14 +29,14 @@ export class StdioTestClient implements MCPClientInterface {
 
       // Prepare environment variables for the server process
       const serverEnv: Record<string, string> = {};
-      
+
       // Copy process.env, filtering out undefined values
       for (const [key, value] of Object.entries(process.env)) {
         if (value !== undefined) {
           serverEnv[key] = value;
         }
       }
-      
+
       // Add custom environment variables
       if (env) {
         Object.assign(serverEnv, env);
@@ -44,12 +44,12 @@ export class StdioTestClient implements MCPClientInterface {
 
       // Ensure spawned server is allowed to auto-start under Jest
       delete serverEnv.JEST_WORKER_ID;
-      serverEnv.MCP_SKIP_SERVER_START = 'false';
+      serverEnv.MCP_SKIP_SERVER_START = "false";
 
       this.transport = new StdioClientTransport({
         command,
         args,
-        env: serverEnv
+        env: serverEnv,
       });
 
       await this.client.connect(this.transport);
@@ -71,7 +71,7 @@ export class StdioTestClient implements MCPClientInterface {
         await this.transport.close();
       } catch (error) {
         // Log but don't throw on disconnect errors
-        console.warn('Warning during disconnect:', error);
+        console.warn("Warning during disconnect:", error);
       } finally {
         this.transport = null;
       }
@@ -83,7 +83,7 @@ export class StdioTestClient implements MCPClientInterface {
    */
   async listTools(): Promise<ListToolsResult> {
     if (!this.transport) {
-      throw new MCPConnectionError('Client is not connected');
+      throw new MCPConnectionError("Client is not connected");
     }
 
     try {
@@ -92,7 +92,7 @@ export class StdioTestClient implements MCPClientInterface {
     } catch (error) {
       throw new MCPToolCallError(
         `Failed to list tools: ${error instanceof Error ? error.message : String(error)}`,
-        'listTools',
+        "listTools",
         error instanceof Error ? error : undefined
       );
     }
@@ -103,7 +103,7 @@ export class StdioTestClient implements MCPClientInterface {
    */
   async callTool(name: string, arguments_: Record<string, any> = {}): Promise<CallToolResult> {
     if (!this.transport) {
-      throw new MCPConnectionError('Client is not connected');
+      throw new MCPConnectionError("Client is not connected");
     }
 
     try {
@@ -137,4 +137,4 @@ export class StdioTestClient implements MCPClientInterface {
   get isConnected(): boolean {
     return this.transport !== null;
   }
-} 
+}

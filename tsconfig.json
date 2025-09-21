@@ -19,14 +19,6 @@
     "isolatedModules": true,
     "types": ["jest", "node"]
   },
-  "include": [
-    "./src/**/*",
-    "./tests/**/*",
-    "./*.ts"
-  ],
-  "exclude": [
-    "node_modules",
-    "build",
-    "coverage"
-  ]
+  "include": ["./src/**/*", "./tests/**/*", "./*.ts"],
+  "exclude": ["node_modules", "build", "coverage"]
 }

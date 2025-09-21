@@ -1,6 +1,6 @@
 const ensureFetch = (): typeof fetch => {
-  if (typeof globalThis.fetch !== 'function') {
-    throw new Error('globalThis.fetch is not available in this environment.');
+  if (typeof globalThis.fetch !== "function") {
+    throw new Error("globalThis.fetch is not available in this environment.");
   }
   return globalThis.fetch.bind(globalThis);
 };

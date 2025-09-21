@@ -10,10 +10,8 @@
 
 Click the "New repository secret" button and add the following secrets:
 
-
 - **Value**: Your GitLab Personal Access Token
 - Used for integration tests to call the real GitLab API
-
 
 - **Value**: Your test project ID (e.g., `your_project_id`)
 - The GitLab project ID used for testing

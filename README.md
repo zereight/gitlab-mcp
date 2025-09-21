@@ -29,7 +29,7 @@ When using with the Claude App, you need to set up your API key and URLs directl
         "GITLAB_API_URL": "your_gitlab_api_url",
         "GITLAB_ALLOWED_PROJECT_IDS": "your_project_id", // Optional: restrict access to specific projects
         "GITLAB_READ_ONLY_MODE": "false",
-        "GITLAB_DENIED_TOOLS_REGEX": "",// Optional: exclude dangerous operations. ex) create.*|delete.*|update.*
+        "GITLAB_DENIED_TOOLS_REGEX": "", // Optional: exclude dangerous operations. ex) create.*|delete.*|update.*
         "USE_GITLAB_WIKI": "false", // use wiki api?
         "USE_MILESTONE": "false", // use milestone api?
         "USE_PIPELINE": "false" // use pipeline api?
@@ -103,7 +103,7 @@ When using with the Claude App, you need to set up your API key and URLs directl
         "GITLAB_API_URL": "https://gitlab.com/api/v4", // Optional, for self-hosted GitLab
         "GITLAB_ALLOWED_PROJECT_IDS": "", // Optional: leave empty for unrestricted access
         "GITLAB_READ_ONLY_MODE": "false",
-        "GITLAB_DENIED_TOOLS_REGEX": "create.*|delete.*|update.*",// Optional: exclude dangerous operations. ex) create.*|delete.*|update.*
+        "GITLAB_DENIED_TOOLS_REGEX": "create.*|delete.*|update.*", // Optional: exclude dangerous operations. ex) create.*|delete.*|update.*
         "USE_GITLAB_WIKI": "true",
         "USE_MILESTONE": "true",
         "USE_PIPELINE": "true"
