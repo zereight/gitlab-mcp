@@ -4,6 +4,13 @@ import { ListVariablesSchema, GetVariableSchema } from "./schema-readonly";
 import { CreateVariableSchema, UpdateVariableSchema, DeleteVariableSchema } from "./schema";
 import { enhancedFetch } from "../../utils/fetch";
 import { cleanGidsFromObject } from "../../utils/idConversion";
+
+// GitLab API error response interface
+interface GitLabErrorResponse {
+  message?: string | { value?: string[] };
+  error?: string;
+  errors?: Record<string, string | string[]>;
+}
 import { resolveNamespaceForAPI } from "../../utils/namespace";
 import { ToolRegistry, EnhancedToolDefinition } from "../../types";
 
@@ -34,7 +41,32 @@ export const variablesToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
         });
 
         if (!response.ok) {
-          throw new Error(`GitLab API error: ${response.status} ${response.statusText}`);
+          let errorMessage = `GitLab API error: ${response.status} ${response.statusText}`;
+          try {
+            const text = await response.text();
+            if (!text.trim()) {
+              throw new Error(errorMessage);
+            }
+            const errorResponse = JSON.parse(text) as GitLabErrorResponse;
+            if (errorResponse.message) {
+              if (typeof errorResponse.message === "string") {
+                errorMessage += ` - ${errorResponse.message}`;
+              } else if (
+                errorResponse.message.value &&
+                Array.isArray(errorResponse.message.value)
+              ) {
+                errorMessage += ` - ${errorResponse.message.value.join(", ")}`;
+              } else {
+                errorMessage += ` - ${JSON.stringify(errorResponse.message)}`;
+              }
+            }
+            if (errorResponse.error) {
+              errorMessage += ` - ${errorResponse.error}`;
+            }
+          } catch {
+            // If error response can't be parsed, use the basic message
+          }
+          throw new Error(errorMessage);
         }
 
         const variables = await response.json();
@@ -69,7 +101,32 @@ export const variablesToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
         });
 
         if (!response.ok) {
-          throw new Error(`GitLab API error: ${response.status} ${response.statusText}`);
+          let errorMessage = `GitLab API error: ${response.status} ${response.statusText}`;
+          try {
+            const text = await response.text();
+            if (!text.trim()) {
+              throw new Error(errorMessage);
+            }
+            const errorResponse = JSON.parse(text) as GitLabErrorResponse;
+            if (errorResponse.message) {
+              if (typeof errorResponse.message === "string") {
+                errorMessage += ` - ${errorResponse.message}`;
+              } else if (
+                errorResponse.message.value &&
+                Array.isArray(errorResponse.message.value)
+              ) {
+                errorMessage += ` - ${errorResponse.message.value.join(", ")}`;
+              } else {
+                errorMessage += ` - ${JSON.stringify(errorResponse.message)}`;
+              }
+            }
+            if (errorResponse.error) {
+              errorMessage += ` - ${errorResponse.error}`;
+            }
+          } catch {
+            // If error response can't be parsed, use the basic message
+          }
+          throw new Error(errorMessage);
         }
 
         const variable = await response.json();
@@ -110,7 +167,32 @@ export const variablesToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
         });
 
         if (!response.ok) {
-          throw new Error(`GitLab API error: ${response.status} ${response.statusText}`);
+          let errorMessage = `GitLab API error: ${response.status} ${response.statusText}`;
+          try {
+            const text = await response.text();
+            if (!text.trim()) {
+              throw new Error(errorMessage);
+            }
+            const errorResponse = JSON.parse(text) as GitLabErrorResponse;
+            if (errorResponse.message) {
+              if (typeof errorResponse.message === "string") {
+                errorMessage += ` - ${errorResponse.message}`;
+              } else if (
+                errorResponse.message.value &&
+                Array.isArray(errorResponse.message.value)
+              ) {
+                errorMessage += ` - ${errorResponse.message.value.join(", ")}`;
+              } else {
+                errorMessage += ` - ${JSON.stringify(errorResponse.message)}`;
+              }
+            }
+            if (errorResponse.error) {
+              errorMessage += ` - ${errorResponse.error}`;
+            }
+          } catch {
+            // If error response can't be parsed, use the basic message
+          }
+          throw new Error(errorMessage);
         }
 
         const variable = await response.json();
@@ -162,7 +244,32 @@ export const variablesToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
         });
 
         if (!response.ok) {
-          throw new Error(`GitLab API error: ${response.status} ${response.statusText}`);
+          let errorMessage = `GitLab API error: ${response.status} ${response.statusText}`;
+          try {
+            const text = await response.text();
+            if (!text.trim()) {
+              throw new Error(errorMessage);
+            }
+            const errorResponse = JSON.parse(text) as GitLabErrorResponse;
+            if (errorResponse.message) {
+              if (typeof errorResponse.message === "string") {
+                errorMessage += ` - ${errorResponse.message}`;
+              } else if (
+                errorResponse.message.value &&
+                Array.isArray(errorResponse.message.value)
+              ) {
+                errorMessage += ` - ${errorResponse.message.value.join(", ")}`;
+              } else {
+                errorMessage += ` - ${JSON.stringify(errorResponse.message)}`;
+              }
+            }
+            if (errorResponse.error) {
+              errorMessage += ` - ${errorResponse.error}`;
+            }
+          } catch {
+            // If error response can't be parsed, use the basic message
+          }
+          throw new Error(errorMessage);
         }
 
         const variable = await response.json();
@@ -199,7 +306,32 @@ export const variablesToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
         });
 
         if (!response.ok) {
-          throw new Error(`GitLab API error: ${response.status} ${response.statusText}`);
+          let errorMessage = `GitLab API error: ${response.status} ${response.statusText}`;
+          try {
+            const text = await response.text();
+            if (!text.trim()) {
+              throw new Error(errorMessage);
+            }
+            const errorResponse = JSON.parse(text) as GitLabErrorResponse;
+            if (errorResponse.message) {
+              if (typeof errorResponse.message === "string") {
+                errorMessage += ` - ${errorResponse.message}`;
+              } else if (
+                errorResponse.message.value &&
+                Array.isArray(errorResponse.message.value)
+              ) {
+                errorMessage += ` - ${errorResponse.message.value.join(", ")}`;
+              } else {
+                errorMessage += ` - ${JSON.stringify(errorResponse.message)}`;
+              }
+            }
+            if (errorResponse.error) {
+              errorMessage += ` - ${errorResponse.error}`;
+            }
+          } catch {
+            // If error response can't be parsed, use the basic message
+          }
+          throw new Error(errorMessage);
         }
 
         const result = await response.json();

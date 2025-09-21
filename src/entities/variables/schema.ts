@@ -68,7 +68,7 @@ export const CreateVariableSchema = z.object({
     .optional()
     .default(false)
     .describe(
-      "Whether this variable should be masked in job logs. Masked variables have their values hidden in pipeline output for security. Variable value must meet masking requirements (minimum 8 characters, base64-compatible)"
+      "Whether this variable should be masked in job logs. MASKING REQUIREMENTS: Value must be (1) at least 8 characters, (2) single line with NO SPACES, (3) contain only these characters: A-Z a-z 0-9 + / = . ~ - _ @ : (tested on GitLab 18.4.0). FORBIDDEN characters include: spaces, commas, dollar signs, most special symbols. Common API keys, tokens, and UUIDs typically work. If masking fails with 400 error, set masked=false."
     ),
   raw: flexibleBoolean
     .optional()
@@ -116,7 +116,7 @@ export const UpdateVariableSchema = z.object({
   masked: flexibleBoolean
     .optional()
     .describe(
-      "Update the masked status. Masked variables have their values hidden in job logs. Value must meet masking requirements if enabling"
+      "Update the masked status. MASKING REQUIREMENTS: If enabling, value must be (1) at least 8 characters, (2) single line with NO SPACES, (3) contain only these characters: A-Z a-z 0-9 + / = . ~ - _ @ : (tested on GitLab 18.4.0). FORBIDDEN: spaces, commas, dollar signs. If current value has forbidden characters, this will fail with 400 error."
     ),
   raw: flexibleBoolean
     .optional()
