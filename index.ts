@@ -1030,8 +1030,8 @@ async function handleGitLabError(response: import("node-fetch").Response): Promi
  */
 function getEffectiveProjectId(projectId: string | undefined): string {
   // Debug logging
-  console.log(
-    `DEBUG: getEffectiveProjectId called with projectId="${projectId}" (type: ${typeof projectId})`
+  logger.debug(
+    `getEffectiveProjectId called with projectId="${projectId}" (type: ${typeof projectId})`
   );
 
   if (GITLAB_ALLOWED_PROJECT_IDS.length > 0) {
