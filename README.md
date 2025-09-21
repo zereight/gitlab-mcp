@@ -181,7 +181,7 @@ docker run -i --rm \
 - `GITLAB_AUTH_COOKIE_PATH`: Path to an authentication cookie file for GitLab instances that require cookie-based authentication. When provided, the cookie will be included in all GitLab API requests.
 - `SSE`: When set to 'true', enables the Server-Sent Events transport.
 - `STREAMABLE_HTTP`: When set to 'true', enables the Streamable HTTP transport. If both **SSE** and **STREAMABLE_HTTP** are set to 'true', the server will prioritize Streamable HTTP over SSE transport.
-- `GITLAB_COMMIT_FILES_PER_PAGE`: The number of files per page that GitLab returns for commit diffs. This value should match the server-side GitLab setting. Adjust this if your GitLab instance uses a custom per-page value for commit diffs.
+- `GITLAB_COMMIT_FILES_PER_PAGE`: The number of files per page that GitLab returns for commit diffs (default: 20). This value should match the server-side GitLab setting and affects tools like `get_commit_diff`, `list_commits`, and other commit-related operations. Adjust this if your GitLab instance uses a custom per-page value for commit diffs. Higher values may improve performance for large commits but increase memory usage and API response time.
 
 ## Tools 🛠️
 

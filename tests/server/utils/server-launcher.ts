@@ -64,14 +64,22 @@ export async function launchServer(config: ServerConfig): Promise<ServerInstance
     ...env,
   };
 
+  // Ensure the child process actually boots the MCP server when invoked from Jest.
+  delete serverEnv.JEST_WORKER_ID;
+  serverEnv.MCP_SKIP_SERVER_START = 'false';
+
   // Set transport-specific environment variables
   switch (mode) {
     case TransportMode.SSE:
       serverEnv.SSE = 'true';
+      serverEnv.STREAMABLE_HTTP = 'false';
+      serverEnv.STDIO = 'false';
       serverEnv.PORT = port.toString();
       break;
     case TransportMode.STREAMABLE_HTTP:
       serverEnv.STREAMABLE_HTTP = 'true';
+      serverEnv.SSE = 'false';
+      serverEnv.STDIO = 'false';
       serverEnv.PORT = port.toString();
       break;
     case TransportMode.STDIO:
@@ -165,7 +173,7 @@ async function waitForServerStart(
 
     const onExit = (code: number | null) => {
       clearTimeout(timer);
-      reject(new Error(`Server process exited with code ${code} before starting`));
+      reject(new Error(`Server process exited with code ${code} before starting. Output:\n${outputBuffer}`));
     };
 
     process.stdout?.on('data', onData);

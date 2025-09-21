@@ -314,7 +314,8 @@ describe('GitLab MCP Server - Streamable HTTP Transport', () => {
   let port: number;
 
   before(async () => {
-    port = await findAvailablePort();
+    // Use a different base port to avoid clashing with the SSE instance while tests run concurrently.
+    port = await findAvailablePort(5000);
     server = await launchServer({
       mode: TransportMode.STREAMABLE_HTTP,
       port,

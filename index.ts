@@ -14,7 +14,6 @@ import nodeFetch from "node-fetch";
 import path, { dirname } from "path";
 import { SocksProxyAgent } from "socks-proxy-agent";
 import { CookieJar, parse as parseCookie } from "tough-cookie";
-import { fileURLToPath } from "url";
 import { z } from "zod";
 import { zodToJsonSchema } from "zod-to-json-schema";
 // Add type imports for proxy agents
@@ -225,9 +224,15 @@ enum TransportMode {
 /**
  * Read version from package.json
  */
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-const packageJsonPath = path.resolve(__dirname, "../package.json");
+let packageJsonPath = path.resolve(process.cwd(), "package.json");
+
+const scriptPath = process.argv?.[1];
+if (scriptPath) {
+  const candidatePath = path.resolve(dirname(scriptPath), "../package.json");
+  if (fs.existsSync(candidatePath)) {
+    packageJsonPath = candidatePath;
+  }
+}
 let SERVER_VERSION = "unknown";
 try {
   if (fs.existsSync(packageJsonPath)) {
@@ -968,7 +973,7 @@ function normalizeGitLabApiUrl(url?: string): string {
 const GITLAB_API_URL = normalizeGitLabApiUrl(process.env.GITLAB_API_URL || "");
 const GITLAB_ALLOWED_PROJECT_IDS = process.env.GITLAB_ALLOWED_PROJECT_IDS?.split(',').map(id => id.trim()).filter(Boolean) || [];
 
-const GITLAB_COMMIT_FILES_PER_PAGE = process.env.GITLAB_COMMIT_FILES_PER_PAGE ? parseInt(process.env.GITLAB_COMMIT_FILES_PER_PAGE) : 20;
+export const GITLAB_COMMIT_FILES_PER_PAGE = process.env.GITLAB_COMMIT_FILES_PER_PAGE ? parseInt(process.env.GITLAB_COMMIT_FILES_PER_PAGE) : 20;
 
 if (!GITLAB_PERSONAL_ACCESS_TOKEN) {
   logger.error("GITLAB_PERSONAL_ACCESS_TOKEN environment variable is not set");
@@ -977,7 +982,6 @@ if (!GITLAB_PERSONAL_ACCESS_TOKEN) {
 
 /**
  * Utility function for handling GitLab API errors
- * API 에러 처리를 위한 유틸리티 함수 (Utility function for handling API errors)
  *
  * @param {import("node-fetch").Response} response - The response from GitLab API
  * @throws {Error} Throws an error with response details if the request failed
@@ -1032,7 +1036,6 @@ function getEffectiveProjectId(projectId: string): string {
 
 /**
  * Create a fork of a GitLab project
- * 프로젝트 포크 생성 (Create a project fork)
  *
  * @param {string} projectId - The ID or URL-encoded path of the project
  * @param {string} [namespace] - The namespace to fork the project to
@@ -1052,7 +1055,7 @@ async function forkProject(projectId: string, namespace?: string): Promise<GitLa
     method: "POST",
   });
 
-  // 이미 존재하는 프로젝트인 경우 처리
+  // Handle case where project already exists
   if (response.status === 409) {
     throw new Error("Project already exists in the target namespace");
   }
@@ -1064,7 +1067,6 @@ async function forkProject(projectId: string, namespace?: string): Promise<GitLa
 
 /**
  * Create a new branch in a GitLab project
- * 새로운 브랜치 생성 (Create a new branch)
  *
  * @param {string} projectId - The ID or URL-encoded path of the project
  * @param {z.infer<typeof CreateBranchOptionsSchema>} options - Branch creation options
@@ -1095,7 +1097,6 @@ async function createBranch(
 
 /**
  * Get the default branch for a GitLab project
- * 프로젝트의 기본 브랜치 조회 (Get the default branch of a project)
  *
  * @param {string} projectId - The ID or URL-encoded path of the project
  * @returns {Promise<string>} The name of the default branch
@@ -1116,7 +1117,6 @@ async function getDefaultBranchRef(projectId: string): Promise<string> {
 
 /**
  * Get the contents of a file from a GitLab project
- * 파일 내용 조회 (Get file contents)
  *
  * @param {string} projectId - The ID or URL-encoded path of the project
  * @param {string} filePath - The path of the file to get
@@ -1132,7 +1132,7 @@ async function getFileContents(
   const effectiveProjectId = getEffectiveProjectId(projectId);
   const encodedPath = encodeURIComponent(filePath);
 
-  // ref가 없는 경우 default branch를 가져옴
+  // If ref is not provided, get the default branch
   if (!ref) {
     ref = await getDefaultBranchRef(projectId);
   }
@@ -1147,7 +1147,7 @@ async function getFileContents(
     ...DEFAULT_FETCH_CONFIG,
   });
 
-  // 파일을 찾을 수 없는 경우 처리
+  // Handle file not found case
   if (response.status === 404) {
     throw new Error(`File not found: ${filePath}`);
   }
@@ -1156,7 +1156,7 @@ async function getFileContents(
   const data = await response.json();
   const parsedData = GitLabContentSchema.parse(data);
 
-  // Base64로 인코딩된 파일 내용을 UTF-8로 디코딩
+  // Decode Base64 encoded file content to UTF-8
   if (!Array.isArray(parsedData) && parsedData.content) {
     parsedData.content = Buffer.from(parsedData.content, "base64").toString("utf8");
     parsedData.encoding = "utf8";
@@ -1167,7 +1167,6 @@ async function getFileContents(
 
 /**
  * Create a new issue in a GitLab project
- * 이슈 생성 (Create an issue)
  *
  * @param {string} projectId - The ID or URL-encoded path of the project
  * @param {z.infer<typeof CreateIssueOptionsSchema>} options - Issue creation options
@@ -1195,7 +1194,7 @@ async function createIssue(
     }),
   });
 
-  // 잘못된 요청 처리
+  // Handle bad request
   if (response.status === 400) {
     const errorBody = await response.text();
     throw new Error(`Invalid request: ${errorBody}`);
@@ -1208,7 +1207,6 @@ async function createIssue(
 
 /**
  * List issues across all accessible projects or within a specific project
- * 프로젝트의 이슈 목록 조회
  *
  * @param {string} projectId - The ID or URL-encoded path of the project (optional)
  * @param {Object} options - Options for listing issues
@@ -1294,7 +1292,6 @@ async function listMergeRequests(
 
 /**
  * Get a single issue from a GitLab project
- * 단일 이슈 조회
  *
  * @param {string} projectId - The ID or URL-encoded path of the project
  * @param {number} issueIid - The internal ID of the project issue
@@ -1317,7 +1314,6 @@ async function getIssue(projectId: string, issueIid: number | string): Promise<G
 
 /**
  * Update an issue in a GitLab project
- * 이슈 업데이트
  *
  * @param {string} projectId - The ID or URL-encoded path of the project
  * @param {number} issueIid - The internal ID of the project issue
@@ -1353,7 +1349,6 @@ async function updateIssue(
 
 /**
  * Delete an issue from a GitLab project
- * 이슈 삭제
  *
  * @param {string} projectId - The ID or URL-encoded path of the project
  * @param {number} issueIid - The internal ID of the project issue
@@ -1375,7 +1370,6 @@ async function deleteIssue(projectId: string, issueIid: number | string): Promis
 
 /**
  * List all issue links for a specific issue
- * 이슈 관계 목록 조회
  *
  * @param {string} projectId - The ID or URL-encoded path of the project
  * @param {number} issueIid - The internal ID of the project issue
@@ -1401,7 +1395,6 @@ async function listIssueLinks(
 
 /**
  * Get a specific issue link
- * 특정 이슈 관계 조회
  *
  * @param {string} projectId - The ID or URL-encoded path of the project
  * @param {number} issueIid - The internal ID of the project issue
@@ -1431,7 +1424,6 @@ async function getIssueLink(
 
 /**
  * Create an issue link between two issues
- * 이슈 관계 생성
  *
  * @param {string} projectId - The ID or URL-encoded path of the project
  * @param {number} issueIid - The internal ID of the project issue
@@ -1470,7 +1462,6 @@ async function createIssueLink(
 
 /**
  * Delete an issue link
- * 이슈 관계 삭제
  *
  * @param {string} projectId - The ID or URL-encoded path of the project
  * @param {number} issueIid - The internal ID of the project issue
@@ -1499,7 +1490,6 @@ async function deleteIssueLink(
 
 /**
  * Create a new merge request in a GitLab project
- * 병합 요청 생성
  *
  * @param {string} projectId - The ID or URL-encoded path of the project
  * @param {z.infer<typeof CreateMergeRequestOptionsSchema>} options - Merge request creation options
@@ -1549,7 +1539,6 @@ async function createMergeRequest(
 
 /**
  * Shared helper function for listing discussions
- * 토론 목록 조회를 위한 공유 헬퍼 함수
  *
  * @param {string} projectId - The ID or URL-encoded path of the project
  * @param {"issues" | "merge_requests"} resourceType - The type of resource (issues or merge_requests)
@@ -1611,7 +1600,6 @@ async function listDiscussions(
 
 /**
  * List merge request discussion items
- * 병합 요청 토론 목록 조회
  *
  * @param {string} projectId - The ID or URL-encoded path of the project
  * @param {number} mergeRequestIid - The IID of a merge request
@@ -1644,7 +1632,6 @@ async function listIssueDiscussions(
 
 /**
  * Modify an existing merge request thread note
- * 병합 요청 토론 노트 수정
  *
  * @param {string} projectId - The ID or URL-encoded path of the project
  * @param {number} mergeRequestIid - The IID of a merge request
@@ -1765,7 +1752,6 @@ async function createIssueNote(
 
 /**
  * Add a new note to an existing merge request thread
- * 기존 병합 요청 스레드에 새 노트 추가
  *
  * @param {string} projectId - The ID or URL-encoded path of the project
  * @param {number} mergeRequestIid - The IID of a merge request
@@ -1806,7 +1792,6 @@ async function createMergeRequestNote(
 
 /**
  * Create or update a file in a GitLab project
- * 파일 생성 또는 업데이트
  *
  * @param {string} projectId - The ID or URL-encoded path of the project
  * @param {string} filePath - The path of the file to create or update
@@ -1893,7 +1878,6 @@ async function createOrUpdateFile(
 
 /**
  * Create a tree structure in a GitLab project repository
- * 저장소에 트리 구조 생성
  *
  * @param {string} projectId - The ID or URL-encoded path of the project
  * @param {FileOperation[]} files - Array of file operations
@@ -1942,7 +1926,6 @@ async function createTree(
 
 /**
  * Create a commit in a GitLab project repository
- * 저장소에 커밋 생성
  *
  * @param {string} projectId - The ID or URL-encoded path of the project
  * @param {string} message - The commit message
@@ -1992,7 +1975,6 @@ async function createCommit(
 
 /**
  * Search for GitLab projects
- * 프로젝트 검색
  *
  * @param {string} query - The search query
  * @param {number} [page=1] - The page number
@@ -2037,7 +2019,6 @@ async function searchProjects(
 
 /**
  * Create a new GitLab repository
- * 새 저장소 생성
  *
  * @param {z.infer<typeof CreateRepositoryOptionsSchema>} options - Repository creation options
  * @returns {Promise<GitLabRepository>} The created repository
@@ -2069,7 +2050,6 @@ async function createRepository(
 
 /**
  * Get merge request details
- * MR 조회 함수 (Function to retrieve merge request)
  *
  * @param {string} projectId - The ID or URL-encoded path of the project
  * @param {number} mergeRequestIid - The internal ID of the merge request (Optional)
@@ -2118,7 +2098,6 @@ async function getMergeRequest(
 
 /**
  * Get merge request changes/diffs
- * MR 변경사항 조회 함수 (Function to retrieve merge request changes)
  *
  * @param {string} projectId - The ID or URL-encoded path of the project
  * @param {number} mergeRequestIid - The internal ID of the merge request (Either mergeRequestIid or branchName must be provided)
@@ -2163,7 +2142,6 @@ async function getMergeRequestDiffs(
 
 /**
  * Get merge request changes with detailed information including commits, diff_refs, and more
- * 마지막으로 추가된 상세한 MR 변경사항 조회 함수 (Detailed merge request changes retrieval function)
  *
  * @param {string} projectId - The ID or URL-encoded path of the project
  * @param {number} mergeRequestIid - The internal ID of the merge request (Either mergeRequestIid or branchName must be provided)
@@ -2258,7 +2236,6 @@ async function getBranchDiffs(
 
 /**
  * Update a merge request
- * MR 업데이트 함수 (Function to update merge request)
  *
  * @param {string} projectId - The ID or URL-encoded path of the project
  * @param {number} mergeRequestIid - The internal ID of the merge request (Optional)
@@ -2301,7 +2278,6 @@ async function updateMergeRequest(
 
 /**
  * Merge a merge request
- * マージリクエストをマージする
  *
  * @param {string} projectId - The ID or URL-encoded path of the project
  * @param {number} mergeRequestIid - The internal ID of the merge request
@@ -2330,8 +2306,6 @@ async function mergeMergeRequest(
 
 /**
  * Create a new note (comment) on an issue or merge request
- * 📦 새로운 함수: createNote - 이슈 또는 병합 요청에 노트(댓글)를 추가하는 함수
- * (New function: createNote - Function to add a note (comment) to an issue or merge request)
  *
  * @param {string} projectId - The ID or URL-encoded path of the project
  * @param {"issue" | "merge_request"} noteableType - The type of the item to add a note to (issue or merge_request)
@@ -2341,12 +2315,12 @@ async function mergeMergeRequest(
  */
 async function createNote(
   projectId: string,
-  noteableType: "issue" | "merge_request", // 'issue' 또는 'merge_request' 타입 명시
+  noteableType: "issue" | "merge_request", // Specify 'issue' or 'merge_request' type
   noteableIid: number | string,
   body: string
 ): Promise<any> {
   projectId = decodeURIComponent(projectId); // Decode project ID
-  // ⚙️ 응답 타입은 GitLab API 문서에 따라 조정 가능
+  // Response type can be adjusted according to GitLab API documentation
   const url = new URL(
     `${GITLAB_API_URL}/projects/${encodeURIComponent(
       getEffectiveProjectId(projectId)
@@ -2656,8 +2630,6 @@ async function bulkPublishDraftNotes(
 
 /**
  * Create a new thread on a merge request
- * 📦 새로운 함수: createMergeRequestThread - 병합 요청에 새로운 스레드(토론)를 생성하는 함수
- * (New function: createMergeRequestThread - Function to create a new thread (discussion) on a merge request)
  *
  * This function provides more capabilities than createNote, including the ability to:
  * - Create diff notes (comments on specific lines of code)
@@ -2709,7 +2681,6 @@ async function createMergeRequestThread(
 
 /**
  * List all namespaces
- * 사용 가능한 모든 네임스페이스 목록 조회
  *
  * @param {Object} options - Options for listing namespaces
  * @param {string} [options.search] - Search query to filter namespaces
@@ -2747,7 +2718,6 @@ async function listNamespaces(options: {
 
 /**
  * Get details on a namespace
- * 네임스페이스 상세 정보 조회
  *
  * @param {string} id - The ID or URL-encoded path of the namespace
  * @returns {Promise<GitLabNamespace>} The namespace details
@@ -2766,7 +2736,6 @@ async function getNamespace(id: string): Promise<GitLabNamespace> {
 
 /**
  * Verify if a namespace exists
- * 네임스페이스 존재 여부 확인
  *
  * @param {string} namespacePath - The path of the namespace to check
  * @param {number} [parentId] - The ID of the parent namespace
@@ -2793,7 +2762,6 @@ async function verifyNamespaceExistence(
 
 /**
  * Get a single project
- * 단일 프로젝트 조회
  *
  * @param {string} projectId - The ID or URL-encoded path of the project
  * @param {Object} options - Options for getting project details
@@ -2838,7 +2806,6 @@ async function getProject(
 
 /**
  * List projects
- * 프로젝트 목록 조회
  *
  * @param {Object} options - Options for listing projects
  * @returns {Promise<GitLabProject[]>} List of projects
@@ -3936,7 +3903,6 @@ async function getUsers(usernames: string[]): Promise<GitLabUsersResponse> {
 
 /**
  * List repository commits
- * 저장소 커밋 목록 조회
  *
  * @param {string} projectId - Project ID or URL-encoded path
  * @param {ListCommitsOptions} options - List commits options
@@ -3978,7 +3944,6 @@ async function listCommits(
 
 /**
  * Get a single commit
- * 단일 커밋 정보 조회
  *
  * @param {string} projectId - Project ID or URL-encoded path
  * @param {string} sha - The commit hash or name of a repository branch or tag
@@ -4007,17 +3972,18 @@ async function getCommit(projectId: string, sha: string, stats?: boolean): Promi
 
 /**
  * Get commit diff
- * 커밋 변경사항 조회
  *
  * @param {string} projectId - Project ID or URL-encoded path
  * @param {string} sha - The commit hash or name of a repository branch or tag
  * @param {boolean} [full_diff] - Whether to return the full diff or only first page
  * @returns {Promise<GitLabMergeRequestDiff[]>} The commit diffs
  */
-async function getCommitDiff(projectId: string, sha: string, full_diff?: boolean): Promise<GitLabMergeRequestDiff[]> {
+async function getCommitDiff(projectId: string, sha: string, full_diff?: boolean, perPageOverride?: number): Promise<GitLabMergeRequestDiff[]> {
   projectId = decodeURIComponent(projectId);
   const baseUrl = `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/repository/commits/${encodeURIComponent(sha)}/diff`;
   
+  const perPage = perPageOverride ?? GITLAB_COMMIT_FILES_PER_PAGE;
+
   let allDiffs: GitLabMergeRequestDiff[] = [];
   let page = 1;
   
@@ -4026,6 +3992,7 @@ async function getCommitDiff(projectId: string, sha: string, full_diff?: boolean
     
     if (full_diff) {
       url.searchParams.append("page", page.toString());
+      url.searchParams.append("per_page", perPage.toString());
     }
 
     const response = await fetch(url.toString(), {
@@ -4043,19 +4010,18 @@ async function getCommitDiff(projectId: string, sha: string, full_diff?: boolean
       break;
     }
     
-    if (diffs.length < GITLAB_COMMIT_FILES_PER_PAGE) {
+    // The GitLab API returns an empty array for pages that have no more content
+    if (diffs.length < perPage) {
       break;
     }
     
     page++;
   }
-  
   return allDiffs;
 }
 
 /**
  * Get the current authenticated user
- * 현재 인증된 사용자 가져오기
  *
  * @returns {Promise<GitLabUser>} The current user
  */
@@ -4069,7 +4035,6 @@ async function getCurrentUser(): Promise<GitLabUser> {
 
 /**
  * List issues assigned to the current authenticated user
- * 현재 인증된 사용자에게 할당된 이슈 목록 조회
  *
  * @param {MyIssuesOptions} options - Options for filtering issues
  * @returns {Promise<GitLabIssue[]>} List of issues assigned to the current user
@@ -5409,7 +5374,7 @@ server.setRequestHandler(CallToolRequestSchema, async request => {
         const args = GetCommitDiffSchema.parse(request.params.arguments);
         const diff = await getCommitDiff(args.project_id, args.sha, args.full_diff);
         return {
-          content: [{ type: "text", text: JSON.stringify(diff, null, 2) }],
+          content: [{ type: 'text', text: JSON.stringify(diff, null, 2) }],
         };
       }
 
@@ -5547,6 +5512,8 @@ async function startSSEServer(): Promise<void> {
     const colorReset = "\x1b[0m";
     logger.info(`${colorGreen}Endpoint: http://${HOST}:${PORT}/sse${colorReset}`);
   });
+  // Keep the process alive
+  setInterval(() => {}, 1 << 30);
 }
 
 /**
@@ -5645,6 +5612,8 @@ async function startStreamableHTTPServer(): Promise<void> {
     logger.info(`GitLab MCP Server running with Streamable HTTP transport`);
     logger.info(`${colorGreen}Endpoint: http://${HOST}:${PORT}/mcp${colorReset}`);
   });
+  // Keep the process alive
+  setInterval(() => {}, 1 << 30);
 }
 
 /**
@@ -5690,8 +5659,14 @@ async function runServer() {
   }
 }
 
-// 下記の２行を追記
-runServer().catch(error => {
-  logger.error("Fatal error in main():", error);
-  process.exit(1);
-});
+const shouldAutoStartServer = process.env.MCP_SKIP_SERVER_START !== 'true' && !process.env.JEST_WORKER_ID;
+
+if (shouldAutoStartServer) {
+  runServer().catch(error => {
+    logger.error("Fatal error in main():", error);
+    process.exit(1);
+  });
+}
+
+// Exports for testing purposes
+export { getCommitDiff, runServer };

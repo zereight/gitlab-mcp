@@ -10,170 +10,155 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
-    
+
     strategy:
       matrix:
         node-version: [18.x, 20.x, 22.x]
-    
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-    
+
     - name: Setup Node.js ${{ matrix.node-version }}
       uses: actions/setup-node@v4
       with:
         node-version: ${{ matrix.node-version }}
         cache: 'npm'
-    
+
     - name: Install dependencies
       run: npm ci
-    
+
     - name: Build project
       run: npm run build
-    
+
     - name: Run Jest tests
       run: npm test
+      env:
+        CI: true
+
+    - name: Run quick E2E (stdio list tools)
+      run: npm run test:e2e:quick
       env:
         GITLAB_API_URL: ${{ secrets.GITLAB_API_URL }}
         GITLAB_PERSONAL_ACCESS_TOKEN: ${{ secrets.GITLAB_PERSONAL_ACCESS_TOKEN }}
         GITLAB_ALLOWED_PROJECT_IDS: ${{ secrets.GITLAB_ALLOWED_PROJECT_IDS }}
-    
-    - name: Run MCP server tests
+
+    - name: Run transport server tests
       run: npm run test:server
       env:
         GITLAB_API_URL: ${{ secrets.GITLAB_API_URL }}
         GITLAB_PERSONAL_ACCESS_TOKEN: ${{ secrets.GITLAB_PERSONAL_ACCESS_TOKEN }}
         GITLAB_ALLOWED_PROJECT_IDS: ${{ secrets.GITLAB_ALLOWED_PROJECT_IDS }}
-    
-    - name: Run comprehensive tool tests
-      run: npm run test:all-tools
-      env:
-        GITLAB_API_URL: ${{ secrets.GITLAB_API_URL }}
-        GITLAB_PERSONAL_ACCESS_TOKEN: ${{ secrets.GITLAB_PERSONAL_ACCESS_TOKEN }}
-        GITLAB_ALLOWED_PROJECT_IDS: ${{ secrets.GITLAB_ALLOWED_PROJECT_IDS }}
-    
-    - name: Type check
-      run: npx tsc --noEmit
-    
-    - name: Lint check
-      run: npm run lint || echo "No lint script found"
-    
-    - name: Check package size
-      run: |
-        npm pack --dry-run
-        echo "Package created successfully"
-    
-    - name: Security audit
-      run: npm audit --production || echo "Some vulnerabilities found"
-      continue-on-error: true
-    
-    - name: Test MCP server startup
-      run: |
-        echo "Testing MCP server startup..."
-        timeout 10s node build/index.js --help || echo "MCP server startup test completed"
+
+    - name: Run Integration tests (pagination)
+      run: npm run test:integration
       env:
         GITLAB_API_URL: ${{ secrets.GITLAB_API_URL }}
         GITLAB_PERSONAL_ACCESS_TOKEN: ${{ secrets.GITLAB_PERSONAL_ACCESS_TOKEN }}
         GITLAB_ALLOWED_PROJECT_IDS: ${{ secrets.GITLAB_ALLOWED_PROJECT_IDS }}
 
-  integration-test:
+    - name: Run E2E tests (all tools)
+      run: npm run test:e2e
+      env:
+        GITLAB_API_URL: ${{ secrets.GITLAB_API_URL }}
+        GITLAB_PERSONAL_ACCESS_TOKEN: ${{ secrets.GITLAB_PERSONAL_ACCESS_TOKEN }}
+        GITLAB_ALLOWED_PROJECT_IDS: ${{ secrets.GITLAB_ALLOWED_PROJECT_IDS }}
+
+    - name: Type check
+      run: npx tsc --noEmit
+
+    - name: Lint check
+      run: npm run lint
+
+    - name: Check package size
+      run: |
+        npm pack --dry-run
+        echo "Package created successfully"
+
+    - name: Security audit
+      run: npm audit --production
+      continue-on-error: true
+
+    - name: Test MCP server startup
+      run: |
+        echo "Testing MCP server startup..."
+        timeout 10s node build/index.js --help
+      env:
+        GITLAB_PERSONAL_ACCESS_TOKEN: ${{ secrets.GITLAB_PERSONAL_ACCESS_TOKEN_MINIMAL_SCOPE || secrets.GITLAB_PERSONAL_ACCESS_TOKEN }}
+        GITLAB_ALLOWED_PROJECT_IDS: ${{ secrets.GITLAB_ALLOWED_PROJECT_IDS }}
+
+  integration-and-e2e:
     runs-on: ubuntu-latest
     needs: test
     if: github.event.pull_request.draft == false || github.event_name == 'push'
-    
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-    
+
     - name: Setup Node.js
       uses: actions/setup-node@v4
       with:
         node-version: '20.x'
         cache: 'npm'
-    
+
     - name: Install dependencies
       run: npm ci
-    
+
     - name: Build project
       run: npm run build
-    
-    - name: Run integration tests
+
+    - name: Run Integration, full E2E, and transport server tests
       if: ${{ github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository }}
       run: |
-        echo "Running integration tests with real GitLab API..."
+        echo "Running integration + full E2E + transport server tests with real GitLab API..."
         npm run test:server
-        npm run test:all-tools
+        npm run test:integration
+        npm run test:e2e
       env:
         GITLAB_API_URL: ${{ secrets.GITLAB_API_URL }}
         GITLAB_PERSONAL_ACCESS_TOKEN: ${{ secrets.GITLAB_PERSONAL_ACCESS_TOKEN }}
         GITLAB_ALLOWED_PROJECT_IDS: ${{ secrets.GITLAB_ALLOWED_PROJECT_IDS }}
-    
+
     - name: Test Docker build
       run: |
         docker build -t mcp-gitlab-test .
-        docker run --rm mcp-gitlab-test node build/index.js --version || echo "Version check passed"
+        docker run --rm mcp-gitlab-test node build/index.js --version
 
   code-quality:
     runs-on: ubuntu-latest
-    
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
       with:
         fetch-depth: 0
-    
+
     - name: Setup Node.js
       uses: actions/setup-node@v4
       with:
         node-version: '20.x'
         cache: 'npm'
-    
+
     - name: Install dependencies
       run: npm ci
-    
+
     - name: Check code formatting
-      run: |
-        npx prettier --check "**/*.{js,ts,json,md}" || echo "Some files need formatting"
-    
+      run: npx prettier --check "**/*.{js,ts,json,md}"
+
     - name: Check for console.log statements
       run: |
-        if grep -r "console\.log" --include="*.ts" --exclude-dir=node_modules --exclude-dir=build --exclude="test*.ts" .; then
-          echo "⚠️ Found console.log statements in source code"
+        if grep -r "console\\.log" --include="*.ts" --exclude-dir=node_modules --exclude-dir=build --exclude-dir="test" --exclude-dir="tests" .; then
+          echo "::error::Found console.log statements in source code. Please use the logger."
+          exit 1
         else
           echo "✅ No console.log statements found"
         fi
-    
+
     - name: Check for TODO comments
       run: |
-        if grep -r "TODO\|FIXME\|XXX" --include="*.ts" --exclude-dir=node_modules --exclude-dir=build .; then
-          echo "⚠️ Found TODO/FIXME comments"
+        if grep -r "TODO\\|FIXME\\|XXX" --include="*.ts" --exclude-dir=node_modules --exclude-dir=build .; then
+          echo "::warning::Found TODO/FIXME comments."
         else
           echo "✅ No TODO/FIXME comments found"
         fi
-
-  coverage:
-    runs-on: ubuntu-latest
-    if: github.event.pull_request.draft == false || github.event_name == 'push'
-    
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-    
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '20.x'
-        cache: 'npm'
-    
-    - name: Install dependencies
-      run: npm ci
-    
-    - name: Build project
-      run: npm run build
-    
-    - name: Run tests
-      run: npm test
-      env:
-        GITLAB_API_URL: ${{ secrets.GITLAB_API_URL }}
-        GITLAB_PERSONAL_ACCESS_TOKEN: ${{ secrets.GITLAB_PERSONAL_ACCESS_TOKEN }}
-        GITLAB_ALLOWED_PROJECT_IDS: ${{ secrets.GITLAB_ALLOWED_PROJECT_IDS }}

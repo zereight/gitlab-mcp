@@ -42,6 +42,10 @@ export class StdioTestClient implements MCPClientInterface {
         Object.assign(serverEnv, env);
       }
 
+      // Ensure spawned server is allowed to auto-start under Jest
+      delete serverEnv.JEST_WORKER_ID;
+      serverEnv.MCP_SKIP_SERVER_START = 'false';
+
       this.transport = new StdioClientTransport({
         command,
         args,
