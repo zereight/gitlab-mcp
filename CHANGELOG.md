@@ -1,3 +1,10 @@
+# [5.5.0](https://github.com/structured-world/gitlab-mcp/compare/v5.4.0...v5.5.0) (2025-09-21)
+
+
+### Features
+
+* **test:** improve unit test coverage and pipeline job output limits ([cf5dd75](https://github.com/structured-world/gitlab-mcp/commit/cf5dd755b1b57ceaa896d5f2ba80aad971066501))
+
 # [5.4.0](https://github.com/structured-world/gitlab-mcp/compare/v5.3.0...v5.4.0) (2025-09-21)
 
 
