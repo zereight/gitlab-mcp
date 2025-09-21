@@ -7,7 +7,6 @@ if (!process.env.GITLAB_API_URL) {
   process.env.GITLAB_API_URL = "https://gitlab.com/api/v4";
 }
 
-
 process.env.MCP_SKIP_SERVER_START = "true";
 
 export {};
