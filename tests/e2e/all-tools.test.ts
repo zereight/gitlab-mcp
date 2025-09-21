@@ -13,6 +13,7 @@ import {
   ServerInstance,
   TransportMode,
   HOST,
+  checkHealthEndpoint,
 } from "../server/utils/server-launcher.js";
 import { StdioTestClient } from "../server/clients/stdio-client.js";
 import { SSETestClient } from "../server/clients/sse-client.js";
@@ -332,7 +333,7 @@ const testConfigs = [
       client: MCPClientInterface,
       serverPath: string,
       env: Record<string, string>,
-      servers: ServerInstance[]
+      _servers: ServerInstance[]
     ) => {
       await (client as StdioTestClient).connect(serverPath, env);
     },
@@ -360,6 +361,8 @@ const testConfigs = [
       const port = await findAvailablePort(3002);
       const server = await launchServer({ mode: TransportMode.SSE, port, env });
       servers.push(server);
+      // Ensure server is healthy before connecting
+      await checkHealthEndpoint(port, 10);
       await (client as SSETestClient).connect(`http://${HOST}:${port}/sse`);
     },
   },
@@ -386,6 +389,8 @@ const testConfigs = [
       const port = await findAvailablePort(3003);
       const server = await launchServer({ mode: TransportMode.STREAMABLE_HTTP, port, env });
       servers.push(server);
+      // Ensure server is healthy before connecting
+      await checkHealthEndpoint(port, 10);
       await (client as StreamableHTTPTestClient).connect(`http://${HOST}:${port}/mcp`);
     },
   },
