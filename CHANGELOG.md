@@ -1,3 +1,10 @@
+# [5.6.0](https://github.com/structured-world/gitlab-mcp/compare/v5.5.0...v5.6.0) (2025-09-21)
+
+
+### Features
+
+* **variables:** enhance error handling and improve masking documentation ([e39dc51](https://github.com/structured-world/gitlab-mcp/commit/e39dc51909b31a69bd332a1e389824a00524d17e))
+
 # [5.5.0](https://github.com/structured-world/gitlab-mcp/compare/v5.4.0...v5.5.0) (2025-09-21)
 
 
