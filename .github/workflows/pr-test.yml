@@ -36,8 +36,8 @@ jobs:
       env:
         CI: true
 
-    - name: Run quick E2E (stdio list tools)
-      run: npm run test:e2e:quick
+    - name: Run smoke E2E (stdio list tools)
+      run: npm run test:smoke
       env:
         GITLAB_API_URL: ${{ secrets.GITLAB_API_URL }}
         GITLAB_PERSONAL_ACCESS_TOKEN: ${{ secrets.GITLAB_PERSONAL_ACCESS_TOKEN }}

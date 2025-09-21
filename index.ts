@@ -1028,28 +1028,31 @@ async function handleGitLabError(response: import("node-fetch").Response): Promi
  *    - fork_repository and create_repository are enabled
  *    - WARNING: This allows access to all projects the token has permission for
  */
-function getEffectiveProjectId(projectId: string): string {
+function getEffectiveProjectId(projectId: string | undefined): string {
+  // Debug logging
+  console.log(`DEBUG: getEffectiveProjectId called with projectId="${projectId}" (type: ${typeof projectId})`);
+  
   if (GITLAB_ALLOWED_PROJECT_IDS.length > 0) {
     // If there's only one allowed project, use it as default
-    if (GITLAB_ALLOWED_PROJECT_IDS.length === 1 && !projectId) {
+    if (GITLAB_ALLOWED_PROJECT_IDS.length === 1 && (!projectId || projectId === "" || projectId === "undefined")) {
       return GITLAB_ALLOWED_PROJECT_IDS[0];
     }
 
     // If a project ID is provided, check if it's in the whitelist
-    if (projectId && !GITLAB_ALLOWED_PROJECT_IDS.includes(projectId)) {
+    if (projectId && projectId !== "" && projectId !== "undefined" && !GITLAB_ALLOWED_PROJECT_IDS.includes(projectId)) {
       throw new Error(
         `Access denied: Project ${projectId} is not in the allowed project list: ${GITLAB_ALLOWED_PROJECT_IDS.join(", ")}`
       );
     }
 
     // If no project ID provided but we have multiple allowed projects, require an explicit choice
-    if (!projectId && GITLAB_ALLOWED_PROJECT_IDS.length > 1) {
+    if ((!projectId || projectId === "" || projectId === "undefined") && GITLAB_ALLOWED_PROJECT_IDS.length > 1) {
       throw new Error(
         `Multiple projects allowed (${GITLAB_ALLOWED_PROJECT_IDS.join(", ")}). Please specify a project ID.`
       );
     }
 
-    return projectId || GITLAB_ALLOWED_PROJECT_IDS[0];
+    return (projectId && projectId !== "undefined" && projectId !== "") ? projectId : GITLAB_ALLOWED_PROJECT_IDS[0];
   }
 
   // If no allowed project list is set (Unrestricted Mode), use the provided project ID or throw error
