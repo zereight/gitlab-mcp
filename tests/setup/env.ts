@@ -7,6 +7,10 @@ if (!process.env.GITLAB_API_URL) {
   process.env.GITLAB_API_URL = "https://gitlab.com/api/v4";
 }
 
+// Force unrestricted mode for Jest tests to avoid env leakage from user's .env
+// Integration/unit tests mock fetch and shouldn't enforce project allow-list.
+process.env.GITLAB_ALLOWED_PROJECT_IDS = "";
+
 process.env.MCP_SKIP_SERVER_START = "true";
 
 export {};

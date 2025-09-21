@@ -11,7 +11,7 @@ const GITLAB_API_URL = process.env.GITLAB_API_URL || "https://gitlab.com/api/v4"
 const GITLAB_TOKEN = process.env.GITLAB_PERSONAL_ACCESS_TOKEN;
 const TEST_PROJECT_ID = "70322092";
 
-console.log("🚀 GitLab MCP Server Tests - Both Modes");
+console.log("🚀 GitLab MCP Server Tests - Access Modes");
 console.log("");
 console.log("🔧 Test Configuration:");
 console.log(`  GitLab URL: ${GITLAB_API_URL}`);
@@ -74,12 +74,14 @@ describe("GitLab MCP Server - Restricted Mode Tests", () => {
       assert.ok("name" in projectData, "Project should have name");
       assert.ok("web_url" in projectData, "Project should have web_url");
 
-      console.log(`✅ Successfully retrieved project: ${projectData.name} (ID: ${projectData.id}) in restricted mode`);
+      console.log(
+        `✅ Successfully retrieved project: ${projectData.name} (ID: ${projectData.id}) in restricted mode`
+      );
     } catch (error: any) {
       // Currently, even restricted mode requires explicit project_id
       assert.ok(
-        error.message.includes("Access denied") || 
-        error.message.includes("not in the allowed project list"),
+        error.message.includes("Access denied") ||
+          error.message.includes("not in the allowed project list"),
         "Error should indicate access denied or missing project ID"
       );
       console.log("✅ Correctly requires explicit project_id even in restricted mode");
@@ -94,8 +96,8 @@ describe("GitLab MCP Server - Restricted Mode Tests", () => {
       assert.fail("Should have thrown an error for non-allowed project");
     } catch (error: any) {
       assert.ok(
-        error.message.includes("Access denied") || 
-        error.message.includes("not in the allowed project list"),
+        error.message.includes("Access denied") ||
+          error.message.includes("not in the allowed project list"),
         "Error should indicate access denied"
       );
       console.log("✅ Correctly rejects non-allowed project in restricted mode");
@@ -159,7 +161,9 @@ describe("GitLab MCP Server - Unrestricted Mode Tests", () => {
     assert.ok("name" in projectData, "Project should have name");
     assert.ok("web_url" in projectData, "Project should have web_url");
 
-    console.log(`✅ Successfully retrieved project: ${projectData.name} (ID: ${projectData.id}) in unrestricted mode`);
+    console.log(
+      `✅ Successfully retrieved project: ${projectData.name} (ID: ${projectData.id}) in unrestricted mode`
+    );
   });
 
   test("should require project_id in unrestricted mode", async () => {
@@ -168,11 +172,11 @@ describe("GitLab MCP Server - Unrestricted Mode Tests", () => {
       assert.fail("Should have thrown an error when project_id is missing in unrestricted mode");
     } catch (error: any) {
       assert.ok(
-        error.message.includes("404") || 
-        error.message.includes("Not Found") ||
-        error.message.includes("project ID") || 
-        error.message.includes("project_id") ||
-        error.message.includes("No project ID provided"),
+        error.message.includes("404") ||
+          error.message.includes("Not Found") ||
+          error.message.includes("project ID") ||
+          error.message.includes("project_id") ||
+          error.message.includes("No project ID provided"),
         "Error should indicate missing project ID"
       );
       console.log("✅ Correctly requires project_id in unrestricted mode");
@@ -185,7 +189,6 @@ describe("GitLab MCP Server - Unrestricted Mode Tests", () => {
       return;
     }
 
-    // In unrestricted mode, should be able to access any project the token has access to
     const result = await client.callTool("get_project", {
       project_id: TEST_PROJECT_ID,
     });
