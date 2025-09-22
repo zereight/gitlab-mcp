@@ -2,6 +2,10 @@
 
 // Simple API validation script for PR testing
 import fetch from "node-fetch";
+import dotenv from "dotenv";
+
+// .env 파일 로드
+dotenv.config();
 
 const GITLAB_API_URL = process.env.GITLAB_API_URL || "https://gitlab.com";
 const GITLAB_TOKEN = process.env.GITLAB_TOKEN_TEST || process.env.GITLAB_TOKEN;

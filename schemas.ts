@@ -1,5 +1,5 @@
 import { z } from "zod";
-// Removed flexibleBoolean import - using z.boolean() instead
+import { flexibleBoolean } from "./customSchemas.js";
 
 // Base schemas for common types
 export const GitLabAuthorSchema = z.object({

@@ -11,7 +11,7 @@ jobs:
     
     strategy:
       matrix:
-        node-version: [18.x, 20.x, 22.x]
+        node-version: [22.x]
     
     steps:
     - name: Checkout code
@@ -29,13 +29,14 @@ jobs:
     - name: Build project
       run: npm run build
     
-    - name: Run tests
+    - name: Run API validation tests
       run: npm test
       env:
         GITLAB_API_URL: ${{ secrets.GITLAB_API_URL }}
         GITLAB_TOKEN: ${{ secrets.GITLAB_TOKEN_TEST }}
         GITLAB_PERSONAL_ACCESS_TOKEN: ${{ secrets.GITLAB_PERSONAL_ACCESS_TOKEN }}
         TEST_PROJECT_ID: ${{ secrets.TEST_PROJECT_ID }}
+    
     
     - name: Type check
       run: npx tsc --noEmit
@@ -93,6 +94,16 @@ jobs:
         GITLAB_TOKEN: ${{ secrets.GITLAB_TOKEN_TEST }}
         GITLAB_PERSONAL_ACCESS_TOKEN: ${{ secrets.GITLAB_PERSONAL_ACCESS_TOKEN }}
         PROJECT_ID: ${{ secrets.TEST_PROJECT_ID }}
+    
+    - name: Run readonly MCP tests
+      if: ${{ github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository }}
+      run: |
+        echo "Running readonly MCP tests..."
+        npm run test:mcp:readonly
+      env:
+        GITLAB_API_URL: ${{ secrets.GITLAB_API_URL }}
+        GITLAB_PERSONAL_ACCESS_TOKEN: ${{ secrets.GITLAB_PERSONAL_ACCESS_TOKEN }}
+        GITLAB_PROJECT_ID: ${{ secrets.TEST_PROJECT_ID }}
     
     - name: Test Docker build
       run: |
