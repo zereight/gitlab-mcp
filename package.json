@@ -25,7 +25,7 @@
     "test": "node test/validate-api.js",
     "test:integration": "node test/validate-api.js",
     "test:server": "npm run build && node build/test/test-all-transport-server.js",
-    "test:mcp:readonly": "ts-node test/readonly-mcp-tests.ts",
+    "test:mcp:readonly": "tsx test/readonly-mcp-tests.ts",
     "test:all": "npm run test && npm run test:mcp:readonly",
     "lint": "eslint . --ext .ts",
     "lint:fix": "eslint . --ext .ts --fix",
@@ -57,6 +57,7 @@
     "eslint": "^9.18.0",
     "prettier": "^3.4.2",
     "ts-node": "^10.9.2",
+    "tsx": "^4.20.5",
     "typescript": "^5.8.2",
     "zod": "^3.24.2"
   }
