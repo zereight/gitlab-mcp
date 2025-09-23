@@ -361,21 +361,21 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
     {
       name: "get_project",
       description:
-        "GET DETAILS: Retrieve comprehensive project information including settings and metadata. Use when: Need complete project details, Checking project configuration, Getting project statistics. Accepts either project_id (numeric ID or URL-encoded path) or namespacePath (group/project format). See also: list_projects to find projects first.",
+        "GET DETAILS: Retrieve comprehensive project information including settings and metadata. Use when: Need complete project details, Checking project configuration, Getting project statistics. Accepts either project_id (numeric ID or URL-encoded path) or namespace (group/project format). See also: list_projects to find projects first.",
       inputSchema: zodToJsonSchema(GetProjectSchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = GetProjectSchema.parse(args);
-        const { project_id, namespacePath } = options;
+        const { project_id, namespace } = options;
 
-        // Determine project identifier: use namespacePath if provided, otherwise project_id
-        const projectIdentifier = namespacePath ?? project_id;
+        // Determine project identifier: use namespace if provided, otherwise project_id
+        const projectIdentifier = namespace ?? project_id;
         if (!projectIdentifier) {
-          throw new Error("Either project_id or namespacePath must be provided");
+          throw new Error("Either project_id or namespace must be provided");
         }
 
         const queryParams = new URLSearchParams();
         Object.entries(options).forEach(([key, value]) => {
-          if (value !== undefined && key !== "project_id" && key !== "namespacePath") {
+          if (value !== undefined && key !== "project_id" && key !== "namespace") {
             queryParams.set(key, String(value));
           }
         });
@@ -429,7 +429,7 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
     {
       name: "verify_namespace",
       description:
-        "CHECK EXISTS: Verify if a namespace path exists and is accessible. Use when: Checking namespace availability before creation, Validating namespace references, Testing access permissions. Returns exists=true/false with namespace details if found. Faster than list_namespaces for existence checks.",
+        "CHECK EXISTS: Verify if a namespace (group or user) exists and is accessible. ONLY works with namespaces - NOT project paths. Use when: Checking group/user namespace availability, Validating group references before creation, Testing namespace access permissions. For projects use get_project instead. Returns exists=true/false with namespace details if found.",
       inputSchema: zodToJsonSchema(VerifyNamespaceSchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = VerifyNamespaceSchema.parse(args);
@@ -730,13 +730,13 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
       inputSchema: zodToJsonSchema(CreateRepositorySchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = CreateRepositorySchema.parse(args);
-        const { namespacePath, name, ...otherOptions } = options;
+        const { namespace, name, ...otherOptions } = options;
 
         // Step 1: Resolve namespace path to ID if provided
         let namespaceId: string | undefined;
         let resolvedNamespace: { id: string; full_path: string } | null = null;
-        if (namespacePath) {
-          const namespaceApiUrl = `${process.env.GITLAB_API_URL}/api/v4/namespaces/${encodeURIComponent(namespacePath)}`;
+        if (namespace) {
+          const namespaceApiUrl = `${process.env.GITLAB_API_URL}/api/v4/namespaces/${encodeURIComponent(namespace)}`;
           const namespaceResponse = await enhancedFetch(namespaceApiUrl, {
             headers: {
               Authorization: `Bearer ${process.env.GITLAB_TOKEN}`,
@@ -750,7 +750,7 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
             };
             namespaceId = String(resolvedNamespace.id);
           } else {
-            throw new Error(`Namespace '${namespacePath}' not found or not accessible`);
+            throw new Error(`Namespace '${namespace}' not found or not accessible`);
           }
         }
 
@@ -826,12 +826,10 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
         return {
           ...project,
           validation: {
-            namespace_resolved: namespacePath
-              ? `${namespacePath} → ${namespaceId}`
-              : "current-user",
+            namespace_resolved: namespace ? `${namespace} → ${namespaceId}` : "current-user",
             project_name_available: true,
             created_in_expected_namespace:
-              !namespacePath ||
+              !namespace ||
               (project as { namespace: { full_path: string } }).namespace.full_path ===
                 resolvedNamespace?.full_path,
             generated_path: generatedPath,
