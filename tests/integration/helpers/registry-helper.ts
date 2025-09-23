@@ -121,7 +121,7 @@ export class IntegrationTestHelper {
   // ========================================
 
   async createWorkItem(args: {
-    namespacePath: string;
+    namespace: string;
     title: string;
     workItemType: string;
     description?: string;
@@ -157,7 +157,7 @@ export class IntegrationTestHelper {
   }
 
   async listWorkItems(args: {
-    namespacePath: string;
+    namespace: string;
     types?: string[];
     state?: ('OPEN' | 'CLOSED')[];
     first?: number;

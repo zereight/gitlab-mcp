@@ -25,7 +25,7 @@ describe('Work Items Schema - GitLab 18.3 Integration', () => {
       expect(testData.project?.path_with_namespace).toBeDefined();
 
       const validParams = {
-        namespacePath: testData.project!.path_with_namespace,
+        namespace: testData.project!.path_with_namespace,
         first: 5,
         types: ['ISSUE' as const, 'TASK' as const],
       };
@@ -34,7 +34,7 @@ describe('Work Items Schema - GitLab 18.3 Integration', () => {
       expect(result.success).toBe(true);
 
       if (result.success) {
-        expect(result.data.namespacePath).toBe(testData.project!.path_with_namespace);
+        expect(result.data.namespace).toBe(testData.project!.path_with_namespace);
         expect(result.data.first).toBe(5);
         expect(result.data.types).toEqual(['ISSUE', 'TASK']);
       }
@@ -47,7 +47,7 @@ describe('Work Items Schema - GitLab 18.3 Integration', () => {
       expect(testData.project?.path_with_namespace).toBeDefined();
 
       const params = {
-        namespacePath: testData.project!.path_with_namespace,
+        namespace: testData.project!.path_with_namespace,
         first: 3,
         types: ['ISSUE' as const],
       };
@@ -139,7 +139,7 @@ describe('Work Items Schema - GitLab 18.3 Integration', () => {
 
       // Create new work item using handler function
       const createParams = {
-        namespacePath: testData.project!.path_with_namespace,
+        namespace: testData.project!.path_with_namespace,
         title: `Schema Test Work Item ${Date.now()}`,
         workItemType: 'ISSUE',
         description: 'Test work item created for schema validation',

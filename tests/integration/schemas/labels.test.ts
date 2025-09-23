@@ -35,7 +35,7 @@ describe('Labels Schema - GitLab Integration', () => {
       console.log(`📋 Using project: ${testProject.name} (ID: ${testProject.id})`);
 
       const validParams = {
-        namespacePath: testProject.path_with_namespace,
+        namespace: testProject.path_with_namespace,
         with_counts: true,
         include_ancestor_groups: true,
         per_page: 10,
@@ -107,7 +107,7 @@ describe('Labels Schema - GitLab Integration', () => {
 
       const testProject = projects[0];
       const searchParams = {
-        namespacePath: testProject.path_with_namespace, // Use correct namespacePath from schema
+        namespace: testProject.path_with_namespace, // Use correct namespace from schema
         search: 'bug',
         with_counts: true,
       };
@@ -118,7 +118,7 @@ describe('Labels Schema - GitLab Integration', () => {
       if (result.success) {
         expect(result.data.search).toBe('bug');
         expect(result.data.with_counts).toBe(true);
-        expect(result.data.namespacePath).toBe(testProject.path_with_namespace);
+        expect(result.data.namespace).toBe(testProject.path_with_namespace);
       }
 
       console.log('✅ ListLabelsSchema validates search parameters');
@@ -153,7 +153,7 @@ describe('Labels Schema - GitLab Integration', () => {
 
       const testProject = projects[0];
       const labels = await helper.executeTool('list_labels', {
-        namespacePath: testProject.path_with_namespace,
+        namespace: testProject.path_with_namespace,
         per_page: 1
       }) as any[];
 
@@ -164,7 +164,7 @@ describe('Labels Schema - GitLab Integration', () => {
 
       const testLabel = labels[0];
       const validParams = {
-        namespacePath: testProject.path_with_namespace,
+        namespace: testProject.path_with_namespace,
         label_id: testLabel.id.toString(),
       };
 
@@ -172,7 +172,7 @@ describe('Labels Schema - GitLab Integration', () => {
       expect(result.success).toBe(true);
 
       if (result.success) {
-        expect(result.data.namespacePath).toBe(testProject.path_with_namespace);
+        expect(result.data.namespace).toBe(testProject.path_with_namespace);
         expect(result.data.label_id).toBe(testLabel.id.toString());
       }
 
@@ -189,7 +189,7 @@ describe('Labels Schema - GitLab Integration', () => {
 
       const testProject = projects[0];
       const labels = await helper.executeTool('list_labels', {
-        namespacePath: testProject.path_with_namespace,
+        namespace: testProject.path_with_namespace,
         per_page: 1
       }) as any[];
 
@@ -200,7 +200,7 @@ describe('Labels Schema - GitLab Integration', () => {
 
       const testLabel = labels[0];
       const params = {
-        namespacePath: testProject.path_with_namespace,
+        namespace: testProject.path_with_namespace,
         label_id: testLabel.id.toString(),
       };
 

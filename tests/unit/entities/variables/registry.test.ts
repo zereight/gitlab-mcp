@@ -334,6 +334,136 @@ describe('Variables Registry', () => {
           namespace: 'private/project'
         })).rejects.toThrow('GitLab API error: 403 Error');
       });
+
+      it('should handle API errors with empty response text', async () => {
+        // Mock namespace detection call
+        mockEnhancedFetch.mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: jest.fn().mockResolvedValue({ id: 123, name: 'test-project' })
+        } as any);
+
+        // Mock API error with empty text response
+        mockEnhancedFetch.mockResolvedValueOnce({
+          ok: false,
+          status: 404,
+          statusText: 'Not Found',
+          text: jest.fn().mockResolvedValue('')
+        } as any);
+
+        const tool = variablesToolRegistry.get('list_variables')!;
+
+        await expect(tool.handler({
+          namespace: 'test/project'
+        })).rejects.toThrow('GitLab API error: 404 Not Found');
+      });
+
+      it('should handle API errors with detailed JSON error', async () => {
+        // Mock namespace detection call
+        mockEnhancedFetch.mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: jest.fn().mockResolvedValue({ id: 123, name: 'test-project' })
+        } as any);
+
+        // Mock API error with detailed JSON error
+        const errorResponse = {
+          message: 'Access denied',
+          error: 'Insufficient permissions'
+        };
+
+        mockEnhancedFetch.mockResolvedValueOnce({
+          ok: false,
+          status: 403,
+          statusText: 'Forbidden',
+          text: jest.fn().mockResolvedValue(JSON.stringify(errorResponse))
+        } as any);
+
+        const tool = variablesToolRegistry.get('list_variables')!;
+
+        await expect(tool.handler({
+          namespace: 'test/project'
+        })).rejects.toThrow('GitLab API error: 403 Forbidden - Access denied - Insufficient permissions');
+      });
+
+      it('should handle API errors with complex message format', async () => {
+        // Mock namespace detection call
+        mockEnhancedFetch.mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: jest.fn().mockResolvedValue({ id: 123, name: 'test-project' })
+        } as any);
+
+        // Mock API error with complex message format
+        const errorResponse = {
+          message: {
+            value: ['Field is required', 'Invalid format']
+          }
+        };
+
+        mockEnhancedFetch.mockResolvedValueOnce({
+          ok: false,
+          status: 400,
+          statusText: 'Bad Request',
+          text: jest.fn().mockResolvedValue(JSON.stringify(errorResponse))
+        } as any);
+
+        const tool = variablesToolRegistry.get('list_variables')!;
+
+        await expect(tool.handler({
+          namespace: 'test/project'
+        })).rejects.toThrow('GitLab API error: 400 Bad Request - Field is required, Invalid format');
+      });
+
+      it('should handle API errors with object message format', async () => {
+        // Mock namespace detection call
+        mockEnhancedFetch.mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: jest.fn().mockResolvedValue({ id: 123, name: 'test-project' })
+        } as any);
+
+        // Mock API error with object message format
+        const errorResponse = {
+          message: { key: 'invalid', details: 'more info' }
+        };
+
+        mockEnhancedFetch.mockResolvedValueOnce({
+          ok: false,
+          status: 422,
+          statusText: 'Unprocessable Entity',
+          text: jest.fn().mockResolvedValue(JSON.stringify(errorResponse))
+        } as any);
+
+        const tool = variablesToolRegistry.get('list_variables')!;
+
+        await expect(tool.handler({
+          namespace: 'test/project'
+        })).rejects.toThrow('GitLab API error: 422 Unprocessable Entity - {"key":"invalid","details":"more info"}');
+      });
+
+      it('should handle API errors with unparseable JSON response', async () => {
+        // Mock namespace detection call
+        mockEnhancedFetch.mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: jest.fn().mockResolvedValue({ id: 123, name: 'test-project' })
+        } as any);
+
+        // Mock API error with invalid JSON that can't be parsed
+        mockEnhancedFetch.mockResolvedValueOnce({
+          ok: false,
+          status: 500,
+          statusText: 'Internal Server Error',
+          text: jest.fn().mockResolvedValue('Invalid JSON {{{')
+        } as any);
+
+        const tool = variablesToolRegistry.get('list_variables')!;
+
+        await expect(tool.handler({
+          namespace: 'test/project'
+        })).rejects.toThrow('GitLab API error: 500 Internal Server Error');
+      });
     });
 
     describe('get_variable handler', () => {
@@ -432,6 +562,35 @@ describe('Variables Registry', () => {
           namespace: 'test/project',
           key: 'NONEXISTENT_KEY'
         })).rejects.toThrow('GitLab API error: 404 Error');
+      });
+
+      it('should handle get_variable API error with detailed JSON error', async () => {
+        // Mock namespace detection call
+        mockEnhancedFetch.mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: jest.fn().mockResolvedValue({ id: 123, name: 'test-project' })
+        } as any);
+
+        // Mock API error with detailed JSON error
+        const errorResponse = {
+          message: 'Variable not accessible',
+          error: 'Insufficient scope'
+        };
+
+        mockEnhancedFetch.mockResolvedValueOnce({
+          ok: false,
+          status: 403,
+          statusText: 'Forbidden',
+          text: jest.fn().mockResolvedValue(JSON.stringify(errorResponse))
+        } as any);
+
+        const tool = variablesToolRegistry.get('get_variable')!;
+
+        await expect(tool.handler({
+          namespace: 'test/project',
+          key: 'RESTRICTED_VAR'
+        })).rejects.toThrow('GitLab API error: 403 Forbidden - Variable not accessible - Insufficient scope');
       });
     });
 
@@ -739,7 +898,7 @@ describe('Variables Registry', () => {
 
         // Test with invalid input that should fail Zod validation
         await expect(tool.handler({
-          namespacePath: 123, // Should be string
+          namespace: 123, // Should be string
           key: null // Should be string
         })).rejects.toThrow();
       });
@@ -787,6 +946,320 @@ describe('Variables Registry', () => {
           key: 'TEST_KEY',
           value: 'test-value'
         })).rejects.toThrow('Network error');
+      });
+
+      it('should handle get_variable with empty response text', async () => {
+        // Mock namespace detection call
+        mockEnhancedFetch.mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: jest.fn().mockResolvedValue({ id: 123, name: 'test-project' })
+        } as any);
+
+        // Mock API error with empty response text
+        mockEnhancedFetch.mockResolvedValueOnce({
+          ok: false,
+          status: 400,
+          statusText: 'Bad Request',
+          text: jest.fn().mockResolvedValue('')  // Empty response text
+        } as any);
+
+        const tool = variablesToolRegistry.get('get_variable')!;
+
+        await expect(tool.handler({
+          namespace: 'test/project',
+          key: 'TEST_VAR'
+        })).rejects.toThrow('GitLab API error: 400 Bad Request');
+      });
+
+      it('should handle get_variable with string message and error fields', async () => {
+        // Mock namespace detection call
+        mockEnhancedFetch.mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: jest.fn().mockResolvedValue({ id: 123, name: 'test-project' })
+        } as any);
+
+        // Mock API error with both message (string) and error fields
+        const errorResponse = {
+          message: 'Variable not found',
+          error: 'Variable with key TEST_VAR does not exist'
+        };
+
+        mockEnhancedFetch.mockResolvedValueOnce({
+          ok: false,
+          status: 404,
+          statusText: 'Not Found',
+          text: jest.fn().mockResolvedValue(JSON.stringify(errorResponse))
+        } as any);
+
+        const tool = variablesToolRegistry.get('get_variable')!;
+
+        await expect(tool.handler({
+          namespace: 'test/project',
+          key: 'TEST_VAR'
+        })).rejects.toThrow('GitLab API error: 404 Not Found - Variable not found - Variable with key TEST_VAR does not exist');
+      });
+
+      it('should handle create_variable with whitespace-only response text', async () => {
+        // Mock namespace detection call
+        mockEnhancedFetch.mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: jest.fn().mockResolvedValue({ id: 123, name: 'test-project' })
+        } as any);
+
+        // Mock API error with whitespace-only response text
+        mockEnhancedFetch.mockResolvedValueOnce({
+          ok: false,
+          status: 400,
+          statusText: 'Bad Request',
+          text: jest.fn().mockResolvedValue('   ')  // Whitespace-only response text
+        } as any);
+
+        const tool = variablesToolRegistry.get('create_variable')!;
+
+        await expect(tool.handler({
+          namespace: 'test/project',
+          key: 'NEW_VAR',
+          value: 'test-value'
+        })).rejects.toThrow('GitLab API error: 400 Bad Request');
+      });
+
+      it('should handle update_variable with array message value', async () => {
+        // Mock namespace detection call
+        mockEnhancedFetch.mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: jest.fn().mockResolvedValue({ id: 123, name: 'test-project' })
+        } as any);
+
+        // Mock API error with message.value array format
+        const errorResponse = {
+          message: {
+            value: ['Key must be alphanumeric', 'Value cannot be empty']
+          }
+        };
+
+        mockEnhancedFetch.mockResolvedValueOnce({
+          ok: false,
+          status: 422,
+          statusText: 'Unprocessable Entity',
+          text: jest.fn().mockResolvedValue(JSON.stringify(errorResponse))
+        } as any);
+
+        const tool = variablesToolRegistry.get('update_variable')!;
+
+        await expect(tool.handler({
+          namespace: 'test/project',
+          key: 'TEST_VAR',
+          value: ''
+        })).rejects.toThrow('GitLab API error: 422 Unprocessable Entity - Key must be alphanumeric, Value cannot be empty');
+      });
+
+      it('should handle delete_variable with complex message object', async () => {
+        // Mock namespace detection call
+        mockEnhancedFetch.mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: jest.fn().mockResolvedValue({ id: 123, name: 'test-project' })
+        } as any);
+
+        // Mock API error with complex message object (not string, not .value array)
+        const errorResponse = {
+          message: {
+            key: 'validation_failed',
+            details: {
+              field: 'key',
+              code: 'invalid_format'
+            }
+          }
+        };
+
+        mockEnhancedFetch.mockResolvedValueOnce({
+          ok: false,
+          status: 422,
+          statusText: 'Unprocessable Entity',
+          text: jest.fn().mockResolvedValue(JSON.stringify(errorResponse))
+        } as any);
+
+        const tool = variablesToolRegistry.get('delete_variable')!;
+
+        await expect(tool.handler({
+          namespace: 'test/project',
+          key: 'TEST_VAR'
+        })).rejects.toThrow('GitLab API error: 422 Unprocessable Entity - {"key":"validation_failed","details":{"field":"key","code":"invalid_format"}}');
+      });
+
+      it('should handle update_variable with empty response text and both string message and error fields', async () => {
+        // Mock namespace detection call
+        mockEnhancedFetch.mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: jest.fn().mockResolvedValue({ id: 123, name: 'test-project' })
+        } as any);
+
+        // Mock API error with empty response text - should trigger the empty text handling in update_variable
+        mockEnhancedFetch.mockResolvedValueOnce({
+          ok: false,
+          status: 400,
+          statusText: 'Bad Request',
+          text: jest.fn().mockResolvedValue('')
+        } as any);
+
+        const tool = variablesToolRegistry.get('update_variable')!;
+
+        await expect(tool.handler({
+          namespace: 'test/project',
+          key: 'TEST_VAR',
+          value: 'updated-value'
+        })).rejects.toThrow('GitLab API error: 400 Bad Request');
+      });
+
+      it('should handle update_variable with string message and error fields', async () => {
+        // Mock namespace detection call
+        mockEnhancedFetch.mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: jest.fn().mockResolvedValue({ id: 123, name: 'test-project' })
+        } as any);
+
+        // Mock API error with both string message and error fields
+        const errorResponse = {
+          message: 'Variable update failed',
+          error: 'Variable is protected'
+        };
+
+        mockEnhancedFetch.mockResolvedValueOnce({
+          ok: false,
+          status: 422,
+          statusText: 'Unprocessable Entity',
+          text: jest.fn().mockResolvedValue(JSON.stringify(errorResponse))
+        } as any);
+
+        const tool = variablesToolRegistry.get('update_variable')!;
+
+        await expect(tool.handler({
+          namespace: 'test/project',
+          key: 'PROTECTED_VAR',
+          value: 'new-value'
+        })).rejects.toThrow('GitLab API error: 422 Unprocessable Entity - Variable update failed - Variable is protected');
+      });
+
+      it('should handle update_variable with complex message object (non-string, non-array)', async () => {
+        // Mock namespace detection call
+        mockEnhancedFetch.mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: jest.fn().mockResolvedValue({ id: 123, name: 'test-project' })
+        } as any);
+
+        // Mock API error with complex message object
+        const errorResponse = {
+          message: {
+            field: 'value',
+            constraint: 'max_length',
+            limit: 1000
+          }
+        };
+
+        mockEnhancedFetch.mockResolvedValueOnce({
+          ok: false,
+          status: 422,
+          statusText: 'Unprocessable Entity',
+          text: jest.fn().mockResolvedValue(JSON.stringify(errorResponse))
+        } as any);
+
+        const tool = variablesToolRegistry.get('update_variable')!;
+
+        await expect(tool.handler({
+          namespace: 'test/project',
+          key: 'TEST_VAR',
+          value: 'very-long-value'
+        })).rejects.toThrow('GitLab API error: 422 Unprocessable Entity - {"field":"value","constraint":"max_length","limit":1000}');
+      });
+
+      it('should handle delete_variable with empty response text', async () => {
+        // Mock namespace detection call
+        mockEnhancedFetch.mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: jest.fn().mockResolvedValue({ id: 123, name: 'test-project' })
+        } as any);
+
+        // Mock API error with empty response text - should trigger the empty text handling in delete_variable
+        mockEnhancedFetch.mockResolvedValueOnce({
+          ok: false,
+          status: 403,
+          statusText: 'Forbidden',
+          text: jest.fn().mockResolvedValue('')
+        } as any);
+
+        const tool = variablesToolRegistry.get('delete_variable')!;
+
+        await expect(tool.handler({
+          namespace: 'test/project',
+          key: 'PROTECTED_VAR'
+        })).rejects.toThrow('GitLab API error: 403 Forbidden');
+      });
+
+      it('should handle delete_variable with string message and error fields', async () => {
+        // Mock namespace detection call
+        mockEnhancedFetch.mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: jest.fn().mockResolvedValue({ id: 123, name: 'test-project' })
+        } as any);
+
+        // Mock API error with both string message and error fields
+        const errorResponse = {
+          message: 'Cannot delete variable',
+          error: 'Variable is being used by active pipelines'
+        };
+
+        mockEnhancedFetch.mockResolvedValueOnce({
+          ok: false,
+          status: 409,
+          statusText: 'Conflict',
+          text: jest.fn().mockResolvedValue(JSON.stringify(errorResponse))
+        } as any);
+
+        const tool = variablesToolRegistry.get('delete_variable')!;
+
+        await expect(tool.handler({
+          namespace: 'test/project',
+          key: 'ACTIVE_VAR'
+        })).rejects.toThrow('GitLab API error: 409 Conflict - Cannot delete variable - Variable is being used by active pipelines');
+      });
+
+      it('should handle delete_variable with array message value', async () => {
+        // Mock namespace detection call
+        mockEnhancedFetch.mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: jest.fn().mockResolvedValue({ id: 123, name: 'test-project' })
+        } as any);
+
+        // Mock API error with message.value array format
+        const errorResponse = {
+          message: {
+            value: ['Variable cannot be deleted', 'Referenced by protected branch']
+          }
+        };
+
+        mockEnhancedFetch.mockResolvedValueOnce({
+          ok: false,
+          status: 422,
+          statusText: 'Unprocessable Entity',
+          text: jest.fn().mockResolvedValue(JSON.stringify(errorResponse))
+        } as any);
+
+        const tool = variablesToolRegistry.get('delete_variable')!;
+
+        await expect(tool.handler({
+          namespace: 'test/project',
+          key: 'PROTECTED_VAR'
+        })).rejects.toThrow('GitLab API error: 422 Unprocessable Entity - Variable cannot be deleted, Referenced by protected branch');
       });
     });
   });

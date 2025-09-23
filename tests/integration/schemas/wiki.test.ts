@@ -35,7 +35,7 @@ describe('Wiki Schema - GitLab Integration', () => {
       console.log(`📋 Using project: ${testProject.name} (ID: ${testProject.id})`);
 
       const validParams = {
-        namespacePath: testProject.path_with_namespace,
+        namespace: testProject.path_with_namespace,
         with_content: true,
         per_page: 10,
       };
@@ -74,7 +74,7 @@ describe('Wiki Schema - GitLab Integration', () => {
 
       const testProject = projects[0];
       const paginationParams = {
-        namespacePath: testProject.path_with_namespace, // Use namespacePath as expected by schema
+        namespace: testProject.path_with_namespace, // Use namespace as expected by schema
         per_page: 5,
         page: 2,
         with_content: false,
@@ -87,7 +87,7 @@ describe('Wiki Schema - GitLab Integration', () => {
         expect(result.data.per_page).toBe(5);
         expect(result.data.page).toBe(2);
         expect(result.data.with_content).toBe(false);
-        expect(result.data.namespacePath).toBe(testProject.path_with_namespace);
+        expect(result.data.namespace).toBe(testProject.path_with_namespace);
       }
 
       console.log('✅ ListWikiPagesSchema validates pagination parameters');
@@ -122,7 +122,7 @@ describe('Wiki Schema - GitLab Integration', () => {
 
       const testProject = projects[0];
       const wikiPages = await helper.executeTool('list_wiki_pages', {
-        namespacePath: testProject.path_with_namespace,
+        namespace: testProject.path_with_namespace,
         per_page: 1
       }) as any[];
 
@@ -133,7 +133,7 @@ describe('Wiki Schema - GitLab Integration', () => {
 
       const testPage = wikiPages[0];
       const validParams = {
-        namespacePath: testProject.path_with_namespace,
+        namespace: testProject.path_with_namespace,
         slug: testPage.slug,
       };
 
@@ -141,7 +141,7 @@ describe('Wiki Schema - GitLab Integration', () => {
       expect(result.success).toBe(true);
 
       if (result.success) {
-        expect(result.data.namespacePath).toBe(testProject.path_with_namespace);
+        expect(result.data.namespace).toBe(testProject.path_with_namespace);
         expect(result.data.slug).toBe(testPage.slug);
       }
 
@@ -158,7 +158,7 @@ describe('Wiki Schema - GitLab Integration', () => {
 
       const testProject = projects[0];
       const wikiPages = await helper.executeTool('list_wiki_pages', {
-        namespacePath: testProject.path_with_namespace,
+        namespace: testProject.path_with_namespace,
         per_page: 1
       }) as any[];
 
@@ -169,7 +169,7 @@ describe('Wiki Schema - GitLab Integration', () => {
 
       const testPage = wikiPages[0];
       const params = {
-        namespacePath: testProject.path_with_namespace,
+        namespace: testProject.path_with_namespace,
         slug: testPage.slug,
         render_html: true,
       };
@@ -195,7 +195,7 @@ describe('Wiki Schema - GitLab Integration', () => {
 
     it('should reject invalid wiki page parameters', async () => {
       const invalidParams = {
-        // Missing required namespacePath and slug
+        // Missing required namespace and slug
       };
 
       const result = GetWikiPageSchema.safeParse(invalidParams);

@@ -200,7 +200,7 @@ describe('Project Schema - GitLab 18.3 Integration', () => {
       path: `schema-test-project-${testTimestamp}`,
       description: `Schema test project for validation - ${testTimestamp}`,
       visibility: 'private' as const,
-      namespacePath: TEST_GROUP,
+      namespace: TEST_GROUP,
       issues_enabled: true,
       merge_requests_enabled: true,
       wiki_enabled: false,
@@ -215,7 +215,7 @@ describe('Project Schema - GitLab 18.3 Integration', () => {
     if (result.success) {
       expect(result.data.name).toBe(testProjectData.name);
       expect(result.data.visibility).toBe('private');
-      expect(result.data.namespacePath).toBe(testProjectData.namespacePath);
+      expect(result.data.namespace).toBe(testProjectData.namespace);
     }
 
     console.log('✅ CreateRepositorySchema validates project creation parameters correctly');

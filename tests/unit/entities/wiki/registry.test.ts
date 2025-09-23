@@ -518,6 +518,232 @@ describe('Wiki Registry', () => {
         await expect(handler({ namespace: 'test-project' }))
           .rejects.toThrow('Network error');
       });
+
+      it('should handle API error responses in get_wiki_page', async () => {
+        const getWikiPage = wikiToolRegistry.get('get_wiki_page')?.handler;
+        expect(getWikiPage).toBeDefined();
+
+        // Mock namespace resolution call - succeeds
+        mockEnhancedFetch.mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          statusText: 'OK',
+          json: jest.fn().mockResolvedValue({ id: 123, name: 'test-project' })
+        } as any);
+
+        // Mock actual get wiki page API call - fails with 500
+        mockEnhancedFetch.mockResolvedValueOnce({
+          ok: false,
+          status: 500,
+          statusText: 'Internal Server Error',
+          json: jest.fn().mockResolvedValue({})
+        } as any);
+
+        await expect(getWikiPage!({ namespace: 'test', slug: 'test-page' }))
+          .rejects.toThrow('GitLab API error: 500 Internal Server Error');
+      });
+
+      it('should handle API error responses in create_wiki_page', async () => {
+        const createWikiPage = wikiToolRegistry.get('create_wiki_page')?.handler;
+        expect(createWikiPage).toBeDefined();
+
+        // Mock namespace resolution call - succeeds
+        mockEnhancedFetch.mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          statusText: 'OK',
+          json: jest.fn().mockResolvedValue({ id: 123, name: 'test-project' })
+        } as any);
+
+        // Mock actual create wiki page API call - fails with 400
+        mockEnhancedFetch.mockResolvedValueOnce({
+          ok: false,
+          status: 400,
+          statusText: 'Bad Request',
+          json: jest.fn().mockResolvedValue({})
+        } as any);
+
+        await expect(createWikiPage!({ namespace: 'test', title: 'New Page', content: 'Content' }))
+          .rejects.toThrow('GitLab API error: 400 Bad Request');
+      });
+
+      it('should handle API error responses in update_wiki_page', async () => {
+        const updateWikiPage = wikiToolRegistry.get('update_wiki_page')?.handler;
+        expect(updateWikiPage).toBeDefined();
+
+        // Mock namespace resolution call - succeeds
+        mockEnhancedFetch.mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          statusText: 'OK',
+          json: jest.fn().mockResolvedValue({ id: 123, name: 'test-project' })
+        } as any);
+
+        // Mock actual update wiki page API call - fails with 404
+        mockEnhancedFetch.mockResolvedValueOnce({
+          ok: false,
+          status: 404,
+          statusText: 'Not Found',
+          json: jest.fn().mockResolvedValue({})
+        } as any);
+
+        await expect(updateWikiPage!({ namespace: 'test', slug: 'existing-page', content: 'Updated content' }))
+          .rejects.toThrow('GitLab API error: 404 Not Found');
+      });
+
+      it('should handle API error responses in delete_wiki_page', async () => {
+        const deleteWikiPage = wikiToolRegistry.get('delete_wiki_page')?.handler;
+        expect(deleteWikiPage).toBeDefined();
+
+        // Mock namespace resolution call - succeeds
+        mockEnhancedFetch.mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          statusText: 'OK',
+          json: jest.fn().mockResolvedValue({ id: 123, name: 'test-project' })
+        } as any);
+
+        // Mock actual delete wiki page API call - fails with 403
+        mockEnhancedFetch.mockResolvedValueOnce({
+          ok: false,
+          status: 403,
+          statusText: 'Forbidden',
+          json: jest.fn().mockResolvedValue({})
+        } as any);
+
+        await expect(deleteWikiPage!({ namespace: 'test', slug: 'page-to-delete' }))
+          .rejects.toThrow('GitLab API error: 403 Forbidden');
+      });
+
+      it('should test actual handler functions for all CRUD operations', async () => {
+        // Test update_wiki_page handler function
+        const updateWikiPage = wikiToolRegistry.get('update_wiki_page')?.handler;
+        expect(updateWikiPage).toBeDefined();
+
+        // Mock namespace resolution call - succeeds
+        mockEnhancedFetch.mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          statusText: 'OK',
+          json: jest.fn().mockResolvedValue({ id: 123, name: 'test-project' })
+        } as any);
+
+        // Mock actual update wiki page API call - succeeds
+        mockEnhancedFetch.mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: jest.fn().mockResolvedValue({
+            id: 1,
+            title: 'Updated Page',
+            content: 'Updated content'
+          })
+        } as any);
+
+        const result = await updateWikiPage!({
+          namespace: 'test',
+          slug: 'test-page',
+          title: 'Updated Page',
+          content: 'Updated content',
+          format: 'markdown'
+        });
+
+        expect(result).toEqual({
+          id: 1,
+          title: 'Updated Page',
+          content: 'Updated content'
+        });
+
+        expect(mockEnhancedFetch).toHaveBeenCalledTimes(2);
+        expect(mockEnhancedFetch).toHaveBeenLastCalledWith(
+          expect.stringContaining('/wikis/test-page'),
+          expect.objectContaining({
+            method: 'PUT',
+            headers: expect.objectContaining({
+              'Authorization': 'Bearer test-token-12345',
+              'Content-Type': 'application/json'
+            }),
+            body: expect.stringContaining('Updated content')
+          })
+        );
+      });
+
+      it('should handle list_wiki_pages with optional parameters', async () => {
+        const listWikiPages = wikiToolRegistry.get('list_wiki_pages')?.handler;
+        expect(listWikiPages).toBeDefined();
+
+        // Mock namespace resolution call - succeeds
+        mockEnhancedFetch.mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          statusText: 'OK',
+          json: jest.fn().mockResolvedValue({ id: 123, name: 'test-project' })
+        } as any);
+
+        // Mock actual list wiki pages API call - succeeds
+        mockEnhancedFetch.mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: jest.fn().mockResolvedValue([
+            {
+              slug: 'test-page',
+              title: 'Test Page',
+              content: 'Test content'
+            }
+          ])
+        } as any);
+
+        const result = await listWikiPages!({
+          namespace: 'test-project',
+          with_content: true,
+          page: 1
+        });
+
+        expect(result).toEqual([
+          {
+            slug: 'test-page',
+            title: 'Test Page',
+            content: 'Test content'
+          }
+        ]);
+
+        // Verify that query parameters were properly included in the URL
+        expect(mockEnhancedFetch).toHaveBeenLastCalledWith(
+          expect.stringMatching(/with_content=true/),
+          expect.any(Object)
+        );
+        expect(mockEnhancedFetch).toHaveBeenLastCalledWith(
+          expect.stringMatching(/page=1/),
+          expect.any(Object)
+        );
+      });
+
+      it('should handle delete_wiki_page with 204 No Content response', async () => {
+        const deleteWikiPage = wikiToolRegistry.get('delete_wiki_page')?.handler;
+        expect(deleteWikiPage).toBeDefined();
+
+        // Mock namespace resolution call - succeeds
+        mockEnhancedFetch.mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          statusText: 'OK',
+          json: jest.fn().mockResolvedValue({ id: 123, name: 'test-project' })
+        } as any);
+
+        // Mock actual delete wiki page API call - returns 204 No Content
+        mockEnhancedFetch.mockResolvedValueOnce({
+          ok: true,
+          status: 204,
+          statusText: 'No Content'
+        } as any);
+
+        const result = await deleteWikiPage!({
+          namespace: 'test-project',
+          slug: 'page-to-delete'
+        });
+
+        expect(result).toEqual({ deleted: true });
+        expect(mockEnhancedFetch).toHaveBeenCalledTimes(2);
+      });
     });
   });
 });

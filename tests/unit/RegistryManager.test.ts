@@ -38,16 +38,20 @@ jest.mock('../../src/logger', () => ({
 }));
 
 jest.mock('../../src/config', () => ({
-  GITLAB_READ_ONLY_MODE: false,
-  GITLAB_DENIED_TOOLS_REGEX: null,
-  USE_GITLAB_WIKI: false,
-  USE_MILESTONE: false,
-  USE_PIPELINE: false,
-  USE_WORKITEMS: false,
-  USE_LABELS: true,
-  USE_MRS: false,
-  USE_FILES: false,
-  USE_VARIABLES: false,
+  get GITLAB_READ_ONLY_MODE() { return process.env.GITLAB_READ_ONLY_MODE === 'true'; },
+  get GITLAB_DENIED_TOOLS_REGEX() {
+    return process.env.GITLAB_DENIED_TOOLS_REGEX
+      ? new RegExp(process.env.GITLAB_DENIED_TOOLS_REGEX)
+      : null;
+  },
+  get USE_GITLAB_WIKI() { return process.env.USE_GITLAB_WIKI !== 'false'; },
+  get USE_MILESTONE() { return process.env.USE_MILESTONE !== 'false'; },
+  get USE_PIPELINE() { return process.env.USE_PIPELINE !== 'false'; },
+  get USE_WORKITEMS() { return process.env.USE_WORKITEMS !== 'false'; },
+  get USE_LABELS() { return process.env.USE_LABELS !== 'false'; },
+  get USE_MRS() { return process.env.USE_MRS !== 'false'; },
+  get USE_FILES() { return process.env.USE_FILES !== 'false'; },
+  get USE_VARIABLES() { return process.env.USE_VARIABLES !== 'false'; },
   getToolDescriptionOverrides: jest.fn(() => new Map()),
 }));
 
@@ -63,9 +67,19 @@ describe('RegistryManager', () => {
     // Get the mocked config
     mockConfig = require('../../src/config');
 
+    // Reset environment variables to defaults
+    delete process.env.GITLAB_READ_ONLY_MODE;
+    delete process.env.GITLAB_DENIED_TOOLS_REGEX;
+    delete process.env.USE_LABELS;
+    delete process.env.USE_MRS;
+    delete process.env.USE_FILES;
+    delete process.env.USE_WORKITEMS;
+    delete process.env.USE_MILESTONE;
+    delete process.env.USE_PIPELINE;
+    delete process.env.USE_GITLAB_WIKI;
+    delete process.env.USE_VARIABLES;
+
     // Reset default mocks
-    mockConfig.GITLAB_READ_ONLY_MODE = false;
-    mockConfig.GITLAB_DENIED_TOOLS_REGEX = null;
     mockConfig.getToolDescriptionOverrides = jest.fn(() => new Map());
     ToolAvailability.isToolAvailable.mockReturnValue(true);
     ToolAvailability.getUnavailableReason.mockReturnValue('');
@@ -136,7 +150,7 @@ describe('RegistryManager', () => {
 
   describe('Read-Only Mode Filtering', () => {
     beforeEach(() => {
-      mockConfig.GITLAB_READ_ONLY_MODE = true;
+      process.env.GITLAB_READ_ONLY_MODE = 'true';
       (RegistryManager as any).instance = null;
       registryManager = RegistryManager.getInstance();
     });
@@ -157,7 +171,7 @@ describe('RegistryManager', () => {
 
   describe('Regex Filtering', () => {
     beforeEach(() => {
-      mockConfig.GITLAB_DENIED_TOOLS_REGEX = /^core_/;
+      process.env.GITLAB_DENIED_TOOLS_REGEX = '^core_';
       (RegistryManager as any).instance = null;
       registryManager = RegistryManager.getInstance();
     });
@@ -177,17 +191,21 @@ describe('RegistryManager', () => {
 
   describe('Feature Flag Testing', () => {
     it('should exclude workitems tools when USE_WORKITEMS is false', () => {
-      // Check current tools first
-      const beforeNames = registryManager.getAvailableToolNames();
-      console.log('Available tools before:', beforeNames);
+      // Set USE_WORKITEMS to false
+      process.env.USE_WORKITEMS = 'false';
 
-      // Since the test mock already has USE_WORKITEMS: false, work items should not be present
-      expect(beforeNames).not.toContain('list_work_items');
-      expect(beforeNames).not.toContain('create_work_item');
+      // Create new instance with USE_WORKITEMS=false
+      (RegistryManager as any).instance = null;
+      const newManager = RegistryManager.getInstance();
+      const toolNames = newManager.getAvailableToolNames();
 
-      // But core and labels tools should be present (USE_LABELS: true in mock)
-      expect(beforeNames).toContain('core_tool_1');
-      expect(beforeNames).toContain('labels_tool_1');
+      // Work items should not be present when USE_WORKITEMS=false
+      expect(toolNames).not.toContain('list_work_items');
+      expect(toolNames).not.toContain('create_work_item');
+
+      // But core and labels tools should be present (defaults to true)
+      expect(toolNames).toContain('core_tool_1');
+      expect(toolNames).toContain('labels_tool_1');
     });
 
     it('should include tools when flags are enabled', () => {
@@ -248,8 +266,8 @@ describe('RegistryManager', () => {
   describe('Registry Management', () => {
     it('should load different entity registries based on config', () => {
       // Test with different configurations
-      mockConfig.USE_LABELS = false;
-      mockConfig.USE_MRS = true;
+      process.env.USE_LABELS = 'false';
+      process.env.USE_MRS = 'true';
 
       // Mock MRS registry for this test
       const mrsRegistry = new Map([
@@ -299,8 +317,8 @@ describe('RegistryManager', () => {
 
   describe('Complex Filtering Scenarios', () => {
     it('should handle multiple filters combined', () => {
-      mockConfig.GITLAB_READ_ONLY_MODE = true;
-      mockConfig.GITLAB_DENIED_TOOLS_REGEX = /readonly/;
+      process.env.GITLAB_READ_ONLY_MODE = 'true';
+      process.env.GITLAB_DENIED_TOOLS_REGEX = 'readonly';
 
       (RegistryManager as any).instance = null;
       const filteredManager = RegistryManager.getInstance();
@@ -313,7 +331,7 @@ describe('RegistryManager', () => {
     });
 
     it('should maintain consistency across multiple calls after filtering', () => {
-      mockConfig.GITLAB_READ_ONLY_MODE = true;
+      process.env.GITLAB_READ_ONLY_MODE = 'true';
       (RegistryManager as any).instance = null;
       const readOnlyManager = RegistryManager.getInstance();
 
@@ -323,6 +341,92 @@ describe('RegistryManager', () => {
         expect(names.length).toBe(definitions.length);
         expect(names.every(name => definitions.some(def => def.name === name))).toBe(true);
       }
+    });
+  });
+
+  describe('Environment Variable Dynamic Features', () => {
+    let originalEnv: NodeJS.ProcessEnv;
+
+    beforeEach(() => {
+      originalEnv = process.env;
+      (RegistryManager as any).instance = null;
+    });
+
+    afterEach(() => {
+      process.env = originalEnv;
+    });
+
+    it('should handle GITLAB_DENIED_TOOLS_REGEX', () => {
+      process.env.GITLAB_DENIED_TOOLS_REGEX = '^core_';
+
+      registryManager = RegistryManager.getInstance();
+      const tools = registryManager.getAllToolDefinitionsTierless();
+
+      // Should filter out tools matching the regex
+      expect(tools.find(t => t.name === 'core_tool_1')).toBeUndefined();
+      expect(tools.find(t => t.name === 'labels_tool_1')).toBeDefined();
+    });
+
+    it('should handle GITLAB_READ_ONLY_MODE=true', () => {
+      process.env.GITLAB_READ_ONLY_MODE = 'true';
+
+      registryManager = RegistryManager.getInstance();
+      const tools = registryManager.getAllToolDefinitionsTierless();
+
+      // Should only include read-only tools
+      expect(tools.find(t => t.name === 'core_readonly')).toBeDefined();
+      expect(tools.find(t => t.name === 'core_tool_1')).toBeUndefined();
+    });
+
+    it('should handle USE_LABELS=false', () => {
+      process.env.USE_LABELS = 'false';
+
+      registryManager = RegistryManager.getInstance();
+      const tools = registryManager.getAllToolDefinitionsTierless();
+
+      // Should exclude labels tools
+      expect(tools.find(t => t.name === 'labels_tool_1')).toBeUndefined();
+      expect(tools.find(t => t.name === 'core_tool_1')).toBeDefined();
+    });
+
+    it('should handle multiple disabled features', () => {
+      process.env.USE_LABELS = 'false';
+      process.env.USE_MRS = 'false';
+      process.env.USE_FILES = 'false';
+      process.env.USE_MILESTONE = 'false';
+      process.env.USE_PIPELINE = 'false';
+      process.env.USE_VARIABLES = 'false';
+      process.env.USE_GITLAB_WIKI = 'false';
+      process.env.USE_WORKITEMS = 'false';
+      process.env.GITLAB_READ_ONLY_MODE = 'true';
+
+      registryManager = RegistryManager.getInstance();
+      const tools = registryManager.getAllToolDefinitionsTierless();
+
+      // Should only have core readonly tools
+      expect(tools.length).toBeGreaterThan(0);
+      expect(tools.every(t => t.name.includes('readonly') || t.name.includes('core'))).toBe(true);
+    });
+  });
+
+  describe('Additional Coverage Tests', () => {
+    it('should handle getAllToolDefinitionsTierless variations', () => {
+      const tools1 = registryManager.getAllToolDefinitionsTierless();
+      const tools2 = registryManager.getAllToolDefinitions();
+
+      expect(Array.isArray(tools1)).toBe(true);
+      expect(Array.isArray(tools2)).toBe(true);
+      expect(tools1.length).toBeGreaterThan(0);
+      expect(tools2.length).toBeGreaterThan(0);
+    });
+
+    it('should handle refreshCache method', () => {
+      expect(() => registryManager.refreshCache()).not.toThrow();
+    });
+
+    it('should handle hasToolHandler method', () => {
+      expect(registryManager.hasToolHandler('core_tool_1')).toBe(true);
+      expect(registryManager.hasToolHandler('nonexistent')).toBe(false);
     });
   });
 });

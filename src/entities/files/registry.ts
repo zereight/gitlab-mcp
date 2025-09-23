@@ -79,10 +79,10 @@ export const filesToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefin
         // Return structured response with file metadata
         return {
           file_path: file_path,
-          ref: ref || "HEAD",
+          ref: ref ?? "HEAD",
           size: content.length,
           content: content,
-          content_type: response.headers.get("content-type") || "text/plain",
+          content_type: response.headers.get("content-type") ?? "text/plain",
         };
       },
     },

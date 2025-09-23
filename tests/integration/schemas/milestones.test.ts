@@ -35,7 +35,7 @@ describe('Milestones Schema - GitLab Integration', () => {
       console.log(`📋 Using project: ${testProject.name} (ID: ${testProject.id})`);
 
       const validParams = {
-        namespacePath: testProject.path_with_namespace,
+        namespace: testProject.path_with_namespace,
         state: 'active' as const,
         per_page: 10,
       };
@@ -106,7 +106,7 @@ describe('Milestones Schema - GitLab Integration', () => {
       }
 
       const searchParams = {
-        namespacePath: projects[0].path_with_namespace, // Use namespacePath as expected by schema
+        namespace: projects[0].path_with_namespace, // Use namespace as expected by schema
         state: 'closed' as const,
         search: 'v1.0',
         include_ancestors: true,
@@ -117,7 +117,7 @@ describe('Milestones Schema - GitLab Integration', () => {
       expect(result.success).toBe(true);
 
       if (result.success) {
-        expect(result.data.namespacePath).toBe(projects[0].path_with_namespace);
+        expect(result.data.namespace).toBe(projects[0].path_with_namespace);
         expect(result.data.state).toBe('closed');
         expect(result.data.search).toBe('v1.0');
         expect(result.data.include_ancestors).toBe(true);
@@ -156,7 +156,7 @@ describe('Milestones Schema - GitLab Integration', () => {
 
       const testProject = projects[0];
       const milestones = await helper.executeTool('list_milestones', {
-        namespacePath: testProject.path_with_namespace,
+        namespace: testProject.path_with_namespace,
         per_page: 1
       }) as any[];
 
@@ -167,7 +167,7 @@ describe('Milestones Schema - GitLab Integration', () => {
 
       const testMilestone = milestones[0];
       const validParams = {
-        namespacePath: testProject.path_with_namespace,
+        namespace: testProject.path_with_namespace,
         milestone_id: testMilestone.id.toString(),
       };
 
@@ -175,7 +175,7 @@ describe('Milestones Schema - GitLab Integration', () => {
       expect(result.success).toBe(true);
 
       if (result.success) {
-        expect(result.data.namespacePath).toBe(testProject.path_with_namespace);
+        expect(result.data.namespace).toBe(testProject.path_with_namespace);
         expect(result.data.milestone_id).toBe(testMilestone.id.toString());
       }
 
@@ -192,7 +192,7 @@ describe('Milestones Schema - GitLab Integration', () => {
 
       const testProject = projects[0];
       const milestones = await helper.executeTool('list_milestones', {
-        namespacePath: testProject.path_with_namespace,
+        namespace: testProject.path_with_namespace,
         per_page: 1
       }) as any[];
 
@@ -203,7 +203,7 @@ describe('Milestones Schema - GitLab Integration', () => {
 
       const testMilestone = milestones[0];
       const params = {
-        namespacePath: testProject.path_with_namespace,
+        namespace: testProject.path_with_namespace,
         milestone_id: testMilestone.id.toString(),
       };
 

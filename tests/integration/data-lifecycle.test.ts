@@ -416,7 +416,7 @@ describe('🔄 Data Lifecycle - Complete Infrastructure Setup', () => {
 
           // Step 1: Create work item with basic parameters (CREATE doesn't support widgets)
           const workItem = await helper.createWorkItem({
-            namespacePath: testData.project!.path_with_namespace,
+            namespace: testData.project!.path_with_namespace,
             title: workItemData.title,
             workItemType: workItemData.workItemType,
             description: workItemData.description,
@@ -554,7 +554,7 @@ describe('🔄 Data Lifecycle - Complete Infrastructure Setup', () => {
 
           // Step 1: Create work item with basic parameters (CREATE doesn't support widgets)
           const workItem = await helper.createWorkItem({
-            namespacePath: testData.group!.path,
+            namespace: testData.group!.path,
             title: workItemData.title,
             workItemType: workItemData.workItemType,
             description: workItemData.description,
@@ -807,7 +807,7 @@ describe('🔄 Data Lifecycle - Complete Infrastructure Setup', () => {
 
       console.log(`🔧 Creating epic in subgroup: ${testData.subgroup!.path}...`);
       const childEpic = await helper.createWorkItem({
-        namespacePath: testData.subgroup!.full_path,
+        namespace: testData.subgroup!.full_path,
         title: epicWithParentData.title,
         workItemType: epicWithParentData.workItemType,
         description: epicWithParentData.description,
@@ -970,7 +970,7 @@ describe('🔄 Data Lifecycle - Complete Infrastructure Setup', () => {
 
       // Test group work items (Epics)
       const groupResult = await helper.listWorkItems({
-        namespacePath: testData.group!.path,
+        namespace: testData.group!.path,
         state: ['OPEN', 'CLOSED'],
         simple: true
       }) as any;
@@ -1000,7 +1000,7 @@ describe('🔄 Data Lifecycle - Complete Infrastructure Setup', () => {
 
       // Test project work items (Issues/Tasks)
       const projectResult = await helper.listWorkItems({
-        namespacePath: testData.project!.path_with_namespace,
+        namespace: testData.project!.path_with_namespace,
         state: ['OPEN', 'CLOSED'],
         simple: true
       }) as any;
@@ -1028,7 +1028,7 @@ describe('🔄 Data Lifecycle - Complete Infrastructure Setup', () => {
 
       // Test filtering for EPIC type in group
       const epicResult = await helper.listWorkItems({
-        namespacePath: testData.group!.path,
+        namespace: testData.group!.path,
         types: ['EPIC'],
         simple: true
       }) as any;
@@ -1041,7 +1041,7 @@ describe('🔄 Data Lifecycle - Complete Infrastructure Setup', () => {
 
       // Test filtering for ISSUE type in project
       const issueResult = await helper.listWorkItems({
-        namespacePath: testData.project!.path_with_namespace,
+        namespace: testData.project!.path_with_namespace,
         types: ['ISSUE'],
         simple: true
       }) as any;
@@ -1059,7 +1059,7 @@ describe('🔄 Data Lifecycle - Complete Infrastructure Setup', () => {
 
       // Test OPEN only
       const openResult = await helper.listWorkItems({
-        namespacePath: testData.project!.path_with_namespace,
+        namespace: testData.project!.path_with_namespace,
         state: ['OPEN'],
         simple: true
       }) as any;
@@ -1072,7 +1072,7 @@ describe('🔄 Data Lifecycle - Complete Infrastructure Setup', () => {
 
       // Test ALL states
       const allResult = await helper.listWorkItems({
-        namespacePath: testData.project!.path_with_namespace,
+        namespace: testData.project!.path_with_namespace,
         state: ['OPEN', 'CLOSED'],
         simple: true
       }) as any;
@@ -1087,14 +1087,14 @@ describe('🔄 Data Lifecycle - Complete Infrastructure Setup', () => {
 
       // Test with simple=true (default)
       const simpleResult = await helper.listWorkItems({
-        namespacePath: testData.project!.path_with_namespace,
+        namespace: testData.project!.path_with_namespace,
         simple: true,
         first: 1
       }) as any;
 
       // Test with simple=false
       const fullResult = await helper.listWorkItems({
-        namespacePath: testData.project!.path_with_namespace,
+        namespace: testData.project!.path_with_namespace,
         simple: false,
         first: 1
       }) as any;

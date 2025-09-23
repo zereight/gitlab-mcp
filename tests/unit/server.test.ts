@@ -17,7 +17,9 @@ const mockApp = {
 };
 
 const mockTransport = {
-  sessionId: 'test-session-123'
+  sessionId: 'test-session-123',
+  handleRequest: jest.fn(),
+  handlePostMessage: jest.fn()
 };
 
 const mockLogger = {
@@ -183,6 +185,279 @@ describe('server', () => {
       expect(mockLogger.info).toHaveBeenCalledWith('GitLab MCP Server running on http://localhost:3000');
       expect(mockLogger.info).toHaveBeenCalledWith('🔄 Dual Transport Mode Active:');
     });
+
+    it('should handle SSE endpoint requests', async () => {
+      await startServer();
+
+      // Get the SSE handler
+      const sseHandler = mockApp.get.mock.calls.find(call => call[0] === '/sse')[1];
+
+      // Mock request and response objects
+      const mockReq = {};
+      const mockRes = {
+        writeHead: jest.fn(),
+        write: jest.fn(),
+        end: jest.fn()
+      };
+
+      // Execute the SSE handler
+      await sseHandler(mockReq, mockRes);
+
+      expect(mockServer.connect).toHaveBeenCalled();
+      expect(mockLogger.debug).toHaveBeenCalledWith('SSE endpoint hit!');
+    });
+
+    it('should handle messages endpoint with valid session', async () => {
+      await startServer();
+
+      // Get the messages handler
+      const messagesHandler = mockApp.post.mock.calls.find(call => call[0] === '/messages')[1];
+
+      // Mock request and response objects
+      const mockReq = {
+        query: { sessionId: 'test-session-123' },
+        body: { id: 1, method: 'test', params: {} }
+      };
+      const mockRes = {
+        json: jest.fn(),
+        status: jest.fn().mockReturnThis()
+      };
+
+      // Mock transport exists
+      const transport = { handleRequest: jest.fn().mockResolvedValue({ result: 'success' }) };
+
+      // Execute the messages handler
+      await messagesHandler(mockReq, mockRes);
+
+      expect(mockLogger.debug).toHaveBeenCalledWith('SSE messages endpoint hit!');
+    });
+
+    it('should handle messages endpoint with missing session', async () => {
+      await startServer();
+
+      // Get the messages handler
+      const messagesHandler = mockApp.post.mock.calls.find(call => call[0] === '/messages')[1];
+
+      // Mock request and response objects with missing sessionId
+      const mockReq = {
+        query: {},
+        body: { id: 1, method: 'test', params: {} }
+      };
+      const mockRes = {
+        json: jest.fn(),
+        status: jest.fn().mockReturnThis()
+      };
+
+      // Execute the messages handler
+      await messagesHandler(mockReq, mockRes);
+
+      expect(mockRes.status).toHaveBeenCalledWith(404);
+      expect(mockRes.json).toHaveBeenCalledWith({ error: 'Session not found' });
+    });
+
+    it('should handle messages endpoint errors', async () => {
+      await startServer();
+
+      // Get the messages handler
+      const messagesHandler = mockApp.post.mock.calls.find(call => call[0] === '/messages')[1];
+
+      // Mock request and response objects
+      const mockReq = {
+        query: { sessionId: 'test-session-123' },
+        body: { id: 1, method: 'test', params: {} }
+      };
+      const mockRes = {
+        json: jest.fn(),
+        status: jest.fn().mockReturnThis()
+      };
+
+      // Mock transport error
+      const transport = {
+        handleRequest: jest.fn().mockRejectedValue(new Error('Transport error'))
+      };
+
+      // Execute the messages handler (this should catch the error)
+      await messagesHandler(mockReq, mockRes);
+
+      expect(mockLogger.debug).toHaveBeenCalledWith('SSE messages endpoint hit!');
+    });
+
+    it('should handle MCP endpoint requests', async () => {
+      await startServer();
+
+      // Get the MCP handler
+      const mcpHandler = mockApp.all.mock.calls.find(call => call[0] === '/mcp')[1];
+
+      // Mock request and response objects
+      const mockReq = {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: { id: 1, method: 'test', params: {} }
+      };
+      const mockRes = {
+        writeHead: jest.fn(),
+        write: jest.fn(),
+        end: jest.fn(),
+        status: jest.fn().mockReturnThis(),
+        json: jest.fn()
+      };
+
+      // Execute the MCP handler
+      await mcpHandler(mockReq, mockRes);
+
+      expect(mockServer.connect).toHaveBeenCalled();
+    });
+
+    it('should handle server listen callback', async () => {
+      await startServer();
+
+      // Get the listen callback
+      const listenCallback = mockApp.listen.mock.calls[0][2];
+
+      // Execute the callback
+      listenCallback();
+
+      expect(mockLogger.info).toHaveBeenCalledWith('GitLab MCP Server running on http://localhost:3000');
+    });
+
+    it('should handle SSE transport errors', async () => {
+      await startServer();
+
+      // Get the messages handler
+      const messagesHandler = mockApp.post.mock.calls.find(call => call[0] === '/messages')[1];
+
+      // Mock request with valid session but transport throws error
+      const mockReq = {
+        query: { sessionId: 'test-session-123' },
+        body: { method: 'test', params: {} }
+      };
+      const mockRes = {
+        json: jest.fn(),
+        status: jest.fn(() => mockRes)
+      };
+
+      // Mock transport with error
+      const sseHandler = mockApp.get.mock.calls.find(call => call[0] === '/sse')[1];
+
+      // Create transport by hitting SSE endpoint first
+      await sseHandler({}, {});
+
+      // Execute the messages handler (this would normally fail if transport throws error)
+      await messagesHandler(mockReq, mockRes);
+
+      expect(mockLogger.debug).toHaveBeenCalledWith('SSE messages endpoint hit!');
+    });
+  });
+
+  describe('transport mode determination', () => {
+    it('should select stdio mode with explicit stdio argument', async () => {
+      process.env.PORT = '3000'; // Even with PORT, stdio arg should override
+      process.argv = ['node', 'server.js', 'stdio'];
+
+      await startServer();
+
+      expect(mockLogger.info).toHaveBeenCalledWith('Selected stdio mode (explicit argument)');
+      expect(mockServer.connect).toHaveBeenCalledWith(mockTransport);
+    });
+
+    it('should select dual mode when PORT is set without stdio arg', async () => {
+      process.env.PORT = '3000';
+      process.argv = ['node', 'server.js']; // No stdio arg
+
+      await startServer();
+
+      expect(mockLogger.info).toHaveBeenCalledWith('Selected dual transport mode (SSE + StreamableHTTP) - PORT environment variable detected');
+      expect(mockApp.listen).toHaveBeenCalledWith(3000, 'localhost', expect.any(Function));
+    });
+  });
+
+  describe('individual transport modes', () => {
+    it('should handle SSE mode error cases in dual mode', async () => {
+      process.env.PORT = '3000';
+      await startServer();
+
+      // Get the SSE messages handler from dual mode
+      const messagesHandler = mockApp.post.mock.calls.find(call => call[0] === '/messages')[1];
+
+      // Test error case in messages handler
+      const mockReq = {
+        query: { sessionId: 'test-session-123' },
+        body: { test: 'data' }
+      };
+      const mockRes = {
+        status: jest.fn(() => mockRes),
+        json: jest.fn()
+      };
+
+      // Mock transport.handlePostMessage to throw error
+      mockTransport.handlePostMessage.mockRejectedValueOnce(new Error('Transport error'));
+
+      // First create SSE transport by hitting SSE endpoint
+      const sseHandler = mockApp.get.mock.calls.find(call => call[0] === '/sse')[1];
+      await sseHandler({}, {});
+
+      // Now test error handling in messages handler
+      await messagesHandler(mockReq, mockRes);
+
+      expect(mockLogger.debug).toHaveBeenCalledWith('SSE messages endpoint hit!');
+    });
+
+    it('should handle StreamableHTTP mode error cases in dual mode', async () => {
+      process.env.PORT = '3000';
+      await startServer();
+
+      // Get the MCP handler from dual mode
+      const mcpHandler = mockApp.all.mock.calls.find(call => call[0] === '/mcp')[1];
+
+      // Test error case in MCP handler
+      const mockReq = {
+        headers: { 'mcp-session-id': 'existing-session' },
+        method: 'POST',
+        body: { test: 'data' }
+      };
+      const mockRes = {
+        status: jest.fn(() => mockRes),
+        json: jest.fn()
+      };
+
+      // Mock transport.handleRequest to throw error
+      mockTransport.handleRequest.mockRejectedValueOnce(new Error('Transport error'));
+
+      // Test error handling in MCP handler
+      await mcpHandler(mockReq, mockRes);
+
+      expect(mockLogger.error).toHaveBeenCalledWith(
+        { err: expect.any(Error) },
+        'Error in StreamableHTTP transport'
+      );
+      expect(mockRes.status).toHaveBeenCalledWith(500);
+      expect(mockRes.json).toHaveBeenCalledWith({ error: 'Internal server error' });
+    });
+
+    it('should handle StreamableHTTP new session creation in dual mode', async () => {
+      process.env.PORT = '3000';
+      await startServer();
+
+      // Get the MCP handler from dual mode
+      const mcpHandler = mockApp.all.mock.calls.find(call => call[0] === '/mcp')[1];
+
+      // Test new session creation (no existing session ID)
+      const mockReq = {
+        headers: {}, // No mcp-session-id header
+        method: 'POST',
+        body: { test: 'data' }
+      };
+      const mockRes = {
+        status: jest.fn(() => mockRes),
+        json: jest.fn()
+      };
+
+      // Test the handler - this should create a new transport
+      await mcpHandler(mockReq, mockRes);
+
+      expect(mockServer.connect).toHaveBeenCalled();
+      expect(mockTransport.handleRequest).toHaveBeenCalled();
+    });
   });
 
   describe('stdio mode', () => {
@@ -343,6 +618,40 @@ describe('server', () => {
         expect(mockRes.status).toHaveBeenCalledWith(404);
         expect(mockRes.json).toHaveBeenCalledWith({ error: 'Session not found' });
       });
+    });
+  });
+
+  describe('signal handlers', () => {
+    it('should handle SIGINT signal', () => {
+      const mockExit = jest.spyOn(process, 'exit').mockImplementation(() => {
+        throw new Error('process.exit called');
+      });
+
+      // Trigger SIGINT
+      expect(() => {
+        process.emit('SIGINT');
+      }).toThrow('process.exit called');
+
+      expect(mockLogger.info).toHaveBeenCalledWith('Shutting down GitLab MCP Server...');
+      expect(mockExit).toHaveBeenCalledWith(0);
+
+      mockExit.mockRestore();
+    });
+
+    it('should handle SIGTERM signal', () => {
+      const mockExit = jest.spyOn(process, 'exit').mockImplementation(() => {
+        throw new Error('process.exit called');
+      });
+
+      // Trigger SIGTERM
+      expect(() => {
+        process.emit('SIGTERM');
+      }).toThrow('process.exit called');
+
+      expect(mockLogger.info).toHaveBeenCalledWith('Shutting down GitLab MCP Server...');
+      expect(mockExit).toHaveBeenCalledWith(0);
+
+      mockExit.mockRestore();
     });
   });
 

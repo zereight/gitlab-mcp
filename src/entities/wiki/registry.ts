@@ -63,14 +63,7 @@ export const wikiToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
         // Resolve namespace type and get proper API path
         const { entityType, encodedPath } = await resolveNamespaceForAPI(namespace);
 
-        const queryParams = new URLSearchParams();
-        Object.entries(options).forEach(([key, value]) => {
-          if (value !== undefined && value !== null && key !== "namespace" && key !== "slug") {
-            queryParams.set(key, String(value));
-          }
-        });
-
-        const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/${entityType}/${encodedPath}/wikis/${encodeURIComponent(slug)}?${queryParams}`;
+        const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/${entityType}/${encodedPath}/wikis/${encodeURIComponent(slug)}`;
         const response = await enhancedFetch(apiUrl, {
           headers: {
             Authorization: `Bearer ${process.env.GITLAB_TOKEN}`,

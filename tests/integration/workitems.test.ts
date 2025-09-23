@@ -43,7 +43,7 @@ describe('Work Items Integration - Using Handler Functions', () => {
 
       // Use handler function instead of direct GraphQL
       const response = await helper.listWorkItems({
-        namespacePath: testGroupPath,
+        namespace: testGroupPath,
         first: 10,
       }) as any;
 
@@ -75,9 +75,9 @@ describe('Work Items Integration - Using Handler Functions', () => {
 
       console.log(`🔧 Testing list_work_items handler with project: ${testProjectPath}`);
 
-      // Use handler function with namespacePath for Issues/Tasks/Bugs
+      // Use handler function with namespace for Issues/Tasks/Bugs
       const response = await helper.listWorkItems({
-        namespacePath: testProjectPath,
+        namespace: testProjectPath,
         first: 10,
       }) as any;
 
@@ -111,7 +111,7 @@ describe('Work Items Integration - Using Handler Functions', () => {
       const testGroupPath = testData.group.path;
 
       const response = await helper.listWorkItems({
-        namespacePath: testGroupPath,
+        namespace: testGroupPath,
         first: 1,
       }) as any;
 
@@ -152,7 +152,7 @@ describe('Work Items Integration - Using Handler Functions', () => {
 
       // Use handler function instead of direct GraphQL
       const response = await helper.listWorkItems({
-        namespacePath: testGroupPath,
+        namespace: testGroupPath,
         first: 10,
       }) as any;
 
@@ -210,7 +210,7 @@ describe('Work Items Integration - Using Handler Functions', () => {
 
         // 🚨 CRITICAL: Creating Epic using handler function (tests production code path)
         const createdWorkItem = await helper.createWorkItem({
-          namespacePath: testGroupPath,
+          namespace: testGroupPath,
           title: `Test Epic Created ${Date.now()}`,
           workItemType: 'EPIC', // Use enum value, handler will resolve to ID
           description: 'Test Epic created through handler for integration testing',

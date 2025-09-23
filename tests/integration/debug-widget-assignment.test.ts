@@ -19,7 +19,7 @@ describe('Debug Widget Assignment', () => {
 
     // Create a simple epic first
     const epic = await helper.executeTool('create_work_item', {
-      namespacePath: 'test',
+      namespace: 'test',
       title: 'Debug Epic for Widget Testing',
       workItemType: 'EPIC'
     }) as any;
