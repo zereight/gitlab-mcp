@@ -5,13 +5,13 @@ import { flexibleBoolean } from "../utils";
 // Read-only wiki operation schemas
 export const ListWikiPagesSchema = z
   .object({
-    namespacePath: z.string().describe("Namespace path (group or project) to list wiki pages from"),
+    namespace: z.string().describe("Namespace path (group or project) to list wiki pages from"),
     with_content: flexibleBoolean.optional().describe("Include content of the wiki pages"),
   })
   .merge(PaginationOptionsSchema);
 
 export const GetWikiPageSchema = z.object({
-  namespacePath: z.string().describe("Namespace path (group or project) containing the wiki page"),
+  namespace: z.string().describe("Namespace path (group or project) containing the wiki page"),
   slug: z.string().describe("URL-encoded slug of the wiki page"),
 });
 

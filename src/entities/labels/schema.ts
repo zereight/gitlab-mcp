@@ -4,7 +4,7 @@ import { z } from "zod";
 
 // Label operations (write)
 export const CreateLabelSchema = z.object({
-  namespacePath: z.string().describe("Namespace path (group or project) to create label in"),
+  namespace: z.string().describe("Namespace path (group or project) to create label in"),
   name: z.string().describe("The name of the label"),
   color: z
     .string()
@@ -21,7 +21,7 @@ export const CreateLabelSchema = z.object({
 });
 
 export const UpdateLabelSchema = z.object({
-  namespacePath: z.string().describe("Namespace path (group or project) containing the label"),
+  namespace: z.string().describe("Namespace path (group or project) containing the label"),
   label_id: z.union([z.coerce.string(), z.string()]).describe("The ID or title of the label"),
   new_name: z.string().optional().describe("The new name of the label"),
   color: z
@@ -40,7 +40,7 @@ export const UpdateLabelSchema = z.object({
 });
 
 export const DeleteLabelSchema = z.object({
-  namespacePath: z.string().describe("Namespace path (group or project) containing the label"),
+  namespace: z.string().describe("Namespace path (group or project) containing the label"),
   label_id: z.union([z.coerce.string(), z.string()]).describe("The ID or title of the label"),
 });
 

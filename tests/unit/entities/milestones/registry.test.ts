@@ -396,7 +396,7 @@ describe('Milestones Registry', () => {
 
         const tool = milestonesToolRegistry.get('list_milestones')!;
         const result = await tool.handler({
-          namespacePath: 'test/project',
+          namespace: 'test/project',
           state: 'active'
         });
 
@@ -420,7 +420,7 @@ describe('Milestones Registry', () => {
 
         const tool = milestonesToolRegistry.get('list_milestones')!;
         await tool.handler({
-          namespacePath: 'test-group',
+          namespace: 'test-group',
           state: 'closed',
           per_page: 50
         });
@@ -447,7 +447,7 @@ describe('Milestones Registry', () => {
         const tool = milestonesToolRegistry.get('list_milestones')!;
 
         await expect(tool.handler({
-          namespacePath: 'nonexistent/project'
+          namespace: 'nonexistent/project'
         })).rejects.toThrow('GitLab API error: 404 Error');
       });
     });
@@ -476,7 +476,7 @@ describe('Milestones Registry', () => {
 
         const tool = milestonesToolRegistry.get('get_milestone')!;
         const result = await tool.handler({
-          namespacePath: 'test/project',
+          namespace: 'test/project',
           milestone_id: 1
         });
 
@@ -507,7 +507,7 @@ describe('Milestones Registry', () => {
 
         const tool = milestonesToolRegistry.get('get_milestone')!;
         await tool.handler({
-          namespacePath: 'test-group',
+          namespace: 'test-group',
           milestone_id: 2
         });
 
@@ -538,7 +538,7 @@ describe('Milestones Registry', () => {
 
         const tool = milestonesToolRegistry.get('get_milestone_issue')!;
         const result = await tool.handler({
-          namespacePath: 'test/project',
+          namespace: 'test/project',
           milestone_id: 1,
           state: 'opened'
         });
@@ -566,7 +566,7 @@ describe('Milestones Registry', () => {
 
         const tool = milestonesToolRegistry.get('get_milestone_issue')!;
         await tool.handler({
-          namespacePath: 'test-group',
+          namespace: 'test-group',
           milestone_id: 1,
           per_page: 20
         });
@@ -597,7 +597,7 @@ describe('Milestones Registry', () => {
 
         const tool = milestonesToolRegistry.get('get_milestone_merge_requests')!;
         const result = await tool.handler({
-          namespacePath: 'test/project',
+          namespace: 'test/project',
           milestone_id: 1,
           state: 'merged'
         });
@@ -630,7 +630,7 @@ describe('Milestones Registry', () => {
 
         const tool = milestonesToolRegistry.get('get_milestone_burndown_events')!;
         const result = await tool.handler({
-          namespacePath: 'test/project',
+          namespace: 'test/project',
           milestone_id: 1
         });
 
@@ -669,7 +669,7 @@ describe('Milestones Registry', () => {
 
         const tool = milestonesToolRegistry.get('create_milestone')!;
         const result = await tool.handler({
-          namespacePath: 'test/project',
+          namespace: 'test/project',
           title: 'New Sprint',
           description: 'A new sprint milestone',
           due_date: '2024-12-31',
@@ -715,7 +715,7 @@ describe('Milestones Registry', () => {
 
         const tool = milestonesToolRegistry.get('create_milestone')!;
         await tool.handler({
-          namespacePath: 'test-group',
+          namespace: 'test-group',
           title: 'Group Milestone'
         });
 
@@ -748,7 +748,7 @@ describe('Milestones Registry', () => {
 
         const tool = milestonesToolRegistry.get('edit_milestone')!;
         const result = await tool.handler({
-          namespacePath: 'test/project',
+          namespace: 'test/project',
           milestone_id: 1,
           title: 'Updated Sprint',
           description: 'Updated description',
@@ -787,7 +787,7 @@ describe('Milestones Registry', () => {
 
         const tool = milestonesToolRegistry.get('delete_milestone')!;
         const result = await tool.handler({
-          namespacePath: 'test/project',
+          namespace: 'test/project',
           milestone_id: 1
         });
 
@@ -819,7 +819,7 @@ describe('Milestones Registry', () => {
 
         const tool = milestonesToolRegistry.get('delete_milestone')!;
         await tool.handler({
-          namespacePath: 'test-group',
+          namespace: 'test-group',
           milestone_id: 2
         });
 
@@ -852,7 +852,7 @@ describe('Milestones Registry', () => {
 
         const tool = milestonesToolRegistry.get('promote_milestone')!;
         const result = await tool.handler({
-          namespacePath: 'test/project',
+          namespace: 'test/project',
           milestone_id: 1
         });
 
@@ -868,12 +868,12 @@ describe('Milestones Registry', () => {
         expect(result).toEqual(mockMilestone);
       });
 
-      it('should require namespacePath for promotion', async () => {
+      it('should require namespace for promotion', async () => {
         const tool = milestonesToolRegistry.get('promote_milestone')!;
 
-        // Test with empty namespacePath which should fail validation
+        // Test with empty namespace which should fail validation
         await expect(tool.handler({
-          namespacePath: '',
+          namespace: '',
           milestone_id: 1
         })).rejects.toThrow('Milestone promotion is only available for projects');
       });
@@ -885,7 +885,7 @@ describe('Milestones Registry', () => {
 
         // Test with invalid input that should fail Zod validation
         await expect(tool.handler({
-          namespacePath: 123, // Should be string
+          namespace: 123, // Should be string
           milestone_id: 'not-a-number'
         })).rejects.toThrow();
       });
@@ -905,7 +905,7 @@ describe('Milestones Registry', () => {
         const tool = milestonesToolRegistry.get('list_milestones')!;
 
         await expect(tool.handler({
-          namespacePath: 'private/project'
+          namespace: 'private/project'
         })).rejects.toThrow('GitLab API error: 403 Error');
       });
 
@@ -924,7 +924,7 @@ describe('Milestones Registry', () => {
         const tool = milestonesToolRegistry.get('create_milestone')!;
 
         await expect(tool.handler({
-          namespacePath: 'test/project',
+          namespace: 'test/project',
           title: 'Test Milestone'
         })).rejects.toThrow('Network timeout');
       });

@@ -369,7 +369,7 @@ describe('Workitems Registry', () => {
         });
 
         const tool = workitemsToolRegistry.get('list_work_items');
-        const result = await tool?.handler({ namespacePath: 'test-group' });
+        const result = await tool?.handler({ namespace: 'test-group' });
 
         // Verify namespace query was called
         expect(mockClient.request).toHaveBeenCalledWith(
@@ -446,7 +446,7 @@ describe('Workitems Registry', () => {
         });
 
         const tool = workitemsToolRegistry.get('list_work_items');
-        const result = await tool?.handler({ namespacePath: 'test-group', simple: false });
+        const result = await tool?.handler({ namespace: 'test-group', simple: false });
 
         // Expect items array structure
         expect(result).toHaveProperty('items');
@@ -468,7 +468,7 @@ describe('Workitems Registry', () => {
 
         const tool = workitemsToolRegistry.get('list_work_items');
         await tool?.handler({
-          namespacePath: 'test-group',
+          namespace: 'test-group',
           first: 50,
           after: 'cursor-123',
         });
@@ -496,7 +496,7 @@ describe('Workitems Registry', () => {
         });
 
         const tool = workitemsToolRegistry.get('list_work_items');
-        const result = await tool?.handler({ namespacePath: 'empty-group' });
+        const result = await tool?.handler({ namespace: 'empty-group' });
 
         expect(result).toEqual({
           items: [],
@@ -519,7 +519,7 @@ describe('Workitems Registry', () => {
 
         const tool = workitemsToolRegistry.get('list_work_items');
         await tool?.handler({
-          namespacePath: 'test-group',
+          namespace: 'test-group',
           types: ['EPIC', 'ISSUE']
         });
 
@@ -539,7 +539,7 @@ describe('Workitems Registry', () => {
       it('should validate required parameters', async () => {
         const tool = workitemsToolRegistry.get('list_work_items');
 
-        // Missing namespacePath should throw validation error
+        // Missing namespace should throw validation error
         await expect(tool?.handler({})).rejects.toThrow();
       });
 
@@ -582,7 +582,7 @@ describe('Workitems Registry', () => {
 
         const tool = workitemsToolRegistry.get('list_work_items');
         const result: any = await tool?.handler({
-          namespacePath: 'test-project',
+          namespace: 'test-project',
           simple: true
         });
 
@@ -636,7 +636,7 @@ describe('Workitems Registry', () => {
 
         const tool = workitemsToolRegistry.get('list_work_items');
         const result: any = await tool?.handler({
-          namespacePath: 'test-project',
+          namespace: 'test-project',
           simple: true
         });
 
@@ -705,7 +705,7 @@ describe('Workitems Registry', () => {
 
         const tool = workitemsToolRegistry.get('create_work_item');
         const result = await tool?.handler({
-          namespacePath: 'test-group',
+          namespace: 'test-group',
           workItemType: 'EPIC',
           title: 'New Epic',
         });
@@ -737,7 +737,7 @@ describe('Workitems Registry', () => {
 
         const tool = workitemsToolRegistry.get('create_work_item');
         await tool?.handler({
-          namespacePath: 'test-group',
+          namespace: 'test-group',
           workItemType: 'EPIC',
           title: 'Epic with Description',
           description: 'Detailed description',
@@ -750,7 +750,7 @@ describe('Workitems Registry', () => {
         const tool = workitemsToolRegistry.get('create_work_item');
 
         await expect(tool?.handler({
-          namespacePath: 'test-group',
+          namespace: 'test-group',
           workItemType: 'INVALID_TYPE',
           title: 'Failed Epic',
         })).rejects.toThrow();
@@ -856,7 +856,7 @@ describe('Workitems Registry', () => {
         const tool = workitemsToolRegistry.get('list_work_items');
 
         // Should throw the error, not return empty array
-        await expect(tool?.handler({ namespacePath: 'test-group' })).rejects.toThrow('Network error');
+        await expect(tool?.handler({ namespace: 'test-group' })).rejects.toThrow('Network error');
       });
 
       it('should handle work item type not found error in create_work_item', async () => {
@@ -865,7 +865,7 @@ describe('Workitems Registry', () => {
         // Use a work item type that passes schema validation but isn't in our mocked getWorkItemTypes
         // Our mock only has Epic, Issue, Task - but INCIDENT is schema-valid
         await expect(tool?.handler({
-          namespacePath: 'test-group',
+          namespace: 'test-group',
           workItemType: 'INCIDENT',
           title: 'Test Epic',
         })).rejects.toThrow('Work item type "INCIDENT" not found in namespace "test-group"');
@@ -883,7 +883,7 @@ describe('Workitems Registry', () => {
         const tool = workitemsToolRegistry.get('create_work_item');
 
         await expect(tool?.handler({
-          namespacePath: 'test-group',
+          namespace: 'test-group',
           workItemType: 'EPIC',
           title: '',
         })).rejects.toThrow('GitLab GraphQL errors: Validation failed, Title is required');
@@ -910,7 +910,7 @@ describe('Workitems Registry', () => {
         const tool = workitemsToolRegistry.get('create_work_item');
 
         await expect(tool?.handler({
-          namespacePath: 'test-group',
+          namespace: 'test-group',
           workItemType: 'EPIC',
           title: 'Test Epic',
         })).rejects.toThrow('Work item creation failed - no work item returned');
@@ -965,17 +965,17 @@ describe('Workitems Registry', () => {
       it('should handle schema validation errors', async () => {
         const tool = workitemsToolRegistry.get('list_work_items');
 
-        // Missing required namespacePath
+        // Missing required namespace
         await expect(tool?.handler({})).rejects.toThrow();
 
         // Invalid types format
         await expect(tool?.handler({
-          namespacePath: 'test-group',
+          namespace: 'test-group',
           types: 'INVALID_FORMAT' // Should be array
         })).rejects.toThrow();
 
         // Invalid parameter types
-        await expect(tool?.handler({ namespacePath: 123 })).rejects.toThrow();
+        await expect(tool?.handler({ namespace: 123 })).rejects.toThrow();
       });
     });
 

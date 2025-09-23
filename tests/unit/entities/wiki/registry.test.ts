@@ -348,7 +348,7 @@ describe('Wiki Registry', () => {
         } as any);
 
         const handler = wikiToolRegistry.get('list_wiki_pages')!.handler;
-        const result = await handler({ namespacePath: 'test-project' });
+        const result = await handler({ namespace: 'test-project' });
 
         expect(mockEnhancedFetch).toHaveBeenCalledTimes(2);
         expect(result).toEqual(mockWikiPages);
@@ -373,7 +373,7 @@ describe('Wiki Registry', () => {
         } as any);
 
         const handler = wikiToolRegistry.get('list_wiki_pages')!.handler;
-        const result = await handler({ namespacePath: 'test-group' });
+        const result = await handler({ namespace: 'test-group' });
 
         expect(mockEnhancedFetch).toHaveBeenCalledTimes(2);
         expect(result).toEqual(mockWikiPages);
@@ -397,7 +397,7 @@ describe('Wiki Registry', () => {
 
         const handler = wikiToolRegistry.get('list_wiki_pages')!.handler;
 
-        await expect(handler({ namespacePath: 'invalid-project' }))
+        await expect(handler({ namespace: 'invalid-project' }))
           .rejects.toThrow('GitLab API error: 404 Not Found');
       });
     });
@@ -423,7 +423,7 @@ describe('Wiki Registry', () => {
 
         const handler = wikiToolRegistry.get('get_wiki_page')!.handler;
         const result = await handler({
-          namespacePath: 'test-project',
+          namespace: 'test-project',
           slug: 'home'
         });
 
@@ -453,7 +453,7 @@ describe('Wiki Registry', () => {
 
         const handler = wikiToolRegistry.get('create_wiki_page')!.handler;
         const result = await handler({
-          namespacePath: 'test-project',
+          namespace: 'test-project',
           title: 'New Page',
           content: 'New content'
         });
@@ -482,7 +482,7 @@ describe('Wiki Registry', () => {
 
         const handler = wikiToolRegistry.get('create_wiki_page')!.handler;
         const result = await handler({
-          namespacePath: 'test-group',
+          namespace: 'test-group',
           title: 'Group Page',
           content: 'Group content',
           format: 'markdown'
@@ -515,7 +515,7 @@ describe('Wiki Registry', () => {
 
         const handler = wikiToolRegistry.get('list_wiki_pages')!.handler;
 
-        await expect(handler({ namespacePath: 'test-project' }))
+        await expect(handler({ namespace: 'test-project' }))
           .rejects.toThrow('Network error');
       });
     });

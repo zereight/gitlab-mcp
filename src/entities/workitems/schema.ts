@@ -10,29 +10,29 @@ import {
  *
  * Work items in GitLab have STRICT level restrictions that CANNOT be violated:
  *
- * GROUP LEVEL ONLY (use group path in namespacePath):
+ * GROUP LEVEL ONLY (use group path in namespace):
  * - Epic work items - ONLY exist at group level, NEVER at project level
- * - Use namespacePath like "my-group" or "parent-group/sub-group"
+ * - Use namespace like "my-group" or "parent-group/sub-group"
  *
- * PROJECT LEVEL ONLY (use project path in namespacePath):
+ * PROJECT LEVEL ONLY (use project path in namespace):
  * - Issue work items - ONLY exist at project level, NEVER at group level
  * - Task work items - ONLY exist at project level, NEVER at group level
  * - Bug work items - ONLY exist at project level, NEVER at group level
- * - Use namespacePath like "group/project" or "group/subgroup/project"
+ * - Use namespace like "group/project" or "group/subgroup/project"
  *
  * FORBIDDEN PATTERNS (will always fail):
- * - Creating Epic with project namespacePath
- * - Creating Issue/Task/Bug with group namespacePath
+ * - Creating Epic with project namespace
+ * - Creating Issue/Task/Bug with group namespace
  *
  * EXAMPLES:
- * Epic: namespacePath="my-group", workItemType="EPIC"
- * Issue: namespacePath="my-group/my-project", workItemType="ISSUE"
- * Task: namespacePath="my-group/my-project", workItemType="TASK"
- * Epic: namespacePath="my-group/my-project" (WRONG - will fail)
- * Issue: namespacePath="my-group" (WRONG - will fail)
+ * Epic: namespace="my-group", workItemType="EPIC"
+ * Issue: namespace="my-group/my-project", workItemType="ISSUE"
+ * Task: namespace="my-group/my-project", workItemType="TASK"
+ * Epic: namespace="my-group/my-project" (WRONG - will fail)
+ * Issue: namespace="my-group" (WRONG - will fail)
  */
 export const CreateWorkItemSchema = z.object({
-  namespacePath: z
+  namespace: z
     .string()
     .describe(
       'CRITICAL: Namespace path (group OR project). For Epics use GROUP path (e.g. "my-group"). For Issues/Tasks use PROJECT path (e.g. "my-group/my-project"). Wrong level will cause creation to fail.'

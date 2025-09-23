@@ -28,10 +28,10 @@ export const variablesToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
       inputSchema: zodToJsonSchema(ListVariablesSchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = ListVariablesSchema.parse(args);
-        const { namespacePath } = options;
+        const { namespace } = options;
 
         // Resolve namespace type and get proper API path
-        const { entityType, encodedPath } = await resolveNamespaceForAPI(namespacePath);
+        const { entityType, encodedPath } = await resolveNamespaceForAPI(namespace);
 
         const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/${entityType}/${encodedPath}/variables`;
         const response = await enhancedFetch(apiUrl, {
@@ -83,10 +83,10 @@ export const variablesToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
       inputSchema: zodToJsonSchema(GetVariableSchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = GetVariableSchema.parse(args);
-        const { namespacePath, key, filter } = options;
+        const { namespace, key, filter } = options;
 
         // Resolve namespace type and get proper API path
-        const { entityType, encodedPath } = await resolveNamespaceForAPI(namespacePath);
+        const { entityType, encodedPath } = await resolveNamespaceForAPI(namespace);
 
         const queryParams = new URLSearchParams();
         if (filter?.environment_scope) {
@@ -144,14 +144,14 @@ export const variablesToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
       inputSchema: zodToJsonSchema(CreateVariableSchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = CreateVariableSchema.parse(args);
-        const { namespacePath } = options;
+        const { namespace } = options;
 
         // Resolve namespace type and get proper API path
-        const { entityType, encodedPath } = await resolveNamespaceForAPI(namespacePath);
+        const { entityType, encodedPath } = await resolveNamespaceForAPI(namespace);
 
         const body: Record<string, unknown> = {};
         Object.entries(options).forEach(([key, value]) => {
-          if (value !== undefined && value !== null && key !== "namespacePath") {
+          if (value !== undefined && value !== null && key !== "namespace") {
             body[key] = value;
           }
         });
@@ -209,17 +209,17 @@ export const variablesToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
       inputSchema: zodToJsonSchema(UpdateVariableSchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = UpdateVariableSchema.parse(args);
-        const { namespacePath, key, filter } = options;
+        const { namespace, key, filter } = options;
 
         // Resolve namespace type and get proper API path
-        const { entityType, encodedPath } = await resolveNamespaceForAPI(namespacePath);
+        const { entityType, encodedPath } = await resolveNamespaceForAPI(namespace);
 
         const body: Record<string, unknown> = {};
         Object.entries(options).forEach(([k, value]) => {
           if (
             value !== undefined &&
             value !== null &&
-            k !== "namespacePath" &&
+            k !== "namespace" &&
             k !== "key" &&
             k !== "filter"
           ) {
@@ -286,10 +286,10 @@ export const variablesToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
       inputSchema: zodToJsonSchema(DeleteVariableSchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = DeleteVariableSchema.parse(args);
-        const { namespacePath, key, filter } = options;
+        const { namespace, key, filter } = options;
 
         // Resolve namespace type and get proper API path
-        const { entityType, encodedPath } = await resolveNamespaceForAPI(namespacePath);
+        const { entityType, encodedPath } = await resolveNamespaceForAPI(namespace);
 
         // Add filter as query parameter if provided
         const queryParams = new URLSearchParams();

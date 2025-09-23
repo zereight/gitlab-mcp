@@ -36,7 +36,7 @@ const variableKey = z.preprocess(
 
 // Create variable schema (write)
 export const CreateVariableSchema = z.object({
-  namespacePath: z.string().describe("Namespace path (group or project) to create variable in"),
+  namespace: z.string().describe("Namespace path (group or project) to create variable in"),
   key: variableKey.describe(
     "The unique key for the CI/CD variable. Maximum 255 characters, only alphanumeric and underscore characters allowed. Used to reference the variable in CI/CD pipelines (e.g., $MY_API_KEY)"
   ),
@@ -86,7 +86,7 @@ export const CreateVariableSchema = z.object({
 
 // Update variable schema (write)
 export const UpdateVariableSchema = z.object({
-  namespacePath: z.string().describe("Namespace path (group or project) containing the variable"),
+  namespace: z.string().describe("Namespace path (group or project) containing the variable"),
   key: z
     .string()
     .describe(
@@ -144,7 +144,7 @@ export const UpdateVariableSchema = z.object({
 
 // Delete variable schema (write)
 export const DeleteVariableSchema = z.object({
-  namespacePath: z.string().describe("Namespace path (group or project) containing the variable"),
+  namespace: z.string().describe("Namespace path (group or project) containing the variable"),
   key: z
     .string()
     .describe(

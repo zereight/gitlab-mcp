@@ -2,14 +2,14 @@ import { z } from "zod";
 
 // Write-only wiki operation schemas
 export const CreateWikiPageSchema = z.object({
-  namespacePath: z.string().describe("Namespace path (group or project) to create wiki page in"),
+  namespace: z.string().describe("Namespace path (group or project) to create wiki page in"),
   title: z.string().describe("Title of the wiki page"),
   content: z.string().describe("Content of the wiki page"),
   format: z.string().optional().describe("Content format, e.g., markdown, rdoc"),
 });
 
 export const UpdateWikiPageSchema = z.object({
-  namespacePath: z.string().describe("Namespace path (group or project) containing the wiki page"),
+  namespace: z.string().describe("Namespace path (group or project) containing the wiki page"),
   slug: z.string().describe("URL-encoded slug of the wiki page"),
   title: z.string().optional().describe("New title of the wiki page"),
   content: z.string().optional().describe("New content of the wiki page"),
@@ -17,7 +17,7 @@ export const UpdateWikiPageSchema = z.object({
 });
 
 export const DeleteWikiPageSchema = z.object({
-  namespacePath: z.string().describe("Namespace path (group or project) containing the wiki page"),
+  namespace: z.string().describe("Namespace path (group or project) containing the wiki page"),
   slug: z.string().describe("URL-encoded slug of the wiki page"),
 });
 

@@ -25,7 +25,7 @@ export const GitLabMilestonesSchema = z.object({
 // Schema for listing project/group milestones
 export const ListProjectMilestonesSchema = z
   .object({
-    namespacePath: z.string().describe("Namespace path (group or project) to list milestones from"),
+    namespace: z.string().describe("Namespace path (group or project) to list milestones from"),
     iids: z
       .array(z.string())
       .optional()
@@ -56,7 +56,7 @@ export const ListProjectMilestonesSchema = z
 
 // Base schema for milestone operations
 const GetProjectMilestoneBaseSchema = z.object({
-  namespacePath: z.string().describe("Namespace path (group or project) containing the milestone"),
+  namespace: z.string().describe("Namespace path (group or project) containing the milestone"),
   milestone_id: z.coerce.string().describe("The ID of a project or group milestone"),
 });
 

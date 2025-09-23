@@ -10,7 +10,7 @@ export const CreateRepositorySchema = z.object({
     .describe(
       'Project display name. Can contain spaces and special characters. Example: "My Awesome Project".'
     ),
-  namespacePath: z
+  namespace: z
     .string()
     .optional()
     .describe(

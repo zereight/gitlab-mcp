@@ -21,14 +21,14 @@ export const wikiToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
       inputSchema: zodToJsonSchema(ListWikiPagesSchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = ListWikiPagesSchema.parse(args);
-        const { namespacePath } = options;
+        const { namespace } = options;
 
         // Resolve namespace type and get proper API path
-        const { entityType, encodedPath } = await resolveNamespaceForAPI(namespacePath);
+        const { entityType, encodedPath } = await resolveNamespaceForAPI(namespace);
 
         const queryParams = new URLSearchParams();
         Object.entries(options).forEach(([key, value]) => {
-          if (value !== undefined && value !== null && key !== "namespacePath") {
+          if (value !== undefined && value !== null && key !== "namespace") {
             queryParams.set(key, String(value));
           }
         });
@@ -58,14 +58,14 @@ export const wikiToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
       inputSchema: zodToJsonSchema(GetWikiPageSchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = GetWikiPageSchema.parse(args);
-        const { namespacePath, slug } = options;
+        const { namespace, slug } = options;
 
         // Resolve namespace type and get proper API path
-        const { entityType, encodedPath } = await resolveNamespaceForAPI(namespacePath);
+        const { entityType, encodedPath } = await resolveNamespaceForAPI(namespace);
 
         const queryParams = new URLSearchParams();
         Object.entries(options).forEach(([key, value]) => {
-          if (value !== undefined && value !== null && key !== "namespacePath" && key !== "slug") {
+          if (value !== undefined && value !== null && key !== "namespace" && key !== "slug") {
             queryParams.set(key, String(value));
           }
         });
@@ -96,14 +96,14 @@ export const wikiToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
       inputSchema: zodToJsonSchema(CreateWikiPageSchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = CreateWikiPageSchema.parse(args);
-        const { namespacePath } = options;
+        const { namespace } = options;
 
         // Resolve namespace type and get proper API path
-        const { entityType, encodedPath } = await resolveNamespaceForAPI(namespacePath);
+        const { entityType, encodedPath } = await resolveNamespaceForAPI(namespace);
 
         const body: Record<string, unknown> = {};
         Object.entries(options).forEach(([key, value]) => {
-          if (value !== undefined && value !== null && key !== "namespacePath") {
+          if (value !== undefined && value !== null && key !== "namespace") {
             body[key] = value;
           }
         });
@@ -136,14 +136,14 @@ export const wikiToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
       inputSchema: zodToJsonSchema(UpdateWikiPageSchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = UpdateWikiPageSchema.parse(args);
-        const { namespacePath, slug } = options;
+        const { namespace, slug } = options;
 
         // Resolve namespace type and get proper API path
-        const { entityType, encodedPath } = await resolveNamespaceForAPI(namespacePath);
+        const { entityType, encodedPath } = await resolveNamespaceForAPI(namespace);
 
         const body: Record<string, unknown> = {};
         Object.entries(options).forEach(([key, value]) => {
-          if (value !== undefined && value !== null && key !== "namespacePath" && key !== "slug") {
+          if (value !== undefined && value !== null && key !== "namespace" && key !== "slug") {
             body[key] = value;
           }
         });
@@ -176,10 +176,10 @@ export const wikiToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
       inputSchema: zodToJsonSchema(DeleteWikiPageSchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = DeleteWikiPageSchema.parse(args);
-        const { namespacePath, slug } = options;
+        const { namespace, slug } = options;
 
         // Resolve namespace type and get proper API path
-        const { entityType, encodedPath } = await resolveNamespaceForAPI(namespacePath);
+        const { entityType, encodedPath } = await resolveNamespaceForAPI(namespace);
 
         const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/${entityType}/${encodedPath}/wikis/${encodeURIComponent(slug)}`;
         const response = await enhancedFetch(apiUrl, {

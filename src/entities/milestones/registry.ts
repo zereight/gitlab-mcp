@@ -32,14 +32,14 @@ export const milestonesToolRegistry: ToolRegistry = new Map<string, EnhancedTool
       inputSchema: zodToJsonSchema(ListProjectMilestonesSchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = ListProjectMilestonesSchema.parse(args);
-        const { namespacePath } = options;
+        const { namespace } = options;
 
         // Resolve namespace type and get proper API path
-        const { entityType, encodedPath } = await resolveNamespaceForAPI(namespacePath);
+        const { entityType, encodedPath } = await resolveNamespaceForAPI(namespace);
 
         const queryParams = new URLSearchParams();
         Object.entries(options).forEach(([key, value]) => {
-          if (value !== undefined && value !== null && key !== "namespacePath") {
+          if (value !== undefined && value !== null && key !== "namespace") {
             queryParams.set(key, String(value));
           }
         });
@@ -69,10 +69,10 @@ export const milestonesToolRegistry: ToolRegistry = new Map<string, EnhancedTool
       inputSchema: zodToJsonSchema(GetProjectMilestoneSchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = GetProjectMilestoneSchema.parse(args);
-        const { namespacePath, milestone_id } = options;
+        const { namespace, milestone_id } = options;
 
         // Resolve namespace type and get proper API path
-        const { entityType, encodedPath } = await resolveNamespaceForAPI(namespacePath);
+        const { entityType, encodedPath } = await resolveNamespaceForAPI(namespace);
 
         const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/${entityType}/${encodedPath}/milestones/${milestone_id}`;
         const response = await enhancedFetch(apiUrl, {
@@ -99,17 +99,17 @@ export const milestonesToolRegistry: ToolRegistry = new Map<string, EnhancedTool
       inputSchema: zodToJsonSchema(GetMilestoneIssuesSchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = GetMilestoneIssuesSchema.parse(args);
-        const { namespacePath, milestone_id } = options;
+        const { namespace, milestone_id } = options;
 
         // Resolve namespace type and get proper API path
-        const { entityType, encodedPath } = await resolveNamespaceForAPI(namespacePath);
+        const { entityType, encodedPath } = await resolveNamespaceForAPI(namespace);
 
         const queryParams = new URLSearchParams();
         Object.entries(options).forEach(([key, value]) => {
           if (
             value !== undefined &&
             value !== null &&
-            key !== "namespacePath" &&
+            key !== "namespace" &&
             key !== "milestone_id"
           ) {
             queryParams.set(key, String(value));
@@ -141,17 +141,17 @@ export const milestonesToolRegistry: ToolRegistry = new Map<string, EnhancedTool
       inputSchema: zodToJsonSchema(GetMilestoneMergeRequestsSchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = GetMilestoneMergeRequestsSchema.parse(args);
-        const { namespacePath, milestone_id } = options;
+        const { namespace, milestone_id } = options;
 
         // Resolve namespace type and get proper API path
-        const { entityType, encodedPath } = await resolveNamespaceForAPI(namespacePath);
+        const { entityType, encodedPath } = await resolveNamespaceForAPI(namespace);
 
         const queryParams = new URLSearchParams();
         Object.entries(options).forEach(([key, value]) => {
           if (
             value !== undefined &&
             value !== null &&
-            key !== "namespacePath" &&
+            key !== "namespace" &&
             key !== "milestone_id"
           ) {
             queryParams.set(key, String(value));
@@ -183,10 +183,10 @@ export const milestonesToolRegistry: ToolRegistry = new Map<string, EnhancedTool
       inputSchema: zodToJsonSchema(GetMilestoneBurndownEventsSchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = GetMilestoneBurndownEventsSchema.parse(args);
-        const { namespacePath, milestone_id } = options;
+        const { namespace, milestone_id } = options;
 
         // Resolve namespace type and get proper API path
-        const { entityType, encodedPath } = await resolveNamespaceForAPI(namespacePath);
+        const { entityType, encodedPath } = await resolveNamespaceForAPI(namespace);
 
         const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/${entityType}/${encodedPath}/milestones/${milestone_id}/burndown_events`;
         const response = await enhancedFetch(apiUrl, {
@@ -214,14 +214,14 @@ export const milestonesToolRegistry: ToolRegistry = new Map<string, EnhancedTool
       inputSchema: zodToJsonSchema(CreateProjectMilestoneSchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = CreateProjectMilestoneSchema.parse(args);
-        const { namespacePath } = options;
+        const { namespace } = options;
 
         // Resolve namespace type and get proper API path
-        const { entityType, encodedPath } = await resolveNamespaceForAPI(namespacePath);
+        const { entityType, encodedPath } = await resolveNamespaceForAPI(namespace);
 
         const body: Record<string, unknown> = {};
         Object.entries(options).forEach(([key, value]) => {
-          if (value !== undefined && value !== null && key !== "namespacePath") {
+          if (value !== undefined && value !== null && key !== "namespace") {
             body[key] = value;
           }
         });
@@ -254,17 +254,17 @@ export const milestonesToolRegistry: ToolRegistry = new Map<string, EnhancedTool
       inputSchema: zodToJsonSchema(EditProjectMilestoneSchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = EditProjectMilestoneSchema.parse(args);
-        const { namespacePath, milestone_id } = options;
+        const { namespace, milestone_id } = options;
 
         // Resolve namespace type and get proper API path
-        const { entityType, encodedPath } = await resolveNamespaceForAPI(namespacePath);
+        const { entityType, encodedPath } = await resolveNamespaceForAPI(namespace);
 
         const body: Record<string, unknown> = {};
         Object.entries(options).forEach(([key, value]) => {
           if (
             value !== undefined &&
             value !== null &&
-            key !== "namespacePath" &&
+            key !== "namespace" &&
             key !== "milestone_id"
           ) {
             body[key] = value;
@@ -299,10 +299,10 @@ export const milestonesToolRegistry: ToolRegistry = new Map<string, EnhancedTool
       inputSchema: zodToJsonSchema(DeleteProjectMilestoneSchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = DeleteProjectMilestoneSchema.parse(args);
-        const { namespacePath, milestone_id } = options;
+        const { namespace, milestone_id } = options;
 
         // Resolve namespace type and get proper API path
-        const { entityType, encodedPath } = await resolveNamespaceForAPI(namespacePath);
+        const { entityType, encodedPath } = await resolveNamespaceForAPI(namespace);
 
         const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/${entityType}/${encodedPath}/milestones/${milestone_id}`;
         const response = await enhancedFetch(apiUrl, {
@@ -330,10 +330,10 @@ export const milestonesToolRegistry: ToolRegistry = new Map<string, EnhancedTool
       inputSchema: zodToJsonSchema(PromoteProjectMilestoneSchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = PromoteProjectMilestoneSchema.parse(args);
-        const { namespacePath, milestone_id } = options;
+        const { namespace, milestone_id } = options;
 
         // Resolve namespace - for promote, we need to ensure it's a project
-        const { entityType, encodedPath } = await resolveNamespaceForAPI(namespacePath);
+        const { entityType, encodedPath } = await resolveNamespaceForAPI(namespace);
 
         if (entityType !== "projects") {
           throw new Error("Milestone promotion is only available for projects, not groups");

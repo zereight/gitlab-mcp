@@ -267,7 +267,7 @@ describe('Variables Registry', () => {
 
         const tool = variablesToolRegistry.get('list_variables')!;
         const result = await tool.handler({
-          namespacePath: 'test/project'
+          namespace: 'test/project'
         });
 
         expect(mockEnhancedFetch).toHaveBeenCalledTimes(2);
@@ -297,7 +297,7 @@ describe('Variables Registry', () => {
 
         const tool = variablesToolRegistry.get('list_variables')!;
         const result = await tool.handler({
-          namespacePath: 'test-group'
+          namespace: 'test-group'
         });
 
         expect(mockEnhancedFetch).toHaveBeenCalledWith(
@@ -331,7 +331,7 @@ describe('Variables Registry', () => {
         const tool = variablesToolRegistry.get('list_variables')!;
 
         await expect(tool.handler({
-          namespacePath: 'private/project'
+          namespace: 'private/project'
         })).rejects.toThrow('GitLab API error: 403 Error');
       });
     });
@@ -365,7 +365,7 @@ describe('Variables Registry', () => {
 
         const tool = variablesToolRegistry.get('get_variable')!;
         const result = await tool.handler({
-          namespacePath: 'test/project',
+          namespace: 'test/project',
           key: 'API_KEY'
         });
 
@@ -398,7 +398,7 @@ describe('Variables Registry', () => {
 
         const tool = variablesToolRegistry.get('get_variable')!;
         const result = await tool.handler({
-          namespacePath: 'test-group',
+          namespace: 'test-group',
           key: 'DB_URL',
           filter: {
             environment_scope: 'production'
@@ -429,7 +429,7 @@ describe('Variables Registry', () => {
         const tool = variablesToolRegistry.get('get_variable')!;
 
         await expect(tool.handler({
-          namespacePath: 'test/project',
+          namespace: 'test/project',
           key: 'NONEXISTENT_KEY'
         })).rejects.toThrow('GitLab API error: 404 Error');
       });
@@ -464,7 +464,7 @@ describe('Variables Registry', () => {
 
         const tool = variablesToolRegistry.get('create_variable')!;
         const result = await tool.handler({
-          namespacePath: 'test/project',
+          namespace: 'test/project',
           key: 'NEW_API_KEY',
           value: 'secret123'
         });
@@ -501,7 +501,7 @@ describe('Variables Registry', () => {
 
         const tool = variablesToolRegistry.get('create_variable')!;
         const result = await tool.handler({
-          namespacePath: 'test-group',
+          namespace: 'test-group',
           key: 'DEPLOY_KEY',
           value: 'ssh-rsa AAAAB3NzaC1yc2E...',
           variable_type: 'file',
@@ -534,7 +534,7 @@ describe('Variables Registry', () => {
         const tool = variablesToolRegistry.get('create_variable')!;
 
         await expect(tool.handler({
-          namespacePath: 'test/project',
+          namespace: 'test/project',
           key: 'EXISTING_KEY',
           value: 'value'
         })).rejects.toThrow('GitLab API error: 400 Error');
@@ -570,7 +570,7 @@ describe('Variables Registry', () => {
 
         const tool = variablesToolRegistry.get('update_variable')!;
         const result = await tool.handler({
-          namespacePath: 'test/project',
+          namespace: 'test/project',
           key: 'API_KEY',
           value: 'new-secret-value',
           protected: true,
@@ -606,7 +606,7 @@ describe('Variables Registry', () => {
 
         const tool = variablesToolRegistry.get('update_variable')!;
         const result = await tool.handler({
-          namespacePath: 'test-group',
+          namespace: 'test-group',
           key: 'DB_PASSWORD',
           value: 'new-password',
           filter: {
@@ -638,7 +638,7 @@ describe('Variables Registry', () => {
         const tool = variablesToolRegistry.get('update_variable')!;
 
         await expect(tool.handler({
-          namespacePath: 'test/project',
+          namespace: 'test/project',
           key: 'NONEXISTENT_KEY',
           value: 'value'
         })).rejects.toThrow('GitLab API error: 404 Error');
@@ -667,7 +667,7 @@ describe('Variables Registry', () => {
 
         const tool = variablesToolRegistry.get('delete_variable')!;
         const result = await tool.handler({
-          namespacePath: 'test/project',
+          namespace: 'test/project',
           key: 'OLD_API_KEY'
         });
 
@@ -696,7 +696,7 @@ describe('Variables Registry', () => {
 
         const tool = variablesToolRegistry.get('delete_variable')!;
         const result = await tool.handler({
-          namespacePath: 'test-group',
+          namespace: 'test-group',
           key: 'TEMP_TOKEN',
           filter: {
             environment_scope: 'development'
@@ -727,7 +727,7 @@ describe('Variables Registry', () => {
         const tool = variablesToolRegistry.get('delete_variable')!;
 
         await expect(tool.handler({
-          namespacePath: 'test/project',
+          namespace: 'test/project',
           key: 'NONEXISTENT_KEY'
         })).rejects.toThrow('GitLab API error: 404 Error');
       });
@@ -764,7 +764,7 @@ describe('Variables Registry', () => {
         const tool = variablesToolRegistry.get('list_variables')!;
 
         await expect(tool.handler({
-          namespacePath: 'test/project'
+          namespace: 'test/project'
         })).rejects.toThrow('GitLab API error: 500 Error');
       });
 
@@ -783,7 +783,7 @@ describe('Variables Registry', () => {
         const tool = variablesToolRegistry.get('create_variable')!;
 
         await expect(tool.handler({
-          namespacePath: 'test/project',
+          namespace: 'test/project',
           key: 'TEST_KEY',
           value: 'test-value'
         })).rejects.toThrow('Network error');

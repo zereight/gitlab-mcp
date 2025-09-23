@@ -204,7 +204,7 @@ export const GetProjectSchema = z.object({
     .describe(
       'Project identifier: numeric ID or URL-encoded path (e.g., "42" or "gitlab-org%2Fgitlab"). Path separator "/" must be encoded as %2F.'
     ),
-  namespacePath: z.coerce
+  namespace: z.coerce
     .string()
     .optional()
     .describe(

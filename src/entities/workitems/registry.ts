@@ -42,9 +42,9 @@ export const workitemsToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
       handler: async (args: unknown): Promise<unknown> => {
         console.log("list_work_items called with args:", JSON.stringify(args, null, 2));
         const options = ListWorkItemsSchema.parse(args);
-        const { namespacePath, types, state, first, after, simple, active } = options;
+        const { namespace, types, state, first, after, simple, active } = options;
         console.log("Parsed options:", {
-          namespacePath,
+          namespace,
           types,
           state,
           first,
@@ -225,7 +225,7 @@ export const workitemsToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
         const connectionManager = ConnectionManager.getInstance();
         const client = connectionManager.getClient();
 
-        console.log("Querying namespace:", namespacePath);
+        console.log("Querying namespace:", namespace);
 
         // For list_work_items GraphQL query, use type names as-is (GraphQL expects enum values)
         // No conversion needed - the GraphQL API expects EPIC, ISSUE, TASK enum values, not GIDs
@@ -233,7 +233,7 @@ export const workitemsToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
 
         // Query the namespace (works for both groups and projects)
         const workItemsResponse = await client.request(GET_NAMESPACE_WORK_ITEMS, {
-          namespacePath: namespacePath,
+          namespacePath: namespace,
           types: resolvedTypes,
           first: first || 20,
           after: after,
@@ -318,22 +318,15 @@ export const workitemsToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
       inputSchema: zodToJsonSchema(CreateWorkItemSchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = CreateWorkItemSchema.parse(args);
-        const {
-          namespacePath,
-          title,
-          workItemType,
-          description,
-          assigneeIds,
-          labelIds,
-          milestoneId,
-        } = options;
+        const { namespace, title, workItemType, description, assigneeIds, labelIds, milestoneId } =
+          options;
 
         // Get GraphQL client from ConnectionManager
         const connectionManager = ConnectionManager.getInstance();
         const client = connectionManager.getClient();
 
         // Convert simple type name to work item type GID
-        const workItemTypes = await getWorkItemTypes(namespacePath);
+        const workItemTypes = await getWorkItemTypes(namespace);
         const workItemTypeObj = workItemTypes.find(
           (t: WorkItemType) =>
             t.name.toUpperCase().replace(/\s+/g, "_") ===
@@ -342,13 +335,13 @@ export const workitemsToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
 
         if (!workItemTypeObj) {
           throw new Error(
-            `Work item type "${workItemType}" not found in namespace "${namespacePath}". Available types: ${workItemTypes.map(t => t.name).join(", ")}`
+            `Work item type "${workItemType}" not found in namespace "${namespace}". Available types: ${workItemTypes.map(t => t.name).join(", ")}`
           );
         }
 
         // Build input with widgets support for GitLab 18.3 API
         const input: WorkItemCreateInput = {
-          namespacePath,
+          namespacePath: namespace,
           title,
           workItemTypeId: workItemTypeObj.id,
         };

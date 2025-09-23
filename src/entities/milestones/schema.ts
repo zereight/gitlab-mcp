@@ -3,7 +3,7 @@ import { z } from "zod";
 // Write-only milestone operation schemas
 // Schema for creating a new milestone
 export const CreateProjectMilestoneSchema = z.object({
-  namespacePath: z.string().describe("Namespace path (group or project) to create milestone in"),
+  namespace: z.string().describe("Namespace path (group or project) to create milestone in"),
   title: z.string().describe("The title of the milestone"),
   description: z.string().optional().describe("The description of the milestone"),
   due_date: z.string().optional().describe("The due date of the milestone (YYYY-MM-DD)"),
@@ -12,7 +12,7 @@ export const CreateProjectMilestoneSchema = z.object({
 
 // Schema for editing a milestone
 export const EditProjectMilestoneSchema = z.object({
-  namespacePath: z.string().describe("Namespace path (group or project) containing the milestone"),
+  namespace: z.string().describe("Namespace path (group or project) containing the milestone"),
   milestone_id: z.coerce.string().describe("The ID of a project or group milestone"),
   title: z.string().optional().describe("The title of the milestone"),
   description: z.string().optional().describe("The description of the milestone"),
@@ -28,13 +28,13 @@ export const EditProjectMilestoneSchema = z.object({
 
 // Schema for deleting a milestone
 export const DeleteProjectMilestoneSchema = z.object({
-  namespacePath: z.string().describe("Namespace path (group or project) containing the milestone"),
+  namespace: z.string().describe("Namespace path (group or project) containing the milestone"),
   milestone_id: z.coerce.string().describe("The ID of a project or group milestone"),
 });
 
 // Schema for promoting a project milestone to a group milestone
 export const PromoteProjectMilestoneSchema = z.object({
-  namespacePath: z.string().describe("Namespace path (group or project) containing the milestone"),
+  namespace: z.string().describe("Namespace path (group or project) containing the milestone"),
   milestone_id: z.coerce.string().describe("The ID of a project or group milestone"),
 });
 

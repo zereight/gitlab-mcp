@@ -6,13 +6,13 @@ import { PaginationOptionsSchema } from "../shared";
 // List project/group variables schema (read-only)
 export const ListVariablesSchema = z
   .object({
-    namespacePath: z.string().describe("Namespace path (group or project) to list variables from"),
+    namespace: z.string().describe("Namespace path (group or project) to list variables from"),
   })
   .merge(PaginationOptionsSchema);
 
 // Get single variable schema (read-only)
 export const GetVariableSchema = z.object({
-  namespacePath: z.string().describe("Namespace path (group or project) containing the variable"),
+  namespace: z.string().describe("Namespace path (group or project) containing the variable"),
   key: z
     .string()
     .describe(

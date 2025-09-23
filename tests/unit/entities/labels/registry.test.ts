@@ -330,7 +330,7 @@ describe('Labels Registry', () => {
         } as any);
 
         const handler = labelsToolRegistry.get('list_labels')!.handler;
-        const result = await handler({ namespacePath: 'test-group/test-project' });
+        const result = await handler({ namespace: 'test-group/test-project' });
 
         expect(mockEnhancedFetch).toHaveBeenCalledWith(
           'https://gitlab.example.com/api/v4/projects/test-group%2Ftest-project/labels?',
@@ -353,7 +353,7 @@ describe('Labels Registry', () => {
         } as any);
 
         const handler = labelsToolRegistry.get('list_labels')!.handler;
-        const result = await handler({ namespacePath: 'test-group' });
+        const result = await handler({ namespace: 'test-group' });
 
         expect(mockEnhancedFetch).toHaveBeenCalledWith(
           'https://gitlab.example.com/api/v4/groups/test-group/labels?',
@@ -375,7 +375,7 @@ describe('Labels Registry', () => {
 
         const handler = labelsToolRegistry.get('list_labels')!.handler;
         await handler({
-          namespacePath: 'test-group/test-project',
+          namespace: 'test-group/test-project',
           search: 'bug'
         });
 
@@ -394,7 +394,7 @@ describe('Labels Registry', () => {
 
         const handler = labelsToolRegistry.get('list_labels')!.handler;
 
-        await expect(handler({ namespacePath: 'invalid-project' }))
+        await expect(handler({ namespace: 'invalid-project' }))
           .rejects.toThrow('GitLab API error: 404 Not Found');
       });
     });
@@ -416,7 +416,7 @@ describe('Labels Registry', () => {
 
         const handler = labelsToolRegistry.get('get_label')!.handler;
         const result = await handler({
-          namespacePath: 'test-project',
+          namespace: 'test-project',
           label_id: '1'
         });
 
@@ -447,7 +447,7 @@ describe('Labels Registry', () => {
 
         const handler = labelsToolRegistry.get('get_label')!.handler;
         const result = await handler({
-          namespacePath: 'test-group',
+          namespace: 'test-group',
           label_id: '2'
         });
 
@@ -480,7 +480,7 @@ describe('Labels Registry', () => {
 
         const handler = labelsToolRegistry.get('create_label')!.handler;
         const result = await handler({
-          namespacePath: 'test-project',
+          namespace: 'test-project',
           name: 'new-label',
           color: '#ffff00'
         });
@@ -515,7 +515,7 @@ describe('Labels Registry', () => {
 
         const handler = labelsToolRegistry.get('create_label')!.handler;
         const result = await handler({
-          namespacePath: 'test-group',
+          namespace: 'test-group',
           name: 'group-label',
           color: '#ff00ff',
           description: 'A group label'
@@ -553,7 +553,7 @@ describe('Labels Registry', () => {
 
         const handler = labelsToolRegistry.get('update_label')!.handler;
         const result = await handler({
-          namespacePath: 'test-project',
+          namespace: 'test-project',
           label_id: '1',
           color: '#cc0000'
         });
@@ -588,7 +588,7 @@ describe('Labels Registry', () => {
 
         const handler = labelsToolRegistry.get('update_label')!.handler;
         const result = await handler({
-          namespacePath: 'test-group',
+          namespace: 'test-group',
           label_id: '2',
           new_name: 'updated-feature',
           color: '#00cc00'
@@ -624,7 +624,7 @@ describe('Labels Registry', () => {
 
         const handler = labelsToolRegistry.get('delete_label')!.handler;
         const result = await handler({
-          namespacePath: 'test-project',
+          namespace: 'test-project',
           label_id: '1'
         });
 
@@ -654,7 +654,7 @@ describe('Labels Registry', () => {
 
         const handler = labelsToolRegistry.get('delete_label')!.handler;
         const result = await handler({
-          namespacePath: 'test-group',
+          namespace: 'test-group',
           label_id: '2'
         });
 
@@ -682,7 +682,7 @@ describe('Labels Registry', () => {
         const handler = labelsToolRegistry.get('delete_label')!.handler;
 
         await expect(handler({
-          namespacePath: 'test-project',
+          namespace: 'test-project',
           label_id: '1'
         })).rejects.toThrow('GitLab API error: 403 Forbidden');
       });
@@ -701,7 +701,7 @@ describe('Labels Registry', () => {
 
         const handler = labelsToolRegistry.get('list_labels')!.handler;
 
-        await expect(handler({ namespacePath: 'test-project' }))
+        await expect(handler({ namespace: 'test-project' }))
           .rejects.toThrow('Network error');
       });
 
@@ -714,7 +714,7 @@ describe('Labels Registry', () => {
 
         const handler = labelsToolRegistry.get('list_labels')!.handler;
 
-        await expect(handler({ namespacePath: 'test-project' }))
+        await expect(handler({ namespace: 'test-project' }))
           .rejects.toThrow('Invalid JSON');
       });
     });

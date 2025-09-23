@@ -34,7 +34,7 @@ export const WorkItemStateEventSchema = z
 
 // Read-only schemas
 export const ListWorkItemsSchema = z.object({
-  namespacePath: z
+  namespace: z
     .string()
     .describe(
       "Namespace path (group or project) to list work items from. Returns epics for groups, issues/tasks for projects."
@@ -73,9 +73,7 @@ export const GetWorkItemSchema = z.object({
 });
 
 export const GetWorkItemTypesSchema = z.object({
-  namespacePath: z
-    .string()
-    .describe("Namespace path (group or project) to get work item types for"),
+  namespace: z.string().describe("Namespace path (group or project) to get work item types for"),
 });
 
 // Type exports
