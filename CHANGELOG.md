@@ -1,3 +1,15 @@
+# [5.7.0](https://github.com/structured-world/gitlab-mcp/compare/v5.6.1...v5.7.0) (2025-09-23)
+
+
+### Bug Fixes
+
+* **files:** correct get_file_contents API endpoint and response handling ([62fb9f8](https://github.com/structured-world/gitlab-mcp/commit/62fb9f8f5bc0fabab2982382309449c6c975c6fa))
+
+
+### Features
+
+* **tests:** improve unit test coverage from 88.48% to 90.34% ([62d0f5b](https://github.com/structured-world/gitlab-mcp/commit/62d0f5b5a88143e397ebcc62139efea2a584d57c))
+
 ## [5.6.1](https://github.com/structured-world/gitlab-mcp/compare/v5.6.0...v5.6.1) (2025-09-23)
 
 
