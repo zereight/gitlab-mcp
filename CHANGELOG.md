@@ -1,3 +1,10 @@
+## [5.6.1](https://github.com/structured-world/gitlab-mcp/compare/v5.6.0...v5.6.1) (2025-09-23)
+
+
+### Bug Fixes
+
+* **core:** clarify verify_namespace tool description for agentic usage ([2871398](https://github.com/structured-world/gitlab-mcp/commit/2871398b177875a6ca70128dcc2eca0c87fed94a))
+
 # [5.6.0](https://github.com/structured-world/gitlab-mcp/compare/v5.5.0...v5.6.0) (2025-09-21)
 
 
