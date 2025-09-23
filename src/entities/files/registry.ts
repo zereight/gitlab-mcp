@@ -62,7 +62,7 @@ export const filesToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefin
           queryParams.set("ref", ref);
         }
 
-        const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${normalizeProjectId(project_id)}/repository/files/${encodeURIComponent(file_path)}?${queryParams}`;
+        const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${normalizeProjectId(project_id)}/repository/files/${encodeURIComponent(file_path)}/raw?${queryParams}`;
         const response = await enhancedFetch(apiUrl, {
           headers: {
             Authorization: `Bearer ${process.env.GITLAB_TOKEN}`,
@@ -73,8 +73,17 @@ export const filesToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefin
           throw new Error(`GitLab API error: ${response.status} ${response.statusText}`);
         }
 
-        const file = await response.json();
-        return cleanGidsFromObject(file);
+        // Raw endpoint returns the file content directly, not JSON
+        const content = await response.text();
+
+        // Return structured response with file metadata
+        return {
+          file_path: file_path,
+          ref: ref || "HEAD",
+          size: content.length,
+          content: content,
+          content_type: response.headers.get("content-type") || "text/plain",
+        };
       },
     },
   ],

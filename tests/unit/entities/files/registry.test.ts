@@ -220,7 +220,11 @@ describe('Files Registry', () => {
       ok,
       status,
       statusText: ok ? 'OK' : 'Error',
-      json: jest.fn().mockResolvedValue(data)
+      json: jest.fn().mockResolvedValue(data),
+      text: jest.fn().mockResolvedValue(typeof data === 'string' ? data : JSON.stringify(data)),
+      headers: {
+        get: jest.fn().mockReturnValue('text/plain; charset=utf-8')
+      }
     });
 
     describe('get_repository_tree handler', () => {
@@ -284,15 +288,8 @@ describe('Files Registry', () => {
 
     describe('get_file_contents handler', () => {
       it('should get file contents', async () => {
-        const mockFile = {
-          file_name: 'README.md',
-          file_path: 'README.md',
-          size: 1024,
-          encoding: 'base64',
-          content: 'VGVzdCBjb250ZW50',
-          ref: 'main'
-        };
-        mockEnhancedFetch.mockResolvedValueOnce(mockResponse(mockFile) as any);
+        const mockFileContent = 'Test content from README.md';
+        mockEnhancedFetch.mockResolvedValueOnce(mockResponse(mockFileContent) as any);
 
         const tool = filesToolRegistry.get('get_file_contents')!;
         const result = await tool.handler({
@@ -301,31 +298,44 @@ describe('Files Registry', () => {
         });
 
         expect(mockEnhancedFetch).toHaveBeenCalledWith(
-          'https://gitlab.example.com/api/v4/projects/test%2Fproject/repository/files/README.md?',
+          'https://gitlab.example.com/api/v4/projects/test%2Fproject/repository/files/README.md/raw?',
           {
             headers: {
               Authorization: 'Bearer test-token-12345'
             }
           }
         );
-        expect(result).toEqual(mockFile);
+        expect(result).toEqual({
+          file_path: 'README.md',
+          ref: 'HEAD',
+          size: mockFileContent.length,
+          content: mockFileContent,
+          content_type: 'text/plain; charset=utf-8'
+        });
       });
 
       it('should get file contents with ref parameter', async () => {
-        const mockFile = { file_name: 'config.json', content: 'eyJjb25maWciOiJ0ZXN0In0=' };
-        mockEnhancedFetch.mockResolvedValueOnce(mockResponse(mockFile) as any);
+        const mockFileContent = '{"config": "test"}';
+        mockEnhancedFetch.mockResolvedValueOnce(mockResponse(mockFileContent) as any);
 
         const tool = filesToolRegistry.get('get_file_contents')!;
-        await tool.handler({
+        const result = await tool.handler({
           project_id: 'test/project',
           file_path: 'config/config.json',
           ref: 'feature-branch'
         });
 
         expect(mockEnhancedFetch).toHaveBeenCalledWith(
-          'https://gitlab.example.com/api/v4/projects/test%2Fproject/repository/files/config%2Fconfig.json?ref=feature-branch',
+          'https://gitlab.example.com/api/v4/projects/test%2Fproject/repository/files/config%2Fconfig.json/raw?ref=feature-branch',
           expect.any(Object)
         );
+        expect(result).toEqual({
+          file_path: 'config/config.json',
+          ref: 'feature-branch',
+          size: mockFileContent.length,
+          content: mockFileContent,
+          content_type: 'text/plain; charset=utf-8'
+        });
       });
 
       it('should handle file not found errors', async () => {
