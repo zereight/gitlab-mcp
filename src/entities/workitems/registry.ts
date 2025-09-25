@@ -37,7 +37,7 @@ export const workitemsToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
     {
       name: "list_work_items",
       description:
-        "List work items from a namespace (groups or projects). Core tool for tracking issues, epics, tasks, and incidents. Shows existing label usage patterns for better labeling decisions. Supports 9 work item types including Test Cases and Requirements. Returns open items by default. Filter by type, state, with pagination. Groups contain Epics; projects contain Issues/Tasks/Incidents. Use with list_labels to understand complete taxonomy.",
+        "List work items from a namespace (groups or projects). Core tool for tracking issues, epics, tasks, and incidents. Returns open items by default. Filter by type, state, with pagination support.",
       inputSchema: zodToJsonSchema(ListWorkItemsSchema),
       handler: async (args: unknown): Promise<unknown> => {
         console.log("list_work_items called with args:", JSON.stringify(args, null, 2));

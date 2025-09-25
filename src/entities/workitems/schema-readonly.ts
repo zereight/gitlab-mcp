@@ -57,7 +57,7 @@ export const ListWorkItemsSchema = z.object({
     .optional()
     .default(true)
     .describe(
-      "Return simplified structure with essential fields only (id, title, state, type, assignees, labels). Set false for full details."
+      "Return simplified structure with essential fields only (id, title, state, type, assignees, labels). RECOMMENDED: Use default true for most cases. Only set false when full widget details are specifically needed."
     ),
   active: z
     .boolean()
