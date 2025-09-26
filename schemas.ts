@@ -2074,3 +2074,13 @@ export type GitLabEvent = z.infer<typeof GitLabEventSchema>;
 export type GitLabEventAuthor = z.infer<typeof GitLabEventAuthorSchema>;
 export type ListEventsOptions = z.infer<typeof ListEventsSchema>;
 export type GetProjectEventsOptions = z.infer<typeof GetProjectEventsSchema>;
+
+// GraphQL generic execution schema
+export const ExecuteGraphQLSchema = z.object({
+  query: z.string().describe("GraphQL query string"),
+  variables: z
+    .record(z.any())
+    .optional()
+    .describe("Variables object for the GraphQL query"),
+});
+export type ExecuteGraphQLOptions = z.infer<typeof ExecuteGraphQLSchema>;
