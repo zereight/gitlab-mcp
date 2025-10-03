@@ -122,7 +122,9 @@ const mcpTools: MCPTool[] = [
   { name: 'get_wiki_page', category: 'wiki', required: true },
   
   // 그룹 이터레이션 관련
-  { name: 'list_group_iterations', category: 'iteration', required: false }
+  { name: 'list_group_iterations', category: 'iteration', required: false },
+  
+  { name: 'rebase_branch', category: 'branch', required: false }
 ];
 
 // MCP 응답 파싱 함수
@@ -298,6 +300,13 @@ async function setupToolParameters(tool: MCPTool): Promise<Record<string, any>> 
       break;
     case 'verify_namespace':
       parameters.path = 'root';
+      break;
+    case 'rebase_branch':
+      // For testing rebase, we need source and target branches
+      // We'll use a simple test case - this is a read-only test so it won't actually perform the rebase
+      parameters.source_branch = 'main';
+      parameters.target_branch = 'main';
+      parameters.skip_ci = true;
       break;
   }
 

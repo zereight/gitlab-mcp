@@ -2069,8 +2069,25 @@ export type BulkPublishDraftNotesOptions = z.infer<typeof BulkPublishDraftNotesS
 export type GitLabMarkdownUpload = z.infer<typeof GitLabMarkdownUploadSchema>;
 export type MarkdownUploadOptions = z.infer<typeof MarkdownUploadSchema>;
 
+// Rebase related schemas
+export const RebaseBranchSchema = z.object({
+  project_id: z.coerce.string().describe("Project ID or complete URL-encoded path to project"),
+  source_branch: z.string().describe("The source branch to rebase"),
+  target_branch: z.string().describe("The target branch to rebase onto"),
+  skip_ci: z.boolean().optional().describe("Skip CI pipeline for rebase commits"),
+});
+
+export const GitLabRebaseResultSchema = z.object({
+  success: z.boolean(),
+  message: z.string(),
+  new_commit_sha: z.string().optional(),
+  conflicts: z.array(z.string()).optional(),
+});
+
 // Events API type exports
 export type GitLabEvent = z.infer<typeof GitLabEventSchema>;
 export type GitLabEventAuthor = z.infer<typeof GitLabEventAuthorSchema>;
 export type ListEventsOptions = z.infer<typeof ListEventsSchema>;
 export type GetProjectEventsOptions = z.infer<typeof GetProjectEventsSchema>;
+export type RebaseBranchOptions = z.infer<typeof RebaseBranchSchema>;
+export type GitLabRebaseResult = z.infer<typeof GitLabRebaseResultSchema>;
