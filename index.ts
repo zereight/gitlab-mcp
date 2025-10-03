@@ -195,7 +195,11 @@ import {
   GitLabEventSchema,
   ListEventsSchema,
   GetProjectEventsSchema,
-  GitLabEvent
+  GitLabEvent,
+  RebaseBranchSchema,
+  GitLabRebaseResultSchema,
+  type RebaseBranchOptions,
+  type GitLabRebaseResult
 } from "./schemas.js";
 
 import { randomUUID } from "crypto";
@@ -477,6 +481,11 @@ const allTools = [
     name: "get_branch_diffs",
     description: "Get the changes/diffs between two branches or commits in a GitLab project",
     inputSchema: toJSONSchema(GetBranchDiffsSchema),
+  },
+  {
+    name: "rebase_branch",
+    description: "Rebase a branch onto another branch by applying commits from the source branch to the target branch",
+    inputSchema: toJSONSchema(RebaseBranchSchema),
   },
   {
     name: "update_merge_request",
@@ -2249,6 +2258,364 @@ async function getBranchDiffs(
 
   const data = await response.json();
   return GitLabCompareResultSchema.parse(data);
+}
+
+/**
+ * Compare two branches to get commits that need to be rebased
+ * 
+ * @param {string} effectiveProjectId - The effective project ID
+ * @param {string} sourceBranch - The source branch
+ * @param {string} targetBranch - The target branch
+ * @returns {Promise<GitLabCompareResult>} The comparison result
+ */
+async function compareBranchesForRebase(
+  effectiveProjectId: string,
+  sourceBranch: string,
+  targetBranch: string
+): Promise<GitLabCompareResult> {
+  const compareUrl = new URL(
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(effectiveProjectId)}/repository/compare`
+  );
+  compareUrl.searchParams.append("from", targetBranch);
+  compareUrl.searchParams.append("to", sourceBranch);
+
+  const compareResponse = await fetch(compareUrl.toString(), {
+    ...DEFAULT_FETCH_CONFIG,
+  });
+
+  if (!compareResponse.ok) {
+    const errorBody = await compareResponse.text();
+    throw new Error(`Failed to compare branches: ${compareResponse.status} ${compareResponse.statusText}\n${errorBody}`);
+  }
+
+  return GitLabCompareResultSchema.parse(await compareResponse.json());
+}
+
+/**
+ * Get the latest commit SHA from a target branch
+ * 
+ * @param {string} effectiveProjectId - The effective project ID
+ * @param {string} targetBranch - The target branch
+ * @returns {Promise<string>} The target commit SHA
+ */
+async function getTargetBranchCommitSha(
+  effectiveProjectId: string,
+  targetBranch: string
+): Promise<string> {
+  const targetBranchUrl = new URL(
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(effectiveProjectId)}/repository/branches/${encodeURIComponent(targetBranch)}`
+  );
+
+  const targetBranchResponse = await fetch(targetBranchUrl.toString(), {
+    ...DEFAULT_FETCH_CONFIG,
+  });
+
+  if (!targetBranchResponse.ok) {
+    const errorBody = await targetBranchResponse.text();
+    throw new Error(`Failed to get target branch: ${targetBranchResponse.status} ${targetBranchResponse.statusText}\n${errorBody}`);
+  }
+
+  const targetBranchData = await targetBranchResponse.json() as any;
+  return targetBranchData.commit.id;
+}
+
+/**
+ * Create a temporary branch from the target branch for rebase operations
+ * 
+ * @param {string} effectiveProjectId - The effective project ID
+ * @param {string} targetBranch - The target branch to create temp branch from
+ * @returns {Promise<string>} The temporary branch name
+ */
+async function createTemporaryBranch(
+  effectiveProjectId: string,
+  targetBranch: string
+): Promise<string> {
+  const tempBranchName = `rebase-temp-${Date.now()}`;
+  const createTempBranchUrl = new URL(
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(effectiveProjectId)}/repository/branches`
+  );
+
+  const createTempBranchResponse = await fetch(createTempBranchUrl.toString(), {
+    ...DEFAULT_FETCH_CONFIG,
+    method: "POST",
+    body: JSON.stringify({
+      branch: tempBranchName,
+      ref: targetBranch,
+    }),
+  });
+
+  if (!createTempBranchResponse.ok) {
+    const errorBody = await createTempBranchResponse.text();
+    throw new Error(`Failed to create temporary branch: ${createTempBranchResponse.status} ${createTempBranchResponse.statusText}\n${errorBody}`);
+  }
+
+  return tempBranchName;
+}
+
+/**
+ * Apply commits from source branch to temporary branch one by one
+ * 
+ * @param {string} effectiveProjectId - The effective project ID
+ * @param {string} projectId - The original project ID for cleanup
+ * @param {GitLabCommit[]} commits - The commits to apply
+ * @param {string} tempBranchName - The temporary branch name
+ * @param {string} targetCommitSha - The initial target commit SHA
+ * @param {boolean} skipCi - Whether to skip CI
+ * @returns {Promise<{success: boolean, currentCommitSha?: string, error?: GitLabRebaseResult}>}
+ */
+async function applyCommitsToTempBranch(
+  effectiveProjectId: string,
+  projectId: string,
+  commits: GitLabCommit[],
+  tempBranchName: string,
+  targetCommitSha: string,
+  skipCi?: boolean
+): Promise<{success: boolean, currentCommitSha?: string, error?: GitLabRebaseResult}> {
+  let currentCommitSha = targetCommitSha;
+
+  for (const commit of commits.reverse()) { 
+    const commitDiffUrl = new URL(
+      `${GITLAB_API_URL}/projects/${encodeURIComponent(effectiveProjectId)}/repository/commits/${encodeURIComponent(commit.id)}/diff`
+    );
+
+    const commitDiffResponse = await fetch(commitDiffUrl.toString(), {
+      ...DEFAULT_FETCH_CONFIG,
+    });
+
+    if (!commitDiffResponse.ok) {
+      await deleteBranch(projectId, tempBranchName);
+      const errorBody = await commitDiffResponse.text();
+      throw new Error(`Failed to get commit diff: ${commitDiffResponse.status} ${commitDiffResponse.statusText}\n${errorBody}`);
+    }
+
+    const commitDiffs = await commitDiffResponse.json() as any[];
+
+    const actions = [];
+    for (const diff of commitDiffs) {
+      if (diff.new_file) {
+        const fileContentUrl = new URL(
+          `${GITLAB_API_URL}/projects/${encodeURIComponent(effectiveProjectId)}/repository/files/${encodeURIComponent(diff.new_path)}/raw`
+        );
+        fileContentUrl.searchParams.append("ref", commit.id);
+
+        const fileContentResponse = await fetch(fileContentUrl.toString(), {
+          ...DEFAULT_FETCH_CONFIG,
+        });
+
+        if (fileContentResponse.ok) {
+          const content = await fileContentResponse.text();
+          actions.push({
+            action: "create",
+            file_path: diff.new_path,
+            content: content,
+          });
+        }
+      } else if (diff.deleted_file) {
+        actions.push({
+          action: "delete",
+          file_path: diff.old_path,
+        });
+      } else if (diff.renamed_file) {
+        const fileContentUrl = new URL(
+          `${GITLAB_API_URL}/projects/${encodeURIComponent(effectiveProjectId)}/repository/files/${encodeURIComponent(diff.new_path)}/raw`
+        );
+        fileContentUrl.searchParams.append("ref", commit.id);
+
+        const fileContentResponse = await fetch(fileContentUrl.toString(), {
+          ...DEFAULT_FETCH_CONFIG,
+        });
+
+        if (fileContentResponse.ok) {
+          const content = await fileContentResponse.text();
+          actions.push({
+            action: "delete",
+            file_path: diff.old_path,
+          });
+          actions.push({
+            action: "create",
+            file_path: diff.new_path,
+            content: content,
+          });
+        }
+      } else {
+        const fileContentUrl = new URL(
+          `${GITLAB_API_URL}/projects/${encodeURIComponent(effectiveProjectId)}/repository/files/${encodeURIComponent(diff.new_path)}/raw`
+        );
+        fileContentUrl.searchParams.append("ref", commit.id);
+
+        const fileContentResponse = await fetch(fileContentUrl.toString(), {
+          ...DEFAULT_FETCH_CONFIG,
+        });
+
+        if (fileContentResponse.ok) {
+          const content = await fileContentResponse.text();
+          actions.push({
+            action: "update",
+            file_path: diff.new_path,
+            content: content,
+          });
+        }
+      }
+    }
+
+    if (actions.length > 0) {
+      const commitUrl = new URL(
+        `${GITLAB_API_URL}/projects/${encodeURIComponent(effectiveProjectId)}/repository/commits`
+      );
+
+      const commitPayload: any = {
+        branch: tempBranchName,
+        commit_message: commit.title || commit.message || "Rebased commit",
+        actions: actions,
+      };
+
+      if (skipCi) {
+        commitPayload.commit_message += " [skip ci]";
+      }
+
+      const commitResponse = await fetch(commitUrl.toString(), {
+        ...DEFAULT_FETCH_CONFIG,
+        method: "POST",
+        body: JSON.stringify(commitPayload),
+      });
+
+      if (!commitResponse.ok) {
+        await deleteBranch(projectId, tempBranchName);
+        const errorBody = await commitResponse.text();
+        
+        if (commitResponse.status === 400 && errorBody.includes("conflict")) {
+          return {
+            success: false,
+            error: {
+              success: false,
+              message: "Rebase failed due to conflicts",
+              conflicts: commitDiffs.map((d: any) => d.new_path || d.old_path).filter(Boolean),
+            }
+          };
+        }
+        
+        throw new Error(`Failed to create commit: ${commitResponse.status} ${commitResponse.statusText}\n${errorBody}`);
+      }
+
+      const commitResult = await commitResponse.json() as any;
+      currentCommitSha = commitResult.id;
+    }
+  }
+
+  return { success: true, currentCommitSha };
+}
+
+/**
+ * Update the source branch to point to the new rebased commit
+ * 
+ * @param {string} effectiveProjectId - The effective project ID
+ * @param {string} sourceBranch - The source branch to update
+ * @param {string} newCommitSha - The new commit SHA to point to
+ */
+async function updateSourceBranch(
+  effectiveProjectId: string,
+  sourceBranch: string,
+  newCommitSha: string
+): Promise<void> {
+  const updateBranchUrl = new URL(
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(effectiveProjectId)}/repository/branches/${encodeURIComponent(sourceBranch)}`
+  );
+
+  const updateBranchResponse = await fetch(updateBranchUrl.toString(), {
+    ...DEFAULT_FETCH_CONFIG,
+    method: "PUT",
+    body: JSON.stringify({
+      ref: newCommitSha,
+    }),
+  });
+
+  if (!updateBranchResponse.ok) {
+    const errorBody = await updateBranchResponse.text();
+    throw new Error(`Failed to update source branch: ${updateBranchResponse.status} ${updateBranchResponse.statusText}\n${errorBody}`);
+  }
+}
+
+/**
+ * Rebase a branch onto another branch
+ * This simulates a rebase operation using GitLab's API by creating a new branch
+ * from the target branch and applying commits from the source branch
+ *
+ * @param {string} projectId - The ID or URL-encoded path of the project
+ * @param {string} sourceBranch - The source branch to rebase
+ * @param {string} targetBranch - The target branch to rebase onto
+ * @param {boolean} skipCi - Skip CI pipeline for rebase commits
+ * @returns {Promise<GitLabRebaseResult>} The rebase result
+ */
+async function rebaseBranch(
+  projectId: string,
+  sourceBranch: string,
+  targetBranch: string,
+  skipCi?: boolean
+): Promise<GitLabRebaseResult> {
+  projectId = decodeURIComponent(projectId);
+  const effectiveProjectId = getEffectiveProjectId(projectId);
+
+  try {
+    const compareData = await compareBranchesForRebase(effectiveProjectId, sourceBranch, targetBranch);
+    
+    if (compareData.commits.length === 0) {
+      return {
+        success: true,
+        message: "No commits to rebase - branches are already up to date",
+      };
+    }
+
+    const targetCommitSha = await getTargetBranchCommitSha(effectiveProjectId, targetBranch);
+    const tempBranchName = await createTemporaryBranch(effectiveProjectId, targetBranch);
+    const applyResult = await applyCommitsToTempBranch(
+      effectiveProjectId,
+      projectId,
+      compareData.commits,
+      tempBranchName,
+      targetCommitSha,
+      skipCi
+    );
+
+    if (!applyResult.success) {
+      return applyResult.error!;
+    }
+
+    await updateSourceBranch(effectiveProjectId, sourceBranch, applyResult.currentCommitSha!);
+    await deleteBranch(projectId, tempBranchName);
+
+    return {
+      success: true,
+      message: `Successfully rebased ${sourceBranch} onto ${targetBranch}`,
+      new_commit_sha: applyResult.currentCommitSha,
+    };
+
+  } catch (error) {
+    return {
+      success: false,
+      message: `Rebase failed: ${error instanceof Error ? error.message : String(error)}`,
+    };
+  }
+}
+
+/**
+ * Delete a branch from a GitLab project
+ * Helper function for rebase cleanup
+ *
+ * @param {string} projectId - The ID or URL-encoded path of the project
+ * @param {string} branchName - The name of the branch to delete
+ */
+async function deleteBranch(projectId: string, branchName: string): Promise<void> {
+  projectId = decodeURIComponent(projectId);
+  const effectiveProjectId = getEffectiveProjectId(projectId);
+  
+  const url = new URL(
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(effectiveProjectId)}/repository/branches/${encodeURIComponent(branchName)}`
+  );
+
+  await fetch(url.toString(), {
+    ...DEFAULT_FETCH_CONFIG,
+    method: "DELETE",
+  });
 }
 
 /**
@@ -4418,6 +4785,19 @@ server.setRequestHandler(CallToolRequestSchema, async request => {
         }
         return {
           content: [{ type: "text", text: JSON.stringify(diffResp, null, 2) }],
+        };
+      }
+
+      case "rebase_branch": {
+        const args = RebaseBranchSchema.parse(request.params.arguments);
+        const result = await rebaseBranch(
+          args.project_id,
+          args.source_branch,
+          args.target_branch,
+          args.skip_ci
+        );
+        return {
+          content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
         };
       }
 
