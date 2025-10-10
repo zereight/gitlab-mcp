@@ -5,6 +5,7 @@ import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
+import { AsyncLocalStorage } from "async_hooks";
 import express, { Request, Response } from "express";
 import fetchCookie from "fetch-cookie";
 import fs from "fs";
@@ -251,6 +252,80 @@ const server = new Server(
   }
 );
 
+/**
+ * Validate configuration at startup
+ */
+function validateConfiguration(): void {
+  const errors: string[] = [];
+  
+  // Validate SESSION_TIMEOUT_SECONDS
+  const timeoutStr = process.env.SESSION_TIMEOUT_SECONDS;
+  if (timeoutStr) {
+    const timeout = parseInt(timeoutStr);
+    // Allow values >=1 for testing purposes, but recommend 60-86400 for production
+    if (isNaN(timeout) || timeout < 1 || timeout > 86400) {
+      errors.push(`SESSION_TIMEOUT_SECONDS must be between 1 and 86400 seconds, got: ${timeoutStr}`);
+    }
+    if (timeout < 60) {
+      logger.warn(`SESSION_TIMEOUT_SECONDS=${timeout} is below recommended minimum of 60 seconds. Only use low values for testing.`);
+    }
+  }
+  
+  // Validate MAX_SESSIONS
+  const maxSessionsStr = process.env.MAX_SESSIONS;
+  if (maxSessionsStr) {
+    const maxSessions = parseInt(maxSessionsStr);
+    if (isNaN(maxSessions) || maxSessions < 1 || maxSessions > 10000) {
+      errors.push(`MAX_SESSIONS must be between 1 and 10000, got: ${maxSessionsStr}`);
+    }
+  }
+  
+  // Validate MAX_REQUESTS_PER_MINUTE
+  const maxReqStr = process.env.MAX_REQUESTS_PER_MINUTE;
+  if (maxReqStr) {
+    const maxReq = parseInt(maxReqStr);
+    if (isNaN(maxReq) || maxReq < 1 || maxReq > 1000) {
+      errors.push(`MAX_REQUESTS_PER_MINUTE must be between 1 and 1000, got: ${maxReqStr}`);
+    }
+  }
+  
+  // Validate PORT
+  const portStr = process.env.PORT;
+  if (portStr) {
+    const port = parseInt(portStr);
+    if (isNaN(port) || port < 1 || port > 65535) {
+      errors.push(`PORT must be between 1 and 65535, got: ${portStr}`);
+    }
+  }
+  
+  // Validate GITLAB_API_URL format
+  const apiUrl = process.env.GITLAB_API_URL;
+  if (apiUrl) {
+    try {
+      new URL(apiUrl);
+    } catch (error) {
+      errors.push(`GITLAB_API_URL must be a valid URL, got: ${apiUrl}`);
+    }
+  }
+  
+  // Validate auth configuration
+  const remoteAuth = process.env.REMOTE_AUTHORIZATION === "true";
+  const hasToken = !!process.env.GITLAB_PERSONAL_ACCESS_TOKEN;
+  const hasCookie = !!process.env.GITLAB_AUTH_COOKIE_PATH;
+  
+  if (!remoteAuth && !hasToken && !hasCookie) {
+    errors.push('Either GITLAB_PERSONAL_ACCESS_TOKEN, GITLAB_AUTH_COOKIE_PATH, or REMOTE_AUTHORIZATION=true must be set');
+  }
+  
+  if (errors.length > 0) {
+    logger.error('Configuration validation failed:');
+    errors.forEach(err => logger.error(`  - ${err}`));
+    process.exit(1);
+  }
+  
+  logger.info('Configuration validation passed');
+}
+
 const GITLAB_PERSONAL_ACCESS_TOKEN = process.env.GITLAB_PERSONAL_ACCESS_TOKEN;
 const GITLAB_AUTH_COOKIE_PATH = process.env.GITLAB_AUTH_COOKIE_PATH;
 const IS_OLD = process.env.GITLAB_IS_OLD === "true";
@@ -261,6 +336,8 @@ const USE_MILESTONE = process.env.USE_MILESTONE === "true";
 const USE_PIPELINE = process.env.USE_PIPELINE === "true";
 const SSE = process.env.SSE === "true";
 const STREAMABLE_HTTP = process.env.STREAMABLE_HTTP === "true";
+const REMOTE_AUTHORIZATION = process.env.REMOTE_AUTHORIZATION === "true";
+const SESSION_TIMEOUT_SECONDS = process.env.SESSION_TIMEOUT_SECONDS ? parseInt(process.env.SESSION_TIMEOUT_SECONDS) : 3600;
 const HOST = process.env.HOST || "0.0.0.0";
 const PORT = process.env.PORT || 3002;
 // Add proxy configuration
@@ -380,20 +457,59 @@ async function ensureSessionForRequest(): Promise<void> {
   }
 }
 
-// Modify DEFAULT_HEADERS to include agent configuration
-const DEFAULT_HEADERS: Record<string, string> = {
+// Session auth context for remote authorization
+interface SessionAuth {
+  sessionId: string;
+  header: 'Authorization' | 'Private-Token';
+  token: string;
+  lastUsed: number;
+}
+
+interface AuthData {
+  header: 'Authorization' | 'Private-Token';
+  token: string;
+  lastUsed: number;
+}
+
+const sessionAuthStore = new AsyncLocalStorage<SessionAuth>();
+
+// Base headers without authentication
+const BASE_HEADERS: Record<string, string> = {
   Accept: "application/json",
   "Content-Type": "application/json",
 };
-if (IS_OLD) {
-  DEFAULT_HEADERS["Private-Token"] = `${GITLAB_PERSONAL_ACCESS_TOKEN}`;
-} else {
-  DEFAULT_HEADERS["Authorization"] = `Bearer ${GITLAB_PERSONAL_ACCESS_TOKEN}`;
+
+/**
+ * Build authentication headers dynamically based on context
+ * In REMOTE_AUTHORIZATION mode, reads from AsyncLocalStorage session context
+ * Otherwise, uses environment token
+ */
+function buildAuthHeaders(): Record<string, string> {
+  if (REMOTE_AUTHORIZATION) {
+    const ctx = sessionAuthStore.getStore();
+    if (ctx && ctx.token) {
+      return { 
+        [ctx.header]: ctx.header === 'Authorization' ? `Bearer ${ctx.token}` : ctx.token 
+      };
+    }
+    return {}; // No auth headers if no session context
+  }
+  
+  // Standard mode: use environment token
+  if (IS_OLD && GITLAB_PERSONAL_ACCESS_TOKEN) {
+    return { 'Private-Token': String(GITLAB_PERSONAL_ACCESS_TOKEN) };
+  }
+  if (GITLAB_PERSONAL_ACCESS_TOKEN) {
+    return { Authorization: `Bearer ${GITLAB_PERSONAL_ACCESS_TOKEN}` };
+  }
+  return {};
 }
 
 // Create a default fetch configuration object that includes proxy agents if set
 const DEFAULT_FETCH_CONFIG = {
-  headers: DEFAULT_HEADERS,
+  get headers() { 
+    return { ...BASE_HEADERS, ...buildAuthHeaders() }; 
+  },
   agent: (parsedUrl: URL) => {
     if (parsedUrl.protocol === "https:") {
       return httpsAgent;
@@ -978,9 +1094,26 @@ const GITLAB_ALLOWED_PROJECT_IDS = process.env.GITLAB_ALLOWED_PROJECT_IDS?.split
 
 const GITLAB_COMMIT_FILES_PER_PAGE = process.env.GITLAB_COMMIT_FILES_PER_PAGE ? parseInt(process.env.GITLAB_COMMIT_FILES_PER_PAGE) : 20;
 
-if (!GITLAB_PERSONAL_ACCESS_TOKEN) {
-  logger.error("GITLAB_PERSONAL_ACCESS_TOKEN environment variable is not set");
-  process.exit(1);
+// Validate authentication configuration
+if (REMOTE_AUTHORIZATION) {
+  // Remote authorization mode: token comes from HTTP headers
+  if (SSE) {
+    logger.error("REMOTE_AUTHORIZATION=true is not compatible with SSE transport mode");
+    logger.error("Please use STREAMABLE_HTTP=true instead");
+    process.exit(1);
+  }
+  if (!STREAMABLE_HTTP) {
+    logger.error("REMOTE_AUTHORIZATION=true requires STREAMABLE_HTTP=true");
+    logger.error("Set STREAMABLE_HTTP=true to enable remote authorization");
+    process.exit(1);
+  }
+  logger.info("Remote authorization enabled: tokens will be read from HTTP headers");
+} else {
+  // Standard mode: token must be in environment
+  if (!GITLAB_PERSONAL_ACCESS_TOKEN) {
+    logger.error("GITLAB_PERSONAL_ACCESS_TOKEN environment variable is not set");
+    process.exit(1);
+  }
 }
 
 /**
@@ -3384,7 +3517,8 @@ async function getPipelineJobOutput(
   const response = await fetch(url.toString(), {
     ...DEFAULT_FETCH_CONFIG,
     headers: {
-      ...DEFAULT_HEADERS,
+      ...BASE_HEADERS,
+      ...buildAuthHeaders(),
       Accept: "text/plain", // Override Accept header to get plain text
     },
   });
@@ -3450,7 +3584,10 @@ async function createPipeline(
 
   const response = await fetch(url.toString(), {
     method: "POST",
-    headers: DEFAULT_HEADERS,
+    headers: {
+      ...BASE_HEADERS,
+      ...buildAuthHeaders(),
+    },
     body: JSON.stringify(body),
   });
 
@@ -3477,7 +3614,10 @@ async function retryPipeline(
 
   const response = await fetch(url.toString(), {
     method: "POST",
-    headers: DEFAULT_HEADERS,
+    headers: {
+      ...BASE_HEADERS,
+      ...buildAuthHeaders(),
+    },
   });
 
   await handleGitLabError(response);
@@ -3503,7 +3643,10 @@ async function cancelPipeline(
 
   const response = await fetch(url.toString(), {
     method: "POST",
-    headers: DEFAULT_HEADERS,
+    headers: {
+      ...BASE_HEADERS,
+      ...buildAuthHeaders(),
+    },
   });
 
   await handleGitLabError(response);
@@ -3620,13 +3763,9 @@ async function getRepositoryTree(options: GetRepositoryTreeOptions): Promise<Git
   if (options.pagination) queryParams.append("pagination", options.pagination);
 
   const headers: Record<string, string> = {
-    "Content-Type": "application/json",
+    ...BASE_HEADERS,
+    ...buildAuthHeaders(),
   };
-  if (IS_OLD) {
-    headers["Private-Token"] = `${GITLAB_PERSONAL_ACCESS_TOKEN}`;
-  } else {
-    headers["Authorization"] = `Bearer ${GITLAB_PERSONAL_ACCESS_TOKEN}`;
-  }
   const response = await fetch(
     `${GITLAB_API_URL}/projects/${encodeURIComponent(
       getEffectiveProjectId(options.project_id)
@@ -4211,7 +4350,8 @@ async function markdownUpload(projectId: string, filePath: string): Promise<GitL
   const response = await fetch(url.toString(), {
     method: "POST",
     headers: {
-      ...DEFAULT_HEADERS,
+      ...BASE_HEADERS,
+      ...buildAuthHeaders(),
       // Remove Content-Type header to let form-data set it with boundary
       "Content-Type": undefined as any,
     },
@@ -4235,7 +4375,10 @@ async function downloadAttachment(projectId: string, secret: string, filename: s
 
   const response = await fetch(url.toString(), {
     method: "GET",
-    headers: DEFAULT_HEADERS,
+    headers: {
+      ...BASE_HEADERS,
+      ...buildAuthHeaders(),
+    },
   });
 
   if (!response.ok) {
@@ -4271,7 +4414,10 @@ async function listEvents(options: z.infer<typeof ListEventsSchema> = {}): Promi
 
   const response = await fetch(url.toString(), {
     method: "GET",
-    headers: DEFAULT_HEADERS,
+    headers: {
+      ...BASE_HEADERS,
+      ...buildAuthHeaders(),
+    },
   });
 
   if (!response.ok) {
@@ -4301,7 +4447,10 @@ async function getProjectEvents(projectId: string, options: Omit<z.infer<typeof 
 
   const response = await fetch(url.toString(), {
     method: "GET",
-    headers: DEFAULT_HEADERS,
+    headers: {
+      ...BASE_HEADERS,
+      ...buildAuthHeaders(),
+    },
   });
 
   if (!response.ok) {
@@ -4351,7 +4500,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
   };
 });
 
-server.setRequestHandler(CallToolRequestSchema, async request => {
+server.setRequestHandler(CallToolRequestSchema, async (request: any) => {
   try {
     if (!request.params.arguments) {
       throw new Error("Arguments are required");
@@ -4382,9 +4531,8 @@ server.setRequestHandler(CallToolRequestSchema, async request => {
             ...DEFAULT_FETCH_CONFIG,
             method: "POST",
             headers: {
-              ...DEFAULT_HEADERS,
-              "Content-Type": "application/json",
-              Accept: "application/json",
+              ...BASE_HEADERS,
+              ...buildAuthHeaders(),
             },
             body: JSON.stringify({ query: args.query, variables: args.variables || {} }),
             signal: controller.signal as any,
@@ -5606,6 +5754,121 @@ async function startStreamableHTTPServer(): Promise<void> {
   const streamableTransports: {
     [sessionId: string]: StreamableHTTPServerTransport;
   } = {};
+  
+  // Session-based auth mapping for remote authorization
+  const authBySession: Record<string, AuthData> = {};
+  const authTimeouts: Record<string, NodeJS.Timeout> = {};
+  
+  // Configuration and limits
+  const MAX_SESSIONS = parseInt(process.env.MAX_SESSIONS || '1000');
+  const MAX_REQUESTS_PER_MINUTE = parseInt(process.env.MAX_REQUESTS_PER_MINUTE || '60');
+  
+  // Metrics tracking
+  const metrics = {
+    activeSessions: 0,
+    totalSessions: 0,
+    expiredSessions: 0,
+    authFailures: 0,
+    requestsProcessed: 0,
+    rejectedByRateLimit: 0,
+    rejectedByCapacity: 0,
+  };
+  
+  // Rate limiting per session
+  const sessionRequestCounts: Record<string, { count: number; resetAt: number }> = {};
+
+  /**
+   * Validate token format and length
+   */
+  const validateToken = (token: string): boolean => {
+    // GitLab PAT format: glpat-xxxxx (min 20 chars)
+    if (token.length < 20) return false;
+    if (!/^[a-zA-Z0-9_-]+$/.test(token)) return false;
+    return true;
+  };
+
+  /**
+   * Check rate limit for session
+   */
+  const checkRateLimit = (sessionId: string): boolean => {
+    const now = Date.now();
+    const session = sessionRequestCounts[sessionId];
+    
+    if (!session || now > session.resetAt) {
+      sessionRequestCounts[sessionId] = { count: 1, resetAt: now + 60000 };
+      return true;
+    }
+    
+    if (session.count >= MAX_REQUESTS_PER_MINUTE) {
+      return false;
+    }
+    
+    session.count++;
+    return true;
+  };
+
+  /**
+   * Parse authentication from request headers
+   * Returns null if no auth found or invalid format
+   */
+  const parseAuthHeaders = (req: Request): AuthData | null => {
+    const authHeader = (req.headers['authorization'] as string | undefined) || '';
+    const privateToken = (req.headers['private-token'] as string | undefined) || '';
+
+    if (privateToken) {
+      const token = privateToken.trim();
+      if (!token || !validateToken(token)) return null;
+      return { header: 'Private-Token', token, lastUsed: Date.now() };
+    }
+    
+    if (authHeader) {
+      const match = authHeader.match(/^Bearer\s+(.+)$/i);
+      const token = match ? match[1].trim() : '';
+      if (!token || !validateToken(token)) return null;
+      return { header: 'Authorization', token, lastUsed: Date.now() };
+    }
+
+    return null;
+  };
+
+  /**
+   * Set or reset timeout for session auth
+   * After SESSION_TIMEOUT_SECONDS of inactivity, the auth token is removed
+   * but the transport session remains active
+   */
+  const setAuthTimeout = (sessionId: string) => {
+    // Clear existing timeout if any
+    clearAuthTimeout(sessionId);
+    
+    // Set new timeout
+    authTimeouts[sessionId] = setTimeout(() => {
+      if (authBySession[sessionId]) {
+        logger.info(`Session ${sessionId}: auth token expired after ${SESSION_TIMEOUT_SECONDS}s of inactivity`);
+        delete authBySession[sessionId];
+        delete authTimeouts[sessionId];
+        metrics.expiredSessions++;
+      }
+    }, SESSION_TIMEOUT_SECONDS * 1000);
+  };
+
+  /**
+   * Clear timeout for session auth
+   */
+  const clearAuthTimeout = (sessionId: string) => {
+    const timeout = authTimeouts[sessionId];
+    if (timeout) {
+      clearTimeout(timeout);
+      delete authTimeouts[sessionId];
+    }
+  };
+
+  /**
+   * Clean up session auth data
+   */
+  const cleanupSessionAuth = (sessionId: string) => {
+    delete authBySession[sessionId];
+    clearAuthTimeout(sessionId);
+  };
 
   // Configure Express middleware
   app.use(express.json());
@@ -5613,44 +5876,163 @@ async function startStreamableHTTPServer(): Promise<void> {
   // Streamable HTTP endpoint - handles both session creation and message handling
   app.post("/mcp", async (req: Request, res: Response) => {
     const sessionId = req.headers["mcp-session-id"] as string;
-
-    try {
-      let transport: StreamableHTTPServerTransport;
-
-      if (sessionId && streamableTransports[sessionId]) {
-        // Reuse existing transport for ongoing session
-        transport = streamableTransports[sessionId];
-        await transport.handleRequest(req, res, req.body);
-      } else {
-        // Create new transport for new session
-        transport = new StreamableHTTPServerTransport({
-          sessionIdGenerator: () => randomUUID(),
-          onsessioninitialized: (newSessionId: string) => {
-            streamableTransports[newSessionId] = transport;
-            logger.warn(`Streamable HTTP session initialized: ${newSessionId}`);
-          },
-        });
-
-        // Set up cleanup handler when transport closes
-        transport.onclose = () => {
-          const sid = transport.sessionId;
-          if (sid && streamableTransports[sid]) {
-            logger.warn(`Streamable HTTP transport closed for session ${sid}, cleaning up`);
-            delete streamableTransports[sid];
-          }
-        };
-
-        // Connect transport to MCP server before handling the request
-        await server.connect(transport);
-        await transport.handleRequest(req, res, req.body);
-      }
-    } catch (error) {
-      logger.error("Streamable HTTP error:", error);
-      res.status(500).json({
-        error: "Internal server error",
-        message: error instanceof Error ? error.message : "Unknown error",
+    
+    // Track request
+    metrics.requestsProcessed++;
+    
+    // Rate limiting check for existing sessions
+    if (REMOTE_AUTHORIZATION && sessionId && !checkRateLimit(sessionId)) {
+      metrics.rejectedByRateLimit++;
+      res.status(429).json({ 
+        error: 'Rate limit exceeded',
+        message: `Maximum ${MAX_REQUESTS_PER_MINUTE} requests per minute allowed`
       });
+      return;
     }
+    
+    // Capacity check for new sessions
+    if (!sessionId && Object.keys(streamableTransports).length >= MAX_SESSIONS) {
+      metrics.rejectedByCapacity++;
+      res.status(503).json({ 
+        error: 'Server capacity reached',
+        message: `Maximum ${MAX_SESSIONS} concurrent sessions allowed. Please try again later.`
+      });
+      return;
+    }
+
+    // Handle remote authorization: extract and store auth headers per session
+    if (REMOTE_AUTHORIZATION) {
+      const authData = parseAuthHeaders(req);
+
+      if (sessionId && !authBySession[sessionId]) {
+        // New session: require auth headers
+        if (!authData) {
+          metrics.authFailures++;
+          res.status(401).json({ 
+            error: 'Missing Authorization or Private-Token header',
+            message: 'Remote authorization is enabled. Please provide Authorization or Private-Token header.'
+          });
+          return;
+        }
+        // Store auth for this session
+        authBySession[sessionId] = authData;
+        logger.info(`Session ${sessionId}: stored ${authData.header} header`);
+        setAuthTimeout(sessionId);
+      } else if (sessionId && authData) {
+        // Existing session: allow auth rotation/update
+        authBySession[sessionId] = authData;
+        logger.debug(`Session ${sessionId}: updated ${authData.header} header`);
+        setAuthTimeout(sessionId);
+      } else if (sessionId && authBySession[sessionId]) {
+        // Existing session with stored auth: update last used time and reset timeout
+        authBySession[sessionId].lastUsed = Date.now();
+        setAuthTimeout(sessionId);
+      } else if (!sessionId && !authData) {
+        // First request without session - will fail in initialization
+      }
+    }
+
+    // Wrap request handling in AsyncLocalStorage context
+    const handleRequestWithAuth = async () => {
+      try {
+        let transport: StreamableHTTPServerTransport;
+
+        if (sessionId && streamableTransports[sessionId]) {
+          // Reuse existing transport for ongoing session
+          transport = streamableTransports[sessionId];
+          await transport.handleRequest(req, res, req.body);
+        } else {
+          // Create new transport for new session
+          transport = new StreamableHTTPServerTransport({
+            sessionIdGenerator: () => randomUUID(),
+            onsessioninitialized: (newSessionId: string) => {
+              streamableTransports[newSessionId] = transport;
+              metrics.totalSessions++;
+              metrics.activeSessions++;
+              logger.warn(`Streamable HTTP session initialized: ${newSessionId}`);
+              
+              // Store auth for newly created session in remote mode
+              if (REMOTE_AUTHORIZATION && !authBySession[newSessionId]) {
+                const authData = parseAuthHeaders(req);
+                if (authData) {
+                  authBySession[newSessionId] = authData;
+                  logger.info(`Session ${newSessionId}: stored ${authData.header} header`);
+                  setAuthTimeout(newSessionId);
+                }
+              }
+            },
+          });
+
+          // Set up cleanup handler when transport closes
+          transport.onclose = () => {
+            const sid = transport.sessionId;
+            if (sid && streamableTransports[sid]) {
+              logger.warn(`Streamable HTTP transport closed for session ${sid}, cleaning up`);
+              delete streamableTransports[sid];
+              metrics.activeSessions--;
+              if (REMOTE_AUTHORIZATION) {
+                cleanupSessionAuth(sid);
+                delete sessionRequestCounts[sid];
+                logger.info(`Session ${sid}: cleaned up auth mapping`);
+              }
+            }
+          };
+
+          // Connect transport to MCP server before handling the request
+          await server.connect(transport);
+          await transport.handleRequest(req, res, req.body);
+        }
+      } catch (error) {
+        logger.error("Streamable HTTP error:", error);
+        res.status(500).json({
+          error: "Internal server error",
+          message: error instanceof Error ? error.message : "Unknown error",
+        });
+      }
+    };
+
+    // Execute with auth context in remote mode
+    if (REMOTE_AUTHORIZATION && sessionId && authBySession[sessionId]) {
+      const authData = authBySession[sessionId];
+      const ctx: SessionAuth = { 
+        sessionId, 
+        header: authData.header,
+        token: authData.token,
+        lastUsed: authData.lastUsed
+      };
+      await sessionAuthStore.run(ctx, handleRequestWithAuth);
+    } else {
+      // Standard execution (no remote auth or no session yet)
+      await handleRequestWithAuth();
+    }
+  });
+
+  // Metrics endpoint
+  app.get("/metrics", (_req: Request, res: Response) => {
+    res.json({
+      ...metrics,
+      activeSessions: Object.keys(streamableTransports).length,
+      authenticatedSessions: Object.keys(authBySession).length,
+      uptime: process.uptime(),
+      memoryUsage: process.memoryUsage(),
+      config: {
+        maxSessions: MAX_SESSIONS,
+        maxRequestsPerMinute: MAX_REQUESTS_PER_MINUTE,
+        sessionTimeoutSeconds: SESSION_TIMEOUT_SECONDS,
+        remoteAuthEnabled: REMOTE_AUTHORIZATION,
+      }
+    });
+  });
+  
+  // Health check endpoint
+  app.get("/health", (_req: Request, res: Response) => {
+    const isHealthy = Object.keys(streamableTransports).length < MAX_SESSIONS;
+    res.status(isHealthy ? 200 : 503).json({
+      status: isHealthy ? 'healthy' : 'degraded',
+      activeSessions: Object.keys(streamableTransports).length,
+      maxSessions: MAX_SESSIONS,
+      uptime: process.uptime(),
+    });
   });
 
   // to delete a mcp server session explicitly
@@ -5668,6 +6050,11 @@ async function startStreamableHTTPServer(): Promise<void> {
       try {
         await transport.close();
         logger.info(`Explicitly closed session via DELETE request: ${sessionId}`);
+        if (REMOTE_AUTHORIZATION) {
+          cleanupSessionAuth(sessionId);
+          delete sessionRequestCounts[sessionId];
+          logger.info(`Session ${sessionId}: cleaned up auth mapping on DELETE`);
+        }
         res.status(204).send();
       } catch (error) {
         logger.error(`Error closing session ${sessionId}:`, error);
@@ -5678,22 +6065,54 @@ async function startStreamableHTTPServer(): Promise<void> {
     }
   });
 
-
-  // Health check endpoint
-  app.get("/health", (_: Request, res: Response) => {
-    res.status(200).json({
-      status: "healthy",
-      version: SERVER_VERSION,
-      transport: TransportMode.STREAMABLE_HTTP,
-      activeSessions: Object.keys(streamableTransports).length,
-    });
-  });
-
   // Start server
-  app.listen(Number(PORT), HOST, () => {
+  const httpServer = app.listen(Number(PORT), HOST, () => {
     logger.info(`GitLab MCP Server running with Streamable HTTP transport`);
     logger.info(`${colorGreen}Endpoint: http://${HOST}:${PORT}/mcp${colorReset}`);
   });
+  
+  // Graceful shutdown handler
+  const gracefulShutdown = async (signal: string) => {
+    logger.info(`${signal} received, starting graceful shutdown...`);
+    
+    // Stop accepting new connections
+    httpServer.close(() => {
+      logger.info('HTTP server closed');
+    });
+    
+    // Close all active sessions
+    const sessionIds = Object.keys(streamableTransports);
+    logger.info(`Closing ${sessionIds.length} active sessions...`);
+    
+    const closePromises = sessionIds.map(async (sessionId) => {
+      try {
+        const transport = streamableTransports[sessionId];
+        if (transport) {
+          await transport.close();
+          if (REMOTE_AUTHORIZATION) {
+            cleanupSessionAuth(sessionId);
+            delete sessionRequestCounts[sessionId];
+          }
+        }
+      } catch (error) {
+        logger.error(`Error closing session ${sessionId}:`, error);
+      }
+    });
+    
+    await Promise.allSettled(closePromises);
+    
+    // Clear all timeouts
+    Object.keys(authTimeouts).forEach(sessionId => {
+      clearAuthTimeout(sessionId);
+    });
+    
+    logger.info('Graceful shutdown complete');
+    process.exit(0);
+  };
+  
+  // Register signal handlers
+  process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+  process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 }
 
 /**
@@ -5731,6 +6150,9 @@ async function initializeServerByTransportMode(mode: TransportMode): Promise<voi
  */
 async function runServer() {
   try {
+    // Validate configuration before starting server
+    validateConfiguration();
+    
     const transportMode = determineTransportMode();
     await initializeServerByTransportMode(transportMode);
   } catch (error) {

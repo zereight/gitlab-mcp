@@ -161,7 +161,20 @@ docker run -i --rm \
 
 ### Environment Variables
 
-- `GITLAB_PERSONAL_ACCESS_TOKEN`: Your GitLab personal access token.
+#### Authentication Configuration
+
+- `GITLAB_PERSONAL_ACCESS_TOKEN`: Your GitLab personal access token. **Required in standard mode**; not used when `REMOTE_AUTHORIZATION=true`.
+- `REMOTE_AUTHORIZATION`: When set to 'true', enables remote per-session authorization via HTTP headers. In this mode:
+  - The server accepts GitLab PAT tokens from HTTP headers (`Authorization: Bearer <token>` or `Private-Token: <token>`) on a per-session basis
+  - `GITLAB_PERSONAL_ACCESS_TOKEN` environment variable is **not required** and ignored
+  - Only works with **Streamable HTTP transport** (`STREAMABLE_HTTP=true`) because session management was already handled by the transport layer
+  - **SSE transport is disabled** - attempting to use SSE with remote authorization will cause the server to exit with an error
+  - Each client session can use a different token, enabling multi-user support with secure session isolation
+  - Tokens are stored per session and automatically cleaned up when sessions close or timeout
+- `SESSION_TIMEOUT_SECONDS`: Session auth token timeout in seconds. Default: `3600` (1 hour). Valid range: 1-86400 seconds (recommended: 60+). After this period of inactivity, the auth token is removed but the transport session remains active. The client must provide auth headers again on the next request. Only applies when `REMOTE_AUTHORIZATION=true`.
+
+#### Server Configuration
+
 - `GITLAB_API_URL`: Your GitLab API URL. (Default: `https://gitlab.com/api/v4`)
 - `GITLAB_PROJECT_ID`: Default project ID. If set, Overwrite this value when making an API request.
 - `GITLAB_ALLOWED_PROJECT_IDS`: Optional comma-separated list of allowed project IDs. When set with a single value, acts as a default project (like the old "lock" mode). When set with multiple values, restricts access to only those projects. Examples:
@@ -176,6 +189,84 @@ docker run -i --rm \
 - `SSE`: When set to 'true', enables the Server-Sent Events transport.
 - `STREAMABLE_HTTP`: When set to 'true', enables the Streamable HTTP transport. If both **SSE** and **STREAMABLE_HTTP** are set to 'true', the server will prioritize Streamable HTTP over SSE transport.
 - `GITLAB_COMMIT_FILES_PER_PAGE`: The number of files per page that GitLab returns for commit diffs. This value should match the server-side GitLab setting. Adjust this if your GitLab instance uses a custom per-page value for commit diffs.
+
+#### Performance & Security Configuration
+
+- `MAX_SESSIONS`: Maximum number of concurrent sessions allowed. Default: `1000`. Valid range: 1-10000. When limit is reached, new connections are rejected with HTTP 503.
+- `MAX_REQUESTS_PER_MINUTE`: Rate limit per session in requests per minute. Default: `60`. Valid range: 1-1000. Exceeded requests return HTTP 429.
+- `PORT`: Server port. Default: `3002`. Valid range: 1-65535.
+
+#### Monitoring Endpoints
+
+When using Streamable HTTP transport, the following endpoints are available:
+
+- `/health`: Health check endpoint returning server status, active sessions count, and uptime.
+- `/metrics`: Detailed metrics including:
+  - Active and total session counts
+  - Authentication metrics (failures, expirations)
+  - Rate limiting statistics
+  - Resource usage (memory, uptime)
+  - Configuration summary
+
+### Remote Authorization Setup (Multi-User Support)
+
+When using `REMOTE_AUTHORIZATION=true`, the MCP server can support multiple users, each with their own GitLab token passed via HTTP headers. This is useful for:
+- Shared MCP server instances where each user needs their own GitLab access
+- IDE integrations that can inject user-specific tokens into MCP requests
+
+**Setup Example:**
+
+```bash
+# Start server with remote authorization
+docker run -d \
+  -e STREAMABLE_HTTP=true \
+  -e REMOTE_AUTHORIZATION=true \
+  -e GITLAB_API_URL="https://gitlab.com/api/v4" \
+  -e GITLAB_READ_ONLY_MODE=true \
+  -e SESSION_TIMEOUT_SECONDS=3600 \
+  -p 3333:3002 \
+  iwakitakuma/gitlab-mcp
+```
+
+**Client Configuration:**
+
+Your IDE or MCP client must send one of these headers with each request:
+
+```
+Authorization: Bearer glpat-xxxxxxxxxxxxxxxxxxxx
+```
+
+or
+
+```
+Private-Token: glpat-xxxxxxxxxxxxxxxxxxxx
+```
+
+The token is stored per session (identified by `mcp-session-id` header) and reused for subsequent requests in the same session.
+
+#### Remote Authorization Client Configuration Example with Cursor
+
+```json
+{
+  "mcpServers": {
+    "GitLab": {
+      "url": "http(s)://<your_mcp_gitlab_server>/mcp",
+      "headers": {
+        "Authorization": "Bearer glpat-..."
+      }
+    }
+  }
+}
+```
+
+**Important Notes:**
+- Remote authorization **only works with Streamable HTTP transport**
+- Each session is isolated - tokens from one session cannot access another session's data
+ Tokens are automatically cleaned up when sessions close
+- **Session timeout:** Auth tokens expire after `SESSION_TIMEOUT_SECONDS` (default 1 hour) of inactivity. After timeout, the client must send auth headers again. The transport session remains active.
+- Each request resets the timeout timer for that session
+- **Rate limiting:** Each session is limited to `MAX_REQUESTS_PER_MINUTE` requests per minute (default 60)
+- **Capacity limit:** Server accepts up to `MAX_SESSIONS` concurrent sessions (default 1000)
 
 ## Tools 🛠️
 
@@ -275,3 +366,23 @@ docker run -i --rm \
 <!-- TOOLS-END -->
 
 </details>
+
+## Testing 🧪
+
+The project includes comprehensive test coverage including remote authorization:
+
+```bash
+# Run all tests (API validation + remote auth)
+npm test
+
+# Run only remote authorization tests
+npm run test:remote-auth
+
+# Run all tests including readonly MCP tests
+npm run test:all
+
+# Run only API validation
+npm run test:integration
+```
+
+All remote authorization tests use a mock GitLab server and do not require actual GitLab credentials.
