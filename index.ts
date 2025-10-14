@@ -264,9 +264,7 @@ const GITLAB_PERSONAL_ACCESS_TOKEN = process.env.GITLAB_PERSONAL_ACCESS_TOKEN;
 const GITLAB_AUTH_COOKIE_PATH = process.env.GITLAB_AUTH_COOKIE_PATH;
 const IS_OLD = process.env.GITLAB_IS_OLD === "true";
 const GITLAB_READ_ONLY_MODE = process.env.GITLAB_READ_ONLY_MODE === "true";
-const GITLAB_DENIED_TOOLS_REGEX = process.env.GITLAB_DENIED_TOOLS_REGEX
-  ? new RegExp(process.env.GITLAB_DENIED_TOOLS_REGEX)
-  : undefined;
+const GITLAB_DENIED_TOOLS_REGEX = process.env.GITLAB_DENIED_TOOLS_REGEX ? new RegExp(process.env.GITLAB_DENIED_TOOLS_REGEX):undefined;
 const USE_GITLAB_WIKI = process.env.USE_GITLAB_WIKI === "true";
 const USE_MILESTONE = process.env.USE_MILESTONE === "true";
 const USE_PIPELINE = process.env.USE_PIPELINE === "true";
@@ -413,7 +411,7 @@ const DEFAULT_FETCH_CONFIG = {
   },
 };
 
-const toJSONSchema = (schema: z.ZodTypeAny) => zodToJsonSchema(schema, { $refStrategy: "none" });
+const toJSONSchema = (schema: z.ZodTypeAny) => zodToJsonSchema(schema, { $refStrategy: 'none' });
 
 // Define all available tools
 const allTools = [
@@ -860,14 +858,12 @@ const allTools = [
   },
   {
     name: "list_events",
-    description:
-      "List all events for the currently authenticated user. Note: before/after parameters accept date format YYYY-MM-DD only",
+    description: "List all events for the currently authenticated user. Note: before/after parameters accept date format YYYY-MM-DD only",
     inputSchema: toJSONSchema(ListEventsSchema),
   },
   {
     name: "get_project_events",
-    description:
-      "List all visible events for a specified project. Note: before/after parameters accept date format YYYY-MM-DD only",
+    description: "List all visible events for a specified project. Note: before/after parameters accept date format YYYY-MM-DD only",
     inputSchema: toJSONSchema(GetProjectEventsSchema),
   },
   {
@@ -1025,14 +1021,9 @@ function normalizeGitLabApiUrl(url?: string): string {
 // Use the normalizeGitLabApiUrl function to handle various URL formats
 const GITLAB_API_URL = normalizeGitLabApiUrl(process.env.GITLAB_API_URL || "");
 const GITLAB_PROJECT_ID = process.env.GITLAB_PROJECT_ID;
-const GITLAB_ALLOWED_PROJECT_IDS =
-  process.env.GITLAB_ALLOWED_PROJECT_IDS?.split(",")
-    .map(id => id.trim())
-    .filter(Boolean) || [];
+const GITLAB_ALLOWED_PROJECT_IDS = process.env.GITLAB_ALLOWED_PROJECT_IDS?.split(',').map(id => id.trim()).filter(Boolean) || [];
 
-const GITLAB_COMMIT_FILES_PER_PAGE = process.env.GITLAB_COMMIT_FILES_PER_PAGE
-  ? parseInt(process.env.GITLAB_COMMIT_FILES_PER_PAGE)
-  : 20;
+const GITLAB_COMMIT_FILES_PER_PAGE = process.env.GITLAB_COMMIT_FILES_PER_PAGE ? parseInt(process.env.GITLAB_COMMIT_FILES_PER_PAGE) : 20;
 
 if (!GITLAB_PERSONAL_ACCESS_TOKEN) {
   logger.error("GITLAB_PERSONAL_ACCESS_TOKEN environment variable is not set");
@@ -1075,16 +1066,12 @@ function getEffectiveProjectId(projectId: string): string {
 
     // If a project ID is provided, check if it's in the whitelist
     if (projectId && !GITLAB_ALLOWED_PROJECT_IDS.includes(projectId)) {
-      throw new Error(
-        `Access denied: Project ${projectId} is not in the allowed project list: ${GITLAB_ALLOWED_PROJECT_IDS.join(", ")}`
-      );
+      throw new Error(`Access denied: Project ${projectId} is not in the allowed project list: ${GITLAB_ALLOWED_PROJECT_IDS.join(', ')}`);
     }
 
     // If no project ID provided but we have multiple allowed projects, require an explicit choice
     if (!projectId && GITLAB_ALLOWED_PROJECT_IDS.length > 1) {
-      throw new Error(
-        `Multiple projects allowed (${GITLAB_ALLOWED_PROJECT_IDS.join(", ")}). Please specify a project ID.`
-      );
+      throw new Error(`Multiple projects allowed (${GITLAB_ALLOWED_PROJECT_IDS.join(', ')}). Please specify a project ID.`);
     }
 
     return projectId || GITLAB_ALLOWED_PROJECT_IDS[0];
@@ -2636,7 +2623,7 @@ async function publishDraftNote(
 
   // Handle empty response (204 No Content) or successful response
   const responseText = await response.text();
-  if (!responseText || responseText.trim() === "") {
+  if (!responseText || responseText.trim() === '') {
     // Return a success indicator for empty responses
     return {
       id: draftNoteId.toString(),
@@ -2646,7 +2633,7 @@ async function publishDraftNote(
       updated_at: new Date().toISOString(),
       system: false,
       noteable_id: mergeRequestIid.toString(),
-      noteable_type: "MergeRequest",
+      noteable_type: "MergeRequest"
     } as any;
   }
 
@@ -2665,7 +2652,7 @@ async function publishDraftNote(
       updated_at: new Date().toISOString(),
       system: false,
       noteable_id: mergeRequestIid.toString(),
-      noteable_type: "MergeRequest",
+      noteable_type: "MergeRequest"
     } as any;
   }
 }
@@ -2700,7 +2687,7 @@ async function bulkPublishDraftNotes(
 
   // Handle empty response (204 No Content) or successful response
   const responseText = await response.text();
-  if (!responseText || responseText.trim() === "") {
+  if (!responseText || responseText.trim() === '') {
     // Return empty array for successful bulk publish with no content
     return [];
   }
@@ -3650,7 +3637,7 @@ async function cancelPipelineJob(
   );
 
   if (force !== undefined) {
-    url.searchParams.append("force", force.toString());
+    url.searchParams.append('force', force.toString());
   }
 
   const response = await fetch(url.toString(), {
@@ -4076,20 +4063,16 @@ async function getCommit(projectId: string, sha: string, stats?: boolean): Promi
  * @param {boolean} [full_diff] - Whether to return the full diff or only first page
  * @returns {Promise<GitLabMergeRequestDiff[]>} The commit diffs
  */
-async function getCommitDiff(
-  projectId: string,
-  sha: string,
-  full_diff?: boolean
-): Promise<GitLabMergeRequestDiff[]> {
+async function getCommitDiff(projectId: string, sha: string, full_diff?: boolean): Promise<GitLabMergeRequestDiff[]> {
   projectId = decodeURIComponent(projectId);
   const baseUrl = `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/repository/commits/${encodeURIComponent(sha)}/diff`;
-
+  
   let allDiffs: GitLabMergeRequestDiff[] = [];
   let page = 1;
-
+  
   while (true) {
     const url = new URL(baseUrl);
-
+    
     if (full_diff) {
       url.searchParams.append("page", page.toString());
     }
@@ -4102,20 +4085,20 @@ async function getCommitDiff(
 
     const data = await response.json();
     const diffs = z.array(GitLabDiffSchema).parse(data);
-
+    
     allDiffs.push(...diffs);
-
+    
     if (!full_diff) {
       break;
     }
-
+    
     if (diffs.length < GITLAB_COMMIT_FILES_PER_PAGE) {
       break;
     }
-
+    
     page++;
   }
-
+  
   return allDiffs;
 }
 
@@ -4162,9 +4145,9 @@ async function myIssues(options: MyIssuesOptions = {}): Promise<GitLabIssue[]> {
   };
 
   if (currentUser.username) {
-    listIssuesOptions.assignee_username = [currentUser.username];
+    listIssuesOptions.assignee_username = [currentUser.username]
   } else {
-    listIssuesOptions.assignee_id = currentUser.id;
+    listIssuesOptions.assignee_id = currentUser.id
   }
   return listIssues(effectiveProjectId, listIssuesOptions);
 }
@@ -4183,9 +4166,7 @@ async function listProjectMembers(
 ): Promise<GitLabProjectMember[]> {
   projectId = decodeURIComponent(projectId);
   const effectiveProjectId = getEffectiveProjectId(projectId);
-  const url = new URL(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(effectiveProjectId)}/members`
-  );
+  const url = new URL(`${GITLAB_API_URL}/projects/${encodeURIComponent(effectiveProjectId)}/members`);
 
   // Add query parameters
   if (options.query) url.searchParams.append("query", options.query);
@@ -4292,12 +4273,7 @@ async function markdownUpload(projectId: string, filePath: string): Promise<GitL
   return GitLabMarkdownUploadSchema.parse(data);
 }
 
-async function downloadAttachment(
-  projectId: string,
-  secret: string,
-  filename: string,
-  localPath?: string
-): Promise<string> {
+async function downloadAttachment(projectId: string, secret: string, filename: string, localPath?: string): Promise<string> {
   const effectiveProjectId = getEffectiveProjectId(projectId);
 
   const url = new URL(
@@ -4359,14 +4335,9 @@ async function listEvents(options: z.infer<typeof ListEventsSchema> = {}): Promi
  * @param {Object} options - Options for getting project events
  * @returns {Promise<GitLabEvent[]>} List of project events
  */
-async function getProjectEvents(
-  projectId: string,
-  options: Omit<z.infer<typeof GetProjectEventsSchema>, "project_id"> = {}
-): Promise<GitLabEvent[]> {
+async function getProjectEvents(projectId: string, options: Omit<z.infer<typeof GetProjectEventsSchema>, "project_id"> = {}): Promise<GitLabEvent[]> {
   const effectiveProjectId = getEffectiveProjectId(projectId);
-  const url = new URL(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(effectiveProjectId)}/events`
-  );
+  const url = new URL(`${GITLAB_API_URL}/projects/${encodeURIComponent(effectiveProjectId)}/events`);
 
   // Add all query parameters
   Object.entries(options).forEach(([key, value]) => {
@@ -4597,9 +4568,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
     : tools1.filter(tool => !milestoneToolNames.includes(tool.name));
   // Toggle pipeline tools by USE_PIPELINE flag
   let tools = USE_PIPELINE ? tools2 : tools2.filter(tool => !pipelineToolNames.includes(tool.name));
-  tools = GITLAB_DENIED_TOOLS_REGEX
-    ? tools.filter(tool => !GITLAB_DENIED_TOOLS_REGEX.test(tool.name))
-    : tools;
+  tools = GITLAB_DENIED_TOOLS_REGEX ? tools.filter(tool => !GITLAB_DENIED_TOOLS_REGEX.test(tool.name)) : tools;
 
   // <<< START: Gemini 호환성을 위해 $schema 제거 >>>
   tools = tools.map(tool => {
@@ -4642,8 +4611,7 @@ server.setRequestHandler(CallToolRequestSchema, async request => {
         const restPath = apiUrl.pathname || ""; // e.g. /api/v4 or /gitlab/api/v4
         const idx = restPath.lastIndexOf("/api/v4");
         const prefix = idx >= 0 ? restPath.slice(0, idx) : "";
-        const graphqlUrl =
-          process.env.GITLAB_GRAPHQL_URL || `${apiUrl.origin}${prefix}/api/graphql`;
+        const graphqlUrl = process.env.GITLAB_GRAPHQL_URL || `${apiUrl.origin}${prefix}/api/graphql`;
 
         // Add timeout to avoid hanging requests
         const controller = new AbortController();
@@ -5102,13 +5070,7 @@ server.setRequestHandler(CallToolRequestSchema, async request => {
         const args = CreateDraftNoteSchema.parse(request.params.arguments);
         const { project_id, merge_request_iid, body, position, resolve_discussion } = args;
 
-        const draftNote = await createDraftNote(
-          project_id,
-          merge_request_iid,
-          body,
-          position,
-          resolve_discussion
-        );
+        const draftNote = await createDraftNote(project_id, merge_request_iid, body, position, resolve_discussion);
         return {
           content: [{ type: "text", text: JSON.stringify(draftNote, null, 2) }],
         };
@@ -5116,17 +5078,9 @@ server.setRequestHandler(CallToolRequestSchema, async request => {
 
       case "update_draft_note": {
         const args = UpdateDraftNoteSchema.parse(request.params.arguments);
-        const { project_id, merge_request_iid, draft_note_id, body, position, resolve_discussion } =
-          args;
+        const { project_id, merge_request_iid, draft_note_id, body, position, resolve_discussion } = args;
 
-        const draftNote = await updateDraftNote(
-          project_id,
-          merge_request_iid,
-          draft_note_id,
-          body,
-          position,
-          resolve_discussion
-        );
+        const draftNote = await updateDraftNote(project_id, merge_request_iid, draft_note_id, body, position, resolve_discussion);
         return {
           content: [{ type: "text", text: JSON.stringify(draftNote, null, 2) }],
         };
@@ -5537,9 +5491,7 @@ server.setRequestHandler(CallToolRequestSchema, async request => {
       }
 
       case "play_pipeline_job": {
-        const { project_id, job_id, job_variables_attributes } = PlayPipelineJobSchema.parse(
-          request.params.arguments
-        );
+        const { project_id, job_id, job_variables_attributes } = PlayPipelineJobSchema.parse(request.params.arguments);
         const job = await playPipelineJob(project_id, job_id, job_variables_attributes);
         return {
           content: [
@@ -5565,9 +5517,7 @@ server.setRequestHandler(CallToolRequestSchema, async request => {
       }
 
       case "cancel_pipeline_job": {
-        const { project_id, job_id, force } = CancelPipelineJobSchema.parse(
-          request.params.arguments
-        );
+        const { project_id, job_id, force } = CancelPipelineJobSchema.parse(request.params.arguments);
         const job = await cancelPipelineJob(project_id, job_id, force);
         return {
           content: [
@@ -5771,16 +5721,9 @@ server.setRequestHandler(CallToolRequestSchema, async request => {
 
       case "download_attachment": {
         const args = DownloadAttachmentSchema.parse(request.params.arguments);
-        const filePath = await downloadAttachment(
-          args.project_id,
-          args.secret,
-          args.filename,
-          args.local_path
-        );
+        const filePath = await downloadAttachment(args.project_id, args.secret, args.filename, args.local_path);
         return {
-          content: [
-            { type: "text", text: JSON.stringify({ success: true, file_path: filePath }, null, 2) },
-          ],
+          content: [{ type: "text", text: JSON.stringify({ success: true, file_path: filePath }, null, 2) }],
         };
       }
 
@@ -6060,6 +6003,7 @@ async function startStreamableHTTPServer(): Promise<void> {
       res.status(404).json({ error: "Session not found" });
     }
   });
+
 
   // Health check endpoint
   app.get("/health", (_: Request, res: Response) => {
