@@ -955,7 +955,7 @@ export const ListMergeRequestDiscussionsSchema = ProjectParamsSchema.extend({
 }).merge(PaginationOptionsSchema);
 
 // Input schema for updating a merge request discussion note
-export const UpdateMergeRequestNoteSchema = ProjectParamsSchema.extend({
+export const UpdateMergeRequestDiscussionNoteSchema = ProjectParamsSchema.extend({
   merge_request_iid: z.coerce.string().describe("The IID of a merge request"),
   discussion_id: z.coerce.string().describe("The ID of a thread"),
   note_id: z.coerce.string().describe("The ID of a thread note"),
@@ -970,7 +970,7 @@ export const UpdateMergeRequestNoteSchema = ProjectParamsSchema.extend({
   });
 
 // Input schema for adding a note to an existing merge request discussion
-export const CreateMergeRequestNoteSchema = ProjectParamsSchema.extend({
+export const CreateMergeRequestDiscussionNoteSchema = ProjectParamsSchema.extend({
   merge_request_iid: z.coerce.string().describe("The IID of a merge request"),
   discussion_id: z.coerce.string().describe("The ID of a thread"),
   body: z.string().describe("The content of the note or reply"),
@@ -2026,7 +2026,7 @@ export type GetRepositoryTreeOptions = z.infer<typeof GetRepositoryTreeSchema>;
 export type MergeRequestThreadPosition = z.infer<typeof MergeRequestThreadPositionSchema>;
 export type MergeRequestThreadPositionCreate = z.infer<typeof MergeRequestThreadPositionCreateSchema>;
 export type CreateMergeRequestThreadOptions = z.infer<typeof CreateMergeRequestThreadSchema>;
-export type CreateMergeRequestNoteOptions = z.infer<typeof CreateMergeRequestNoteSchema>;
+export type CreateMergeRequestDiscussionNoteOptions = z.infer<typeof CreateMergeRequestDiscussionNoteSchema>;
 export type GitLabPipelineJob = z.infer<typeof GitLabPipelineJobSchema>;
 export type GitLabPipelineTriggerJob = z.infer<typeof GitLabPipelineTriggerJobSchema>;
 export type GitLabPipeline = z.infer<typeof GitLabPipelineSchema>;

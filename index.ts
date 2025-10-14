@@ -34,7 +34,7 @@ import {
   CreateIssueOptionsSchema,
   CreateIssueSchema,
   CreateLabelSchema, // Added
-  CreateMergeRequestNoteSchema,
+  CreateMergeRequestDiscussionNoteSchema,
   CreateMergeRequestOptionsSchema,
   CreateMergeRequestSchema,
   CreateMergeRequestThreadSchema,
@@ -189,7 +189,7 @@ import {
   UpdateIssueNoteSchema,
   UpdateIssueSchema,
   UpdateLabelSchema,
-  UpdateMergeRequestNoteSchema,
+  UpdateMergeRequestDiscussionNoteSchema,
   UpdateMergeRequestSchema,
   UpdateWikiPageSchema,
   VerifyNamespaceSchema,
@@ -635,9 +635,9 @@ const allTools = [
     inputSchema: toJSONSchema(UpdateMergeRequestNoteSchema),
   },
   {
-    name: "create_merge_request_note",
-    description: "Add a new note to an existing merge request thread",
-    inputSchema: toJSONSchema(CreateMergeRequestNoteSchema),
+    name: "create_merge_request_discussion_note",
+    description: "Add a new discussion note to an existing merge request thread",
+    inputSchema: toJSONSchema(CreateMergeRequestDiscussionNoteSchema),
   },
   {
     name: "get_draft_note",
@@ -1836,7 +1836,7 @@ async function listIssueDiscussions(
  * @param {boolean} [resolved] - Resolve/unresolve state
  * @returns {Promise<GitLabDiscussionNote>} The updated note
  */
-async function updateMergeRequestNote(
+async function updateMergeRequestDiscussionNote(
   projectId: string,
   mergeRequestIid: number | string,
   discussionId: string,
@@ -1946,7 +1946,7 @@ async function createIssueNote(
 }
 
 /**
- * Add a new note to an existing merge request thread
+ * Add a new discussion note to an existing merge request thread
  * 기존 병합 요청 스레드에 새 노트 추가
  *
  * @param {string} projectId - The ID or URL-encoded path of the project
@@ -1956,7 +1956,7 @@ async function createIssueNote(
  * @param {string} [createdAt] - The creation date of the note (ISO 8601 format)
  * @returns {Promise<GitLabDiscussionNote>} The created note
  */
-async function createMergeRequestNote(
+async function createMergeRequestDiscussionNote(
   projectId: string,
   mergeRequestIid: number | string,
   discussionId: string,
@@ -4939,9 +4939,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request: any) => {
         };
       }
 
-      case "update_merge_request_note": {
-        const args = UpdateMergeRequestNoteSchema.parse(request.params.arguments);
-        const note = await updateMergeRequestNote(
+      case "update_merge_request_discussion_note": {
+        const args = UpdateMergeRequestDiscussionNoteSchema.parse(request.params.arguments);
+        const note = await updateMergeRequestDiscussionNote(
           args.project_id,
           args.merge_request_iid,
           args.discussion_id,
@@ -4954,9 +4954,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request: any) => {
         };
       }
 
-      case "create_merge_request_note": {
-        const args = CreateMergeRequestNoteSchema.parse(request.params.arguments);
-        const note = await createMergeRequestNote(
+      case "create_merge_request_discussion_note": {
+        const args = CreateMergeRequestDiscussionNoteSchema.parse(request.params.arguments);
+        const note = await createMergeRequestDiscussionNote(
           args.project_id,
           args.merge_request_iid,
           args.discussion_id,
