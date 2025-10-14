@@ -34,6 +34,7 @@ import {
   CreateIssueOptionsSchema,
   CreateIssueSchema,
   CreateLabelSchema, // Added
+  CreateMergeRequestNoteSchema,
   CreateMergeRequestDiscussionNoteSchema,
   CreateMergeRequestOptionsSchema,
   CreateMergeRequestSchema,
@@ -51,6 +52,7 @@ import {
   DeleteLabelSchema,
   DeleteProjectMilestoneSchema,
   DeleteWikiPageSchema,
+  DeleteMergeRequestNoteSchema,
   EditProjectMilestoneSchema,
   type FileOperation,
   ForkRepositorySchema,
@@ -189,6 +191,7 @@ import {
   UpdateIssueNoteSchema,
   UpdateIssueSchema,
   UpdateLabelSchema,
+  UpdateMergeRequestNoteSchema,
   UpdateMergeRequestDiscussionNoteSchema,
   UpdateMergeRequestSchema,
   UpdateWikiPageSchema,
@@ -207,6 +210,8 @@ import {
   DeleteReleaseSchema,
   CreateReleaseEvidenceSchema,
   DownloadReleaseAssetSchema,
+  ListMergeRequestNotesSchema,
+  GetMergeRequestNoteSchema
 } from "./schemas.js";
 
 import { randomUUID } from "crypto";
@@ -339,7 +344,7 @@ const GITLAB_PERSONAL_ACCESS_TOKEN = process.env.GITLAB_PERSONAL_ACCESS_TOKEN;
 const GITLAB_AUTH_COOKIE_PATH = process.env.GITLAB_AUTH_COOKIE_PATH;
 const IS_OLD = process.env.GITLAB_IS_OLD === "true";
 const GITLAB_READ_ONLY_MODE = process.env.GITLAB_READ_ONLY_MODE === "true";
-const GITLAB_DENIED_TOOLS_REGEX = process.env.GITLAB_DENIED_TOOLS_REGEX ? new RegExp(process.env.GITLAB_DENIED_TOOLS_REGEX):undefined;
+const GITLAB_DENIED_TOOLS_REGEX = process.env.GITLAB_DENIED_TOOLS_REGEX ? new RegExp(process.env.GITLAB_DENIED_TOOLS_REGEX) : undefined;
 const USE_GITLAB_WIKI = process.env.USE_GITLAB_WIKI === "true";
 const USE_MILESTONE = process.env.USE_MILESTONE === "true";
 const USE_PIPELINE = process.env.USE_PIPELINE === "true";
@@ -630,14 +635,39 @@ const allTools = [
     inputSchema: toJSONSchema(ListMergeRequestDiscussionsSchema),
   },
   {
-    name: "update_merge_request_note",
-    description: "Modify an existing merge request thread note",
-    inputSchema: toJSONSchema(UpdateMergeRequestNoteSchema),
-  },
-  {
-    name: "create_merge_request_discussion_note",
+    name: "create_mr_discussion_note",
     description: "Add a new discussion note to an existing merge request thread",
     inputSchema: toJSONSchema(CreateMergeRequestDiscussionNoteSchema),
+  },
+  {
+    name: "mr_notes",
+    description: "List notes for a merge request",
+    inputSchema: toJSONSchema(ListMergeRequestNotesSchema),
+  },
+  {
+    name: "create_merge_request_note",
+    description: "Add a new note to a merge request",
+    inputSchema: toJSONSchema(CreateMergeRequestNoteSchema),
+  },
+  {
+    name: "delete_merge_request_note",
+    description: "Delete an existing merge request note",
+    inputSchema: toJSONSchema(DeleteMergeRequestNoteSchema),
+  },
+  {
+    name: "get_merge_request_note",
+    description: "Get a specific note for a merge request",
+    inputSchema: toJSONSchema(GetMergeRequestNoteSchema),
+  },
+  {
+    name: 'list_merge_request_notes',
+    description: "List notes for a merge request",
+    inputSchema: toJSONSchema(ListMergeRequestNotesSchema),
+  },
+  {
+    name: "update_merge_request_note",
+    description: "Modify an existing merge request note",
+    inputSchema: toJSONSchema(UpdateMergeRequestNoteSchema),
   },
   {
     name: "get_draft_note",
@@ -1978,6 +2008,144 @@ async function createMergeRequestDiscussionNote(
   const response = await fetch(url.toString(), {
     ...DEFAULT_FETCH_CONFIG,
     method: "POST",
+    body: JSON.stringify(payload),
+  });
+
+  await handleGitLabError(response);
+  const data = await response.json();
+  return GitLabDiscussionNoteSchema.parse(data);
+}
+
+
+
+async function createMergeRequestNote(
+  projectId: string,
+  mergeRequestIid: number | string,
+  body: string
+): Promise<GitLabDiscussionNote> {
+  projectId = decodeURIComponent(projectId); // Decode project ID
+  const url = new URL(
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(
+      getEffectiveProjectId(projectId)
+    )}/merge_requests/${mergeRequestIid}/notes`
+  );
+
+  const payload = {
+    id: projectId,
+    merge_request_iid: mergeRequestIid,
+    body,
+  };
+
+  const response = await fetch(url.toString(), {
+    ...DEFAULT_FETCH_CONFIG,
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+
+  await handleGitLabError(response);
+  const data = await response.json();
+  return GitLabDiscussionNoteSchema.parse(data);
+}
+
+async function deleteMergeRequestNote(
+  projectId: string,
+  mergeRequestIid: string,
+  noteId: string
+): Promise<void> {
+  projectId = decodeURIComponent(projectId); // Decode project ID
+  const url = new URL(
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(
+      getEffectiveProjectId(projectId)
+    )}/merge_requests/${mergeRequestIid}/notes/${noteId}`
+  );
+
+  const response = await fetch(url.toString(), {
+    ...DEFAULT_FETCH_CONFIG,
+    method: "DELETE",
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`GitLab API error: ${response.status} ${response.statusText}\n${errorText}`);
+  }
+}
+
+async function getMergeRequestNote(
+  projectId: string,
+  mergeRequestIid: string,
+  noteId: string
+): Promise<GitLabDiscussionNote> {
+  projectId = decodeURIComponent(projectId); // Decode project ID
+  const url = new URL(
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(
+      getEffectiveProjectId(projectId)
+    )}/merge_requests/${mergeRequestIid}/notes/${noteId}`
+  );
+  
+  const response = await fetch(url.toString(), {
+    ...DEFAULT_FETCH_CONFIG,
+    method: "GET",
+  });
+
+  await handleGitLabError(response);
+  const data = await response.json();
+  return GitLabDiscussionNoteSchema.parse(data);
+}
+
+async function listMergeRequestNotes(
+  projectId: string,
+  mergeRequestIid: string,
+  sort?: 'asc' | 'desc',
+  order_by?: 'created_at' | 'updated_at'
+): Promise<GitLabDiscussionNote[]> {
+  projectId = decodeURIComponent(projectId); // Decode project ID
+  const url = new URL(
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(
+      getEffectiveProjectId(projectId)
+    )}/merge_requests/${mergeRequestIid}/notes`
+  );
+  
+  if(sort) {
+    url.searchParams.append("sort", sort);
+  }
+
+  if(order_by) {
+    url.searchParams.append("order_by", order_by);
+  }
+
+  const response = await fetch(url.toString(), {
+    ...DEFAULT_FETCH_CONFIG,
+    method: "GET",
+  });
+
+  await handleGitLabError(response);
+  const data = await response.json();
+  return z.array(GitLabDiscussionNoteSchema).parse(data);
+}
+
+async function updateMergeRequestNote(
+  projectId: string,
+  mergeRequestIid: string,
+  noteId: string,
+  body: string
+): Promise<GitLabDiscussionNote> {
+  projectId = decodeURIComponent(projectId); // Decode project ID
+  const url = new URL(
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(
+      getEffectiveProjectId(projectId)
+    )}/merge_requests/${mergeRequestIid}/notes/${noteId}`
+  );
+
+  const payload = {
+    id: projectId,
+    merge_request_iid: mergeRequestIid,
+    note_id: noteId,
+    body,
+  };
+
+  const response = await fetch(url.toString(), {
+    ...DEFAULT_FETCH_CONFIG,
+    method: "PUT",
     body: JSON.stringify(payload),
   });
 
@@ -4205,13 +4373,13 @@ async function getCommit(projectId: string, sha: string, stats?: boolean): Promi
 async function getCommitDiff(projectId: string, sha: string, full_diff?: boolean): Promise<GitLabMergeRequestDiff[]> {
   projectId = decodeURIComponent(projectId);
   const baseUrl = `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/repository/commits/${encodeURIComponent(sha)}/diff`;
-  
+
   let allDiffs: GitLabMergeRequestDiff[] = [];
   let page = 1;
-  
+
   while (true) {
     const url = new URL(baseUrl);
-    
+
     if (full_diff) {
       url.searchParams.append("page", page.toString());
     }
@@ -4224,20 +4392,20 @@ async function getCommitDiff(projectId: string, sha: string, full_diff?: boolean
 
     const data = await response.json();
     const diffs = z.array(GitLabDiffSchema).parse(data);
-    
+
     allDiffs.push(...diffs);
-    
+
     if (!full_diff) {
       break;
     }
-    
+
     if (diffs.length < GITLAB_COMMIT_FILES_PER_PAGE) {
       break;
     }
-    
+
     page++;
   }
-  
+
   return allDiffs;
 }
 
@@ -4967,6 +5135,74 @@ server.setRequestHandler(CallToolRequestSchema, async (request: any) => {
           content: [{ type: "text", text: JSON.stringify(note, null, 2) }],
         };
       }
+
+      case "create_merge_request_note": {
+        const args = CreateMergeRequestNoteSchema.parse(request.params.arguments);
+        const note = await createMergeRequestNote(
+          args.project_id,
+          args.merge_request_iid,
+          args.body
+        );
+
+        return {
+          content: [{ type: "text", text: JSON.stringify(note, null, 2) }],
+        };
+      }
+
+      case "delete_merge_request_note": {
+        const args = DeleteMergeRequestNoteSchema.parse(request.params.arguments);
+        await deleteMergeRequestNote(
+          args.project_id,
+          args.merge_request_iid,
+          args.note_id
+        );
+
+        return {
+          content: [{ type: "text", text: "Merge request note deleted successfully" }],
+        };
+      }
+
+      case 'get_merge_request_note': {
+        const args = GetMergeRequestNoteSchema.parse(request.params.arguments);
+        const note = await getMergeRequestNote(
+          args.project_id,
+          args.merge_request_iid,
+          args.note_id
+        );
+
+        return {
+          content: [{ type: "text", text: JSON.stringify(note, null, 2) }],
+        };
+      }
+
+      case 'list_merge_request_notes': {
+        const args = ListMergeRequestNotesSchema.parse(request.params.arguments);
+        const notes = await listMergeRequestNotes(
+          args.project_id,
+          args.merge_request_iid,
+          args.sort,
+          args.order_by,
+        );
+
+        return {
+          content: [{ type: "text", text: JSON.stringify(notes, null, 2) }],
+        };
+      }
+
+      case 'update_merge_request_note': {
+        const args = UpdateMergeRequestNoteSchema.parse(request.params.arguments);
+        const note = await updateMergeRequestNote(
+          args.project_id,
+          args.merge_request_iid,
+          args.note_id,
+          args.body
+        );
+
+        return {
+          content: [{ type: "text", text: JSON.stringify(note, null, 2) }],
+        };
+      }
+      
 
       case "update_issue_note": {
         const args = UpdateIssueNoteSchema.parse(request.params.arguments);

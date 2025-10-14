@@ -954,6 +954,37 @@ export const ListMergeRequestDiscussionsSchema = ProjectParamsSchema.extend({
   merge_request_iid: z.coerce.string().describe("The IID of a merge request"),
 }).merge(PaginationOptionsSchema);
 
+export const ListMergeRequestNotesSchema = ProjectParamsSchema.extend({
+  merge_request_iid: z.coerce.string().describe("The IID of a merge request"),
+  sort: z.enum(["asc", "desc"]).optional().describe("The sort order of the notes"),
+  order_by: z.enum(["created_at", "updated_at"]).optional().describe("The field to sort the notes by"),
+}).merge(PaginationOptionsSchema);
+
+export const GetMergeRequestNoteSchema = ProjectParamsSchema.extend({
+  merge_request_iid: z.coerce.string().describe("The IID of a merge request"),
+  note_id: z.coerce.string().describe("The ID of a thread note"),
+});
+
+// Input schema for updating merge request notes
+export const UpdateMergeRequestNoteSchema = ProjectParamsSchema.extend({
+  merge_request_iid: z.coerce.string().describe("The IID of a merge request"),
+  note_id: z.coerce.string().describe("The ID of a thread note"),
+  body: z.string().describe("The content of the note or reply"),
+});
+
+// Input schema for adding a note to a merge request
+export const CreateMergeRequestNoteSchema = ProjectParamsSchema.extend({
+  merge_request_iid: z.coerce.string().describe("The IID of a merge request"),
+  body: z.string().describe("The content of the note or reply"),
+});
+
+// delete a merge request note
+export const DeleteMergeRequestNoteSchema = ProjectParamsSchema.extend({
+  merge_request_iid: z.coerce.string().describe("The IID of a merge request"),
+  note_id: z.coerce.string().describe("The ID of a thread note"),
+});
+
+
 // Input schema for updating a merge request discussion note
 export const UpdateMergeRequestDiscussionNoteSchema = ProjectParamsSchema.extend({
   merge_request_iid: z.coerce.string().describe("The IID of a merge request"),
