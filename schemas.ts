@@ -985,6 +985,12 @@ export const DeleteMergeRequestNoteSchema = ProjectParamsSchema.extend({
 });
 
 
+export const DeleteMergeRequestDiscussionNoteSchema = ProjectParamsSchema.extend({
+  merge_request_iid: z.coerce.string().describe("The IID of a merge request"),
+  discussion_id: z.coerce.string().describe("The ID of a thread"),
+  note_id: z.coerce.string().describe("The ID of a thread note"),
+});
+
 // Input schema for updating a merge request discussion note
 export const UpdateMergeRequestDiscussionNoteSchema = ProjectParamsSchema.extend({
   merge_request_iid: z.coerce.string().describe("The IID of a merge request"),
@@ -1725,6 +1731,12 @@ export const CreateMergeRequestThreadSchema = ProjectParamsSchema.extend({
     "Position when creating a diff note"
   ),
   created_at: z.string().optional().describe("Date the thread was created at (ISO 8601 format)"),
+});
+
+export const ResolveMergeRequestThreadSchema = ProjectParamsSchema.extend({
+  merge_request_iid: z.coerce.string().describe("The IID of a merge request"),
+  discussion_id: z.coerce.string().describe("The ID of a thread"),
+  resolved: z.boolean().describe("Whether to resolve the thread"),
 });
 
 // Milestone related schemas
