@@ -2084,3 +2084,186 @@ export const ExecuteGraphQLSchema = z.object({
     .describe("Variables object for the GraphQL query"),
 });
 export type ExecuteGraphQLOptions = z.infer<typeof ExecuteGraphQLSchema>;
+
+// Release schemas
+export const GitLabReleaseAssetLinkSchema = z.object({
+  id: z.number().optional(),
+  name: z.string(),
+  url: z.string(),
+  direct_asset_path: z.string().optional(),
+  link_type: z.enum(["other", "runbook", "image", "package"]).optional(),
+});
+
+export const GitLabReleaseAssetSourceSchema = z.object({
+  format: z.string(),
+  url: z.string(),
+});
+
+export const GitLabReleaseAssetsSchema = z.object({
+  count: z.number().optional(),
+  sources: z.array(GitLabReleaseAssetSourceSchema).optional(),
+  links: z.array(GitLabReleaseAssetLinkSchema).optional(),
+  evidence_file_path: z.string().optional(),
+});
+
+export const GitLabReleaseEvidenceSchema = z.object({
+  sha: z.string(),
+  filepath: z.string(),
+  collected_at: z.string(),
+});
+
+export const GitLabReleaseSchema = z.object({
+  tag_name: z.string(),
+  name: z.string().nullable().optional(),
+  description: z.string().nullable().optional(),
+  description_html: z.string().nullable().optional(),
+  created_at: z.string(),
+  released_at: z.string().nullable().optional(),
+  author: z.object({
+    id: z.number(),
+    name: z.string(),
+    username: z.string(),
+    state: z.string(),
+    avatar_url: z.string().nullable().optional(),
+    web_url: z.string(),
+  }).optional(),
+  commit: z.object({
+    id: z.string(),
+    short_id: z.string(),
+    title: z.string(),
+    created_at: z.string(),
+    parent_ids: z.array(z.string()),
+    message: z.string(),
+    author_name: z.string(),
+    author_email: z.string(),
+    authored_date: z.string(),
+    committer_name: z.string(),
+    committer_email: z.string(),
+    committed_date: z.string(),
+  }).optional(),
+  milestones: z.array(GitLabMilestonesSchema).optional(),
+  commit_path: z.string().optional(),
+  tag_path: z.string().optional(),
+  assets: GitLabReleaseAssetsSchema.optional(),
+  evidences: z.array(GitLabReleaseEvidenceSchema).optional(),
+  _links: z.object({
+    closed_issues_url: z.string().optional(),
+    closed_merge_requests_url: z.string().optional(),
+    edit_url: z.string().optional(),
+    merged_merge_requests_url: z.string().optional(),
+    opened_issues_url: z.string().optional(),
+    opened_merge_requests_url: z.string().optional(),
+    self: z.string().optional(),
+  }).optional(),
+  upcoming_release: z.boolean().optional(),
+  historical_release: z.boolean().optional(),
+});
+
+export const ListReleasesSchema = z
+  .object({
+    project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
+    order_by: z
+      .enum(["released_at", "created_at"])
+      .optional()
+      .describe("The field to use as order. Either released_at (default) or created_at."),
+    sort: z
+      .enum(["desc", "asc"])
+      .optional()
+      .describe("The direction of the order. Either desc (default) for descending order or asc for ascending order."),
+    include_html_description: z
+      .boolean()
+      .optional()
+      .describe("If true, a response includes HTML rendered Markdown of the release description."),
+  })
+  .merge(PaginationOptionsSchema);
+
+export const GetReleaseSchema = z.object({
+  project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
+  tag_name: z.string().describe("The Git tag the release is associated with"),
+  include_html_description: z
+    .boolean()
+    .optional()
+    .describe("If true, a response includes HTML rendered Markdown of the release description."),
+});
+
+export const CreateReleaseSchema = z.object({
+  project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
+  tag_name: z.string().describe("The tag where the release is created from"),
+  name: z.string().optional().describe("The release name"),
+  tag_message: z.string().optional().describe("Message to use if creating a new annotated tag"),
+  description: z.string().optional().describe("The description of the release. You can use Markdown."),
+  ref: z
+    .string()
+    .optional()
+    .describe("If a tag specified in tag_name doesn't exist, the release is created from ref and tagged with tag_name. It can be a commit SHA, another tag name, or a branch name."),
+  milestones: z
+    .array(z.string())
+    .optional()
+    .describe("The title of each milestone the release is associated with. GitLab Premium customers can specify group milestones."),
+  assets: z
+    .object({
+      links: z
+        .array(
+          z.object({
+            name: z.string().describe("The name of the link. Link names must be unique within the release."),
+            url: z.string().describe("The URL of the link. Link URLs must be unique within the release."),
+            direct_asset_path: z.string().optional().describe("Optional path for a direct asset link."),
+            link_type: z
+              .enum(["other", "runbook", "image", "package"])
+              .optional()
+              .describe("The type of the link: other, runbook, image, package. Defaults to other."),
+          })
+        )
+        .optional(),
+    })
+    .optional()
+    .describe("An array of assets links"),
+  released_at: z
+    .string()
+    .optional()
+    .describe("Date and time for the release. Defaults to the current time. Expected in ISO 8601 format (2019-03-15T08:00:00Z). Only provide this field if creating an upcoming or historical release."),
+});
+
+export const UpdateReleaseSchema = z.object({
+  project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
+  tag_name: z.string().describe("The Git tag the release is associated with"),
+  name: z.string().optional().describe("The release name"),
+  description: z.string().optional().describe("The description of the release. You can use Markdown."),
+  milestones: z
+    .array(z.string())
+    .optional()
+    .describe("The title of each milestone to associate with the release. GitLab Premium customers can specify group milestones. To remove all milestones from the release, specify []."),
+  released_at: z
+    .string()
+    .optional()
+    .describe("The date when the release is/was ready. Expected in ISO 8601 format (2019-03-15T08:00:00Z)."),
+});
+
+export const DeleteReleaseSchema = z.object({
+  project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
+  tag_name: z.string().describe("The Git tag the release is associated with"),
+});
+
+export const CreateReleaseEvidenceSchema = z.object({
+  project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
+  tag_name: z.string().describe("The Git tag the release is associated with"),
+});
+
+export const DownloadReleaseAssetSchema = z.object({
+  project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
+  tag_name: z.string().describe("The Git tag the release is associated with"),
+  direct_asset_path: z.string().describe("Path to the release asset file as specified when creating or updating its link"),
+});
+
+// Export release types
+export type GitLabRelease = z.infer<typeof GitLabReleaseSchema>;
+export type GitLabReleaseAssetLink = z.infer<typeof GitLabReleaseAssetLinkSchema>;
+export type GitLabReleaseAssets = z.infer<typeof GitLabReleaseAssetsSchema>;
+export type GitLabReleaseEvidence = z.infer<typeof GitLabReleaseEvidenceSchema>;
+export type ListReleasesOptions = z.infer<typeof ListReleasesSchema>;
+export type GetReleaseOptions = z.infer<typeof GetReleaseSchema>;
+export type CreateReleaseOptions = z.infer<typeof CreateReleaseSchema>;
+export type UpdateReleaseOptions = z.infer<typeof UpdateReleaseSchema>;
+export type DeleteReleaseOptions = z.infer<typeof DeleteReleaseSchema>;
+export type CreateReleaseEvidenceOptions = z.infer<typeof CreateReleaseEvidenceSchema>;
+export type DownloadReleaseAssetOptions = z.infer<typeof DownloadReleaseAssetSchema>;
