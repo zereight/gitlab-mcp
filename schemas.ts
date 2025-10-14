@@ -954,7 +954,7 @@ export const ListMergeRequestDiscussionsSchema = ProjectParamsSchema.extend({
   merge_request_iid: z.coerce.string().describe("The IID of a merge request"),
 }).merge(PaginationOptionsSchema);
 
-export const ListMergeRequestNotesSchema = ProjectParamsSchema.extend({
+export const GetMergeRequestNotesSchema = ProjectParamsSchema.extend({
   merge_request_iid: z.coerce.string().describe("The IID of a merge request"),
   sort: z.enum(["asc", "desc"]).optional().describe("The sort order of the notes"),
   order_by: z.enum(["created_at", "updated_at"]).optional().describe("The field to sort the notes by"),

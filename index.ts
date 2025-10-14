@@ -210,7 +210,7 @@ import {
   DeleteReleaseSchema,
   CreateReleaseEvidenceSchema,
   DownloadReleaseAssetSchema,
-  ListMergeRequestNotesSchema,
+  GetMergeRequestNotesSchema,
   GetMergeRequestNoteSchema,
   DeleteMergeRequestDiscussionNoteSchema,
   ResolveMergeRequestThreadSchema
@@ -672,9 +672,9 @@ const allTools = [
     inputSchema: toJSONSchema(GetMergeRequestNoteSchema),
   },
   {
-    name: 'list_merge_request_notes',
+    name: 'get_merge_request_notes',
     description: "List notes for a merge request",
-    inputSchema: toJSONSchema(ListMergeRequestNotesSchema),
+    inputSchema: toJSONSchema(GetMergeRequestNotesSchema),
   },
   {
     name: "update_merge_request_note",
@@ -2128,7 +2128,7 @@ async function getMergeRequestNote(
   return GitLabDiscussionNoteSchema.parse(data);
 }
 
-async function listMergeRequestNotes(
+async function getMergeRequestNotes(
   projectId: string,
   mergeRequestIid: string,
   sort?: 'asc' | 'desc',
@@ -5254,9 +5254,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request: any) => {
         };
       }
 
-      case 'list_merge_request_notes': {
-        const args = ListMergeRequestNotesSchema.parse(request.params.arguments);
-        const notes = await listMergeRequestNotes(
+      case 'get_merge_request_notes': {
+        const args = GetMergeRequestNotesSchema.parse(request.params.arguments);
+        const notes = await getMergeRequestNotes(
           args.project_id,
           args.merge_request_iid,
           args.sort,
