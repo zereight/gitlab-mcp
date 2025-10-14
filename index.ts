@@ -657,11 +657,6 @@ const allTools = [
     inputSchema: toJSONSchema(CreateMergeRequestDiscussionNoteSchema),
   },
   {
-    name: "mr_notes",
-    description: "List notes for a merge request",
-    inputSchema: toJSONSchema(ListMergeRequestNotesSchema),
-  },
-  {
     name: "create_merge_request_note",
     description: "Add a new note to a merge request",
     inputSchema: toJSONSchema(CreateMergeRequestNoteSchema),
