@@ -18,6 +18,7 @@ import { CookieJar, parse as parseCookie } from "tough-cookie";
 import { fileURLToPath } from "url";
 import { z } from "zod";
 import { zodToJsonSchema } from "zod-to-json-schema";
+import { initializeOAuth } from "./oauth.js";
 // Add type imports for proxy agents
 import { Agent } from "http";
 import { Agent as HttpsAgent } from "https";
@@ -266,7 +267,7 @@ const server = new Server(
  */
 function validateConfiguration(): void {
   const errors: string[] = [];
-  
+
   // Validate SESSION_TIMEOUT_SECONDS
   const timeoutStr = process.env.SESSION_TIMEOUT_SECONDS;
   if (timeoutStr) {
@@ -279,7 +280,7 @@ function validateConfiguration(): void {
       logger.warn(`SESSION_TIMEOUT_SECONDS=${timeout} is below recommended minimum of 60 seconds. Only use low values for testing.`);
     }
   }
-  
+
   // Validate MAX_SESSIONS
   const maxSessionsStr = process.env.MAX_SESSIONS;
   if (maxSessionsStr) {
@@ -288,7 +289,7 @@ function validateConfiguration(): void {
       errors.push(`MAX_SESSIONS must be between 1 and 10000, got: ${maxSessionsStr}`);
     }
   }
-  
+
   // Validate MAX_REQUESTS_PER_MINUTE
   const maxReqStr = process.env.MAX_REQUESTS_PER_MINUTE;
   if (maxReqStr) {
@@ -297,7 +298,7 @@ function validateConfiguration(): void {
       errors.push(`MAX_REQUESTS_PER_MINUTE must be between 1 and 1000, got: ${maxReqStr}`);
     }
   }
-  
+
   // Validate PORT
   const portStr = process.env.PORT;
   if (portStr) {
@@ -306,7 +307,7 @@ function validateConfiguration(): void {
       errors.push(`PORT must be between 1 and 65535, got: ${portStr}`);
     }
   }
-  
+
   // Validate GITLAB_API_URL format
   const apiUrl = process.env.GITLAB_API_URL;
   if (apiUrl) {
@@ -316,27 +317,29 @@ function validateConfiguration(): void {
       errors.push(`GITLAB_API_URL must be a valid URL, got: ${apiUrl}`);
     }
   }
-  
+
   // Validate auth configuration
   const remoteAuth = process.env.REMOTE_AUTHORIZATION === "true";
+  const useOAuth = process.env.GITLAB_USE_OAUTH === "true";
   const hasToken = !!process.env.GITLAB_PERSONAL_ACCESS_TOKEN;
   const hasCookie = !!process.env.GITLAB_AUTH_COOKIE_PATH;
-  
-  if (!remoteAuth && !hasToken && !hasCookie) {
-    errors.push('Either GITLAB_PERSONAL_ACCESS_TOKEN, GITLAB_AUTH_COOKIE_PATH, or REMOTE_AUTHORIZATION=true must be set');
+
+  if (!remoteAuth && !useOAuth && !hasToken && !hasCookie) {
+    errors.push('Either GITLAB_PERSONAL_ACCESS_TOKEN, GITLAB_AUTH_COOKIE_PATH, GITLAB_USE_OAUTH=true, or REMOTE_AUTHORIZATION=true must be set');
   }
-  
+
   if (errors.length > 0) {
     logger.error('Configuration validation failed:');
     errors.forEach(err => logger.error(`  - ${err}`));
     process.exit(1);
   }
-  
+
   logger.info('Configuration validation passed');
 }
 
-const GITLAB_PERSONAL_ACCESS_TOKEN = process.env.GITLAB_PERSONAL_ACCESS_TOKEN;
+let GITLAB_PERSONAL_ACCESS_TOKEN = process.env.GITLAB_PERSONAL_ACCESS_TOKEN;
 const GITLAB_AUTH_COOKIE_PATH = process.env.GITLAB_AUTH_COOKIE_PATH;
+const USE_OAUTH = process.env.GITLAB_USE_OAUTH === "true";
 const IS_OLD = process.env.GITLAB_IS_OLD === "true";
 const GITLAB_READ_ONLY_MODE = process.env.GITLAB_READ_ONLY_MODE === "true";
 const GITLAB_DENIED_TOOLS_REGEX = process.env.GITLAB_DENIED_TOOLS_REGEX ? new RegExp(process.env.GITLAB_DENIED_TOOLS_REGEX):undefined;
@@ -1155,12 +1158,11 @@ if (REMOTE_AUTHORIZATION) {
     process.exit(1);
   }
   logger.info("Remote authorization enabled: tokens will be read from HTTP headers");
-} else {
-  // Standard mode: token must be in environment
-  if (!GITLAB_PERSONAL_ACCESS_TOKEN) {
-    logger.error("GITLAB_PERSONAL_ACCESS_TOKEN environment variable is not set");
-    process.exit(1);
-  }
+} else if (!USE_OAUTH && !GITLAB_PERSONAL_ACCESS_TOKEN && !GITLAB_AUTH_COOKIE_PATH) {
+  // Standard mode: token must be in environment (unless using OAuth)
+  logger.error("GITLAB_PERSONAL_ACCESS_TOKEN environment variable is not set");
+  logger.info("Either set GITLAB_PERSONAL_ACCESS_TOKEN or enable OAuth with GITLAB_USE_OAUTH=true");
+  process.exit(1);
 }
 
 /**
@@ -6478,7 +6480,27 @@ async function runServer() {
   try {
     // Validate configuration before starting server
     validateConfiguration();
-    
+
+    // Initialize OAuth token if OAuth is enabled
+    if (USE_OAUTH) {
+      logger.info("Using OAuth authentication...");
+      try {
+        const gitlabBaseUrl = GITLAB_API_URL.replace(/\/api\/v4$/, "");
+        GITLAB_PERSONAL_ACCESS_TOKEN = await initializeOAuth(gitlabBaseUrl);
+        logger.info("OAuth authentication successful");
+
+        // Update headers with OAuth token
+        if (IS_OLD) {
+          DEFAULT_HEADERS["Private-Token"] = `${GITLAB_PERSONAL_ACCESS_TOKEN}`;
+        } else {
+          DEFAULT_HEADERS["Authorization"] = `Bearer ${GITLAB_PERSONAL_ACCESS_TOKEN}`;
+        }
+      } catch (error) {
+        logger.error("OAuth authentication failed:", error);
+        process.exit(1);
+      }
+    }
+
     const transportMode = determineTransportMode();
     await initializeServerByTransportMode(transportMode);
   } catch (error) {
