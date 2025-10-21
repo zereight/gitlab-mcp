@@ -1810,7 +1810,7 @@ export const GetCommitSchema = z.object({
 export const GetCommitDiffSchema = z.object({
   project_id: z.coerce.string().describe("Project ID or complete URL-encoded path to project"),
   sha: z.string().describe("The commit hash or name of a repository branch or tag"),
-  full_diff: flexibleBoolean.optional().describe("Whether to return the full diff or only first page (default: false)"),
+  full_diff: z.boolean().optional().describe("Whether to return the full diff or only first page (default: false)"),
 });
 
 // Schema for listing issues assigned to the current user
@@ -2091,3 +2091,13 @@ export type ListEventsOptions = z.infer<typeof ListEventsSchema>;
 export type GetProjectEventsOptions = z.infer<typeof GetProjectEventsSchema>;
 export type RebaseBranchOptions = z.infer<typeof RebaseBranchSchema>;
 export type GitLabRebaseResult = z.infer<typeof GitLabRebaseResultSchema>;
+
+// GraphQL generic execution schema
+export const ExecuteGraphQLSchema = z.object({
+  query: z.string().describe("GraphQL query string"),
+  variables: z
+    .record(z.any())
+    .optional()
+    .describe("Variables object for the GraphQL query"),
+});
+export type ExecuteGraphQLOptions = z.infer<typeof ExecuteGraphQLSchema>;
