@@ -67,6 +67,28 @@ When using with the Claude App, you need to set up your API key and URLs directl
 }
 ```
 
+#### Strands Agents SDK (MCP Tools)
+
+```python
+env_vars = {
+        "GITLAB_PERSONAL_ACCESS_TOKEN": gitlab_access_token,
+        "GITLAB_API_URL": gitlab_api_url,
+        "USE_GITLAB_WIKI": use_gitlab_wiki
+        # ......the rest of the optional parameters 
+}
+
+stdio_gitlab_mcp_client = MCPClient(
+        lambda: stdio_client(
+            StdioServerParameters(
+                command="npx",
+                args=["-y", "@zereight/mcp-gitlab"],
+                env=env_vars,
+            )
+        )
+    )
+```
+
+
 #### Docker
 
 - stdio mcp.json
