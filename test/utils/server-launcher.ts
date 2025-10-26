@@ -45,22 +45,30 @@ export async function launchServer(config: ServerConfig): Promise<ServerInstance
   const GITLAB_TOKEN = process.env.GITLAB_TOKEN_TEST || process.env.GITLAB_TOKEN;
   const TEST_PROJECT_ID = process.env.TEST_PROJECT_ID;
   
-  // Validate that we have required configuration
-  if (!GITLAB_TOKEN) {
+  // Check if remote authorization is enabled
+  const isRemoteAuth = env.REMOTE_AUTHORIZATION === 'true';
+  
+  // Validate that we have required configuration (unless using remote auth)
+  if (!GITLAB_TOKEN && !isRemoteAuth) {
     throw new Error('GITLAB_TOKEN_TEST or GITLAB_TOKEN environment variable is required for server testing');
   }
-  if (!TEST_PROJECT_ID) {
+  if (!TEST_PROJECT_ID && !isRemoteAuth) {
     throw new Error('TEST_PROJECT_ID environment variable is required for server testing');
   }
 
   const serverEnv: Record<string, string> = {
     // Add all environment variables from the current process
-    ...process.env,
+    ...(process.env as Record<string, string>),
     GITLAB_API_URL: `${GITLAB_API_URL}/api/v4`,
-    GITLAB_PROJECT_ID: TEST_PROJECT_ID,
+    ...(TEST_PROJECT_ID ? { GITLAB_PROJECT_ID: TEST_PROJECT_ID } : {}),
     GITLAB_READ_ONLY_MODE: 'true', // Use read-only mode for testing
     ...env,
   };
+
+  // Only set GITLAB_PERSONAL_ACCESS_TOKEN if not using remote auth
+  if (!isRemoteAuth && GITLAB_TOKEN) {
+    serverEnv.GITLAB_PERSONAL_ACCESS_TOKEN = GITLAB_TOKEN;
+  }
 
   // Set transport-specific environment variables
   switch (mode) {
