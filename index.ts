@@ -197,7 +197,16 @@ import {
   ListEventsSchema,
   GetProjectEventsSchema,
   GitLabEvent,
-  ExecuteGraphQLSchema
+  ExecuteGraphQLSchema,
+  type GitLabRelease,
+  GitLabReleaseSchema,
+  ListReleasesSchema,
+  GetReleaseSchema,
+  CreateReleaseSchema,
+  UpdateReleaseSchema,
+  DeleteReleaseSchema,
+  CreateReleaseEvidenceSchema,
+  DownloadReleaseAssetSchema,
 } from "./schemas.js";
 
 import { randomUUID } from "crypto";
@@ -973,6 +982,41 @@ const allTools = [
     description: "List all visible events for a specified project. Note: before/after parameters accept date format YYYY-MM-DD only",
     inputSchema: toJSONSchema(GetProjectEventsSchema),
   },
+  {
+    name: "list_releases",
+    description: "List all releases for a project",
+    inputSchema: toJSONSchema(ListReleasesSchema),
+  },
+  {
+    name: "get_release",
+    description: "Get a release by tag name",
+    inputSchema: toJSONSchema(GetReleaseSchema),
+  },
+  {
+    name: "create_release",
+    description: "Create a new release in a GitLab project",
+    inputSchema: toJSONSchema(CreateReleaseSchema),
+  },
+  {
+    name: "update_release",
+    description: "Update an existing release in a GitLab project",
+    inputSchema: toJSONSchema(UpdateReleaseSchema),
+  },
+  {
+    name: "delete_release",
+    description: "Delete a release from a GitLab project (does not delete the associated tag)",
+    inputSchema: toJSONSchema(DeleteReleaseSchema),
+  },
+  {
+    name: "create_release_evidence",
+    description: "Create release evidence for an existing release (GitLab Premium/Ultimate only)",
+    inputSchema: toJSONSchema(CreateReleaseEvidenceSchema),
+  },
+  {
+    name: "download_release_asset",
+    description: "Download a release asset file by direct asset path",
+    inputSchema: toJSONSchema(DownloadReleaseAssetSchema),
+  },
 ];
 
 // Define which tools are read-only
@@ -1023,6 +1067,9 @@ const readOnlyTools = [
   "download_attachment",
   "list_events",
   "get_project_events",
+  "list_releases",
+  "get_release",
+  "download_release_asset",
 ];
 
 // Define which tools are related to wiki and can be toggled by USE_GITLAB_WIKI
@@ -4461,6 +4508,200 @@ async function getProjectEvents(projectId: string, options: Omit<z.infer<typeof 
   return GitLabEventSchema.array().parse(data);
 }
 
+/**
+ * List all releases for a project
+ *
+ * @param projectId The ID or URL-encoded path of the project
+ * @param options Optional parameters for listing releases
+ * @returns Array of GitLab releases
+ */
+async function listReleases(
+  projectId: string,
+  options: Omit<z.infer<typeof ListReleasesSchema>, "project_id"> = {}
+): Promise<GitLabRelease[]> {
+  const effectiveProjectId = getEffectiveProjectId(projectId);
+  const url = new URL(
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(effectiveProjectId)}/releases`
+  );
+
+  // Add query parameters
+  Object.entries(options).forEach(([key, value]) => {
+    if (value !== undefined) {
+      url.searchParams.append(key, value.toString());
+    }
+  });
+
+  const response = await fetch(url.toString(), {
+    ...DEFAULT_FETCH_CONFIG,
+  });
+
+  await handleGitLabError(response);
+
+  const data = await response.json();
+  return GitLabReleaseSchema.array().parse(data);
+}
+
+/**
+ * Get a release by tag name
+ *
+ * @param projectId The ID or URL-encoded path of the project
+ * @param tagName The Git tag the release is associated with
+ * @param includeHtmlDescription If true, includes HTML rendered Markdown
+ * @returns GitLab release
+ */
+async function getRelease(
+  projectId: string,
+  tagName: string,
+  includeHtmlDescription?: boolean
+): Promise<GitLabRelease> {
+  const effectiveProjectId = getEffectiveProjectId(projectId);
+  const url = new URL(
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(effectiveProjectId)}/releases/${encodeURIComponent(tagName)}`
+  );
+
+  if (includeHtmlDescription !== undefined) {
+    url.searchParams.append("include_html_description", includeHtmlDescription.toString());
+  }
+
+  const response = await fetch(url.toString(), {
+    ...DEFAULT_FETCH_CONFIG,
+  });
+
+  await handleGitLabError(response);
+
+  const data = await response.json();
+  return GitLabReleaseSchema.parse(data);
+}
+
+/**
+ * Create a new release
+ *
+ * @param projectId The ID or URL-encoded path of the project
+ * @param options Options for creating the release
+ * @returns Created GitLab release
+ */
+async function createRelease(
+  projectId: string,
+  options: Omit<z.infer<typeof CreateReleaseSchema>, "project_id">
+): Promise<GitLabRelease> {
+  const effectiveProjectId = getEffectiveProjectId(projectId);
+
+  const response = await fetch(
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(effectiveProjectId)}/releases`,
+    {
+      ...DEFAULT_FETCH_CONFIG,
+      method: "POST",
+      body: JSON.stringify(options),
+    }
+  );
+
+  await handleGitLabError(response);
+
+  const data = await response.json();
+  return GitLabReleaseSchema.parse(data);
+}
+
+/**
+ * Update an existing release
+ *
+ * @param projectId The ID or URL-encoded path of the project
+ * @param tagName The Git tag the release is associated with
+ * @param options Options for updating the release
+ * @returns Updated GitLab release
+ */
+async function updateRelease(
+  projectId: string,
+  tagName: string,
+  options: Omit<z.infer<typeof UpdateReleaseSchema>, "project_id" | "tag_name">
+): Promise<GitLabRelease> {
+  const effectiveProjectId = getEffectiveProjectId(projectId);
+
+  const response = await fetch(
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(effectiveProjectId)}/releases/${encodeURIComponent(tagName)}`,
+    {
+      ...DEFAULT_FETCH_CONFIG,
+      method: "PUT",
+      body: JSON.stringify(options),
+    }
+  );
+
+  await handleGitLabError(response);
+
+  const data = await response.json();
+  return GitLabReleaseSchema.parse(data);
+}
+
+/**
+ * Delete a release
+ *
+ * @param projectId The ID or URL-encoded path of the project
+ * @param tagName The Git tag the release is associated with
+ * @returns Deleted GitLab release
+ */
+async function deleteRelease(projectId: string, tagName: string): Promise<GitLabRelease> {
+  const effectiveProjectId = getEffectiveProjectId(projectId);
+
+  const response = await fetch(
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(effectiveProjectId)}/releases/${encodeURIComponent(tagName)}`,
+    {
+      ...DEFAULT_FETCH_CONFIG,
+      method: "DELETE",
+    }
+  );
+
+  await handleGitLabError(response);
+
+  const data = await response.json();
+  return GitLabReleaseSchema.parse(data);
+}
+
+/**
+ * Create release evidence (GitLab Premium/Ultimate only)
+ *
+ * @param projectId The ID or URL-encoded path of the project
+ * @param tagName The Git tag the release is associated with
+ */
+async function createReleaseEvidence(projectId: string, tagName: string): Promise<void> {
+  const effectiveProjectId = getEffectiveProjectId(projectId);
+
+  const response = await fetch(
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(effectiveProjectId)}/releases/${encodeURIComponent(tagName)}/evidence`,
+    {
+      ...DEFAULT_FETCH_CONFIG,
+      method: "POST",
+    }
+  );
+
+  await handleGitLabError(response);
+}
+
+/**
+ * Download a release asset
+ *
+ * @param projectId The ID or URL-encoded path of the project
+ * @param tagName The Git tag the release is associated with
+ * @param directAssetPath Path to the release asset file
+ * @returns The asset file content
+ */
+async function downloadReleaseAsset(
+  projectId: string,
+  tagName: string,
+  directAssetPath: string
+): Promise<string> {
+  const effectiveProjectId = getEffectiveProjectId(projectId);
+
+  const response = await fetch(
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(effectiveProjectId)}/releases/${encodeURIComponent(tagName)}/downloads/${directAssetPath}`,
+    {
+      ...DEFAULT_FETCH_CONFIG,
+    }
+  );
+
+  await handleGitLabError(response);
+
+  return await response.text();
+}
+
 server.setRequestHandler(ListToolsRequestSchema, async () => {
   // Apply read-only filter first
   const tools0 = GITLAB_READ_ONLY_MODE
@@ -5648,6 +5889,91 @@ server.setRequestHandler(CallToolRequestSchema, async (request: any) => {
         const events = await getProjectEvents(project_id, options);
         return {
           content: [{ type: "text", text: JSON.stringify(events, null, 2) }],
+        };
+      }
+
+      case "list_releases": {
+        const args = ListReleasesSchema.parse(request.params.arguments);
+        const { project_id, ...options } = args;
+        const releases = await listReleases(project_id, options);
+        return {
+          content: [{ type: "text", text: JSON.stringify(releases, null, 2) }],
+        };
+      }
+
+      case "get_release": {
+        const args = GetReleaseSchema.parse(request.params.arguments);
+        const release = await getRelease(
+          args.project_id,
+          args.tag_name,
+          args.include_html_description
+        );
+        return {
+          content: [{ type: "text", text: JSON.stringify(release, null, 2) }],
+        };
+      }
+
+      case "create_release": {
+        const args = CreateReleaseSchema.parse(request.params.arguments);
+        const { project_id, ...options } = args;
+        const release = await createRelease(project_id, options);
+        return {
+          content: [{ type: "text", text: JSON.stringify(release, null, 2) }],
+        };
+      }
+
+      case "update_release": {
+        const args = UpdateReleaseSchema.parse(request.params.arguments);
+        const { project_id, tag_name, ...options } = args;
+        const release = await updateRelease(project_id, tag_name, options);
+        return {
+          content: [{ type: "text", text: JSON.stringify(release, null, 2) }],
+        };
+      }
+
+      case "delete_release": {
+        const args = DeleteReleaseSchema.parse(request.params.arguments);
+        const release = await deleteRelease(args.project_id, args.tag_name);
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(
+                { status: "success", message: "Release deleted successfully", release },
+                null,
+                2
+              ),
+            },
+          ],
+        };
+      }
+
+      case "create_release_evidence": {
+        const args = CreateReleaseEvidenceSchema.parse(request.params.arguments);
+        await createReleaseEvidence(args.project_id, args.tag_name);
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(
+                { status: "success", message: "Release evidence created successfully" },
+                null,
+                2
+              ),
+            },
+          ],
+        };
+      }
+
+      case "download_release_asset": {
+        const args = DownloadReleaseAssetSchema.parse(request.params.arguments);
+        const assetContent = await downloadReleaseAsset(
+          args.project_id,
+          args.tag_name,
+          args.direct_asset_path
+        );
+        return {
+          content: [{ type: "text", text: assetContent }],
         };
       }
 

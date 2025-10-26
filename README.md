@@ -363,6 +363,13 @@ The token is stored per session (identified by `mcp-session-id` header) and reus
 86. `download_attachment` - Download an uploaded file from a GitLab project by secret and filename
 87. `list_events` - List all events for the currently authenticated user
 88. `get_project_events` - List all visible events for a specified project
+89. `list_releases` - List all releases for a project
+90. `get_release` - Get a release by tag name
+91. `create_release` - Create a new release in a GitLab project
+92. `update_release` - Update an existing release in a GitLab project
+93. `delete_release` - Delete a release from a GitLab project (does not delete the associated tag)
+94. `create_release_evidence` - Create release evidence for an existing release (GitLab Premium/Ultimate only)
+95. `download_release_asset` - Download a release asset file by direct asset path
 <!-- TOOLS-END -->
 
 </details>
