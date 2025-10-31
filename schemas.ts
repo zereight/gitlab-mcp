@@ -877,12 +877,12 @@ export const GitLabDiscussionNoteSchema = z.object({
   position: z
     .object({
       // Only present for DiffNote
-      base_sha: z.string().optional(),
-      start_sha: z.string().optional(),
-      head_sha: z.string().optional(),
+      base_sha: z.string().nullable().optional(),
+      start_sha: z.string().nullable().optional(),
+      head_sha: z.string().nullable().optional(),
       old_path: z.string().nullable().optional().describe("File path before change"),
       new_path: z.string().nullable().optional().describe("File path after change"),
-      position_type: z.enum(["text", "image", "file"]).optional(),
+      position_type: z.enum(["text", "image", "file"]).nullable().optional(),
       new_line: z
         .number()
         .nullable()
@@ -897,11 +897,11 @@ export const GitLabDiscussionNoteSchema = z.object({
         .describe(
           "Line number in the original file (before changes). Used for deleted lines and context lines. Null for newly added lines."
         ),
-      line_range: LineRangeSchema.nullable().optional(), // For multi-line diff notes
-      width: z.number().optional(), // For image diff notes
-      height: z.number().optional(), // For image diff notes
-      x: z.number().optional(), // For image diff notes
-      y: z.number().optional(), // For image diff notes
+      line_range: z.any().nullable().optional(), // Accept any value for line_range including null
+      width: z.number().nullable().optional(), // For image diff notes
+      height: z.number().nullable().optional(), // For image diff notes
+      x: z.number().nullable().optional(), // For image diff notes
+      y: z.number().nullable().optional(), // For image diff notes
     })
     .passthrough() // Allow additional fields
     .optional(),
@@ -1541,31 +1541,57 @@ export const MergeRequestThreadPositionCreateSchema = z.object({
   old_path: z.string().nullable().optional().describe("File path before changes. REQUIRED for most diff comments. Use same as new_path if file wasn't renamed."),
   new_line: z.number().nullable().optional().describe("Line number in modified file (after changes). Use for added lines or context lines. NULL for deleted lines. For single-line comments on new lines."),
   old_line: z.number().nullable().optional().describe("Line number in original file (before changes). Use for deleted lines or context lines. NULL for added lines. For single-line comments on old lines."),
-  line_range: LineRangeSchema.optional().describe("MULTILINE COMMENTS: Specify start/end line positions for commenting on multiple lines. Alternative to single old_line/new_line."),
+  line_range: LineRangeSchema.nullable().optional().describe("MULTILINE COMMENTS: Specify start/end line positions for commenting on multiple lines. Alternative to single old_line/new_line."),
   width: z.number().optional().describe("IMAGE DIFFS ONLY: Width of the image (for position_type='image')."),
   height: z.number().optional().describe("IMAGE DIFFS ONLY: Height of the image (for position_type='image')."),
   x: z.number().optional().describe("IMAGE DIFFS ONLY: X coordinate on the image (for position_type='image')."),
   y: z.number().optional().describe("IMAGE DIFFS ONLY: Y coordinate on the image (for position_type='image')."),
 });
 
+// Schema for parsing position from GitLab API responses (more lenient)
+export const MergeRequestThreadPositionResponseSchema = z.object({
+  base_sha: z.string().nullable().optional(),
+  head_sha: z.string().nullable().optional(),
+  start_sha: z.string().nullable().optional(),
+  position_type: z.enum(["text", "image", "file"]).nullable().optional(),
+  new_path: z.string().nullable().optional(),
+  old_path: z.string().nullable().optional(),
+  new_line: z.number().nullable().optional(),
+  old_line: z.number().nullable().optional(),
+  line_range: z.any().nullable().optional(), // Accept any value including null for line_range
+  width: z.number().nullable().optional(),
+  height: z.number().nullable().optional(),
+  x: z.number().nullable().optional(),
+  y: z.number().nullable().optional(),
+}).passthrough();
+
+// Schema for creating/sending position to GitLab API (stricter)
 export const MergeRequestThreadPositionSchema = z.object({
   base_sha: z
     .string()
+    .nullable()
+    .optional()
     .describe(
       "REQUIRED: Base commit SHA in the source branch. Get this from merge request diff_refs.base_sha."
     ),
   head_sha: z
     .string()
+    .nullable()
+    .optional()
     .describe(
       "REQUIRED: SHA referencing HEAD of the source branch. Get this from merge request diff_refs.head_sha."
     ),
   start_sha: z
     .string()
+    .nullable()
+    .optional()
     .describe(
       "REQUIRED: SHA referencing the start commit of the source branch. Get this from merge request diff_refs.start_sha."
     ),
   position_type: z
     .enum(["text", "image", "file"])
+    .nullable()
+    .optional()
     .describe(
       "REQUIRED: Position type. Use 'text' for code diffs, 'image' for image diffs, 'file' for file-level comments."
     ),
@@ -1597,23 +1623,27 @@ export const MergeRequestThreadPositionSchema = z.object({
     .describe(
       "Line number in original file (before changes). Use for deleted lines or context lines. NULL for added lines. For single-line comments on old lines."
     ),
-  line_range: LineRangeSchema.optional().describe(
+  line_range: z.any().nullable().optional().describe(
     "MULTILINE COMMENTS: Specify start/end line positions for commenting on multiple lines. Alternative to single old_line/new_line."
   ),
   width: z
     .number()
+    .nullable()
     .optional()
     .describe("IMAGE DIFFS ONLY: Width of the image (for position_type='image')."),
   height: z
     .number()
+    .nullable()
     .optional()
     .describe("IMAGE DIFFS ONLY: Height of the image (for position_type='image')."),
   x: z
     .number()
+    .nullable()
     .optional()
     .describe("IMAGE DIFFS ONLY: X coordinate on the image (for position_type='image')."),
   y: z
     .number()
+    .nullable()
     .optional()
     .describe("IMAGE DIFFS ONLY: Y coordinate on the image (for position_type='image')."),
 });
@@ -1626,7 +1656,7 @@ export const GitLabDraftNoteSchema = z.object({
   note: z.string().optional(), // Some APIs might use 'note' instead of 'body'
   created_at: z.string().optional(),
   updated_at: z.string().optional(),
-  position: MergeRequestThreadPositionSchema.nullable().optional(),
+  position: MergeRequestThreadPositionResponseSchema.nullable().optional(),
   resolve_discussion: z.boolean().optional(),
 }).transform((data) => ({
   // Normalize the response to always have consistent field names
@@ -1656,7 +1686,7 @@ export const ListDraftNotesSchema = ProjectParamsSchema.extend({
 export const CreateDraftNoteSchema = ProjectParamsSchema.extend({
   merge_request_iid: z.coerce.string().describe("The IID of a merge request"),
   body: z.string().describe("The content of the draft note"),
-  position: MergeRequestThreadPositionCreateSchema.optional().describe("Position when creating a diff note"),
+  position: MergeRequestThreadPositionSchema.optional().describe("Position when creating a diff note"),
   resolve_discussion: z.boolean().optional().describe("Whether to resolve the discussion when publishing"),
 });
 
@@ -1665,7 +1695,7 @@ export const UpdateDraftNoteSchema = ProjectParamsSchema.extend({
   merge_request_iid: z.coerce.string().describe("The IID of a merge request"),
   draft_note_id: z.coerce.string().describe("The ID of the draft note"),
   body: z.string().optional().describe("The content of the draft note"),
-  position: MergeRequestThreadPositionCreateSchema.optional().describe("Position when creating a diff note"),
+  position: MergeRequestThreadPositionSchema.optional().describe("Position when creating a diff note"),
   resolve_discussion: z.boolean().optional().describe("Whether to resolve the discussion when publishing"),
 });
 
