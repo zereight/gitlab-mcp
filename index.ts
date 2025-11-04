@@ -6433,7 +6433,7 @@ async function startStreamableHTTPServer(): Promise<void> {
   const validateToken = (token: string): boolean => {
     // GitLab PAT format: glpat-xxxxx (min 20 chars)
     if (token.length < 20) return false;
-    if (!/^[a-zA-Z0-9_-]+$/.test(token)) return false;
+    if (!/^[a-zA-Z0-9_\.-]+$/.test(token)) return false;
     return true;
   };
 
