@@ -35,6 +35,7 @@ import {
   CreateIssueSchema,
   CreateLabelSchema, // Added
   CreateMergeRequestNoteSchema,
+  CreateMergeRequestDiscussionNoteSchema,
   CreateMergeRequestOptionsSchema,
   CreateMergeRequestSchema,
   CreateMergeRequestThreadSchema,
@@ -51,6 +52,7 @@ import {
   DeleteLabelSchema,
   DeleteProjectMilestoneSchema,
   DeleteWikiPageSchema,
+  DeleteMergeRequestNoteSchema,
   EditProjectMilestoneSchema,
   type FileOperation,
   ForkRepositorySchema,
@@ -190,6 +192,7 @@ import {
   UpdateIssueSchema,
   UpdateLabelSchema,
   UpdateMergeRequestNoteSchema,
+  UpdateMergeRequestDiscussionNoteSchema,
   UpdateMergeRequestSchema,
   UpdateWikiPageSchema,
   VerifyNamespaceSchema,
@@ -207,6 +210,10 @@ import {
   DeleteReleaseSchema,
   CreateReleaseEvidenceSchema,
   DownloadReleaseAssetSchema,
+  GetMergeRequestNotesSchema,
+  GetMergeRequestNoteSchema,
+  DeleteMergeRequestDiscussionNoteSchema,
+  ResolveMergeRequestThreadSchema
 } from "./schemas.js";
 
 import { randomUUID } from "crypto";
@@ -339,7 +346,7 @@ const GITLAB_PERSONAL_ACCESS_TOKEN = process.env.GITLAB_PERSONAL_ACCESS_TOKEN;
 const GITLAB_AUTH_COOKIE_PATH = process.env.GITLAB_AUTH_COOKIE_PATH;
 const IS_OLD = process.env.GITLAB_IS_OLD === "true";
 const GITLAB_READ_ONLY_MODE = process.env.GITLAB_READ_ONLY_MODE === "true";
-const GITLAB_DENIED_TOOLS_REGEX = process.env.GITLAB_DENIED_TOOLS_REGEX ? new RegExp(process.env.GITLAB_DENIED_TOOLS_REGEX):undefined;
+const GITLAB_DENIED_TOOLS_REGEX = process.env.GITLAB_DENIED_TOOLS_REGEX ? new RegExp(process.env.GITLAB_DENIED_TOOLS_REGEX) : undefined;
 const USE_GITLAB_WIKI = process.env.USE_GITLAB_WIKI === "true";
 const USE_MILESTONE = process.env.USE_MILESTONE === "true";
 const USE_PIPELINE = process.env.USE_PIPELINE === "true";
@@ -625,19 +632,54 @@ const allTools = [
     inputSchema: toJSONSchema(CreateMergeRequestThreadSchema),
   },
   {
+    name: 'resolve_merge_request_thread',
+    description: "Resolve a thread on a merge request",
+    inputSchema: toJSONSchema(ResolveMergeRequestThreadSchema),
+  },
+  {
     name: "mr_discussions",
     description: "List discussion items for a merge request",
     inputSchema: toJSONSchema(ListMergeRequestDiscussionsSchema),
   },
   {
-    name: "update_merge_request_note",
-    description: "Modify an existing merge request thread note",
-    inputSchema: toJSONSchema(UpdateMergeRequestNoteSchema),
+    name: "delete_merge_request_discussion_note",
+    description: "Delete a discussion note on a merge request",
+    inputSchema: toJSONSchema(DeleteMergeRequestDiscussionNoteSchema),
+  },
+  {
+    name: "update_merge_request_discussion_note",
+    description: "Update a discussion note on a merge request",
+    inputSchema: toJSONSchema(UpdateMergeRequestDiscussionNoteSchema),
+  },
+  {
+    name: "create_merge_request_discussion_note",
+    description: "Add a new discussion note to an existing merge request thread",
+    inputSchema: toJSONSchema(CreateMergeRequestDiscussionNoteSchema),
   },
   {
     name: "create_merge_request_note",
-    description: "Add a new note to an existing merge request thread",
+    description: "Add a new note to a merge request",
     inputSchema: toJSONSchema(CreateMergeRequestNoteSchema),
+  },
+  {
+    name: "delete_merge_request_note",
+    description: "Delete an existing merge request note",
+    inputSchema: toJSONSchema(DeleteMergeRequestNoteSchema),
+  },
+  {
+    name: "get_merge_request_note",
+    description: "Get a specific note for a merge request",
+    inputSchema: toJSONSchema(GetMergeRequestNoteSchema),
+  },
+  {
+    name: 'get_merge_request_notes',
+    description: "List notes for a merge request",
+    inputSchema: toJSONSchema(GetMergeRequestNotesSchema),
+  },
+  {
+    name: "update_merge_request_note",
+    description: "Modify an existing merge request note",
+    inputSchema: toJSONSchema(UpdateMergeRequestNoteSchema),
   },
   {
     name: "get_draft_note",
@@ -1824,6 +1866,30 @@ async function listIssueDiscussions(
   return listDiscussions(projectId, "issues", issueIid, options);
 }
 
+
+async function deleteMergeRequestDiscussionNote(
+  projectId: string,
+  mergeRequestIid: number | string,
+  discussionId: string,
+  noteId: number | string
+): Promise<void> {
+  projectId = decodeURIComponent(projectId); // Decode project ID
+  const url = new URL(
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(
+      getEffectiveProjectId(projectId)
+    )}/merge_requests/${mergeRequestIid}/discussions/${discussionId}/notes/${noteId}`
+  );
+  const response = await fetch(url.toString(), {
+    ...DEFAULT_FETCH_CONFIG,
+    method: "DELETE",
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`GitLab API error: ${response.status} ${response.statusText}\n${errorText}`);
+  }
+}
+
 /**
  * Modify an existing merge request thread note
  * 병합 요청 토론 노트 수정
@@ -1836,7 +1902,7 @@ async function listIssueDiscussions(
  * @param {boolean} [resolved] - Resolve/unresolve state
  * @returns {Promise<GitLabDiscussionNote>} The updated note
  */
-async function updateMergeRequestNote(
+async function updateMergeRequestDiscussionNote(
   projectId: string,
   mergeRequestIid: number | string,
   discussionId: string,
@@ -1946,7 +2012,7 @@ async function createIssueNote(
 }
 
 /**
- * Add a new note to an existing merge request thread
+ * Add a new discussion note to an existing merge request thread
  * 기존 병합 요청 스레드에 새 노트 추가
  *
  * @param {string} projectId - The ID or URL-encoded path of the project
@@ -1956,7 +2022,7 @@ async function createIssueNote(
  * @param {string} [createdAt] - The creation date of the note (ISO 8601 format)
  * @returns {Promise<GitLabDiscussionNote>} The created note
  */
-async function createMergeRequestNote(
+async function createMergeRequestDiscussionNote(
   projectId: string,
   mergeRequestIid: number | string,
   discussionId: string,
@@ -1978,6 +2044,144 @@ async function createMergeRequestNote(
   const response = await fetch(url.toString(), {
     ...DEFAULT_FETCH_CONFIG,
     method: "POST",
+    body: JSON.stringify(payload),
+  });
+
+  await handleGitLabError(response);
+  const data = await response.json();
+  return GitLabDiscussionNoteSchema.parse(data);
+}
+
+
+
+async function createMergeRequestNote(
+  projectId: string,
+  mergeRequestIid: number | string,
+  body: string
+): Promise<GitLabDiscussionNote> {
+  projectId = decodeURIComponent(projectId); // Decode project ID
+  const url = new URL(
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(
+      getEffectiveProjectId(projectId)
+    )}/merge_requests/${mergeRequestIid}/notes`
+  );
+
+  const payload = {
+    id: projectId,
+    merge_request_iid: mergeRequestIid,
+    body,
+  };
+
+  const response = await fetch(url.toString(), {
+    ...DEFAULT_FETCH_CONFIG,
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+
+  await handleGitLabError(response);
+  const data = await response.json();
+  return GitLabDiscussionNoteSchema.parse(data);
+}
+
+async function deleteMergeRequestNote(
+  projectId: string,
+  mergeRequestIid: string,
+  noteId: string
+): Promise<void> {
+  projectId = decodeURIComponent(projectId); // Decode project ID
+  const url = new URL(
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(
+      getEffectiveProjectId(projectId)
+    )}/merge_requests/${mergeRequestIid}/notes/${noteId}`
+  );
+
+  const response = await fetch(url.toString(), {
+    ...DEFAULT_FETCH_CONFIG,
+    method: "DELETE",
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`GitLab API error: ${response.status} ${response.statusText}\n${errorText}`);
+  }
+}
+
+async function getMergeRequestNote(
+  projectId: string,
+  mergeRequestIid: string,
+  noteId: string
+): Promise<GitLabDiscussionNote> {
+  projectId = decodeURIComponent(projectId); // Decode project ID
+  const url = new URL(
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(
+      getEffectiveProjectId(projectId)
+    )}/merge_requests/${mergeRequestIid}/notes/${noteId}`
+  );
+
+  const response = await fetch(url.toString(), {
+    ...DEFAULT_FETCH_CONFIG,
+    method: "GET",
+  });
+
+  await handleGitLabError(response);
+  const data = await response.json();
+  return GitLabDiscussionNoteSchema.parse(data);
+}
+
+async function getMergeRequestNotes(
+  projectId: string,
+  mergeRequestIid: string,
+  sort?: 'asc' | 'desc',
+  order_by?: 'created_at' | 'updated_at'
+): Promise<GitLabDiscussionNote[]> {
+  projectId = decodeURIComponent(projectId); // Decode project ID
+  const url = new URL(
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(
+      getEffectiveProjectId(projectId)
+    )}/merge_requests/${mergeRequestIid}/notes`
+  );
+
+  if (sort) {
+    url.searchParams.append("sort", sort);
+  }
+
+  if (order_by) {
+    url.searchParams.append("order_by", order_by);
+  }
+
+  const response = await fetch(url.toString(), {
+    ...DEFAULT_FETCH_CONFIG,
+    method: "GET",
+  });
+
+  await handleGitLabError(response);
+  const data = await response.json();
+  return z.array(GitLabDiscussionNoteSchema).parse(data);
+}
+
+async function updateMergeRequestNote(
+  projectId: string,
+  mergeRequestIid: string,
+  noteId: string,
+  body: string
+): Promise<GitLabDiscussionNote> {
+  projectId = decodeURIComponent(projectId); // Decode project ID
+  const url = new URL(
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(
+      getEffectiveProjectId(projectId)
+    )}/merge_requests/${mergeRequestIid}/notes/${noteId}`
+  );
+
+  const payload = {
+    id: projectId,
+    merge_request_iid: mergeRequestIid,
+    note_id: noteId,
+    body,
+  };
+
+  const response = await fetch(url.toString(), {
+    ...DEFAULT_FETCH_CONFIG,
+    method: "PUT",
     body: JSON.stringify(payload),
   });
 
@@ -2833,6 +3037,34 @@ async function bulkPublishDraftNotes(
     // return empty array indicating successful bulk publish
     console.warn(`JSON parse error for successful bulk publish operation: ${parseError}`);
     return [];
+  }
+}
+
+async function resolveMergeRequestThread(
+  projectId: string,
+  mergeRequestIid: number | string,
+  discussionId: string,
+  resolved?: boolean
+): Promise<void> {
+  projectId = decodeURIComponent(projectId);
+  const url = new URL(
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(
+      getEffectiveProjectId(projectId)
+    )}/merge_requests/${mergeRequestIid}/discussions/${discussionId}`
+  );
+
+  if(resolved !== undefined) {
+    url.searchParams.append("resolved", resolved ? "true" : "false");
+  }
+
+  const response = await fetch(url.toString(), {
+    ...DEFAULT_FETCH_CONFIG,
+    method: "PUT",
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`GitLab API error: ${response.status} ${response.statusText}\n${errorText}`);
   }
 }
 
@@ -4205,13 +4437,13 @@ async function getCommit(projectId: string, sha: string, stats?: boolean): Promi
 async function getCommitDiff(projectId: string, sha: string, full_diff?: boolean): Promise<GitLabMergeRequestDiff[]> {
   projectId = decodeURIComponent(projectId);
   const baseUrl = `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/repository/commits/${encodeURIComponent(sha)}/diff`;
-  
+
   let allDiffs: GitLabMergeRequestDiff[] = [];
   let page = 1;
-  
+
   while (true) {
     const url = new URL(baseUrl);
-    
+
     if (full_diff) {
       url.searchParams.append("page", page.toString());
     }
@@ -4224,20 +4456,20 @@ async function getCommitDiff(projectId: string, sha: string, full_diff?: boolean
 
     const data = await response.json();
     const diffs = z.array(GitLabDiffSchema).parse(data);
-    
+
     allDiffs.push(...diffs);
-    
+
     if (!full_diff) {
       break;
     }
-    
+
     if (diffs.length < GITLAB_COMMIT_FILES_PER_PAGE) {
       break;
     }
-    
+
     page++;
   }
-  
+
   return allDiffs;
 }
 
@@ -4939,9 +5171,24 @@ server.setRequestHandler(CallToolRequestSchema, async (request: any) => {
         };
       }
 
-      case "update_merge_request_note": {
-        const args = UpdateMergeRequestNoteSchema.parse(request.params.arguments);
-        const note = await updateMergeRequestNote(
+      case "delete_merge_request_discussion_note": {
+        const args = DeleteMergeRequestDiscussionNoteSchema.parse(request.params.arguments);
+        const { project_id, merge_request_iid, discussion_id, note_id } = args;
+        await deleteMergeRequestDiscussionNote(
+          project_id,
+          merge_request_iid,
+          discussion_id,
+          note_id
+        );
+
+        return {
+          content: [{ type: "text", text: "Merge request discussion note deleted successfully" }],
+        };
+      }
+
+      case "update_merge_request_discussion_note": {
+        const args = UpdateMergeRequestDiscussionNoteSchema.parse(request.params.arguments);
+        const note = await updateMergeRequestDiscussionNote(
           args.project_id,
           args.merge_request_iid,
           args.discussion_id,
@@ -4954,9 +5201,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request: any) => {
         };
       }
 
-      case "create_merge_request_note": {
-        const args = CreateMergeRequestNoteSchema.parse(request.params.arguments);
-        const note = await createMergeRequestNote(
+      case "create_merge_request_discussion_note": {
+        const args = CreateMergeRequestDiscussionNoteSchema.parse(request.params.arguments);
+        const note = await createMergeRequestDiscussionNote(
           args.project_id,
           args.merge_request_iid,
           args.discussion_id,
@@ -4967,6 +5214,74 @@ server.setRequestHandler(CallToolRequestSchema, async (request: any) => {
           content: [{ type: "text", text: JSON.stringify(note, null, 2) }],
         };
       }
+
+      case "create_merge_request_note": {
+        const args = CreateMergeRequestNoteSchema.parse(request.params.arguments);
+        const note = await createMergeRequestNote(
+          args.project_id,
+          args.merge_request_iid,
+          args.body
+        );
+
+        return {
+          content: [{ type: "text", text: JSON.stringify(note, null, 2) }],
+        };
+      }
+
+      case "delete_merge_request_note": {
+        const args = DeleteMergeRequestNoteSchema.parse(request.params.arguments);
+        await deleteMergeRequestNote(
+          args.project_id,
+          args.merge_request_iid,
+          args.note_id
+        );
+
+        return {
+          content: [{ type: "text", text: "Merge request note deleted successfully" }],
+        };
+      }
+
+      case 'get_merge_request_note': {
+        const args = GetMergeRequestNoteSchema.parse(request.params.arguments);
+        const note = await getMergeRequestNote(
+          args.project_id,
+          args.merge_request_iid,
+          args.note_id
+        );
+
+        return {
+          content: [{ type: "text", text: JSON.stringify(note, null, 2) }],
+        };
+      }
+
+      case 'get_merge_request_notes': {
+        const args = GetMergeRequestNotesSchema.parse(request.params.arguments);
+        const notes = await getMergeRequestNotes(
+          args.project_id,
+          args.merge_request_iid,
+          args.sort,
+          args.order_by,
+        );
+
+        return {
+          content: [{ type: "text", text: JSON.stringify(notes, null, 2) }],
+        };
+      }
+
+      case 'update_merge_request_note': {
+        const args = UpdateMergeRequestNoteSchema.parse(request.params.arguments);
+        const note = await updateMergeRequestNote(
+          args.project_id,
+          args.merge_request_iid,
+          args.note_id,
+          args.body
+        );
+
+        return {
+          content: [{ type: "text", text: JSON.stringify(note, null, 2) }],
+        };
+      }
+
 
       case "update_issue_note": {
         const args = UpdateIssueNoteSchema.parse(request.params.arguments);
@@ -5277,6 +5592,15 @@ server.setRequestHandler(CallToolRequestSchema, async (request: any) => {
         );
         return {
           content: [{ type: "text", text: JSON.stringify(thread, null, 2) }],
+        };
+      }
+
+      case "resolve_merge_request_thread": {
+        const args = ResolveMergeRequestThreadSchema.parse(request.params.arguments);
+        const { project_id, merge_request_iid, discussion_id, resolved } = args;
+        await resolveMergeRequestThread(project_id, merge_request_iid, discussion_id, resolved);
+        return {
+          content: [{ type: "text", text: "Thread resolved successfully" }],
         };
       }
 
