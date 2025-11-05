@@ -157,6 +157,12 @@ import {
   ListMergeRequestDiffsSchema, // Added
   ListMergeRequestDiscussionsSchema,
   ListMergeRequestsSchema,
+  ListMergeRequestVersionsSchema,
+  GetMergeRequestVersionSchema,
+  GitLabMergeRequestVersionSchema,
+  GitLabMergeRequestVersionDetailSchema,
+  type GitLabMergeRequestVersion,
+  type GitLabMergeRequestVersionDetail,
   ListNamespacesSchema,
   type ListPipelineJobsOptions,
   ListPipelineJobsSchema,
@@ -610,6 +616,16 @@ const allTools = [
     description:
       "List merge request diffs with pagination support (Either mergeRequestIid or branchName must be provided)",
     inputSchema: toJSONSchema(ListMergeRequestDiffsSchema),
+  },
+  {
+    name: "list_merge_request_versions",
+    description: "List all versions of a merge request",
+    inputSchema: toJSONSchema(ListMergeRequestVersionsSchema),
+  },
+  {
+    name: "get_merge_request_version",
+    description: "Get a specific version of a merge request",
+    inputSchema: toJSONSchema(GetMergeRequestVersionSchema),
   },
   {
     name: "get_branch_diffs",
@@ -1068,6 +1084,8 @@ const readOnlyTools = [
   "get_file_contents",
   "get_merge_request",
   "get_merge_request_diffs",
+  "list_merge_request_versions",
+  "get_merge_request_version",
   "get_branch_diffs",
   "mr_discussions",
   "list_issues",
@@ -3119,6 +3137,64 @@ async function createMergeRequestThread(
   await handleGitLabError(response);
   const data = await response.json();
   return GitLabDiscussionSchema.parse(data);
+}
+
+/**
+ * List all versions of a merge request
+ * 병합 요청의 모든 버전 목록 조회
+ *
+ * @param {string} projectId - The ID or URL-encoded path of the project
+ * @param {number} mergeRequestIid - The internal ID of the merge request
+ * @returns {Promise<GitLabMergeRequestVersion[]>} List of merge request versions
+ */
+async function listMergeRequestVersions(
+  projectId: string,
+  mergeRequestIid: number | string
+): Promise<GitLabMergeRequestVersion[]> {
+  projectId = decodeURIComponent(projectId); // Decode project ID
+  const url = new URL(
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(
+      getEffectiveProjectId(projectId)
+    )}/merge_requests/${mergeRequestIid}/versions`
+  );
+
+  const response = await fetch(url.toString(), {
+    ...DEFAULT_FETCH_CONFIG,
+  });
+
+  await handleGitLabError(response);
+  const data = await response.json();
+  return z.array(GitLabMergeRequestVersionSchema).parse(data);
+}
+
+/**
+ * Get a specific version of a merge request
+ * 병합 요청의 특정 버전 상세 정보 조회
+ *
+ * @param {string} projectId - The ID or URL-encoded path of the project
+ * @param {number} mergeRequestIid - The internal ID of the merge request
+ * @param {number} versionId - The ID of the version
+ * @returns {Promise<GitLabMergeRequestVersionDetail>} The merge request version details
+ */
+async function getMergeRequestVersion(
+  projectId: string,
+  mergeRequestIid: number | string,
+  versionId: number | string
+): Promise<GitLabMergeRequestVersionDetail> {
+  projectId = decodeURIComponent(projectId); // Decode project ID
+  const url = new URL(
+    `${GITLAB_API_URL}/projects/${encodeURIComponent(
+      getEffectiveProjectId(projectId)
+    )}/merge_requests/${mergeRequestIid}/versions/${versionId}`
+  );
+
+  const response = await fetch(url.toString(), {
+    ...DEFAULT_FETCH_CONFIG,
+  });
+
+  await handleGitLabError(response);
+  const data = await response.json();
+  return GitLabMergeRequestVersionDetailSchema.parse(data);
 }
 
 /**
@@ -5348,6 +5424,29 @@ server.setRequestHandler(CallToolRequestSchema, async (request: any) => {
         );
         return {
           content: [{ type: "text", text: JSON.stringify(changes, null, 2) }],
+        };
+      }
+
+      case "list_merge_request_versions": {
+        const args = ListMergeRequestVersionsSchema.parse(request.params.arguments);
+        const versions = await listMergeRequestVersions(
+          args.project_id,
+          args.merge_request_iid
+        );
+        return {
+          content: [{ type: "text", text: JSON.stringify(versions, null, 2) }],
+        };
+      }
+
+      case "get_merge_request_version": {
+        const args = GetMergeRequestVersionSchema.parse(request.params.arguments);
+        const version = await getMergeRequestVersion(
+          args.project_id,
+          args.merge_request_iid,
+          args.version_id
+        );
+        return {
+          content: [{ type: "text", text: JSON.stringify(version, null, 2) }],
         };
       }
 
