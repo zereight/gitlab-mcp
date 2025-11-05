@@ -1578,7 +1578,7 @@ export const MergeRequestThreadPositionCreateSchema = z.object({
   old_path: z.string().nullable().optional().describe("File path before changes. REQUIRED for most diff comments. Use same as new_path if file wasn't renamed."),
   new_line: z.number().nullable().optional().describe("Line number in modified file (after changes). Use for added lines or context lines. NULL for deleted lines. For single-line comments on new lines."),
   old_line: z.number().nullable().optional().describe("Line number in original file (before changes). Use for deleted lines or context lines. NULL for added lines. For single-line comments on old lines."),
-  line_range: LineRangeSchema.optional().describe("MULTILINE COMMENTS: Specify start/end line positions for commenting on multiple lines. Alternative to single old_line/new_line."),
+  line_range: LineRangeSchema.nullable().optional().describe("MULTILINE COMMENTS: Specify start/end line positions for commenting on multiple lines. Alternative to single old_line/new_line."),
   width: z.number().optional().describe("IMAGE DIFFS ONLY: Width of the image (for position_type='image')."),
   height: z.number().optional().describe("IMAGE DIFFS ONLY: Height of the image (for position_type='image')."),
   x: z.number().optional().describe("IMAGE DIFFS ONLY: X coordinate on the image (for position_type='image')."),
@@ -1634,7 +1634,7 @@ export const MergeRequestThreadPositionSchema = z.object({
     .describe(
       "Line number in original file (before changes). Use for deleted lines or context lines. NULL for added lines. For single-line comments on old lines."
     ),
-  line_range: LineRangeSchema.optional().describe(
+  line_range: LineRangeSchema.nullable().optional().describe(
     "MULTILINE COMMENTS: Specify start/end line positions for commenting on multiple lines. Alternative to single old_line/new_line."
   ),
   width: z
