@@ -31,7 +31,11 @@
     "lint": "eslint . --ext .ts",
     "lint:fix": "eslint . --ext .ts --fix",
     "format": "prettier --write \"**/*.{js,ts,json,md}\"",
-    "format:check": "prettier --check \"**/*.{js,ts,json,md}\""
+    "format:check": "prettier --check \"**/*.{js,ts,json,md}\"",
+    "example:basic": "tsx servers/examples/basic-usage.ts",
+    "example:data-filtering": "tsx servers/examples/data-filtering.ts",
+    "example:control-flow": "tsx servers/examples/control-flow.ts",
+    "example:workflow": "tsx servers/examples/complex-workflow.ts"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.10.0",
