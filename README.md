@@ -1,4 +1,6 @@
-# GitLab MCP Server
+# GitLab MCP Code Execution
+
+> **Forked from [zereight/gitlab-mcp](https://github.com/zereight/gitlab-mcp)** - Enhanced with code execution pattern for 98.7% token savings
 
 [![Star History Chart](https://api.star-history.com/svg?repos=zereight/gitlab-mcp&type=Date)](https://www.star-history.com/#zereight/gitlab-mcp&Date)
 
@@ -6,9 +8,50 @@
 
 [![smithery badge](https://smithery.ai/badge/@zereight/gitlab-mcp)](https://smithery.ai/server/@zereight/gitlab-mcp)
 
-GitLab MCP(Model Context Protocol) Server. **Includes bug fixes and improvements over the original GitLab MCP server.**
+GitLab MCP(Model Context Protocol) Server with **code execution pattern** for efficient tool orchestration. Based on [Anthropic's code execution with MCP](https://www.anthropic.com/engineering/code-execution-with-mcp).
 
 <a href="https://glama.ai/mcp/servers/7jwbk4r6d7"><img width="380" height="200" src="https://glama.ai/mcp/servers/7jwbk4r6d7/badge" alt="gitlab mcp MCP server" /></a>
+
+## 🚀 New: Code Execution with MCP
+
+This project now includes a **code-first API** for GitLab MCP based on [Anthropic's code execution pattern](https://www.anthropic.com/engineering/code-execution-with-mcp).
+
+### Why Code Execution?
+
+Traditional MCP loads all 95+ tool definitions into context (~150k tokens). The code execution approach achieves **98.7% token savings** through:
+
+- **Progressive tool loading**: Load only the tools you need
+- **In-environment data processing**: Filter large datasets locally before returning to model
+- **Native control flow**: Use TypeScript loops, conditionals, and error handling
+- **Privacy preservation**: Keep sensitive data in execution environment
+
+### Quick Example
+
+```typescript
+import { setupGitLab, gitlab, closeMCPClient } from './servers/gitlab';
+
+await setupGitLab();
+
+// Create issue
+const issue = await gitlab.issues.createIssue({
+  projectId: '123',
+  title: 'Bug report',
+  description: 'Found an issue...'
+});
+
+// Process data locally - doesn't pass through model context
+const allIssues = await gitlab.issues.listIssues({ projectId: '123' });
+const criticalBugs = allIssues.filter(i =>
+  i.labels?.includes('critical') && i.labels?.includes('bug')
+);
+console.log(`Found ${criticalBugs.length} critical bugs`);
+
+await closeMCPClient();
+```
+
+**📖 [Full Code Execution Documentation](./servers/README.md)** | **📝 [Examples](./servers/examples/)**
+
+---
 
 ## Usage
 

@@ -1,10 +1,18 @@
 {
   "name": "@zereight/mcp-gitlab",
   "version": "2.0.9",
-  "description": "MCP server for using the GitLab API",
+  "description": "MCP server for using the GitLab API with code execution pattern for 98.7% token savings",
   "license": "MIT",
   "author": "zereight",
   "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/tso2381637/gitlab-mcp-code-execution.git"
+  },
+  "homepage": "https://github.com/tso2381637/gitlab-mcp-code-execution#readme",
+  "bugs": {
+    "url": "https://github.com/tso2381637/gitlab-mcp-code-execution/issues"
+  },
   "bin": "./build/index.js",
   "files": [
     "build"
@@ -31,7 +39,11 @@
     "lint": "eslint . --ext .ts",
     "lint:fix": "eslint . --ext .ts --fix",
     "format": "prettier --write \"**/*.{js,ts,json,md}\"",
-    "format:check": "prettier --check \"**/*.{js,ts,json,md}\""
+    "format:check": "prettier --check \"**/*.{js,ts,json,md}\"",
+    "example:basic": "tsx servers/examples/basic-usage.ts",
+    "example:data-filtering": "tsx servers/examples/data-filtering.ts",
+    "example:control-flow": "tsx servers/examples/control-flow.ts",
+    "example:workflow": "tsx servers/examples/complex-workflow.ts"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.10.0",
