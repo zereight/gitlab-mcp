@@ -53,7 +53,7 @@ async function main() {
           );
 
           const hasUnresolvedThreads = discussions.some(
-            d => !d.individual_note && d.notes.some(n => n.resolvable && !n.resolved)
+            (d: any) => !d.individual_note && d.notes.some((n: any) => n.resolvable && !n.resolved)
           );
 
           if (hasUnresolvedThreads) {
