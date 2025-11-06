@@ -1,10 +1,18 @@
 {
   "name": "@zereight/mcp-gitlab",
   "version": "2.0.9",
-  "description": "MCP server for using the GitLab API",
+  "description": "MCP server for using the GitLab API with code execution pattern for 98.7% token savings",
   "license": "MIT",
   "author": "zereight",
   "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/tso2381637/gitlab-mcp-code-execution.git"
+  },
+  "homepage": "https://github.com/tso2381637/gitlab-mcp-code-execution#readme",
+  "bugs": {
+    "url": "https://github.com/tso2381637/gitlab-mcp-code-execution/issues"
+  },
   "bin": "./build/index.js",
   "files": [
     "build"

@@ -1,4 +1,6 @@
-# GitLab MCP Server
+# GitLab MCP Code Execution
+
+> **Forked from [zereight/gitlab-mcp](https://github.com/zereight/gitlab-mcp)** - Enhanced with code execution pattern for 98.7% token savings
 
 [![Star History Chart](https://api.star-history.com/svg?repos=zereight/gitlab-mcp&type=Date)](https://www.star-history.com/#zereight/gitlab-mcp&Date)
 
@@ -6,7 +8,7 @@
 
 [![smithery badge](https://smithery.ai/badge/@zereight/gitlab-mcp)](https://smithery.ai/server/@zereight/gitlab-mcp)
 
-GitLab MCP(Model Context Protocol) Server. **Includes bug fixes and improvements over the original GitLab MCP server.**
+GitLab MCP(Model Context Protocol) Server with **code execution pattern** for efficient tool orchestration. Based on [Anthropic's code execution with MCP](https://www.anthropic.com/engineering/code-execution-with-mcp).
 
 <a href="https://glama.ai/mcp/servers/7jwbk4r6d7"><img width="380" height="200" src="https://glama.ai/mcp/servers/7jwbk4r6d7/badge" alt="gitlab mcp MCP server" /></a>
 
