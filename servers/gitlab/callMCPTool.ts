@@ -25,7 +25,7 @@ export async function initializeMCPClient(): Promise<void> {
   // Create stdio transport for local MCP server
   transport = new StdioClientTransport({
     command: "npx",
-    args: ["-y", "@zereight/mcp-gitlab"],
+    args: ["-y", "@tso2381637/gitlab-mcp-code-execution"],
     env: {
       GITLAB_PERSONAL_ACCESS_TOKEN: process.env.GITLAB_PERSONAL_ACCESS_TOKEN || "",
       GITLAB_API_URL: process.env.GITLAB_API_URL || "https://gitlab.com/api/v4",
