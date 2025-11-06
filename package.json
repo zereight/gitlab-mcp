@@ -1,9 +1,9 @@
 {
-  "name": "@zereight/mcp-gitlab",
+  "name": "@tso2381637/gitlab-mcp-code-execution",
   "version": "2.0.9",
   "description": "MCP server for using the GitLab API with code execution pattern for 98.7% token savings",
   "license": "MIT",
-  "author": "zereight",
+  "author": "eason_tseng <tso2381637@gmail.com>",
   "type": "module",
   "repository": {
     "type": "git",

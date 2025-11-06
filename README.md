@@ -1,16 +1,10 @@
 # GitLab MCP Code Execution
 
-> **Forked from [zereight/gitlab-mcp](https://github.com/zereight/gitlab-mcp)** - Enhanced with code execution pattern for 98.7% token savings
-
-[![Star History Chart](https://api.star-history.com/svg?repos=zereight/gitlab-mcp&type=Date)](https://www.star-history.com/#zereight/gitlab-mcp&Date)
-
-## @zereight/mcp-gitlab
-
-[![smithery badge](https://smithery.ai/badge/@zereight/gitlab-mcp)](https://smithery.ai/server/@zereight/gitlab-mcp)
+## @tso2381637/gitlab-mcp-code-execution
 
 GitLab MCP(Model Context Protocol) Server with **code execution pattern** for efficient tool orchestration. Based on [Anthropic's code execution with MCP](https://www.anthropic.com/engineering/code-execution-with-mcp).
 
-<a href="https://glama.ai/mcp/servers/7jwbk4r6d7"><img width="380" height="200" src="https://glama.ai/mcp/servers/7jwbk4r6d7/badge" alt="gitlab mcp MCP server" /></a>
+> **Note**: This project is forked from [zereight/gitlab-mcp](https://github.com/zereight/gitlab-mcp) and enhanced with code execution pattern for 98.7% token savings.
 
 ## 🚀 New: Code Execution with MCP
 
@@ -66,7 +60,7 @@ When using with the Claude App, you need to set up your API key and URLs directl
   "mcpServers": {
     "gitlab": {
       "command": "npx",
-      "args": ["-y", "@zereight/mcp-gitlab"],
+      "args": ["-y", "@tso2381637/gitlab-mcp-code-execution"],
       "env": {
         "GITLAB_PERSONAL_ACCESS_TOKEN": "your_gitlab_token",
         "GITLAB_API_URL": "your_gitlab_api_url",
@@ -98,7 +92,7 @@ When using with the Claude App, you need to set up your API key and URLs directl
     "GitLab-MCP": {
       "type": "stdio",
       "command": "npx",
-      "args": ["-y", "@zereight/mcp-gitlab"],
+      "args": ["-y", "@tso2381637/gitlab-mcp-code-execution"],
       "env": {
         "GITLAB_PERSONAL_ACCESS_TOKEN": "${input:gitlab-token}",
         "GITLAB_API_URL": "your-fancy-gitlab-url",
@@ -117,14 +111,14 @@ env_vars = {
         "GITLAB_PERSONAL_ACCESS_TOKEN": gitlab_access_token,
         "GITLAB_API_URL": gitlab_api_url,
         "USE_GITLAB_WIKI": use_gitlab_wiki
-        # ......the rest of the optional parameters 
+        # ......the rest of the optional parameters
 }
 
 stdio_gitlab_mcp_client = MCPClient(
         lambda: stdio_client(
             StdioServerParameters(
                 command="npx",
-                args=["-y", "@zereight/mcp-gitlab"],
+                args=["-y", "@tso2381637/gitlab-mcp-code-execution"],
                 env=env_vars,
             )
         )
@@ -134,95 +128,7 @@ stdio_gitlab_mcp_client = MCPClient(
 
 #### Docker
 
-- stdio mcp.json
-
-```json
-{
-  "mcpServers": {
-    "gitlab": {
-      "command": "docker",
-      "args": [
-        "run",
-        "-i",
-        "--rm",
-        "-e",
-        "GITLAB_PERSONAL_ACCESS_TOKEN",
-        "-e",
-        "GITLAB_API_URL",
-        "-e",
-        "GITLAB_READ_ONLY_MODE",
-        "-e",
-        "USE_GITLAB_WIKI",
-        "-e",
-        "USE_MILESTONE",
-        "-e",
-        "USE_PIPELINE",
-        "iwakitakuma/gitlab-mcp"
-      ],
-      "env": {
-        "GITLAB_PERSONAL_ACCESS_TOKEN": "your_gitlab_token",
-        "GITLAB_API_URL": "https://gitlab.com/api/v4", // Optional, for self-hosted GitLab
-        "GITLAB_READ_ONLY_MODE": "false",
-        "USE_GITLAB_WIKI": "true",
-        "USE_MILESTONE": "true",
-        "USE_PIPELINE": "true"
-      }
-    }
-  }
-}
-```
-
-- sse
-
-```shell
-docker run -i --rm \
-  -e GITLAB_PERSONAL_ACCESS_TOKEN=your_gitlab_token \
-  -e GITLAB_API_URL="https://gitlab.com/api/v4" \
-  -e GITLAB_READ_ONLY_MODE=true \
-  -e USE_GITLAB_WIKI=true \
-  -e USE_MILESTONE=true \
-  -e USE_PIPELINE=true \
-  -e SSE=true \
-  -p 3333:3002 \
-  iwakitakuma/gitlab-mcp
-```
-
-```json
-{
-  "mcpServers": {
-    "gitlab": {
-      "type": "sse",
-      "url": "http://localhost:3333/sse"
-    }
-  }
-}
-```
-
-- streamable-http
-
-```shell
-docker run -i --rm \
-  -e GITLAB_PERSONAL_ACCESS_TOKEN=your_gitlab_token \
-  -e GITLAB_API_URL="https://gitlab.com/api/v4" \
-  -e GITLAB_READ_ONLY_MODE=true \
-  -e USE_GITLAB_WIKI=true \
-  -e USE_MILESTONE=true \
-  -e USE_PIPELINE=true \
-  -e STREAMABLE_HTTP=true \
-  -p 3333:3002 \
-  iwakitakuma/gitlab-mcp
-```
-
-```json
-{
-  "mcpServers": {
-    "gitlab": {
-      "type": "streamable-http",
-      "url": "http://localhost:3333/mcp"
-    }
-  }
-}
-```
+> **Note**: Docker images for this package are not yet available. Please use the npx method above for installation. Docker support may be added in future releases.
 
 ### Environment Variables
 
