@@ -1184,6 +1184,20 @@ export const ListMergeRequestDiffsSchema = GetMergeRequestSchema.extend({
     ),
 });
 
+// Merge Request Versions API operation schemas
+export const ListMergeRequestVersionsSchema = ProjectParamsSchema.extend({
+  merge_request_iid: z.coerce.string().describe("The internal ID of the merge request"),
+});
+
+export const GetMergeRequestVersionSchema = ListMergeRequestVersionsSchema.extend({
+  version_id: z.coerce.string().describe("The ID of the merge request diff version"),
+  unidiff: z.boolean()
+    .optional()
+    .describe(
+      "Present diffs in the unified diff format. Default is false. Introduced in GitLab 16.5."
+    ),
+});
+
 export const CreateNoteSchema = z.object({
   project_id: z.coerce.string().describe("Project ID or namespace/project_path"),
   noteable_type: z
@@ -2026,6 +2040,24 @@ export const GetProjectEventsSchema = z.object({
   per_page: z.number().optional().describe("Number of results per page. Default: 20"),
 });
 
+// Merge Request Versions schemas - Response schemas based on GitLab API documentation
+export const GitLabMergeRequestVersionSchema = z.object({
+  id: z.number(),
+  head_commit_sha: z.string(),
+  base_commit_sha: z.string(),
+  start_commit_sha: z.string(),
+  created_at: z.string(),
+  merge_request_id: z.number(),
+  state: z.string(),
+  real_size: z.string(),
+  patch_id_sha: z.string(),
+});
+
+export const GitLabMergeRequestVersionDetailSchema = GitLabMergeRequestVersionSchema.extend({
+  commits: z.array(GitLabCommitSchema),
+  diffs: z.array(GitLabDiffSchema),
+});
+
 // Export types
 export type GitLabAuthor = z.infer<typeof GitLabAuthorSchema>;
 export type GitLabFork = z.infer<typeof GitLabForkSchema>;
@@ -2309,4 +2341,10 @@ export type CreateReleaseOptions = z.infer<typeof CreateReleaseSchema>;
 export type UpdateReleaseOptions = z.infer<typeof UpdateReleaseSchema>;
 export type DeleteReleaseOptions = z.infer<typeof DeleteReleaseSchema>;
 export type CreateReleaseEvidenceOptions = z.infer<typeof CreateReleaseEvidenceSchema>;
+
+// Merge Request Versions types
+export type GitLabMergeRequestVersion = z.infer<typeof GitLabMergeRequestVersionSchema>;
+export type GitLabMergeRequestVersionDetail = z.infer<typeof GitLabMergeRequestVersionDetailSchema>;
+export type ListMergeRequestVersionsOptions = z.infer<typeof ListMergeRequestVersionsSchema>;
+export type GetMergeRequestVersionOptions = z.infer<typeof GetMergeRequestVersionSchema>;
 export type DownloadReleaseAssetOptions = z.infer<typeof DownloadReleaseAssetSchema>;
