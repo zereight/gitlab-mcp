@@ -526,8 +526,8 @@ export const GetRepositoryTreeSchema = z.object({
     .describe("The name of a repository branch or tag. Defaults to the default branch."),
   recursive: z.boolean().optional().describe("Boolean value to get a recursive tree"),
   per_page: z.number().optional().describe("Number of results to show per page"),
-  page_token: z.string().optional().describe("The tree record ID for pagination"),
-  pagination: z.string().optional().describe("Pagination method (keyset)"),
+  page_token: z.string().optional().describe("The tree record ID for page"),
+  page: z.string().optional().describe("Page method (keyset)"),
 });
 
 export const GitLabTreeSchema = z.object({
