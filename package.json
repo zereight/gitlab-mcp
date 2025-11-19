@@ -49,7 +49,7 @@
     "pkce-challenge": "^5.0.0",
     "socks-proxy-agent": "^8.0.5",
     "tough-cookie": "^5.1.2",
-    "zod-to-json-schema": "^3.23.5"
+    "zod-to-json-schema": "3.24.5"
   },
   "devDependencies": {
     "@types/express": "^5.0.2",
