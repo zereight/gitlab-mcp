@@ -195,7 +195,7 @@ export async function optionalOAuthMiddleware(
   }
 
   const session = sessionStore.getSession(payload.sid);
-  if (!session || session.mcpAccessToken !== token) {
+  if (session?.mcpAccessToken !== token) {
     next();
     return;
   }
