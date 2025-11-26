@@ -185,7 +185,13 @@ export async function enhancedFetch(url: string, options: RequestInit = {}): Pro
   const dispatcher = getDispatcher();
   const cookieHeader = loadCookieHeader();
 
-  const headers: Record<string, string> = { ...DEFAULT_HEADERS };
+  // For FormData, don't set Content-Type - let fetch set it with proper boundary
+  const isFormData = options.body instanceof FormData;
+  const baseHeaders = isFormData
+    ? { "User-Agent": DEFAULT_HEADERS["User-Agent"], Accept: DEFAULT_HEADERS.Accept }
+    : { ...DEFAULT_HEADERS };
+
+  const headers: Record<string, string> = { ...baseHeaders };
 
   const authHeader = getAuthorizationHeader();
   if (authHeader) {

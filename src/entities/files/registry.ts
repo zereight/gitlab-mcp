@@ -194,21 +194,12 @@ export const filesToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefin
         // Create FormData for file upload
         const formData = new FormData();
 
-        // Convert base64 file content to blob if needed
-        let fileBlob: Blob;
-        if (typeof file === "string") {
-          // Assume it's base64 encoded
-          const binaryString = Buffer.from(file, "base64").toString("binary");
-          const bytes = new Uint8Array(binaryString.length);
-          for (let i = 0; i < binaryString.length; i++) {
-            bytes[i] = binaryString.charCodeAt(i);
-          }
-          fileBlob = new Blob([bytes]);
-        } else {
-          fileBlob = file as Blob;
-        }
+        // Convert base64 file content to File object
+        // Node.js requires File (not Blob with filename) for proper multipart handling
+        const buffer = Buffer.from(file, "base64");
+        const fileObj = new File([buffer], filename, { type: "application/octet-stream" });
 
-        formData.append("file", fileBlob, filename);
+        formData.append("file", fileObj);
 
         const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${normalizeProjectId(project_id)}/uploads`;
         const response = await enhancedFetch(apiUrl, {

@@ -334,7 +334,8 @@ export const variablesToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
           throw new Error(errorMessage);
         }
 
-        const result = await response.json();
+        // DELETE returns 204 No Content on success
+        const result = response.status === 204 ? { deleted: true } : await response.json();
         return cleanGidsFromObject(result);
       },
     },

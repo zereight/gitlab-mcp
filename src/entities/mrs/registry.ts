@@ -492,7 +492,8 @@ export const mrsToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefinit
           throw new Error(`GitLab API error: ${response.status} ${response.statusText}`);
         }
 
-        const result = await response.json();
+        // PUT publish returns 204 No Content on success
+        const result = response.status === 204 ? { published: true } : await response.json();
         return cleanGidsFromObject(result);
       },
     },
@@ -519,7 +520,8 @@ export const mrsToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefinit
           throw new Error(`GitLab API error: ${response.status} ${response.statusText}`);
         }
 
-        const result = await response.json();
+        // POST bulk_publish returns 204 No Content on success
+        const result = response.status === 204 ? { published: true } : await response.json();
         return cleanGidsFromObject(result);
       },
     },

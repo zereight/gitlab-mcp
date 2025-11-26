@@ -316,7 +316,8 @@ export const milestonesToolRegistry: ToolRegistry = new Map<string, EnhancedTool
           throw new Error(`GitLab API error: ${response.status} ${response.statusText}`);
         }
 
-        const result = await response.json();
+        // DELETE returns 204 No Content on success
+        const result = response.status === 204 ? { deleted: true } : await response.json();
         return cleanGidsFromObject(result);
       },
     },

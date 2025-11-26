@@ -12,7 +12,20 @@ import {
 
 // Mock dependencies
 jest.mock('../../../src/services/SchemaIntrospector');
-jest.mock('../../../src/logger');
+jest.mock('../../../src/logger', () => ({
+  logger: {
+    info: jest.fn(),
+    debug: jest.fn(),
+    warn: jest.fn(),
+    error: jest.fn(),
+  },
+  createLogger: jest.fn(() => ({
+    info: jest.fn(),
+    debug: jest.fn(),
+    warn: jest.fn(),
+    error: jest.fn(),
+  })),
+}));
 
 setupMockFetch();
 
