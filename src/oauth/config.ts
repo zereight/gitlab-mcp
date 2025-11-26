@@ -78,7 +78,7 @@ export function loadOAuthConfig(): OAuthConfig | null {
   });
 
   if (!result.success) {
-    const errorMessages = result.error.errors
+    const errorMessages = result.error.issues
       .map(e => `${e.path.join(".")}: ${e.message}`)
       .join(", ");
     throw new Error(`Invalid OAuth configuration: ${errorMessages}`);

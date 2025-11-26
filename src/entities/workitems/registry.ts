@@ -1,4 +1,4 @@
-import { zodToJsonSchema } from "zod-to-json-schema";
+import * as z from "zod";
 import { ListWorkItemsSchema, GetWorkItemSchema } from "./schema-readonly";
 import { CreateWorkItemSchema, UpdateWorkItemSchema, DeleteWorkItemSchema } from "./schema";
 import { ToolRegistry, EnhancedToolDefinition } from "../../types";
@@ -38,7 +38,7 @@ export const workitemsToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
       name: "list_work_items",
       description:
         "List work items from a namespace (groups or projects). Core tool for tracking issues, epics, tasks, and incidents. Returns open items by default. Filter by type, state, with pagination support.",
-      inputSchema: zodToJsonSchema(ListWorkItemsSchema),
+      inputSchema: z.toJSONSchema(ListWorkItemsSchema),
       handler: async (args: unknown): Promise<unknown> => {
         console.log("list_work_items called with args:", JSON.stringify(args, null, 2));
         const options = ListWorkItemsSchema.parse(args);
@@ -285,7 +285,7 @@ export const workitemsToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
       name: "get_work_item",
       description:
         "Get complete work item details by ID. Returns full data including widgets (assignees, labels, milestones, hierarchy, time tracking, custom fields). Essential for issue/epic management and tracking project progress. Each work item type has different widget capabilities.",
-      inputSchema: zodToJsonSchema(GetWorkItemSchema),
+      inputSchema: z.toJSONSchema(GetWorkItemSchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = GetWorkItemSchema.parse(args);
         const { id } = options;
@@ -315,7 +315,7 @@ export const workitemsToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
       name: "create_work_item",
       description:
         "Create work items for issue tracking and project management. LABEL WORKFLOW: Run list_labels first to discover existing labels, then use label IDs from response. CRITICAL: Epics require GROUP namespace, Issues/Tasks/Incidents require PROJECT namespace. Supports 9 types: Epic, Issue, Task, Incident, Test Case, Requirement, Objective, Key Result, Ticket. NOTE: Test Cases and Requirements do not support labels widget. Automatically assigns widgets (assignees, labels, milestones) based on type capabilities.",
-      inputSchema: zodToJsonSchema(CreateWorkItemSchema),
+      inputSchema: z.toJSONSchema(CreateWorkItemSchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = CreateWorkItemSchema.parse(args);
         const { namespace, title, workItemType, description, assigneeIds, labelIds, milestoneId } =
@@ -385,7 +385,7 @@ export const workitemsToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
       name: "update_work_item",
       description:
         "Update work item properties for issue/epic management. LABEL WORKFLOW: Run list_labels first to discover existing labels, then use label IDs from response. Modify title, description, assignees, labels, milestones, and state (open/close). Supports widget updates including clearing assignees with empty arrays. NOTE: Test Cases and Requirements do not support labels widget. Essential for project workflow and status tracking.",
-      inputSchema: zodToJsonSchema(UpdateWorkItemSchema),
+      inputSchema: z.toJSONSchema(UpdateWorkItemSchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = UpdateWorkItemSchema.parse(args);
         const { id, title, description, state, assigneeIds, labelIds, milestoneId } = options;
@@ -445,7 +445,7 @@ export const workitemsToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
       name: "delete_work_item",
       description:
         "Permanently delete work items. WARNING: Cannot be undone. Removes all data, comments, time tracking, and references. Use for cleanup or removing invalid issues/epics. Consider closing instead of deleting for audit trails.",
-      inputSchema: zodToJsonSchema(DeleteWorkItemSchema),
+      inputSchema: z.toJSONSchema(DeleteWorkItemSchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = DeleteWorkItemSchema.parse(args);
         const { id } = options;

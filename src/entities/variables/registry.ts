@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
-import { zodToJsonSchema } from "zod-to-json-schema";
+import * as z from "zod";
 import { ListVariablesSchema, GetVariableSchema } from "./schema-readonly";
 import { CreateVariableSchema, UpdateVariableSchema, DeleteVariableSchema } from "./schema";
 import { enhancedFetch } from "../../utils/fetch";
@@ -25,7 +25,7 @@ export const variablesToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
       name: "list_variables",
       description:
         "View all CI/CD environment variables configured for pipelines. Use to audit secrets, review configuration, or understand pipeline environment. Shows variable keys (values are masked for security). Returns protection status, masking, and environment scopes. Group variables are inherited by all projects.",
-      inputSchema: zodToJsonSchema(ListVariablesSchema),
+      inputSchema: z.toJSONSchema(ListVariablesSchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = ListVariablesSchema.parse(args);
         const { namespace } = options;
@@ -80,7 +80,7 @@ export const variablesToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
       name: "get_variable",
       description:
         "Retrieve specific CI/CD variable details including value (if not masked), type, and security settings. Use for debugging pipeline issues, verifying configuration, or checking environment-specific values. Supports scoped variables for different environments (production/staging).",
-      inputSchema: zodToJsonSchema(GetVariableSchema),
+      inputSchema: z.toJSONSchema(GetVariableSchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = GetVariableSchema.parse(args);
         const { namespace, key, filter } = options;
@@ -141,7 +141,7 @@ export const variablesToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
       name: "create_variable",
       description:
         "Add new CI/CD environment variable for pipeline configuration, secrets, or deployment settings. Use for API keys, database URLs, feature flags. Supports masking sensitive values, protection for specific branches, environment scoping, and file type for certificates/configs. Group variables apply to all child projects.",
-      inputSchema: zodToJsonSchema(CreateVariableSchema),
+      inputSchema: z.toJSONSchema(CreateVariableSchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = CreateVariableSchema.parse(args);
         const { namespace } = options;
@@ -206,7 +206,7 @@ export const variablesToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
       name: "update_variable",
       description:
         "Modify CI/CD variable value or configuration. Use to rotate secrets, update endpoints, change security settings, or adjust environment scopes. Can convert between env_var and file types. Changes take effect in next pipeline run. Be cautious with production variables.",
-      inputSchema: zodToJsonSchema(UpdateVariableSchema),
+      inputSchema: z.toJSONSchema(UpdateVariableSchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = UpdateVariableSchema.parse(args);
         const { namespace, key, filter } = options;
@@ -283,7 +283,7 @@ export const variablesToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
       name: "delete_variable",
       description:
         "Delete CI/CD variable permanently from configuration. Use to remove unused secrets, clean up after migrations, or revoke access. Can target specific environment-scoped variants. Warning: may break pipelines depending on the variable. Cannot be undone.",
-      inputSchema: zodToJsonSchema(DeleteVariableSchema),
+      inputSchema: z.toJSONSchema(DeleteVariableSchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = DeleteVariableSchema.parse(args);
         const { namespace, key, filter } = options;

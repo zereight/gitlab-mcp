@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
-import { zodToJsonSchema } from "zod-to-json-schema";
+import * as z from "zod";
 import {
   ListProjectMilestonesSchema,
   GetProjectMilestoneSchema,
@@ -29,7 +29,7 @@ export const milestonesToolRegistry: ToolRegistry = new Map<string, EnhancedTool
       name: "list_milestones",
       description:
         "Browse release milestones for planning and tracking. Use to see upcoming releases, sprint cycles, or project phases. Supports filtering by state (active/closed) and timeframe. Returns milestone titles, dates, progress statistics. Group milestones apply across all projects.",
-      inputSchema: zodToJsonSchema(ListProjectMilestonesSchema),
+      inputSchema: z.toJSONSchema(ListProjectMilestonesSchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = ListProjectMilestonesSchema.parse(args);
         const { namespace } = options;
@@ -66,7 +66,7 @@ export const milestonesToolRegistry: ToolRegistry = new Map<string, EnhancedTool
       name: "get_milestone",
       description:
         "Retrieve comprehensive milestone information including dates, description, and progress metrics. Use to track release status, see associated work, or analyze milestone completion. Shows open/closed issue counts and completion percentage.",
-      inputSchema: zodToJsonSchema(GetProjectMilestoneSchema),
+      inputSchema: z.toJSONSchema(GetProjectMilestoneSchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = GetProjectMilestoneSchema.parse(args);
         const { namespace, milestone_id } = options;
@@ -96,7 +96,7 @@ export const milestonesToolRegistry: ToolRegistry = new Map<string, EnhancedTool
       name: "get_milestone_issue",
       description:
         "List all issues targeted for a milestone release. Use to track milestone progress, identify blockers, or plan work. Returns issue details with status, assignees, and labels. Essential for release management and sprint planning.",
-      inputSchema: zodToJsonSchema(GetMilestoneIssuesSchema),
+      inputSchema: z.toJSONSchema(GetMilestoneIssuesSchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = GetMilestoneIssuesSchema.parse(args);
         const { namespace, milestone_id } = options;
@@ -138,7 +138,7 @@ export const milestonesToolRegistry: ToolRegistry = new Map<string, EnhancedTool
       name: "get_milestone_merge_requests",
       description:
         "List merge requests scheduled for a milestone. Use to track feature completion, review code changes for release, or identify pending work. Shows MR status, approvals, and pipeline status. Critical for release readiness assessment.",
-      inputSchema: zodToJsonSchema(GetMilestoneMergeRequestsSchema),
+      inputSchema: z.toJSONSchema(GetMilestoneMergeRequestsSchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = GetMilestoneMergeRequestsSchema.parse(args);
         const { namespace, milestone_id } = options;
@@ -180,7 +180,7 @@ export const milestonesToolRegistry: ToolRegistry = new Map<string, EnhancedTool
       name: "get_milestone_burndown_events",
       description:
         "Track milestone progress with burndown chart data. Use for agile metrics, velocity tracking, and sprint analysis. Returns time-series events showing work completion rate. Premium/Ultimate feature for advanced project analytics.",
-      inputSchema: zodToJsonSchema(GetMilestoneBurndownEventsSchema),
+      inputSchema: z.toJSONSchema(GetMilestoneBurndownEventsSchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = GetMilestoneBurndownEventsSchema.parse(args);
         const { namespace, milestone_id } = options;
@@ -211,7 +211,7 @@ export const milestonesToolRegistry: ToolRegistry = new Map<string, EnhancedTool
       name: "create_milestone",
       description:
         "Define a new release milestone or sprint cycle. Use to establish delivery targets, organize work phases, or plan releases. Set title, description, start/due dates. Group milestones coordinate releases across multiple projects.",
-      inputSchema: zodToJsonSchema(CreateProjectMilestoneSchema),
+      inputSchema: z.toJSONSchema(CreateProjectMilestoneSchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = CreateProjectMilestoneSchema.parse(args);
         const { namespace } = options;
@@ -251,7 +251,7 @@ export const milestonesToolRegistry: ToolRegistry = new Map<string, EnhancedTool
       name: "edit_milestone",
       description:
         "Update milestone properties like dates, description, or state. Use to adjust release schedules, extend sprints, or close completed milestones. Changes apply immediately to all associated issues and MRs.",
-      inputSchema: zodToJsonSchema(EditProjectMilestoneSchema),
+      inputSchema: z.toJSONSchema(EditProjectMilestoneSchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = EditProjectMilestoneSchema.parse(args);
         const { namespace, milestone_id } = options;
@@ -296,7 +296,7 @@ export const milestonesToolRegistry: ToolRegistry = new Map<string, EnhancedTool
       name: "delete_milestone",
       description:
         "Remove a milestone permanently. Use to clean up cancelled releases or obsolete milestones. Warning: removes milestone association from all issues and MRs. Consider closing instead of deleting for historical tracking.",
-      inputSchema: zodToJsonSchema(DeleteProjectMilestoneSchema),
+      inputSchema: z.toJSONSchema(DeleteProjectMilestoneSchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = DeleteProjectMilestoneSchema.parse(args);
         const { namespace, milestone_id } = options;
@@ -327,7 +327,7 @@ export const milestonesToolRegistry: ToolRegistry = new Map<string, EnhancedTool
       name: "promote_milestone",
       description:
         "Elevate project milestone to group level for cross-project coordination. Use when a milestone needs to span multiple projects. Consolidates related project milestones into single group milestone. Useful for organizational release planning.",
-      inputSchema: zodToJsonSchema(PromoteProjectMilestoneSchema),
+      inputSchema: z.toJSONSchema(PromoteProjectMilestoneSchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = PromoteProjectMilestoneSchema.parse(args);
         const { namespace, milestone_id } = options;

@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
-import { zodToJsonSchema } from "zod-to-json-schema";
+import * as z from "zod";
 import {
   SearchRepositoriesSchema,
   ListNamespacesSchema,
@@ -40,7 +40,7 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
       name: "search_repositories",
       description:
         "DISCOVER projects across ALL of GitLab using search criteria. Use when: You DON'T know the project name/path, Looking for ANY project (not just yours), Searching by language/keywords/topics. Use with_programming_language parameter for efficient language filtering. See also: Use list_projects for YOUR accessible projects only.",
-      inputSchema: zodToJsonSchema(SearchRepositoriesSchema),
+      inputSchema: z.toJSONSchema(SearchRepositoriesSchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = SearchRepositoriesSchema.parse(args);
 
@@ -142,7 +142,7 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
       name: "list_projects",
       description:
         "List GitLab projects with flexible scoping. DEFAULT (no group_id): Lists YOUR accessible projects across GitLab (owned/member/starred). Use for: browsing your projects, finding your work, managing personal project lists. GROUP SCOPE (with group_id): Lists all projects within a specific group/organization. Use for: exploring team structure, finding organizational projects, auditing group resources. Parameters automatically validate based on scope.",
-      inputSchema: zodToJsonSchema(ListProjectsSchema),
+      inputSchema: z.toJSONSchema(ListProjectsSchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = ListProjectsSchema.parse(args);
         const { group_id, ...otherOptions } = options;
@@ -268,7 +268,7 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
       name: "list_namespaces",
       description:
         "BROWSE: List GitLab namespaces (groups and user namespaces) accessible to you. Use when: Discovering available groups for project creation, Browsing organizational structure, Finding where to create/fork projects. Returns both user and group namespaces. See also: get_namespace for specific namespace details.",
-      inputSchema: zodToJsonSchema(ListNamespacesSchema),
+      inputSchema: z.toJSONSchema(ListNamespacesSchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = ListNamespacesSchema.parse(args);
 
@@ -301,7 +301,7 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
       name: "get_users",
       description:
         'FIND USERS: Search and retrieve GitLab users with intelligent pattern detection. RECOMMENDED: Use "search" parameter for most queries - automatically detects emails, usernames, or names with automatic transliteration and multi-phase fallback search. ADVANCED: Use "username" or "public_email" for exact matches when you need precise control. Supports filtering by active status, creation date, and user type (human/bot).',
-      inputSchema: zodToJsonSchema(GetUsersSchema),
+      inputSchema: z.toJSONSchema(GetUsersSchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = GetUsersSchema.parse(args);
         const { smart_search, search, username, public_email, ...otherParams } = options;
@@ -362,7 +362,7 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
       name: "get_project",
       description:
         "GET DETAILS: Retrieve comprehensive project information including settings and metadata. Use when: Need complete project details, Checking project configuration, Getting project statistics. Accepts either project_id (numeric ID or URL-encoded path) or namespace (group/project format). See also: list_projects to find projects first.",
-      inputSchema: zodToJsonSchema(GetProjectSchema),
+      inputSchema: z.toJSONSchema(GetProjectSchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = GetProjectSchema.parse(args);
         const { project_id, namespace } = options;
@@ -403,7 +403,7 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
       name: "get_namespace",
       description:
         "GET DETAILS: Retrieve comprehensive namespace information (group or user). Use when: Need complete namespace metadata, Checking namespace settings, Getting storage statistics. Requires namespace ID or URL-encoded path. See also: list_namespaces to browse all namespaces.",
-      inputSchema: zodToJsonSchema(GetNamespaceSchema),
+      inputSchema: z.toJSONSchema(GetNamespaceSchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = GetNamespaceSchema.parse(args);
         const { namespace_id } = options;
@@ -430,7 +430,7 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
       name: "verify_namespace",
       description:
         "CHECK EXISTS: Verify if a namespace (group or user) exists and is accessible. ONLY works with namespaces - NOT project paths. Use when: Checking group/user namespace availability, Validating group references before creation, Testing namespace access permissions. For projects use get_project instead. Returns exists=true/false with namespace details if found.",
-      inputSchema: zodToJsonSchema(VerifyNamespaceSchema),
+      inputSchema: z.toJSONSchema(VerifyNamespaceSchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = VerifyNamespaceSchema.parse(args);
         const { namespace } = options;
@@ -457,7 +457,7 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
       name: "list_project_members",
       description:
         "TEAM MEMBERS: List all members of a project with their access levels. Use when: Auditing project access, Finding collaborators, Checking user permissions. Shows access levels: 10=Guest, 20=Reporter, 30=Developer, 40=Maintainer, 50=Owner. Supports username filtering.",
-      inputSchema: zodToJsonSchema(ListProjectMembersSchema),
+      inputSchema: z.toJSONSchema(ListProjectMembersSchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = ListProjectMembersSchema.parse(args);
         const { project_id } = options;
@@ -491,7 +491,7 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
       name: "list_commits",
       description:
         "HISTORY: List repository commit history with filtering. Use when: Analyzing project history, Finding commits by author/date, Tracking file changes. Supports date ranges (since/until), author filter, and specific file paths. See also: get_commit for specific commit details.",
-      inputSchema: zodToJsonSchema(ListCommitsSchema),
+      inputSchema: z.toJSONSchema(ListCommitsSchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = ListCommitsSchema.parse(args);
         const { project_id } = options;
@@ -525,7 +525,7 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
       name: "get_commit",
       description:
         "COMMIT DETAILS: Get comprehensive information about a specific commit. Use when: Inspecting commit metadata, Reviewing change statistics, Getting commit message/author. Shows additions/deletions per file with stats=true. See also: get_commit_diff for actual code changes.",
-      inputSchema: zodToJsonSchema(GetCommitSchema),
+      inputSchema: z.toJSONSchema(GetCommitSchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = GetCommitSchema.parse(args);
         const { project_id, commit_sha } = options;
@@ -559,7 +559,7 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
       name: "get_commit_diff",
       description:
         "COMMIT DIFF: Get actual code changes from a commit. Use when: Reviewing code modifications, Generating patches, Analyzing line-by-line changes. Returns unified diff format (git diff style). See also: get_commit for metadata without diff.",
-      inputSchema: zodToJsonSchema(GetCommitDiffSchema),
+      inputSchema: z.toJSONSchema(GetCommitDiffSchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = GetCommitDiffSchema.parse(args);
         const { project_id, commit_sha } = options;
@@ -593,7 +593,7 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
       name: "list_group_iterations",
       description:
         "SPRINTS: List iterations/sprints for agile planning (Premium feature). Use when: Viewing sprint schedules, Tracking iteration progress, Planning releases. Filter by state: current=active sprint, upcoming=future, closed=completed. Requires GitLab Premium or higher.",
-      inputSchema: zodToJsonSchema(ListGroupIterationsSchema),
+      inputSchema: z.toJSONSchema(ListGroupIterationsSchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = ListGroupIterationsSchema.parse(args);
         const { group_id } = options;
@@ -627,7 +627,7 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
       name: "download_attachment",
       description:
         "DOWNLOAD: Retrieve uploaded file attachments from issues/MRs/wikis. Use when: Downloading images from issues, Getting attached documents, Retrieving uploaded files. Requires secret token and filename from the attachment URL (/uploads/[secret]/[filename]).",
-      inputSchema: zodToJsonSchema(DownloadAttachmentSchema),
+      inputSchema: z.toJSONSchema(DownloadAttachmentSchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = DownloadAttachmentSchema.parse(args);
         const { project_id, secret, filename } = options;
@@ -658,7 +658,7 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
       name: "list_events",
       description:
         "USER ACTIVITY: List YOUR activity events across all projects. Use when: Tracking your contributions, Auditing your actions, Reviewing your history. Date format: YYYY-MM-DD only (not timestamps). Filters: action=created/updated/pushed, target_type=issue/merge_request.",
-      inputSchema: zodToJsonSchema(ListEventsSchema),
+      inputSchema: z.toJSONSchema(ListEventsSchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = ListEventsSchema.parse(args);
 
@@ -691,7 +691,7 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
       name: "get_project_events",
       description:
         "PROJECT ACTIVITY: List all events within a specific project. Use when: Monitoring project activity, Tracking team contributions, Auditing project changes. Date format: YYYY-MM-DD only (not timestamps). Shows: commits, issues, MRs, member changes.",
-      inputSchema: zodToJsonSchema(GetProjectEventsSchema),
+      inputSchema: z.toJSONSchema(GetProjectEventsSchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = GetProjectEventsSchema.parse(args);
         const { project_id } = options;
@@ -727,7 +727,7 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
       name: "create_repository",
       description:
         "CREATE NEW: Initialize a new GitLab project/repository with automatic validation. Features: (1) Automatically checks if project already exists before creation, (2) Resolves namespace paths to IDs automatically, (3) Generates URL-safe project path from name, (4) Returns detailed validation information. Use when: Starting new projects, Setting up repository structure, Automating project creation. Creates in your namespace by default if no namespace specified.",
-      inputSchema: zodToJsonSchema(CreateRepositorySchema),
+      inputSchema: z.toJSONSchema(CreateRepositorySchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = CreateRepositorySchema.parse(args);
         const { namespace, name, ...otherOptions } = options;
@@ -844,7 +844,7 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
       name: "fork_repository",
       description:
         "FORK: Create your own copy of an existing project. Use when: Contributing to other projects, Creating experimental versions, Maintaining custom forks. Preserves fork relationship for MRs back to parent. Target namespace optional (defaults to your namespace).",
-      inputSchema: zodToJsonSchema(ForkRepositorySchema),
+      inputSchema: z.toJSONSchema(ForkRepositorySchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = ForkRepositorySchema.parse(args);
 
@@ -880,7 +880,7 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
       name: "create_branch",
       description:
         "NEW BRANCH: Create a Git branch from existing ref. Use when: Starting new features, Preparing bug fixes, Creating release branches. REQUIRED before creating MRs. Ref can be: branch name (main), tag (v1.0), or commit SHA. Branch names cannot contain spaces.",
-      inputSchema: zodToJsonSchema(CreateBranchSchema),
+      inputSchema: z.toJSONSchema(CreateBranchSchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = CreateBranchSchema.parse(args);
 
@@ -913,7 +913,7 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
       name: "create_group",
       description:
         "CREATE GROUP: Create a new GitLab group/namespace for organizing projects and teams. Use when: Setting up team spaces, Creating organizational structure, Establishing project hierarchies. Groups can contain projects and subgroups.",
-      inputSchema: zodToJsonSchema(CreateGroupSchema),
+      inputSchema: z.toJSONSchema(CreateGroupSchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = CreateGroupSchema.parse(args);
         const body = new URLSearchParams();

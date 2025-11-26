@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
-import { zodToJsonSchema } from "zod-to-json-schema";
+import * as z from "zod";
 import { ListWikiPagesSchema, GetWikiPageSchema } from "./schema-readonly";
 import { CreateWikiPageSchema, UpdateWikiPageSchema, DeleteWikiPageSchema } from "./schema";
 import { enhancedFetch } from "../../utils/fetch";
@@ -18,7 +18,7 @@ export const wikiToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
       name: "list_wiki_pages",
       description:
         "BROWSE: Explore all wiki pages in project or group documentation. Use when: Discovering available guides and documentation, Understanding project knowledge base structure, Finding existing pages before creating new ones. Wiki provides collaborative documentation separate from code repository. Returns page titles, slugs, content formats, and creation dates.",
-      inputSchema: zodToJsonSchema(ListWikiPagesSchema),
+      inputSchema: z.toJSONSchema(ListWikiPagesSchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = ListWikiPagesSchema.parse(args);
         const { namespace } = options;
@@ -55,7 +55,7 @@ export const wikiToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
       name: "get_wiki_page",
       description:
         "READ: Get complete wiki page content and metadata by slug. Use when: Reading technical documentation and guides, Accessing project knowledge base content, Getting full markdown with formatting. Returns complete page content, metadata, edit history, and author information. Perfect for content analysis and documentation review.",
-      inputSchema: zodToJsonSchema(GetWikiPageSchema),
+      inputSchema: z.toJSONSchema(GetWikiPageSchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = GetWikiPageSchema.parse(args);
         const { namespace, slug } = options;
@@ -86,7 +86,7 @@ export const wikiToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
       name: "create_wiki_page",
       description:
         "CREATE: Add new documentation page to project or group wiki. Use when: Adding technical documentation, user guides, or FAQs, Creating project knowledge base content, Establishing team documentation standards. Check list_wiki_pages FIRST to avoid duplicate topics. Supports GitLab Flavored Markdown with extensions. Creates version-controlled documentation.",
-      inputSchema: zodToJsonSchema(CreateWikiPageSchema),
+      inputSchema: z.toJSONSchema(CreateWikiPageSchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = CreateWikiPageSchema.parse(args);
         const { namespace } = options;
@@ -126,7 +126,7 @@ export const wikiToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
       name: "update_wiki_page",
       description:
         "UPDATE: Modify existing wiki page content or properties. Use when: Updating documentation with new information, Fixing errors or improving clarity, Reorganizing content structure. Maintains complete version history with change tracking. Supports collaborative editing with author attribution and diff viewing.",
-      inputSchema: zodToJsonSchema(UpdateWikiPageSchema),
+      inputSchema: z.toJSONSchema(UpdateWikiPageSchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = UpdateWikiPageSchema.parse(args);
         const { namespace, slug } = options;
@@ -166,7 +166,7 @@ export const wikiToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
       name: "delete_wiki_page",
       description:
         "DELETE: Permanently remove wiki page from documentation. Use when: Cleaning up outdated or obsolete content, Removing duplicate or incorrect pages, Reorganizing wiki structure. WARNING: Deletes page and ALL version history permanently - cannot be undone. Consider archiving important content first.",
-      inputSchema: zodToJsonSchema(DeleteWikiPageSchema),
+      inputSchema: z.toJSONSchema(DeleteWikiPageSchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = DeleteWikiPageSchema.parse(args);
         const { namespace, slug } = options;

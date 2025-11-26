@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
-import { zodToJsonSchema } from "zod-to-json-schema";
+import * as z from "zod";
 import { GetRepositoryTreeSchema, GetFileContentsSchema } from "./schema-readonly";
 import { CreateOrUpdateFileSchema, PushFilesSchema, MarkdownUploadSchema } from "./schema";
 import { enhancedFetch } from "../../utils/fetch";
@@ -18,7 +18,7 @@ export const filesToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefin
       name: "get_repository_tree",
       description:
         "BROWSE: List files/folders WITHOUT reading content. Use when: Exploring project structure, Finding file locations, Checking what exists. Returns: names, types (blob=file, tree=folder), sizes. Set recursive=true for full tree. Does NOT return file contents! See also: get_file_contents to READ actual content.",
-      inputSchema: zodToJsonSchema(GetRepositoryTreeSchema),
+      inputSchema: z.toJSONSchema(GetRepositoryTreeSchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = GetRepositoryTreeSchema.parse(args);
         const { project_id } = options;
@@ -52,7 +52,7 @@ export const filesToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefin
       name: "get_file_contents",
       description:
         "READ: Get actual file content from repository. Use when: Reading source code, Viewing configs/docs, Getting file data. Returns base64-encoded content (decode required!) plus metadata. For browsing structure use get_repository_tree instead. Supports any branch/tag/commit via ref param.",
-      inputSchema: zodToJsonSchema(GetFileContentsSchema),
+      inputSchema: z.toJSONSchema(GetFileContentsSchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = GetFileContentsSchema.parse(args);
         const { project_id, file_path, ref } = options;
@@ -94,7 +94,7 @@ export const filesToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefin
       name: "create_or_update_file",
       description:
         "SINGLE FILE: Create new OR update existing file in one commit. Use when: Changing ONE file only, Quick edits, Adding single document. Auto-detects create vs update. Content must be base64-encoded! For multiple files use push_files instead. Creates commit with your message.",
-      inputSchema: zodToJsonSchema(CreateOrUpdateFileSchema),
+      inputSchema: z.toJSONSchema(CreateOrUpdateFileSchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = CreateOrUpdateFileSchema.parse(args);
         const { project_id, file_path } = options;
@@ -131,7 +131,7 @@ export const filesToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefin
       name: "push_files",
       description:
         "BATCH: Commit MULTIPLE file changes atomically. Use when: Changing 2+ files together, Refactoring across files, Coordinated updates. More efficient than multiple single commits. Supports: create/update/delete/move operations. All changes in ONE commit. For single file use create_or_update_file.",
-      inputSchema: zodToJsonSchema(PushFilesSchema),
+      inputSchema: z.toJSONSchema(PushFilesSchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = PushFilesSchema.parse(args);
         const { project_id } = options;
@@ -186,7 +186,7 @@ export const filesToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefin
       name: "upload_markdown",
       description:
         "UPLOAD ASSET: Add images/docs for markdown embedding. Use when: Adding screenshots to issues/MRs, Uploading diagrams for wikis, Attaching files to documentation. Returns markdown-ready URL like ![](url). Stored in uploads, NOT repository. Supports: images, PDFs, any binary files.",
-      inputSchema: zodToJsonSchema(MarkdownUploadSchema),
+      inputSchema: z.toJSONSchema(MarkdownUploadSchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = MarkdownUploadSchema.parse(args);
         const { project_id, file, filename } = options;

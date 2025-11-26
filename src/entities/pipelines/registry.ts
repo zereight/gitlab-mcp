@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
-import { zodToJsonSchema } from "zod-to-json-schema";
+import * as z from "zod";
 import {
   ListPipelinesSchema,
   GetPipelineSchema,
@@ -32,7 +32,7 @@ export const pipelinesToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
       name: "list_pipelines",
       description:
         "BROWSE: Search and monitor CI/CD pipelines in a project. Use when: Monitoring build/deployment status, Finding specific pipeline runs, Analyzing CI/CD history and trends. Supports filtering by status, branch, user, and date range. Returns pipeline ID, status, ref, commit SHA, and timing information.",
-      inputSchema: zodToJsonSchema(ListPipelinesSchema),
+      inputSchema: z.toJSONSchema(ListPipelinesSchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = ListPipelinesSchema.parse(args);
 
@@ -65,7 +65,7 @@ export const pipelinesToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
       name: "get_pipeline",
       description:
         "ANALYZE: Get comprehensive details about a specific pipeline run. Use when: Debugging CI/CD failures and issues, Inspecting pipeline configuration and timing, Understanding what triggered the run. Returns commit details, branch/tag info, duration metrics, and failure reasons. Essential for pipeline troubleshooting.",
-      inputSchema: zodToJsonSchema(GetPipelineSchema),
+      inputSchema: z.toJSONSchema(GetPipelineSchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = GetPipelineSchema.parse(args);
         const { project_id, pipeline_id } = options;
@@ -92,7 +92,7 @@ export const pipelinesToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
       name: "list_pipeline_jobs",
       description:
         "INSPECT: Get all CI/CD jobs within a pipeline run. Use when: Identifying failed jobs and stages, Understanding pipeline job structure, Analyzing job timing and performance. Returns job names, stages, status, duration, and runner info. Supports filtering by scope (failed, success, manual) for targeted troubleshooting.",
-      inputSchema: zodToJsonSchema(ListPipelineJobsSchema),
+      inputSchema: z.toJSONSchema(ListPipelineJobsSchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = ListPipelineJobsSchema.parse(args);
         const { project_id, pipeline_id } = options;
@@ -131,7 +131,7 @@ export const pipelinesToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
       name: "list_pipeline_trigger_jobs",
       description:
         "BRIDGE: List jobs that trigger downstream pipelines in multi-project setups. Use when: Understanding cross-project CI/CD flows, Debugging pipeline dependencies, Analyzing parent-child pipeline connections. Bridge jobs link projects together. Returns trigger configuration and downstream pipeline status.",
-      inputSchema: zodToJsonSchema(ListPipelineTriggerJobsSchema),
+      inputSchema: z.toJSONSchema(ListPipelineTriggerJobsSchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = ListPipelineTriggerJobsSchema.parse(args);
         const { project_id, pipeline_id } = options;
@@ -170,7 +170,7 @@ export const pipelinesToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
       name: "get_pipeline_job",
       description:
         "DETAILS: Get detailed information about a specific CI/CD job. Use when: Debugging individual job failures, Inspecting job configuration and variables, Understanding job dependencies and artifacts. Shows job script, runner tags, artifact paths, and failure details. Essential for job-level troubleshooting.",
-      inputSchema: zodToJsonSchema(GetPipelineJobOutputSchema),
+      inputSchema: z.toJSONSchema(GetPipelineJobOutputSchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = GetPipelineJobOutputSchema.parse(args);
         const { project_id, job_id } = options;
@@ -197,7 +197,7 @@ export const pipelinesToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
       name: "get_pipeline_job_output",
       description:
         "LOGS: Fetch console output/logs from a CI/CD job execution. Use when: Debugging job failures and errors, Reviewing test results and build output, Analyzing command execution traces. Supports output limiting for large logs. Returns raw text showing all commands and output. Critical for troubleshooting CI/CD issues.",
-      inputSchema: zodToJsonSchema(GetPipelineJobOutputSchema),
+      inputSchema: z.toJSONSchema(GetPipelineJobOutputSchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = GetPipelineJobOutputSchema.parse(args);
         const { project_id, job_id, limit, max_lines, start } = options;
@@ -287,7 +287,7 @@ export const pipelinesToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
       name: "create_pipeline",
       description:
         "CREATE: Trigger a new CI/CD pipeline run on demand. Use when: Manually starting builds or deployments, Running tests on specific branches, Initiating custom pipeline workflows. Requires ref (branch/tag) specification. Can pass variables to customize pipeline behavior. Returns created pipeline details immediately.",
-      inputSchema: zodToJsonSchema(CreatePipelineSchema),
+      inputSchema: z.toJSONSchema(CreatePipelineSchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = CreatePipelineSchema.parse(args);
         const { project_id, ref, variables } = options;
@@ -391,7 +391,7 @@ export const pipelinesToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
       name: "retry_pipeline",
       description:
         "RETRY: Re-run a previously failed or canceled pipeline with same configuration. Use when: Retrying after fixing flaky tests, Recovering from temporary failures, Re-running without losing successful job results. Retries failed/canceled jobs while preserving successful ones. More efficient than creating new pipeline.",
-      inputSchema: zodToJsonSchema(RetryPipelineSchema),
+      inputSchema: z.toJSONSchema(RetryPipelineSchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = RetryPipelineSchema.parse(args);
         const { project_id, pipeline_id } = options;
@@ -419,7 +419,7 @@ export const pipelinesToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
       name: "cancel_pipeline",
       description:
         'CANCEL: Stop a currently executing pipeline and all its jobs. Use when: Halting unnecessary or incorrect runs, Stopping problematic deployments, Freeing up busy runners. Cancels all pending and running jobs immediately. Pipeline status changes to "canceled" and cannot be resumed.',
-      inputSchema: zodToJsonSchema(CancelPipelineSchema),
+      inputSchema: z.toJSONSchema(CancelPipelineSchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = CancelPipelineSchema.parse(args);
         const { project_id, pipeline_id } = options;
@@ -447,7 +447,7 @@ export const pipelinesToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
       name: "play_pipeline_job",
       description:
         "PLAY: Trigger a manual job that requires user intervention. Use when: Executing deployment gates and approvals, Running optional or conditional jobs, Proceeding with manual pipeline steps. Manual jobs pause pipeline flow until explicitly triggered. Can pass job variables for runtime configuration.",
-      inputSchema: zodToJsonSchema(PlayPipelineJobSchema),
+      inputSchema: z.toJSONSchema(PlayPipelineJobSchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = PlayPipelineJobSchema.parse(args);
         const { project_id, job_id } = options;
@@ -484,7 +484,7 @@ export const pipelinesToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
       name: "retry_pipeline_job",
       description:
         "RETRY JOB: Re-run a specific failed or canceled job within a pipeline. Use when: Retrying individual job failures, Avoiding full pipeline re-run, Fixing targeted job issues. Preserves pipeline context and job dependencies. More efficient and targeted than full pipeline retry.",
-      inputSchema: zodToJsonSchema(RetryPipelineJobSchema),
+      inputSchema: z.toJSONSchema(RetryPipelineJobSchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = RetryPipelineJobSchema.parse(args);
         const { project_id, job_id } = options;
@@ -512,7 +512,7 @@ export const pipelinesToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
       name: "cancel_pipeline_job",
       description:
         'CANCEL JOB: Stop a specific running job without affecting other pipeline jobs. Use when: Canceling long-running or stuck jobs, Stopping problematic jobs while preserving others, Freeing specific job resources. Job status changes to "canceled". Pipeline continues if other jobs can proceed.',
-      inputSchema: zodToJsonSchema(CancelPipelineJobSchema),
+      inputSchema: z.toJSONSchema(CancelPipelineJobSchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = CancelPipelineJobSchema.parse(args);
         const { project_id, job_id } = options;
