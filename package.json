@@ -27,7 +27,7 @@
     "url": "https://github.com/structured-world/gitlab-mcp/issues"
   },
   "engines": {
-    "node": ">=18"
+    "node": ">=24"
   },
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
@@ -63,6 +63,7 @@
     "pino-pretty": "^13.1.1",
     "socks-proxy-agent": "^8.0.5",
     "transliteration": "^2.3.5",
+    "undici": "^7.16.0",
     "zod": "^3.23.8",
     "zod-to-json-schema": "^3.24.6"
   },

@@ -1639,6 +1639,7 @@ __metadata:
     ts-jest: "npm:^29.4.1"
     ts-node: "npm:^10.9.2"
     typescript: "npm:^5.9.2"
+    undici: "npm:^7.16.0"
     zod: "npm:^3.23.8"
     zod-to-json-schema: "npm:^3.24.6"
   bin:
@@ -8336,6 +8337,13 @@ __metadata:
   version: 7.10.0
   resolution: "undici-types@npm:7.10.0"
   checksum: 10c0/8b00ce50e235fe3cc601307f148b5e8fb427092ee3b23e8118ec0a5d7f68eca8cee468c8fc9f15cbb2cf2a3797945ebceb1cbd9732306a1d00e0a9b6afa0f635
+  languageName: node
+  linkType: hard
+
+"undici@npm:^7.16.0":
+  version: 7.16.0
+  resolution: "undici@npm:7.16.0"
+  checksum: 10c0/efd867792e9f233facf9efa0a087e2d9c3e4415c0b234061b9b40307ca4fa01d945fee4d43c7b564e1b80e0d519bcc682f9f6e0de13c717146c00a80e2f1fb0f
   languageName: node
   linkType: hard
 

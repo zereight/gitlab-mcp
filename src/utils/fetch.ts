@@ -1,8 +1,17 @@
-import * as https from "https";
+/**
+ * Enhanced fetch utilities for GitLab MCP Server
+ *
+ * Node.js v24 compatible implementation using Undici's dispatcher pattern.
+ * Supports:
+ * - TLS verification bypass (SKIP_TLS_VERIFY)
+ * - Custom CA certificates (GITLAB_CA_CERT_PATH)
+ * - HTTP/HTTPS proxy support (HTTP_PROXY, HTTPS_PROXY)
+ * - Cookie authentication (GITLAB_AUTH_COOKIE_PATH)
+ * - OAuth per-request token context
+ * - Configurable timeout handling
+ */
+
 import * as fs from "fs";
-import { HttpProxyAgent } from "http-proxy-agent";
-import { HttpsProxyAgent } from "https-proxy-agent";
-import { SocksProxyAgent } from "socks-proxy-agent";
 import { logger } from "../logger";
 import {
   SKIP_TLS_VERIFY,
@@ -15,6 +24,14 @@ import {
   API_TIMEOUT_MS,
 } from "../config";
 import { isOAuthEnabled, getTokenContext } from "../oauth/index";
+
+// Dynamic require to avoid TypeScript analyzing complex undici types at compile time
+/* eslint-disable no-undef, no-unused-vars */
+const undici = require("undici") as {
+  Agent: new (opts?: Record<string, unknown>) => unknown;
+  ProxyAgent: new (opts: string | Record<string, unknown>) => unknown;
+};
+/* eslint-enable no-undef, no-unused-vars */
 
 /**
  * Cookie handling - parse cookies from file and format for HTTP Cookie header
@@ -31,7 +48,6 @@ function loadCookieHeader(): string | null {
     cookieString.split("\n").forEach(line => {
       const trimmed = line.trim();
       if (trimmed && !trimmed.startsWith("#")) {
-        // Parse cookie line format: domain flag path secure expiration name value
         const parts = trimmed.split("\t");
         if (parts.length >= 7) {
           const name = parts[5];
@@ -45,28 +61,6 @@ function loadCookieHeader(): string | null {
   } catch (error: unknown) {
     logger.warn({ err: error }, "Failed to load GitLab authentication cookies");
     return null;
-  }
-}
-
-/**
- * Get proxy agent based on URL protocol
- */
-function getProxyAgent():
-  | HttpProxyAgent<string>
-  | HttpsProxyAgent<string>
-  | SocksProxyAgent
-  | undefined {
-  const proxyUrl = HTTPS_PROXY ?? HTTP_PROXY;
-  if (!proxyUrl) {
-    return undefined;
-  }
-
-  if (proxyUrl.startsWith("socks4://") || proxyUrl.startsWith("socks5://")) {
-    return new SocksProxyAgent(proxyUrl);
-  } else if (proxyUrl.startsWith("https://")) {
-    return new HttpsProxyAgent(proxyUrl);
-  } else {
-    return new HttpProxyAgent(proxyUrl);
   }
 }
 
@@ -89,76 +83,22 @@ function loadCACertificate(): Buffer | undefined {
 }
 
 /**
- * Base HTTP headers (without Authorization)
- *
- * Authorization is added dynamically in getAuthorizationHeader() to support
- * both static token mode and per-request OAuth token context.
+ * Check if URL is a SOCKS proxy
  */
-export const DEFAULT_HEADERS: Record<string, string> = {
-  "User-Agent": "GitLab MCP Server",
-  "Content-Type": "application/json",
-  Accept: "application/json",
-};
-
-/**
- * Get the GitLab authorization token for the current request
- *
- * In OAuth mode: Uses the token from the current request's token context
- * In static mode: Uses the GITLAB_TOKEN environment variable
- *
- * @returns The Bearer token string, or undefined if no token is available
- */
-function getGitLabToken(): string | undefined {
-  // Check if we're in OAuth mode with an active token context
-  if (isOAuthEnabled()) {
-    const context = getTokenContext();
-    if (context) {
-      // OAuth mode with valid context - use per-request token
-      return context.gitlabToken;
-    }
-    // OAuth mode but no context (e.g., OAuth endpoints themselves)
-    // These endpoints don't need GitLab auth as they handle auth flow
-    return undefined;
-  }
-
-  // Static token mode - use environment variable
-  return GITLAB_TOKEN;
+function isSocksProxy(url: string): boolean {
+  return url.startsWith("socks4://") || url.startsWith("socks5://") || url.startsWith("socks://");
 }
 
 /**
- * Get Authorization header value for GitLab API requests
- *
- * @returns Authorization header value (Bearer token) or undefined
+ * Create Undici dispatcher for fetch requests
  */
-export function getAuthorizationHeader(): string | undefined {
-  const token = getGitLabToken();
-  return token ? `Bearer ${token}` : undefined;
-}
+function createDispatcher(): unknown {
+  const proxyUrl = HTTPS_PROXY ?? HTTP_PROXY;
 
-/**
- * Create fetch options with all features: TLS, proxy, cookies, CA certs
- */
-export function createFetchOptions(): RequestInit & {
-  agent?: HttpProxyAgent<string> | HttpsProxyAgent<string> | SocksProxyAgent | https.Agent;
-} {
-  const options: RequestInit & {
-    agent?: HttpProxyAgent<string> | HttpsProxyAgent<string> | SocksProxyAgent | https.Agent;
-  } = {};
-
-  // Proxy agent
-  const proxyAgent = getProxyAgent();
-  if (proxyAgent) {
-    options.agent = proxyAgent;
-    logger.info(`Using proxy: ${HTTPS_PROXY ?? HTTP_PROXY}`);
-  }
-
-  // TLS configuration
+  // Build TLS options
+  const tlsOptions: Record<string, unknown> = {};
   if (SKIP_TLS_VERIFY || NODE_TLS_REJECT_UNAUTHORIZED === "0") {
-    const agent = new https.Agent({
-      rejectUnauthorized: false,
-    });
-    options.agent = agent;
-
+    tlsOptions.rejectUnauthorized = false;
     if (SKIP_TLS_VERIFY) {
       logger.warn("TLS certificate verification disabled via SKIP_TLS_VERIFY");
     }
@@ -167,75 +107,124 @@ export function createFetchOptions(): RequestInit & {
     }
   }
 
-  // CA certificate
   const ca = loadCACertificate();
   if (ca) {
-    if (!options.agent) {
-      options.agent = new https.Agent({ ca });
-    } else if (options.agent instanceof https.Agent) {
-      options.agent.options.ca = ca;
-    }
+    tlsOptions.ca = ca;
   }
 
-  return options;
+  const hasTlsConfig = Object.keys(tlsOptions).length > 0;
+
+  // SOCKS proxy not supported with native fetch
+  if (proxyUrl && isSocksProxy(proxyUrl)) {
+    logger.info(`Using SOCKS proxy: ${proxyUrl}`);
+    logger.warn("SOCKS proxy not supported with native fetch. Consider HTTP/HTTPS proxy.");
+    return undefined;
+  }
+
+  // HTTP/HTTPS proxy
+  if (proxyUrl) {
+    logger.info(`Using proxy: ${proxyUrl}`);
+    return new undici.ProxyAgent({
+      uri: proxyUrl,
+      requestTls: hasTlsConfig ? tlsOptions : undefined,
+    });
+  }
+
+  // Custom TLS config without proxy
+  if (hasTlsConfig) {
+    return new undici.Agent({ connect: tlsOptions });
+  }
+
+  return undefined;
+}
+
+/** Cached dispatcher */
+let cachedDispatcher: unknown;
+let dispatcherInitialized = false;
+
+function getDispatcher(): unknown {
+  if (!dispatcherInitialized) {
+    cachedDispatcher = createDispatcher();
+    dispatcherInitialized = true;
+  }
+  return cachedDispatcher;
 }
 
 /**
- * Enhanced fetch function with full GitLab support:
- * - TLS verification bypass
- * - Cookie authentication
- * - Proxy support
- * - Custom CA certificates
- * - Configurable timeout handling
- * - OAuth per-request token context support
+ * Base HTTP headers
+ */
+export const DEFAULT_HEADERS: Record<string, string> = {
+  "User-Agent": "GitLab MCP Server",
+  "Content-Type": "application/json",
+  Accept: "application/json",
+};
+
+function getGitLabToken(): string | undefined {
+  if (isOAuthEnabled()) {
+    const context = getTokenContext();
+    return context?.gitlabToken;
+  }
+  return GITLAB_TOKEN;
+}
+
+export function getAuthorizationHeader(): string | undefined {
+  const token = getGitLabToken();
+  return token ? `Bearer ${token}` : undefined;
+}
+
+/** @deprecated Use enhancedFetch() directly */
+export function createFetchOptions(): Record<string, unknown> {
+  const dispatcher = getDispatcher();
+  return dispatcher ? { dispatcher } : {};
+}
+
+/**
+ * Enhanced fetch with GitLab support and Node.js v24 compatibility
  */
 export async function enhancedFetch(url: string, options: RequestInit = {}): Promise<Response> {
-  const fetchOptions = createFetchOptions();
+  const dispatcher = getDispatcher();
   const cookieHeader = loadCookieHeader();
 
-  // Prepare headers - start with base headers (no Authorization)
-  const headers: Record<string, string> = {
-    ...DEFAULT_HEADERS,
-  };
+  const headers: Record<string, string> = { ...DEFAULT_HEADERS };
 
-  // Add dynamic Authorization header based on current mode and context
   const authHeader = getAuthorizationHeader();
   if (authHeader) {
     headers.Authorization = authHeader;
   }
 
-  // Safely merge headers from options (allows overriding Authorization if needed)
   if (options.headers) {
     if (options.headers instanceof Headers) {
       options.headers.forEach((value, key) => {
         headers[key] = value;
       });
+    } else if (Array.isArray(options.headers)) {
+      for (const [key, value] of options.headers) {
+        headers[key] = value;
+      }
     } else {
       Object.assign(headers, options.headers);
     }
   }
 
-  // Add cookies if available
   if (cookieHeader) {
     headers.Cookie = cookieHeader;
   }
 
-  // Create timeout controller
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => {
-    controller.abort();
-  }, API_TIMEOUT_MS);
+  const timeoutId = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
 
-  // Merge all options with timeout signal
-  const mergedOptions: RequestInit = {
-    ...fetchOptions,
+  const fetchOptions: Record<string, unknown> = {
     ...options,
     headers,
     signal: controller.signal,
   };
 
+  if (dispatcher) {
+    fetchOptions.dispatcher = dispatcher;
+  }
+
   try {
-    const response = await fetch(url, mergedOptions);
+    const response = await fetch(url, fetchOptions as RequestInit);
     clearTimeout(timeoutId);
     return response;
   } catch (error) {
@@ -245,4 +234,9 @@ export async function enhancedFetch(url: string, options: RequestInit = {}): Pro
     }
     throw error;
   }
+}
+
+export function resetDispatcherCache(): void {
+  cachedDispatcher = undefined;
+  dispatcherInitialized = false;
 }
