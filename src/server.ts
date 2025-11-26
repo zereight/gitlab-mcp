@@ -3,7 +3,17 @@ import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import express, { Express } from "express";
-import { HOST, PORT } from "./config";
+import * as https from "https";
+import * as fs from "fs";
+import {
+  HOST,
+  PORT,
+  SSL_CERT_PATH,
+  SSL_KEY_PATH,
+  SSL_CA_PATH,
+  SSL_PASSPHRASE,
+  TRUST_PROXY,
+} from "./config";
 import { TransportMode } from "./types";
 import { packageName, packageVersion } from "./config";
 import { setupHandlers } from "./handlers";
@@ -73,6 +83,87 @@ function registerOAuthEndpoints(app: Express): void {
   logger.info("OAuth endpoints registered");
 }
 
+/**
+ * Check if TLS/HTTPS is enabled via SSL certificate configuration
+ */
+function isTLSEnabled(): boolean {
+  return !!(SSL_CERT_PATH && SSL_KEY_PATH);
+}
+
+/**
+ * Load TLS options from certificate files
+ */
+function loadTLSOptions(): https.ServerOptions | undefined {
+  if (!SSL_CERT_PATH || !SSL_KEY_PATH) {
+    return undefined;
+  }
+
+  try {
+    const options: https.ServerOptions = {
+      cert: fs.readFileSync(SSL_CERT_PATH),
+      key: fs.readFileSync(SSL_KEY_PATH),
+    };
+
+    if (SSL_CA_PATH) {
+      options.ca = fs.readFileSync(SSL_CA_PATH);
+      logger.info(`CA certificate loaded from ${SSL_CA_PATH}`);
+    }
+
+    if (SSL_PASSPHRASE) {
+      options.passphrase = SSL_PASSPHRASE;
+    }
+
+    logger.info(`TLS certificates loaded from ${SSL_CERT_PATH}`);
+    return options;
+  } catch (error: unknown) {
+    logger.error({ err: error }, "Failed to load TLS certificates");
+    throw new Error(`Failed to load TLS certificates: ${String(error)}`);
+  }
+}
+
+/**
+ * Configure Express trust proxy setting for reverse proxy deployments
+ */
+function configureTrustProxy(app: Express): void {
+  if (!TRUST_PROXY) {
+    return;
+  }
+
+  // Parse trust proxy value
+  let trustValue: boolean | string | number = TRUST_PROXY;
+  if (TRUST_PROXY === "true" || TRUST_PROXY === "1") {
+    trustValue = true;
+  } else if (TRUST_PROXY === "false" || TRUST_PROXY === "0") {
+    trustValue = false;
+  } else if (!isNaN(Number(TRUST_PROXY))) {
+    trustValue = Number(TRUST_PROXY);
+  }
+
+  app.set("trust proxy", trustValue);
+  logger.info(`Trust proxy configured: ${String(trustValue)}`);
+}
+
+/**
+ * Start an HTTP or HTTPS server based on TLS configuration
+ */
+function startHttpServer(app: Express, callback: () => void): void {
+  const tlsOptions = loadTLSOptions();
+
+  if (tlsOptions) {
+    const httpsServer = https.createServer(tlsOptions, app);
+    httpsServer.listen(Number(PORT), HOST, callback);
+  } else {
+    app.listen(Number(PORT), HOST, callback);
+  }
+}
+
+/**
+ * Get the protocol prefix for URLs
+ */
+function getProtocol(): string {
+  return isTLSEnabled() ? "https" : "http";
+}
+
 function determineTransportMode(): TransportMode {
   const args = process.argv.slice(2);
 
@@ -129,6 +220,9 @@ export async function startServer(): Promise<void> {
       const app = express();
       app.use(express.json());
 
+      // Configure trust proxy for reverse proxy deployments
+      configureTrustProxy(app);
+
       // Register OAuth endpoints if OAuth mode is enabled
       if (isOAuthEnabled()) {
         registerOAuthEndpoints(app);
@@ -168,9 +262,12 @@ export async function startServer(): Promise<void> {
         }
       });
 
-      app.listen(Number(PORT), HOST, () => {
-        const url = `http://${HOST}:${PORT}`;
+      startHttpServer(app, () => {
+        const url = `${getProtocol()}://${HOST}:${PORT}`;
         logger.info(`GitLab MCP Server SSE running on ${url}`);
+        if (isTLSEnabled()) {
+          logger.info("TLS/HTTPS enabled");
+        }
         logger.info("SSE server started successfully");
       });
       break;
@@ -179,6 +276,9 @@ export async function startServer(): Promise<void> {
     case "streamable-http": {
       const app = express();
       app.use(express.json());
+
+      // Configure trust proxy for reverse proxy deployments
+      configureTrustProxy(app);
 
       // Register OAuth endpoints if OAuth mode is enabled
       if (isOAuthEnabled()) {
@@ -220,9 +320,12 @@ export async function startServer(): Promise<void> {
         }
       });
 
-      app.listen(Number(PORT), HOST, () => {
-        const url = `http://${HOST}:${PORT}`;
+      startHttpServer(app, () => {
+        const url = `${getProtocol()}://${HOST}:${PORT}`;
         logger.info(`GitLab MCP Server running on ${url}/mcp`);
+        if (isTLSEnabled()) {
+          logger.info("TLS/HTTPS enabled");
+        }
         logger.info("Supports both SSE (GET) and JSON-RPC (POST) on same endpoint");
       });
       break;
@@ -232,6 +335,9 @@ export async function startServer(): Promise<void> {
       logger.info("Setting up dual transport mode (SSE + StreamableHTTP)...");
       const app = express();
       app.use(express.json());
+
+      // Configure trust proxy for reverse proxy deployments
+      configureTrustProxy(app);
 
       // Register OAuth endpoints if OAuth mode is enabled
       if (isOAuthEnabled()) {
@@ -300,9 +406,12 @@ export async function startServer(): Promise<void> {
         }
       });
 
-      app.listen(Number(PORT), HOST, () => {
-        const url = `http://${HOST}:${PORT}`;
+      startHttpServer(app, () => {
+        const url = `${getProtocol()}://${HOST}:${PORT}`;
         logger.info(`GitLab MCP Server running on ${url}`);
+        if (isTLSEnabled()) {
+          logger.info("TLS/HTTPS enabled");
+        }
         logger.info("Dual Transport Mode Active:");
         logger.info(`  SSE endpoint: ${url}/sse (backwards compatibility)`);
         logger.info(`  StreamableHTTP endpoint: ${url}/mcp (modern, supports SSE + JSON-RPC)`);

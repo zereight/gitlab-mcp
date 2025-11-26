@@ -22,6 +22,16 @@ export const USE_VARIABLES = process.env.USE_VARIABLES !== "false";
 export const HOST = process.env.HOST ?? "0.0.0.0";
 export const PORT = process.env.PORT ?? 3002;
 
+// TLS/SSL configuration for direct HTTPS termination
+export const SSL_CERT_PATH = process.env.SSL_CERT_PATH;
+export const SSL_KEY_PATH = process.env.SSL_KEY_PATH;
+export const SSL_CA_PATH = process.env.SSL_CA_PATH;
+export const SSL_PASSPHRASE = process.env.SSL_PASSPHRASE;
+
+// Reverse proxy configuration
+// Values: 'true', 'false', 'loopback', 'linklocal', 'uniquelocal', or specific IPs
+export const TRUST_PROXY = process.env.TRUST_PROXY;
+
 // API timeout configuration (in milliseconds)
 export const API_TIMEOUT_MS = parseInt(process.env.GITLAB_API_TIMEOUT_MS ?? "20000", 10);
 

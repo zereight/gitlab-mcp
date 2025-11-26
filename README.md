@@ -14,7 +14,7 @@ This fork is actively maintained and enhanced with strict TypeScript standards, 
 
 ## Requirements
 
-- **Node.js**: >=18.0.0 (required for native fetch API support)
+- **Node.js**: >=24.0.0 (required for native fetch with Undici dispatcher pattern)
 - **GitLab**: Compatible with GitLab.com and self-hosted instances
 
 ## Usage
@@ -200,6 +200,38 @@ The GitLab MCP Server automatically selects the appropriate transport mode based
 - No HTTP server required
 - Optimal for command-line tools and direct MCP protocol usage
 - Lower resource usage
+
+## TLS/HTTPS Configuration
+
+GitLab MCP Server supports secure HTTPS connections via:
+
+| Approach | Best For | HTTP/2 | Auto-Renewal |
+|----------|----------|--------|--------------|
+| **Direct TLS** | Development, simple deployments | No | Manual |
+| **Reverse Proxy** | Production (recommended) | Yes | Yes |
+
+**Quick Start - Direct TLS:**
+```bash
+docker run -d \
+  -e PORT=3000 \
+  -e SSL_CERT_PATH=/certs/server.crt \
+  -e SSL_KEY_PATH=/certs/server.key \
+  -e GITLAB_TOKEN=your_token \
+  -v $(pwd)/certs:/certs:ro \
+  -p 3000:3000 \
+  ghcr.io/structured-world/gitlab-mcp:latest
+```
+
+**Quick Start - Reverse Proxy (Caddy):**
+```
+gitlab-mcp.example.com {
+    reverse_proxy gitlab-mcp:3002 {
+        flush_interval -1
+    }
+}
+```
+
+For complete setup guides including **nginx**, **Envoy**, **Caddy**, and **Traefik** configurations with HTTP/2 support, see **[SSL.md](SSL.md)**.
 
 ## OAuth Authentication (Claude Custom Connector)
 
@@ -419,6 +451,11 @@ When OAuth is enabled, the following endpoints are available:
 - `USE_VARIABLES`: When set to 'true', enables the CI/CD variables-related tools (list_variables, get_variable, create_variable, update_variable, delete_variable). Supports both project-level and group-level variables. By default, variables features are enabled.
 - `GITLAB_AUTH_COOKIE_PATH`: Path to an authentication cookie file for GitLab instances that require cookie-based authentication. When provided, the cookie will be included in all GitLab API requests.
 - `SKIP_TLS_VERIFY`: When set to 'true', skips TLS certificate verification for all GitLab API requests (both REST and GraphQL). **WARNING**: This bypasses SSL certificate validation and should only be used for testing with self-signed certificates or trusted internal GitLab instances. Never use this in production environments.
+- `SSL_CERT_PATH`: Path to PEM certificate file for direct HTTPS/TLS termination. Requires `SSL_KEY_PATH` to also be set.
+- `SSL_KEY_PATH`: Path to PEM private key file for direct HTTPS/TLS termination. Requires `SSL_CERT_PATH` to also be set.
+- `SSL_CA_PATH`: Optional path to CA certificate chain for client certificate validation.
+- `SSL_PASSPHRASE`: Optional passphrase for encrypted private keys.
+- `TRUST_PROXY`: Enable Express trust proxy for reverse proxy deployments. Values: `true`, `false`, `loopback`, `linklocal`, `uniquelocal`, hop count, or specific IP addresses.
 
 ### Dynamic Tool Description Customization
 
