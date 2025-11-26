@@ -1,3 +1,18 @@
+# [5.8.0](https://github.com/structured-world/gitlab-mcp/compare/v5.7.0...v5.8.0) (2025-11-26)
+
+
+### Bug Fixes
+
+* **handlers:** handle 204 No Content responses and FormData uploads ([8ecc3ef](https://github.com/structured-world/gitlab-mcp/commit/8ecc3ef86873661e8fcc4ae04c2c27b7174b784b))
+
+
+### Features
+
+* **deps:** upgrade Zod from v3 to v4 with native JSON Schema generation ([e605eef](https://github.com/structured-world/gitlab-mcp/commit/e605eefedd87d0861ade2e1e58c1a251ef86edeb))
+* **fetch:** add Node.js v24 compatibility with Undici dispatcher pattern ([da74392](https://github.com/structured-world/gitlab-mcp/commit/da74392e216a2641197bf39a4f1d848fa6d2fe7e))
+* **oauth:** add OAuth 2.1 authentication with GitLab Device Flow ([3d6d34d](https://github.com/structured-world/gitlab-mcp/commit/3d6d34d729de1e448fbe27816c30efbe58fb22fa))
+* **server:** add TLS/HTTPS support with reverse proxy configuration ([4203e17](https://github.com/structured-world/gitlab-mcp/commit/4203e170479348e13556143ff37cd308fa21c5d7))
+
 # [5.7.0](https://github.com/structured-world/gitlab-mcp/compare/v5.6.1...v5.7.0) (2025-09-23)
 
 
