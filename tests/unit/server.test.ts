@@ -74,6 +74,14 @@ jest.mock('../../src/logger', () => ({
   logger: mockLogger
 }));
 
+// Mock OAuth config module
+jest.mock('../../src/oauth/index', () => ({
+  loadOAuthConfig: jest.fn(() => null),
+  validateStaticConfig: jest.fn(),
+  isOAuthEnabled: jest.fn(() => false),
+  getAuthModeDescription: jest.fn(() => 'Static token mode'),
+}));
+
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { startServer } from '../../src/server';
 
@@ -183,7 +191,7 @@ describe('server', () => {
 
       expect(mockApp.listen).toHaveBeenCalledWith(3000, 'localhost', expect.any(Function));
       expect(mockLogger.info).toHaveBeenCalledWith('GitLab MCP Server running on http://localhost:3000');
-      expect(mockLogger.info).toHaveBeenCalledWith('🔄 Dual Transport Mode Active:');
+      expect(mockLogger.info).toHaveBeenCalledWith('Dual Transport Mode Active:');
     });
 
     it('should handle SSE endpoint requests', async () => {

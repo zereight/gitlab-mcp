@@ -2,12 +2,27 @@ import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
-import express from "express";
+import express, { Express } from "express";
 import { HOST, PORT } from "./config";
 import { TransportMode } from "./types";
 import { packageName, packageVersion } from "./config";
 import { setupHandlers } from "./handlers";
 import { logger } from "./logger";
+
+// OAuth imports
+import {
+  loadOAuthConfig,
+  validateStaticConfig,
+  isOAuthEnabled,
+  getAuthModeDescription,
+  metadataHandler,
+  authorizeHandler,
+  pollHandler,
+  tokenHandler,
+  healthHandler,
+} from "./oauth/index";
+// Note: oauthAuthMiddleware is available for future use on protected endpoints
+// import { oauthAuthMiddleware } from "./middleware/index";
 
 // Create server instance
 export const server = new Server(
@@ -25,6 +40,38 @@ export const server = new Server(
 // Terminal colors for logging (currently unused)
 // const colorGreen = '\x1b[32m';
 // const colorReset = '\x1b[0m';
+
+/**
+ * Register OAuth endpoints on an Express app
+ *
+ * Adds:
+ * - /.well-known/oauth-authorization-server - OAuth metadata
+ * - /authorize - Authorization endpoint (initiates device flow)
+ * - /oauth/poll - Device flow polling endpoint
+ * - /token - Token exchange endpoint
+ * - /health - Health check endpoint
+ *
+ * @param app - Express application
+ */
+function registerOAuthEndpoints(app: Express): void {
+  // OAuth discovery metadata (no auth required)
+  app.get("/.well-known/oauth-authorization-server", metadataHandler);
+
+  // Authorization endpoint - initiates device flow (no auth required)
+  app.get("/authorize", authorizeHandler);
+
+  // Device flow polling endpoint (no auth required)
+  app.get("/oauth/poll", pollHandler);
+
+  // Token endpoint - exchange code for tokens (no auth required)
+  // Uses URL-encoded body as per OAuth spec
+  app.post("/token", express.urlencoded({ extended: true }), tokenHandler);
+
+  // Health check endpoint
+  app.get("/health", healthHandler);
+
+  logger.info("OAuth endpoints registered");
+}
 
 function determineTransportMode(): TransportMode {
   const args = process.argv.slice(2);
@@ -51,6 +98,19 @@ function determineTransportMode(): TransportMode {
 }
 
 export async function startServer(): Promise<void> {
+  // Validate configuration based on auth mode
+  const oauthConfig = loadOAuthConfig();
+  if (oauthConfig) {
+    logger.info("Starting in OAuth mode (per-user authentication)");
+    logger.info(`OAuth client ID: ${oauthConfig.gitlabClientId}`);
+  } else {
+    // Validate static token configuration
+    validateStaticConfig();
+    logger.info("Starting in static token mode (shared GITLAB_TOKEN)");
+  }
+
+  logger.info(`Authentication mode: ${getAuthModeDescription()}`);
+
   // Setup request handlers
   await setupHandlers(server);
 
@@ -68,6 +128,11 @@ export async function startServer(): Promise<void> {
       logger.info("Setting up SSE mode with MCP SDK...");
       const app = express();
       app.use(express.json());
+
+      // Register OAuth endpoints if OAuth mode is enabled
+      if (isOAuthEnabled()) {
+        registerOAuthEndpoints(app);
+      }
 
       const sseTransports: { [sessionId: string]: SSEServerTransport } = {};
 
@@ -114,6 +179,11 @@ export async function startServer(): Promise<void> {
     case "streamable-http": {
       const app = express();
       app.use(express.json());
+
+      // Register OAuth endpoints if OAuth mode is enabled
+      if (isOAuthEnabled()) {
+        registerOAuthEndpoints(app);
+      }
 
       const streamableTransports: { [sessionId: string]: StreamableHTTPServerTransport } = {};
 
@@ -162,6 +232,11 @@ export async function startServer(): Promise<void> {
       logger.info("Setting up dual transport mode (SSE + StreamableHTTP)...");
       const app = express();
       app.use(express.json());
+
+      // Register OAuth endpoints if OAuth mode is enabled
+      if (isOAuthEnabled()) {
+        registerOAuthEndpoints(app);
+      }
 
       // Transport storage for both SSE and StreamableHTTP
       const sseTransports: { [sessionId: string]: SSEServerTransport } = {};
@@ -228,9 +303,15 @@ export async function startServer(): Promise<void> {
       app.listen(Number(PORT), HOST, () => {
         const url = `http://${HOST}:${PORT}`;
         logger.info(`GitLab MCP Server running on ${url}`);
-        logger.info("🔄 Dual Transport Mode Active:");
-        logger.info(`  📡 SSE endpoint: ${url}/sse (backwards compatibility)`);
-        logger.info(`  🚀 StreamableHTTP endpoint: ${url}/mcp (modern, supports SSE + JSON-RPC)`);
+        logger.info("Dual Transport Mode Active:");
+        logger.info(`  SSE endpoint: ${url}/sse (backwards compatibility)`);
+        logger.info(`  StreamableHTTP endpoint: ${url}/mcp (modern, supports SSE + JSON-RPC)`);
+        if (isOAuthEnabled()) {
+          logger.info("OAuth Mode Active:");
+          logger.info(`  OAuth metadata: ${url}/.well-known/oauth-authorization-server`);
+          logger.info(`  Authorization: ${url}/authorize`);
+          logger.info(`  Token exchange: ${url}/token`);
+        }
         logger.info("Clients can use either transport as needed");
       });
       break;

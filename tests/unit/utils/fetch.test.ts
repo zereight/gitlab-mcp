@@ -25,6 +25,12 @@ jest.mock('https-proxy-agent');
 jest.mock('socks-proxy-agent');
 jest.mock('../../../src/logger');
 
+// Mock OAuth module - static token mode
+jest.mock('../../../src/oauth/index', () => ({
+  isOAuthEnabled: jest.fn(() => false),
+  getTokenContext: jest.fn(() => undefined),
+}));
+
 // Import the actual implementation (not mocked)
 const fetchModule = jest.requireActual('../../../src/utils/fetch');
 const { enhancedFetch, createFetchOptions, DEFAULT_HEADERS } = fetchModule;
@@ -74,8 +80,9 @@ describe('Enhanced Fetch Utilities', () => {
       expect(DEFAULT_HEADERS['Accept']).toBe('application/json');
     });
 
-    it('should include Authorization header when GITLAB_TOKEN is set', () => {
-      expect(DEFAULT_HEADERS.Authorization).toBe('Bearer test-token');
+    it('should NOT include Authorization header in DEFAULT_HEADERS (added dynamically)', () => {
+      // Authorization is now added dynamically in enhancedFetch based on auth mode
+      expect(DEFAULT_HEADERS.Authorization).toBeUndefined();
     });
   });
 
@@ -310,10 +317,8 @@ describe('Enhanced Fetch Utilities', () => {
   });
 
   describe('Edge Cases and Error Handling', () => {
-    it('should handle missing Authorization header when no token', async () => {
-      const originalHeaders = { ...DEFAULT_HEADERS };
-      delete DEFAULT_HEADERS.Authorization;
-
+    it('should include Authorization header when token is available', async () => {
+      // In static token mode with GITLAB_TOKEN set, Authorization should be added
       const mockResponse = createMockResponse();
       mockFetch.mockResolvedValue(mockResponse);
 
@@ -322,14 +327,11 @@ describe('Enhanced Fetch Utilities', () => {
       expect(mockFetch).toHaveBeenCalledWith(
         'https://example.com',
         expect.objectContaining({
-          headers: expect.not.objectContaining({
-            Authorization: expect.any(String)
+          headers: expect.objectContaining({
+            Authorization: 'Bearer test-token'
           })
         })
       );
-
-      // Restore original headers
-      Object.assign(DEFAULT_HEADERS, originalHeaders);
     });
 
     it('should handle array-like headers correctly', async () => {

@@ -14,6 +14,7 @@ import {
   GITLAB_TOKEN,
   API_TIMEOUT_MS,
 } from "../config";
+import { isOAuthEnabled, getTokenContext } from "../oauth/index";
 
 /**
  * Cookie handling - parse cookies from file and format for HTTP Cookie header
@@ -88,7 +89,10 @@ function loadCACertificate(): Buffer | undefined {
 }
 
 /**
- * HTTP headers and configuration
+ * Base HTTP headers (without Authorization)
+ *
+ * Authorization is added dynamically in getAuthorizationHeader() to support
+ * both static token mode and per-request OAuth token context.
  */
 export const DEFAULT_HEADERS: Record<string, string> = {
   "User-Agent": "GitLab MCP Server",
@@ -96,8 +100,39 @@ export const DEFAULT_HEADERS: Record<string, string> = {
   Accept: "application/json",
 };
 
-if (GITLAB_TOKEN) {
-  DEFAULT_HEADERS.Authorization = `Bearer ${GITLAB_TOKEN}`;
+/**
+ * Get the GitLab authorization token for the current request
+ *
+ * In OAuth mode: Uses the token from the current request's token context
+ * In static mode: Uses the GITLAB_TOKEN environment variable
+ *
+ * @returns The Bearer token string, or undefined if no token is available
+ */
+function getGitLabToken(): string | undefined {
+  // Check if we're in OAuth mode with an active token context
+  if (isOAuthEnabled()) {
+    const context = getTokenContext();
+    if (context) {
+      // OAuth mode with valid context - use per-request token
+      return context.gitlabToken;
+    }
+    // OAuth mode but no context (e.g., OAuth endpoints themselves)
+    // These endpoints don't need GitLab auth as they handle auth flow
+    return undefined;
+  }
+
+  // Static token mode - use environment variable
+  return GITLAB_TOKEN;
+}
+
+/**
+ * Get Authorization header value for GitLab API requests
+ *
+ * @returns Authorization header value (Bearer token) or undefined
+ */
+export function getAuthorizationHeader(): string | undefined {
+  const token = getGitLabToken();
+  return token ? `Bearer ${token}` : undefined;
 }
 
 /**
@@ -152,17 +187,24 @@ export function createFetchOptions(): RequestInit & {
  * - Proxy support
  * - Custom CA certificates
  * - Configurable timeout handling
+ * - OAuth per-request token context support
  */
 export async function enhancedFetch(url: string, options: RequestInit = {}): Promise<Response> {
   const fetchOptions = createFetchOptions();
   const cookieHeader = loadCookieHeader();
 
-  // Prepare headers
+  // Prepare headers - start with base headers (no Authorization)
   const headers: Record<string, string> = {
     ...DEFAULT_HEADERS,
   };
 
-  // Safely merge headers from options
+  // Add dynamic Authorization header based on current mode and context
+  const authHeader = getAuthorizationHeader();
+  if (authHeader) {
+    headers.Authorization = authHeader;
+  }
+
+  // Safely merge headers from options (allows overriding Authorization if needed)
   if (options.headers) {
     if (options.headers instanceof Headers) {
       options.headers.forEach((value, key) => {
