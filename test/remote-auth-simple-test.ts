@@ -206,6 +206,9 @@ describe('Remote Authorization - Session Timeout', () => {
   });
 
   test('session timeout expiration - inactivity expires auth', async () => {
+    // Add a small delay to ensure server is ready/clean from previous test
+    await new Promise(resolve => setTimeout(resolve, 1000));
+
     // Step 1: Connect WITH auth header to establish session
     const clientWithAuth = new CustomHeaderClient({
       'authorization': `Bearer ${MOCK_TOKEN}`
