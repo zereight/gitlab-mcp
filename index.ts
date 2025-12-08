@@ -358,7 +358,7 @@ const SSE = process.env.SSE === "true";
 const STREAMABLE_HTTP = process.env.STREAMABLE_HTTP === "true";
 const REMOTE_AUTHORIZATION = process.env.REMOTE_AUTHORIZATION === "true";
 const SESSION_TIMEOUT_SECONDS = process.env.SESSION_TIMEOUT_SECONDS ? parseInt(process.env.SESSION_TIMEOUT_SECONDS) : 3600;
-const HOST = process.env.HOST || "0.0.0.0";
+const HOST = process.env.HOST || "127.0.0.1";
 const PORT = process.env.PORT || 3002;
 // Add proxy configuration
 const HTTP_PROXY = process.env.HTTP_PROXY;
