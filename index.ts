@@ -1,27 +1,5 @@
 #!/usr/bin/env node
 
-// Parse CLI arguments
-const args = process.argv.slice(2);
-const cliArgs: Record<string, string> = {};
-
-for (let i = 0; i < args.length; i++) {
-  const arg = args[i];
-  if (arg.startsWith('--')) {
-    const [key, value] = arg.slice(2).split('=');
-    if (value) {
-      cliArgs[key] = value;
-    } else if (i + 1 < args.length && !args[i + 1].startsWith('--')) {
-      cliArgs[key] = args[++i];
-    }
-  }
-}
-
-// Helper function to get config value (CLI args take precedence over env vars)
-function getConfig(cliKey: string, envKey: string): string | undefined;
-function getConfig(cliKey: string, envKey: string, defaultValue: string): string;
-function getConfig(cliKey: string, envKey: string, defaultValue?: string): string | undefined {
-  return cliArgs[cliKey] || process.env[envKey] || defaultValue;
-}
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
@@ -242,6 +220,30 @@ import {
 import { randomUUID } from "node:crypto";
 import { pino } from "pino";
 
+
+// Parse CLI arguments
+const args = process.argv.slice(2);
+const cliArgs: Record<string, string> = {};
+
+for (let i = 0; i < args.length; i++) {
+  const arg = args[i];
+  if (arg.startsWith('--')) {
+    const [key, value] = arg.slice(2).split('=');
+    if (value) {
+      cliArgs[key] = value;
+    } else if (i + 1 < args.length && !args[i + 1].startsWith('--')) {
+      cliArgs[key] = args[++i];
+    }
+  }
+}
+
+// Helper function to get config value (CLI args take precedence over env vars)
+function getConfig(cliKey: string, envKey: string): string | undefined;
+function getConfig(cliKey: string, envKey: string, defaultValue: string): string;
+function getConfig(cliKey: string, envKey: string, defaultValue?: string): string | undefined {
+  return cliArgs[cliKey] || process.env[envKey] || defaultValue;
+}
+
 const logger = pino({
   level: process.env.LOG_LEVEL || "info",
   transport: {
@@ -351,7 +353,6 @@ function validateConfiguration(): void {
       } catch {
         errors.push(`GITLAB_API_URL contains an invalid URL: ${url.trim()}`);
       }
-    }
     }
   }
 
