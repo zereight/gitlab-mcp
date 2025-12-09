@@ -90,6 +90,37 @@ Then configure the MCP server with OAuth:
 }
 ```
 
+#### Using CLI Arguments (for clients with env var issues)
+
+Some MCP clients (like GitHub Copilot CLI) have issues with environment variables. Use CLI arguments instead:
+
+```json
+{
+  "mcpServers": {
+    "gitlab": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@zereight/mcp-gitlab",
+        "--token=YOUR_GITLAB_TOKEN",
+        "--api-url=https://gitlab.com/api/v4"
+      ],
+      "tools": ["*"]
+    }
+  }
+}
+```
+
+**Available CLI arguments:**
+- `--token` - GitLab Personal Access Token (replaces `GITLAB_PERSONAL_ACCESS_TOKEN`)
+- `--api-url` - GitLab API URL (replaces `GITLAB_API_URL`)
+- `--read-only=true` - Enable read-only mode (replaces `GITLAB_READ_ONLY_MODE`)
+- `--use-wiki=true` - Enable wiki API (replaces `USE_GITLAB_WIKI`)
+- `--use-milestone=true` - Enable milestone API (replaces `USE_MILESTONE`)
+- `--use-pipeline=true` - Enable pipeline API (replaces `USE_PIPELINE`)
+
+CLI arguments take precedence over environment variables.
+
 #### vscode .vscode/mcp.json
 
 ```json
