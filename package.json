@@ -1,7 +1,7 @@
 {
-  "name": "@zereight/mcp-gitlab",
-  "version": "2.0.13",
-  "description": "MCP server for using the GitLab API",
+  "name": "@alfonsodg/mcp-gitlab",
+  "version": "2.0.14",
+  "description": "MCP server for using the GitLab API (with CLI args support)",
   "license": "MIT",
   "author": "zereight",
   "type": "module",
