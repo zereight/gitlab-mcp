@@ -2,6 +2,17 @@
 
 [![Star History Chart](https://api.star-history.com/svg?repos=zereight/gitlab-mcp&type=Date)](https://www.star-history.com/#zereight/gitlab-mcp&Date)
 
+## @alfonsodg/mcp-gitlab (Fork with CLI Args Support)
+
+This fork adds CLI arguments support for MCP clients that have issues with environment variables (like GitHub Copilot CLI).
+
+**Quick Install:**
+```bash
+npx -y git+https://github.com/alfonsodg/gitlab-mcp.git#v2.0.14 --token=YOUR_TOKEN --api-url=https://gitlab.com/api/v4
+```
+
+**Original:** [@zereight/gitlab-mcp](https://github.com/zereight/gitlab-mcp)
+
 ## @zereight/mcp-gitlab
 
 [![smithery badge](https://smithery.ai/badge/@zereight/gitlab-mcp)](https://smithery.ai/server/@zereight/gitlab-mcp)
