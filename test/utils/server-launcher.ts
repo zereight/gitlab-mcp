@@ -32,6 +32,7 @@ export interface ServerInstance {
  * Launch a server with specified configuration
  */
 export async function launchServer(config: ServerConfig): Promise<ServerInstance> {
+  console.log("Launcher: launchServer function entered.");
   const {
     mode,
     port = 3002,
@@ -52,18 +53,14 @@ export async function launchServer(config: ServerConfig): Promise<ServerInstance
   if (!GITLAB_TOKEN && !isRemoteAuth) {
     throw new Error('GITLAB_TOKEN_TEST or GITLAB_TOKEN environment variable is required for server testing');
   }
-  if (!TEST_PROJECT_ID && !isRemoteAuth) {
+  if (!TEST_PROJECT_ID && !isRemoteAuth && env.ENABLE_DYNAMIC_API_URL !== 'true') {
     throw new Error('TEST_PROJECT_ID environment variable is required for server testing');
   }
 
   const serverEnv: Record<string, string> = {
-    // Add all environment variables from the current process
-    ...(process.env as Record<string, string>),
-    GITLAB_API_URL: `${GITLAB_API_URL}/api/v4`,
-    ...(TEST_PROJECT_ID ? { GITLAB_PROJECT_ID: TEST_PROJECT_ID } : {}),
-    GITLAB_READ_ONLY_MODE: 'true', // Use read-only mode for testing
+    ...process.env,
     ...env,
-  };
+  } as Record<string, string>;
 
   // Only set GITLAB_PERSONAL_ACCESS_TOKEN if not using remote auth
   if (!isRemoteAuth && GITLAB_TOKEN) {
@@ -87,11 +84,16 @@ export async function launchServer(config: ServerConfig): Promise<ServerInstance
 
   const serverPath = path.resolve(process.cwd(), 'build/index.js');
   
+  console.log("Launcher: Spawning server process with env:", serverEnv);
+  console.log("Launcher: Spawning server process with env:", serverEnv);
   const serverProcess = spawn('node', [serverPath], {
     env: serverEnv,
     stdio: ['pipe', 'pipe', 'pipe'],
+    shell: false,
     detached: false
   });
+  console.log(`Launcher: Server process spawned with PID: ${serverProcess.pid}`);
+  console.log("Launcher: Server process spawned.");
 
   // Wait for server to start
   await waitForServerStart(serverProcess, mode, port, timeout);
@@ -134,8 +136,15 @@ async function waitForServerStart(
     let outputBuffer = '';
 
     const onData = (data: Buffer) => {
-      const output = data.toString();
-      outputBuffer += output;
+      try {
+        const output = data.toString();
+        console.log(`[Server Output]: ${output}`);
+        outputBuffer += output;
+      } catch (e) {
+        console.error("Error converting server output to string:", e);
+        reject(e);
+        return;
+      }
       
       // Check for server start messages
       const startMessages = [
@@ -152,8 +161,8 @@ async function waitForServerStart(
 
       if (hasStartMessage) {
         clearTimeout(timer);
-        process.stdout?.removeListener('data', onData);
-        process.stderr?.removeListener('data', onData);
+        // process.stdout?.removeListener('data', onData);
+        // process.stderr?.removeListener('data', onData);
         
         // Additional wait for HTTP servers to be fully ready
         if (mode !== TransportMode.STDIO) {
@@ -170,11 +179,18 @@ async function waitForServerStart(
     };
 
     const onExit = (code: number | null) => {
+      console.log(`[Launcher DEBUG] Process ${process.pid} exited with code ${code}`);
+      // We don't reject here immediately, we wait for 'close' to ensure streams are flushed
+    };
+
+    const onClose = (code: number | null) => {
+      console.log(`[Launcher DEBUG] Process ${process.pid} closed with code ${code}`);
       clearTimeout(timer);
       reject(new Error(`Server process exited with code ${code} before starting`));
     };
 
     process.stdout?.on('data', onData);
+    process.on('close', onClose);
     process.stderr?.on('data', onData);
     process.on('error', onError);
     process.on('exit', onExit);
