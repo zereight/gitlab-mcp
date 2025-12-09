@@ -372,6 +372,7 @@ const HTTP_PROXY = process.env.HTTP_PROXY;
 const HTTPS_PROXY = process.env.HTTPS_PROXY;
 const NODE_TLS_REJECT_UNAUTHORIZED = process.env.NODE_TLS_REJECT_UNAUTHORIZED;
 const GITLAB_CA_CERT_PATH = process.env.GITLAB_CA_CERT_PATH;
+const GITLAB_POOL_MAX_SIZE = process.env.GITLAB_POOL_MAX_SIZE ? parseInt(process.env.GITLAB_POOL_MAX_SIZE) : 100;
 
 
 let sslOptions = undefined;
@@ -410,6 +411,7 @@ const clientPool = new GitLabClientPool({
   httpsProxy: HTTPS_PROXY,
   rejectUnauthorized: NODE_TLS_REJECT_UNAUTHORIZED !== "0",
   caCertPath: GITLAB_CA_CERT_PATH,
+  poolMaxSize: GITLAB_POOL_MAX_SIZE,
 });
 
 // Create cookie jar with clean Netscape file parsing

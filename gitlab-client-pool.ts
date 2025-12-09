@@ -11,6 +11,7 @@ export interface GitLabClientPoolOptions {
   httpsProxy?: string;
   rejectUnauthorized?: boolean;
   caCertPath?: string;
+  poolMaxSize?: number;
 }
 
 export interface ClientAgents {
@@ -94,6 +95,10 @@ export class GitLabClientPool {
     const baseUrl = `${url.protocol}//${url.host}${url.pathname.substring(0, url.pathname.lastIndexOf('/api/v4') + '/api/v4'.length)}`;
 
     if (!this.clients.has(baseUrl)) {
+      // Check pool size limit
+      if (this.options.poolMaxSize !== undefined && this.clients.size >= this.options.poolMaxSize) {
+        throw new Error(`Server capacity reached: Connection pool is full (max ${this.options.poolMaxSize} instances). Please try again later.`);
+      }
       this.clients.set(baseUrl, this.createAgentsForUrl(baseUrl));
     }
 
