@@ -47,6 +47,20 @@ npm run test:mcp:readonly
 - Optionally set `GITLAB_PROJECT_ID` for project-specific tests
 - Set `GITLAB_API_URL` if using self-hosted GitLab
 
+### test-list-merge-requests.ts
+Tests for the `list_merge_requests` tool with optional `project_id` parameter.
+
+**What it tests:**
+- Global merge request listing (without project_id)
+- Project-specific merge request listing (with project_id)
+- Filter parameters work with both modes
+- Response validation and data integrity
+
+**Running the tests:**
+```bash
+npm run test:list-merge-requests
+```
+
 ### test-all-transport-server.ts
 Tests for different MCP transport protocols (stdio, SSE, streamable-http).
 
