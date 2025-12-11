@@ -6662,6 +6662,15 @@ async function startStreamableHTTPServer(): Promise<void> {
     }
   });
 
+  // Reject unsupported methods on /mcp
+  app.get("/mcp", (_req: Request, res: Response) => {
+    res.setHeader("Allow", "POST, DELETE");
+    res.status(405).json({
+      error: "Method Not Allowed",
+      message: "GET /mcp is not supported when STREAMABLE_HTTP is enabled. Use POST to communicate with the MCP server."
+    });
+  });
+
   // Metrics endpoint
   app.get("/metrics", (_req: Request, res: Response) => {
     res.json({
