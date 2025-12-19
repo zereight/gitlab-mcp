@@ -3,7 +3,7 @@
  * Implements minimal GitLab API endpoints for testing remote authorization
  */
 
-import express, { Request, Response, NextFunction } from 'express';
+import express, { Request, Response, NextFunction, Handler } from 'express';
 import { Server } from 'http';
 
 export interface MockGitLabConfig {
@@ -24,25 +24,60 @@ export class MockGitLabServer {
   private server: Server | null = null;
   private config: MockGitLabConfig;
   private requestCount = 0;
+  private customRouter: express.Router;
+  private customHandlers = new Map<string, Handler>();
 
   constructor(config: MockGitLabConfig) {
     this.config = config;
     this.app = express();
+    this.customRouter = express.Router();
+    
+    // Dynamic dispatcher for custom handlers
+    this.customRouter.use((req, res, next) => {
+      // Create a key from method and path (relative to /api/v4)
+      // req.path is already relative to the mount point
+      const key = `${req.method.toUpperCase()}:${req.path}`;
+      console.log(`[CustomRouter] Checking key: '${key}'`);
+      const handler = this.customHandlers.get(key);
+      
+      if (handler) {
+        console.log(`[MockServer] Custom handler hit: ${key}`);
+        return handler(req, res, next);
+      } else {
+        console.log(`[CustomRouter] No handler found for key: '${key}'. Available keys: ${Array.from(this.customHandlers.keys()).join(', ')}`);
+      }
+      next();
+    });
+
     this.setupMiddleware();
+    this.app.use('/api/v4', this.customRouter); // Mount router on API path
     this.setupRoutes();
+  }
+
+  public addMockHandler(method: 'get' | 'post' | 'put' | 'delete', path: string, handler: Handler) {
+    // Note: path should be relative to /api/v4
+    const key = `${method.toUpperCase()}:${path}`;
+    console.log(`[MockServer] Adding custom handler: ${key}`);
+    this.customHandlers.set(key, handler);
+  }
+
+  public clearCustomHandlers() {
+    console.log('[MockServer] Clearing custom handlers');
+    this.customHandlers.clear();
   }
 
   /**
    * Setup middleware including auth validation
    */
   private setupMiddleware() {
-    this.app.use(express.json());
-
-    // Request counter for rate limiting tests
+    // Request counter for rate limiting tests - Place this FIRST to log everything
     this.app.use((req: Request, res: Response, next: NextFunction) => {
+      console.log(`[MockServer] ${req.method} ${req.originalUrl}`);
       this.requestCount++;
       next();
     });
+
+    this.app.use(express.json());
 
     // Artificial delay middleware (for timeout testing)
     if (this.config.responseDelay) {
@@ -189,20 +224,59 @@ export class MockGitLabServer {
 
     // GET /api/v4/projects/:projectId/issues - List issues
     this.app.get('/api/v4/projects/:projectId/issues', (req: AuthenticatedRequest, res: Response) => {
+      const projectId = req.params.projectId;
       res.json([
         {
           id: 1,
           iid: 1,
+          project_id: projectId,
           title: 'Test Issue 1',
+          description: 'Test issue description',
           state: 'opened',
           created_at: '2024-01-01T00:00:00Z',
+          updated_at: '2024-01-02T00:00:00Z',
+          closed_at: null,
+          web_url: `https://gitlab.mock/project/${projectId}/issues/1`,
           author: {
             id: 1,
             username: 'test-user',
-            name: 'Test User'
-          }
+            name: 'Test User',
+            avatar_url: null,
+            web_url: 'https://gitlab.mock/test-user'
+          },
+          assignees: [],
+          labels: [],
+          milestone: null
         }
       ]);
+    });
+
+    // GET /api/v4/projects/:projectId/issues/:issue_iid - Get single issue
+    this.app.get('/api/v4/projects/:projectId/issues/:issue_iid', (req: AuthenticatedRequest, res: Response) => {
+      const issueIid = parseInt(req.params.issue_iid);
+      const projectId = req.params.projectId;
+      res.json({
+        id: issueIid,
+        iid: issueIid,
+        project_id: projectId,
+        title: `Test Issue ${issueIid}`,
+        description: `Description for issue ${issueIid}`,
+        state: 'opened',
+        created_at: '2024-01-01T00:00:00Z',
+        updated_at: '2024-01-02T00:00:00Z',
+        closed_at: null,
+        web_url: `https://gitlab.mock/project/${projectId}/issues/${issueIid}`,
+        author: {
+          id: 1,
+          username: 'test-user',
+          name: 'Test User',
+          avatar_url: null,
+          web_url: 'https://gitlab.mock/test-user'
+        },
+        assignees: [],
+        labels: [],
+        milestone: null
+      });
     });
 
     // GET /api/v4/projects - List projects
