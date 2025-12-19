@@ -4,6 +4,10 @@ on:
   release:
     types: [published]
 
+permissions:
+  id-token: write
+  contents: read
+
 jobs:
   npm:
     runs-on: ubuntu-latest
@@ -18,7 +22,4 @@ jobs:
       - name: Install dependencies
         run: npm ci
       - name: Publish to npm
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-          NPM_OTP: ${{ secrets.NPM_OTP }}
-        run: npm publish --otp=${{ secrets.NPM_OTP }}
+        run: npm publish --access public
