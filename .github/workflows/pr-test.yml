@@ -9,18 +9,14 @@ jobs:
   test:
     runs-on: ubuntu-latest
     
-    strategy:
-      matrix:
-        node-version: [22.21.1]
-    
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
     
-    - name: Setup Node.js ${{ matrix.node-version }}
+    - name: Setup Node.js
       uses: actions/setup-node@v4
       with:
-        node-version: ${{ matrix.node-version }}
+        node-version: '22.21.1'
         cache: 'npm'
     
     - name: Install dependencies
@@ -78,7 +74,7 @@ jobs:
     - name: Setup Node.js
       uses: actions/setup-node@v4
       with:
-        node-version: '20.x'
+        node-version: '22.21.1'
         cache: 'npm'
     
     - name: Install dependencies
@@ -125,7 +121,7 @@ jobs:
     - name: Setup Node.js
       uses: actions/setup-node@v4
       with:
-        node-version: '20.x'
+        node-version: '22.21.1'
         cache: 'npm'
     
     - name: Install dependencies
@@ -162,7 +158,7 @@ jobs:
     - name: Setup Node.js
       uses: actions/setup-node@v4
       with:
-        node-version: '20.x'
+        node-version: '22.21.1'
         cache: 'npm'
     
     - name: Install dependencies
