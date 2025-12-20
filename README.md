@@ -96,13 +96,69 @@ Then configure the MCP server with OAuth:
 
 #### vscode .vscode/mcp.json
 
+**Using OAuth2 (Non-Confidential - Recommended):**
+
+```json
+{
+  "servers": {
+    "GitLab-MCP": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@zereight/mcp-gitlab"],
+      "env": {
+        "GITLAB_USE_OAUTH": "true",
+        "GITLAB_OAUTH_CLIENT_ID": "your_oauth_client_id",
+        "GITLAB_OAUTH_REDIRECT_URI": "http://127.0.0.1:8888/callback",
+        "GITLAB_API_URL": "https://gitlab.com/api/v4",
+        "GITLAB_READ_ONLY_MODE": "false",
+        "USE_GITLAB_WIKI": "false",
+        "USE_MILESTONE": "false",
+        "USE_PIPELINE": "false"
+      }
+    }
+  }
+}
+```
+
+**Using OAuth2 (Confidential):**
+
+```json
+{
+  "inputs": [
+    {
+      "type": "promptString",
+      "id": "gitlab-oauth-secret",
+      "description": "GitLab OAuth Client Secret",
+      "password": true
+    }
+  ],
+  "servers": {
+    "GitLab-MCP": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@zereight/mcp-gitlab"],
+      "env": {
+        "GITLAB_USE_OAUTH": "true",
+        "GITLAB_OAUTH_CLIENT_ID": "your_oauth_client_id",
+        "GITLAB_OAUTH_CLIENT_SECRET": "${input:gitlab-oauth-secret}",
+        "GITLAB_OAUTH_REDIRECT_URI": "http://127.0.0.1:8888/callback",
+        "GITLAB_API_URL": "https://gitlab.com/api/v4",
+        "GITLAB_READ_ONLY_MODE": "false"
+      }
+    }
+  }
+}
+```
+
+**Using Personal Access Token:**
+
 ```json
 {
   "inputs": [
     {
       "type": "promptString",
       "id": "gitlab-token",
-      "description": "Gitlab Token to read API",
+      "description": "GitLab Personal Access Token",
       "password": true
     }
   ],
@@ -113,9 +169,11 @@ Then configure the MCP server with OAuth:
       "args": ["-y", "@zereight/mcp-gitlab"],
       "env": {
         "GITLAB_PERSONAL_ACCESS_TOKEN": "${input:gitlab-token}",
-        "GITLAB_API_URL": "your-fancy-gitlab-url",
-        "GITLAB_READ_ONLY_MODE": "true",
-        ...
+        "GITLAB_API_URL": "https://gitlab.com/api/v4",
+        "GITLAB_READ_ONLY_MODE": "false",
+        "USE_GITLAB_WIKI": "false",
+        "USE_MILESTONE": "false",
+        "USE_PIPELINE": "false"
       }
     }
   }
@@ -145,7 +203,9 @@ stdio_gitlab_mcp_client = MCPClient(
 
 #### Docker
 
-- stdio mcp.json
+> **Note**: For Docker deployments, **Personal Access Token is recommended**. OAuth requires browser-based authentication and a local callback server, which does not work properly in containerized environments.
+
+**Using Personal Access Token (stdio) - Recommended:**
 
 ```json
 {
@@ -172,7 +232,7 @@ stdio_gitlab_mcp_client = MCPClient(
       ],
       "env": {
         "GITLAB_PERSONAL_ACCESS_TOKEN": "your_gitlab_token",
-        "GITLAB_API_URL": "https://gitlab.com/api/v4", // Optional, for self-hosted GitLab
+        "GITLAB_API_URL": "https://gitlab.com/api/v4",
         "GITLAB_READ_ONLY_MODE": "false",
         "USE_GITLAB_WIKI": "true",
         "USE_MILESTONE": "true",

@@ -17,6 +17,8 @@ OAuth2 provides several advantages over personal access tokens:
 - Node.js installed on your machine
 - The GitLab MCP server installed
 
+> ⚠️ **Important**: OAuth is designed for **local/desktop environments** (e.g., Claude Desktop, VS Code). For **Docker deployments**, use [Personal Access Token](../README.md#using-personal-access-token-traditional) instead, as OAuth requires browser-based authentication and a local callback server which does not work properly in containerized environments.
+
 ## Step 1: Create a GitLab OAuth Application
 
 1. **Log in to your GitLab instance** (e.g., https://gitlab.com)
@@ -269,6 +271,8 @@ When creating your GitLab OAuth application, you can choose between two types:
 - CLI tools and local development
 - Any environment where you cannot securely store a client secret
 - Uses PKCE (Proof Key for Code Exchange) for security
+
+> **Why Recommended?** Per [RFC 8252 (OAuth 2.0 for Native Apps)](https://datatracker.ietf.org/doc/html/rfc8252), native applications (desktop/CLI apps) cannot securely store client secrets, so public clients with PKCE are recommended.
 
 **Confidential:**
 
