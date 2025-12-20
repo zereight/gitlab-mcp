@@ -228,7 +228,7 @@ stdio_gitlab_mcp_client = MCPClient(
         "USE_MILESTONE",
         "-e",
         "USE_PIPELINE",
-        "iwakitakuma/gitlab-mcp"
+        "zereight050/gitlab-mcp"
       ],
       "env": {
         "GITLAB_PERSONAL_ACCESS_TOKEN": "your_gitlab_token",
@@ -255,7 +255,7 @@ docker run -i --rm \
   -e USE_PIPELINE=true \
   -e SSE=true \
   -p 3333:3002 \
-  iwakitakuma/gitlab-mcp
+  zereight050/gitlab-mcp
 ```
 
 ```json
@@ -281,7 +281,7 @@ docker run -i --rm \
   -e USE_PIPELINE=true \
   -e STREAMABLE_HTTP=true \
   -p 3333:3002 \
-  iwakitakuma/gitlab-mcp
+  zereight050/gitlab-mcp
 ```
 
 ```json
@@ -367,7 +367,7 @@ docker run -d \
   -e GITLAB_READ_ONLY_MODE=true \
   -e SESSION_TIMEOUT_SECONDS=3600 \
   -p 3333:3002 \
-  iwakitakuma/gitlab-mcp
+  zereight050/gitlab-mcp
 ```
 
 **Client Configuration:**
