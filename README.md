@@ -247,6 +247,7 @@ stdio_gitlab_mcp_client = MCPClient(
 
 ```shell
 docker run -i --rm \
+  -e HOST=0.0.0.0 \
   -e GITLAB_PERSONAL_ACCESS_TOKEN=your_gitlab_token \
   -e GITLAB_API_URL="https://gitlab.com/api/v4" \
   -e GITLAB_READ_ONLY_MODE=true \
@@ -273,6 +274,7 @@ docker run -i --rm \
 
 ```shell
 docker run -i --rm \
+  -e HOST=0.0.0.0 \
   -e GITLAB_PERSONAL_ACCESS_TOKEN=your_gitlab_token \
   -e GITLAB_API_URL="https://gitlab.com/api/v4" \
   -e GITLAB_READ_ONLY_MODE=true \
@@ -333,6 +335,7 @@ docker run -i --rm \
 
 #### Performance & Security Configuration
 
+- `HOST`: Server host address. Default: `127.0.0.1` (localhost only). Set to `0.0.0.0` to allow external connections (required for Docker with port forwarding).
 - `MAX_SESSIONS`: Maximum number of concurrent sessions allowed. Default: `1000`. Valid range: 1-10000. When limit is reached, new connections are rejected with HTTP 503.
 - `MAX_REQUESTS_PER_MINUTE`: Rate limit per session in requests per minute. Default: `60`. Valid range: 1-1000. Exceeded requests return HTTP 429.
 - `PORT`: Server port. Default: `3002`. Valid range: 1-65535.
@@ -361,6 +364,7 @@ When using `REMOTE_AUTHORIZATION=true`, the MCP server can support multiple user
 ```bash
 # Start server with remote authorization
 docker run -d \
+  -e HOST=0.0.0.0 \
   -e STREAMABLE_HTTP=true \
   -e REMOTE_AUTHORIZATION=true \
   -e GITLAB_API_URL="https://gitlab.com/api/v4" \
