@@ -263,6 +263,13 @@ describe('GitLab MCP Server - Streamable HTTP Transport', () => {
     console.log('Client disconnected from Streamable HTTP server');
   });
 
+  test('should return 405 for GET /mcp', async () => {
+    const response = await fetch(`http://${HOST}:${port}/mcp`);
+    assert.strictEqual(response.status, 405, 'GET /mcp should respond with 405');
+    const body = await response.json();
+    assert.strictEqual(body?.error, 'Method Not Allowed');
+  });
+
   test('should list tools via Streamable HTTP', async () => {
     const tools: ListToolsResult = await client.listTools();
     assert.ok(tools !== null && tools !== undefined, 'Tools response should be defined');
