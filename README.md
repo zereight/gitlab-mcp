@@ -28,6 +28,7 @@ The server supports two authentication methods:
 #### Using OAuth2 Authentication
 
 OAuth2 provides a more secure authentication flow using browser-based authentication. When enabled, the server will:
+
 1. Open your browser to GitLab's authorization page
 2. Wait for you to approve the access
 3. Store the token securely for future use
@@ -55,6 +56,7 @@ Then configure the MCP server with OAuth:
       "env": {
         "GITLAB_USE_OAUTH": "true",
         "GITLAB_OAUTH_CLIENT_ID": "your_oauth_client_id",
+        "GITLAB_OAUTH_CLIENT_SECRET": "your_oauth_client_secret", // Required for Confidential apps only
         "GITLAB_OAUTH_REDIRECT_URI": "http://127.0.0.1:8888/callback",
         "GITLAB_API_URL": "your_gitlab_api_url",
         "GITLAB_PROJECT_ID": "your_project_id", // Optional: default project
@@ -127,7 +129,7 @@ env_vars = {
         "GITLAB_PERSONAL_ACCESS_TOKEN": gitlab_access_token,
         "GITLAB_API_URL": gitlab_api_url,
         "USE_GITLAB_WIKI": use_gitlab_wiki
-        # ......the rest of the optional parameters 
+        # ......the rest of the optional parameters
 }
 
 stdio_gitlab_mcp_client = MCPClient(
@@ -140,7 +142,6 @@ stdio_gitlab_mcp_client = MCPClient(
         )
     )
 ```
-
 
 #### Docker
 
@@ -241,6 +242,7 @@ docker run -i --rm \
 - `GITLAB_PERSONAL_ACCESS_TOKEN`: Your GitLab personal access token. **Required in standard mode**; not used when `REMOTE_AUTHORIZATION=true` or when using OAuth.
 - `GITLAB_USE_OAUTH`: Set to `true` to enable OAuth2 authentication instead of personal access token.
 - `GITLAB_OAUTH_CLIENT_ID`: The Client ID from your GitLab OAuth application. Required when using OAuth.
+- `GITLAB_OAUTH_CLIENT_SECRET`: The Client Secret from your GitLab OAuth application. Required only for Confidential applications.
 - `GITLAB_OAUTH_REDIRECT_URI`: The OAuth callback URL. Default: `http://127.0.0.1:8888/callback`
 - `GITLAB_OAUTH_TOKEN_PATH`: Custom path to store the OAuth token. Default: `~/.gitlab-mcp-token.json`
 - `REMOTE_AUTHORIZATION`: When set to 'true', enables remote per-session authorization via HTTP headers. In this mode:
@@ -290,6 +292,7 @@ When using Streamable HTTP transport, the following endpoints are available:
 ### Remote Authorization Setup (Multi-User Support)
 
 When using `REMOTE_AUTHORIZATION=true`, the MCP server can support multiple users, each with their own GitLab token passed via HTTP headers. This is useful for:
+
 - Shared MCP server instances where each user needs their own GitLab access
 - IDE integrations that can inject user-specific tokens into MCP requests
 
@@ -339,9 +342,10 @@ The token is stored per session (identified by `mcp-session-id` header) and reus
 ```
 
 **Important Notes:**
+
 - Remote authorization **only works with Streamable HTTP transport**
 - Each session is isolated - tokens from one session cannot access another session's data
- Tokens are automatically cleaned up when sessions close
+  Tokens are automatically cleaned up when sessions close
 - **Session timeout:** Auth tokens expire after `SESSION_TIMEOUT_SECONDS` (default 1 hour) of inactivity. After timeout, the client must send auth headers again. The transport session remains active.
 - Each request resets the timeout timer for that session
 - **Rate limiting:** Each session is limited to `MAX_REQUESTS_PER_MINUTE` requests per minute (default 60)
