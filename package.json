@@ -17,7 +17,8 @@
     "access": "public"
   },
   "engines": {
-    "node": ">=14"
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
   },
   "scripts": {
     "build": "tsc && node -e \"require('fs').chmodSync('build/index.js', '755')\"",
