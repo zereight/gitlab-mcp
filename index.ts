@@ -590,7 +590,44 @@ const getFetchConfig = () => {
   };
 };
 
-const toJSONSchema = (schema: z.ZodTypeAny) => zodToJsonSchema(schema, { $refStrategy: 'none' });
+const toJSONSchema = (schema: z.ZodTypeAny) => {
+  const jsonSchema = zodToJsonSchema(schema, { $refStrategy: 'none' });
+  
+  // Post-process to fix nullable/optional fields that should truly be optional
+  function fixNullableOptional(obj: any): any {
+    if (obj && typeof obj === 'object') {
+      // If this object has properties, process them
+      if (obj.properties) {
+        const required = obj.required || [];
+        Object.keys(obj.properties).forEach(key => {
+          const prop = obj.properties[key];
+          
+          // Handle fields that can be null or omitted
+          // If a property has type: ["object", "null"] or anyOf with null, it should not be required
+          if (prop.anyOf && prop.anyOf.some((t: any) => t.type === 'null')) {
+            obj.required = required.filter((r: string) => r !== key);
+          } else if (Array.isArray(prop.type) && prop.type.includes('null')) {
+            obj.required = required.filter((r: string) => r !== key);
+          }
+          
+          // Recursively process nested objects
+          obj.properties[key] = fixNullableOptional(prop);
+        });
+      }
+      
+      // Process anyOf/allOf/oneOf
+      ['anyOf', 'allOf', 'oneOf'].forEach(combiner => {
+        if (obj[combiner]) {
+          obj[combiner] = obj[combiner].map(fixNullableOptional);
+        }
+      });
+    }
+    
+    return obj;
+  }
+  
+  return fixNullableOptional(jsonSchema);
+};
 
 // Define all available tools
 const allTools = [
@@ -2830,6 +2867,34 @@ async function getDraftNote(
   return GitLabDraftNoteSchema.parse(data);
 }
 
+/**
+ * Clean position object by removing undefined and null values
+ * GitLab API rejects requests with null/undefined fields
+ * @param {any} position - The position object to clean
+ * @returns {any} Cleaned position object
+ */
+function cleanPositionObject(position: any): any {
+  if (!position || typeof position !== 'object') {
+    return position;
+  }
+
+  const cleaned: any = {};
+  for (const [key, value] of Object.entries(position)) {
+    if (value !== undefined && value !== null) {
+      // Recursively clean nested objects (like line_range)
+      if (typeof value === 'object' && !Array.isArray(value)) {
+        const cleanedNested = cleanPositionObject(value);
+        if (Object.keys(cleanedNested).length > 0) {
+          cleaned[key] = cleanedNested;
+        }
+      } else {
+        cleaned[key] = value;
+      }
+    }
+  }
+  return cleaned;
+}
+
 async function listDraftNotes(
   projectId: string,
   mergeRequestIid: number | string
@@ -2868,7 +2933,7 @@ async function createDraftNote(
   projectId: string,
   mergeRequestIid: number | string,
   body: string,
-  position?: MergeRequestThreadPositionCreate,
+  position?: MergeRequestThreadPosition,
   resolveDiscussion?: boolean
 ): Promise<GitLabDraftNote> {
   projectId = decodeURIComponent(projectId);
@@ -2880,7 +2945,8 @@ async function createDraftNote(
 
   const requestBody: any = { note: body };
   if (position) {
-    requestBody.position = position;
+    // Clean the position object to remove undefined/null values
+    requestBody.position = cleanPositionObject(position);
   }
   if (resolveDiscussion !== undefined) {
     requestBody.resolve_discussion = resolveDiscussion;
@@ -2916,7 +2982,7 @@ async function updateDraftNote(
   mergeRequestIid: number | string,
   draftNoteId: number | string,
   body?: string,
-  position?: MergeRequestThreadPositionCreate,
+  position?: MergeRequestThreadPosition,
   resolveDiscussion?: boolean
 ): Promise<GitLabDraftNote> {
   projectId = decodeURIComponent(projectId);
@@ -2931,7 +2997,8 @@ async function updateDraftNote(
     requestBody.note = body;
   }
   if (position) {
-    requestBody.position = position;
+    // Clean the position object to remove undefined/null values
+    requestBody.position = cleanPositionObject(position);
   }
   if (resolveDiscussion !== undefined) {
     requestBody.resolve_discussion = resolveDiscussion;
@@ -3156,7 +3223,8 @@ async function createMergeRequestThread(
 
   // Add optional parameters if provided
   if (position) {
-    payload.position = position;
+    // Clean the position object to remove undefined/null values
+    payload.position = cleanPositionObject(position);
   }
 
   if (createdAt) {
