@@ -1,5 +1,7 @@
 # GitLab MCP Server
 
+> **New Feature**: Dynamic GitLab API URL support with connection pooling! See [Dynamic API URL Documentation](docs/dynamic-api-url.md) for details.
+
 [![Star History Chart](https://api.star-history.com/svg?repos=zereight/gitlab-mcp&type=Date)](https://www.star-history.com/#zereight/gitlab-mcp&Date)
 
 ## @zereight/mcp-gitlab
@@ -16,7 +18,60 @@ GitLab MCP(Model Context Protocol) Server. **Includes bug fixes and improvements
 
 When using with the Claude App, you need to set up your API key and URLs directly.
 
-#### npx
+#### Authentication Methods
+
+The server supports two authentication methods:
+
+1. **Personal Access Token** (traditional method)
+2. **OAuth2** (recommended for better security)
+
+#### Using OAuth2 Authentication
+
+OAuth2 provides a more secure authentication flow using browser-based authentication. When enabled, the server will:
+
+1. Open your browser to GitLab's authorization page
+2. Wait for you to approve the access
+3. Store the token securely for future use
+4. Automatically refresh the token when it expires
+
+For detailed OAuth2 setup instructions, see [OAuth Setup Guide](./docs/oauth-setup.md).
+
+Quick setup - first create a GitLab OAuth application:
+
+1. Go to your GitLab instance: `Settings` → `Applications`
+2. Create a new application with:
+   - **Name**: `GitLab MCP Server` (or any name you prefer)
+   - **Redirect URI**: `http://127.0.0.1:8888/callback`
+   - **Scopes**: Select `api` (provides complete read/write access to the API)
+3. Copy the **Application ID** (this is your Client ID)
+
+Then configure the MCP server with OAuth:
+
+```json
+{
+  "mcpServers": {
+    "gitlab": {
+      "command": "npx",
+      "args": ["-y", "@zereight/mcp-gitlab"],
+      "env": {
+        "GITLAB_USE_OAUTH": "true",
+        "GITLAB_OAUTH_CLIENT_ID": "your_oauth_client_id",
+        "GITLAB_OAUTH_CLIENT_SECRET": "your_oauth_client_secret", // Required for Confidential apps only
+        "GITLAB_OAUTH_REDIRECT_URI": "http://127.0.0.1:8888/callback",
+        "GITLAB_API_URL": "your_gitlab_api_url",
+        "GITLAB_PROJECT_ID": "your_project_id", // Optional: default project
+        "GITLAB_ALLOWED_PROJECT_IDS": "", // Optional: comma-separated list of allowed project IDs
+        "GITLAB_READ_ONLY_MODE": "false",
+        "USE_GITLAB_WIKI": "false", // use wiki api?
+        "USE_MILESTONE": "false", // use milestone api?
+        "USE_PIPELINE": "false" // use pipeline api?
+      }
+    }
+  }
+}
+```
+
+#### Using Personal Access Token (traditional)
 
 ```json
 {
@@ -41,13 +96,69 @@ When using with the Claude App, you need to set up your API key and URLs directl
 
 #### vscode .vscode/mcp.json
 
+**Using OAuth2 (Non-Confidential - Recommended):**
+
+```json
+{
+  "servers": {
+    "GitLab-MCP": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@zereight/mcp-gitlab"],
+      "env": {
+        "GITLAB_USE_OAUTH": "true",
+        "GITLAB_OAUTH_CLIENT_ID": "your_oauth_client_id",
+        "GITLAB_OAUTH_REDIRECT_URI": "http://127.0.0.1:8888/callback",
+        "GITLAB_API_URL": "https://gitlab.com/api/v4",
+        "GITLAB_READ_ONLY_MODE": "false",
+        "USE_GITLAB_WIKI": "false",
+        "USE_MILESTONE": "false",
+        "USE_PIPELINE": "false"
+      }
+    }
+  }
+}
+```
+
+**Using OAuth2 (Confidential):**
+
+```json
+{
+  "inputs": [
+    {
+      "type": "promptString",
+      "id": "gitlab-oauth-secret",
+      "description": "GitLab OAuth Client Secret",
+      "password": true
+    }
+  ],
+  "servers": {
+    "GitLab-MCP": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@zereight/mcp-gitlab"],
+      "env": {
+        "GITLAB_USE_OAUTH": "true",
+        "GITLAB_OAUTH_CLIENT_ID": "your_oauth_client_id",
+        "GITLAB_OAUTH_CLIENT_SECRET": "${input:gitlab-oauth-secret}",
+        "GITLAB_OAUTH_REDIRECT_URI": "http://127.0.0.1:8888/callback",
+        "GITLAB_API_URL": "https://gitlab.com/api/v4",
+        "GITLAB_READ_ONLY_MODE": "false"
+      }
+    }
+  }
+}
+```
+
+**Using Personal Access Token:**
+
 ```json
 {
   "inputs": [
     {
       "type": "promptString",
       "id": "gitlab-token",
-      "description": "Gitlab Token to read API",
+      "description": "GitLab Personal Access Token",
       "password": true
     }
   ],
@@ -58,18 +169,43 @@ When using with the Claude App, you need to set up your API key and URLs directl
       "args": ["-y", "@zereight/mcp-gitlab"],
       "env": {
         "GITLAB_PERSONAL_ACCESS_TOKEN": "${input:gitlab-token}",
-        "GITLAB_API_URL": "your-fancy-gitlab-url",
-        "GITLAB_READ_ONLY_MODE": "true",
-        ...
+        "GITLAB_API_URL": "https://gitlab.com/api/v4",
+        "GITLAB_READ_ONLY_MODE": "false",
+        "USE_GITLAB_WIKI": "false",
+        "USE_MILESTONE": "false",
+        "USE_PIPELINE": "false"
       }
     }
   }
 }
 ```
 
+#### Strands Agents SDK (MCP Tools)
+
+```python
+env_vars = {
+        "GITLAB_PERSONAL_ACCESS_TOKEN": gitlab_access_token,
+        "GITLAB_API_URL": gitlab_api_url,
+        "USE_GITLAB_WIKI": use_gitlab_wiki
+        # ......the rest of the optional parameters
+}
+
+stdio_gitlab_mcp_client = MCPClient(
+        lambda: stdio_client(
+            StdioServerParameters(
+                command="npx",
+                args=["-y", "@zereight/mcp-gitlab"],
+                env=env_vars,
+            )
+        )
+    )
+```
+
 #### Docker
 
-- stdio mcp.json
+> **Note**: For Docker deployments, **Personal Access Token is recommended**. OAuth requires browser-based authentication and a local callback server, which does not work properly in containerized environments.
+
+**Using Personal Access Token (stdio) - Recommended:**
 
 ```json
 {
@@ -92,11 +228,11 @@ When using with the Claude App, you need to set up your API key and URLs directl
         "USE_MILESTONE",
         "-e",
         "USE_PIPELINE",
-        "iwakitakuma/gitlab-mcp"
+        "zereight050/gitlab-mcp"
       ],
       "env": {
         "GITLAB_PERSONAL_ACCESS_TOKEN": "your_gitlab_token",
-        "GITLAB_API_URL": "https://gitlab.com/api/v4", // Optional, for self-hosted GitLab
+        "GITLAB_API_URL": "https://gitlab.com/api/v4",
         "GITLAB_READ_ONLY_MODE": "false",
         "USE_GITLAB_WIKI": "true",
         "USE_MILESTONE": "true",
@@ -111,6 +247,7 @@ When using with the Claude App, you need to set up your API key and URLs directl
 
 ```shell
 docker run -i --rm \
+  -e HOST=0.0.0.0 \
   -e GITLAB_PERSONAL_ACCESS_TOKEN=your_gitlab_token \
   -e GITLAB_API_URL="https://gitlab.com/api/v4" \
   -e GITLAB_READ_ONLY_MODE=true \
@@ -119,7 +256,7 @@ docker run -i --rm \
   -e USE_PIPELINE=true \
   -e SSE=true \
   -p 3333:3002 \
-  iwakitakuma/gitlab-mcp
+  zereight050/gitlab-mcp
 ```
 
 ```json
@@ -137,6 +274,7 @@ docker run -i --rm \
 
 ```shell
 docker run -i --rm \
+  -e HOST=0.0.0.0 \
   -e GITLAB_PERSONAL_ACCESS_TOKEN=your_gitlab_token \
   -e GITLAB_API_URL="https://gitlab.com/api/v4" \
   -e GITLAB_READ_ONLY_MODE=true \
@@ -145,7 +283,7 @@ docker run -i --rm \
   -e USE_PIPELINE=true \
   -e STREAMABLE_HTTP=true \
   -p 3333:3002 \
-  iwakitakuma/gitlab-mcp
+  zereight050/gitlab-mcp
 ```
 
 ```json
@@ -163,7 +301,12 @@ docker run -i --rm \
 
 #### Authentication Configuration
 
-- `GITLAB_PERSONAL_ACCESS_TOKEN`: Your GitLab personal access token. **Required in standard mode**; not used when `REMOTE_AUTHORIZATION=true`.
+- `GITLAB_PERSONAL_ACCESS_TOKEN`: Your GitLab personal access token. **Required in standard mode**; not used when `REMOTE_AUTHORIZATION=true` or when using OAuth.
+- `GITLAB_USE_OAUTH`: Set to `true` to enable OAuth2 authentication instead of personal access token.
+- `GITLAB_OAUTH_CLIENT_ID`: The Client ID from your GitLab OAuth application. Required when using OAuth.
+- `GITLAB_OAUTH_CLIENT_SECRET`: The Client Secret from your GitLab OAuth application. Required only for Confidential applications.
+- `GITLAB_OAUTH_REDIRECT_URI`: The OAuth callback URL. Default: `http://127.0.0.1:8888/callback`
+- `GITLAB_OAUTH_TOKEN_PATH`: Custom path to store the OAuth token. Default: `~/.gitlab-mcp-token.json`
 - `REMOTE_AUTHORIZATION`: When set to 'true', enables remote per-session authorization via HTTP headers. In this mode:
   - The server accepts GitLab PAT tokens from HTTP headers (`Authorization: Bearer <token>` or `Private-Token: <token>`) on a per-session basis
   - `GITLAB_PERSONAL_ACCESS_TOKEN` environment variable is **not required** and ignored
@@ -173,7 +316,7 @@ docker run -i --rm \
   - Tokens are stored per session and automatically cleaned up when sessions close or timeout
 - `SESSION_TIMEOUT_SECONDS`: Session auth token timeout in seconds. Default: `3600` (1 hour). Valid range: 1-86400 seconds (recommended: 60+). After this period of inactivity, the auth token is removed but the transport session remains active. The client must provide auth headers again on the next request. Only applies when `REMOTE_AUTHORIZATION=true`.
 
-#### Server Configuration
+#### General Configuration
 
 - `GITLAB_API_URL`: Your GitLab API URL. (Default: `https://gitlab.com/api/v4`)
 - `GITLAB_PROJECT_ID`: Default project ID. If set, Overwrite this value when making an API request.
@@ -192,6 +335,7 @@ docker run -i --rm \
 
 #### Performance & Security Configuration
 
+- `HOST`: Server host address. Default: `127.0.0.1` (localhost only). Set to `0.0.0.0` to allow external connections (required for Docker with port forwarding).
 - `MAX_SESSIONS`: Maximum number of concurrent sessions allowed. Default: `1000`. Valid range: 1-10000. When limit is reached, new connections are rejected with HTTP 503.
 - `MAX_REQUESTS_PER_MINUTE`: Rate limit per session in requests per minute. Default: `60`. Valid range: 1-1000. Exceeded requests return HTTP 429.
 - `PORT`: Server port. Default: `3002`. Valid range: 1-65535.
@@ -211,6 +355,7 @@ When using Streamable HTTP transport, the following endpoints are available:
 ### Remote Authorization Setup (Multi-User Support)
 
 When using `REMOTE_AUTHORIZATION=true`, the MCP server can support multiple users, each with their own GitLab token passed via HTTP headers. This is useful for:
+
 - Shared MCP server instances where each user needs their own GitLab access
 - IDE integrations that can inject user-specific tokens into MCP requests
 
@@ -219,13 +364,14 @@ When using `REMOTE_AUTHORIZATION=true`, the MCP server can support multiple user
 ```bash
 # Start server with remote authorization
 docker run -d \
+  -e HOST=0.0.0.0 \
   -e STREAMABLE_HTTP=true \
   -e REMOTE_AUTHORIZATION=true \
   -e GITLAB_API_URL="https://gitlab.com/api/v4" \
   -e GITLAB_READ_ONLY_MODE=true \
   -e SESSION_TIMEOUT_SECONDS=3600 \
   -p 3333:3002 \
-  iwakitakuma/gitlab-mcp
+  zereight050/gitlab-mcp
 ```
 
 **Client Configuration:**
@@ -260,9 +406,10 @@ The token is stored per session (identified by `mcp-session-id` header) and reus
 ```
 
 **Important Notes:**
+
 - Remote authorization **only works with Streamable HTTP transport**
 - Each session is isolated - tokens from one session cannot access another session's data
- Tokens are automatically cleaned up when sessions close
+  Tokens are automatically cleaned up when sessions close
 - **Session timeout:** Auth tokens expire after `SESSION_TIMEOUT_SECONDS` (default 1 hour) of inactivity. After timeout, the client must send auth headers again. The transport session remains active.
 - Each request resets the timeout timer for that session
 - **Rate limiting:** Each session is limited to `MAX_REQUESTS_PER_MINUTE` requests per minute (default 60)

@@ -954,8 +954,45 @@ export const ListMergeRequestDiscussionsSchema = ProjectParamsSchema.extend({
   merge_request_iid: z.coerce.string().describe("The IID of a merge request"),
 }).merge(PaginationOptionsSchema);
 
-// Input schema for updating a merge request discussion note
+export const GetMergeRequestNotesSchema = ProjectParamsSchema.extend({
+  merge_request_iid: z.coerce.string().describe("The IID of a merge request"),
+  sort: z.enum(["asc", "desc"]).optional().describe("The sort order of the notes"),
+  order_by: z.enum(["created_at", "updated_at"]).optional().describe("The field to sort the notes by"),
+});
+
+export const GetMergeRequestNoteSchema = ProjectParamsSchema.extend({
+  merge_request_iid: z.coerce.string().describe("The IID of a merge request"),
+  note_id: z.coerce.string().describe("The ID of a thread note"),
+});
+
+// Input schema for updating merge request notes
 export const UpdateMergeRequestNoteSchema = ProjectParamsSchema.extend({
+  merge_request_iid: z.coerce.string().describe("The IID of a merge request"),
+  note_id: z.coerce.string().describe("The ID of a thread note"),
+  body: z.string().describe("The content of the note or reply"),
+});
+
+// Input schema for adding a note to a merge request
+export const CreateMergeRequestNoteSchema = ProjectParamsSchema.extend({
+  merge_request_iid: z.coerce.string().describe("The IID of a merge request"),
+  body: z.string().describe("The content of the note or reply"),
+});
+
+// delete a merge request note
+export const DeleteMergeRequestNoteSchema = ProjectParamsSchema.extend({
+  merge_request_iid: z.coerce.string().describe("The IID of a merge request"),
+  note_id: z.coerce.string().describe("The ID of a thread note"),
+});
+
+
+export const DeleteMergeRequestDiscussionNoteSchema = ProjectParamsSchema.extend({
+  merge_request_iid: z.coerce.string().describe("The IID of a merge request"),
+  discussion_id: z.coerce.string().describe("The ID of a thread"),
+  note_id: z.coerce.string().describe("The ID of a thread note"),
+});
+
+// Input schema for updating a merge request discussion note
+export const UpdateMergeRequestDiscussionNoteSchema = ProjectParamsSchema.extend({
   merge_request_iid: z.coerce.string().describe("The IID of a merge request"),
   discussion_id: z.coerce.string().describe("The ID of a thread"),
   note_id: z.coerce.string().describe("The ID of a thread note"),
@@ -970,7 +1007,7 @@ export const UpdateMergeRequestNoteSchema = ProjectParamsSchema.extend({
   });
 
 // Input schema for adding a note to an existing merge request discussion
-export const CreateMergeRequestNoteSchema = ProjectParamsSchema.extend({
+export const CreateMergeRequestDiscussionNoteSchema = ProjectParamsSchema.extend({
   merge_request_iid: z.coerce.string().describe("The IID of a merge request"),
   discussion_id: z.coerce.string().describe("The ID of a thread"),
   body: z.string().describe("The content of the note or reply"),
@@ -1623,7 +1660,7 @@ export const MergeRequestThreadPositionSchema = z.object({
     .describe(
       "Line number in original file (before changes). Use for deleted lines or context lines. NULL for added lines. For single-line comments on old lines."
     ),
-  line_range: z.any().nullable().optional().describe(
+  line_range: LineRangeSchema.nullable().optional().describe(
     "MULTILINE COMMENTS: Specify start/end line positions for commenting on multiple lines. Alternative to single old_line/new_line."
   ),
   width: z
@@ -1724,6 +1761,12 @@ export const CreateMergeRequestThreadSchema = ProjectParamsSchema.extend({
     "Position when creating a diff note"
   ),
   created_at: z.string().optional().describe("Date the thread was created at (ISO 8601 format)"),
+});
+
+export const ResolveMergeRequestThreadSchema = ProjectParamsSchema.extend({
+  merge_request_iid: z.coerce.string().describe("The IID of a merge request"),
+  discussion_id: z.coerce.string().describe("The ID of a thread"),
+  resolved: z.boolean().describe("Whether to resolve the thread"),
 });
 
 // Milestone related schemas
@@ -2056,7 +2099,7 @@ export type GetRepositoryTreeOptions = z.infer<typeof GetRepositoryTreeSchema>;
 export type MergeRequestThreadPosition = z.infer<typeof MergeRequestThreadPositionSchema>;
 export type MergeRequestThreadPositionCreate = z.infer<typeof MergeRequestThreadPositionCreateSchema>;
 export type CreateMergeRequestThreadOptions = z.infer<typeof CreateMergeRequestThreadSchema>;
-export type CreateMergeRequestNoteOptions = z.infer<typeof CreateMergeRequestNoteSchema>;
+export type CreateMergeRequestDiscussionNoteOptions = z.infer<typeof CreateMergeRequestDiscussionNoteSchema>;
 export type GitLabPipelineJob = z.infer<typeof GitLabPipelineJobSchema>;
 export type GitLabPipelineTriggerJob = z.infer<typeof GitLabPipelineTriggerJobSchema>;
 export type GitLabPipeline = z.infer<typeof GitLabPipelineSchema>;
