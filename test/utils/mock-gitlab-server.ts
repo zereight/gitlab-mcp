@@ -172,15 +172,24 @@ export class MockGitLabServer {
       });
     });
 
-    // GET /api/v4/projects/:projectId/merge_requests - List merge requests
-    this.app.get('/api/v4/projects/:projectId/merge_requests', (req: AuthenticatedRequest, res: Response) => {
+    // GET /api/v4/merge_requests - List all merge requests (global)
+    this.app.get('/api/v4/merge_requests', (req: AuthenticatedRequest, res: Response) => {
       res.json([
         {
           id: 1,
           iid: 1,
+          project_id: 123,
           title: 'Test MR 1',
+          description: 'Description for MR 1',
           state: 'opened',
           created_at: '2024-01-01T00:00:00Z',
+          updated_at: '2024-01-01T00:00:00Z',
+          merged_at: null,
+          closed_at: null,
+          target_branch: 'main',
+          source_branch: 'feature-1',
+          web_url: 'https://gitlab.mock/project/123/merge_requests/1',
+          merge_commit_sha: null,
           author: {
             id: 1,
             username: 'test-user',
@@ -190,9 +199,66 @@ export class MockGitLabServer {
         {
           id: 2,
           iid: 2,
+          project_id: 123,
           title: 'Test MR 2',
+          description: 'Description for MR 2',
           state: 'merged',
           created_at: '2024-01-02T00:00:00Z',
+          updated_at: '2024-01-03T00:00:00Z',
+          merged_at: '2024-01-03T00:00:00Z',
+          closed_at: null,
+          target_branch: 'main',
+          source_branch: 'feature-2',
+          web_url: 'https://gitlab.mock/project/123/merge_requests/2',
+          merge_commit_sha: 'abcdef1234567890',
+          author: {
+            id: 1,
+            username: 'test-user',
+            name: 'Test User'
+          }
+        }
+      ]);
+    });
+
+    // GET /api/v4/projects/:projectId/merge_requests - List merge requests
+    this.app.get('/api/v4/projects/:projectId/merge_requests', (req: AuthenticatedRequest, res: Response) => {
+      res.json([
+        {
+          id: 1,
+          iid: 1,
+          project_id: 123,
+          title: 'Test MR 1',
+          description: 'Description for MR 1',
+          state: 'opened',
+          created_at: '2024-01-01T00:00:00Z',
+          updated_at: '2024-01-01T00:00:00Z',
+          merged_at: null,
+          closed_at: null,
+          target_branch: 'main',
+          source_branch: 'feature-1',
+          web_url: 'https://gitlab.mock/project/123/merge_requests/1',
+          merge_commit_sha: null,
+          author: {
+            id: 1,
+            username: 'test-user',
+            name: 'Test User'
+          }
+        },
+        {
+          id: 2,
+          iid: 2,
+          project_id: 123,
+          title: 'Test MR 2',
+          description: 'Description for MR 2',
+          state: 'merged',
+          created_at: '2024-01-02T00:00:00Z',
+          updated_at: '2024-01-03T00:00:00Z',
+          merged_at: '2024-01-03T00:00:00Z',
+          closed_at: null,
+          target_branch: 'main',
+          source_branch: 'feature-2',
+          web_url: 'https://gitlab.mock/project/123/merge_requests/2',
+          merge_commit_sha: 'abcdef1234567890',
           author: {
             id: 1,
             username: 'test-user',
