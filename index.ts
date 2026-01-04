@@ -987,7 +987,7 @@ const allTools = [
   },
   {
     name: "list_merge_requests",
-    description: "List merge requests. Can list all merge requests the user has access to (global) or merge requests for a specific project (when project_id is provided)",
+    description: "List merge requests. Without project_id, lists MRs assigned to the authenticated user by default (use scope='all' for all accessible MRs). With project_id, lists MRs for that specific project.",
     inputSchema: toJSONSchema(ListMergeRequestsSchema),
   },
   {
@@ -1533,9 +1533,10 @@ async function listIssues(
 }
 
 /**
- * List merge requests in a GitLab project with optional filtering
+ * List merge requests globally or for a specific GitLab project
  *
- * @param {string} [projectId] - The ID or URL-encoded path of the project (optional)
+ * @param {string} [projectId] - The ID or URL-encoded path of the project.
+ *                               If omitted, lists MRs assigned to the authenticated user by default.
  * @param {Object} options - Optional filtering parameters
  * @returns {Promise<GitLabMergeRequest[]>} List of merge requests
  */
@@ -1543,18 +1544,11 @@ async function listMergeRequests(
   projectId?: string,
   options: Omit<z.infer<typeof ListMergeRequestsSchema>, "project_id"> = {}
 ): Promise<GitLabMergeRequest[]> {
-  let url: URL;
-
-  if (projectId) {
-    // List merge requests for a specific project
-    projectId = decodeURIComponent(projectId); // Decode project ID
-    url = new URL(
-      `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/merge_requests`
-    );
-  } else {
-    // List all merge requests the authenticated user has access to
-    url = new URL(`${getEffectiveApiUrl()}/merge_requests`);
-  }
+  const decodedProjectId = projectId ? decodeURIComponent(projectId) : undefined;
+  const endpoint = decodedProjectId
+    ? `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(decodedProjectId))}/merge_requests`
+    : `${getEffectiveApiUrl()}/merge_requests`;
+  const url = new URL(endpoint);
 
   // Add all query parameters
   Object.entries(options).forEach(([key, value]) => {
