@@ -13,11 +13,14 @@ const logger = pino({
 });
 
 // Track pending auth requests across multiple MCP instances
-const pendingAuthRequests = new Map<string, {
-  resolve: (tokenData: TokenData) => void;
-  reject: (error: Error) => void;
-  timeout: NodeJS.Timeout;
-}>();
+const pendingAuthRequests = new Map<
+  string,
+  {
+    resolve: (tokenData: TokenData) => void;
+    reject: (error: Error) => void;
+    timeout: NodeJS.Timeout;
+  }
+>();
 
 interface TokenData {
   access_token: string;
@@ -29,6 +32,7 @@ interface TokenData {
 
 interface OAuthConfig {
   clientId: string;
+  clientSecret?: string;
   redirectUri: string;
   gitlabUrl: string;
   scopes: string[];
@@ -39,7 +43,7 @@ interface OAuthConfig {
  * Check if a port is already in use
  */
 async function isPortInUse(port: number): Promise<boolean> {
-  return new Promise((resolve) => {
+  return new Promise(resolve => {
     const server = net.createServer();
 
     server.once("error", (err: NodeJS.ErrnoException) => {
@@ -62,10 +66,7 @@ async function isPortInUse(port: number): Promise<boolean> {
 /**
  * Request authentication from an existing OAuth server
  */
-async function requestAuthFromExistingServer(
-  port: number,
-  requestId: string
-): Promise<TokenData> {
+async function requestAuthFromExistingServer(port: number, requestId: string): Promise<TokenData> {
   return new Promise((resolve, reject) => {
     const options = {
       hostname: "127.0.0.1",
@@ -74,10 +75,10 @@ async function requestAuthFromExistingServer(
       method: "GET",
     };
 
-    const req = http.request(options, (res) => {
+    const req = http.request(options, res => {
       let data = "";
 
-      res.on("data", (chunk) => {
+      res.on("data", chunk => {
         data += chunk;
       });
 
@@ -95,7 +96,7 @@ async function requestAuthFromExistingServer(
       });
     });
 
-    req.on("error", (error) => {
+    req.on("error", error => {
       reject(new Error(`Failed to connect to existing OAuth server: ${error.message}`));
     });
 
@@ -117,8 +118,7 @@ export class GitLabOAuth {
   constructor(config: OAuthConfig) {
     this.config = config;
     this.tokenStoragePath =
-      config.tokenStoragePath ||
-      path.join(process.env.HOME || "", ".gitlab-mcp-token.json");
+      config.tokenStoragePath || path.join(process.env.HOME || "", ".gitlab-mcp-token.json");
   }
 
   /**
@@ -160,6 +160,11 @@ export class GitLabOAuth {
       code_verifier: this.codeVerifier,
     });
 
+    // Add client_secret for Confidential applications
+    if (this.config.clientSecret) {
+      params.append("client_secret", this.config.clientSecret);
+    }
+
     const response = await fetch(tokenUrl, {
       method: "POST",
       headers: {
@@ -173,7 +178,7 @@ export class GitLabOAuth {
       throw new Error(`Token exchange failed: ${response.status} ${errorText}`);
     }
 
-    const data = await response.json() as {
+    const data = (await response.json()) as {
       access_token: string;
       refresh_token?: string;
       expires_in?: number;
@@ -201,6 +206,11 @@ export class GitLabOAuth {
       redirect_uri: this.config.redirectUri,
     });
 
+    // Add client_secret for Confidential applications
+    if (this.config.clientSecret) {
+      params.append("client_secret", this.config.clientSecret);
+    }
+
     const response = await fetch(tokenUrl, {
       method: "POST",
       headers: {
@@ -214,7 +224,7 @@ export class GitLabOAuth {
       throw new Error(`Token refresh failed: ${response.status} ${errorText}`);
     }
 
-    const data = await response.json() as {
+    const data = (await response.json()) as {
       access_token: string;
       refresh_token?: string;
       expires_in?: number;
@@ -295,7 +305,9 @@ export class GitLabOAuth {
         return await requestAuthFromExistingServer(callbackPort, requestId);
       } catch (error) {
         logger.error("Failed to connect to existing OAuth server:", error);
-        throw new Error(`Port ${callbackPort} is in use but cannot connect to existing OAuth server. Please close other instances or use a different port.`);
+        throw new Error(
+          `Port ${callbackPort} is in use but cannot connect to existing OAuth server. Please close other instances or use a different port.`
+        );
       }
     }
 
@@ -319,10 +331,13 @@ export class GitLabOAuth {
       stateToRequestId.set(state, initialRequestId);
       requestIdToOAuthInstance.set(initialRequestId, this);
 
-      const timeout = setTimeout(() => {
-        pendingAuthRequests.get(initialRequestId)?.reject(new Error("OAuth flow timed out"));
-        pendingAuthRequests.delete(initialRequestId);
-      }, 5 * 60 * 1000);
+      const timeout = setTimeout(
+        () => {
+          pendingAuthRequests.get(initialRequestId)?.reject(new Error("OAuth flow timed out"));
+          pendingAuthRequests.delete(initialRequestId);
+        },
+        5 * 60 * 1000
+      );
 
       pendingAuthRequests.set(initialRequestId, { resolve, reject, timeout });
 
@@ -352,17 +367,20 @@ export class GitLabOAuth {
             const authUrl = await this.getAuthorizationUrl(newState);
             logger.info("Opening browser for new authentication request...");
             logger.info(`If browser doesn't open, visit: ${authUrl}`);
-            open(authUrl).catch((err) => {
+            open(authUrl).catch(err => {
               logger.error("Failed to open browser:", err);
               logger.info(`Please manually open: ${authUrl}`);
             });
 
             // Wait for the auth to complete
             const authPromise = new Promise<TokenData>((authResolve, authReject) => {
-              const authTimeout = setTimeout(() => {
-                authReject(new Error("OAuth flow timed out"));
-                pendingAuthRequests.delete(newRequestId);
-              }, 5 * 60 * 1000);
+              const authTimeout = setTimeout(
+                () => {
+                  authReject(new Error("OAuth flow timed out"));
+                  pendingAuthRequests.delete(newRequestId);
+                },
+                5 * 60 * 1000
+              );
 
               pendingAuthRequests.set(newRequestId, {
                 resolve: authResolve,
@@ -517,13 +535,13 @@ export class GitLabOAuth {
         const authUrl = await this.getAuthorizationUrl(state);
         logger.info("Opening browser for authentication...");
         logger.info(`If browser doesn't open, visit: ${authUrl}`);
-        open(authUrl).catch((err) => {
+        open(authUrl).catch(err => {
           logger.error("Failed to open browser:", err);
           logger.info(`Please manually open: ${authUrl}`);
         });
       });
 
-      server.on("error", (error) => {
+      server.on("error", error => {
         logger.error("OAuth server error:", error);
         const pending = pendingAuthRequests.get(initialRequestId);
         if (pending) {
@@ -593,12 +611,10 @@ export class GitLabOAuth {
 /**
  * Initialize OAuth authentication for GitLab MCP server
  */
-export async function initializeOAuth(
-  gitlabUrl: string = "https://gitlab.com"
-): Promise<string> {
+export async function initializeOAuth(gitlabUrl: string = "https://gitlab.com"): Promise<string> {
   const clientId = process.env.GITLAB_OAUTH_CLIENT_ID;
-  const redirectUri =
-    process.env.GITLAB_OAUTH_REDIRECT_URI || "http://127.0.0.1:8888/callback";
+  const clientSecret = process.env.GITLAB_OAUTH_CLIENT_SECRET;
+  const redirectUri = process.env.GITLAB_OAUTH_REDIRECT_URI || "http://127.0.0.1:8888/callback";
   const tokenStoragePath = process.env.GITLAB_OAUTH_TOKEN_PATH;
 
   if (!clientId) {
@@ -609,6 +625,7 @@ export async function initializeOAuth(
 
   const oauth = new GitLabOAuth({
     clientId,
+    clientSecret,
     redirectUri,
     gitlabUrl,
     scopes: ["api"],

@@ -4,6 +4,10 @@ on:
   release:
     types: [published]
 
+permissions:
+  id-token: write
+  contents: read
+
 jobs:
   npm:
     runs-on: ubuntu-latest
@@ -13,11 +17,11 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22.21.1'
           registry-url: 'https://registry.npmjs.org/'
+      - name: Upgrade npm for OIDC support
+        run: npm install -g npm@latest
       - name: Install dependencies
         run: npm ci
       - name: Publish to npm
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: npm publish --access public

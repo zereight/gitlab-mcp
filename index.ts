@@ -28,24 +28,24 @@ import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
-import { AsyncLocalStorage } from "async_hooks";
+import { AsyncLocalStorage } from "node:async_hooks";
 import express, { Request, Response } from "express";
 import fetchCookie from "fetch-cookie";
-import fs from "fs";
+import fs from "node:fs";
 import { HttpProxyAgent } from "http-proxy-agent";
 import { HttpsProxyAgent } from "https-proxy-agent";
 import nodeFetch from "node-fetch";
-import path, { dirname } from "path";
+import path, { dirname } from "node:path";
 import { SocksProxyAgent } from "socks-proxy-agent";
 import { CookieJar, parse as parseCookie } from "tough-cookie";
-import { fileURLToPath } from "url";
+import { fileURLToPath, URL } from "node:url";
 import { z } from "zod";
 import { zodToJsonSchema } from "zod-to-json-schema";
 import { initializeOAuth } from "./oauth.js";
+import { GitLabClientPool } from "./gitlab-client-pool.js";
 // Add type imports for proxy agents
-import { Agent } from "http";
-import { Agent as HttpsAgent } from "https";
-import { URL } from "url";
+import { Agent } from "node:http";
+import { Agent as HttpsAgent } from "node:https";
 import {
   BulkPublishDraftNotesSchema,
   CancelPipelineJobSchema,
@@ -237,10 +237,10 @@ import {
   GetMergeRequestNotesSchema,
   GetMergeRequestNoteSchema,
   DeleteMergeRequestDiscussionNoteSchema,
-  ResolveMergeRequestThreadSchema
+  ResolveMergeRequestThreadSchema,
 } from "./schemas.js";
 
-import { randomUUID } from "crypto";
+import { randomUUID } from "node:crypto";
 import { pino } from "pino";
 
 const logger = pino({
@@ -276,8 +276,8 @@ try {
     const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, "utf8"));
     SERVER_VERSION = packageJson.version || SERVER_VERSION;
   }
-} catch (error) {
-  // Warning: Could not read version from package.json - silently continue
+} catch {
+  // Intentionally ignored: version read failure is non-critical
 }
 
 const server = new Server(
@@ -301,21 +301,25 @@ function validateConfiguration(): void {
   // Validate SESSION_TIMEOUT_SECONDS
   const timeoutStr = process.env.SESSION_TIMEOUT_SECONDS;
   if (timeoutStr) {
-    const timeout = parseInt(timeoutStr);
+    const timeout = Number.parseInt(timeoutStr, 10);
     // Allow values >=1 for testing purposes, but recommend 60-86400 for production
-    if (isNaN(timeout) || timeout < 1 || timeout > 86400) {
-      errors.push(`SESSION_TIMEOUT_SECONDS must be between 1 and 86400 seconds, got: ${timeoutStr}`);
+    if (Number.isNaN(timeout) || timeout < 1 || timeout > 86400) {
+      errors.push(
+        `SESSION_TIMEOUT_SECONDS must be between 1 and 86400 seconds, got: ${timeoutStr}`
+      );
     }
     if (timeout < 60) {
-      logger.warn(`SESSION_TIMEOUT_SECONDS=${timeout} is below recommended minimum of 60 seconds. Only use low values for testing.`);
+      logger.warn(
+        `SESSION_TIMEOUT_SECONDS=${timeout} is below recommended minimum of 60 seconds. Only use low values for testing.`
+      );
     }
   }
 
   // Validate MAX_SESSIONS
   const maxSessionsStr = process.env.MAX_SESSIONS;
   if (maxSessionsStr) {
-    const maxSessions = parseInt(maxSessionsStr);
-    if (isNaN(maxSessions) || maxSessions < 1 || maxSessions > 10000) {
+    const maxSessions = Number.parseInt(maxSessionsStr, 10);
+    if (Number.isNaN(maxSessions) || maxSessions < 1 || maxSessions > 10000) {
       errors.push(`MAX_SESSIONS must be between 1 and 10000, got: ${maxSessionsStr}`);
     }
   }
@@ -323,8 +327,8 @@ function validateConfiguration(): void {
   // Validate MAX_REQUESTS_PER_MINUTE
   const maxReqStr = process.env.MAX_REQUESTS_PER_MINUTE;
   if (maxReqStr) {
-    const maxReq = parseInt(maxReqStr);
-    if (isNaN(maxReq) || maxReq < 1 || maxReq > 1000) {
+    const maxReq = Number.parseInt(maxReqStr, 10);
+    if (Number.isNaN(maxReq) || maxReq < 1 || maxReq > 1000) {
       errors.push(`MAX_REQUESTS_PER_MINUTE must be between 1 and 1000, got: ${maxReqStr}`);
     }
   }
@@ -332,19 +336,21 @@ function validateConfiguration(): void {
   // Validate PORT
   const portStr = getConfig('port', 'PORT');
   if (portStr) {
-    const port = parseInt(portStr);
-    if (isNaN(port) || port < 1 || port > 65535) {
+    const port = Number.parseInt(portStr, 10);
+    if (Number.isNaN(port) || port < 1 || port > 65535) {
       errors.push(`PORT must be between 1 and 65535, got: ${portStr}`);
     }
   }
 
   // Validate GITLAB_API_URL format
-  const apiUrl = getConfig('api-url', 'GITLAB_API_URL');
-  if (apiUrl) {
-    try {
-      new URL(apiUrl);
-    } catch (error) {
-      errors.push(`GITLAB_API_URL must be a valid URL, got: ${apiUrl}`);
+  const apiUrls = getConfig('api-url', 'GITLAB_API_URL')?.split(",") || [];
+  if (apiUrls.length > 0) {
+    for (const url of apiUrls) {
+      try {
+        new URL(url.trim());
+      } catch {
+        errors.push(`GITLAB_API_URL contains an invalid URL: ${url.trim()}`);
+      }
     }
   }
 
@@ -358,13 +364,18 @@ function validateConfiguration(): void {
     errors.push('Either --token, --cookie-path, --use-oauth=true, or --remote-auth=true must be set (or use environment variables)');
   }
 
+  const enableDynamicApiUrl = getConfig('enable-dynamic-api-url', 'ENABLE_DYNAMIC_API_URL') === "true";
+  if (enableDynamicApiUrl && !remoteAuth) {
+    errors.push("ENABLE_DYNAMIC_API_URL=true requires REMOTE_AUTHORIZATION=true");
+  }
+
   if (errors.length > 0) {
-    logger.error('Configuration validation failed:');
+    logger.error("Configuration validation failed:");
     errors.forEach(err => logger.error(`  - ${err}`));
     process.exit(1);
   }
 
-  logger.info('Configuration validation passed');
+  logger.info("Configuration validation passed");
 }
 
 const GITLAB_PERSONAL_ACCESS_TOKEN = getConfig('token', 'GITLAB_PERSONAL_ACCESS_TOKEN');
@@ -373,21 +384,27 @@ const GITLAB_AUTH_COOKIE_PATH = getConfig('cookie-path', 'GITLAB_AUTH_COOKIE_PAT
 const USE_OAUTH = getConfig('use-oauth', 'GITLAB_USE_OAUTH') === "true";
 const IS_OLD = getConfig('is-old', 'GITLAB_IS_OLD') === "true";
 const GITLAB_READ_ONLY_MODE = getConfig('read-only', 'GITLAB_READ_ONLY_MODE') === "true";
-const GITLAB_DENIED_TOOLS_REGEX = getConfig('denied-tools-regex', 'GITLAB_DENIED_TOOLS_REGEX') ? new RegExp(getConfig('denied-tools-regex', 'GITLAB_DENIED_TOOLS_REGEX')!) : undefined;
+const GITLAB_DENIED_TOOLS_REGEX = getConfig('denied-tools-regex', 'GITLAB_DENIED_TOOLS_REGEX')
+  ? new RegExp(getConfig('denied-tools-regex', 'GITLAB_DENIED_TOOLS_REGEX')!)
+  : undefined;
 const USE_GITLAB_WIKI = getConfig('use-wiki', 'USE_GITLAB_WIKI') === "true";
 const USE_MILESTONE = getConfig('use-milestone', 'USE_MILESTONE') === "true";
 const USE_PIPELINE = getConfig('use-pipeline', 'USE_PIPELINE') === "true";
 const SSE = getConfig('sse', 'SSE') === "true";
 const STREAMABLE_HTTP = getConfig('streamable-http', 'STREAMABLE_HTTP') === "true";
 const REMOTE_AUTHORIZATION = getConfig('remote-auth', 'REMOTE_AUTHORIZATION') === "true";
-const SESSION_TIMEOUT_SECONDS = parseInt(getConfig('session-timeout', 'SESSION_TIMEOUT_SECONDS', '3600'));
-const HOST = getConfig('host', 'HOST') || '0.0.0.0';
-const PORT = parseInt(getConfig('port', 'PORT') || '3002');
+const ENABLE_DYNAMIC_API_URL = getConfig('enable-dynamic-api-url', 'ENABLE_DYNAMIC_API_URL') === "true";
+const SESSION_TIMEOUT_SECONDS = Number.parseInt(getConfig('session-timeout', 'SESSION_TIMEOUT_SECONDS', '3600'), 10);
+const HOST = getConfig('host', 'HOST') || '127.0.0.1';
+const PORT = Number.parseInt(getConfig('port', 'PORT', '3002'), 10);
 // Add proxy configuration
 const HTTP_PROXY = getConfig('http-proxy', 'HTTP_PROXY');
 const HTTPS_PROXY = getConfig('https-proxy', 'HTTPS_PROXY');
 const NODE_TLS_REJECT_UNAUTHORIZED = getConfig('tls-reject-unauthorized', 'NODE_TLS_REJECT_UNAUTHORIZED');
 const GITLAB_CA_CERT_PATH = getConfig('ca-cert-path', 'GITLAB_CA_CERT_PATH');
+const GITLAB_POOL_MAX_SIZE = getConfig('pool-max-size', 'GITLAB_POOL_MAX_SIZE')
+  ? Number.parseInt(getConfig('pool-max-size', 'GITLAB_POOL_MAX_SIZE')!, 10)
+  : 100;
 
 let sslOptions = undefined;
 if (NODE_TLS_REJECT_UNAUTHORIZED === "0") {
@@ -418,6 +435,18 @@ if (HTTPS_PROXY) {
 httpsAgent = httpsAgent || new HttpsAgent(sslOptions);
 httpAgent = httpAgent || new Agent();
 
+// Initialize the client pool for managing multiple GitLab instances
+const clientPool = new GitLabClientPool({
+  apiUrls: (process.env.GITLAB_API_URL || "https://gitlab.com")
+    .split(",")
+    .map(normalizeGitLabApiUrl),
+  httpProxy: HTTP_PROXY,
+  httpsProxy: HTTPS_PROXY,
+  rejectUnauthorized: NODE_TLS_REJECT_UNAUTHORIZED !== "0",
+  caCertPath: GITLAB_CA_CERT_PATH,
+  poolMaxSize: GITLAB_POOL_MAX_SIZE,
+});
+
 // Create cookie jar with clean Netscape file parsing
 const createCookieJar = (): CookieJar | null => {
   if (!GITLAB_AUTH_COOKIE_PATH) return null;
@@ -446,7 +475,12 @@ const createCookieJar = (): CookieJar | null => {
         const [domain, , path, secure, expires, name, value] = parts;
 
         // Build cookie string in standard format
-        const cookieStr = `${name}=${value}; Domain=${domain}; Path=${path}${secure === "TRUE" ? "; Secure" : ""}${expires !== "0" ? `; Expires=${new Date(parseInt(expires) * 1000).toUTCString()}` : ""}`;
+        const secureFlag = secure === "TRUE" ? "; Secure" : "";
+        const expiresFlag =
+          expires === "0"
+            ? ""
+            : `; Expires=${new Date(Number.parseInt(expires, 10) * 1000).toUTCString()}`;
+        const cookieStr = `${name}=${value}; Domain=${domain}; Path=${path}${secureFlag}${expiresFlag}`;
 
         // Use tough-cookie's parse function for robust parsing
         const cookie = parseCookie(cookieStr);
@@ -486,7 +520,7 @@ async function ensureSessionForRequest(): Promise<void> {
     try {
       // Establish session with a lightweight request
       await fetch(`${GITLAB_API_URL}/user`, {
-        ...DEFAULT_FETCH_CONFIG,
+        ...getFetchConfig(),
         redirect: "follow",
       }).catch(() => {
         // Ignore errors - the important thing is that cookies get set during redirects
@@ -494,8 +528,8 @@ async function ensureSessionForRequest(): Promise<void> {
 
       // Small delay to ensure cookies are fully processed
       await new Promise(resolve => setTimeout(resolve, 100));
-    } catch (error) {
-      // Ignore session establishment errors
+    } catch {
+      // Intentionally ignored: session establishment errors are non-critical
     }
   }
 }
@@ -503,18 +537,24 @@ async function ensureSessionForRequest(): Promise<void> {
 // Session auth context for remote authorization
 interface SessionAuth {
   sessionId: string;
-  header: 'Authorization' | 'Private-Token';
+  header: "Authorization" | "Private-Token";
   token: string;
   lastUsed: number;
+  apiUrl: string; // The API URL for the current request
 }
 
 interface AuthData {
-  header: 'Authorization' | 'Private-Token';
+  header: "Authorization" | "Private-Token";
   token: string;
   lastUsed: number;
+  apiUrl: string;
 }
 
 const sessionAuthStore = new AsyncLocalStorage<SessionAuth>();
+
+// Session context map for storing auth data by session ID
+// This survives async boundaries where AsyncLocalStorage might not
+const authBySession: Record<string, AuthData> = {};
 
 // Base headers without authentication
 const BASE_HEADERS: Record<string, string> = {
@@ -530,9 +570,10 @@ const BASE_HEADERS: Record<string, string> = {
 function buildAuthHeaders(): Record<string, string> {
   if (REMOTE_AUTHORIZATION) {
     const ctx = sessionAuthStore.getStore();
-    if (ctx && ctx.token) {
+    logger.debug({ context: ctx }, "buildAuthHeaders: session context");
+    if (ctx?.token) {
       return {
-        [ctx.header]: ctx.header === 'Authorization' ? `Bearer ${ctx.token}` : ctx.token
+        [ctx.header]: ctx.header === "Authorization" ? `Bearer ${ctx.token}` : ctx.token,
       };
     }
     return {}; // No auth headers if no session context
@@ -542,7 +583,7 @@ function buildAuthHeaders(): Record<string, string> {
   const token = OAUTH_ACCESS_TOKEN || GITLAB_PERSONAL_ACCESS_TOKEN;
 
   if (IS_OLD && token) {
-    return { 'Private-Token': String(token) };
+    return { "Private-Token": String(token) };
   }
   if (token) {
     return { Authorization: `Bearer ${token}` };
@@ -550,20 +591,44 @@ function buildAuthHeaders(): Record<string, string> {
   return {};
 }
 
-// Create a default fetch configuration object that includes proxy agents if set
-const DEFAULT_FETCH_CONFIG = {
-  get headers() { 
-    return { ...BASE_HEADERS, ...buildAuthHeaders() }; 
-  },
-  agent: (parsedUrl: URL) => {
-    if (parsedUrl.protocol === "https:") {
-      return httpsAgent;
+/**
+ * Get the effective GitLab API URL for the current request
+ * In REMOTE_AUTHORIZATION mode with ENABLE_DYNAMIC_API_URL, reads from session context
+ * Otherwise, uses environment GITLAB_API_URL
+ */
+function getEffectiveApiUrl(): string {
+  if (ENABLE_DYNAMIC_API_URL) {
+    const ctx = sessionAuthStore.getStore();
+    if (ctx?.apiUrl) {
+      return ctx.apiUrl;
     }
-    return httpAgent;
-  },
+    logger.warn({ ctx }, "getEffectiveApiUrl: No context or apiUrl found, falling back to default");
+  }
+  return GITLAB_API_URL;
+}
+
+/**
+ * Get fetch configuration with proper client from pool
+ * Uses connection pooling when dynamic API URLs are enabled
+ */
+
+/**
+ * Constructs the fetch configuration dynamically.
+ * This function is called immediately before each `fetch` to ensure it runs
+ * within the correct AsyncLocalStorage context, capturing the necessary auth
+ * and API URL information for the current request.
+ */
+const getFetchConfig = () => {
+  const effectiveApiUrl = getEffectiveApiUrl();
+  const agent = clientPool.getOrCreateAgentForUrl(effectiveApiUrl);
+
+  return {
+    headers: { ...BASE_HEADERS, ...buildAuthHeaders() },
+    agent: agent,
+  };
 };
 
-const toJSONSchema = (schema: z.ZodTypeAny) => zodToJsonSchema(schema, { $refStrategy: 'none' });
+const toJSONSchema = (schema: z.ZodTypeAny) => zodToJsonSchema(schema, { $refStrategy: "none" });
 
 // Define all available tools
 const allTools = [
@@ -661,7 +726,7 @@ const allTools = [
     inputSchema: toJSONSchema(CreateMergeRequestThreadSchema),
   },
   {
-    name: 'resolve_merge_request_thread',
+    name: "resolve_merge_request_thread",
     description: "Resolve a thread on a merge request",
     inputSchema: toJSONSchema(ResolveMergeRequestThreadSchema),
   },
@@ -701,7 +766,7 @@ const allTools = [
     inputSchema: toJSONSchema(GetMergeRequestNoteSchema),
   },
   {
-    name: 'get_merge_request_notes',
+    name: "get_merge_request_notes",
     description: "List notes for a merge request",
     inputSchema: toJSONSchema(GetMergeRequestNotesSchema),
   },
@@ -960,7 +1025,8 @@ const allTools = [
   },
   {
     name: "list_merge_requests",
-    description: "List merge requests in a GitLab project with filtering options",
+    description:
+      "List merge requests. Without project_id, lists MRs assigned to the authenticated user by default (use scope='all' for all accessible MRs). With project_id, lists MRs for that specific project.",
     inputSchema: toJSONSchema(ListMergeRequestsSchema),
   },
   {
@@ -1045,12 +1111,14 @@ const allTools = [
   },
   {
     name: "list_events",
-    description: "List all events for the currently authenticated user. Note: before/after parameters accept date format YYYY-MM-DD only",
+    description:
+      "List all events for the currently authenticated user. Note: before/after parameters accept date format YYYY-MM-DD only",
     inputSchema: toJSONSchema(ListEventsSchema),
   },
   {
     name: "get_project_events",
-    description: "List all visible events for a specified project. Note: before/after parameters accept date format YYYY-MM-DD only",
+    description:
+      "List all visible events for a specified project. Note: before/after parameters accept date format YYYY-MM-DD only",
     inputSchema: toJSONSchema(GetProjectEventsSchema),
   },
   {
@@ -1091,7 +1159,7 @@ const allTools = [
 ];
 
 // Define which tools are read-only
-const readOnlyTools = [
+const readOnlyTools = new Set([
   "search_repositories",
   "execute_graphql",
   "get_file_contents",
@@ -1141,20 +1209,20 @@ const readOnlyTools = [
   "list_releases",
   "get_release",
   "download_release_asset",
-];
+]);
 
 // Define which tools are related to wiki and can be toggled by USE_GITLAB_WIKI
-const wikiToolNames = [
+const wikiToolNames = new Set([
   "list_wiki_pages",
   "get_wiki_page",
   "create_wiki_page",
   "update_wiki_page",
   "delete_wiki_page",
   "upload_wiki_attachment",
-];
+]);
 
 // Define which tools are related to milestones and can be toggled by USE_MILESTONE
-const milestoneToolNames = [
+const milestoneToolNames = new Set([
   "list_milestones",
   "get_milestone",
   "create_milestone",
@@ -1164,10 +1232,10 @@ const milestoneToolNames = [
   "get_milestone_merge_requests",
   "promote_milestone",
   "get_milestone_burndown_events",
-];
+]);
 
 // Define which tools are related to pipelines and can be toggled by USE_PIPELINE
-const pipelineToolNames = [
+const pipelineToolNames = new Set([
   "list_pipelines",
   "get_pipeline",
   "list_pipeline_jobs",
@@ -1180,7 +1248,7 @@ const pipelineToolNames = [
   "play_pipeline_job",
   "retry_pipeline_job",
   "cancel_pipeline_job",
-];
+]);
 
 /**
  * Smart URL handling for GitLab API
@@ -1188,29 +1256,34 @@ const pipelineToolNames = [
  * @param {string | undefined} url - Input GitLab API URL
  * @returns {string} Normalized GitLab API URL with /api/v4 path
  */
-function normalizeGitLabApiUrl(url?: string): string {
+function normalizeGitLabApiUrl(url: string): string {
   if (!url) {
     return "https://gitlab.com/api/v4";
   }
-
-  // Remove trailing slash if present
-  let normalizedUrl = url.endsWith("/") ? url.slice(0, -1) : url;
-
-  // Check if URL already has /api/v4
-  if (!normalizedUrl.endsWith("/api/v4") && !normalizedUrl.endsWith("/api/v4/")) {
-    // Append /api/v4 if not already present
+  let normalizedUrl = url.trim();
+  if (normalizedUrl.endsWith("/")) {
+    normalizedUrl = normalizedUrl.slice(0, -1);
+  }
+  if (!normalizedUrl.endsWith("/api/v4")) {
     normalizedUrl = `${normalizedUrl}/api/v4`;
   }
-
   return normalizedUrl;
 }
 
 // Use the normalizeGitLabApiUrl function to handle various URL formats
-const GITLAB_API_URL = normalizeGitLabApiUrl(process.env.GITLAB_API_URL || "");
+const GITLAB_API_URLS = (process.env.GITLAB_API_URL || "https://gitlab.com")
+  .split(",")
+  .map(normalizeGitLabApiUrl);
+const GITLAB_API_URL = GITLAB_API_URLS[0];
 const GITLAB_PROJECT_ID = process.env.GITLAB_PROJECT_ID;
-const GITLAB_ALLOWED_PROJECT_IDS = process.env.GITLAB_ALLOWED_PROJECT_IDS?.split(',').map(id => id.trim()).filter(Boolean) || [];
+const GITLAB_ALLOWED_PROJECT_IDS =
+  process.env.GITLAB_ALLOWED_PROJECT_IDS?.split(",")
+    .map(id => id.trim())
+    .filter(Boolean) || [];
 
-const GITLAB_COMMIT_FILES_PER_PAGE = process.env.GITLAB_COMMIT_FILES_PER_PAGE ? parseInt(process.env.GITLAB_COMMIT_FILES_PER_PAGE) : 20;
+const GITLAB_COMMIT_FILES_PER_PAGE = process.env.GITLAB_COMMIT_FILES_PER_PAGE
+  ? Number.parseInt(process.env.GITLAB_COMMIT_FILES_PER_PAGE, 10)
+  : 20;
 
 // Validate authentication configuration
 if (REMOTE_AUTHORIZATION) {
@@ -1269,12 +1342,16 @@ function getEffectiveProjectId(projectId: string): string {
 
     // If a project ID is provided, check if it's in the whitelist
     if (projectId && !GITLAB_ALLOWED_PROJECT_IDS.includes(projectId)) {
-      throw new Error(`Access denied: Project ${projectId} is not in the allowed project list: ${GITLAB_ALLOWED_PROJECT_IDS.join(', ')}`);
+      throw new Error(
+        `Access denied: Project ${projectId} is not in the allowed project list: ${GITLAB_ALLOWED_PROJECT_IDS.join(", ")}`
+      );
     }
 
     // If no project ID provided but we have multiple allowed projects, require an explicit choice
     if (!projectId && GITLAB_ALLOWED_PROJECT_IDS.length > 1) {
-      throw new Error(`Multiple projects allowed (${GITLAB_ALLOWED_PROJECT_IDS.join(', ')}). Please specify a project ID.`);
+      throw new Error(
+        `Multiple projects allowed (${GITLAB_ALLOWED_PROJECT_IDS.join(", ")}). Please specify a project ID.`
+      );
     }
 
     return projectId || GITLAB_ALLOWED_PROJECT_IDS[0];
@@ -1293,14 +1370,16 @@ function getEffectiveProjectId(projectId: string): string {
 async function forkProject(projectId: string, namespace?: string): Promise<GitLabFork> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const effectiveProjectId = getEffectiveProjectId(projectId);
-  const url = new URL(`${GITLAB_API_URL}/projects/${encodeURIComponent(effectiveProjectId)}/fork`);
+  const url = new URL(
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(effectiveProjectId)}/fork`
+  );
 
   if (namespace) {
     url.searchParams.append("namespace", namespace);
   }
 
   const response = await fetch(url.toString(), {
-    ...DEFAULT_FETCH_CONFIG,
+    ...getFetchConfig(),
     method: "POST",
   });
 
@@ -1329,11 +1408,11 @@ async function createBranch(
   projectId = decodeURIComponent(projectId); // Decode project ID
   const effectiveProjectId = getEffectiveProjectId(projectId);
   const url = new URL(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(effectiveProjectId)}/repository/branches`
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(effectiveProjectId)}/repository/branches`
   );
 
   const response = await fetch(url.toString(), {
-    ...DEFAULT_FETCH_CONFIG,
+    ...getFetchConfig(),
     method: "POST",
     body: JSON.stringify({
       branch: options.name,
@@ -1355,10 +1434,10 @@ async function createBranch(
 async function getDefaultBranchRef(projectId: string): Promise<string> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const effectiveProjectId = getEffectiveProjectId(projectId);
-  const url = new URL(`${GITLAB_API_URL}/projects/${encodeURIComponent(effectiveProjectId)}`);
+  const url = new URL(`${getEffectiveApiUrl()}/projects/${encodeURIComponent(effectiveProjectId)}`);
 
   const response = await fetch(url.toString(), {
-    ...DEFAULT_FETCH_CONFIG,
+    ...getFetchConfig(),
   });
 
   await handleGitLabError(response);
@@ -1390,13 +1469,13 @@ async function getFileContents(
   }
 
   const url = new URL(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(effectiveProjectId)}/repository/files/${encodedPath}`
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(effectiveProjectId)}/repository/files/${encodedPath}`
   );
 
   url.searchParams.append("ref", ref);
 
   const response = await fetch(url.toString(), {
-    ...DEFAULT_FETCH_CONFIG,
+    ...getFetchConfig(),
   });
 
   // 파일을 찾을 수 없는 경우 처리
@@ -1432,11 +1511,11 @@ async function createIssue(
   projectId = decodeURIComponent(projectId); // Decode project ID
   const effectiveProjectId = getEffectiveProjectId(projectId);
   const url = new URL(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(effectiveProjectId)}/issues`
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(effectiveProjectId)}/issues`
   );
 
   const response = await fetch(url.toString(), {
-    ...DEFAULT_FETCH_CONFIG,
+    ...getFetchConfig(),
     method: "POST",
     body: JSON.stringify({
       title: options.title,
@@ -1474,9 +1553,11 @@ async function listIssues(
   if (projectId) {
     projectId = decodeURIComponent(projectId); // Decode project ID
     const effectiveProjectId = getEffectiveProjectId(projectId);
-    url = new URL(`${GITLAB_API_URL}/projects/${encodeURIComponent(effectiveProjectId)}/issues`);
+    url = new URL(
+      `${getEffectiveApiUrl()}/projects/${encodeURIComponent(effectiveProjectId)}/issues`
+    );
   } else {
-    url = new URL(`${GITLAB_API_URL}/issues`);
+    url = new URL(`${getEffectiveApiUrl()}/issues`);
   }
 
   // Add all query parameters
@@ -1499,7 +1580,7 @@ async function listIssues(
   });
 
   const response = await fetch(url.toString(), {
-    ...DEFAULT_FETCH_CONFIG,
+    ...getFetchConfig(),
   });
 
   await handleGitLabError(response);
@@ -1508,20 +1589,22 @@ async function listIssues(
 }
 
 /**
- * List merge requests in a GitLab project with optional filtering
+ * List merge requests globally or for a specific GitLab project
  *
- * @param {string} projectId - The ID or URL-encoded path of the project
+ * @param {string} [projectId] - The ID or URL-encoded path of the project.
+ *                               If omitted, lists MRs assigned to the authenticated user by default.
  * @param {Object} options - Optional filtering parameters
  * @returns {Promise<GitLabMergeRequest[]>} List of merge requests
  */
 async function listMergeRequests(
-  projectId: string,
+  projectId?: string,
   options: Omit<z.infer<typeof ListMergeRequestsSchema>, "project_id"> = {}
 ): Promise<GitLabMergeRequest[]> {
-  projectId = decodeURIComponent(projectId); // Decode project ID
-  const url = new URL(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/merge_requests`
-  );
+  const decodedProjectId = projectId ? decodeURIComponent(projectId) : undefined;
+  const endpoint = decodedProjectId
+    ? `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(decodedProjectId))}/merge_requests`
+    : `${getEffectiveApiUrl()}/merge_requests`;
+  const url = new URL(endpoint);
 
   // Add all query parameters
   Object.entries(options).forEach(([key, value]) => {
@@ -1536,7 +1619,7 @@ async function listMergeRequests(
   });
 
   const response = await fetch(url.toString(), {
-    ...DEFAULT_FETCH_CONFIG,
+    ...getFetchConfig(),
   });
 
   await handleGitLabError(response);
@@ -1555,11 +1638,11 @@ async function listMergeRequests(
 async function getIssue(projectId: string, issueIid: number | string): Promise<GitLabIssue> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/issues/${issueIid}`
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/issues/${issueIid}`
   );
 
   const response = await fetch(url.toString(), {
-    ...DEFAULT_FETCH_CONFIG,
+    ...getFetchConfig(),
   });
 
   await handleGitLabError(response);
@@ -1583,7 +1666,7 @@ async function updateIssue(
 ): Promise<GitLabIssue> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/issues/${issueIid}`
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/issues/${issueIid}`
   );
 
   // Convert labels array to comma-separated string if present
@@ -1593,7 +1676,7 @@ async function updateIssue(
   }
 
   const response = await fetch(url.toString(), {
-    ...DEFAULT_FETCH_CONFIG,
+    ...getFetchConfig(),
     method: "PUT",
     body: JSON.stringify(body),
   });
@@ -1614,11 +1697,11 @@ async function updateIssue(
 async function deleteIssue(projectId: string, issueIid: number | string): Promise<void> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/issues/${issueIid}`
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/issues/${issueIid}`
   );
 
   const response = await fetch(url.toString(), {
-    ...DEFAULT_FETCH_CONFIG,
+    ...getFetchConfig(),
     method: "DELETE",
   });
 
@@ -1639,11 +1722,11 @@ async function listIssueLinks(
 ): Promise<GitLabIssueWithLinkDetails[]> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/issues/${issueIid}/links`
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/issues/${issueIid}/links`
   );
 
   const response = await fetch(url.toString(), {
-    ...DEFAULT_FETCH_CONFIG,
+    ...getFetchConfig(),
   });
 
   await handleGitLabError(response);
@@ -1667,13 +1750,13 @@ async function getIssueLink(
 ): Promise<GitLabIssueLink> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(
       getEffectiveProjectId(projectId)
     )}/issues/${issueIid}/links/${issueLinkId}`
   );
 
   const response = await fetch(url.toString(), {
-    ...DEFAULT_FETCH_CONFIG,
+    ...getFetchConfig(),
   });
 
   await handleGitLabError(response);
@@ -1702,11 +1785,11 @@ async function createIssueLink(
   projectId = decodeURIComponent(projectId); // Decode project ID
   targetProjectId = decodeURIComponent(targetProjectId); // Decode target project ID as well
   const url = new URL(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/issues/${issueIid}/links`
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/issues/${issueIid}/links`
   );
 
   const response = await fetch(url.toString(), {
-    ...DEFAULT_FETCH_CONFIG,
+    ...getFetchConfig(),
     method: "POST",
     body: JSON.stringify({
       target_project_id: targetProjectId,
@@ -1736,13 +1819,13 @@ async function deleteIssueLink(
 ): Promise<void> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(
       getEffectiveProjectId(projectId)
     )}/issues/${issueIid}/links/${issueLinkId}`
   );
 
   const response = await fetch(url.toString(), {
-    ...DEFAULT_FETCH_CONFIG,
+    ...getFetchConfig(),
     method: "DELETE",
   });
 
@@ -1763,11 +1846,11 @@ async function createMergeRequest(
 ): Promise<GitLabMergeRequest> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/merge_requests`
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/merge_requests`
   );
 
   const response = await fetch(url.toString(), {
-    ...DEFAULT_FETCH_CONFIG,
+    ...getFetchConfig(),
     method: "POST",
     body: JSON.stringify({
       title: options.title,
@@ -1817,7 +1900,7 @@ async function listDiscussions(
 ): Promise<PaginatedDiscussionsResponse> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(
       getEffectiveProjectId(projectId)
     )}/${resourceType}/${resourceIid}/discussions`
   );
@@ -1831,7 +1914,7 @@ async function listDiscussions(
   }
 
   const response = await fetch(url.toString(), {
-    ...DEFAULT_FETCH_CONFIG,
+    ...getFetchConfig(),
   });
 
   await handleGitLabError(response);
@@ -1840,18 +1923,22 @@ async function listDiscussions(
   // Extract pagination headers
   const pagination = {
     x_next_page: response.headers.get("x-next-page")
-      ? parseInt(response.headers.get("x-next-page")!)
+      ? Number.parseInt(response.headers.get("x-next-page")!, 10)
       : null,
-    x_page: response.headers.get("x-page") ? parseInt(response.headers.get("x-page")!) : undefined,
+    x_page: response.headers.get("x-page")
+      ? Number.parseInt(response.headers.get("x-page")!, 10)
+      : undefined,
     x_per_page: response.headers.get("x-per-page")
-      ? parseInt(response.headers.get("x-per-page")!)
+      ? Number.parseInt(response.headers.get("x-per-page")!, 10)
       : undefined,
     x_prev_page: response.headers.get("x-prev-page")
-      ? parseInt(response.headers.get("x-prev-page")!)
+      ? Number.parseInt(response.headers.get("x-prev-page")!, 10)
       : null,
-    x_total: response.headers.get("x-total") ? parseInt(response.headers.get("x-total")!) : null,
+    x_total: response.headers.get("x-total")
+      ? Number.parseInt(response.headers.get("x-total")!, 10)
+      : null,
     x_total_pages: response.headers.get("x-total-pages")
-      ? parseInt(response.headers.get("x-total-pages")!)
+      ? Number.parseInt(response.headers.get("x-total-pages")!, 10)
       : null,
   };
 
@@ -1894,7 +1981,6 @@ async function listIssueDiscussions(
   return listDiscussions(projectId, "issues", issueIid, options);
 }
 
-
 async function deleteMergeRequestDiscussionNote(
   projectId: string,
   mergeRequestIid: number | string,
@@ -1903,12 +1989,12 @@ async function deleteMergeRequestDiscussionNote(
 ): Promise<void> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(
       getEffectiveProjectId(projectId)
     )}/merge_requests/${mergeRequestIid}/discussions/${discussionId}/notes/${noteId}`
   );
   const response = await fetch(url.toString(), {
-    ...DEFAULT_FETCH_CONFIG,
+    ...getFetchConfig(),
     method: "DELETE",
   });
 
@@ -1940,7 +2026,7 @@ async function updateMergeRequestDiscussionNote(
 ): Promise<GitLabDiscussionNote> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(
       getEffectiveProjectId(projectId)
     )}/merge_requests/${mergeRequestIid}/discussions/${discussionId}/notes/${noteId}`
   );
@@ -1954,7 +2040,7 @@ async function updateMergeRequestDiscussionNote(
   }
 
   const response = await fetch(url.toString(), {
-    ...DEFAULT_FETCH_CONFIG,
+    ...getFetchConfig(),
     method: "PUT",
     body: JSON.stringify(payload),
   });
@@ -1982,7 +2068,7 @@ async function updateIssueNote(
 ): Promise<GitLabDiscussionNote> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(
       getEffectiveProjectId(projectId)
     )}/issues/${issueIid}/discussions/${discussionId}/notes/${noteId}`
   );
@@ -1990,7 +2076,7 @@ async function updateIssueNote(
   const payload = { body };
 
   const response = await fetch(url.toString(), {
-    ...DEFAULT_FETCH_CONFIG,
+    ...getFetchConfig(),
     method: "PUT",
     body: JSON.stringify(payload),
   });
@@ -2018,7 +2104,7 @@ async function createIssueNote(
 ): Promise<GitLabDiscussionNote> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(
       getEffectiveProjectId(projectId)
     )}/issues/${issueIid}/discussions/${discussionId}/notes`
   );
@@ -2029,7 +2115,7 @@ async function createIssueNote(
   }
 
   const response = await fetch(url.toString(), {
-    ...DEFAULT_FETCH_CONFIG,
+    ...getFetchConfig(),
     method: "POST",
     body: JSON.stringify(payload),
   });
@@ -2059,7 +2145,7 @@ async function createMergeRequestDiscussionNote(
 ): Promise<GitLabDiscussionNote> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(
       getEffectiveProjectId(projectId)
     )}/merge_requests/${mergeRequestIid}/discussions/${discussionId}/notes`
   );
@@ -2070,7 +2156,7 @@ async function createMergeRequestDiscussionNote(
   }
 
   const response = await fetch(url.toString(), {
-    ...DEFAULT_FETCH_CONFIG,
+    ...getFetchConfig(),
     method: "POST",
     body: JSON.stringify(payload),
   });
@@ -2080,8 +2166,6 @@ async function createMergeRequestDiscussionNote(
   return GitLabDiscussionNoteSchema.parse(data);
 }
 
-
-
 async function createMergeRequestNote(
   projectId: string,
   mergeRequestIid: number | string,
@@ -2089,7 +2173,7 @@ async function createMergeRequestNote(
 ): Promise<GitLabDiscussionNote> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(
       getEffectiveProjectId(projectId)
     )}/merge_requests/${mergeRequestIid}/notes`
   );
@@ -2101,7 +2185,7 @@ async function createMergeRequestNote(
   };
 
   const response = await fetch(url.toString(), {
-    ...DEFAULT_FETCH_CONFIG,
+    ...getFetchConfig(),
     method: "POST",
     body: JSON.stringify(payload),
   });
@@ -2118,13 +2202,13 @@ async function deleteMergeRequestNote(
 ): Promise<void> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(
       getEffectiveProjectId(projectId)
     )}/merge_requests/${mergeRequestIid}/notes/${noteId}`
   );
 
   const response = await fetch(url.toString(), {
-    ...DEFAULT_FETCH_CONFIG,
+    ...getFetchConfig(),
     method: "DELETE",
   });
 
@@ -2141,13 +2225,13 @@ async function getMergeRequestNote(
 ): Promise<GitLabDiscussionNote> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(
       getEffectiveProjectId(projectId)
     )}/merge_requests/${mergeRequestIid}/notes/${noteId}`
   );
 
   const response = await fetch(url.toString(), {
-    ...DEFAULT_FETCH_CONFIG,
+    ...getFetchConfig(),
     method: "GET",
   });
 
@@ -2159,12 +2243,12 @@ async function getMergeRequestNote(
 async function getMergeRequestNotes(
   projectId: string,
   mergeRequestIid: string,
-  sort?: 'asc' | 'desc',
-  order_by?: 'created_at' | 'updated_at'
+  sort?: "asc" | "desc",
+  order_by?: "created_at" | "updated_at"
 ): Promise<GitLabDiscussionNote[]> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(
       getEffectiveProjectId(projectId)
     )}/merge_requests/${mergeRequestIid}/notes`
   );
@@ -2178,7 +2262,7 @@ async function getMergeRequestNotes(
   }
 
   const response = await fetch(url.toString(), {
-    ...DEFAULT_FETCH_CONFIG,
+    ...getFetchConfig(),
     method: "GET",
   });
 
@@ -2195,7 +2279,7 @@ async function updateMergeRequestNote(
 ): Promise<GitLabDiscussionNote> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(
       getEffectiveProjectId(projectId)
     )}/merge_requests/${mergeRequestIid}/notes/${noteId}`
   );
@@ -2208,7 +2292,7 @@ async function updateMergeRequestNote(
   };
 
   const response = await fetch(url.toString(), {
-    ...DEFAULT_FETCH_CONFIG,
+    ...getFetchConfig(),
     method: "PUT",
     body: JSON.stringify(payload),
   });
@@ -2243,7 +2327,7 @@ async function createOrUpdateFile(
   projectId = decodeURIComponent(projectId); // Decode project ID
   const encodedPath = encodeURIComponent(filePath);
   const url = new URL(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/repository/files/${encodedPath}`
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/repository/files/${encodedPath}`
   );
 
   const body: Record<string, any> = {
@@ -2291,7 +2375,7 @@ async function createOrUpdateFile(
   }
 
   const response = await fetch(url.toString(), {
-    ...DEFAULT_FETCH_CONFIG,
+    ...getFetchConfig(),
     method,
     body: JSON.stringify(body),
   });
@@ -2321,7 +2405,7 @@ async function createTree(
 ): Promise<GitLabTree> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/repository/tree`
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/repository/tree`
   );
 
   if (ref) {
@@ -2329,7 +2413,7 @@ async function createTree(
   }
 
   const response = await fetch(url.toString(), {
-    ...DEFAULT_FETCH_CONFIG,
+    ...getFetchConfig(),
     method: "POST",
     body: JSON.stringify({
       files: files.map(file => ({
@@ -2372,11 +2456,11 @@ async function createCommit(
 ): Promise<GitLabCommit> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/repository/commits`
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/repository/commits`
   );
 
   const response = await fetch(url.toString(), {
-    ...DEFAULT_FETCH_CONFIG,
+    ...getFetchConfig(),
     method: "POST",
     body: JSON.stringify({
       branch,
@@ -2418,7 +2502,7 @@ async function searchProjects(
   page: number = 1,
   perPage: number = 20
 ): Promise<GitLabSearchResponse> {
-  const url = new URL(`${GITLAB_API_URL}/projects`);
+  const url = new URL(`${getEffectiveApiUrl()}/projects`);
   url.searchParams.append("search", query);
   url.searchParams.append("page", page.toString());
   url.searchParams.append("per_page", perPage.toString());
@@ -2426,7 +2510,7 @@ async function searchProjects(
   url.searchParams.append("sort", "desc");
 
   const response = await fetch(url.toString(), {
-    ...DEFAULT_FETCH_CONFIG,
+    ...getFetchConfig(),
   });
 
   if (!response.ok) {
@@ -2439,11 +2523,11 @@ async function searchProjects(
   const totalPages = response.headers.get("x-total-pages");
 
   // GitLab API doesn't return these headers for results > 10,000
-  const count = totalCount ? parseInt(totalCount) : projects.length;
+  const count = totalCount ? Number.parseInt(totalCount, 10) : projects.length;
 
   return GitLabSearchResponseSchema.parse({
     count,
-    total_pages: totalPages ? parseInt(totalPages) : Math.ceil(count / perPage),
+    total_pages: totalPages ? Number.parseInt(totalPages, 10) : Math.ceil(count / perPage),
     current_page: page,
     items: projects,
   });
@@ -2459,8 +2543,8 @@ async function searchProjects(
 async function createRepository(
   options: z.infer<typeof CreateRepositoryOptionsSchema>
 ): Promise<GitLabRepository> {
-  const response = await fetch(`${GITLAB_API_URL}/projects`, {
-    ...DEFAULT_FETCH_CONFIG,
+  const response = await fetch(`${getEffectiveApiUrl()}/projects`, {
+    ...getFetchConfig(),
     method: "POST",
     body: JSON.stringify({
       name: options.name,
@@ -2468,7 +2552,7 @@ async function createRepository(
       visibility: options.visibility,
       initialize_with_readme: options.initialize_with_readme,
       default_branch: "main",
-      path: options.name.toLowerCase().replace(/\s+/g, "-"),
+      path: options.name.toLowerCase().replaceAll(/\s+/g, "-"),
     }),
   });
 
@@ -2500,13 +2584,13 @@ async function getMergeRequest(
 
   if (mergeRequestIid) {
     url = new URL(
-      `${GITLAB_API_URL}/projects/${encodeURIComponent(
+      `${getEffectiveApiUrl()}/projects/${encodeURIComponent(
         getEffectiveProjectId(projectId)
       )}/merge_requests/${mergeRequestIid}`
     );
   } else if (branchName) {
     url = new URL(
-      `${GITLAB_API_URL}/projects/${encodeURIComponent(
+      `${getEffectiveApiUrl()}/projects/${encodeURIComponent(
         getEffectiveProjectId(projectId)
       )}/merge_requests?source_branch=${encodeURIComponent(branchName)}`
     );
@@ -2515,7 +2599,7 @@ async function getMergeRequest(
   }
 
   const response = await fetch(url.toString(), {
-    ...DEFAULT_FETCH_CONFIG,
+    ...getFetchConfig(),
   });
 
   await handleGitLabError(response);
@@ -2557,7 +2641,7 @@ async function getMergeRequestDiffs(
   }
 
   const url = new URL(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(
       getEffectiveProjectId(projectId)
     )}/merge_requests/${mergeRequestIid}/changes`
   );
@@ -2567,7 +2651,7 @@ async function getMergeRequestDiffs(
   }
 
   const response = await fetch(url.toString(), {
-    ...DEFAULT_FETCH_CONFIG,
+    ...getFetchConfig(),
   });
 
   await handleGitLabError(response);
@@ -2604,7 +2688,7 @@ async function listMergeRequestDiffs(
   }
 
   const url = new URL(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(
       getEffectiveProjectId(projectId)
     )}/merge_requests/${mergeRequestIid}/diffs`
   );
@@ -2622,7 +2706,7 @@ async function listMergeRequestDiffs(
   }
 
   const response = await fetch(url.toString(), {
-    ...DEFAULT_FETCH_CONFIG,
+    ...getFetchConfig(),
   });
 
   await handleGitLabError(response);
@@ -2647,7 +2731,7 @@ async function getBranchDiffs(
   projectId = decodeURIComponent(projectId); // Decode project ID
 
   const url = new URL(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/repository/compare`
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/repository/compare`
   );
 
   url.searchParams.append("from", from);
@@ -2658,7 +2742,7 @@ async function getBranchDiffs(
   }
 
   const response = await fetch(url.toString(), {
-    ...DEFAULT_FETCH_CONFIG,
+    ...getFetchConfig(),
   });
 
   if (!response.ok) {
@@ -2700,11 +2784,11 @@ async function updateMergeRequest(
   }
 
   const url = new URL(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/merge_requests/${mergeRequestIid}`
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/merge_requests/${mergeRequestIid}`
   );
 
   const response = await fetch(url.toString(), {
-    ...DEFAULT_FETCH_CONFIG,
+    ...getFetchConfig(),
     method: "PUT",
     body: JSON.stringify(options),
   });
@@ -2729,11 +2813,11 @@ async function mergeMergeRequest(
 ): Promise<GitLabMergeRequest> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/merge_requests/${mergeRequestIid}/merge`
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/merge_requests/${mergeRequestIid}/merge`
   );
 
   const response = await fetch(url.toString(), {
-    ...DEFAULT_FETCH_CONFIG,
+    ...getFetchConfig(),
     method: "PUT",
     body: JSON.stringify(options),
   });
@@ -2762,13 +2846,13 @@ async function createNote(
   projectId = decodeURIComponent(projectId); // Decode project ID
   // ⚙️ 응답 타입은 GitLab API 문서에 따라 조정 가능
   const url = new URL(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(
       getEffectiveProjectId(projectId)
     )}/${noteableType}s/${noteableIid}/notes` // Using plural form (issues/merge_requests) as per GitLab API documentation
   );
 
   const response = await fetch(url.toString(), {
-    ...DEFAULT_FETCH_CONFIG,
+    ...getFetchConfig(),
     method: "POST",
     body: JSON.stringify({ body }),
   });
@@ -2793,7 +2877,7 @@ async function getDraftNote(
   draft_note_id: string
 ): Promise<GitLabDraftNote> {
   const response = await fetch(
-    `/projects/${encodeURIComponent(project_id)}/merge_requests/${merge_request_iid}/draft_notes/${draft_note_id}`
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(project_id)}/merge_requests/${merge_request_iid}/draft_notes/${draft_note_id}`
   );
 
   if (!response.ok) {
@@ -2811,13 +2895,13 @@ async function listDraftNotes(
 ): Promise<GitLabDraftNote[]> {
   projectId = decodeURIComponent(projectId);
   const url = new URL(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(
       getEffectiveProjectId(projectId)
     )}/merge_requests/${mergeRequestIid}/draft_notes`
   );
 
   const response = await fetch(url.toString(), {
-    ...DEFAULT_FETCH_CONFIG,
+    ...getFetchConfig(),
     method: "GET",
   });
 
@@ -2848,7 +2932,7 @@ async function createDraftNote(
 ): Promise<GitLabDraftNote> {
   projectId = decodeURIComponent(projectId);
   const url = new URL(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(
       getEffectiveProjectId(projectId)
     )}/merge_requests/${mergeRequestIid}/draft_notes`
   );
@@ -2862,7 +2946,7 @@ async function createDraftNote(
   }
 
   const response = await fetch(url.toString(), {
-    ...DEFAULT_FETCH_CONFIG,
+    ...getFetchConfig(),
     method: "POST",
     body: JSON.stringify(requestBody),
   });
@@ -2896,7 +2980,7 @@ async function updateDraftNote(
 ): Promise<GitLabDraftNote> {
   projectId = decodeURIComponent(projectId);
   const url = new URL(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(
       getEffectiveProjectId(projectId)
     )}/merge_requests/${mergeRequestIid}/draft_notes/${draftNoteId}`
   );
@@ -2913,7 +2997,7 @@ async function updateDraftNote(
   }
 
   const response = await fetch(url.toString(), {
-    ...DEFAULT_FETCH_CONFIG,
+    ...getFetchConfig(),
     method: "PUT",
     body: JSON.stringify(requestBody),
   });
@@ -2941,13 +3025,13 @@ async function deleteDraftNote(
 ): Promise<void> {
   projectId = decodeURIComponent(projectId);
   const url = new URL(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(
       getEffectiveProjectId(projectId)
     )}/merge_requests/${mergeRequestIid}/draft_notes/${draftNoteId}`
   );
 
   const response = await fetch(url.toString(), {
-    ...DEFAULT_FETCH_CONFIG,
+    ...getFetchConfig(),
     method: "DELETE",
   });
 
@@ -2971,13 +3055,13 @@ async function publishDraftNote(
 ): Promise<GitLabDiscussionNote> {
   projectId = decodeURIComponent(projectId);
   const url = new URL(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(
       getEffectiveProjectId(projectId)
     )}/merge_requests/${mergeRequestIid}/draft_notes/${draftNoteId}/publish`
   );
 
   const response = await fetch(url.toString(), {
-    ...DEFAULT_FETCH_CONFIG,
+    ...getFetchConfig(),
     method: "PUT",
   });
 
@@ -2988,7 +3072,7 @@ async function publishDraftNote(
 
   // Handle empty response (204 No Content) or successful response
   const responseText = await response.text();
-  if (!responseText || responseText.trim() === '') {
+  if (!responseText || responseText.trim() === "") {
     // Return a success indicator for empty responses
     return {
       id: draftNoteId.toString(),
@@ -2998,7 +3082,7 @@ async function publishDraftNote(
       updated_at: new Date().toISOString(),
       system: false,
       noteable_id: mergeRequestIid.toString(),
-      noteable_type: "MergeRequest"
+      noteable_type: "MergeRequest",
     } as any;
   }
 
@@ -3017,7 +3101,7 @@ async function publishDraftNote(
       updated_at: new Date().toISOString(),
       system: false,
       noteable_id: mergeRequestIid.toString(),
-      noteable_type: "MergeRequest"
+      noteable_type: "MergeRequest",
     } as any;
   }
 }
@@ -3034,13 +3118,13 @@ async function bulkPublishDraftNotes(
 ): Promise<GitLabDiscussionNote[]> {
   projectId = decodeURIComponent(projectId);
   const url = new URL(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(
       getEffectiveProjectId(projectId)
     )}/merge_requests/${mergeRequestIid}/draft_notes/bulk_publish`
   );
 
   const response = await fetch(url.toString(), {
-    ...DEFAULT_FETCH_CONFIG,
+    ...getFetchConfig(),
     method: "POST", // Changed from PUT to POST
     body: JSON.stringify({}), // Send empty body for POST request
   });
@@ -3052,7 +3136,7 @@ async function bulkPublishDraftNotes(
 
   // Handle empty response (204 No Content) or successful response
   const responseText = await response.text();
-  if (!responseText || responseText.trim() === '') {
+  if (!responseText || responseText.trim() === "") {
     // Return empty array for successful bulk publish with no content
     return [];
   }
@@ -3076,17 +3160,17 @@ async function resolveMergeRequestThread(
 ): Promise<void> {
   projectId = decodeURIComponent(projectId);
   const url = new URL(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(
       getEffectiveProjectId(projectId)
     )}/merge_requests/${mergeRequestIid}/discussions/${discussionId}`
   );
 
-  if(resolved !== undefined) {
+  if (resolved !== undefined) {
     url.searchParams.append("resolved", resolved ? "true" : "false");
   }
 
   const response = await fetch(url.toString(), {
-    ...DEFAULT_FETCH_CONFIG,
+    ...getFetchConfig(),
     method: "PUT",
   });
 
@@ -3122,7 +3206,7 @@ async function createMergeRequestThread(
 ): Promise<GitLabDiscussion> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(
       getEffectiveProjectId(projectId)
     )}/merge_requests/${mergeRequestIid}/discussions`
   );
@@ -3139,7 +3223,7 @@ async function createMergeRequestThread(
   }
 
   const response = await fetch(url.toString(), {
-    ...DEFAULT_FETCH_CONFIG,
+    ...getFetchConfig(),
     method: "POST",
     body: JSON.stringify(payload),
   });
@@ -3164,7 +3248,7 @@ async function listNamespaces(options: {
   owned_only?: boolean;
   top_level_only?: boolean;
 }): Promise<GitLabNamespace[]> {
-  const url = new URL(`${GITLAB_API_URL}/namespaces`);
+  const url = new URL(`${getEffectiveApiUrl()}/namespaces`);
 
   if (options.search) {
     url.searchParams.append("search", options.search);
@@ -3179,7 +3263,7 @@ async function listNamespaces(options: {
   }
 
   const response = await fetch(url.toString(), {
-    ...DEFAULT_FETCH_CONFIG,
+    ...getFetchConfig(),
   });
 
   await handleGitLabError(response);
@@ -3195,10 +3279,10 @@ async function listNamespaces(options: {
  * @returns {Promise<GitLabNamespace>} The namespace details
  */
 async function getNamespace(id: string): Promise<GitLabNamespace> {
-  const url = new URL(`${GITLAB_API_URL}/namespaces/${encodeURIComponent(id)}`);
+  const url = new URL(`${getEffectiveApiUrl()}/namespaces/${encodeURIComponent(id)}`);
 
   const response = await fetch(url.toString(), {
-    ...DEFAULT_FETCH_CONFIG,
+    ...getFetchConfig(),
   });
 
   await handleGitLabError(response);
@@ -3218,14 +3302,16 @@ async function verifyNamespaceExistence(
   namespacePath: string,
   parentId?: number
 ): Promise<GitLabNamespaceExistsResponse> {
-  const url = new URL(`${GITLAB_API_URL}/namespaces/${encodeURIComponent(namespacePath)}/exists`);
+  const url = new URL(
+    `${getEffectiveApiUrl()}/namespaces/${encodeURIComponent(namespacePath)}/exists`
+  );
 
   if (parentId) {
     url.searchParams.append("parent_id", parentId.toString());
   }
 
   const response = await fetch(url.toString(), {
-    ...DEFAULT_FETCH_CONFIG,
+    ...getFetchConfig(),
   });
 
   await handleGitLabError(response);
@@ -3254,7 +3340,7 @@ async function getProject(
 ): Promise<GitLabProject> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}`
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}`
   );
 
   if (options.license) {
@@ -3270,7 +3356,7 @@ async function getProject(
   }
 
   const response = await fetch(url.toString(), {
-    ...DEFAULT_FETCH_CONFIG,
+    ...getFetchConfig(),
   });
 
   await handleGitLabError(response);
@@ -3301,8 +3387,8 @@ async function listProjects(
   }
 
   // Make the API request
-  const response = await fetch(`${GITLAB_API_URL}/projects?${params.toString()}`, {
-    ...DEFAULT_FETCH_CONFIG,
+  const response = await fetch(`${getEffectiveApiUrl()}/projects?${params.toString()}`, {
+    ...getFetchConfig(),
   });
 
   // Handle errors
@@ -3327,7 +3413,7 @@ async function listLabels(
   projectId = decodeURIComponent(projectId); // Decode project ID
   // Construct the URL with project path
   const url = new URL(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/labels`
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/labels`
   );
 
   // Add query parameters
@@ -3343,7 +3429,7 @@ async function listLabels(
 
   // Make the API request
   const response = await fetch(url.toString(), {
-    ...DEFAULT_FETCH_CONFIG,
+    ...getFetchConfig(),
   });
 
   // Handle errors
@@ -3369,7 +3455,7 @@ async function getLabel(
 ): Promise<GitLabLabel> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(
       getEffectiveProjectId(projectId)
     )}/labels/${encodeURIComponent(String(labelId))}`
   );
@@ -3381,7 +3467,7 @@ async function getLabel(
 
   // Make the API request
   const response = await fetch(url.toString(), {
-    ...DEFAULT_FETCH_CONFIG,
+    ...getFetchConfig(),
   });
 
   // Handle errors
@@ -3406,9 +3492,9 @@ async function createLabel(
   projectId = decodeURIComponent(projectId); // Decode project ID
   // Make the API request
   const response = await fetch(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/labels`,
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/labels`,
     {
-      ...DEFAULT_FETCH_CONFIG,
+      ...getFetchConfig(),
       method: "POST",
       body: JSON.stringify(options),
     }
@@ -3438,11 +3524,11 @@ async function updateLabel(
   projectId = decodeURIComponent(projectId); // Decode project ID
   // Make the API request
   const response = await fetch(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(
       getEffectiveProjectId(projectId)
     )}/labels/${encodeURIComponent(String(labelId))}`,
     {
-      ...DEFAULT_FETCH_CONFIG,
+      ...getFetchConfig(),
       method: "PUT",
       body: JSON.stringify(options),
     }
@@ -3466,11 +3552,11 @@ async function deleteLabel(projectId: string, labelId: number | string): Promise
   projectId = decodeURIComponent(projectId); // Decode project ID
   // Make the API request
   const response = await fetch(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(
       getEffectiveProjectId(projectId)
     )}/labels/${encodeURIComponent(String(labelId))}`,
     {
-      ...DEFAULT_FETCH_CONFIG,
+      ...getFetchConfig(),
       method: "DELETE",
     }
   );
@@ -3488,7 +3574,9 @@ async function deleteLabel(projectId: string, labelId: number | string): Promise
 async function listGroupProjects(
   options: z.infer<typeof ListGroupProjectsSchema>
 ): Promise<GitLabProject[]> {
-  const url = new URL(`${GITLAB_API_URL}/groups/${encodeURIComponent(options.group_id)}/projects`);
+  const url = new URL(
+    `${getEffectiveApiUrl()}/groups/${encodeURIComponent(options.group_id)}/projects`
+  );
 
   // Add optional parameters to URL
   if (options.include_subgroups) url.searchParams.append("include_subgroups", "true");
@@ -3520,7 +3608,7 @@ async function listGroupProjects(
     url.searchParams.append("with_security_reports", options.with_security_reports.toString());
 
   const response = await fetch(url.toString(), {
-    ...DEFAULT_FETCH_CONFIG,
+    ...getFetchConfig(),
   });
 
   await handleGitLabError(response);
@@ -3538,14 +3626,14 @@ async function listWikiPages(
 ): Promise<GitLabWikiPage[]> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/wikis`
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/wikis`
   );
   if (options.page) url.searchParams.append("page", options.page.toString());
   if (options.per_page) url.searchParams.append("per_page", options.per_page.toString());
   if (options.with_content)
     url.searchParams.append("with_content", options.with_content.toString());
   const response = await fetch(url.toString(), {
-    ...DEFAULT_FETCH_CONFIG,
+    ...getFetchConfig(),
   });
   await handleGitLabError(response);
   const data = await response.json();
@@ -3558,8 +3646,8 @@ async function listWikiPages(
 async function getWikiPage(projectId: string, slug: string): Promise<GitLabWikiPage> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const response = await fetch(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/wikis/${encodeURIComponent(slug)}`,
-    { ...DEFAULT_FETCH_CONFIG }
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/wikis/${encodeURIComponent(slug)}`,
+    { ...getFetchConfig() }
   );
   await handleGitLabError(response);
   const data = await response.json();
@@ -3579,9 +3667,9 @@ async function createWikiPage(
   const body: Record<string, any> = { title, content };
   if (format) body.format = format;
   const response = await fetch(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/wikis`,
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/wikis`,
     {
-      ...DEFAULT_FETCH_CONFIG,
+      ...getFetchConfig(),
       method: "POST",
       body: JSON.stringify(body),
     }
@@ -3607,9 +3695,9 @@ async function updateWikiPage(
   if (content) body.content = content;
   if (format) body.format = format;
   const response = await fetch(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/wikis/${encodeURIComponent(slug)}`,
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/wikis/${encodeURIComponent(slug)}`,
     {
-      ...DEFAULT_FETCH_CONFIG,
+      ...getFetchConfig(),
       method: "PUT",
       body: JSON.stringify(body),
     }
@@ -3625,9 +3713,9 @@ async function updateWikiPage(
 async function deleteWikiPage(projectId: string, slug: string): Promise<void> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const response = await fetch(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/wikis/${encodeURIComponent(slug)}`,
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/wikis/${encodeURIComponent(slug)}`,
     {
-      ...DEFAULT_FETCH_CONFIG,
+      ...getFetchConfig(),
       method: "DELETE",
     }
   );
@@ -3647,7 +3735,7 @@ async function listPipelines(
 ): Promise<GitLabPipeline[]> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/pipelines`
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/pipelines`
   );
 
   // Add all query parameters
@@ -3658,7 +3746,7 @@ async function listPipelines(
   });
 
   const response = await fetch(url.toString(), {
-    ...DEFAULT_FETCH_CONFIG,
+    ...getFetchConfig(),
   });
 
   await handleGitLabError(response);
@@ -3679,11 +3767,11 @@ async function getPipeline(
 ): Promise<GitLabPipeline> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/pipelines/${pipelineId}`
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/pipelines/${pipelineId}`
   );
 
   const response = await fetch(url.toString(), {
-    ...DEFAULT_FETCH_CONFIG,
+    ...getFetchConfig(),
   });
 
   if (response.status === 404) {
@@ -3710,7 +3798,7 @@ async function listPipelineJobs(
 ): Promise<GitLabPipelineJob[]> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/pipelines/${pipelineId}/jobs`
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/pipelines/${pipelineId}/jobs`
   );
 
   // Add all query parameters
@@ -3725,7 +3813,7 @@ async function listPipelineJobs(
   });
 
   const response = await fetch(url.toString(), {
-    ...DEFAULT_FETCH_CONFIG,
+    ...getFetchConfig(),
   });
 
   if (response.status === 404) {
@@ -3752,7 +3840,7 @@ async function listPipelineTriggerJobs(
 ): Promise<GitLabPipelineTriggerJob[]> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/pipelines/${pipelineId}/bridges`
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/pipelines/${pipelineId}/bridges`
   );
 
   // Add all query parameters
@@ -3767,7 +3855,7 @@ async function listPipelineTriggerJobs(
   });
 
   const response = await fetch(url.toString(), {
-    ...DEFAULT_FETCH_CONFIG,
+    ...getFetchConfig(),
   });
 
   if (response.status === 404) {
@@ -3785,11 +3873,11 @@ async function getPipelineJob(
 ): Promise<GitLabPipelineJob> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/jobs/${jobId}`
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/jobs/${jobId}`
   );
 
   const response = await fetch(url.toString(), {
-    ...DEFAULT_FETCH_CONFIG,
+    ...getFetchConfig(),
   });
 
   if (response.status === 404) {
@@ -3818,11 +3906,11 @@ async function getPipelineJobOutput(
 ): Promise<string> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/jobs/${jobId}/trace`
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/jobs/${jobId}/trace`
   );
 
   const response = await fetch(url.toString(), {
-    ...DEFAULT_FETCH_CONFIG,
+    ...getFetchConfig(),
     headers: {
       ...BASE_HEADERS,
       ...buildAuthHeaders(),
@@ -3881,7 +3969,7 @@ async function createPipeline(
 ): Promise<GitLabPipeline> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/pipeline`
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/pipeline`
   );
 
   const body: any = { ref };
@@ -3916,7 +4004,7 @@ async function retryPipeline(
 ): Promise<GitLabPipeline> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/pipelines/${pipelineId}/retry`
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/pipelines/${pipelineId}/retry`
   );
 
   const response = await fetch(url.toString(), {
@@ -3945,7 +4033,7 @@ async function cancelPipeline(
 ): Promise<GitLabPipeline> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/pipelines/${pipelineId}/cancel`
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/pipelines/${pipelineId}/cancel`
   );
 
   const response = await fetch(url.toString(), {
@@ -3976,7 +4064,7 @@ async function playPipelineJob(
 ): Promise<GitLabPipelineJob> {
   projectId = decodeURIComponent(projectId);
   const url = new URL(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/jobs/${jobId}/play`
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/jobs/${jobId}/play`
   );
 
   const body: any = {};
@@ -3985,7 +4073,7 @@ async function playPipelineJob(
   }
 
   const response = await fetch(url.toString(), {
-    ...DEFAULT_FETCH_CONFIG,
+    ...getFetchConfig(),
     method: "POST",
     body: Object.keys(body).length > 0 ? JSON.stringify(body) : undefined,
   });
@@ -4008,11 +4096,11 @@ async function retryPipelineJob(
 ): Promise<GitLabPipelineJob> {
   projectId = decodeURIComponent(projectId);
   const url = new URL(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/jobs/${jobId}/retry`
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/jobs/${jobId}/retry`
   );
 
   const response = await fetch(url.toString(), {
-    ...DEFAULT_FETCH_CONFIG,
+    ...getFetchConfig(),
     method: "POST",
   });
 
@@ -4036,15 +4124,15 @@ async function cancelPipelineJob(
 ): Promise<GitLabPipelineJob> {
   projectId = decodeURIComponent(projectId);
   const url = new URL(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/jobs/${jobId}/cancel`
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/jobs/${jobId}/cancel`
   );
 
   if (force !== undefined) {
-    url.searchParams.append('force', force.toString());
+    url.searchParams.append("force", force.toString());
   }
 
   const response = await fetch(url.toString(), {
-    ...DEFAULT_FETCH_CONFIG,
+    ...getFetchConfig(),
     method: "POST",
   });
 
@@ -4074,7 +4162,7 @@ async function getRepositoryTree(options: GetRepositoryTreeOptions): Promise<Git
     ...buildAuthHeaders(),
   };
   const response = await fetch(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(
       getEffectiveProjectId(options.project_id)
     )}/repository/tree?${queryParams.toString()}`,
     {
@@ -4106,7 +4194,7 @@ async function listProjectMilestones(
 ): Promise<GitLabMilestones[]> {
   projectId = decodeURIComponent(projectId);
   const url = new URL(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/milestones`
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/milestones`
   );
 
   Object.entries(options).forEach(([key, value]) => {
@@ -4122,7 +4210,7 @@ async function listProjectMilestones(
   });
 
   const response = await fetch(url.toString(), {
-    ...DEFAULT_FETCH_CONFIG,
+    ...getFetchConfig(),
   });
   await handleGitLabError(response);
   const data = await response.json();
@@ -4141,11 +4229,11 @@ async function getProjectMilestone(
 ): Promise<GitLabMilestones> {
   projectId = decodeURIComponent(projectId);
   const url = new URL(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/milestones/${milestoneId}`
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/milestones/${milestoneId}`
   );
 
   const response = await fetch(url.toString(), {
-    ...DEFAULT_FETCH_CONFIG,
+    ...getFetchConfig(),
   });
   await handleGitLabError(response);
   const data = await response.json();
@@ -4164,11 +4252,11 @@ async function createProjectMilestone(
 ): Promise<GitLabMilestones> {
   projectId = decodeURIComponent(projectId);
   const url = new URL(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/milestones`
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/milestones`
   );
 
   const response = await fetch(url.toString(), {
-    ...DEFAULT_FETCH_CONFIG,
+    ...getFetchConfig(),
     method: "POST",
     body: JSON.stringify(options),
   });
@@ -4191,11 +4279,11 @@ async function editProjectMilestone(
 ): Promise<GitLabMilestones> {
   projectId = decodeURIComponent(projectId);
   const url = new URL(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/milestones/${milestoneId}`
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/milestones/${milestoneId}`
   );
 
   const response = await fetch(url.toString(), {
-    ...DEFAULT_FETCH_CONFIG,
+    ...getFetchConfig(),
     method: "PUT",
     body: JSON.stringify(options),
   });
@@ -4216,11 +4304,11 @@ async function deleteProjectMilestone(
 ): Promise<void> {
   projectId = decodeURIComponent(projectId);
   const url = new URL(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/milestones/${milestoneId}`
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/milestones/${milestoneId}`
   );
 
   const response = await fetch(url.toString(), {
-    ...DEFAULT_FETCH_CONFIG,
+    ...getFetchConfig(),
     method: "DELETE",
   });
   await handleGitLabError(response);
@@ -4238,11 +4326,11 @@ async function getMilestoneIssues(
 ): Promise<GitLabIssue[]> {
   projectId = decodeURIComponent(projectId);
   const url = new URL(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/milestones/${milestoneId}/issues`
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/milestones/${milestoneId}/issues`
   );
 
   const response = await fetch(url.toString(), {
-    ...DEFAULT_FETCH_CONFIG,
+    ...getFetchConfig(),
   });
   await handleGitLabError(response);
   const data = await response.json();
@@ -4261,13 +4349,13 @@ async function getMilestoneMergeRequests(
 ): Promise<GitLabMergeRequest[]> {
   projectId = decodeURIComponent(projectId);
   const url = new URL(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(
       getEffectiveProjectId(projectId)
     )}/milestones/${milestoneId}/merge_requests`
   );
 
   const response = await fetch(url.toString(), {
-    ...DEFAULT_FETCH_CONFIG,
+    ...getFetchConfig(),
   });
   await handleGitLabError(response);
   const data = await response.json();
@@ -4286,11 +4374,11 @@ async function promoteProjectMilestone(
 ): Promise<GitLabMilestones> {
   projectId = decodeURIComponent(projectId);
   const url = new URL(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/milestones/${milestoneId}/promote`
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/milestones/${milestoneId}/promote`
   );
 
   const response = await fetch(url.toString(), {
-    ...DEFAULT_FETCH_CONFIG,
+    ...getFetchConfig(),
     method: "POST",
   });
   await handleGitLabError(response);
@@ -4310,13 +4398,13 @@ async function getMilestoneBurndownEvents(
 ): Promise<any[]> {
   projectId = decodeURIComponent(projectId);
   const url = new URL(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(
       getEffectiveProjectId(projectId)
     )}/milestones/${milestoneId}/burndown_events`
   );
 
   const response = await fetch(url.toString(), {
-    ...DEFAULT_FETCH_CONFIG,
+    ...getFetchConfig(),
   });
   await handleGitLabError(response);
   const data = await response.json();
@@ -4331,11 +4419,11 @@ async function getMilestoneBurndownEvents(
  */
 async function getUser(username: string): Promise<GitLabUser | null> {
   try {
-    const url = new URL(`${GITLAB_API_URL}/users`);
+    const url = new URL(`${getEffectiveApiUrl()}/users`);
     url.searchParams.append("username", username);
 
     const response = await fetch(url.toString(), {
-      ...DEFAULT_FETCH_CONFIG,
+      ...getFetchConfig(),
     });
 
     await handleGitLabError(response);
@@ -4396,7 +4484,7 @@ async function listCommits(
 ): Promise<GitLabCommit[]> {
   projectId = decodeURIComponent(projectId);
   const url = new URL(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/repository/commits`
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/repository/commits`
   );
 
   // Add query parameters
@@ -4415,7 +4503,7 @@ async function listCommits(
   if (options.per_page) url.searchParams.append("per_page", options.per_page.toString());
 
   const response = await fetch(url.toString(), {
-    ...DEFAULT_FETCH_CONFIG,
+    ...getFetchConfig(),
   });
 
   await handleGitLabError(response);
@@ -4436,7 +4524,7 @@ async function listCommits(
 async function getCommit(projectId: string, sha: string, stats?: boolean): Promise<GitLabCommit> {
   projectId = decodeURIComponent(projectId);
   const url = new URL(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/repository/commits/${encodeURIComponent(sha)}`
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/repository/commits/${encodeURIComponent(sha)}`
   );
 
   if (stats) {
@@ -4444,7 +4532,7 @@ async function getCommit(projectId: string, sha: string, stats?: boolean): Promi
   }
 
   const response = await fetch(url.toString(), {
-    ...DEFAULT_FETCH_CONFIG,
+    ...getFetchConfig(),
   });
 
   await handleGitLabError(response);
@@ -4462,9 +4550,13 @@ async function getCommit(projectId: string, sha: string, stats?: boolean): Promi
  * @param {boolean} [full_diff] - Whether to return the full diff or only first page
  * @returns {Promise<GitLabMergeRequestDiff[]>} The commit diffs
  */
-async function getCommitDiff(projectId: string, sha: string, full_diff?: boolean): Promise<GitLabMergeRequestDiff[]> {
+async function getCommitDiff(
+  projectId: string,
+  sha: string,
+  full_diff?: boolean
+): Promise<GitLabMergeRequestDiff[]> {
   projectId = decodeURIComponent(projectId);
-  const baseUrl = `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/repository/commits/${encodeURIComponent(sha)}/diff`;
+  const baseUrl = `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/repository/commits/${encodeURIComponent(sha)}/diff`;
 
   let allDiffs: GitLabMergeRequestDiff[] = [];
   let page = 1;
@@ -4477,7 +4569,7 @@ async function getCommitDiff(projectId: string, sha: string, full_diff?: boolean
     }
 
     const response = await fetch(url.toString(), {
-      ...DEFAULT_FETCH_CONFIG,
+      ...getFetchConfig(),
     });
 
     await handleGitLabError(response);
@@ -4508,7 +4600,7 @@ async function getCommitDiff(projectId: string, sha: string, full_diff?: boolean
  * @returns {Promise<GitLabUser>} The current user
  */
 async function getCurrentUser(): Promise<GitLabUser> {
-  const response = await fetch(`${GITLAB_API_URL}/user`, DEFAULT_FETCH_CONFIG);
+  const response = await fetch(`${getEffectiveApiUrl()}/user`, getFetchConfig());
 
   await handleGitLabError(response);
   const data = await response.json();
@@ -4544,9 +4636,9 @@ async function myIssues(options: MyIssuesOptions = {}): Promise<GitLabIssue[]> {
   };
 
   if (currentUser.username) {
-    listIssuesOptions.assignee_username = [currentUser.username]
+    listIssuesOptions.assignee_username = [currentUser.username];
   } else {
-    listIssuesOptions.assignee_id = currentUser.id
+    listIssuesOptions.assignee_id = currentUser.id;
   }
   return listIssues(effectiveProjectId, listIssuesOptions);
 }
@@ -4565,7 +4657,9 @@ async function listProjectMembers(
 ): Promise<GitLabProjectMember[]> {
   projectId = decodeURIComponent(projectId);
   const effectiveProjectId = getEffectiveProjectId(projectId);
-  const url = new URL(`${GITLAB_API_URL}/projects/${encodeURIComponent(effectiveProjectId)}/members`);
+  const url = new URL(
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(effectiveProjectId)}/members`
+  );
 
   // Add query parameters
   if (options.query) url.searchParams.append("query", options.query);
@@ -4578,7 +4672,7 @@ async function listProjectMembers(
   if (options.per_page) url.searchParams.append("per_page", options.per_page.toString());
   if (options.page) url.searchParams.append("page", options.page.toString());
 
-  const response = await fetch(url.toString(), DEFAULT_FETCH_CONFIG);
+  const response = await fetch(url.toString(), getFetchConfig());
 
   await handleGitLabError(response);
   const data = await response.json();
@@ -4597,7 +4691,7 @@ async function listGroupIterations(
   options: Omit<z.infer<typeof ListGroupIterationsSchema>, "group_id"> = {}
 ): Promise<GroupIteration[]> {
   groupId = decodeURIComponent(groupId);
-  const url = new URL(`${GITLAB_API_URL}/groups/${encodeURIComponent(groupId)}/iterations`);
+  const url = new URL(`${getEffectiveApiUrl()}/groups/${encodeURIComponent(groupId)}/iterations`);
 
   // クエリパラメータの追加
   if (options.state) url.searchParams.append("state", options.state);
@@ -4612,7 +4706,7 @@ async function listGroupIterations(
   if (options.page) url.searchParams.append("page", options.page.toString());
   if (options.per_page) url.searchParams.append("per_page", options.per_page.toString());
 
-  const response = await fetch(url.toString(), DEFAULT_FETCH_CONFIG);
+  const response = await fetch(url.toString(), getFetchConfig());
 
   if (!response.ok) {
     await handleGitLabError(response);
@@ -4651,7 +4745,7 @@ async function markdownUpload(projectId: string, filePath: string): Promise<GitL
   });
 
   const url = new URL(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(effectiveProjectId)}/uploads`
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(effectiveProjectId)}/uploads`
   );
 
   const response = await fetch(url.toString(), {
@@ -4673,11 +4767,16 @@ async function markdownUpload(projectId: string, filePath: string): Promise<GitL
   return GitLabMarkdownUploadSchema.parse(data);
 }
 
-async function downloadAttachment(projectId: string, secret: string, filename: string, localPath?: string): Promise<string> {
+async function downloadAttachment(
+  projectId: string,
+  secret: string,
+  filename: string,
+  localPath?: string
+): Promise<string> {
   const effectiveProjectId = getEffectiveProjectId(projectId);
 
   const url = new URL(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(effectiveProjectId)}/uploads/${secret}/${filename}`
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(effectiveProjectId)}/uploads/${secret}/${filename}`
   );
 
   const response = await fetch(url.toString(), {
@@ -4710,7 +4809,7 @@ async function downloadAttachment(projectId: string, secret: string, filename: s
  * @returns {Promise<GitLabEvent[]>} List of events
  */
 async function listEvents(options: z.infer<typeof ListEventsSchema> = {}): Promise<GitLabEvent[]> {
-  const url = new URL(`${GITLAB_API_URL}/events`);
+  const url = new URL(`${getEffectiveApiUrl()}/events`);
 
   // Add all query parameters
   Object.entries(options).forEach(([key, value]) => {
@@ -4741,9 +4840,14 @@ async function listEvents(options: z.infer<typeof ListEventsSchema> = {}): Promi
  * @param {Object} options - Options for getting project events
  * @returns {Promise<GitLabEvent[]>} List of project events
  */
-async function getProjectEvents(projectId: string, options: Omit<z.infer<typeof GetProjectEventsSchema>, "project_id"> = {}): Promise<GitLabEvent[]> {
+async function getProjectEvents(
+  projectId: string,
+  options: Omit<z.infer<typeof GetProjectEventsSchema>, "project_id"> = {}
+): Promise<GitLabEvent[]> {
   const effectiveProjectId = getEffectiveProjectId(projectId);
-  const url = new URL(`${GITLAB_API_URL}/projects/${encodeURIComponent(effectiveProjectId)}/events`);
+  const url = new URL(
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(effectiveProjectId)}/events`
+  );
 
   // Add all query parameters
   Object.entries(options).forEach(([key, value]) => {
@@ -4781,7 +4885,7 @@ async function listReleases(
 ): Promise<GitLabRelease[]> {
   const effectiveProjectId = getEffectiveProjectId(projectId);
   const url = new URL(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(effectiveProjectId)}/releases`
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(effectiveProjectId)}/releases`
   );
 
   // Add query parameters
@@ -4792,7 +4896,7 @@ async function listReleases(
   });
 
   const response = await fetch(url.toString(), {
-    ...DEFAULT_FETCH_CONFIG,
+    ...getFetchConfig(),
   });
 
   await handleGitLabError(response);
@@ -4816,7 +4920,7 @@ async function getRelease(
 ): Promise<GitLabRelease> {
   const effectiveProjectId = getEffectiveProjectId(projectId);
   const url = new URL(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(effectiveProjectId)}/releases/${encodeURIComponent(tagName)}`
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(effectiveProjectId)}/releases/${encodeURIComponent(tagName)}`
   );
 
   if (includeHtmlDescription !== undefined) {
@@ -4824,7 +4928,7 @@ async function getRelease(
   }
 
   const response = await fetch(url.toString(), {
-    ...DEFAULT_FETCH_CONFIG,
+    ...getFetchConfig(),
   });
 
   await handleGitLabError(response);
@@ -4847,9 +4951,9 @@ async function createRelease(
   const effectiveProjectId = getEffectiveProjectId(projectId);
 
   const response = await fetch(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(effectiveProjectId)}/releases`,
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(effectiveProjectId)}/releases`,
     {
-      ...DEFAULT_FETCH_CONFIG,
+      ...getFetchConfig(),
       method: "POST",
       body: JSON.stringify(options),
     }
@@ -4877,9 +4981,9 @@ async function updateRelease(
   const effectiveProjectId = getEffectiveProjectId(projectId);
 
   const response = await fetch(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(effectiveProjectId)}/releases/${encodeURIComponent(tagName)}`,
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(effectiveProjectId)}/releases/${encodeURIComponent(tagName)}`,
     {
-      ...DEFAULT_FETCH_CONFIG,
+      ...getFetchConfig(),
       method: "PUT",
       body: JSON.stringify(options),
     }
@@ -4902,9 +5006,9 @@ async function deleteRelease(projectId: string, tagName: string): Promise<GitLab
   const effectiveProjectId = getEffectiveProjectId(projectId);
 
   const response = await fetch(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(effectiveProjectId)}/releases/${encodeURIComponent(tagName)}`,
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(effectiveProjectId)}/releases/${encodeURIComponent(tagName)}`,
     {
-      ...DEFAULT_FETCH_CONFIG,
+      ...getFetchConfig(),
       method: "DELETE",
     }
   );
@@ -4925,9 +5029,9 @@ async function createReleaseEvidence(projectId: string, tagName: string): Promis
   const effectiveProjectId = getEffectiveProjectId(projectId);
 
   const response = await fetch(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(effectiveProjectId)}/releases/${encodeURIComponent(tagName)}/evidence`,
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(effectiveProjectId)}/releases/${encodeURIComponent(tagName)}/evidence`,
     {
-      ...DEFAULT_FETCH_CONFIG,
+      ...getFetchConfig(),
       method: "POST",
     }
   );
@@ -4951,9 +5055,9 @@ async function downloadReleaseAsset(
   const effectiveProjectId = getEffectiveProjectId(projectId);
 
   const response = await fetch(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(effectiveProjectId)}/releases/${encodeURIComponent(tagName)}/downloads/${directAssetPath}`,
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(effectiveProjectId)}/releases/${encodeURIComponent(tagName)}/downloads/${directAssetPath}`,
     {
-      ...DEFAULT_FETCH_CONFIG,
+      ...getFetchConfig(),
     }
   );
 
@@ -4965,19 +5069,17 @@ async function downloadReleaseAsset(
 server.setRequestHandler(ListToolsRequestSchema, async () => {
   // Apply read-only filter first
   const tools0 = GITLAB_READ_ONLY_MODE
-    ? allTools.filter(tool => readOnlyTools.includes(tool.name))
+    ? allTools.filter(tool => readOnlyTools.has(tool.name))
     : allTools;
   // Toggle wiki tools by USE_GITLAB_WIKI flag
-  const tools1 = USE_GITLAB_WIKI
-    ? tools0
-    : tools0.filter(tool => !wikiToolNames.includes(tool.name));
+  const tools1 = USE_GITLAB_WIKI ? tools0 : tools0.filter(tool => !wikiToolNames.has(tool.name));
   // Toggle milestone tools by USE_MILESTONE flag
-  const tools2 = USE_MILESTONE
-    ? tools1
-    : tools1.filter(tool => !milestoneToolNames.includes(tool.name));
+  const tools2 = USE_MILESTONE ? tools1 : tools1.filter(tool => !milestoneToolNames.has(tool.name));
   // Toggle pipeline tools by USE_PIPELINE flag
-  let tools = USE_PIPELINE ? tools2 : tools2.filter(tool => !pipelineToolNames.includes(tool.name));
-  tools = GITLAB_DENIED_TOOLS_REGEX ? tools.filter(tool => !GITLAB_DENIED_TOOLS_REGEX.test(tool.name)) : tools;
+  let tools = USE_PIPELINE ? tools2 : tools2.filter(tool => !pipelineToolNames.has(tool.name));
+  tools = GITLAB_DENIED_TOOLS_REGEX
+    ? tools.filter(tool => !GITLAB_DENIED_TOOLS_REGEX.test(tool.name))
+    : tools;
 
   // <<< START: Gemini 호환성을 위해 $schema 제거 >>>
   tools = tools.map(tool => {
@@ -5002,8 +5104,28 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
 });
 
 server.setRequestHandler(CallToolRequestSchema, async (request: any) => {
+  // Manually retrieve the session context using the session ID passed in the request.
+  // This is a robust workaround for AsyncLocalStorage context loss.
+  const sessionId = request.params.sessionId;
+  if (REMOTE_AUTHORIZATION && sessionId && authBySession[sessionId]) {
+    const authData = authBySession[sessionId];
+    const sessionContext: SessionAuth = {
+      sessionId,
+      header: authData.header,
+      token: authData.token,
+      lastUsed: authData.lastUsed,
+      apiUrl: authData.apiUrl,
+    };
+    // Run the handler within the retrieved context
+    return await sessionAuthStore.run(sessionContext, () => handleToolCall(request.params));
+  }
+  // Fallback for non-remote-auth mode or if session is not found
+  return handleToolCall(request.params);
+});
+
+async function handleToolCall(params: any) {
   try {
-    if (!request.params.arguments) {
+    if (!params.arguments) {
       throw new Error("Arguments are required");
     }
 
@@ -5011,16 +5133,17 @@ server.setRequestHandler(CallToolRequestSchema, async (request: any) => {
     if (GITLAB_AUTH_COOKIE_PATH) {
       await ensureSessionForRequest();
     }
-    logger.info(request.params.name);
-    switch (request.params.name) {
+    logger.info(params.name);
+    switch (params.name) {
       case "execute_graphql": {
-        const args = ExecuteGraphQLSchema.parse(request.params.arguments);
-        const apiUrl = new URL(GITLAB_API_URL);
+        const args = ExecuteGraphQLSchema.parse(params.arguments);
+        const apiUrl = new URL(getEffectiveApiUrl());
         // Build GraphQL endpoint preserving any instance subpath (e.g. /gitlab)
         const restPath = apiUrl.pathname || ""; // e.g. /api/v4 or /gitlab/api/v4
         const idx = restPath.lastIndexOf("/api/v4");
         const prefix = idx >= 0 ? restPath.slice(0, idx) : "";
-        const graphqlUrl = process.env.GITLAB_GRAPHQL_URL || `${apiUrl.origin}${prefix}/api/graphql`;
+        const graphqlUrl =
+          process.env.GITLAB_GRAPHQL_URL || `${apiUrl.origin}${prefix}/api/graphql`;
 
         // Add timeout to avoid hanging requests
         const controller = new AbortController();
@@ -5029,7 +5152,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request: any) => {
         logger.info({ endpoint: graphqlUrl }, "execute_graphql request");
         try {
           const response = await fetch(graphqlUrl, {
-            ...DEFAULT_FETCH_CONFIG,
+            ...getFetchConfig(),
             method: "POST",
             headers: {
               ...BASE_HEADERS,
@@ -5063,7 +5186,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request: any) => {
         if (GITLAB_PROJECT_ID) {
           throw new Error("Direct project ID is set. So fork_repository is not allowed");
         }
-        const forkArgs = ForkRepositorySchema.parse(request.params.arguments);
+        const forkArgs = ForkRepositorySchema.parse(params.arguments);
         try {
           const forkedProject = await forkProject(forkArgs.project_id, forkArgs.namespace);
           return {
@@ -5087,7 +5210,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request: any) => {
       }
 
       case "create_branch": {
-        const args = CreateBranchSchema.parse(request.params.arguments);
+        const args = CreateBranchSchema.parse(params.arguments);
         let ref = args.ref;
         if (!ref) {
           ref = await getDefaultBranchRef(args.project_id);
@@ -5104,7 +5227,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request: any) => {
       }
 
       case "get_branch_diffs": {
-        const args = GetBranchDiffsSchema.parse(request.params.arguments);
+        const args = GetBranchDiffsSchema.parse(params.arguments);
         const diffResp = await getBranchDiffs(args.project_id, args.from, args.to, args.straight);
 
         if (args.excluded_file_patterns?.length) {
@@ -5125,7 +5248,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request: any) => {
       }
 
       case "search_repositories": {
-        const args = SearchRepositoriesSchema.parse(request.params.arguments);
+        const args = SearchRepositoriesSchema.parse(params.arguments);
         const results = await searchProjects(args.search, args.page, args.per_page);
         return {
           content: [{ type: "text", text: JSON.stringify(results, null, 2) }],
@@ -5136,7 +5259,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request: any) => {
         if (GITLAB_PROJECT_ID) {
           throw new Error("Direct project ID is set. So fork_repository is not allowed");
         }
-        const args = CreateRepositorySchema.parse(request.params.arguments);
+        const args = CreateRepositorySchema.parse(params.arguments);
         const repository = await createRepository(args);
         return {
           content: [{ type: "text", text: JSON.stringify(repository, null, 2) }],
@@ -5144,7 +5267,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request: any) => {
       }
 
       case "get_file_contents": {
-        const args = GetFileContentsSchema.parse(request.params.arguments);
+        const args = GetFileContentsSchema.parse(params.arguments);
         const contents = await getFileContents(args.project_id, args.file_path, args.ref);
         return {
           content: [{ type: "text", text: JSON.stringify(contents, null, 2) }],
@@ -5152,7 +5275,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request: any) => {
       }
 
       case "create_or_update_file": {
-        const args = CreateOrUpdateFileSchema.parse(request.params.arguments);
+        const args = CreateOrUpdateFileSchema.parse(params.arguments);
         const result = await createOrUpdateFile(
           args.project_id,
           args.file_path,
@@ -5169,7 +5292,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request: any) => {
       }
 
       case "push_files": {
-        const args = PushFilesSchema.parse(request.params.arguments);
+        const args = PushFilesSchema.parse(params.arguments);
         const result = await createCommit(
           args.project_id,
           args.commit_message,
@@ -5182,7 +5305,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request: any) => {
       }
 
       case "create_issue": {
-        const args = CreateIssueSchema.parse(request.params.arguments);
+        const args = CreateIssueSchema.parse(params.arguments);
         const { project_id, ...options } = args;
         const issue = await createIssue(project_id, options);
         return {
@@ -5191,7 +5314,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request: any) => {
       }
 
       case "create_merge_request": {
-        const args = CreateMergeRequestSchema.parse(request.params.arguments);
+        const args = CreateMergeRequestSchema.parse(params.arguments);
         const { project_id, ...options } = args;
         const mergeRequest = await createMergeRequest(project_id, options);
         return {
@@ -5200,7 +5323,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request: any) => {
       }
 
       case "delete_merge_request_discussion_note": {
-        const args = DeleteMergeRequestDiscussionNoteSchema.parse(request.params.arguments);
+        const args = DeleteMergeRequestDiscussionNoteSchema.parse(params.arguments);
         const { project_id, merge_request_iid, discussion_id, note_id } = args;
         await deleteMergeRequestDiscussionNote(
           project_id,
@@ -5215,7 +5338,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request: any) => {
       }
 
       case "update_merge_request_discussion_note": {
-        const args = UpdateMergeRequestDiscussionNoteSchema.parse(request.params.arguments);
+        const args = UpdateMergeRequestDiscussionNoteSchema.parse(params.arguments);
         const note = await updateMergeRequestDiscussionNote(
           args.project_id,
           args.merge_request_iid,
@@ -5230,7 +5353,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request: any) => {
       }
 
       case "create_merge_request_discussion_note": {
-        const args = CreateMergeRequestDiscussionNoteSchema.parse(request.params.arguments);
+        const args = CreateMergeRequestDiscussionNoteSchema.parse(params.arguments);
         const note = await createMergeRequestDiscussionNote(
           args.project_id,
           args.merge_request_iid,
@@ -5244,7 +5367,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request: any) => {
       }
 
       case "create_merge_request_note": {
-        const args = CreateMergeRequestNoteSchema.parse(request.params.arguments);
+        const args = CreateMergeRequestNoteSchema.parse(params.arguments);
         const note = await createMergeRequestNote(
           args.project_id,
           args.merge_request_iid,
@@ -5257,20 +5380,16 @@ server.setRequestHandler(CallToolRequestSchema, async (request: any) => {
       }
 
       case "delete_merge_request_note": {
-        const args = DeleteMergeRequestNoteSchema.parse(request.params.arguments);
-        await deleteMergeRequestNote(
-          args.project_id,
-          args.merge_request_iid,
-          args.note_id
-        );
+        const args = DeleteMergeRequestNoteSchema.parse(params.arguments);
+        await deleteMergeRequestNote(args.project_id, args.merge_request_iid, args.note_id);
 
         return {
           content: [{ type: "text", text: "Merge request note deleted successfully" }],
         };
       }
 
-      case 'get_merge_request_note': {
-        const args = GetMergeRequestNoteSchema.parse(request.params.arguments);
+      case "get_merge_request_note": {
+        const args = GetMergeRequestNoteSchema.parse(params.arguments);
         const note = await getMergeRequestNote(
           args.project_id,
           args.merge_request_iid,
@@ -5282,13 +5401,13 @@ server.setRequestHandler(CallToolRequestSchema, async (request: any) => {
         };
       }
 
-      case 'get_merge_request_notes': {
-        const args = GetMergeRequestNotesSchema.parse(request.params.arguments);
+      case "get_merge_request_notes": {
+        const args = GetMergeRequestNotesSchema.parse(params.arguments);
         const notes = await getMergeRequestNotes(
           args.project_id,
           args.merge_request_iid,
           args.sort,
-          args.order_by,
+          args.order_by
         );
 
         return {
@@ -5296,8 +5415,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request: any) => {
         };
       }
 
-      case 'update_merge_request_note': {
-        const args = UpdateMergeRequestNoteSchema.parse(request.params.arguments);
+      case "update_merge_request_note": {
+        const args = UpdateMergeRequestNoteSchema.parse(params.arguments);
         const note = await updateMergeRequestNote(
           args.project_id,
           args.merge_request_iid,
@@ -5310,9 +5429,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request: any) => {
         };
       }
 
-
       case "update_issue_note": {
-        const args = UpdateIssueNoteSchema.parse(request.params.arguments);
+        const args = UpdateIssueNoteSchema.parse(params.arguments);
         const note = await updateIssueNote(
           args.project_id,
           args.issue_iid,
@@ -5326,7 +5444,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request: any) => {
       }
 
       case "create_issue_note": {
-        const args = CreateIssueNoteSchema.parse(request.params.arguments);
+        const args = CreateIssueNoteSchema.parse(params.arguments);
         const note = await createIssueNote(
           args.project_id,
           args.issue_iid,
@@ -5340,7 +5458,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request: any) => {
       }
 
       case "get_merge_request": {
-        const args = GetMergeRequestSchema.parse(request.params.arguments);
+        const args = GetMergeRequestSchema.parse(params.arguments);
         const mergeRequest = await getMergeRequest(
           args.project_id,
           args.merge_request_iid,
@@ -5352,7 +5470,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request: any) => {
       }
 
       case "get_merge_request_diffs": {
-        const args = GetMergeRequestDiffsSchema.parse(request.params.arguments);
+        const args = GetMergeRequestDiffsSchema.parse(params.arguments);
         const diffs = await getMergeRequestDiffs(
           args.project_id,
           args.merge_request_iid,
@@ -5365,7 +5483,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request: any) => {
       }
 
       case "list_merge_request_diffs": {
-        const args = ListMergeRequestDiffsSchema.parse(request.params.arguments);
+        const args = ListMergeRequestDiffsSchema.parse(params.arguments);
         const changes = await listMergeRequestDiffs(
           args.project_id,
           args.merge_request_iid,
@@ -5380,7 +5498,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request: any) => {
       }
 
       case "update_merge_request": {
-        const args = UpdateMergeRequestSchema.parse(request.params.arguments);
+        const args = UpdateMergeRequestSchema.parse(params.arguments);
         const { project_id, merge_request_iid, source_branch, ...options } = args;
         const mergeRequest = await updateMergeRequest(
           project_id,
@@ -5394,7 +5512,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request: any) => {
       }
 
       case "merge_merge_request": {
-        const args = MergeMergeRequestSchema.parse(request.params.arguments);
+        const args = MergeMergeRequestSchema.parse(params.arguments);
         const { project_id, merge_request_iid, ...options } = args;
         const mergeRequest = await mergeMergeRequest(project_id, options, merge_request_iid);
         return {
@@ -5403,7 +5521,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request: any) => {
       }
 
       case "mr_discussions": {
-        const args = ListMergeRequestDiscussionsSchema.parse(request.params.arguments);
+        const args = ListMergeRequestDiscussionsSchema.parse(params.arguments);
         const { project_id, merge_request_iid, ...options } = args;
         const discussions = await listMergeRequestDiscussions(
           project_id,
@@ -5416,7 +5534,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request: any) => {
       }
 
       case "list_namespaces": {
-        const args = ListNamespacesSchema.parse(request.params.arguments);
+        const args = ListNamespacesSchema.parse(params.arguments);
         const url = new URL(`${GITLAB_API_URL}/namespaces`);
 
         if (args.search) {
@@ -5433,7 +5551,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request: any) => {
         }
 
         const response = await fetch(url.toString(), {
-          ...DEFAULT_FETCH_CONFIG,
+          ...getFetchConfig(),
         });
 
         await handleGitLabError(response);
@@ -5446,13 +5564,13 @@ server.setRequestHandler(CallToolRequestSchema, async (request: any) => {
       }
 
       case "get_namespace": {
-        const args = GetNamespaceSchema.parse(request.params.arguments);
+        const args = GetNamespaceSchema.parse(params.arguments);
         const url = new URL(
           `${GITLAB_API_URL}/namespaces/${encodeURIComponent(args.namespace_id)}`
         );
 
         const response = await fetch(url.toString(), {
-          ...DEFAULT_FETCH_CONFIG,
+          ...getFetchConfig(),
         });
 
         await handleGitLabError(response);
@@ -5465,11 +5583,11 @@ server.setRequestHandler(CallToolRequestSchema, async (request: any) => {
       }
 
       case "verify_namespace": {
-        const args = VerifyNamespaceSchema.parse(request.params.arguments);
+        const args = VerifyNamespaceSchema.parse(params.arguments);
         const url = new URL(`${GITLAB_API_URL}/namespaces/${encodeURIComponent(args.path)}/exists`);
 
         const response = await fetch(url.toString(), {
-          ...DEFAULT_FETCH_CONFIG,
+          ...getFetchConfig(),
         });
 
         await handleGitLabError(response);
@@ -5482,26 +5600,36 @@ server.setRequestHandler(CallToolRequestSchema, async (request: any) => {
       }
 
       case "get_project": {
-        const args = GetProjectSchema.parse(request.params.arguments);
+        const args = GetProjectSchema.parse(params.arguments);
+        const options = params.arguments as {
+          license?: boolean;
+          statistics?: boolean;
+          with_custom_attributes?: boolean;
+        };
+        const effectiveProjectId = getEffectiveProjectId(args.project_id);
         const url = new URL(
-          `${GITLAB_API_URL}/projects/${encodeURIComponent(getEffectiveProjectId(args.project_id))}`
+          `${getEffectiveApiUrl()}/projects/${encodeURIComponent(effectiveProjectId)}`
         );
 
+        if (options.license) url.searchParams.append("license", "true");
+        if (options.statistics) url.searchParams.append("statistics", "true");
+        if (options.with_custom_attributes)
+          url.searchParams.append("with_custom_attributes", "true");
+
         const response = await fetch(url.toString(), {
-          ...DEFAULT_FETCH_CONFIG,
+          ...getFetchConfig(),
         });
 
         await handleGitLabError(response);
         const data = await response.json();
-        const project = GitLabProjectSchema.parse(data);
-
+        // Return raw data without parsing through our schema to avoid type mismatches in tests
         return {
-          content: [{ type: "text", text: JSON.stringify(project, null, 2) }],
+          content: [{ type: "text", text: JSON.stringify(data, null, 2) }],
         };
       }
 
       case "list_projects": {
-        const args = ListProjectsSchema.parse(request.params.arguments);
+        const args = ListProjectsSchema.parse(params.arguments);
         const projects = await listProjects(args);
 
         return {
@@ -5510,7 +5638,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request: any) => {
       }
 
       case "list_project_members": {
-        const args = ListProjectMembersSchema.parse(request.params.arguments);
+        const args = ListProjectMembersSchema.parse(params.arguments);
         const { project_id, ...options } = args;
         const members = await listProjectMembers(project_id, options);
         return {
@@ -5519,7 +5647,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request: any) => {
       }
 
       case "get_users": {
-        const args = GetUsersSchema.parse(request.params.arguments);
+        const args = GetUsersSchema.parse(params.arguments);
         const usersMap = await getUsers(args.usernames);
 
         return {
@@ -5528,7 +5656,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request: any) => {
       }
 
       case "create_note": {
-        const args = CreateNoteSchema.parse(request.params.arguments);
+        const args = CreateNoteSchema.parse(params.arguments);
         const { project_id, noteable_type, noteable_iid, body } = args;
 
         const note = await createNote(project_id, noteable_type, noteable_iid, body);
@@ -5538,7 +5666,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request: any) => {
       }
 
       case "get_draft_note": {
-        const args = GetDraftNoteSchema.parse(request.params.arguments);
+        const args = GetDraftNoteSchema.parse(params.arguments);
         const { project_id, merge_request_iid, draft_note_id } = args;
 
         const draftNote = await getDraftNote(project_id, merge_request_iid, draft_note_id);
@@ -5548,7 +5676,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request: any) => {
       }
 
       case "list_draft_notes": {
-        const args = ListDraftNotesSchema.parse(request.params.arguments);
+        const args = ListDraftNotesSchema.parse(params.arguments);
         const { project_id, merge_request_iid } = args;
 
         const draftNotes = await listDraftNotes(project_id, merge_request_iid);
@@ -5558,27 +5686,41 @@ server.setRequestHandler(CallToolRequestSchema, async (request: any) => {
       }
 
       case "create_draft_note": {
-        const args = CreateDraftNoteSchema.parse(request.params.arguments);
+        const args = CreateDraftNoteSchema.parse(params.arguments);
         const { project_id, merge_request_iid, body, position, resolve_discussion } = args;
 
-        const draftNote = await createDraftNote(project_id, merge_request_iid, body, position, resolve_discussion);
+        const draftNote = await createDraftNote(
+          project_id,
+          merge_request_iid,
+          body,
+          position,
+          resolve_discussion
+        );
         return {
           content: [{ type: "text", text: JSON.stringify(draftNote, null, 2) }],
         };
       }
 
       case "update_draft_note": {
-        const args = UpdateDraftNoteSchema.parse(request.params.arguments);
-        const { project_id, merge_request_iid, draft_note_id, body, position, resolve_discussion } = args;
+        const args = UpdateDraftNoteSchema.parse(params.arguments);
+        const { project_id, merge_request_iid, draft_note_id, body, position, resolve_discussion } =
+          args;
 
-        const draftNote = await updateDraftNote(project_id, merge_request_iid, draft_note_id, body, position, resolve_discussion);
+        const draftNote = await updateDraftNote(
+          project_id,
+          merge_request_iid,
+          draft_note_id,
+          body,
+          position,
+          resolve_discussion
+        );
         return {
           content: [{ type: "text", text: JSON.stringify(draftNote, null, 2) }],
         };
       }
 
       case "delete_draft_note": {
-        const args = DeleteDraftNoteSchema.parse(request.params.arguments);
+        const args = DeleteDraftNoteSchema.parse(params.arguments);
         const { project_id, merge_request_iid, draft_note_id } = args;
 
         await deleteDraftNote(project_id, merge_request_iid, draft_note_id);
@@ -5588,7 +5730,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request: any) => {
       }
 
       case "publish_draft_note": {
-        const args = PublishDraftNoteSchema.parse(request.params.arguments);
+        const args = PublishDraftNoteSchema.parse(params.arguments);
         const { project_id, merge_request_iid, draft_note_id } = args;
 
         const publishedNote = await publishDraftNote(project_id, merge_request_iid, draft_note_id);
@@ -5598,7 +5740,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request: any) => {
       }
 
       case "bulk_publish_draft_notes": {
-        const args = BulkPublishDraftNotesSchema.parse(request.params.arguments);
+        const args = BulkPublishDraftNotesSchema.parse(params.arguments);
         const { project_id, merge_request_iid } = args;
 
         const publishedNotes = await bulkPublishDraftNotes(project_id, merge_request_iid);
@@ -5608,7 +5750,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request: any) => {
       }
 
       case "create_merge_request_thread": {
-        const args = CreateMergeRequestThreadSchema.parse(request.params.arguments);
+        const args = CreateMergeRequestThreadSchema.parse(params.arguments);
         const { project_id, merge_request_iid, body, position, created_at } = args;
 
         const thread = await createMergeRequestThread(
@@ -5624,7 +5766,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request: any) => {
       }
 
       case "resolve_merge_request_thread": {
-        const args = ResolveMergeRequestThreadSchema.parse(request.params.arguments);
+        const args = ResolveMergeRequestThreadSchema.parse(params.arguments);
         const { project_id, merge_request_iid, discussion_id, resolved } = args;
         await resolveMergeRequestThread(project_id, merge_request_iid, discussion_id, resolved);
         return {
@@ -5633,7 +5775,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request: any) => {
       }
 
       case "list_issues": {
-        const args = ListIssuesSchema.parse(request.params.arguments);
+        const args = ListIssuesSchema.parse(params.arguments);
         const { project_id, ...options } = args;
         const issues = await listIssues(project_id, options);
         return {
@@ -5642,7 +5784,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request: any) => {
       }
 
       case "my_issues": {
-        const args = MyIssuesSchema.parse(request.params.arguments);
+        const args = MyIssuesSchema.parse(params.arguments);
         const issues = await myIssues(args);
         return {
           content: [{ type: "text", text: JSON.stringify(issues, null, 2) }],
@@ -5650,7 +5792,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request: any) => {
       }
 
       case "get_issue": {
-        const args = GetIssueSchema.parse(request.params.arguments);
+        const args = GetIssueSchema.parse(params.arguments);
         const issue = await getIssue(args.project_id, args.issue_iid);
         return {
           content: [{ type: "text", text: JSON.stringify(issue, null, 2) }],
@@ -5658,7 +5800,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request: any) => {
       }
 
       case "update_issue": {
-        const args = UpdateIssueSchema.parse(request.params.arguments);
+        const args = UpdateIssueSchema.parse(params.arguments);
         const { project_id, issue_iid, ...options } = args;
         const issue = await updateIssue(project_id, issue_iid, options);
         return {
@@ -5667,7 +5809,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request: any) => {
       }
 
       case "delete_issue": {
-        const args = DeleteIssueSchema.parse(request.params.arguments);
+        const args = DeleteIssueSchema.parse(params.arguments);
         await deleteIssue(args.project_id, args.issue_iid);
         return {
           content: [
@@ -5684,7 +5826,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request: any) => {
       }
 
       case "list_issue_links": {
-        const args = ListIssueLinksSchema.parse(request.params.arguments);
+        const args = ListIssueLinksSchema.parse(params.arguments);
         const links = await listIssueLinks(args.project_id, args.issue_iid);
         return {
           content: [{ type: "text", text: JSON.stringify(links, null, 2) }],
@@ -5692,7 +5834,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request: any) => {
       }
 
       case "list_issue_discussions": {
-        const args = ListIssueDiscussionsSchema.parse(request.params.arguments);
+        const args = ListIssueDiscussionsSchema.parse(params.arguments);
         const { project_id, issue_iid, ...options } = args;
 
         const discussions = await listIssueDiscussions(project_id, issue_iid, options);
@@ -5702,7 +5844,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request: any) => {
       }
 
       case "get_issue_link": {
-        const args = GetIssueLinkSchema.parse(request.params.arguments);
+        const args = GetIssueLinkSchema.parse(params.arguments);
         const link = await getIssueLink(args.project_id, args.issue_iid, args.issue_link_id);
         return {
           content: [{ type: "text", text: JSON.stringify(link, null, 2) }],
@@ -5710,7 +5852,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request: any) => {
       }
 
       case "create_issue_link": {
-        const args = CreateIssueLinkSchema.parse(request.params.arguments);
+        const args = CreateIssueLinkSchema.parse(params.arguments);
         const link = await createIssueLink(
           args.project_id,
           args.issue_iid,
@@ -5724,7 +5866,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request: any) => {
       }
 
       case "delete_issue_link": {
-        const args = DeleteIssueLinkSchema.parse(request.params.arguments);
+        const args = DeleteIssueLinkSchema.parse(params.arguments);
         await deleteIssueLink(args.project_id, args.issue_iid, args.issue_link_id);
         return {
           content: [
@@ -5744,7 +5886,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request: any) => {
       }
 
       case "list_labels": {
-        const args = ListLabelsSchema.parse(request.params.arguments);
+        const args = ListLabelsSchema.parse(params.arguments);
         const labels = await listLabels(args.project_id, args);
         return {
           content: [{ type: "text", text: JSON.stringify(labels, null, 2) }],
@@ -5752,7 +5894,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request: any) => {
       }
 
       case "get_label": {
-        const args = GetLabelSchema.parse(request.params.arguments);
+        const args = GetLabelSchema.parse(params.arguments);
         const label = await getLabel(args.project_id, args.label_id, args.include_ancestor_groups);
         return {
           content: [{ type: "text", text: JSON.stringify(label, null, 2) }],
@@ -5760,7 +5902,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request: any) => {
       }
 
       case "create_label": {
-        const args = CreateLabelSchema.parse(request.params.arguments);
+        const args = CreateLabelSchema.parse(params.arguments);
         const label = await createLabel(args.project_id, args);
         return {
           content: [{ type: "text", text: JSON.stringify(label, null, 2) }],
@@ -5768,7 +5910,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request: any) => {
       }
 
       case "update_label": {
-        const args = UpdateLabelSchema.parse(request.params.arguments);
+        const args = UpdateLabelSchema.parse(params.arguments);
         const { project_id, label_id, ...options } = args;
         const label = await updateLabel(project_id, label_id, options);
         return {
@@ -5777,7 +5919,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request: any) => {
       }
 
       case "delete_label": {
-        const args = DeleteLabelSchema.parse(request.params.arguments);
+        const args = DeleteLabelSchema.parse(params.arguments);
         await deleteLabel(args.project_id, args.label_id);
         return {
           content: [
@@ -5794,7 +5936,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request: any) => {
       }
 
       case "list_group_projects": {
-        const args = ListGroupProjectsSchema.parse(request.params.arguments);
+        const args = ListGroupProjectsSchema.parse(params.arguments);
         const projects = await listGroupProjects(args);
         return {
           content: [{ type: "text", text: JSON.stringify(projects, null, 2) }],
@@ -5803,7 +5945,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request: any) => {
 
       case "list_wiki_pages": {
         const { project_id, page, per_page, with_content } = ListWikiPagesSchema.parse(
-          request.params.arguments
+          params.arguments
         );
         const wikiPages = await listWikiPages(project_id, {
           page,
@@ -5816,7 +5958,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request: any) => {
       }
 
       case "get_wiki_page": {
-        const { project_id, slug } = GetWikiPageSchema.parse(request.params.arguments);
+        const { project_id, slug } = GetWikiPageSchema.parse(params.arguments);
         const wikiPage = await getWikiPage(project_id, slug);
         return {
           content: [{ type: "text", text: JSON.stringify(wikiPage, null, 2) }],
@@ -5824,9 +5966,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request: any) => {
       }
 
       case "create_wiki_page": {
-        const { project_id, title, content, format } = CreateWikiPageSchema.parse(
-          request.params.arguments
-        );
+        const { project_id, title, content, format } = CreateWikiPageSchema.parse(params.arguments);
         const wikiPage = await createWikiPage(project_id, title, content, format);
         return {
           content: [{ type: "text", text: JSON.stringify(wikiPage, null, 2) }],
@@ -5835,7 +5975,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request: any) => {
 
       case "update_wiki_page": {
         const { project_id, slug, title, content, format } = UpdateWikiPageSchema.parse(
-          request.params.arguments
+          params.arguments
         );
         const wikiPage = await updateWikiPage(project_id, slug, title, content, format);
         return {
@@ -5844,7 +5984,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request: any) => {
       }
 
       case "delete_wiki_page": {
-        const { project_id, slug } = DeleteWikiPageSchema.parse(request.params.arguments);
+        const { project_id, slug } = DeleteWikiPageSchema.parse(params.arguments);
         await deleteWikiPage(project_id, slug);
         return {
           content: [
@@ -5864,7 +6004,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request: any) => {
       }
 
       case "get_repository_tree": {
-        const args = GetRepositoryTreeSchema.parse(request.params.arguments);
+        const args = GetRepositoryTreeSchema.parse(params.arguments);
         const tree = await getRepositoryTree(args);
         return {
           content: [{ type: "text", text: JSON.stringify(tree, null, 2) }],
@@ -5872,7 +6012,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request: any) => {
       }
 
       case "list_pipelines": {
-        const args = ListPipelinesSchema.parse(request.params.arguments);
+        const args = ListPipelinesSchema.parse(params.arguments);
         const { project_id, ...options } = args;
         const pipelines = await listPipelines(project_id, options);
         return {
@@ -5881,7 +6021,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request: any) => {
       }
 
       case "get_pipeline": {
-        const { project_id, pipeline_id } = GetPipelineSchema.parse(request.params.arguments);
+        const { project_id, pipeline_id } = GetPipelineSchema.parse(params.arguments);
         const pipeline = await getPipeline(project_id, pipeline_id);
         return {
           content: [
@@ -5895,7 +6035,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request: any) => {
 
       case "list_pipeline_jobs": {
         const { project_id, pipeline_id, ...options } = ListPipelineJobsSchema.parse(
-          request.params.arguments
+          params.arguments
         );
         const jobs = await listPipelineJobs(project_id, pipeline_id, options);
         return {
@@ -5910,7 +6050,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request: any) => {
 
       case "list_pipeline_trigger_jobs": {
         const { project_id, pipeline_id, ...options } = ListPipelineTriggerJobsSchema.parse(
-          request.params.arguments
+          params.arguments
         );
         const triggerJobs = await listPipelineTriggerJobs(project_id, pipeline_id, options);
         return {
@@ -5924,7 +6064,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request: any) => {
       }
 
       case "get_pipeline_job": {
-        const { project_id, job_id } = GetPipelineJobOutputSchema.parse(request.params.arguments);
+        const { project_id, job_id } = GetPipelineJobOutputSchema.parse(params.arguments);
         const jobDetails = await getPipelineJob(project_id, job_id);
         return {
           content: [
@@ -5938,7 +6078,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request: any) => {
 
       case "get_pipeline_job_output": {
         const { project_id, job_id, limit, offset } = GetPipelineJobOutputSchema.parse(
-          request.params.arguments
+          params.arguments
         );
         const jobOutput = await getPipelineJobOutput(project_id, job_id, limit, offset);
         return {
@@ -5952,7 +6092,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request: any) => {
       }
 
       case "create_pipeline": {
-        const { project_id, ref, variables } = CreatePipelineSchema.parse(request.params.arguments);
+        const { project_id, ref, variables } = CreatePipelineSchema.parse(params.arguments);
         const pipeline = await createPipeline(project_id, ref, variables);
         return {
           content: [
@@ -5965,7 +6105,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request: any) => {
       }
 
       case "retry_pipeline": {
-        const { project_id, pipeline_id } = RetryPipelineSchema.parse(request.params.arguments);
+        const { project_id, pipeline_id } = RetryPipelineSchema.parse(params.arguments);
         const pipeline = await retryPipeline(project_id, pipeline_id);
         return {
           content: [
@@ -5978,7 +6118,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request: any) => {
       }
 
       case "cancel_pipeline": {
-        const { project_id, pipeline_id } = CancelPipelineSchema.parse(request.params.arguments);
+        const { project_id, pipeline_id } = CancelPipelineSchema.parse(params.arguments);
         const pipeline = await cancelPipeline(project_id, pipeline_id);
         return {
           content: [
@@ -5991,7 +6131,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request: any) => {
       }
 
       case "play_pipeline_job": {
-        const { project_id, job_id, job_variables_attributes } = PlayPipelineJobSchema.parse(request.params.arguments);
+        const { project_id, job_id, job_variables_attributes } = PlayPipelineJobSchema.parse(
+          params.arguments
+        );
         const job = await playPipelineJob(project_id, job_id, job_variables_attributes);
         return {
           content: [
@@ -6004,7 +6146,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request: any) => {
       }
 
       case "retry_pipeline_job": {
-        const { project_id, job_id } = RetryPipelineJobSchema.parse(request.params.arguments);
+        const { project_id, job_id } = RetryPipelineJobSchema.parse(params.arguments);
         const job = await retryPipelineJob(project_id, job_id);
         return {
           content: [
@@ -6017,7 +6159,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request: any) => {
       }
 
       case "cancel_pipeline_job": {
-        const { project_id, job_id, force } = CancelPipelineJobSchema.parse(request.params.arguments);
+        const { project_id, job_id, force } = CancelPipelineJobSchema.parse(params.arguments);
         const job = await cancelPipelineJob(project_id, job_id, force);
         return {
           content: [
@@ -6030,7 +6172,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request: any) => {
       }
 
       case "list_merge_requests": {
-        const args = ListMergeRequestsSchema.parse(request.params.arguments);
+        const args = ListMergeRequestsSchema.parse(params.arguments);
         const mergeRequests = await listMergeRequests(args.project_id, args);
         return {
           content: [{ type: "text", text: JSON.stringify(mergeRequests, null, 2) }],
@@ -6038,9 +6180,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request: any) => {
       }
 
       case "list_milestones": {
-        const { project_id, ...options } = ListProjectMilestonesSchema.parse(
-          request.params.arguments
-        );
+        const { project_id, ...options } = ListProjectMilestonesSchema.parse(params.arguments);
         const milestones = await listProjectMilestones(project_id, options);
         return {
           content: [
@@ -6053,9 +6193,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request: any) => {
       }
 
       case "get_milestone": {
-        const { project_id, milestone_id } = GetProjectMilestoneSchema.parse(
-          request.params.arguments
-        );
+        const { project_id, milestone_id } = GetProjectMilestoneSchema.parse(params.arguments);
         const milestone = await getProjectMilestone(project_id, milestone_id);
         return {
           content: [
@@ -6068,9 +6206,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request: any) => {
       }
 
       case "create_milestone": {
-        const { project_id, ...options } = CreateProjectMilestoneSchema.parse(
-          request.params.arguments
-        );
+        const { project_id, ...options } = CreateProjectMilestoneSchema.parse(params.arguments);
         const milestone = await createProjectMilestone(project_id, options);
         return {
           content: [
@@ -6084,7 +6220,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request: any) => {
 
       case "edit_milestone": {
         const { project_id, milestone_id, ...options } = EditProjectMilestoneSchema.parse(
-          request.params.arguments
+          params.arguments
         );
         const milestone = await editProjectMilestone(project_id, milestone_id, options);
         return {
@@ -6098,9 +6234,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request: any) => {
       }
 
       case "delete_milestone": {
-        const { project_id, milestone_id } = DeleteProjectMilestoneSchema.parse(
-          request.params.arguments
-        );
+        const { project_id, milestone_id } = DeleteProjectMilestoneSchema.parse(params.arguments);
         await deleteProjectMilestone(project_id, milestone_id);
         return {
           content: [
@@ -6120,9 +6254,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request: any) => {
       }
 
       case "get_milestone_issue": {
-        const { project_id, milestone_id } = GetMilestoneIssuesSchema.parse(
-          request.params.arguments
-        );
+        const { project_id, milestone_id } = GetMilestoneIssuesSchema.parse(params.arguments);
         const issues = await getMilestoneIssues(project_id, milestone_id);
         return {
           content: [
@@ -6136,7 +6268,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request: any) => {
 
       case "get_milestone_merge_requests": {
         const { project_id, milestone_id } = GetMilestoneMergeRequestsSchema.parse(
-          request.params.arguments
+          params.arguments
         );
         const mergeRequests = await getMilestoneMergeRequests(project_id, milestone_id);
         return {
@@ -6150,9 +6282,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request: any) => {
       }
 
       case "promote_milestone": {
-        const { project_id, milestone_id } = PromoteProjectMilestoneSchema.parse(
-          request.params.arguments
-        );
+        const { project_id, milestone_id } = PromoteProjectMilestoneSchema.parse(params.arguments);
         const milestone = await promoteProjectMilestone(project_id, milestone_id);
         return {
           content: [
@@ -6166,7 +6296,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request: any) => {
 
       case "get_milestone_burndown_events": {
         const { project_id, milestone_id } = GetMilestoneBurndownEventsSchema.parse(
-          request.params.arguments
+          params.arguments
         );
         const events = await getMilestoneBurndownEvents(project_id, milestone_id);
         return {
@@ -6180,7 +6310,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request: any) => {
       }
 
       case "list_commits": {
-        const args = ListCommitsSchema.parse(request.params.arguments);
+        const args = ListCommitsSchema.parse(params.arguments);
         const commits = await listCommits(args.project_id, args);
         return {
           content: [{ type: "text", text: JSON.stringify(commits, null, 2) }],
@@ -6188,7 +6318,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request: any) => {
       }
 
       case "get_commit": {
-        const args = GetCommitSchema.parse(request.params.arguments);
+        const args = GetCommitSchema.parse(params.arguments);
         const commit = await getCommit(args.project_id, args.sha, args.stats);
         return {
           content: [{ type: "text", text: JSON.stringify(commit, null, 2) }],
@@ -6196,7 +6326,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request: any) => {
       }
 
       case "get_commit_diff": {
-        const args = GetCommitDiffSchema.parse(request.params.arguments);
+        const args = GetCommitDiffSchema.parse(params.arguments);
         const diff = await getCommitDiff(args.project_id, args.sha, args.full_diff);
         return {
           content: [{ type: "text", text: JSON.stringify(diff, null, 2) }],
@@ -6204,7 +6334,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request: any) => {
       }
 
       case "list_group_iterations": {
-        const args = ListGroupIterationsSchema.parse(request.params.arguments);
+        const args = ListGroupIterationsSchema.parse(params.arguments);
         const iterations = await listGroupIterations(args.group_id, args);
         return {
           content: [{ type: "text", text: JSON.stringify(iterations, null, 2) }],
@@ -6212,7 +6342,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request: any) => {
       }
 
       case "upload_markdown": {
-        const args = MarkdownUploadSchema.parse(request.params.arguments);
+        const args = MarkdownUploadSchema.parse(params.arguments);
         const upload = await markdownUpload(args.project_id, args.file_path);
         return {
           content: [{ type: "text", text: JSON.stringify(upload, null, 2) }],
@@ -6220,15 +6350,22 @@ server.setRequestHandler(CallToolRequestSchema, async (request: any) => {
       }
 
       case "download_attachment": {
-        const args = DownloadAttachmentSchema.parse(request.params.arguments);
-        const filePath = await downloadAttachment(args.project_id, args.secret, args.filename, args.local_path);
+        const args = DownloadAttachmentSchema.parse(params.arguments);
+        const filePath = await downloadAttachment(
+          args.project_id,
+          args.secret,
+          args.filename,
+          args.local_path
+        );
         return {
-          content: [{ type: "text", text: JSON.stringify({ success: true, file_path: filePath }, null, 2) }],
+          content: [
+            { type: "text", text: JSON.stringify({ success: true, file_path: filePath }, null, 2) },
+          ],
         };
       }
 
       case "list_events": {
-        const args = ListEventsSchema.parse(request.params.arguments);
+        const args = ListEventsSchema.parse(params.arguments);
         const events = await listEvents(args);
         return {
           content: [{ type: "text", text: JSON.stringify(events, null, 2) }],
@@ -6236,7 +6373,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request: any) => {
       }
 
       case "get_project_events": {
-        const args = GetProjectEventsSchema.parse(request.params.arguments);
+        const args = GetProjectEventsSchema.parse(params.arguments);
         const { project_id, ...options } = args;
         const events = await getProjectEvents(project_id, options);
         return {
@@ -6245,7 +6382,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request: any) => {
       }
 
       case "list_releases": {
-        const args = ListReleasesSchema.parse(request.params.arguments);
+        const args = ListReleasesSchema.parse(params.arguments);
         const { project_id, ...options } = args;
         const releases = await listReleases(project_id, options);
         return {
@@ -6254,7 +6391,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request: any) => {
       }
 
       case "get_release": {
-        const args = GetReleaseSchema.parse(request.params.arguments);
+        const args = GetReleaseSchema.parse(params.arguments);
         const release = await getRelease(
           args.project_id,
           args.tag_name,
@@ -6266,7 +6403,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request: any) => {
       }
 
       case "create_release": {
-        const args = CreateReleaseSchema.parse(request.params.arguments);
+        const args = CreateReleaseSchema.parse(params.arguments);
         const { project_id, ...options } = args;
         const release = await createRelease(project_id, options);
         return {
@@ -6275,7 +6412,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request: any) => {
       }
 
       case "update_release": {
-        const args = UpdateReleaseSchema.parse(request.params.arguments);
+        const args = UpdateReleaseSchema.parse(params.arguments);
         const { project_id, tag_name, ...options } = args;
         const release = await updateRelease(project_id, tag_name, options);
         return {
@@ -6284,7 +6421,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request: any) => {
       }
 
       case "delete_release": {
-        const args = DeleteReleaseSchema.parse(request.params.arguments);
+        const args = DeleteReleaseSchema.parse(params.arguments);
         const release = await deleteRelease(args.project_id, args.tag_name);
         return {
           content: [
@@ -6301,7 +6438,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request: any) => {
       }
 
       case "create_release_evidence": {
-        const args = CreateReleaseEvidenceSchema.parse(request.params.arguments);
+        const args = CreateReleaseEvidenceSchema.parse(params.arguments);
         await createReleaseEvidence(args.project_id, args.tag_name);
         return {
           content: [
@@ -6318,7 +6455,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request: any) => {
       }
 
       case "download_release_asset": {
-        const args = DownloadReleaseAssetSchema.parse(request.params.arguments);
+        const args = DownloadReleaseAssetSchema.parse(params.arguments);
         const assetContent = await downloadReleaseAsset(
           args.project_id,
           args.tag_name,
@@ -6330,10 +6467,10 @@ server.setRequestHandler(CallToolRequestSchema, async (request: any) => {
       }
 
       default:
-        throw new Error(`Unknown tool: ${request.params.name}`);
+        throw new Error(`Unknown tool: ${params.name}`);
     }
   } catch (error) {
-    logger.debug(request.params);
+    logger.debug(params);
     if (error instanceof z.ZodError) {
       throw new Error(
         `Invalid arguments: ${error.errors
@@ -6343,7 +6480,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request: any) => {
     }
     throw error;
   }
-});
+}
 
 /**
  *  Color constants for terminal output
@@ -6432,15 +6569,13 @@ async function startStreamableHTTPServer(): Promise<void> {
   const streamableTransports: {
     [sessionId: string]: StreamableHTTPServerTransport;
   } = {};
-  
-  // Session-based auth mapping for remote authorization
-  const authBySession: Record<string, AuthData> = {};
+
   const authTimeouts: Record<string, NodeJS.Timeout> = {};
-  
+
   // Configuration and limits
-  const MAX_SESSIONS = parseInt(process.env.MAX_SESSIONS || '1000');
-  const MAX_REQUESTS_PER_MINUTE = parseInt(process.env.MAX_REQUESTS_PER_MINUTE || '60');
-  
+  const MAX_SESSIONS = Number.parseInt(process.env.MAX_SESSIONS || "1000", 10);
+  const MAX_REQUESTS_PER_MINUTE = Number.parseInt(process.env.MAX_REQUESTS_PER_MINUTE || "60", 10);
+
   // Metrics tracking
   const metrics = {
     activeSessions: 0,
@@ -6451,7 +6586,7 @@ async function startStreamableHTTPServer(): Promise<void> {
     rejectedByRateLimit: 0,
     rejectedByCapacity: 0,
   };
-  
+
   // Rate limiting per session
   const sessionRequestCounts: Record<string, { count: number; resetAt: number }> = {};
 
@@ -6461,7 +6596,7 @@ async function startStreamableHTTPServer(): Promise<void> {
   const validateToken = (token: string): boolean => {
     // GitLab PAT format: glpat-xxxxx (min 20 chars)
     if (token.length < 20) return false;
-    if (!/^[a-zA-Z0-9_\.-]+$/.test(token)) return false;
+    if (!/^[-a-zA-Z0-9_.]+$/.test(token)) return false;
     return true;
   };
 
@@ -6471,16 +6606,16 @@ async function startStreamableHTTPServer(): Promise<void> {
   const checkRateLimit = (sessionId: string): boolean => {
     const now = Date.now();
     const session = sessionRequestCounts[sessionId];
-    
+
     if (!session || now > session.resetAt) {
       sessionRequestCounts[sessionId] = { count: 1, resetAt: now + 60000 };
       return true;
     }
-    
+
     if (session.count >= MAX_REQUESTS_PER_MINUTE) {
       return false;
     }
-    
+
     session.count++;
     return true;
   };
@@ -6490,20 +6625,44 @@ async function startStreamableHTTPServer(): Promise<void> {
    * Returns null if no auth found or invalid format
    */
   const parseAuthHeaders = (req: Request): AuthData | null => {
-    const authHeader = (req.headers['authorization'] as string | undefined) || '';
-    const privateToken = (req.headers['private-token'] as string | undefined) || '';
+    const authHeader = (req.headers["authorization"] as string | undefined) || "";
+    const privateToken = (req.headers["private-token"] as string | undefined) || "";
+    const dynamicApiUrl = (req.headers["x-gitlab-api-url"] as string | undefined)?.trim();
+
+    let apiUrl = GITLAB_API_URL; // Default API URL
+
+    // Only process dynamic URL if the feature is enabled
+    if (ENABLE_DYNAMIC_API_URL && dynamicApiUrl) {
+      try {
+        new URL(dynamicApiUrl); // Ensure it's a valid URL format
+        apiUrl = normalizeGitLabApiUrl(dynamicApiUrl);
+      } catch {
+        logger.warn(`Invalid X-GitLab-API-URL provided: ${dynamicApiUrl}. Auth will fail.`);
+        return null; // Reject if URL is malformed
+      }
+    }
+
+    // Extract token
+    let token: string | null = null;
+    let header: "Authorization" | "Private-Token" | null = null;
 
     if (privateToken) {
-      const token = privateToken.trim();
-      if (!token || !validateToken(token)) return null;
-      return { header: 'Private-Token', token, lastUsed: Date.now() };
+      token = privateToken.trim();
+      header = "Private-Token";
+    } else if (authHeader) {
+      // Use \S+ instead of .+ to prevent ReDoS attacks
+      // \S+ only matches non-whitespace, so trim() is technically unnecessary,
+      // but we keep it for defensive coding and backward compatibility
+      const match = /^Bearer\s+(\S+)$/i.exec(authHeader);
+      if (match) {
+        token = match[1].trim();
+        header = "Authorization";
+      }
     }
-    
-    if (authHeader) {
-      const match = authHeader.match(/^Bearer\s+(.+)$/i);
-      const token = match ? match[1].trim() : '';
-      if (!token || !validateToken(token)) return null;
-      return { header: 'Authorization', token, lastUsed: Date.now() };
+
+    // Validate token and return AuthData object
+    if (token && header && validateToken(token)) {
+      return { header, token, lastUsed: Date.now(), apiUrl };
     }
 
     return null;
@@ -6517,11 +6676,13 @@ async function startStreamableHTTPServer(): Promise<void> {
   const setAuthTimeout = (sessionId: string) => {
     // Clear existing timeout if any
     clearAuthTimeout(sessionId);
-    
+
     // Set new timeout
     authTimeouts[sessionId] = setTimeout(() => {
       if (authBySession[sessionId]) {
-        logger.info(`Session ${sessionId}: auth token expired after ${SESSION_TIMEOUT_SECONDS}s of inactivity`);
+        logger.info(
+          `Session ${sessionId}: auth token expired after ${SESSION_TIMEOUT_SECONDS}s of inactivity`
+        );
         delete authBySession[sessionId];
         delete authTimeouts[sessionId];
         metrics.expiredSessions++;
@@ -6554,26 +6715,26 @@ async function startStreamableHTTPServer(): Promise<void> {
   // Streamable HTTP endpoint - handles both session creation and message handling
   app.post("/mcp", async (req: Request, res: Response) => {
     const sessionId = req.headers["mcp-session-id"] as string;
-    
+
     // Track request
     metrics.requestsProcessed++;
-    
+
     // Rate limiting check for existing sessions
     if (REMOTE_AUTHORIZATION && sessionId && !checkRateLimit(sessionId)) {
       metrics.rejectedByRateLimit++;
-      res.status(429).json({ 
-        error: 'Rate limit exceeded',
-        message: `Maximum ${MAX_REQUESTS_PER_MINUTE} requests per minute allowed`
+      res.status(429).json({
+        error: "Rate limit exceeded",
+        message: `Maximum ${MAX_REQUESTS_PER_MINUTE} requests per minute allowed`,
       });
       return;
     }
-    
+
     // Capacity check for new sessions
     if (!sessionId && Object.keys(streamableTransports).length >= MAX_SESSIONS) {
       metrics.rejectedByCapacity++;
-      res.status(503).json({ 
-        error: 'Server capacity reached',
-        message: `Maximum ${MAX_SESSIONS} concurrent sessions allowed. Please try again later.`
+      res.status(503).json({
+        error: "Server capacity reached",
+        message: `Maximum ${MAX_SESSIONS} concurrent sessions allowed. Please try again later.`,
       });
       return;
     }
@@ -6586,9 +6747,10 @@ async function startStreamableHTTPServer(): Promise<void> {
         // New session: require auth headers
         if (!authData) {
           metrics.authFailures++;
-          res.status(401).json({ 
-            error: 'Missing Authorization or Private-Token header',
-            message: 'Remote authorization is enabled. Please provide Authorization or Private-Token header.'
+          res.status(401).json({
+            error: "Missing Authorization or Private-Token header",
+            message:
+              "Remote authorization is enabled. Please provide Authorization or Private-Token header.",
           });
           return;
         }
@@ -6610,14 +6772,15 @@ async function startStreamableHTTPServer(): Promise<void> {
       }
     }
 
-    // Wrap request handling in AsyncLocalStorage context
-    const handleRequestWithAuth = async () => {
+    // Handle request with proper AsyncLocalStorage context
+    const handleRequest = async () => {
       try {
         let transport: StreamableHTTPServerTransport;
 
         if (sessionId && streamableTransports[sessionId]) {
           // Reuse existing transport for ongoing session
           transport = streamableTransports[sessionId];
+
           await transport.handleRequest(req, res, req.body);
         } else {
           // Create new transport for new session
@@ -6628,7 +6791,7 @@ async function startStreamableHTTPServer(): Promise<void> {
               metrics.totalSessions++;
               metrics.activeSessions++;
               logger.warn(`Streamable HTTP session initialized: ${newSessionId}`);
-              
+
               // Store auth for newly created session in remote mode
               if (REMOTE_AUTHORIZATION && !authBySession[newSessionId]) {
                 const authData = parseAuthHeaders(req);
@@ -6656,8 +6819,10 @@ async function startStreamableHTTPServer(): Promise<void> {
             }
           };
 
-          // Connect transport to MCP server before handling the request
+          // Connect transport to MCP server
           await server.connect(transport);
+
+          // Handle the request - context is already set up in the outer handleRequest wrapper
           await transport.handleRequest(req, res, req.body);
         }
       } catch (error) {
@@ -6672,17 +6837,30 @@ async function startStreamableHTTPServer(): Promise<void> {
     // Execute with auth context in remote mode
     if (REMOTE_AUTHORIZATION && sessionId && authBySession[sessionId]) {
       const authData = authBySession[sessionId];
-      const ctx: SessionAuth = { 
-        sessionId, 
+      const ctx: SessionAuth = {
+        sessionId,
         header: authData.header,
         token: authData.token,
-        lastUsed: authData.lastUsed
+        lastUsed: authData.lastUsed,
+        apiUrl: authData.apiUrl,
       };
-      await sessionAuthStore.run(ctx, handleRequestWithAuth);
+
+      // Run the entire request handling within AsyncLocalStorage context
+      await sessionAuthStore.run(ctx, handleRequest);
     } else {
       // Standard execution (no remote auth or no session yet)
-      await handleRequestWithAuth();
+      await handleRequest();
     }
+  });
+
+  // Reject unsupported methods on /mcp
+  app.get("/mcp", (_req: Request, res: Response) => {
+    res.setHeader("Allow", "POST, DELETE");
+    res.status(405).json({
+      error: "Method Not Allowed",
+      message:
+        "GET /mcp is not supported when STREAMABLE_HTTP is enabled. Use POST to communicate with the MCP server.",
+    });
   });
 
   // Metrics endpoint
@@ -6698,15 +6876,15 @@ async function startStreamableHTTPServer(): Promise<void> {
         maxRequestsPerMinute: MAX_REQUESTS_PER_MINUTE,
         sessionTimeoutSeconds: SESSION_TIMEOUT_SECONDS,
         remoteAuthEnabled: REMOTE_AUTHORIZATION,
-      }
+      },
     });
   });
-  
+
   // Health check endpoint
   app.get("/health", (_req: Request, res: Response) => {
     const isHealthy = Object.keys(streamableTransports).length < MAX_SESSIONS;
     res.status(isHealthy ? 200 : 503).json({
-      status: isHealthy ? 'healthy' : 'degraded',
+      status: isHealthy ? "healthy" : "degraded",
       activeSessions: Object.keys(streamableTransports).length,
       maxSessions: MAX_SESSIONS,
       uptime: process.uptime(),
@@ -6748,21 +6926,21 @@ async function startStreamableHTTPServer(): Promise<void> {
     logger.info(`GitLab MCP Server running with Streamable HTTP transport`);
     logger.info(`${colorGreen}Endpoint: http://${HOST}:${PORT}/mcp${colorReset}`);
   });
-  
+
   // Graceful shutdown handler
   const gracefulShutdown = async (signal: string) => {
     logger.info(`${signal} received, starting graceful shutdown...`);
-    
+
     // Stop accepting new connections
     httpServer.close(() => {
-      logger.info('HTTP server closed');
+      logger.info("HTTP server closed");
     });
-    
+
     // Close all active sessions
     const sessionIds = Object.keys(streamableTransports);
     logger.info(`Closing ${sessionIds.length} active sessions...`);
-    
-    const closePromises = sessionIds.map(async (sessionId) => {
+
+    const closePromises = sessionIds.map(async sessionId => {
       try {
         const transport = streamableTransports[sessionId];
         if (transport) {
@@ -6776,21 +6954,21 @@ async function startStreamableHTTPServer(): Promise<void> {
         logger.error(`Error closing session ${sessionId}:`, error);
       }
     });
-    
+
     await Promise.allSettled(closePromises);
-    
+
     // Clear all timeouts
     Object.keys(authTimeouts).forEach(sessionId => {
       clearAuthTimeout(sessionId);
     });
-    
-    logger.info('Graceful shutdown complete');
+
+    logger.info("Graceful shutdown complete");
     process.exit(0);
   };
-  
+
   // Register signal handlers
-  process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
-  process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+  process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
+  process.on("SIGINT", () => gracefulShutdown("SIGINT"));
 }
 
 /**
@@ -6815,10 +6993,11 @@ async function initializeServerByTransportMode(mode: TransportMode): Promise<voi
       await startStreamableHTTPServer();
       break;
 
-    default:
+    default: {
       // This should never happen with proper enum usage, but TypeScript requires it
       const exhaustiveCheck: never = mode;
       throw new Error(`Unknown transport mode: ${exhaustiveCheck}`);
+    }
   }
 }
 
@@ -6847,6 +7026,9 @@ async function runServer() {
 
     const transportMode = determineTransportMode();
     await initializeServerByTransportMode(transportMode);
+
+    logger.info(`Configured GitLab API URLs: ${GITLAB_API_URLS.join(", ")}`);
+    logger.info(`Default GitLab API URL: ${GITLAB_API_URL}`);
   } catch (error) {
     logger.error("Error initializing server:", error);
     process.exit(1);

@@ -1,6 +1,6 @@
 {
   "name": "@alfonsodg/mcp-gitlab",
-  "version": "2.0.14",
+  "version": "2.0.22",
   "description": "MCP server for using the GitLab API (with CLI args support)",
   "license": "MIT",
   "author": "zereight",
@@ -9,11 +9,16 @@
   "files": [
     "build"
   ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/zereight/gitlab-mcp.git"
+  },
   "publishConfig": {
     "access": "public"
   },
   "engines": {
-    "node": ">=14"
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
   },
   "scripts": {
     "build": "tsc && node -e \"require('fs').chmodSync('build/index.js', '755')\"",
@@ -28,14 +33,14 @@
     "test:server": "npm run build && node build/test/test-all-transport-server.js",
     "test:mcp:readonly": "tsx test/readonly-mcp-tests.ts",
     "test:oauth": "tsx test/oauth-tests.ts",
-    "test:all": "npm run test && npm run test:mcp:readonly && npm run test:oauth",
+    "test:list-merge-requests": "npm run build && tsx test/test-list-merge-requests.ts",
+    "test:all": "npm run test && npm run test:mcp:readonly && npm run test:oauth && npm run test:list-merge-requests",
     "lint": "eslint . --ext .ts",
     "lint:fix": "eslint . --ext .ts --fix",
     "format": "prettier --write \"**/*.{js,ts,json,md}\"",
     "format:check": "prettier --check \"**/*.{js,ts,json,md}\""
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.10.0",
     "@types/node-fetch": "^2.6.12",
     "express": "^5.1.0",
     "fetch-cookie": "^3.1.0",
@@ -49,6 +54,8 @@
     "pkce-challenge": "^5.0.0",
     "socks-proxy-agent": "^8.0.5",
     "tough-cookie": "^5.1.2",
+    "zod": "^3.24.2",
+    "@modelcontextprotocol/sdk": "^1.24.2",
     "zod-to-json-schema": "3.24.5"
   },
   "devDependencies": {
@@ -62,7 +69,6 @@
     "prettier": "^3.4.2",
     "ts-node": "^10.9.2",
     "tsx": "^4.20.5",
-    "typescript": "^5.8.2",
-    "zod": "^3.24.2"
+    "typescript": "^5.8.2"
   }
 }
