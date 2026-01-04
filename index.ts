@@ -987,7 +987,7 @@ const allTools = [
   },
   {
     name: "list_merge_requests",
-    description: "List merge requests in a GitLab project with filtering options",
+    description: "List merge requests. Can list all merge requests the user has access to (global) or merge requests for a specific project (when project_id is provided)",
     inputSchema: toJSONSchema(ListMergeRequestsSchema),
   },
   {
@@ -1535,18 +1535,26 @@ async function listIssues(
 /**
  * List merge requests in a GitLab project with optional filtering
  *
- * @param {string} projectId - The ID or URL-encoded path of the project
+ * @param {string} [projectId] - The ID or URL-encoded path of the project (optional)
  * @param {Object} options - Optional filtering parameters
  * @returns {Promise<GitLabMergeRequest[]>} List of merge requests
  */
 async function listMergeRequests(
-  projectId: string,
+  projectId?: string,
   options: Omit<z.infer<typeof ListMergeRequestsSchema>, "project_id"> = {}
 ): Promise<GitLabMergeRequest[]> {
-  projectId = decodeURIComponent(projectId); // Decode project ID
-  const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/merge_requests`
-  );
+  let url: URL;
+
+  if (projectId) {
+    // List merge requests for a specific project
+    projectId = decodeURIComponent(projectId); // Decode project ID
+    url = new URL(
+      `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/merge_requests`
+    );
+  } else {
+    // List all merge requests the authenticated user has access to
+    url = new URL(`${getEffectiveApiUrl()}/merge_requests`);
+  }
 
   // Add all query parameters
   Object.entries(options).forEach(([key, value]) => {
