@@ -110,7 +110,9 @@ jobs:
     - name: Test Docker build
       run: |
         docker build -t mcp-gitlab-test .
-        docker run --rm mcp-gitlab-test node build/index.js --version || echo "Version check passed"
+        echo "Verifying Docker image contains built files..."
+        docker run --rm --entrypoint "" mcp-gitlab-test ls -la build/index.js
+        echo "Docker build verification passed"
 
   code-quality:
     runs-on: ubuntu-latest
