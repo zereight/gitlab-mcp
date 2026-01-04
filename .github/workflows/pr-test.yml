@@ -104,6 +104,16 @@ jobs:
         GITLAB_PERSONAL_ACCESS_TOKEN: ${{ secrets.GITLAB_PERSONAL_ACCESS_TOKEN }}
         GITLAB_PROJECT_ID: ${{ secrets.TEST_PROJECT_ID }}
     
+    - name: Run OAuth tests (mock server)
+      run: |
+        echo "Running OAuth tests with mock server..."
+        npm run test:oauth
+    
+    - name: Run list_merge_requests tests (mock server)
+      run: |
+        echo "Running list_merge_requests tests with mock server..."
+        npm run test:list-merge-requests
+
     - name: Test Docker build
       run: |
         docker build -t mcp-gitlab-test .
