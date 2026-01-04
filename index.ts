@@ -6629,9 +6629,10 @@ async function startStreamableHTTPServer(): Promise<void> {
       token = privateToken.trim();
       header = "Private-Token";
     } else if (authHeader) {
-      const match = /^Bearer\s+(.+)$/i.exec(authHeader);
+      // Use \S+ instead of .+ to prevent ReDoS attacks
+      const match = /^Bearer\s+(\S+)$/i.exec(authHeader);
       if (match) {
-        token = match[1].trim();
+        token = match[1];
         header = "Authorization";
       }
     }
