@@ -6630,9 +6630,11 @@ async function startStreamableHTTPServer(): Promise<void> {
       header = "Private-Token";
     } else if (authHeader) {
       // Use \S+ instead of .+ to prevent ReDoS attacks
+      // \S+ only matches non-whitespace, so trim() is technically unnecessary,
+      // but we keep it for defensive coding and backward compatibility
       const match = /^Bearer\s+(\S+)$/i.exec(authHeader);
       if (match) {
-        token = match[1];
+        token = match[1].trim();
         header = "Authorization";
       }
     }
