@@ -4636,9 +4636,17 @@ async function listProjectMembers(
 ): Promise<GitLabProjectMember[]> {
   projectId = decodeURIComponent(projectId);
   const effectiveProjectId = getEffectiveProjectId(projectId);
-  const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(effectiveProjectId)}/members`
-  );
+  if (options.include_inheritance) {
+    const url = new URL(
+      `${getEffectiveApiUrl()}/projects/${encodeURIComponent(effectiveProjectId)}/members/all`
+    );
+  }
+  else
+  {
+    const url = new URL(
+      `${getEffectiveApiUrl()}/projects/${encodeURIComponent(effectiveProjectId)}/members`
+    );
+  }
 
   // Add query parameters
   if (options.query) url.searchParams.append("query", options.query);
