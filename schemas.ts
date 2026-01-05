@@ -1880,6 +1880,7 @@ export const ListProjectMembersSchema = z.object({
   query: z.string().optional().describe("Search for members by name or username"),
   user_ids: z.array(z.number()).optional().describe("Filter by user IDs"),
   skip_users: z.array(z.number()).optional().describe("User IDs to exclude"),
+  include_inheritance: z.boolean().optional().describe("Include inherited members. Defaults to false."),
   per_page: z.number().optional().describe("Number of items per page (default: 20, max: 100)"),
   page: z.number().optional().describe("Page number for pagination (default: 1)"),
 });
