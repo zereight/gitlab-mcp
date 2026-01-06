@@ -2829,7 +2829,6 @@ async function mergeMergeRequest(
 
 /**
  * Approve a merge request
- * マージリクエストを承認する
  *
  * @param {string} projectId - The ID or URL-encoded path of the project
  * @param {string | number} mergeRequestIid - The internal ID of the merge request
@@ -2868,7 +2867,6 @@ async function approveMergeRequest(
 
 /**
  * Unapprove a previously approved merge request
- * マージリクエストの承認を取り消す
  *
  * @param {string} projectId - The ID or URL-encoded path of the project
  * @param {string | number} mergeRequestIid - The internal ID of the merge request
@@ -2895,7 +2893,6 @@ async function unapproveMergeRequest(
 
 /**
  * Get the approval state of a merge request
- * マージリクエストの承認状態を取得する
  *
  * @param {string} projectId - The ID or URL-encoded path of the project
  * @param {string | number} mergeRequestIid - The internal ID of the merge request
