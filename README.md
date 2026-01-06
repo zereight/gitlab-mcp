@@ -517,6 +517,9 @@ The token is stored per session (identified by `mcp-session-id` header) and reus
 93. `delete_release` - Delete a release from a GitLab project (does not delete the associated tag)
 94. `create_release_evidence` - Create release evidence for an existing release (GitLab Premium/Ultimate only)
 95. `download_release_asset` - Download a release asset file by direct asset path
+96. `approve_merge_request` - Approve a merge request (requires appropriate permissions)
+97. `unapprove_merge_request` - Unapprove a previously approved merge request
+98. `get_merge_request_approval_state` - Get the approval state of a merge request including approval rules and who has approved
 <!-- TOOLS-END -->
 
 </details>

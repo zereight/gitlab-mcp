@@ -633,7 +633,8 @@ const allTools = [
   },
   {
     name: "get_merge_request_approval_state",
-    description: "Get the approval state of a merge request including approval rules and who has approved",
+    description:
+      "Get the approval state of a merge request including approval rules and who has approved",
     inputSchema: toJSONSchema(GetMergeRequestApprovalStateSchema),
   },
   {
@@ -5626,10 +5627,7 @@ async function handleToolCall(params: any) {
 
       case "unapprove_merge_request": {
         const args = UnapproveMergeRequestSchema.parse(params.arguments);
-        const approvalState = await unapproveMergeRequest(
-          args.project_id,
-          args.merge_request_iid
-        );
+        const approvalState = await unapproveMergeRequest(args.project_id, args.merge_request_iid);
         return {
           content: [{ type: "text", text: JSON.stringify(approvalState, null, 2) }],
         };
