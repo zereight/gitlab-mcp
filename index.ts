@@ -2886,6 +2886,7 @@ async function unapproveMergeRequest(
   const response = await fetch(url.toString(), {
     ...getFetchConfig(),
     method: "POST",
+    body: JSON.stringify({}),
   });
 
   await handleGitLabError(response);
