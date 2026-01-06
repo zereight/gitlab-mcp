@@ -181,7 +181,7 @@ async function runTests() {
       console.log();
     }
 
-    // Test approve_merge_request (commented out by default to avoid actually approving)
+    // Test approve_merge_request
     console.log("4. Testing approve_merge_request...");
     const approveResponse = await sendMcpRequest(serverProcess, "tools/call", {
       name: "approve_merge_request",
