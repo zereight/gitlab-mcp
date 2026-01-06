@@ -1208,6 +1208,7 @@ const readOnlyTools = new Set([
   "list_releases",
   "get_release",
   "download_release_asset",
+  "get_merge_request_approval_state",
 ]);
 
 // Define which tools are related to wiki and can be toggled by USE_GITLAB_WIKI
