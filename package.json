@@ -35,6 +35,7 @@
     "test:mcp:readonly": "tsx test/readonly-mcp-tests.ts",
     "test:oauth": "tsx test/oauth-tests.ts",
     "test:list-merge-requests": "npm run build && tsx test/test-list-merge-requests.ts",
+    "test:approvals": "npm run build && tsx test/test-merge-request-approvals.ts",
     "lint": "eslint . --ext .ts",
     "lint:fix": "eslint . --ext .ts --fix",
     "format": "prettier --write \"**/*.{js,ts,json,md}\"",
