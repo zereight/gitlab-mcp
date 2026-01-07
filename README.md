@@ -491,7 +491,7 @@ The token is stored per session (identified by `mcp-session-id` header) and reus
 67. `play_pipeline_job` - Run a manual pipeline job
 68. `retry_pipeline_job` - Retry a failed or canceled pipeline job
 69. `cancel_pipeline_job` - Cancel a running pipeline job
-70. `list_merge_requests` - List merge requests in a GitLab project with filtering options
+70. `list_merge_requests` - List merge requests globally or in a specific GitLab project with filtering options (project_id is now optional)
 71. `list_milestones` - List milestones in a GitLab project with filtering options
 72. `get_milestone` - Get details of a specific milestone
 73. `create_milestone` - Create a new milestone in a GitLab project

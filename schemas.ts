@@ -1245,7 +1245,7 @@ export const ListIssuesSchema = z
 // Merge Requests API operation schemas
 export const ListMergeRequestsSchema = z
   .object({
-    project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
+    project_id: z.coerce.string().optional().describe("Project ID or URL-encoded path (optional - if not provided, lists all merge requests the user has access to)"),
     assignee_id: z.coerce
       .string()
       .optional()
