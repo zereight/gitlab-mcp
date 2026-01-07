@@ -897,7 +897,7 @@ export const GitLabDiscussionNoteSchema = z.object({
         .describe(
           "Line number in the original file (before changes). Used for deleted lines and context lines. Null for newly added lines."
         ),
-      line_range: z.any().nullable().optional(), // Accept any value for line_range including null
+      line_range: LineRangeSchema.nullable().optional(), // Accept any value for line_range including null
       width: z.number().nullable().optional(), // For image diff notes
       height: z.number().nullable().optional(), // For image diff notes
       x: z.number().nullable().optional(), // For image diff notes
@@ -1585,50 +1585,25 @@ export const MergeRequestThreadPositionCreateSchema = z.object({
   y: z.number().optional().describe("IMAGE DIFFS ONLY: Y coordinate on the image (for position_type='image')."),
 });
 
-// Schema for parsing position from GitLab API responses (more lenient)
-export const MergeRequestThreadPositionResponseSchema = z.object({
-  base_sha: z.string().nullable().optional(),
-  head_sha: z.string().nullable().optional(),
-  start_sha: z.string().nullable().optional(),
-  position_type: z.enum(["text", "image", "file"]).nullable().optional(),
-  new_path: z.string().nullable().optional(),
-  old_path: z.string().nullable().optional(),
-  new_line: z.number().nullable().optional(),
-  old_line: z.number().nullable().optional(),
-  line_range: z.any().nullable().optional(), // Accept any value including null for line_range
-  width: z.number().nullable().optional(),
-  height: z.number().nullable().optional(),
-  x: z.number().nullable().optional(),
-  y: z.number().nullable().optional(),
-}).passthrough();
-
 // Schema for creating/sending position to GitLab API (stricter)
 export const MergeRequestThreadPositionSchema = z.object({
   base_sha: z
     .string()
-    .nullable()
-    .optional()
     .describe(
       "REQUIRED: Base commit SHA in the source branch. Get this from merge request diff_refs.base_sha."
     ),
   head_sha: z
     .string()
-    .nullable()
-    .optional()
     .describe(
       "REQUIRED: SHA referencing HEAD of the source branch. Get this from merge request diff_refs.head_sha."
     ),
   start_sha: z
     .string()
-    .nullable()
-    .optional()
     .describe(
       "REQUIRED: SHA referencing the start commit of the source branch. Get this from merge request diff_refs.start_sha."
     ),
   position_type: z
     .enum(["text", "image", "file"])
-    .nullable()
-    .optional()
     .describe(
       "REQUIRED: Position type. Use 'text' for code diffs, 'image' for image diffs, 'file' for file-level comments."
     ),
@@ -1693,7 +1668,7 @@ export const GitLabDraftNoteSchema = z.object({
   note: z.string().optional(), // Some APIs might use 'note' instead of 'body'
   created_at: z.string().optional(),
   updated_at: z.string().optional(),
-  position: MergeRequestThreadPositionResponseSchema.nullable().optional(),
+  position: MergeRequestThreadPositionSchema.nullable().optional(),
   resolve_discussion: z.boolean().optional(),
 }).transform((data) => ({
   // Normalize the response to always have consistent field names
