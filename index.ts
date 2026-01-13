@@ -454,16 +454,19 @@ const clientPool = new GitLabClientPool({
 });
 
 // Create cookie jar with clean Netscape file parsing
+// Resolve cookie path once
+const resolvedCookiePath = GITLAB_AUTH_COOKIE_PATH
+  ? GITLAB_AUTH_COOKIE_PATH.startsWith("~/")
+    ? path.join(process.env.HOME || "", GITLAB_AUTH_COOKIE_PATH.slice(2))
+    : GITLAB_AUTH_COOKIE_PATH
+  : null;
+
 const createCookieJar = (): CookieJar | null => {
-  if (!GITLAB_AUTH_COOKIE_PATH) return null;
+  if (!resolvedCookiePath) return null;
 
   try {
-    const cookiePath = GITLAB_AUTH_COOKIE_PATH.startsWith("~/")
-      ? path.join(process.env.HOME || "", GITLAB_AUTH_COOKIE_PATH.slice(2))
-      : GITLAB_AUTH_COOKIE_PATH;
-
     const jar = new CookieJar();
-    const cookieContent = fs.readFileSync(cookiePath, "utf8");
+    const cookieContent = fs.readFileSync(resolvedCookiePath, "utf8");
 
     cookieContent.split("\n").forEach(line => {
       // Handle #HttpOnly_ prefix
@@ -504,39 +507,51 @@ const createCookieJar = (): CookieJar | null => {
   }
 };
 
-// Initialize cookie jar and fetch
-const cookieJar = createCookieJar();
-const fetch = cookieJar ? fetchCookie(nodeFetch, cookieJar) : nodeFetch;
+// Cookie jar and fetch - reloaded when cookie file changes
+let cookieJar = createCookieJar();
+let fetch: typeof nodeFetch = cookieJar ? fetchCookie(nodeFetch, cookieJar) : nodeFetch;
+let lastCookieMtime = 0;
+try {
+  if (resolvedCookiePath) lastCookieMtime = fs.statSync(resolvedCookiePath).mtimeMs;
+} catch {
+  // File may not exist yet
+}
+let sessionWarmedUp = false;
 
-// Ensure session is established for the current request
-async function ensureSessionForRequest(): Promise<void> {
-  if (!cookieJar || !GITLAB_AUTH_COOKIE_PATH) return;
+function reloadCookiesIfChanged(): void {
+  if (!resolvedCookiePath) return;
 
-  // Extract the base URL from GITLAB_API_URL
-  const apiUrl = new URL(GITLAB_API_URL);
-  const baseUrl = `${apiUrl.protocol}//${apiUrl.hostname}`;
-
-  // Check if we already have GitLab session cookies
-  const gitlabCookies = cookieJar.getCookiesSync(baseUrl);
-  const hasSessionCookie = gitlabCookies.some(
-    cookie => cookie.key === "_gitlab_session" || cookie.key === "remember_user_token"
-  );
-
-  if (!hasSessionCookie) {
-    try {
-      // Establish session with a lightweight request
-      await fetch(`${GITLAB_API_URL}/user`, {
-        ...getFetchConfig(),
-        redirect: "follow",
-      }).catch(() => {
-        // Ignore errors - the important thing is that cookies get set during redirects
-      });
-
-      // Small delay to ensure cookies are fully processed
-      await new Promise(resolve => setTimeout(resolve, 100));
-    } catch {
-      // Intentionally ignored: session establishment errors are non-critical
+  try {
+    const mtime = fs.statSync(resolvedCookiePath).mtimeMs;
+    if (mtime > lastCookieMtime) {
+      logger.info({ oldMtime: lastCookieMtime, newMtime: mtime }, "Cookie file changed, reloading");
+      lastCookieMtime = mtime;
+      cookieJar = createCookieJar();
+      fetch = cookieJar ? fetchCookie(nodeFetch, cookieJar) : nodeFetch;
+      sessionWarmedUp = false;
     }
+  } catch {
+    // Ignore stat errors
+  }
+}
+
+async function ensureSessionForRequest(): Promise<void> {
+  if (!resolvedCookiePath) return;
+  
+  reloadCookiesIfChanged();
+  
+  if (!cookieJar || sessionWarmedUp) return;
+
+  try {
+    await fetch(`${GITLAB_API_URL}/user`, {
+      ...getFetchConfig(),
+      redirect: "follow",
+    }).catch(() => {});
+
+    await new Promise(resolve => setTimeout(resolve, 100));
+    sessionWarmedUp = true;
+  } catch {
+    // Intentionally ignored - will retry next request
   }
 }
 
