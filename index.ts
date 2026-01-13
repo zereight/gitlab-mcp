@@ -5450,12 +5450,25 @@ async function handleToolCall(params: any) {
 
       case "get_merge_request_diffs": {
         const args = GetMergeRequestDiffsSchema.parse(params.arguments);
-        const diffs = await getMergeRequestDiffs(
+        let diffs = await getMergeRequestDiffs(
           args.project_id,
           args.merge_request_iid,
           args.source_branch,
           args.view
         );
+
+        // Filter diffs if excluded_file_patterns provided
+        if (args.excluded_file_patterns?.length) {
+          const regexPatterns = args.excluded_file_patterns.map((pattern) => new RegExp(pattern));
+
+          const matchesAnyPattern = (path: string): boolean => {
+            if (!path) return false;
+            return regexPatterns.some((regex) => regex.test(path));
+          };
+
+          diffs = diffs.filter((diff) => !matchesAnyPattern(diff.new_path));
+        }
+
         return {
           content: [{ type: "text", text: JSON.stringify(diffs, null, 2) }],
         };
