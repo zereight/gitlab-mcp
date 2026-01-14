@@ -10,7 +10,7 @@ GitLab MCP(Model Context Protocol) Server. **Includes bug fixes and improvements
 
 ## Usage
 
-### Using with Claude App, Cline, Roo Code, Cursor, Kilo Code
+### Using with Claude Code, Codex, Antigravity, OpenCode, Copilot, Cline, Roo Code, Cursor, Kilo Code, Amp Code
 
 When using with the Claude App, you need to set up your API key and URLs directly.
 
