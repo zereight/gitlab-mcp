@@ -538,10 +538,13 @@ async function reloadCookiesIfChanged(): Promise<void> {
     try {
       const mtime = (await fs.promises.stat(resolvedCookiePath)).mtimeMs;
       if (mtime !== lastCookieMtime) {
-        logger.info({ oldMtime: lastCookieMtime, newMtime: mtime }, "Cookie file changed, reloading");
-        lastCookieMtime = mtime;
-        cookieJar = await createCookieJar();
-        fetch = cookieJar ? fetchCookie(nodeFetch, cookieJar) : nodeFetch;
+        logger.info(
+          { oldMtime: lastCookieMtime, newMtime: mtime },
+          "Cookie file changed, reloading"
+        );
+        const newJar = await createCookieJar();
+        cookieJar = newJar;
+        fetch = newJar ? fetchCookie(nodeFetch, newJar) : nodeFetch;
         initialSessionRequestMade = false;
       }
     } catch (error) {
