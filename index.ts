@@ -3307,13 +3307,13 @@ async function listMergeRequestVersions(
 ): Promise<GitLabMergeRequestVersion[]> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(
       getEffectiveProjectId(projectId)
     )}/merge_requests/${mergeRequestIid}/versions`
   );
 
   const response = await fetch(url.toString(), {
-    ...DEFAULT_FETCH_CONFIG,
+    ...getFetchConfig(),
   });
 
   await handleGitLabError(response);
@@ -3333,17 +3333,22 @@ async function listMergeRequestVersions(
 async function getMergeRequestVersion(
   projectId: string,
   mergeRequestIid: number | string,
-  versionId: number | string
+  versionId: number | string,
+  unidiff?: boolean
 ): Promise<GitLabMergeRequestVersionDetail> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
-    `${GITLAB_API_URL}/projects/${encodeURIComponent(
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(
       getEffectiveProjectId(projectId)
     )}/merge_requests/${mergeRequestIid}/versions/${versionId}`
   );
 
+  if (unidiff !== undefined) {
+    url.searchParams.append("unidiff", String(unidiff));
+  }
+
   const response = await fetch(url.toString(), {
-    ...DEFAULT_FETCH_CONFIG,
+    ...getFetchConfig(),
   });
 
   await handleGitLabError(response);
@@ -5616,7 +5621,7 @@ async function handleToolCall(params: any) {
       }
 
       case "list_merge_request_versions": {
-        const args = ListMergeRequestVersionsSchema.parse(request.params.arguments);
+        const args = ListMergeRequestVersionsSchema.parse(params.arguments);
         const versions = await listMergeRequestVersions(
           args.project_id,
           args.merge_request_iid
@@ -5627,11 +5632,12 @@ async function handleToolCall(params: any) {
       }
 
       case "get_merge_request_version": {
-        const args = GetMergeRequestVersionSchema.parse(request.params.arguments);
+        const args = GetMergeRequestVersionSchema.parse(params.arguments);
         const version = await getMergeRequestVersion(
           args.project_id,
           args.merge_request_iid,
-          args.version_id
+          args.version_id,
+          args.unidiff
         );
         return {
           content: [{ type: "text", text: JSON.stringify(version, null, 2) }],
