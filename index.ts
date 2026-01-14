@@ -518,17 +518,7 @@ let cookieReloadLock: Promise<void> | null = null; // Mutex to prevent parallel 
 // request so subsequent requests have the correct cookies. Reset when cookies reload.
 let initialSessionRequestMade = false;
 
-// Initialize cookie jar asynchronously at startup
-(async () => {
-  if (!resolvedCookiePath) return;
-  try {
-    lastCookieMtime = (await fs.promises.stat(resolvedCookiePath)).mtimeMs;
-    cookieJar = await createCookieJar();
-    if (cookieJar) fetch = fetchCookie(nodeFetch, cookieJar);
-  } catch {
-    // File may not exist yet
-  }
-})();
+// Cookie jar is loaded on first request via reloadCookiesIfChanged (lastCookieMtime=0 triggers load)
 
 async function reloadCookiesIfChanged(): Promise<void> {
   if (!resolvedCookiePath) return;
@@ -542,13 +532,21 @@ async function reloadCookiesIfChanged(): Promise<void> {
           { oldMtime: lastCookieMtime, newMtime: mtime },
           "Cookie file changed, reloading"
         );
+        lastCookieMtime = mtime;
         const newJar = await createCookieJar();
         cookieJar = newJar;
         fetch = newJar ? fetchCookie(nodeFetch, newJar) : nodeFetch;
         initialSessionRequestMade = false;
       }
-    } catch (error) {
-      logger.debug({ error }, "Cookie file stat failed");
+    } catch {
+      // File deleted or inaccessible - clear cached cookies
+      if (cookieJar) {
+        logger.info("Cookie file removed, clearing cached cookies");
+        cookieJar = null;
+        fetch = nodeFetch;
+        lastCookieMtime = 0;
+        initialSessionRequestMade = false;
+      }
     }
   })();
 
