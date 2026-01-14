@@ -8,8 +8,6 @@
 
 GitLab MCP(Model Context Protocol) Server. **Includes bug fixes and improvements over the original GitLab MCP server.**
 
-<a href="https://glama.ai/mcp/servers/7jwbk4r6d7"><img width="380" height="200" src="https://glama.ai/mcp/servers/7jwbk4r6d7/badge" alt="gitlab mcp MCP server" /></a>
-
 ## Usage
 
 ### Using with Claude App, Cline, Roo Code, Cursor, Kilo Code
