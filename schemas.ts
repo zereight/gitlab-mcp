@@ -877,12 +877,12 @@ export const GitLabDiscussionNoteSchema = z.object({
   position: z
     .object({
       // Only present for DiffNote
-      base_sha: z.string().optional(),
-      start_sha: z.string().optional(),
-      head_sha: z.string().optional(),
+      base_sha: z.string().nullable().optional(),
+      start_sha: z.string().nullable().optional(),
+      head_sha: z.string().nullable().optional(),
       old_path: z.string().nullable().optional().describe("File path before change"),
       new_path: z.string().nullable().optional().describe("File path after change"),
-      position_type: z.enum(["text", "image", "file"]).optional(),
+      position_type: z.enum(["text", "image", "file"]).nullable().optional(),
       new_line: z
         .number()
         .nullable()
@@ -897,11 +897,11 @@ export const GitLabDiscussionNoteSchema = z.object({
         .describe(
           "Line number in the original file (before changes). Used for deleted lines and context lines. Null for newly added lines."
         ),
-      line_range: LineRangeSchema.nullable().optional(), // For multi-line diff notes
-      width: z.number().optional(), // For image diff notes
-      height: z.number().optional(), // For image diff notes
-      x: z.number().optional(), // For image diff notes
-      y: z.number().optional(), // For image diff notes
+      line_range: LineRangeSchema.nullable().optional(), // Accept any value for line_range including null
+      width: z.number().nullable().optional(), // For image diff notes
+      height: z.number().nullable().optional(), // For image diff notes
+      x: z.number().nullable().optional(), // For image diff notes
+      y: z.number().nullable().optional(), // For image diff notes
     })
     .passthrough() // Allow additional fields
     .optional(),
@@ -1585,6 +1585,7 @@ export const MergeRequestThreadPositionCreateSchema = z.object({
   y: z.number().optional().describe("IMAGE DIFFS ONLY: Y coordinate on the image (for position_type='image')."),
 });
 
+// Schema for creating/sending position to GitLab API (stricter)
 export const MergeRequestThreadPositionSchema = z.object({
   base_sha: z
     .string()
@@ -1639,18 +1640,22 @@ export const MergeRequestThreadPositionSchema = z.object({
   ),
   width: z
     .number()
+    .nullable()
     .optional()
     .describe("IMAGE DIFFS ONLY: Width of the image (for position_type='image')."),
   height: z
     .number()
+    .nullable()
     .optional()
     .describe("IMAGE DIFFS ONLY: Height of the image (for position_type='image')."),
   x: z
     .number()
+    .nullable()
     .optional()
     .describe("IMAGE DIFFS ONLY: X coordinate on the image (for position_type='image')."),
   y: z
     .number()
+    .nullable()
     .optional()
     .describe("IMAGE DIFFS ONLY: Y coordinate on the image (for position_type='image')."),
 });
@@ -1693,7 +1698,7 @@ export const ListDraftNotesSchema = ProjectParamsSchema.extend({
 export const CreateDraftNoteSchema = ProjectParamsSchema.extend({
   merge_request_iid: z.coerce.string().describe("The IID of a merge request"),
   body: z.string().describe("The content of the draft note"),
-  position: MergeRequestThreadPositionCreateSchema.optional().describe("Position when creating a diff note"),
+  position: MergeRequestThreadPositionSchema.optional().describe("Position when creating a diff note"),
   resolve_discussion: z.boolean().optional().describe("Whether to resolve the discussion when publishing"),
 });
 
@@ -1702,7 +1707,7 @@ export const UpdateDraftNoteSchema = ProjectParamsSchema.extend({
   merge_request_iid: z.coerce.string().describe("The IID of a merge request"),
   draft_note_id: z.coerce.string().describe("The ID of the draft note"),
   body: z.string().optional().describe("The content of the draft note"),
-  position: MergeRequestThreadPositionCreateSchema.optional().describe("Position when creating a diff note"),
+  position: MergeRequestThreadPositionSchema.optional().describe("Position when creating a diff note"),
   resolve_discussion: z.boolean().optional().describe("Whether to resolve the discussion when publishing"),
 });
 
