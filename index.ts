@@ -2981,6 +2981,9 @@ async function createDraftNote(
   );
 
   const requestBody: any = { note: body };
+  if (position) {
+    requestBody.position = position;
+  }
   if (resolveDiscussion !== undefined) {
     requestBody.resolve_discussion = resolveDiscussion;
   }
@@ -3028,6 +3031,9 @@ async function updateDraftNote(
   const requestBody: any = {};
   if (body !== undefined) {
     requestBody.note = body;
+  }
+  if (position) {
+    requestBody.position = position;
   }
   if (resolveDiscussion !== undefined) {
     requestBody.resolve_discussion = resolveDiscussion;
@@ -3249,6 +3255,10 @@ async function createMergeRequestThread(
   );
 
   const payload: Record<string, any> = { body };
+
+  if (position) {
+    payload.position = position;
+  }
 
   if (createdAt) {
     payload.created_at = createdAt;
