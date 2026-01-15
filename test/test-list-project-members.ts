@@ -2,6 +2,7 @@ import { describe, test, before, after, beforeEach } from 'node:test';
 import assert from 'node:assert';
 import { spawn } from 'child_process';
 import { MockGitLabServer, findMockServerPort } from './utils/mock-gitlab-server.js';
+import type { ListProjectMembersOptions } from '../schemas.js';
 
 const MOCK_TOKEN = 'glpat-mock-token-12345';
 const TEST_PROJECT_ID = '123';
@@ -32,7 +33,7 @@ const inheritedMembers = [
   }
 ];
 
-async function callListProjectMembers(args: Record<string, any> = {}, env: NodeJS.ProcessEnv) {
+async function callListProjectMembers(args: ListProjectMembersOptions, env: NodeJS.ProcessEnv) {
   return new Promise<any[]>((resolve, reject) => {
     const proc = spawn('node', ['build/index.js'], {
       stdio: ['pipe', 'pipe', 'pipe'],
