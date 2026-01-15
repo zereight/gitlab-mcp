@@ -530,7 +530,7 @@ async function reloadCookiesIfChanged(): Promise<void> {
       if (mtime !== lastCookieMtime) {
         logger.info(
           { oldMtime: lastCookieMtime, newMtime: mtime },
-          "Cookie file changed, reloading"
+          lastCookieMtime === 0 ? "Loading cookie file" : "Cookie file changed, reloading"
         );
         lastCookieMtime = mtime;
         const newJar = await createCookieJar();
@@ -565,7 +565,7 @@ async function ensureSessionForRequest(): Promise<void> {
   if (!cookieJar || initialSessionRequestMade) return;
 
   try {
-    const response = await fetch(`${GITLAB_API_URL}/user`, {
+    const response = await fetch(`${getEffectiveApiUrl()}/user`, {
       ...getFetchConfig(),
       redirect: "follow",
     });
