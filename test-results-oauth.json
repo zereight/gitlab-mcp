@@ -1,0 +1,92 @@
+[
+  {
+    "name": "OAuth class instantiation",
+    "status": "passed",
+    "duration": 0
+  },
+  {
+    "name": "Token storage path configuration",
+    "status": "passed",
+    "duration": 0
+  },
+  {
+    "name": "Scope configuration with api only",
+    "status": "passed",
+    "duration": 0
+  },
+  {
+    "name": "Multiple scopes configuration (redundant)",
+    "status": "passed",
+    "duration": 0
+  },
+  {
+    "name": "hasValidToken returns false without token",
+    "status": "passed",
+    "duration": 0
+  },
+  {
+    "name": "hasValidToken returns true with valid token",
+    "status": "passed",
+    "duration": 1
+  },
+  {
+    "name": "hasValidToken returns false with expired token",
+    "status": "passed",
+    "duration": 0
+  },
+  {
+    "name": "clearToken removes token file",
+    "status": "passed",
+    "duration": 1
+  },
+  {
+    "name": "Token file has correct permissions",
+    "status": "passed",
+    "duration": 0
+  },
+  {
+    "name": "Port availability check",
+    "status": "passed",
+    "duration": 2
+  },
+  {
+    "name": "OAuth redirect URI parsing",
+    "status": "passed",
+    "duration": 0
+  },
+  {
+    "name": "Token expiration calculation",
+    "status": "passed",
+    "duration": 0
+  },
+  {
+    "name": "Shared server concept",
+    "status": "passed",
+    "duration": 2
+  },
+  {
+    "name": "Environment variable configuration",
+    "status": "passed",
+    "duration": 0
+  },
+  {
+    "name": "Token data structure validation",
+    "status": "passed",
+    "duration": 1
+  },
+  {
+    "name": "Invalid token storage path handling",
+    "status": "passed",
+    "duration": 0
+  },
+  {
+    "name": "Self-hosted GitLab URL configuration",
+    "status": "passed",
+    "duration": 0
+  },
+  {
+    "name": "Custom port in redirect URI",
+    "status": "passed",
+    "duration": 0
+  }
+]

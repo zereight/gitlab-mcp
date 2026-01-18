@@ -2,6 +2,7 @@ import { describe, test, before, after } from 'node:test';
 import assert from 'node:assert';
 import { spawn } from 'child_process';
 import { MockGitLabServer, findMockServerPort } from './utils/mock-gitlab-server.js';
+import yaml from 'js-yaml';
 
 const MOCK_TOKEN = 'glpat-mock-token-12345';
 const TEST_PROJECT_ID = '123';
@@ -39,9 +40,10 @@ async function callListMergeRequests(args: Record<string, any> = {}, env: NodeJS
           const content = response.result?.content?.[0]?.text;
           if (content) {
             try {
-              resolve(JSON.parse(content));
+              // Content is now in YAML format, parse it
+              resolve(yaml.load(content) as any);
             } catch (e) {
-              reject(new Error(`Failed to parse tool output JSON: ${content}`));
+              reject(new Error(`Failed to parse tool output YAML: ${content}`));
             }
           } else {
             // Fallback for direct result (if changed in future) or empty

@@ -41,6 +41,7 @@ import { CookieJar, parse as parseCookie } from "tough-cookie";
 import { fileURLToPath, URL } from "node:url";
 import { z } from "zod";
 import { zodToJsonSchema } from "zod-to-json-schema";
+import yaml from "js-yaml";
 import { initializeOAuth } from "./oauth.js";
 import { GitLabClientPool } from "./gitlab-client-pool.js";
 // Add type imports for proxy agents
@@ -633,6 +634,19 @@ const getFetchConfig = () => {
     agent: agent,
   };
 };
+
+/**
+ * Format data as YAML for tool responses
+ * This reduces token consumption compared to JSON while preserving data structure
+ */
+function formatResponse(data: any): string {
+  return yaml.dump(data, {
+    indent: 2,
+    lineWidth: -1, // Don't wrap lines
+    noRefs: true,   // Don't use anchors/references
+    sortKeys: false // Preserve key order
+  });
+}
 
 const toJSONSchema = (schema: z.ZodTypeAny) => {
   const jsonSchema = zodToJsonSchema(schema, { $refStrategy: 'none' });
@@ -5289,7 +5303,7 @@ async function handleToolCall(params: any) {
           }
           const json = await response.json();
           return {
-            content: [{ type: "text", text: JSON.stringify(json, null, 2) }],
+            content: [{ type: "text", text: formatResponse(json) }],
           };
         } catch (err) {
           const message = err instanceof Error ? err.message : String(err);
@@ -5297,7 +5311,7 @@ async function handleToolCall(params: any) {
             content: [
               {
                 type: "text",
-                text: JSON.stringify({ error: `GraphQL request failed: ${message}` }, null, 2),
+                text: formatResponse({ error: `GraphQL request failed: ${message}` }),
               },
             ],
           };
@@ -5313,7 +5327,7 @@ async function handleToolCall(params: any) {
         try {
           const forkedProject = await forkProject(forkArgs.project_id, forkArgs.namespace);
           return {
-            content: [{ type: "text", text: JSON.stringify(forkedProject, null, 2) }],
+            content: [{ type: "text", text: formatResponse(forkedProject) }],
           };
         } catch (forkError) {
           logger.error("Error forking repository:", forkError);
@@ -5325,7 +5339,7 @@ async function handleToolCall(params: any) {
             content: [
               {
                 type: "text",
-                text: JSON.stringify({ error: forkErrorMessage }, null, 2),
+                text: formatResponse({ error: forkErrorMessage }),
               },
             ],
           };
@@ -5345,7 +5359,7 @@ async function handleToolCall(params: any) {
         });
 
         return {
-          content: [{ type: "text", text: JSON.stringify(branch, null, 2) }],
+          content: [{ type: "text", text: formatResponse(branch) }],
         };
       }
 
@@ -5366,7 +5380,7 @@ async function handleToolCall(params: any) {
           diffResp.diffs = diffResp.diffs.filter(diff => !matchesAnyPattern(diff.new_path));
         }
         return {
-          content: [{ type: "text", text: JSON.stringify(diffResp, null, 2) }],
+          content: [{ type: "text", text: formatResponse(diffResp) }],
         };
       }
 
@@ -5374,7 +5388,7 @@ async function handleToolCall(params: any) {
         const args = SearchRepositoriesSchema.parse(params.arguments);
         const results = await searchProjects(args.search, args.page, args.per_page);
         return {
-          content: [{ type: "text", text: JSON.stringify(results, null, 2) }],
+          content: [{ type: "text", text: formatResponse(results) }],
         };
       }
 
@@ -5385,7 +5399,7 @@ async function handleToolCall(params: any) {
         const args = CreateRepositorySchema.parse(params.arguments);
         const repository = await createRepository(args);
         return {
-          content: [{ type: "text", text: JSON.stringify(repository, null, 2) }],
+          content: [{ type: "text", text: formatResponse(repository) }],
         };
       }
 
@@ -5393,7 +5407,7 @@ async function handleToolCall(params: any) {
         const args = GetFileContentsSchema.parse(params.arguments);
         const contents = await getFileContents(args.project_id, args.file_path, args.ref);
         return {
-          content: [{ type: "text", text: JSON.stringify(contents, null, 2) }],
+          content: [{ type: "text", text: formatResponse(contents) }],
         };
       }
 
@@ -5410,7 +5424,7 @@ async function handleToolCall(params: any) {
           args.commit_id
         );
         return {
-          content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+          content: [{ type: "text", text: formatResponse(result) }],
         };
       }
 
@@ -5423,7 +5437,7 @@ async function handleToolCall(params: any) {
           args.files.map(f => ({ path: f.file_path, content: f.content }))
         );
         return {
-          content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+          content: [{ type: "text", text: formatResponse(result) }],
         };
       }
 
@@ -5432,7 +5446,7 @@ async function handleToolCall(params: any) {
         const { project_id, ...options } = args;
         const issue = await createIssue(project_id, options);
         return {
-          content: [{ type: "text", text: JSON.stringify(issue, null, 2) }],
+          content: [{ type: "text", text: formatResponse(issue) }],
         };
       }
 
@@ -5441,7 +5455,7 @@ async function handleToolCall(params: any) {
         const { project_id, ...options } = args;
         const mergeRequest = await createMergeRequest(project_id, options);
         return {
-          content: [{ type: "text", text: JSON.stringify(mergeRequest, null, 2) }],
+          content: [{ type: "text", text: formatResponse(mergeRequest) }],
         };
       }
 
@@ -5471,7 +5485,7 @@ async function handleToolCall(params: any) {
           args.resolved // Now one of body or resolved must be provided, not both
         );
         return {
-          content: [{ type: "text", text: JSON.stringify(note, null, 2) }],
+          content: [{ type: "text", text: formatResponse(note) }],
         };
       }
 
@@ -5485,7 +5499,7 @@ async function handleToolCall(params: any) {
           args.created_at
         );
         return {
-          content: [{ type: "text", text: JSON.stringify(note, null, 2) }],
+          content: [{ type: "text", text: formatResponse(note) }],
         };
       }
 
@@ -5498,7 +5512,7 @@ async function handleToolCall(params: any) {
         );
 
         return {
-          content: [{ type: "text", text: JSON.stringify(note, null, 2) }],
+          content: [{ type: "text", text: formatResponse(note) }],
         };
       }
 
@@ -5520,7 +5534,7 @@ async function handleToolCall(params: any) {
         );
 
         return {
-          content: [{ type: "text", text: JSON.stringify(note, null, 2) }],
+          content: [{ type: "text", text: formatResponse(note) }],
         };
       }
 
@@ -5534,7 +5548,7 @@ async function handleToolCall(params: any) {
         );
 
         return {
-          content: [{ type: "text", text: JSON.stringify(notes, null, 2) }],
+          content: [{ type: "text", text: formatResponse(notes) }],
         };
       }
 
@@ -5548,7 +5562,7 @@ async function handleToolCall(params: any) {
         );
 
         return {
-          content: [{ type: "text", text: JSON.stringify(note, null, 2) }],
+          content: [{ type: "text", text: formatResponse(note) }],
         };
       }
 
@@ -5562,7 +5576,7 @@ async function handleToolCall(params: any) {
           args.body
         );
         return {
-          content: [{ type: "text", text: JSON.stringify(note, null, 2) }],
+          content: [{ type: "text", text: formatResponse(note) }],
         };
       }
 
@@ -5576,7 +5590,7 @@ async function handleToolCall(params: any) {
           args.created_at
         );
         return {
-          content: [{ type: "text", text: JSON.stringify(note, null, 2) }],
+          content: [{ type: "text", text: formatResponse(note) }],
         };
       }
 
@@ -5588,7 +5602,7 @@ async function handleToolCall(params: any) {
           args.source_branch
         );
         return {
-          content: [{ type: "text", text: JSON.stringify(mergeRequest, null, 2) }],
+          content: [{ type: "text", text: formatResponse(mergeRequest) }],
         };
       }
 
@@ -5614,7 +5628,7 @@ async function handleToolCall(params: any) {
         }
 
         return {
-          content: [{ type: "text", text: JSON.stringify(diffs, null, 2) }],
+          content: [{ type: "text", text: formatResponse(diffs) }],
         };
       }
 
@@ -5629,7 +5643,7 @@ async function handleToolCall(params: any) {
           args.unidiff
         );
         return {
-          content: [{ type: "text", text: JSON.stringify(changes, null, 2) }],
+          content: [{ type: "text", text: formatResponse(changes) }],
         };
       }
 
@@ -5640,7 +5654,7 @@ async function handleToolCall(params: any) {
           args.merge_request_iid
         );
         return {
-          content: [{ type: "text", text: JSON.stringify(versions, null, 2) }],
+          content: [{ type: "text", text: formatResponse(versions) }],
         };
       }
 
@@ -5653,7 +5667,7 @@ async function handleToolCall(params: any) {
           args.unidiff
         );
         return {
-          content: [{ type: "text", text: JSON.stringify(version, null, 2) }],
+          content: [{ type: "text", text: formatResponse(version) }],
         };
       }
 
@@ -5667,7 +5681,7 @@ async function handleToolCall(params: any) {
           source_branch
         );
         return {
-          content: [{ type: "text", text: JSON.stringify(mergeRequest, null, 2) }],
+          content: [{ type: "text", text: formatResponse(mergeRequest) }],
         };
       }
 
@@ -5676,7 +5690,7 @@ async function handleToolCall(params: any) {
         const { project_id, merge_request_iid, ...options } = args;
         const mergeRequest = await mergeMergeRequest(project_id, options, merge_request_iid);
         return {
-          content: [{ type: "text", text: JSON.stringify(mergeRequest, null, 2) }],
+          content: [{ type: "text", text: formatResponse(mergeRequest) }],
         };
       }
 
@@ -5689,7 +5703,7 @@ async function handleToolCall(params: any) {
           options
         );
         return {
-          content: [{ type: "text", text: JSON.stringify(discussions, null, 2) }],
+          content: [{ type: "text", text: formatResponse(discussions) }],
         };
       }
 
@@ -5719,7 +5733,7 @@ async function handleToolCall(params: any) {
         const namespaces = z.array(GitLabNamespaceSchema).parse(data);
 
         return {
-          content: [{ type: "text", text: JSON.stringify(namespaces, null, 2) }],
+          content: [{ type: "text", text: formatResponse(namespaces) }],
         };
       }
 
@@ -5738,7 +5752,7 @@ async function handleToolCall(params: any) {
         const namespace = GitLabNamespaceSchema.parse(data);
 
         return {
-          content: [{ type: "text", text: JSON.stringify(namespace, null, 2) }],
+          content: [{ type: "text", text: formatResponse(namespace) }],
         };
       }
 
@@ -5755,7 +5769,7 @@ async function handleToolCall(params: any) {
         const namespaceExists = GitLabNamespaceExistsResponseSchema.parse(data);
 
         return {
-          content: [{ type: "text", text: JSON.stringify(namespaceExists, null, 2) }],
+          content: [{ type: "text", text: formatResponse(namespaceExists) }],
         };
       }
 
@@ -5784,7 +5798,7 @@ async function handleToolCall(params: any) {
         const data = await response.json();
         // Return raw data without parsing through our schema to avoid type mismatches in tests
         return {
-          content: [{ type: "text", text: JSON.stringify(data, null, 2) }],
+          content: [{ type: "text", text: formatResponse(data) }],
         };
       }
 
@@ -5793,7 +5807,7 @@ async function handleToolCall(params: any) {
         const projects = await listProjects(args);
 
         return {
-          content: [{ type: "text", text: JSON.stringify(projects, null, 2) }],
+          content: [{ type: "text", text: formatResponse(projects) }],
         };
       }
 
@@ -5802,7 +5816,7 @@ async function handleToolCall(params: any) {
         const { project_id, ...options } = args;
         const members = await listProjectMembers(project_id, options);
         return {
-          content: [{ type: "text", text: JSON.stringify(members, null, 2) }],
+          content: [{ type: "text", text: formatResponse(members) }],
         };
       }
 
@@ -5811,7 +5825,7 @@ async function handleToolCall(params: any) {
         const usersMap = await getUsers(args.usernames);
 
         return {
-          content: [{ type: "text", text: JSON.stringify(usersMap, null, 2) }],
+          content: [{ type: "text", text: formatResponse(usersMap) }],
         };
       }
 
@@ -5821,7 +5835,7 @@ async function handleToolCall(params: any) {
 
         const note = await createNote(project_id, noteable_type, noteable_iid, body);
         return {
-          content: [{ type: "text", text: JSON.stringify(note, null, 2) }],
+          content: [{ type: "text", text: formatResponse(note) }],
         };
       }
 
@@ -5831,7 +5845,7 @@ async function handleToolCall(params: any) {
 
         const draftNote = await getDraftNote(project_id, merge_request_iid, draft_note_id);
         return {
-          content: [{ type: "text", text: JSON.stringify(draftNote, null, 2) }],
+          content: [{ type: "text", text: formatResponse(draftNote) }],
         };
       }
 
@@ -5841,7 +5855,7 @@ async function handleToolCall(params: any) {
 
         const draftNotes = await listDraftNotes(project_id, merge_request_iid);
         return {
-          content: [{ type: "text", text: JSON.stringify(draftNotes, null, 2) }],
+          content: [{ type: "text", text: formatResponse(draftNotes) }],
         };
       }
 
@@ -5857,7 +5871,7 @@ async function handleToolCall(params: any) {
           resolve_discussion
         );
         return {
-          content: [{ type: "text", text: JSON.stringify(draftNote, null, 2) }],
+          content: [{ type: "text", text: formatResponse(draftNote) }],
         };
       }
 
@@ -5875,7 +5889,7 @@ async function handleToolCall(params: any) {
           resolve_discussion
         );
         return {
-          content: [{ type: "text", text: JSON.stringify(draftNote, null, 2) }],
+          content: [{ type: "text", text: formatResponse(draftNote) }],
         };
       }
 
@@ -5895,7 +5909,7 @@ async function handleToolCall(params: any) {
 
         const publishedNote = await publishDraftNote(project_id, merge_request_iid, draft_note_id);
         return {
-          content: [{ type: "text", text: JSON.stringify(publishedNote, null, 2) }],
+          content: [{ type: "text", text: formatResponse(publishedNote) }],
         };
       }
 
@@ -5905,7 +5919,7 @@ async function handleToolCall(params: any) {
 
         const publishedNotes = await bulkPublishDraftNotes(project_id, merge_request_iid);
         return {
-          content: [{ type: "text", text: JSON.stringify(publishedNotes, null, 2) }],
+          content: [{ type: "text", text: formatResponse(publishedNotes) }],
         };
       }
 
@@ -5921,7 +5935,7 @@ async function handleToolCall(params: any) {
           created_at
         );
         return {
-          content: [{ type: "text", text: JSON.stringify(thread, null, 2) }],
+          content: [{ type: "text", text: formatResponse(thread) }],
         };
       }
 
@@ -5939,7 +5953,7 @@ async function handleToolCall(params: any) {
         const { project_id, ...options } = args;
         const issues = await listIssues(project_id, options);
         return {
-          content: [{ type: "text", text: JSON.stringify(issues, null, 2) }],
+          content: [{ type: "text", text: formatResponse(issues) }],
         };
       }
 
@@ -5947,7 +5961,7 @@ async function handleToolCall(params: any) {
         const args = MyIssuesSchema.parse(params.arguments);
         const issues = await myIssues(args);
         return {
-          content: [{ type: "text", text: JSON.stringify(issues, null, 2) }],
+          content: [{ type: "text", text: formatResponse(issues) }],
         };
       }
 
@@ -5955,7 +5969,7 @@ async function handleToolCall(params: any) {
         const args = GetIssueSchema.parse(params.arguments);
         const issue = await getIssue(args.project_id, args.issue_iid);
         return {
-          content: [{ type: "text", text: JSON.stringify(issue, null, 2) }],
+          content: [{ type: "text", text: formatResponse(issue) }],
         };
       }
 
@@ -5964,7 +5978,7 @@ async function handleToolCall(params: any) {
         const { project_id, issue_iid, ...options } = args;
         const issue = await updateIssue(project_id, issue_iid, options);
         return {
-          content: [{ type: "text", text: JSON.stringify(issue, null, 2) }],
+          content: [{ type: "text", text: formatResponse(issue) }],
         };
       }
 
@@ -5989,7 +6003,7 @@ async function handleToolCall(params: any) {
         const args = ListIssueLinksSchema.parse(params.arguments);
         const links = await listIssueLinks(args.project_id, args.issue_iid);
         return {
-          content: [{ type: "text", text: JSON.stringify(links, null, 2) }],
+          content: [{ type: "text", text: formatResponse(links) }],
         };
       }
 
@@ -5999,7 +6013,7 @@ async function handleToolCall(params: any) {
 
         const discussions = await listIssueDiscussions(project_id, issue_iid, options);
         return {
-          content: [{ type: "text", text: JSON.stringify(discussions, null, 2) }],
+          content: [{ type: "text", text: formatResponse(discussions) }],
         };
       }
 
@@ -6007,7 +6021,7 @@ async function handleToolCall(params: any) {
         const args = GetIssueLinkSchema.parse(params.arguments);
         const link = await getIssueLink(args.project_id, args.issue_iid, args.issue_link_id);
         return {
-          content: [{ type: "text", text: JSON.stringify(link, null, 2) }],
+          content: [{ type: "text", text: formatResponse(link) }],
         };
       }
 
@@ -6021,7 +6035,7 @@ async function handleToolCall(params: any) {
           args.link_type
         );
         return {
-          content: [{ type: "text", text: JSON.stringify(link, null, 2) }],
+          content: [{ type: "text", text: formatResponse(link) }],
         };
       }
 
@@ -6049,7 +6063,7 @@ async function handleToolCall(params: any) {
         const args = ListLabelsSchema.parse(params.arguments);
         const labels = await listLabels(args.project_id, args);
         return {
-          content: [{ type: "text", text: JSON.stringify(labels, null, 2) }],
+          content: [{ type: "text", text: formatResponse(labels) }],
         };
       }
 
@@ -6057,7 +6071,7 @@ async function handleToolCall(params: any) {
         const args = GetLabelSchema.parse(params.arguments);
         const label = await getLabel(args.project_id, args.label_id, args.include_ancestor_groups);
         return {
-          content: [{ type: "text", text: JSON.stringify(label, null, 2) }],
+          content: [{ type: "text", text: formatResponse(label) }],
         };
       }
 
@@ -6065,7 +6079,7 @@ async function handleToolCall(params: any) {
         const args = CreateLabelSchema.parse(params.arguments);
         const label = await createLabel(args.project_id, args);
         return {
-          content: [{ type: "text", text: JSON.stringify(label, null, 2) }],
+          content: [{ type: "text", text: formatResponse(label) }],
         };
       }
 
@@ -6074,7 +6088,7 @@ async function handleToolCall(params: any) {
         const { project_id, label_id, ...options } = args;
         const label = await updateLabel(project_id, label_id, options);
         return {
-          content: [{ type: "text", text: JSON.stringify(label, null, 2) }],
+          content: [{ type: "text", text: formatResponse(label) }],
         };
       }
 
@@ -6099,7 +6113,7 @@ async function handleToolCall(params: any) {
         const args = ListGroupProjectsSchema.parse(params.arguments);
         const projects = await listGroupProjects(args);
         return {
-          content: [{ type: "text", text: JSON.stringify(projects, null, 2) }],
+          content: [{ type: "text", text: formatResponse(projects) }],
         };
       }
 
@@ -6113,7 +6127,7 @@ async function handleToolCall(params: any) {
           with_content,
         });
         return {
-          content: [{ type: "text", text: JSON.stringify(wikiPages, null, 2) }],
+          content: [{ type: "text", text: formatResponse(wikiPages) }],
         };
       }
 
@@ -6121,7 +6135,7 @@ async function handleToolCall(params: any) {
         const { project_id, slug } = GetWikiPageSchema.parse(params.arguments);
         const wikiPage = await getWikiPage(project_id, slug);
         return {
-          content: [{ type: "text", text: JSON.stringify(wikiPage, null, 2) }],
+          content: [{ type: "text", text: formatResponse(wikiPage) }],
         };
       }
 
@@ -6129,7 +6143,7 @@ async function handleToolCall(params: any) {
         const { project_id, title, content, format } = CreateWikiPageSchema.parse(params.arguments);
         const wikiPage = await createWikiPage(project_id, title, content, format);
         return {
-          content: [{ type: "text", text: JSON.stringify(wikiPage, null, 2) }],
+          content: [{ type: "text", text: formatResponse(wikiPage) }],
         };
       }
 
@@ -6139,7 +6153,7 @@ async function handleToolCall(params: any) {
         );
         const wikiPage = await updateWikiPage(project_id, slug, title, content, format);
         return {
-          content: [{ type: "text", text: JSON.stringify(wikiPage, null, 2) }],
+          content: [{ type: "text", text: formatResponse(wikiPage) }],
         };
       }
 
@@ -6167,7 +6181,7 @@ async function handleToolCall(params: any) {
         const args = GetRepositoryTreeSchema.parse(params.arguments);
         const tree = await getRepositoryTree(args);
         return {
-          content: [{ type: "text", text: JSON.stringify(tree, null, 2) }],
+          content: [{ type: "text", text: formatResponse(tree) }],
         };
       }
 
@@ -6176,7 +6190,7 @@ async function handleToolCall(params: any) {
         const { project_id, ...options } = args;
         const pipelines = await listPipelines(project_id, options);
         return {
-          content: [{ type: "text", text: JSON.stringify(pipelines, null, 2) }],
+          content: [{ type: "text", text: formatResponse(pipelines) }],
         };
       }
 
@@ -6187,7 +6201,7 @@ async function handleToolCall(params: any) {
           content: [
             {
               type: "text",
-              text: JSON.stringify(pipeline, null, 2),
+              text: formatResponse(pipeline),
             },
           ],
         };
@@ -6202,7 +6216,7 @@ async function handleToolCall(params: any) {
           content: [
             {
               type: "text",
-              text: JSON.stringify(jobs, null, 2),
+              text: formatResponse(jobs),
             },
           ],
         };
@@ -6217,7 +6231,7 @@ async function handleToolCall(params: any) {
           content: [
             {
               type: "text",
-              text: JSON.stringify(triggerJobs, null, 2),
+              text: formatResponse(triggerJobs),
             },
           ],
         };
@@ -6230,7 +6244,7 @@ async function handleToolCall(params: any) {
           content: [
             {
               type: "text",
-              text: JSON.stringify(jobDetails, null, 2),
+              text: formatResponse(jobDetails),
             },
           ],
         };
@@ -6335,7 +6349,7 @@ async function handleToolCall(params: any) {
         const args = ListMergeRequestsSchema.parse(params.arguments);
         const mergeRequests = await listMergeRequests(args.project_id, args);
         return {
-          content: [{ type: "text", text: JSON.stringify(mergeRequests, null, 2) }],
+          content: [{ type: "text", text: formatResponse(mergeRequests) }],
         };
       }
 
@@ -6346,7 +6360,7 @@ async function handleToolCall(params: any) {
           content: [
             {
               type: "text",
-              text: JSON.stringify(milestones, null, 2),
+              text: formatResponse(milestones),
             },
           ],
         };
@@ -6359,7 +6373,7 @@ async function handleToolCall(params: any) {
           content: [
             {
               type: "text",
-              text: JSON.stringify(milestone, null, 2),
+              text: formatResponse(milestone),
             },
           ],
         };
@@ -6372,7 +6386,7 @@ async function handleToolCall(params: any) {
           content: [
             {
               type: "text",
-              text: JSON.stringify(milestone, null, 2),
+              text: formatResponse(milestone),
             },
           ],
         };
@@ -6387,7 +6401,7 @@ async function handleToolCall(params: any) {
           content: [
             {
               type: "text",
-              text: JSON.stringify(milestone, null, 2),
+              text: formatResponse(milestone),
             },
           ],
         };
@@ -6420,7 +6434,7 @@ async function handleToolCall(params: any) {
           content: [
             {
               type: "text",
-              text: JSON.stringify(issues, null, 2),
+              text: formatResponse(issues),
             },
           ],
         };
@@ -6435,7 +6449,7 @@ async function handleToolCall(params: any) {
           content: [
             {
               type: "text",
-              text: JSON.stringify(mergeRequests, null, 2),
+              text: formatResponse(mergeRequests),
             },
           ],
         };
@@ -6448,7 +6462,7 @@ async function handleToolCall(params: any) {
           content: [
             {
               type: "text",
-              text: JSON.stringify(milestone, null, 2),
+              text: formatResponse(milestone),
             },
           ],
         };
@@ -6463,7 +6477,7 @@ async function handleToolCall(params: any) {
           content: [
             {
               type: "text",
-              text: JSON.stringify(events, null, 2),
+              text: formatResponse(events),
             },
           ],
         };
@@ -6473,7 +6487,7 @@ async function handleToolCall(params: any) {
         const args = ListCommitsSchema.parse(params.arguments);
         const commits = await listCommits(args.project_id, args);
         return {
-          content: [{ type: "text", text: JSON.stringify(commits, null, 2) }],
+          content: [{ type: "text", text: formatResponse(commits) }],
         };
       }
 
@@ -6481,7 +6495,7 @@ async function handleToolCall(params: any) {
         const args = GetCommitSchema.parse(params.arguments);
         const commit = await getCommit(args.project_id, args.sha, args.stats);
         return {
-          content: [{ type: "text", text: JSON.stringify(commit, null, 2) }],
+          content: [{ type: "text", text: formatResponse(commit) }],
         };
       }
 
@@ -6489,7 +6503,7 @@ async function handleToolCall(params: any) {
         const args = GetCommitDiffSchema.parse(params.arguments);
         const diff = await getCommitDiff(args.project_id, args.sha, args.full_diff);
         return {
-          content: [{ type: "text", text: JSON.stringify(diff, null, 2) }],
+          content: [{ type: "text", text: formatResponse(diff) }],
         };
       }
 
@@ -6497,7 +6511,7 @@ async function handleToolCall(params: any) {
         const args = ListGroupIterationsSchema.parse(params.arguments);
         const iterations = await listGroupIterations(args.group_id, args);
         return {
-          content: [{ type: "text", text: JSON.stringify(iterations, null, 2) }],
+          content: [{ type: "text", text: formatResponse(iterations) }],
         };
       }
 
@@ -6505,7 +6519,7 @@ async function handleToolCall(params: any) {
         const args = MarkdownUploadSchema.parse(params.arguments);
         const upload = await markdownUpload(args.project_id, args.file_path);
         return {
-          content: [{ type: "text", text: JSON.stringify(upload, null, 2) }],
+          content: [{ type: "text", text: formatResponse(upload) }],
         };
       }
 
@@ -6519,7 +6533,7 @@ async function handleToolCall(params: any) {
         );
         return {
           content: [
-            { type: "text", text: JSON.stringify({ success: true, file_path: filePath }, null, 2) },
+            { type: "text", text: formatResponse({ success: true, file_path: filePath }) },
           ],
         };
       }
@@ -6528,7 +6542,7 @@ async function handleToolCall(params: any) {
         const args = ListEventsSchema.parse(params.arguments);
         const events = await listEvents(args);
         return {
-          content: [{ type: "text", text: JSON.stringify(events, null, 2) }],
+          content: [{ type: "text", text: formatResponse(events) }],
         };
       }
 
@@ -6537,7 +6551,7 @@ async function handleToolCall(params: any) {
         const { project_id, ...options } = args;
         const events = await getProjectEvents(project_id, options);
         return {
-          content: [{ type: "text", text: JSON.stringify(events, null, 2) }],
+          content: [{ type: "text", text: formatResponse(events) }],
         };
       }
 
@@ -6546,7 +6560,7 @@ async function handleToolCall(params: any) {
         const { project_id, ...options } = args;
         const releases = await listReleases(project_id, options);
         return {
-          content: [{ type: "text", text: JSON.stringify(releases, null, 2) }],
+          content: [{ type: "text", text: formatResponse(releases) }],
         };
       }
 
@@ -6558,7 +6572,7 @@ async function handleToolCall(params: any) {
           args.include_html_description
         );
         return {
-          content: [{ type: "text", text: JSON.stringify(release, null, 2) }],
+          content: [{ type: "text", text: formatResponse(release) }],
         };
       }
 
@@ -6567,7 +6581,7 @@ async function handleToolCall(params: any) {
         const { project_id, ...options } = args;
         const release = await createRelease(project_id, options);
         return {
-          content: [{ type: "text", text: JSON.stringify(release, null, 2) }],
+          content: [{ type: "text", text: formatResponse(release) }],
         };
       }
 
@@ -6576,7 +6590,7 @@ async function handleToolCall(params: any) {
         const { project_id, tag_name, ...options } = args;
         const release = await updateRelease(project_id, tag_name, options);
         return {
-          content: [{ type: "text", text: JSON.stringify(release, null, 2) }],
+          content: [{ type: "text", text: formatResponse(release) }],
         };
       }
 
