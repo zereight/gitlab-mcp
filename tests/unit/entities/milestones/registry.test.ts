@@ -651,6 +651,46 @@ describe("Milestones Registry", () => {
         );
         expect(result).toEqual(mockEvents);
       });
+
+      it("should use explicit per_page when provided", async () => {
+        const mockEvents = [
+          {
+            created_at: "2024-01-05T10:00:00Z",
+            weight: 5,
+            action: "closed",
+          },
+        ];
+
+        // Mock namespace detection call
+        mockEnhancedFetch.mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          statusText: "OK",
+          json: jest.fn().mockResolvedValue({ id: 123, name: "test-project" }),
+        } as any);
+
+        // Mock actual burndown_events API call
+        mockEnhancedFetch.mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          statusText: "OK",
+          json: jest.fn().mockResolvedValue(mockEvents),
+        } as any);
+
+        const tool = milestonesToolRegistry.get("get_milestone_burndown_events")!;
+        const result = await tool.handler({
+          namespace: "test/project",
+          milestone_id: 1,
+          per_page: 50, // Explicit per_page value
+        });
+
+        // Second call should use the explicit per_page value
+        expect(mockEnhancedFetch).toHaveBeenNthCalledWith(
+          2,
+          "https://gitlab.example.com/api/v4/projects/test%2Fproject/milestones/1/burndown_events?per_page=50"
+        );
+        expect(result).toEqual(mockEvents);
+      });
     });
 
     describe("create_milestone handler", () => {

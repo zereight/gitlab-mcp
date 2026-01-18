@@ -161,8 +161,9 @@ async function request<T>(
     );
   }
 
-  // Handle 204 No Content - callers expecting void/undefined should use appropriate generic type
-  // Type assertion is intentional: DELETE operations typically return void, callers use gitlab.delete<void>()
+  // Handle 204 No Content responses (common for DELETE, some PUT/POST operations)
+  // Callers expecting void/undefined should use appropriate generic type: gitlab.delete<void>()
+  // Type assertion is intentional to allow typed handlers to work with void responses
   if (response.status === 204) {
     return undefined as T;
   }
