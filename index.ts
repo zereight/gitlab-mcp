@@ -6750,6 +6750,79 @@ async function startStreamableHTTPServer(): Promise<void> {
   // Rate limiting per session
   const sessionRequestCounts: Record<string, { count: number; resetAt: number }> = {};
 
+  // Request queue per session to handle concurrent requests
+  type QueuedRequest = {
+    req: Request;
+    res: Response;
+    body: unknown;
+    resolve: () => void;
+    reject: (error: Error) => void;
+  };
+  const sessionRequestQueues: Record<string, QueuedRequest[]> = {};
+  const sessionProcessingFlags: Record<string, boolean> = {};
+
+  /**
+   * Process queued requests for a session sequentially
+   */
+  const processRequestQueue = async (sessionId: string) => {
+    // If already processing, skip
+    if (sessionProcessingFlags[sessionId]) {
+      return;
+    }
+
+    sessionProcessingFlags[sessionId] = true;
+
+    try {
+      while (sessionRequestQueues[sessionId]?.length > 0) {
+        const queued = sessionRequestQueues[sessionId].shift();
+        if (!queued) break;
+
+        try {
+          await executeTransportRequest(sessionId, queued.req, queued.res, queued.body);
+          queued.resolve();
+        } catch (error) {
+          queued.reject(error instanceof Error ? error : new Error(String(error)));
+        }
+      }
+    } finally {
+      sessionProcessingFlags[sessionId] = false;
+      
+      // Clean up empty queue
+      if (sessionRequestQueues[sessionId]?.length === 0) {
+        delete sessionRequestQueues[sessionId];
+      }
+    }
+  };
+
+  /**
+   * Queue a request for processing
+   */
+  const queueRequest = (sessionId: string, req: Request, res: Response, body: unknown): Promise<void> => {
+    return new Promise((resolve, reject) => {
+      if (!sessionRequestQueues[sessionId]) {
+        sessionRequestQueues[sessionId] = [];
+      }
+
+      sessionRequestQueues[sessionId].push({ req, res, body, resolve, reject });
+      
+      // Start processing the queue
+      processRequestQueue(sessionId).catch(error => {
+        logger.error(`Error processing request queue for session ${sessionId}:`, error);
+      });
+    });
+  };
+
+  /**
+   * Execute the actual transport request
+   */
+  const executeTransportRequest = async (sessionId: string, req: Request, res: Response, body: unknown) => {
+    const transport = streamableTransports[sessionId];
+    if (!transport) {
+      throw new Error(`Transport not found for session ${sessionId}`);
+    }
+    await transport.handleRequest(req, res, body);
+  };
+
   /**
    * Validate token format and length
    */
@@ -6939,9 +7012,9 @@ async function startStreamableHTTPServer(): Promise<void> {
 
         if (sessionId && streamableTransports[sessionId]) {
           // Reuse existing transport for ongoing session
+          // Queue the request to prevent concurrent access to the same transport
           transport = streamableTransports[sessionId];
-
-          await transport.handleRequest(req, res, req.body);
+          await queueRequest(sessionId, req, res, req.body);
         } else {
           // Create new transport for new session
           transport = new StreamableHTTPServerTransport({
@@ -6976,6 +7049,9 @@ async function startStreamableHTTPServer(): Promise<void> {
                 delete sessionRequestCounts[sid];
                 logger.info(`Session ${sid}: cleaned up auth mapping`);
               }
+              // Clean up any remaining queued requests for this session
+              delete sessionRequestQueues[sid];
+              delete sessionProcessingFlags[sid];
             }
           };
 
