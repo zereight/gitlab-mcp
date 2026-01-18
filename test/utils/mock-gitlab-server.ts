@@ -366,6 +366,61 @@ export class MockGitLabServer {
       ]);
     });
 
+    // GET /api/v4/projects/:projectId/merge_requests/:mr_iid/changes - Get MR diffs
+    this.app.get('/api/v4/projects/:projectId/merge_requests/:mr_iid/changes', (req: AuthenticatedRequest, res: Response) => {
+      const mrIid = parseInt(req.params.mr_iid);
+      res.json({
+        id: mrIid,
+        iid: mrIid,
+        project_id: parseInt(req.params.projectId),
+        title: `Test MR ${mrIid}`,
+        state: 'opened',
+        created_at: '2024-01-01T00:00:00Z',
+        changes: [
+          {
+            old_path: 'src/index.ts',
+            new_path: 'src/index.ts',
+            a_mode: '100644',
+            b_mode: '100644',
+            diff: '@@ -1,1 +1,2 @@\n-line 1\n+line 1 modified\n+new line 2\n',
+            new_file: false,
+            renamed_file: false,
+            deleted_file: false
+          },
+          {
+            old_path: 'vendor/package/file.js',
+            new_path: 'vendor/package/file.js',
+            a_mode: '100644',
+            b_mode: '100644',
+            diff: '@@ -1,1 +1,1 @@\n-vendor content old\n+vendor content new\n',
+            new_file: false,
+            renamed_file: false,
+            deleted_file: false
+          },
+          {
+            old_path: 'README.md',
+            new_path: 'README.md',
+            a_mode: '100644',
+            b_mode: '100644',
+            diff: '@@ -1,1 +1,1 @@\n-old readme\n+new readme\n',
+            new_file: false,
+            renamed_file: false,
+            deleted_file: false
+          },
+          {
+            old_path: 'package-lock.json',
+            new_path: 'package-lock.json',
+            a_mode: '100644',
+            b_mode: '100644',
+            diff: '{\n- "version": "1.0.0"\n+ "version": "1.0.1"\n}\n',
+            new_file: false,
+            renamed_file: false,
+            deleted_file: false
+          }
+        ]
+      });
+    });
+
     // Health check endpoint
     this.app.get('/health', (req: Request, res: Response) => {
       res.json({ status: 'ok', message: 'Mock GitLab API is running' });

@@ -1129,7 +1129,7 @@ export const GetBranchDiffsSchema = ProjectParamsSchema.extend({
     .array(z.string())
     .optional()
     .describe(
-      'Array of regex patterns to exclude files from the diff results. Each pattern is a JavaScript-compatible regular expression that matches file paths to ignore. Examples: ["^test/mocks/", "\\.spec\\.ts$", "package-lock\\.json"]'
+      'Array of regex patterns to exclude files from the diff results. Each pattern is a JavaScript-compatible regular expression that matches file paths to ignore. Examples: ["^vendor/", "^test/mocks/", "\\.spec\\.ts$", "package-lock\\.json"]'
     ),
 });
 
@@ -1170,8 +1170,69 @@ export const MergeMergeRequestSchema = ProjectParamsSchema.extend({
   squash: z.boolean().optional().default(false).describe("Squash commits into a single commit when merging"),
 });
 
+// Merge Request Approval schemas
+export const ApproveMergeRequestSchema = ProjectParamsSchema.extend({
+  merge_request_iid: z.coerce.string().describe("The IID of the merge request to approve"),
+  sha: z.string().optional().describe("The HEAD of the merge request. Optional, but used to ensure the merge request hasn't changed since you last reviewed it"),
+  approval_password: z.string().optional().describe("Current user's password. Required if 'Require user re-authentication to approve' is enabled in the project settings"),
+});
+
+export const UnapproveMergeRequestSchema = ProjectParamsSchema.extend({
+  merge_request_iid: z.coerce.string().describe("The IID of the merge request to unapprove"),
+});
+
+// Merge Request Approval State response schema
+export const GitLabApprovalUserSchema = z.object({
+  id: z.coerce.string(),
+  username: z.string(),
+  name: z.string(),
+  state: z.string(),
+  avatar_url: z.string().nullable().optional(),
+  web_url: z.string(),
+});
+
+export const GitLabApprovalRuleSchema = z.object({
+  id: z.coerce.string(),
+  name: z.string(),
+  rule_type: z.string(),
+  eligible_approvers: z.array(GitLabApprovalUserSchema).optional(),
+  approvals_required: z.number(),
+  users: z.array(GitLabApprovalUserSchema).optional(),
+  groups: z.array(z.object({
+    id: z.coerce.string(),
+    name: z.string(),
+    path: z.string(),
+    full_path: z.string(),
+    avatar_url: z.string().nullable().optional(),
+    web_url: z.string(),
+  })).optional(),
+  contains_hidden_groups: z.boolean().optional(),
+  approved_by: z.array(GitLabApprovalUserSchema).optional(),
+  source_rule: z.object({
+    id: z.coerce.string().optional(),
+    name: z.string().optional(),
+    rule_type: z.string().optional(),
+  }).nullable().optional(),
+  approved: z.boolean().optional(),
+});
+
+export const GitLabMergeRequestApprovalStateSchema = z.object({
+  approval_rules_overwritten: z.boolean().optional(),
+  rules: z.array(GitLabApprovalRuleSchema).optional(),
+});
+
+export const GetMergeRequestApprovalStateSchema = ProjectParamsSchema.extend({
+  merge_request_iid: z.coerce.string().describe("The IID of the merge request"),
+});
+
 export const GetMergeRequestDiffsSchema = GetMergeRequestSchema.extend({
   view: z.enum(["inline", "parallel"]).optional().describe("Diff view type"),
+  excluded_file_patterns: z
+    .array(z.string())
+    .optional()
+    .describe(
+      'Array of regex patterns to exclude files from the diff results. Each pattern is a JavaScript-compatible regular expression that matches file paths to ignore. Examples: ["^vendor/", "^test/mocks/", "\\.spec\\.ts$", "package-lock\\.json"]'
+    ),
 });
 
 export const ListMergeRequestDiffsSchema = GetMergeRequestSchema.extend({
@@ -2357,3 +2418,11 @@ export type GitLabMergeRequestVersionDetail = z.infer<typeof GitLabMergeRequestV
 export type ListMergeRequestVersionsOptions = z.infer<typeof ListMergeRequestVersionsSchema>;
 export type GetMergeRequestVersionOptions = z.infer<typeof GetMergeRequestVersionSchema>;
 export type DownloadReleaseAssetOptions = z.infer<typeof DownloadReleaseAssetSchema>;
+
+// Export merge request approval types
+export type ApproveMergeRequestOptions = z.infer<typeof ApproveMergeRequestSchema>;
+export type UnapproveMergeRequestOptions = z.infer<typeof UnapproveMergeRequestSchema>;
+export type GitLabApprovalUser = z.infer<typeof GitLabApprovalUserSchema>;
+export type GitLabApprovalRule = z.infer<typeof GitLabApprovalRuleSchema>;
+export type GitLabMergeRequestApprovalState = z.infer<typeof GitLabMergeRequestApprovalStateSchema>;
+export type GetMergeRequestApprovalStateOptions = z.infer<typeof GetMergeRequestApprovalStateSchema>;
