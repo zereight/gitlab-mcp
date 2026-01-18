@@ -1417,7 +1417,14 @@ function getEffectiveProjectId(projectId: string): string {
 
     return projectId || GITLAB_ALLOWED_PROJECT_IDS[0];
   }
-  return GITLAB_PROJECT_ID || projectId;
+  // Prioritize the passed projectId over GITLAB_PROJECT_ID to allow querying different projects
+  if (projectId) {
+    return projectId;
+  }
+  if (GITLAB_PROJECT_ID) {
+    return GITLAB_PROJECT_ID;
+  }
+  throw new Error("No project ID provided and GITLAB_PROJECT_ID is not set");
 }
 
 /**
