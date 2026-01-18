@@ -566,6 +566,7 @@ const authBySession: Record<string, AuthData> = {};
 const BASE_HEADERS: Record<string, string> = {
   Accept: "application/json",
   "Content-Type": "application/json",
+  "User-Agent": `gitlab-mcp-server/${SERVER_VERSION} (node-fetch)`,
 };
 
 /**
