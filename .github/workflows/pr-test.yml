@@ -36,7 +36,9 @@ jobs:
     - name: Run remote authorization tests
       run: npm run test:remote-auth
 
-    
+    - name: Run mock tests
+      run: npm run test:mock
+
     - name: Type check
       run: npx tsc --noEmit
     
