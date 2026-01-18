@@ -45,6 +45,7 @@ module.exports = {
   testPathIgnorePatterns: integrationTestsEnabled ?
     ["<rootDir>/dist/", "<rootDir>/node_modules/"] :
     ["<rootDir>/dist/", "<rootDir>/node_modules/", "<rootDir>/tests/integration/"],
+  modulePathIgnorePatterns: ["<rootDir>/dist/"],
   globalSetup: integrationTestsEnabled ? '<rootDir>/tests/setup/globalSetup.js' : undefined,
   globalTeardown: integrationTestsEnabled ? '<rootDir>/tests/setup/globalTeardown.js' : undefined,
   moduleDirectories: ["node_modules", "src"],

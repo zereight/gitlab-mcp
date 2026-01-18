@@ -47,6 +47,29 @@ export interface OAuthSession {
 }
 
 /**
+ * State for tracking an in-progress Authorization Code Flow
+ * Used when redirect_uri is provided (web-based OAuth like Claude.ai)
+ */
+export interface AuthCodeFlowState {
+  /** OAuth client ID */
+  clientId: string;
+  /** PKCE code challenge */
+  codeChallenge: string;
+  /** PKCE code challenge method (S256) */
+  codeChallengeMethod: string;
+  /** OAuth state parameter for CSRF protection (original from client) */
+  clientState: string;
+  /** Internal state for GitLab callback */
+  internalState: string;
+  /** Client's redirect URI (where to redirect after GitLab auth) */
+  clientRedirectUri: string;
+  /** Our callback URI (registered in GitLab OAuth app) */
+  callbackUri: string;
+  /** Expiry timestamp (milliseconds since epoch) */
+  expiresAt: number;
+}
+
+/**
  * State for tracking an in-progress device authorization flow
  */
 export interface DeviceFlowState {

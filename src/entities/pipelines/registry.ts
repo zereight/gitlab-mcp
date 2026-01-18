@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import * as z from "zod";
 import {
   ListPipelinesSchema,
@@ -15,9 +14,9 @@ import {
   RetryPipelineJobSchema,
   CancelPipelineJobSchema,
 } from "./schema";
-import { enhancedFetch } from "../../utils/fetch";
+import { gitlab, toQuery } from "../../utils/gitlab-api";
 import { normalizeProjectId } from "../../utils/projectIdentifier";
-import { cleanGidsFromObject } from "../../utils/idConversion";
+import { enhancedFetch } from "../../utils/fetch";
 import { logger } from "../../logger";
 import { ToolRegistry, EnhancedToolDefinition } from "../../types";
 
@@ -25,7 +24,6 @@ import { ToolRegistry, EnhancedToolDefinition } from "../../types";
  * Pipelines tools registry - unified registry containing all pipeline operation tools with their handlers
  */
 export const pipelinesToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefinition>([
-  // Read-only tools
   [
     "list_pipelines",
     {
@@ -33,29 +31,12 @@ export const pipelinesToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
       description:
         "BROWSE: Search and monitor CI/CD pipelines in a project. Use when: Monitoring build/deployment status, Finding specific pipeline runs, Analyzing CI/CD history and trends. Supports filtering by status, branch, user, and date range. Returns pipeline ID, status, ref, commit SHA, and timing information.",
       inputSchema: z.toJSONSchema(ListPipelinesSchema),
-      handler: async (args: unknown): Promise<unknown> => {
+      handler: async (args: unknown) => {
         const options = ListPipelinesSchema.parse(args);
 
-        const queryParams = new URLSearchParams();
-        Object.entries(options).forEach(([key, value]) => {
-          if (value !== undefined && value !== null && key !== "project_id") {
-            queryParams.set(key, String(value));
-          }
+        return gitlab.get(`projects/${normalizeProjectId(options.project_id)}/pipelines`, {
+          query: toQuery(options, ["project_id"]),
         });
-
-        const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${normalizeProjectId(options.project_id)}/pipelines?${queryParams}`;
-        const response = await enhancedFetch(apiUrl, {
-          headers: {
-            Authorization: `Bearer ${process.env.GITLAB_TOKEN}`,
-          },
-        });
-
-        if (!response.ok) {
-          throw new Error(`GitLab API error: ${response.status} ${response.statusText}`);
-        }
-
-        const pipelines = await response.json();
-        return cleanGidsFromObject(pipelines);
       },
     },
   ],
@@ -66,23 +47,12 @@ export const pipelinesToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
       description:
         "ANALYZE: Get comprehensive details about a specific pipeline run. Use when: Debugging CI/CD failures and issues, Inspecting pipeline configuration and timing, Understanding what triggered the run. Returns commit details, branch/tag info, duration metrics, and failure reasons. Essential for pipeline troubleshooting.",
       inputSchema: z.toJSONSchema(GetPipelineSchema),
-      handler: async (args: unknown): Promise<unknown> => {
+      handler: async (args: unknown) => {
         const options = GetPipelineSchema.parse(args);
-        const { project_id, pipeline_id } = options;
 
-        const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${normalizeProjectId(project_id)}/pipelines/${pipeline_id}`;
-        const response = await enhancedFetch(apiUrl, {
-          headers: {
-            Authorization: `Bearer ${process.env.GITLAB_TOKEN}`,
-          },
-        });
-
-        if (!response.ok) {
-          throw new Error(`GitLab API error: ${response.status} ${response.statusText}`);
-        }
-
-        const pipeline = await response.json();
-        return cleanGidsFromObject(pipeline);
+        return gitlab.get(
+          `projects/${normalizeProjectId(options.project_id)}/pipelines/${options.pipeline_id}`
+        );
       },
     },
   ],
@@ -93,35 +63,13 @@ export const pipelinesToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
       description:
         "INSPECT: Get all CI/CD jobs within a pipeline run. Use when: Identifying failed jobs and stages, Understanding pipeline job structure, Analyzing job timing and performance. Returns job names, stages, status, duration, and runner info. Supports filtering by scope (failed, success, manual) for targeted troubleshooting.",
       inputSchema: z.toJSONSchema(ListPipelineJobsSchema),
-      handler: async (args: unknown): Promise<unknown> => {
+      handler: async (args: unknown) => {
         const options = ListPipelineJobsSchema.parse(args);
-        const { project_id, pipeline_id } = options;
 
-        const queryParams = new URLSearchParams();
-        Object.entries(options).forEach(([key, value]) => {
-          if (
-            value !== undefined &&
-            value !== null &&
-            key !== "project_id" &&
-            key !== "pipeline_id"
-          ) {
-            queryParams.set(key, String(value));
-          }
-        });
-
-        const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${normalizeProjectId(project_id)}/pipelines/${pipeline_id}/jobs?${queryParams}`;
-        const response = await enhancedFetch(apiUrl, {
-          headers: {
-            Authorization: `Bearer ${process.env.GITLAB_TOKEN}`,
-          },
-        });
-
-        if (!response.ok) {
-          throw new Error(`GitLab API error: ${response.status} ${response.statusText}`);
-        }
-
-        const jobs = await response.json();
-        return cleanGidsFromObject(jobs);
+        return gitlab.get(
+          `projects/${normalizeProjectId(options.project_id)}/pipelines/${options.pipeline_id}/jobs`,
+          { query: toQuery(options, ["project_id", "pipeline_id"]) }
+        );
       },
     },
   ],
@@ -132,35 +80,13 @@ export const pipelinesToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
       description:
         "BRIDGE: List jobs that trigger downstream pipelines in multi-project setups. Use when: Understanding cross-project CI/CD flows, Debugging pipeline dependencies, Analyzing parent-child pipeline connections. Bridge jobs link projects together. Returns trigger configuration and downstream pipeline status.",
       inputSchema: z.toJSONSchema(ListPipelineTriggerJobsSchema),
-      handler: async (args: unknown): Promise<unknown> => {
+      handler: async (args: unknown) => {
         const options = ListPipelineTriggerJobsSchema.parse(args);
-        const { project_id, pipeline_id } = options;
 
-        const queryParams = new URLSearchParams();
-        Object.entries(options).forEach(([key, value]) => {
-          if (
-            value !== undefined &&
-            value !== null &&
-            key !== "project_id" &&
-            key !== "pipeline_id"
-          ) {
-            queryParams.set(key, String(value));
-          }
-        });
-
-        const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${normalizeProjectId(project_id)}/pipelines/${pipeline_id}/bridges?${queryParams}`;
-        const response = await enhancedFetch(apiUrl, {
-          headers: {
-            Authorization: `Bearer ${process.env.GITLAB_TOKEN}`,
-          },
-        });
-
-        if (!response.ok) {
-          throw new Error(`GitLab API error: ${response.status} ${response.statusText}`);
-        }
-
-        const bridges = await response.json();
-        return cleanGidsFromObject(bridges);
+        return gitlab.get(
+          `projects/${normalizeProjectId(options.project_id)}/pipelines/${options.pipeline_id}/bridges`,
+          { query: toQuery(options, ["project_id", "pipeline_id"]) }
+        );
       },
     },
   ],
@@ -171,23 +97,12 @@ export const pipelinesToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
       description:
         "DETAILS: Get detailed information about a specific CI/CD job. Use when: Debugging individual job failures, Inspecting job configuration and variables, Understanding job dependencies and artifacts. Shows job script, runner tags, artifact paths, and failure details. Essential for job-level troubleshooting.",
       inputSchema: z.toJSONSchema(GetPipelineJobOutputSchema),
-      handler: async (args: unknown): Promise<unknown> => {
+      handler: async (args: unknown) => {
         const options = GetPipelineJobOutputSchema.parse(args);
-        const { project_id, job_id } = options;
 
-        const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${normalizeProjectId(project_id)}/jobs/${job_id}`;
-        const response = await enhancedFetch(apiUrl, {
-          headers: {
-            Authorization: `Bearer ${process.env.GITLAB_TOKEN}`,
-          },
-        });
-
-        if (!response.ok) {
-          throw new Error(`GitLab API error: ${response.status} ${response.statusText}`);
-        }
-
-        const job = await response.json();
-        return cleanGidsFromObject(job);
+        return gitlab.get(
+          `projects/${normalizeProjectId(options.project_id)}/jobs/${options.job_id}`
+        );
       },
     },
   ],
@@ -198,16 +113,13 @@ export const pipelinesToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
       description:
         "LOGS: Fetch console output/logs from a CI/CD job execution. Use when: Debugging job failures and errors, Reviewing test results and build output, Analyzing command execution traces. Supports output limiting for large logs. Returns raw text showing all commands and output. Critical for troubleshooting CI/CD issues.",
       inputSchema: z.toJSONSchema(GetPipelineJobOutputSchema),
-      handler: async (args: unknown): Promise<unknown> => {
+      handler: async (args: unknown) => {
         const options = GetPipelineJobOutputSchema.parse(args);
         const { project_id, job_id, limit, max_lines, start } = options;
 
+        // Custom handling - trace endpoint returns text, needs line processing
         const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${normalizeProjectId(project_id)}/jobs/${job_id}/trace`;
-        const response = await enhancedFetch(apiUrl, {
-          headers: {
-            Authorization: `Bearer ${process.env.GITLAB_TOKEN}`,
-          },
-        });
+        const response = await enhancedFetch(apiUrl);
 
         if (!response.ok) {
           throw new Error(`GitLab API error: ${response.status} ${response.statusText}`);
@@ -217,56 +129,44 @@ export const pipelinesToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
         const lines = trace.split("\n");
         const totalLines = lines.length;
 
-        // Default to 200 lines if no limit specified (to prevent token overflow)
         const defaultMaxLines = 200;
         let processedLines: string[] = [];
 
-        // Determine the number of lines to show
         let maxLinesToShow = defaultMaxLines;
         if (max_lines !== undefined) {
           maxLinesToShow = max_lines;
         } else if (limit !== undefined) {
-          // Always treat limit as line count, not character count
           maxLinesToShow = limit;
         }
 
-        // Apply start and limit logic
         let outOfBoundsMessage = "";
 
         if (start !== undefined && start < 0) {
-          // Negative start means from end
           processedLines = lines.slice(start);
           if (processedLines.length > maxLinesToShow) {
             processedLines = processedLines.slice(-maxLinesToShow);
           }
         } else if (start !== undefined && start >= 0) {
-          // Positive start means from beginning
           if (start >= totalLines) {
-            // Start position is beyond available lines
             processedLines = [];
             outOfBoundsMessage = `[OUT OF BOUNDS: Start position ${start} exceeds total lines ${totalLines}. Available range: 0-${totalLines - 1}]`;
           } else {
             processedLines = lines.slice(start, start + maxLinesToShow);
             if (start + maxLinesToShow > totalLines) {
-              // Requested range partially out of bounds
               const availableFromStart = totalLines - start;
               outOfBoundsMessage = `[PARTIAL REQUEST: Requested ${maxLinesToShow} lines from position ${start}, but only ${availableFromStart} lines available]`;
             }
           }
         } else {
-          // No start, just take last maxLinesToShow
           processedLines = lines.slice(-maxLinesToShow);
         }
 
-        // Store the actual data lines count before adding info headers
         const actualDataLines = processedLines.length;
 
-        // Add out-of-bounds info if applicable
         if (outOfBoundsMessage) {
           processedLines.unshift(outOfBoundsMessage);
         }
 
-        // Add truncation info if we truncated (and not already out of bounds)
         if (processedLines.length < totalLines && !outOfBoundsMessage) {
           const truncatedCount = totalLines - actualDataLines;
           processedLines.unshift(
@@ -280,7 +180,6 @@ export const pipelinesToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
       },
     },
   ],
-  // Write tools
   [
     "create_pipeline",
     {
@@ -288,15 +187,14 @@ export const pipelinesToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
       description:
         "CREATE: Trigger a new CI/CD pipeline run on demand. Use when: Manually starting builds or deployments, Running tests on specific branches, Initiating custom pipeline workflows. Requires ref (branch/tag) specification. Can pass variables to customize pipeline behavior. Returns created pipeline details immediately.",
       inputSchema: z.toJSONSchema(CreatePipelineSchema),
-      handler: async (args: unknown): Promise<unknown> => {
+      handler: async (args: unknown) => {
         const options = CreatePipelineSchema.parse(args);
         const { project_id, ref, variables } = options;
 
-        // Build query parameters - ref is required in query string
+        // Custom handling - ref in query, variables in body with detailed error handling
         const queryParams = new URLSearchParams();
         queryParams.set("ref", ref);
 
-        // Build request body - variables go in body if provided
         const body: Record<string, unknown> = {};
         if (variables && variables.length > 0) {
           body.variables = variables;
@@ -304,32 +202,21 @@ export const pipelinesToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
 
         const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${normalizeProjectId(project_id)}/pipeline?${queryParams}`;
 
-        const headers: Record<string, string> = {
-          Authorization: `Bearer ${process.env.GITLAB_TOKEN}`,
-          "Content-Type": "application/json",
-        };
-
-        const requestOptions: RequestInit = {
+        const response = await enhancedFetch(apiUrl, {
           method: "POST",
-          headers,
-        };
-
-        // Always send body as JSON, even if empty
-        requestOptions.body = JSON.stringify(body);
-
-        const response = await enhancedFetch(apiUrl, requestOptions);
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
 
         if (!response.ok) {
           let errorMessage = `GitLab API error: ${response.status} ${response.statusText}`;
           try {
             const errorBody = (await response.json()) as Record<string, unknown>;
 
-            // Handle different error message formats from GitLab API
             if (errorBody.message) {
               if (typeof errorBody.message === "string") {
                 errorMessage += ` - ${errorBody.message}`;
               } else if (typeof errorBody.message === "object" && errorBody.message !== null) {
-                // Handle structured error messages like { base: ["error1", "error2"] }
                 const errorDetails: string[] = [];
                 const messageObj = errorBody.message as Record<string, unknown>;
 
@@ -351,37 +238,24 @@ export const pipelinesToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
               errorMessage += ` - ${errorBody.error}`;
             }
             if (Array.isArray(errorBody.errors)) {
-              const errors = errorBody.errors.map(e => String(e));
-              errorMessage += ` - ${errors.join(", ")}`;
+              errorMessage += ` - ${errorBody.errors.map(e => String(e)).join(", ")}`;
             }
 
             logger.error(
-              {
-                status: response.status,
-                statusText: response.statusText,
-                errorBody,
-                url: apiUrl,
-                requestBody: body,
-              },
+              { status: response.status, errorBody, url: apiUrl },
               "create_pipeline failed"
             );
           } catch {
-            // If parsing error response fails, use the basic error message
             logger.error(
-              {
-                status: response.status,
-                statusText: response.statusText,
-                url: apiUrl,
-                requestBody: body,
-              },
-              "create_pipeline failed (could not parse error response)"
+              { status: response.status, url: apiUrl },
+              "create_pipeline failed (could not parse error)"
             );
           }
           throw new Error(errorMessage);
         }
 
-        const pipeline = await response.json();
-        return cleanGidsFromObject(pipeline);
+        const pipeline = (await response.json()) as Record<string, unknown>;
+        return pipeline;
       },
     },
   ],
@@ -392,24 +266,12 @@ export const pipelinesToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
       description:
         "RETRY: Re-run a previously failed or canceled pipeline with same configuration. Use when: Retrying after fixing flaky tests, Recovering from temporary failures, Re-running without losing successful job results. Retries failed/canceled jobs while preserving successful ones. More efficient than creating new pipeline.",
       inputSchema: z.toJSONSchema(RetryPipelineSchema),
-      handler: async (args: unknown): Promise<unknown> => {
+      handler: async (args: unknown) => {
         const options = RetryPipelineSchema.parse(args);
-        const { project_id, pipeline_id } = options;
 
-        const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${normalizeProjectId(project_id)}/pipelines/${pipeline_id}/retry`;
-        const response = await enhancedFetch(apiUrl, {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${process.env.GITLAB_TOKEN}`,
-          },
-        });
-
-        if (!response.ok) {
-          throw new Error(`GitLab API error: ${response.status} ${response.statusText}`);
-        }
-
-        const pipeline = await response.json();
-        return cleanGidsFromObject(pipeline);
+        return gitlab.post(
+          `projects/${normalizeProjectId(options.project_id)}/pipelines/${options.pipeline_id}/retry`
+        );
       },
     },
   ],
@@ -420,24 +282,12 @@ export const pipelinesToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
       description:
         'CANCEL: Stop a currently executing pipeline and all its jobs. Use when: Halting unnecessary or incorrect runs, Stopping problematic deployments, Freeing up busy runners. Cancels all pending and running jobs immediately. Pipeline status changes to "canceled" and cannot be resumed.',
       inputSchema: z.toJSONSchema(CancelPipelineSchema),
-      handler: async (args: unknown): Promise<unknown> => {
+      handler: async (args: unknown) => {
         const options = CancelPipelineSchema.parse(args);
-        const { project_id, pipeline_id } = options;
 
-        const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${normalizeProjectId(project_id)}/pipelines/${pipeline_id}/cancel`;
-        const response = await enhancedFetch(apiUrl, {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${process.env.GITLAB_TOKEN}`,
-          },
-        });
-
-        if (!response.ok) {
-          throw new Error(`GitLab API error: ${response.status} ${response.statusText}`);
-        }
-
-        const pipeline = await response.json();
-        return cleanGidsFromObject(pipeline);
+        return gitlab.post(
+          `projects/${normalizeProjectId(options.project_id)}/pipelines/${options.pipeline_id}/cancel`
+        );
       },
     },
   ],
@@ -448,33 +298,14 @@ export const pipelinesToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
       description:
         "PLAY: Trigger a manual job that requires user intervention. Use when: Executing deployment gates and approvals, Running optional or conditional jobs, Proceeding with manual pipeline steps. Manual jobs pause pipeline flow until explicitly triggered. Can pass job variables for runtime configuration.",
       inputSchema: z.toJSONSchema(PlayPipelineJobSchema),
-      handler: async (args: unknown): Promise<unknown> => {
+      handler: async (args: unknown) => {
         const options = PlayPipelineJobSchema.parse(args);
-        const { project_id, job_id } = options;
+        const { project_id, job_id, ...body } = options;
 
-        const body: Record<string, unknown> = {};
-        Object.entries(options).forEach(([key, value]) => {
-          if (value !== undefined && value !== null && key !== "project_id" && key !== "job_id") {
-            body[key] = value;
-          }
+        return gitlab.post(`projects/${normalizeProjectId(project_id)}/jobs/${job_id}/play`, {
+          body,
+          contentType: "json",
         });
-
-        const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${normalizeProjectId(project_id)}/jobs/${job_id}/play`;
-        const response = await enhancedFetch(apiUrl, {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${process.env.GITLAB_TOKEN}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(body),
-        });
-
-        if (!response.ok) {
-          throw new Error(`GitLab API error: ${response.status} ${response.statusText}`);
-        }
-
-        const job = await response.json();
-        return cleanGidsFromObject(job);
       },
     },
   ],
@@ -485,24 +316,12 @@ export const pipelinesToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
       description:
         "RETRY JOB: Re-run a specific failed or canceled job within a pipeline. Use when: Retrying individual job failures, Avoiding full pipeline re-run, Fixing targeted job issues. Preserves pipeline context and job dependencies. More efficient and targeted than full pipeline retry.",
       inputSchema: z.toJSONSchema(RetryPipelineJobSchema),
-      handler: async (args: unknown): Promise<unknown> => {
+      handler: async (args: unknown) => {
         const options = RetryPipelineJobSchema.parse(args);
-        const { project_id, job_id } = options;
 
-        const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${normalizeProjectId(project_id)}/jobs/${job_id}/retry`;
-        const response = await enhancedFetch(apiUrl, {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${process.env.GITLAB_TOKEN}`,
-          },
-        });
-
-        if (!response.ok) {
-          throw new Error(`GitLab API error: ${response.status} ${response.statusText}`);
-        }
-
-        const job = await response.json();
-        return cleanGidsFromObject(job);
+        return gitlab.post(
+          `projects/${normalizeProjectId(options.project_id)}/jobs/${options.job_id}/retry`
+        );
       },
     },
   ],
@@ -513,32 +332,17 @@ export const pipelinesToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
       description:
         'CANCEL JOB: Stop a specific running job without affecting other pipeline jobs. Use when: Canceling long-running or stuck jobs, Stopping problematic jobs while preserving others, Freeing specific job resources. Job status changes to "canceled". Pipeline continues if other jobs can proceed.',
       inputSchema: z.toJSONSchema(CancelPipelineJobSchema),
-      handler: async (args: unknown): Promise<unknown> => {
+      handler: async (args: unknown) => {
         const options = CancelPipelineJobSchema.parse(args);
-        const { project_id, job_id } = options;
 
-        const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${normalizeProjectId(project_id)}/jobs/${job_id}/cancel`;
-        const response = await enhancedFetch(apiUrl, {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${process.env.GITLAB_TOKEN}`,
-          },
-        });
-
-        if (!response.ok) {
-          throw new Error(`GitLab API error: ${response.status} ${response.statusText}`);
-        }
-
-        const job = await response.json();
-        return cleanGidsFromObject(job);
+        return gitlab.post(
+          `projects/${normalizeProjectId(options.project_id)}/jobs/${options.job_id}/cancel`
+        );
       },
     },
   ],
 ]);
 
-/**
- * Get read-only tool names from the registry
- */
 export function getPipelinesReadOnlyToolNames(): string[] {
   return [
     "list_pipelines",
@@ -550,16 +354,10 @@ export function getPipelinesReadOnlyToolNames(): string[] {
   ];
 }
 
-/**
- * Get all tool definitions from the registry (for backward compatibility)
- */
 export function getPipelinesToolDefinitions(): EnhancedToolDefinition[] {
   return Array.from(pipelinesToolRegistry.values());
 }
 
-/**
- * Get filtered tools based on read-only mode
- */
 export function getFilteredPipelinesTools(readOnlyMode: boolean = false): EnhancedToolDefinition[] {
   if (readOnlyMode) {
     const readOnlyNames = getPipelinesReadOnlyToolNames();

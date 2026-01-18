@@ -42,10 +42,7 @@ describe("Namespace Utils Coverage Tests", () => {
 
       expect(result).toBe("project");
       expect(mockEnhancedFetch).toHaveBeenCalledWith(
-        "https://gitlab.example.com/api/v4/projects/group%2Fproject",
-        expect.objectContaining({
-          headers: { Authorization: "Bearer test-token-12345" },
-        })
+        "https://gitlab.example.com/api/v4/projects/group%2Fproject"
       );
     });
 
@@ -68,13 +65,11 @@ describe("Namespace Utils Coverage Tests", () => {
       expect(mockEnhancedFetch).toHaveBeenCalledTimes(2);
       expect(mockEnhancedFetch).toHaveBeenNthCalledWith(
         1,
-        "https://gitlab.example.com/api/v4/projects/group%2Fsubgroup",
-        expect.any(Object)
+        "https://gitlab.example.com/api/v4/projects/group%2Fsubgroup"
       );
       expect(mockEnhancedFetch).toHaveBeenNthCalledWith(
         2,
-        "https://gitlab.example.com/api/v4/groups/group%2Fsubgroup",
-        expect.any(Object)
+        "https://gitlab.example.com/api/v4/groups/group%2Fsubgroup"
       );
     });
 
@@ -108,10 +103,7 @@ describe("Namespace Utils Coverage Tests", () => {
 
       expect(result).toBe("group");
       expect(mockEnhancedFetch).toHaveBeenCalledWith(
-        "https://gitlab.example.com/api/v4/groups/group",
-        expect.objectContaining({
-          headers: { Authorization: "Bearer test-token-12345" },
-        })
+        "https://gitlab.example.com/api/v4/groups/group"
       );
     });
 
@@ -134,13 +126,11 @@ describe("Namespace Utils Coverage Tests", () => {
       expect(mockEnhancedFetch).toHaveBeenCalledTimes(2);
       expect(mockEnhancedFetch).toHaveBeenNthCalledWith(
         1,
-        "https://gitlab.example.com/api/v4/groups/singleproject",
-        expect.any(Object)
+        "https://gitlab.example.com/api/v4/groups/singleproject"
       );
       expect(mockEnhancedFetch).toHaveBeenNthCalledWith(
         2,
-        "https://gitlab.example.com/api/v4/projects/singleproject",
-        expect.any(Object)
+        "https://gitlab.example.com/api/v4/projects/singleproject"
       );
     });
 
@@ -183,8 +173,7 @@ describe("Namespace Utils Coverage Tests", () => {
 
       expect(result).toBe("project");
       expect(mockEnhancedFetch).toHaveBeenCalledWith(
-        "https://gitlab.example.com/api/v4/projects/group%2Fsubgroup%2Fproject",
-        expect.any(Object)
+        "https://gitlab.example.com/api/v4/projects/group%2Fsubgroup%2Fproject"
       );
     });
   });

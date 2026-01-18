@@ -119,11 +119,7 @@ async function callUsersAPI(params: UserSearchParams): Promise<unknown[]> {
   });
 
   const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/users?${queryParams}`;
-  const response = await enhancedFetch(apiUrl, {
-    headers: {
-      Authorization: `Bearer ${process.env.GITLAB_TOKEN}`,
-    },
-  });
+  const response = await enhancedFetch(apiUrl);
 
   if (!response.ok) {
     throw new Error(`GitLab API error: ${response.status} ${response.statusText}`);

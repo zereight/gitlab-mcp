@@ -25,6 +25,9 @@ coverage/
 scripts/
 !scripts/cleanup-test-groups.js
 !scripts/test_mcp.sh
+!scripts/deploy.sh
 
 # Keep assets
 !assets/
+
+/generated/prisma

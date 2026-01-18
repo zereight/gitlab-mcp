@@ -434,15 +434,18 @@ export class ToolAvailability {
       // Check tier requirement
       return this.isTierSufficient(instanceInfo.tier, requirement.requiredTier);
     } catch (error) {
-      // If connection not initialized, assume tool not available
       const errorMessage = error instanceof Error ? error.message : String(error);
 
-      // Use debug level for expected "not initialized" errors, warn for others
+      // In OAuth mode, introspection is deferred until first authenticated request.
+      // Allow all tools initially - they'll be properly filtered on actual use.
       if (errorMessage.includes("Connection not initialized")) {
-        logger.debug(`Tool availability check for '${toolName}': ${errorMessage}`);
-      } else {
-        logger.warn(`Failed to check tool availability for '${toolName}': ${errorMessage}`);
+        logger.debug(
+          `Tool availability check for '${toolName}': instance info not available yet, allowing`
+        );
+        return true;
       }
+
+      logger.warn(`Failed to check tool availability for '${toolName}': ${errorMessage}`);
       return false;
     }
   }

@@ -48,11 +48,7 @@ async function verifyNamespaceType(
     const entityType = type === "project" ? "projects" : "groups";
     const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/${entityType}/${encodeURIComponent(namespacePath)}`;
 
-    const response = await enhancedFetch(apiUrl, {
-      headers: {
-        Authorization: `Bearer ${process.env.GITLAB_TOKEN}`,
-      },
-    });
+    const response = await enhancedFetch(apiUrl);
 
     return response.ok;
   } catch {

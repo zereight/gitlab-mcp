@@ -259,10 +259,12 @@ GitLab MCP Server supports OAuth 2.1 authentication for use as a **Claude Custom
 1. In GitLab, navigate to **User Settings > Applications** (or **Admin > Applications** for instance-wide)
 2. Create a new application:
    - **Name**: `GitLab MCP Server`
-   - **Redirect URI**: `https://your-mcp-server.com/oauth/callback`
-   - **Confidential**: `No` (required for device flow)
+   - **Redirect URI**: `https://your-mcp-server.com/oauth/callback` (required for Authorization Code Flow)
+   - **Confidential**: `No` (PKCE provides security without client secret)
    - **Scopes**: Select `api` and `read_user`
 3. Save and copy the **Application ID**
+
+> **Note**: The redirect URI is used by Claude.ai Custom Connectors (Authorization Code Flow). CLI clients use Device Flow which doesn't require redirect URI.
 
 #### Step 2: Configure gitlab-mcp Server
 
@@ -399,6 +401,17 @@ For GitLab instances on private networks (not internet-accessible):
 | Security | Token in config | No tokens in config |
 | Best for | Personal use, CI/CD | Teams, shared access |
 
+### OAuth Flows
+
+The server supports two OAuth flows automatically:
+
+| Flow | Trigger | Used By | How It Works |
+|------|---------|---------|--------------|
+| **Authorization Code Flow** | `redirect_uri` present | Claude.ai Custom Connectors | Redirects to GitLab OAuth, then back to client |
+| **Device Flow** | No `redirect_uri` | CLI clients, Claude Desktop | Shows device code page for manual entry |
+
+The flow is selected automatically based on the presence of `redirect_uri` in the authorization request.
+
 ### OAuth Endpoints
 
 When OAuth is enabled, the following endpoints are available:
@@ -406,8 +419,10 @@ When OAuth is enabled, the following endpoints are available:
 | Endpoint | Method | Description |
 |----------|--------|-------------|
 | `/.well-known/oauth-authorization-server` | GET | OAuth metadata discovery |
-| `/authorize` | GET | Start authorization (device flow) |
-| `/oauth/poll` | GET | Poll for authorization completion |
+| `/.well-known/oauth-protected-resource` | GET | Protected resource metadata (RFC 9470) |
+| `/authorize` | GET | Start authorization (auto-selects flow) |
+| `/oauth/callback` | GET | GitLab callback (Auth Code Flow only) |
+| `/oauth/poll` | GET | Poll for completion (Device Flow only) |
 | `/token` | POST | Exchange code for tokens |
 | `/health` | GET | Health check endpoint |
 

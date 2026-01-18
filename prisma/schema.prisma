@@ -1,0 +1,109 @@
+// Prisma schema for gitlab-mcp OAuth session storage
+// Supports PostgreSQL for multi-instance deployments
+
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// OAuth session representing an authenticated user
+model OAuthSession {
+  id                   String   @id @default(uuid())
+
+  // MCP tokens (issued by gitlab-mcp to Claude)
+  mcpAccessToken       String   @map("mcp_access_token")
+  mcpRefreshToken      String   @map("mcp_refresh_token")
+  mcpTokenExpiry       BigInt   @map("mcp_token_expiry")
+
+  // GitLab tokens (obtained from GitLab OAuth)
+  gitlabAccessToken    String   @map("gitlab_access_token")
+  gitlabRefreshToken   String   @map("gitlab_refresh_token")
+  gitlabTokenExpiry    BigInt   @map("gitlab_token_expiry")
+
+  // User info from GitLab
+  gitlabUserId         Int      @map("gitlab_user_id")
+  gitlabUsername       String   @map("gitlab_username")
+
+  // Session metadata
+  clientId             String   @map("client_id")
+  scopes               String[] @default([])
+  createdAt            BigInt   @map("created_at")
+  updatedAt            BigInt   @map("updated_at")
+
+  // Relations
+  authorizationCodes   AuthorizationCode[]
+  mcpSessionMappings   McpSessionMapping[]
+
+  @@map("oauth_sessions")
+  @@index([mcpAccessToken], map: "idx_oauth_sessions_mcp_access_token")
+  @@index([mcpRefreshToken], map: "idx_oauth_sessions_mcp_refresh_token")
+  @@index([gitlabUserId], map: "idx_oauth_sessions_gitlab_user_id")
+}
+
+// State for tracking in-progress Device Flow authorization
+model DeviceFlowState {
+  state                   String   @id
+  deviceCode              String   @map("device_code")
+  userCode                String   @map("user_code")
+  verificationUri         String   @map("verification_uri")
+  verificationUriComplete String?  @map("verification_uri_complete")
+  expiresAt               BigInt   @map("expires_at")
+  interval                Int
+  clientId                String   @map("client_id")
+  codeChallenge           String   @map("code_challenge")
+  codeChallengeMethod     String   @map("code_challenge_method")
+  redirectUri             String?  @map("redirect_uri")
+
+  @@map("oauth_device_flows")
+  @@index([deviceCode], map: "idx_oauth_device_flows_device_code")
+  @@index([expiresAt], map: "idx_oauth_device_flows_expires_at")
+}
+
+// State for tracking in-progress Authorization Code Flow
+model AuthCodeFlowState {
+  internalState       String   @id @map("internal_state")
+  clientId            String   @map("client_id")
+  codeChallenge       String   @map("code_challenge")
+  codeChallengeMethod String   @map("code_challenge_method")
+  clientState         String   @map("client_state")
+  clientRedirectUri   String   @map("client_redirect_uri")
+  callbackUri         String   @map("callback_uri")
+  expiresAt           BigInt   @map("expires_at")
+
+  @@map("oauth_auth_code_flows")
+  @@index([expiresAt], map: "idx_oauth_auth_code_flows_expires_at")
+}
+
+// Authorization code for OAuth code exchange
+model AuthorizationCode {
+  code                String        @id
+  sessionId           String        @map("session_id")
+  clientId            String        @map("client_id")
+  codeChallenge       String        @map("code_challenge")
+  codeChallengeMethod String        @map("code_challenge_method")
+  redirectUri         String?       @map("redirect_uri")
+  expiresAt           BigInt        @map("expires_at")
+
+  // Relations
+  session             OAuthSession  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@map("oauth_authorization_codes")
+  @@index([sessionId], map: "idx_oauth_authorization_codes_session_id")
+  @@index([expiresAt], map: "idx_oauth_authorization_codes_expires_at")
+}
+
+// MCP session to OAuth session mapping
+model McpSessionMapping {
+  mcpSessionId        String        @id @map("mcp_session_id")
+  oauthSessionId      String        @map("oauth_session_id")
+
+  // Relations
+  oauthSession        OAuthSession  @relation(fields: [oauthSessionId], references: [id], onDelete: Cascade)
+
+  @@map("oauth_mcp_session_mappings")
+  @@index([oauthSessionId], map: "idx_oauth_mcp_session_mappings_oauth_session_id")
+}

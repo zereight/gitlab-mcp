@@ -51,11 +51,7 @@ export const mrsToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefinit
         }
 
         const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${normalizeProjectId(project_id)}/repository/compare?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}&${queryParams}`;
-        const response = await enhancedFetch(apiUrl, {
-          headers: {
-            Authorization: `Bearer ${process.env.GITLAB_TOKEN}`,
-          },
-        });
+        const response = await enhancedFetch(apiUrl);
 
         if (!response.ok) {
           throw new Error(`GitLab API error: ${response.status} ${response.statusText}`);
@@ -89,11 +85,7 @@ export const mrsToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefinit
           throw new Error("Either merge_request_iid or branch_name must be provided");
         }
 
-        const response = await enhancedFetch(apiUrl, {
-          headers: {
-            Authorization: `Bearer ${process.env.GITLAB_TOKEN}`,
-          },
-        });
+        const response = await enhancedFetch(apiUrl);
 
         if (!response.ok) {
           throw new Error(`GitLab API error: ${response.status} ${response.statusText}`);
@@ -136,11 +128,7 @@ export const mrsToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefinit
           ? `${process.env.GITLAB_API_URL}/api/v4/projects/${encodeURIComponent(options.project_id)}/merge_requests?${queryParams}`
           : `${process.env.GITLAB_API_URL}/api/v4/merge_requests?${queryParams}`;
 
-        const response = await enhancedFetch(apiUrl, {
-          headers: {
-            Authorization: `Bearer ${process.env.GITLAB_TOKEN}`,
-          },
-        });
+        const response = await enhancedFetch(apiUrl);
 
         if (!response.ok) {
           throw new Error(`GitLab API error: ${response.status} ${response.statusText}`);
@@ -171,11 +159,7 @@ export const mrsToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefinit
         }
 
         const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${normalizeProjectId(project_id)}/merge_requests/${merge_request_iid}/changes?${queryParams}`;
-        const response = await enhancedFetch(apiUrl, {
-          headers: {
-            Authorization: `Bearer ${process.env.GITLAB_TOKEN}`,
-          },
-        });
+        const response = await enhancedFetch(apiUrl);
 
         if (!response.ok) {
           throw new Error(`GitLab API error: ${response.status} ${response.statusText}`);
@@ -206,11 +190,7 @@ export const mrsToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefinit
         }
 
         const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${normalizeProjectId(project_id)}/merge_requests/${merge_request_iid}/diffs?${queryParams}`;
-        const response = await enhancedFetch(apiUrl, {
-          headers: {
-            Authorization: `Bearer ${process.env.GITLAB_TOKEN}`,
-          },
-        });
+        const response = await enhancedFetch(apiUrl);
 
         if (!response.ok) {
           throw new Error(`GitLab API error: ${response.status} ${response.statusText}`);
@@ -240,11 +220,7 @@ export const mrsToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefinit
         });
 
         const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${normalizeProjectId(project_id)}/merge_requests/${merge_request_iid}/discussions?${queryParams}`;
-        const response = await enhancedFetch(apiUrl, {
-          headers: {
-            Authorization: `Bearer ${process.env.GITLAB_TOKEN}`,
-          },
-        });
+        const response = await enhancedFetch(apiUrl);
 
         if (!response.ok) {
           throw new Error(`GitLab API error: ${response.status} ${response.statusText}`);
@@ -267,11 +243,7 @@ export const mrsToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefinit
         const { project_id, merge_request_iid, draft_note_id } = options;
 
         const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${normalizeProjectId(project_id)}/merge_requests/${merge_request_iid}/draft_notes/${draft_note_id}`;
-        const response = await enhancedFetch(apiUrl, {
-          headers: {
-            Authorization: `Bearer ${process.env.GITLAB_TOKEN}`,
-          },
-        });
+        const response = await enhancedFetch(apiUrl);
 
         if (!response.ok) {
           throw new Error(`GitLab API error: ${response.status} ${response.statusText}`);
@@ -301,11 +273,7 @@ export const mrsToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefinit
         });
 
         const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${normalizeProjectId(project_id)}/merge_requests/${merge_request_iid}/draft_notes?${queryParams}`;
-        const response = await enhancedFetch(apiUrl, {
-          headers: {
-            Authorization: `Bearer ${process.env.GITLAB_TOKEN}`,
-          },
-        });
+        const response = await enhancedFetch(apiUrl);
 
         if (!response.ok) {
           throw new Error(`GitLab API error: ${response.status} ${response.statusText}`);
@@ -342,7 +310,6 @@ export const mrsToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefinit
         const response = await enhancedFetch(apiUrl, {
           method: "POST",
           headers: {
-            Authorization: `Bearer ${process.env.GITLAB_TOKEN}`,
             "Content-Type": "application/x-www-form-urlencoded",
           },
           body: body.toString(),
@@ -378,7 +345,6 @@ export const mrsToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefinit
         const response = await enhancedFetch(apiUrl, {
           method: "PUT",
           headers: {
-            Authorization: `Bearer ${process.env.GITLAB_TOKEN}`,
             "Content-Type": "application/x-www-form-urlencoded",
           },
           body: body.toString(),
@@ -420,7 +386,6 @@ export const mrsToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefinit
         const response = await enhancedFetch(apiUrl, {
           method: "POST",
           headers: {
-            Authorization: `Bearer ${process.env.GITLAB_TOKEN}`,
             "Content-Type": "application/x-www-form-urlencoded",
           },
           body: body.toString(),
@@ -455,7 +420,6 @@ export const mrsToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefinit
         const response = await enhancedFetch(apiUrl, {
           method: "POST",
           headers: {
-            Authorization: `Bearer ${process.env.GITLAB_TOKEN}`,
             "Content-Type": "application/x-www-form-urlencoded",
           },
           body: body.toString(),
@@ -483,9 +447,6 @@ export const mrsToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefinit
         const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${encodeURIComponent(options.project_id)}/merge_requests/${options.merge_request_iid}/draft_notes/${options.draft_note_id}/publish`;
         const response = await enhancedFetch(apiUrl, {
           method: "PUT",
-          headers: {
-            Authorization: `Bearer ${process.env.GITLAB_TOKEN}`,
-          },
         });
 
         if (!response.ok) {
@@ -511,9 +472,6 @@ export const mrsToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefinit
         const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${encodeURIComponent(options.project_id)}/merge_requests/${options.merge_request_iid}/draft_notes/bulk_publish`;
         const response = await enhancedFetch(apiUrl, {
           method: "POST",
-          headers: {
-            Authorization: `Bearer ${process.env.GITLAB_TOKEN}`,
-          },
         });
 
         if (!response.ok) {
@@ -551,7 +509,6 @@ export const mrsToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefinit
         const response = await enhancedFetch(apiUrl, {
           method: "PUT",
           headers: {
-            Authorization: `Bearer ${process.env.GITLAB_TOKEN}`,
             "Content-Type": "application/x-www-form-urlencoded",
           },
           body: body.toString(),
@@ -589,7 +546,6 @@ export const mrsToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefinit
         const response = await enhancedFetch(apiUrl, {
           method: "POST",
           headers: {
-            Authorization: `Bearer ${process.env.GITLAB_TOKEN}`,
             "Content-Type": "application/x-www-form-urlencoded",
           },
           body: body.toString(),
@@ -621,7 +577,6 @@ export const mrsToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefinit
         const response = await enhancedFetch(apiUrl, {
           method: "PUT",
           headers: {
-            Authorization: `Bearer ${process.env.GITLAB_TOKEN}`,
             "Content-Type": "application/x-www-form-urlencoded",
           },
           body: body.toString(),
@@ -656,7 +611,6 @@ export const mrsToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefinit
         const response = await enhancedFetch(apiUrl, {
           method: "POST",
           headers: {
-            Authorization: `Bearer ${process.env.GITLAB_TOKEN}`,
             "Content-Type": "application/x-www-form-urlencoded",
           },
           body: body.toString(),
@@ -691,7 +645,6 @@ export const mrsToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefinit
         const response = await enhancedFetch(apiUrl, {
           method: "PUT",
           headers: {
-            Authorization: `Bearer ${process.env.GITLAB_TOKEN}`,
             "Content-Type": "application/x-www-form-urlencoded",
           },
           body: body.toString(),
@@ -719,9 +672,6 @@ export const mrsToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefinit
         const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${encodeURIComponent(options.project_id)}/merge_requests/${options.merge_request_iid}/draft_notes/${options.draft_note_id}`;
         const response = await enhancedFetch(apiUrl, {
           method: "DELETE",
-          headers: {
-            Authorization: `Bearer ${process.env.GITLAB_TOKEN}`,
-          },
         });
 
         if (!response.ok) {

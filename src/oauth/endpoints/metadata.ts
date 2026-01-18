@@ -71,11 +71,41 @@ export function metadataHandler(req: Request, res: Response): void {
     // OPTIONAL: Supported scopes
     scopes_supported: ["mcp:tools", "mcp:resources"],
 
-    // OPTIONAL: Registration endpoint (not implemented)
-    // registration_endpoint: `${baseUrl}/register`,
+    // REQUIRED for Claude.ai: Dynamic Client Registration endpoint (RFC 7591)
+    registration_endpoint: `${baseUrl}/register`,
 
     // MCP-specific metadata
     mcp_version: "2025-03-26",
+  };
+
+  res.json(metadata);
+}
+
+/**
+ * OAuth Protected Resource Metadata endpoint handler (RFC 9470)
+ *
+ * Returns metadata about this MCP server as a protected resource,
+ * including a reference to the authorization server.
+ *
+ * @param req - Express request
+ * @param res - Express response
+ */
+export function protectedResourceHandler(req: Request, res: Response): void {
+  const baseUrl = getBaseUrl(req);
+
+  // OAuth 2.0 Protected Resource Metadata (RFC 9470)
+  const metadata = {
+    // REQUIRED: Resource identifier
+    resource: baseUrl,
+
+    // REQUIRED: Authorization servers that can be used to access this resource
+    authorization_servers: [baseUrl],
+
+    // OPTIONAL: Scopes required for this resource
+    scopes_supported: ["mcp:tools", "mcp:resources"],
+
+    // OPTIONAL: Bearer token methods supported
+    bearer_methods_supported: ["header"],
   };
 
   res.json(metadata);

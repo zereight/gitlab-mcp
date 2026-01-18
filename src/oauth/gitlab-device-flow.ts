@@ -48,6 +48,9 @@ export async function initiateDeviceFlow(config: OAuthConfig): Promise<GitLabDev
 
   logger.debug({ url, clientId: config.gitlabClientId }, "Initiating GitLab device flow");
 
+  // Convert comma-separated scopes to space-separated (GitLab requirement)
+  const scopes = config.gitlabScopes.replace(/,/g, " ");
+
   const response = await fetch(url, {
     method: "POST",
     headers: {
@@ -56,7 +59,7 @@ export async function initiateDeviceFlow(config: OAuthConfig): Promise<GitLabDev
     },
     body: new URLSearchParams({
       client_id: config.gitlabClientId,
-      scope: config.gitlabScopes,
+      scope: scopes,
     }),
   });
 
@@ -315,6 +318,90 @@ export async function validateGitLabToken(accessToken: string): Promise<boolean>
   } catch {
     return false;
   }
+}
+
+/**
+ * Exchange a GitLab authorization code for tokens
+ *
+ * Used in Authorization Code Flow when GitLab redirects back with a code.
+ *
+ * @param code - Authorization code from GitLab callback
+ * @param redirectUri - The redirect URI that was used in the authorization request
+ * @param config - OAuth configuration
+ * @returns Token response with access and refresh tokens
+ * @throws Error if the exchange fails
+ */
+export async function exchangeGitLabAuthCode(
+  code: string,
+  redirectUri: string,
+  config: OAuthConfig
+): Promise<GitLabTokenResponse> {
+  const url = `${GITLAB_BASE_URL}/oauth/token`;
+
+  const params: Record<string, string> = {
+    client_id: config.gitlabClientId,
+    code: code,
+    grant_type: "authorization_code",
+    redirect_uri: redirectUri,
+  };
+
+  // Add client secret if configured (for confidential apps)
+  if (config.gitlabClientSecret) {
+    params.client_secret = config.gitlabClientSecret;
+  }
+
+  logger.debug({ redirectUri }, "Exchanging GitLab authorization code for tokens");
+
+  const response = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+      Accept: "application/json",
+    },
+    body: new URLSearchParams(params),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    logger.error(
+      { status: response.status, error: errorText },
+      "Failed to exchange GitLab auth code"
+    );
+    throw new Error(`Failed to exchange authorization code: ${response.status} ${errorText}`);
+  }
+
+  const data = (await response.json()) as GitLabTokenResponse;
+  logger.info("GitLab authorization code exchanged successfully");
+  return data;
+}
+
+/**
+ * Build GitLab OAuth authorization URL
+ *
+ * Used to redirect users to GitLab for authorization in the Authorization Code Flow.
+ *
+ * @param config - OAuth configuration
+ * @param redirectUri - URI to redirect back to after authorization
+ * @param state - State parameter for CSRF protection
+ * @returns Full authorization URL
+ */
+export function buildGitLabAuthUrl(
+  config: OAuthConfig,
+  redirectUri: string,
+  state: string
+): string {
+  // Convert comma-separated scopes to space-separated (GitLab requirement)
+  const scopes = config.gitlabScopes.replace(/,/g, " ");
+
+  const params = new URLSearchParams({
+    client_id: config.gitlabClientId,
+    redirect_uri: redirectUri,
+    response_type: "code",
+    state: state,
+    scope: scopes,
+  });
+
+  return `${GITLAB_BASE_URL}/oauth/authorize?${params.toString()}`;
 }
 
 /**

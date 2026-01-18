@@ -33,10 +33,14 @@ export async function setupHandlers(server: Server): Promise<void> {
   }
   // List tools handler
   server.setRequestHandler(ListToolsRequestSchema, async () => {
+    logger.info("ListToolsRequest received");
+
     // Get tools from registry manager (already filtered)
     const { RegistryManager } = await import("./registry-manager");
     const registryManager = RegistryManager.getInstance();
     const tools = registryManager.getAllToolDefinitions();
+
+    logger.info({ toolCount: tools.length }, "Returning tools list");
 
     // Helper function to resolve $ref references in JSON schema
     function resolveRefs(
@@ -138,9 +142,18 @@ export async function setupHandlers(server: Server): Promise<void> {
 
       // Check if connection is initialized - try to initialize if needed
       const connectionManager = ConnectionManager.getInstance();
+      const { isOAuthEnabled } = await import("./oauth/index");
+      const oauthMode = isOAuthEnabled();
+
       try {
-        // Try to get client first
+        // Try to get client first (basic initialization check)
         connectionManager.getClient();
+
+        // In OAuth mode, ensure introspection is done (uses token from context)
+        if (oauthMode) {
+          await connectionManager.ensureIntrospected();
+        }
+
         const instanceInfo = connectionManager.getInstanceInfo();
         logger.info(`Connection verified: ${instanceInfo.version} ${instanceInfo.tier}`);
       } catch {
@@ -148,6 +161,12 @@ export async function setupHandlers(server: Server): Promise<void> {
         try {
           await connectionManager.initialize();
           connectionManager.getClient();
+
+          // In OAuth mode, ensure introspection is done after init
+          if (oauthMode) {
+            await connectionManager.ensureIntrospected();
+          }
+
           const instanceInfo = connectionManager.getInstanceInfo();
           logger.info(`Connection initialized: ${instanceInfo.version} ${instanceInfo.tier}`);
         } catch (initError) {
@@ -172,6 +191,16 @@ export async function setupHandlers(server: Server): Promise<void> {
         }
 
         logger.info(`Executing tool: ${toolName}`);
+
+        // Check OAuth context
+        const { isOAuthEnabled, getTokenContext } = await import("./oauth/index");
+        if (isOAuthEnabled()) {
+          const context = getTokenContext();
+          logger.debug(
+            { hasContext: !!context, hasToken: !!context?.gitlabToken, tool: toolName },
+            "OAuth context check before tool execution"
+          );
+        }
 
         // Execute the tool using the registry manager
         const result = await registryManager.executeTool(toolName, request.params.arguments);

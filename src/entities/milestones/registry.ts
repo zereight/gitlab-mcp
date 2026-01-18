@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import * as z from "zod";
 import {
   ListProjectMilestonesSchema,
@@ -13,16 +12,14 @@ import {
   DeleteProjectMilestoneSchema,
   PromoteProjectMilestoneSchema,
 } from "./schema";
-import { enhancedFetch } from "../../utils/fetch";
+import { gitlab, toQuery } from "../../utils/gitlab-api";
 import { resolveNamespaceForAPI } from "../../utils/namespace";
-import { cleanGidsFromObject } from "../../utils/idConversion";
 import { ToolRegistry, EnhancedToolDefinition } from "../../types";
 
 /**
  * Milestones tools registry - unified registry containing all milestone operation tools with their handlers
  */
 export const milestonesToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefinition>([
-  // Read-only tools
   [
     "list_milestones",
     {
@@ -30,33 +27,13 @@ export const milestonesToolRegistry: ToolRegistry = new Map<string, EnhancedTool
       description:
         "Browse release milestones for planning and tracking. Use to see upcoming releases, sprint cycles, or project phases. Supports filtering by state (active/closed) and timeframe. Returns milestone titles, dates, progress statistics. Group milestones apply across all projects.",
       inputSchema: z.toJSONSchema(ListProjectMilestonesSchema),
-      handler: async (args: unknown): Promise<unknown> => {
+      handler: async (args: unknown) => {
         const options = ListProjectMilestonesSchema.parse(args);
-        const { namespace } = options;
+        const { entityType, encodedPath } = await resolveNamespaceForAPI(options.namespace);
 
-        // Resolve namespace type and get proper API path
-        const { entityType, encodedPath } = await resolveNamespaceForAPI(namespace);
-
-        const queryParams = new URLSearchParams();
-        Object.entries(options).forEach(([key, value]) => {
-          if (value !== undefined && value !== null && key !== "namespace") {
-            queryParams.set(key, String(value));
-          }
+        return gitlab.get(`${entityType}/${encodedPath}/milestones`, {
+          query: toQuery(options, ["namespace"]),
         });
-
-        const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/${entityType}/${encodedPath}/milestones?${queryParams}`;
-        const response = await enhancedFetch(apiUrl, {
-          headers: {
-            Authorization: `Bearer ${process.env.GITLAB_TOKEN}`,
-          },
-        });
-
-        if (!response.ok) {
-          throw new Error(`GitLab API error: ${response.status} ${response.statusText}`);
-        }
-
-        const milestones = await response.json();
-        return cleanGidsFromObject(milestones);
       },
     },
   ],
@@ -67,26 +44,11 @@ export const milestonesToolRegistry: ToolRegistry = new Map<string, EnhancedTool
       description:
         "Retrieve comprehensive milestone information including dates, description, and progress metrics. Use to track release status, see associated work, or analyze milestone completion. Shows open/closed issue counts and completion percentage.",
       inputSchema: z.toJSONSchema(GetProjectMilestoneSchema),
-      handler: async (args: unknown): Promise<unknown> => {
+      handler: async (args: unknown) => {
         const options = GetProjectMilestoneSchema.parse(args);
-        const { namespace, milestone_id } = options;
+        const { entityType, encodedPath } = await resolveNamespaceForAPI(options.namespace);
 
-        // Resolve namespace type and get proper API path
-        const { entityType, encodedPath } = await resolveNamespaceForAPI(namespace);
-
-        const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/${entityType}/${encodedPath}/milestones/${milestone_id}`;
-        const response = await enhancedFetch(apiUrl, {
-          headers: {
-            Authorization: `Bearer ${process.env.GITLAB_TOKEN}`,
-          },
-        });
-
-        if (!response.ok) {
-          throw new Error(`GitLab API error: ${response.status} ${response.statusText}`);
-        }
-
-        const milestone = await response.json();
-        return cleanGidsFromObject(milestone);
+        return gitlab.get(`${entityType}/${encodedPath}/milestones/${options.milestone_id}`);
       },
     },
   ],
@@ -97,38 +59,14 @@ export const milestonesToolRegistry: ToolRegistry = new Map<string, EnhancedTool
       description:
         "List all issues targeted for a milestone release. Use to track milestone progress, identify blockers, or plan work. Returns issue details with status, assignees, and labels. Essential for release management and sprint planning.",
       inputSchema: z.toJSONSchema(GetMilestoneIssuesSchema),
-      handler: async (args: unknown): Promise<unknown> => {
+      handler: async (args: unknown) => {
         const options = GetMilestoneIssuesSchema.parse(args);
-        const { namespace, milestone_id } = options;
+        const { entityType, encodedPath } = await resolveNamespaceForAPI(options.namespace);
 
-        // Resolve namespace type and get proper API path
-        const { entityType, encodedPath } = await resolveNamespaceForAPI(namespace);
-
-        const queryParams = new URLSearchParams();
-        Object.entries(options).forEach(([key, value]) => {
-          if (
-            value !== undefined &&
-            value !== null &&
-            key !== "namespace" &&
-            key !== "milestone_id"
-          ) {
-            queryParams.set(key, String(value));
-          }
-        });
-
-        const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/${entityType}/${encodedPath}/milestones/${milestone_id}/issues?${queryParams}`;
-        const response = await enhancedFetch(apiUrl, {
-          headers: {
-            Authorization: `Bearer ${process.env.GITLAB_TOKEN}`,
-          },
-        });
-
-        if (!response.ok) {
-          throw new Error(`GitLab API error: ${response.status} ${response.statusText}`);
-        }
-
-        const issues = await response.json();
-        return cleanGidsFromObject(issues);
+        return gitlab.get(
+          `${entityType}/${encodedPath}/milestones/${options.milestone_id}/issues`,
+          { query: toQuery(options, ["namespace", "milestone_id"]) }
+        );
       },
     },
   ],
@@ -139,38 +77,14 @@ export const milestonesToolRegistry: ToolRegistry = new Map<string, EnhancedTool
       description:
         "List merge requests scheduled for a milestone. Use to track feature completion, review code changes for release, or identify pending work. Shows MR status, approvals, and pipeline status. Critical for release readiness assessment.",
       inputSchema: z.toJSONSchema(GetMilestoneMergeRequestsSchema),
-      handler: async (args: unknown): Promise<unknown> => {
+      handler: async (args: unknown) => {
         const options = GetMilestoneMergeRequestsSchema.parse(args);
-        const { namespace, milestone_id } = options;
+        const { entityType, encodedPath } = await resolveNamespaceForAPI(options.namespace);
 
-        // Resolve namespace type and get proper API path
-        const { entityType, encodedPath } = await resolveNamespaceForAPI(namespace);
-
-        const queryParams = new URLSearchParams();
-        Object.entries(options).forEach(([key, value]) => {
-          if (
-            value !== undefined &&
-            value !== null &&
-            key !== "namespace" &&
-            key !== "milestone_id"
-          ) {
-            queryParams.set(key, String(value));
-          }
-        });
-
-        const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/${entityType}/${encodedPath}/milestones/${milestone_id}/merge_requests?${queryParams}`;
-        const response = await enhancedFetch(apiUrl, {
-          headers: {
-            Authorization: `Bearer ${process.env.GITLAB_TOKEN}`,
-          },
-        });
-
-        if (!response.ok) {
-          throw new Error(`GitLab API error: ${response.status} ${response.statusText}`);
-        }
-
-        const mergeRequests = await response.json();
-        return cleanGidsFromObject(mergeRequests);
+        return gitlab.get(
+          `${entityType}/${encodedPath}/milestones/${options.milestone_id}/merge_requests`,
+          { query: toQuery(options, ["namespace", "milestone_id"]) }
+        );
       },
     },
   ],
@@ -181,30 +95,17 @@ export const milestonesToolRegistry: ToolRegistry = new Map<string, EnhancedTool
       description:
         "Track milestone progress with burndown chart data. Use for agile metrics, velocity tracking, and sprint analysis. Returns time-series events showing work completion rate. Premium/Ultimate feature for advanced project analytics.",
       inputSchema: z.toJSONSchema(GetMilestoneBurndownEventsSchema),
-      handler: async (args: unknown): Promise<unknown> => {
+      handler: async (args: unknown) => {
         const options = GetMilestoneBurndownEventsSchema.parse(args);
-        const { namespace, milestone_id } = options;
+        const { entityType, encodedPath } = await resolveNamespaceForAPI(options.namespace);
 
-        // Resolve namespace type and get proper API path
-        const { entityType, encodedPath } = await resolveNamespaceForAPI(namespace);
-
-        const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/${entityType}/${encodedPath}/milestones/${milestone_id}/burndown_events`;
-        const response = await enhancedFetch(apiUrl, {
-          headers: {
-            Authorization: `Bearer ${process.env.GITLAB_TOKEN}`,
-          },
-        });
-
-        if (!response.ok) {
-          throw new Error(`GitLab API error: ${response.status} ${response.statusText}`);
-        }
-
-        const burndownEvents = await response.json();
-        return cleanGidsFromObject(burndownEvents);
+        return gitlab.get(
+          `${entityType}/${encodedPath}/milestones/${options.milestone_id}/burndown_events`,
+          { query: toQuery(options, ["namespace", "milestone_id"]) }
+        );
       },
     },
   ],
-  // Write tools
   [
     "create_milestone",
     {
@@ -212,36 +113,15 @@ export const milestonesToolRegistry: ToolRegistry = new Map<string, EnhancedTool
       description:
         "Define a new release milestone or sprint cycle. Use to establish delivery targets, organize work phases, or plan releases. Set title, description, start/due dates. Group milestones coordinate releases across multiple projects.",
       inputSchema: z.toJSONSchema(CreateProjectMilestoneSchema),
-      handler: async (args: unknown): Promise<unknown> => {
+      handler: async (args: unknown) => {
         const options = CreateProjectMilestoneSchema.parse(args);
-        const { namespace } = options;
+        const { entityType, encodedPath } = await resolveNamespaceForAPI(options.namespace);
+        const { namespace: _namespace, ...body } = options;
 
-        // Resolve namespace type and get proper API path
-        const { entityType, encodedPath } = await resolveNamespaceForAPI(namespace);
-
-        const body: Record<string, unknown> = {};
-        Object.entries(options).forEach(([key, value]) => {
-          if (value !== undefined && value !== null && key !== "namespace") {
-            body[key] = value;
-          }
+        return gitlab.post(`${entityType}/${encodedPath}/milestones`, {
+          body,
+          contentType: "json",
         });
-
-        const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/${entityType}/${encodedPath}/milestones`;
-        const response = await enhancedFetch(apiUrl, {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${process.env.GITLAB_TOKEN}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(body),
-        });
-
-        if (!response.ok) {
-          throw new Error(`GitLab API error: ${response.status} ${response.statusText}`);
-        }
-
-        const milestone = await response.json();
-        return cleanGidsFromObject(milestone);
       },
     },
   ],
@@ -252,41 +132,15 @@ export const milestonesToolRegistry: ToolRegistry = new Map<string, EnhancedTool
       description:
         "Update milestone properties like dates, description, or state. Use to adjust release schedules, extend sprints, or close completed milestones. Changes apply immediately to all associated issues and MRs.",
       inputSchema: z.toJSONSchema(EditProjectMilestoneSchema),
-      handler: async (args: unknown): Promise<unknown> => {
+      handler: async (args: unknown) => {
         const options = EditProjectMilestoneSchema.parse(args);
-        const { namespace, milestone_id } = options;
+        const { entityType, encodedPath } = await resolveNamespaceForAPI(options.namespace);
+        const { namespace: _namespace, milestone_id, ...body } = options;
 
-        // Resolve namespace type and get proper API path
-        const { entityType, encodedPath } = await resolveNamespaceForAPI(namespace);
-
-        const body: Record<string, unknown> = {};
-        Object.entries(options).forEach(([key, value]) => {
-          if (
-            value !== undefined &&
-            value !== null &&
-            key !== "namespace" &&
-            key !== "milestone_id"
-          ) {
-            body[key] = value;
-          }
+        return gitlab.put(`${entityType}/${encodedPath}/milestones/${milestone_id}`, {
+          body,
+          contentType: "json",
         });
-
-        const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/${entityType}/${encodedPath}/milestones/${milestone_id}`;
-        const response = await enhancedFetch(apiUrl, {
-          method: "PUT",
-          headers: {
-            Authorization: `Bearer ${process.env.GITLAB_TOKEN}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(body),
-        });
-
-        if (!response.ok) {
-          throw new Error(`GitLab API error: ${response.status} ${response.statusText}`);
-        }
-
-        const milestone = await response.json();
-        return cleanGidsFromObject(milestone);
       },
     },
   ],
@@ -297,28 +151,12 @@ export const milestonesToolRegistry: ToolRegistry = new Map<string, EnhancedTool
       description:
         "Remove a milestone permanently. Use to clean up cancelled releases or obsolete milestones. Warning: removes milestone association from all issues and MRs. Consider closing instead of deleting for historical tracking.",
       inputSchema: z.toJSONSchema(DeleteProjectMilestoneSchema),
-      handler: async (args: unknown): Promise<unknown> => {
+      handler: async (args: unknown) => {
         const options = DeleteProjectMilestoneSchema.parse(args);
-        const { namespace, milestone_id } = options;
+        const { entityType, encodedPath } = await resolveNamespaceForAPI(options.namespace);
 
-        // Resolve namespace type and get proper API path
-        const { entityType, encodedPath } = await resolveNamespaceForAPI(namespace);
-
-        const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/${entityType}/${encodedPath}/milestones/${milestone_id}`;
-        const response = await enhancedFetch(apiUrl, {
-          method: "DELETE",
-          headers: {
-            Authorization: `Bearer ${process.env.GITLAB_TOKEN}`,
-          },
-        });
-
-        if (!response.ok) {
-          throw new Error(`GitLab API error: ${response.status} ${response.statusText}`);
-        }
-
-        // DELETE returns 204 No Content on success
-        const result = response.status === 204 ? { deleted: true } : await response.json();
-        return cleanGidsFromObject(result);
+        await gitlab.delete(`${entityType}/${encodedPath}/milestones/${options.milestone_id}`);
+        return { deleted: true };
       },
     },
   ],
@@ -329,39 +167,22 @@ export const milestonesToolRegistry: ToolRegistry = new Map<string, EnhancedTool
       description:
         "Elevate project milestone to group level for cross-project coordination. Use when a milestone needs to span multiple projects. Consolidates related project milestones into single group milestone. Useful for organizational release planning.",
       inputSchema: z.toJSONSchema(PromoteProjectMilestoneSchema),
-      handler: async (args: unknown): Promise<unknown> => {
+      handler: async (args: unknown) => {
         const options = PromoteProjectMilestoneSchema.parse(args);
-        const { namespace, milestone_id } = options;
-
-        // Resolve namespace - for promote, we need to ensure it's a project
-        const { entityType, encodedPath } = await resolveNamespaceForAPI(namespace);
+        const { entityType, encodedPath } = await resolveNamespaceForAPI(options.namespace);
 
         if (entityType !== "projects") {
           throw new Error("Milestone promotion is only available for projects, not groups");
         }
 
-        const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${encodedPath}/milestones/${encodeURIComponent(milestone_id)}/promote`;
-        const response = await enhancedFetch(apiUrl, {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${process.env.GITLAB_TOKEN}`,
-          },
-        });
-
-        if (!response.ok) {
-          throw new Error(`GitLab API error: ${response.status} ${response.statusText}`);
-        }
-
-        const milestone = await response.json();
-        return cleanGidsFromObject(milestone);
+        return gitlab.post(
+          `projects/${encodedPath}/milestones/${encodeURIComponent(options.milestone_id)}/promote`
+        );
       },
     },
   ],
 ]);
 
-/**
- * Get read-only tool names from the registry
- */
 export function getMilestonesReadOnlyToolNames(): string[] {
   return [
     "list_milestones",
@@ -372,16 +193,10 @@ export function getMilestonesReadOnlyToolNames(): string[] {
   ];
 }
 
-/**
- * Get all tool definitions from the registry (for backward compatibility)
- */
 export function getMilestonesToolDefinitions(): EnhancedToolDefinition[] {
   return Array.from(milestonesToolRegistry.values());
 }
 
-/**
- * Get filtered tools based on read-only mode
- */
 export function getFilteredMilestonesTools(
   readOnlyMode: boolean = false
 ): EnhancedToolDefinition[] {

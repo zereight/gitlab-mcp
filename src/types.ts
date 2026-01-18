@@ -25,7 +25,6 @@ export interface ToolDefinition {
 
 // Enhanced tool definition interface that includes handler function
 export interface EnhancedToolDefinition extends ToolDefinition {
-  // eslint-disable-next-line no-unused-vars
   handler: (args: unknown) => Promise<unknown>;
 }
 

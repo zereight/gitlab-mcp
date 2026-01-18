@@ -105,11 +105,7 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
 
         // Make REAL GitLab API call to search projects
         const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects?${queryParams}`;
-        const response = await enhancedFetch(apiUrl, {
-          headers: {
-            Authorization: `Bearer ${process.env.GITLAB_TOKEN}`,
-          },
-        });
+        const response = await enhancedFetch(apiUrl);
 
         if (!response.ok) {
           throw new Error(`GitLab API error: ${response.status} ${response.statusText}`);
@@ -194,11 +190,7 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
 
           // GROUP API: GET /groups/:id/projects
           const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/groups/${encodeURIComponent(group_id)}/projects?${queryParams}`;
-          const response = await enhancedFetch(apiUrl, {
-            headers: {
-              Authorization: `Bearer ${process.env.GITLAB_TOKEN}`,
-            },
-          });
+          const response = await enhancedFetch(apiUrl);
 
           if (!response.ok) {
             throw new Error(`GitLab API error: ${response.status} ${response.statusText}`);
@@ -246,11 +238,7 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
 
           // USER API: GET /projects
           const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects?${queryParams}`;
-          const response = await enhancedFetch(apiUrl, {
-            headers: {
-              Authorization: `Bearer ${process.env.GITLAB_TOKEN}`,
-            },
-          });
+          const response = await enhancedFetch(apiUrl);
 
           if (!response.ok) {
             throw new Error(`GitLab API error: ${response.status} ${response.statusText}`);
@@ -280,11 +268,7 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
         });
 
         const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/namespaces?${queryParams}`;
-        const response = await enhancedFetch(apiUrl, {
-          headers: {
-            Authorization: `Bearer ${process.env.GITLAB_TOKEN}`,
-          },
-        });
+        const response = await enhancedFetch(apiUrl);
 
         if (!response.ok) {
           throw new Error(`GitLab API error: ${response.status} ${response.statusText}`);
@@ -340,11 +324,7 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
           });
 
           const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/users?${queryParams}`;
-          const response = await enhancedFetch(apiUrl, {
-            headers: {
-              Authorization: `Bearer ${process.env.GITLAB_TOKEN}`,
-            },
-          });
+          const response = await enhancedFetch(apiUrl);
 
           if (!response.ok) {
             throw new Error(`GitLab API error: ${response.status} ${response.statusText}`);
@@ -381,11 +361,7 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
         });
 
         const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${normalizeProjectId(projectIdentifier)}?${queryParams}`;
-        const response = await enhancedFetch(apiUrl, {
-          headers: {
-            Authorization: `Bearer ${process.env.GITLAB_TOKEN}`,
-          },
-        });
+        const response = await enhancedFetch(apiUrl);
 
         if (!response.ok) {
           throw new Error(`GitLab API error: ${response.status} ${response.statusText}`);
@@ -409,11 +385,7 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
         const { namespace_id } = options;
 
         const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/namespaces/${encodeURIComponent(namespace_id)}`;
-        const response = await enhancedFetch(apiUrl, {
-          headers: {
-            Authorization: `Bearer ${process.env.GITLAB_TOKEN}`,
-          },
-        });
+        const response = await enhancedFetch(apiUrl);
 
         if (!response.ok) {
           throw new Error(`GitLab API error: ${response.status} ${response.statusText}`);
@@ -436,11 +408,7 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
         const { namespace } = options;
 
         const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/namespaces/${encodeURIComponent(namespace)}`;
-        const response = await enhancedFetch(apiUrl, {
-          headers: {
-            Authorization: `Bearer ${process.env.GITLAB_TOKEN}`,
-          },
-        });
+        const response = await enhancedFetch(apiUrl);
 
         return {
           exists: response.ok,
@@ -470,11 +438,7 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
         });
 
         const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${encodeURIComponent(project_id)}/members?${queryParams}`;
-        const response = await enhancedFetch(apiUrl, {
-          headers: {
-            Authorization: `Bearer ${process.env.GITLAB_TOKEN}`,
-          },
-        });
+        const response = await enhancedFetch(apiUrl);
 
         if (!response.ok) {
           throw new Error(`GitLab API error: ${response.status} ${response.statusText}`);
@@ -504,11 +468,7 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
         });
 
         const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${encodeURIComponent(project_id)}/repository/commits?${queryParams}`;
-        const response = await enhancedFetch(apiUrl, {
-          headers: {
-            Authorization: `Bearer ${process.env.GITLAB_TOKEN}`,
-          },
-        });
+        const response = await enhancedFetch(apiUrl);
 
         if (!response.ok) {
           throw new Error(`GitLab API error: ${response.status} ${response.statusText}`);
@@ -538,11 +498,7 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
         });
 
         const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${encodeURIComponent(project_id)}/repository/commits/${encodeURIComponent(commit_sha)}?${queryParams}`;
-        const response = await enhancedFetch(apiUrl, {
-          headers: {
-            Authorization: `Bearer ${process.env.GITLAB_TOKEN}`,
-          },
-        });
+        const response = await enhancedFetch(apiUrl);
 
         if (!response.ok) {
           throw new Error(`GitLab API error: ${response.status} ${response.statusText}`);
@@ -572,11 +528,7 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
         });
 
         const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${encodeURIComponent(project_id)}/repository/commits/${encodeURIComponent(commit_sha)}/diff?${queryParams}`;
-        const response = await enhancedFetch(apiUrl, {
-          headers: {
-            Authorization: `Bearer ${process.env.GITLAB_TOKEN}`,
-          },
-        });
+        const response = await enhancedFetch(apiUrl);
 
         if (!response.ok) {
           throw new Error(`GitLab API error: ${response.status} ${response.statusText}`);
@@ -606,11 +558,7 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
         });
 
         const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/groups/${encodeURIComponent(group_id)}/iterations?${queryParams}`;
-        const response = await enhancedFetch(apiUrl, {
-          headers: {
-            Authorization: `Bearer ${process.env.GITLAB_TOKEN}`,
-          },
-        });
+        const response = await enhancedFetch(apiUrl);
 
         if (!response.ok) {
           throw new Error(`GitLab API error: ${response.status} ${response.statusText}`);
@@ -633,11 +581,7 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
         const { project_id, secret, filename } = options;
 
         const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${encodeURIComponent(project_id)}/uploads/${secret}/${filename}`;
-        const response = await enhancedFetch(apiUrl, {
-          headers: {
-            Authorization: `Bearer ${process.env.GITLAB_TOKEN}`,
-          },
-        });
+        const response = await enhancedFetch(apiUrl);
 
         if (!response.ok) {
           throw new Error(`GitLab API error: ${response.status} ${response.statusText}`);
@@ -670,11 +614,7 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
         });
 
         const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/events?${queryParams}`;
-        const response = await enhancedFetch(apiUrl, {
-          headers: {
-            Authorization: `Bearer ${process.env.GITLAB_TOKEN}`,
-          },
-        });
+        const response = await enhancedFetch(apiUrl);
 
         if (!response.ok) {
           throw new Error(`GitLab API error: ${response.status} ${response.statusText}`);
@@ -704,11 +644,7 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
         });
 
         const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${encodeURIComponent(project_id)}/events?${queryParams}`;
-        const response = await enhancedFetch(apiUrl, {
-          headers: {
-            Authorization: `Bearer ${process.env.GITLAB_TOKEN}`,
-          },
-        });
+        const response = await enhancedFetch(apiUrl);
 
         if (!response.ok) {
           throw new Error(`GitLab API error: ${response.status} ${response.statusText}`);
@@ -737,11 +673,7 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
         let resolvedNamespace: { id: string; full_path: string } | null = null;
         if (namespace) {
           const namespaceApiUrl = `${process.env.GITLAB_API_URL}/api/v4/namespaces/${encodeURIComponent(namespace)}`;
-          const namespaceResponse = await enhancedFetch(namespaceApiUrl, {
-            headers: {
-              Authorization: `Bearer ${process.env.GITLAB_TOKEN}`,
-            },
-          });
+          const namespaceResponse = await enhancedFetch(namespaceApiUrl);
 
           if (namespaceResponse.ok) {
             resolvedNamespace = (await namespaceResponse.json()) as {
@@ -761,11 +693,7 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
         const projectPath = `${targetNamespacePath}/${name}`;
 
         const checkProjectUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${encodeURIComponent(projectPath)}`;
-        const checkResponse = await enhancedFetch(checkProjectUrl, {
-          headers: {
-            Authorization: `Bearer ${process.env.GITLAB_TOKEN}`,
-          },
-        });
+        const checkResponse = await enhancedFetch(checkProjectUrl);
 
         if (checkResponse.ok) {
           const existingProject = (await checkResponse.json()) as { id: string };
@@ -808,7 +736,6 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
         const createResponse = await enhancedFetch(createApiUrl, {
           method: "POST",
           headers: {
-            Authorization: `Bearer ${process.env.GITLAB_TOKEN}`,
             "Content-Type": "application/x-www-form-urlencoded",
           },
           body: body.toString(),
@@ -859,7 +786,6 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
         const response = await enhancedFetch(apiUrl, {
           method: "POST",
           headers: {
-            Authorization: `Bearer ${process.env.GITLAB_TOKEN}`,
             "Content-Type": "application/x-www-form-urlencoded",
           },
           body: body.toString(),
@@ -892,7 +818,6 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
         const response = await enhancedFetch(apiUrl, {
           method: "POST",
           headers: {
-            Authorization: `Bearer ${process.env.GITLAB_TOKEN}`,
             "Content-Type": "application/x-www-form-urlencoded",
           },
           body: body.toString(),
@@ -937,7 +862,6 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
         const response = await enhancedFetch(apiUrl, {
           method: "POST",
           headers: {
-            Authorization: `Bearer ${process.env.GITLAB_TOKEN}`,
             "Content-Type": "application/x-www-form-urlencoded",
           },
           body: body.toString(),
