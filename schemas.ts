@@ -1172,6 +1172,12 @@ export const MergeMergeRequestSchema = ProjectParamsSchema.extend({
 
 export const GetMergeRequestDiffsSchema = GetMergeRequestSchema.extend({
   view: z.enum(["inline", "parallel"]).optional().describe("Diff view type"),
+  excluded_file_patterns: z
+    .array(z.string())
+    .optional()
+    .describe(
+      'Array of regex patterns to exclude files from the diff results. Each pattern is a JavaScript-compatible regular expression that matches file paths to ignore. Examples: ["^vendor/", "\\.lock$", "package-lock\\.json"]'
+    ),
 });
 
 export const ListMergeRequestDiffsSchema = GetMergeRequestSchema.extend({
