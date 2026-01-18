@@ -251,6 +251,95 @@ To revoke the MCP server's access to your GitLab account:
 4. **Regularly review authorized applications**: Periodically check your authorized applications in GitLab
 5. **Revoke access when done**: If you stop using the MCP server, revoke its access
 
+## External Token Script (Advanced)
+
+For environments that manage OAuth credentials externally (like Coder workspaces), you can delegate token retrieval to an external script instead of using the standard OAuth flow.
+
+### When to Use External Token Script
+
+Use this approach when:
+- Your environment has its own OAuth credential management system (e.g., Coder, enterprise SSO systems)
+- You want the MCP server to always fetch fresh tokens on-demand
+- You don't want to manage token storage and refresh logic
+- The environment maintains OAuth credentials that you can retrieve via a command
+
+### Configuration
+
+Set the `GITLAB_OAUTH_TOKEN_SCRIPT` environment variable to the command that retrieves your access token:
+
+```json
+{
+  "mcpServers": {
+    "gitlab": {
+      "command": "npx",
+      "args": ["-y", "@zereight/mcp-gitlab"],
+      "env": {
+        "GITLAB_USE_OAUTH": "true",
+        "GITLAB_OAUTH_TOKEN_SCRIPT": "coder external-auth access-token gitlab",
+        "GITLAB_API_URL": "https://gitlab.example.com/api/v4"
+      }
+    }
+  }
+}
+```
+
+### How It Works
+
+1. When the MCP server needs an access token, it executes the command specified in `GITLAB_OAUTH_TOKEN_SCRIPT`
+2. The command should output the access token to stdout (whitespace and newlines are automatically trimmed)
+3. The token is used immediately for GitLab API requests
+4. The script is executed fresh each time the MCP server starts, ensuring you always have a valid token
+5. No token storage or refresh logic is needed - your external system handles this
+
+### Requirements
+
+- The script/command must be executable from the MCP server environment
+- The script should output **only** the access token to stdout
+- The script must complete within 30 seconds
+- When using `GITLAB_OAUTH_TOKEN_SCRIPT`, `GITLAB_OAUTH_CLIENT_ID` is **not required**
+
+### Example: Coder Workspaces
+
+[Coder](https://coder.com) workspaces provide built-in OAuth credential management. To use it:
+
+```bash
+# The Coder CLI command retrieves the current OAuth token
+coder external-auth access-token gitlab
+```
+
+Configuration for Claude Desktop or VS Code in a Coder workspace:
+
+```json
+{
+  "mcpServers": {
+    "gitlab": {
+      "command": "npx",
+      "args": ["-y", "@zereight/mcp-gitlab"],
+      "env": {
+        "GITLAB_USE_OAUTH": "true",
+        "GITLAB_OAUTH_TOKEN_SCRIPT": "coder external-auth access-token gitlab",
+        "GITLAB_API_URL": "https://your-gitlab-instance.com/api/v4"
+      }
+    }
+  }
+}
+```
+
+### Troubleshooting External Token Script
+
+**Script not found:**
+- Ensure the script/command is in your PATH or use an absolute path
+- Verify execute permissions on the script file
+
+**Token not working:**
+- Check that the script outputs the token to stdout (not stderr)
+- Verify the token has the required `api` scope
+- Ensure the token hasn't expired (check your external credential system)
+
+**Script timeout:**
+- The script must complete within 30 seconds
+- If it takes longer, optimize the script or check network connectivity
+
 ## Confidential vs Non-Confidential Applications
 
 When creating your GitLab OAuth application, you can choose between two types:

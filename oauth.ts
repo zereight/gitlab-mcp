@@ -3,9 +3,13 @@ import * as path from "path";
 import * as http from "http";
 import * as net from "net";
 import * as url from "url";
+import { execFile } from "child_process";
+import { promisify } from "util";
 import open from "open";
 import pkceChallenge from "pkce-challenge";
 import { pino } from "pino";
+
+const execFileAsync = promisify(execFile);
 
 const logger = pino({
   name: "gitlab-mcp-oauth",
@@ -37,6 +41,7 @@ interface OAuthConfig {
   gitlabUrl: string;
   scopes: string[];
   tokenStoragePath?: string;
+  tokenScript?: string;
 }
 
 /**
@@ -285,6 +290,60 @@ export class GitLabOAuth {
     const expiryTime = tokenData.created_at + tokenData.expires_in * 1000;
     // Add 5 minute buffer to refresh before actual expiry
     return Date.now() >= expiryTime - 5 * 60 * 1000;
+  }
+
+  /**
+   * Execute external token script to retrieve access token
+   */
+  private async executeTokenScript(): Promise<string> {
+    if (!this.config.tokenScript) {
+      throw new Error("Token script not configured");
+    }
+
+    try {
+      logger.info(`Executing token script: ${this.config.tokenScript}`);
+      
+      // Parse the script command - simple approach that handles basic quoting
+      // For complex shell commands, users should wrap in a shell script
+      const parts = this.config.tokenScript.match(/(?:[^\s"']+|"[^"]*"|'[^']*')+/g);
+      
+      if (!parts || parts.length === 0) {
+        throw new Error("Invalid token script command");
+      }
+      
+      const command: string = parts[0];
+      // Remove surrounding quotes (both single and double) from arguments
+      const args: string[] = parts.slice(1).map(arg => {
+        if ((arg.startsWith('"') && arg.endsWith('"')) || (arg.startsWith("'") && arg.endsWith("'"))) {
+          return arg.slice(1, -1);
+        }
+        return arg;
+      });
+      
+      const { stdout, stderr } = await execFileAsync(command, args, {
+        timeout: 30000, // 30 second timeout
+        maxBuffer: 1024 * 1024, // 1MB buffer
+      });
+
+      if (stderr) {
+        logger.warn(`Token script stderr: ${stderr}`);
+      }
+
+      // Trim whitespace and newlines from the output
+      const token = stdout.trim();
+      
+      if (!token) {
+        throw new Error("Token script returned empty output");
+      }
+
+      logger.info("Token script executed successfully");
+      return token;
+    } catch (error) {
+      logger.error("Failed to execute token script:", error);
+      throw new Error(
+        `Token script execution failed: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
   }
 
   /**
@@ -557,6 +616,12 @@ export class GitLabOAuth {
    * Get a valid access token, refreshing if necessary
    */
   async getAccessToken(): Promise<string> {
+    // If external token script is configured, use it directly
+    if (this.config.tokenScript) {
+      logger.info("Using external token script for authentication");
+      return await this.executeTokenScript();
+    }
+
     let tokenData = this.loadToken();
 
     // If no token or expired, start OAuth flow or refresh
@@ -616,20 +681,23 @@ export async function initializeOAuth(gitlabUrl: string = "https://gitlab.com"):
   const clientSecret = process.env.GITLAB_OAUTH_CLIENT_SECRET;
   const redirectUri = process.env.GITLAB_OAUTH_REDIRECT_URI || "http://127.0.0.1:8888/callback";
   const tokenStoragePath = process.env.GITLAB_OAUTH_TOKEN_PATH;
+  const tokenScript = process.env.GITLAB_OAUTH_TOKEN_SCRIPT;
 
-  if (!clientId) {
+  // If token script is configured, we don't need client ID
+  if (!tokenScript && !clientId) {
     throw new Error(
-      "GITLAB_OAUTH_CLIENT_ID environment variable is required for OAuth authentication"
+      "Either GITLAB_OAUTH_TOKEN_SCRIPT or GITLAB_OAUTH_CLIENT_ID environment variable is required for OAuth authentication"
     );
   }
 
   const oauth = new GitLabOAuth({
-    clientId,
+    clientId: clientId || "not-used-with-script",
     clientSecret,
     redirectUri,
     gitlabUrl,
     scopes: ["api"],
     tokenStoragePath,
+    tokenScript,
   });
 
   return await oauth.getAccessToken();
