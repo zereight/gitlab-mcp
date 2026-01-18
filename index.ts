@@ -204,6 +204,11 @@ import {
   MarkdownUploadSchema,
   DownloadAttachmentSchema,
   MergeMergeRequestSchema,
+  ApproveMergeRequestSchema,
+  UnapproveMergeRequestSchema,
+  GetMergeRequestApprovalStateSchema,
+  GitLabMergeRequestApprovalStateSchema,
+  type GitLabMergeRequestApprovalState,
   type MergeRequestThreadPosition,
   type MergeRequestThreadPositionCreate,
   type MyIssuesOptions,
@@ -721,6 +726,22 @@ const allTools = [
     name: "merge_merge_request",
     description: "Merge a merge request in a GitLab project",
     inputSchema: toJSONSchema(MergeMergeRequestSchema),
+  },
+  {
+    name: "approve_merge_request",
+    description: "Approve a merge request. Requires appropriate permissions.",
+    inputSchema: toJSONSchema(ApproveMergeRequestSchema),
+  },
+  {
+    name: "unapprove_merge_request",
+    description: "Unapprove a previously approved merge request. Requires appropriate permissions.",
+    inputSchema: toJSONSchema(UnapproveMergeRequestSchema),
+  },
+  {
+    name: "get_merge_request_approval_state",
+    description:
+      "Get the approval state of a merge request including approval rules and who has approved",
+    inputSchema: toJSONSchema(GetMergeRequestApprovalStateSchema),
   },
   {
     name: "execute_graphql",
@@ -1306,6 +1327,7 @@ const readOnlyTools = new Set([
   "list_releases",
   "get_release",
   "download_release_asset",
+  "get_merge_request_approval_state",
 ]);
 
 // Define which tools are related to wiki and can be toggled by USE_GITLAB_WIKI
@@ -2921,6 +2943,95 @@ async function mergeMergeRequest(
 
   await handleGitLabError(response);
   return GitLabMergeRequestSchema.parse(await response.json());
+}
+
+/**
+ * Approve a merge request
+ *
+ * @param {string} projectId - The ID or URL-encoded path of the project
+ * @param {string | number} mergeRequestIid - The internal ID of the merge request
+ * @param {string} sha - Optional SHA to approve (for validation that MR hasn't changed)
+ * @param {string} approvalPassword - Optional password for approvals requiring re-authentication
+ * @returns {Promise<GitLabMergeRequestApprovalState>} The approval state after approving
+ */
+async function approveMergeRequest(
+  projectId: string,
+  mergeRequestIid: string | number,
+  sha?: string,
+  approvalPassword?: string
+): Promise<GitLabMergeRequestApprovalState> {
+  projectId = decodeURIComponent(projectId);
+  const url = new URL(
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/merge_requests/${mergeRequestIid}/approve`
+  );
+
+  const body: Record<string, string> = {};
+  if (sha) {
+    body.sha = sha;
+  }
+  if (approvalPassword) {
+    body.approval_password = approvalPassword;
+  }
+
+  const response = await fetch(url.toString(), {
+    ...getFetchConfig(),
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+
+  await handleGitLabError(response);
+  return GitLabMergeRequestApprovalStateSchema.parse(await response.json());
+}
+
+/**
+ * Unapprove a previously approved merge request
+ *
+ * @param {string} projectId - The ID or URL-encoded path of the project
+ * @param {string | number} mergeRequestIid - The internal ID of the merge request
+ * @returns {Promise<GitLabMergeRequestApprovalState>} The approval state after unapproving
+ */
+async function unapproveMergeRequest(
+  projectId: string,
+  mergeRequestIid: string | number
+): Promise<GitLabMergeRequestApprovalState> {
+  projectId = decodeURIComponent(projectId);
+  const url = new URL(
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/merge_requests/${mergeRequestIid}/unapprove`
+  );
+
+  const response = await fetch(url.toString(), {
+    ...getFetchConfig(),
+    method: "POST",
+    body: JSON.stringify({}),
+  });
+
+  await handleGitLabError(response);
+  return GitLabMergeRequestApprovalStateSchema.parse(await response.json());
+}
+
+/**
+ * Get the approval state of a merge request
+ *
+ * @param {string} projectId - The ID or URL-encoded path of the project
+ * @param {string | number} mergeRequestIid - The internal ID of the merge request
+ * @returns {Promise<GitLabMergeRequestApprovalState>} The approval state
+ */
+async function getMergeRequestApprovalState(
+  projectId: string,
+  mergeRequestIid: string | number
+): Promise<GitLabMergeRequestApprovalState> {
+  projectId = decodeURIComponent(projectId);
+  const url = new URL(
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/merge_requests/${mergeRequestIid}/approval_state`
+  );
+
+  const response = await fetch(url.toString(), {
+    ...getFetchConfig(),
+    method: "GET",
+  });
+
+  await handleGitLabError(response);
+  return GitLabMergeRequestApprovalStateSchema.parse(await response.json());
 }
 
 /**
@@ -5724,6 +5835,38 @@ async function handleToolCall(params: any) {
         const mergeRequest = await mergeMergeRequest(project_id, options, merge_request_iid);
         return {
           content: [{ type: "text", text: JSON.stringify(mergeRequest, null, 2) }],
+        };
+      }
+
+      case "approve_merge_request": {
+        const args = ApproveMergeRequestSchema.parse(params.arguments);
+        const approvalState = await approveMergeRequest(
+          args.project_id,
+          args.merge_request_iid,
+          args.sha,
+          args.approval_password
+        );
+        return {
+          content: [{ type: "text", text: JSON.stringify(approvalState, null, 2) }],
+        };
+      }
+
+      case "unapprove_merge_request": {
+        const args = UnapproveMergeRequestSchema.parse(params.arguments);
+        const approvalState = await unapproveMergeRequest(args.project_id, args.merge_request_iid);
+        return {
+          content: [{ type: "text", text: JSON.stringify(approvalState, null, 2) }],
+        };
+      }
+
+      case "get_merge_request_approval_state": {
+        const args = GetMergeRequestApprovalStateSchema.parse(params.arguments);
+        const approvalState = await getMergeRequestApprovalState(
+          args.project_id,
+          args.merge_request_iid
+        );
+        return {
+          content: [{ type: "text", text: JSON.stringify(approvalState, null, 2) }],
         };
       }
 
