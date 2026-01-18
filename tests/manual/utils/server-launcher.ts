@@ -70,11 +70,6 @@ export async function launchServer(config: ServerConfig): Promise<ServerInstance
       serverEnv.STREAMABLE_HTTP = "true";
       serverEnv.PORT = port.toString();
       break;
-    case TransportMode.STDIO:
-      // Stdio mode doesn't need port configuration - uses process communication
-      throw new Error(
-        `${TransportMode.STDIO} mode is not supported for server testing, because it uses process communication.`
-      );
   }
 
   const serverPath = path.resolve(process.cwd(), "dist/main.js");
@@ -146,11 +141,7 @@ async function waitForServerStart(
         process.stderr?.removeListener("data", onData);
 
         // Additional wait for HTTP servers to be fully ready
-        if (mode !== TransportMode.STDIO) {
-          setTimeout(resolve, 1000);
-        } else {
-          resolve();
-        }
+        setTimeout(resolve, 1000);
       }
     };
 
@@ -237,7 +228,7 @@ export async function checkHealthEndpoint(
   port: number,
   maxRetries: number = 5
 ): Promise<HealthCheckResponse> {
-  let lastError: Error;
+  let lastError: Error = new Error("Health check failed - no attempts made");
 
   for (let i = 0; i < maxRetries; i++) {
     try {
