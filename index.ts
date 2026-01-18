@@ -2154,6 +2154,7 @@ async function updateMergeRequestDiscussionNote(
  * @param {string} discussionId - The ID of a thread
  * @param {number} noteId - The ID of a thread note
  * @param {string} body - The new content of the note
+ * @param {boolean} [resolved] - Resolve/unresolve state
  * @returns {Promise<GitLabDiscussionNote>} The updated note
  */
 async function updateIssueNote(
@@ -2161,7 +2162,8 @@ async function updateIssueNote(
   issueIid: number | string,
   discussionId: string,
   noteId: number | string,
-  body: string
+  body?: string,
+  resolved?: boolean
 ): Promise<GitLabDiscussionNote> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
@@ -2170,7 +2172,13 @@ async function updateIssueNote(
     )}/issues/${issueIid}/discussions/${discussionId}/notes/${noteId}`
   );
 
-  const payload = { body };
+  // Only one of body or resolved can be sent according to GitLab API
+  const payload: { body?: string; resolved?: boolean } = {};
+  if (body !== undefined) {
+    payload.body = body;
+  } else if (resolved !== undefined) {
+    payload.resolved = resolved;
+  }
 
   const response = await fetch(url.toString(), {
     ...getFetchConfig(),
@@ -5618,7 +5626,8 @@ async function handleToolCall(params: any) {
           args.issue_iid,
           args.discussion_id,
           args.note_id,
-          args.body
+          args.body,
+          args.resolved
         );
         return {
           content: [{ type: "text", text: JSON.stringify(note, null, 2) }],
