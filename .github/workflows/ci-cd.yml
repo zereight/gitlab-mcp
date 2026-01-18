@@ -52,6 +52,9 @@ jobs:
       - name: Install dependencies
         run: yarn install --frozen-lockfile
 
+      - name: Generate Prisma client
+        run: yarn prisma generate
+
       - name: Run linting
         run: yarn lint
 
