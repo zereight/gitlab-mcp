@@ -43,7 +43,58 @@ export const MarkdownUploadSchema = ProjectParamsSchema.extend({
   filename: z.string().describe("Name of the file"),
 });
 
+// ============================================================================
+// manage_files - CQRS Command Tool (discriminated union)
+// ============================================================================
+
+const ManageFilesSingleSchema = z.object({
+  project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
+  action: z.literal("single"),
+  file_path: z.string().describe("Path to the file"),
+  content: z.string().describe("File content (text or base64 encoded)"),
+  commit_message: z.string().describe("Commit message"),
+  branch: z.string().describe("Target branch name"),
+  start_branch: z.string().optional().describe("Base branch to start from"),
+  encoding: z.enum(["text", "base64"]).optional().describe("Content encoding (default: text)"),
+  author_email: z.string().optional().describe("Commit author email"),
+  author_name: z.string().optional().describe("Commit author name"),
+  last_commit_id: z.string().optional().describe("Last known commit ID for conflict detection"),
+  execute_filemode: flexibleBoolean.optional().describe("Set executable permission"),
+});
+
+const BatchFileActionSchema = z.object({
+  file_path: z.string().describe("Path to the file"),
+  content: z.string().optional().describe("File content (for create/update)"),
+  encoding: z.enum(["text", "base64"]).optional().describe("Content encoding"),
+  execute_filemode: flexibleBoolean.optional().describe("Set executable permission"),
+});
+
+const ManageFilesBatchSchema = z.object({
+  project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
+  action: z.literal("batch"),
+  branch: z.string().describe("Target branch name"),
+  commit_message: z.string().describe("Commit message"),
+  files: z.array(BatchFileActionSchema).min(1).describe("Files to commit"),
+  start_branch: z.string().optional().describe("Base branch to start from"),
+  author_email: z.string().optional().describe("Commit author email"),
+  author_name: z.string().optional().describe("Commit author name"),
+});
+
+const ManageFilesUploadSchema = z.object({
+  project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
+  action: z.literal("upload"),
+  file: z.string().describe("Base64 encoded file content"),
+  filename: z.string().describe("Name of the file"),
+});
+
+export const ManageFilesSchema = z.discriminatedUnion("action", [
+  ManageFilesSingleSchema,
+  ManageFilesBatchSchema,
+  ManageFilesUploadSchema,
+]);
+
 // Export type definitions
 export type CreateOrUpdateFileOptions = z.infer<typeof CreateOrUpdateFileSchema>;
 export type PushFilesOptions = z.infer<typeof PushFilesSchema>;
 export type MarkdownUploadOptions = z.infer<typeof MarkdownUploadSchema>;
+export type ManageFilesInput = z.infer<typeof ManageFilesSchema>;
