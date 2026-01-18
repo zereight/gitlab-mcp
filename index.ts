@@ -504,9 +504,35 @@ const createCookieJar = (): CookieJar | null => {
   }
 };
 
-// Initialize cookie jar and fetch
-const cookieJar = createCookieJar();
-const fetch = cookieJar ? fetchCookie(nodeFetch, cookieJar) : nodeFetch;
+// Initialize cookie jar and fetch (mutable to support reloading)
+let cookieJar = createCookieJar();
+let fetch = cookieJar ? fetchCookie(nodeFetch, cookieJar) : nodeFetch;
+
+// Watch cookie file for changes and reload
+if (GITLAB_AUTH_COOKIE_PATH) {
+  const cookiePath = GITLAB_AUTH_COOKIE_PATH.startsWith("~/")
+    ? path.join(process.env.HOME || "", GITLAB_AUTH_COOKIE_PATH.slice(2))
+    : GITLAB_AUTH_COOKIE_PATH;
+
+  let reloadTimeout: NodeJS.Timeout | null = null;
+  
+  fs.watch(cookiePath, (eventType) => {
+    // Debounce rapid changes (external process may write file in chunks)
+    if (reloadTimeout) {
+      clearTimeout(reloadTimeout);
+    }
+    
+    reloadTimeout = setTimeout(() => {
+      logger.info("Cookie file changed, reloading...");
+      const newJar = createCookieJar();
+      if (newJar) {
+        cookieJar = newJar;
+        fetch = fetchCookie(nodeFetch, cookieJar);
+        logger.info("Cookies reloaded successfully");
+      }
+    }, 100);
+  });
+}
 
 // Ensure session is established for the current request
 async function ensureSessionForRequest(): Promise<void> {
@@ -7181,6 +7207,17 @@ async function runServer() {
       } catch (error) {
         logger.error("OAuth authentication failed:", error);
         process.exit(1);
+      }
+    }
+
+    // Initialize cookie session if cookie authentication is enabled
+    if (GITLAB_AUTH_COOKIE_PATH && cookieJar) {
+      logger.info("Performing session warmup for cookie authentication...");
+      try {
+        await ensureSessionForRequest();
+        logger.info("Session warmup completed");
+      } catch (error) {
+        logger.warn("Session warmup failed (will retry on first request):", error);
       }
     }
 
