@@ -6751,11 +6751,20 @@ async function startStreamableHTTPServer(): Promise<void> {
   const sessionRequestCounts: Record<string, { count: number; resetAt: number }> = {};
 
   // Request queue per session to handle concurrent requests
+  /**
+   * Represents a queued HTTP request waiting to be processed
+   * Used to serialize concurrent requests on the same session to prevent race conditions
+   */
   type QueuedRequest = {
+    /** The Express request object */
     req: Request;
+    /** The Express response object */
     res: Response;
+    /** The parsed request body */
     body: unknown;
+    /** Callback to resolve the promise when request completes successfully */
     resolve: () => void;
+    /** Callback to reject the promise when request fails */
     reject: (error: Error) => void;
   };
   const sessionRequestQueues: Record<string, QueuedRequest[]> = {};
@@ -6774,8 +6783,7 @@ async function startStreamableHTTPServer(): Promise<void> {
 
     try {
       while (sessionRequestQueues[sessionId]?.length > 0) {
-        const queued = sessionRequestQueues[sessionId].shift();
-        if (!queued) break;
+        const queued = sessionRequestQueues[sessionId].shift()!;
 
         try {
           await executeTransportRequest(sessionId, queued.req, queued.res, queued.body);
@@ -6796,8 +6804,9 @@ async function startStreamableHTTPServer(): Promise<void> {
 
   /**
    * Queue a request for processing
+   * Returns a promise that resolves when the request completes
    */
-  const queueRequest = (sessionId: string, req: Request, res: Response, body: unknown): Promise<void> => {
+  const queueRequest = async (sessionId: string, req: Request, res: Response, body: unknown): Promise<void> => {
     return new Promise((resolve, reject) => {
       if (!sessionRequestQueues[sessionId]) {
         sessionRequestQueues[sessionId] = [];
@@ -6805,9 +6814,10 @@ async function startStreamableHTTPServer(): Promise<void> {
 
       sessionRequestQueues[sessionId].push({ req, res, body, resolve, reject });
       
-      // Start processing the queue
+      // Start processing the queue (don't await - runs in background)
       processRequestQueue(sessionId).catch(error => {
-        logger.error(`Error processing request queue for session ${sessionId}:`, error);
+        // Log but don't propagate - individual requests handle their own errors
+        logger.error(`Fatal error in queue processor for session ${sessionId}:`, error);
       });
     });
   };

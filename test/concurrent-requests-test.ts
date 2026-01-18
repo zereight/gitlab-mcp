@@ -6,11 +6,11 @@
 import assert from 'node:assert';
 import { describe, test, before, after } from 'node:test';
 import { CustomHeaderClient } from './clients/custom-header-client.js';
-import { TransportMode, type TestServer, launchServer } from './utils/server-launcher.js';
+import { TransportMode, type ServerInstance, launchServer } from './utils/server-launcher.js';
 import { MockGitLabServer, findMockServerPort } from './utils/mock-gitlab-server.js';
 
 describe('Concurrent Requests on Same Session', () => {
-  let server: TestServer;
+  let server: ServerInstance;
   let mockGitLab: MockGitLabServer;
   const MOCK_TOKEN = 'glpat-test-token-concurrent';
   let mcpUrl: string;
@@ -47,7 +47,7 @@ describe('Concurrent Requests on Same Session', () => {
   });
 
   after(async () => {
-    await server?.stop();
+    server?.kill();
     await mockGitLab?.stop();
   });
 
