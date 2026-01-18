@@ -32,6 +32,7 @@ import { AsyncLocalStorage } from "node:async_hooks";
 import express, { Request, Response } from "express";
 import fetchCookie from "fetch-cookie";
 import fs from "node:fs";
+import os from "node:os";
 import { HttpProxyAgent } from "http-proxy-agent";
 import { HttpsProxyAgent } from "https-proxy-agent";
 import nodeFetch from "node-fetch";
@@ -454,89 +455,124 @@ const clientPool = new GitLabClientPool({
 });
 
 // Create cookie jar with clean Netscape file parsing
-const createCookieJar = (): CookieJar | null => {
-  if (!GITLAB_AUTH_COOKIE_PATH) return null;
+// Resolve cookie path once using os.homedir() for cross-platform support
+const resolvedCookiePath = GITLAB_AUTH_COOKIE_PATH
+  ? GITLAB_AUTH_COOKIE_PATH.startsWith("~/")
+    ? path.join(os.homedir(), GITLAB_AUTH_COOKIE_PATH.slice(2))
+    : GITLAB_AUTH_COOKIE_PATH
+  : null;
 
+const createCookieJar = async (): Promise<CookieJar | null> => {
+  if (!resolvedCookiePath) return null;
+
+  let cookieContent: string;
   try {
-    const cookiePath = GITLAB_AUTH_COOKIE_PATH.startsWith("~/")
-      ? path.join(process.env.HOME || "", GITLAB_AUTH_COOKIE_PATH.slice(2))
-      : GITLAB_AUTH_COOKIE_PATH;
-
-    const jar = new CookieJar();
-    const cookieContent = fs.readFileSync(cookiePath, "utf8");
-
-    cookieContent.split("\n").forEach(line => {
-      // Handle #HttpOnly_ prefix
-      if (line.startsWith("#HttpOnly_")) {
-        line = line.slice(10);
-      }
-      // Skip comments and empty lines
-      if (line.startsWith("#") || !line.trim()) {
-        return;
-      }
-
-      // Parse Netscape format: domain, flag, path, secure, expires, name, value
-      const parts = line.split("\t");
-      if (parts.length >= 7) {
-        const [domain, , path, secure, expires, name, value] = parts;
-
-        // Build cookie string in standard format
-        const secureFlag = secure === "TRUE" ? "; Secure" : "";
-        const expiresFlag =
-          expires === "0"
-            ? ""
-            : `; Expires=${new Date(Number.parseInt(expires, 10) * 1000).toUTCString()}`;
-        const cookieStr = `${name}=${value}; Domain=${domain}; Path=${path}${secureFlag}${expiresFlag}`;
-
-        // Use tough-cookie's parse function for robust parsing
-        const cookie = parseCookie(cookieStr);
-        if (cookie) {
-          const url = `${secure === "TRUE" ? "https" : "http"}://${domain.startsWith(".") ? domain.slice(1) : domain}`;
-          jar.setCookieSync(cookie, url);
-        }
-      }
-    });
-
-    return jar;
+    cookieContent = await fs.promises.readFile(resolvedCookiePath, "utf8");
   } catch (error) {
-    logger.error("Error loading cookie file:", error);
+    logger.error({ error, path: resolvedCookiePath }, "Failed to read cookie file");
     return null;
   }
+
+  const jar = new CookieJar();
+  for (let line of cookieContent.split("\n")) {
+    // Handle #HttpOnly_ prefix
+    if (line.startsWith("#HttpOnly_")) {
+      line = line.slice(10);
+    }
+    // Skip comments and empty lines
+    if (line.startsWith("#") || !line.trim()) {
+      continue;
+    }
+
+    // Parse Netscape format: domain, flag, path, secure, expires, name, value
+    const parts = line.split("\t");
+    if (parts.length >= 7) {
+      const [domain, , cookiePath, secure, expires, name, value] = parts;
+
+      // Build cookie string in standard format
+      const secureFlag = secure === "TRUE" ? "; Secure" : "";
+      const expiresFlag =
+        expires === "0"
+          ? ""
+          : `; Expires=${new Date(Number.parseInt(expires, 10) * 1000).toUTCString()}`;
+      const cookieStr = `${name}=${value}; Domain=${domain}; Path=${cookiePath}${secureFlag}${expiresFlag}`;
+
+      // Use tough-cookie's parse function for robust parsing
+      const cookie = parseCookie(cookieStr);
+      if (cookie) {
+        const url = `${secure === "TRUE" ? "https" : "http"}://${domain.startsWith(".") ? domain.slice(1) : domain}`;
+        jar.setCookieSync(cookie, url);
+      }
+    }
+  }
+
+  return jar;
 };
 
-// Initialize cookie jar and fetch
-const cookieJar = createCookieJar();
-const fetch = cookieJar ? fetchCookie(nodeFetch, cookieJar) : nodeFetch;
+// Cookie jar and fetch - reloaded when cookie file changes
+let cookieJar: CookieJar | null = null;
+let fetch: typeof nodeFetch = nodeFetch;
+let lastCookieMtime = 0;
+let cookieReloadLock: Promise<void> | null = null; // Mutex to prevent parallel reloads
+// Auth proxies may redirect and set cookies on the first request. We make a throwaway
+// request so subsequent requests have the correct cookies. Reset when cookies reload.
+let initialSessionRequestMade = false;
 
-// Ensure session is established for the current request
-async function ensureSessionForRequest(): Promise<void> {
-  if (!cookieJar || !GITLAB_AUTH_COOKIE_PATH) return;
+// Cookie jar is loaded on first request via reloadCookiesIfChanged (lastCookieMtime=0 triggers load)
 
-  // Extract the base URL from GITLAB_API_URL
-  const apiUrl = new URL(GITLAB_API_URL);
-  const baseUrl = `${apiUrl.protocol}//${apiUrl.hostname}`;
+async function reloadCookiesIfChanged(): Promise<void> {
+  if (!resolvedCookiePath) return;
+  if (cookieReloadLock) return cookieReloadLock;
 
-  // Check if we already have GitLab session cookies
-  const gitlabCookies = cookieJar.getCookiesSync(baseUrl);
-  const hasSessionCookie = gitlabCookies.some(
-    cookie => cookie.key === "_gitlab_session" || cookie.key === "remember_user_token"
-  );
-
-  if (!hasSessionCookie) {
+  cookieReloadLock = (async () => {
     try {
-      // Establish session with a lightweight request
-      await fetch(`${GITLAB_API_URL}/user`, {
-        ...getFetchConfig(),
-        redirect: "follow",
-      }).catch(() => {
-        // Ignore errors - the important thing is that cookies get set during redirects
-      });
-
-      // Small delay to ensure cookies are fully processed
-      await new Promise(resolve => setTimeout(resolve, 100));
+      const mtime = (await fs.promises.stat(resolvedCookiePath)).mtimeMs;
+      if (mtime !== lastCookieMtime) {
+        logger.info(
+          { oldMtime: lastCookieMtime, newMtime: mtime },
+          lastCookieMtime === 0 ? "Loading cookie file" : "Cookie file changed, reloading"
+        );
+        lastCookieMtime = mtime;
+        const newJar = await createCookieJar();
+        cookieJar = newJar;
+        fetch = newJar ? fetchCookie(nodeFetch, newJar) : nodeFetch;
+        initialSessionRequestMade = false;
+      }
     } catch {
-      // Intentionally ignored: session establishment errors are non-critical
+      // File deleted or inaccessible - clear cached cookies
+      if (cookieJar) {
+        logger.info("Cookie file removed, clearing cached cookies");
+        cookieJar = null;
+        fetch = nodeFetch;
+        lastCookieMtime = 0;
+        initialSessionRequestMade = false;
+      }
     }
+  })();
+
+  try {
+    await cookieReloadLock;
+  } finally {
+    cookieReloadLock = null;
+  }
+}
+
+async function ensureSessionForRequest(): Promise<void> {
+  if (!resolvedCookiePath) return;
+
+  await reloadCookiesIfChanged();
+
+  if (!cookieJar || initialSessionRequestMade) return;
+
+  try {
+    const response = await fetch(`${getEffectiveApiUrl()}/user`, {
+      ...getFetchConfig(),
+      redirect: "follow",
+    });
+    // 401 means auth failed but the request completed - cookies were still exchanged
+    initialSessionRequestMade = response.ok || response.status === 401;
+  } catch {
+    logger.debug("Session warmup request failed, will retry on next request");
   }
 }
 
