@@ -4927,8 +4927,9 @@ async function listProjectMembers(
 ): Promise<GitLabProjectMember[]> {
   projectId = decodeURIComponent(projectId);
   const effectiveProjectId = getEffectiveProjectId(projectId);
+  const membersPath = options.include_inheritance ? "members/all" : "members";
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(effectiveProjectId)}/members`
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(effectiveProjectId)}/${membersPath}`
   );
 
   // Add query parameters
