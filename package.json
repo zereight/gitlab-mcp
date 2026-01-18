@@ -31,7 +31,7 @@
   },
   "scripts": {
     "postinstall": "test -f prisma/schema.prisma && prisma generate || true",
-    "build": "tsc -p tsconfig.build.json",
+    "build": "prisma generate && tsc -p tsconfig.build.json",
     "start": "node --no-warnings -r source-map-support/register --experimental-specifier-resolution=node dist/src/main.js",
     "dev:stdio": "node --env-file=.env.test -r source-map-support/register -r ts-node/register --experimental-specifier-resolution=node --experimental-print-required-tla --watch src/main.ts stdio",
     "dev:sse": "node --env-file=.env.test -r source-map-support/register -r ts-node/register --experimental-specifier-resolution=node --experimental-print-required-tla --watch src/main.ts sse",
