@@ -26,12 +26,12 @@ import {
 import { isOAuthEnabled, getTokenContext } from "../oauth/index";
 
 // Dynamic require to avoid TypeScript analyzing complex undici types at compile time
-/* eslint-disable no-undef, no-unused-vars */
+/* eslint-disable no-undef */
 const undici = require("undici") as {
   Agent: new (opts?: Record<string, unknown>) => unknown;
   ProxyAgent: new (opts: string | Record<string, unknown>) => unknown;
 };
-/* eslint-enable no-undef, no-unused-vars */
+/* eslint-enable no-undef */
 
 /**
  * Cookie handling - parse cookies from file and format for HTTP Cookie header
@@ -162,6 +162,13 @@ export const DEFAULT_HEADERS: Record<string, string> = {
 function getGitLabToken(): string | undefined {
   if (isOAuthEnabled()) {
     const context = getTokenContext();
+    if (!context) {
+      logger.warn("OAuth mode: no token context available - API call will fail with 401");
+    } else if (!context.gitlabToken) {
+      logger.warn("OAuth mode: token context exists but no gitlabToken set");
+    } else {
+      logger.debug({ userId: context.gitlabUserId }, "OAuth mode: using token from context");
+    }
     return context?.gitlabToken;
   }
   return GITLAB_TOKEN;

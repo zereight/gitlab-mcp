@@ -16,8 +16,8 @@ import { Request, Response, NextFunction } from "express";
 import { loadOAuthConfig } from "../oauth/config";
 import { sessionStore } from "../oauth/session-store";
 import { verifyMCPToken, isTokenExpiringSoon, calculateTokenExpiry } from "../oauth/token-utils";
-import { runWithTokenContext } from "../oauth/token-context";
 import { refreshGitLabToken } from "../oauth/gitlab-device-flow";
+import { getBaseUrl } from "../oauth/endpoints/metadata";
 import { logger } from "../logger";
 import { OAuthErrorResponse } from "../oauth/types";
 
@@ -38,19 +38,20 @@ export async function oauthAuthMiddleware(
 ): Promise<void> {
   const config = loadOAuthConfig();
   if (!config) {
-    sendUnauthorized(res, "server_error", "OAuth not configured");
+    sendUnauthorized(req, res, "server_error", "OAuth not configured");
     return;
   }
 
   // Extract Bearer token from Authorization header
   const authHeader = req.headers.authorization;
   if (!authHeader) {
-    sendUnauthorized(res, "unauthorized", "Missing Authorization header");
+    sendUnauthorized(req, res, "unauthorized", "Missing Authorization header");
     return;
   }
 
   if (!authHeader.startsWith("Bearer ")) {
     sendUnauthorized(
+      req,
       res,
       "unauthorized",
       "Invalid Authorization header format. Expected: Bearer <token>"
@@ -61,14 +62,14 @@ export async function oauthAuthMiddleware(
   const token = authHeader.slice(7); // Remove "Bearer " prefix
 
   if (!token) {
-    sendUnauthorized(res, "unauthorized", "Empty Bearer token");
+    sendUnauthorized(req, res, "unauthorized", "Empty Bearer token");
     return;
   }
 
   // Verify JWT token
   const payload = verifyMCPToken(token, config.sessionSecret);
   if (!payload) {
-    sendUnauthorized(res, "invalid_token", "Token is invalid or expired");
+    sendUnauthorized(req, res, "invalid_token", "Token is invalid or expired");
     return;
   }
 
@@ -77,14 +78,14 @@ export async function oauthAuthMiddleware(
   const session = sessionStore.getSession(sessionId);
 
   if (!session) {
-    sendUnauthorized(res, "invalid_token", "Session not found or expired");
+    sendUnauthorized(req, res, "invalid_token", "Session not found or expired");
     return;
   }
 
   // Verify token matches session
   if (session.mcpAccessToken !== token) {
     // Token might have been rotated
-    sendUnauthorized(res, "invalid_token", "Token has been superseded");
+    sendUnauthorized(req, res, "invalid_token", "Token has been superseded");
     return;
   }
 
@@ -106,6 +107,7 @@ export async function oauthAuthMiddleware(
     } catch (error: unknown) {
       logger.error({ err: error as Error }, "Failed to refresh GitLab token during request");
       sendUnauthorized(
+        req,
         res,
         "invalid_token",
         "GitLab token refresh failed. Please re-authenticate."
@@ -117,29 +119,31 @@ export async function oauthAuthMiddleware(
   // Get potentially updated session
   const updatedSession = sessionStore.getSession(sessionId);
   if (!updatedSession) {
-    sendUnauthorized(res, "invalid_token", "Session lost during token refresh");
+    sendUnauthorized(req, res, "invalid_token", "Session lost during token refresh");
     return;
   }
 
-  // Set up token context and continue
-  // All code in the request handler will have access to the GitLab token via getGitLabTokenFromContext()
-  try {
-    await runWithTokenContext(
-      {
-        gitlabToken: updatedSession.gitlabAccessToken,
-        gitlabUserId: updatedSession.gitlabUserId,
-        gitlabUsername: updatedSession.gitlabUsername,
-        sessionId: updatedSession.id,
-      },
-      async () => {
-        // Call next() inside the context so all downstream code has access to the token
-        next();
-      }
-    );
-  } catch (error: unknown) {
-    logger.error({ err: error as Error }, "Error in OAuth-authenticated request");
-    throw error;
-  }
+  // Store OAuth session info in res.locals for route handlers
+  // This is used by:
+  // 1. Transport handlers to associate MCP sessions with OAuth sessions
+  // 2. Route handlers to set up token context around transport.handleRequest()
+  //
+  // NOTE: We do NOT use runWithTokenContext here because middleware's next() chain
+  // breaks AsyncLocalStorage propagation to MCP SDK's internal handlers.
+  // Instead, route handlers must wrap transport.handleRequest() with runWithTokenContext()
+  // using the data stored here.
+  res.locals.oauthSessionId = updatedSession.id;
+  res.locals.gitlabToken = updatedSession.gitlabAccessToken;
+  res.locals.gitlabUserId = updatedSession.gitlabUserId;
+  res.locals.gitlabUsername = updatedSession.gitlabUsername;
+
+  logger.debug(
+    { sessionId: updatedSession.id.substring(0, 8) + "...", method: req.method, path: req.path },
+    "OAuth session validated, passing to route handler"
+  );
+
+  // Continue to route handler - token context will be set up there
+  next();
 }
 
 /**
@@ -156,8 +160,8 @@ export function createOAuthMiddleware(): typeof oauthAuthMiddleware {
  * Optional OAuth middleware
  *
  * Like oauthAuthMiddleware, but doesn't require authentication.
- * If a valid token is provided, sets up the context.
- * If no token or invalid token, continues without context.
+ * If a valid token is provided, sets up res.locals with session info.
+ * If no token or invalid token, continues without setting res.locals.
  *
  * Useful for endpoints that work with or without authentication.
  */
@@ -200,35 +204,35 @@ export async function optionalOAuthMiddleware(
     return;
   }
 
-  // Valid token - set up context
-  try {
-    await runWithTokenContext(
-      {
-        gitlabToken: session.gitlabAccessToken,
-        gitlabUserId: session.gitlabUserId,
-        gitlabUsername: session.gitlabUsername,
-        sessionId: session.id,
-      },
-      async () => {
-        next();
-      }
-    );
-  } catch (error: unknown) {
-    logger.error({ err: error as Error }, "Error in optional OAuth request");
-    throw error;
-  }
+  // Valid token - store session info in res.locals for route handler
+  res.locals.oauthSessionId = session.id;
+  res.locals.gitlabToken = session.gitlabAccessToken;
+  res.locals.gitlabUserId = session.gitlabUserId;
+  res.locals.gitlabUsername = session.gitlabUsername;
+
+  next();
 }
 
 /**
  * Send unauthorized response with OAuth error format
+ *
+ * Includes WWW-Authenticate header with resource parameter (RFC 9470)
+ * to help clients discover the authorization server.
  */
-function sendUnauthorized(res: Response, error: string, description: string): void {
+function sendUnauthorized(req: Request, res: Response, error: string, description: string): void {
   const response: OAuthErrorResponse = {
     error,
     error_description: description,
   };
 
-  // Set WWW-Authenticate header as per OAuth spec
-  res.setHeader("WWW-Authenticate", 'Bearer realm="gitlab-mcp"');
+  // Get base URL for resource_metadata parameter (MCP OAuth 2.1 spec)
+  const baseUrl = getBaseUrl(req);
+
+  // Set WWW-Authenticate header with resource_metadata parameter
+  // Points to Protected Resource Metadata document per MCP spec
+  res.setHeader(
+    "WWW-Authenticate",
+    `Bearer realm="gitlab-mcp", resource_metadata="${baseUrl}/.well-known/oauth-protected-resource"`
+  );
   res.status(401).json(response);
 }

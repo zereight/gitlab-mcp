@@ -1,9 +1,14 @@
-import { pipelinesToolRegistry, getPipelinesReadOnlyToolNames, getPipelinesToolDefinitions, getFilteredPipelinesTools } from '../../../../src/entities/pipelines/registry';
-import { enhancedFetch } from '../../../../src/utils/fetch';
+import {
+  pipelinesToolRegistry,
+  getPipelinesReadOnlyToolNames,
+  getPipelinesToolDefinitions,
+  getFilteredPipelinesTools,
+} from "../../../../src/entities/pipelines/registry";
+import { enhancedFetch } from "../../../../src/utils/fetch";
 
 // Mock enhancedFetch to avoid actual API calls
-jest.mock('../../../../src/utils/fetch', () => ({
-  enhancedFetch: jest.fn()
+jest.mock("../../../../src/utils/fetch", () => ({
+  enhancedFetch: jest.fn(),
 }));
 
 const mockEnhancedFetch = enhancedFetch as jest.MockedFunction<typeof enhancedFetch>;
@@ -14,8 +19,8 @@ const originalEnv = process.env;
 beforeAll(() => {
   process.env = {
     ...originalEnv,
-    GITLAB_API_URL: 'https://gitlab.example.com',
-    GITLAB_TOKEN: 'test-token-12345'
+    GITLAB_API_URL: "https://gitlab.example.com",
+    GITLAB_TOKEN: "test-token-12345",
   };
 });
 
@@ -30,113 +35,113 @@ beforeEach(() => {
   mockEnhancedFetch.mockReset();
 });
 
-describe('Pipelines Registry', () => {
-  describe('Registry Structure', () => {
-    it('should be a Map instance', () => {
+describe("Pipelines Registry", () => {
+  describe("Registry Structure", () => {
+    it("should be a Map instance", () => {
       expect(pipelinesToolRegistry instanceof Map).toBe(true);
     });
 
-    it('should contain expected pipeline tools', () => {
+    it("should contain expected pipeline tools", () => {
       const toolNames = Array.from(pipelinesToolRegistry.keys());
 
       // Check for read-only tools
-      expect(toolNames).toContain('list_pipelines');
-      expect(toolNames).toContain('get_pipeline');
-      expect(toolNames).toContain('list_pipeline_jobs');
-      expect(toolNames).toContain('list_pipeline_trigger_jobs');
-      expect(toolNames).toContain('get_pipeline_job');
-      expect(toolNames).toContain('get_pipeline_job_output');
+      expect(toolNames).toContain("list_pipelines");
+      expect(toolNames).toContain("get_pipeline");
+      expect(toolNames).toContain("list_pipeline_jobs");
+      expect(toolNames).toContain("list_pipeline_trigger_jobs");
+      expect(toolNames).toContain("get_pipeline_job");
+      expect(toolNames).toContain("get_pipeline_job_output");
 
       // Check for write tools
-      expect(toolNames).toContain('create_pipeline');
-      expect(toolNames).toContain('retry_pipeline');
-      expect(toolNames).toContain('cancel_pipeline');
-      expect(toolNames).toContain('play_pipeline_job');
-      expect(toolNames).toContain('retry_pipeline_job');
-      expect(toolNames).toContain('cancel_pipeline_job');
+      expect(toolNames).toContain("create_pipeline");
+      expect(toolNames).toContain("retry_pipeline");
+      expect(toolNames).toContain("cancel_pipeline");
+      expect(toolNames).toContain("play_pipeline_job");
+      expect(toolNames).toContain("retry_pipeline_job");
+      expect(toolNames).toContain("cancel_pipeline_job");
     });
 
-    it('should have tools with valid structure', () => {
+    it("should have tools with valid structure", () => {
       const toolEntries = Array.from(pipelinesToolRegistry.values());
 
       toolEntries.forEach(tool => {
-        expect(tool).toHaveProperty('name');
-        expect(tool).toHaveProperty('description');
-        expect(tool).toHaveProperty('inputSchema');
-        expect(tool).toHaveProperty('handler');
-        expect(typeof tool.name).toBe('string');
-        expect(typeof tool.description).toBe('string');
-        expect(typeof tool.inputSchema).toBe('object');
-        expect(typeof tool.handler).toBe('function');
+        expect(tool).toHaveProperty("name");
+        expect(tool).toHaveProperty("description");
+        expect(tool).toHaveProperty("inputSchema");
+        expect(tool).toHaveProperty("handler");
+        expect(typeof tool.name).toBe("string");
+        expect(typeof tool.description).toBe("string");
+        expect(typeof tool.inputSchema).toBe("object");
+        expect(typeof tool.handler).toBe("function");
       });
     });
 
-    it('should have unique tool names', () => {
+    it("should have unique tool names", () => {
       const toolNames = Array.from(pipelinesToolRegistry.keys());
       const uniqueNames = new Set(toolNames);
       expect(toolNames.length).toBe(uniqueNames.size);
     });
 
-    it('should have exactly 12 pipeline tools', () => {
+    it("should have exactly 12 pipeline tools", () => {
       expect(pipelinesToolRegistry.size).toBe(12);
     });
   });
 
-  describe('Tool Definitions', () => {
-    it('should have proper list_pipelines tool', () => {
-      const tool = pipelinesToolRegistry.get('list_pipelines');
+  describe("Tool Definitions", () => {
+    it("should have proper list_pipelines tool", () => {
+      const tool = pipelinesToolRegistry.get("list_pipelines");
       expect(tool).toBeDefined();
-      expect(tool!.name).toBe('list_pipelines');
-      expect(tool!.description).toContain('Search and monitor CI/CD pipelines');
+      expect(tool!.name).toBe("list_pipelines");
+      expect(tool!.description).toContain("Search and monitor CI/CD pipelines");
       expect(tool!.inputSchema).toBeDefined();
     });
 
-    it('should have proper get_pipeline tool', () => {
-      const tool = pipelinesToolRegistry.get('get_pipeline');
+    it("should have proper get_pipeline tool", () => {
+      const tool = pipelinesToolRegistry.get("get_pipeline");
       expect(tool).toBeDefined();
-      expect(tool!.name).toBe('get_pipeline');
-      expect(tool!.description).toContain('Get comprehensive details');
+      expect(tool!.name).toBe("get_pipeline");
+      expect(tool!.description).toContain("Get comprehensive details");
       expect(tool!.inputSchema).toBeDefined();
     });
 
-    it('should have proper list_pipeline_jobs tool', () => {
-      const tool = pipelinesToolRegistry.get('list_pipeline_jobs');
+    it("should have proper list_pipeline_jobs tool", () => {
+      const tool = pipelinesToolRegistry.get("list_pipeline_jobs");
       expect(tool).toBeDefined();
-      expect(tool!.name).toBe('list_pipeline_jobs');
-      expect(tool!.description).toContain('Get all CI/CD jobs');
+      expect(tool!.name).toBe("list_pipeline_jobs");
+      expect(tool!.description).toContain("Get all CI/CD jobs");
       expect(tool!.inputSchema).toBeDefined();
     });
 
-    it('should have proper create_pipeline tool', () => {
-      const tool = pipelinesToolRegistry.get('create_pipeline');
+    it("should have proper create_pipeline tool", () => {
+      const tool = pipelinesToolRegistry.get("create_pipeline");
       expect(tool).toBeDefined();
-      expect(tool!.name).toBe('create_pipeline');
-      expect(tool!.description).toContain('Trigger a new CI/CD pipeline');
+      expect(tool!.name).toBe("create_pipeline");
+      expect(tool!.description).toContain("Trigger a new CI/CD pipeline");
       expect(tool!.inputSchema).toBeDefined();
     });
 
-    it('should have proper retry_pipeline tool', () => {
-      const tool = pipelinesToolRegistry.get('retry_pipeline');
+    it("should have proper retry_pipeline tool", () => {
+      const tool = pipelinesToolRegistry.get("retry_pipeline");
       expect(tool).toBeDefined();
-      expect(tool!.name).toBe('retry_pipeline');
-      expect(tool!.description).toContain('Re-run a previously failed');
+      expect(tool!.name).toBe("retry_pipeline");
+      expect(tool!.description).toContain("Re-run a previously failed");
       expect(tool!.inputSchema).toBeDefined();
     });
 
-    it('should have proper cancel_pipeline tool', () => {
-      const tool = pipelinesToolRegistry.get('cancel_pipeline');
+    it("should have proper cancel_pipeline tool", () => {
+      const tool = pipelinesToolRegistry.get("cancel_pipeline");
       expect(tool).toBeDefined();
-      expect(tool!.name).toBe('cancel_pipeline');
-      expect(tool!.description).toContain('Stop a currently executing pipeline');
+      expect(tool!.name).toBe("cancel_pipeline");
+      expect(tool!.description).toContain("Stop a currently executing pipeline");
       expect(tool!.inputSchema).toBeDefined();
     });
 
-    it('should have proper job management tools', () => {
-      const playTool = pipelinesToolRegistry.get('play_pipeline_job');
-      const retryTool = pipelinesToolRegistry.get('retry_pipeline_job');
-      const cancelTool = pipelinesToolRegistry.get('cancel_pipeline_job');
-      const getTool = pipelinesToolRegistry.get('get_pipeline_job');
-      const outputTool = pipelinesToolRegistry.get('get_pipeline_job_output');
+    it("should have proper job management tools", () => {
+      const playTool = pipelinesToolRegistry.get("play_pipeline_job");
+      const retryTool = pipelinesToolRegistry.get("retry_pipeline_job");
+      const cancelTool = pipelinesToolRegistry.get("cancel_pipeline_job");
+      const getTool = pipelinesToolRegistry.get("get_pipeline_job");
+      const outputTool = pipelinesToolRegistry.get("get_pipeline_job_output");
 
       expect(playTool).toBeDefined();
       expect(retryTool).toBeDefined();
@@ -144,47 +149,47 @@ describe('Pipelines Registry', () => {
       expect(getTool).toBeDefined();
       expect(outputTool).toBeDefined();
 
-      expect(playTool!.description).toContain('Trigger a manual job');
-      expect(retryTool!.description).toContain('Re-run a specific failed');
-      expect(cancelTool!.description).toContain('Stop a specific running job');
-      expect(getTool!.description).toContain('Get detailed information');
-      expect(outputTool!.description).toContain('Fetch console output');
+      expect(playTool!.description).toContain("Trigger a manual job");
+      expect(retryTool!.description).toContain("Re-run a specific failed");
+      expect(cancelTool!.description).toContain("Stop a specific running job");
+      expect(getTool!.description).toContain("Get detailed information");
+      expect(outputTool!.description).toContain("Fetch console output");
     });
   });
 
-  describe('Read-Only Tools Function', () => {
-    it('should return an array of read-only tool names', () => {
+  describe("Read-Only Tools Function", () => {
+    it("should return an array of read-only tool names", () => {
       const readOnlyTools = getPipelinesReadOnlyToolNames();
       expect(Array.isArray(readOnlyTools)).toBe(true);
       expect(readOnlyTools.length).toBeGreaterThan(0);
     });
 
-    it('should include expected read-only tools', () => {
+    it("should include expected read-only tools", () => {
       const readOnlyTools = getPipelinesReadOnlyToolNames();
-      expect(readOnlyTools).toContain('list_pipelines');
-      expect(readOnlyTools).toContain('get_pipeline');
-      expect(readOnlyTools).toContain('list_pipeline_jobs');
-      expect(readOnlyTools).toContain('list_pipeline_trigger_jobs');
-      expect(readOnlyTools).toContain('get_pipeline_job');
-      expect(readOnlyTools).toContain('get_pipeline_job_output');
+      expect(readOnlyTools).toContain("list_pipelines");
+      expect(readOnlyTools).toContain("get_pipeline");
+      expect(readOnlyTools).toContain("list_pipeline_jobs");
+      expect(readOnlyTools).toContain("list_pipeline_trigger_jobs");
+      expect(readOnlyTools).toContain("get_pipeline_job");
+      expect(readOnlyTools).toContain("get_pipeline_job_output");
     });
 
-    it('should not include write tools', () => {
+    it("should not include write tools", () => {
       const readOnlyTools = getPipelinesReadOnlyToolNames();
-      expect(readOnlyTools).not.toContain('create_pipeline');
-      expect(readOnlyTools).not.toContain('retry_pipeline');
-      expect(readOnlyTools).not.toContain('cancel_pipeline');
-      expect(readOnlyTools).not.toContain('play_pipeline_job');
-      expect(readOnlyTools).not.toContain('retry_pipeline_job');
-      expect(readOnlyTools).not.toContain('cancel_pipeline_job');
+      expect(readOnlyTools).not.toContain("create_pipeline");
+      expect(readOnlyTools).not.toContain("retry_pipeline");
+      expect(readOnlyTools).not.toContain("cancel_pipeline");
+      expect(readOnlyTools).not.toContain("play_pipeline_job");
+      expect(readOnlyTools).not.toContain("retry_pipeline_job");
+      expect(readOnlyTools).not.toContain("cancel_pipeline_job");
     });
 
-    it('should return exactly 6 read-only tools', () => {
+    it("should return exactly 6 read-only tools", () => {
       const readOnlyTools = getPipelinesReadOnlyToolNames();
       expect(readOnlyTools.length).toBe(6);
     });
 
-    it('should return tools that exist in the registry', () => {
+    it("should return tools that exist in the registry", () => {
       const readOnlyTools = getPipelinesReadOnlyToolNames();
       readOnlyTools.forEach(toolName => {
         expect(pipelinesToolRegistry.has(toolName)).toBe(true);
@@ -192,71 +197,75 @@ describe('Pipelines Registry', () => {
     });
   });
 
-  describe('Pipelines Tool Definitions Function', () => {
-    it('should return an array of tool definitions', () => {
+  describe("Pipelines Tool Definitions Function", () => {
+    it("should return an array of tool definitions", () => {
       const toolDefinitions = getPipelinesToolDefinitions();
       expect(Array.isArray(toolDefinitions)).toBe(true);
       expect(toolDefinitions.length).toBe(12);
     });
 
-    it('should return all tools from registry', () => {
+    it("should return all tools from registry", () => {
       const toolDefinitions = getPipelinesToolDefinitions();
       const registrySize = pipelinesToolRegistry.size;
       expect(toolDefinitions.length).toBe(registrySize);
     });
 
-    it('should return tool definitions with proper structure', () => {
+    it("should return tool definitions with proper structure", () => {
       const toolDefinitions = getPipelinesToolDefinitions();
 
       toolDefinitions.forEach(tool => {
-        expect(tool).toHaveProperty('name');
-        expect(tool).toHaveProperty('description');
-        expect(tool).toHaveProperty('inputSchema');
-        expect(tool).toHaveProperty('handler');
-        expect(typeof tool.name).toBe('string');
-        expect(typeof tool.description).toBe('string');
-        expect(typeof tool.inputSchema).toBe('object');
+        expect(tool).toHaveProperty("name");
+        expect(tool).toHaveProperty("description");
+        expect(tool).toHaveProperty("inputSchema");
+        expect(tool).toHaveProperty("handler");
+        expect(typeof tool.name).toBe("string");
+        expect(typeof tool.description).toBe("string");
+        expect(typeof tool.inputSchema).toBe("object");
       });
     });
   });
 
-  describe('Filtered Pipelines Tools Function', () => {
-    it('should return all tools in normal mode', () => {
+  describe("Filtered Pipelines Tools Function", () => {
+    it("should return all tools in normal mode", () => {
       const filteredTools = getFilteredPipelinesTools(false);
       expect(filteredTools.length).toBe(12);
     });
 
-    it('should return only read-only tools in read-only mode', () => {
+    it("should return only read-only tools in read-only mode", () => {
       const filteredTools = getFilteredPipelinesTools(true);
       const readOnlyTools = getPipelinesReadOnlyToolNames();
       expect(filteredTools.length).toBe(readOnlyTools.length);
     });
 
-    it('should filter tools correctly in read-only mode', () => {
+    it("should filter tools correctly in read-only mode", () => {
       const filteredTools = getFilteredPipelinesTools(true);
       const toolNames = filteredTools.map(tool => tool.name);
 
-      expect(toolNames).toContain('list_pipelines');
-      expect(toolNames).toContain('get_pipeline');
-      expect(toolNames).toContain('list_pipeline_jobs');
-      expect(toolNames).toContain('list_pipeline_trigger_jobs');
-      expect(toolNames).toContain('get_pipeline_job');
-      expect(toolNames).toContain('get_pipeline_job_output');
+      expect(toolNames).toContain("list_pipelines");
+      expect(toolNames).toContain("get_pipeline");
+      expect(toolNames).toContain("list_pipeline_jobs");
+      expect(toolNames).toContain("list_pipeline_trigger_jobs");
+      expect(toolNames).toContain("get_pipeline_job");
+      expect(toolNames).toContain("get_pipeline_job_output");
 
-      expect(toolNames).not.toContain('create_pipeline');
-      expect(toolNames).not.toContain('retry_pipeline');
-      expect(toolNames).not.toContain('cancel_pipeline');
-      expect(toolNames).not.toContain('play_pipeline_job');
-      expect(toolNames).not.toContain('retry_pipeline_job');
-      expect(toolNames).not.toContain('cancel_pipeline_job');
+      expect(toolNames).not.toContain("create_pipeline");
+      expect(toolNames).not.toContain("retry_pipeline");
+      expect(toolNames).not.toContain("cancel_pipeline");
+      expect(toolNames).not.toContain("play_pipeline_job");
+      expect(toolNames).not.toContain("retry_pipeline_job");
+      expect(toolNames).not.toContain("cancel_pipeline_job");
     });
 
-    it('should not include write tools in read-only mode', () => {
+    it("should not include write tools in read-only mode", () => {
       const filteredTools = getFilteredPipelinesTools(true);
       const toolNames = filteredTools.map(tool => tool.name);
       const writeTools = [
-        'create_pipeline', 'retry_pipeline', 'cancel_pipeline',
-        'play_pipeline_job', 'retry_pipeline_job', 'cancel_pipeline_job'
+        "create_pipeline",
+        "retry_pipeline",
+        "cancel_pipeline",
+        "play_pipeline_job",
+        "retry_pipeline_job",
+        "cancel_pipeline_job",
       ];
 
       writeTools.forEach(toolName => {
@@ -264,23 +273,23 @@ describe('Pipelines Registry', () => {
       });
     });
 
-    it('should return exactly 6 tools in read-only mode', () => {
+    it("should return exactly 6 tools in read-only mode", () => {
       const filteredTools = getFilteredPipelinesTools(true);
       expect(filteredTools.length).toBe(6);
     });
   });
 
-  describe('Tool Handlers', () => {
-    it('should have handlers that are async functions', () => {
+  describe("Tool Handlers", () => {
+    it("should have handlers that are async functions", () => {
       const toolEntries = Array.from(pipelinesToolRegistry.values());
 
       toolEntries.forEach(tool => {
-        expect(typeof tool.handler).toBe('function');
-        expect(tool.handler.constructor.name).toBe('AsyncFunction');
+        expect(typeof tool.handler).toBe("function");
+        expect(tool.handler.constructor.name).toBe("AsyncFunction");
       });
     });
 
-    it('should have handlers that accept arguments', () => {
+    it("should have handlers that accept arguments", () => {
       const toolEntries = Array.from(pipelinesToolRegistry.values());
 
       toolEntries.forEach(tool => {
@@ -289,12 +298,21 @@ describe('Pipelines Registry', () => {
     });
   });
 
-  describe('Registry Consistency', () => {
-    it('should have all expected pipeline tools', () => {
+  describe("Registry Consistency", () => {
+    it("should have all expected pipeline tools", () => {
       const expectedTools = [
-        'list_pipelines', 'get_pipeline', 'list_pipeline_jobs', 'list_pipeline_trigger_jobs',
-        'get_pipeline_job', 'get_pipeline_job_output', 'create_pipeline', 'retry_pipeline',
-        'cancel_pipeline', 'play_pipeline_job', 'retry_pipeline_job', 'cancel_pipeline_job'
+        "list_pipelines",
+        "get_pipeline",
+        "list_pipeline_jobs",
+        "list_pipeline_trigger_jobs",
+        "get_pipeline_job",
+        "get_pipeline_job_output",
+        "create_pipeline",
+        "retry_pipeline",
+        "cancel_pipeline",
+        "play_pipeline_job",
+        "retry_pipeline_job",
+        "cancel_pipeline_job",
       ];
 
       expectedTools.forEach(toolName => {
@@ -302,7 +320,7 @@ describe('Pipelines Registry', () => {
       });
     });
 
-    it('should have consistent tool count between functions', () => {
+    it("should have consistent tool count between functions", () => {
       const registrySize = pipelinesToolRegistry.size;
       const toolDefinitions = getPipelinesToolDefinitions();
       const filteredTools = getFilteredPipelinesTools(false);
@@ -311,7 +329,7 @@ describe('Pipelines Registry', () => {
       expect(filteredTools.length).toBe(registrySize);
     });
 
-    it('should have more tools than just read-only ones', () => {
+    it("should have more tools than just read-only ones", () => {
       const totalTools = pipelinesToolRegistry.size;
       const readOnlyTools = getPipelinesReadOnlyToolNames();
 
@@ -319,38 +337,38 @@ describe('Pipelines Registry', () => {
     });
   });
 
-  describe('Tool Input Schemas', () => {
-    it('should have valid JSON schema structure for all tools', () => {
+  describe("Tool Input Schemas", () => {
+    it("should have valid JSON schema structure for all tools", () => {
       const toolEntries = Array.from(pipelinesToolRegistry.values());
 
       toolEntries.forEach(tool => {
         expect(tool.inputSchema).toBeDefined();
-        expect(typeof tool.inputSchema).toBe('object');
+        expect(typeof tool.inputSchema).toBe("object");
       });
     });
 
-    it('should have consistent schema format', () => {
+    it("should have consistent schema format", () => {
       const toolEntries = Array.from(pipelinesToolRegistry.values());
 
       toolEntries.forEach(tool => {
         // Each schema should be a valid JSON Schema object
         expect(tool.inputSchema).toBeDefined();
-        expect(typeof tool.inputSchema).toBe('object');
+        expect(typeof tool.inputSchema).toBe("object");
       });
     });
   });
 
-  describe('Pipeline Tool Specifics', () => {
-    it('should support pipeline operations', () => {
-      const listTool = pipelinesToolRegistry.get('list_pipelines');
+  describe("Pipeline Tool Specifics", () => {
+    it("should support pipeline operations", () => {
+      const listTool = pipelinesToolRegistry.get("list_pipelines");
       expect(listTool).toBeDefined();
       expect(listTool!.inputSchema).toBeDefined();
 
       // The tool should handle pipeline listing
-      expect(listTool!.description).toContain('Search and monitor CI/CD pipelines');
+      expect(listTool!.description).toContain("Search and monitor CI/CD pipelines");
     });
 
-    it('should mention pipeline context in descriptions', () => {
+    it("should mention pipeline context in descriptions", () => {
       const toolEntries = Array.from(pipelinesToolRegistry.values());
 
       toolEntries.forEach(tool => {
@@ -360,10 +378,14 @@ describe('Pipelines Registry', () => {
       });
     });
 
-    it('should have comprehensive job management', () => {
+    it("should have comprehensive job management", () => {
       const jobTools = [
-        'list_pipeline_jobs', 'get_pipeline_job', 'get_pipeline_job_output',
-        'play_pipeline_job', 'retry_pipeline_job', 'cancel_pipeline_job'
+        "list_pipeline_jobs",
+        "get_pipeline_job",
+        "get_pipeline_job_output",
+        "play_pipeline_job",
+        "retry_pipeline_job",
+        "cancel_pipeline_job",
       ];
 
       jobTools.forEach(toolName => {
@@ -371,609 +393,587 @@ describe('Pipelines Registry', () => {
       });
     });
 
-    it('should have pipeline lifecycle management', () => {
-      expect(pipelinesToolRegistry.has('create_pipeline')).toBe(true);
-      expect(pipelinesToolRegistry.has('retry_pipeline')).toBe(true);
-      expect(pipelinesToolRegistry.has('cancel_pipeline')).toBe(true);
+    it("should have pipeline lifecycle management", () => {
+      expect(pipelinesToolRegistry.has("create_pipeline")).toBe(true);
+      expect(pipelinesToolRegistry.has("retry_pipeline")).toBe(true);
+      expect(pipelinesToolRegistry.has("cancel_pipeline")).toBe(true);
     });
 
-    it('should have trigger job support', () => {
-      expect(pipelinesToolRegistry.has('list_pipeline_trigger_jobs')).toBe(true);
+    it("should have trigger job support", () => {
+      expect(pipelinesToolRegistry.has("list_pipeline_trigger_jobs")).toBe(true);
 
-      const triggerTool = pipelinesToolRegistry.get('list_pipeline_trigger_jobs');
-      expect(triggerTool!.description).toContain('List jobs that trigger');
+      const triggerTool = pipelinesToolRegistry.get("list_pipeline_trigger_jobs");
+      expect(triggerTool!.description).toContain("List jobs that trigger");
     });
   });
 
-  describe('Handler Functions', () => {
+  describe("Handler Functions", () => {
     const mockResponse = (data: any, ok = true, status = 200) => ({
       ok,
       status,
-      statusText: ok ? 'OK' : 'Error',
+      statusText: ok ? "OK" : "Error",
       json: jest.fn().mockResolvedValue(data),
-      text: jest.fn().mockResolvedValue(data)
+      text: jest.fn().mockResolvedValue(data),
     });
 
-    describe('list_pipelines handler', () => {
-      it('should list pipelines with basic parameters', async () => {
+    describe("list_pipelines handler", () => {
+      it("should list pipelines with basic parameters", async () => {
         const mockPipelines = [
-          { id: 1, status: 'success', ref: 'main', sha: 'abc123' },
-          { id: 2, status: 'running', ref: 'feature-branch', sha: 'def456' }
+          { id: 1, status: "success", ref: "main", sha: "abc123" },
+          { id: 2, status: "running", ref: "feature-branch", sha: "def456" },
         ];
         mockEnhancedFetch.mockResolvedValueOnce(mockResponse(mockPipelines) as any);
 
-        const tool = pipelinesToolRegistry.get('list_pipelines')!;
+        const tool = pipelinesToolRegistry.get("list_pipelines")!;
         const result = await tool.handler({
-          project_id: 'test/project'
+          project_id: "test/project",
         });
 
         expect(mockEnhancedFetch).toHaveBeenCalledWith(
-          expect.stringContaining('https://gitlab.example.com/api/v4/projects/test%2Fproject/pipelines'),
-          {
-            headers: {
-              Authorization: 'Bearer test-token-12345'
-            }
-          }
+          expect.stringContaining(
+            "https://gitlab.example.com/api/v4/projects/test%2Fproject/pipelines"
+          )
         );
         expect(result).toEqual(mockPipelines);
       });
 
-      it('should list pipelines with filtering options', async () => {
-        const mockPipelines = [{ id: 1, status: 'success', ref: 'main' }];
+      it("should list pipelines with filtering options", async () => {
+        const mockPipelines = [{ id: 1, status: "success", ref: "main" }];
         mockEnhancedFetch.mockResolvedValueOnce(mockResponse(mockPipelines) as any);
 
-        const tool = pipelinesToolRegistry.get('list_pipelines')!;
+        const tool = pipelinesToolRegistry.get("list_pipelines")!;
         await tool.handler({
-          project_id: 'test/project',
-          status: 'success',
-          ref: 'main',
+          project_id: "test/project",
+          status: "success",
+          ref: "main",
           per_page: 50,
-          page: 1
+          page: 1,
         });
 
         const call = mockEnhancedFetch.mock.calls[0];
         const url = call[0] as string;
-        expect(url).toContain('status=success');
-        expect(url).toContain('ref=main');
-        expect(url).toContain('per_page=50');
-        expect(url).toContain('page=1');
+        expect(url).toContain("status=success");
+        expect(url).toContain("ref=main");
+        expect(url).toContain("per_page=50");
+        expect(url).toContain("page=1");
       });
 
-      it('should handle API errors', async () => {
+      it("should handle API errors", async () => {
         mockEnhancedFetch.mockResolvedValueOnce(mockResponse(null, false, 404) as any);
 
-        const tool = pipelinesToolRegistry.get('list_pipelines')!;
+        const tool = pipelinesToolRegistry.get("list_pipelines")!;
 
-        await expect(tool.handler({
-          project_id: 'nonexistent/project'
-        })).rejects.toThrow('GitLab API error: 404 Error');
+        await expect(
+          tool.handler({
+            project_id: "nonexistent/project",
+          })
+        ).rejects.toThrow("GitLab API error: 404 Error");
       });
     });
 
-    describe('get_pipeline handler', () => {
-      it('should get pipeline by ID', async () => {
+    describe("get_pipeline handler", () => {
+      it("should get pipeline by ID", async () => {
         const mockPipeline = {
           id: 1,
           iid: 1,
-          status: 'success',
-          ref: 'main',
-          sha: 'abc123',
-          web_url: 'https://gitlab.example.com/test/project/-/pipelines/1'
+          status: "success",
+          ref: "main",
+          sha: "abc123",
+          web_url: "https://gitlab.example.com/test/project/-/pipelines/1",
         };
         mockEnhancedFetch.mockResolvedValueOnce(mockResponse(mockPipeline) as any);
 
-        const tool = pipelinesToolRegistry.get('get_pipeline')!;
+        const tool = pipelinesToolRegistry.get("get_pipeline")!;
         const result = await tool.handler({
-          project_id: 'test/project',
-          pipeline_id: 1
+          project_id: "test/project",
+          pipeline_id: 1,
         });
 
         expect(mockEnhancedFetch).toHaveBeenCalledWith(
-          'https://gitlab.example.com/api/v4/projects/test%2Fproject/pipelines/1',
-          {
-            headers: {
-              Authorization: 'Bearer test-token-12345'
-            }
-          }
+          "https://gitlab.example.com/api/v4/projects/test%2Fproject/pipelines/1"
         );
         expect(result).toEqual(mockPipeline);
       });
 
-      it('should handle pipeline not found', async () => {
+      it("should handle pipeline not found", async () => {
         mockEnhancedFetch.mockResolvedValueOnce(mockResponse(null, false, 404) as any);
 
-        const tool = pipelinesToolRegistry.get('get_pipeline')!;
+        const tool = pipelinesToolRegistry.get("get_pipeline")!;
 
-        await expect(tool.handler({
-          project_id: 'test/project',
-          pipeline_id: 999
-        })).rejects.toThrow('GitLab API error: 404 Error');
+        await expect(
+          tool.handler({
+            project_id: "test/project",
+            pipeline_id: 999,
+          })
+        ).rejects.toThrow("GitLab API error: 404 Error");
       });
     });
 
-    describe('list_pipeline_jobs handler', () => {
-      it('should list jobs in pipeline', async () => {
+    describe("list_pipeline_jobs handler", () => {
+      it("should list jobs in pipeline", async () => {
         const mockJobs = [
-          { id: 1, name: 'build', status: 'success', stage: 'build' },
-          { id: 2, name: 'test', status: 'failed', stage: 'test' }
+          { id: 1, name: "build", status: "success", stage: "build" },
+          { id: 2, name: "test", status: "failed", stage: "test" },
         ];
         mockEnhancedFetch.mockResolvedValueOnce(mockResponse(mockJobs) as any);
 
-        const tool = pipelinesToolRegistry.get('list_pipeline_jobs')!;
+        const tool = pipelinesToolRegistry.get("list_pipeline_jobs")!;
         const result = await tool.handler({
-          project_id: 'test/project',
-          pipeline_id: 1
+          project_id: "test/project",
+          pipeline_id: 1,
         });
 
         expect(mockEnhancedFetch).toHaveBeenCalledWith(
-          expect.stringContaining('https://gitlab.example.com/api/v4/projects/test%2Fproject/pipelines/1/jobs'),
-          expect.any(Object)
+          expect.stringContaining(
+            "https://gitlab.example.com/api/v4/projects/test%2Fproject/pipelines/1/jobs"
+          )
         );
         expect(result).toEqual(mockJobs);
       });
 
-      it('should list jobs with scope filter', async () => {
-        const mockJobs = [{ id: 1, name: 'build', status: 'failed' }];
+      it("should list jobs with scope filter", async () => {
+        const mockJobs = [{ id: 1, name: "build", status: "failed" }];
         mockEnhancedFetch.mockResolvedValueOnce(mockResponse(mockJobs) as any);
 
-        const tool = pipelinesToolRegistry.get('list_pipeline_jobs')!;
+        const tool = pipelinesToolRegistry.get("list_pipeline_jobs")!;
         await tool.handler({
-          project_id: 'test/project',
+          project_id: "test/project",
           pipeline_id: 1,
-          scope: ['failed']
+          scope: ["failed"],
         });
 
         const call = mockEnhancedFetch.mock.calls[0];
         const url = call[0] as string;
-        expect(url).toContain('scope=failed');
+        expect(url).toContain("scope=failed");
       });
     });
 
-    describe('list_pipeline_trigger_jobs handler', () => {
-      it('should list trigger jobs (bridges)', async () => {
+    describe("list_pipeline_trigger_jobs handler", () => {
+      it("should list trigger jobs (bridges)", async () => {
         const mockBridges = [
-          { id: 1, name: 'trigger-downstream', status: 'success', downstream_pipeline: { id: 2 } }
+          { id: 1, name: "trigger-downstream", status: "success", downstream_pipeline: { id: 2 } },
         ];
         mockEnhancedFetch.mockResolvedValueOnce(mockResponse(mockBridges) as any);
 
-        const tool = pipelinesToolRegistry.get('list_pipeline_trigger_jobs')!;
+        const tool = pipelinesToolRegistry.get("list_pipeline_trigger_jobs")!;
         const result = await tool.handler({
-          project_id: 'test/project',
-          pipeline_id: 1
+          project_id: "test/project",
+          pipeline_id: 1,
         });
 
         expect(mockEnhancedFetch).toHaveBeenCalledWith(
-          expect.stringContaining('https://gitlab.example.com/api/v4/projects/test%2Fproject/pipelines/1/bridges'),
-          expect.any(Object)
+          expect.stringContaining(
+            "https://gitlab.example.com/api/v4/projects/test%2Fproject/pipelines/1/bridges"
+          )
         );
         expect(result).toEqual(mockBridges);
       });
     });
 
-    describe('get_pipeline_job handler', () => {
-      it('should get job details', async () => {
+    describe("get_pipeline_job handler", () => {
+      it("should get job details", async () => {
         const mockJob = {
           id: 1,
-          name: 'build',
-          status: 'success',
-          stage: 'build',
+          name: "build",
+          status: "success",
+          stage: "build",
           pipeline: { id: 1 },
-          web_url: 'https://gitlab.example.com/test/project/-/jobs/1'
+          web_url: "https://gitlab.example.com/test/project/-/jobs/1",
         };
         mockEnhancedFetch.mockResolvedValueOnce(mockResponse(mockJob) as any);
 
-        const tool = pipelinesToolRegistry.get('get_pipeline_job')!;
+        const tool = pipelinesToolRegistry.get("get_pipeline_job")!;
         const result = await tool.handler({
-          project_id: 'test/project',
-          job_id: 1
+          project_id: "test/project",
+          job_id: 1,
         });
 
         expect(mockEnhancedFetch).toHaveBeenCalledWith(
-          'https://gitlab.example.com/api/v4/projects/test%2Fproject/jobs/1',
-          {
-            headers: {
-              Authorization: 'Bearer test-token-12345'
-            }
-          }
+          "https://gitlab.example.com/api/v4/projects/test%2Fproject/jobs/1"
         );
         expect(result).toEqual(mockJob);
       });
     });
 
-    describe('get_pipeline_job_output handler', () => {
-      it('should get job trace without limit', async () => {
-        const mockTrace = 'Running build...\nBuild successful\nTests passed';
+    describe("get_pipeline_job_output handler", () => {
+      it("should get job trace without limit", async () => {
+        const mockTrace = "Running build...\nBuild successful\nTests passed";
         mockEnhancedFetch.mockResolvedValueOnce({
           ok: true,
           status: 200,
-          statusText: 'OK',
-          text: jest.fn().mockResolvedValue(mockTrace)
+          statusText: "OK",
+          text: jest.fn().mockResolvedValue(mockTrace),
         } as any);
 
-        const tool = pipelinesToolRegistry.get('get_pipeline_job_output')!;
+        const tool = pipelinesToolRegistry.get("get_pipeline_job_output")!;
         const result = await tool.handler({
-          project_id: 'test/project',
-          job_id: 1
+          project_id: "test/project",
+          job_id: 1,
         });
 
         expect(mockEnhancedFetch).toHaveBeenCalledWith(
-          'https://gitlab.example.com/api/v4/projects/test%2Fproject/jobs/1/trace',
-          {
-            headers: {
-              Authorization: 'Bearer test-token-12345'
-            }
-          }
+          "https://gitlab.example.com/api/v4/projects/test%2Fproject/jobs/1/trace"
         );
         expect(result).toEqual({ trace: mockTrace, totalLines: 3, shownLines: 3 });
       });
 
-      it('should default to 200 lines when no limit specified (to prevent token overload)', async () => {
+      it("should default to 200 lines when no limit specified (to prevent token overload)", async () => {
         // Create a large trace with 300 lines
-        const lines = Array.from({length: 300}, (_, i) => `Line ${i + 1}: Some output here`);
-        const longTrace = lines.join('\n');
+        const lines = Array.from({ length: 300 }, (_, i) => `Line ${i + 1}: Some output here`);
+        const longTrace = lines.join("\n");
 
         mockEnhancedFetch.mockResolvedValueOnce({
           ok: true,
           status: 200,
-          statusText: 'OK',
-          text: jest.fn().mockResolvedValue(longTrace)
+          statusText: "OK",
+          text: jest.fn().mockResolvedValue(longTrace),
         } as any);
 
-        const tool = pipelinesToolRegistry.get('get_pipeline_job_output')!;
+        const tool = pipelinesToolRegistry.get("get_pipeline_job_output")!;
         const result = await tool.handler({
-          project_id: 'test/project',
-          job_id: 1
+          project_id: "test/project",
+          job_id: 1,
           // No limit or max_lines specified - should default to 200
         });
 
-        expect(result).toHaveProperty('trace');
-        expect(result).toHaveProperty('totalLines', 300);
-        expect(result).toHaveProperty('shownLines', 200); // Should be limited to 200 by default
+        expect(result).toHaveProperty("trace");
+        expect(result).toHaveProperty("totalLines", 300);
+        expect(result).toHaveProperty("shownLines", 200); // Should be limited to 200 by default
 
         const trace = (result as any).trace;
-        const traceLines = trace.split('\n');
+        const traceLines = trace.split("\n");
 
         // Should contain exactly 200 lines + 1 truncation info line
         expect(traceLines).toHaveLength(201);
-        expect(trace).toContain('100 lines hidden');
-        expect(trace).toContain('Showing last 200 of 300 lines');
-        expect(trace).toContain('Line 101: Some output here'); // First shown line
-        expect(trace).toContain('Line 300: Some output here'); // Last shown line
-        expect(trace).not.toContain('Line 100: Some output here'); // Should not show earlier lines
+        expect(trace).toContain("100 lines hidden");
+        expect(trace).toContain("Showing last 200 of 300 lines");
+        expect(trace).toContain("Line 101: Some output here"); // First shown line
+        expect(trace).toContain("Line 300: Some output here"); // Last shown line
+        expect(trace).not.toContain("Line 100: Some output here"); // Should not show earlier lines
       });
 
-      it('should truncate long job trace when limit is provided', async () => {
-        const longTrace = Array(1000).fill('Very long line with lots of content here').join('\n');
+      it("should truncate long job trace when limit is provided", async () => {
+        const longTrace = Array(1000).fill("Very long line with lots of content here").join("\n");
         mockEnhancedFetch.mockResolvedValueOnce({
           ok: true,
           status: 200,
-          statusText: 'OK',
-          text: jest.fn().mockResolvedValue(longTrace)
+          statusText: "OK",
+          text: jest.fn().mockResolvedValue(longTrace),
         } as any);
 
-        const tool = pipelinesToolRegistry.get('get_pipeline_job_output')!;
+        const tool = pipelinesToolRegistry.get("get_pipeline_job_output")!;
         const result = await tool.handler({
-          project_id: 'test/project',
+          project_id: "test/project",
           job_id: 1,
-          limit: 50  // Request only 50 lines from 1000
+          limit: 50, // Request only 50 lines from 1000
         });
 
-        expect(result).toHaveProperty('trace');
-        expect((result as any).trace).toContain('lines hidden');
+        expect(result).toHaveProperty("trace");
+        expect((result as any).trace).toContain("lines hidden");
         expect((result as any).trace.length).toBeLessThan(longTrace.length);
         expect((result as any).totalLines).toBe(1000);
         expect((result as any).shownLines).toBe(50);
       });
 
-      it('should handle start + limit combination correctly', async () => {
+      it("should handle start + limit combination correctly", async () => {
         // Create 100 lines of output
-        const lines = Array.from({length: 100}, (_, i) => `Line ${i + 1} content`);
-        const fullTrace = lines.join('\n');
+        const lines = Array.from({ length: 100 }, (_, i) => `Line ${i + 1} content`);
+        const fullTrace = lines.join("\n");
 
         mockEnhancedFetch.mockResolvedValueOnce({
           ok: true,
           status: 200,
-          statusText: 'OK',
-          text: jest.fn().mockResolvedValue(fullTrace)
+          statusText: "OK",
+          text: jest.fn().mockResolvedValue(fullTrace),
         } as any);
 
-        const tool = pipelinesToolRegistry.get('get_pipeline_job_output')!;
+        const tool = pipelinesToolRegistry.get("get_pipeline_job_output")!;
         const result = await tool.handler({
-          project_id: 'test/project',
+          project_id: "test/project",
           job_id: 1,
-          start: 50,  // Start from line 51
-          limit: 10   // Take 10 lines
+          start: 50, // Start from line 51
+          limit: 10, // Take 10 lines
         });
 
         const trace = (result as any).trace;
-        const traceLines = trace.split('\n');
+        const traceLines = trace.split("\n");
 
         // Should contain exactly 10 data lines plus 1 truncation header
         expect(traceLines).toHaveLength(11);
-        expect(trace).toContain('Line 51 content');
-        expect(trace).toContain('Line 60 content');
-        expect(trace).not.toContain('Line 61 content');
+        expect(trace).toContain("Line 51 content");
+        expect(trace).toContain("Line 60 content");
+        expect(trace).not.toContain("Line 61 content");
         expect((result as any).totalLines).toBe(100);
         expect((result as any).shownLines).toBe(10);
       });
 
-      it('should handle negative start correctly', async () => {
+      it("should handle negative start correctly", async () => {
         // Create 200 lines of output
-        const lines = Array.from({length: 200}, (_, i) => `Line ${i + 1} content`);
-        const fullTrace = lines.join('\n');
+        const lines = Array.from({ length: 200 }, (_, i) => `Line ${i + 1} content`);
+        const fullTrace = lines.join("\n");
 
         mockEnhancedFetch.mockResolvedValueOnce({
           ok: true,
           status: 200,
-          statusText: 'OK',
-          text: jest.fn().mockResolvedValue(fullTrace)
+          statusText: "OK",
+          text: jest.fn().mockResolvedValue(fullTrace),
         } as any);
 
-        const tool = pipelinesToolRegistry.get('get_pipeline_job_output')!;
+        const tool = pipelinesToolRegistry.get("get_pipeline_job_output")!;
         const result = await tool.handler({
-          project_id: 'test/project',
+          project_id: "test/project",
           job_id: 1,
-          start: -50,  // Last 50 lines
-          max_lines: 30  // But limit to 30 lines
+          start: -50, // Last 50 lines
+          max_lines: 30, // But limit to 30 lines
         });
 
         const trace = (result as any).trace;
 
         // Should contain exactly 30 data lines (last 30 of the last 50)
-        expect(trace).toContain('Line 171 content'); // Line 200-30+1 = 171
-        expect(trace).toContain('Line 200 content'); // Last line
-        expect(trace).not.toContain('Line 170 content'); // Should not include earlier lines
+        expect(trace).toContain("Line 171 content"); // Line 200-30+1 = 171
+        expect(trace).toContain("Line 200 content"); // Last line
+        expect(trace).not.toContain("Line 170 content"); // Should not include earlier lines
         expect((result as any).totalLines).toBe(200);
         expect((result as any).shownLines).toBe(30);
       });
     });
 
-    describe('create_pipeline handler', () => {
-      it('should create pipeline for branch', async () => {
+    describe("create_pipeline handler", () => {
+      it("should create pipeline for branch", async () => {
         const mockPipeline = {
           id: 3,
           iid: 3,
-          status: 'pending',
-          ref: 'main',
-          sha: 'new123'
+          status: "pending",
+          ref: "main",
+          sha: "new123",
         };
         mockEnhancedFetch.mockResolvedValueOnce(mockResponse(mockPipeline) as any);
 
-        const tool = pipelinesToolRegistry.get('create_pipeline')!;
+        const tool = pipelinesToolRegistry.get("create_pipeline")!;
         const result = await tool.handler({
-          project_id: 'test/project',
-          ref: 'main'
+          project_id: "test/project",
+          ref: "main",
         });
 
         expect(mockEnhancedFetch).toHaveBeenCalledWith(
-          'https://gitlab.example.com/api/v4/projects/test%2Fproject/pipeline?ref=main',
+          "https://gitlab.example.com/api/v4/projects/test%2Fproject/pipeline?ref=main",
           {
-            method: 'POST',
+            method: "POST",
             headers: {
-              Authorization: 'Bearer test-token-12345',
-              'Content-Type': 'application/json'
+              "Content-Type": "application/json",
             },
-            body: '{}'
+            body: "{}",
           }
         );
         expect(result).toEqual(mockPipeline);
       });
 
-      it('should create pipeline with variables', async () => {
-        const mockPipeline = { id: 4, status: 'pending', ref: 'feature' };
+      it("should create pipeline with variables", async () => {
+        const mockPipeline = { id: 4, status: "pending", ref: "feature" };
         mockEnhancedFetch.mockResolvedValueOnce(mockResponse(mockPipeline) as any);
 
-        const tool = pipelinesToolRegistry.get('create_pipeline')!;
+        const tool = pipelinesToolRegistry.get("create_pipeline")!;
         await tool.handler({
-          project_id: 'test/project',
-          ref: 'feature',
+          project_id: "test/project",
+          ref: "feature",
           variables: [
-            { key: 'BUILD_TYPE', value: 'release' },
-            { key: 'DEPLOY', value: 'true' }
-          ]
+            { key: "BUILD_TYPE", value: "release" },
+            { key: "DEPLOY", value: "true" },
+          ],
         });
 
         const call = mockEnhancedFetch.mock.calls[0];
         const body = JSON.parse(call[1]?.body as string);
         expect(body.variables).toEqual([
-          { key: 'BUILD_TYPE', value: 'release' },
-          { key: 'DEPLOY', value: 'true' }
+          { key: "BUILD_TYPE", value: "release" },
+          { key: "DEPLOY", value: "true" },
         ]);
       });
     });
 
-    describe('retry_pipeline handler', () => {
-      it('should retry failed pipeline', async () => {
+    describe("retry_pipeline handler", () => {
+      it("should retry failed pipeline", async () => {
         const mockPipeline = {
           id: 1,
-          status: 'running',
-          ref: 'main'
+          status: "running",
+          ref: "main",
         };
         mockEnhancedFetch.mockResolvedValueOnce(mockResponse(mockPipeline) as any);
 
-        const tool = pipelinesToolRegistry.get('retry_pipeline')!;
+        const tool = pipelinesToolRegistry.get("retry_pipeline")!;
         const result = await tool.handler({
-          project_id: 'test/project',
-          pipeline_id: 1
+          project_id: "test/project",
+          pipeline_id: 1,
         });
 
         expect(mockEnhancedFetch).toHaveBeenCalledWith(
-          'https://gitlab.example.com/api/v4/projects/test%2Fproject/pipelines/1/retry',
+          "https://gitlab.example.com/api/v4/projects/test%2Fproject/pipelines/1/retry",
           {
-            method: 'POST',
-            headers: {
-              Authorization: 'Bearer test-token-12345'
-            }
+            method: "POST",
           }
         );
         expect(result).toEqual(mockPipeline);
       });
     });
 
-    describe('cancel_pipeline handler', () => {
-      it('should cancel running pipeline', async () => {
+    describe("cancel_pipeline handler", () => {
+      it("should cancel running pipeline", async () => {
         const mockPipeline = {
           id: 1,
-          status: 'canceled',
-          ref: 'main'
+          status: "canceled",
+          ref: "main",
         };
         mockEnhancedFetch.mockResolvedValueOnce(mockResponse(mockPipeline) as any);
 
-        const tool = pipelinesToolRegistry.get('cancel_pipeline')!;
+        const tool = pipelinesToolRegistry.get("cancel_pipeline")!;
         const result = await tool.handler({
-          project_id: 'test/project',
-          pipeline_id: 1
+          project_id: "test/project",
+          pipeline_id: 1,
         });
 
         expect(mockEnhancedFetch).toHaveBeenCalledWith(
-          'https://gitlab.example.com/api/v4/projects/test%2Fproject/pipelines/1/cancel',
+          "https://gitlab.example.com/api/v4/projects/test%2Fproject/pipelines/1/cancel",
           {
-            method: 'POST',
-            headers: {
-              Authorization: 'Bearer test-token-12345'
-            }
+            method: "POST",
           }
         );
         expect(result).toEqual(mockPipeline);
       });
     });
 
-    describe('play_pipeline_job handler', () => {
-      it('should play manual job', async () => {
+    describe("play_pipeline_job handler", () => {
+      it("should play manual job", async () => {
         const mockJob = {
           id: 1,
-          name: 'deploy',
-          status: 'running'
+          name: "deploy",
+          status: "running",
         };
         mockEnhancedFetch.mockResolvedValueOnce(mockResponse(mockJob) as any);
 
-        const tool = pipelinesToolRegistry.get('play_pipeline_job')!;
+        const tool = pipelinesToolRegistry.get("play_pipeline_job")!;
         const result = await tool.handler({
-          project_id: 'test/project',
-          job_id: 1
+          project_id: "test/project",
+          job_id: 1,
         });
 
         expect(mockEnhancedFetch).toHaveBeenCalledWith(
-          'https://gitlab.example.com/api/v4/projects/test%2Fproject/jobs/1/play',
+          "https://gitlab.example.com/api/v4/projects/test%2Fproject/jobs/1/play",
           {
-            method: 'POST',
+            method: "POST",
             headers: {
-              Authorization: 'Bearer test-token-12345',
-              'Content-Type': 'application/json'
+              "Content-Type": "application/json",
             },
-            body: '{}'
+            body: "{}",
           }
         );
         expect(result).toEqual(mockJob);
       });
 
-      it('should play job with job variables', async () => {
-        const mockJob = { id: 1, name: 'deploy', status: 'running' };
+      it("should play job with job variables", async () => {
+        const mockJob = { id: 1, name: "deploy", status: "running" };
         mockEnhancedFetch.mockResolvedValueOnce(mockResponse(mockJob) as any);
 
-        const tool = pipelinesToolRegistry.get('play_pipeline_job')!;
+        const tool = pipelinesToolRegistry.get("play_pipeline_job")!;
         await tool.handler({
-          project_id: 'test/project',
+          project_id: "test/project",
           job_id: 1,
-          job_variables_attributes: [
-            { key: 'ENVIRONMENT', value: 'production' }
-          ]
+          job_variables_attributes: [{ key: "ENVIRONMENT", value: "production" }],
         });
 
         const call = mockEnhancedFetch.mock.calls[0];
         const body = JSON.parse(call[1]?.body as string);
         expect(body.job_variables_attributes).toEqual([
-          { key: 'ENVIRONMENT', value: 'production' }
+          { key: "ENVIRONMENT", value: "production" },
         ]);
       });
     });
 
-    describe('retry_pipeline_job handler', () => {
-      it('should retry failed job', async () => {
+    describe("retry_pipeline_job handler", () => {
+      it("should retry failed job", async () => {
         const mockJob = {
           id: 1,
-          name: 'test',
-          status: 'running'
+          name: "test",
+          status: "running",
         };
         mockEnhancedFetch.mockResolvedValueOnce(mockResponse(mockJob) as any);
 
-        const tool = pipelinesToolRegistry.get('retry_pipeline_job')!;
+        const tool = pipelinesToolRegistry.get("retry_pipeline_job")!;
         const result = await tool.handler({
-          project_id: 'test/project',
-          job_id: 1
+          project_id: "test/project",
+          job_id: 1,
         });
 
         expect(mockEnhancedFetch).toHaveBeenCalledWith(
-          'https://gitlab.example.com/api/v4/projects/test%2Fproject/jobs/1/retry',
+          "https://gitlab.example.com/api/v4/projects/test%2Fproject/jobs/1/retry",
           {
-            method: 'POST',
-            headers: {
-              Authorization: 'Bearer test-token-12345'
-            }
+            method: "POST",
           }
         );
         expect(result).toEqual(mockJob);
       });
     });
 
-    describe('cancel_pipeline_job handler', () => {
-      it('should cancel running job', async () => {
+    describe("cancel_pipeline_job handler", () => {
+      it("should cancel running job", async () => {
         const mockJob = {
           id: 1,
-          name: 'build',
-          status: 'canceled'
+          name: "build",
+          status: "canceled",
         };
         mockEnhancedFetch.mockResolvedValueOnce(mockResponse(mockJob) as any);
 
-        const tool = pipelinesToolRegistry.get('cancel_pipeline_job')!;
+        const tool = pipelinesToolRegistry.get("cancel_pipeline_job")!;
         const result = await tool.handler({
-          project_id: 'test/project',
-          job_id: 1
+          project_id: "test/project",
+          job_id: 1,
         });
 
         expect(mockEnhancedFetch).toHaveBeenCalledWith(
-          'https://gitlab.example.com/api/v4/projects/test%2Fproject/jobs/1/cancel',
+          "https://gitlab.example.com/api/v4/projects/test%2Fproject/jobs/1/cancel",
           {
-            method: 'POST',
-            headers: {
-              Authorization: 'Bearer test-token-12345'
-            }
+            method: "POST",
           }
         );
         expect(result).toEqual(mockJob);
       });
     });
 
-    describe('Error handling', () => {
-      it('should handle validation errors', async () => {
-        const tool = pipelinesToolRegistry.get('get_pipeline')!;
+    describe("Error handling", () => {
+      it("should handle validation errors", async () => {
+        const tool = pipelinesToolRegistry.get("get_pipeline")!;
 
         // Test with invalid input that should fail Zod validation
-        await expect(tool.handler({
-          project_id: 123, // Should be string
-          pipeline_id: 'not-a-number'
-        })).rejects.toThrow();
+        await expect(
+          tool.handler({
+            project_id: 123, // Should be string
+            pipeline_id: "not-a-number",
+          })
+        ).rejects.toThrow();
       });
 
-      it('should handle API errors with proper error messages', async () => {
+      it("should handle API errors with proper error messages", async () => {
         mockEnhancedFetch.mockResolvedValueOnce(mockResponse(null, false, 403) as any);
 
-        const tool = pipelinesToolRegistry.get('list_pipelines')!;
+        const tool = pipelinesToolRegistry.get("list_pipelines")!;
 
-        await expect(tool.handler({
-          project_id: 'private/project'
-        })).rejects.toThrow('GitLab API error: 403 Error');
+        await expect(
+          tool.handler({
+            project_id: "private/project",
+          })
+        ).rejects.toThrow("GitLab API error: 403 Error");
       });
 
-      it('should handle network errors', async () => {
-        mockEnhancedFetch.mockRejectedValueOnce(new Error('Connection timeout'));
+      it("should handle network errors", async () => {
+        mockEnhancedFetch.mockRejectedValueOnce(new Error("Connection timeout"));
 
-        const tool = pipelinesToolRegistry.get('create_pipeline')!;
+        const tool = pipelinesToolRegistry.get("create_pipeline")!;
 
-        await expect(tool.handler({
-          project_id: 'test/project',
-          ref: 'main'
-        })).rejects.toThrow('Connection timeout');
+        await expect(
+          tool.handler({
+            project_id: "test/project",
+            ref: "main",
+          })
+        ).rejects.toThrow("Connection timeout");
       });
     });
   });

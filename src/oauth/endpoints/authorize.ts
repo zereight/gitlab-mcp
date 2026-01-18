@@ -15,7 +15,12 @@
 import { Request, Response } from "express";
 import { loadOAuthConfig } from "../config";
 import { sessionStore } from "../session-store";
-import { initiateDeviceFlow, pollDeviceFlowOnce, getGitLabUser } from "../gitlab-device-flow";
+import {
+  initiateDeviceFlow,
+  pollDeviceFlowOnce,
+  getGitLabUser,
+  buildGitLabAuthUrl,
+} from "../gitlab-device-flow";
 import {
   generateRandomString,
   generateSessionId,
@@ -30,7 +35,19 @@ import { DeviceFlowPollResponse } from "../types";
  * Authorization endpoint handler
  *
  * Handles GET /authorize requests from OAuth clients.
- * Initiates GitLab device flow and returns HTML page with instructions.
+ *
+ * Supports TWO authorization flows:
+ *
+ * 1. Authorization Code Flow (when redirect_uri is present):
+ *    - Used by web clients like Claude.ai
+ *    - Redirects user to GitLab for authorization
+ *    - GitLab redirects back to /oauth/callback
+ *    - Callback creates session and redirects to client's redirect_uri
+ *
+ * 2. Device Flow (when redirect_uri is absent):
+ *    - Used by CLI clients without browser
+ *    - Returns HTML page with device code
+ *    - Client polls /oauth/poll until authorization completes
  *
  * Required query parameters:
  * - response_type: Must be "code"
@@ -39,7 +56,7 @@ import { DeviceFlowPollResponse } from "../types";
  * - code_challenge_method: Must be "S256"
  *
  * Optional query parameters:
- * - redirect_uri: Where to redirect after authorization
+ * - redirect_uri: Where to redirect after authorization (triggers Auth Code Flow)
  * - state: CSRF protection token
  * - scope: Requested scopes
  */
@@ -91,6 +108,94 @@ export async function authorizeHandler(req: Request, res: Response): Promise<voi
     return;
   }
 
+  // Determine which flow to use based on redirect_uri presence
+  if (redirect_uri) {
+    // Authorization Code Flow - redirect to GitLab
+    await handleAuthorizationCodeFlow(req, res, config, {
+      clientId: client_id,
+      redirectUri: redirect_uri,
+      state: state ?? "",
+      codeChallenge: code_challenge,
+      codeChallengeMethod: code_challenge_method,
+    });
+  } else {
+    // Device Flow - show HTML page
+    await handleDeviceFlow(req, res, config, {
+      clientId: client_id,
+      state: state ?? "",
+      codeChallenge: code_challenge,
+      codeChallengeMethod: code_challenge_method,
+    });
+  }
+}
+
+/**
+ * Handle Authorization Code Flow
+ *
+ * Redirects user to GitLab for authorization.
+ * GitLab will redirect back to /oauth/callback after authorization.
+ */
+async function handleAuthorizationCodeFlow(
+  req: Request,
+  res: Response,
+  config: ReturnType<typeof loadOAuthConfig> & object,
+  params: {
+    clientId: string;
+    redirectUri: string;
+    state: string;
+    codeChallenge: string;
+    codeChallengeMethod: string;
+  }
+): Promise<void> {
+  const baseUrl = getBaseUrl(req);
+  const callbackUri = `${baseUrl}/oauth/callback`;
+
+  // Generate internal state for GitLab callback
+  const internalState = generateRandomString(32);
+
+  // Store auth code flow state (expires in 10 minutes)
+  sessionStore.storeAuthCodeFlow(internalState, {
+    clientId: params.clientId,
+    codeChallenge: params.codeChallenge,
+    codeChallengeMethod: params.codeChallengeMethod,
+    clientState: params.state,
+    internalState: internalState,
+    clientRedirectUri: params.redirectUri,
+    callbackUri: callbackUri,
+    expiresAt: Date.now() + 10 * 60 * 1000,
+  });
+
+  // Build GitLab authorization URL
+  const gitlabAuthUrl = buildGitLabAuthUrl(config, callbackUri, internalState);
+
+  logger.info(
+    {
+      internalState: internalState.substring(0, 8) + "...",
+      clientRedirectUri: params.redirectUri,
+    },
+    "Authorization Code Flow initiated, redirecting to GitLab"
+  );
+
+  // Redirect user to GitLab for authorization
+  res.redirect(gitlabAuthUrl);
+}
+
+/**
+ * Handle Device Flow
+ *
+ * Initiates GitLab device flow and returns HTML page with instructions.
+ */
+async function handleDeviceFlow(
+  req: Request,
+  res: Response,
+  config: ReturnType<typeof loadOAuthConfig> & object,
+  params: {
+    clientId: string;
+    state: string;
+    codeChallenge: string;
+    codeChallengeMethod: string;
+  }
+): Promise<void> {
   try {
     // Initiate GitLab device flow
     const deviceResponse = await initiateDeviceFlow(config);
@@ -106,11 +211,11 @@ export async function authorizeHandler(req: Request, res: Response): Promise<voi
       verificationUriComplete: deviceResponse.verification_uri_complete,
       expiresAt: Date.now() + deviceResponse.expires_in * 1000,
       interval: deviceResponse.interval,
-      clientId: client_id,
-      codeChallenge: code_challenge,
-      codeChallengeMethod: code_challenge_method,
-      state: state ?? "",
-      redirectUri: redirect_uri,
+      clientId: params.clientId,
+      codeChallenge: params.codeChallenge,
+      codeChallengeMethod: params.codeChallengeMethod,
+      state: params.state,
+      redirectUri: undefined,
     });
 
     logger.info(

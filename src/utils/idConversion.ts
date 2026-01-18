@@ -235,7 +235,7 @@ export function cleanWorkItemResponse(workItem: GitLabWorkItem): GitLabWorkItem 
 export async function convertTypeNamesToGids(
   typeNames: string[],
   namespacePath: string,
-  // eslint-disable-next-line no-unused-vars
+
   getWorkItemTypes: (path: string) => Promise<GitLabWorkItemType[]>
 ): Promise<string[]> {
   if (!typeNames || typeNames.length === 0) {

@@ -18,6 +18,7 @@ export type { OAuthConfig } from "./config";
 // Types
 export type {
   OAuthSession,
+  AuthCodeFlowState,
   DeviceFlowState,
   AuthorizationCode,
   GitLabTokenResponse,
@@ -32,7 +33,24 @@ export type {
 } from "./types";
 
 // Session Store
-export { sessionStore } from "./session-store";
+export { sessionStore, SessionStore } from "./session-store";
+
+// Storage Backends
+export {
+  createStorageBackend,
+  getStorageType,
+  validateStorageConfig,
+  MemoryStorageBackend,
+  FileStorageBackend,
+  PostgreSQLStorageBackend,
+  STORAGE_DATA_VERSION,
+} from "./storage";
+export type {
+  SessionStorageBackend,
+  StorageConfig,
+  SessionStorageStats,
+  StorageData,
+} from "./storage";
 
 // Token Context (AsyncLocalStorage)
 export {
@@ -62,7 +80,7 @@ export {
   calculateTokenExpiry,
 } from "./token-utils";
 
-// GitLab Device Flow
+// GitLab OAuth Flows (Device Flow and Authorization Code Flow)
 export {
   initiateDeviceFlow,
   pollDeviceFlowOnce,
@@ -70,14 +88,21 @@ export {
   refreshGitLabToken,
   getGitLabUser,
   validateGitLabToken,
+  exchangeGitLabAuthCode,
+  buildGitLabAuthUrl,
 } from "./gitlab-device-flow";
 
 // OAuth Endpoints
 export {
   metadataHandler,
   healthHandler,
+  protectedResourceHandler,
   getBaseUrl,
   authorizeHandler,
   pollHandler,
+  callbackHandler,
   tokenHandler,
+  registerHandler,
+  getRegisteredClient,
+  isValidRedirectUri,
 } from "./endpoints/index";

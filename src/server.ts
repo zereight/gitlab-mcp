@@ -26,13 +26,18 @@ import {
   isOAuthEnabled,
   getAuthModeDescription,
   metadataHandler,
+  protectedResourceHandler,
   authorizeHandler,
   pollHandler,
+  callbackHandler,
   tokenHandler,
   healthHandler,
+  registerHandler,
+  sessionStore,
+  runWithTokenContext,
 } from "./oauth/index";
-// Note: oauthAuthMiddleware is available for future use on protected endpoints
-// import { oauthAuthMiddleware } from "./middleware/index";
+// Middleware imports
+import { oauthAuthMiddleware, rateLimiterMiddleware } from "./middleware/index";
 
 // Create server instance
 export const server = new Server(
@@ -56,26 +61,43 @@ export const server = new Server(
  *
  * Adds:
  * - /.well-known/oauth-authorization-server - OAuth metadata
- * - /authorize - Authorization endpoint (initiates device flow)
+ * - /.well-known/oauth-protected-resource - Protected resource metadata (RFC 9470)
+ * - /authorize - Authorization endpoint (supports both Device Flow and Authorization Code Flow)
  * - /oauth/poll - Device flow polling endpoint
+ * - /oauth/callback - Authorization Code Flow callback from GitLab
  * - /token - Token exchange endpoint
  * - /health - Health check endpoint
  *
  * @param app - Express application
  */
 function registerOAuthEndpoints(app: Express): void {
+  // NOTE: Rate limiting is applied via rateLimiterMiddleware() BEFORE this function is called.
+  // All routes registered here are protected by the global rate limiter middleware.
+
   // OAuth discovery metadata (no auth required)
   app.get("/.well-known/oauth-authorization-server", metadataHandler);
 
-  // Authorization endpoint - initiates device flow (no auth required)
+  // Protected Resource Metadata (RFC 9470) - required by Claude.ai custom connectors
+  app.get("/.well-known/oauth-protected-resource", protectedResourceHandler);
+
+  // Authorization endpoint - supports both flows:
+  // - Device Flow (no redirect_uri) - returns HTML page
+  // - Authorization Code Flow (with redirect_uri) - redirects to GitLab
   app.get("/authorize", authorizeHandler);
 
   // Device flow polling endpoint (no auth required)
   app.get("/oauth/poll", pollHandler);
 
+  // Authorization Code Flow callback from GitLab
+  // GitLab redirects here after user authorizes, then we redirect to client
+  app.get("/oauth/callback", callbackHandler);
+
   // Token endpoint - exchange code for tokens (no auth required)
   // Uses URL-encoded body as per OAuth spec
   app.post("/token", express.urlencoded({ extended: true }), tokenHandler);
+
+  // Dynamic Client Registration endpoint (RFC 7591) - required by Claude.ai
+  app.post("/register", express.json(), registerHandler);
 
   // Health check endpoint
   app.get("/health", healthHandler);
@@ -202,6 +224,11 @@ export async function startServer(): Promise<void> {
 
   logger.info(`Authentication mode: ${getAuthModeDescription()}`);
 
+  // Initialize session store (required for file-based and PostgreSQL persistence)
+  if (oauthConfig) {
+    await sessionStore.initialize();
+  }
+
   // Setup request handlers
   await setupHandlers(server);
 
@@ -222,6 +249,9 @@ export async function startServer(): Promise<void> {
 
       // Configure trust proxy for reverse proxy deployments
       configureTrustProxy(app);
+
+      // Rate limiting middleware (protects anonymous requests, authenticated users skip)
+      app.use(rateLimiterMiddleware());
 
       // Register OAuth endpoints if OAuth mode is enabled
       if (isOAuthEnabled()) {
@@ -280,9 +310,34 @@ export async function startServer(): Promise<void> {
       // Configure trust proxy for reverse proxy deployments
       configureTrustProxy(app);
 
+      // Rate limiting middleware (protects anonymous requests, authenticated users skip)
+      app.use(rateLimiterMiddleware());
+
       // Register OAuth endpoints if OAuth mode is enabled
       if (isOAuthEnabled()) {
         registerOAuthEndpoints(app);
+      }
+
+      // Middleware to ensure Accept header includes text/event-stream for MCP endpoints
+      // This fixes compatibility with clients that don't send the full Accept header
+      // as required by MCP spec (e.g., when headers are modified by reverse proxies)
+      app.use("/mcp", (req, res, next) => {
+        const accept = req.headers.accept ?? "";
+        if (req.method === "POST" && !accept.includes("text/event-stream")) {
+          req.headers.accept = accept
+            ? `${accept}, text/event-stream`
+            : "application/json, text/event-stream";
+          logger.debug(
+            { originalAccept: accept, newAccept: req.headers.accept },
+            "Modified Accept header for MCP compatibility"
+          );
+        }
+        next();
+      });
+
+      // OAuth authentication middleware for MCP endpoints (when OAuth mode is enabled)
+      if (isOAuthEnabled()) {
+        app.use("/mcp", oauthAuthMiddleware);
       }
 
       const streamableTransports: { [sessionId: string]: StreamableHTTPServerTransport } = {};
@@ -291,13 +346,43 @@ export async function startServer(): Promise<void> {
       // This follows MCP SDK pattern where StreamableHTTP transport handles both internally
       app.all("/mcp", async (req, res) => {
         const sessionId = req.headers["mcp-session-id"] as string;
+
+        // Get OAuth token info from middleware (stored in res.locals)
+        const oauthSessionId = res.locals.oauthSessionId as string | undefined;
+        const gitlabToken = res.locals.gitlabToken as string | undefined;
+        const gitlabUserId = res.locals.gitlabUserId as number | undefined;
+        const gitlabUsername = res.locals.gitlabUsername as string | undefined;
+
+        // Helper to handle request with proper token context
+        const handleWithContext = async (
+          transport: StreamableHTTPServerTransport
+        ): Promise<void> => {
+          if (gitlabToken && oauthSessionId && gitlabUserId && gitlabUsername) {
+            // Wrap transport.handleRequest in token context so MCP handlers have access
+            await runWithTokenContext(
+              {
+                gitlabToken,
+                gitlabUserId,
+                gitlabUsername,
+                sessionId: oauthSessionId,
+              },
+              async () => {
+                await transport.handleRequest(req, res, req.body);
+              }
+            );
+          } else {
+            // No OAuth token - direct handling (static token mode or unauthenticated)
+            await transport.handleRequest(req, res, req.body);
+          }
+        };
+
         try {
           let transport: StreamableHTTPServerTransport;
 
           if (sessionId && sessionId in streamableTransports) {
             // Use existing transport for this session
             transport = streamableTransports[sessionId];
-            await transport.handleRequest(req, res, req.body);
+            await handleWithContext(transport);
           } else {
             // Create new transport (handles both SSE and JSON-RPC internally)
             transport = new StreamableHTTPServerTransport({
@@ -305,14 +390,20 @@ export async function startServer(): Promise<void> {
               onsessioninitialized: (newSessionId: string) => {
                 streamableTransports[newSessionId] = transport;
                 logger.info(`MCP session initialized: ${newSessionId} (method: ${req.method})`);
+
+                // Associate MCP session with OAuth session if authenticated
+                if (oauthSessionId) {
+                  sessionStore.associateMcpSession(newSessionId, oauthSessionId);
+                }
               },
               onsessionclosed: (closedSessionId: string) => {
                 delete streamableTransports[closedSessionId];
+                sessionStore.removeMcpSessionAssociation(closedSessionId);
                 logger.info(`MCP session closed: ${closedSessionId}`);
               },
             });
             await server.connect(transport);
-            await transport.handleRequest(req, res, req.body);
+            await handleWithContext(transport);
           }
         } catch (error: unknown) {
           logger.error({ err: error }, "Error in StreamableHTTP transport");
@@ -339,9 +430,36 @@ export async function startServer(): Promise<void> {
       // Configure trust proxy for reverse proxy deployments
       configureTrustProxy(app);
 
+      // Rate limiting middleware (protects anonymous requests, authenticated users skip)
+      app.use(rateLimiterMiddleware());
+
       // Register OAuth endpoints if OAuth mode is enabled
       if (isOAuthEnabled()) {
         registerOAuthEndpoints(app);
+      }
+
+      // Middleware to ensure Accept header includes text/event-stream for MCP endpoints
+      // This fixes compatibility with clients that don't send the full Accept header
+      // as required by MCP spec (e.g., when headers are modified by reverse proxies)
+      app.use(["/", "/mcp"], (req, res, next) => {
+        const accept = req.headers.accept ?? "";
+        if (req.method === "POST" && !accept.includes("text/event-stream")) {
+          // Add text/event-stream to Accept header for POST requests
+          req.headers.accept = accept
+            ? `${accept}, text/event-stream`
+            : "application/json, text/event-stream";
+          logger.debug(
+            { originalAccept: accept, newAccept: req.headers.accept },
+            "Modified Accept header for MCP compatibility"
+          );
+        }
+        next();
+      });
+
+      // OAuth authentication middleware for MCP endpoints (when OAuth mode is enabled)
+      // Returns 401 with WWW-Authenticate header if no valid token, triggering OAuth flow
+      if (isOAuthEnabled()) {
+        app.use(["/", "/mcp"], oauthAuthMiddleware);
       }
 
       // Transport storage for both SSE and StreamableHTTP
@@ -377,28 +495,76 @@ export async function startServer(): Promise<void> {
       });
 
       // StreamableHTTP Transport Endpoint (modern, supports both GET SSE and POST JSON-RPC)
-      app.all("/mcp", async (req, res) => {
+      // Also mounted at "/" for Claude.ai custom connector compatibility
+      app.all(["/", "/mcp"], async (req, res) => {
         const sessionId = req.headers["mcp-session-id"] as string;
+
+        // Get OAuth token info from middleware (stored in res.locals)
+        const oauthSessionId = res.locals.oauthSessionId as string | undefined;
+        const gitlabToken = res.locals.gitlabToken as string | undefined;
+        const gitlabUserId = res.locals.gitlabUserId as number | undefined;
+        const gitlabUsername = res.locals.gitlabUsername as string | undefined;
+
+        logger.info(
+          {
+            method: req.method,
+            path: req.path,
+            mcpSessionId: sessionId || "none",
+            hasOAuthSession: !!oauthSessionId,
+            hasToken: !!gitlabToken,
+          },
+          "MCP endpoint request received"
+        );
+
+        // Helper to handle request with proper token context
+        const handleWithContext = async (
+          transport: StreamableHTTPServerTransport
+        ): Promise<void> => {
+          if (gitlabToken && oauthSessionId && gitlabUserId && gitlabUsername) {
+            // Wrap transport.handleRequest in token context so MCP handlers have access
+            await runWithTokenContext(
+              {
+                gitlabToken,
+                gitlabUserId,
+                gitlabUsername,
+                sessionId: oauthSessionId,
+              },
+              async () => {
+                await transport.handleRequest(req, res, req.body);
+              }
+            );
+          } else {
+            // No OAuth token - direct handling (static token mode or unauthenticated)
+            await transport.handleRequest(req, res, req.body);
+          }
+        };
+
         try {
           let transport: StreamableHTTPServerTransport;
 
           if (sessionId && sessionId in streamableTransports) {
             transport = streamableTransports[sessionId];
-            await transport.handleRequest(req, res, req.body);
+            await handleWithContext(transport);
           } else {
             transport = new StreamableHTTPServerTransport({
               sessionIdGenerator: () => Math.random().toString(36).substring(7),
               onsessioninitialized: (newSessionId: string) => {
                 streamableTransports[newSessionId] = transport;
                 logger.info(`MCP session initialized: ${newSessionId} (method: ${req.method})`);
+
+                // Associate MCP session with OAuth session if authenticated
+                if (oauthSessionId) {
+                  sessionStore.associateMcpSession(newSessionId, oauthSessionId);
+                }
               },
               onsessionclosed: (closedSessionId: string) => {
                 delete streamableTransports[closedSessionId];
+                sessionStore.removeMcpSessionAssociation(closedSessionId);
                 logger.info(`MCP session closed: ${closedSessionId}`);
               },
             });
             await server.connect(transport);
-            await transport.handleRequest(req, res, req.body);
+            await handleWithContext(transport);
           }
         } catch (error: unknown) {
           logger.error({ err: error }, "Error in StreamableHTTP transport");
@@ -428,13 +594,31 @@ export async function startServer(): Promise<void> {
   }
 }
 
-// Graceful shutdown
-process.on("SIGINT", () => {
-  logger.info("Shutting down GitLab MCP Server...");
+// Graceful shutdown - save sessions to storage backend before exit
+async function gracefulShutdown(signal: string): Promise<void> {
+  logger.info({ signal }, "Shutting down GitLab MCP Server...");
+
+  try {
+    // Close session store (saves file-based sessions, disconnects PostgreSQL)
+    await sessionStore.close();
+    logger.info("Session store closed successfully");
+  } catch (error) {
+    logger.error({ err: error as Error }, "Error closing session store");
+  }
+
   process.exit(0);
+}
+
+process.on("SIGINT", () => {
+  gracefulShutdown("SIGINT").catch(err => {
+    logger.error({ err }, "Error during graceful shutdown");
+    process.exit(1);
+  });
 });
 
 process.on("SIGTERM", () => {
-  logger.info("Shutting down GitLab MCP Server...");
-  process.exit(0);
+  gracefulShutdown("SIGTERM").catch(err => {
+    logger.error({ err }, "Error during graceful shutdown");
+    process.exit(1);
+  });
 });

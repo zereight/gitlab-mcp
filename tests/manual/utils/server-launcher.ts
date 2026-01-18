@@ -13,6 +13,8 @@ export const enum TransportMode {
   SSE = "sse",
   // eslint-disable-next-line no-unused-vars
   STREAMABLE_HTTP = "streamable-http",
+  // eslint-disable-next-line no-unused-vars
+  STDIO = "stdio",
 }
 
 export interface ServerConfig {
@@ -237,7 +239,7 @@ export async function checkHealthEndpoint(
   port: number,
   maxRetries: number = 5
 ): Promise<HealthCheckResponse> {
-  let lastError: Error;
+  let lastError: Error = new Error("Health check failed - no attempts made");
 
   for (let i = 0; i < maxRetries; i++) {
     try {

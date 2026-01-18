@@ -42,6 +42,8 @@ COPY --from=dependencies /app/.yarn ./.yarn
 # Copy source code and config files
 COPY tsconfig*.json ./
 COPY src ./src
+COPY prisma ./prisma
+COPY prisma.config.ts ./
 
 # Build the application
 RUN yarn build
