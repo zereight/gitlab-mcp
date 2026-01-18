@@ -8,157 +8,163 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
-    
+
     strategy:
       matrix:
-        node-version: [18.x, 20.x, 22.x]
-    
+        node-version: [20.x, 22.x, 24.x]
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-    
+
     - name: Setup Node.js ${{ matrix.node-version }}
       uses: actions/setup-node@v4
       with:
         node-version: ${{ matrix.node-version }}
-        cache: 'npm'
-    
+
+    - name: Enable Corepack
+      run: corepack enable
+
+    - name: Install Yarn
+      run: corepack prepare yarn@4.9.4 --activate
+
     - name: Install dependencies
-      run: npm ci
-    
+      run: yarn install --frozen-lockfile
+
     - name: Build project
-      run: npm run build
-    
+      run: yarn build
+
     - name: Run tests
-      run: npm test
+      run: yarn test
       env:
         GITLAB_API_URL: ${{ secrets.GITLAB_API_URL }}
         GITLAB_TOKEN: ${{ secrets.GITLAB_TOKEN_TEST }}
         GITLAB_PERSONAL_ACCESS_TOKEN: ${{ secrets.GITLAB_PERSONAL_ACCESS_TOKEN }}
         TEST_PROJECT_ID: ${{ secrets.TEST_PROJECT_ID }}
-    
+
     - name: Type check
-      run: npx tsc --noEmit
-    
+      run: yarn tsc --noEmit
+
     - name: Lint check
-      run: npm run lint || echo "No lint script found"
-    
+      run: yarn lint
+
     - name: Check package size
       run: |
-        npm pack --dry-run
+        yarn pack --dry-run
         echo "Package created successfully"
-    
-    - name: Security audit
-      run: npm audit --production || echo "Some vulnerabilities found"
-      continue-on-error: true
-    
-    - name: Test MCP server startup
-      run: |
-        echo "MCP server startup test temporarily disabled for debugging"
-        echo "GITLAB_PERSONAL_ACCESS_TOKEN is: ${GITLAB_PERSONAL_ACCESS_TOKEN:0:10}..."
-      env:
-        GITLAB_API_URL: ${{ secrets.GITLAB_API_URL }}
-        GITLAB_TOKEN: ${{ secrets.GITLAB_TOKEN_TEST }}
-        GITLAB_PERSONAL_ACCESS_TOKEN: ${{ secrets.GITLAB_PERSONAL_ACCESS_TOKEN }}
-        TEST_PROJECT_ID: ${{ secrets.TEST_PROJECT_ID }}
 
   integration-test:
     runs-on: ubuntu-latest
     needs: test
     if: github.event.pull_request.draft == false
-    
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-    
+
     - name: Setup Node.js
       uses: actions/setup-node@v4
       with:
-        node-version: '20.x'
-        cache: 'npm'
-    
+        node-version: '22.x'
+
+    - name: Enable Corepack
+      run: corepack enable
+
+    - name: Install Yarn
+      run: corepack prepare yarn@4.9.4 --activate
+
     - name: Install dependencies
-      run: npm ci
-    
+      run: yarn install --frozen-lockfile
+
     - name: Build project
-      run: npm run build
-    
+      run: yarn build
+
     - name: Run integration tests
       if: ${{ github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository }}
       run: |
         echo "Running integration tests with real GitLab API..."
-        npm run test:integration || echo "No integration test script found"
+        yarn test:integration || echo "No integration test script found"
       env:
         GITLAB_API_URL: ${{ secrets.GITLAB_API_URL }}
         GITLAB_TOKEN: ${{ secrets.GITLAB_TOKEN_TEST }}
         GITLAB_PERSONAL_ACCESS_TOKEN: ${{ secrets.GITLAB_PERSONAL_ACCESS_TOKEN }}
         PROJECT_ID: ${{ secrets.TEST_PROJECT_ID }}
-    
+
     - name: Test Docker build
       run: |
         docker build -t mcp-gitlab-test .
-        docker run --rm mcp-gitlab-test node build/index.js --version || echo "Version check passed"
+        docker run --rm mcp-gitlab-test node dist/src/main.js --version || echo "Version check passed"
 
   code-quality:
     runs-on: ubuntu-latest
-    
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
       with:
         fetch-depth: 0
-    
+
     - name: Setup Node.js
       uses: actions/setup-node@v4
       with:
-        node-version: '20.x'
-        cache: 'npm'
-    
+        node-version: '22.x'
+
+    - name: Enable Corepack
+      run: corepack enable
+
+    - name: Install Yarn
+      run: corepack prepare yarn@4.9.4 --activate
+
     - name: Install dependencies
-      run: npm ci
-    
+      run: yarn install --frozen-lockfile
+
     - name: Check code formatting
       run: |
-        npx prettier --check "**/*.{js,ts,json,md}" || echo "Some files need formatting"
-    
+        yarn prettier --check "**/*.{js,ts,json,md}" || echo "Some files need formatting"
+
     - name: Check for console.log statements
       run: |
-        if grep -r "console\.log" --include="*.ts" --exclude-dir=node_modules --exclude-dir=build --exclude="test*.ts" .; then
-          echo "⚠️ Found console.log statements in source code"
+        if grep -r "console\.log" --include="*.ts" --exclude-dir=node_modules --exclude-dir=dist --exclude="test*.ts" .; then
+          echo "Warning: Found console.log statements in source code"
         else
-          echo "✅ No console.log statements found"
+          echo "No console.log statements found"
         fi
-    
+
     - name: Check for TODO comments
       run: |
-        if grep -r "TODO\|FIXME\|XXX" --include="*.ts" --exclude-dir=node_modules --exclude-dir=build .; then
-          echo "⚠️ Found TODO/FIXME comments"
+        if grep -r "TODO\|FIXME\|XXX" --include="*.ts" --exclude-dir=node_modules --exclude-dir=dist .; then
+          echo "Warning: Found TODO/FIXME comments"
         else
-          echo "✅ No TODO/FIXME comments found"
+          echo "No TODO/FIXME comments found"
         fi
 
   coverage:
     runs-on: ubuntu-latest
     if: github.event.pull_request.draft == false
-    
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-    
+
     - name: Setup Node.js
       uses: actions/setup-node@v4
       with:
-        node-version: '20.x'
-        cache: 'npm'
-    
+        node-version: '22.x'
+
+    - name: Enable Corepack
+      run: corepack enable
+
+    - name: Install Yarn
+      run: corepack prepare yarn@4.9.4 --activate
+
     - name: Install dependencies
-      run: npm ci
-    
+      run: yarn install --frozen-lockfile
+
     - name: Build project
-      run: npm run build
-    
-    - name: Run tests
-      run: npm test
+      run: yarn build
+
+    - name: Run tests with coverage
+      run: yarn test:cov
       env:
         GITLAB_API_URL: ${{ secrets.GITLAB_API_URL }}
         GITLAB_TOKEN: ${{ secrets.GITLAB_TOKEN_TEST }}
