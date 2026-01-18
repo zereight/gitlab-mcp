@@ -303,15 +303,22 @@ export class GitLabOAuth {
     try {
       logger.info(`Executing token script: ${this.config.tokenScript}`);
       
-      // Parse the script command - split by spaces but respect quoted strings
-      const parts = this.config.tokenScript.match(/(?:[^\s"]+|"[^"]*")+/g);
+      // Parse the script command - simple approach that handles basic quoting
+      // For complex shell commands, users should wrap in a shell script
+      const parts = this.config.tokenScript.match(/(?:[^\s"']+|"[^"]*"|'[^']*')+/g);
       
       if (!parts || parts.length === 0) {
         throw new Error("Invalid token script command");
       }
       
       const command: string = parts[0];
-      const args: string[] = parts.slice(1).map(arg => arg.replace(/^"|"$/g, ''));
+      // Remove surrounding quotes (both single and double) from arguments
+      const args: string[] = parts.slice(1).map(arg => {
+        if ((arg.startsWith('"') && arg.endsWith('"')) || (arg.startsWith("'") && arg.endsWith("'"))) {
+          return arg.slice(1, -1);
+        }
+        return arg;
+      });
       
       const { stdout, stderr } = await execFileAsync(command, args, {
         timeout: 30000, // 30 second timeout
