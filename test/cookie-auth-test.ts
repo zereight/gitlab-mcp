@@ -35,21 +35,22 @@ describe('Cookie Authentication - File Reloading', () => {
     // Create temporary cookie file
     tempCookieFile = path.join(os.tmpdir(), `gitlab-test-cookies-${Date.now()}.txt`);
     
-    // Write initial cookie content (Netscape format)
+    // Start mock GitLab server first to get its URL
     const mockPort = await findMockServerPort(MOCK_GITLAB_PORT_BASE);
-    const cookieContent = `# Netscape HTTP Cookie File
-.gitlab.com\tTRUE\t/\tFALSE\t0\t_gitlab_session\tinitial_session_value
-.gitlab.com\tTRUE\t/\tFALSE\t0\tauth_cookie\tinitial_auth_value`;
-    
-    fs.writeFileSync(tempCookieFile, cookieContent);
-    
-    // Start mock GitLab server
     mockGitLab = new MockGitLabServer({
       port: mockPort,
       validTokens: [] // No token auth, cookies only
     });
     await mockGitLab.start();
     const mockGitLabUrl = mockGitLab.getUrl();
+
+    // Write initial cookie content (Netscape format) using mock server domain
+    // Note: Cookie domain must match the API URL domain for proper session handling
+    const cookieContent = `# Netscape HTTP Cookie File
+127.0.0.1\tFALSE\t/\tFALSE\t0\t_gitlab_session\tinitial_session_value
+127.0.0.1\tFALSE\t/\tFALSE\t0\tauth_cookie\tinitial_auth_value`;
+    
+    fs.writeFileSync(tempCookieFile, cookieContent);
 
     console.log(`Mock GitLab: ${mockGitLabUrl}`);
     console.log(`Cookie file: ${tempCookieFile}`);
@@ -105,8 +106,8 @@ describe('Cookie Authentication - File Reloading', () => {
     
     // Update cookie file (simulating external process refresh)
     const updatedCookieContent = `# Netscape HTTP Cookie File
-.gitlab.com\tTRUE\t/\tFALSE\t0\t_gitlab_session\tupdated_session_value
-.gitlab.com\tTRUE\t/\tFALSE\t0\tauth_cookie\tupdated_auth_value`;
+127.0.0.1\tFALSE\t/\tFALSE\t0\t_gitlab_session\tupdated_session_value
+127.0.0.1\tFALSE\t/\tFALSE\t0\tauth_cookie\tupdated_auth_value`;
     
     fs.writeFileSync(tempCookieFile, updatedCookieContent);
     console.log(`  ✓ Cookie file updated`);
@@ -132,19 +133,20 @@ describe('Cookie Authentication - Session Warmup', () => {
     // Create temporary cookie file with auth proxy cookies
     tempCookieFile = path.join(os.tmpdir(), `gitlab-test-cookies-warmup-${Date.now()}.txt`);
     
+    // Start mock GitLab server first to get its URL
     const mockPort = await findMockServerPort(MOCK_GITLAB_PORT_BASE + 50);
-    const cookieContent = `# Netscape HTTP Cookie File
-# Auth proxy cookies that get set after first redirect
-.gitlab.com\tTRUE\t/\tFALSE\t0\tproxy_auth\tproxy_session_token`;
-    
-    fs.writeFileSync(tempCookieFile, cookieContent);
-    
-    // Start mock GitLab server
     mockGitLab = new MockGitLabServer({
       port: mockPort,
       validTokens: []
     });
     await mockGitLab.start();
+
+    // Write cookie content using mock server domain
+    // Auth proxy cookies that get set after first redirect
+    const cookieContent = `# Netscape HTTP Cookie File
+127.0.0.1\tFALSE\t/\tFALSE\t0\tproxy_auth\tproxy_session_token`;
+    
+    fs.writeFileSync(tempCookieFile, cookieContent);
 
     console.log(`Mock GitLab: ${mockGitLab.getUrl()}`);
     console.log(`Cookie file: ${tempCookieFile}`);

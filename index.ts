@@ -453,14 +453,19 @@ const clientPool = new GitLabClientPool({
   poolMaxSize: GITLAB_POOL_MAX_SIZE,
 });
 
+// Helper function to resolve cookie path
+const resolveCookiePath = (cookiePath: string): string => {
+  return cookiePath.startsWith("~/")
+    ? path.join(process.env.HOME || "", cookiePath.slice(2))
+    : cookiePath;
+};
+
 // Create cookie jar with clean Netscape file parsing
 const createCookieJar = (): CookieJar | null => {
   if (!GITLAB_AUTH_COOKIE_PATH) return null;
 
   try {
-    const cookiePath = GITLAB_AUTH_COOKIE_PATH.startsWith("~/")
-      ? path.join(process.env.HOME || "", GITLAB_AUTH_COOKIE_PATH.slice(2))
-      : GITLAB_AUTH_COOKIE_PATH;
+    const cookiePath = resolveCookiePath(GITLAB_AUTH_COOKIE_PATH);
 
     const jar = new CookieJar();
     const cookieContent = fs.readFileSync(cookiePath, "utf8");
@@ -510,28 +515,36 @@ let fetch = cookieJar ? fetchCookie(nodeFetch, cookieJar) : nodeFetch;
 
 // Watch cookie file for changes and reload
 if (GITLAB_AUTH_COOKIE_PATH) {
-  const cookiePath = GITLAB_AUTH_COOKIE_PATH.startsWith("~/")
-    ? path.join(process.env.HOME || "", GITLAB_AUTH_COOKIE_PATH.slice(2))
-    : GITLAB_AUTH_COOKIE_PATH;
+  const cookiePath = resolveCookiePath(GITLAB_AUTH_COOKIE_PATH);
 
   let reloadTimeout: NodeJS.Timeout | null = null;
   
-  fs.watch(cookiePath, (eventType) => {
-    // Debounce rapid changes (external process may write file in chunks)
-    if (reloadTimeout) {
-      clearTimeout(reloadTimeout);
-    }
-    
-    reloadTimeout = setTimeout(() => {
-      logger.info("Cookie file changed, reloading...");
-      const newJar = createCookieJar();
-      if (newJar) {
-        cookieJar = newJar;
-        fetch = fetchCookie(nodeFetch, cookieJar);
-        logger.info("Cookies reloaded successfully");
+  try {
+    fs.watch(cookiePath, (eventType) => {
+      // Debounce rapid changes (external process may write file in chunks)
+      if (reloadTimeout) {
+        clearTimeout(reloadTimeout);
       }
-    }, 100);
-  });
+      
+      reloadTimeout = setTimeout(() => {
+        try {
+          logger.info("Cookie file changed, reloading...");
+          const newJar = createCookieJar();
+          if (newJar) {
+            cookieJar = newJar;
+            fetch = fetchCookie(nodeFetch, cookieJar);
+            logger.info("Cookies reloaded successfully");
+          } else {
+            logger.error("Failed to reload cookies from file");
+          }
+        } catch (error) {
+          logger.error("Error reloading cookies:", error);
+        }
+      }, 100);
+    });
+  } catch (error) {
+    logger.warn("Could not watch cookie file for changes:", error);
+  }
 }
 
 // Ensure session is established for the current request
