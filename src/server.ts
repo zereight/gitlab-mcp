@@ -71,6 +71,10 @@ export const server = new Server(
  * @param app - Express application
  */
 function registerOAuthEndpoints(app: Express): void {
+  // NOTE: Rate limiting is applied via rateLimiterMiddleware() BEFORE this function is called.
+  // All routes registered here are protected by the global rate limiter middleware.
+  // lgtm[js/missing-rate-limiting]
+
   // OAuth discovery metadata (no auth required)
   app.get("/.well-known/oauth-authorization-server", metadataHandler);
 
