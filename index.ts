@@ -5246,6 +5246,41 @@ server.setRequestHandler(CallToolRequestSchema, async (request: any) => {
   return handleToolCall(request.params);
 });
 
+/**
+ * Filter diffs by excluded file patterns
+ * Safely handles invalid regex patterns by logging and ignoring them
+ *
+ * @param diffs - Array of diff objects with new_path property
+ * @param excludedFilePatterns - Array of regex patterns to exclude
+ * @returns Filtered array of diffs
+ */
+function filterDiffsByPatterns<T extends { new_path: string }>(
+  diffs: T[],
+  excludedFilePatterns: string[] | undefined
+): T[] {
+  if (!excludedFilePatterns?.length) return diffs;
+
+  const regexPatterns = excludedFilePatterns
+    .map((pattern) => {
+      try {
+        return new RegExp(pattern);
+      } catch (e) {
+        console.warn(`Invalid regex pattern ignored: ${pattern}`);
+        return null;
+      }
+    })
+    .filter((regex): regex is RegExp => regex !== null);
+
+  if (regexPatterns.length === 0) return diffs;
+
+  const matchesAnyPattern = (path: string): boolean => {
+    if (!path) return false;
+    return regexPatterns.some((regex) => regex.test(path));
+  };
+
+  return diffs.filter((diff) => !matchesAnyPattern(diff.new_path));
+}
+
 async function handleToolCall(params: any) {
   try {
     if (!params.arguments) {
@@ -5352,19 +5387,7 @@ async function handleToolCall(params: any) {
       case "get_branch_diffs": {
         const args = GetBranchDiffsSchema.parse(params.arguments);
         const diffResp = await getBranchDiffs(args.project_id, args.from, args.to, args.straight);
-
-        if (args.excluded_file_patterns?.length) {
-          const regexPatterns = args.excluded_file_patterns.map(pattern => new RegExp(pattern));
-
-          // Helper function to check if a path matches any regex pattern
-          const matchesAnyPattern = (path: string): boolean => {
-            if (!path) return false;
-            return regexPatterns.some(regex => regex.test(path));
-          };
-
-          // Filter out files that match any of the regex patterns on new files
-          diffResp.diffs = diffResp.diffs.filter(diff => !matchesAnyPattern(diff.new_path));
-        }
+        diffResp.diffs = filterDiffsByPatterns(diffResp.diffs, args.excluded_file_patterns);
         return {
           content: [{ type: "text", text: JSON.stringify(diffResp, null, 2) }],
         };
@@ -5594,27 +5617,15 @@ async function handleToolCall(params: any) {
 
       case "get_merge_request_diffs": {
         const args = GetMergeRequestDiffsSchema.parse(params.arguments);
-        let diffs = await getMergeRequestDiffs(
+        const diffs = await getMergeRequestDiffs(
           args.project_id,
           args.merge_request_iid,
           args.source_branch,
           args.view
         );
-
-        // Filter diffs if excluded_file_patterns provided
-        if (args.excluded_file_patterns?.length) {
-          const regexPatterns = args.excluded_file_patterns.map((pattern) => new RegExp(pattern));
-
-          const matchesAnyPattern = (path: string): boolean => {
-            if (!path) return false;
-            return regexPatterns.some((regex) => regex.test(path));
-          };
-
-          diffs = diffs.filter((diff) => !matchesAnyPattern(diff.new_path));
-        }
-
+        const filteredDiffs = filterDiffsByPatterns(diffs, args.excluded_file_patterns);
         return {
-          content: [{ type: "text", text: JSON.stringify(diffs, null, 2) }],
+          content: [{ type: "text", text: JSON.stringify(filteredDiffs, null, 2) }],
         };
       }
 

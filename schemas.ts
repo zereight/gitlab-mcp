@@ -1129,7 +1129,7 @@ export const GetBranchDiffsSchema = ProjectParamsSchema.extend({
     .array(z.string())
     .optional()
     .describe(
-      'Array of regex patterns to exclude files from the diff results. Each pattern is a JavaScript-compatible regular expression that matches file paths to ignore. Examples: ["^test/mocks/", "\\.spec\\.ts$", "package-lock\\.json"]'
+      'Array of regex patterns to exclude files from the diff results. Each pattern is a JavaScript-compatible regular expression that matches file paths to ignore. Examples: ["^vendor/", "^test/mocks/", "\\.spec\\.ts$", "package-lock\\.json"]'
     ),
 });
 
@@ -1176,7 +1176,7 @@ export const GetMergeRequestDiffsSchema = GetMergeRequestSchema.extend({
     .array(z.string())
     .optional()
     .describe(
-      'Array of regex patterns to exclude files from the diff results. Each pattern is a JavaScript-compatible regular expression that matches file paths to ignore. Examples: ["^vendor/", "\\.lock$", "package-lock\\.json"]'
+      'Array of regex patterns to exclude files from the diff results. Each pattern is a JavaScript-compatible regular expression that matches file paths to ignore. Examples: ["^vendor/", "^test/mocks/", "\\.spec\\.ts$", "package-lock\\.json"]'
     ),
 });
 
