@@ -11,3 +11,4 @@ coverage/
 # ai
 .opencode*
 .aider*
+test-results*.json
