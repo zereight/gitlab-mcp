@@ -7,6 +7,7 @@ build
 .env.test
 coverage/
 *.log
+test-results*.json
 
 # ai
 .opencode*
