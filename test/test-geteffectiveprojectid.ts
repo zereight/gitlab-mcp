@@ -16,7 +16,8 @@ import {
 import { MockGitLabServer, findMockServerPort } from './utils/mock-gitlab-server.js';
 import { StreamableHTTPTestClient } from './clients/streamable-http-client.js';
 
-const MOCK_TOKEN = 'glpat-mock-token-12345';
+// Use the same token that will be passed via GITLAB_TOKEN_TEST environment variable
+const MOCK_TOKEN = process.env.GITLAB_TOKEN_TEST || 'glpat-mock-token-12345';
 const DEFAULT_PROJECT_ID = '123';
 const OTHER_PROJECT_ID = '456';
 
@@ -48,7 +49,6 @@ describe('getEffectiveProjectId - No GITLAB_ALLOWED_PROJECT_IDS', () => {
       env: {
         STREAMABLE_HTTP: 'true',
         GITLAB_API_URL: `${mockGitLabUrl}/api/v4`,
-        GITLAB_PERSONAL_ACCESS_TOKEN: MOCK_TOKEN,
         GITLAB_PROJECT_ID: DEFAULT_PROJECT_ID,
         GITLAB_READ_ONLY_MODE: 'true',
       }
@@ -86,7 +86,7 @@ describe('getEffectiveProjectId - No GITLAB_ALLOWED_PROJECT_IDS', () => {
     const project = JSON.parse(content.text);
     
     // The mock server should receive a request for the default project
-    assert.strictEqual(project.id, DEFAULT_PROJECT_ID, 'Should use GITLAB_PROJECT_ID as default');
+    assert.strictEqual(project.id.toString(), DEFAULT_PROJECT_ID, 'Should use GITLAB_PROJECT_ID as default');
     console.log(`  ✓ Used default project ${DEFAULT_PROJECT_ID} when no project_id provided`);
   });
 
@@ -102,7 +102,7 @@ describe('getEffectiveProjectId - No GITLAB_ALLOWED_PROJECT_IDS', () => {
     const project = JSON.parse(content.text);
     
     // Should use the passed project_id, not GITLAB_PROJECT_ID
-    assert.strictEqual(project.id, OTHER_PROJECT_ID, 'Should use passed project_id');
+    assert.strictEqual(project.id.toString(), OTHER_PROJECT_ID, 'Should use passed project_id');
     console.log(`  ✓ Used passed project_id ${OTHER_PROJECT_ID} instead of default ${DEFAULT_PROJECT_ID}`);
   });
 });
@@ -132,7 +132,6 @@ describe('getEffectiveProjectId - With single GITLAB_ALLOWED_PROJECT_IDS', () =>
       env: {
         STREAMABLE_HTTP: 'true',
         GITLAB_API_URL: `${mockGitLabUrl}/api/v4`,
-        GITLAB_PERSONAL_ACCESS_TOKEN: MOCK_TOKEN,
         GITLAB_PROJECT_ID: DEFAULT_PROJECT_ID,
         GITLAB_ALLOWED_PROJECT_IDS: DEFAULT_PROJECT_ID,
         GITLAB_READ_ONLY_MODE: 'true',
@@ -169,7 +168,7 @@ describe('getEffectiveProjectId - With single GITLAB_ALLOWED_PROJECT_IDS', () =>
     assert.ok('text' in content, 'Content should have text');
     const project = JSON.parse(content.text);
     
-    assert.strictEqual(project.id, DEFAULT_PROJECT_ID, 'Should use allowed project as default');
+    assert.strictEqual(project.id.toString(), DEFAULT_PROJECT_ID, 'Should use allowed project as default');
     console.log(`  ✓ Used allowed project ${DEFAULT_PROJECT_ID} as default`);
   });
 
@@ -212,7 +211,6 @@ describe('getEffectiveProjectId - With multiple GITLAB_ALLOWED_PROJECT_IDS', () 
       env: {
         STREAMABLE_HTTP: 'true',
         GITLAB_API_URL: `${mockGitLabUrl}/api/v4`,
-        GITLAB_PERSONAL_ACCESS_TOKEN: MOCK_TOKEN,
         GITLAB_ALLOWED_PROJECT_IDS: `${DEFAULT_PROJECT_ID},${OTHER_PROJECT_ID}`,
         GITLAB_READ_ONLY_MODE: 'true',
       }
@@ -261,7 +259,7 @@ describe('getEffectiveProjectId - With multiple GITLAB_ALLOWED_PROJECT_IDS', () 
     assert.ok('text' in content, 'Content should have text');
     const project = JSON.parse(content.text);
     
-    assert.strictEqual(project.id, DEFAULT_PROJECT_ID, 'Should allow first project');
+    assert.strictEqual(project.id.toString(), DEFAULT_PROJECT_ID, 'Should allow first project');
     console.log(`  ✓ Allowed access to first project ${DEFAULT_PROJECT_ID}`);
   });
 
@@ -275,7 +273,7 @@ describe('getEffectiveProjectId - With multiple GITLAB_ALLOWED_PROJECT_IDS', () 
     assert.ok('text' in content, 'Content should have text');
     const project = JSON.parse(content.text);
     
-    assert.strictEqual(project.id, OTHER_PROJECT_ID, 'Should allow second project');
+    assert.strictEqual(project.id.toString(), OTHER_PROJECT_ID, 'Should allow second project');
     console.log(`  ✓ Allowed access to second project ${OTHER_PROJECT_ID}`);
   });
 });
