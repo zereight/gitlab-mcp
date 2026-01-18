@@ -8,6 +8,11 @@ build
 coverage/
 *.log
 
+# Test results
+test-results*.json
+test-manual-verification.js
+.test-*
+
 # ai
 .opencode*
 .aider*
