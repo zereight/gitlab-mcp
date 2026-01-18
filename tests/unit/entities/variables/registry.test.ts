@@ -333,6 +333,47 @@ describe("Variables Registry", () => {
         expect(result).toEqual(mockVariables);
       });
 
+      it("should use explicit per_page when provided", async () => {
+        const mockVariables = [
+          {
+            key: "CUSTOM_VAR",
+            value: "custom-value",
+            protected: false,
+            masked: false,
+            environment_scope: "*",
+          },
+        ];
+
+        // Mock namespace detection call
+        mockEnhancedFetch.mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          statusText: "OK",
+          json: jest.fn().mockResolvedValue({ id: 789, name: "test-project" }),
+        } as any);
+
+        // Mock actual variables API call
+        mockEnhancedFetch.mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          statusText: "OK",
+          json: jest.fn().mockResolvedValue(mockVariables),
+        } as any);
+
+        const tool = variablesToolRegistry.get("list_variables")!;
+        const result = await tool.handler({
+          namespace: "test/project",
+          per_page: 50, // Explicit per_page value
+        });
+
+        // Second call should use the explicit per_page value
+        expect(mockEnhancedFetch).toHaveBeenNthCalledWith(
+          2,
+          "https://gitlab.example.com/api/v4/projects/test%2Fproject/variables?per_page=50"
+        );
+        expect(result).toEqual(mockVariables);
+      });
+
       it("should handle API errors", async () => {
         // Mock namespace detection call (project endpoint check) - succeeds
         mockEnhancedFetch.mockResolvedValueOnce({

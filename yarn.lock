@@ -1846,7 +1846,7 @@ __metadata:
     undici: "npm:^7.18.2"
     zod: "npm:^4.3.5"
   bin:
-    gitlab-mcp: ./dist/main.js
+    gitlab-mcp: ./dist/src/main.js
   languageName: unknown
   linkType: soft
 

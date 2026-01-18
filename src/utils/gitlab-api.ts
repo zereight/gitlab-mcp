@@ -20,7 +20,7 @@ interface RequestOptions {
   query?: Record<string, string | number | boolean | undefined | null>;
   /** Request body for POST/PUT/PATCH */
   body?: Record<string, unknown> | URLSearchParams | FormData;
-  /** Content type: 'json' (default) or 'form' for x-www-form-urlencoded */
+  /** Content type: 'json' or 'form' for x-www-form-urlencoded (default: 'form') */
   contentType?: "json" | "form";
   /** Skip GID cleanup from response */
   rawResponse?: boolean;
@@ -161,7 +161,8 @@ async function request<T>(
     );
   }
 
-  // Handle 204 No Content
+  // Handle 204 No Content - callers expecting void/undefined should use appropriate generic type
+  // Type assertion is intentional: DELETE operations typically return void, callers use gitlab.delete<void>()
   if (response.status === 204) {
     return undefined as T;
   }

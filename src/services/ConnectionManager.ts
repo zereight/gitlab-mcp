@@ -78,10 +78,10 @@ export class ConnectionManager {
             );
 
             // Create basic instance info from unauthenticated response
-            // Default to "ultimate" tier to allow all tools - will be refined on first authenticated request
+            // Default to "premium" tier for enterprise instances - will be refined on first authenticated request
             this.instanceInfo = {
               version: versionData.version,
-              tier: versionData.enterprise ? "ultimate" : "free",
+              tier: versionData.enterprise ? "premium" : "free",
               features: this.getDefaultFeatures(versionData.enterprise ?? false),
               detectedAt: new Date(),
             };

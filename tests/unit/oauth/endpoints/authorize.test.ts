@@ -26,7 +26,12 @@ jest.mock("../../../../src/oauth/gitlab-device-flow", () => ({
   initiateDeviceFlow: jest.fn(),
   pollDeviceFlowOnce: jest.fn(),
   getGitLabUser: jest.fn(),
-  buildGitLabAuthUrl: jest.fn(() => "https://gitlab.example.com/oauth/authorize?state=test"),
+  // Mock captures the state parameter (3rd argument) and includes it in the URL for verification
+  // Actual signature: buildGitLabAuthUrl(config, callbackUri, internalState)
+  buildGitLabAuthUrl: jest.fn(
+    (_config, _callbackUri: string, state: string) =>
+      `https://gitlab.example.com/oauth/authorize?state=${state}`
+  ),
 }));
 
 jest.mock("../../../../src/oauth/token-utils", () => ({
@@ -258,9 +263,11 @@ describe("OAuth Authorization Endpoint", () => {
           clientRedirectUri: "https://callback.example.com",
         })
       );
-      // Should redirect to GitLab
+      // Should redirect to GitLab with the same state that was stored
+      // Verify state consistency: the state stored in session must match the state in redirect URL
+      const storedState = (mockSessionStore.storeAuthCodeFlow as jest.Mock).mock.calls[0][0];
       expect(res.redirect).toHaveBeenCalledWith(
-        "https://gitlab.example.com/oauth/authorize?state=test"
+        `https://gitlab.example.com/oauth/authorize?state=${storedState}`
       );
     });
 
