@@ -36,8 +36,8 @@ import {
   sessionStore,
   runWithTokenContext,
 } from "./oauth/index";
-// OAuth middleware for protected MCP endpoints
-import { oauthAuthMiddleware } from "./middleware/index";
+// Middleware imports
+import { oauthAuthMiddleware, rateLimiterMiddleware } from "./middleware/index";
 
 // Create server instance
 export const server = new Server(
@@ -247,6 +247,9 @@ export async function startServer(): Promise<void> {
       // Configure trust proxy for reverse proxy deployments
       configureTrustProxy(app);
 
+      // Rate limiting middleware (protects anonymous requests, authenticated users skip)
+      app.use(rateLimiterMiddleware());
+
       // Register OAuth endpoints if OAuth mode is enabled
       if (isOAuthEnabled()) {
         registerOAuthEndpoints(app);
@@ -303,6 +306,9 @@ export async function startServer(): Promise<void> {
 
       // Configure trust proxy for reverse proxy deployments
       configureTrustProxy(app);
+
+      // Rate limiting middleware (protects anonymous requests, authenticated users skip)
+      app.use(rateLimiterMiddleware());
 
       // Register OAuth endpoints if OAuth mode is enabled
       if (isOAuthEnabled()) {
@@ -420,6 +426,9 @@ export async function startServer(): Promise<void> {
 
       // Configure trust proxy for reverse proxy deployments
       configureTrustProxy(app);
+
+      // Rate limiting middleware (protects anonymous requests, authenticated users skip)
+      app.use(rateLimiterMiddleware());
 
       // Register OAuth endpoints if OAuth mode is enabled
       if (isOAuthEnabled()) {

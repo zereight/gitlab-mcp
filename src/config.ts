@@ -35,6 +35,26 @@ export const TRUST_PROXY = process.env.TRUST_PROXY;
 // API timeout configuration (in milliseconds)
 export const API_TIMEOUT_MS = parseInt(process.env.GITLAB_API_TIMEOUT_MS ?? "20000", 10);
 
+// Rate limiting configuration
+// Per-IP rate limiting (for anonymous requests) - enabled by default
+export const RATE_LIMIT_IP_ENABLED = process.env.RATE_LIMIT_IP_ENABLED !== "false";
+export const RATE_LIMIT_IP_WINDOW_MS = parseInt(process.env.RATE_LIMIT_IP_WINDOW_MS ?? "60000", 10); // 1 minute
+export const RATE_LIMIT_IP_MAX_REQUESTS = parseInt(
+  process.env.RATE_LIMIT_IP_MAX_REQUESTS ?? "100",
+  10
+);
+
+// Per-session rate limiting (for authenticated requests) - disabled by default
+export const RATE_LIMIT_SESSION_ENABLED = process.env.RATE_LIMIT_SESSION_ENABLED === "true";
+export const RATE_LIMIT_SESSION_WINDOW_MS = parseInt(
+  process.env.RATE_LIMIT_SESSION_WINDOW_MS ?? "60000",
+  10
+);
+export const RATE_LIMIT_SESSION_MAX_REQUESTS = parseInt(
+  process.env.RATE_LIMIT_SESSION_MAX_REQUESTS ?? "300",
+  10
+);
+
 // Transport mode selection:
 // - If PORT env var is present: HTTP mode with dual transport (SSE + StreamableHTTP)
 // - If no PORT env var: stdio mode for direct MCP communication
