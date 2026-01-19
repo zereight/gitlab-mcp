@@ -31,6 +31,11 @@ export const requiredId = z.preprocess(val => val ?? "", z.coerce.string().min(1
  * Used for fields validated by Zod .refine() where TypeScript cannot
  * automatically narrow the type after runtime validation.
  *
+ * Note: This intentionally only checks for undefined, not empty strings.
+ * Empty string validation is handled by Zod schema .refine() checks which
+ * run during Schema.parse(args) BEFORE handler code executes. This function
+ * exists solely for TypeScript type narrowing after validation passes.
+ *
  * @param value - The value to assert
  * @param fieldName - Name of the field for error messages
  * @throws Error if value is undefined

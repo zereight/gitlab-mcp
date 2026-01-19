@@ -376,7 +376,8 @@ describe("Core Registry Handlers", () => {
 
         await handler?.({ action: "project", project_id: "999" });
 
-        // URL includes empty query string since no pagination options were provided
+        // Trailing `?` is expected: URLSearchParams.toString() returns empty string
+        // when no params, and URL is constructed as `${base}?${params}` regardless
         expect(mockEnhancedFetch).toHaveBeenCalledWith(
           "https://test-gitlab.com/api/v4/projects/999/events?"
         );
