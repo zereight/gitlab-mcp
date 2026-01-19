@@ -4,7 +4,7 @@
 # them to GitHub Pages for easy viewing of test coverage metrics.
 #
 # The coverage reports will be available at:
-# https://structured-world.github.io/project-nexus-mcp/coverage/
+# https://structured-world.github.io/gitlab-mcp/coverage/
 #
 # Triggers:
 # - Push to main branch (updates coverage reports)
@@ -105,8 +105,14 @@ jobs:
       - name: Generate coverage summary
         if: github.event_name == 'pull_request'
         run: |
+          # Extract coverage metrics from HTML report
+          STATEMENTS=$(cat coverage/lcov-report/index.html | grep -A1 'Statements' | tail -1 | grep -o '[0-9.]*%' | head -1 || echo "N/A")
+          BRANCHES=$(cat coverage/lcov-report/index.html | grep -A1 'Branches' | tail -1 | grep -o '[0-9.]*%' | head -1 || echo "N/A")
+          FUNCTIONS=$(cat coverage/lcov-report/index.html | grep -A1 'Functions' | tail -1 | grep -o '[0-9.]*%' | head -1 || echo "N/A")
+          LINES=$(cat coverage/lcov-report/index.html | grep -A1 'Lines' | tail -1 | grep -o '[0-9.]*%' | head -1 || echo "N/A")
+
           # Create a markdown summary of coverage
-          cat > coverage-summary.md << 'EOF'
+          cat > coverage-summary.md << EOF
           ## 📊 Test Coverage Report
 
           **Overall Coverage:** ${{ steps.coverage.outputs.percentage }}%
@@ -114,12 +120,12 @@ jobs:
           ### Coverage Details
           | Metric | Percentage |
           |--------|------------|
-          | Statements | $(cat coverage/lcov-report/index.html | grep -A1 'Statements' | tail -1 | grep -o '[0-9.]*%' | head -1) |
-          | Branches | $(cat coverage/lcov-report/index.html | grep -A1 'Branches' | tail -1 | grep -o '[0-9.]*%' | head -1) |
-          | Functions | $(cat coverage/lcov-report/index.html | grep -A1 'Functions' | tail -1 | grep -o '[0-9.]*%' | head -1) |
-          | Lines | $(cat coverage/lcov-report/index.html | grep -A1 'Lines' | tail -1 | grep -o '[0-9.]*%' | head -1) |
+          | Statements | ${STATEMENTS} |
+          | Branches | ${BRANCHES} |
+          | Functions | ${FUNCTIONS} |
+          | Lines | ${LINES} |
 
-          📈 **Coverage Report:** [View detailed coverage report](https://structured-world.github.io/project-nexus-mcp/coverage/)
+          📈 **Coverage Report:** [View detailed coverage report](https://structured-world.github.io/gitlab-mcp/coverage/)
 
           > This report was generated automatically from your PR changes.
           EOF
@@ -239,8 +245,8 @@ jobs:
               
               <div class="links">
                   <a href="./coverage/lcov-report/">📊 View Coverage Report</a>
-                  <a href="https://github.com/structured-world/project-nexus-mcp">📁 View Source Code</a>
-                  <a href="https://github.com/structured-world/project-nexus-mcp/actions">🔄 View CI/CD</a>
+                  <a href="https://github.com/structured-world/gitlab-mcp">📁 View Source Code</a>
+                  <a href="https://github.com/structured-world/gitlab-mcp/actions">🔄 View CI/CD</a>
               </div>
               
               <div style="margin-top: 2rem; padding: 1rem; background: #f8f9fa; border-radius: 4px;">

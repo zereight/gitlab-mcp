@@ -106,29 +106,14 @@ describe("Files Index Exports", () => {
       expect(ManageFilesSchema).toBeDefined();
     });
 
-    it("should re-export GetRepositoryTreeSchema", async () => {
-      const { GetRepositoryTreeSchema } = await import("../../../../src/entities/files/index");
-      expect(GetRepositoryTreeSchema).toBeDefined();
+    it("should re-export GitLabFileContentSchema", async () => {
+      const { GitLabFileContentSchema } = await import("../../../../src/entities/files/index");
+      expect(GitLabFileContentSchema).toBeDefined();
     });
 
-    it("should re-export GetFileContentsSchema", async () => {
-      const { GetFileContentsSchema } = await import("../../../../src/entities/files/index");
-      expect(GetFileContentsSchema).toBeDefined();
-    });
-
-    it("should re-export CreateOrUpdateFileSchema", async () => {
-      const { CreateOrUpdateFileSchema } = await import("../../../../src/entities/files/index");
-      expect(CreateOrUpdateFileSchema).toBeDefined();
-    });
-
-    it("should re-export PushFilesSchema", async () => {
-      const { PushFilesSchema } = await import("../../../../src/entities/files/index");
-      expect(PushFilesSchema).toBeDefined();
-    });
-
-    it("should re-export MarkdownUploadSchema", async () => {
-      const { MarkdownUploadSchema } = await import("../../../../src/entities/files/index");
-      expect(MarkdownUploadSchema).toBeDefined();
+    it("should re-export GitLabTreeSchema", async () => {
+      const { GitLabTreeSchema } = await import("../../../../src/entities/files/index");
+      expect(GitLabTreeSchema).toBeDefined();
     });
   });
 

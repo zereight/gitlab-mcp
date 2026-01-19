@@ -1,10 +1,11 @@
 import * as z from "zod";
-import { BrowseFilesSchema, BrowseFilesInput } from "./schema-readonly";
-import { ManageFilesSchema, ManageFilesInput } from "./schema";
+import { BrowseFilesSchema } from "./schema-readonly";
+import { ManageFilesSchema } from "./schema";
 import { gitlab, toQuery } from "../../utils/gitlab-api";
 import { normalizeProjectId } from "../../utils/projectIdentifier";
 import { enhancedFetch } from "../../utils/fetch";
 import { ToolRegistry, EnhancedToolDefinition } from "../../types";
+import { assertDefined } from "../utils";
 
 /**
  * Files tools registry - 2 CQRS tools replacing 5 individual tools
@@ -37,10 +38,14 @@ export const filesToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefin
             });
           }
           case "content": {
+            // file_path is required for content action (validated by .refine())
+            assertDefined(input.file_path, "file_path");
+            const filePath = input.file_path;
+
             const queryParams = new URLSearchParams();
             if (input.ref) queryParams.set("ref", input.ref);
 
-            const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${normalizeProjectId(input.project_id)}/repository/files/${encodeURIComponent(input.file_path)}/raw?${queryParams}`;
+            const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${normalizeProjectId(input.project_id)}/repository/files/${encodeURIComponent(filePath)}/raw?${queryParams}`;
             const response = await enhancedFetch(apiUrl);
 
             if (!response.ok) {
@@ -49,18 +54,16 @@ export const filesToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefin
 
             const content = await response.text();
             return {
-              file_path: input.file_path,
+              file_path: filePath,
               ref: input.ref ?? "HEAD",
               size: content.length,
               content: content,
               content_type: response.headers.get("content-type") ?? "text/plain",
             };
           }
-          /* istanbul ignore next -- TypeScript exhaustive check, unreachable with Zod validation */
-          default: {
-            const _exhaustive: never = input;
-            throw new Error(`Unknown action: ${(_exhaustive as BrowseFilesInput).action}`);
-          }
+          /* istanbul ignore next -- unreachable with Zod validation */
+          default:
+            throw new Error(`Unknown action: ${(input as { action: string }).action}`);
         }
       },
     },
@@ -77,14 +80,25 @@ export const filesToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefin
 
         switch (input.action) {
           case "single": {
+            // file_path, content, commit_message, branch are required for single action (validated by .refine())
+            assertDefined(input.file_path, "file_path");
             const { project_id, file_path, action: _action, ...body } = input;
+
             return gitlab.post(
               `projects/${normalizeProjectId(project_id)}/repository/files/${encodeURIComponent(file_path)}`,
               { body, contentType: "form" }
             );
           }
           case "batch": {
-            const actions = input.files.map(file => ({
+            // files, branch, commit_message are required for batch action (validated by .refine())
+            assertDefined(input.files, "files");
+            assertDefined(input.branch, "branch");
+            assertDefined(input.commit_message, "commit_message");
+            const files = input.files;
+            const branch = input.branch;
+            const commitMessage = input.commit_message;
+
+            const actions = files.map(file => ({
               action: "create",
               file_path: file.file_path,
               content: file.content,
@@ -93,8 +107,8 @@ export const filesToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefin
             }));
 
             const body: Record<string, unknown> = {
-              branch: input.branch,
-              commit_message: input.commit_message,
+              branch,
+              commit_message: commitMessage,
               actions,
             };
 
@@ -108,9 +122,16 @@ export const filesToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefin
             );
           }
           case "upload": {
+            // file, filename are required for upload action (validated by .refine())
+            assertDefined(input.file, "file");
+            assertDefined(input.filename, "filename");
+            const file = input.file;
+            const filename = input.filename;
+
             const formData = new FormData();
-            const buffer = Buffer.from(input.file, "base64");
-            const fileObj = new File([buffer], input.filename, {
+            const buffer = Buffer.from(file, "base64");
+            // Buffer is a Uint8Array subclass, can be passed directly to File constructor
+            const fileObj = new File([buffer], filename, {
               type: "application/octet-stream",
             });
             formData.append("file", fileObj);
@@ -119,11 +140,9 @@ export const filesToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefin
               body: formData,
             });
           }
-          /* istanbul ignore next -- TypeScript exhaustive check, unreachable with Zod validation */
-          default: {
-            const _exhaustive: never = input;
-            throw new Error(`Unknown action: ${(_exhaustive as ManageFilesInput).action}`);
-          }
+          /* istanbul ignore next -- unreachable with Zod validation */
+          default:
+            throw new Error(`Unknown action: ${(input as { action: string }).action}`);
         }
       },
     },

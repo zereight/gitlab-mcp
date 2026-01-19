@@ -376,8 +376,10 @@ describe("Core Registry Handlers", () => {
 
         await handler?.({ action: "project", project_id: "999" });
 
+        // Trailing `?` is expected: URLSearchParams.toString() returns empty string
+        // when no params, and URL is constructed as `${base}?${params}` regardless
         expect(mockEnhancedFetch).toHaveBeenCalledWith(
-          "https://test-gitlab.com/api/v4/projects/999/events?per_page=20"
+          "https://test-gitlab.com/api/v4/projects/999/events?"
         );
       });
     });

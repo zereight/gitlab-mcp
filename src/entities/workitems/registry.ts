@@ -1,8 +1,9 @@
 import * as z from "zod";
-import { BrowseWorkItemsSchema, BrowseWorkItemsInput } from "./schema-readonly";
-import { ManageWorkItemSchema, ManageWorkItemInput } from "./schema";
+import { BrowseWorkItemsSchema } from "./schema-readonly";
+import { ManageWorkItemSchema } from "./schema";
 import { ToolRegistry, EnhancedToolDefinition } from "../../types";
 import { ConnectionManager } from "../../services/ConnectionManager";
+import { assertDefined } from "../utils";
 import { getWorkItemTypes } from "../../utils/workItemTypes";
 import {
   cleanWorkItemResponse,
@@ -219,9 +220,13 @@ export const workitemsToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
 
         switch (input.action) {
           case "list": {
+            // namespace is required for list action (validated by .refine())
+            assertDefined(input.namespace, "namespace");
             const { namespace, types, state, first, after, simple } = input;
+            const namespacePath = namespace;
+
             console.log("browse_work_items list called with:", {
-              namespace,
+              namespace: namespacePath,
               types,
               state,
               first,
@@ -238,7 +243,7 @@ export const workitemsToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
 
             // Query the namespace (works for both groups and projects)
             const workItemsResponse = await client.request(GET_NAMESPACE_WORK_ITEMS, {
-              namespacePath: namespace,
+              namespacePath,
               types: resolvedTypes,
               first: first || 20,
               after: after,
@@ -281,30 +286,30 @@ export const workitemsToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
           }
 
           case "get": {
-            const { id } = input;
+            // id is required for get action (validated by .refine())
+            assertDefined(input.id, "id");
+            const workItemId = input.id;
 
             // Get GraphQL client from ConnectionManager
             const connectionManager = ConnectionManager.getInstance();
             const client = connectionManager.getClient();
 
             // Convert simple ID to GID for API call
-            const workItemGid = toGid(id, "WorkItem");
+            const workItemGid = toGid(workItemId, "WorkItem");
 
             // Use GraphQL query for getting work item details
             const response = await client.request(GET_WORK_ITEM, { id: workItemGid });
 
             if (!response.workItem) {
-              throw new Error(`Work item with ID "${id}" not found`);
+              throw new Error(`Work item with ID "${workItemId}" not found`);
             }
 
             return cleanWorkItemResponse(response.workItem as unknown as GitLabWorkItem);
           }
 
-          /* istanbul ignore next -- TypeScript exhaustive check, unreachable with Zod validation */
-          default: {
-            const _exhaustive: never = input;
-            throw new Error(`Unknown action: ${(_exhaustive as BrowseWorkItemsInput).action}`);
-          }
+          /* istanbul ignore next -- unreachable with Zod validation */
+          default:
+            throw new Error(`Unknown action: ${(input as { action: string }).action}`);
         }
       },
     },
@@ -325,6 +330,10 @@ export const workitemsToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
 
         switch (input.action) {
           case "create": {
+            // namespace, title, workItemType are required for create action (validated by .refine())
+            assertDefined(input.namespace, "namespace");
+            assertDefined(input.title, "title");
+            assertDefined(input.workItemType, "workItemType");
             const {
               namespace,
               title,
@@ -334,29 +343,32 @@ export const workitemsToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
               labelIds,
               milestoneId,
             } = input;
+            const namespacePath = namespace;
+            const workItemTitle = title;
+            const workItemTypeName = workItemType;
 
             // Get GraphQL client from ConnectionManager
             const connectionManager = ConnectionManager.getInstance();
             const client = connectionManager.getClient();
 
             // Convert simple type name to work item type GID
-            const workItemTypes = await getWorkItemTypes(namespace);
+            const workItemTypes = await getWorkItemTypes(namespacePath);
             const workItemTypeObj = workItemTypes.find(
               (t: WorkItemType) =>
                 t.name.toUpperCase().replace(/\s+/g, "_") ===
-                workItemType.toUpperCase().replace(/\s+/g, "_")
+                workItemTypeName.toUpperCase().replace(/\s+/g, "_")
             );
 
             if (!workItemTypeObj) {
               throw new Error(
-                `Work item type "${workItemType}" not found in namespace "${namespace}". Available types: ${workItemTypes.map(t => t.name).join(", ")}`
+                `Work item type "${workItemTypeName}" not found in namespace "${namespacePath}". Available types: ${workItemTypes.map(t => t.name).join(", ")}`
               );
             }
 
             // Build input with widgets support for GitLab 18.3 API
             const createInput: WorkItemCreateInput = {
-              namespacePath: namespace,
-              title,
+              namespacePath,
+              title: workItemTitle,
               workItemTypeId: workItemTypeObj.id,
             };
 
@@ -402,14 +414,17 @@ export const workitemsToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
           }
 
           case "update": {
+            // id is required for update action (validated by .refine())
+            assertDefined(input.id, "id");
             const { id, title, description, state, assigneeIds, labelIds, milestoneId } = input;
+            const workItemId = id;
 
             // Get GraphQL client from ConnectionManager
             const connectionManager = ConnectionManager.getInstance();
             const client = connectionManager.getClient();
 
             // Convert simple ID to GID for API call
-            const workItemGid = toGid(id, "WorkItem");
+            const workItemGid = toGid(workItemId, "WorkItem");
 
             // Build dynamic input object based on provided values
             const updateInput: WorkItemUpdateInput = { id: workItemGid };
@@ -460,14 +475,16 @@ export const workitemsToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
           }
 
           case "delete": {
-            const { id } = input;
+            // id is required for delete action (validated by .refine())
+            assertDefined(input.id, "id");
+            const workItemId = input.id;
 
             // Get GraphQL client from ConnectionManager
             const connectionManager = ConnectionManager.getInstance();
             const client = connectionManager.getClient();
 
             // Convert simple ID to GID for API call
-            const workItemGid = toGid(id, "WorkItem");
+            const workItemGid = toGid(workItemId, "WorkItem");
 
             // Use GraphQL mutation for deleting work item
             const response = await client.request(DELETE_WORK_ITEM, { id: workItemGid });
@@ -485,11 +502,9 @@ export const workitemsToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
             return { deleted: true };
           }
 
-          /* istanbul ignore next -- TypeScript exhaustive check, unreachable with Zod validation */
-          default: {
-            const _exhaustive: never = input;
-            throw new Error(`Unknown action: ${(_exhaustive as ManageWorkItemInput).action}`);
-          }
+          /* istanbul ignore next -- unreachable with Zod validation */
+          default:
+            throw new Error(`Unknown action: ${(input as { action: string }).action}`);
         }
       },
     },

@@ -1,17 +1,10 @@
 /**
  * Work Items Schema Integration Tests
- * Tests ListWorkItemsSchema and GetWorkItemSchema against real GitLab 18.3 API responses
+ * Tests BrowseWorkItemsSchema and ManageWorkItemSchema against real GitLab 18.3 API responses
  */
 
-import {
-  ListWorkItemsSchema,
-  GetWorkItemSchema,
-} from "../../../src/entities/workitems/schema-readonly";
-import {
-  CreateWorkItemSchema,
-  UpdateWorkItemSchema,
-  DeleteWorkItemSchema,
-} from "../../../src/entities/workitems/schema";
+import { BrowseWorkItemsSchema } from "../../../src/entities/workitems/schema-readonly";
+import { ManageWorkItemSchema } from "../../../src/entities/workitems/schema";
 import { getTestData } from "../../setup/testConfig";
 import { IntegrationTestHelper } from "../helpers/registry-helper";
 
@@ -25,18 +18,19 @@ describe("Work Items Schema - GitLab 18.3 Integration", () => {
     console.log("✅ Integration test helper initialized for work items testing");
   });
 
-  describe("ListWorkItemsSchema", () => {
+  describe("BrowseWorkItemsSchema", () => {
     it("should validate basic list work items parameters", async () => {
       const testData = getTestData();
       expect(testData.project?.path_with_namespace).toBeDefined();
 
       const validParams = {
+        action: "list" as const,
         namespace: testData.project!.path_with_namespace,
         first: 5,
         types: ["ISSUE" as const, "TASK" as const],
       };
 
-      const result = ListWorkItemsSchema.safeParse(validParams);
+      const result = BrowseWorkItemsSchema.safeParse(validParams);
       expect(result.success).toBe(true);
 
       if (result.success) {
@@ -45,7 +39,7 @@ describe("Work Items Schema - GitLab 18.3 Integration", () => {
         expect(result.data.types).toEqual(["ISSUE", "TASK"]);
       }
 
-      console.log("✅ ListWorkItemsSchema validates basic parameters correctly");
+      console.log("✅ BrowseWorkItemsSchema validates basic parameters correctly");
     });
 
     it("should make successful request with validated parameters using handler function", async () => {
@@ -53,22 +47,20 @@ describe("Work Items Schema - GitLab 18.3 Integration", () => {
       expect(testData.project?.path_with_namespace).toBeDefined();
 
       const params = {
+        action: "list" as const,
         namespace: testData.project!.path_with_namespace,
         first: 3,
         types: ["ISSUE" as const],
       };
 
       // Validate parameters first
-      const paramResult = ListWorkItemsSchema.safeParse(params);
+      const paramResult = BrowseWorkItemsSchema.safeParse(params);
       expect(paramResult.success).toBe(true);
 
       if (!paramResult.success) return;
 
-      console.log("🔍 ListWorkItemsSchema - Testing list work items using handler function...");
-      const result = (await helper.executeTool("browse_work_items", {
-        action: "list",
-        ...paramResult.data,
-      })) as any;
+      console.log("🔍 BrowseWorkItemsSchema - Testing list work items using handler function...");
+      const result = (await helper.executeTool("browse_work_items", paramResult.data)) as any;
 
       expect(result).toBeDefined();
       expect(result.items).toBeDefined();
@@ -86,12 +78,12 @@ describe("Work Items Schema - GitLab 18.3 Integration", () => {
       }
 
       console.log(
-        `✅ ListWorkItemsSchema API request successful via handler, found ${result.items.length} work items`
+        `✅ BrowseWorkItemsSchema API request successful via handler, found ${result.items.length} work items`
       );
     }, 15000);
   });
 
-  describe("GetWorkItemSchema", () => {
+  describe("BrowseWorkItemsSchema - get action", () => {
     it("should validate get work item parameters", async () => {
       const testData = getTestData();
       expect(testData.workItems).toBeDefined();
@@ -99,17 +91,18 @@ describe("Work Items Schema - GitLab 18.3 Integration", () => {
 
       const firstWorkItem = testData.workItems![0];
       const validParams = {
+        action: "get" as const,
         id: firstWorkItem.id,
       };
 
-      const result = GetWorkItemSchema.safeParse(validParams);
+      const result = BrowseWorkItemsSchema.safeParse(validParams);
       expect(result.success).toBe(true);
 
       if (result.success) {
         expect(result.data.id).toBe(firstWorkItem.id);
       }
 
-      console.log("✅ GetWorkItemSchema validates parameters correctly");
+      console.log("✅ BrowseWorkItemsSchema validates parameters correctly");
     });
 
     it("should make successful GraphQL request for single work item", async () => {
@@ -119,20 +112,18 @@ describe("Work Items Schema - GitLab 18.3 Integration", () => {
 
       const firstWorkItem = testData.workItems![0];
       const params = {
+        action: "get" as const,
         id: firstWorkItem.id,
       };
 
       // Validate parameters first
-      const paramResult = GetWorkItemSchema.safeParse(params);
+      const paramResult = BrowseWorkItemsSchema.safeParse(params);
       expect(paramResult.success).toBe(true);
 
       if (!paramResult.success) return;
 
       console.log("🔍 Getting single work item using handler function...");
-      const workItem = (await helper.executeTool("browse_work_items", {
-        action: "get",
-        ...paramResult.data,
-      })) as any;
+      const workItem = (await helper.executeTool("browse_work_items", paramResult.data)) as any;
 
       expect(workItem).toBeDefined();
       expect(workItem).toHaveProperty("id");
@@ -141,7 +132,7 @@ describe("Work Items Schema - GitLab 18.3 Integration", () => {
       expect(workItem).toHaveProperty("workItemType");
 
       console.log(
-        `✅ GetWorkItemSchema API request successful via handler: ${workItem.title} (IID: ${workItem.iid})`
+        `✅ BrowseWorkItemsSchema API request successful via handler: ${workItem.title} (IID: ${workItem.iid})`
       );
     }, 15000);
   });
@@ -155,6 +146,7 @@ describe("Work Items Schema - GitLab 18.3 Integration", () => {
 
       // Create new work item using handler function
       const createParams = {
+        action: "create" as const,
         namespace: testData.project!.path_with_namespace,
         title: `Schema Test Work Item ${Date.now()}`,
         workItemType: "ISSUE",
@@ -162,16 +154,13 @@ describe("Work Items Schema - GitLab 18.3 Integration", () => {
       };
 
       // Validate parameters first
-      const paramResult = CreateWorkItemSchema.safeParse(createParams);
+      const paramResult = ManageWorkItemSchema.safeParse(createParams);
       expect(paramResult.success).toBe(true);
 
       if (!paramResult.success) return;
 
       console.log("🔧 Creating test work item using handler function...");
-      const workItem = (await helper.executeTool("manage_work_item", {
-        action: "create",
-        ...paramResult.data,
-      })) as any;
+      const workItem = (await helper.executeTool("manage_work_item", paramResult.data)) as any;
 
       expect(workItem).toBeDefined();
       expect(workItem).toHaveProperty("id");
@@ -182,28 +171,26 @@ describe("Work Items Schema - GitLab 18.3 Integration", () => {
       crudTestWorkItemId = workItem.id;
 
       console.log(
-        `✅ CreateWorkItemSchema successful via handler: ${workItem.title} (ID: ${workItem.id}, IID: ${workItem.iid})`
+        `✅ ManageWorkItemSchema successful via handler: ${workItem.title} (ID: ${workItem.id}, IID: ${workItem.iid})`
       );
     }, 15000);
 
     it("should read the created work item via GraphQL API", async () => {
       expect(crudTestWorkItemId).toBeDefined();
 
-      // Test GetWorkItemSchema with actual GraphQL API call
+      // Test BrowseWorkItemsSchema with actual GraphQL API call
       const getParams = {
+        action: "get" as const,
         id: crudTestWorkItemId!,
       };
 
-      const paramResult = GetWorkItemSchema.safeParse(getParams);
+      const paramResult = BrowseWorkItemsSchema.safeParse(getParams);
       expect(paramResult.success).toBe(true);
 
       if (!paramResult.success) return;
 
       console.log("🔍 Reading created work item using handler function...");
-      const workItem = (await helper.executeTool("browse_work_items", {
-        action: "get",
-        ...paramResult.data,
-      })) as any;
+      const workItem = (await helper.executeTool("browse_work_items", paramResult.data)) as any;
 
       expect(workItem).toBeDefined();
       expect(workItem.id).toBe(crudTestWorkItemId);
@@ -211,60 +198,59 @@ describe("Work Items Schema - GitLab 18.3 Integration", () => {
       expect(workItem).toHaveProperty("title");
 
       console.log(
-        `✅ GetWorkItemSchema read successful via handler: ${workItem.title} (ID: ${workItem.id})`
+        `✅ BrowseWorkItemsSchema read successful via handler: ${workItem.title} (ID: ${workItem.id})`
       );
     }, 15000);
 
     it("should update the work item via GraphQL API", async () => {
       expect(crudTestWorkItemId).toBeDefined();
 
-      // Test UpdateWorkItemSchema with required fields for GraphQL
+      // Test ManageWorkItemSchema with required fields for GraphQL
       const updateParams = {
+        action: "update" as const,
         id: crudTestWorkItemId!,
         title: `Updated Schema Test Work Item ${Date.now()}`,
         description: "Updated description for schema validation test",
         assigneeIds: [], // Empty array for assignees
       };
 
-      const paramResult = UpdateWorkItemSchema.safeParse(updateParams);
+      const paramResult = ManageWorkItemSchema.safeParse(updateParams);
       expect(paramResult.success).toBe(true);
 
       if (!paramResult.success) return;
 
       console.log("🔧 Updating work item using handler function...");
-      const updatedWorkItem = (await helper.executeTool("manage_work_item", {
-        action: "update",
-        ...paramResult.data,
-      })) as any;
+      const updatedWorkItem = (await helper.executeTool(
+        "manage_work_item",
+        paramResult.data
+      )) as any;
 
       expect(updatedWorkItem).toBeDefined();
       expect(updatedWorkItem.id).toBe(crudTestWorkItemId);
       expect(updatedWorkItem.title).toBe(updateParams.title);
 
-      console.log(`✅ UpdateWorkItemSchema successful via handler: ${updatedWorkItem.title}`);
+      console.log(`✅ ManageWorkItemSchema successful via handler: ${updatedWorkItem.title}`);
     }, 15000);
 
     it("should delete the created work item via GraphQL API", async () => {
       expect(crudTestWorkItemId).toBeDefined();
 
-      // Test DeleteWorkItemSchema
+      // Test ManageWorkItemSchema
       const deleteParams = {
+        action: "delete" as const,
         id: crudTestWorkItemId!,
       };
 
-      const paramResult = DeleteWorkItemSchema.safeParse(deleteParams);
+      const paramResult = ManageWorkItemSchema.safeParse(deleteParams);
       expect(paramResult.success).toBe(true);
 
       if (!paramResult.success) return;
 
       console.log("🗑️ Deleting test work item using handler function...");
-      const result = (await helper.executeTool("manage_work_item", {
-        action: "delete",
-        ...paramResult.data,
-      })) as any;
+      const result = (await helper.executeTool("manage_work_item", paramResult.data)) as any;
 
       // Deletion might return different structures depending on implementation
-      console.log(`✅ DeleteWorkItemSchema successful via handler: ${JSON.stringify(result)}`);
+      console.log(`✅ ManageWorkItemSchema successful via handler: ${JSON.stringify(result)}`);
 
       // Clear the test work item ID since it's been deleted
       crudTestWorkItemId = null;

@@ -1,16 +1,12 @@
 import * as z from "zod";
-import { BrowsePipelinesSchema, BrowsePipelinesInput } from "./schema-readonly";
-import {
-  ManagePipelineSchema,
-  ManagePipelineInput,
-  ManagePipelineJobSchema,
-  ManagePipelineJobInput,
-} from "./schema";
+import { BrowsePipelinesSchema } from "./schema-readonly";
+import { ManagePipelineSchema, ManagePipelineJobSchema } from "./schema";
 import { gitlab, toQuery } from "../../utils/gitlab-api";
 import { normalizeProjectId } from "../../utils/projectIdentifier";
 import { enhancedFetch } from "../../utils/fetch";
 import { logger } from "../../logger";
 import { ToolRegistry, EnhancedToolDefinition } from "../../types";
+import { assertDefined } from "../utils";
 
 /**
  * Pipelines tools registry - 3 CQRS tools replacing 12 individual tools
@@ -49,7 +45,13 @@ export const pipelinesToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
           }
 
           case "jobs": {
-            const { project_id, pipeline_id, action: _action, ...queryOptions } = input;
+            const { project_id, pipeline_id, job_scope, include_retried, per_page, page } = input;
+            // Map job_scope to scope for GitLab API
+            const queryOptions: Record<string, unknown> = {};
+            if (job_scope) queryOptions.scope = job_scope;
+            if (include_retried !== undefined) queryOptions.include_retried = include_retried;
+            if (per_page !== undefined) queryOptions.per_page = per_page;
+            if (page !== undefined) queryOptions.page = page;
             return gitlab.get(
               `projects/${normalizeProjectId(project_id)}/pipelines/${pipeline_id}/jobs`,
               { query: toQuery(queryOptions, []) }
@@ -57,7 +59,14 @@ export const pipelinesToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
           }
 
           case "triggers": {
-            const { project_id, pipeline_id, action: _action, ...queryOptions } = input;
+            const { project_id, pipeline_id, trigger_scope, include_retried, per_page, page } =
+              input;
+            // Map trigger_scope to scope for GitLab API
+            const queryOptions: Record<string, unknown> = {};
+            if (trigger_scope) queryOptions.scope = trigger_scope;
+            if (include_retried !== undefined) queryOptions.include_retried = include_retried;
+            if (per_page !== undefined) queryOptions.per_page = per_page;
+            if (page !== undefined) queryOptions.page = page;
             return gitlab.get(
               `projects/${normalizeProjectId(project_id)}/pipelines/${pipeline_id}/bridges`,
               { query: toQuery(queryOptions, []) }
@@ -134,11 +143,9 @@ export const pipelinesToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
             return { trace, totalLines, shownLines: actualDataLines };
           }
 
-          /* istanbul ignore next -- TypeScript exhaustive check, unreachable with Zod validation */
-          default: {
-            const _exhaustive: never = input;
-            throw new Error(`Unknown action: ${(_exhaustive as BrowsePipelinesInput).action}`);
-          }
+          /* istanbul ignore next -- unreachable with Zod validation */
+          default:
+            throw new Error(`Unknown action: ${(input as { action: string }).action}`);
         }
       },
     },
@@ -159,6 +166,8 @@ export const pipelinesToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
 
         switch (input.action) {
           case "create": {
+            // ref is required for create action (validated by .refine())
+            assertDefined(input.ref, "ref");
             const { project_id, ref, variables } = input;
 
             // Custom handling - ref in query, variables in body with detailed error handling
@@ -229,24 +238,28 @@ export const pipelinesToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
           }
 
           case "retry": {
+            // pipeline_id is required for retry action (validated by .refine())
+            assertDefined(input.pipeline_id, "pipeline_id");
             const { project_id, pipeline_id } = input;
+
             return gitlab.post(
               `projects/${normalizeProjectId(project_id)}/pipelines/${pipeline_id}/retry`
             );
           }
 
           case "cancel": {
+            // pipeline_id is required for cancel action (validated by .refine())
+            assertDefined(input.pipeline_id, "pipeline_id");
             const { project_id, pipeline_id } = input;
+
             return gitlab.post(
               `projects/${normalizeProjectId(project_id)}/pipelines/${pipeline_id}/cancel`
             );
           }
 
-          /* istanbul ignore next -- TypeScript exhaustive check, unreachable with Zod validation */
-          default: {
-            const _exhaustive: never = input;
-            throw new Error(`Unknown action: ${(_exhaustive as ManagePipelineInput).action}`);
-          }
+          /* istanbul ignore next -- unreachable with Zod validation */
+          default:
+            throw new Error(`Unknown action: ${(input as { action: string }).action}`);
         }
       },
     },
@@ -291,11 +304,9 @@ export const pipelinesToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
             });
           }
 
-          /* istanbul ignore next -- TypeScript exhaustive check, unreachable with Zod validation */
-          default: {
-            const _exhaustive: never = input;
-            throw new Error(`Unknown action: ${(_exhaustive as ManagePipelineJobInput).action}`);
-          }
+          /* istanbul ignore next -- unreachable with Zod validation */
+          default:
+            throw new Error(`Unknown action: ${(input as { action: string }).action}`);
         }
       },
     },

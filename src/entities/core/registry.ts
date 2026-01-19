@@ -26,6 +26,7 @@ import { normalizeProjectId } from "../../utils/projectIdentifier";
 import { smartUserSearch, type UserSearchParams } from "../../utils/smart-user-search";
 import { cleanGidsFromObject } from "../../utils/idConversion";
 import { ToolRegistry, EnhancedToolDefinition } from "../../types";
+import { assertDefined } from "../utils";
 
 /**
  * Core tools registry - CQRS consolidated (Issue #16)
@@ -157,13 +158,16 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
           }
 
           case "get": {
-            const { project_id, statistics, license } = options;
+            // project_id is validated by .refine() for 'get' action
+            assertDefined(options.project_id, "project_id");
+            const projectId = options.project_id;
+            const { statistics, license } = options;
 
             const queryParams = new URLSearchParams();
             if (statistics) queryParams.set("statistics", "true");
             if (license) queryParams.set("license", "true");
 
-            const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${normalizeProjectId(project_id)}?${queryParams}`;
+            const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${normalizeProjectId(projectId)}?${queryParams}`;
             const response = await enhancedFetch(apiUrl);
 
             if (!response.ok) {
@@ -174,10 +178,8 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
             return cleanGidsFromObject(project);
           }
 
-          default: {
-            const _exhaustive: never = options;
-            throw new Error(`Unknown action: ${(_exhaustive as { action: string }).action}`);
-          }
+          default:
+            throw new Error(`Unknown action: ${(options as { action: string }).action}`);
         }
       },
     },
@@ -230,9 +232,11 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
           }
 
           case "get": {
-            const { namespace_id } = options;
+            // namespace_id is validated by .refine() for 'get' action
+            assertDefined(options.namespace_id, "namespace_id");
+            const namespaceId = options.namespace_id;
 
-            const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/namespaces/${encodeURIComponent(namespace_id)}`;
+            const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/namespaces/${encodeURIComponent(namespaceId)}`;
             const response = await enhancedFetch(apiUrl);
 
             if (!response.ok) {
@@ -244,23 +248,23 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
           }
 
           case "verify": {
-            const { namespace_id } = options;
+            // namespace_id is validated by .refine() for 'verify' action
+            assertDefined(options.namespace_id, "namespace_id");
+            const namespaceId = options.namespace_id;
 
-            const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/namespaces/${encodeURIComponent(namespace_id)}`;
+            const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/namespaces/${encodeURIComponent(namespaceId)}`;
             const response = await enhancedFetch(apiUrl);
 
             return {
               exists: response.ok,
               status: response.status,
-              namespace: namespace_id,
+              namespace: namespaceId,
               data: response.ok ? await response.json() : null,
             };
           }
 
-          default: {
-            const _exhaustive: never = options;
-            throw new Error(`Unknown action: ${(_exhaustive as { action: string }).action}`);
-          }
+          default:
+            throw new Error(`Unknown action: ${(options as { action: string }).action}`);
         }
       },
     },
@@ -320,12 +324,15 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
           }
 
           case "get": {
-            const { project_id, sha, stats } = options;
+            // sha is validated by .refine() for 'get' action
+            assertDefined(options.sha, "sha");
+            const commitSha = options.sha;
+            const { project_id, stats } = options;
 
             const queryParams = new URLSearchParams();
             if (stats) queryParams.set("stats", "true");
 
-            const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${encodeURIComponent(project_id)}/repository/commits/${encodeURIComponent(sha)}?${queryParams}`;
+            const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${encodeURIComponent(project_id)}/repository/commits/${encodeURIComponent(commitSha)}?${queryParams}`;
             const response = await enhancedFetch(apiUrl);
 
             if (!response.ok) {
@@ -336,12 +343,15 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
           }
 
           case "diff": {
-            const { project_id, sha, unidiff } = options;
+            // sha is validated by .refine() for 'diff' action
+            assertDefined(options.sha, "sha");
+            const commitSha = options.sha;
+            const { project_id, unidiff } = options;
 
             const queryParams = new URLSearchParams();
             if (unidiff) queryParams.set("unidiff", "true");
 
-            const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${encodeURIComponent(project_id)}/repository/commits/${encodeURIComponent(sha)}/diff?${queryParams}`;
+            const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${encodeURIComponent(project_id)}/repository/commits/${encodeURIComponent(commitSha)}/diff?${queryParams}`;
             const response = await enhancedFetch(apiUrl);
 
             if (!response.ok) {
@@ -351,10 +361,8 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
             return await response.json();
           }
 
-          default: {
-            const _exhaustive: never = options;
-            throw new Error(`Unknown action: ${(_exhaustive as { action: string }).action}`);
-          }
+          default:
+            throw new Error(`Unknown action: ${(options as { action: string }).action}`);
         }
       },
     },
@@ -406,9 +414,11 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
           }
 
           case "project": {
-            const { project_id } = options;
+            // project_id is validated by .refine() for 'project' action
+            assertDefined(options.project_id, "project_id");
+            const projectId = options.project_id;
             const queryParams = buildQueryParams(options);
-            const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${encodeURIComponent(project_id)}/events?${queryParams}`;
+            const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${encodeURIComponent(projectId)}/events?${queryParams}`;
             const response = await enhancedFetch(apiUrl);
 
             if (!response.ok) {
@@ -418,10 +428,8 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
             return await response.json();
           }
 
-          default: {
-            const _exhaustive: never = options;
-            throw new Error(`Unknown action: ${(_exhaustive as { action: string }).action}`);
-          }
+          default:
+            throw new Error(`Unknown action: ${(options as { action: string }).action}`);
         }
       },
     },
@@ -440,8 +448,10 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
 
         switch (options.action) {
           case "create": {
+            // name is validated by .refine() for 'create' action
+            assertDefined(options.name, "name");
+            const projectName = options.name;
             const {
-              name,
               namespace,
               description,
               visibility,
@@ -479,7 +489,7 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
             const targetNamespacePath = resolvedNamespace
               ? resolvedNamespace.full_path
               : "current-user";
-            const projectPath = `${targetNamespacePath}/${name}`;
+            const projectPath = `${targetNamespacePath}/${projectName}`;
             const checkProjectUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${encodeURIComponent(projectPath)}`;
             const checkResponse = await enhancedFetch(checkProjectUrl);
 
@@ -492,10 +502,10 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
 
             // Create project
             const body = new URLSearchParams();
-            body.set("name", name);
+            body.set("name", projectName);
 
             // Generate path from name
-            const generatedPath = name
+            const generatedPath = projectName
               .toLowerCase()
               .replace(/[^a-z0-9-]/g, "-")
               .replace(/-+/g, "-")
@@ -553,7 +563,10 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
           }
 
           case "fork": {
-            const { project_id, namespace, namespace_path, fork_name, fork_path } = options;
+            // project_id is validated by .refine() for 'fork' action
+            assertDefined(options.project_id, "project_id");
+            const sourceProjectId = options.project_id;
+            const { namespace, namespace_path, fork_name, fork_path } = options;
 
             const body = new URLSearchParams();
             if (namespace) body.set("namespace", namespace);
@@ -561,7 +574,7 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
             if (fork_name) body.set("name", fork_name);
             if (fork_path) body.set("path", fork_path);
 
-            const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${encodeURIComponent(project_id)}/fork`;
+            const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${encodeURIComponent(sourceProjectId)}/fork`;
             const response = await enhancedFetch(apiUrl, {
               method: "POST",
               headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -575,10 +588,8 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
             return await response.json();
           }
 
-          default: {
-            const _exhaustive: never = options;
-            throw new Error(`Unknown action: ${(_exhaustive as { action: string }).action}`);
-          }
+          default:
+            throw new Error(`Unknown action: ${(options as { action: string }).action}`);
         }
       },
     },
@@ -842,8 +853,10 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
 
         switch (options.action) {
           case "mark_done": {
-            const { id } = options;
-            const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/todos/${id}/mark_as_done`;
+            // id is validated by .refine() for 'mark_done' action
+            assertDefined(options.id, "id");
+            const todoId = options.id;
+            const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/todos/${todoId}/mark_as_done`;
             const response = await enhancedFetch(apiUrl, { method: "POST" });
 
             if (!response.ok) {
@@ -866,8 +879,10 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
           }
 
           case "restore": {
-            const { id } = options;
-            const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/todos/${id}/mark_as_pending`;
+            // id is validated by .refine() for 'restore' action
+            assertDefined(options.id, "id");
+            const todoId = options.id;
+            const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/todos/${todoId}/mark_as_pending`;
             const response = await enhancedFetch(apiUrl, { method: "POST" });
 
             if (!response.ok) {
@@ -878,10 +893,8 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
             return cleanGidsFromObject(todo);
           }
 
-          default: {
-            const _exhaustive: never = options;
-            throw new Error(`Unknown action: ${(_exhaustive as { action: string }).action}`);
-          }
+          default:
+            throw new Error(`Unknown action: ${(options as { action: string }).action}`);
         }
       },
     },
