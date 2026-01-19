@@ -42,42 +42,45 @@ export const GitLabTreeSchema = z.object({
 });
 
 // ============================================================================
-// browse_files - CQRS Query Tool (flat schema for Claude API compatibility)
+// browse_files - CQRS Query Tool (discriminated union schema)
 // Actions: tree, content
-// NOTE: Uses flat z.object() with .refine() instead of z.discriminatedUnion()
-// because Claude API doesn't support oneOf/allOf/anyOf at JSON Schema root level.
+// Uses z.discriminatedUnion() for type-safe action handling.
+// Schema pipeline flattens to flat JSON Schema for AI clients that don't support oneOf.
 // ============================================================================
 
-export const BrowseFilesSchema = z
-  .object({
-    action: z.enum(["tree", "content"]).describe("Action to perform: tree or content"),
-    project_id: requiredId.describe("Project ID or URL-encoded path"),
-    ref: z.string().optional().describe("Branch, tag, or commit SHA"),
-    // tree action fields
-    path: z.string().optional().describe("Directory path to list. For 'tree' action."),
-    recursive: flexibleBoolean
-      .optional()
-      .describe("Include nested directories. For 'tree' action."),
-    per_page: z
-      .number()
-      .int()
-      .min(1)
-      .max(100)
-      .optional()
-      .describe("Results per page (max 100). For 'tree' action."),
-    page: z.number().int().min(1).optional().describe("Page number. For 'tree' action."),
-    // content action fields
-    file_path: z
-      .string()
-      .optional()
-      .describe("Path to the file to read. Required for 'content' action."),
-  })
-  .refine(data => data.action !== "content" || data.file_path !== undefined, {
-    message: "file_path is required for 'content' action",
-    path: ["file_path"],
-  });
+// --- Shared fields ---
+const projectIdField = requiredId.describe("Project ID or URL-encoded path");
+const refField = z.string().optional().describe("Branch, tag, or commit SHA");
 
-// Export type definitions
+// --- Action: tree ---
+const TreeActionSchema = z.object({
+  action: z.literal("tree").describe("List files and folders in a directory"),
+  project_id: projectIdField,
+  ref: refField,
+  path: z.string().optional().describe("Directory path to list"),
+  recursive: flexibleBoolean.optional().describe("Include nested directories"),
+  per_page: z.number().int().min(1).max(100).optional().describe("Results per page (max 100)"),
+  page: z.number().int().min(1).optional().describe("Page number"),
+});
+
+// --- Action: content ---
+const ContentActionSchema = z.object({
+  action: z.literal("content").describe("Read file contents"),
+  project_id: projectIdField,
+  ref: refField,
+  file_path: z.string().describe("Path to the file to read"),
+});
+
+// --- Discriminated union combining all actions ---
+export const BrowseFilesSchema = z.discriminatedUnion("action", [
+  TreeActionSchema,
+  ContentActionSchema,
+]);
+
+// ============================================================================
+// Type exports
+// ============================================================================
+
 export type GitLabFileContent = z.infer<typeof GitLabFileContentSchema>;
 export type GitLabDirectoryContent = z.infer<typeof GitLabDirectoryContentSchema>;
 export type GitLabContent = z.infer<typeof GitLabContentSchema>;

@@ -25,8 +25,8 @@ describe("BrowseVariablesSchema", () => {
         key: "API_KEY",
       });
       expect(result.success).toBe(true);
-      if (result.success) {
-        expect(result.data.action).toBe("get");
+      // Type narrowing: check action to access action-specific properties
+      if (result.success && result.data.action === "get") {
         expect(result.data.key).toBe("API_KEY");
       }
     });
@@ -91,7 +91,8 @@ describe("BrowseVariablesSchema", () => {
         per_page: 50,
       });
       expect(result.success).toBe(true);
-      if (result.success) {
+      // Type narrowing: check action to access action-specific properties
+      if (result.success && result.data.action === "list") {
         expect(result.data.per_page).toBe(50);
       }
     });
@@ -103,7 +104,8 @@ describe("BrowseVariablesSchema", () => {
         page: 2,
       });
       expect(result.success).toBe(true);
-      if (result.success) {
+      // Type narrowing: check action to access action-specific properties
+      if (result.success && result.data.action === "list") {
         expect(result.data.page).toBe(2);
       }
     });
@@ -116,7 +118,8 @@ describe("BrowseVariablesSchema", () => {
         page: 3,
       });
       expect(result.success).toBe(true);
-      if (result.success) {
+      // Type narrowing: check action to access action-specific properties
+      if (result.success && result.data.action === "list") {
         expect(result.data.per_page).toBe(25);
         expect(result.data.page).toBe(3);
       }
@@ -153,7 +156,8 @@ describe("BrowseVariablesSchema", () => {
         key: "DATABASE_URL",
       });
       expect(result.success).toBe(true);
-      if (result.success) {
+      // Type narrowing: check action to access action-specific properties
+      if (result.success && result.data.action === "get") {
         expect(result.data.key).toBe("DATABASE_URL");
       }
     });
@@ -179,7 +183,8 @@ describe("BrowseVariablesSchema", () => {
         },
       });
       expect(result.success).toBe(true);
-      if (result.success) {
+      // Type narrowing: check action to access action-specific properties
+      if (result.success && result.data.action === "get") {
         expect(result.data.filter?.environment_scope).toBe("production");
       }
     });
@@ -194,7 +199,8 @@ describe("BrowseVariablesSchema", () => {
         },
       });
       expect(result.success).toBe(true);
-      if (result.success) {
+      // Type narrowing: check action to access action-specific properties
+      if (result.success && result.data.action === "get") {
         expect(result.data.filter?.environment_scope).toBe("*");
       }
     });

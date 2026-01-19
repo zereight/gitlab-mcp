@@ -12,58 +12,90 @@ const PipelineVariableSchema = z.object({
 });
 
 // ============================================================================
-// manage_pipeline - CQRS Command Tool (flat schema for Claude API compatibility)
+// manage_pipeline - CQRS Command Tool (discriminated union schema)
 // Actions: create, retry, cancel
-// NOTE: Uses flat z.object() with .refine() instead of z.discriminatedUnion()
-// because Claude API doesn't support oneOf/allOf/anyOf at JSON Schema root level.
+// Uses z.discriminatedUnion() for type-safe action handling.
+// Schema pipeline flattens to flat JSON Schema for AI clients that don't support oneOf.
 // ============================================================================
 
-export const ManagePipelineSchema = z
-  .object({
-    action: z.enum(["create", "retry", "cancel"]).describe("Action to perform"),
-    project_id: requiredId.describe("Project ID or URL-encoded path"),
-    // create action fields
-    ref: z
-      .string()
-      .optional()
-      .describe("The branch or tag to run the pipeline on. Required for 'create' action."),
-    variables: z
-      .array(PipelineVariableSchema)
-      .optional()
-      .describe("Variables to pass to the pipeline. For 'create' action."),
-    // retry/cancel action fields
-    pipeline_id: requiredId
-      .optional()
-      .describe("The ID of the pipeline. Required for 'retry' and 'cancel' actions."),
-  })
-  .refine(data => data.action !== "create" || data.ref !== undefined, {
-    message: "ref is required for 'create' action",
-    path: ["ref"],
-  })
-  .refine(data => data.action === "create" || data.pipeline_id !== undefined, {
-    message: "pipeline_id is required for 'retry' and 'cancel' actions",
-    path: ["pipeline_id"],
-  });
+// --- Shared fields ---
+const projectIdField = requiredId.describe("Project ID or URL-encoded path");
+const pipelineIdField = requiredId.describe("The ID of the pipeline");
+
+// --- Action: create ---
+const CreatePipelineSchema = z.object({
+  action: z.literal("create").describe("Trigger a new pipeline on branch/tag"),
+  project_id: projectIdField,
+  ref: z.string().describe("The branch or tag to run the pipeline on"),
+  variables: z
+    .array(PipelineVariableSchema)
+    .optional()
+    .describe("Variables to pass to the pipeline"),
+});
+
+// --- Action: retry ---
+const RetryPipelineSchema = z.object({
+  action: z.literal("retry").describe("Re-run a failed/canceled pipeline"),
+  project_id: projectIdField,
+  pipeline_id: pipelineIdField,
+});
+
+// --- Action: cancel ---
+const CancelPipelineSchema = z.object({
+  action: z.literal("cancel").describe("Stop a running pipeline"),
+  project_id: projectIdField,
+  pipeline_id: pipelineIdField,
+});
+
+// --- Discriminated union combining all actions ---
+export const ManagePipelineSchema = z.discriminatedUnion("action", [
+  CreatePipelineSchema,
+  RetryPipelineSchema,
+  CancelPipelineSchema,
+]);
 
 // ============================================================================
-// manage_pipeline_job - CQRS Command Tool (flat schema for Claude API compatibility)
+// manage_pipeline_job - CQRS Command Tool (discriminated union schema)
 // Actions: play, retry, cancel
-// NOTE: Uses flat z.object() with .refine() instead of z.discriminatedUnion()
-// because Claude API doesn't support oneOf/allOf/anyOf at JSON Schema root level.
+// Uses z.discriminatedUnion() for type-safe action handling.
+// Schema pipeline flattens to flat JSON Schema for AI clients that don't support oneOf.
 // ============================================================================
 
-export const ManagePipelineJobSchema = z.object({
-  action: z.enum(["play", "retry", "cancel"]).describe("Action to perform"),
-  project_id: requiredId.describe("Project ID or URL-encoded path"),
-  job_id: requiredId.describe("The ID of the job"),
-  // play action fields
+// --- Shared fields ---
+const jobIdField = requiredId.describe("The ID of the job");
+
+// --- Action: play ---
+const PlayJobSchema = z.object({
+  action: z.literal("play").describe("Trigger a manual job"),
+  project_id: projectIdField,
+  job_id: jobIdField,
   job_variables_attributes: z
     .array(PipelineVariableSchema)
     .optional()
-    .describe("Variables to pass to the job. For 'play' action."),
-  // cancel action fields
-  force: z.boolean().optional().describe("Force cancellation of the job. For 'cancel' action."),
+    .describe("Variables to pass to the job"),
 });
+
+// --- Action: retry ---
+const RetryJobSchema = z.object({
+  action: z.literal("retry").describe("Re-run a failed/canceled job"),
+  project_id: projectIdField,
+  job_id: jobIdField,
+});
+
+// --- Action: cancel ---
+const CancelJobSchema = z.object({
+  action: z.literal("cancel").describe("Stop a running job"),
+  project_id: projectIdField,
+  job_id: jobIdField,
+  force: z.boolean().optional().describe("Force cancellation of the job"),
+});
+
+// --- Discriminated union combining all actions ---
+export const ManagePipelineJobSchema = z.discriminatedUnion("action", [
+  PlayJobSchema,
+  RetryJobSchema,
+  CancelJobSchema,
+]);
 
 // ============================================================================
 // Type exports

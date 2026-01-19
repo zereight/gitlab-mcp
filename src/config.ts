@@ -11,6 +11,51 @@ export const GITLAB_READ_ONLY_MODE = process.env.GITLAB_READ_ONLY_MODE === "true
 export const GITLAB_DENIED_TOOLS_REGEX = process.env.GITLAB_DENIED_TOOLS_REGEX
   ? new RegExp(process.env.GITLAB_DENIED_TOOLS_REGEX)
   : undefined;
+
+/**
+ * Parse denied actions from environment variable
+ * Format: "tool_name:action,tool_name:action,..."
+ * Example: "manage_milestone:delete,manage_milestone:promote,browse_events:user"
+ * @returns Map of tool name to Set of denied action names
+ */
+function parseDeniedActions(envValue?: string): Map<string, Set<string>> {
+  const deniedActions = new Map<string, Set<string>>();
+
+  if (!envValue) {
+    return deniedActions;
+  }
+
+  const pairs = envValue
+    .split(",")
+    .map(s => s.trim())
+    .filter(Boolean);
+
+  for (const pair of pairs) {
+    const colonIndex = pair.indexOf(":");
+    if (colonIndex === -1) {
+      // Invalid format, skip
+      continue;
+    }
+
+    const toolName = pair.substring(0, colonIndex).toLowerCase();
+    const actionName = pair.substring(colonIndex + 1).toLowerCase();
+
+    if (!toolName || !actionName) {
+      continue;
+    }
+
+    let actionSet = deniedActions.get(toolName);
+    if (!actionSet) {
+      actionSet = new Set();
+      deniedActions.set(toolName, actionSet);
+    }
+    actionSet.add(actionName);
+  }
+
+  return deniedActions;
+}
+
+export const GITLAB_DENIED_ACTIONS = parseDeniedActions(process.env.GITLAB_DENIED_ACTIONS);
 export const USE_GITLAB_WIKI = process.env.USE_GITLAB_WIKI !== "false";
 export const USE_MILESTONE = process.env.USE_MILESTONE !== "false";
 export const USE_PIPELINE = process.env.USE_PIPELINE !== "false";
@@ -149,4 +194,105 @@ export function getToolDescriptionOverrides(): Map<string, string> {
   }
 
   return overrides;
+}
+
+/**
+ * Parse action description overrides from environment variables
+ * Environment variables should follow the pattern: GITLAB_ACTION_{TOOL}_{ACTION}="Custom description"
+ * Example: GITLAB_ACTION_MANAGE_MILESTONE_DELETE="Remove a milestone permanently"
+ * @returns Map of "tool:action" to custom description
+ */
+export function getActionDescriptionOverrides(): Map<string, string> {
+  const overrides = new Map<string, string>();
+  const prefix = "GITLAB_ACTION_";
+
+  for (const [key, value] of Object.entries(process.env)) {
+    if (key.startsWith(prefix) && value) {
+      // Extract tool and action from environment variable
+      // GITLAB_ACTION_MANAGE_MILESTONE_DELETE -> manage_milestone:delete
+      const rest = key.substring(prefix.length).toLowerCase();
+
+      // Find the last underscore to split tool from action
+      // This handles tool names with underscores (e.g., manage_milestone)
+      const lastUnderscoreIndex = rest.lastIndexOf("_");
+      if (lastUnderscoreIndex === -1) {
+        continue;
+      }
+
+      const toolName = rest.substring(0, lastUnderscoreIndex);
+      const actionName = rest.substring(lastUnderscoreIndex + 1);
+
+      if (!toolName || !actionName) {
+        continue;
+      }
+
+      overrides.set(`${toolName}:${actionName}`, value);
+    }
+  }
+
+  return overrides;
+}
+
+/**
+ * Parse parameter description overrides from environment variables
+ * Environment variables should follow the pattern: GITLAB_PARAM_{TOOL}_{PARAM}="Custom description"
+ * Example: GITLAB_PARAM_MANAGE_MILESTONE_TITLE="The milestone title (required for create)"
+ * @returns Map of "tool:param" to custom description
+ */
+export function getParamDescriptionOverrides(): Map<string, string> {
+  const overrides = new Map<string, string>();
+  const prefix = "GITLAB_PARAM_";
+
+  for (const [key, value] of Object.entries(process.env)) {
+    if (key.startsWith(prefix) && value) {
+      // Extract tool and param from environment variable
+      // GITLAB_PARAM_MANAGE_MILESTONE_TITLE -> manage_milestone:title
+      const rest = key.substring(prefix.length).toLowerCase();
+
+      // Find the last underscore to split tool from param
+      const lastUnderscoreIndex = rest.lastIndexOf("_");
+      if (lastUnderscoreIndex === -1) {
+        continue;
+      }
+
+      const toolName = rest.substring(0, lastUnderscoreIndex);
+      const paramName = rest.substring(lastUnderscoreIndex + 1);
+
+      if (!toolName || !paramName) {
+        continue;
+      }
+
+      overrides.set(`${toolName}:${paramName}`, value);
+    }
+  }
+
+  return overrides;
+}
+
+/**
+ * Check if a specific action is denied for a tool
+ * @param toolName - The tool name (e.g., "manage_milestone")
+ * @param actionName - The action name (e.g., "delete")
+ * @returns true if the action is denied
+ */
+export function isActionDenied(toolName: string, actionName: string): boolean {
+  const deniedActions = GITLAB_DENIED_ACTIONS.get(toolName.toLowerCase());
+  if (!deniedActions) {
+    return false;
+  }
+  return deniedActions.has(actionName.toLowerCase());
+}
+
+/**
+ * Get allowed actions for a tool by filtering out denied actions
+ * @param toolName - The tool name (e.g., "manage_milestone")
+ * @param allActions - Array of all possible actions
+ * @returns Array of allowed actions
+ */
+export function getAllowedActions(toolName: string, allActions: string[]): string[] {
+  const deniedActions = GITLAB_DENIED_ACTIONS.get(toolName.toLowerCase());
+  if (!deniedActions || deniedActions.size === 0) {
+    return allActions;
+  }
+  return allActions.filter(action => !deniedActions.has(action.toLowerCase()));
 }

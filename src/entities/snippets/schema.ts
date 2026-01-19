@@ -1,6 +1,13 @@
 import { z } from "zod";
+import { requiredId } from "../utils";
 
-// WRITE OPERATION SCHEMAS for GitLab Snippets
+// ============================================================================
+// manage_snippet - CQRS Command Tool (discriminated union schema)
+// Actions: create, update, delete
+// Uses z.discriminatedUnion() for type-safe action handling.
+// ============================================================================
+
+// --- Shared schemas ---
 
 // Visibility level schema with flexible coercion
 const flexibleVisibility = z.preprocess(
@@ -34,7 +41,7 @@ const SnippetFileSchema = z.object({
     .string()
     .optional()
     .describe(
-      "The content of the file. Required for 'create' and 'update' actions. Can be empty string for placeholder files. For binary content, use base64 encoding"
+      "The content of the file. Required for 'create' and 'update' actions. Can be empty string for placeholder files"
     ),
   action: z
     .enum(["create", "update", "delete", "move"])
@@ -50,130 +57,85 @@ const SnippetFileSchema = z.object({
     ),
 });
 
-// Create snippet action parameter
-const CreateSnippetActionSchema = z.literal("create");
+// --- Shared fields ---
+const projectIdField = z
+  .string()
+  .optional()
+  .describe("Project ID or URL-encoded path. Leave empty for personal snippets");
 
-// Create snippet schema (write)
-export const CreateSnippetSchema = z
-  .object({
-    action: CreateSnippetActionSchema.describe("Must be 'create' for creating a new snippet"),
-    projectId: z
-      .string()
-      .optional()
-      .describe(
-        "Project ID or URL-encoded path to create a project snippet. Leave empty for a personal snippet"
-      ),
-    title: z
-      .string()
-      .min(1)
-      .max(255)
-      .describe(
-        "The title of the snippet. This is displayed in the snippet list and as the page title. Maximum 255 characters"
-      ),
-    description: z
-      .string()
-      .optional()
-      .describe(
-        "Optional description explaining the purpose of the snippet. Supports markdown formatting"
-      ),
-    visibility: flexibleVisibility
-      .optional()
-      .default("private")
-      .describe(
-        "Visibility level: 'private' (only author), 'internal' (authenticated users), or 'public' (everyone). Defaults to 'private'"
-      ),
-    files: z
-      .array(
-        z.object({
-          file_path: z.string().min(1),
-          content: z.string(),
-        })
-      )
-      .min(1)
-      .describe(
-        "Array of files to include in the snippet. At least one file is required. Each file needs file_path and content"
-      ),
-  })
-  .refine(data => data.files.length > 0, {
-    message: "At least one file is required",
-    path: ["files"],
-  });
-
-// Update snippet action parameter
-const UpdateSnippetActionSchema = z.literal("update");
-
-// Update snippet schema (write)
-export const UpdateSnippetSchema = z
-  .object({
-    action: UpdateSnippetActionSchema.describe("Must be 'update' for updating an existing snippet"),
-    id: z
-      .number()
-      .int()
-      .positive()
-      .describe("The ID of the snippet to update. Must be an existing snippet"),
-    projectId: z
-      .string()
-      .optional()
-      .describe(
-        "Project ID or URL-encoded path (required for project snippets). Leave empty for personal snippets"
-      ),
-    title: z
-      .string()
-      .min(1)
-      .max(255)
-      .optional()
-      .describe("Update the title of the snippet. Maximum 255 characters"),
-    description: z
-      .string()
-      .optional()
-      .describe("Update the description of the snippet. Supports markdown formatting"),
-    visibility: flexibleVisibility
-      .optional()
-      .describe("Update the visibility level of the snippet"),
-    files: z
-      .array(SnippetFileSchema)
-      .optional()
-      .describe(
-        "Array of file operations to perform. Each file must specify an 'action': 'create' (add new file), 'update' (modify existing), 'delete' (remove file), or 'move' (rename file with previous_path)"
-      ),
-  })
-  .refine(
-    data => {
-      // At least one field must be provided for update
-      return (
-        data.title !== undefined ||
-        data.description !== undefined ||
-        data.visibility !== undefined ||
-        (data.files !== undefined && data.files.length > 0)
-      );
-    },
-    {
-      message:
-        "At least one field must be provided to update (title, description, visibility, or files)",
-    }
-  );
-
-// Delete snippet action parameter
-const DeleteSnippetActionSchema = z.literal("delete");
-
-// Delete snippet schema (write)
-export const DeleteSnippetSchema = z.object({
-  action: DeleteSnippetActionSchema.describe("Must be 'delete' for deleting a snippet"),
-  id: z
-    .number()
-    .int()
-    .positive()
-    .describe("The ID of the snippet to delete. This operation is permanent and cannot be undone"),
-  projectId: z
+// --- Action: create ---
+const CreateSnippetSchema = z.object({
+  action: z.literal("create").describe("Create a new snippet with one or more files"),
+  projectId: projectIdField.describe(
+    "Project ID or URL-encoded path to create a project snippet. Leave empty for personal snippet"
+  ),
+  title: z
+    .string()
+    .min(1)
+    .max(255)
+    .describe(
+      "The title of the snippet. Displayed in snippet list and as page title. Max 255 chars"
+    ),
+  description: z
     .string()
     .optional()
+    .describe("Optional description explaining the snippet purpose. Supports markdown"),
+  visibility: flexibleVisibility
+    .optional()
+    .default("private")
     .describe(
-      "Project ID or URL-encoded path (required for project snippets). Leave empty for personal snippets"
+      "Visibility: 'private' (author only), 'internal' (authenticated users), 'public' (everyone). Defaults to 'private'"
+    ),
+  files: z
+    .array(
+      z.object({
+        file_path: z.string().min(1),
+        content: z.string(),
+      })
+    )
+    .min(1)
+    .describe(
+      "Array of files to include. At least one file required. Each needs file_path and content"
     ),
 });
 
-// Export type definitions
-export type CreateSnippetOptions = z.infer<typeof CreateSnippetSchema>;
-export type UpdateSnippetOptions = z.infer<typeof UpdateSnippetSchema>;
-export type DeleteSnippetOptions = z.infer<typeof DeleteSnippetSchema>;
+// --- Action: update ---
+const UpdateSnippetSchema = z.object({
+  action: z.literal("update").describe("Update an existing snippet metadata or files"),
+  id: requiredId.describe("The ID of the snippet to update"),
+  projectId: projectIdField.describe(
+    "Project ID or URL-encoded path. Required for project snippets, leave empty for personal"
+  ),
+  title: z.string().min(1).max(255).optional().describe("Update the snippet title. Max 255 chars"),
+  description: z.string().optional().describe("Update the snippet description. Supports markdown"),
+  visibility: flexibleVisibility.optional().describe("Update the visibility level"),
+  files: z
+    .array(SnippetFileSchema)
+    .optional()
+    .describe(
+      "Array of file operations. Each file must specify 'action': create/update/delete/move. Move requires previous_path"
+    ),
+});
+
+// --- Action: delete ---
+const DeleteSnippetSchema = z.object({
+  action: z.literal("delete").describe("Permanently delete a snippet"),
+  id: requiredId.describe("The ID of the snippet to delete. This operation cannot be undone"),
+  projectId: projectIdField.describe(
+    "Project ID or URL-encoded path. Required for project snippets, leave empty for personal"
+  ),
+});
+
+// --- Discriminated union combining all actions ---
+export const ManageSnippetSchema = z.discriminatedUnion("action", [
+  CreateSnippetSchema,
+  UpdateSnippetSchema,
+  DeleteSnippetSchema,
+]);
+
+// ============================================================================
+// Type exports
+// ============================================================================
+
+export type ManageSnippetInput = z.infer<typeof ManageSnippetSchema>;
 export type SnippetFile = z.infer<typeof SnippetFileSchema>;

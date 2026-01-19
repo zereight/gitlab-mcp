@@ -36,55 +36,56 @@ export const WorkItemStateEventSchema = z
   .describe("State event for updating work item");
 
 // ============================================================================
-// browse_work_items - CQRS Query Tool (flat schema for Claude API compatibility)
+// browse_work_items - CQRS Query Tool (discriminated union schema)
 // Actions: list, get
-// NOTE: Uses flat z.object() with .refine() instead of z.discriminatedUnion()
-// because Claude API doesn't support oneOf/allOf/anyOf at JSON Schema root level.
+// Uses z.discriminatedUnion() for type-safe action handling.
+// Schema pipeline flattens to flat JSON Schema for AI clients that don't support oneOf.
 // ============================================================================
 
-export const BrowseWorkItemsSchema = z
-  .object({
-    action: z.enum(["list", "get"]).describe("Action to perform: list or get"),
-    // list action fields
-    namespace: z
-      .string()
-      .optional()
-      .describe(
-        "Namespace path (group or project). Groups return epics, projects return issues/tasks. Required for 'list' action."
-      ),
-    types: z.array(WorkItemTypeEnumSchema).optional().describe("Filter by work item types"),
-    state: z
-      .array(WorkItemStateSchema)
-      .optional()
-      .default(["OPEN"])
-      .describe(
-        'Filter by work item state. Defaults to OPEN items only. Use ["OPEN", "CLOSED"] for all items.'
-      ),
-    first: z.number().optional().default(20).describe("Number of items to return"),
-    after: z
-      .string()
-      .optional()
-      .describe("Cursor for pagination (use endCursor from previous response)"),
-    simple: z
-      .boolean()
-      .optional()
-      .default(true)
-      .describe(
-        "Return simplified structure with essential fields only. RECOMMENDED: Use default true for most cases."
-      ),
-    // get action fields
-    id: WorkItemIdSchema.optional().describe(
-      "Work item ID to retrieve. Required for 'get' action."
+// --- Shared fields ---
+const workItemIdField = WorkItemIdSchema.describe("Work item ID to retrieve");
+
+// --- Action: list ---
+const ListWorkItemsSchema = z.object({
+  action: z.literal("list").describe("List work items with filtering"),
+  namespace: z
+    .string()
+    .describe(
+      "Namespace path (group or project). Groups return epics, projects return issues/tasks."
     ),
-  })
-  .refine(data => data.action !== "list" || data.namespace !== undefined, {
-    message: "namespace is required for 'list' action",
-    path: ["namespace"],
-  })
-  .refine(data => data.action !== "get" || data.id !== undefined, {
-    message: "id is required for 'get' action",
-    path: ["id"],
-  });
+  types: z.array(WorkItemTypeEnumSchema).optional().describe("Filter by work item types"),
+  state: z
+    .array(WorkItemStateSchema)
+    .optional()
+    .default(["OPEN"])
+    .describe(
+      'Filter by work item state. Defaults to OPEN items only. Use ["OPEN", "CLOSED"] for all items.'
+    ),
+  first: z.number().optional().default(20).describe("Number of items to return"),
+  after: z
+    .string()
+    .optional()
+    .describe("Cursor for pagination (use endCursor from previous response)"),
+  simple: z
+    .boolean()
+    .optional()
+    .default(true)
+    .describe(
+      "Return simplified structure with essential fields only. RECOMMENDED: Use default true for most cases."
+    ),
+});
+
+// --- Action: get ---
+const GetWorkItemSchema = z.object({
+  action: z.literal("get").describe("Get single work item details"),
+  id: workItemIdField,
+});
+
+// --- Discriminated union combining all actions ---
+export const BrowseWorkItemsSchema = z.discriminatedUnion("action", [
+  ListWorkItemsSchema,
+  GetWorkItemSchema,
+]);
 
 // ============================================================================
 // Type exports

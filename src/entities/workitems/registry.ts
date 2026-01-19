@@ -3,7 +3,7 @@ import { BrowseWorkItemsSchema } from "./schema-readonly";
 import { ManageWorkItemSchema } from "./schema";
 import { ToolRegistry, EnhancedToolDefinition } from "../../types";
 import { ConnectionManager } from "../../services/ConnectionManager";
-import { assertDefined } from "../utils";
+import { isActionDenied } from "../../config";
 import { getWorkItemTypes } from "../../utils/workItemTypes";
 import {
   cleanWorkItemResponse,
@@ -206,7 +206,8 @@ const simplifyWorkItem = (
  */
 export const workitemsToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefinition>([
   // ============================================================================
-  // browse_work_items - CQRS Query Tool
+  // browse_work_items - CQRS Query Tool (discriminated union schema)
+  // TypeScript automatically narrows types in each switch case
   // ============================================================================
   [
     "browse_work_items",
@@ -218,10 +219,14 @@ export const workitemsToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
       handler: async (args: unknown): Promise<unknown> => {
         const input = BrowseWorkItemsSchema.parse(args);
 
+        // Runtime validation: reject denied actions even if they bypass schema filtering
+        if (isActionDenied("browse_work_items", input.action)) {
+          throw new Error(`Action '${input.action}' is not allowed for browse_work_items tool`);
+        }
+
         switch (input.action) {
           case "list": {
-            // namespace is required for list action (validated by .refine())
-            assertDefined(input.namespace, "namespace");
+            // TypeScript knows: input has namespace (required), types, state, first, after, simple (optional)
             const { namespace, types, state, first, after, simple } = input;
             const namespacePath = namespace;
 
@@ -286,8 +291,7 @@ export const workitemsToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
           }
 
           case "get": {
-            // id is required for get action (validated by .refine())
-            assertDefined(input.id, "id");
+            // TypeScript knows: input has id (required)
             const workItemId = input.id;
 
             // Get GraphQL client from ConnectionManager
@@ -307,7 +311,7 @@ export const workitemsToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
             return cleanWorkItemResponse(response.workItem as unknown as GitLabWorkItem);
           }
 
-          /* istanbul ignore next -- unreachable with Zod validation */
+          /* istanbul ignore next -- unreachable with Zod discriminatedUnion */
           default:
             throw new Error(`Unknown action: ${(input as { action: string }).action}`);
         }
@@ -316,7 +320,8 @@ export const workitemsToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
   ],
 
   // ============================================================================
-  // manage_work_item - CQRS Command Tool
+  // manage_work_item - CQRS Command Tool (discriminated union schema)
+  // TypeScript automatically narrows types in each switch case
   // ============================================================================
   [
     "manage_work_item",
@@ -328,12 +333,14 @@ export const workitemsToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
       handler: async (args: unknown): Promise<unknown> => {
         const input = ManageWorkItemSchema.parse(args);
 
+        // Runtime validation: reject denied actions even if they bypass schema filtering
+        if (isActionDenied("manage_work_item", input.action)) {
+          throw new Error(`Action '${input.action}' is not allowed for manage_work_item tool`);
+        }
+
         switch (input.action) {
           case "create": {
-            // namespace, title, workItemType are required for create action (validated by .refine())
-            assertDefined(input.namespace, "namespace");
-            assertDefined(input.title, "title");
-            assertDefined(input.workItemType, "workItemType");
+            // TypeScript knows: input has namespace, title, workItemType (required), description, assigneeIds, labelIds, milestoneId (optional)
             const {
               namespace,
               title,
@@ -414,8 +421,7 @@ export const workitemsToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
           }
 
           case "update": {
-            // id is required for update action (validated by .refine())
-            assertDefined(input.id, "id");
+            // TypeScript knows: input has id (required), title, description, state, assigneeIds, labelIds, milestoneId (optional)
             const { id, title, description, state, assigneeIds, labelIds, milestoneId } = input;
             const workItemId = id;
 
@@ -475,8 +481,7 @@ export const workitemsToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
           }
 
           case "delete": {
-            // id is required for delete action (validated by .refine())
-            assertDefined(input.id, "id");
+            // TypeScript knows: input has id (required)
             const workItemId = input.id;
 
             // Get GraphQL client from ConnectionManager
@@ -502,7 +507,7 @@ export const workitemsToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
             return { deleted: true };
           }
 
-          /* istanbul ignore next -- unreachable with Zod validation */
+          /* istanbul ignore next -- unreachable with Zod discriminatedUnion */
           default:
             throw new Error(`Unknown action: ${(input as { action: string }).action}`);
         }

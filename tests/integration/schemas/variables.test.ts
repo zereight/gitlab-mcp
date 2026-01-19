@@ -131,7 +131,8 @@ describe("Variables Schema - GitLab Integration", () => {
       const result = BrowseVariablesSchema.safeParse(paginationParams);
       expect(result.success).toBe(true);
 
-      if (result.success) {
+      // Type narrowing: check action to access action-specific properties
+      if (result.success && result.data.action === "list") {
         expect(result.data.per_page).toBe(5);
         expect(result.data.page).toBe(1);
         expect(result.data.namespace).toBe(testProject.path_with_namespace);
@@ -190,7 +191,8 @@ describe("Variables Schema - GitLab Integration", () => {
       const result = BrowseVariablesSchema.safeParse(validParams);
       expect(result.success).toBe(true);
 
-      if (result.success) {
+      // Type narrowing: check action to access action-specific properties
+      if (result.success && result.data.action === "get") {
         expect(result.data.namespace).toBe(testProject.path_with_namespace);
         expect(result.data.key).toBe(testVariable.key);
       }
@@ -281,8 +283,8 @@ describe("Variables Schema - GitLab Integration", () => {
       const result = ManageVariableSchema.safeParse(params);
       expect(result.success).toBe(true);
 
-      if (result.success) {
-        expect(result.data.action).toBe("create");
+      // Type narrowing: check action to access action-specific properties
+      if (result.success && result.data.action === "create") {
         expect(result.data.key).toBe("TEST_VAR");
         expect(result.data.value).toBe("test-value");
       }
@@ -316,7 +318,8 @@ describe("Variables Schema - GitLab Integration", () => {
       const result = ManageVariableSchema.safeParse(params);
       expect(result.success).toBe(true);
 
-      if (result.success) {
+      // Type narrowing: check action to access action-specific properties
+      if (result.success && result.data.action === "create") {
         expect(result.data.variable_type).toBe("file");
       }
 
@@ -335,7 +338,8 @@ describe("Variables Schema - GitLab Integration", () => {
       const result = ManageVariableSchema.safeParse(params);
       expect(result.success).toBe(true);
 
-      if (result.success) {
+      // Type narrowing: check action to access action-specific properties
+      if (result.success && result.data.action === "create") {
         expect(result.data.environment_scope).toBe("production");
       }
 
@@ -356,8 +360,8 @@ describe("Variables Schema - GitLab Integration", () => {
       const result = ManageVariableSchema.safeParse(params);
       expect(result.success).toBe(true);
 
-      if (result.success) {
-        expect(result.data.action).toBe("update");
+      // Type narrowing: check action to access action-specific properties
+      if (result.success && result.data.action === "update") {
         expect(result.data.key).toBe("EXISTING_VAR");
         expect(result.data.value).toBe("updated-value");
         expect(result.data.protected).toBe(true);
@@ -380,7 +384,8 @@ describe("Variables Schema - GitLab Integration", () => {
       const result = ManageVariableSchema.safeParse(params);
       expect(result.success).toBe(true);
 
-      if (result.success) {
+      // Type narrowing: check action to access action-specific properties
+      if (result.success && result.data.action === "update") {
         expect(result.data.filter?.environment_scope).toBe("staging");
       }
 
@@ -399,8 +404,8 @@ describe("Variables Schema - GitLab Integration", () => {
       const result = ManageVariableSchema.safeParse(params);
       expect(result.success).toBe(true);
 
-      if (result.success) {
-        expect(result.data.action).toBe("delete");
+      // Type narrowing: check action to access action-specific properties
+      if (result.success && result.data.action === "delete") {
         expect(result.data.key).toBe("VAR_TO_DELETE");
       }
 
@@ -420,7 +425,8 @@ describe("Variables Schema - GitLab Integration", () => {
       const result = ManageVariableSchema.safeParse(params);
       expect(result.success).toBe(true);
 
-      if (result.success) {
+      // Type narrowing: check action to access action-specific properties
+      if (result.success && result.data.action === "delete") {
         expect(result.data.filter?.environment_scope).toBe("development");
       }
 
@@ -442,7 +448,8 @@ describe("Variables Schema - GitLab Integration", () => {
       const result = ManageVariableSchema.safeParse(params);
       expect(result.success).toBe(true);
 
-      if (result.success) {
+      // Type narrowing: check action to access action-specific properties
+      if (result.success && result.data.action === "create") {
         expect(result.data.protected).toBe(true);
         expect(result.data.masked).toBe(true);
       }
@@ -462,7 +469,8 @@ describe("Variables Schema - GitLab Integration", () => {
       const result = ManageVariableSchema.safeParse(params);
       expect(result.success).toBe(true);
 
-      if (result.success) {
+      // Type narrowing: check action to access action-specific properties
+      if (result.success && result.data.action === "create") {
         expect(result.data.raw).toBe(true);
       }
 
@@ -481,7 +489,8 @@ describe("Variables Schema - GitLab Integration", () => {
       const result = ManageVariableSchema.safeParse(params);
       expect(result.success).toBe(true);
 
-      if (result.success) {
+      // Type narrowing: check action to access action-specific properties
+      if (result.success && result.data.action === "create") {
         expect(result.data.description).toBe("This is a test variable for CI/CD");
       }
 

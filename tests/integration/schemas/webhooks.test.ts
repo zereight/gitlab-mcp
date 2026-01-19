@@ -123,7 +123,7 @@ describe("Webhooks Schema - GitLab Integration", () => {
       const result = ManageWebhookSchema.safeParse(params);
       expect(result.success).toBe(true);
 
-      if (result.success) {
+      if (result.success && result.data.action === "create") {
         expect(result.data.action).toBe("create");
         expect(result.data.url).toBe("https://example.com/webhook");
         expect(result.data.push_events).toBe(true);
@@ -219,9 +219,10 @@ describe("Webhooks Schema - GitLab Integration", () => {
       const result = ManageWebhookSchema.safeParse(params);
       expect(result.success).toBe(true);
 
-      if (result.success) {
+      if (result.success && result.data.action === "update") {
         expect(result.data.action).toBe("update");
-        expect(result.data.hookId).toBe(123);
+        // hookId is coerced to string by requiredId
+        expect(result.data.hookId).toBe("123");
       }
 
       console.log("ManageWebhookSchema update action validates correctly");
@@ -288,7 +289,7 @@ describe("Webhooks Schema - GitLab Integration", () => {
       const result = ManageWebhookSchema.safeParse(params);
       expect(result.success).toBe(true);
 
-      if (result.success) {
+      if (result.success && result.data.action === "test") {
         expect(result.data.action).toBe("test");
         expect(result.data.trigger).toBe("push_events");
       }
@@ -357,9 +358,10 @@ describe("Webhooks Schema - GitLab Integration", () => {
       const result = ManageWebhookSchema.safeParse(params);
       expect(result.success).toBe(true);
 
-      if (result.success) {
+      if (result.success && result.data.action === "delete") {
         expect(result.data.action).toBe("delete");
-        expect(result.data.hookId).toBe(123);
+        // hookId is coerced to string by requiredId
+        expect(result.data.hookId).toBe("123");
       }
 
       console.log("ManageWebhookSchema delete action validates correctly");
@@ -424,7 +426,7 @@ describe("Webhooks Schema - GitLab Integration", () => {
       const result = ManageWebhookSchema.safeParse(params);
       expect(result.success).toBe(true);
 
-      if (result.success) {
+      if (result.success && result.data.action === "create") {
         expect(result.data.subgroup_events).toBe(true);
         expect(result.data.project_events).toBe(true);
       }

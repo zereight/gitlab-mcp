@@ -33,7 +33,7 @@ describe("Work Items Schema - GitLab 18.3 Integration", () => {
       const result = BrowseWorkItemsSchema.safeParse(validParams);
       expect(result.success).toBe(true);
 
-      if (result.success) {
+      if (result.success && result.data.action === "list") {
         expect(result.data.namespace).toBe(testData.project!.path_with_namespace);
         expect(result.data.first).toBe(5);
         expect(result.data.types).toEqual(["ISSUE", "TASK"]);
@@ -98,7 +98,7 @@ describe("Work Items Schema - GitLab 18.3 Integration", () => {
       const result = BrowseWorkItemsSchema.safeParse(validParams);
       expect(result.success).toBe(true);
 
-      if (result.success) {
+      if (result.success && result.data.action === "get") {
         expect(result.data.id).toBe(firstWorkItem.id);
       }
 

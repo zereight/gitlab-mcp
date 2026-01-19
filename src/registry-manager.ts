@@ -44,6 +44,11 @@ import {
 } from "./config";
 import { ToolAvailability } from "./services/ToolAvailability";
 import { logger } from "./logger";
+import {
+  transformToolSchema,
+  shouldRemoveTool,
+  extractActionsFromSchema,
+} from "./utils/schema-utils";
 
 /**
  * Central registry manager that aggregates tools from all entity registries
@@ -238,14 +243,29 @@ class RegistryManager {
           continue;
         }
 
-        // Tool passes all filters - apply description override if available
+        // Check if all actions are denied for this CQRS tool
+        const allActions = extractActionsFromSchema(tool.inputSchema);
+        if (allActions.length > 0 && shouldRemoveTool(toolName, allActions)) {
+          logger.debug(`Tool '${toolName}' filtered out: all actions denied`);
+          continue;
+        }
+
+        // Tool passes all filters - apply schema transformation and description override
         let finalTool = tool;
+
+        // Transform schema to remove denied actions and apply description overrides
+        const transformedSchema = transformToolSchema(toolName, tool.inputSchema);
+
+        // Apply tool-level description override if available
         const customDescription = this.descriptionOverrides.get(toolName);
+
+        finalTool = {
+          ...tool,
+          inputSchema: transformedSchema,
+          ...(customDescription && { description: customDescription }),
+        };
+
         if (customDescription) {
-          finalTool = {
-            ...tool,
-            description: customDescription,
-          };
           logger.debug(`Applied description override for '${toolName}': "${customDescription}"`);
         }
 
@@ -376,15 +396,24 @@ class RegistryManager {
           continue;
         }
 
-        // Apply dynamically loaded description override if available
-        let finalTool = tool;
-        const customDescription = descOverrides.get(toolName);
-        if (customDescription) {
-          finalTool = {
-            ...tool,
-            description: customDescription,
-          };
+        // Check if all actions are denied for this CQRS tool
+        const allActions = extractActionsFromSchema(tool.inputSchema);
+        if (allActions.length > 0 && shouldRemoveTool(toolName, allActions)) {
+          continue;
         }
+
+        // Transform schema to remove denied actions and apply description overrides
+        const transformedSchema = transformToolSchema(toolName, tool.inputSchema);
+
+        // Apply dynamically loaded description override if available
+        const customDescription = descOverrides.get(toolName);
+
+        const finalTool: EnhancedToolDefinition = {
+          ...tool,
+          inputSchema: transformedSchema,
+          ...(customDescription && { description: customDescription }),
+        };
+
         allTools.push(finalTool);
       }
     }

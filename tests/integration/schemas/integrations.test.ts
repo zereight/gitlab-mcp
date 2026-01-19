@@ -178,7 +178,7 @@ describe("Integrations Schema - GitLab Integration", () => {
       const result = ManageIntegrationSchema.safeParse(params);
       expect(result.success).toBe(true);
 
-      if (result.success) {
+      if (result.success && result.data.action === "update") {
         expect(result.data.action).toBe("update");
         expect(result.data.active).toBe(true);
         expect(result.data.push_events).toBe(true);
@@ -205,7 +205,7 @@ describe("Integrations Schema - GitLab Integration", () => {
       const result = ManageIntegrationSchema.safeParse(params);
       expect(result.success).toBe(true);
 
-      if (result.success) {
+      if (result.success && result.data.action === "update") {
         expect(result.data.config).toBeDefined();
         expect(result.data.config?.webhook_url).toBe(
           "https://hooks.slack.com/services/xxx/yyy/zzz"
@@ -276,7 +276,7 @@ describe("Integrations Schema - GitLab Integration", () => {
       const result = ManageIntegrationSchema.safeParse(params);
       expect(result.success).toBe(true);
 
-      if (result.success) {
+      if (result.success && result.data.action === "update") {
         expect(result.data.push_events).toBe(true);
         expect(result.data.issues_events).toBe(false);
         expect(result.data.merge_requests_events).toBe(true);

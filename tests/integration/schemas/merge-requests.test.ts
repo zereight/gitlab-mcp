@@ -285,7 +285,7 @@ describe("Merge Requests Schema - GitLab Integration", () => {
       for (const testCase of testCases) {
         const result = BrowseMergeRequestsSchema.safeParse(testCase);
         expect(result.success).toBe(true);
-        if (result.success) {
+        if (result.success && result.data.action === "list") {
           expect(result.data.state).toBe(testCase.state);
         }
       }
@@ -348,7 +348,7 @@ describe("Merge Requests Schema - GitLab Integration", () => {
       const result = BrowseMergeRequestsSchema.safeParse(validParams);
       expect(result.success).toBe(true);
 
-      if (result.success) {
+      if (result.success && result.data.action === "get") {
         expect(result.data.project_id).toBe(testProject.id.toString());
         expect(result.data.merge_request_iid).toBe(testMR.iid.toString());
         expect(result.data.include_diverged_commits_count).toBe(true);

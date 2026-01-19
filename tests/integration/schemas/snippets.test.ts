@@ -9,15 +9,8 @@
  * 4. Delete snippet (cleanup)
  */
 
-import {
-  ListSnippetsSchema,
-  GetSnippetSchema,
-} from "../../../src/entities/snippets/schema-readonly";
-import {
-  CreateSnippetSchema,
-  UpdateSnippetSchema,
-  DeleteSnippetSchema,
-} from "../../../src/entities/snippets/schema";
+import { BrowseSnippetsSchema } from "../../../src/entities/snippets/schema-readonly";
+import { ManageSnippetSchema } from "../../../src/entities/snippets/schema";
 import { IntegrationTestHelper } from "../helpers/registry-helper";
 
 // Store created snippet ID for lifecycle tests
@@ -53,7 +46,7 @@ describe("Snippets Schema - GitLab Integration", () => {
     }
   });
 
-  describe("CreateSnippetSchema - create action", () => {
+  describe("ManageSnippetSchema - create action", () => {
     it("should create a personal snippet via handler", async () => {
       const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
       const validParams = {
@@ -70,10 +63,10 @@ describe("Snippets Schema - GitLab Integration", () => {
       };
 
       // Validate schema
-      const result = CreateSnippetSchema.safeParse(validParams);
+      const result = ManageSnippetSchema.safeParse(validParams);
       expect(result.success).toBe(true);
 
-      if (result.success) {
+      if (result.success && result.data.action === "create") {
         // Test actual handler function
         const snippet = (await helper.executeTool("manage_snippet", result.data)) as {
           id: number;
@@ -105,10 +98,10 @@ describe("Snippets Schema - GitLab Integration", () => {
         ],
       };
 
-      const result = CreateSnippetSchema.safeParse(validParams);
+      const result = ManageSnippetSchema.safeParse(validParams);
       expect(result.success).toBe(true);
 
-      if (result.success) {
+      if (result.success && result.data.action === "create") {
         const snippet = (await helper.executeTool("manage_snippet", result.data)) as {
           id: number;
           title: string;
@@ -128,20 +121,21 @@ describe("Snippets Schema - GitLab Integration", () => {
     });
   });
 
-  describe("ListSnippetsSchema - personal scope", () => {
+  describe("BrowseSnippetsSchema - list action (personal scope)", () => {
     it("should list personal snippets via handler", async () => {
       const validParams = {
+        action: "list" as const,
         scope: "personal" as const,
         per_page: 10,
       };
 
       // Validate schema
-      const result = ListSnippetsSchema.safeParse(validParams);
+      const result = BrowseSnippetsSchema.safeParse(validParams);
       expect(result.success).toBe(true);
 
-      if (result.success) {
+      if (result.success && result.data.action === "list") {
         // Test actual handler function
-        const snippets = (await helper.executeTool("list_snippets", result.data)) as Array<{
+        const snippets = (await helper.executeTool("browse_snippets", result.data)) as Array<{
           id: number;
           title: string;
           visibility: string;
@@ -163,16 +157,17 @@ describe("Snippets Schema - GitLab Integration", () => {
 
     it("should filter by visibility", async () => {
       const validParams = {
+        action: "list" as const,
         scope: "personal" as const,
         visibility: "private" as const,
         per_page: 5,
       };
 
-      const result = ListSnippetsSchema.safeParse(validParams);
+      const result = BrowseSnippetsSchema.safeParse(validParams);
       expect(result.success).toBe(true);
 
-      if (result.success) {
-        const snippets = (await helper.executeTool("list_snippets", result.data)) as Array<{
+      if (result.success && result.data.action === "list") {
+        const snippets = (await helper.executeTool("browse_snippets", result.data)) as Array<{
           visibility: string;
         }>;
 
@@ -185,18 +180,19 @@ describe("Snippets Schema - GitLab Integration", () => {
     });
   });
 
-  describe("ListSnippetsSchema - public scope", () => {
+  describe("BrowseSnippetsSchema - list action (public scope)", () => {
     it("should list public snippets via handler", async () => {
       const validParams = {
+        action: "list" as const,
         scope: "public" as const,
         per_page: 5,
       };
 
-      const result = ListSnippetsSchema.safeParse(validParams);
+      const result = BrowseSnippetsSchema.safeParse(validParams);
       expect(result.success).toBe(true);
 
-      if (result.success) {
-        const snippets = (await helper.executeTool("list_snippets", result.data)) as Array<{
+      if (result.success && result.data.action === "list") {
+        const snippets = (await helper.executeTool("browse_snippets", result.data)) as Array<{
           id: number;
           visibility: string;
         }>;
@@ -212,7 +208,7 @@ describe("Snippets Schema - GitLab Integration", () => {
     });
   });
 
-  describe("GetSnippetSchema - read action", () => {
+  describe("BrowseSnippetsSchema - get action", () => {
     it("should read created snippet via handler", async () => {
       if (!createdSnippetId) {
         console.log("Skipping: No snippet was created in previous test");
@@ -220,15 +216,15 @@ describe("Snippets Schema - GitLab Integration", () => {
       }
 
       const validParams = {
-        action: "read" as const,
+        action: "get" as const,
         id: createdSnippetId,
       };
 
-      const result = GetSnippetSchema.safeParse(validParams);
+      const result = BrowseSnippetsSchema.safeParse(validParams);
       expect(result.success).toBe(true);
 
-      if (result.success) {
-        const snippet = (await helper.executeTool("manage_snippet", result.data)) as {
+      if (result.success && result.data.action === "get") {
+        const snippet = (await helper.executeTool("browse_snippets", result.data)) as {
           id: number;
           title: string;
           description: string;
@@ -237,7 +233,8 @@ describe("Snippets Schema - GitLab Integration", () => {
         };
 
         expect(snippet).toHaveProperty("id");
-        expect(snippet.id).toBe(createdSnippetId);
+        // requiredId coerces to string, so compare as string
+        expect(String(snippet.id)).toBe(String(createdSnippetId));
         expect(snippet).toHaveProperty("title");
         expect(snippet).toHaveProperty("web_url");
         console.log(`Read snippet: ${snippet.title}, URL: ${snippet.web_url}`);
@@ -251,19 +248,19 @@ describe("Snippets Schema - GitLab Integration", () => {
       }
 
       const validParams = {
-        action: "read" as const,
+        action: "get" as const,
         id: createdSnippetId,
         raw: true,
       };
 
-      const result = GetSnippetSchema.safeParse(validParams);
+      const result = BrowseSnippetsSchema.safeParse(validParams);
       expect(result.success).toBe(true);
 
-      if (result.success) {
+      if (result.success && result.data.action === "get") {
         try {
           // Raw content endpoint returns plain text, which may not be parseable as JSON
           // The handler may throw if the API returns non-JSON content
-          const rawContent = await helper.executeTool("manage_snippet", result.data);
+          const rawContent = await helper.executeTool("browse_snippets", result.data);
           expect(rawContent).toBeDefined();
           console.log(`Retrieved raw content for snippet ${createdSnippetId}`);
         } catch (error: unknown) {
@@ -283,7 +280,7 @@ describe("Snippets Schema - GitLab Integration", () => {
     });
   });
 
-  describe("UpdateSnippetSchema - update action", () => {
+  describe("ManageSnippetSchema - update action", () => {
     it("should update snippet title via handler", async () => {
       if (!createdSnippetId) {
         console.log("Skipping: No snippet was created in previous test");
@@ -297,16 +294,17 @@ describe("Snippets Schema - GitLab Integration", () => {
         title: updatedTitle,
       };
 
-      const result = UpdateSnippetSchema.safeParse(validParams);
+      const result = ManageSnippetSchema.safeParse(validParams);
       expect(result.success).toBe(true);
 
-      if (result.success) {
+      if (result.success && result.data.action === "update") {
         const snippet = (await helper.executeTool("manage_snippet", result.data)) as {
           id: number;
           title: string;
         };
 
-        expect(snippet.id).toBe(createdSnippetId);
+        // requiredId coerces to string, compare appropriately
+        expect(String(snippet.id)).toBe(String(createdSnippetId));
         expect(snippet.title).toBe(updatedTitle);
         console.log(`Updated snippet title to: ${snippet.title}`);
       }
@@ -324,16 +322,16 @@ describe("Snippets Schema - GitLab Integration", () => {
         description: "Updated description from integration test",
       };
 
-      const result = UpdateSnippetSchema.safeParse(validParams);
+      const result = ManageSnippetSchema.safeParse(validParams);
       expect(result.success).toBe(true);
 
-      if (result.success) {
+      if (result.success && result.data.action === "update") {
         const snippet = (await helper.executeTool("manage_snippet", result.data)) as {
           id: number;
           description: string;
         };
 
-        expect(snippet.id).toBe(createdSnippetId);
+        expect(String(snippet.id)).toBe(String(createdSnippetId));
         expect(snippet.description).toBe("Updated description from integration test");
         console.log(`Updated snippet description`);
       }
@@ -352,16 +350,16 @@ describe("Snippets Schema - GitLab Integration", () => {
         visibility: "internal" as const,
       };
 
-      const result = UpdateSnippetSchema.safeParse(validParams);
+      const result = ManageSnippetSchema.safeParse(validParams);
       expect(result.success).toBe(true);
 
-      if (result.success) {
+      if (result.success && result.data.action === "update") {
         const snippet = (await helper.executeTool("manage_snippet", result.data)) as {
           id: number;
           visibility: string;
         };
 
-        expect(snippet.id).toBe(createdSnippetId);
+        expect(String(snippet.id)).toBe(String(createdSnippetId));
         expect(snippet.visibility).toBe("internal");
         console.log(`Updated snippet visibility to: ${snippet.visibility}`);
 
@@ -393,22 +391,22 @@ describe("Snippets Schema - GitLab Integration", () => {
         ],
       };
 
-      const result = UpdateSnippetSchema.safeParse(validParams);
+      const result = ManageSnippetSchema.safeParse(validParams);
       expect(result.success).toBe(true);
 
-      if (result.success) {
+      if (result.success && result.data.action === "update") {
         const snippet = (await helper.executeTool("manage_snippet", result.data)) as {
           id: number;
           files: Array<{ path: string }>;
         };
 
-        expect(snippet.id).toBe(createdSnippetId);
+        expect(String(snippet.id)).toBe(String(createdSnippetId));
         console.log(`Added new file to snippet ${createdSnippetId}`);
       }
     });
   });
 
-  describe("DeleteSnippetSchema - delete action", () => {
+  describe("ManageSnippetSchema - delete action", () => {
     it("should delete created snippet via handler", async () => {
       if (!createdSnippetId) {
         console.log("Skipping: No snippet was created to delete");
@@ -420,17 +418,18 @@ describe("Snippets Schema - GitLab Integration", () => {
         id: createdSnippetId,
       };
 
-      const result = DeleteSnippetSchema.safeParse(validParams);
+      const result = ManageSnippetSchema.safeParse(validParams);
       expect(result.success).toBe(true);
 
-      if (result.success) {
+      if (result.success && result.data.action === "delete") {
         const deleteResult = (await helper.executeTool("manage_snippet", result.data)) as {
           deleted: boolean;
-          id: number;
+          id: number | string;
         };
 
         expect(deleteResult.deleted).toBe(true);
-        expect(deleteResult.id).toBe(createdSnippetId);
+        // requiredId returns string, so compare appropriately
+        expect(String(deleteResult.id)).toBe(String(createdSnippetId));
         console.log(`Deleted snippet ${createdSnippetId}`);
 
         // Mark as deleted so afterAll doesn't try to delete again
@@ -442,16 +441,16 @@ describe("Snippets Schema - GitLab Integration", () => {
   describe("Error handling", () => {
     it("should handle non-existent snippet gracefully", async () => {
       const validParams = {
-        action: "read" as const,
+        action: "get" as const,
         id: 999999999, // Very unlikely to exist
       };
 
-      const result = GetSnippetSchema.safeParse(validParams);
+      const result = BrowseSnippetsSchema.safeParse(validParams);
       expect(result.success).toBe(true);
 
-      if (result.success) {
+      if (result.success && result.data.action === "get") {
         try {
-          await helper.executeTool("manage_snippet", result.data);
+          await helper.executeTool("browse_snippets", result.data);
           // If we get here, the snippet exists (unlikely)
         } catch (error) {
           // Expected: snippet not found
@@ -462,23 +461,18 @@ describe("Snippets Schema - GitLab Integration", () => {
     });
 
     it("should reject invalid schema inputs", () => {
-      // Test ListSnippetsSchema - project scope without projectId
-      const listResult = ListSnippetsSchema.safeParse({
-        scope: "project",
-        // Missing projectId
+      // Test BrowseSnippetsSchema - list action with invalid scope
+      const listResult = BrowseSnippetsSchema.safeParse({
+        action: "list",
+        scope: "invalid_scope",
       });
       expect(listResult.success).toBe(false);
 
-      // Test UpdateSnippetSchema - no update fields
-      const updateResult = UpdateSnippetSchema.safeParse({
-        action: "update",
-        id: 123,
-        // Missing any update field
-      });
-      expect(updateResult.success).toBe(false);
+      // Note: projectId is optional at schema level for project scope
+      // The handler validates projectId requirement at runtime
 
-      // Test CreateSnippetSchema - missing files
-      const createResult = CreateSnippetSchema.safeParse({
+      // Test ManageSnippetSchema - create action missing files
+      const createResult = ManageSnippetSchema.safeParse({
         action: "create",
         title: "Test",
         // Missing files

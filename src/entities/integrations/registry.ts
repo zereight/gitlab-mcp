@@ -2,11 +2,12 @@ import * as z from "zod";
 import { ListIntegrationsSchema } from "./schema-readonly";
 import { ManageIntegrationSchema } from "./schema";
 import { gitlab, toQuery } from "../../utils/gitlab-api";
-import { getEffectiveProjectId } from "../../config";
+import { getEffectiveProjectId, isActionDenied } from "../../config";
 import { ToolRegistry, EnhancedToolDefinition } from "../../types";
 
 /**
  * Integrations tools registry - 2 CQRS tools for managing GitLab project integrations
+ * Uses discriminated union schemas for type-safe action handling.
  *
  * list_integrations (Query): list all active integrations
  * manage_integration (Command): get, update, disable
@@ -40,7 +41,8 @@ export const integrationsToolRegistry: ToolRegistry = new Map<string, EnhancedTo
   ],
 
   // ============================================================================
-  // manage_integration - CQRS Command Tool
+  // manage_integration - CQRS Command Tool (discriminated union schema)
+  // TypeScript automatically narrows types in each switch case
   // ============================================================================
   [
     "manage_integration",
@@ -51,6 +53,12 @@ export const integrationsToolRegistry: ToolRegistry = new Map<string, EnhancedTo
       inputSchema: z.toJSONSchema(ManageIntegrationSchema, {}),
       handler: async (args: unknown) => {
         const input = ManageIntegrationSchema.parse(args);
+
+        // Runtime validation: reject denied actions even if they bypass schema filtering
+        if (isActionDenied("manage_integration", input.action)) {
+          throw new Error(`Action '${input.action}' is not allowed for manage_integration tool`);
+        }
+
         const projectId = getEffectiveProjectId(input.project_id);
         const integrationSlug = input.integration;
 
@@ -64,13 +72,14 @@ export const integrationsToolRegistry: ToolRegistry = new Map<string, EnhancedTo
 
         switch (input.action) {
           case "get": {
+            // TypeScript knows: input has project_id, integration (required)
             return gitlab.get(
               `projects/${encodeURIComponent(projectId)}/integrations/${integrationSlug}`
             );
           }
 
           case "update": {
-            // Extract fields that shouldn't be sent in the body
+            // TypeScript knows: input has project_id, integration (required), plus event fields and config (optional)
             const {
               action: _action,
               project_id: _project_id,
@@ -95,13 +104,14 @@ export const integrationsToolRegistry: ToolRegistry = new Map<string, EnhancedTo
           }
 
           case "disable": {
+            // TypeScript knows: input has project_id, integration (required)
             await gitlab.delete(
               `projects/${encodeURIComponent(projectId)}/integrations/${integrationSlug}`
             );
             return { deleted: true };
           }
 
-          /* istanbul ignore next -- unreachable with Zod validation */
+          /* istanbul ignore next -- unreachable with Zod discriminatedUnion */
           default:
             throw new Error(`Unknown action: ${(input as { action: string }).action}`);
         }

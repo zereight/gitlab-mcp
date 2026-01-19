@@ -4,7 +4,8 @@ import { ManageMilestoneSchema } from "./schema";
 import { gitlab, toQuery } from "../../utils/gitlab-api";
 import { resolveNamespaceForAPI } from "../../utils/namespace";
 import { ToolRegistry, EnhancedToolDefinition } from "../../types";
-import { assertDefined } from "../utils";
+// assertDefined no longer needed - discriminated union provides type safety
+import { isActionDenied } from "../../config";
 
 /**
  * Milestones tools registry - 2 CQRS tools replacing 9 individual tools
@@ -14,7 +15,8 @@ import { assertDefined } from "../utils";
  */
 export const milestonesToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefinition>([
   // ============================================================================
-  // browse_milestones - CQRS Query Tool
+  // browse_milestones - CQRS Query Tool (discriminated union schema)
+  // TypeScript automatically narrows types in each switch case
   // ============================================================================
   [
     "browse_milestones",
@@ -25,6 +27,12 @@ export const milestonesToolRegistry: ToolRegistry = new Map<string, EnhancedTool
       inputSchema: z.toJSONSchema(BrowseMilestonesSchema),
       handler: async (args: unknown) => {
         const input = BrowseMilestonesSchema.parse(args);
+
+        // Runtime validation: reject denied actions even if they bypass schema filtering
+        if (isActionDenied("browse_milestones", input.action)) {
+          throw new Error(`Action '${input.action}' is not allowed for browse_milestones tool`);
+        }
+
         const { entityType, encodedPath } = await resolveNamespaceForAPI(input.namespace);
 
         switch (input.action) {
@@ -36,14 +44,12 @@ export const milestonesToolRegistry: ToolRegistry = new Map<string, EnhancedTool
           }
 
           case "get": {
-            // milestone_id is required for get action (validated by .refine())
-            assertDefined(input.milestone_id, "milestone_id");
+            // TypeScript knows: input has milestone_id (required)
             return gitlab.get(`${entityType}/${encodedPath}/milestones/${input.milestone_id}`);
           }
 
           case "issues": {
-            // milestone_id is required for issues action (validated by .refine())
-            assertDefined(input.milestone_id, "milestone_id");
+            // TypeScript knows: input has milestone_id (required), per_page, page (optional)
             const { action: _action, namespace: _namespace, milestone_id, ...rest } = input;
             const query = toQuery(rest, []);
 
@@ -53,8 +59,7 @@ export const milestonesToolRegistry: ToolRegistry = new Map<string, EnhancedTool
           }
 
           case "merge_requests": {
-            // milestone_id is required for merge_requests action (validated by .refine())
-            assertDefined(input.milestone_id, "milestone_id");
+            // TypeScript knows: input has milestone_id (required), per_page, page (optional)
             const { action: _action, namespace: _namespace, milestone_id, ...rest } = input;
             const query = toQuery(rest, []);
 
@@ -65,8 +70,7 @@ export const milestonesToolRegistry: ToolRegistry = new Map<string, EnhancedTool
           }
 
           case "burndown": {
-            // milestone_id is required for burndown action (validated by .refine())
-            assertDefined(input.milestone_id, "milestone_id");
+            // TypeScript knows: input has milestone_id (required), per_page, page (optional)
             const { action: _action, namespace: _namespace, milestone_id, ...rest } = input;
             const query = toQuery(rest, []);
 
@@ -85,7 +89,8 @@ export const milestonesToolRegistry: ToolRegistry = new Map<string, EnhancedTool
   ],
 
   // ============================================================================
-  // manage_milestone - CQRS Command Tool
+  // manage_milestone - CQRS Command Tool (discriminated union schema)
+  // TypeScript automatically narrows types in each switch case
   // ============================================================================
   [
     "manage_milestone",
@@ -96,10 +101,17 @@ export const milestonesToolRegistry: ToolRegistry = new Map<string, EnhancedTool
       inputSchema: z.toJSONSchema(ManageMilestoneSchema),
       handler: async (args: unknown) => {
         const input = ManageMilestoneSchema.parse(args);
+
+        // Runtime validation: reject denied actions even if they bypass schema filtering
+        if (isActionDenied("manage_milestone", input.action)) {
+          throw new Error(`Action '${input.action}' is not allowed for manage_milestone tool`);
+        }
+
         const { entityType, encodedPath } = await resolveNamespaceForAPI(input.namespace);
 
         switch (input.action) {
           case "create": {
+            // TypeScript knows: input has title (required), description, due_date, start_date (optional)
             const { action: _action, namespace: _namespace, ...body } = input;
 
             return gitlab.post(`${entityType}/${encodedPath}/milestones`, {
@@ -109,8 +121,7 @@ export const milestonesToolRegistry: ToolRegistry = new Map<string, EnhancedTool
           }
 
           case "update": {
-            // milestone_id is required for update action (validated by .refine())
-            assertDefined(input.milestone_id, "milestone_id");
+            // TypeScript knows: input has milestone_id (required), title, description, etc. (optional)
             const { action: _action, namespace: _namespace, milestone_id, ...body } = input;
 
             return gitlab.put(`${entityType}/${encodedPath}/milestones/${milestone_id}`, {
@@ -120,17 +131,13 @@ export const milestonesToolRegistry: ToolRegistry = new Map<string, EnhancedTool
           }
 
           case "delete": {
-            // milestone_id is required for delete action (validated by .refine())
-            assertDefined(input.milestone_id, "milestone_id");
-
+            // TypeScript knows: input has milestone_id (required)
             await gitlab.delete(`${entityType}/${encodedPath}/milestones/${input.milestone_id}`);
             return { deleted: true };
           }
 
           case "promote": {
-            // milestone_id is required for promote action (validated by .refine())
-            assertDefined(input.milestone_id, "milestone_id");
-
+            // TypeScript knows: input has milestone_id (required)
             if (entityType !== "projects") {
               throw new Error("Milestone promotion is only available for projects, not groups");
             }
@@ -140,7 +147,7 @@ export const milestonesToolRegistry: ToolRegistry = new Map<string, EnhancedTool
             );
           }
 
-          /* istanbul ignore next -- unreachable with Zod validation */
+          /* istanbul ignore next -- unreachable with Zod discriminatedUnion */
           default:
             throw new Error(`Unknown action: ${(input as { action: string }).action}`);
         }

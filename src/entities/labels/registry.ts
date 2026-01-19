@@ -4,7 +4,7 @@ import { ManageLabelSchema } from "./schema";
 import { gitlab, toQuery } from "../../utils/gitlab-api";
 import { resolveNamespaceForAPI } from "../../utils/namespace";
 import { ToolRegistry, EnhancedToolDefinition } from "../../types";
-import { assertDefined } from "../utils";
+import { isActionDenied } from "../../config";
 
 /**
  * Labels tools registry - 2 CQRS tools replacing 5 individual tools
@@ -14,7 +14,8 @@ import { assertDefined } from "../utils";
  */
 export const labelsToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefinition>([
   // ============================================================================
-  // browse_labels - CQRS Query Tool
+  // browse_labels - CQRS Query Tool (discriminated union schema)
+  // TypeScript automatically narrows types in each switch case
   // ============================================================================
   [
     "browse_labels",
@@ -25,19 +26,25 @@ export const labelsToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefi
       inputSchema: z.toJSONSchema(BrowseLabelsSchema),
       handler: async (args: unknown) => {
         const input = BrowseLabelsSchema.parse(args);
+
+        // Runtime validation: reject denied actions even if they bypass schema filtering
+        if (isActionDenied("browse_labels", input.action)) {
+          throw new Error(`Action '${input.action}' is not allowed for browse_labels tool`);
+        }
+
         const { entityType, encodedPath } = await resolveNamespaceForAPI(input.namespace);
 
         switch (input.action) {
           case "list": {
-            const { action: _action, namespace: _namespace, label_id: _labelId, ...rest } = input;
+            // TypeScript knows: input has search, with_counts, include_ancestor_groups, per_page, page (optional)
+            const { action: _action, namespace: _namespace, ...rest } = input;
             const query = toQuery(rest, []);
 
             return gitlab.get(`${entityType}/${encodedPath}/labels`, { query });
           }
 
           case "get": {
-            // label_id is required for get action (validated by .refine())
-            assertDefined(input.label_id, "label_id");
+            // TypeScript knows: input has label_id (required), include_ancestor_groups (optional)
             const query = input.include_ancestor_groups
               ? toQuery({ include_ancestor_groups: input.include_ancestor_groups }, [])
               : undefined;
@@ -48,7 +55,7 @@ export const labelsToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefi
             );
           }
 
-          /* istanbul ignore next -- unreachable with Zod validation */
+          /* istanbul ignore next -- unreachable with Zod discriminatedUnion */
           default:
             throw new Error(`Unknown action: ${(input as { action: string }).action}`);
         }
@@ -57,7 +64,8 @@ export const labelsToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefi
   ],
 
   // ============================================================================
-  // manage_label - CQRS Command Tool
+  // manage_label - CQRS Command Tool (discriminated union schema)
+  // TypeScript automatically narrows types in each switch case
   // ============================================================================
   [
     "manage_label",
@@ -68,14 +76,17 @@ export const labelsToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefi
       inputSchema: z.toJSONSchema(ManageLabelSchema),
       handler: async (args: unknown) => {
         const input = ManageLabelSchema.parse(args);
+
+        // Runtime validation: reject denied actions even if they bypass schema filtering
+        if (isActionDenied("manage_label", input.action)) {
+          throw new Error(`Action '${input.action}' is not allowed for manage_label tool`);
+        }
+
         const { entityType, encodedPath } = await resolveNamespaceForAPI(input.namespace);
 
         switch (input.action) {
           case "create": {
-            // name and color are required for create action (validated by .refine())
-            assertDefined(input.name, "name");
-            assertDefined(input.color, "color");
-
+            // TypeScript knows: input has name, color (required), description, priority (optional)
             return gitlab.post(`${entityType}/${encodedPath}/labels`, {
               body: {
                 name: input.name,
@@ -88,8 +99,7 @@ export const labelsToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefi
           }
 
           case "update": {
-            // label_id is required for update action (validated by .refine())
-            assertDefined(input.label_id, "label_id");
+            // TypeScript knows: input has label_id (required), name, new_name, color, description, priority (optional)
             const {
               action: _action,
               namespace: _namespace,
@@ -105,16 +115,14 @@ export const labelsToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefi
           }
 
           case "delete": {
-            // label_id is required for delete action (validated by .refine())
-            assertDefined(input.label_id, "label_id");
-
+            // TypeScript knows: input has label_id (required)
             await gitlab.delete(
               `${entityType}/${encodedPath}/labels/${encodeURIComponent(input.label_id)}`
             );
             return { deleted: true };
           }
 
-          /* istanbul ignore next -- unreachable with Zod validation */
+          /* istanbul ignore next -- unreachable with Zod discriminatedUnion */
           default:
             throw new Error(`Unknown action: ${(input as { action: string }).action}`);
         }

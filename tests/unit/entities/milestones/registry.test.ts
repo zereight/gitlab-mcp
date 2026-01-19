@@ -5,11 +5,25 @@ import {
   getFilteredMilestonesTools,
 } from "../../../../src/entities/milestones/registry";
 import { enhancedFetch } from "../../../../src/utils/fetch";
+import * as config from "../../../../src/config";
 
 // Mock enhancedFetch to avoid actual API calls
 jest.mock("../../../../src/utils/fetch", () => ({
   enhancedFetch: jest.fn(),
 }));
+
+// Mock isActionDenied function from config
+jest.mock("../../../../src/config", () => {
+  const actual = jest.requireActual("../../../../src/config");
+  return {
+    ...actual,
+    isActionDenied: jest.fn().mockReturnValue(false),
+  };
+});
+
+const mockIsActionDenied = config.isActionDenied as jest.MockedFunction<
+  typeof config.isActionDenied
+>;
 
 const mockEnhancedFetch = enhancedFetch as jest.MockedFunction<typeof enhancedFetch>;
 
@@ -666,6 +680,115 @@ describe("Milestones Registry - CQRS Tools", () => {
             namespace: "private/project",
           })
         ).rejects.toThrow("GitLab API error: 403 Error");
+      });
+    });
+
+    describe("Runtime Validation - Denied Actions", () => {
+      beforeEach(() => {
+        // Reset isActionDenied mock to default (allow all)
+        mockIsActionDenied.mockReturnValue(false);
+      });
+
+      it("should reject denied action for manage_milestone", async () => {
+        // Configure delete action as denied
+        mockIsActionDenied.mockImplementation((toolName, actionName) => {
+          return toolName === "manage_milestone" && actionName === "delete";
+        });
+
+        const tool = milestonesToolRegistry.get("manage_milestone")!;
+
+        await expect(
+          tool.handler({
+            action: "delete",
+            namespace: "test/project",
+            milestone_id: "1",
+          })
+        ).rejects.toThrow("Action 'delete' is not allowed for manage_milestone tool");
+      });
+
+      it("should reject denied action for browse_milestones", async () => {
+        // Configure burndown action as denied
+        mockIsActionDenied.mockImplementation((toolName, actionName) => {
+          return toolName === "browse_milestones" && actionName === "burndown";
+        });
+
+        const tool = milestonesToolRegistry.get("browse_milestones")!;
+
+        await expect(
+          tool.handler({
+            action: "burndown",
+            namespace: "test/project",
+            milestone_id: "1",
+          })
+        ).rejects.toThrow("Action 'burndown' is not allowed for browse_milestones tool");
+      });
+
+      it("should allow non-denied actions to proceed", async () => {
+        // Configure only delete as denied
+        mockIsActionDenied.mockImplementation((toolName, actionName) => {
+          return toolName === "manage_milestone" && actionName === "delete";
+        });
+
+        // Mock successful API response
+        mockEnhancedFetch.mockResolvedValueOnce(
+          mockResponse({ id: 1, path: "test-project", kind: "project" }) as never
+        );
+        mockEnhancedFetch.mockResolvedValueOnce(
+          mockResponse({ id: 1, title: "v1.0", state: "active" }) as never
+        );
+
+        const tool = milestonesToolRegistry.get("manage_milestone")!;
+
+        // Create action should work (not denied)
+        const result = await tool.handler({
+          action: "create",
+          namespace: "test/project",
+          title: "v1.0",
+        });
+
+        expect(result).toEqual({ id: 1, title: "v1.0", state: "active" });
+      });
+
+      it("should reject multiple denied actions", async () => {
+        // Configure multiple actions as denied
+        mockIsActionDenied.mockImplementation((toolName, actionName) => {
+          return toolName === "manage_milestone" && ["delete", "promote"].includes(actionName);
+        });
+
+        const tool = milestonesToolRegistry.get("manage_milestone")!;
+
+        // Both should be rejected
+        await expect(
+          tool.handler({
+            action: "delete",
+            namespace: "test/project",
+            milestone_id: "1",
+          })
+        ).rejects.toThrow("Action 'delete' is not allowed for manage_milestone tool");
+
+        await expect(
+          tool.handler({
+            action: "promote",
+            namespace: "test/project",
+            milestone_id: "1",
+          })
+        ).rejects.toThrow("Action 'promote' is not allowed for manage_milestone tool");
+      });
+
+      it("should call isActionDenied with correct parameters", async () => {
+        mockIsActionDenied.mockReturnValue(true);
+
+        const tool = milestonesToolRegistry.get("manage_milestone")!;
+
+        await expect(
+          tool.handler({
+            action: "delete",
+            namespace: "test/project",
+            milestone_id: "1",
+          })
+        ).rejects.toThrow();
+
+        expect(mockIsActionDenied).toHaveBeenCalledWith("manage_milestone", "delete");
       });
     });
   });

@@ -36,230 +36,250 @@ export const GitLabCompareResultSchema = z.object({
 });
 
 // ============================================================================
-// CONSOLIDATED CQRS SCHEMAS - Flat schemas with .refine() validation (Issue #29)
-// Using flat z.object() instead of discriminatedUnion for Claude API compatibility
+// CONSOLIDATED CQRS SCHEMAS - Discriminated union schema pattern
+// Uses z.discriminatedUnion() for type-safe action handling.
 // ============================================================================
 
-// browse_projects: Flat schema for search/list/get actions
-// Note: 'q' is for action:search (global search API), 'search' is for action:list (project listing filter)
-export const BrowseProjectsSchema = z
-  .object({
-    action: z
-      .enum(["search", "list", "get"])
-      .describe(
-        "Action: 'search' finds projects by criteria, 'list' browses accessible projects, 'get' retrieves specific project."
-      ),
-    // Common options shared across actions
-    visibility: z
-      .enum(["public", "internal", "private"])
-      .optional()
-      .describe("Filter by visibility: public, internal, or private."),
-    archived: flexibleBoolean
-      .optional()
-      .describe("Filter by archive status. true=archived only, false=active only."),
-    order_by: z
-      .enum(["id", "name", "path", "created_at", "updated_at", "last_activity_at", "similarity"])
-      .optional()
-      .describe("Sort field for results."),
-    sort: z.enum(["asc", "desc"]).optional().describe("Sort direction: asc or desc."),
-    // Search action fields
-    q: z
-      .string()
-      .optional()
-      .describe(
-        "Global search query (for 'search' action). Searches project names, paths, descriptions."
-      ),
-    // List action fields
-    group_id: z.coerce
-      .string()
-      .optional()
-      .describe("Group ID to list projects within. If omitted, lists YOUR accessible projects."),
-    search: z
-      .string()
-      .optional()
-      .describe("Text filter for 'list' action (filters results by name/description)."),
-    owned: flexibleBoolean.optional().describe("Show only projects you own (not just member of)."),
-    starred: flexibleBoolean.optional().describe("Show only starred/favorited projects."),
-    membership: flexibleBoolean
-      .optional()
-      .describe("Show only projects where you have membership."),
-    simple: flexibleBoolean
-      .optional()
-      .default(true)
-      .describe("Return minimal fields for faster response. Default: true."),
-    with_programming_language: z
-      .string()
-      .optional()
-      .describe('Filter by programming language (e.g., "javascript", "python").'),
-    include_subgroups: flexibleBoolean
-      .optional()
-      .describe("Include projects from subgroups (requires group_id)."),
-    with_shared: flexibleBoolean
-      .optional()
-      .describe("Include shared projects (requires group_id)."),
-    // Get action fields
-    project_id: z.coerce
-      .string()
-      .optional()
-      .describe(
-        'Project identifier (required for get). Numeric ID or URL-encoded path (e.g., "42" or "gitlab-org%2Fgitlab").'
-      ),
-    statistics: flexibleBoolean.optional().describe("Include repository statistics."),
-    license: flexibleBoolean.optional().describe("Include license information."),
-    // Pagination
-    per_page: z.number().int().min(1).max(100).optional().describe("Results per page (1-100)."),
-    page: z.number().int().min(1).optional().describe("Page number for pagination."),
-  })
-  .refine(
-    data => {
-      if (data.action === "get") {
-        return data.project_id !== undefined && data.project_id.trim() !== "";
-      }
-      return true;
-    },
-    { message: "project_id is required for 'get' action", path: ["project_id"] }
-  )
-  .describe(
-    "PROJECT BROWSING: Use 'search' to find projects by criteria, 'list' to browse accessible projects, 'get' to retrieve specific project details."
-  );
+// --- Shared fields for browse_projects ---
+const projectVisibilityField = z
+  .enum(["public", "internal", "private"])
+  .optional()
+  .describe("Filter by visibility: public, internal, or private.");
+const projectArchivedField = flexibleBoolean
+  .optional()
+  .describe("Filter by archive status. true=archived only, false=active only.");
+const projectOrderByField = z
+  .enum(["id", "name", "path", "created_at", "updated_at", "last_activity_at", "similarity"])
+  .optional()
+  .describe("Sort field for results.");
+const projectSortField = z
+  .enum(["asc", "desc"])
+  .optional()
+  .describe("Sort direction: asc or desc.");
+const projectProgrammingLangField = z
+  .string()
+  .optional()
+  .describe('Filter by programming language (e.g., "javascript", "python").');
 
-// browse_namespaces: Flat schema for list/get/verify actions
-export const BrowseNamespacesSchema = z
-  .object({
-    action: z
-      .enum(["list", "get", "verify"])
-      .describe(
-        "Action: 'list' browses namespaces, 'get' retrieves details, 'verify' checks existence."
-      ),
-    // List action fields
-    search: z.string().optional().describe("Search namespaces by name/path."),
-    owned_only: flexibleBoolean.optional().describe("Show only namespaces you own."),
-    top_level_only: flexibleBoolean.optional().describe("Show only root-level namespaces."),
-    with_statistics: flexibleBoolean.optional().describe("Include storage/count statistics."),
-    min_access_level: z
-      .number()
-      .optional()
-      .describe(
-        "Minimum access level: 10=Guest, 20=Reporter, 30=Developer, 40=Maintainer, 50=Owner."
-      ),
-    // Get/Verify action fields
-    namespace_id: z.coerce
-      .string()
-      .optional()
-      .describe("Namespace ID or path (required for get/verify). Cannot be empty."),
-    // Pagination
-    per_page: z.number().int().min(1).max(100).optional().describe("Results per page (1-100)."),
-    page: z.number().int().min(1).optional().describe("Page number for pagination."),
-  })
-  .refine(
-    data => {
-      if (data.action === "get" || data.action === "verify") {
-        return data.namespace_id !== undefined && data.namespace_id.trim() !== "";
-      }
-      return true;
-    },
-    { message: "namespace_id is required for 'get' and 'verify' actions", path: ["namespace_id"] }
-  )
-  .describe(
-    "NAMESPACE BROWSING: Use 'list' to browse namespaces, 'get' to retrieve details, 'verify' to check existence."
-  );
+// --- Action: search ---
+const SearchProjectsSchema = z.object({
+  action: z.literal("search").describe("Find projects by criteria using global search API"),
+  q: z
+    .string()
+    .optional()
+    .describe("Global search query. Searches project names, paths, descriptions."),
+  visibility: projectVisibilityField,
+  archived: projectArchivedField,
+  order_by: projectOrderByField,
+  sort: projectSortField,
+  with_programming_language: projectProgrammingLangField,
+  per_page: z.number().int().min(1).max(100).optional().describe("Results per page (1-100)."),
+  page: z.number().int().min(1).optional().describe("Page number for pagination."),
+});
 
-// browse_commits: Flat schema for list/get/diff actions
-export const BrowseCommitsSchema = z
-  .object({
-    action: z
-      .enum(["list", "get", "diff"])
-      .describe("Action: 'list' browses history, 'get' retrieves details, 'diff' shows changes."),
-    project_id: requiredId.describe("Project ID or URL-encoded path (required)."),
-    // List action fields
-    ref_name: z.string().optional().describe("Branch/tag name. Defaults to default branch."),
-    since: z.string().optional().describe("Start date filter (ISO 8601 format)."),
-    until: z.string().optional().describe("End date filter (ISO 8601 format)."),
-    path: z.string().optional().describe("Filter commits affecting this file/directory path."),
-    author: z.string().optional().describe("Filter by author name or email."),
-    all: flexibleBoolean.optional().describe("Include commits from all branches."),
-    first_parent: flexibleBoolean.optional().describe("Follow only first parent (linear history)."),
-    order: z.enum(["default", "topo"]).optional().describe("Commit ordering: default or topo."),
-    with_stats: flexibleBoolean.optional().describe("Include stats for each commit."),
-    trailers: flexibleBoolean.optional().describe("Include Git trailers (Signed-off-by, etc.)."),
-    // Get/Diff action fields
-    sha: z
-      .string()
-      .optional()
-      .describe("Commit SHA (required for get/diff). Can be full SHA, short hash, or ref name."),
-    stats: flexibleBoolean.optional().describe("Include file change statistics."),
-    unidiff: flexibleBoolean.optional().describe("Return unified diff format."),
-    // Pagination
-    per_page: z.number().int().min(1).max(100).optional().describe("Results per page (1-100)."),
-    page: z.number().int().min(1).optional().describe("Page number for pagination."),
-  })
-  .refine(
-    data => {
-      if (data.action === "get" || data.action === "diff") {
-        return data.sha !== undefined && data.sha.trim() !== "";
-      }
-      return true;
-    },
-    { message: "sha is required for 'get' and 'diff' actions", path: ["sha"] }
-  )
-  .describe(
-    "COMMIT BROWSING: Use 'list' to browse history, 'get' for commit details, 'diff' for code changes."
-  );
+// --- Action: list ---
+const ListProjectsSchema = z.object({
+  action: z.literal("list").describe("Browse accessible projects with optional group scope"),
+  group_id: z.coerce
+    .string()
+    .optional()
+    .describe("Group ID to list projects within. If omitted, lists YOUR accessible projects."),
+  search: z
+    .string()
+    .optional()
+    .describe("Text filter for list action (filters results by name/description)."),
+  owned: flexibleBoolean.optional().describe("Show only projects you own (not just member of)."),
+  starred: flexibleBoolean.optional().describe("Show only starred/favorited projects."),
+  membership: flexibleBoolean.optional().describe("Show only projects where you have membership."),
+  simple: flexibleBoolean
+    .optional()
+    .default(true)
+    .describe("Return minimal fields for faster response. Default: true."),
+  include_subgroups: flexibleBoolean
+    .optional()
+    .describe("Include projects from subgroups (requires group_id)."),
+  with_shared: flexibleBoolean.optional().describe("Include shared projects (requires group_id)."),
+  visibility: projectVisibilityField,
+  archived: projectArchivedField,
+  order_by: projectOrderByField,
+  sort: projectSortField,
+  with_programming_language: projectProgrammingLangField,
+  per_page: z.number().int().min(1).max(100).optional().describe("Results per page (1-100)."),
+  page: z.number().int().min(1).optional().describe("Page number for pagination."),
+});
 
-// browse_events: Flat schema for user/project scopes
-export const BrowseEventsSchema = z
-  .object({
-    action: z
-      .enum(["user", "project"])
-      .describe("Action: 'user' shows your activity, 'project' shows project activity."),
-    // Common event options
-    target_type: z
-      .enum(["issue", "milestone", "merge_request", "note", "project", "snippet", "user"])
-      .optional()
-      .describe("Filter by target type."),
-    event_action: z
-      .enum([
-        "created",
-        "updated",
-        "closed",
-        "reopened",
-        "pushed",
-        "commented",
-        "merged",
-        "joined",
-        "left",
-        "destroyed",
-        "expired",
-      ])
-      .optional()
-      .describe("Filter by event action."),
-    before: z.string().optional().describe("Show events before this date (YYYY-MM-DD)."),
-    after: z.string().optional().describe("Show events after this date (YYYY-MM-DD)."),
-    sort: z
-      .enum(["asc", "desc"])
-      .optional()
-      .describe("Sort order: asc=oldest first, desc=newest first."),
-    // Project action fields
-    project_id: z.coerce
-      .string()
-      .optional()
-      .describe("Project ID (required for 'project' action)."),
-    // Pagination
-    per_page: z.number().int().min(1).max(100).optional().describe("Results per page (1-100)."),
-    page: z.number().int().min(1).optional().describe("Page number for pagination."),
-  })
-  .refine(
-    data => {
-      if (data.action === "project") {
-        return data.project_id !== undefined && data.project_id.trim() !== "";
-      }
-      return true;
-    },
-    { message: "project_id is required for 'project' action", path: ["project_id"] }
-  )
-  .describe(
-    "EVENT BROWSING: Use 'user' for your activity across all projects, 'project' for specific project activity."
-  );
+// --- Action: get ---
+const GetProjectSchema = z.object({
+  action: z.literal("get").describe("Retrieve specific project details"),
+  project_id: requiredId.describe(
+    'Project identifier. Numeric ID or URL-encoded path (e.g., "42" or "gitlab-org%2Fgitlab").'
+  ),
+  statistics: flexibleBoolean.optional().describe("Include repository statistics."),
+  license: flexibleBoolean.optional().describe("Include license information."),
+});
+
+// --- Discriminated union combining all actions ---
+export const BrowseProjectsSchema = z.discriminatedUnion("action", [
+  SearchProjectsSchema,
+  ListProjectsSchema,
+  GetProjectSchema,
+]);
+
+// browse_namespaces: discriminated union schema for list/get/verify actions
+
+// --- Shared fields for browse_namespaces ---
+const namespaceIdField = requiredId.describe("Namespace ID or path.");
+
+// --- Action: list ---
+const ListNamespacesSchema = z.object({
+  action: z.literal("list").describe("Browse namespaces with optional filtering"),
+  search: z.string().optional().describe("Search namespaces by name/path."),
+  owned_only: flexibleBoolean.optional().describe("Show only namespaces you own."),
+  top_level_only: flexibleBoolean.optional().describe("Show only root-level namespaces."),
+  with_statistics: flexibleBoolean.optional().describe("Include storage/count statistics."),
+  min_access_level: z
+    .number()
+    .optional()
+    .describe(
+      "Minimum access level: 10=Guest, 20=Reporter, 30=Developer, 40=Maintainer, 50=Owner."
+    ),
+  per_page: z.number().int().min(1).max(100).optional().describe("Results per page (1-100)."),
+  page: z.number().int().min(1).optional().describe("Page number for pagination."),
+});
+
+// --- Action: get ---
+const GetNamespaceSchema = z.object({
+  action: z.literal("get").describe("Retrieve namespace details"),
+  namespace_id: namespaceIdField,
+});
+
+// --- Action: verify ---
+const VerifyNamespaceSchema = z.object({
+  action: z.literal("verify").describe("Check if namespace exists"),
+  namespace_id: namespaceIdField,
+});
+
+// --- Discriminated union combining all actions ---
+export const BrowseNamespacesSchema = z.discriminatedUnion("action", [
+  ListNamespacesSchema,
+  GetNamespaceSchema,
+  VerifyNamespaceSchema,
+]);
+
+// browse_commits: discriminated union schema for list/get/diff actions
+
+// --- Shared fields for browse_commits ---
+const commitProjectIdField = requiredId.describe("Project ID or URL-encoded path.");
+const commitShaField = requiredId.describe("Commit SHA. Can be full SHA, short hash, or ref name.");
+
+// --- Action: list ---
+const ListCommitsSchema = z.object({
+  action: z.literal("list").describe("Browse commit history"),
+  project_id: commitProjectIdField,
+  ref_name: z.string().optional().describe("Branch/tag name. Defaults to default branch."),
+  since: z.string().optional().describe("Start date filter (ISO 8601 format)."),
+  until: z.string().optional().describe("End date filter (ISO 8601 format)."),
+  path: z.string().optional().describe("Filter commits affecting this file/directory path."),
+  author: z.string().optional().describe("Filter by author name or email."),
+  all: flexibleBoolean.optional().describe("Include commits from all branches."),
+  first_parent: flexibleBoolean.optional().describe("Follow only first parent (linear history)."),
+  order: z.enum(["default", "topo"]).optional().describe("Commit ordering: default or topo."),
+  with_stats: flexibleBoolean.optional().describe("Include stats for each commit."),
+  trailers: flexibleBoolean.optional().describe("Include Git trailers (Signed-off-by, etc.)."),
+  per_page: z.number().int().min(1).max(100).optional().describe("Results per page (1-100)."),
+  page: z.number().int().min(1).optional().describe("Page number for pagination."),
+});
+
+// --- Action: get ---
+const GetCommitSchema = z.object({
+  action: z.literal("get").describe("Retrieve commit details"),
+  project_id: commitProjectIdField,
+  sha: commitShaField,
+  stats: flexibleBoolean.optional().describe("Include file change statistics."),
+});
+
+// --- Action: diff ---
+const GetCommitDiffSchema = z.object({
+  action: z.literal("diff").describe("Get code changes in a commit"),
+  project_id: commitProjectIdField,
+  sha: commitShaField,
+  unidiff: flexibleBoolean.optional().describe("Return unified diff format."),
+  per_page: z.number().int().min(1).max(100).optional().describe("Results per page (1-100)."),
+  page: z.number().int().min(1).optional().describe("Page number for pagination."),
+});
+
+// --- Discriminated union combining all actions ---
+export const BrowseCommitsSchema = z.discriminatedUnion("action", [
+  ListCommitsSchema,
+  GetCommitSchema,
+  GetCommitDiffSchema,
+]);
+
+// browse_events: discriminated union schema for user/project scopes
+
+// --- Shared fields for browse_events ---
+const eventTargetTypeField = z
+  .enum(["issue", "milestone", "merge_request", "note", "project", "snippet", "user"])
+  .optional()
+  .describe("Filter by target type.");
+const eventActionField = z
+  .enum([
+    "created",
+    "updated",
+    "closed",
+    "reopened",
+    "pushed",
+    "commented",
+    "merged",
+    "joined",
+    "left",
+    "destroyed",
+    "expired",
+  ])
+  .optional()
+  .describe("Filter by event action.");
+const eventBeforeField = z
+  .string()
+  .optional()
+  .describe("Show events before this date (YYYY-MM-DD).");
+const eventAfterField = z.string().optional().describe("Show events after this date (YYYY-MM-DD).");
+const eventSortField = z
+  .enum(["asc", "desc"])
+  .optional()
+  .describe("Sort order: asc=oldest first, desc=newest first.");
+const eventPaginationFields = {
+  per_page: z.number().int().min(1).max(100).optional().describe("Results per page (1-100)."),
+  page: z.number().int().min(1).optional().describe("Page number for pagination."),
+};
+
+// --- Action: user ---
+const UserEventsSchema = z.object({
+  action: z.literal("user").describe("Show your activity across all projects"),
+  target_type: eventTargetTypeField,
+  event_action: eventActionField,
+  before: eventBeforeField,
+  after: eventAfterField,
+  sort: eventSortField,
+  ...eventPaginationFields,
+});
+
+// --- Action: project ---
+const ProjectEventsSchema = z.object({
+  action: z.literal("project").describe("Show specific project activity"),
+  project_id: requiredId.describe("Project ID."),
+  target_type: eventTargetTypeField,
+  event_action: eventActionField,
+  before: eventBeforeField,
+  after: eventAfterField,
+  sort: eventSortField,
+  ...eventPaginationFields,
+});
+
+// --- Discriminated union combining all actions ---
+export const BrowseEventsSchema = z.discriminatedUnion("action", [
+  UserEventsSchema,
+  ProjectEventsSchema,
+]);
 
 // ============================================================================
 // KEPT AS-IS SCHEMAS (not consolidated - have unique purposes)

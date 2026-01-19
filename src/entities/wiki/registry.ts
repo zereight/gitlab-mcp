@@ -4,7 +4,7 @@ import { ManageWikiSchema } from "./schema";
 import { gitlab, toQuery } from "../../utils/gitlab-api";
 import { resolveNamespaceForAPI } from "../../utils/namespace";
 import { ToolRegistry, EnhancedToolDefinition } from "../../types";
-import { assertDefined } from "../utils";
+import { isActionDenied } from "../../config";
 
 /**
  * Wiki tools registry - 2 CQRS tools replacing 5 individual tools
@@ -14,7 +14,8 @@ import { assertDefined } from "../utils";
  */
 export const wikiToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefinition>([
   // ============================================================================
-  // browse_wiki - CQRS Query Tool
+  // browse_wiki - CQRS Query Tool (discriminated union schema)
+  // TypeScript automatically narrows types in each switch case
   // ============================================================================
   [
     "browse_wiki",
@@ -25,10 +26,17 @@ export const wikiToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
       inputSchema: z.toJSONSchema(BrowseWikiSchema),
       handler: async (args: unknown) => {
         const input = BrowseWikiSchema.parse(args);
+
+        // Runtime validation: reject denied actions even if they bypass schema filtering
+        if (isActionDenied("browse_wiki", input.action)) {
+          throw new Error(`Action '${input.action}' is not allowed for browse_wiki tool`);
+        }
+
         const { entityType, encodedPath } = await resolveNamespaceForAPI(input.namespace);
 
         switch (input.action) {
           case "list": {
+            // TypeScript knows: input has with_content, per_page, page (optional)
             const { action: _action, namespace: _namespace, ...rest } = input;
             const query = toQuery(rest, []);
 
@@ -36,14 +44,13 @@ export const wikiToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
           }
 
           case "get": {
-            // slug is required for get action (validated by .refine())
-            assertDefined(input.slug, "slug");
+            // TypeScript knows: input has slug (required)
             return gitlab.get(
               `${entityType}/${encodedPath}/wikis/${encodeURIComponent(input.slug)}`
             );
           }
 
-          /* istanbul ignore next -- unreachable with Zod validation */
+          /* istanbul ignore next -- unreachable with Zod discriminatedUnion */
           default:
             throw new Error(`Unknown action: ${(input as { action: string }).action}`);
         }
@@ -52,7 +59,8 @@ export const wikiToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
   ],
 
   // ============================================================================
-  // manage_wiki - CQRS Command Tool
+  // manage_wiki - CQRS Command Tool (discriminated union schema)
+  // TypeScript automatically narrows types in each switch case
   // ============================================================================
   [
     "manage_wiki",
@@ -63,10 +71,17 @@ export const wikiToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
       inputSchema: z.toJSONSchema(ManageWikiSchema),
       handler: async (args: unknown) => {
         const input = ManageWikiSchema.parse(args);
+
+        // Runtime validation: reject denied actions even if they bypass schema filtering
+        if (isActionDenied("manage_wiki", input.action)) {
+          throw new Error(`Action '${input.action}' is not allowed for manage_wiki tool`);
+        }
+
         const { entityType, encodedPath } = await resolveNamespaceForAPI(input.namespace);
 
         switch (input.action) {
           case "create": {
+            // TypeScript knows: input has title, content (required), format (optional)
             const { action: _action, namespace: _namespace, ...body } = input;
 
             return gitlab.post(`${entityType}/${encodedPath}/wikis`, {
@@ -76,8 +91,7 @@ export const wikiToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
           }
 
           case "update": {
-            // slug is required for update action (validated by .refine())
-            assertDefined(input.slug, "slug");
+            // TypeScript knows: input has slug (required), title, content, format (optional)
             const { action: _action, namespace: _namespace, slug, ...body } = input;
 
             return gitlab.put(`${entityType}/${encodedPath}/wikis/${encodeURIComponent(slug)}`, {
@@ -87,16 +101,14 @@ export const wikiToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
           }
 
           case "delete": {
-            // slug is required for delete action (validated by .refine())
-            assertDefined(input.slug, "slug");
-
+            // TypeScript knows: input has slug (required)
             await gitlab.delete(
               `${entityType}/${encodedPath}/wikis/${encodeURIComponent(input.slug)}`
             );
             return { deleted: true };
           }
 
-          /* istanbul ignore next -- unreachable with Zod validation */
+          /* istanbul ignore next -- unreachable with Zod discriminatedUnion */
           default:
             throw new Error(`Unknown action: ${(input as { action: string }).action}`);
         }

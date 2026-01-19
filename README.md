@@ -550,6 +550,140 @@ export GITLAB_TOOL_MANAGE_WORK_ITEM="Create and manage tickets for our sprint pl
 - **Content Guidelines**: Descriptions can be any valid string but should be kept concise for better UX
 - **Scope**: Works with all 59 available tools across all entities (Core, Work Items, Merge Requests, Files, Snippets, etc.)
 
+### Fine-Grained Action Filtering (CQRS Tools)
+
+For CQRS tools (those with `action` parameter like `manage_milestone`, `browse_merge_requests`), you can disable specific actions while keeping others available. This provides granular control and **reduces AI context token usage** by removing disabled actions and their exclusive parameters from the schema.
+
+#### Environment Variable
+
+```bash
+GITLAB_DENIED_ACTIONS="tool_name:action,tool_name:action,..."
+```
+
+#### Examples
+
+```bash
+# Disable delete and promote actions for milestones
+export GITLAB_DENIED_ACTIONS="manage_milestone:delete,manage_milestone:promote"
+
+# Disable multiple actions across different tools
+export GITLAB_DENIED_ACTIONS="manage_milestone:delete,browse_milestones:burndown,manage_merge_request:merge"
+
+# Disable all write actions for a tool (read-only for specific tool)
+export GITLAB_DENIED_ACTIONS="manage_variable:create,manage_variable:update,manage_variable:delete"
+```
+
+#### How It Works
+
+1. **Schema Filtering**: Denied actions are removed from the tool's JSON schema
+2. **Parameter Optimization**: Parameters exclusive to denied actions are automatically removed
+3. **Runtime Validation**: Attempts to call denied actions are rejected with clear error messages
+4. **Token Savings**: Smaller schemas = fewer tokens consumed by AI agents
+
+#### Token Savings Example
+
+When only `create` action is allowed for `manage_milestone`:
+
+| State | Properties in Schema | Token Impact |
+|-------|---------------------|--------------|
+| All actions | `action`, `namespace`, `milestone_id`, `title`, `description`, `due_date`, `start_date`, `state_event` | 100% |
+| Only `create` | `action`, `namespace`, `title`, `description`, `due_date`, `start_date` | ~60% (milestone_id, state_event removed) |
+
+#### Usage in Configuration
+
+```json
+{
+  "mcpServers": {
+    "gitlab": {
+      "command": "npx",
+      "args": ["-y", "@structured-world/gitlab-mcp"],
+      "env": {
+        "GITLAB_TOKEN": "your_token",
+        "GITLAB_API_URL": "https://gitlab.com",
+        "GITLAB_DENIED_ACTIONS": "manage_milestone:delete,manage_milestone:promote"
+      }
+    }
+  }
+}
+```
+
+### Action & Parameter Description Customization
+
+Beyond tool-level descriptions, you can customize descriptions for specific actions and parameters within CQRS tools.
+
+#### Action Descriptions
+
+Override the description for a specific action within a tool:
+
+```bash
+# Format: GITLAB_ACTION_{TOOL}_{ACTION}="description"
+export GITLAB_ACTION_MANAGE_MILESTONE_DELETE="Permanently remove milestone (requires admin)"
+export GITLAB_ACTION_BROWSE_MERGE_REQUESTS_LIST="Show team's active merge requests"
+```
+
+#### Parameter Descriptions
+
+Override the description for a specific parameter within a tool:
+
+```bash
+# Format: GITLAB_PARAM_{TOOL}_{PARAM}="description"
+export GITLAB_PARAM_MANAGE_MILESTONE_NAMESPACE="Project or group path (e.g., 'myteam/myproject')"
+export GITLAB_PARAM_BROWSE_WORK_ITEMS_TYPES="Filter by type: ISSUE, EPIC, TASK, etc."
+```
+
+#### Combined Example
+
+```json
+{
+  "mcpServers": {
+    "gitlab": {
+      "command": "npx",
+      "args": ["-y", "@structured-world/gitlab-mcp"],
+      "env": {
+        "GITLAB_TOKEN": "your_token",
+
+        "GITLAB_DENIED_ACTIONS": "manage_milestone:delete",
+
+        "GITLAB_TOOL_MANAGE_MILESTONE": "Manage sprint milestones for our team",
+        "GITLAB_ACTION_MANAGE_MILESTONE_CREATE": "Create new sprint milestone",
+        "GITLAB_PARAM_MANAGE_MILESTONE_TITLE": "Sprint name (e.g., 'Sprint 42')"
+      }
+    }
+  }
+}
+```
+
+### Schema Format Configuration
+
+Configure how CQRS tool schemas are delivered to AI clients:
+
+```bash
+# Configure schema output format
+GITLAB_SCHEMA_FORMAT=flat|discriminated
+```
+
+| Format | Description | Best For |
+|--------|-------------|----------|
+| `flat` (default) | Merged properties with action enum | Current AI clients (Claude, GPT) |
+| `discriminated` | Full `oneOf` with action-specific branches | Advanced AI clients with native oneOf support |
+
+#### Schema Pipeline
+
+When a tool is registered, the schema goes through a transformation pipeline:
+
+1. **Filter Denied Actions** - Removes branches for actions listed in `GITLAB_DENIED_ACTIONS`
+2. **Apply Description Overrides** - Applies `GITLAB_ACTION_*` and `GITLAB_PARAM_*` overrides
+3. **Conditional Flatten** - Converts `oneOf` to flat schema when `GITLAB_SCHEMA_FORMAT=flat` (default)
+
+This pipeline ensures that:
+- Denied actions never appear in the schema (saves AI context tokens)
+- Description customizations work regardless of schema format
+- Future AI clients can receive native discriminated union schemas
+
+#### Future Enhancements
+
+Per-client capability detection may be added, allowing the server to automatically deliver the optimal schema format based on client capabilities announced during MCP handshake.
+
 ## Tools 🛠️
 
 **61 Tools Available** - Organized by entity and functionality below.

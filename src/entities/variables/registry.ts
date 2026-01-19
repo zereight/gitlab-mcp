@@ -4,7 +4,7 @@ import { ManageVariableSchema } from "./schema";
 import { gitlab, toQuery } from "../../utils/gitlab-api";
 import { resolveNamespaceForAPI } from "../../utils/namespace";
 import { ToolRegistry, EnhancedToolDefinition } from "../../types";
-import { assertDefined } from "../utils";
+import { isActionDenied } from "../../config";
 
 /**
  * Variables tools registry - 2 CQRS tools replacing 5 individual tools
@@ -14,7 +14,8 @@ import { assertDefined } from "../utils";
  */
 export const variablesToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefinition>([
   // ============================================================================
-  // browse_variables - CQRS Query Tool
+  // browse_variables - CQRS Query Tool (discriminated union schema)
+  // TypeScript automatically narrows types in each switch case
   // ============================================================================
   [
     "browse_variables",
@@ -25,25 +26,25 @@ export const variablesToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
       inputSchema: z.toJSONSchema(BrowseVariablesSchema),
       handler: async (args: unknown) => {
         const input = BrowseVariablesSchema.parse(args);
+
+        // Runtime validation: reject denied actions even if they bypass schema filtering
+        if (isActionDenied("browse_variables", input.action)) {
+          throw new Error(`Action '${input.action}' is not allowed for browse_variables tool`);
+        }
+
         const { entityType, encodedPath } = await resolveNamespaceForAPI(input.namespace);
 
         switch (input.action) {
           case "list": {
-            const {
-              action: _action,
-              namespace: _namespace,
-              key: _key,
-              filter: _filter,
-              ...rest
-            } = input;
+            // TypeScript knows: input has per_page, page (optional)
+            const { action: _action, namespace: _namespace, ...rest } = input;
             const query = toQuery(rest, []);
 
             return gitlab.get(`${entityType}/${encodedPath}/variables`, { query });
           }
 
           case "get": {
-            // key is required for get action (validated by .refine())
-            assertDefined(input.key, "key");
+            // TypeScript knows: input has key (required), filter (optional)
             const query: Record<string, string | undefined> = {};
             if (input.filter?.environment_scope) {
               query["filter[environment_scope]"] = input.filter.environment_scope;
@@ -55,7 +56,7 @@ export const variablesToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
             );
           }
 
-          /* istanbul ignore next -- unreachable with Zod validation */
+          /* istanbul ignore next -- unreachable with Zod discriminatedUnion */
           default:
             throw new Error(`Unknown action: ${(input as { action: string }).action}`);
         }
@@ -64,7 +65,8 @@ export const variablesToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
   ],
 
   // ============================================================================
-  // manage_variable - CQRS Command Tool
+  // manage_variable - CQRS Command Tool (discriminated union schema)
+  // TypeScript automatically narrows types in each switch case
   // ============================================================================
   [
     "manage_variable",
@@ -75,14 +77,18 @@ export const variablesToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
       inputSchema: z.toJSONSchema(ManageVariableSchema),
       handler: async (args: unknown) => {
         const input = ManageVariableSchema.parse(args);
+
+        // Runtime validation: reject denied actions even if they bypass schema filtering
+        if (isActionDenied("manage_variable", input.action)) {
+          throw new Error(`Action '${input.action}' is not allowed for manage_variable tool`);
+        }
+
         const { entityType, encodedPath } = await resolveNamespaceForAPI(input.namespace);
 
         switch (input.action) {
           case "create": {
-            // value is required for create action (validated by .refine())
-            assertDefined(input.value, "value");
-
-            const { action: _action, namespace: _namespace, filter: _filter, ...body } = input;
+            // TypeScript knows: input has key, value (required), variable_type, environment_scope, etc. (optional)
+            const { action: _action, namespace: _namespace, ...body } = input;
 
             return gitlab.post(`${entityType}/${encodedPath}/variables`, {
               body,
@@ -91,6 +97,7 @@ export const variablesToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
           }
 
           case "update": {
+            // TypeScript knows: input has key (required), value, filter, etc. (optional)
             const { action: _action, namespace: _namespace, key, filter, ...body } = input;
 
             const query: Record<string, string | undefined> = {};
@@ -106,6 +113,7 @@ export const variablesToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
           }
 
           case "delete": {
+            // TypeScript knows: input has key (required), filter (optional)
             const query: Record<string, string | undefined> = {};
             if (input.filter?.environment_scope) {
               query["filter[environment_scope]"] = input.filter.environment_scope;
@@ -118,7 +126,7 @@ export const variablesToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
             return { deleted: true };
           }
 
-          /* istanbul ignore next -- unreachable with Zod validation */
+          /* istanbul ignore next -- unreachable with Zod discriminatedUnion */
           default:
             throw new Error(`Unknown action: ${(input as { action: string }).action}`);
         }

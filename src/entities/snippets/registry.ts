@@ -1,100 +1,127 @@
 import * as z from "zod";
-import { ListSnippetsSchema, GetSnippetSchema } from "./schema-readonly";
-import { CreateSnippetSchema, UpdateSnippetSchema, DeleteSnippetSchema } from "./schema";
+import { BrowseSnippetsSchema } from "./schema-readonly";
+import { ManageSnippetSchema } from "./schema";
 import { gitlab, toQuery } from "../../utils/gitlab-api";
 import { ToolRegistry, EnhancedToolDefinition } from "../../types";
+import { isActionDenied } from "../../config";
 
 /**
- * Union schema for manage_snippet action parameter
- */
-const ManageSnippetSchema = z.discriminatedUnion("action", [
-  GetSnippetSchema,
-  CreateSnippetSchema,
-  UpdateSnippetSchema,
-  DeleteSnippetSchema,
-]);
-
-/**
- * Snippets tools registry - unified registry containing all snippet operation tools with their handlers
+ * Snippets tools registry - 2 CQRS tools replacing 5 individual tools
+ *
+ * browse_snippets (Query): list, get
+ * manage_snippet (Command): create, update, delete
  */
 export const snippetsToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefinition>([
+  // ============================================================================
+  // browse_snippets - CQRS Query Tool (discriminated union schema)
+  // TypeScript automatically narrows types in each switch case
+  // ============================================================================
   [
-    "list_snippets",
+    "browse_snippets",
     {
-      name: "list_snippets",
+      name: "browse_snippets",
       description:
-        "List GitLab code snippets with flexible scoping. Use scope='personal' for current user's snippets, scope='project' for project-specific snippets (requires projectId), or scope='public' to discover all public snippets. Filter by visibility level (private/internal/public) and creation date. Snippets are reusable code blocks, configs, or text that support versioning and can be shared.",
-      inputSchema: z.toJSONSchema(ListSnippetsSchema),
-      handler: async (args: unknown) => {
-        const options = ListSnippetsSchema.parse(args);
+        'BROWSE GitLab code snippets. Actions: "list" shows snippets by scope (personal/project/public) with filtering, "get" retrieves single snippet metadata or raw content. Snippets are reusable code blocks, configs, or text with versioning support.',
+      inputSchema: z.toJSONSchema(BrowseSnippetsSchema),
+      handler: async (args: unknown): Promise<unknown> => {
+        const input = BrowseSnippetsSchema.parse(args);
 
-        // Build the path based on scope
-        let path: string;
-        if (options.scope === "personal") {
-          path = "snippets";
-        } else if (options.scope === "public") {
-          path = "snippets/public";
-        } else {
-          // project scope - projectId is validated by schema refine
-          if (!options.projectId) {
-            throw new Error("projectId is required for project scope");
-          }
-          const encodedProjectId = encodeURIComponent(options.projectId);
-          path = `projects/${encodedProjectId}/snippets`;
+        // Runtime validation: reject denied actions even if they bypass schema filtering
+        if (isActionDenied("browse_snippets", input.action)) {
+          throw new Error(`Action '${input.action}' is not allowed for browse_snippets tool`);
         }
 
-        // Use toQuery to build query parameters, excluding scope and projectId
-        return gitlab.get(path, {
-          query: toQuery(options, ["scope", "projectId"]),
-        });
-      },
-    },
-  ],
-  [
-    "manage_snippet",
-    {
-      name: "manage_snippet",
-      description:
-        "Manage GitLab snippets with full CRUD operations via action parameter. action='read': retrieve snippet metadata or raw content. action='create': create new snippet with multiple files, visibility control. action='update': modify title, description, visibility, or files (supports create/update/delete/move file actions). action='delete': permanently remove snippet. Supports both personal and project snippets. Multi-file snippets enable organizing related code in one place.",
-      inputSchema: z.toJSONSchema(ManageSnippetSchema),
-      handler: async (args: unknown) => {
-        const options = ManageSnippetSchema.parse(args);
+        switch (input.action) {
+          case "list": {
+            // TypeScript knows: input has scope (required), projectId, visibility, etc. (optional)
+            const { action: _action, scope, projectId, ...queryOptions } = input;
 
-        // Handle different actions
-        switch (options.action) {
-          case "read": {
-            const encodedId = options.id.toString();
+            // Build the path based on scope
+            let path: string;
+            if (scope === "personal") {
+              path = "snippets";
+            } else if (scope === "public") {
+              path = "snippets/public";
+            } else {
+              // project scope - requires projectId
+              if (!projectId) {
+                throw new Error("projectId is required when scope is 'project'");
+              }
+              const encodedProjectId = encodeURIComponent(projectId);
+              path = `projects/${encodedProjectId}/snippets`;
+            }
+
+            return gitlab.get(path, {
+              query: toQuery(queryOptions, []),
+            });
+          }
+
+          case "get": {
+            // TypeScript knows: input has id (required), projectId, raw (optional)
+            const { id, projectId, raw } = input;
+            const encodedId = id.toString();
             let path: string;
 
-            if (options.projectId) {
-              const encodedProjectId = encodeURIComponent(options.projectId);
+            if (projectId) {
+              const encodedProjectId = encodeURIComponent(projectId);
               path = `projects/${encodedProjectId}/snippets/${encodedId}`;
             } else {
               path = `snippets/${encodedId}`;
             }
 
             // If raw content is requested, append /raw to the path
-            if (options.raw) {
+            if (raw) {
               path = `${path}/raw`;
             }
 
             return gitlab.get(path);
           }
 
+          /* istanbul ignore next -- unreachable with Zod discriminatedUnion */
+          default:
+            throw new Error(`Unknown action: ${(input as { action: string }).action}`);
+        }
+      },
+    },
+  ],
+
+  // ============================================================================
+  // manage_snippet - CQRS Command Tool (discriminated union schema)
+  // TypeScript automatically narrows types in each switch case
+  // ============================================================================
+  [
+    "manage_snippet",
+    {
+      name: "manage_snippet",
+      description:
+        'MANAGE GitLab snippets. Actions: "create" creates new snippet with multiple files and visibility control, "update" modifies title/description/visibility/files (supports file create/update/delete/move), "delete" permanently removes snippet. Supports personal and project snippets.',
+      inputSchema: z.toJSONSchema(ManageSnippetSchema),
+      handler: async (args: unknown): Promise<unknown> => {
+        const input = ManageSnippetSchema.parse(args);
+
+        // Runtime validation: reject denied actions even if they bypass schema filtering
+        if (isActionDenied("manage_snippet", input.action)) {
+          throw new Error(`Action '${input.action}' is not allowed for manage_snippet tool`);
+        }
+
+        switch (input.action) {
           case "create": {
+            // TypeScript knows: input has title, files (required), projectId, description, visibility (optional)
+            const { projectId, title, description, visibility, files } = input;
+
             const body: Record<string, unknown> = {
-              title: options.title,
-              visibility: options.visibility,
-              files: options.files,
+              title,
+              visibility,
+              files,
             };
 
-            if (options.description) {
-              body.description = options.description;
+            if (description) {
+              body.description = description;
             }
 
             let path: string;
-            if (options.projectId) {
-              const encodedProjectId = encodeURIComponent(options.projectId);
+            if (projectId) {
+              const encodedProjectId = encodeURIComponent(projectId);
               path = `projects/${encodedProjectId}/snippets`;
             } else {
               path = "snippets";
@@ -107,25 +134,27 @@ export const snippetsToolRegistry: ToolRegistry = new Map<string, EnhancedToolDe
           }
 
           case "update": {
-            const encodedId = options.id.toString();
+            // TypeScript knows: input has id (required), projectId, title, description, visibility, files (optional)
+            const { id, projectId, title, description, visibility, files } = input;
+            const encodedId = id.toString();
             const body: Record<string, unknown> = {};
 
-            if (options.title !== undefined) {
-              body.title = options.title;
+            if (title !== undefined) {
+              body.title = title;
             }
-            if (options.description !== undefined) {
-              body.description = options.description;
+            if (description !== undefined) {
+              body.description = description;
             }
-            if (options.visibility !== undefined) {
-              body.visibility = options.visibility;
+            if (visibility !== undefined) {
+              body.visibility = visibility;
             }
-            if (options.files !== undefined) {
-              body.files = options.files;
+            if (files !== undefined) {
+              body.files = files;
             }
 
             let path: string;
-            if (options.projectId) {
-              const encodedProjectId = encodeURIComponent(options.projectId);
+            if (projectId) {
+              const encodedProjectId = encodeURIComponent(projectId);
               path = `projects/${encodedProjectId}/snippets/${encodedId}`;
             } else {
               path = `snippets/${encodedId}`;
@@ -138,37 +167,48 @@ export const snippetsToolRegistry: ToolRegistry = new Map<string, EnhancedToolDe
           }
 
           case "delete": {
-            const encodedId = options.id.toString();
+            // TypeScript knows: input has id (required), projectId (optional)
+            const { id, projectId } = input;
+            const encodedId = id.toString();
             let path: string;
 
-            if (options.projectId) {
-              const encodedProjectId = encodeURIComponent(options.projectId);
+            if (projectId) {
+              const encodedProjectId = encodeURIComponent(projectId);
               path = `projects/${encodedProjectId}/snippets/${encodedId}`;
             } else {
               path = `snippets/${encodedId}`;
             }
 
             await gitlab.delete(path);
-            return { deleted: true, id: options.id };
+            return { deleted: true, id };
           }
 
+          /* istanbul ignore next -- unreachable with Zod discriminatedUnion */
           default:
-            // This should never happen due to discriminated union
-            throw new Error(`Unknown action: ${(options as { action: string }).action}`);
+            throw new Error(`Unknown action: ${(input as { action: string }).action}`);
         }
       },
     },
   ],
 ]);
 
+/**
+ * Get read-only tool names from the registry
+ */
 export function getSnippetsReadOnlyToolNames(): string[] {
-  return ["list_snippets"];
+  return ["browse_snippets"];
 }
 
+/**
+ * Get all tool definitions from the registry
+ */
 export function getSnippetsToolDefinitions(): EnhancedToolDefinition[] {
   return Array.from(snippetsToolRegistry.values());
 }
 
+/**
+ * Get filtered tools based on read-only mode
+ */
 export function getFilteredSnippetsTools(readOnlyMode: boolean = false): EnhancedToolDefinition[] {
   if (readOnlyMode) {
     const readOnlyNames = getSnippetsReadOnlyToolNames();

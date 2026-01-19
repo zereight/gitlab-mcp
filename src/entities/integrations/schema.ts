@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { flexibleBoolean } from "../utils";
+import { flexibleBoolean, requiredId } from "../utils";
 
 // ============================================================================
 // Integration Types (50+ supported integrations in GitLab 18.8)
@@ -67,57 +67,80 @@ export const IntegrationTypeSchema = z.enum([
 ]);
 
 // ============================================================================
-// manage_integration - CQRS Command Tool with generic config support
+// manage_integration - CQRS Command Tool (discriminated union schema)
 // Actions: get, update, disable
+// Uses z.discriminatedUnion() for type-safe action handling.
 // ============================================================================
 
-export const ManageIntegrationSchema = z
-  .object({
-    action: z.enum(["get", "update", "disable"]).describe("Action to perform"),
-    project_id: z.string().describe("Project ID or URL-encoded path"),
-    integration: IntegrationTypeSchema.describe(
-      "Integration type slug (e.g., slack, jira, discord). Note: gitlab-slack-application cannot be created via API - it requires OAuth installation from GitLab UI."
+// --- Shared fields ---
+const projectIdField = requiredId.describe("Project ID or URL-encoded path");
+const integrationField = IntegrationTypeSchema.describe(
+  "Integration type slug (e.g., slack, jira, discord). Note: gitlab-slack-application cannot be created via API - it requires OAuth installation from GitLab UI."
+);
+
+// Common event trigger fields (used by update action)
+const eventFields = {
+  active: flexibleBoolean
+    .optional()
+    .describe("Enable or disable the integration without full configuration"),
+  push_events: flexibleBoolean.optional().describe("Trigger integration on push events"),
+  issues_events: flexibleBoolean.optional().describe("Trigger integration on issue events"),
+  merge_requests_events: flexibleBoolean
+    .optional()
+    .describe("Trigger integration on merge request events"),
+  tag_push_events: flexibleBoolean.optional().describe("Trigger integration on tag push events"),
+  note_events: flexibleBoolean.optional().describe("Trigger integration on note events"),
+  confidential_issues_events: flexibleBoolean
+    .optional()
+    .describe("Trigger integration on confidential issue events"),
+  pipeline_events: flexibleBoolean.optional().describe("Trigger integration on pipeline events"),
+  wiki_page_events: flexibleBoolean.optional().describe("Trigger integration on wiki page events"),
+  job_events: flexibleBoolean.optional().describe("Trigger integration on job events"),
+  deployment_events: flexibleBoolean
+    .optional()
+    .describe("Trigger integration on deployment events"),
+  releases_events: flexibleBoolean.optional().describe("Trigger integration on release events"),
+  vulnerability_events: flexibleBoolean
+    .optional()
+    .describe("Trigger integration on vulnerability events"),
+  config: z
+    .record(z.string(), z.unknown())
+    .optional()
+    .describe(
+      "Integration-specific configuration parameters. Pass as key-value pairs. Examples: webhook_url, token, channel, etc. See GitLab API documentation for integration-specific fields."
     ),
+};
 
-    // Common integration activation control
-    active: flexibleBoolean
-      .optional()
-      .describe("For 'update': Enable or disable the integration without full configuration"),
+// --- Action: get ---
+const GetIntegrationSchema = z.object({
+  action: z.literal("get").describe("Get integration settings (read-only)"),
+  project_id: projectIdField,
+  integration: integrationField,
+});
 
-    // Common event trigger parameters (optional for update action)
-    push_events: flexibleBoolean.optional().describe("Trigger integration on push events"),
-    issues_events: flexibleBoolean.optional().describe("Trigger integration on issue events"),
-    merge_requests_events: flexibleBoolean
-      .optional()
-      .describe("Trigger integration on merge request events"),
-    tag_push_events: flexibleBoolean.optional().describe("Trigger integration on tag push events"),
-    note_events: flexibleBoolean.optional().describe("Trigger integration on note events"),
-    confidential_issues_events: flexibleBoolean
-      .optional()
-      .describe("Trigger integration on confidential issue events"),
-    pipeline_events: flexibleBoolean.optional().describe("Trigger integration on pipeline events"),
-    wiki_page_events: flexibleBoolean
-      .optional()
-      .describe("Trigger integration on wiki page events"),
-    job_events: flexibleBoolean.optional().describe("Trigger integration on job events"),
-    deployment_events: flexibleBoolean
-      .optional()
-      .describe("Trigger integration on deployment events"),
-    releases_events: flexibleBoolean.optional().describe("Trigger integration on release events"),
-    vulnerability_events: flexibleBoolean
-      .optional()
-      .describe("Trigger integration on vulnerability events"),
-
-    // Generic config for integration-specific parameters
-    // Each integration has unique config options (webhook URLs, tokens, channels, etc.)
-    config: z
-      .record(z.string(), z.unknown())
-      .optional()
-      .describe(
-        "Integration-specific configuration parameters. Pass as key-value pairs. Examples: webhook_url, token, channel, etc. See GitLab API documentation for integration-specific fields."
-      ),
+// --- Action: update ---
+const UpdateIntegrationSchema = z
+  .object({
+    action: z.literal("update").describe("Update or enable integration with specific config"),
+    project_id: projectIdField,
+    integration: integrationField,
+    ...eventFields,
   })
   .passthrough(); // Allow additional integration-specific fields at root level
+
+// --- Action: disable ---
+const DisableIntegrationSchema = z.object({
+  action: z.literal("disable").describe("Disable and remove integration"),
+  project_id: projectIdField,
+  integration: integrationField,
+});
+
+// --- Discriminated union combining all actions ---
+export const ManageIntegrationSchema = z.discriminatedUnion("action", [
+  GetIntegrationSchema,
+  UpdateIntegrationSchema,
+  DisableIntegrationSchema,
+]);
 
 // ============================================================================
 // Type exports

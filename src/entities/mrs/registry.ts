@@ -8,7 +8,7 @@ import {
 import { gitlab, toQuery } from "../../utils/gitlab-api";
 import { normalizeProjectId } from "../../utils/projectIdentifier";
 import { ToolRegistry, EnhancedToolDefinition } from "../../types";
-import { assertDefined } from "../utils";
+import { isActionDenied } from "../../config";
 
 /**
  * MRS (Merge Requests) tools registry - 5 CQRS tools replacing 20 individual tools
@@ -21,7 +21,8 @@ import { assertDefined } from "../utils";
  */
 export const mrsToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefinition>([
   // ============================================================================
-  // browse_merge_requests - CQRS Query Tool
+  // browse_merge_requests - CQRS Query Tool (discriminated union schema)
+  // TypeScript automatically narrows types in each switch case
   // ============================================================================
   [
     "browse_merge_requests",
@@ -33,8 +34,14 @@ export const mrsToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefinit
       handler: async (args: unknown) => {
         const input = BrowseMergeRequestsSchema.parse(args);
 
+        // Runtime validation: reject denied actions even if they bypass schema filtering
+        if (isActionDenied("browse_merge_requests", input.action)) {
+          throw new Error(`Action '${input.action}' is not allowed for browse_merge_requests tool`);
+        }
+
         switch (input.action) {
           case "list": {
+            // TypeScript knows: input has state, order_by, sort, milestone, etc. (all optional)
             const { action: _action, project_id, ...rest } = input;
             const query = toQuery(rest, []);
 
@@ -46,9 +53,8 @@ export const mrsToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefinit
           }
 
           case "get": {
-            // project_id is required for get action (validated by .refine())
-            assertDefined(input.project_id, "project_id");
-            const projectId = input.project_id;
+            // TypeScript knows: input has project_id (required), merge_request_iid (optional), branch_name (optional)
+            const { project_id, merge_request_iid, branch_name } = input;
 
             // Build query params for optional fields
             const query: Record<string, boolean | string | undefined> = {};
@@ -57,15 +63,15 @@ export const mrsToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefinit
             if (input.include_rebase_in_progress !== undefined)
               query.include_rebase_in_progress = input.include_rebase_in_progress;
 
-            if (input.merge_request_iid) {
+            if (merge_request_iid) {
               return gitlab.get(
-                `projects/${normalizeProjectId(projectId)}/merge_requests/${input.merge_request_iid}`,
+                `projects/${normalizeProjectId(project_id)}/merge_requests/${merge_request_iid}`,
                 Object.keys(query).length > 0 ? { query } : undefined
               );
-            } else if (input.branch_name) {
+            } else if (branch_name) {
               const result = await gitlab.get<unknown[]>(
-                `projects/${normalizeProjectId(projectId)}/merge_requests`,
-                { query: { source_branch: input.branch_name, ...query } }
+                `projects/${normalizeProjectId(project_id)}/merge_requests`,
+                { query: { source_branch: branch_name, ...query } }
               );
 
               if (Array.isArray(result) && result.length > 0) {
@@ -78,11 +84,8 @@ export const mrsToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefinit
           }
 
           case "diffs": {
-            // project_id and merge_request_iid are required for diffs action (validated by .refine())
-            assertDefined(input.project_id, "project_id");
-            assertDefined(input.merge_request_iid, "merge_request_iid");
-            const projectId = input.project_id;
-            const mrIid = input.merge_request_iid;
+            // TypeScript knows: input has project_id (required), merge_request_iid (required)
+            const { project_id, merge_request_iid } = input;
 
             const query: Record<string, number | boolean | undefined> = {};
             if (input.page !== undefined) query.page = input.page;
@@ -93,30 +96,27 @@ export const mrsToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefinit
               query.include_rebase_in_progress = input.include_rebase_in_progress;
 
             return gitlab.get(
-              `projects/${normalizeProjectId(projectId)}/merge_requests/${mrIid}/changes`,
+              `projects/${normalizeProjectId(project_id)}/merge_requests/${merge_request_iid}/changes`,
               { query }
             );
           }
 
           case "compare": {
-            // project_id, from, to are required for compare action (validated by .refine())
-            assertDefined(input.project_id, "project_id");
-            assertDefined(input.from, "from");
-            assertDefined(input.to, "to");
-            const projectId = input.project_id;
+            // TypeScript knows: input has project_id (required), from (required), to (required)
+            const { project_id, from, to, straight } = input;
 
             const query: Record<string, string | boolean | undefined> = {
-              from: input.from,
-              to: input.to,
+              from,
+              to,
             };
-            if (input.straight !== undefined) query.straight = input.straight;
+            if (straight !== undefined) query.straight = straight;
 
-            return gitlab.get(`projects/${normalizeProjectId(projectId)}/repository/compare`, {
+            return gitlab.get(`projects/${normalizeProjectId(project_id)}/repository/compare`, {
               query,
             });
           }
 
-          /* istanbul ignore next -- unreachable with Zod validation */
+          /* istanbul ignore next -- unreachable with Zod discriminatedUnion */
           default:
             throw new Error(`Unknown action: ${(input as { action: string }).action}`);
         }
@@ -125,7 +125,8 @@ export const mrsToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefinit
   ],
 
   // ============================================================================
-  // browse_mr_discussions - CQRS Query Tool
+  // browse_mr_discussions - CQRS Query Tool (discriminated union schema)
+  // TypeScript automatically narrows types in each switch case
   // ============================================================================
   [
     "browse_mr_discussions",
@@ -137,8 +138,14 @@ export const mrsToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefinit
       handler: async (args: unknown) => {
         const input = BrowseMrDiscussionsSchema.parse(args);
 
+        // Runtime validation: reject denied actions even if they bypass schema filtering
+        if (isActionDenied("browse_mr_discussions", input.action)) {
+          throw new Error(`Action '${input.action}' is not allowed for browse_mr_discussions tool`);
+        }
+
         switch (input.action) {
           case "list": {
+            // TypeScript knows: input has project_id (required), merge_request_iid (required), per_page, page (optional)
             const { action: _action, project_id, merge_request_iid, ...rest } = input;
             const query = toQuery(rest, []);
 
@@ -149,20 +156,22 @@ export const mrsToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefinit
           }
 
           case "drafts": {
+            // TypeScript knows: input has project_id (required), merge_request_iid (required)
+            const { project_id, merge_request_iid } = input;
             return gitlab.get(
-              `projects/${normalizeProjectId(input.project_id)}/merge_requests/${input.merge_request_iid}/draft_notes`
+              `projects/${normalizeProjectId(project_id)}/merge_requests/${merge_request_iid}/draft_notes`
             );
           }
 
           case "draft": {
-            // draft_note_id is required for draft action (validated by .refine())
-            assertDefined(input.draft_note_id, "draft_note_id");
+            // TypeScript knows: input has project_id (required), merge_request_iid (required), draft_note_id (required)
+            const { project_id, merge_request_iid, draft_note_id } = input;
             return gitlab.get(
-              `projects/${normalizeProjectId(input.project_id)}/merge_requests/${input.merge_request_iid}/draft_notes/${input.draft_note_id}`
+              `projects/${normalizeProjectId(project_id)}/merge_requests/${merge_request_iid}/draft_notes/${draft_note_id}`
             );
           }
 
-          /* istanbul ignore next -- unreachable with Zod validation */
+          /* istanbul ignore next -- unreachable with Zod discriminatedUnion */
           default:
             throw new Error(`Unknown action: ${(input as { action: string }).action}`);
         }
@@ -171,7 +180,8 @@ export const mrsToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefinit
   ],
 
   // ============================================================================
-  // manage_merge_request - CQRS Command Tool
+  // manage_merge_request - CQRS Command Tool (discriminated union schema)
+  // TypeScript automatically narrows types in each switch case
   // ============================================================================
   [
     "manage_merge_request",
@@ -183,8 +193,14 @@ export const mrsToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefinit
       handler: async (args: unknown) => {
         const input = ManageMergeRequestSchema.parse(args);
 
+        // Runtime validation: reject denied actions even if they bypass schema filtering
+        if (isActionDenied("manage_merge_request", input.action)) {
+          throw new Error(`Action '${input.action}' is not allowed for manage_merge_request tool`);
+        }
+
         switch (input.action) {
           case "create": {
+            // TypeScript knows: input has source_branch (required), target_branch (required), title (required)
             const { action: _action, project_id, ...body } = input;
 
             // Handle array fields - convert to comma-separated strings for form encoding
@@ -204,8 +220,7 @@ export const mrsToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefinit
           }
 
           case "update": {
-            // merge_request_iid is required for update action (validated by .refine())
-            assertDefined(input.merge_request_iid, "merge_request_iid");
+            // TypeScript knows: input has merge_request_iid (required)
             const { action: _action, project_id, merge_request_iid, ...body } = input;
 
             // Handle array fields
@@ -225,8 +240,7 @@ export const mrsToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefinit
           }
 
           case "merge": {
-            // merge_request_iid is required for merge action (validated by .refine())
-            assertDefined(input.merge_request_iid, "merge_request_iid");
+            // TypeScript knows: input has merge_request_iid (required)
             const { action: _action, project_id, merge_request_iid, ...body } = input;
 
             return gitlab.put(
@@ -235,7 +249,7 @@ export const mrsToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefinit
             );
           }
 
-          /* istanbul ignore next -- unreachable with Zod validation */
+          /* istanbul ignore next -- unreachable with Zod discriminatedUnion */
           default:
             throw new Error(`Unknown action: ${(input as { action: string }).action}`);
         }
@@ -244,7 +258,8 @@ export const mrsToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefinit
   ],
 
   // ============================================================================
-  // manage_mr_discussion - CQRS Command Tool
+  // manage_mr_discussion - CQRS Command Tool (discriminated union schema)
+  // TypeScript automatically narrows types in each switch case
   // ============================================================================
   [
     "manage_mr_discussion",
@@ -256,71 +271,79 @@ export const mrsToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefinit
       handler: async (args: unknown) => {
         const input = ManageMrDiscussionSchema.parse(args);
 
+        // Runtime validation: reject denied actions even if they bypass schema filtering
+        if (isActionDenied("manage_mr_discussion", input.action)) {
+          throw new Error(`Action '${input.action}' is not allowed for manage_mr_discussion tool`);
+        }
+
         switch (input.action) {
           case "comment": {
-            // noteable_type and noteable_id are required for comment action (validated by .refine())
-            assertDefined(input.noteable_type, "noteable_type");
-            assertDefined(input.noteable_id, "noteable_id");
-            const noteableType = input.noteable_type;
-            const noteableId = input.noteable_id;
+            // TypeScript knows: input has noteable_type (required), noteable_id (required), body (required)
+            const {
+              project_id,
+              noteable_type,
+              noteable_id,
+              body: noteBody,
+              created_at,
+              confidential,
+            } = input;
 
-            const body: Record<string, unknown> = { body: input.body };
-            if (input.created_at) body.created_at = input.created_at;
-            if (input.confidential !== undefined) body.confidential = input.confidential;
+            const body: Record<string, unknown> = { body: noteBody };
+            if (created_at) body.created_at = created_at;
+            if (confidential !== undefined) body.confidential = confidential;
 
-            const resourceType = noteableType === "merge_request" ? "merge_requests" : "issues";
+            const resourceType = noteable_type === "merge_request" ? "merge_requests" : "issues";
 
             return gitlab.post(
-              `projects/${normalizeProjectId(input.project_id)}/${resourceType}/${noteableId}/notes`,
+              `projects/${normalizeProjectId(project_id)}/${resourceType}/${noteable_id}/notes`,
               { body, contentType: "form" }
             );
           }
 
           case "thread": {
-            // merge_request_iid is required for thread action (validated by .refine())
-            assertDefined(input.merge_request_iid, "merge_request_iid");
-            const mrIid = input.merge_request_iid;
+            // TypeScript knows: input has merge_request_iid (required), body (required)
+            const { project_id, merge_request_iid, body: noteBody, position, commit_id } = input;
 
-            const body: Record<string, unknown> = { body: input.body };
-            if (input.position) body.position = JSON.stringify(input.position);
-            if (input.commit_id) body.commit_id = input.commit_id;
+            const body: Record<string, unknown> = { body: noteBody };
+            if (position) body.position = JSON.stringify(position);
+            if (commit_id) body.commit_id = commit_id;
 
             return gitlab.post(
-              `projects/${normalizeProjectId(input.project_id)}/merge_requests/${mrIid}/discussions`,
+              `projects/${normalizeProjectId(project_id)}/merge_requests/${merge_request_iid}/discussions`,
               { body, contentType: "form" }
             );
           }
 
           case "reply": {
-            // merge_request_iid and discussion_id are required for reply action (validated by .refine())
-            assertDefined(input.merge_request_iid, "merge_request_iid");
-            assertDefined(input.discussion_id, "discussion_id");
-            const mrIid = input.merge_request_iid;
-            const discussionId = input.discussion_id;
+            // TypeScript knows: input has merge_request_iid (required), discussion_id (required), body (required)
+            const {
+              project_id,
+              merge_request_iid,
+              discussion_id,
+              body: noteBody,
+              created_at,
+            } = input;
 
-            const body: Record<string, unknown> = { body: input.body };
-            if (input.created_at) body.created_at = input.created_at;
+            const body: Record<string, unknown> = { body: noteBody };
+            if (created_at) body.created_at = created_at;
 
             return gitlab.post(
-              `projects/${normalizeProjectId(input.project_id)}/merge_requests/${mrIid}/discussions/${discussionId}/notes`,
+              `projects/${normalizeProjectId(project_id)}/merge_requests/${merge_request_iid}/discussions/${discussion_id}/notes`,
               { body, contentType: "form" }
             );
           }
 
           case "update": {
-            // merge_request_iid and note_id are required for update action (validated by .refine())
-            assertDefined(input.merge_request_iid, "merge_request_iid");
-            assertDefined(input.note_id, "note_id");
-            const mrIid = input.merge_request_iid;
-            const noteId = input.note_id;
+            // TypeScript knows: input has merge_request_iid (required), note_id (required), body (required)
+            const { project_id, merge_request_iid, note_id, body: noteBody } = input;
 
             return gitlab.put(
-              `projects/${normalizeProjectId(input.project_id)}/merge_requests/${mrIid}/notes/${noteId}`,
-              { body: { body: input.body }, contentType: "form" }
+              `projects/${normalizeProjectId(project_id)}/merge_requests/${merge_request_iid}/notes/${note_id}`,
+              { body: { body: noteBody }, contentType: "form" }
             );
           }
 
-          /* istanbul ignore next -- unreachable with Zod validation */
+          /* istanbul ignore next -- unreachable with Zod discriminatedUnion */
           default:
             throw new Error(`Unknown action: ${(input as { action: string }).action}`);
         }
@@ -329,7 +352,8 @@ export const mrsToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefinit
   ],
 
   // ============================================================================
-  // manage_draft_notes - CQRS Command Tool
+  // manage_draft_notes - CQRS Command Tool (discriminated union schema)
+  // TypeScript automatically narrows types in each switch case
   // ============================================================================
   [
     "manage_draft_notes",
@@ -341,66 +365,81 @@ export const mrsToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefinit
       handler: async (args: unknown) => {
         const input = ManageDraftNotesSchema.parse(args);
 
+        // Runtime validation: reject denied actions even if they bypass schema filtering
+        if (isActionDenied("manage_draft_notes", input.action)) {
+          throw new Error(`Action '${input.action}' is not allowed for manage_draft_notes tool`);
+        }
+
         switch (input.action) {
           case "create": {
-            const body: Record<string, unknown> = { note: input.note };
-            if (input.position) body.position = JSON.stringify(input.position);
-            if (input.in_reply_to_discussion_id)
-              body.in_reply_to_discussion_id = input.in_reply_to_discussion_id;
-            if (input.commit_id) body.commit_id = input.commit_id;
+            // TypeScript knows: input has note (required), position, in_reply_to_discussion_id, commit_id (optional)
+            const {
+              project_id,
+              merge_request_iid,
+              note,
+              position,
+              in_reply_to_discussion_id,
+              commit_id,
+            } = input;
+
+            const body: Record<string, unknown> = { note };
+            if (position) body.position = JSON.stringify(position);
+            if (in_reply_to_discussion_id)
+              body.in_reply_to_discussion_id = in_reply_to_discussion_id;
+            if (commit_id) body.commit_id = commit_id;
 
             return gitlab.post(
-              `projects/${normalizeProjectId(input.project_id)}/merge_requests/${input.merge_request_iid}/draft_notes`,
+              `projects/${normalizeProjectId(project_id)}/merge_requests/${merge_request_iid}/draft_notes`,
               { body, contentType: "form" }
             );
           }
 
           case "update": {
-            // draft_note_id is required for update action (validated by .refine())
-            assertDefined(input.draft_note_id, "draft_note_id");
-            const draftNoteId = input.draft_note_id;
+            // TypeScript knows: input has draft_note_id (required), note (required)
+            const { project_id, merge_request_iid, draft_note_id, note, position } = input;
 
-            const body: Record<string, unknown> = { note: input.note };
-            if (input.position) body.position = JSON.stringify(input.position);
+            const body: Record<string, unknown> = { note };
+            if (position) body.position = JSON.stringify(position);
 
             return gitlab.put(
-              `projects/${normalizeProjectId(input.project_id)}/merge_requests/${input.merge_request_iid}/draft_notes/${draftNoteId}`,
+              `projects/${normalizeProjectId(project_id)}/merge_requests/${merge_request_iid}/draft_notes/${draft_note_id}`,
               { body, contentType: "form" }
             );
           }
 
           case "publish": {
-            // draft_note_id is required for publish action (validated by .refine())
-            assertDefined(input.draft_note_id, "draft_note_id");
-            const draftNoteId = input.draft_note_id;
+            // TypeScript knows: input has draft_note_id (required)
+            const { project_id, merge_request_iid, draft_note_id } = input;
 
             const result = await gitlab.put<void>(
-              `projects/${normalizeProjectId(input.project_id)}/merge_requests/${input.merge_request_iid}/draft_notes/${draftNoteId}/publish`
+              `projects/${normalizeProjectId(project_id)}/merge_requests/${merge_request_iid}/draft_notes/${draft_note_id}/publish`
             );
             // PUT publish returns 204 No Content (undefined) on success
             return result ?? { published: true };
           }
 
           case "publish_all": {
+            // TypeScript knows: input has project_id (required), merge_request_iid (required)
+            const { project_id, merge_request_iid } = input;
+
             const result = await gitlab.post<void>(
-              `projects/${normalizeProjectId(input.project_id)}/merge_requests/${input.merge_request_iid}/draft_notes/bulk_publish`
+              `projects/${normalizeProjectId(project_id)}/merge_requests/${merge_request_iid}/draft_notes/bulk_publish`
             );
             // POST bulk_publish returns 204 No Content (undefined) on success
             return result ?? { published: true };
           }
 
           case "delete": {
-            // draft_note_id is required for delete action (validated by .refine())
-            assertDefined(input.draft_note_id, "draft_note_id");
-            const draftNoteId = input.draft_note_id;
+            // TypeScript knows: input has draft_note_id (required)
+            const { project_id, merge_request_iid, draft_note_id } = input;
 
             await gitlab.delete<void>(
-              `projects/${normalizeProjectId(input.project_id)}/merge_requests/${input.merge_request_iid}/draft_notes/${draftNoteId}`
+              `projects/${normalizeProjectId(project_id)}/merge_requests/${merge_request_iid}/draft_notes/${draft_note_id}`
             );
             return { success: true, message: "Draft note deleted successfully" };
           }
 
-          /* istanbul ignore next -- unreachable with Zod validation */
+          /* istanbul ignore next -- unreachable with Zod discriminatedUnion */
           default:
             throw new Error(`Unknown action: ${(input as { action: string }).action}`);
         }

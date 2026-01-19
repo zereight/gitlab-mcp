@@ -96,7 +96,8 @@ describe("Wiki Schema - GitLab Integration", () => {
       const result = BrowseWikiSchema.safeParse(paginationParams);
       expect(result.success).toBe(true);
 
-      if (result.success) {
+      // Type narrowing: check action to access action-specific properties
+      if (result.success && result.data.action === "list") {
         expect(result.data.per_page).toBe(5);
         expect(result.data.page).toBe(1);
         expect(result.data.with_content).toBe(false);
@@ -156,7 +157,8 @@ describe("Wiki Schema - GitLab Integration", () => {
       const result = BrowseWikiSchema.safeParse(validParams);
       expect(result.success).toBe(true);
 
-      if (result.success) {
+      // Type narrowing: check action to access action-specific properties
+      if (result.success && result.data.action === "get") {
         expect(result.data.namespace).toBe(testProject.path_with_namespace);
         expect(result.data.slug).toBe(testPage.slug);
       }
@@ -247,7 +249,8 @@ describe("Wiki Schema - GitLab Integration", () => {
       const result = ManageWikiSchema.safeParse(params);
       expect(result.success).toBe(true);
 
-      if (result.success) {
+      // Type narrowing: check action to access action-specific properties
+      if (result.success && result.data.action === "create") {
         expect(result.data.action).toBe("create");
         expect(result.data.title).toBe("Test Wiki Page");
         expect(result.data.content).toBe("This is test content");
@@ -299,7 +302,8 @@ describe("Wiki Schema - GitLab Integration", () => {
       const result = ManageWikiSchema.safeParse(params);
       expect(result.success).toBe(true);
 
-      if (result.success) {
+      // Type narrowing: check action to access action-specific properties
+      if (result.success && result.data.action === "update") {
         expect(result.data.action).toBe("update");
         expect(result.data.slug).toBe("existing-page");
         expect(result.data.title).toBe("Updated Title");
@@ -334,7 +338,8 @@ describe("Wiki Schema - GitLab Integration", () => {
       const result = ManageWikiSchema.safeParse(params);
       expect(result.success).toBe(true);
 
-      if (result.success) {
+      // Type narrowing: check action to access action-specific properties
+      if (result.success && result.data.action === "delete") {
         expect(result.data.action).toBe("delete");
         expect(result.data.slug).toBe("page-to-delete");
       }
@@ -372,7 +377,8 @@ describe("Wiki Schema - GitLab Integration", () => {
         const result = ManageWikiSchema.safeParse(params);
         expect(result.success).toBe(true);
 
-        if (result.success) {
+        // Type narrowing: check action to access action-specific properties
+        if (result.success && result.data.action === "create") {
           expect(result.data.format).toBe(format);
         }
       }

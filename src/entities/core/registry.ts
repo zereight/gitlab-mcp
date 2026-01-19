@@ -26,15 +26,19 @@ import { normalizeProjectId } from "../../utils/projectIdentifier";
 import { smartUserSearch, type UserSearchParams } from "../../utils/smart-user-search";
 import { cleanGidsFromObject } from "../../utils/idConversion";
 import { ToolRegistry, EnhancedToolDefinition } from "../../types";
-import { assertDefined } from "../utils";
+import { isActionDenied } from "../../config";
 
 /**
  * Core tools registry - CQRS consolidated (Issue #16)
  * Reduced from 18 tools to 10 tools + 2 todos tools = 12 total
+ *
+ * All consolidated tools use discriminated union schema pattern.
+ * TypeScript automatically narrows types in each switch case.
  */
 export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefinition>([
   // ============================================================================
   // CONSOLIDATED TOOLS (5 tools replacing 13 old tools)
+  // Uses discriminated union schema pattern - TypeScript narrows types in switch
   // ============================================================================
 
   // browse_projects: Consolidates search_repositories, list_projects, get_project
@@ -46,12 +50,18 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
         "PROJECT DISCOVERY: Find, browse, or inspect GitLab projects. Use 'search' to find projects by name/topic across all GitLab. Use 'list' to browse your accessible projects or projects within a specific group. Use 'get' with project_id to retrieve full details of a known project. Filter by visibility, language, or ownership.",
       inputSchema: z.toJSONSchema(BrowseProjectsSchema),
       handler: async (args: unknown): Promise<unknown> => {
-        const options = BrowseProjectsSchema.parse(args);
+        const input = BrowseProjectsSchema.parse(args);
 
-        switch (options.action) {
+        // Runtime validation: reject denied actions even if they bypass schema filtering
+        if (isActionDenied("browse_projects", input.action)) {
+          throw new Error(`Action '${input.action}' is not allowed for browse_projects tool`);
+        }
+
+        switch (input.action) {
           case "search": {
+            // TypeScript knows: input has q, visibility, archived, order_by, sort, with_programming_language, per_page, page (optional)
             const { q, with_programming_language, visibility, order_by, sort, per_page, page } =
-              options;
+              input;
             const queryParams = new URLSearchParams();
 
             // Handle search query
@@ -96,6 +106,7 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
           }
 
           case "list": {
+            // TypeScript knows: input has group_id, search, owned, starred, membership, simple, include_subgroups, with_shared, visibility, archived, order_by, sort, with_programming_language, per_page, page (optional)
             const {
               group_id,
               search,
@@ -112,7 +123,7 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
               sort,
               per_page,
               page,
-            } = options;
+            } = input;
             const queryParams = new URLSearchParams();
 
             // Build query parameters
@@ -158,16 +169,14 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
           }
 
           case "get": {
-            // project_id is validated by .refine() for 'get' action
-            assertDefined(options.project_id, "project_id");
-            const projectId = options.project_id;
-            const { statistics, license } = options;
+            // TypeScript knows: input has project_id (required), statistics, license (optional)
+            const { project_id, statistics, license } = input;
 
             const queryParams = new URLSearchParams();
             if (statistics) queryParams.set("statistics", "true");
             if (license) queryParams.set("license", "true");
 
-            const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${normalizeProjectId(projectId)}?${queryParams}`;
+            const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${normalizeProjectId(project_id)}?${queryParams}`;
             const response = await enhancedFetch(apiUrl);
 
             if (!response.ok) {
@@ -178,8 +187,9 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
             return cleanGidsFromObject(project);
           }
 
+          /* istanbul ignore next -- unreachable with Zod discriminatedUnion */
           default:
-            throw new Error(`Unknown action: ${(options as { action: string }).action}`);
+            throw new Error(`Unknown action: ${(input as { action: string }).action}`);
         }
       },
     },
@@ -194,10 +204,16 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
         "NAMESPACE OPERATIONS: Explore GitLab groups and user namespaces. Use 'list' to discover available namespaces for project creation. Use 'get' with namespace_id to retrieve full details including storage stats. Use 'verify' to check if a namespace path exists before creating projects or groups.",
       inputSchema: z.toJSONSchema(BrowseNamespacesSchema),
       handler: async (args: unknown): Promise<unknown> => {
-        const options = BrowseNamespacesSchema.parse(args);
+        const input = BrowseNamespacesSchema.parse(args);
 
-        switch (options.action) {
+        // Runtime validation: reject denied actions even if they bypass schema filtering
+        if (isActionDenied("browse_namespaces", input.action)) {
+          throw new Error(`Action '${input.action}' is not allowed for browse_namespaces tool`);
+        }
+
+        switch (input.action) {
           case "list": {
+            // TypeScript knows: input has search, owned_only, top_level_only, with_statistics, min_access_level, per_page, page (optional)
             const {
               search,
               owned_only,
@@ -206,7 +222,7 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
               min_access_level,
               per_page,
               page,
-            } = options;
+            } = input;
             const queryParams = new URLSearchParams();
 
             if (search) queryParams.set("search", search);
@@ -232,11 +248,10 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
           }
 
           case "get": {
-            // namespace_id is validated by .refine() for 'get' action
-            assertDefined(options.namespace_id, "namespace_id");
-            const namespaceId = options.namespace_id;
+            // TypeScript knows: input has namespace_id (required)
+            const { namespace_id } = input;
 
-            const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/namespaces/${encodeURIComponent(namespaceId)}`;
+            const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/namespaces/${encodeURIComponent(namespace_id)}`;
             const response = await enhancedFetch(apiUrl);
 
             if (!response.ok) {
@@ -248,23 +263,23 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
           }
 
           case "verify": {
-            // namespace_id is validated by .refine() for 'verify' action
-            assertDefined(options.namespace_id, "namespace_id");
-            const namespaceId = options.namespace_id;
+            // TypeScript knows: input has namespace_id (required)
+            const { namespace_id } = input;
 
-            const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/namespaces/${encodeURIComponent(namespaceId)}`;
+            const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/namespaces/${encodeURIComponent(namespace_id)}`;
             const response = await enhancedFetch(apiUrl);
 
             return {
               exists: response.ok,
               status: response.status,
-              namespace: namespaceId,
+              namespace: namespace_id,
               data: response.ok ? await response.json() : null,
             };
           }
 
+          /* istanbul ignore next -- unreachable with Zod discriminatedUnion */
           default:
-            throw new Error(`Unknown action: ${(options as { action: string }).action}`);
+            throw new Error(`Unknown action: ${(input as { action: string }).action}`);
         }
       },
     },
@@ -279,10 +294,16 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
         "COMMIT HISTORY: Explore repository commit history. Use 'list' to browse commits with optional date range, author, or file path filters. Use 'get' with sha to retrieve commit metadata and stats. Use 'diff' to see actual code changes in a commit. Essential for code review and change tracking.",
       inputSchema: z.toJSONSchema(BrowseCommitsSchema),
       handler: async (args: unknown): Promise<unknown> => {
-        const options = BrowseCommitsSchema.parse(args);
+        const input = BrowseCommitsSchema.parse(args);
 
-        switch (options.action) {
+        // Runtime validation: reject denied actions even if they bypass schema filtering
+        if (isActionDenied("browse_commits", input.action)) {
+          throw new Error(`Action '${input.action}' is not allowed for browse_commits tool`);
+        }
+
+        switch (input.action) {
           case "list": {
+            // TypeScript knows: input has project_id (required), ref_name, since, until, path, author, all, with_stats, first_parent, order, trailers, per_page, page (optional)
             const {
               project_id,
               ref_name,
@@ -297,7 +318,7 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
               trailers,
               per_page,
               page,
-            } = options;
+            } = input;
             const queryParams = new URLSearchParams();
 
             if (ref_name) queryParams.set("ref_name", ref_name);
@@ -324,15 +345,13 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
           }
 
           case "get": {
-            // sha is validated by .refine() for 'get' action
-            assertDefined(options.sha, "sha");
-            const commitSha = options.sha;
-            const { project_id, stats } = options;
+            // TypeScript knows: input has project_id (required), sha (required), stats (optional)
+            const { project_id, sha, stats } = input;
 
             const queryParams = new URLSearchParams();
             if (stats) queryParams.set("stats", "true");
 
-            const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${encodeURIComponent(project_id)}/repository/commits/${encodeURIComponent(commitSha)}?${queryParams}`;
+            const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${encodeURIComponent(project_id)}/repository/commits/${encodeURIComponent(sha)}?${queryParams}`;
             const response = await enhancedFetch(apiUrl);
 
             if (!response.ok) {
@@ -343,15 +362,15 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
           }
 
           case "diff": {
-            // sha is validated by .refine() for 'diff' action
-            assertDefined(options.sha, "sha");
-            const commitSha = options.sha;
-            const { project_id, unidiff } = options;
+            // TypeScript knows: input has project_id (required), sha (required), unidiff, per_page, page (optional)
+            const { project_id, sha, unidiff, per_page, page } = input;
 
             const queryParams = new URLSearchParams();
             if (unidiff) queryParams.set("unidiff", "true");
+            if (per_page) queryParams.set("per_page", String(per_page));
+            if (page) queryParams.set("page", String(page));
 
-            const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${encodeURIComponent(project_id)}/repository/commits/${encodeURIComponent(commitSha)}/diff?${queryParams}`;
+            const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${encodeURIComponent(project_id)}/repository/commits/${encodeURIComponent(sha)}/diff?${queryParams}`;
             const response = await enhancedFetch(apiUrl);
 
             if (!response.ok) {
@@ -361,8 +380,9 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
             return await response.json();
           }
 
+          /* istanbul ignore next -- unreachable with Zod discriminatedUnion */
           default:
-            throw new Error(`Unknown action: ${(options as { action: string }).action}`);
+            throw new Error(`Unknown action: ${(input as { action: string }).action}`);
         }
       },
     },
@@ -377,7 +397,12 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
         "ACTIVITY FEED: Track GitLab activity and events. Use 'user' to see YOUR recent activity across all projects (commits, issues, MRs). Use 'project' with project_id to monitor a specific project's activity feed. Filter by date range or action type (pushed, commented, merged, etc.).",
       inputSchema: z.toJSONSchema(BrowseEventsSchema),
       handler: async (args: unknown): Promise<unknown> => {
-        const options = BrowseEventsSchema.parse(args);
+        const input = BrowseEventsSchema.parse(args);
+
+        // Runtime validation: reject denied actions even if they bypass schema filtering
+        if (isActionDenied("browse_events", input.action)) {
+          throw new Error(`Action '${input.action}' is not allowed for browse_events tool`);
+        }
 
         // Build common query params based on action type
         const buildQueryParams = (opts: {
@@ -400,9 +425,10 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
           return queryParams;
         };
 
-        switch (options.action) {
+        switch (input.action) {
           case "user": {
-            const queryParams = buildQueryParams(options);
+            // TypeScript knows: input has target_type, event_action, before, after, sort, per_page, page (optional)
+            const queryParams = buildQueryParams(input);
             const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/events?${queryParams}`;
             const response = await enhancedFetch(apiUrl);
 
@@ -414,11 +440,10 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
           }
 
           case "project": {
-            // project_id is validated by .refine() for 'project' action
-            assertDefined(options.project_id, "project_id");
-            const projectId = options.project_id;
-            const queryParams = buildQueryParams(options);
-            const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${encodeURIComponent(projectId)}/events?${queryParams}`;
+            // TypeScript knows: input has project_id (required), target_type, event_action, before, after, sort, per_page, page (optional)
+            const { project_id } = input;
+            const queryParams = buildQueryParams(input);
+            const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${encodeURIComponent(project_id)}/events?${queryParams}`;
             const response = await enhancedFetch(apiUrl);
 
             if (!response.ok) {
@@ -428,8 +453,9 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
             return await response.json();
           }
 
+          /* istanbul ignore next -- unreachable with Zod discriminatedUnion */
           default:
-            throw new Error(`Unknown action: ${(options as { action: string }).action}`);
+            throw new Error(`Unknown action: ${(input as { action: string }).action}`);
         }
       },
     },
@@ -444,14 +470,18 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
         "REPOSITORY MANAGEMENT: Create or fork GitLab projects. Use 'create' to start a new project with custom settings (visibility, features, namespace). Use 'fork' with project_id to create your own copy of an existing project for independent development or contribution back via MRs.",
       inputSchema: z.toJSONSchema(ManageRepositorySchema),
       handler: async (args: unknown): Promise<unknown> => {
-        const options = ManageRepositorySchema.parse(args);
+        const input = ManageRepositorySchema.parse(args);
 
-        switch (options.action) {
+        // Runtime validation: reject denied actions even if they bypass schema filtering
+        if (isActionDenied("manage_repository", input.action)) {
+          throw new Error(`Action '${input.action}' is not allowed for manage_repository tool`);
+        }
+
+        switch (input.action) {
           case "create": {
-            // name is validated by .refine() for 'create' action
-            assertDefined(options.name, "name");
-            const projectName = options.name;
+            // TypeScript knows: input has name (required), namespace, description, visibility, initialize_with_readme, issues_enabled, merge_requests_enabled, jobs_enabled, wiki_enabled, snippets_enabled, lfs_enabled, request_access_enabled, only_allow_merge_if_pipeline_succeeds, only_allow_merge_if_all_discussions_are_resolved (optional)
             const {
+              name,
               namespace,
               description,
               visibility,
@@ -465,7 +495,7 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
               request_access_enabled,
               only_allow_merge_if_pipeline_succeeds,
               only_allow_merge_if_all_discussions_are_resolved,
-            } = options;
+            } = input;
 
             // Resolve namespace path to ID if provided
             let namespaceId: string | undefined;
@@ -489,7 +519,7 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
             const targetNamespacePath = resolvedNamespace
               ? resolvedNamespace.full_path
               : "current-user";
-            const projectPath = `${targetNamespacePath}/${projectName}`;
+            const projectPath = `${targetNamespacePath}/${name}`;
             const checkProjectUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${encodeURIComponent(projectPath)}`;
             const checkResponse = await enhancedFetch(checkProjectUrl);
 
@@ -502,10 +532,10 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
 
             // Create project
             const body = new URLSearchParams();
-            body.set("name", projectName);
+            body.set("name", name);
 
             // Generate path from name
-            const generatedPath = projectName
+            const generatedPath = name
               .toLowerCase()
               .replace(/[^a-z0-9-]/g, "-")
               .replace(/-+/g, "-")
@@ -563,10 +593,8 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
           }
 
           case "fork": {
-            // project_id is validated by .refine() for 'fork' action
-            assertDefined(options.project_id, "project_id");
-            const sourceProjectId = options.project_id;
-            const { namespace, namespace_path, fork_name, fork_path } = options;
+            // TypeScript knows: input has project_id (required), namespace, namespace_path, fork_name, fork_path, issues_enabled, merge_requests_enabled, jobs_enabled, wiki_enabled, snippets_enabled, lfs_enabled, request_access_enabled, only_allow_merge_if_pipeline_succeeds, only_allow_merge_if_all_discussions_are_resolved (optional)
+            const { project_id, namespace, namespace_path, fork_name, fork_path } = input;
 
             const body = new URLSearchParams();
             if (namespace) body.set("namespace", namespace);
@@ -574,7 +602,7 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
             if (fork_name) body.set("name", fork_name);
             if (fork_path) body.set("path", fork_path);
 
-            const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${encodeURIComponent(sourceProjectId)}/fork`;
+            const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${encodeURIComponent(project_id)}/fork`;
             const response = await enhancedFetch(apiUrl, {
               method: "POST",
               headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -588,8 +616,9 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
             return await response.json();
           }
 
+          /* istanbul ignore next -- unreachable with Zod discriminatedUnion */
           default:
-            throw new Error(`Unknown action: ${(options as { action: string }).action}`);
+            throw new Error(`Unknown action: ${(input as { action: string }).action}`);
         }
       },
     },
@@ -808,7 +837,8 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
   ],
 
   // ============================================================================
-  // NEW TOOLS (Issue #4 - Todos Management)
+  // TODOS TOOLS (discriminated union schema)
+  // TypeScript automatically narrows types in each switch case
   // ============================================================================
 
   [
@@ -849,14 +879,17 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
         "TODO ACTIONS: Manage your GitLab todo items. Use 'mark_done' with id to complete a single todo (returns the updated todo object). Use 'mark_all_done' to clear your entire todo queue (returns success status). Use 'restore' with id to undo a completed todo (returns the restored todo object).",
       inputSchema: z.toJSONSchema(ManageTodosSchema),
       handler: async (args: unknown): Promise<unknown> => {
-        const options = ManageTodosSchema.parse(args);
+        const input = ManageTodosSchema.parse(args);
 
-        switch (options.action) {
+        // Runtime validation: reject denied actions even if they bypass schema filtering
+        if (isActionDenied("manage_todos", input.action)) {
+          throw new Error(`Action '${input.action}' is not allowed for manage_todos tool`);
+        }
+
+        switch (input.action) {
           case "mark_done": {
-            // id is validated by .refine() for 'mark_done' action
-            assertDefined(options.id, "id");
-            const todoId = options.id;
-            const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/todos/${todoId}/mark_as_done`;
+            // TypeScript knows: input has id (required)
+            const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/todos/${input.id}/mark_as_done`;
             const response = await enhancedFetch(apiUrl, { method: "POST" });
 
             if (!response.ok) {
@@ -868,6 +901,7 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
           }
 
           case "mark_all_done": {
+            // TypeScript knows: no additional fields needed
             const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/todos/mark_all_as_done`;
             const response = await enhancedFetch(apiUrl, { method: "POST" });
 
@@ -879,10 +913,8 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
           }
 
           case "restore": {
-            // id is validated by .refine() for 'restore' action
-            assertDefined(options.id, "id");
-            const todoId = options.id;
-            const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/todos/${todoId}/mark_as_pending`;
+            // TypeScript knows: input has id (required)
+            const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/todos/${input.id}/mark_as_pending`;
             const response = await enhancedFetch(apiUrl, { method: "POST" });
 
             if (!response.ok) {
@@ -893,8 +925,9 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
             return cleanGidsFromObject(todo);
           }
 
+          /* istanbul ignore next -- unreachable with Zod discriminatedUnion */
           default:
-            throw new Error(`Unknown action: ${(options as { action: string }).action}`);
+            throw new Error(`Unknown action: ${(input as { action: string }).action}`);
         }
       },
     },

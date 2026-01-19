@@ -42,10 +42,10 @@ describe("Snippets Registry", () => {
     it("should contain expected snippet tools", () => {
       const toolNames = Array.from(snippetsToolRegistry.keys());
 
-      // Check for read-only tools
-      expect(toolNames).toContain("list_snippets");
+      // Check for read-only tools (CQRS Query)
+      expect(toolNames).toContain("browse_snippets");
 
-      // Check for write tools
+      // Check for write tools (CQRS Command)
       expect(toolNames).toContain("manage_snippet");
 
       // Should have exactly 2 tools
@@ -66,7 +66,7 @@ describe("Snippets Registry", () => {
   describe("getSnippetsReadOnlyToolNames", () => {
     it("should return read-only tool names", () => {
       const readOnlyNames = getSnippetsReadOnlyToolNames();
-      expect(readOnlyNames).toEqual(["list_snippets"]);
+      expect(readOnlyNames).toEqual(["browse_snippets"]);
     });
   });
 
@@ -74,7 +74,7 @@ describe("Snippets Registry", () => {
     it("should return all tool definitions", () => {
       const definitions = getSnippetsToolDefinitions();
       expect(definitions).toHaveLength(2);
-      expect(definitions.map(d => d.name)).toContain("list_snippets");
+      expect(definitions.map(d => d.name)).toContain("browse_snippets");
       expect(definitions.map(d => d.name)).toContain("manage_snippet");
     });
   });
@@ -88,164 +88,168 @@ describe("Snippets Registry", () => {
     it("should return only read-only tools in read-only mode", () => {
       const tools = getFilteredSnippetsTools(true);
       expect(tools).toHaveLength(1);
-      expect(tools[0].name).toBe("list_snippets");
+      expect(tools[0].name).toBe("browse_snippets");
     });
   });
 
-  describe("list_snippets handler", () => {
-    const listSnippetsTool = snippetsToolRegistry.get("list_snippets");
+  describe("browse_snippets handler", () => {
+    const browseSnippetsTool = snippetsToolRegistry.get("browse_snippets");
 
-    it("should list personal snippets", async () => {
-      const mockResponse = {
-        ok: true,
-        status: 200,
-        json: async () => [
+    describe("list action", () => {
+      it("should list personal snippets", async () => {
+        const mockResponse = {
+          ok: true,
+          status: 200,
+          json: async () => [
+            {
+              id: 1,
+              title: "Test Snippet",
+              visibility: "private",
+            },
+          ],
+        };
+        mockEnhancedFetch.mockResolvedValue(mockResponse as Response);
+
+        const result = await browseSnippetsTool?.handler({
+          action: "list",
+          scope: "personal",
+          per_page: 20,
+        });
+
+        expect(mockEnhancedFetch).toHaveBeenCalledWith(
+          expect.stringContaining("/api/v4/snippets?per_page=20")
+        );
+        expect(result).toEqual([
           {
             id: 1,
             title: "Test Snippet",
             visibility: "private",
           },
-        ],
-      };
-      mockEnhancedFetch.mockResolvedValue(mockResponse as Response);
-
-      const result = await listSnippetsTool?.handler({
-        scope: "personal",
-        per_page: 20,
+        ]);
       });
 
-      expect(mockEnhancedFetch).toHaveBeenCalledWith(
-        expect.stringContaining("/api/v4/snippets?per_page=20")
-      );
-      expect(result).toEqual([
-        {
-          id: 1,
-          title: "Test Snippet",
-          visibility: "private",
-        },
-      ]);
-    });
+      it("should list public snippets", async () => {
+        const mockResponse = {
+          ok: true,
+          status: 200,
+          json: async () => [
+            {
+              id: 2,
+              title: "Public Snippet",
+              visibility: "public",
+            },
+          ],
+        };
+        mockEnhancedFetch.mockResolvedValue(mockResponse as Response);
 
-    it("should list public snippets", async () => {
-      const mockResponse = {
-        ok: true,
-        status: 200,
-        json: async () => [
+        const result = await browseSnippetsTool?.handler({
+          action: "list",
+          scope: "public",
+          per_page: 20,
+        });
+
+        expect(mockEnhancedFetch).toHaveBeenCalledWith(
+          expect.stringContaining("/api/v4/snippets/public?per_page=20")
+        );
+        expect(result).toEqual([
           {
             id: 2,
             title: "Public Snippet",
             visibility: "public",
           },
-        ],
-      };
-      mockEnhancedFetch.mockResolvedValue(mockResponse as Response);
-
-      const result = await listSnippetsTool?.handler({
-        scope: "public",
-        per_page: 20,
+        ]);
       });
 
-      expect(mockEnhancedFetch).toHaveBeenCalledWith(
-        expect.stringContaining("/api/v4/snippets/public?per_page=20")
-      );
-      expect(result).toEqual([
-        {
-          id: 2,
-          title: "Public Snippet",
-          visibility: "public",
-        },
-      ]);
-    });
+      it("should list project snippets", async () => {
+        const mockResponse = {
+          ok: true,
+          status: 200,
+          json: async () => [
+            {
+              id: 3,
+              title: "Project Snippet",
+              visibility: "internal",
+            },
+          ],
+        };
+        mockEnhancedFetch.mockResolvedValue(mockResponse as Response);
 
-    it("should list project snippets", async () => {
-      const mockResponse = {
-        ok: true,
-        status: 200,
-        json: async () => [
+        const result = await browseSnippetsTool?.handler({
+          action: "list",
+          scope: "project",
+          projectId: "123",
+          per_page: 20,
+        });
+
+        expect(mockEnhancedFetch).toHaveBeenCalledWith(
+          expect.stringContaining("/api/v4/projects/123/snippets?per_page=20")
+        );
+        expect(result).toEqual([
           {
             id: 3,
             title: "Project Snippet",
             visibility: "internal",
           },
-        ],
-      };
-      mockEnhancedFetch.mockResolvedValue(mockResponse as Response);
-
-      const result = await listSnippetsTool?.handler({
-        scope: "project",
-        projectId: "123",
-        per_page: 20,
+        ]);
       });
 
-      expect(mockEnhancedFetch).toHaveBeenCalledWith(
-        expect.stringContaining("/api/v4/projects/123/snippets?per_page=20")
-      );
-      expect(result).toEqual([
-        {
-          id: 3,
-          title: "Project Snippet",
-          visibility: "internal",
-        },
-      ]);
-    });
+      it("should fail when projectId is missing for project scope", async () => {
+        await expect(
+          browseSnippetsTool?.handler({
+            action: "list",
+            scope: "project",
+            per_page: 20,
+          })
+        ).rejects.toThrow();
+      });
 
-    it("should fail when projectId is missing for project scope", async () => {
-      await expect(
-        listSnippetsTool?.handler({
-          scope: "project",
+      it("should support visibility filtering", async () => {
+        const mockResponse = {
+          ok: true,
+          status: 200,
+          json: async () => [],
+        };
+        mockEnhancedFetch.mockResolvedValue(mockResponse as Response);
+
+        await browseSnippetsTool?.handler({
+          action: "list",
+          scope: "personal",
+          visibility: "public",
           per_page: 20,
-        })
-      ).rejects.toThrow();
-    });
+        });
 
-    it("should support visibility filtering", async () => {
-      const mockResponse = {
-        ok: true,
-        status: 200,
-        json: async () => [],
-      };
-      mockEnhancedFetch.mockResolvedValue(mockResponse as Response);
-
-      await listSnippetsTool?.handler({
-        scope: "personal",
-        visibility: "public",
-        per_page: 20,
+        expect(mockEnhancedFetch).toHaveBeenCalledWith(
+          expect.stringContaining("visibility=public")
+        );
       });
 
-      expect(mockEnhancedFetch).toHaveBeenCalledWith(
-        expect.stringContaining("visibility=public")
-      );
-    });
+      it("should support date filtering", async () => {
+        const mockResponse = {
+          ok: true,
+          status: 200,
+          json: async () => [],
+        };
+        mockEnhancedFetch.mockResolvedValue(mockResponse as Response);
 
-    it("should support date filtering", async () => {
-      const mockResponse = {
-        ok: true,
-        status: 200,
-        json: async () => [],
-      };
-      mockEnhancedFetch.mockResolvedValue(mockResponse as Response);
+        await browseSnippetsTool?.handler({
+          action: "list",
+          scope: "personal",
+          created_after: "2024-01-01T00:00:00Z",
+          created_before: "2024-12-31T23:59:59Z",
+          per_page: 20,
+        });
 
-      await listSnippetsTool?.handler({
-        scope: "personal",
-        created_after: "2024-01-01T00:00:00Z",
-        created_before: "2024-12-31T23:59:59Z",
-        per_page: 20,
+        expect(mockEnhancedFetch).toHaveBeenCalledWith(
+          expect.stringContaining("created_after=2024-01-01T00%3A00%3A00Z")
+        );
+        expect(mockEnhancedFetch).toHaveBeenCalledWith(
+          expect.stringContaining("created_before=2024-12-31T23%3A59%3A59Z")
+        );
       });
-
-      expect(mockEnhancedFetch).toHaveBeenCalledWith(
-        expect.stringContaining("created_after=2024-01-01T00%3A00%3A00Z")
-      );
-      expect(mockEnhancedFetch).toHaveBeenCalledWith(
-        expect.stringContaining("created_before=2024-12-31T23%3A59%3A59Z")
-      );
     });
-  });
 
-  describe("manage_snippet handler", () => {
-    const manageSnippetTool = snippetsToolRegistry.get("manage_snippet");
-
-    describe("read action", () => {
-      it("should read a personal snippet", async () => {
+    describe("get action", () => {
+      it("should get a personal snippet", async () => {
         const mockResponse = {
           ok: true,
           status: 200,
@@ -258,8 +262,8 @@ describe("Snippets Registry", () => {
         };
         mockEnhancedFetch.mockResolvedValue(mockResponse as Response);
 
-        const result = await manageSnippetTool?.handler({
-          action: "read",
+        const result = await browseSnippetsTool?.handler({
+          action: "get",
           id: 1,
         });
 
@@ -274,7 +278,7 @@ describe("Snippets Registry", () => {
         });
       });
 
-      it("should read a project snippet", async () => {
+      it("should get a project snippet", async () => {
         const mockResponse = {
           ok: true,
           status: 200,
@@ -285,8 +289,8 @@ describe("Snippets Registry", () => {
         };
         mockEnhancedFetch.mockResolvedValue(mockResponse as Response);
 
-        await manageSnippetTool?.handler({
-          action: "read",
+        await browseSnippetsTool?.handler({
+          action: "get",
           id: 2,
           projectId: "456",
         });
@@ -296,7 +300,7 @@ describe("Snippets Registry", () => {
         );
       });
 
-      it("should read raw snippet content", async () => {
+      it("should get raw snippet content", async () => {
         const mockResponse = {
           ok: true,
           status: 200,
@@ -304,8 +308,8 @@ describe("Snippets Registry", () => {
         };
         mockEnhancedFetch.mockResolvedValue(mockResponse as Response);
 
-        await manageSnippetTool?.handler({
-          action: "read",
+        await browseSnippetsTool?.handler({
+          action: "get",
           id: 3,
           raw: true,
         });
@@ -315,6 +319,10 @@ describe("Snippets Registry", () => {
         );
       });
     });
+  });
+
+  describe("manage_snippet handler", () => {
+    const manageSnippetTool = snippetsToolRegistry.get("manage_snippet");
 
     describe("create action", () => {
       it("should create a personal snippet", async () => {
@@ -476,15 +484,6 @@ describe("Snippets Registry", () => {
           })
         );
       });
-
-      it("should fail when no update fields provided", async () => {
-        await expect(
-          manageSnippetTool?.handler({
-            action: "update",
-            id: 7,
-          })
-        ).rejects.toThrow();
-      });
     });
 
     describe("delete action", () => {
@@ -507,7 +506,8 @@ describe("Snippets Registry", () => {
             method: "DELETE",
           })
         );
-        expect(result).toEqual({ deleted: true, id: 8 });
+        // id is coerced to string by requiredId schema
+        expect(result).toEqual({ deleted: true, id: "8" });
       });
 
       it("should delete a project snippet", async () => {

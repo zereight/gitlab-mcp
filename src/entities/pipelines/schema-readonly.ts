@@ -215,95 +215,107 @@ const TriggerJobScopeSchema = z
   .describe("Scope of trigger jobs to show");
 
 // ============================================================================
-// browse_pipelines - CQRS Query Tool (flat schema for Claude API compatibility)
+// browse_pipelines - CQRS Query Tool (discriminated union schema)
 // Actions: list, get, jobs, triggers, job, logs
-// NOTE: Uses flat z.object() with .refine() instead of z.discriminatedUnion()
-// because Claude API doesn't support oneOf/allOf/anyOf at JSON Schema root level.
+// Uses z.discriminatedUnion() for type-safe action handling.
+// Schema pipeline flattens to flat JSON Schema for AI clients that don't support oneOf.
 // ============================================================================
 
-export const BrowsePipelinesSchema = z
-  .object({
-    action: z
-      .enum(["list", "get", "jobs", "triggers", "job", "logs"])
-      .describe("Action to perform"),
-    project_id: requiredId.describe("Project ID or URL-encoded path"),
-    // list action fields
-    scope: PipelineScopeSchema.optional().describe("For 'list': pipeline scope filter"),
-    status: PipelineStatusSchema.optional().describe("For 'list': pipeline status filter"),
-    source: PipelineSourceSchema.optional().describe("For 'list': pipeline source filter"),
-    ref: z.string().optional().describe("For 'list': the ref to filter by"),
-    sha: z.string().optional().describe("For 'list': the SHA to filter by"),
-    yaml_errors: z.boolean().optional().describe("For 'list': filter by YAML errors"),
-    name: z
-      .string()
-      .optional()
-      .describe("For 'list': the name of the user who triggered the pipeline"),
-    username: z.string().optional().describe("For 'list': the username who triggered the pipeline"),
-    updated_after: z
-      .string()
-      .optional()
-      .describe("For 'list': ISO 8601 datetime to filter by updated_after"),
-    updated_before: z
-      .string()
-      .optional()
-      .describe("For 'list': ISO 8601 datetime to filter by updated_before"),
-    order_by: z
-      .enum(["id", "status", "ref", "updated_at", "user_id"])
-      .optional()
-      .describe("For 'list': order pipelines by"),
-    sort: z.enum(["asc", "desc"]).optional().describe("For 'list': sort order"),
-    // get/jobs/triggers action fields
-    pipeline_id: requiredId
-      .optional()
-      .describe("The ID of the pipeline. Required for 'get', 'jobs', 'triggers' actions."),
-    // jobs action fields
-    job_scope: z.array(JobScopeSchema).optional().describe("For 'jobs': scope of jobs to show"),
-    // triggers action fields
-    trigger_scope: z
-      .array(TriggerJobScopeSchema)
-      .optional()
-      .describe("For 'triggers': scope of trigger jobs to show"),
-    // jobs/triggers shared fields
-    include_retried: z
-      .boolean()
-      .optional()
-      .describe("For 'jobs'/'triggers': include retried jobs in the response"),
-    // job/logs action fields
-    job_id: requiredId
-      .optional()
-      .describe("The ID of the job. Required for 'job' and 'logs' actions."),
-    // logs action fields
-    limit: z
-      .number()
-      .optional()
-      .describe(
-        "For 'logs': maximum number of lines to return. When combined with start, acts as line count from that position"
-      ),
-    max_lines: z
-      .number()
-      .optional()
-      .describe("For 'logs': maximum number of lines to return (alternative to limit)"),
-    start: z
-      .number()
-      .optional()
-      .describe(
-        "For 'logs': start from specific line number (0-based). Positive values start from beginning, negative values start from end (e.g., -100 = last 100 lines)"
-      ),
-    // pagination fields (for list, jobs, triggers)
-    per_page: z.number().optional().describe("Number of items per page"),
-    page: z.number().optional().describe("Page number"),
-  })
-  .refine(
-    data => !["get", "jobs", "triggers"].includes(data.action) || data.pipeline_id !== undefined,
-    {
-      message: "pipeline_id is required for 'get', 'jobs', and 'triggers' actions",
-      path: ["pipeline_id"],
-    }
-  )
-  .refine(data => !["job", "logs"].includes(data.action) || data.job_id !== undefined, {
-    message: "job_id is required for 'job' and 'logs' actions",
-    path: ["job_id"],
-  });
+// --- Shared fields ---
+const projectIdField = requiredId.describe("Project ID or URL-encoded path");
+
+// --- Action: list ---
+const ListPipelinesSchema = z.object({
+  action: z.literal("list").describe("List pipelines with filtering"),
+  project_id: projectIdField,
+  scope: PipelineScopeSchema.optional().describe("Pipeline scope filter"),
+  status: PipelineStatusSchema.optional().describe("Pipeline status filter"),
+  source: PipelineSourceSchema.optional().describe("Pipeline source filter"),
+  ref: z.string().optional().describe("Filter by branch or tag ref"),
+  sha: z.string().optional().describe("Filter by SHA"),
+  yaml_errors: z.boolean().optional().describe("Filter by YAML errors"),
+  name: z.string().optional().describe("Filter by name of user who triggered pipeline"),
+  username: z.string().optional().describe("Filter by username who triggered pipeline"),
+  updated_after: z.string().optional().describe("ISO 8601 datetime to filter by updated_after"),
+  updated_before: z.string().optional().describe("ISO 8601 datetime to filter by updated_before"),
+  order_by: z
+    .enum(["id", "status", "ref", "updated_at", "user_id"])
+    .optional()
+    .describe("Order pipelines by"),
+  sort: z.enum(["asc", "desc"]).optional().describe("Sort order"),
+  per_page: z.number().optional().describe("Number of items per page"),
+  page: z.number().optional().describe("Page number"),
+});
+
+// --- Action: get ---
+const GetPipelineSchema = z.object({
+  action: z.literal("get").describe("Get single pipeline details"),
+  project_id: projectIdField,
+  pipeline_id: requiredId.describe("The ID of the pipeline"),
+});
+
+// --- Action: jobs ---
+const ListPipelineJobsSchema = z.object({
+  action: z.literal("jobs").describe("List jobs in a pipeline"),
+  project_id: projectIdField,
+  pipeline_id: requiredId.describe("The ID of the pipeline"),
+  job_scope: z.array(JobScopeSchema).optional().describe("Scope of jobs to show"),
+  include_retried: z.boolean().optional().describe("Include retried jobs in the response"),
+  per_page: z.number().optional().describe("Number of items per page"),
+  page: z.number().optional().describe("Page number"),
+});
+
+// --- Action: triggers ---
+const ListPipelineTriggersSchema = z.object({
+  action: z.literal("triggers").describe("List bridge/trigger jobs in a pipeline"),
+  project_id: projectIdField,
+  pipeline_id: requiredId.describe("The ID of the pipeline"),
+  trigger_scope: z
+    .array(TriggerJobScopeSchema)
+    .optional()
+    .describe("Scope of trigger jobs to show"),
+  include_retried: z.boolean().optional().describe("Include retried jobs in the response"),
+  per_page: z.number().optional().describe("Number of items per page"),
+  page: z.number().optional().describe("Page number"),
+});
+
+// --- Action: job ---
+const GetJobSchema = z.object({
+  action: z.literal("job").describe("Get single job details"),
+  project_id: projectIdField,
+  job_id: requiredId.describe("The ID of the job"),
+});
+
+// --- Action: logs ---
+const GetJobLogsSchema = z.object({
+  action: z.literal("logs").describe("Get job console output/logs"),
+  project_id: projectIdField,
+  job_id: requiredId.describe("The ID of the job"),
+  limit: z
+    .number()
+    .optional()
+    .describe("Maximum number of lines to return. Combined with start, acts as line count"),
+  max_lines: z
+    .number()
+    .optional()
+    .describe("Maximum number of lines to return (alternative to limit)"),
+  start: z
+    .number()
+    .optional()
+    .describe(
+      "Start from specific line number (0-based). Positive from beginning, negative from end (e.g., -100 = last 100 lines)"
+    ),
+});
+
+// --- Discriminated union combining all actions ---
+export const BrowsePipelinesSchema = z.discriminatedUnion("action", [
+  ListPipelinesSchema,
+  GetPipelineSchema,
+  ListPipelineJobsSchema,
+  ListPipelineTriggersSchema,
+  GetJobSchema,
+  GetJobLogsSchema,
+]);
 
 // ============================================================================
 // Type exports

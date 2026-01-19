@@ -51,7 +51,18 @@ jest.mock("../../src/entities/labels/registry", () => ({
 }));
 
 // Mock empty registries
-["mrs", "files", "milestones", "pipelines", "variables", "wiki", "workitems"].forEach(entity => {
+[
+  "mrs",
+  "files",
+  "milestones",
+  "pipelines",
+  "variables",
+  "wiki",
+  "workitems",
+  "snippets",
+  "webhooks",
+  "integrations",
+].forEach(entity => {
   jest.mock(`../../src/entities/${entity}/registry`, () => ({
     [`${entity}ToolRegistry`]: new Map(),
     [`get${entity.charAt(0).toUpperCase() + entity.slice(1)}ReadOnlyToolNames`]: () => [],
@@ -78,6 +89,9 @@ jest.mock("../../src/config", () => ({
       ? new RegExp(process.env.GITLAB_DENIED_TOOLS_REGEX)
       : null;
   },
+  get GITLAB_DENIED_ACTIONS() {
+    return new Map();
+  },
   get USE_GITLAB_WIKI() {
     return process.env.USE_GITLAB_WIKI !== "false";
   },
@@ -102,7 +116,18 @@ jest.mock("../../src/config", () => ({
   get USE_VARIABLES() {
     return process.env.USE_VARIABLES !== "false";
   },
+  get USE_SNIPPETS() {
+    return process.env.USE_SNIPPETS !== "false";
+  },
+  get USE_WEBHOOKS() {
+    return process.env.USE_WEBHOOKS !== "false";
+  },
+  get USE_INTEGRATIONS() {
+    return process.env.USE_INTEGRATIONS !== "false";
+  },
   getToolDescriptionOverrides: jest.fn(() => new Map()),
+  getActionDescriptionOverrides: jest.fn(() => new Map()),
+  getParamDescriptionOverrides: jest.fn(() => new Map()),
 }));
 
 describe("RegistryManager", () => {
@@ -453,12 +478,15 @@ describe("RegistryManager", () => {
       process.env.USE_VARIABLES = "false";
       process.env.USE_GITLAB_WIKI = "false";
       process.env.USE_WORKITEMS = "false";
+      process.env.USE_SNIPPETS = "false";
+      process.env.USE_WEBHOOKS = "false";
+      process.env.USE_INTEGRATIONS = "false";
       process.env.GITLAB_READ_ONLY_MODE = "true";
 
       registryManager = RegistryManager.getInstance();
       const tools = registryManager.getAllToolDefinitionsTierless();
 
-      // Should only have core readonly tools
+      // Should only have core readonly tools (all other features disabled)
       expect(tools.length).toBeGreaterThan(0);
       expect(tools.every(t => t.name.includes("readonly") || t.name.includes("core"))).toBe(true);
     });

@@ -6,10 +6,10 @@ import {
 } from "./schema-readonly";
 
 // ============================================================================
-// manage_work_item - CQRS Command Tool (flat schema for Claude API compatibility)
+// manage_work_item - CQRS Command Tool (discriminated union schema)
 // Actions: create, update, delete
-// NOTE: Uses flat z.object() with .refine() instead of z.discriminatedUnion()
-// because Claude API doesn't support oneOf/allOf/anyOf at JSON Schema root level.
+// Uses z.discriminatedUnion() for type-safe action handling.
+// Schema pipeline flattens to flat JSON Schema for AI clients that don't support oneOf.
 // ============================================================================
 
 /**
@@ -39,50 +39,51 @@ import {
  * Issue: namespace="my-group" (WRONG - will fail)
  */
 
-export const ManageWorkItemSchema = z
-  .object({
-    action: z.enum(["create", "update", "delete"]).describe("Action to perform"),
-    // create action fields
-    namespace: z
-      .string()
-      .optional()
-      .describe(
-        'CRITICAL: Namespace path (group OR project). For Epics use GROUP path (e.g. "my-group"). For Issues/Tasks use PROJECT path (e.g. "my-group/my-project"). Required for "create" action.'
-      ),
-    workItemType: WorkItemTypeEnumSchema.optional().describe(
-      "Type of work item. Required for 'create' action."
+// --- Shared fields ---
+const workItemIdField = WorkItemIdSchema.describe("Work item ID");
+
+// --- Action: create ---
+const CreateWorkItemSchema = z.object({
+  action: z.literal("create").describe("Create a new work item"),
+  namespace: z
+    .string()
+    .describe(
+      'CRITICAL: Namespace path (group OR project). For Epics use GROUP path (e.g. "my-group"). For Issues/Tasks use PROJECT path (e.g. "my-group/my-project").'
     ),
-    // shared create/update fields
-    title: z.string().optional().describe("Title of the work item. Required for 'create' action."),
-    description: z.string().optional().describe("Description of the work item"),
-    assigneeIds: z.array(z.string()).optional().describe("Array of assignee user IDs"),
-    labelIds: z.array(z.string()).optional().describe("Array of label IDs"),
-    milestoneId: z.string().optional().describe("Milestone ID"),
-    // update action fields
-    state: WorkItemStateEventSchema.optional().describe(
-      "State event for the work item (CLOSE, REOPEN). Only for 'update' action."
-    ),
-    // update/delete action fields
-    id: WorkItemIdSchema.optional().describe(
-      "Work item ID. Required for 'update' and 'delete' actions."
-    ),
-  })
-  .refine(data => data.action !== "create" || data.namespace !== undefined, {
-    message: "namespace is required for 'create' action",
-    path: ["namespace"],
-  })
-  .refine(data => data.action !== "create" || data.title !== undefined, {
-    message: "title is required for 'create' action",
-    path: ["title"],
-  })
-  .refine(data => data.action !== "create" || data.workItemType !== undefined, {
-    message: "workItemType is required for 'create' action",
-    path: ["workItemType"],
-  })
-  .refine(data => data.action === "create" || data.id !== undefined, {
-    message: "id is required for 'update' and 'delete' actions",
-    path: ["id"],
-  });
+  workItemType: WorkItemTypeEnumSchema.describe("Type of work item"),
+  title: z.string().describe("Title of the work item"),
+  description: z.string().optional().describe("Description of the work item"),
+  assigneeIds: z.array(z.string()).optional().describe("Array of assignee user IDs"),
+  labelIds: z.array(z.string()).optional().describe("Array of label IDs"),
+  milestoneId: z.string().optional().describe("Milestone ID"),
+});
+
+// --- Action: update ---
+const UpdateWorkItemSchema = z.object({
+  action: z.literal("update").describe("Update an existing work item"),
+  id: workItemIdField,
+  title: z.string().optional().describe("Title of the work item"),
+  description: z.string().optional().describe("Description of the work item"),
+  assigneeIds: z.array(z.string()).optional().describe("Array of assignee user IDs"),
+  labelIds: z.array(z.string()).optional().describe("Array of label IDs"),
+  milestoneId: z.string().optional().describe("Milestone ID"),
+  state: WorkItemStateEventSchema.optional().describe(
+    "State event for the work item (CLOSE, REOPEN)"
+  ),
+});
+
+// --- Action: delete ---
+const DeleteWorkItemSchema = z.object({
+  action: z.literal("delete").describe("Delete a work item"),
+  id: workItemIdField,
+});
+
+// --- Discriminated union combining all actions ---
+export const ManageWorkItemSchema = z.discriminatedUnion("action", [
+  CreateWorkItemSchema,
+  UpdateWorkItemSchema,
+  DeleteWorkItemSchema,
+]);
 
 // ============================================================================
 // Type exports

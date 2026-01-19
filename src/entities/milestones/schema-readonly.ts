@@ -22,68 +22,88 @@ export const GitLabMilestonesSchema = z.object({
 });
 
 // ============================================================================
-// browse_milestones - CQRS Query Tool (flat schema for Claude API compatibility)
+// browse_milestones - CQRS Query Tool (discriminated union schema)
 // Actions: list, get, issues, merge_requests, burndown
-// NOTE: Uses flat z.object() with .refine() instead of z.discriminatedUnion()
-// because Claude API doesn't support oneOf/allOf/anyOf at JSON Schema root level.
+// Uses z.discriminatedUnion() for type-safe action handling.
+// Schema pipeline flattens to flat JSON Schema for AI clients that don't support oneOf.
 // ============================================================================
 
-export const BrowseMilestonesSchema = z
-  .object({
-    action: z
-      .enum(["list", "get", "issues", "merge_requests", "burndown"])
-      .describe("Action to perform"),
-    namespace: z.string().describe("Namespace path (group or project)"),
-    // get/issues/merge_requests/burndown action fields
-    milestone_id: requiredId
-      .optional()
-      .describe(
-        "The ID of a project or group milestone. Required for 'get', 'issues', 'merge_requests', 'burndown' actions."
-      ),
-    // list action fields
-    iids: z
-      .array(z.string())
-      .optional()
-      .describe("For 'list': return only the milestones having the given iid"),
-    state: z
-      .enum(["active", "closed"])
-      .optional()
-      .describe("For 'list': return only active or closed milestones"),
-    title: z
-      .string()
-      .optional()
-      .describe("For 'list': return only milestones with a title matching the provided string"),
-    search: z
-      .string()
-      .optional()
-      .describe(
-        "For 'list': return only milestones with a title or description matching the provided string"
-      ),
-    include_ancestors: flexibleBoolean.optional().describe("For 'list': include ancestor groups"),
-    updated_before: z
-      .string()
-      .optional()
-      .describe(
-        "For 'list': return milestones updated before the specified date (ISO 8601 format)"
-      ),
-    updated_after: z
-      .string()
-      .optional()
-      .describe("For 'list': return milestones updated after the specified date (ISO 8601 format)"),
-    // pagination fields (for list, merge_requests, burndown)
-    per_page: z.number().optional().describe("Number of items per page"),
-    page: z.number().optional().describe("Page number"),
-  })
-  .refine(
-    data =>
-      !["get", "issues", "merge_requests", "burndown"].includes(data.action) ||
-      data.milestone_id !== undefined,
-    {
-      message:
-        "milestone_id is required for 'get', 'issues', 'merge_requests', and 'burndown' actions",
-      path: ["milestone_id"],
-    }
-  );
+// --- Shared fields ---
+const namespaceField = z.string().describe("Namespace path (group or project)");
+const milestoneIdField = requiredId.describe("The ID of a project or group milestone");
+const paginationFields = {
+  per_page: z.number().optional().describe("Number of items per page"),
+  page: z.number().optional().describe("Page number"),
+};
+
+// --- Action: list ---
+const ListMilestonesSchema = z.object({
+  action: z.literal("list").describe("List milestones with optional filtering"),
+  namespace: namespaceField,
+  iids: z.array(z.string()).optional().describe("Return only the milestones having the given iid"),
+  state: z
+    .enum(["active", "closed"])
+    .optional()
+    .describe("Return only active or closed milestones"),
+  title: z
+    .string()
+    .optional()
+    .describe("Return only milestones with a title matching the provided string"),
+  search: z
+    .string()
+    .optional()
+    .describe("Return only milestones with a title or description matching the provided string"),
+  include_ancestors: flexibleBoolean.optional().describe("Include ancestor groups"),
+  updated_before: z
+    .string()
+    .optional()
+    .describe("Return milestones updated before the specified date (ISO 8601 format)"),
+  updated_after: z
+    .string()
+    .optional()
+    .describe("Return milestones updated after the specified date (ISO 8601 format)"),
+  ...paginationFields,
+});
+
+// --- Action: get ---
+const GetMilestoneSchema = z.object({
+  action: z.literal("get").describe("Get a single milestone by ID"),
+  namespace: namespaceField,
+  milestone_id: milestoneIdField,
+});
+
+// --- Action: issues ---
+const MilestoneIssuesSchema = z.object({
+  action: z.literal("issues").describe("List issues assigned to a milestone"),
+  namespace: namespaceField,
+  milestone_id: milestoneIdField,
+  ...paginationFields,
+});
+
+// --- Action: merge_requests ---
+const MilestoneMergeRequestsSchema = z.object({
+  action: z.literal("merge_requests").describe("List merge requests assigned to a milestone"),
+  namespace: namespaceField,
+  milestone_id: milestoneIdField,
+  ...paginationFields,
+});
+
+// --- Action: burndown ---
+const MilestoneBurndownSchema = z.object({
+  action: z.literal("burndown").describe("Get burndown chart data for a milestone"),
+  namespace: namespaceField,
+  milestone_id: milestoneIdField,
+  ...paginationFields,
+});
+
+// --- Discriminated union combining all actions ---
+export const BrowseMilestonesSchema = z.discriminatedUnion("action", [
+  ListMilestonesSchema,
+  GetMilestoneSchema,
+  MilestoneIssuesSchema,
+  MilestoneMergeRequestsSchema,
+  MilestoneBurndownSchema,
+]);
 
 // ============================================================================
 // Type exports

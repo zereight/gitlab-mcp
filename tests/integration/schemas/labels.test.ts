@@ -134,7 +134,8 @@ describe("Labels Schema - GitLab Integration", () => {
       const result = BrowseLabelsSchema.safeParse(searchParams);
       expect(result.success).toBe(true);
 
-      if (result.success) {
+      // Type narrowing: check action to access action-specific properties
+      if (result.success && result.data.action === "list") {
         expect(result.data.search).toBe("bug");
         expect(result.data.with_counts).toBe(true);
         expect(result.data.namespace).toBe(testProject.path_with_namespace);
@@ -193,7 +194,8 @@ describe("Labels Schema - GitLab Integration", () => {
       const result = BrowseLabelsSchema.safeParse(validParams);
       expect(result.success).toBe(true);
 
-      if (result.success) {
+      // Type narrowing: check action to access action-specific properties
+      if (result.success && result.data.action === "get") {
         expect(result.data.namespace).toBe(testProject.path_with_namespace);
         expect(result.data.label_id).toBe(testLabel.id.toString());
       }
@@ -283,8 +285,8 @@ describe("Labels Schema - GitLab Integration", () => {
       const result = ManageLabelSchema.safeParse(params);
       expect(result.success).toBe(true);
 
-      if (result.success) {
-        expect(result.data.action).toBe("create");
+      // Type narrowing: check action to access action-specific properties
+      if (result.success && result.data.action === "create") {
         expect(result.data.name).toBe("test-label");
         expect(result.data.color).toBe("#ff0000");
         expect(result.data.description).toBe("A test label");
@@ -335,8 +337,8 @@ describe("Labels Schema - GitLab Integration", () => {
       const result = ManageLabelSchema.safeParse(params);
       expect(result.success).toBe(true);
 
-      if (result.success) {
-        expect(result.data.action).toBe("update");
+      // Type narrowing: check action to access action-specific properties
+      if (result.success && result.data.action === "update") {
         expect(result.data.label_id).toBe("1");
         expect(result.data.new_name).toBe("updated-label");
         expect(result.data.color).toBe("#00ff00");
@@ -371,8 +373,8 @@ describe("Labels Schema - GitLab Integration", () => {
       const result = ManageLabelSchema.safeParse(params);
       expect(result.success).toBe(true);
 
-      if (result.success) {
-        expect(result.data.action).toBe("delete");
+      // Type narrowing: check action to access action-specific properties
+      if (result.success && result.data.action === "delete") {
         expect(result.data.label_id).toBe("1");
       }
 
@@ -406,7 +408,8 @@ describe("Labels Schema - GitLab Integration", () => {
       const result = ManageLabelSchema.safeParse(params);
       expect(result.success).toBe(true);
 
-      if (result.success) {
+      // Type narrowing: check action to access action-specific properties
+      if (result.success && result.data.action === "create") {
         expect(result.data.priority).toBe(5);
       }
 

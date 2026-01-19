@@ -6,7 +6,7 @@ import { normalizeProjectId } from "../../utils/projectIdentifier";
 import { enhancedFetch } from "../../utils/fetch";
 import { logger } from "../../logger";
 import { ToolRegistry, EnhancedToolDefinition } from "../../types";
-import { assertDefined } from "../utils";
+import { isActionDenied } from "../../config";
 
 /**
  * Pipelines tools registry - 3 CQRS tools replacing 12 individual tools
@@ -17,7 +17,8 @@ import { assertDefined } from "../utils";
  */
 export const pipelinesToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefinition>([
   // ============================================================================
-  // browse_pipelines - CQRS Query Tool
+  // browse_pipelines - CQRS Query Tool (discriminated union schema)
+  // TypeScript automatically narrows types in each switch case
   // ============================================================================
   [
     "browse_pipelines",
@@ -29,8 +30,14 @@ export const pipelinesToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
       handler: async (args: unknown): Promise<unknown> => {
         const input = BrowsePipelinesSchema.parse(args);
 
+        // Runtime validation: reject denied actions even if they bypass schema filtering
+        if (isActionDenied("browse_pipelines", input.action)) {
+          throw new Error(`Action '${input.action}' is not allowed for browse_pipelines tool`);
+        }
+
         switch (input.action) {
           case "list": {
+            // TypeScript knows: input has scope, status, source, ref, sha, etc. (optional)
             const { project_id, action: _action, ...queryOptions } = input;
             return gitlab.get(`projects/${normalizeProjectId(project_id)}/pipelines`, {
               query: toQuery(queryOptions, []),
@@ -38,6 +45,7 @@ export const pipelinesToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
           }
 
           case "get": {
+            // TypeScript knows: input has pipeline_id (required)
             const { project_id, pipeline_id } = input;
             return gitlab.get(
               `projects/${normalizeProjectId(project_id)}/pipelines/${pipeline_id}`
@@ -45,6 +53,7 @@ export const pipelinesToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
           }
 
           case "jobs": {
+            // TypeScript knows: input has pipeline_id (required), job_scope, include_retried, etc. (optional)
             const { project_id, pipeline_id, job_scope, include_retried, per_page, page } = input;
             // Map job_scope to scope for GitLab API
             const queryOptions: Record<string, unknown> = {};
@@ -59,6 +68,7 @@ export const pipelinesToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
           }
 
           case "triggers": {
+            // TypeScript knows: input has pipeline_id (required), trigger_scope, include_retried, etc. (optional)
             const { project_id, pipeline_id, trigger_scope, include_retried, per_page, page } =
               input;
             // Map trigger_scope to scope for GitLab API
@@ -74,11 +84,13 @@ export const pipelinesToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
           }
 
           case "job": {
+            // TypeScript knows: input has job_id (required)
             const { project_id, job_id } = input;
             return gitlab.get(`projects/${normalizeProjectId(project_id)}/jobs/${job_id}`);
           }
 
           case "logs": {
+            // TypeScript knows: input has job_id (required), limit, max_lines, start (optional)
             const { project_id, job_id, limit, max_lines, start } = input;
 
             // Custom handling - trace endpoint returns text, needs line processing
@@ -143,7 +155,7 @@ export const pipelinesToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
             return { trace, totalLines, shownLines: actualDataLines };
           }
 
-          /* istanbul ignore next -- unreachable with Zod validation */
+          /* istanbul ignore next -- unreachable with Zod discriminatedUnion */
           default:
             throw new Error(`Unknown action: ${(input as { action: string }).action}`);
         }
@@ -152,7 +164,8 @@ export const pipelinesToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
   ],
 
   // ============================================================================
-  // manage_pipeline - CQRS Command Tool
+  // manage_pipeline - CQRS Command Tool (discriminated union schema)
+  // TypeScript automatically narrows types in each switch case
   // ============================================================================
   [
     "manage_pipeline",
@@ -164,10 +177,14 @@ export const pipelinesToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
       handler: async (args: unknown): Promise<unknown> => {
         const input = ManagePipelineSchema.parse(args);
 
+        // Runtime validation: reject denied actions even if they bypass schema filtering
+        if (isActionDenied("manage_pipeline", input.action)) {
+          throw new Error(`Action '${input.action}' is not allowed for manage_pipeline tool`);
+        }
+
         switch (input.action) {
           case "create": {
-            // ref is required for create action (validated by .refine())
-            assertDefined(input.ref, "ref");
+            // TypeScript knows: input has ref (required), variables (optional)
             const { project_id, ref, variables } = input;
 
             // Custom handling - ref in query, variables in body with detailed error handling
@@ -238,8 +255,7 @@ export const pipelinesToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
           }
 
           case "retry": {
-            // pipeline_id is required for retry action (validated by .refine())
-            assertDefined(input.pipeline_id, "pipeline_id");
+            // TypeScript knows: input has pipeline_id (required)
             const { project_id, pipeline_id } = input;
 
             return gitlab.post(
@@ -248,8 +264,7 @@ export const pipelinesToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
           }
 
           case "cancel": {
-            // pipeline_id is required for cancel action (validated by .refine())
-            assertDefined(input.pipeline_id, "pipeline_id");
+            // TypeScript knows: input has pipeline_id (required)
             const { project_id, pipeline_id } = input;
 
             return gitlab.post(
@@ -257,7 +272,7 @@ export const pipelinesToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
             );
           }
 
-          /* istanbul ignore next -- unreachable with Zod validation */
+          /* istanbul ignore next -- unreachable with Zod discriminatedUnion */
           default:
             throw new Error(`Unknown action: ${(input as { action: string }).action}`);
         }
@@ -266,7 +281,8 @@ export const pipelinesToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
   ],
 
   // ============================================================================
-  // manage_pipeline_job - CQRS Command Tool
+  // manage_pipeline_job - CQRS Command Tool (discriminated union schema)
+  // TypeScript automatically narrows types in each switch case
   // ============================================================================
   [
     "manage_pipeline_job",
@@ -278,8 +294,14 @@ export const pipelinesToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
       handler: async (args: unknown): Promise<unknown> => {
         const input = ManagePipelineJobSchema.parse(args);
 
+        // Runtime validation: reject denied actions even if they bypass schema filtering
+        if (isActionDenied("manage_pipeline_job", input.action)) {
+          throw new Error(`Action '${input.action}' is not allowed for manage_pipeline_job tool`);
+        }
+
         switch (input.action) {
           case "play": {
+            // TypeScript knows: input has job_id (required), job_variables_attributes (optional)
             const { project_id, job_id, job_variables_attributes } = input;
             const body: Record<string, unknown> = {};
             if (job_variables_attributes) {
@@ -292,11 +314,13 @@ export const pipelinesToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
           }
 
           case "retry": {
+            // TypeScript knows: input has job_id (required)
             const { project_id, job_id } = input;
             return gitlab.post(`projects/${normalizeProjectId(project_id)}/jobs/${job_id}/retry`);
           }
 
           case "cancel": {
+            // TypeScript knows: input has job_id (required), force (optional)
             const { project_id, job_id, force } = input;
             const query = force ? { force: "true" } : undefined;
             return gitlab.post(`projects/${normalizeProjectId(project_id)}/jobs/${job_id}/cancel`, {
@@ -304,7 +328,7 @@ export const pipelinesToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
             });
           }
 
-          /* istanbul ignore next -- unreachable with Zod validation */
+          /* istanbul ignore next -- unreachable with Zod discriminatedUnion */
           default:
             throw new Error(`Unknown action: ${(input as { action: string }).action}`);
         }

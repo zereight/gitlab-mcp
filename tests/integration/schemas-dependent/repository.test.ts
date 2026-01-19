@@ -47,7 +47,7 @@ describe("Repository Schema - Using Lifecycle Data", () => {
       const result = BrowseFilesSchema.safeParse(validParams);
       expect(result.success).toBe(true);
 
-      if (result.success) {
+      if (result.success && result.data.action === "tree") {
         expect(result.data.action).toBe("tree");
         expect(result.data.project_id).toBe(testProject.id.toString());
         expect(result.data.ref).toBe("main");
@@ -131,7 +131,7 @@ describe("Repository Schema - Using Lifecycle Data", () => {
       const result = BrowseFilesSchema.safeParse(recursiveParams);
       expect(result.success).toBe(true);
 
-      if (result.success) {
+      if (result.success && result.data.action === "tree") {
         expect(result.data.recursive).toBe(true);
         expect(result.data.per_page).toBe(100);
       }
@@ -151,7 +151,7 @@ describe("Repository Schema - Using Lifecycle Data", () => {
       const result = BrowseFilesSchema.safeParse(pathParams);
       expect(result.success).toBe(true);
 
-      if (result.success) {
+      if (result.success && result.data.action === "tree") {
         expect(result.data.path).toBe("src");
       }
 
@@ -207,7 +207,7 @@ describe("Repository Schema - Using Lifecycle Data", () => {
       const result = BrowseFilesSchema.safeParse(params);
       expect(result.success).toBe(true);
 
-      if (result.success) {
+      if (result.success && result.data.action === "content") {
         expect(result.data.action).toBe("content");
         expect(result.data.file_path).toBe("README.md");
       }

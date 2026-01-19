@@ -47,7 +47,7 @@ describe("Merge Requests Schema - Using Lifecycle Data", () => {
       const result = BrowseMergeRequestsSchema.safeParse(validParams);
       expect(result.success).toBe(true);
 
-      if (result.success) {
+      if (result.success && result.data.action === "list") {
         expect(result.data.action).toBe("list");
         expect(result.data.project_id).toBe(testProject.id.toString());
         expect(result.data.state).toBe("all");
@@ -154,7 +154,7 @@ describe("Merge Requests Schema - Using Lifecycle Data", () => {
       const result = BrowseMergeRequestsSchema.safeParse(advancedParams);
       expect(result.success).toBe(true);
 
-      if (result.success) {
+      if (result.success && result.data.action === "list") {
         expect(result.data.action).toBe("list");
         expect(result.data.state).toBe("opened");
         expect(result.data.labels).toEqual(["feature", "bug"]);
@@ -253,7 +253,7 @@ describe("Merge Requests Schema - Using Lifecycle Data", () => {
       const result = BrowseMergeRequestsSchema.safeParse(params);
       expect(result.success).toBe(true);
 
-      if (result.success) {
+      if (result.success && result.data.action === "get") {
         expect(result.data.action).toBe("get");
         expect(result.data.merge_request_iid).toBe("1");
       }
@@ -269,7 +269,7 @@ describe("Merge Requests Schema - Using Lifecycle Data", () => {
       const result = BrowseMergeRequestsSchema.safeParse(params);
       expect(result.success).toBe(true);
 
-      if (result.success) {
+      if (result.success && result.data.action === "get") {
         expect(result.data.action).toBe("get");
         expect(result.data.branch_name).toBe("feature/test");
       }
@@ -323,7 +323,7 @@ describe("Merge Requests Schema - Using Lifecycle Data", () => {
       const result = BrowseMergeRequestsSchema.safeParse(params);
       expect(result.success).toBe(true);
 
-      if (result.success) {
+      if (result.success && result.data.action === "compare") {
         expect(result.data.action).toBe("compare");
         expect(result.data.from).toBe("main");
         expect(result.data.to).toBe("feature/test");

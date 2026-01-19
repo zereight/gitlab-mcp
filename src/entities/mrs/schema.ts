@@ -38,344 +38,227 @@ export const MergeRequestThreadPositionSchema = z.object({
 });
 
 // ============================================================================
-// manage_merge_request - CQRS Command Tool (flat schema for Claude API compatibility)
+// manage_merge_request - CQRS Command Tool (discriminated union schema)
 // Actions: create, update, merge
-// NOTE: Uses flat z.object() with .refine() instead of z.discriminatedUnion()
-// because Claude API doesn't support oneOf/allOf/anyOf at JSON Schema root level.
+// Uses z.discriminatedUnion() for type-safe action handling.
+// Schema pipeline flattens to flat JSON Schema for AI clients that don't support oneOf.
 // ============================================================================
 
-export const ManageMergeRequestSchema = z
-  .object({
-    action: z.enum(["create", "update", "merge"]).describe("Action to perform"),
-    project_id: requiredId.describe("Project ID or URL-encoded path"),
-    // create action fields
-    source_branch: z
-      .string()
-      .optional()
-      .describe("Branch containing changes to merge. Required for 'create' action."),
-    // shared create/update fields
-    target_branch: z.string().optional().describe("Branch to merge into."),
-    title: z.string().optional().describe("MR title/summary. Required for 'create' action."),
-    assignee_id: z.string().optional().describe("Single assignee user ID."),
-    assignee_ids: z.array(z.string()).optional().describe("Multiple assignee IDs."),
-    reviewer_ids: z.array(z.string()).optional().describe("User IDs for code reviewers."),
-    description: z.string().optional().describe("MR description (Markdown)."),
-    target_project_id: z.coerce
-      .string()
-      .optional()
-      .describe("Target project for cross-project MRs. For 'create' action."),
-    labels: z
-      .union([z.string(), z.array(z.string())])
-      .optional()
-      .describe("Labels to categorize MR."),
-    milestone_id: z.string().optional().describe("Associate MR with milestone."),
-    remove_source_branch: flexibleBoolean
-      .optional()
-      .describe("Auto-delete source branch after merge."),
-    allow_collaboration: flexibleBoolean
-      .optional()
-      .describe("Let maintainers push to source branch."),
-    allow_maintainer_to_push: flexibleBoolean
-      .optional()
-      .describe("Deprecated - use allow_collaboration."),
-    squash: flexibleBoolean.optional().describe("Combine all commits into one when merging."),
-    // update action fields
-    merge_request_iid: requiredId
-      .optional()
-      .describe("Internal MR ID unique to project. Required for 'update' and 'merge' actions."),
-    add_labels: z
-      .union([z.string(), z.array(z.string())])
-      .optional()
-      .describe("Labels to add. For 'update' action."),
-    remove_labels: z
-      .union([z.string(), z.array(z.string())])
-      .optional()
-      .describe("Labels to remove. For 'update' action."),
-    state_event: z
-      .string()
-      .transform(val => val.toLowerCase())
-      .pipe(z.enum(["close", "reopen"]))
-      .optional()
-      .describe("State event: close or reopen. For 'update' action."),
-    discussion_locked: flexibleBoolean
-      .optional()
-      .describe("Lock discussion thread. For 'update' action."),
-    // merge action fields
-    merge_commit_message: z
-      .string()
-      .optional()
-      .describe("Custom merge commit message. For 'merge' action."),
-    squash_commit_message: z
-      .string()
-      .optional()
-      .describe("Custom squash commit message. For 'merge' action."),
-    should_remove_source_branch: flexibleBoolean
-      .optional()
-      .describe("Remove source branch after merge. For 'merge' action."),
-    merge_when_pipeline_succeeds: flexibleBoolean
-      .optional()
-      .describe("Merge when pipeline succeeds. For 'merge' action."),
-    sha: z.string().optional().describe("SHA of the head commit. For 'merge' action."),
-  })
-  // Required field validations
-  .refine(data => data.action !== "create" || data.source_branch !== undefined, {
-    message: "source_branch is required for 'create' action",
-    path: ["source_branch"],
-  })
-  .refine(data => data.action !== "create" || data.target_branch !== undefined, {
-    message: "target_branch is required for 'create' action",
-    path: ["target_branch"],
-  })
-  .refine(data => data.action !== "create" || data.title !== undefined, {
-    message: "title is required for 'create' action",
-    path: ["title"],
-  })
-  .refine(data => data.action === "create" || data.merge_request_iid !== undefined, {
-    message: "merge_request_iid is required for 'update' and 'merge' actions",
-    path: ["merge_request_iid"],
-  })
-  // Reject fields not applicable to action
-  .refine(data => data.action === "create" || data.source_branch === undefined, {
-    message: "source_branch is only valid for 'create' action",
-    path: ["source_branch"],
-  })
-  .refine(data => data.action === "create" || data.target_project_id === undefined, {
-    message: "target_project_id is only valid for 'create' action",
-    path: ["target_project_id"],
-  })
-  .refine(data => data.action === "update" || data.add_labels === undefined, {
-    message: "add_labels is only valid for 'update' action",
-    path: ["add_labels"],
-  })
-  .refine(data => data.action === "update" || data.remove_labels === undefined, {
-    message: "remove_labels is only valid for 'update' action",
-    path: ["remove_labels"],
-  })
-  .refine(data => data.action === "update" || data.state_event === undefined, {
-    message: "state_event is only valid for 'update' action",
-    path: ["state_event"],
-  })
-  .refine(data => data.action === "update" || data.discussion_locked === undefined, {
-    message: "discussion_locked is only valid for 'update' action",
-    path: ["discussion_locked"],
-  })
-  .refine(data => data.action === "merge" || data.merge_commit_message === undefined, {
-    message: "merge_commit_message is only valid for 'merge' action",
-    path: ["merge_commit_message"],
-  })
-  .refine(data => data.action === "merge" || data.squash_commit_message === undefined, {
-    message: "squash_commit_message is only valid for 'merge' action",
-    path: ["squash_commit_message"],
-  })
-  .refine(data => data.action === "merge" || data.should_remove_source_branch === undefined, {
-    message: "should_remove_source_branch is only valid for 'merge' action",
-    path: ["should_remove_source_branch"],
-  })
-  .refine(data => data.action === "merge" || data.merge_when_pipeline_succeeds === undefined, {
-    message: "merge_when_pipeline_succeeds is only valid for 'merge' action",
-    path: ["merge_when_pipeline_succeeds"],
-  })
-  .refine(data => data.action === "merge" || data.sha === undefined, {
-    message: "sha is only valid for 'merge' action",
-    path: ["sha"],
-  })
-  .refine(data => data.action !== "merge" || data.target_branch === undefined, {
-    message: "target_branch is not valid for 'merge' action",
-    path: ["target_branch"],
-  })
-  .refine(data => data.action !== "merge" || data.title === undefined, {
-    message: "title is not valid for 'merge' action",
-    path: ["title"],
-  });
+// --- Shared fields ---
+const projectIdField = requiredId.describe("Project ID or URL-encoded path");
+const mergeRequestIidField = requiredId.describe("Internal MR ID unique to project");
+
+// --- Action: create ---
+const CreateMergeRequestSchema = z.object({
+  action: z.literal("create").describe("Create a new merge request"),
+  project_id: projectIdField,
+  source_branch: z.string().describe("Branch containing changes to merge"),
+  target_branch: z.string().describe("Branch to merge into"),
+  title: z.string().describe("MR title/summary"),
+  assignee_id: z.string().optional().describe("Single assignee user ID"),
+  assignee_ids: z.array(z.string()).optional().describe("Multiple assignee IDs"),
+  reviewer_ids: z.array(z.string()).optional().describe("User IDs for code reviewers"),
+  description: z.string().optional().describe("MR description (Markdown)"),
+  target_project_id: z.coerce.string().optional().describe("Target project for cross-project MRs"),
+  labels: z
+    .union([z.string(), z.array(z.string())])
+    .optional()
+    .describe("Labels to categorize MR"),
+  milestone_id: z.string().optional().describe("Associate MR with milestone"),
+  remove_source_branch: flexibleBoolean
+    .optional()
+    .describe("Auto-delete source branch after merge"),
+  allow_collaboration: flexibleBoolean.optional().describe("Let maintainers push to source branch"),
+  allow_maintainer_to_push: flexibleBoolean
+    .optional()
+    .describe("Deprecated - use allow_collaboration"),
+  squash: flexibleBoolean.optional().describe("Combine all commits into one when merging"),
+});
+
+// --- Action: update ---
+const UpdateMergeRequestSchema = z.object({
+  action: z.literal("update").describe("Update an existing merge request"),
+  project_id: projectIdField,
+  merge_request_iid: mergeRequestIidField,
+  target_branch: z.string().optional().describe("Branch to merge into"),
+  title: z.string().optional().describe("MR title/summary"),
+  assignee_id: z.string().optional().describe("Single assignee user ID"),
+  assignee_ids: z.array(z.string()).optional().describe("Multiple assignee IDs"),
+  reviewer_ids: z.array(z.string()).optional().describe("User IDs for code reviewers"),
+  description: z.string().optional().describe("MR description (Markdown)"),
+  labels: z
+    .union([z.string(), z.array(z.string())])
+    .optional()
+    .describe("Labels to categorize MR"),
+  add_labels: z
+    .union([z.string(), z.array(z.string())])
+    .optional()
+    .describe("Labels to add"),
+  remove_labels: z
+    .union([z.string(), z.array(z.string())])
+    .optional()
+    .describe("Labels to remove"),
+  milestone_id: z.string().optional().describe("Associate MR with milestone"),
+  remove_source_branch: flexibleBoolean
+    .optional()
+    .describe("Auto-delete source branch after merge"),
+  allow_collaboration: flexibleBoolean.optional().describe("Let maintainers push to source branch"),
+  allow_maintainer_to_push: flexibleBoolean
+    .optional()
+    .describe("Deprecated - use allow_collaboration"),
+  squash: flexibleBoolean.optional().describe("Combine all commits into one when merging"),
+  state_event: z
+    .string()
+    .transform(val => val.toLowerCase())
+    .pipe(z.enum(["close", "reopen"]))
+    .optional()
+    .describe("State event: close or reopen"),
+  discussion_locked: flexibleBoolean.optional().describe("Lock discussion thread"),
+});
+
+// --- Action: merge ---
+const MergeMergeRequestSchema = z.object({
+  action: z.literal("merge").describe("Merge an approved merge request"),
+  project_id: projectIdField,
+  merge_request_iid: mergeRequestIidField,
+  merge_commit_message: z.string().optional().describe("Custom merge commit message"),
+  squash_commit_message: z.string().optional().describe("Custom squash commit message"),
+  squash: flexibleBoolean.optional().describe("Combine all commits into one when merging"),
+  should_remove_source_branch: flexibleBoolean
+    .optional()
+    .describe("Remove source branch after merge"),
+  merge_when_pipeline_succeeds: flexibleBoolean.optional().describe("Merge when pipeline succeeds"),
+  sha: z.string().optional().describe("SHA of the head commit"),
+});
+
+// --- Discriminated union combining all actions ---
+export const ManageMergeRequestSchema = z.discriminatedUnion("action", [
+  CreateMergeRequestSchema,
+  UpdateMergeRequestSchema,
+  MergeMergeRequestSchema,
+]);
 
 // ============================================================================
-// manage_mr_discussion - CQRS Command Tool (flat schema for Claude API compatibility)
+// manage_mr_discussion - CQRS Command Tool (discriminated union schema)
 // Actions: comment, thread, reply, update
-// NOTE: Uses flat z.object() with .refine() instead of z.discriminatedUnion()
-// because Claude API doesn't support oneOf/allOf/anyOf at JSON Schema root level.
+// Uses z.discriminatedUnion() for type-safe action handling.
+// Schema pipeline flattens to flat JSON Schema for AI clients that don't support oneOf.
 // ============================================================================
 
-export const ManageMrDiscussionSchema = z
-  .object({
-    action: z.enum(["comment", "thread", "reply", "update"]).describe("Action to perform"),
-    project_id: requiredId.describe("Project ID or URL-encoded path"),
-    // comment action fields
-    noteable_type: z
-      .string()
-      .transform(val => val.toLowerCase())
-      .pipe(z.enum(["issue", "merge_request"]))
-      .optional()
-      .describe("Type of noteable: issue or merge_request. Required for 'comment' action."),
-    noteable_id: requiredId
-      .optional()
-      .describe("ID of the noteable object. Required for 'comment' action."),
-    confidential: flexibleBoolean
-      .optional()
-      .describe("Confidential note flag. For 'comment' action."),
-    // thread/reply/update action fields
-    merge_request_iid: requiredId
-      .optional()
-      .describe("Internal MR ID. Required for 'thread', 'reply', 'update' actions."),
-    // thread action fields
-    position: MergeRequestThreadPositionSchema.optional().describe(
-      "Position for diff note. For 'thread' action."
-    ),
-    commit_id: z
-      .string()
-      .optional()
-      .describe("SHA of commit to start discussion on. For 'thread' action."),
-    // reply action fields
-    discussion_id: z
-      .string()
-      .optional()
-      .describe("ID of the discussion to reply to. Required for 'reply' action."),
-    // update action fields
-    note_id: requiredId
-      .optional()
-      .describe("ID of the note to update. Required for 'update' action."),
-    // shared fields
-    body: z.string().optional().describe("Content/text. Required for all actions."),
-    created_at: z
-      .string()
-      .optional()
-      .describe("Date time string (ISO 8601). For 'comment' and 'reply' actions."),
-  })
-  .refine(data => data.body !== undefined, {
-    message: "body is required",
-    path: ["body"],
-  })
-  .refine(data => data.action !== "comment" || data.noteable_type !== undefined, {
-    message: "noteable_type is required for 'comment' action",
-    path: ["noteable_type"],
-  })
-  .refine(data => data.action !== "comment" || data.noteable_id !== undefined, {
-    message: "noteable_id is required for 'comment' action",
-    path: ["noteable_id"],
-  })
-  .refine(
-    data =>
-      !["thread", "reply", "update"].includes(data.action) || data.merge_request_iid !== undefined,
-    {
-      message: "merge_request_iid is required for 'thread', 'reply', 'update' actions",
-      path: ["merge_request_iid"],
-    }
-  )
-  .refine(data => data.action !== "reply" || data.discussion_id !== undefined, {
-    message: "discussion_id is required for 'reply' action",
-    path: ["discussion_id"],
-  })
-  .refine(data => data.action !== "update" || data.note_id !== undefined, {
-    message: "note_id is required for 'update' action",
-    path: ["note_id"],
-  })
-  // Reject fields not applicable to action
-  .refine(data => data.action === "comment" || data.noteable_type === undefined, {
-    message: "noteable_type is only valid for 'comment' action",
-    path: ["noteable_type"],
-  })
-  .refine(data => data.action === "comment" || data.noteable_id === undefined, {
-    message: "noteable_id is only valid for 'comment' action",
-    path: ["noteable_id"],
-  })
-  .refine(data => data.action === "comment" || data.confidential === undefined, {
-    message: "confidential is only valid for 'comment' action",
-    path: ["confidential"],
-  })
-  .refine(data => data.action !== "comment" || data.merge_request_iid === undefined, {
-    message: "merge_request_iid is not valid for 'comment' action (use noteable_id instead)",
-    path: ["merge_request_iid"],
-  })
-  .refine(data => data.action === "thread" || data.position === undefined, {
-    message: "position is only valid for 'thread' action",
-    path: ["position"],
-  })
-  .refine(data => data.action === "thread" || data.commit_id === undefined, {
-    message: "commit_id is only valid for 'thread' action",
-    path: ["commit_id"],
-  })
-  .refine(data => data.action === "reply" || data.discussion_id === undefined, {
-    message: "discussion_id is only valid for 'reply' action",
-    path: ["discussion_id"],
-  })
-  .refine(data => data.action === "update" || data.note_id === undefined, {
-    message: "note_id is only valid for 'update' action",
-    path: ["note_id"],
-  })
-  .refine(data => ["comment", "reply"].includes(data.action) || data.created_at === undefined, {
-    message: "created_at is only valid for 'comment' and 'reply' actions",
-    path: ["created_at"],
-  });
+// --- Action: comment ---
+const CommentOnNoteableSchema = z.object({
+  action: z.literal("comment").describe("Add a comment to an issue or merge request"),
+  project_id: projectIdField,
+  noteable_type: z
+    .string()
+    .transform(val => val.toLowerCase())
+    .pipe(z.enum(["issue", "merge_request"]))
+    .describe("Type of noteable: issue or merge_request"),
+  noteable_id: requiredId.describe("ID of the noteable object"),
+  body: z.string().describe("Content/text of the comment"),
+  confidential: flexibleBoolean.optional().describe("Confidential note flag"),
+  created_at: z.string().optional().describe("Date time string (ISO 8601)"),
+});
+
+// --- Action: thread ---
+const CreateThreadSchema = z.object({
+  action: z.literal("thread").describe("Start a new discussion thread on an MR"),
+  project_id: projectIdField,
+  merge_request_iid: mergeRequestIidField,
+  body: z.string().describe("Content/text of the thread"),
+  position: MergeRequestThreadPositionSchema.optional().describe("Position for diff note"),
+  commit_id: z.string().optional().describe("SHA of commit to start discussion on"),
+});
+
+// --- Action: reply ---
+const ReplyToThreadSchema = z.object({
+  action: z.literal("reply").describe("Reply to an existing discussion thread"),
+  project_id: projectIdField,
+  merge_request_iid: mergeRequestIidField,
+  discussion_id: z.string().describe("ID of the discussion to reply to"),
+  body: z.string().describe("Content/text of the reply"),
+  created_at: z.string().optional().describe("Date time string (ISO 8601)"),
+});
+
+// --- Action: update ---
+const UpdateNoteSchema = z.object({
+  action: z.literal("update").describe("Update an existing note/comment"),
+  project_id: projectIdField,
+  merge_request_iid: mergeRequestIidField,
+  note_id: requiredId.describe("ID of the note to update"),
+  body: z.string().describe("New content/text for the note"),
+});
+
+// --- Discriminated union combining all actions ---
+export const ManageMrDiscussionSchema = z.discriminatedUnion("action", [
+  CommentOnNoteableSchema,
+  CreateThreadSchema,
+  ReplyToThreadSchema,
+  UpdateNoteSchema,
+]);
 
 // ============================================================================
-// manage_draft_notes - CQRS Command Tool (flat schema for Claude API compatibility)
+// manage_draft_notes - CQRS Command Tool (discriminated union schema)
 // Actions: create, update, publish, publish_all, delete
-// NOTE: Uses flat z.object() with .refine() instead of z.discriminatedUnion()
-// because Claude API doesn't support oneOf/allOf/anyOf at JSON Schema root level.
+// Uses z.discriminatedUnion() for type-safe action handling.
+// Schema pipeline flattens to flat JSON Schema for AI clients that don't support oneOf.
 // ============================================================================
 
-export const ManageDraftNotesSchema = z
-  .object({
-    action: z
-      .enum(["create", "update", "publish", "publish_all", "delete"])
-      .describe("Action to perform"),
-    project_id: requiredId.describe("Project ID or URL-encoded path"),
-    merge_request_iid: requiredId.describe("Internal MR ID unique to project."),
-    // create/update action fields
-    note: z
-      .string()
-      .optional()
-      .describe("Content of the draft note. Required for 'create' and 'update' actions."),
-    position: MergeRequestThreadPositionSchema.optional().describe(
-      "Position for diff note. For 'create' and 'update' actions."
-    ),
-    // create action fields
-    in_reply_to_discussion_id: z
-      .string()
-      .optional()
-      .describe("Discussion ID to reply to. For 'create' action."),
-    commit_id: z
-      .string()
-      .optional()
-      .describe("SHA of commit to start discussion on. For 'create' action."),
-    // update/publish/delete action fields
-    draft_note_id: requiredId
-      .optional()
-      .describe("ID of the draft note. Required for 'update', 'publish', 'delete' actions."),
-  })
-  // Required field validations
-  .refine(data => !["create", "update"].includes(data.action) || data.note !== undefined, {
-    message: "note is required for 'create' and 'update' actions",
-    path: ["note"],
-  })
-  .refine(
-    data =>
-      !["update", "publish", "delete"].includes(data.action) || data.draft_note_id !== undefined,
-    {
-      message: "draft_note_id is required for 'update', 'publish', 'delete' actions",
-      path: ["draft_note_id"],
-    }
-  )
-  // Reject fields not applicable to action
-  .refine(data => ["create", "update"].includes(data.action) || data.note === undefined, {
-    message: "note is only valid for 'create' and 'update' actions",
-    path: ["note"],
-  })
-  .refine(data => ["create", "update"].includes(data.action) || data.position === undefined, {
-    message: "position is only valid for 'create' and 'update' actions",
-    path: ["position"],
-  })
-  .refine(data => data.action === "create" || data.in_reply_to_discussion_id === undefined, {
-    message: "in_reply_to_discussion_id is only valid for 'create' action",
-    path: ["in_reply_to_discussion_id"],
-  })
-  .refine(data => data.action === "create" || data.commit_id === undefined, {
-    message: "commit_id is only valid for 'create' action",
-    path: ["commit_id"],
-  })
-  .refine(data => data.action !== "create" || data.draft_note_id === undefined, {
-    message: "draft_note_id is not valid for 'create' action",
-    path: ["draft_note_id"],
-  });
+// --- Shared fields ---
+const draftNoteIdField = requiredId.describe("ID of the draft note");
+
+// --- Action: create ---
+const CreateDraftNoteSchema = z.object({
+  action: z.literal("create").describe("Create a new draft note"),
+  project_id: projectIdField,
+  merge_request_iid: mergeRequestIidField,
+  note: z.string().describe("Content of the draft note"),
+  position: MergeRequestThreadPositionSchema.optional().describe("Position for diff note"),
+  in_reply_to_discussion_id: z.string().optional().describe("Discussion ID to reply to"),
+  commit_id: z.string().optional().describe("SHA of commit to start discussion on"),
+});
+
+// --- Action: update ---
+const UpdateDraftNoteSchema = z.object({
+  action: z.literal("update").describe("Update an existing draft note"),
+  project_id: projectIdField,
+  merge_request_iid: mergeRequestIidField,
+  draft_note_id: draftNoteIdField,
+  note: z.string().describe("New content for the draft note"),
+  position: MergeRequestThreadPositionSchema.optional().describe("Position for diff note"),
+});
+
+// --- Action: publish ---
+const PublishDraftNoteSchema = z.object({
+  action: z.literal("publish").describe("Publish a single draft note"),
+  project_id: projectIdField,
+  merge_request_iid: mergeRequestIidField,
+  draft_note_id: draftNoteIdField,
+});
+
+// --- Action: publish_all ---
+const PublishAllDraftNotesSchema = z.object({
+  action: z.literal("publish_all").describe("Publish all draft notes at once"),
+  project_id: projectIdField,
+  merge_request_iid: mergeRequestIidField,
+});
+
+// --- Action: delete ---
+const DeleteDraftNoteSchema = z.object({
+  action: z.literal("delete").describe("Delete a draft note"),
+  project_id: projectIdField,
+  merge_request_iid: mergeRequestIidField,
+  draft_note_id: draftNoteIdField,
+});
+
+// --- Discriminated union combining all actions ---
+export const ManageDraftNotesSchema = z.discriminatedUnion("action", [
+  CreateDraftNoteSchema,
+  UpdateDraftNoteSchema,
+  PublishDraftNoteSchema,
+  PublishAllDraftNotesSchema,
+  DeleteDraftNoteSchema,
+]);
 
 // ============================================================================
 // Export type definitions

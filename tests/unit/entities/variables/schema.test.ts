@@ -84,7 +84,8 @@ describe("ManageVariableSchema", () => {
         description: "A test variable",
       });
       expect(result.success).toBe(true);
-      if (result.success) {
+      // Type narrowing: check action to access action-specific properties
+      if (result.success && result.data.action === "create") {
         expect(result.data.variable_type).toBe("env_var");
         expect(result.data.environment_scope).toBe("production");
         expect(result.data.protected).toBe(true);
@@ -105,7 +106,8 @@ describe("ManageVariableSchema", () => {
         variable_type: "env_var",
       });
       expect(result.success).toBe(true);
-      if (result.success) {
+      // Type narrowing: check action to access action-specific properties
+      if (result.success && result.data.action === "create") {
         expect(result.data.variable_type).toBe("env_var");
       }
     });
@@ -119,7 +121,8 @@ describe("ManageVariableSchema", () => {
         variable_type: "file",
       });
       expect(result.success).toBe(true);
-      if (result.success) {
+      // Type narrowing: check action to access action-specific properties
+      if (result.success && result.data.action === "create") {
         expect(result.data.variable_type).toBe("file");
       }
     });
@@ -133,7 +136,8 @@ describe("ManageVariableSchema", () => {
         variable_type: "env",
       });
       expect(result.success).toBe(true);
-      if (result.success) {
+      // Type narrowing: check action to access action-specific properties
+      if (result.success && result.data.action === "create") {
         expect(result.data.variable_type).toBe("env_var");
       }
     });
@@ -147,7 +151,8 @@ describe("ManageVariableSchema", () => {
         variable_type: "environment",
       });
       expect(result.success).toBe(true);
-      if (result.success) {
+      // Type narrowing: check action to access action-specific properties
+      if (result.success && result.data.action === "create") {
         expect(result.data.variable_type).toBe("env_var");
       }
     });
@@ -161,7 +166,8 @@ describe("ManageVariableSchema", () => {
         variable_type: "var",
       });
       expect(result.success).toBe(true);
-      if (result.success) {
+      // Type narrowing: check action to access action-specific properties
+      if (result.success && result.data.action === "create") {
         expect(result.data.variable_type).toBe("env_var");
       }
     });
@@ -175,7 +181,8 @@ describe("ManageVariableSchema", () => {
         variable_type: "variable",
       });
       expect(result.success).toBe(true);
-      if (result.success) {
+      // Type narrowing: check action to access action-specific properties
+      if (result.success && result.data.action === "create") {
         expect(result.data.variable_type).toBe("env_var");
       }
     });
@@ -189,7 +196,8 @@ describe("ManageVariableSchema", () => {
         variable_type: "file_var",
       });
       expect(result.success).toBe(true);
-      if (result.success) {
+      // Type narrowing: check action to access action-specific properties
+      if (result.success && result.data.action === "create") {
         expect(result.data.variable_type).toBe("file");
       }
     });
@@ -203,7 +211,8 @@ describe("ManageVariableSchema", () => {
         variable_type: "ENV_VAR",
       });
       expect(result.success).toBe(true);
-      if (result.success) {
+      // Type narrowing: check action to access action-specific properties
+      if (result.success && result.data.action === "create") {
         expect(result.data.variable_type).toBe("env_var");
       }
     });
@@ -230,7 +239,8 @@ describe("ManageVariableSchema", () => {
         protected: true,
       });
       expect(result.success).toBe(true);
-      if (result.success) {
+      // Type narrowing: check action to access action-specific properties
+      if (result.success && result.data.action === "create") {
         expect(result.data.protected).toBe(true);
       }
     });
@@ -244,7 +254,8 @@ describe("ManageVariableSchema", () => {
         masked: false,
       });
       expect(result.success).toBe(true);
-      if (result.success) {
+      // Type narrowing: check action to access action-specific properties
+      if (result.success && result.data.action === "create") {
         expect(result.data.masked).toBe(false);
       }
     });
@@ -258,7 +269,8 @@ describe("ManageVariableSchema", () => {
         protected: "true",
       });
       expect(result.success).toBe(true);
-      if (result.success) {
+      // Type narrowing: check action to access action-specific properties
+      if (result.success && result.data.action === "create") {
         expect(result.data.protected).toBe(true);
       }
     });
@@ -272,7 +284,8 @@ describe("ManageVariableSchema", () => {
         masked: "false",
       });
       expect(result.success).toBe(true);
-      if (result.success) {
+      // Type narrowing: check action to access action-specific properties
+      if (result.success && result.data.action === "create") {
         expect(result.data.masked).toBe(false);
       }
     });
@@ -286,7 +299,8 @@ describe("ManageVariableSchema", () => {
         raw: "t",
       });
       expect(result.success).toBe(true);
-      if (result.success) {
+      // Type narrowing: check action to access action-specific properties
+      if (result.success && result.data.action === "create") {
         expect(result.data.raw).toBe(true);
       }
     });
@@ -300,7 +314,8 @@ describe("ManageVariableSchema", () => {
         raw: "1",
       });
       expect(result.success).toBe(true);
-      if (result.success) {
+      // Type narrowing: check action to access action-specific properties
+      if (result.success && result.data.action === "create") {
         expect(result.data.raw).toBe(true);
       }
     });
@@ -314,7 +329,8 @@ describe("ManageVariableSchema", () => {
         raw: "no",
       });
       expect(result.success).toBe(true);
-      if (result.success) {
+      // Type narrowing: check action to access action-specific properties
+      if (result.success && result.data.action === "create") {
         expect(result.data.raw).toBe(false);
       }
     });
@@ -328,7 +344,8 @@ describe("ManageVariableSchema", () => {
         protected: 1,
       });
       expect(result.success).toBe(true);
-      if (result.success) {
+      // Type narrowing: check action to access action-specific properties
+      if (result.success && result.data.action === "create") {
         expect(result.data.protected).toBe(true);
       }
     });
@@ -342,7 +359,8 @@ describe("ManageVariableSchema", () => {
         masked: 0,
       });
       expect(result.success).toBe(true);
-      if (result.success) {
+      // Type narrowing: check action to access action-specific properties
+      if (result.success && result.data.action === "create") {
         expect(result.data.masked).toBe(false);
       }
     });
@@ -370,7 +388,8 @@ describe("ManageVariableSchema", () => {
         },
       });
       expect(result.success).toBe(true);
-      if (result.success) {
+      // Type narrowing: check action to access action-specific properties
+      if (result.success && result.data.action === "update") {
         expect(result.data.filter?.environment_scope).toBe("staging");
       }
     });
@@ -396,7 +415,8 @@ describe("ManageVariableSchema", () => {
         },
       });
       expect(result.success).toBe(true);
-      if (result.success) {
+      // Type narrowing: check action to access action-specific properties
+      if (result.success && result.data.action === "delete") {
         expect(result.data.filter?.environment_scope).toBe("development");
       }
     });
@@ -451,7 +471,8 @@ describe("ManageVariableSchema", () => {
         environment_scope: "*",
       });
       expect(result.success).toBe(true);
-      if (result.success) {
+      // Type narrowing: check action to access action-specific properties
+      if (result.success && result.data.action === "create") {
         expect(result.data.environment_scope).toBe("*");
       }
     });
@@ -489,7 +510,8 @@ describe("ManageVariableSchema", () => {
         description: "API key for external service",
       });
       expect(result.success).toBe(true);
-      if (result.success) {
+      // Type narrowing: check action to access action-specific properties
+      if (result.success && result.data.action === "create") {
         expect(result.data.description).toBe("API key for external service");
       }
     });

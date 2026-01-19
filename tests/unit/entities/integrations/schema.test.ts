@@ -168,7 +168,7 @@ describe("ManageIntegrationSchema", () => {
         active: true,
       });
       expect(result.success).toBe(true);
-      if (result.success) {
+      if (result.success && result.data.action === "update") {
         expect(result.data.active).toBe(true);
       }
     });
@@ -192,7 +192,7 @@ describe("ManageIntegrationSchema", () => {
         vulnerability_events: false,
       });
       expect(result.success).toBe(true);
-      if (result.success) {
+      if (result.success && result.data.action === "update") {
         expect(result.data.push_events).toBe(true);
         expect(result.data.issues_events).toBe(true);
         expect(result.data.merge_requests_events).toBe(true);
@@ -220,7 +220,7 @@ describe("ManageIntegrationSchema", () => {
         },
       });
       expect(result.success).toBe(true);
-      if (result.success) {
+      if (result.success && result.data.action === "update") {
         expect(result.data.config).toBeDefined();
         expect(result.data.config?.webhook).toBe("https://hooks.slack.com/services/xxx/yyy/zzz");
         expect(result.data.config?.username).toBe("GitLab Bot");
@@ -272,7 +272,7 @@ describe("ManageIntegrationSchema", () => {
         active: true,
       });
       expect(result.success).toBe(true);
-      if (result.success) {
+      if (result.success && result.data.action === "update") {
         expect(result.data.active).toBe(true);
       }
     });
@@ -285,7 +285,7 @@ describe("ManageIntegrationSchema", () => {
         push_events: false,
       });
       expect(result.success).toBe(true);
-      if (result.success) {
+      if (result.success && result.data.action === "update") {
         expect(result.data.push_events).toBe(false);
       }
     });
@@ -298,7 +298,7 @@ describe("ManageIntegrationSchema", () => {
         active: "true",
       });
       expect(result.success).toBe(true);
-      if (result.success) {
+      if (result.success && result.data.action === "update") {
         expect(result.data.active).toBe(true);
       }
     });
@@ -311,7 +311,7 @@ describe("ManageIntegrationSchema", () => {
         active: "false",
       });
       expect(result.success).toBe(true);
-      if (result.success) {
+      if (result.success && result.data.action === "update") {
         expect(result.data.active).toBe(false);
       }
     });
@@ -324,7 +324,7 @@ describe("ManageIntegrationSchema", () => {
         push_events: "t",
       });
       expect(result.success).toBe(true);
-      if (result.success) {
+      if (result.success && result.data.action === "update") {
         expect(result.data.push_events).toBe(true);
       }
     });
@@ -337,7 +337,7 @@ describe("ManageIntegrationSchema", () => {
         issues_events: "1",
       });
       expect(result.success).toBe(true);
-      if (result.success) {
+      if (result.success && result.data.action === "update") {
         expect(result.data.issues_events).toBe(true);
       }
     });
@@ -350,7 +350,7 @@ describe("ManageIntegrationSchema", () => {
         merge_requests_events: 1,
       });
       expect(result.success).toBe(true);
-      if (result.success) {
+      if (result.success && result.data.action === "update") {
         expect(result.data.merge_requests_events).toBe(true);
       }
     });
@@ -363,7 +363,7 @@ describe("ManageIntegrationSchema", () => {
         pipeline_events: 0,
       });
       expect(result.success).toBe(true);
-      if (result.success) {
+      if (result.success && result.data.action === "update") {
         expect(result.data.pipeline_events).toBe(false);
       }
     });
@@ -473,7 +473,7 @@ describe("ManageIntegrationSchema", () => {
         },
       });
       expect(result.success).toBe(true);
-      if (result.success) {
+      if (result.success && result.data.action === "update") {
         expect(result.data.config).toBeDefined();
       }
     });

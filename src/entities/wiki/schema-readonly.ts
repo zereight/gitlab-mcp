@@ -2,33 +2,33 @@ import { z } from "zod";
 import { flexibleBoolean } from "../utils";
 
 // ============================================================================
-// browse_wiki - CQRS Query Tool (flat schema for Claude API compatibility)
+// browse_wiki - CQRS Query Tool (discriminated union schema)
 // Actions: list, get
-// NOTE: Uses flat z.object() with .refine() instead of z.discriminatedUnion()
-// because Claude API doesn't support oneOf/allOf/anyOf at JSON Schema root level.
+// Uses z.discriminatedUnion() for type-safe action handling.
+// Schema pipeline flattens to flat JSON Schema for AI clients that don't support oneOf.
 // ============================================================================
 
-export const BrowseWikiSchema = z
-  .object({
-    action: z.enum(["list", "get"]).describe("Action to perform"),
-    namespace: z.string().describe("Namespace path (group or project)"),
-    // get action fields
-    slug: z
-      .string()
-      .optional()
-      .describe("URL-encoded slug of the wiki page. Required for 'get' action."),
-    // list action fields
-    with_content: flexibleBoolean
-      .optional()
-      .describe("For 'list': include content of the wiki pages"),
-    // pagination fields (for list)
-    per_page: z.number().optional().describe("Number of items per page"),
-    page: z.number().optional().describe("Page number"),
-  })
-  .refine(data => data.action !== "get" || data.slug !== undefined, {
-    message: "slug is required for 'get' action",
-    path: ["slug"],
-  });
+// --- Shared fields ---
+const namespaceField = z.string().describe("Namespace path (group or project)");
+
+// --- Action: list ---
+const ListWikiSchema = z.object({
+  action: z.literal("list").describe("List all wiki pages"),
+  namespace: namespaceField,
+  with_content: flexibleBoolean.optional().describe("Include content of the wiki pages"),
+  per_page: z.number().optional().describe("Number of items per page"),
+  page: z.number().optional().describe("Page number"),
+});
+
+// --- Action: get ---
+const GetWikiSchema = z.object({
+  action: z.literal("get").describe("Get a single wiki page by slug"),
+  namespace: namespaceField,
+  slug: z.string().describe("URL-encoded slug of the wiki page"),
+});
+
+// --- Discriminated union combining all actions ---
+export const BrowseWikiSchema = z.discriminatedUnion("action", [ListWikiSchema, GetWikiSchema]);
 
 // ============================================================================
 // Response schemas for wiki pages
