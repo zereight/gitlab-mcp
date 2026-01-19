@@ -119,6 +119,12 @@ jobs:
     needs: [quality-checks, docker-build]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
 
+    permissions:
+      contents: write      # For creating releases/tags and pushing commits
+      issues: write        # For commenting on issues
+      pull-requests: write # For commenting on PRs
+      id-token: write      # For npm OIDC provenance authentication
+
     outputs:
       new-release-published: ${{ steps.semantic.outputs.new-release-published }}
       new-release-version: ${{ steps.semantic.outputs.new-release-version }}

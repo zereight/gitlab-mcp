@@ -40,20 +40,29 @@ describe("Core Registry", () => {
       expect(coreToolRegistry instanceof Map).toBe(true);
     });
 
-    it("should contain expected core tools", () => {
+    it("should contain expected consolidated tools", () => {
       const toolNames = Array.from(coreToolRegistry.keys());
 
-      // Check for essential read-only tools
-      expect(toolNames).toContain("search_repositories");
-      expect(toolNames).toContain("list_projects");
-      expect(toolNames).toContain("get_project");
-      expect(toolNames).toContain("list_namespaces");
-      expect(toolNames).toContain("get_users");
+      // Consolidated read-only tools
+      expect(toolNames).toContain("browse_projects");
+      expect(toolNames).toContain("browse_namespaces");
+      expect(toolNames).toContain("browse_commits");
+      expect(toolNames).toContain("browse_events");
 
-      // Check for write tools
-      expect(toolNames).toContain("create_repository");
-      expect(toolNames).toContain("fork_repository");
+      // Consolidated write tools
+      expect(toolNames).toContain("manage_repository");
+
+      // Kept as-is tools
+      expect(toolNames).toContain("get_users");
+      expect(toolNames).toContain("list_project_members");
+      expect(toolNames).toContain("list_group_iterations");
+      expect(toolNames).toContain("download_attachment");
       expect(toolNames).toContain("create_branch");
+      expect(toolNames).toContain("create_group");
+
+      // New todos tools
+      expect(toolNames).toContain("list_todos");
+      expect(toolNames).toContain("manage_todos");
     });
 
     it("should have tools with valid structure", () => {
@@ -76,62 +85,80 @@ describe("Core Registry", () => {
     });
 
     it("should have substantial number of tools", () => {
-      expect(coreToolRegistry.size).toBeGreaterThan(10);
+      expect(coreToolRegistry.size).toBeGreaterThanOrEqual(12);
     });
   });
 
   describe("Tool Definitions", () => {
-    it("should have proper search_repositories tool", () => {
-      const tool = coreToolRegistry.get("search_repositories");
+    it("should have proper browse_projects tool", () => {
+      const tool = coreToolRegistry.get("browse_projects");
 
       expect(tool).toBeDefined();
-      expect(tool?.name).toBe("search_repositories");
-      expect(tool?.description).toContain("DISCOVER projects");
+      expect(tool?.name).toBe("browse_projects");
+      expect(tool?.description).toContain("PROJECT DISCOVERY");
       expect(tool?.inputSchema).toBeDefined();
     });
 
-    it("should have proper list_projects tool", () => {
-      const tool = coreToolRegistry.get("list_projects");
+    it("should have proper browse_namespaces tool", () => {
+      const tool = coreToolRegistry.get("browse_namespaces");
 
       expect(tool).toBeDefined();
-      expect(tool?.name).toBe("list_projects");
-      expect(tool?.description).toContain("List GitLab projects with flexible scoping");
+      expect(tool?.name).toBe("browse_namespaces");
+      expect(tool?.description).toContain("NAMESPACE OPERATIONS");
       expect(tool?.inputSchema).toBeDefined();
     });
 
-    it("should have proper get_project tool", () => {
-      const tool = coreToolRegistry.get("get_project");
+    it("should have proper browse_commits tool", () => {
+      const tool = coreToolRegistry.get("browse_commits");
 
       expect(tool).toBeDefined();
-      expect(tool?.name).toBe("get_project");
-      expect(tool?.description).toContain("GET DETAILS");
+      expect(tool?.name).toBe("browse_commits");
+      expect(tool?.description).toContain("COMMIT HISTORY");
       expect(tool?.inputSchema).toBeDefined();
     });
 
-    it("should have proper create_repository tool", () => {
-      const tool = coreToolRegistry.get("create_repository");
+    it("should have proper browse_events tool", () => {
+      const tool = coreToolRegistry.get("browse_events");
 
       expect(tool).toBeDefined();
-      expect(tool?.name).toBe("create_repository");
-      expect(tool?.description).toContain("CREATE NEW");
+      expect(tool?.name).toBe("browse_events");
+      expect(tool?.description).toContain("ACTIVITY FEED");
       expect(tool?.inputSchema).toBeDefined();
     });
 
-    it("should have proper fork_repository tool", () => {
-      const tool = coreToolRegistry.get("fork_repository");
+    it("should have proper manage_repository tool", () => {
+      const tool = coreToolRegistry.get("manage_repository");
 
       expect(tool).toBeDefined();
-      expect(tool?.name).toBe("fork_repository");
-      expect(tool?.description).toContain("FORK");
+      expect(tool?.name).toBe("manage_repository");
+      expect(tool?.description).toContain("REPOSITORY MANAGEMENT");
       expect(tool?.inputSchema).toBeDefined();
     });
 
-    it("should have proper verify_namespace tool", () => {
-      const tool = coreToolRegistry.get("verify_namespace");
+    it("should have proper get_users tool", () => {
+      const tool = coreToolRegistry.get("get_users");
 
       expect(tool).toBeDefined();
-      expect(tool?.name).toBe("verify_namespace");
-      expect(tool?.description).toContain("CHECK EXISTS");
+      expect(tool?.name).toBe("get_users");
+      expect(tool?.description).toContain("FIND USERS");
+      expect(tool?.inputSchema).toBeDefined();
+    });
+
+    it("should have proper list_todos tool", () => {
+      const tool = coreToolRegistry.get("list_todos");
+
+      expect(tool).toBeDefined();
+      expect(tool?.name).toBe("list_todos");
+      expect(tool?.description).toContain("TASK QUEUE");
+      expect(tool?.inputSchema).toBeDefined();
+    });
+
+    it("should have proper manage_todos tool", () => {
+      const tool = coreToolRegistry.get("manage_todos");
+
+      expect(tool).toBeDefined();
+      expect(tool?.name).toBe("manage_todos");
+      expect(tool?.description).toContain("TODO ACTIONS");
       expect(tool?.inputSchema).toBeDefined();
     });
   });
@@ -147,19 +174,27 @@ describe("Core Registry", () => {
     it("should include expected read-only tools", () => {
       const readOnlyTools = getCoreReadOnlyToolNames();
 
-      expect(readOnlyTools).toContain("search_repositories");
-      expect(readOnlyTools).toContain("list_projects");
-      expect(readOnlyTools).toContain("get_project");
-      expect(readOnlyTools).toContain("list_namespaces");
+      // Consolidated read tools
+      expect(readOnlyTools).toContain("browse_projects");
+      expect(readOnlyTools).toContain("browse_namespaces");
+      expect(readOnlyTools).toContain("browse_commits");
+      expect(readOnlyTools).toContain("browse_events");
+
+      // Kept as-is read tools
       expect(readOnlyTools).toContain("get_users");
+      expect(readOnlyTools).toContain("list_project_members");
+      expect(readOnlyTools).toContain("list_group_iterations");
+      expect(readOnlyTools).toContain("download_attachment");
+      expect(readOnlyTools).toContain("list_todos");
     });
 
     it("should not include write tools", () => {
       const readOnlyTools = getCoreReadOnlyToolNames();
 
-      expect(readOnlyTools).not.toContain("create_repository");
-      expect(readOnlyTools).not.toContain("fork_repository");
+      expect(readOnlyTools).not.toContain("manage_repository");
       expect(readOnlyTools).not.toContain("create_branch");
+      expect(readOnlyTools).not.toContain("create_group");
+      expect(readOnlyTools).not.toContain("manage_todos");
     });
 
     it("should return tools that exist in the registry", () => {
@@ -225,7 +260,7 @@ describe("Core Registry", () => {
 
     it("should not include write tools in read-only mode", () => {
       const readOnlyTools = getFilteredCoreTools(true);
-      const writeTools = ["create_repository", "fork_repository", "create_branch"];
+      const writeTools = ["manage_repository", "create_branch", "create_group", "manage_todos"];
 
       for (const tool of readOnlyTools) {
         expect(writeTools).not.toContain(tool.name);
@@ -250,13 +285,22 @@ describe("Core Registry", () => {
   describe("Registry Consistency", () => {
     it("should have all expected essential tools", () => {
       const essentialTools = [
-        "search_repositories",
-        "list_projects",
-        "get_project",
-        "list_namespaces",
+        // Consolidated tools
+        "browse_projects",
+        "browse_namespaces",
+        "browse_commits",
+        "browse_events",
+        "manage_repository",
+        // Kept as-is tools
         "get_users",
-        "create_repository",
-        "fork_repository",
+        "list_project_members",
+        "list_group_iterations",
+        "download_attachment",
+        "create_branch",
+        "create_group",
+        // Todos tools
+        "list_todos",
+        "manage_todos",
       ];
 
       for (const toolName of essentialTools) {
@@ -306,36 +350,14 @@ describe("Core Registry", () => {
   });
 
   describe("Handler Tests", () => {
-    describe("search_repositories Handler", () => {
-      it("should return minimal project structure for token efficiency", async () => {
+    describe("browse_projects Handler", () => {
+      it("should search projects with action: search", async () => {
         const mockApiResponse = [
           {
             id: 1,
             name: "test-project",
             path_with_namespace: "group/test-project",
             description: "A test project",
-            web_url: "https://gitlab.example.com/group/test-project",
-            visibility: "private",
-            default_branch: "main",
-            last_activity_at: "2025-01-01T00:00:00Z",
-            archived: false,
-            empty_repo: false,
-            namespace: {
-              id: 10,
-              name: "Test Group",
-              path: "group",
-              kind: "group",
-              full_path: "group",
-              parent_id: null,
-              avatar_url: null,
-              web_url: "https://gitlab.example.com/groups/group",
-            },
-            created_at: "2024-01-01T00:00:00Z",
-            _links: { self: "https://gitlab.example.com/api/v4/projects/1" },
-            repository_storage: "default",
-            container_registry_image_prefix: "registry.example.com/group/test-project",
-            ci_default_git_depth: 20,
-            permissions: { project_access: null, group_access: { access_level: 50 } },
           },
         ];
 
@@ -345,23 +367,62 @@ describe("Core Registry", () => {
           json: jest.fn().mockResolvedValue(mockApiResponse),
         } as any);
 
-        const tool = coreToolRegistry.get("search_repositories");
+        const tool = coreToolRegistry.get("browse_projects");
         expect(tool).toBeDefined();
 
-        const result = await tool!.handler({ q: "test" });
+        const result = await tool!.handler({ action: "search", q: "test" });
+
+        const calledUrl = mockEnhancedFetch.mock.calls[0][0] as string;
+        expect(calledUrl).toContain("/api/v4/projects?");
+        expect(calledUrl).toContain("search=test");
+        expect(calledUrl).toContain("active=true");
+
+        expect(result).toEqual(mockApiResponse);
+      });
+
+      it("should list projects with action: list", async () => {
+        const mockApiResponse = [
+          { id: 1, name: "project1" },
+          { id: 2, name: "project2" },
+        ];
+
+        mockEnhancedFetch.mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: jest.fn().mockResolvedValue(mockApiResponse),
+        } as any);
+
+        const tool = coreToolRegistry.get("browse_projects");
+        const result = await tool!.handler({ action: "list" });
+
+        const calledUrl = mockEnhancedFetch.mock.calls[0][0] as string;
+        expect(calledUrl).toContain("/api/v4/projects?");
+        expect(calledUrl).toContain("active=true");
+
+        expect(result).toEqual(mockApiResponse);
+      });
+
+      it("should get project with action: get", async () => {
+        const mockApiResponse = {
+          id: 123,
+          name: "my-project",
+          path_with_namespace: "group/my-project",
+        };
+
+        mockEnhancedFetch.mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: jest.fn().mockResolvedValue(mockApiResponse),
+        } as any);
+
+        const tool = coreToolRegistry.get("browse_projects");
+        const result = await tool!.handler({ action: "get", project_id: "123" });
 
         expect(mockEnhancedFetch).toHaveBeenCalledWith(
-          "https://gitlab.example.com/api/v4/projects?search=test&per_page=20&active=true"
+          "https://gitlab.example.com/api/v4/projects/123?"
         );
 
-        expect(result).toEqual([
-          {
-            id: 1,
-            name: "test-project",
-            path_with_namespace: "group/test-project",
-            description: "A test project",
-          },
-        ]);
+        expect(result).toEqual(mockApiResponse);
       });
 
       it("should handle empty results", async () => {
@@ -371,8 +432,8 @@ describe("Core Registry", () => {
           json: jest.fn().mockResolvedValue([]),
         } as any);
 
-        const tool = coreToolRegistry.get("search_repositories");
-        const result = await tool!.handler({ q: "nonexistent" });
+        const tool = coreToolRegistry.get("browse_projects");
+        const result = await tool!.handler({ action: "search", q: "nonexistent" });
 
         expect(result).toEqual([]);
       });
@@ -384,69 +445,11 @@ describe("Core Registry", () => {
           statusText: "Unauthorized",
         } as any);
 
-        const tool = coreToolRegistry.get("search_repositories");
+        const tool = coreToolRegistry.get("browse_projects");
 
-        await expect(tool!.handler({ q: "test" })).rejects.toThrow(
+        await expect(tool!.handler({ action: "search", q: "test" })).rejects.toThrow(
           "GitLab API error: 401 Unauthorized"
         );
-      });
-
-      it("should exclude all non-essential fields from response", async () => {
-        const mockApiResponse = [
-          {
-            id: 1,
-            name: "test-project",
-            path_with_namespace: "group/test-project",
-            description: "A test project",
-            web_url: "https://gitlab.example.com/group/test-project",
-            visibility: "private",
-            // These fields should be excluded from minimal response
-            default_branch: "main",
-            last_activity_at: "2025-01-01T00:00:00Z",
-            archived: false,
-            empty_repo: false,
-            created_at: "2024-01-01T00:00:00Z",
-            forks_count: 0,
-            star_count: 0,
-            namespace: {
-              id: 10,
-              name: "Test Group",
-              path: "group",
-              kind: "group",
-            },
-            _links: { self: "https://gitlab.example.com/api/v4/projects/1" },
-            permissions: { project_access: null },
-            ci_default_git_depth: 20,
-            repository_storage: "default",
-          },
-        ];
-
-        mockEnhancedFetch.mockResolvedValueOnce({
-          ok: true,
-          status: 200,
-          json: jest.fn().mockResolvedValue(mockApiResponse),
-        } as any);
-
-        const tool = coreToolRegistry.get("search_repositories");
-        const result = (await tool!.handler({ q: "test" })) as any[];
-
-        expect(result).toHaveLength(1);
-        const project = result[0];
-
-        // Should only have these 4 essential fields
-        expect(Object.keys(project)).toEqual(["id", "name", "path_with_namespace", "description"]);
-
-        // Should NOT have any other fields
-        expect(project).not.toHaveProperty("web_url");
-        expect(project).not.toHaveProperty("visibility");
-        expect(project).not.toHaveProperty("default_branch");
-        expect(project).not.toHaveProperty("last_activity_at");
-        expect(project).not.toHaveProperty("archived");
-        expect(project).not.toHaveProperty("empty_repo");
-        expect(project).not.toHaveProperty("namespace");
-        expect(project).not.toHaveProperty("created_at");
-        expect(project).not.toHaveProperty("_links");
-        expect(project).not.toHaveProperty("permissions");
       });
 
       it("should pass through search parameters correctly", async () => {
@@ -456,52 +459,139 @@ describe("Core Registry", () => {
           json: jest.fn().mockResolvedValue([]),
         } as any);
 
-        const tool = coreToolRegistry.get("search_repositories");
+        const tool = coreToolRegistry.get("browse_projects");
         await tool!.handler({
+          action: "search",
           with_programming_language: "javascript",
           order_by: "updated_at",
           sort: "desc",
         });
 
-        expect(mockEnhancedFetch).toHaveBeenCalledWith(
-          "https://gitlab.example.com/api/v4/projects?with_programming_language=javascript&order_by=updated_at&sort=desc&per_page=20&active=true"
-        );
+        const calledUrl = mockEnhancedFetch.mock.calls[0][0] as string;
+        expect(calledUrl).toContain("with_programming_language=javascript");
+        expect(calledUrl).toContain("order_by=updated_at");
+        expect(calledUrl).toContain("sort=desc");
       });
 
-      it("should automatically filter out archived and deletion-scheduled projects", async () => {
+      it("should parse topic: operator and properly URL-encode spaces in search query", async () => {
+        // Test: topic: operator parsing AND space handling in search queries
+        // Edge case: "topic:devops test project" contains:
+        //   1. topic: operator that should be extracted to separate param
+        //   2. Space in remaining search text that must be properly encoded
+        // Why this matters: Incorrect encoding breaks GitLab API search functionality
+        // URLSearchParams encodes spaces as + (x-www-form-urlencoded standard)
+        // GitLab API accepts both + and %20 for spaces
         mockEnhancedFetch.mockResolvedValueOnce({
           ok: true,
           status: 200,
           json: jest.fn().mockResolvedValue([]),
         } as any);
 
-        const tool = coreToolRegistry.get("search_repositories");
-        await tool!.handler({ q: "any-search" });
+        const tool = coreToolRegistry.get("browse_projects");
+        await tool!.handler({ action: "search", q: "topic:devops test project" });
 
-        // Verify that active=true is always added to filter out archived and deletion-scheduled projects
-        const expectedUrl = expect.stringContaining("active=true");
-        expect(mockEnhancedFetch).toHaveBeenCalledWith(expectedUrl);
+        const calledUrl = mockEnhancedFetch.mock.calls[0][0] as string;
+        // topic: operator should be extracted to separate query param
+        expect(calledUrl).toContain("topic=devops");
+        // Space in "test project" should be encoded as + (URLSearchParams standard)
+        // NOT as %2B (which would be double-encoding if we manually added + before URLSearchParams)
+        expect(calledUrl).toContain("search=test+project");
       });
 
-      it("should return only minimal essential fields for maximum token efficiency", async () => {
+      it("should properly encode special characters like + in search query", async () => {
+        // Test: Literal + character in search query
+        // Edge case: "C++ programming" contains a literal + that must be encoded as %2B
+        // Why this matters: + has special meaning in URLs (space), so literal + must be escaped
+        mockEnhancedFetch.mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: jest.fn().mockResolvedValue([]),
+        } as any);
+
+        const tool = coreToolRegistry.get("browse_projects");
+        await tool!.handler({ action: "search", q: "C++ programming" });
+
+        const calledUrl = mockEnhancedFetch.mock.calls[0][0] as string;
+        // Literal + should be encoded as %2B, space as +
+        // "C++ programming" -> "C%2B%2B+programming"
+        expect(calledUrl).toContain("search=C%2B%2B+programming");
+      });
+    });
+
+    describe("manage_repository Handler", () => {
+      it("should create repository with action: create", async () => {
+        // Mock namespace check (doesn't exist)
+        mockEnhancedFetch.mockResolvedValueOnce({
+          ok: false,
+          status: 404,
+        } as any);
+
+        // Mock project creation
+        mockEnhancedFetch.mockResolvedValueOnce({
+          ok: true,
+          status: 201,
+          json: jest.fn().mockResolvedValue({
+            id: 1000,
+            name: "new-repo",
+            web_url: "https://gitlab.example.com/current-user/new-repo",
+          }),
+        } as any);
+
+        const tool = coreToolRegistry.get("manage_repository");
+        const result = await tool!.handler({
+          action: "create",
+          name: "new-repo",
+          description: "A new repository",
+          visibility: "private",
+        });
+
+        expect(mockEnhancedFetch).toHaveBeenCalledTimes(2);
+        expect(result).toMatchObject({
+          id: 1000,
+          name: "new-repo",
+        });
+      });
+
+      it("should fork repository with action: fork", async () => {
+        mockEnhancedFetch.mockResolvedValueOnce({
+          ok: true,
+          status: 201,
+          json: jest.fn().mockResolvedValue({
+            id: 2000,
+            name: "forked-repo",
+            forked_from_project: { id: 1000, name: "original-repo" },
+          }),
+        } as any);
+
+        const tool = coreToolRegistry.get("manage_repository");
+        const result = await tool!.handler({
+          action: "fork",
+          project_id: "1000",
+          namespace: "my-group",
+        });
+
+        expect(mockEnhancedFetch).toHaveBeenCalledWith(
+          "https://gitlab.example.com/api/v4/projects/1000/fork",
+          expect.objectContaining({
+            method: "POST",
+          })
+        );
+
+        expect(result).toMatchObject({
+          id: 2000,
+          name: "forked-repo",
+        });
+      });
+    });
+
+    describe("list_todos Handler", () => {
+      it("should list todos with no filters (default behavior)", async () => {
+        // Test: Default list todos call with no filters
+        // Why this matters: Verifies basic API endpoint is correct when no filters applied
+        // Edge case: Schema has default per_page=20, so that's always included
         const mockApiResponse = [
-          {
-            id: 123,
-            name: "minimal-project",
-            path_with_namespace: "org/minimal-project",
-            description: "Essential data only",
-            // These should be filtered out
-            web_url: "https://gitlab.example.com/org/minimal-project",
-            visibility: "public",
-            created_at: "2024-01-01T00:00:00Z",
-            updated_at: "2024-12-01T00:00:00Z",
-            last_activity_at: "2024-12-01T00:00:00Z",
-            default_branch: "main",
-            archived: false,
-            forks_count: 5,
-            star_count: 10,
-            namespace: { id: 1, name: "org", path: "org" },
-          },
+          { id: 1, action_name: "assigned", target_type: "Issue", state: "pending" },
+          { id: 2, action_name: "mentioned", target_type: "MergeRequest", state: "pending" },
         ];
 
         mockEnhancedFetch.mockResolvedValueOnce({
@@ -510,161 +600,242 @@ describe("Core Registry", () => {
           json: jest.fn().mockResolvedValue(mockApiResponse),
         } as any);
 
-        const tool = coreToolRegistry.get("search_repositories");
-        const result = (await tool!.handler({ q: "minimal" })) as any[];
+        const tool = coreToolRegistry.get("list_todos");
+        const result = await tool!.handler({});
 
-        expect(result).toEqual([
-          {
-            id: 123,
-            name: "minimal-project",
-            path_with_namespace: "org/minimal-project",
-            description: "Essential data only",
-          },
-        ]);
-
-        // Verify exactly 4 fields and no more
-        expect(Object.keys(result[0])).toHaveLength(4);
+        const calledUrl = mockEnhancedFetch.mock.calls[0][0] as string;
+        // per_page has a default value in schema, so it's always included
+        expect(calledUrl).toContain("/api/v4/todos?");
+        expect(calledUrl).toContain("per_page=20");
+        expect(result).toEqual(mockApiResponse);
       });
 
-      it("should use direct with_programming_language parameter efficiently", async () => {
+      it("should filter todos by state parameter", async () => {
+        // Test: Filter by state=pending vs state=done
+        // Edge case: Ensures state filter is properly passed to API
+        // Why this matters: Users need to see only active or only completed todos
+        mockEnhancedFetch.mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: jest.fn().mockResolvedValue([{ id: 1, state: "pending" }]),
+        } as any);
+
+        const tool = coreToolRegistry.get("list_todos");
+        await tool!.handler({ state: "pending" });
+
+        const calledUrl = mockEnhancedFetch.mock.calls[0][0] as string;
+        expect(calledUrl).toContain("state=pending");
+      });
+
+      it("should filter todos by action type", async () => {
+        // Test: Filter by specific action types (assigned, mentioned, review_requested, etc.)
+        // Why this matters: Users may want to see only review requests or only mentions
         mockEnhancedFetch.mockResolvedValueOnce({
           ok: true,
           status: 200,
           json: jest.fn().mockResolvedValue([]),
         } as any);
 
-        const tool = coreToolRegistry.get("search_repositories");
-        await tool!.handler({ with_programming_language: "javascript" });
+        const tool = coreToolRegistry.get("list_todos");
+        await tool!.handler({ action: "review_requested" });
 
-        expect(mockEnhancedFetch).toHaveBeenCalledWith(
-          "https://gitlab.example.com/api/v4/projects?with_programming_language=javascript&per_page=20&active=true"
-        );
+        const calledUrl = mockEnhancedFetch.mock.calls[0][0] as string;
+        expect(calledUrl).toContain("action=review_requested");
       });
 
-      it("should parse language: operator from q parameter for backward compatibility", async () => {
+      it("should filter todos by target type (Issue, MergeRequest, etc.)", async () => {
+        // Test: Filter by target_type to see only Issue todos or only MR todos
+        // Edge case: type parameter contains special characters like DesignManagement::Design
+        // Why this matters: Users filtering by specific resource types
         mockEnhancedFetch.mockResolvedValueOnce({
           ok: true,
           status: 200,
           json: jest.fn().mockResolvedValue([]),
         } as any);
 
-        const tool = coreToolRegistry.get("search_repositories");
-        await tool!.handler({ q: "language:javascript" });
+        const tool = coreToolRegistry.get("list_todos");
+        await tool!.handler({ type: "MergeRequest" });
 
-        expect(mockEnhancedFetch).toHaveBeenCalledWith(
-          "https://gitlab.example.com/api/v4/projects?with_programming_language=javascript&per_page=20&active=true"
-        );
+        const calledUrl = mockEnhancedFetch.mock.calls[0][0] as string;
+        expect(calledUrl).toContain("type=MergeRequest");
       });
 
-      it("should parse language: operator with additional search terms", async () => {
+      it("should combine multiple filter parameters correctly", async () => {
+        // Test: Multiple filters combined (state + action + type)
+        // Why this matters: Real-world usage often involves multiple filters
         mockEnhancedFetch.mockResolvedValueOnce({
           ok: true,
           status: 200,
           json: jest.fn().mockResolvedValue([]),
         } as any);
 
-        const tool = coreToolRegistry.get("search_repositories");
-        await tool!.handler({ q: "language:python test project" });
-
-        expect(mockEnhancedFetch).toHaveBeenCalledWith(
-          "https://gitlab.example.com/api/v4/projects?with_programming_language=python&search=test%2Bproject&per_page=20&active=true"
-        );
-      });
-
-      it("should combine with_programming_language parameter with search terms", async () => {
-        mockEnhancedFetch.mockResolvedValueOnce({
-          ok: true,
-          status: 200,
-          json: jest.fn().mockResolvedValue([]),
-        } as any);
-
-        const tool = coreToolRegistry.get("search_repositories");
+        const tool = coreToolRegistry.get("list_todos");
         await tool!.handler({
-          q: "test project",
-          with_programming_language: "python",
+          state: "pending",
+          action: "assigned",
+          type: "Issue",
+          per_page: 50,
         });
 
-        expect(mockEnhancedFetch).toHaveBeenCalledWith(
-          "https://gitlab.example.com/api/v4/projects?with_programming_language=python&search=test%2Bproject&per_page=20&active=true"
-        );
+        const calledUrl = mockEnhancedFetch.mock.calls[0][0] as string;
+        expect(calledUrl).toContain("state=pending");
+        expect(calledUrl).toContain("action=assigned");
+        expect(calledUrl).toContain("type=Issue");
+        expect(calledUrl).toContain("per_page=50");
       });
 
-      it("should prioritize direct with_programming_language over q parameter language operator", async () => {
+      it("should handle pagination parameters", async () => {
+        // Test: Pagination with page and per_page parameters
+        // Why this matters: Large todo lists need proper pagination
         mockEnhancedFetch.mockResolvedValueOnce({
           ok: true,
           status: 200,
           json: jest.fn().mockResolvedValue([]),
         } as any);
 
-        const tool = coreToolRegistry.get("search_repositories");
-        await tool!.handler({
-          q: "language:javascript test",
-          with_programming_language: "python",
-        });
+        const tool = coreToolRegistry.get("list_todos");
+        await tool!.handler({ page: 2, per_page: 20 });
 
-        // Should use python from direct parameter, not javascript from q
-        expect(mockEnhancedFetch).toHaveBeenCalledWith(
-          "https://gitlab.example.com/api/v4/projects?with_programming_language=python&search=language%3Ajavascript%2Btest&per_page=20&active=true"
-        );
+        const calledUrl = mockEnhancedFetch.mock.calls[0][0] as string;
+        expect(calledUrl).toContain("page=2");
+        expect(calledUrl).toContain("per_page=20");
       });
 
-      it("should parse user: operator and convert to owned parameter", async () => {
+      it("should throw error on API failure", async () => {
+        // Test: Proper error handling when GitLab API returns error
+        // Why this matters: Users need clear error messages on API failures
+        mockEnhancedFetch.mockResolvedValueOnce({
+          ok: false,
+          status: 401,
+          statusText: "Unauthorized",
+        } as any);
+
+        const tool = coreToolRegistry.get("list_todos");
+        await expect(tool!.handler({})).rejects.toThrow("GitLab API error: 401 Unauthorized");
+      });
+    });
+
+    describe("manage_todos Handler", () => {
+      it("should mark single todo as done with action: mark_done", async () => {
+        // Test: mark_done action with specific todo ID
+        // Why this matters: Users need to complete individual todos
+        // Edge case: Verifies POST to /todos/{id}/mark_as_done endpoint
         mockEnhancedFetch.mockResolvedValueOnce({
           ok: true,
           status: 200,
-          json: jest.fn().mockResolvedValue([]),
+          json: jest.fn().mockResolvedValue({ id: 1, state: "done" }),
         } as any);
 
-        const tool = coreToolRegistry.get("search_repositories");
-        await tool!.handler({ q: "user:johndoe test project" });
+        const tool = coreToolRegistry.get("manage_todos");
+        const result = await tool!.handler({ action: "mark_done", id: 1 });
 
         expect(mockEnhancedFetch).toHaveBeenCalledWith(
-          "https://gitlab.example.com/api/v4/projects?owned=true&search=test%2Bproject&per_page=20&active=true"
+          "https://gitlab.example.com/api/v4/todos/1/mark_as_done",
+          { method: "POST" }
         );
+
+        expect(result).toMatchObject({ id: 1, state: "done" });
       });
 
-      it("should parse topic: operator and convert to topic parameter", async () => {
+      it("should mark ALL todos as done with action: mark_all_done", async () => {
+        // Test: Bulk operation to complete all pending todos at once
+        // Why this matters: Users often need to clear their entire todo queue
+        // Edge case: This endpoint returns 204 No Content, not a JSON body
+        // Handler returns a success object since there's no todo to return
+        mockEnhancedFetch.mockResolvedValueOnce({
+          ok: true,
+          status: 204,
+        } as any);
+
+        const tool = coreToolRegistry.get("manage_todos");
+        const result = await tool!.handler({ action: "mark_all_done" });
+
+        expect(mockEnhancedFetch).toHaveBeenCalledWith(
+          "https://gitlab.example.com/api/v4/todos/mark_all_as_done",
+          { method: "POST" }
+        );
+
+        expect(result).toMatchObject({ success: true, message: "All todos marked as done" });
+      });
+
+      it("should restore completed todo back to pending with action: restore", async () => {
+        // Test: Undo a completed todo, returning it to pending state
+        // Why this matters: Users may accidentally mark todos done
+        // Edge case: Uses /mark_as_pending endpoint (not /restore)
         mockEnhancedFetch.mockResolvedValueOnce({
           ok: true,
           status: 200,
-          json: jest.fn().mockResolvedValue([]),
+          json: jest.fn().mockResolvedValue({ id: 1, state: "pending" }),
         } as any);
 
-        const tool = coreToolRegistry.get("search_repositories");
-        await tool!.handler({ q: "topic:devops test project" });
+        const tool = coreToolRegistry.get("manage_todos");
+        const result = await tool!.handler({ action: "restore", id: 1 });
 
         expect(mockEnhancedFetch).toHaveBeenCalledWith(
-          "https://gitlab.example.com/api/v4/projects?topic=devops&search=test%2Bproject&per_page=20&active=true"
+          "https://gitlab.example.com/api/v4/todos/1/mark_as_pending",
+          { method: "POST" }
         );
+
+        expect(result).toMatchObject({ id: 1, state: "pending" });
       });
 
-      it("should parse multiple topic: operators", async () => {
-        mockEnhancedFetch.mockResolvedValueOnce({
-          ok: true,
-          status: 200,
-          json: jest.fn().mockResolvedValue([]),
-        } as any);
+      it("should require id for mark_done action", async () => {
+        // Test: Validation that id is required for single-todo operations
+        // Why this matters: Prevents calling mark_done without specifying which todo
+        // Edge case: Should throw before making API call
+        const tool = coreToolRegistry.get("manage_todos");
 
-        const tool = coreToolRegistry.get("search_repositories");
-        await tool!.handler({ q: "topic:devops topic:kubernetes project" });
-
-        expect(mockEnhancedFetch).toHaveBeenCalledWith(
-          "https://gitlab.example.com/api/v4/projects?topic=devops%2Ckubernetes&search=project&per_page=20&active=true"
+        await expect(tool!.handler({ action: "mark_done" })).rejects.toThrow(
+          "Todo ID is required for action 'mark_done'"
         );
+
+        // Verify no API call was made
+        expect(mockEnhancedFetch).not.toHaveBeenCalled();
       });
 
-      it("should combine multiple operators efficiently", async () => {
+      it("should require id for restore action", async () => {
+        // Test: Validation that id is required for restore operation
+        // Why this matters: Can't restore without knowing which todo to restore
+        // Edge case: Same validation as mark_done
+        const tool = coreToolRegistry.get("manage_todos");
+
+        await expect(tool!.handler({ action: "restore" })).rejects.toThrow(
+          "Todo ID is required for action 'restore'"
+        );
+
+        // Verify no API call was made
+        expect(mockEnhancedFetch).not.toHaveBeenCalled();
+      });
+
+      it("should NOT require id for mark_all_done action", async () => {
+        // Test: mark_all_done is a bulk operation that doesn't need specific ID
+        // Why this matters: Verifies the id validation logic is correct
+        // Edge case: id parameter should be ignored for mark_all_done
         mockEnhancedFetch.mockResolvedValueOnce({
           ok: true,
-          status: 200,
-          json: jest.fn().mockResolvedValue([]),
+          status: 204,
         } as any);
 
-        const tool = coreToolRegistry.get("search_repositories");
-        await tool!.handler({ q: "language:javascript user:johndoe topic:frontend test app" });
+        const tool = coreToolRegistry.get("manage_todos");
+        // Should not throw even without id
+        const result = await tool!.handler({ action: "mark_all_done" });
 
-        expect(mockEnhancedFetch).toHaveBeenCalledWith(
-          "https://gitlab.example.com/api/v4/projects?owned=true&topic=frontend&with_programming_language=javascript&search=test%2Bapp&per_page=20&active=true"
+        expect(result).toMatchObject({ success: true });
+      });
+
+      it("should throw error on API failure", async () => {
+        // Test: Proper error handling when GitLab API returns error
+        // Why this matters: Users need clear error messages on failures
+        mockEnhancedFetch.mockResolvedValueOnce({
+          ok: false,
+          status: 404,
+          statusText: "Not Found",
+        } as any);
+
+        const tool = coreToolRegistry.get("manage_todos");
+
+        await expect(tool!.handler({ action: "mark_done", id: 999999 })).rejects.toThrow(
+          "GitLab API error: 404 Not Found"
         );
       });
     });
