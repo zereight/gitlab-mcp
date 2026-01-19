@@ -640,6 +640,54 @@ describe("Pipelines Registry - CQRS Tools", () => {
         expect(result.totalLines).toBe(50);
         expect(result.shownLines).toBe(0);
       });
+
+      // Test for line 89: error handling when fetch returns non-ok response
+      it("should throw error when API returns non-ok response", async () => {
+        mockEnhancedFetch.mockResolvedValueOnce({
+          ok: false,
+          status: 404,
+          statusText: "Not Found",
+        } as never);
+
+        const tool = pipelinesToolRegistry.get("browse_pipelines")!;
+
+        await expect(
+          tool.handler({
+            action: "logs",
+            project_id: "test/project",
+            job_id: "999",
+          })
+        ).rejects.toThrow("GitLab API error: 404 Not Found");
+      });
+
+      // Test for lines 120-121: partial request message when start + max_lines exceeds total
+      it("should show partial request message when requested range exceeds available lines", async () => {
+        const lines = Array.from({ length: 50 }, (_, i) => `Line ${i + 1} content`);
+        const fullTrace = lines.join("\n");
+
+        mockEnhancedFetch.mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          statusText: "OK",
+          text: jest.fn().mockResolvedValue(fullTrace),
+        } as never);
+
+        const tool = pipelinesToolRegistry.get("browse_pipelines")!;
+        const result = (await tool.handler({
+          action: "logs",
+          project_id: "test/project",
+          job_id: "1",
+          start: 40,
+          max_lines: 20,
+        })) as { trace: string; totalLines: number; shownLines: number };
+
+        // start=40, max_lines=20 means requesting lines 40-59, but only 40-49 exist
+        expect(result.trace).toContain("PARTIAL REQUEST");
+        expect(result.trace).toContain("Requested 20 lines from position 40");
+        expect(result.trace).toContain("only 10 lines available");
+        expect(result.totalLines).toBe(50);
+        expect(result.shownLines).toBe(10);
+      });
     });
 
     describe("manage_pipeline handler - create action", () => {
@@ -715,6 +763,115 @@ describe("Pipelines Registry - CQRS Tools", () => {
             ref: "invalid-ref",
           })
         ).rejects.toThrow("ref: is invalid");
+      });
+
+      // Test for line 197: string error message
+      it("should handle string error message", async () => {
+        mockEnhancedFetch.mockResolvedValueOnce({
+          ok: false,
+          status: 400,
+          statusText: "Bad Request",
+          json: jest.fn().mockResolvedValue({
+            message: "Reference not found",
+          }),
+        } as never);
+
+        const tool = pipelinesToolRegistry.get("manage_pipeline")!;
+
+        await expect(
+          tool.handler({
+            action: "create",
+            project_id: "test/project",
+            ref: "nonexistent-branch",
+          })
+        ).rejects.toThrow("Reference not found");
+      });
+
+      // Test for line 207: non-array value in message object
+      it("should handle non-array values in message object", async () => {
+        mockEnhancedFetch.mockResolvedValueOnce({
+          ok: false,
+          status: 400,
+          statusText: "Bad Request",
+          json: jest.fn().mockResolvedValue({
+            message: { ref: "invalid ref format", branch: "does not exist" },
+          }),
+        } as never);
+
+        const tool = pipelinesToolRegistry.get("manage_pipeline")!;
+
+        await expect(
+          tool.handler({
+            action: "create",
+            project_id: "test/project",
+            ref: "bad/ref",
+          })
+        ).rejects.toThrow("ref: invalid ref format");
+      });
+
+      // Test for line 217: errorBody.error string
+      it("should handle error string field", async () => {
+        mockEnhancedFetch.mockResolvedValueOnce({
+          ok: false,
+          status: 403,
+          statusText: "Forbidden",
+          json: jest.fn().mockResolvedValue({
+            error: "insufficient_scope",
+          }),
+        } as never);
+
+        const tool = pipelinesToolRegistry.get("manage_pipeline")!;
+
+        await expect(
+          tool.handler({
+            action: "create",
+            project_id: "test/project",
+            ref: "main",
+          })
+        ).rejects.toThrow("insufficient_scope");
+      });
+
+      // Test for line 220: errorBody.errors array
+      it("should handle errors array field", async () => {
+        mockEnhancedFetch.mockResolvedValueOnce({
+          ok: false,
+          status: 422,
+          statusText: "Unprocessable Entity",
+          json: jest.fn().mockResolvedValue({
+            errors: ["Variable key is required", "Variable value cannot be empty"],
+          }),
+        } as never);
+
+        const tool = pipelinesToolRegistry.get("manage_pipeline")!;
+
+        await expect(
+          tool.handler({
+            action: "create",
+            project_id: "test/project",
+            ref: "main",
+            variables: [{ key: "", value: "" }],
+          })
+        ).rejects.toThrow("Variable key is required, Variable value cannot be empty");
+      });
+
+      // Test for line 228: catch block when JSON parsing fails
+      it("should handle non-JSON error response", async () => {
+        mockEnhancedFetch.mockResolvedValueOnce({
+          ok: false,
+          status: 500,
+          statusText: "Internal Server Error",
+          json: jest.fn().mockRejectedValue(new Error("Invalid JSON")),
+        } as never);
+
+        const tool = pipelinesToolRegistry.get("manage_pipeline")!;
+
+        await expect(
+          tool.handler({
+            action: "create",
+            project_id: "test/project",
+            ref: "main",
+          })
+        ).rejects.toThrow("GitLab API error: 500 Internal Server Error");
       });
     });
 

@@ -73,6 +73,7 @@ export const mrsToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefinit
               }
               throw new Error("No merge request found for branch");
             }
+            /* istanbul ignore next -- unreachable: schema validation ensures merge_request_iid or branch_name */
             throw new Error("Either merge_request_iid or branch_name must be provided");
           }
 
