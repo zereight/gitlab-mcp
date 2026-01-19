@@ -53,14 +53,22 @@ export const mrsToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefinit
           }
 
           case "get": {
+            // Build query params for optional fields
+            const query: Record<string, boolean | string | undefined> = {};
+            if (input.include_diverged_commits_count !== undefined)
+              query.include_diverged_commits_count = input.include_diverged_commits_count;
+            if (input.include_rebase_in_progress !== undefined)
+              query.include_rebase_in_progress = input.include_rebase_in_progress;
+
             if (input.merge_request_iid) {
               return gitlab.get(
-                `projects/${normalizeProjectId(input.project_id)}/merge_requests/${input.merge_request_iid}`
+                `projects/${normalizeProjectId(input.project_id)}/merge_requests/${input.merge_request_iid}`,
+                Object.keys(query).length > 0 ? { query } : undefined
               );
             } else if (input.branch_name) {
               const result = await gitlab.get<unknown[]>(
                 `projects/${normalizeProjectId(input.project_id)}/merge_requests`,
-                { query: { source_branch: input.branch_name } }
+                { query: { source_branch: input.branch_name, ...query } }
               );
 
               if (Array.isArray(result) && result.length > 0) {
@@ -72,9 +80,13 @@ export const mrsToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefinit
           }
 
           case "diffs": {
-            const query: Record<string, number | undefined> = {};
+            const query: Record<string, number | boolean | undefined> = {};
             if (input.page !== undefined) query.page = input.page;
             if (input.per_page !== undefined) query.per_page = input.per_page;
+            if (input.include_diverged_commits_count !== undefined)
+              query.include_diverged_commits_count = input.include_diverged_commits_count;
+            if (input.include_rebase_in_progress !== undefined)
+              query.include_rebase_in_progress = input.include_rebase_in_progress;
 
             return gitlab.get(
               `projects/${normalizeProjectId(input.project_id)}/merge_requests/${input.merge_request_iid}/changes`,

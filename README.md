@@ -553,7 +553,7 @@ Multiple individual tools have been consolidated into action-based CQRS tools. T
 <details>
 <summary>Consolidated Tools in v5.0</summary>
 
-**Merge Requests (17 tools → 5 CQRS tools)**:
+**Merge Requests (20 tools → 5 CQRS tools)**:
 - `list_merge_requests`, `get_merge_request`, `get_merge_request_diffs`, `list_merge_request_diffs`, `get_branch_diffs` → Use `browse_merge_requests` with action: "list", "get", "diffs", "compare"
 - `mr_discussions`, `list_draft_notes`, `get_draft_note` → Use `browse_mr_discussions` with action: "list", "drafts", "draft"
 - `create_merge_request`, `update_merge_request`, `merge_merge_request` → Use `manage_merge_request` with action: "create", "update", "merge"

@@ -7,6 +7,7 @@ import {
 import { gitlab } from "../../../../src/utils/gitlab-api";
 
 // Mock the gitlab API helper
+// Note: toQuery mock mirrors the real implementation which filters out undefined values
 jest.mock("../../../../src/utils/gitlab-api", () => ({
   gitlab: {
     get: jest.fn(),
@@ -14,9 +15,10 @@ jest.mock("../../../../src/utils/gitlab-api", () => ({
     put: jest.fn(),
     delete: jest.fn(),
   },
-  toQuery: jest.fn((options, exclude) => {
+  toQuery: jest.fn((options: Record<string, unknown>, exclude: string[] = []) => {
     const result: Record<string, unknown> = {};
     for (const [key, value] of Object.entries(options)) {
+      // Filter out excluded keys and undefined values (matches real implementation)
       if (!exclude.includes(key) && value !== undefined) {
         result[key] = value;
       }
@@ -44,7 +46,8 @@ afterAll(() => {
 
 beforeEach(() => {
   jest.clearAllMocks();
-  // Note: Don't use resetAllMocks() here as it clears the toQuery mock implementation
+  // Note: Don't use resetAllMocks() here because it would remove the custom toQuery
+  // mock implementation defined above, which is intended to mirror the real helper.
 });
 
 describe("MRS Registry", () => {
@@ -358,7 +361,33 @@ describe("MRS Registry", () => {
             merge_request_iid: 1,
           });
 
-          expect(mockGitlab.get).toHaveBeenCalledWith("projects/test%2Fproject/merge_requests/1");
+          // No query params = undefined second argument
+          expect(mockGitlab.get).toHaveBeenCalledWith(
+            "projects/test%2Fproject/merge_requests/1",
+            undefined
+          );
+          expect(result).toEqual(mockMR);
+        });
+
+        it("should get MR by IID with include flags", async () => {
+          const mockMR = { id: 1, iid: 1, title: "Test MR", diverged_commits_count: 5 };
+          mockGitlab.get.mockResolvedValueOnce(mockMR);
+
+          const tool = mrsToolRegistry.get("browse_merge_requests")!;
+          const result = await tool.handler({
+            action: "get",
+            project_id: "test/project",
+            merge_request_iid: 1,
+            include_diverged_commits_count: true,
+            include_rebase_in_progress: true,
+          });
+
+          expect(mockGitlab.get).toHaveBeenCalledWith("projects/test%2Fproject/merge_requests/1", {
+            query: {
+              include_diverged_commits_count: true,
+              include_rebase_in_progress: true,
+            },
+          });
           expect(result).toEqual(mockMR);
         });
 
@@ -411,6 +440,31 @@ describe("MRS Registry", () => {
           expect(mockGitlab.get).toHaveBeenCalledWith(
             "projects/test%2Fproject/merge_requests/1/changes",
             { query: { page: 1, per_page: 20 } }
+          );
+          expect(result).toEqual(mockDiffs);
+        });
+
+        it("should get MR diffs with include flags", async () => {
+          const mockDiffs = { changes: [], diverged_commits_count: 3 };
+          mockGitlab.get.mockResolvedValueOnce(mockDiffs);
+
+          const tool = mrsToolRegistry.get("browse_merge_requests")!;
+          const result = await tool.handler({
+            action: "diffs",
+            project_id: "test/project",
+            merge_request_iid: 1,
+            include_diverged_commits_count: true,
+            include_rebase_in_progress: true,
+          });
+
+          expect(mockGitlab.get).toHaveBeenCalledWith(
+            "projects/test%2Fproject/merge_requests/1/changes",
+            {
+              query: {
+                include_diverged_commits_count: true,
+                include_rebase_in_progress: true,
+              },
+            }
           );
           expect(result).toEqual(mockDiffs);
         });
