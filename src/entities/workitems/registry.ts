@@ -233,7 +233,7 @@ export const workitemsToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
             const connectionManager = ConnectionManager.getInstance();
             const client = connectionManager.getClient();
 
-            // For list_work_items GraphQL query, use type names as-is (GraphQL expects enum values)
+            // For the work items GraphQL query, use type names as-is (GraphQL expects enum values)
             const resolvedTypes: string[] | undefined = types;
 
             // Query the namespace (works for both groups and projects)
