@@ -11,7 +11,7 @@ export const GITLAB_API_URL = process.env.GITLAB_API_URL;
 export const GITLAB_PROJECT_ID = process.env.GITLAB_PROJECT_ID; // Only for DEFAULT_PROJECT tests
 
 if (!GITLAB_TOKEN || !GITLAB_API_URL) {
-  console.warn('⚠️  GITLAB_TOKEN and GITLAB_API_URL are required for integration tests');
+  console.warn("⚠️  GITLAB_TOKEN and GITLAB_API_URL are required for integration tests");
 }
 
 // Test data state interface
@@ -31,14 +31,15 @@ export interface TestDataState {
   mergeRequests?: any[];
   milestones?: any[];
   labels?: any[];
+  todos?: any[];
 }
 
-import * as fs from 'fs';
-import * as path from 'path';
-import * as os from 'os';
+import * as fs from "fs";
+import * as path from "path";
+import * as os from "os";
 
 // Use persistent file storage to share data across test files (Jest creates separate contexts)
-const TEST_DATA_FILE = path.join(os.tmpdir(), 'gitlab-mcp-test-data.json');
+const TEST_DATA_FILE = path.join(os.tmpdir(), "gitlab-mcp-test-data.json");
 
 // Use global state to share data across all test files in the same Jest process
 declare global {
@@ -59,12 +60,12 @@ export const getTestData = (): TestDataState => {
   // Fall back to persistent file (for cross-file sharing)
   try {
     if (fs.existsSync(TEST_DATA_FILE)) {
-      const data = JSON.parse(fs.readFileSync(TEST_DATA_FILE, 'utf8'));
+      const data = JSON.parse(fs.readFileSync(TEST_DATA_FILE, "utf8"));
       global.TEST_DATA_STATE = data; // Cache in global state
       return data;
     }
   } catch (error) {
-    console.warn('⚠️ Could not read test data file:', error);
+    console.warn("⚠️ Could not read test data file:", error);
   }
 
   return {};
@@ -76,7 +77,7 @@ export const setTestData = (data: TestDataState): void => {
   try {
     fs.writeFileSync(TEST_DATA_FILE, JSON.stringify(global.TEST_DATA_STATE, null, 2));
   } catch (error) {
-    console.warn('⚠️ Could not write test data file:', error);
+    console.warn("⚠️ Could not write test data file:", error);
   }
 };
 
@@ -86,7 +87,7 @@ export const updateTestData = (updates: Partial<TestDataState>): void => {
   try {
     fs.writeFileSync(TEST_DATA_FILE, JSON.stringify(global.TEST_DATA_STATE, null, 2));
   } catch (error) {
-    console.warn('⚠️ Could not write test data file:', error);
+    console.warn("⚠️ Could not write test data file:", error);
   }
 };
 
@@ -95,7 +96,7 @@ export const requireTestData = () => {
   const data = getTestData();
   if (!data.project?.id || !data.group?.id) {
     throw new Error(
-      'Test data not available. Make sure to run data-lifecycle.test.ts first with --runInBand'
+      "Test data not available. Make sure to run data-lifecycle.test.ts first with --runInBand"
     );
   }
   return data;

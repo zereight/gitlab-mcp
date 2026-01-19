@@ -16,7 +16,6 @@
 
 import { GITLAB_TOKEN, GITLAB_API_URL, updateTestData, getTestData } from "../setup/testConfig";
 import { GraphQLClient } from "../../src/graphql/client";
-import { CREATE_WORK_ITEM } from "../../src/graphql/workItems";
 import { ConnectionManager } from "../../src/services/ConnectionManager";
 import { getWorkItemTypes } from "../../src/utils/workItemTypes";
 import { gql } from "graphql-tag";
