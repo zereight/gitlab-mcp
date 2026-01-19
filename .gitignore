@@ -12,3 +12,4 @@ test-results-oauth.json
 # ai
 .opencode*
 .aider*
+test-results*.json
