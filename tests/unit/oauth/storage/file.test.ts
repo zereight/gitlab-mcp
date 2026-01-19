@@ -6,7 +6,7 @@
 import * as fs from "fs";
 import * as path from "path";
 import * as os from "os";
-import { FileStorageBackend, FileStorageOptions } from "../../../../src/oauth/storage/file";
+import { FileStorageBackend } from "../../../../src/oauth/storage/file";
 import { STORAGE_DATA_VERSION, StorageData } from "../../../../src/oauth/storage/types";
 import {
   OAuthSession,
