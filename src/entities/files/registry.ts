@@ -1,10 +1,11 @@
 import * as z from "zod";
-import { BrowseFilesSchema, BrowseFilesInput } from "./schema-readonly";
-import { ManageFilesSchema, ManageFilesInput } from "./schema";
+import { BrowseFilesSchema } from "./schema-readonly";
+import { ManageFilesSchema } from "./schema";
 import { gitlab, toQuery } from "../../utils/gitlab-api";
 import { normalizeProjectId } from "../../utils/projectIdentifier";
 import { enhancedFetch } from "../../utils/fetch";
 import { ToolRegistry, EnhancedToolDefinition } from "../../types";
+import { assertDefined } from "../utils";
 
 /**
  * Files tools registry - 2 CQRS tools replacing 5 individual tools
@@ -38,7 +39,8 @@ export const filesToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefin
           }
           case "content": {
             // file_path is required for content action (validated by .refine())
-            const filePath = input.file_path!;
+            assertDefined(input.file_path, "file_path");
+            const filePath = input.file_path;
 
             const queryParams = new URLSearchParams();
             if (input.ref) queryParams.set("ref", input.ref);
@@ -61,7 +63,7 @@ export const filesToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefin
           }
           /* istanbul ignore next -- unreachable with Zod validation */
           default:
-            throw new Error(`Unknown action: ${input.action}`);
+            throw new Error(`Unknown action: ${(input as { action: string }).action}`);
         }
       },
     },
@@ -79,19 +81,22 @@ export const filesToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefin
         switch (input.action) {
           case "single": {
             // file_path, content, commit_message, branch are required for single action (validated by .refine())
+            assertDefined(input.file_path, "file_path");
             const { project_id, file_path, action: _action, ...body } = input;
-            const filePath = file_path!;
 
             return gitlab.post(
-              `projects/${normalizeProjectId(project_id)}/repository/files/${encodeURIComponent(filePath)}`,
+              `projects/${normalizeProjectId(project_id)}/repository/files/${encodeURIComponent(file_path)}`,
               { body, contentType: "form" }
             );
           }
           case "batch": {
             // files, branch, commit_message are required for batch action (validated by .refine())
-            const files = input.files!;
-            const branch = input.branch!;
-            const commitMessage = input.commit_message!;
+            assertDefined(input.files, "files");
+            assertDefined(input.branch, "branch");
+            assertDefined(input.commit_message, "commit_message");
+            const files = input.files;
+            const branch = input.branch;
+            const commitMessage = input.commit_message;
 
             const actions = files.map(file => ({
               action: "create",
@@ -118,8 +123,10 @@ export const filesToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefin
           }
           case "upload": {
             // file, filename are required for upload action (validated by .refine())
-            const file = input.file!;
-            const filename = input.filename!;
+            assertDefined(input.file, "file");
+            assertDefined(input.filename, "filename");
+            const file = input.file;
+            const filename = input.filename;
 
             const formData = new FormData();
             const buffer = Buffer.from(file, "base64");
@@ -134,7 +141,7 @@ export const filesToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefin
           }
           /* istanbul ignore next -- unreachable with Zod validation */
           default:
-            throw new Error(`Unknown action: ${input.action}`);
+            throw new Error(`Unknown action: ${(input as { action: string }).action}`);
         }
       },
     },

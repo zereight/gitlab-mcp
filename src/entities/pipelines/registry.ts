@@ -1,16 +1,12 @@
 import * as z from "zod";
-import { BrowsePipelinesSchema, BrowsePipelinesInput } from "./schema-readonly";
-import {
-  ManagePipelineSchema,
-  ManagePipelineInput,
-  ManagePipelineJobSchema,
-  ManagePipelineJobInput,
-} from "./schema";
+import { BrowsePipelinesSchema } from "./schema-readonly";
+import { ManagePipelineSchema, ManagePipelineJobSchema } from "./schema";
 import { gitlab, toQuery } from "../../utils/gitlab-api";
 import { normalizeProjectId } from "../../utils/projectIdentifier";
 import { enhancedFetch } from "../../utils/fetch";
 import { logger } from "../../logger";
 import { ToolRegistry, EnhancedToolDefinition } from "../../types";
+import { assertDefined } from "../utils";
 
 /**
  * Pipelines tools registry - 3 CQRS tools replacing 12 individual tools
@@ -149,7 +145,7 @@ export const pipelinesToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
 
           /* istanbul ignore next -- unreachable with Zod validation */
           default:
-            throw new Error(`Unknown action: ${input.action}`);
+            throw new Error(`Unknown action: ${(input as { action: string }).action}`);
         }
       },
     },
@@ -171,12 +167,12 @@ export const pipelinesToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
         switch (input.action) {
           case "create": {
             // ref is required for create action (validated by .refine())
+            assertDefined(input.ref, "ref");
             const { project_id, ref, variables } = input;
-            const refValue = ref!;
 
             // Custom handling - ref in query, variables in body with detailed error handling
             const queryParams = new URLSearchParams();
-            queryParams.set("ref", refValue);
+            queryParams.set("ref", ref);
 
             const body: Record<string, unknown> = {};
             if (variables && variables.length > 0) {
@@ -243,27 +239,27 @@ export const pipelinesToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
 
           case "retry": {
             // pipeline_id is required for retry action (validated by .refine())
+            assertDefined(input.pipeline_id, "pipeline_id");
             const { project_id, pipeline_id } = input;
-            const pipelineId = pipeline_id!;
 
             return gitlab.post(
-              `projects/${normalizeProjectId(project_id)}/pipelines/${pipelineId}/retry`
+              `projects/${normalizeProjectId(project_id)}/pipelines/${pipeline_id}/retry`
             );
           }
 
           case "cancel": {
             // pipeline_id is required for cancel action (validated by .refine())
+            assertDefined(input.pipeline_id, "pipeline_id");
             const { project_id, pipeline_id } = input;
-            const pipelineId = pipeline_id!;
 
             return gitlab.post(
-              `projects/${normalizeProjectId(project_id)}/pipelines/${pipelineId}/cancel`
+              `projects/${normalizeProjectId(project_id)}/pipelines/${pipeline_id}/cancel`
             );
           }
 
           /* istanbul ignore next -- unreachable with Zod validation */
           default:
-            throw new Error(`Unknown action: ${input.action}`);
+            throw new Error(`Unknown action: ${(input as { action: string }).action}`);
         }
       },
     },
@@ -310,7 +306,7 @@ export const pipelinesToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
 
           /* istanbul ignore next -- unreachable with Zod validation */
           default:
-            throw new Error(`Unknown action: ${input.action}`);
+            throw new Error(`Unknown action: ${(input as { action: string }).action}`);
         }
       },
     },

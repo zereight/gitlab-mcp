@@ -1,5 +1,4 @@
 import { z } from "zod";
-import { PaginationOptionsSchema } from "../shared";
 import { flexibleBoolean, requiredId } from "../utils";
 
 // Pipeline related schemas

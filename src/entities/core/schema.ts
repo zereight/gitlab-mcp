@@ -2,66 +2,77 @@ import { z } from "zod";
 import { flexibleBoolean, requiredId } from "../utils";
 
 // ============================================================================
-// CONSOLIDATED WRITE SCHEMAS (Issue #16)
-// Using Zod discriminated unions for compile-time action validation
+// CONSOLIDATED WRITE SCHEMAS - Flat schemas with .refine() validation (Issue #29)
+// Using flat z.object() instead of discriminatedUnion for Claude API compatibility
 // ============================================================================
 
-// Common options shared between create and fork actions
-const CommonRepositoryOptions = {
-  issues_enabled: flexibleBoolean.optional().describe("Enable issue tracking."),
-  merge_requests_enabled: flexibleBoolean.optional().describe("Enable merge requests."),
-  jobs_enabled: flexibleBoolean.optional().describe("Enable CI/CD jobs."),
-  wiki_enabled: flexibleBoolean.optional().describe("Enable project wiki."),
-  snippets_enabled: flexibleBoolean.optional().describe("Enable code snippets."),
-  lfs_enabled: flexibleBoolean.optional().describe("Enable Git LFS."),
-  request_access_enabled: flexibleBoolean.optional().describe("Allow access requests."),
-  only_allow_merge_if_pipeline_succeeds: flexibleBoolean
-    .optional()
-    .describe("Require passing pipelines for merge."),
-  only_allow_merge_if_all_discussions_are_resolved: flexibleBoolean
-    .optional()
-    .describe("Require resolved discussions for merge."),
-};
-
-// manage_repository: Discriminated union for create vs fork
-const CreateRepositoryAction = z.object({
-  action: z.literal("create").describe("Create a new repository."),
-  name: z.string().describe("Project name (required for create)."),
-  namespace: z
-    .string()
-    .optional()
-    .describe("Target namespace path. Omit for current user namespace."),
-  description: z.string().optional().describe("Project description."),
-  visibility: z
-    .enum(["private", "internal", "public"])
-    .optional()
-    .describe("Project visibility level."),
-  initialize_with_readme: flexibleBoolean.optional().describe("Create initial README.md file."),
-  ...CommonRepositoryOptions,
-});
-
-// fork_name/fork_path are distinct from create's name to avoid schema conflicts in the
-// discriminated union. Handler maps these to GitLab API's name/path parameters.
-const ForkRepositoryAction = z.object({
-  action: z.literal("fork").describe("Fork an existing repository."),
-  project_id: requiredId.describe(
-    "Source project to fork (required for fork). Numeric ID or URL-encoded path."
-  ),
-  namespace: z.string().optional().describe("Target namespace ID or path for fork."),
-  namespace_path: z.string().optional().describe("Target namespace path for fork."),
-  fork_name: z
-    .string()
-    .optional()
-    .describe("New name for forked project (maps to API 'name' parameter)."),
-  fork_path: z
-    .string()
-    .optional()
-    .describe("New path for forked project (maps to API 'path' parameter)."),
-  ...CommonRepositoryOptions,
-});
-
+// manage_repository: Flat schema for create vs fork actions
 export const ManageRepositorySchema = z
-  .discriminatedUnion("action", [CreateRepositoryAction, ForkRepositoryAction])
+  .object({
+    action: z
+      .enum(["create", "fork"])
+      .describe("Action: 'create' makes new project, 'fork' copies existing project."),
+    // Common options for both actions
+    namespace: z
+      .string()
+      .optional()
+      .describe("Target namespace path. Omit for current user namespace."),
+    issues_enabled: flexibleBoolean.optional().describe("Enable issue tracking."),
+    merge_requests_enabled: flexibleBoolean.optional().describe("Enable merge requests."),
+    jobs_enabled: flexibleBoolean.optional().describe("Enable CI/CD jobs."),
+    wiki_enabled: flexibleBoolean.optional().describe("Enable project wiki."),
+    snippets_enabled: flexibleBoolean.optional().describe("Enable code snippets."),
+    lfs_enabled: flexibleBoolean.optional().describe("Enable Git LFS."),
+    request_access_enabled: flexibleBoolean.optional().describe("Allow access requests."),
+    only_allow_merge_if_pipeline_succeeds: flexibleBoolean
+      .optional()
+      .describe("Require passing pipelines for merge."),
+    only_allow_merge_if_all_discussions_are_resolved: flexibleBoolean
+      .optional()
+      .describe("Require resolved discussions for merge."),
+    // Create action fields
+    name: z.string().optional().describe("Project name (required for 'create' action)."),
+    description: z.string().optional().describe("Project description."),
+    visibility: z
+      .enum(["private", "internal", "public"])
+      .optional()
+      .describe("Project visibility level."),
+    initialize_with_readme: flexibleBoolean.optional().describe("Create initial README.md file."),
+    // Fork action fields
+    project_id: z.coerce
+      .string()
+      .optional()
+      .describe(
+        "Source project to fork (required for 'fork' action). Numeric ID or URL-encoded path."
+      ),
+    namespace_path: z.string().optional().describe("Target namespace path for fork."),
+    fork_name: z
+      .string()
+      .optional()
+      .describe("New name for forked project (maps to API 'name' parameter)."),
+    fork_path: z
+      .string()
+      .optional()
+      .describe("New path for forked project (maps to API 'path' parameter)."),
+  })
+  .refine(
+    data => {
+      if (data.action === "create") {
+        return data.name !== undefined && data.name.trim() !== "";
+      }
+      return true;
+    },
+    { message: "name is required for 'create' action", path: ["name"] }
+  )
+  .refine(
+    data => {
+      if (data.action === "fork") {
+        return data.project_id !== undefined && data.project_id.trim() !== "";
+      }
+      return true;
+    },
+    { message: "project_id is required for 'fork' action", path: ["project_id"] }
+  )
   .describe(
     "REPOSITORY MANAGEMENT: Create or fork GitLab projects. Use 'create' with name for new project. Use 'fork' with project_id to copy existing project."
   );
@@ -95,23 +106,30 @@ export const CreateGroupSchema = z.object({
   avatar: z.string().optional().describe("Group avatar URL."),
 });
 
-// manage_todos: Discriminated union for mark_done/mark_all_done/restore
-const MarkDoneTodoAction = z.object({
-  action: z.literal("mark_done").describe("Mark a single todo as done."),
-  id: z.number().int().positive().describe("Todo ID to mark as done (required)."),
-});
-
-const MarkAllDoneTodoAction = z.object({
-  action: z.literal("mark_all_done").describe("Mark all todos as done."),
-});
-
-const RestoreTodoAction = z.object({
-  action: z.literal("restore").describe("Restore a completed todo to pending."),
-  id: z.number().int().positive().describe("Todo ID to restore (required)."),
-});
-
+// manage_todos: Flat schema for mark_done/mark_all_done/restore actions
 export const ManageTodosSchema = z
-  .discriminatedUnion("action", [MarkDoneTodoAction, MarkAllDoneTodoAction, RestoreTodoAction])
+  .object({
+    action: z
+      .enum(["mark_done", "mark_all_done", "restore"])
+      .describe(
+        "Action: 'mark_done' marks single todo done, 'mark_all_done' clears all, 'restore' restores todo."
+      ),
+    id: z
+      .number()
+      .int()
+      .positive()
+      .optional()
+      .describe("Todo ID (required for 'mark_done' and 'restore' actions)."),
+  })
+  .refine(
+    data => {
+      if (data.action === "mark_done" || data.action === "restore") {
+        return data.id !== undefined;
+      }
+      return true;
+    },
+    { message: "id is required for 'mark_done' and 'restore' actions", path: ["id"] }
+  )
   .describe(
     "TODO ACTIONS: Manage GitLab todo items. mark_done requires id, mark_all_done clears all, restore requires id."
   );

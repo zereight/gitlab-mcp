@@ -1,21 +1,14 @@
 import * as z from "zod";
-import {
-  BrowseMergeRequestsSchema,
-  BrowseMergeRequestsInput,
-  BrowseMrDiscussionsSchema,
-  BrowseMrDiscussionsInput,
-} from "./schema-readonly";
+import { BrowseMergeRequestsSchema, BrowseMrDiscussionsSchema } from "./schema-readonly";
 import {
   ManageMergeRequestSchema,
-  ManageMergeRequestInput,
   ManageMrDiscussionSchema,
-  ManageMrDiscussionInput,
   ManageDraftNotesSchema,
-  ManageDraftNotesInput,
 } from "./schema";
 import { gitlab, toQuery } from "../../utils/gitlab-api";
 import { normalizeProjectId } from "../../utils/projectIdentifier";
 import { ToolRegistry, EnhancedToolDefinition } from "../../types";
+import { assertDefined } from "../utils";
 
 /**
  * MRS (Merge Requests) tools registry - 5 CQRS tools replacing 20 individual tools
@@ -54,7 +47,8 @@ export const mrsToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefinit
 
           case "get": {
             // project_id is required for get action (validated by .refine())
-            const projectId = input.project_id!;
+            assertDefined(input.project_id, "project_id");
+            const projectId = input.project_id;
 
             // Build query params for optional fields
             const query: Record<string, boolean | string | undefined> = {};
@@ -84,8 +78,10 @@ export const mrsToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefinit
 
           case "diffs": {
             // project_id and merge_request_iid are required for diffs action (validated by .refine())
-            const projectId = input.project_id!;
-            const mrIid = input.merge_request_iid!;
+            assertDefined(input.project_id, "project_id");
+            assertDefined(input.merge_request_iid, "merge_request_iid");
+            const projectId = input.project_id;
+            const mrIid = input.merge_request_iid;
 
             const query: Record<string, number | boolean | undefined> = {};
             if (input.page !== undefined) query.page = input.page;
@@ -103,11 +99,14 @@ export const mrsToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefinit
 
           case "compare": {
             // project_id, from, to are required for compare action (validated by .refine())
-            const projectId = input.project_id!;
+            assertDefined(input.project_id, "project_id");
+            assertDefined(input.from, "from");
+            assertDefined(input.to, "to");
+            const projectId = input.project_id;
 
             const query: Record<string, string | boolean | undefined> = {
-              from: input.from!,
-              to: input.to!,
+              from: input.from,
+              to: input.to,
             };
             if (input.straight !== undefined) query.straight = input.straight;
 
@@ -118,7 +117,7 @@ export const mrsToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefinit
 
           /* istanbul ignore next -- unreachable with Zod validation */
           default:
-            throw new Error(`Unknown action: ${input.action}`);
+            throw new Error(`Unknown action: ${(input as { action: string }).action}`);
         }
       },
     },
@@ -156,14 +155,15 @@ export const mrsToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefinit
 
           case "draft": {
             // draft_note_id is required for draft action (validated by .refine())
+            assertDefined(input.draft_note_id, "draft_note_id");
             return gitlab.get(
-              `projects/${normalizeProjectId(input.project_id)}/merge_requests/${input.merge_request_iid}/draft_notes/${input.draft_note_id!}`
+              `projects/${normalizeProjectId(input.project_id)}/merge_requests/${input.merge_request_iid}/draft_notes/${input.draft_note_id}`
             );
           }
 
           /* istanbul ignore next -- unreachable with Zod validation */
           default:
-            throw new Error(`Unknown action: ${input.action}`);
+            throw new Error(`Unknown action: ${(input as { action: string }).action}`);
         }
       },
     },
@@ -204,8 +204,8 @@ export const mrsToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefinit
 
           case "update": {
             // merge_request_iid is required for update action (validated by .refine())
+            assertDefined(input.merge_request_iid, "merge_request_iid");
             const { action: _action, project_id, merge_request_iid, ...body } = input;
-            const mrIid = merge_request_iid!;
 
             // Handle array fields
             const processedBody: Record<string, unknown> = {};
@@ -218,25 +218,25 @@ export const mrsToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefinit
             }
 
             return gitlab.put(
-              `projects/${normalizeProjectId(project_id)}/merge_requests/${mrIid}`,
+              `projects/${normalizeProjectId(project_id)}/merge_requests/${merge_request_iid}`,
               { body: processedBody, contentType: "form" }
             );
           }
 
           case "merge": {
             // merge_request_iid is required for merge action (validated by .refine())
+            assertDefined(input.merge_request_iid, "merge_request_iid");
             const { action: _action, project_id, merge_request_iid, ...body } = input;
-            const mrIid = merge_request_iid!;
 
             return gitlab.put(
-              `projects/${normalizeProjectId(project_id)}/merge_requests/${mrIid}/merge`,
+              `projects/${normalizeProjectId(project_id)}/merge_requests/${merge_request_iid}/merge`,
               { body, contentType: "form" }
             );
           }
 
           /* istanbul ignore next -- unreachable with Zod validation */
           default:
-            throw new Error(`Unknown action: ${input.action}`);
+            throw new Error(`Unknown action: ${(input as { action: string }).action}`);
         }
       },
     },
@@ -258,8 +258,10 @@ export const mrsToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefinit
         switch (input.action) {
           case "comment": {
             // noteable_type and noteable_id are required for comment action (validated by .refine())
-            const noteableType = input.noteable_type!;
-            const noteableId = input.noteable_id!;
+            assertDefined(input.noteable_type, "noteable_type");
+            assertDefined(input.noteable_id, "noteable_id");
+            const noteableType = input.noteable_type;
+            const noteableId = input.noteable_id;
 
             const body: Record<string, unknown> = { body: input.body };
             if (input.created_at) body.created_at = input.created_at;
@@ -275,7 +277,8 @@ export const mrsToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefinit
 
           case "thread": {
             // merge_request_iid is required for thread action (validated by .refine())
-            const mrIid = input.merge_request_iid!;
+            assertDefined(input.merge_request_iid, "merge_request_iid");
+            const mrIid = input.merge_request_iid;
 
             const body: Record<string, unknown> = { body: input.body };
             if (input.position) body.position = JSON.stringify(input.position);
@@ -289,8 +292,10 @@ export const mrsToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefinit
 
           case "reply": {
             // merge_request_iid and discussion_id are required for reply action (validated by .refine())
-            const mrIid = input.merge_request_iid!;
-            const discussionId = input.discussion_id!;
+            assertDefined(input.merge_request_iid, "merge_request_iid");
+            assertDefined(input.discussion_id, "discussion_id");
+            const mrIid = input.merge_request_iid;
+            const discussionId = input.discussion_id;
 
             const body: Record<string, unknown> = { body: input.body };
             if (input.created_at) body.created_at = input.created_at;
@@ -303,8 +308,10 @@ export const mrsToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefinit
 
           case "update": {
             // merge_request_iid and note_id are required for update action (validated by .refine())
-            const mrIid = input.merge_request_iid!;
-            const noteId = input.note_id!;
+            assertDefined(input.merge_request_iid, "merge_request_iid");
+            assertDefined(input.note_id, "note_id");
+            const mrIid = input.merge_request_iid;
+            const noteId = input.note_id;
 
             return gitlab.put(
               `projects/${normalizeProjectId(input.project_id)}/merge_requests/${mrIid}/notes/${noteId}`,
@@ -314,7 +321,7 @@ export const mrsToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefinit
 
           /* istanbul ignore next -- unreachable with Zod validation */
           default:
-            throw new Error(`Unknown action: ${input.action}`);
+            throw new Error(`Unknown action: ${(input as { action: string }).action}`);
         }
       },
     },
@@ -349,7 +356,8 @@ export const mrsToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefinit
 
           case "update": {
             // draft_note_id is required for update action (validated by .refine())
-            const draftNoteId = input.draft_note_id!;
+            assertDefined(input.draft_note_id, "draft_note_id");
+            const draftNoteId = input.draft_note_id;
 
             const body: Record<string, unknown> = { note: input.note };
             if (input.position) body.position = JSON.stringify(input.position);
@@ -362,7 +370,8 @@ export const mrsToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefinit
 
           case "publish": {
             // draft_note_id is required for publish action (validated by .refine())
-            const draftNoteId = input.draft_note_id!;
+            assertDefined(input.draft_note_id, "draft_note_id");
+            const draftNoteId = input.draft_note_id;
 
             const result = await gitlab.put<void>(
               `projects/${normalizeProjectId(input.project_id)}/merge_requests/${input.merge_request_iid}/draft_notes/${draftNoteId}/publish`
@@ -381,7 +390,8 @@ export const mrsToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefinit
 
           case "delete": {
             // draft_note_id is required for delete action (validated by .refine())
-            const draftNoteId = input.draft_note_id!;
+            assertDefined(input.draft_note_id, "draft_note_id");
+            const draftNoteId = input.draft_note_id;
 
             await gitlab.delete<void>(
               `projects/${normalizeProjectId(input.project_id)}/merge_requests/${input.merge_request_iid}/draft_notes/${draftNoteId}`
@@ -391,7 +401,7 @@ export const mrsToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefinit
 
           /* istanbul ignore next -- unreachable with Zod validation */
           default:
-            throw new Error(`Unknown action: ${input.action}`);
+            throw new Error(`Unknown action: ${(input as { action: string }).action}`);
         }
       },
     },

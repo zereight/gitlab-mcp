@@ -25,3 +25,18 @@ export const flexibleBooleanNullable = DEFAULT_NULL
  * instead of coercing them to the literal string "undefined"/"null".
  */
 export const requiredId = z.preprocess(val => val ?? "", z.coerce.string().min(1));
+
+/**
+ * Asserts that a value is defined (not undefined).
+ * Used for fields validated by Zod .refine() where TypeScript cannot
+ * automatically narrow the type after runtime validation.
+ *
+ * @param value - The value to assert
+ * @param fieldName - Name of the field for error messages
+ * @throws Error if value is undefined
+ */
+export function assertDefined<T>(value: T | undefined, fieldName: string): asserts value is T {
+  if (value === undefined) {
+    throw new Error(`${fieldName} is required but was not provided`);
+  }
+}

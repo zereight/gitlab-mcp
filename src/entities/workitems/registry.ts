@@ -1,8 +1,9 @@
 import * as z from "zod";
-import { BrowseWorkItemsSchema, BrowseWorkItemsInput } from "./schema-readonly";
-import { ManageWorkItemSchema, ManageWorkItemInput } from "./schema";
+import { BrowseWorkItemsSchema } from "./schema-readonly";
+import { ManageWorkItemSchema } from "./schema";
 import { ToolRegistry, EnhancedToolDefinition } from "../../types";
 import { ConnectionManager } from "../../services/ConnectionManager";
+import { assertDefined } from "../utils";
 import { getWorkItemTypes } from "../../utils/workItemTypes";
 import {
   cleanWorkItemResponse,
@@ -220,8 +221,9 @@ export const workitemsToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
         switch (input.action) {
           case "list": {
             // namespace is required for list action (validated by .refine())
+            assertDefined(input.namespace, "namespace");
             const { namespace, types, state, first, after, simple } = input;
-            const namespacePath = namespace!;
+            const namespacePath = namespace;
 
             console.log("browse_work_items list called with:", {
               namespace: namespacePath,
@@ -285,8 +287,8 @@ export const workitemsToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
 
           case "get": {
             // id is required for get action (validated by .refine())
-            const { id } = input;
-            const workItemId = id!;
+            assertDefined(input.id, "id");
+            const workItemId = input.id;
 
             // Get GraphQL client from ConnectionManager
             const connectionManager = ConnectionManager.getInstance();
@@ -307,7 +309,7 @@ export const workitemsToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
 
           /* istanbul ignore next -- unreachable with Zod validation */
           default:
-            throw new Error(`Unknown action: ${input.action}`);
+            throw new Error(`Unknown action: ${(input as { action: string }).action}`);
         }
       },
     },
@@ -329,6 +331,9 @@ export const workitemsToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
         switch (input.action) {
           case "create": {
             // namespace, title, workItemType are required for create action (validated by .refine())
+            assertDefined(input.namespace, "namespace");
+            assertDefined(input.title, "title");
+            assertDefined(input.workItemType, "workItemType");
             const {
               namespace,
               title,
@@ -338,9 +343,9 @@ export const workitemsToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
               labelIds,
               milestoneId,
             } = input;
-            const namespacePath = namespace!;
-            const workItemTitle = title!;
-            const workItemTypeName = workItemType!;
+            const namespacePath = namespace;
+            const workItemTitle = title;
+            const workItemTypeName = workItemType;
 
             // Get GraphQL client from ConnectionManager
             const connectionManager = ConnectionManager.getInstance();
@@ -410,8 +415,9 @@ export const workitemsToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
 
           case "update": {
             // id is required for update action (validated by .refine())
+            assertDefined(input.id, "id");
             const { id, title, description, state, assigneeIds, labelIds, milestoneId } = input;
-            const workItemId = id!;
+            const workItemId = id;
 
             // Get GraphQL client from ConnectionManager
             const connectionManager = ConnectionManager.getInstance();
@@ -470,8 +476,8 @@ export const workitemsToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
 
           case "delete": {
             // id is required for delete action (validated by .refine())
-            const { id } = input;
-            const workItemId = id!;
+            assertDefined(input.id, "id");
+            const workItemId = input.id;
 
             // Get GraphQL client from ConnectionManager
             const connectionManager = ConnectionManager.getInstance();
@@ -498,7 +504,7 @@ export const workitemsToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
 
           /* istanbul ignore next -- unreachable with Zod validation */
           default:
-            throw new Error(`Unknown action: ${input.action}`);
+            throw new Error(`Unknown action: ${(input as { action: string }).action}`);
         }
       },
     },
