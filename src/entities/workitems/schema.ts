@@ -5,6 +5,11 @@ import {
   WorkItemStateEventSchema,
 } from "./schema-readonly";
 
+// ============================================================================
+// manage_work_item - CQRS Command Tool (discriminated union)
+// Actions: create, update, delete
+// ============================================================================
+
 /**
  * CRITICAL: GitLab Work Items Hierarchy Rules for MCP Agents
  *
@@ -31,6 +36,53 @@ import {
  * Epic: namespace="my-group/my-project" (WRONG - will fail)
  * Issue: namespace="my-group" (WRONG - will fail)
  */
+
+// Create work item action
+const ManageWorkItemCreateSchema = z.object({
+  action: z.literal("create"),
+  namespace: z
+    .string()
+    .describe(
+      'CRITICAL: Namespace path (group OR project). For Epics use GROUP path (e.g. "my-group"). For Issues/Tasks use PROJECT path (e.g. "my-group/my-project"). Wrong level will cause creation to fail.'
+    ),
+  title: z.string().describe("Title of the work item"),
+  workItemType: WorkItemTypeEnumSchema,
+  description: z.string().optional().describe("Description of the work item"),
+  assigneeIds: z.array(z.string()).optional().describe("Array of assignee user IDs"),
+  labelIds: z.array(z.string()).optional().describe("Array of label IDs"),
+  milestoneId: z.string().optional().describe("Milestone ID"),
+});
+
+// Update work item action
+const ManageWorkItemUpdateSchema = z.object({
+  action: z.literal("update"),
+  id: WorkItemIdSchema,
+  title: z.string().optional().describe("New title for the work item"),
+  description: z.string().optional().describe("New description for the work item"),
+  state: WorkItemStateEventSchema.optional().describe(
+    "State event for the work item (CLOSE, REOPEN)"
+  ),
+  assigneeIds: z.array(z.string()).optional().describe("Array of assignee user IDs"),
+  labelIds: z.array(z.string()).optional().describe("Array of label IDs"),
+  milestoneId: z.string().optional().describe("Milestone ID"),
+});
+
+// Delete work item action
+const ManageWorkItemDeleteSchema = z.object({
+  action: z.literal("delete"),
+  id: WorkItemIdSchema,
+});
+
+export const ManageWorkItemSchema = z.discriminatedUnion("action", [
+  ManageWorkItemCreateSchema,
+  ManageWorkItemUpdateSchema,
+  ManageWorkItemDeleteSchema,
+]);
+
+// ============================================================================
+// Legacy schemas (kept for backward compatibility during transition)
+// ============================================================================
+
 export const CreateWorkItemSchema = z.object({
   namespace: z
     .string()
@@ -61,7 +113,11 @@ export const DeleteWorkItemSchema = z.object({
   id: WorkItemIdSchema,
 });
 
+// ============================================================================
 // Type exports
+// ============================================================================
+
+export type ManageWorkItemInput = z.infer<typeof ManageWorkItemSchema>;
 export type CreateWorkItemOptions = z.infer<typeof CreateWorkItemSchema>;
 export type UpdateWorkItemOptions = z.infer<typeof UpdateWorkItemSchema>;
 export type DeleteWorkItemOptions = z.infer<typeof DeleteWorkItemSchema>;
