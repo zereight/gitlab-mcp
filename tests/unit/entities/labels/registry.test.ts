@@ -5,22 +5,13 @@ import {
   getFilteredLabelsTools,
 } from "../../../../src/entities/labels/registry";
 import { enhancedFetch } from "../../../../src/utils/fetch";
-import { resolveNamespaceForAPI } from "../../../../src/utils/namespace";
 
 // Mock enhancedFetch to avoid actual API calls
 jest.mock("../../../../src/utils/fetch", () => ({
   enhancedFetch: jest.fn(),
 }));
 
-// Mock resolveNamespaceForAPI to avoid actual API calls
-jest.mock("../../../../src/utils/namespace", () => ({
-  resolveNamespaceForAPI: jest.fn(),
-}));
-
 const mockEnhancedFetch = enhancedFetch as jest.MockedFunction<typeof enhancedFetch>;
-const mockResolveNamespaceForAPI = resolveNamespaceForAPI as jest.MockedFunction<
-  typeof resolveNamespaceForAPI
->;
 
 // Mock environment variables
 const originalEnv = process.env;
@@ -41,661 +32,690 @@ beforeEach(() => {
   jest.clearAllMocks();
   jest.resetAllMocks();
   mockEnhancedFetch.mockReset();
-  mockResolveNamespaceForAPI.mockReset();
 });
 
-describe("Labels Registry", () => {
+describe("Labels Registry - CQRS Tools", () => {
   describe("Registry Structure", () => {
     it("should be a Map instance", () => {
       expect(labelsToolRegistry instanceof Map).toBe(true);
     });
 
-    it("should contain expected label tools", () => {
+    it("should contain exactly 2 CQRS tools", () => {
       const toolNames = Array.from(labelsToolRegistry.keys());
 
-      // Check for read-only tools
-      expect(toolNames).toContain("list_labels");
-      expect(toolNames).toContain("get_label");
-
-      // Check for write tools
-      expect(toolNames).toContain("create_label");
-      expect(toolNames).toContain("update_label");
-      expect(toolNames).toContain("delete_label");
+      expect(toolNames).toContain("browse_labels");
+      expect(toolNames).toContain("manage_label");
+      expect(labelsToolRegistry.size).toBe(2);
     });
 
     it("should have tools with valid structure", () => {
-      const toolEntries = Array.from(labelsToolRegistry.values());
-
-      toolEntries.forEach(tool => {
-        expect(tool).toHaveProperty("name");
+      for (const [toolName, tool] of labelsToolRegistry) {
+        expect(tool).toHaveProperty("name", toolName);
         expect(tool).toHaveProperty("description");
         expect(tool).toHaveProperty("inputSchema");
         expect(tool).toHaveProperty("handler");
-        expect(typeof tool.name).toBe("string");
         expect(typeof tool.description).toBe("string");
-        expect(typeof tool.inputSchema).toBe("object");
         expect(typeof tool.handler).toBe("function");
-      });
+        expect(tool.description.length).toBeGreaterThan(0);
+      }
     });
 
     it("should have unique tool names", () => {
       const toolNames = Array.from(labelsToolRegistry.keys());
       const uniqueNames = new Set(toolNames);
-      expect(toolNames.length).toBe(uniqueNames.size);
-    });
 
-    it("should have exactly 5 label tools", () => {
-      expect(labelsToolRegistry.size).toBe(5);
+      expect(toolNames.length).toBe(uniqueNames.size);
     });
   });
 
   describe("Tool Definitions", () => {
-    it("should have proper list_labels tool", () => {
-      const tool = labelsToolRegistry.get("list_labels");
+    it("should have proper browse_labels tool", () => {
+      const tool = labelsToolRegistry.get("browse_labels");
+
       expect(tool).toBeDefined();
-      expect(tool!.name).toBe("list_labels");
-      expect(tool!.description).toContain("Browse all existing labels");
-      expect(tool!.inputSchema).toBeDefined();
+      expect(tool?.name).toBe("browse_labels");
+      expect(tool?.description).toContain("BROWSE labels");
+      expect(tool?.description).toContain("list");
+      expect(tool?.description).toContain("get");
+      expect(tool?.inputSchema).toBeDefined();
     });
 
-    it("should have proper get_label tool", () => {
-      const tool = labelsToolRegistry.get("get_label");
-      expect(tool).toBeDefined();
-      expect(tool!.name).toBe("get_label");
-      expect(tool!.description).toContain("Retrieve details of a specific label");
-      expect(tool!.inputSchema).toBeDefined();
-    });
+    it("should have proper manage_label tool", () => {
+      const tool = labelsToolRegistry.get("manage_label");
 
-    it("should have proper create_label tool", () => {
-      const tool = labelsToolRegistry.get("create_label");
       expect(tool).toBeDefined();
-      expect(tool!.name).toBe("create_label");
-      expect(tool!.description).toContain("Add a new label");
-      expect(tool!.inputSchema).toBeDefined();
-    });
-
-    it("should have proper update_label tool", () => {
-      const tool = labelsToolRegistry.get("update_label");
-      expect(tool).toBeDefined();
-      expect(tool!.name).toBe("update_label");
-      expect(tool!.description).toContain("Modify label properties");
-      expect(tool!.inputSchema).toBeDefined();
-    });
-
-    it("should have proper delete_label tool", () => {
-      const tool = labelsToolRegistry.get("delete_label");
-      expect(tool).toBeDefined();
-      expect(tool!.name).toBe("delete_label");
-      expect(tool!.description).toContain("Remove a label permanently");
-      expect(tool!.inputSchema).toBeDefined();
+      expect(tool?.name).toBe("manage_label");
+      expect(tool?.description).toContain("MANAGE labels");
+      expect(tool?.description).toContain("create");
+      expect(tool?.description).toContain("update");
+      expect(tool?.description).toContain("delete");
+      expect(tool?.inputSchema).toBeDefined();
     });
   });
 
   describe("Read-Only Tools Function", () => {
     it("should return an array of read-only tool names", () => {
       const readOnlyTools = getLabelsReadOnlyToolNames();
+
       expect(Array.isArray(readOnlyTools)).toBe(true);
       expect(readOnlyTools.length).toBeGreaterThan(0);
     });
 
-    it("should include expected read-only tools", () => {
+    it("should include only browse_labels as read-only", () => {
       const readOnlyTools = getLabelsReadOnlyToolNames();
-      expect(readOnlyTools).toContain("list_labels");
-      expect(readOnlyTools).toContain("get_label");
+
+      expect(readOnlyTools).toContain("browse_labels");
+      expect(readOnlyTools).toEqual(["browse_labels"]);
     });
 
-    it("should not include write tools", () => {
+    it("should not include manage tools (write tools)", () => {
       const readOnlyTools = getLabelsReadOnlyToolNames();
-      expect(readOnlyTools).not.toContain("create_label");
-      expect(readOnlyTools).not.toContain("update_label");
-      expect(readOnlyTools).not.toContain("delete_label");
+
+      expect(readOnlyTools).not.toContain("manage_label");
     });
 
-    it("should return exactly 2 read-only tools", () => {
+    it("should return exactly 1 read-only tool", () => {
       const readOnlyTools = getLabelsReadOnlyToolNames();
-      expect(readOnlyTools.length).toBe(2);
+
+      expect(readOnlyTools.length).toBe(1);
     });
 
     it("should return tools that exist in the registry", () => {
       const readOnlyTools = getLabelsReadOnlyToolNames();
-      readOnlyTools.forEach(toolName => {
-        expect(labelsToolRegistry.has(toolName)).toBe(true);
-      });
+      const registryKeys = Array.from(labelsToolRegistry.keys());
+
+      for (const toolName of readOnlyTools) {
+        expect(registryKeys).toContain(toolName);
+      }
     });
   });
 
   describe("Labels Tool Definitions Function", () => {
     it("should return an array of tool definitions", () => {
-      const toolDefinitions = getLabelsToolDefinitions();
-      expect(Array.isArray(toolDefinitions)).toBe(true);
-      expect(toolDefinitions.length).toBe(5);
+      const definitions = getLabelsToolDefinitions();
+
+      expect(Array.isArray(definitions)).toBe(true);
+      expect(definitions.length).toBe(labelsToolRegistry.size);
     });
 
-    it("should return all tools from registry", () => {
-      const toolDefinitions = getLabelsToolDefinitions();
-      const registrySize = labelsToolRegistry.size;
-      expect(toolDefinitions.length).toBe(registrySize);
+    it("should return all 2 CQRS tools from registry", () => {
+      const definitions = getLabelsToolDefinitions();
+
+      expect(definitions.length).toBe(2);
     });
 
     it("should return tool definitions with proper structure", () => {
-      const toolDefinitions = getLabelsToolDefinitions();
+      const definitions = getLabelsToolDefinitions();
 
-      toolDefinitions.forEach(tool => {
-        expect(tool).toHaveProperty("name");
-        expect(tool).toHaveProperty("description");
-        expect(tool).toHaveProperty("inputSchema");
-        expect(tool).toHaveProperty("handler");
-        expect(typeof tool.name).toBe("string");
-        expect(typeof tool.description).toBe("string");
-        expect(typeof tool.inputSchema).toBe("object");
-      });
+      for (const definition of definitions) {
+        expect(definition).toHaveProperty("name");
+        expect(definition).toHaveProperty("description");
+        expect(definition).toHaveProperty("inputSchema");
+        expect(definition).toHaveProperty("handler");
+      }
     });
   });
 
   describe("Filtered Labels Tools Function", () => {
     it("should return all tools in normal mode", () => {
-      const filteredTools = getFilteredLabelsTools(false);
-      expect(filteredTools.length).toBe(5);
+      const allTools = getFilteredLabelsTools(false);
+      const allDefinitions = getLabelsToolDefinitions();
+
+      expect(allTools.length).toBe(allDefinitions.length);
+      expect(allTools.length).toBe(2);
     });
 
     it("should return only read-only tools in read-only mode", () => {
-      const filteredTools = getFilteredLabelsTools(true);
-      const readOnlyTools = getLabelsReadOnlyToolNames();
-      expect(filteredTools.length).toBe(readOnlyTools.length);
+      const readOnlyTools = getFilteredLabelsTools(true);
+      const readOnlyNames = getLabelsReadOnlyToolNames();
+
+      expect(readOnlyTools.length).toBe(readOnlyNames.length);
+      expect(readOnlyTools.length).toBe(1);
     });
 
     it("should filter tools correctly in read-only mode", () => {
-      const filteredTools = getFilteredLabelsTools(true);
-      const toolNames = filteredTools.map(tool => tool.name);
+      const readOnlyTools = getFilteredLabelsTools(true);
+      const readOnlyNames = getLabelsReadOnlyToolNames();
 
-      expect(toolNames).toContain("list_labels");
-      expect(toolNames).toContain("get_label");
-      expect(toolNames).not.toContain("create_label");
-      expect(toolNames).not.toContain("update_label");
-      expect(toolNames).not.toContain("delete_label");
+      for (const tool of readOnlyTools) {
+        expect(readOnlyNames).toContain(tool.name);
+      }
     });
 
-    it("should not include write tools in read-only mode", () => {
-      const filteredTools = getFilteredLabelsTools(true);
-      const toolNames = filteredTools.map(tool => tool.name);
-      const writeTools = ["create_label", "update_label", "delete_label"];
+    it("should not include manage tools in read-only mode", () => {
+      const readOnlyTools = getFilteredLabelsTools(true);
 
-      writeTools.forEach(toolName => {
-        expect(toolNames).not.toContain(toolName);
-      });
-    });
-
-    it("should return exactly 2 tools in read-only mode", () => {
-      const filteredTools = getFilteredLabelsTools(true);
-      expect(filteredTools.length).toBe(2);
+      for (const tool of readOnlyTools) {
+        expect(tool.name).not.toBe("manage_label");
+      }
     });
   });
 
   describe("Tool Handlers", () => {
     it("should have handlers that are async functions", () => {
-      const toolEntries = Array.from(labelsToolRegistry.values());
-
-      toolEntries.forEach(tool => {
-        expect(typeof tool.handler).toBe("function");
+      for (const [, tool] of labelsToolRegistry) {
         expect(tool.handler.constructor.name).toBe("AsyncFunction");
-      });
+      }
     });
 
     it("should have handlers that accept arguments", () => {
-      const toolEntries = Array.from(labelsToolRegistry.values());
-
-      toolEntries.forEach(tool => {
-        expect(tool.handler.length).toBeGreaterThanOrEqual(1);
-      });
+      for (const [, tool] of labelsToolRegistry) {
+        expect(tool.handler.length).toBe(1);
+      }
     });
   });
 
   describe("Registry Consistency", () => {
-    it("should have all expected label tools", () => {
-      const expectedTools = [
-        "list_labels",
-        "get_label",
-        "create_label",
-        "update_label",
-        "delete_label",
-      ];
+    it("should have all expected CQRS tools", () => {
+      const expectedTools = ["browse_labels", "manage_label"];
 
-      expectedTools.forEach(toolName => {
+      for (const toolName of expectedTools) {
         expect(labelsToolRegistry.has(toolName)).toBe(true);
-      });
+      }
     });
 
     it("should have consistent tool count between functions", () => {
-      const registrySize = labelsToolRegistry.size;
-      const toolDefinitions = getLabelsToolDefinitions();
-      const filteredTools = getFilteredLabelsTools(false);
+      const allDefinitions = getLabelsToolDefinitions();
+      const readOnlyNames = getLabelsReadOnlyToolNames();
+      const readOnlyTools = getFilteredLabelsTools(true);
 
-      expect(toolDefinitions.length).toBe(registrySize);
-      expect(filteredTools.length).toBe(registrySize);
+      expect(readOnlyTools.length).toBe(readOnlyNames.length);
+      expect(allDefinitions.length).toBe(labelsToolRegistry.size);
+      expect(allDefinitions.length).toBeGreaterThan(readOnlyNames.length);
     });
 
     it("should have more tools than just read-only ones", () => {
       const totalTools = labelsToolRegistry.size;
-      const readOnlyTools = getLabelsReadOnlyToolNames();
+      const readOnlyCount = getLabelsReadOnlyToolNames().length;
 
-      expect(totalTools).toBeGreaterThan(readOnlyTools.length);
+      expect(totalTools).toBeGreaterThan(readOnlyCount);
+      expect(totalTools).toBe(2);
+      expect(readOnlyCount).toBe(1);
     });
   });
 
   describe("Tool Input Schemas", () => {
     it("should have valid JSON schema structure for all tools", () => {
-      const toolEntries = Array.from(labelsToolRegistry.values());
-
-      toolEntries.forEach(tool => {
+      for (const [, tool] of labelsToolRegistry) {
         expect(tool.inputSchema).toBeDefined();
         expect(typeof tool.inputSchema).toBe("object");
-      });
+        const schema = tool.inputSchema as Record<string, unknown>;
+        const hasValidStructure = "type" in schema || "anyOf" in schema || "oneOf" in schema;
+        expect(hasValidStructure).toBe(true);
+      }
     });
 
     it("should have consistent schema format", () => {
-      const toolEntries = Array.from(labelsToolRegistry.values());
-
-      toolEntries.forEach(tool => {
-        // Each schema should be a valid JSON Schema object
+      for (const [toolName, tool] of labelsToolRegistry) {
         expect(tool.inputSchema).toBeDefined();
-        expect(typeof tool.inputSchema).toBe("object");
-      });
+
+        if (typeof tool.inputSchema === "object" && tool.inputSchema !== null) {
+          const schema = tool.inputSchema as Record<string, unknown>;
+          const hasValidStructure = "type" in schema || "anyOf" in schema || "oneOf" in schema;
+          expect(hasValidStructure).toBe(true);
+        } else {
+          throw new Error(`Tool ${toolName} has invalid inputSchema type`);
+        }
+      }
     });
   });
 
-  describe("Label Tool Specifics", () => {
-    it("should support both project and group labels", () => {
-      const listLabelsTool = labelsToolRegistry.get("list_labels");
-      expect(listLabelsTool).toBeDefined();
-      expect(listLabelsTool!.inputSchema).toBeDefined();
-
-      // The tool should handle both project and group contexts
-      expect(listLabelsTool!.description).toContain("project or group");
+  describe("Handler Tests", () => {
+    const mockResponse = (data: unknown, ok = true, status = 200) => ({
+      ok,
+      status,
+      statusText: ok ? "OK" : "Error",
+      json: jest.fn().mockResolvedValue(data),
+      text: jest.fn().mockResolvedValue(typeof data === "string" ? data : JSON.stringify(data)),
     });
 
-    it("should mention label management context in descriptions", () => {
-      const toolEntries = Array.from(labelsToolRegistry.values());
-
-      toolEntries.forEach(tool => {
-        expect(tool.description.toLowerCase()).toMatch(/label/);
-      });
-    });
-  });
-
-  describe("Handler Function Tests", () => {
-    describe("list_labels handler", () => {
-      it("should list project labels successfully", async () => {
+    describe("browse_labels handler - list action", () => {
+      it("should list labels with basic parameters", async () => {
+        // First mock for namespace resolution (project lookup)
+        mockEnhancedFetch.mockResolvedValueOnce(
+          mockResponse({ id: 1, path: "test-project", kind: "project" }) as never
+        );
+        // Second mock for labels list
         const mockLabels = [
           { id: 1, name: "bug", color: "#ff0000" },
           { id: 2, name: "feature", color: "#00ff00" },
         ];
+        mockEnhancedFetch.mockResolvedValueOnce(mockResponse(mockLabels) as never);
 
-        mockEnhancedFetch.mockResolvedValueOnce({
-          ok: true,
-          status: 200,
-          json: jest.fn().mockResolvedValue(mockLabels),
-        } as any);
-
-        const handler = labelsToolRegistry.get("list_labels")!.handler;
-        const result = await handler({ namespace: "test-group/test-project" });
-
-        expect(mockEnhancedFetch).toHaveBeenCalledWith(
-          "https://gitlab.example.com/api/v4/projects/test-group%2Ftest-project/labels"
-        );
-        expect(result).toEqual(mockLabels);
-      });
-
-      it("should list group labels successfully", async () => {
-        const mockLabels = [{ id: 3, name: "priority", color: "#0000ff" }];
-
-        mockEnhancedFetch.mockResolvedValueOnce({
-          ok: true,
-          status: 200,
-          json: jest.fn().mockResolvedValue(mockLabels),
-        } as any);
-
-        const handler = labelsToolRegistry.get("list_labels")!.handler;
-        const result = await handler({ namespace: "test-group" });
-
-        expect(mockEnhancedFetch).toHaveBeenCalledWith(
-          "https://gitlab.example.com/api/v4/groups/test-group/labels"
-        );
-        expect(result).toEqual(mockLabels);
-      });
-
-      it("should handle query parameters", async () => {
-        mockEnhancedFetch.mockResolvedValueOnce({
-          ok: true,
-          status: 200,
-          json: jest.fn().mockResolvedValue([]),
-        } as any);
-
-        const handler = labelsToolRegistry.get("list_labels")!.handler;
-        await handler({
-          namespace: "test-group/test-project",
-          search: "bug",
+        const tool = labelsToolRegistry.get("browse_labels")!;
+        const result = await tool.handler({
+          action: "list",
+          namespace: "test/project",
         });
 
-        expect(mockEnhancedFetch).toHaveBeenCalledWith(
-          "https://gitlab.example.com/api/v4/projects/test-group%2Ftest-project/labels?search=bug"
-        );
+        expect(mockEnhancedFetch).toHaveBeenCalledTimes(2);
+        expect(result).toEqual(mockLabels);
       });
 
-      it("should throw error on failed API call", async () => {
-        mockEnhancedFetch.mockResolvedValueOnce({
-          ok: false,
-          status: 404,
-          statusText: "Not Found",
-        } as any);
-
-        const handler = labelsToolRegistry.get("list_labels")!.handler;
-
-        await expect(handler({ namespace: "invalid-project" })).rejects.toThrow(
-          "GitLab API error: 404 Not Found"
+      it("should list labels with search filter", async () => {
+        mockEnhancedFetch.mockResolvedValueOnce(
+          mockResponse({ id: 1, path: "test-project", kind: "project" }) as never
         );
+        const mockLabels = [{ id: 1, name: "bug", color: "#ff0000" }];
+        mockEnhancedFetch.mockResolvedValueOnce(mockResponse(mockLabels) as never);
+
+        const tool = labelsToolRegistry.get("browse_labels")!;
+        await tool.handler({
+          action: "list",
+          namespace: "test/project",
+          search: "bug",
+          with_counts: true,
+          per_page: 50,
+          page: 1,
+        });
+
+        const call = mockEnhancedFetch.mock.calls[1];
+        const url = call[0] as string;
+        expect(url).toContain("search=bug");
+        expect(url).toContain("with_counts=true");
+        expect(url).toContain("per_page=50");
+        expect(url).toContain("page=1");
+      });
+
+      it("should list group labels", async () => {
+        mockEnhancedFetch.mockResolvedValueOnce(
+          mockResponse({ id: 1, path: "test-group", kind: "group" }) as never
+        );
+        const mockLabels = [{ id: 3, name: "priority", color: "#0000ff" }];
+        mockEnhancedFetch.mockResolvedValueOnce(mockResponse(mockLabels) as never);
+
+        const tool = labelsToolRegistry.get("browse_labels")!;
+        const result = await tool.handler({
+          action: "list",
+          namespace: "test-group",
+        });
+
+        expect(mockEnhancedFetch).toHaveBeenCalledTimes(2);
+        expect(result).toEqual(mockLabels);
+      });
+
+      it("should handle API errors", async () => {
+        mockEnhancedFetch.mockResolvedValueOnce(
+          mockResponse({ id: 1, path: "test-project", kind: "project" }) as never
+        );
+        mockEnhancedFetch.mockResolvedValueOnce(mockResponse(null, false, 404) as never);
+
+        const tool = labelsToolRegistry.get("browse_labels")!;
+
+        await expect(
+          tool.handler({
+            action: "list",
+            namespace: "nonexistent/project",
+          })
+        ).rejects.toThrow("GitLab API error: 404 Error");
       });
     });
 
-    describe("get_label handler", () => {
-      it("should get project label successfully", async () => {
-        const mockLabel = { id: 1, name: "bug", color: "#ff0000" };
+    describe("browse_labels handler - get action", () => {
+      it("should get label by ID", async () => {
+        mockEnhancedFetch.mockResolvedValueOnce(
+          mockResponse({ id: 1, path: "test-project", kind: "project" }) as never
+        );
+        const mockLabel = { id: 1, name: "bug", color: "#ff0000", description: "Bug label" };
+        mockEnhancedFetch.mockResolvedValueOnce(mockResponse(mockLabel) as never);
 
-        mockResolveNamespaceForAPI.mockResolvedValueOnce({
-          entityType: "projects",
-          encodedPath: "test-project",
-        });
-
-        mockEnhancedFetch.mockResolvedValueOnce({
-          ok: true,
-          status: 200,
-          json: jest.fn().mockResolvedValue(mockLabel),
-        } as any);
-
-        const handler = labelsToolRegistry.get("get_label")!.handler;
-        const result = await handler({
-          namespace: "test-project",
+        const tool = labelsToolRegistry.get("browse_labels")!;
+        const result = await tool.handler({
+          action: "get",
+          namespace: "test/project",
           label_id: "1",
         });
 
-        expect(mockEnhancedFetch).toHaveBeenCalledWith(
-          "https://gitlab.example.com/api/v4/projects/test-project/labels/1"
-        );
+        expect(mockEnhancedFetch).toHaveBeenCalledTimes(2);
         expect(result).toEqual(mockLabel);
       });
 
-      it("should get group label successfully", async () => {
-        const mockLabel = { id: 2, name: "feature", color: "#00ff00" };
-
-        mockResolveNamespaceForAPI.mockResolvedValueOnce({
-          entityType: "groups",
-          encodedPath: "test-group",
-        });
-
-        mockEnhancedFetch.mockResolvedValueOnce({
-          ok: true,
-          status: 200,
-          json: jest.fn().mockResolvedValue(mockLabel),
-        } as any);
-
-        const handler = labelsToolRegistry.get("get_label")!.handler;
-        const result = await handler({
-          namespace: "test-group",
-          label_id: "2",
-        });
-
-        expect(mockEnhancedFetch).toHaveBeenCalledWith(
-          "https://gitlab.example.com/api/v4/groups/test-group/labels/2"
+      it("should get label by name", async () => {
+        mockEnhancedFetch.mockResolvedValueOnce(
+          mockResponse({ id: 1, path: "test-project", kind: "project" }) as never
         );
+        const mockLabel = { id: 1, name: "bug", color: "#ff0000" };
+        mockEnhancedFetch.mockResolvedValueOnce(mockResponse(mockLabel) as never);
+
+        const tool = labelsToolRegistry.get("browse_labels")!;
+        const result = await tool.handler({
+          action: "get",
+          namespace: "test/project",
+          label_id: "bug",
+        });
+
+        expect(mockEnhancedFetch).toHaveBeenCalledTimes(2);
         expect(result).toEqual(mockLabel);
+      });
+
+      it("should handle label not found", async () => {
+        mockEnhancedFetch.mockResolvedValueOnce(
+          mockResponse({ id: 1, path: "test-project", kind: "project" }) as never
+        );
+        mockEnhancedFetch.mockResolvedValueOnce(mockResponse(null, false, 404) as never);
+
+        const tool = labelsToolRegistry.get("browse_labels")!;
+
+        await expect(
+          tool.handler({
+            action: "get",
+            namespace: "test/project",
+            label_id: "nonexistent",
+          })
+        ).rejects.toThrow("GitLab API error: 404 Error");
+      });
+
+      it("should include ancestor groups parameter", async () => {
+        mockEnhancedFetch.mockResolvedValueOnce(
+          mockResponse({ id: 1, path: "test-project", kind: "project" }) as never
+        );
+        const mockLabel = { id: 1, name: "bug", color: "#ff0000" };
+        mockEnhancedFetch.mockResolvedValueOnce(mockResponse(mockLabel) as never);
+
+        const tool = labelsToolRegistry.get("browse_labels")!;
+        await tool.handler({
+          action: "get",
+          namespace: "test/project",
+          label_id: "1",
+          include_ancestor_groups: true,
+        });
+
+        const call = mockEnhancedFetch.mock.calls[1];
+        const url = call[0] as string;
+        expect(url).toContain("include_ancestor_groups=true");
       });
     });
 
-    describe("create_label handler", () => {
-      it("should create project label successfully", async () => {
+    describe("manage_label handler - create action", () => {
+      it("should create label", async () => {
+        mockEnhancedFetch.mockResolvedValueOnce(
+          mockResponse({ id: 1, path: "test-project", kind: "project" }) as never
+        );
         const mockLabel = { id: 3, name: "new-label", color: "#ffff00" };
+        mockEnhancedFetch.mockResolvedValueOnce(mockResponse(mockLabel) as never);
 
-        mockResolveNamespaceForAPI.mockResolvedValueOnce({
-          entityType: "projects",
-          encodedPath: "test-project",
-        });
-
-        mockEnhancedFetch.mockResolvedValueOnce({
-          ok: true,
-          status: 201,
-          json: jest.fn().mockResolvedValue(mockLabel),
-        } as any);
-
-        const handler = labelsToolRegistry.get("create_label")!.handler;
-        const result = await handler({
-          namespace: "test-project",
+        const tool = labelsToolRegistry.get("manage_label")!;
+        const result = await tool.handler({
+          action: "create",
+          namespace: "test/project",
           name: "new-label",
           color: "#ffff00",
         });
 
-        expect(mockEnhancedFetch).toHaveBeenCalledWith(
-          "https://gitlab.example.com/api/v4/projects/test-project/labels",
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/x-www-form-urlencoded",
-            },
-            body: "name=new-label&color=%23ffff00",
-          }
-        );
+        expect(mockEnhancedFetch).toHaveBeenCalledTimes(2);
         expect(result).toEqual(mockLabel);
       });
 
-      it("should create group label successfully", async () => {
-        const mockLabel = { id: 4, name: "group-label", color: "#ff00ff" };
+      it("should create label with all options", async () => {
+        mockEnhancedFetch.mockResolvedValueOnce(
+          mockResponse({ id: 1, path: "test-project", kind: "project" }) as never
+        );
+        const mockLabel = { id: 4, name: "priority-label", color: "#ff00ff" };
+        mockEnhancedFetch.mockResolvedValueOnce(mockResponse(mockLabel) as never);
 
-        mockResolveNamespaceForAPI.mockResolvedValueOnce({
-          entityType: "groups",
-          encodedPath: "test-group",
+        const tool = labelsToolRegistry.get("manage_label")!;
+        await tool.handler({
+          action: "create",
+          namespace: "test/project",
+          name: "priority-label",
+          color: "#ff00ff",
+          description: "High priority items",
+          priority: 1,
         });
 
-        mockEnhancedFetch.mockResolvedValueOnce({
-          ok: true,
-          status: 201,
-          json: jest.fn().mockResolvedValue(mockLabel),
-        } as any);
+        const call = mockEnhancedFetch.mock.calls[1];
+        const body = JSON.parse(call[1]?.body as string);
+        expect(body.name).toBe("priority-label");
+        expect(body.color).toBe("#ff00ff");
+        expect(body.description).toBe("High priority items");
+        expect(body.priority).toBe(1);
+      });
 
-        const handler = labelsToolRegistry.get("create_label")!.handler;
-        const result = await handler({
+      it("should create group label", async () => {
+        mockEnhancedFetch.mockResolvedValueOnce(
+          mockResponse({ id: 1, path: "test-group", kind: "group" }) as never
+        );
+        const mockLabel = { id: 5, name: "group-label", color: "#00ffff" };
+        mockEnhancedFetch.mockResolvedValueOnce(mockResponse(mockLabel) as never);
+
+        const tool = labelsToolRegistry.get("manage_label")!;
+        const result = await tool.handler({
+          action: "create",
           namespace: "test-group",
           name: "group-label",
-          color: "#ff00ff",
-          description: "A group label",
+          color: "#00ffff",
         });
 
-        expect(mockEnhancedFetch).toHaveBeenCalledWith(
-          "https://gitlab.example.com/api/v4/groups/test-group/labels",
-          expect.objectContaining({
-            method: "POST",
-            headers: {
-              "Content-Type": "application/x-www-form-urlencoded",
-            },
-            body: "name=group-label&color=%23ff00ff&description=A+group+label",
-          })
-        );
+        expect(mockEnhancedFetch).toHaveBeenCalledTimes(2);
         expect(result).toEqual(mockLabel);
       });
     });
 
-    describe("update_label handler", () => {
-      it("should update project label successfully", async () => {
-        const mockLabel = { id: 1, name: "updated-bug", color: "#cc0000" };
+    describe("manage_label handler - update action", () => {
+      it("should update label", async () => {
+        mockEnhancedFetch.mockResolvedValueOnce(
+          mockResponse({ id: 1, path: "test-project", kind: "project" }) as never
+        );
+        const mockLabel = { id: 1, name: "bug", color: "#cc0000" };
+        mockEnhancedFetch.mockResolvedValueOnce(mockResponse(mockLabel) as never);
 
-        mockResolveNamespaceForAPI.mockResolvedValueOnce({
-          entityType: "projects",
-          encodedPath: "test-project",
-        });
-
-        mockEnhancedFetch.mockResolvedValueOnce({
-          ok: true,
-          status: 200,
-          json: jest.fn().mockResolvedValue(mockLabel),
-        } as any);
-
-        const handler = labelsToolRegistry.get("update_label")!.handler;
-        const result = await handler({
-          namespace: "test-project",
+        const tool = labelsToolRegistry.get("manage_label")!;
+        const result = await tool.handler({
+          action: "update",
+          namespace: "test/project",
           label_id: "1",
           color: "#cc0000",
         });
 
-        expect(mockEnhancedFetch).toHaveBeenCalledWith(
-          "https://gitlab.example.com/api/v4/projects/test-project/labels/1",
-          {
-            method: "PUT",
-            headers: {
-              "Content-Type": "application/x-www-form-urlencoded",
-            },
-            body: "color=%23cc0000",
-          }
-        );
+        expect(mockEnhancedFetch).toHaveBeenCalledTimes(2);
         expect(result).toEqual(mockLabel);
       });
 
-      it("should update group label successfully", async () => {
-        const mockLabel = { id: 2, name: "updated-feature", color: "#00cc00" };
-
-        mockResolveNamespaceForAPI.mockResolvedValueOnce({
-          entityType: "groups",
-          encodedPath: "test-group",
-        });
-
-        mockEnhancedFetch.mockResolvedValueOnce({
-          ok: true,
-          status: 200,
-          json: jest.fn().mockResolvedValue(mockLabel),
-        } as any);
-
-        const handler = labelsToolRegistry.get("update_label")!.handler;
-        const result = await handler({
-          namespace: "test-group",
-          label_id: "2",
-          new_name: "updated-feature",
-          color: "#00cc00",
-        });
-
-        expect(mockEnhancedFetch).toHaveBeenCalledWith(
-          "https://gitlab.example.com/api/v4/groups/test-group/labels/2",
-          expect.objectContaining({
-            method: "PUT",
-            headers: {
-              "Content-Type": "application/x-www-form-urlencoded",
-            },
-            body: "new_name=updated-feature&color=%2300cc00",
-          })
+      it("should rename label", async () => {
+        mockEnhancedFetch.mockResolvedValueOnce(
+          mockResponse({ id: 1, path: "test-project", kind: "project" }) as never
         );
-        expect(result).toEqual(mockLabel);
+        const mockLabel = { id: 1, name: "critical-bug", color: "#ff0000" };
+        mockEnhancedFetch.mockResolvedValueOnce(mockResponse(mockLabel) as never);
+
+        const tool = labelsToolRegistry.get("manage_label")!;
+        await tool.handler({
+          action: "update",
+          namespace: "test/project",
+          label_id: "1",
+          new_name: "critical-bug",
+        });
+
+        const call = mockEnhancedFetch.mock.calls[1];
+        const body = JSON.parse(call[1]?.body as string);
+        expect(body.new_name).toBe("critical-bug");
+      });
+
+      it("should update label priority", async () => {
+        mockEnhancedFetch.mockResolvedValueOnce(
+          mockResponse({ id: 1, path: "test-project", kind: "project" }) as never
+        );
+        const mockLabel = { id: 1, name: "bug", priority: 5 };
+        mockEnhancedFetch.mockResolvedValueOnce(mockResponse(mockLabel) as never);
+
+        const tool = labelsToolRegistry.get("manage_label")!;
+        await tool.handler({
+          action: "update",
+          namespace: "test/project",
+          label_id: "1",
+          priority: 5,
+        });
+
+        const call = mockEnhancedFetch.mock.calls[1];
+        const body = JSON.parse(call[1]?.body as string);
+        expect(body.priority).toBe(5);
       });
     });
 
-    describe("delete_label handler", () => {
-      it("should delete project label successfully", async () => {
-        mockResolveNamespaceForAPI.mockResolvedValueOnce({
-          entityType: "projects",
-          encodedPath: "test-project",
-        });
+    describe("manage_label handler - delete action", () => {
+      it("should delete label", async () => {
+        mockEnhancedFetch.mockResolvedValueOnce(
+          mockResponse({ id: 1, path: "test-project", kind: "project" }) as never
+        );
+        mockEnhancedFetch.mockResolvedValueOnce(mockResponse(null) as never);
 
-        mockEnhancedFetch.mockResolvedValueOnce({
-          ok: true,
-          status: 204,
-          json: jest.fn().mockResolvedValue({}),
-        } as any);
-
-        const handler = labelsToolRegistry.get("delete_label")!.handler;
-        const result = await handler({
-          namespace: "test-project",
+        const tool = labelsToolRegistry.get("manage_label")!;
+        const result = await tool.handler({
+          action: "delete",
+          namespace: "test/project",
           label_id: "1",
         });
 
-        expect(mockEnhancedFetch).toHaveBeenCalledWith(
-          "https://gitlab.example.com/api/v4/projects/test-project/labels/1",
-          {
-            method: "DELETE",
-          }
-        );
-        expect(result).toEqual({ success: true, message: "Label deleted successfully" });
+        expect(mockEnhancedFetch).toHaveBeenCalledTimes(2);
+        expect(result).toEqual({ deleted: true });
       });
 
-      it("should delete group label successfully", async () => {
-        mockResolveNamespaceForAPI.mockResolvedValueOnce({
-          entityType: "groups",
-          encodedPath: "test-group",
-        });
-
-        mockEnhancedFetch.mockResolvedValueOnce({
-          ok: true,
-          status: 204,
-          json: jest.fn().mockResolvedValue({}),
-        } as any);
-
-        const handler = labelsToolRegistry.get("delete_label")!.handler;
-        const result = await handler({
-          namespace: "test-group",
-          label_id: "2",
-        });
-
-        expect(mockEnhancedFetch).toHaveBeenCalledWith(
-          "https://gitlab.example.com/api/v4/groups/test-group/labels/2",
-          expect.objectContaining({
-            method: "DELETE",
-          })
+      it("should delete label by name", async () => {
+        mockEnhancedFetch.mockResolvedValueOnce(
+          mockResponse({ id: 1, path: "test-project", kind: "project" }) as never
         );
-        expect(result).toEqual({ success: true, message: "Label deleted successfully" });
+        mockEnhancedFetch.mockResolvedValueOnce(mockResponse(null) as never);
+
+        const tool = labelsToolRegistry.get("manage_label")!;
+        const result = await tool.handler({
+          action: "delete",
+          namespace: "test/project",
+          label_id: "bug",
+        });
+
+        expect(mockEnhancedFetch).toHaveBeenCalledTimes(2);
+        expect(result).toEqual({ deleted: true });
       });
 
-      it("should handle deletion errors", async () => {
-        mockResolveNamespaceForAPI.mockResolvedValueOnce({
-          entityType: "projects",
-          encodedPath: "test-project",
-        });
+      it("should handle delete of non-existent label", async () => {
+        mockEnhancedFetch.mockResolvedValueOnce(
+          mockResponse({ id: 1, path: "test-project", kind: "project" }) as never
+        );
+        mockEnhancedFetch.mockResolvedValueOnce(mockResponse(null, false, 404) as never);
 
-        mockEnhancedFetch.mockResolvedValueOnce({
-          ok: false,
-          status: 403,
-          statusText: "Forbidden",
-        } as any);
-
-        const handler = labelsToolRegistry.get("delete_label")!.handler;
+        const tool = labelsToolRegistry.get("manage_label")!;
 
         await expect(
-          handler({
-            namespace: "test-project",
-            label_id: "1",
+          tool.handler({
+            action: "delete",
+            namespace: "test/project",
+            label_id: "nonexistent",
           })
-        ).rejects.toThrow("GitLab API error: 403 Forbidden");
+        ).rejects.toThrow("GitLab API error: 404 Error");
       });
     });
 
-    describe("Error handling", () => {
-      it("should handle invalid schema input", async () => {
-        const handler = labelsToolRegistry.get("list_labels")!.handler;
+    describe("Error Handling", () => {
+      it("should handle schema validation errors for browse_labels", async () => {
+        const tool = labelsToolRegistry.get("browse_labels")!;
 
-        await expect(handler({})).rejects.toThrow();
-        await expect(handler({ invalid_param: "value" })).rejects.toThrow();
+        // Missing required action
+        await expect(tool.handler({})).rejects.toThrow();
+
+        // Invalid action
+        await expect(tool.handler({ action: "invalid", namespace: "test" })).rejects.toThrow();
+
+        // Missing namespace for list
+        await expect(tool.handler({ action: "list" })).rejects.toThrow();
+
+        // Missing label_id for get
+        await expect(tool.handler({ action: "get", namespace: "test" })).rejects.toThrow();
+      });
+
+      it("should handle schema validation errors for manage_label", async () => {
+        const tool = labelsToolRegistry.get("manage_label")!;
+
+        // Missing required action
+        await expect(tool.handler({})).rejects.toThrow();
+
+        // Invalid action
+        await expect(tool.handler({ action: "invalid", namespace: "test" })).rejects.toThrow();
+
+        // Missing name for create
+        await expect(
+          tool.handler({ action: "create", namespace: "test", color: "#ff0000" })
+        ).rejects.toThrow();
+
+        // Missing color for create
+        await expect(
+          tool.handler({ action: "create", namespace: "test", name: "label" })
+        ).rejects.toThrow();
+
+        // Missing label_id for update
+        await expect(tool.handler({ action: "update", namespace: "test" })).rejects.toThrow();
+
+        // Missing label_id for delete
+        await expect(tool.handler({ action: "delete", namespace: "test" })).rejects.toThrow();
       });
 
       it("should handle network errors", async () => {
-        mockEnhancedFetch.mockRejectedValueOnce(new Error("Network error"));
+        // First call for namespace resolution succeeds
+        mockEnhancedFetch.mockResolvedValueOnce(
+          mockResponse({ id: 1, path: "test-project", kind: "project" }) as never
+        );
+        // Second call (actual API) fails with network error
+        mockEnhancedFetch.mockRejectedValueOnce(new Error("Connection timeout"));
 
-        const handler = labelsToolRegistry.get("list_labels")!.handler;
+        const tool = labelsToolRegistry.get("browse_labels")!;
 
-        await expect(handler({ namespace: "test-project" })).rejects.toThrow("Network error");
+        await expect(
+          tool.handler({
+            action: "list",
+            namespace: "test/project",
+          })
+        ).rejects.toThrow("Connection timeout");
       });
 
-      it("should handle malformed JSON responses", async () => {
-        mockEnhancedFetch.mockResolvedValueOnce({
-          ok: true,
-          status: 200,
-          json: jest.fn().mockRejectedValue(new Error("Invalid JSON")),
-        } as any);
+      it("should handle API errors with proper error messages", async () => {
+        mockEnhancedFetch.mockResolvedValueOnce(
+          mockResponse({ id: 1, path: "test-project", kind: "project" }) as never
+        );
+        mockEnhancedFetch.mockResolvedValueOnce(mockResponse(null, false, 403) as never);
 
-        const handler = labelsToolRegistry.get("list_labels")!.handler;
+        const tool = labelsToolRegistry.get("browse_labels")!;
 
-        await expect(handler({ namespace: "test-project" })).rejects.toThrow("Invalid JSON");
+        await expect(
+          tool.handler({
+            action: "list",
+            namespace: "private/project",
+          })
+        ).rejects.toThrow("GitLab API error: 403 Error");
+      });
+
+      it("should handle API error responses in manage_label create", async () => {
+        mockEnhancedFetch.mockResolvedValueOnce(
+          mockResponse({ id: 1, path: "test-project", kind: "project" }) as never
+        );
+        mockEnhancedFetch.mockResolvedValueOnce(mockResponse(null, false, 400) as never);
+
+        const tool = labelsToolRegistry.get("manage_label")!;
+
+        await expect(
+          tool.handler({
+            action: "create",
+            namespace: "test",
+            name: "new-label",
+            color: "#ff0000",
+          })
+        ).rejects.toThrow("GitLab API error: 400 Error");
+      });
+
+      it("should handle API error responses in manage_label update", async () => {
+        mockEnhancedFetch.mockResolvedValueOnce(
+          mockResponse({ id: 1, path: "test-project", kind: "project" }) as never
+        );
+        mockEnhancedFetch.mockResolvedValueOnce(mockResponse(null, false, 500) as never);
+
+        const tool = labelsToolRegistry.get("manage_label")!;
+
+        await expect(
+          tool.handler({
+            action: "update",
+            namespace: "test",
+            label_id: "1",
+            color: "#00ff00",
+          })
+        ).rejects.toThrow("GitLab API error: 500 Error");
       });
     });
   });
