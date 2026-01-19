@@ -1,46 +1,54 @@
 import { z } from "zod";
 import { requiredId } from "../utils";
 
-// Write-only milestone operation schemas
-// Schema for creating a new milestone
-export const CreateProjectMilestoneSchema = z.object({
-  namespace: z.string().describe("Namespace path (group or project) to create milestone in"),
-  title: z.string().describe("The title of the milestone"),
-  description: z.string().optional().describe("The description of the milestone"),
-  due_date: z.string().optional().describe("The due date of the milestone (YYYY-MM-DD)"),
-  start_date: z.string().optional().describe("The start date of the milestone (YYYY-MM-DD)"),
-});
+// ============================================================================
+// manage_milestone - CQRS Command Tool (flat schema for Claude API compatibility)
+// Actions: create, update, delete, promote
+// NOTE: Uses flat z.object() with .refine() instead of z.discriminatedUnion()
+// because Claude API doesn't support oneOf/allOf/anyOf at JSON Schema root level.
+// ============================================================================
 
-// Schema for editing a milestone
-export const EditProjectMilestoneSchema = z.object({
-  namespace: z.string().describe("Namespace path (group or project) containing the milestone"),
-  milestone_id: requiredId.describe("The ID of a project or group milestone"),
-  title: z.string().optional().describe("The title of the milestone"),
-  description: z.string().optional().describe("The description of the milestone"),
-  due_date: z.string().optional().describe("The due date of the milestone (YYYY-MM-DD)"),
-  start_date: z.string().optional().describe("The start date of the milestone (YYYY-MM-DD)"),
-  state_event: z
-    .string()
-    .transform(val => val.toLowerCase())
-    .pipe(z.enum(["close", "activate"]))
-    .optional()
-    .describe("The state event of the milestone"),
-});
+export const ManageMilestoneSchema = z
+  .object({
+    action: z.enum(["create", "update", "delete", "promote"]).describe("Action to perform"),
+    namespace: z.string().describe("Namespace path (group or project)"),
+    // update/delete/promote action fields
+    milestone_id: requiredId
+      .optional()
+      .describe(
+        "The ID of a project or group milestone. Required for 'update', 'delete', 'promote' actions."
+      ),
+    // create/update action fields
+    title: z
+      .string()
+      .optional()
+      .describe("The title of the milestone. Required for 'create' action."),
+    description: z.string().optional().describe("The description of the milestone"),
+    due_date: z.string().optional().describe("The due date of the milestone (YYYY-MM-DD)"),
+    start_date: z.string().optional().describe("The start date of the milestone (YYYY-MM-DD)"),
+    // update action fields
+    state_event: z
+      .string()
+      .transform(val => val.toLowerCase())
+      .pipe(z.enum(["close", "activate"]))
+      .optional()
+      .describe("For 'update': the state event of the milestone (close or activate)"),
+  })
+  .refine(
+    data =>
+      !["update", "delete", "promote"].includes(data.action) || data.milestone_id !== undefined,
+    {
+      message: "milestone_id is required for 'update', 'delete', and 'promote' actions",
+      path: ["milestone_id"],
+    }
+  )
+  .refine(data => data.action !== "create" || data.title !== undefined, {
+    message: "title is required for 'create' action",
+    path: ["title"],
+  });
 
-// Schema for deleting a milestone
-export const DeleteProjectMilestoneSchema = z.object({
-  namespace: z.string().describe("Namespace path (group or project) containing the milestone"),
-  milestone_id: requiredId.describe("The ID of a project or group milestone"),
-});
-
-// Schema for promoting a project milestone to a group milestone
-export const PromoteProjectMilestoneSchema = z.object({
-  namespace: z.string().describe("Namespace path (group or project) containing the milestone"),
-  milestone_id: requiredId.describe("The ID of a project or group milestone"),
-});
-
+// ============================================================================
 // Type exports
-export type CreateProjectMilestoneOptions = z.infer<typeof CreateProjectMilestoneSchema>;
-export type EditProjectMilestoneOptions = z.infer<typeof EditProjectMilestoneSchema>;
-export type DeleteProjectMilestoneOptions = z.infer<typeof DeleteProjectMilestoneSchema>;
-export type PromoteProjectMilestoneOptions = z.infer<typeof PromoteProjectMilestoneSchema>;
+// ============================================================================
+
+export type ManageMilestoneInput = z.infer<typeof ManageMilestoneSchema>;

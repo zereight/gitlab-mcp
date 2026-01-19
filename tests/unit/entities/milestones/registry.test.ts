@@ -31,962 +31,641 @@ afterAll(() => {
 beforeEach(() => {
   jest.clearAllMocks();
   jest.resetAllMocks();
-  // Reset the mock for proper isolation
   mockEnhancedFetch.mockReset();
 });
 
-describe("Milestones Registry", () => {
+describe("Milestones Registry - CQRS Tools", () => {
   describe("Registry Structure", () => {
     it("should be a Map instance", () => {
       expect(milestonesToolRegistry instanceof Map).toBe(true);
     });
 
-    it("should contain expected milestone tools", () => {
+    it("should contain exactly 2 CQRS tools", () => {
       const toolNames = Array.from(milestonesToolRegistry.keys());
 
-      // Check for read-only tools
-      expect(toolNames).toContain("list_milestones");
-      expect(toolNames).toContain("get_milestone");
-      expect(toolNames).toContain("get_milestone_issue");
-      expect(toolNames).toContain("get_milestone_merge_requests");
-      expect(toolNames).toContain("get_milestone_burndown_events");
-
-      // Check for write tools
-      expect(toolNames).toContain("create_milestone");
-      expect(toolNames).toContain("edit_milestone");
-      expect(toolNames).toContain("delete_milestone");
-      expect(toolNames).toContain("promote_milestone");
+      expect(toolNames).toContain("browse_milestones");
+      expect(toolNames).toContain("manage_milestone");
+      expect(milestonesToolRegistry.size).toBe(2);
     });
 
     it("should have tools with valid structure", () => {
-      const toolEntries = Array.from(milestonesToolRegistry.values());
-
-      toolEntries.forEach(tool => {
-        expect(tool).toHaveProperty("name");
+      for (const [toolName, tool] of milestonesToolRegistry) {
+        expect(tool).toHaveProperty("name", toolName);
         expect(tool).toHaveProperty("description");
         expect(tool).toHaveProperty("inputSchema");
         expect(tool).toHaveProperty("handler");
-        expect(typeof tool.name).toBe("string");
         expect(typeof tool.description).toBe("string");
-        expect(typeof tool.inputSchema).toBe("object");
         expect(typeof tool.handler).toBe("function");
-      });
+        expect(tool.description.length).toBeGreaterThan(0);
+      }
     });
 
     it("should have unique tool names", () => {
       const toolNames = Array.from(milestonesToolRegistry.keys());
       const uniqueNames = new Set(toolNames);
-      expect(toolNames.length).toBe(uniqueNames.size);
-    });
 
-    it("should have exactly 9 milestone tools", () => {
-      expect(milestonesToolRegistry.size).toBe(9);
+      expect(toolNames.length).toBe(uniqueNames.size);
     });
   });
 
   describe("Tool Definitions", () => {
-    it("should have proper list_milestones tool", () => {
-      const tool = milestonesToolRegistry.get("list_milestones");
+    it("should have proper browse_milestones tool", () => {
+      const tool = milestonesToolRegistry.get("browse_milestones");
+
       expect(tool).toBeDefined();
-      expect(tool!.name).toBe("list_milestones");
-      expect(tool!.description).toContain("Browse release milestones");
-      expect(tool!.inputSchema).toBeDefined();
+      expect(tool?.name).toBe("browse_milestones");
+      expect(tool?.description).toContain("BROWSE milestones");
+      expect(tool?.description).toContain("list");
+      expect(tool?.description).toContain("get");
+      expect(tool?.description).toContain("issues");
+      expect(tool?.description).toContain("merge_requests");
+      expect(tool?.description).toContain("burndown");
+      expect(tool?.inputSchema).toBeDefined();
     });
 
-    it("should have proper get_milestone tool", () => {
-      const tool = milestonesToolRegistry.get("get_milestone");
-      expect(tool).toBeDefined();
-      expect(tool!.name).toBe("get_milestone");
-      expect(tool!.description).toContain("Retrieve comprehensive milestone");
-      expect(tool!.inputSchema).toBeDefined();
-    });
+    it("should have proper manage_milestone tool", () => {
+      const tool = milestonesToolRegistry.get("manage_milestone");
 
-    it("should have proper get_milestone_issue tool", () => {
-      const tool = milestonesToolRegistry.get("get_milestone_issue");
       expect(tool).toBeDefined();
-      expect(tool!.name).toBe("get_milestone_issue");
-      expect(tool!.description).toContain("List all issues targeted");
-      expect(tool!.inputSchema).toBeDefined();
-    });
-
-    it("should have proper get_milestone_merge_requests tool", () => {
-      const tool = milestonesToolRegistry.get("get_milestone_merge_requests");
-      expect(tool).toBeDefined();
-      expect(tool!.name).toBe("get_milestone_merge_requests");
-      expect(tool!.description).toContain("List merge requests scheduled");
-      expect(tool!.inputSchema).toBeDefined();
-    });
-
-    it("should have proper get_milestone_burndown_events tool", () => {
-      const tool = milestonesToolRegistry.get("get_milestone_burndown_events");
-      expect(tool).toBeDefined();
-      expect(tool!.name).toBe("get_milestone_burndown_events");
-      expect(tool!.description).toContain("Track milestone progress");
-      expect(tool!.inputSchema).toBeDefined();
-    });
-
-    it("should have proper create_milestone tool", () => {
-      const tool = milestonesToolRegistry.get("create_milestone");
-      expect(tool).toBeDefined();
-      expect(tool!.name).toBe("create_milestone");
-      expect(tool!.description).toContain("Define a new release milestone");
-      expect(tool!.inputSchema).toBeDefined();
-    });
-
-    it("should have proper edit_milestone tool", () => {
-      const tool = milestonesToolRegistry.get("edit_milestone");
-      expect(tool).toBeDefined();
-      expect(tool!.name).toBe("edit_milestone");
-      expect(tool!.description).toContain("Update milestone properties");
-      expect(tool!.inputSchema).toBeDefined();
-    });
-
-    it("should have proper delete_milestone tool", () => {
-      const tool = milestonesToolRegistry.get("delete_milestone");
-      expect(tool).toBeDefined();
-      expect(tool!.name).toBe("delete_milestone");
-      expect(tool!.description).toContain("Remove a milestone permanently");
-      expect(tool!.inputSchema).toBeDefined();
-    });
-
-    it("should have proper promote_milestone tool", () => {
-      const tool = milestonesToolRegistry.get("promote_milestone");
-      expect(tool).toBeDefined();
-      expect(tool!.name).toBe("promote_milestone");
-      expect(tool!.description).toContain("Elevate project milestone to group");
-      expect(tool!.inputSchema).toBeDefined();
+      expect(tool?.name).toBe("manage_milestone");
+      expect(tool?.description).toContain("MANAGE milestones");
+      expect(tool?.description).toContain("create");
+      expect(tool?.description).toContain("update");
+      expect(tool?.description).toContain("delete");
+      expect(tool?.description).toContain("promote");
+      expect(tool?.inputSchema).toBeDefined();
     });
   });
 
   describe("Read-Only Tools Function", () => {
     it("should return an array of read-only tool names", () => {
       const readOnlyTools = getMilestonesReadOnlyToolNames();
+
       expect(Array.isArray(readOnlyTools)).toBe(true);
       expect(readOnlyTools.length).toBeGreaterThan(0);
     });
 
-    it("should include expected read-only tools", () => {
+    it("should include only browse_milestones as read-only", () => {
       const readOnlyTools = getMilestonesReadOnlyToolNames();
-      expect(readOnlyTools).toContain("list_milestones");
-      expect(readOnlyTools).toContain("get_milestone");
-      expect(readOnlyTools).toContain("get_milestone_issue");
-      expect(readOnlyTools).toContain("get_milestone_merge_requests");
-      expect(readOnlyTools).toContain("get_milestone_burndown_events");
+
+      expect(readOnlyTools).toContain("browse_milestones");
+      expect(readOnlyTools).toEqual(["browse_milestones"]);
     });
 
-    it("should not include write tools", () => {
+    it("should not include manage tools (write tools)", () => {
       const readOnlyTools = getMilestonesReadOnlyToolNames();
-      expect(readOnlyTools).not.toContain("create_milestone");
-      expect(readOnlyTools).not.toContain("edit_milestone");
-      expect(readOnlyTools).not.toContain("delete_milestone");
-      expect(readOnlyTools).not.toContain("promote_milestone");
+
+      expect(readOnlyTools).not.toContain("manage_milestone");
     });
 
-    it("should return exactly 5 read-only tools", () => {
+    it("should return exactly 1 read-only tool", () => {
       const readOnlyTools = getMilestonesReadOnlyToolNames();
-      expect(readOnlyTools.length).toBe(5);
+
+      expect(readOnlyTools.length).toBe(1);
     });
 
     it("should return tools that exist in the registry", () => {
       const readOnlyTools = getMilestonesReadOnlyToolNames();
-      readOnlyTools.forEach(toolName => {
-        expect(milestonesToolRegistry.has(toolName)).toBe(true);
-      });
+      const registryKeys = Array.from(milestonesToolRegistry.keys());
+
+      for (const toolName of readOnlyTools) {
+        expect(registryKeys).toContain(toolName);
+      }
     });
   });
 
   describe("Milestones Tool Definitions Function", () => {
     it("should return an array of tool definitions", () => {
-      const toolDefinitions = getMilestonesToolDefinitions();
-      expect(Array.isArray(toolDefinitions)).toBe(true);
-      expect(toolDefinitions.length).toBe(9);
+      const definitions = getMilestonesToolDefinitions();
+
+      expect(Array.isArray(definitions)).toBe(true);
+      expect(definitions.length).toBe(milestonesToolRegistry.size);
     });
 
-    it("should return all tools from registry", () => {
-      const toolDefinitions = getMilestonesToolDefinitions();
-      const registrySize = milestonesToolRegistry.size;
-      expect(toolDefinitions.length).toBe(registrySize);
+    it("should return all 2 CQRS tools from registry", () => {
+      const definitions = getMilestonesToolDefinitions();
+
+      expect(definitions.length).toBe(2);
     });
 
     it("should return tool definitions with proper structure", () => {
-      const toolDefinitions = getMilestonesToolDefinitions();
+      const definitions = getMilestonesToolDefinitions();
 
-      toolDefinitions.forEach(tool => {
-        expect(tool).toHaveProperty("name");
-        expect(tool).toHaveProperty("description");
-        expect(tool).toHaveProperty("inputSchema");
-        expect(tool).toHaveProperty("handler");
-        expect(typeof tool.name).toBe("string");
-        expect(typeof tool.description).toBe("string");
-        expect(typeof tool.inputSchema).toBe("object");
-      });
+      for (const definition of definitions) {
+        expect(definition).toHaveProperty("name");
+        expect(definition).toHaveProperty("description");
+        expect(definition).toHaveProperty("inputSchema");
+        expect(definition).toHaveProperty("handler");
+      }
     });
   });
 
   describe("Filtered Milestones Tools Function", () => {
     it("should return all tools in normal mode", () => {
-      const filteredTools = getFilteredMilestonesTools(false);
-      expect(filteredTools.length).toBe(9);
+      const allTools = getFilteredMilestonesTools(false);
+      const allDefinitions = getMilestonesToolDefinitions();
+
+      expect(allTools.length).toBe(allDefinitions.length);
+      expect(allTools.length).toBe(2);
     });
 
     it("should return only read-only tools in read-only mode", () => {
-      const filteredTools = getFilteredMilestonesTools(true);
-      const readOnlyTools = getMilestonesReadOnlyToolNames();
-      expect(filteredTools.length).toBe(readOnlyTools.length);
+      const readOnlyTools = getFilteredMilestonesTools(true);
+      const readOnlyNames = getMilestonesReadOnlyToolNames();
+
+      expect(readOnlyTools.length).toBe(readOnlyNames.length);
+      expect(readOnlyTools.length).toBe(1);
     });
 
     it("should filter tools correctly in read-only mode", () => {
-      const filteredTools = getFilteredMilestonesTools(true);
-      const toolNames = filteredTools.map(tool => tool.name);
+      const readOnlyTools = getFilteredMilestonesTools(true);
+      const readOnlyNames = getMilestonesReadOnlyToolNames();
 
-      expect(toolNames).toContain("list_milestones");
-      expect(toolNames).toContain("get_milestone");
-      expect(toolNames).toContain("get_milestone_issue");
-      expect(toolNames).toContain("get_milestone_merge_requests");
-      expect(toolNames).toContain("get_milestone_burndown_events");
-      expect(toolNames).not.toContain("create_milestone");
-      expect(toolNames).not.toContain("edit_milestone");
-      expect(toolNames).not.toContain("delete_milestone");
-      expect(toolNames).not.toContain("promote_milestone");
+      for (const tool of readOnlyTools) {
+        expect(readOnlyNames).toContain(tool.name);
+      }
     });
 
-    it("should not include write tools in read-only mode", () => {
-      const filteredTools = getFilteredMilestonesTools(true);
-      const toolNames = filteredTools.map(tool => tool.name);
-      const writeTools = [
-        "create_milestone",
-        "edit_milestone",
-        "delete_milestone",
-        "promote_milestone",
-      ];
+    it("should not include manage tools in read-only mode", () => {
+      const readOnlyTools = getFilteredMilestonesTools(true);
 
-      writeTools.forEach(toolName => {
-        expect(toolNames).not.toContain(toolName);
-      });
-    });
-
-    it("should return exactly 5 tools in read-only mode", () => {
-      const filteredTools = getFilteredMilestonesTools(true);
-      expect(filteredTools.length).toBe(5);
+      for (const tool of readOnlyTools) {
+        expect(tool.name).not.toBe("manage_milestone");
+      }
     });
   });
 
   describe("Tool Handlers", () => {
     it("should have handlers that are async functions", () => {
-      const toolEntries = Array.from(milestonesToolRegistry.values());
-
-      toolEntries.forEach(tool => {
-        expect(typeof tool.handler).toBe("function");
+      for (const [, tool] of milestonesToolRegistry) {
         expect(tool.handler.constructor.name).toBe("AsyncFunction");
-      });
+      }
     });
 
     it("should have handlers that accept arguments", () => {
-      const toolEntries = Array.from(milestonesToolRegistry.values());
-
-      toolEntries.forEach(tool => {
-        expect(tool.handler.length).toBeGreaterThanOrEqual(1);
-      });
+      for (const [, tool] of milestonesToolRegistry) {
+        expect(tool.handler.length).toBe(1);
+      }
     });
   });
 
   describe("Registry Consistency", () => {
-    it("should have all expected milestone tools", () => {
-      const expectedTools = [
-        "list_milestones",
-        "get_milestone",
-        "get_milestone_issue",
-        "get_milestone_merge_requests",
-        "get_milestone_burndown_events",
-        "create_milestone",
-        "edit_milestone",
-        "delete_milestone",
-        "promote_milestone",
-      ];
+    it("should have all expected CQRS tools", () => {
+      const expectedTools = ["browse_milestones", "manage_milestone"];
 
-      expectedTools.forEach(toolName => {
+      for (const toolName of expectedTools) {
         expect(milestonesToolRegistry.has(toolName)).toBe(true);
-      });
+      }
     });
 
     it("should have consistent tool count between functions", () => {
-      const registrySize = milestonesToolRegistry.size;
-      const toolDefinitions = getMilestonesToolDefinitions();
-      const filteredTools = getFilteredMilestonesTools(false);
+      const allDefinitions = getMilestonesToolDefinitions();
+      const readOnlyNames = getMilestonesReadOnlyToolNames();
+      const readOnlyTools = getFilteredMilestonesTools(true);
 
-      expect(toolDefinitions.length).toBe(registrySize);
-      expect(filteredTools.length).toBe(registrySize);
+      expect(readOnlyTools.length).toBe(readOnlyNames.length);
+      expect(allDefinitions.length).toBe(milestonesToolRegistry.size);
+      expect(allDefinitions.length).toBeGreaterThan(readOnlyNames.length);
     });
 
     it("should have more tools than just read-only ones", () => {
       const totalTools = milestonesToolRegistry.size;
-      const readOnlyTools = getMilestonesReadOnlyToolNames();
+      const readOnlyCount = getMilestonesReadOnlyToolNames().length;
 
-      expect(totalTools).toBeGreaterThan(readOnlyTools.length);
+      expect(totalTools).toBeGreaterThan(readOnlyCount);
+      expect(totalTools).toBe(2);
+      expect(readOnlyCount).toBe(1);
     });
   });
 
   describe("Tool Input Schemas", () => {
     it("should have valid JSON schema structure for all tools", () => {
-      const toolEntries = Array.from(milestonesToolRegistry.values());
-
-      toolEntries.forEach(tool => {
+      for (const [, tool] of milestonesToolRegistry) {
         expect(tool.inputSchema).toBeDefined();
         expect(typeof tool.inputSchema).toBe("object");
-      });
+        const schema = tool.inputSchema as Record<string, unknown>;
+        const hasValidStructure = "type" in schema || "anyOf" in schema || "oneOf" in schema;
+        expect(hasValidStructure).toBe(true);
+      }
     });
 
     it("should have consistent schema format", () => {
-      const toolEntries = Array.from(milestonesToolRegistry.values());
-
-      toolEntries.forEach(tool => {
-        // Each schema should be a valid JSON Schema object
+      for (const [toolName, tool] of milestonesToolRegistry) {
         expect(tool.inputSchema).toBeDefined();
-        expect(typeof tool.inputSchema).toBe("object");
-      });
+
+        if (typeof tool.inputSchema === "object" && tool.inputSchema !== null) {
+          const schema = tool.inputSchema as Record<string, unknown>;
+          const hasValidStructure = "type" in schema || "anyOf" in schema || "oneOf" in schema;
+          expect(hasValidStructure).toBe(true);
+        } else {
+          throw new Error(`Tool ${toolName} has invalid inputSchema type`);
+        }
+      }
     });
   });
 
-  describe("Milestone Tool Specifics", () => {
-    it("should support both project and group milestones", () => {
-      const listMilestonesTool = milestonesToolRegistry.get("list_milestones");
-      expect(listMilestonesTool).toBeDefined();
-      expect(listMilestonesTool!.inputSchema).toBeDefined();
-
-      // The tool should handle both project and group contexts
-      expect(listMilestonesTool!.description).toContain("Group milestones apply");
-    });
-
-    it("should mention milestone management context in descriptions", () => {
-      const toolEntries = Array.from(milestonesToolRegistry.values());
-
-      toolEntries.forEach(tool => {
-        expect(tool.description.toLowerCase()).toMatch(/milestone/);
-      });
-    });
-
-    it("should have milestone-specific tools for issues and merge requests", () => {
-      expect(milestonesToolRegistry.has("get_milestone_issue")).toBe(true);
-      expect(milestonesToolRegistry.has("get_milestone_merge_requests")).toBe(true);
-      expect(milestonesToolRegistry.has("get_milestone_burndown_events")).toBe(true);
-    });
-
-    it("should have promote milestone tool for project-to-group promotion", () => {
-      const promoteTool = milestonesToolRegistry.get("promote_milestone");
-      expect(promoteTool).toBeDefined();
-      expect(promoteTool!.description).toContain("Elevate project milestone to group level");
-    });
-  });
-
-  describe("Handler Functions", () => {
-    const mockResponse = (data: any, ok = true, status = 200) => ({
+  describe("Handler Tests", () => {
+    const mockResponse = (data: unknown, ok = true, status = 200) => ({
       ok,
       status,
       statusText: ok ? "OK" : "Error",
       json: jest.fn().mockResolvedValue(data),
+      text: jest.fn().mockResolvedValue(typeof data === "string" ? data : JSON.stringify(data)),
     });
 
-    describe("list_milestones handler", () => {
-      it("should list project milestones", async () => {
+    describe("browse_milestones handler - list action", () => {
+      it("should list milestones with basic parameters", async () => {
+        // First mock for namespace resolution (project lookup)
+        mockEnhancedFetch.mockResolvedValueOnce(
+          mockResponse({ id: 1, path: "test-project", kind: "project" }) as never
+        );
+        // Second mock for milestones list
         const mockMilestones = [
-          { id: 1, title: "Sprint 1", state: "active", project_id: 123 },
-          { id: 2, title: "Sprint 2", state: "closed", project_id: 123 },
+          { id: 1, title: "v1.0", state: "active" },
+          { id: 2, title: "v2.0", state: "closed" },
         ];
+        mockEnhancedFetch.mockResolvedValueOnce(mockResponse(mockMilestones) as never);
 
-        // Mock namespace detection call (project endpoint check)
-        mockEnhancedFetch.mockResolvedValueOnce({
-          ok: true,
-          status: 200,
-          statusText: "OK",
-          json: jest.fn().mockResolvedValue({ id: 123, name: "test-project" }),
-        } as any);
-
-        // Mock actual list milestones API call
-        mockEnhancedFetch.mockResolvedValueOnce(mockResponse(mockMilestones) as any);
-
-        const tool = milestonesToolRegistry.get("list_milestones")!;
+        const tool = milestonesToolRegistry.get("browse_milestones")!;
         const result = await tool.handler({
+          action: "list",
           namespace: "test/project",
-          state: "active",
         });
 
         expect(mockEnhancedFetch).toHaveBeenCalledTimes(2);
         expect(result).toEqual(mockMilestones);
       });
 
-      it("should list group milestones", async () => {
-        const mockMilestones = [
-          { id: 1, title: "Group Milestone", state: "active", group_id: 456 },
-        ];
+      it("should list milestones with filtering options", async () => {
+        mockEnhancedFetch.mockResolvedValueOnce(
+          mockResponse({ id: 1, path: "test-project", kind: "project" }) as never
+        );
+        const mockMilestones = [{ id: 1, title: "v1.0", state: "active" }];
+        mockEnhancedFetch.mockResolvedValueOnce(mockResponse(mockMilestones) as never);
 
-        // Mock namespace detection call (group endpoint check)
-        mockEnhancedFetch.mockResolvedValueOnce({
-          ok: true,
-          status: 200,
-          statusText: "OK",
-          json: jest.fn().mockResolvedValue({ id: 456, name: "test-group" }),
-        } as any);
-
-        // Mock actual list milestones API call
-        mockEnhancedFetch.mockResolvedValueOnce(mockResponse(mockMilestones) as any);
-
-        const tool = milestonesToolRegistry.get("list_milestones")!;
+        const tool = milestonesToolRegistry.get("browse_milestones")!;
         await tool.handler({
-          namespace: "test-group",
-          state: "closed",
+          action: "list",
+          namespace: "test/project",
+          state: "active",
+          search: "v1",
           per_page: 50,
+          page: 1,
         });
 
-        const call = mockEnhancedFetch.mock.calls[1]; // Second call is the actual API call
+        const call = mockEnhancedFetch.mock.calls[1];
         const url = call[0] as string;
-        expect(url).toContain("api/v4/groups/test-group/milestones");
-        expect(url).toContain("state=closed");
+        expect(url).toContain("state=active");
+        expect(url).toContain("search=v1");
         expect(url).toContain("per_page=50");
+        expect(url).toContain("page=1");
       });
 
       it("should handle API errors", async () => {
-        // Mock namespace detection call (succeeds)
-        mockEnhancedFetch.mockResolvedValueOnce({
-          ok: true,
-          status: 200,
-          statusText: "OK",
-          json: jest.fn().mockResolvedValue({ id: 123, name: "nonexistent-project" }),
-        } as any);
+        mockEnhancedFetch.mockResolvedValueOnce(
+          mockResponse({ id: 1, path: "test-project", kind: "project" }) as never
+        );
+        mockEnhancedFetch.mockResolvedValueOnce(mockResponse(null, false, 404) as never);
 
-        // Mock actual API call (fails)
-        mockEnhancedFetch.mockResolvedValueOnce(mockResponse(null, false, 404) as any);
-
-        const tool = milestonesToolRegistry.get("list_milestones")!;
+        const tool = milestonesToolRegistry.get("browse_milestones")!;
 
         await expect(
           tool.handler({
+            action: "list",
             namespace: "nonexistent/project",
           })
         ).rejects.toThrow("GitLab API error: 404 Error");
       });
     });
 
-    describe("get_milestone handler", () => {
-      it("should get project milestone by ID", async () => {
+    describe("browse_milestones handler - get action", () => {
+      it("should get milestone by ID", async () => {
+        mockEnhancedFetch.mockResolvedValueOnce(
+          mockResponse({ id: 1, path: "test-project", kind: "project" }) as never
+        );
         const mockMilestone = {
           id: 1,
-          iid: 1,
-          title: "Sprint 1",
-          description: "First sprint milestone",
+          title: "v1.0",
           state: "active",
-          project_id: 123,
+          description: "First release",
         };
+        mockEnhancedFetch.mockResolvedValueOnce(mockResponse(mockMilestone) as never);
 
-        // Mock namespace detection call (project endpoint check)
-        mockEnhancedFetch.mockResolvedValueOnce({
-          ok: true,
-          status: 200,
-          statusText: "OK",
-          json: jest.fn().mockResolvedValue({ id: 123, name: "test-project" }),
-        } as any);
-
-        // Mock actual get milestone API call
-        mockEnhancedFetch.mockResolvedValueOnce(mockResponse(mockMilestone) as any);
-
-        const tool = milestonesToolRegistry.get("get_milestone")!;
+        const tool = milestonesToolRegistry.get("browse_milestones")!;
         const result = await tool.handler({
+          action: "get",
           namespace: "test/project",
-          milestone_id: 1,
+          milestone_id: "1",
         });
 
-        expect(mockEnhancedFetch).toHaveBeenCalledWith(
-          "https://gitlab.example.com/api/v4/projects/test%2Fproject/milestones/1"
-        );
+        expect(mockEnhancedFetch).toHaveBeenCalledTimes(2);
         expect(result).toEqual(mockMilestone);
       });
 
-      it("should get group milestone by ID", async () => {
-        const mockMilestone = { id: 2, title: "Group Milestone", group_id: 456 };
-
-        // Mock namespace detection call (group endpoint check)
-        mockEnhancedFetch.mockResolvedValueOnce({
-          ok: true,
-          status: 200,
-          statusText: "OK",
-          json: jest.fn().mockResolvedValue({ id: 456, name: "test-group" }),
-        } as any);
-
-        // Mock actual get milestone API call
-        mockEnhancedFetch.mockResolvedValueOnce(mockResponse(mockMilestone) as any);
-
-        const tool = milestonesToolRegistry.get("get_milestone")!;
-        await tool.handler({
-          namespace: "test-group",
-          milestone_id: 2,
-        });
-
-        expect(mockEnhancedFetch).toHaveBeenCalledWith(
-          "https://gitlab.example.com/api/v4/groups/test-group/milestones/2"
+      it("should handle milestone not found", async () => {
+        mockEnhancedFetch.mockResolvedValueOnce(
+          mockResponse({ id: 1, path: "test-project", kind: "project" }) as never
         );
+        mockEnhancedFetch.mockResolvedValueOnce(mockResponse(null, false, 404) as never);
+
+        const tool = milestonesToolRegistry.get("browse_milestones")!;
+
+        await expect(
+          tool.handler({
+            action: "get",
+            namespace: "test/project",
+            milestone_id: "999",
+          })
+        ).rejects.toThrow("GitLab API error: 404 Error");
       });
     });
 
-    describe("get_milestone_issue handler", () => {
-      it("should get issues for project milestone", async () => {
+    describe("browse_milestones handler - issues action", () => {
+      it("should list issues in milestone", async () => {
+        mockEnhancedFetch.mockResolvedValueOnce(
+          mockResponse({ id: 1, path: "test-project", kind: "project" }) as never
+        );
         const mockIssues = [
-          { id: 1, iid: 1, title: "Issue 1", milestone: { id: 1 } },
-          { id: 2, iid: 2, title: "Issue 2", milestone: { id: 1 } },
+          { id: 1, title: "Fix bug", state: "opened" },
+          { id: 2, title: "Add feature", state: "closed" },
         ];
+        mockEnhancedFetch.mockResolvedValueOnce(mockResponse(mockIssues) as never);
 
-        // Mock namespace detection call (project endpoint check)
-        mockEnhancedFetch.mockResolvedValueOnce({
-          ok: true,
-          status: 200,
-          statusText: "OK",
-          json: jest.fn().mockResolvedValue({ id: 123, name: "test-project" }),
-        } as any);
-
-        // Mock actual get milestone issues API call
-        mockEnhancedFetch.mockResolvedValueOnce(mockResponse(mockIssues) as any);
-
-        const tool = milestonesToolRegistry.get("get_milestone_issue")!;
+        const tool = milestonesToolRegistry.get("browse_milestones")!;
         const result = await tool.handler({
+          action: "issues",
           namespace: "test/project",
-          milestone_id: 1,
-          state: "opened",
+          milestone_id: "1",
         });
 
-        expect(mockEnhancedFetch).toHaveBeenCalledWith(
-          expect.stringContaining(
-            "https://gitlab.example.com/api/v4/projects/test%2Fproject/milestones/1/issues"
-          )
-        );
+        expect(mockEnhancedFetch).toHaveBeenCalledTimes(2);
         expect(result).toEqual(mockIssues);
       });
-
-      it("should get issues for group milestone", async () => {
-        const mockIssues = [{ id: 1, title: "Group Issue" }];
-
-        // Mock namespace detection call (group endpoint check)
-        mockEnhancedFetch.mockResolvedValueOnce({
-          ok: true,
-          status: 200,
-          statusText: "OK",
-          json: jest.fn().mockResolvedValue({ id: 456, name: "test-group" }),
-        } as any);
-
-        // Mock actual get milestone issues API call
-        mockEnhancedFetch.mockResolvedValueOnce(mockResponse(mockIssues) as any);
-
-        const tool = milestonesToolRegistry.get("get_milestone_issue")!;
-        await tool.handler({
-          namespace: "test-group",
-          milestone_id: 1,
-          per_page: 20,
-        });
-
-        const call = mockEnhancedFetch.mock.calls[1]; // Second call is the actual API call
-        const url = call[0] as string;
-        expect(url).toContain("api/v4/groups/test-group/milestones/1/issues");
-      });
     });
 
-    describe("get_milestone_merge_requests handler", () => {
-      it("should get merge requests for milestone", async () => {
+    describe("browse_milestones handler - merge_requests action", () => {
+      it("should list merge requests in milestone", async () => {
+        mockEnhancedFetch.mockResolvedValueOnce(
+          mockResponse({ id: 1, path: "test-project", kind: "project" }) as never
+        );
         const mockMRs = [
-          { id: 1, iid: 1, title: "MR 1", milestone: { id: 1 } },
-          { id: 2, iid: 2, title: "MR 2", milestone: { id: 1 } },
+          { id: 1, title: "Feature MR", state: "merged" },
+          { id: 2, title: "Bugfix MR", state: "opened" },
         ];
+        mockEnhancedFetch.mockResolvedValueOnce(mockResponse(mockMRs) as never);
 
-        // Mock namespace detection call (project endpoint check)
-        mockEnhancedFetch.mockResolvedValueOnce({
-          ok: true,
-          status: 200,
-          statusText: "OK",
-          json: jest.fn().mockResolvedValue({ id: 123, name: "test-project" }),
-        } as any);
-
-        // Mock actual get milestone merge requests API call
-        mockEnhancedFetch.mockResolvedValueOnce(mockResponse(mockMRs) as any);
-
-        const tool = milestonesToolRegistry.get("get_milestone_merge_requests")!;
+        const tool = milestonesToolRegistry.get("browse_milestones")!;
         const result = await tool.handler({
+          action: "merge_requests",
           namespace: "test/project",
-          milestone_id: 1,
-          state: "merged",
+          milestone_id: "1",
         });
 
-        expect(mockEnhancedFetch).toHaveBeenCalledWith(
-          expect.stringContaining(
-            "https://gitlab.example.com/api/v4/projects/test%2Fproject/milestones/1/merge_requests"
-          )
-        );
+        expect(mockEnhancedFetch).toHaveBeenCalledTimes(2);
         expect(result).toEqual(mockMRs);
       });
     });
 
-    describe("get_milestone_burndown_events handler", () => {
-      it("should get burndown events for milestone", async () => {
+    describe("browse_milestones handler - burndown action", () => {
+      it("should get burndown events", async () => {
+        mockEnhancedFetch.mockResolvedValueOnce(
+          mockResponse({ id: 1, path: "test-project", kind: "project" }) as never
+        );
         const mockEvents = [
-          { created_at: "2024-01-01T00:00:00Z", weight: 5, action: "add" },
-          { created_at: "2024-01-02T00:00:00Z", weight: 3, action: "remove" },
+          { date: "2024-01-01", scope_count: 10 },
+          { date: "2024-01-02", scope_count: 8 },
         ];
+        mockEnhancedFetch.mockResolvedValueOnce(mockResponse(mockEvents) as never);
 
-        // Mock namespace detection call (project endpoint check)
-        mockEnhancedFetch.mockResolvedValueOnce({
-          ok: true,
-          status: 200,
-          statusText: "OK",
-          json: jest.fn().mockResolvedValue({ id: 123, name: "test-project" }),
-        } as any);
-
-        // Mock actual get milestone burndown events API call
-        mockEnhancedFetch.mockResolvedValueOnce(mockResponse(mockEvents) as any);
-
-        const tool = milestonesToolRegistry.get("get_milestone_burndown_events")!;
+        const tool = milestonesToolRegistry.get("browse_milestones")!;
         const result = await tool.handler({
+          action: "burndown",
           namespace: "test/project",
-          milestone_id: 1,
+          milestone_id: "1",
         });
 
-        // Second call is the burndown_events with default per_page
-        expect(mockEnhancedFetch).toHaveBeenNthCalledWith(
-          2,
-          "https://gitlab.example.com/api/v4/projects/test%2Fproject/milestones/1/burndown_events?per_page=20"
-        );
-        expect(result).toEqual(mockEvents);
-      });
-
-      it("should use explicit per_page when provided", async () => {
-        const mockEvents = [
-          {
-            created_at: "2024-01-05T10:00:00Z",
-            weight: 5,
-            action: "closed",
-          },
-        ];
-
-        // Mock namespace detection call
-        mockEnhancedFetch.mockResolvedValueOnce({
-          ok: true,
-          status: 200,
-          statusText: "OK",
-          json: jest.fn().mockResolvedValue({ id: 123, name: "test-project" }),
-        } as any);
-
-        // Mock actual burndown_events API call
-        mockEnhancedFetch.mockResolvedValueOnce({
-          ok: true,
-          status: 200,
-          statusText: "OK",
-          json: jest.fn().mockResolvedValue(mockEvents),
-        } as any);
-
-        const tool = milestonesToolRegistry.get("get_milestone_burndown_events")!;
-        const result = await tool.handler({
-          namespace: "test/project",
-          milestone_id: 1,
-          per_page: 50, // Explicit per_page value
-        });
-
-        // Second call should use the explicit per_page value
-        expect(mockEnhancedFetch).toHaveBeenNthCalledWith(
-          2,
-          "https://gitlab.example.com/api/v4/projects/test%2Fproject/milestones/1/burndown_events?per_page=50"
-        );
+        expect(mockEnhancedFetch).toHaveBeenCalledTimes(2);
         expect(result).toEqual(mockEvents);
       });
     });
 
-    describe("create_milestone handler", () => {
-      it("should create project milestone", async () => {
+    describe("manage_milestone handler - create action", () => {
+      it("should create milestone", async () => {
+        mockEnhancedFetch.mockResolvedValueOnce(
+          mockResponse({ id: 1, path: "test-project", kind: "project" }) as never
+        );
         const mockMilestone = {
           id: 3,
-          iid: 3,
-          title: "New Sprint",
-          description: "A new sprint milestone",
+          title: "v3.0",
           state: "active",
         };
+        mockEnhancedFetch.mockResolvedValueOnce(mockResponse(mockMilestone) as never);
 
-        // Mock namespace detection call (project endpoint check)
-        mockEnhancedFetch.mockResolvedValueOnce({
-          ok: true,
-          status: 200,
-          statusText: "OK",
-          json: jest.fn().mockResolvedValue({ id: 123, name: "test-project" }),
-        } as any);
-
-        // Mock actual create milestone API call
-        mockEnhancedFetch.mockResolvedValueOnce(mockResponse(mockMilestone) as any);
-
-        const tool = milestonesToolRegistry.get("create_milestone")!;
+        const tool = milestonesToolRegistry.get("manage_milestone")!;
         const result = await tool.handler({
+          action: "create",
           namespace: "test/project",
-          title: "New Sprint",
-          description: "A new sprint milestone",
-          due_date: "2024-12-31",
-          start_date: "2024-12-01",
+          title: "v3.0",
+          description: "Major release",
         });
 
-        expect(mockEnhancedFetch).toHaveBeenCalledWith(
-          "https://gitlab.example.com/api/v4/projects/test%2Fproject/milestones",
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: expect.stringContaining('"title":"New Sprint"'),
-          }
-        );
-
-        const call = mockEnhancedFetch.mock.calls[1]; // Second call is the actual API call
-        const body = JSON.parse(call[1]?.body as string);
-        expect(body).toEqual({
-          title: "New Sprint",
-          description: "A new sprint milestone",
-          due_date: "2024-12-31",
-          start_date: "2024-12-01",
-        });
+        expect(mockEnhancedFetch).toHaveBeenCalledTimes(2);
         expect(result).toEqual(mockMilestone);
       });
 
-      it("should create group milestone", async () => {
-        const mockMilestone = { id: 4, title: "Group Milestone", group_id: 456 };
+      it("should create milestone with dates", async () => {
+        mockEnhancedFetch.mockResolvedValueOnce(
+          mockResponse({ id: 1, path: "test-project", kind: "project" }) as never
+        );
+        const mockMilestone = { id: 4, title: "v4.0", state: "active" };
+        mockEnhancedFetch.mockResolvedValueOnce(mockResponse(mockMilestone) as never);
 
-        // Mock namespace detection call (group endpoint check)
-        mockEnhancedFetch.mockResolvedValueOnce({
-          ok: true,
-          status: 200,
-          statusText: "OK",
-          json: jest.fn().mockResolvedValue({ id: 456, name: "test-group" }),
-        } as any);
-
-        // Mock actual create milestone API call
-        mockEnhancedFetch.mockResolvedValueOnce(mockResponse(mockMilestone) as any);
-
-        const tool = milestonesToolRegistry.get("create_milestone")!;
+        const tool = milestonesToolRegistry.get("manage_milestone")!;
         await tool.handler({
-          namespace: "test-group",
-          title: "Group Milestone",
+          action: "create",
+          namespace: "test/project",
+          title: "v4.0",
+          start_date: "2024-01-01",
+          due_date: "2024-03-31",
         });
 
-        expect(mockEnhancedFetch).toHaveBeenCalledWith(
-          "https://gitlab.example.com/api/v4/groups/test-group/milestones",
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: '{"title":"Group Milestone"}',
-          }
-        );
+        const call = mockEnhancedFetch.mock.calls[1];
+        const body = JSON.parse(call[1]?.body as string);
+        expect(body.title).toBe("v4.0");
+        expect(body.start_date).toBe("2024-01-01");
+        expect(body.due_date).toBe("2024-03-31");
       });
     });
 
-    describe("edit_milestone handler", () => {
-      it("should edit project milestone", async () => {
+    describe("manage_milestone handler - update action", () => {
+      it("should update milestone", async () => {
+        mockEnhancedFetch.mockResolvedValueOnce(
+          mockResponse({ id: 1, path: "test-project", kind: "project" }) as never
+        );
         const mockMilestone = {
           id: 1,
-          title: "Updated Sprint",
-          description: "Updated description",
-          state: "closed",
+          title: "v1.0 Updated",
+          state: "active",
         };
+        mockEnhancedFetch.mockResolvedValueOnce(mockResponse(mockMilestone) as never);
 
-        // Mock namespace detection call (project endpoint check)
-        mockEnhancedFetch.mockResolvedValueOnce({
-          ok: true,
-          status: 200,
-          statusText: "OK",
-          json: jest.fn().mockResolvedValue({ id: 123, name: "test-project" }),
-        } as any);
-
-        // Mock actual edit milestone API call
-        mockEnhancedFetch.mockResolvedValueOnce(mockResponse(mockMilestone) as any);
-
-        const tool = milestonesToolRegistry.get("edit_milestone")!;
+        const tool = milestonesToolRegistry.get("manage_milestone")!;
         const result = await tool.handler({
+          action: "update",
           namespace: "test/project",
-          milestone_id: 1,
-          title: "Updated Sprint",
-          description: "Updated description",
+          milestone_id: "1",
+          title: "v1.0 Updated",
+        });
+
+        expect(mockEnhancedFetch).toHaveBeenCalledTimes(2);
+        expect(result).toEqual(mockMilestone);
+      });
+
+      it("should close milestone with state_event", async () => {
+        mockEnhancedFetch.mockResolvedValueOnce(
+          mockResponse({ id: 1, path: "test-project", kind: "project" }) as never
+        );
+        const mockMilestone = { id: 1, title: "v1.0", state: "closed" };
+        mockEnhancedFetch.mockResolvedValueOnce(mockResponse(mockMilestone) as never);
+
+        const tool = milestonesToolRegistry.get("manage_milestone")!;
+        await tool.handler({
+          action: "update",
+          namespace: "test/project",
+          milestone_id: "1",
           state_event: "close",
         });
 
-        expect(mockEnhancedFetch).toHaveBeenCalledWith(
-          "https://gitlab.example.com/api/v4/projects/test%2Fproject/milestones/1",
-          {
-            method: "PUT",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: expect.stringContaining('"title":"Updated Sprint"'),
-          }
-        );
-        expect(result).toEqual(mockMilestone);
+        const call = mockEnhancedFetch.mock.calls[1];
+        const body = JSON.parse(call[1]?.body as string);
+        expect(body.state_event).toBe("close");
       });
     });
 
-    describe("delete_milestone handler", () => {
-      it("should delete project milestone", async () => {
-        // Mock namespace detection call (project endpoint check)
-        mockEnhancedFetch.mockResolvedValueOnce({
-          ok: true,
-          status: 200,
-          statusText: "OK",
-          json: jest.fn().mockResolvedValue({ id: 123, name: "test-project" }),
-        } as any);
+    describe("manage_milestone handler - delete action", () => {
+      it("should delete milestone", async () => {
+        mockEnhancedFetch.mockResolvedValueOnce(
+          mockResponse({ id: 1, path: "test-project", kind: "project" }) as never
+        );
+        mockEnhancedFetch.mockResolvedValueOnce(mockResponse(null) as never);
 
-        // Mock actual delete milestone API call (204 No Content)
-        mockEnhancedFetch.mockResolvedValueOnce({
-          ok: true,
-          status: 204,
-          statusText: "No Content",
-        } as any);
-
-        const tool = milestonesToolRegistry.get("delete_milestone")!;
+        const tool = milestonesToolRegistry.get("manage_milestone")!;
         const result = await tool.handler({
+          action: "delete",
           namespace: "test/project",
-          milestone_id: 1,
+          milestone_id: "1",
         });
 
-        expect(mockEnhancedFetch).toHaveBeenNthCalledWith(
-          2,
-          "https://gitlab.example.com/api/v4/projects/test%2Fproject/milestones/1",
-          { method: "DELETE" }
-        );
-        // Handler returns { deleted: true } after successful deletion
-        expect(result).toEqual({ deleted: true });
-      });
-
-      it("should delete group milestone", async () => {
-        // Mock namespace detection call (group endpoint check)
-        mockEnhancedFetch.mockResolvedValueOnce({
-          ok: true,
-          status: 200,
-          statusText: "OK",
-          json: jest.fn().mockResolvedValue({ id: 456, name: "test-group" }),
-        } as any);
-
-        // Mock actual delete milestone API call (204 No Content)
-        mockEnhancedFetch.mockResolvedValueOnce({
-          ok: true,
-          status: 204,
-          statusText: "No Content",
-        } as any);
-
-        const tool = milestonesToolRegistry.get("delete_milestone")!;
-        const result = await tool.handler({
-          namespace: "test-group",
-          milestone_id: 2,
-        });
-
-        expect(mockEnhancedFetch).toHaveBeenNthCalledWith(
-          2,
-          "https://gitlab.example.com/api/v4/groups/test-group/milestones/2",
-          { method: "DELETE" }
-        );
-        // Handler returns { deleted: true } after successful deletion
+        expect(mockEnhancedFetch).toHaveBeenCalledTimes(2);
         expect(result).toEqual({ deleted: true });
       });
     });
 
-    describe("promote_milestone handler", () => {
+    describe("manage_milestone handler - promote action", () => {
       it("should promote project milestone to group", async () => {
+        mockEnhancedFetch.mockResolvedValueOnce(
+          mockResponse({ id: 1, path: "test-project", kind: "project" }) as never
+        );
         const mockMilestone = {
           id: 1,
-          title: "Promoted Milestone",
-          group_id: 456,
-          project_id: null,
+          title: "v1.0",
+          group_id: 1,
         };
+        mockEnhancedFetch.mockResolvedValueOnce(mockResponse(mockMilestone) as never);
 
-        // Mock namespace detection call (project endpoint check)
-        mockEnhancedFetch.mockResolvedValueOnce({
-          ok: true,
-          status: 200,
-          statusText: "OK",
-          json: jest.fn().mockResolvedValue({ id: 123, name: "test-project" }),
-        } as any);
-
-        // Mock actual promote milestone API call
-        mockEnhancedFetch.mockResolvedValueOnce(mockResponse(mockMilestone) as any);
-
-        const tool = milestonesToolRegistry.get("promote_milestone")!;
+        const tool = milestonesToolRegistry.get("manage_milestone")!;
         const result = await tool.handler({
+          action: "promote",
           namespace: "test/project",
-          milestone_id: 1,
+          milestone_id: "1",
         });
 
-        expect(mockEnhancedFetch).toHaveBeenCalledWith(
-          "https://gitlab.example.com/api/v4/projects/test%2Fproject/milestones/1/promote",
-          {
-            method: "POST",
-          }
-        );
+        expect(mockEnhancedFetch).toHaveBeenCalledTimes(2);
         expect(result).toEqual(mockMilestone);
       });
 
-      it("should require namespace for promotion", async () => {
-        const tool = milestonesToolRegistry.get("promote_milestone")!;
+      it("should throw error when promoting group milestone", async () => {
+        mockEnhancedFetch.mockResolvedValueOnce(
+          mockResponse({ id: 1, path: "test-group", kind: "group" }) as never
+        );
 
-        // Test with empty namespace which should fail validation
+        const tool = milestonesToolRegistry.get("manage_milestone")!;
+
         await expect(
           tool.handler({
-            namespace: "",
-            milestone_id: 1,
+            action: "promote",
+            namespace: "test-group",
+            milestone_id: "1",
           })
-        ).rejects.toThrow("Milestone promotion is only available for projects");
+        ).rejects.toThrow("Milestone promotion is only available for projects, not groups");
       });
     });
 
-    describe("Error handling", () => {
-      it("should handle validation errors", async () => {
-        const tool = milestonesToolRegistry.get("get_milestone")!;
+    describe("Error Handling", () => {
+      it("should handle schema validation errors for browse_milestones", async () => {
+        const tool = milestonesToolRegistry.get("browse_milestones")!;
 
-        // Test with invalid input that should fail Zod validation
-        await expect(
-          tool.handler({
-            namespace: 123, // Should be string
-            milestone_id: "not-a-number",
-          })
-        ).rejects.toThrow();
+        // Missing required action
+        await expect(tool.handler({})).rejects.toThrow();
+
+        // Invalid action
+        await expect(tool.handler({ action: "invalid", namespace: "test" })).rejects.toThrow();
+
+        // Missing namespace for list
+        await expect(tool.handler({ action: "list" })).rejects.toThrow();
+
+        // Missing milestone_id for get
+        await expect(tool.handler({ action: "get", namespace: "test" })).rejects.toThrow();
       });
 
-      it("should handle API errors with proper error messages", async () => {
-        // Mock namespace detection call (succeeds)
-        mockEnhancedFetch.mockResolvedValueOnce({
-          ok: true,
-          status: 200,
-          statusText: "OK",
-          json: jest.fn().mockResolvedValue({ id: 123, name: "private-project" }),
-        } as any);
+      it("should handle schema validation errors for manage_milestone", async () => {
+        const tool = milestonesToolRegistry.get("manage_milestone")!;
 
-        // Mock actual API call (fails)
-        mockEnhancedFetch.mockResolvedValueOnce(mockResponse(null, false, 403) as any);
+        // Missing required action
+        await expect(tool.handler({})).rejects.toThrow();
 
-        const tool = milestonesToolRegistry.get("list_milestones")!;
+        // Invalid action
+        await expect(tool.handler({ action: "invalid", namespace: "test" })).rejects.toThrow();
 
-        await expect(
-          tool.handler({
-            namespace: "private/project",
-          })
-        ).rejects.toThrow("GitLab API error: 403 Error");
+        // Missing title for create
+        await expect(tool.handler({ action: "create", namespace: "test" })).rejects.toThrow();
+
+        // Missing milestone_id for update
+        await expect(tool.handler({ action: "update", namespace: "test" })).rejects.toThrow();
       });
 
       it("should handle network errors", async () => {
-        // Mock namespace detection call (succeeds)
-        mockEnhancedFetch.mockResolvedValueOnce({
-          ok: true,
-          status: 200,
-          statusText: "OK",
-          json: jest.fn().mockResolvedValue({ id: 123, name: "test-project" }),
-        } as any);
+        // First call for namespace resolution succeeds
+        mockEnhancedFetch.mockResolvedValueOnce(
+          mockResponse({ id: 1, path: "test-project", kind: "project" }) as never
+        );
+        // Second call (actual API) fails with network error
+        mockEnhancedFetch.mockRejectedValueOnce(new Error("Connection timeout"));
 
-        // Mock actual API call (network error)
-        mockEnhancedFetch.mockRejectedValueOnce(new Error("Network timeout"));
-
-        const tool = milestonesToolRegistry.get("create_milestone")!;
+        const tool = milestonesToolRegistry.get("browse_milestones")!;
 
         await expect(
           tool.handler({
+            action: "list",
             namespace: "test/project",
-            title: "Test Milestone",
           })
-        ).rejects.toThrow("Network timeout");
+        ).rejects.toThrow("Connection timeout");
+      });
+
+      it("should handle API errors with proper error messages", async () => {
+        mockEnhancedFetch.mockResolvedValueOnce(
+          mockResponse({ id: 1, path: "test-project", kind: "project" }) as never
+        );
+        mockEnhancedFetch.mockResolvedValueOnce(mockResponse(null, false, 403) as never);
+
+        const tool = milestonesToolRegistry.get("browse_milestones")!;
+
+        await expect(
+          tool.handler({
+            action: "list",
+            namespace: "private/project",
+          })
+        ).rejects.toThrow("GitLab API error: 403 Error");
       });
     });
   });
