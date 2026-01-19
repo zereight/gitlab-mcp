@@ -105,27 +105,36 @@ jobs:
       - name: Generate coverage summary
         if: github.event_name == 'pull_request'
         run: |
-          # Extract coverage metrics from HTML report
-          STATEMENTS=$(cat coverage/lcov-report/index.html | grep -A1 'Statements' | tail -1 | grep -o '[0-9.]*%' | head -1 || echo "N/A")
-          BRANCHES=$(cat coverage/lcov-report/index.html | grep -A1 'Branches' | tail -1 | grep -o '[0-9.]*%' | head -1 || echo "N/A")
-          FUNCTIONS=$(cat coverage/lcov-report/index.html | grep -A1 'Functions' | tail -1 | grep -o '[0-9.]*%' | head -1 || echo "N/A")
-          LINES=$(cat coverage/lcov-report/index.html | grep -A1 'Lines' | tail -1 | grep -o '[0-9.]*%' | head -1 || echo "N/A")
+          # Extract coverage metrics from JSON summary (more reliable than HTML parsing)
+          if [ -f coverage/coverage-summary.json ]; then
+            STATEMENTS=$(jq -r '.total.statements.pct' coverage/coverage-summary.json)
+            BRANCHES=$(jq -r '.total.branches.pct' coverage/coverage-summary.json)
+            FUNCTIONS=$(jq -r '.total.functions.pct' coverage/coverage-summary.json)
+            LINES=$(jq -r '.total.lines.pct' coverage/coverage-summary.json)
+          else
+            STATEMENTS="N/A"
+            BRANCHES="N/A"
+            FUNCTIONS="N/A"
+            LINES="N/A"
+          fi
+
+          OVERALL="${{ steps.coverage.outputs.percentage }}"
 
           # Create a markdown summary of coverage
           cat > coverage-summary.md << EOF
           ## 📊 Test Coverage Report
 
-          **Overall Coverage:** ${{ steps.coverage.outputs.percentage }}%
+          **Overall Coverage:** ${OVERALL}%
 
           ### Coverage Details
           | Metric | Percentage |
           |--------|------------|
-          | Statements | ${STATEMENTS} |
-          | Branches | ${BRANCHES} |
-          | Functions | ${FUNCTIONS} |
-          | Lines | ${LINES} |
+          | Statements | ${STATEMENTS}% |
+          | Branches | ${BRANCHES}% |
+          | Functions | ${FUNCTIONS}% |
+          | Lines | ${LINES}% |
 
-          📈 **Coverage Report:** [View detailed coverage report](https://structured-world.github.io/gitlab-mcp/coverage/)
+          **Coverage Report:** [View detailed coverage report](https://structured-world.github.io/gitlab-mcp/coverage/)
 
           > This report was generated automatically from your PR changes.
           EOF
