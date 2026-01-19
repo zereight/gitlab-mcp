@@ -1,36 +1,46 @@
 import { z } from "zod";
-import { PaginationOptionsSchema } from "../shared";
 
-// READ-ONLY OPERATION SCHEMAS for GitLab CI/CD Variables
+// ============================================================================
+// browse_variables - CQRS Query Tool (flat schema for Claude API compatibility)
+// Actions: list, get
+// NOTE: Uses flat z.object() with .refine() instead of z.discriminatedUnion()
+// because Claude API doesn't support oneOf/allOf/anyOf at JSON Schema root level.
+// ============================================================================
 
-// List project/group variables schema (read-only)
-export const ListVariablesSchema = z
+export const BrowseVariablesSchema = z
   .object({
-    namespace: z.string().describe("Namespace path (group or project) to list variables from"),
+    action: z.enum(["list", "get"]).describe("Action to perform"),
+    namespace: z.string().describe("Namespace path (group or project)"),
+    // get action fields
+    key: z
+      .string()
+      .optional()
+      .describe(
+        "The key of the CI/CD variable. Required for 'get' action. Maximum 255 characters, alphanumeric and underscore only."
+      ),
+    // Filter for get action (environment scope)
+    filter: z
+      .object({
+        environment_scope: z
+          .string()
+          .optional()
+          .describe(
+            'The environment scope filter. Use "*" for all environments or specific environment name like "production".'
+          ),
+      })
+      .optional()
+      .describe("Filter parameters for variable lookup (for 'get' action)"),
+    // pagination fields (for list)
+    per_page: z.number().optional().describe("Number of items per page"),
+    page: z.number().optional().describe("Page number"),
   })
-  .merge(PaginationOptionsSchema);
+  .refine(data => data.action !== "get" || data.key !== undefined, {
+    message: "key is required for 'get' action",
+    path: ["key"],
+  });
 
-// Get single variable schema (read-only)
-export const GetVariableSchema = z.object({
-  namespace: z.string().describe("Namespace path (group or project) containing the variable"),
-  key: z
-    .string()
-    .describe(
-      "The key of the CI/CD variable. Maximum 255 characters, alphanumeric and underscore only"
-    ),
-  filter: z
-    .object({
-      environment_scope: z
-        .string()
-        .optional()
-        .describe(
-          'The environment scope filter for the variable. Use "*" for all environments or specific environment name'
-        ),
-    })
-    .optional()
-    .describe("Filter parameters for the variable lookup"),
-});
+// ============================================================================
+// Type exports
+// ============================================================================
 
-// Export type definitions
-export type ListVariablesOptions = z.infer<typeof ListVariablesSchema>;
-export type GetVariableOptions = z.infer<typeof GetVariableSchema>;
+export type BrowseVariablesInput = z.infer<typeof BrowseVariablesSchema>;

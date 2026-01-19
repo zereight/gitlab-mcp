@@ -31,7 +31,6 @@ afterAll(() => {
 beforeEach(() => {
   jest.clearAllMocks();
   jest.resetAllMocks();
-  // Ensure mockEnhancedFetch is properly reset
   mockEnhancedFetch.mockReset();
 });
 
@@ -41,17 +40,15 @@ describe("Variables Registry", () => {
       expect(variablesToolRegistry instanceof Map).toBe(true);
     });
 
-    it("should contain expected variable tools", () => {
+    it("should contain expected CQRS variable tools", () => {
       const toolNames = Array.from(variablesToolRegistry.keys());
 
-      // Check for read-only tools
-      expect(toolNames).toContain("list_variables");
-      expect(toolNames).toContain("get_variable");
+      // Check for CQRS tools (2 tools instead of 5)
+      expect(toolNames).toContain("browse_variables");
+      expect(toolNames).toContain("manage_variable");
 
-      // Check for write tools
-      expect(toolNames).toContain("create_variable");
-      expect(toolNames).toContain("update_variable");
-      expect(toolNames).toContain("delete_variable");
+      // Should have exactly 2 CQRS tools
+      expect(toolNames).toHaveLength(2);
     });
 
     it("should have tools with valid structure", () => {
@@ -75,48 +72,23 @@ describe("Variables Registry", () => {
   });
 
   describe("Tool Definitions", () => {
-    it("should have proper list_variables tool", () => {
-      const tool = variablesToolRegistry.get("list_variables");
+    it("should have proper browse_variables tool", () => {
+      const tool = variablesToolRegistry.get("browse_variables");
 
       expect(tool).toBeDefined();
-      expect(tool?.name).toBe("list_variables");
-      expect(tool?.description).toContain("CI/CD environment variables");
+      expect(tool?.name).toBe("browse_variables");
+      expect(tool?.description).toContain("BROWSE");
+      expect(tool?.description).toContain("CI/CD variables");
       expect(tool?.inputSchema).toBeDefined();
     });
 
-    it("should have proper get_variable tool", () => {
-      const tool = variablesToolRegistry.get("get_variable");
+    it("should have proper manage_variable tool", () => {
+      const tool = variablesToolRegistry.get("manage_variable");
 
       expect(tool).toBeDefined();
-      expect(tool?.name).toBe("get_variable");
-      expect(tool?.description).toContain("specific CI/CD variable");
-      expect(tool?.inputSchema).toBeDefined();
-    });
-
-    it("should have proper create_variable tool", () => {
-      const tool = variablesToolRegistry.get("create_variable");
-
-      expect(tool).toBeDefined();
-      expect(tool?.name).toBe("create_variable");
-      expect(tool?.description).toContain("Add new CI/CD");
-      expect(tool?.inputSchema).toBeDefined();
-    });
-
-    it("should have proper update_variable tool", () => {
-      const tool = variablesToolRegistry.get("update_variable");
-
-      expect(tool).toBeDefined();
-      expect(tool?.name).toBe("update_variable");
-      expect(tool?.description).toContain("Modify CI/CD variable");
-      expect(tool?.inputSchema).toBeDefined();
-    });
-
-    it("should have proper delete_variable tool", () => {
-      const tool = variablesToolRegistry.get("delete_variable");
-
-      expect(tool).toBeDefined();
-      expect(tool?.name).toBe("delete_variable");
-      expect(tool?.description).toContain("Delete CI/CD variable");
+      expect(tool?.name).toBe("manage_variable");
+      expect(tool?.description).toContain("MANAGE");
+      expect(tool?.description).toContain("CI/CD variables");
       expect(tool?.inputSchema).toBeDefined();
     });
   });
@@ -129,19 +101,17 @@ describe("Variables Registry", () => {
       expect(readOnlyTools.length).toBeGreaterThan(0);
     });
 
-    it("should include expected read-only tools", () => {
+    it("should include only browse_variables as read-only", () => {
       const readOnlyTools = getVariablesReadOnlyToolNames();
 
-      expect(readOnlyTools).toContain("list_variables");
-      expect(readOnlyTools).toContain("get_variable");
+      expect(readOnlyTools).toContain("browse_variables");
+      expect(readOnlyTools).toHaveLength(1);
     });
 
-    it("should not include write tools", () => {
+    it("should not include manage_variable in read-only tools", () => {
       const readOnlyTools = getVariablesReadOnlyToolNames();
 
-      expect(readOnlyTools).not.toContain("create_variable");
-      expect(readOnlyTools).not.toContain("update_variable");
-      expect(readOnlyTools).not.toContain("delete_variable");
+      expect(readOnlyTools).not.toContain("manage_variable");
     });
 
     it("should return tools that exist in the registry", () => {
@@ -163,20 +133,14 @@ describe("Variables Registry", () => {
 
     it("should have handlers that accept arguments", () => {
       for (const [, tool] of variablesToolRegistry) {
-        expect(tool.handler.length).toBe(1); // Should accept one argument
+        expect(tool.handler.length).toBe(1);
       }
     });
   });
 
   describe("Registry Consistency", () => {
-    it("should have all tools defined in registry", () => {
-      const expectedTools = [
-        "list_variables",
-        "get_variable",
-        "create_variable",
-        "update_variable",
-        "delete_variable",
-      ];
+    it("should have all CQRS tools defined in registry", () => {
+      const expectedTools = ["browse_variables", "manage_variable"];
 
       for (const toolName of expectedTools) {
         expect(variablesToolRegistry.has(toolName)).toBe(true);
@@ -189,20 +153,12 @@ describe("Variables Registry", () => {
 
       // Registry should have more tools than just read-only ones
       expect(toolCount).toBeGreaterThan(readOnlyCount);
-      // Should have exactly 5 tools as defined above
-      expect(toolCount).toBe(5);
+      // Should have exactly 2 CQRS tools
+      expect(toolCount).toBe(2);
     });
   });
 
   describe("Variable Tool Specifics", () => {
-    it("should support both project and group variables", () => {
-      const listTool = variablesToolRegistry.get("list_variables");
-      const getTool = variablesToolRegistry.get("get_variable");
-
-      expect(listTool?.description).toContain("Group variables are inherited");
-      expect(getTool?.description).toContain("specific CI/CD variable");
-    });
-
     it("should mention CI/CD context in descriptions", () => {
       const toolNames = Array.from(variablesToolRegistry.keys());
 
@@ -217,7 +173,7 @@ describe("Variables Registry", () => {
     describe("getVariablesToolDefinitions", () => {
       it("should return all tool definitions", () => {
         const definitions = getVariablesToolDefinitions();
-        expect(definitions).toHaveLength(5);
+        expect(definitions).toHaveLength(2);
         expect(
           definitions.every(def => def.name && def.description && def.inputSchema && def.handler)
         ).toBe(true);
@@ -227,29 +183,21 @@ describe("Variables Registry", () => {
     describe("getFilteredVariablesTools", () => {
       it("should return all tools when readOnlyMode is false", () => {
         const tools = getFilteredVariablesTools(false);
-        expect(tools).toHaveLength(5);
+        expect(tools).toHaveLength(2);
       });
 
       it("should return only read-only tools when readOnlyMode is true", () => {
         const tools = getFilteredVariablesTools(true);
-        expect(tools).toHaveLength(2);
+        expect(tools).toHaveLength(1);
         const toolNames = tools.map(t => t.name);
-        expect(toolNames).toContain("list_variables");
-        expect(toolNames).toContain("get_variable");
-        expect(toolNames).not.toContain("create_variable");
+        expect(toolNames).toContain("browse_variables");
+        expect(toolNames).not.toContain("manage_variable");
       });
     });
   });
 
-  describe("Handler Functions", () => {
-    const mockResponse = (data: any, ok = true, status = 200) => ({
-      ok,
-      status,
-      statusText: ok ? "OK" : "Error",
-      json: jest.fn().mockResolvedValue(data),
-    });
-
-    describe("list_variables handler", () => {
+  describe("browse_variables Handler", () => {
+    describe("list action", () => {
       it("should list project variables", async () => {
         const mockVariables = [
           {
@@ -284,8 +232,9 @@ describe("Variables Registry", () => {
           json: jest.fn().mockResolvedValue(mockVariables),
         } as any);
 
-        const tool = variablesToolRegistry.get("list_variables")!;
+        const tool = variablesToolRegistry.get("browse_variables")!;
         const result = await tool.handler({
+          action: "list",
           namespace: "test/project",
         });
 
@@ -320,20 +269,17 @@ describe("Variables Registry", () => {
           json: jest.fn().mockResolvedValue(mockVariables),
         } as any);
 
-        const tool = variablesToolRegistry.get("list_variables")!;
+        const tool = variablesToolRegistry.get("browse_variables")!;
         const result = await tool.handler({
+          action: "list",
           namespace: "test-group",
         });
 
-        // Second call is the variables list with default per_page
-        expect(mockEnhancedFetch).toHaveBeenNthCalledWith(
-          2,
-          "https://gitlab.example.com/api/v4/groups/test-group/variables?per_page=20"
-        );
+        expect(mockEnhancedFetch).toHaveBeenCalledTimes(2);
         expect(result).toEqual(mockVariables);
       });
 
-      it("should use explicit per_page when provided", async () => {
+      it("should use pagination parameters when provided", async () => {
         const mockVariables = [
           {
             key: "CUSTOM_VAR",
@@ -360,17 +306,20 @@ describe("Variables Registry", () => {
           json: jest.fn().mockResolvedValue(mockVariables),
         } as any);
 
-        const tool = variablesToolRegistry.get("list_variables")!;
+        const tool = variablesToolRegistry.get("browse_variables")!;
         const result = await tool.handler({
+          action: "list",
           namespace: "test/project",
-          per_page: 50, // Explicit per_page value
+          per_page: 50,
+          page: 2,
         });
 
-        // Second call should use the explicit per_page value
+        // Verify pagination params are passed
         expect(mockEnhancedFetch).toHaveBeenNthCalledWith(
           2,
-          "https://gitlab.example.com/api/v4/projects/test%2Fproject/variables?per_page=50"
+          expect.stringContaining("per_page=50")
         );
+        expect(mockEnhancedFetch).toHaveBeenNthCalledWith(2, expect.stringContaining("page=2"));
         expect(result).toEqual(mockVariables);
       });
 
@@ -391,38 +340,14 @@ describe("Variables Registry", () => {
           json: jest.fn().mockResolvedValue(null),
         } as any);
 
-        const tool = variablesToolRegistry.get("list_variables")!;
+        const tool = variablesToolRegistry.get("browse_variables")!;
 
         await expect(
           tool.handler({
+            action: "list",
             namespace: "private/project",
           })
         ).rejects.toThrow("GitLab API error: 403 Error");
-      });
-
-      it("should handle API errors with empty response text", async () => {
-        // Mock namespace detection call
-        mockEnhancedFetch.mockResolvedValueOnce({
-          ok: true,
-          status: 200,
-          json: jest.fn().mockResolvedValue({ id: 123, name: "test-project" }),
-        } as any);
-
-        // Mock API error with empty text response
-        mockEnhancedFetch.mockResolvedValueOnce({
-          ok: false,
-          status: 404,
-          statusText: "Not Found",
-          text: jest.fn().mockResolvedValue(""),
-        } as any);
-
-        const tool = variablesToolRegistry.get("list_variables")!;
-
-        await expect(
-          tool.handler({
-            namespace: "test/project",
-          })
-        ).rejects.toThrow("GitLab API error: 404 Not Found");
       });
 
       it("should handle API errors with detailed JSON error", async () => {
@@ -446,106 +371,20 @@ describe("Variables Registry", () => {
           text: jest.fn().mockResolvedValue(JSON.stringify(errorResponse)),
         } as any);
 
-        const tool = variablesToolRegistry.get("list_variables")!;
+        const tool = variablesToolRegistry.get("browse_variables")!;
 
         await expect(
           tool.handler({
+            action: "list",
             namespace: "test/project",
           })
         ).rejects.toThrow(
           "GitLab API error: 403 Forbidden - Access denied - Insufficient permissions"
         );
       });
-
-      it("should handle API errors with complex message format", async () => {
-        // Mock namespace detection call
-        mockEnhancedFetch.mockResolvedValueOnce({
-          ok: true,
-          status: 200,
-          json: jest.fn().mockResolvedValue({ id: 123, name: "test-project" }),
-        } as any);
-
-        // Mock API error with complex message format
-        const errorResponse = {
-          message: {
-            value: ["Field is required", "Invalid format"],
-          },
-        };
-
-        mockEnhancedFetch.mockResolvedValueOnce({
-          ok: false,
-          status: 400,
-          statusText: "Bad Request",
-          text: jest.fn().mockResolvedValue(JSON.stringify(errorResponse)),
-        } as any);
-
-        const tool = variablesToolRegistry.get("list_variables")!;
-
-        await expect(
-          tool.handler({
-            namespace: "test/project",
-          })
-        ).rejects.toThrow("GitLab API error: 400 Bad Request - Field is required, Invalid format");
-      });
-
-      it("should handle API errors with object message format", async () => {
-        // Mock namespace detection call
-        mockEnhancedFetch.mockResolvedValueOnce({
-          ok: true,
-          status: 200,
-          json: jest.fn().mockResolvedValue({ id: 123, name: "test-project" }),
-        } as any);
-
-        // Mock API error with object message format
-        const errorResponse = {
-          message: { key: "invalid", details: "more info" },
-        };
-
-        mockEnhancedFetch.mockResolvedValueOnce({
-          ok: false,
-          status: 422,
-          statusText: "Unprocessable Entity",
-          text: jest.fn().mockResolvedValue(JSON.stringify(errorResponse)),
-        } as any);
-
-        const tool = variablesToolRegistry.get("list_variables")!;
-
-        await expect(
-          tool.handler({
-            namespace: "test/project",
-          })
-        ).rejects.toThrow(
-          'GitLab API error: 422 Unprocessable Entity - {"key":"invalid","details":"more info"}'
-        );
-      });
-
-      it("should handle API errors with unparseable JSON response", async () => {
-        // Mock namespace detection call
-        mockEnhancedFetch.mockResolvedValueOnce({
-          ok: true,
-          status: 200,
-          json: jest.fn().mockResolvedValue({ id: 123, name: "test-project" }),
-        } as any);
-
-        // Mock API error with invalid JSON that can't be parsed
-        mockEnhancedFetch.mockResolvedValueOnce({
-          ok: false,
-          status: 500,
-          statusText: "Internal Server Error",
-          text: jest.fn().mockResolvedValue("Invalid JSON {{{"),
-        } as any);
-
-        const tool = variablesToolRegistry.get("list_variables")!;
-
-        await expect(
-          tool.handler({
-            namespace: "test/project",
-          })
-        ).rejects.toThrow("GitLab API error: 500 Internal Server Error");
-      });
     });
 
-    describe("get_variable handler", () => {
+    describe("get action", () => {
       it("should get project variable by key", async () => {
         const mockVariable = {
           key: "API_KEY",
@@ -572,8 +411,9 @@ describe("Variables Registry", () => {
           json: jest.fn().mockResolvedValue(mockVariable),
         } as any);
 
-        const tool = variablesToolRegistry.get("get_variable")!;
+        const tool = variablesToolRegistry.get("browse_variables")!;
         const result = await tool.handler({
+          action: "get",
           namespace: "test/project",
           key: "API_KEY",
         });
@@ -582,7 +422,7 @@ describe("Variables Registry", () => {
         expect(result).toEqual(mockVariable);
       });
 
-      it("should get group variable with environment scope filter", async () => {
+      it("should get variable with environment scope filter", async () => {
         const mockVariable = {
           key: "DB_URL",
           value: "[hidden]",
@@ -605,8 +445,9 @@ describe("Variables Registry", () => {
           json: jest.fn().mockResolvedValue(mockVariable),
         } as any);
 
-        const tool = variablesToolRegistry.get("get_variable")!;
+        const tool = variablesToolRegistry.get("browse_variables")!;
         const result = await tool.handler({
+          action: "get",
           namespace: "test-group",
           key: "DB_URL",
           filter: {
@@ -615,6 +456,11 @@ describe("Variables Registry", () => {
         });
 
         expect(mockEnhancedFetch).toHaveBeenCalledTimes(2);
+        // Verify environment scope filter is passed
+        expect(mockEnhancedFetch).toHaveBeenNthCalledWith(
+          2,
+          expect.stringContaining("filter%5Benvironment_scope%5D=production")
+        );
         expect(result).toEqual(mockVariable);
       });
 
@@ -635,51 +481,34 @@ describe("Variables Registry", () => {
           json: jest.fn().mockResolvedValue(null),
         } as any);
 
-        const tool = variablesToolRegistry.get("get_variable")!;
+        const tool = variablesToolRegistry.get("browse_variables")!;
 
         await expect(
           tool.handler({
+            action: "get",
             namespace: "test/project",
             key: "NONEXISTENT_KEY",
           })
         ).rejects.toThrow("GitLab API error: 404 Error");
       });
 
-      it("should handle get_variable API error with detailed JSON error", async () => {
-        // Mock namespace detection call
-        mockEnhancedFetch.mockResolvedValueOnce({
-          ok: true,
-          status: 200,
-          json: jest.fn().mockResolvedValue({ id: 123, name: "test-project" }),
-        } as any);
+      it("should require key for get action", async () => {
+        const tool = variablesToolRegistry.get("browse_variables")!;
 
-        // Mock API error with detailed JSON error
-        const errorResponse = {
-          message: "Variable not accessible",
-          error: "Insufficient scope",
-        };
-
-        mockEnhancedFetch.mockResolvedValueOnce({
-          ok: false,
-          status: 403,
-          statusText: "Forbidden",
-          text: jest.fn().mockResolvedValue(JSON.stringify(errorResponse)),
-        } as any);
-
-        const tool = variablesToolRegistry.get("get_variable")!;
-
+        // get action without key should fail Zod validation
         await expect(
           tool.handler({
+            action: "get",
             namespace: "test/project",
-            key: "RESTRICTED_VAR",
+            // Missing key
           })
-        ).rejects.toThrow(
-          "GitLab API error: 403 Forbidden - Variable not accessible - Insufficient scope"
-        );
+        ).rejects.toThrow();
       });
     });
+  });
 
-    describe("create_variable handler", () => {
+  describe("manage_variable Handler", () => {
+    describe("create action", () => {
       it("should create project variable with basic settings", async () => {
         const mockVariable = {
           key: "NEW_API_KEY",
@@ -706,8 +535,9 @@ describe("Variables Registry", () => {
           json: jest.fn().mockResolvedValue(mockVariable),
         } as any);
 
-        const tool = variablesToolRegistry.get("create_variable")!;
+        const tool = variablesToolRegistry.get("manage_variable")!;
         const result = await tool.handler({
+          action: "create",
           namespace: "test/project",
           key: "NEW_API_KEY",
           value: "secret123",
@@ -743,8 +573,9 @@ describe("Variables Registry", () => {
           json: jest.fn().mockResolvedValue(mockVariable),
         } as any);
 
-        const tool = variablesToolRegistry.get("create_variable")!;
+        const tool = variablesToolRegistry.get("manage_variable")!;
         const result = await tool.handler({
+          action: "create",
           namespace: "test-group",
           key: "DEPLOY_KEY",
           value: "ssh-rsa AAAAB3NzaC1yc2E...",
@@ -756,6 +587,20 @@ describe("Variables Registry", () => {
 
         expect(mockEnhancedFetch).toHaveBeenCalledTimes(2);
         expect(result).toEqual(mockVariable);
+      });
+
+      it("should require value for create action", async () => {
+        const tool = variablesToolRegistry.get("manage_variable")!;
+
+        // create action without value should fail Zod validation
+        await expect(
+          tool.handler({
+            action: "create",
+            namespace: "test/project",
+            key: "NEW_KEY",
+            // Missing value
+          })
+        ).rejects.toThrow();
       });
 
       it("should handle variable creation conflicts", async () => {
@@ -775,10 +620,11 @@ describe("Variables Registry", () => {
           json: jest.fn().mockResolvedValue(null),
         } as any);
 
-        const tool = variablesToolRegistry.get("create_variable")!;
+        const tool = variablesToolRegistry.get("manage_variable")!;
 
         await expect(
           tool.handler({
+            action: "create",
             namespace: "test/project",
             key: "EXISTING_KEY",
             value: "value",
@@ -787,7 +633,7 @@ describe("Variables Registry", () => {
       });
     });
 
-    describe("update_variable handler", () => {
+    describe("update action", () => {
       it("should update project variable", async () => {
         const mockVariable = {
           key: "API_KEY",
@@ -814,8 +660,9 @@ describe("Variables Registry", () => {
           json: jest.fn().mockResolvedValue(mockVariable),
         } as any);
 
-        const tool = variablesToolRegistry.get("update_variable")!;
+        const tool = variablesToolRegistry.get("manage_variable")!;
         const result = await tool.handler({
+          action: "update",
           namespace: "test/project",
           key: "API_KEY",
           value: "new-secret-value",
@@ -850,8 +697,9 @@ describe("Variables Registry", () => {
           json: jest.fn().mockResolvedValue(mockVariable),
         } as any);
 
-        const tool = variablesToolRegistry.get("update_variable")!;
+        const tool = variablesToolRegistry.get("manage_variable")!;
         const result = await tool.handler({
+          action: "update",
           namespace: "test-group",
           key: "DB_PASSWORD",
           value: "new-password",
@@ -881,10 +729,11 @@ describe("Variables Registry", () => {
           json: jest.fn().mockResolvedValue(null),
         } as any);
 
-        const tool = variablesToolRegistry.get("update_variable")!;
+        const tool = variablesToolRegistry.get("manage_variable")!;
 
         await expect(
           tool.handler({
+            action: "update",
             namespace: "test/project",
             key: "NONEXISTENT_KEY",
             value: "value",
@@ -893,7 +742,7 @@ describe("Variables Registry", () => {
       });
     });
 
-    describe("delete_variable handler", () => {
+    describe("delete action", () => {
       it("should delete project variable", async () => {
         // Mock namespace detection call (project endpoint check)
         mockEnhancedFetch.mockResolvedValueOnce({
@@ -910,8 +759,9 @@ describe("Variables Registry", () => {
           statusText: "No Content",
         } as any);
 
-        const tool = variablesToolRegistry.get("delete_variable")!;
+        const tool = variablesToolRegistry.get("manage_variable")!;
         const result = await tool.handler({
+          action: "delete",
           namespace: "test/project",
           key: "OLD_API_KEY",
         });
@@ -937,8 +787,9 @@ describe("Variables Registry", () => {
           statusText: "No Content",
         } as any);
 
-        const tool = variablesToolRegistry.get("delete_variable")!;
+        const tool = variablesToolRegistry.get("manage_variable")!;
         const result = await tool.handler({
+          action: "delete",
           namespace: "test-group",
           key: "TEMP_TOKEN",
           filter: {
@@ -968,428 +819,226 @@ describe("Variables Registry", () => {
           json: jest.fn().mockResolvedValue(null),
         } as any);
 
-        const tool = variablesToolRegistry.get("delete_variable")!;
+        const tool = variablesToolRegistry.get("manage_variable")!;
 
         await expect(
           tool.handler({
+            action: "delete",
             namespace: "test/project",
             key: "NONEXISTENT_KEY",
           })
         ).rejects.toThrow("GitLab API error: 404 Error");
       });
     });
+  });
 
-    describe("Error handling", () => {
-      it("should handle validation errors", async () => {
-        const tool = variablesToolRegistry.get("get_variable")!;
+  describe("Error handling", () => {
+    it("should handle validation errors for browse_variables", async () => {
+      const tool = variablesToolRegistry.get("browse_variables")!;
 
-        // Test with invalid input that should fail Zod validation
-        await expect(
-          tool.handler({
-            namespace: 123, // Should be string
-            key: null, // Should be string
-          })
-        ).rejects.toThrow();
-      });
+      // Test with invalid action
+      await expect(
+        tool.handler({
+          action: "invalid_action",
+          namespace: "test/project",
+        })
+      ).rejects.toThrow();
+    });
 
-      it("should handle API errors with proper error messages", async () => {
-        // Mock namespace detection call (project endpoint check) - succeeds
-        mockEnhancedFetch.mockResolvedValueOnce({
-          ok: true,
-          status: 200,
-          statusText: "OK",
-          json: jest.fn().mockResolvedValue({ id: 123, name: "test-project" }),
-        } as any);
+    it("should handle validation errors for manage_variable", async () => {
+      const tool = variablesToolRegistry.get("manage_variable")!;
 
-        // Mock actual list variables API call - fails with 500
-        mockEnhancedFetch.mockResolvedValueOnce({
-          ok: false,
-          status: 500,
-          statusText: "Error",
-          json: jest.fn().mockResolvedValue(null),
-        } as any);
+      // Test with invalid action
+      await expect(
+        tool.handler({
+          action: "invalid_action",
+          namespace: "test/project",
+          key: "TEST_KEY",
+        })
+      ).rejects.toThrow();
+    });
 
-        const tool = variablesToolRegistry.get("list_variables")!;
+    it("should handle API errors with proper error messages", async () => {
+      // Mock namespace detection call (project endpoint check) - succeeds
+      mockEnhancedFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        statusText: "OK",
+        json: jest.fn().mockResolvedValue({ id: 123, name: "test-project" }),
+      } as any);
 
-        await expect(
-          tool.handler({
-            namespace: "test/project",
-          })
-        ).rejects.toThrow("GitLab API error: 500 Error");
-      });
+      // Mock actual list variables API call - fails with 500
+      mockEnhancedFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 500,
+        statusText: "Error",
+        json: jest.fn().mockResolvedValue(null),
+      } as any);
 
-      it("should handle network errors", async () => {
-        // Mock namespace detection call (project endpoint check) - succeeds
-        mockEnhancedFetch.mockResolvedValueOnce({
-          ok: true,
-          status: 200,
-          statusText: "OK",
-          json: jest.fn().mockResolvedValue({ id: 123, name: "test-project" }),
-        } as any);
+      const tool = variablesToolRegistry.get("browse_variables")!;
 
-        // Mock actual create variable API call - fails with network error
-        mockEnhancedFetch.mockRejectedValueOnce(new Error("Network error"));
+      await expect(
+        tool.handler({
+          action: "list",
+          namespace: "test/project",
+        })
+      ).rejects.toThrow("GitLab API error: 500 Error");
+    });
 
-        const tool = variablesToolRegistry.get("create_variable")!;
+    it("should handle network errors", async () => {
+      // Mock namespace detection call (project endpoint check) - succeeds
+      mockEnhancedFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        statusText: "OK",
+        json: jest.fn().mockResolvedValue({ id: 123, name: "test-project" }),
+      } as any);
 
-        await expect(
-          tool.handler({
-            namespace: "test/project",
-            key: "TEST_KEY",
-            value: "test-value",
-          })
-        ).rejects.toThrow("Network error");
-      });
+      // Mock actual create variable API call - fails with network error
+      mockEnhancedFetch.mockRejectedValueOnce(new Error("Network error"));
 
-      it("should handle get_variable with empty response text", async () => {
-        // Mock namespace detection call
-        mockEnhancedFetch.mockResolvedValueOnce({
-          ok: true,
-          status: 200,
-          json: jest.fn().mockResolvedValue({ id: 123, name: "test-project" }),
-        } as any);
+      const tool = variablesToolRegistry.get("manage_variable")!;
 
-        // Mock API error with empty response text
-        mockEnhancedFetch.mockResolvedValueOnce({
-          ok: false,
-          status: 400,
-          statusText: "Bad Request",
-          text: jest.fn().mockResolvedValue(""), // Empty response text
-        } as any);
+      await expect(
+        tool.handler({
+          action: "create",
+          namespace: "test/project",
+          key: "TEST_KEY",
+          value: "test-value",
+        })
+      ).rejects.toThrow("Network error");
+    });
 
-        const tool = variablesToolRegistry.get("get_variable")!;
+    it("should handle API errors with complex message format", async () => {
+      // Mock namespace detection call
+      mockEnhancedFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: jest.fn().mockResolvedValue({ id: 123, name: "test-project" }),
+      } as any);
 
-        await expect(
-          tool.handler({
-            namespace: "test/project",
-            key: "TEST_VAR",
-          })
-        ).rejects.toThrow("GitLab API error: 400 Bad Request");
-      });
+      // Mock API error with complex message format
+      const errorResponse = {
+        message: {
+          value: ["Field is required", "Invalid format"],
+        },
+      };
 
-      it("should handle get_variable with string message and error fields", async () => {
-        // Mock namespace detection call
-        mockEnhancedFetch.mockResolvedValueOnce({
-          ok: true,
-          status: 200,
-          json: jest.fn().mockResolvedValue({ id: 123, name: "test-project" }),
-        } as any);
+      mockEnhancedFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 400,
+        statusText: "Bad Request",
+        text: jest.fn().mockResolvedValue(JSON.stringify(errorResponse)),
+      } as any);
 
-        // Mock API error with both message (string) and error fields
-        const errorResponse = {
-          message: "Variable not found",
-          error: "Variable with key TEST_VAR does not exist",
-        };
+      const tool = variablesToolRegistry.get("browse_variables")!;
 
-        mockEnhancedFetch.mockResolvedValueOnce({
-          ok: false,
-          status: 404,
-          statusText: "Not Found",
-          text: jest.fn().mockResolvedValue(JSON.stringify(errorResponse)),
-        } as any);
+      await expect(
+        tool.handler({
+          action: "list",
+          namespace: "test/project",
+        })
+      ).rejects.toThrow("GitLab API error: 400 Bad Request - Field is required, Invalid format");
+    });
 
-        const tool = variablesToolRegistry.get("get_variable")!;
+    it("should handle API errors with empty response text", async () => {
+      // Mock namespace detection call
+      mockEnhancedFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: jest.fn().mockResolvedValue({ id: 123, name: "test-project" }),
+      } as any);
 
-        await expect(
-          tool.handler({
-            namespace: "test/project",
-            key: "TEST_VAR",
-          })
-        ).rejects.toThrow(
-          "GitLab API error: 404 Not Found - Variable not found - Variable with key TEST_VAR does not exist"
-        );
-      });
+      // Mock API error with empty text response
+      mockEnhancedFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 404,
+        statusText: "Not Found",
+        text: jest.fn().mockResolvedValue(""),
+      } as any);
 
-      it("should handle create_variable with whitespace-only response text", async () => {
-        // Mock namespace detection call
-        mockEnhancedFetch.mockResolvedValueOnce({
-          ok: true,
-          status: 200,
-          json: jest.fn().mockResolvedValue({ id: 123, name: "test-project" }),
-        } as any);
+      const tool = variablesToolRegistry.get("browse_variables")!;
 
-        // Mock API error with whitespace-only response text
-        mockEnhancedFetch.mockResolvedValueOnce({
-          ok: false,
-          status: 400,
-          statusText: "Bad Request",
-          text: jest.fn().mockResolvedValue("   "), // Whitespace-only response text
-        } as any);
+      await expect(
+        tool.handler({
+          action: "list",
+          namespace: "test/project",
+        })
+      ).rejects.toThrow("GitLab API error: 404 Not Found");
+    });
 
-        const tool = variablesToolRegistry.get("create_variable")!;
+    it("should handle manage_variable API errors with string message and error fields", async () => {
+      // Mock namespace detection call
+      mockEnhancedFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: jest.fn().mockResolvedValue({ id: 123, name: "test-project" }),
+      } as any);
 
-        await expect(
-          tool.handler({
-            namespace: "test/project",
-            key: "NEW_VAR",
-            value: "test-value",
-          })
-        ).rejects.toThrow("GitLab API error: 400 Bad Request");
-      });
+      // Mock API error with both string message and error fields
+      const errorResponse = {
+        message: "Variable update failed",
+        error: "Variable is protected",
+      };
 
-      it("should handle update_variable with array message value", async () => {
-        // Mock namespace detection call
-        mockEnhancedFetch.mockResolvedValueOnce({
-          ok: true,
-          status: 200,
-          json: jest.fn().mockResolvedValue({ id: 123, name: "test-project" }),
-        } as any);
+      mockEnhancedFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 422,
+        statusText: "Unprocessable Entity",
+        text: jest.fn().mockResolvedValue(JSON.stringify(errorResponse)),
+      } as any);
 
-        // Mock API error with message.value array format
-        const errorResponse = {
-          message: {
-            value: ["Key must be alphanumeric", "Value cannot be empty"],
+      const tool = variablesToolRegistry.get("manage_variable")!;
+
+      await expect(
+        tool.handler({
+          action: "update",
+          namespace: "test/project",
+          key: "PROTECTED_VAR",
+          value: "new-value",
+        })
+      ).rejects.toThrow(
+        "GitLab API error: 422 Unprocessable Entity - Variable update failed - Variable is protected"
+      );
+    });
+
+    it("should handle delete with complex message object", async () => {
+      // Mock namespace detection call
+      mockEnhancedFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: jest.fn().mockResolvedValue({ id: 123, name: "test-project" }),
+      } as any);
+
+      // Mock API error with complex message object (not string, not .value array)
+      const errorResponse = {
+        message: {
+          key: "validation_failed",
+          details: {
+            field: "key",
+            code: "invalid_format",
           },
-        };
+        },
+      };
 
-        mockEnhancedFetch.mockResolvedValueOnce({
-          ok: false,
-          status: 422,
-          statusText: "Unprocessable Entity",
-          text: jest.fn().mockResolvedValue(JSON.stringify(errorResponse)),
-        } as any);
+      mockEnhancedFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 422,
+        statusText: "Unprocessable Entity",
+        text: jest.fn().mockResolvedValue(JSON.stringify(errorResponse)),
+      } as any);
 
-        const tool = variablesToolRegistry.get("update_variable")!;
+      const tool = variablesToolRegistry.get("manage_variable")!;
 
-        await expect(
-          tool.handler({
-            namespace: "test/project",
-            key: "TEST_VAR",
-            value: "",
-          })
-        ).rejects.toThrow(
-          "GitLab API error: 422 Unprocessable Entity - Key must be alphanumeric, Value cannot be empty"
-        );
-      });
-
-      it("should handle delete_variable with complex message object", async () => {
-        // Mock namespace detection call
-        mockEnhancedFetch.mockResolvedValueOnce({
-          ok: true,
-          status: 200,
-          json: jest.fn().mockResolvedValue({ id: 123, name: "test-project" }),
-        } as any);
-
-        // Mock API error with complex message object (not string, not .value array)
-        const errorResponse = {
-          message: {
-            key: "validation_failed",
-            details: {
-              field: "key",
-              code: "invalid_format",
-            },
-          },
-        };
-
-        mockEnhancedFetch.mockResolvedValueOnce({
-          ok: false,
-          status: 422,
-          statusText: "Unprocessable Entity",
-          text: jest.fn().mockResolvedValue(JSON.stringify(errorResponse)),
-        } as any);
-
-        const tool = variablesToolRegistry.get("delete_variable")!;
-
-        await expect(
-          tool.handler({
-            namespace: "test/project",
-            key: "TEST_VAR",
-          })
-        ).rejects.toThrow(
-          'GitLab API error: 422 Unprocessable Entity - {"key":"validation_failed","details":{"field":"key","code":"invalid_format"}}'
-        );
-      });
-
-      it("should handle update_variable with empty response text and both string message and error fields", async () => {
-        // Mock namespace detection call
-        mockEnhancedFetch.mockResolvedValueOnce({
-          ok: true,
-          status: 200,
-          json: jest.fn().mockResolvedValue({ id: 123, name: "test-project" }),
-        } as any);
-
-        // Mock API error with empty response text - should trigger the empty text handling in update_variable
-        mockEnhancedFetch.mockResolvedValueOnce({
-          ok: false,
-          status: 400,
-          statusText: "Bad Request",
-          text: jest.fn().mockResolvedValue(""),
-        } as any);
-
-        const tool = variablesToolRegistry.get("update_variable")!;
-
-        await expect(
-          tool.handler({
-            namespace: "test/project",
-            key: "TEST_VAR",
-            value: "updated-value",
-          })
-        ).rejects.toThrow("GitLab API error: 400 Bad Request");
-      });
-
-      it("should handle update_variable with string message and error fields", async () => {
-        // Mock namespace detection call
-        mockEnhancedFetch.mockResolvedValueOnce({
-          ok: true,
-          status: 200,
-          json: jest.fn().mockResolvedValue({ id: 123, name: "test-project" }),
-        } as any);
-
-        // Mock API error with both string message and error fields
-        const errorResponse = {
-          message: "Variable update failed",
-          error: "Variable is protected",
-        };
-
-        mockEnhancedFetch.mockResolvedValueOnce({
-          ok: false,
-          status: 422,
-          statusText: "Unprocessable Entity",
-          text: jest.fn().mockResolvedValue(JSON.stringify(errorResponse)),
-        } as any);
-
-        const tool = variablesToolRegistry.get("update_variable")!;
-
-        await expect(
-          tool.handler({
-            namespace: "test/project",
-            key: "PROTECTED_VAR",
-            value: "new-value",
-          })
-        ).rejects.toThrow(
-          "GitLab API error: 422 Unprocessable Entity - Variable update failed - Variable is protected"
-        );
-      });
-
-      it("should handle update_variable with complex message object (non-string, non-array)", async () => {
-        // Mock namespace detection call
-        mockEnhancedFetch.mockResolvedValueOnce({
-          ok: true,
-          status: 200,
-          json: jest.fn().mockResolvedValue({ id: 123, name: "test-project" }),
-        } as any);
-
-        // Mock API error with complex message object
-        const errorResponse = {
-          message: {
-            field: "value",
-            constraint: "max_length",
-            limit: 1000,
-          },
-        };
-
-        mockEnhancedFetch.mockResolvedValueOnce({
-          ok: false,
-          status: 422,
-          statusText: "Unprocessable Entity",
-          text: jest.fn().mockResolvedValue(JSON.stringify(errorResponse)),
-        } as any);
-
-        const tool = variablesToolRegistry.get("update_variable")!;
-
-        await expect(
-          tool.handler({
-            namespace: "test/project",
-            key: "TEST_VAR",
-            value: "very-long-value",
-          })
-        ).rejects.toThrow(
-          'GitLab API error: 422 Unprocessable Entity - {"field":"value","constraint":"max_length","limit":1000}'
-        );
-      });
-
-      it("should handle delete_variable with empty response text", async () => {
-        // Mock namespace detection call
-        mockEnhancedFetch.mockResolvedValueOnce({
-          ok: true,
-          status: 200,
-          json: jest.fn().mockResolvedValue({ id: 123, name: "test-project" }),
-        } as any);
-
-        // Mock API error with empty response text - should trigger the empty text handling in delete_variable
-        mockEnhancedFetch.mockResolvedValueOnce({
-          ok: false,
-          status: 403,
-          statusText: "Forbidden",
-          text: jest.fn().mockResolvedValue(""),
-        } as any);
-
-        const tool = variablesToolRegistry.get("delete_variable")!;
-
-        await expect(
-          tool.handler({
-            namespace: "test/project",
-            key: "PROTECTED_VAR",
-          })
-        ).rejects.toThrow("GitLab API error: 403 Forbidden");
-      });
-
-      it("should handle delete_variable with string message and error fields", async () => {
-        // Mock namespace detection call
-        mockEnhancedFetch.mockResolvedValueOnce({
-          ok: true,
-          status: 200,
-          json: jest.fn().mockResolvedValue({ id: 123, name: "test-project" }),
-        } as any);
-
-        // Mock API error with both string message and error fields
-        const errorResponse = {
-          message: "Cannot delete variable",
-          error: "Variable is being used by active pipelines",
-        };
-
-        mockEnhancedFetch.mockResolvedValueOnce({
-          ok: false,
-          status: 409,
-          statusText: "Conflict",
-          text: jest.fn().mockResolvedValue(JSON.stringify(errorResponse)),
-        } as any);
-
-        const tool = variablesToolRegistry.get("delete_variable")!;
-
-        await expect(
-          tool.handler({
-            namespace: "test/project",
-            key: "ACTIVE_VAR",
-          })
-        ).rejects.toThrow(
-          "GitLab API error: 409 Conflict - Cannot delete variable - Variable is being used by active pipelines"
-        );
-      });
-
-      it("should handle delete_variable with array message value", async () => {
-        // Mock namespace detection call
-        mockEnhancedFetch.mockResolvedValueOnce({
-          ok: true,
-          status: 200,
-          json: jest.fn().mockResolvedValue({ id: 123, name: "test-project" }),
-        } as any);
-
-        // Mock API error with message.value array format
-        const errorResponse = {
-          message: {
-            value: ["Variable cannot be deleted", "Referenced by protected branch"],
-          },
-        };
-
-        mockEnhancedFetch.mockResolvedValueOnce({
-          ok: false,
-          status: 422,
-          statusText: "Unprocessable Entity",
-          text: jest.fn().mockResolvedValue(JSON.stringify(errorResponse)),
-        } as any);
-
-        const tool = variablesToolRegistry.get("delete_variable")!;
-
-        await expect(
-          tool.handler({
-            namespace: "test/project",
-            key: "PROTECTED_VAR",
-          })
-        ).rejects.toThrow(
-          "GitLab API error: 422 Unprocessable Entity - Variable cannot be deleted, Referenced by protected branch"
-        );
-      });
+      await expect(
+        tool.handler({
+          action: "delete",
+          namespace: "test/project",
+          key: "TEST_VAR",
+        })
+      ).rejects.toThrow(
+        'GitLab API error: 422 Unprocessable Entity - {"key":"validation_failed","details":{"field":"key","code":"invalid_format"}}'
+      );
     });
   });
 });

@@ -1,7 +1,12 @@
 import { z } from "zod";
 import { flexibleBoolean } from "../utils";
 
-// WRITE OPERATION SCHEMAS for GitLab CI/CD Variables
+// ============================================================================
+// manage_variable - CQRS Command Tool (flat schema for Claude API compatibility)
+// Actions: create, update, delete
+// NOTE: Uses flat z.object() with .refine() instead of z.discriminatedUnion()
+// because Claude API doesn't support oneOf/allOf/anyOf at JSON Schema root level.
+// ============================================================================
 
 // Helper for variable type validation with intelligent coercion
 const flexibleVariableType = z.preprocess(
@@ -20,150 +25,75 @@ const flexibleVariableType = z.preprocess(
   z.enum(["env_var", "file"])
 );
 
-// Helper for variable key validation with preprocessing
-const variableKey = z.preprocess(
-  val => {
-    if (typeof val === "string") {
-      return val.trim().replace(/[^a-zA-Z0-9_]/g, "");
-    }
-    return val;
-  },
-  z
-    .string()
-    .max(255)
-    .regex(/^[a-zA-Z0-9_]+$/, "Key must contain only alphanumeric characters and underscores")
-);
+export const ManageVariableSchema = z
+  .object({
+    action: z.enum(["create", "update", "delete"]).describe("Action to perform"),
+    namespace: z.string().describe("Namespace path (group or project)"),
+    // Variable identification - required for all actions
+    key: z
+      .string()
+      .describe(
+        "The key of the CI/CD variable. Maximum 255 characters, only alphanumeric and underscore characters allowed."
+      ),
+    // create/update fields
+    value: z
+      .string()
+      .optional()
+      .describe(
+        "The value of the CI/CD variable. Required for 'create' action. For file type variables, this is the file content."
+      ),
+    variable_type: flexibleVariableType
+      .optional()
+      .describe(
+        'The type of variable: "env_var" for environment variables (default) or "file" for file variables.'
+      ),
+    environment_scope: z
+      .string()
+      .optional()
+      .describe(
+        'The environment scope. Use "*" for all environments (default), or specify like "production", "staging".'
+      ),
+    protected: flexibleBoolean
+      .optional()
+      .describe(
+        "Whether this variable is protected. Protected variables are only available to protected branches/tags."
+      ),
+    masked: flexibleBoolean
+      .optional()
+      .describe(
+        "Whether this variable should be masked in job logs. MASKING REQUIREMENTS: Value must be at least 8 characters, single line with no spaces, only A-Z a-z 0-9 + / = . ~ - _ @ : characters."
+      ),
+    raw: flexibleBoolean
+      .optional()
+      .describe(
+        "Whether variable expansion is disabled. When true, variables like $OTHER_VAR in the value will NOT be expanded."
+      ),
+    description: z
+      .string()
+      .optional()
+      .describe("Optional description explaining the purpose of this variable (GitLab 16.2+)."),
+    // Filter for update/delete with environment scope
+    filter: z
+      .object({
+        environment_scope: z
+          .string()
+          .optional()
+          .describe(
+            "Filter to specify which environment scope variant to update/delete when multiple variables exist with the same key."
+          ),
+      })
+      .optional()
+      .describe(
+        "Filter parameters to identify the specific variable (for 'update' and 'delete' actions)"
+      ),
+  })
+  .refine(data => data.action !== "create" || data.value !== undefined, {
+    message: "value is required for 'create' action",
+    path: ["value"],
+  });
 
-// Create variable schema (write)
-export const CreateVariableSchema = z.object({
-  namespace: z.string().describe("Namespace path (group or project) to create variable in"),
-  key: variableKey.describe(
-    "The unique key for the CI/CD variable. Maximum 255 characters, only alphanumeric and underscore characters allowed. Used to reference the variable in CI/CD pipelines (e.g., $MY_API_KEY)"
-  ),
-  value: z
-    .string()
-    .describe(
-      "The value of the CI/CD variable. This is the actual content that will be available in your CI/CD pipeline. For file type variables, this should be the file content"
-    ),
-  variable_type: flexibleVariableType
-    .optional()
-    .default("env_var")
-    .describe(
-      'The type of variable: "env_var" for environment variables (default) or "file" for file variables. File variables create temporary files with the variable content during pipeline execution'
-    ),
-  environment_scope: z
-    .string()
-    .optional()
-    .default("*")
-    .describe(
-      'The environment scope for this variable. Use "*" for all environments (default), or specify environment names like "production", "staging", "review/*" for environment-specific values'
-    ),
-  protected: flexibleBoolean
-    .optional()
-    .default(false)
-    .describe(
-      "Whether this variable is protected. Protected variables are only available to protected branches/tags (typically main/master). Enhances security for sensitive production variables"
-    ),
-  masked: flexibleBoolean
-    .optional()
-    .default(false)
-    .describe(
-      "Whether this variable should be masked in job logs. MASKING REQUIREMENTS: Value must be (1) at least 8 characters, (2) single line with NO SPACES, (3) contain only these characters: A-Z a-z 0-9 + / = . ~ - _ @ : (tested on GitLab 18.4.0). FORBIDDEN characters include: spaces, commas, dollar signs, most special symbols. Common API keys, tokens, and UUIDs typically work. If masking fails with 400 error, set masked=false."
-    ),
-  raw: flexibleBoolean
-    .optional()
-    .default(false)
-    .describe(
-      "Whether variable expansion is disabled. When true, variables like $OTHER_VAR in the value will NOT be expanded/substituted. Useful for values containing literal dollar signs"
-    ),
-  description: z
-    .string()
-    .optional()
-    .describe(
-      "Optional description explaining the purpose and usage of this variable. Helps team members understand what this variable is for and how it should be used (Available in GitLab 16.2+)"
-    ),
-});
+// ============================================================================
+// Type exports
+// ============================================================================
 
-// Update variable schema (write)
-export const UpdateVariableSchema = z.object({
-  namespace: z.string().describe("Namespace path (group or project) containing the variable"),
-  key: z
-    .string()
-    .describe(
-      "The key of the existing CI/CD variable to update. Must match an existing variable key exactly"
-    ),
-  value: z
-    .string()
-    .describe(
-      "The new value for the CI/CD variable. This will replace the current value completely"
-    ),
-  variable_type: flexibleVariableType
-    .optional()
-    .describe(
-      'Update the variable type: "env_var" for environment variables or "file" for file variables. Changing type may affect how the variable is used in pipelines'
-    ),
-  environment_scope: z
-    .string()
-    .optional()
-    .describe(
-      'Update the environment scope. Use "*" for all environments, or specify environment names. Changing scope may create a new variable instance'
-    ),
-  protected: flexibleBoolean
-    .optional()
-    .describe(
-      "Update the protected status. Protected variables are only available to protected branches/tags for enhanced security"
-    ),
-  masked: flexibleBoolean
-    .optional()
-    .describe(
-      "Update the masked status. MASKING REQUIREMENTS: If enabling, value must be (1) at least 8 characters, (2) single line with NO SPACES, (3) contain only these characters: A-Z a-z 0-9 + / = . ~ - _ @ : (tested on GitLab 18.4.0). FORBIDDEN: spaces, commas, dollar signs. If current value has forbidden characters, this will fail with 400 error."
-    ),
-  raw: flexibleBoolean
-    .optional()
-    .describe(
-      "Update the raw status. When true, disables variable expansion (no substitution of $OTHER_VAR patterns)"
-    ),
-  description: z
-    .string()
-    .optional()
-    .describe(
-      "Update the description of this variable to help team members understand its purpose (Available in GitLab 16.2+)"
-    ),
-  filter: z
-    .object({
-      environment_scope: z
-        .string()
-        .optional()
-        .describe(
-          "Filter to specify which environment scope variant to update when multiple variables exist with the same key"
-        ),
-    })
-    .optional()
-    .describe("Filter parameters to identify the specific variable to update"),
-});
-
-// Delete variable schema (write)
-export const DeleteVariableSchema = z.object({
-  namespace: z.string().describe("Namespace path (group or project) containing the variable"),
-  key: z
-    .string()
-    .describe(
-      "The key of the CI/CD variable to delete. This will permanently remove the variable from the project"
-    ),
-  filter: z
-    .object({
-      environment_scope: z
-        .string()
-        .optional()
-        .describe(
-          'Filter to specify which environment scope variant to delete when multiple variables exist with the same key. If not specified, deletes the "*" (all environments) variant'
-        ),
-    })
-    .optional()
-    .describe("Filter parameters to identify the specific variable to delete"),
-});
-
-// Export type definitions
-export type CreateVariableOptions = z.infer<typeof CreateVariableSchema>;
-export type UpdateVariableOptions = z.infer<typeof UpdateVariableSchema>;
-export type DeleteVariableOptions = z.infer<typeof DeleteVariableSchema>;
+export type ManageVariableInput = z.infer<typeof ManageVariableSchema>;
