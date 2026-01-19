@@ -243,24 +243,24 @@ describe("BrowseProjectsSchema - GitLab 18.3 Integration", () => {
       console.log("✅ BrowseProjectsSchema validates get action parameters");
     });
 
-    it("should handle missing project_id for get action", async () => {
-      // Note: z.coerce.string() converts undefined to "undefined" string
-      // This test verifies the schema behavior with missing project_id
+    it("should reject missing project_id for get action", async () => {
+      // Note: requiredId properly rejects undefined/null values (Issue #27)
+      // This test verifies the schema correctly fails with missing project_id
       const paramsWithMissingProjectId = {
         action: "get" as const,
-        // missing project_id - will be coerced to "undefined" string
+        // missing project_id - should fail validation with requiredId
       };
 
       const result = BrowseProjectsSchema.safeParse(paramsWithMissingProjectId);
-      // With z.coerce.string(), missing field becomes "undefined" string
-      expect(result.success).toBe(true);
+      // With requiredId, missing field correctly fails validation
+      expect(result.success).toBe(false);
 
-      if (result.success && result.data.action === "get") {
-        // Verify the coercion behavior
-        expect(result.data.project_id).toBe("undefined");
+      if (!result.success) {
+        // Verify the error is about project_id
+        expect(result.error.issues.some(issue => issue.path.includes("project_id"))).toBe(true);
       }
 
-      console.log("✅ BrowseProjectsSchema handles missing project_id with coercion");
+      console.log("✅ BrowseProjectsSchema correctly rejects missing project_id");
     });
 
     it("should get specific project using handler function", async () => {

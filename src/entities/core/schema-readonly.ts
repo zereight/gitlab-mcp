@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { flexibleBoolean } from "../utils";
+import { flexibleBoolean, requiredId } from "../utils";
 import { PaginationOptionsSchema } from "../shared";
 
 // ============================================================================
@@ -110,11 +110,9 @@ const ListProjectsAction = z
 
 const GetProjectAction = z.object({
   action: z.literal("get").describe("Retrieve specific project details."),
-  project_id: z.coerce
-    .string()
-    .describe(
-      'Project identifier (required). Numeric ID or URL-encoded path (e.g., "42" or "gitlab-org%2Fgitlab").'
-    ),
+  project_id: requiredId.describe(
+    'Project identifier (required). Numeric ID or URL-encoded path (e.g., "42" or "gitlab-org%2Fgitlab").'
+  ),
   statistics: flexibleBoolean.optional().describe("Include repository statistics."),
   license: flexibleBoolean.optional().describe("Include license information."),
 });
@@ -144,12 +142,12 @@ const ListNamespacesAction = z
 
 const GetNamespaceAction = z.object({
   action: z.literal("get").describe("Retrieve specific namespace details."),
-  namespace_id: z.coerce.string().describe("Namespace ID or path (required). Cannot be empty."),
+  namespace_id: requiredId.describe("Namespace ID or path (required). Cannot be empty."),
 });
 
 const VerifyNamespaceAction = z.object({
   action: z.literal("verify").describe("Check if namespace exists and is accessible."),
-  namespace_id: z.coerce.string().describe("Namespace path to verify (required)."),
+  namespace_id: requiredId.describe("Namespace path to verify (required)."),
 });
 
 export const BrowseNamespacesSchema = z
@@ -162,7 +160,7 @@ export const BrowseNamespacesSchema = z
 const ListCommitsAction = z
   .object({
     action: z.literal("list").describe("Browse commit history."),
-    project_id: z.coerce.string().describe("Project ID or URL-encoded path (required)."),
+    project_id: requiredId.describe("Project ID or URL-encoded path (required)."),
     ref_name: z.string().optional().describe("Branch/tag name. Defaults to default branch."),
     since: z.string().optional().describe("Start date filter (ISO 8601 format)."),
     until: z.string().optional().describe("End date filter (ISO 8601 format)."),
@@ -178,14 +176,14 @@ const ListCommitsAction = z
 
 const GetCommitAction = z.object({
   action: z.literal("get").describe("Retrieve specific commit details."),
-  project_id: z.coerce.string().describe("Project ID or URL-encoded path (required)."),
+  project_id: requiredId.describe("Project ID or URL-encoded path (required)."),
   sha: z.string().describe("Commit SHA (required). Can be full SHA, short hash, or ref name."),
   stats: flexibleBoolean.optional().describe("Include file change statistics."),
 });
 
 const DiffCommitAction = z.object({
   action: z.literal("diff").describe("Get code changes from a commit."),
-  project_id: z.coerce.string().describe("Project ID or URL-encoded path (required)."),
+  project_id: requiredId.describe("Project ID or URL-encoded path (required)."),
   sha: z.string().describe("Commit SHA (required). Can be full SHA, short hash, or ref name."),
   unidiff: flexibleBoolean.optional().describe("Return unified diff format."),
 });
@@ -236,7 +234,7 @@ const UserEventsAction = z
 const ProjectEventsAction = z
   .object({
     action: z.literal("project").describe("Activity within a specific project."),
-    project_id: z.coerce.string().describe("Project ID (required for project events)."),
+    project_id: requiredId.describe("Project ID (required for project events)."),
     ...CommonEventOptions,
   })
   .merge(PaginationOptionsSchema);
@@ -287,7 +285,7 @@ export const GetUsersSchema = z
 // List Project Members (kept as-is - different scope)
 export const ListProjectMembersSchema = z
   .object({
-    project_id: z.coerce.string().describe("Project ID or URL-encoded path."),
+    project_id: requiredId.describe("Project ID or URL-encoded path."),
     query: z.string().optional().describe("Search members by name or username."),
     user_ids: z.array(z.string()).optional().describe("Filter to specific user IDs."),
   })
@@ -296,7 +294,7 @@ export const ListProjectMembersSchema = z
 // List Group Iterations (kept as-is - Premium feature)
 export const ListGroupIterationsSchema = z
   .object({
-    group_id: z.coerce.string().describe("Group ID or URL-encoded path."),
+    group_id: requiredId.describe("Group ID or URL-encoded path."),
     state: z
       .enum(["opened", "upcoming", "current", "closed", "all"])
       .optional()
@@ -310,7 +308,7 @@ export const ListGroupIterationsSchema = z
 
 // Download Attachment (kept as-is - binary operation)
 export const DownloadAttachmentSchema = z.object({
-  project_id: z.coerce.string().describe("Project ID or URL-encoded path."),
+  project_id: requiredId.describe("Project ID or URL-encoded path."),
   secret: z.string().describe("Security token from the attachment URL."),
   filename: z.string().describe("Original filename of the attachment."),
 });

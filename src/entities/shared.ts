@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { flexibleBoolean, flexibleBooleanNullable } from "./utils";
+import { flexibleBoolean, flexibleBooleanNullable, requiredId } from "./utils";
 
 // Shared schemas that are used across multiple entities
 export const PaginationOptionsSchema = z.object({
@@ -50,7 +50,7 @@ export const GitLabNamespaceSchema = z.object({
 });
 
 export const ProjectParamsSchema = z.object({
-  project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
+  project_id: requiredId.describe("Project ID or URL-encoded path"),
 });
 
 // GitLab Project schema (complete response structure for GitLab 18.3)

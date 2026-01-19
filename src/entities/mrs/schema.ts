@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { flexibleBoolean } from "../utils";
+import { flexibleBoolean, requiredId } from "../utils";
 import { ProjectParamsSchema } from "../shared";
 
 // ============================================================================
@@ -44,7 +44,7 @@ export const MergeRequestThreadPositionSchema = z.object({
 // ============================================================================
 
 const ManageMRBaseSchema = z.object({
-  project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
+  project_id: requiredId.describe("Project ID or URL-encoded path"),
 });
 
 // Create merge request action
@@ -78,7 +78,7 @@ const ManageMRCreateSchema = ManageMRBaseSchema.extend({
 // Update merge request action
 const ManageMRUpdateSchema = ManageMRBaseSchema.extend({
   action: z.literal("update"),
-  merge_request_iid: z.coerce.string().describe("Internal MR ID unique to project."),
+  merge_request_iid: requiredId.describe("Internal MR ID unique to project."),
   target_branch: z.string().optional().describe("Target branch."),
   title: z.string().optional().describe("MR title."),
   assignee_id: z.string().optional().describe("Single assignee user ID."),
@@ -120,7 +120,7 @@ const ManageMRUpdateSchema = ManageMRBaseSchema.extend({
 // Merge merge request action
 const ManageMRMergeSchema = ManageMRBaseSchema.extend({
   action: z.literal("merge"),
-  merge_request_iid: z.coerce.string().describe("Internal MR ID unique to project."),
+  merge_request_iid: requiredId.describe("Internal MR ID unique to project."),
   merge_commit_message: z.string().optional().describe("Custom merge commit message."),
   squash_commit_message: z.string().optional().describe("Custom squash commit message."),
   should_remove_source_branch: flexibleBoolean
@@ -145,7 +145,7 @@ export const ManageMergeRequestSchema = z.discriminatedUnion("action", [
 // ============================================================================
 
 const ManageDiscussionBaseSchema = z.object({
-  project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
+  project_id: requiredId.describe("Project ID or URL-encoded path"),
 });
 
 // Add comment to issue or merge request
@@ -156,7 +156,7 @@ const ManageDiscussionCommentSchema = ManageDiscussionBaseSchema.extend({
     .transform(val => val.toLowerCase())
     .pipe(z.enum(["issue", "merge_request"]))
     .describe("Type of noteable: issue or merge_request."),
-  noteable_id: z.coerce.string().describe("ID of the noteable object."),
+  noteable_id: requiredId.describe("ID of the noteable object."),
   body: z.string().describe("Content of the comment."),
   created_at: z.string().optional().describe("Date time string (ISO 8601)."),
   confidential: flexibleBoolean.optional().describe("Confidential note flag."),
@@ -165,7 +165,7 @@ const ManageDiscussionCommentSchema = ManageDiscussionBaseSchema.extend({
 // Start new discussion thread on merge request
 const ManageDiscussionThreadSchema = ManageDiscussionBaseSchema.extend({
   action: z.literal("thread"),
-  merge_request_iid: z.coerce.string().describe("Internal MR ID."),
+  merge_request_iid: requiredId.describe("Internal MR ID."),
   body: z.string().describe("Content of the thread."),
   position: MergeRequestThreadPositionSchema.optional().describe("Position for diff note."),
   commit_id: z.string().optional().describe("SHA of commit to start discussion on."),
@@ -174,7 +174,7 @@ const ManageDiscussionThreadSchema = ManageDiscussionBaseSchema.extend({
 // Reply to existing discussion thread
 const ManageDiscussionReplySchema = ManageDiscussionBaseSchema.extend({
   action: z.literal("reply"),
-  merge_request_iid: z.coerce.string().describe("Internal MR ID."),
+  merge_request_iid: requiredId.describe("Internal MR ID."),
   discussion_id: z.string().describe("ID of the discussion to reply to."),
   body: z.string().describe("Content of the reply."),
   created_at: z.string().optional().describe("Date time string (ISO 8601)."),
@@ -183,8 +183,8 @@ const ManageDiscussionReplySchema = ManageDiscussionBaseSchema.extend({
 // Update existing note in discussion
 const ManageDiscussionUpdateSchema = ManageDiscussionBaseSchema.extend({
   action: z.literal("update"),
-  merge_request_iid: z.coerce.string().describe("Internal MR ID."),
-  note_id: z.coerce.string().describe("ID of the note to update."),
+  merge_request_iid: requiredId.describe("Internal MR ID."),
+  note_id: requiredId.describe("ID of the note to update."),
   body: z.string().describe("New content of the note."),
 });
 
@@ -201,8 +201,8 @@ export const ManageMrDiscussionSchema = z.discriminatedUnion("action", [
 // ============================================================================
 
 const ManageDraftBaseSchema = z.object({
-  project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
-  merge_request_iid: z.coerce.string().describe("Internal MR ID unique to project."),
+  project_id: requiredId.describe("Project ID or URL-encoded path"),
+  merge_request_iid: requiredId.describe("Internal MR ID unique to project."),
 });
 
 // Create draft note
@@ -217,7 +217,7 @@ const ManageDraftCreateSchema = ManageDraftBaseSchema.extend({
 // Update draft note
 const ManageDraftUpdateSchema = ManageDraftBaseSchema.extend({
   action: z.literal("update"),
-  draft_note_id: z.coerce.string().describe("ID of the draft note."),
+  draft_note_id: requiredId.describe("ID of the draft note."),
   note: z.string().describe("New content of the draft note."),
   position: MergeRequestThreadPositionSchema.optional().describe("Position for diff note."),
 });
@@ -225,7 +225,7 @@ const ManageDraftUpdateSchema = ManageDraftBaseSchema.extend({
 // Publish single draft note
 const ManageDraftPublishSchema = ManageDraftBaseSchema.extend({
   action: z.literal("publish"),
-  draft_note_id: z.coerce.string().describe("ID of the draft note to publish."),
+  draft_note_id: requiredId.describe("ID of the draft note to publish."),
 });
 
 // Publish all draft notes
@@ -236,7 +236,7 @@ const ManageDraftPublishAllSchema = ManageDraftBaseSchema.extend({
 // Delete draft note
 const ManageDraftDeleteSchema = ManageDraftBaseSchema.extend({
   action: z.literal("delete"),
-  draft_note_id: z.coerce.string().describe("ID of the draft note to delete."),
+  draft_note_id: requiredId.describe("ID of the draft note to delete."),
 });
 
 export const ManageDraftNotesSchema = z.discriminatedUnion("action", [
@@ -285,8 +285,8 @@ export const CreateMergeRequestOptionsSchema = z.object(MergeRequestOptionsSchem
 export const CreateMergeRequestSchema = ProjectParamsSchema.extend(MergeRequestOptionsSchema);
 
 export const UpdateMergeRequestSchema = z.object({
-  project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
-  merge_request_iid: z.coerce.string().describe("The internal ID of the merge request"),
+  project_id: requiredId.describe("Project ID or URL-encoded path"),
+  merge_request_iid: requiredId.describe("The internal ID of the merge request"),
   target_branch: z.string().optional(),
   title: z.string().optional(),
   assignee_id: z.string().optional(),
@@ -310,8 +310,8 @@ export const UpdateMergeRequestSchema = z.object({
 });
 
 export const MergeMergeRequestSchema = z.object({
-  project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
-  merge_request_iid: z.coerce.string().describe("The internal ID of the merge request"),
+  project_id: requiredId.describe("Project ID or URL-encoded path"),
+  merge_request_iid: requiredId.describe("The internal ID of the merge request"),
   merge_commit_message: z.string().optional(),
   squash_commit_message: z.string().optional(),
   should_remove_source_branch: flexibleBoolean.optional(),
@@ -321,39 +321,39 @@ export const MergeMergeRequestSchema = z.object({
 });
 
 export const CreateNoteSchema = z.object({
-  project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
+  project_id: requiredId.describe("Project ID or URL-encoded path"),
   noteable_type: z
     .string()
     .transform(val => val.toLowerCase())
     .pipe(z.enum(["issue", "merge_request"])),
-  noteable_id: z.coerce.string(),
+  noteable_id: requiredId,
   body: z.string(),
   created_at: z.string().optional(),
   confidential: flexibleBoolean.optional(),
 });
 
 export const CreateMergeRequestThreadSchema = ProjectParamsSchema.extend({
-  merge_request_iid: z.coerce.string(),
+  merge_request_iid: requiredId,
   body: z.string(),
   position: MergeRequestThreadPositionSchema.optional(),
   commit_id: z.string().optional(),
 });
 
 export const UpdateMergeRequestNoteSchema = ProjectParamsSchema.extend({
-  merge_request_iid: z.coerce.string(),
-  note_id: z.coerce.string(),
+  merge_request_iid: requiredId,
+  note_id: requiredId,
   body: z.string(),
 });
 
 export const CreateMergeRequestNoteSchema = ProjectParamsSchema.extend({
-  merge_request_iid: z.coerce.string(),
+  merge_request_iid: requiredId,
   discussion_id: z.string(),
   body: z.string(),
   created_at: z.string().optional(),
 });
 
 export const CreateDraftNoteSchema = ProjectParamsSchema.extend({
-  merge_request_iid: z.coerce.string(),
+  merge_request_iid: requiredId,
   note: z.string(),
   position: MergeRequestThreadPositionSchema.optional(),
   in_reply_to_discussion_id: z.string().optional(),
@@ -361,24 +361,24 @@ export const CreateDraftNoteSchema = ProjectParamsSchema.extend({
 });
 
 export const UpdateDraftNoteSchema = ProjectParamsSchema.extend({
-  merge_request_iid: z.coerce.string(),
-  draft_note_id: z.coerce.string(),
+  merge_request_iid: requiredId,
+  draft_note_id: requiredId,
   note: z.string(),
   position: MergeRequestThreadPositionSchema.optional(),
 });
 
 export const DeleteDraftNoteSchema = ProjectParamsSchema.extend({
-  merge_request_iid: z.coerce.string(),
-  draft_note_id: z.coerce.string(),
+  merge_request_iid: requiredId,
+  draft_note_id: requiredId,
 });
 
 export const PublishDraftNoteSchema = ProjectParamsSchema.extend({
-  merge_request_iid: z.coerce.string(),
-  draft_note_id: z.coerce.string(),
+  merge_request_iid: requiredId,
+  draft_note_id: requiredId,
 });
 
 export const BulkPublishDraftNotesSchema = ProjectParamsSchema.extend({
-  merge_request_iid: z.coerce.string(),
+  merge_request_iid: requiredId,
 });
 
 // Export type definitions

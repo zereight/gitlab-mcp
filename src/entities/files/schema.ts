@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { flexibleBoolean } from "../utils";
+import { flexibleBoolean, requiredId } from "../utils";
 import { ProjectParamsSchema } from "../shared";
 
 // WRITE FILE OPERATION SCHEMAS
@@ -48,7 +48,7 @@ export const MarkdownUploadSchema = ProjectParamsSchema.extend({
 // ============================================================================
 
 const ManageFilesSingleSchema = z.object({
-  project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
+  project_id: requiredId.describe("Project ID or URL-encoded path"),
   action: z.literal("single"),
   file_path: z.string().describe("Path to the file"),
   content: z.string().describe("File content (text or base64 encoded)"),
@@ -70,7 +70,7 @@ const BatchFileActionSchema = z.object({
 });
 
 const ManageFilesBatchSchema = z.object({
-  project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
+  project_id: requiredId.describe("Project ID or URL-encoded path"),
   action: z.literal("batch"),
   branch: z.string().describe("Target branch name"),
   commit_message: z.string().describe("Commit message"),
@@ -81,7 +81,7 @@ const ManageFilesBatchSchema = z.object({
 });
 
 const ManageFilesUploadSchema = z.object({
-  project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
+  project_id: requiredId.describe("Project ID or URL-encoded path"),
   action: z.literal("upload"),
   file: z.string().describe("Base64 encoded file content"),
   filename: z.string().describe("Name of the file"),
