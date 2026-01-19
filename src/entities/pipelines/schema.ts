@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { requiredId } from "../utils";
 
 // ============================================================================
 // Shared schemas for pipeline variables
@@ -16,7 +17,7 @@ const PipelineVariableSchema = z.object({
 // ============================================================================
 
 const ManagePipelineBaseSchema = z.object({
-  project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
+  project_id: requiredId.describe("Project ID or URL-encoded path"),
 });
 
 // Create pipeline action
@@ -32,13 +33,13 @@ const ManagePipelineCreateSchema = ManagePipelineBaseSchema.extend({
 // Retry pipeline action
 const ManagePipelineRetrySchema = ManagePipelineBaseSchema.extend({
   action: z.literal("retry"),
-  pipeline_id: z.coerce.string().describe("The ID of the pipeline to retry"),
+  pipeline_id: requiredId.describe("The ID of the pipeline to retry"),
 });
 
 // Cancel pipeline action
 const ManagePipelineCancelSchema = ManagePipelineBaseSchema.extend({
   action: z.literal("cancel"),
-  pipeline_id: z.coerce.string().describe("The ID of the pipeline to cancel"),
+  pipeline_id: requiredId.describe("The ID of the pipeline to cancel"),
 });
 
 export const ManagePipelineSchema = z.discriminatedUnion("action", [
@@ -53,8 +54,8 @@ export const ManagePipelineSchema = z.discriminatedUnion("action", [
 // ============================================================================
 
 const ManagePipelineJobBaseSchema = z.object({
-  project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
-  job_id: z.coerce.string().describe("The ID of the job"),
+  project_id: requiredId.describe("Project ID or URL-encoded path"),
+  job_id: requiredId.describe("The ID of the job"),
 });
 
 // Play manual job action

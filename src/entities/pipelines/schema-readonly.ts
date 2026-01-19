@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { PaginationOptionsSchema } from "../shared";
-import { flexibleBoolean } from "../utils";
+import { flexibleBoolean, requiredId } from "../utils";
 
 // Pipeline related schemas
 export const GitLabPipelineSchema = z.object({
@@ -221,7 +221,7 @@ const TriggerJobScopeSchema = z
 // ============================================================================
 
 const BrowsePipelinesBaseSchema = z.object({
-  project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
+  project_id: requiredId.describe("Project ID or URL-encoded path"),
 });
 
 // List pipelines action
@@ -247,13 +247,13 @@ const BrowsePipelinesListSchema = BrowsePipelinesBaseSchema.extend({
 // Get single pipeline action
 const BrowsePipelinesGetSchema = BrowsePipelinesBaseSchema.extend({
   action: z.literal("get"),
-  pipeline_id: z.coerce.string().describe("The ID of the pipeline"),
+  pipeline_id: requiredId.describe("The ID of the pipeline"),
 });
 
 // List jobs in pipeline action
 const BrowsePipelinesJobsSchema = BrowsePipelinesBaseSchema.extend({
   action: z.literal("jobs"),
-  pipeline_id: z.coerce.string().describe("The ID of the pipeline"),
+  pipeline_id: requiredId.describe("The ID of the pipeline"),
   scope: z.array(JobScopeSchema).optional().describe("Scope of jobs to show"),
   include_retried: z.boolean().optional().describe("Include retried jobs in the response"),
 }).merge(PaginationOptionsSchema);
@@ -261,7 +261,7 @@ const BrowsePipelinesJobsSchema = BrowsePipelinesBaseSchema.extend({
 // List trigger/bridge jobs action
 const BrowsePipelinesTriggersSchema = BrowsePipelinesBaseSchema.extend({
   action: z.literal("triggers"),
-  pipeline_id: z.coerce.string().describe("The ID of the pipeline"),
+  pipeline_id: requiredId.describe("The ID of the pipeline"),
   scope: z.array(TriggerJobScopeSchema).optional().describe("Scope of jobs to show"),
   include_retried: z.boolean().optional().describe("Include retried jobs in the response"),
 }).merge(PaginationOptionsSchema);
@@ -269,13 +269,13 @@ const BrowsePipelinesTriggersSchema = BrowsePipelinesBaseSchema.extend({
 // Get single job details action
 const BrowsePipelinesJobSchema = BrowsePipelinesBaseSchema.extend({
   action: z.literal("job"),
-  job_id: z.coerce.string().describe("The ID of the job"),
+  job_id: requiredId.describe("The ID of the job"),
 });
 
 // Get job logs action
 const BrowsePipelinesLogsSchema = BrowsePipelinesBaseSchema.extend({
   action: z.literal("logs"),
-  job_id: z.coerce.string().describe("The ID of the job"),
+  job_id: requiredId.describe("The ID of the job"),
   limit: z
     .number()
     .optional()

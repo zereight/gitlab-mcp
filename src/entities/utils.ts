@@ -18,3 +18,13 @@ export const flexibleBoolean = z.preprocess(val => {
 export const flexibleBooleanNullable = DEFAULT_NULL
   ? flexibleBoolean.nullable().default(null)
   : flexibleBoolean.nullable();
+
+/**
+ * Required ID field that accepts string or number input.
+ * Unlike z.coerce.string(), this properly rejects undefined/null values
+ * instead of coercing them to the literal string "undefined"/"null".
+ */
+export const requiredId = z.preprocess(
+  val => (val === undefined || val === null ? "" : val),
+  z.coerce.string().min(1)
+);

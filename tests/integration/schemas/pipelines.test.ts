@@ -71,11 +71,36 @@ describe("Pipelines Schema - GitLab Integration (CQRS)", () => {
 
     it("should validate scope and status filtering parameters", async () => {
       const testCases = [
-        { action: "list" as const, scope: "running" as const, status: "running" as const },
-        { action: "list" as const, scope: "pending" as const, status: "pending" as const },
-        { action: "list" as const, scope: "finished" as const, status: "success" as const },
-        { action: "list" as const, scope: "branches" as const, status: "failed" as const },
-        { action: "list" as const, scope: "tags" as const, status: "canceled" as const },
+        {
+          action: "list" as const,
+          project_id: "123",
+          scope: "running" as const,
+          status: "running" as const,
+        },
+        {
+          action: "list" as const,
+          project_id: "123",
+          scope: "pending" as const,
+          status: "pending" as const,
+        },
+        {
+          action: "list" as const,
+          project_id: "123",
+          scope: "finished" as const,
+          status: "success" as const,
+        },
+        {
+          action: "list" as const,
+          project_id: "123",
+          scope: "branches" as const,
+          status: "failed" as const,
+        },
+        {
+          action: "list" as const,
+          project_id: "123",
+          scope: "tags" as const,
+          status: "canceled" as const,
+        },
       ];
 
       for (const testCase of testCases) {
@@ -115,6 +140,7 @@ describe("Pipelines Schema - GitLab Integration (CQRS)", () => {
 
       const sourceParams = {
         action: "list" as const,
+        project_id: testProject.id.toString(),
         source: "push" as const,
         ref: realRef,
         sha: realSha,
@@ -144,6 +170,7 @@ describe("Pipelines Schema - GitLab Integration (CQRS)", () => {
     it("should validate date filtering parameters", async () => {
       const dateParams = {
         action: "list" as const,
+        project_id: "123",
         updated_after: "2023-01-01T00:00:00Z",
         updated_before: "2023-12-31T23:59:59Z",
         order_by: "updated_at" as const,
@@ -166,6 +193,7 @@ describe("Pipelines Schema - GitLab Integration (CQRS)", () => {
     it("should reject invalid parameters", async () => {
       const invalidParams = {
         action: "list",
+        project_id: "123",
         scope: "invalid_scope", // Invalid enum value
         status: "invalid_status", // Invalid enum value
         source: "invalid_source", // Invalid enum value
