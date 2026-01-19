@@ -24,7 +24,4 @@ export const flexibleBooleanNullable = DEFAULT_NULL
  * Unlike z.coerce.string(), this properly rejects undefined/null values
  * instead of coercing them to the literal string "undefined"/"null".
  */
-export const requiredId = z.preprocess(
-  val => (val === undefined || val === null ? "" : val),
-  z.coerce.string().min(1)
-);
+export const requiredId = z.preprocess(val => val ?? "", z.coerce.string().min(1));
