@@ -503,6 +503,143 @@ describe("Workitems Registry - CQRS Tools", () => {
         expect(result.items[0].description).toBe("A".repeat(200) + "...");
       });
 
+      it("should include MILESTONE widget in simplified mode", async () => {
+        const mockWorkItem = createMockWorkItem({
+          workItemType: { name: "Issue" },
+          widgets: [
+            {
+              type: "MILESTONE",
+              milestone: {
+                id: "gid://gitlab/Milestone/5",
+                title: "v1.0",
+                state: "active",
+              },
+            },
+          ],
+        });
+
+        mockClient.request.mockResolvedValueOnce({
+          namespace: {
+            __typename: "Project",
+            workItems: {
+              nodes: [mockWorkItem],
+              pageInfo: { hasNextPage: false, endCursor: null },
+            },
+          },
+        });
+
+        const tool = workitemsToolRegistry.get("browse_work_items");
+        const result = (await tool?.handler({
+          action: "list",
+          namespace: "test-project",
+          simple: true,
+        })) as { items: Array<{ widgets?: Array<{ type: string; milestone?: unknown }> }> };
+
+        expect(result.items[0].widgets).toBeDefined();
+        // IDs are cleaned from GIDs to simple IDs
+        expect(result.items[0].widgets).toContainEqual({
+          type: "MILESTONE",
+          milestone: {
+            id: "5",
+            title: "v1.0",
+            state: "active",
+          },
+        });
+      });
+
+      it("should include HIERARCHY widget with parent in simplified mode", async () => {
+        const mockWorkItem = createMockWorkItem({
+          workItemType: { name: "Task" },
+          widgets: [
+            {
+              type: "HIERARCHY",
+              parent: {
+                id: "gid://gitlab/WorkItem/100",
+                iid: "10",
+                title: "Parent Issue",
+                workItemType: "Issue",
+              },
+              hasChildren: false,
+            },
+          ],
+        });
+
+        mockClient.request.mockResolvedValueOnce({
+          namespace: {
+            __typename: "Project",
+            workItems: {
+              nodes: [mockWorkItem],
+              pageInfo: { hasNextPage: false, endCursor: null },
+            },
+          },
+        });
+
+        const tool = workitemsToolRegistry.get("browse_work_items");
+        const result = (await tool?.handler({
+          action: "list",
+          namespace: "test-project",
+          simple: true,
+        })) as {
+          items: Array<{
+            widgets?: Array<{ type: string; parent?: unknown; hasChildren?: boolean }>;
+          }>;
+        };
+
+        expect(result.items[0].widgets).toBeDefined();
+        // IDs are cleaned from GIDs to simple IDs
+        expect(result.items[0].widgets).toContainEqual({
+          type: "HIERARCHY",
+          parent: {
+            id: "100",
+            iid: "10",
+            title: "Parent Issue",
+            workItemType: "Issue",
+          },
+          hasChildren: false,
+        });
+      });
+
+      it("should include HIERARCHY widget with hasChildren in simplified mode", async () => {
+        const mockWorkItem = createMockWorkItem({
+          workItemType: { name: "Epic" },
+          widgets: [
+            {
+              type: "HIERARCHY",
+              parent: null,
+              hasChildren: true,
+            },
+          ],
+        });
+
+        mockClient.request.mockResolvedValueOnce({
+          namespace: {
+            __typename: "Group",
+            workItems: {
+              nodes: [mockWorkItem],
+              pageInfo: { hasNextPage: false, endCursor: null },
+            },
+          },
+        });
+
+        const tool = workitemsToolRegistry.get("browse_work_items");
+        const result = (await tool?.handler({
+          action: "list",
+          namespace: "test-group",
+          simple: true,
+        })) as {
+          items: Array<{
+            widgets?: Array<{ type: string; parent?: unknown; hasChildren?: boolean }>;
+          }>;
+        };
+
+        expect(result.items[0].widgets).toBeDefined();
+        expect(result.items[0].widgets).toContainEqual({
+          type: "HIERARCHY",
+          parent: null,
+          hasChildren: true,
+        });
+      });
+
       it("should filter by state parameter", async () => {
         const mockWorkItems = [
           createMockWorkItem({ id: "gid://gitlab/WorkItem/1", state: "OPEN" }),
@@ -932,6 +1069,31 @@ describe("Workitems Registry - CQRS Tools", () => {
               labelsWidget: {
                 addLabelIds: ["gid://gitlab/ProjectLabel/10", "gid://gitlab/ProjectLabel/20"],
               },
+            }),
+          })
+        );
+      });
+
+      it("should handle update with milestone", async () => {
+        mockClient.request.mockResolvedValueOnce({
+          workItemUpdate: {
+            workItem: { id: "gid://gitlab/WorkItem/123" },
+            errors: [],
+          },
+        });
+
+        const tool = workitemsToolRegistry.get("manage_work_item");
+        await tool?.handler({
+          action: "update",
+          id: "123",
+          milestoneId: "5",
+        });
+
+        expect(mockClient.request).toHaveBeenCalledWith(
+          expect.any(Object),
+          expect.objectContaining({
+            input: expect.objectContaining({
+              milestoneWidget: { milestoneId: "gid://gitlab/Milestone/5" },
             }),
           })
         );
