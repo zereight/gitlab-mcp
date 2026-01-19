@@ -547,11 +547,11 @@ export GITLAB_TOOL_CREATE_WORK_ITEM="Create tickets for our sprint planning"
 - **Tier-based Feature Detection** - Automatically enables features based on your GitLab tier
 - **Read-only Mode Support** - Safe operation mode for production environments
 
-### Migration from v5.0 (CQRS Consolidation):
+### Migration Guide (v5.x → v6.0) - CQRS Consolidation:
 Multiple individual tools have been consolidated into action-based CQRS tools. This reduces tool count from 85 to 61 while maintaining all functionality.
 
 <details>
-<summary>Consolidated Tools in v5.0</summary>
+<summary>CQRS Tools Introduced in v6.0</summary>
 
 **Merge Requests (20 tools → 5 CQRS tools)**:
 - `list_merge_requests`, `get_merge_request`, `get_merge_request_diffs`, `list_merge_request_diffs`, `get_branch_diffs` → Use `browse_merge_requests` with action: "list", "get", "diffs", "compare"
@@ -564,7 +564,7 @@ Multiple individual tools have been consolidated into action-based CQRS tools. T
 - `get_file_contents`, `get_repository_tree` → Use `browse_files` with action: "content", "tree"
 - `create_or_update_file`, `push_files`, `upload_markdown` → Use `manage_files` with action: "single", "batch", "upload"
 
-**Core/Projects (8 tools → CQRS tools)**:
+**Core/Projects (13 tools → 5 CQRS tools)**:
 - `list_projects`, `get_project`, `search_repositories` → Use `browse_projects` with action: "list", "get", "search"
 - `create_repository`, `fork_repository` → Use `manage_repository` with action: "create", "fork"
 - `list_namespaces`, `get_namespace`, `verify_namespace` → Use `browse_namespaces` with action: "list", "get", "verify"

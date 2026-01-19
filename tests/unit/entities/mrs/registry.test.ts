@@ -649,6 +649,30 @@ describe("MRS Registry", () => {
           );
           expect(result).toEqual(mockMR);
         });
+
+        it("should handle array parameters in update", async () => {
+          const mockMR = { id: 1, iid: 1, title: "Updated MR" };
+          mockGitlab.put.mockResolvedValueOnce(mockMR);
+
+          const tool = mrsToolRegistry.get("manage_merge_request")!;
+          await tool.handler({
+            action: "update",
+            project_id: "test/project",
+            merge_request_iid: 1,
+            assignee_ids: ["1", "2", "3"],
+            reviewer_ids: ["4", "5"],
+          });
+
+          expect(mockGitlab.put).toHaveBeenCalledWith(
+            "projects/test%2Fproject/merge_requests/1",
+            expect.objectContaining({
+              body: expect.objectContaining({
+                assignee_ids: "1,2,3", // Arrays are joined
+                reviewer_ids: "4,5",
+              }),
+            })
+          );
+        });
       });
 
       describe("action: merge", () => {
@@ -821,6 +845,32 @@ describe("MRS Registry", () => {
             "projects/test%2Fproject/merge_requests/1/draft_notes",
             expect.objectContaining({
               body: { note: "Draft comment" },
+              contentType: "form",
+            })
+          );
+          expect(result).toEqual(mockNote);
+        });
+
+        it("should create draft note with in_reply_to_discussion_id", async () => {
+          const mockNote = { id: 2, note: "Reply draft" };
+          mockGitlab.post.mockResolvedValueOnce(mockNote);
+
+          const tool = mrsToolRegistry.get("manage_draft_notes")!;
+          const result = await tool.handler({
+            action: "create",
+            project_id: "test/project",
+            merge_request_iid: 1,
+            note: "Reply draft",
+            in_reply_to_discussion_id: "abc123",
+          });
+
+          expect(mockGitlab.post).toHaveBeenCalledWith(
+            "projects/test%2Fproject/merge_requests/1/draft_notes",
+            expect.objectContaining({
+              body: {
+                note: "Reply draft",
+                in_reply_to_discussion_id: "abc123",
+              },
               contentType: "form",
             })
           );
