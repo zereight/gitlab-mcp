@@ -6,7 +6,7 @@
 
 A fork of the original [zereight/gitlab-mcp](https://github.com/zereight/gitlab-mcp)
 
-![npm version](https://img.shields.io/npm/v/@structured-world/gitlab-mcp) ![npm downloads](https://img.shields.io/npm/dm/@structured-world/gitlab-mcp) ![Release](https://github.com/structured-world/gitlab-mcp/workflows/Release/badge.svg) ![Codecov](https://codecov.io/gh/structured-world/gitlab-mcp/branch/main/graph/badge.svg) [![Coverage Report](https://img.shields.io/badge/Coverage-Live%20Report-brightgreen?logo=github)](https://structured-world.github.io/gitlab-mcp/coverage/)
+![npm version](https://img.shields.io/npm/v/@structured-world/gitlab-mcp) ![npm downloads](https://img.shields.io/npm/dm/@structured-world/gitlab-mcp) ![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg) ![Release](https://github.com/structured-world/gitlab-mcp/workflows/Release/badge.svg) ![Codecov](https://codecov.io/gh/structured-world/gitlab-mcp/branch/main/graph/badge.svg) [![Coverage Report](https://img.shields.io/badge/Coverage-Live%20Report-brightgreen?logo=github)](https://structured-world.github.io/gitlab-mcp/coverage/)
 
 GitLab MCP(Model Context Protocol) Server. **Includes bug fixes and improvements over the original GitLab MCP server.**
 
@@ -894,6 +894,20 @@ This GitLab MCP Server is developed and maintained with care for the community. 
 **Every contribution helps keep this project alive and growing! 🚀**
 
 </div>
+
+---
+
+## License
+
+This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENSE) file for details.
+
+### Attribution
+
+This software includes code originally developed under the MIT License:
+- Original project: [zereight/gitlab-mcp](https://github.com/zereight/gitlab-mcp)
+- See [LICENSE.MIT](LICENSE.MIT) for the original MIT license
+
+The migration to Apache 2.0 provides improved patent protection and clearer contributor terms while remaining fully compatible with the original MIT-licensed code.
 
 ---
 
