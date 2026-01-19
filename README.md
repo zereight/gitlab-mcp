@@ -55,6 +55,7 @@ env = { "GITLAB_TOKEN" = "mytoken", "GITLAB_API_URL" = "https://gitlab.com" }
         "USE_VARIABLES": "true", // use variables api?
         "USE_WEBHOOKS": "true", // use webhooks api?
         "USE_SNIPPETS": "true", // use snippets api?
+        "USE_INTEGRATIONS": "true", // use integrations api?
         "SKIP_TLS_VERIFY": "false" // skip SSL cert verification (dev only)
       }
     }
@@ -126,6 +127,8 @@ env = { "GITLAB_TOKEN" = "mytoken", "GITLAB_API_URL" = "https://gitlab.com" }
         "USE_WEBHOOKS",
         "-e",
         "USE_SNIPPETS",
+        "-e",
+        "USE_INTEGRATIONS",
         "ghcr.io/structured-world/gitlab-mcp:latest"
       ],
       "env": {
@@ -137,7 +140,8 @@ env = { "GITLAB_TOKEN" = "mytoken", "GITLAB_API_URL" = "https://gitlab.com" }
         "USE_PIPELINE": "true",
         "USE_VARIABLES": "true",
         "USE_WEBHOOKS": "true",
-        "USE_SNIPPETS": "true"
+        "USE_SNIPPETS": "true",
+        "USE_INTEGRATIONS": "true"
       }
     }
   }
@@ -475,6 +479,7 @@ When OAuth is enabled, the following endpoints are available:
 - `USE_WORKITEMS`: When set to 'true', enables the work items-related tools (browse_work_items, manage_work_item). These 2 CQRS tools consolidate all work item operations using GitLab GraphQL API. By default, work items features are enabled.
 - `USE_WEBHOOKS`: When set to 'true', enables the webhooks-related tools (list_webhooks, manage_webhook). These 2 tools provide full CRUD operations plus testing for both project and group webhooks. Group webhooks require GitLab Premium tier. By default, webhooks features are enabled.
 - `USE_SNIPPETS`: When set to 'true', enables the snippets-related tools (list_snippets, manage_snippet). These 2 CQRS tools provide full listing and CRUD operations for both personal and project snippets. Supports multi-file snippets, visibility control, and flexible scoping. By default, snippets features are enabled.
+- `USE_INTEGRATIONS`: When set to 'true', enables the integrations-related tools (list_integrations, manage_integration). These 2 CQRS tools provide full listing and management of 50+ project integrations (Slack, Jira, Discord, Jenkins, etc.). By default, integrations features are enabled.
 - `GITLAB_AUTH_COOKIE_PATH`: Path to an authentication cookie file for GitLab instances that require cookie-based authentication. When provided, the cookie will be included in all GitLab API requests.
 - `SKIP_TLS_VERIFY`: When set to 'true', skips TLS certificate verification for all GitLab API requests (both REST and GraphQL). **WARNING**: This bypasses SSL certificate validation and should only be used for testing with self-signed certificates or trusted internal GitLab instances. Never use this in production environments.
 - `SSL_CERT_PATH`: Path to PEM certificate file for direct HTTPS/TLS termination. Requires `SSL_KEY_PATH` to also be set.
@@ -547,7 +552,7 @@ export GITLAB_TOOL_MANAGE_WORK_ITEM="Create and manage tickets for our sprint pl
 
 ## Tools 🛠️
 
-**59 Tools Available** - Organized by entity and functionality below.
+**61 Tools Available** - Organized by entity and functionality below.
 
 ### Key Features:
 - **CQRS Pattern** - Consolidated action-based tools: `browse_*` for reads, `manage_*` for writes
@@ -714,6 +719,32 @@ Requires USE_SNIPPETS=true environment variable (enabled by default). Uses CQRS 
 Snippets can contain multiple files with individual operations:
 - **Create action** - Files array with `file_path` and `content` for each file
 - **Update action** - Files array with `action` field: "create" (add new), "update" (modify existing), "delete" (remove), "move" (rename with `previous_path`)
+
+### Integrations Management (2 tools)
+Requires USE_INTEGRATIONS=true environment variable (enabled by default). Uses CQRS pattern with action-based tools. Supports 50+ project integrations for connecting with external services.
+
+#### Integration Browsing (Query)
+- 📖 **`list_integrations`**: LIST all active integrations for a project. Returns configured integrations like Slack, Jira, Discord, Microsoft Teams, Jenkins, etc. Only shows enabled/configured integrations with their settings.
+
+#### Integration Management (Command)
+- ✏️ **`manage_integration`**: MANAGE project integrations. Actions: "get" retrieves integration settings (read-only), "update" modifies or enables integration with specific config, "disable" removes integration. Supports 50+ integration types. Note: gitlab-slack-application cannot be created via API - requires OAuth install from GitLab UI.
+
+#### Supported Integration Types
+GitLab supports 50+ integrations organized by category:
+- **Communication** - Slack, Discord, Microsoft Teams, Mattermost, Telegram, Matrix, Pumble, and more
+- **Issue Trackers** - Jira, Bugzilla, Redmine, YouTrack, ClickUp, Linear, Phorge, Asana
+- **CI/CD** - Jenkins, TeamCity, Bamboo, Buildkite, Drone CI, Datadog
+- **Documentation** - Confluence, External Wiki
+- **Mobile/Publishing** - Apple App Store, Google Play, Packagist
+- **Cloud** - Google Cloud Platform (Artifact Registry, Workload Identity), Harbor
+- **Security** - GitGuardian
+- **Other** - GitHub, Emails on Push, Pipelines Email, Pushover
+
+#### Common Event Triggers
+Most integrations support configuring which events trigger notifications:
+- Push events, Tag push events, Issue events, Merge request events
+- Note events, Pipeline events, Job events, Wiki page events
+- Deployment events, Release events, Vulnerability events
 
 ## CLI Tools 🔧
 

@@ -23,6 +23,10 @@ import {
 import { webhooksToolRegistry, getWebhooksReadOnlyToolNames } from "./entities/webhooks/registry";
 import { snippetsToolRegistry, getSnippetsReadOnlyToolNames } from "./entities/snippets/registry";
 import {
+  integrationsToolRegistry,
+  getIntegrationsReadOnlyToolNames,
+} from "./entities/integrations/registry";
+import {
   GITLAB_READ_ONLY_MODE,
   GITLAB_DENIED_TOOLS_REGEX,
   USE_GITLAB_WIKI,
@@ -35,6 +39,7 @@ import {
   USE_VARIABLES,
   USE_SNIPPETS,
   USE_WEBHOOKS,
+  USE_INTEGRATIONS,
   getToolDescriptionOverrides,
 } from "./config";
 import { ToolAvailability } from "./services/ToolAvailability";
@@ -120,6 +125,10 @@ class RegistryManager {
       this.registries.set("webhooks", webhooksToolRegistry);
     }
 
+    if (USE_INTEGRATIONS) {
+      this.registries.set("integrations", integrationsToolRegistry);
+    }
+
     // All entity registries have been migrated to the new pattern!
   }
 
@@ -185,6 +194,10 @@ class RegistryManager {
 
     if (USE_WEBHOOKS) {
       readOnlyTools.push(...getWebhooksReadOnlyToolNames());
+    }
+
+    if (USE_INTEGRATIONS) {
+      readOnlyTools.push(...getIntegrationsReadOnlyToolNames());
     }
 
     return readOnlyTools;
@@ -327,6 +340,7 @@ class RegistryManager {
     const useWorkitems = process.env.USE_WORKITEMS !== "false";
     const useSnippets = process.env.USE_SNIPPETS !== "false";
     const useWebhooks = process.env.USE_WEBHOOKS !== "false";
+    const useIntegrations = process.env.USE_INTEGRATIONS !== "false";
 
     // Build registries map based on dynamic feature flags
     const registriesToUse = new Map<string, ToolRegistry>();
@@ -345,6 +359,7 @@ class RegistryManager {
     if (useWorkitems) registriesToUse.set("workitems", workitemsToolRegistry);
     if (useSnippets) registriesToUse.set("snippets", snippetsToolRegistry);
     if (useWebhooks) registriesToUse.set("webhooks", webhooksToolRegistry);
+    if (useIntegrations) registriesToUse.set("integrations", integrationsToolRegistry);
 
     // Dynamically load description overrides
     const descOverrides = getToolDescriptionOverrides();

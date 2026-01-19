@@ -21,6 +21,7 @@ export const USE_FILES = process.env.USE_FILES !== "false";
 export const USE_VARIABLES = process.env.USE_VARIABLES !== "false";
 export const USE_SNIPPETS = process.env.USE_SNIPPETS !== "false";
 export const USE_WEBHOOKS = process.env.USE_WEBHOOKS !== "false";
+export const USE_INTEGRATIONS = process.env.USE_INTEGRATIONS !== "false";
 export const HOST = process.env.HOST ?? "0.0.0.0";
 export const PORT = process.env.PORT ?? 3002;
 
