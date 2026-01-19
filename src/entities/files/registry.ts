@@ -130,7 +130,8 @@ export const filesToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefin
 
             const formData = new FormData();
             const buffer = Buffer.from(file, "base64");
-            const fileObj = new File([new Uint8Array(buffer)], filename, {
+            // Buffer is a Uint8Array subclass, can be passed directly to File constructor
+            const fileObj = new File([buffer], filename, {
               type: "application/octet-stream",
             });
             formData.append("file", fileObj);
