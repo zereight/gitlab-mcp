@@ -1,3 +1,10 @@
+## [6.5.0](https://github.com/structured-world/gitlab-mcp/compare/v6.4.1...v6.5.0) (2026-01-19)
+
+### Features
+
+* **labels:** consolidate 5 label tools into 2 CQRS tools ([fc18e60](https://github.com/structured-world/gitlab-mcp/commit/fc18e60cac2bdaedf88710bf2308b0cbbc8e2664)), closes [#8](https://github.com/structured-world/gitlab-mcp/issues/8)
+* **webhooks:** Add webhooks management entity with action-based CRUD ([#35](https://github.com/structured-world/gitlab-mcp/issues/35)) ([2b7761d](https://github.com/structured-world/gitlab-mcp/commit/2b7761d2845b4415d09100e8c437d79048a9e4ff))
+
 ## [6.4.1](https://github.com/structured-world/gitlab-mcp/compare/v6.4.0...v6.4.1) (2026-01-19)
 
 ### Bug Fixes
