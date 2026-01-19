@@ -219,7 +219,7 @@ export const workitemsToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
 
         switch (input.action) {
           case "list": {
-            const { namespace, types, state, first, after, simple, active: _active } = input;
+            const { namespace, types, state, first, after, simple } = input;
             console.log("browse_work_items list called with:", {
               namespace,
               types,

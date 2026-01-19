@@ -71,13 +71,6 @@ const BrowseWorkItemsListSchema = BrowseWorkItemsBaseSchema.extend({
     .describe(
       "Return simplified structure with essential fields only. RECOMMENDED: Use default true for most cases."
     ),
-  active: z
-    .boolean()
-    .optional()
-    .default(true)
-    .describe(
-      "Include only active projects and work items (excludes archived). Set false for all."
-    ),
 });
 
 // Get single work item action
@@ -120,13 +113,6 @@ export const ListWorkItemsSchema = z.object({
     .default(true)
     .describe(
       "Return simplified structure with essential fields only (id, title, state, type, assignees, labels). RECOMMENDED: Use default true for most cases. Only set false when full widget details are specifically needed."
-    ),
-  active: z
-    .boolean()
-    .optional()
-    .default(true)
-    .describe(
-      "Include only active projects and work items (excludes archived and deletion_scheduled projects). Set false to include all."
     ),
 });
 
