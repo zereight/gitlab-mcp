@@ -3,6 +3,7 @@ import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import express, { Express } from "express";
+import * as http from "http";
 import * as https from "https";
 import * as fs from "fs";
 import {
@@ -172,7 +173,7 @@ function startHttpServer(app: Express, callback: () => void): void {
   const tlsOptions = loadTLSOptions();
 
   if (tlsOptions) {
-    const httpsServer = https.createServer(tlsOptions, app);
+    const httpsServer = https.createServer(tlsOptions, app as http.RequestListener);
     httpsServer.listen(Number(PORT), HOST, callback);
   } else {
     app.listen(Number(PORT), HOST, callback);
@@ -275,12 +276,13 @@ export async function startServer(): Promise<void> {
       });
 
       // Messages endpoint for receiving JSON-RPC messages
-      app.post("/messages", async (req, res) => {
+      app.post("/messages", async (req, res): Promise<void> => {
         logger.debug("Messages endpoint hit!");
         const sessionId = req.query.sessionId as string;
 
         if (!sessionId || !sseTransports[sessionId]) {
-          return res.status(404).json({ error: "Session not found" });
+          res.status(404).json({ error: "Session not found" });
+          return;
         }
 
         try {
@@ -477,12 +479,13 @@ export async function startServer(): Promise<void> {
         logger.debug(`SSE transport created with session: ${sessionId}`);
       });
 
-      app.post("/messages", async (req, res) => {
+      app.post("/messages", async (req, res): Promise<void> => {
         logger.debug("SSE messages endpoint hit!");
         const sessionId = req.query.sessionId as string;
 
         if (!sessionId || !sseTransports[sessionId]) {
-          return res.status(404).json({ error: "Session not found" });
+          res.status(404).json({ error: "Session not found" });
+          return;
         }
 
         try {

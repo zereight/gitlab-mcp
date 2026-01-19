@@ -54,6 +54,7 @@ env = { "GITLAB_TOKEN" = "mytoken", "GITLAB_API_URL" = "https://gitlab.com" }
         "USE_PIPELINE": "false", // use pipeline api?
         "USE_VARIABLES": "true", // use variables api?
         "USE_WEBHOOKS": "true", // use webhooks api?
+        "USE_SNIPPETS": "true", // use snippets api?
         "SKIP_TLS_VERIFY": "false" // skip SSL cert verification (dev only)
       }
     }
@@ -123,6 +124,8 @@ env = { "GITLAB_TOKEN" = "mytoken", "GITLAB_API_URL" = "https://gitlab.com" }
         "USE_VARIABLES",
         "-e",
         "USE_WEBHOOKS",
+        "-e",
+        "USE_SNIPPETS",
         "ghcr.io/structured-world/gitlab-mcp:latest"
       ],
       "env": {
@@ -133,7 +136,8 @@ env = { "GITLAB_TOKEN" = "mytoken", "GITLAB_API_URL" = "https://gitlab.com" }
         "USE_MILESTONE": "true",
         "USE_PIPELINE": "true",
         "USE_VARIABLES": "true",
-        "USE_WEBHOOKS": "true"
+        "USE_WEBHOOKS": "true",
+        "USE_SNIPPETS": "true"
       }
     }
   }
@@ -470,6 +474,7 @@ When OAuth is enabled, the following endpoints are available:
 - `USE_VARIABLES`: When set to 'true', enables the CI/CD variables-related tools (browse_variables, manage_variable). These 2 CQRS tools consolidate all variable operations. Supports both project-level and group-level variables. By default, variables features are enabled.
 - `USE_WORKITEMS`: When set to 'true', enables the work items-related tools (browse_work_items, manage_work_item). These 2 CQRS tools consolidate all work item operations using GitLab GraphQL API. By default, work items features are enabled.
 - `USE_WEBHOOKS`: When set to 'true', enables the webhooks-related tools (list_webhooks, manage_webhook). These 2 tools provide full CRUD operations plus testing for both project and group webhooks. Group webhooks require GitLab Premium tier. By default, webhooks features are enabled.
+- `USE_SNIPPETS`: When set to 'true', enables the snippets-related tools (list_snippets, manage_snippet). These 2 CQRS tools provide full listing and CRUD operations for both personal and project snippets. Supports multi-file snippets, visibility control, and flexible scoping. By default, snippets features are enabled.
 - `GITLAB_AUTH_COOKIE_PATH`: Path to an authentication cookie file for GitLab instances that require cookie-based authentication. When provided, the cookie will be included in all GitLab API requests.
 - `SKIP_TLS_VERIFY`: When set to 'true', skips TLS certificate verification for all GitLab API requests (both REST and GraphQL). **WARNING**: This bypasses SSL certificate validation and should only be used for testing with self-signed certificates or trusted internal GitLab instances. Never use this in production environments.
 - `SSL_CERT_PATH`: Path to PEM certificate file for direct HTTPS/TLS termination. Requires `SSL_KEY_PATH` to also be set.
@@ -538,11 +543,11 @@ export GITLAB_TOOL_MANAGE_WORK_ITEM="Create and manage tickets for our sprint pl
 - **Case Sensitivity**: Tool names in environment variables must be UPPERCASE (e.g., `LIST_PROJECTS` not `list_projects`)
 - **Invalid Names**: Invalid tool names in environment variables are ignored with a warning in debug logs
 - **Content Guidelines**: Descriptions can be any valid string but should be kept concise for better UX
-- **Scope**: Works with all 58 available tools across all entities (Core, Work Items, Merge Requests, Files, etc.)
+- **Scope**: Works with all 59 available tools across all entities (Core, Work Items, Merge Requests, Files, Snippets, etc.)
 
 ## Tools 🛠️
 
-**57 Tools Available** - Organized by entity and functionality below.
+**59 Tools Available** - Organized by entity and functionality below.
 
 ### Key Features:
 - **CQRS Pattern** - Consolidated action-based tools: `browse_*` for reads, `manage_*` for writes
@@ -695,6 +700,20 @@ Webhooks can be configured to trigger on:
 - **Member events** - Member added/removed
 - **Subgroup events** - Subgroup created/removed (group webhooks only)
 - **Project events** - Project created/removed (group webhooks only)
+
+### Snippets Management (2 tools)
+Requires USE_SNIPPETS=true environment variable (enabled by default). Uses CQRS pattern with action-based tools. Supports personal, project, and public snippets with multi-file support.
+
+#### Snippet Browsing (Query)
+- 📖 **`list_snippets`**: LIST GitLab code snippets with flexible scoping. Use scope='personal' for current user's snippets, scope='project' for project-specific snippets (requires projectId), or scope='public' to discover all public snippets. Filter by visibility level (private/internal/public) and creation date. Supports pagination.
+
+#### Snippet Management (Command)
+- ✏️ **`manage_snippet`**: MANAGE GitLab snippets with full CRUD operations via action parameter. Actions: "read" retrieves snippet metadata or raw content, "create" creates new snippet with multiple files and visibility control, "update" modifies title/description/visibility/files (supports file create/update/delete/move actions), "delete" permanently removes snippet. Supports both personal and project snippets.
+
+#### Multi-file Snippet Support
+Snippets can contain multiple files with individual operations:
+- **Create action** - Files array with `file_path` and `content` for each file
+- **Update action** - Files array with `action` field: "create" (add new), "update" (modify existing), "delete" (remove), "move" (rename with `previous_path`)
 
 ## CLI Tools 🔧
 
