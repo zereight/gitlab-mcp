@@ -1,3 +1,11 @@
+## [6.2.3](https://github.com/structured-world/gitlab-mcp/compare/v6.2.2...v6.2.3) (2026-01-19)
+
+### Refactoring
+
+* **core:** convert remaining discriminated unions to flat schemas ([32efcdc](https://github.com/structured-world/gitlab-mcp/commit/32efcdc52a1cf5e4792f2dbb8086ad88181c2d32))
+* **files:** remove unnecessary Uint8Array wrapper ([322bc4b](https://github.com/structured-world/gitlab-mcp/commit/322bc4b927e0823954f864d2396b8fb713c76366))
+* **schemas:** convert CQRS schemas from discriminated unions to flat schemas ([f934cfd](https://github.com/structured-world/gitlab-mcp/commit/f934cfdfb10be98a3c8db790c940c1ba8c781077)), closes [#29](https://github.com/structured-world/gitlab-mcp/issues/29)
+
 ## [6.2.2](https://github.com/structured-world/gitlab-mcp/compare/v6.2.1...v6.2.2) (2026-01-19)
 
 ### Refactoring
