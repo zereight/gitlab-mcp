@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { flexibleBoolean } from "../utils";
+import { flexibleBoolean, requiredId } from "../utils";
 
 // ============================================================================
 // CONSOLIDATED WRITE SCHEMAS (Issue #16)
@@ -44,9 +44,9 @@ const CreateRepositoryAction = z.object({
 // discriminated union. Handler maps these to GitLab API's name/path parameters.
 const ForkRepositoryAction = z.object({
   action: z.literal("fork").describe("Fork an existing repository."),
-  project_id: z.coerce
-    .string()
-    .describe("Source project to fork (required for fork). Numeric ID or URL-encoded path."),
+  project_id: requiredId.describe(
+    "Source project to fork (required for fork). Numeric ID or URL-encoded path."
+  ),
   namespace: z.string().optional().describe("Target namespace ID or path for fork."),
   namespace_path: z.string().optional().describe("Target namespace path for fork."),
   fork_name: z
@@ -71,7 +71,7 @@ export const ManageRepositorySchema = z
 // ============================================================================
 
 export const CreateBranchSchema = z.object({
-  project_id: z.coerce.string().describe("Target project for new branch."),
+  project_id: requiredId.describe("Target project for new branch."),
   branch: z.string().describe("New branch name."),
   ref: z.string().describe("Source reference (branch name or commit SHA)."),
 });

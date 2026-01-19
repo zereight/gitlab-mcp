@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { flexibleBoolean } from "../utils";
+import { flexibleBoolean, requiredId } from "../utils";
 import { ProjectParamsSchema } from "../shared";
 
 // READ-ONLY FILE OPERATION SCHEMAS
@@ -44,7 +44,7 @@ export const GitLabTreeSchema = z.object({
 
 // Repository operations (read-only)
 export const GetRepositoryTreeSchema = z.object({
-  project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
+  project_id: requiredId.describe("Project ID or URL-encoded path"),
   path: z.string().optional().describe("The path inside repository"),
   ref: z.string().optional().describe("The name of a repository branch or tag"),
   recursive: flexibleBoolean.optional().describe("Boolean value used to get a recursive tree"),
@@ -63,7 +63,7 @@ export const GetFileContentsSchema = ProjectParamsSchema.extend({
 // ============================================================================
 
 const BrowseFilesBaseSchema = z.object({
-  project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
+  project_id: requiredId.describe("Project ID or URL-encoded path"),
   ref: z.string().optional().describe("Branch, tag, or commit SHA"),
 });
 

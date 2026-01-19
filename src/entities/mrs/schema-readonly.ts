@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { flexibleBoolean } from "../utils";
+import { flexibleBoolean, requiredId } from "../utils";
 import { PaginationOptionsSchema, ProjectParamsSchema } from "../shared";
 
 // ============================================================================
@@ -8,7 +8,7 @@ import { PaginationOptionsSchema, ProjectParamsSchema } from "../shared";
 // ============================================================================
 
 const BrowseMRsBaseSchema = z.object({
-  project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
+  project_id: requiredId.describe("Project ID or URL-encoded path"),
 });
 
 // List merge requests action
@@ -125,7 +125,7 @@ const BrowseMRsGetSchema = BrowseMRsBaseSchema.extend({
 // Get merge request diffs action
 const BrowseMRsDiffsSchema = BrowseMRsBaseSchema.extend({
   action: z.literal("diffs"),
-  merge_request_iid: z.coerce.string().describe("Internal MR ID unique to project."),
+  merge_request_iid: requiredId.describe("Internal MR ID unique to project."),
   include_diverged_commits_count: flexibleBoolean
     .optional()
     .describe("Include count of commits the source branch is behind target."),
@@ -159,8 +159,8 @@ export const BrowseMergeRequestsSchema = z.discriminatedUnion("action", [
 // ============================================================================
 
 const BrowseDiscussionsBaseSchema = z.object({
-  project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
-  merge_request_iid: z.coerce.string().describe("Internal MR ID unique to project."),
+  project_id: requiredId.describe("Project ID or URL-encoded path"),
+  merge_request_iid: requiredId.describe("Internal MR ID unique to project."),
 });
 
 // List discussions action
@@ -176,7 +176,7 @@ const BrowseDiscussionsDraftsSchema = BrowseDiscussionsBaseSchema.extend({
 // Get single draft note action
 const BrowseDiscussionsDraftSchema = BrowseDiscussionsBaseSchema.extend({
   action: z.literal("draft"),
-  draft_note_id: z.coerce.string().describe("Unique identifier of the draft note."),
+  draft_note_id: requiredId.describe("Unique identifier of the draft note."),
 });
 
 export const BrowseMrDiscussionsSchema = z.discriminatedUnion("action", [
@@ -216,7 +216,7 @@ export const GetMergeRequestSchema = ProjectParamsSchema.extend({
 
 // Base schema for MR operations with just project and IID (no refinements)
 const BaseMergeRequestSchema = ProjectParamsSchema.extend({
-  merge_request_iid: z.coerce.string().describe("Internal MR ID unique to project."),
+  merge_request_iid: requiredId.describe("Internal MR ID unique to project."),
   include_diverged_commits_count: z
     .boolean()
     .optional()
@@ -239,17 +239,17 @@ export const ListMergeRequestDiffsSchema = BaseMergeRequestSchema.extend({
 
 // List merge request discussions (read-only) - legacy
 export const ListMergeRequestDiscussionsSchema = ProjectParamsSchema.extend({
-  merge_request_iid: z.coerce.string().describe("Internal MR ID unique to project."),
+  merge_request_iid: requiredId.describe("Internal MR ID unique to project."),
 }).merge(PaginationOptionsSchema);
 
 // Draft notes (read-only) - legacy
 export const GetDraftNoteSchema = ProjectParamsSchema.extend({
-  merge_request_iid: z.coerce.string().describe("Internal MR ID unique to project."),
-  draft_note_id: z.coerce.string().describe("Unique identifier of the draft note."),
+  merge_request_iid: requiredId.describe("Internal MR ID unique to project."),
+  draft_note_id: requiredId.describe("Unique identifier of the draft note."),
 });
 
 export const ListDraftNotesSchema = ProjectParamsSchema.extend({
-  merge_request_iid: z.coerce.string().describe("Internal MR ID unique to project."),
+  merge_request_iid: requiredId.describe("Internal MR ID unique to project."),
 });
 
 // List merge requests (read-only) - legacy

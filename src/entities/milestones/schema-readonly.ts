@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { PaginationOptionsSchema, GitLabMilestoneSchema } from "../shared";
-import { flexibleBoolean } from "../utils";
+import { flexibleBoolean, requiredId } from "../utils";
 
 // Re-export shared schema
 export { GitLabMilestoneSchema };
@@ -57,7 +57,7 @@ export const ListProjectMilestonesSchema = z
 // Base schema for milestone operations
 const GetProjectMilestoneBaseSchema = z.object({
   namespace: z.string().describe("Namespace path (group or project) containing the milestone"),
-  milestone_id: z.coerce.string().describe("The ID of a project or group milestone"),
+  milestone_id: requiredId.describe("The ID of a project or group milestone"),
 });
 
 // Schema for getting a single milestone
