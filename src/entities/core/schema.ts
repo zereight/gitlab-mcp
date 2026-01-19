@@ -3,40 +3,11 @@ import { flexibleBoolean } from "../utils";
 
 // ============================================================================
 // CONSOLIDATED WRITE SCHEMAS (Issue #16)
-// Future: Consider Zod discriminated unions for compile-time action validation
+// Using Zod discriminated unions for compile-time action validation
 // ============================================================================
 
-// manage_repository: Consolidates create_repository, fork_repository (2 → 1)
-export const ManageRepositorySchema = z.object({
-  action: z
-    .enum(["create", "fork"])
-    .describe("Operation: create=new repository, fork=copy existing repository."),
-
-  // For "create" action
-  name: z.string().optional().describe('Project name (required for "create" action).'),
-  namespace: z
-    .string()
-    .optional()
-    .describe("Target namespace path. Omit for current user namespace."),
-  description: z.string().optional().describe("Project description."),
-  visibility: z
-    .enum(["private", "internal", "public"])
-    .optional()
-    .describe("Project visibility level."),
-  initialize_with_readme: flexibleBoolean.optional().describe("Create initial README.md file."),
-
-  // For "fork" action
-  // Note: fork_name/fork_path are distinct from create's name to avoid schema conflicts.
-  // Handler maps these to GitLab API's 'name'/'path' params for fork endpoint.
-  project_id: z.coerce
-    .string()
-    .optional()
-    .describe('Source project to fork (required for "fork" action).'),
-  namespace_path: z.string().optional().describe("Target namespace for fork."),
-  fork_name: z.string().optional().describe("New name for forked project (maps to API 'name')."),
-  fork_path: z.string().optional().describe("New path for forked project (maps to API 'path')."),
-
-  // Common creation options
+// Common options shared between create and fork actions
+const CommonRepositoryOptions = {
   issues_enabled: flexibleBoolean.optional().describe("Enable issue tracking."),
   merge_requests_enabled: flexibleBoolean.optional().describe("Enable merge requests."),
   jobs_enabled: flexibleBoolean.optional().describe("Enable CI/CD jobs."),
@@ -50,7 +21,50 @@ export const ManageRepositorySchema = z.object({
   only_allow_merge_if_all_discussions_are_resolved: flexibleBoolean
     .optional()
     .describe("Require resolved discussions for merge."),
+};
+
+// manage_repository: Discriminated union for create vs fork
+const CreateRepositoryAction = z.object({
+  action: z.literal("create").describe("Create a new repository."),
+  name: z.string().describe("Project name (required for create)."),
+  namespace: z
+    .string()
+    .optional()
+    .describe("Target namespace path. Omit for current user namespace."),
+  description: z.string().optional().describe("Project description."),
+  visibility: z
+    .enum(["private", "internal", "public"])
+    .optional()
+    .describe("Project visibility level."),
+  initialize_with_readme: flexibleBoolean.optional().describe("Create initial README.md file."),
+  ...CommonRepositoryOptions,
 });
+
+// fork_name/fork_path are distinct from create's name to avoid schema conflicts in the
+// discriminated union. Handler maps these to GitLab API's name/path parameters.
+const ForkRepositoryAction = z.object({
+  action: z.literal("fork").describe("Fork an existing repository."),
+  project_id: z.coerce
+    .string()
+    .describe("Source project to fork (required for fork). Numeric ID or URL-encoded path."),
+  namespace: z.string().optional().describe("Target namespace ID or path for fork."),
+  namespace_path: z.string().optional().describe("Target namespace path for fork."),
+  fork_name: z
+    .string()
+    .optional()
+    .describe("New name for forked project (maps to API 'name' parameter)."),
+  fork_path: z
+    .string()
+    .optional()
+    .describe("New path for forked project (maps to API 'path' parameter)."),
+  ...CommonRepositoryOptions,
+});
+
+export const ManageRepositorySchema = z
+  .discriminatedUnion("action", [CreateRepositoryAction, ForkRepositoryAction])
+  .describe(
+    "REPOSITORY MANAGEMENT: Create or fork GitLab projects. Use 'create' with name for new project. Use 'fork' with project_id to copy existing project."
+  );
 
 // ============================================================================
 // KEPT AS-IS WRITE SCHEMAS
@@ -81,83 +95,26 @@ export const CreateGroupSchema = z.object({
   avatar: z.string().optional().describe("Group avatar URL."),
 });
 
-// Todos management (write operations)
-export const ManageTodosSchema = z.object({
-  action: z
-    .enum(["mark_done", "mark_all_done", "restore"])
-    .describe(
-      "Action: mark_done=complete single todo, mark_all_done=complete all, restore=reopen completed."
-    ),
-  id: z
-    .number()
-    .int()
-    .positive()
-    .optional()
-    .describe("Todo ID (required for mark_done and restore)."),
+// manage_todos: Discriminated union for mark_done/mark_all_done/restore
+const MarkDoneTodoAction = z.object({
+  action: z.literal("mark_done").describe("Mark a single todo as done."),
+  id: z.number().int().positive().describe("Todo ID to mark as done (required)."),
 });
 
-// ============================================================================
-// DEPRECATED WRITE SCHEMAS (kept for backward compatibility)
-// ============================================================================
-
-// @deprecated Use ManageRepositorySchema with action: "create"
-export const CreateRepositorySchema = z.object({
-  name: z.string().describe("Project display name."),
-  namespace: z.string().optional().describe("Target namespace path."),
-  description: z.string().optional().describe("Project description."),
-  issues_enabled: flexibleBoolean.optional(),
-  merge_requests_enabled: flexibleBoolean.optional(),
-  jobs_enabled: flexibleBoolean.optional(),
-  wiki_enabled: flexibleBoolean.optional(),
-  snippets_enabled: flexibleBoolean.optional(),
-  resolve_outdated_diff_discussions: flexibleBoolean.optional(),
-  container_registry_enabled: flexibleBoolean.optional(),
-  container_registry_access_level: z.enum(["disabled", "private", "enabled"]).optional(),
-  shared_runners_enabled: flexibleBoolean.optional(),
-  visibility: z.enum(["private", "internal", "public"]).optional(),
-  import_url: z.string().optional(),
-  public_jobs: flexibleBoolean.optional(),
-  only_allow_merge_if_pipeline_succeeds: flexibleBoolean.optional(),
-  allow_merge_on_skipped_pipeline: flexibleBoolean.optional(),
-  only_allow_merge_if_all_discussions_are_resolved: flexibleBoolean.optional(),
-  merge_method: z.enum(["merge", "rebase_merge", "ff"]).optional(),
-  autoclose_referenced_issues: flexibleBoolean.optional(),
-  suggestion_commit_message: z.string().optional(),
-  remove_source_branch_after_merge: flexibleBoolean.optional(),
-  lfs_enabled: flexibleBoolean.optional(),
-  request_access_enabled: flexibleBoolean.optional(),
-  tag_list: z.array(z.string()).optional(),
-  printing_merge_request_link_enabled: flexibleBoolean.optional(),
-  build_git_strategy: z.enum(["fetch", "clone"]).optional(),
-  build_timeout: z.number().optional(),
-  auto_cancel_pending_pipelines: z.enum(["disabled", "enabled"]).optional(),
-  build_coverage_regex: z.string().optional(),
-  ci_config_path: z.string().optional(),
-  auto_devops_enabled: flexibleBoolean.optional(),
-  auto_devops_deploy_strategy: z.enum(["continuous", "manual", "timed_incremental"]).optional(),
-  repository_storage: z.string().optional(),
-  approvals_before_merge: z.number().optional(),
-  external_authorization_classification_label: z.string().optional(),
-  mirror: flexibleBoolean.optional(),
-  mirror_trigger_builds: flexibleBoolean.optional(),
-  initialize_with_readme: flexibleBoolean.optional(),
-  template_name: z.string().optional(),
-  template_project_id: z.number().optional(),
-  use_custom_template: flexibleBoolean.optional(),
-  group_with_project_templates_id: z.number().optional(),
-  packages_enabled: flexibleBoolean.optional(),
-  service_desk_enabled: flexibleBoolean.optional(),
-  compliance_frameworks: z.array(z.string()).optional(),
+const MarkAllDoneTodoAction = z.object({
+  action: z.literal("mark_all_done").describe("Mark all todos as done."),
 });
 
-// @deprecated Use ManageRepositorySchema with action: "fork"
-export const ForkRepositorySchema = z.object({
-  project_id: z.coerce.string().describe("Source project to fork."),
-  namespace: z.string().optional().describe("Target namespace."),
-  namespace_path: z.string().optional().describe("Target namespace path."),
-  name: z.string().optional().describe("Fork name."),
-  path: z.string().optional().describe("Fork path."),
+const RestoreTodoAction = z.object({
+  action: z.literal("restore").describe("Restore a completed todo to pending."),
+  id: z.number().int().positive().describe("Todo ID to restore (required)."),
 });
+
+export const ManageTodosSchema = z
+  .discriminatedUnion("action", [MarkDoneTodoAction, MarkAllDoneTodoAction, RestoreTodoAction])
+  .describe(
+    "TODO ACTIONS: Manage GitLab todo items. mark_done requires id, mark_all_done clears all, restore requires id."
+  );
 
 // ============================================================================
 // TYPE EXPORTS
@@ -165,12 +122,8 @@ export const ForkRepositorySchema = z.object({
 
 // Consolidated types
 export type ManageRepositoryOptions = z.infer<typeof ManageRepositorySchema>;
+export type ManageTodosOptions = z.infer<typeof ManageTodosSchema>;
 
 // Kept as-is types
 export type CreateBranchOptions = z.infer<typeof CreateBranchSchema>;
 export type CreateGroupOptions = z.infer<typeof CreateGroupSchema>;
-export type ManageTodosOptions = z.infer<typeof ManageTodosSchema>;
-
-// Deprecated types
-export type CreateRepositoryOptions = z.infer<typeof CreateRepositorySchema>;
-export type ForkRepositoryOptions = z.infer<typeof ForkRepositorySchema>;

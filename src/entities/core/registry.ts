@@ -46,10 +46,11 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
       inputSchema: z.toJSONSchema(BrowseProjectsSchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = BrowseProjectsSchema.parse(args);
-        const { action, project_id, q, group_id, ...otherOptions } = options;
 
-        switch (action) {
+        switch (options.action) {
           case "search": {
+            const { q, with_programming_language, visibility, order_by, sort, per_page, page } =
+              options;
             const queryParams = new URLSearchParams();
 
             // Handle search query
@@ -71,19 +72,14 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
               }
             }
 
-            // Add programming language filter
-            if (otherOptions.with_programming_language) {
-              queryParams.set("with_programming_language", otherOptions.with_programming_language);
-            }
-
-            // Add other search options
-            const searchParams = ["visibility", "order_by", "sort", "per_page", "page"];
-            searchParams.forEach(key => {
-              const value = otherOptions[key];
-              if (value !== undefined) {
-                queryParams.set(key, String(value));
-              }
-            });
+            // Add options
+            if (with_programming_language)
+              queryParams.set("with_programming_language", with_programming_language);
+            if (visibility) queryParams.set("visibility", visibility);
+            if (order_by) queryParams.set("order_by", order_by);
+            if (sort) queryParams.set("sort", sort);
+            if (per_page) queryParams.set("per_page", String(per_page));
+            if (page) queryParams.set("page", String(page));
 
             queryParams.set("active", "true");
 
@@ -99,31 +95,42 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
           }
 
           case "list": {
+            const {
+              group_id,
+              search,
+              owned,
+              starred,
+              membership,
+              simple,
+              with_programming_language,
+              include_subgroups,
+              with_shared,
+              visibility,
+              archived,
+              order_by,
+              sort,
+              per_page,
+              page,
+            } = options;
             const queryParams = new URLSearchParams();
 
             // Build query parameters
-            const listParams = [
-              "visibility",
-              "archived",
-              "owned",
-              "starred",
-              "membership",
-              "search",
-              "simple",
-              "order_by",
-              "sort",
-              "per_page",
-              "page",
-              "include_subgroups",
-              "with_shared",
-              "with_programming_language",
-            ];
-            listParams.forEach(key => {
-              const value = otherOptions[key];
-              if (value !== undefined) {
-                queryParams.set(key, String(value));
-              }
-            });
+            if (visibility) queryParams.set("visibility", visibility);
+            if (archived !== undefined) queryParams.set("archived", String(archived));
+            if (owned !== undefined) queryParams.set("owned", String(owned));
+            if (starred !== undefined) queryParams.set("starred", String(starred));
+            if (membership !== undefined) queryParams.set("membership", String(membership));
+            if (search) queryParams.set("search", search);
+            if (simple !== undefined) queryParams.set("simple", String(simple));
+            if (order_by) queryParams.set("order_by", order_by);
+            if (sort) queryParams.set("sort", sort);
+            if (per_page) queryParams.set("per_page", String(per_page));
+            if (page) queryParams.set("page", String(page));
+            if (include_subgroups !== undefined)
+              queryParams.set("include_subgroups", String(include_subgroups));
+            if (with_shared !== undefined) queryParams.set("with_shared", String(with_shared));
+            if (with_programming_language)
+              queryParams.set("with_programming_language", with_programming_language);
 
             // Set defaults
             if (!queryParams.has("order_by")) queryParams.set("order_by", "created_at");
@@ -150,15 +157,11 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
           }
 
           case "get": {
-            if (!project_id) {
-              throw new Error(
-                'project_id is required for "get" action. Provide numeric ID (e.g., "42") or URL-encoded path (e.g., "group%2Fproject").'
-              );
-            }
+            const { project_id, statistics, license } = options;
 
             const queryParams = new URLSearchParams();
-            if (otherOptions.statistics) queryParams.set("statistics", "true");
-            if (otherOptions.license) queryParams.set("license", "true");
+            if (statistics) queryParams.set("statistics", "true");
+            if (license) queryParams.set("license", "true");
 
             const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${normalizeProjectId(project_id)}?${queryParams}`;
             const response = await enhancedFetch(apiUrl);
@@ -171,8 +174,10 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
             return cleanGidsFromObject(project);
           }
 
-          default:
-            throw new Error(`Unknown action: ${action as string}`);
+          default: {
+            const _exhaustive: never = options;
+            throw new Error(`Unknown action: ${(_exhaustive as { action: string }).action}`);
+          }
         }
       },
     },
@@ -188,26 +193,30 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
       inputSchema: z.toJSONSchema(BrowseNamespacesSchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = BrowseNamespacesSchema.parse(args);
-        const { action, namespace_id, ...otherOptions } = options;
 
-        switch (action) {
+        switch (options.action) {
           case "list": {
+            const {
+              search,
+              owned_only,
+              top_level_only,
+              with_statistics,
+              min_access_level,
+              per_page,
+              page,
+            } = options;
             const queryParams = new URLSearchParams();
-            const listParams = [
-              "search",
-              "owned_only",
-              "top_level_only",
-              "with_statistics",
-              "min_access_level",
-              "per_page",
-              "page",
-            ];
-            listParams.forEach(key => {
-              const value = otherOptions[key];
-              if (value !== undefined) {
-                queryParams.set(key, String(value));
-              }
-            });
+
+            if (search) queryParams.set("search", search);
+            if (owned_only !== undefined) queryParams.set("owned_only", String(owned_only));
+            if (top_level_only !== undefined)
+              queryParams.set("top_level_only", String(top_level_only));
+            if (with_statistics !== undefined)
+              queryParams.set("with_statistics", String(with_statistics));
+            if (min_access_level !== undefined)
+              queryParams.set("min_access_level", String(min_access_level));
+            if (per_page) queryParams.set("per_page", String(per_page));
+            if (page) queryParams.set("page", String(page));
 
             const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/namespaces?${queryParams}`;
             const response = await enhancedFetch(apiUrl);
@@ -221,9 +230,7 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
           }
 
           case "get": {
-            if (!namespace_id) {
-              throw new Error('namespace_id is required for "get" action');
-            }
+            const { namespace_id } = options;
 
             const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/namespaces/${encodeURIComponent(namespace_id)}`;
             const response = await enhancedFetch(apiUrl);
@@ -237,9 +244,7 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
           }
 
           case "verify": {
-            if (!namespace_id) {
-              throw new Error('namespace_id is required for "verify" action');
-            }
+            const { namespace_id } = options;
 
             const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/namespaces/${encodeURIComponent(namespace_id)}`;
             const response = await enhancedFetch(apiUrl);
@@ -252,8 +257,10 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
             };
           }
 
-          default:
-            throw new Error(`Unknown action: ${action as string}`);
+          default: {
+            const _exhaustive: never = options;
+            throw new Error(`Unknown action: ${(_exhaustive as { action: string }).action}`);
+          }
         }
       },
     },
@@ -269,31 +276,38 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
       inputSchema: z.toJSONSchema(BrowseCommitsSchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = BrowseCommitsSchema.parse(args);
-        const { action, project_id, sha, ...otherOptions } = options;
 
-        switch (action) {
+        switch (options.action) {
           case "list": {
+            const {
+              project_id,
+              ref_name,
+              since,
+              until,
+              path,
+              author,
+              all,
+              with_stats,
+              first_parent,
+              order,
+              trailers,
+              per_page,
+              page,
+            } = options;
             const queryParams = new URLSearchParams();
-            const listParams = [
-              "ref_name",
-              "since",
-              "until",
-              "path",
-              "author",
-              "all",
-              "with_stats",
-              "first_parent",
-              "order",
-              "trailers",
-              "per_page",
-              "page",
-            ];
-            listParams.forEach(key => {
-              const value = otherOptions[key];
-              if (value !== undefined) {
-                queryParams.set(key, String(value));
-              }
-            });
+
+            if (ref_name) queryParams.set("ref_name", ref_name);
+            if (since) queryParams.set("since", since);
+            if (until) queryParams.set("until", until);
+            if (path) queryParams.set("path", path);
+            if (author) queryParams.set("author", author);
+            if (all !== undefined) queryParams.set("all", String(all));
+            if (with_stats !== undefined) queryParams.set("with_stats", String(with_stats));
+            if (first_parent !== undefined) queryParams.set("first_parent", String(first_parent));
+            if (order) queryParams.set("order", order);
+            if (trailers !== undefined) queryParams.set("trailers", String(trailers));
+            if (per_page) queryParams.set("per_page", String(per_page));
+            if (page) queryParams.set("page", String(page));
 
             const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${encodeURIComponent(project_id)}/repository/commits?${queryParams}`;
             const response = await enhancedFetch(apiUrl);
@@ -306,12 +320,10 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
           }
 
           case "get": {
-            if (!sha) {
-              throw new Error('sha is required for "get" action');
-            }
+            const { project_id, sha, stats } = options;
 
             const queryParams = new URLSearchParams();
-            if (otherOptions.stats) queryParams.set("stats", "true");
+            if (stats) queryParams.set("stats", "true");
 
             const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${encodeURIComponent(project_id)}/repository/commits/${encodeURIComponent(sha)}?${queryParams}`;
             const response = await enhancedFetch(apiUrl);
@@ -324,12 +336,10 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
           }
 
           case "diff": {
-            if (!sha) {
-              throw new Error('sha is required for "diff" action');
-            }
+            const { project_id, sha, unidiff } = options;
 
             const queryParams = new URLSearchParams();
-            if (otherOptions.unidiff) queryParams.set("unidiff", "true");
+            if (unidiff) queryParams.set("unidiff", "true");
 
             const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${encodeURIComponent(project_id)}/repository/commits/${encodeURIComponent(sha)}/diff?${queryParams}`;
             const response = await enhancedFetch(apiUrl);
@@ -341,8 +351,10 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
             return await response.json();
           }
 
-          default:
-            throw new Error(`Unknown action: ${action as string}`);
+          default: {
+            const _exhaustive: never = options;
+            throw new Error(`Unknown action: ${(_exhaustive as { action: string }).action}`);
+          }
         }
       },
     },
@@ -358,48 +370,59 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
       inputSchema: z.toJSONSchema(BrowseEventsSchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = BrowseEventsSchema.parse(args);
-        const { action, project_id, event_action, ...otherOptions } = options;
 
-        const queryParams = new URLSearchParams();
-        const eventParams = ["target_type", "before", "after", "sort", "per_page", "page"];
-        eventParams.forEach(key => {
-          const value = otherOptions[key];
-          if (value !== undefined) {
-            queryParams.set(key, String(value));
-          }
-        });
+        // Build common query params based on action type
+        const buildQueryParams = (opts: {
+          target_type?: string;
+          event_action?: string;
+          before?: string;
+          after?: string;
+          sort?: string;
+          per_page?: number;
+          page?: number;
+        }) => {
+          const queryParams = new URLSearchParams();
+          if (opts.target_type) queryParams.set("target_type", opts.target_type);
+          if (opts.event_action) queryParams.set("action", opts.event_action);
+          if (opts.before) queryParams.set("before", opts.before);
+          if (opts.after) queryParams.set("after", opts.after);
+          if (opts.sort) queryParams.set("sort", opts.sort);
+          if (opts.per_page) queryParams.set("per_page", String(opts.per_page));
+          if (opts.page) queryParams.set("page", String(opts.page));
+          return queryParams;
+        };
 
-        // event_action maps to 'action' in the API
-        if (event_action) {
-          queryParams.set("action", event_action);
-        }
+        switch (options.action) {
+          case "user": {
+            const queryParams = buildQueryParams(options);
+            const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/events?${queryParams}`;
+            const response = await enhancedFetch(apiUrl);
 
-        let apiUrl: string;
-        switch (action) {
-          case "user":
-            apiUrl = `${process.env.GITLAB_API_URL}/api/v4/events?${queryParams}`;
-            break;
-
-          case "project":
-            if (!project_id) {
-              throw new Error(
-                'project_id is required for "project" action. Provide numeric ID (e.g., "42") or URL-encoded path (e.g., "group%2Fproject").'
-              );
+            if (!response.ok) {
+              throw new Error(`GitLab API error: ${response.status} ${response.statusText}`);
             }
-            apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${encodeURIComponent(project_id)}/events?${queryParams}`;
-            break;
 
-          default:
-            throw new Error(`Unknown action: ${action as string}`);
+            return await response.json();
+          }
+
+          case "project": {
+            const { project_id } = options;
+            const queryParams = buildQueryParams(options);
+            const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${encodeURIComponent(project_id)}/events?${queryParams}`;
+            const response = await enhancedFetch(apiUrl);
+
+            if (!response.ok) {
+              throw new Error(`GitLab API error: ${response.status} ${response.statusText}`);
+            }
+
+            return await response.json();
+          }
+
+          default: {
+            const _exhaustive: never = options;
+            throw new Error(`Unknown action: ${(_exhaustive as { action: string }).action}`);
+          }
         }
-
-        const response = await enhancedFetch(apiUrl);
-
-        if (!response.ok) {
-          throw new Error(`GitLab API error: ${response.status} ${response.statusText}`);
-        }
-
-        return await response.json();
       },
     },
   ],
@@ -414,22 +437,25 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
       inputSchema: z.toJSONSchema(ManageRepositorySchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = ManageRepositorySchema.parse(args);
-        const {
-          action,
-          name,
-          namespace,
-          project_id,
-          namespace_path,
-          fork_name,
-          fork_path,
-          ...otherOptions
-        } = options;
 
-        switch (action) {
+        switch (options.action) {
           case "create": {
-            if (!name) {
-              throw new Error('name is required for "create" action');
-            }
+            const {
+              name,
+              namespace,
+              description,
+              visibility,
+              initialize_with_readme,
+              issues_enabled,
+              merge_requests_enabled,
+              jobs_enabled,
+              wiki_enabled,
+              snippets_enabled,
+              lfs_enabled,
+              request_access_enabled,
+              only_allow_merge_if_pipeline_succeeds,
+              only_allow_merge_if_all_discussions_are_resolved,
+            } = options;
 
             // Resolve namespace path to ID if provided
             let namespaceId: string | undefined;
@@ -477,28 +503,31 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
             body.set("path", generatedPath);
 
             if (namespaceId) body.set("namespace_id", namespaceId);
-            if (otherOptions.description) body.set("description", otherOptions.description);
-            if (otherOptions.visibility) body.set("visibility", otherOptions.visibility);
-            if (otherOptions.initialize_with_readme) body.set("initialize_with_readme", "true");
+            if (description) body.set("description", description);
+            if (visibility) body.set("visibility", visibility);
+            if (initialize_with_readme) body.set("initialize_with_readme", "true");
 
             // Add optional feature flags
-            const featureFlags = [
-              "issues_enabled",
-              "merge_requests_enabled",
-              "jobs_enabled",
-              "wiki_enabled",
-              "snippets_enabled",
-              "lfs_enabled",
-              "request_access_enabled",
-              "only_allow_merge_if_pipeline_succeeds",
-              "only_allow_merge_if_all_discussions_are_resolved",
-            ];
-            featureFlags.forEach(flag => {
-              const value = otherOptions[flag];
-              if (value !== undefined) {
-                body.set(flag, String(value));
-              }
-            });
+            if (issues_enabled !== undefined) body.set("issues_enabled", String(issues_enabled));
+            if (merge_requests_enabled !== undefined)
+              body.set("merge_requests_enabled", String(merge_requests_enabled));
+            if (jobs_enabled !== undefined) body.set("jobs_enabled", String(jobs_enabled));
+            if (wiki_enabled !== undefined) body.set("wiki_enabled", String(wiki_enabled));
+            if (snippets_enabled !== undefined)
+              body.set("snippets_enabled", String(snippets_enabled));
+            if (lfs_enabled !== undefined) body.set("lfs_enabled", String(lfs_enabled));
+            if (request_access_enabled !== undefined)
+              body.set("request_access_enabled", String(request_access_enabled));
+            if (only_allow_merge_if_pipeline_succeeds !== undefined)
+              body.set(
+                "only_allow_merge_if_pipeline_succeeds",
+                String(only_allow_merge_if_pipeline_succeeds)
+              );
+            if (only_allow_merge_if_all_discussions_are_resolved !== undefined)
+              body.set(
+                "only_allow_merge_if_all_discussions_are_resolved",
+                String(only_allow_merge_if_all_discussions_are_resolved)
+              );
 
             const createApiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects`;
             const createResponse = await enhancedFetch(createApiUrl, {
@@ -524,11 +553,7 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
           }
 
           case "fork": {
-            if (!project_id) {
-              throw new Error(
-                'project_id is required for "fork" action. Provide the source project numeric ID (e.g., "42") or URL-encoded path (e.g., "group%2Fproject").'
-              );
-            }
+            const { project_id, namespace, namespace_path, fork_name, fork_path } = options;
 
             const body = new URLSearchParams();
             if (namespace) body.set("namespace", namespace);
@@ -550,8 +575,10 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
             return await response.json();
           }
 
-          default:
-            throw new Error(`Unknown action: ${action as string}`);
+          default: {
+            const _exhaustive: never = options;
+            throw new Error(`Unknown action: ${(_exhaustive as { action: string }).action}`);
+          }
         }
       },
     },
@@ -808,43 +835,54 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
     {
       name: "manage_todos",
       description:
-        "TODO ACTIONS: Manage your GitLab todo items. Use 'mark_done' with id to complete a single todo after handling it. Use 'mark_all_done' to clear your entire todo queue at once. Use 'restore' with id to undo a completed todo and return it to pending state.",
+        "TODO ACTIONS: Manage your GitLab todo items. Use 'mark_done' with id to complete a single todo (returns the updated todo object). Use 'mark_all_done' to clear your entire todo queue (returns success status). Use 'restore' with id to undo a completed todo (returns the restored todo object).",
       inputSchema: z.toJSONSchema(ManageTodosSchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = ManageTodosSchema.parse(args);
-        const { action, id } = options;
 
-        if ((action === "mark_done" || action === "restore") && id === undefined) {
-          throw new Error(`Todo ID is required for action '${action}'`);
+        switch (options.action) {
+          case "mark_done": {
+            const { id } = options;
+            const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/todos/${id}/mark_as_done`;
+            const response = await enhancedFetch(apiUrl, { method: "POST" });
+
+            if (!response.ok) {
+              throw new Error(`GitLab API error: ${response.status} ${response.statusText}`);
+            }
+
+            const todo = await response.json();
+            return cleanGidsFromObject(todo);
+          }
+
+          case "mark_all_done": {
+            const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/todos/mark_all_as_done`;
+            const response = await enhancedFetch(apiUrl, { method: "POST" });
+
+            if (!response.ok) {
+              throw new Error(`GitLab API error: ${response.status} ${response.statusText}`);
+            }
+
+            return { success: true, message: "All todos marked as done" };
+          }
+
+          case "restore": {
+            const { id } = options;
+            const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/todos/${id}/mark_as_pending`;
+            const response = await enhancedFetch(apiUrl, { method: "POST" });
+
+            if (!response.ok) {
+              throw new Error(`GitLab API error: ${response.status} ${response.statusText}`);
+            }
+
+            const todo = await response.json();
+            return cleanGidsFromObject(todo);
+          }
+
+          default: {
+            const _exhaustive: never = options;
+            throw new Error(`Unknown action: ${(_exhaustive as { action: string }).action}`);
+          }
         }
-
-        let apiUrl: string;
-        switch (action) {
-          case "mark_done":
-            apiUrl = `${process.env.GITLAB_API_URL}/api/v4/todos/${id}/mark_as_done`;
-            break;
-          case "mark_all_done":
-            apiUrl = `${process.env.GITLAB_API_URL}/api/v4/todos/mark_all_as_done`;
-            break;
-          case "restore":
-            apiUrl = `${process.env.GITLAB_API_URL}/api/v4/todos/${id}/mark_as_pending`;
-            break;
-          default:
-            throw new Error(`Unknown action: ${action as string}`);
-        }
-
-        const response = await enhancedFetch(apiUrl, { method: "POST" });
-
-        if (!response.ok) {
-          throw new Error(`GitLab API error: ${response.status} ${response.statusText}`);
-        }
-
-        if (action === "mark_all_done") {
-          return { success: true, message: "All todos marked as done" };
-        }
-
-        const todo = await response.json();
-        return cleanGidsFromObject(todo);
       },
     },
   ],

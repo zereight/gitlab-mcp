@@ -331,7 +331,10 @@ describe("Core Registry", () => {
       for (const [, tool] of coreToolRegistry) {
         expect(tool.inputSchema).toBeDefined();
         expect(typeof tool.inputSchema).toBe("object");
-        expect(tool.inputSchema).toHaveProperty("type");
+        // Schema can have either "type" (regular object) or "oneOf" (discriminated union)
+        const schema = tool.inputSchema as Record<string, unknown>;
+        const hasValidStructure = "type" in schema || "oneOf" in schema;
+        expect(hasValidStructure).toBe(true);
       }
     });
 
@@ -339,9 +342,11 @@ describe("Core Registry", () => {
       for (const [toolName, tool] of coreToolRegistry) {
         expect(tool.inputSchema).toBeDefined();
 
-        // Schema should be an object with type property
+        // Schema should be an object with type or oneOf property (discriminated unions use oneOf)
         if (typeof tool.inputSchema === "object" && tool.inputSchema !== null) {
-          expect(tool.inputSchema).toHaveProperty("type");
+          const schema = tool.inputSchema as Record<string, unknown>;
+          const hasValidStructure = "type" in schema || "oneOf" in schema;
+          expect(hasValidStructure).toBe(true);
         } else {
           throw new Error(`Tool ${toolName} has invalid inputSchema type`);
         }
@@ -782,12 +787,11 @@ describe("Core Registry", () => {
       it("should require id for mark_done action", async () => {
         // Test: Validation that id is required for single-todo operations
         // Why this matters: Prevents calling mark_done without specifying which todo
-        // Edge case: Should throw before making API call
+        // Edge case: Should throw at schema validation (Zod discriminated union enforces id)
         const tool = coreToolRegistry.get("manage_todos");
 
-        await expect(tool!.handler({ action: "mark_done" })).rejects.toThrow(
-          "Todo ID is required for action 'mark_done'"
-        );
+        // Discriminated union schema now enforces id at parse time
+        await expect(tool!.handler({ action: "mark_done" })).rejects.toThrow();
 
         // Verify no API call was made
         expect(mockEnhancedFetch).not.toHaveBeenCalled();
@@ -796,12 +800,11 @@ describe("Core Registry", () => {
       it("should require id for restore action", async () => {
         // Test: Validation that id is required for restore operation
         // Why this matters: Can't restore without knowing which todo to restore
-        // Edge case: Same validation as mark_done
+        // Edge case: Same validation as mark_done - Zod enforces id at parse time
         const tool = coreToolRegistry.get("manage_todos");
 
-        await expect(tool!.handler({ action: "restore" })).rejects.toThrow(
-          "Todo ID is required for action 'restore'"
-        );
+        // Discriminated union schema now enforces id at parse time
+        await expect(tool!.handler({ action: "restore" })).rejects.toThrow();
 
         // Verify no API call was made
         expect(mockEnhancedFetch).not.toHaveBeenCalled();
