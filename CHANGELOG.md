@@ -1,3 +1,16 @@
+## [6.2.0](https://github.com/structured-world/gitlab-mcp/compare/v6.1.0...v6.2.0) (2026-01-19)
+
+### Features
+
+* **workitems:** consolidate 5 work item tools into 2 CQRS tools ([#11](https://github.com/structured-world/gitlab-mcp/issues/11)) ([cd12ffc](https://github.com/structured-world/gitlab-mcp/commit/cd12ffc25911d7f761515089bf1746d72719f931))
+
+### Bug Fixes
+
+* **tests:** make Todos tests resilient to GitLab API variations ([c51f997](https://github.com/structured-world/gitlab-mcp/commit/c51f997ac31a3198573cb77dba9c64c37d836d46))
+* **tests:** update integration tests to use CQRS tool names ([32b88fb](https://github.com/structured-world/gitlab-mcp/commit/32b88fbd0693757acc176e2f5b4488ffce4e5aea))
+* **workitems:** remove unused 'active' parameter from work items schema ([99a91f3](https://github.com/structured-world/gitlab-mcp/commit/99a91f3435cd544496659753161e5955fcaabd05))
+* **workitems:** update comment to reflect CQRS tool name ([f9dc19b](https://github.com/structured-world/gitlab-mcp/commit/f9dc19be4e0f9c07f9641ef03af1601e75f5390d))
+
 ## [6.1.0](https://github.com/structured-world/gitlab-mcp/compare/v6.0.0...v6.1.0) (2026-01-19)
 
 ### ⚠ BREAKING CHANGES
