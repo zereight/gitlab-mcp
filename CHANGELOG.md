@@ -1,3 +1,9 @@
+## [6.6.0](https://github.com/structured-world/gitlab-mcp/compare/v6.5.0...v6.6.0) (2026-01-19)
+
+### Features
+
+* **variables:** consolidate 5 CI/CD variable tools into 2 CQRS tools ([#43](https://github.com/structured-world/gitlab-mcp/issues/43)) ([4b6b82a](https://github.com/structured-world/gitlab-mcp/commit/4b6b82a79d2388ffde045db1f9dcc106cc16ac4d)), closes [#9](https://github.com/structured-world/gitlab-mcp/issues/9)
+
 ## [6.5.0](https://github.com/structured-world/gitlab-mcp/compare/v6.4.1...v6.5.0) (2026-01-19)
 
 ### Features
