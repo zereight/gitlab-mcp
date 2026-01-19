@@ -12,6 +12,8 @@ const BrowseMRsBaseSchema = z.object({
 });
 
 // List merge requests action
+// Note: project_id is optional here (unlike other actions) to support cross-project MR search.
+// When omitted, GitLab returns MRs across all accessible projects.
 const BrowseMRsListSchema = z
   .object({
     action: z.literal("list"),

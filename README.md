@@ -547,56 +547,6 @@ export GITLAB_TOOL_CREATE_WORK_ITEM="Create tickets for our sprint planning"
 - **Tier-based Feature Detection** - Automatically enables features based on your GitLab tier
 - **Read-only Mode Support** - Safe operation mode for production environments
 
-### Migration Guide (v5.x → v6.0) - CQRS Consolidation:
-Multiple individual tools have been consolidated into action-based CQRS tools. This reduces tool count from 85 to 61 while maintaining all functionality.
-
-<details>
-<summary>CQRS Tools Introduced in v6.0</summary>
-
-**Merge Requests (20 tools → 5 CQRS tools)**:
-- `list_merge_requests`, `get_merge_request`, `get_merge_request_diffs`, `list_merge_request_diffs`, `get_branch_diffs` → Use `browse_merge_requests` with action: "list", "get", "diffs", "compare"
-- `mr_discussions`, `list_draft_notes`, `get_draft_note` → Use `browse_mr_discussions` with action: "list", "drafts", "draft"
-- `create_merge_request`, `update_merge_request`, `merge_merge_request` → Use `manage_merge_request` with action: "create", "update", "merge"
-- `create_note`, `create_merge_request_thread`, `create_merge_request_note`, `update_merge_request_note` → Use `manage_mr_discussion` with action: "comment", "thread", "reply", "update"
-- `create_draft_note`, `update_draft_note`, `publish_draft_note`, `bulk_publish_draft_notes`, `delete_draft_note` → Use `manage_draft_notes` with action: "create", "update", "publish", "publish_all", "delete"
-
-**Files (5 tools → 2 CQRS tools)**:
-- `get_file_contents`, `get_repository_tree` → Use `browse_files` with action: "content", "tree"
-- `create_or_update_file`, `push_files`, `upload_markdown` → Use `manage_files` with action: "single", "batch", "upload"
-
-**Core/Projects (13 tools → 5 CQRS tools)**:
-- `list_projects`, `get_project`, `search_repositories` → Use `browse_projects` with action: "list", "get", "search"
-- `create_repository`, `fork_repository` → Use `manage_repository` with action: "create", "fork"
-- `list_namespaces`, `get_namespace`, `verify_namespace` → Use `browse_namespaces` with action: "list", "get", "verify"
-- `list_commits`, `get_commit`, `get_commit_diff` → Use `browse_commits` with action: "list", "get", "diff"
-- `list_events`, `get_project_events` → Use `browse_events` with action: "user", "project"
-
-</details>
-
-### Migration from v2.0:
-All issue management has been migrated to the Work Items GraphQL API. The legacy REST API issue tools (`create_issue`, `update_issue`, etc.) have been removed. Use the Work Items tools (`create_work_item`, `update_work_item`, etc.) instead for better performance and more features.
-
-<details>
-<summary>Removed/Migrated Tools from v2.0</summary>
-
-The following issue-related tools have been removed and replaced by Work Items GraphQL API:
-
-- `create_issue` → Use `create_work_item` instead
-- `update_issue` → Use `update_work_item` instead
-- `delete_issue` → Use `delete_work_item` instead
-- `list_issues` → Use `list_work_items` instead
-- `my_issues` → Use `list_work_items` with assignee filter
-- `get_issue` → Use `get_work_item` instead
-- `create_issue_link` → Use `update_work_item` with LINKED_ITEMS widget
-- `delete_issue_link` → Use `update_work_item` with LINKED_ITEMS widget
-- `update_issue_note` → Use `update_work_item` with NOTES widget
-- `create_issue_note` → Use `update_work_item` with NOTES widget
-- `list_issue_links` → Use Work Items GraphQL API
-- `list_issue_discussions` → Use Work Items GraphQL API
-- `get_issue_link` → Use Work Items GraphQL API
-
-</details>
-
 ## Complete Tool Reference
 
 ### Legend
@@ -867,4 +817,3 @@ This GitLab MCP Server is developed and maintained with care for the community. 
 
 **Maintained with ❤️ by [Dmitry Prudnikov](https://github.com/polaz)**
 **Original work by [zereight](https://github.com/zereight) - Thank you for the foundation!**
-# Version 5.0.0
