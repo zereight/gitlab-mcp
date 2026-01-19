@@ -65,8 +65,8 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
               }
 
               if (finalSearchTerms) {
-                // Let URLSearchParams handle encoding naturally (spaces become %20)
-                // GitLab API accepts both %20 and + for spaces in search queries
+                // Let URLSearchParams handle encoding (spaces become '+' per x-www-form-urlencoded)
+                // GitLab API accepts both '+' and '%20' for spaces in search queries
                 queryParams.set("search", finalSearchTerms);
               }
             }
@@ -151,7 +151,9 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
 
           case "get": {
             if (!project_id) {
-              throw new Error('project_id is required for "get" action');
+              throw new Error(
+                'project_id is required for "get" action. Provide numeric ID (e.g., "42") or URL-encoded path (e.g., "group%2Fproject").'
+              );
             }
 
             const queryParams = new URLSearchParams();
@@ -380,7 +382,9 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
 
           case "project":
             if (!project_id) {
-              throw new Error('project_id is required for "project" action');
+              throw new Error(
+                'project_id is required for "project" action. Provide numeric ID (e.g., "42") or URL-encoded path (e.g., "group%2Fproject").'
+              );
             }
             apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${encodeURIComponent(project_id)}/events?${queryParams}`;
             break;
@@ -521,7 +525,9 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
 
           case "fork": {
             if (!project_id) {
-              throw new Error('project_id is required for "fork" action');
+              throw new Error(
+                'project_id is required for "fork" action. Provide the source project numeric ID (e.g., "42") or URL-encoded path (e.g., "group%2Fproject").'
+              );
             }
 
             const body = new URLSearchParams();

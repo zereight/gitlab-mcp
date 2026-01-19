@@ -25,13 +25,15 @@ export const ManageRepositorySchema = z.object({
   initialize_with_readme: flexibleBoolean.optional().describe("Create initial README.md file."),
 
   // For "fork" action
+  // Note: fork_name/fork_path are distinct from create's name to avoid schema conflicts.
+  // Handler maps these to GitLab API's 'name'/'path' params for fork endpoint.
   project_id: z.coerce
     .string()
     .optional()
     .describe('Source project to fork (required for "fork" action).'),
   namespace_path: z.string().optional().describe("Target namespace for fork."),
-  fork_name: z.string().optional().describe("New name for forked project."),
-  fork_path: z.string().optional().describe("New path for forked project."),
+  fork_name: z.string().optional().describe("New name for forked project (maps to API 'name')."),
+  fork_path: z.string().optional().describe("New path for forked project (maps to API 'path')."),
 
   // Common creation options
   issues_enabled: flexibleBoolean.optional().describe("Enable issue tracking."),
@@ -85,7 +87,12 @@ export const ManageTodosSchema = z.object({
     .describe(
       "Action: mark_done=complete single todo, mark_all_done=complete all, restore=reopen completed."
     ),
-  id: z.number().optional().describe("Todo ID (required for mark_done and restore)."),
+  id: z
+    .number()
+    .int()
+    .positive()
+    .optional()
+    .describe("Todo ID (required for mark_done and restore)."),
 });
 
 // ============================================================================
