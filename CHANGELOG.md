@@ -1,3 +1,10 @@
+## [6.4.1](https://github.com/structured-world/gitlab-mcp/compare/v6.4.0...v6.4.1) (2026-01-19)
+
+### Bug Fixes
+
+* **ci:** handle null values from jq in coverage report formatting ([5621352](https://github.com/structured-world/gitlab-mcp/commit/56213521b541e17baa5d845312a8d7527c25515c))
+* conditionally append % to coverage metrics, avoiding N/A% ([b984c75](https://github.com/structured-world/gitlab-mcp/commit/b984c756e78fbac1fd5f23cbc0cf5f76a829aac6))
+
 ## [6.4.0](https://github.com/structured-world/gitlab-mcp/compare/v6.3.1...v6.4.0) (2026-01-19)
 
 ### Features
