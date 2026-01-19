@@ -461,8 +461,8 @@ When OAuth is enabled, the following endpoints are available:
 - `USE_MILESTONE`: When set to 'true', enables the milestone-related tools (list_milestones, get_milestone, create_milestone, edit_milestone, delete_milestone, get_milestone_issue, get_milestone_merge_requests, promote_milestone, get_milestone_burndown_events). By default, milestone features are disabled.
 - `USE_PIPELINE`: When set to 'true', enables the pipeline-related tools (list_pipelines, get_pipeline, list_pipeline_jobs, list_pipeline_trigger_jobs, get_pipeline_job, get_pipeline_job_output, create_pipeline, retry_pipeline, cancel_pipeline, play_pipeline_job, retry_pipeline_job, cancel_pipeline_job). By default, pipeline features are disabled.
 - `USE_LABELS`: When set to 'true', enables the label-related tools (list_labels, get_label, create_label, update_label, delete_label). By default, label features are enabled.
-- `USE_MRS`: When set to 'true', enables the merge request-related tools (list_merge_requests, get_merge_request, create_merge_request, update_merge_request, merge_merge_request, get_merge_request_diffs, list_merge_request_diffs, mr_discussions, create_merge_request_thread, create_merge_request_note, update_merge_request_note, create_draft_note, update_draft_note, delete_draft_note, publish_draft_note, bulk_publish_draft_notes, get_draft_note, list_draft_notes). By default, merge request features are enabled.
-- `USE_FILES`: When set to 'true', enables the file-related tools (get_file_contents, get_repository_tree, create_or_update_file, push_files, upload_markdown). By default, file operation features are enabled.
+- `USE_MRS`: When set to 'true', enables the merge request-related tools (browse_merge_requests, browse_mr_discussions, manage_merge_request, manage_mr_discussion, manage_draft_notes). These 5 CQRS tools consolidate all MR operations. By default, merge request features are enabled.
+- `USE_FILES`: When set to 'true', enables the file-related tools (browse_files, manage_files). These 2 CQRS tools consolidate all file operations. By default, file operation features are enabled.
 - `USE_VARIABLES`: When set to 'true', enables the CI/CD variables-related tools (list_variables, get_variable, create_variable, update_variable, delete_variable). Supports both project-level and group-level variables. By default, variables features are enabled.
 - `GITLAB_AUTH_COOKIE_PATH`: Path to an authentication cookie file for GitLab instances that require cookie-based authentication. When provided, the cookie will be included in all GitLab API requests.
 - `SKIP_TLS_VERIFY`: When set to 'true', skips TLS certificate verification for all GitLab API requests (both REST and GraphQL). **WARNING**: This bypasses SSL certificate validation and should only be used for testing with self-signed certificates or trusted internal GitLab instances. Never use this in production environments.
@@ -532,19 +532,46 @@ export GITLAB_TOOL_CREATE_WORK_ITEM="Create tickets for our sprint planning"
 - **Case Sensitivity**: Tool names in environment variables must be UPPERCASE (e.g., `LIST_PROJECTS` not `list_projects`)
 - **Invalid Names**: Invalid tool names in environment variables are ignored with a warning in debug logs
 - **Content Guidelines**: Descriptions can be any valid string but should be kept concise for better UX
-- **Scope**: Works with all 86 available tools across all entities (Core, Work Items, Merge Requests, Files, etc.)
+- **Scope**: Works with all 61 available tools across all entities (Core, Work Items, Merge Requests, Files, etc.)
 
 ## Tools 🛠️
 
-**85 Tools Available** - Organized by entity and functionality below.
+**61 Tools Available** - Organized by entity and functionality below.
 
 ### Key Features:
+- **CQRS Pattern** - Consolidated action-based tools: `browse_*` for reads, `manage_*` for writes
 - **Modular Entity Architecture** - Separate entities for Labels, Merge Requests, Files, Pipelines, etc.
 - **Environment-Gated Features** - Enable/disable tool groups with USE_* environment variables
 - **Work Items Management** - Modern GraphQL API for Issues, Epics, Tasks, and more
 - **Complete GitLab API Coverage** - Repository, Merge Requests, Pipelines, Wiki, and more
 - **Tier-based Feature Detection** - Automatically enables features based on your GitLab tier
 - **Read-only Mode Support** - Safe operation mode for production environments
+
+### Migration from v5.0 (CQRS Consolidation):
+Multiple individual tools have been consolidated into action-based CQRS tools. This reduces tool count from 85 to 61 while maintaining all functionality.
+
+<details>
+<summary>Consolidated Tools in v5.0</summary>
+
+**Merge Requests (17 tools → 5 CQRS tools)**:
+- `list_merge_requests`, `get_merge_request`, `get_merge_request_diffs`, `list_merge_request_diffs`, `get_branch_diffs` → Use `browse_merge_requests` with action: "list", "get", "diffs", "compare"
+- `mr_discussions`, `list_draft_notes`, `get_draft_note` → Use `browse_mr_discussions` with action: "list", "drafts", "draft"
+- `create_merge_request`, `update_merge_request`, `merge_merge_request` → Use `manage_merge_request` with action: "create", "update", "merge"
+- `create_note`, `create_merge_request_thread`, `create_merge_request_note`, `update_merge_request_note` → Use `manage_mr_discussion` with action: "comment", "thread", "reply", "update"
+- `create_draft_note`, `update_draft_note`, `publish_draft_note`, `bulk_publish_draft_notes`, `delete_draft_note` → Use `manage_draft_notes` with action: "create", "update", "publish", "publish_all", "delete"
+
+**Files (5 tools → 2 CQRS tools)**:
+- `get_file_contents`, `get_repository_tree` → Use `browse_files` with action: "content", "tree"
+- `create_or_update_file`, `push_files`, `upload_markdown` → Use `manage_files` with action: "single", "batch", "upload"
+
+**Core/Projects (8 tools → CQRS tools)**:
+- `list_projects`, `get_project`, `search_repositories` → Use `browse_projects` with action: "list", "get", "search"
+- `create_repository`, `fork_repository` → Use `manage_repository` with action: "create", "fork"
+- `list_namespaces`, `get_namespace`, `verify_namespace` → Use `browse_namespaces` with action: "list", "get", "verify"
+- `list_commits`, `get_commit`, `get_commit_diff` → Use `browse_commits` with action: "list", "get", "diff"
+- `list_events`, `get_project_events` → Use `browse_events` with action: "user", "project"
+
+</details>
 
 ### Migration from v2.0:
 All issue management has been migrated to the Work Items GraphQL API. The legacy REST API issue tools (`create_issue`, `update_issue`, etc.) have been removed. Use the Work Items tools (`create_work_item`, `update_work_item`, etc.) instead for better performance and more features.
@@ -576,40 +603,33 @@ The following issue-related tools have been removed and replaced by Work Items G
 - 📖 = Read-only tool (available in GITLAB_READ_ONLY_MODE)
 - ✏️ = Read/Write tool (disabled in GITLAB_READ_ONLY_MODE)
 
-### Core Tools (21 tools)
-Core GitLab functionality always available.
+### Core Tools (13 tools)
+Core GitLab functionality always available. Uses CQRS pattern with consolidated action-based tools.
 
 #### Repository & Project Management
-- ✏️ **`create_repository`**: Create a new GitLab project
-- 📖 **`get_project`**: Get details of a specific project
-- 📖 **`list_projects`**: List GitLab projects with flexible scoping. DEFAULT (no group_id): Lists YOUR accessible projects across GitLab (owned/member/starred). GROUP SCOPE (with group_id): Lists all projects within a specific group/organization. Parameters automatically validate based on scope.
-- 📖 **`search_repositories`**: Search for GitLab projects
-- 📖 **`list_project_members`**: List members of a GitLab project
+- 📖 **`browse_projects`**: PROJECT DISCOVERY: Find, browse, or inspect GitLab projects. Actions: "search" finds projects by name/topic, "list" browses accessible projects, "get" retrieves full details.
+- ✏️ **`manage_repository`**: REPOSITORY MANAGEMENT: Create or fork GitLab projects. Actions: "create" starts new project, "fork" creates your copy of existing project.
+- 📖 **`list_project_members`**: List members of a GitLab project with access levels.
 
-#### Branch Management
-- ✏️ **`create_branch`**: Create a new branch in a GitLab project
-- 📖 **`get_branch_diffs`**: Get the changes/diffs between two branches or commits in a GitLab project
-- ✏️ **`fork_repository`**: Fork a GitLab project to your account or specified namespace
-
-#### Comments & General Notes
-- ✏️ **`create_note`**: Create a new note (comment) to an issue or merge request
-- 📖 **`download_attachment`**: Download an uploaded file from a GitLab project by secret and filename
+#### Namespaces & Groups
+- 📖 **`browse_namespaces`**: NAMESPACE OPERATIONS: Explore groups and user namespaces. Actions: "list" discovers namespaces, "get" retrieves details, "verify" checks if path exists.
+- ✏️ **`create_group`**: Create a new GitLab group/namespace. Can create subgroups with parent_id.
 
 #### Commits & History
-- 📖 **`get_commit`**: Get details of a specific commit
-- 📖 **`get_commit_diff`**: Get changes/diffs of a specific commit
-- 📖 **`list_commits`**: List repository commits with filtering options
-
-#### Namespaces & Users
-- 📖 **`get_namespace`**: Get details of a namespace by ID or path
-- 📖 **`list_namespaces`**: List all namespaces available to the current user
-- 📖 **`verify_namespace`**: Verify if a namespace path exists
-- 📖 **`get_users`**: Get GitLab user details by usernames
+- 📖 **`browse_commits`**: COMMIT HISTORY: Explore repository commit history. Actions: "list" browses commits with filters, "get" retrieves commit metadata, "diff" shows code changes.
+- ✏️ **`create_branch`**: Create a new branch in a GitLab project from existing ref.
 
 #### Events & Activity
-- 📖 **`get_project_events`**: List all visible events for a specified project. Note: before/after parameters accept date format YYYY-MM-DD only
-- 📖 **`list_events`**: List all events for the currently authenticated user. Note: before/after parameters accept date format YYYY-MM-DD only
-- 📖 **`list_group_iterations`**: List group iterations with filtering options
+- 📖 **`browse_events`**: ACTIVITY FEED: Track GitLab activity. Actions: "user" shows your activity, "project" monitors project activity. Filter by date/action type.
+- 📖 **`list_group_iterations`**: List group iterations/sprints for agile planning. Requires GitLab Premium.
+
+#### Users & Utilities
+- 📖 **`get_users`**: Search GitLab users with smart pattern detection. Auto-detects emails, usernames, or names.
+- 📖 **`download_attachment`**: Download file attachments from issues/MRs by secret and filename.
+
+#### Todos (Task Queue)
+- 📖 **`list_todos`**: View your GitLab todos (notifications requiring action). Filter by state, action type, or target type.
+- ✏️ **`manage_todos`**: Manage todo items. Actions: "mark_done" completes single todo, "mark_all_done" clears queue, "restore" undoes completed todo.
 
 ### Labels Management (5 tools)
 Requires USE_LABELS=true environment variable (enabled by default). Supports both project and group labels.
@@ -620,41 +640,23 @@ Requires USE_LABELS=true environment variable (enabled by default). Supports bot
 - 📖 **`get_label`**: Get a single label from a project or group
 - 📖 **`list_labels`**: List labels for a project or group
 
-### Merge Requests Management (17 tools)
-Requires USE_MRS=true environment variable (enabled by default).
+### Merge Requests Management (5 CQRS tools)
+Requires USE_MRS=true environment variable (enabled by default). Uses CQRS pattern with action-based tools.
 
-#### Merge Request Operations
-- ✏️ **`create_merge_request`**: Create a new merge request in a GitLab project
-- ✏️ **`update_merge_request`**: Update a merge request (Either mergeRequestIid or branchName must be provided)
-- ✏️ **`merge_merge_request`**: Merge a merge request in a GitLab project
-- 📖 **`get_merge_request`**: Get details of a merge request (Either mergeRequestIid or branchName must be provided)
-- 📖 **`get_merge_request_diffs`**: Get the changes/diffs of a merge request (Either mergeRequestIid or branchName must be provided)
-- 📖 **`list_merge_request_diffs`**: List merge request diffs with pagination support (Either mergeRequestIid or branchName must be provided)
-- 📖 **`list_merge_requests`**: List merge requests in a GitLab project with filtering options
-- 📖 **`mr_discussions`**: List discussion items for a merge request
+#### Merge Request Browsing (Query)
+- 📖 **`browse_merge_requests`**: BROWSE merge requests. Actions: "list" shows MRs with filtering, "get" retrieves single MR by IID or branch, "diffs" shows file changes, "compare" diffs two branches/commits.
+- 📖 **`browse_mr_discussions`**: BROWSE MR discussions and draft notes. Actions: "list" shows all discussion threads, "drafts" lists unpublished draft notes, "draft" gets single draft note.
 
-#### MR Comments & Discussions
-- ✏️ **`create_merge_request_thread`**: Create a new thread on a merge request
-- ✏️ **`create_merge_request_note`**: Add a new note to an existing merge request thread
-- ✏️ **`update_merge_request_note`**: Modify an existing merge request thread note
+#### Merge Request Management (Command)
+- ✏️ **`manage_merge_request`**: MANAGE merge requests. Actions: "create" creates new MR, "update" modifies existing MR, "merge" merges approved MR into target branch.
+- ✏️ **`manage_mr_discussion`**: MANAGE MR discussions. Actions: "comment" adds comment to issue/MR, "thread" starts new discussion, "reply" responds to existing thread, "update" modifies note.
+- ✏️ **`manage_draft_notes`**: MANAGE draft notes. Actions: "create" creates draft note, "update" modifies draft, "publish" publishes single draft, "publish_all" publishes all drafts, "delete" removes draft.
 
-#### MR Draft Notes
-- ✏️ **`create_draft_note`**: Create a draft note for a merge request
-- ✏️ **`update_draft_note`**: Update an existing draft note
-- ✏️ **`delete_draft_note`**: Delete a draft note
-- ✏️ **`publish_draft_note`**: Publish a single draft note
-- ✏️ **`bulk_publish_draft_notes`**: Publish all draft notes for a merge request
-- 📖 **`get_draft_note`**: Get a single draft note from a merge request
-- 📖 **`list_draft_notes`**: List draft notes for a merge request
+### File Operations (2 CQRS tools)
+Requires USE_FILES=true environment variable (enabled by default). Uses CQRS pattern with action-based tools.
 
-### File Operations (5 tools)
-Requires USE_FILES=true environment variable (enabled by default).
-
-- ✏️ **`create_or_update_file`**: Create or update a single file in a GitLab project
-- ✏️ **`push_files`**: Push multiple files to a GitLab project in a single commit
-- 📖 **`get_file_contents`**: Get the contents of a file or directory from a GitLab project
-- 📖 **`get_repository_tree`**: Get the repository tree for a GitLab project (list files and directories)
-- ✏️ **`upload_markdown`**: Upload a file to a GitLab project for use in markdown content
+- 📖 **`browse_files`**: BROWSE repository files. Actions: "tree" lists files/folders with pagination, "content" reads file contents. Use for exploring project structure or reading source code.
+- ✏️ **`manage_files`**: MANAGE repository files. Actions: "single" creates/updates one file, "batch" commits multiple files atomically, "upload" adds markdown attachments.
 
 ### CI/CD Variables (5 tools)
 Requires USE_VARIABLES=true environment variable (enabled by default). Supports both project-level and group-level variables.

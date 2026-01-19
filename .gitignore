@@ -20,6 +20,7 @@ coverage/
 # ai
 .opencode*
 .aider*
+CLAUDE.md
 
 # Scripts directory (local tools and utilities)
 scripts/
