@@ -1,3 +1,18 @@
+## [6.1.0](https://github.com/structured-world/gitlab-mcp/compare/v6.0.0...v6.1.0) (2026-01-19)
+
+### ⚠ BREAKING CHANGES
+
+* **mrs:** Individual MR tools replaced with action-based CQRS tools
+
+### Features
+
+* **mrs:** consolidate 20 MR tools into 5 CQRS tools ([#15](https://github.com/structured-world/gitlab-mcp/issues/15)) ([ec06fae](https://github.com/structured-world/gitlab-mcp/commit/ec06faefd5f59b9577dc4fc48045cf0e0205ea0d))
+
+### Bug Fixes
+
+* **mrs:** address PR [#23](https://github.com/structured-world/gitlab-mcp/issues/23) review comments and increase coverage ([0e6410b](https://github.com/structured-world/gitlab-mcp/commit/0e6410b045fca8b7c54ebf1de9471849e33b4ff4)), closes [#12](https://github.com/structured-world/gitlab-mcp/issues/12) [#19](https://github.com/structured-world/gitlab-mcp/issues/19) [#20](https://github.com/structured-world/gitlab-mcp/issues/20)
+* **mrs:** address PR review comments from Copilot ([#23](https://github.com/structured-world/gitlab-mcp/issues/23)) ([1905ac4](https://github.com/structured-world/gitlab-mcp/commit/1905ac46ab2161d6c961429dd1a557ee1964f752))
+
 # [6.0.0](https://github.com/structured-world/gitlab-mcp/compare/v5.8.0...v6.0.0) (2026-01-19)
 
 
