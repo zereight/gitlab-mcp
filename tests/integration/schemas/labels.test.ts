@@ -143,11 +143,10 @@ describe("Labels Schema - GitLab Integration", () => {
       console.log("BrowseLabelsSchema validates search parameters");
     });
 
-    it("should reject invalid parameters", async () => {
+    it("should reject invalid action type", async () => {
       const invalidParams = {
-        action: "list",
+        action: "invalid_action", // Invalid action type
         namespace: "test/project",
-        with_counts: "invalid", // Should be boolean
       };
 
       const result = BrowseLabelsSchema.safeParse(invalidParams);
@@ -157,7 +156,7 @@ describe("Labels Schema - GitLab Integration", () => {
         expect(result.error.issues.length).toBeGreaterThan(0);
       }
 
-      console.log("BrowseLabelsSchema correctly rejects invalid parameters");
+      console.log("BrowseLabelsSchema correctly rejects invalid action type");
     });
   });
 

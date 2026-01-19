@@ -8,6 +8,7 @@ import {
   flexibleBooleanNullable,
   assertDefined,
   requiredId,
+  validateScopeId,
 } from "../../../src/entities/utils";
 import { setupMockFetch, resetMocks } from "../../utils/testHelpers";
 
@@ -357,6 +358,50 @@ describe("entity utilities", () => {
 
     it("should reject empty strings", () => {
       expect(() => requiredId.parse("")).toThrow();
+    });
+  });
+
+  describe("validateScopeId", () => {
+    it("should return true for project scope with projectId", () => {
+      expect(validateScopeId({ scope: "project", projectId: "test/project" })).toBe(true);
+      expect(validateScopeId({ scope: "project", projectId: "123" })).toBe(true);
+    });
+
+    it("should return true for group scope with groupId", () => {
+      expect(validateScopeId({ scope: "group", groupId: "test-group" })).toBe(true);
+      expect(validateScopeId({ scope: "group", groupId: "456" })).toBe(true);
+    });
+
+    it("should return false for project scope without projectId", () => {
+      expect(validateScopeId({ scope: "project" })).toBe(false);
+      expect(validateScopeId({ scope: "project", groupId: "test-group" })).toBe(false);
+    });
+
+    it("should return false for group scope without groupId", () => {
+      expect(validateScopeId({ scope: "group" })).toBe(false);
+      expect(validateScopeId({ scope: "group", projectId: "test/project" })).toBe(false);
+    });
+
+    it("should return false for project scope with empty projectId", () => {
+      expect(validateScopeId({ scope: "project", projectId: "" })).toBe(false);
+    });
+
+    it("should return false for group scope with empty groupId", () => {
+      expect(validateScopeId({ scope: "group", groupId: "" })).toBe(false);
+    });
+
+    it("should return true when both IDs are provided for project scope", () => {
+      // Only projectId matters for project scope
+      expect(
+        validateScopeId({ scope: "project", projectId: "test/project", groupId: "test-group" })
+      ).toBe(true);
+    });
+
+    it("should return true when both IDs are provided for group scope", () => {
+      // Only groupId matters for group scope
+      expect(
+        validateScopeId({ scope: "group", projectId: "test/project", groupId: "test-group" })
+      ).toBe(true);
     });
   });
 });

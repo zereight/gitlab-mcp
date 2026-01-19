@@ -363,6 +363,14 @@ export class ToolAvailability {
     update_variable: { minVersion: 9.0, requiredTier: "free" },
     delete_variable: { minVersion: 9.0, requiredTier: "free" },
 
+    // Webhooks - Project hooks in Free, Group hooks in Premium
+    list_webhooks: { minVersion: 8.0, requiredTier: "free", notes: "Project webhooks" },
+    manage_webhook: {
+      minVersion: 8.0,
+      requiredTier: "free",
+      notes: "Project webhooks; group webhooks require Premium",
+    },
+
     // Code Quality - Available in Free Tier
     get_code_quality_report: { minVersion: 11.4, requiredTier: "free" },
 

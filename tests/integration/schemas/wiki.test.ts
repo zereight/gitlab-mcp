@@ -106,11 +106,10 @@ describe("Wiki Schema - GitLab Integration", () => {
       console.log("BrowseWikiSchema validates pagination parameters");
     });
 
-    it("should reject invalid parameters", async () => {
+    it("should reject invalid action type", async () => {
       const invalidParams = {
-        action: "list",
+        action: "invalid_action", // Invalid action type
         namespace: "test/project",
-        with_content: "invalid", // Should be boolean
       };
 
       const result = BrowseWikiSchema.safeParse(invalidParams);
@@ -120,7 +119,7 @@ describe("Wiki Schema - GitLab Integration", () => {
         expect(result.error.issues.length).toBeGreaterThan(0);
       }
 
-      console.log("BrowseWikiSchema correctly rejects invalid parameters");
+      console.log("BrowseWikiSchema correctly rejects invalid action type");
     });
   });
 

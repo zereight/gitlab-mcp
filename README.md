@@ -53,6 +53,7 @@ env = { "GITLAB_TOKEN" = "mytoken", "GITLAB_API_URL" = "https://gitlab.com" }
         "USE_MILESTONE": "false", // use milestone api?
         "USE_PIPELINE": "false", // use pipeline api?
         "USE_VARIABLES": "true", // use variables api?
+        "USE_WEBHOOKS": "true", // use webhooks api?
         "SKIP_TLS_VERIFY": "false" // skip SSL cert verification (dev only)
       }
     }
@@ -120,6 +121,8 @@ env = { "GITLAB_TOKEN" = "mytoken", "GITLAB_API_URL" = "https://gitlab.com" }
         "USE_PIPELINE",
         "-e",
         "USE_VARIABLES",
+        "-e",
+        "USE_WEBHOOKS",
         "ghcr.io/structured-world/gitlab-mcp:latest"
       ],
       "env": {
@@ -129,7 +132,8 @@ env = { "GITLAB_TOKEN" = "mytoken", "GITLAB_API_URL" = "https://gitlab.com" }
         "USE_GITLAB_WIKI": "true",
         "USE_MILESTONE": "true",
         "USE_PIPELINE": "true",
-        "USE_VARIABLES": "true"
+        "USE_VARIABLES": "true",
+        "USE_WEBHOOKS": "true"
       }
     }
   }
@@ -465,6 +469,7 @@ When OAuth is enabled, the following endpoints are available:
 - `USE_FILES`: When set to 'true', enables the file-related tools (browse_files, manage_files). These 2 CQRS tools consolidate all file operations. By default, file operation features are enabled.
 - `USE_VARIABLES`: When set to 'true', enables the CI/CD variables-related tools (list_variables, get_variable, create_variable, update_variable, delete_variable). Supports both project-level and group-level variables. By default, variables features are enabled.
 - `USE_WORKITEMS`: When set to 'true', enables the work items-related tools (browse_work_items, manage_work_item). These 2 CQRS tools consolidate all work item operations using GitLab GraphQL API. By default, work items features are enabled.
+- `USE_WEBHOOKS`: When set to 'true', enables the webhooks-related tools (list_webhooks, manage_webhook). These 2 tools provide full CRUD operations plus testing for both project and group webhooks. Group webhooks require GitLab Premium tier. By default, webhooks features are enabled.
 - `GITLAB_AUTH_COOKIE_PATH`: Path to an authentication cookie file for GitLab instances that require cookie-based authentication. When provided, the cookie will be included in all GitLab API requests.
 - `SKIP_TLS_VERIFY`: When set to 'true', skips TLS certificate verification for all GitLab API requests (both REST and GraphQL). **WARNING**: This bypasses SSL certificate validation and should only be used for testing with self-signed certificates or trusted internal GitLab instances. Never use this in production environments.
 - `SSL_CERT_PATH`: Path to PEM certificate file for direct HTTPS/TLS termination. Requires `SSL_KEY_PATH` to also be set.
@@ -537,7 +542,7 @@ export GITLAB_TOOL_MANAGE_WORK_ITEM="Create and manage tickets for our sprint pl
 
 ## Tools 🛠️
 
-**58 Tools Available** - Organized by entity and functionality below.
+**60 Tools Available** - Organized by entity and functionality below.
 
 ### Key Features:
 - **CQRS Pattern** - Consolidated action-based tools: `browse_*` for reads, `manage_*` for writes
@@ -664,6 +669,32 @@ Requires USE_PIPELINE=true environment variable.
 - 📖 **`list_pipelines`**: List pipelines in a GitLab project with filtering options
 - 📖 **`list_pipeline_jobs`**: List all jobs in a specific pipeline
 - 📖 **`list_pipeline_trigger_jobs`**: List all trigger jobs (bridges) in a specific pipeline that trigger downstream pipelines
+
+### Webhooks Management (2 tools)
+Requires USE_WEBHOOKS=true environment variable (enabled by default). Supports both project and group webhooks. Group webhooks require GitLab Premium tier.
+
+- 📖 **`list_webhooks`**: List all webhooks configured for a project or group. Shows webhook URLs, enabled event types, SSL settings, and delivery status. Group webhooks (Premium tier) are inherited by all child projects.
+- ✏️ **`manage_webhook`**: Manage webhooks with full CRUD operations plus testing. Actions: "create" (add new webhook with URL and event types), "read" (get webhook details), "update" (modify URL, events, or settings), "delete" (remove webhook), "test" (trigger test delivery for specific event type). Test action sends actual HTTP request to configured URL. In read-only mode, only "read" action is allowed.
+
+#### Supported Event Types
+Webhooks can be configured to trigger on:
+- **Push events** - Push to repository (with optional branch filter)
+- **Tag push events** - New tag pushed
+- **Merge request events** - MR created, updated, merged
+- **Issue events** - Issue created, updated, closed (including confidential)
+- **Note events** - Comments on issues, MRs, snippets (including confidential)
+- **Pipeline events** - Pipeline status changes
+- **Job events** - Build/job status changes
+- **Wiki page events** - Wiki page created or updated
+- **Deployment events** - Deployment triggered
+- **Release events** - Release created
+- **Milestone events** - Milestone created, updated, closed
+- **Emoji events** - Emoji reactions added
+- **Feature flag events** - Feature flag changes
+- **Resource access token events** - Token created/revoked
+- **Member events** - Member added/removed
+- **Subgroup events** - Subgroup created/removed (group webhooks only)
+- **Project events** - Project created/removed (group webhooks only)
 
 ## CLI Tools 🔧
 

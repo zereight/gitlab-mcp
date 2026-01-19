@@ -45,3 +45,24 @@ export function assertDefined<T>(value: T | undefined, fieldName: string): asser
     throw new Error(`${fieldName} is required but was not provided`);
   }
 }
+
+/**
+ * Validates that the appropriate ID field is provided based on scope.
+ * Used by webhook schemas to ensure projectId or groupId is present.
+ *
+ * @param data - Object containing scope, projectId, and groupId fields
+ * @returns true if validation passes
+ */
+export function validateScopeId(data: {
+  scope: "project" | "group";
+  projectId?: string;
+  groupId?: string;
+}): boolean {
+  if (data.scope === "project") {
+    return !!data.projectId;
+  }
+  if (data.scope === "group") {
+    return !!data.groupId;
+  }
+  return true;
+}

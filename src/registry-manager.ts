@@ -20,6 +20,7 @@ import {
   workitemsToolRegistry,
   getWorkitemsReadOnlyToolNames,
 } from "./entities/workitems/registry";
+import { webhooksToolRegistry, getWebhooksReadOnlyToolNames } from "./entities/webhooks/registry";
 import {
   GITLAB_READ_ONLY_MODE,
   GITLAB_DENIED_TOOLS_REGEX,
@@ -31,6 +32,7 @@ import {
   USE_MRS,
   USE_FILES,
   USE_VARIABLES,
+  USE_WEBHOOKS,
   getToolDescriptionOverrides,
 } from "./config";
 import { ToolAvailability } from "./services/ToolAvailability";
@@ -108,6 +110,10 @@ class RegistryManager {
       this.registries.set("workitems", workitemsToolRegistry);
     }
 
+    if (USE_WEBHOOKS) {
+      this.registries.set("webhooks", webhooksToolRegistry);
+    }
+
     // All entity registries have been migrated to the new pattern!
   }
 
@@ -165,6 +171,10 @@ class RegistryManager {
 
     if (USE_VARIABLES) {
       readOnlyTools.push(...getVariablesReadOnlyToolNames());
+    }
+
+    if (USE_WEBHOOKS) {
+      readOnlyTools.push(...getWebhooksReadOnlyToolNames());
     }
 
     return readOnlyTools;
@@ -305,6 +315,7 @@ class RegistryManager {
     const useVariables = process.env.USE_VARIABLES !== "false";
     const useWiki = process.env.USE_GITLAB_WIKI !== "false";
     const useWorkitems = process.env.USE_WORKITEMS !== "false";
+    const useWebhooks = process.env.USE_WEBHOOKS !== "false";
 
     // Build registries map based on dynamic feature flags
     const registriesToUse = new Map<string, ToolRegistry>();
@@ -321,6 +332,7 @@ class RegistryManager {
     if (useVariables) registriesToUse.set("variables", variablesToolRegistry);
     if (useWiki) registriesToUse.set("wiki", wikiToolRegistry);
     if (useWorkitems) registriesToUse.set("workitems", workitemsToolRegistry);
+    if (useWebhooks) registriesToUse.set("webhooks", webhooksToolRegistry);
 
     // Dynamically load description overrides
     const descOverrides = getToolDescriptionOverrides();
