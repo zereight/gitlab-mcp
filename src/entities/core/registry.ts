@@ -1,27 +1,25 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import * as z from "zod";
 import {
-  SearchRepositoriesSchema,
-  ListNamespacesSchema,
-  GetNamespaceSchema,
-  VerifyNamespaceSchema,
-  GetProjectSchema,
-  ListProjectsSchema,
-  ListProjectMembersSchema,
+  // Consolidated schemas
+  BrowseProjectsSchema,
+  BrowseNamespacesSchema,
+  BrowseCommitsSchema,
+  BrowseEventsSchema,
+  // Kept as-is schemas
   GetUsersSchema,
-  ListCommitsSchema,
-  GetCommitSchema,
-  GetCommitDiffSchema,
-  ListEventsSchema,
-  GetProjectEventsSchema,
+  ListProjectMembersSchema,
   ListGroupIterationsSchema,
   DownloadAttachmentSchema,
+  ListTodosSchema,
 } from "./schema-readonly";
 import {
-  CreateRepositorySchema,
-  ForkRepositorySchema,
+  // Consolidated schemas
+  ManageRepositorySchema,
+  // Kept as-is schemas
   CreateBranchSchema,
   CreateGroupSchema,
+  ManageTodosSchema,
 } from "./schema";
 import { enhancedFetch } from "../../utils/fetch";
 import { normalizeProjectId } from "../../utils/projectIdentifier";
@@ -30,292 +28,594 @@ import { cleanGidsFromObject } from "../../utils/idConversion";
 import { ToolRegistry, EnhancedToolDefinition } from "../../types";
 
 /**
- * Core tools registry - unified registry containing all core tools with their handlers
+ * Core tools registry - CQRS consolidated (Issue #16)
+ * Reduced from 18 tools to 10 tools + 2 todos tools = 12 total
  */
 export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefinition>([
-  // Read-only tools
+  // ============================================================================
+  // CONSOLIDATED TOOLS (5 tools replacing 13 old tools)
+  // ============================================================================
+
+  // browse_projects: Consolidates search_repositories, list_projects, get_project
   [
-    "search_repositories",
+    "browse_projects",
     {
-      name: "search_repositories",
+      name: "browse_projects",
       description:
-        "DISCOVER projects across ALL of GitLab using search criteria. Use when: You DON'T know the project name/path, Looking for ANY project (not just yours), Searching by language/keywords/topics. Use with_programming_language parameter for efficient language filtering. See also: Use list_projects for YOUR accessible projects only.",
-      inputSchema: z.toJSONSchema(SearchRepositoriesSchema),
+        "PROJECT DISCOVERY: Find, browse, or inspect GitLab projects. Use 'search' to find projects by name/topic across all GitLab. Use 'list' to browse your accessible projects or projects within a specific group. Use 'get' with project_id to retrieve full details of a known project. Filter by visibility, language, or ownership.",
+      inputSchema: z.toJSONSchema(BrowseProjectsSchema),
       handler: async (args: unknown): Promise<unknown> => {
-        const options = SearchRepositoriesSchema.parse(args);
+        const options = BrowseProjectsSchema.parse(args);
 
-        // Extract parameters
-        const { q, with_programming_language, ...otherOptions } = options;
-        const queryParams = new URLSearchParams();
+        switch (options.action) {
+          case "search": {
+            const { q, with_programming_language, visibility, order_by, sort, per_page, page } =
+              options;
+            const queryParams = new URLSearchParams();
 
-        // Handle programming language filtering
-        let finalLanguage = with_programming_language;
-        let finalSearchTerms = q ?? "";
+            // Handle search query
+            if (q) {
+              let finalSearchTerms = q;
 
-        // Parse operators from q parameter
-        if (q && !with_programming_language) {
-          const languageMatch = q.match(/language:(\w+)/);
-          if (languageMatch) {
-            finalLanguage = languageMatch[1];
-            finalSearchTerms = q.replace(/language:\w+/g, "").trim();
-          }
-        }
+              // Parse topic: operator
+              const topicMatches = q.match(/topic:(\w+)/g);
+              if (topicMatches) {
+                const topics = topicMatches.map(match => match.replace("topic:", ""));
+                queryParams.set("topic", topics.join(","));
+                finalSearchTerms = finalSearchTerms.replace(/topic:\w+/g, "").trim();
+              }
 
-        // Parse user: operator
-        if (q) {
-          const userMatch = q.match(/user:(\w+)/);
-          if (userMatch) {
-            // For now, we'll use owned=true as a proxy since we can't easily map username to user_id
-            // This is a limitation of GitLab API requiring user_id rather than username
-            queryParams.set("owned", "true");
-            finalSearchTerms = finalSearchTerms.replace(/user:\w+/g, "").trim();
-          }
-        }
-
-        // Parse topic: operator
-        if (q) {
-          const topicMatches = q.match(/topic:(\w+)/g);
-          if (topicMatches) {
-            const topics = topicMatches.map(match => match.replace("topic:", ""));
-            queryParams.set("topic", topics.join(","));
-            finalSearchTerms = finalSearchTerms.replace(/topic:\w+/g, "").trim();
-          }
-        }
-
-        // Set programming language filter
-        if (finalLanguage) {
-          queryParams.set("with_programming_language", finalLanguage);
-        }
-
-        // Set search terms
-        if (finalSearchTerms) {
-          // Convert spaces to + for GitLab API
-          queryParams.set("search", finalSearchTerms.replace(/\s+/g, "+"));
-        }
-
-        // Add other options
-        Object.entries(otherOptions).forEach(([key, value]) => {
-          if (value !== undefined) {
-            queryParams.set(key, String(value));
-          }
-        });
-
-        // Only return active projects (exclude archived and marked for deletion)
-        queryParams.set("active", "true");
-
-        // Make REAL GitLab API call to search projects
-        const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects?${queryParams}`;
-        const response = await enhancedFetch(apiUrl);
-
-        if (!response.ok) {
-          throw new Error(`GitLab API error: ${response.status} ${response.statusText}`);
-        }
-
-        const projects = await response.json();
-
-        // Return only essential fields for minimal token usage
-        interface Project {
-          id: number;
-          name: string;
-          path_with_namespace: string;
-          description: string | null;
-        }
-
-        const minimalProjects = (projects as Project[]).map((project: Project) => ({
-          id: project.id,
-          name: project.name,
-          path_with_namespace: project.path_with_namespace,
-          description: project.description,
-        }));
-
-        return minimalProjects;
-      },
-    },
-  ],
-  [
-    "list_projects",
-    {
-      name: "list_projects",
-      description:
-        "List GitLab projects with flexible scoping. DEFAULT (no group_id): Lists YOUR accessible projects across GitLab (owned/member/starred). Use for: browsing your projects, finding your work, managing personal project lists. GROUP SCOPE (with group_id): Lists all projects within a specific group/organization. Use for: exploring team structure, finding organizational projects, auditing group resources. Parameters automatically validate based on scope.",
-      inputSchema: z.toJSONSchema(ListProjectsSchema),
-      handler: async (args: unknown): Promise<unknown> => {
-        const options = ListProjectsSchema.parse(args);
-        const { group_id, ...otherOptions } = options;
-
-        // Parameter validation based on scope
-        if (group_id) {
-          // GROUP SCOPE: Validate no user-only parameters
-          const userOnlyParams = [
-            "active",
-            "imported",
-            "membership",
-            "statistics",
-            "with_programming_language",
-            "wiki_checksum_failed",
-            "repository_checksum_failed",
-            "id_after",
-            "id_before",
-            "last_activity_after",
-            "last_activity_before",
-            "marked_for_deletion_on",
-            "repository_storage",
-          ];
-          const invalidParams = userOnlyParams.filter(param => otherOptions[param] !== undefined);
-          if (invalidParams.length > 0) {
-            throw new Error(
-              `Invalid parameters for group scope: ${invalidParams.join(", ")}. These parameters are only valid without group_id (user scope).`
-            );
-          }
-
-          // Build query parameters (excluding group_id) with sensible defaults for group scope
-          const queryParams = new URLSearchParams();
-
-          // Set sensible defaults for group scope
-          const groupDefaults = {
-            order_by: "created_at",
-            sort: "desc",
-            simple: true,
-            per_page: 20,
-          };
-
-          // Merge defaults with user options (user options take precedence)
-          const finalParameters = { ...groupDefaults, ...otherOptions };
-
-          Object.entries(finalParameters).forEach(([key, value]) => {
-            if (value !== undefined) {
-              queryParams.set(key, String(value));
+              if (finalSearchTerms) {
+                // Let URLSearchParams handle encoding (spaces become '+' per x-www-form-urlencoded)
+                // GitLab API accepts both '+' and '%20' for spaces in search queries
+                queryParams.set("search", finalSearchTerms);
+              }
             }
-          });
 
-          // GROUP API: GET /groups/:id/projects
-          const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/groups/${encodeURIComponent(group_id)}/projects?${queryParams}`;
-          const response = await enhancedFetch(apiUrl);
+            // Add options
+            if (with_programming_language)
+              queryParams.set("with_programming_language", with_programming_language);
+            if (visibility) queryParams.set("visibility", visibility);
+            if (order_by) queryParams.set("order_by", order_by);
+            if (sort) queryParams.set("sort", sort);
+            if (per_page) queryParams.set("per_page", String(per_page));
+            if (page) queryParams.set("page", String(page));
 
-          if (!response.ok) {
-            throw new Error(`GitLab API error: ${response.status} ${response.statusText}`);
-          }
+            queryParams.set("active", "true");
 
-          const projects = await response.json();
-          return cleanGidsFromObject(projects);
-        } else {
-          // USER SCOPE: Validate no group-only parameters
-          const groupOnlyParams = [
-            "include_subgroups",
-            "with_shared",
-            "with_security_reports",
-            "topic",
-            "with_issues_enabled",
-            "with_merge_requests_enabled",
-          ];
-          const invalidParams = groupOnlyParams.filter(param => otherOptions[param] !== undefined);
-          if (invalidParams.length > 0) {
-            throw new Error(
-              `Invalid parameters for user scope: ${invalidParams.join(", ")}. These parameters require group_id (group scope).`
-            );
-          }
+            const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects?${queryParams}`;
+            const response = await enhancedFetch(apiUrl);
 
-          // Build query parameters with sensible defaults for user scope
-          const queryParams = new URLSearchParams();
-
-          // Set sensible defaults
-          const defaults = {
-            active: true,
-            order_by: "created_at",
-            sort: "desc",
-            simple: true,
-            per_page: 20,
-          };
-
-          // Merge defaults with user options (user options take precedence)
-          const finalParameters = { ...defaults, ...otherOptions };
-
-          Object.entries(finalParameters).forEach(([key, value]) => {
-            if (value !== undefined) {
-              queryParams.set(key, String(value));
+            if (!response.ok) {
+              throw new Error(`GitLab API error: ${response.status} ${response.statusText}`);
             }
-          });
 
-          // USER API: GET /projects
-          const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects?${queryParams}`;
-          const response = await enhancedFetch(apiUrl);
-
-          if (!response.ok) {
-            throw new Error(`GitLab API error: ${response.status} ${response.statusText}`);
+            const projects = await response.json();
+            return cleanGidsFromObject(projects);
           }
 
-          const projects = await response.json();
-          return cleanGidsFromObject(projects);
+          case "list": {
+            const {
+              group_id,
+              search,
+              owned,
+              starred,
+              membership,
+              simple,
+              with_programming_language,
+              include_subgroups,
+              with_shared,
+              visibility,
+              archived,
+              order_by,
+              sort,
+              per_page,
+              page,
+            } = options;
+            const queryParams = new URLSearchParams();
+
+            // Build query parameters
+            if (visibility) queryParams.set("visibility", visibility);
+            if (archived !== undefined) queryParams.set("archived", String(archived));
+            if (owned !== undefined) queryParams.set("owned", String(owned));
+            if (starred !== undefined) queryParams.set("starred", String(starred));
+            if (membership !== undefined) queryParams.set("membership", String(membership));
+            if (search) queryParams.set("search", search);
+            if (simple !== undefined) queryParams.set("simple", String(simple));
+            if (order_by) queryParams.set("order_by", order_by);
+            if (sort) queryParams.set("sort", sort);
+            if (per_page) queryParams.set("per_page", String(per_page));
+            if (page) queryParams.set("page", String(page));
+            if (include_subgroups !== undefined)
+              queryParams.set("include_subgroups", String(include_subgroups));
+            if (with_shared !== undefined) queryParams.set("with_shared", String(with_shared));
+            if (with_programming_language)
+              queryParams.set("with_programming_language", with_programming_language);
+
+            // Set defaults
+            if (!queryParams.has("order_by")) queryParams.set("order_by", "created_at");
+            if (!queryParams.has("sort")) queryParams.set("sort", "desc");
+            if (!queryParams.has("simple")) queryParams.set("simple", "true");
+            if (!queryParams.has("per_page")) queryParams.set("per_page", "20");
+
+            let apiUrl: string;
+            if (group_id) {
+              apiUrl = `${process.env.GITLAB_API_URL}/api/v4/groups/${encodeURIComponent(group_id)}/projects?${queryParams}`;
+            } else {
+              queryParams.set("active", "true");
+              apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects?${queryParams}`;
+            }
+
+            const response = await enhancedFetch(apiUrl);
+
+            if (!response.ok) {
+              throw new Error(`GitLab API error: ${response.status} ${response.statusText}`);
+            }
+
+            const projects = await response.json();
+            return cleanGidsFromObject(projects);
+          }
+
+          case "get": {
+            const { project_id, statistics, license } = options;
+
+            const queryParams = new URLSearchParams();
+            if (statistics) queryParams.set("statistics", "true");
+            if (license) queryParams.set("license", "true");
+
+            const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${normalizeProjectId(project_id)}?${queryParams}`;
+            const response = await enhancedFetch(apiUrl);
+
+            if (!response.ok) {
+              throw new Error(`GitLab API error: ${response.status} ${response.statusText}`);
+            }
+
+            const project = await response.json();
+            return cleanGidsFromObject(project);
+          }
+
+          default: {
+            const _exhaustive: never = options;
+            throw new Error(`Unknown action: ${(_exhaustive as { action: string }).action}`);
+          }
         }
       },
     },
   ],
+
+  // browse_namespaces: Consolidates list_namespaces, get_namespace, verify_namespace
   [
-    "list_namespaces",
+    "browse_namespaces",
     {
-      name: "list_namespaces",
+      name: "browse_namespaces",
       description:
-        "BROWSE: List GitLab namespaces (groups and user namespaces) accessible to you. Use when: Discovering available groups for project creation, Browsing organizational structure, Finding where to create/fork projects. Returns both user and group namespaces. See also: get_namespace for specific namespace details.",
-      inputSchema: z.toJSONSchema(ListNamespacesSchema),
+        "NAMESPACE OPERATIONS: Explore GitLab groups and user namespaces. Use 'list' to discover available namespaces for project creation. Use 'get' with namespace_id to retrieve full details including storage stats. Use 'verify' to check if a namespace path exists before creating projects or groups.",
+      inputSchema: z.toJSONSchema(BrowseNamespacesSchema),
       handler: async (args: unknown): Promise<unknown> => {
-        const options = ListNamespacesSchema.parse(args);
+        const options = BrowseNamespacesSchema.parse(args);
 
-        const queryParams = new URLSearchParams();
-        Object.entries(options).forEach(([key, value]) => {
-          if (value !== undefined) {
-            queryParams.set(key, String(value));
+        switch (options.action) {
+          case "list": {
+            const {
+              search,
+              owned_only,
+              top_level_only,
+              with_statistics,
+              min_access_level,
+              per_page,
+              page,
+            } = options;
+            const queryParams = new URLSearchParams();
+
+            if (search) queryParams.set("search", search);
+            if (owned_only !== undefined) queryParams.set("owned_only", String(owned_only));
+            if (top_level_only !== undefined)
+              queryParams.set("top_level_only", String(top_level_only));
+            if (with_statistics !== undefined)
+              queryParams.set("with_statistics", String(with_statistics));
+            if (min_access_level !== undefined)
+              queryParams.set("min_access_level", String(min_access_level));
+            if (per_page) queryParams.set("per_page", String(per_page));
+            if (page) queryParams.set("page", String(page));
+
+            const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/namespaces?${queryParams}`;
+            const response = await enhancedFetch(apiUrl);
+
+            if (!response.ok) {
+              throw new Error(`GitLab API error: ${response.status} ${response.statusText}`);
+            }
+
+            const namespaces = await response.json();
+            return cleanGidsFromObject(namespaces);
           }
-        });
 
-        const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/namespaces?${queryParams}`;
-        const response = await enhancedFetch(apiUrl);
+          case "get": {
+            const { namespace_id } = options;
 
-        if (!response.ok) {
-          throw new Error(`GitLab API error: ${response.status} ${response.statusText}`);
+            const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/namespaces/${encodeURIComponent(namespace_id)}`;
+            const response = await enhancedFetch(apiUrl);
+
+            if (!response.ok) {
+              throw new Error(`GitLab API error: ${response.status} ${response.statusText}`);
+            }
+
+            const namespace = await response.json();
+            return cleanGidsFromObject(namespace);
+          }
+
+          case "verify": {
+            const { namespace_id } = options;
+
+            const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/namespaces/${encodeURIComponent(namespace_id)}`;
+            const response = await enhancedFetch(apiUrl);
+
+            return {
+              exists: response.ok,
+              status: response.status,
+              namespace: namespace_id,
+              data: response.ok ? await response.json() : null,
+            };
+          }
+
+          default: {
+            const _exhaustive: never = options;
+            throw new Error(`Unknown action: ${(_exhaustive as { action: string }).action}`);
+          }
         }
-
-        const namespaces = await response.json();
-        return cleanGidsFromObject(namespaces);
       },
     },
   ],
+
+  // browse_commits: Consolidates list_commits, get_commit, get_commit_diff
+  [
+    "browse_commits",
+    {
+      name: "browse_commits",
+      description:
+        "COMMIT HISTORY: Explore repository commit history. Use 'list' to browse commits with optional date range, author, or file path filters. Use 'get' with sha to retrieve commit metadata and stats. Use 'diff' to see actual code changes in a commit. Essential for code review and change tracking.",
+      inputSchema: z.toJSONSchema(BrowseCommitsSchema),
+      handler: async (args: unknown): Promise<unknown> => {
+        const options = BrowseCommitsSchema.parse(args);
+
+        switch (options.action) {
+          case "list": {
+            const {
+              project_id,
+              ref_name,
+              since,
+              until,
+              path,
+              author,
+              all,
+              with_stats,
+              first_parent,
+              order,
+              trailers,
+              per_page,
+              page,
+            } = options;
+            const queryParams = new URLSearchParams();
+
+            if (ref_name) queryParams.set("ref_name", ref_name);
+            if (since) queryParams.set("since", since);
+            if (until) queryParams.set("until", until);
+            if (path) queryParams.set("path", path);
+            if (author) queryParams.set("author", author);
+            if (all !== undefined) queryParams.set("all", String(all));
+            if (with_stats !== undefined) queryParams.set("with_stats", String(with_stats));
+            if (first_parent !== undefined) queryParams.set("first_parent", String(first_parent));
+            if (order) queryParams.set("order", order);
+            if (trailers !== undefined) queryParams.set("trailers", String(trailers));
+            if (per_page) queryParams.set("per_page", String(per_page));
+            if (page) queryParams.set("page", String(page));
+
+            const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${encodeURIComponent(project_id)}/repository/commits?${queryParams}`;
+            const response = await enhancedFetch(apiUrl);
+
+            if (!response.ok) {
+              throw new Error(`GitLab API error: ${response.status} ${response.statusText}`);
+            }
+
+            return await response.json();
+          }
+
+          case "get": {
+            const { project_id, sha, stats } = options;
+
+            const queryParams = new URLSearchParams();
+            if (stats) queryParams.set("stats", "true");
+
+            const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${encodeURIComponent(project_id)}/repository/commits/${encodeURIComponent(sha)}?${queryParams}`;
+            const response = await enhancedFetch(apiUrl);
+
+            if (!response.ok) {
+              throw new Error(`GitLab API error: ${response.status} ${response.statusText}`);
+            }
+
+            return await response.json();
+          }
+
+          case "diff": {
+            const { project_id, sha, unidiff } = options;
+
+            const queryParams = new URLSearchParams();
+            if (unidiff) queryParams.set("unidiff", "true");
+
+            const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${encodeURIComponent(project_id)}/repository/commits/${encodeURIComponent(sha)}/diff?${queryParams}`;
+            const response = await enhancedFetch(apiUrl);
+
+            if (!response.ok) {
+              throw new Error(`GitLab API error: ${response.status} ${response.statusText}`);
+            }
+
+            return await response.json();
+          }
+
+          default: {
+            const _exhaustive: never = options;
+            throw new Error(`Unknown action: ${(_exhaustive as { action: string }).action}`);
+          }
+        }
+      },
+    },
+  ],
+
+  // browse_events: Consolidates list_events, get_project_events
+  [
+    "browse_events",
+    {
+      name: "browse_events",
+      description:
+        "ACTIVITY FEED: Track GitLab activity and events. Use 'user' to see YOUR recent activity across all projects (commits, issues, MRs). Use 'project' with project_id to monitor a specific project's activity feed. Filter by date range or action type (pushed, commented, merged, etc.).",
+      inputSchema: z.toJSONSchema(BrowseEventsSchema),
+      handler: async (args: unknown): Promise<unknown> => {
+        const options = BrowseEventsSchema.parse(args);
+
+        // Build common query params based on action type
+        const buildQueryParams = (opts: {
+          target_type?: string;
+          event_action?: string;
+          before?: string;
+          after?: string;
+          sort?: string;
+          per_page?: number;
+          page?: number;
+        }) => {
+          const queryParams = new URLSearchParams();
+          if (opts.target_type) queryParams.set("target_type", opts.target_type);
+          if (opts.event_action) queryParams.set("action", opts.event_action);
+          if (opts.before) queryParams.set("before", opts.before);
+          if (opts.after) queryParams.set("after", opts.after);
+          if (opts.sort) queryParams.set("sort", opts.sort);
+          if (opts.per_page) queryParams.set("per_page", String(opts.per_page));
+          if (opts.page) queryParams.set("page", String(opts.page));
+          return queryParams;
+        };
+
+        switch (options.action) {
+          case "user": {
+            const queryParams = buildQueryParams(options);
+            const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/events?${queryParams}`;
+            const response = await enhancedFetch(apiUrl);
+
+            if (!response.ok) {
+              throw new Error(`GitLab API error: ${response.status} ${response.statusText}`);
+            }
+
+            return await response.json();
+          }
+
+          case "project": {
+            const { project_id } = options;
+            const queryParams = buildQueryParams(options);
+            const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${encodeURIComponent(project_id)}/events?${queryParams}`;
+            const response = await enhancedFetch(apiUrl);
+
+            if (!response.ok) {
+              throw new Error(`GitLab API error: ${response.status} ${response.statusText}`);
+            }
+
+            return await response.json();
+          }
+
+          default: {
+            const _exhaustive: never = options;
+            throw new Error(`Unknown action: ${(_exhaustive as { action: string }).action}`);
+          }
+        }
+      },
+    },
+  ],
+
+  // manage_repository: Consolidates create_repository, fork_repository
+  [
+    "manage_repository",
+    {
+      name: "manage_repository",
+      description:
+        "REPOSITORY MANAGEMENT: Create or fork GitLab projects. Use 'create' to start a new project with custom settings (visibility, features, namespace). Use 'fork' with project_id to create your own copy of an existing project for independent development or contribution back via MRs.",
+      inputSchema: z.toJSONSchema(ManageRepositorySchema),
+      handler: async (args: unknown): Promise<unknown> => {
+        const options = ManageRepositorySchema.parse(args);
+
+        switch (options.action) {
+          case "create": {
+            const {
+              name,
+              namespace,
+              description,
+              visibility,
+              initialize_with_readme,
+              issues_enabled,
+              merge_requests_enabled,
+              jobs_enabled,
+              wiki_enabled,
+              snippets_enabled,
+              lfs_enabled,
+              request_access_enabled,
+              only_allow_merge_if_pipeline_succeeds,
+              only_allow_merge_if_all_discussions_are_resolved,
+            } = options;
+
+            // Resolve namespace path to ID if provided
+            let namespaceId: string | undefined;
+            let resolvedNamespace: { id: string; full_path: string } | null = null;
+            if (namespace) {
+              const namespaceApiUrl = `${process.env.GITLAB_API_URL}/api/v4/namespaces/${encodeURIComponent(namespace)}`;
+              const namespaceResponse = await enhancedFetch(namespaceApiUrl);
+
+              if (namespaceResponse.ok) {
+                resolvedNamespace = (await namespaceResponse.json()) as {
+                  id: string;
+                  full_path: string;
+                };
+                namespaceId = String(resolvedNamespace.id);
+              } else {
+                throw new Error(`Namespace '${namespace}' not found or not accessible`);
+              }
+            }
+
+            // Check if project already exists
+            const targetNamespacePath = resolvedNamespace
+              ? resolvedNamespace.full_path
+              : "current-user";
+            const projectPath = `${targetNamespacePath}/${name}`;
+            const checkProjectUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${encodeURIComponent(projectPath)}`;
+            const checkResponse = await enhancedFetch(checkProjectUrl);
+
+            if (checkResponse.ok) {
+              const existingProject = (await checkResponse.json()) as { id: string };
+              throw new Error(
+                `Project '${projectPath}' already exists (ID: ${existingProject.id}).`
+              );
+            }
+
+            // Create project
+            const body = new URLSearchParams();
+            body.set("name", name);
+
+            // Generate path from name
+            const generatedPath = name
+              .toLowerCase()
+              .replace(/[^a-z0-9-]/g, "-")
+              .replace(/-+/g, "-")
+              .replace(/^-|-$/g, "");
+            body.set("path", generatedPath);
+
+            if (namespaceId) body.set("namespace_id", namespaceId);
+            if (description) body.set("description", description);
+            if (visibility) body.set("visibility", visibility);
+            if (initialize_with_readme) body.set("initialize_with_readme", "true");
+
+            // Add optional feature flags
+            if (issues_enabled !== undefined) body.set("issues_enabled", String(issues_enabled));
+            if (merge_requests_enabled !== undefined)
+              body.set("merge_requests_enabled", String(merge_requests_enabled));
+            if (jobs_enabled !== undefined) body.set("jobs_enabled", String(jobs_enabled));
+            if (wiki_enabled !== undefined) body.set("wiki_enabled", String(wiki_enabled));
+            if (snippets_enabled !== undefined)
+              body.set("snippets_enabled", String(snippets_enabled));
+            if (lfs_enabled !== undefined) body.set("lfs_enabled", String(lfs_enabled));
+            if (request_access_enabled !== undefined)
+              body.set("request_access_enabled", String(request_access_enabled));
+            if (only_allow_merge_if_pipeline_succeeds !== undefined)
+              body.set(
+                "only_allow_merge_if_pipeline_succeeds",
+                String(only_allow_merge_if_pipeline_succeeds)
+              );
+            if (only_allow_merge_if_all_discussions_are_resolved !== undefined)
+              body.set(
+                "only_allow_merge_if_all_discussions_are_resolved",
+                String(only_allow_merge_if_all_discussions_are_resolved)
+              );
+
+            const createApiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects`;
+            const createResponse = await enhancedFetch(createApiUrl, {
+              method: "POST",
+              headers: { "Content-Type": "application/x-www-form-urlencoded" },
+              body: body.toString(),
+            });
+
+            if (!createResponse.ok) {
+              throw new Error(
+                `GitLab API error: ${createResponse.status} ${createResponse.statusText}`
+              );
+            }
+
+            const project = await createResponse.json();
+            return {
+              ...project,
+              validation: {
+                namespace_resolved: namespace ? `${namespace} -> ${namespaceId}` : "current-user",
+                generated_path: generatedPath,
+              },
+            };
+          }
+
+          case "fork": {
+            const { project_id, namespace, namespace_path, fork_name, fork_path } = options;
+
+            const body = new URLSearchParams();
+            if (namespace) body.set("namespace", namespace);
+            if (namespace_path) body.set("namespace_path", namespace_path);
+            if (fork_name) body.set("name", fork_name);
+            if (fork_path) body.set("path", fork_path);
+
+            const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${encodeURIComponent(project_id)}/fork`;
+            const response = await enhancedFetch(apiUrl, {
+              method: "POST",
+              headers: { "Content-Type": "application/x-www-form-urlencoded" },
+              body: body.toString(),
+            });
+
+            if (!response.ok) {
+              throw new Error(`GitLab API error: ${response.status} ${response.statusText}`);
+            }
+
+            return await response.json();
+          }
+
+          default: {
+            const _exhaustive: never = options;
+            throw new Error(`Unknown action: ${(_exhaustive as { action: string }).action}`);
+          }
+        }
+      },
+    },
+  ],
+
+  // ============================================================================
+  // KEPT AS-IS TOOLS (5 tools - no consolidation needed)
+  // ============================================================================
+
   [
     "get_users",
     {
       name: "get_users",
       description:
-        'FIND USERS: Search and retrieve GitLab users with intelligent pattern detection. RECOMMENDED: Use "search" parameter for most queries - automatically detects emails, usernames, or names with automatic transliteration and multi-phase fallback search. ADVANCED: Use "username" or "public_email" for exact matches when you need precise control. Supports filtering by active status, creation date, and user type (human/bot).',
+        "FIND USERS: Search GitLab users with smart pattern detection. Auto-detects emails, usernames, or names. Supports transliteration and multi-phase fallback search.",
       inputSchema: z.toJSONSchema(GetUsersSchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = GetUsersSchema.parse(args);
         const { smart_search, search, username, public_email, ...otherParams } = options;
 
-        // Smart search logic:
-        // 1. If only 'search' parameter is provided → auto-enable smart search (unless explicitly disabled)
-        // 2. If username/email are provided → use legacy behavior (unless smart_search explicitly enabled)
-        // 3. Respect explicit smart_search setting when provided
         const hasUsernameOrEmail = Boolean(username) || Boolean(public_email);
         const hasOnlySearch = Boolean(search) && !hasUsernameOrEmail;
-
         const shouldUseSmartSearch =
           smart_search === false ? false : smart_search === true || hasOnlySearch;
 
         if (shouldUseSmartSearch && (search || username || public_email)) {
-          // Smart search mode: auto-detect pattern and use intelligent search strategy
           const query = search ?? username ?? public_email ?? "";
           const additionalParams: UserSearchParams = {};
 
-          // Pass through all other filter parameters
           Object.entries(otherParams).forEach(([key, value]) => {
             if (value !== undefined && key !== "smart_search") {
               additionalParams[key] = value;
             }
           });
 
-          const result = await smartUserSearch(query, additionalParams);
-          return result;
+          return await smartUserSearch(query, additionalParams);
         } else {
-          // Legacy mode: direct GitLab API call with all provided parameters
           const queryParams = new URLSearchParams();
           Object.entries(options).forEach(([key, value]) => {
             if (value !== undefined && key !== "smart_search") {
@@ -336,95 +636,13 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
       },
     },
   ],
-  [
-    "get_project",
-    {
-      name: "get_project",
-      description:
-        "GET DETAILS: Retrieve comprehensive project information including settings and metadata. Use when: Need complete project details, Checking project configuration, Getting project statistics. Accepts either project_id (numeric ID or URL-encoded path) or namespace (group/project format). See also: list_projects to find projects first.",
-      inputSchema: z.toJSONSchema(GetProjectSchema),
-      handler: async (args: unknown): Promise<unknown> => {
-        const options = GetProjectSchema.parse(args);
-        const { project_id, namespace } = options;
 
-        // Determine project identifier: use namespace if provided, otherwise project_id
-        const projectIdentifier = namespace ?? project_id;
-        if (!projectIdentifier) {
-          throw new Error("Either project_id or namespace must be provided");
-        }
-
-        const queryParams = new URLSearchParams();
-        Object.entries(options).forEach(([key, value]) => {
-          if (value !== undefined && key !== "project_id" && key !== "namespace") {
-            queryParams.set(key, String(value));
-          }
-        });
-
-        const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${normalizeProjectId(projectIdentifier)}?${queryParams}`;
-        const response = await enhancedFetch(apiUrl);
-
-        if (!response.ok) {
-          throw new Error(`GitLab API error: ${response.status} ${response.statusText}`);
-        }
-
-        const project = await response.json();
-        return cleanGidsFromObject(project);
-      },
-    },
-  ],
-  // Additional core read-only tools
-  [
-    "get_namespace",
-    {
-      name: "get_namespace",
-      description:
-        "GET DETAILS: Retrieve comprehensive namespace information (group or user). Use when: Need complete namespace metadata, Checking namespace settings, Getting storage statistics. Requires namespace ID or URL-encoded path. See also: list_namespaces to browse all namespaces.",
-      inputSchema: z.toJSONSchema(GetNamespaceSchema),
-      handler: async (args: unknown): Promise<unknown> => {
-        const options = GetNamespaceSchema.parse(args);
-        const { namespace_id } = options;
-
-        const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/namespaces/${encodeURIComponent(namespace_id)}`;
-        const response = await enhancedFetch(apiUrl);
-
-        if (!response.ok) {
-          throw new Error(`GitLab API error: ${response.status} ${response.statusText}`);
-        }
-
-        const namespace = await response.json();
-        return cleanGidsFromObject(namespace);
-      },
-    },
-  ],
-  [
-    "verify_namespace",
-    {
-      name: "verify_namespace",
-      description:
-        "CHECK EXISTS: Verify if a namespace (group or user) exists and is accessible. ONLY works with namespaces - NOT project paths. Use when: Checking group/user namespace availability, Validating group references before creation, Testing namespace access permissions. For projects use get_project instead. Returns exists=true/false with namespace details if found.",
-      inputSchema: z.toJSONSchema(VerifyNamespaceSchema),
-      handler: async (args: unknown): Promise<unknown> => {
-        const options = VerifyNamespaceSchema.parse(args);
-        const { namespace } = options;
-
-        const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/namespaces/${encodeURIComponent(namespace)}`;
-        const response = await enhancedFetch(apiUrl);
-
-        return {
-          exists: response.ok,
-          status: response.status,
-          namespace: namespace,
-          data: response.ok ? await response.json() : null,
-        };
-      },
-    },
-  ],
   [
     "list_project_members",
     {
       name: "list_project_members",
       description:
-        "TEAM MEMBERS: List all members of a project with their access levels. Use when: Auditing project access, Finding collaborators, Checking user permissions. Shows access levels: 10=Guest, 20=Reporter, 30=Developer, 40=Maintainer, 50=Owner. Supports username filtering.",
+        "TEAM MEMBERS: List project members with access levels. Shows: 10=Guest, 20=Reporter, 30=Developer, 40=Maintainer, 50=Owner.",
       inputSchema: z.toJSONSchema(ListProjectMembersSchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = ListProjectMembersSchema.parse(args);
@@ -449,102 +667,13 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
       },
     },
   ],
-  [
-    "list_commits",
-    {
-      name: "list_commits",
-      description:
-        "HISTORY: List repository commit history with filtering. Use when: Analyzing project history, Finding commits by author/date, Tracking file changes. Supports date ranges (since/until), author filter, and specific file paths. See also: get_commit for specific commit details.",
-      inputSchema: z.toJSONSchema(ListCommitsSchema),
-      handler: async (args: unknown): Promise<unknown> => {
-        const options = ListCommitsSchema.parse(args);
-        const { project_id } = options;
 
-        const queryParams = new URLSearchParams();
-        Object.entries(options).forEach(([key, value]) => {
-          if (value !== undefined && key !== "project_id") {
-            queryParams.set(key, String(value));
-          }
-        });
-
-        const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${encodeURIComponent(project_id)}/repository/commits?${queryParams}`;
-        const response = await enhancedFetch(apiUrl);
-
-        if (!response.ok) {
-          throw new Error(`GitLab API error: ${response.status} ${response.statusText}`);
-        }
-
-        const commits = await response.json();
-        return commits;
-      },
-    },
-  ],
-  [
-    "get_commit",
-    {
-      name: "get_commit",
-      description:
-        "COMMIT DETAILS: Get comprehensive information about a specific commit. Use when: Inspecting commit metadata, Reviewing change statistics, Getting commit message/author. Shows additions/deletions per file with stats=true. See also: get_commit_diff for actual code changes.",
-      inputSchema: z.toJSONSchema(GetCommitSchema),
-      handler: async (args: unknown): Promise<unknown> => {
-        const options = GetCommitSchema.parse(args);
-        const { project_id, commit_sha } = options;
-
-        const queryParams = new URLSearchParams();
-        Object.entries(options).forEach(([key, value]) => {
-          if (value !== undefined && key !== "project_id" && key !== "commit_sha") {
-            queryParams.set(key, String(value));
-          }
-        });
-
-        const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${encodeURIComponent(project_id)}/repository/commits/${encodeURIComponent(commit_sha)}?${queryParams}`;
-        const response = await enhancedFetch(apiUrl);
-
-        if (!response.ok) {
-          throw new Error(`GitLab API error: ${response.status} ${response.statusText}`);
-        }
-
-        const commit = await response.json();
-        return commit;
-      },
-    },
-  ],
-  [
-    "get_commit_diff",
-    {
-      name: "get_commit_diff",
-      description:
-        "COMMIT DIFF: Get actual code changes from a commit. Use when: Reviewing code modifications, Generating patches, Analyzing line-by-line changes. Returns unified diff format (git diff style). See also: get_commit for metadata without diff.",
-      inputSchema: z.toJSONSchema(GetCommitDiffSchema),
-      handler: async (args: unknown): Promise<unknown> => {
-        const options = GetCommitDiffSchema.parse(args);
-        const { project_id, commit_sha } = options;
-
-        const queryParams = new URLSearchParams();
-        Object.entries(options).forEach(([key, value]) => {
-          if (value !== undefined && key !== "project_id" && key !== "commit_sha") {
-            queryParams.set(key, String(value));
-          }
-        });
-
-        const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${encodeURIComponent(project_id)}/repository/commits/${encodeURIComponent(commit_sha)}/diff?${queryParams}`;
-        const response = await enhancedFetch(apiUrl);
-
-        if (!response.ok) {
-          throw new Error(`GitLab API error: ${response.status} ${response.statusText}`);
-        }
-
-        const diff = await response.json();
-        return diff;
-      },
-    },
-  ],
   [
     "list_group_iterations",
     {
       name: "list_group_iterations",
       description:
-        "SPRINTS: List iterations/sprints for agile planning (Premium feature). Use when: Viewing sprint schedules, Tracking iteration progress, Planning releases. Filter by state: current=active sprint, upcoming=future, closed=completed. Requires GitLab Premium or higher.",
+        "SPRINTS: List iterations/sprints for agile planning. Filter by state: current, upcoming, closed. Requires GitLab Premium.",
       inputSchema: z.toJSONSchema(ListGroupIterationsSchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = ListGroupIterationsSchema.parse(args);
@@ -564,17 +693,17 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
           throw new Error(`GitLab API error: ${response.status} ${response.statusText}`);
         }
 
-        const iterations = await response.json();
-        return iterations;
+        return await response.json();
       },
     },
   ],
+
   [
     "download_attachment",
     {
       name: "download_attachment",
       description:
-        "DOWNLOAD: Retrieve uploaded file attachments from issues/MRs/wikis. Use when: Downloading images from issues, Getting attached documents, Retrieving uploaded files. Requires secret token and filename from the attachment URL (/uploads/[secret]/[filename]).",
+        "DOWNLOAD: Retrieve file attachments from issues/MRs. Requires secret token and filename from attachment URL.",
       inputSchema: z.toJSONSchema(DownloadAttachmentSchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = DownloadAttachmentSchema.parse(args);
@@ -596,216 +725,13 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
       },
     },
   ],
-  [
-    "list_events",
-    {
-      name: "list_events",
-      description:
-        "USER ACTIVITY: List YOUR activity events across all projects. Use when: Tracking your contributions, Auditing your actions, Reviewing your history. Date format: YYYY-MM-DD only (not timestamps). Filters: action=created/updated/pushed, target_type=issue/merge_request.",
-      inputSchema: z.toJSONSchema(ListEventsSchema),
-      handler: async (args: unknown): Promise<unknown> => {
-        const options = ListEventsSchema.parse(args);
 
-        const queryParams = new URLSearchParams();
-        Object.entries(options).forEach(([key, value]) => {
-          if (value !== undefined) {
-            queryParams.set(key, String(value));
-          }
-        });
-
-        const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/events?${queryParams}`;
-        const response = await enhancedFetch(apiUrl);
-
-        if (!response.ok) {
-          throw new Error(`GitLab API error: ${response.status} ${response.statusText}`);
-        }
-
-        const events = await response.json();
-        return events;
-      },
-    },
-  ],
-  [
-    "get_project_events",
-    {
-      name: "get_project_events",
-      description:
-        "PROJECT ACTIVITY: List all events within a specific project. Use when: Monitoring project activity, Tracking team contributions, Auditing project changes. Date format: YYYY-MM-DD only (not timestamps). Shows: commits, issues, MRs, member changes.",
-      inputSchema: z.toJSONSchema(GetProjectEventsSchema),
-      handler: async (args: unknown): Promise<unknown> => {
-        const options = GetProjectEventsSchema.parse(args);
-        const { project_id } = options;
-
-        const queryParams = new URLSearchParams();
-        Object.entries(options).forEach(([key, value]) => {
-          if (value !== undefined && key !== "project_id") {
-            queryParams.set(key, String(value));
-          }
-        });
-
-        const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${encodeURIComponent(project_id)}/events?${queryParams}`;
-        const response = await enhancedFetch(apiUrl);
-
-        if (!response.ok) {
-          throw new Error(`GitLab API error: ${response.status} ${response.statusText}`);
-        }
-
-        const events = await response.json();
-        return events;
-      },
-    },
-  ],
-
-  // Write tools
-  [
-    "create_repository",
-    {
-      name: "create_repository",
-      description:
-        "CREATE NEW: Initialize a new GitLab project/repository with automatic validation. Features: (1) Automatically checks if project already exists before creation, (2) Resolves namespace paths to IDs automatically, (3) Generates URL-safe project path from name, (4) Returns detailed validation information. Use when: Starting new projects, Setting up repository structure, Automating project creation. Creates in your namespace by default if no namespace specified.",
-      inputSchema: z.toJSONSchema(CreateRepositorySchema),
-      handler: async (args: unknown): Promise<unknown> => {
-        const options = CreateRepositorySchema.parse(args);
-        const { namespace, name, ...otherOptions } = options;
-
-        // Step 1: Resolve namespace path to ID if provided
-        let namespaceId: string | undefined;
-        let resolvedNamespace: { id: string; full_path: string } | null = null;
-        if (namespace) {
-          const namespaceApiUrl = `${process.env.GITLAB_API_URL}/api/v4/namespaces/${encodeURIComponent(namespace)}`;
-          const namespaceResponse = await enhancedFetch(namespaceApiUrl);
-
-          if (namespaceResponse.ok) {
-            resolvedNamespace = (await namespaceResponse.json()) as {
-              id: string;
-              full_path: string;
-            };
-            namespaceId = String(resolvedNamespace.id);
-          } else {
-            throw new Error(`Namespace '${namespace}' not found or not accessible`);
-          }
-        }
-
-        // Step 2: Check if project already exists in target namespace
-        const targetNamespacePath = resolvedNamespace
-          ? resolvedNamespace.full_path
-          : "current-user";
-        const projectPath = `${targetNamespacePath}/${name}`;
-
-        const checkProjectUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${encodeURIComponent(projectPath)}`;
-        const checkResponse = await enhancedFetch(checkProjectUrl);
-
-        if (checkResponse.ok) {
-          const existingProject = (await checkResponse.json()) as { id: string };
-          throw new Error(
-            `Project '${projectPath}' already exists (ID: ${existingProject.id}). Use a different name or update the existing project.`
-          );
-        }
-
-        // Step 3: Create project
-        const body = new URLSearchParams();
-
-        // Add required name
-        body.set("name", name);
-
-        // Generate path from name (replace spaces and special chars)
-        const generatedPath = name
-          .toLowerCase()
-          .replace(/[^a-z0-9-]/g, "-")
-          .replace(/-+/g, "-")
-          .replace(/^-|-$/g, "");
-        body.set("path", generatedPath);
-
-        // Add namespace_id if resolved
-        if (namespaceId) {
-          body.set("namespace_id", namespaceId);
-        }
-
-        // Add all other options
-        Object.entries(otherOptions).forEach(([key, value]) => {
-          if (value !== undefined) {
-            if (Array.isArray(value)) {
-              body.set(key, value.join(","));
-            } else {
-              body.set(key, String(value));
-            }
-          }
-        });
-
-        const createApiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects`;
-        const createResponse = await enhancedFetch(createApiUrl, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/x-www-form-urlencoded",
-          },
-          body: body.toString(),
-        });
-
-        if (!createResponse.ok) {
-          throw new Error(
-            `GitLab API error: ${createResponse.status} ${createResponse.statusText}`
-          );
-        }
-
-        const project = await createResponse.json();
-
-        // Step 4: Return enhanced result with validation info
-        return {
-          ...project,
-          validation: {
-            namespace_resolved: namespace ? `${namespace} → ${namespaceId}` : "current-user",
-            project_name_available: true,
-            created_in_expected_namespace:
-              !namespace ||
-              (project as { namespace: { full_path: string } }).namespace.full_path ===
-                resolvedNamespace?.full_path,
-            generated_path: generatedPath,
-          },
-        };
-      },
-    },
-  ],
-  [
-    "fork_repository",
-    {
-      name: "fork_repository",
-      description:
-        "FORK: Create your own copy of an existing project. Use when: Contributing to other projects, Creating experimental versions, Maintaining custom forks. Preserves fork relationship for MRs back to parent. Target namespace optional (defaults to your namespace).",
-      inputSchema: z.toJSONSchema(ForkRepositorySchema),
-      handler: async (args: unknown): Promise<unknown> => {
-        const options = ForkRepositorySchema.parse(args);
-
-        const body = new URLSearchParams();
-        Object.entries(options).forEach(([key, value]) => {
-          if (value !== undefined && key !== "project_id") {
-            body.set(key, String(value));
-          }
-        });
-
-        const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${encodeURIComponent(options.project_id)}/fork`;
-        const response = await enhancedFetch(apiUrl, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/x-www-form-urlencoded",
-          },
-          body: body.toString(),
-        });
-
-        if (!response.ok) {
-          throw new Error(`GitLab API error: ${response.status} ${response.statusText}`);
-        }
-
-        const fork = await response.json();
-        return fork;
-      },
-    },
-  ],
   [
     "create_branch",
     {
       name: "create_branch",
       description:
-        "NEW BRANCH: Create a Git branch from existing ref. Use when: Starting new features, Preparing bug fixes, Creating release branches. REQUIRED before creating MRs. Ref can be: branch name (main), tag (v1.0), or commit SHA. Branch names cannot contain spaces.",
+        "NEW BRANCH: Create a Git branch from existing ref. Required before creating MRs. Ref can be branch name, tag, or commit SHA.",
       inputSchema: z.toJSONSchema(CreateBranchSchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = CreateBranchSchema.parse(args);
@@ -817,9 +743,7 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
         const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${encodeURIComponent(options.project_id)}/repository/branches`;
         const response = await enhancedFetch(apiUrl, {
           method: "POST",
-          headers: {
-            "Content-Type": "application/x-www-form-urlencoded",
-          },
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
           body: body.toString(),
         });
 
@@ -827,27 +751,25 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
           throw new Error(`GitLab API error: ${response.status} ${response.statusText}`);
         }
 
-        const branch = await response.json();
-        return branch;
+        return await response.json();
       },
     },
   ],
+
   [
     "create_group",
     {
       name: "create_group",
       description:
-        "CREATE GROUP: Create a new GitLab group/namespace for organizing projects and teams. Use when: Setting up team spaces, Creating organizational structure, Establishing project hierarchies. Groups can contain projects and subgroups.",
+        "CREATE GROUP: Create a new GitLab group/namespace. Groups organize projects and teams. Can create subgroups with parent_id.",
       inputSchema: z.toJSONSchema(CreateGroupSchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = CreateGroupSchema.parse(args);
         const body = new URLSearchParams();
 
-        // Add required fields
         body.set("name", options.name);
         body.set("path", options.path);
 
-        // Add optional fields
         if (options.description) body.set("description", options.description);
         if (options.visibility) body.set("visibility", options.visibility);
         if (options.parent_id !== undefined) body.set("parent_id", String(options.parent_id));
@@ -861,9 +783,7 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
         const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/groups`;
         const response = await enhancedFetch(apiUrl, {
           method: "POST",
-          headers: {
-            "Content-Type": "application/x-www-form-urlencoded",
-          },
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
           body: body.toString(),
         });
 
@@ -871,8 +791,98 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
           throw new Error(`GitLab API error: ${response.status} ${response.statusText}`);
         }
 
-        const group = await response.json();
-        return group;
+        return await response.json();
+      },
+    },
+  ],
+
+  // ============================================================================
+  // NEW TOOLS (Issue #4 - Todos Management)
+  // ============================================================================
+
+  [
+    "list_todos",
+    {
+      name: "list_todos",
+      description:
+        "TASK QUEUE: View your GitLab todos (notifications requiring action). Todos are auto-created when you're assigned to issues/MRs, @mentioned, requested as reviewer, or CI pipelines fail. Filter by state (pending/done), action type (assigned, mentioned, review_requested), or target type (Issue, MergeRequest).",
+      inputSchema: z.toJSONSchema(ListTodosSchema),
+      handler: async (args: unknown): Promise<unknown> => {
+        const options = ListTodosSchema.parse(args);
+
+        const queryParams = new URLSearchParams();
+        Object.entries(options).forEach(([key, value]) => {
+          if (value !== undefined) {
+            queryParams.set(key, String(value));
+          }
+        });
+
+        const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/todos?${queryParams}`;
+        const response = await enhancedFetch(apiUrl);
+
+        if (!response.ok) {
+          throw new Error(`GitLab API error: ${response.status} ${response.statusText}`);
+        }
+
+        const todos = await response.json();
+        return cleanGidsFromObject(todos);
+      },
+    },
+  ],
+
+  [
+    "manage_todos",
+    {
+      name: "manage_todos",
+      description:
+        "TODO ACTIONS: Manage your GitLab todo items. Use 'mark_done' with id to complete a single todo (returns the updated todo object). Use 'mark_all_done' to clear your entire todo queue (returns success status). Use 'restore' with id to undo a completed todo (returns the restored todo object).",
+      inputSchema: z.toJSONSchema(ManageTodosSchema),
+      handler: async (args: unknown): Promise<unknown> => {
+        const options = ManageTodosSchema.parse(args);
+
+        switch (options.action) {
+          case "mark_done": {
+            const { id } = options;
+            const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/todos/${id}/mark_as_done`;
+            const response = await enhancedFetch(apiUrl, { method: "POST" });
+
+            if (!response.ok) {
+              throw new Error(`GitLab API error: ${response.status} ${response.statusText}`);
+            }
+
+            const todo = await response.json();
+            return cleanGidsFromObject(todo);
+          }
+
+          case "mark_all_done": {
+            const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/todos/mark_all_as_done`;
+            const response = await enhancedFetch(apiUrl, { method: "POST" });
+
+            if (!response.ok) {
+              throw new Error(`GitLab API error: ${response.status} ${response.statusText}`);
+            }
+
+            return { success: true, message: "All todos marked as done" };
+          }
+
+          case "restore": {
+            const { id } = options;
+            const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/todos/${id}/mark_as_pending`;
+            const response = await enhancedFetch(apiUrl, { method: "POST" });
+
+            if (!response.ok) {
+              throw new Error(`GitLab API error: ${response.status} ${response.statusText}`);
+            }
+
+            const todo = await response.json();
+            return cleanGidsFromObject(todo);
+          }
+
+          default: {
+            const _exhaustive: never = options;
+            throw new Error(`Unknown action: ${(_exhaustive as { action: string }).action}`);
+          }
+        }
       },
     },
   ],
@@ -882,28 +892,23 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
  * Get read-only tool names from the registry
  */
 export function getCoreReadOnlyToolNames(): string[] {
-  // Return tools that are considered read-only
   return [
-    "search_repositories",
-    "list_namespaces",
-    "get_namespace",
-    "verify_namespace",
-    "get_project",
-    "list_projects",
-    "list_project_members",
+    // Consolidated read tools
+    "browse_projects",
+    "browse_namespaces",
+    "browse_commits",
+    "browse_events",
+    // Kept as-is read tools
     "get_users",
-    "list_commits",
-    "get_commit",
-    "get_commit_diff",
+    "list_project_members",
     "list_group_iterations",
     "download_attachment",
-    "list_events",
-    "get_project_events",
+    "list_todos",
   ];
 }
 
 /**
- * Get all tool definitions from the registry (for backward compatibility)
+ * Get all tool definitions from the registry
  */
 export function getCoreToolDefinitions(): EnhancedToolDefinition[] {
   return Array.from(coreToolRegistry.values());
