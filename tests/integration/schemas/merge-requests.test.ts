@@ -3,10 +3,7 @@
  * Tests schemas using handler functions with real GitLab API
  */
 
-import {
-  ListMergeRequestsSchema,
-  GetMergeRequestSchema,
-} from "../../../src/entities/mrs/schema-readonly";
+import { BrowseMergeRequestsSchema } from "../../../src/entities/mrs/schema-readonly";
 import { IntegrationTestHelper } from "../helpers/registry-helper";
 
 describe("Merge Requests Schema - GitLab Integration", () => {
@@ -23,7 +20,7 @@ describe("Merge Requests Schema - GitLab Integration", () => {
     console.log("✅ Integration test helper initialized for merge requests testing");
   });
 
-  describe("ListMergeRequestsSchema", () => {
+  describe("BrowseMergeRequestsSchema", () => {
     it("should validate and test with real project data using handler functions", async () => {
       console.log("🔍 Getting real project for merge requests testing");
 
@@ -38,6 +35,7 @@ describe("Merge Requests Schema - GitLab Integration", () => {
       console.log(`📋 Using project: ${testProject.name} (ID: ${testProject.id})`);
 
       const validParams = {
+        action: "list" as const,
         project_id: testProject.id.toString(),
         state: "all" as const,
         per_page: 5,
@@ -46,15 +44,15 @@ describe("Merge Requests Schema - GitLab Integration", () => {
       };
 
       // Validate schema
-      const result = ListMergeRequestsSchema.safeParse(validParams);
+      const result = BrowseMergeRequestsSchema.safeParse(validParams);
       expect(result.success).toBe(true);
 
       if (result.success) {
         // Test actual handler function using CQRS tool
-        const mergeRequests = (await helper.executeTool("browse_merge_requests", {
-          action: "list",
-          ...result.data,
-        })) as any[];
+        const mergeRequests = (await helper.executeTool(
+          "browse_merge_requests",
+          result.data
+        )) as any[];
         expect(Array.isArray(mergeRequests)).toBe(true);
         console.log(`📋 Retrieved ${mergeRequests.length} merge requests via handler`);
 
@@ -141,7 +139,7 @@ describe("Merge Requests Schema - GitLab Integration", () => {
         }
       }
 
-      console.log("✅ ListMergeRequestsSchema test completed with real data");
+      console.log("✅ BrowseMergeRequestsSchema test completed with real data");
     });
 
     it("should test comprehensive filtering with actual data", async () => {
@@ -158,23 +156,44 @@ describe("Merge Requests Schema - GitLab Integration", () => {
       const filterTests = [
         {
           name: "All MRs",
-          params: { project_id: testProject.id.toString(), state: "all" as const, per_page: 20 },
+          params: {
+            action: "list" as const,
+            project_id: testProject.id.toString(),
+            state: "all" as const,
+            per_page: 20,
+          },
         },
         {
           name: "Opened MRs only",
-          params: { project_id: testProject.id.toString(), state: "opened" as const, per_page: 10 },
+          params: {
+            action: "list" as const,
+            project_id: testProject.id.toString(),
+            state: "opened" as const,
+            per_page: 10,
+          },
         },
         {
           name: "Closed MRs only",
-          params: { project_id: testProject.id.toString(), state: "closed" as const, per_page: 10 },
+          params: {
+            action: "list" as const,
+            project_id: testProject.id.toString(),
+            state: "closed" as const,
+            per_page: 10,
+          },
         },
         {
           name: "Merged MRs only",
-          params: { project_id: testProject.id.toString(), state: "merged" as const, per_page: 10 },
+          params: {
+            action: "list" as const,
+            project_id: testProject.id.toString(),
+            state: "merged" as const,
+            per_page: 10,
+          },
         },
         {
           name: "Ordered by creation date",
           params: {
+            action: "list" as const,
             project_id: testProject.id.toString(),
             order_by: "created_at" as const,
             sort: "desc" as const,
@@ -183,11 +202,17 @@ describe("Merge Requests Schema - GitLab Integration", () => {
         },
         {
           name: "With label details",
-          params: { project_id: testProject.id.toString(), with_labels_details: true, per_page: 5 },
+          params: {
+            action: "list" as const,
+            project_id: testProject.id.toString(),
+            with_labels_details: true,
+            per_page: 5,
+          },
         },
         {
           name: "With merge status recheck",
           params: {
+            action: "list" as const,
             project_id: testProject.id.toString(),
             with_merge_status_recheck: true,
             per_page: 5,
@@ -199,15 +224,15 @@ describe("Merge Requests Schema - GitLab Integration", () => {
         console.log(`🔍 Testing filter: ${test.name}`);
 
         // Validate schema first
-        const schemaResult = ListMergeRequestsSchema.safeParse(test.params);
+        const schemaResult = BrowseMergeRequestsSchema.safeParse(test.params);
         expect(schemaResult.success).toBe(true);
 
         if (schemaResult.success) {
           // Test with handler function using CQRS tool
-          const mergeRequests = (await helper.executeTool("browse_merge_requests", {
-            action: "list",
-            ...schemaResult.data,
-          })) as any[];
+          const mergeRequests = (await helper.executeTool(
+            "browse_merge_requests",
+            schemaResult.data
+          )) as any[];
           expect(Array.isArray(mergeRequests)).toBe(true);
 
           // Validate filtering worked correctly
@@ -250,26 +275,27 @@ describe("Merge Requests Schema - GitLab Integration", () => {
 
     it("should validate schema with different state combinations", async () => {
       const testCases = [
-        { state: "opened" as const },
-        { state: "closed" as const },
-        { state: "locked" as const },
-        { state: "merged" as const },
-        { state: "all" as const },
+        { action: "list" as const, state: "opened" as const },
+        { action: "list" as const, state: "closed" as const },
+        { action: "list" as const, state: "locked" as const },
+        { action: "list" as const, state: "merged" as const },
+        { action: "list" as const, state: "all" as const },
       ];
 
       for (const testCase of testCases) {
-        const result = ListMergeRequestsSchema.safeParse(testCase);
+        const result = BrowseMergeRequestsSchema.safeParse(testCase);
         expect(result.success).toBe(true);
         if (result.success) {
           expect(result.data.state).toBe(testCase.state);
         }
       }
 
-      console.log("✅ ListMergeRequestsSchema validates all state combinations");
+      console.log("✅ BrowseMergeRequestsSchema validates all state combinations");
     });
 
     it("should reject invalid parameters", async () => {
       const invalidParams = {
+        action: "list" as const,
         state: "invalid_state", // Invalid enum value
         order_by: "invalid_field", // Invalid enum value
         sort: "sideways", // Invalid enum value
@@ -278,23 +304,23 @@ describe("Merge Requests Schema - GitLab Integration", () => {
         wip: "maybe", // Invalid enum value
       };
 
-      const result = ListMergeRequestsSchema.safeParse(invalidParams);
+      const result = BrowseMergeRequestsSchema.safeParse(invalidParams);
       expect(result.success).toBe(false);
 
       if (!result.success) {
         expect(result.error.issues.length).toBeGreaterThan(0);
       }
 
-      console.log("✅ ListMergeRequestsSchema correctly rejects invalid parameters");
+      console.log("✅ BrowseMergeRequestsSchema correctly rejects invalid parameters");
     });
   });
 
-  describe("GetMergeRequestSchema", () => {
+  describe("BrowseMergeRequestsSchema - get action", () => {
     it("should validate get merge request parameters", async () => {
       // Get actual project and its MRs for testing
       const projects = (await helper.listProjects({ per_page: 1 })) as any[];
       if (projects.length === 0) {
-        console.log("⚠️  No projects available for GetMergeRequestSchema testing");
+        console.log("⚠️  No projects available for BrowseMergeRequestsSchema testing");
         return;
       }
 
@@ -306,19 +332,20 @@ describe("Merge Requests Schema - GitLab Integration", () => {
       })) as any[];
 
       if (mergeRequests.length === 0) {
-        console.log("⚠️  No merge requests found for GetMergeRequestSchema testing");
+        console.log("⚠️  No merge requests found for BrowseMergeRequestsSchema testing");
         return;
       }
 
       const testMR = mergeRequests[0];
       const validParams = {
+        action: "get" as const,
         project_id: testProject.id.toString(),
         merge_request_iid: testMR.iid.toString(),
         include_diverged_commits_count: true,
         include_rebase_in_progress: true,
       };
 
-      const result = GetMergeRequestSchema.safeParse(validParams);
+      const result = BrowseMergeRequestsSchema.safeParse(validParams);
       expect(result.success).toBe(true);
 
       if (result.success) {
@@ -328,7 +355,7 @@ describe("Merge Requests Schema - GitLab Integration", () => {
         expect(result.data.include_rebase_in_progress).toBe(true);
       }
 
-      console.log("✅ GetMergeRequestSchema validates parameters correctly");
+      console.log("✅ BrowseMergeRequestsSchema validates parameters correctly");
     });
 
     it("should test handler function for single merge request", async () => {
@@ -353,6 +380,7 @@ describe("Merge Requests Schema - GitLab Integration", () => {
 
       const testMR = mergeRequests[0];
       const params = {
+        action: "get" as const,
         project_id: testProject.id.toString(),
         merge_request_iid: testMR.iid.toString(),
         include_diverged_commits_count: true,
@@ -360,15 +388,12 @@ describe("Merge Requests Schema - GitLab Integration", () => {
       };
 
       // Validate parameters first
-      const paramResult = GetMergeRequestSchema.safeParse(params);
+      const paramResult = BrowseMergeRequestsSchema.safeParse(params);
       expect(paramResult.success).toBe(true);
 
       if (paramResult.success) {
         // Test handler function using CQRS tool
-        const mr = (await helper.executeTool("browse_merge_requests", {
-          action: "get",
-          ...paramResult.data,
-        })) as any;
+        const mr = (await helper.executeTool("browse_merge_requests", paramResult.data)) as any;
 
         // Comprehensive single MR validation
         expect(mr).toHaveProperty("id");
@@ -437,7 +462,7 @@ describe("Merge Requests Schema - GitLab Integration", () => {
         expect(Array.isArray(mr.labels)).toBe(true);
 
         console.log(
-          `✅ GetMergeRequestSchema comprehensive validation: ${mr.title} (IID: ${mr.iid})`
+          `✅ BrowseMergeRequestsSchema comprehensive validation: ${mr.title} (IID: ${mr.iid})`
         );
         console.log(
           `  📊 Details: State=${mr.state}, Conflicts=${mr.has_conflicts}, WIP=${mr.work_in_progress}`
@@ -453,18 +478,19 @@ describe("Merge Requests Schema - GitLab Integration", () => {
 
     it("should reject invalid merge request parameters", async () => {
       const invalidParams = {
+        action: "get" as const,
         project_id: "", // Empty project ID
         // No merge_request_iid or branch_name - violates schema refine rule
       };
 
-      const result = GetMergeRequestSchema.safeParse(invalidParams);
+      const result = BrowseMergeRequestsSchema.safeParse(invalidParams);
       expect(result.success).toBe(false);
 
       if (!result.success) {
         expect(result.error.issues.length).toBeGreaterThan(0);
       }
 
-      console.log("✅ GetMergeRequestSchema correctly rejects invalid parameters");
+      console.log("✅ BrowseMergeRequestsSchema correctly rejects invalid parameters");
     });
   });
 });

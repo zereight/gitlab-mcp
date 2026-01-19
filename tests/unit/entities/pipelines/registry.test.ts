@@ -418,7 +418,7 @@ describe("Pipelines Registry - CQRS Tools", () => {
           action: "jobs",
           project_id: "test/project",
           pipeline_id: "1",
-          scope: ["failed"],
+          job_scope: ["failed"],
         });
 
         const call = mockEnhancedFetch.mock.calls[0];

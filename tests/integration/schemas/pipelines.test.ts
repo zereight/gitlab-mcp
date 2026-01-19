@@ -333,7 +333,7 @@ describe("Pipelines Schema - GitLab Integration (CQRS)", () => {
         action: "jobs" as const,
         project_id: "123",
         pipeline_id: "456",
-        scope: ["failed", "success"] as const,
+        job_scope: ["failed", "success"] as const,
         include_retried: true,
       };
 
@@ -343,7 +343,7 @@ describe("Pipelines Schema - GitLab Integration (CQRS)", () => {
       if (result.success && result.data.action === "jobs") {
         expect(result.data.project_id).toBe("123");
         expect(result.data.pipeline_id).toBe("456");
-        expect(result.data.scope).toEqual(["failed", "success"]);
+        expect(result.data.job_scope).toEqual(["failed", "success"]);
         expect(result.data.include_retried).toBe(true);
       }
 

@@ -37,10 +37,13 @@ export const filesToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefin
             });
           }
           case "content": {
+            // file_path is required for content action (validated by .refine())
+            const filePath = input.file_path!;
+
             const queryParams = new URLSearchParams();
             if (input.ref) queryParams.set("ref", input.ref);
 
-            const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${normalizeProjectId(input.project_id)}/repository/files/${encodeURIComponent(input.file_path)}/raw?${queryParams}`;
+            const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${normalizeProjectId(input.project_id)}/repository/files/${encodeURIComponent(filePath)}/raw?${queryParams}`;
             const response = await enhancedFetch(apiUrl);
 
             if (!response.ok) {
@@ -49,18 +52,16 @@ export const filesToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefin
 
             const content = await response.text();
             return {
-              file_path: input.file_path,
+              file_path: filePath,
               ref: input.ref ?? "HEAD",
               size: content.length,
               content: content,
               content_type: response.headers.get("content-type") ?? "text/plain",
             };
           }
-          /* istanbul ignore next -- TypeScript exhaustive check, unreachable with Zod validation */
-          default: {
-            const _exhaustive: never = input;
-            throw new Error(`Unknown action: ${(_exhaustive as BrowseFilesInput).action}`);
-          }
+          /* istanbul ignore next -- unreachable with Zod validation */
+          default:
+            throw new Error(`Unknown action: ${input.action}`);
         }
       },
     },
@@ -77,14 +78,22 @@ export const filesToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefin
 
         switch (input.action) {
           case "single": {
+            // file_path, content, commit_message, branch are required for single action (validated by .refine())
             const { project_id, file_path, action: _action, ...body } = input;
+            const filePath = file_path!;
+
             return gitlab.post(
-              `projects/${normalizeProjectId(project_id)}/repository/files/${encodeURIComponent(file_path)}`,
+              `projects/${normalizeProjectId(project_id)}/repository/files/${encodeURIComponent(filePath)}`,
               { body, contentType: "form" }
             );
           }
           case "batch": {
-            const actions = input.files.map(file => ({
+            // files, branch, commit_message are required for batch action (validated by .refine())
+            const files = input.files!;
+            const branch = input.branch!;
+            const commitMessage = input.commit_message!;
+
+            const actions = files.map(file => ({
               action: "create",
               file_path: file.file_path,
               content: file.content,
@@ -93,8 +102,8 @@ export const filesToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefin
             }));
 
             const body: Record<string, unknown> = {
-              branch: input.branch,
-              commit_message: input.commit_message,
+              branch,
+              commit_message: commitMessage,
               actions,
             };
 
@@ -108,9 +117,13 @@ export const filesToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefin
             );
           }
           case "upload": {
+            // file, filename are required for upload action (validated by .refine())
+            const file = input.file!;
+            const filename = input.filename!;
+
             const formData = new FormData();
-            const buffer = Buffer.from(input.file, "base64");
-            const fileObj = new File([buffer], input.filename, {
+            const buffer = Buffer.from(file, "base64");
+            const fileObj = new File([new Uint8Array(buffer)], filename, {
               type: "application/octet-stream",
             });
             formData.append("file", fileObj);
@@ -119,11 +132,9 @@ export const filesToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefin
               body: formData,
             });
           }
-          /* istanbul ignore next -- TypeScript exhaustive check, unreachable with Zod validation */
-          default: {
-            const _exhaustive: never = input;
-            throw new Error(`Unknown action: ${(_exhaustive as ManageFilesInput).action}`);
-          }
+          /* istanbul ignore next -- unreachable with Zod validation */
+          default:
+            throw new Error(`Unknown action: ${input.action}`);
         }
       },
     },

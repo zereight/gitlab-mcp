@@ -53,6 +53,9 @@ export const mrsToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefinit
           }
 
           case "get": {
+            // project_id is required for get action (validated by .refine())
+            const projectId = input.project_id!;
+
             // Build query params for optional fields
             const query: Record<string, boolean | string | undefined> = {};
             if (input.include_diverged_commits_count !== undefined)
@@ -62,12 +65,12 @@ export const mrsToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefinit
 
             if (input.merge_request_iid) {
               return gitlab.get(
-                `projects/${normalizeProjectId(input.project_id)}/merge_requests/${input.merge_request_iid}`,
+                `projects/${normalizeProjectId(projectId)}/merge_requests/${input.merge_request_iid}`,
                 Object.keys(query).length > 0 ? { query } : undefined
               );
             } else if (input.branch_name) {
               const result = await gitlab.get<unknown[]>(
-                `projects/${normalizeProjectId(input.project_id)}/merge_requests`,
+                `projects/${normalizeProjectId(projectId)}/merge_requests`,
                 { query: { source_branch: input.branch_name, ...query } }
               );
 
@@ -80,6 +83,10 @@ export const mrsToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefinit
           }
 
           case "diffs": {
+            // project_id and merge_request_iid are required for diffs action (validated by .refine())
+            const projectId = input.project_id!;
+            const mrIid = input.merge_request_iid!;
+
             const query: Record<string, number | boolean | undefined> = {};
             if (input.page !== undefined) query.page = input.page;
             if (input.per_page !== undefined) query.per_page = input.per_page;
@@ -89,29 +96,29 @@ export const mrsToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefinit
               query.include_rebase_in_progress = input.include_rebase_in_progress;
 
             return gitlab.get(
-              `projects/${normalizeProjectId(input.project_id)}/merge_requests/${input.merge_request_iid}/changes`,
+              `projects/${normalizeProjectId(projectId)}/merge_requests/${mrIid}/changes`,
               { query }
             );
           }
 
           case "compare": {
+            // project_id, from, to are required for compare action (validated by .refine())
+            const projectId = input.project_id!;
+
             const query: Record<string, string | boolean | undefined> = {
-              from: input.from,
-              to: input.to,
+              from: input.from!,
+              to: input.to!,
             };
             if (input.straight !== undefined) query.straight = input.straight;
 
-            return gitlab.get(
-              `projects/${normalizeProjectId(input.project_id)}/repository/compare`,
-              { query }
-            );
+            return gitlab.get(`projects/${normalizeProjectId(projectId)}/repository/compare`, {
+              query,
+            });
           }
 
-          /* istanbul ignore next -- TypeScript exhaustive check, unreachable with Zod validation */
-          default: {
-            const _exhaustive: never = input;
-            throw new Error(`Unknown action: ${(_exhaustive as BrowseMergeRequestsInput).action}`);
-          }
+          /* istanbul ignore next -- unreachable with Zod validation */
+          default:
+            throw new Error(`Unknown action: ${input.action}`);
         }
       },
     },
@@ -148,16 +155,15 @@ export const mrsToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefinit
           }
 
           case "draft": {
+            // draft_note_id is required for draft action (validated by .refine())
             return gitlab.get(
-              `projects/${normalizeProjectId(input.project_id)}/merge_requests/${input.merge_request_iid}/draft_notes/${input.draft_note_id}`
+              `projects/${normalizeProjectId(input.project_id)}/merge_requests/${input.merge_request_iid}/draft_notes/${input.draft_note_id!}`
             );
           }
 
-          /* istanbul ignore next -- TypeScript exhaustive check, unreachable with Zod validation */
-          default: {
-            const _exhaustive: never = input;
-            throw new Error(`Unknown action: ${(_exhaustive as BrowseMrDiscussionsInput).action}`);
-          }
+          /* istanbul ignore next -- unreachable with Zod validation */
+          default:
+            throw new Error(`Unknown action: ${input.action}`);
         }
       },
     },
@@ -197,7 +203,9 @@ export const mrsToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefinit
           }
 
           case "update": {
+            // merge_request_iid is required for update action (validated by .refine())
             const { action: _action, project_id, merge_request_iid, ...body } = input;
+            const mrIid = merge_request_iid!;
 
             // Handle array fields
             const processedBody: Record<string, unknown> = {};
@@ -210,25 +218,25 @@ export const mrsToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefinit
             }
 
             return gitlab.put(
-              `projects/${normalizeProjectId(project_id)}/merge_requests/${merge_request_iid}`,
+              `projects/${normalizeProjectId(project_id)}/merge_requests/${mrIid}`,
               { body: processedBody, contentType: "form" }
             );
           }
 
           case "merge": {
+            // merge_request_iid is required for merge action (validated by .refine())
             const { action: _action, project_id, merge_request_iid, ...body } = input;
+            const mrIid = merge_request_iid!;
 
             return gitlab.put(
-              `projects/${normalizeProjectId(project_id)}/merge_requests/${merge_request_iid}/merge`,
+              `projects/${normalizeProjectId(project_id)}/merge_requests/${mrIid}/merge`,
               { body, contentType: "form" }
             );
           }
 
-          /* istanbul ignore next -- TypeScript exhaustive check, unreachable with Zod validation */
-          default: {
-            const _exhaustive: never = input;
-            throw new Error(`Unknown action: ${(_exhaustive as ManageMergeRequestInput).action}`);
-          }
+          /* istanbul ignore next -- unreachable with Zod validation */
+          default:
+            throw new Error(`Unknown action: ${input.action}`);
         }
       },
     },
@@ -249,52 +257,64 @@ export const mrsToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefinit
 
         switch (input.action) {
           case "comment": {
+            // noteable_type and noteable_id are required for comment action (validated by .refine())
+            const noteableType = input.noteable_type!;
+            const noteableId = input.noteable_id!;
+
             const body: Record<string, unknown> = { body: input.body };
             if (input.created_at) body.created_at = input.created_at;
             if (input.confidential !== undefined) body.confidential = input.confidential;
 
-            const resourceType =
-              input.noteable_type === "merge_request" ? "merge_requests" : "issues";
+            const resourceType = noteableType === "merge_request" ? "merge_requests" : "issues";
 
             return gitlab.post(
-              `projects/${normalizeProjectId(input.project_id)}/${resourceType}/${input.noteable_id}/notes`,
+              `projects/${normalizeProjectId(input.project_id)}/${resourceType}/${noteableId}/notes`,
               { body, contentType: "form" }
             );
           }
 
           case "thread": {
+            // merge_request_iid is required for thread action (validated by .refine())
+            const mrIid = input.merge_request_iid!;
+
             const body: Record<string, unknown> = { body: input.body };
             if (input.position) body.position = JSON.stringify(input.position);
             if (input.commit_id) body.commit_id = input.commit_id;
 
             return gitlab.post(
-              `projects/${normalizeProjectId(input.project_id)}/merge_requests/${input.merge_request_iid}/discussions`,
+              `projects/${normalizeProjectId(input.project_id)}/merge_requests/${mrIid}/discussions`,
               { body, contentType: "form" }
             );
           }
 
           case "reply": {
+            // merge_request_iid and discussion_id are required for reply action (validated by .refine())
+            const mrIid = input.merge_request_iid!;
+            const discussionId = input.discussion_id!;
+
             const body: Record<string, unknown> = { body: input.body };
             if (input.created_at) body.created_at = input.created_at;
 
             return gitlab.post(
-              `projects/${normalizeProjectId(input.project_id)}/merge_requests/${input.merge_request_iid}/discussions/${input.discussion_id}/notes`,
+              `projects/${normalizeProjectId(input.project_id)}/merge_requests/${mrIid}/discussions/${discussionId}/notes`,
               { body, contentType: "form" }
             );
           }
 
           case "update": {
+            // merge_request_iid and note_id are required for update action (validated by .refine())
+            const mrIid = input.merge_request_iid!;
+            const noteId = input.note_id!;
+
             return gitlab.put(
-              `projects/${normalizeProjectId(input.project_id)}/merge_requests/${input.merge_request_iid}/notes/${input.note_id}`,
+              `projects/${normalizeProjectId(input.project_id)}/merge_requests/${mrIid}/notes/${noteId}`,
               { body: { body: input.body }, contentType: "form" }
             );
           }
 
-          /* istanbul ignore next -- TypeScript exhaustive check, unreachable with Zod validation */
-          default: {
-            const _exhaustive: never = input;
-            throw new Error(`Unknown action: ${(_exhaustive as ManageMrDiscussionInput).action}`);
-          }
+          /* istanbul ignore next -- unreachable with Zod validation */
+          default:
+            throw new Error(`Unknown action: ${input.action}`);
         }
       },
     },
@@ -328,18 +348,24 @@ export const mrsToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefinit
           }
 
           case "update": {
+            // draft_note_id is required for update action (validated by .refine())
+            const draftNoteId = input.draft_note_id!;
+
             const body: Record<string, unknown> = { note: input.note };
             if (input.position) body.position = JSON.stringify(input.position);
 
             return gitlab.put(
-              `projects/${normalizeProjectId(input.project_id)}/merge_requests/${input.merge_request_iid}/draft_notes/${input.draft_note_id}`,
+              `projects/${normalizeProjectId(input.project_id)}/merge_requests/${input.merge_request_iid}/draft_notes/${draftNoteId}`,
               { body, contentType: "form" }
             );
           }
 
           case "publish": {
+            // draft_note_id is required for publish action (validated by .refine())
+            const draftNoteId = input.draft_note_id!;
+
             const result = await gitlab.put<void>(
-              `projects/${normalizeProjectId(input.project_id)}/merge_requests/${input.merge_request_iid}/draft_notes/${input.draft_note_id}/publish`
+              `projects/${normalizeProjectId(input.project_id)}/merge_requests/${input.merge_request_iid}/draft_notes/${draftNoteId}/publish`
             );
             // PUT publish returns 204 No Content (undefined) on success
             return result ?? { published: true };
@@ -354,17 +380,18 @@ export const mrsToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefinit
           }
 
           case "delete": {
+            // draft_note_id is required for delete action (validated by .refine())
+            const draftNoteId = input.draft_note_id!;
+
             await gitlab.delete<void>(
-              `projects/${normalizeProjectId(input.project_id)}/merge_requests/${input.merge_request_iid}/draft_notes/${input.draft_note_id}`
+              `projects/${normalizeProjectId(input.project_id)}/merge_requests/${input.merge_request_iid}/draft_notes/${draftNoteId}`
             );
             return { success: true, message: "Draft note deleted successfully" };
           }
 
-          /* istanbul ignore next -- TypeScript exhaustive check, unreachable with Zod validation */
-          default: {
-            const _exhaustive: never = input;
-            throw new Error(`Unknown action: ${(_exhaustive as ManageDraftNotesInput).action}`);
-          }
+          /* istanbul ignore next -- unreachable with Zod validation */
+          default:
+            throw new Error(`Unknown action: ${input.action}`);
         }
       },
     },

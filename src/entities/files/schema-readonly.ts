@@ -1,10 +1,10 @@
 import { z } from "zod";
 import { flexibleBoolean, requiredId } from "../utils";
-import { ProjectParamsSchema } from "../shared";
 
-// READ-ONLY FILE OPERATION SCHEMAS
+// ============================================================================
+// Response schemas for GitLab file API responses
+// ============================================================================
 
-// Repository content response schemas (read-only)
 export const GitLabFileContentSchema = z.object({
   file_name: z.string(),
   file_path: z.string(),
@@ -28,7 +28,6 @@ export const GitLabDirectoryContentSchema = z.object({
 
 export const GitLabContentSchema = z.union([GitLabFileContentSchema, GitLabDirectoryContentSchema]);
 
-// Response schemas (read-only)
 export const GitLabCreateUpdateFileResponseSchema = z.object({
   file_path: z.string(),
   branch: z.string(),
@@ -42,48 +41,41 @@ export const GitLabTreeSchema = z.object({
   mode: z.string(),
 });
 
-// Repository operations (read-only)
-export const GetRepositoryTreeSchema = z.object({
-  project_id: requiredId.describe("Project ID or URL-encoded path"),
-  path: z.string().optional().describe("The path inside repository"),
-  ref: z.string().optional().describe("The name of a repository branch or tag"),
-  recursive: flexibleBoolean.optional().describe("Boolean value used to get a recursive tree"),
-  per_page: z.number().int().min(1).max(100).optional().describe("Number of results per page"),
-  page: z.number().int().min(1).optional().describe("Page number"),
-});
-
-// Get file contents (read-only)
-export const GetFileContentsSchema = ProjectParamsSchema.extend({
-  file_path: z.string().describe("URL-encoded full path to the file"),
-  ref: z.string().optional().describe("The name of branch, tag or commit"),
-});
-
 // ============================================================================
-// browse_files - CQRS Query Tool (discriminated union)
+// browse_files - CQRS Query Tool (flat schema for Claude API compatibility)
+// Actions: tree, content
+// NOTE: Uses flat z.object() with .refine() instead of z.discriminatedUnion()
+// because Claude API doesn't support oneOf/allOf/anyOf at JSON Schema root level.
 // ============================================================================
 
-const BrowseFilesBaseSchema = z.object({
-  project_id: requiredId.describe("Project ID or URL-encoded path"),
-  ref: z.string().optional().describe("Branch, tag, or commit SHA"),
-});
-
-const BrowseFilesTreeSchema = BrowseFilesBaseSchema.extend({
-  action: z.literal("tree"),
-  path: z.string().optional().describe("Directory path to list"),
-  recursive: flexibleBoolean.optional().describe("Include nested directories"),
-  per_page: z.number().int().min(1).max(100).optional().describe("Results per page (max 100)"),
-  page: z.number().int().min(1).optional().describe("Page number"),
-});
-
-const BrowseFilesContentSchema = BrowseFilesBaseSchema.extend({
-  action: z.literal("content"),
-  file_path: z.string().describe("Path to the file to read"),
-});
-
-export const BrowseFilesSchema = z.discriminatedUnion("action", [
-  BrowseFilesTreeSchema,
-  BrowseFilesContentSchema,
-]);
+export const BrowseFilesSchema = z
+  .object({
+    action: z.enum(["tree", "content"]).describe("Action to perform: tree or content"),
+    project_id: requiredId.describe("Project ID or URL-encoded path"),
+    ref: z.string().optional().describe("Branch, tag, or commit SHA"),
+    // tree action fields
+    path: z.string().optional().describe("Directory path to list. For 'tree' action."),
+    recursive: flexibleBoolean
+      .optional()
+      .describe("Include nested directories. For 'tree' action."),
+    per_page: z
+      .number()
+      .int()
+      .min(1)
+      .max(100)
+      .optional()
+      .describe("Results per page (max 100). For 'tree' action."),
+    page: z.number().int().min(1).optional().describe("Page number. For 'tree' action."),
+    // content action fields
+    file_path: z
+      .string()
+      .optional()
+      .describe("Path to the file to read. Required for 'content' action."),
+  })
+  .refine(data => data.action !== "content" || data.file_path !== undefined, {
+    message: "file_path is required for 'content' action",
+    path: ["file_path"],
+  });
 
 // Export type definitions
 export type GitLabFileContent = z.infer<typeof GitLabFileContentSchema>;
@@ -91,6 +83,4 @@ export type GitLabDirectoryContent = z.infer<typeof GitLabDirectoryContentSchema
 export type GitLabContent = z.infer<typeof GitLabContentSchema>;
 export type GitLabCreateUpdateFileResponse = z.infer<typeof GitLabCreateUpdateFileResponseSchema>;
 export type GitLabTree = z.infer<typeof GitLabTreeSchema>;
-export type GetRepositoryTreeOptions = z.infer<typeof GetRepositoryTreeSchema>;
-export type GetFileContentsOptions = z.infer<typeof GetFileContentsSchema>;
 export type BrowseFilesInput = z.infer<typeof BrowseFilesSchema>;

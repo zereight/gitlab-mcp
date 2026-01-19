@@ -1,66 +1,12 @@
 import { z } from "zod";
 import { flexibleBoolean, requiredId } from "../utils";
-import { ProjectParamsSchema } from "../shared";
-
-// WRITE FILE OPERATION SCHEMAS
-
-// File operations (write)
-export const CreateOrUpdateFileSchema = ProjectParamsSchema.extend({
-  file_path: z.string().describe("URL-encoded full path to the file"),
-  branch: z.string().describe("Name of the new branch to create"),
-  start_branch: z.string().optional().describe("Name of the base branch to start from"),
-  encoding: z.enum(["text", "base64"]).optional().describe("Change encoding"),
-  author_email: z.string().optional().describe("Author email for the commit"),
-  author_name: z.string().optional().describe("Author name for the commit"),
-  content: z.string().describe("File content"),
-  commit_message: z.string().describe("Commit message"),
-  last_commit_id: z.string().optional().describe("Last known file commit id"),
-  execute_filemode: flexibleBoolean.optional().describe("Execute file mode"),
-});
-
-// Push multiple files operations (write)
-export const PushFilesSchema = ProjectParamsSchema.extend({
-  branch: z.string().describe("Target branch name"),
-  commit_message: z.string().describe("Commit message"),
-  files: z
-    .array(
-      z.object({
-        file_path: z.string(),
-        content: z.string(),
-        encoding: z.enum(["text", "base64"]).optional(),
-        execute_filemode: flexibleBoolean.optional(),
-      })
-    )
-    .describe("Array of files to push"),
-  start_branch: z.string().optional().describe("Start branch name"),
-  author_email: z.string().optional().describe("Author email"),
-  author_name: z.string().optional().describe("Author name"),
-});
-
-// File upload operations (write)
-export const MarkdownUploadSchema = ProjectParamsSchema.extend({
-  file: z.string().describe("Base64 encoded file content or file path"),
-  filename: z.string().describe("Name of the file"),
-});
 
 // ============================================================================
-// manage_files - CQRS Command Tool (discriminated union)
+// manage_files - CQRS Command Tool (flat schema for Claude API compatibility)
+// Actions: single, batch, upload
+// NOTE: Uses flat z.object() with .refine() instead of z.discriminatedUnion()
+// because Claude API doesn't support oneOf/allOf/anyOf at JSON Schema root level.
 // ============================================================================
-
-const ManageFilesSingleSchema = z.object({
-  project_id: requiredId.describe("Project ID or URL-encoded path"),
-  action: z.literal("single"),
-  file_path: z.string().describe("Path to the file"),
-  content: z.string().describe("File content (text or base64 encoded)"),
-  commit_message: z.string().describe("Commit message"),
-  branch: z.string().describe("Target branch name"),
-  start_branch: z.string().optional().describe("Base branch to start from"),
-  encoding: z.enum(["text", "base64"]).optional().describe("Content encoding (default: text)"),
-  author_email: z.string().optional().describe("Commit author email"),
-  author_name: z.string().optional().describe("Commit author name"),
-  last_commit_id: z.string().optional().describe("Last known commit ID for conflict detection"),
-  execute_filemode: flexibleBoolean.optional().describe("Set executable permission"),
-});
 
 const BatchFileActionSchema = z.object({
   file_path: z.string().describe("Path to the file"),
@@ -69,32 +15,87 @@ const BatchFileActionSchema = z.object({
   execute_filemode: flexibleBoolean.optional().describe("Set executable permission"),
 });
 
-const ManageFilesBatchSchema = z.object({
-  project_id: requiredId.describe("Project ID or URL-encoded path"),
-  action: z.literal("batch"),
-  branch: z.string().describe("Target branch name"),
-  commit_message: z.string().describe("Commit message"),
-  files: z.array(BatchFileActionSchema).min(1).describe("Files to commit"),
-  start_branch: z.string().optional().describe("Base branch to start from"),
-  author_email: z.string().optional().describe("Commit author email"),
-  author_name: z.string().optional().describe("Commit author name"),
-});
-
-const ManageFilesUploadSchema = z.object({
-  project_id: requiredId.describe("Project ID or URL-encoded path"),
-  action: z.literal("upload"),
-  file: z.string().describe("Base64 encoded file content"),
-  filename: z.string().describe("Name of the file"),
-});
-
-export const ManageFilesSchema = z.discriminatedUnion("action", [
-  ManageFilesSingleSchema,
-  ManageFilesBatchSchema,
-  ManageFilesUploadSchema,
-]);
+export const ManageFilesSchema = z
+  .object({
+    action: z.enum(["single", "batch", "upload"]).describe("Action to perform"),
+    project_id: requiredId.describe("Project ID or URL-encoded path"),
+    // single action fields
+    file_path: z.string().optional().describe("Path to the file. Required for 'single' action."),
+    content: z
+      .string()
+      .optional()
+      .describe("File content (text or base64 encoded). Required for 'single' action."),
+    // shared single/batch fields
+    commit_message: z
+      .string()
+      .optional()
+      .describe("Commit message. Required for 'single' and 'batch' actions."),
+    branch: z
+      .string()
+      .optional()
+      .describe("Target branch name. Required for 'single' and 'batch' actions."),
+    start_branch: z.string().optional().describe("Base branch to start from"),
+    encoding: z
+      .enum(["text", "base64"])
+      .optional()
+      .describe("Content encoding (default: text). For 'single' action."),
+    author_email: z.string().optional().describe("Commit author email"),
+    author_name: z.string().optional().describe("Commit author name"),
+    last_commit_id: z
+      .string()
+      .optional()
+      .describe("Last known commit ID for conflict detection. For 'single' action."),
+    execute_filemode: flexibleBoolean
+      .optional()
+      .describe("Set executable permission. For 'single' action."),
+    // batch action fields
+    files: z
+      .array(BatchFileActionSchema)
+      .optional()
+      .describe("Files to commit. Required for 'batch' action."),
+    // upload action fields
+    file: z
+      .string()
+      .optional()
+      .describe("Base64 encoded file content. Required for 'upload' action."),
+    filename: z.string().optional().describe("Name of the file. Required for 'upload' action."),
+  })
+  .refine(data => data.action !== "single" || data.file_path !== undefined, {
+    message: "file_path is required for 'single' action",
+    path: ["file_path"],
+  })
+  .refine(data => data.action !== "single" || data.content !== undefined, {
+    message: "content is required for 'single' action",
+    path: ["content"],
+  })
+  .refine(data => data.action !== "single" || data.commit_message !== undefined, {
+    message: "commit_message is required for 'single' action",
+    path: ["commit_message"],
+  })
+  .refine(data => data.action !== "single" || data.branch !== undefined, {
+    message: "branch is required for 'single' action",
+    path: ["branch"],
+  })
+  .refine(data => data.action !== "batch" || data.branch !== undefined, {
+    message: "branch is required for 'batch' action",
+    path: ["branch"],
+  })
+  .refine(data => data.action !== "batch" || data.commit_message !== undefined, {
+    message: "commit_message is required for 'batch' action",
+    path: ["commit_message"],
+  })
+  .refine(data => data.action !== "batch" || (data.files && data.files.length > 0), {
+    message: "files array with at least one file is required for 'batch' action",
+    path: ["files"],
+  })
+  .refine(data => data.action !== "upload" || data.file !== undefined, {
+    message: "file is required for 'upload' action",
+    path: ["file"],
+  })
+  .refine(data => data.action !== "upload" || data.filename !== undefined, {
+    message: "filename is required for 'upload' action",
+    path: ["filename"],
+  });
 
 // Export type definitions
-export type CreateOrUpdateFileOptions = z.infer<typeof CreateOrUpdateFileSchema>;
-export type PushFilesOptions = z.infer<typeof PushFilesSchema>;
-export type MarkdownUploadOptions = z.infer<typeof MarkdownUploadSchema>;
 export type ManageFilesInput = z.infer<typeof ManageFilesSchema>;
