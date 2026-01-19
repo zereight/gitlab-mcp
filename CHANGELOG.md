@@ -1,3 +1,9 @@
+## [6.3.0](https://github.com/structured-world/gitlab-mcp/compare/v6.2.3...v6.3.0) (2026-01-19)
+
+### Features
+
+* **milestones:** consolidate 9 milestone tools into 2 CQRS tools ([2d054dd](https://github.com/structured-world/gitlab-mcp/commit/2d054ddf86842dd845cebe11096e6e460f6f708c)), closes [#13](https://github.com/structured-world/gitlab-mcp/issues/13)
+
 ## [6.2.3](https://github.com/structured-world/gitlab-mcp/compare/v6.2.2...v6.2.3) (2026-01-19)
 
 ### Refactoring
