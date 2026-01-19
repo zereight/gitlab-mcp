@@ -1,3 +1,9 @@
+## [6.8.0](https://github.com/structured-world/gitlab-mcp/compare/v6.7.0...v6.8.0) (2026-01-19)
+
+### Features
+
+* **integrations:** Add project integrations management entity ([#38](https://github.com/structured-world/gitlab-mcp/issues/38)) ([7e68150](https://github.com/structured-world/gitlab-mcp/commit/7e681505973ad10e50bfe68b4c857a491c363cc8)), closes [#7](https://github.com/structured-world/gitlab-mcp/issues/7)
+
 ## [6.7.0](https://github.com/structured-world/gitlab-mcp/compare/v6.6.0...v6.7.0) (2026-01-19)
 
 ### Features
