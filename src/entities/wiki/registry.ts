@@ -1,112 +1,127 @@
 import * as z from "zod";
-import { ListWikiPagesSchema, GetWikiPageSchema } from "./schema-readonly";
-import { CreateWikiPageSchema, UpdateWikiPageSchema, DeleteWikiPageSchema } from "./schema";
+import { BrowseWikiSchema } from "./schema-readonly";
+import { ManageWikiSchema } from "./schema";
 import { gitlab, toQuery } from "../../utils/gitlab-api";
 import { resolveNamespaceForAPI } from "../../utils/namespace";
 import { ToolRegistry, EnhancedToolDefinition } from "../../types";
+import { assertDefined } from "../utils";
 
 /**
- * Wiki tools registry - unified registry containing all wiki operation tools with their handlers
+ * Wiki tools registry - 2 CQRS tools replacing 5 individual tools
+ *
+ * browse_wiki (Query): list, get
+ * manage_wiki (Command): create, update, delete
  */
 export const wikiToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefinition>([
+  // ============================================================================
+  // browse_wiki - CQRS Query Tool
+  // ============================================================================
   [
-    "list_wiki_pages",
+    "browse_wiki",
     {
-      name: "list_wiki_pages",
+      name: "browse_wiki",
       description:
-        "BROWSE: Explore all wiki pages in project or group documentation. Use when: Discovering available guides and documentation, Understanding project knowledge base structure, Finding existing pages before creating new ones. Wiki provides collaborative documentation separate from code repository. Returns page titles, slugs, content formats, and creation dates.",
-      inputSchema: z.toJSONSchema(ListWikiPagesSchema),
+        'BROWSE wiki pages. Actions: "list" shows all wiki pages in project/group, "get" retrieves single wiki page content by slug.',
+      inputSchema: z.toJSONSchema(BrowseWikiSchema),
       handler: async (args: unknown) => {
-        const options = ListWikiPagesSchema.parse(args);
-        const { entityType, encodedPath } = await resolveNamespaceForAPI(options.namespace);
+        const input = BrowseWikiSchema.parse(args);
+        const { entityType, encodedPath } = await resolveNamespaceForAPI(input.namespace);
 
-        return gitlab.get(`${entityType}/${encodedPath}/wikis`, {
-          query: toQuery(options, ["namespace"]),
-        });
+        switch (input.action) {
+          case "list": {
+            const { action: _action, namespace: _namespace, ...rest } = input;
+            const query = toQuery(rest, []);
+
+            return gitlab.get(`${entityType}/${encodedPath}/wikis`, { query });
+          }
+
+          case "get": {
+            // slug is required for get action (validated by .refine())
+            assertDefined(input.slug, "slug");
+            return gitlab.get(
+              `${entityType}/${encodedPath}/wikis/${encodeURIComponent(input.slug)}`
+            );
+          }
+
+          /* istanbul ignore next -- unreachable with Zod validation */
+          default:
+            throw new Error(`Unknown action: ${(input as { action: string }).action}`);
+        }
       },
     },
   ],
-  [
-    "get_wiki_page",
-    {
-      name: "get_wiki_page",
-      description:
-        "READ: Get complete wiki page content and metadata by slug. Use when: Reading technical documentation and guides, Accessing project knowledge base content, Getting full markdown with formatting. Returns complete page content, metadata, edit history, and author information. Perfect for content analysis and documentation review.",
-      inputSchema: z.toJSONSchema(GetWikiPageSchema),
-      handler: async (args: unknown) => {
-        const options = GetWikiPageSchema.parse(args);
-        const { entityType, encodedPath } = await resolveNamespaceForAPI(options.namespace);
 
-        return gitlab.get(`${entityType}/${encodedPath}/wikis/${encodeURIComponent(options.slug)}`);
-      },
-    },
-  ],
+  // ============================================================================
+  // manage_wiki - CQRS Command Tool
+  // ============================================================================
   [
-    "create_wiki_page",
+    "manage_wiki",
     {
-      name: "create_wiki_page",
+      name: "manage_wiki",
       description:
-        "CREATE: Add new documentation page to project or group wiki. Use when: Adding technical documentation, user guides, or FAQs, Creating project knowledge base content, Establishing team documentation standards. Check list_wiki_pages FIRST to avoid duplicate topics. Supports GitLab Flavored Markdown with extensions. Creates version-controlled documentation.",
-      inputSchema: z.toJSONSchema(CreateWikiPageSchema),
+        'MANAGE wiki pages. Actions: "create" adds new wiki page, "update" modifies existing page, "delete" removes wiki page permanently.',
+      inputSchema: z.toJSONSchema(ManageWikiSchema),
       handler: async (args: unknown) => {
-        const options = CreateWikiPageSchema.parse(args);
-        const { entityType, encodedPath } = await resolveNamespaceForAPI(options.namespace);
-        const { namespace: _namespace, ...body } = options;
+        const input = ManageWikiSchema.parse(args);
+        const { entityType, encodedPath } = await resolveNamespaceForAPI(input.namespace);
 
-        return gitlab.post(`${entityType}/${encodedPath}/wikis`, {
-          body,
-          contentType: "json",
-        });
-      },
-    },
-  ],
-  [
-    "update_wiki_page",
-    {
-      name: "update_wiki_page",
-      description:
-        "UPDATE: Modify existing wiki page content or properties. Use when: Updating documentation with new information, Fixing errors or improving clarity, Reorganizing content structure. Maintains complete version history with change tracking. Supports collaborative editing with author attribution and diff viewing.",
-      inputSchema: z.toJSONSchema(UpdateWikiPageSchema),
-      handler: async (args: unknown) => {
-        const options = UpdateWikiPageSchema.parse(args);
-        const { entityType, encodedPath } = await resolveNamespaceForAPI(options.namespace);
-        const { namespace: _namespace, slug, ...body } = options;
+        switch (input.action) {
+          case "create": {
+            const { action: _action, namespace: _namespace, ...body } = input;
 
-        return gitlab.put(`${entityType}/${encodedPath}/wikis/${encodeURIComponent(slug)}`, {
-          body,
-          contentType: "json",
-        });
-      },
-    },
-  ],
-  [
-    "delete_wiki_page",
-    {
-      name: "delete_wiki_page",
-      description:
-        "DELETE: Permanently remove wiki page from documentation. Use when: Cleaning up outdated or obsolete content, Removing duplicate or incorrect pages, Reorganizing wiki structure. WARNING: Deletes page and ALL version history permanently - cannot be undone. Consider archiving important content first.",
-      inputSchema: z.toJSONSchema(DeleteWikiPageSchema),
-      handler: async (args: unknown) => {
-        const options = DeleteWikiPageSchema.parse(args);
-        const { entityType, encodedPath } = await resolveNamespaceForAPI(options.namespace);
+            return gitlab.post(`${entityType}/${encodedPath}/wikis`, {
+              body,
+              contentType: "json",
+            });
+          }
 
-        await gitlab.delete(
-          `${entityType}/${encodedPath}/wikis/${encodeURIComponent(options.slug)}`
-        );
-        return { deleted: true };
+          case "update": {
+            // slug is required for update action (validated by .refine())
+            assertDefined(input.slug, "slug");
+            const { action: _action, namespace: _namespace, slug, ...body } = input;
+
+            return gitlab.put(`${entityType}/${encodedPath}/wikis/${encodeURIComponent(slug)}`, {
+              body,
+              contentType: "json",
+            });
+          }
+
+          case "delete": {
+            // slug is required for delete action (validated by .refine())
+            assertDefined(input.slug, "slug");
+
+            await gitlab.delete(
+              `${entityType}/${encodedPath}/wikis/${encodeURIComponent(input.slug)}`
+            );
+            return { deleted: true };
+          }
+
+          /* istanbul ignore next -- unreachable with Zod validation */
+          default:
+            throw new Error(`Unknown action: ${(input as { action: string }).action}`);
+        }
       },
     },
   ],
 ]);
 
+/**
+ * Get read-only tool names from the registry
+ */
 export function getWikiReadOnlyToolNames(): string[] {
-  return ["list_wiki_pages", "get_wiki_page"];
+  return ["browse_wiki"];
 }
 
+/**
+ * Get all tool definitions from the registry
+ */
 export function getWikiToolDefinitions(): EnhancedToolDefinition[] {
   return Array.from(wikiToolRegistry.values());
 }
 
+/**
+ * Get filtered tools based on read-only mode
+ */
 export function getFilteredWikiTools(readOnlyMode: boolean = false): EnhancedToolDefinition[] {
   if (readOnlyMode) {
     const readOnlyNames = getWikiReadOnlyToolNames();

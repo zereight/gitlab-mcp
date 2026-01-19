@@ -31,435 +31,404 @@ afterAll(() => {
 beforeEach(() => {
   jest.clearAllMocks();
   jest.resetAllMocks();
-  // Reset the mock for proper isolation
   mockEnhancedFetch.mockReset();
 });
 
-describe("Wiki Registry", () => {
+describe("Wiki Registry - CQRS Tools", () => {
   describe("Registry Structure", () => {
     it("should be a Map instance", () => {
       expect(wikiToolRegistry instanceof Map).toBe(true);
     });
 
-    it("should contain expected wiki tools", () => {
+    it("should contain exactly 2 CQRS tools", () => {
       const toolNames = Array.from(wikiToolRegistry.keys());
 
-      // Check for read-only tools
-      expect(toolNames).toContain("list_wiki_pages");
-      expect(toolNames).toContain("get_wiki_page");
-
-      // Check for write tools
-      expect(toolNames).toContain("create_wiki_page");
-      expect(toolNames).toContain("update_wiki_page");
-      expect(toolNames).toContain("delete_wiki_page");
+      expect(toolNames).toContain("browse_wiki");
+      expect(toolNames).toContain("manage_wiki");
+      expect(wikiToolRegistry.size).toBe(2);
     });
 
     it("should have tools with valid structure", () => {
-      const toolEntries = Array.from(wikiToolRegistry.values());
-
-      toolEntries.forEach(tool => {
-        expect(tool).toHaveProperty("name");
+      for (const [toolName, tool] of wikiToolRegistry) {
+        expect(tool).toHaveProperty("name", toolName);
         expect(tool).toHaveProperty("description");
         expect(tool).toHaveProperty("inputSchema");
         expect(tool).toHaveProperty("handler");
-        expect(typeof tool.name).toBe("string");
         expect(typeof tool.description).toBe("string");
-        expect(typeof tool.inputSchema).toBe("object");
         expect(typeof tool.handler).toBe("function");
-      });
+        expect(tool.description.length).toBeGreaterThan(0);
+      }
     });
 
     it("should have unique tool names", () => {
       const toolNames = Array.from(wikiToolRegistry.keys());
       const uniqueNames = new Set(toolNames);
-      expect(toolNames.length).toBe(uniqueNames.size);
-    });
 
-    it("should have exactly 5 wiki tools", () => {
-      expect(wikiToolRegistry.size).toBe(5);
+      expect(toolNames.length).toBe(uniqueNames.size);
     });
   });
 
   describe("Tool Definitions", () => {
-    it("should have proper list_wiki_pages tool", () => {
-      const tool = wikiToolRegistry.get("list_wiki_pages");
+    it("should have proper browse_wiki tool", () => {
+      const tool = wikiToolRegistry.get("browse_wiki");
+
       expect(tool).toBeDefined();
-      expect(tool!.name).toBe("list_wiki_pages");
-      expect(tool!.description).toContain("Explore all wiki pages");
-      expect(tool!.inputSchema).toBeDefined();
+      expect(tool?.name).toBe("browse_wiki");
+      expect(tool?.description).toContain("BROWSE wiki");
+      expect(tool?.description).toContain("list");
+      expect(tool?.description).toContain("get");
+      expect(tool?.inputSchema).toBeDefined();
     });
 
-    it("should have proper get_wiki_page tool", () => {
-      const tool = wikiToolRegistry.get("get_wiki_page");
-      expect(tool).toBeDefined();
-      expect(tool!.name).toBe("get_wiki_page");
-      expect(tool!.description).toContain("Get complete wiki page content");
-      expect(tool!.inputSchema).toBeDefined();
-    });
+    it("should have proper manage_wiki tool", () => {
+      const tool = wikiToolRegistry.get("manage_wiki");
 
-    it("should have proper create_wiki_page tool", () => {
-      const tool = wikiToolRegistry.get("create_wiki_page");
       expect(tool).toBeDefined();
-      expect(tool!.name).toBe("create_wiki_page");
-      expect(tool!.description).toContain("Add new documentation page");
-      expect(tool!.inputSchema).toBeDefined();
-    });
-
-    it("should have proper update_wiki_page tool", () => {
-      const tool = wikiToolRegistry.get("update_wiki_page");
-      expect(tool).toBeDefined();
-      expect(tool!.name).toBe("update_wiki_page");
-      expect(tool!.description).toContain("Modify existing wiki page");
-      expect(tool!.inputSchema).toBeDefined();
-    });
-
-    it("should have proper delete_wiki_page tool", () => {
-      const tool = wikiToolRegistry.get("delete_wiki_page");
-      expect(tool).toBeDefined();
-      expect(tool!.name).toBe("delete_wiki_page");
-      expect(tool!.description).toContain("Permanently remove wiki page");
-      expect(tool!.inputSchema).toBeDefined();
+      expect(tool?.name).toBe("manage_wiki");
+      expect(tool?.description).toContain("MANAGE wiki");
+      expect(tool?.description).toContain("create");
+      expect(tool?.description).toContain("update");
+      expect(tool?.description).toContain("delete");
+      expect(tool?.inputSchema).toBeDefined();
     });
   });
 
   describe("Read-Only Tools Function", () => {
     it("should return an array of read-only tool names", () => {
       const readOnlyTools = getWikiReadOnlyToolNames();
+
       expect(Array.isArray(readOnlyTools)).toBe(true);
       expect(readOnlyTools.length).toBeGreaterThan(0);
     });
 
-    it("should include expected read-only tools", () => {
+    it("should include only browse_wiki as read-only", () => {
       const readOnlyTools = getWikiReadOnlyToolNames();
-      expect(readOnlyTools).toContain("list_wiki_pages");
-      expect(readOnlyTools).toContain("get_wiki_page");
+
+      expect(readOnlyTools).toContain("browse_wiki");
+      expect(readOnlyTools).toEqual(["browse_wiki"]);
     });
 
-    it("should not include write tools", () => {
+    it("should not include manage tools (write tools)", () => {
       const readOnlyTools = getWikiReadOnlyToolNames();
-      expect(readOnlyTools).not.toContain("create_wiki_page");
-      expect(readOnlyTools).not.toContain("update_wiki_page");
-      expect(readOnlyTools).not.toContain("delete_wiki_page");
+
+      expect(readOnlyTools).not.toContain("manage_wiki");
     });
 
-    it("should return exactly 2 read-only tools", () => {
+    it("should return exactly 1 read-only tool", () => {
       const readOnlyTools = getWikiReadOnlyToolNames();
-      expect(readOnlyTools.length).toBe(2);
+
+      expect(readOnlyTools.length).toBe(1);
     });
 
     it("should return tools that exist in the registry", () => {
       const readOnlyTools = getWikiReadOnlyToolNames();
-      readOnlyTools.forEach(toolName => {
-        expect(wikiToolRegistry.has(toolName)).toBe(true);
-      });
+      const registryKeys = Array.from(wikiToolRegistry.keys());
+
+      for (const toolName of readOnlyTools) {
+        expect(registryKeys).toContain(toolName);
+      }
     });
   });
 
   describe("Wiki Tool Definitions Function", () => {
     it("should return an array of tool definitions", () => {
-      const toolDefinitions = getWikiToolDefinitions();
-      expect(Array.isArray(toolDefinitions)).toBe(true);
-      expect(toolDefinitions.length).toBe(5);
+      const definitions = getWikiToolDefinitions();
+
+      expect(Array.isArray(definitions)).toBe(true);
+      expect(definitions.length).toBe(wikiToolRegistry.size);
     });
 
-    it("should return all tools from registry", () => {
-      const toolDefinitions = getWikiToolDefinitions();
-      const registrySize = wikiToolRegistry.size;
-      expect(toolDefinitions.length).toBe(registrySize);
+    it("should return all 2 CQRS tools from registry", () => {
+      const definitions = getWikiToolDefinitions();
+
+      expect(definitions.length).toBe(2);
     });
 
     it("should return tool definitions with proper structure", () => {
-      const toolDefinitions = getWikiToolDefinitions();
+      const definitions = getWikiToolDefinitions();
 
-      toolDefinitions.forEach(tool => {
-        expect(tool).toHaveProperty("name");
-        expect(tool).toHaveProperty("description");
-        expect(tool).toHaveProperty("inputSchema");
-        expect(tool).toHaveProperty("handler");
-        expect(typeof tool.name).toBe("string");
-        expect(typeof tool.description).toBe("string");
-        expect(typeof tool.inputSchema).toBe("object");
-      });
+      for (const definition of definitions) {
+        expect(definition).toHaveProperty("name");
+        expect(definition).toHaveProperty("description");
+        expect(definition).toHaveProperty("inputSchema");
+        expect(definition).toHaveProperty("handler");
+      }
     });
   });
 
   describe("Filtered Wiki Tools Function", () => {
     it("should return all tools in normal mode", () => {
-      const filteredTools = getFilteredWikiTools(false);
-      expect(filteredTools.length).toBe(5);
+      const allTools = getFilteredWikiTools(false);
+      const allDefinitions = getWikiToolDefinitions();
+
+      expect(allTools.length).toBe(allDefinitions.length);
+      expect(allTools.length).toBe(2);
     });
 
     it("should return only read-only tools in read-only mode", () => {
-      const filteredTools = getFilteredWikiTools(true);
-      const readOnlyTools = getWikiReadOnlyToolNames();
-      expect(filteredTools.length).toBe(readOnlyTools.length);
+      const readOnlyTools = getFilteredWikiTools(true);
+      const readOnlyNames = getWikiReadOnlyToolNames();
+
+      expect(readOnlyTools.length).toBe(readOnlyNames.length);
+      expect(readOnlyTools.length).toBe(1);
     });
 
     it("should filter tools correctly in read-only mode", () => {
-      const filteredTools = getFilteredWikiTools(true);
-      const toolNames = filteredTools.map(tool => tool.name);
+      const readOnlyTools = getFilteredWikiTools(true);
+      const readOnlyNames = getWikiReadOnlyToolNames();
 
-      expect(toolNames).toContain("list_wiki_pages");
-      expect(toolNames).toContain("get_wiki_page");
-      expect(toolNames).not.toContain("create_wiki_page");
-      expect(toolNames).not.toContain("update_wiki_page");
-      expect(toolNames).not.toContain("delete_wiki_page");
+      for (const tool of readOnlyTools) {
+        expect(readOnlyNames).toContain(tool.name);
+      }
     });
 
-    it("should not include write tools in read-only mode", () => {
-      const filteredTools = getFilteredWikiTools(true);
-      const toolNames = filteredTools.map(tool => tool.name);
-      const writeTools = ["create_wiki_page", "update_wiki_page", "delete_wiki_page"];
+    it("should not include manage tools in read-only mode", () => {
+      const readOnlyTools = getFilteredWikiTools(true);
 
-      writeTools.forEach(toolName => {
-        expect(toolNames).not.toContain(toolName);
-      });
-    });
-
-    it("should return exactly 2 tools in read-only mode", () => {
-      const filteredTools = getFilteredWikiTools(true);
-      expect(filteredTools.length).toBe(2);
+      for (const tool of readOnlyTools) {
+        expect(tool.name).not.toBe("manage_wiki");
+      }
     });
   });
 
   describe("Tool Handlers", () => {
     it("should have handlers that are async functions", () => {
-      const toolEntries = Array.from(wikiToolRegistry.values());
-
-      toolEntries.forEach(tool => {
-        expect(typeof tool.handler).toBe("function");
+      for (const [, tool] of wikiToolRegistry) {
         expect(tool.handler.constructor.name).toBe("AsyncFunction");
-      });
+      }
     });
 
     it("should have handlers that accept arguments", () => {
-      const toolEntries = Array.from(wikiToolRegistry.values());
-
-      toolEntries.forEach(tool => {
-        expect(tool.handler.length).toBeGreaterThanOrEqual(1);
-      });
+      for (const [, tool] of wikiToolRegistry) {
+        expect(tool.handler.length).toBe(1);
+      }
     });
   });
 
   describe("Registry Consistency", () => {
-    it("should have all expected wiki tools", () => {
-      const expectedTools = [
-        "list_wiki_pages",
-        "get_wiki_page",
-        "create_wiki_page",
-        "update_wiki_page",
-        "delete_wiki_page",
-      ];
+    it("should have all expected CQRS tools", () => {
+      const expectedTools = ["browse_wiki", "manage_wiki"];
 
-      expectedTools.forEach(toolName => {
+      for (const toolName of expectedTools) {
         expect(wikiToolRegistry.has(toolName)).toBe(true);
-      });
+      }
     });
 
     it("should have consistent tool count between functions", () => {
-      const registrySize = wikiToolRegistry.size;
-      const toolDefinitions = getWikiToolDefinitions();
-      const filteredTools = getFilteredWikiTools(false);
+      const allDefinitions = getWikiToolDefinitions();
+      const readOnlyNames = getWikiReadOnlyToolNames();
+      const readOnlyTools = getFilteredWikiTools(true);
 
-      expect(toolDefinitions.length).toBe(registrySize);
-      expect(filteredTools.length).toBe(registrySize);
+      expect(readOnlyTools.length).toBe(readOnlyNames.length);
+      expect(allDefinitions.length).toBe(wikiToolRegistry.size);
+      expect(allDefinitions.length).toBeGreaterThan(readOnlyNames.length);
     });
 
     it("should have more tools than just read-only ones", () => {
       const totalTools = wikiToolRegistry.size;
-      const readOnlyTools = getWikiReadOnlyToolNames();
+      const readOnlyCount = getWikiReadOnlyToolNames().length;
 
-      expect(totalTools).toBeGreaterThan(readOnlyTools.length);
+      expect(totalTools).toBeGreaterThan(readOnlyCount);
+      expect(totalTools).toBe(2);
+      expect(readOnlyCount).toBe(1);
     });
   });
 
   describe("Tool Input Schemas", () => {
     it("should have valid JSON schema structure for all tools", () => {
-      const toolEntries = Array.from(wikiToolRegistry.values());
-
-      toolEntries.forEach(tool => {
+      for (const [, tool] of wikiToolRegistry) {
         expect(tool.inputSchema).toBeDefined();
         expect(typeof tool.inputSchema).toBe("object");
-      });
+        const schema = tool.inputSchema as Record<string, unknown>;
+        const hasValidStructure = "type" in schema || "anyOf" in schema || "oneOf" in schema;
+        expect(hasValidStructure).toBe(true);
+      }
     });
 
     it("should have consistent schema format", () => {
-      const toolEntries = Array.from(wikiToolRegistry.values());
-
-      toolEntries.forEach(tool => {
-        // Each schema should be a valid JSON Schema object
+      for (const [toolName, tool] of wikiToolRegistry) {
         expect(tool.inputSchema).toBeDefined();
-        expect(typeof tool.inputSchema).toBe("object");
-      });
+
+        if (typeof tool.inputSchema === "object" && tool.inputSchema !== null) {
+          const schema = tool.inputSchema as Record<string, unknown>;
+          const hasValidStructure = "type" in schema || "anyOf" in schema || "oneOf" in schema;
+          expect(hasValidStructure).toBe(true);
+        } else {
+          throw new Error(`Tool ${toolName} has invalid inputSchema type`);
+        }
+      }
     });
   });
 
-  describe("Wiki Tool Specifics", () => {
-    it("should support both project and group wikis", () => {
-      const listWikiTool = wikiToolRegistry.get("list_wiki_pages");
-      expect(listWikiTool).toBeDefined();
-      expect(listWikiTool!.inputSchema).toBeDefined();
-
-      // The tool should handle both project and group contexts
-      expect(listWikiTool!.description).toContain("project or group");
+  describe("Handler Tests", () => {
+    const mockResponse = (data: unknown, ok = true, status = 200) => ({
+      ok,
+      status,
+      statusText: ok ? "OK" : "Error",
+      json: jest.fn().mockResolvedValue(data),
+      text: jest.fn().mockResolvedValue(typeof data === "string" ? data : JSON.stringify(data)),
     });
 
-    it("should mention wiki management context in descriptions", () => {
-      const toolEntries = Array.from(wikiToolRegistry.values());
-
-      toolEntries.forEach(tool => {
-        expect(tool.description.toLowerCase()).toMatch(/wiki/);
-      });
-    });
-
-    it("should have comprehensive wiki CRUD operations", () => {
-      expect(wikiToolRegistry.has("list_wiki_pages")).toBe(true);
-      expect(wikiToolRegistry.has("get_wiki_page")).toBe(true);
-      expect(wikiToolRegistry.has("create_wiki_page")).toBe(true);
-      expect(wikiToolRegistry.has("update_wiki_page")).toBe(true);
-      expect(wikiToolRegistry.has("delete_wiki_page")).toBe(true);
-    });
-
-    it("should provide wiki page management for both projects and groups", () => {
-      const tools = Array.from(wikiToolRegistry.values());
-      const supportsProjectAndGroup = tools.some(tool =>
-        tool.description.includes("project or group")
-      );
-      expect(supportsProjectAndGroup).toBe(true);
-    });
-  });
-
-  describe("Handler Function Tests", () => {
-    describe("list_wiki_pages handler", () => {
-      it("should list project wiki pages successfully", async () => {
-        const mockWikiPages = [
-          { slug: "home", title: "Home", content: "Welcome" },
-          { slug: "docs", title: "Documentation", content: "API docs" },
-        ];
-
-        // Mock namespace detection call (project endpoint check)
-        mockEnhancedFetch.mockResolvedValueOnce({
-          ok: true,
-          status: 200,
-          statusText: "OK",
-          json: jest.fn().mockResolvedValue({ id: 123, name: "test-project" }),
-        } as any);
-
-        // Mock actual list wiki pages API call
-        mockEnhancedFetch.mockResolvedValueOnce({
-          ok: true,
-          status: 200,
-          json: jest.fn().mockResolvedValue(mockWikiPages),
-        } as any);
-
-        const handler = wikiToolRegistry.get("list_wiki_pages")!.handler;
-        const result = await handler({ namespace: "test-project" });
-
-        expect(mockEnhancedFetch).toHaveBeenCalledTimes(2);
-        expect(result).toEqual(mockWikiPages);
-      });
-
-      it("should list group wiki pages successfully", async () => {
-        const mockWikiPages = [{ slug: "group-home", title: "Group Home" }];
-
-        // Mock namespace detection call (group endpoint check)
-        mockEnhancedFetch.mockResolvedValueOnce({
-          ok: true,
-          status: 200,
-          statusText: "OK",
-          json: jest.fn().mockResolvedValue({ id: 456, name: "test-group" }),
-        } as any);
-
-        // Mock actual list wiki pages API call
-        mockEnhancedFetch.mockResolvedValueOnce({
-          ok: true,
-          status: 200,
-          json: jest.fn().mockResolvedValue(mockWikiPages),
-        } as any);
-
-        const handler = wikiToolRegistry.get("list_wiki_pages")!.handler;
-        const result = await handler({ namespace: "test-group" });
-
-        expect(mockEnhancedFetch).toHaveBeenCalledTimes(2);
-        expect(result).toEqual(mockWikiPages);
-      });
-
-      it("should throw error on failed API call", async () => {
-        // Mock namespace detection call (project endpoint check) - succeeds
-        mockEnhancedFetch.mockResolvedValueOnce({
-          ok: true,
-          status: 200,
-          statusText: "OK",
-          json: jest.fn().mockResolvedValue({ id: 123, name: "test-project" }),
-        } as any);
-
-        // Mock actual list wiki pages API call - fails with 404
-        mockEnhancedFetch.mockResolvedValueOnce({
-          ok: false,
-          status: 404,
-          statusText: "Not Found",
-        } as any);
-
-        const handler = wikiToolRegistry.get("list_wiki_pages")!.handler;
-
-        await expect(handler({ namespace: "invalid-project" })).rejects.toThrow(
-          "GitLab API error: 404 Not Found"
+    describe("browse_wiki handler - list action", () => {
+      it("should list wiki pages with basic parameters", async () => {
+        // First mock for namespace resolution (project lookup)
+        mockEnhancedFetch.mockResolvedValueOnce(
+          mockResponse({ id: 1, path: "test-project", kind: "project" }) as never
         );
+        // Second mock for wiki pages list
+        const mockWikiPages = [
+          { slug: "home", title: "Home", format: "markdown" },
+          { slug: "docs", title: "Documentation", format: "markdown" },
+        ];
+        mockEnhancedFetch.mockResolvedValueOnce(mockResponse(mockWikiPages) as never);
+
+        const tool = wikiToolRegistry.get("browse_wiki")!;
+        const result = await tool.handler({
+          action: "list",
+          namespace: "test/project",
+        });
+
+        expect(mockEnhancedFetch).toHaveBeenCalledTimes(2);
+        expect(result).toEqual(mockWikiPages);
+      });
+
+      it("should list wiki pages with content", async () => {
+        mockEnhancedFetch.mockResolvedValueOnce(
+          mockResponse({ id: 1, path: "test-project", kind: "project" }) as never
+        );
+        const mockWikiPages = [
+          { slug: "home", title: "Home", format: "markdown", content: "Welcome" },
+        ];
+        mockEnhancedFetch.mockResolvedValueOnce(mockResponse(mockWikiPages) as never);
+
+        const tool = wikiToolRegistry.get("browse_wiki")!;
+        await tool.handler({
+          action: "list",
+          namespace: "test/project",
+          with_content: true,
+          per_page: 50,
+          page: 1,
+        });
+
+        const call = mockEnhancedFetch.mock.calls[1];
+        const url = call[0] as string;
+        expect(url).toContain("with_content=true");
+        expect(url).toContain("per_page=50");
+        expect(url).toContain("page=1");
+      });
+
+      it("should list group wiki pages", async () => {
+        mockEnhancedFetch.mockResolvedValueOnce(
+          mockResponse({ id: 1, path: "test-group", kind: "group" }) as never
+        );
+        const mockWikiPages = [{ slug: "group-home", title: "Group Home" }];
+        mockEnhancedFetch.mockResolvedValueOnce(mockResponse(mockWikiPages) as never);
+
+        const tool = wikiToolRegistry.get("browse_wiki")!;
+        const result = await tool.handler({
+          action: "list",
+          namespace: "test-group",
+        });
+
+        expect(mockEnhancedFetch).toHaveBeenCalledTimes(2);
+        expect(result).toEqual(mockWikiPages);
+      });
+
+      it("should handle API errors", async () => {
+        mockEnhancedFetch.mockResolvedValueOnce(
+          mockResponse({ id: 1, path: "test-project", kind: "project" }) as never
+        );
+        mockEnhancedFetch.mockResolvedValueOnce(mockResponse(null, false, 404) as never);
+
+        const tool = wikiToolRegistry.get("browse_wiki")!;
+
+        await expect(
+          tool.handler({
+            action: "list",
+            namespace: "nonexistent/project",
+          })
+        ).rejects.toThrow("GitLab API error: 404 Error");
       });
     });
 
-    describe("get_wiki_page handler", () => {
-      it("should get project wiki page successfully", async () => {
-        const mockWikiPage = { slug: "home", title: "Home", content: "Welcome to wiki" };
+    describe("browse_wiki handler - get action", () => {
+      it("should get wiki page by slug", async () => {
+        mockEnhancedFetch.mockResolvedValueOnce(
+          mockResponse({ id: 1, path: "test-project", kind: "project" }) as never
+        );
+        const mockWikiPage = {
+          slug: "home",
+          title: "Home",
+          format: "markdown",
+          content: "Welcome to the wiki",
+        };
+        mockEnhancedFetch.mockResolvedValueOnce(mockResponse(mockWikiPage) as never);
 
-        // Mock namespace detection call (project endpoint check)
-        mockEnhancedFetch.mockResolvedValueOnce({
-          ok: true,
-          status: 200,
-          statusText: "OK",
-          json: jest.fn().mockResolvedValue({ id: 123, name: "test-project" }),
-        } as any);
-
-        // Mock actual get wiki page API call
-        mockEnhancedFetch.mockResolvedValueOnce({
-          ok: true,
-          status: 200,
-          json: jest.fn().mockResolvedValue(mockWikiPage),
-        } as any);
-
-        const handler = wikiToolRegistry.get("get_wiki_page")!.handler;
-        const result = await handler({
-          namespace: "test-project",
+        const tool = wikiToolRegistry.get("browse_wiki")!;
+        const result = await tool.handler({
+          action: "get",
+          namespace: "test/project",
           slug: "home",
         });
 
         expect(mockEnhancedFetch).toHaveBeenCalledTimes(2);
         expect(result).toEqual(mockWikiPage);
       });
+
+      it("should handle wiki page not found", async () => {
+        mockEnhancedFetch.mockResolvedValueOnce(
+          mockResponse({ id: 1, path: "test-project", kind: "project" }) as never
+        );
+        mockEnhancedFetch.mockResolvedValueOnce(mockResponse(null, false, 404) as never);
+
+        const tool = wikiToolRegistry.get("browse_wiki")!;
+
+        await expect(
+          tool.handler({
+            action: "get",
+            namespace: "test/project",
+            slug: "nonexistent-page",
+          })
+        ).rejects.toThrow("GitLab API error: 404 Error");
+      });
+
+      it("should encode slug properly in URL", async () => {
+        mockEnhancedFetch.mockResolvedValueOnce(
+          mockResponse({ id: 1, path: "test-project", kind: "project" }) as never
+        );
+        const mockWikiPage = { slug: "path/to/page", title: "Page" };
+        mockEnhancedFetch.mockResolvedValueOnce(mockResponse(mockWikiPage) as never);
+
+        const tool = wikiToolRegistry.get("browse_wiki")!;
+        await tool.handler({
+          action: "get",
+          namespace: "test/project",
+          slug: "path/to/page",
+        });
+
+        const call = mockEnhancedFetch.mock.calls[1];
+        const url = call[0] as string;
+        expect(url).toContain("wikis/path%2Fto%2Fpage");
+      });
     });
 
-    describe("create_wiki_page handler", () => {
-      it("should create project wiki page successfully", async () => {
-        const mockWikiPage = { slug: "new-page", title: "New Page", content: "New content" };
+    describe("manage_wiki handler - create action", () => {
+      it("should create wiki page", async () => {
+        mockEnhancedFetch.mockResolvedValueOnce(
+          mockResponse({ id: 1, path: "test-project", kind: "project" }) as never
+        );
+        const mockWikiPage = {
+          slug: "new-page",
+          title: "New Page",
+          format: "markdown",
+          content: "New content",
+        };
+        mockEnhancedFetch.mockResolvedValueOnce(mockResponse(mockWikiPage) as never);
 
-        // Mock namespace detection call (project endpoint check)
-        mockEnhancedFetch.mockResolvedValueOnce({
-          ok: true,
-          status: 200,
-          statusText: "OK",
-          json: jest.fn().mockResolvedValue({ id: 123, name: "test-project" }),
-        } as any);
-
-        // Mock actual create wiki page API call
-        mockEnhancedFetch.mockResolvedValueOnce({
-          ok: true,
-          status: 201,
-          json: jest.fn().mockResolvedValue(mockWikiPage),
-        } as any);
-
-        const handler = wikiToolRegistry.get("create_wiki_page")!.handler;
-        const result = await handler({
-          namespace: "test-project",
+        const tool = wikiToolRegistry.get("manage_wiki")!;
+        const result = await tool.handler({
+          action: "create",
+          namespace: "test/project",
           title: "New Page",
           content: "New content",
         });
@@ -468,30 +437,42 @@ describe("Wiki Registry", () => {
         expect(result).toEqual(mockWikiPage);
       });
 
-      it("should create group wiki page successfully", async () => {
+      it("should create wiki page with format", async () => {
+        mockEnhancedFetch.mockResolvedValueOnce(
+          mockResponse({ id: 1, path: "test-project", kind: "project" }) as never
+        );
+        const mockWikiPage = { slug: "asciidoc-page", title: "AsciiDoc Page" };
+        mockEnhancedFetch.mockResolvedValueOnce(mockResponse(mockWikiPage) as never);
+
+        const tool = wikiToolRegistry.get("manage_wiki")!;
+        await tool.handler({
+          action: "create",
+          namespace: "test/project",
+          title: "AsciiDoc Page",
+          content: "= AsciiDoc Content",
+          format: "asciidoc",
+        });
+
+        const call = mockEnhancedFetch.mock.calls[1];
+        const body = JSON.parse(call[1]?.body as string);
+        expect(body.title).toBe("AsciiDoc Page");
+        expect(body.content).toBe("= AsciiDoc Content");
+        expect(body.format).toBe("asciidoc");
+      });
+
+      it("should create group wiki page", async () => {
+        mockEnhancedFetch.mockResolvedValueOnce(
+          mockResponse({ id: 1, path: "test-group", kind: "group" }) as never
+        );
         const mockWikiPage = { slug: "group-page", title: "Group Page" };
+        mockEnhancedFetch.mockResolvedValueOnce(mockResponse(mockWikiPage) as never);
 
-        // Mock namespace detection call (group endpoint check)
-        mockEnhancedFetch.mockResolvedValueOnce({
-          ok: true,
-          status: 200,
-          statusText: "OK",
-          json: jest.fn().mockResolvedValue({ id: 456, name: "test-group" }),
-        } as any);
-
-        // Mock actual create wiki page API call
-        mockEnhancedFetch.mockResolvedValueOnce({
-          ok: true,
-          status: 201,
-          json: jest.fn().mockResolvedValue(mockWikiPage),
-        } as any);
-
-        const handler = wikiToolRegistry.get("create_wiki_page")!.handler;
-        const result = await handler({
+        const tool = wikiToolRegistry.get("manage_wiki")!;
+        const result = await tool.handler({
+          action: "create",
           namespace: "test-group",
           title: "Group Page",
           content: "Group content",
-          format: "markdown",
         });
 
         expect(mockEnhancedFetch).toHaveBeenCalledTimes(2);
@@ -499,254 +480,237 @@ describe("Wiki Registry", () => {
       });
     });
 
-    describe("Error handling", () => {
-      it("should handle invalid schema input", async () => {
-        const handler = wikiToolRegistry.get("list_wiki_pages")!.handler;
-
-        await expect(handler({})).rejects.toThrow();
-        await expect(handler({ invalid_param: "value" })).rejects.toThrow();
-      });
-
-      it("should handle network errors", async () => {
-        // Mock namespace detection call (project endpoint check) - succeeds
-        mockEnhancedFetch.mockResolvedValueOnce({
-          ok: true,
-          status: 200,
-          statusText: "OK",
-          json: jest.fn().mockResolvedValue({ id: 123, name: "test-project" }),
-        } as any);
-
-        // Mock actual list wiki pages API call - fails with network error
-        mockEnhancedFetch.mockRejectedValueOnce(new Error("Network error"));
-
-        const handler = wikiToolRegistry.get("list_wiki_pages")!.handler;
-
-        await expect(handler({ namespace: "test-project" })).rejects.toThrow("Network error");
-      });
-
-      it("should handle API error responses in get_wiki_page", async () => {
-        const getWikiPage = wikiToolRegistry.get("get_wiki_page")?.handler;
-        expect(getWikiPage).toBeDefined();
-
-        // Mock namespace resolution call - succeeds
-        mockEnhancedFetch.mockResolvedValueOnce({
-          ok: true,
-          status: 200,
-          statusText: "OK",
-          json: jest.fn().mockResolvedValue({ id: 123, name: "test-project" }),
-        } as any);
-
-        // Mock actual get wiki page API call - fails with 500
-        mockEnhancedFetch.mockResolvedValueOnce({
-          ok: false,
-          status: 500,
-          statusText: "Internal Server Error",
-          json: jest.fn().mockResolvedValue({}),
-        } as any);
-
-        await expect(getWikiPage!({ namespace: "test", slug: "test-page" })).rejects.toThrow(
-          "GitLab API error: 500 Internal Server Error"
+    describe("manage_wiki handler - update action", () => {
+      it("should update wiki page", async () => {
+        mockEnhancedFetch.mockResolvedValueOnce(
+          mockResponse({ id: 1, path: "test-project", kind: "project" }) as never
         );
-      });
-
-      it("should handle API error responses in create_wiki_page", async () => {
-        const createWikiPage = wikiToolRegistry.get("create_wiki_page")?.handler;
-        expect(createWikiPage).toBeDefined();
-
-        // Mock namespace resolution call - succeeds
-        mockEnhancedFetch.mockResolvedValueOnce({
-          ok: true,
-          status: 200,
-          statusText: "OK",
-          json: jest.fn().mockResolvedValue({ id: 123, name: "test-project" }),
-        } as any);
-
-        // Mock actual create wiki page API call - fails with 400
-        mockEnhancedFetch.mockResolvedValueOnce({
-          ok: false,
-          status: 400,
-          statusText: "Bad Request",
-          json: jest.fn().mockResolvedValue({}),
-        } as any);
-
-        await expect(
-          createWikiPage!({ namespace: "test", title: "New Page", content: "Content" })
-        ).rejects.toThrow("GitLab API error: 400 Bad Request");
-      });
-
-      it("should handle API error responses in update_wiki_page", async () => {
-        const updateWikiPage = wikiToolRegistry.get("update_wiki_page")?.handler;
-        expect(updateWikiPage).toBeDefined();
-
-        // Mock namespace resolution call - succeeds
-        mockEnhancedFetch.mockResolvedValueOnce({
-          ok: true,
-          status: 200,
-          statusText: "OK",
-          json: jest.fn().mockResolvedValue({ id: 123, name: "test-project" }),
-        } as any);
-
-        // Mock actual update wiki page API call - fails with 404
-        mockEnhancedFetch.mockResolvedValueOnce({
-          ok: false,
-          status: 404,
-          statusText: "Not Found",
-          json: jest.fn().mockResolvedValue({}),
-        } as any);
-
-        await expect(
-          updateWikiPage!({ namespace: "test", slug: "existing-page", content: "Updated content" })
-        ).rejects.toThrow("GitLab API error: 404 Not Found");
-      });
-
-      it("should handle API error responses in delete_wiki_page", async () => {
-        const deleteWikiPage = wikiToolRegistry.get("delete_wiki_page")?.handler;
-        expect(deleteWikiPage).toBeDefined();
-
-        // Mock namespace resolution call - succeeds
-        mockEnhancedFetch.mockResolvedValueOnce({
-          ok: true,
-          status: 200,
-          statusText: "OK",
-          json: jest.fn().mockResolvedValue({ id: 123, name: "test-project" }),
-        } as any);
-
-        // Mock actual delete wiki page API call - fails with 403
-        mockEnhancedFetch.mockResolvedValueOnce({
-          ok: false,
-          status: 403,
-          statusText: "Forbidden",
-          json: jest.fn().mockResolvedValue({}),
-        } as any);
-
-        await expect(
-          deleteWikiPage!({ namespace: "test", slug: "page-to-delete" })
-        ).rejects.toThrow("GitLab API error: 403 Forbidden");
-      });
-
-      it("should test actual handler functions for all CRUD operations", async () => {
-        // Test update_wiki_page handler function
-        const updateWikiPage = wikiToolRegistry.get("update_wiki_page")?.handler;
-        expect(updateWikiPage).toBeDefined();
-
-        // Mock namespace resolution call - succeeds
-        mockEnhancedFetch.mockResolvedValueOnce({
-          ok: true,
-          status: 200,
-          statusText: "OK",
-          json: jest.fn().mockResolvedValue({ id: 123, name: "test-project" }),
-        } as any);
-
-        // Mock actual update wiki page API call - succeeds
-        mockEnhancedFetch.mockResolvedValueOnce({
-          ok: true,
-          status: 200,
-          json: jest.fn().mockResolvedValue({
-            id: 1,
-            title: "Updated Page",
-            content: "Updated content",
-          }),
-        } as any);
-
-        const result = await updateWikiPage!({
-          namespace: "test",
-          slug: "test-page",
-          title: "Updated Page",
+        const mockWikiPage = {
+          slug: "existing-page",
+          title: "Updated Title",
           content: "Updated content",
-          format: "markdown",
-        });
+        };
+        mockEnhancedFetch.mockResolvedValueOnce(mockResponse(mockWikiPage) as never);
 
-        expect(result).toEqual({
-          id: 1,
-          title: "Updated Page",
+        const tool = wikiToolRegistry.get("manage_wiki")!;
+        const result = await tool.handler({
+          action: "update",
+          namespace: "test/project",
+          slug: "existing-page",
+          title: "Updated Title",
           content: "Updated content",
         });
 
         expect(mockEnhancedFetch).toHaveBeenCalledTimes(2);
-        expect(mockEnhancedFetch).toHaveBeenLastCalledWith(
-          expect.stringContaining("/wikis/test-page"),
-          expect.objectContaining({
-            method: "PUT",
-            headers: expect.objectContaining({
-              "Content-Type": "application/json",
-            }),
-            body: expect.stringContaining("Updated content"),
-          })
-        );
+        expect(result).toEqual(mockWikiPage);
       });
 
-      it("should handle list_wiki_pages with optional parameters", async () => {
-        const listWikiPages = wikiToolRegistry.get("list_wiki_pages")?.handler;
-        expect(listWikiPages).toBeDefined();
+      it("should update wiki page content only", async () => {
+        mockEnhancedFetch.mockResolvedValueOnce(
+          mockResponse({ id: 1, path: "test-project", kind: "project" }) as never
+        );
+        const mockWikiPage = { slug: "page", title: "Page", content: "New content" };
+        mockEnhancedFetch.mockResolvedValueOnce(mockResponse(mockWikiPage) as never);
 
-        // Mock namespace resolution call - succeeds
-        mockEnhancedFetch.mockResolvedValueOnce({
-          ok: true,
-          status: 200,
-          statusText: "OK",
-          json: jest.fn().mockResolvedValue({ id: 123, name: "test-project" }),
-        } as any);
-
-        // Mock actual list wiki pages API call - succeeds
-        mockEnhancedFetch.mockResolvedValueOnce({
-          ok: true,
-          status: 200,
-          json: jest.fn().mockResolvedValue([
-            {
-              slug: "test-page",
-              title: "Test Page",
-              content: "Test content",
-            },
-          ]),
-        } as any);
-
-        const result = await listWikiPages!({
-          namespace: "test-project",
-          with_content: true,
-          page: 1,
+        const tool = wikiToolRegistry.get("manage_wiki")!;
+        await tool.handler({
+          action: "update",
+          namespace: "test/project",
+          slug: "page",
+          content: "New content",
         });
 
-        expect(result).toEqual([
-          {
-            slug: "test-page",
-            title: "Test Page",
-            content: "Test content",
-          },
-        ]);
-
-        // Verify that query parameters were properly included in the URL
-        expect(mockEnhancedFetch).toHaveBeenLastCalledWith(
-          expect.stringMatching(/with_content=true/)
-        );
-        expect(mockEnhancedFetch).toHaveBeenLastCalledWith(expect.stringMatching(/page=1/));
+        const call = mockEnhancedFetch.mock.calls[1];
+        const body = JSON.parse(call[1]?.body as string);
+        expect(body.content).toBe("New content");
       });
 
-      it("should handle delete_wiki_page with 204 No Content response", async () => {
-        const deleteWikiPage = wikiToolRegistry.get("delete_wiki_page")?.handler;
-        expect(deleteWikiPage).toBeDefined();
+      it("should encode slug properly in update URL", async () => {
+        mockEnhancedFetch.mockResolvedValueOnce(
+          mockResponse({ id: 1, path: "test-project", kind: "project" }) as never
+        );
+        const mockWikiPage = { slug: "path/to/page", title: "Page" };
+        mockEnhancedFetch.mockResolvedValueOnce(mockResponse(mockWikiPage) as never);
 
-        // Mock namespace resolution call - succeeds
-        mockEnhancedFetch.mockResolvedValueOnce({
-          ok: true,
-          status: 200,
-          statusText: "OK",
-          json: jest.fn().mockResolvedValue({ id: 123, name: "test-project" }),
-        } as any);
+        const tool = wikiToolRegistry.get("manage_wiki")!;
+        await tool.handler({
+          action: "update",
+          namespace: "test/project",
+          slug: "path/to/page",
+          content: "Updated",
+        });
 
-        // Mock actual delete wiki page API call - returns 204 No Content
-        mockEnhancedFetch.mockResolvedValueOnce({
-          ok: true,
-          status: 204,
-          statusText: "No Content",
-        } as any);
+        const call = mockEnhancedFetch.mock.calls[1];
+        const url = call[0] as string;
+        expect(url).toContain("wikis/path%2Fto%2Fpage");
+      });
+    });
 
-        const result = await deleteWikiPage!({
-          namespace: "test-project",
+    describe("manage_wiki handler - delete action", () => {
+      it("should delete wiki page", async () => {
+        mockEnhancedFetch.mockResolvedValueOnce(
+          mockResponse({ id: 1, path: "test-project", kind: "project" }) as never
+        );
+        mockEnhancedFetch.mockResolvedValueOnce(mockResponse(null) as never);
+
+        const tool = wikiToolRegistry.get("manage_wiki")!;
+        const result = await tool.handler({
+          action: "delete",
+          namespace: "test/project",
           slug: "page-to-delete",
         });
 
-        expect(result).toEqual({ deleted: true });
         expect(mockEnhancedFetch).toHaveBeenCalledTimes(2);
+        expect(result).toEqual({ deleted: true });
+      });
+
+      it("should handle delete of non-existent page", async () => {
+        mockEnhancedFetch.mockResolvedValueOnce(
+          mockResponse({ id: 1, path: "test-project", kind: "project" }) as never
+        );
+        mockEnhancedFetch.mockResolvedValueOnce(mockResponse(null, false, 404) as never);
+
+        const tool = wikiToolRegistry.get("manage_wiki")!;
+
+        await expect(
+          tool.handler({
+            action: "delete",
+            namespace: "test/project",
+            slug: "nonexistent-page",
+          })
+        ).rejects.toThrow("GitLab API error: 404 Error");
+      });
+
+      it("should encode slug properly in delete URL", async () => {
+        mockEnhancedFetch.mockResolvedValueOnce(
+          mockResponse({ id: 1, path: "test-project", kind: "project" }) as never
+        );
+        mockEnhancedFetch.mockResolvedValueOnce(mockResponse(null) as never);
+
+        const tool = wikiToolRegistry.get("manage_wiki")!;
+        await tool.handler({
+          action: "delete",
+          namespace: "test/project",
+          slug: "path/to/page",
+        });
+
+        const call = mockEnhancedFetch.mock.calls[1];
+        const url = call[0] as string;
+        expect(url).toContain("wikis/path%2Fto%2Fpage");
+      });
+    });
+
+    describe("Error Handling", () => {
+      it("should handle schema validation errors for browse_wiki", async () => {
+        const tool = wikiToolRegistry.get("browse_wiki")!;
+
+        // Missing required action
+        await expect(tool.handler({})).rejects.toThrow();
+
+        // Invalid action
+        await expect(tool.handler({ action: "invalid", namespace: "test" })).rejects.toThrow();
+
+        // Missing namespace for list
+        await expect(tool.handler({ action: "list" })).rejects.toThrow();
+
+        // Missing slug for get
+        await expect(tool.handler({ action: "get", namespace: "test" })).rejects.toThrow();
+      });
+
+      it("should handle schema validation errors for manage_wiki", async () => {
+        const tool = wikiToolRegistry.get("manage_wiki")!;
+
+        // Missing required action
+        await expect(tool.handler({})).rejects.toThrow();
+
+        // Invalid action
+        await expect(tool.handler({ action: "invalid", namespace: "test" })).rejects.toThrow();
+
+        // Missing title for create
+        await expect(
+          tool.handler({ action: "create", namespace: "test", content: "content" })
+        ).rejects.toThrow();
+
+        // Missing content for create
+        await expect(
+          tool.handler({ action: "create", namespace: "test", title: "title" })
+        ).rejects.toThrow();
+
+        // Missing slug for update
+        await expect(tool.handler({ action: "update", namespace: "test" })).rejects.toThrow();
+
+        // Missing slug for delete
+        await expect(tool.handler({ action: "delete", namespace: "test" })).rejects.toThrow();
+      });
+
+      it("should handle network errors", async () => {
+        // First call for namespace resolution succeeds
+        mockEnhancedFetch.mockResolvedValueOnce(
+          mockResponse({ id: 1, path: "test-project", kind: "project" }) as never
+        );
+        // Second call (actual API) fails with network error
+        mockEnhancedFetch.mockRejectedValueOnce(new Error("Connection timeout"));
+
+        const tool = wikiToolRegistry.get("browse_wiki")!;
+
+        await expect(
+          tool.handler({
+            action: "list",
+            namespace: "test/project",
+          })
+        ).rejects.toThrow("Connection timeout");
+      });
+
+      it("should handle API errors with proper error messages", async () => {
+        mockEnhancedFetch.mockResolvedValueOnce(
+          mockResponse({ id: 1, path: "test-project", kind: "project" }) as never
+        );
+        mockEnhancedFetch.mockResolvedValueOnce(mockResponse(null, false, 403) as never);
+
+        const tool = wikiToolRegistry.get("browse_wiki")!;
+
+        await expect(
+          tool.handler({
+            action: "list",
+            namespace: "private/project",
+          })
+        ).rejects.toThrow("GitLab API error: 403 Error");
+      });
+
+      it("should handle API error responses in manage_wiki create", async () => {
+        mockEnhancedFetch.mockResolvedValueOnce(
+          mockResponse({ id: 1, path: "test-project", kind: "project" }) as never
+        );
+        mockEnhancedFetch.mockResolvedValueOnce(mockResponse(null, false, 400) as never);
+
+        const tool = wikiToolRegistry.get("manage_wiki")!;
+
+        await expect(
+          tool.handler({
+            action: "create",
+            namespace: "test",
+            title: "New Page",
+            content: "Content",
+          })
+        ).rejects.toThrow("GitLab API error: 400 Error");
+      });
+
+      it("should handle API error responses in manage_wiki update", async () => {
+        mockEnhancedFetch.mockResolvedValueOnce(
+          mockResponse({ id: 1, path: "test-project", kind: "project" }) as never
+        );
+        mockEnhancedFetch.mockResolvedValueOnce(mockResponse(null, false, 500) as never);
+
+        const tool = wikiToolRegistry.get("manage_wiki")!;
+
+        await expect(
+          tool.handler({
+            action: "update",
+            namespace: "test",
+            slug: "page",
+            content: "Updated",
+          })
+        ).rejects.toThrow("GitLab API error: 500 Error");
       });
     });
   });
