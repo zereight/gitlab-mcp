@@ -3,6 +3,7 @@ import { flexibleBoolean } from "../utils";
 
 // ============================================================================
 // CONSOLIDATED WRITE SCHEMAS (Issue #16)
+// Future: Consider Zod discriminated unions for compile-time action validation
 // ============================================================================
 
 // manage_repository: Consolidates create_repository, fork_repository (2 → 1)
