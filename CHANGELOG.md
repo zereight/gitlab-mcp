@@ -1,3 +1,9 @@
+## [6.4.0](https://github.com/structured-world/gitlab-mcp/compare/v6.3.1...v6.4.0) (2026-01-19)
+
+### Features
+
+* **wiki:** consolidate 5 wiki tools into 2 CQRS tools ([9185496](https://github.com/structured-world/gitlab-mcp/commit/918549658d75b53553c39b164a47edac336ecfd8)), closes [#10](https://github.com/structured-world/gitlab-mcp/issues/10)
+
 ## [6.3.1](https://github.com/structured-world/gitlab-mcp/compare/v6.3.0...v6.3.1) (2026-01-19)
 
 ### Bug Fixes
