@@ -1,3 +1,9 @@
+## [6.7.0](https://github.com/structured-world/gitlab-mcp/compare/v6.6.0...v6.7.0) (2026-01-19)
+
+### Features
+
+* **snippets:** Add snippets management entity with consolidated tools ([#39](https://github.com/structured-world/gitlab-mcp/issues/39)) ([6ebbbe1](https://github.com/structured-world/gitlab-mcp/commit/6ebbbe1a0ab26e961fbecbdddf20ec109b9c620e))
+
 ## [6.6.0](https://github.com/structured-world/gitlab-mcp/compare/v6.5.0...v6.6.0) (2026-01-19)
 
 ### Features
