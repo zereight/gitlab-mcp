@@ -1,61 +1,91 @@
 import { z } from "zod";
 
-export const CreatePipelineSchema = z.object({
+// ============================================================================
+// Shared schemas for pipeline variables
+// ============================================================================
+
+const PipelineVariableSchema = z.object({
+  key: z.string(),
+  value: z.string(),
+  variable_type: z.enum(["env_var", "file"]).optional(),
+});
+
+// ============================================================================
+// manage_pipeline - CQRS Command Tool (discriminated union)
+// Actions: create, retry, cancel
+// ============================================================================
+
+const ManagePipelineBaseSchema = z.object({
   project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
+});
+
+// Create pipeline action
+const ManagePipelineCreateSchema = ManagePipelineBaseSchema.extend({
+  action: z.literal("create"),
   ref: z.string().describe("The branch or tag to run the pipeline on"),
   variables: z
-    .array(
-      z.object({
-        key: z.string(),
-        value: z.string(),
-        variable_type: z.enum(["env_var", "file"]).optional(),
-      })
-    )
+    .array(PipelineVariableSchema)
     .optional()
     .describe("Variables to pass to the pipeline"),
 });
 
-export const RetryPipelineSchema = z.object({
-  project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
+// Retry pipeline action
+const ManagePipelineRetrySchema = ManagePipelineBaseSchema.extend({
+  action: z.literal("retry"),
   pipeline_id: z.coerce.string().describe("The ID of the pipeline to retry"),
 });
 
-// Schema for canceling a pipeline
-export const CancelPipelineSchema = RetryPipelineSchema;
+// Cancel pipeline action
+const ManagePipelineCancelSchema = ManagePipelineBaseSchema.extend({
+  action: z.literal("cancel"),
+  pipeline_id: z.coerce.string().describe("The ID of the pipeline to cancel"),
+});
 
-// Write-only pipeline operation schemas
+export const ManagePipelineSchema = z.discriminatedUnion("action", [
+  ManagePipelineCreateSchema,
+  ManagePipelineRetrySchema,
+  ManagePipelineCancelSchema,
+]);
 
-// Schema for running a manual job
-export const PlayPipelineJobSchema = z.object({
+// ============================================================================
+// manage_pipeline_job - CQRS Command Tool (discriminated union)
+// Actions: play, retry, cancel
+// ============================================================================
+
+const ManagePipelineJobBaseSchema = z.object({
   project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
   job_id: z.coerce.string().describe("The ID of the job"),
+});
+
+// Play manual job action
+const ManagePipelineJobPlaySchema = ManagePipelineJobBaseSchema.extend({
+  action: z.literal("play"),
   job_variables_attributes: z
-    .array(
-      z.object({
-        key: z.string(),
-        value: z.string(),
-        variable_type: z.enum(["env_var", "file"]).optional(),
-      })
-    )
+    .array(PipelineVariableSchema)
     .optional()
     .describe("Variables to pass to the job"),
 });
 
-export const PipelineJobControlSchema = z.object({
-  project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
-  job_id: z.coerce.string().describe("The ID of the job"),
+// Retry job action
+const ManagePipelineJobRetrySchema = ManagePipelineJobBaseSchema.extend({
+  action: z.literal("retry"),
 });
 
-export const RetryPipelineJobSchema = PipelineJobControlSchema;
-
-// Schema for canceling a job
-export const CancelPipelineJobSchema = z.object({
-  project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
-  job_id: z.coerce.string().describe("The ID of the job"),
+// Cancel job action
+const ManagePipelineJobCancelSchema = ManagePipelineJobBaseSchema.extend({
+  action: z.literal("cancel"),
   force: z.boolean().optional().describe("Force cancellation of the job"),
 });
 
-// Export types
-export type CreatePipelineOptions = z.infer<typeof CreatePipelineSchema>;
-export type RetryPipelineOptions = z.infer<typeof RetryPipelineSchema>;
-export type CancelPipelineOptions = z.infer<typeof CancelPipelineSchema>;
+export const ManagePipelineJobSchema = z.discriminatedUnion("action", [
+  ManagePipelineJobPlaySchema,
+  ManagePipelineJobRetrySchema,
+  ManagePipelineJobCancelSchema,
+]);
+
+// ============================================================================
+// Type exports
+// ============================================================================
+
+export type ManagePipelineInput = z.infer<typeof ManagePipelineSchema>;
+export type ManagePipelineJobInput = z.infer<typeof ManagePipelineJobSchema>;
