@@ -1,3 +1,58 @@
+# [6.0.0](https://github.com/structured-world/gitlab-mcp/compare/v5.8.0...v6.0.0) (2026-01-19)
+
+
+* feat(files)!: CQRS consolidation - 5 tools to 2 tools ([b29c0c8](https://github.com/structured-world/gitlab-mcp/commit/b29c0c8c6b6c247401c7f45bb0c1cfe51a6c297c)), closes [#12](https://github.com/structured-world/gitlab-mcp/issues/12)
+
+
+### Bug Fixes
+
+* address additional Copilot review comments ([8759662](https://github.com/structured-world/gitlab-mcp/commit/8759662e99976402b2b94b38b59d9c2b75a2289e))
+* address Copilot review comments and lockfile bin path ([ca376c1](https://github.com/structured-world/gitlab-mcp/commit/ca376c1adbbfabc1af144996a5851c16825061ef))
+* **build:** include prisma generate in build script for Docker compatibility ([3a094be](https://github.com/structured-world/gitlab-mcp/commit/3a094be9793b82fa83ce591032f78039880d9820))
+* **ci:** add Prisma client generation to ci-cd workflow ([7f11e80](https://github.com/structured-world/gitlab-mcp/commit/7f11e80f0d30f7c11af4128143492ecfd79a9894))
+* **ci:** add Prisma dependencies and generate step to workflows ([76e2233](https://github.com/structured-world/gitlab-mcp/commit/76e22335dccf19162ad6dc7f94778c362a36c4d4))
+* **ci:** use GitHub App token for semantic-release to bypass branch protection ([c8a6e1a](https://github.com/structured-world/gitlab-mcp/commit/c8a6e1acdee1c5a69b19cc535d135fb1e16b5a46))
+* **core:** address PR review feedback from Copilot ([b664354](https://github.com/structured-world/gitlab-mcp/commit/b664354ee7329e6d2bfd892456eb3a211580966e))
+* **deps:** add prisma generate to postinstall script ([1c41931](https://github.com/structured-world/gitlab-mcp/commit/1c41931edb2686e7313e27431d7e03d8f1f36746))
+* **deps:** make postinstall conditional for Docker compatibility ([185a9a3](https://github.com/structured-world/gitlab-mcp/commit/185a9a3137a49704fcdc09f4571c794cbab77687))
+* **docker:** copy prisma schema to builder stage ([42200fd](https://github.com/structured-world/gitlab-mcp/commit/42200fde71acae5c534ef940f3bd430399d031f8))
+* **files:** make batch file content required per API spec ([7a0ff07](https://github.com/structured-world/gitlab-mcp/commit/7a0ff07b7e26e04e05cc12e0cd8a5ba6fe087c84))
+* restore STDIO transport mode and use yarn for prisma ([0fadedf](https://github.com/structured-world/gitlab-mcp/commit/0fadedf284eb2e4c735284220332bfe0d5627f5a))
+* **security:** add CodeQL suppression for rate limiting false positives ([a1be5c4](https://github.com/structured-world/gitlab-mcp/commit/a1be5c455bdfa2b9659e9456a74df3018fe2ca84))
+* **tests:** add todos to TestDataState and remove unused import ([f170a95](https://github.com/structured-world/gitlab-mcp/commit/f170a95eb0c7b74c478451e720ef3a3c0b0fdd12))
+* **types:** resolve TypeScript errors in server-launcher.ts ([c06a097](https://github.com/structured-world/gitlab-mcp/commit/c06a09739aacaed3424bcd9f49ddffe2b0f93292))
+
+
+### Features
+
+* **core:** add todos data lifecycle tests and address Copilot review feedback ([b909916](https://github.com/structured-world/gitlab-mcp/commit/b9099168389e75c531f42066be97788754d3a8cb))
+* **core:** add todos tools and CQRS consolidation ([#4](https://github.com/structured-world/gitlab-mcp/issues/4), [#16](https://github.com/structured-world/gitlab-mcp/issues/16)) ([d6fc3ee](https://github.com/structured-world/gitlab-mcp/commit/d6fc3eebc266742f07cb5e52bec5a5b324b892f3))
+* **security:** add rate limiting middleware for anonymous requests ([234a412](https://github.com/structured-world/gitlab-mcp/commit/234a4122200ae3243dbca6494d38979704eac391)), closes [#6](https://github.com/structured-world/gitlab-mcp/issues/6) [#6](https://github.com/structured-world/gitlab-mcp/issues/6)
+
+
+### Reverts
+
+* remove custom CodeQL workflow due to SARIF upload conflict ([aa47e12](https://github.com/structured-world/gitlab-mcp/commit/aa47e12eb0ebb61d71980efbb6b075834819d139))
+
+
+### BREAKING CHANGES
+
+* Replace 5 individual file tools with 2 CQRS-aligned tools
+
+Migration guide:
+- get_repository_tree → browse_files with action: "tree"
+- get_file_contents → browse_files with action: "content"
+- create_or_update_file → manage_files with action: "single"
+- push_files → manage_files with action: "batch"
+- upload_markdown → manage_files with action: "upload"
+
+Changes:
+- Add BrowseFilesSchema with discriminated union (tree/content actions)
+- Add ManageFilesSchema with discriminated union (single/batch/upload actions)
+- Replace filesToolRegistry with 2 consolidated tools
+- Update read-only tools list to only include browse_files
+- Update unit tests for new tool structure
+
 # [5.8.0](https://github.com/structured-world/gitlab-mcp/compare/v5.7.0...v5.8.0) (2025-11-26)
 
 
