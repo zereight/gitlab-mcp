@@ -464,6 +464,7 @@ When OAuth is enabled, the following endpoints are available:
 - `USE_MRS`: When set to 'true', enables the merge request-related tools (browse_merge_requests, browse_mr_discussions, manage_merge_request, manage_mr_discussion, manage_draft_notes). These 5 CQRS tools consolidate all MR operations. By default, merge request features are enabled.
 - `USE_FILES`: When set to 'true', enables the file-related tools (browse_files, manage_files). These 2 CQRS tools consolidate all file operations. By default, file operation features are enabled.
 - `USE_VARIABLES`: When set to 'true', enables the CI/CD variables-related tools (list_variables, get_variable, create_variable, update_variable, delete_variable). Supports both project-level and group-level variables. By default, variables features are enabled.
+- `USE_WORKITEMS`: When set to 'true', enables the work items-related tools (browse_work_items, manage_work_item). These 2 CQRS tools consolidate all work item operations using GitLab GraphQL API. By default, work items features are enabled.
 - `GITLAB_AUTH_COOKIE_PATH`: Path to an authentication cookie file for GitLab instances that require cookie-based authentication. When provided, the cookie will be included in all GitLab API requests.
 - `SKIP_TLS_VERIFY`: When set to 'true', skips TLS certificate verification for all GitLab API requests (both REST and GraphQL). **WARNING**: This bypasses SSL certificate validation and should only be used for testing with self-signed certificates or trusted internal GitLab instances. Never use this in production environments.
 - `SSL_CERT_PATH`: Path to PEM certificate file for direct HTTPS/TLS termination. Requires `SSL_KEY_PATH` to also be set.
@@ -502,7 +503,7 @@ export GITLAB_TOOL_GET_FILE_CONTENTS="Read source code files from the repository
 # Multiple customizations
 export GITLAB_TOOL_LIST_PROJECTS="List user projects"
 export GITLAB_TOOL_GET_PROJECT="Get project details including settings"
-export GITLAB_TOOL_CREATE_WORK_ITEM="Create tickets for our sprint planning"
+export GITLAB_TOOL_MANAGE_WORK_ITEM="Create and manage tickets for our sprint planning"
 ```
 
 #### Usage in Configuration Files
@@ -532,11 +533,11 @@ export GITLAB_TOOL_CREATE_WORK_ITEM="Create tickets for our sprint planning"
 - **Case Sensitivity**: Tool names in environment variables must be UPPERCASE (e.g., `LIST_PROJECTS` not `list_projects`)
 - **Invalid Names**: Invalid tool names in environment variables are ignored with a warning in debug logs
 - **Content Guidelines**: Descriptions can be any valid string but should be kept concise for better UX
-- **Scope**: Works with all 61 available tools across all entities (Core, Work Items, Merge Requests, Files, etc.)
+- **Scope**: Works with all 58 available tools across all entities (Core, Work Items, Merge Requests, Files, etc.)
 
 ## Tools 🛠️
 
-**61 Tools Available** - Organized by entity and functionality below.
+**58 Tools Available** - Organized by entity and functionality below.
 
 ### Key Features:
 - **CQRS Pattern** - Consolidated action-based tools: `browse_*` for reads, `manage_*` for writes
@@ -617,14 +618,14 @@ Requires USE_VARIABLES=true environment variable (enabled by default). Supports 
 - ✏️ **`update_variable`**: Update an existing CI/CD variable's value, security settings, or configuration in a project or group
 - ✏️ **`delete_variable`**: Remove a CI/CD variable from a project or group
 
-### Work Items (5 tools)
-Modern GraphQL API for issues, epics, tasks, and more. Requires USE_WORKITEMS=true (enabled by default).
+### Work Items (2 CQRS tools)
+Modern GraphQL API for issues, epics, tasks, and more. Requires USE_WORKITEMS=true (enabled by default). Uses CQRS pattern with action-based tools.
 
-- ✏️ **`create_work_item`**: Create a new work item (epic, issue, task, etc.) in a GitLab group
-- ✏️ **`update_work_item`**: Update an existing work item
-- ✏️ **`delete_work_item`**: Delete a work item
-- 📖 **`get_work_item`**: Get details of a specific work item by ID
-- 📖 **`list_work_items`**: List work items from a GitLab group with optional filtering by type
+#### Work Item Browsing (Query)
+- 📖 **`browse_work_items`**: BROWSE work items. Actions: "list" shows work items with filtering (groups return epics, projects return issues/tasks), "get" retrieves single work item by ID with full widget details.
+
+#### Work Item Management (Command)
+- ✏️ **`manage_work_item`**: MANAGE work items. Actions: "create" creates new work item (Epics need GROUP namespace, Issues/Tasks need PROJECT), "update" modifies properties/widgets, "delete" permanently removes.
 
 ### Wiki Management (5 tools)
 Requires USE_GITLAB_WIKI=true environment variable. Supports both project-level and group-level wikis.
@@ -775,9 +776,9 @@ For rapid testing of individual MCP tools:
 
 ```bash
 # Test specific tools directly
-./scripts/test_mcp.sh '{"name": "list_work_items", "arguments": {"namespacePath": "test"}}'
-./scripts/test_mcp.sh '{"name": "get_work_item_types", "arguments": {"namespacePath": "test"}}'
-./scripts/test_mcp.sh '{"name": "create_work_item", "arguments": {"namespacePath": "test", "workItemType": "EPIC", "title": "Test Epic"}}'
+./scripts/test_mcp.sh '{"name": "browse_work_items", "arguments": {"action": "list", "namespace": "test"}}'
+./scripts/test_mcp.sh '{"name": "browse_work_items", "arguments": {"action": "get", "id": "gid://gitlab/WorkItem/123"}}'
+./scripts/test_mcp.sh '{"name": "manage_work_item", "arguments": {"action": "create", "namespace": "test", "workItemType": "EPIC", "title": "Test Epic"}}'
 ```
 
 The `test_mcp.sh` script automatically:

@@ -167,7 +167,7 @@ export class IntegrationTestHelper {
   }
 
   // ========================================
-  // WORK ITEMS - GraphQL Operations
+  // WORK ITEMS - GraphQL Operations (CQRS: browse_work_items, manage_work_item)
   // ========================================
 
   async createWorkItem(args: {
@@ -179,7 +179,7 @@ export class IntegrationTestHelper {
     labelIds?: string[];
     milestoneId?: string;
   }): Promise<unknown> {
-    return this.executeTool("create_work_item", args);
+    return this.executeTool("manage_work_item", { action: "create", ...args });
   }
 
   async updateWorkItem(args: {
@@ -191,15 +191,15 @@ export class IntegrationTestHelper {
     labelIds?: string[];
     milestoneId?: string;
   }): Promise<unknown> {
-    return this.executeTool("update_work_item", args);
+    return this.executeTool("manage_work_item", { action: "update", ...args });
   }
 
   async deleteWorkItem(args: { id: string }): Promise<unknown> {
-    return this.executeTool("delete_work_item", args);
+    return this.executeTool("manage_work_item", { action: "delete", ...args });
   }
 
   async getWorkItem(args: { id: string }): Promise<unknown> {
-    return this.executeTool("get_work_item", args);
+    return this.executeTool("browse_work_items", { action: "get", ...args });
   }
 
   async listWorkItems(args: {
@@ -211,7 +211,7 @@ export class IntegrationTestHelper {
     simple?: boolean;
     active?: boolean;
   }): Promise<unknown> {
-    return this.executeTool("list_work_items", args);
+    return this.executeTool("browse_work_items", { action: "list", ...args });
   }
 
   // ========================================

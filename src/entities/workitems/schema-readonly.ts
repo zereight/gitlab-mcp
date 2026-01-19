@@ -1,6 +1,9 @@
 import { z } from "zod";
 
+// ============================================================================
 // Base schemas for work items
+// ============================================================================
+
 export const WorkItemIdSchema = z.string().min(1).describe("Work item ID");
 
 export const WorkItemTypeEnumSchema = z
@@ -32,7 +35,66 @@ export const WorkItemStateEventSchema = z
   .pipe(z.enum(["CLOSE", "REOPEN"]))
   .describe("State event for updating work item");
 
-// Read-only schemas
+// ============================================================================
+// browse_work_items - CQRS Query Tool (discriminated union)
+// Actions: list, get
+// ============================================================================
+
+const BrowseWorkItemsBaseSchema = z.object({
+  namespace: z
+    .string()
+    .describe(
+      "Namespace path (group or project). Groups return epics, projects return issues/tasks."
+    ),
+});
+
+// List work items action
+const BrowseWorkItemsListSchema = BrowseWorkItemsBaseSchema.extend({
+  action: z.literal("list"),
+  types: z.array(WorkItemTypeEnumSchema).optional().describe("Filter by work item types"),
+  state: z
+    .array(WorkItemStateSchema)
+    .optional()
+    .default(["OPEN"])
+    .describe(
+      'Filter by work item state. Defaults to OPEN items only. Use ["OPEN", "CLOSED"] for all items.'
+    ),
+  first: z.number().optional().default(20).describe("Number of items to return"),
+  after: z
+    .string()
+    .optional()
+    .describe("Cursor for pagination (use endCursor from previous response)"),
+  simple: z
+    .boolean()
+    .optional()
+    .default(true)
+    .describe(
+      "Return simplified structure with essential fields only. RECOMMENDED: Use default true for most cases."
+    ),
+  active: z
+    .boolean()
+    .optional()
+    .default(true)
+    .describe(
+      "Include only active projects and work items (excludes archived). Set false for all."
+    ),
+});
+
+// Get single work item action
+const BrowseWorkItemsGetSchema = z.object({
+  action: z.literal("get"),
+  id: WorkItemIdSchema.describe("Work item ID to retrieve"),
+});
+
+export const BrowseWorkItemsSchema = z.discriminatedUnion("action", [
+  BrowseWorkItemsListSchema,
+  BrowseWorkItemsGetSchema,
+]);
+
+// ============================================================================
+// Legacy schemas (kept for backward compatibility during transition)
+// ============================================================================
+
 export const ListWorkItemsSchema = z.object({
   namespace: z
     .string()
@@ -76,7 +138,11 @@ export const GetWorkItemTypesSchema = z.object({
   namespace: z.string().describe("Namespace path (group or project) to get work item types for"),
 });
 
+// ============================================================================
 // Type exports
+// ============================================================================
+
+export type BrowseWorkItemsInput = z.infer<typeof BrowseWorkItemsSchema>;
 export type ListWorkItemsOptions = z.infer<typeof ListWorkItemsSchema>;
 export type GetWorkItemOptions = z.infer<typeof GetWorkItemSchema>;
 export type GetWorkItemTypesOptions = z.infer<typeof GetWorkItemTypesSchema>;
