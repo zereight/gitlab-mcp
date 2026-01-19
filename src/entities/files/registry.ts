@@ -56,6 +56,7 @@ export const filesToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefin
               content_type: response.headers.get("content-type") ?? "text/plain",
             };
           }
+          /* istanbul ignore next -- TypeScript exhaustive check, unreachable with Zod validation */
           default: {
             const _exhaustive: never = input;
             throw new Error(`Unknown action: ${(_exhaustive as BrowseFilesInput).action}`);
@@ -118,6 +119,7 @@ export const filesToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefin
               body: formData,
             });
           }
+          /* istanbul ignore next -- TypeScript exhaustive check, unreachable with Zod validation */
           default: {
             const _exhaustive: never = input;
             throw new Error(`Unknown action: ${(_exhaustive as ManageFilesInput).action}`);
