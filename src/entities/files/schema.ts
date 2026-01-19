@@ -64,7 +64,7 @@ const ManageFilesSingleSchema = z.object({
 
 const BatchFileActionSchema = z.object({
   file_path: z.string().describe("Path to the file"),
-  content: z.string().optional().describe("File content (for create/update)"),
+  content: z.string().describe("File content"),
   encoding: z.enum(["text", "base64"]).optional().describe("Content encoding"),
   execute_filemode: flexibleBoolean.optional().describe("Set executable permission"),
 });
