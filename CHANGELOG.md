@@ -1,3 +1,9 @@
+## [6.9.0](https://github.com/structured-world/gitlab-mcp/compare/v6.8.0...v6.9.0) (2026-01-19)
+
+### Features
+
+* **schema:** add dynamic action filtering with schema transformation pipeline ([#44](https://github.com/structured-world/gitlab-mcp/issues/44)) ([10069c9](https://github.com/structured-world/gitlab-mcp/commit/10069c9398d46e566a8788ece883ecc32098510e)), closes [#32](https://github.com/structured-world/gitlab-mcp/issues/32) [#32](https://github.com/structured-world/gitlab-mcp/issues/32)
+
 ## [6.8.0](https://github.com/structured-world/gitlab-mcp/compare/v6.7.0...v6.8.0) (2026-01-19)
 
 ### Features
