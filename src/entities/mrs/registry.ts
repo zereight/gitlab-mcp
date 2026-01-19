@@ -1,684 +1,371 @@
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import * as z from "zod";
 import {
-  GetBranchDiffsSchema,
-  GetMergeRequestSchema,
-  GetMergeRequestDiffsSchema,
-  ListMergeRequestDiffsSchema,
-  ListMergeRequestDiscussionsSchema,
-  GetDraftNoteSchema,
-  ListDraftNotesSchema,
-  ListMergeRequestsSchema,
+  BrowseMergeRequestsSchema,
+  BrowseMergeRequestsInput,
+  BrowseMrDiscussionsSchema,
+  BrowseMrDiscussionsInput,
 } from "./schema-readonly";
 import {
-  CreateMergeRequestSchema,
-  UpdateMergeRequestSchema,
-  MergeMergeRequestSchema,
-  CreateNoteSchema,
-  CreateMergeRequestThreadSchema,
-  UpdateMergeRequestNoteSchema,
-  CreateMergeRequestNoteSchema,
-  CreateDraftNoteSchema,
-  UpdateDraftNoteSchema,
-  DeleteDraftNoteSchema,
-  PublishDraftNoteSchema,
-  BulkPublishDraftNotesSchema,
+  ManageMergeRequestSchema,
+  ManageMergeRequestInput,
+  ManageMrDiscussionSchema,
+  ManageMrDiscussionInput,
+  ManageDraftNotesSchema,
+  ManageDraftNotesInput,
 } from "./schema";
-import { enhancedFetch } from "../../utils/fetch";
+import { gitlab, toQuery } from "../../utils/gitlab-api";
 import { normalizeProjectId } from "../../utils/projectIdentifier";
-import { cleanGidsFromObject } from "../../utils/idConversion";
 import { ToolRegistry, EnhancedToolDefinition } from "../../types";
 
 /**
- * MRS (Merge Requests) tools registry - unified registry containing all MR tools with their handlers
+ * MRS (Merge Requests) tools registry - 5 CQRS tools replacing 20 individual tools
+ *
+ * browse_merge_requests (Query): list, get, diffs, compare
+ * browse_mr_discussions (Query): list, drafts, draft
+ * manage_merge_request (Command): create, update, merge
+ * manage_mr_discussion (Command): comment, thread, reply, update
+ * manage_draft_notes (Command): create, update, publish, publish_all, delete
  */
 export const mrsToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefinition>([
-  // Read-only tools
+  // ============================================================================
+  // browse_merge_requests - CQRS Query Tool
+  // ============================================================================
   [
-    "get_branch_diffs",
+    "browse_merge_requests",
     {
-      name: "get_branch_diffs",
+      name: "browse_merge_requests",
       description:
-        "COMPARE: Get diffs between two branches or commits in a GitLab project. Use when: Reviewing changes before merging, Analyzing code differences, Generating change reports. Supports both direct comparison and merge-base comparison methods.",
-      inputSchema: z.toJSONSchema(GetBranchDiffsSchema),
-      handler: async (args: unknown): Promise<unknown> => {
-        const options = GetBranchDiffsSchema.parse(args);
-        const { project_id, from, to, straight } = options;
+        'BROWSE merge requests. Actions: "list" shows MRs with filtering, "get" retrieves single MR by IID or branch, "diffs" shows file changes, "compare" diffs two branches/commits.',
+      inputSchema: z.toJSONSchema(BrowseMergeRequestsSchema),
+      handler: async (args: unknown) => {
+        const input = BrowseMergeRequestsSchema.parse(args);
 
-        const queryParams = new URLSearchParams();
-        if (straight !== undefined) {
-          queryParams.set("straight", String(straight));
-        }
+        switch (input.action) {
+          case "list": {
+            const { action: _action, project_id, ...rest } = input;
+            const query = toQuery(rest, []);
 
-        const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${normalizeProjectId(project_id)}/repository/compare?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}&${queryParams}`;
-        const response = await enhancedFetch(apiUrl);
+            const path = project_id
+              ? `projects/${normalizeProjectId(project_id)}/merge_requests`
+              : `merge_requests`;
 
-        if (!response.ok) {
-          throw new Error(`GitLab API error: ${response.status} ${response.statusText}`);
-        }
-
-        const diff = await response.json();
-        return cleanGidsFromObject(diff);
-      },
-    },
-  ],
-  [
-    "get_merge_request",
-    {
-      name: "get_merge_request",
-      description:
-        "READ: Get comprehensive details of a merge request including status, discussions, and approvals. Use when: Reviewing MR details, Checking merge status, Gathering information for automation. Accepts either MR IID or source branch name for flexibility.",
-      inputSchema: z.toJSONSchema(GetMergeRequestSchema),
-      handler: async (args: unknown): Promise<unknown> => {
-        const options = GetMergeRequestSchema.parse(args);
-        const { project_id, merge_request_iid, branch_name } = options;
-
-        let apiUrl: string;
-
-        if (merge_request_iid) {
-          // Get specific MR by IID
-          apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${normalizeProjectId(project_id)}/merge_requests/${merge_request_iid}`;
-        } else if (branch_name) {
-          // Search for MR by source branch
-          apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${normalizeProjectId(project_id)}/merge_requests?source_branch=${encodeURIComponent(branch_name)}`;
-        } else {
-          throw new Error("Either merge_request_iid or branch_name must be provided");
-        }
-
-        const response = await enhancedFetch(apiUrl);
-
-        if (!response.ok) {
-          throw new Error(`GitLab API error: ${response.status} ${response.statusText}`);
-        }
-
-        const result = await response.json();
-
-        if (branch_name) {
-          // When searching by branch, return the first MR found
-          if (Array.isArray(result) && result.length > 0) {
-            return result[0];
-          } else {
-            throw new Error("No merge request found for branch");
+            return gitlab.get(path, { query });
           }
-        }
 
-        return cleanGidsFromObject(result);
-      },
-    },
-  ],
-  [
-    "list_merge_requests",
-    {
-      name: "list_merge_requests",
-      description:
-        "BROWSE: List merge requests in a GitLab project with extensive filtering capabilities. Use when: Finding MRs by state/author/assignee, Complex queries for MR management, Reporting on merge requests. Can search globally or within specific projects.",
-      inputSchema: z.toJSONSchema(ListMergeRequestsSchema),
-      handler: async (args: unknown): Promise<unknown> => {
-        const options = ListMergeRequestsSchema.parse(args);
+          case "get": {
+            // Build query params for optional fields
+            const query: Record<string, boolean | string | undefined> = {};
+            if (input.include_diverged_commits_count !== undefined)
+              query.include_diverged_commits_count = input.include_diverged_commits_count;
+            if (input.include_rebase_in_progress !== undefined)
+              query.include_rebase_in_progress = input.include_rebase_in_progress;
 
-        const queryParams = new URLSearchParams();
-        Object.entries(options).forEach(([key, value]) => {
-          if (value !== undefined && value !== null && key !== "project_id") {
-            queryParams.set(key, String(value));
-          }
-        });
+            if (input.merge_request_iid) {
+              return gitlab.get(
+                `projects/${normalizeProjectId(input.project_id)}/merge_requests/${input.merge_request_iid}`,
+                Object.keys(query).length > 0 ? { query } : undefined
+              );
+            } else if (input.branch_name) {
+              const result = await gitlab.get<unknown[]>(
+                `projects/${normalizeProjectId(input.project_id)}/merge_requests`,
+                { query: { source_branch: input.branch_name, ...query } }
+              );
 
-        // Handle optional project_id - use global endpoint if not provided
-        const apiUrl = options.project_id
-          ? `${process.env.GITLAB_API_URL}/api/v4/projects/${encodeURIComponent(options.project_id)}/merge_requests?${queryParams}`
-          : `${process.env.GITLAB_API_URL}/api/v4/merge_requests?${queryParams}`;
-
-        const response = await enhancedFetch(apiUrl);
-
-        if (!response.ok) {
-          throw new Error(`GitLab API error: ${response.status} ${response.statusText}`);
-        }
-
-        const mergeRequests = await response.json();
-        return cleanGidsFromObject(mergeRequests);
-      },
-    },
-  ],
-  [
-    "get_merge_request_diffs",
-    {
-      name: "get_merge_request_diffs",
-      description:
-        "READ: Get all file changes and diffs included in a merge request. Use when: Reviewing code changes, Analyzing modifications, Automating code review processes. Shows actual file differences that would be applied if merged.",
-      inputSchema: z.toJSONSchema(GetMergeRequestDiffsSchema),
-      handler: async (args: unknown): Promise<unknown> => {
-        const options = GetMergeRequestDiffsSchema.parse(args);
-        const { project_id, merge_request_iid, page, per_page } = options;
-
-        const queryParams = new URLSearchParams();
-        if (page !== undefined) {
-          queryParams.set("page", String(page));
-        }
-        if (per_page !== undefined) {
-          queryParams.set("per_page", String(per_page));
-        }
-
-        const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${normalizeProjectId(project_id)}/merge_requests/${merge_request_iid}/changes?${queryParams}`;
-        const response = await enhancedFetch(apiUrl);
-
-        if (!response.ok) {
-          throw new Error(`GitLab API error: ${response.status} ${response.statusText}`);
-        }
-
-        const diffs = await response.json();
-        return cleanGidsFromObject(diffs);
-      },
-    },
-  ],
-  [
-    "list_merge_request_diffs",
-    {
-      name: "list_merge_request_diffs",
-      description:
-        "BROWSE: List all diffs in a merge request with pagination for large changesets. Use when: Dealing with MRs containing many changes, Managing memory usage, Processing large diffs efficiently. Provides paginated access to file modifications.",
-      inputSchema: z.toJSONSchema(ListMergeRequestDiffsSchema),
-      handler: async (args: unknown): Promise<unknown> => {
-        const options = ListMergeRequestDiffsSchema.parse(args);
-        const { project_id, merge_request_iid, page, per_page } = options;
-
-        const queryParams = new URLSearchParams();
-        if (page !== undefined) {
-          queryParams.set("page", String(page));
-        }
-        if (per_page !== undefined) {
-          queryParams.set("per_page", String(per_page));
-        }
-
-        const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${normalizeProjectId(project_id)}/merge_requests/${merge_request_iid}/diffs?${queryParams}`;
-        const response = await enhancedFetch(apiUrl);
-
-        if (!response.ok) {
-          throw new Error(`GitLab API error: ${response.status} ${response.statusText}`);
-        }
-
-        const diffs = await response.json();
-        return cleanGidsFromObject(diffs);
-      },
-    },
-  ],
-  [
-    "mr_discussions",
-    {
-      name: "mr_discussions",
-      description:
-        "DISCUSS: List all discussion threads and comments on a merge request. Use when: Tracking code review feedback, Managing conversations, Extracting review insights. Includes both resolved and unresolved discussions with full context.",
-      inputSchema: z.toJSONSchema(ListMergeRequestDiscussionsSchema),
-      handler: async (args: unknown): Promise<unknown> => {
-        const options = ListMergeRequestDiscussionsSchema.parse(args);
-        const { project_id, merge_request_iid } = options;
-
-        const queryParams = new URLSearchParams();
-        Object.entries(options).forEach(([key, value]) => {
-          if (value !== undefined && key !== "project_id" && key !== "merge_request_iid") {
-            queryParams.set(key, String(value));
-          }
-        });
-
-        const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${normalizeProjectId(project_id)}/merge_requests/${merge_request_iid}/discussions?${queryParams}`;
-        const response = await enhancedFetch(apiUrl);
-
-        if (!response.ok) {
-          throw new Error(`GitLab API error: ${response.status} ${response.statusText}`);
-        }
-
-        const discussions = await response.json();
-        return cleanGidsFromObject(discussions);
-      },
-    },
-  ],
-  [
-    "get_draft_note",
-    {
-      name: "get_draft_note",
-      description:
-        "DRAFT: Retrieve a specific draft note (unpublished comment) from a merge request. Use when: Reviewing pending feedback before publishing, Managing draft review comments. Draft notes are only visible to their author until published.",
-      inputSchema: z.toJSONSchema(GetDraftNoteSchema),
-      handler: async (args: unknown): Promise<unknown> => {
-        const options = GetDraftNoteSchema.parse(args);
-        const { project_id, merge_request_iid, draft_note_id } = options;
-
-        const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${normalizeProjectId(project_id)}/merge_requests/${merge_request_iid}/draft_notes/${draft_note_id}`;
-        const response = await enhancedFetch(apiUrl);
-
-        if (!response.ok) {
-          throw new Error(`GitLab API error: ${response.status} ${response.statusText}`);
-        }
-
-        const draftNote = await response.json();
-        return cleanGidsFromObject(draftNote);
-      },
-    },
-  ],
-  [
-    "list_draft_notes",
-    {
-      name: "list_draft_notes",
-      description:
-        "DRAFT: List all draft notes (unpublished comments) for a merge request. Use when: Reviewing all pending feedback before publishing, Managing batch review comments. Draft notes allow reviewers to prepare comprehensive feedback before sharing.",
-      inputSchema: z.toJSONSchema(ListDraftNotesSchema),
-      handler: async (args: unknown): Promise<unknown> => {
-        const options = ListDraftNotesSchema.parse(args);
-        const { project_id, merge_request_iid } = options;
-
-        const queryParams = new URLSearchParams();
-        Object.entries(options).forEach(([key, value]) => {
-          if (value !== undefined && key !== "project_id" && key !== "merge_request_iid") {
-            queryParams.set(key, String(value));
-          }
-        });
-
-        const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${normalizeProjectId(project_id)}/merge_requests/${merge_request_iid}/draft_notes?${queryParams}`;
-        const response = await enhancedFetch(apiUrl);
-
-        if (!response.ok) {
-          throw new Error(`GitLab API error: ${response.status} ${response.statusText}`);
-        }
-
-        const draftNotes = await response.json();
-        return cleanGidsFromObject(draftNotes);
-      },
-    },
-  ],
-  // Write tools
-  [
-    "create_merge_request",
-    {
-      name: "create_merge_request",
-      description:
-        "CREATE: Create a new merge request to propose code changes for review and merging. Use when: Initiating code review process, Proposing features, Submitting fixes. For labels: Use list_labels FIRST to discover existing project taxonomy. Requires source and target branches, supports setting assignees, reviewers, and labels.",
-      inputSchema: z.toJSONSchema(CreateMergeRequestSchema),
-      handler: async (args: unknown): Promise<unknown> => {
-        const options = CreateMergeRequestSchema.parse(args);
-
-        const body = new URLSearchParams();
-        Object.entries(options).forEach(([key, value]) => {
-          if (value !== undefined && value !== null) {
-            if (Array.isArray(value)) {
-              body.set(key, value.join(","));
-            } else {
-              body.set(key, String(value));
+              if (Array.isArray(result) && result.length > 0) {
+                return result[0];
+              }
+              throw new Error("No merge request found for branch");
             }
+            throw new Error("Either merge_request_iid or branch_name must be provided");
           }
-        });
 
-        const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${encodeURIComponent(options.project_id)}/merge_requests`;
-        const response = await enhancedFetch(apiUrl, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/x-www-form-urlencoded",
-          },
-          body: body.toString(),
-        });
+          case "diffs": {
+            const query: Record<string, number | boolean | undefined> = {};
+            if (input.page !== undefined) query.page = input.page;
+            if (input.per_page !== undefined) query.per_page = input.per_page;
+            if (input.include_diverged_commits_count !== undefined)
+              query.include_diverged_commits_count = input.include_diverged_commits_count;
+            if (input.include_rebase_in_progress !== undefined)
+              query.include_rebase_in_progress = input.include_rebase_in_progress;
 
-        if (!response.ok) {
-          throw new Error(`GitLab API error: ${response.status} ${response.statusText}`);
-        }
-
-        const mergeRequest = await response.json();
-        return cleanGidsFromObject(mergeRequest);
-      },
-    },
-  ],
-  [
-    "merge_merge_request",
-    {
-      name: "merge_merge_request",
-      description:
-        "MERGE: Merge an approved merge request into the target branch. Use when: Completing the code review process, Integrating changes. Supports various merge methods (merge commit, squash, rebase) and can delete source branch after merging.",
-      inputSchema: z.toJSONSchema(MergeMergeRequestSchema),
-      handler: async (args: unknown): Promise<unknown> => {
-        const options = MergeMergeRequestSchema.parse(args);
-
-        const body = new URLSearchParams();
-        Object.entries(options).forEach(([key, value]) => {
-          if (value !== undefined && key !== "project_id" && key !== "merge_request_iid") {
-            body.set(key, String(value));
+            return gitlab.get(
+              `projects/${normalizeProjectId(input.project_id)}/merge_requests/${input.merge_request_iid}/changes`,
+              { query }
+            );
           }
-        });
 
-        const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${encodeURIComponent(options.project_id)}/merge_requests/${options.merge_request_iid}/merge`;
-        const response = await enhancedFetch(apiUrl, {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/x-www-form-urlencoded",
-          },
-          body: body.toString(),
-        });
+          case "compare": {
+            const query: Record<string, string | boolean | undefined> = {
+              from: input.from,
+              to: input.to,
+            };
+            if (input.straight !== undefined) query.straight = input.straight;
 
-        if (!response.ok) {
-          throw new Error(`GitLab API error: ${response.status} ${response.statusText}`);
+            return gitlab.get(
+              `projects/${normalizeProjectId(input.project_id)}/repository/compare`,
+              { query }
+            );
+          }
+
+          /* istanbul ignore next -- TypeScript exhaustive check, unreachable with Zod validation */
+          default: {
+            const _exhaustive: never = input;
+            throw new Error(`Unknown action: ${(_exhaustive as BrowseMergeRequestsInput).action}`);
+          }
         }
-
-        const result = await response.json();
-        return cleanGidsFromObject(result);
       },
     },
   ],
+
+  // ============================================================================
+  // browse_mr_discussions - CQRS Query Tool
+  // ============================================================================
   [
-    "create_note",
+    "browse_mr_discussions",
     {
-      name: "create_note",
+      name: "browse_mr_discussions",
       description:
-        "COMMENT: Add a comment to an issue or merge request for discussion or feedback. Use when: Providing code review comments, Asking questions, Documenting decisions. Supports markdown formatting and can trigger notifications to participants.",
-      inputSchema: z.toJSONSchema(CreateNoteSchema),
-      handler: async (args: unknown): Promise<unknown> => {
-        const options = CreateNoteSchema.parse(args);
+        'BROWSE MR discussions and draft notes. Actions: "list" shows all discussion threads, "drafts" lists unpublished draft notes, "draft" gets single draft note.',
+      inputSchema: z.toJSONSchema(BrowseMrDiscussionsSchema),
+      handler: async (args: unknown) => {
+        const input = BrowseMrDiscussionsSchema.parse(args);
 
-        const body = new URLSearchParams();
-        body.set("body", options.body);
-        if (options.created_at) {
-          body.set("created_at", options.created_at);
+        switch (input.action) {
+          case "list": {
+            const { action: _action, project_id, merge_request_iid, ...rest } = input;
+            const query = toQuery(rest, []);
+
+            return gitlab.get(
+              `projects/${normalizeProjectId(project_id)}/merge_requests/${merge_request_iid}/discussions`,
+              { query }
+            );
+          }
+
+          case "drafts": {
+            return gitlab.get(
+              `projects/${normalizeProjectId(input.project_id)}/merge_requests/${input.merge_request_iid}/draft_notes`
+            );
+          }
+
+          case "draft": {
+            return gitlab.get(
+              `projects/${normalizeProjectId(input.project_id)}/merge_requests/${input.merge_request_iid}/draft_notes/${input.draft_note_id}`
+            );
+          }
+
+          /* istanbul ignore next -- TypeScript exhaustive check, unreachable with Zod validation */
+          default: {
+            const _exhaustive: never = input;
+            throw new Error(`Unknown action: ${(_exhaustive as BrowseMrDiscussionsInput).action}`);
+          }
         }
-        if (options.confidential !== undefined) {
-          body.set("confidential", String(options.confidential));
-        }
-
-        const resourceType =
-          options.noteable_type === "merge_request" ? "merge_requests" : "issues";
-        const resourceId = options.noteable_id;
-
-        const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${encodeURIComponent(options.project_id)}/${resourceType}/${resourceId}/notes`;
-        const response = await enhancedFetch(apiUrl, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/x-www-form-urlencoded",
-          },
-          body: body.toString(),
-        });
-
-        if (!response.ok) {
-          throw new Error(`GitLab API error: ${response.status} ${response.statusText}`);
-        }
-
-        const note = await response.json();
-        return cleanGidsFromObject(note);
       },
     },
   ],
+
+  // ============================================================================
+  // manage_merge_request - CQRS Command Tool
+  // ============================================================================
   [
-    "create_draft_note",
+    "manage_merge_request",
     {
-      name: "create_draft_note",
+      name: "manage_merge_request",
       description:
-        "DRAFT: Create a draft note (unpublished comment) on a merge request. Use when: Preparing review feedback that can be refined before publishing. Draft notes are ideal for comprehensive reviews where all comments are published together.",
-      inputSchema: z.toJSONSchema(CreateDraftNoteSchema),
-      handler: async (args: unknown): Promise<unknown> => {
-        const options = CreateDraftNoteSchema.parse(args);
+        'MANAGE merge requests. Actions: "create" creates new MR, "update" modifies existing MR, "merge" merges approved MR into target branch.',
+      inputSchema: z.toJSONSchema(ManageMergeRequestSchema),
+      handler: async (args: unknown) => {
+        const input = ManageMergeRequestSchema.parse(args);
 
-        const body = new URLSearchParams();
-        body.set("note", options.note);
-        if (options.position) {
-          body.set("position", JSON.stringify(options.position));
-        }
+        switch (input.action) {
+          case "create": {
+            const { action: _action, project_id, ...body } = input;
 
-        const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${encodeURIComponent(options.project_id)}/merge_requests/${options.merge_request_iid}/draft_notes`;
-        const response = await enhancedFetch(apiUrl, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/x-www-form-urlencoded",
-          },
-          body: body.toString(),
-        });
-
-        if (!response.ok) {
-          throw new Error(`GitLab API error: ${response.status} ${response.statusText}`);
-        }
-
-        const draftNote = await response.json();
-        return cleanGidsFromObject(draftNote);
-      },
-    },
-  ],
-  [
-    "publish_draft_note",
-    {
-      name: "publish_draft_note",
-      description:
-        "DRAFT: Publish a previously created draft note to make it visible to all participants. Use when: Selectively sharing specific review comments when ready. Once published, the note becomes a regular comment and triggers notifications.",
-      inputSchema: z.toJSONSchema(PublishDraftNoteSchema),
-      handler: async (args: unknown): Promise<unknown> => {
-        const options = PublishDraftNoteSchema.parse(args);
-
-        const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${encodeURIComponent(options.project_id)}/merge_requests/${options.merge_request_iid}/draft_notes/${options.draft_note_id}/publish`;
-        const response = await enhancedFetch(apiUrl, {
-          method: "PUT",
-        });
-
-        if (!response.ok) {
-          throw new Error(`GitLab API error: ${response.status} ${response.statusText}`);
-        }
-
-        // PUT publish returns 204 No Content on success
-        const result = response.status === 204 ? { published: true } : await response.json();
-        return cleanGidsFromObject(result);
-      },
-    },
-  ],
-  [
-    "bulk_publish_draft_notes",
-    {
-      name: "bulk_publish_draft_notes",
-      description:
-        "Publish all pending draft notes for a merge request simultaneously. Use to share comprehensive review feedback in one action. Ideal for thorough code reviews where all comments should be seen together for context.",
-      inputSchema: z.toJSONSchema(BulkPublishDraftNotesSchema),
-      handler: async (args: unknown): Promise<unknown> => {
-        const options = BulkPublishDraftNotesSchema.parse(args);
-
-        const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${encodeURIComponent(options.project_id)}/merge_requests/${options.merge_request_iid}/draft_notes/bulk_publish`;
-        const response = await enhancedFetch(apiUrl, {
-          method: "POST",
-        });
-
-        if (!response.ok) {
-          throw new Error(`GitLab API error: ${response.status} ${response.statusText}`);
-        }
-
-        // POST bulk_publish returns 204 No Content on success
-        const result = response.status === 204 ? { published: true } : await response.json();
-        return cleanGidsFromObject(result);
-      },
-    },
-  ],
-  [
-    "update_merge_request",
-    {
-      name: "update_merge_request",
-      description:
-        "UPDATE: Update properties of an existing merge request such as title, description, or assignees. Use when: Refining MR details, Changing reviewers, Updating labels. For labels: Use list_labels FIRST to discover existing taxonomy before updating. Accepts either MR IID or source branch name for identification.",
-      inputSchema: z.toJSONSchema(UpdateMergeRequestSchema),
-      handler: async (args: unknown): Promise<unknown> => {
-        const options = UpdateMergeRequestSchema.parse(args);
-
-        const body = new URLSearchParams();
-        Object.entries(options).forEach(([key, value]) => {
-          if (value !== undefined && key !== "project_id" && key !== "merge_request_iid") {
-            if (Array.isArray(value)) {
-              body.set(key, value.join(","));
-            } else {
-              body.set(key, String(value));
+            // Handle array fields - convert to comma-separated strings for form encoding
+            const processedBody: Record<string, unknown> = {};
+            for (const [key, value] of Object.entries(body)) {
+              if (Array.isArray(value)) {
+                processedBody[key] = value.join(",");
+              } else {
+                processedBody[key] = value;
+              }
             }
+
+            return gitlab.post(`projects/${normalizeProjectId(project_id)}/merge_requests`, {
+              body: processedBody,
+              contentType: "form",
+            });
           }
-        });
 
-        const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${encodeURIComponent(options.project_id)}/merge_requests/${options.merge_request_iid}`;
-        const response = await enhancedFetch(apiUrl, {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/x-www-form-urlencoded",
-          },
-          body: body.toString(),
-        });
+          case "update": {
+            const { action: _action, project_id, merge_request_iid, ...body } = input;
 
-        if (!response.ok) {
-          throw new Error(`GitLab API error: ${response.status} ${response.statusText}`);
+            // Handle array fields
+            const processedBody: Record<string, unknown> = {};
+            for (const [key, value] of Object.entries(body)) {
+              if (Array.isArray(value)) {
+                processedBody[key] = value.join(",");
+              } else {
+                processedBody[key] = value;
+              }
+            }
+
+            return gitlab.put(
+              `projects/${normalizeProjectId(project_id)}/merge_requests/${merge_request_iid}`,
+              { body: processedBody, contentType: "form" }
+            );
+          }
+
+          case "merge": {
+            const { action: _action, project_id, merge_request_iid, ...body } = input;
+
+            return gitlab.put(
+              `projects/${normalizeProjectId(project_id)}/merge_requests/${merge_request_iid}/merge`,
+              { body, contentType: "form" }
+            );
+          }
+
+          /* istanbul ignore next -- TypeScript exhaustive check, unreachable with Zod validation */
+          default: {
+            const _exhaustive: never = input;
+            throw new Error(`Unknown action: ${(_exhaustive as ManageMergeRequestInput).action}`);
+          }
         }
-
-        const mergeRequest = await response.json();
-        return cleanGidsFromObject(mergeRequest);
       },
     },
   ],
+
+  // ============================================================================
+  // manage_mr_discussion - CQRS Command Tool
+  // ============================================================================
   [
-    "create_merge_request_thread",
+    "manage_mr_discussion",
     {
-      name: "create_merge_request_thread",
+      name: "manage_mr_discussion",
       description:
-        "Start a new discussion thread on a merge request for focused conversation. Use to raise specific concerns, ask questions about code sections, or initiate design discussions. Threads can be resolved when addressed.",
-      inputSchema: z.toJSONSchema(CreateMergeRequestThreadSchema),
-      handler: async (args: unknown): Promise<unknown> => {
-        const options = CreateMergeRequestThreadSchema.parse(args);
+        'MANAGE MR discussions. Actions: "comment" adds comment to issue/MR, "thread" starts new discussion, "reply" responds to existing thread, "update" modifies note.',
+      inputSchema: z.toJSONSchema(ManageMrDiscussionSchema),
+      handler: async (args: unknown) => {
+        const input = ManageMrDiscussionSchema.parse(args);
 
-        const body = new URLSearchParams();
-        body.set("body", options.body);
-        if (options.position) {
-          body.set("position", JSON.stringify(options.position));
+        switch (input.action) {
+          case "comment": {
+            const body: Record<string, unknown> = { body: input.body };
+            if (input.created_at) body.created_at = input.created_at;
+            if (input.confidential !== undefined) body.confidential = input.confidential;
+
+            const resourceType =
+              input.noteable_type === "merge_request" ? "merge_requests" : "issues";
+
+            return gitlab.post(
+              `projects/${normalizeProjectId(input.project_id)}/${resourceType}/${input.noteable_id}/notes`,
+              { body, contentType: "form" }
+            );
+          }
+
+          case "thread": {
+            const body: Record<string, unknown> = { body: input.body };
+            if (input.position) body.position = JSON.stringify(input.position);
+            if (input.commit_id) body.commit_id = input.commit_id;
+
+            return gitlab.post(
+              `projects/${normalizeProjectId(input.project_id)}/merge_requests/${input.merge_request_iid}/discussions`,
+              { body, contentType: "form" }
+            );
+          }
+
+          case "reply": {
+            const body: Record<string, unknown> = { body: input.body };
+            if (input.created_at) body.created_at = input.created_at;
+
+            return gitlab.post(
+              `projects/${normalizeProjectId(input.project_id)}/merge_requests/${input.merge_request_iid}/discussions/${input.discussion_id}/notes`,
+              { body, contentType: "form" }
+            );
+          }
+
+          case "update": {
+            return gitlab.put(
+              `projects/${normalizeProjectId(input.project_id)}/merge_requests/${input.merge_request_iid}/notes/${input.note_id}`,
+              { body: { body: input.body }, contentType: "form" }
+            );
+          }
+
+          /* istanbul ignore next -- TypeScript exhaustive check, unreachable with Zod validation */
+          default: {
+            const _exhaustive: never = input;
+            throw new Error(`Unknown action: ${(_exhaustive as ManageMrDiscussionInput).action}`);
+          }
         }
-        if (options.commit_id) {
-          body.set("commit_id", options.commit_id);
-        }
-
-        const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${encodeURIComponent(options.project_id)}/merge_requests/${options.merge_request_iid}/discussions`;
-        const response = await enhancedFetch(apiUrl, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/x-www-form-urlencoded",
-          },
-          body: body.toString(),
-        });
-
-        if (!response.ok) {
-          throw new Error(`GitLab API error: ${response.status} ${response.statusText}`);
-        }
-
-        const discussion = await response.json();
-        return cleanGidsFromObject(discussion);
       },
     },
   ],
+
+  // ============================================================================
+  // manage_draft_notes - CQRS Command Tool
+  // ============================================================================
   [
-    "update_merge_request_note",
+    "manage_draft_notes",
     {
-      name: "update_merge_request_note",
+      name: "manage_draft_notes",
       description:
-        "Edit an existing comment within a merge request discussion thread. Use to correct mistakes, clarify points, or update information in previous comments. Maintains discussion history while allowing content refinement.",
-      inputSchema: z.toJSONSchema(UpdateMergeRequestNoteSchema),
-      handler: async (args: unknown): Promise<unknown> => {
-        const options = UpdateMergeRequestNoteSchema.parse(args);
+        'MANAGE draft notes. Actions: "create" creates draft note, "update" modifies draft, "publish" publishes single draft, "publish_all" publishes all drafts, "delete" removes draft.',
+      inputSchema: z.toJSONSchema(ManageDraftNotesSchema),
+      handler: async (args: unknown) => {
+        const input = ManageDraftNotesSchema.parse(args);
 
-        const body = new URLSearchParams();
-        body.set("body", options.body);
+        switch (input.action) {
+          case "create": {
+            const body: Record<string, unknown> = { note: input.note };
+            if (input.position) body.position = JSON.stringify(input.position);
+            if (input.in_reply_to_discussion_id)
+              body.in_reply_to_discussion_id = input.in_reply_to_discussion_id;
+            if (input.commit_id) body.commit_id = input.commit_id;
 
-        const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${encodeURIComponent(options.project_id)}/merge_requests/${options.merge_request_iid}/notes/${options.note_id}`;
-        const response = await enhancedFetch(apiUrl, {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/x-www-form-urlencoded",
-          },
-          body: body.toString(),
-        });
+            return gitlab.post(
+              `projects/${normalizeProjectId(input.project_id)}/merge_requests/${input.merge_request_iid}/draft_notes`,
+              { body, contentType: "form" }
+            );
+          }
 
-        if (!response.ok) {
-          throw new Error(`GitLab API error: ${response.status} ${response.statusText}`);
+          case "update": {
+            const body: Record<string, unknown> = { note: input.note };
+            if (input.position) body.position = JSON.stringify(input.position);
+
+            return gitlab.put(
+              `projects/${normalizeProjectId(input.project_id)}/merge_requests/${input.merge_request_iid}/draft_notes/${input.draft_note_id}`,
+              { body, contentType: "form" }
+            );
+          }
+
+          case "publish": {
+            const result = await gitlab.put<void>(
+              `projects/${normalizeProjectId(input.project_id)}/merge_requests/${input.merge_request_iid}/draft_notes/${input.draft_note_id}/publish`
+            );
+            // PUT publish returns 204 No Content (undefined) on success
+            return result ?? { published: true };
+          }
+
+          case "publish_all": {
+            const result = await gitlab.post<void>(
+              `projects/${normalizeProjectId(input.project_id)}/merge_requests/${input.merge_request_iid}/draft_notes/bulk_publish`
+            );
+            // POST bulk_publish returns 204 No Content (undefined) on success
+            return result ?? { published: true };
+          }
+
+          case "delete": {
+            await gitlab.delete<void>(
+              `projects/${normalizeProjectId(input.project_id)}/merge_requests/${input.merge_request_iid}/draft_notes/${input.draft_note_id}`
+            );
+            return { success: true, message: "Draft note deleted successfully" };
+          }
+
+          /* istanbul ignore next -- TypeScript exhaustive check, unreachable with Zod validation */
+          default: {
+            const _exhaustive: never = input;
+            throw new Error(`Unknown action: ${(_exhaustive as ManageDraftNotesInput).action}`);
+          }
         }
-
-        const note = await response.json();
-        return cleanGidsFromObject(note);
-      },
-    },
-  ],
-  [
-    "create_merge_request_note",
-    {
-      name: "create_merge_request_note",
-      description:
-        "Reply to an existing discussion thread in a merge request. Use to continue conversations, provide answers, or add context to ongoing discussions. Keeps related comments organized in threaded format.",
-      inputSchema: z.toJSONSchema(CreateMergeRequestNoteSchema),
-      handler: async (args: unknown): Promise<unknown> => {
-        const options = CreateMergeRequestNoteSchema.parse(args);
-
-        const body = new URLSearchParams();
-        body.set("body", options.body);
-        if (options.created_at) {
-          body.set("created_at", options.created_at);
-        }
-
-        const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${encodeURIComponent(options.project_id)}/merge_requests/${options.merge_request_iid}/discussions/${options.discussion_id}/notes`;
-        const response = await enhancedFetch(apiUrl, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/x-www-form-urlencoded",
-          },
-          body: body.toString(),
-        });
-
-        if (!response.ok) {
-          throw new Error(`GitLab API error: ${response.status} ${response.statusText}`);
-        }
-
-        const note = await response.json();
-        return cleanGidsFromObject(note);
-      },
-    },
-  ],
-  [
-    "update_draft_note",
-    {
-      name: "update_draft_note",
-      description:
-        "Modify a draft note before publishing to refine review feedback. Use to edit, improve, or correct draft comments based on further code examination. Changes are only visible to the author until the note is published.",
-      inputSchema: z.toJSONSchema(UpdateDraftNoteSchema),
-      handler: async (args: unknown): Promise<unknown> => {
-        const options = UpdateDraftNoteSchema.parse(args);
-
-        const body = new URLSearchParams();
-        body.set("note", options.note);
-        if (options.position) {
-          body.set("position", JSON.stringify(options.position));
-        }
-
-        const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${encodeURIComponent(options.project_id)}/merge_requests/${options.merge_request_iid}/draft_notes/${options.draft_note_id}`;
-        const response = await enhancedFetch(apiUrl, {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/x-www-form-urlencoded",
-          },
-          body: body.toString(),
-        });
-
-        if (!response.ok) {
-          throw new Error(`GitLab API error: ${response.status} ${response.statusText}`);
-        }
-
-        const draftNote = await response.json();
-        return cleanGidsFromObject(draftNote);
-      },
-    },
-  ],
-  [
-    "delete_draft_note",
-    {
-      name: "delete_draft_note",
-      description:
-        "Remove a draft note that is no longer needed or relevant. Use to clean up draft feedback that won't be published or to start fresh with review comments. Only the author can delete their own draft notes.",
-      inputSchema: z.toJSONSchema(DeleteDraftNoteSchema),
-      handler: async (args: unknown): Promise<unknown> => {
-        const options = DeleteDraftNoteSchema.parse(args);
-
-        const apiUrl = `${process.env.GITLAB_API_URL}/api/v4/projects/${encodeURIComponent(options.project_id)}/merge_requests/${options.merge_request_iid}/draft_notes/${options.draft_note_id}`;
-        const response = await enhancedFetch(apiUrl, {
-          method: "DELETE",
-        });
-
-        if (!response.ok) {
-          throw new Error(`GitLab API error: ${response.status} ${response.statusText}`);
-        }
-
-        return { success: true, message: "Draft note deleted successfully" };
       },
     },
   ],
@@ -688,20 +375,11 @@ export const mrsToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefinit
  * Get read-only tool names from the registry
  */
 export function getMrsReadOnlyToolNames(): string[] {
-  return [
-    "get_branch_diffs",
-    "get_merge_request",
-    "get_merge_request_diffs",
-    "list_merge_request_diffs",
-    "mr_discussions",
-    "get_draft_note",
-    "list_draft_notes",
-    "list_merge_requests",
-  ];
+  return ["browse_merge_requests", "browse_mr_discussions"];
 }
 
 /**
- * Get all tool definitions from the registry (for backward compatibility)
+ * Get all tool definitions from the registry
  */
 export function getMrsToolDefinitions(): EnhancedToolDefinition[] {
   return Array.from(mrsToolRegistry.values());
