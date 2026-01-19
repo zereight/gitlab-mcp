@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { PaginationOptionsSchema, GitLabMilestoneSchema } from "../shared";
+import { GitLabMilestoneSchema } from "../shared";
 import { flexibleBoolean, requiredId } from "../utils";
 
 // Re-export shared schema
@@ -21,63 +21,73 @@ export const GitLabMilestonesSchema = z.object({
   web_url: z.string().optional(),
 });
 
-// Read-only milestone operation schemas
-// Schema for listing project/group milestones
-export const ListProjectMilestonesSchema = z
+// ============================================================================
+// browse_milestones - CQRS Query Tool (flat schema for Claude API compatibility)
+// Actions: list, get, issues, merge_requests, burndown
+// NOTE: Uses flat z.object() with .refine() instead of z.discriminatedUnion()
+// because Claude API doesn't support oneOf/allOf/anyOf at JSON Schema root level.
+// ============================================================================
+
+export const BrowseMilestonesSchema = z
   .object({
-    namespace: z.string().describe("Namespace path (group or project) to list milestones from"),
+    action: z
+      .enum(["list", "get", "issues", "merge_requests", "burndown"])
+      .describe("Action to perform"),
+    namespace: z.string().describe("Namespace path (group or project)"),
+    // get/issues/merge_requests/burndown action fields
+    milestone_id: requiredId
+      .optional()
+      .describe(
+        "The ID of a project or group milestone. Required for 'get', 'issues', 'merge_requests', 'burndown' actions."
+      ),
+    // list action fields
     iids: z
       .array(z.string())
       .optional()
-      .describe("Return only the milestones having the given iid"),
+      .describe("For 'list': return only the milestones having the given iid"),
     state: z
       .enum(["active", "closed"])
       .optional()
-      .describe("Return only active or closed milestones"),
+      .describe("For 'list': return only active or closed milestones"),
     title: z
       .string()
       .optional()
-      .describe("Return only milestones with a title matching the provided string"),
+      .describe("For 'list': return only milestones with a title matching the provided string"),
     search: z
       .string()
       .optional()
-      .describe("Return only milestones with a title or description matching the provided string"),
-    include_ancestors: flexibleBoolean.optional().describe("Include ancestor groups"),
+      .describe(
+        "For 'list': return only milestones with a title or description matching the provided string"
+      ),
+    include_ancestors: flexibleBoolean.optional().describe("For 'list': include ancestor groups"),
     updated_before: z
       .string()
       .optional()
-      .describe("Return milestones updated before the specified date (ISO 8601 format)"),
+      .describe(
+        "For 'list': return milestones updated before the specified date (ISO 8601 format)"
+      ),
     updated_after: z
       .string()
       .optional()
-      .describe("Return milestones updated after the specified date (ISO 8601 format)"),
+      .describe("For 'list': return milestones updated after the specified date (ISO 8601 format)"),
+    // pagination fields (for list, merge_requests, burndown)
+    per_page: z.number().optional().describe("Number of items per page"),
+    page: z.number().optional().describe("Page number"),
   })
-  .merge(PaginationOptionsSchema);
+  .refine(
+    data =>
+      !["get", "issues", "merge_requests", "burndown"].includes(data.action) ||
+      data.milestone_id !== undefined,
+    {
+      message:
+        "milestone_id is required for 'get', 'issues', 'merge_requests', and 'burndown' actions",
+      path: ["milestone_id"],
+    }
+  );
 
-// Base schema for milestone operations
-const GetProjectMilestoneBaseSchema = z.object({
-  namespace: z.string().describe("Namespace path (group or project) containing the milestone"),
-  milestone_id: requiredId.describe("The ID of a project or group milestone"),
-});
-
-// Schema for getting a single milestone
-export const GetProjectMilestoneSchema = GetProjectMilestoneBaseSchema;
-
-// Schema for getting issues assigned to a milestone
-export const GetMilestoneIssuesSchema = GetProjectMilestoneSchema;
-
-// Schema for getting merge requests assigned to a milestone
-export const GetMilestoneMergeRequestsSchema =
-  GetProjectMilestoneBaseSchema.merge(PaginationOptionsSchema);
-
-// Schema for getting burndown chart events for a milestone
-export const GetMilestoneBurndownEventsSchema =
-  GetProjectMilestoneBaseSchema.merge(PaginationOptionsSchema);
-
+// ============================================================================
 // Type exports
+// ============================================================================
+
+export type BrowseMilestonesInput = z.infer<typeof BrowseMilestonesSchema>;
 export type GitLabMilestones = z.infer<typeof GitLabMilestonesSchema>;
-export type ListProjectMilestonesOptions = z.infer<typeof ListProjectMilestonesSchema>;
-export type GetProjectMilestoneOptions = z.infer<typeof GetProjectMilestoneSchema>;
-export type GetMilestoneIssuesOptions = z.infer<typeof GetMilestoneIssuesSchema>;
-export type GetMilestoneMergeRequestsOptions = z.infer<typeof GetMilestoneMergeRequestsSchema>;
-export type GetMilestoneBurndownEventsOptions = z.infer<typeof GetMilestoneBurndownEventsSchema>;

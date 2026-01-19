@@ -1,202 +1,171 @@
 import * as z from "zod";
-import {
-  ListProjectMilestonesSchema,
-  GetProjectMilestoneSchema,
-  GetMilestoneIssuesSchema,
-  GetMilestoneMergeRequestsSchema,
-  GetMilestoneBurndownEventsSchema,
-} from "./schema-readonly";
-import {
-  CreateProjectMilestoneSchema,
-  EditProjectMilestoneSchema,
-  DeleteProjectMilestoneSchema,
-  PromoteProjectMilestoneSchema,
-} from "./schema";
+import { BrowseMilestonesSchema } from "./schema-readonly";
+import { ManageMilestoneSchema } from "./schema";
 import { gitlab, toQuery } from "../../utils/gitlab-api";
 import { resolveNamespaceForAPI } from "../../utils/namespace";
 import { ToolRegistry, EnhancedToolDefinition } from "../../types";
+import { assertDefined } from "../utils";
 
 /**
- * Milestones tools registry - unified registry containing all milestone operation tools with their handlers
+ * Milestones tools registry - 2 CQRS tools replacing 9 individual tools
+ *
+ * browse_milestones (Query): list, get, issues, merge_requests, burndown
+ * manage_milestone (Command): create, update, delete, promote
  */
 export const milestonesToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefinition>([
+  // ============================================================================
+  // browse_milestones - CQRS Query Tool
+  // ============================================================================
   [
-    "list_milestones",
+    "browse_milestones",
     {
-      name: "list_milestones",
+      name: "browse_milestones",
       description:
-        "Browse release milestones for planning and tracking. Use to see upcoming releases, sprint cycles, or project phases. Supports filtering by state (active/closed) and timeframe. Returns milestone titles, dates, progress statistics. Group milestones apply across all projects.",
-      inputSchema: z.toJSONSchema(ListProjectMilestonesSchema),
+        'BROWSE milestones. Actions: "list" shows milestones with filtering, "get" retrieves single milestone, "issues" lists issues in milestone, "merge_requests" lists MRs in milestone, "burndown" gets burndown chart data.',
+      inputSchema: z.toJSONSchema(BrowseMilestonesSchema),
       handler: async (args: unknown) => {
-        const options = ListProjectMilestonesSchema.parse(args);
-        const { entityType, encodedPath } = await resolveNamespaceForAPI(options.namespace);
+        const input = BrowseMilestonesSchema.parse(args);
+        const { entityType, encodedPath } = await resolveNamespaceForAPI(input.namespace);
 
-        return gitlab.get(`${entityType}/${encodedPath}/milestones`, {
-          query: toQuery(options, ["namespace"]),
-        });
-      },
-    },
-  ],
-  [
-    "get_milestone",
-    {
-      name: "get_milestone",
-      description:
-        "Retrieve comprehensive milestone information including dates, description, and progress metrics. Use to track release status, see associated work, or analyze milestone completion. Shows open/closed issue counts and completion percentage.",
-      inputSchema: z.toJSONSchema(GetProjectMilestoneSchema),
-      handler: async (args: unknown) => {
-        const options = GetProjectMilestoneSchema.parse(args);
-        const { entityType, encodedPath } = await resolveNamespaceForAPI(options.namespace);
+        switch (input.action) {
+          case "list": {
+            const { action: _action, namespace: _namespace, ...rest } = input;
+            const query = toQuery(rest, []);
 
-        return gitlab.get(`${entityType}/${encodedPath}/milestones/${options.milestone_id}`);
-      },
-    },
-  ],
-  [
-    "get_milestone_issue",
-    {
-      name: "get_milestone_issue",
-      description:
-        "List all issues targeted for a milestone release. Use to track milestone progress, identify blockers, or plan work. Returns issue details with status, assignees, and labels. Essential for release management and sprint planning.",
-      inputSchema: z.toJSONSchema(GetMilestoneIssuesSchema),
-      handler: async (args: unknown) => {
-        const options = GetMilestoneIssuesSchema.parse(args);
-        const { entityType, encodedPath } = await resolveNamespaceForAPI(options.namespace);
+            return gitlab.get(`${entityType}/${encodedPath}/milestones`, { query });
+          }
 
-        return gitlab.get(
-          `${entityType}/${encodedPath}/milestones/${options.milestone_id}/issues`,
-          { query: toQuery(options, ["namespace", "milestone_id"]) }
-        );
-      },
-    },
-  ],
-  [
-    "get_milestone_merge_requests",
-    {
-      name: "get_milestone_merge_requests",
-      description:
-        "List merge requests scheduled for a milestone. Use to track feature completion, review code changes for release, or identify pending work. Shows MR status, approvals, and pipeline status. Critical for release readiness assessment.",
-      inputSchema: z.toJSONSchema(GetMilestoneMergeRequestsSchema),
-      handler: async (args: unknown) => {
-        const options = GetMilestoneMergeRequestsSchema.parse(args);
-        const { entityType, encodedPath } = await resolveNamespaceForAPI(options.namespace);
+          case "get": {
+            // milestone_id is required for get action (validated by .refine())
+            assertDefined(input.milestone_id, "milestone_id");
+            return gitlab.get(`${entityType}/${encodedPath}/milestones/${input.milestone_id}`);
+          }
 
-        return gitlab.get(
-          `${entityType}/${encodedPath}/milestones/${options.milestone_id}/merge_requests`,
-          { query: toQuery(options, ["namespace", "milestone_id"]) }
-        );
-      },
-    },
-  ],
-  [
-    "get_milestone_burndown_events",
-    {
-      name: "get_milestone_burndown_events",
-      description:
-        "Track milestone progress with burndown chart data. Use for agile metrics, velocity tracking, and sprint analysis. Returns time-series events showing work completion rate. Premium/Ultimate feature for advanced project analytics.",
-      inputSchema: z.toJSONSchema(GetMilestoneBurndownEventsSchema),
-      handler: async (args: unknown) => {
-        const options = GetMilestoneBurndownEventsSchema.parse(args);
-        const { entityType, encodedPath } = await resolveNamespaceForAPI(options.namespace);
+          case "issues": {
+            // milestone_id is required for issues action (validated by .refine())
+            assertDefined(input.milestone_id, "milestone_id");
+            const { action: _action, namespace: _namespace, milestone_id, ...rest } = input;
+            const query = toQuery(rest, []);
 
-        return gitlab.get(
-          `${entityType}/${encodedPath}/milestones/${options.milestone_id}/burndown_events`,
-          { query: toQuery(options, ["namespace", "milestone_id"]) }
-        );
-      },
-    },
-  ],
-  [
-    "create_milestone",
-    {
-      name: "create_milestone",
-      description:
-        "Define a new release milestone or sprint cycle. Use to establish delivery targets, organize work phases, or plan releases. Set title, description, start/due dates. Group milestones coordinate releases across multiple projects.",
-      inputSchema: z.toJSONSchema(CreateProjectMilestoneSchema),
-      handler: async (args: unknown) => {
-        const options = CreateProjectMilestoneSchema.parse(args);
-        const { entityType, encodedPath } = await resolveNamespaceForAPI(options.namespace);
-        const { namespace: _namespace, ...body } = options;
+            return gitlab.get(`${entityType}/${encodedPath}/milestones/${milestone_id}/issues`, {
+              query,
+            });
+          }
 
-        return gitlab.post(`${entityType}/${encodedPath}/milestones`, {
-          body,
-          contentType: "json",
-        });
-      },
-    },
-  ],
-  [
-    "edit_milestone",
-    {
-      name: "edit_milestone",
-      description:
-        "Update milestone properties like dates, description, or state. Use to adjust release schedules, extend sprints, or close completed milestones. Changes apply immediately to all associated issues and MRs.",
-      inputSchema: z.toJSONSchema(EditProjectMilestoneSchema),
-      handler: async (args: unknown) => {
-        const options = EditProjectMilestoneSchema.parse(args);
-        const { entityType, encodedPath } = await resolveNamespaceForAPI(options.namespace);
-        const { namespace: _namespace, milestone_id, ...body } = options;
+          case "merge_requests": {
+            // milestone_id is required for merge_requests action (validated by .refine())
+            assertDefined(input.milestone_id, "milestone_id");
+            const { action: _action, namespace: _namespace, milestone_id, ...rest } = input;
+            const query = toQuery(rest, []);
 
-        return gitlab.put(`${entityType}/${encodedPath}/milestones/${milestone_id}`, {
-          body,
-          contentType: "json",
-        });
-      },
-    },
-  ],
-  [
-    "delete_milestone",
-    {
-      name: "delete_milestone",
-      description:
-        "Remove a milestone permanently. Use to clean up cancelled releases or obsolete milestones. Warning: removes milestone association from all issues and MRs. Consider closing instead of deleting for historical tracking.",
-      inputSchema: z.toJSONSchema(DeleteProjectMilestoneSchema),
-      handler: async (args: unknown) => {
-        const options = DeleteProjectMilestoneSchema.parse(args);
-        const { entityType, encodedPath } = await resolveNamespaceForAPI(options.namespace);
+            return gitlab.get(
+              `${entityType}/${encodedPath}/milestones/${milestone_id}/merge_requests`,
+              { query }
+            );
+          }
 
-        await gitlab.delete(`${entityType}/${encodedPath}/milestones/${options.milestone_id}`);
-        return { deleted: true };
-      },
-    },
-  ],
-  [
-    "promote_milestone",
-    {
-      name: "promote_milestone",
-      description:
-        "Elevate project milestone to group level for cross-project coordination. Use when a milestone needs to span multiple projects. Consolidates related project milestones into single group milestone. Useful for organizational release planning.",
-      inputSchema: z.toJSONSchema(PromoteProjectMilestoneSchema),
-      handler: async (args: unknown) => {
-        const options = PromoteProjectMilestoneSchema.parse(args);
-        const { entityType, encodedPath } = await resolveNamespaceForAPI(options.namespace);
+          case "burndown": {
+            // milestone_id is required for burndown action (validated by .refine())
+            assertDefined(input.milestone_id, "milestone_id");
+            const { action: _action, namespace: _namespace, milestone_id, ...rest } = input;
+            const query = toQuery(rest, []);
 
-        if (entityType !== "projects") {
-          throw new Error("Milestone promotion is only available for projects, not groups");
+            return gitlab.get(
+              `${entityType}/${encodedPath}/milestones/${milestone_id}/burndown_events`,
+              { query }
+            );
+          }
+
+          /* istanbul ignore next -- unreachable with Zod validation */
+          default:
+            throw new Error(`Unknown action: ${(input as { action: string }).action}`);
         }
+      },
+    },
+  ],
 
-        return gitlab.post(
-          `projects/${encodedPath}/milestones/${encodeURIComponent(options.milestone_id)}/promote`
-        );
+  // ============================================================================
+  // manage_milestone - CQRS Command Tool
+  // ============================================================================
+  [
+    "manage_milestone",
+    {
+      name: "manage_milestone",
+      description:
+        'MANAGE milestones. Actions: "create" creates new milestone, "update" modifies existing milestone, "delete" removes milestone, "promote" elevates project milestone to group level.',
+      inputSchema: z.toJSONSchema(ManageMilestoneSchema),
+      handler: async (args: unknown) => {
+        const input = ManageMilestoneSchema.parse(args);
+        const { entityType, encodedPath } = await resolveNamespaceForAPI(input.namespace);
+
+        switch (input.action) {
+          case "create": {
+            const { action: _action, namespace: _namespace, ...body } = input;
+
+            return gitlab.post(`${entityType}/${encodedPath}/milestones`, {
+              body,
+              contentType: "json",
+            });
+          }
+
+          case "update": {
+            // milestone_id is required for update action (validated by .refine())
+            assertDefined(input.milestone_id, "milestone_id");
+            const { action: _action, namespace: _namespace, milestone_id, ...body } = input;
+
+            return gitlab.put(`${entityType}/${encodedPath}/milestones/${milestone_id}`, {
+              body,
+              contentType: "json",
+            });
+          }
+
+          case "delete": {
+            // milestone_id is required for delete action (validated by .refine())
+            assertDefined(input.milestone_id, "milestone_id");
+
+            await gitlab.delete(`${entityType}/${encodedPath}/milestones/${input.milestone_id}`);
+            return { deleted: true };
+          }
+
+          case "promote": {
+            // milestone_id is required for promote action (validated by .refine())
+            assertDefined(input.milestone_id, "milestone_id");
+
+            if (entityType !== "projects") {
+              throw new Error("Milestone promotion is only available for projects, not groups");
+            }
+
+            return gitlab.post(
+              `projects/${encodedPath}/milestones/${encodeURIComponent(input.milestone_id)}/promote`
+            );
+          }
+
+          /* istanbul ignore next -- unreachable with Zod validation */
+          default:
+            throw new Error(`Unknown action: ${(input as { action: string }).action}`);
+        }
       },
     },
   ],
 ]);
 
+/**
+ * Get read-only tool names from the registry
+ */
 export function getMilestonesReadOnlyToolNames(): string[] {
-  return [
-    "list_milestones",
-    "get_milestone",
-    "get_milestone_issue",
-    "get_milestone_merge_requests",
-    "get_milestone_burndown_events",
-  ];
+  return ["browse_milestones"];
 }
 
+/**
+ * Get all tool definitions from the registry
+ */
 export function getMilestonesToolDefinitions(): EnhancedToolDefinition[] {
   return Array.from(milestonesToolRegistry.values());
 }
 
+/**
+ * Get filtered tools based on read-only mode
+ */
 export function getFilteredMilestonesTools(
   readOnlyMode: boolean = false
 ): EnhancedToolDefinition[] {

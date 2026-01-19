@@ -3,10 +3,8 @@
  * Tests schemas using handler functions with real GitLab API
  */
 
-import {
-  ListProjectMilestonesSchema,
-  GetProjectMilestoneSchema,
-} from "../../../src/entities/milestones/schema-readonly";
+import { BrowseMilestonesSchema } from "../../../src/entities/milestones/schema-readonly";
+import { ManageMilestoneSchema } from "../../../src/entities/milestones/schema";
 import { IntegrationTestHelper } from "../helpers/registry-helper";
 
 describe("Milestones Schema - GitLab Integration", () => {
@@ -20,38 +18,49 @@ describe("Milestones Schema - GitLab Integration", () => {
 
     helper = new IntegrationTestHelper();
     await helper.initialize();
-    console.log("✅ Integration test helper initialized for milestones testing");
+    console.log("Integration test helper initialized for milestones testing");
   });
 
-  describe("ListProjectMilestonesSchema", () => {
+  describe("BrowseMilestonesSchema - list action", () => {
     it("should validate and test with real project data using handler functions", async () => {
-      console.log("🔍 Getting real project for milestones testing");
+      console.log("Getting real project for milestones testing");
 
       // Get actual project from data lifecycle
-      const projects = (await helper.listProjects({ per_page: 1 })) as any[];
+      const projects = (await helper.listProjects({ per_page: 1 })) as {
+        path_with_namespace: string;
+        name: string;
+        id: number;
+      }[];
       if (projects.length === 0) {
-        console.log("⚠️  No projects available for testing");
+        console.log("No projects available for testing");
         return;
       }
 
       const testProject = projects[0];
-      console.log(`📋 Using project: ${testProject.name} (ID: ${testProject.id})`);
+      console.log(`Using project: ${testProject.name} (ID: ${testProject.id})`);
 
       const validParams = {
+        action: "list" as const,
         namespace: testProject.path_with_namespace,
         state: "active" as const,
         per_page: 10,
       };
 
       // Validate schema
-      const result = ListProjectMilestonesSchema.safeParse(validParams);
+      const result = BrowseMilestonesSchema.safeParse(validParams);
       expect(result.success).toBe(true);
 
       if (result.success) {
         // Test actual handler function
-        const milestones = (await helper.executeTool("list_milestones", result.data)) as any[];
+        const milestones = (await helper.executeTool("browse_milestones", result.data)) as {
+          id: number;
+          title: string;
+          description: string;
+          state: string;
+          due_date: string | null;
+        }[];
         expect(Array.isArray(milestones)).toBe(true);
-        console.log(`📋 Retrieved ${milestones.length} milestones via handler`);
+        console.log(`Retrieved ${milestones.length} milestones via handler`);
 
         // Validate structure if we have milestones
         if (milestones.length > 0) {
@@ -61,11 +70,11 @@ describe("Milestones Schema - GitLab Integration", () => {
           expect(milestone).toHaveProperty("description");
           expect(milestone).toHaveProperty("state");
           expect(milestone).toHaveProperty("due_date");
-          console.log(`✅ Validated milestone structure: ${milestone.title}`);
+          console.log(`Validated milestone structure: ${milestone.title}`);
         }
       }
 
-      console.log("✅ ListProjectMilestonesSchema test completed with real data");
+      console.log("BrowseMilestonesSchema list action test completed with real data");
     });
 
     it("should validate group-level milestones", async () => {
@@ -73,34 +82,37 @@ describe("Milestones Schema - GitLab Integration", () => {
       const namespaces = (await helper.executeTool("browse_namespaces", {
         action: "list",
         per_page: 1,
-      })) as any[];
+      })) as { kind: string; id: number; full_path: string }[];
       if (namespaces.length === 0) {
-        console.log("⚠️  No namespaces available for group milestones testing");
+        console.log("No namespaces available for group milestones testing");
         return;
       }
 
       const testGroup = namespaces.find(ns => ns.kind === "group");
       if (!testGroup) {
-        console.log("⚠️  No groups found for group milestones testing");
+        console.log("No groups found for group milestones testing");
         return;
       }
 
       const validParams = {
-        group_id: testGroup.id.toString(),
+        action: "list" as const,
+        namespace: testGroup.full_path,
         state: "active" as const,
         per_page: 5,
       };
 
-      const result = ListProjectMilestonesSchema.safeParse(validParams);
+      const result = BrowseMilestonesSchema.safeParse(validParams);
       expect(result.success).toBe(true);
 
       if (result.success) {
-        const milestones = (await helper.executeTool("list_milestones", result.data)) as any[];
+        const milestones = (await helper.executeTool("browse_milestones", result.data)) as {
+          title: string;
+        }[];
         expect(Array.isArray(milestones)).toBe(true);
-        console.log(`📋 Retrieved ${milestones.length} group milestones via handler`);
+        console.log(`Retrieved ${milestones.length} group milestones via handler`);
       }
 
-      console.log("✅ ListProjectMilestonesSchema group-level test completed");
+      console.log("BrowseMilestonesSchema group-level test completed");
     });
 
     it("should validate search and filtering parameters", async () => {
@@ -108,13 +120,14 @@ describe("Milestones Schema - GitLab Integration", () => {
       const projects = (await helper.executeTool("browse_projects", {
         action: "list",
         per_page: 1,
-      })) as any[];
+      })) as { path_with_namespace: string }[];
       if (projects.length === 0) {
-        console.log("⚠️  No projects available for milestone search testing");
+        console.log("No projects available for milestone search testing");
         return;
       }
 
       const searchParams = {
+        action: "list" as const,
         namespace: projects[0].path_with_namespace, // Use namespace as expected by schema
         state: "closed" as const,
         search: "v1.0",
@@ -122,7 +135,7 @@ describe("Milestones Schema - GitLab Integration", () => {
         per_page: 20,
       };
 
-      const result = ListProjectMilestonesSchema.safeParse(searchParams);
+      const result = BrowseMilestonesSchema.safeParse(searchParams);
       expect(result.success).toBe(true);
 
       if (result.success) {
@@ -133,54 +146,58 @@ describe("Milestones Schema - GitLab Integration", () => {
         expect(result.data.per_page).toBe(20);
       }
 
-      console.log("✅ ListProjectMilestonesSchema validates search parameters");
+      console.log("BrowseMilestonesSchema validates search parameters");
     });
 
     it("should reject invalid parameters", async () => {
       const invalidParams = {
+        action: "list",
+        namespace: "test/project",
         state: "invalid_state", // Invalid enum value
-        per_page: 150, // Exceeds max of 100
-        page: 0, // Below minimum of 1
       };
 
-      const result = ListProjectMilestonesSchema.safeParse(invalidParams);
+      const result = BrowseMilestonesSchema.safeParse(invalidParams);
       expect(result.success).toBe(false);
 
       if (!result.success) {
         expect(result.error.issues.length).toBeGreaterThan(0);
       }
 
-      console.log("✅ ListProjectMilestonesSchema correctly rejects invalid parameters");
+      console.log("BrowseMilestonesSchema correctly rejects invalid parameters");
     });
   });
 
-  describe("GetProjectMilestoneSchema", () => {
+  describe("BrowseMilestonesSchema - get action", () => {
     it("should validate get milestone parameters with real data", async () => {
       // Get a project and its milestones for testing
-      const projects = (await helper.listProjects({ per_page: 1 })) as any[];
+      const projects = (await helper.listProjects({ per_page: 1 })) as {
+        path_with_namespace: string;
+      }[];
       if (projects.length === 0) {
-        console.log("⚠️  No projects available for GetProjectMilestoneSchema testing");
+        console.log("No projects available for get milestone testing");
         return;
       }
 
       const testProject = projects[0];
-      const milestones = (await helper.executeTool("list_milestones", {
+      const milestones = (await helper.executeTool("browse_milestones", {
+        action: "list",
         namespace: testProject.path_with_namespace,
         per_page: 1,
-      })) as any[];
+      })) as { id: number }[];
 
       if (milestones.length === 0) {
-        console.log("⚠️  No milestones found for GetProjectMilestoneSchema testing");
+        console.log("No milestones found for get milestone testing");
         return;
       }
 
       const testMilestone = milestones[0];
       const validParams = {
+        action: "get" as const,
         namespace: testProject.path_with_namespace,
         milestone_id: testMilestone.id.toString(),
       };
 
-      const result = GetProjectMilestoneSchema.safeParse(validParams);
+      const result = BrowseMilestonesSchema.safeParse(validParams);
       expect(result.success).toBe(true);
 
       if (result.success) {
@@ -188,41 +205,52 @@ describe("Milestones Schema - GitLab Integration", () => {
         expect(result.data.milestone_id).toBe(testMilestone.id.toString());
       }
 
-      console.log("✅ GetProjectMilestoneSchema validates parameters correctly");
+      console.log("BrowseMilestonesSchema get action validates parameters correctly");
     });
 
     it("should test handler function for single milestone", async () => {
       // Get a project and its milestones for testing
-      const projects = (await helper.listProjects({ per_page: 1 })) as any[];
+      const projects = (await helper.listProjects({ per_page: 1 })) as {
+        path_with_namespace: string;
+      }[];
       if (projects.length === 0) {
-        console.log("⚠️  No projects available for handler testing");
+        console.log("No projects available for handler testing");
         return;
       }
 
       const testProject = projects[0];
-      const milestones = (await helper.executeTool("list_milestones", {
+      const milestones = (await helper.executeTool("browse_milestones", {
+        action: "list",
         namespace: testProject.path_with_namespace,
         per_page: 1,
-      })) as any[];
+      })) as { id: number; title: string }[];
 
       if (milestones.length === 0) {
-        console.log("⚠️  No milestones found for handler testing");
+        console.log("No milestones found for handler testing");
         return;
       }
 
       const testMilestone = milestones[0];
       const params = {
+        action: "get" as const,
         namespace: testProject.path_with_namespace,
         milestone_id: testMilestone.id.toString(),
       };
 
       // Validate parameters first
-      const paramResult = GetProjectMilestoneSchema.safeParse(params);
+      const paramResult = BrowseMilestonesSchema.safeParse(params);
       expect(paramResult.success).toBe(true);
 
       if (paramResult.success) {
         // Test handler function
-        const milestone = (await helper.executeTool("get_milestone", paramResult.data)) as any;
+        const milestone = (await helper.executeTool("browse_milestones", paramResult.data)) as {
+          id: number;
+          title: string;
+          description: string;
+          state: string;
+          created_at: string;
+          updated_at: string;
+        };
 
         // Validate milestone structure
         expect(milestone).toHaveProperty("id");
@@ -232,74 +260,223 @@ describe("Milestones Schema - GitLab Integration", () => {
         expect(milestone).toHaveProperty("created_at");
         expect(milestone).toHaveProperty("updated_at");
 
-        console.log(`✅ GetProjectMilestoneSchema handler test successful: ${milestone.title}`);
+        console.log(
+          `BrowseMilestonesSchema get action handler test successful: ${milestone.title}`
+        );
       }
     });
 
-    it("should test group milestone retrieval", async () => {
-      // Get a group for testing
-      const namespaces = (await helper.executeTool("browse_namespaces", {
-        action: "list",
-        per_page: 1,
-      })) as any[];
-      if (namespaces.length === 0) {
-        console.log("⚠️  No namespaces available for group milestone testing");
-        return;
-      }
-
-      const testGroup = namespaces.find(ns => ns.kind === "group");
-      if (!testGroup) {
-        console.log("⚠️  No groups found for group milestone testing");
-        return;
-      }
-
-      const milestones = (await helper.executeTool("list_milestones", {
-        group_id: testGroup.id.toString(),
-        per_page: 1,
-      })) as any[];
-
-      if (milestones.length === 0) {
-        console.log("⚠️  No group milestones found for testing");
-        return;
-      }
-
-      const testMilestone = milestones[0];
-      const params = {
-        group_id: testGroup.id.toString(),
-        milestone_id: testMilestone.id.toString(),
-      };
-
-      // Validate parameters first
-      const paramResult = GetProjectMilestoneSchema.safeParse(params);
-      expect(paramResult.success).toBe(true);
-
-      if (paramResult.success) {
-        // Test handler function
-        const milestone = (await helper.executeTool("get_milestone", paramResult.data)) as any;
-
-        // Validate milestone structure
-        expect(milestone).toHaveProperty("id");
-        expect(milestone).toHaveProperty("title");
-        expect(milestone).toHaveProperty("state");
-
-        console.log(`✅ Group milestone handler test successful: ${milestone.title}`);
-      }
-    });
-
-    it("should reject invalid milestone parameters", async () => {
+    it("should require milestone_id for get action", async () => {
       const invalidParams = {
-        project_id: "", // Empty project ID
-        milestone_id: -1, // Invalid milestone ID
+        action: "get",
+        namespace: "test/project",
+        // Missing milestone_id
       };
 
-      const result = GetProjectMilestoneSchema.safeParse(invalidParams);
+      const result = BrowseMilestonesSchema.safeParse(invalidParams);
       expect(result.success).toBe(false);
 
       if (!result.success) {
         expect(result.error.issues.length).toBeGreaterThan(0);
       }
 
-      console.log("✅ GetProjectMilestoneSchema correctly rejects invalid parameters");
+      console.log("BrowseMilestonesSchema correctly requires milestone_id for get action");
+    });
+  });
+
+  describe("BrowseMilestonesSchema - issues action", () => {
+    it("should list issues in milestone", async () => {
+      const projects = (await helper.listProjects({ per_page: 1 })) as {
+        path_with_namespace: string;
+      }[];
+      if (projects.length === 0) {
+        console.log("No projects available for milestone issues testing");
+        return;
+      }
+
+      const testProject = projects[0];
+      const milestones = (await helper.executeTool("browse_milestones", {
+        action: "list",
+        namespace: testProject.path_with_namespace,
+        per_page: 1,
+      })) as { id: number; title: string }[];
+
+      if (milestones.length === 0) {
+        console.log("No milestones found for issues testing");
+        return;
+      }
+
+      const params = {
+        action: "issues" as const,
+        namespace: testProject.path_with_namespace,
+        milestone_id: milestones[0].id.toString(),
+      };
+
+      const result = BrowseMilestonesSchema.safeParse(params);
+      expect(result.success).toBe(true);
+
+      if (result.success) {
+        const issues = (await helper.executeTool("browse_milestones", result.data)) as {
+          id: number;
+        }[];
+        expect(Array.isArray(issues)).toBe(true);
+        console.log(`Retrieved ${issues.length} issues for milestone ${milestones[0].title}`);
+      }
+    });
+  });
+
+  describe("BrowseMilestonesSchema - merge_requests action", () => {
+    it("should list merge requests in milestone", async () => {
+      const projects = (await helper.listProjects({ per_page: 1 })) as {
+        path_with_namespace: string;
+      }[];
+      if (projects.length === 0) {
+        console.log("No projects available for milestone MRs testing");
+        return;
+      }
+
+      const testProject = projects[0];
+      const milestones = (await helper.executeTool("browse_milestones", {
+        action: "list",
+        namespace: testProject.path_with_namespace,
+        per_page: 1,
+      })) as { id: number; title: string }[];
+
+      if (milestones.length === 0) {
+        console.log("No milestones found for MRs testing");
+        return;
+      }
+
+      const params = {
+        action: "merge_requests" as const,
+        namespace: testProject.path_with_namespace,
+        milestone_id: milestones[0].id.toString(),
+      };
+
+      const result = BrowseMilestonesSchema.safeParse(params);
+      expect(result.success).toBe(true);
+
+      if (result.success) {
+        const mrs = (await helper.executeTool("browse_milestones", result.data)) as {
+          id: number;
+        }[];
+        expect(Array.isArray(mrs)).toBe(true);
+        console.log(`Retrieved ${mrs.length} merge requests for milestone ${milestones[0].title}`);
+      }
+    });
+  });
+
+  describe("ManageMilestoneSchema - create action", () => {
+    it("should validate create milestone parameters", async () => {
+      const params = {
+        action: "create" as const,
+        namespace: "test/project",
+        title: "Test Milestone",
+        description: "A test milestone",
+        start_date: "2024-01-01",
+        due_date: "2024-03-31",
+      };
+
+      const result = ManageMilestoneSchema.safeParse(params);
+      expect(result.success).toBe(true);
+
+      if (result.success) {
+        expect(result.data.action).toBe("create");
+        expect(result.data.title).toBe("Test Milestone");
+        expect(result.data.description).toBe("A test milestone");
+      }
+
+      console.log("ManageMilestoneSchema create action validates correctly");
+    });
+
+    it("should require title for create action", async () => {
+      const invalidParams = {
+        action: "create",
+        namespace: "test/project",
+        // Missing title
+      };
+
+      const result = ManageMilestoneSchema.safeParse(invalidParams);
+      expect(result.success).toBe(false);
+
+      console.log("ManageMilestoneSchema correctly requires title for create action");
+    });
+  });
+
+  describe("ManageMilestoneSchema - update action", () => {
+    it("should validate update milestone parameters", async () => {
+      const params = {
+        action: "update" as const,
+        namespace: "test/project",
+        milestone_id: "1",
+        title: "Updated Title",
+        state_event: "close",
+      };
+
+      const result = ManageMilestoneSchema.safeParse(params);
+      expect(result.success).toBe(true);
+
+      if (result.success) {
+        expect(result.data.action).toBe("update");
+        expect(result.data.milestone_id).toBe("1");
+        expect(result.data.state_event).toBe("close");
+      }
+
+      console.log("ManageMilestoneSchema update action validates correctly");
+    });
+
+    it("should require milestone_id for update action", async () => {
+      const invalidParams = {
+        action: "update",
+        namespace: "test/project",
+        title: "Updated Title",
+        // Missing milestone_id
+      };
+
+      const result = ManageMilestoneSchema.safeParse(invalidParams);
+      expect(result.success).toBe(false);
+
+      console.log("ManageMilestoneSchema correctly requires milestone_id for update action");
+    });
+  });
+
+  describe("ManageMilestoneSchema - delete action", () => {
+    it("should validate delete milestone parameters", async () => {
+      const params = {
+        action: "delete" as const,
+        namespace: "test/project",
+        milestone_id: "1",
+      };
+
+      const result = ManageMilestoneSchema.safeParse(params);
+      expect(result.success).toBe(true);
+
+      if (result.success) {
+        expect(result.data.action).toBe("delete");
+        expect(result.data.milestone_id).toBe("1");
+      }
+
+      console.log("ManageMilestoneSchema delete action validates correctly");
+    });
+  });
+
+  describe("ManageMilestoneSchema - promote action", () => {
+    it("should validate promote milestone parameters", async () => {
+      const params = {
+        action: "promote" as const,
+        namespace: "test/project",
+        milestone_id: "1",
+      };
+
+      const result = ManageMilestoneSchema.safeParse(params);
+      expect(result.success).toBe(true);
+
+      if (result.success) {
+        expect(result.data.action).toBe("promote");
+        expect(result.data.milestone_id).toBe("1");
+      }
+
+      console.log("ManageMilestoneSchema promote action validates correctly");
     });
   });
 });
