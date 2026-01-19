@@ -1,3 +1,14 @@
+## [6.2.1](https://github.com/structured-world/gitlab-mcp/compare/v6.2.0...v6.2.1) (2026-01-19)
+
+### Bug Fixes
+
+* **pipelines:** add proper validation for required ID fields ([bd8f431](https://github.com/structured-world/gitlab-mcp/commit/bd8f43140c7cd7b15665d00d19bec5a170aea153))
+* **utils:** use nullish coalescing for requiredId helper ([9a7c395](https://github.com/structured-world/gitlab-mcp/commit/9a7c3950e2bf5db35231739e6a656b8133c0a359))
+
+### Refactoring
+
+* **pipelines:** consolidate 12 tools into 3 CQRS tools ([85de70f](https://github.com/structured-world/gitlab-mcp/commit/85de70ffd444be036ac795ba1d8774235ecc4e8d)), closes [#14](https://github.com/structured-world/gitlab-mcp/issues/14)
+
 ## [6.2.0](https://github.com/structured-world/gitlab-mcp/compare/v6.1.0...v6.2.0) (2026-01-19)
 
 ### Features
