@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { PaginationOptionsSchema } from "../shared";
-import { flexibleBoolean } from "../utils";
+import { flexibleBoolean, requiredId } from "../utils";
 
 // Pipeline related schemas
 export const GitLabPipelineSchema = z.object({
@@ -154,111 +154,128 @@ export const GitLabPipelineTriggerJobSchema = z.object({
     .optional(),
 });
 
-// Read-only pipeline operation schemas
-export const ListPipelinesSchema = z
-  .object({
-    project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
-    scope: z
-      .enum(["running", "pending", "finished", "branches", "tags"])
-      .optional()
-      .describe("The scope of pipelines to return"),
-    status: z
-      .enum([
-        "created",
-        "waiting_for_resource",
-        "preparing",
-        "pending",
-        "running",
-        "success",
-        "failed",
-        "canceled",
-        "skipped",
-        "manual",
-        "scheduled",
-      ])
-      .optional()
-      .describe("The status of pipelines to return"),
-    source: z
-      .enum([
-        "push",
-        "web",
-        "trigger",
-        "schedule",
-        "api",
-        "external",
-        "chat",
-        "webide",
-        "merge_request_event",
-        "external_pull_request_event",
-        "parent_pipeline",
-        "ondemand_dast_scan",
-        "ondemand_dast_validation",
-      ])
-      .optional()
-      .describe("The source of pipelines"),
-    ref: z.string().optional().describe("The ref to filter by"),
-    sha: z.string().optional().describe("The SHA to filter by"),
-    yaml_errors: z.boolean().optional().describe("Filter by YAML errors"),
-    name: z.string().optional().describe("The name of the user who triggered the pipeline"),
-    username: z.string().optional().describe("The username who triggered the pipeline"),
-    updated_after: z.string().optional().describe("ISO 8601 datetime to filter by updated_after"),
-    updated_before: z.string().optional().describe("ISO 8601 datetime to filter by updated_before"),
-    order_by: z
-      .enum(["id", "status", "ref", "updated_at", "user_id"])
-      .optional()
-      .describe("Order pipelines by"),
-    sort: z.enum(["asc", "desc"]).optional().describe("Sort order"),
-  })
-  .merge(PaginationOptionsSchema);
+// ============================================================================
+// Shared enums for pipeline filtering
+// ============================================================================
 
-export const GetPipelineSchema = z.object({
-  project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
-  pipeline_id: z.coerce.string().describe("The ID of the pipeline"),
+const PipelineScopeSchema = z
+  .enum(["running", "pending", "finished", "branches", "tags"])
+  .describe("The scope of pipelines to return");
+
+const PipelineStatusSchema = z
+  .enum([
+    "created",
+    "waiting_for_resource",
+    "preparing",
+    "pending",
+    "running",
+    "success",
+    "failed",
+    "canceled",
+    "skipped",
+    "manual",
+    "scheduled",
+  ])
+  .describe("The status of pipelines to return");
+
+const PipelineSourceSchema = z
+  .enum([
+    "push",
+    "web",
+    "trigger",
+    "schedule",
+    "api",
+    "external",
+    "chat",
+    "webide",
+    "merge_request_event",
+    "external_pull_request_event",
+    "parent_pipeline",
+    "ondemand_dast_scan",
+    "ondemand_dast_validation",
+  ])
+  .describe("The source of pipelines");
+
+const JobScopeSchema = z
+  .enum(["created", "pending", "running", "failed", "success", "canceled", "skipped", "manual"])
+  .describe("Scope of jobs to show");
+
+const TriggerJobScopeSchema = z
+  .enum([
+    "created",
+    "pending",
+    "running",
+    "failed",
+    "success",
+    "canceled",
+    "skipped",
+    "manual",
+    "waiting_for_resource",
+    "preparing",
+  ])
+  .describe("Scope of trigger jobs to show");
+
+// ============================================================================
+// browse_pipelines - CQRS Query Tool (discriminated union)
+// Actions: list, get, jobs, triggers, job, logs
+// ============================================================================
+
+const BrowsePipelinesBaseSchema = z.object({
+  project_id: requiredId.describe("Project ID or URL-encoded path"),
 });
 
-// Schema for listing jobs in a pipeline
-export const ListPipelineJobsSchema = z
-  .object({
-    project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
-    pipeline_id: z.coerce.string().describe("The ID of the pipeline"),
-    scope: z
-      .enum(["created", "pending", "running", "failed", "success", "canceled", "skipped", "manual"])
-      .array()
-      .optional()
-      .describe("Scope of jobs to show"),
-    include_retried: z.boolean().optional().describe("Include retried jobs in the response"),
-  })
-  .merge(PaginationOptionsSchema);
+// List pipelines action
+const BrowsePipelinesListSchema = BrowsePipelinesBaseSchema.extend({
+  action: z.literal("list"),
+  scope: PipelineScopeSchema.optional(),
+  status: PipelineStatusSchema.optional(),
+  source: PipelineSourceSchema.optional(),
+  ref: z.string().optional().describe("The ref to filter by"),
+  sha: z.string().optional().describe("The SHA to filter by"),
+  yaml_errors: z.boolean().optional().describe("Filter by YAML errors"),
+  name: z.string().optional().describe("The name of the user who triggered the pipeline"),
+  username: z.string().optional().describe("The username who triggered the pipeline"),
+  updated_after: z.string().optional().describe("ISO 8601 datetime to filter by updated_after"),
+  updated_before: z.string().optional().describe("ISO 8601 datetime to filter by updated_before"),
+  order_by: z
+    .enum(["id", "status", "ref", "updated_at", "user_id"])
+    .optional()
+    .describe("Order pipelines by"),
+  sort: z.enum(["asc", "desc"]).optional().describe("Sort order"),
+}).merge(PaginationOptionsSchema);
 
-export const ListPipelineTriggerJobsSchema = z
-  .object({
-    project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
-    pipeline_id: z.coerce.string().describe("The ID of the pipeline"),
-    scope: z
-      // https://docs.gitlab.com/api/jobs/#job-status-values
-      .enum([
-        "created",
-        "pending",
-        "running",
-        "failed",
-        "success",
-        "canceled",
-        "skipped",
-        "manual",
-        "waiting_for_resource",
-        "preparing",
-      ])
-      .array()
-      .optional()
-      .describe("Scope of jobs to show"),
-    include_retried: z.boolean().optional().describe("Include retried jobs in the response"),
-  })
-  .merge(PaginationOptionsSchema);
+// Get single pipeline action
+const BrowsePipelinesGetSchema = BrowsePipelinesBaseSchema.extend({
+  action: z.literal("get"),
+  pipeline_id: requiredId.describe("The ID of the pipeline"),
+});
 
-// Schema for the input parameters for pipeline job operations
-export const GetPipelineJobOutputSchema = z.object({
-  project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
-  job_id: z.coerce.string().describe("The ID of the job"),
+// List jobs in pipeline action
+const BrowsePipelinesJobsSchema = BrowsePipelinesBaseSchema.extend({
+  action: z.literal("jobs"),
+  pipeline_id: requiredId.describe("The ID of the pipeline"),
+  scope: z.array(JobScopeSchema).optional().describe("Scope of jobs to show"),
+  include_retried: z.boolean().optional().describe("Include retried jobs in the response"),
+}).merge(PaginationOptionsSchema);
+
+// List trigger/bridge jobs action
+const BrowsePipelinesTriggersSchema = BrowsePipelinesBaseSchema.extend({
+  action: z.literal("triggers"),
+  pipeline_id: requiredId.describe("The ID of the pipeline"),
+  scope: z.array(TriggerJobScopeSchema).optional().describe("Scope of jobs to show"),
+  include_retried: z.boolean().optional().describe("Include retried jobs in the response"),
+}).merge(PaginationOptionsSchema);
+
+// Get single job details action
+const BrowsePipelinesJobSchema = BrowsePipelinesBaseSchema.extend({
+  action: z.literal("job"),
+  job_id: requiredId.describe("The ID of the job"),
+});
+
+// Get job logs action
+const BrowsePipelinesLogsSchema = BrowsePipelinesBaseSchema.extend({
+  action: z.literal("logs"),
+  job_id: requiredId.describe("The ID of the job"),
   limit: z
     .number()
     .optional()
@@ -277,11 +294,20 @@ export const GetPipelineJobOutputSchema = z.object({
     ),
 });
 
-// Export types
+export const BrowsePipelinesSchema = z.discriminatedUnion("action", [
+  BrowsePipelinesListSchema,
+  BrowsePipelinesGetSchema,
+  BrowsePipelinesJobsSchema,
+  BrowsePipelinesTriggersSchema,
+  BrowsePipelinesJobSchema,
+  BrowsePipelinesLogsSchema,
+]);
+
+// ============================================================================
+// Type exports
+// ============================================================================
+
+export type BrowsePipelinesInput = z.infer<typeof BrowsePipelinesSchema>;
 export type GitLabPipeline = z.infer<typeof GitLabPipelineSchema>;
 export type GitLabPipelineJob = z.infer<typeof GitLabPipelineJobSchema>;
 export type GitLabPipelineTriggerJob = z.infer<typeof GitLabPipelineTriggerJobSchema>;
-export type ListPipelinesOptions = z.infer<typeof ListPipelinesSchema>;
-export type GetPipelineOptions = z.infer<typeof GetPipelineSchema>;
-export type ListPipelineJobsOptions = z.infer<typeof ListPipelineJobsSchema>;
-export type ListPipelineTriggerJobsOptions = z.infer<typeof ListPipelineTriggerJobsSchema>;
