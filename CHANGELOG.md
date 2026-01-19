@@ -1,3 +1,9 @@
+## [6.2.2](https://github.com/structured-world/gitlab-mcp/compare/v6.2.1...v6.2.2) (2026-01-19)
+
+### Refactoring
+
+* **schemas:** replace z.coerce.string() with requiredId for all required ID fields ([3461cfb](https://github.com/structured-world/gitlab-mcp/commit/3461cfbc3fba458d1e1fc03ea2b33ea7c4e20c6b)), closes [#27](https://github.com/structured-world/gitlab-mcp/issues/27)
+
 ## [6.2.1](https://github.com/structured-world/gitlab-mcp/compare/v6.2.0...v6.2.1) (2026-01-19)
 
 ### Bug Fixes
