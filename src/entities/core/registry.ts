@@ -42,7 +42,7 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
     {
       name: "browse_projects",
       description:
-        "PROJECT DISCOVERY: Search, list, or get project details. Actions: search=find by criteria, list=browse accessible projects, get=retrieve specific project. Supports visibility/language filtering and group scoping.",
+        "PROJECT DISCOVERY: Find, browse, or inspect GitLab projects. Use 'search' to find projects by name/topic across all GitLab. Use 'list' to browse your accessible projects or projects within a specific group. Use 'get' with project_id to retrieve full details of a known project. Filter by visibility, language, or ownership.",
       inputSchema: z.toJSONSchema(BrowseProjectsSchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = BrowseProjectsSchema.parse(args);
@@ -182,7 +182,7 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
     {
       name: "browse_namespaces",
       description:
-        "NAMESPACE OPERATIONS: List, get, or verify namespaces. Actions: list=browse all, get=retrieve details, verify=check existence. Namespaces are groups or user accounts.",
+        "NAMESPACE OPERATIONS: Explore GitLab groups and user namespaces. Use 'list' to discover available namespaces for project creation. Use 'get' with namespace_id to retrieve full details including storage stats. Use 'verify' to check if a namespace path exists before creating projects or groups.",
       inputSchema: z.toJSONSchema(BrowseNamespacesSchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = BrowseNamespacesSchema.parse(args);
@@ -263,7 +263,7 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
     {
       name: "browse_commits",
       description:
-        "COMMIT HISTORY: Browse, get details, or view diffs. Actions: list=browse history, get=commit metadata, diff=code changes. Supports date filtering and path filtering.",
+        "COMMIT HISTORY: Explore repository commit history. Use 'list' to browse commits with optional date range, author, or file path filters. Use 'get' with sha to retrieve commit metadata and stats. Use 'diff' to see actual code changes in a commit. Essential for code review and change tracking.",
       inputSchema: z.toJSONSchema(BrowseCommitsSchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = BrowseCommitsSchema.parse(args);
@@ -352,7 +352,7 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
     {
       name: "browse_events",
       description:
-        "ACTIVITY FEED: View user or project activity. Actions: user=your activity across GitLab, project=specific project activity. Supports date and action filtering.",
+        "ACTIVITY FEED: Track GitLab activity and events. Use 'user' to see YOUR recent activity across all projects (commits, issues, MRs). Use 'project' with project_id to monitor a specific project's activity feed. Filter by date range or action type (pushed, commented, merged, etc.).",
       inputSchema: z.toJSONSchema(BrowseEventsSchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = BrowseEventsSchema.parse(args);
@@ -406,7 +406,7 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
     {
       name: "manage_repository",
       description:
-        "REPOSITORY MANAGEMENT: Create new projects or fork existing ones. Actions: create=new project, fork=copy existing project. Supports visibility and feature configuration.",
+        "REPOSITORY MANAGEMENT: Create or fork GitLab projects. Use 'create' to start a new project with custom settings (visibility, features, namespace). Use 'fork' with project_id to create your own copy of an existing project for independent development or contribution back via MRs.",
       inputSchema: z.toJSONSchema(ManageRepositorySchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = ManageRepositorySchema.parse(args);
@@ -772,7 +772,7 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
     {
       name: "list_todos",
       description:
-        "TASK QUEUE: List your pending todos across GitLab. Todos are created when: assigned, @mentioned, requested as reviewer, CI fails. Filter by state/action/type.",
+        "TASK QUEUE: View your GitLab todos (notifications requiring action). Todos are auto-created when you're assigned to issues/MRs, @mentioned, requested as reviewer, or CI pipelines fail. Filter by state (pending/done), action type (assigned, mentioned, review_requested), or target type (Issue, MergeRequest).",
       inputSchema: z.toJSONSchema(ListTodosSchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = ListTodosSchema.parse(args);
@@ -802,7 +802,7 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
     {
       name: "manage_todos",
       description:
-        "TODO ACTIONS: Mark todos done or restore completed. Actions: mark_done (single), mark_all_done (bulk), restore (undo).",
+        "TODO ACTIONS: Manage your GitLab todo items. Use 'mark_done' with id to complete a single todo after handling it. Use 'mark_all_done' to clear your entire todo queue at once. Use 'restore' with id to undo a completed todo and return it to pending state.",
       inputSchema: z.toJSONSchema(ManageTodosSchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = ManageTodosSchema.parse(args);
