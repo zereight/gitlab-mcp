@@ -1,3 +1,9 @@
+## [6.3.1](https://github.com/structured-world/gitlab-mcp/compare/v6.3.0...v6.3.1) (2026-01-19)
+
+### Bug Fixes
+
+* **ci:** use JSON summary for coverage report percentages ([07f05ca](https://github.com/structured-world/gitlab-mcp/commit/07f05caf842c406bf88039147378f79a586b3c32))
+
 ## [6.3.0](https://github.com/structured-world/gitlab-mcp/compare/v6.2.3...v6.3.0) (2026-01-19)
 
 ### Features
