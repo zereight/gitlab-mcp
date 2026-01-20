@@ -1,3 +1,9 @@
+## [6.17.0](https://github.com/structured-world/gitlab-mcp/compare/v6.16.0...v6.17.0) (2026-01-20)
+
+### Features
+
+* **discovery:** add auto-discovery from git remote ([#67](https://github.com/structured-world/gitlab-mcp/issues/67)) ([dba44ff](https://github.com/structured-world/gitlab-mcp/commit/dba44ff20ca8d8394ef076b07b754f356c4a68e6)), closes [#57](https://github.com/structured-world/gitlab-mcp/issues/57)
+
 ## [6.16.0](https://github.com/structured-world/gitlab-mcp/compare/v6.15.0...v6.16.0) (2026-01-20)
 
 ### Features
