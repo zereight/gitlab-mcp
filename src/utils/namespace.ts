@@ -1,6 +1,34 @@
 import { enhancedFetch } from "./fetch";
 
 /**
+ * Extract namespace (group path) from a full project path.
+ *
+ * Examples:
+ * - "group/project" -> "group"
+ * - "group/subgroup/project" -> "group/subgroup"
+ * - "myproject" (single segment) -> "myproject" (root-level project)
+ * - "" (empty) -> undefined
+ *
+ * @param projectPath - Full project path (e.g., "group/project")
+ * @returns Namespace path or undefined if projectPath is empty
+ */
+export function extractNamespaceFromPath(projectPath: string): string | undefined {
+  if (!projectPath) {
+    return undefined;
+  }
+
+  const pathParts = projectPath.split("/");
+
+  // Single segment = root-level project, namespace equals project path
+  if (pathParts.length === 1) {
+    return projectPath;
+  }
+
+  // Multiple segments = namespace is everything except the last part
+  return pathParts.slice(0, -1).join("/");
+}
+
+/**
  * Simple heuristic to determine if a path likely represents a project
  * Projects typically contain a slash (group/project), while groups usually don't
  */

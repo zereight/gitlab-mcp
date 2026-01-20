@@ -13,6 +13,14 @@ export interface CliArgs {
   profileName?: string;
   noProjectConfig: boolean;
   showProjectConfig: boolean;
+  /** Enable auto-discovery from git remote */
+  auto: boolean;
+  /** Custom working directory for auto-discovery */
+  cwd?: string;
+  /** Dry run - show what would be detected without applying */
+  dryRun: boolean;
+  /** Git remote name to use (default: origin) */
+  remoteName?: string;
 }
 
 /**
@@ -25,6 +33,8 @@ export function parseCliArgs(argv: string[] = process.argv): CliArgs {
   const result: CliArgs = {
     noProjectConfig: false,
     showProjectConfig: false,
+    auto: false,
+    dryRun: false,
   };
 
   let profileCount = 0;
@@ -48,6 +58,26 @@ export function parseCliArgs(argv: string[] = process.argv): CliArgs {
       result.noProjectConfig = true;
     } else if (arg === "--show-project-config") {
       result.showProjectConfig = true;
+    } else if (arg === "--auto") {
+      result.auto = true;
+    } else if (arg === "--cwd") {
+      const value = args[i + 1];
+      if (!value || value.startsWith("--")) {
+        logger.error("--cwd requires a directory path (e.g., --cwd /path/to/repo)");
+        throw new Error("--cwd requires a directory path");
+      }
+      result.cwd = value;
+      i++; // Skip value
+    } else if (arg === "--dry-run") {
+      result.dryRun = true;
+    } else if (arg === "--remote") {
+      const value = args[i + 1];
+      if (!value || value.startsWith("--")) {
+        logger.error("--remote requires a remote name (e.g., --remote upstream)");
+        throw new Error("--remote requires a remote name");
+      }
+      result.remoteName = value;
+      i++; // Skip value
     }
   }
 

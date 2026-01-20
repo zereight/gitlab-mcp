@@ -43,6 +43,10 @@ describe("cli-utils", () => {
         profileName: undefined,
         noProjectConfig: false,
         showProjectConfig: false,
+        auto: false,
+        cwd: undefined,
+        dryRun: false,
+        remoteName: undefined,
       });
     });
 
@@ -107,7 +111,95 @@ describe("cli-utils", () => {
         profileName: undefined,
         noProjectConfig: false,
         showProjectConfig: false,
+        auto: false,
+        cwd: undefined,
+        dryRun: false,
+        remoteName: undefined,
       });
+    });
+
+    // Auto-discovery flags tests
+    it("should parse --auto flag", () => {
+      const result = parseCliArgs(["node", "main.js", "--auto"]);
+
+      expect(result.auto).toBe(true);
+    });
+
+    it("should parse --cwd flag", () => {
+      const result = parseCliArgs(["node", "main.js", "--cwd", "/path/to/repo"]);
+
+      expect(result.cwd).toBe("/path/to/repo");
+    });
+
+    it("should throw error when --cwd has no value", () => {
+      expect(() => parseCliArgs(["node", "main.js", "--cwd"])).toThrow(
+        "--cwd requires a directory path"
+      );
+      expect(mockLogger.error).toHaveBeenCalled();
+    });
+
+    it("should throw error when --cwd is followed by another flag", () => {
+      expect(() => parseCliArgs(["node", "main.js", "--cwd", "--auto"])).toThrow(
+        "--cwd requires a directory path"
+      );
+    });
+
+    it("should parse --dry-run flag", () => {
+      const result = parseCliArgs(["node", "main.js", "--dry-run"]);
+
+      expect(result.dryRun).toBe(true);
+    });
+
+    it("should parse --remote flag", () => {
+      const result = parseCliArgs(["node", "main.js", "--remote", "upstream"]);
+
+      expect(result.remoteName).toBe("upstream");
+    });
+
+    it("should throw error when --remote has no value", () => {
+      expect(() => parseCliArgs(["node", "main.js", "--remote"])).toThrow(
+        "--remote requires a remote name"
+      );
+      expect(mockLogger.error).toHaveBeenCalled();
+    });
+
+    it("should throw error when --remote is followed by another flag", () => {
+      expect(() => parseCliArgs(["node", "main.js", "--remote", "--auto"])).toThrow(
+        "--remote requires a remote name"
+      );
+    });
+
+    it("should parse all auto-discovery flags together", () => {
+      const result = parseCliArgs([
+        "node",
+        "main.js",
+        "--auto",
+        "--cwd",
+        "/my/repo",
+        "--dry-run",
+        "--remote",
+        "upstream",
+      ]);
+
+      expect(result.auto).toBe(true);
+      expect(result.cwd).toBe("/my/repo");
+      expect(result.dryRun).toBe(true);
+      expect(result.remoteName).toBe("upstream");
+    });
+
+    it("should parse auto-discovery flags with existing flags", () => {
+      const result = parseCliArgs([
+        "node",
+        "main.js",
+        "--auto",
+        "--profile",
+        "work",
+        "--no-project-config",
+      ]);
+
+      expect(result.auto).toBe(true);
+      expect(result.profileName).toBe("work");
+      expect(result.noProjectConfig).toBe(true);
     });
   });
 

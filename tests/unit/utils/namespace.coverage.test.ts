@@ -1,4 +1,8 @@
-import { detectNamespaceType, resolveNamespaceForAPI } from "../../../src/utils/namespace";
+import {
+  detectNamespaceType,
+  resolveNamespaceForAPI,
+  extractNamespaceFromPath,
+} from "../../../src/utils/namespace";
 import { enhancedFetch } from "../../../src/utils/fetch";
 
 // Mock enhancedFetch
@@ -29,6 +33,28 @@ beforeEach(() => {
 });
 
 describe("Namespace Utils Coverage Tests", () => {
+  describe("extractNamespaceFromPath", () => {
+    it("should extract namespace from two-level path", () => {
+      expect(extractNamespaceFromPath("group/project")).toBe("group");
+    });
+
+    it("should extract namespace from three-level path", () => {
+      expect(extractNamespaceFromPath("group/subgroup/project")).toBe("group/subgroup");
+    });
+
+    it("should extract namespace from deeply nested path", () => {
+      expect(extractNamespaceFromPath("a/b/c/d/project")).toBe("a/b/c/d");
+    });
+
+    it("should return project path for single-segment path (root-level project)", () => {
+      expect(extractNamespaceFromPath("myproject")).toBe("myproject");
+    });
+
+    it("should return undefined for empty string", () => {
+      expect(extractNamespaceFromPath("")).toBeUndefined();
+    });
+  });
+
   describe("detectNamespaceType", () => {
     it("should detect project type for likely project path", async () => {
       // Mock successful project response
