@@ -877,12 +877,12 @@ export const GitLabDiscussionNoteSchema = z.object({
   position: z
     .object({
       // Only present for DiffNote
-      base_sha: z.string().optional(),
-      start_sha: z.string().optional(),
-      head_sha: z.string().optional(),
+      base_sha: z.string().nullable().optional(),
+      start_sha: z.string().nullable().optional(),
+      head_sha: z.string().nullable().optional(),
       old_path: z.string().nullable().optional().describe("File path before change"),
       new_path: z.string().nullable().optional().describe("File path after change"),
-      position_type: z.enum(["text", "image", "file"]).optional(),
+      position_type: z.enum(["text", "image", "file"]).nullable().optional(),
       new_line: z
         .number()
         .nullable()
@@ -897,11 +897,11 @@ export const GitLabDiscussionNoteSchema = z.object({
         .describe(
           "Line number in the original file (before changes). Used for deleted lines and context lines. Null for newly added lines."
         ),
-      line_range: LineRangeSchema.nullable().optional(), // For multi-line diff notes
-      width: z.number().optional(), // For image diff notes
-      height: z.number().optional(), // For image diff notes
-      x: z.number().optional(), // For image diff notes
-      y: z.number().optional(), // For image diff notes
+      line_range: LineRangeSchema.nullable().optional(), // Accept any value for line_range including null
+      width: z.number().nullable().optional(), // For image diff notes
+      height: z.number().nullable().optional(), // For image diff notes
+      x: z.number().nullable().optional(), // For image diff notes
+      y: z.number().nullable().optional(), // For image diff notes
     })
     .passthrough() // Allow additional fields
     .optional(),
@@ -1164,7 +1164,7 @@ export const GetBranchDiffsSchema = ProjectParamsSchema.extend({
     .array(z.string())
     .optional()
     .describe(
-      'Array of regex patterns to exclude files from the diff results. Each pattern is a JavaScript-compatible regular expression that matches file paths to ignore. Examples: ["^test/mocks/", "\\.spec\\.ts$", "package-lock\\.json"]'
+      'Array of regex patterns to exclude files from the diff results. Each pattern is a JavaScript-compatible regular expression that matches file paths to ignore. Examples: ["^vendor/", "^test/mocks/", "\\.spec\\.ts$", "package-lock\\.json"]'
     ),
 });
 
@@ -1205,13 +1205,88 @@ export const MergeMergeRequestSchema = ProjectParamsSchema.extend({
   squash: z.boolean().optional().default(false).describe("Squash commits into a single commit when merging"),
 });
 
+// Merge Request Approval schemas
+export const ApproveMergeRequestSchema = ProjectParamsSchema.extend({
+  merge_request_iid: z.coerce.string().describe("The IID of the merge request to approve"),
+  sha: z.string().optional().describe("The HEAD of the merge request. Optional, but used to ensure the merge request hasn't changed since you last reviewed it"),
+  approval_password: z.string().optional().describe("Current user's password. Required if 'Require user re-authentication to approve' is enabled in the project settings"),
+});
+
+export const UnapproveMergeRequestSchema = ProjectParamsSchema.extend({
+  merge_request_iid: z.coerce.string().describe("The IID of the merge request to unapprove"),
+});
+
+// Merge Request Approval State response schema
+export const GitLabApprovalUserSchema = z.object({
+  id: z.coerce.string(),
+  username: z.string(),
+  name: z.string(),
+  state: z.string(),
+  avatar_url: z.string().nullable().optional(),
+  web_url: z.string(),
+});
+
+export const GitLabApprovalRuleSchema = z.object({
+  id: z.coerce.string(),
+  name: z.string(),
+  rule_type: z.string(),
+  eligible_approvers: z.array(GitLabApprovalUserSchema).optional(),
+  approvals_required: z.number(),
+  users: z.array(GitLabApprovalUserSchema).optional(),
+  groups: z.array(z.object({
+    id: z.coerce.string(),
+    name: z.string(),
+    path: z.string(),
+    full_path: z.string(),
+    avatar_url: z.string().nullable().optional(),
+    web_url: z.string(),
+  })).optional(),
+  contains_hidden_groups: z.boolean().optional(),
+  approved_by: z.array(GitLabApprovalUserSchema).optional(),
+  source_rule: z.object({
+    id: z.coerce.string().optional(),
+    name: z.string().optional(),
+    rule_type: z.string().optional(),
+  }).nullable().optional(),
+  approved: z.boolean().optional(),
+});
+
+export const GitLabMergeRequestApprovalStateSchema = z.object({
+  approval_rules_overwritten: z.boolean().optional(),
+  rules: z.array(GitLabApprovalRuleSchema).optional(),
+});
+
+export const GetMergeRequestApprovalStateSchema = ProjectParamsSchema.extend({
+  merge_request_iid: z.coerce.string().describe("The IID of the merge request"),
+});
+
 export const GetMergeRequestDiffsSchema = GetMergeRequestSchema.extend({
   view: z.enum(["inline", "parallel"]).optional().describe("Diff view type"),
+  excluded_file_patterns: z
+    .array(z.string())
+    .optional()
+    .describe(
+      'Array of regex patterns to exclude files from the diff results. Each pattern is a JavaScript-compatible regular expression that matches file paths to ignore. Examples: ["^vendor/", "^test/mocks/", "\\.spec\\.ts$", "package-lock\\.json"]'
+    ),
 });
 
 export const ListMergeRequestDiffsSchema = GetMergeRequestSchema.extend({
   page: z.number().optional().describe("Page number for pagination (default: 1)"),
   per_page: z.number().optional().describe("Number of items per page (max: 100, default: 20)"),
+  unidiff: z.boolean()
+    .optional()
+    .describe(
+      "Present diffs in the unified diff format. Default is false. Introduced in GitLab 16.5."
+    ),
+});
+
+// Merge Request Versions API operation schemas
+export const ListMergeRequestVersionsSchema = ProjectParamsSchema.extend({
+  merge_request_iid: z.coerce.string().describe("The internal ID of the merge request"),
+});
+
+export const GetMergeRequestVersionSchema = ListMergeRequestVersionsSchema.extend({
+  version_id: z.coerce.string().describe("The ID of the merge request diff version"),
   unidiff: z.boolean()
     .optional()
     .describe(
@@ -1620,6 +1695,7 @@ export const MergeRequestThreadPositionCreateSchema = z.object({
   y: z.number().optional().describe("IMAGE DIFFS ONLY: Y coordinate on the image (for position_type='image')."),
 });
 
+// Schema for creating/sending position to GitLab API (stricter)
 export const MergeRequestThreadPositionSchema = z.object({
   base_sha: z
     .string()
@@ -1674,18 +1750,22 @@ export const MergeRequestThreadPositionSchema = z.object({
   ),
   width: z
     .number()
+    .nullable()
     .optional()
     .describe("IMAGE DIFFS ONLY: Width of the image (for position_type='image')."),
   height: z
     .number()
+    .nullable()
     .optional()
     .describe("IMAGE DIFFS ONLY: Height of the image (for position_type='image')."),
   x: z
     .number()
+    .nullable()
     .optional()
     .describe("IMAGE DIFFS ONLY: X coordinate on the image (for position_type='image')."),
   y: z
     .number()
+    .nullable()
     .optional()
     .describe("IMAGE DIFFS ONLY: Y coordinate on the image (for position_type='image')."),
 });
@@ -1728,7 +1808,7 @@ export const ListDraftNotesSchema = ProjectParamsSchema.extend({
 export const CreateDraftNoteSchema = ProjectParamsSchema.extend({
   merge_request_iid: z.coerce.string().describe("The IID of a merge request"),
   body: z.string().describe("The content of the draft note"),
-  position: MergeRequestThreadPositionCreateSchema.optional().describe("Position when creating a diff note"),
+  position: MergeRequestThreadPositionSchema.optional().describe("Position when creating a diff note"),
   resolve_discussion: z.boolean().optional().describe("Whether to resolve the discussion when publishing"),
 });
 
@@ -1737,7 +1817,7 @@ export const UpdateDraftNoteSchema = ProjectParamsSchema.extend({
   merge_request_iid: z.coerce.string().describe("The IID of a merge request"),
   draft_note_id: z.coerce.string().describe("The ID of the draft note"),
   body: z.string().optional().describe("The content of the draft note"),
-  position: MergeRequestThreadPositionCreateSchema.optional().describe("Position when creating a diff note"),
+  position: MergeRequestThreadPositionSchema.optional().describe("Position when creating a diff note"),
   resolve_discussion: z.boolean().optional().describe("Whether to resolve the discussion when publishing"),
 });
 
@@ -1915,6 +1995,10 @@ export const ListProjectMembersSchema = z.object({
   query: z.string().optional().describe("Search for members by name or username"),
   user_ids: z.array(z.number()).optional().describe("Filter by user IDs"),
   skip_users: z.array(z.number()).optional().describe("User IDs to exclude"),
+  include_inheritance: z
+    .boolean()
+    .optional()
+    .describe("Include inherited members. Defaults to false."),
   per_page: z.number().optional().describe("Number of items per page (default: 20, max: 100)"),
   page: z.number().optional().describe("Page number for pagination (default: 1)"),
 });
@@ -2059,6 +2143,24 @@ export const GetProjectEventsSchema = z.object({
   sort: z.enum(["asc", "desc"]).optional().describe("Direction to sort the results by creation date. Default: desc"),
   page: z.number().optional().describe("Returns the specified results page. Default: 1"),
   per_page: z.number().optional().describe("Number of results per page. Default: 20"),
+});
+
+// Merge Request Versions schemas - Response schemas based on GitLab API documentation
+export const GitLabMergeRequestVersionSchema = z.object({
+  id: z.number(),
+  head_commit_sha: z.string(),
+  base_commit_sha: z.string(),
+  start_commit_sha: z.string(),
+  created_at: z.string(),
+  merge_request_id: z.number(),
+  state: z.string(),
+  real_size: z.string(),
+  patch_id_sha: z.string(),
+});
+
+export const GitLabMergeRequestVersionDetailSchema = GitLabMergeRequestVersionSchema.extend({
+  commits: z.array(GitLabCommitSchema),
+  diffs: z.array(GitLabDiffSchema),
 });
 
 // Export types
@@ -2344,4 +2446,18 @@ export type CreateReleaseOptions = z.infer<typeof CreateReleaseSchema>;
 export type UpdateReleaseOptions = z.infer<typeof UpdateReleaseSchema>;
 export type DeleteReleaseOptions = z.infer<typeof DeleteReleaseSchema>;
 export type CreateReleaseEvidenceOptions = z.infer<typeof CreateReleaseEvidenceSchema>;
+
+// Merge Request Versions types
+export type GitLabMergeRequestVersion = z.infer<typeof GitLabMergeRequestVersionSchema>;
+export type GitLabMergeRequestVersionDetail = z.infer<typeof GitLabMergeRequestVersionDetailSchema>;
+export type ListMergeRequestVersionsOptions = z.infer<typeof ListMergeRequestVersionsSchema>;
+export type GetMergeRequestVersionOptions = z.infer<typeof GetMergeRequestVersionSchema>;
 export type DownloadReleaseAssetOptions = z.infer<typeof DownloadReleaseAssetSchema>;
+
+// Export merge request approval types
+export type ApproveMergeRequestOptions = z.infer<typeof ApproveMergeRequestSchema>;
+export type UnapproveMergeRequestOptions = z.infer<typeof UnapproveMergeRequestSchema>;
+export type GitLabApprovalUser = z.infer<typeof GitLabApprovalUserSchema>;
+export type GitLabApprovalRule = z.infer<typeof GitLabApprovalRuleSchema>;
+export type GitLabMergeRequestApprovalState = z.infer<typeof GitLabMergeRequestApprovalStateSchema>;
+export type GetMergeRequestApprovalStateOptions = z.infer<typeof GetMergeRequestApprovalStateSchema>;

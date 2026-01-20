@@ -1,4 +1,28 @@
 #!/usr/bin/env node
+
+// Parse CLI arguments
+const args = process.argv.slice(2);
+const cliArgs: Record<string, string> = {};
+
+for (let i = 0; i < args.length; i++) {
+  const arg = args[i];
+  if (arg.startsWith('--')) {
+    const [key, value] = arg.slice(2).split('=');
+    if (value) {
+      cliArgs[key] = value;
+    } else if (i + 1 < args.length && !args[i + 1].startsWith('--')) {
+      cliArgs[key] = args[++i];
+    }
+  }
+}
+
+// Helper function to get config value (CLI args take precedence over env vars)
+function getConfig(cliKey: string, envKey: string): string | undefined;
+function getConfig(cliKey: string, envKey: string, defaultValue: string): string;
+function getConfig(cliKey: string, envKey: string, defaultValue?: string): string | undefined {
+  return cliArgs[cliKey] || process.env[envKey] || defaultValue;
+}
+
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
@@ -8,6 +32,7 @@ import { AsyncLocalStorage } from "node:async_hooks";
 import express, { Request, Response } from "express";
 import fetchCookie from "fetch-cookie";
 import fs from "node:fs";
+import os from "node:os";
 import { HttpProxyAgent } from "http-proxy-agent";
 import { HttpsProxyAgent } from "https-proxy-agent";
 import nodeFetch from "node-fetch";
@@ -157,6 +182,12 @@ import {
   ListMergeRequestDiffsSchema, // Added
   ListMergeRequestDiscussionsSchema,
   ListMergeRequestsSchema,
+  ListMergeRequestVersionsSchema,
+  GetMergeRequestVersionSchema,
+  GitLabMergeRequestVersionSchema,
+  GitLabMergeRequestVersionDetailSchema,
+  type GitLabMergeRequestVersion,
+  type GitLabMergeRequestVersionDetail,
   ListNamespacesSchema,
   type ListPipelineJobsOptions,
   ListPipelineJobsSchema,
@@ -173,6 +204,11 @@ import {
   MarkdownUploadSchema,
   DownloadAttachmentSchema,
   MergeMergeRequestSchema,
+  ApproveMergeRequestSchema,
+  UnapproveMergeRequestSchema,
+  GetMergeRequestApprovalStateSchema,
+  GitLabMergeRequestApprovalStateSchema,
+  type GitLabMergeRequestApprovalState,
   type MergeRequestThreadPosition,
   type MergeRequestThreadPositionCreate,
   type MyIssuesOptions,
@@ -310,7 +346,7 @@ function validateConfiguration(): void {
   }
 
   // Validate PORT
-  const portStr = process.env.PORT;
+  const portStr = getConfig('port', 'PORT');
   if (portStr) {
     const port = Number.parseInt(portStr, 10);
     if (Number.isNaN(port) || port < 1 || port > 65535) {
@@ -319,7 +355,7 @@ function validateConfiguration(): void {
   }
 
   // Validate GITLAB_API_URL format
-  const apiUrls = process.env.GITLAB_API_URL?.split(",") || [];
+  const apiUrls = getConfig('api-url', 'GITLAB_API_URL')?.split(",") || [];
   if (apiUrls.length > 0) {
     for (const url of apiUrls) {
       try {
@@ -331,18 +367,17 @@ function validateConfiguration(): void {
   }
 
   // Validate auth configuration
-  const remoteAuth = process.env.REMOTE_AUTHORIZATION === "true";
-  const useOAuth = process.env.GITLAB_USE_OAUTH === "true";
-  const hasToken = !!process.env.GITLAB_PERSONAL_ACCESS_TOKEN;
-  const hasCookie = !!process.env.GITLAB_AUTH_COOKIE_PATH;
+  const remoteAuth = getConfig('remote-auth', 'REMOTE_AUTHORIZATION') === "true";
+  const useOAuth = getConfig('use-oauth', 'GITLAB_USE_OAUTH') === "true";
+  const hasToken = !!getConfig('token', 'GITLAB_PERSONAL_ACCESS_TOKEN');
+  const hasCookie = !!getConfig('cookie-path', 'GITLAB_AUTH_COOKIE_PATH');
 
   if (!remoteAuth && !useOAuth && !hasToken && !hasCookie) {
-    errors.push(
-      "Either GITLAB_PERSONAL_ACCESS_TOKEN, GITLAB_AUTH_COOKIE_PATH, GITLAB_USE_OAUTH=true, or REMOTE_AUTHORIZATION=true must be set"
-    );
+    errors.push('Either --token, --cookie-path, --use-oauth=true, or --remote-auth=true must be set (or use environment variables)');
   }
 
-  if (ENABLE_DYNAMIC_API_URL && !REMOTE_AUTHORIZATION) {
+  const enableDynamicApiUrl = getConfig('enable-dynamic-api-url', 'ENABLE_DYNAMIC_API_URL') === "true";
+  if (enableDynamicApiUrl && !remoteAuth) {
     errors.push("ENABLE_DYNAMIC_API_URL=true requires REMOTE_AUTHORIZATION=true");
   }
 
@@ -355,34 +390,32 @@ function validateConfiguration(): void {
   logger.info("Configuration validation passed");
 }
 
-const GITLAB_PERSONAL_ACCESS_TOKEN = process.env.GITLAB_PERSONAL_ACCESS_TOKEN;
+const GITLAB_PERSONAL_ACCESS_TOKEN = getConfig('token', 'GITLAB_PERSONAL_ACCESS_TOKEN');
 let OAUTH_ACCESS_TOKEN: string | null = null;
-const GITLAB_AUTH_COOKIE_PATH = process.env.GITLAB_AUTH_COOKIE_PATH;
-const USE_OAUTH = process.env.GITLAB_USE_OAUTH === "true";
-const IS_OLD = process.env.GITLAB_IS_OLD === "true";
-const GITLAB_READ_ONLY_MODE = process.env.GITLAB_READ_ONLY_MODE === "true";
-const GITLAB_DENIED_TOOLS_REGEX = process.env.GITLAB_DENIED_TOOLS_REGEX
-  ? new RegExp(process.env.GITLAB_DENIED_TOOLS_REGEX)
+const GITLAB_AUTH_COOKIE_PATH = getConfig('cookie-path', 'GITLAB_AUTH_COOKIE_PATH');
+const USE_OAUTH = getConfig('use-oauth', 'GITLAB_USE_OAUTH') === "true";
+const IS_OLD = getConfig('is-old', 'GITLAB_IS_OLD') === "true";
+const GITLAB_READ_ONLY_MODE = getConfig('read-only', 'GITLAB_READ_ONLY_MODE') === "true";
+const GITLAB_DENIED_TOOLS_REGEX = getConfig('denied-tools-regex', 'GITLAB_DENIED_TOOLS_REGEX')
+  ? new RegExp(getConfig('denied-tools-regex', 'GITLAB_DENIED_TOOLS_REGEX')!)
   : undefined;
-const USE_GITLAB_WIKI = process.env.USE_GITLAB_WIKI === "true";
-const USE_MILESTONE = process.env.USE_MILESTONE === "true";
-const USE_PIPELINE = process.env.USE_PIPELINE === "true";
-const SSE = process.env.SSE === "true";
-const STREAMABLE_HTTP = process.env.STREAMABLE_HTTP === "true";
-const REMOTE_AUTHORIZATION = process.env.REMOTE_AUTHORIZATION === "true";
-const ENABLE_DYNAMIC_API_URL = process.env.ENABLE_DYNAMIC_API_URL === "true";
-const SESSION_TIMEOUT_SECONDS = process.env.SESSION_TIMEOUT_SECONDS
-  ? Number.parseInt(process.env.SESSION_TIMEOUT_SECONDS, 10)
-  : 3600;
-const HOST = process.env.HOST || "127.0.0.1";
-const PORT = process.env.PORT || 3002;
+const USE_GITLAB_WIKI = getConfig('use-wiki', 'USE_GITLAB_WIKI') === "true";
+const USE_MILESTONE = getConfig('use-milestone', 'USE_MILESTONE') === "true";
+const USE_PIPELINE = getConfig('use-pipeline', 'USE_PIPELINE') === "true";
+const SSE = getConfig('sse', 'SSE') === "true";
+const STREAMABLE_HTTP = getConfig('streamable-http', 'STREAMABLE_HTTP') === "true";
+const REMOTE_AUTHORIZATION = getConfig('remote-auth', 'REMOTE_AUTHORIZATION') === "true";
+const ENABLE_DYNAMIC_API_URL = getConfig('enable-dynamic-api-url', 'ENABLE_DYNAMIC_API_URL') === "true";
+const SESSION_TIMEOUT_SECONDS = Number.parseInt(getConfig('session-timeout', 'SESSION_TIMEOUT_SECONDS', '3600'), 10);
+const HOST = getConfig('host', 'HOST') || '127.0.0.1';
+const PORT = Number.parseInt(getConfig('port', 'PORT', '3002'), 10);
 // Add proxy configuration
-const HTTP_PROXY = process.env.HTTP_PROXY;
-const HTTPS_PROXY = process.env.HTTPS_PROXY;
-const NODE_TLS_REJECT_UNAUTHORIZED = process.env.NODE_TLS_REJECT_UNAUTHORIZED;
-const GITLAB_CA_CERT_PATH = process.env.GITLAB_CA_CERT_PATH;
-const GITLAB_POOL_MAX_SIZE = process.env.GITLAB_POOL_MAX_SIZE
-  ? Number.parseInt(process.env.GITLAB_POOL_MAX_SIZE, 10)
+const HTTP_PROXY = getConfig('http-proxy', 'HTTP_PROXY');
+const HTTPS_PROXY = getConfig('https-proxy', 'HTTPS_PROXY');
+const NODE_TLS_REJECT_UNAUTHORIZED = getConfig('tls-reject-unauthorized', 'NODE_TLS_REJECT_UNAUTHORIZED');
+const GITLAB_CA_CERT_PATH = getConfig('ca-cert-path', 'GITLAB_CA_CERT_PATH');
+const GITLAB_POOL_MAX_SIZE = getConfig('pool-max-size', 'GITLAB_POOL_MAX_SIZE')
+  ? Number.parseInt(getConfig('pool-max-size', 'GITLAB_POOL_MAX_SIZE')!, 10)
   : 100;
 
 let sslOptions = undefined;
@@ -427,89 +460,124 @@ const clientPool = new GitLabClientPool({
 });
 
 // Create cookie jar with clean Netscape file parsing
-const createCookieJar = (): CookieJar | null => {
-  if (!GITLAB_AUTH_COOKIE_PATH) return null;
+// Resolve cookie path once using os.homedir() for cross-platform support
+const resolvedCookiePath = GITLAB_AUTH_COOKIE_PATH
+  ? GITLAB_AUTH_COOKIE_PATH.startsWith("~/")
+    ? path.join(os.homedir(), GITLAB_AUTH_COOKIE_PATH.slice(2))
+    : GITLAB_AUTH_COOKIE_PATH
+  : null;
 
+const createCookieJar = async (): Promise<CookieJar | null> => {
+  if (!resolvedCookiePath) return null;
+
+  let cookieContent: string;
   try {
-    const cookiePath = GITLAB_AUTH_COOKIE_PATH.startsWith("~/")
-      ? path.join(process.env.HOME || "", GITLAB_AUTH_COOKIE_PATH.slice(2))
-      : GITLAB_AUTH_COOKIE_PATH;
-
-    const jar = new CookieJar();
-    const cookieContent = fs.readFileSync(cookiePath, "utf8");
-
-    cookieContent.split("\n").forEach(line => {
-      // Handle #HttpOnly_ prefix
-      if (line.startsWith("#HttpOnly_")) {
-        line = line.slice(10);
-      }
-      // Skip comments and empty lines
-      if (line.startsWith("#") || !line.trim()) {
-        return;
-      }
-
-      // Parse Netscape format: domain, flag, path, secure, expires, name, value
-      const parts = line.split("\t");
-      if (parts.length >= 7) {
-        const [domain, , path, secure, expires, name, value] = parts;
-
-        // Build cookie string in standard format
-        const secureFlag = secure === "TRUE" ? "; Secure" : "";
-        const expiresFlag =
-          expires === "0"
-            ? ""
-            : `; Expires=${new Date(Number.parseInt(expires, 10) * 1000).toUTCString()}`;
-        const cookieStr = `${name}=${value}; Domain=${domain}; Path=${path}${secureFlag}${expiresFlag}`;
-
-        // Use tough-cookie's parse function for robust parsing
-        const cookie = parseCookie(cookieStr);
-        if (cookie) {
-          const url = `${secure === "TRUE" ? "https" : "http"}://${domain.startsWith(".") ? domain.slice(1) : domain}`;
-          jar.setCookieSync(cookie, url);
-        }
-      }
-    });
-
-    return jar;
+    cookieContent = await fs.promises.readFile(resolvedCookiePath, "utf8");
   } catch (error) {
-    logger.error("Error loading cookie file:", error);
+    logger.error({ error, path: resolvedCookiePath }, "Failed to read cookie file");
     return null;
   }
+
+  const jar = new CookieJar();
+  for (let line of cookieContent.split("\n")) {
+    // Handle #HttpOnly_ prefix
+    if (line.startsWith("#HttpOnly_")) {
+      line = line.slice(10);
+    }
+    // Skip comments and empty lines
+    if (line.startsWith("#") || !line.trim()) {
+      continue;
+    }
+
+    // Parse Netscape format: domain, flag, path, secure, expires, name, value
+    const parts = line.split("\t");
+    if (parts.length >= 7) {
+      const [domain, , cookiePath, secure, expires, name, value] = parts;
+
+      // Build cookie string in standard format
+      const secureFlag = secure === "TRUE" ? "; Secure" : "";
+      const expiresFlag =
+        expires === "0"
+          ? ""
+          : `; Expires=${new Date(Number.parseInt(expires, 10) * 1000).toUTCString()}`;
+      const cookieStr = `${name}=${value}; Domain=${domain}; Path=${cookiePath}${secureFlag}${expiresFlag}`;
+
+      // Use tough-cookie's parse function for robust parsing
+      const cookie = parseCookie(cookieStr);
+      if (cookie) {
+        const url = `${secure === "TRUE" ? "https" : "http"}://${domain.startsWith(".") ? domain.slice(1) : domain}`;
+        jar.setCookieSync(cookie, url);
+      }
+    }
+  }
+
+  return jar;
 };
 
-// Initialize cookie jar and fetch
-const cookieJar = createCookieJar();
-const fetch = cookieJar ? fetchCookie(nodeFetch, cookieJar) : nodeFetch;
+// Cookie jar and fetch - reloaded when cookie file changes
+let cookieJar: CookieJar | null = null;
+let fetch: typeof nodeFetch = nodeFetch;
+let lastCookieMtime = 0;
+let cookieReloadLock: Promise<void> | null = null; // Mutex to prevent parallel reloads
+// Auth proxies may redirect and set cookies on the first request. We make a throwaway
+// request so subsequent requests have the correct cookies. Reset when cookies reload.
+let initialSessionRequestMade = false;
 
-// Ensure session is established for the current request
-async function ensureSessionForRequest(): Promise<void> {
-  if (!cookieJar || !GITLAB_AUTH_COOKIE_PATH) return;
+// Cookie jar is loaded on first request via reloadCookiesIfChanged (lastCookieMtime=0 triggers load)
 
-  // Extract the base URL from GITLAB_API_URL
-  const apiUrl = new URL(GITLAB_API_URL);
-  const baseUrl = `${apiUrl.protocol}//${apiUrl.hostname}`;
+async function reloadCookiesIfChanged(): Promise<void> {
+  if (!resolvedCookiePath) return;
+  if (cookieReloadLock) return cookieReloadLock;
 
-  // Check if we already have GitLab session cookies
-  const gitlabCookies = cookieJar.getCookiesSync(baseUrl);
-  const hasSessionCookie = gitlabCookies.some(
-    cookie => cookie.key === "_gitlab_session" || cookie.key === "remember_user_token"
-  );
-
-  if (!hasSessionCookie) {
+  cookieReloadLock = (async () => {
     try {
-      // Establish session with a lightweight request
-      await fetch(`${GITLAB_API_URL}/user`, {
-        ...getFetchConfig(),
-        redirect: "follow",
-      }).catch(() => {
-        // Ignore errors - the important thing is that cookies get set during redirects
-      });
-
-      // Small delay to ensure cookies are fully processed
-      await new Promise(resolve => setTimeout(resolve, 100));
+      const mtime = (await fs.promises.stat(resolvedCookiePath)).mtimeMs;
+      if (mtime !== lastCookieMtime) {
+        logger.info(
+          { oldMtime: lastCookieMtime, newMtime: mtime },
+          lastCookieMtime === 0 ? "Loading cookie file" : "Cookie file changed, reloading"
+        );
+        lastCookieMtime = mtime;
+        const newJar = await createCookieJar();
+        cookieJar = newJar;
+        fetch = newJar ? fetchCookie(nodeFetch, newJar) : nodeFetch;
+        initialSessionRequestMade = false;
+      }
     } catch {
-      // Intentionally ignored: session establishment errors are non-critical
+      // File deleted or inaccessible - clear cached cookies
+      if (cookieJar) {
+        logger.info("Cookie file removed, clearing cached cookies");
+        cookieJar = null;
+        fetch = nodeFetch;
+        lastCookieMtime = 0;
+        initialSessionRequestMade = false;
+      }
     }
+  })();
+
+  try {
+    await cookieReloadLock;
+  } finally {
+    cookieReloadLock = null;
+  }
+}
+
+async function ensureSessionForRequest(): Promise<void> {
+  if (!resolvedCookiePath) return;
+
+  await reloadCookiesIfChanged();
+
+  if (!cookieJar || initialSessionRequestMade) return;
+
+  try {
+    const response = await fetch(`${getEffectiveApiUrl()}/user`, {
+      ...getFetchConfig(),
+      redirect: "follow",
+    });
+    // 401 means auth failed but the request completed - cookies were still exchanged
+    initialSessionRequestMade = response.ok || response.status === 401;
+  } catch {
+    logger.debug("Session warmup request failed, will retry on next request");
   }
 }
 
@@ -607,7 +675,50 @@ const getFetchConfig = () => {
   };
 };
 
-const toJSONSchema = (schema: z.ZodTypeAny) => zodToJsonSchema(schema, { $refStrategy: "none" });
+const toJSONSchema = (schema: z.ZodTypeAny) => {
+  const jsonSchema = zodToJsonSchema(schema, { $refStrategy: 'none' });
+  
+  // Post-process to fix nullable/optional fields that should truly be optional
+  function fixNullableOptional(obj: any): any {
+    if (obj && typeof obj === 'object') {
+      // If this object has properties, process them
+      if (obj.properties) {
+        const requiredSet = new Set<string>(obj.required || []);
+        Object.keys(obj.properties).forEach(key => {
+          const prop = obj.properties[key];
+          
+          // Handle fields that can be null or omitted
+          // If a property has type: ["object", "null"] or anyOf with null, it should not be required
+          if (prop.anyOf && prop.anyOf.some((t: any) => t.type === 'null')) {
+            requiredSet.delete(key);
+          } else if (Array.isArray(prop.type) && prop.type.includes('null')) {
+            requiredSet.delete(key);
+          }
+          
+          // Recursively process nested objects
+          obj.properties[key] = fixNullableOptional(prop);
+        });
+        // Normalize the required array after processing all properties
+        if (requiredSet.size > 0) {
+          obj.required = Array.from(requiredSet);
+        } else if (Object.prototype.hasOwnProperty.call(obj, 'required')) {
+          delete obj.required;
+        }
+      }
+      
+      // Process anyOf/allOf/oneOf
+      ['anyOf', 'allOf', 'oneOf'].forEach(combiner => {
+        if (obj[combiner]) {
+          obj[combiner] = obj[combiner].map(fixNullableOptional);
+        }
+      });
+    }
+    
+    return obj;
+  }
+  
+  return fixNullableOptional(jsonSchema);
+};
 
 // Define all available tools
 const allTools = [
@@ -615,6 +726,22 @@ const allTools = [
     name: "merge_merge_request",
     description: "Merge a merge request in a GitLab project",
     inputSchema: toJSONSchema(MergeMergeRequestSchema),
+  },
+  {
+    name: "approve_merge_request",
+    description: "Approve a merge request. Requires appropriate permissions.",
+    inputSchema: toJSONSchema(ApproveMergeRequestSchema),
+  },
+  {
+    name: "unapprove_merge_request",
+    description: "Unapprove a previously approved merge request. Requires appropriate permissions.",
+    inputSchema: toJSONSchema(UnapproveMergeRequestSchema),
+  },
+  {
+    name: "get_merge_request_approval_state",
+    description:
+      "Get the approval state of a merge request including approval rules and who has approved",
+    inputSchema: toJSONSchema(GetMergeRequestApprovalStateSchema),
   },
   {
     name: "execute_graphql",
@@ -683,6 +810,16 @@ const allTools = [
     description:
       "List merge request diffs with pagination support (Either mergeRequestIid or branchName must be provided)",
     inputSchema: toJSONSchema(ListMergeRequestDiffsSchema),
+  },
+  {
+    name: "list_merge_request_versions",
+    description: "List all versions of a merge request",
+    inputSchema: toJSONSchema(ListMergeRequestVersionsSchema),
+  },
+  {
+    name: "get_merge_request_version",
+    description: "Get a specific version of a merge request",
+    inputSchema: toJSONSchema(GetMergeRequestVersionSchema),
   },
   {
     name: "get_branch_diffs",
@@ -1144,6 +1281,8 @@ const readOnlyTools = new Set([
   "get_file_contents",
   "get_merge_request",
   "get_merge_request_diffs",
+  "list_merge_request_versions",
+  "get_merge_request_version",
   "get_branch_diffs",
   "mr_discussions",
   "list_issues",
@@ -1188,6 +1327,7 @@ const readOnlyTools = new Set([
   "list_releases",
   "get_release",
   "download_release_asset",
+  "get_merge_request_approval_state",
 ]);
 
 // Define which tools are related to wiki and can be toggled by USE_GITLAB_WIKI
@@ -2806,6 +2946,95 @@ async function mergeMergeRequest(
 }
 
 /**
+ * Approve a merge request
+ *
+ * @param {string} projectId - The ID or URL-encoded path of the project
+ * @param {string | number} mergeRequestIid - The internal ID of the merge request
+ * @param {string} sha - Optional SHA to approve (for validation that MR hasn't changed)
+ * @param {string} approvalPassword - Optional password for approvals requiring re-authentication
+ * @returns {Promise<GitLabMergeRequestApprovalState>} The approval state after approving
+ */
+async function approveMergeRequest(
+  projectId: string,
+  mergeRequestIid: string | number,
+  sha?: string,
+  approvalPassword?: string
+): Promise<GitLabMergeRequestApprovalState> {
+  projectId = decodeURIComponent(projectId);
+  const url = new URL(
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/merge_requests/${mergeRequestIid}/approve`
+  );
+
+  const body: Record<string, string> = {};
+  if (sha) {
+    body.sha = sha;
+  }
+  if (approvalPassword) {
+    body.approval_password = approvalPassword;
+  }
+
+  const response = await fetch(url.toString(), {
+    ...getFetchConfig(),
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+
+  await handleGitLabError(response);
+  return GitLabMergeRequestApprovalStateSchema.parse(await response.json());
+}
+
+/**
+ * Unapprove a previously approved merge request
+ *
+ * @param {string} projectId - The ID or URL-encoded path of the project
+ * @param {string | number} mergeRequestIid - The internal ID of the merge request
+ * @returns {Promise<GitLabMergeRequestApprovalState>} The approval state after unapproving
+ */
+async function unapproveMergeRequest(
+  projectId: string,
+  mergeRequestIid: string | number
+): Promise<GitLabMergeRequestApprovalState> {
+  projectId = decodeURIComponent(projectId);
+  const url = new URL(
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/merge_requests/${mergeRequestIid}/unapprove`
+  );
+
+  const response = await fetch(url.toString(), {
+    ...getFetchConfig(),
+    method: "POST",
+    body: JSON.stringify({}),
+  });
+
+  await handleGitLabError(response);
+  return GitLabMergeRequestApprovalStateSchema.parse(await response.json());
+}
+
+/**
+ * Get the approval state of a merge request
+ *
+ * @param {string} projectId - The ID or URL-encoded path of the project
+ * @param {string | number} mergeRequestIid - The internal ID of the merge request
+ * @returns {Promise<GitLabMergeRequestApprovalState>} The approval state
+ */
+async function getMergeRequestApprovalState(
+  projectId: string,
+  mergeRequestIid: string | number
+): Promise<GitLabMergeRequestApprovalState> {
+  projectId = decodeURIComponent(projectId);
+  const url = new URL(
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/merge_requests/${mergeRequestIid}/approval_state`
+  );
+
+  const response = await fetch(url.toString(), {
+    ...getFetchConfig(),
+    method: "GET",
+  });
+
+  await handleGitLabError(response);
+  return GitLabMergeRequestApprovalStateSchema.parse(await response.json());
+}
+
+/**
  * Create a new note (comment) on an issue or merge request
  * 📦 새로운 함수: createNote - 이슈 또는 병합 요청에 노트(댓글)를 추가하는 함수
  * (New function: createNote - Function to add a note (comment) to an issue or merge request)
@@ -2906,7 +3135,7 @@ async function createDraftNote(
   projectId: string,
   mergeRequestIid: number | string,
   body: string,
-  position?: MergeRequestThreadPositionCreate,
+  position?: MergeRequestThreadPosition,
   resolveDiscussion?: boolean
 ): Promise<GitLabDraftNote> {
   projectId = decodeURIComponent(projectId);
@@ -2954,7 +3183,7 @@ async function updateDraftNote(
   mergeRequestIid: number | string,
   draftNoteId: number | string,
   body?: string,
-  position?: MergeRequestThreadPositionCreate,
+  position?: MergeRequestThreadPosition,
   resolveDiscussion?: boolean
 ): Promise<GitLabDraftNote> {
   projectId = decodeURIComponent(projectId);
@@ -3192,7 +3421,6 @@ async function createMergeRequestThread(
 
   const payload: Record<string, any> = { body };
 
-  // Add optional parameters if provided
   if (position) {
     payload.position = position;
   }
@@ -3210,6 +3438,69 @@ async function createMergeRequestThread(
   await handleGitLabError(response);
   const data = await response.json();
   return GitLabDiscussionSchema.parse(data);
+}
+
+/**
+ * List all versions of a merge request
+ * 병합 요청의 모든 버전 목록 조회
+ *
+ * @param {string} projectId - The ID or URL-encoded path of the project
+ * @param {number} mergeRequestIid - The internal ID of the merge request
+ * @returns {Promise<GitLabMergeRequestVersion[]>} List of merge request versions
+ */
+async function listMergeRequestVersions(
+  projectId: string,
+  mergeRequestIid: number | string
+): Promise<GitLabMergeRequestVersion[]> {
+  projectId = decodeURIComponent(projectId); // Decode project ID
+  const url = new URL(
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(
+      getEffectiveProjectId(projectId)
+    )}/merge_requests/${mergeRequestIid}/versions`
+  );
+
+  const response = await fetch(url.toString(), {
+    ...getFetchConfig(),
+  });
+
+  await handleGitLabError(response);
+  const data = await response.json();
+  return z.array(GitLabMergeRequestVersionSchema).parse(data);
+}
+
+/**
+ * Get a specific version of a merge request
+ * 병합 요청의 특정 버전 상세 정보 조회
+ *
+ * @param {string} projectId - The ID or URL-encoded path of the project
+ * @param {number} mergeRequestIid - The internal ID of the merge request
+ * @param {number} versionId - The ID of the version
+ * @returns {Promise<GitLabMergeRequestVersionDetail>} The merge request version details
+ */
+async function getMergeRequestVersion(
+  projectId: string,
+  mergeRequestIid: number | string,
+  versionId: number | string,
+  unidiff?: boolean
+): Promise<GitLabMergeRequestVersionDetail> {
+  projectId = decodeURIComponent(projectId); // Decode project ID
+  const url = new URL(
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(
+      getEffectiveProjectId(projectId)
+    )}/merge_requests/${mergeRequestIid}/versions/${versionId}`
+  );
+
+  if (unidiff !== undefined) {
+    url.searchParams.append("unidiff", String(unidiff));
+  }
+
+  const response = await fetch(url.toString(), {
+    ...getFetchConfig(),
+  });
+
+  await handleGitLabError(response);
+  const data = await response.json();
+  return GitLabMergeRequestVersionDetailSchema.parse(data);
 }
 
 /**
@@ -4636,8 +4927,9 @@ async function listProjectMembers(
 ): Promise<GitLabProjectMember[]> {
   projectId = decodeURIComponent(projectId);
   const effectiveProjectId = getEffectiveProjectId(projectId);
+  const membersPath = options.include_inheritance ? "members/all" : "members";
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(effectiveProjectId)}/members`
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(effectiveProjectId)}/${membersPath}`
   );
 
   // Add query parameters
@@ -5102,6 +5394,41 @@ server.setRequestHandler(CallToolRequestSchema, async (request: any) => {
   return handleToolCall(request.params);
 });
 
+/**
+ * Filter diffs by excluded file patterns
+ * Safely handles invalid regex patterns by logging and ignoring them
+ *
+ * @param diffs - Array of diff objects with new_path property
+ * @param excludedFilePatterns - Array of regex patterns to exclude
+ * @returns Filtered array of diffs
+ */
+function filterDiffsByPatterns<T extends { new_path: string }>(
+  diffs: T[],
+  excludedFilePatterns: string[] | undefined
+): T[] {
+  if (!excludedFilePatterns?.length) return diffs;
+
+  const regexPatterns = excludedFilePatterns
+    .map((pattern) => {
+      try {
+        return new RegExp(pattern);
+      } catch (e) {
+        console.warn(`Invalid regex pattern ignored: ${pattern}`);
+        return null;
+      }
+    })
+    .filter((regex): regex is RegExp => regex !== null);
+
+  if (regexPatterns.length === 0) return diffs;
+
+  const matchesAnyPattern = (path: string): boolean => {
+    if (!path) return false;
+    return regexPatterns.some((regex) => regex.test(path));
+  };
+
+  return diffs.filter((diff) => !matchesAnyPattern(diff.new_path));
+}
+
 async function handleToolCall(params: any) {
   try {
     if (!params.arguments) {
@@ -5208,19 +5535,7 @@ async function handleToolCall(params: any) {
       case "get_branch_diffs": {
         const args = GetBranchDiffsSchema.parse(params.arguments);
         const diffResp = await getBranchDiffs(args.project_id, args.from, args.to, args.straight);
-
-        if (args.excluded_file_patterns?.length) {
-          const regexPatterns = args.excluded_file_patterns.map(pattern => new RegExp(pattern));
-
-          // Helper function to check if a path matches any regex pattern
-          const matchesAnyPattern = (path: string): boolean => {
-            if (!path) return false;
-            return regexPatterns.some(regex => regex.test(path));
-          };
-
-          // Filter out files that match any of the regex patterns on new files
-          diffResp.diffs = diffResp.diffs.filter(diff => !matchesAnyPattern(diff.new_path));
-        }
+        diffResp.diffs = filterDiffsByPatterns(diffResp.diffs, args.excluded_file_patterns);
         return {
           content: [{ type: "text", text: JSON.stringify(diffResp, null, 2) }],
         };
@@ -5456,8 +5771,9 @@ async function handleToolCall(params: any) {
           args.source_branch,
           args.view
         );
+        const filteredDiffs = filterDiffsByPatterns(diffs, args.excluded_file_patterns);
         return {
-          content: [{ type: "text", text: JSON.stringify(diffs, null, 2) }],
+          content: [{ type: "text", text: JSON.stringify(filteredDiffs, null, 2) }],
         };
       }
 
@@ -5473,6 +5789,30 @@ async function handleToolCall(params: any) {
         );
         return {
           content: [{ type: "text", text: JSON.stringify(changes, null, 2) }],
+        };
+      }
+
+      case "list_merge_request_versions": {
+        const args = ListMergeRequestVersionsSchema.parse(params.arguments);
+        const versions = await listMergeRequestVersions(
+          args.project_id,
+          args.merge_request_iid
+        );
+        return {
+          content: [{ type: "text", text: JSON.stringify(versions, null, 2) }],
+        };
+      }
+
+      case "get_merge_request_version": {
+        const args = GetMergeRequestVersionSchema.parse(params.arguments);
+        const version = await getMergeRequestVersion(
+          args.project_id,
+          args.merge_request_iid,
+          args.version_id,
+          args.unidiff
+        );
+        return {
+          content: [{ type: "text", text: JSON.stringify(version, null, 2) }],
         };
       }
 
@@ -5496,6 +5836,38 @@ async function handleToolCall(params: any) {
         const mergeRequest = await mergeMergeRequest(project_id, options, merge_request_iid);
         return {
           content: [{ type: "text", text: JSON.stringify(mergeRequest, null, 2) }],
+        };
+      }
+
+      case "approve_merge_request": {
+        const args = ApproveMergeRequestSchema.parse(params.arguments);
+        const approvalState = await approveMergeRequest(
+          args.project_id,
+          args.merge_request_iid,
+          args.sha,
+          args.approval_password
+        );
+        return {
+          content: [{ type: "text", text: JSON.stringify(approvalState, null, 2) }],
+        };
+      }
+
+      case "unapprove_merge_request": {
+        const args = UnapproveMergeRequestSchema.parse(params.arguments);
+        const approvalState = await unapproveMergeRequest(args.project_id, args.merge_request_iid);
+        return {
+          content: [{ type: "text", text: JSON.stringify(approvalState, null, 2) }],
+        };
+      }
+
+      case "get_merge_request_approval_state": {
+        const args = GetMergeRequestApprovalStateSchema.parse(params.arguments);
+        const approvalState = await getMergeRequestApprovalState(
+          args.project_id,
+          args.merge_request_iid
+        );
+        return {
+          content: [{ type: "text", text: JSON.stringify(approvalState, null, 2) }],
         };
       }
 

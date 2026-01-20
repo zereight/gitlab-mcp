@@ -6,15 +6,11 @@
 
 ## @zereight/mcp-gitlab
 
-[![smithery badge](https://smithery.ai/badge/@zereight/gitlab-mcp)](https://smithery.ai/server/@zereight/gitlab-mcp)
-
 GitLab MCP(Model Context Protocol) Server. **Includes bug fixes and improvements over the original GitLab MCP server.**
-
-<a href="https://glama.ai/mcp/servers/7jwbk4r6d7"><img width="380" height="200" src="https://glama.ai/mcp/servers/7jwbk4r6d7/badge" alt="gitlab mcp MCP server" /></a>
 
 ## Usage
 
-### Using with Claude App, Cline, Roo Code, Cursor, Kilo Code
+### Using with Claude Code, Codex, Antigravity, OpenCode, Copilot, Cline, Roo Code, Cursor, Kilo Code, Amp Code
 
 When using with the Claude App, you need to set up your API key and URLs directly.
 
@@ -93,6 +89,38 @@ Then configure the MCP server with OAuth:
   }
 }
 ```
+
+#### Using CLI Arguments (for clients with env var issues)
+
+Some MCP clients (like GitHub Copilot CLI) have issues with environment variables. Use CLI arguments instead:
+
+```json
+{
+  "mcpServers": {
+    "gitlab": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@zereight/mcp-gitlab",
+        "--token=YOUR_GITLAB_TOKEN",
+        "--api-url=https://gitlab.com/api/v4"
+      ],
+      "tools": ["*"]
+    }
+  }
+}
+```
+
+**Available CLI arguments:**
+
+- `--token` - GitLab Personal Access Token (replaces `GITLAB_PERSONAL_ACCESS_TOKEN`)
+- `--api-url` - GitLab API URL (replaces `GITLAB_API_URL`)
+- `--read-only=true` - Enable read-only mode (replaces `GITLAB_READ_ONLY_MODE`)
+- `--use-wiki=true` - Enable wiki API (replaces `USE_GITLAB_WIKI`)
+- `--use-milestone=true` - Enable milestone API (replaces `USE_MILESTONE`)
+- `--use-pipeline=true` - Enable pipeline API (replaces `USE_PIPELINE`)
+
+CLI arguments take precedence over environment variables.
 
 #### vscode .vscode/mcp.json
 
@@ -517,6 +545,9 @@ The token is stored per session (identified by `mcp-session-id` header) and reus
 93. `delete_release` - Delete a release from a GitLab project (does not delete the associated tag)
 94. `create_release_evidence` - Create release evidence for an existing release (GitLab Premium/Ultimate only)
 95. `download_release_asset` - Download a release asset file by direct asset path
+96. `approve_merge_request` - Approve a merge request (requires appropriate permissions)
+97. `unapprove_merge_request` - Unapprove a previously approved merge request
+98. `get_merge_request_approval_state` - Get the approval state of a merge request including approval rules and who has approved
 <!-- TOOLS-END -->
 
 </details>
