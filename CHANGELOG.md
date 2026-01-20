@@ -1,3 +1,9 @@
+## [6.12.0](https://github.com/structured-world/gitlab-mcp/compare/v6.11.0...v6.12.0) (2026-01-20)
+
+### Features
+
+* **cli:** add --env-gates flag to list-tools for USE_* documentation ([#59](https://github.com/structured-world/gitlab-mcp/issues/59)) ([579c682](https://github.com/structured-world/gitlab-mcp/commit/579c682e1276cc7034c38b00b2043d7bdc86920b)), closes [#53](https://github.com/structured-world/gitlab-mcp/issues/53)
+
 ## [6.11.0](https://github.com/structured-world/gitlab-mcp/compare/v6.10.0...v6.11.0) (2026-01-20)
 
 ### Features
