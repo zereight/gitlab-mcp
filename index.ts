@@ -1390,7 +1390,7 @@ function normalizeGitLabApiUrl(url: string): string {
 }
 
 // Use the normalizeGitLabApiUrl function to handle various URL formats
-const GITLAB_API_URLS = (process.env.GITLAB_API_URL || "https://gitlab.com")
+const GITLAB_API_URLS = (getConfig('api-url', 'GITLAB_API_URL') || "https://gitlab.com")
   .split(",")
   .map(normalizeGitLabApiUrl);
 const GITLAB_API_URL = GITLAB_API_URLS[0];
