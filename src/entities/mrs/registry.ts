@@ -16,7 +16,7 @@ import { isActionDenied } from "../../config";
  * browse_merge_requests (Query): list, get, diffs, compare
  * browse_mr_discussions (Query): list, drafts, draft
  * manage_merge_request (Command): create, update, merge
- * manage_mr_discussion (Command): comment, thread, reply, update
+ * manage_mr_discussion (Command): comment, thread, reply, update, apply_suggestion, apply_suggestions
  * manage_draft_notes (Command): create, update, publish, publish_all, delete
  */
 export const mrsToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefinition>([
@@ -269,7 +269,7 @@ export const mrsToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefinit
     {
       name: "manage_mr_discussion",
       description:
-        'MANAGE MR discussions. Actions: "comment" adds comment to issue/MR, "thread" starts new discussion, "reply" responds to existing thread, "update" modifies note.',
+        'MANAGE MR discussions and suggestions. Actions: "comment" adds comment, "thread" starts discussion, "reply" responds to thread, "update" modifies note, "apply_suggestion" applies single code suggestion, "apply_suggestions" batch applies multiple suggestions.',
       inputSchema: z.toJSONSchema(ManageMrDiscussionSchema),
       gate: { envVar: "USE_MRS", defaultValue: true },
       handler: async (args: unknown) => {
@@ -344,6 +344,38 @@ export const mrsToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefinit
             return gitlab.put(
               `projects/${normalizeProjectId(project_id)}/merge_requests/${merge_request_iid}/notes/${note_id}`,
               { body: { body: noteBody }, contentType: "form" }
+            );
+          }
+
+          case "apply_suggestion": {
+            // TypeScript knows: input has suggestion_id (required), commit_message (optional)
+            const { project_id, merge_request_iid, suggestion_id, commit_message } = input;
+
+            const body: Record<string, unknown> = {};
+            if (commit_message) {
+              body.commit_message = commit_message;
+            }
+
+            return gitlab.put(
+              `projects/${normalizeProjectId(project_id)}/merge_requests/${merge_request_iid}/suggestions/${suggestion_id}/apply`,
+              { body: Object.keys(body).length > 0 ? body : undefined, contentType: "json" }
+            );
+          }
+
+          case "apply_suggestions": {
+            // TypeScript knows: input has suggestion_ids (required), commit_message (optional)
+            const { project_id, merge_request_iid, suggestion_ids, commit_message } = input;
+
+            const body: Record<string, unknown> = {
+              ids: suggestion_ids,
+            };
+            if (commit_message) {
+              body.commit_message = commit_message;
+            }
+
+            return gitlab.put(
+              `projects/${normalizeProjectId(project_id)}/merge_requests/${merge_request_iid}/suggestions/batch_apply`,
+              { body, contentType: "json" }
             );
           }
 

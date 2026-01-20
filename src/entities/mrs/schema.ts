@@ -140,7 +140,7 @@ export const ManageMergeRequestSchema = z.discriminatedUnion("action", [
 
 // ============================================================================
 // manage_mr_discussion - CQRS Command Tool (discriminated union schema)
-// Actions: comment, thread, reply, update
+// Actions: comment, thread, reply, update, apply_suggestion, apply_suggestions
 // Uses z.discriminatedUnion() for type-safe action handling.
 // Schema pipeline flattens to flat JSON Schema for AI clients that don't support oneOf.
 // ============================================================================
@@ -189,12 +189,32 @@ const UpdateNoteSchema = z.object({
   body: z.string().describe("New content/text for the note"),
 });
 
+// --- Action: apply_suggestion ---
+const ApplySuggestionSchema = z.object({
+  action: z.literal("apply_suggestion").describe("Apply a single code suggestion from a review"),
+  project_id: projectIdField,
+  merge_request_iid: mergeRequestIidField,
+  suggestion_id: z.number().describe("ID of the suggestion to apply"),
+  commit_message: z.string().optional().describe("Custom commit message for the apply commit"),
+});
+
+// --- Action: apply_suggestions ---
+const ApplySuggestionsSchema = z.object({
+  action: z.literal("apply_suggestions").describe("Batch apply multiple code suggestions"),
+  project_id: projectIdField,
+  merge_request_iid: mergeRequestIidField,
+  suggestion_ids: z.array(z.number()).min(1).describe("Array of suggestion IDs to apply"),
+  commit_message: z.string().optional().describe("Custom commit message for the apply commit"),
+});
+
 // --- Discriminated union combining all actions ---
 export const ManageMrDiscussionSchema = z.discriminatedUnion("action", [
   CommentOnNoteableSchema,
   CreateThreadSchema,
   ReplyToThreadSchema,
   UpdateNoteSchema,
+  ApplySuggestionSchema,
+  ApplySuggestionsSchema,
 ]);
 
 // ============================================================================

@@ -135,6 +135,8 @@ describe("MRS Registry", () => {
       expect(tool!.description).toContain("thread");
       expect(tool!.description).toContain("reply");
       expect(tool!.description).toContain("update");
+      expect(tool!.description).toContain("apply_suggestion");
+      expect(tool!.description).toContain("apply_suggestions");
       expect(tool!.inputSchema).toBeDefined();
     });
 
@@ -823,6 +825,103 @@ describe("MRS Registry", () => {
             })
           );
           expect(result).toEqual(mockNote);
+        });
+      });
+
+      describe("action: apply_suggestion", () => {
+        it("should apply a single suggestion", async () => {
+          const mockResult = { id: 12345, applied: true };
+          mockGitlab.put.mockResolvedValueOnce(mockResult);
+
+          const tool = mrsToolRegistry.get("manage_mr_discussion")!;
+          const result = await tool.handler({
+            action: "apply_suggestion",
+            project_id: "test/project",
+            merge_request_iid: 42,
+            suggestion_id: 12345,
+          });
+
+          expect(mockGitlab.put).toHaveBeenCalledWith(
+            "projects/test%2Fproject/merge_requests/42/suggestions/12345/apply",
+            expect.objectContaining({
+              body: undefined,
+              contentType: "json",
+            })
+          );
+          expect(result).toEqual(mockResult);
+        });
+
+        it("should apply a suggestion with custom commit message", async () => {
+          const mockResult = { id: 12345, applied: true };
+          mockGitlab.put.mockResolvedValueOnce(mockResult);
+
+          const tool = mrsToolRegistry.get("manage_mr_discussion")!;
+          const result = await tool.handler({
+            action: "apply_suggestion",
+            project_id: "test/project",
+            merge_request_iid: 42,
+            suggestion_id: 12345,
+            commit_message: "Apply suggestion: fix typo",
+          });
+
+          expect(mockGitlab.put).toHaveBeenCalledWith(
+            "projects/test%2Fproject/merge_requests/42/suggestions/12345/apply",
+            expect.objectContaining({
+              body: { commit_message: "Apply suggestion: fix typo" },
+              contentType: "json",
+            })
+          );
+          expect(result).toEqual(mockResult);
+        });
+      });
+
+      describe("action: apply_suggestions", () => {
+        it("should batch apply multiple suggestions", async () => {
+          const mockResult = { applied_count: 3 };
+          mockGitlab.put.mockResolvedValueOnce(mockResult);
+
+          const tool = mrsToolRegistry.get("manage_mr_discussion")!;
+          const result = await tool.handler({
+            action: "apply_suggestions",
+            project_id: "test/project",
+            merge_request_iid: 42,
+            suggestion_ids: [12345, 12346, 12347],
+          });
+
+          expect(mockGitlab.put).toHaveBeenCalledWith(
+            "projects/test%2Fproject/merge_requests/42/suggestions/batch_apply",
+            expect.objectContaining({
+              body: { ids: [12345, 12346, 12347] },
+              contentType: "json",
+            })
+          );
+          expect(result).toEqual(mockResult);
+        });
+
+        it("should batch apply suggestions with custom commit message", async () => {
+          const mockResult = { applied_count: 2 };
+          mockGitlab.put.mockResolvedValueOnce(mockResult);
+
+          const tool = mrsToolRegistry.get("manage_mr_discussion")!;
+          const result = await tool.handler({
+            action: "apply_suggestions",
+            project_id: "test/project",
+            merge_request_iid: 42,
+            suggestion_ids: [12345, 12346],
+            commit_message: "Apply code review suggestions",
+          });
+
+          expect(mockGitlab.put).toHaveBeenCalledWith(
+            "projects/test%2Fproject/merge_requests/42/suggestions/batch_apply",
+            expect.objectContaining({
+              body: {
+                ids: [12345, 12346],
+                commit_message: "Apply code review suggestions",
+              },
+              contentType: "json",
+            })
+          );
+          expect(result).toEqual(mockResult);
         });
       });
     });
