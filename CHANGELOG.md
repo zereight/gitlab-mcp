@@ -1,3 +1,9 @@
+## [6.11.0](https://github.com/structured-world/gitlab-mcp/compare/v6.10.0...v6.11.0) (2026-01-20)
+
+### Features
+
+* **schema:** add auto-detection schema mode from clientInfo ([#52](https://github.com/structured-world/gitlab-mcp/issues/52)) ([9ec6368](https://github.com/structured-world/gitlab-mcp/commit/9ec6368c7431e95b0d83851462e267575d3118af)), closes [#49](https://github.com/structured-world/gitlab-mcp/issues/49)
+
 ## [6.10.0](https://github.com/structured-world/gitlab-mcp/compare/v6.9.0...v6.10.0) (2026-01-20)
 
 ### Features
