@@ -27,6 +27,7 @@ export const pipelinesToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
       description:
         'BROWSE pipelines. Actions: "list" searches pipelines with filtering, "get" retrieves single pipeline details, "jobs" lists jobs in pipeline, "triggers" lists bridge/trigger jobs, "job" gets single job details, "logs" fetches job console output.',
       inputSchema: z.toJSONSchema(BrowsePipelinesSchema),
+      gate: { envVar: "USE_PIPELINE", defaultValue: true },
       handler: async (args: unknown): Promise<unknown> => {
         const input = BrowsePipelinesSchema.parse(args);
 
@@ -174,6 +175,7 @@ export const pipelinesToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
       description:
         'MANAGE pipelines. Actions: "create" triggers new pipeline on branch/tag with optional variables, "retry" re-runs failed/canceled pipeline, "cancel" stops running pipeline.',
       inputSchema: z.toJSONSchema(ManagePipelineSchema),
+      gate: { envVar: "USE_PIPELINE", defaultValue: true },
       handler: async (args: unknown): Promise<unknown> => {
         const input = ManagePipelineSchema.parse(args);
 
@@ -291,6 +293,7 @@ export const pipelinesToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
       description:
         'MANAGE pipeline jobs. Actions: "play" triggers manual job with optional variables, "retry" re-runs failed/canceled job, "cancel" stops running job.',
       inputSchema: z.toJSONSchema(ManagePipelineJobSchema),
+      gate: { envVar: "USE_PIPELINE", defaultValue: true },
       handler: async (args: unknown): Promise<unknown> => {
         const input = ManagePipelineJobSchema.parse(args);
 

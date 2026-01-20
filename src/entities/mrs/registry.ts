@@ -31,6 +31,7 @@ export const mrsToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefinit
       description:
         'BROWSE merge requests. Actions: "list" shows MRs with filtering, "get" retrieves single MR by IID or branch, "diffs" shows file changes, "compare" diffs two branches/commits.',
       inputSchema: z.toJSONSchema(BrowseMergeRequestsSchema),
+      gate: { envVar: "USE_MRS", defaultValue: true },
       handler: async (args: unknown) => {
         const input = BrowseMergeRequestsSchema.parse(args);
 
@@ -135,6 +136,7 @@ export const mrsToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefinit
       description:
         'BROWSE MR discussions and draft notes. Actions: "list" shows all discussion threads, "drafts" lists unpublished draft notes, "draft" gets single draft note.',
       inputSchema: z.toJSONSchema(BrowseMrDiscussionsSchema),
+      gate: { envVar: "USE_MRS", defaultValue: true },
       handler: async (args: unknown) => {
         const input = BrowseMrDiscussionsSchema.parse(args);
 
@@ -190,6 +192,7 @@ export const mrsToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefinit
       description:
         'MANAGE merge requests. Actions: "create" creates new MR, "update" modifies existing MR, "merge" merges approved MR into target branch.',
       inputSchema: z.toJSONSchema(ManageMergeRequestSchema),
+      gate: { envVar: "USE_MRS", defaultValue: true },
       handler: async (args: unknown) => {
         const input = ManageMergeRequestSchema.parse(args);
 
@@ -268,6 +271,7 @@ export const mrsToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefinit
       description:
         'MANAGE MR discussions. Actions: "comment" adds comment to issue/MR, "thread" starts new discussion, "reply" responds to existing thread, "update" modifies note.',
       inputSchema: z.toJSONSchema(ManageMrDiscussionSchema),
+      gate: { envVar: "USE_MRS", defaultValue: true },
       handler: async (args: unknown) => {
         const input = ManageMrDiscussionSchema.parse(args);
 
@@ -362,6 +366,7 @@ export const mrsToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefinit
       description:
         'MANAGE draft notes. Actions: "create" creates draft note, "update" modifies draft, "publish" publishes single draft, "publish_all" publishes all drafts, "delete" removes draft.',
       inputSchema: z.toJSONSchema(ManageDraftNotesSchema),
+      gate: { envVar: "USE_MRS", defaultValue: true },
       handler: async (args: unknown) => {
         const input = ManageDraftNotesSchema.parse(args);
 

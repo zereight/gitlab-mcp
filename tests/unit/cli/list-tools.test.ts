@@ -975,4 +975,145 @@ describe("list-tools script", () => {
       expect(aRequiredPos).toBeLessThan(mOptionalPos);
     });
   });
+
+  describe("--env-gates flag", () => {
+    it("should output env gates in markdown format", async () => {
+      mockManager.getAllToolDefinitionsUnfiltered.mockReturnValue([
+        {
+          name: "browse_labels",
+          description: "Browse labels",
+          inputSchema: { type: "object" },
+          gate: { envVar: "USE_LABELS", defaultValue: true },
+        },
+        {
+          name: "manage_label",
+          description: "Manage labels",
+          inputSchema: { type: "object" },
+          gate: { envVar: "USE_LABELS", defaultValue: true },
+        },
+        {
+          name: "browse_wiki",
+          description: "Browse wiki",
+          inputSchema: { type: "object" },
+          gate: { envVar: "USE_GITLAB_WIKI", defaultValue: true },
+        },
+        {
+          name: "browse_projects",
+          description: "Core tool without gate",
+          inputSchema: { type: "object" },
+          // No gate - always enabled
+        },
+      ]);
+
+      process.argv = ["node", "list-tools.ts", "--env-gates"];
+
+      const { main } = await import("../../../src/cli/list-tools");
+      await main();
+
+      const allCalls = mockConsoleLog.mock.calls.flat().join("\n");
+
+      // Check header
+      expect(allCalls).toContain("# Environment Variable Gates");
+      // Check table structure
+      expect(allCalls).toContain("| Variable | Default | Tools Controlled |");
+      // Check gates
+      expect(allCalls).toContain("`USE_LABELS`");
+      expect(allCalls).toContain("`browse_labels`");
+      expect(allCalls).toContain("`manage_label`");
+      expect(allCalls).toContain("`USE_GITLAB_WIKI`");
+      expect(allCalls).toContain("`browse_wiki`");
+      // Check ungated tools
+      expect(allCalls).toContain("*(none - always on)*");
+      expect(allCalls).toContain("`browse_projects`");
+    });
+
+    it("should output env gates in JSON format", async () => {
+      mockManager.getAllToolDefinitionsUnfiltered.mockReturnValue([
+        {
+          name: "browse_labels",
+          description: "Browse labels",
+          inputSchema: { type: "object" },
+          gate: { envVar: "USE_LABELS", defaultValue: true },
+        },
+        {
+          name: "browse_projects",
+          description: "Core tool",
+          inputSchema: { type: "object" },
+        },
+      ]);
+
+      process.argv = ["node", "list-tools.ts", "--env-gates", "--json"];
+
+      const { main } = await import("../../../src/cli/list-tools");
+      await main();
+
+      // Find the JSON output call
+      const jsonCall = mockConsoleLog.mock.calls.find(call => {
+        try {
+          const parsed = JSON.parse(call[0] as string);
+          return parsed.gates !== undefined;
+        } catch {
+          return false;
+        }
+      });
+
+      expect(jsonCall).toBeDefined();
+      const output = JSON.parse(jsonCall![0] as string);
+
+      expect(output.gates).toBeDefined();
+      expect(output.gates).toHaveLength(1);
+      expect(output.gates[0].envVar).toBe("USE_LABELS");
+      expect(output.gates[0].defaultValue).toBe(true);
+      expect(output.gates[0].tools).toContain("browse_labels");
+
+      expect(output.ungated).toBeDefined();
+      expect(output.ungated.tools).toContain("browse_projects");
+    });
+
+    it("should group multiple tools under the same env var", async () => {
+      mockManager.getAllToolDefinitionsUnfiltered.mockReturnValue([
+        {
+          name: "browse_merge_requests",
+          description: "Browse MRs",
+          inputSchema: { type: "object" },
+          gate: { envVar: "USE_MRS", defaultValue: true },
+        },
+        {
+          name: "manage_merge_request",
+          description: "Manage MR",
+          inputSchema: { type: "object" },
+          gate: { envVar: "USE_MRS", defaultValue: true },
+        },
+        {
+          name: "browse_mr_discussions",
+          description: "Browse discussions",
+          inputSchema: { type: "object" },
+          gate: { envVar: "USE_MRS", defaultValue: true },
+        },
+      ]);
+
+      process.argv = ["node", "list-tools.ts", "--env-gates", "--json"];
+
+      const { main } = await import("../../../src/cli/list-tools");
+      await main();
+
+      const jsonCall = mockConsoleLog.mock.calls.find(call => {
+        try {
+          const parsed = JSON.parse(call[0] as string);
+          return parsed.gates !== undefined;
+        } catch {
+          return false;
+        }
+      });
+
+      const output = JSON.parse(jsonCall![0] as string);
+      const mrsGate = output.gates.find((g: { envVar: string }) => g.envVar === "USE_MRS");
+
+      expect(mrsGate).toBeDefined();
+      expect(mrsGate.tools).toHaveLength(3);
+      expect(mrsGate.tools).toContain("browse_merge_requests");
+      expect(mrsGate.tools).toContain("manage_merge_request");
+      expect(mrsGate.tools).toContain("browse_mr_discussions");
+    });
+  });
 });

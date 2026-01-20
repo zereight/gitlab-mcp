@@ -25,6 +25,7 @@ export const filesToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefin
       description:
         'BROWSE repository files. Actions: "tree" lists files/folders with pagination, "content" reads file contents. Use for exploring project structure or reading source code.',
       inputSchema: z.toJSONSchema(BrowseFilesSchema),
+      gate: { envVar: "USE_FILES", defaultValue: true },
       handler: async (args: unknown) => {
         const input = BrowseFilesSchema.parse(args);
 
@@ -89,6 +90,7 @@ export const filesToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefin
       description:
         'MANAGE repository files. Actions: "single" creates/updates one file, "batch" commits multiple files atomically, "upload" adds markdown attachments.',
       inputSchema: z.toJSONSchema(ManageFilesSchema),
+      gate: { envVar: "USE_FILES", defaultValue: true },
       handler: async (args: unknown) => {
         const input = ManageFilesSchema.parse(args);
 

@@ -25,6 +25,7 @@ export const milestonesToolRegistry: ToolRegistry = new Map<string, EnhancedTool
       description:
         'BROWSE milestones. Actions: "list" shows milestones with filtering, "get" retrieves single milestone, "issues" lists issues in milestone, "merge_requests" lists MRs in milestone, "burndown" gets burndown chart data.',
       inputSchema: z.toJSONSchema(BrowseMilestonesSchema),
+      gate: { envVar: "USE_MILESTONE", defaultValue: true },
       handler: async (args: unknown) => {
         const input = BrowseMilestonesSchema.parse(args);
 
@@ -99,6 +100,7 @@ export const milestonesToolRegistry: ToolRegistry = new Map<string, EnhancedTool
       description:
         'MANAGE milestones. Actions: "create" creates new milestone, "update" modifies existing milestone, "delete" removes milestone, "promote" elevates project milestone to group level.',
       inputSchema: z.toJSONSchema(ManageMilestoneSchema),
+      gate: { envVar: "USE_MILESTONE", defaultValue: true },
       handler: async (args: unknown) => {
         const input = ManageMilestoneSchema.parse(args);
 

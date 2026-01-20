@@ -5,6 +5,7 @@ import * as fs from "fs";
 import * as path from "path";
 import { RegistryManager } from "../registry-manager";
 import { ToolAvailability } from "../services/ToolAvailability";
+import { EnhancedToolDefinition } from "../types";
 
 interface JsonSchemaProperty {
   type?: string;
@@ -31,6 +32,7 @@ interface CliOptions {
   entity?: string;
   tool?: string;
   showEnv?: boolean;
+  showEnvGates?: boolean;
   verbose?: boolean;
   detail?: boolean;
   noExamples?: boolean;
@@ -42,6 +44,7 @@ function parseArgs(): CliOptions {
   const options: CliOptions = {
     format: "markdown",
     showEnv: false,
+    showEnvGates: false,
     verbose: false,
     detail: false,
     noExamples: false,
@@ -78,6 +81,9 @@ function parseArgs(): CliOptions {
         break;
       case "--env":
         options.showEnv = true;
+        break;
+      case "--env-gates":
+        options.showEnvGates = true;
         break;
       case "--verbose":
       case "-v":
@@ -120,6 +126,7 @@ Options:
   --json              Output in JSON format
   --simple            Simple list of tool names
   --export            Generate complete TOOLS.md documentation
+  --env-gates         Show USE_* environment variable gates
   --entity <name>     Filter by entity (e.g., workitems, labels, mrs)
   --tool <name>       Show details for specific tool
   --env               Show environment configuration
@@ -136,6 +143,8 @@ Examples:
   yarn list-tools --export > docs/TOOLS.md       # Generate TOOLS.md to file
   yarn list-tools --export --toc                 # With table of contents
   yarn list-tools --export --no-examples         # Skip example JSON blocks
+  yarn list-tools --env-gates                    # Show USE_* variable gates
+  yarn list-tools --env-gates --json             # JSON output of gates
   yarn list-tools --entity workitems             # Only work items tools
   yarn list-tools --tool list_work_items         # Specific tool details
   GITLAB_READONLY=true yarn list-tools           # Show read-only tools
@@ -798,6 +807,101 @@ function generateExportMarkdown(
   return lines.join("\n");
 }
 
+// ============================================================================
+// Environment Gates Functions
+// ============================================================================
+
+interface EnvGateInfo {
+  envVar: string;
+  defaultValue: boolean;
+  tools: string[];
+}
+
+/**
+ * Extract environment gate information from tool definitions
+ */
+function extractEnvGates(tools: EnhancedToolDefinition[]): EnvGateInfo[] {
+  const gatesMap = new Map<string, EnvGateInfo>();
+
+  for (const tool of tools) {
+    if (tool.gate) {
+      const existing = gatesMap.get(tool.gate.envVar);
+      if (existing) {
+        existing.tools.push(tool.name);
+      } else {
+        gatesMap.set(tool.gate.envVar, {
+          envVar: tool.gate.envVar,
+          defaultValue: tool.gate.defaultValue,
+          tools: [tool.name],
+        });
+      }
+    }
+  }
+
+  // Sort by envVar name and return as array
+  return Array.from(gatesMap.values()).sort((a, b) => a.envVar.localeCompare(b.envVar));
+}
+
+/**
+ * Get tools without any gate (always enabled)
+ */
+function getUngatedTools(tools: EnhancedToolDefinition[]): string[] {
+  return tools.filter(tool => !tool.gate).map(tool => tool.name);
+}
+
+/**
+ * Print env gates in markdown table format
+ */
+function printEnvGatesMarkdown(
+  gates: EnvGateInfo[],
+  ungatedTools: string[],
+  format: "markdown" | "json"
+): void {
+  if (format === "json") {
+    const output = {
+      gates: gates.map(g => ({
+        envVar: g.envVar,
+        defaultValue: g.defaultValue,
+        tools: g.tools,
+      })),
+      ungated: {
+        description: "Core tools (always enabled)",
+        tools: ungatedTools,
+      },
+    };
+    console.log(JSON.stringify(output, null, 2));
+    return;
+  }
+
+  // Markdown format
+  console.log("# Environment Variable Gates\n");
+  console.log("This table shows which `USE_*` environment variables control which tools.\n");
+  console.log("| Variable | Default | Tools Controlled |");
+  console.log("|----------|---------|------------------|");
+
+  for (const gate of gates) {
+    const defaultStr = gate.defaultValue ? "`true`" : "`false`";
+    const toolsStr = gate.tools.map(t => `\`${t}\``).join(", ");
+    console.log(`| \`${gate.envVar}\` | ${defaultStr} | ${toolsStr} |`);
+  }
+
+  // Show ungated (core) tools
+  if (ungatedTools.length > 0) {
+    const toolsStr = ungatedTools.map(t => `\`${t}\``).join(", ");
+    console.log(`| *(none - always on)* | - | ${toolsStr} |`);
+  }
+
+  console.log("\n## Usage\n");
+  console.log("Set environment variables to `false` to disable tool groups:\n");
+  console.log("```bash");
+  console.log("# Disable wiki tools");
+  console.log("USE_GITLAB_WIKI=false");
+  console.log("");
+  console.log("# Disable pipeline tools");
+  console.log("USE_PIPELINE=false");
+  console.log("```");
+}
+
 export async function main() {
   const options = parseArgs();
 
@@ -806,9 +910,19 @@ export async function main() {
   }
 
   // Get all tools from registry manager
+  const registryManager = RegistryManager.getInstance();
+
+  // Handle --env-gates flag
+  if (options.showEnvGates) {
+    const allTools = registryManager.getAllToolDefinitionsUnfiltered();
+    const gates = extractEnvGates(allTools);
+    const ungated = getUngatedTools(allTools);
+    printEnvGatesMarkdown(gates, ungated, options.format === "json" ? "json" : "markdown");
+    return;
+  }
+
   // For export mode: get ALL tools without filtering (for documentation)
   // For other modes: respect env vars filtering
-  const registryManager = RegistryManager.getInstance();
   const toolDefinitions =
     options.format === "export"
       ? registryManager.getAllToolDefinitionsUnfiltered()

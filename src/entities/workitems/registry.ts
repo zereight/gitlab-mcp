@@ -216,6 +216,7 @@ export const workitemsToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
       description:
         'BROWSE work items. Actions: "list" shows work items with filtering (groups return epics, projects return issues/tasks), "get" retrieves single work item by ID with full widget details.',
       inputSchema: z.toJSONSchema(BrowseWorkItemsSchema),
+      gate: { envVar: "USE_WORKITEMS", defaultValue: true },
       handler: async (args: unknown): Promise<unknown> => {
         const input = BrowseWorkItemsSchema.parse(args);
 
@@ -330,6 +331,7 @@ export const workitemsToolRegistry: ToolRegistry = new Map<string, EnhancedToolD
       description:
         'MANAGE work items. Actions: "create" creates new work item (Epics need GROUP namespace, Issues/Tasks need PROJECT), "update" modifies properties/widgets, "delete" permanently removes.',
       inputSchema: z.toJSONSchema(ManageWorkItemSchema),
+      gate: { envVar: "USE_WORKITEMS", defaultValue: true },
       handler: async (args: unknown): Promise<unknown> => {
         const input = ManageWorkItemSchema.parse(args);
 

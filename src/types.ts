@@ -23,9 +23,16 @@ export interface ToolDefinition {
   inputSchema: Record<string, unknown>;
 }
 
+// Feature gate metadata for USE_* environment variables
+export interface FeatureGate {
+  envVar: string; // e.g., "USE_LABELS"
+  defaultValue: boolean; // Default when env var is not set
+}
+
 // Enhanced tool definition interface that includes handler function
 export interface EnhancedToolDefinition extends ToolDefinition {
   handler: (args: unknown) => Promise<unknown>;
+  gate?: FeatureGate; // Optional - tools without gate are always enabled
 }
 
 // Tool registry type for storing enhanced tool definitions
