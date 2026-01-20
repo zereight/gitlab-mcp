@@ -1,3 +1,9 @@
+## [6.15.0](https://github.com/structured-world/gitlab-mcp/compare/v6.14.0...v6.15.0) (2026-01-20)
+
+### Features
+
+* **cli:** add profile/preset inspection flags to list-tools ([#64](https://github.com/structured-world/gitlab-mcp/issues/64)) ([70f7994](https://github.com/structured-world/gitlab-mcp/commit/70f7994453f9276488ce36d8fefab9921a43a788)), closes [#56](https://github.com/structured-world/gitlab-mcp/issues/56)
+
 ## [6.14.0](https://github.com/structured-world/gitlab-mcp/compare/v6.13.0...v6.14.0) (2026-01-20)
 
 ### Features
