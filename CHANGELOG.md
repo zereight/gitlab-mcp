@@ -1,3 +1,9 @@
+## [6.16.0](https://github.com/structured-world/gitlab-mcp/compare/v6.15.0...v6.16.0) (2026-01-20)
+
+### Features
+
+* **profiles:** add project-level configuration support ([#65](https://github.com/structured-world/gitlab-mcp/issues/65)) ([94e8e99](https://github.com/structured-world/gitlab-mcp/commit/94e8e9907cae6e08e8498df1d16586abfc3f3b2e)), closes [#61](https://github.com/structured-world/gitlab-mcp/issues/61) [#61](https://github.com/structured-world/gitlab-mcp/issues/61)
+
 ## [6.15.0](https://github.com/structured-world/gitlab-mcp/compare/v6.14.0...v6.15.0) (2026-01-20)
 
 ### Features
