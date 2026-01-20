@@ -25,6 +25,11 @@ export default [
         clearInterval: "readonly",
         clearTimeout: "readonly",
         fetch: "readonly",
+        // Node.js CommonJS globals
+        __dirname: "readonly",
+        __filename: "readonly",
+        module: "readonly",
+        require: "readonly",
       },
     },
     plugins: {

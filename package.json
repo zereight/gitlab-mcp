@@ -4,7 +4,7 @@
   "description": "MCP server for using the GitLab API",
   "license": "Apache-2.0",
   "author": "Dmitry Prudnikov <mail@polaz.com>",
-  "packageManager": "yarn@4.9.4",
+  "packageManager": "yarn@4.12.0",
   "contributors": [
     {
       "name": "zereight",
@@ -31,7 +31,8 @@
   },
   "scripts": {
     "postinstall": "test -f prisma/schema.prisma && prisma generate || true",
-    "build": "prisma generate && tsc -p tsconfig.build.json",
+    "build": "prisma generate && tsc -p tsconfig.build.json && yarn build:copy-assets",
+    "build:copy-assets": "node -e \"const fs=require('fs'),p=require('path');const src='src/profiles/builtin',dst='dist/src/profiles/builtin';fs.mkdirSync(dst,{recursive:true});fs.readdirSync(src).filter(f=>f.endsWith('.yaml')).forEach(f=>fs.copyFileSync(p.join(src,f),p.join(dst,f)))\"",
     "start": "node --no-warnings -r source-map-support/register --experimental-specifier-resolution=node dist/src/main.js",
     "dev:stdio": "node --env-file=.env.test -r source-map-support/register -r ts-node/register --experimental-specifier-resolution=node --experimental-print-required-tla --watch src/main.ts stdio",
     "dev:sse": "node --env-file=.env.test -r source-map-support/register -r ts-node/register --experimental-specifier-resolution=node --experimental-print-required-tla --watch src/main.ts sse",
@@ -67,6 +68,7 @@
     "socks-proxy-agent": "^8.0.5",
     "transliteration": "^2.6.0",
     "undici": "^7.18.2",
+    "yaml": "^2.8.2",
     "zod": "^4.3.5"
   },
   "devDependencies": {

@@ -1,0 +1,25 @@
+# Admin preset - full access to all features
+#
+# Use with caution - this preset enables all tools
+# including webhooks, integrations, and variables.
+#
+# Recommended only for GitLab administrators.
+#
+# NOTE: This is a PRESET - host/auth come from environment variables.
+
+description: "Full admin access - all features enabled"
+
+read_only: false
+
+features:
+  wiki: true
+  milestones: true
+  pipelines: true
+  labels: true
+  mrs: true
+  files: true
+  variables: true
+  workitems: true
+  webhooks: true
+  snippets: true
+  integrations: true

@@ -1,0 +1,28 @@
+# Read-only preset - safe browsing without write access
+#
+# Use this preset when you need to explore a GitLab instance
+# without any risk of modifying data.
+#
+# All write operations (create, update, delete) are blocked.
+#
+# NOTE: This is a PRESET, not a full profile.
+# It does NOT contain host or auth - those come from your
+# environment variables (GITLAB_API_URL, GITLAB_TOKEN).
+
+description: "Read-only access - blocks all write operations"
+
+read_only: true
+denied_tools_regex: "^manage_|^create_"
+
+features:
+  wiki: true
+  milestones: true
+  pipelines: true
+  labels: true
+  mrs: true
+  files: true
+  variables: false  # Variables often contain secrets
+  workitems: true
+  webhooks: false   # Webhooks are admin-level
+  snippets: true
+  integrations: false  # Integrations are admin-level

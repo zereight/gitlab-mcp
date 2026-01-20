@@ -1,9 +1,9 @@
 name: Pull Request Checks
 
+# Uses pull_request (not pull_request_target) to run workflow from PR branch
+# and ensure PR changes to workflow take effect immediately
 on:
   pull_request:
-    branches: [main]
-  pull_request_target:
     branches: [main]
 
 permissions:
@@ -26,6 +26,9 @@ jobs:
 
       - name: Enable Corepack
         run: corepack enable
+
+      - name: Install Yarn
+        run: corepack prepare yarn@4.12.0 --activate
 
       - name: Install dependencies
         run: yarn install --frozen-lockfile

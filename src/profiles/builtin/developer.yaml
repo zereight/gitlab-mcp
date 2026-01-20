@@ -1,0 +1,35 @@
+# Developer preset - standard development workflow
+#
+# Full access to development-related tools including:
+# - Code browsing and file management
+# - Work items and merge requests
+# - Labels and milestones
+#
+# Restricted access to admin-level features.
+#
+# NOTE: This is a PRESET - host/auth come from environment variables.
+
+description: "Standard developer access - no admin features"
+
+read_only: false
+
+features:
+  wiki: true
+  milestones: true
+  pipelines: true
+  labels: true
+  mrs: true
+  files: true
+  variables: false  # Requires elevated access
+  workitems: true
+  webhooks: false   # Admin only
+  snippets: true
+  integrations: false  # Admin only
+
+# Block dangerous actions
+denied_actions:
+  - "manage_repository:delete"
+  - "manage_webhook:create"
+  - "manage_webhook:update"
+  - "manage_webhook:delete"
+  - "manage_integration:update"

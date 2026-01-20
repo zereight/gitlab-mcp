@@ -26,12 +26,10 @@ import {
 import { isOAuthEnabled, getTokenContext } from "../oauth/index";
 
 // Dynamic require to avoid TypeScript analyzing complex undici types at compile time
-/* eslint-disable no-undef */
 const undici = require("undici") as {
   Agent: new (opts?: Record<string, unknown>) => unknown;
   ProxyAgent: new (opts: string | Record<string, unknown>) => unknown;
 };
-/* eslint-enable no-undef */
 
 /**
  * Cookie handling - parse cookies from file and format for HTTP Cookie header
