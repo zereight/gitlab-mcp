@@ -33,6 +33,7 @@
     "test:live": "node test/validate-api.js && tsx test/readonly-mcp-tests.ts",
     "test:remote-auth": "npm run build && npx tsx --test test/remote-auth-simple-test.ts",
     "test:mcp:readonly": "tsx test/readonly-mcp-tests.ts",
+    "test:schema": "tsx test/schema-tests.ts",
     "test:oauth": "tsx test/oauth-tests.ts",
     "test:list-merge-requests": "npm run build && tsx test/test-list-merge-requests.ts",
     "lint": "eslint . --ext .ts",

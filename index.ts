@@ -1434,17 +1434,17 @@ async function getDefaultBranchRef(projectId: string): Promise<string> {
  * @returns {Promise<GitLabContent>} The file content
  */
 async function getFileContents(
-  projectId: string,
+  projectId: string | undefined,
   filePath: string,
   ref?: string
 ): Promise<GitLabContent> {
-  projectId = decodeURIComponent(projectId); // Decode project ID
-  const effectiveProjectId = getEffectiveProjectId(projectId);
+  const decodedProjectId = projectId ? decodeURIComponent(projectId) : "";
+  const effectiveProjectId = getEffectiveProjectId(decodedProjectId);
   const encodedPath = encodeURIComponent(filePath);
 
   // ref가 없는 경우 default branch를 가져옴
   if (!ref) {
-    ref = await getDefaultBranchRef(projectId);
+    ref = await getDefaultBranchRef(decodedProjectId);
   }
 
   const url = new URL(

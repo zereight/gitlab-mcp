@@ -478,8 +478,8 @@ export const GitLabFileContentSchema = z.object({
   file_name: z.string().optional(),
   file_path: z.string(),
   size: z.coerce.number().optional(),
-  encoding: z.string().optional(),
-  content: z.string().optional(),
+  encoding: z.string(),
+  content: z.string(),
   content_sha256: z.string().optional(),
   ref: z.string().optional(),
   blob_id: z.string().optional(),
@@ -1060,24 +1060,42 @@ export const CreateRepositorySchema = z.object({
 
 export const GetFileContentsSchema = z
   .object({
-    project_id: z.coerce.string().optional().describe("Project ID or URL-encoded path"),
-    file_path: z.string().optional().describe("Path to the file or directory"),
+    project_id: z.coerce
+      .string()
+      .optional()
+      .describe("Project ID or URL-encoded path (optional; falls back to env)"),
+    file_path: z
+      .string()
+      .optional()
+      .describe(
+        "Path to the file or directory. Takes precedence over 'path' when both are provided"
+      ),
     path: z.string().optional().describe("Alias of file_path"),
     ref: z.string().optional().describe("Branch/tag/commit to get contents from"),
   })
   .superRefine((data, ctx) => {
-    if (!data.file_path && !data.path) {
+    const fp = data.file_path?.trim();
+    const p = data.path?.trim();
+    if (!fp && !p) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         message: "Either 'file_path' or 'path' must be provided",
         path: ["file_path"],
       });
     }
+    const finalPath = fp && fp.length > 0 ? fp : p ?? "";
+    if (finalPath.trim().length === 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "file_path cannot be empty or whitespace",
+        path: ["file_path"],
+      });
+    }
   })
   .transform(data => ({
-    project_id: (data.project_id ?? "").trim(),
-    file_path: (data.file_path ?? data.path ?? "").trim(),
-    ref: data.ref,
+    project_id: (data.project_id ?? "").trim() || undefined,
+    file_path: ((data.file_path ?? "").trim() || (data.path ?? "").trim()).trim(),
+    ref: (data.ref ?? "").trim() || undefined,
   }));
 
 export const PushFilesSchema = ProjectParamsSchema.extend({
