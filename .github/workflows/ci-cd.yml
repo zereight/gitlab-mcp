@@ -10,6 +10,8 @@
 # Triggers on push to main and pull requests
 
 name: CI/CD Pipeline
+permissions:
+  contents: read
 
 permissions:
   contents: read
