@@ -422,6 +422,42 @@ class RegistryManager {
   }
 
   /**
+   * Returns ALL tool definitions without any filtering or transformation.
+   * Used for documentation generation (--export) where we need:
+   * - Complete tool catalog regardless of environment configuration
+   * - Original discriminated union schemas for rich action descriptions
+   */
+  public getAllToolDefinitionsUnfiltered(): EnhancedToolDefinition[] {
+    const allTools: EnhancedToolDefinition[] = [];
+
+    // All registries without any filtering
+    const allRegistries: ToolRegistry[] = [
+      coreToolRegistry,
+      labelsToolRegistry,
+      mrsToolRegistry,
+      filesToolRegistry,
+      milestonesToolRegistry,
+      pipelinesToolRegistry,
+      variablesToolRegistry,
+      wikiToolRegistry,
+      workitemsToolRegistry,
+      snippetsToolRegistry,
+      webhooksToolRegistry,
+      integrationsToolRegistry,
+    ];
+
+    for (const registry of allRegistries) {
+      for (const [, tool] of registry) {
+        // Return original schema without transformation
+        // This preserves discriminated union structure for documentation
+        allTools.push(tool);
+      }
+    }
+
+    return allTools;
+  }
+
+  /**
    * Check if a tool exists in any registry - O(1) lookup using cache
    */
   public hasToolHandler(toolName: string): boolean {

@@ -682,4 +682,54 @@ describe("config.ts", () => {
       expect(overrides.get("special")).toBe("Tool with special chars: @#$%^&*()");
     });
   });
+
+  describe("GITLAB_SCHEMA_MODE", () => {
+    it("should default to 'flat' when not set", () => {
+      delete process.env.GITLAB_SCHEMA_MODE;
+
+      const config = require("../../src/config");
+
+      expect(config.GITLAB_SCHEMA_MODE).toBe("flat");
+    });
+
+    it("should return 'flat' when set to 'flat'", () => {
+      process.env.GITLAB_SCHEMA_MODE = "flat";
+
+      const config = require("../../src/config");
+
+      expect(config.GITLAB_SCHEMA_MODE).toBe("flat");
+    });
+
+    it("should return 'discriminated' when set to 'discriminated'", () => {
+      process.env.GITLAB_SCHEMA_MODE = "discriminated";
+
+      const config = require("../../src/config");
+
+      expect(config.GITLAB_SCHEMA_MODE).toBe("discriminated");
+    });
+
+    it("should be case-insensitive", () => {
+      process.env.GITLAB_SCHEMA_MODE = "DISCRIMINATED";
+
+      const config = require("../../src/config");
+
+      expect(config.GITLAB_SCHEMA_MODE).toBe("discriminated");
+    });
+
+    it("should default to 'flat' for invalid values", () => {
+      process.env.GITLAB_SCHEMA_MODE = "invalid";
+
+      const config = require("../../src/config");
+
+      expect(config.GITLAB_SCHEMA_MODE).toBe("flat");
+    });
+
+    it("should default to 'flat' for empty string", () => {
+      process.env.GITLAB_SCHEMA_MODE = "";
+
+      const config = require("../../src/config");
+
+      expect(config.GITLAB_SCHEMA_MODE).toBe("flat");
+    });
+  });
 });

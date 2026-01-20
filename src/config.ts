@@ -56,6 +56,22 @@ function parseDeniedActions(envValue?: string): Map<string, Set<string>> {
 }
 
 export const GITLAB_DENIED_ACTIONS = parseDeniedActions(process.env.GITLAB_DENIED_ACTIONS);
+
+// Schema mode configuration
+// - 'flat' (default): Flatten discriminated unions for AI clients that don't support oneOf well
+// - 'discriminated': Keep oneOf structure for clients that properly support JSON Schema
+export type SchemaMode = "flat" | "discriminated";
+
+function parseSchemaMode(value?: string): SchemaMode {
+  const mode = value?.toLowerCase();
+  if (mode === "discriminated") {
+    return "discriminated";
+  }
+  return "flat"; // Default - best compatibility with current AI clients
+}
+
+export const GITLAB_SCHEMA_MODE: SchemaMode = parseSchemaMode(process.env.GITLAB_SCHEMA_MODE);
+
 export const USE_GITLAB_WIKI = process.env.USE_GITLAB_WIKI !== "false";
 export const USE_MILESTONE = process.env.USE_MILESTONE !== "false";
 export const USE_PIPELINE = process.env.USE_PIPELINE !== "false";

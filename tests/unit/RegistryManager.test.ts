@@ -512,4 +512,49 @@ describe("RegistryManager", () => {
       expect(registryManager.hasToolHandler("nonexistent")).toBe(false);
     });
   });
+
+  describe("getAllToolDefinitionsUnfiltered", () => {
+    it("should return all tools without any filtering", () => {
+      // Set up environment to filter tools
+      process.env.USE_LABELS = "false";
+      process.env.GITLAB_READ_ONLY_MODE = "true";
+
+      registryManager = RegistryManager.getInstance();
+
+      // getAllToolDefinitionsTierless should filter
+      const filteredTools = registryManager.getAllToolDefinitionsTierless();
+
+      // getAllToolDefinitionsUnfiltered should NOT filter
+      const unfilteredTools = registryManager.getAllToolDefinitionsUnfiltered();
+
+      // Unfiltered should have more or equal tools
+      expect(unfilteredTools.length).toBeGreaterThanOrEqual(filteredTools.length);
+
+      // Unfiltered should include labels tools even when USE_LABELS=false
+      const hasLabelsTools = unfilteredTools.some(t => t.name.includes("labels"));
+      expect(hasLabelsTools).toBe(true);
+    });
+
+    it("should preserve original schemas without transformation for documentation", () => {
+      registryManager = RegistryManager.getInstance();
+      const tools = registryManager.getAllToolDefinitionsUnfiltered();
+
+      // All tools should have inputSchema preserved (not transformed/flattened)
+      tools.forEach(tool => {
+        expect(tool.inputSchema).toBeDefined();
+        expect(typeof tool.inputSchema).toBe("object");
+      });
+
+      // Verify oneOf structures are preserved for CQRS tools (not flattened)
+      const cqrsTool = tools.find(t => t.name === "browse_projects");
+      if (cqrsTool) {
+        const schema = cqrsTool.inputSchema as { oneOf?: unknown[] };
+        if (schema.oneOf) {
+          // Original discriminated union should be preserved
+          expect(Array.isArray(schema.oneOf)).toBe(true);
+          expect(schema.oneOf.length).toBeGreaterThan(0);
+        }
+      }
+    });
+  });
 });

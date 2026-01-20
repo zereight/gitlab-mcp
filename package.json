@@ -48,8 +48,8 @@
     "lint:fix": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
     "format": "prettier --write \"**/*.{js,ts,json,md}\"",
     "format:check": "prettier --check \"**/*.{js,ts,json,md}\"",
-    "list-tools": "node dist/src/scripts/list-tools.js",
-    "list-tools:dev": "node --env-file=.env.test -r source-map-support/register -r ts-node/register --experimental-specifier-resolution=node src/scripts/list-tools.ts"
+    "list-tools": "node dist/src/cli/list-tools.js",
+    "list-tools:dev": "node --env-file=.env.test -r source-map-support/register -r ts-node/register --experimental-specifier-resolution=node src/cli/list-tools.ts"
   },
   "dependencies": {
     "@graphql-typed-document-node/core": "^3.2.0",

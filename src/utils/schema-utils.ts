@@ -16,6 +16,7 @@
 
 import {
   GITLAB_DENIED_ACTIONS,
+  GITLAB_SCHEMA_MODE,
   getActionDescriptionOverrides,
   getParamDescriptionOverrides,
 } from "../config";
@@ -309,16 +310,12 @@ export function applyDescriptionOverrides(schema: JSONSchema, toolName: string):
 // ============================================================================
 
 /**
- * Get the configured schema format
+ * Get the configured schema mode from config
  * - 'flat' (default): Flatten discriminated unions for AI clients that don't support oneOf
  * - 'discriminated': Keep oneOf structure for clients that support it
  */
-function getSchemaFormat(): "flat" | "discriminated" {
-  const format = process.env.GITLAB_SCHEMA_FORMAT?.toLowerCase();
-  if (format === "discriminated") {
-    return "discriminated";
-  }
-  return "flat"; // Default for current AI clients (Claude, GPT, etc.)
+function getSchemaMode(): "flat" | "discriminated" {
+  return GITLAB_SCHEMA_MODE;
 }
 
 // ============================================================================
@@ -329,7 +326,7 @@ function getSchemaFormat(): "flat" | "discriminated" {
  * Transform a tool's input schema through the full pipeline:
  * 1. Filter denied actions (removes oneOf branches or enum values)
  * 2. Apply description overrides (works on oneOf branches or flat properties)
- * 3. Conditional flatten (based on GITLAB_SCHEMA_FORMAT config)
+ * 3. Conditional flatten (based on GITLAB_SCHEMA_MODE config)
  *
  * @param toolName - Tool name
  * @param inputSchema - Original JSON schema (may be discriminated union or flat)
@@ -350,8 +347,8 @@ export function transformToolSchema(toolName: string, inputSchema: JSONSchema): 
   schema = applyDescriptionOverrides(schema, toolName);
 
   // Step 3: Conditional flatten based on config
-  const schemaFormat = getSchemaFormat();
-  if (schemaFormat === "flat" && schema.oneOf) {
+  const schemaMode = getSchemaMode();
+  if (schemaMode === "flat" && schema.oneOf) {
     schema = flattenDiscriminatedUnion(schema);
   }
 

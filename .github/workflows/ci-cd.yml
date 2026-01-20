@@ -73,6 +73,9 @@ jobs:
       - name: Build project
         run: yarn build
 
+      - name: Validate TOOLS.md generation
+        run: yarn list-tools --export --toc > /dev/null
+
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -157,11 +160,11 @@ jobs:
       - name: Install dependencies
         run: yarn install --frozen-lockfile
 
-      - name: Download build artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: build-artifacts
-          path: dist/
+      - name: Generate Prisma client
+        run: yarn prisma generate
+
+      - name: Build project
+        run: yarn build
 
       - name: Run semantic-release
         id: semantic

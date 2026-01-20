@@ -57,13 +57,13 @@
     [
       "@semantic-release/exec",
       {
-        "prepareCmd": "echo ${nextRelease.version} > .semantic-release-version"
+        "prepareCmd": "mkdir -p docs && echo ${nextRelease.version} > .semantic-release-version && yarn list-tools --export --toc > docs/TOOLS.md"
       }
     ],
     [
       "@semantic-release/git",
       {
-        "assets": ["CHANGELOG.md", "package.json"],
+        "assets": ["CHANGELOG.md", "package.json", "docs/TOOLS.md"],
         "message": "chore(release): ${nextRelease.version} [skip ci]\n\n${nextRelease.notes}"
       }
     ],

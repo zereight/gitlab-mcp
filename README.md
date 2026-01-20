@@ -653,17 +653,17 @@ export GITLAB_PARAM_BROWSE_WORK_ITEMS_TYPES="Filter by type: ISSUE, EPIC, TASK, 
 }
 ```
 
-### Schema Format Configuration
+### Schema Mode Configuration
 
 Configure how CQRS tool schemas are delivered to AI clients:
 
 ```bash
 # Configure schema output format
-GITLAB_SCHEMA_FORMAT=flat|discriminated
+GITLAB_SCHEMA_MODE=flat|discriminated
 ```
 
-| Format | Description | Best For |
-|--------|-------------|----------|
+| Mode | Description | Best For |
+|------|-------------|----------|
 | `flat` (default) | Merged properties with action enum | Current AI clients (Claude, GPT) |
 | `discriminated` | Full `oneOf` with action-specific branches | Advanced AI clients with native oneOf support |
 
@@ -673,7 +673,7 @@ When a tool is registered, the schema goes through a transformation pipeline:
 
 1. **Filter Denied Actions** - Removes branches for actions listed in `GITLAB_DENIED_ACTIONS`
 2. **Apply Description Overrides** - Applies `GITLAB_ACTION_*` and `GITLAB_PARAM_*` overrides
-3. **Conditional Flatten** - Converts `oneOf` to flat schema when `GITLAB_SCHEMA_FORMAT=flat` (default)
+3. **Conditional Flatten** - Converts `oneOf` to flat schema when `GITLAB_SCHEMA_MODE=flat` (default)
 
 This pipeline ensures that:
 - Denied actions never appear in the schema (saves AI context tokens)
@@ -925,6 +925,26 @@ yarn list-tools --env
 GITLAB_READONLY=true yarn list-tools        # Show only read-only tools
 USE_WORKITEMS=false yarn list-tools         # Hide work items tools
 ```
+
+#### Generate TOOLS.md Documentation
+
+```bash
+# Generate complete markdown documentation
+yarn list-tools --export > docs/TOOLS.md
+
+# Include table of contents
+yarn list-tools --export --toc > docs/TOOLS.md
+
+# Generate without example JSON blocks (more compact)
+yarn list-tools --export --no-examples > docs/TOOLS.md
+```
+
+The `--export` mode generates comprehensive documentation with:
+- **Actions table** - Available actions extracted from CQRS schemas
+- **Parameters table** - All parameters with types, required status, and action hints
+- **Example JSON** - Sample request for each tool
+- **Tier badges** - GitLab tier requirements
+- **Version info** - Package version and generation timestamp
 
 #### Features
 

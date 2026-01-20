@@ -15,6 +15,7 @@ import {
 // Mock config module
 jest.mock("../../../src/config", () => ({
   GITLAB_DENIED_ACTIONS: new Map(),
+  GITLAB_SCHEMA_MODE: "flat", // Default to flat for tests expecting flattened output
   getActionDescriptionOverrides: jest.fn(() => new Map()),
   getParamDescriptionOverrides: jest.fn(() => new Map()),
 }));
