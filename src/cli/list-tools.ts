@@ -6,6 +6,7 @@ import * as path from "path";
 import { RegistryManager } from "../registry-manager";
 import { ToolAvailability } from "../services/ToolAvailability";
 import { EnhancedToolDefinition } from "../types";
+import { ProfileLoader, Preset, Profile } from "../profiles";
 
 interface JsonSchemaProperty {
   type?: string;
@@ -37,6 +38,13 @@ interface CliOptions {
   detail?: boolean;
   noExamples?: boolean;
   toc?: boolean;
+  // Profile/Preset inspection flags
+  showPresets?: boolean;
+  showProfiles?: boolean;
+  preset?: string;
+  profile?: string;
+  validate?: boolean;
+  compare?: string;
 }
 
 function parseArgs(): CliOptions {
@@ -49,6 +57,9 @@ function parseArgs(): CliOptions {
     detail: false,
     noExamples: false,
     toc: false,
+    showPresets: false,
+    showProfiles: false,
+    validate: false,
   };
 
   for (let i = 0; i < args.length; i++) {
@@ -98,6 +109,39 @@ function parseArgs(): CliOptions {
       case "--toc":
         options.toc = true;
         break;
+      case "--presets":
+        options.showPresets = true;
+        break;
+      case "--profiles":
+        options.showProfiles = true;
+        break;
+      case "--preset":
+        if (i + 1 >= args.length) {
+          console.error("Error: --preset flag requires a value.");
+          console.error("Usage: yarn list-tools --preset <preset_name>");
+          process.exit(1);
+        }
+        options.preset = args[++i];
+        break;
+      case "--profile":
+        if (i + 1 >= args.length) {
+          console.error("Error: --profile flag requires a value.");
+          console.error("Usage: yarn list-tools --profile <profile_name>");
+          process.exit(1);
+        }
+        options.profile = args[++i];
+        break;
+      case "--validate":
+        options.validate = true;
+        break;
+      case "--compare":
+        if (i + 1 >= args.length) {
+          console.error("Error: --compare flag requires a value.");
+          console.error("Usage: yarn list-tools --preset <name> --compare <other_name>");
+          process.exit(1);
+        }
+        options.compare = args[++i];
+        break;
       case "--help":
       case "-h":
         printHelp();
@@ -122,7 +166,7 @@ GitLab MCP Tool Lister
 
 Usage: yarn list-tools [options]
 
-Options:
+Tool Options:
   --json              Output in JSON format
   --simple            Simple list of tool names
   --export            Generate complete TOOLS.md documentation
@@ -134,6 +178,16 @@ Options:
   --detail            Show all tools with their input schemas
   --no-examples       Skip example JSON blocks (for --export)
   --toc               Include table of contents (for --export)
+
+Profile/Preset Options:
+  --presets           List all available presets (built-in and user)
+  --profiles          List user-defined profiles
+  --preset <name>     Inspect a specific preset
+  --profile <name>    Inspect a specific profile
+  --validate          Validate configuration (use with --preset or --profile)
+  --compare <name>    Compare two presets (use with --preset)
+
+General:
   --help, -h          Show this help
 
 Examples:
@@ -147,8 +201,14 @@ Examples:
   yarn list-tools --env-gates --json             # JSON output of gates
   yarn list-tools --entity workitems             # Only work items tools
   yarn list-tools --tool list_work_items         # Specific tool details
-  GITLAB_READONLY=true yarn list-tools           # Show read-only tools
-  GITLAB_DENIED_TOOLS_REGEX="^create" yarn list-tools  # Test filtering
+
+Profile/Preset Examples:
+  yarn list-tools --presets                      # List all presets
+  yarn list-tools --profiles                     # List user profiles
+  yarn list-tools --preset junior-dev            # Inspect preset details
+  yarn list-tools --preset junior-dev --validate # Validate preset
+  yarn list-tools --preset junior-dev --compare senior-dev  # Compare presets
+  yarn list-tools --presets --json               # JSON output of presets
 
 Environment Variables:
   GITLAB_READONLY              Show only read-only tools
@@ -902,8 +962,627 @@ function printEnvGatesMarkdown(
   console.log("```");
 }
 
+// ============================================================================
+// Profile/Preset Inspection Functions
+// ============================================================================
+
+/**
+ * Mapping of feature flags to their corresponding tools.
+ * Used by countToolsForPreset and getToolsForPreset to filter tools based on features.
+ */
+const FEATURE_TO_TOOLS: Record<string, string[]> = {
+  wiki: ["browse_wiki", "manage_wiki"],
+  milestones: ["browse_milestones", "manage_milestone"],
+  pipelines: ["browse_pipelines", "manage_pipeline", "manage_pipeline_job"],
+  labels: ["browse_labels", "manage_label"],
+  mrs: [
+    "browse_merge_requests",
+    "browse_mr_discussions",
+    "manage_merge_request",
+    "manage_mr_discussion",
+    "manage_draft_notes",
+  ],
+  files: ["browse_files", "manage_files"],
+  variables: ["browse_variables", "manage_variable"],
+  workitems: ["browse_work_items", "manage_work_item"],
+  webhooks: ["list_webhooks", "manage_webhook"],
+  snippets: ["browse_snippets", "manage_snippet"],
+  integrations: ["list_integrations", "manage_integration"],
+};
+
+/**
+ * List of all feature names, derived from FEATURE_TO_TOOLS keys.
+ * Used for feature display in preset details and comparisons.
+ */
+const FEATURE_NAMES = Object.keys(FEATURE_TO_TOOLS) as readonly string[];
+
+/**
+ * Count tools enabled for a preset by simulating its application
+ */
+function countToolsForPreset(preset: Preset, allToolNames: string[]): number {
+  let enabledTools = allToolNames;
+
+  // Apply read_only filter (removes manage_* tools)
+  if (preset.read_only) {
+    enabledTools = enabledTools.filter(name => !name.startsWith("manage_"));
+  }
+
+  // Apply denied_tools_regex
+  if (preset.denied_tools_regex) {
+    try {
+      const regex = new RegExp(preset.denied_tools_regex);
+      enabledTools = enabledTools.filter(name => !regex.test(name));
+    } catch (error) {
+      console.warn(
+        `Warning: invalid denied_tools_regex "${preset.denied_tools_regex}": ${error instanceof Error ? error.message : "unknown error"}`
+      );
+    }
+  }
+
+  // Apply allowed_tools (whitelist overrides everything)
+  if (preset.allowed_tools && preset.allowed_tools.length > 0) {
+    const allowedSet = new Set(preset.allowed_tools);
+    enabledTools = enabledTools.filter(name => allowedSet.has(name));
+  }
+
+  // Apply feature flags
+  if (preset.features) {
+    for (const [feature, tools] of Object.entries(FEATURE_TO_TOOLS)) {
+      const featureKey = feature as keyof typeof preset.features;
+      if (preset.features[featureKey] === false) {
+        const toolSet = new Set(tools);
+        enabledTools = enabledTools.filter(name => !toolSet.has(name));
+      }
+    }
+  }
+
+  return enabledTools.length;
+}
+
+/**
+ * Get list of tools enabled/disabled by a preset
+ */
+function getToolsForPreset(
+  preset: Preset,
+  allToolNames: string[]
+): { enabled: string[]; disabled: string[] } {
+  let enabledTools = [...allToolNames];
+  const disabledTools: string[] = [];
+
+  // Apply read_only filter
+  if (preset.read_only) {
+    const manageTools = enabledTools.filter(name => name.startsWith("manage_"));
+    disabledTools.push(...manageTools);
+    enabledTools = enabledTools.filter(name => !name.startsWith("manage_"));
+  }
+
+  // Apply denied_tools_regex
+  if (preset.denied_tools_regex) {
+    try {
+      const regex = new RegExp(preset.denied_tools_regex);
+      const denied = enabledTools.filter(name => regex.test(name));
+      disabledTools.push(...denied);
+      enabledTools = enabledTools.filter(name => !regex.test(name));
+    } catch (error) {
+      console.warn(
+        `Warning: invalid denied_tools_regex "${preset.denied_tools_regex}": ${error instanceof Error ? error.message : "unknown error"}`
+      );
+    }
+  }
+
+  // Apply allowed_tools (whitelist)
+  if (preset.allowed_tools && preset.allowed_tools.length > 0) {
+    const allowedSet = new Set(preset.allowed_tools);
+    const notAllowed = enabledTools.filter(name => !allowedSet.has(name));
+    disabledTools.push(...notAllowed);
+    enabledTools = enabledTools.filter(name => allowedSet.has(name));
+  }
+
+  // Apply feature flags
+  if (preset.features) {
+    for (const [feature, tools] of Object.entries(FEATURE_TO_TOOLS)) {
+      const featureKey = feature as keyof typeof preset.features;
+      if (preset.features[featureKey] === false) {
+        const toolSet = new Set(tools);
+        const disabled = enabledTools.filter(name => toolSet.has(name));
+        disabledTools.push(...disabled);
+        enabledTools = enabledTools.filter(name => !toolSet.has(name));
+      }
+    }
+  }
+
+  return {
+    enabled: enabledTools.sort(),
+    disabled: [...new Set(disabledTools)].sort(),
+  };
+}
+
+/**
+ * Print list of all presets in markdown format
+ */
+async function printPresetsList(
+  loader: ProfileLoader,
+  allToolNames: string[],
+  format: "markdown" | "json"
+): Promise<void> {
+  const profiles = await loader.listProfiles();
+  const presets = profiles.filter(p => p.isPreset);
+  const userProfiles = profiles.filter(p => !p.isPreset);
+
+  if (format === "json") {
+    const output = {
+      builtIn: await Promise.all(
+        presets.map(async p => {
+          const preset = await loader.loadPreset(p.name);
+          return {
+            name: p.name,
+            description: p.description ?? "",
+            readOnly: p.readOnly,
+            toolCount: countToolsForPreset(preset, allToolNames),
+          };
+        })
+      ),
+      userPresets: userProfiles.length, // Count only, no details for user profiles
+      totalTools: allToolNames.length,
+    };
+    console.log(JSON.stringify(output, null, 2));
+    return;
+  }
+
+  // Markdown format
+  console.log("# Available Presets\n");
+  console.log(`Total tools available: ${allToolNames.length}\n`);
+
+  console.log("## Built-in Presets\n");
+  console.log("| Preset | Tools | Read-Only | Description |");
+  console.log("|--------|-------|-----------|-------------|");
+
+  for (const p of presets) {
+    const preset = await loader.loadPreset(p.name);
+    const toolCount = countToolsForPreset(preset, allToolNames);
+    const ro = p.readOnly ? "Yes" : "No";
+    const desc = p.description ?? "-";
+    console.log(`| \`${p.name}\` | ${toolCount} | ${ro} | ${desc} |`);
+  }
+
+  if (userProfiles.length > 0) {
+    console.log("\n## User Profiles\n");
+    console.log(`${userProfiles.length} user profile(s) defined. Use \`--profiles\` to list them.`);
+  }
+
+  console.log("\nUse `yarn list-tools --preset <name>` for details.");
+}
+
+/**
+ * Print list of user profiles in markdown format
+ */
+async function printProfilesList(
+  loader: ProfileLoader,
+  format: "markdown" | "json"
+): Promise<void> {
+  const profiles = await loader.listProfiles();
+  const userProfiles = profiles.filter(p => !p.isPreset);
+
+  if (format === "json") {
+    const output = userProfiles.map(p => ({
+      name: p.name,
+      host: p.host,
+      authType: p.authType,
+      readOnly: p.readOnly,
+    }));
+    console.log(JSON.stringify(output, null, 2));
+    return;
+  }
+
+  // Markdown format
+  console.log("# User Profiles\n");
+
+  if (userProfiles.length === 0) {
+    console.log("No user profiles defined.\n");
+    console.log("Create profiles in: `~/.config/gitlab-mcp/profiles.yaml`\n");
+    console.log("Example:\n");
+    console.log("```yaml");
+    console.log("profiles:");
+    console.log("  work:");
+    console.log("    host: gitlab.company.com");
+    console.log("    auth:");
+    console.log("      type: pat");
+    console.log("      token_env: GITLAB_WORK_TOKEN");
+    console.log("```");
+    return;
+  }
+
+  console.log("| Profile | Host | Auth | Read-Only |");
+  console.log("|---------|------|------|-----------|");
+
+  for (const p of userProfiles) {
+    const ro = p.readOnly ? "Yes" : "No";
+    console.log(`| \`${p.name}\` | ${p.host ?? "-"} | ${p.authType ?? "-"} | ${ro} |`);
+  }
+
+  console.log("\nUse `yarn list-tools --profile <name>` for details.");
+}
+
+/**
+ * Print detailed preset information
+ */
+async function printPresetDetails(
+  loader: ProfileLoader,
+  presetName: string,
+  allToolNames: string[],
+  format: "markdown" | "json",
+  validate: boolean
+): Promise<void> {
+  let preset: Preset | undefined;
+  try {
+    preset = await loader.loadPreset(presetName);
+  } catch {
+    console.error(`Error: Preset '${presetName}' not found`);
+    process.exit(1);
+    return; // For test environment where process.exit is mocked
+  }
+
+  const { enabled, disabled } = getToolsForPreset(preset, allToolNames);
+
+  if (format === "json") {
+    const output: Record<string, unknown> = {
+      name: presetName,
+      type: "builtin",
+      description: preset.description ?? null,
+      readOnly: preset.read_only ?? false,
+      toolsEnabled: enabled.length,
+      toolsDisabled: disabled.length,
+      features: preset.features ?? {},
+      deniedToolsRegex: preset.denied_tools_regex ?? null,
+      allowedTools: preset.allowed_tools ?? null,
+      deniedActions: preset.denied_actions ?? null,
+      enabledTools: enabled,
+      disabledTools: disabled,
+    };
+
+    if (validate) {
+      const validation = await loader.validatePreset(preset);
+      output.validation = validation;
+    }
+
+    console.log(JSON.stringify(output, null, 2));
+    return;
+  }
+
+  // Markdown format
+  console.log(`# Preset: ${presetName}\n`);
+  console.log(`**Type:** Built-in`);
+  console.log(`**Description:** ${preset.description ?? "-"}`);
+  console.log(`**Tools Enabled:** ${enabled.length} (of ${allToolNames.length} available)`);
+  console.log(`**Read-Only:** ${preset.read_only ? "Yes" : "No"}\n`);
+
+  // Features table
+  if (preset.features) {
+    console.log("## Features\n");
+    console.log("| Feature | Status |");
+    console.log("|---------|--------|");
+    for (const f of FEATURE_NAMES) {
+      const featureKey = f as keyof typeof preset.features;
+      const status =
+        preset.features[featureKey] === true
+          ? "Enabled"
+          : preset.features[featureKey] === false
+            ? "Disabled"
+            : "-";
+      console.log(`| ${f} | ${status} |`);
+    }
+    console.log();
+  }
+
+  // Tool restrictions
+  console.log("## Tool Restrictions\n");
+  if (preset.denied_tools_regex) {
+    console.log(`**Denied tools regex:** \`${preset.denied_tools_regex}\`\n`);
+  }
+  if (preset.allowed_tools && preset.allowed_tools.length > 0) {
+    console.log(`**Allowed tools (whitelist):** ${preset.allowed_tools.length} tools\n`);
+  }
+  if (preset.denied_actions && preset.denied_actions.length > 0) {
+    console.log(`**Denied actions:** ${preset.denied_actions.join(", ")}\n`);
+  }
+  if (
+    !preset.denied_tools_regex &&
+    !preset.allowed_tools?.length &&
+    !preset.denied_actions?.length
+  ) {
+    console.log("No explicit tool restrictions.\n");
+  }
+
+  // Enabled tools
+  console.log("## Enabled Tools\n");
+  for (const tool of enabled) {
+    console.log(`- ${tool}`);
+  }
+  console.log();
+
+  // Disabled tools (if any)
+  if (disabled.length > 0) {
+    console.log("## Disabled Tools\n");
+    for (const tool of disabled) {
+      console.log(`- ${tool}`);
+    }
+    console.log();
+  }
+
+  // Validation
+  if (validate) {
+    console.log("## Validation\n");
+    const validation = await loader.validatePreset(preset);
+    if (validation.valid && validation.warnings.length === 0) {
+      console.log("**Status: VALID**\n");
+    } else if (validation.valid) {
+      console.log(`**Status: VALID** (${validation.warnings.length} warning(s))\n`);
+      console.log("### Warnings\n");
+      for (const w of validation.warnings) {
+        console.log(`- ${w}`);
+      }
+    } else {
+      console.log(`**Status: INVALID** (${validation.errors.length} error(s))\n`);
+      console.log("### Errors\n");
+      for (const e of validation.errors) {
+        console.log(`- ${e}`);
+      }
+      if (validation.warnings.length > 0) {
+        console.log("\n### Warnings\n");
+        for (const w of validation.warnings) {
+          console.log(`- ${w}`);
+        }
+      }
+    }
+  }
+}
+
+/**
+ * Print detailed profile information
+ */
+async function printProfileDetails(
+  loader: ProfileLoader,
+  profileName: string,
+  format: "markdown" | "json",
+  validate: boolean
+): Promise<void> {
+  let profile: Profile | undefined;
+  try {
+    profile = await loader.loadProfile(profileName);
+  } catch {
+    console.error(`Error: Profile '${profileName}' not found`);
+    process.exit(1);
+    return; // For test environment where process.exit is mocked
+  }
+
+  if (format === "json") {
+    const output: Record<string, unknown> = {
+      name: profileName,
+      type: "user",
+      host: profile.host,
+      authType: profile.auth.type,
+      readOnly: profile.read_only ?? false,
+      features: profile.features ?? {},
+      deniedToolsRegex: profile.denied_tools_regex ?? null,
+      allowedTools: profile.allowed_tools ?? null,
+      deniedActions: profile.denied_actions ?? null,
+      allowedProjects: profile.allowed_projects ?? null,
+      allowedGroups: profile.allowed_groups ?? null,
+      defaultProject: profile.default_project ?? null,
+      defaultNamespace: profile.default_namespace ?? null,
+      timeoutMs: profile.timeout_ms ?? null,
+      skipTlsVerify: profile.skip_tls_verify ?? false,
+    };
+
+    if (validate) {
+      const validation = await loader.validateProfile(profile);
+      output.validation = validation;
+    }
+
+    console.log(JSON.stringify(output, null, 2));
+    return;
+  }
+
+  // Markdown format
+  console.log(`# Profile: ${profileName}\n`);
+  console.log(`**Type:** User-defined`);
+  console.log(`**Host:** ${profile.host}`);
+  console.log(`**Auth:** ${profile.auth.type}`);
+  console.log(`**Read-Only:** ${profile.read_only ? "Yes" : "No"}\n`);
+
+  // Settings
+  console.log("## Settings\n");
+  console.log("| Setting | Value |");
+  console.log("|---------|-------|");
+  console.log(`| Timeout | ${profile.timeout_ms ?? "default"}ms |`);
+  console.log(`| TLS Verify | ${profile.skip_tls_verify ? "No" : "Yes"} |`);
+  if (profile.default_project) {
+    console.log(`| Default Project | ${profile.default_project} |`);
+  }
+  if (profile.default_namespace) {
+    console.log(`| Default Namespace | ${profile.default_namespace} |`);
+  }
+  console.log();
+
+  // Access restrictions
+  if (profile.allowed_projects?.length || profile.allowed_groups?.length) {
+    console.log("## Access Restrictions\n");
+    if (profile.allowed_projects?.length) {
+      console.log(`**Allowed Projects:** ${profile.allowed_projects.join(", ")}\n`);
+    }
+    if (profile.allowed_groups?.length) {
+      console.log(`**Allowed Groups:** ${profile.allowed_groups.join(", ")}\n`);
+    }
+  }
+
+  // Tool restrictions
+  if (
+    profile.denied_tools_regex ||
+    profile.allowed_tools?.length ||
+    profile.denied_actions?.length
+  ) {
+    console.log("## Tool Restrictions\n");
+    if (profile.denied_tools_regex) {
+      console.log(`**Denied tools regex:** \`${profile.denied_tools_regex}\`\n`);
+    }
+    if (profile.allowed_tools?.length) {
+      console.log(`**Allowed tools (whitelist):** ${profile.allowed_tools.length} tools\n`);
+    }
+    if (profile.denied_actions?.length) {
+      console.log(`**Denied actions:** ${profile.denied_actions.join(", ")}\n`);
+    }
+  }
+
+  // Validation
+  if (validate) {
+    console.log("## Validation\n");
+    const validation = await loader.validateProfile(profile);
+    if (validation.valid && validation.warnings.length === 0) {
+      console.log("**Status: VALID**\n");
+    } else if (validation.valid) {
+      console.log(`**Status: VALID** (${validation.warnings.length} warning(s))\n`);
+      console.log("### Warnings\n");
+      for (const w of validation.warnings) {
+        console.log(`- ${w}`);
+      }
+    } else {
+      console.log(`**Status: INVALID** (${validation.errors.length} error(s))\n`);
+      console.log("### Errors\n");
+      for (const e of validation.errors) {
+        console.log(`- ${e}`);
+      }
+    }
+  }
+}
+
+/**
+ * Compare two presets
+ */
+async function comparePresets(
+  loader: ProfileLoader,
+  presetA: string,
+  presetB: string,
+  allToolNames: string[],
+  format: "markdown" | "json"
+): Promise<void> {
+  let a: Preset | undefined, b: Preset | undefined;
+  try {
+    a = await loader.loadPreset(presetA);
+  } catch {
+    console.error(`Error: Preset '${presetA}' not found`);
+    process.exit(1);
+    return; // For test environment where process.exit is mocked
+  }
+  try {
+    b = await loader.loadPreset(presetB);
+  } catch {
+    console.error(`Error: Preset '${presetB}' not found`);
+    process.exit(1);
+    return; // For test environment where process.exit is mocked
+  }
+
+  const toolsA = getToolsForPreset(a, allToolNames);
+  const toolsB = getToolsForPreset(b, allToolNames);
+
+  const enabledSetA = new Set(toolsA.enabled);
+  const enabledSetB = new Set(toolsB.enabled);
+
+  const onlyInA = toolsA.enabled.filter(t => !enabledSetB.has(t));
+  const onlyInB = toolsB.enabled.filter(t => !enabledSetA.has(t));
+  const common = toolsA.enabled.filter(t => enabledSetB.has(t));
+
+  if (format === "json") {
+    const output = {
+      presetA: {
+        name: presetA,
+        description: a.description ?? null,
+        toolCount: toolsA.enabled.length,
+        readOnly: a.read_only ?? false,
+      },
+      presetB: {
+        name: presetB,
+        description: b.description ?? null,
+        toolCount: toolsB.enabled.length,
+        readOnly: b.read_only ?? false,
+      },
+      comparison: {
+        commonTools: common.length,
+        onlyInA: onlyInA.length,
+        onlyInB: onlyInB.length,
+        onlyInAList: onlyInA,
+        onlyInBList: onlyInB,
+      },
+    };
+    console.log(JSON.stringify(output, null, 2));
+    return;
+  }
+
+  // Markdown format
+  console.log(`# Comparison: ${presetA} vs ${presetB}\n`);
+
+  console.log("## Summary\n");
+  console.log("| | " + presetA + " | " + presetB + " |");
+  console.log("|---|---|---|");
+  console.log(`| Tools | ${toolsA.enabled.length} | ${toolsB.enabled.length} |`);
+  console.log(`| Read-Only | ${a.read_only ? "Yes" : "No"} | ${b.read_only ? "Yes" : "No"} |`);
+  console.log();
+
+  console.log(`**Common tools:** ${common.length}\n`);
+
+  if (onlyInA.length > 0) {
+    console.log(`## Only in ${presetA} (${onlyInA.length})\n`);
+    for (const t of onlyInA) {
+      console.log(`- ${t}`);
+    }
+    console.log();
+  }
+
+  if (onlyInB.length > 0) {
+    console.log(`## Only in ${presetB} (${onlyInB.length})\n`);
+    for (const t of onlyInB) {
+      console.log(`- ${t}`);
+    }
+    console.log();
+  }
+
+  // Feature comparison
+  if (a.features || b.features) {
+    console.log("## Feature Comparison\n");
+    console.log("| Feature | " + presetA + " | " + presetB + " |");
+    console.log("|---------|---|---|");
+    for (const f of FEATURE_NAMES) {
+      const featureKey = f as keyof typeof a.features;
+      const statusA =
+        a.features?.[featureKey] === true ? "Yes" : a.features?.[featureKey] === false ? "No" : "-";
+      const statusB =
+        b.features?.[featureKey] === true ? "Yes" : b.features?.[featureKey] === false ? "No" : "-";
+      if (statusA !== statusB) {
+        console.log(`| **${f}** | ${statusA} | ${statusB} |`);
+      } else {
+        console.log(`| ${f} | ${statusA} | ${statusB} |`);
+      }
+    }
+  }
+}
+
 export async function main() {
   const options = parseArgs();
+
+  // Validate flag combinations
+  if (options.compare && !options.preset) {
+    console.error("Error: --compare flag must be used with --preset.");
+    console.error("Usage: yarn list-tools --preset <name> --compare <other_name>");
+    process.exit(1);
+    return;
+  }
+
+  if (options.validate && !options.preset && !options.profile) {
+    console.error("Error: --validate flag must be used with --preset or --profile.");
+    console.error("Usage: yarn list-tools --preset <name> --validate");
+    console.error("   or: yarn list-tools --profile <name> --validate");
+    process.exit(1);
+    return;
+  }
 
   if (options.showEnv) {
     printEnvironmentInfo();
@@ -919,6 +1598,65 @@ export async function main() {
     const ungated = getUngatedTools(allTools);
     printEnvGatesMarkdown(gates, ungated, options.format === "json" ? "json" : "markdown");
     return;
+  }
+
+  // Handle profile/preset inspection flags (only instantiate when needed)
+  const needsProfileLoader =
+    Boolean(options.showPresets) ||
+    Boolean(options.showProfiles) ||
+    Boolean(options.preset) ||
+    Boolean(options.profile);
+
+  if (needsProfileLoader) {
+    const loader = new ProfileLoader();
+    const allToolNames = registryManager.getAllToolDefinitionsUnfiltered().map(t => t.name);
+
+    // --presets: List all presets
+    if (options.showPresets) {
+      await printPresetsList(loader, allToolNames, options.format === "json" ? "json" : "markdown");
+      return;
+    }
+
+    // --profiles: List user profiles
+    if (options.showProfiles) {
+      await printProfilesList(loader, options.format === "json" ? "json" : "markdown");
+      return;
+    }
+
+    // --preset <name> --compare <other>: Compare two presets
+    if (options.preset && options.compare) {
+      await comparePresets(
+        loader,
+        options.preset,
+        options.compare,
+        allToolNames,
+        options.format === "json" ? "json" : "markdown"
+      );
+      return;
+    }
+
+    // --preset <name>: Inspect a preset
+    if (options.preset) {
+      await printPresetDetails(
+        loader,
+        options.preset,
+        allToolNames,
+        options.format === "json" ? "json" : "markdown",
+        options.validate ?? false
+      );
+      return;
+    }
+
+    // --profile <name>: Inspect a profile
+    if (options.profile) {
+      await printProfileDetails(
+        loader,
+        options.profile,
+        options.format === "json" ? "json" : "markdown",
+        options.validate ?? false
+      );
+      return;
+    }
   }
 
   // For export mode: get ALL tools without filtering (for documentation)
