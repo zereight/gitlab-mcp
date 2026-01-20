@@ -10,6 +10,8 @@ import {
   transformToolSchema,
   shouldRemoveTool,
   extractActionsFromSchema,
+  setDetectedSchemaMode,
+  clearDetectedSchemaMode,
 } from "../../../src/utils/schema-utils";
 
 // Mock config module
@@ -18,6 +20,19 @@ jest.mock("../../../src/config", () => ({
   GITLAB_SCHEMA_MODE: "flat", // Default to flat for tests expecting flattened output
   getActionDescriptionOverrides: jest.fn(() => new Map()),
   getParamDescriptionOverrides: jest.fn(() => new Map()),
+  detectSchemaMode: jest.fn((clientName?: string) => {
+    const name = clientName?.toLowerCase() ?? "";
+    // Match actual implementation: exact match or dash-prefix
+    if (
+      name === "inspector" ||
+      name.startsWith("inspector-") ||
+      name === "mcp-inspector" ||
+      name.startsWith("mcp-inspector-")
+    ) {
+      return "discriminated";
+    }
+    return "flat";
+  }),
 }));
 
 // Mock logger
@@ -194,6 +209,100 @@ describe("schema-utils", () => {
       const result = filterDiscriminatedUnionActions(flatSchema, "manage_milestone");
       expect(result).toEqual(flatSchema);
     });
+
+    it("should filter branches with enum action (not const)", () => {
+      // Schema with action defined as enum instead of const
+      const schemaWithEnumAction: TestJSONSchema = {
+        oneOf: [
+          {
+            type: "object",
+            properties: {
+              action: { enum: ["list"] },
+              namespace: { type: "string" },
+            },
+            required: ["action", "namespace"],
+          },
+          {
+            type: "object",
+            properties: {
+              action: { enum: ["get"] },
+              namespace: { type: "string" },
+              id: { type: "string" },
+            },
+            required: ["action", "namespace", "id"],
+          },
+        ],
+      };
+
+      (GITLAB_DENIED_ACTIONS as Map<string, Set<string>>).set("test_tool", new Set(["list"]));
+
+      const result = filterDiscriminatedUnionActions(schemaWithEnumAction, "test_tool");
+
+      expect(result.oneOf).toHaveLength(1);
+      expect(result.oneOf![0].properties?.action?.enum).toEqual(["get"]);
+    });
+
+    it("should keep branch when action property has no const or enum", () => {
+      // Schema with branch that has no identifiable action
+      const schemaWithNoActionValue: TestJSONSchema = {
+        oneOf: [
+          {
+            type: "object",
+            properties: {
+              action: { type: "string" }, // No const or enum
+              namespace: { type: "string" },
+            },
+            required: ["action", "namespace"],
+          },
+          {
+            type: "object",
+            properties: {
+              action: { const: "delete" },
+              namespace: { type: "string" },
+            },
+            required: ["action", "namespace"],
+          },
+        ],
+      };
+
+      (GITLAB_DENIED_ACTIONS as Map<string, Set<string>>).set("test_tool", new Set(["delete"]));
+
+      const result = filterDiscriminatedUnionActions(schemaWithNoActionValue, "test_tool");
+
+      // Should keep the branch without identifiable action
+      expect(result.oneOf).toHaveLength(1);
+      expect(result.oneOf![0].properties?.action?.type).toBe("string");
+    });
+
+    it("should keep branch without action property", () => {
+      const schemaWithMissingAction: TestJSONSchema = {
+        oneOf: [
+          {
+            type: "object",
+            properties: {
+              namespace: { type: "string" }, // No action property at all
+            },
+            required: ["namespace"],
+          },
+          {
+            type: "object",
+            properties: {
+              action: { const: "delete" },
+              namespace: { type: "string" },
+            },
+            required: ["action", "namespace"],
+          },
+        ],
+      };
+
+      (GITLAB_DENIED_ACTIONS as Map<string, Set<string>>).set("test_tool", new Set(["delete"]));
+
+      const result = filterDiscriminatedUnionActions(schemaWithMissingAction, "test_tool");
+
+      // Should keep the branch without action property
+      expect(result.oneOf).toHaveLength(1);
+      expect(result.oneOf![0].properties?.action).toBeUndefined();
+    });
   });
 
   describe("flattenDiscriminatedUnion", () => {
@@ -240,6 +349,102 @@ describe("schema-utils", () => {
 
       // 'title' is not required in all branches
       expect(result.required).not.toContain("title");
+    });
+
+    it("should handle branches with enum action values", () => {
+      // Schema where action is defined with enum instead of const
+      const schemaWithEnumAction: TestJSONSchema = {
+        oneOf: [
+          {
+            type: "object",
+            properties: {
+              action: { enum: ["list", "search"] }, // Multiple values in enum
+              namespace: { type: "string", description: "Namespace path" },
+            },
+            required: ["action", "namespace"],
+          },
+          {
+            type: "object",
+            properties: {
+              action: { const: "get" },
+              namespace: { type: "string", description: "Namespace path" },
+              id: { type: "string", description: "Item ID" },
+            },
+            required: ["action", "namespace", "id"],
+          },
+        ],
+      };
+
+      const result = flattenDiscriminatedUnion(schemaWithEnumAction);
+
+      // Should include all action values from both enum and const
+      expect(result.properties?.action?.enum).toContain("list");
+      expect(result.properties?.action?.enum).toContain("search");
+      expect(result.properties?.action?.enum).toContain("get");
+      expect(result.properties?.action?.enum).toHaveLength(3);
+    });
+
+    it("should take longer description when merging duplicate properties", () => {
+      const schemaWithDiffDescriptions: TestJSONSchema = {
+        oneOf: [
+          {
+            type: "object",
+            properties: {
+              action: { const: "create" },
+              name: { type: "string", description: "Short" },
+            },
+            required: ["action", "name"],
+          },
+          {
+            type: "object",
+            properties: {
+              action: { const: "update" },
+              name: { type: "string", description: "A much longer description for the name field" },
+            },
+            required: ["action", "name"],
+          },
+        ],
+      };
+
+      const result = flattenDiscriminatedUnion(schemaWithDiffDescriptions);
+
+      // Should use the longer description
+      expect(result.properties?.name?.description).toBe(
+        "A much longer description for the name field"
+      );
+    });
+
+    it("should annotate action-specific params with Required for using enum action", () => {
+      // Schema where some branches use enum for action
+      const schemaWithEnumBranch: TestJSONSchema = {
+        oneOf: [
+          {
+            type: "object",
+            properties: {
+              action: { enum: ["list"] },
+              namespace: { type: "string", description: "Namespace path" },
+              per_page: { type: "number", description: "Items per page" },
+            },
+            required: ["action", "namespace"],
+          },
+          {
+            type: "object",
+            properties: {
+              action: { const: "get" },
+              namespace: { type: "string", description: "Namespace path" },
+              id: { type: "string", description: "Item ID" },
+            },
+            required: ["action", "namespace", "id"],
+          },
+        ],
+      };
+
+      const result = flattenDiscriminatedUnion(schemaWithEnumBranch);
+
+      // per_page is only in 'list' branch (with enum action), should have annotation
+      expect(result.properties?.per_page?.description).toContain("Required for 'list' action(s).");
+      // id is only in 'get' branch (with const action), should have annotation
+      expect(result.properties?.id?.description).toContain("Required for 'get' action(s).");
     });
 
     it("should preserve $schema if present", () => {
@@ -344,6 +549,82 @@ describe("schema-utils", () => {
         expect.arrayContaining(["create", "update", "promote"])
       );
       expect(result.properties?.action?.enum).not.toContain("delete");
+    });
+
+    it("should return flat schema unchanged when no denied actions configured", () => {
+      // No denied actions set - GITLAB_DENIED_ACTIONS is empty (cleared in beforeEach)
+
+      const result = transformToolSchema("manage_milestone", flatSchema);
+
+      // Should return schema unchanged
+      expect(result.properties?.action?.enum).toEqual(
+        expect.arrayContaining(["create", "update", "delete", "promote"])
+      );
+    });
+
+    it("should warn but not modify flat schema when all actions are denied", () => {
+      (GITLAB_DENIED_ACTIONS as Map<string, Set<string>>).set(
+        "manage_milestone",
+        new Set(["create", "update", "delete", "promote"])
+      );
+
+      const result = transformToolSchema("manage_milestone", flatSchema);
+
+      // When all actions denied from flat schema, code logs warning but returns schema unchanged
+      // (unlike discriminated union which returns empty schema)
+      expect(result.properties?.action?.enum).toEqual(["create", "update", "delete", "promote"]);
+    });
+
+    it("should preserve oneOf when GITLAB_SCHEMA_MODE is discriminated", () => {
+      // Override schema mode to discriminated
+      const configModule = jest.requireMock("../../../src/config");
+      const originalMode = configModule.GITLAB_SCHEMA_MODE;
+      configModule.GITLAB_SCHEMA_MODE = "discriminated";
+
+      try {
+        const result = transformToolSchema("manage_milestone", discriminatedUnionSchema);
+
+        // Should NOT be flattened - oneOf should be preserved
+        expect(result.oneOf).toBeDefined();
+        expect(Array.isArray(result.oneOf)).toBe(true);
+        expect(result.oneOf!.length).toBeGreaterThan(0);
+
+        // Flat schema properties should NOT exist at root level
+        expect(result.properties?.action?.enum).toBeUndefined();
+      } finally {
+        // Restore original mode
+        configModule.GITLAB_SCHEMA_MODE = originalMode;
+      }
+    });
+
+    it("should filter denied actions but preserve oneOf in discriminated mode", () => {
+      // Override schema mode to discriminated
+      const configModule = jest.requireMock("../../../src/config");
+      const originalMode = configModule.GITLAB_SCHEMA_MODE;
+      configModule.GITLAB_SCHEMA_MODE = "discriminated";
+
+      (GITLAB_DENIED_ACTIONS as Map<string, Set<string>>).set(
+        "manage_milestone",
+        new Set(["delete", "promote"])
+      );
+
+      try {
+        const result = transformToolSchema("manage_milestone", discriminatedUnionSchema);
+
+        // Should preserve oneOf structure
+        expect(result.oneOf).toBeDefined();
+
+        // But with fewer branches (delete and promote filtered out)
+        const actionValues = result.oneOf!.map(
+          branch => branch.properties?.action?.const || branch.properties?.action?.enum?.[0]
+        );
+        expect(actionValues).toContain("create");
+        expect(actionValues).toContain("update");
+        expect(actionValues).not.toContain("delete");
+        expect(actionValues).not.toContain("promote");
+      } finally {
+        configModule.GITLAB_SCHEMA_MODE = originalMode;
+      }
     });
   });
 
@@ -465,6 +746,65 @@ describe("schema-utils", () => {
       expect(result.properties?.action?.enum).toHaveLength(3);
       expect(result.properties).toHaveProperty("milestone_id"); // Still used by update, promote
       expect(result.properties).toHaveProperty("namespace"); // Shared by all
+    });
+  });
+
+  describe("Auto-detection schema mode (GITLAB_SCHEMA_MODE=auto)", () => {
+    beforeEach(() => {
+      clearDetectedSchemaMode();
+    });
+
+    afterEach(() => {
+      clearDetectedSchemaMode();
+    });
+
+    it("should use flat mode by default when auto mode not configured", () => {
+      // With default mock (GITLAB_SCHEMA_MODE=flat), setDetectedSchemaMode should be no-op
+      setDetectedSchemaMode("mcp-inspector");
+
+      // Should still flatten because mode is not 'auto'
+      const result = transformToolSchema("manage_milestone", discriminatedUnionSchema);
+      expect(result.oneOf).toBeUndefined();
+      expect(result.properties?.action?.enum).toBeDefined();
+    });
+
+    it("should use detected mode when GITLAB_SCHEMA_MODE is auto", () => {
+      // Override to auto mode
+      const configModule = jest.requireMock("../../../src/config");
+      const originalMode = configModule.GITLAB_SCHEMA_MODE;
+      configModule.GITLAB_SCHEMA_MODE = "auto";
+
+      try {
+        // Simulate detection of inspector client
+        setDetectedSchemaMode("mcp-inspector");
+
+        const result = transformToolSchema("manage_milestone", discriminatedUnionSchema);
+
+        // Should preserve oneOf because inspector supports discriminated unions
+        expect(result.oneOf).toBeDefined();
+      } finally {
+        configModule.GITLAB_SCHEMA_MODE = originalMode;
+        clearDetectedSchemaMode();
+      }
+    });
+
+    it("should fall back to flat when auto mode but no client detected", () => {
+      // Override to auto mode
+      const configModule = jest.requireMock("../../../src/config");
+      const originalMode = configModule.GITLAB_SCHEMA_MODE;
+      configModule.GITLAB_SCHEMA_MODE = "auto";
+
+      try {
+        // Don't call setDetectedSchemaMode - simulates pre-initialization
+
+        const result = transformToolSchema("manage_milestone", discriminatedUnionSchema);
+
+        // Should flatten because no client detected yet (fallback to flat)
+        expect(result.oneOf).toBeUndefined();
+        expect(result.properties?.action?.enum).toBeDefined();
+      } finally {
+        configModule.GITLAB_SCHEMA_MODE = originalMode;
+      }
     });
   });
 });

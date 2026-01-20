@@ -731,5 +731,84 @@ describe("config.ts", () => {
 
       expect(config.GITLAB_SCHEMA_MODE).toBe("flat");
     });
+
+    it("should return 'auto' when set to 'auto'", () => {
+      process.env.GITLAB_SCHEMA_MODE = "auto";
+
+      const config = require("../../src/config");
+
+      expect(config.GITLAB_SCHEMA_MODE).toBe("auto");
+    });
+
+    it("should be case-insensitive for 'auto'", () => {
+      process.env.GITLAB_SCHEMA_MODE = "AUTO";
+
+      const config = require("../../src/config");
+
+      expect(config.GITLAB_SCHEMA_MODE).toBe("auto");
+    });
+  });
+
+  describe("detectSchemaMode", () => {
+    it("should return 'flat' for Claude clients (exact match or prefix)", () => {
+      const config = require("../../src/config");
+
+      // Exact match
+      expect(config.detectSchemaMode("claude")).toBe("flat");
+      expect(config.detectSchemaMode("CLAUDE")).toBe("flat");
+
+      // Prefix match (claude-*)
+      expect(config.detectSchemaMode("claude-code")).toBe("flat");
+      expect(config.detectSchemaMode("Claude-Desktop")).toBe("flat");
+      expect(config.detectSchemaMode("claude-ai")).toBe("flat");
+    });
+
+    it("should return 'flat' for Cursor (exact match or prefix)", () => {
+      const config = require("../../src/config");
+
+      expect(config.detectSchemaMode("cursor")).toBe("flat");
+      expect(config.detectSchemaMode("Cursor")).toBe("flat");
+      expect(config.detectSchemaMode("cursor-editor")).toBe("flat");
+    });
+
+    it("should return 'discriminated' for MCP Inspector", () => {
+      const config = require("../../src/config");
+
+      expect(config.detectSchemaMode("mcp-inspector")).toBe("discriminated");
+      expect(config.detectSchemaMode("MCP-Inspector")).toBe("discriminated");
+      expect(config.detectSchemaMode("inspector")).toBe("discriminated");
+      expect(config.detectSchemaMode("inspector-v2")).toBe("discriminated"); // inspector-* variant
+      expect(config.detectSchemaMode("mcp-inspector-v2")).toBe("discriminated");
+    });
+
+    it("should return 'flat' for unknown clients", () => {
+      const config = require("../../src/config");
+
+      expect(config.detectSchemaMode("unknown-client")).toBe("flat");
+      expect(config.detectSchemaMode("some-other-ai")).toBe("flat");
+    });
+
+    it("should return 'flat' for undefined/empty client name", () => {
+      const config = require("../../src/config");
+
+      expect(config.detectSchemaMode(undefined)).toBe("flat");
+      expect(config.detectSchemaMode("")).toBe("flat");
+    });
+
+    it("should NOT match clients with 'claude' as substring (avoid false positives)", () => {
+      // These should NOT match because 'claude' is a substring, not exact/prefix
+      const config = require("../../src/config");
+
+      expect(config.detectSchemaMode("my-claude-wrapper")).toBe("flat"); // Safe default
+      expect(config.detectSchemaMode("non-claude-app")).toBe("flat"); // Safe default
+      expect(config.detectSchemaMode("preclaude")).toBe("flat"); // Safe default
+    });
+
+    it("should NOT match clients with 'cursor' as substring (avoid false positives)", () => {
+      const config = require("../../src/config");
+
+      expect(config.detectSchemaMode("my-cursor-tool")).toBe("flat"); // Safe default
+      expect(config.detectSchemaMode("precursor")).toBe("flat"); // Safe default
+    });
   });
 });

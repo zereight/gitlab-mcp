@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Быстрый MCP тестер - передает init sequence + пейлоад из $1
+# Quick MCP tester - sends init sequence + payload from $1
 set -e
 
 if [ -z "$1" ]; then
@@ -9,24 +9,24 @@ if [ -z "$1" ]; then
     exit 1
 fi
 
-# Загружаем переменные из .env.test
+# Load environment variables from .env.test
 if [ -f .env.test ]; then
     set -a
     source .env.test
     set +a
 fi
 
-# Отключаем SSE
+# Disable SSE
 export SSE=false
 
-# Debug output (можно включить с DEBUG=1)
+# Debug output (enable with DEBUG=1)
 if [ "$DEBUG" = "1" ]; then
     echo "🚀 Starting MCP stdio with test environment..."
 fi
 
 PAYLOAD='{"jsonrpc": "2.0", "id": "3", "method": "tools/call", "params": '$1'}'
 
-# Создаем временный файл с init sequence + пейлоад
+# Create temp file with init sequence + payload
 TEMP_INPUT=$(mktemp)
 cat > "$TEMP_INPUT" << EOF
 {"jsonrpc": "2.0", "id": "init", "method": "initialize", "params": {"protocolVersion": "1.0", "capabilities": {"tools": {}}, "clientInfo": {"name": "test-client", "version": "1.0"}}}
@@ -41,12 +41,12 @@ if [ "$DEBUG" = "1" ]; then
     echo ""
 fi
 
-# Запускаем MCP и передаем команды
+# Run MCP and send commands
 node -r source-map-support/register \
      -r ts-node/register \
      --experimental-specifier-resolution=node \
      --experimental-print-required-tla \
      src/main.ts stdio < "$TEMP_INPUT"
 
-# Удаляем временный файл
+# Remove temp file
 rm -f "$TEMP_INPUT"

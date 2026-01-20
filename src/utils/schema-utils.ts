@@ -17,10 +17,47 @@
 import {
   GITLAB_DENIED_ACTIONS,
   GITLAB_SCHEMA_MODE,
+  detectSchemaMode,
   getActionDescriptionOverrides,
   getParamDescriptionOverrides,
 } from "../config";
 import { logger } from "../logger";
+
+// ============================================================================
+// Per-Session Schema Mode (for GITLAB_SCHEMA_MODE=auto)
+// ============================================================================
+
+// Detected schema mode from clientInfo during initialize (used when GITLAB_SCHEMA_MODE=auto)
+// NOTE: This module-level variable works correctly for stdio mode (single client per process).
+// For HTTP/SSE modes with multiple concurrent sessions, this is a known limitation -
+// all sessions will share the same detected mode. Use explicit GITLAB_SCHEMA_MODE for
+// multi-session deployments where different clients may connect simultaneously.
+let detectedSchemaMode: "flat" | "discriminated" | null = null;
+
+/**
+ * Set the detected schema mode based on clientInfo from MCP initialize
+ * Called from server.ts oninitialized callback when GITLAB_SCHEMA_MODE=auto
+ *
+ * @param clientName - Client name from server.getClientVersion().name
+ */
+export function setDetectedSchemaMode(clientName?: string): void {
+  if (GITLAB_SCHEMA_MODE !== "auto") {
+    return; // Only detect when in auto mode
+  }
+
+  detectedSchemaMode = detectSchemaMode(clientName);
+  logger.info(
+    { clientName, detectedMode: detectedSchemaMode },
+    "Auto-detected schema mode from client"
+  );
+}
+
+/**
+ * Clear the detected schema mode (for testing or session reset)
+ */
+export function clearDetectedSchemaMode(): void {
+  detectedSchemaMode = null;
+}
 
 // ============================================================================
 // Types
@@ -310,11 +347,16 @@ export function applyDescriptionOverrides(schema: JSONSchema, toolName: string):
 // ============================================================================
 
 /**
- * Get the configured schema mode from config
- * - 'flat' (default): Flatten discriminated unions for AI clients that don't support oneOf
- * - 'discriminated': Keep oneOf structure for clients that support it
+ * Get the effective schema mode
+ * - If GITLAB_SCHEMA_MODE is 'flat' or 'discriminated': use that directly
+ * - If GITLAB_SCHEMA_MODE is 'auto': use detected mode from clientInfo, or 'flat' as fallback
  */
 function getSchemaMode(): "flat" | "discriminated" {
+  if (GITLAB_SCHEMA_MODE === "auto") {
+    // Use detected mode, or fall back to flat if not yet detected
+    return detectedSchemaMode ?? "flat";
+  }
+  // Explicit mode configured
   return GITLAB_SCHEMA_MODE;
 }
 
