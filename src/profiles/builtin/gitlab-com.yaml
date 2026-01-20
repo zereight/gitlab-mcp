@@ -1,0 +1,35 @@
+# gitlab.com preset - rate-limit friendly
+#
+# Optimized for gitlab.com public instance:
+# - Standard development features enabled
+# - Rate-limit friendly restrictions
+# - Safe defaults for public projects
+#
+# Features that typically require elevated access are disabled.
+#
+# NOTE: This is a PRESET - host/auth come from environment variables.
+
+description: "Optimized for gitlab.com - respects rate limits, safe defaults"
+
+read_only: false
+
+features:
+  wiki: true
+  milestones: true
+  pipelines: true
+  labels: true
+  mrs: true
+  files: true
+  variables: false     # Often restricted on public projects
+  workitems: true
+  webhooks: false      # Requires maintainer+ access
+  snippets: true
+  integrations: false  # Requires admin access
+
+# Rate-limit friendly restrictions
+denied_actions:
+  # Pagination-heavy operations
+  - "browse_commits:list"
+  - "browse_pipelines:list"
+  # Operations that can trigger many API calls
+  - "manage_pipeline:retry"

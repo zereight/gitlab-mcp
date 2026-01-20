@@ -1,0 +1,37 @@
+# Team Lead preset - planning and oversight
+#
+# Focused on team management:
+# - Planning with milestones and work items
+# - Code review via merge requests
+# - Pipeline monitoring
+# - Wiki and documentation
+#
+# No access to sensitive variables or webhooks.
+#
+# NOTE: This is a PRESET - host/auth come from environment variables.
+
+description: "Team Lead - planning, milestones, team oversight, code review"
+
+read_only: false
+
+features:
+  wiki: true
+  milestones: true
+  pipelines: true
+  labels: true
+  mrs: true
+  files: true
+  variables: false
+  workitems: true
+  webhooks: false
+  snippets: true
+  integrations: false
+
+# Block sensitive operations
+denied_actions:
+  - "manage_variable:create"
+  - "manage_variable:update"
+  - "manage_variable:delete"
+  - "manage_webhook:create"
+  - "manage_webhook:update"
+  - "manage_webhook:delete"

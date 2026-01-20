@@ -1,0 +1,36 @@
+# Senior Developer preset - code review and pipeline monitoring
+#
+# Extended access for senior developers:
+# - Full code browsing and file management
+# - Work items and merge requests
+# - Pipeline monitoring (read-only)
+# - Wiki and documentation
+#
+# No control over pipelines, variables, or webhooks.
+#
+# NOTE: This is a PRESET - host/auth come from environment variables.
+
+description: "Senior Developer - code review, discussions, pipeline monitoring"
+
+read_only: false
+
+features:
+  wiki: true
+  milestones: false
+  pipelines: true
+  labels: true
+  mrs: true
+  files: true
+  variables: false
+  workitems: true
+  webhooks: false
+  snippets: true
+  integrations: false
+
+# Block pipeline control and webhook management
+denied_actions:
+  - "manage_pipeline:cancel"
+  - "manage_pipeline:retry"
+  - "manage_webhook:create"
+  - "manage_webhook:update"
+  - "manage_webhook:delete"

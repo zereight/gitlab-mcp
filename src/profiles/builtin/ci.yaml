@@ -1,0 +1,30 @@
+# CI/CD Bot preset - automation
+#
+# Minimal tools for CI/CD automation:
+# - Pipeline operations
+# - File management
+# - Variables access
+#
+# No access to development workflow tools.
+#
+# NOTE: This is a PRESET - host/auth come from environment variables.
+
+description: "CI/CD Bot - minimal tools for automation"
+
+read_only: false
+
+features:
+  wiki: false
+  milestones: false
+  pipelines: true
+  labels: false
+  mrs: false
+  files: true
+  variables: true
+  workitems: false
+  webhooks: false
+  snippets: false
+  integrations: false
+
+# Block workflow-related operations
+denied_tools_regex: "^manage_(work_item|mr|label|milestone|wiki)"

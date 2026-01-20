@@ -1,0 +1,30 @@
+# Junior Developer preset - day-to-day development
+#
+# Focused on core development tasks:
+# - Code browsing and file management
+# - Work items and merge requests
+# - Labels and snippets
+#
+# No access to pipelines, variables, or admin features.
+#
+# NOTE: This is a PRESET - host/auth come from environment variables.
+
+description: "Junior Developer - code, MRs, basic issue tracking"
+
+read_only: false
+
+features:
+  wiki: false
+  milestones: false
+  pipelines: false
+  labels: true
+  mrs: true
+  files: true
+  variables: false
+  workitems: true
+  webhooks: false
+  snippets: true
+  integrations: false
+
+# Block pipeline and admin operations
+denied_tools_regex: "^manage_(pipeline|variable|webhook)"

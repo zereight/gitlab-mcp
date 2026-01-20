@@ -1,0 +1,31 @@
+# Project Manager preset - planning and tracking
+#
+# Focused on project management:
+# - Work items and milestones
+# - Merge request status tracking
+# - Wiki and documentation
+# - Labels for organization
+#
+# No access to code operations, pipelines, or technical features.
+#
+# NOTE: This is a PRESET - host/auth come from environment variables.
+
+description: "Project Manager - planning, tracking, documentation (no code ops)"
+
+read_only: false
+
+features:
+  wiki: true
+  milestones: true
+  pipelines: false
+  labels: true
+  mrs: true
+  files: false
+  variables: false
+  workitems: true
+  webhooks: false
+  snippets: false
+  integrations: false
+
+# Block code and pipeline operations
+denied_tools_regex: "^manage_(files|pipeline|variable)"

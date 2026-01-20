@@ -1,0 +1,28 @@
+# DevOps Engineer preset - CI/CD and infrastructure
+#
+# Focused on infrastructure and automation:
+# - Full pipeline management
+# - Variables and secrets
+# - Webhooks and integrations
+# - File operations for configs
+#
+# No access to development workflow tools (MRs, issues, wiki).
+#
+# NOTE: This is a PRESET - host/auth come from environment variables.
+
+description: "DevOps Engineer - CI/CD pipelines, variables, infrastructure"
+
+read_only: false
+
+features:
+  wiki: false
+  milestones: false
+  pipelines: true
+  labels: false
+  mrs: false
+  files: true
+  variables: true
+  workitems: false
+  webhooks: true
+  snippets: false
+  integrations: true
