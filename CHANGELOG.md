@@ -1,3 +1,9 @@
+## [6.13.0](https://github.com/structured-world/gitlab-mcp/compare/v6.12.0...v6.13.0) (2026-01-20)
+
+### Features
+
+* **profiles:** add configuration profiles infrastructure ([#60](https://github.com/structured-world/gitlab-mcp/issues/60)) ([171b625](https://github.com/structured-world/gitlab-mcp/commit/171b6257ac61ceb6742efde31075acf74a6bca0a)), closes [#54](https://github.com/structured-world/gitlab-mcp/issues/54) [#54](https://github.com/structured-world/gitlab-mcp/issues/54)
+
 ## [6.12.0](https://github.com/structured-world/gitlab-mcp/compare/v6.11.0...v6.12.0) (2026-01-20)
 
 ### Features
