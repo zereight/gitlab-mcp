@@ -2,46 +2,31 @@
 
 import { startServer } from "./server";
 import { logger } from "./logger";
-import { tryApplyProfileFromEnv } from "./profiles";
-
-/**
- * Parse CLI arguments for --profile flag
- */
-function getProfileFromArgs(): string | undefined {
-  const args = process.argv.slice(2);
-  let profileName: string | undefined;
-  let profileCount = 0;
-
-  for (let i = 0; i < args.length; i++) {
-    if (args[i] === "--profile") {
-      const value = args[i + 1];
-      // Validate that value exists and is not another flag
-      if (!value || value.startsWith("--")) {
-        logger.error("--profile requires a profile name (e.g., --profile work)");
-        process.exit(1);
-      }
-      profileCount++;
-      if (profileCount === 1) {
-        profileName = value;
-      }
-    }
-  }
-
-  if (profileCount > 1) {
-    logger.warn({ count: profileCount }, "Multiple --profile flags detected, using first value");
-  }
-
-  return profileName;
-}
+import { tryApplyProfileFromEnv, findProjectConfig, getProjectConfigSummary } from "./profiles";
+import { parseCliArgs, displayProjectConfig } from "./cli-utils";
 
 /**
  * Main entry point
  */
 async function main(): Promise<void> {
+  const cliArgs = parseCliArgs();
+
+  // Handle --show-project-config flag (display and exit)
+  if (cliArgs.showProjectConfig) {
+    try {
+      const projectConfig = await findProjectConfig(process.cwd());
+      displayProjectConfig(projectConfig);
+      process.exit(0);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      logger.error({ error: message }, "Failed to load project config");
+      process.exit(1);
+    }
+  }
+
   // Apply profile if specified (CLI arg > env var > default)
-  const profileName = getProfileFromArgs();
   try {
-    const result = await tryApplyProfileFromEnv(profileName);
+    const result = await tryApplyProfileFromEnv(cliArgs.profileName);
     if (result) {
       // Handle both profile and preset results
       if ("profileName" in result) {
@@ -58,6 +43,32 @@ async function main(): Promise<void> {
     const message = error instanceof Error ? error.message : String(error);
     logger.error({ error: message }, "Failed to load profile");
     process.exit(1);
+  }
+
+  // Load project config unless --no-project-config is specified
+  if (!cliArgs.noProjectConfig) {
+    try {
+      const projectConfig = await findProjectConfig(process.cwd());
+      if (projectConfig) {
+        const summary = getProjectConfigSummary(projectConfig);
+        logger.info(
+          {
+            path: projectConfig.configPath,
+            preset: summary.presetSummary,
+            profile: summary.profileSummary,
+          },
+          "Loaded project configuration"
+        );
+
+        // Note: Project config is loaded and logged but not yet enforced.
+        // Scope restrictions require integration with tool execution layer.
+        // See: https://github.com/structured-world/gitlab-mcp/issues/61
+      }
+    } catch (error) {
+      // Project config errors are warnings, not fatal
+      const message = error instanceof Error ? error.message : String(error);
+      logger.warn({ error: message }, "Failed to load project config, continuing without it");
+    }
   }
 
   // Start the server

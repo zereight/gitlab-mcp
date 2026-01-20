@@ -29,6 +29,12 @@ export {
   ProfileSchema,
   PresetSchema,
   ProfilesConfigSchema,
+  // Project-level types
+  ProjectPreset,
+  ProjectProfile,
+  ProjectConfig,
+  ProjectPresetSchema,
+  ProjectProfileSchema,
 } from "./types";
 
 // Loader
@@ -44,3 +50,24 @@ export {
   ApplyProfileResult,
   ApplyPresetResult,
 } from "./applicator";
+
+// Project-level config loader
+export {
+  loadProjectConfig,
+  findProjectConfig,
+  validateProjectPreset,
+  validateProjectProfile,
+  getProjectConfigSummary,
+  PROJECT_CONFIG_DIR,
+  PROJECT_PRESET_FILE,
+  PROJECT_PROFILE_FILE,
+} from "./project-loader";
+
+// Scope enforcer
+export {
+  ScopeEnforcer,
+  ScopeViolationError,
+  ScopeConfig,
+  extractProjectsFromArgs,
+  enforceArgsScope,
+} from "./scope-enforcer";

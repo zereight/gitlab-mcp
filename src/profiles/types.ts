@@ -144,6 +144,112 @@ export const ProfilesConfigSchema = z.object({
 });
 
 // ============================================================================
+// Project-Level Configuration Schemas (.gitlab-mcp/)
+// ============================================================================
+
+/**
+ * Scope configuration for project-level restrictions.
+ * Determines which projects/namespaces operations are allowed on.
+ */
+export const ScopeConfigSchema = z
+  .object({
+    /** Single project restriction */
+    project: z.string().optional().describe("Single project path (e.g., group/project)"),
+    /** Namespace restriction (all projects in group) */
+    namespace: z.string().optional().describe("Namespace/group path"),
+    /** Explicit list of allowed projects */
+    projects: z.array(z.string()).optional().describe("List of allowed project paths"),
+  })
+  .refine(
+    data => {
+      // At least one scope field must be set
+      const hasProject = data.project !== undefined;
+      const hasNamespace = data.namespace !== undefined;
+      const hasProjects = data.projects !== undefined && data.projects.length > 0;
+      return hasProject || hasNamespace || hasProjects;
+    },
+    { message: "Scope must define at least one of: project, namespace, or projects" }
+  )
+  .refine(
+    data => {
+      // Cannot combine project with projects
+      if (data.project && data.projects && data.projects.length > 0) {
+        return false;
+      }
+      return true;
+    },
+    { message: "Cannot combine 'project' with 'projects' - use one or the other" }
+  );
+
+/**
+ * Project-level preset schema (.gitlab-mcp/preset.yaml)
+ * Defines restrictions specific to this project repository.
+ * These are applied ON TOP of user profiles/presets.
+ */
+export const ProjectPresetSchema = z
+  .object({
+    /** Human-readable description */
+    description: z.string().optional().describe("Description of project restrictions"),
+
+    /** Scope restriction - limits operations to specific projects/namespaces */
+    scope: ScopeConfigSchema.optional().describe("Project/namespace scope restrictions"),
+
+    /** Feature restrictions */
+    features: FeatureFlagsSchema,
+
+    /** Denied actions in format 'tool:action' */
+    denied_actions: z
+      .array(z.string())
+      .optional()
+      .describe("Denied actions in format 'tool:action'"),
+
+    /** Denied tools (by name) */
+    denied_tools: z.array(z.string()).optional().describe("List of denied tool names"),
+
+    /** Enable read-only mode for this project */
+    read_only: z.boolean().optional().describe("Enable read-only mode"),
+  })
+  .strict();
+
+/**
+ * Project-level profile schema (.gitlab-mcp/profile.yaml)
+ * Defines tool selection and feature configuration for this project.
+ * Can extend a built-in preset.
+ */
+export const ProjectProfileSchema = z
+  .object({
+    /** Human-readable description */
+    description: z.string().optional().describe("Description of project configuration"),
+
+    /** Inherit from a built-in preset */
+    extends: z.string().optional().describe("Built-in preset name to inherit from"),
+
+    /** Feature overrides (applied after extends) */
+    features: FeatureFlagsSchema,
+
+    /** Additional tools beyond base preset */
+    additional_tools: z.array(z.string()).optional().describe("Additional tools to enable"),
+
+    /** Tools to remove from base preset */
+    denied_tools: z.array(z.string()).optional().describe("Tools to disable"),
+  })
+  .strict();
+
+/**
+ * Combined project configuration loaded from .gitlab-mcp/ directory
+ */
+export interface ProjectConfig {
+  /** Path to the .gitlab-mcp/ directory */
+  configPath: string;
+
+  /** Preset from preset.yaml (restrictions) */
+  preset?: ProjectPreset;
+
+  /** Profile from profile.yaml (tool selection) */
+  profile?: ProjectProfile;
+}
+
+// ============================================================================
 // TypeScript Types (inferred from schemas)
 // ============================================================================
 
@@ -155,6 +261,8 @@ export type FeatureFlags = z.infer<typeof FeatureFlagsSchema>;
 export type Profile = z.infer<typeof ProfileSchema>;
 export type Preset = z.infer<typeof PresetSchema>;
 export type ProfilesConfig = z.infer<typeof ProfilesConfigSchema>;
+export type ProjectPreset = z.infer<typeof ProjectPresetSchema>;
+export type ProjectProfile = z.infer<typeof ProjectProfileSchema>;
 
 // ============================================================================
 // Profile Info (for listing)
