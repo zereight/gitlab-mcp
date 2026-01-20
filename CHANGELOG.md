@@ -1,3 +1,9 @@
+## [6.10.0](https://github.com/structured-world/gitlab-mcp/compare/v6.9.0...v6.10.0) (2026-01-20)
+
+### Features
+
+* **docs:** add --export flag to list-tools for TOOLS.md generation ([#51](https://github.com/structured-world/gitlab-mcp/issues/51)) ([25f5393](https://github.com/structured-world/gitlab-mcp/commit/25f53933240a11111e89247ea39e5acdd598f899)), closes [#47](https://github.com/structured-world/gitlab-mcp/issues/47) [#49](https://github.com/structured-world/gitlab-mcp/issues/49)
+
 ## [6.9.0](https://github.com/structured-world/gitlab-mcp/compare/v6.8.0...v6.9.0) (2026-01-19)
 
 ### Features
