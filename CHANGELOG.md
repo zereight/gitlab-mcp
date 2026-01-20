@@ -1,3 +1,9 @@
+## [6.14.0](https://github.com/structured-world/gitlab-mcp/compare/v6.13.0...v6.14.0) (2026-01-20)
+
+### Features
+
+* **profiles:** add 7 role-based presets ([#63](https://github.com/structured-world/gitlab-mcp/issues/63)) ([5f05913](https://github.com/structured-world/gitlab-mcp/commit/5f059135d5901a7fea33b5f99ca1219c71baebfb)), closes [#55](https://github.com/structured-world/gitlab-mcp/issues/55)
+
 ## [6.13.0](https://github.com/structured-world/gitlab-mcp/compare/v6.12.0...v6.13.0) (2026-01-20)
 
 ### Features

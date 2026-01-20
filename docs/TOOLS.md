@@ -1,7 +1,7 @@
 # GitLab MCP Tools Reference
 
 > Auto-generated from source code. Do not edit manually.
-> Generated: 2026-01-20 | Tools: 39 | Version: 6.13.0
+> Generated: 2026-01-20 | Tools: 39 | Version: 6.14.0
 
 ## Table of Contents
 
@@ -2101,4 +2101,4 @@ TODO ACTIONS: Manage your GitLab todo items. Use 'mark_done' with id to complete
 
 ---
 
-[15:49:25.252] [32mINFO[39m (gitlab-mcp): [36mUsing in-memory session storage (sessions will be lost on restart)[39m
+[16:03:15.561] [32mINFO[39m (gitlab-mcp): [36mUsing in-memory session storage (sessions will be lost on restart)[39m
