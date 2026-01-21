@@ -123,6 +123,9 @@ describe("MRS Registry", () => {
       expect(tool!.description).toContain("create");
       expect(tool!.description).toContain("update");
       expect(tool!.description).toContain("merge");
+      expect(tool!.description).toContain("approve");
+      expect(tool!.description).toContain("unapprove");
+      expect(tool!.description).toContain("get_approval_state");
       expect(tool!.inputSchema).toBeDefined();
     });
 
@@ -137,6 +140,8 @@ describe("MRS Registry", () => {
       expect(tool!.description).toContain("update");
       expect(tool!.description).toContain("apply_suggestion");
       expect(tool!.description).toContain("apply_suggestions");
+      expect(tool!.description).toContain("resolve");
+      expect(tool!.description).toContain("suggest");
       expect(tool!.inputSchema).toBeDefined();
     });
 
@@ -704,6 +709,92 @@ describe("MRS Registry", () => {
           expect(result).toEqual(mockResult);
         });
       });
+
+      describe("action: approve", () => {
+        it("should approve MR without sha", async () => {
+          const mockResult = { id: 1, user: { id: 123, name: "Test User" } };
+          mockGitlab.post.mockResolvedValueOnce(mockResult);
+
+          const tool = mrsToolRegistry.get("manage_merge_request")!;
+          const result = await tool.handler({
+            action: "approve",
+            project_id: "test/project",
+            merge_request_iid: 1,
+          });
+
+          expect(mockGitlab.post).toHaveBeenCalledWith(
+            "projects/test%2Fproject/merge_requests/1/approve",
+            expect.objectContaining({
+              body: undefined,
+              contentType: "json",
+            })
+          );
+          expect(result).toEqual(mockResult);
+        });
+
+        it("should approve MR with specific sha", async () => {
+          const mockResult = { id: 1, user: { id: 123, name: "Test User" } };
+          mockGitlab.post.mockResolvedValueOnce(mockResult);
+
+          const tool = mrsToolRegistry.get("manage_merge_request")!;
+          const result = await tool.handler({
+            action: "approve",
+            project_id: "test/project",
+            merge_request_iid: 1,
+            sha: "abc123def456",
+          });
+
+          expect(mockGitlab.post).toHaveBeenCalledWith(
+            "projects/test%2Fproject/merge_requests/1/approve",
+            expect.objectContaining({
+              body: { sha: "abc123def456" },
+              contentType: "json",
+            })
+          );
+          expect(result).toEqual(mockResult);
+        });
+      });
+
+      describe("action: unapprove", () => {
+        it("should remove approval from MR", async () => {
+          const mockResult = { id: 1 };
+          mockGitlab.post.mockResolvedValueOnce(mockResult);
+
+          const tool = mrsToolRegistry.get("manage_merge_request")!;
+          const result = await tool.handler({
+            action: "unapprove",
+            project_id: "test/project",
+            merge_request_iid: 1,
+          });
+
+          expect(mockGitlab.post).toHaveBeenCalledWith(
+            "projects/test%2Fproject/merge_requests/1/unapprove"
+          );
+          expect(result).toEqual(mockResult);
+        });
+      });
+
+      describe("action: get_approval_state", () => {
+        it("should get approval state for MR", async () => {
+          const mockResult = {
+            approval_rules_overwritten: false,
+            rules: [{ id: 1, name: "All Members", eligible_approvers: [], approvals_required: 1 }],
+          };
+          mockGitlab.get.mockResolvedValueOnce(mockResult);
+
+          const tool = mrsToolRegistry.get("manage_merge_request")!;
+          const result = await tool.handler({
+            action: "get_approval_state",
+            project_id: "test/project",
+            merge_request_iid: 1,
+          });
+
+          expect(mockGitlab.get).toHaveBeenCalledWith(
+            "projects/test%2Fproject/merge_requests/1/approval_state"
+          );
+          expect(result).toEqual(mockResult);
+        });
+      });
     });
 
     describe("manage_mr_discussion handler", () => {
@@ -919,6 +1010,155 @@ describe("MRS Registry", () => {
                 commit_message: "Apply code review suggestions",
               },
               contentType: "json",
+            })
+          );
+          expect(result).toEqual(mockResult);
+        });
+      });
+
+      describe("action: resolve", () => {
+        it("should resolve a discussion thread", async () => {
+          const mockResult = { id: "abc123", resolved: true };
+          mockGitlab.put.mockResolvedValueOnce(mockResult);
+
+          const tool = mrsToolRegistry.get("manage_mr_discussion")!;
+          const result = await tool.handler({
+            action: "resolve",
+            project_id: "test/project",
+            merge_request_iid: 1,
+            discussion_id: "abc123",
+            resolved: true,
+          });
+
+          expect(mockGitlab.put).toHaveBeenCalledWith(
+            "projects/test%2Fproject/merge_requests/1/discussions/abc123",
+            expect.objectContaining({
+              body: { resolved: true },
+              contentType: "form",
+            })
+          );
+          expect(result).toEqual(mockResult);
+        });
+
+        it("should unresolve a discussion thread", async () => {
+          const mockResult = { id: "abc123", resolved: false };
+          mockGitlab.put.mockResolvedValueOnce(mockResult);
+
+          const tool = mrsToolRegistry.get("manage_mr_discussion")!;
+          const result = await tool.handler({
+            action: "resolve",
+            project_id: "test/project",
+            merge_request_iid: 1,
+            discussion_id: "abc123",
+            resolved: false,
+          });
+
+          expect(mockGitlab.put).toHaveBeenCalledWith(
+            "projects/test%2Fproject/merge_requests/1/discussions/abc123",
+            expect.objectContaining({
+              body: { resolved: false },
+              contentType: "form",
+            })
+          );
+          expect(result).toEqual(mockResult);
+        });
+      });
+
+      describe("action: suggest", () => {
+        it("should create a code suggestion without line range", async () => {
+          const mockResult = { id: "def456", notes: [] };
+          mockGitlab.post.mockResolvedValueOnce(mockResult);
+
+          const tool = mrsToolRegistry.get("manage_mr_discussion")!;
+          const result = await tool.handler({
+            action: "suggest",
+            project_id: "test/project",
+            merge_request_iid: 1,
+            position: {
+              base_sha: "abc123",
+              head_sha: "def456",
+              start_sha: "ghi789",
+              new_path: "src/file.ts",
+              new_line: 10,
+            },
+            suggestion: "const x = 1;",
+          });
+
+          expect(mockGitlab.post).toHaveBeenCalledWith(
+            "projects/test%2Fproject/merge_requests/1/discussions",
+            expect.objectContaining({
+              body: {
+                body: "```suggestion\nconst x = 1;\n```",
+                position: expect.any(String),
+              },
+              contentType: "form",
+            })
+          );
+          expect(result).toEqual(mockResult);
+        });
+
+        it("should create a code suggestion with line range", async () => {
+          const mockResult = { id: "def456", notes: [] };
+          mockGitlab.post.mockResolvedValueOnce(mockResult);
+
+          const tool = mrsToolRegistry.get("manage_mr_discussion")!;
+          const result = await tool.handler({
+            action: "suggest",
+            project_id: "test/project",
+            merge_request_iid: 1,
+            position: {
+              base_sha: "abc123",
+              head_sha: "def456",
+              start_sha: "ghi789",
+              new_path: "src/file.ts",
+              new_line: 10,
+            },
+            suggestion: "const x = 1;\nconst y = 2;",
+            lines_above: 2,
+            lines_below: 1,
+          });
+
+          expect(mockGitlab.post).toHaveBeenCalledWith(
+            "projects/test%2Fproject/merge_requests/1/discussions",
+            expect.objectContaining({
+              body: {
+                body: "```suggestion:-2+1\nconst x = 1;\nconst y = 2;\n```",
+                position: expect.any(String),
+              },
+              contentType: "form",
+            })
+          );
+          expect(result).toEqual(mockResult);
+        });
+
+        it("should create a code suggestion with comment", async () => {
+          const mockResult = { id: "def456", notes: [] };
+          mockGitlab.post.mockResolvedValueOnce(mockResult);
+
+          const tool = mrsToolRegistry.get("manage_mr_discussion")!;
+          const result = await tool.handler({
+            action: "suggest",
+            project_id: "test/project",
+            merge_request_iid: 1,
+            position: {
+              base_sha: "abc123",
+              head_sha: "def456",
+              start_sha: "ghi789",
+              new_path: "src/file.ts",
+              new_line: 10,
+            },
+            suggestion: "const x = 1;",
+            comment: "Consider using const instead of let",
+          });
+
+          expect(mockGitlab.post).toHaveBeenCalledWith(
+            "projects/test%2Fproject/merge_requests/1/discussions",
+            expect.objectContaining({
+              body: {
+                body: "Consider using const instead of let\n\n```suggestion\nconst x = 1;\n```",
+                position: expect.any(String),
+              },
+              contentType: "form",
             })
           );
           expect(result).toEqual(mockResult);

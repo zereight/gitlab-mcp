@@ -190,7 +190,7 @@ export const mrsToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefinit
     {
       name: "manage_merge_request",
       description:
-        'MANAGE merge requests. Actions: "create" creates new MR, "update" modifies existing MR, "merge" merges approved MR into target branch.',
+        'MANAGE merge requests. Actions: "create" creates new MR, "update" modifies existing MR, "merge" merges approved MR into target branch, "approve" approves MR, "unapprove" removes approval, "get_approval_state" gets approval status.',
       inputSchema: z.toJSONSchema(ManageMergeRequestSchema),
       gate: { envVar: "USE_MRS", defaultValue: true },
       handler: async (args: unknown) => {
@@ -252,6 +252,37 @@ export const mrsToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefinit
             );
           }
 
+          case "approve": {
+            // TypeScript knows: input has merge_request_iid (required), sha (optional)
+            const { project_id, merge_request_iid, sha } = input;
+
+            const body: Record<string, unknown> = {};
+            if (sha) body.sha = sha;
+
+            return gitlab.post(
+              `projects/${normalizeProjectId(project_id)}/merge_requests/${merge_request_iid}/approve`,
+              { body: Object.keys(body).length > 0 ? body : undefined, contentType: "json" }
+            );
+          }
+
+          case "unapprove": {
+            // TypeScript knows: input has merge_request_iid (required)
+            const { project_id, merge_request_iid } = input;
+
+            return gitlab.post(
+              `projects/${normalizeProjectId(project_id)}/merge_requests/${merge_request_iid}/unapprove`
+            );
+          }
+
+          case "get_approval_state": {
+            // TypeScript knows: input has merge_request_iid (required)
+            const { project_id, merge_request_iid } = input;
+
+            return gitlab.get(
+              `projects/${normalizeProjectId(project_id)}/merge_requests/${merge_request_iid}/approval_state`
+            );
+          }
+
           /* istanbul ignore next -- unreachable with Zod discriminatedUnion */
           default:
             throw new Error(`Unknown action: ${(input as { action: string }).action}`);
@@ -269,7 +300,7 @@ export const mrsToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefinit
     {
       name: "manage_mr_discussion",
       description:
-        'MANAGE MR discussions and suggestions. Actions: "comment" adds comment, "thread" starts discussion, "reply" responds to thread, "update" modifies note, "apply_suggestion" applies single code suggestion, "apply_suggestions" batch applies multiple suggestions.',
+        'MANAGE MR discussions. Actions: "comment" adds comment, "thread" starts discussion, "reply" responds to thread, "update" modifies note, "apply_suggestion" applies code suggestion, "apply_suggestions" batch applies suggestions, "resolve" resolves/unresolves thread, "suggest" creates code suggestion.',
       inputSchema: z.toJSONSchema(ManageMrDiscussionSchema),
       gate: { envVar: "USE_MRS", defaultValue: true },
       handler: async (args: unknown) => {
@@ -376,6 +407,49 @@ export const mrsToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefinit
             return gitlab.put(
               `projects/${normalizeProjectId(project_id)}/merge_requests/${merge_request_iid}/suggestions/batch_apply`,
               { body, contentType: "json" }
+            );
+          }
+
+          case "resolve": {
+            // TypeScript knows: input has discussion_id (required), resolved (required)
+            const { project_id, merge_request_iid, discussion_id, resolved } = input;
+
+            return gitlab.put(
+              `projects/${normalizeProjectId(project_id)}/merge_requests/${merge_request_iid}/discussions/${discussion_id}`,
+              { body: { resolved }, contentType: "form" }
+            );
+          }
+
+          case "suggest": {
+            // TypeScript knows: input has position (required), suggestion (required)
+            const {
+              project_id,
+              merge_request_iid,
+              position,
+              suggestion,
+              comment,
+              lines_above,
+              lines_below,
+            } = input;
+
+            // Build markdown suggestion block with line range syntax
+            // Format: ```suggestion:-N+M where N=lines_above, M=lines_below
+            const rangeSpec =
+              lines_above || lines_below ? `:-${lines_above || 0}+${lines_below || 0}` : "";
+            const suggestionBlock = `\`\`\`suggestion${rangeSpec}\n${suggestion}\n\`\`\``;
+
+            // Prepend optional comment
+            const noteBody = comment ? `${comment}\n\n${suggestionBlock}` : suggestionBlock;
+
+            // Create discussion thread with position (same as thread action)
+            const body: Record<string, unknown> = {
+              body: noteBody,
+              position: JSON.stringify(position),
+            };
+
+            return gitlab.post(
+              `projects/${normalizeProjectId(project_id)}/merge_requests/${merge_request_iid}/discussions`,
+              { body, contentType: "form" }
             );
           }
 

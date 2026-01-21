@@ -3,9 +3,9 @@
  * Tests real environment integration and initialization with GitLab
  */
 
-import { ConnectionManager } from '../../../src/services/ConnectionManager';
+import { ConnectionManager } from "../../../src/services/ConnectionManager";
 
-describe('ConnectionManager Integration', () => {
+describe("ConnectionManager Integration", () => {
   let manager: ConnectionManager;
 
   beforeEach(() => {
@@ -14,7 +14,7 @@ describe('ConnectionManager Integration', () => {
     manager = ConnectionManager.getInstance();
   });
 
-  it('should initialize successfully with real environment', async () => {
+  it("should initialize successfully with real environment", async () => {
     // This test uses real environment variables from .env.test
     await expect(manager.initialize()).resolves.not.toThrow();
 
@@ -26,17 +26,17 @@ describe('ConnectionManager Integration', () => {
     expect(manager.getSchemaInfo()).toBeDefined();
   });
 
-  it('should detect real GitLab instance information', async () => {
+  it("should detect real GitLab instance information", async () => {
     await manager.initialize();
 
     const instanceInfo = manager.getInstanceInfo();
     expect(instanceInfo.version).toMatch(/^\d+\.\d+\.\d+/); // Valid version format
-    expect(['free', 'premium', 'ultimate']).toContain(instanceInfo.tier);
+    expect(["free", "premium", "ultimate"]).toContain(instanceInfo.tier);
     expect(instanceInfo.features).toBeDefined();
     expect(instanceInfo.detectedAt).toBeInstanceOf(Date);
   });
 
-  it('should introspect real GitLab schema', async () => {
+  it("should introspect real GitLab schema", async () => {
     await manager.initialize();
 
     const schemaInfo = manager.getSchemaInfo();

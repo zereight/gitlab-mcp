@@ -2,8 +2,8 @@
  * Test utility functions for unit tests
  */
 
-import { mockEnhancedFetch } from '../__mocks__/enhancedFetch';
-import { createMockResponse, createMockErrorResponse } from '../fixtures/mockData';
+import { mockEnhancedFetch } from "../__mocks__/enhancedFetch";
+import { createMockResponse, createMockErrorResponse } from "../fixtures/mockData";
 
 // Re-export the mock for direct use in tests
 export { mockEnhancedFetch };
@@ -12,8 +12,8 @@ export { mockEnhancedFetch };
  * Setup enhanced fetch mock with predefined responses
  */
 export function setupMockFetch() {
-  jest.doMock('../../src/utils/fetch', () => ({
-    enhancedFetch: mockEnhancedFetch
+  jest.doMock("../../src/utils/fetch", () => ({
+    enhancedFetch: mockEnhancedFetch,
   }));
 }
 
@@ -35,14 +35,14 @@ export function mockSuccessResponse(data: any, status = 200) {
 /**
  * Mock an error API response
  */
-export function mockErrorResponse(status = 404, message = 'Not Found') {
+export function mockErrorResponse(status = 404, message = "Not Found") {
   mockEnhancedFetch.mockResolvedValueOnce(createMockErrorResponse(status, message));
 }
 
 /**
  * Mock a rejected promise (network error)
  */
-export function mockNetworkError(message = 'Network Error') {
+export function mockNetworkError(message = "Network Error") {
   mockEnhancedFetch.mockRejectedValueOnce(new Error(message));
 }
 
@@ -84,23 +84,23 @@ export function getLastFetchBody() {
   if (!body) return undefined;
 
   // Check content type to determine how to parse
-  const contentType = lastCall[1]?.headers?.['Content-Type'];
+  const contentType = lastCall[1]?.headers?.["Content-Type"];
 
-  if (contentType === 'application/x-www-form-urlencoded') {
+  if (contentType === "application/x-www-form-urlencoded") {
     // Parse URL-encoded data
     const params = new URLSearchParams(body);
     const result: Record<string, any> = {};
     for (const [key, value] of params.entries()) {
       // Try to convert common data types
-      if (value === 'true') {
+      if (value === "true") {
         result[key] = true;
-      } else if (value === 'false') {
+      } else if (value === "false") {
         result[key] = false;
       } else if (value.match(/^\d+$/)) {
         result[key] = parseInt(value, 10);
       } else if (value.match(/^\d+\.\d+$/)) {
         result[key] = parseFloat(value);
-      } else if (value.startsWith('{') || value.startsWith('[')) {
+      } else if (value.startsWith("{") || value.startsWith("[")) {
         // Try to parse as JSON
         try {
           result[key] = JSON.parse(value);
@@ -154,7 +154,7 @@ export async function testHandlerError(
   handler: Function,
   params: any,
   errorStatus = 404,
-  errorMessage = 'Not Found'
+  errorMessage = "Not Found"
 ) {
   mockErrorResponse(errorStatus, errorMessage);
 
@@ -206,17 +206,17 @@ export function createHandlerTestSuite(
       resetMocks();
     });
 
-    it('should return data on successful API call', async () => {
+    it("should return data on successful API call", async () => {
       await testHandlerSuccess(handler, validParams, mockResponseData, expectedUrl);
     });
 
-    it('should handle API errors', async () => {
+    it("should handle API errors", async () => {
       await testHandlerError(handler, validParams);
     });
 
-    it('should handle network errors', async () => {
+    it("should handle network errors", async () => {
       mockNetworkError();
-      await expect(handler(validParams)).rejects.toThrow('Network Error');
+      await expect(handler(validParams)).rejects.toThrow("Network Error");
     });
   });
 }

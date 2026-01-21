@@ -156,14 +156,14 @@ describe("ToolAvailability - Tier-based Filtering", () => {
 
     it("should block premium-only tools", () => {
       // Premium tools will be tested when implemented per WORK.md
-      const premiumTools: string[] = [];
+      const _premiumTools: string[] = [];
 
       // Premium tools tests will be added when tools are implemented
     });
 
     it("should block ultimate-only tools", () => {
       // Ultimate tools will be tested when implemented per WORK.md
-      const ultimateTools: string[] = [];
+      const _ultimateTools: string[] = [];
 
       // Ultimate tools tests will be added when tools are implemented
     });
@@ -214,7 +214,7 @@ describe("ToolAvailability - Tier-based Filtering", () => {
     });
 
     it("should still block ultimate-only tools", () => {
-      const ultimateTools = [
+      const _ultimateTools = [
         "security_dashboard",
         "list_vulnerabilities",
         "compliance_framework",

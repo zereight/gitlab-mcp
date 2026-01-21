@@ -230,7 +230,7 @@ describe("Files Registry", () => {
           });
 
           const call = mockEnhancedFetch.mock.calls[0];
-          const url = call[0] as string;
+          const url = call[0];
           expect(url).toContain("path=src%2F");
           expect(url).toContain("ref=develop");
           expect(url).toContain("recursive=true");

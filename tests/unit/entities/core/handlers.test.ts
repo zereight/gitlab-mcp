@@ -78,7 +78,7 @@ describe("Core Registry Handlers", () => {
 
         await handler?.({ action: "list", visibility: "public", per_page: 20 });
 
-        const calledUrl = mockEnhancedFetch.mock.calls[0][0] as string;
+        const calledUrl = mockEnhancedFetch.mock.calls[0][0];
         expect(calledUrl).toContain("/api/v4/projects?");
         expect(calledUrl).toContain("visibility=public");
         expect(calledUrl).toContain("per_page=20");
@@ -94,7 +94,7 @@ describe("Core Registry Handlers", () => {
 
         await handler?.({ action: "list" });
 
-        const calledUrl = mockEnhancedFetch.mock.calls[0][0] as string;
+        const calledUrl = mockEnhancedFetch.mock.calls[0][0];
         expect(calledUrl).toContain("/api/v4/projects?");
         expect(calledUrl).toContain("active=true");
         expect(calledUrl).toContain("order_by=created_at");
@@ -125,7 +125,7 @@ describe("Core Registry Handlers", () => {
 
         await handler?.({ action: "list", visibility: "public", per_page: 5 });
 
-        const calledUrl = mockEnhancedFetch.mock.calls[0][0] as string;
+        const calledUrl = mockEnhancedFetch.mock.calls[0][0];
         expect(calledUrl).toContain("/api/v4/projects?");
         expect(calledUrl).toContain("active=true");
         expect(calledUrl).toContain("visibility=public");
@@ -144,7 +144,7 @@ describe("Core Registry Handlers", () => {
 
         await handler?.({ action: "list", group_id: "456" });
 
-        const calledUrl = mockEnhancedFetch.mock.calls[0][0] as string;
+        const calledUrl = mockEnhancedFetch.mock.calls[0][0];
         expect(calledUrl).toContain("/api/v4/groups/456/projects?");
         expect(calledUrl).toContain("order_by=created_at");
         expect(calledUrl).toContain("sort=desc");

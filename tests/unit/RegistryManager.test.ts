@@ -1,5 +1,4 @@
 import { RegistryManager } from "../../src/registry-manager";
-import { EnhancedToolDefinition } from "../../src/types";
 
 // Mock all dependencies
 jest.mock("../../src/entities/core/registry", () => ({
@@ -365,7 +364,7 @@ describe("RegistryManager", () => {
     });
 
     it("should provide cache refresh functionality", () => {
-      const originalNames = registryManager.getAvailableToolNames();
+      const _originalNames = registryManager.getAvailableToolNames();
 
       // Test that refresh method exists and doesn't throw
       expect(() => registryManager.refreshCache()).not.toThrow();

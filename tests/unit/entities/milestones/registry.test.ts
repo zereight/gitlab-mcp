@@ -257,7 +257,7 @@ describe("Milestones Registry - CQRS Tools", () => {
       for (const [, tool] of milestonesToolRegistry) {
         expect(tool.inputSchema).toBeDefined();
         expect(typeof tool.inputSchema).toBe("object");
-        const schema = tool.inputSchema as Record<string, unknown>;
+        const schema = tool.inputSchema;
         const hasValidStructure = "type" in schema || "anyOf" in schema || "oneOf" in schema;
         expect(hasValidStructure).toBe(true);
       }
@@ -268,7 +268,7 @@ describe("Milestones Registry - CQRS Tools", () => {
         expect(tool.inputSchema).toBeDefined();
 
         if (typeof tool.inputSchema === "object" && tool.inputSchema !== null) {
-          const schema = tool.inputSchema as Record<string, unknown>;
+          const schema = tool.inputSchema;
           const hasValidStructure = "type" in schema || "anyOf" in schema || "oneOf" in schema;
           expect(hasValidStructure).toBe(true);
         } else {
@@ -328,7 +328,7 @@ describe("Milestones Registry - CQRS Tools", () => {
         });
 
         const call = mockEnhancedFetch.mock.calls[1];
-        const url = call[0] as string;
+        const url = call[0];
         expect(url).toContain("state=active");
         expect(url).toContain("search=v1");
         expect(url).toContain("per_page=50");

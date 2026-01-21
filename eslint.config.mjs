@@ -7,7 +7,7 @@ export default [
   js.configs.recommended,
   {
     files: ["**/*.ts"],
-    ignores: ["**/__tests__/**/*.ts", "**/*.test.ts", "**/*.spec.ts"],
+    ignores: ["**/__tests__/**/*.ts", "**/*.test.ts", "**/*.spec.ts", "tests/**/*.ts"],
     languageOptions: {
       parser: tsparser,
       parserOptions: {
@@ -64,7 +64,7 @@ export default [
     },
   },
   {
-    files: ["**/__tests__/**/*.ts", "**/*.test.ts", "**/*.spec.ts"],
+    files: ["**/__tests__/**/*.ts", "**/*.test.ts", "**/*.spec.ts", "tests/**/*.ts"],
     languageOptions: {
       parser: tsparser,
       parserOptions: {
@@ -92,6 +92,11 @@ export default [
         beforeAll: "readonly",
         afterAll: "readonly",
         jest: "readonly",
+        // Node.js globals for test mocking
+        global: "writable",
+        require: "readonly",
+        __dirname: "readonly",
+        __filename: "readonly",
       },
     },
     plugins: {
@@ -103,10 +108,29 @@ export default [
       "no-unused-vars": "off", // Disable base rule in favor of @typescript-eslint version
       "@typescript-eslint/no-unused-vars": [
         "error",
-        { argsIgnorePattern: "^_", varsIgnorePattern: "^_" },
+        { argsIgnorePattern: "^_", varsIgnorePattern: "^_", caughtErrorsIgnorePattern: "^_" },
       ],
-      // Relax some rules for tests
+      // Async rules (relaxed for tests)
+      "@typescript-eslint/no-floating-promises": "off", // Test assertions often don't need to await
+      "@typescript-eslint/no-misused-promises": "error",
+      "@typescript-eslint/await-thenable": "error",
+      // Code quality rules (relaxed for tests)
+      "@typescript-eslint/no-unnecessary-type-assertion": "error",
+      "@typescript-eslint/prefer-nullish-coalescing": "off", // Semantic difference less critical in tests
+      "@typescript-eslint/prefer-optional-chain": "error",
+      "@typescript-eslint/prefer-as-const": "error",
+      "@typescript-eslint/unbound-method": "off", // Common in test mocks
+      // Relaxed rules for tests (mocks and dynamic data often require unsafe operations)
       "@typescript-eslint/no-explicit-any": "off",
+      "@typescript-eslint/no-unsafe-assignment": "off",
+      "@typescript-eslint/no-unsafe-member-access": "off",
+      "@typescript-eslint/no-unsafe-call": "off",
+      "@typescript-eslint/no-unsafe-return": "off",
+      "@typescript-eslint/no-unsafe-argument": "off",
+      "@typescript-eslint/restrict-template-expressions": "off",
+      "@typescript-eslint/restrict-plus-operands": "off",
+      "@typescript-eslint/no-non-null-assertion": "off", // Tests often use ! for known values
+      "@typescript-eslint/no-extraneous-class": "off",
     },
   },
 ];

@@ -32,6 +32,7 @@ export interface TestDataState {
   milestones?: any[];
   labels?: any[];
   todos?: any[];
+  discussionThread?: any;
 }
 
 import * as fs from "fs";

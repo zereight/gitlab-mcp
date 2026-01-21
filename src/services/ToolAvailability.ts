@@ -482,6 +482,14 @@ export class ToolAvailability {
     },
     manage_merge_request: {
       default: { tier: "free", minVersion: 8.0 },
+      actions: {
+        create: { tier: "free", minVersion: 8.0 },
+        update: { tier: "free", minVersion: 8.0 },
+        merge: { tier: "free", minVersion: 8.0 },
+        approve: { tier: "premium", minVersion: 10.6, notes: "MR approvals" },
+        unapprove: { tier: "premium", minVersion: 10.6, notes: "MR approvals" },
+        get_approval_state: { tier: "premium", minVersion: 13.8, notes: "MR approval state" },
+      },
     },
     manage_mr_discussion: {
       default: { tier: "free", minVersion: 8.0 },
@@ -492,6 +500,8 @@ export class ToolAvailability {
         update: { tier: "free", minVersion: 8.0 },
         apply_suggestion: { tier: "free", minVersion: 13.0 },
         apply_suggestions: { tier: "free", minVersion: 13.0 },
+        resolve: { tier: "free", minVersion: 10.0, notes: "Resolve discussion threads" },
+        suggest: { tier: "free", minVersion: 10.5, notes: "Code suggestions" },
       },
     },
     manage_draft_notes: {

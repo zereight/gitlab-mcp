@@ -332,7 +332,7 @@ describe("Core Registry", () => {
         expect(tool.inputSchema).toBeDefined();
         expect(typeof tool.inputSchema).toBe("object");
         // Schema can have either "type" (regular object) or "oneOf" (discriminated union)
-        const schema = tool.inputSchema as Record<string, unknown>;
+        const schema = tool.inputSchema;
         const hasValidStructure = "type" in schema || "oneOf" in schema;
         expect(hasValidStructure).toBe(true);
       }
@@ -344,7 +344,7 @@ describe("Core Registry", () => {
 
         // Schema should be an object with type or oneOf property (discriminated unions use oneOf)
         if (typeof tool.inputSchema === "object" && tool.inputSchema !== null) {
-          const schema = tool.inputSchema as Record<string, unknown>;
+          const schema = tool.inputSchema;
           const hasValidStructure = "type" in schema || "oneOf" in schema;
           expect(hasValidStructure).toBe(true);
         } else {
@@ -377,7 +377,7 @@ describe("Core Registry", () => {
 
         const result = await tool!.handler({ action: "search", q: "test" });
 
-        const calledUrl = mockEnhancedFetch.mock.calls[0][0] as string;
+        const calledUrl = mockEnhancedFetch.mock.calls[0][0];
         expect(calledUrl).toContain("/api/v4/projects?");
         expect(calledUrl).toContain("search=test");
         expect(calledUrl).toContain("active=true");
@@ -400,7 +400,7 @@ describe("Core Registry", () => {
         const tool = coreToolRegistry.get("browse_projects");
         const result = await tool!.handler({ action: "list" });
 
-        const calledUrl = mockEnhancedFetch.mock.calls[0][0] as string;
+        const calledUrl = mockEnhancedFetch.mock.calls[0][0];
         expect(calledUrl).toContain("/api/v4/projects?");
         expect(calledUrl).toContain("active=true");
 
@@ -472,7 +472,7 @@ describe("Core Registry", () => {
           sort: "desc",
         });
 
-        const calledUrl = mockEnhancedFetch.mock.calls[0][0] as string;
+        const calledUrl = mockEnhancedFetch.mock.calls[0][0];
         expect(calledUrl).toContain("with_programming_language=javascript");
         expect(calledUrl).toContain("order_by=updated_at");
         expect(calledUrl).toContain("sort=desc");
@@ -495,7 +495,7 @@ describe("Core Registry", () => {
         const tool = coreToolRegistry.get("browse_projects");
         await tool!.handler({ action: "search", q: "topic:devops test project" });
 
-        const calledUrl = mockEnhancedFetch.mock.calls[0][0] as string;
+        const calledUrl = mockEnhancedFetch.mock.calls[0][0];
         // topic: operator should be extracted to separate query param
         expect(calledUrl).toContain("topic=devops");
         // Space in "test project" should be encoded as + (URLSearchParams standard)
@@ -516,7 +516,7 @@ describe("Core Registry", () => {
         const tool = coreToolRegistry.get("browse_projects");
         await tool!.handler({ action: "search", q: "C++ programming" });
 
-        const calledUrl = mockEnhancedFetch.mock.calls[0][0] as string;
+        const calledUrl = mockEnhancedFetch.mock.calls[0][0];
         // Literal + should be encoded as %2B, space as +
         // "C++ programming" -> "C%2B%2B+programming"
         expect(calledUrl).toContain("search=C%2B%2B+programming");
@@ -608,7 +608,7 @@ describe("Core Registry", () => {
         const tool = coreToolRegistry.get("list_todos");
         const result = await tool!.handler({});
 
-        const calledUrl = mockEnhancedFetch.mock.calls[0][0] as string;
+        const calledUrl = mockEnhancedFetch.mock.calls[0][0];
         // per_page has a default value in schema, so it's always included
         expect(calledUrl).toContain("/api/v4/todos?");
         expect(calledUrl).toContain("per_page=20");
@@ -628,7 +628,7 @@ describe("Core Registry", () => {
         const tool = coreToolRegistry.get("list_todos");
         await tool!.handler({ state: "pending" });
 
-        const calledUrl = mockEnhancedFetch.mock.calls[0][0] as string;
+        const calledUrl = mockEnhancedFetch.mock.calls[0][0];
         expect(calledUrl).toContain("state=pending");
       });
 
@@ -644,7 +644,7 @@ describe("Core Registry", () => {
         const tool = coreToolRegistry.get("list_todos");
         await tool!.handler({ action: "review_requested" });
 
-        const calledUrl = mockEnhancedFetch.mock.calls[0][0] as string;
+        const calledUrl = mockEnhancedFetch.mock.calls[0][0];
         expect(calledUrl).toContain("action=review_requested");
       });
 
@@ -661,7 +661,7 @@ describe("Core Registry", () => {
         const tool = coreToolRegistry.get("list_todos");
         await tool!.handler({ type: "MergeRequest" });
 
-        const calledUrl = mockEnhancedFetch.mock.calls[0][0] as string;
+        const calledUrl = mockEnhancedFetch.mock.calls[0][0];
         expect(calledUrl).toContain("type=MergeRequest");
       });
 
@@ -682,7 +682,7 @@ describe("Core Registry", () => {
           per_page: 50,
         });
 
-        const calledUrl = mockEnhancedFetch.mock.calls[0][0] as string;
+        const calledUrl = mockEnhancedFetch.mock.calls[0][0];
         expect(calledUrl).toContain("state=pending");
         expect(calledUrl).toContain("action=assigned");
         expect(calledUrl).toContain("type=Issue");
@@ -701,7 +701,7 @@ describe("Core Registry", () => {
         const tool = coreToolRegistry.get("list_todos");
         await tool!.handler({ page: 2, per_page: 20 });
 
-        const calledUrl = mockEnhancedFetch.mock.calls[0][0] as string;
+        const calledUrl = mockEnhancedFetch.mock.calls[0][0];
         expect(calledUrl).toContain("page=2");
         expect(calledUrl).toContain("per_page=20");
       });
@@ -738,7 +738,7 @@ describe("Core Registry", () => {
         const tool = coreToolRegistry.get("browse_namespaces");
         const result = await tool!.handler({ action: "list" });
 
-        const calledUrl = mockEnhancedFetch.mock.calls[0][0] as string;
+        const calledUrl = mockEnhancedFetch.mock.calls[0][0];
         expect(calledUrl).toContain("/api/v4/namespaces?");
         expect(result).toEqual(mockApiResponse);
       });
@@ -755,7 +755,7 @@ describe("Core Registry", () => {
         const tool = coreToolRegistry.get("browse_namespaces");
         await tool!.handler({ action: "list", search: "test" });
 
-        const calledUrl = mockEnhancedFetch.mock.calls[0][0] as string;
+        const calledUrl = mockEnhancedFetch.mock.calls[0][0];
         expect(calledUrl).toContain("search=test");
       });
 
@@ -779,7 +779,7 @@ describe("Core Registry", () => {
           page: 2,
         });
 
-        const calledUrl = mockEnhancedFetch.mock.calls[0][0] as string;
+        const calledUrl = mockEnhancedFetch.mock.calls[0][0];
         expect(calledUrl).toContain("owned_only=true");
         expect(calledUrl).toContain("top_level_only=true");
         expect(calledUrl).toContain("with_statistics=true");
@@ -808,7 +808,7 @@ describe("Core Registry", () => {
         const tool = coreToolRegistry.get("browse_namespaces");
         const result = await tool!.handler({ action: "get", namespace_id: "my-group" });
 
-        const calledUrl = mockEnhancedFetch.mock.calls[0][0] as string;
+        const calledUrl = mockEnhancedFetch.mock.calls[0][0];
         expect(calledUrl).toContain("/api/v4/namespaces/my-group");
         expect(result).toEqual(mockApiResponse);
       });
@@ -902,7 +902,7 @@ describe("Core Registry", () => {
         const tool = coreToolRegistry.get("browse_commits");
         const result = await tool!.handler({ action: "list", project_id: "123" });
 
-        const calledUrl = mockEnhancedFetch.mock.calls[0][0] as string;
+        const calledUrl = mockEnhancedFetch.mock.calls[0][0];
         expect(calledUrl).toContain("/api/v4/projects/123/repository/commits?");
         expect(result).toEqual(mockApiResponse);
       });
@@ -934,7 +934,7 @@ describe("Core Registry", () => {
           page: 1,
         });
 
-        const calledUrl = mockEnhancedFetch.mock.calls[0][0] as string;
+        const calledUrl = mockEnhancedFetch.mock.calls[0][0];
         expect(calledUrl).toContain("ref_name=main");
         expect(calledUrl).toContain("since=2024-01-01T00%3A00%3A00Z");
         expect(calledUrl).toContain("until=2024-12-31T23%3A59%3A59Z");
@@ -975,7 +975,7 @@ describe("Core Registry", () => {
           sha: "abc123def456",
         });
 
-        const calledUrl = mockEnhancedFetch.mock.calls[0][0] as string;
+        const calledUrl = mockEnhancedFetch.mock.calls[0][0];
         expect(calledUrl).toContain("/api/v4/projects/123/repository/commits/abc123def456?");
         expect(result).toEqual(mockApiResponse);
       });
@@ -999,7 +999,7 @@ describe("Core Registry", () => {
           stats: true,
         });
 
-        const calledUrl = mockEnhancedFetch.mock.calls[0][0] as string;
+        const calledUrl = mockEnhancedFetch.mock.calls[0][0];
         expect(calledUrl).toContain("stats=true");
       });
 
@@ -1027,7 +1027,7 @@ describe("Core Registry", () => {
           sha: "abc123",
         });
 
-        const calledUrl = mockEnhancedFetch.mock.calls[0][0] as string;
+        const calledUrl = mockEnhancedFetch.mock.calls[0][0];
         expect(calledUrl).toContain("/api/v4/projects/123/repository/commits/abc123/diff?");
         expect(result).toEqual(mockApiResponse);
       });
@@ -1049,7 +1049,7 @@ describe("Core Registry", () => {
           unidiff: true,
         });
 
-        const calledUrl = mockEnhancedFetch.mock.calls[0][0] as string;
+        const calledUrl = mockEnhancedFetch.mock.calls[0][0];
         expect(calledUrl).toContain("unidiff=true");
       });
 
@@ -1124,7 +1124,7 @@ describe("Core Registry", () => {
         const tool = coreToolRegistry.get("browse_events");
         const result = await tool!.handler({ action: "user" });
 
-        const calledUrl = mockEnhancedFetch.mock.calls[0][0] as string;
+        const calledUrl = mockEnhancedFetch.mock.calls[0][0];
         expect(calledUrl).toContain("/api/v4/events?");
         expect(result).toEqual(mockApiResponse);
       });
@@ -1150,7 +1150,7 @@ describe("Core Registry", () => {
           page: 2,
         });
 
-        const calledUrl = mockEnhancedFetch.mock.calls[0][0] as string;
+        const calledUrl = mockEnhancedFetch.mock.calls[0][0];
         expect(calledUrl).toContain("target_type=merge_request");
         expect(calledUrl).toContain("action=merged");
         expect(calledUrl).toContain("before=2024-12-31");
@@ -1176,7 +1176,7 @@ describe("Core Registry", () => {
         const tool = coreToolRegistry.get("browse_events");
         const result = await tool!.handler({ action: "project", project_id: "123" });
 
-        const calledUrl = mockEnhancedFetch.mock.calls[0][0] as string;
+        const calledUrl = mockEnhancedFetch.mock.calls[0][0];
         expect(calledUrl).toContain("/api/v4/projects/123/events?");
         expect(result).toEqual(mockApiResponse);
       });
@@ -1203,7 +1203,7 @@ describe("Core Registry", () => {
           page: 1,
         });
 
-        const calledUrl = mockEnhancedFetch.mock.calls[0][0] as string;
+        const calledUrl = mockEnhancedFetch.mock.calls[0][0];
         expect(calledUrl).toContain("/api/v4/projects/test%2Fproject/events?");
         expect(calledUrl).toContain("target_type=issue");
         expect(calledUrl).toContain("action=created");
@@ -1412,7 +1412,7 @@ describe("Core Registry", () => {
         const tool = coreToolRegistry.get("get_users");
         const result = await tool!.handler({ smart_search: false });
 
-        const calledUrl = mockEnhancedFetch.mock.calls[0][0] as string;
+        const calledUrl = mockEnhancedFetch.mock.calls[0][0];
         expect(calledUrl).toContain("/api/v4/users?");
         expect(result).toEqual(mockApiResponse);
       });
@@ -1433,7 +1433,7 @@ describe("Core Registry", () => {
           per_page: 50,
         });
 
-        const calledUrl = mockEnhancedFetch.mock.calls[0][0] as string;
+        const calledUrl = mockEnhancedFetch.mock.calls[0][0];
         expect(calledUrl).toContain("active=true");
         expect(calledUrl).toContain("blocked=false");
         expect(calledUrl).toContain("per_page=50");
@@ -1472,7 +1472,7 @@ describe("Core Registry", () => {
         const tool = coreToolRegistry.get("list_project_members");
         const result = await tool!.handler({ project_id: "123" });
 
-        const calledUrl = mockEnhancedFetch.mock.calls[0][0] as string;
+        const calledUrl = mockEnhancedFetch.mock.calls[0][0];
         expect(calledUrl).toContain("/api/v4/projects/123/members?");
         expect(result).toEqual(mockApiResponse);
       });
@@ -1488,7 +1488,7 @@ describe("Core Registry", () => {
         const tool = coreToolRegistry.get("list_project_members");
         await tool!.handler({ project_id: "test/project", query: "john", per_page: 20 });
 
-        const calledUrl = mockEnhancedFetch.mock.calls[0][0] as string;
+        const calledUrl = mockEnhancedFetch.mock.calls[0][0];
         expect(calledUrl).toContain("/api/v4/projects/test%2Fproject/members?");
         expect(calledUrl).toContain("query=john");
         expect(calledUrl).toContain("per_page=20");
@@ -1527,7 +1527,7 @@ describe("Core Registry", () => {
         const tool = coreToolRegistry.get("list_group_iterations");
         const result = await tool!.handler({ group_id: "my-group" });
 
-        const calledUrl = mockEnhancedFetch.mock.calls[0][0] as string;
+        const calledUrl = mockEnhancedFetch.mock.calls[0][0];
         expect(calledUrl).toContain("/api/v4/groups/my-group/iterations?");
         expect(result).toEqual(mockApiResponse);
       });
@@ -1549,7 +1549,7 @@ describe("Core Registry", () => {
           per_page: 10,
         });
 
-        const calledUrl = mockEnhancedFetch.mock.calls[0][0] as string;
+        const calledUrl = mockEnhancedFetch.mock.calls[0][0];
         expect(calledUrl).toContain("/api/v4/groups/test%2Fgroup/iterations?");
         expect(calledUrl).toContain("state=current");
         expect(calledUrl).toContain("search=Sprint");
@@ -1592,7 +1592,7 @@ describe("Core Registry", () => {
           filename: "screenshot.png",
         });
 
-        const calledUrl = mockEnhancedFetch.mock.calls[0][0] as string;
+        const calledUrl = mockEnhancedFetch.mock.calls[0][0];
         expect(calledUrl).toContain("/api/v4/projects/123/uploads/abc123secret/screenshot.png");
         expect(result).toMatchObject({
           filename: "screenshot.png",
@@ -1788,7 +1788,7 @@ describe("Core Registry", () => {
           fork_path: "custom-path",
         });
 
-        const calledUrl = mockEnhancedFetch.mock.calls[0][0] as string;
+        const calledUrl = mockEnhancedFetch.mock.calls[0][0];
         expect(calledUrl).toContain("/api/v4/projects/original%2Fproject/fork");
 
         const calledBody = (mockEnhancedFetch.mock.calls[0][1] as { body: string }).body;

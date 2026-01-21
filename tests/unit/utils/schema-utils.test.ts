@@ -130,7 +130,7 @@ describe("schema-utils", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     // Reset GITLAB_DENIED_ACTIONS
-    (GITLAB_DENIED_ACTIONS as Map<string, Set<string>>).clear();
+    GITLAB_DENIED_ACTIONS.clear();
     mockGetActionDescriptionOverrides.mockReturnValue(new Map());
     mockGetParamDescriptionOverrides.mockReturnValue(new Map());
   });
@@ -142,17 +142,14 @@ describe("schema-utils", () => {
     });
 
     it("should return schema unchanged when tool has no denied actions", () => {
-      (GITLAB_DENIED_ACTIONS as Map<string, Set<string>>).set("other_tool", new Set(["delete"]));
+      GITLAB_DENIED_ACTIONS.set("other_tool", new Set(["delete"]));
 
       const result = filterDiscriminatedUnionActions(discriminatedUnionSchema, "manage_milestone");
       expect(result.oneOf).toHaveLength(4);
     });
 
     it("should filter out denied action branches", () => {
-      (GITLAB_DENIED_ACTIONS as Map<string, Set<string>>).set(
-        "manage_milestone",
-        new Set(["delete"])
-      );
+      GITLAB_DENIED_ACTIONS.set("manage_milestone", new Set(["delete"]));
 
       const result = filterDiscriminatedUnionActions(discriminatedUnionSchema, "manage_milestone");
 
@@ -165,10 +162,7 @@ describe("schema-utils", () => {
     });
 
     it("should filter multiple denied actions", () => {
-      (GITLAB_DENIED_ACTIONS as Map<string, Set<string>>).set(
-        "manage_milestone",
-        new Set(["delete", "promote"])
-      );
+      GITLAB_DENIED_ACTIONS.set("manage_milestone", new Set(["delete", "promote"]));
 
       const result = filterDiscriminatedUnionActions(discriminatedUnionSchema, "manage_milestone");
 
@@ -179,7 +173,7 @@ describe("schema-utils", () => {
     });
 
     it("should return empty schema when all actions denied", () => {
-      (GITLAB_DENIED_ACTIONS as Map<string, Set<string>>).set(
+      GITLAB_DENIED_ACTIONS.set(
         "manage_milestone",
         new Set(["create", "update", "delete", "promote"])
       );
@@ -192,10 +186,7 @@ describe("schema-utils", () => {
 
     it("should be case-insensitive for tool name lookup", () => {
       // Real config parsing normalizes to lowercase, so Set contains lowercase values
-      (GITLAB_DENIED_ACTIONS as Map<string, Set<string>>).set(
-        "manage_milestone",
-        new Set(["delete"])
-      );
+      GITLAB_DENIED_ACTIONS.set("manage_milestone", new Set(["delete"]));
 
       // Tool name lookup should be case-insensitive
       const result = filterDiscriminatedUnionActions(discriminatedUnionSchema, "MANAGE_MILESTONE");
@@ -234,7 +225,7 @@ describe("schema-utils", () => {
         ],
       };
 
-      (GITLAB_DENIED_ACTIONS as Map<string, Set<string>>).set("test_tool", new Set(["list"]));
+      GITLAB_DENIED_ACTIONS.set("test_tool", new Set(["list"]));
 
       const result = filterDiscriminatedUnionActions(schemaWithEnumAction, "test_tool");
 
@@ -265,7 +256,7 @@ describe("schema-utils", () => {
         ],
       };
 
-      (GITLAB_DENIED_ACTIONS as Map<string, Set<string>>).set("test_tool", new Set(["delete"]));
+      GITLAB_DENIED_ACTIONS.set("test_tool", new Set(["delete"]));
 
       const result = filterDiscriminatedUnionActions(schemaWithNoActionValue, "test_tool");
 
@@ -295,7 +286,7 @@ describe("schema-utils", () => {
         ],
       };
 
-      (GITLAB_DENIED_ACTIONS as Map<string, Set<string>>).set("test_tool", new Set(["delete"]));
+      GITLAB_DENIED_ACTIONS.set("test_tool", new Set(["delete"]));
 
       const result = filterDiscriminatedUnionActions(schemaWithMissingAction, "test_tool");
 
@@ -514,10 +505,7 @@ describe("schema-utils", () => {
 
   describe("transformToolSchema", () => {
     it("should apply full pipeline for discriminated union", () => {
-      (GITLAB_DENIED_ACTIONS as Map<string, Set<string>>).set(
-        "manage_milestone",
-        new Set(["delete", "promote"])
-      );
+      GITLAB_DENIED_ACTIONS.set("manage_milestone", new Set(["delete", "promote"]));
       mockGetParamDescriptionOverrides.mockReturnValue(
         new Map([["manage_milestone:namespace", "Path"]])
       );
@@ -538,10 +526,7 @@ describe("schema-utils", () => {
     });
 
     it("should handle flat schema with action filtering", () => {
-      (GITLAB_DENIED_ACTIONS as Map<string, Set<string>>).set(
-        "manage_milestone",
-        new Set(["delete"])
-      );
+      GITLAB_DENIED_ACTIONS.set("manage_milestone", new Set(["delete"]));
 
       const result = transformToolSchema("manage_milestone", flatSchema);
 
@@ -563,7 +548,7 @@ describe("schema-utils", () => {
     });
 
     it("should warn but not modify flat schema when all actions are denied", () => {
-      (GITLAB_DENIED_ACTIONS as Map<string, Set<string>>).set(
+      GITLAB_DENIED_ACTIONS.set(
         "manage_milestone",
         new Set(["create", "update", "delete", "promote"])
       );
@@ -603,10 +588,7 @@ describe("schema-utils", () => {
       const originalMode = configModule.GITLAB_SCHEMA_MODE;
       configModule.GITLAB_SCHEMA_MODE = "discriminated";
 
-      (GITLAB_DENIED_ACTIONS as Map<string, Set<string>>).set(
-        "manage_milestone",
-        new Set(["delete", "promote"])
-      );
+      GITLAB_DENIED_ACTIONS.set("manage_milestone", new Set(["delete", "promote"]));
 
       try {
         const result = transformToolSchema("manage_milestone", discriminatedUnionSchema);
@@ -635,20 +617,14 @@ describe("schema-utils", () => {
     });
 
     it("should return false when some actions allowed", () => {
-      (GITLAB_DENIED_ACTIONS as Map<string, Set<string>>).set(
-        "manage_milestone",
-        new Set(["delete"])
-      );
+      GITLAB_DENIED_ACTIONS.set("manage_milestone", new Set(["delete"]));
 
       const result = shouldRemoveTool("manage_milestone", ["create", "update", "delete"]);
       expect(result).toBe(false);
     });
 
     it("should return true when all actions denied", () => {
-      (GITLAB_DENIED_ACTIONS as Map<string, Set<string>>).set(
-        "manage_milestone",
-        new Set(["create", "update", "delete"])
-      );
+      GITLAB_DENIED_ACTIONS.set("manage_milestone", new Set(["create", "update", "delete"]));
 
       const result = shouldRemoveTool("manage_milestone", ["create", "update", "delete"]);
       expect(result).toBe(true);
@@ -656,10 +632,7 @@ describe("schema-utils", () => {
 
     it("should be case-insensitive for tool name", () => {
       // Real config parsing normalizes to lowercase, so Set contains lowercase values
-      (GITLAB_DENIED_ACTIONS as Map<string, Set<string>>).set(
-        "manage_milestone",
-        new Set(["create", "update", "delete"])
-      );
+      GITLAB_DENIED_ACTIONS.set("manage_milestone", new Set(["create", "update", "delete"]));
 
       // Tool name lookup should be case-insensitive
       const result = shouldRemoveTool("MANAGE_MILESTONE", ["create", "update", "delete"]);
@@ -712,10 +685,7 @@ describe("schema-utils", () => {
     it("should remove exclusive parameters when filtering actions", () => {
       // When we deny 'delete' and 'promote', and only 'create' remains,
       // milestone_id should be removed because it's only used by update/delete/promote
-      (GITLAB_DENIED_ACTIONS as Map<string, Set<string>>).set(
-        "manage_milestone",
-        new Set(["update", "delete", "promote"])
-      );
+      GITLAB_DENIED_ACTIONS.set("manage_milestone", new Set(["update", "delete", "promote"]));
 
       const result = transformToolSchema("manage_milestone", discriminatedUnionSchema);
 
@@ -736,10 +706,7 @@ describe("schema-utils", () => {
     it("should keep shared parameters when some actions remain", () => {
       // When we deny only 'delete', update/create/promote remain
       // milestone_id should still be present (used by update and promote)
-      (GITLAB_DENIED_ACTIONS as Map<string, Set<string>>).set(
-        "manage_milestone",
-        new Set(["delete"])
-      );
+      GITLAB_DENIED_ACTIONS.set("manage_milestone", new Set(["delete"]));
 
       const result = transformToolSchema("manage_milestone", discriminatedUnionSchema);
 

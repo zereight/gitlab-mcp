@@ -9,11 +9,10 @@ import * as path from "path";
 export const HOST = process.env.HOST ?? "127.0.0.1";
 
 export const enum TransportMode {
-  // eslint-disable-next-line no-unused-vars
   SSE = "sse",
-  // eslint-disable-next-line no-unused-vars
+
   STREAMABLE_HTTP = "streamable-http",
-  // eslint-disable-next-line no-unused-vars
+
   STDIO = "stdio",
 }
 

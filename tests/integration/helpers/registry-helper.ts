@@ -347,6 +347,71 @@ export class IntegrationTestHelper {
     return this.executeTool("create_merge_request", args);
   }
 
+  // browse_merge_requests CQRS Tool
+  async browseMergeRequests(args: {
+    action: "list" | "get" | "diffs" | "compare";
+    project_id?: string;
+    merge_request_iid?: string;
+    branch_name?: string;
+    state?: string;
+    from?: string;
+    to?: string;
+    per_page?: number;
+    page?: number;
+    [key: string]: unknown;
+  }): Promise<unknown> {
+    return this.executeTool("browse_merge_requests", args);
+  }
+
+  // manage_merge_request CQRS Tool (includes approve, unapprove, get_approval_state)
+  async manageMergeRequest(args: {
+    action: "create" | "update" | "merge" | "approve" | "unapprove" | "get_approval_state";
+    project_id: string;
+    merge_request_iid?: string;
+    sha?: string;
+    [key: string]: unknown;
+  }): Promise<unknown> {
+    return this.executeTool("manage_merge_request", args);
+  }
+
+  // manage_mr_discussion CQRS Tool (includes resolve, suggest)
+  async manageMrDiscussion(args: {
+    action:
+      | "comment"
+      | "thread"
+      | "reply"
+      | "update"
+      | "apply_suggestion"
+      | "apply_suggestions"
+      | "resolve"
+      | "suggest";
+    project_id: string;
+    merge_request_iid?: string;
+    discussion_id?: string;
+    body?: string;
+    resolved?: boolean;
+    position?: unknown;
+    suggestion?: string;
+    comment?: string;
+    lines_above?: number;
+    lines_below?: number;
+    [key: string]: unknown;
+  }): Promise<unknown> {
+    return this.executeTool("manage_mr_discussion", args);
+  }
+
+  // browse_mr_discussions CQRS Tool
+  async browseMrDiscussions(args: {
+    action: "list" | "drafts" | "draft";
+    project_id: string;
+    merge_request_iid: string;
+    draft_note_id?: string;
+    per_page?: number;
+    page?: number;
+  }): Promise<unknown> {
+    return this.executeTool("browse_mr_discussions", args);
+  }
+
   // ========================================
   // MILESTONES - Project & Group Operations
   // ========================================

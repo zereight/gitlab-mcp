@@ -258,7 +258,7 @@ describe("Pipelines Registry - CQRS Tools", () => {
         expect(tool.inputSchema).toBeDefined();
         expect(typeof tool.inputSchema).toBe("object");
         // CQRS tools use discriminated unions which produce "anyOf" in JSON schema
-        const schema = tool.inputSchema as Record<string, unknown>;
+        const schema = tool.inputSchema;
         const hasValidStructure = "type" in schema || "anyOf" in schema || "oneOf" in schema;
         expect(hasValidStructure).toBe(true);
       }
@@ -269,7 +269,7 @@ describe("Pipelines Registry - CQRS Tools", () => {
         expect(tool.inputSchema).toBeDefined();
 
         if (typeof tool.inputSchema === "object" && tool.inputSchema !== null) {
-          const schema = tool.inputSchema as Record<string, unknown>;
+          const schema = tool.inputSchema;
           const hasValidStructure = "type" in schema || "anyOf" in schema || "oneOf" in schema;
           expect(hasValidStructure).toBe(true);
         } else {
@@ -325,7 +325,7 @@ describe("Pipelines Registry - CQRS Tools", () => {
         });
 
         const call = mockEnhancedFetch.mock.calls[0];
-        const url = call[0] as string;
+        const url = call[0];
         expect(url).toContain("status=success");
         expect(url).toContain("ref=main");
         expect(url).toContain("per_page=50");
@@ -422,7 +422,7 @@ describe("Pipelines Registry - CQRS Tools", () => {
         });
 
         const call = mockEnhancedFetch.mock.calls[0];
-        const url = call[0] as string;
+        const url = call[0];
         expect(url).toContain("scope=failed");
       });
     });

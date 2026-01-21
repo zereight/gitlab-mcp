@@ -275,7 +275,7 @@ describe("smart-user-search utilities", () => {
       await smartUserSearch("ivan");
 
       // Check that default active=true and humans=true are included
-      const calledUrl = mockEnhancedFetch.mock.calls[0][0] as string;
+      const calledUrl = mockEnhancedFetch.mock.calls[0][0];
       expect(calledUrl).toContain("active=true");
       expect(calledUrl).toContain("humans=true");
     });

@@ -3,11 +3,7 @@
  * Tests GraphQL schema introspection and widget type detection
  */
 
-import {
-  SchemaIntrospector,
-  SchemaInfo,
-  FieldInfo,
-} from "../../../src/services/SchemaIntrospector";
+import { SchemaIntrospector, FieldInfo } from "../../../src/services/SchemaIntrospector";
 import { GraphQLClient } from "../../../src/graphql/client";
 import { setupMockFetch, resetMocks } from "../../utils/testHelpers";
 

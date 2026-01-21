@@ -39,7 +39,7 @@ describe("Snippets Schema - GitLab Integration", () => {
           id: createdSnippetId,
         });
         console.log(`Cleanup: Deleted test snippet ${createdSnippetId}`);
-      } catch (error) {
+      } catch (_error) {
         // Snippet might already be deleted by the delete test
         console.log(`Cleanup: Snippet ${createdSnippetId} already deleted or not found`);
       }

@@ -131,11 +131,36 @@ const MergeMergeRequestSchema = z.object({
   sha: z.string().optional().describe("SHA of the head commit"),
 });
 
+// --- Action: approve ---
+const ApproveMergeRequestSchema = z.object({
+  action: z.literal("approve").describe("Approve a merge request"),
+  project_id: projectIdField,
+  merge_request_iid: mergeRequestIidField,
+  sha: z.string().optional().describe("SHA of head commit to approve specific version"),
+});
+
+// --- Action: unapprove ---
+const UnapproveMergeRequestSchema = z.object({
+  action: z.literal("unapprove").describe("Remove your approval from a merge request"),
+  project_id: projectIdField,
+  merge_request_iid: mergeRequestIidField,
+});
+
+// --- Action: get_approval_state ---
+const GetApprovalStateMergeRequestSchema = z.object({
+  action: z.literal("get_approval_state").describe("Get current approval status and rules"),
+  project_id: projectIdField,
+  merge_request_iid: mergeRequestIidField,
+});
+
 // --- Discriminated union combining all actions ---
 export const ManageMergeRequestSchema = z.discriminatedUnion("action", [
   CreateMergeRequestSchema,
   UpdateMergeRequestSchema,
   MergeMergeRequestSchema,
+  ApproveMergeRequestSchema,
+  UnapproveMergeRequestSchema,
+  GetApprovalStateMergeRequestSchema,
 ]);
 
 // ============================================================================
@@ -207,6 +232,29 @@ const ApplySuggestionsSchema = z.object({
   commit_message: z.string().optional().describe("Custom commit message for the apply commit"),
 });
 
+// --- Action: resolve ---
+const ResolveThreadSchema = z.object({
+  action: z.literal("resolve").describe("Resolve or unresolve a discussion thread"),
+  project_id: projectIdField,
+  merge_request_iid: mergeRequestIidField,
+  discussion_id: z.string().describe("ID of the discussion thread to resolve/unresolve"),
+  resolved: flexibleBoolean.describe("true to resolve, false to unresolve"),
+});
+
+// --- Action: suggest ---
+const SuggestCodeChangeSchema = z.object({
+  action: z.literal("suggest").describe("Create a code suggestion on a diff line"),
+  project_id: projectIdField,
+  merge_request_iid: mergeRequestIidField,
+  position: MergeRequestThreadPositionSchema.describe(
+    "Position in diff for the suggestion (requires base_sha, head_sha, start_sha, new_path, new_line)"
+  ),
+  suggestion: z.string().describe("The suggested code (raw code, no markdown formatting needed)"),
+  comment: z.string().optional().describe("Optional explanation comment before the suggestion"),
+  lines_above: z.number().int().min(0).default(0).describe("Lines to include above (default: 0)"),
+  lines_below: z.number().int().min(0).default(0).describe("Lines to include below (default: 0)"),
+});
+
 // --- Discriminated union combining all actions ---
 export const ManageMrDiscussionSchema = z.discriminatedUnion("action", [
   CommentOnNoteableSchema,
@@ -215,6 +263,8 @@ export const ManageMrDiscussionSchema = z.discriminatedUnion("action", [
   UpdateNoteSchema,
   ApplySuggestionSchema,
   ApplySuggestionsSchema,
+  ResolveThreadSchema,
+  SuggestCodeChangeSchema,
 ]);
 
 // ============================================================================

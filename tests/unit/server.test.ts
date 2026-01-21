@@ -82,7 +82,7 @@ jest.mock("../../src/oauth/index", () => ({
   getAuthModeDescription: jest.fn(() => "Static token mode"),
 }));
 
-import { Server } from "@modelcontextprotocol/sdk/server/index.js";
+import type { Server as _Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { startServer } from "../../src/server";
 
 describe("server", () => {
@@ -238,7 +238,7 @@ describe("server", () => {
       };
 
       // Mock transport exists
-      const transport = { handleRequest: jest.fn().mockResolvedValue({ result: "success" }) };
+      const _transport = { handleRequest: jest.fn().mockResolvedValue({ result: "success" }) };
 
       // Execute the messages handler
       await messagesHandler(mockReq, mockRes);
@@ -286,7 +286,7 @@ describe("server", () => {
       };
 
       // Mock transport error
-      const transport = {
+      const _transport = {
         handleRequest: jest.fn().mockRejectedValue(new Error("Transport error")),
       };
 

@@ -40,7 +40,7 @@ const mockFormatDiscoveryResult = jest.fn().mockReturnValue("Discovery output");
 
 // Helper to run main() with isolated modules
 async function runMain(): Promise<void> {
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve, _reject) => {
     jest.isolateModules(() => {
       // Set up mocks before importing main
       jest.doMock("../../src/server", () => ({
@@ -64,7 +64,7 @@ async function runMain(): Promise<void> {
       }));
 
       // Import main.ts - this triggers main() execution
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
+
       require("../../src/main");
 
       // Wait for async operations to complete

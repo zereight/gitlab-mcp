@@ -540,7 +540,7 @@ describe("Variables Schema - GitLab Integration", () => {
           };
           expect(created.key).toBe(testVarKey);
           console.log(`Created variable: ${created.key}`);
-        } catch (error) {
+        } catch (_error) {
           // Variable might already exist, which is fine for integration test
           console.log(`Variable creation skipped (may already exist): ${testVarKey}`);
         }

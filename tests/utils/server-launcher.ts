@@ -240,7 +240,7 @@ export async function checkHealthEndpoint(
   port: number,
   maxRetries: number = 5
 ): Promise<HealthCheckResponse> {
-  let lastError: Error = new Error('Health check failed after maximum retries');
+  let lastError: Error = new Error("Health check failed after maximum retries");
 
   for (let i = 0; i < maxRetries; i++) {
     try {

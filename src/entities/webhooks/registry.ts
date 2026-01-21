@@ -22,7 +22,7 @@ export const webhooksToolRegistry: ToolRegistry = new Map<string, EnhancedToolDe
     {
       name: "list_webhooks",
       description:
-        "List all webhooks configured for a project or group. Use to discover existing integrations, audit webhook configurations, debug delivery issues, or understand event subscriptions. Shows webhook URLs, enabled event types, SSL settings, and delivery status. Group webhooks (Premium tier) are inherited by all child projects.",
+        "List all webhooks configured for a project or group. Use to discover existing integrations, audit webhook configurations, debug delivery issues, or understand event subscriptions. Shows webhook URLs, enabled event types, SSL settings, and delivery status. Group webhooks are inherited by all child projects.",
       inputSchema: z.toJSONSchema(ListWebhooksSchema),
       gate: { envVar: "USE_WEBHOOKS", defaultValue: true },
       handler: async (args: unknown) => {
@@ -67,7 +67,7 @@ export const webhooksToolRegistry: ToolRegistry = new Map<string, EnhancedToolDe
     {
       name: "manage_webhook",
       description:
-        "Manage webhooks with full CRUD operations plus testing. Actions: 'create' (add new webhook with URL and event types), 'read' (get webhook details - SAFE FOR READ-ONLY MODE), 'update' (modify URL, events, or settings), 'delete' (remove webhook), 'test' (trigger test delivery for specific event type). Use for setting up CI/CD automation, configuring notifications, integrating external systems, debugging deliveries, or managing event subscriptions. Test action sends actual HTTP request to configured URL. Group webhooks require Premium tier. NOTE: In read-only mode, only 'read' action is allowed; write operations are blocked at handler level.",
+        "Manage webhooks with full CRUD operations plus testing. Actions: 'create' (add new webhook with URL and event types), 'read' (get webhook details), 'update' (modify URL, events, or settings), 'delete' (remove webhook), 'test' (trigger test delivery for specific event type). Use for setting up CI/CD automation, configuring notifications, integrating external systems, or managing event subscriptions.",
       inputSchema: z.toJSONSchema(ManageWebhookSchema),
       gate: { envVar: "USE_WEBHOOKS", defaultValue: true },
       handler: async (args: unknown) => {

@@ -1,12 +1,12 @@
-import * as graphqlIndex from '../../../src/graphql/index';
+import * as graphqlIndex from "../../../src/graphql/index";
 
-describe('GraphQL index exports', () => {
-  it('should export GraphQLClient', () => {
+describe("GraphQL index exports", () => {
+  it("should export GraphQLClient", () => {
     expect(graphqlIndex.GraphQLClient).toBeDefined();
-    expect(typeof graphqlIndex.GraphQLClient).toBe('function');
+    expect(typeof graphqlIndex.GraphQLClient).toBe("function");
   });
 
-  it('should export workItems constants', () => {
+  it("should export workItems constants", () => {
     expect(graphqlIndex.GET_NAMESPACE_WORK_ITEMS).toBeDefined();
     expect(graphqlIndex.GET_PROJECT_WORK_ITEMS).toBeDefined();
     expect(graphqlIndex.CREATE_WORK_ITEM).toBeDefined();

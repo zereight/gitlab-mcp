@@ -24,7 +24,7 @@ import { IntegrationTestHelper } from "./helpers/registry-helper";
 describe("🔄 Data Lifecycle - Complete Infrastructure Setup", () => {
   const timestamp = Date.now();
   const baseTestName = `lifecycle-test-${timestamp}`;
-  let client: GraphQLClient;
+  let _client: GraphQLClient;
   let connectionManager: ConnectionManager;
   let helper: IntegrationTestHelper;
 
@@ -38,7 +38,7 @@ describe("🔄 Data Lifecycle - Complete Infrastructure Setup", () => {
     console.log("🔍 Initializing GraphQL schema introspection...");
     connectionManager = ConnectionManager.getInstance();
     await connectionManager.initialize();
-    client = connectionManager.getClient();
+    _client = connectionManager.getClient();
     console.log("✅ GraphQL schema introspection completed");
 
     // Initialize integration test helper
@@ -778,7 +778,7 @@ describe("🔄 Data Lifecycle - Complete Infrastructure Setup", () => {
               expect(labelsWidget.labels?.nodes?.length || 0).toBeGreaterThanOrEqual(0);
             }
 
-            if (milestoneWidget && milestoneWidget.milestone) {
+            if (milestoneWidget?.milestone) {
               console.log(`    📅 Milestone widget:`, milestoneWidget.milestone.title);
               expect(milestoneWidget.milestone).toBeDefined();
             }
@@ -842,7 +842,7 @@ describe("🔄 Data Lifecycle - Complete Infrastructure Setup", () => {
               expect(labelsWidget.labels?.nodes?.length || 0).toBeGreaterThanOrEqual(0);
             }
 
-            if (milestoneWidget && milestoneWidget.milestone) {
+            if (milestoneWidget?.milestone) {
               console.log(`    📅 Milestone widget:`, milestoneWidget.milestone.title);
               expect(milestoneWidget.milestone).toBeDefined();
             }
@@ -929,7 +929,7 @@ describe("🔄 Data Lifecycle - Complete Infrastructure Setup", () => {
       console.log(`🔧 Setting due date: ${dueDate}...`);
 
       // Create a separate curl command to set due date and parent as GitLab's widget system is complex
-      const curlUpdateCommand = `curl -X POST "${GITLAB_API_URL}/api/v4/graphql" \\
+      const _curlUpdateCommand = `curl -X POST "${GITLAB_API_URL}/api/v4/graphql" \\
         -H "Authorization: Bearer ${GITLAB_TOKEN}" \\
         -H "Content-Type: application/json" \\
         -d '{
@@ -1070,6 +1070,140 @@ describe("🔄 Data Lifecycle - Complete Infrastructure Setup", () => {
 
       expect(mergeRequests.length).toBeGreaterThan(0);
       console.log(`✅ Created ${mergeRequests.length} merge requests`);
+    });
+
+    it("should test MR approval workflow (approve, get_approval_state, unapprove)", async () => {
+      const testData = getTestData();
+      expect(testData.mergeRequests?.length).toBeGreaterThan(0);
+      console.log("🔧 Testing MR approval workflow...");
+
+      const mr = testData.mergeRequests![0];
+      const projectId = testData.project!.id.toString();
+
+      // Step 1: Get initial approval state
+      console.log("  🔍 Getting initial approval state...");
+      const initialState = (await helper.manageMergeRequest({
+        action: "get_approval_state",
+        project_id: projectId,
+        merge_request_iid: mr.iid.toString(),
+      })) as any;
+
+      expect(initialState).toBeDefined();
+      console.log(
+        `    ✅ Got approval state: ${initialState.rules?.length || 0} rules, overwritten: ${initialState.approval_rules_overwritten || false}`
+      );
+
+      // Step 2: Approve the MR
+      console.log("  👍 Approving MR...");
+      try {
+        const approveResult = (await helper.manageMergeRequest({
+          action: "approve",
+          project_id: projectId,
+          merge_request_iid: mr.iid.toString(),
+        })) as any;
+
+        expect(approveResult).toBeDefined();
+        console.log("    ✅ MR approved successfully");
+
+        // Step 3: Get approval state again to verify
+        console.log("  🔍 Verifying approval state after approve...");
+        const afterApprove = (await helper.manageMergeRequest({
+          action: "get_approval_state",
+          project_id: projectId,
+          merge_request_iid: mr.iid.toString(),
+        })) as any;
+        expect(afterApprove).toBeDefined();
+        console.log("    ✅ Got approval state after approve");
+
+        // Step 4: Unapprove the MR
+        console.log("  👎 Unapproving MR...");
+        const unapproveResult = (await helper.manageMergeRequest({
+          action: "unapprove",
+          project_id: projectId,
+          merge_request_iid: mr.iid.toString(),
+        })) as any;
+
+        expect(unapproveResult).toBeDefined();
+        console.log("    ✅ MR unapproved successfully");
+      } catch (error: any) {
+        // Some GitLab instances may not allow self-approval or have restrictions
+        if (
+          error.message?.includes("401") ||
+          error.message?.includes("403") ||
+          error.message?.includes("already approved")
+        ) {
+          console.log(`    ⚠️ Approval operation restricted: ${error.message}`);
+        } else {
+          throw error;
+        }
+      }
+
+      console.log("✅ MR approval workflow test completed");
+    });
+
+    it("should test MR discussion thread operations (create, resolve, unresolve)", async () => {
+      const testData = getTestData();
+      expect(testData.mergeRequests?.length).toBeGreaterThan(0);
+      console.log("🔧 Testing MR discussion thread operations...");
+
+      const mr = testData.mergeRequests![0];
+      const projectId = testData.project!.id.toString();
+
+      // Step 1: Create a discussion thread
+      console.log("  💬 Creating discussion thread...");
+      const thread = (await helper.manageMrDiscussion({
+        action: "thread",
+        project_id: projectId,
+        merge_request_iid: mr.iid.toString(),
+        body: `Test discussion thread created at ${new Date().toISOString()}`,
+      })) as any;
+
+      expect(thread).toBeDefined();
+      expect(thread.id).toBeDefined();
+      console.log(`    ✅ Created thread: ${thread.id}`);
+
+      // Store thread for later tests
+      updateTestData({ discussionThread: thread });
+
+      // Step 2: Resolve the thread
+      console.log("  ✅ Resolving thread...");
+      const resolvedThread = (await helper.manageMrDiscussion({
+        action: "resolve",
+        project_id: projectId,
+        merge_request_iid: mr.iid.toString(),
+        discussion_id: thread.id,
+        resolved: true,
+      })) as any;
+
+      expect(resolvedThread).toBeDefined();
+      console.log(`    ✅ Thread resolved`);
+
+      // Step 3: Unresolve the thread
+      console.log("  ↩️ Unresolving thread...");
+      const unresolvedThread = (await helper.manageMrDiscussion({
+        action: "resolve",
+        project_id: projectId,
+        merge_request_iid: mr.iid.toString(),
+        discussion_id: thread.id,
+        resolved: false,
+      })) as any;
+
+      expect(unresolvedThread).toBeDefined();
+      console.log(`    ✅ Thread unresolved`);
+
+      // Step 4: List discussions to verify
+      console.log("  📋 Listing discussions...");
+      const discussions = (await helper.browseMrDiscussions({
+        action: "list",
+        project_id: projectId,
+        merge_request_iid: mr.iid.toString(),
+      })) as any[];
+
+      expect(discussions).toBeDefined();
+      expect(Array.isArray(discussions)).toBe(true);
+      console.log(`    ✅ Found ${discussions.length} discussions`);
+
+      console.log("✅ MR discussion thread operations test completed");
     });
   });
 
@@ -1255,7 +1389,7 @@ describe("🔄 Data Lifecycle - Complete Infrastructure Setup", () => {
 
         expect(pendingTodos.length).toBe(0);
         console.log("  ✅ Verified no pending todos remain");
-      } catch (error) {
+      } catch (_error) {
         // Some GitLab instances may not support bulk mark_all_as_done
         // Fall back to marking individually
         console.log("  ⚠️ Bulk mark_all_done not available, marking individually...");

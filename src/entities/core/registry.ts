@@ -713,7 +713,7 @@ export const coreToolRegistry: ToolRegistry = new Map<string, EnhancedToolDefini
     {
       name: "list_group_iterations",
       description:
-        "SPRINTS: List iterations/sprints for agile planning. Filter by state: current, upcoming, closed. Requires GitLab Premium.",
+        "SPRINTS: List iterations/sprints for agile planning. Filter by state: current, upcoming, closed.",
       inputSchema: z.toJSONSchema(ListGroupIterationsSchema),
       handler: async (args: unknown): Promise<unknown> => {
         const options = ListGroupIterationsSchema.parse(args);

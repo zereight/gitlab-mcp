@@ -8,7 +8,7 @@ export interface MCPClientInterface {
   /**
    * Connect to MCP server
    */
-  // eslint-disable-next-line no-unused-vars
+
   connect(connectionString: string, options?: Record<string, unknown>): Promise<void>;
 
   /**
@@ -24,7 +24,7 @@ export interface MCPClientInterface {
   /**
    * Call a tool on the server
    */
-  // eslint-disable-next-line no-unused-vars
+
   callTool(name: string, arguments_?: Record<string, unknown>): Promise<CallToolResult>;
 
   /**
@@ -44,7 +44,7 @@ export interface MCPClientInterface {
 export class MCPClientError extends Error {
   constructor(
     message: string,
-    // eslint-disable-next-line no-unused-vars
+
     public readonly _cause?: Error
   ) {
     super(message);
@@ -68,7 +68,7 @@ export class MCPConnectionError extends MCPClientError {
 export class MCPToolCallError extends MCPClientError {
   constructor(
     message: string,
-    // eslint-disable-next-line no-unused-vars
+
     public readonly _toolName?: string,
     _cause?: Error
   ) {

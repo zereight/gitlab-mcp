@@ -236,7 +236,7 @@ describe("Workitems Registry - CQRS Tools", () => {
         expect(tool.inputSchema).toBeDefined();
         expect(typeof tool.inputSchema).toBe("object");
         // CQRS tools use discriminated unions which produce "anyOf" in JSON schema
-        const schema = tool.inputSchema as Record<string, unknown>;
+        const schema = tool.inputSchema;
         const hasValidStructure = "type" in schema || "anyOf" in schema || "oneOf" in schema;
         expect(hasValidStructure).toBe(true);
       }
@@ -247,7 +247,7 @@ describe("Workitems Registry - CQRS Tools", () => {
         expect(tool.inputSchema).toBeDefined();
 
         if (typeof tool.inputSchema === "object" && tool.inputSchema !== null) {
-          const schema = tool.inputSchema as Record<string, unknown>;
+          const schema = tool.inputSchema;
           const hasValidStructure = "type" in schema || "anyOf" in schema || "oneOf" in schema;
           expect(hasValidStructure).toBe(true);
         } else {

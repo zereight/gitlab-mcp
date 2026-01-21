@@ -3,41 +3,38 @@
  * Tests widget availability based on GitLab tier and version
  */
 
-import { WidgetAvailability } from '../../../src/services/WidgetAvailability';
-import { ConnectionManager } from '../../../src/services/ConnectionManager';
-import { WorkItemWidgetTypes } from '../../../src/graphql/workItems';
-import {
-  setupMockFetch,
-  resetMocks
-} from '../../utils/testHelpers';
+import { WidgetAvailability } from "../../../src/services/WidgetAvailability";
+import { ConnectionManager } from "../../../src/services/ConnectionManager";
+import { WorkItemWidgetTypes } from "../../../src/graphql/workItems";
+import { setupMockFetch, resetMocks } from "../../utils/testHelpers";
 
 // Mock dependencies
-jest.mock('../../../src/services/ConnectionManager');
+jest.mock("../../../src/services/ConnectionManager");
 
 setupMockFetch();
 
-describe('WidgetAvailability', () => {
+describe("WidgetAvailability", () => {
   let mockConnectionManager: jest.Mocked<ConnectionManager>;
 
   const mockInstanceInfoFree = {
-    version: '18.3.0',
-    tier: 'free' as const,
+    version: "18.3.0",
+    tier: "free" as const,
     features: {} as any,
-    detectedAt: new Date()
+    detectedAt: new Date(),
   };
 
   const mockInstanceInfoPremium = {
-    version: '18.3.0',
-    tier: 'premium' as const,
+    version: "18.3.0",
+    tier: "premium" as const,
     features: {} as any,
-    detectedAt: new Date()
+    detectedAt: new Date(),
   };
 
   const mockInstanceInfoUltimate = {
-    version: '18.3.0',
-    tier: 'ultimate' as const,
+    version: "18.3.0",
+    tier: "ultimate" as const,
     features: {} as any,
-    detectedAt: new Date()
+    detectedAt: new Date(),
   };
 
   beforeEach(() => {
@@ -45,19 +42,19 @@ describe('WidgetAvailability', () => {
 
     mockConnectionManager = {
       getInstanceInfo: jest.fn(),
-      getInstance: jest.fn()
+      getInstance: jest.fn(),
     } as any;
 
     (ConnectionManager.getInstance as jest.Mock).mockReturnValue(mockConnectionManager);
   });
 
-  describe('widget availability by tier', () => {
-    describe('free tier widgets', () => {
+  describe("widget availability by tier", () => {
+    describe("free tier widgets", () => {
       beforeEach(() => {
         mockConnectionManager.getInstanceInfo.mockReturnValue(mockInstanceInfoFree);
       });
 
-      it('should allow all free tier widgets', () => {
+      it("should allow all free tier widgets", () => {
         const freeWidgets = [
           WorkItemWidgetTypes.ASSIGNEES,
           WorkItemWidgetTypes.DESCRIPTION,
@@ -76,7 +73,7 @@ describe('WidgetAvailability', () => {
           WorkItemWidgetTypes.TIME_TRACKING,
           WorkItemWidgetTypes.ERROR_TRACKING,
           WorkItemWidgetTypes.PROGRESS,
-          WorkItemWidgetTypes.COLOR
+          WorkItemWidgetTypes.COLOR,
         ];
 
         for (const widget of freeWidgets) {
@@ -84,14 +81,14 @@ describe('WidgetAvailability', () => {
         }
       });
 
-      it('should deny premium widgets on free tier', () => {
+      it("should deny premium widgets on free tier", () => {
         const premiumWidgets = [
           WorkItemWidgetTypes.WEIGHT,
           WorkItemWidgetTypes.ITERATION,
           WorkItemWidgetTypes.LINKED_ITEMS,
           WorkItemWidgetTypes.CRM_CONTACTS,
           WorkItemWidgetTypes.EMAIL_PARTICIPANTS,
-          WorkItemWidgetTypes.LINKED_RESOURCES
+          WorkItemWidgetTypes.LINKED_RESOURCES,
         ];
 
         for (const widget of premiumWidgets) {
@@ -99,13 +96,13 @@ describe('WidgetAvailability', () => {
         }
       });
 
-      it('should deny ultimate widgets on free tier', () => {
+      it("should deny ultimate widgets on free tier", () => {
         const ultimateWidgets = [
           WorkItemWidgetTypes.HEALTH_STATUS,
           WorkItemWidgetTypes.CUSTOM_FIELDS,
           WorkItemWidgetTypes.VULNERABILITIES,
           WorkItemWidgetTypes.REQUIREMENT_LEGACY,
-          WorkItemWidgetTypes.TEST_REPORTS
+          WorkItemWidgetTypes.TEST_REPORTS,
         ];
 
         for (const widget of ultimateWidgets) {
@@ -114,12 +111,12 @@ describe('WidgetAvailability', () => {
       });
     });
 
-    describe('premium tier widgets', () => {
+    describe("premium tier widgets", () => {
       beforeEach(() => {
         mockConnectionManager.getInstanceInfo.mockReturnValue(mockInstanceInfoPremium);
       });
 
-      it('should allow free and premium widgets', () => {
+      it("should allow free and premium widgets", () => {
         // Free widgets
         expect(WidgetAvailability.isWidgetAvailable(WorkItemWidgetTypes.ASSIGNEES)).toBe(true);
         expect(WidgetAvailability.isWidgetAvailable(WorkItemWidgetTypes.LABELS)).toBe(true);
@@ -130,11 +127,11 @@ describe('WidgetAvailability', () => {
         expect(WidgetAvailability.isWidgetAvailable(WorkItemWidgetTypes.LINKED_ITEMS)).toBe(true);
       });
 
-      it('should deny ultimate-only widgets on premium tier', () => {
+      it("should deny ultimate-only widgets on premium tier", () => {
         const ultimateOnlyWidgets = [
           WorkItemWidgetTypes.HEALTH_STATUS,
           WorkItemWidgetTypes.CUSTOM_FIELDS,
-          WorkItemWidgetTypes.VULNERABILITIES
+          WorkItemWidgetTypes.VULNERABILITIES,
         ];
 
         for (const widget of ultimateOnlyWidgets) {
@@ -143,16 +140,16 @@ describe('WidgetAvailability', () => {
       });
     });
 
-    describe('ultimate tier widgets', () => {
+    describe("ultimate tier widgets", () => {
       beforeEach(() => {
         mockConnectionManager.getInstanceInfo.mockReturnValue(mockInstanceInfoUltimate);
       });
 
-      it('should allow all widgets', () => {
+      it("should allow all widgets", () => {
         const allWidgets = Object.values(WorkItemWidgetTypes);
 
         for (const widget of allWidgets) {
-          if (typeof widget === 'string') {
+          if (typeof widget === "string") {
             expect(WidgetAvailability.isWidgetAvailable(widget as any)).toBe(true);
           }
         }
@@ -160,11 +157,11 @@ describe('WidgetAvailability', () => {
     });
   });
 
-  describe('version requirements', () => {
-    it('should respect minimum version requirements', () => {
+  describe("version requirements", () => {
+    it("should respect minimum version requirements", () => {
       const oldVersionInfo = {
         ...mockInstanceInfoUltimate,
-        version: '14.0.0' // Before work items (15.0)
+        version: "14.0.0", // Before work items (15.0)
       };
       mockConnectionManager.getInstanceInfo.mockReturnValue(oldVersionInfo);
 
@@ -173,44 +170,44 @@ describe('WidgetAvailability', () => {
       expect(WidgetAvailability.isWidgetAvailable(WorkItemWidgetTypes.LABELS)).toBe(false);
     });
 
-    it('should allow widgets when version meets requirements', () => {
+    it("should allow widgets when version meets requirements", () => {
       const newVersionInfo = {
         ...mockInstanceInfoUltimate,
-        version: '17.5.0' // Supports custom fields (17.0+)
+        version: "17.5.0", // Supports custom fields (17.0+)
       };
       mockConnectionManager.getInstanceInfo.mockReturnValue(newVersionInfo);
 
       expect(WidgetAvailability.isWidgetAvailable(WorkItemWidgetTypes.CUSTOM_FIELDS)).toBe(true);
     });
 
-    it('should handle version-specific widgets correctly', () => {
+    it("should handle version-specific widgets correctly", () => {
       const versionTests = [
         {
-          version: '15.9.0', // Parses to 15.9
+          version: "15.9.0", // Parses to 15.9
           widget: WorkItemWidgetTypes.CRM_CONTACTS, // Requires 16.0+
-          expected: false
+          expected: false,
         },
         {
-          version: '16.0.0', // Parses to 16.0
+          version: "16.0.0", // Parses to 16.0
           widget: WorkItemWidgetTypes.CRM_CONTACTS,
-          expected: true
+          expected: true,
         },
         {
-          version: '16.4.0', // Parses to 16.4
+          version: "16.4.0", // Parses to 16.4
           widget: WorkItemWidgetTypes.LINKED_RESOURCES, // Requires 16.5+
-          expected: false
+          expected: false,
         },
         {
-          version: '16.5.0', // Parses to 16.5
+          version: "16.5.0", // Parses to 16.5
           widget: WorkItemWidgetTypes.LINKED_RESOURCES,
-          expected: true
-        }
+          expected: true,
+        },
       ];
 
       for (const { version, widget, expected } of versionTests) {
         const versionInfo = {
           ...mockInstanceInfoPremium, // Use premium tier which supports these widgets
-          version
+          version,
         };
         mockConnectionManager.getInstanceInfo.mockReturnValue(versionInfo);
 
@@ -219,35 +216,35 @@ describe('WidgetAvailability', () => {
     });
   });
 
-  describe('error handling', () => {
-    it('should return false when connection not initialized', () => {
+  describe("error handling", () => {
+    it("should return false when connection not initialized", () => {
       mockConnectionManager.getInstanceInfo.mockImplementation(() => {
-        throw new Error('Connection not initialized');
+        throw new Error("Connection not initialized");
       });
 
       expect(WidgetAvailability.isWidgetAvailable(WorkItemWidgetTypes.ASSIGNEES)).toBe(false);
     });
 
-    it('should return false for unknown widgets', () => {
+    it("should return false for unknown widgets", () => {
       mockConnectionManager.getInstanceInfo.mockReturnValue(mockInstanceInfoUltimate);
 
-      expect(WidgetAvailability.isWidgetAvailable('UNKNOWN_WIDGET' as any)).toBe(false);
+      expect(WidgetAvailability.isWidgetAvailable("UNKNOWN_WIDGET" as any)).toBe(false);
     });
 
-    it('should handle invalid version strings', () => {
+    it("should handle invalid version strings", () => {
       const invalidVersionInfo = {
         ...mockInstanceInfoUltimate,
-        version: 'invalid-version'
+        version: "invalid-version",
       };
       mockConnectionManager.getInstanceInfo.mockReturnValue(invalidVersionInfo);
 
       expect(WidgetAvailability.isWidgetAvailable(WorkItemWidgetTypes.ASSIGNEES)).toBe(false);
     });
 
-    it('should handle unknown version', () => {
+    it("should handle unknown version", () => {
       const unknownVersionInfo = {
         ...mockInstanceInfoUltimate,
-        version: 'unknown'
+        version: "unknown",
       };
       mockConnectionManager.getInstanceInfo.mockReturnValue(unknownVersionInfo);
 
@@ -255,8 +252,8 @@ describe('WidgetAvailability', () => {
     });
   });
 
-  describe('available widgets retrieval', () => {
-    it('should return all available widgets for ultimate tier', () => {
+  describe("available widgets retrieval", () => {
+    it("should return all available widgets for ultimate tier", () => {
       mockConnectionManager.getInstanceInfo.mockReturnValue(mockInstanceInfoUltimate);
 
       const availableWidgets = WidgetAvailability.getAvailableWidgets();
@@ -267,7 +264,7 @@ describe('WidgetAvailability', () => {
       expect(availableWidgets).toContain(WorkItemWidgetTypes.HEALTH_STATUS);
     });
 
-    it('should return limited widgets for free tier', () => {
+    it("should return limited widgets for free tier", () => {
       mockConnectionManager.getInstanceInfo.mockReturnValue(mockInstanceInfoFree);
 
       const availableWidgets = WidgetAvailability.getAvailableWidgets();
@@ -278,9 +275,9 @@ describe('WidgetAvailability', () => {
       expect(availableWidgets).not.toContain(WorkItemWidgetTypes.CUSTOM_FIELDS);
     });
 
-    it('should return empty array when connection fails', () => {
+    it("should return empty array when connection fails", () => {
       mockConnectionManager.getInstanceInfo.mockImplementation(() => {
-        throw new Error('Connection failed');
+        throw new Error("Connection failed");
       });
 
       const availableWidgets = WidgetAvailability.getAvailableWidgets();
@@ -289,71 +286,73 @@ describe('WidgetAvailability', () => {
     });
   });
 
-  describe('widget requirements', () => {
-    it('should return widget requirement correctly', () => {
+  describe("widget requirements", () => {
+    it("should return widget requirement correctly", () => {
       const assigneesReq = WidgetAvailability.getWidgetRequirement(WorkItemWidgetTypes.ASSIGNEES);
-      expect(assigneesReq).toEqual({ tier: 'free', minVersion: 15.0 });
+      expect(assigneesReq).toEqual({ tier: "free", minVersion: 15.0 });
 
       const weightReq = WidgetAvailability.getWidgetRequirement(WorkItemWidgetTypes.WEIGHT);
-      expect(weightReq).toEqual({ tier: 'premium', minVersion: 15.0 });
+      expect(weightReq).toEqual({ tier: "premium", minVersion: 15.0 });
 
-      const customFieldsReq = WidgetAvailability.getWidgetRequirement(WorkItemWidgetTypes.CUSTOM_FIELDS);
-      expect(customFieldsReq).toEqual({ tier: 'ultimate', minVersion: 17.0 });
+      const customFieldsReq = WidgetAvailability.getWidgetRequirement(
+        WorkItemWidgetTypes.CUSTOM_FIELDS
+      );
+      expect(customFieldsReq).toEqual({ tier: "ultimate", minVersion: 17.0 });
     });
 
-    it('should return undefined for unknown widget', () => {
-      const unknownReq = WidgetAvailability.getWidgetRequirement('UNKNOWN_WIDGET' as any);
+    it("should return undefined for unknown widget", () => {
+      const unknownReq = WidgetAvailability.getWidgetRequirement("UNKNOWN_WIDGET" as any);
       expect(unknownReq).toBeUndefined();
     });
   });
 
-  describe('version parsing', () => {
-    it('should parse version strings correctly', () => {
+  describe("version parsing", () => {
+    it("should parse version strings correctly", () => {
       const parseVersion = (WidgetAvailability as any).parseVersion;
 
-      expect(parseVersion('18.3.0')).toBe(18.3);
-      expect(parseVersion('15.11.2')).toBe(16.1); // 15 + 11/10 = 16.1
-      expect(parseVersion('10.2.5')).toBe(10.2);
-      expect(parseVersion('unknown')).toBe(0);
-      expect(parseVersion('invalid')).toBe(0);
-      expect(parseVersion('')).toBe(0);
-      expect(parseVersion('abc')).toBe(0);
+      expect(parseVersion("18.3.0")).toBe(18.3);
+      expect(parseVersion("15.11.2")).toBe(16.1); // 15 + 11/10 = 16.1
+      expect(parseVersion("10.2.5")).toBe(10.2);
+      expect(parseVersion("unknown")).toBe(0);
+      expect(parseVersion("invalid")).toBe(0);
+      expect(parseVersion("")).toBe(0);
+      expect(parseVersion("abc")).toBe(0);
     });
   });
 
-  describe('tier hierarchy', () => {
-    it('should handle tier hierarchy correctly', () => {
+  describe("tier hierarchy", () => {
+    it("should handle tier hierarchy correctly", () => {
       const testCases = [
         {
-          actualTier: 'free' as const,
-          requiredTier: 'premium' as const,
+          actualTier: "free" as const,
+          requiredTier: "premium" as const,
           widget: WorkItemWidgetTypes.WEIGHT,
-          expected: false
+          expected: false,
         },
         {
-          actualTier: 'premium' as const,
-          requiredTier: 'free' as const,
+          actualTier: "premium" as const,
+          requiredTier: "free" as const,
           widget: WorkItemWidgetTypes.ASSIGNEES,
-          expected: true
+          expected: true,
         },
         {
-          actualTier: 'ultimate' as const,
-          requiredTier: 'premium' as const,
+          actualTier: "ultimate" as const,
+          requiredTier: "premium" as const,
           widget: WorkItemWidgetTypes.WEIGHT,
-          expected: true
+          expected: true,
         },
         {
-          actualTier: 'premium' as const,
-          requiredTier: 'ultimate' as const,
+          actualTier: "premium" as const,
+          requiredTier: "ultimate" as const,
           widget: WorkItemWidgetTypes.CUSTOM_FIELDS,
-          expected: false
-        }
+          expected: false,
+        },
       ];
 
       for (const { actualTier, widget, expected } of testCases) {
         const instanceInfo = {
           ...mockInstanceInfoUltimate,
-          tier: actualTier
+          tier: actualTier,
         };
         mockConnectionManager.getInstanceInfo.mockReturnValue(instanceInfo);
 
@@ -362,19 +361,19 @@ describe('WidgetAvailability', () => {
     });
   });
 
-  describe('widget type filtering', () => {
-    it('should filter widget types correctly based on string type', () => {
+  describe("widget type filtering", () => {
+    it("should filter widget types correctly based on string type", () => {
       mockConnectionManager.getInstanceInfo.mockReturnValue(mockInstanceInfoUltimate);
 
       const availableWidgets = WidgetAvailability.getAvailableWidgets();
 
       // All returned widgets should be strings
       for (const widget of availableWidgets) {
-        expect(typeof widget).toBe('string');
+        expect(typeof widget).toBe("string");
       }
 
       // Should not include any numeric enum values or other types
-      expect(availableWidgets.every(widget => typeof widget === 'string')).toBe(true);
+      expect(availableWidgets.every(widget => typeof widget === "string")).toBe(true);
     });
   });
 });
