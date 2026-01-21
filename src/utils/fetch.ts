@@ -95,6 +95,12 @@ function createDispatcher(): unknown {
 
   // Build TLS options
   const tlsOptions: Record<string, unknown> = {};
+
+  // SECURITY NOTE: Disabling certificate validation is an opt-in configuration
+  // for self-hosted GitLab instances using self-signed certificates.
+  // This is controlled by explicit environment variables (SKIP_TLS_VERIFY or
+  // NODE_TLS_REJECT_UNAUTHORIZED=0) and is NOT enabled by default.
+  // Users must consciously configure this for their private infrastructure.
   if (SKIP_TLS_VERIFY || NODE_TLS_REJECT_UNAUTHORIZED === "0") {
     tlsOptions.rejectUnauthorized = false;
     if (SKIP_TLS_VERIFY) {

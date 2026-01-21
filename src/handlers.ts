@@ -2,6 +2,11 @@ import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
 import { ConnectionManager } from "./services/ConnectionManager";
 import { logger } from "./logger";
+import {
+  handleGitLabError,
+  GitLabStructuredError,
+  isStructuredToolError,
+} from "./utils/error-handler";
 
 interface JsonSchemaProperty {
   type?: string;
@@ -18,6 +23,114 @@ type JsonSchema = JsonSchemaProperty & {
   $schema?: string;
   properties?: Record<string, JsonSchemaProperty>;
 };
+
+/**
+ * Extract HTTP status code and message from GitLab API error string
+ * Matches patterns like:
+ *   - "GitLab API error: 403 Forbidden - message"
+ *   - "GitLab API error: 403 Forbidden"
+ *   - "GitLab API error: 403"
+ *   - "Failed to execute tool 'name': GitLab API error: 403 Forbidden"
+ *
+ * Exported for direct unit testing.
+ */
+export function parseGitLabApiError(
+  errorMessage: string
+): { status: number; message: string } | null {
+  // Match GitLab API error anywhere in the string (handles wrapped errors)
+  // Pattern: "GitLab API error: <status> [<statusText>] [- <details>]"
+  // Status text uses [\w\s]+? to match word chars and spaces (non-greedy)
+  // Separator is " - " (space-hyphen-space) to avoid matching hyphens in status text
+  const match = errorMessage.match(/GitLab API error:\s*(\d+)(?:\s+([\w\s]+?))?(?:\s+-\s+(.*))?$/);
+  if (!match) return null;
+
+  const status = parseInt(match[1], 10);
+  const statusText = match[2]?.trim() ?? "";
+  const details = match[3]?.trim() ?? "";
+
+  let message: string;
+  if (statusText && details) {
+    message = `${status} ${statusText} - ${details}`;
+  } else if (statusText) {
+    message = `${status} ${statusText}`;
+  } else if (details) {
+    message = `${status} - ${details}`;
+  } else {
+    message = `${status}`;
+  }
+
+  return { status, message };
+}
+
+/**
+ * Type guard for objects with an action property
+ */
+function hasAction(value: unknown): value is { action: string } {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "action" in value &&
+    typeof (value as { action: unknown }).action === "string"
+  );
+}
+
+/**
+ * Extract action from error or its cause chain
+ */
+function extractActionFromError(error: unknown): string | undefined {
+  if (hasAction(error)) {
+    return error.action;
+  }
+
+  // Check error cause (for wrapped errors)
+  const cause = (error as Error & { cause?: unknown }).cause;
+  if (hasAction(cause)) {
+    return cause.action;
+  }
+
+  return undefined;
+}
+
+/**
+ * Convert an error to a structured GitLab error response
+ * Extracts tool name and action from context, parses API errors
+ */
+function toStructuredError(
+  error: unknown,
+  toolName: string,
+  toolArgs?: Record<string, unknown>
+): GitLabStructuredError | null {
+  // If already a structured error, return it
+  if (isStructuredToolError(error)) {
+    return error.structuredError;
+  }
+
+  // Check if the error cause is a structured error (for wrapped errors)
+  const cause = (error as Error & { cause?: unknown }).cause;
+  if (isStructuredToolError(cause)) {
+    return cause.structuredError;
+  }
+
+  if (!(error instanceof Error)) return null;
+
+  // Try to parse GitLab API error from message
+  const parsed = parseGitLabApiError(error.message);
+  if (!parsed) return null;
+
+  // Extract action: prefer from error cause, then from tool args
+  let action = extractActionFromError(error);
+  if (!action && toolArgs && typeof toolArgs.action === "string") {
+    action = toolArgs.action;
+  }
+  action ??= "unknown";
+
+  return handleGitLabError(
+    { status: parsed.status, message: parsed.message },
+    toolName,
+    action,
+    toolArgs
+  );
+}
 
 export async function setupHandlers(server: Server): Promise<void> {
   // Initialize connection and detect GitLab instance on startup
@@ -215,12 +328,33 @@ export async function setupHandlers(server: Server): Promise<void> {
         };
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
-        throw new Error(`Failed to execute tool '${toolName}': ${errorMessage}`);
+        // Preserve original error as cause to allow action extraction and structured error detection
+        throw new Error(`Failed to execute tool '${toolName}': ${errorMessage}`, { cause: error });
       }
     } catch (error) {
       logger.error(
         `Error in tool handler: ${error instanceof Error ? error.message : String(error)}`
       );
+
+      // Try to convert to structured error for better LLM feedback
+      const toolName = request.params.name;
+      const toolArgs = request.params.arguments;
+      const structuredError = toStructuredError(error, toolName, toolArgs);
+
+      if (structuredError) {
+        logger.debug({ structuredError }, "Returning structured error response");
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(structuredError, null, 2),
+            },
+          ],
+          isError: true,
+        };
+      }
+
+      // Fallback to original error format
       const errorMessage = error instanceof Error ? error.message : String(error);
       return {
         content: [

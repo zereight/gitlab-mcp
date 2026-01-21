@@ -33,8 +33,11 @@ module.exports = {
       },
     ],
   },
-  // Remove moduleNameMapper for unit tests to allow proper per-file mock isolation
-  moduleNameMapper: integrationTestsEnabled ? {} : {},
+  // Map .js imports to .ts files for ESM compatibility with CommonJS Jest
+  // This allows proper resolution of imports like "from './file.js'" to find ./file.ts
+  moduleNameMapper: {
+    "^(\\.{1,2}/.*)\\.js$": "$1",
+  },
   testMatch: integrationTestsEnabled
     ? ["**/tests/**/*.test.ts", "**/?(*.)+(spec|test).ts"]
     : ["**/tests/unit/**/*.test.ts"],
