@@ -1,3 +1,9 @@
+## [6.21.0](https://github.com/structured-world/gitlab-mcp/compare/v6.20.0...v6.21.0) (2026-01-21)
+
+### Features
+
+* **refs:** add refs management entity with CQRS tools ([#88](https://github.com/structured-world/gitlab-mcp/issues/88)) ([852cccc](https://github.com/structured-world/gitlab-mcp/commit/852ccccb161d675794605a3469a24d92b395c51d)), closes [#83](https://github.com/structured-world/gitlab-mcp/issues/83)
+
 ## [6.20.0](https://github.com/structured-world/gitlab-mcp/compare/v6.19.0...v6.20.0) (2026-01-21)
 
 ### Features

@@ -1,7 +1,7 @@
 # GitLab MCP Tools Reference
 
 > Auto-generated from source code. Do not edit manually.
-> Generated: 2026-01-21 | Tools: 41 | Version: 6.20.0
+> Generated: 2026-01-21 | Tools: 43 | Version: 6.21.0
 
 ## Table of Contents
 
@@ -18,7 +18,7 @@
 - [Webhooks (2)](#webhooks)
 - [Integrations (2)](#integrations)
 - [Todos (2)](#todos)
-- [Other (2)](#other)
+- [Other (4)](#other)
 
 ---
 
@@ -2297,4 +2297,202 @@ MANAGE GitLab releases. Actions: "create" creates release with optional assets, 
 
 ---
 
-[15:22:43.467] [32mINFO[39m (gitlab-mcp): [36mUsing in-memory session storage (sessions will be lost on restart)[39m
+### browse_refs [tier: Premium*]
+
+BROWSE Git refs (branches and tags). Actions: "list_branches" lists all branches, "get_branch" gets branch details, "list_tags" lists all tags, "get_tag" gets tag details, "list_protected_branches" shows protected branches, "get_protected_branch" gets protection rules, "list_protected_tags" shows protected tags.
+
+#### Actions
+
+| Action | Tier | Description |
+|--------|------|-------------|
+| `list_branches` | Free | List all repository branches with optional search |
+| `get_branch` | Free | Get details of a specific branch |
+| `list_tags` | Free | List all repository tags |
+| `get_tag` | Free | Get details of a specific tag |
+| `list_protected_branches` | Free | List all protected branches with their protection rules |
+| `get_protected_branch` | Free | Get protection rules for a specific branch |
+| `list_protected_tags` | Premium | List all protected tags with their protection rules |
+
+#### Parameters
+
+**Common** (all actions):
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `project_id` | string | Yes | Project ID or URL-encoded path (e.g., 'my-group/my-project') |
+
+**Action `get_branch`**:
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `branch` | string | Yes | Branch name (URL-encoded if contains slashes) |
+
+**Action `get_protected_branch`**:
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `name` | string | Yes | Branch name or wildcard pattern (e.g., 'main', 'release-*') |
+
+**Action `get_tag`**:
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `tag_name` | string | Yes | Tag name (URL-encoded if contains special characters) |
+
+**Action `list_branches`**:
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `page` | integer | No | Page number |
+| `per_page` | integer | No | Number of items per page (max 100) |
+| `regex` | string | No | Filter branches by regex pattern |
+| `search` | string | No | Filter branches by name (supports wildcards) |
+
+**Action `list_protected_branches`**:
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `page` | integer | No | Page number |
+| `per_page` | integer | No | Number of items per page (max 100) |
+| `search` | string | No | Filter protected branches by name |
+
+**Action `list_protected_tags`**:
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `page` | integer | No | Page number |
+| `per_page` | integer | No | Number of items per page (max 100) |
+
+**Action `list_tags`**:
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `order_by` | string | No | Sort by field (default: updated) |
+| `page` | integer | No | Page number |
+| `per_page` | integer | No | Number of items per page (max 100) |
+| `search` | string | No | Filter tags by name (supports wildcards) |
+| `sort` | string | No | Sort direction (default: desc) |
+
+#### Example
+
+```json
+{
+  "action": "list_branches",
+  "project_id": "my-group/my-project"
+}
+```
+
+---
+
+### manage_ref [tier: Premium*]
+
+MANAGE Git refs (branches and tags). Actions: "create_branch" creates branch from ref, "delete_branch" removes branch, "protect_branch" adds protection, "unprotect_branch" removes protection, "update_branch_protection" modifies rules, "create_tag" creates tag, "delete_tag" removes tag, "protect_tag" adds tag protection (Premium), "unprotect_tag" removes tag protection.
+
+#### Actions
+
+| Action | Tier | Description |
+|--------|------|-------------|
+| `create_branch` | Free | Create a new branch from an existing ref |
+| `delete_branch` | Free | Delete a branch from the repository |
+| `protect_branch` | Free | Add protection rules to a branch or pattern |
+| `unprotect_branch` | Free | Remove protection from a branch |
+| `update_branch_protection` | Free | Update protection rules for a branch |
+| `create_tag` | Free | Create a new tag in the repository |
+| `delete_tag` | Free | Delete a tag from the repository |
+| `protect_tag` | Premium | Add protection rules to a tag pattern (Premium) |
+| `unprotect_tag` | Premium | Remove protection from a tag pattern (Premium) |
+
+#### Parameters
+
+**Common** (all actions):
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `project_id` | string | Yes | Project ID or URL-encoded path (e.g., 'my-group/my-project') |
+
+**Action `create_branch`**:
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `branch` | string | Yes | Name for the new branch |
+| `ref` | string | Yes | Source branch name, tag, or commit SHA to create from |
+
+**Action `create_tag`**:
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `ref` | string | Yes | Source branch name or commit SHA to create tag from |
+| `tag_name` | string | Yes | Name for the new tag (e.g., 'v1.0.0') |
+| `message` | string | No | Annotation message (creates annotated tag if provided) |
+
+**Action `delete_branch`**:
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `branch` | string | Yes | Branch name to delete |
+
+**Action `delete_tag`**:
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `tag_name` | string | Yes | Tag name to delete |
+
+**Action `protect_branch`**:
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `name` | string | Yes | Branch name or wildcard pattern (e.g., 'main', 'release-*') |
+| `allow_force_push` | boolean | No | Allow force push to protected branch (default: false) |
+| `allowed_to_merge` | object[] | No | Granular merge access (Premium feature) |
+| `allowed_to_push` | object[] | No | Granular push access (Premium feature) |
+| `allowed_to_unprotect` | object[] | No | Granular unprotect access (Premium feature) |
+| `code_owner_approval_required` | boolean | No | Require code owner approval (Premium feature) |
+| `merge_access_level` | integer | No | Who can merge (default: 40=Maintainers) |
+| `push_access_level` | integer | No | Who can push (default: 40=Maintainers) |
+| `unprotect_access_level` | integer | No | Who can unprotect (default: 40=Maintainers) |
+
+**Action `protect_tag`**:
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `name` | string | Yes | Tag name or wildcard pattern (e.g., 'v*', 'release-*') |
+| `allowed_to_create` | object[] | No | Granular create access (Premium feature) |
+| `create_access_level` | integer | No | Who can create matching tags (default: 40=Maintainers) |
+
+**Action `unprotect_branch`**:
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `name` | string | Yes | Branch name or wildcard pattern to unprotect |
+
+**Action `unprotect_tag`**:
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `name` | string | Yes | Tag name or wildcard pattern to unprotect |
+
+**Action `update_branch_protection`**:
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `name` | string | Yes | Branch name or wildcard pattern |
+| `allow_force_push` | boolean | No | Allow force push to protected branch |
+| `allowed_to_merge` | object[] | No | Granular merge access (Premium feature) |
+| `allowed_to_push` | object[] | No | Granular push access (Premium feature) |
+| `allowed_to_unprotect` | object[] | No | Granular unprotect access (Premium feature) |
+| `code_owner_approval_required` | boolean | No | Require code owner approval (Premium feature) |
+
+#### Example
+
+```json
+{
+  "action": "create_branch",
+  "project_id": "my-group/my-project",
+  "branch": "main",
+  "ref": "main"
+}
+```
+
+---
+
+[16:26:16.378] [32mINFO[39m (gitlab-mcp): [36mUsing in-memory session storage (sessions will be lost on restart)[39m
