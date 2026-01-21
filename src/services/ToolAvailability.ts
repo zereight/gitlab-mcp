@@ -617,6 +617,14 @@ export class ToolAvailability {
     download_attachment: {
       default: { tier: "free", minVersion: 10.0 },
     },
+
+    // Releases
+    browse_releases: {
+      default: { tier: "free", minVersion: 11.7 },
+    },
+    manage_release: {
+      default: { tier: "free", minVersion: 11.7 },
+    },
   };
 
   /**

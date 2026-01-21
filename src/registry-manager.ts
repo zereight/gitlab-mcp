@@ -26,6 +26,7 @@ import {
   integrationsToolRegistry,
   getIntegrationsReadOnlyToolNames,
 } from "./entities/integrations/registry";
+import { releasesToolRegistry, getReleasesReadOnlyToolNames } from "./entities/releases/registry";
 import {
   GITLAB_READ_ONLY_MODE,
   GITLAB_DENIED_TOOLS_REGEX,
@@ -40,6 +41,7 @@ import {
   USE_SNIPPETS,
   USE_WEBHOOKS,
   USE_INTEGRATIONS,
+  USE_RELEASES,
   getToolDescriptionOverrides,
 } from "./config";
 import { ToolAvailability } from "./services/ToolAvailability";
@@ -134,6 +136,10 @@ class RegistryManager {
       this.registries.set("integrations", integrationsToolRegistry);
     }
 
+    if (USE_RELEASES) {
+      this.registries.set("releases", releasesToolRegistry);
+    }
+
     // All entity registries have been migrated to the new pattern!
   }
 
@@ -203,6 +209,10 @@ class RegistryManager {
 
     if (USE_INTEGRATIONS) {
       readOnlyTools.push(...getIntegrationsReadOnlyToolNames());
+    }
+
+    if (USE_RELEASES) {
+      readOnlyTools.push(...getReleasesReadOnlyToolNames());
     }
 
     return readOnlyTools;
@@ -361,6 +371,7 @@ class RegistryManager {
     const useSnippets = process.env.USE_SNIPPETS !== "false";
     const useWebhooks = process.env.USE_WEBHOOKS !== "false";
     const useIntegrations = process.env.USE_INTEGRATIONS !== "false";
+    const useReleases = process.env.USE_RELEASES !== "false";
 
     // Build registries map based on dynamic feature flags
     const registriesToUse = new Map<string, ToolRegistry>();
@@ -380,6 +391,7 @@ class RegistryManager {
     if (useSnippets) registriesToUse.set("snippets", snippetsToolRegistry);
     if (useWebhooks) registriesToUse.set("webhooks", webhooksToolRegistry);
     if (useIntegrations) registriesToUse.set("integrations", integrationsToolRegistry);
+    if (useReleases) registriesToUse.set("releases", releasesToolRegistry);
 
     // Dynamically load description overrides
     const descOverrides = getToolDescriptionOverrides();
@@ -444,6 +456,7 @@ class RegistryManager {
       snippetsToolRegistry,
       webhooksToolRegistry,
       integrationsToolRegistry,
+      releasesToolRegistry,
     ];
 
     for (const registry of allRegistries) {

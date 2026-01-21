@@ -9,5 +9,6 @@ export * from "./mrs";
 export * from "./files";
 export * from "./variables";
 export * from "./webhooks";
+export * from "./releases";
 
 // All entities now use the registry pattern with embedded handlers
