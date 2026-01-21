@@ -958,6 +958,8 @@ export const GetMergeRequestNotesSchema = ProjectParamsSchema.extend({
   merge_request_iid: z.coerce.string().describe("The IID of a merge request"),
   sort: z.enum(["asc", "desc"]).optional().describe("The sort order of the notes"),
   order_by: z.enum(["created_at", "updated_at"]).optional().describe("The field to sort the notes by"),
+  per_page: z.coerce.number().optional().describe("Number of items per page"),
+  page: z.coerce.number().optional().describe("Page number for pagination"),
 });
 
 export const GetMergeRequestNoteSchema = ProjectParamsSchema.extend({

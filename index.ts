@@ -2363,7 +2363,9 @@ async function getMergeRequestNotes(
   projectId: string,
   mergeRequestIid: string,
   sort?: "asc" | "desc",
-  order_by?: "created_at" | "updated_at"
+  order_by?: "created_at" | "updated_at",
+  per_page?: number,
+  page?: number
 ): Promise<GitLabDiscussionNote[]> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
@@ -2378,6 +2380,14 @@ async function getMergeRequestNotes(
 
   if (order_by) {
     url.searchParams.append("order_by", order_by);
+  }
+
+  if (per_page) {
+    url.searchParams.append("per_page", per_page.toString());
+  }
+
+  if (page) {
+    url.searchParams.append("page", page.toString());
   }
 
   const response = await fetch(url.toString(), {
@@ -5701,7 +5711,9 @@ async function handleToolCall(params: any) {
           args.project_id,
           args.merge_request_iid,
           args.sort,
-          args.order_by
+          args.order_by,
+          args.per_page,
+          args.page
         );
 
         return {
