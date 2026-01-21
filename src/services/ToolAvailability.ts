@@ -625,6 +625,38 @@ export class ToolAvailability {
     manage_release: {
       default: { tier: "free", minVersion: 11.7 },
     },
+
+    // Refs (branches and tags)
+    browse_refs: {
+      default: { tier: "free", minVersion: 8.0 },
+      actions: {
+        list_branches: { tier: "free", minVersion: 8.0 },
+        get_branch: { tier: "free", minVersion: 8.0 },
+        list_tags: { tier: "free", minVersion: 8.0 },
+        get_tag: { tier: "free", minVersion: 8.0 },
+        list_protected_branches: { tier: "free", minVersion: 8.11 },
+        get_protected_branch: { tier: "free", minVersion: 8.11 },
+        list_protected_tags: { tier: "premium", minVersion: 11.3, notes: "Protected tags" },
+      },
+    },
+    manage_ref: {
+      default: { tier: "free", minVersion: 8.0 },
+      actions: {
+        create_branch: { tier: "free", minVersion: 8.0 },
+        delete_branch: { tier: "free", minVersion: 8.0 },
+        protect_branch: { tier: "free", minVersion: 8.11 },
+        unprotect_branch: { tier: "free", minVersion: 8.11 },
+        update_branch_protection: {
+          tier: "free",
+          minVersion: 11.9,
+          notes: "PATCH endpoint; code owners require Premium",
+        },
+        create_tag: { tier: "free", minVersion: 8.0 },
+        delete_tag: { tier: "free", minVersion: 8.0 },
+        protect_tag: { tier: "premium", minVersion: 11.3, notes: "Protected tags" },
+        unprotect_tag: { tier: "premium", minVersion: 11.3, notes: "Protected tags" },
+      },
+    },
   };
 
   /**

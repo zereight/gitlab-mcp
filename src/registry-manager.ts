@@ -27,6 +27,7 @@ import {
   getIntegrationsReadOnlyToolNames,
 } from "./entities/integrations/registry";
 import { releasesToolRegistry, getReleasesReadOnlyToolNames } from "./entities/releases/registry";
+import { refsToolRegistry, getRefsReadOnlyToolNames } from "./entities/refs/registry";
 import {
   GITLAB_READ_ONLY_MODE,
   GITLAB_DENIED_TOOLS_REGEX,
@@ -42,6 +43,7 @@ import {
   USE_WEBHOOKS,
   USE_INTEGRATIONS,
   USE_RELEASES,
+  USE_REFS,
   getToolDescriptionOverrides,
 } from "./config";
 import { ToolAvailability } from "./services/ToolAvailability";
@@ -140,6 +142,10 @@ class RegistryManager {
       this.registries.set("releases", releasesToolRegistry);
     }
 
+    if (USE_REFS) {
+      this.registries.set("refs", refsToolRegistry);
+    }
+
     // All entity registries have been migrated to the new pattern!
   }
 
@@ -213,6 +219,10 @@ class RegistryManager {
 
     if (USE_RELEASES) {
       readOnlyTools.push(...getReleasesReadOnlyToolNames());
+    }
+
+    if (USE_REFS) {
+      readOnlyTools.push(...getRefsReadOnlyToolNames());
     }
 
     return readOnlyTools;
@@ -372,6 +382,7 @@ class RegistryManager {
     const useWebhooks = process.env.USE_WEBHOOKS !== "false";
     const useIntegrations = process.env.USE_INTEGRATIONS !== "false";
     const useReleases = process.env.USE_RELEASES !== "false";
+    const useRefs = process.env.USE_REFS !== "false";
 
     // Build registries map based on dynamic feature flags
     const registriesToUse = new Map<string, ToolRegistry>();
@@ -392,6 +403,7 @@ class RegistryManager {
     if (useWebhooks) registriesToUse.set("webhooks", webhooksToolRegistry);
     if (useIntegrations) registriesToUse.set("integrations", integrationsToolRegistry);
     if (useReleases) registriesToUse.set("releases", releasesToolRegistry);
+    if (useRefs) registriesToUse.set("refs", refsToolRegistry);
 
     // Dynamically load description overrides
     const descOverrides = getToolDescriptionOverrides();
@@ -457,6 +469,7 @@ class RegistryManager {
       webhooksToolRegistry,
       integrationsToolRegistry,
       releasesToolRegistry,
+      refsToolRegistry,
     ];
 
     for (const registry of allRegistries) {
