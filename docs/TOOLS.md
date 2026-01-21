@@ -1,7 +1,7 @@
 # GitLab MCP Tools Reference
 
 > Auto-generated from source code. Do not edit manually.
-> Generated: 2026-01-20 | Tools: 39 | Version: 6.17.0
+> Generated: 2026-01-21 | Tools: 39 | Version: 6.18.0
 
 ## Table of Contents
 
@@ -23,17 +23,17 @@
 
 ## Core
 
-### browse_projects
+### browse_projects [tier: Free]
 
 PROJECT DISCOVERY: Find, browse, or inspect GitLab projects. Use 'search' to find projects by name/topic across all GitLab. Use 'list' to browse your accessible projects or projects within a specific group. Use 'get' with project_id to retrieve full details of a known project. Filter by visibility, language, or ownership.
 
 #### Actions
 
-| Action | Description |
-|--------|-------------|
-| `search` | Find projects by criteria using global search API |
-| `list` | Browse accessible projects with optional group scope |
-| `get` | Retrieve specific project details |
+| Action | Tier | Description |
+|--------|------|-------------|
+| `search` | Free | Find projects by criteria using global search API |
+| `list` | Free | Browse accessible projects with optional group scope |
+| `get` | Free | Retrieve specific project details |
 
 #### Parameters
 
@@ -88,17 +88,17 @@ PROJECT DISCOVERY: Find, browse, or inspect GitLab projects. Use 'search' to fin
 
 ---
 
-### browse_namespaces
+### browse_namespaces [tier: Free]
 
 NAMESPACE OPERATIONS: Explore GitLab groups and user namespaces. Use 'list' to discover available namespaces for project creation. Use 'get' with namespace_id to retrieve full details including storage stats. Use 'verify' to check if a namespace path exists before creating projects or groups.
 
 #### Actions
 
-| Action | Description |
-|--------|-------------|
-| `list` | Browse namespaces with optional filtering |
-| `get` | Retrieve namespace details |
-| `verify` | Check if namespace exists |
+| Action | Tier | Description |
+|--------|------|-------------|
+| `list` | Free | Browse namespaces with optional filtering |
+| `get` | Free | Retrieve namespace details |
+| `verify` | Free | Check if namespace exists |
 
 #### Parameters
 
@@ -136,17 +136,17 @@ NAMESPACE OPERATIONS: Explore GitLab groups and user namespaces. Use 'list' to d
 
 ---
 
-### browse_commits
+### browse_commits [tier: Free]
 
 COMMIT HISTORY: Explore repository commit history. Use 'list' to browse commits with optional date range, author, or file path filters. Use 'get' with sha to retrieve commit metadata and stats. Use 'diff' to see actual code changes in a commit. Essential for code review and change tracking.
 
 #### Actions
 
-| Action | Description |
-|--------|-------------|
-| `list` | Browse commit history |
-| `get` | Retrieve commit details |
-| `diff` | Get code changes in a commit |
+| Action | Tier | Description |
+|--------|------|-------------|
+| `list` | Free | Browse commit history |
+| `get` | Free | Retrieve commit details |
+| `diff` | Free | Get code changes in a commit |
 
 #### Parameters
 
@@ -200,16 +200,16 @@ COMMIT HISTORY: Explore repository commit history. Use 'list' to browse commits 
 
 ---
 
-### browse_events
+### browse_events [tier: Free]
 
 ACTIVITY FEED: Track GitLab activity and events. Use 'user' to see YOUR recent activity across all projects (commits, issues, MRs). Use 'project' with project_id to monitor a specific project's activity feed. Filter by date range or action type (pushed, commented, merged, etc.).
 
 #### Actions
 
-| Action | Description |
-|--------|-------------|
-| `user` | Show your activity across all projects |
-| `project` | Show specific project activity |
+| Action | Tier | Description |
+|--------|------|-------------|
+| `user` | Free | Show your activity across all projects |
+| `project` | Free | Show specific project activity |
 
 #### Parameters
 
@@ -241,16 +241,16 @@ ACTIVITY FEED: Track GitLab activity and events. Use 'user' to see YOUR recent a
 
 ---
 
-### manage_repository
+### manage_repository [tier: Free]
 
 REPOSITORY MANAGEMENT: Create or fork GitLab projects. Use 'create' to start a new project with custom settings (visibility, features, namespace). Use 'fork' with project_id to create your own copy of an existing project for independent development or contribution back via MRs.
 
 #### Actions
 
-| Action | Description |
-|--------|-------------|
-| `create` | Create a new project |
-| `fork` | Fork an existing project |
+| Action | Tier | Description |
+|--------|------|-------------|
+| `create` | Free | Create a new project |
+| `fork` | Free | Fork an existing project |
 
 #### Parameters
 
@@ -433,7 +433,7 @@ NEW BRANCH: Create a Git branch from existing ref. Required before creating MRs.
 
 ---
 
-### create_group
+### create_group [tier: Free]
 
 CREATE GROUP: Create a new GitLab group/namespace. Groups organize projects and teams. Can create subgroups with parent_id.
 
@@ -465,16 +465,16 @@ CREATE GROUP: Create a new GitLab group/namespace. Groups organize projects and 
 
 ## Work Items
 
-### browse_work_items
+### browse_work_items [tier: Free]
 
 BROWSE work items. Actions: "list" shows work items with filtering (groups return epics, projects return issues/tasks), "get" retrieves single work item by ID with full widget details.
 
 #### Actions
 
-| Action | Description |
-|--------|-------------|
-| `list` | List work items with filtering |
-| `get` | Get single work item details |
+| Action | Tier | Description |
+|--------|------|-------------|
+| `list` | Free | List work items with filtering |
+| `get` | Free | Get single work item details |
 
 #### Parameters
 
@@ -509,17 +509,17 @@ BROWSE work items. Actions: "list" shows work items with filtering (groups retur
 
 ---
 
-### manage_work_item
+### manage_work_item [tier: Free]
 
 MANAGE work items. Actions: "create" creates new work item (Epics need GROUP namespace, Issues/Tasks need PROJECT), "update" modifies properties/widgets, "delete" permanently removes.
 
 #### Actions
 
-| Action | Description |
-|--------|-------------|
-| `create` | Create a new work item |
-| `update` | Update an existing work item |
-| `delete` | Delete a work item |
+| Action | Tier | Description |
+|--------|------|-------------|
+| `create` | Free | Create a new work item |
+| `update` | Free | Update an existing work item |
+| `delete` | Free | Delete a work item |
 
 #### Parameters
 
@@ -568,18 +568,18 @@ MANAGE work items. Actions: "create" creates new work item (Epics need GROUP nam
 
 ## Merge Requests
 
-### browse_merge_requests
+### browse_merge_requests [tier: Premium*]
 
 BROWSE merge requests. Actions: "list" shows MRs with filtering, "get" retrieves single MR by IID or branch, "diffs" shows file changes, "compare" diffs two branches/commits.
 
 #### Actions
 
-| Action | Description |
-|--------|-------------|
-| `list` | List merge requests with filtering |
-| `get` | Get single MR by IID or branch name |
-| `diffs` | Get file changes/diffs for an MR |
-| `compare` | Compare two branches or commits |
+| Action | Tier | Description |
+|--------|------|-------------|
+| `list` | Free | List merge requests with filtering |
+| `get` | Free | Get single MR by IID or branch name |
+| `diffs` | Free | Get file changes/diffs for an MR |
+| `compare` | Free | Compare two branches or commits |
 
 #### Parameters
 
@@ -666,17 +666,17 @@ BROWSE merge requests. Actions: "list" shows MRs with filtering, "get" retrieves
 
 ---
 
-### browse_mr_discussions
+### browse_mr_discussions [tier: Free]
 
 BROWSE MR discussions and draft notes. Actions: "list" shows all discussion threads, "drafts" lists unpublished draft notes, "draft" gets single draft note.
 
 #### Actions
 
-| Action | Description |
-|--------|-------------|
-| `list` | List all discussion threads on an MR |
-| `drafts` | List unpublished draft notes on an MR |
-| `draft` | Get single draft note details |
+| Action | Tier | Description |
+|--------|------|-------------|
+| `list` | Free | List all discussion threads on an MR |
+| `drafts` | Free | List unpublished draft notes on an MR |
+| `draft` | Free | Get single draft note details |
 
 #### Parameters
 
@@ -712,17 +712,17 @@ BROWSE MR discussions and draft notes. Actions: "list" shows all discussion thre
 
 ---
 
-### manage_merge_request
+### manage_merge_request [tier: Free]
 
 MANAGE merge requests. Actions: "create" creates new MR, "update" modifies existing MR, "merge" merges approved MR into target branch.
 
 #### Actions
 
-| Action | Description |
-|--------|-------------|
-| `create` | Create a new merge request |
-| `update` | Update an existing merge request |
-| `merge` | Merge an approved merge request |
+| Action | Tier | Description |
+|--------|------|-------------|
+| `create` | Free | Create a new merge request |
+| `update` | Free | Update an existing merge request |
+| `merge` | Free | Merge an approved merge request |
 
 #### Parameters
 
@@ -797,18 +797,20 @@ MANAGE merge requests. Actions: "create" creates new MR, "update" modifies exist
 
 ---
 
-### manage_mr_discussion
+### manage_mr_discussion [tier: Free]
 
-MANAGE MR discussions. Actions: "comment" adds comment to issue/MR, "thread" starts new discussion, "reply" responds to existing thread, "update" modifies note.
+MANAGE MR discussions and suggestions. Actions: "comment" adds comment, "thread" starts discussion, "reply" responds to thread, "update" modifies note, "apply_suggestion" applies single code suggestion, "apply_suggestions" batch applies multiple suggestions.
 
 #### Actions
 
-| Action | Description |
-|--------|-------------|
-| `comment` | Add a comment to an issue or merge request |
-| `thread` | Start a new discussion thread on an MR |
-| `reply` | Reply to an existing discussion thread |
-| `update` | Update an existing note/comment |
+| Action | Tier | Description |
+|--------|------|-------------|
+| `comment` | Free | Add a comment to an issue or merge request |
+| `thread` | Free | Start a new discussion thread on an MR |
+| `reply` | Free | Reply to an existing discussion thread |
+| `update` | Free | Update an existing note/comment |
+| `apply_suggestion` | Free | Apply a single code suggestion from a review |
+| `apply_suggestions` | Free | Batch apply multiple code suggestions |
 
 #### Parameters
 
@@ -816,13 +818,29 @@ MANAGE MR discussions. Actions: "comment" adds comment to issue/MR, "thread" sta
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `body` | string | Yes | New content/text for the note |
 | `project_id` | string | Yes | Project ID or URL-encoded path |
+
+**Action `apply_suggestion`**:
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `merge_request_iid` | string | Yes | Internal MR ID unique to project |
+| `suggestion_id` | number | Yes | ID of the suggestion to apply |
+| `commit_message` | string | No | Custom commit message for the apply commit |
+
+**Action `apply_suggestions`**:
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `merge_request_iid` | string | Yes | Internal MR ID unique to project |
+| `suggestion_ids` | number[] | Yes | Array of suggestion IDs to apply |
+| `commit_message` | string | No | Custom commit message for the apply commit |
 
 **Action `comment`**:
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
+| `body` | string | Yes | Content/text of the comment |
 | `noteable_id` | string | Yes | ID of the noteable object |
 | `noteable_type` | string | Yes | Type of noteable: issue or merge_request |
 | `confidential` | boolean | No | Confidential note flag |
@@ -832,6 +850,7 @@ MANAGE MR discussions. Actions: "comment" adds comment to issue/MR, "thread" sta
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
+| `body` | string | Yes | Content/text of the reply |
 | `discussion_id` | string | Yes | ID of the discussion to reply to |
 | `merge_request_iid` | string | Yes | Internal MR ID unique to project |
 | `created_at` | string | No | Date time string (ISO 8601) |
@@ -840,6 +859,7 @@ MANAGE MR discussions. Actions: "comment" adds comment to issue/MR, "thread" sta
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
+| `body` | string | Yes | Content/text of the thread |
 | `merge_request_iid` | string | Yes | Internal MR ID unique to project |
 | `commit_id` | string | No | SHA of commit to start discussion on |
 | `position` | object | No | Position for diff note |
@@ -848,6 +868,7 @@ MANAGE MR discussions. Actions: "comment" adds comment to issue/MR, "thread" sta
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
+| `body` | string | Yes | New content/text for the note |
 | `merge_request_iid` | string | Yes | Internal MR ID unique to project |
 | `note_id` | string | Yes | ID of the note to update |
 
@@ -865,19 +886,19 @@ MANAGE MR discussions. Actions: "comment" adds comment to issue/MR, "thread" sta
 
 ---
 
-### manage_draft_notes
+### manage_draft_notes [tier: Free]
 
 MANAGE draft notes. Actions: "create" creates draft note, "update" modifies draft, "publish" publishes single draft, "publish_all" publishes all drafts, "delete" removes draft.
 
 #### Actions
 
-| Action | Description |
-|--------|-------------|
-| `create` | Create a new draft note |
-| `update` | Update an existing draft note |
-| `publish` | Publish a single draft note |
-| `publish_all` | Publish all draft notes at once |
-| `delete` | Delete a draft note |
+| Action | Tier | Description |
+|--------|------|-------------|
+| `create` | Free | Create a new draft note |
+| `update` | Free | Update an existing draft note |
+| `publish` | Free | Publish a single draft note |
+| `publish_all` | Free | Publish all draft notes at once |
+| `delete` | Free | Delete a draft note |
 
 #### Parameters
 
@@ -932,16 +953,16 @@ MANAGE draft notes. Actions: "create" creates draft note, "update" modifies draf
 
 ## Labels
 
-### browse_labels
+### browse_labels [tier: Free]
 
 BROWSE labels. Actions: "list" shows all labels in project/group with filtering, "get" retrieves single label details by ID or name.
 
 #### Actions
 
-| Action | Description |
-|--------|-------------|
-| `list` | List labels with optional filtering |
-| `get` | Get a single label by ID or title |
+| Action | Tier | Description |
+|--------|------|-------------|
+| `list` | Free | List labels with optional filtering |
+| `get` | Free | Get a single label by ID or title |
 
 #### Parameters
 
@@ -978,17 +999,17 @@ BROWSE labels. Actions: "list" shows all labels in project/group with filtering,
 
 ---
 
-### manage_label
+### manage_label [tier: Free]
 
 MANAGE labels. Actions: "create" adds new label (requires name and color), "update" modifies existing label, "delete" removes label permanently.
 
 #### Actions
 
-| Action | Description |
-|--------|-------------|
-| `create` | Create a new label |
-| `update` | Update an existing label |
-| `delete` | Delete a label |
+| Action | Tier | Description |
+|--------|------|-------------|
+| `create` | Free | Create a new label |
+| `update` | Free | Update an existing label |
+| `delete` | Free | Delete a label |
 
 #### Parameters
 
@@ -1039,19 +1060,19 @@ MANAGE labels. Actions: "create" adds new label (requires name and color), "upda
 
 ## Milestones
 
-### browse_milestones
+### browse_milestones [tier: Premium*]
 
 BROWSE milestones. Actions: "list" shows milestones with filtering, "get" retrieves single milestone, "issues" lists issues in milestone, "merge_requests" lists MRs in milestone, "burndown" gets burndown chart data.
 
 #### Actions
 
-| Action | Description |
-|--------|-------------|
-| `list` | List milestones with optional filtering |
-| `get` | Get a single milestone by ID |
-| `issues` | List issues assigned to a milestone |
-| `merge_requests` | List merge requests assigned to a milestone |
-| `burndown` | Get burndown chart data for a milestone |
+| Action | Tier | Description |
+|--------|------|-------------|
+| `list` | Free | List milestones with optional filtering |
+| `get` | Free | Get a single milestone by ID |
+| `issues` | Free | List issues assigned to a milestone |
+| `merge_requests` | Free | List merge requests assigned to a milestone |
+| `burndown` | Premium | Get burndown chart data for a milestone |
 
 #### Parameters
 
@@ -1116,18 +1137,18 @@ BROWSE milestones. Actions: "list" shows milestones with filtering, "get" retrie
 
 ---
 
-### manage_milestone
+### manage_milestone [tier: Free]
 
 MANAGE milestones. Actions: "create" creates new milestone, "update" modifies existing milestone, "delete" removes milestone, "promote" elevates project milestone to group level.
 
 #### Actions
 
-| Action | Description |
-|--------|-------------|
-| `create` | Create a new item |
-| `update` | Update an existing item |
-| `delete` | Delete an item |
-| `promote` | Perform promote operation |
+| Action | Tier | Description |
+|--------|------|-------------|
+| `create` | Free | Create a new item |
+| `update` | Free | Update an existing item |
+| `delete` | Free | Delete an item |
+| `promote` | Free | Perform promote operation |
 
 #### Parameters
 
@@ -1183,20 +1204,20 @@ MANAGE milestones. Actions: "create" creates new milestone, "update" modifies ex
 
 ## Pipelines
 
-### browse_pipelines
+### browse_pipelines [tier: Free]
 
 BROWSE pipelines. Actions: "list" searches pipelines with filtering, "get" retrieves single pipeline details, "jobs" lists jobs in pipeline, "triggers" lists bridge/trigger jobs, "job" gets single job details, "logs" fetches job console output.
 
 #### Actions
 
-| Action | Description |
-|--------|-------------|
-| `list` | List pipelines with filtering |
-| `get` | Get single pipeline details |
-| `jobs` | List jobs in a pipeline |
-| `triggers` | List bridge/trigger jobs in a pipeline |
-| `job` | Get single job details |
-| `logs` | Get job console output/logs |
+| Action | Tier | Description |
+|--------|------|-------------|
+| `list` | Free | List pipelines with filtering |
+| `get` | Free | Get single pipeline details |
+| `jobs` | Free | List jobs in a pipeline |
+| `triggers` | Free | List bridge/trigger jobs in a pipeline |
+| `job` | Free | Get single job details |
+| `logs` | Free | Get job console output/logs |
 
 #### Parameters
 
@@ -1277,17 +1298,17 @@ BROWSE pipelines. Actions: "list" searches pipelines with filtering, "get" retri
 
 ---
 
-### manage_pipeline
+### manage_pipeline [tier: Free]
 
 MANAGE pipelines. Actions: "create" triggers new pipeline on branch/tag with optional variables, "retry" re-runs failed/canceled pipeline, "cancel" stops running pipeline.
 
 #### Actions
 
-| Action | Description |
-|--------|-------------|
-| `create` | Trigger a new pipeline on branch/tag |
-| `retry` | Re-run a failed/canceled pipeline |
-| `cancel` | Stop a running pipeline |
+| Action | Tier | Description |
+|--------|------|-------------|
+| `create` | Free | Trigger a new pipeline on branch/tag |
+| `retry` | Free | Re-run a failed/canceled pipeline |
+| `cancel` | Free | Stop a running pipeline |
 
 #### Parameters
 
@@ -1328,17 +1349,17 @@ MANAGE pipelines. Actions: "create" triggers new pipeline on branch/tag with opt
 
 ---
 
-### manage_pipeline_job
+### manage_pipeline_job [tier: Free]
 
 MANAGE pipeline jobs. Actions: "play" triggers manual job with optional variables, "retry" re-runs failed/canceled job, "cancel" stops running job.
 
 #### Actions
 
-| Action | Description |
-|--------|-------------|
-| `play` | Trigger a manual job |
-| `retry` | Re-run a failed/canceled job |
-| `cancel` | Stop a running job |
+| Action | Tier | Description |
+|--------|------|-------------|
+| `play` | Free | Trigger a manual job |
+| `retry` | Free | Re-run a failed/canceled job |
+| `cancel` | Free | Stop a running job |
 
 #### Parameters
 
@@ -1375,16 +1396,16 @@ MANAGE pipeline jobs. Actions: "play" triggers manual job with optional variable
 
 ## Variables
 
-### browse_variables
+### browse_variables [tier: Free]
 
 BROWSE CI/CD variables. Actions: "list" shows all variables in project/group with pagination, "get" retrieves single variable details by key with optional environment scope filter.
 
 #### Actions
 
-| Action | Description |
-|--------|-------------|
-| `list` | List all CI/CD variables |
-| `get` | Get a single CI/CD variable by key |
+| Action | Tier | Description |
+|--------|------|-------------|
+| `list` | Free | List all CI/CD variables |
+| `get` | Free | Get a single CI/CD variable by key |
 
 #### Parameters
 
@@ -1419,17 +1440,17 @@ BROWSE CI/CD variables. Actions: "list" shows all variables in project/group wit
 
 ---
 
-### manage_variable
+### manage_variable [tier: Free]
 
 MANAGE CI/CD variables. Actions: "create" adds new variable (requires key and value), "update" modifies existing variable, "delete" removes variable permanently. Supports environment scoping and protection settings.
 
 #### Actions
 
-| Action | Description |
-|--------|-------------|
-| `create` | Create a new CI/CD variable |
-| `update` | Update an existing CI/CD variable |
-| `delete` | Delete a CI/CD variable |
+| Action | Tier | Description |
+|--------|------|-------------|
+| `create` | Free | Create a new CI/CD variable |
+| `update` | Free | Update an existing CI/CD variable |
+| `delete` | Free | Delete a CI/CD variable |
 
 #### Parameters
 
@@ -1486,16 +1507,16 @@ MANAGE CI/CD variables. Actions: "create" adds new variable (requires key and va
 
 ## Files
 
-### browse_files
+### browse_files [tier: Free]
 
 BROWSE repository files. Actions: "tree" lists files/folders with pagination, "content" reads file contents. Use for exploring project structure or reading source code.
 
 #### Actions
 
-| Action | Description |
-|--------|-------------|
-| `tree` | List files and folders in a directory |
-| `content` | Read file contents |
+| Action | Tier | Description |
+|--------|------|-------------|
+| `tree` | Free | List files and folders in a directory |
+| `content` | Free | Read file contents |
 
 #### Parameters
 
@@ -1532,17 +1553,17 @@ BROWSE repository files. Actions: "tree" lists files/folders with pagination, "c
 
 ---
 
-### manage_files
+### manage_files [tier: Free]
 
 MANAGE repository files. Actions: "single" creates/updates one file, "batch" commits multiple files atomically, "upload" adds markdown attachments.
 
 #### Actions
 
-| Action | Description |
-|--------|-------------|
-| `single` | Create or update a single file |
-| `batch` | Commit multiple files atomically |
-| `upload` | Upload a file as markdown attachment |
+| Action | Tier | Description |
+|--------|------|-------------|
+| `single` | Free | Create or update a single file |
+| `batch` | Free | Commit multiple files atomically |
+| `upload` | Free | Upload a file as markdown attachment |
 
 #### Parameters
 
@@ -1602,16 +1623,16 @@ MANAGE repository files. Actions: "single" creates/updates one file, "batch" com
 
 ## Wiki
 
-### browse_wiki
+### browse_wiki [tier: Free]
 
 BROWSE wiki pages. Actions: "list" shows all wiki pages in project/group, "get" retrieves single wiki page content by slug.
 
 #### Actions
 
-| Action | Description |
-|--------|-------------|
-| `list` | List all wiki pages |
-| `get` | Get a single wiki page by slug |
+| Action | Tier | Description |
+|--------|------|-------------|
+| `list` | Free | List all wiki pages |
+| `get` | Free | Get a single wiki page by slug |
 
 #### Parameters
 
@@ -1646,17 +1667,17 @@ BROWSE wiki pages. Actions: "list" shows all wiki pages in project/group, "get" 
 
 ---
 
-### manage_wiki
+### manage_wiki [tier: Free]
 
 MANAGE wiki pages. Actions: "create" adds new wiki page, "update" modifies existing page, "delete" removes wiki page permanently.
 
 #### Actions
 
-| Action | Description |
-|--------|-------------|
-| `create` | Create a new wiki page |
-| `update` | Update an existing wiki page |
-| `delete` | Delete a wiki page |
+| Action | Tier | Description |
+|--------|------|-------------|
+| `create` | Free | Create a new wiki page |
+| `update` | Free | Update an existing wiki page |
+| `delete` | Free | Delete a wiki page |
 
 #### Parameters
 
@@ -1704,16 +1725,16 @@ MANAGE wiki pages. Actions: "create" adds new wiki page, "update" modifies exist
 
 ## Snippets
 
-### browse_snippets
+### browse_snippets [tier: Free]
 
 BROWSE GitLab code snippets. Actions: "list" shows snippets by scope (personal/project/public) with filtering, "get" retrieves single snippet metadata or raw content. Snippets are reusable code blocks, configs, or text with versioning support.
 
 #### Actions
 
-| Action | Description |
-|--------|-------------|
-| `list` | List snippets with filtering by scope and visibility |
-| `get` | Get single snippet details or raw content |
+| Action | Tier | Description |
+|--------|------|-------------|
+| `list` | Free | List snippets with filtering by scope and visibility |
+| `get` | Free | Get single snippet details or raw content |
 
 #### Parameters
 
@@ -1752,17 +1773,17 @@ BROWSE GitLab code snippets. Actions: "list" shows snippets by scope (personal/p
 
 ---
 
-### manage_snippet
+### manage_snippet [tier: Free]
 
 MANAGE GitLab snippets. Actions: "create" creates new snippet with multiple files and visibility control, "update" modifies title/description/visibility/files (supports file create/update/delete/move), "delete" permanently removes snippet. Supports personal and project snippets.
 
 #### Actions
 
-| Action | Description |
-|--------|-------------|
-| `create` | Create a new snippet with one or more files |
-| `update` | Update an existing snippet metadata or files |
-| `delete` | Permanently delete a snippet |
+| Action | Tier | Description |
+|--------|------|-------------|
+| `create` | Free | Create a new snippet with one or more files |
+| `update` | Free | Update an existing snippet metadata or files |
+| `delete` | Free | Permanently delete a snippet |
 
 #### Parameters
 
@@ -1828,19 +1849,19 @@ List all webhooks configured for a project or group. Use to discover existing in
 
 ---
 
-### manage_webhook [tier: Free]
+### manage_webhook [tier: Premium*]
 
 Manage webhooks with full CRUD operations plus testing. Actions: 'create' (add new webhook with URL and event types), 'read' (get webhook details - SAFE FOR READ-ONLY MODE), 'update' (modify URL, events, or settings), 'delete' (remove webhook), 'test' (trigger test delivery for specific event type). Use for setting up CI/CD automation, configuring notifications, integrating external systems, debugging deliveries, or managing event subscriptions. Test action sends actual HTTP request to configured URL. Group webhooks require Premium tier. NOTE: In read-only mode, only 'read' action is allowed; write operations are blocked at handler level.
 
 #### Actions
 
-| Action | Description |
-|--------|-------------|
-| `create` | Create a new item |
-| `read` | Read item details |
-| `update` | Update an existing item |
-| `delete` | Delete an item |
-| `test` | Test a webhook |
+| Action | Tier | Description |
+|--------|------|-------------|
+| `create` | Free | Create a new item |
+| `read` | Free | Read item details |
+| `update` | Free | Update an existing item |
+| `delete` | Free | Delete an item |
+| `test` | Free | Test a webhook |
 
 #### Parameters
 
@@ -1944,7 +1965,7 @@ Manage webhooks with full CRUD operations plus testing. Actions: 'create' (add n
 
 ## Integrations
 
-### list_integrations
+### list_integrations [tier: Free]
 
 LIST all active integrations for a project. Returns integrations like Slack, Jira, Discord, Microsoft Teams, Jenkins, etc. Only shows enabled/configured integrations.
 
@@ -1966,17 +1987,17 @@ LIST all active integrations for a project. Returns integrations like Slack, Jir
 
 ---
 
-### manage_integration
+### manage_integration [tier: Free]
 
 MANAGE project integrations. Actions: "get" retrieves integration settings (read-only), "update" modifies or enables integration with specific config, "disable" removes integration. Supports 50+ integrations: Slack, Jira, Discord, Teams, Jenkins, etc. Note: gitlab-slack-application cannot be created via API - requires OAuth install from UI.
 
 #### Actions
 
-| Action | Description |
-|--------|-------------|
-| `get` | Get integration settings (read-only) |
-| `update` | Update or enable integration with specific config |
-| `disable` | Disable and remove integration |
+| Action | Tier | Description |
+|--------|------|-------------|
+| `get` | Free | Get integration settings (read-only) |
+| `update` | Free | Update or enable integration with specific config |
+| `disable` | Free | Disable and remove integration |
 
 #### Parameters
 
@@ -2020,25 +2041,25 @@ MANAGE project integrations. Actions: "get" retrieves integration settings (read
 
 ## Todos
 
-### list_todos
+### list_todos [tier: Free]
 
 TASK QUEUE: View your GitLab todos (notifications requiring action). Todos are auto-created when you're assigned to issues/MRs, @mentioned, requested as reviewer, or CI pipelines fail. Filter by state (pending/done), action type (assigned, mentioned, review_requested), or target type (Issue, MergeRequest).
 
 #### Actions
 
-| Action | Description |
-|--------|-------------|
-| `assigned` | Perform assigned operation |
-| `mentioned` | Perform mentioned operation |
-| `build_failed` | Perform build_failed operation |
-| `marked` | Perform marked operation |
-| `approval_required` | Perform approval_required operation |
-| `unmergeable` | Perform unmergeable operation |
-| `directly_addressed` | Perform directly_addressed operation |
-| `merge_train_removed` | Perform merge_train_removed operation |
-| `review_requested` | Perform review_requested operation |
-| `member_access_requested` | Perform member_access_requested operation |
-| `review_submitted` | Perform review_submitted operation |
+| Action | Tier | Description |
+|--------|------|-------------|
+| `assigned` | Free | Perform assigned operation |
+| `mentioned` | Free | Perform mentioned operation |
+| `build_failed` | Free | Perform build_failed operation |
+| `marked` | Free | Perform marked operation |
+| `approval_required` | Free | Perform approval_required operation |
+| `unmergeable` | Free | Perform unmergeable operation |
+| `directly_addressed` | Free | Perform directly_addressed operation |
+| `merge_train_removed` | Free | Perform merge_train_removed operation |
+| `review_requested` | Free | Perform review_requested operation |
+| `member_access_requested` | Free | Perform member_access_requested operation |
+| `review_submitted` | Free | Perform review_submitted operation |
 
 #### Parameters
 
@@ -2064,17 +2085,17 @@ TASK QUEUE: View your GitLab todos (notifications requiring action). Todos are a
 
 ---
 
-### manage_todos
+### manage_todos [tier: Free]
 
 TODO ACTIONS: Manage your GitLab todo items. Use 'mark_done' with id to complete a single todo (returns the updated todo object). Use 'mark_all_done' to clear your entire todo queue (returns success status). Use 'restore' with id to undo a completed todo (returns the restored todo object).
 
 #### Actions
 
-| Action | Description |
-|--------|-------------|
-| `mark_done` | Mark a single todo as done |
-| `mark_all_done` | Mark all todos as done (clears entire queue) |
-| `restore` | Restore a completed todo to pending state |
+| Action | Tier | Description |
+|--------|------|-------------|
+| `mark_done` | Free | Mark a single todo as done |
+| `mark_all_done` | Free | Mark all todos as done (clears entire queue) |
+| `restore` | Free | Restore a completed todo to pending state |
 
 #### Parameters
 
@@ -2101,4 +2122,4 @@ TODO ACTIONS: Manage your GitLab todo items. Use 'mark_done' with id to complete
 
 ---
 
-[20:51:08.070] [32mINFO[39m (gitlab-mcp): [36mUsing in-memory session storage (sessions will be lost on restart)[39m
+[12:04:39.906] [32mINFO[39m (gitlab-mcp): [36mUsing in-memory session storage (sessions will be lost on restart)[39m

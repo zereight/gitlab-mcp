@@ -1,3 +1,11 @@
+## [6.18.0](https://github.com/structured-world/gitlab-mcp/compare/v6.17.0...v6.18.0) (2026-01-21)
+
+### Features
+
+* **errors:** add structured error handling with tier awareness ([#75](https://github.com/structured-world/gitlab-mcp/issues/75)) ([2b5088c](https://github.com/structured-world/gitlab-mcp/commit/2b5088c2e7b13e27d1cb2228c109b6f3ce7b42f9)), closes [#50](https://github.com/structured-world/gitlab-mcp/issues/50) [#50](https://github.com/structured-world/gitlab-mcp/issues/50)
+* **mrs:** implement GitLab Suggestions API integration ([#70](https://github.com/structured-world/gitlab-mcp/issues/70)) ([b9ca090](https://github.com/structured-world/gitlab-mcp/commit/b9ca09094abe986a1048e2a243ed2f2a8d4d4c95)), closes [#66](https://github.com/structured-world/gitlab-mcp/issues/66)
+* **tiers:** add action-level tier requirements for consolidated tools ([#77](https://github.com/structured-world/gitlab-mcp/issues/77)) ([8e5ae0e](https://github.com/structured-world/gitlab-mcp/commit/8e5ae0eaa577c2e1ab3ef168596ceeb1398962ba)), closes [#48](https://github.com/structured-world/gitlab-mcp/issues/48)
+
 ## [6.17.0](https://github.com/structured-world/gitlab-mcp/compare/v6.16.0...v6.17.0) (2026-01-20)
 
 ### Features
