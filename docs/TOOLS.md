@@ -1,7 +1,7 @@
 # GitLab MCP Tools Reference
 
 > Auto-generated from source code. Do not edit manually.
-> Generated: 2026-01-21 | Tools: 39 | Version: 6.18.0
+> Generated: 2026-01-21 | Tools: 39 | Version: 6.19.0
 
 ## Table of Contents
 
@@ -361,7 +361,7 @@ TEAM MEMBERS: List project members with access levels. Shows: 10=Guest, 20=Repor
 
 ### list_group_iterations [tier: Premium]
 
-SPRINTS: List iterations/sprints for agile planning. Filter by state: current, upcoming, closed. Requires GitLab Premium.
+SPRINTS: List iterations/sprints for agile planning. Filter by state: current, upcoming, closed.
 
 #### Parameters
 
@@ -712,9 +712,9 @@ BROWSE MR discussions and draft notes. Actions: "list" shows all discussion thre
 
 ---
 
-### manage_merge_request [tier: Free]
+### manage_merge_request [tier: Premium*]
 
-MANAGE merge requests. Actions: "create" creates new MR, "update" modifies existing MR, "merge" merges approved MR into target branch.
+MANAGE merge requests. Actions: "create" creates new MR, "update" modifies existing MR, "merge" merges approved MR into target branch, "approve" approves MR, "unapprove" removes approval, "get_approval_state" gets approval status.
 
 #### Actions
 
@@ -723,6 +723,9 @@ MANAGE merge requests. Actions: "create" creates new MR, "update" modifies exist
 | `create` | Free | Create a new merge request |
 | `update` | Free | Update an existing merge request |
 | `merge` | Free | Merge an approved merge request |
+| `approve` | Premium | Approve a merge request |
+| `unapprove` | Premium | Remove your approval from a merge request |
+| `get_approval_state` | Premium | Get current approval status and rules |
 
 #### Parameters
 
@@ -731,7 +734,13 @@ MANAGE merge requests. Actions: "create" creates new MR, "update" modifies exist
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `project_id` | string | Yes | Project ID or URL-encoded path |
-| `squash` | boolean | No | Combine all commits into one when merging |
+
+**Action `approve`**:
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `merge_request_iid` | string | Yes | Internal MR ID unique to project |
+| `sha` | string | No | SHA of head commit to approve specific version |
 
 **Action `create`**:
 
@@ -749,7 +758,14 @@ MANAGE merge requests. Actions: "create" creates new MR, "update" modifies exist
 | `milestone_id` | string | No | Associate MR with milestone |
 | `remove_source_branch` | boolean | No | Auto-delete source branch after merge |
 | `reviewer_ids` | string[] | No | User IDs for code reviewers |
+| `squash` | boolean | No | Combine all commits into one when merging |
 | `target_project_id` | string | No | Target project for cross-project MRs |
+
+**Action `get_approval_state`**:
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `merge_request_iid` | string | Yes | Internal MR ID unique to project |
 
 **Action `merge`**:
 
@@ -760,7 +776,14 @@ MANAGE merge requests. Actions: "create" creates new MR, "update" modifies exist
 | `merge_when_pipeline_succeeds` | boolean | No | Merge when pipeline succeeds |
 | `sha` | string | No | SHA of the head commit |
 | `should_remove_source_branch` | boolean | No | Remove source branch after merge |
+| `squash` | boolean | No | Combine all commits into one when merging |
 | `squash_commit_message` | string | No | Custom squash commit message |
+
+**Action `unapprove`**:
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `merge_request_iid` | string | Yes | Internal MR ID unique to project |
 
 **Action `update`**:
 
@@ -779,6 +802,7 @@ MANAGE merge requests. Actions: "create" creates new MR, "update" modifies exist
 | `remove_labels` | string | string[] | No | Labels to remove |
 | `remove_source_branch` | boolean | No | Auto-delete source branch after merge |
 | `reviewer_ids` | string[] | No | User IDs for code reviewers |
+| `squash` | boolean | No | Combine all commits into one when merging |
 | `state_event` | string | No | State event: close or reopen |
 | `target_branch` | string | No | Branch to merge into |
 | `title` | string | No | MR title/summary |
@@ -799,7 +823,7 @@ MANAGE merge requests. Actions: "create" creates new MR, "update" modifies exist
 
 ### manage_mr_discussion [tier: Free]
 
-MANAGE MR discussions and suggestions. Actions: "comment" adds comment, "thread" starts discussion, "reply" responds to thread, "update" modifies note, "apply_suggestion" applies single code suggestion, "apply_suggestions" batch applies multiple suggestions.
+MANAGE MR discussions. Actions: "comment" adds comment, "thread" starts discussion, "reply" responds to thread, "update" modifies note, "apply_suggestion" applies code suggestion, "apply_suggestions" batch applies suggestions, "resolve" resolves/unresolves thread, "suggest" creates code suggestion.
 
 #### Actions
 
@@ -811,6 +835,8 @@ MANAGE MR discussions and suggestions. Actions: "comment" adds comment, "thread"
 | `update` | Free | Update an existing note/comment |
 | `apply_suggestion` | Free | Apply a single code suggestion from a review |
 | `apply_suggestions` | Free | Batch apply multiple code suggestions |
+| `resolve` | Free | Resolve or unresolve a discussion thread |
+| `suggest` | Free | Create a code suggestion on a diff line |
 
 #### Parameters
 
@@ -854,6 +880,25 @@ MANAGE MR discussions and suggestions. Actions: "comment" adds comment, "thread"
 | `discussion_id` | string | Yes | ID of the discussion to reply to |
 | `merge_request_iid` | string | Yes | Internal MR ID unique to project |
 | `created_at` | string | No | Date time string (ISO 8601) |
+
+**Action `resolve`**:
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `discussion_id` | string | Yes | ID of the discussion thread to resolve/unresolve |
+| `merge_request_iid` | string | Yes | Internal MR ID unique to project |
+| `resolved` | boolean | Yes | true to resolve, false to unresolve |
+
+**Action `suggest`**:
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `lines_above` | integer | Yes | Lines to include above (default: 0) |
+| `lines_below` | integer | Yes | Lines to include below (default: 0) |
+| `merge_request_iid` | string | Yes | Internal MR ID unique to project |
+| `position` | object | Yes | Position in diff for the suggestion (requires base_sha, head_sha, start_sha, new_path, new_line) |
+| `suggestion` | string | Yes | The suggested code (raw code, no markdown formatting needed) |
+| `comment` | string | No | Optional explanation comment before the suggestion |
 
 **Action `thread`**:
 
@@ -1835,7 +1880,7 @@ MANAGE GitLab snippets. Actions: "create" creates new snippet with multiple file
 
 ### list_webhooks [tier: Free]
 
-List all webhooks configured for a project or group. Use to discover existing integrations, audit webhook configurations, debug delivery issues, or understand event subscriptions. Shows webhook URLs, enabled event types, SSL settings, and delivery status. Group webhooks (Premium tier) are inherited by all child projects.
+List all webhooks configured for a project or group. Use to discover existing integrations, audit webhook configurations, debug delivery issues, or understand event subscriptions. Shows webhook URLs, enabled event types, SSL settings, and delivery status. Group webhooks are inherited by all child projects.
 
 #### Example
 
@@ -1851,7 +1896,7 @@ List all webhooks configured for a project or group. Use to discover existing in
 
 ### manage_webhook [tier: Premium*]
 
-Manage webhooks with full CRUD operations plus testing. Actions: 'create' (add new webhook with URL and event types), 'read' (get webhook details - SAFE FOR READ-ONLY MODE), 'update' (modify URL, events, or settings), 'delete' (remove webhook), 'test' (trigger test delivery for specific event type). Use for setting up CI/CD automation, configuring notifications, integrating external systems, debugging deliveries, or managing event subscriptions. Test action sends actual HTTP request to configured URL. Group webhooks require Premium tier. NOTE: In read-only mode, only 'read' action is allowed; write operations are blocked at handler level.
+Manage webhooks with full CRUD operations plus testing. Actions: 'create' (add new webhook with URL and event types), 'read' (get webhook details), 'update' (modify URL, events, or settings), 'delete' (remove webhook), 'test' (trigger test delivery for specific event type). Use for setting up CI/CD automation, configuring notifications, integrating external systems, or managing event subscriptions.
 
 #### Actions
 
@@ -2122,4 +2167,4 @@ TODO ACTIONS: Manage your GitLab todo items. Use 'mark_done' with id to complete
 
 ---
 
-[12:04:39.906] [32mINFO[39m (gitlab-mcp): [36mUsing in-memory session storage (sessions will be lost on restart)[39m
+[12:58:26.641] [32mINFO[39m (gitlab-mcp): [36mUsing in-memory session storage (sessions will be lost on restart)[39m

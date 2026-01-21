@@ -1,3 +1,9 @@
+## [6.19.0](https://github.com/structured-world/gitlab-mcp/compare/v6.18.0...v6.19.0) (2026-01-21)
+
+### Features
+
+* **mrs:** add MR approval and discussion management actions ([#86](https://github.com/structured-world/gitlab-mcp/issues/86)) ([8e719ff](https://github.com/structured-world/gitlab-mcp/commit/8e719ffd4c78a8da093a0b6770ddfe1f375128f5)), closes [#76](https://github.com/structured-world/gitlab-mcp/issues/76)
+
 ## [6.18.0](https://github.com/structured-world/gitlab-mcp/compare/v6.17.0...v6.18.0) (2026-01-21)
 
 ### Features
