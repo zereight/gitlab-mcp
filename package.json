@@ -1,6 +1,6 @@
 {
   "name": "@structured-world/gitlab-mcp",
-  "version": "6.19.0",
+  "version": "6.20.0",
   "description": "MCP server for using the GitLab API",
   "license": "Apache-2.0",
   "author": "Dmitry Prudnikov <mail@polaz.com>",

@@ -1,7 +1,7 @@
 # GitLab MCP Tools Reference
 
 > Auto-generated from source code. Do not edit manually.
-> Generated: 2026-01-21 | Tools: 39 | Version: 6.19.0
+> Generated: 2026-01-21 | Tools: 41 | Version: 6.20.0
 
 ## Table of Contents
 
@@ -18,6 +18,7 @@
 - [Webhooks (2)](#webhooks)
 - [Integrations (2)](#integrations)
 - [Todos (2)](#todos)
+- [Other (2)](#other)
 
 ---
 
@@ -2167,4 +2168,133 @@ TODO ACTIONS: Manage your GitLab todo items. Use 'mark_done' with id to complete
 
 ---
 
-[12:58:26.641] [32mINFO[39m (gitlab-mcp): [36mUsing in-memory session storage (sessions will be lost on restart)[39m
+## Other
+
+### browse_releases [tier: Free]
+
+BROWSE GitLab project releases. Actions: "list" shows all releases sorted by date, "get" retrieves specific release by tag name, "assets" lists release asset links. Releases are versioned software distributions with changelogs, assets, and milestone associations.
+
+#### Actions
+
+| Action | Tier | Description |
+|--------|------|-------------|
+| `list` | Free | List all releases for a project, sorted by release date |
+| `get` | Free | Get a specific release by its tag name |
+| `assets` | Free | List all asset links for a specific release |
+
+#### Parameters
+
+**Common** (all actions):
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `project_id` | string | Yes | Project ID or URL-encoded path (e.g., 'my-group/my-project') |
+
+**Action `assets`**:
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `tag_name` | string | Yes | The Git tag associated with the release (e.g., 'v1.0.0') |
+| `page` | integer | No | Page number |
+| `per_page` | integer | No | Number of items per page (max 100) |
+
+**Action `get`**:
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `tag_name` | string | Yes | The Git tag associated with the release (e.g., 'v1.0.0') |
+| `include_html_description` | boolean | No | Include HTML-rendered description in response |
+
+**Action `list`**:
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `include_html_description` | boolean | No | Include HTML-rendered description in response |
+| `order_by` | string | No | Sort releases by field (default: released_at) |
+| `page` | integer | No | Page number |
+| `per_page` | integer | No | Number of items per page (max 100) |
+| `sort` | string | No | Sort direction (default: desc) |
+
+#### Example
+
+```json
+{
+  "action": "list",
+  "project_id": "my-group/my-project"
+}
+```
+
+---
+
+### manage_release [tier: Free]
+
+MANAGE GitLab releases. Actions: "create" creates release with optional assets, "update" modifies release metadata, "delete" removes release (preserves tag), "create_link" adds asset link, "delete_link" removes asset link.
+
+#### Actions
+
+| Action | Tier | Description |
+|--------|------|-------------|
+| `create` | Free | Create a new release for an existing or new tag |
+| `update` | Free | Update an existing release |
+| `delete` | Free | Delete a release (preserves the Git tag) |
+| `create_link` | Free | Add an asset link to an existing release |
+| `delete_link` | Free | Remove an asset link from a release |
+
+#### Parameters
+
+**Common** (all actions):
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `project_id` | string | Yes | Project ID or URL-encoded path (e.g., 'my-group/my-project') |
+| `tag_name` | string | Yes | The Git tag associated with the release (e.g., 'v1.0.0') |
+
+**Action `create`**:
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `assets` | object | No | Release assets configuration |
+| `description` | string | No | Release description (supports Markdown) |
+| `milestones` | string[] | No | Array of milestone titles to associate with the release |
+| `name` | string | No | The release title/name |
+| `ref` | string | No | Branch/commit SHA to create tag from (if tag does not exist) |
+| `released_at` | string | No | Release date/time in ISO 8601 format (e.g., '2024-01-15T12:00:00Z') |
+| `tag_message` | string | No | Annotation message for the tag (creates annotated tag) |
+
+**Action `create_link`**:
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `name` | string | Yes | Display name for the asset link (must be unique per release) |
+| `url` | string | Yes | URL of the asset (must be unique per release) |
+| `direct_asset_path` | string | No | Path for direct asset download (e.g., '/binaries/linux-amd64') |
+| `link_type` | string | No | Type of asset link (default: other) |
+
+**Action `delete_link`**:
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `link_id` | string | Yes | The ID of the asset link to delete |
+
+**Action `update`**:
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `description` | string | No | Release description (supports Markdown) |
+| `milestones` | string[] | No | Array of milestone titles to associate with the release |
+| `name` | string | No | The release title/name |
+| `released_at` | string | No | Release date/time in ISO 8601 format (e.g., '2024-01-15T12:00:00Z') |
+
+#### Example
+
+```json
+{
+  "action": "create",
+  "project_id": "my-group/my-project",
+  "tag_name": "example_tag_name"
+}
+```
+
+---
+
+[15:22:43.467] [32mINFO[39m (gitlab-mcp): [36mUsing in-memory session storage (sessions will be lost on restart)[39m

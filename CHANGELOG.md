@@ -1,3 +1,9 @@
+## [6.20.0](https://github.com/structured-world/gitlab-mcp/compare/v6.19.0...v6.20.0) (2026-01-21)
+
+### Features
+
+* **releases:** add releases management entity with CQRS tools ([#87](https://github.com/structured-world/gitlab-mcp/issues/87)) ([a38ad60](https://github.com/structured-world/gitlab-mcp/commit/a38ad608d6bbc0d1fd9cd1afc16cb6acb48b5433)), closes [#78](https://github.com/structured-world/gitlab-mcp/issues/78)
+
 ## [6.19.0](https://github.com/structured-world/gitlab-mcp/compare/v6.18.0...v6.19.0) (2026-01-21)
 
 ### Features
