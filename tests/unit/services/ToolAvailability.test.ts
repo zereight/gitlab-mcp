@@ -5,7 +5,11 @@
 
 import { ToolAvailability } from "../../../src/services/ToolAvailability";
 import { ConnectionManager } from "../../../src/services/ConnectionManager";
-import { GitLabInstanceInfo, GitLabTier, GitLabFeatures } from "../../../src/services/GitLabVersionDetector";
+import {
+  GitLabInstanceInfo,
+  GitLabTier,
+  GitLabFeatures,
+} from "../../../src/services/GitLabVersionDetector";
 
 // Helper to create feature objects based on tier
 function createFeatures(tier: GitLabTier): GitLabFeatures {
@@ -174,7 +178,9 @@ describe("ToolAvailability - Tier-based Filtering", () => {
       expect(ultimateToolCount).toBeGreaterThan(15); // Should have ultimate tools
 
       // Log counts for visibility
-      console.log(`Free tools: ${freeToolCount}, Premium tools: ${premiumToolCount}, Ultimate tools: ${ultimateToolCount}`);
+      console.log(
+        `Free tools: ${freeToolCount}, Premium tools: ${premiumToolCount}, Ultimate tools: ${ultimateToolCount}`
+      );
     });
   });
 
@@ -192,12 +198,12 @@ describe("ToolAvailability - Tier-based Filtering", () => {
 
     it("should allow free and premium tier tools", () => {
       const freeAndPremiumTools = [
-        "list_projects",        // Free
-        "merge_merge_request",  // Free
-        "add_to_merge_train",   // Premium
-        "list_epics",           // Premium
-        "create_epic",          // Premium
-        "list_iterations",      // Premium
+        "list_projects", // Free
+        "merge_merge_request", // Free
+        "add_to_merge_train", // Premium
+        "list_epics", // Premium
+        "create_epic", // Premium
+        "list_iterations", // Premium
         "get_merge_request_approvals", // Premium
       ];
 
@@ -236,14 +242,14 @@ describe("ToolAvailability - Tier-based Filtering", () => {
 
     it("should allow all tier tools", () => {
       const allTierTools = [
-        "list_projects",        // Free
-        "add_to_merge_train",   // Premium
-        "security_dashboard",   // Ultimate
+        "list_projects", // Free
+        "add_to_merge_train", // Premium
+        "security_dashboard", // Ultimate
         "list_vulnerabilities", // Ultimate
         "compliance_framework", // Ultimate
-        "audit_events",         // Ultimate
-        "list_requirements",    // Ultimate
-        "run_sast_scan",        // Ultimate
+        "audit_events", // Ultimate
+        "list_requirements", // Ultimate
+        "run_sast_scan", // Ultimate
       ];
 
       allTierTools.forEach(toolName => {
@@ -261,7 +267,7 @@ describe("ToolAvailability - Tier-based Filtering", () => {
         features: {
           ...createFeatures("free"),
           workItems: false, // Not available in 10.0
-          epics: false,     // Not available in 10.0
+          epics: false, // Not available in 10.0
         },
         detectedAt: new Date(),
       };
@@ -315,7 +321,205 @@ describe("ToolAvailability - Tier-based Filtering", () => {
       mockConnectionManager.getInstance.mockReturnValue(null as any);
 
       expect(ToolAvailability.isToolAvailable("list_projects")).toBe(false);
-      expect(ToolAvailability.getUnavailableReason("list_projects")).toContain("GitLab connection not initialized");
+      expect(ToolAvailability.getUnavailableReason("list_projects")).toContain(
+        "GitLab connection not initialized"
+      );
+    });
+  });
+
+  describe("Action-Level Tier Requirements", () => {
+    describe("getActionRequirement", () => {
+      it("should return default requirement when no action specified", () => {
+        const req = ToolAvailability.getActionRequirement("browse_projects");
+        expect(req).toBeDefined();
+        expect(req?.tier).toBe("free");
+      });
+
+      it("should return action-specific requirement when action has higher tier", () => {
+        // browse_merge_requests has approvals action requiring premium
+        const req = ToolAvailability.getActionRequirement("browse_merge_requests", "approvals");
+        expect(req).toBeDefined();
+        expect(req?.tier).toBe("premium");
+      });
+
+      it("should return default requirement for action without override", () => {
+        const req = ToolAvailability.getActionRequirement("browse_merge_requests", "list");
+        expect(req).toBeDefined();
+        expect(req?.tier).toBe("free");
+      });
+
+      it("should return undefined for unknown tool", () => {
+        const req = ToolAvailability.getActionRequirement("unknown_tool_xyz");
+        expect(req).toBeUndefined();
+      });
+    });
+
+    describe("getHighestTier", () => {
+      it("should return free for tools with all free actions", () => {
+        const tier = ToolAvailability.getHighestTier("browse_projects");
+        expect(tier).toBe("free");
+      });
+
+      it("should return premium for tools with premium actions", () => {
+        // browse_merge_requests has approvals action requiring premium
+        const tier = ToolAvailability.getHighestTier("browse_merge_requests");
+        expect(tier).toBe("premium");
+      });
+
+      it("should return premium for browse_milestones with burndown action", () => {
+        // browse_milestones has burndown action requiring premium
+        const tier = ToolAvailability.getHighestTier("browse_milestones");
+        expect(tier).toBe("premium");
+      });
+
+      it("should fallback to legacy requirements for unknown consolidated tools", () => {
+        // get_project is not in actionRequirements but is in toolRequirements
+        const tier = ToolAvailability.getHighestTier("get_project");
+        expect(tier).toBe("free");
+      });
+
+      it("should return free for completely unknown tools", () => {
+        const tier = ToolAvailability.getHighestTier("totally_unknown_tool");
+        expect(tier).toBe("free");
+      });
+    });
+
+    describe("getTierRestrictedActions", () => {
+      it("should return premium actions for tool with mixed tiers", () => {
+        // browse_merge_requests has approvals action requiring premium
+        const actions = ToolAvailability.getTierRestrictedActions(
+          "browse_merge_requests",
+          "premium"
+        );
+        expect(actions).toContain("approvals");
+      });
+
+      it("should return empty array for tool with all free actions", () => {
+        const actions = ToolAvailability.getTierRestrictedActions("browse_projects", "premium");
+        expect(actions).toEqual([]);
+      });
+
+      it("should return empty array for unknown tool", () => {
+        const actions = ToolAvailability.getTierRestrictedActions("unknown_tool", "premium");
+        expect(actions).toEqual([]);
+      });
+
+      it("should include ultimate actions when querying for premium", () => {
+        // Ultimate actions are >= premium in tier order
+        const premiumAndAbove = ToolAvailability.getTierRestrictedActions(
+          "browse_milestones",
+          "premium"
+        );
+        expect(premiumAndAbove).toContain("burndown");
+      });
+    });
+
+    describe("isToolAvailable with action", () => {
+      beforeEach(() => {
+        mockInstance.getInstanceInfo.mockReturnValue({
+          version: "18.3.0",
+          tier: "free" as GitLabTier,
+          features: createFeatures("free"),
+          detectedAt: new Date(),
+        });
+      });
+
+      it("should allow free action on free tier", () => {
+        const available = ToolAvailability.isToolAvailable("browse_merge_requests", "list");
+        expect(available).toBe(true);
+      });
+
+      it("should block premium action on free tier", () => {
+        const available = ToolAvailability.isToolAvailable("browse_merge_requests", "approvals");
+        expect(available).toBe(false);
+      });
+
+      it("should block action when version is too old", () => {
+        // Test that version checking works for actions
+        mockInstance.getInstanceInfo.mockReturnValue({
+          version: "7.0.0", // Very old version, before merge requests API (8.0)
+          tier: "ultimate" as GitLabTier,
+          features: createFeatures("ultimate"),
+          detectedAt: new Date(),
+        });
+
+        // browse_merge_requests requires version 8.0+
+        const available = ToolAvailability.isToolAvailable("browse_merge_requests", "list");
+        expect(available).toBe(false);
+      });
+
+      it("should allow action when version meets requirements", () => {
+        mockInstance.getInstanceInfo.mockReturnValue({
+          version: "18.0.0",
+          tier: "premium" as GitLabTier,
+          features: createFeatures("premium"),
+          detectedAt: new Date(),
+        });
+
+        // With sufficient version and tier, action should be available
+        const available = ToolAvailability.isToolAvailable("browse_merge_requests", "approvals");
+        expect(available).toBe(true);
+      });
+    });
+
+    describe("getToolRequirement with action", () => {
+      it("should return requirement for tool without action", () => {
+        const req = ToolAvailability.getToolRequirement("browse_merge_requests");
+        expect(req).toBeDefined();
+        expect(req?.requiredTier).toBe("free");
+      });
+
+      it("should return action-specific requirement when action specified", () => {
+        const req = ToolAvailability.getToolRequirement("browse_merge_requests", "approvals");
+        expect(req).toBeDefined();
+        expect(req?.requiredTier).toBe("premium");
+      });
+
+      it("should return default requirement for action without override", () => {
+        const req = ToolAvailability.getToolRequirement("browse_merge_requests", "list");
+        expect(req).toBeDefined();
+        expect(req?.requiredTier).toBe("free");
+      });
+
+      it("should fallback to legacy requirements for non-consolidated tools", () => {
+        const req = ToolAvailability.getToolRequirement("get_project");
+        expect(req).toBeDefined();
+        expect(req?.requiredTier).toBe("free");
+        expect(req?.minVersion).toBe(8.0);
+      });
+
+      it("should return undefined for unknown tools", () => {
+        const req = ToolAvailability.getToolRequirement("completely_unknown_tool_xyz");
+        expect(req).toBeUndefined();
+      });
+    });
+
+    describe("getAvailableTools", () => {
+      beforeEach(() => {
+        mockInstance.getInstanceInfo.mockReturnValue({
+          version: "18.3.0",
+          tier: "ultimate" as GitLabTier,
+          features: createFeatures("ultimate"),
+          detectedAt: new Date(),
+        });
+      });
+
+      it("should include tools from both legacy and action requirements", () => {
+        const tools = ToolAvailability.getAvailableTools();
+        // Should include legacy tools
+        expect(tools).toContain("get_project");
+        expect(tools).toContain("list_projects");
+        // Should include consolidated tools from actionRequirements
+        expect(tools).toContain("browse_merge_requests");
+        expect(tools).toContain("browse_projects");
+      });
+
+      it("should not include duplicate tools", () => {
+        const tools = ToolAvailability.getAvailableTools();
+        // Check that tools are unique
+        const uniqueTools = new Set(tools);
+        expect(tools.length).toBe(uniqueTools.size);
+      });
     });
   });
 });

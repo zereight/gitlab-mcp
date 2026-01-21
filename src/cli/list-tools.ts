@@ -294,16 +294,53 @@ function printEnvironmentInfo(): void {
   console.log();
 }
 
-function getToolTierInfo(toolName: string): string {
-  const requirement = ToolAvailability.getToolRequirement(toolName);
-  if (!requirement) return "";
+/**
+ * Get tier information badge for a tool or action.
+ *
+ * @param toolName - The tool name
+ * @param action - Optional action name for action-specific tier
+ * @returns Tier badge string, e.g., "[tier: Premium]" or "[tier: Premium*]"
+ *
+ * Badge format:
+ * - `[tier: Free]` - All actions available in Free tier
+ * - `[tier: Premium]` - All actions require Premium tier
+ * - `[tier: Premium*]` - Asterisk (*) indicates mixed tiers: the tool has some
+ *   actions requiring a higher tier than the default. For example, a tool with
+ *   default Free tier but some Premium-only actions shows "Premium*".
+ */
+function getToolTierInfo(toolName: string, action?: string): string {
+  // For action-specific queries, get exact tier
+  if (action) {
+    const requirement = ToolAvailability.getToolRequirement(toolName, action);
+    if (!requirement) return "";
 
+    const tierBadge =
+      {
+        free: "Free",
+        premium: "Premium",
+        ultimate: "Ultimate",
+      }[requirement.requiredTier] ?? requirement.requiredTier;
+
+    return `[tier: ${tierBadge}]`;
+  }
+
+  // For tool-level queries, show highest tier required by any action
+  const highestTier = ToolAvailability.getHighestTier(toolName);
   const tierBadge =
     {
       free: "Free",
       premium: "Premium",
       ultimate: "Ultimate",
-    }[requirement.requiredTier] ?? requirement.requiredTier;
+    }[highestTier] ?? highestTier;
+
+  // Mark if tool has mixed tiers (default tier differs from highest tier)
+  const toolReq = ToolAvailability.getActionRequirement(toolName);
+  const defaultTier = toolReq?.tier ?? "free";
+  const hasMixedTiers = highestTier !== defaultTier;
+
+  if (hasMixedTiers) {
+    return `[tier: ${tierBadge}*]`;
+  }
 
   return `[tier: ${tierBadge}]`;
 }
@@ -793,10 +830,12 @@ function generateExportMarkdown(
       if (actions.length > 0) {
         lines.push("#### Actions");
         lines.push("");
-        lines.push("| Action | Description |");
-        lines.push("|--------|-------------|");
+        lines.push("| Action | Tier | Description |");
+        lines.push("|--------|------|-------------|");
         for (const action of actions) {
-          lines.push(`| \`${action.name}\` | ${action.description} |`);
+          const actionTierInfo = getToolTierInfo(tool.name, action.name);
+          const tierDisplay = actionTierInfo.replace("[tier: ", "").replace(/]/g, "") || "Free";
+          lines.push(`| \`${action.name}\` | ${tierDisplay} | ${action.description} |`);
         }
         lines.push("");
       }
