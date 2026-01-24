@@ -165,7 +165,7 @@ describe("Webhooks Registry", () => {
   });
 
   describe("list_webhooks Handler", () => {
-    it("should handle project scope correctly", async () => {
+    it("should handle project action correctly", async () => {
       const tool = webhooksToolRegistry.get("list_webhooks");
       expect(tool).toBeDefined();
 
@@ -175,7 +175,7 @@ describe("Webhooks Registry", () => {
       } as Response);
 
       const result = await tool!.handler({
-        scope: "project",
+        action: "project",
         projectId: "test-project",
         page: 1,
         per_page: 20,
@@ -187,7 +187,7 @@ describe("Webhooks Registry", () => {
       expect(result).toBeDefined();
     });
 
-    it("should handle group scope correctly", async () => {
+    it("should handle group action correctly", async () => {
       const tool = webhooksToolRegistry.get("list_webhooks");
       expect(tool).toBeDefined();
 
@@ -197,7 +197,7 @@ describe("Webhooks Registry", () => {
       } as Response);
 
       const result = await tool!.handler({
-        scope: "group",
+        action: "group",
         groupId: "test-group",
         page: 1,
         per_page: 20,
@@ -209,13 +209,13 @@ describe("Webhooks Registry", () => {
       expect(result).toBeDefined();
     });
 
-    it("should throw error for invalid scope", async () => {
+    it("should throw error for invalid action", async () => {
       const tool = webhooksToolRegistry.get("list_webhooks");
       expect(tool).toBeDefined();
 
       await expect(
         tool!.handler({
-          scope: "project",
+          action: "project",
           // Missing projectId
         })
       ).rejects.toThrow();

@@ -29,14 +29,14 @@ export const webhooksToolRegistry: ToolRegistry = new Map<string, EnhancedToolDe
         const input = ListWebhooksSchema.parse(args);
 
         // Runtime validation: reject denied actions even if they bypass schema filtering
-        if (isActionDenied("list_webhooks", input.scope)) {
-          throw new Error(`Scope '${input.scope}' is not allowed for list_webhooks tool`);
+        if (isActionDenied("list_webhooks", input.action)) {
+          throw new Error(`Action '${input.action}' is not allowed for list_webhooks tool`);
         }
 
-        switch (input.scope) {
+        switch (input.action) {
           case "project": {
             // TypeScript knows: input has projectId (required)
-            const { scope: _scope, projectId, ...queryParams } = input;
+            const { action: _action, projectId, ...queryParams } = input;
             return gitlab.get(`projects/${encodeURIComponent(projectId)}/hooks`, {
               query: toQuery(queryParams, []),
             });
@@ -44,7 +44,7 @@ export const webhooksToolRegistry: ToolRegistry = new Map<string, EnhancedToolDe
 
           case "group": {
             // TypeScript knows: input has groupId (required)
-            const { scope: _scope, groupId, ...queryParams } = input;
+            const { action: _action, groupId, ...queryParams } = input;
             return gitlab.get(`groups/${encodeURIComponent(groupId)}/hooks`, {
               query: toQuery(queryParams, []),
             });
@@ -52,7 +52,7 @@ export const webhooksToolRegistry: ToolRegistry = new Map<string, EnhancedToolDe
 
           /* istanbul ignore next -- unreachable with Zod discriminatedUnion */
           default:
-            throw new Error(`Unknown scope: ${(input as { scope: string }).scope}`);
+            throw new Error(`Unknown action: ${(input as { action: string }).action}`);
         }
       },
     },
