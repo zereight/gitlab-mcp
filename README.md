@@ -20,6 +20,7 @@ The server supports two authentication methods:
 
 1. **Personal Access Token** (traditional method)
 2. **OAuth2** (recommended for better security)
+3. **External OAuth Token Script** (for managed environments like Coder)
 
 #### Using OAuth2 Authentication
 
@@ -66,6 +67,47 @@ Then configure the MCP server with OAuth:
   }
 }
 ```
+
+#### Using External OAuth Token Script (Coder Workspaces)
+
+If you're using the MCP server in an environment that manages OAuth credentials externally (like Coder workspaces), you can delegate token retrieval to an external script. This is useful when:
+
+- Your environment has its own OAuth credential management system
+- You want the MCP server to always fetch fresh tokens on-demand
+- You don't want to manage token storage and refresh logic
+
+**Example for Coder Workspaces:**
+
+```json
+{
+  "mcpServers": {
+    "gitlab": {
+      "command": "npx",
+      "args": ["-y", "@zereight/mcp-gitlab"],
+      "env": {
+        "GITLAB_USE_OAUTH": "true",
+        "GITLAB_OAUTH_TOKEN_SCRIPT": "coder external-auth access-token gitlab",
+        "GITLAB_API_URL": "https://gitlab.example.com/api/v4"
+      }
+    }
+  }
+}
+```
+
+**How it works:**
+
+1. When the MCP server needs an access token, it executes the command specified in `GITLAB_OAUTH_TOKEN_SCRIPT`
+2. The command should output the access token to stdout (newlines and whitespace are trimmed)
+3. The token is used for GitLab API requests
+4. The script is executed fresh on each MCP server start, ensuring you always have a valid token
+
+**Requirements:**
+
+- The script/command must be executable from the MCP server environment
+- The script should output only the access token to stdout
+- The script should complete within 30 seconds
+- When using `GITLAB_OAUTH_TOKEN_SCRIPT`, `GITLAB_OAUTH_CLIENT_ID` is not required
+
 
 #### Using Personal Access Token (traditional)
 
@@ -331,10 +373,11 @@ docker run -i --rm \
 
 - `GITLAB_PERSONAL_ACCESS_TOKEN`: Your GitLab personal access token. **Required in standard mode**; not used when `REMOTE_AUTHORIZATION=true` or when using OAuth.
 - `GITLAB_USE_OAUTH`: Set to `true` to enable OAuth2 authentication instead of personal access token.
-- `GITLAB_OAUTH_CLIENT_ID`: The Client ID from your GitLab OAuth application. Required when using OAuth.
+- `GITLAB_OAUTH_CLIENT_ID`: The Client ID from your GitLab OAuth application. Required when using OAuth (unless using `GITLAB_OAUTH_TOKEN_SCRIPT`).
 - `GITLAB_OAUTH_CLIENT_SECRET`: The Client Secret from your GitLab OAuth application. Required only for Confidential applications.
 - `GITLAB_OAUTH_REDIRECT_URI`: The OAuth callback URL. Default: `http://127.0.0.1:8888/callback`
 - `GITLAB_OAUTH_TOKEN_PATH`: Custom path to store the OAuth token. Default: `~/.gitlab-mcp-token.json`
+- `GITLAB_OAUTH_TOKEN_SCRIPT`: External command/script to retrieve the OAuth access token. When set, the MCP server will execute this command to get a fresh access token on each request, bypassing the normal OAuth flow and token storage. This is useful for environments like Coder workspaces that manage OAuth credentials externally. Example: `coder external-auth access-token gitlab`. If this is set, `GITLAB_OAUTH_CLIENT_ID` is not required.
 - `REMOTE_AUTHORIZATION`: When set to 'true', enables remote per-session authorization via HTTP headers. In this mode:
   - The server accepts GitLab PAT tokens from HTTP headers (`Authorization: Bearer <token>` or `Private-Token: <token>`) on a per-session basis
   - `GITLAB_PERSONAL_ACCESS_TOKEN` environment variable is **not required** and ignored

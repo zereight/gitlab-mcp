@@ -9,6 +9,11 @@ coverage/
 *.log
 test-results-oauth.json
 
+# Test results
+test-results*.json
+test-manual-verification.js
+.test-*
+
 # ai
 .opencode*
 .aider*
