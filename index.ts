@@ -2113,13 +2113,29 @@ async function updateMergeRequestDiscussionNote(
 
 /**
  * Update an issue discussion note
+ *
+ * Note: Only one of `body` or `resolved` can be provided per GitLab API requirements.
+ * At least one parameter must be provided.
+ *
  * @param {string} projectId - The ID or URL-encoded path of the project
- * @param {number} issueIid - The IID of an issue
+ * @param {number|string} issueIid - The IID of an issue
  * @param {string} discussionId - The ID of a thread
- * @param {number} noteId - The ID of a thread note
- * @param {string} body - The new content of the note
- * @param {boolean} [resolved] - Resolve/unresolve state
+ * @param {number|string} noteId - The ID of a thread note
+ * @param {string} [body] - The new content of the note (optional, mutually exclusive with resolved)
+ * @param {boolean} [resolved] - Resolve (true) or unresolve (false) the thread (optional, mutually exclusive with body)
  * @returns {Promise<GitLabDiscussionNote>} The updated note
+ *
+ * @example
+ * // Resolve a thread
+ * await updateIssueNote('mygroup/myproject', 123, 'abc123', 456, undefined, true);
+ *
+ * @example
+ * // Unresolve a thread
+ * await updateIssueNote('mygroup/myproject', 123, 'abc123', 456, undefined, false);
+ *
+ * @example
+ * // Update note body
+ * await updateIssueNote('mygroup/myproject', 123, 'abc123', 456, 'Updated content');
  */
 async function updateIssueNote(
   projectId: string,
