@@ -203,6 +203,11 @@ import {
   ListWikiPagesSchema,
   MarkdownUploadSchema,
   DownloadAttachmentSchema,
+  DownloadJobArtifactsSchema,
+  GetJobArtifactFileSchema,
+  type GitLabArtifactEntry,
+  GitLabArtifactEntrySchema,
+  ListJobArtifactsSchema,
   MergeMergeRequestSchema,
   ApproveMergeRequestSchema,
   UnapproveMergeRequestSchema,
@@ -1269,6 +1274,23 @@ const allTools = [
     inputSchema: toJSONSchema(CancelPipelineJobSchema),
   },
   {
+    name: "list_job_artifacts",
+    description: "List artifact files in a job's artifacts archive. Returns file names, paths, types, and sizes.",
+    inputSchema: toJSONSchema(ListJobArtifactsSchema),
+  },
+  {
+    name: "download_job_artifacts",
+    description:
+      "Download the entire artifact archive (zip) for a job to a local path. Returns the saved file path.",
+    inputSchema: toJSONSchema(DownloadJobArtifactsSchema),
+  },
+  {
+    name: "get_job_artifact_file",
+    description:
+      "Get the content of a single file from a job's artifacts by its path within the archive",
+    inputSchema: toJSONSchema(GetJobArtifactFileSchema),
+  },
+  {
     name: "list_merge_requests",
     description:
       "List merge requests. Without project_id, lists MRs assigned to the authenticated user by default (use scope='all' for all accessible MRs). With project_id, lists MRs for that specific project.",
@@ -1434,6 +1456,9 @@ const readOnlyTools = new Set([
   "list_pipeline_trigger_jobs",
   "get_pipeline_job",
   "get_pipeline_job_output",
+  "list_job_artifacts",
+  "download_job_artifacts",
+  "get_job_artifact_file",
   "list_labels",
   "get_label",
   "list_group_projects",
@@ -1497,6 +1522,9 @@ const pipelineToolNames = new Set([
   "play_pipeline_job",
   "retry_pipeline_job",
   "cancel_pipeline_job",
+  "list_job_artifacts",
+  "download_job_artifacts",
+  "get_job_artifact_file",
 ]);
 
 // --- Toolset definitions ---
@@ -4689,6 +4717,119 @@ async function getPipelineJobOutput(
 }
 
 /**
+ * List artifact files in a job's artifacts archive
+ *
+ * @param {string} projectId - The ID or URL-encoded path of the project
+ * @param {string} jobId - The ID of the job
+ * @param {Object} options - Options for listing artifacts
+ * @returns {Promise<GitLabArtifactEntry[]>} List of artifact entries
+ */
+async function listJobArtifacts(
+  projectId: string,
+  jobId: string,
+  options: Omit<z.infer<typeof ListJobArtifactsSchema>, "project_id" | "job_id"> = {}
+): Promise<GitLabArtifactEntry[]> {
+  projectId = decodeURIComponent(projectId);
+  const url = new URL(
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/jobs/${jobId}/artifacts/tree`
+  );
+
+  Object.entries(options).forEach(([key, value]) => {
+    if (value !== undefined) {
+      if (typeof value === "boolean") {
+        url.searchParams.append(key, value ? "true" : "false");
+      } else {
+        url.searchParams.append(key, value.toString());
+      }
+    }
+  });
+
+  const response = await fetch(url.toString(), {
+    ...getFetchConfig(),
+  });
+
+  if (response.status === 404) {
+    throw new Error(`Job artifacts not found. The job may not have produced artifacts or the job ID is invalid.`);
+  }
+
+  await handleGitLabError(response);
+  const data = await response.json();
+  return z.array(GitLabArtifactEntrySchema).parse(data);
+}
+
+/**
+ * Download the entire artifact archive for a job and save to disk
+ *
+ * @param {string} projectId - The ID or URL-encoded path of the project
+ * @param {string} jobId - The ID of the job
+ * @param {string} localPath - Optional local directory to save the archive
+ * @returns {Promise<string>} The path where the artifact archive was saved
+ */
+async function downloadJobArtifacts(
+  projectId: string,
+  jobId: string,
+  localPath?: string
+): Promise<string> {
+  projectId = decodeURIComponent(projectId);
+  const effectiveProjectId = getEffectiveProjectId(projectId);
+
+  const url = new URL(
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(effectiveProjectId)}/jobs/${jobId}/artifacts`
+  );
+
+  const response = await fetch(url.toString(), {
+    ...getFetchConfig(),
+  });
+
+  if (response.status === 404) {
+    throw new Error(`Job artifacts not found. The job may not have produced artifacts or the job ID is invalid.`);
+  }
+
+  await handleGitLabError(response);
+
+  const buffer = await response.arrayBuffer();
+  const filename = `artifacts_job_${jobId}.zip`;
+  const savePath = localPath ? path.join(localPath, filename) : filename;
+
+  fs.writeFileSync(savePath, Buffer.from(buffer));
+
+  return savePath;
+}
+
+/**
+ * Download a single file from a job's artifacts
+ *
+ * @param {string} projectId - The ID or URL-encoded path of the project
+ * @param {string} jobId - The ID of the job
+ * @param {string} artifactPath - Path to the file within the artifacts archive
+ * @returns {Promise<string>} The file content as text
+ */
+async function getJobArtifactFile(
+  projectId: string,
+  jobId: string,
+  artifactPath: string
+): Promise<string> {
+  projectId = decodeURIComponent(projectId);
+  const effectiveProjectId = getEffectiveProjectId(projectId);
+
+  const url = new URL(
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(effectiveProjectId)}/jobs/${jobId}/artifacts/${artifactPath}`
+  );
+
+  const response = await fetch(url.toString(), {
+    ...getFetchConfig(),
+  });
+
+  if (response.status === 404) {
+    throw new Error(`Artifact file not found: ${artifactPath}`);
+  }
+
+  await handleGitLabError(response);
+
+  return await response.text();
+}
+
+/**
  * Create a new pipeline
  *
  * @param {string} projectId - The ID or URL-encoded path of the project
@@ -6972,6 +7113,51 @@ async function handleToolCall(params: any) {
             {
               type: "text",
               text: `Canceled job #${job.id} (${job.name}). Status: ${job.status}\nWeb URL: ${job.web_url}`,
+            },
+          ],
+        };
+      }
+
+      case "list_job_artifacts": {
+        const { project_id, job_id, ...options } = ListJobArtifactsSchema.parse(
+          params.arguments
+        );
+        const artifacts = await listJobArtifacts(project_id, job_id, options);
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(artifacts, null, 2),
+            },
+          ],
+        };
+      }
+
+      case "download_job_artifacts": {
+        const { project_id, job_id, local_path } = DownloadJobArtifactsSchema.parse(
+          params.arguments
+        );
+        const filePath = await downloadJobArtifacts(project_id, job_id, local_path);
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify({ success: true, file_path: filePath }, null, 2),
+            },
+          ],
+        };
+      }
+
+      case "get_job_artifact_file": {
+        const { project_id, job_id, artifact_path } = GetJobArtifactFileSchema.parse(
+          params.arguments
+        );
+        const fileContent = await getJobArtifactFile(project_id, job_id, artifact_path);
+        return {
+          content: [
+            {
+              type: "text",
+              text: fileContent,
             },
           ],
         };

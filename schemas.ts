@@ -2623,6 +2623,50 @@ export const CreateReleaseEvidenceSchema = z.object({
   tag_name: z.string().describe("The Git tag the release is associated with"),
 });
 
+// Job Artifacts schemas
+export const ListJobArtifactsSchema = z.object({
+  project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
+  job_id: z.coerce.string().describe("The ID of the job"),
+  path: z
+    .string()
+    .optional()
+    .describe("Directory path within the artifacts archive (defaults to root)"),
+  recursive: z
+    .boolean()
+    .optional()
+    .describe("Whether to list artifacts recursively"),
+});
+
+export const GitLabArtifactEntrySchema = z.object({
+  name: z.string(),
+  path: z.string(),
+  type: z.enum(["file", "directory"]),
+  size: z.number().optional(),
+  mode: z.string().optional(),
+});
+
+export const DownloadJobArtifactsSchema = z.object({
+  project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
+  job_id: z.coerce.string().describe("The ID of the job"),
+  local_path: z
+    .string()
+    .optional()
+    .describe("Local directory to save the artifact archive (defaults to current directory)"),
+});
+
+export const GetJobArtifactFileSchema = z.object({
+  project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
+  job_id: z.coerce.string().describe("The ID of the job"),
+  artifact_path: z
+    .string()
+    .describe("Path to the file within the artifacts archive"),
+});
+
+export type GitLabArtifactEntry = z.infer<typeof GitLabArtifactEntrySchema>;
+export type ListJobArtifactsOptions = z.infer<typeof ListJobArtifactsSchema>;
+export type DownloadJobArtifactsOptions = z.infer<typeof DownloadJobArtifactsSchema>;
+export type GetJobArtifactFileOptions = z.infer<typeof GetJobArtifactFileSchema>;
+
 export const DownloadReleaseAssetSchema = z.object({
   project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
   tag_name: z.string().describe("The Git tag the release is associated with"),
