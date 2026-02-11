@@ -1752,7 +1752,8 @@ export const GitLabDraftNoteSchema = z.object({
   note: z.string().optional(), // Some APIs might use 'note' instead of 'body'
   created_at: z.string().optional(),
   updated_at: z.string().optional(),
-  position: MergeRequestThreadPositionSchema.nullable().optional(),
+  discussion_id: z.string().nullable().optional(),
+  position: z.record(z.unknown()).nullable().optional(),
   resolve_discussion: z.boolean().optional(),
 }).transform((data) => ({
   // Normalize the response to always have consistent field names
@@ -1761,6 +1762,7 @@ export const GitLabDraftNoteSchema = z.object({
   body: data.body || data.note || "",
   created_at: data.created_at || "",
   updated_at: data.updated_at || "",
+  discussion_id: data.discussion_id || null,
   position: data.position,
   resolve_discussion: data.resolve_discussion,
 }));
@@ -1782,6 +1784,7 @@ export const ListDraftNotesSchema = ProjectParamsSchema.extend({
 export const CreateDraftNoteSchema = ProjectParamsSchema.extend({
   merge_request_iid: z.coerce.string().describe("The IID of a merge request"),
   body: z.string().describe("The content of the draft note"),
+  in_reply_to_discussion_id: z.string().optional().describe("The ID of a discussion the draft note replies to"),
   position: MergeRequestThreadPositionSchema.optional().describe("Position when creating a diff note"),
   resolve_discussion: z.boolean().optional().describe("Whether to resolve the discussion when publishing"),
 });
