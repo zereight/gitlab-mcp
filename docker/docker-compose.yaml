@@ -1,6 +1,6 @@
 services:
   gitlab-mcp:
-    image: zereight/gitlab-mcp:latest
+    image: zereight050/gitlab-mcp:latest
     ports:
       - 3002:3002
     environment:
