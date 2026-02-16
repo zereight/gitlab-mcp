@@ -1222,7 +1222,8 @@ const allTools = [
   },
   {
     name: "download_attachment",
-    description: "Download an uploaded file from a GitLab project by secret and filename",
+    description:
+      "Download an uploaded file from a GitLab project by secret and filename. Image files (png, jpg, gif, webp, svg, bmp, ico) are returned inline as base64 image content so the AI can view them directly. Non-image files are saved to disk. Use local_path to force saving image files to disk instead.",
     inputSchema: toJSONSchema(DownloadAttachmentSchema),
   },
   {
@@ -5072,12 +5073,35 @@ async function markdownUpload(projectId: string, filePath: string): Promise<GitL
   return GitLabMarkdownUploadSchema.parse(data);
 }
 
+const IMAGE_MIME_TYPES: Record<string, string> = {
+  ".png": "image/png",
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".gif": "image/gif",
+  ".webp": "image/webp",
+  ".svg": "image/svg+xml",
+  ".bmp": "image/bmp",
+  ".ico": "image/x-icon",
+};
+
+function getImageMimeType(filename: string): string | null {
+  const ext = path.extname(filename).toLowerCase();
+  return IMAGE_MIME_TYPES[ext] ?? null;
+}
+
+interface DownloadAttachmentResult {
+  buffer: Buffer;
+  filename: string;
+  mimeType: string | null;
+  savedPath?: string;
+}
+
 async function downloadAttachment(
   projectId: string,
   secret: string,
   filename: string,
   localPath?: string
-): Promise<string> {
+): Promise<DownloadAttachmentResult> {
   const effectiveProjectId = getEffectiveProjectId(projectId);
 
   const url = new URL(
@@ -5097,15 +5121,18 @@ async function downloadAttachment(
   }
 
   // Get the file content as buffer
-  const buffer = await response.arrayBuffer();
+  const buffer = Buffer.from(await response.arrayBuffer());
+  const mimeType = getImageMimeType(filename);
 
-  // Determine the save path
-  const savePath = localPath ? path.join(localPath, filename) : filename;
+  // For non-image files, always save to disk.
+  // For image files, only save to disk if local_path is explicitly provided.
+  if (!mimeType || localPath) {
+    const savePath = localPath ? path.join(localPath, filename) : filename;
+    fs.writeFileSync(savePath, buffer);
+    return { buffer, filename, mimeType, savedPath: savePath };
+  }
 
-  // Write the file to disk
-  fs.writeFileSync(savePath, Buffer.from(buffer));
-
-  return savePath;
+  return { buffer, filename, mimeType };
 }
 
 /**
@@ -6739,15 +6766,33 @@ async function handleToolCall(params: any) {
 
       case "download_attachment": {
         const args = DownloadAttachmentSchema.parse(params.arguments);
-        const filePath = await downloadAttachment(
+        const result = await downloadAttachment(
           args.project_id,
           args.secret,
           args.filename,
           args.local_path
         );
+
+        if (result.mimeType && !args.local_path) {
+          // Return image inline as base64 so the AI can see it
+          const base64 = result.buffer.toString("base64");
+          return {
+            content: [
+              { type: "image", data: base64, mimeType: result.mimeType },
+              {
+                type: "text",
+                text: JSON.stringify({ filename: result.filename, mimeType: result.mimeType }, null, 2),
+              },
+            ],
+          };
+        }
+
         return {
           content: [
-            { type: "text", text: JSON.stringify({ success: true, file_path: filePath }, null, 2) },
+            {
+              type: "text",
+              text: JSON.stringify({ success: true, file_path: result.savedPath }, null, 2),
+            },
           ],
         };
       }
