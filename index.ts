@@ -6,11 +6,11 @@ const cliArgs: Record<string, string> = {};
 
 for (let i = 0; i < args.length; i++) {
   const arg = args[i];
-  if (arg.startsWith('--')) {
-    const [key, value] = arg.slice(2).split('=');
+  if (arg.startsWith("--")) {
+    const [key, value] = arg.slice(2).split("=");
     if (value) {
       cliArgs[key] = value;
-    } else if (i + 1 < args.length && !args[i + 1].startsWith('--')) {
+    } else if (i + 1 < args.length && !args[i + 1].startsWith("--")) {
       cliArgs[key] = args[++i];
     }
   }
@@ -292,17 +292,85 @@ try {
   // Intentionally ignored: version read failure is non-critical
 }
 
-const server = new Server(
-  {
-    name: "better-gitlab-mcp-server",
-    version: SERVER_VERSION,
-  },
-  {
-    capabilities: {
-      tools: {},
+/**
+ * Create a new MCP Server instance with request handlers registered.
+ * Each transport connection gets its own Server instance to prevent
+ * cross-client data leakage (GHSA-345p-7cg4-v4c7).
+ */
+function createServer(): Server {
+  const serverInstance = new Server(
+    {
+      name: "better-gitlab-mcp-server",
+      version: SERVER_VERSION,
     },
-  }
-);
+    {
+      capabilities: {
+        tools: {},
+      },
+    }
+  );
+
+  serverInstance.setRequestHandler(ListToolsRequestSchema, async () => {
+    // Apply read-only filter first
+    const tools0 = GITLAB_READ_ONLY_MODE
+      ? allTools.filter(tool => readOnlyTools.has(tool.name))
+      : allTools;
+    // Toggle wiki tools by USE_GITLAB_WIKI flag
+    const tools1 = USE_GITLAB_WIKI ? tools0 : tools0.filter(tool => !wikiToolNames.has(tool.name));
+    // Toggle milestone tools by USE_MILESTONE flag
+    const tools2 = USE_MILESTONE
+      ? tools1
+      : tools1.filter(tool => !milestoneToolNames.has(tool.name));
+    // Toggle pipeline tools by USE_PIPELINE flag
+    let tools = USE_PIPELINE ? tools2 : tools2.filter(tool => !pipelineToolNames.has(tool.name));
+    tools = GITLAB_DENIED_TOOLS_REGEX
+      ? tools.filter(tool => !GITLAB_DENIED_TOOLS_REGEX.test(tool.name))
+      : tools;
+
+    // <<< START: Gemini 호환성을 위해 $schema 제거 >>>
+    tools = tools.map(tool => {
+      // inputSchema가 존재하고 객체인지 확인
+      if (tool.inputSchema && typeof tool.inputSchema === "object" && tool.inputSchema !== null) {
+        // $schema 키가 존재하면 삭제
+        if ("$schema" in tool.inputSchema) {
+          // 불변성을 위해 새로운 객체 생성 (선택적이지만 권장)
+          const modifiedSchema = { ...tool.inputSchema };
+          delete modifiedSchema.$schema;
+          return { ...tool, inputSchema: modifiedSchema };
+        }
+      }
+      // 변경이 필요 없으면 그대로 반환
+      return tool;
+    });
+    // <<< END: Gemini 호환성을 위해 $schema 제거 >>>
+
+    return {
+      tools, // $schema가 제거된 도구 목록 반환
+    };
+  });
+
+  serverInstance.setRequestHandler(CallToolRequestSchema, async (request: any) => {
+    // Manually retrieve the session context using the session ID passed in the request.
+    // This is a robust workaround for AsyncLocalStorage context loss.
+    const sessionId = request.params.sessionId;
+    if (REMOTE_AUTHORIZATION && sessionId && authBySession[sessionId]) {
+      const authData = authBySession[sessionId];
+      const sessionContext: SessionAuth = {
+        sessionId,
+        header: authData.header,
+        token: authData.token,
+        lastUsed: authData.lastUsed,
+        apiUrl: authData.apiUrl,
+      };
+      // Run the handler within the retrieved context
+      return await sessionAuthStore.run(sessionContext, () => handleToolCall(request.params));
+    }
+    // Fallback for non-remote-auth mode or if session is not found
+    return handleToolCall(request.params);
+  });
+
+  return serverInstance;
+}
 
 /**
  * Validate configuration at startup
@@ -346,7 +414,7 @@ function validateConfiguration(): void {
   }
 
   // Validate PORT
-  const portStr = getConfig('port', 'PORT');
+  const portStr = getConfig("port", "PORT");
   if (portStr) {
     const port = Number.parseInt(portStr, 10);
     if (Number.isNaN(port) || port < 1 || port > 65535) {
@@ -355,7 +423,7 @@ function validateConfiguration(): void {
   }
 
   // Validate GITLAB_API_URL format
-  const apiUrls = getConfig('api-url', 'GITLAB_API_URL')?.split(",") || [];
+  const apiUrls = getConfig("api-url", "GITLAB_API_URL")?.split(",") || [];
   if (apiUrls.length > 0) {
     for (const url of apiUrls) {
       try {
@@ -367,16 +435,19 @@ function validateConfiguration(): void {
   }
 
   // Validate auth configuration
-  const remoteAuth = getConfig('remote-auth', 'REMOTE_AUTHORIZATION') === "true";
-  const useOAuth = getConfig('use-oauth', 'GITLAB_USE_OAUTH') === "true";
-  const hasToken = !!getConfig('token', 'GITLAB_PERSONAL_ACCESS_TOKEN');
-  const hasCookie = !!getConfig('cookie-path', 'GITLAB_AUTH_COOKIE_PATH');
+  const remoteAuth = getConfig("remote-auth", "REMOTE_AUTHORIZATION") === "true";
+  const useOAuth = getConfig("use-oauth", "GITLAB_USE_OAUTH") === "true";
+  const hasToken = !!getConfig("token", "GITLAB_PERSONAL_ACCESS_TOKEN");
+  const hasCookie = !!getConfig("cookie-path", "GITLAB_AUTH_COOKIE_PATH");
 
   if (!remoteAuth && !useOAuth && !hasToken && !hasCookie) {
-    errors.push('Either --token, --cookie-path, --use-oauth=true, or --remote-auth=true must be set (or use environment variables)');
+    errors.push(
+      "Either --token, --cookie-path, --use-oauth=true, or --remote-auth=true must be set (or use environment variables)"
+    );
   }
 
-  const enableDynamicApiUrl = getConfig('enable-dynamic-api-url', 'ENABLE_DYNAMIC_API_URL') === "true";
+  const enableDynamicApiUrl =
+    getConfig("enable-dynamic-api-url", "ENABLE_DYNAMIC_API_URL") === "true";
   if (enableDynamicApiUrl && !remoteAuth) {
     errors.push("ENABLE_DYNAMIC_API_URL=true requires REMOTE_AUTHORIZATION=true");
   }
@@ -390,32 +461,69 @@ function validateConfiguration(): void {
   logger.info("Configuration validation passed");
 }
 
-const GITLAB_PERSONAL_ACCESS_TOKEN = getConfig('token', 'GITLAB_PERSONAL_ACCESS_TOKEN');
+const GITLAB_PERSONAL_ACCESS_TOKEN = getConfig("token", "GITLAB_PERSONAL_ACCESS_TOKEN");
 let OAUTH_ACCESS_TOKEN: string | null = null;
-const GITLAB_AUTH_COOKIE_PATH = getConfig('cookie-path', 'GITLAB_AUTH_COOKIE_PATH');
-const USE_OAUTH = getConfig('use-oauth', 'GITLAB_USE_OAUTH') === "true";
-const IS_OLD = getConfig('is-old', 'GITLAB_IS_OLD') === "true";
-const GITLAB_READ_ONLY_MODE = getConfig('read-only', 'GITLAB_READ_ONLY_MODE') === "true";
-const GITLAB_DENIED_TOOLS_REGEX = getConfig('denied-tools-regex', 'GITLAB_DENIED_TOOLS_REGEX')
-  ? new RegExp(getConfig('denied-tools-regex', 'GITLAB_DENIED_TOOLS_REGEX')!)
-  : undefined;
-const USE_GITLAB_WIKI = getConfig('use-wiki', 'USE_GITLAB_WIKI') === "true";
-const USE_MILESTONE = getConfig('use-milestone', 'USE_MILESTONE') === "true";
-const USE_PIPELINE = getConfig('use-pipeline', 'USE_PIPELINE') === "true";
-const SSE = getConfig('sse', 'SSE') === "true";
-const STREAMABLE_HTTP = getConfig('streamable-http', 'STREAMABLE_HTTP') === "true";
-const REMOTE_AUTHORIZATION = getConfig('remote-auth', 'REMOTE_AUTHORIZATION') === "true";
-const ENABLE_DYNAMIC_API_URL = getConfig('enable-dynamic-api-url', 'ENABLE_DYNAMIC_API_URL') === "true";
-const SESSION_TIMEOUT_SECONDS = Number.parseInt(getConfig('session-timeout', 'SESSION_TIMEOUT_SECONDS', '3600'), 10);
-const HOST = getConfig('host', 'HOST') || '127.0.0.1';
-const PORT = Number.parseInt(getConfig('port', 'PORT', '3002'), 10);
+const GITLAB_AUTH_COOKIE_PATH = getConfig("cookie-path", "GITLAB_AUTH_COOKIE_PATH");
+const USE_OAUTH = getConfig("use-oauth", "GITLAB_USE_OAUTH") === "true";
+const IS_OLD = getConfig("is-old", "GITLAB_IS_OLD") === "true";
+const GITLAB_READ_ONLY_MODE = getConfig("read-only", "GITLAB_READ_ONLY_MODE") === "true";
+const GITLAB_DENIED_TOOLS_REGEX = (() => {
+  const pattern = getConfig("denied-tools-regex", "GITLAB_DENIED_TOOLS_REGEX");
+  if (!pattern) return undefined;
+
+  // Reject patterns that are too long (potential ReDoS vector)
+  const MAX_PATTERN_LENGTH = 200;
+  if (pattern.length > MAX_PATTERN_LENGTH) {
+    logger.error(
+      `GITLAB_DENIED_TOOLS_REGEX pattern exceeds ${MAX_PATTERN_LENGTH} chars. Ignoring.`
+    );
+    return undefined;
+  }
+
+  // Reject patterns with nested quantifiers that can cause catastrophic backtracking (ReDoS)
+  // e.g., (a+)+, (a*)+, (a+)*, (a{1,})+
+  const NESTED_QUANTIFIER_PATTERN = /(\(.*[+*?].*\)|\[.*\])[+*?]|\(\?[^:)]/;
+  if (NESTED_QUANTIFIER_PATTERN.test(pattern)) {
+    logger.error(
+      `GITLAB_DENIED_TOOLS_REGEX contains potentially unsafe nested quantifiers. Ignoring.`
+    );
+    return undefined;
+  }
+
+  try {
+    const regex = new RegExp(pattern);
+    // Dry-run against a sample string to catch immediate issues
+    regex.test("sample_tool_name");
+    return regex;
+  } catch {
+    logger.error(`Invalid GITLAB_DENIED_TOOLS_REGEX pattern: "${pattern}". Ignoring.`);
+    return undefined;
+  }
+})();
+const USE_GITLAB_WIKI = getConfig("use-wiki", "USE_GITLAB_WIKI") === "true";
+const USE_MILESTONE = getConfig("use-milestone", "USE_MILESTONE") === "true";
+const USE_PIPELINE = getConfig("use-pipeline", "USE_PIPELINE") === "true";
+const SSE = getConfig("sse", "SSE") === "true";
+const STREAMABLE_HTTP = getConfig("streamable-http", "STREAMABLE_HTTP") === "true";
+const REMOTE_AUTHORIZATION = getConfig("remote-auth", "REMOTE_AUTHORIZATION") === "true";
+const ENABLE_DYNAMIC_API_URL =
+  getConfig("enable-dynamic-api-url", "ENABLE_DYNAMIC_API_URL") === "true";
+const SESSION_TIMEOUT_SECONDS = Number.parseInt(
+  getConfig("session-timeout", "SESSION_TIMEOUT_SECONDS", "3600"),
+  10
+);
+const HOST = getConfig("host", "HOST") || "127.0.0.1";
+const PORT = Number.parseInt(getConfig("port", "PORT", "3002"), 10);
 // Add proxy configuration
-const HTTP_PROXY = getConfig('http-proxy', 'HTTP_PROXY');
-const HTTPS_PROXY = getConfig('https-proxy', 'HTTPS_PROXY');
-const NODE_TLS_REJECT_UNAUTHORIZED = getConfig('tls-reject-unauthorized', 'NODE_TLS_REJECT_UNAUTHORIZED');
-const GITLAB_CA_CERT_PATH = getConfig('ca-cert-path', 'GITLAB_CA_CERT_PATH');
-const GITLAB_POOL_MAX_SIZE = getConfig('pool-max-size', 'GITLAB_POOL_MAX_SIZE')
-  ? Number.parseInt(getConfig('pool-max-size', 'GITLAB_POOL_MAX_SIZE')!, 10)
+const HTTP_PROXY = getConfig("http-proxy", "HTTP_PROXY");
+const HTTPS_PROXY = getConfig("https-proxy", "HTTPS_PROXY");
+const NODE_TLS_REJECT_UNAUTHORIZED = getConfig(
+  "tls-reject-unauthorized",
+  "NODE_TLS_REJECT_UNAUTHORIZED"
+);
+const GITLAB_CA_CERT_PATH = getConfig("ca-cert-path", "GITLAB_CA_CERT_PATH");
+const GITLAB_POOL_MAX_SIZE = getConfig("pool-max-size", "GITLAB_POOL_MAX_SIZE")
+  ? Number.parseInt(getConfig("pool-max-size", "GITLAB_POOL_MAX_SIZE")!, 10)
   : 100;
 
 let sslOptions = undefined;
@@ -676,47 +784,47 @@ const getFetchConfig = () => {
 };
 
 const toJSONSchema = (schema: z.ZodTypeAny) => {
-  const jsonSchema = zodToJsonSchema(schema, { $refStrategy: 'none' });
-  
+  const jsonSchema = zodToJsonSchema(schema, { $refStrategy: "none" });
+
   // Post-process to fix nullable/optional fields that should truly be optional
   function fixNullableOptional(obj: any): any {
-    if (obj && typeof obj === 'object') {
+    if (obj && typeof obj === "object") {
       // If this object has properties, process them
       if (obj.properties) {
         const requiredSet = new Set<string>(obj.required || []);
         Object.keys(obj.properties).forEach(key => {
           const prop = obj.properties[key];
-          
+
           // Handle fields that can be null or omitted
           // If a property has type: ["object", "null"] or anyOf with null, it should not be required
-          if (prop.anyOf && prop.anyOf.some((t: any) => t.type === 'null')) {
+          if (prop.anyOf && prop.anyOf.some((t: any) => t.type === "null")) {
             requiredSet.delete(key);
-          } else if (Array.isArray(prop.type) && prop.type.includes('null')) {
+          } else if (Array.isArray(prop.type) && prop.type.includes("null")) {
             requiredSet.delete(key);
           }
-          
+
           // Recursively process nested objects
           obj.properties[key] = fixNullableOptional(prop);
         });
         // Normalize the required array after processing all properties
         if (requiredSet.size > 0) {
           obj.required = Array.from(requiredSet);
-        } else if (Object.prototype.hasOwnProperty.call(obj, 'required')) {
+        } else if (Object.prototype.hasOwnProperty.call(obj, "required")) {
           delete obj.required;
         }
       }
-      
+
       // Process anyOf/allOf/oneOf
-      ['anyOf', 'allOf', 'oneOf'].forEach(combiner => {
+      ["anyOf", "allOf", "oneOf"].forEach(combiner => {
         if (obj[combiner]) {
           obj[combiner] = obj[combiner].map(fixNullableOptional);
         }
       });
     }
-    
+
     return obj;
   }
-  
+
   return fixNullableOptional(jsonSchema);
 };
 
@@ -5371,62 +5479,8 @@ async function downloadReleaseAsset(
   return await response.text();
 }
 
-server.setRequestHandler(ListToolsRequestSchema, async () => {
-  // Apply read-only filter first
-  const tools0 = GITLAB_READ_ONLY_MODE
-    ? allTools.filter(tool => readOnlyTools.has(tool.name))
-    : allTools;
-  // Toggle wiki tools by USE_GITLAB_WIKI flag
-  const tools1 = USE_GITLAB_WIKI ? tools0 : tools0.filter(tool => !wikiToolNames.has(tool.name));
-  // Toggle milestone tools by USE_MILESTONE flag
-  const tools2 = USE_MILESTONE ? tools1 : tools1.filter(tool => !milestoneToolNames.has(tool.name));
-  // Toggle pipeline tools by USE_PIPELINE flag
-  let tools = USE_PIPELINE ? tools2 : tools2.filter(tool => !pipelineToolNames.has(tool.name));
-  tools = GITLAB_DENIED_TOOLS_REGEX
-    ? tools.filter(tool => !GITLAB_DENIED_TOOLS_REGEX.test(tool.name))
-    : tools;
-
-  // <<< START: Gemini 호환성을 위해 $schema 제거 >>>
-  tools = tools.map(tool => {
-    // inputSchema가 존재하고 객체인지 확인
-    if (tool.inputSchema && typeof tool.inputSchema === "object" && tool.inputSchema !== null) {
-      // $schema 키가 존재하면 삭제
-      if ("$schema" in tool.inputSchema) {
-        // 불변성을 위해 새로운 객체 생성 (선택적이지만 권장)
-        const modifiedSchema = { ...tool.inputSchema };
-        delete modifiedSchema.$schema;
-        return { ...tool, inputSchema: modifiedSchema };
-      }
-    }
-    // 변경이 필요 없으면 그대로 반환
-    return tool;
-  });
-  // <<< END: Gemini 호환성을 위해 $schema 제거 >>>
-
-  return {
-    tools, // $schema가 제거된 도구 목록 반환
-  };
-});
-
-server.setRequestHandler(CallToolRequestSchema, async (request: any) => {
-  // Manually retrieve the session context using the session ID passed in the request.
-  // This is a robust workaround for AsyncLocalStorage context loss.
-  const sessionId = request.params.sessionId;
-  if (REMOTE_AUTHORIZATION && sessionId && authBySession[sessionId]) {
-    const authData = authBySession[sessionId];
-    const sessionContext: SessionAuth = {
-      sessionId,
-      header: authData.header,
-      token: authData.token,
-      lastUsed: authData.lastUsed,
-      apiUrl: authData.apiUrl,
-    };
-    // Run the handler within the retrieved context
-    return await sessionAuthStore.run(sessionContext, () => handleToolCall(request.params));
-  }
-  // Fallback for non-remote-auth mode or if session is not found
-  return handleToolCall(request.params);
-});
+// Request handlers are now registered inside createServer() factory function
+// to ensure each transport connection gets its own Server instance (GHSA-345p-7cg4-v4c7).
 
 /**
  * Filter diffs by excluded file patterns
@@ -5443,7 +5497,7 @@ function filterDiffsByPatterns<T extends { new_path: string }>(
   if (!excludedFilePatterns?.length) return diffs;
 
   const regexPatterns = excludedFilePatterns
-    .map((pattern) => {
+    .map(pattern => {
       try {
         return new RegExp(pattern);
       } catch (e) {
@@ -5457,10 +5511,10 @@ function filterDiffsByPatterns<T extends { new_path: string }>(
 
   const matchesAnyPattern = (path: string): boolean => {
     if (!path) return false;
-    return regexPatterns.some((regex) => regex.test(path));
+    return regexPatterns.some(regex => regex.test(path));
   };
 
-  return diffs.filter((diff) => !matchesAnyPattern(diff.new_path));
+  return diffs.filter(diff => !matchesAnyPattern(diff.new_path));
 }
 
 async function handleToolCall(params: any) {
@@ -5831,10 +5885,7 @@ async function handleToolCall(params: any) {
 
       case "list_merge_request_versions": {
         const args = ListMergeRequestVersionsSchema.parse(params.arguments);
-        const versions = await listMergeRequestVersions(
-          args.project_id,
-          args.merge_request_iid
-        );
+        const versions = await listMergeRequestVersions(args.project_id, args.merge_request_iid);
         return {
           content: [{ type: "text", text: JSON.stringify(versions, null, 2) }],
         };
@@ -6903,8 +6954,9 @@ function determineTransportMode(): TransportMode {
  * Start server with stdio transport
  */
 async function startStdioServer(): Promise<void> {
+  const serverInstance = createServer();
   const transport = new StdioServerTransport();
-  await server.connect(transport);
+  await serverInstance.connect(transport);
 }
 
 /**
@@ -6915,12 +6967,13 @@ async function startSSEServer(): Promise<void> {
   const transports: { [sessionId: string]: SSEServerTransport } = {};
 
   app.get("/sse", async (_: Request, res: Response) => {
+    const serverInstance = createServer();
     const transport = new SSEServerTransport("/messages", res);
     transports[transport.sessionId] = transport;
     res.on("close", () => {
       delete transports[transport.sessionId];
     });
-    await server.connect(transport);
+    await serverInstance.connect(transport);
   });
 
   app.post("/messages", async (req: Request, res: Response) => {
@@ -7207,8 +7260,10 @@ async function startStreamableHTTPServer(): Promise<void> {
             }
           };
 
-          // Connect transport to MCP server
-          await server.connect(transport);
+          // Create a new Server instance per session to prevent
+          // cross-client data leakage (GHSA-345p-7cg4-v4c7)
+          const serverInstance = createServer();
+          await serverInstance.connect(transport);
 
           // Handle the request - context is already set up in the outer handleRequest wrapper
           await transport.handleRequest(req, res, req.body);
