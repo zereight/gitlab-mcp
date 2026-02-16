@@ -356,6 +356,45 @@ docker run -i --rm \
 - `USE_GITLAB_WIKI`: When set to 'true', enables the wiki-related tools (list_wiki_pages, get_wiki_page, create_wiki_page, update_wiki_page, delete_wiki_page). By default, wiki features are disabled.
 - `USE_MILESTONE`: When set to 'true', enables the milestone-related tools (list_milestones, get_milestone, create_milestone, edit_milestone, delete_milestone, get_milestone_issue, get_milestone_merge_requests, promote_milestone, get_milestone_burndown_events). By default, milestone features are disabled.
 - `USE_PIPELINE`: When set to 'true', enables the pipeline-related tools (list_pipelines, get_pipeline, list_pipeline_jobs, list_pipeline_trigger_jobs, get_pipeline_job, get_pipeline_job_output, create_pipeline, retry_pipeline, cancel_pipeline, play_pipeline_job, retry_pipeline_job, cancel_pipeline_job). By default, pipeline features are disabled.
+- `GITLAB_TOOLSETS`: Comma-separated list of toolset IDs to enable. When empty or unset, default toolsets are used. Set to `"all"` to enable every toolset. Available toolsets (default toolsets marked with `*`):
+  - `merge_requests`\* — MR operations, notes, discussions, draft notes, threads (31 tools)
+  - `issues`\* — Issue CRUD, notes, links, discussions (14 tools)
+  - `repositories`\* — Search, create, file contents, push, fork, tree (7 tools)
+  - `branches`\* — Branch creation, commits, diffs (4 tools)
+  - `projects`\* — Project/namespace info, group projects, iterations (8 tools)
+  - `labels`\* — Label CRUD (5 tools)
+  - `pipelines` — Pipeline and job operations (12 tools)
+  - `milestones` — Milestone CRUD, issues, MRs, burndown (9 tools)
+  - `wiki` — Wiki page CRUD (5 tools)
+  - `releases`\* — Release CRUD, evidence, asset download (7 tools)
+  - `users`\* — User info, events, markdown upload, attachments (5 tools)
+
+  Note: `execute_graphql` is not in any toolset and must be added individually via `GITLAB_TOOLS` if needed.
+  CLI arg: `--toolsets`
+- `GITLAB_TOOLS`: Comma-separated list of individual tool names to add on top of the enabled toolsets (additive). Useful for cherry-picking specific tools without enabling an entire toolset. Example: `GITLAB_TOOLS="list_pipelines,execute_graphql"`. CLI arg: `--tools`
+
+  Combined logic: `final tools = (tools from enabled toolsets) ∪ (GITLAB_TOOLS) ∪ (legacy flag overrides)`
+
+  Examples:
+  ```bash
+  # Default behavior (unchanged)
+  GITLAB_PERSONAL_ACCESS_TOKEN=xxx npx @zereight/mcp-gitlab
+
+  # Only issues and repositories
+  GITLAB_TOOLSETS="issues,repositories" npx @zereight/mcp-gitlab
+
+  # All toolsets
+  GITLAB_TOOLSETS="all" npx @zereight/mcp-gitlab
+
+  # Default toolsets + one extra pipeline tool
+  GITLAB_TOOLS="list_pipelines" npx @zereight/mcp-gitlab
+
+  # Specific toolsets + individual tools
+  GITLAB_TOOLSETS="issues,merge_requests" GITLAB_TOOLS="list_pipelines,get_pipeline" npx @zereight/mcp-gitlab
+
+  # Legacy flags still work (backward compatible)
+  USE_PIPELINE=true npx @zereight/mcp-gitlab
+  ```
 - `GITLAB_AUTH_COOKIE_PATH`: Path to an authentication cookie file for GitLab instances that require cookie-based authentication. When provided, the cookie will be included in all GitLab API requests.
 - `SSE`: When set to 'true', enables the Server-Sent Events transport.
 - `STREAMABLE_HTTP`: When set to 'true', enables the Streamable HTTP transport. If both **SSE** and **STREAMABLE_HTTP** are set to 'true', the server will prioritize Streamable HTTP over SSE transport.
