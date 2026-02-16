@@ -467,9 +467,16 @@ const GITLAB_AUTH_COOKIE_PATH = getConfig("cookie-path", "GITLAB_AUTH_COOKIE_PAT
 const USE_OAUTH = getConfig("use-oauth", "GITLAB_USE_OAUTH") === "true";
 const IS_OLD = getConfig("is-old", "GITLAB_IS_OLD") === "true";
 const GITLAB_READ_ONLY_MODE = getConfig("read-only", "GITLAB_READ_ONLY_MODE") === "true";
-const GITLAB_DENIED_TOOLS_REGEX = getConfig("denied-tools-regex", "GITLAB_DENIED_TOOLS_REGEX")
-  ? new RegExp(getConfig("denied-tools-regex", "GITLAB_DENIED_TOOLS_REGEX")!)
-  : undefined;
+const GITLAB_DENIED_TOOLS_REGEX = (() => {
+  const pattern = getConfig("denied-tools-regex", "GITLAB_DENIED_TOOLS_REGEX");
+  if (!pattern) return undefined;
+  try {
+    return new RegExp(pattern);
+  } catch {
+    logger.error(`Invalid GITLAB_DENIED_TOOLS_REGEX pattern: "${pattern}". Ignoring.`);
+    return undefined;
+  }
+})();
 const USE_GITLAB_WIKI = getConfig("use-wiki", "USE_GITLAB_WIKI") === "true";
 const USE_MILESTONE = getConfig("use-milestone", "USE_MILESTONE") === "true";
 const USE_PIPELINE = getConfig("use-pipeline", "USE_PIPELINE") === "true";
