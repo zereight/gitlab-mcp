@@ -470,8 +470,31 @@ const GITLAB_READ_ONLY_MODE = getConfig("read-only", "GITLAB_READ_ONLY_MODE") ==
 const GITLAB_DENIED_TOOLS_REGEX = (() => {
   const pattern = getConfig("denied-tools-regex", "GITLAB_DENIED_TOOLS_REGEX");
   if (!pattern) return undefined;
+
+  // Reject patterns that are too long (potential ReDoS vector)
+  const MAX_PATTERN_LENGTH = 200;
+  if (pattern.length > MAX_PATTERN_LENGTH) {
+    logger.error(
+      `GITLAB_DENIED_TOOLS_REGEX pattern exceeds ${MAX_PATTERN_LENGTH} chars. Ignoring.`
+    );
+    return undefined;
+  }
+
+  // Reject patterns with nested quantifiers that can cause catastrophic backtracking (ReDoS)
+  // e.g., (a+)+, (a*)+, (a+)*, (a{1,})+
+  const NESTED_QUANTIFIER_PATTERN = /(\(.*[+*?].*\)|\[.*\])[+*?]|\(\?[^:)]/;
+  if (NESTED_QUANTIFIER_PATTERN.test(pattern)) {
+    logger.error(
+      `GITLAB_DENIED_TOOLS_REGEX contains potentially unsafe nested quantifiers. Ignoring.`
+    );
+    return undefined;
+  }
+
   try {
-    return new RegExp(pattern);
+    const regex = new RegExp(pattern);
+    // Dry-run against a sample string to catch immediate issues
+    regex.test("sample_tool_name");
+    return regex;
   } catch {
     logger.error(`Invalid GITLAB_DENIED_TOOLS_REGEX pattern: "${pattern}". Ignoring.`);
     return undefined;
