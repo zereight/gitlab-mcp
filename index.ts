@@ -345,19 +345,25 @@ function createServer(): Server {
       : toolsAfterReadOnly;
 
     // Step 6: Gemini $schema cleanup
+    // <<< START: Gemini 호환성을 위해 $schema 제거 >>>
     const tools = toolsAfterDenied.map(tool => {
+      // inputSchema가 존재하고 객체인지 확인
       if (tool.inputSchema && typeof tool.inputSchema === "object" && tool.inputSchema !== null) {
+        // $schema 키가 존재하면 삭제
         if ("$schema" in tool.inputSchema) {
+          // 불변성을 위해 새로운 객체 생성 (선택적이지만 권장)
           const modifiedSchema = { ...tool.inputSchema };
           delete modifiedSchema.$schema;
           return { ...tool, inputSchema: modifiedSchema };
         }
       }
+      // 변경이 필요 없으면 그대로 반환
       return tool;
     });
+    // <<< END: Gemini 호환성을 위해 $schema 제거 >>>
 
     return {
-      tools,
+      tools, // $schema가 제거된 도구 목록 반환
     };
   });
 
