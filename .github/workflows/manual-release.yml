@@ -1,0 +1,85 @@
+name: Manual Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_type:
+        description: 'Release type'
+        required: true
+        default: 'patch'
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.21.1'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Bump version
+        run: |
+          if [[ "${{ github.event.inputs.release_type }}" == "patch" ]]; then
+            npm version patch --no-git-tag-version
+          elif [[ "${{ github.event.inputs.release_type }}" == "minor" ]]; then
+            npm version minor --no-git-tag-version
+          else
+            npm version major --no-git-tag-version
+          fi
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Get new version
+        id: version
+        run: echo "version=$(node -p 'require(\"./package.json\").version')" >> $GITHUB_OUTPUT
+
+      - name: Get previous tag
+        id: prev_tag
+        run: |
+          PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+          echo "prev_tag=$PREV_TAG" >> $GITHUB_OUTPUT
+
+      - name: Generate release notes
+        id: release_notes
+        run: |
+          if [[ -n "${{ steps.prev_tag.outputs.prev_tag }}" ]]; then
+            COMMITS=$(git log ${{ steps.prev_tag.outputs.prev_tag }}..HEAD --oneline)
+          else
+            COMMITS=$(git log --oneline -20)
+          fi
+          
+          CONTRIBUTORS=$(git shortlog -sne HEAD | head -10)
+          
+          NOTES="## Changes in v${{ steps.version.outputs.version }}
+          
+          ### Commits
+          $COMMITS
+          
+          ### Contributors
+          $CONTRIBUTORS
+          "
+          
+          echo "notes=$NOTES" >> $GITHUB_OUTPUT
+
+      - name: Create GitHub Release
+        run: |
+          gh release create "v${{ steps.version.outputs.version }}" \
+            --title "v${{ steps.version.outputs.version }}" \
+            --notes "${{ steps.release_notes.outputs.notes }}"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Push tag
+        run: git push origin "v${{ steps.version.outputs.version }}"

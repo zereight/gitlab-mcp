@@ -37,6 +37,7 @@
     "test:approvals": "npm run build && tsx test/test-merge-request-approvals.ts",
     "lint": "eslint . --ext .ts",
     "lint:fix": "eslint . --ext .ts --fix",
+    "release": "bash scripts/release.sh",
     "format": "prettier --write \"**/*.{js,ts,json,md}\"",
     "format:check": "prettier --check \"**/*.{js,ts,json,md}\""
   },
