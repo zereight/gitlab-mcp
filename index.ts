@@ -1718,12 +1718,19 @@ function parseEnabledToolsets(raw: string | undefined): ReadonlySet<ToolsetId> {
   if (trimmed === "all") {
     return ALL_TOOLSET_IDS;
   }
-  return new Set(
+  const selected = new Set(
     trimmed
       .split(",")
       .map(s => s.trim())
       .filter((s): s is ToolsetId => ALL_TOOLSET_IDS.has(s as ToolsetId))
   );
+  if (selected.size === 0) {
+    console.warn(
+      `No valid toolsets found in configuration (${raw}). Falling back to default toolsets.`
+    );
+    return DEFAULT_TOOLSET_IDS;
+  }
+  return selected;
 }
 
 function parseIndividualTools(raw: string | undefined): ReadonlySet<string> {
