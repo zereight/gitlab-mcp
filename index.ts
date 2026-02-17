@@ -4567,7 +4567,7 @@ async function getRepositoryTree(options: GetRepositoryTreeOptions): Promise<Git
   if (options.recursive) queryParams.append("recursive", "true");
   if (options.per_page) queryParams.append("per_page", options.per_page.toString());
   if (options.page_token) queryParams.append("page_token", options.page_token);
-  if (options.pagination) queryParams.append("pagination", options.pagination);
+  if (options.page) queryParams.append("page", options.page);
 
   const headers: Record<string, string> = {
     ...BASE_HEADERS,
