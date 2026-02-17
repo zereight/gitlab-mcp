@@ -370,6 +370,7 @@ docker run -i --rm \
   - `users`\* — User info, events, markdown upload, attachments (5 tools)
 
   Note: `execute_graphql` is not in any toolset and must be added individually via `GITLAB_TOOLS` if needed.
+  Exposing arbitrary GraphQL would allow bypassing toolset boundaries (e.g. querying data that the user intentionally disabled via toolsets like wiki or pipelines), which is a security and permission-containment concern. Keeping `execute_graphql` out of all toolsets and requiring explicit opt-in via `GITLAB_TOOLS=execute_graphql` is intentional, to align with that principle rather than for backward compatibility.
   CLI arg: `--toolsets`
 - `GITLAB_TOOLS`: Comma-separated list of individual tool names to add on top of the enabled toolsets (additive). Useful for cherry-picking specific tools without enabling an entire toolset. Example: `GITLAB_TOOLS="list_pipelines,execute_graphql"`. CLI arg: `--tools`
 
