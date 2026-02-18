@@ -311,24 +311,42 @@ function createServer(): Server {
   );
 
   serverInstance.setRequestHandler(ListToolsRequestSchema, async () => {
-    // Apply read-only filter first
-    const tools0 = GITLAB_READ_ONLY_MODE
-      ? allTools.filter(tool => readOnlyTools.has(tool.name))
-      : allTools;
-    // Toggle wiki tools by USE_GITLAB_WIKI flag
-    const tools1 = USE_GITLAB_WIKI ? tools0 : tools0.filter(tool => !wikiToolNames.has(tool.name));
-    // Toggle milestone tools by USE_MILESTONE flag
-    const tools2 = USE_MILESTONE
-      ? tools1
-      : tools1.filter(tool => !milestoneToolNames.has(tool.name));
-    // Toggle pipeline tools by USE_PIPELINE flag
-    let tools = USE_PIPELINE ? tools2 : tools2.filter(tool => !pipelineToolNames.has(tool.name));
-    tools = GITLAB_DENIED_TOOLS_REGEX
-      ? tools.filter(tool => !GITLAB_DENIED_TOOLS_REGEX.test(tool.name))
-      : tools;
+    // Step 1: Toolset filter — keep tools in enabled toolsets
+    const toolsAfterToolsets = allTools.filter(tool =>
+      isToolInEnabledToolset(tool.name, enabledToolsets)
+    );
 
+    // Step 2: Add GITLAB_TOOLS (individual tools bypass toolset filter)
+    const toolsetToolNames = new Set(toolsAfterToolsets.map(t => t.name));
+    const toolsAfterIndividual = [
+      ...toolsAfterToolsets,
+      ...allTools.filter(
+        tool => individuallyEnabledTools.has(tool.name) && !toolsetToolNames.has(tool.name)
+      ),
+    ];
+
+    // Step 3: Add legacy flag overrides (USE_PIPELINE, USE_MILESTONE, USE_GITLAB_WIKI)
+    const afterIndividualNames = new Set(toolsAfterIndividual.map(t => t.name));
+    const toolsAfterLegacy = [
+      ...toolsAfterIndividual,
+      ...allTools.filter(
+        tool => featureFlagOverrides.has(tool.name) && !afterIndividualNames.has(tool.name)
+      ),
+    ];
+
+    // Step 4: Read-only filter
+    const toolsAfterReadOnly = GITLAB_READ_ONLY_MODE
+      ? toolsAfterLegacy.filter(tool => readOnlyTools.has(tool.name))
+      : toolsAfterLegacy;
+
+    // Step 5: Regex denial filter
+    const toolsAfterDenied = GITLAB_DENIED_TOOLS_REGEX
+      ? toolsAfterReadOnly.filter(tool => !GITLAB_DENIED_TOOLS_REGEX!.test(tool.name))
+      : toolsAfterReadOnly;
+
+    // Step 6: Gemini $schema cleanup
     // <<< START: Gemini 호환성을 위해 $schema 제거 >>>
-    tools = tools.map(tool => {
+    const tools = toolsAfterDenied.map(tool => {
       // inputSchema가 존재하고 객체인지 확인
       if (tool.inputSchema && typeof tool.inputSchema === "object" && tool.inputSchema !== null) {
         // $schema 키가 존재하면 삭제
@@ -503,6 +521,8 @@ const GITLAB_DENIED_TOOLS_REGEX = (() => {
 const USE_GITLAB_WIKI = getConfig("use-wiki", "USE_GITLAB_WIKI") === "true";
 const USE_MILESTONE = getConfig("use-milestone", "USE_MILESTONE") === "true";
 const USE_PIPELINE = getConfig("use-pipeline", "USE_PIPELINE") === "true";
+const GITLAB_TOOLSETS_RAW = getConfig("toolsets", "GITLAB_TOOLSETS");
+const GITLAB_TOOLS_RAW = getConfig("tools", "GITLAB_TOOLS");
 const SSE = getConfig("sse", "SSE") === "true";
 const STREAMABLE_HTTP = getConfig("streamable-http", "STREAMABLE_HTTP") === "true";
 const REMOTE_AUTHORIZATION = getConfig("remote-auth", "REMOTE_AUTHORIZATION") === "true";
@@ -1477,6 +1497,284 @@ const pipelineToolNames = new Set([
   "retry_pipeline_job",
   "cancel_pipeline_job",
 ]);
+
+// --- Toolset definitions ---
+
+type ToolsetId =
+  | "merge_requests"
+  | "issues"
+  | "repositories"
+  | "branches"
+  | "projects"
+  | "labels"
+  | "pipelines"
+  | "milestones"
+  | "wiki"
+  | "releases"
+  | "users";
+
+interface ToolsetDefinition {
+  readonly id: ToolsetId;
+  readonly isDefault: boolean;
+  readonly tools: ReadonlySet<string>;
+}
+
+const TOOLSET_DEFINITIONS: readonly ToolsetDefinition[] = [
+  {
+    id: "merge_requests",
+    isDefault: true,
+    tools: new Set([
+      "merge_merge_request",
+      "approve_merge_request",
+      "unapprove_merge_request",
+      "get_merge_request_approval_state",
+      "get_merge_request",
+      "get_merge_request_diffs",
+      "list_merge_request_diffs",
+      "list_merge_request_versions",
+      "get_merge_request_version",
+      "update_merge_request",
+      "create_merge_request",
+      "list_merge_requests",
+      "get_branch_diffs",
+      "mr_discussions",
+      "create_merge_request_note",
+      "update_merge_request_note",
+      "delete_merge_request_note",
+      "get_merge_request_note",
+      "get_merge_request_notes",
+      "delete_merge_request_discussion_note",
+      "update_merge_request_discussion_note",
+      "create_merge_request_discussion_note",
+      "get_draft_note",
+      "list_draft_notes",
+      "create_draft_note",
+      "update_draft_note",
+      "delete_draft_note",
+      "publish_draft_note",
+      "bulk_publish_draft_notes",
+      "create_merge_request_thread",
+      "resolve_merge_request_thread",
+    ]),
+  },
+  {
+    id: "issues",
+    isDefault: true,
+    tools: new Set([
+      "create_issue",
+      "list_issues",
+      "my_issues",
+      "get_issue",
+      "update_issue",
+      "delete_issue",
+      "create_issue_note",
+      "update_issue_note",
+      "list_issue_links",
+      "list_issue_discussions",
+      "get_issue_link",
+      "create_issue_link",
+      "delete_issue_link",
+      "create_note",
+    ]),
+  },
+  {
+    id: "repositories",
+    isDefault: true,
+    tools: new Set([
+      "search_repositories",
+      "create_repository",
+      "get_file_contents",
+      "push_files",
+      "create_or_update_file",
+      "fork_repository",
+      "get_repository_tree",
+    ]),
+  },
+  {
+    id: "branches",
+    isDefault: true,
+    tools: new Set([
+      "create_branch",
+      "list_commits",
+      "get_commit",
+      "get_commit_diff",
+    ]),
+  },
+  {
+    id: "projects",
+    isDefault: true,
+    tools: new Set([
+      "get_project",
+      "list_projects",
+      "list_project_members",
+      "list_namespaces",
+      "get_namespace",
+      "verify_namespace",
+      "list_group_projects",
+      "list_group_iterations",
+    ]),
+  },
+  {
+    id: "labels",
+    isDefault: true,
+    tools: new Set([
+      "list_labels",
+      "get_label",
+      "create_label",
+      "update_label",
+      "delete_label",
+    ]),
+  },
+  {
+    id: "pipelines",
+    isDefault: false,
+    tools: new Set([
+      "list_pipelines",
+      "get_pipeline",
+      "list_pipeline_jobs",
+      "list_pipeline_trigger_jobs",
+      "get_pipeline_job",
+      "get_pipeline_job_output",
+      "create_pipeline",
+      "retry_pipeline",
+      "cancel_pipeline",
+      "play_pipeline_job",
+      "retry_pipeline_job",
+      "cancel_pipeline_job",
+    ]),
+  },
+  {
+    id: "milestones",
+    isDefault: false,
+    tools: new Set([
+      "list_milestones",
+      "get_milestone",
+      "create_milestone",
+      "edit_milestone",
+      "delete_milestone",
+      "get_milestone_issue",
+      "get_milestone_merge_requests",
+      "promote_milestone",
+      "get_milestone_burndown_events",
+    ]),
+  },
+  {
+    id: "wiki",
+    isDefault: false,
+    tools: new Set([
+      "list_wiki_pages",
+      "get_wiki_page",
+      "create_wiki_page",
+      "update_wiki_page",
+      "delete_wiki_page",
+    ]),
+  },
+  {
+    id: "releases",
+    isDefault: true,
+    tools: new Set([
+      "list_releases",
+      "get_release",
+      "create_release",
+      "update_release",
+      "delete_release",
+      "create_release_evidence",
+      "download_release_asset",
+    ]),
+  },
+  {
+    id: "users",
+    isDefault: true,
+    tools: new Set([
+      "get_users",
+      "list_events",
+      "get_project_events",
+      "upload_markdown",
+      "download_attachment",
+    ]),
+  },
+] as const;
+
+// Derived lookup: tool name → toolset ID
+const TOOLSET_BY_TOOL_NAME = new Map<string, ToolsetId>();
+for (const def of TOOLSET_DEFINITIONS) {
+  for (const tool of def.tools) {
+    TOOLSET_BY_TOOL_NAME.set(tool, def.id);
+  }
+}
+
+const DEFAULT_TOOLSET_IDS: ReadonlySet<ToolsetId> = new Set(
+  TOOLSET_DEFINITIONS.filter(d => d.isDefault).map(d => d.id)
+);
+
+const ALL_TOOLSET_IDS: ReadonlySet<ToolsetId> = new Set(
+  TOOLSET_DEFINITIONS.map(d => d.id)
+);
+
+function parseEnabledToolsets(raw: string | undefined): ReadonlySet<ToolsetId> {
+  if (!raw || raw.trim() === "") {
+    return DEFAULT_TOOLSET_IDS;
+  }
+  const trimmed = raw.trim().toLowerCase();
+  if (trimmed === "all") {
+    return ALL_TOOLSET_IDS;
+  }
+  const selected = new Set(
+    trimmed
+      .split(",")
+      .map(s => s.trim())
+      .filter((s): s is ToolsetId => ALL_TOOLSET_IDS.has(s as ToolsetId))
+  );
+  if (selected.size === 0) {
+    console.warn(
+      `No valid toolsets found in configuration (${raw}). Falling back to default toolsets.`
+    );
+    return DEFAULT_TOOLSET_IDS;
+  }
+  return selected;
+}
+
+function parseIndividualTools(raw: string | undefined): ReadonlySet<string> {
+  if (!raw || raw.trim() === "") {
+    return new Set();
+  }
+  return new Set(
+    raw
+      .trim()
+      .split(",")
+      .map(s => s.trim())
+      .filter(Boolean)
+  );
+}
+
+function buildFeatureFlagOverrides(): ReadonlySet<string> {
+  const overrides = new Set<string>();
+  if (USE_GITLAB_WIKI) {
+    for (const t of wikiToolNames) overrides.add(t);
+  }
+  if (USE_MILESTONE) {
+    for (const t of milestoneToolNames) overrides.add(t);
+  }
+  if (USE_PIPELINE) {
+    for (const t of pipelineToolNames) overrides.add(t);
+  }
+  return overrides;
+}
+
+function isToolInEnabledToolset(
+  toolName: string,
+  enabledToolsets: ReadonlySet<ToolsetId>
+): boolean {
+  const toolsetId = TOOLSET_BY_TOOL_NAME.get(toolName);
+  // Tools not in any toolset (e.g. execute_graphql) are excluded by default
+  if (toolsetId === undefined) return false;
+  return enabledToolsets.has(toolsetId);
+}
+
+// Compute at startup
+const enabledToolsets = parseEnabledToolsets(GITLAB_TOOLSETS_RAW);
+const individuallyEnabledTools = parseIndividualTools(GITLAB_TOOLS_RAW);
+const featureFlagOverrides = buildFeatureFlagOverrides();
 
 /**
  * Smart URL handling for GitLab API
