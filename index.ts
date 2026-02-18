@@ -3269,6 +3269,7 @@ async function listDraftNotes(
  * @param {string} projectId - The ID or URL-encoded path of the project
  * @param {number|string} mergeRequestIid - The internal ID of the merge request
  * @param {string} body - The content of the draft note
+ * @param {string} [inReplyToDiscussionId] - The ID of a discussion the draft note replies to
  * @param {MergeRequestThreadPosition} [position] - Position information for diff notes
  * @param {boolean} [resolveDiscussion] - Whether to resolve the discussion when publishing
  * @returns {Promise<GitLabDraftNote>} The created draft note
@@ -3277,6 +3278,7 @@ async function createDraftNote(
   projectId: string,
   mergeRequestIid: number | string,
   body: string,
+  inReplyToDiscussionId?: string,
   position?: MergeRequestThreadPosition,
   resolveDiscussion?: boolean
 ): Promise<GitLabDraftNote> {
@@ -3288,6 +3290,9 @@ async function createDraftNote(
   );
 
   const requestBody: any = { note: body };
+  if (inReplyToDiscussionId) {
+    requestBody.in_reply_to_discussion_id = inReplyToDiscussionId;
+  }
   if (position) {
     requestBody.position = position;
   }
@@ -6126,12 +6131,13 @@ async function handleToolCall(params: any) {
 
       case "create_draft_note": {
         const args = CreateDraftNoteSchema.parse(params.arguments);
-        const { project_id, merge_request_iid, body, position, resolve_discussion } = args;
+        const { project_id, merge_request_iid, body, in_reply_to_discussion_id, position, resolve_discussion } = args;
 
         const draftNote = await createDraftNote(
           project_id,
           merge_request_iid,
           body,
+          in_reply_to_discussion_id,
           position,
           resolve_discussion
         );
