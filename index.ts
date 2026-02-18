@@ -298,6 +298,40 @@ try {
  * cross-client data leakage (GHSA-345p-7cg4-v4c7).
  */
 function createServer(): Server {
+  // Precompute filtered tool list once at server creation (Steps 1–5 are static)
+  // Step 1: Toolset filter — keep tools in enabled toolsets
+  const toolsAfterToolsets = allTools.filter(tool =>
+    isToolInEnabledToolset(tool.name, enabledToolsets)
+  );
+
+  // Step 2: Add GITLAB_TOOLS (individual tools bypass toolset filter)
+  const toolsetToolNames = new Set(toolsAfterToolsets.map(t => t.name));
+  const toolsAfterIndividual = [
+    ...toolsAfterToolsets,
+    ...allTools.filter(
+      tool => individuallyEnabledTools.has(tool.name) && !toolsetToolNames.has(tool.name)
+    ),
+  ];
+
+  // Step 3: Add legacy flag overrides (USE_PIPELINE, USE_MILESTONE, USE_GITLAB_WIKI)
+  const afterIndividualNames = new Set(toolsAfterIndividual.map(t => t.name));
+  const toolsAfterLegacy = [
+    ...toolsAfterIndividual,
+    ...allTools.filter(
+      tool => featureFlagOverrides.has(tool.name) && !afterIndividualNames.has(tool.name)
+    ),
+  ];
+
+  // Step 4: Read-only filter
+  const toolsAfterReadOnly = GITLAB_READ_ONLY_MODE
+    ? toolsAfterLegacy.filter(tool => readOnlyTools.has(tool.name))
+    : toolsAfterLegacy;
+
+  // Step 5: Regex denial filter
+  const precomputedFilteredTools = GITLAB_DENIED_TOOLS_REGEX
+    ? toolsAfterReadOnly.filter(tool => !GITLAB_DENIED_TOOLS_REGEX!.test(tool.name))
+    : toolsAfterReadOnly;
+
   const serverInstance = new Server(
     {
       name: "better-gitlab-mcp-server",
@@ -311,42 +345,9 @@ function createServer(): Server {
   );
 
   serverInstance.setRequestHandler(ListToolsRequestSchema, async () => {
-    // Step 1: Toolset filter — keep tools in enabled toolsets
-    const toolsAfterToolsets = allTools.filter(tool =>
-      isToolInEnabledToolset(tool.name, enabledToolsets)
-    );
-
-    // Step 2: Add GITLAB_TOOLS (individual tools bypass toolset filter)
-    const toolsetToolNames = new Set(toolsAfterToolsets.map(t => t.name));
-    const toolsAfterIndividual = [
-      ...toolsAfterToolsets,
-      ...allTools.filter(
-        tool => individuallyEnabledTools.has(tool.name) && !toolsetToolNames.has(tool.name)
-      ),
-    ];
-
-    // Step 3: Add legacy flag overrides (USE_PIPELINE, USE_MILESTONE, USE_GITLAB_WIKI)
-    const afterIndividualNames = new Set(toolsAfterIndividual.map(t => t.name));
-    const toolsAfterLegacy = [
-      ...toolsAfterIndividual,
-      ...allTools.filter(
-        tool => featureFlagOverrides.has(tool.name) && !afterIndividualNames.has(tool.name)
-      ),
-    ];
-
-    // Step 4: Read-only filter
-    const toolsAfterReadOnly = GITLAB_READ_ONLY_MODE
-      ? toolsAfterLegacy.filter(tool => readOnlyTools.has(tool.name))
-      : toolsAfterLegacy;
-
-    // Step 5: Regex denial filter
-    const toolsAfterDenied = GITLAB_DENIED_TOOLS_REGEX
-      ? toolsAfterReadOnly.filter(tool => !GITLAB_DENIED_TOOLS_REGEX!.test(tool.name))
-      : toolsAfterReadOnly;
-
-    // Step 6: Gemini $schema cleanup
+    // Step 6: Gemini $schema cleanup (only dynamic step per request)
     // <<< START: Gemini 호환성을 위해 $schema 제거 >>>
-    const tools = toolsAfterDenied.map(tool => {
+    const tools = precomputedFilteredTools.map(tool => {
       // inputSchema가 존재하고 객체인지 확인
       if (tool.inputSchema && typeof tool.inputSchema === "object" && tool.inputSchema !== null) {
         // $schema 키가 존재하면 삭제
@@ -1699,6 +1700,11 @@ const TOOLSET_DEFINITIONS: readonly ToolsetDefinition[] = [
 const TOOLSET_BY_TOOL_NAME = new Map<string, ToolsetId>();
 for (const def of TOOLSET_DEFINITIONS) {
   for (const tool of def.tools) {
+    if (TOOLSET_BY_TOOL_NAME.has(tool)) {
+      logger.warn(
+        `Tool "${tool}" is defined in multiple toolsets: "${TOOLSET_BY_TOOL_NAME.get(tool)}" and "${def.id}"`
+      );
+    }
     TOOLSET_BY_TOOL_NAME.set(tool, def.id);
   }
 }
@@ -1726,7 +1732,7 @@ function parseEnabledToolsets(raw: string | undefined): ReadonlySet<ToolsetId> {
       .filter((s): s is ToolsetId => ALL_TOOLSET_IDS.has(s as ToolsetId))
   );
   if (selected.size === 0) {
-    console.warn(
+    logger.warn(
       `No valid toolsets found in configuration (${raw}). Falling back to default toolsets.`
     );
     return DEFAULT_TOOLSET_IDS;
@@ -1738,13 +1744,17 @@ function parseIndividualTools(raw: string | undefined): ReadonlySet<string> {
   if (!raw || raw.trim() === "") {
     return new Set();
   }
-  return new Set(
-    raw
-      .trim()
-      .split(",")
-      .map(s => s.trim())
-      .filter(Boolean)
-  );
+  const allToolNames = new Set(allTools.map((t: { name: string }) => t.name));
+  const parsed = raw
+    .trim()
+    .split(",")
+    .map(s => s.trim().toLowerCase())
+    .filter(Boolean);
+  const unknown = parsed.filter(name => !allToolNames.has(name));
+  if (unknown.length > 0) {
+    logger.warn(`Unknown tool names in GITLAB_TOOLS (will be ignored): ${unknown.join(", ")}`);
+  }
+  return new Set(parsed);
 }
 
 function buildFeatureFlagOverrides(): ReadonlySet<string> {
@@ -1775,6 +1785,14 @@ function isToolInEnabledToolset(
 const enabledToolsets = parseEnabledToolsets(GITLAB_TOOLSETS_RAW);
 const individuallyEnabledTools = parseIndividualTools(GITLAB_TOOLS_RAW);
 const featureFlagOverrides = buildFeatureFlagOverrides();
+
+// Warn about potentially confusing configuration
+if (GITLAB_TOOLSETS_RAW && (USE_PIPELINE || USE_MILESTONE || USE_GITLAB_WIKI)) {
+  logger.warn(
+    "GITLAB_TOOLSETS is set alongside legacy flags (USE_PIPELINE, USE_MILESTONE, USE_GITLAB_WIKI). " +
+    "Legacy flags add tools additively on top of the toolset selection and may produce unexpected results."
+  );
+}
 
 /**
  * Smart URL handling for GitLab API
