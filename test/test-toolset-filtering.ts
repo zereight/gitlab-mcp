@@ -553,4 +553,55 @@ describe("Toolset Filtering", () => {
       assert.strictEqual(tools.length, TOOLSET_TOOL_COUNTS.issues);
     });
   });
+
+  // ---- 14. GITLAB_TOOLS case-insensitive matching ----
+
+  describe("GITLAB_TOOLS with mixed-case tool names", () => {
+    let server: ServerInstance;
+    let tools: string[];
+
+    before(async () => {
+      const port = await nextMcpPort();
+      server = await launchMcpServer(mockGitLabUrl, port, {
+        GITLAB_TOOLS: "List_Pipelines,Execute_GraphQL",
+      });
+      tools = await getToolNames(`http://${HOST}:${port}/mcp`);
+    });
+
+    after(() => cleanupServers([server]));
+
+    test("resolves mixed-case tool names to lowercase equivalents", () => {
+      assertContainsAll(tools, ["list_pipelines", "execute_graphql"], "case-insensitive tools");
+    });
+
+    test("returns default tools plus the two individual tools", () => {
+      assert.strictEqual(tools.length, DEFAULT_TOOL_COUNT + 2);
+    });
+  });
+
+  // ---- 15. GITLAB_TOOLS with unknown tool names ----
+
+  describe("GITLAB_TOOLS with unknown tool names", () => {
+    let server: ServerInstance;
+    let tools: string[];
+
+    before(async () => {
+      const port = await nextMcpPort();
+      server = await launchMcpServer(mockGitLabUrl, port, {
+        GITLAB_TOOLS: "list_pipelines,nonexistent_tool_xyz",
+      });
+      tools = await getToolNames(`http://${HOST}:${port}/mcp`);
+    });
+
+    after(() => cleanupServers([server]));
+
+    test("server starts normally and returns tools without crashing", () => {
+      assert.ok(tools.length > 0, "Should return at least some tools");
+    });
+
+    test("includes the valid individual tool but ignores the unknown one", () => {
+      assertContainsAll(tools, ["list_pipelines"], "valid individual tool");
+      assertContainsNone(tools, ["nonexistent_tool_xyz"], "unknown tool");
+    });
+  });
 });
