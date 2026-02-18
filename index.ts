@@ -346,25 +346,25 @@ function createServer(): Server {
 
   serverInstance.setRequestHandler(ListToolsRequestSchema, async () => {
     // Step 6: Gemini $schema cleanup (only dynamic step per request)
-    // <<< START: Gemini 호환성을 위해 $schema 제거 >>>
+    // <<< START: Remove $schema for Gemini compatibility >>>
     const tools = precomputedFilteredTools.map(tool => {
-      // inputSchema가 존재하고 객체인지 확인
+      // Check if inputSchema exists and is an object
       if (tool.inputSchema && typeof tool.inputSchema === "object" && tool.inputSchema !== null) {
-        // $schema 키가 존재하면 삭제
+        // Remove $schema key if present
         if ("$schema" in tool.inputSchema) {
-          // 불변성을 위해 새로운 객체 생성 (선택적이지만 권장)
+          // Create a new object to preserve immutability (optional but recommended)
           const modifiedSchema = { ...tool.inputSchema };
           delete modifiedSchema.$schema;
           return { ...tool, inputSchema: modifiedSchema };
         }
       }
-      // 변경이 필요 없으면 그대로 반환
+      // Return as-is if no modification needed
       return tool;
     });
-    // <<< END: Gemini 호환성을 위해 $schema 제거 >>>
+    // <<< END: Remove $schema for Gemini compatibility >>>
 
     return {
-      tools, // $schema가 제거된 도구 목록 반환
+      tools, // return tool list with $schema removed
     };
   });
 
@@ -1927,7 +1927,7 @@ async function forkProject(projectId: string, namespace?: string): Promise<GitLa
     method: "POST",
   });
 
-  // 이미 존재하는 프로젝트인 경우 처리
+  // Handle case where project already exists
   if (response.status === 409) {
     throw new Error("Project already exists in the target namespace");
   }
@@ -2007,7 +2007,7 @@ async function getFileContents(
   const effectiveProjectId = getEffectiveProjectId(projectId);
   const encodedPath = encodeURIComponent(filePath);
 
-  // ref가 없는 경우 default branch를 가져옴
+  // Fall back to default branch if ref is not provided
   if (!ref) {
     ref = await getDefaultBranchRef(projectId);
   }
@@ -2022,7 +2022,7 @@ async function getFileContents(
     ...getFetchConfig(),
   });
 
-  // 파일을 찾을 수 없는 경우 처리
+  // Handle file not found
   if (response.status === 404) {
     throw new Error(`File not found: ${filePath}`);
   }
@@ -2031,7 +2031,7 @@ async function getFileContents(
   const data = await response.json();
   const parsedData = GitLabContentSchema.parse(data);
 
-  // Base64로 인코딩된 파일 내용을 UTF-8로 디코딩
+  // Decode Base64-encoded file content to UTF-8
   if (!Array.isArray(parsedData) && parsedData.content) {
     parsedData.content = Buffer.from(parsedData.content, "base64").toString("utf8");
     parsedData.encoding = "utf8";
@@ -2070,7 +2070,7 @@ async function createIssue(
     }),
   });
 
-  // 잘못된 요청 처리
+  // Handle bad request
   if (response.status === 400) {
     const errorBody = await response.text();
     throw new Error(`Invalid request: ${errorBody}`);
@@ -3506,12 +3506,12 @@ async function getMergeRequestApprovalState(
  */
 async function createNote(
   projectId: string,
-  noteableType: "issue" | "merge_request", // 'issue' 또는 'merge_request' 타입 명시
+  noteableType: "issue" | "merge_request", // specifies 'issue' or 'merge_request' type
   noteableIid: number | string,
   body: string
 ): Promise<any> {
   projectId = decodeURIComponent(projectId); // Decode project ID
-  // ⚙️ 응답 타입은 GitLab API 문서에 따라 조정 가능
+  // ⚙️ Response type can be adjusted according to the GitLab API documentation
   const url = new URL(
     `${getEffectiveApiUrl()}/projects/${encodeURIComponent(
       getEffectiveProjectId(projectId)
