@@ -537,6 +537,7 @@ const PORT = Number.parseInt(getConfig("port", "PORT", "3002"), 10);
 // Add proxy configuration
 const HTTP_PROXY = getConfig("http-proxy", "HTTP_PROXY");
 const HTTPS_PROXY = getConfig("https-proxy", "HTTPS_PROXY");
+const NO_PROXY = getConfig("no-proxy", "NO_PROXY");
 const NODE_TLS_REJECT_UNAUTHORIZED = getConfig(
   "tls-reject-unauthorized",
   "NODE_TLS_REJECT_UNAUTHORIZED"
@@ -582,6 +583,7 @@ const clientPool = new GitLabClientPool({
     .map(normalizeGitLabApiUrl),
   httpProxy: HTTP_PROXY,
   httpsProxy: HTTPS_PROXY,
+  noProxy: NO_PROXY,
   rejectUnauthorized: NODE_TLS_REJECT_UNAUTHORIZED !== "0",
   caCertPath: GITLAB_CA_CERT_PATH,
   poolMaxSize: GITLAB_POOL_MAX_SIZE,
