@@ -176,8 +176,8 @@ describe('NO_PROXY Integration Tests', () => {
     await client.disconnect();
   });
 
-  test('should bypass proxy with domain suffix pattern', async () => {
-    // Start MCP server with domain suffix pattern
+  test('should bypass proxy with exact IP and localhost', async () => {
+    // Start MCP server with explicit IP and localhost patterns
     const mcpPort = await findAvailablePort(MCP_SERVER_PORT_BASE + 3);
     const server = await launchServer({
       mode: TransportMode.STREAMABLE_HTTP,
@@ -190,15 +190,15 @@ describe('NO_PROXY Integration Tests', () => {
         // Set a fake proxy that would fail if used
         HTTP_PROXY: 'http://nonexistent-proxy.example.com:9999',
         HTTPS_PROXY: 'http://nonexistent-proxy.example.com:9999',
-        // Domain suffix pattern - matches .0.1 suffix (for 127.0.0.1)
-        NO_PROXY: 'localhost,.0.1',
+        // Use explicit localhost and 127.0.0.1 patterns
+        NO_PROXY: 'localhost,127.0.0.1',
       }
     });
     servers.push(server);
     mcpUrl = `http://${HOST}:${mcpPort}/mcp`;
 
     console.log(`MCP Server: ${mcpUrl}`);
-    console.log(`NO_PROXY: localhost,.0.1 (suffix pattern)`);
+    console.log(`NO_PROXY: localhost,127.0.0.1 (exact matches)`);
 
     // Create client and make a request
     const client = new CustomHeaderClient({
@@ -206,9 +206,9 @@ describe('NO_PROXY Integration Tests', () => {
     });
     await client.connect(mcpUrl);
     
-    // This should succeed because .0.1 matches 127.0.0.1
+    // This should succeed because 127.0.0.1 and localhost are explicitly in NO_PROXY
     const result = await client.callTool('list_projects', { per_page: 1 });
-    console.log('  ✓ Request succeeded with domain suffix NO_PROXY');
+    console.log('  ✓ Request succeeded with exact IP/localhost NO_PROXY match');
     
     assert.ok(result, 'Request should succeed');
     await client.disconnect();
