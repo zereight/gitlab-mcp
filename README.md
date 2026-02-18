@@ -407,6 +407,16 @@ docker run -i --rm \
 - `MAX_SESSIONS`: Maximum number of concurrent sessions allowed. Default: `1000`. Valid range: 1-10000. When limit is reached, new connections are rejected with HTTP 503.
 - `MAX_REQUESTS_PER_MINUTE`: Rate limit per session in requests per minute. Default: `60`. Valid range: 1-1000. Exceeded requests return HTTP 429.
 - `PORT`: Server port. Default: `3002`. Valid range: 1-65535.
+- `HTTP_PROXY`: HTTP proxy server URL for outgoing requests. Example: `http://proxy.example.com:8080`. Supports HTTP/HTTPS and SOCKS proxies (URLs starting with `socks://` or `socks5://`). CLI arg: `--http-proxy`
+- `HTTPS_PROXY`: HTTPS proxy server URL for outgoing requests. Example: `https://proxy.example.com:8080`. Supports HTTP/HTTPS and SOCKS proxies. CLI arg: `--https-proxy`
+- `NO_PROXY`: Comma-separated list of hosts that should bypass the proxy. Supports:
+  - Exact hostname matches (e.g., `localhost`, `gitlab.internal.com`)
+  - Domain suffix matches (e.g., `.internal.com` matches any subdomain)
+  - IP addresses (e.g., `127.0.0.1`, `192.168.1.1`)
+  - Port-specific matches (e.g., `example.com:443`)
+  - Wildcard `*` to bypass proxy for all hosts
+  - Example: `NO_PROXY=localhost,127.0.0.1,.internal.com`
+  - CLI arg: `--no-proxy`
 
 #### Monitoring Endpoints
 
