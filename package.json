@@ -32,6 +32,7 @@
     "test:mock": "npx tsx --test test/remote-auth-simple-test.ts && tsx test/oauth-tests.ts && tsx test/test-list-merge-requests.ts && tsx test/test-list-project-members.ts && tsx test/test-download-attachment.ts",
     "test:live": "node test/validate-api.js",
     "test:remote-auth": "npm run build && npx tsx --test test/remote-auth-simple-test.ts",
+    "test:schema": "tsx test/schema-tests.ts",
     "test:oauth": "tsx test/oauth-tests.ts",
     "test:list-merge-requests": "npm run build && tsx test/test-list-merge-requests.ts",
     "test:approvals": "npm run build && tsx test/test-merge-request-approvals.ts",
