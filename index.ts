@@ -464,45 +464,25 @@ function validateConfiguration(): void {
 const GITLAB_PERSONAL_ACCESS_TOKEN = getConfig("token", "GITLAB_PERSONAL_ACCESS_TOKEN");
 let OAUTH_ACCESS_TOKEN: string | null = null;
 let oauthClient: GitLabOAuth | null = null;
-let oauthRefreshTimer: ReturnType<typeof setTimeout> | null = null;
-
 /**
- * Schedule proactive OAuth token refresh before it expires.
- * Refreshes 5 minutes before expiry (matching the buffer in oauth.ts).
- * Falls back to a 30-minute interval if expiry info is unavailable.
+ * Ensure the OAuth token is valid before making an API call.
+ * Refreshes the token lazily (only when a tool is actually called).
+ * This avoids background timers that cause issues with multiple instances.
  */
-function scheduleOAuthTokenRefresh(): void {
-  if (oauthRefreshTimer) {
-    clearTimeout(oauthRefreshTimer);
-  }
+async function ensureValidOAuthToken(): Promise<void> {
   if (!oauthClient) return;
 
-  const expiresInMs = oauthClient.getTokenExpiresInMs();
-  // Refresh 5 minutes before expiry, or every 30 minutes if no expiry info
-  const REFRESH_BUFFER_MS = 5 * 60 * 1000;
-  const DEFAULT_REFRESH_INTERVAL_MS = 30 * 60 * 1000;
-  const delay = expiresInMs != null
-    ? Math.max(expiresInMs - REFRESH_BUFFER_MS, 0)
-    : DEFAULT_REFRESH_INTERVAL_MS;
+  if (oauthClient.hasValidToken()) return;
 
-  logger.info(`Scheduling OAuth token refresh in ${Math.round(delay / 1000)}s`);
-
-  oauthRefreshTimer = setTimeout(async () => {
-    if (!oauthClient) return;
-    try {
-      logger.info("Proactively refreshing OAuth token...");
-      const freshToken = await oauthClient.getAccessToken();
-      OAUTH_ACCESS_TOKEN = freshToken;
-      logger.info("OAuth token refreshed successfully");
-    } catch (error) {
-      logger.error("Failed to refresh OAuth token:", error);
-    }
-    // Schedule the next refresh
-    scheduleOAuthTokenRefresh();
-  }, delay);
-
-  // Don't prevent process exit
-  oauthRefreshTimer.unref();
+  try {
+    logger.info("OAuth token expired or missing, refreshing...");
+    const freshToken = await oauthClient.getAccessToken();
+    OAUTH_ACCESS_TOKEN = freshToken;
+    logger.info("OAuth token refreshed successfully");
+  } catch (error) {
+    logger.error("Failed to refresh OAuth token:", error);
+    throw error;
+  }
 }
 
 const GITLAB_AUTH_COOKIE_PATH = getConfig("cookie-path", "GITLAB_AUTH_COOKIE_PATH");
@@ -762,7 +742,7 @@ const BASE_HEADERS: Record<string, string> = {
 /**
  * Build authentication headers dynamically based on context
  * In REMOTE_AUTHORIZATION mode, reads from AsyncLocalStorage session context
- * Otherwise, uses environment token (OAuth token is refreshed proactively via timer)
+ * Otherwise, uses environment token (OAuth token is refreshed lazily before each tool call)
  */
 function buildAuthHeaders(): Record<string, string> {
   if (REMOTE_AUTHORIZATION) {
@@ -5569,6 +5549,10 @@ async function handleToolCall(params: any) {
     if (GITLAB_AUTH_COOKIE_PATH) {
       await ensureSessionForRequest();
     }
+
+    // Lazy OAuth token refresh: only validate/refresh when a tool is actually called
+    await ensureValidOAuthToken();
+
     logger.info(params.name);
     switch (params.name) {
       case "execute_graphql": {
@@ -7504,7 +7488,6 @@ async function runServer() {
         oauthClient = oauthResult.client;
         OAUTH_ACCESS_TOKEN = oauthResult.accessToken;
         logger.info("OAuth authentication successful");
-        scheduleOAuthTokenRefresh();
       } catch (error) {
         logger.error("OAuth authentication failed:", error);
         process.exit(1);
