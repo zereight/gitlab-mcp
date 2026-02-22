@@ -1,4 +1,5 @@
 import * as fs from "fs";
+import * as os from "os";
 import * as path from "path";
 import * as http from "http";
 import * as net from "net";
@@ -118,7 +119,7 @@ export class GitLabOAuth {
   constructor(config: OAuthConfig) {
     this.config = config;
     this.tokenStoragePath =
-      config.tokenStoragePath || path.join(process.env.HOME || "", ".gitlab-mcp-token.json");
+      config.tokenStoragePath || path.join(os.homedir(), ".gitlab-mcp-token.json");
   }
 
   /**
@@ -285,6 +286,22 @@ export class GitLabOAuth {
     const expiryTime = tokenData.created_at + tokenData.expires_in * 1000;
     // Add 5 minute buffer to refresh before actual expiry
     return Date.now() >= expiryTime - 5 * 60 * 1000;
+  }
+
+  /**
+   * Get the number of milliseconds until the token expires.
+   * Returns null if no token or no expiry info.
+   * Returns 0 if already expired.
+   */
+  getTokenExpiresInMs(): number | null {
+    const tokenData = this.loadToken();
+    if (!tokenData || !tokenData.expires_in) {
+      return null;
+    }
+
+    const expiryTime = tokenData.created_at + tokenData.expires_in * 1000;
+    const remaining = expiryTime - Date.now();
+    return Math.max(0, remaining);
   }
 
   /**
@@ -609,9 +626,11 @@ export class GitLabOAuth {
 }
 
 /**
- * Initialize OAuth authentication for GitLab MCP server
+ * Create and initialize a GitLabOAuth client.
+ * Performs initial authentication (triggers browser flow if needed).
+ * Returns the client instance and the initial access token.
  */
-export async function initializeOAuth(gitlabUrl: string = "https://gitlab.com"): Promise<string> {
+export async function initializeOAuthClient(gitlabUrl: string = "https://gitlab.com"): Promise<{ client: GitLabOAuth; accessToken: string }> {
   const clientId = process.env.GITLAB_OAUTH_CLIENT_ID;
   const clientSecret = process.env.GITLAB_OAUTH_CLIENT_SECRET;
   const redirectUri = process.env.GITLAB_OAUTH_REDIRECT_URI || "http://127.0.0.1:8888/callback";
@@ -632,5 +651,16 @@ export async function initializeOAuth(gitlabUrl: string = "https://gitlab.com"):
     tokenStoragePath,
   });
 
-  return await oauth.getAccessToken();
+  // Single call: triggers browser flow if needed, or reads cached token
+  const accessToken = await oauth.getAccessToken();
+
+  return { client: oauth, accessToken };
+}
+
+/**
+ * Initialize OAuth authentication for GitLab MCP server
+ */
+export async function initializeOAuth(gitlabUrl: string = "https://gitlab.com"): Promise<string> {
+  const { accessToken } = await initializeOAuthClient(gitlabUrl);
+  return accessToken;
 }
