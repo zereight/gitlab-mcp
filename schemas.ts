@@ -258,6 +258,133 @@ export const ListPipelineTriggerJobsSchema = z
   })
   .merge(PaginationOptionsSchema);
 
+// Deployment related schemas
+export const GitLabDeploymentSchema = z.object({
+  id: z.coerce.string(),
+  iid: z.coerce.string().optional(),
+  status: z.string(),
+  ref: z.string().optional(),
+  sha: z.string(),
+  created_at: z.string(),
+  updated_at: z.string().optional(),
+  finished_at: z.string().nullable().optional(),
+  environment: z
+    .object({
+      id: z.coerce.string().optional(),
+      name: z.string(),
+      slug: z.string().optional(),
+      external_url: z.string().nullable().optional(),
+      state: z.string().optional(),
+      tier: z.string().optional(),
+    })
+    .optional(),
+  deployable: z
+    .object({
+      id: z.coerce.string().optional(),
+      name: z.string().optional(),
+      status: z.string().optional(),
+      stage: z.string().optional(),
+      web_url: z.string().optional(),
+      pipeline: z
+        .object({
+          id: z.coerce.string().optional(),
+          status: z.string().optional(),
+          ref: z.string().optional(),
+          sha: z.string().optional(),
+          web_url: z.string().optional(),
+        })
+        .optional(),
+    })
+    .nullable()
+    .optional(),
+  user: z
+    .object({
+      id: z.coerce.string().optional(),
+      username: z.string().optional(),
+      name: z.string().optional(),
+      avatar_url: z.string().nullable().optional(),
+    })
+    .optional(),
+  web_url: z.string().optional(),
+});
+
+export const ListDeploymentsSchema = z
+  .object({
+    project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
+    environment: z.string().optional().describe("Filter by environment name"),
+    ref: z.string().optional().describe("Filter by ref"),
+    sha: z
+      .string()
+      .optional()
+      .describe("Filter by commit SHA (if supported by your GitLab version)"),
+    status: z.string().optional().describe("Filter by deployment status"),
+    updated_after: z
+      .string()
+      .optional()
+      .describe("Return deployments updated after the specified date"),
+    updated_before: z
+      .string()
+      .optional()
+      .describe("Return deployments updated before the specified date"),
+    order_by: z
+      .enum(["id", "iid", "created_at", "updated_at", "ref", "status", "environment"])
+      .optional()
+      .describe("Order deployments by"),
+    sort: z.enum(["asc", "desc"]).optional().describe("Sort deployments"),
+  })
+  .merge(PaginationOptionsSchema);
+
+export const GetDeploymentSchema = z.object({
+  project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
+  deployment_id: z.coerce.string().describe("The ID of the deployment"),
+});
+
+// Environment related schemas
+const GitLabEnvironmentLastDeploymentSchema = z.object({
+  id: z.coerce.string().optional(),
+  iid: z.coerce.string().optional(),
+  status: z.string().optional(),
+  ref: z.string().optional(),
+  sha: z.string().optional(),
+  created_at: z.string().optional(),
+  updated_at: z.string().optional(),
+  web_url: z.string().optional(),
+});
+
+export const GitLabEnvironmentSchema = z.object({
+  id: z.coerce.string(),
+  name: z.string(),
+  slug: z.string().optional(),
+  external_url: z.string().nullable().optional(),
+  state: z.string().optional(),
+  tier: z.string().optional(),
+  environment_type: z.string().optional(),
+  created_at: z.string().optional(),
+  updated_at: z.string().optional(),
+  auto_stop_at: z.string().nullable().optional(),
+  enable_advanced_logs_querying: z.boolean().optional(),
+  logs_api_path: z.string().optional(),
+  web_url: z.string().optional(),
+  last_deployment: GitLabEnvironmentLastDeploymentSchema.nullable().optional(),
+});
+
+export const ListEnvironmentsSchema = z
+  .object({
+    project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
+    name: z.string().optional().describe("Return environments with this exact name"),
+    search: z.string().optional().describe("Search environments by name"),
+    states: z
+      .enum(["available", "stopped"])
+      .optional()
+      .describe("Filter environments by state"),
+  })
+  .merge(PaginationOptionsSchema);
+
+export const GetEnvironmentSchema = z.object({
+  project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
+  environment_id: z.coerce.string().describe("The ID of the environment"),
+});
+
 // Schema for creating a new pipeline
 export const CreatePipelineSchema = z.object({
   project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
@@ -2376,10 +2503,16 @@ export type CreateMergeRequestDiscussionNoteOptions = z.infer<
 export type GitLabPipelineJob = z.infer<typeof GitLabPipelineJobSchema>;
 export type GitLabPipelineTriggerJob = z.infer<typeof GitLabPipelineTriggerJobSchema>;
 export type GitLabPipeline = z.infer<typeof GitLabPipelineSchema>;
+export type GitLabDeployment = z.infer<typeof GitLabDeploymentSchema>;
+export type GitLabEnvironment = z.infer<typeof GitLabEnvironmentSchema>;
 export type ListPipelinesOptions = z.infer<typeof ListPipelinesSchema>;
 export type GetPipelineOptions = z.infer<typeof GetPipelineSchema>;
 export type ListPipelineJobsOptions = z.infer<typeof ListPipelineJobsSchema>;
 export type ListPipelineTriggerJobsOptions = z.infer<typeof ListPipelineTriggerJobsSchema>;
+export type ListDeploymentsOptions = z.infer<typeof ListDeploymentsSchema>;
+export type GetDeploymentOptions = z.infer<typeof GetDeploymentSchema>;
+export type ListEnvironmentsOptions = z.infer<typeof ListEnvironmentsSchema>;
+export type GetEnvironmentOptions = z.infer<typeof GetEnvironmentSchema>;
 export type CreatePipelineOptions = z.infer<typeof CreatePipelineSchema>;
 export type RetryPipelineOptions = z.infer<typeof RetryPipelineSchema>;
 export type CancelPipelineOptions = z.infer<typeof CancelPipelineSchema>;
