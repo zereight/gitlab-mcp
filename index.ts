@@ -5113,6 +5113,7 @@ async function downloadJobArtifacts(
   const buffer = await response.arrayBuffer();
   const filename = `artifacts_job_${jobId}.zip`;
   const savePath = localPath ? path.join(localPath, filename) : filename;
+  fs.mkdirSync(path.dirname(savePath), { recursive: true });
 
   fs.writeFileSync(savePath, Buffer.from(buffer));
 
@@ -5134,9 +5135,13 @@ async function getJobArtifactFile(
 ): Promise<string> {
   projectId = decodeURIComponent(projectId);
   const effectiveProjectId = getEffectiveProjectId(projectId);
+  const encodedArtifactPath = artifactPath
+    .split("/")
+    .map(segment => encodeURIComponent(segment))
+    .join("/");
 
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(effectiveProjectId)}/jobs/${jobId}/artifacts/${artifactPath}`
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(effectiveProjectId)}/jobs/${jobId}/artifacts/${encodedArtifactPath}`
   );
 
   const response = await fetch(url.toString(), {

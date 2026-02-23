@@ -42,7 +42,6 @@
     "format:check": "prettier --check \"**/*.{js,ts,json,md}\""
   },
   "dependencies": {
-    "@esbuild/darwin-arm64": "^0.27.3",
     "@modelcontextprotocol/sdk": "^1.24.2",
     "@types/node-fetch": "^2.6.12",
     "express": "^5.1.0",

@@ -9,6 +9,7 @@ import os from 'node:os';
 const MOCK_TOKEN = 'glpat-mock-token-12345';
 const TEST_PROJECT_ID = '123';
 const TEST_JOB_ID = '456';
+const TEST_ENCODED_ARTIFACT_PATH = 'reports/report#1.txt';
 
 // Helper to run an MCP tool via the built server
 async function callTool(
@@ -124,6 +125,16 @@ describe('job artifacts tools', () => {
       res.send('<testsuites><testsuite name="unit" tests="5" failures="1"></testsuite></testsuites>');
     });
 
+    // Add mock handler for path that requires URL encoding
+    mockGitLab.addMockHandler(
+      'get',
+      `/projects/${TEST_PROJECT_ID}/jobs/${TEST_JOB_ID}/artifacts/reports/report%231.txt`,
+      (req, res) => {
+        res.set('Content-Type', 'text/plain');
+        res.send('encoded artifact content');
+      }
+    );
+
     // Add mock handler for 404 on non-existent artifact
     mockGitLab.addMockHandler('get', `/projects/${TEST_PROJECT_ID}/jobs/999/artifacts/tree`, (req, res) => {
       res.status(404).json({ message: 'Not Found' });
@@ -183,6 +194,22 @@ describe('job artifacts tools', () => {
     assert.ok(stats.size > 0, 'Downloaded file should not be empty');
   });
 
+  test('download_job_artifacts creates nested destination directories', async () => {
+    const nestedLocalPath = path.join(tmpDir, 'artifacts', 'run-42');
+    const result = await callTool(
+      'download_job_artifacts',
+      { project_id: TEST_PROJECT_ID, job_id: TEST_JOB_ID, local_path: nestedLocalPath },
+      {
+        GITLAB_API_URL: `${mockGitLabUrl}/api/v4`,
+        GITLAB_PERSONAL_ACCESS_TOKEN: MOCK_TOKEN,
+      }
+    );
+
+    assert.ok(result.success, 'Download should succeed');
+    assert.ok(fs.existsSync(result.file_path), `File should exist at ${result.file_path}`);
+    assert.ok(fs.existsSync(nestedLocalPath), `Directory should be created at ${nestedLocalPath}`);
+  });
+
   test('get_job_artifact_file returns file content', async () => {
     const result = await callTool(
       'get_job_artifact_file',
@@ -200,5 +227,22 @@ describe('job artifacts tools', () => {
     assert.ok(typeof result === 'string', 'Response should be a string');
     assert.ok(result.includes('<testsuites>'), 'Should contain XML content');
     assert.ok(result.includes('failures="1"'), 'Should contain failure data');
+  });
+
+  test('get_job_artifact_file handles artifact paths with reserved characters', async () => {
+    const result = await callTool(
+      'get_job_artifact_file',
+      {
+        project_id: TEST_PROJECT_ID,
+        job_id: TEST_JOB_ID,
+        artifact_path: TEST_ENCODED_ARTIFACT_PATH,
+      },
+      {
+        GITLAB_API_URL: `${mockGitLabUrl}/api/v4`,
+        GITLAB_PERSONAL_ACCESS_TOKEN: MOCK_TOKEN,
+      }
+    );
+
+    assert.strictEqual(result, 'encoded artifact content');
   });
 });
