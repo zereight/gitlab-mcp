@@ -4694,12 +4694,14 @@ async function getPipelineJobOutput(
  * @param {string} projectId - The ID or URL-encoded path of the project
  * @param {string} ref - The branch or tag to run the pipeline on
  * @param {Array} variables - Optional variables for the pipeline
+ * @param {Record<string, string>} inputs - Optional input parameters for the pipeline
  * @returns {Promise<GitLabPipeline>} The created pipeline
  */
 async function createPipeline(
   projectId: string,
   ref: string,
-  variables?: Array<{ key: string; value: string }>
+  variables?: Array<{ key: string; value: string }>,
+  inputs?: Record<string, string>
 ): Promise<GitLabPipeline> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
@@ -4709,6 +4711,9 @@ async function createPipeline(
   const body: any = { ref };
   if (variables && variables.length > 0) {
     body.variables = variables;
+  }
+  if (inputs && Object.keys(inputs).length > 0) {
+    body.inputs = inputs;
   }
 
   const response = await fetch(url.toString(), {
@@ -6898,8 +6903,8 @@ async function handleToolCall(params: any) {
       }
 
       case "create_pipeline": {
-        const { project_id, ref, variables } = CreatePipelineSchema.parse(params.arguments);
-        const pipeline = await createPipeline(project_id, ref, variables);
+        const { project_id, ref, variables, inputs } = CreatePipelineSchema.parse(params.arguments);
+        const pipeline = await createPipeline(project_id, ref, variables, inputs);
         return {
           content: [
             {
