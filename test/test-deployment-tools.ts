@@ -11,6 +11,8 @@ const TEST_MERGE_REQUEST_IID = "88";
 const TEST_MERGE_REQUEST_SHA = "merge-sha-6870";
 const TEST_DIVERGED_COMMITS_COUNT = 35;
 const TEST_SOURCE_COMMITS_COUNT = 6;
+const TEST_APPROVER_USERNAME = "sergey.kravchenya";
+const TEST_APPROVER_NAME = "Sergey Kravchenya";
 
 const mrDeploymentsByCreatedAtAsc = Array.from({ length: 12 }, (_, index) => {
   const sequence = index + 1;
@@ -223,6 +225,35 @@ describe("deployment and environment tools", () => {
       }
     );
 
+    mockGitLab.addMockHandler(
+      "get",
+      `/projects/${TEST_PROJECT_ID}/merge_requests/${TEST_MERGE_REQUEST_IID}/approval_state`,
+      (_req, res) => {
+        res.json({
+          approval_rules_overwritten: false,
+          rules: [
+            {
+              id: "101",
+              name: "Default rule",
+              rule_type: "regular",
+              approvals_required: 1,
+              approved: true,
+              approved_by: [
+                {
+                  id: "35",
+                  username: TEST_APPROVER_USERNAME,
+                  name: TEST_APPROVER_NAME,
+                  state: "active",
+                  avatar_url: "https://gitlab.mock/uploads/avatar.png",
+                  web_url: "https://gitlab.mock/sergey.kravchenya",
+                },
+              ],
+            },
+          ],
+        });
+      }
+    );
+
     mockGitLab.addMockHandler("get", `/projects/${TEST_PROJECT_ID}`, (req, res) => {
       res.json({
         id: TEST_PROJECT_ID,
@@ -392,6 +423,12 @@ describe("deployment and environment tools", () => {
       result.commit_addition_summary.summary,
       "6 commits and 1 merge commit will be added to main."
     );
+    assert.ok(result.approval_summary, "approval_summary should be present");
+    assert.strictEqual(result.approval_summary.source_endpoint, "approval_state");
+    assert.strictEqual(result.approval_summary.approved, true);
+    assert.deepStrictEqual(result.approval_summary.approved_by_usernames, [TEST_APPROVER_USERNAME]);
+    assert.strictEqual(result.approval_summary.approved_by.length, 1);
+    assert.strictEqual(result.approval_summary.approved_by[0].name, TEST_APPROVER_NAME);
     assert.strictEqual(result.deployment_summary.sort, "created_at_desc");
     assert.strictEqual(result.deployment_summary.limit, 10);
     assert.strictEqual(result.deployment_summary.total_count, 12);

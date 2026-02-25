@@ -942,7 +942,7 @@ const allTools = [
   {
     name: "get_merge_request",
     description:
-      "Get details of a merge request with compact deployment summary (Either mergeRequestIid or branchName must be provided)",
+      "Get details of a merge request with compact deployment, commit addition, and approval summaries (Either mergeRequestIid or branchName must be provided)",
     inputSchema: toJSONSchema(GetMergeRequestSchema),
   },
   {
@@ -1920,6 +1920,16 @@ type GitLabMergeRequestWithDeploymentSummary = GitLabMergeRequest & {
     merge_method: string | null;
     merge_commit_count: number | null;
     summary: string | null;
+    unavailable_reason?: string;
+  };
+  approval_summary: {
+    approved: boolean | null;
+    user_has_approved: boolean | null;
+    user_can_approve: boolean | null;
+    approved_by: GitLabApprovalUser[];
+    approved_by_usernames: string[];
+    rules_count: number | null;
+    source_endpoint: "approval_state" | "approvals" | null;
     unavailable_reason?: string;
   };
 };
@@ -3435,6 +3445,41 @@ async function buildMergeRequestCommitAdditionSummary(
   }
 }
 
+async function buildMergeRequestApprovalSummary(
+  projectId: string,
+  mergeRequestIid: string
+): Promise<GitLabMergeRequestWithDeploymentSummary["approval_summary"]> {
+  try {
+    const approvalState = await getMergeRequestApprovalState(projectId, mergeRequestIid);
+    const approvedByUsers = approvalState.approved_by || [];
+    const approvedByUsernames =
+      approvalState.approved_by_usernames || approvedByUsers.map(user => user.username);
+    const inferredApproved = inferMergeRequestApproved(approvalState.rules);
+
+    return {
+      approved: approvalState.approved ?? inferredApproved,
+      user_has_approved: approvalState.user_has_approved ?? null,
+      user_can_approve: approvalState.user_can_approve ?? null,
+      approved_by: approvedByUsers,
+      approved_by_usernames: approvedByUsernames,
+      rules_count: approvalState.rules?.length ?? null,
+      source_endpoint: approvalState.source_endpoint ?? null,
+    };
+  } catch (error) {
+    const unavailableReason = error instanceof Error ? error.message : String(error);
+    return {
+      approved: null,
+      user_has_approved: null,
+      user_can_approve: null,
+      approved_by: [],
+      approved_by_usernames: [],
+      rules_count: null,
+      source_endpoint: null,
+      unavailable_reason: unavailableReason,
+    };
+  }
+}
+
 function toMergeRequestDeploymentSummaryRecord(
   deployment: GitLabDeployment
 ): GitLabMergeRequestDeploymentSummaryRecord {
@@ -3907,6 +3952,20 @@ function getUniqueApprovalUsers(users: GitLabApprovalUser[]): GitLabApprovalUser
   }
 
   return [...uniqueUsers.values()];
+}
+
+function inferMergeRequestApproved(
+  rules: GitLabMergeRequestApprovalState["rules"]
+): boolean | null {
+  if (!rules || rules.length === 0) {
+    return null;
+  }
+
+  if (rules.some(rule => typeof rule.approved !== "boolean")) {
+    return null;
+  }
+
+  return rules.every(rule => rule.approved === true);
 }
 
 /**
@@ -6877,10 +6936,15 @@ async function handleToolCall(params: any) {
           args.project_id,
           mergeRequest
         );
+        const approvalSummary = await buildMergeRequestApprovalSummary(
+          args.project_id,
+          mergeRequest.iid
+        );
         const mergeRequestWithDeploymentSummary: GitLabMergeRequestWithDeploymentSummary = {
           ...mergeRequest,
           deployment_summary: deploymentSummary,
           commit_addition_summary: commitAdditionSummary,
+          approval_summary: approvalSummary,
         };
         return {
           content: [

@@ -500,7 +500,7 @@ The token is stored per session (identified by `mcp-session-id` header) and reus
 8. `create_merge_request` - Create a new merge request in a GitLab project
 9. `fork_repository` - Fork a GitLab project to your account or specified namespace
 10. `create_branch` - Create a new branch in a GitLab project
-11. `get_merge_request` - Get details of a merge request with compact deployment summary, behind-count, and commit addition summary (Either mergeRequestIid or branchName must be provided)
+11. `get_merge_request` - Get details of a merge request with compact deployment summary, behind-count, commit addition summary, and approval summary (Either mergeRequestIid or branchName must be provided)
 12. `get_merge_request_diffs` - Get the changes/diffs of a merge request (Either mergeRequestIid or branchName must be provided)
 13. `list_merge_request_diffs` - List merge request diffs with pagination support (Either mergeRequestIid or branchName must be provided)
 14. `get_branch_diffs` - Get the changes/diffs between two branches or commits in a GitLab project
