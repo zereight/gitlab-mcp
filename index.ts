@@ -1912,6 +1912,14 @@ type GitLabMergeRequestWithDeploymentSummary = GitLabMergeRequest & {
     records: GitLabMergeRequestDeploymentSummaryRecord[];
     unavailable_reason?: string;
   };
+  commit_addition_summary: {
+    target_branch: string;
+    source_commits_count: number | null;
+    merge_method: string | null;
+    merge_commit_count: number | null;
+    summary: string | null;
+    unavailable_reason?: string;
+  };
 };
 
 /**
@@ -3275,8 +3283,7 @@ async function createRepository(
 async function getMergeRequest(
   projectId: string,
   mergeRequestIid?: number | string,
-  branchName?: string,
-  includeDivergedCommitsCount = false
+  branchName?: string
 ): Promise<GitLabMergeRequest> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   let url: URL;
@@ -3287,9 +3294,7 @@ async function getMergeRequest(
         getEffectiveProjectId(projectId)
       )}/merge_requests/${mergeRequestIid}`
     );
-    if (includeDivergedCommitsCount) {
-      url.searchParams.append("include_diverged_commits_count", "true");
-    }
+    url.searchParams.append("include_diverged_commits_count", "true");
   } else if (branchName) {
     url = new URL(
       `${getEffectiveApiUrl()}/projects/${encodeURIComponent(
@@ -3311,15 +3316,121 @@ async function getMergeRequest(
   // If response is an array (Comes from branchName search), return the first item if exist
   if (Array.isArray(data) && data.length > 0) {
     const mergeRequest = GitLabMergeRequestSchema.parse(data[0]);
-
-    if (includeDivergedCommitsCount) {
-      return getMergeRequest(projectId, mergeRequest.iid, undefined, includeDivergedCommitsCount);
-    }
-
-    return mergeRequest;
+    return getMergeRequest(projectId, mergeRequest.iid, undefined);
   }
 
   return GitLabMergeRequestSchema.parse(data);
+}
+
+async function getMergeRequestSourceCommitCount(
+  projectId: string,
+  mergeRequestIid: string
+): Promise<number> {
+  const url = new URL(
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(
+      getEffectiveProjectId(projectId)
+    )}/merge_requests/${mergeRequestIid}/commits`
+  );
+  url.searchParams.append("per_page", "100");
+
+  let totalCount = 0;
+  let page = 1;
+
+  while (true) {
+    url.searchParams.set("page", String(page));
+    const response = await fetch(url.toString(), {
+      ...getFetchConfig(),
+    });
+    await handleGitLabError(response);
+
+    const data = await response.json();
+    if (!Array.isArray(data)) {
+      throw new Error("Unexpected merge request commits response format");
+    }
+
+    totalCount += data.length;
+
+    const nextPage = response.headers.get("x-next-page");
+    if (!nextPage) {
+      break;
+    }
+
+    page = Number.parseInt(nextPage, 10);
+    if (Number.isNaN(page) || page <= 0) {
+      break;
+    }
+  }
+
+  return totalCount;
+}
+
+async function getProjectMergeMethod(projectId: string): Promise<string | null> {
+  const url = new URL(
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}`
+  );
+  const response = await fetch(url.toString(), {
+    ...getFetchConfig(),
+  });
+  await handleGitLabError(response);
+
+  const data: unknown = await response.json();
+  const mergeMethod = z
+    .object({
+      merge_method: z.string().nullable().optional(),
+    })
+    .parse(data).merge_method;
+
+  return typeof mergeMethod === "string" ? mergeMethod : null;
+}
+
+function estimateMergeCommitCount(mergeMethod: string | null, sourceCommitCount: number): number | null {
+  if (sourceCommitCount === 0) {
+    return 0;
+  }
+
+  if (mergeMethod === "merge") {
+    return 1;
+  }
+
+  if (mergeMethod === "ff" || mergeMethod === "rebase_merge") {
+    return 0;
+  }
+
+  return null;
+}
+
+async function buildMergeRequestCommitAdditionSummary(
+  projectId: string,
+  mergeRequest: GitLabMergeRequest
+): Promise<GitLabMergeRequestWithDeploymentSummary["commit_addition_summary"]> {
+  try {
+    const sourceCommitCount = await getMergeRequestSourceCommitCount(projectId, mergeRequest.iid);
+    const mergeMethod = await getProjectMergeMethod(projectId);
+    const mergeCommitCount = estimateMergeCommitCount(mergeMethod, sourceCommitCount);
+
+    const summary =
+      mergeCommitCount === null
+        ? null
+        : `${sourceCommitCount} commits and ${mergeCommitCount} merge commit${mergeCommitCount === 1 ? "" : "s"} will be added to ${mergeRequest.target_branch}.`;
+
+    return {
+      target_branch: mergeRequest.target_branch,
+      source_commits_count: sourceCommitCount,
+      merge_method: mergeMethod,
+      merge_commit_count: mergeCommitCount,
+      summary,
+    };
+  } catch (error) {
+    const unavailableReason = error instanceof Error ? error.message : String(error);
+    return {
+      target_branch: mergeRequest.target_branch,
+      source_commits_count: null,
+      merge_method: null,
+      merge_commit_count: null,
+      summary: null,
+      unavailable_reason: unavailableReason,
+    };
+  }
 }
 
 function toMergeRequestDeploymentSummaryRecord(
@@ -6692,16 +6803,20 @@ async function handleToolCall(params: any) {
         const mergeRequest = await getMergeRequest(
           args.project_id,
           args.merge_request_iid,
-          args.source_branch,
-          args.include_diverged_commits_count ?? true
+          args.source_branch
         );
         const deploymentSummary = await buildMergeRequestDeploymentSummary(
+          args.project_id,
+          mergeRequest
+        );
+        const commitAdditionSummary = await buildMergeRequestCommitAdditionSummary(
           args.project_id,
           mergeRequest
         );
         const mergeRequestWithDeploymentSummary: GitLabMergeRequestWithDeploymentSummary = {
           ...mergeRequest,
           deployment_summary: deploymentSummary,
+          commit_addition_summary: commitAdditionSummary,
         };
         return {
           content: [

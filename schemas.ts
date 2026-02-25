@@ -1292,12 +1292,6 @@ export const GetBranchDiffsSchema = ProjectParamsSchema.extend({
 export const GetMergeRequestSchema = ProjectParamsSchema.extend({
   merge_request_iid: z.coerce.string().optional().describe("The IID of a merge request"),
   source_branch: z.string().optional().describe("Source branch name"),
-  include_diverged_commits_count: z
-    .boolean()
-    .optional()
-    .describe(
-      "When true, requests diverged_commits_count from GitLab to show how many commits source branch is behind target"
-    ),
 });
 
 export const UpdateMergeRequestSchema = GetMergeRequestSchema.extend({

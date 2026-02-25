@@ -10,6 +10,7 @@ const TEST_ENVIRONMENT_ID = "42";
 const TEST_MERGE_REQUEST_IID = "88";
 const TEST_MERGE_REQUEST_SHA = "merge-sha-6870";
 const TEST_DIVERGED_COMMITS_COUNT = 35;
+const TEST_SOURCE_COMMITS_COUNT = 6;
 
 const mrDeploymentsByCreatedAtAsc = Array.from({ length: 12 }, (_, index) => {
   const sequence = index + 1;
@@ -162,10 +163,6 @@ describe("deployment and environment tools", () => {
       "get",
       `/projects/${TEST_PROJECT_ID}/merge_requests/${TEST_MERGE_REQUEST_IID}`,
       (req, res) => {
-        const includeDivergedCommitsCount = Array.isArray(req.query.include_diverged_commits_count)
-          ? req.query.include_diverged_commits_count[0]
-          : req.query.include_diverged_commits_count;
-
         res.json({
           id: TEST_MERGE_REQUEST_IID,
           iid: TEST_MERGE_REQUEST_IID,
@@ -186,15 +183,53 @@ describe("deployment and environment tools", () => {
           merged_at: "2026-02-20T11:05:00.000Z",
           closed_at: null,
           merge_commit_sha: TEST_MERGE_REQUEST_SHA,
-          ...(includeDivergedCommitsCount === "true"
-            ? {
-                diverged_commits_count: TEST_DIVERGED_COMMITS_COUNT,
-                rebase_in_progress: false,
-              }
-            : {}),
+          diverged_commits_count: TEST_DIVERGED_COMMITS_COUNT,
+          rebase_in_progress: false,
         });
       }
     );
+
+    mockGitLab.addMockHandler(
+      "get",
+      `/projects/${TEST_PROJECT_ID}/merge_requests/${TEST_MERGE_REQUEST_IID}/commits`,
+      (req, res) => {
+        const page = Number.parseInt(
+          (Array.isArray(req.query.page) ? req.query.page[0] : req.query.page)?.toString() ?? "1",
+          10
+        );
+
+        if (page > 1) {
+          res.set("x-next-page", "");
+          res.json([]);
+          return;
+        }
+
+        res.set("x-next-page", "");
+        res.json(
+          Array.from({ length: TEST_SOURCE_COMMITS_COUNT }, (_, index) => ({
+            id: `commit-${index + 1}`,
+            short_id: `${index + 1}`,
+            title: `Commit ${index + 1}`,
+            author_name: "Test Author",
+            author_email: "author@example.com",
+            authored_date: "2026-02-20T10:00:00.000Z",
+            committer_name: "Test Committer",
+            committer_email: "committer@example.com",
+            committed_date: "2026-02-20T10:00:00.000Z",
+            web_url: `https://gitlab.mock/project/123/-/commit/${index + 1}`,
+            parent_ids: [],
+          }))
+        );
+      }
+    );
+
+    mockGitLab.addMockHandler("get", `/projects/${TEST_PROJECT_ID}`, (req, res) => {
+      res.json({
+        id: TEST_PROJECT_ID,
+        path_with_namespace: "test-group/test-project",
+        merge_method: "merge",
+      });
+    });
 
     mockGitLab.addMockHandler(
       "get",
@@ -346,6 +381,17 @@ describe("deployment and environment tools", () => {
       "diverged_commits_count should be requested and returned by default"
     );
     assert.strictEqual(result.deployment_summary.lookup_sha, TEST_MERGE_REQUEST_SHA);
+    assert.ok(result.commit_addition_summary, "commit_addition_summary should be present");
+    assert.strictEqual(
+      result.commit_addition_summary.source_commits_count,
+      TEST_SOURCE_COMMITS_COUNT
+    );
+    assert.strictEqual(result.commit_addition_summary.merge_method, "merge");
+    assert.strictEqual(result.commit_addition_summary.merge_commit_count, 1);
+    assert.strictEqual(
+      result.commit_addition_summary.summary,
+      "6 commits and 1 merge commit will be added to main."
+    );
     assert.strictEqual(result.deployment_summary.sort, "created_at_desc");
     assert.strictEqual(result.deployment_summary.limit, 10);
     assert.strictEqual(result.deployment_summary.total_count, 12);
@@ -383,13 +429,12 @@ describe("deployment and environment tools", () => {
     );
   });
 
-  test("get_merge_request can skip diverged_commits_count lookup when explicitly disabled", async () => {
+  test("get_merge_request always requests diverged_commits_count", async () => {
     const result = await callTool(
       "get_merge_request",
       {
         project_id: TEST_PROJECT_ID,
         merge_request_iid: TEST_MERGE_REQUEST_IID,
-        include_diverged_commits_count: false,
       },
       {
         GITLAB_API_URL: `${mockGitLabUrl}/api/v4`,
@@ -399,8 +444,8 @@ describe("deployment and environment tools", () => {
 
     assert.strictEqual(
       result.diverged_commits_count,
-      undefined,
-      "diverged_commits_count should be omitted when include_diverged_commits_count=false"
+      TEST_DIVERGED_COMMITS_COUNT,
+      "diverged_commits_count should always be included in get_merge_request response"
     );
   });
 });
