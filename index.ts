@@ -94,6 +94,8 @@ import {
   GetMilestoneBurndownEventsSchema,
   GetMilestoneIssuesSchema,
   GetMilestoneMergeRequestsSchema,
+  GetDeploymentSchema,
+  GetEnvironmentSchema,
   GetNamespaceSchema,
   // pipeline job schemas
   GetPipelineJobOutputSchema,
@@ -145,7 +147,11 @@ import {
   GitLabNamespaceSchema,
   type GitLabPipeline,
   type GitLabPipelineJob,
+  type GitLabDeployment,
+  type GitLabEnvironment,
   GitLabPipelineJobSchema,
+  GitLabDeploymentSchema,
+  GitLabEnvironmentSchema,
   GitLabPipelineSchema,
   type GitLabPipelineTriggerJob,
   GitLabPipelineTriggerJobSchema,
@@ -193,6 +199,10 @@ import {
   ListPipelineJobsSchema,
   type ListPipelinesOptions,
   ListPipelinesSchema,
+  type ListDeploymentsOptions,
+  ListDeploymentsSchema,
+  type ListEnvironmentsOptions,
+  ListEnvironmentsSchema,
   type ListPipelineTriggerJobsOptions,
   ListPipelineTriggerJobsSchema,
   type ListProjectMembersOptions,
@@ -203,11 +213,18 @@ import {
   ListWikiPagesSchema,
   MarkdownUploadSchema,
   DownloadAttachmentSchema,
+  DownloadJobArtifactsSchema,
+  GetJobArtifactFileSchema,
+  type GitLabArtifactEntry,
+  GitLabArtifactEntrySchema,
+  ListJobArtifactsSchema,
   MergeMergeRequestSchema,
   ApproveMergeRequestSchema,
   UnapproveMergeRequestSchema,
   GetMergeRequestApprovalStateSchema,
+  GitLabMergeRequestApprovalsResponseSchema,
   GitLabMergeRequestApprovalStateSchema,
+  type GitLabApprovalUser,
   type GitLabMergeRequestApprovalState,
   type MergeRequestThreadPosition,
   type MergeRequestThreadPositionCreate,
@@ -869,7 +886,7 @@ const allTools = [
   {
     name: "get_merge_request_approval_state",
     description:
-      "Get the approval state of a merge request including approval rules and who has approved",
+      "Get merge request approval details including approvers (uses approval_state when available, falls back to approvals endpoint)",
     inputSchema: toJSONSchema(GetMergeRequestApprovalStateSchema),
   },
   {
@@ -925,7 +942,7 @@ const allTools = [
   {
     name: "get_merge_request",
     description:
-      "Get details of a merge request (Either mergeRequestIid or branchName must be provided)",
+      "Get details of a merge request with compact deployment, commit addition, and approval summaries (Either mergeRequestIid or branchName must be provided)",
     inputSchema: toJSONSchema(GetMergeRequestSchema),
   },
   {
@@ -1217,6 +1234,26 @@ const allTools = [
     inputSchema: toJSONSchema(GetPipelineSchema),
   },
   {
+    name: "list_deployments",
+    description: "List deployments in a GitLab project with filtering options",
+    inputSchema: toJSONSchema(ListDeploymentsSchema),
+  },
+  {
+    name: "get_deployment",
+    description: "Get details of a specific deployment in a GitLab project",
+    inputSchema: toJSONSchema(GetDeploymentSchema),
+  },
+  {
+    name: "list_environments",
+    description: "List environments in a GitLab project",
+    inputSchema: toJSONSchema(ListEnvironmentsSchema),
+  },
+  {
+    name: "get_environment",
+    description: "Get details of a specific environment in a GitLab project",
+    inputSchema: toJSONSchema(GetEnvironmentSchema),
+  },
+  {
     name: "list_pipeline_jobs",
     description: "List all jobs in a specific pipeline",
     inputSchema: toJSONSchema(ListPipelineJobsSchema),
@@ -1267,6 +1304,23 @@ const allTools = [
     name: "cancel_pipeline_job",
     description: "Cancel a running pipeline job",
     inputSchema: toJSONSchema(CancelPipelineJobSchema),
+  },
+  {
+    name: "list_job_artifacts",
+    description: "List artifact files in a job's artifacts archive. Returns file names, paths, types, and sizes.",
+    inputSchema: toJSONSchema(ListJobArtifactsSchema),
+  },
+  {
+    name: "download_job_artifacts",
+    description:
+      "Download the entire artifact archive (zip) for a job to a local path. Returns the saved file path.",
+    inputSchema: toJSONSchema(DownloadJobArtifactsSchema),
+  },
+  {
+    name: "get_job_artifact_file",
+    description:
+      "Get the content of a single file from a job's artifacts by its path within the archive",
+    inputSchema: toJSONSchema(GetJobArtifactFileSchema),
   },
   {
     name: "list_merge_requests",
@@ -1430,10 +1484,17 @@ const readOnlyTools = new Set([
   "list_project_members",
   "get_pipeline",
   "list_pipelines",
+  "list_deployments",
+  "get_deployment",
+  "list_environments",
+  "get_environment",
   "list_pipeline_jobs",
   "list_pipeline_trigger_jobs",
   "get_pipeline_job",
   "get_pipeline_job_output",
+  "list_job_artifacts",
+  "download_job_artifacts",
+  "get_job_artifact_file",
   "list_labels",
   "get_label",
   "list_group_projects",
@@ -1487,6 +1548,10 @@ const milestoneToolNames = new Set([
 const pipelineToolNames = new Set([
   "list_pipelines",
   "get_pipeline",
+  "list_deployments",
+  "get_deployment",
+  "list_environments",
+  "get_environment",
   "list_pipeline_jobs",
   "list_pipeline_trigger_jobs",
   "get_pipeline_job",
@@ -1497,6 +1562,9 @@ const pipelineToolNames = new Set([
   "play_pipeline_job",
   "retry_pipeline_job",
   "cancel_pipeline_job",
+  "list_job_artifacts",
+  "download_job_artifacts",
+  "get_job_artifact_file",
 ]);
 
 // --- Toolset definitions ---
@@ -1632,6 +1700,10 @@ const TOOLSET_DEFINITIONS: readonly ToolsetDefinition[] = [
     tools: new Set([
       "list_pipelines",
       "get_pipeline",
+      "list_deployments",
+      "get_deployment",
+      "list_environments",
+      "get_environment",
       "list_pipeline_jobs",
       "list_pipeline_trigger_jobs",
       "get_pipeline_job",
@@ -1642,6 +1714,9 @@ const TOOLSET_DEFINITIONS: readonly ToolsetDefinition[] = [
       "play_pipeline_job",
       "retry_pipeline_job",
       "cancel_pipeline_job",
+      "list_job_artifacts",
+      "download_job_artifacts",
+      "get_job_artifact_file",
     ]),
   },
   {
@@ -1793,6 +1868,71 @@ if (GITLAB_TOOLSETS_RAW && (USE_PIPELINE || USE_MILESTONE || USE_GITLAB_WIKI)) {
     "Legacy flags add tools additively on top of the toolset selection and may produce unexpected results."
   );
 }
+
+const MERGE_REQUEST_DEPLOYMENT_SUMMARY_LIMIT = 10;
+
+type GitLabMergeRequestDeploymentSummaryRecord = {
+  id: string;
+  status: string;
+  ref?: string;
+  sha: string;
+  created_at: string;
+  updated_at?: string;
+  finished_at?: string | null;
+  web_url?: string;
+  environment?: {
+    id?: string;
+    name: string;
+    slug?: string;
+    external_url?: string | null;
+    state?: string;
+    tier?: string;
+  };
+  deployable?: {
+    id?: string;
+    name?: string;
+    status?: string;
+    stage?: string;
+    web_url?: string;
+    pipeline?: {
+      id?: string;
+      status?: string;
+      ref?: string;
+      sha?: string;
+      web_url?: string;
+    };
+  } | null;
+};
+
+type GitLabMergeRequestWithDeploymentSummary = GitLabMergeRequest & {
+  deployment_summary: {
+    lookup_sha: string | null;
+    sort: "created_at_desc";
+    limit: number;
+    total_count: number;
+    returned_count: number;
+    records: GitLabMergeRequestDeploymentSummaryRecord[];
+    unavailable_reason?: string;
+  };
+  commit_addition_summary: {
+    target_branch: string;
+    source_commits_count: number | null;
+    merge_method: string | null;
+    merge_commit_count: number | null;
+    summary: string | null;
+    unavailable_reason?: string;
+  };
+  approval_summary: {
+    approved: boolean | null;
+    user_has_approved: boolean | null;
+    user_can_approve: boolean | null;
+    approved_by: GitLabApprovalUser[];
+    approved_by_usernames: string[];
+    rules_count: number | null;
+    source_endpoint: "approval_state" | "approvals" | null;
+    unavailable_reason?: string;
+  };
+};
 
 /**
  * Smart URL handling for GitLab API
@@ -3166,6 +3306,7 @@ async function getMergeRequest(
         getEffectiveProjectId(projectId)
       )}/merge_requests/${mergeRequestIid}`
     );
+    url.searchParams.append("include_diverged_commits_count", "true");
   } else if (branchName) {
     url = new URL(
       `${getEffectiveApiUrl()}/projects/${encodeURIComponent(
@@ -3186,10 +3327,268 @@ async function getMergeRequest(
 
   // If response is an array (Comes from branchName search), return the first item if exist
   if (Array.isArray(data) && data.length > 0) {
-    return GitLabMergeRequestSchema.parse(data[0]);
+    const mergeRequest = GitLabMergeRequestSchema.parse(data[0]);
+    return getMergeRequest(projectId, mergeRequest.iid, undefined);
   }
 
   return GitLabMergeRequestSchema.parse(data);
+}
+
+async function getMergeRequestSourceCommitCount(
+  projectId: string,
+  mergeRequestIid: string
+): Promise<number> {
+  const url = new URL(
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(
+      getEffectiveProjectId(projectId)
+    )}/merge_requests/${mergeRequestIid}/commits`
+  );
+  url.searchParams.append("per_page", "100");
+
+  let totalCount = 0;
+  let page = 1;
+
+  while (true) {
+    url.searchParams.set("page", String(page));
+    const response = await fetch(url.toString(), {
+      ...getFetchConfig(),
+    });
+    await handleGitLabError(response);
+
+    const data = await response.json();
+    if (!Array.isArray(data)) {
+      throw new Error("Unexpected merge request commits response format");
+    }
+
+    totalCount += data.length;
+
+    const nextPage = response.headers.get("x-next-page");
+    if (!nextPage) {
+      break;
+    }
+
+    page = Number.parseInt(nextPage, 10);
+    if (Number.isNaN(page) || page <= 0) {
+      break;
+    }
+  }
+
+  return totalCount;
+}
+
+async function getProjectMergeMethod(projectId: string): Promise<string | null> {
+  const url = new URL(
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}`
+  );
+  const response = await fetch(url.toString(), {
+    ...getFetchConfig(),
+  });
+  await handleGitLabError(response);
+
+  const data: unknown = await response.json();
+  const mergeMethod = z
+    .object({
+      merge_method: z.string().nullable().optional(),
+    })
+    .parse(data).merge_method;
+
+  return typeof mergeMethod === "string" ? mergeMethod : null;
+}
+
+function estimateMergeCommitCount(mergeMethod: string | null, sourceCommitCount: number): number | null {
+  if (sourceCommitCount === 0) {
+    return 0;
+  }
+
+  if (mergeMethod === "merge") {
+    return 1;
+  }
+
+  if (mergeMethod === "ff" || mergeMethod === "rebase_merge") {
+    return 0;
+  }
+
+  return null;
+}
+
+async function buildMergeRequestCommitAdditionSummary(
+  projectId: string,
+  mergeRequest: GitLabMergeRequest
+): Promise<GitLabMergeRequestWithDeploymentSummary["commit_addition_summary"]> {
+  try {
+    const sourceCommitCount = await getMergeRequestSourceCommitCount(projectId, mergeRequest.iid);
+    const mergeMethod = await getProjectMergeMethod(projectId);
+    const mergeCommitCount = estimateMergeCommitCount(mergeMethod, sourceCommitCount);
+
+    const summary =
+      mergeCommitCount === null
+        ? null
+        : `${sourceCommitCount} commits and ${mergeCommitCount} merge commit${mergeCommitCount === 1 ? "" : "s"} will be added to ${mergeRequest.target_branch}.`;
+
+    return {
+      target_branch: mergeRequest.target_branch,
+      source_commits_count: sourceCommitCount,
+      merge_method: mergeMethod,
+      merge_commit_count: mergeCommitCount,
+      summary,
+    };
+  } catch (error) {
+    const unavailableReason = error instanceof Error ? error.message : String(error);
+    return {
+      target_branch: mergeRequest.target_branch,
+      source_commits_count: null,
+      merge_method: null,
+      merge_commit_count: null,
+      summary: null,
+      unavailable_reason: unavailableReason,
+    };
+  }
+}
+
+async function buildMergeRequestApprovalSummary(
+  projectId: string,
+  mergeRequestIid: string
+): Promise<GitLabMergeRequestWithDeploymentSummary["approval_summary"]> {
+  try {
+    const approvalState = await getMergeRequestApprovalState(projectId, mergeRequestIid);
+    const approvedByUsers = approvalState.approved_by || [];
+    const approvedByUsernames =
+      approvalState.approved_by_usernames || approvedByUsers.map(user => user.username);
+    const inferredApproved = inferMergeRequestApproved(approvalState.rules);
+
+    return {
+      approved: approvalState.approved ?? inferredApproved,
+      user_has_approved: approvalState.user_has_approved ?? null,
+      user_can_approve: approvalState.user_can_approve ?? null,
+      approved_by: approvedByUsers,
+      approved_by_usernames: approvedByUsernames,
+      rules_count: approvalState.rules?.length ?? null,
+      source_endpoint: approvalState.source_endpoint ?? null,
+    };
+  } catch (error) {
+    const unavailableReason = error instanceof Error ? error.message : String(error);
+    return {
+      approved: null,
+      user_has_approved: null,
+      user_can_approve: null,
+      approved_by: [],
+      approved_by_usernames: [],
+      rules_count: null,
+      source_endpoint: null,
+      unavailable_reason: unavailableReason,
+    };
+  }
+}
+
+function toMergeRequestDeploymentSummaryRecord(
+  deployment: GitLabDeployment
+): GitLabMergeRequestDeploymentSummaryRecord {
+  return {
+    id: deployment.id,
+    status: deployment.status,
+    ref: deployment.ref,
+    sha: deployment.sha,
+    created_at: deployment.created_at,
+    updated_at: deployment.updated_at,
+    finished_at: deployment.finished_at,
+    web_url: deployment.web_url,
+    environment: deployment.environment
+      ? {
+          id: deployment.environment.id,
+          name: deployment.environment.name,
+          slug: deployment.environment.slug,
+          external_url: deployment.environment.external_url,
+          state: deployment.environment.state,
+          tier: deployment.environment.tier,
+        }
+      : undefined,
+    deployable:
+      deployment.deployable === null
+        ? null
+        : deployment.deployable
+          ? {
+              id: deployment.deployable.id,
+              name: deployment.deployable.name,
+              status: deployment.deployable.status,
+              stage: deployment.deployable.stage,
+              web_url: deployment.deployable.web_url,
+              pipeline: deployment.deployable.pipeline
+                ? {
+                    id: deployment.deployable.pipeline.id,
+                    status: deployment.deployable.pipeline.status,
+                    ref: deployment.deployable.pipeline.ref,
+                    sha: deployment.deployable.pipeline.sha,
+                    web_url: deployment.deployable.pipeline.web_url,
+                  }
+                : undefined,
+            }
+          : undefined,
+  };
+}
+
+function sortDeploymentsByCreatedAtDesc(deployments: GitLabDeployment[]): GitLabDeployment[] {
+  return [...deployments].sort((a, b) => {
+    const aTime = Date.parse(a.created_at);
+    const bTime = Date.parse(b.created_at);
+
+    if (Number.isNaN(aTime) || Number.isNaN(bTime)) {
+      return b.created_at.localeCompare(a.created_at);
+    }
+
+    return bTime - aTime;
+  });
+}
+
+async function buildMergeRequestDeploymentSummary(
+  projectId: string,
+  mergeRequest: GitLabMergeRequest
+): Promise<GitLabMergeRequestWithDeploymentSummary["deployment_summary"]> {
+  const lookupSha = mergeRequest.merge_commit_sha ?? mergeRequest.diff_refs?.head_sha ?? null;
+
+  if (!lookupSha) {
+    return {
+      lookup_sha: null,
+      sort: "created_at_desc",
+      limit: MERGE_REQUEST_DEPLOYMENT_SUMMARY_LIMIT,
+      total_count: 0,
+      returned_count: 0,
+      records: [],
+    };
+  }
+
+  try {
+    const deployments = await listDeployments(projectId, {
+      sha: lookupSha,
+      order_by: "created_at",
+      sort: "desc",
+      per_page: 100,
+    });
+    const sortedDeployments = sortDeploymentsByCreatedAtDesc(deployments);
+    const records = sortedDeployments
+      .slice(0, MERGE_REQUEST_DEPLOYMENT_SUMMARY_LIMIT)
+      .map(toMergeRequestDeploymentSummaryRecord);
+
+    return {
+      lookup_sha: lookupSha,
+      sort: "created_at_desc",
+      limit: MERGE_REQUEST_DEPLOYMENT_SUMMARY_LIMIT,
+      total_count: sortedDeployments.length,
+      returned_count: records.length,
+      records,
+    };
+  } catch (error) {
+    const unavailableReason = error instanceof Error ? error.message : String(error);
+
+    return {
+      lookup_sha: lookupSha,
+      sort: "created_at_desc",
+      limit: MERGE_REQUEST_DEPLOYMENT_SUMMARY_LIMIT,
+      total_count: 0,
+      returned_count: 0,
+      records: [],
+      unavailable_reason: unavailableReason,
+    };
+  }
 }
 
 /**
@@ -3480,17 +3879,93 @@ async function getMergeRequestApprovalState(
   mergeRequestIid: string | number
 ): Promise<GitLabMergeRequestApprovalState> {
   projectId = decodeURIComponent(projectId);
-  const url = new URL(
+  const approvalStateUrl = new URL(
     `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/merge_requests/${mergeRequestIid}/approval_state`
   );
 
-  const response = await fetch(url.toString(), {
+  const approvalStateResponse = await fetch(approvalStateUrl.toString(), {
     ...getFetchConfig(),
     method: "GET",
   });
 
-  await handleGitLabError(response);
-  return GitLabMergeRequestApprovalStateSchema.parse(await response.json());
+  if (approvalStateResponse.status === 404) {
+    return getMergeRequestApprovalsFallback(projectId, mergeRequestIid);
+  }
+
+  await handleGitLabError(approvalStateResponse);
+
+  const parsedApprovalState = GitLabMergeRequestApprovalStateSchema.parse(
+    await approvalStateResponse.json()
+  );
+  const approvedByUsers = getUniqueApprovalUsers(
+    (parsedApprovalState.rules || []).flatMap(rule => rule.approved_by || [])
+  );
+  const approvedByUsernames = approvedByUsers.map(user => user.username);
+
+  return {
+    ...parsedApprovalState,
+    approved_by: approvedByUsers,
+    approved_by_usernames: approvedByUsernames,
+    source_endpoint: "approval_state",
+  };
+}
+
+async function getMergeRequestApprovalsFallback(
+  projectId: string,
+  mergeRequestIid: string | number
+): Promise<GitLabMergeRequestApprovalState> {
+  const approvalsUrl = new URL(
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/merge_requests/${mergeRequestIid}/approvals`
+  );
+
+  const approvalsResponse = await fetch(approvalsUrl.toString(), {
+    ...getFetchConfig(),
+    method: "GET",
+  });
+
+  await handleGitLabError(approvalsResponse);
+  const parsedApprovals = GitLabMergeRequestApprovalsResponseSchema.parse(
+    await approvalsResponse.json()
+  );
+  const approvedByUsers = getUniqueApprovalUsers(
+    (parsedApprovals.approved_by || []).map(approvedByEntry => approvedByEntry.user)
+  );
+  const approvedByUsernames = approvedByUsers.map(user => user.username);
+
+  return GitLabMergeRequestApprovalStateSchema.parse({
+    approved: parsedApprovals.approved,
+    user_has_approved: parsedApprovals.user_has_approved,
+    user_can_approve: parsedApprovals.user_can_approve,
+    approved_by: approvedByUsers,
+    approved_by_usernames: approvedByUsernames,
+    source_endpoint: "approvals",
+  });
+}
+
+function getUniqueApprovalUsers(users: GitLabApprovalUser[]): GitLabApprovalUser[] {
+  const uniqueUsers = new Map<string, GitLabApprovalUser>();
+
+  for (const user of users) {
+    if (!uniqueUsers.has(user.id)) {
+      uniqueUsers.set(user.id, user);
+    }
+  }
+
+  return [...uniqueUsers.values()];
+}
+
+function inferMergeRequestApproved(
+  rules: GitLabMergeRequestApprovalState["rules"]
+): boolean | null {
+  if (!rules || rules.length === 0) {
+    return null;
+  }
+
+  if (rules.some(rule => typeof rule.approved !== "boolean")) {
+    return null;
+  }
+
+  return rules.every(rule => rule.approved === true);
 }
 
 /**
@@ -4518,6 +4993,126 @@ async function getPipeline(
 }
 
 /**
+ * List deployments in a GitLab project
+ *
+ * @param {string} projectId - The ID or URL-encoded path of the project
+ * @param {ListDeploymentsOptions} options - Options for filtering deployments
+ * @returns {Promise<GitLabDeployment[]>} List of deployments
+ */
+async function listDeployments(
+  projectId: string,
+  options: Omit<ListDeploymentsOptions, "project_id"> = {}
+): Promise<GitLabDeployment[]> {
+  projectId = decodeURIComponent(projectId);
+  const url = new URL(
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/deployments`
+  );
+
+  Object.entries(options).forEach(([key, value]) => {
+    if (value !== undefined) {
+      url.searchParams.append(key, value.toString());
+    }
+  });
+
+  const response = await fetch(url.toString(), {
+    ...getFetchConfig(),
+  });
+
+  await handleGitLabError(response);
+  const data = await response.json();
+  return z.array(GitLabDeploymentSchema).parse(data);
+}
+
+/**
+ * Get details of a specific deployment
+ *
+ * @param {string} projectId - The ID or URL-encoded path of the project
+ * @param {number | string} deploymentId - The ID of the deployment
+ * @returns {Promise<GitLabDeployment>} Deployment details
+ */
+async function getDeployment(
+  projectId: string,
+  deploymentId: number | string
+): Promise<GitLabDeployment> {
+  projectId = decodeURIComponent(projectId);
+  const url = new URL(
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/deployments/${deploymentId}`
+  );
+
+  const response = await fetch(url.toString(), {
+    ...getFetchConfig(),
+  });
+
+  if (response.status === 404) {
+    throw new Error(`Deployment not found`);
+  }
+
+  await handleGitLabError(response);
+  const data = await response.json();
+  return GitLabDeploymentSchema.parse(data);
+}
+
+/**
+ * List environments in a GitLab project
+ *
+ * @param {string} projectId - The ID or URL-encoded path of the project
+ * @param {ListEnvironmentsOptions} options - Options for filtering environments
+ * @returns {Promise<GitLabEnvironment[]>} List of environments
+ */
+async function listEnvironments(
+  projectId: string,
+  options: Omit<ListEnvironmentsOptions, "project_id"> = {}
+): Promise<GitLabEnvironment[]> {
+  projectId = decodeURIComponent(projectId);
+  const url = new URL(
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/environments`
+  );
+
+  Object.entries(options).forEach(([key, value]) => {
+    if (value !== undefined) {
+      url.searchParams.append(key, value.toString());
+    }
+  });
+
+  const response = await fetch(url.toString(), {
+    ...getFetchConfig(),
+  });
+
+  await handleGitLabError(response);
+  const data = await response.json();
+  return z.array(GitLabEnvironmentSchema).parse(data);
+}
+
+/**
+ * Get details of a specific environment
+ *
+ * @param {string} projectId - The ID or URL-encoded path of the project
+ * @param {number | string} environmentId - The ID of the environment
+ * @returns {Promise<GitLabEnvironment>} Environment details
+ */
+async function getEnvironment(
+  projectId: string,
+  environmentId: number | string
+): Promise<GitLabEnvironment> {
+  projectId = decodeURIComponent(projectId);
+  const url = new URL(
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/environments/${environmentId}`
+  );
+
+  const response = await fetch(url.toString(), {
+    ...getFetchConfig(),
+  });
+
+  if (response.status === 404) {
+    throw new Error(`Environment not found`);
+  }
+
+  await handleGitLabError(response);
+  const data = await response.json();
+  return GitLabEnvironmentSchema.parse(data);
+}
+
+/**
  * List all jobs in a specific pipeline
  *
  * @param {string} projectId - The ID or URL-encoded path of the project
@@ -4686,6 +5281,124 @@ async function getPipelineJobOutput(
   }
 
   return fullTrace;
+}
+
+/**
+ * List artifact files in a job's artifacts archive
+ *
+ * @param {string} projectId - The ID or URL-encoded path of the project
+ * @param {string} jobId - The ID of the job
+ * @param {Object} options - Options for listing artifacts
+ * @returns {Promise<GitLabArtifactEntry[]>} List of artifact entries
+ */
+async function listJobArtifacts(
+  projectId: string,
+  jobId: string,
+  options: Omit<z.infer<typeof ListJobArtifactsSchema>, "project_id" | "job_id"> = {}
+): Promise<GitLabArtifactEntry[]> {
+  projectId = decodeURIComponent(projectId);
+  const url = new URL(
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/jobs/${jobId}/artifacts/tree`
+  );
+
+  Object.entries(options).forEach(([key, value]) => {
+    if (value !== undefined) {
+      if (typeof value === "boolean") {
+        url.searchParams.append(key, value ? "true" : "false");
+      } else {
+        url.searchParams.append(key, value.toString());
+      }
+    }
+  });
+
+  const response = await fetch(url.toString(), {
+    ...getFetchConfig(),
+  });
+
+  if (response.status === 404) {
+    throw new Error(`Job artifacts not found. The job may not have produced artifacts or the job ID is invalid.`);
+  }
+
+  await handleGitLabError(response);
+  const data = await response.json();
+  return z.array(GitLabArtifactEntrySchema).parse(data);
+}
+
+/**
+ * Download the entire artifact archive for a job and save to disk
+ *
+ * @param {string} projectId - The ID or URL-encoded path of the project
+ * @param {string} jobId - The ID of the job
+ * @param {string} localPath - Optional local directory to save the archive
+ * @returns {Promise<string>} The path where the artifact archive was saved
+ */
+async function downloadJobArtifacts(
+  projectId: string,
+  jobId: string,
+  localPath?: string
+): Promise<string> {
+  projectId = decodeURIComponent(projectId);
+  const effectiveProjectId = getEffectiveProjectId(projectId);
+
+  const url = new URL(
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(effectiveProjectId)}/jobs/${jobId}/artifacts`
+  );
+
+  const response = await fetch(url.toString(), {
+    ...getFetchConfig(),
+  });
+
+  if (response.status === 404) {
+    throw new Error(`Job artifacts not found. The job may not have produced artifacts or the job ID is invalid.`);
+  }
+
+  await handleGitLabError(response);
+
+  const buffer = await response.arrayBuffer();
+  const filename = `artifacts_job_${jobId}.zip`;
+  const savePath = localPath ? path.join(localPath, filename) : filename;
+  fs.mkdirSync(path.dirname(savePath), { recursive: true });
+
+  fs.writeFileSync(savePath, Buffer.from(buffer));
+
+  return savePath;
+}
+
+/**
+ * Download a single file from a job's artifacts
+ *
+ * @param {string} projectId - The ID or URL-encoded path of the project
+ * @param {string} jobId - The ID of the job
+ * @param {string} artifactPath - Path to the file within the artifacts archive
+ * @returns {Promise<string>} The file content as text
+ */
+async function getJobArtifactFile(
+  projectId: string,
+  jobId: string,
+  artifactPath: string
+): Promise<string> {
+  projectId = decodeURIComponent(projectId);
+  const effectiveProjectId = getEffectiveProjectId(projectId);
+  const encodedArtifactPath = artifactPath
+    .split("/")
+    .map(segment => encodeURIComponent(segment))
+    .join("/");
+
+  const url = new URL(
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(effectiveProjectId)}/jobs/${jobId}/artifacts/${encodedArtifactPath}`
+  );
+
+  const response = await fetch(url.toString(), {
+    ...getFetchConfig(),
+  });
+
+  if (response.status === 404) {
+    throw new Error(`Artifact file not found: ${artifactPath}`);
+  }
+
+  await handleGitLabError(response);
+
+  return await response.text();
 }
 
 /**
@@ -6215,8 +6928,31 @@ async function handleToolCall(params: any) {
           args.merge_request_iid,
           args.source_branch
         );
+        const deploymentSummary = await buildMergeRequestDeploymentSummary(
+          args.project_id,
+          mergeRequest
+        );
+        const commitAdditionSummary = await buildMergeRequestCommitAdditionSummary(
+          args.project_id,
+          mergeRequest
+        );
+        const approvalSummary = await buildMergeRequestApprovalSummary(
+          args.project_id,
+          mergeRequest.iid
+        );
+        const mergeRequestWithDeploymentSummary: GitLabMergeRequestWithDeploymentSummary = {
+          ...mergeRequest,
+          deployment_summary: deploymentSummary,
+          commit_addition_summary: commitAdditionSummary,
+          approval_summary: approvalSummary,
+        };
         return {
-          content: [{ type: "text", text: JSON.stringify(mergeRequest, null, 2) }],
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(mergeRequestWithDeploymentSummary, null, 2),
+            },
+          ],
         };
       }
 
@@ -6839,6 +7575,40 @@ async function handleToolCall(params: any) {
         };
       }
 
+      case "list_deployments": {
+        const args = ListDeploymentsSchema.parse(params.arguments);
+        const { project_id, ...options } = args;
+        const deployments = await listDeployments(project_id, options);
+        return {
+          content: [{ type: "text", text: JSON.stringify(deployments, null, 2) }],
+        };
+      }
+
+      case "get_deployment": {
+        const { project_id, deployment_id } = GetDeploymentSchema.parse(params.arguments);
+        const deployment = await getDeployment(project_id, deployment_id);
+        return {
+          content: [{ type: "text", text: JSON.stringify(deployment, null, 2) }],
+        };
+      }
+
+      case "list_environments": {
+        const args = ListEnvironmentsSchema.parse(params.arguments);
+        const { project_id, ...options } = args;
+        const environments = await listEnvironments(project_id, options);
+        return {
+          content: [{ type: "text", text: JSON.stringify(environments, null, 2) }],
+        };
+      }
+
+      case "get_environment": {
+        const { project_id, environment_id } = GetEnvironmentSchema.parse(params.arguments);
+        const environment = await getEnvironment(project_id, environment_id);
+        return {
+          content: [{ type: "text", text: JSON.stringify(environment, null, 2) }],
+        };
+      }
+
       case "list_pipeline_jobs": {
         const { project_id, pipeline_id, ...options } = ListPipelineJobsSchema.parse(
           params.arguments
@@ -6972,6 +7742,51 @@ async function handleToolCall(params: any) {
             {
               type: "text",
               text: `Canceled job #${job.id} (${job.name}). Status: ${job.status}\nWeb URL: ${job.web_url}`,
+            },
+          ],
+        };
+      }
+
+      case "list_job_artifacts": {
+        const { project_id, job_id, ...options } = ListJobArtifactsSchema.parse(
+          params.arguments
+        );
+        const artifacts = await listJobArtifacts(project_id, job_id, options);
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(artifacts, null, 2),
+            },
+          ],
+        };
+      }
+
+      case "download_job_artifacts": {
+        const { project_id, job_id, local_path } = DownloadJobArtifactsSchema.parse(
+          params.arguments
+        );
+        const filePath = await downloadJobArtifacts(project_id, job_id, local_path);
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify({ success: true, file_path: filePath }, null, 2),
+            },
+          ],
+        };
+      }
+
+      case "get_job_artifact_file": {
+        const { project_id, job_id, artifact_path } = GetJobArtifactFileSchema.parse(
+          params.arguments
+        );
+        const fileContent = await getJobArtifactFile(project_id, job_id, artifact_path);
+        return {
+          content: [
+            {
+              type: "text",
+              text: fileContent,
             },
           ],
         };

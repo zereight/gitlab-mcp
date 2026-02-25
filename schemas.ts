@@ -258,6 +258,133 @@ export const ListPipelineTriggerJobsSchema = z
   })
   .merge(PaginationOptionsSchema);
 
+// Deployment related schemas
+export const GitLabDeploymentSchema = z.object({
+  id: z.coerce.string(),
+  iid: z.coerce.string().optional(),
+  status: z.string(),
+  ref: z.string().optional(),
+  sha: z.string(),
+  created_at: z.string(),
+  updated_at: z.string().optional(),
+  finished_at: z.string().nullable().optional(),
+  environment: z
+    .object({
+      id: z.coerce.string().optional(),
+      name: z.string(),
+      slug: z.string().optional(),
+      external_url: z.string().nullable().optional(),
+      state: z.string().optional(),
+      tier: z.string().optional(),
+    })
+    .optional(),
+  deployable: z
+    .object({
+      id: z.coerce.string().optional(),
+      name: z.string().optional(),
+      status: z.string().optional(),
+      stage: z.string().optional(),
+      web_url: z.string().optional(),
+      pipeline: z
+        .object({
+          id: z.coerce.string().optional(),
+          status: z.string().optional(),
+          ref: z.string().optional(),
+          sha: z.string().optional(),
+          web_url: z.string().optional(),
+        })
+        .optional(),
+    })
+    .nullable()
+    .optional(),
+  user: z
+    .object({
+      id: z.coerce.string().optional(),
+      username: z.string().optional(),
+      name: z.string().optional(),
+      avatar_url: z.string().nullable().optional(),
+    })
+    .optional(),
+  web_url: z.string().optional(),
+});
+
+export const ListDeploymentsSchema = z
+  .object({
+    project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
+    environment: z.string().optional().describe("Filter by environment name"),
+    ref: z.string().optional().describe("Filter by ref"),
+    sha: z
+      .string()
+      .optional()
+      .describe("Filter by commit SHA (if supported by your GitLab version)"),
+    status: z.string().optional().describe("Filter by deployment status"),
+    updated_after: z
+      .string()
+      .optional()
+      .describe("Return deployments updated after the specified date"),
+    updated_before: z
+      .string()
+      .optional()
+      .describe("Return deployments updated before the specified date"),
+    order_by: z
+      .enum(["id", "iid", "created_at", "updated_at", "ref", "status", "environment"])
+      .optional()
+      .describe("Order deployments by"),
+    sort: z.enum(["asc", "desc"]).optional().describe("Sort deployments"),
+  })
+  .merge(PaginationOptionsSchema);
+
+export const GetDeploymentSchema = z.object({
+  project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
+  deployment_id: z.coerce.string().describe("The ID of the deployment"),
+});
+
+// Environment related schemas
+const GitLabEnvironmentLastDeploymentSchema = z.object({
+  id: z.coerce.string().optional(),
+  iid: z.coerce.string().optional(),
+  status: z.string().optional(),
+  ref: z.string().optional(),
+  sha: z.string().optional(),
+  created_at: z.string().optional(),
+  updated_at: z.string().optional(),
+  web_url: z.string().optional(),
+});
+
+export const GitLabEnvironmentSchema = z.object({
+  id: z.coerce.string(),
+  name: z.string(),
+  slug: z.string().optional(),
+  external_url: z.string().nullable().optional(),
+  state: z.string().optional(),
+  tier: z.string().optional(),
+  environment_type: z.string().optional(),
+  created_at: z.string().optional(),
+  updated_at: z.string().optional(),
+  auto_stop_at: z.string().nullable().optional(),
+  enable_advanced_logs_querying: z.boolean().optional(),
+  logs_api_path: z.string().optional(),
+  web_url: z.string().optional(),
+  last_deployment: GitLabEnvironmentLastDeploymentSchema.nullable().optional(),
+});
+
+export const ListEnvironmentsSchema = z
+  .object({
+    project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
+    name: z.string().optional().describe("Return environments with this exact name"),
+    search: z.string().optional().describe("Search environments by name"),
+    states: z
+      .enum(["available", "stopped"])
+      .optional()
+      .describe("Filter environments by state"),
+  })
+  .merge(PaginationOptionsSchema);
+
+export const GetEnvironmentSchema = z.object({
+  project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
+  environment_id: z.coerce.string().describe("The ID of the environment"),
+});
+
 // Schema for creating a new pipeline
 export const CreatePipelineSchema = z.object({
   project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
@@ -774,6 +901,15 @@ export const GitLabMergeRequestSchema = z.object({
   allow_collaboration: z.boolean().optional(),
   allow_maintainer_to_push: z.boolean().optional(),
   changes_count: z.string().nullable().optional(),
+  diverged_commits_count: z.coerce
+    .number()
+    .nullable()
+    .optional()
+    .describe("Number of commits the source branch is behind the target branch"),
+  rebase_in_progress: z
+    .boolean()
+    .optional()
+    .describe("Whether rebase is currently in progress for this merge request"),
   merge_when_pipeline_succeeds: z.boolean().optional(),
   squash: z.boolean().optional(),
   labels: z.array(z.string()).optional(),
@@ -1269,9 +1405,28 @@ export const GitLabApprovalRuleSchema = z.object({
   approved: z.boolean().optional(),
 });
 
+export const GitLabMergeRequestApprovalsResponseSchema = z.object({
+  approved: z.boolean().optional(),
+  user_has_approved: z.boolean().optional(),
+  user_can_approve: z.boolean().optional(),
+  approved_by: z
+    .array(
+      z.object({
+        user: GitLabApprovalUserSchema,
+      })
+    )
+    .optional(),
+});
+
 export const GitLabMergeRequestApprovalStateSchema = z.object({
   approval_rules_overwritten: z.boolean().optional(),
   rules: z.array(GitLabApprovalRuleSchema).optional(),
+  approved: z.boolean().optional(),
+  user_has_approved: z.boolean().optional(),
+  user_can_approve: z.boolean().optional(),
+  approved_by: z.array(GitLabApprovalUserSchema).optional(),
+  approved_by_usernames: z.array(z.string()).optional(),
+  source_endpoint: z.enum(["approval_state", "approvals"]).optional(),
 });
 
 export const GetMergeRequestApprovalStateSchema = ProjectParamsSchema.extend({
@@ -2376,10 +2531,16 @@ export type CreateMergeRequestDiscussionNoteOptions = z.infer<
 export type GitLabPipelineJob = z.infer<typeof GitLabPipelineJobSchema>;
 export type GitLabPipelineTriggerJob = z.infer<typeof GitLabPipelineTriggerJobSchema>;
 export type GitLabPipeline = z.infer<typeof GitLabPipelineSchema>;
+export type GitLabDeployment = z.infer<typeof GitLabDeploymentSchema>;
+export type GitLabEnvironment = z.infer<typeof GitLabEnvironmentSchema>;
 export type ListPipelinesOptions = z.infer<typeof ListPipelinesSchema>;
 export type GetPipelineOptions = z.infer<typeof GetPipelineSchema>;
 export type ListPipelineJobsOptions = z.infer<typeof ListPipelineJobsSchema>;
 export type ListPipelineTriggerJobsOptions = z.infer<typeof ListPipelineTriggerJobsSchema>;
+export type ListDeploymentsOptions = z.infer<typeof ListDeploymentsSchema>;
+export type GetDeploymentOptions = z.infer<typeof GetDeploymentSchema>;
+export type ListEnvironmentsOptions = z.infer<typeof ListEnvironmentsSchema>;
+export type GetEnvironmentOptions = z.infer<typeof GetEnvironmentSchema>;
 export type CreatePipelineOptions = z.infer<typeof CreatePipelineSchema>;
 export type RetryPipelineOptions = z.infer<typeof RetryPipelineSchema>;
 export type CancelPipelineOptions = z.infer<typeof CancelPipelineSchema>;
@@ -2623,6 +2784,50 @@ export const CreateReleaseEvidenceSchema = z.object({
   tag_name: z.string().describe("The Git tag the release is associated with"),
 });
 
+// Job Artifacts schemas
+export const ListJobArtifactsSchema = z.object({
+  project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
+  job_id: z.coerce.string().describe("The ID of the job"),
+  path: z
+    .string()
+    .optional()
+    .describe("Directory path within the artifacts archive (defaults to root)"),
+  recursive: z
+    .boolean()
+    .optional()
+    .describe("Whether to list artifacts recursively"),
+});
+
+export const GitLabArtifactEntrySchema = z.object({
+  name: z.string(),
+  path: z.string(),
+  type: z.enum(["file", "directory"]),
+  size: z.number().optional(),
+  mode: z.string().optional(),
+});
+
+export const DownloadJobArtifactsSchema = z.object({
+  project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
+  job_id: z.coerce.string().describe("The ID of the job"),
+  local_path: z
+    .string()
+    .optional()
+    .describe("Local directory to save the artifact archive (defaults to current directory)"),
+});
+
+export const GetJobArtifactFileSchema = z.object({
+  project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
+  job_id: z.coerce.string().describe("The ID of the job"),
+  artifact_path: z
+    .string()
+    .describe("Path to the file within the artifacts archive"),
+});
+
+export type GitLabArtifactEntry = z.infer<typeof GitLabArtifactEntrySchema>;
+export type ListJobArtifactsOptions = z.infer<typeof ListJobArtifactsSchema>;
+export type DownloadJobArtifactsOptions = z.infer<typeof DownloadJobArtifactsSchema>;
+export type GetJobArtifactFileOptions = z.infer<typeof GetJobArtifactFileSchema>;
+
 export const DownloadReleaseAssetSchema = z.object({
   project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
   tag_name: z.string().describe("The Git tag the release is associated with"),
@@ -2655,6 +2860,9 @@ export type ApproveMergeRequestOptions = z.infer<typeof ApproveMergeRequestSchem
 export type UnapproveMergeRequestOptions = z.infer<typeof UnapproveMergeRequestSchema>;
 export type GitLabApprovalUser = z.infer<typeof GitLabApprovalUserSchema>;
 export type GitLabApprovalRule = z.infer<typeof GitLabApprovalRuleSchema>;
+export type GitLabMergeRequestApprovalsResponse = z.infer<
+  typeof GitLabMergeRequestApprovalsResponseSchema
+>;
 export type GitLabMergeRequestApprovalState = z.infer<typeof GitLabMergeRequestApprovalStateSchema>;
 export type GetMergeRequestApprovalStateOptions = z.infer<
   typeof GetMergeRequestApprovalStateSchema
