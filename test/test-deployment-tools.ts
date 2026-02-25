@@ -9,6 +9,7 @@ const TEST_DEPLOYMENT_ID = "777";
 const TEST_ENVIRONMENT_ID = "42";
 const TEST_MERGE_REQUEST_IID = "88";
 const TEST_MERGE_REQUEST_SHA = "merge-sha-6870";
+const TEST_DIVERGED_COMMITS_COUNT = 35;
 
 const mrDeploymentsByCreatedAtAsc = Array.from({ length: 12 }, (_, index) => {
   const sequence = index + 1;
@@ -161,6 +162,10 @@ describe("deployment and environment tools", () => {
       "get",
       `/projects/${TEST_PROJECT_ID}/merge_requests/${TEST_MERGE_REQUEST_IID}`,
       (req, res) => {
+        const includeDivergedCommitsCount = Array.isArray(req.query.include_diverged_commits_count)
+          ? req.query.include_diverged_commits_count[0]
+          : req.query.include_diverged_commits_count;
+
         res.json({
           id: TEST_MERGE_REQUEST_IID,
           iid: TEST_MERGE_REQUEST_IID,
@@ -181,6 +186,12 @@ describe("deployment and environment tools", () => {
           merged_at: "2026-02-20T11:05:00.000Z",
           closed_at: null,
           merge_commit_sha: TEST_MERGE_REQUEST_SHA,
+          ...(includeDivergedCommitsCount === "true"
+            ? {
+                diverged_commits_count: TEST_DIVERGED_COMMITS_COUNT,
+                rebase_in_progress: false,
+              }
+            : {}),
         });
       }
     );
@@ -329,6 +340,11 @@ describe("deployment and environment tools", () => {
     );
 
     assert.ok(result.deployment_summary, "deployment_summary should be present");
+    assert.strictEqual(
+      result.diverged_commits_count,
+      TEST_DIVERGED_COMMITS_COUNT,
+      "diverged_commits_count should be requested and returned by default"
+    );
     assert.strictEqual(result.deployment_summary.lookup_sha, TEST_MERGE_REQUEST_SHA);
     assert.strictEqual(result.deployment_summary.sort, "created_at_desc");
     assert.strictEqual(result.deployment_summary.limit, 10);
@@ -364,6 +380,27 @@ describe("deployment and environment tools", () => {
     assert.ok(
       !result.deployment_summary.records.some((record: { id: string }) => record.id === "mr-deploy-2"),
       "second oldest deployment should be truncated"
+    );
+  });
+
+  test("get_merge_request can skip diverged_commits_count lookup when explicitly disabled", async () => {
+    const result = await callTool(
+      "get_merge_request",
+      {
+        project_id: TEST_PROJECT_ID,
+        merge_request_iid: TEST_MERGE_REQUEST_IID,
+        include_diverged_commits_count: false,
+      },
+      {
+        GITLAB_API_URL: `${mockGitLabUrl}/api/v4`,
+        GITLAB_PERSONAL_ACCESS_TOKEN: MOCK_TOKEN,
+      }
+    );
+
+    assert.strictEqual(
+      result.diverged_commits_count,
+      undefined,
+      "diverged_commits_count should be omitted when include_diverged_commits_count=false"
     );
   });
 });

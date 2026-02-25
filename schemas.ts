@@ -901,6 +901,15 @@ export const GitLabMergeRequestSchema = z.object({
   allow_collaboration: z.boolean().optional(),
   allow_maintainer_to_push: z.boolean().optional(),
   changes_count: z.string().nullable().optional(),
+  diverged_commits_count: z.coerce
+    .number()
+    .nullable()
+    .optional()
+    .describe("Number of commits the source branch is behind the target branch"),
+  rebase_in_progress: z
+    .boolean()
+    .optional()
+    .describe("Whether rebase is currently in progress for this merge request"),
   merge_when_pipeline_succeeds: z.boolean().optional(),
   squash: z.boolean().optional(),
   labels: z.array(z.string()).optional(),
@@ -1283,6 +1292,12 @@ export const GetBranchDiffsSchema = ProjectParamsSchema.extend({
 export const GetMergeRequestSchema = ProjectParamsSchema.extend({
   merge_request_iid: z.coerce.string().optional().describe("The IID of a merge request"),
   source_branch: z.string().optional().describe("Source branch name"),
+  include_diverged_commits_count: z
+    .boolean()
+    .optional()
+    .describe(
+      "When true, requests diverged_commits_count from GitLab to show how many commits source branch is behind target"
+    ),
 });
 
 export const UpdateMergeRequestSchema = GetMergeRequestSchema.extend({

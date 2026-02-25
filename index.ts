@@ -3275,7 +3275,8 @@ async function createRepository(
 async function getMergeRequest(
   projectId: string,
   mergeRequestIid?: number | string,
-  branchName?: string
+  branchName?: string,
+  includeDivergedCommitsCount = false
 ): Promise<GitLabMergeRequest> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   let url: URL;
@@ -3286,6 +3287,9 @@ async function getMergeRequest(
         getEffectiveProjectId(projectId)
       )}/merge_requests/${mergeRequestIid}`
     );
+    if (includeDivergedCommitsCount) {
+      url.searchParams.append("include_diverged_commits_count", "true");
+    }
   } else if (branchName) {
     url = new URL(
       `${getEffectiveApiUrl()}/projects/${encodeURIComponent(
@@ -3306,7 +3310,13 @@ async function getMergeRequest(
 
   // If response is an array (Comes from branchName search), return the first item if exist
   if (Array.isArray(data) && data.length > 0) {
-    return GitLabMergeRequestSchema.parse(data[0]);
+    const mergeRequest = GitLabMergeRequestSchema.parse(data[0]);
+
+    if (includeDivergedCommitsCount) {
+      return getMergeRequest(projectId, mergeRequest.iid, undefined, includeDivergedCommitsCount);
+    }
+
+    return mergeRequest;
   }
 
   return GitLabMergeRequestSchema.parse(data);
@@ -6682,7 +6692,8 @@ async function handleToolCall(params: any) {
         const mergeRequest = await getMergeRequest(
           args.project_id,
           args.merge_request_iid,
-          args.source_branch
+          args.source_branch,
+          args.include_diverged_commits_count ?? true
         );
         const deploymentSummary = await buildMergeRequestDeploymentSummary(
           args.project_id,
