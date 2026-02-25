@@ -1405,9 +1405,28 @@ export const GitLabApprovalRuleSchema = z.object({
   approved: z.boolean().optional(),
 });
 
+export const GitLabMergeRequestApprovalsResponseSchema = z.object({
+  approved: z.boolean().optional(),
+  user_has_approved: z.boolean().optional(),
+  user_can_approve: z.boolean().optional(),
+  approved_by: z
+    .array(
+      z.object({
+        user: GitLabApprovalUserSchema,
+      })
+    )
+    .optional(),
+});
+
 export const GitLabMergeRequestApprovalStateSchema = z.object({
   approval_rules_overwritten: z.boolean().optional(),
   rules: z.array(GitLabApprovalRuleSchema).optional(),
+  approved: z.boolean().optional(),
+  user_has_approved: z.boolean().optional(),
+  user_can_approve: z.boolean().optional(),
+  approved_by: z.array(GitLabApprovalUserSchema).optional(),
+  approved_by_usernames: z.array(z.string()).optional(),
+  source_endpoint: z.enum(["approval_state", "approvals"]).optional(),
 });
 
 export const GetMergeRequestApprovalStateSchema = ProjectParamsSchema.extend({
@@ -2841,6 +2860,9 @@ export type ApproveMergeRequestOptions = z.infer<typeof ApproveMergeRequestSchem
 export type UnapproveMergeRequestOptions = z.infer<typeof UnapproveMergeRequestSchema>;
 export type GitLabApprovalUser = z.infer<typeof GitLabApprovalUserSchema>;
 export type GitLabApprovalRule = z.infer<typeof GitLabApprovalRuleSchema>;
+export type GitLabMergeRequestApprovalsResponse = z.infer<
+  typeof GitLabMergeRequestApprovalsResponseSchema
+>;
 export type GitLabMergeRequestApprovalState = z.infer<typeof GitLabMergeRequestApprovalStateSchema>;
 export type GetMergeRequestApprovalStateOptions = z.infer<
   typeof GetMergeRequestApprovalStateSchema

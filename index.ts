@@ -222,7 +222,9 @@ import {
   ApproveMergeRequestSchema,
   UnapproveMergeRequestSchema,
   GetMergeRequestApprovalStateSchema,
+  GitLabMergeRequestApprovalsResponseSchema,
   GitLabMergeRequestApprovalStateSchema,
+  type GitLabApprovalUser,
   type GitLabMergeRequestApprovalState,
   type MergeRequestThreadPosition,
   type MergeRequestThreadPositionCreate,
@@ -884,7 +886,7 @@ const allTools = [
   {
     name: "get_merge_request_approval_state",
     description:
-      "Get the approval state of a merge request including approval rules and who has approved",
+      "Get merge request approval details including approvers (uses approval_state when available, falls back to approvals endpoint)",
     inputSchema: toJSONSchema(GetMergeRequestApprovalStateSchema),
   },
   {
@@ -3832,17 +3834,79 @@ async function getMergeRequestApprovalState(
   mergeRequestIid: string | number
 ): Promise<GitLabMergeRequestApprovalState> {
   projectId = decodeURIComponent(projectId);
-  const url = new URL(
+  const approvalStateUrl = new URL(
     `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/merge_requests/${mergeRequestIid}/approval_state`
   );
 
-  const response = await fetch(url.toString(), {
+  const approvalStateResponse = await fetch(approvalStateUrl.toString(), {
     ...getFetchConfig(),
     method: "GET",
   });
 
-  await handleGitLabError(response);
-  return GitLabMergeRequestApprovalStateSchema.parse(await response.json());
+  if (approvalStateResponse.status === 404) {
+    return getMergeRequestApprovalsFallback(projectId, mergeRequestIid);
+  }
+
+  await handleGitLabError(approvalStateResponse);
+
+  const parsedApprovalState = GitLabMergeRequestApprovalStateSchema.parse(
+    await approvalStateResponse.json()
+  );
+  const approvedByUsers = getUniqueApprovalUsers(
+    (parsedApprovalState.rules || []).flatMap(rule => rule.approved_by || [])
+  );
+  const approvedByUsernames = approvedByUsers.map(user => user.username);
+
+  return {
+    ...parsedApprovalState,
+    approved_by: approvedByUsers,
+    approved_by_usernames: approvedByUsernames,
+    source_endpoint: "approval_state",
+  };
+}
+
+async function getMergeRequestApprovalsFallback(
+  projectId: string,
+  mergeRequestIid: string | number
+): Promise<GitLabMergeRequestApprovalState> {
+  const approvalsUrl = new URL(
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/merge_requests/${mergeRequestIid}/approvals`
+  );
+
+  const approvalsResponse = await fetch(approvalsUrl.toString(), {
+    ...getFetchConfig(),
+    method: "GET",
+  });
+
+  await handleGitLabError(approvalsResponse);
+  const parsedApprovals = GitLabMergeRequestApprovalsResponseSchema.parse(
+    await approvalsResponse.json()
+  );
+  const approvedByUsers = getUniqueApprovalUsers(
+    (parsedApprovals.approved_by || []).map(approvedByEntry => approvedByEntry.user)
+  );
+  const approvedByUsernames = approvedByUsers.map(user => user.username);
+
+  return GitLabMergeRequestApprovalStateSchema.parse({
+    approved: parsedApprovals.approved,
+    user_has_approved: parsedApprovals.user_has_approved,
+    user_can_approve: parsedApprovals.user_can_approve,
+    approved_by: approvedByUsers,
+    approved_by_usernames: approvedByUsernames,
+    source_endpoint: "approvals",
+  });
+}
+
+function getUniqueApprovalUsers(users: GitLabApprovalUser[]): GitLabApprovalUser[] {
+  const uniqueUsers = new Map<string, GitLabApprovalUser>();
+
+  for (const user of users) {
+    if (!uniqueUsers.has(user.id)) {
+      uniqueUsers.set(user.id, user);
+    }
+  }
+
+  return [...uniqueUsers.values()];
 }
 
 /**
