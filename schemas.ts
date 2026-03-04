@@ -789,7 +789,6 @@ const SearchBlobsBaseSchema = z.object({
     .describe(
       "Code search query string (use filename, path, and extension params to filter results)"
     ),
-  ref: z.string().optional().describe("Branch or tag to search in (defaults to default branch)"),
   filename: z
     .string()
     .optional()
@@ -808,6 +807,7 @@ export const SearchCodeSchema = SearchBlobsBaseSchema.merge(PaginationOptionsSch
 
 export const SearchProjectCodeSchema = ProjectParamsSchema.extend({
   ...SearchBlobsBaseSchema.shape,
+  ref: z.string().optional().describe("Branch or tag to search in (defaults to default branch)"),
 }).merge(PaginationOptionsSchema);
 
 export const SearchGroupCodeSchema = z
