@@ -3199,7 +3199,7 @@ async function searchBlobs(params: {
 
   await handleGitLabError(response);
 
-  const data = (await response.json()) as unknown[];
+  const data = await response.json();
   return z.array(GitLabSearchBlobResultSchema).parse(data);
 }
 
@@ -6099,7 +6099,6 @@ async function handleToolCall(params: any) {
         const args = SearchCodeSchema.parse(params.arguments);
         const results = await searchBlobs({
           search: args.search,
-          ref: args.ref,
           filename: args.filename,
           path: args.path,
           extension: args.extension,
@@ -6133,7 +6132,6 @@ async function handleToolCall(params: any) {
         const results = await searchBlobs({
           search: args.search,
           group_id: args.group_id,
-          ref: args.ref,
           filename: args.filename,
           path: args.path,
           extension: args.extension,
