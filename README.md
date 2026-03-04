@@ -368,6 +368,7 @@ docker run -i --rm \
   - `wiki`\* — Wiki page CRUD (5 tools)
   - `releases`\* — Release CRUD, evidence, asset download (7 tools)
   - `users`\* — User info, events, markdown upload, attachments (5 tools)
+  - `search` — Code search across projects, groups, or globally (3 tools, requires advanced search or exact code search enabled)
 
   Note: `execute_graphql` is not in any toolset and must be added individually via `GITLAB_TOOLS` if needed.
   Exposing arbitrary GraphQL would allow bypassing toolset boundaries (e.g. querying data that the user intentionally disabled via toolsets like wiki or pipelines), which is a security and permission-containment concern. Keeping `execute_graphql` out of all toolsets and requiring explicit opt-in via `GITLAB_TOOLS=execute_graphql` is intentional, to align with that principle rather than for backward compatibility.
@@ -588,6 +589,9 @@ The token is stored per session (identified by `mcp-session-id` header) and reus
 96. `approve_merge_request` - Approve a merge request (requires appropriate permissions)
 97. `unapprove_merge_request` - Unapprove a previously approved merge request
 98. `get_merge_request_approval_state` - Get merge request approval details including approvers (uses `approval_state` when available, otherwise falls back to `approvals`)
+99. `search_code` - Search for code across all projects on the GitLab instance (requires advanced search or exact code search to be enabled)
+100. `search_project_code` - Search for code within a specific GitLab project (requires advanced search or exact code search to be enabled)
+101. `search_group_code` - Search for code within a specific GitLab group (requires advanced search or exact code search to be enabled)
 <!-- TOOLS-END -->
 
 </details>
