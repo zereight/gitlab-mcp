@@ -345,6 +345,49 @@ export class MockGitLabServer {
       });
     });
 
+    // Mock blob search result
+    const mockBlobResults = [
+      {
+        basename: "index",
+        data: "const searchResult = true;",
+        path: "src/index.ts",
+        filename: "index.ts",
+        id: null,
+        ref: "main",
+        startline: 42,
+        project_id: 1,
+      }
+    ];
+
+    // GET /api/v4/search - Global search
+    this.app.get('/api/v4/search', (req: AuthenticatedRequest, res: Response) => {
+      if (req.query.scope === 'blobs') {
+        res.json(mockBlobResults);
+      } else {
+        res.json([]);
+      }
+    });
+
+    // GET /api/v4/projects/:id/search - Project-level search
+    this.app.get('/api/v4/projects/:id/search', (req: AuthenticatedRequest, res: Response) => {
+      if (req.query.scope === 'blobs') {
+        const projectId = parseInt(req.params.id) || 1;
+        const results = mockBlobResults.map(r => ({ ...r, project_id: projectId }));
+        res.json(results);
+      } else {
+        res.json([]);
+      }
+    });
+
+    // GET /api/v4/groups/:id/search - Group-level search
+    this.app.get('/api/v4/groups/:id/search', (req: AuthenticatedRequest, res: Response) => {
+      if (req.query.scope === 'blobs') {
+        res.json(mockBlobResults);
+      } else {
+        res.json([]);
+      }
+    });
+
     // GET /api/v4/projects - List projects
     this.app.get('/api/v4/projects', (req: AuthenticatedRequest, res: Response) => {
       res.json([
