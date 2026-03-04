@@ -41,6 +41,7 @@ const TOOLSET_TOOL_COUNTS: Record<string, number> = {
   wiki: 5,
   releases: 7,
   users: 5,
+  search: 3,
 };
 
 const DEFAULT_TOOLSETS = [
@@ -54,7 +55,7 @@ const DEFAULT_TOOLSETS = [
   "users",
 ];
 
-const NON_DEFAULT_TOOLSETS = ["pipelines", "milestones", "wiki"];
+const NON_DEFAULT_TOOLSETS = ["pipelines", "milestones", "wiki", "search"];
 
 const DEFAULT_TOOL_COUNT = DEFAULT_TOOLSETS.reduce(
   (sum, id) => sum + TOOLSET_TOOL_COUNTS[id],
@@ -79,6 +80,7 @@ const TOOLSET_SAMPLE_TOOLS: Record<string, string[]> = {
   wiki: ["list_wiki_pages", "create_wiki_page"],
   releases: ["list_releases", "create_release", "download_release_asset"],
   users: ["get_users", "upload_markdown", "download_attachment"],
+  search: ["search_code", "search_project_code", "search_group_code"],
 };
 
 // --- Helpers ---
