@@ -166,6 +166,8 @@ import {
   GitLabReferenceSchema,
   type GitLabRepository,
   GitLabRepositorySchema,
+  GitLabSearchBlobResultSchema,
+  type GitLabSearchBlobResult,
   type GitLabSearchResponse,
   GitLabSearchResponseSchema,
   type GitLabTree,
@@ -243,6 +245,9 @@ import {
   PushFilesSchema,
   RetryPipelineJobSchema,
   RetryPipelineSchema,
+  SearchCodeSchema,
+  SearchGroupCodeSchema,
+  SearchProjectCodeSchema,
   SearchRepositoriesSchema,
   UpdateDraftNoteSchema,
   UpdateIssueNoteSchema,
@@ -1559,11 +1564,32 @@ const allTools = [
       "Get full details of a specific webhook event by ID, including request/response payloads. Searches up to 500 most recent events.",
     inputSchema: toJSONSchema(GetWebhookEventSchema),
   },
+  {
+    name: "search_code",
+    description:
+      "Search for code across all projects on the GitLab instance (requires advanced search or exact code search to be enabled)",
+    inputSchema: toJSONSchema(SearchCodeSchema),
+  },
+  {
+    name: "search_project_code",
+    description:
+      "Search for code within a specific GitLab project (requires advanced search or exact code search to be enabled)",
+    inputSchema: toJSONSchema(SearchProjectCodeSchema),
+  },
+  {
+    name: "search_group_code",
+    description:
+      "Search for code within a specific GitLab group (requires advanced search or exact code search to be enabled)",
+    inputSchema: toJSONSchema(SearchGroupCodeSchema),
+  },
 ];
 
 // Define which tools are read-only
 const readOnlyTools = new Set([
   "search_repositories",
+  "search_code",
+  "search_project_code",
+  "search_group_code",
   "execute_graphql",
   "get_file_contents",
   "get_merge_request",
@@ -1688,7 +1714,8 @@ type ToolsetId =
   | "wiki"
   | "releases"
   | "users"
-  | "webhooks";
+  | "webhooks"
+  | "search";
 
 interface ToolsetDefinition {
   readonly id: ToolsetId;
@@ -1886,6 +1913,11 @@ const TOOLSET_DEFINITIONS: readonly ToolsetDefinition[] = [
       "list_webhook_events",
       "get_webhook_event",
     ]),
+  },
+  {
+    id: "search",
+    isDefault: false,
+    tools: new Set(["search_code", "search_project_code", "search_group_code"]),
   },
 ] as const;
 
@@ -3402,6 +3434,66 @@ async function searchProjects(
     current_page: page,
     items: projects,
   });
+}
+
+/**
+ * Search for code blobs using GitLab Search API
+ * Supports global, project-level, and group-level search
+ */
+async function searchBlobs(params: {
+  search: string;
+  project_id?: string;
+  group_id?: string;
+  ref?: string;
+  filename?: string;
+  path?: string;
+  extension?: string;
+  page?: number;
+  per_page?: number;
+}): Promise<GitLabSearchBlobResult[]> {
+  let basePath: string;
+  if (params.project_id) {
+    const projectId = encodeURIComponent(getEffectiveProjectId(params.project_id));
+    basePath = `${getEffectiveApiUrl()}/projects/${projectId}/search`;
+  } else if (params.group_id) {
+    const groupId = encodeURIComponent(params.group_id);
+    basePath = `${getEffectiveApiUrl()}/groups/${groupId}/search`;
+  } else {
+    basePath = `${getEffectiveApiUrl()}/search`;
+  }
+
+  const url = new URL(basePath);
+  url.searchParams.append("scope", "blobs");
+  url.searchParams.append("search", params.search);
+
+  if (params.ref) {
+    url.searchParams.append("ref", params.ref);
+  }
+  if (params.page) {
+    url.searchParams.append("page", params.page.toString());
+  }
+  if (params.per_page) {
+    url.searchParams.append("per_page", params.per_page.toString());
+  }
+
+  if (params.filename) {
+    url.searchParams.append("filename", params.filename);
+  }
+  if (params.path) {
+    url.searchParams.append("path", params.path);
+  }
+  if (params.extension) {
+    url.searchParams.append("extension", params.extension);
+  }
+
+  const response = await fetch(url.toString(), {
+    ...getFetchConfig(),
+  });
+
+  await handleGitLabError(response);
+
+  const data = (await response.json()) as unknown[];
+  return z.array(GitLabSearchBlobResultSchema).parse(data);
 }
 
 /**
@@ -6983,6 +7075,56 @@ async function handleToolCall(params: any) {
       case "search_repositories": {
         const args = SearchRepositoriesSchema.parse(params.arguments);
         const results = await searchProjects(args.search, args.page, args.per_page);
+        return {
+          content: [{ type: "text", text: JSON.stringify(results, null, 2) }],
+        };
+      }
+
+      case "search_code": {
+        const args = SearchCodeSchema.parse(params.arguments);
+        const results = await searchBlobs({
+          search: args.search,
+          ref: args.ref,
+          filename: args.filename,
+          path: args.path,
+          extension: args.extension,
+          page: args.page,
+          per_page: args.per_page,
+        });
+        return {
+          content: [{ type: "text", text: JSON.stringify(results, null, 2) }],
+        };
+      }
+
+      case "search_project_code": {
+        const args = SearchProjectCodeSchema.parse(params.arguments);
+        const results = await searchBlobs({
+          search: args.search,
+          project_id: args.project_id,
+          ref: args.ref,
+          filename: args.filename,
+          path: args.path,
+          extension: args.extension,
+          page: args.page,
+          per_page: args.per_page,
+        });
+        return {
+          content: [{ type: "text", text: JSON.stringify(results, null, 2) }],
+        };
+      }
+
+      case "search_group_code": {
+        const args = SearchGroupCodeSchema.parse(params.arguments);
+        const results = await searchBlobs({
+          search: args.search,
+          group_id: args.group_id,
+          ref: args.ref,
+          filename: args.filename,
+          path: args.path,
+          extension: args.extension,
+          page: args.page,
+          per_page: args.per_page,
+        });
         return {
           content: [{ type: "text", text: JSON.stringify(results, null, 2) }],
         };
