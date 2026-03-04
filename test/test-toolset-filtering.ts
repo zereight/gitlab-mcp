@@ -36,11 +36,12 @@ const TOOLSET_TOOL_COUNTS: Record<string, number> = {
   branches: 4,
   projects: 8,
   labels: 5,
-  pipelines: 12,
+  pipelines: 19,
   milestones: 9,
   wiki: 5,
   releases: 7,
   users: 5,
+  search: 3,
 };
 
 const DEFAULT_TOOLSETS = [
@@ -56,6 +57,8 @@ const DEFAULT_TOOLSETS = [
   "releases",
   "users",
 ];
+
+const NON_DEFAULT_TOOLSETS = ["search"];
 
 const DEFAULT_TOOL_COUNT = DEFAULT_TOOLSETS.reduce(
   (sum, id) => sum + TOOLSET_TOOL_COUNTS[id],
@@ -80,6 +83,7 @@ const TOOLSET_SAMPLE_TOOLS: Record<string, string[]> = {
   wiki: ["list_wiki_pages", "create_wiki_page"],
   releases: ["list_releases", "create_release", "download_release_asset"],
   users: ["get_users", "upload_markdown", "download_attachment"],
+  search: ["search_code", "search_project_code", "search_group_code"],
 };
 
 // --- Helpers ---
@@ -174,9 +178,10 @@ describe("Toolset Filtering", () => {
       }
     });
 
-    test("includes all toolsets by default (no non-default toolsets)", () => {
-      // All toolsets are now default, so default count equals all toolset count
-      assert.strictEqual(tools.length, ALL_TOOLSET_TOOL_COUNT);
+    test("excludes non-default toolsets (search)", () => {
+      for (const id of NON_DEFAULT_TOOLSETS) {
+        assertContainsNone(tools, TOOLSET_SAMPLE_TOOLS[id], id);
+      }
     });
 
     test("excludes execute_graphql (not in any toolset)", () => {
@@ -233,8 +238,8 @@ describe("Toolset Filtering", () => {
       assert.strictEqual(tools.length, ALL_TOOLSET_TOOL_COUNT);
     });
 
-    test("includes pipelines, milestones, and wiki", () => {
-      for (const id of ["pipelines", "milestones", "wiki"]) {
+    test("includes pipelines, milestones, wiki, and search", () => {
+      for (const id of ["pipelines", "milestones", "wiki", "search"]) {
         assertContainsAll(tools, TOOLSET_SAMPLE_TOOLS[id], id);
       }
     });
@@ -260,19 +265,19 @@ describe("Toolset Filtering", () => {
 
     after(() => cleanupServers([server]));
 
-    test("returns default tools plus the two individual tools", () => {
-      assert.strictEqual(tools.length, DEFAULT_TOOL_COUNT + 2);
+    test("returns default tools plus execute_graphql only", () => {
+      assert.strictEqual(tools.length, DEFAULT_TOOL_COUNT + 1);
     });
 
     test("includes the individually added tools", () => {
       assertContainsAll(tools, ["list_pipelines", "execute_graphql"], "individual");
     });
 
-    test("does not include other pipeline tools", () => {
-      assertContainsNone(
+    test("still includes other pipeline tools because pipelines are default", () => {
+      assertContainsAll(
         tools,
         ["create_pipeline", "cancel_pipeline"],
-        "other pipelines"
+        "default pipelines"
       );
     });
   });
@@ -353,11 +358,8 @@ describe("Toolset Filtering", () => {
 
     after(() => cleanupServers([server]));
 
-    test("returns default tools + wiki tools", () => {
-      assert.strictEqual(
-        tools.length,
-        DEFAULT_TOOL_COUNT + TOOLSET_TOOL_COUNTS.wiki
-      );
+    test("returns default tools because wiki is already enabled by default", () => {
+      assert.strictEqual(tools.length, DEFAULT_TOOL_COUNT);
     });
 
     test("includes wiki tools", () => {
@@ -574,8 +576,8 @@ describe("Toolset Filtering", () => {
       assertContainsAll(tools, ["list_pipelines", "execute_graphql"], "case-insensitive tools");
     });
 
-    test("returns default tools plus the two individual tools", () => {
-      assert.strictEqual(tools.length, DEFAULT_TOOL_COUNT + 2);
+    test("returns default tools plus execute_graphql only", () => {
+      assert.strictEqual(tools.length, DEFAULT_TOOL_COUNT + 1);
     });
   });
 
