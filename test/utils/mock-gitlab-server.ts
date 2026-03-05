@@ -26,13 +26,17 @@ export class MockGitLabServer {
   private requestCount = 0;
   private customRouter: express.Router;
   private customHandlers = new Map<string, Handler>();
+  // Root-level dynamic router (for OAuth paths not under /api/v4)
+  private rootRouter: express.Router;
+  private rootHandlers = new Map<string, Handler>();
 
   constructor(config: MockGitLabConfig) {
     this.config = config;
     this.app = express();
     this.customRouter = express.Router();
+    this.rootRouter = express.Router();
 
-    // Dynamic dispatcher for custom handlers
+    // Dynamic dispatcher for /api/v4 handlers
     this.customRouter.use((req, res, next) => {
       // Create a key from method and path (relative to /api/v4)
       // req.path is already relative to the mount point
@@ -49,7 +53,20 @@ export class MockGitLabServer {
       next();
     });
 
+    // Dynamic dispatcher for root-level handlers (OAuth endpoints, well-known, etc.)
+    this.rootRouter.use((req, res, next) => {
+      const key = `${req.method.toUpperCase()}:${req.path}`;
+      const handler = this.rootHandlers.get(key);
+      if (handler) {
+        console.log(`[MockServer] Root handler hit: ${key}`);
+        return handler(req, res, next);
+      }
+      next();
+    });
+
     this.setupMiddleware();
+    // Root router must be mounted BEFORE setupRoutes() installs the catch-all
+    this.app.use(this.rootRouter);
     this.app.use('/api/v4', this.customRouter); // Mount router on API path
     this.setupRoutes();
   }
@@ -59,6 +76,17 @@ export class MockGitLabServer {
     const key = `${method.toUpperCase()}:${path}`;
     console.log(`[MockServer] Adding custom handler: ${key}`);
     this.customHandlers.set(key, handler);
+  }
+
+  /**
+   * Add a route at the instance root (not under /api/v4).
+   * Use this for OAuth endpoints (/oauth/*, /.well-known/*) that GitLab
+   * serves at the instance root rather than under the API prefix.
+   */
+  public addRootHandler(method: 'get' | 'post' | 'put' | 'delete', path: string, handler: Handler) {
+    const key = `${method.toUpperCase()}:${path}`;
+    console.log(`[MockServer] Adding root handler: ${key}`);
+    this.rootHandlers.set(key, handler);
   }
 
   public clearCustomHandlers() {

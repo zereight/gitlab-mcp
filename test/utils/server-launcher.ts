@@ -46,14 +46,18 @@ export async function launchServer(config: ServerConfig): Promise<ServerInstance
   const GITLAB_TOKEN = process.env.GITLAB_TOKEN_TEST || process.env.GITLAB_TOKEN;
   const TEST_PROJECT_ID = process.env.TEST_PROJECT_ID;
   
-  // Check if remote authorization is enabled
+  // Check which auth modes are active
   const isRemoteAuth = env.REMOTE_AUTHORIZATION === 'true';
-  
-  // Validate that we have required configuration (unless using remote auth)
-  if (!GITLAB_TOKEN && !isRemoteAuth) {
+  const isMcpOAuth = env.GITLAB_MCP_OAUTH === 'true';
+  // Both REMOTE_AUTHORIZATION and GITLAB_MCP_OAUTH manage tokens at the HTTP layer;
+  // neither requires a pre-configured GITLAB_TOKEN on the server process.
+  const isServerManagedAuth = isRemoteAuth || isMcpOAuth;
+
+  // Validate that we have required configuration (unless using a server-managed auth mode)
+  if (!GITLAB_TOKEN && !isServerManagedAuth) {
     throw new Error('GITLAB_TOKEN_TEST or GITLAB_TOKEN environment variable is required for server testing');
   }
-  if (!TEST_PROJECT_ID && !isRemoteAuth && env.ENABLE_DYNAMIC_API_URL !== 'true') {
+  if (!TEST_PROJECT_ID && !isServerManagedAuth && env.ENABLE_DYNAMIC_API_URL !== 'true') {
     throw new Error('TEST_PROJECT_ID environment variable is required for server testing');
   }
 
@@ -62,8 +66,8 @@ export async function launchServer(config: ServerConfig): Promise<ServerInstance
     ...env,
   } as Record<string, string>;
 
-  // Only set GITLAB_PERSONAL_ACCESS_TOKEN if not using remote auth
-  if (!isRemoteAuth && GITLAB_TOKEN) {
+  // Only set GITLAB_PERSONAL_ACCESS_TOKEN if not using a server-managed auth mode
+  if (!isServerManagedAuth && GITLAB_TOKEN) {
     serverEnv.GITLAB_PERSONAL_ACCESS_TOKEN = GITLAB_TOKEN;
   }
 
