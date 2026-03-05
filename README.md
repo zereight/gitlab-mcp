@@ -483,6 +483,80 @@ The token is stored per session (identified by `mcp-session-id` header) and reus
 - **Rate limiting:** Each session is limited to `MAX_REQUESTS_PER_MINUTE` requests per minute (default 60)
 - **Capacity limit:** Server accepts up to `MAX_SESSIONS` concurrent sessions (default 1000)
 
+### MCP OAuth Setup (Claude.ai Native OAuth)
+
+When using `GITLAB_MCP_OAUTH=true`, the server acts as an OAuth proxy to your GitLab
+instance. Claude.ai (and any MCP-spec-compliant client) handles the entire browser
+authentication flow automatically — no manual Personal Access Token management needed.
+
+**How it works:**
+
+1. User adds your MCP server URL in Claude.ai
+2. Claude.ai discovers OAuth endpoints via `/.well-known/oauth-authorization-server`
+3. Claude.ai registers itself via Dynamic Client Registration (`POST /register`)
+4. Claude.ai redirects the user's browser to your GitLab login page
+5. User authenticates; GitLab redirects back to `https://claude.ai/api/mcp/auth_callback`
+6. Claude.ai sends `Authorization: Bearer <token>` on every MCP request
+7. Server validates the token with GitLab and stores it per session
+
+No GitLab OAuth application needs to be pre-created — GitLab's open DCR handles
+client registration automatically.
+
+**Server setup:**
+
+```bash
+docker run -d \
+  -e STREAMABLE_HTTP=true \
+  -e GITLAB_MCP_OAUTH=true \
+  -e GITLAB_API_URL="https://gitlab.example.com/api/v4" \
+  -e MCP_SERVER_URL="https://your-mcp-server.example.com" \
+  -p 3002:3002 \
+  zereight050/gitlab-mcp
+```
+
+For local development (HTTP allowed):
+
+```bash
+MCP_DANGEROUSLY_ALLOW_INSECURE_ISSUER_URL=true \
+STREAMABLE_HTTP=true \
+GITLAB_MCP_OAUTH=true \
+MCP_SERVER_URL=http://localhost:3002 \
+GITLAB_API_URL=https://gitlab.com/api/v4 \
+node build/index.js
+```
+
+**Claude.ai configuration:**
+
+```json
+{
+  "mcpServers": {
+    "GitLab": {
+      "url": "https://your-mcp-server.example.com/mcp"
+    }
+  }
+}
+```
+
+No `headers` field is needed — Claude.ai obtains the token via OAuth automatically.
+
+**Environment variables:**
+
+| Variable | Required | Description |
+|---|---|---|
+| `GITLAB_MCP_OAUTH` | Yes | Set to `true` to enable |
+| `MCP_SERVER_URL` | Yes | Public HTTPS URL of your MCP server |
+| `GITLAB_API_URL` | Yes | Your GitLab instance API URL (e.g. `https://gitlab.com/api/v4`) |
+| `STREAMABLE_HTTP` | Yes | Must be `true` (SSE is not supported) |
+| `MCP_DANGEROUSLY_ALLOW_INSECURE_ISSUER_URL` | No | Set `true` for local HTTP dev only |
+
+**Important Notes:**
+
+- MCP OAuth **only works with Streamable HTTP transport** (`SSE=true` is incompatible)
+- Each user session stores its own OAuth token — sessions are fully isolated
+- Session timeout, rate limiting, and capacity limits apply identically to the
+  `REMOTE_AUTHORIZATION` mode (`SESSION_TIMEOUT_SECONDS`, `MAX_REQUESTS_PER_MINUTE`,
+  `MAX_SESSIONS`)
+
 ## Tools 🛠️
 
 <details>
