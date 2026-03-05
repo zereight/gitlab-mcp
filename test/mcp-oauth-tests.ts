@@ -305,21 +305,22 @@ describe("MCP OAuth — BoundedClientCache", () => {
     };
   }
 
-  async function buildCachingProvider(maxSize: number) {
-    // Spin up a DCR stub that echoes back whatever client_name/redirect_uris it receives
+  async function buildCachingProvider() {
+    // Spin up a DCR stub that returns a stable client_id from the request body.
+    // The stub reads client_id from the incoming body (set by the SDK's register
+    // handler before calling registerClient), so cache keys are predictable.
     const { createServer } = await import("node:http");
-    let callCount = 0;
     const stub = createServer((req, res) => {
       let body = "";
       req.on("data", (chunk) => (body += chunk));
       req.on("end", () => {
-        callCount++;
         const parsed = JSON.parse(body || "{}");
         res.writeHead(201, { "Content-Type": "application/json" });
+        // Echo client_id back so tests can look it up by a known key
         res.end(
           JSON.stringify({
-            client_id: parsed.client_name ?? `client-${callCount}`,
-            client_name: parsed.client_name ?? `client-${callCount}`,
+            client_id: parsed.client_id ?? "unknown",
+            client_name: parsed.client_name ?? "unnamed",
             redirect_uris: parsed.redirect_uris ?? [],
             token_endpoint_auth_method: "none",
           })
@@ -330,30 +331,25 @@ describe("MCP OAuth — BoundedClientCache", () => {
     const addr = stub.address() as { port: number };
     const baseUrl = `http://127.0.0.1:${addr.port}`;
 
-    // Patch CLIENT_CACHE_MAX_SIZE is not possible without refactor, so we drive
-    // the full provider and test observable eviction behaviour at the default limit.
-    // For the size-cap test we use a fresh import with a small cap via re-export.
     const { createGitLabOAuthProvider } = await import("../oauth-proxy.js");
     const provider = createGitLabOAuthProvider(baseUrl);
 
-    return { provider, stub, getCallCount: () => callCount };
+    return { provider, stub };
   }
 
-  test("LRU: most-recently-used client survives when oldest is evicted", async () => {
-    // We can't set maxSize to a tiny number without exposing it, so instead we
-    // verify that repeated get() on an entry keeps it "fresh" (moves it to tail).
-    // Functional check: register two clients; accessing the first one after
-    // registering the second keeps both in cache.
-    const { provider, stub } = await buildCachingProvider(1000);
+  test("LRU: both clients remain cached after sequential registration", async () => {
+    const { provider, stub } = await buildCachingProvider();
 
     try {
       const store = provider.clientsStore;
 
-      await store.registerClient!({ client_name: "client-A", redirect_uris: ["https://a.com/cb"], token_endpoint_auth_method: "none" });
-      await store.registerClient!({ client_name: "client-B", redirect_uris: ["https://b.com/cb"], token_endpoint_auth_method: "none" });
+      // Register two clients with known client_ids (simulating what the SDK does
+      // — it generates the client_id before calling registerClient)
+      await store.registerClient!({ client_id: "id-A", client_name: "Claude", redirect_uris: ["https://a.com/cb"], token_endpoint_auth_method: "none" } as any);
+      await store.registerClient!({ client_id: "id-B", client_name: "Cursor", redirect_uris: ["https://b.com/cb"], token_endpoint_auth_method: "none" } as any);
 
-      const a = await store.getClient("client-A");
-      const b = await store.getClient("client-B");
+      const a = await store.getClient("id-A");
+      const b = await store.getClient("id-B");
 
       assert.deepStrictEqual(a!.redirect_uris, ["https://a.com/cb"], "client-A still cached");
       assert.deepStrictEqual(b!.redirect_uris, ["https://b.com/cb"], "client-B still cached");
@@ -363,19 +359,18 @@ describe("MCP OAuth — BoundedClientCache", () => {
     }
   });
 
-  test("cache: re-registration updates the stored entry", async () => {
-    const { provider, stub } = await buildCachingProvider(1000);
+  test("cache: re-registration with same client_id updates the stored entry", async () => {
+    const { provider, stub } = await buildCachingProvider();
 
     try {
       const store = provider.clientsStore;
 
-      await store.registerClient!({ client_name: "client-A", redirect_uris: ["https://old.com/cb"], token_endpoint_auth_method: "none" });
-      const first = await store.getClient("client-A");
+      await store.registerClient!({ client_id: "id-A", client_name: "Claude", redirect_uris: ["https://old.com/cb"], token_endpoint_auth_method: "none" } as any);
+      const first = await store.getClient("id-A");
       assert.deepStrictEqual(first!.redirect_uris, ["https://old.com/cb"]);
 
-      // Re-register same client_name — stub returns new redirect_uris
-      await store.registerClient!({ client_name: "client-A", redirect_uris: ["https://new.com/cb"], token_endpoint_auth_method: "none" });
-      const second = await store.getClient("client-A");
+      await store.registerClient!({ client_id: "id-A", client_name: "Claude", redirect_uris: ["https://new.com/cb"], token_endpoint_auth_method: "none" } as any);
+      const second = await store.getClient("id-A");
       assert.deepStrictEqual(second!.redirect_uris, ["https://new.com/cb"], "Cache entry updated on re-registration");
       console.log("  ✓ Re-registration updates the cached entry");
     } finally {
@@ -505,23 +500,28 @@ describe("MCP OAuth — createGitLabOAuthProvider", () => {
   });
 
   test("clientsStore caches DCR response so getClient returns real redirect_uris", async () => {
-    // Spin up a stub DCR server that returns a realistic GitLab DCR response
+    // Spin up a stub DCR server that echoes back the request body as-is
     const { createServer } = await import("node:http");
     const REGISTERED_CLIENT_ID = "cached-client-id-abc";
     const REGISTERED_REDIRECT_URI = "https://claude.ai/api/mcp/auth_callback";
 
     const stub = createServer((req, res) => {
       if (req.method === "POST" && req.url === "/oauth/register") {
-        res.writeHead(201, { "Content-Type": "application/json" });
-        res.end(
-          JSON.stringify({
-            client_id: REGISTERED_CLIENT_ID,
-            client_name: "[Unverified Dynamic Application] test",
-            redirect_uris: [REGISTERED_REDIRECT_URI],
-            token_endpoint_auth_method: "none",
-            require_pkce: true,
-          })
-        );
+        let body = "";
+        req.on("data", (c) => (body += c));
+        req.on("end", () => {
+          const parsed = JSON.parse(body);
+          res.writeHead(201, { "Content-Type": "application/json" });
+          res.end(
+            JSON.stringify({
+              client_id: REGISTERED_CLIENT_ID,
+              client_name: `[Unverified Dynamic Application] ${parsed.client_name}`,
+              redirect_uris: parsed.redirect_uris ?? [REGISTERED_REDIRECT_URI],
+              token_endpoint_auth_method: "none",
+              require_pkce: true,
+            })
+          );
+        });
       } else {
         res.writeHead(404);
         res.end();
@@ -534,7 +534,7 @@ describe("MCP OAuth — createGitLabOAuthProvider", () => {
 
     try {
       const { createGitLabOAuthProvider } = await import("../oauth-proxy.js");
-      const provider = createGitLabOAuthProvider(baseUrl);
+      const provider = createGitLabOAuthProvider(baseUrl, "My MCP Server");
 
       // Before registration: stub returns empty redirect_uris
       const beforeReg = await provider.clientsStore.getClient(REGISTERED_CLIENT_ID);
@@ -542,7 +542,7 @@ describe("MCP OAuth — createGitLabOAuthProvider", () => {
 
       // Simulate DCR registration (as the SDK would call it)
       const registered = await provider.clientsStore.registerClient!({
-        client_name: "test",
+        client_name: "Claude",
         redirect_uris: [REGISTERED_REDIRECT_URI],
         token_endpoint_auth_method: "none",
       });
@@ -554,6 +554,12 @@ describe("MCP OAuth — createGitLabOAuthProvider", () => {
         "redirect_uris from GitLab"
       );
 
+      // client_name forwarded to GitLab should be annotated with the resource name
+      assert.ok(
+        registered.client_name?.includes("Claude via My MCP Server"),
+        `client_name should include 'Claude via My MCP Server', got: ${registered.client_name}`
+      );
+
       // After registration: getClient returns cached entry with real redirect_uris
       const afterReg = await provider.clientsStore.getClient(REGISTERED_CLIENT_ID);
       assert.deepStrictEqual(
@@ -562,6 +568,7 @@ describe("MCP OAuth — createGitLabOAuthProvider", () => {
         "getClient should return real redirect_uris from cache after registration"
       );
       console.log("  ✓ DCR response cached: getClient returns real redirect_uris after registration");
+      console.log(`  ✓ client_name annotated: ${registered.client_name}`);
     } finally {
       stub.close();
     }
