@@ -17,10 +17,7 @@ import {
   TransportMode,
   HOST,
 } from "./utils/server-launcher.js";
-import {
-  MockGitLabServer,
-  findMockServerPort,
-} from "./utils/mock-gitlab-server.js";
+import { MockGitLabServer, findMockServerPort } from "./utils/mock-gitlab-server.js";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -84,23 +81,19 @@ function addOAuthEndpoints(
   });
 
   // OAuth Authorization Server well-known metadata
-  mockGitLab.addRootHandler(
-    "get",
-    "/.well-known/oauth-authorization-server",
-    (_req, res) => {
-      res.json({
-        issuer: baseUrl,
-        authorization_endpoint: `${baseUrl}/oauth/authorize`,
-        token_endpoint: `${baseUrl}/oauth/token`,
-        registration_endpoint: `${baseUrl}/oauth/register`,
-        revocation_endpoint: `${baseUrl}/oauth/revoke`,
-        scopes_supported: ["api", "read_api", "read_user"],
-        response_types_supported: ["code"],
-        grant_types_supported: ["authorization_code", "refresh_token"],
-        code_challenge_methods_supported: ["S256"],
-      });
-    }
-  );
+  mockGitLab.addRootHandler("get", "/.well-known/oauth-authorization-server", (_req, res) => {
+    res.json({
+      issuer: baseUrl,
+      authorization_endpoint: `${baseUrl}/oauth/authorize`,
+      token_endpoint: `${baseUrl}/oauth/token`,
+      registration_endpoint: `${baseUrl}/oauth/register`,
+      revocation_endpoint: `${baseUrl}/oauth/revoke`,
+      scopes_supported: ["api", "read_api", "read_user"],
+      response_types_supported: ["code"],
+      grant_types_supported: ["authorization_code", "refresh_token"],
+      code_challenge_methods_supported: ["S256"],
+    });
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -154,9 +147,7 @@ describe("MCP OAuth — Discovery Endpoints", () => {
   });
 
   test("GET /.well-known/oauth-authorization-server returns AS metadata", async () => {
-    const res = await fetch(
-      `${mcpBaseUrl}/.well-known/oauth-authorization-server`
-    );
+    const res = await fetch(`${mcpBaseUrl}/.well-known/oauth-authorization-server`);
     assert.strictEqual(res.status, 200, "Should return 200");
 
     const body = (await res.json()) as Record<string, unknown>;
@@ -172,9 +163,7 @@ describe("MCP OAuth — Discovery Endpoints", () => {
     // /.well-known/oauth-protected-resource{pathname} where pathname is derived
     // from resourceServerUrl (or issuerUrl). With issuerUrl = "http://host:port/"
     // the pathname "/" is stripped, yielding the bare endpoint.
-    const res = await fetch(
-      `${mcpBaseUrl}/.well-known/oauth-protected-resource`
-    );
+    const res = await fetch(`${mcpBaseUrl}/.well-known/oauth-protected-resource`);
     assert.strictEqual(res.status, 200, "Should return 200");
 
     const body = (await res.json()) as Record<string, unknown>;
@@ -312,7 +301,7 @@ describe("MCP OAuth — BoundedClientCache", () => {
     const { createServer } = await import("node:http");
     const stub = createServer((req, res) => {
       let body = "";
-      req.on("data", (chunk) => (body += chunk));
+      req.on("data", chunk => (body += chunk));
       req.on("end", () => {
         const parsed = JSON.parse(body || "{}");
         res.writeHead(201, { "Content-Type": "application/json" });
@@ -327,7 +316,7 @@ describe("MCP OAuth — BoundedClientCache", () => {
         );
       });
     });
-    await new Promise<void>((resolve) => stub.listen(0, "127.0.0.1", resolve));
+    await new Promise<void>(resolve => stub.listen(0, "127.0.0.1", resolve));
     const addr = stub.address() as { port: number };
     const baseUrl = `http://127.0.0.1:${addr.port}`;
 
@@ -345,8 +334,18 @@ describe("MCP OAuth — BoundedClientCache", () => {
 
       // Register two clients with known client_ids (simulating what the SDK does
       // — it generates the client_id before calling registerClient)
-      await store.registerClient!({ client_id: "id-A", client_name: "Claude", redirect_uris: ["https://a.com/cb"], token_endpoint_auth_method: "none" } as any);
-      await store.registerClient!({ client_id: "id-B", client_name: "Cursor", redirect_uris: ["https://b.com/cb"], token_endpoint_auth_method: "none" } as any);
+      await store.registerClient!({
+        client_id: "id-A",
+        client_name: "Claude",
+        redirect_uris: ["https://a.com/cb"],
+        token_endpoint_auth_method: "none",
+      } as any);
+      await store.registerClient!({
+        client_id: "id-B",
+        client_name: "Cursor",
+        redirect_uris: ["https://b.com/cb"],
+        token_endpoint_auth_method: "none",
+      } as any);
 
       const a = await store.getClient("id-A");
       const b = await store.getClient("id-B");
@@ -365,13 +364,27 @@ describe("MCP OAuth — BoundedClientCache", () => {
     try {
       const store = provider.clientsStore;
 
-      await store.registerClient!({ client_id: "id-A", client_name: "Claude", redirect_uris: ["https://old.com/cb"], token_endpoint_auth_method: "none" } as any);
+      await store.registerClient!({
+        client_id: "id-A",
+        client_name: "Claude",
+        redirect_uris: ["https://old.com/cb"],
+        token_endpoint_auth_method: "none",
+      } as any);
       const first = await store.getClient("id-A");
       assert.deepStrictEqual(first!.redirect_uris, ["https://old.com/cb"]);
 
-      await store.registerClient!({ client_id: "id-A", client_name: "Claude", redirect_uris: ["https://new.com/cb"], token_endpoint_auth_method: "none" } as any);
+      await store.registerClient!({
+        client_id: "id-A",
+        client_name: "Claude",
+        redirect_uris: ["https://new.com/cb"],
+        token_endpoint_auth_method: "none",
+      } as any);
       const second = await store.getClient("id-A");
-      assert.deepStrictEqual(second!.redirect_uris, ["https://new.com/cb"], "Cache entry updated on re-registration");
+      assert.deepStrictEqual(
+        second!.redirect_uris,
+        ["https://new.com/cb"],
+        "Cache entry updated on re-registration"
+      );
       console.log("  ✓ Re-registration updates the cached entry");
     } finally {
       stub.close();
@@ -392,7 +405,7 @@ describe("MCP OAuth — createGitLabOAuthProvider", () => {
       res.end(JSON.stringify({ error: "invalid_token" }));
     });
 
-    await new Promise<void>((resolve) => stub.listen(0, "127.0.0.1", resolve));
+    await new Promise<void>(resolve => stub.listen(0, "127.0.0.1", resolve));
     const addr = stub.address() as { port: number };
     const baseUrl = `http://127.0.0.1:${addr.port}`;
 
@@ -427,7 +440,7 @@ describe("MCP OAuth — createGitLabOAuthProvider", () => {
       );
     });
 
-    await new Promise<void>((resolve) => stub.listen(0, "127.0.0.1", resolve));
+    await new Promise<void>(resolve => stub.listen(0, "127.0.0.1", resolve));
     const addr = stub.address() as { port: number };
     const baseUrl = `http://127.0.0.1:${addr.port}`;
 
@@ -465,7 +478,7 @@ describe("MCP OAuth — createGitLabOAuthProvider", () => {
       );
     });
 
-    await new Promise<void>((resolve) => stub.listen(0, "127.0.0.1", resolve));
+    await new Promise<void>(resolve => stub.listen(0, "127.0.0.1", resolve));
     const addr = stub.address() as { port: number };
     const baseUrl = `http://127.0.0.1:${addr.port}`;
 
@@ -490,12 +503,12 @@ describe("MCP OAuth — createGitLabOAuthProvider", () => {
 
     assert.ok(client, "Should return a client object");
     assert.strictEqual(client!.client_id, "unknown-client-id", "client_id should match input");
-    assert.deepStrictEqual(client!.redirect_uris, [], "redirect_uris should be empty for unknown client");
-    assert.strictEqual(
-      client!.token_endpoint_auth_method,
-      "none",
-      "Should be a public client"
+    assert.deepStrictEqual(
+      client!.redirect_uris,
+      [],
+      "redirect_uris should be empty for unknown client"
     );
+    assert.strictEqual(client!.token_endpoint_auth_method, "none", "Should be a public client");
     console.log("  ✓ getClient returns stub for unknown clientId");
   });
 
@@ -508,7 +521,7 @@ describe("MCP OAuth — createGitLabOAuthProvider", () => {
     const stub = createServer((req, res) => {
       if (req.method === "POST" && req.url === "/oauth/register") {
         let body = "";
-        req.on("data", (c) => (body += c));
+        req.on("data", c => (body += c));
         req.on("end", () => {
           const parsed = JSON.parse(body);
           res.writeHead(201, { "Content-Type": "application/json" });
@@ -528,7 +541,7 @@ describe("MCP OAuth — createGitLabOAuthProvider", () => {
       }
     });
 
-    await new Promise<void>((resolve) => stub.listen(0, "127.0.0.1", resolve));
+    await new Promise<void>(resolve => stub.listen(0, "127.0.0.1", resolve));
     const addr = stub.address() as { port: number };
     const baseUrl = `http://127.0.0.1:${addr.port}`;
 
@@ -567,7 +580,9 @@ describe("MCP OAuth — createGitLabOAuthProvider", () => {
         [REGISTERED_REDIRECT_URI],
         "getClient should return real redirect_uris from cache after registration"
       );
-      console.log("  ✓ DCR response cached: getClient returns real redirect_uris after registration");
+      console.log(
+        "  ✓ DCR response cached: getClient returns real redirect_uris after registration"
+      );
       console.log(`  ✓ client_name annotated: ${registered.client_name}`);
     } finally {
       stub.close();
