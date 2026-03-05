@@ -7593,7 +7593,7 @@ async function startStreamableHTTPServer(): Promise<void> {
   if (GITLAB_MCP_OAUTH) {
     const gitlabBaseUrl = GITLAB_API_URL.replace(/\/api\/v4\/?$/, "").replace(/\/$/, "");
     const issuerUrl = new URL(MCP_SERVER_URL!);
-    const oauthProvider = createGitLabOAuthProvider(gitlabBaseUrl);
+    const oauthProvider = createGitLabOAuthProvider(gitlabBaseUrl, "GitLab MCP Server");
 
     // Mounts /.well-known/oauth-authorization-server,
     //        /.well-known/oauth-protected-resource,

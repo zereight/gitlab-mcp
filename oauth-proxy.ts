@@ -101,10 +101,20 @@ class BoundedClientCache {
  */
 class GitLabProxyOAuthServerProvider extends ProxyOAuthServerProvider {
   private readonly _clientCache = new BoundedClientCache(CLIENT_CACHE_MAX_SIZE);
+  private readonly _resourceName: string;
+
+  constructor(
+    options: ConstructorParameters<typeof ProxyOAuthServerProvider>[0],
+    resourceName: string
+  ) {
+    super(options);
+    this._resourceName = resourceName;
+  }
 
   override get clientsStore(): OAuthRegisteredClientsStore {
     const base = super.clientsStore;
     const cache = this._clientCache;
+    const resourceName = this._resourceName;
 
     return {
       // Return cached client when available; fall back to a public-client stub.
@@ -120,14 +130,23 @@ class GitLabProxyOAuthServerProvider extends ProxyOAuthServerProvider {
         };
       },
 
-      // Wrap registerClient to cache the GitLab DCR response.
-      // The SDK forwards the DCR request to GitLab and returns its response;
-      // we cache it here before passing it back so getClient works later.
+      // Wrap registerClient to:
+      //   1. Annotate client_name so the GitLab consent screen reads
+      //      "[Unverified Dynamic Application] <client> via <resourceName>"
+      //      instead of just "[Unverified Dynamic Application] <client>".
+      //   2. Cache the full GitLab DCR response so getClient() can return
+      //      the real redirect_uris for authorize-handler validation.
       ...(base.registerClient && {
         registerClient: async (
           client: Omit<OAuthClientInformationFull, "client_id" | "client_id_issued_at">
         ) => {
-          const registered = await base.registerClient!(client);
+          const annotated = {
+            ...client,
+            client_name: client.client_name
+              ? `${client.client_name} via ${resourceName}`
+              : resourceName,
+          };
+          const registered = await base.registerClient!(annotated);
           cache.set(registered.client_id, registered);
           return registered;
         },
@@ -141,9 +160,14 @@ class GitLabProxyOAuthServerProvider extends ProxyOAuthServerProvider {
  *
  * @param gitlabBaseUrl  Root URL of the GitLab instance, e.g. "https://gitlab.com"
  *                       (no trailing slash, no /api/v4 suffix).
+ * @param resourceName   Human-readable server name appended to the client_name
+ *                       sent to GitLab during DCR, e.g. "GitLab MCP Server".
+ *                       GitLab displays this on the OAuth consent screen as:
+ *                       "[Unverified Dynamic Application] <client> via <resourceName>"
  */
 export function createGitLabOAuthProvider(
-  gitlabBaseUrl: string
+  gitlabBaseUrl: string,
+  resourceName = "GitLab MCP Server"
 ): GitLabProxyOAuthServerProvider {
   const endpoints = {
     authorizationUrl: `${gitlabBaseUrl}/oauth/authorize`,
@@ -153,48 +177,48 @@ export function createGitLabOAuthProvider(
     registrationUrl: `${gitlabBaseUrl}/oauth/register`,
   };
 
-  return new GitLabProxyOAuthServerProvider({
-    endpoints,
+  return new GitLabProxyOAuthServerProvider(
+    {
+      endpoints,
 
-    /**
-     * Validate an access token by calling GitLab's lightweight token info endpoint.
-     * Does not require client credentials — a Bearer token is sufficient.
-     */
-    verifyAccessToken: async (token: string): Promise<AuthInfo> => {
-      const res = await fetch(`${gitlabBaseUrl}/oauth/token/info`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      /**
+       * Validate an access token by calling GitLab's lightweight token info endpoint.
+       * Does not require client credentials — a Bearer token is sufficient.
+       */
+      verifyAccessToken: async (token: string): Promise<AuthInfo> => {
+        const res = await fetch(`${gitlabBaseUrl}/oauth/token/info`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
 
-      if (!res.ok) {
-        throw new InvalidTokenError("Invalid or expired GitLab OAuth token");
-      }
+        if (!res.ok) {
+          throw new InvalidTokenError("Invalid or expired GitLab OAuth token");
+        }
 
-      const info = (await res.json()) as GitLabTokenInfo;
+        const info = (await res.json()) as GitLabTokenInfo;
 
-      return {
-        token,
-        clientId: info.application?.uid ?? "dynamic",
-        scopes: info.scopes ?? [],
-        // GitLab returns seconds remaining; convert to absolute epoch-seconds
-        expiresAt:
-          info.expires_in_seconds != null
-            ? Math.floor(Date.now() / 1000) + info.expires_in_seconds
-            : undefined,
-      };
+        return {
+          token,
+          clientId: info.application?.uid ?? "dynamic",
+          scopes: info.scopes ?? [],
+          // GitLab returns seconds remaining; convert to absolute epoch-seconds
+          expiresAt:
+            info.expires_in_seconds != null
+              ? Math.floor(Date.now() / 1000) + info.expires_in_seconds
+              : undefined,
+        };
+      },
+
+      /**
+       * Base getClient — runs only on cache miss (see GitLabProxyOAuthServerProvider).
+       */
+      getClient: async (clientId: string) => {
+        return {
+          client_id: clientId,
+          redirect_uris: [] as string[],
+          token_endpoint_auth_method: "none" as const,
+        };
+      },
     },
-
-    /**
-     * This is the base getClient — it only runs when the cache misses.
-     * The GitLabProxyOAuthServerProvider.clientsStore getter wraps this
-     * with cache lookup first, so this path only fires for unknown client_ids
-     * (e.g. token exchange before a cached registration exists).
-     */
-    getClient: async (clientId: string) => {
-      return {
-        client_id: clientId,
-        redirect_uris: [] as string[],
-        token_endpoint_auth_method: "none" as const,
-      };
-    },
-  });
+    resourceName
+  );
 }
