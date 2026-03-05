@@ -392,20 +392,83 @@ describe("MCP OAuth — createGitLabOAuthProvider", () => {
     }
   });
 
-  test("getClient returns stub for any clientId", async () => {
+  test("getClient returns stub for unknown clientId", async () => {
     const { createGitLabOAuthProvider } = await import("../oauth-proxy.js");
     const provider = createGitLabOAuthProvider("https://gitlab.example.com");
 
-    const client = await (provider as any)._getClient("some-client-id");
+    const client = await provider.clientsStore.getClient("unknown-client-id");
 
     assert.ok(client, "Should return a client object");
-    assert.strictEqual(client.client_id, "some-client-id", "client_id should match input");
-    assert.deepStrictEqual(client.redirect_uris, [], "redirect_uris should be empty");
+    assert.strictEqual(client!.client_id, "unknown-client-id", "client_id should match input");
+    assert.deepStrictEqual(client!.redirect_uris, [], "redirect_uris should be empty for unknown client");
     assert.strictEqual(
-      client.token_endpoint_auth_method,
+      client!.token_endpoint_auth_method,
       "none",
       "Should be a public client"
     );
-    console.log("  ✓ getClient returns stub for any clientId");
+    console.log("  ✓ getClient returns stub for unknown clientId");
+  });
+
+  test("clientsStore caches DCR response so getClient returns real redirect_uris", async () => {
+    // Spin up a stub DCR server that returns a realistic GitLab DCR response
+    const { createServer } = await import("node:http");
+    const REGISTERED_CLIENT_ID = "cached-client-id-abc";
+    const REGISTERED_REDIRECT_URI = "https://claude.ai/api/mcp/auth_callback";
+
+    const stub = createServer((req, res) => {
+      if (req.method === "POST" && req.url === "/oauth/register") {
+        res.writeHead(201, { "Content-Type": "application/json" });
+        res.end(
+          JSON.stringify({
+            client_id: REGISTERED_CLIENT_ID,
+            client_name: "[Unverified Dynamic Application] test",
+            redirect_uris: [REGISTERED_REDIRECT_URI],
+            token_endpoint_auth_method: "none",
+            require_pkce: true,
+          })
+        );
+      } else {
+        res.writeHead(404);
+        res.end();
+      }
+    });
+
+    await new Promise<void>((resolve) => stub.listen(0, "127.0.0.1", resolve));
+    const addr = stub.address() as { port: number };
+    const baseUrl = `http://127.0.0.1:${addr.port}`;
+
+    try {
+      const { createGitLabOAuthProvider } = await import("../oauth-proxy.js");
+      const provider = createGitLabOAuthProvider(baseUrl);
+
+      // Before registration: stub returns empty redirect_uris
+      const beforeReg = await provider.clientsStore.getClient(REGISTERED_CLIENT_ID);
+      assert.deepStrictEqual(beforeReg!.redirect_uris, [], "Should be empty before registration");
+
+      // Simulate DCR registration (as the SDK would call it)
+      const registered = await provider.clientsStore.registerClient!({
+        client_name: "test",
+        redirect_uris: [REGISTERED_REDIRECT_URI],
+        token_endpoint_auth_method: "none",
+      });
+
+      assert.strictEqual(registered.client_id, REGISTERED_CLIENT_ID, "client_id from GitLab");
+      assert.deepStrictEqual(
+        registered.redirect_uris,
+        [REGISTERED_REDIRECT_URI],
+        "redirect_uris from GitLab"
+      );
+
+      // After registration: getClient returns cached entry with real redirect_uris
+      const afterReg = await provider.clientsStore.getClient(REGISTERED_CLIENT_ID);
+      assert.deepStrictEqual(
+        afterReg!.redirect_uris,
+        [REGISTERED_REDIRECT_URI],
+        "getClient should return real redirect_uris from cache after registration"
+      );
+      console.log("  ✓ DCR response cached: getClient returns real redirect_uris after registration");
+    } finally {
+      stub.close();
+    }
   });
 });
