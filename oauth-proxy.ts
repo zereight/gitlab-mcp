@@ -31,7 +31,60 @@ export interface GitLabTokenInfo {
 }
 
 /**
- * Extends ProxyOAuthServerProvider to add an in-memory client cache.
+ * Maximum number of DCR client registrations to keep in memory.
+ *
+ * Each entry is ~500 bytes (client_id, redirect_uris, metadata).
+ * At the limit this is ~500 KB — negligible — but the cap prevents
+ * unbounded growth if POST /register is called abusively.
+ *
+ * Real-world usage: one entry per distinct MCP client app
+ * (Claude.ai, Cursor, VS Code extension, …) — typically < 10.
+ */
+const CLIENT_CACHE_MAX_SIZE = 1000;
+
+/**
+ * Bounded LRU cache for OAuth client registrations.
+ *
+ * JavaScript's Map preserves insertion order and `delete` + re-`set`
+ * moves an entry to the tail, giving O(1) LRU semantics without any
+ * external dependency.
+ */
+class BoundedClientCache {
+  private readonly _map = new Map<string, OAuthClientInformationFull>();
+  private readonly _maxSize: number;
+
+  constructor(maxSize: number) {
+    this._maxSize = maxSize;
+  }
+
+  get(clientId: string): OAuthClientInformationFull | undefined {
+    const entry = this._map.get(clientId);
+    if (entry) {
+      // Refresh to tail (most-recently-used)
+      this._map.delete(clientId);
+      this._map.set(clientId, entry);
+    }
+    return entry;
+  }
+
+  set(clientId: string, client: OAuthClientInformationFull): void {
+    if (this._map.has(clientId)) {
+      this._map.delete(clientId);
+    } else if (this._map.size >= this._maxSize) {
+      // Evict the least-recently-used entry (head of the Map)
+      const lruKey = this._map.keys().next().value;
+      if (lruKey !== undefined) this._map.delete(lruKey);
+    }
+    this._map.set(clientId, client);
+  }
+
+  get size(): number {
+    return this._map.size;
+  }
+}
+
+/**
+ * Extends ProxyOAuthServerProvider to add a bounded LRU client cache.
  *
  * ### Why the cache is needed
  *
@@ -43,10 +96,11 @@ export interface GitLabTokenInfo {
  * forward the authorization request to GitLab.
  *
  * Solution: intercept `clientsStore.registerClient` to cache each DCR response,
- * then return the cached entry from `getClient`.
+ * then return the cached entry from `getClient`. The cache is capped at
+ * CLIENT_CACHE_MAX_SIZE entries with LRU eviction to prevent memory growth.
  */
 class GitLabProxyOAuthServerProvider extends ProxyOAuthServerProvider {
-  private readonly _clientCache = new Map<string, OAuthClientInformationFull>();
+  private readonly _clientCache = new BoundedClientCache(CLIENT_CACHE_MAX_SIZE);
 
   override get clientsStore(): OAuthRegisteredClientsStore {
     const base = super.clientsStore;
