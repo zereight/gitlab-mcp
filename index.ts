@@ -823,11 +823,11 @@ const BASE_HEADERS: Record<string, string> = {
 
 /**
  * Build authentication headers dynamically based on context
- * In REMOTE_AUTHORIZATION mode, reads from AsyncLocalStorage session context
+ * In REMOTE_AUTHORIZATION or GITLAB_MCP_OAUTH mode, reads from AsyncLocalStorage session context
  * Otherwise, uses environment token (OAuth token is refreshed lazily before each tool call)
  */
 function buildAuthHeaders(): Record<string, string> {
-  if (REMOTE_AUTHORIZATION) {
+  if (REMOTE_AUTHORIZATION || GITLAB_MCP_OAUTH) {
     const ctx = sessionAuthStore.getStore();
     logger.debug({ context: ctx }, "buildAuthHeaders: session context");
     if (ctx?.token) {
@@ -8830,6 +8830,8 @@ async function startStreamableHTTPServer(): Promise<void> {
           );
           setAuthTimeout(sessionId);
         } else {
+          // Update token on every request — the client may have refreshed it
+          authBySession[sessionId].token = authInfo.token;
           authBySession[sessionId].lastUsed = Date.now();
           setAuthTimeout(sessionId);
         }
