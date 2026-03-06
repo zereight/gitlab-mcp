@@ -17,6 +17,8 @@ import { InvalidTokenError } from "@modelcontextprotocol/sdk/server/auth/errors.
 import type { AuthInfo } from "@modelcontextprotocol/sdk/server/auth/types.js";
 import type { OAuthClientInformationFull } from "@modelcontextprotocol/sdk/shared/auth.js";
 import type { OAuthRegisteredClientsStore } from "@modelcontextprotocol/sdk/server/auth/clients.js";
+import type { AuthorizationParams } from "@modelcontextprotocol/sdk/server/auth/provider.js";
+import type { Response } from "express";
 
 /**
  * Shape of the response from GitLab's /oauth/token/info endpoint.
@@ -99,6 +101,15 @@ class BoundedClientCache {
  * then return the cached entry from `getClient`. The cache is capped at
  * CLIENT_CACHE_MAX_SIZE entries with LRU eviction to prevent memory growth.
  */
+/**
+ * Minimum GitLab scopes required for the MCP server to function.
+ *
+ * If the MCP client (e.g. Claude.ai) does not request any of these, the
+ * authorize override injects them so the resulting token can actually call
+ * the GitLab API.
+ */
+const REQUIRED_GITLAB_SCOPES = ["api"];
+
 class GitLabProxyOAuthServerProvider extends ProxyOAuthServerProvider {
   private readonly _clientCache = new BoundedClientCache(CLIENT_CACHE_MAX_SIZE);
   private readonly _resourceName: string;
@@ -109,6 +120,30 @@ class GitLabProxyOAuthServerProvider extends ProxyOAuthServerProvider {
   ) {
     super(options);
     this._resourceName = resourceName;
+  }
+
+  /**
+   * Override authorize to ensure the required GitLab scopes are always requested.
+   *
+   * Some MCP clients (e.g. Claude.ai) send an empty scope or a scope that is
+   * insufficient for the GitLab API (e.g. "ai_workflows"). Without at least
+   * "api" or "read_api", every GitLab API call returns 403 insufficient_scope.
+   */
+  override async authorize(
+    client: OAuthClientInformationFull,
+    params: AuthorizationParams,
+    res: Response
+  ): Promise<void> {
+    const scopes = params.scopes ?? [];
+    const hasRequired = REQUIRED_GITLAB_SCOPES.some((s) => scopes.includes(s));
+
+    if (!hasRequired) {
+      // Merge requested scopes with required ones (deduplicated)
+      const merged = [...new Set([...scopes, ...REQUIRED_GITLAB_SCOPES])];
+      return super.authorize(client, { ...params, scopes: merged }, res);
+    }
+
+    return super.authorize(client, params, res);
   }
 
   override get clientsStore(): OAuthRegisteredClientsStore {
