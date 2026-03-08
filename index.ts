@@ -518,6 +518,13 @@ function validateConfiguration(): void {
     if (!getConfig("api-url", "GITLAB_API_URL")) {
       errors.push("GITLAB_API_URL is required when GITLAB_MCP_OAUTH=true");
     }
+
+    if (!getConfig("oauth-app-id", "GITLAB_OAUTH_APP_ID")) {
+      errors.push(
+        "GITLAB_OAUTH_APP_ID is required when GITLAB_MCP_OAUTH=true " +
+          "(create an OAuth application in GitLab Admin with the required scopes)"
+      );
+    }
   }
 
   const enableDynamicApiUrl =
@@ -608,6 +615,7 @@ const STREAMABLE_HTTP = getConfig("streamable-http", "STREAMABLE_HTTP") === "tru
 const REMOTE_AUTHORIZATION = getConfig("remote-auth", "REMOTE_AUTHORIZATION") === "true";
 const GITLAB_MCP_OAUTH = getConfig("mcp-oauth", "GITLAB_MCP_OAUTH") === "true";
 const MCP_SERVER_URL = getConfig("mcp-server-url", "MCP_SERVER_URL");
+const GITLAB_OAUTH_APP_ID = getConfig("oauth-app-id", "GITLAB_OAUTH_APP_ID");
 const ENABLE_DYNAMIC_API_URL =
   getConfig("enable-dynamic-api-url", "ENABLE_DYNAMIC_API_URL") === "true";
 const SESSION_TIMEOUT_SECONDS = Number.parseInt(
@@ -8722,7 +8730,7 @@ async function startStreamableHTTPServer(): Promise<void> {
   if (GITLAB_MCP_OAUTH) {
     const gitlabBaseUrl = GITLAB_API_URL.replace(/\/api\/v4\/?$/, "").replace(/\/$/, "");
     const issuerUrl = new URL(MCP_SERVER_URL!);
-    const oauthProvider = createGitLabOAuthProvider(gitlabBaseUrl, "GitLab MCP Server");
+    const oauthProvider = createGitLabOAuthProvider(gitlabBaseUrl, GITLAB_OAUTH_APP_ID!, "GitLab MCP Server");
 
     // Mounts /.well-known/oauth-authorization-server,
     //        /.well-known/oauth-protected-resource,
