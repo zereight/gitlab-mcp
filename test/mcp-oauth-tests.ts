@@ -321,7 +321,7 @@ describe("MCP OAuth — BoundedClientCache", () => {
     const baseUrl = `http://127.0.0.1:${addr.port}`;
 
     const { createGitLabOAuthProvider } = await import("../oauth-proxy.js");
-    const provider = createGitLabOAuthProvider(baseUrl);
+    const provider = createGitLabOAuthProvider(baseUrl, "test-app-id");
 
     return { provider, stub };
   }
@@ -411,7 +411,7 @@ describe("MCP OAuth — createGitLabOAuthProvider", () => {
 
     try {
       const { createGitLabOAuthProvider } = await import("../oauth-proxy.js");
-      const provider = createGitLabOAuthProvider(baseUrl);
+      const provider = createGitLabOAuthProvider(baseUrl, "test-app-id");
 
       await assert.rejects(
         () => provider.verifyAccessToken("bad-token"),
@@ -446,7 +446,7 @@ describe("MCP OAuth — createGitLabOAuthProvider", () => {
 
     try {
       const { createGitLabOAuthProvider } = await import("../oauth-proxy.js");
-      const provider = createGitLabOAuthProvider(baseUrl);
+      const provider = createGitLabOAuthProvider(baseUrl, "test-app-id");
       const authInfo = await provider.verifyAccessToken("good-token");
 
       assert.strictEqual(authInfo.token, "good-token", "token must be preserved");
@@ -484,7 +484,7 @@ describe("MCP OAuth — createGitLabOAuthProvider", () => {
 
     try {
       const { createGitLabOAuthProvider } = await import("../oauth-proxy.js");
-      const provider = createGitLabOAuthProvider(baseUrl);
+      const provider = createGitLabOAuthProvider(baseUrl, "test-app-id");
       const authInfo = await provider.verifyAccessToken("tok");
 
       assert.strictEqual(authInfo.clientId, "dynamic", "clientId should fall back to 'dynamic'");
@@ -497,7 +497,7 @@ describe("MCP OAuth — createGitLabOAuthProvider", () => {
 
   test("getClient returns stub for unknown clientId", async () => {
     const { createGitLabOAuthProvider } = await import("../oauth-proxy.js");
-    const provider = createGitLabOAuthProvider("https://gitlab.example.com");
+    const provider = createGitLabOAuthProvider("https://gitlab.example.com", "test-app-id");
 
     const client = await provider.clientsStore.getClient("unknown-client-id");
 
@@ -547,7 +547,7 @@ describe("MCP OAuth — createGitLabOAuthProvider", () => {
 
     try {
       const { createGitLabOAuthProvider } = await import("../oauth-proxy.js");
-      const provider = createGitLabOAuthProvider(baseUrl, "My MCP Server");
+      const provider = createGitLabOAuthProvider(baseUrl, "test-app-id", "My MCP Server");
 
       // Before registration: stub returns empty redirect_uris
       const beforeReg = await provider.clientsStore.getClient(REGISTERED_CLIENT_ID);
