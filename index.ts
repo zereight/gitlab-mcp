@@ -7595,6 +7595,8 @@ async function startStreamableHTTPServer(): Promise<void> {
   };
 
   // Configure Express middleware
+  // Trust first proxy so express-rate-limit uses X-Forwarded-For for real client IP
+  app.set("trust proxy", 1);
   app.use(express.json());
 
   // MCP OAuth — mount auth router and prepare bearer-auth middleware
