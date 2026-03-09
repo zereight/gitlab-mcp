@@ -100,7 +100,8 @@ class BoundedClientCache {
  * Minimum GitLab scopes required for the MCP server to function.
  * Injected into the authorization request when the client does not request them.
  */
-const REQUIRED_GITLAB_SCOPES = ["api"];
+const REQUIRED_GITLAB_SCOPES_RW = ["api"];
+const REQUIRED_GITLAB_SCOPES_RO = ["read_api"];
 
 class GitLabOAuthServerProvider implements OAuthServerProvider {
   /**
@@ -111,12 +112,14 @@ class GitLabOAuthServerProvider implements OAuthServerProvider {
   private readonly _gitlabBaseUrl: string;
   private readonly _gitlabAppId: string;
   private readonly _resourceName: string;
+  private readonly _requiredScopes: string[];
   private readonly _clientCache = new BoundedClientCache(CLIENT_CACHE_MAX_SIZE);
 
-  constructor(gitlabBaseUrl: string, gitlabAppId: string, resourceName: string) {
+  constructor(gitlabBaseUrl: string, gitlabAppId: string, resourceName: string, readOnly: boolean) {
     this._gitlabBaseUrl = gitlabBaseUrl;
     this._gitlabAppId = gitlabAppId;
     this._resourceName = resourceName;
+    this._requiredScopes = readOnly ? REQUIRED_GITLAB_SCOPES_RO : REQUIRED_GITLAB_SCOPES_RW;
   }
 
   // ---- Client store (local DCR) ------------------------------------------
@@ -173,10 +176,10 @@ class GitLabOAuthServerProvider implements OAuthServerProvider {
     res: Response
   ): Promise<void> {
     const scopes = params.scopes ?? [];
-    const hasRequired = REQUIRED_GITLAB_SCOPES.some((s) => scopes.includes(s));
+    const hasRequired = this._requiredScopes.some((s) => scopes.includes(s));
     const effectiveScopes = hasRequired
       ? scopes
-      : [...new Set([...scopes, ...REQUIRED_GITLAB_SCOPES])];
+      : [...new Set([...scopes, ...this._requiredScopes])];
 
     // Build the GitLab authorize URL with the REAL app client_id
     const targetUrl = new URL(`${this._gitlabBaseUrl}/oauth/authorize`);
@@ -344,7 +347,8 @@ class GitLabOAuthServerProvider implements OAuthServerProvider {
 export function createGitLabOAuthProvider(
   gitlabBaseUrl: string,
   gitlabAppId: string,
-  resourceName = "GitLab MCP Server"
+  resourceName = "GitLab MCP Server",
+  readOnly = false
 ): GitLabOAuthServerProvider {
-  return new GitLabOAuthServerProvider(gitlabBaseUrl, gitlabAppId, resourceName);
+  return new GitLabOAuthServerProvider(gitlabBaseUrl, gitlabAppId, resourceName, readOnly);
 }
