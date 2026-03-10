@@ -256,6 +256,8 @@ import {
   UpdateWorkItemSchema,
   ConvertWorkItemTypeSchema,
   ListWorkItemStatusesSchema,
+  ListWorkItemNotesSchema,
+  CreateWorkItemNoteSchema,
   MoveWorkItemSchema,
   ListCustomFieldDefinitionsSchema,
 } from "./schemas.js";
@@ -1459,6 +1461,18 @@ const allTools = [
       "Move a work item (issue, task, etc.) to a different project. Uses GitLab GraphQL issueMove mutation.",
     inputSchema: toJSONSchema(MoveWorkItemSchema),
   },
+  {
+    name: "list_work_item_notes",
+    description:
+      "List notes and discussions on a work item. Returns threaded discussions with author, body, timestamps, and system/internal flags.",
+    inputSchema: toJSONSchema(ListWorkItemNotesSchema),
+  },
+  {
+    name: "create_work_item_note",
+    description:
+      "Add a note/comment to a work item. Supports Markdown, internal notes, and threaded replies.",
+    inputSchema: toJSONSchema(CreateWorkItemNoteSchema),
+  },
 ];
 
 // Define which tools are read-only
@@ -1519,6 +1533,7 @@ const readOnlyTools = new Set([
   "list_work_items",
   "list_work_item_statuses",
   "list_custom_field_definitions",
+  "list_work_item_notes",
 ]);
 
 // Define which tools are related to wiki and can be toggled by USE_GITLAB_WIKI
@@ -1768,6 +1783,8 @@ const TOOLSET_DEFINITIONS: readonly ToolsetDefinition[] = [
       "list_work_item_statuses",
       "list_custom_field_definitions",
       "move_work_item",
+      "list_work_item_notes",
+      "create_work_item_note",
     ]),
   },
 ] as const;
@@ -2921,6 +2938,144 @@ async function moveWorkItem(
   }
 
   return data.issueMove.issue;
+}
+
+/**
+ * List notes/discussions on a work item.
+ */
+async function listWorkItemNotes(
+  projectId: string,
+  iid: number,
+  options: { page_size?: number; after?: string; sort?: string } = {}
+): Promise<any> {
+  const projectPath = await resolveProjectPath(projectId);
+
+  const data = await executeGraphQL<{ namespace: any }>(
+    `query($path: ID!, $iid: String!, $pageSize: Int, $after: String, $sort: WorkItemDiscussionsSort) {
+      namespace(fullPath: $path) {
+        workItem(iid: $iid) {
+          id
+          widgets(onlyTypes: [NOTES]) {
+            ... on WorkItemWidgetNotes {
+              discussionLocked
+              discussions(first: $pageSize, after: $after, filter: ALL_NOTES, sort: $sort) {
+                pageInfo { hasNextPage endCursor }
+                nodes {
+                  id
+                  resolved
+                  resolvable
+                  notes {
+                    nodes {
+                      id
+                      body
+                      system
+                      internal
+                      createdAt
+                      lastEditedAt
+                      author { username }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }`,
+    {
+      path: projectPath,
+      iid: String(iid),
+      pageSize: options.page_size || 20,
+      after: options.after || null,
+      sort: options.sort || "CREATED_ASC",
+    }
+  );
+
+  const workItem = data.namespace?.workItem;
+  if (!workItem) {
+    throw new Error(`Work item #${iid} not found in project ${projectPath}`);
+  }
+
+  const notesWidget = workItem.widgets?.find((w: any) => w.discussions);
+  const discussions = notesWidget?.discussions;
+
+  // Flatten to lean output
+  const items = (discussions?.nodes || []).map((d: any) => {
+    const notes = (d.notes?.nodes || []).map((n: any) => {
+      const note: Record<string, any> = {
+        id: n.id,
+        author: n.author?.username,
+        body: n.body,
+        createdAt: n.createdAt,
+      };
+      if (n.system) note.system = true;
+      if (n.internal) note.internal = true;
+      if (n.lastEditedAt) note.lastEditedAt = n.lastEditedAt;
+      return note;
+    });
+    const discussion: Record<string, any> = { id: d.id, notes };
+    if (d.resolved) discussion.resolved = true;
+    if (d.resolvable) discussion.resolvable = true;
+    return discussion;
+  });
+
+  return {
+    discussions: items,
+    pageInfo: discussions?.pageInfo || {},
+  };
+}
+
+/**
+ * Create a note on a work item.
+ */
+async function createWorkItemNote(
+  projectId: string,
+  iid: number,
+  body: string,
+  options: { internal?: boolean; discussion_id?: string } = {}
+): Promise<any> {
+  const { workItemGID } = await resolveWorkItemGID(projectId, iid);
+
+  const varDefs = ["$noteableId: NoteableID!", "$body: String!"];
+  const inputParts = ["noteableId: $noteableId", "body: $body"];
+  const variables: Record<string, any> = { noteableId: workItemGID, body };
+
+  if (options.internal) {
+    varDefs.push("$internal: Boolean");
+    inputParts.push("internal: $internal");
+    variables.internal = true;
+  }
+
+  if (options.discussion_id) {
+    varDefs.push("$discussionId: DiscussionID");
+    inputParts.push("discussionId: $discussionId");
+    variables.discussionId = options.discussion_id;
+  }
+
+  const data = await executeGraphQL<{
+    createNote: {
+      note: { id: string; body: string; discussion: { id: string } } | null;
+      errors: string[];
+    };
+  }>(
+    `mutation(${varDefs.join(", ")}) {
+      createNote(input: { ${inputParts.join(", ")} }) {
+        note {
+          id
+          body
+          discussion { id }
+        }
+        errors
+      }
+    }`,
+    variables
+  );
+
+  if (data.createNote.errors?.length > 0) {
+    throw new Error(`Failed to create note: ${data.createNote.errors.join(", ")}`);
+  }
+
+  return data.createNote.note;
 }
 
 /**
@@ -8295,6 +8450,22 @@ async function handleToolCall(params: any) {
       case "move_work_item": {
         const args = MoveWorkItemSchema.parse(params.arguments);
         const result = await moveWorkItem(args.project_id, args.iid, args.target_project_id);
+        return {
+          content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+        };
+      }
+
+      case "list_work_item_notes": {
+        const args = ListWorkItemNotesSchema.parse(params.arguments);
+        const result = await listWorkItemNotes(args.project_id, args.iid, args);
+        return {
+          content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+        };
+      }
+
+      case "create_work_item_note": {
+        const args = CreateWorkItemNoteSchema.parse(params.arguments);
+        const result = await createWorkItemNote(args.project_id, args.iid, args.body, args);
         return {
           content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
         };

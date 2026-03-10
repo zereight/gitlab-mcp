@@ -2794,6 +2794,22 @@ export const ListWorkItemStatusesSchema = z.object({
     .describe("The work item type to list available statuses for. Defaults to 'issue'."),
 });
 
+export const ListWorkItemNotesSchema = z.object({
+  project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
+  iid: z.number().describe("The internal ID of the work item"),
+  page_size: z.number().optional().default(20).describe("Number of discussions to return (default 20)"),
+  after: z.string().optional().describe("Cursor for pagination"),
+  sort: z.enum(["CREATED_ASC", "CREATED_DESC"]).optional().default("CREATED_ASC").describe("Sort order for discussions"),
+});
+
+export const CreateWorkItemNoteSchema = z.object({
+  project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
+  iid: z.number().describe("The internal ID of the work item"),
+  body: z.string().describe("Note body (Markdown supported)"),
+  internal: z.boolean().optional().default(false).describe("Create as internal/confidential note (only visible to project members)"),
+  discussion_id: z.string().optional().describe("Discussion ID to reply to (for threaded replies). If omitted, creates a new top-level note."),
+});
+
 export const MoveWorkItemSchema = z.object({
   project_id: z.coerce.string().describe("Project ID or URL-encoded path of the source project"),
   iid: z.number().describe("The internal ID of the work item to move"),
