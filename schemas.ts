@@ -2714,7 +2714,7 @@ export const CreateWorkItemSchema = z.object({
   project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
   title: z.string().describe("Title of the work item"),
   type: z
-    .enum(["issue", "task", "incident", "test_case"])
+    .enum(["issue", "task", "incident", "test_case", "epic", "key_result", "objective", "requirement", "ticket"])
     .optional()
     .default("issue")
     .describe("Type of work item to create. Defaults to 'issue'."),
@@ -2723,10 +2723,11 @@ export const CreateWorkItemSchema = z.object({
   assignee_usernames: z.array(z.string()).optional().describe("Array of usernames to assign"),
   parent_iid: z.number().optional().describe("IID of the parent work item to set hierarchy"),
   weight: z.number().optional().describe("Weight of the work item"),
-  health_status: z.enum(["onTrack", "needsAttention", "atRisk"]).optional().describe("Set health status (requires GitLab Ultimate)"),
-  start_date: z.string().optional().describe("Start date (ISO format YYYY-MM-DD)"),
-  due_date: z.string().optional().describe("Due date (ISO format YYYY-MM-DD)"),
+  health_status: z.enum(["onTrack", "needsAttention", "atRisk"]).optional().describe("Set health status"),
+  start_date: z.string().optional().describe("Start date in YYYY-MM-DD format"),
+  due_date: z.string().optional().describe("Due date in YYYY-MM-DD format"),
   milestone_id: z.string().optional().describe("Milestone ID (GitLab global ID format, e.g. 'gid://gitlab/Milestone/123', or numeric ID)"),
+  iteration_id: z.string().optional().describe("Iteration ID (e.g. 'gid://gitlab/Iteration/123' or numeric ID). Use list_group_iterations to find available iterations."),
   confidential: z.boolean().optional().describe("Set confidentiality"),
 });
 
@@ -2739,7 +2740,7 @@ export const UpdateWorkItemSchema = WorkItemParamsSchema.extend({
   assignee_usernames: z.array(z.string()).optional().describe("Set assignees by username (replaces existing)"),
   state_event: z.enum(["close", "reopen"]).optional().describe("Close or reopen the work item"),
   weight: z.number().optional().describe("Set weight"),
-  status: z.string().optional().describe("Set status by ID (requires GitLab Premium/Ultimate). Use list_work_item_statuses to get available status IDs."),
+  status: z.string().optional().describe("Set status by ID. Use list_work_item_statuses to get available status IDs."),
   parent_iid: z.number().optional().describe("Set parent work item by IID. Use with parent_project_id if parent is in a different project."),
   parent_project_id: z.coerce.string().optional().describe("Project ID or path of the parent work item (defaults to same project as the work item)"),
   remove_parent: z.boolean().optional().describe("Set to true to remove the parent from hierarchy"),
@@ -2751,16 +2752,17 @@ export const UpdateWorkItemSchema = WorkItemParamsSchema.extend({
     project_id: z.coerce.string().describe("Project ID or path of the child work item"),
     iid: z.number().describe("IID of the child work item"),
   })).optional().describe("Array of children to remove from this work item's hierarchy"),
-  health_status: z.enum(["onTrack", "needsAttention", "atRisk"]).optional().describe("Set health status (requires GitLab Ultimate)"),
-  start_date: z.string().optional().describe("Start date (ISO format YYYY-MM-DD)"),
-  due_date: z.string().optional().describe("Due date (ISO format YYYY-MM-DD)"),
+  health_status: z.enum(["onTrack", "needsAttention", "atRisk"]).optional().describe("Set health status"),
+  start_date: z.string().optional().describe("Start date in YYYY-MM-DD format"),
+  due_date: z.string().optional().describe("Due date in YYYY-MM-DD format"),
   milestone_id: z.string().optional().describe("Milestone ID (GitLab global ID format, e.g. 'gid://gitlab/Milestone/123', or numeric ID)"),
+  iteration_id: z.string().optional().describe("Iteration ID (e.g. 'gid://gitlab/Iteration/123' or numeric ID). Use list_group_iterations to find available iterations."),
   confidential: z.boolean().optional().describe("Set confidentiality"),
   linked_items_to_add: z.array(z.object({
     project_id: z.coerce.string().describe("Project ID or path of the work item to link"),
     iid: z.number().describe("IID of the work item to link"),
-    link_type: z.enum(["RELATED", "BLOCKED_BY", "BLOCKS"]).optional().default("RELATED").describe("Type of link relationship"),
-  })).optional().describe("Work items to link (related, blocks, blocked by)"),
+    link_type: z.enum(["RELATED", "BLOCKED_BY", "BLOCKS"]).optional().default("RELATED").describe("Link type: RELATED, BLOCKED_BY, or BLOCKS. Defaults to RELATED."),
+  })).optional().describe("Work items to link"),
   linked_items_to_remove: z.array(z.object({
     project_id: z.coerce.string().describe("Project ID or path of the linked work item to remove"),
     iid: z.number().describe("IID of the linked work item to remove"),
@@ -2778,7 +2780,7 @@ export const ConvertWorkItemTypeSchema = z.object({
   project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
   iid: z.number().describe("The internal ID of the work item"),
   new_type: z
-    .enum(["issue", "task", "incident", "test_case"])
+    .enum(["issue", "task", "incident", "test_case", "epic", "key_result", "objective", "requirement", "ticket"])
     .describe("The target work item type to convert to"),
 });
 
@@ -2786,9 +2788,18 @@ export const ConvertWorkItemTypeSchema = z.object({
 export const ListWorkItemStatusesSchema = z.object({
   project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
   work_item_type: z
-    .enum(["issue", "task", "incident", "test_case"])
+    .enum(["issue", "task", "incident", "test_case", "epic", "key_result", "objective", "requirement", "ticket"])
     .optional()
     .default("issue")
     .describe("The work item type to list available statuses for. Defaults to 'issue'."),
+});
+
+export const ListCustomFieldDefinitionsSchema = z.object({
+  project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
+  work_item_type: z
+    .enum(["issue", "task", "incident", "test_case", "epic", "key_result", "objective", "requirement", "ticket"])
+    .optional()
+    .default("issue")
+    .describe("The work item type to list custom field definitions for. Defaults to 'issue'."),
 });
 

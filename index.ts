@@ -256,6 +256,7 @@ import {
   UpdateWorkItemSchema,
   ConvertWorkItemTypeSchema,
   ListWorkItemStatusesSchema,
+  ListCustomFieldDefinitionsSchema,
 } from "./schemas.js";
 
 import { randomUUID } from "node:crypto";
@@ -1445,6 +1446,12 @@ const allTools = [
       "List available statuses for a work item type in a project. Requires GitLab Premium/Ultimate with configurable statuses.",
     inputSchema: toJSONSchema(ListWorkItemStatusesSchema),
   },
+  {
+    name: "list_custom_field_definitions",
+    description:
+      "List available custom field definitions for a work item type in a project. Returns field names, types, and IDs needed for setting custom fields via update_work_item. Uses GitLab GraphQL API.",
+    inputSchema: toJSONSchema(ListCustomFieldDefinitionsSchema),
+  },
 ];
 
 // Define which tools are read-only
@@ -1504,6 +1511,7 @@ const readOnlyTools = new Set([
   "get_work_item",
   "list_work_items",
   "list_work_item_statuses",
+  "list_custom_field_definitions",
 ]);
 
 // Define which tools are related to wiki and can be toggled by USE_GITLAB_WIKI
@@ -1751,6 +1759,7 @@ const TOOLSET_DEFINITIONS: readonly ToolsetDefinition[] = [
       "update_work_item",
       "convert_work_item_type",
       "list_work_item_statuses",
+      "list_custom_field_definitions",
     ]),
   },
 ] as const;
@@ -2718,6 +2727,7 @@ async function listIssueStatuses(
         nodes: Array<{
           id: string;
           name: string;
+          supportedConversionTypes: Array<{ id: string; name: string }>;
           widgetDefinitions: Array<any>;
         }>;
       };
@@ -2729,6 +2739,7 @@ async function listIssueStatuses(
           nodes {
             id
             name
+            supportedConversionTypes { id name }
             widgetDefinitions {
               __typename
               ... on WorkItemWidgetDefinitionStatus {
@@ -2739,6 +2750,10 @@ async function listIssueStatuses(
                   color
                   position
                 }
+              }
+              ... on WorkItemWidgetDefinitionHierarchy {
+                allowedChildTypes { nodes { id name } }
+                allowedParentTypes { nodes { id name } }
               }
             }
           }
@@ -2753,18 +2768,117 @@ async function listIssueStatuses(
     throw new Error(`Work item type '${typeName}' not found in project`);
   }
 
-  // Extract statuses from the status widget definition
-  const statusWidget = typeNodes[0].widgetDefinitions?.find(
-    (w: any) =>
-      w.__typename === "WorkItemWidgetDefinitionStatus"
-  );
+  const typeNode = typeNodes[0];
 
+  // Extract statuses from the status widget definition
+  const statusWidget = typeNode.widgetDefinitions?.find(
+    (w: any) => w.__typename === "WorkItemWidgetDefinitionStatus"
+  );
   const statuses = statusWidget?.allowedStatuses || [];
 
-  return {
-    work_item_type: typeNodes[0].name,
+  // Extract hierarchy info
+  const hierarchyWidget = typeNode.widgetDefinitions?.find(
+    (w: any) => w.__typename === "WorkItemWidgetDefinitionHierarchy"
+  );
+
+  const result: Record<string, any> = {
+    work_item_type: typeNode.name,
     statuses_available: statuses.length > 0,
     statuses,
+  };
+
+  // Add supported conversion types
+  const conversionTypes = typeNode.supportedConversionTypes || [];
+  if (conversionTypes.length > 0) {
+    result.supported_conversion_types = conversionTypes.map((t: any) => t.name);
+  }
+
+  // Add allowed child/parent types
+  const childTypes = hierarchyWidget?.allowedChildTypes?.nodes || [];
+  const parentTypes = hierarchyWidget?.allowedParentTypes?.nodes || [];
+  if (childTypes.length > 0) {
+    result.allowed_child_types = childTypes.map((t: any) => t.name);
+  }
+  if (parentTypes.length > 0) {
+    result.allowed_parent_types = parentTypes.map((t: any) => t.name);
+  }
+
+  return result;
+}
+
+/**
+ * List available custom field definitions for a work item type.
+ */
+async function listCustomFieldDefinitions(
+  projectId: string,
+  workItemType: string = "issue"
+): Promise<any> {
+  const projectPath = await resolveProjectPath(projectId);
+  const typeName = WORK_ITEM_TYPE_NAMES[workItemType] || "Issue";
+
+  const data = await executeGraphQL<{
+    namespace: {
+      workItemTypes: {
+        nodes: Array<{
+          id: string;
+          name: string;
+          widgetDefinitions: Array<any>;
+        }>;
+      };
+    };
+  }>(
+    `query($path: ID!, $typeName: IssueType) {
+      namespace(fullPath: $path) {
+        workItemTypes(name: $typeName) {
+          nodes {
+            id
+            name
+            widgetDefinitions {
+              __typename
+              ... on WorkItemWidgetDefinitionCustomFields {
+                customFieldValues {
+                  customField { id name fieldType }
+                  ... on WorkItemNumberFieldValue { value }
+                  ... on WorkItemTextFieldValue { value }
+                  ... on WorkItemSelectFieldValue {
+                    selectedOptions { id value }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }`,
+    { path: projectPath, typeName: typeName.toUpperCase() }
+  );
+
+  const typeNodes = data.namespace?.workItemTypes?.nodes;
+  if (!typeNodes || typeNodes.length === 0) {
+    throw new Error(`Work item type '${typeName}' not found in project`);
+  }
+
+  const typeNode = typeNodes[0];
+  const customFieldsWidget = typeNode.widgetDefinitions?.find(
+    (w: any) => w.__typename === "WorkItemWidgetDefinitionCustomFields"
+  );
+
+  const fieldDefs = (customFieldsWidget?.customFieldValues || []).map((cfv: any) => {
+    const field: Record<string, any> = {
+      id: cfv.customField?.id,
+      name: cfv.customField?.name,
+      type: cfv.customField?.fieldType,
+    };
+    // Include default/current values if present
+    if (cfv.value != null) field.defaultValue = cfv.value;
+    if (cfv.selectedOptions) field.options = cfv.selectedOptions;
+    return field;
+  });
+
+  return {
+    work_item_type: typeNode.name,
+    custom_fields_available: fieldDefs.length > 0,
+    custom_fields: fieldDefs,
   };
 }
 
@@ -2858,11 +2972,16 @@ async function getWorkItem(
           state
           description
           webUrl
+          confidential
+          author { username }
+          createdAt
+          closedAt
           workItemType { name }
           widgets {
             __typename
             ... on WorkItemWidgetHierarchy {
-              parent { id title webUrl workItemType { name } }
+              hasChildren hasParent
+              parent { id iid title webUrl workItemType { name } namespace { fullPath } }
               children { nodes { id iid title state webUrl workItemType { name } } }
             }
             ... on WorkItemWidgetStatus { status { id name category color iconName position } }
@@ -2879,12 +2998,13 @@ async function getWorkItem(
             }
             ... on WorkItemWidgetLabels { labels { nodes { id title color } } }
             ... on WorkItemWidgetAssignees { assignees { nodes { id username name } } }
-            ... on WorkItemWidgetWeight { weight }
+            ... on WorkItemWidgetWeight { weight rolledUpWeight rolledUpCompletedWeight }
             ... on WorkItemWidgetHealthStatus { healthStatus }
             ... on WorkItemWidgetStartAndDueDate { startDate dueDate }
             ... on WorkItemWidgetMilestone { milestone { id title } }
             ... on WorkItemWidgetLinkedItems {
               blocked blockedByCount blockingCount
+              linkedItems { nodes { linkType workItem { id iid title state webUrl workItemType { name } } } }
             }
             ... on WorkItemWidgetTimeTracking {
               timeEstimate totalTimeSpent
@@ -2902,6 +3022,11 @@ async function getWorkItem(
               }
               featureFlags { nodes { name active } }
             }
+            ... on WorkItemWidgetIteration {
+              iteration { id title startDate dueDate webUrl iterationCadence { id title } }
+            }
+            ... on WorkItemWidgetProgress { progress }
+            ... on WorkItemWidgetColor { color textColor }
           }
         }
       }
@@ -2941,6 +3066,10 @@ async function getWorkItem(
   };
 
   if (wi.description) result.description = wi.description;
+  if (wi.confidential) result.confidential = true;
+  if (wi.author?.username) result.author = wi.author.username;
+  if (wi.createdAt) result.createdAt = wi.createdAt;
+  if (wi.closedAt) result.closedAt = wi.closedAt;
   if (statusWidget?.status) result.status = { name: statusWidget.status.name, id: statusWidget.status.id, category: statusWidget.status.category };
 
   const labels = (labelsWidget?.labels?.nodes || []).map((l: any) => l.title);
@@ -2949,11 +3078,31 @@ async function getWorkItem(
   const assignees = (assigneesWidget?.assignees?.nodes || []).map((a: any) => a.username);
   if (assignees.length > 0) result.assignees = assignees;
 
-  if (weightWidget?.weight != null) result.weight = weightWidget.weight;
+  if (weightWidget?.weight != null) {
+    result.weight = weightWidget.weight;
+    if (weightWidget.rolledUpWeight != null) result.rolledUpWeight = weightWidget.rolledUpWeight;
+    if (weightWidget.rolledUpCompletedWeight != null) result.rolledUpCompletedWeight = weightWidget.rolledUpCompletedWeight;
+  }
   if (healthStatusWidget?.healthStatus) result.healthStatus = healthStatusWidget.healthStatus;
   if (datesWidget?.startDate) result.startDate = datesWidget.startDate;
   if (datesWidget?.dueDate) result.dueDate = datesWidget.dueDate;
   if (milestoneWidget?.milestone) result.milestone = { id: milestoneWidget.milestone.id, title: milestoneWidget.milestone.title };
+
+  const iterationWidget = widgets.find((w: any) => w.__typename === "WorkItemWidgetIteration");
+  if (iterationWidget?.iteration) {
+    result.iteration = {
+      id: iterationWidget.iteration.id,
+      title: iterationWidget.iteration.title,
+      startDate: iterationWidget.iteration.startDate,
+      dueDate: iterationWidget.iteration.dueDate,
+    };
+  }
+
+  const progressWidget = widgets.find((w: any) => w.__typename === "WorkItemWidgetProgress");
+  if (progressWidget?.progress != null) result.progress = progressWidget.progress;
+
+  const colorWidget = widgets.find((w: any) => w.__typename === "WorkItemWidgetColor");
+  if (colorWidget?.color) result.color = colorWidget.color;
 
   if (hierarchyWidget?.parent) result.parent = { iid: hierarchyWidget.parent.iid, title: hierarchyWidget.parent.title, type: hierarchyWidget.parent.workItemType?.name };
   const children = hierarchyWidget?.children?.nodes || [];
@@ -2962,6 +3111,17 @@ async function getWorkItem(
   if (linkedItemsWidget?.blocked) result.blocked = true;
   if (linkedItemsWidget?.blockedByCount > 0) result.blockedByCount = linkedItemsWidget.blockedByCount;
   if (linkedItemsWidget?.blockingCount > 0) result.blockingCount = linkedItemsWidget.blockingCount;
+  const linkedNodes = linkedItemsWidget?.linkedItems?.nodes || [];
+  if (linkedNodes.length > 0) {
+    result.linkedItems = linkedNodes.map((n: any) => ({
+      linkType: n.linkType,
+      iid: n.workItem?.iid,
+      title: n.workItem?.title,
+      state: n.workItem?.state,
+      type: n.workItem?.workItemType?.name,
+      webUrl: n.workItem?.webUrl,
+    }));
+  }
 
   if (timeTrackingWidget?.timeEstimate > 0) result.timeEstimate = timeTrackingWidget.timeEstimate;
   if (timeTrackingWidget?.totalTimeSpent > 0) result.totalTimeSpent = timeTrackingWidget.totalTimeSpent;
@@ -3123,6 +3283,7 @@ async function createWorkItem(
     start_date?: string;
     due_date?: string;
     milestone_id?: string;
+    iteration_id?: string;
     confidential?: boolean;
   }
 ): Promise<any> {
@@ -3211,6 +3372,15 @@ async function createWorkItem(
     variables.milestoneId = milestoneGID;
   }
 
+  if (options.iteration_id !== undefined) {
+    const iterationGID = options.iteration_id.startsWith("gid://")
+      ? options.iteration_id
+      : `gid://gitlab/Iteration/${options.iteration_id}`;
+    inputFields.push("$iterationId: IterationID");
+    inputValues.push("iterationWidget: { iterationId: $iterationId }");
+    variables.iterationId = iterationGID;
+  }
+
   if (options.confidential !== undefined) {
     inputFields.push("$confidential: Boolean");
     inputValues.push("confidential: $confidential");
@@ -3277,6 +3447,7 @@ async function updateWorkItem(
     start_date?: string;
     due_date?: string;
     milestone_id?: string;
+    iteration_id?: string;
     confidential?: boolean;
     linked_items_to_add?: Array<{ project_id: string; iid: number; link_type?: string }>;
     linked_items_to_remove?: Array<{ project_id: string; iid: number }>;
@@ -3384,6 +3555,15 @@ async function updateWorkItem(
     varDefs.push("$milestoneId: MilestoneID");
     inputParts.push("milestoneWidget: { milestoneId: $milestoneId }");
     variables.milestoneId = milestoneGID;
+  }
+
+  if (options.iteration_id !== undefined) {
+    const iterationGID = options.iteration_id.startsWith("gid://")
+      ? options.iteration_id
+      : `gid://gitlab/Iteration/${options.iteration_id}`;
+    varDefs.push("$iterationId: IterationID");
+    inputParts.push("iterationWidget: { iterationId: $iterationId }");
+    variables.iterationId = iterationGID;
   }
 
   if (options.confidential !== undefined) {
@@ -8059,6 +8239,14 @@ async function handleToolCall(params: any) {
       case "list_work_item_statuses": {
         const args = ListWorkItemStatusesSchema.parse(params.arguments);
         const result = await listIssueStatuses(args.project_id, args.work_item_type);
+        return {
+          content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+        };
+      }
+
+      case "list_custom_field_definitions": {
+        const args = ListCustomFieldDefinitionsSchema.parse(params.arguments);
+        const result = await listCustomFieldDefinitions(args.project_id, args.work_item_type);
         return {
           content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
         };
