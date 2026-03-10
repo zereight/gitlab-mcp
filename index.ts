@@ -2418,6 +2418,42 @@ async function resolveWorkItemGID(
   return { workItemGID: data.namespace.workItem.id, projectPath };
 }
 
+/**
+ * Resolve label names to GitLab GIDs via REST API.
+ * Paginates through all project labels to handle projects with >100 labels.
+ */
+async function resolveLabelIds(
+  projectPath: string,
+  labelNames: string[]
+): Promise<string[]> {
+  const allLabels: any[] = [];
+  let page = 1;
+  const remaining = new Set(labelNames);
+
+  while (remaining.size > 0) {
+    const labelsUrl = new URL(
+      `${getEffectiveApiUrl()}/projects/${encodeURIComponent(projectPath)}/labels`
+    );
+    labelsUrl.searchParams.set("per_page", "100");
+    labelsUrl.searchParams.set("page", String(page));
+    const labelsResponse = await fetch(labelsUrl.toString(), { ...getFetchConfig() });
+    await handleGitLabError(labelsResponse);
+    const batch = (await labelsResponse.json()) as any[];
+    if (batch.length === 0) break;
+    allLabels.push(...batch);
+    for (const label of batch) {
+      remaining.delete(label.name);
+    }
+    page++;
+  }
+
+  return labelNames.map(name => {
+    const label = allLabels.find((l: any) => l.name === name);
+    if (!label) throw new Error(`Label '${name}' not found in project`);
+    return `gid://gitlab/Label/${label.id}`;
+  });
+}
+
 // --- Work item type conversion ---
 
 /**
@@ -3504,15 +3540,16 @@ async function createWorkItem(
   };
 
   if (options.description !== undefined) {
-    inputFields.push("$description: String");
+    inputFields.push("$description: String!");
     inputValues.push("descriptionWidget: { description: $description }");
     variables.description = options.description;
   }
 
   if (options.labels && options.labels.length > 0) {
-    inputFields.push("$labels: [String!]");
-    inputValues.push("labelsWidget: { labelNames: $labels }");
-    variables.labels = options.labels;
+    const labelIds = await resolveLabelIds(projectPath, options.labels);
+    inputFields.push("$labelIds: [LabelID!]!");
+    inputValues.push("labelsWidget: { labelIds: $labelIds }");
+    variables.labelIds = labelIds;
   }
 
   if (options.weight !== undefined) {
@@ -3536,7 +3573,7 @@ async function createWorkItem(
   }
 
   if (options.health_status !== undefined) {
-    inputFields.push("$healthStatus: WorkItemHealthStatus");
+    inputFields.push("$healthStatus: HealthStatus");
     inputValues.push("healthStatusWidget: { healthStatus: $healthStatus }");
     variables.healthStatus = options.health_status;
   }
@@ -3626,7 +3663,6 @@ async function updateWorkItem(
   options: {
     title?: string;
     description?: string;
-    labels?: string[];
     add_labels?: string[];
     remove_labels?: string[];
     assignee_usernames?: string[];
@@ -3674,23 +3710,24 @@ async function updateWorkItem(
     variables.description = options.description;
   }
 
-  // Labels widget
-  if (options.labels !== undefined) {
-    varDefs.push("$labelNames: [String!]");
-    inputParts.push("labelsWidget: { labelNames: $labelNames }");
-    variables.labelNames = options.labels;
-  } else if (options.add_labels || options.remove_labels) {
+  // Labels widget - GraphQL requires label IDs, resolve names via REST
+  if (options.add_labels || options.remove_labels) {
+    const projectPath = await resolveProjectPath(projectId);
     const labelParts: string[] = [];
+
     if (options.add_labels && options.add_labels.length > 0) {
-      varDefs.push("$addLabelNames: [String!]");
-      labelParts.push("addLabelNames: $addLabelNames");
-      variables.addLabelNames = options.add_labels;
+      const addIds = await resolveLabelIds(projectPath, options.add_labels);
+      varDefs.push("$addLabelIds: [LabelID!]");
+      labelParts.push("addLabelIds: $addLabelIds");
+      variables.addLabelIds = addIds;
     }
     if (options.remove_labels && options.remove_labels.length > 0) {
-      varDefs.push("$removeLabelNames: [String!]");
-      labelParts.push("removeLabelNames: $removeLabelNames");
-      variables.removeLabelNames = options.remove_labels;
+      const removeIds = await resolveLabelIds(projectPath, options.remove_labels);
+      varDefs.push("$removeLabelIds: [LabelID!]");
+      labelParts.push("removeLabelIds: $removeLabelIds");
+      variables.removeLabelIds = removeIds;
     }
+
     if (labelParts.length > 0) {
       inputParts.push(`labelsWidget: { ${labelParts.join(", ")} }`);
     }
@@ -3721,7 +3758,7 @@ async function updateWorkItem(
   }
 
   if (options.health_status !== undefined) {
-    varDefs.push("$healthStatus: WorkItemHealthStatus");
+    varDefs.push("$healthStatus: HealthStatus");
     inputParts.push("healthStatusWidget: { healthStatus: $healthStatus }");
     variables.healthStatus = options.health_status;
   }

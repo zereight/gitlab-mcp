@@ -2734,9 +2734,8 @@ export const CreateWorkItemSchema = z.object({
 export const UpdateWorkItemSchema = WorkItemParamsSchema.extend({
   title: z.string().optional().describe("New title"),
   description: z.string().optional().describe("New description (Markdown supported)"),
-  labels: z.array(z.string()).optional().describe("Set labels (replaces existing). Use add_labels/remove_labels for incremental changes."),
-  add_labels: z.array(z.string()).optional().describe("Labels to add (without removing existing)"),
-  remove_labels: z.array(z.string()).optional().describe("Labels to remove"),
+  add_labels: z.array(z.string()).optional().describe("Label names to add"),
+  remove_labels: z.array(z.string()).optional().describe("Label names to remove"),
   assignee_usernames: z.array(z.string()).optional().describe("Set assignees by username (replaces existing)"),
   state_event: z.enum(["close", "reopen"]).optional().describe("Close or reopen the work item"),
   weight: z.number().optional().describe("Set weight"),
