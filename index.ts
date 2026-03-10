@@ -7451,12 +7451,15 @@ async function handleToolCall(params: any) {
         const args = GetWebhookEventSchema.parse(params.arguments);
         const event = await getWebhookEvent(args);
         if (!event) {
+          const searchScope = args.page
+            ? `on page ${args.page}`
+            : "in the 500 most recent events";
           return {
             content: [
               {
                 type: "text",
                 text: JSON.stringify(
-                  { error: `Webhook event ${args.event_id} not found (searched up to 500 most recent events)` },
+                  { error: `Webhook event ${args.event_id} not found ${searchScope}` },
                   null,
                   2
                 ),
