@@ -2719,6 +2719,12 @@ export const GetWebhookEventSchema = z
       .describe("Group ID or URL-encoded path. Provide either project_id or group_id."),
     hook_id: z.number().describe("ID of the webhook"),
     event_id: z.number().describe("ID of the webhook event to retrieve"),
+    page: z
+      .number()
+      .optional()
+      .describe(
+        "If known, the page where the event is located (from list_webhook_events). Skips auto-pagination and fetches only this page."
+      ),
   })
   .refine(data => data.project_id || data.group_id, {
     message: "Either project_id or group_id must be provided",

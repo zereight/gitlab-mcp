@@ -4470,9 +4470,18 @@ async function getWebhookEvent(
   options: z.infer<typeof GetWebhookEventSchema>
 ): Promise<Record<string, unknown> | null> {
   const eventsUrl = `${buildWebhookBaseUrl(options.project_id, options.group_id)}/${options.hook_id}/events`;
-  const maxPages = 5;
-  const perPage = 100;
+  // GitLab enforces max per_page=20 for webhook events
+  const perPage = 20;
 
+  if (options.page) {
+    // Direct page lookup — single API call
+    const events = await fetchWebhookEventsPage(eventsUrl, options.page, perPage);
+    const match = events.find(e => e.id === options.event_id);
+    return match ?? null;
+  }
+
+  // Auto-paginate up to 500 events
+  const maxPages = 25;
   for (let page = 1; page <= maxPages; page++) {
     const events = await fetchWebhookEventsPage(eventsUrl, page, perPage);
     const match = events.find(e => e.id === options.event_id);
