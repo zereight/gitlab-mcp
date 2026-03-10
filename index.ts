@@ -2419,39 +2419,37 @@ async function resolveWorkItemGID(
 }
 
 /**
- * Resolve label names to GitLab GIDs via REST API.
- * Paginates through all project labels to handle projects with >100 labels.
+ * Resolve label names and usernames to GitLab GIDs in a single GraphQL call.
  */
-async function resolveLabelIds(
+async function resolveNamesToIds(
   projectPath: string,
-  labelNames: string[]
-): Promise<string[]> {
-  const allLabels: any[] = [];
-  let page = 1;
-  const remaining = new Set(labelNames);
-
-  while (remaining.size > 0) {
-    const labelsUrl = new URL(
-      `${getEffectiveApiUrl()}/projects/${encodeURIComponent(projectPath)}/labels`
-    );
-    labelsUrl.searchParams.set("per_page", "100");
-    labelsUrl.searchParams.set("page", String(page));
-    const labelsResponse = await fetch(labelsUrl.toString(), { ...getFetchConfig() });
-    await handleGitLabError(labelsResponse);
-    const batch = (await labelsResponse.json()) as any[];
-    if (batch.length === 0) break;
-    allLabels.push(...batch);
-    for (const label of batch) {
-      remaining.delete(label.name);
-    }
-    page++;
+  labelNames?: string[],
+  usernames?: string[]
+): Promise<{ labelIds: string[]; userIds: string[] }> {
+  if (!labelNames?.length && !usernames?.length) {
+    return { labelIds: [], userIds: [] };
   }
-
-  return labelNames.map(name => {
-    const label = allLabels.find((l: any) => l.name === name);
+  const data = await executeGraphQL<{
+    project: { labels: { nodes: Array<{ id: string; title: string }> } };
+    users: { nodes: Array<{ id: string; username: string }> };
+  }>(
+    `query($path: ID!, $usernames: [String!]!) {
+      project(fullPath: $path) { labels(includeAncestorGroups: true) { nodes { id title } } }
+      users(usernames: $usernames) { nodes { id username } }
+    }`,
+    { path: projectPath, usernames: usernames || [] }
+  );
+  const labelIds = (labelNames || []).map(name => {
+    const label = data.project.labels.nodes.find(l => l.title === name);
     if (!label) throw new Error(`Label '${name}' not found in project`);
-    return `gid://gitlab/Label/${label.id}`;
+    return label.id;
   });
+  const userIds = (usernames || []).map(name => {
+    const user = data.users.nodes.find(u => u.username === name);
+    if (!user) throw new Error(`User '${name}' not found`);
+    return user.id;
+  });
+  return { labelIds, userIds };
 }
 
 // --- Work item type conversion ---
@@ -3545,8 +3543,14 @@ async function createWorkItem(
     variables.description = options.description;
   }
 
-  if (options.labels && options.labels.length > 0) {
-    const labelIds = await resolveLabelIds(projectPath, options.labels);
+  // Resolve label names and usernames to GIDs in a single GraphQL call
+  const { labelIds, userIds } = await resolveNamesToIds(
+    projectPath,
+    options.labels,
+    options.assignee_usernames
+  );
+
+  if (labelIds.length > 0) {
     inputFields.push("$labelIds: [LabelID!]!");
     inputValues.push("labelsWidget: { labelIds: $labelIds }");
     variables.labelIds = labelIds;
@@ -3566,10 +3570,10 @@ async function createWorkItem(
     variables.parentId = parentGID;
   }
 
-  if (options.assignee_usernames && options.assignee_usernames.length > 0) {
-    inputFields.push("$assigneeUsernames: [String!]");
-    inputValues.push("assigneesWidget: { assigneeUsernames: $assigneeUsernames }");
-    variables.assigneeUsernames = options.assignee_usernames;
+  if (userIds.length > 0) {
+    inputFields.push("$assigneeIds: [UserID!]!");
+    inputValues.push("assigneesWidget: { assigneeIds: $assigneeIds }");
+    variables.assigneeIds = userIds;
   }
 
   if (options.health_status !== undefined) {
@@ -3705,24 +3709,35 @@ async function updateWorkItem(
   }
 
   if (options.description !== undefined) {
-    varDefs.push("$description: String");
+    varDefs.push("$description: String!");
     inputParts.push("descriptionWidget: { description: $description }");
     variables.description = options.description;
   }
 
-  // Labels widget - GraphQL requires label IDs, resolve names via REST
+  // Resolve label names and usernames to GIDs in a single GraphQL call
+  const allLabelNames = [...(options.add_labels || []), ...(options.remove_labels || [])];
+  const needsResolve = allLabelNames.length > 0 || options.assignee_usernames?.length;
+  const { labelIds: resolvedLabelIds, userIds } = needsResolve
+    ? await resolveNamesToIds(
+        await resolveProjectPath(projectId),
+        allLabelNames.length > 0 ? allLabelNames : undefined,
+        options.assignee_usernames
+      )
+    : { labelIds: [] as string[], userIds: [] as string[] };
+
   if (options.add_labels || options.remove_labels) {
-    const projectPath = await resolveProjectPath(projectId);
     const labelParts: string[] = [];
+    let offset = 0;
 
     if (options.add_labels && options.add_labels.length > 0) {
-      const addIds = await resolveLabelIds(projectPath, options.add_labels);
+      const addIds = resolvedLabelIds.slice(0, options.add_labels.length);
+      offset = options.add_labels.length;
       varDefs.push("$addLabelIds: [LabelID!]");
       labelParts.push("addLabelIds: $addLabelIds");
       variables.addLabelIds = addIds;
     }
     if (options.remove_labels && options.remove_labels.length > 0) {
-      const removeIds = await resolveLabelIds(projectPath, options.remove_labels);
+      const removeIds = resolvedLabelIds.slice(offset);
       varDefs.push("$removeLabelIds: [LabelID!]");
       labelParts.push("removeLabelIds: $removeLabelIds");
       variables.removeLabelIds = removeIds;
@@ -3733,10 +3748,10 @@ async function updateWorkItem(
     }
   }
 
-  if (options.assignee_usernames !== undefined) {
-    varDefs.push("$assigneeUsernames: [String!]");
-    inputParts.push("assigneesWidget: { assigneeUsernames: $assigneeUsernames }");
-    variables.assigneeUsernames = options.assignee_usernames;
+  if (userIds.length > 0) {
+    varDefs.push("$assigneeIds: [UserID!]!");
+    inputParts.push("assigneesWidget: { assigneeIds: $assigneeIds }");
+    variables.assigneeIds = userIds;
   }
 
   if (options.state_event !== undefined) {
@@ -3912,7 +3927,7 @@ async function updateWorkItem(
       const addLinkedData = await executeGraphQL<{
         workItemAddLinkedItems: { errors: string[] };
       }>(
-        `mutation($id: WorkItemID!, $workItemsIds: [WorkItemID!]!, $linkType: String!) {
+        `mutation($id: WorkItemID!, $workItemsIds: [WorkItemID!]!, $linkType: WorkItemRelatedLinkType!) {
           workItemAddLinkedItems(input: { id: $id, workItemsIds: $workItemsIds, linkType: $linkType }) {
             errors
           }
