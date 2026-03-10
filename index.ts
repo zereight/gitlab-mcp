@@ -3200,16 +3200,16 @@ async function listWorkItems(
     variables.assigneeUsernames = options.assignee_usernames;
   }
   if (options.label_names && options.label_names.length > 0) {
-    variables.labelNames = options.label_names;
+    variables.labelName = options.label_names;
   }
   if (options.after) {
     variables.after = options.after;
   }
 
   const data = await executeGraphQL<{ project: any }>(
-    `query($path: ID!, $types: [IssueType!], $state: IssuableState, $search: String, $assigneeUsernames: [String!], $labelNames: [String!], $first: Int, $after: String) {
+    `query($path: ID!, $types: [IssueType!], $state: IssuableState, $search: String, $assigneeUsernames: [String!], $labelName: [String!], $first: Int, $after: String) {
       project(fullPath: $path) {
-        workItems(types: $types, state: $state, search: $search, assigneeUsernames: $assigneeUsernames, labelNames: $labelNames, first: $first, after: $after) {
+        workItems(types: $types, state: $state, search: $search, assigneeUsernames: $assigneeUsernames, labelName: $labelName, first: $first, after: $after) {
           nodes {
             id iid title state webUrl workItemType { name }
             widgets {
