@@ -2794,6 +2794,12 @@ export const ListWorkItemStatusesSchema = z.object({
     .describe("The work item type to list available statuses for. Defaults to 'issue'."),
 });
 
+export const MoveWorkItemSchema = z.object({
+  project_id: z.coerce.string().describe("Project ID or URL-encoded path of the source project"),
+  iid: z.number().describe("The internal ID of the work item to move"),
+  target_project_id: z.coerce.string().describe("Project ID or URL-encoded path of the target project"),
+});
+
 export const ListCustomFieldDefinitionsSchema = z.object({
   project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
   work_item_type: z

@@ -256,6 +256,7 @@ import {
   UpdateWorkItemSchema,
   ConvertWorkItemTypeSchema,
   ListWorkItemStatusesSchema,
+  MoveWorkItemSchema,
   ListCustomFieldDefinitionsSchema,
 } from "./schemas.js";
 
@@ -1413,31 +1414,31 @@ const allTools = [
   {
     name: "get_work_item",
     description:
-      "Get a single work item with full details including status, hierarchy (parent/children), type, labels, assignees, and all widgets. Uses GitLab GraphQL API.",
+      "Get a single work item with full details including status, hierarchy (parent/children), type, labels, assignees, and all widgets.",
     inputSchema: toJSONSchema(GetWorkItemSchema),
   },
   {
     name: "list_work_items",
     description:
-      "List work items in a project with filters (type, state, search, assignees, labels). Returns items with status and hierarchy info. Uses GitLab GraphQL API.",
+      "List work items in a project with filters (type, state, search, assignees, labels). Returns items with status and hierarchy info.",
     inputSchema: toJSONSchema(ListWorkItemsSchema),
   },
   {
     name: "create_work_item",
     description:
-      "Create a new work item (issue, task, incident, test_case). Supports setting title, description, labels, assignees, weight, parent, health status, start/due dates, milestone, and confidentiality. Uses GitLab GraphQL API.",
+      "Create a new work item (issue, task, incident, test_case). Supports setting title, description, labels, assignees, weight, parent, health status, start/due dates, milestone, and confidentiality.",
     inputSchema: toJSONSchema(CreateWorkItemSchema),
   },
   {
     name: "update_work_item",
     description:
-      "Update a work item. Can modify title, description, labels, assignees, weight, state, status, parent hierarchy, children, health status, start/due dates, milestone, confidentiality, linked items, and custom fields. Uses GitLab GraphQL API.",
+      "Update a work item. Can modify title, description, labels, assignees, weight, state, status, parent hierarchy, children, health status, start/due dates, milestone, confidentiality, linked items, and custom fields.",
     inputSchema: toJSONSchema(UpdateWorkItemSchema),
   },
   {
     name: "convert_work_item_type",
     description:
-      "Convert a work item to a different type (e.g. issue to task, task to incident). Uses GitLab GraphQL API.",
+      "Convert a work item to a different type (e.g. issue to task, task to incident).",
     inputSchema: toJSONSchema(ConvertWorkItemTypeSchema),
   },
   {
@@ -1449,8 +1450,14 @@ const allTools = [
   {
     name: "list_custom_field_definitions",
     description:
-      "List available custom field definitions for a work item type in a project. Returns field names, types, and IDs needed for setting custom fields via update_work_item. Uses GitLab GraphQL API.",
+      "List available custom field definitions for a work item type in a project. Returns field names, types, and IDs needed for setting custom fields via update_work_item.",
     inputSchema: toJSONSchema(ListCustomFieldDefinitionsSchema),
+  },
+  {
+    name: "move_work_item",
+    description:
+      "Move a work item (issue, task, etc.) to a different project. Uses GitLab GraphQL issueMove mutation.",
+    inputSchema: toJSONSchema(MoveWorkItemSchema),
   },
 ];
 
@@ -1760,6 +1767,7 @@ const TOOLSET_DEFINITIONS: readonly ToolsetDefinition[] = [
       "convert_work_item_type",
       "list_work_item_statuses",
       "list_custom_field_definitions",
+      "move_work_item",
     ]),
   },
 ] as const;
@@ -2883,8 +2891,40 @@ async function listCustomFieldDefinitions(
 }
 
 /**
+ * Move a work item to a different project.
+ */
+async function moveWorkItem(
+  projectId: string,
+  iid: number,
+  targetProjectId: string
+): Promise<any> {
+  const projectPath = await resolveProjectPath(projectId);
+  const targetPath = await resolveProjectPath(targetProjectId);
+
+  const data = await executeGraphQL<{
+    issueMove: {
+      issue: { id: string; iid: string; webUrl: string } | null;
+      errors: string[];
+    };
+  }>(
+    `mutation($projectPath: ID!, $iid: String!, $targetProjectPath: ID!) {
+      issueMove(input: { projectPath: $projectPath, iid: $iid, targetProjectPath: $targetProjectPath }) {
+        issue { id iid webUrl }
+        errors
+      }
+    }`,
+    { projectPath: projectPath, iid: String(iid), targetProjectPath: targetPath }
+  );
+
+  if (data.issueMove.errors?.length > 0) {
+    throw new Error(`Failed to move work item: ${data.issueMove.errors.join(", ")}`);
+  }
+
+  return data.issueMove.issue;
+}
+
+/**
  * Set the status of a work item.
- * Requires Premium/Ultimate with configurable statuses enabled.
  */
 async function setIssueStatus(
   projectId: string,
@@ -8247,6 +8287,14 @@ async function handleToolCall(params: any) {
       case "list_custom_field_definitions": {
         const args = ListCustomFieldDefinitionsSchema.parse(params.arguments);
         const result = await listCustomFieldDefinitions(args.project_id, args.work_item_type);
+        return {
+          content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+        };
+      }
+
+      case "move_work_item": {
+        const args = MoveWorkItemSchema.parse(params.arguments);
+        const result = await moveWorkItem(args.project_id, args.iid, args.target_project_id);
         return {
           content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
         };
