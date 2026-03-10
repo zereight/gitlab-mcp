@@ -2659,3 +2659,72 @@ export type GitLabMergeRequestApprovalState = z.infer<typeof GitLabMergeRequestA
 export type GetMergeRequestApprovalStateOptions = z.infer<
   typeof GetMergeRequestApprovalStateSchema
 >;
+
+// --- Webhook schemas ---
+
+export const ListWebhooksSchema = z
+  .object({
+    project_id: z.coerce
+      .string()
+      .optional()
+      .describe("Project ID or URL-encoded path. Provide either project_id or group_id."),
+    group_id: z.coerce
+      .string()
+      .optional()
+      .describe("Group ID or URL-encoded path. Provide either project_id or group_id."),
+  })
+  .merge(PaginationOptionsSchema)
+  .refine(data => data.project_id || data.group_id, {
+    message: "Either project_id or group_id must be provided",
+  });
+
+export const ListWebhookEventsSchema = z
+  .object({
+    project_id: z.coerce
+      .string()
+      .optional()
+      .describe("Project ID or URL-encoded path. Provide either project_id or group_id."),
+    group_id: z.coerce
+      .string()
+      .optional()
+      .describe("Group ID or URL-encoded path. Provide either project_id or group_id."),
+    hook_id: z.number().describe("ID of the webhook"),
+    status: z
+      .union([z.number(), z.string()])
+      .optional()
+      .describe(
+        "Filter by response status code (e.g. 200, 500) or category: successful, client_failure, server_failure"
+      ),
+    summary: z
+      .boolean()
+      .optional()
+      .describe(
+        "If true, return only summary fields (id, url, trigger, response_status, execution_duration) without full request/response payloads. Recommended for overview queries to avoid huge responses."
+      ),
+  })
+  .merge(PaginationOptionsSchema)
+  .refine(data => data.project_id || data.group_id, {
+    message: "Either project_id or group_id must be provided",
+  });
+
+export const GetWebhookEventSchema = z
+  .object({
+    project_id: z.coerce
+      .string()
+      .optional()
+      .describe("Project ID or URL-encoded path. Provide either project_id or group_id."),
+    group_id: z.coerce
+      .string()
+      .optional()
+      .describe("Group ID or URL-encoded path. Provide either project_id or group_id."),
+    hook_id: z.number().describe("ID of the webhook"),
+    event_id: z.number().describe("ID of the webhook event to retrieve"),
+  })
+  .refine(data => data.project_id || data.group_id, {
+    message: "Either project_id or group_id must be provided",
+  });
+
+// Webhook types
+export type ListWebhooksOptions = z.infer<typeof ListWebhooksSchema>;
+export type ListWebhookEventsOptions = z.infer<typeof ListWebhookEventsSchema>;
+export type GetWebhookEventOptions = z.infer<typeof GetWebhookEventSchema>;
