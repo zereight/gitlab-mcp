@@ -250,6 +250,12 @@ import {
   GetMergeRequestNoteSchema,
   DeleteMergeRequestDiscussionNoteSchema,
   ResolveMergeRequestThreadSchema,
+  GetWorkItemSchema,
+  ListWorkItemsSchema,
+  CreateWorkItemSchema,
+  UpdateWorkItemSchema,
+  ConvertWorkItemTypeSchema,
+  ListWorkItemStatusesSchema,
 } from "./schemas.js";
 
 import { randomUUID } from "node:crypto";
@@ -1402,6 +1408,43 @@ const allTools = [
     description: "Download a release asset file by direct asset path",
     inputSchema: toJSONSchema(DownloadReleaseAssetSchema),
   },
+  // --- Work item tools (GraphQL-based) ---
+  {
+    name: "get_work_item",
+    description:
+      "Get a single work item with full details including status, hierarchy (parent/children), type, labels, assignees, and all widgets. Uses GitLab GraphQL API.",
+    inputSchema: toJSONSchema(GetWorkItemSchema),
+  },
+  {
+    name: "list_work_items",
+    description:
+      "List work items in a project with filters (type, state, search, assignees, labels). Returns items with status and hierarchy info. Uses GitLab GraphQL API.",
+    inputSchema: toJSONSchema(ListWorkItemsSchema),
+  },
+  {
+    name: "create_work_item",
+    description:
+      "Create a new work item (issue, task, incident, test_case). Supports setting title, description, labels, assignees, weight, parent, health status, start/due dates, milestone, and confidentiality. Uses GitLab GraphQL API.",
+    inputSchema: toJSONSchema(CreateWorkItemSchema),
+  },
+  {
+    name: "update_work_item",
+    description:
+      "Update a work item. Can modify title, description, labels, assignees, weight, state, status, parent hierarchy, children, health status, start/due dates, milestone, confidentiality, linked items, and custom fields. Uses GitLab GraphQL API.",
+    inputSchema: toJSONSchema(UpdateWorkItemSchema),
+  },
+  {
+    name: "convert_work_item_type",
+    description:
+      "Convert a work item to a different type (e.g. issue to task, task to incident). Uses GitLab GraphQL API.",
+    inputSchema: toJSONSchema(ConvertWorkItemTypeSchema),
+  },
+  {
+    name: "list_work_item_statuses",
+    description:
+      "List available statuses for a work item type in a project. Requires GitLab Premium/Ultimate with configurable statuses.",
+    inputSchema: toJSONSchema(ListWorkItemStatusesSchema),
+  },
 ];
 
 // Define which tools are read-only
@@ -1458,6 +1501,9 @@ const readOnlyTools = new Set([
   "get_release",
   "download_release_asset",
   "get_merge_request_approval_state",
+  "get_work_item",
+  "list_work_items",
+  "list_work_item_statuses",
 ]);
 
 // Define which tools are related to wiki and can be toggled by USE_GITLAB_WIKI
@@ -1512,7 +1558,8 @@ type ToolsetId =
   | "milestones"
   | "wiki"
   | "releases"
-  | "users";
+  | "users"
+  | "workitems";
 
 interface ToolsetDefinition {
   readonly id: ToolsetId;
@@ -1692,6 +1739,18 @@ const TOOLSET_DEFINITIONS: readonly ToolsetDefinition[] = [
       "get_project_events",
       "upload_markdown",
       "download_attachment",
+    ]),
+  },
+  {
+    id: "workitems",
+    isDefault: false,
+    tools: new Set([
+      "get_work_item",
+      "list_work_items",
+      "create_work_item",
+      "update_work_item",
+      "convert_work_item_type",
+      "list_work_item_statuses",
     ]),
   },
 ] as const;
@@ -2040,14 +2099,6 @@ async function getFileContents(
   return parsedData;
 }
 
-/**
- * Create a new issue in a GitLab project
- * 이슈 생성 (Create an issue)
- *
- * @param {string} projectId - The ID or URL-encoded path of the project
- * @param {z.infer<typeof CreateIssueOptionsSchema>} options - Issue creation options
- * @returns {Promise<GitLabIssue>} The created issue
- */
 async function createIssue(
   projectId: string,
   options: z.infer<typeof CreateIssueOptionsSchema>
@@ -2058,16 +2109,16 @@ async function createIssue(
     `${getEffectiveApiUrl()}/projects/${encodeURIComponent(effectiveProjectId)}/issues`
   );
 
+  // Build request body, converting labels array to comma-separated string
+  const body: Record<string, any> = { ...options };
+  if (body.labels && Array.isArray(body.labels)) {
+    body.labels = body.labels.join(",");
+  }
+
   const response = await fetch(url.toString(), {
     ...getFetchConfig(),
     method: "POST",
-    body: JSON.stringify({
-      title: options.title,
-      description: options.description,
-      assignee_ids: options.assignee_ids,
-      milestone_id: options.milestone_id,
-      labels: options.labels?.join(","),
-    }),
+    body: JSON.stringify(body),
   });
 
   // Handle bad request
@@ -2250,6 +2301,1273 @@ async function deleteIssue(projectId: string, issueIid: number | string): Promis
   });
 
   await handleGitLabError(response);
+}
+
+// --- GraphQL helper ---
+
+/**
+ * Execute a GraphQL query against the GitLab instance.
+ * Reusable helper for work item operations.
+ */
+async function executeGraphQL<T = any>(
+  query: string,
+  variables: Record<string, any> = {}
+): Promise<T> {
+  const apiUrl = new URL(getEffectiveApiUrl());
+  const restPath = apiUrl.pathname || "";
+  const idx = restPath.lastIndexOf("/api/v4");
+  const prefix = idx >= 0 ? restPath.slice(0, idx) : "";
+  const graphqlUrl =
+    process.env.GITLAB_GRAPHQL_URL || `${apiUrl.origin}${prefix}/api/graphql`;
+
+  const response = await fetch(graphqlUrl, {
+    ...getFetchConfig(),
+    method: "POST",
+    headers: {
+      ...BASE_HEADERS,
+      ...buildAuthHeaders(),
+    },
+    body: JSON.stringify({ query, variables }),
+  });
+
+  if (!response.ok) {
+    const errorBody = await response.text();
+    throw new Error(`GraphQL request failed (${response.status}): ${errorBody}`);
+  }
+
+  const json: any = await response.json();
+  if (json.errors && json.errors.length > 0) {
+    throw new Error(`GraphQL errors: ${json.errors.map((e: any) => e.message).join(", ")}`);
+  }
+  return json.data as T;
+}
+
+/**
+ * Resolve a project path and issue IID to a work item GraphQL GID.
+ */
+async function resolveWorkItemGID(
+  projectId: string,
+  issueIid: number
+): Promise<{ workItemGID: string; projectPath: string }> {
+  projectId = decodeURIComponent(projectId);
+  const effectiveProjectId = getEffectiveProjectId(projectId);
+
+  // First get the project path via REST (needed for GraphQL namespace query)
+  const projectUrl = new URL(
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(effectiveProjectId)}`
+  );
+  const projectResponse = await fetch(projectUrl.toString(), {
+    ...getFetchConfig(),
+  });
+  await handleGitLabError(projectResponse);
+  const project: any = await projectResponse.json();
+  const projectPath: string = project.path_with_namespace;
+
+  // Resolve work item GID via GraphQL
+  const data = await executeGraphQL<{
+    namespace: { workItem: { id: string } | null };
+  }>(
+    `query($path: ID!, $iid: String!) {
+      namespace(fullPath: $path) {
+        workItem(iid: $iid) {
+          id
+        }
+      }
+    }`,
+    { path: projectPath, iid: String(issueIid) }
+  );
+
+  if (!data.namespace?.workItem?.id) {
+    throw new Error(`Work item #${issueIid} not found in project ${projectPath}`);
+  }
+
+  return { workItemGID: data.namespace.workItem.id, projectPath };
+}
+
+// --- Work item type conversion ---
+
+/**
+ * Get the GraphQL GID for a work item type by querying the project's available types.
+ */
+async function resolveWorkItemTypeGID(
+  projectPath: string,
+  typeName: string
+): Promise<string> {
+  // Map input names to GitLab work item type names
+  const typeNameMap: Record<string, string> = {
+    issue: "Issue",
+    task: "Task",
+    incident: "Incident",
+    test_case: "Test Case",
+    epic: "Epic",
+    key_result: "Key Result",
+    objective: "Objective",
+    requirement: "Requirement",
+    ticket: "Ticket",
+  };
+
+  const targetName = typeNameMap[typeName];
+  if (!targetName) {
+    throw new Error(`Unknown work item type: ${typeName}`);
+  }
+
+  const data = await executeGraphQL<{
+    namespace: { workItemTypes: { nodes: Array<{ id: string; name: string }> } };
+  }>(
+    `query($path: ID!) {
+      namespace(fullPath: $path) {
+        workItemTypes {
+          nodes {
+            id
+            name
+          }
+        }
+      }
+    }`,
+    { path: projectPath }
+  );
+
+  const typeNode = data.namespace?.workItemTypes?.nodes?.find(
+    (n) => n.name === targetName
+  );
+  if (!typeNode) {
+    throw new Error(
+      `Work item type '${targetName}' not found in project ${projectPath}`
+    );
+  }
+  return typeNode.id;
+}
+
+/**
+ * Convert an issue to a different work item type using GraphQL.
+ */
+async function convertIssueType(
+  projectId: string,
+  issueIid: number,
+  newType: string
+): Promise<{ id: string; type: string }> {
+  const { workItemGID, projectPath } = await resolveWorkItemGID(projectId, issueIid);
+  const workItemTypeGID = await resolveWorkItemTypeGID(projectPath, newType);
+
+  const data = await executeGraphQL<{
+    workItemConvert: {
+      workItem: { id: string; workItemType: { name: string } } | null;
+      errors: string[];
+    };
+  }>(
+    `mutation($id: WorkItemID!, $typeId: WorkItemsTypeID!) {
+      workItemConvert(input: { id: $id, workItemTypeId: $typeId }) {
+        workItem {
+          id
+          workItemType { name }
+        }
+        errors
+      }
+    }`,
+    { id: workItemGID, typeId: workItemTypeGID }
+  );
+
+  if (data.workItemConvert.errors?.length > 0) {
+    throw new Error(`Conversion failed: ${data.workItemConvert.errors.join(", ")}`);
+  }
+
+  return {
+    id: data.workItemConvert.workItem!.id,
+    type: data.workItemConvert.workItem!.workItemType.name,
+  };
+}
+
+// --- Work item hierarchy ---
+
+/**
+ * Set a parent for a work item (issue hierarchy).
+ */
+async function setIssueParent(
+  projectId: string,
+  issueIid: number,
+  parentProjectId: string,
+  parentIssueIid: number
+): Promise<{ id: string; parentId: string }> {
+  const { workItemGID } = await resolveWorkItemGID(projectId, issueIid);
+  const { workItemGID: parentGID } = await resolveWorkItemGID(
+    parentProjectId,
+    parentIssueIid
+  );
+
+  const data = await executeGraphQL<{
+    workItemUpdate: {
+      workItem: { id: string } | null;
+      errors: string[];
+    };
+  }>(
+    `mutation($id: WorkItemID!, $parentId: WorkItemID!) {
+      workItemUpdate(input: { id: $id, hierarchyWidget: { parentId: $parentId } }) {
+        workItem { id }
+        errors
+      }
+    }`,
+    { id: workItemGID, parentId: parentGID }
+  );
+
+  if (data.workItemUpdate.errors?.length > 0) {
+    throw new Error(`Failed to set parent: ${data.workItemUpdate.errors.join(", ")}`);
+  }
+
+  return { id: workItemGID, parentId: parentGID };
+}
+
+/**
+ * Remove the parent from a work item.
+ */
+async function removeIssueParent(
+  projectId: string,
+  issueIid: number
+): Promise<void> {
+  const { workItemGID } = await resolveWorkItemGID(projectId, issueIid);
+
+  const data = await executeGraphQL<{
+    workItemUpdate: {
+      workItem: { id: string } | null;
+      errors: string[];
+    };
+  }>(
+    `mutation($id: WorkItemID!) {
+      workItemUpdate(input: { id: $id, hierarchyWidget: { parentId: null } }) {
+        workItem { id }
+        errors
+      }
+    }`,
+    { id: workItemGID }
+  );
+
+  if (data.workItemUpdate.errors?.length > 0) {
+    throw new Error(`Failed to remove parent: ${data.workItemUpdate.errors.join(", ")}`);
+  }
+}
+
+/**
+ * List children of a work item (hierarchy widget).
+ */
+async function listIssueChildren(
+  projectId: string,
+  issueIid: number
+): Promise<any> {
+  projectId = decodeURIComponent(projectId);
+  const effectiveProjectId = getEffectiveProjectId(projectId);
+
+  // Get project path
+  const projectUrl = new URL(
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(effectiveProjectId)}`
+  );
+  const projectResponse = await fetch(projectUrl.toString(), {
+    ...getFetchConfig(),
+  });
+  await handleGitLabError(projectResponse);
+  const project: any = await projectResponse.json();
+
+  const data = await executeGraphQL<{
+    namespace: {
+      workItem: {
+        id: string;
+        title: string;
+        widgets: Array<any>;
+      } | null;
+    };
+  }>(
+    `query($path: ID!, $iid: String!) {
+      namespace(fullPath: $path) {
+        workItem(iid: $iid) {
+          id
+          title
+          widgets {
+            __typename
+            ... on WorkItemWidgetHierarchy {
+              parent {
+                id
+                title
+                webUrl
+                workItemType { name }
+              }
+              children {
+                nodes {
+                  id
+                  title
+                  state
+                  webUrl
+                  workItemType { name }
+                }
+              }
+            }
+          }
+        }
+      }
+    }`,
+    { path: project.path_with_namespace, iid: String(issueIid) }
+  );
+
+  if (!data.namespace?.workItem) {
+    throw new Error(`Work item #${issueIid} not found`);
+  }
+
+  // Extract hierarchy widget
+  const hierarchyWidget = data.namespace.workItem.widgets?.find(
+    (w: any) => w.__typename === "WorkItemWidgetHierarchy"
+  );
+
+  return {
+    id: data.namespace.workItem.id,
+    title: data.namespace.workItem.title,
+    parent: hierarchyWidget?.parent || null,
+    children: hierarchyWidget?.children?.nodes || [],
+  };
+}
+
+/**
+ * Add a child to a parent work item.
+ */
+async function addIssueChild(
+  projectId: string,
+  issueIid: number,
+  childProjectId: string,
+  childIssueIid: number
+): Promise<{ parentId: string; childId: string }> {
+  const { workItemGID: parentGID } = await resolveWorkItemGID(projectId, issueIid);
+  const { workItemGID: childGID } = await resolveWorkItemGID(
+    childProjectId,
+    childIssueIid
+  );
+
+  const data = await executeGraphQL<{
+    workItemUpdate: {
+      workItem: { id: string } | null;
+      errors: string[];
+    };
+  }>(
+    `mutation($id: WorkItemID!, $childId: WorkItemID!) {
+      workItemUpdate(input: { id: $id, hierarchyWidget: { childrenIds: [$childId] } }) {
+        workItem { id }
+        errors
+      }
+    }`,
+    { id: parentGID, childId: childGID }
+  );
+
+  if (data.workItemUpdate.errors?.length > 0) {
+    throw new Error(`Failed to add child: ${data.workItemUpdate.errors.join(", ")}`);
+  }
+
+  return { parentId: parentGID, childId: childGID };
+}
+
+/**
+ * Remove a child from a parent work item by setting the child's parent to null.
+ */
+async function removeIssueChild(
+  projectId: string,
+  issueIid: number,
+  childProjectId: string,
+  childIssueIid: number
+): Promise<void> {
+  // Removing a child is done by removing the parent from the child
+  await removeIssueParent(childProjectId, childIssueIid);
+}
+
+// --- Work item status ---
+
+/**
+ * Map user-facing type names to GitLab WorkItemType names for GraphQL queries.
+ */
+const WORK_ITEM_TYPE_NAMES: Record<string, string> = {
+  issue: "Issue",
+  task: "Task",
+  incident: "Incident",
+  test_case: "Test Case",
+  epic: "Epic",
+  key_result: "Key Result",
+  objective: "Objective",
+  requirement: "Requirement",
+  ticket: "Ticket",
+};
+
+/**
+ * List available statuses for a work item type in a project.
+ * Requires Premium/Ultimate with configurable statuses enabled.
+ */
+async function listIssueStatuses(
+  projectId: string,
+  workItemType: string = "issue"
+): Promise<any> {
+  projectId = decodeURIComponent(projectId);
+  const effectiveProjectId = getEffectiveProjectId(projectId);
+
+  // Get project path
+  const projectUrl = new URL(
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(effectiveProjectId)}`
+  );
+  const projectResponse = await fetch(projectUrl.toString(), {
+    ...getFetchConfig(),
+  });
+  await handleGitLabError(projectResponse);
+  const project: any = await projectResponse.json();
+
+  const typeName = WORK_ITEM_TYPE_NAMES[workItemType] || "Issue";
+
+  const data = await executeGraphQL<{
+    namespace: {
+      workItemTypes: {
+        nodes: Array<{
+          id: string;
+          name: string;
+          widgetDefinitions: Array<any>;
+        }>;
+      };
+    };
+  }>(
+    `query($path: ID!, $typeName: IssueType) {
+      namespace(fullPath: $path) {
+        workItemTypes(name: $typeName) {
+          nodes {
+            id
+            name
+            widgetDefinitions {
+              __typename
+              ... on WorkItemWidgetDefinitionStatus {
+                allowedStatuses {
+                  id
+                  name
+                  iconName
+                  color
+                  position
+                }
+              }
+            }
+          }
+        }
+      }
+    }`,
+    { path: project.path_with_namespace, typeName: typeName.toUpperCase() }
+  );
+
+  const typeNodes = data.namespace?.workItemTypes?.nodes;
+  if (!typeNodes || typeNodes.length === 0) {
+    throw new Error(`Work item type '${typeName}' not found in project`);
+  }
+
+  // Extract statuses from the status widget definition
+  const statusWidget = typeNodes[0].widgetDefinitions?.find(
+    (w: any) =>
+      w.__typename === "WorkItemWidgetDefinitionStatus"
+  );
+
+  const statuses = statusWidget?.allowedStatuses || [];
+
+  return {
+    work_item_type: typeNodes[0].name,
+    statuses_available: statuses.length > 0,
+    statuses,
+  };
+}
+
+/**
+ * Set the status of a work item.
+ * Requires Premium/Ultimate with configurable statuses enabled.
+ */
+async function setIssueStatus(
+  projectId: string,
+  issueIid: number,
+  status: string
+): Promise<{ id: string; status: string }> {
+  const { workItemGID } = await resolveWorkItemGID(projectId, issueIid);
+
+  const data = await executeGraphQL<{
+    workItemUpdate: {
+      workItem: {
+        id: string;
+        widgets: Array<any>;
+      } | null;
+      errors: string[];
+    };
+  }>(
+    `mutation($id: WorkItemID!, $status: WorkItemsStatusesStatusID!) {
+      workItemUpdate(input: { id: $id, statusWidget: { status: $status } }) {
+        workItem {
+          id
+          widgets {
+            __typename
+            ... on WorkItemWidgetStatus {
+              status { id name category color }
+            }
+          }
+        }
+        errors
+      }
+    }`,
+    { id: workItemGID, status }
+  );
+
+  if (data.workItemUpdate.errors?.length > 0) {
+    throw new Error(`Failed to set status: ${data.workItemUpdate.errors.join(", ")}`);
+  }
+
+  // Extract the current status from the response
+  const statusWidget = data.workItemUpdate.workItem?.widgets?.find(
+    (w: any) => w.__typename === "WorkItemWidgetStatus"
+  );
+
+  return {
+    id: data.workItemUpdate.workItem!.id,
+    status: statusWidget?.status || null,
+  };
+}
+
+/**
+ * Resolve a project ID (numeric or path) to its full path_with_namespace.
+ */
+async function resolveProjectPath(projectId: string): Promise<string> {
+  projectId = decodeURIComponent(projectId);
+  const effectiveProjectId = getEffectiveProjectId(projectId);
+  const projectUrl = new URL(
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(effectiveProjectId)}`
+  );
+  const projectResponse = await fetch(projectUrl.toString(), {
+    ...getFetchConfig(),
+  });
+  await handleGitLabError(projectResponse);
+  const project: any = await projectResponse.json();
+  return project.path_with_namespace;
+}
+
+/**
+ * Get a single work item with all widget data.
+ */
+async function getWorkItem(
+  projectId: string,
+  iid: number
+): Promise<any> {
+  const projectPath = await resolveProjectPath(projectId);
+
+  const data = await executeGraphQL<{
+    namespace: { workItem: any };
+  }>(
+    `query($path: ID!, $iid: String!) {
+      namespace(fullPath: $path) {
+        workItem(iid: $iid) {
+          id
+          iid
+          title
+          state
+          description
+          webUrl
+          workItemType { name }
+          widgets {
+            __typename
+            ... on WorkItemWidgetHierarchy {
+              parent { id title webUrl workItemType { name } }
+              children { nodes { id iid title state webUrl workItemType { name } } }
+            }
+            ... on WorkItemWidgetStatus { status { id name category color iconName position } }
+            ... on WorkItemWidgetCustomFields {
+              customFieldValues {
+                __typename
+                customField { id name fieldType }
+                ... on WorkItemNumberFieldValue { value }
+                ... on WorkItemTextFieldValue { value }
+                ... on WorkItemSelectFieldValue {
+                  selectedOptions { id value }
+                }
+              }
+            }
+            ... on WorkItemWidgetLabels { labels { nodes { id title color } } }
+            ... on WorkItemWidgetAssignees { assignees { nodes { id username name } } }
+            ... on WorkItemWidgetWeight { weight }
+            ... on WorkItemWidgetHealthStatus { healthStatus }
+            ... on WorkItemWidgetStartAndDueDate { startDate dueDate }
+            ... on WorkItemWidgetMilestone { milestone { id title } }
+            ... on WorkItemWidgetLinkedItems {
+              blocked blockedByCount blockingCount
+            }
+            ... on WorkItemWidgetTimeTracking {
+              timeEstimate totalTimeSpent
+            }
+            ... on WorkItemWidgetDevelopment {
+              willAutoCloseByMergeRequest
+              relatedBranches { nodes { name } }
+              relatedMergeRequests {
+                nodes { iid title webUrl state sourceBranch }
+              }
+              closingMergeRequests {
+                nodes {
+                  mergeRequest { iid title webUrl state sourceBranch }
+                }
+              }
+              featureFlags { nodes { name active } }
+            }
+          }
+        }
+      }
+    }`,
+    { path: projectPath, iid: String(iid) }
+  );
+
+  if (!data.namespace?.workItem) {
+    throw new Error(`Work item #${iid} not found in project ${projectPath}`);
+  }
+
+  const wi = data.namespace.workItem;
+  const widgets = wi.widgets || [];
+
+  // Flatten widget data into a clean response
+  const hierarchyWidget = widgets.find((w: any) => w.__typename === "WorkItemWidgetHierarchy");
+  const statusWidget = widgets.find((w: any) => w.__typename === "WorkItemWidgetStatus");
+  const labelsWidget = widgets.find((w: any) => w.__typename === "WorkItemWidgetLabels");
+  const assigneesWidget = widgets.find((w: any) => w.__typename === "WorkItemWidgetAssignees");
+  const weightWidget = widgets.find((w: any) => w.__typename === "WorkItemWidgetWeight");
+  const healthStatusWidget = widgets.find((w: any) => w.__typename === "WorkItemWidgetHealthStatus");
+  const datesWidget = widgets.find((w: any) => w.__typename === "WorkItemWidgetStartAndDueDate");
+  const milestoneWidget = widgets.find((w: any) => w.__typename === "WorkItemWidgetMilestone");
+  const linkedItemsWidget = widgets.find((w: any) => w.__typename === "WorkItemWidgetLinkedItems");
+  const timeTrackingWidget = widgets.find((w: any) => w.__typename === "WorkItemWidgetTimeTracking");
+  const developmentWidget = widgets.find((w: any) => w.__typename === "WorkItemWidgetDevelopment");
+  const customFieldsWidget = widgets.find((w: any) => w.__typename === "WorkItemWidgetCustomFields");
+
+  // Build response, omitting null/empty values to keep output lean
+  const result: Record<string, any> = {
+    id: wi.id,
+    iid: wi.iid,
+    title: wi.title,
+    state: wi.state,
+    type: wi.workItemType?.name,
+    webUrl: wi.webUrl,
+  };
+
+  if (wi.description) result.description = wi.description;
+  if (statusWidget?.status) result.status = { name: statusWidget.status.name, id: statusWidget.status.id, category: statusWidget.status.category };
+
+  const labels = (labelsWidget?.labels?.nodes || []).map((l: any) => l.title);
+  if (labels.length > 0) result.labels = labels;
+
+  const assignees = (assigneesWidget?.assignees?.nodes || []).map((a: any) => a.username);
+  if (assignees.length > 0) result.assignees = assignees;
+
+  if (weightWidget?.weight != null) result.weight = weightWidget.weight;
+  if (healthStatusWidget?.healthStatus) result.healthStatus = healthStatusWidget.healthStatus;
+  if (datesWidget?.startDate) result.startDate = datesWidget.startDate;
+  if (datesWidget?.dueDate) result.dueDate = datesWidget.dueDate;
+  if (milestoneWidget?.milestone) result.milestone = { id: milestoneWidget.milestone.id, title: milestoneWidget.milestone.title };
+
+  if (hierarchyWidget?.parent) result.parent = { iid: hierarchyWidget.parent.iid, title: hierarchyWidget.parent.title, type: hierarchyWidget.parent.workItemType?.name };
+  const children = hierarchyWidget?.children?.nodes || [];
+  if (children.length > 0) result.children = children.map((c: any) => ({ iid: c.iid, title: c.title, state: c.state, type: c.workItemType?.name }));
+
+  if (linkedItemsWidget?.blocked) result.blocked = true;
+  if (linkedItemsWidget?.blockedByCount > 0) result.blockedByCount = linkedItemsWidget.blockedByCount;
+  if (linkedItemsWidget?.blockingCount > 0) result.blockingCount = linkedItemsWidget.blockingCount;
+
+  if (timeTrackingWidget?.timeEstimate > 0) result.timeEstimate = timeTrackingWidget.timeEstimate;
+  if (timeTrackingWidget?.totalTimeSpent > 0) result.totalTimeSpent = timeTrackingWidget.totalTimeSpent;
+
+  // Development: only include if there's actual data
+  const relatedMRs = developmentWidget?.relatedMergeRequests?.nodes || [];
+  const closingMRs = (developmentWidget?.closingMergeRequests?.nodes || []).map((n: any) => n.mergeRequest);
+  const branches = developmentWidget?.relatedBranches?.nodes || [];
+  const flags = developmentWidget?.featureFlags?.nodes || [];
+  if (relatedMRs.length > 0 || closingMRs.length > 0 || branches.length > 0 || flags.length > 0) {
+    const dev: Record<string, any> = {};
+    if (relatedMRs.length > 0) dev.relatedMergeRequests = relatedMRs;
+    if (closingMRs.length > 0) dev.closingMergeRequests = closingMRs;
+    if (branches.length > 0) dev.relatedBranches = branches.map((b: any) => b.name);
+    if (flags.length > 0) dev.featureFlags = flags;
+    result.development = dev;
+  }
+
+  const cfValues = (customFieldsWidget?.customFieldValues || []).filter((cfv: any) => cfv.value != null || cfv.selectedOptions != null);
+  if (cfValues.length > 0) {
+    result.customFields = cfValues.map((cfv: any) => ({
+      name: cfv.customField?.name,
+      type: cfv.customField?.fieldType,
+      value: cfv.value ?? cfv.selectedOptions ?? null,
+    }));
+  }
+
+  return result;
+}
+
+/**
+ * List work items in a project with filters.
+ */
+async function listWorkItems(
+  projectId: string,
+  options: {
+    types?: string[];
+    state?: string;
+    search?: string;
+    assignee_usernames?: string[];
+    label_names?: string[];
+    first?: number;
+    after?: string;
+  }
+): Promise<any> {
+  const projectPath = await resolveProjectPath(projectId);
+
+  // Map type names to GraphQL enum values
+  const typeMap: Record<string, string> = {
+    issue: "ISSUE",
+    task: "TASK",
+    incident: "INCIDENT",
+    test_case: "TEST_CASE",
+    epic: "EPIC",
+    key_result: "KEY_RESULT",
+    objective: "OBJECTIVE",
+    requirement: "REQUIREMENT",
+    ticket: "TICKET",
+  };
+
+  const variables: Record<string, any> = {
+    path: projectPath,
+    first: options.first || 20,
+  };
+
+  if (options.types && options.types.length > 0) {
+    variables.types = options.types.map((t) => typeMap[t] || t.toUpperCase());
+  }
+  if (options.state) {
+    variables.state = options.state === "opened" ? "opened" : "closed";
+  }
+  if (options.search) {
+    variables.search = options.search;
+  }
+  if (options.assignee_usernames && options.assignee_usernames.length > 0) {
+    variables.assigneeUsernames = options.assignee_usernames;
+  }
+  if (options.label_names && options.label_names.length > 0) {
+    variables.labelNames = options.label_names;
+  }
+  if (options.after) {
+    variables.after = options.after;
+  }
+
+  const data = await executeGraphQL<{ project: any }>(
+    `query($path: ID!, $types: [IssueType!], $state: IssuableState, $search: String, $assigneeUsernames: [String!], $labelNames: [String!], $first: Int, $after: String) {
+      project(fullPath: $path) {
+        workItems(types: $types, state: $state, search: $search, assigneeUsernames: $assigneeUsernames, labelNames: $labelNames, first: $first, after: $after) {
+          nodes {
+            id iid title state webUrl workItemType { name }
+            widgets {
+              __typename
+              ... on WorkItemWidgetStatus { status { id name category color } }
+              ... on WorkItemWidgetLabels { labels { nodes { title } } }
+              ... on WorkItemWidgetAssignees { assignees { nodes { username } } }
+              ... on WorkItemWidgetWeight { weight }
+              ... on WorkItemWidgetHealthStatus { healthStatus }
+              ... on WorkItemWidgetStartAndDueDate { startDate dueDate }
+              ... on WorkItemWidgetMilestone { milestone { id title } }
+            }
+          }
+          pageInfo { hasNextPage endCursor }
+        }
+      }
+    }`,
+    variables
+  );
+
+  const workItems = data.project?.workItems?.nodes || [];
+  const pageInfo = data.project?.workItems?.pageInfo || {};
+
+  // Flatten widget data for each item
+  const items = workItems.map((wi: any) => {
+    const widgets = wi.widgets || [];
+    const statusWidget = widgets.find((w: any) => w.__typename === "WorkItemWidgetStatus");
+    const labelsWidget = widgets.find((w: any) => w.__typename === "WorkItemWidgetLabels");
+    const assigneesWidget = widgets.find((w: any) => w.__typename === "WorkItemWidgetAssignees");
+    const weightWidget = widgets.find((w: any) => w.__typename === "WorkItemWidgetWeight");
+    const healthStatusWidget = widgets.find((w: any) => w.__typename === "WorkItemWidgetHealthStatus");
+    const datesWidget = widgets.find((w: any) => w.__typename === "WorkItemWidgetStartAndDueDate");
+    const milestoneWidget = widgets.find((w: any) => w.__typename === "WorkItemWidgetMilestone");
+    const item: Record<string, any> = {
+      iid: wi.iid,
+      title: wi.title,
+      state: wi.state,
+      type: wi.workItemType?.name,
+      webUrl: wi.webUrl,
+    };
+    if (statusWidget?.status) item.status = statusWidget.status.name;
+    const labels = (labelsWidget?.labels?.nodes || []).map((l: any) => l.title);
+    if (labels.length > 0) item.labels = labels;
+    const assignees = (assigneesWidget?.assignees?.nodes || []).map((a: any) => a.username);
+    if (assignees.length > 0) item.assignees = assignees;
+    if (weightWidget?.weight != null) item.weight = weightWidget.weight;
+    if (healthStatusWidget?.healthStatus) item.healthStatus = healthStatusWidget.healthStatus;
+    if (datesWidget?.startDate) item.startDate = datesWidget.startDate;
+    if (datesWidget?.dueDate) item.dueDate = datesWidget.dueDate;
+    if (milestoneWidget?.milestone) item.milestone = milestoneWidget.milestone.title;
+    return item;
+  });
+
+  return { items, pageInfo };
+}
+
+/**
+ * Create a new work item using GraphQL.
+ */
+async function createWorkItem(
+  projectId: string,
+  options: {
+    title: string;
+    type?: string;
+    description?: string;
+    labels?: string[];
+    assignee_usernames?: string[];
+    parent_iid?: number;
+    weight?: number;
+    health_status?: string;
+    start_date?: string;
+    due_date?: string;
+    milestone_id?: string;
+    confidential?: boolean;
+  }
+): Promise<any> {
+  const projectPath = await resolveProjectPath(projectId);
+  const typeName = options.type || "issue";
+  const typeGID = await resolveWorkItemTypeGID(projectPath, typeName);
+
+  // Build the input dynamically - only include widgets that have values
+  const inputFields: string[] = [
+    "$projectPath: ID!",
+    "$title: String!",
+    "$typeId: WorkItemsTypeID!",
+  ];
+  const inputValues: string[] = [
+    "namespacePath: $projectPath",
+    "title: $title",
+    "workItemTypeId: $typeId",
+  ];
+  const variables: Record<string, any> = {
+    projectPath,
+    title: options.title,
+    typeId: typeGID,
+  };
+
+  if (options.description !== undefined) {
+    inputFields.push("$description: String");
+    inputValues.push("descriptionWidget: { description: $description }");
+    variables.description = options.description;
+  }
+
+  if (options.labels && options.labels.length > 0) {
+    inputFields.push("$labels: [String!]");
+    inputValues.push("labelsWidget: { labelNames: $labels }");
+    variables.labels = options.labels;
+  }
+
+  if (options.weight !== undefined) {
+    inputFields.push("$weight: Int");
+    inputValues.push("weightWidget: { weight: $weight }");
+    variables.weight = options.weight;
+  }
+
+  // Resolve parent GID if provided
+  if (options.parent_iid !== undefined) {
+    const { workItemGID: parentGID } = await resolveWorkItemGID(projectId, options.parent_iid);
+    inputFields.push("$parentId: WorkItemID");
+    inputValues.push("hierarchyWidget: { parentId: $parentId }");
+    variables.parentId = parentGID;
+  }
+
+  if (options.assignee_usernames && options.assignee_usernames.length > 0) {
+    inputFields.push("$assigneeUsernames: [String!]");
+    inputValues.push("assigneesWidget: { assigneeUsernames: $assigneeUsernames }");
+    variables.assigneeUsernames = options.assignee_usernames;
+  }
+
+  if (options.health_status !== undefined) {
+    inputFields.push("$healthStatus: WorkItemHealthStatus");
+    inputValues.push("healthStatusWidget: { healthStatus: $healthStatus }");
+    variables.healthStatus = options.health_status;
+  }
+
+  // Start and due date widget - combine into one widget
+  if (options.start_date !== undefined || options.due_date !== undefined) {
+    const dateParts: string[] = [];
+    if (options.start_date !== undefined) {
+      inputFields.push("$startDate: Date");
+      dateParts.push("startDate: $startDate");
+      variables.startDate = options.start_date;
+    }
+    if (options.due_date !== undefined) {
+      inputFields.push("$dueDate: Date");
+      dateParts.push("dueDate: $dueDate");
+      variables.dueDate = options.due_date;
+    }
+    inputValues.push(`startAndDueDateWidget: { ${dateParts.join(", ")} }`);
+  }
+
+  if (options.milestone_id !== undefined) {
+    // Convert numeric ID to GID format if needed
+    const milestoneGID = options.milestone_id.startsWith("gid://")
+      ? options.milestone_id
+      : `gid://gitlab/Milestone/${options.milestone_id}`;
+    inputFields.push("$milestoneId: MilestoneID");
+    inputValues.push("milestoneWidget: { milestoneId: $milestoneId }");
+    variables.milestoneId = milestoneGID;
+  }
+
+  if (options.confidential !== undefined) {
+    inputFields.push("$confidential: Boolean");
+    inputValues.push("confidential: $confidential");
+    variables.confidential = options.confidential;
+  }
+
+  const mutation = `mutation(${inputFields.join(", ")}) {
+    workItemCreate(input: { ${inputValues.join(", ")} }) {
+      workItem {
+        id
+        iid
+        title
+        webUrl
+        workItemType { name }
+      }
+      errors
+    }
+  }`;
+
+  const data = await executeGraphQL<{
+    workItemCreate: {
+      workItem: any;
+      errors: string[];
+    };
+  }>(mutation, variables);
+
+  if (data.workItemCreate.errors?.length > 0) {
+    throw new Error(`Failed to create work item: ${data.workItemCreate.errors.join(", ")}`);
+  }
+
+  const wi = data.workItemCreate.workItem;
+  return {
+    id: wi.id,
+    iid: wi.iid,
+    title: wi.title,
+    type: wi.workItemType?.name,
+    webUrl: wi.webUrl,
+  };
+}
+
+/**
+ * Update a work item - consolidated handler for title, description, labels, assignees,
+ * weight, state, status, parent, and children operations.
+ */
+async function updateWorkItem(
+  projectId: string,
+  iid: number,
+  options: {
+    title?: string;
+    description?: string;
+    labels?: string[];
+    add_labels?: string[];
+    remove_labels?: string[];
+    assignee_usernames?: string[];
+    state_event?: string;
+    weight?: number;
+    status?: string;
+    parent_iid?: number;
+    parent_project_id?: string;
+    remove_parent?: boolean;
+    children_to_add?: Array<{ project_id: string; iid: number }>;
+    children_to_remove?: Array<{ project_id: string; iid: number }>;
+    health_status?: string;
+    start_date?: string;
+    due_date?: string;
+    milestone_id?: string;
+    confidential?: boolean;
+    linked_items_to_add?: Array<{ project_id: string; iid: number; link_type?: string }>;
+    linked_items_to_remove?: Array<{ project_id: string; iid: number }>;
+    custom_fields?: Array<{
+      custom_field_id: string;
+      text_value?: string;
+      number_value?: number;
+      selected_option_ids?: string[];
+      date_value?: string;
+    }>;
+  }
+): Promise<any> {
+  const { workItemGID } = await resolveWorkItemGID(projectId, iid);
+
+  // Build the main workItemUpdate mutation dynamically
+  const inputParts: string[] = ["id: $id"];
+  const varDefs: string[] = ["$id: WorkItemID!"];
+  const variables: Record<string, any> = { id: workItemGID };
+
+  if (options.title !== undefined) {
+    varDefs.push("$title: String");
+    inputParts.push("title: $title");
+    variables.title = options.title;
+  }
+
+  if (options.description !== undefined) {
+    varDefs.push("$description: String");
+    inputParts.push("descriptionWidget: { description: $description }");
+    variables.description = options.description;
+  }
+
+  // Labels widget
+  if (options.labels !== undefined) {
+    varDefs.push("$labelNames: [String!]");
+    inputParts.push("labelsWidget: { labelNames: $labelNames }");
+    variables.labelNames = options.labels;
+  } else if (options.add_labels || options.remove_labels) {
+    const labelParts: string[] = [];
+    if (options.add_labels && options.add_labels.length > 0) {
+      varDefs.push("$addLabelNames: [String!]");
+      labelParts.push("addLabelNames: $addLabelNames");
+      variables.addLabelNames = options.add_labels;
+    }
+    if (options.remove_labels && options.remove_labels.length > 0) {
+      varDefs.push("$removeLabelNames: [String!]");
+      labelParts.push("removeLabelNames: $removeLabelNames");
+      variables.removeLabelNames = options.remove_labels;
+    }
+    if (labelParts.length > 0) {
+      inputParts.push(`labelsWidget: { ${labelParts.join(", ")} }`);
+    }
+  }
+
+  if (options.assignee_usernames !== undefined) {
+    varDefs.push("$assigneeUsernames: [String!]");
+    inputParts.push("assigneesWidget: { assigneeUsernames: $assigneeUsernames }");
+    variables.assigneeUsernames = options.assignee_usernames;
+  }
+
+  if (options.state_event !== undefined) {
+    varDefs.push("$stateEvent: WorkItemStateEvent");
+    inputParts.push("stateEvent: $stateEvent");
+    variables.stateEvent = options.state_event === "close" ? "CLOSE" : "REOPEN";
+  }
+
+  if (options.weight !== undefined) {
+    varDefs.push("$weight: Int");
+    inputParts.push("weightWidget: { weight: $weight }");
+    variables.weight = options.weight;
+  }
+
+  if (options.status !== undefined) {
+    varDefs.push("$status: WorkItemsStatusesStatusID");
+    inputParts.push("statusWidget: { status: $status }");
+    variables.status = options.status;
+  }
+
+  if (options.health_status !== undefined) {
+    varDefs.push("$healthStatus: WorkItemHealthStatus");
+    inputParts.push("healthStatusWidget: { healthStatus: $healthStatus }");
+    variables.healthStatus = options.health_status;
+  }
+
+  // Start and due date widget - combine into one widget
+  if (options.start_date !== undefined || options.due_date !== undefined) {
+    const dateParts: string[] = [];
+    if (options.start_date !== undefined) {
+      varDefs.push("$startDate: Date");
+      dateParts.push("startDate: $startDate");
+      variables.startDate = options.start_date;
+    }
+    if (options.due_date !== undefined) {
+      varDefs.push("$dueDate: Date");
+      dateParts.push("dueDate: $dueDate");
+      variables.dueDate = options.due_date;
+    }
+    inputParts.push(`startAndDueDateWidget: { ${dateParts.join(", ")} }`);
+  }
+
+  if (options.milestone_id !== undefined) {
+    // Convert numeric ID to GID format if needed
+    const milestoneGID = options.milestone_id.startsWith("gid://")
+      ? options.milestone_id
+      : `gid://gitlab/Milestone/${options.milestone_id}`;
+    varDefs.push("$milestoneId: MilestoneID");
+    inputParts.push("milestoneWidget: { milestoneId: $milestoneId }");
+    variables.milestoneId = milestoneGID;
+  }
+
+  if (options.confidential !== undefined) {
+    varDefs.push("$confidential: Boolean");
+    inputParts.push("confidential: $confidential");
+    variables.confidential = options.confidential;
+  }
+
+  // Custom fields widget
+  if (options.custom_fields && options.custom_fields.length > 0) {
+    const cfValues = options.custom_fields.map(cf => {
+      const cfId = cf.custom_field_id.startsWith("gid://")
+        ? cf.custom_field_id
+        : `gid://gitlab/IssuablesCustomField/${cf.custom_field_id}`;
+      const val: any = { customFieldId: cfId };
+      if (cf.text_value !== undefined) val.textValue = cf.text_value;
+      if (cf.number_value !== undefined) val.numberValue = cf.number_value;
+      if (cf.selected_option_ids !== undefined) val.selectedOptionIds = cf.selected_option_ids;
+      if (cf.date_value !== undefined) val.dateValue = cf.date_value;
+      return val;
+    });
+    varDefs.push("$customFieldsWidget: [WorkItemWidgetCustomFieldValueInputType!]");
+    inputParts.push("customFieldsWidget: $customFieldsWidget");
+    variables.customFieldsWidget = cfValues;
+  }
+
+  // Hierarchy: set parent or remove parent
+  if (options.remove_parent) {
+    inputParts.push("hierarchyWidget: { parentId: null }");
+  } else if (options.parent_iid !== undefined) {
+    const parentProjectId = options.parent_project_id || projectId;
+    const { workItemGID: parentGID } = await resolveWorkItemGID(parentProjectId, options.parent_iid);
+    varDefs.push("$parentId: WorkItemID");
+    inputParts.push("hierarchyWidget: { parentId: $parentId }");
+    variables.parentId = parentGID;
+  }
+
+  // Execute the main update mutation
+  const mutation = `mutation(${varDefs.join(", ")}) {
+    workItemUpdate(input: { ${inputParts.join(", ")} }) {
+      workItem {
+        id
+        iid
+        title
+        state
+        webUrl
+        workItemType { name }
+        widgets {
+          __typename
+          ... on WorkItemWidgetStatus { status { id name category color } }
+          ... on WorkItemWidgetLabels { labels { nodes { title } } }
+          ... on WorkItemWidgetAssignees { assignees { nodes { username } } }
+          ... on WorkItemWidgetWeight { weight }
+          ... on WorkItemWidgetHierarchy {
+            parent { id title workItemType { name } }
+          }
+          ... on WorkItemWidgetHealthStatus { healthStatus }
+          ... on WorkItemWidgetStartAndDueDate { startDate dueDate }
+          ... on WorkItemWidgetMilestone { milestone { id title } }
+        }
+      }
+      errors
+    }
+  }`;
+
+  const data = await executeGraphQL<{
+    workItemUpdate: { workItem: any; errors: string[] };
+  }>(mutation, variables);
+
+  if (data.workItemUpdate.errors?.length > 0) {
+    throw new Error(`Failed to update work item: ${data.workItemUpdate.errors.join(", ")}`);
+  }
+
+  // Handle children_to_add: use separate workItemUpdate call with hierarchyWidget.childrenIds
+  if (options.children_to_add && options.children_to_add.length > 0) {
+    const childGIDs: string[] = [];
+    for (const child of options.children_to_add) {
+      const { workItemGID: childGID } = await resolveWorkItemGID(child.project_id, child.iid);
+      childGIDs.push(childGID);
+    }
+    const addData = await executeGraphQL<{
+      workItemUpdate: { errors: string[] };
+    }>(
+      `mutation($id: WorkItemID!, $childrenIds: [WorkItemID!]!) {
+        workItemUpdate(input: { id: $id, hierarchyWidget: { childrenIds: $childrenIds } }) {
+          errors
+        }
+      }`,
+      { id: workItemGID, childrenIds: childGIDs }
+    );
+    if (addData.workItemUpdate.errors?.length > 0) {
+      throw new Error(`Failed to add children: ${addData.workItemUpdate.errors.join(", ")}`);
+    }
+  }
+
+  // Handle children_to_remove: remove parent from each child
+  if (options.children_to_remove && options.children_to_remove.length > 0) {
+    for (const child of options.children_to_remove) {
+      await removeIssueParent(child.project_id, child.iid);
+    }
+  }
+
+  // Handle linked_items_to_add: use workItemAddLinkedItems mutation
+  if (options.linked_items_to_add && options.linked_items_to_add.length > 0) {
+    // Group by link_type since each mutation call needs a single linkType
+    const groupedByType: Record<string, string[]> = {};
+    for (const item of options.linked_items_to_add) {
+      const linkType = item.link_type || "RELATED";
+      if (!groupedByType[linkType]) groupedByType[linkType] = [];
+      const { workItemGID: targetGID } = await resolveWorkItemGID(item.project_id, item.iid);
+      groupedByType[linkType].push(targetGID);
+    }
+    for (const [linkType, targetGIDs] of Object.entries(groupedByType)) {
+      const addLinkedData = await executeGraphQL<{
+        workItemAddLinkedItems: { errors: string[] };
+      }>(
+        `mutation($id: WorkItemID!, $workItemsIds: [WorkItemID!]!, $linkType: String!) {
+          workItemAddLinkedItems(input: { id: $id, workItemsIds: $workItemsIds, linkType: $linkType }) {
+            errors
+          }
+        }`,
+        { id: workItemGID, workItemsIds: targetGIDs, linkType }
+      );
+      if (addLinkedData.workItemAddLinkedItems.errors?.length > 0) {
+        throw new Error(`Failed to add linked items: ${addLinkedData.workItemAddLinkedItems.errors.join(", ")}`);
+      }
+    }
+  }
+
+  // Handle linked_items_to_remove: use workItemRemoveLinkedItems mutation
+  if (options.linked_items_to_remove && options.linked_items_to_remove.length > 0) {
+    const targetGIDs: string[] = [];
+    for (const item of options.linked_items_to_remove) {
+      const { workItemGID: targetGID } = await resolveWorkItemGID(item.project_id, item.iid);
+      targetGIDs.push(targetGID);
+    }
+    const removeLinkedData = await executeGraphQL<{
+      workItemRemoveLinkedItems: { errors: string[] };
+    }>(
+      `mutation($id: WorkItemID!, $workItemsIds: [WorkItemID!]!) {
+        workItemRemoveLinkedItems(input: { id: $id, workItemsIds: $workItemsIds }) {
+          errors
+        }
+      }`,
+      { id: workItemGID, workItemsIds: targetGIDs }
+    );
+    if (removeLinkedData.workItemRemoveLinkedItems.errors?.length > 0) {
+      throw new Error(`Failed to remove linked items: ${removeLinkedData.workItemRemoveLinkedItems.errors.join(", ")}`);
+    }
+  }
+
+  // Flatten the response
+  const wi = data.workItemUpdate.workItem;
+  const widgets = wi?.widgets || [];
+  const statusW = widgets.find((w: any) => w.__typename === "WorkItemWidgetStatus");
+  const labelsW = widgets.find((w: any) => w.__typename === "WorkItemWidgetLabels");
+  const assigneesW = widgets.find((w: any) => w.__typename === "WorkItemWidgetAssignees");
+  const weightW = widgets.find((w: any) => w.__typename === "WorkItemWidgetWeight");
+  const hierarchyW = widgets.find((w: any) => w.__typename === "WorkItemWidgetHierarchy");
+  const healthStatusW = widgets.find((w: any) => w.__typename === "WorkItemWidgetHealthStatus");
+  const datesW = widgets.find((w: any) => w.__typename === "WorkItemWidgetStartAndDueDate");
+  const milestoneW = widgets.find((w: any) => w.__typename === "WorkItemWidgetMilestone");
+
+  return {
+    id: wi.id,
+    iid: wi.iid,
+    title: wi.title,
+    state: wi.state,
+    type: wi.workItemType?.name,
+    webUrl: wi.webUrl,
+    status: statusW?.status || null,
+    labels: (labelsW?.labels?.nodes || []).map((l: any) => l.title),
+    assignees: (assigneesW?.assignees?.nodes || []).map((a: any) => a.username),
+    weight: weightW?.weight ?? null,
+    parent: hierarchyW?.parent || null,
+    healthStatus: healthStatusW?.healthStatus || null,
+    startDate: datesW?.startDate || null,
+    dueDate: datesW?.dueDate || null,
+    milestone: milestoneW?.milestone || null,
+    children_added: options.children_to_add?.length || 0,
+    children_removed: options.children_to_remove?.length || 0,
+    linked_items_added: options.linked_items_to_add?.length || 0,
+    linked_items_removed: options.linked_items_to_remove?.length || 0,
+  };
 }
 
 /**
@@ -6688,6 +8006,61 @@ async function handleToolCall(params: any) {
               ),
             },
           ],
+        };
+      }
+
+      case "get_work_item": {
+        const args = GetWorkItemSchema.parse(params.arguments);
+        const result = await getWorkItem(args.project_id, args.iid);
+        return {
+          content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+        };
+      }
+
+      case "list_work_items": {
+        const args = ListWorkItemsSchema.parse(params.arguments);
+        const { project_id, ...options } = args;
+        const result = await listWorkItems(project_id, options);
+        return {
+          content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+        };
+      }
+
+      case "create_work_item": {
+        const args = CreateWorkItemSchema.parse(params.arguments);
+        const { project_id, ...options } = args;
+        const result = await createWorkItem(project_id, options);
+        return {
+          content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+        };
+      }
+
+      case "update_work_item": {
+        const args = UpdateWorkItemSchema.parse(params.arguments);
+        const { project_id, iid, ...options } = args;
+        const result = await updateWorkItem(project_id, iid, options);
+        return {
+          content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+        };
+      }
+
+      case "convert_work_item_type": {
+        const args = ConvertWorkItemTypeSchema.parse(params.arguments);
+        const result = await convertIssueType(
+          args.project_id,
+          args.iid,
+          args.new_type
+        );
+        return {
+          content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+        };
+      }
+
+      case "list_work_item_statuses": {
+        const args = ListWorkItemStatusesSchema.parse(params.arguments);
+        const result = await listIssueStatuses(args.project_id, args.work_item_type);
+        return {
+          content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
         };
       }
 
