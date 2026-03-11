@@ -1486,19 +1486,19 @@ const allTools = [
   {
     name: "search_code",
     description:
-      "Search for code across all projects on the GitLab instance (requires advanced search or exact code search to be enabled)",
+      "Search for code across all projects on the GitLab instance (requires advanced search or exact code search to be enabled). If exact code search (Zoekt) is enabled, the search query supports rich syntax including file:, lang:, sym: filters.",
     inputSchema: toJSONSchema(SearchCodeSchema),
   },
   {
     name: "search_project_code",
     description:
-      "Search for code within a specific GitLab project (requires advanced search or exact code search to be enabled)",
+      "Search for code within a specific GitLab project (requires advanced search or exact code search to be enabled). If exact code search (Zoekt) is enabled, the search query supports rich syntax including file:, lang:, sym: filters.",
     inputSchema: toJSONSchema(SearchProjectCodeSchema),
   },
   {
     name: "search_group_code",
     description:
-      "Search for code within a specific GitLab group (requires advanced search or exact code search to be enabled)",
+      "Search for code within a specific GitLab group (requires advanced search or exact code search to be enabled). If exact code search (Zoekt) is enabled, the search query supports rich syntax including file:, lang:, sym: filters.",
     inputSchema: toJSONSchema(SearchGroupCodeSchema),
   },
 ];
