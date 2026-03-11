@@ -787,7 +787,7 @@ const SearchBlobsBaseSchema = z.object({
   search: z
     .string()
     .describe(
-      "Code search query string (use filename, path, and extension params to filter results)"
+      'Code search query string. On instances with exact code search (Zoekt), the query supports rich inline syntax: "class foo" (exact match), foo file:\\.js$ (file pattern), foo lang:ruby (language), sym:foo (symbol search), foo -bar (negation), case:yes (case-sensitive). When using Zoekt inline filters, prefer them over the separate filename/path/extension params which are for basic search.'
     ),
   filename: z
     .string()
