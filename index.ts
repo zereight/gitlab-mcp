@@ -3211,7 +3211,7 @@ async function getWorkItem(
             ... on WorkItemWidgetHierarchy {
               hasChildren hasParent
               parent { id iid title webUrl workItemType { name } namespace { fullPath } }
-              children { nodes { id iid title state webUrl workItemType { name } } }
+              children { nodes { id iid title state webUrl workItemType { name } namespace { fullPath } } }
             }
             ... on WorkItemWidgetStatus { status { id name category color iconName position } }
             ... on WorkItemWidgetCustomFields {
@@ -3233,7 +3233,7 @@ async function getWorkItem(
             ... on WorkItemWidgetMilestone { milestone { id title } }
             ... on WorkItemWidgetLinkedItems {
               blocked blockedByCount blockingCount
-              linkedItems { nodes { linkType workItem { id iid title state webUrl workItemType { name } } } }
+              linkedItems { nodes { linkType workItem { id iid title state webUrl workItemType { name } namespace { fullPath } } } }
             }
             ... on WorkItemWidgetTimeTracking {
               timeEstimate totalTimeSpent
@@ -3333,9 +3333,9 @@ async function getWorkItem(
   const colorWidget = widgets.find((w: any) => w.__typename === "WorkItemWidgetColor");
   if (colorWidget?.color) result.color = colorWidget.color;
 
-  if (hierarchyWidget?.parent) result.parent = { iid: hierarchyWidget.parent.iid, title: hierarchyWidget.parent.title, type: hierarchyWidget.parent.workItemType?.name };
+  if (hierarchyWidget?.parent) result.parent = { iid: hierarchyWidget.parent.iid, title: hierarchyWidget.parent.title, type: hierarchyWidget.parent.workItemType?.name, project: hierarchyWidget.parent.namespace?.fullPath, webUrl: hierarchyWidget.parent.webUrl };
   const children = hierarchyWidget?.children?.nodes || [];
-  if (children.length > 0) result.children = children.map((c: any) => ({ iid: c.iid, title: c.title, state: c.state, type: c.workItemType?.name }));
+  if (children.length > 0) result.children = children.map((c: any) => ({ iid: c.iid, title: c.title, state: c.state, type: c.workItemType?.name, project: c.namespace?.fullPath, webUrl: c.webUrl }));
 
   if (linkedItemsWidget?.blocked) result.blocked = true;
   if (linkedItemsWidget?.blockedByCount > 0) result.blockedByCount = linkedItemsWidget.blockedByCount;
@@ -3348,6 +3348,7 @@ async function getWorkItem(
       title: n.workItem?.title,
       state: n.workItem?.state,
       type: n.workItem?.workItemType?.name,
+      project: n.workItem?.namespace?.fullPath,
       webUrl: n.workItem?.webUrl,
     }));
   }
