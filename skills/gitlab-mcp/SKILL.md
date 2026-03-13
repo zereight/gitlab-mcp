@@ -5,7 +5,7 @@ description: Use this skill when working with the GitLab MCP server tools for me
 
 # gitlab-mcp
 
-GitLab MCP server providing 160 tools: 158 tools across 14 toolsets, plus `execute_graphql` and the always-available `discover_tools` meta-tool.
+GitLab MCP server providing 165 tools: 163 tools across 15 toolsets, plus `execute_graphql` and the always-available `discover_tools` meta-tool.
 
 ## Toolsets
 
@@ -22,6 +22,7 @@ GitLab MCP server providing 160 tools: 158 tools across 14 toolsets, plus `execu
 | milestones (9 tools)      | no      | `USE_MILESTONE=true` or `GITLAB_TOOLSETS=milestones` |
 | wiki (10 tools)           | no      | `USE_GITLAB_WIKI=true` or `GITLAB_TOOLSETS=wiki`     |
 | releases (7 tools)        | no      | `GITLAB_TOOLSETS=releases`                           |
+| tags (5 tools)            | no      | `GITLAB_TOOLSETS=tags`                               |
 | workitems (18 tools)      | no      | `GITLAB_TOOLSETS=workitems`                          |
 | webhooks (3 tools)        | no      | `GITLAB_TOOLSETS=webhooks`                           |
 | search (3 tools)          | no      | `GITLAB_TOOLSETS=search`                             |
@@ -71,7 +72,7 @@ Enable all: `GITLAB_TOOLSETS=all`. Use `GITLAB_TOOLS` to enable individual tools
 
 ## Destructive Tools (require caution)
 
-`delete_issue`, `delete_label`, `delete_wiki_page`, `delete_group_wiki_page`, `delete_milestone`, `delete_release`, `delete_merge_request_note`, `delete_merge_request_discussion_note`, `delete_draft_note`, `delete_issue_link`, `delete_merge_request_emoji_reaction`, `delete_merge_request_note_emoji_reaction`, `delete_issue_emoji_reaction`, `delete_issue_note_emoji_reaction`, `delete_work_item_emoji_reaction`, `delete_work_item_note_emoji_reaction`, `merge_merge_request`, `push_files`
+`delete_issue`, `delete_label`, `delete_wiki_page`, `delete_group_wiki_page`, `delete_milestone`, `delete_release`, `delete_tag`, `delete_merge_request_note`, `delete_merge_request_discussion_note`, `delete_draft_note`, `delete_issue_link`, `delete_merge_request_emoji_reaction`, `delete_merge_request_note_emoji_reaction`, `delete_issue_emoji_reaction`, `delete_issue_note_emoji_reaction`, `delete_work_item_emoji_reaction`, `delete_work_item_note_emoji_reaction`, `merge_merge_request`, `push_files`
 
 ## Advanced
 
