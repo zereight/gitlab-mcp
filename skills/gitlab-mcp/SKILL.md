@@ -1,13 +1,13 @@
 # gitlab-mcp
 
-GitLab MCP server providing 141 tools across 14 toolsets for merge requests, issues, repositories, pipelines, and more.
+GitLab MCP server with broad GitLab coverage across 15 toolsets for merge requests, issues, repositories, pipelines, tags, and more.
 
 ## Toolsets
 
 | Toolset                   | Default | Enable with                                          |
 | ------------------------- | ------- | ---------------------------------------------------- |
-| merge_requests (34 tools) | yes     | -                                                    |
-| issues (14 tools)         | yes     | -                                                    |
+| merge_requests (40 tools) | yes     | -                                                    |
+| issues (20 tools)         | yes     | -                                                    |
 | repositories (7 tools)    | yes     | -                                                    |
 | branches (4 tools)        | yes     | -                                                    |
 | projects (8 tools)        | yes     | -                                                    |
@@ -17,7 +17,8 @@ GitLab MCP server providing 141 tools across 14 toolsets for merge requests, iss
 | milestones (9 tools)      | no      | `USE_MILESTONE=true` or `GITLAB_TOOLSETS=milestones` |
 | wiki (10 tools)           | no      | `USE_GITLAB_WIKI=true` or `GITLAB_TOOLSETS=wiki`     |
 | releases (7 tools)        | no      | `GITLAB_TOOLSETS=releases`                           |
-| workitems (12 tools)      | no      | `GITLAB_TOOLSETS=workitems`                          |
+| tags (5 tools)            | no      | `GITLAB_TOOLSETS=tags`                               |
+| workitems (18 tools)      | no      | `GITLAB_TOOLSETS=workitems`                          |
 | webhooks (3 tools)        | no      | `GITLAB_TOOLSETS=webhooks`                           |
 | search (3 tools)          | no      | `GITLAB_TOOLSETS=search`                             |
 
@@ -55,7 +56,7 @@ Enable all: `GITLAB_TOOLSETS=all`
 
 ## Destructive Tools (require caution)
 
-`delete_issue`, `delete_label`, `delete_wiki_page`, `delete_group_wiki_page`, `delete_milestone`, `delete_release`, `delete_merge_request_note`, `delete_merge_request_discussion_note`, `delete_draft_note`, `delete_issue_link`, `merge_merge_request`, `push_files`
+`delete_issue`, `delete_label`, `delete_wiki_page`, `delete_group_wiki_page`, `delete_milestone`, `delete_release`, `delete_tag`, `delete_merge_request_note`, `delete_merge_request_discussion_note`, `delete_draft_note`, `delete_issue_link`, `merge_merge_request`, `push_files`
 
 ## Advanced
 

@@ -38,6 +38,7 @@ import {
   CreateReleaseEvidenceSchema,
   CreateReleaseSchema,
   CreateRepositorySchema,
+  CreateTagSchema,
   CreateTimelineEventSchema,
   CreateWikiPageSchema,
   CreateWorkItemNoteSchema,
@@ -59,6 +60,7 @@ import {
   DeleteMergeRequestNoteEmojiReactionSchema,
   DeleteProjectMilestoneSchema,
   DeleteReleaseSchema,
+  DeleteTagSchema,
   DeleteWikiPageSchema,
   DeleteWorkItemEmojiReactionSchema,
   DeleteWorkItemNoteEmojiReactionSchema,
@@ -99,6 +101,8 @@ import {
   GetProjectSchema,
   GetReleaseSchema,
   GetRepositoryTreeSchema,
+  GetTagSchema,
+  GetTagSignatureSchema,
   GetTimelineEventsSchema,
   GetUsersSchema,
   GetWebhookEventSchema,
@@ -131,6 +135,7 @@ import {
   ListProjectMilestonesSchema,
   ListProjectsSchema,
   ListReleasesSchema,
+  ListTagsSchema,
   ListWebhookEventsSchema,
   ListWebhooksSchema,
   ListWikiPagesSchema,
@@ -847,6 +852,31 @@ export const allTools = [
     description: "Download a release asset file by direct asset path",
     inputSchema: toJSONSchema(DownloadReleaseAssetSchema),
   },
+  {
+    name: "list_tags",
+    description: "List repository tags for a project",
+    inputSchema: toJSONSchema(ListTagsSchema),
+  },
+  {
+    name: "get_tag",
+    description: "Get a repository tag by name",
+    inputSchema: toJSONSchema(GetTagSchema),
+  },
+  {
+    name: "create_tag",
+    description: "Create a new repository tag",
+    inputSchema: toJSONSchema(CreateTagSchema),
+  },
+  {
+    name: "delete_tag",
+    description: "Delete a repository tag",
+    inputSchema: toJSONSchema(DeleteTagSchema),
+  },
+  {
+    name: "get_tag_signature",
+    description: "Get the X.509 signature of a signed tag (404 if unsigned)",
+    inputSchema: toJSONSchema(GetTagSignatureSchema),
+  },
   // --- Work item tools (GraphQL-based) ---
   {
     name: "get_work_item",
@@ -1061,6 +1091,9 @@ export const readOnlyTools = new Set([
   "list_releases",
   "get_release",
   "download_release_asset",
+  "list_tags",
+  "get_tag",
+  "get_tag_signature",
   "get_merge_request_approval_state",
   "get_work_item",
   "list_work_items",
@@ -1089,6 +1122,7 @@ export const destructiveTools = new Set([
   "delete_group_wiki_page",
   "delete_milestone",
   "delete_release",
+  "delete_tag",
   "delete_merge_request_note",
   "delete_merge_request_discussion_note",
   "delete_draft_note",
@@ -1166,6 +1200,7 @@ export type ToolsetId =
   | "milestones"
   | "wiki"
   | "releases"
+  | "tags"
   | "users"
   | "workitems"
   | "webhooks"
@@ -1368,6 +1403,17 @@ export const TOOLSET_DEFINITIONS: readonly ToolsetDefinition[] = [
     ]),
   },
   {
+    id: "tags",
+    isDefault: false,
+    tools: new Set([
+      "list_tags",
+      "get_tag",
+      "create_tag",
+      "delete_tag",
+      "get_tag_signature",
+    ]),
+  },
+  {
     id: "users",
     isDefault: true,
     tools: new Set([
@@ -1508,4 +1554,3 @@ export function isToolInEnabledToolset(
   if (toolsetId === undefined) return false;
   return enabledToolsets.has(toolsetId);
 }
-

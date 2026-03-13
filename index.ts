@@ -305,6 +305,15 @@ import {
   DeleteReleaseSchema,
   CreateReleaseEvidenceSchema,
   DownloadReleaseAssetSchema,
+  ListTagsSchema,
+  GetTagSchema,
+  CreateTagSchema,
+  DeleteTagSchema,
+  GetTagSignatureSchema,
+  GitLabTagSchema,
+  GitLabTagSignatureSchema,
+  type GitLabTag,
+  type GitLabTagSignature,
   GetMergeRequestNotesSchema,
   GetMergeRequestNoteSchema,
   DeleteMergeRequestDiscussionNoteSchema,
@@ -7776,6 +7785,135 @@ async function downloadReleaseAsset(
   return await response.text();
 }
 
+/**
+ * List repository tags
+ *
+ * @param projectId The ID or URL-encoded path of the project
+ * @param options Optional parameters for filtering and pagination
+ * @returns Array of GitLab tags
+ */
+async function listTags(
+  projectId: string,
+  options: Omit<z.infer<typeof ListTagsSchema>, "project_id"> = {}
+): Promise<GitLabTag[]> {
+  const effectiveProjectId = getEffectiveProjectId(projectId);
+  const url = new URL(
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(effectiveProjectId)}/repository/tags`
+  );
+
+  Object.entries(options).forEach(([key, value]) => {
+    if (value !== undefined) {
+      url.searchParams.append(key, value.toString());
+    }
+  });
+
+  const response = await fetch(url.toString(), {
+    ...getFetchConfig(),
+  });
+
+  await handleGitLabError(response);
+
+  const data = await response.json();
+  return GitLabTagSchema.array().parse(data);
+}
+
+/**
+ * Get a repository tag by name
+ *
+ * @param projectId The ID or URL-encoded path of the project
+ * @param tagName The name of the tag
+ * @returns GitLab tag
+ */
+async function getTag(projectId: string, tagName: string): Promise<GitLabTag> {
+  const effectiveProjectId = getEffectiveProjectId(projectId);
+
+  const response = await fetch(
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(effectiveProjectId)}/repository/tags/${encodeURIComponent(tagName)}`,
+    {
+      ...getFetchConfig(),
+    }
+  );
+
+  await handleGitLabError(response);
+
+  const data = await response.json();
+  return GitLabTagSchema.parse(data);
+}
+
+/**
+ * Create a new repository tag
+ *
+ * @param projectId The ID or URL-encoded path of the project
+ * @param options Options for creating the tag
+ * @returns Created GitLab tag
+ */
+async function createTag(
+  projectId: string,
+  options: Omit<z.infer<typeof CreateTagSchema>, "project_id">
+): Promise<GitLabTag> {
+  const effectiveProjectId = getEffectiveProjectId(projectId);
+
+  const response = await fetch(
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(effectiveProjectId)}/repository/tags`,
+    {
+      ...getFetchConfig(),
+      method: "POST",
+      body: JSON.stringify(options),
+    }
+  );
+
+  await handleGitLabError(response);
+
+  const data = await response.json();
+  return GitLabTagSchema.parse(data);
+}
+
+/**
+ * Delete a repository tag
+ *
+ * @param projectId The ID or URL-encoded path of the project
+ * @param tagName The name of the tag
+ */
+async function deleteTag(projectId: string, tagName: string): Promise<void> {
+  const effectiveProjectId = getEffectiveProjectId(projectId);
+
+  const response = await fetch(
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(effectiveProjectId)}/repository/tags/${encodeURIComponent(tagName)}`,
+    {
+      ...getFetchConfig(),
+      method: "DELETE",
+    }
+  );
+
+  await handleGitLabError(response);
+}
+
+/**
+ * Get the signature of a repository tag
+ *
+ * @param projectId The ID or URL-encoded path of the project
+ * @param tagName The name of the tag
+ * @returns Tag signature
+ */
+async function getTagSignature(
+  projectId: string,
+  tagName: string
+): Promise<GitLabTagSignature> {
+  const effectiveProjectId = getEffectiveProjectId(projectId);
+
+  const response = await fetch(
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(effectiveProjectId)}/repository/tags/${encodeURIComponent(tagName)}/signature`,
+    {
+      ...getFetchConfig(),
+    }
+  );
+
+  await handleGitLabError(response);
+
+  const data = await response.json();
+  return GitLabTagSignatureSchema.parse(data);
+}
+
 // Request handlers are now registered inside createServer() factory function
 // to ensure each transport connection gets its own Server instance (GHSA-345p-7cg4-v4c7).
 
@@ -9696,6 +9834,57 @@ async function handleToolCall(params: any) {
         );
         return {
           content: [{ type: "text", text: assetContent }],
+        };
+      }
+
+      case "list_tags": {
+        const args = ListTagsSchema.parse(params.arguments);
+        const { project_id, ...options } = args;
+        const tags = await listTags(project_id, options);
+        return {
+          content: [{ type: "text", text: JSON.stringify(tags, null, 2) }],
+        };
+      }
+
+      case "get_tag": {
+        const args = GetTagSchema.parse(params.arguments);
+        const tag = await getTag(args.project_id, args.tag_name);
+        return {
+          content: [{ type: "text", text: JSON.stringify(tag, null, 2) }],
+        };
+      }
+
+      case "create_tag": {
+        const args = CreateTagSchema.parse(params.arguments);
+        const { project_id, ...options } = args;
+        const tag = await createTag(project_id, options);
+        return {
+          content: [{ type: "text", text: JSON.stringify(tag, null, 2) }],
+        };
+      }
+
+      case "delete_tag": {
+        const args = DeleteTagSchema.parse(params.arguments);
+        await deleteTag(args.project_id, args.tag_name);
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(
+                { status: "success", message: `Tag '${args.tag_name}' deleted successfully` },
+                null,
+                2
+              ),
+            },
+          ],
+        };
+      }
+
+      case "get_tag_signature": {
+        const args = GetTagSignatureSchema.parse(params.arguments);
+        const signature = await getTagSignature(args.project_id, args.tag_name);
+        return {
+          content: [{ type: "text", text: JSON.stringify(signature, null, 2) }],
         };
       }
 
