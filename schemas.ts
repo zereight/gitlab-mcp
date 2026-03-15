@@ -771,6 +771,54 @@ export const GitLabSearchResponseSchema = z.object({
   items: z.array(GitLabRepositorySchema),
 });
 
+// Search blobs (code search) schemas
+export const GitLabSearchBlobResultSchema = z.object({
+  basename: z.string(),
+  data: z.string(),
+  path: z.string(),
+  filename: z.string(),
+  id: z.union([z.string(), z.null()]).optional(),
+  ref: z.string(),
+  startline: z.number(),
+  project_id: z.coerce.string(),
+});
+
+const SearchBlobsBaseSchema = z.object({
+  search: z
+    .string()
+    .describe(
+      'Code search query string. On instances with exact code search (Zoekt), the query supports rich inline syntax: "class foo" (exact match), foo file:\\.js$ (file pattern), foo lang:ruby (language), sym:foo (symbol search), foo -bar (negation), case:yes (case-sensitive). When using Zoekt inline filters, prefer them over the separate filename/path/extension params which are for basic search.'
+    ),
+  filename: z
+    .string()
+    .optional()
+    .describe("Filter by filename (supports * wildcard, e.g. '*.ts')"),
+  path: z
+    .string()
+    .optional()
+    .describe("Filter by file path (supports * wildcard, e.g. 'src/utils/*')"),
+  extension: z
+    .string()
+    .optional()
+    .describe("Filter by file extension without dot (e.g. 'py', 'ts')"),
+});
+
+export const SearchCodeSchema = SearchBlobsBaseSchema.merge(PaginationOptionsSchema);
+
+export const SearchProjectCodeSchema = ProjectParamsSchema.extend({
+  ...SearchBlobsBaseSchema.shape,
+  ref: z.string().optional().describe("Branch or tag to search in (defaults to default branch)"),
+}).merge(PaginationOptionsSchema);
+
+export const SearchGroupCodeSchema = z
+  .object({
+    group_id: z.coerce.string().describe("Group ID or URL-encoded path"),
+  })
+  .extend({
+    ...SearchBlobsBaseSchema.shape,
+  })
+  .merge(PaginationOptionsSchema);
+
 // create branch schemas
 export const CreateBranchOptionsSchema = z.object({
   name: z.string(), // Changed from ref to match GitLab API
@@ -2921,3 +2969,9 @@ export type GitLabMergeRequestApprovalState = z.infer<typeof GitLabMergeRequestA
 export type GetMergeRequestApprovalStateOptions = z.infer<
   typeof GetMergeRequestApprovalStateSchema
 >;
+
+// Search code types
+export type GitLabSearchBlobResult = z.infer<typeof GitLabSearchBlobResultSchema>;
+export type SearchCodeOptions = z.infer<typeof SearchCodeSchema>;
+export type SearchProjectCodeOptions = z.infer<typeof SearchProjectCodeSchema>;
+export type SearchGroupCodeOptions = z.infer<typeof SearchGroupCodeSchema>;

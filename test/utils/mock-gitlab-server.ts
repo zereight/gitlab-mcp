@@ -345,6 +345,52 @@ export class MockGitLabServer {
       });
     });
 
+    // Mock blob search result
+    const mockBlobResults = [
+      {
+        basename: "index",
+        data: "const searchResult = true;",
+        path: "src/index.ts",
+        filename: "index.ts",
+        id: null,
+        ref: "main",
+        startline: 42,
+        project_id: 1,
+      }
+    ];
+
+    // GET /api/v4/search - Global search
+    this.app.get('/api/v4/search', (req: AuthenticatedRequest, res: Response) => {
+      if (req.query.scope === 'blobs') {
+        res.json(mockBlobResults);
+      } else {
+        res.json([]);
+      }
+    });
+
+    // GET /api/v4/projects/:id/search - Project-level search
+    this.app.get('/api/v4/projects/:id/search', (req: AuthenticatedRequest, res: Response) => {
+      if (req.query.scope === 'blobs') {
+        // Return req.params.id as string — Express decodes the URL param, so this
+        // reflects whether the caller properly single-encoded the path segment.
+        const results = mockBlobResults.map(r => ({ ...r, project_id: req.params.id }));
+        res.json(results);
+      } else {
+        res.json([]);
+      }
+    });
+
+    // GET /api/v4/groups/:id/search - Group-level search
+    this.app.get('/api/v4/groups/:id/search', (req: AuthenticatedRequest, res: Response) => {
+      if (req.query.scope === 'blobs') {
+        // Echo the decoded group ID in the ref field so tests can verify encoding
+        const results = mockBlobResults.map(r => ({ ...r, ref: req.params.id }));
+        res.json(results);
+      } else {
+        res.json([]);
+      }
+    });
+
     // GET /api/v4/projects - List projects
     this.app.get('/api/v4/projects', (req: AuthenticatedRequest, res: Response) => {
       res.json([
