@@ -1,6 +1,6 @@
 #!/usr/bin/env ts-node
 
-import { GetFileContentsSchema, GitLabFileContentSchema } from '../schemas.js';
+import { GetFileContentsSchema, GitLabFileContentSchema, CreatePipelineSchema } from '../schemas.js';
 
 interface TestResult {
   name: string;
@@ -230,12 +230,138 @@ function runGitLabFileContentSchemaTests(): { passed: number; failed: number } {
   return { passed, failed };
 }
 
+interface CreatePipelineSchemaTestCase {
+  name: string;
+  input: Record<string, any>;
+  expected?: {
+    project_id?: string;
+    ref?: string;
+    variables?: Array<{ key: string; value: string }>;
+    inputs?: Record<string, string>;
+  };
+  shouldFail?: boolean;
+}
+
+function runCreatePipelineSchemaTests(): { passed: number; failed: number } {
+  console.log('\n🧪 Testing CreatePipelineSchema...');
+
+  const cases: CreatePipelineSchemaTestCase[] = [
+    {
+      name: 'schema:create_pipeline:minimal-required-fields',
+      input: { project_id: 'my/project', ref: 'main' },
+      expected: { project_id: 'my/project', ref: 'main' }
+    },
+    {
+      name: 'schema:create_pipeline:with-variables-only',
+      input: {
+        project_id: 'my/project',
+        ref: 'main',
+        variables: [{ key: 'ENV', value: 'production' }]
+      },
+      expected: {
+        project_id: 'my/project',
+        ref: 'main',
+        variables: [{ key: 'ENV', value: 'production' }]
+      }
+    },
+    {
+      name: 'schema:create_pipeline:with-inputs-only',
+      input: {
+        project_id: 'my/project',
+        ref: 'main',
+        inputs: { deploy_target: 'staging', version: '1.0.0' }
+      },
+      expected: {
+        project_id: 'my/project',
+        ref: 'main',
+        inputs: { deploy_target: 'staging', version: '1.0.0' }
+      }
+    },
+    {
+      name: 'schema:create_pipeline:with-variables-and-inputs',
+      input: {
+        project_id: 'my/project',
+        ref: 'develop',
+        variables: [{ key: 'CI', value: 'true' }],
+        inputs: { env: 'test' }
+      },
+      expected: {
+        project_id: 'my/project',
+        ref: 'develop',
+        variables: [{ key: 'CI', value: 'true' }],
+        inputs: { env: 'test' }
+      }
+    },
+    {
+      name: 'schema:create_pipeline:project-id-coercion',
+      input: { project_id: 123, ref: 'main' },
+      expected: { project_id: '123', ref: 'main' }
+    },
+    {
+      name: 'schema:create_pipeline:reject-missing-ref',
+      input: { project_id: 'my/project' },
+      shouldFail: true
+    },
+    {
+      name: 'schema:create_pipeline:reject-invalid-inputs-type',
+      input: { project_id: 'my/project', ref: 'main', inputs: 'not-an-object' },
+      shouldFail: true
+    }
+  ];
+
+  let passed = 0;
+  let failed = 0;
+
+  cases.forEach(testCase => {
+    const result: TestResult = {
+      name: testCase.name,
+      status: 'failed'
+    };
+
+    const parsed = CreatePipelineSchema.safeParse(testCase.input);
+
+    if (testCase.shouldFail) {
+      if (parsed.success) {
+        result.error = 'Expected schema validation to fail';
+      } else {
+        result.status = 'passed';
+      }
+    } else if (parsed.success) {
+      const expected = testCase.expected || {};
+      const matches = Object.entries(expected).every(([key, value]) => {
+        const actual = (parsed.data as Record<string, unknown>)[key];
+        return JSON.stringify(actual) === JSON.stringify(value);
+      });
+      if (matches) {
+        result.status = 'passed';
+      } else {
+        result.error = `Unexpected parsed result: ${JSON.stringify(parsed.data)}`;
+      }
+    } else {
+      result.error = parsed.error?.message || 'Schema validation failed';
+    }
+
+    if (result.status === 'passed') {
+      passed++;
+      console.log(`✅ ${result.name}`);
+    } else {
+      failed++;
+      console.log(`❌ ${result.name}: ${result.error}`);
+    }
+  });
+
+  console.log(`\nResults: ${passed} passed, ${failed} failed`);
+
+  return { passed, failed };
+}
+
 if (import.meta.url === `file://${process.argv[1]}`) {
   const getFileContentsResult = runGetFileContentsSchemaTests();
   const fileContentResult = runGitLabFileContentSchemaTests();
+  const createPipelineResult = runCreatePipelineSchemaTests();
 
-  const totalPassed = getFileContentsResult.passed + fileContentResult.passed;
-  const totalFailed = getFileContentsResult.failed + fileContentResult.failed;
+  const totalPassed = getFileContentsResult.passed + fileContentResult.passed + createPipelineResult.passed;
+  const totalFailed = getFileContentsResult.failed + fileContentResult.failed + createPipelineResult.failed;
 
   console.log(`\nTotal Results: ${totalPassed} passed, ${totalFailed} failed`);
 
