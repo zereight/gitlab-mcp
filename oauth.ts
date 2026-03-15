@@ -289,22 +289,6 @@ export class GitLabOAuth {
   }
 
   /**
-   * Get the number of milliseconds until the token expires.
-   * Returns null if no token or no expiry info.
-   * Returns 0 if already expired.
-   */
-  getTokenExpiresInMs(): number | null {
-    const tokenData = this.loadToken();
-    if (!tokenData || !tokenData.expires_in) {
-      return null;
-    }
-
-    const expiryTime = tokenData.created_at + tokenData.expires_in * 1000;
-    const remaining = expiryTime - Date.now();
-    return Math.max(0, remaining);
-  }
-
-  /**
    * Start OAuth flow and wait for callback
    * Uses a shared server if port is already in use
    */
