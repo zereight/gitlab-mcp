@@ -1487,6 +1487,10 @@ export const GetMergeRequestApprovalStateSchema = ProjectParamsSchema.extend({
   merge_request_iid: z.coerce.string().describe("The IID of the merge request"),
 });
 
+export const GetMergeRequestConflictsSchema = ProjectParamsSchema.extend({
+  merge_request_iid: z.coerce.string().describe("The IID of the merge request"),
+});
+
 export const GetMergeRequestDiffsSchema = GetMergeRequestSchema.extend({
   view: z.enum(["inline", "parallel"]).optional().describe("Diff view type"),
   excluded_file_patterns: z

@@ -222,6 +222,7 @@ import {
   ApproveMergeRequestSchema,
   UnapproveMergeRequestSchema,
   GetMergeRequestApprovalStateSchema,
+  GetMergeRequestConflictsSchema,
   GitLabMergeRequestApprovalsResponseSchema,
   GitLabMergeRequestApprovalStateSchema,
   type GitLabApprovalUser,
@@ -912,6 +913,12 @@ const allTools = [
     inputSchema: toJSONSchema(GetMergeRequestApprovalStateSchema),
   },
   {
+    name: "get_merge_request_conflicts",
+    description:
+      "Get the conflicts of a merge request in a GitLab project",
+    inputSchema: toJSONSchema(GetMergeRequestConflictsSchema),
+  },
+  {
     name: "execute_graphql",
     description: "Execute a GitLab GraphQL query",
     inputSchema: zodToJsonSchema(ExecuteGraphQLSchema),
@@ -1541,6 +1548,7 @@ const readOnlyTools = new Set([
   "get_release",
   "download_release_asset",
   "get_merge_request_approval_state",
+  "get_merge_request_conflicts",
 ]);
 
 // Define which tools are related to wiki and can be toggled by USE_GITLAB_WIKI
@@ -1619,6 +1627,7 @@ const TOOLSET_DEFINITIONS: readonly ToolsetDefinition[] = [
       "approve_merge_request",
       "unapprove_merge_request",
       "get_merge_request_approval_state",
+      "get_merge_request_conflicts",
       "get_merge_request",
       "get_merge_request_diffs",
       "list_merge_request_diffs",
@@ -3930,6 +3939,32 @@ async function getMergeRequestApprovalState(
     approved_by_usernames: approvedByUsernames,
     source_endpoint: "approval_state",
   };
+}
+
+/**
+ * Get the conflicts of a merge request
+ *
+ * @param {string} projectId - The ID or URL-encoded path of the project
+ * @param {string | number} mergeRequestIid - The internal ID of the merge request
+ * @returns {Promise<Record<string, unknown>>} The merge request conflicts
+ */
+async function getMergeRequestConflicts(
+  projectId: string,
+  mergeRequestIid: string | number
+): Promise<Record<string, unknown>> {
+  projectId = decodeURIComponent(projectId);
+  const url = new URL(
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/merge_requests/${mergeRequestIid}/conflicts`
+  );
+
+  const response = await fetch(url.toString(), {
+    ...getFetchConfig(),
+    method: "GET",
+  });
+
+  await handleGitLabError(response);
+
+  return (await response.json()) as Record<string, unknown>;
 }
 
 async function getMergeRequestApprovalsFallback(
@@ -7089,6 +7124,17 @@ async function handleToolCall(params: any) {
         );
         return {
           content: [{ type: "text", text: JSON.stringify(approvalState, null, 2) }],
+        };
+      }
+
+      case "get_merge_request_conflicts": {
+        const args = GetMergeRequestConflictsSchema.parse(params.arguments);
+        const conflicts = await getMergeRequestConflicts(
+          args.project_id,
+          args.merge_request_iid
+        );
+        return {
+          content: [{ type: "text", text: JSON.stringify(conflicts, null, 2) }],
         };
       }
 
