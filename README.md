@@ -401,6 +401,28 @@ docker run -i --rm \
 - `STREAMABLE_HTTP`: When set to 'true', enables the Streamable HTTP transport. If both **SSE** and **STREAMABLE_HTTP** are set to 'true', the server will prioritize Streamable HTTP over SSE transport.
 - `GITLAB_COMMIT_FILES_PER_PAGE`: The number of files per page that GitLab returns for commit diffs. This value should match the server-side GitLab setting. Adjust this if your GitLab instance uses a custom per-page value for commit diffs.
 
+#### Proxy Configuration
+
+The server supports corporate proxies via standard environment variables or CLI arguments.
+
+- `HTTP_PROXY`: Proxy URL for HTTP requests (e.g., `http://proxy.corp.example.com:3128`). CLI arg: `--http-proxy`
+- `HTTPS_PROXY`: Proxy URL for HTTPS requests (e.g., `http://proxy.corp.example.com:3128`). Supports `socks5://` URLs. CLI arg: `--https-proxy`
+- `NO_PROXY`: Comma-separated list of hosts that should bypass the proxy. Supports exact hostnames, domain suffixes (`.example.com`), and wildcards (`*.example.com`). Use `*` to disable the proxy for all hosts. CLI arg: `--no-proxy`
+
+**Example (CNTLM / corporate proxy in WSL or Windows):**
+
+```json
+{
+  "env": {
+    "GITLAB_PERSONAL_ACCESS_TOKEN": "your_token",
+    "GITLAB_API_URL": "https://gitlab.com/api/v4",
+    "HTTP_PROXY": "http://127.0.0.1:3128",
+    "HTTPS_PROXY": "http://127.0.0.1:3128",
+    "NO_PROXY": "localhost,127.0.0.1"
+  }
+}
+```
+
 #### Performance & Security Configuration
 
 - `HOST`: Server host address. Default: `127.0.0.1` (localhost only). Set to `0.0.0.0` to allow external connections (required for Docker with port forwarding).
