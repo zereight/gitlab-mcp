@@ -1718,7 +1718,7 @@ const TOOLSET_DEFINITIONS: readonly ToolsetDefinition[] = [
   },
   {
     id: "pipelines",
-    isDefault: false,
+    isDefault: true,
     tools: new Set([
       "list_pipelines",
       "get_pipeline",

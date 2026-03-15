@@ -50,11 +50,12 @@ const DEFAULT_TOOLSETS = [
   "branches",
   "projects",
   "labels",
+  "pipelines",
   "releases",
   "users",
 ];
 
-const NON_DEFAULT_TOOLSETS = ["pipelines", "milestones", "wiki"];
+const NON_DEFAULT_TOOLSETS = ["milestones", "wiki"];
 
 const DEFAULT_TOOL_COUNT = DEFAULT_TOOLSETS.reduce(
   (sum, id) => sum + TOOLSET_TOOL_COUNTS[id],
@@ -173,7 +174,7 @@ describe("Toolset Filtering", () => {
       }
     });
 
-    test("excludes non-default toolsets (pipelines, milestones, wiki)", () => {
+    test("excludes non-default toolsets (milestones, wiki)", () => {
       for (const id of NON_DEFAULT_TOOLSETS) {
         assertContainsNone(tools, TOOLSET_SAMPLE_TOOLS[id], id);
       }
