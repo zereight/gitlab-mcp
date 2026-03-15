@@ -66,6 +66,8 @@ export const GitLabPipelineJobSchema = z.object({
   started_at: z.string().nullable().optional(),
   finished_at: z.string().nullable().optional(),
   duration: z.number().nullable().optional(),
+  queued_duration: z.number().nullable().optional(),
+  failure_reason: z.string().nullable().optional(),
   user: z
     .object({
       id: z.coerce.string(),
@@ -93,6 +95,19 @@ export const GitLabPipelineJobSchema = z.object({
     })
     .optional(),
   web_url: z.string().optional(),
+  allow_failure: z.boolean().optional(),
+  retried: z.boolean().optional(),
+  tag_list: z.array(z.string()).optional(),
+  runner: z
+    .object({
+      id: z.coerce.string().optional(),
+      description: z.string().nullable().optional(),
+      active: z.boolean().optional(),
+      is_shared: z.boolean().optional(),
+      runner_type: z.string().optional(),
+    })
+    .nullable()
+    .optional(),
 });
 
 // Pipeline trigger job (bridge) schema
