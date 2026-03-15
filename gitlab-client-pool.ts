@@ -80,6 +80,48 @@ export interface GitLabClientPoolOptions {
   poolMaxSize?: number;
 }
 
+/**
+ * Determines whether a given hostname should bypass the proxy based on the NO_PROXY list.
+ * Supports exact matches, domain suffix matches (`.example.com`), and wildcard prefixes (`*.example.com`).
+ * Also handles IPv4 addresses.
+ * @param hostname The hostname (or IP) to check.
+ * @param noProxy Comma-separated list of hosts/patterns that should bypass the proxy.
+ * @returns `true` if the hostname should bypass the proxy.
+ */
+export function shouldBypassProxy(hostname: string, noProxy: string): boolean {
+  if (!noProxy || !hostname) return false;
+
+  const lowerHost = hostname.toLowerCase();
+  const entries = noProxy
+    .split(",")
+    .map(e => e.trim().toLowerCase())
+    .filter(e => e.length > 0);
+
+  for (const entry of entries) {
+    // Wildcard "*" bypasses proxy for all hosts
+    if (entry === "*") return true;
+
+    // Normalize: strip leading "*" from "*.example.com" -> ".example.com"
+    const pattern = entry.startsWith("*.") ? entry.slice(1) : entry;
+
+    // Exact match
+    if (lowerHost === pattern) return true;
+
+    // Domain suffix match: pattern ".example.com" matches "sub.example.com" and "example.com"
+    if (pattern.startsWith(".")) {
+      if (lowerHost === pattern.slice(1) || lowerHost.endsWith(pattern)) return true;
+    }
+
+    // Plain domain without leading dot: also match subdomains
+    // e.g. "example.com" should match "sub.example.com" but not "notexample.com"
+    if (!pattern.startsWith(".") && lowerHost.endsWith(`.${pattern}`)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 export interface ClientAgents {
   httpAgent: Agent;
   httpsAgent: HttpsAgent;
@@ -107,7 +149,6 @@ export class GitLabClientPool {
    */
   private createAgentsForUrl(apiUrl: string): ClientAgents {
     const { httpProxy, httpsProxy, noProxy, rejectUnauthorized, caCertPath } = this.options;
-    const url = new URL(apiUrl);
 
     let sslOptions: { rejectUnauthorized?: boolean; ca?: Buffer } = {};
     if (rejectUnauthorized === false) {

@@ -402,6 +402,28 @@ docker run -i --rm \
 - `GITLAB_COMMIT_FILES_PER_PAGE`: The number of files per page that GitLab returns for commit diffs. This value should match the server-side GitLab setting. Adjust this if your GitLab instance uses a custom per-page value for commit diffs.
 - `GITLAB_REPO_FILE_ENCODING`: Encoding for repository file create/update and related commit payloads sent to the GitLab API. Use `text` (default) or `base64`. Equivalent CLI: `--repo-file-encoding=text|base64`.
 
+#### Proxy Configuration
+
+The server supports corporate proxies via standard environment variables or CLI arguments.
+
+- `HTTP_PROXY`: Proxy URL for HTTP requests (e.g., `http://proxy.corp.example.com:3128`). CLI arg: `--http-proxy`
+- `HTTPS_PROXY`: Proxy URL for HTTPS requests (e.g., `http://proxy.corp.example.com:3128`). Supports `socks5://` URLs. CLI arg: `--https-proxy`
+- `NO_PROXY`: Comma-separated list of hosts that should bypass the proxy. Supports exact hostnames, domain suffixes (`.example.com`), and wildcards (`*.example.com`). Use `*` to disable the proxy for all hosts. CLI arg: `--no-proxy`
+
+**Example (CNTLM / corporate proxy in WSL or Windows):**
+
+```json
+{
+  "env": {
+    "GITLAB_PERSONAL_ACCESS_TOKEN": "your_token",
+    "GITLAB_API_URL": "https://gitlab.com/api/v4",
+    "HTTP_PROXY": "http://127.0.0.1:3128",
+    "HTTPS_PROXY": "http://127.0.0.1:3128",
+    "NO_PROXY": "localhost,127.0.0.1"
+  }
+}
+```
+
 #### Performance & Security Configuration
 
 - `HOST`: Server host address. Default: `127.0.0.1` (localhost only). Set to `0.0.0.0` to allow external connections (required for Docker with port forwarding).
