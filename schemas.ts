@@ -780,7 +780,7 @@ export const GitLabSearchBlobResultSchema = z.object({
   id: z.union([z.string(), z.null()]).optional(),
   ref: z.string(),
   startline: z.number(),
-  project_id: z.number(),
+  project_id: z.coerce.string(),
 });
 
 const SearchBlobsBaseSchema = z.object({
