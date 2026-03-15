@@ -260,6 +260,8 @@ import {
   CreateWorkItemNoteSchema,
   MoveWorkItemSchema,
   ListCustomFieldDefinitionsSchema,
+  GetTimelineEventsSchema,
+  CreateTimelineEventSchema,
 } from "./schemas.js";
 
 import { randomUUID } from "node:crypto";
@@ -1473,6 +1475,19 @@ const allTools = [
       "Add a note/comment to a work item. Supports Markdown, internal notes, and threaded replies.",
     inputSchema: toJSONSchema(CreateWorkItemNoteSchema),
   },
+  // --- Incident timeline event tools ---
+  {
+    name: "get_timeline_events",
+    description:
+      "List timeline events for an incident. Returns chronological events with notes, timestamps, and tags (Start time, End time, Impact detected, etc.).",
+    inputSchema: toJSONSchema(GetTimelineEventsSchema),
+  },
+  {
+    name: "create_timeline_event",
+    description:
+      "Create a timeline event on an incident. Supports tags: 'Start time', 'End time', 'Impact detected', 'Response initiated', 'Impact mitigated', 'Cause identified'.",
+    inputSchema: toJSONSchema(CreateTimelineEventSchema),
+  },
 ];
 
 // Define which tools are read-only
@@ -1534,6 +1549,7 @@ const readOnlyTools = new Set([
   "list_work_item_statuses",
   "list_custom_field_definitions",
   "list_work_item_notes",
+  "get_timeline_events",
 ]);
 
 // Define which tools are related to wiki and can be toggled by USE_GITLAB_WIKI
@@ -1785,6 +1801,8 @@ const TOOLSET_DEFINITIONS: readonly ToolsetDefinition[] = [
       "move_work_item",
       "list_work_item_notes",
       "create_work_item_note",
+      "get_timeline_events",
+      "create_timeline_event",
     ]),
   },
 ] as const;
@@ -2896,11 +2914,12 @@ async function listCustomFieldDefinitions(
               __typename
               ... on WorkItemWidgetDefinitionCustomFields {
                 customFieldValues {
-                  customField { id name fieldType }
-                  ... on WorkItemNumberFieldValue { value }
-                  ... on WorkItemTextFieldValue { value }
-                  ... on WorkItemSelectFieldValue {
-                    selectedOptions { id value }
+                  customField {
+                    id
+                    name
+                    fieldType
+                    selectOptions { id value }
+                    workItemTypes { id name }
                   }
                 }
               }
@@ -2922,22 +2941,23 @@ async function listCustomFieldDefinitions(
     (w: any) => w.__typename === "WorkItemWidgetDefinitionCustomFields"
   );
 
-  const fieldDefs = (customFieldsWidget?.customFieldValues || []).map((cfv: any) => {
+  const fields = (customFieldsWidget?.customFieldValues || []).map((cfv: any) => {
+    const cf = cfv.customField;
     const field: Record<string, any> = {
-      id: cfv.customField?.id,
-      name: cfv.customField?.name,
-      type: cfv.customField?.fieldType,
+      id: cf?.id,
+      name: cf?.name,
+      type: cf?.fieldType,
     };
-    // Include default/current values if present
-    if (cfv.value != null) field.defaultValue = cfv.value;
-    if (cfv.selectedOptions) field.options = cfv.selectedOptions;
+    const options = cf?.selectOptions || [];
+    if (options.length > 0) field.selectOptions = options;
+    const types = (cf?.workItemTypes || []).map((t: any) => t.name);
+    if (types.length > 0) field.workItemTypes = types;
     return field;
   });
 
   return {
     work_item_type: typeNode.name,
-    custom_fields_available: fieldDefs.length > 0,
-    custom_fields: fieldDefs,
+    custom_fields: fields,
   };
 }
 
@@ -3110,6 +3130,197 @@ async function createWorkItemNote(
   }
 
   return data.createNote.note;
+}
+
+// --- Incident Timeline Events ---
+
+/**
+ * List timeline events for an incident.
+ */
+async function getTimelineEvents(
+  projectId: string,
+  incidentIid: number
+): Promise<any> {
+  const projectPath = await resolveProjectPath(projectId);
+  const { workItemGID: incidentGID } = await resolveWorkItemGID(projectId, incidentIid);
+
+  const data = await executeGraphQL<{ project: any }>(
+    `query($fullPath: ID!, $incidentId: IssueID!) {
+      project(fullPath: $fullPath) {
+        incidentManagementTimelineEvents(incidentId: $incidentId) {
+          nodes {
+            id
+            note
+            noteHtml
+            action
+            occurredAt
+            createdAt
+            timelineEventTags {
+              nodes {
+                id
+                name
+              }
+            }
+          }
+        }
+      }
+    }`,
+    { fullPath: projectPath, incidentId: incidentGID }
+  );
+
+  const events = data.project?.incidentManagementTimelineEvents?.nodes || [];
+
+  return events.map((e: any) => {
+    const event: Record<string, any> = {
+      id: e.id,
+      note: e.note,
+      action: e.action,
+      occurredAt: e.occurredAt,
+      createdAt: e.createdAt,
+    };
+    if (e.noteHtml) event.noteHtml = e.noteHtml;
+    const tags = (e.timelineEventTags?.nodes || []).map((t: any) => t.name);
+    if (tags.length > 0) event.tags = tags;
+    return event;
+  });
+}
+
+/**
+ * Create a timeline event on an incident.
+ */
+async function createTimelineEvent(
+  projectId: string,
+  incidentIid: number,
+  note: string,
+  occurredAt: string,
+  tagNames?: string[]
+): Promise<any> {
+  const { workItemGID: incidentGID } = await resolveWorkItemGID(projectId, incidentIid);
+
+  const variables: Record<string, any> = {
+    input: {
+      incidentId: incidentGID,
+      note,
+      occurredAt,
+    },
+  };
+  if (tagNames && tagNames.length > 0) {
+    variables.input.timelineEventTagNames = tagNames;
+  }
+
+  const data = await executeGraphQL<{
+    timelineEventCreate: {
+      timelineEvent: any;
+      errors: string[];
+    };
+  }>(
+    `mutation CreateTimelineEvent($input: TimelineEventCreateInput!) {
+      timelineEventCreate(input: $input) {
+        timelineEvent {
+          id
+          note
+          noteHtml
+          action
+          occurredAt
+          createdAt
+          timelineEventTags {
+            nodes {
+              id
+              name
+            }
+          }
+        }
+        errors
+      }
+    }`,
+    variables
+  );
+
+  if (data.timelineEventCreate.errors?.length > 0) {
+    throw new Error(`Failed to create timeline event: ${data.timelineEventCreate.errors.join(", ")}`);
+  }
+
+  const e = data.timelineEventCreate.timelineEvent;
+  const result: Record<string, any> = {
+    id: e.id,
+    note: e.note,
+    action: e.action,
+    occurredAt: e.occurredAt,
+    createdAt: e.createdAt,
+  };
+  if (e.noteHtml) result.noteHtml = e.noteHtml;
+  const tags = (e.timelineEventTags?.nodes || []).map((t: any) => t.name);
+  if (tags.length > 0) result.tags = tags;
+  return result;
+}
+
+/**
+ * Update the severity of an incident.
+ * Accepts projectPath directly to avoid redundant REST calls when called from updateWorkItem.
+ */
+async function updateIncidentSeverity(
+  projectPath: string,
+  incidentIid: number,
+  severity: string
+): Promise<any> {
+  const data = await executeGraphQL<{
+    issueSetSeverity: {
+      errors: string[];
+      issue: { iid: string; id: string; severity: string } | null;
+    };
+  }>(
+    `mutation($projectPath: ID!, $severity: IssuableSeverity!, $iid: String!) {
+      issueSetSeverity(input: { iid: $iid, severity: $severity, projectPath: $projectPath }) {
+        errors
+        issue {
+          iid
+          id
+          severity
+        }
+      }
+    }`,
+    { projectPath, severity, iid: String(incidentIid) }
+  );
+
+  if (data.issueSetSeverity.errors?.length > 0) {
+    throw new Error(`Failed to set severity: ${data.issueSetSeverity.errors.join(", ")}`);
+  }
+
+  return data.issueSetSeverity.issue;
+}
+
+/**
+ * Update the escalation status of an incident.
+ * Accepts projectPath directly to avoid redundant REST calls when called from updateWorkItem.
+ */
+async function updateIncidentEscalationStatus(
+  projectPath: string,
+  incidentIid: number,
+  status: string
+): Promise<any> {
+  const data = await executeGraphQL<{
+    issueSetEscalationStatus: {
+      errors: string[];
+      issue: { id: string; escalationStatus: string } | null;
+    };
+  }>(
+    `mutation($projectPath: ID!, $status: IssueEscalationStatus!, $iid: String!) {
+      issueSetEscalationStatus(input: { projectPath: $projectPath, status: $status, iid: $iid }) {
+        errors
+        issue {
+          id
+          escalationStatus
+        }
+      }
+    }`,
+    { projectPath, status, iid: String(incidentIid) }
+  );
+
+  if (data.issueSetEscalationStatus.errors?.length > 0) {
+    throw new Error(`Failed to set escalation status: ${data.issueSetEscalationStatus.errors.join(", ")}`);
+  }
+
+  return data.issueSetEscalationStatus.issue;
 }
 
 /**
@@ -3694,9 +3905,11 @@ async function updateWorkItem(
       selected_option_ids?: string[];
       date_value?: string;
     }>;
+    severity?: string;
+    escalation_status?: string;
   }
 ): Promise<any> {
-  const { workItemGID } = await resolveWorkItemGID(projectId, iid);
+  const { workItemGID, projectPath } = await resolveWorkItemGID(projectId, iid);
 
   // Build the main workItemUpdate mutation dynamically
   const inputParts: string[] = ["id: $id"];
@@ -3720,7 +3933,7 @@ async function updateWorkItem(
   const needsResolve = allLabelNames.length > 0 || options.assignee_usernames?.length;
   const { labelIds: resolvedLabelIds, userIds } = needsResolve
     ? await resolveNamesToIds(
-        await resolveProjectPath(projectId),
+        projectPath,
         allLabelNames.length > 0 ? allLabelNames : undefined,
         options.assignee_usernames
       )
@@ -3963,6 +4176,14 @@ async function updateWorkItem(
     }
   }
 
+  // Handle incident-specific fields via separate mutations
+  if (options.severity !== undefined) {
+    await updateIncidentSeverity(projectPath, iid, options.severity);
+  }
+  if (options.escalation_status !== undefined) {
+    await updateIncidentEscalationStatus(projectPath, iid, options.escalation_status);
+  }
+
   // Flatten the response
   const wi = data.workItemUpdate.workItem;
   const widgets = wi?.widgets || [];
@@ -3995,6 +4216,8 @@ async function updateWorkItem(
     children_removed: options.children_to_remove?.length || 0,
     linked_items_added: options.linked_items_to_add?.length || 0,
     linked_items_removed: options.linked_items_to_remove?.length || 0,
+    ...(options.severity !== undefined && { severity: options.severity }),
+    ...(options.escalation_status !== undefined && { escalation_status: options.escalation_status }),
   };
 }
 
@@ -8519,6 +8742,28 @@ async function handleToolCall(params: any) {
       case "create_work_item_note": {
         const args = CreateWorkItemNoteSchema.parse(params.arguments);
         const result = await createWorkItemNote(args.project_id, args.iid, args.body, args);
+        return {
+          content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+        };
+      }
+
+      case "get_timeline_events": {
+        const args = GetTimelineEventsSchema.parse(params.arguments);
+        const result = await getTimelineEvents(args.project_id, args.incident_iid);
+        return {
+          content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+        };
+      }
+
+      case "create_timeline_event": {
+        const args = CreateTimelineEventSchema.parse(params.arguments);
+        const result = await createTimelineEvent(
+          args.project_id,
+          args.incident_iid,
+          args.note,
+          args.occurred_at,
+          args.tag_names
+        );
         return {
           content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
         };

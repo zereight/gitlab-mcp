@@ -2738,7 +2738,7 @@ export const UpdateWorkItemSchema = WorkItemParamsSchema.extend({
   remove_labels: z.array(z.string()).optional().describe("Label names to remove"),
   assignee_usernames: z.array(z.string()).optional().describe("Set assignees by username (replaces existing)"),
   state_event: z.enum(["close", "reopen"]).optional().describe("Close or reopen the work item"),
-  weight: z.number().optional().describe("Set weight"),
+  weight: z.number().optional().describe("Set weight (issues, tasks, epics only)"),
   status: z.string().optional().describe("Set status by ID. Use list_work_item_statuses to get available status IDs."),
   parent_iid: z.number().optional().describe("Set parent work item by IID. Use with parent_project_id if parent is in a different project."),
   parent_project_id: z.coerce.string().optional().describe("Project ID or path of the parent work item (defaults to same project as the work item)"),
@@ -2751,7 +2751,7 @@ export const UpdateWorkItemSchema = WorkItemParamsSchema.extend({
     project_id: z.coerce.string().describe("Project ID or path of the child work item"),
     iid: z.number().describe("IID of the child work item"),
   })).optional().describe("Array of children to remove from this work item's hierarchy"),
-  health_status: z.enum(["onTrack", "needsAttention", "atRisk"]).optional().describe("Set health status"),
+  health_status: z.enum(["onTrack", "needsAttention", "atRisk"]).optional().describe("Set health status on issues and epics"),
   start_date: z.string().optional().describe("Start date in YYYY-MM-DD format"),
   due_date: z.string().optional().describe("Due date in YYYY-MM-DD format"),
   milestone_id: z.string().optional().describe("Milestone ID (GitLab global ID format, e.g. 'gid://gitlab/Milestone/123', or numeric ID)"),
@@ -2773,6 +2773,14 @@ export const UpdateWorkItemSchema = WorkItemParamsSchema.extend({
     selected_option_ids: z.array(z.string()).optional().describe("Selected option IDs (for select fields)"),
     date_value: z.string().optional().describe("Date value in YYYY-MM-DD format (for date fields)"),
   })).optional().describe("Custom field values to set"),
+  severity: z
+    .enum(["UNKNOWN", "LOW", "MEDIUM", "HIGH", "CRITICAL"])
+    .optional()
+    .describe("Incident only: set severity level"),
+  escalation_status: z
+    .enum(["TRIGGERED", "ACKNOWLEDGED", "RESOLVED", "IGNORED"])
+    .optional()
+    .describe("Incident only: set escalation status"),
 });
 
 export const ConvertWorkItemTypeSchema = z.object({
@@ -2823,4 +2831,23 @@ export const ListCustomFieldDefinitionsSchema = z.object({
     .default("issue")
     .describe("The work item type to list custom field definitions for. Defaults to 'issue'."),
 });
+
+// --- Incident Timeline Event schemas ---
+
+export const GetTimelineEventsSchema = z.object({
+  project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
+  incident_iid: z.number().describe("The internal ID (IID) of the incident"),
+});
+
+export const CreateTimelineEventSchema = z.object({
+  project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
+  incident_iid: z.number().describe("The internal ID (IID) of the incident"),
+  note: z.string().describe("Description of the timeline event (Markdown supported)"),
+  occurred_at: z.string().describe("When the event occurred in ISO 8601 format (e.g. '2026-03-15T09:00:00.000Z')"),
+  tag_names: z
+    .array(z.enum(["Start time", "End time", "Impact detected", "Response initiated", "Impact mitigated", "Cause identified"]))
+    .optional()
+    .describe("Timeline event tags to attach. Available: 'Start time', 'End time', 'Impact detected', 'Response initiated', 'Impact mitigated', 'Cause identified'."),
+});
+
 
