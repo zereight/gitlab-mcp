@@ -2473,26 +2473,28 @@ async function resolveNamesToIds(
 // --- Work item type conversion ---
 
 /**
+ * Map user-facing type names to GitLab WorkItemType names for GraphQL queries.
+ */
+const WORK_ITEM_TYPE_NAMES: Record<string, string> = {
+  issue: "Issue",
+  task: "Task",
+  incident: "Incident",
+  test_case: "Test Case",
+  epic: "Epic",
+  key_result: "Key Result",
+  objective: "Objective",
+  requirement: "Requirement",
+  ticket: "Ticket",
+};
+
+/**
  * Get the GraphQL GID for a work item type by querying the project's available types.
  */
 async function resolveWorkItemTypeGID(
   projectPath: string,
   typeName: string
 ): Promise<string> {
-  // Map input names to GitLab work item type names
-  const typeNameMap: Record<string, string> = {
-    issue: "Issue",
-    task: "Task",
-    incident: "Incident",
-    test_case: "Test Case",
-    epic: "Epic",
-    key_result: "Key Result",
-    objective: "Objective",
-    requirement: "Requirement",
-    ticket: "Ticket",
-  };
-
-  const targetName = typeNameMap[typeName];
+  const targetName = WORK_ITEM_TYPE_NAMES[typeName];
   if (!targetName) {
     throw new Error(`Unknown work item type: ${typeName}`);
   }
@@ -2759,21 +2761,6 @@ async function removeIssueChild(
 }
 
 // --- Work item status ---
-
-/**
- * Map user-facing type names to GitLab WorkItemType names for GraphQL queries.
- */
-const WORK_ITEM_TYPE_NAMES: Record<string, string> = {
-  issue: "Issue",
-  task: "Task",
-  incident: "Incident",
-  test_case: "Test Case",
-  epic: "Epic",
-  key_result: "Key Result",
-  objective: "Objective",
-  requirement: "Requirement",
-  ticket: "Ticket",
-};
 
 /**
  * List available statuses for a work item type in a project.
@@ -3141,8 +3128,9 @@ async function getTimelineEvents(
   projectId: string,
   incidentIid: number
 ): Promise<any> {
-  const projectPath = await resolveProjectPath(projectId);
-  const { workItemGID: incidentGID } = await resolveWorkItemGID(projectId, incidentIid);
+  const { workItemGID, projectPath } = await resolveWorkItemGID(projectId, incidentIid);
+  // Timeline events expect gid://gitlab/Issue/... not gid://gitlab/WorkItem/...
+  const incidentGID = workItemGID.replace("/WorkItem/", "/Issue/");
 
   const data = await executeGraphQL<{ project: any }>(
     `query($fullPath: ID!, $incidentId: IssueID!) {
@@ -3195,7 +3183,9 @@ async function createTimelineEvent(
   occurredAt: string,
   tagNames?: string[]
 ): Promise<any> {
-  const { workItemGID: incidentGID } = await resolveWorkItemGID(projectId, incidentIid);
+  const { workItemGID } = await resolveWorkItemGID(projectId, incidentIid);
+  // Timeline events expect gid://gitlab/Issue/... not gid://gitlab/WorkItem/...
+  const incidentGID = workItemGID.replace("/WorkItem/", "/Issue/");
 
   const variables: Record<string, any> = {
     input: {
