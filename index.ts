@@ -3453,10 +3453,11 @@ async function searchBlobs(params: {
 }): Promise<GitLabSearchBlobResult[]> {
   let basePath: string;
   if (params.project_id) {
-    const projectId = encodeURIComponent(getEffectiveProjectId(params.project_id));
+    const decodedProjectId = decodeURIComponent(params.project_id);
+    const projectId = encodeURIComponent(getEffectiveProjectId(decodedProjectId));
     basePath = `${getEffectiveApiUrl()}/projects/${projectId}/search`;
   } else if (params.group_id) {
-    const groupId = encodeURIComponent(params.group_id);
+    const groupId = encodeURIComponent(decodeURIComponent(params.group_id));
     basePath = `${getEffectiveApiUrl()}/groups/${groupId}/search`;
   } else {
     basePath = `${getEffectiveApiUrl()}/search`;

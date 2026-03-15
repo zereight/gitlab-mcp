@@ -211,6 +211,49 @@ describe("Search Code Tools", () => {
     });
   });
 
+  // ---- 3b. search_project_code handles URL-encoded namespaced paths ----
+
+  describe("search_project_code handles URL-encoded namespaced paths", () => {
+    let server: ServerInstance;
+    let mcpUrl: string;
+
+    before(async () => {
+      const port = await nextMcpPort();
+      server = await launchMcpServer(mockGitLabUrl, port, {
+        GITLAB_TOOLSETS: "search",
+      });
+      mcpUrl = `http://${HOST}:${port}/mcp`;
+    });
+
+    after(() => cleanupServers([server]));
+
+    test("URL-encoded project path is not double-encoded", async () => {
+      // Pass a URL-encoded namespaced path (e.g. "my-group%2Fmy-project")
+      // The mock echoes back req.params.id (which Express decodes from the URL).
+      // Correct: decode → "my-group/my-project" → encode → "my-group%2Fmy-project" → Express decodes to "my-group/my-project"
+      // Double-encoded: encode "my-group%2Fmy-project" → "my-group%252Fmy-project" → Express decodes to "my-group%2Fmy-project"
+      const result = await callTool(mcpUrl, "search_project_code", {
+        project_id: "my-group%2Fmy-project",
+        search: "searchResult",
+      });
+      assert.ok(Array.isArray(result), "Response should be an array");
+      assert.ok(result.length > 0, "Response should have at least one result");
+      assert.strictEqual(
+        result[0].project_id,
+        "my-group/my-project",
+        "project_id should be decoded (not double-encoded as 'my-group%2Fmy-project')"
+      );
+    });
+
+    test("plain numeric project_id still works", async () => {
+      const result = await callTool(mcpUrl, "search_project_code", {
+        project_id: "123",
+        search: "searchResult",
+      });
+      assert.strictEqual(result[0].project_id, "123");
+    });
+  });
+
   // ---- 4. search_group_code returns blob results for group ----
 
   describe("search_group_code returns blob results for group", () => {
@@ -244,6 +287,40 @@ describe("Search Code Tools", () => {
       const first = result[0];
       assert.ok("filename" in first, "Result should have filename field");
       assert.ok("path" in first, "Result should have path field");
+    });
+  });
+
+  // ---- 4b. search_group_code handles URL-encoded namespaced paths ----
+
+  describe("search_group_code handles URL-encoded namespaced paths", () => {
+    let server: ServerInstance;
+    let mcpUrl: string;
+
+    before(async () => {
+      const port = await nextMcpPort();
+      server = await launchMcpServer(mockGitLabUrl, port, {
+        GITLAB_TOOLSETS: "search",
+      });
+      mcpUrl = `http://${HOST}:${port}/mcp`;
+    });
+
+    after(() => cleanupServers([server]));
+
+    test("URL-encoded group path is not double-encoded", async () => {
+      // The mock echoes back req.params.id in the ref field.
+      // Correct: decode → "my-org/my-group" → encode → "my-org%2Fmy-group" → Express decodes to "my-org/my-group"
+      // Double-encoded: encode "my-org%2Fmy-group" → "my-org%252Fmy-group" → Express decodes to "my-org%2Fmy-group"
+      const result = await callTool(mcpUrl, "search_group_code", {
+        group_id: "my-org%2Fmy-group",
+        search: "searchResult",
+      });
+      assert.ok(Array.isArray(result), "Response should be an array");
+      assert.ok(result.length > 0, "Response should have at least one result");
+      assert.strictEqual(
+        result[0].ref,
+        "my-org/my-group",
+        "ref should contain decoded group path (not double-encoded as 'my-org%2Fmy-group')"
+      );
     });
   });
 

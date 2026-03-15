@@ -416,8 +416,9 @@ export class MockGitLabServer {
     // GET /api/v4/projects/:id/search - Project-level search
     this.app.get('/api/v4/projects/:id/search', (req: AuthenticatedRequest, res: Response) => {
       if (req.query.scope === 'blobs') {
-        const projectId = parseInt(req.params.id) || 1;
-        const results = mockBlobResults.map(r => ({ ...r, project_id: projectId }));
+        // Return req.params.id as string — Express decodes the URL param, so this
+        // reflects whether the caller properly single-encoded the path segment.
+        const results = mockBlobResults.map(r => ({ ...r, project_id: req.params.id }));
         res.json(results);
       } else {
         res.json([]);
@@ -427,7 +428,9 @@ export class MockGitLabServer {
     // GET /api/v4/groups/:id/search - Group-level search
     this.app.get('/api/v4/groups/:id/search', (req: AuthenticatedRequest, res: Response) => {
       if (req.query.scope === 'blobs') {
-        res.json(mockBlobResults);
+        // Echo the decoded group ID in the ref field so tests can verify encoding
+        const results = mockBlobResults.map(r => ({ ...r, ref: req.params.id }));
+        res.json(results);
       } else {
         res.json([]);
       }
