@@ -1428,7 +1428,7 @@ const allTools = [
   {
     name: "create_work_item",
     description:
-      "Create a new work item (issue, task, incident, test_case). Supports setting title, description, labels, assignees, weight, parent, health status, start/due dates, milestone, and confidentiality.",
+      "Create a new work item (issue, task, incident, test_case, epic, key_result, objective, requirement, ticket). Supports setting title, description, labels, assignees, weight, parent, health status, start/due dates, milestone, and confidentiality.",
     inputSchema: toJSONSchema(CreateWorkItemSchema),
   },
   {
@@ -2434,7 +2434,7 @@ async function resolveNamesToIds(
     users: { nodes: Array<{ id: string; username: string }> };
   }>(
     `query($path: ID!, $usernames: [String!]!) {
-      project(fullPath: $path) { labels(includeAncestorGroups: true) { nodes { id title } } }
+      project(fullPath: $path) { labels(includeAncestorGroups: true, first: 250) { nodes { id title } } }
       users(usernames: $usernames) { nodes { id username } }
     }`,
     { path: projectPath, usernames: usernames || [] }
@@ -2819,7 +2819,7 @@ async function listIssueStatuses(
         }
       }
     }`,
-    { path: project.path_with_namespace, typeName: typeName.toUpperCase() }
+    { path: project.path_with_namespace, typeName: typeName.replace(/ /g, "_").toUpperCase() }
   );
 
   const typeNodes = data.namespace?.workItemTypes?.nodes;
@@ -2909,7 +2909,7 @@ async function listCustomFieldDefinitions(
         }
       }
     }`,
-    { path: projectPath, typeName: typeName.toUpperCase() }
+    { path: projectPath, typeName: typeName.replace(/ /g, "_").toUpperCase() }
   );
 
   const typeNodes = data.namespace?.workItemTypes?.nodes;
