@@ -353,9 +353,9 @@ docker run -i --rm \
   - Multiple values `123,456,789`: MCP server can access projects 123, 456, and 789 but requires explicit project ID in requests
 - `GITLAB_READ_ONLY_MODE`: When set to 'true', restricts the server to only expose read-only operations. Useful for enhanced security or when write access is not needed. Also useful for using with Cursor and it's 40 tool limit.
 - `GITLAB_DENIED_TOOLS_REGEX`: When set as a regular expression, it excludes the matching tools.
-- `USE_GITLAB_WIKI`: When set to 'true', enables the wiki-related tools (list_wiki_pages, get_wiki_page, create_wiki_page, update_wiki_page, delete_wiki_page). By default, wiki features are disabled.
-- `USE_MILESTONE`: When set to 'true', enables the milestone-related tools (list_milestones, get_milestone, create_milestone, edit_milestone, delete_milestone, get_milestone_issue, get_milestone_merge_requests, promote_milestone, get_milestone_burndown_events). By default, milestone features are disabled.
-- `USE_PIPELINE`: When set to 'true', enables the pipeline-related tools (list_pipelines, get_pipeline, list_deployments, get_deployment, list_environments, get_environment, list_pipeline_jobs, list_pipeline_trigger_jobs, get_pipeline_job, get_pipeline_job_output, create_pipeline, retry_pipeline, cancel_pipeline, play_pipeline_job, retry_pipeline_job, cancel_pipeline_job, list_job_artifacts, download_job_artifacts, get_job_artifact_file). By default, pipeline features are disabled.
+- `USE_GITLAB_WIKI`: Legacy flag. Wiki features are now enabled by default. When set to 'true', ensures wiki-related tools are included even if the `wiki` toolset is not explicitly listed in `GITLAB_TOOLSETS`.
+- `USE_MILESTONE`: Legacy flag. Milestone features are now enabled by default. When set to 'true', ensures milestone-related tools are included even if the `milestones` toolset is not explicitly listed in `GITLAB_TOOLSETS`.
+- `USE_PIPELINE`: Legacy flag. Pipeline features are now enabled by default. When set to 'true', ensures pipeline-related tools are included even if the `pipelines` toolset is not explicitly listed in `GITLAB_TOOLSETS`.
 - `GITLAB_TOOLSETS`: Comma-separated list of toolset IDs to enable. When empty or unset, default toolsets are used. Set to `"all"` to enable every toolset. Available toolsets (default toolsets marked with `*`):
   - `merge_requests`\* — MR operations, notes, discussions, draft notes, threads (31 tools)
   - `issues`\* — Issue CRUD, notes, links, discussions (14 tools)
@@ -363,9 +363,9 @@ docker run -i --rm \
   - `branches`\* — Branch creation, commits, diffs (4 tools)
   - `projects`\* — Project/namespace info, group projects, iterations (8 tools)
   - `labels`\* — Label CRUD (5 tools)
-  - `pipelines` — Pipeline and job operations (19 tools)
-  - `milestones` — Milestone CRUD, issues, MRs, burndown (9 tools)
-  - `wiki` — Wiki page CRUD (5 tools)
+  - `pipelines`\* — Pipeline and job operations (19 tools)
+  - `milestones`\* — Milestone CRUD, issues, MRs, burndown (9 tools)
+  - `wiki`\* — Wiki page CRUD (5 tools)
   - `releases`\* — Release CRUD, evidence, asset download (7 tools)
   - `users`\* — User info, events, markdown upload, attachments (5 tools)
 

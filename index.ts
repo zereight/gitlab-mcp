@@ -1718,7 +1718,7 @@ const TOOLSET_DEFINITIONS: readonly ToolsetDefinition[] = [
   },
   {
     id: "pipelines",
-    isDefault: false,
+    isDefault: true,
     tools: new Set([
       "list_pipelines",
       "get_pipeline",
@@ -1743,7 +1743,7 @@ const TOOLSET_DEFINITIONS: readonly ToolsetDefinition[] = [
   },
   {
     id: "milestones",
-    isDefault: false,
+    isDefault: true,
     tools: new Set([
       "list_milestones",
       "get_milestone",
@@ -1758,7 +1758,7 @@ const TOOLSET_DEFINITIONS: readonly ToolsetDefinition[] = [
   },
   {
     id: "wiki",
-    isDefault: false,
+    isDefault: true,
     tools: new Set([
       "list_wiki_pages",
       "get_wiki_page",
