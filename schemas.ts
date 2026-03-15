@@ -2674,3 +2674,79 @@ export type GitLabMergeRequestApprovalState = z.infer<typeof GitLabMergeRequestA
 export type GetMergeRequestApprovalStateOptions = z.infer<
   typeof GetMergeRequestApprovalStateSchema
 >;
+
+// --- Webhook schemas ---
+
+export const ListWebhooksSchema = z
+  .object({
+    project_id: z.coerce
+      .string()
+      .optional()
+      .describe("Project ID or URL-encoded path. Provide either project_id or group_id, not both."),
+    group_id: z.coerce
+      .string()
+      .optional()
+      .describe("Group ID or URL-encoded path. Provide either project_id or group_id, not both."),
+  })
+  .merge(PaginationOptionsSchema)
+  .refine(data => (data.project_id || data.group_id) && !(data.project_id && data.group_id), {
+    message: "Provide exactly one of project_id or group_id",
+  });
+
+export const ListWebhookEventsSchema = z
+  .object({
+    project_id: z.coerce
+      .string()
+      .optional()
+      .describe("Project ID or URL-encoded path. Provide either project_id or group_id, not both."),
+    group_id: z.coerce
+      .string()
+      .optional()
+      .describe("Group ID or URL-encoded path. Provide either project_id or group_id, not both."),
+    hook_id: z.coerce.number().describe("ID of the webhook"),
+    status: z
+      .union([z.number(), z.string()])
+      .optional()
+      .describe(
+        "Filter by response status code (e.g. 200, 500) or category: successful, client_failure, server_failure"
+      ),
+    summary: z
+      .boolean()
+      .optional()
+      .describe(
+        "If true, return only summary fields (id, url, trigger, response_status, execution_duration) without full request/response payloads. Recommended for overview queries to avoid huge responses."
+      ),
+    per_page: z
+      .number()
+      .max(20)
+      .optional()
+      .default(20)
+      .describe("Number of events per page"),
+    page: z.number().optional().describe("Page number for pagination"),
+  })
+  .refine(data => (data.project_id || data.group_id) && !(data.project_id && data.group_id), {
+    message: "Provide exactly one of project_id or group_id",
+  });
+
+export const GetWebhookEventSchema = z
+  .object({
+    project_id: z.coerce
+      .string()
+      .optional()
+      .describe("Project ID or URL-encoded path. Provide either project_id or group_id, not both."),
+    group_id: z.coerce
+      .string()
+      .optional()
+      .describe("Group ID or URL-encoded path. Provide either project_id or group_id, not both."),
+    hook_id: z.coerce.number().describe("ID of the webhook"),
+    event_id: z.coerce.number().describe("ID of the webhook event to retrieve"),
+    page: z
+      .number()
+      .optional()
+      .describe(
+        "If known, the page where the event is located (from list_webhook_events). Skips auto-pagination and fetches only this page."
+      ),
+  })
+  .refine(data => (data.project_id || data.group_id) && !(data.project_id && data.group_id), {
+    message: "Provide exactly one of project_id or group_id",
+  });
