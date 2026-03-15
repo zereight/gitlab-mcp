@@ -7341,6 +7341,10 @@ function determineTransportMode(): TransportMode {
 async function startStdioServer(): Promise<void> {
   const serverInstance = createServer();
   const transport = new StdioServerTransport();
+  transport.onclose = () => {
+    logger.info("Stdio transport closed, releasing client pool");
+    clientPool.closeAll();
+  };
   await serverInstance.connect(transport);
 }
 
@@ -7350,6 +7354,7 @@ async function startStdioServer(): Promise<void> {
 async function startSSEServer(): Promise<void> {
   const app = express();
   const transports: { [sessionId: string]: SSEServerTransport } = {};
+  let shuttingDown = false;
 
   app.get("/sse", async (_: Request, res: Response) => {
     const serverInstance = createServer();
@@ -7379,11 +7384,36 @@ async function startSSEServer(): Promise<void> {
     });
   });
 
-  app.listen(Number(PORT), HOST, () => {
+  const httpServer = app.listen(Number(PORT), HOST, () => {
     logger.info(`GitLab MCP Server running with SSE transport`);
     const colorGreen = "\x1b[32m";
     const colorReset = "\x1b[0m";
     logger.info(`${colorGreen}Endpoint: http://${HOST}:${PORT}/sse${colorReset}`);
+  });
+
+  const shutdown = async (signal: string) => {
+    if (shuttingDown) return;
+    shuttingDown = true;
+    logger.info(`${signal} received, shutting down SSE server...`);
+    httpServer.close(() => logger.info("SSE HTTP server closed"));
+    await Promise.allSettled(
+      Object.values(transports).map(async transport => {
+        try {
+          await transport.close();
+        } catch (error) {
+          logger.error("Error closing SSE transport:", error);
+        }
+      })
+    );
+    clientPool.closeAll();
+    process.exit(0);
+  };
+
+  process.on("SIGTERM", () => {
+    void shutdown("SIGTERM");
+  });
+  process.on("SIGINT", () => {
+    void shutdown("SIGINT");
   });
 }
 
@@ -7790,6 +7820,7 @@ async function startStreamableHTTPServer(): Promise<void> {
       clearAuthTimeout(sessionId);
     });
 
+    clientPool.closeAll();
     logger.info("Graceful shutdown complete");
     process.exit(0);
   };

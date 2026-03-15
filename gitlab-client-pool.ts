@@ -134,4 +134,23 @@ export class GitLabClientPool {
     }
     return this.clients.get(defaultUrl)!;
   }
+
+  /**
+   * Destroy all pooled agents and clear pool state.
+   * This should be called on graceful shutdown so sockets are closed
+   * and the process can exit cleanly.
+   */
+  public closeAll(): void {
+    for (const [, agents] of this.clients) {
+      const destroyIfSupported = (agent: unknown) => {
+        if (agent && typeof (agent as { destroy?: () => void }).destroy === "function") {
+          (agent as { destroy: () => void }).destroy();
+        }
+      };
+
+      destroyIfSupported(agents.httpAgent);
+      destroyIfSupported(agents.httpsAgent);
+    }
+    this.clients.clear();
+  }
 }
