@@ -2669,10 +2669,15 @@ export type GetMergeRequestApprovalStateOptions = z.infer<
 
 // --- Work item schemas (GraphQL-based) ---
 
+// Case-insensitive work item type enum (accepts "ISSUE", "Issue", "issue")
+const workItemTypeEnum = z.string().transform(v => v.toLowerCase()).pipe(
+  z.enum(["issue", "task", "incident", "test_case", "epic", "key_result", "objective", "requirement", "ticket"])
+);
+
 // Common params for work item tools
 const WorkItemParamsSchema = z.object({
   project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
-  iid: z.number().describe("The internal ID (IID) of the work item"),
+  iid: z.coerce.number().describe("The internal ID (IID) of the work item"),
 });
 
 export const GetWorkItemSchema = WorkItemParamsSchema;
@@ -2680,7 +2685,7 @@ export const GetWorkItemSchema = WorkItemParamsSchema;
 export const ListWorkItemsSchema = z.object({
   project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
   types: z
-    .array(z.enum(["issue", "task", "incident", "test_case", "epic", "key_result", "objective", "requirement", "ticket"]))
+    .array(workItemTypeEnum)
     .optional()
     .describe("Filter by work item types. If not set, returns all types."),
   state: z
@@ -2700,7 +2705,7 @@ export const ListWorkItemsSchema = z.object({
     .optional()
     .describe("Filter by label names"),
   first: z
-    .number()
+    .coerce.number()
     .optional()
     .default(20)
     .describe("Number of items to return (max 100). Default 20."),
@@ -2713,16 +2718,15 @@ export const ListWorkItemsSchema = z.object({
 export const CreateWorkItemSchema = z.object({
   project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
   title: z.string().describe("Title of the work item"),
-  type: z
-    .enum(["issue", "task", "incident", "test_case", "epic", "key_result", "objective", "requirement", "ticket"])
+  type: workItemTypeEnum
     .optional()
     .default("issue")
     .describe("Type of work item to create. Defaults to 'issue'."),
   description: z.string().optional().describe("Description of the work item (Markdown supported)"),
   labels: z.array(z.string()).optional().describe("Array of label names to assign"),
   assignee_usernames: z.array(z.string()).optional().describe("Array of usernames to assign"),
-  parent_iid: z.number().optional().describe("IID of the parent work item to set hierarchy"),
-  weight: z.number().optional().describe("Weight of the work item"),
+  parent_iid: z.coerce.number().optional().describe("IID of the parent work item to set hierarchy"),
+  weight: z.coerce.number().optional().describe("Weight of the work item"),
   health_status: z.enum(["onTrack", "needsAttention", "atRisk"]).optional().describe("Set health status"),
   start_date: z.string().optional().describe("Start date in YYYY-MM-DD format"),
   due_date: z.string().optional().describe("Due date in YYYY-MM-DD format"),
@@ -2738,18 +2742,18 @@ export const UpdateWorkItemSchema = WorkItemParamsSchema.extend({
   remove_labels: z.array(z.string()).optional().describe("Label names to remove"),
   assignee_usernames: z.array(z.string()).optional().describe("Set assignees by username (replaces existing)"),
   state_event: z.enum(["close", "reopen"]).optional().describe("Close or reopen the work item"),
-  weight: z.number().optional().describe("Set weight (issues, tasks, epics only)"),
+  weight: z.coerce.number().optional().describe("Set weight (issues, tasks, epics only)"),
   status: z.string().optional().describe("Set status by ID. Use list_work_item_statuses to get available status IDs."),
-  parent_iid: z.number().optional().describe("Set parent work item by IID. Use with parent_project_id if parent is in a different project."),
+  parent_iid: z.coerce.number().optional().describe("Set parent work item by IID. Use with parent_project_id if parent is in a different project."),
   parent_project_id: z.coerce.string().optional().describe("Project ID or path of the parent work item (defaults to same project as the work item)"),
   remove_parent: z.boolean().optional().describe("Set to true to remove the parent from hierarchy"),
   children_to_add: z.array(z.object({
     project_id: z.coerce.string().describe("Project ID or path of the child work item"),
-    iid: z.number().describe("IID of the child work item"),
+    iid: z.coerce.number().describe("IID of the child work item"),
   })).optional().describe("Array of children to add to this work item's hierarchy"),
   children_to_remove: z.array(z.object({
     project_id: z.coerce.string().describe("Project ID or path of the child work item"),
-    iid: z.number().describe("IID of the child work item"),
+    iid: z.coerce.number().describe("IID of the child work item"),
   })).optional().describe("Array of children to remove from this work item's hierarchy"),
   health_status: z.enum(["onTrack", "needsAttention", "atRisk"]).optional().describe("Set health status on issues and epics"),
   start_date: z.string().optional().describe("Start date in YYYY-MM-DD format"),
@@ -2759,17 +2763,17 @@ export const UpdateWorkItemSchema = WorkItemParamsSchema.extend({
   confidential: z.boolean().optional().describe("Set confidentiality"),
   linked_items_to_add: z.array(z.object({
     project_id: z.coerce.string().describe("Project ID or path of the work item to link"),
-    iid: z.number().describe("IID of the work item to link"),
+    iid: z.coerce.number().describe("IID of the work item to link"),
     link_type: z.enum(["RELATED", "BLOCKED_BY", "BLOCKS"]).optional().default("RELATED").describe("Link type: RELATED, BLOCKED_BY, or BLOCKS. Defaults to RELATED."),
   })).optional().describe("Work items to link"),
   linked_items_to_remove: z.array(z.object({
     project_id: z.coerce.string().describe("Project ID or path of the linked work item to remove"),
-    iid: z.number().describe("IID of the linked work item to remove"),
+    iid: z.coerce.number().describe("IID of the linked work item to remove"),
   })).optional().describe("Linked work items to remove"),
   custom_fields: z.array(z.object({
     custom_field_id: z.string().describe("Custom field ID (e.g. 'gid://gitlab/IssuablesCustomField/123' or numeric ID)"),
     text_value: z.string().optional().describe("Text value (for text fields)"),
-    number_value: z.number().optional().describe("Number value (for number fields)"),
+    number_value: z.coerce.number().optional().describe("Number value (for number fields)"),
     selected_option_ids: z.array(z.string()).optional().describe("Selected option IDs (for select fields)"),
     date_value: z.string().optional().describe("Date value in YYYY-MM-DD format (for date fields)"),
   })).optional().describe("Custom field values to set"),
@@ -2785,17 +2789,14 @@ export const UpdateWorkItemSchema = WorkItemParamsSchema.extend({
 
 export const ConvertWorkItemTypeSchema = z.object({
   project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
-  iid: z.number().describe("The internal ID of the work item"),
-  new_type: z
-    .enum(["issue", "task", "incident", "test_case", "epic", "key_result", "objective", "requirement", "ticket"])
-    .describe("The target work item type to convert to"),
+  iid: z.coerce.number().describe("The internal ID of the work item"),
+  new_type: workItemTypeEnum.describe("The target work item type to convert to"),
 });
 
 
 export const ListWorkItemStatusesSchema = z.object({
   project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
-  work_item_type: z
-    .enum(["issue", "task", "incident", "test_case", "epic", "key_result", "objective", "requirement", "ticket"])
+  work_item_type: workItemTypeEnum
     .optional()
     .default("issue")
     .describe("The work item type to list available statuses for. Defaults to 'issue'."),
@@ -2803,15 +2804,15 @@ export const ListWorkItemStatusesSchema = z.object({
 
 export const ListWorkItemNotesSchema = z.object({
   project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
-  iid: z.number().describe("The internal ID of the work item"),
-  page_size: z.number().optional().default(20).describe("Number of discussions to return (default 20)"),
+  iid: z.coerce.number().describe("The internal ID of the work item"),
+  page_size: z.coerce.number().optional().default(20).describe("Number of discussions to return (default 20)"),
   after: z.string().optional().describe("Cursor for pagination"),
   sort: z.enum(["CREATED_ASC", "CREATED_DESC"]).optional().default("CREATED_ASC").describe("Sort order for discussions"),
 });
 
 export const CreateWorkItemNoteSchema = z.object({
   project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
-  iid: z.number().describe("The internal ID of the work item"),
+  iid: z.coerce.number().describe("The internal ID of the work item"),
   body: z.string().describe("Note body (Markdown supported)"),
   internal: z.boolean().optional().default(false).describe("Create as internal/confidential note (only visible to project members)"),
   discussion_id: z.string().optional().describe("Discussion ID to reply to (for threaded replies). If omitted, creates a new top-level note."),
@@ -2819,14 +2820,13 @@ export const CreateWorkItemNoteSchema = z.object({
 
 export const MoveWorkItemSchema = z.object({
   project_id: z.coerce.string().describe("Project ID or URL-encoded path of the source project"),
-  iid: z.number().describe("The internal ID of the work item to move"),
+  iid: z.coerce.number().describe("The internal ID of the work item to move"),
   target_project_id: z.coerce.string().describe("Project ID or URL-encoded path of the target project"),
 });
 
 export const ListCustomFieldDefinitionsSchema = z.object({
   project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
-  work_item_type: z
-    .enum(["issue", "task", "incident", "test_case", "epic", "key_result", "objective", "requirement", "ticket"])
+  work_item_type: workItemTypeEnum
     .optional()
     .default("issue")
     .describe("The work item type to list custom field definitions for. Defaults to 'issue'."),
@@ -2836,12 +2836,12 @@ export const ListCustomFieldDefinitionsSchema = z.object({
 
 export const GetTimelineEventsSchema = z.object({
   project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
-  incident_iid: z.number().describe("The internal ID (IID) of the incident"),
+  incident_iid: z.coerce.number().describe("The internal ID (IID) of the incident"),
 });
 
 export const CreateTimelineEventSchema = z.object({
   project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
-  incident_iid: z.number().describe("The internal ID (IID) of the incident"),
+  incident_iid: z.coerce.number().describe("The internal ID (IID) of the incident"),
   note: z.string().describe("Description of the timeline event (Markdown supported)"),
   occurred_at: z.string().describe("When the event occurred in ISO 8601 format (e.g. '2026-03-15T09:00:00.000Z')"),
   tag_names: z
