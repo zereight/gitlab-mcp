@@ -1942,7 +1942,7 @@ function parseUseToolsFilter(raw: string | undefined): ReadonlyArray<RegExp> | u
   if (patterns.length === 0) return undefined;
   return patterns.map(pattern => {
     // Escape regex special chars except *, then replace * with .*
-    const escaped = pattern.replace(/[.+?^${}()|[\]\\]/g, "\\$&").replace(/\*/g, ".*");
+    const escaped = pattern.replace(/[-/\\^$+?.()|[\]{}]/g, "\\$&").replace(/\*/g, ".*");
     return new RegExp(`^${escaped}$`);
   });
 }
