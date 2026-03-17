@@ -3894,7 +3894,7 @@ async function approveMergeRequest(
   });
 
   await handleGitLabError(response);
-  return GitLabMergeRequestApprovalStateSchema.parse(await response.json());
+  return parseApprovalsResponse(await response.json());
 }
 
 /**
@@ -3920,7 +3920,7 @@ async function unapproveMergeRequest(
   });
 
   await handleGitLabError(response);
-  return GitLabMergeRequestApprovalStateSchema.parse(await response.json());
+  return parseApprovalsResponse(await response.json());
 }
 
 /**
@@ -3980,9 +3980,17 @@ async function getMergeRequestApprovalsFallback(
   });
 
   await handleGitLabError(approvalsResponse);
-  const parsedApprovals = GitLabMergeRequestApprovalsResponseSchema.parse(
-    await approvalsResponse.json()
-  );
+  return parseApprovalsResponse(await approvalsResponse.json());
+}
+
+/**
+ * Parse the response from POST /approve and POST /unapprove endpoints.
+ * These endpoints return the approvals format (approved_by contains nested
+ * { user: {...} } objects), which must be converted to the flat format
+ * used by GitLabMergeRequestApprovalStateSchema.
+ */
+function parseApprovalsResponse(responseJson: unknown): GitLabMergeRequestApprovalState {
+  const parsedApprovals = GitLabMergeRequestApprovalsResponseSchema.parse(responseJson);
   const approvedByUsers = getUniqueApprovalUsers(
     (parsedApprovals.approved_by || []).map(approvedByEntry => approvedByEntry.user)
   );
