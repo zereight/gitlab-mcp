@@ -477,11 +477,12 @@ function validateConfiguration(): void {
   const remoteAuth = getConfig("remote-auth", "REMOTE_AUTHORIZATION") === "true";
   const useOAuth = getConfig("use-oauth", "GITLAB_USE_OAUTH") === "true";
   const hasToken = !!getConfig("token", "GITLAB_PERSONAL_ACCESS_TOKEN");
+  const hasJobToken = !!getConfig("job-token", "GITLAB_JOB_TOKEN");
   const hasCookie = !!getConfig("cookie-path", "GITLAB_AUTH_COOKIE_PATH");
 
-  if (!remoteAuth && !useOAuth && !hasToken && !hasCookie) {
+  if (!remoteAuth && !useOAuth && !hasToken && !hasJobToken && !hasCookie) {
     errors.push(
-      "Either --token, --cookie-path, --use-oauth=true, or --remote-auth=true must be set (or use environment variables)"
+      "Either --token, --job-token, --cookie-path, --use-oauth=true, or --remote-auth=true must be set (or use environment variables)"
     );
   }
 
@@ -501,6 +502,7 @@ function validateConfiguration(): void {
 }
 
 const GITLAB_PERSONAL_ACCESS_TOKEN = getConfig("token", "GITLAB_PERSONAL_ACCESS_TOKEN");
+const GITLAB_JOB_TOKEN = getConfig("job-token", "GITLAB_JOB_TOKEN");
 let OAUTH_ACCESS_TOKEN: string | null = null;
 let oauthClient: GitLabOAuth | null = null;
 /**
@@ -795,6 +797,11 @@ function buildAuthHeaders(): Record<string, string> {
       };
     }
     return {}; // No auth headers if no session context
+  }
+
+  // CI job tokens use a dedicated header (not Bearer/Private-Token)
+  if (GITLAB_JOB_TOKEN) {
+    return { "JOB-TOKEN": String(GITLAB_JOB_TOKEN) };
   }
 
   // Standard mode: prioritize OAuth token, then fall back to environment token
