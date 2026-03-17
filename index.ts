@@ -318,7 +318,7 @@ try {
  * cross-client data leakage (GHSA-345p-7cg4-v4c7).
  */
 function createServer(): Server {
-  // Precompute filtered tool list once at server creation (Steps 1–5 are static)
+  // Precompute filtered tool list once at server creation (Steps 1–6 are static)
   // Step 1: Toolset filter — keep tools in enabled toolsets
   const toolsAfterToolsets = allTools.filter(tool =>
     isToolInEnabledToolset(tool.name, enabledToolsets)
@@ -348,9 +348,14 @@ function createServer(): Server {
     : toolsAfterLegacy;
 
   // Step 5: Regex denial filter
-  const precomputedFilteredTools = GITLAB_DENIED_TOOLS_REGEX
+  const toolsAfterDenied = GITLAB_DENIED_TOOLS_REGEX
     ? toolsAfterReadOnly.filter(tool => !GITLAB_DENIED_TOOLS_REGEX!.test(tool.name))
     : toolsAfterReadOnly;
+
+  // Step 6: USE_TOOLS whitelist filter
+  const precomputedFilteredTools = useToolsFilter
+    ? toolsAfterDenied.filter(tool => isToolAllowedByUseTools(tool.name, useToolsFilter))
+    : toolsAfterDenied;
 
   const serverInstance = new Server(
     {
@@ -365,7 +370,7 @@ function createServer(): Server {
   );
 
   serverInstance.setRequestHandler(ListToolsRequestSchema, async () => {
-    // Step 6: Gemini $schema cleanup (only dynamic step per request)
+    // Step 7: Gemini $schema cleanup (only dynamic step per request)
     // <<< START: Remove $schema for Gemini compatibility >>>
     const tools = precomputedFilteredTools.map(tool => {
       // Check if inputSchema exists and is an object
@@ -568,6 +573,7 @@ const USE_MILESTONE = getConfig("use-milestone", "USE_MILESTONE") === "true";
 const USE_PIPELINE = getConfig("use-pipeline", "USE_PIPELINE") === "true";
 const GITLAB_TOOLSETS_RAW = getConfig("toolsets", "GITLAB_TOOLSETS");
 const GITLAB_TOOLS_RAW = getConfig("tools", "GITLAB_TOOLS");
+const USE_TOOLS_RAW = getConfig("use-tools", "USE_TOOLS");
 const SSE = getConfig("sse", "SSE") === "true";
 const STREAMABLE_HTTP = getConfig("streamable-http", "STREAMABLE_HTTP") === "true";
 const REMOTE_AUTHORIZATION = getConfig("remote-auth", "REMOTE_AUTHORIZATION") === "true";
@@ -1919,10 +1925,40 @@ function isToolInEnabledToolset(
   return enabledToolsets.has(toolsetId);
 }
 
+/**
+ * Parse USE_TOOLS into a list of RegExp patterns for whitelist filtering.
+ * Supports comma-separated tool name patterns with glob-style `*` wildcards.
+ * Returns undefined when USE_TOOLS is not set (no filtering).
+ */
+function parseUseToolsFilter(raw: string | undefined): ReadonlyArray<RegExp> | undefined {
+  if (!raw || raw.trim() === "") {
+    return undefined;
+  }
+  const patterns = raw
+    .trim()
+    .split(",")
+    .map(s => s.trim().toLowerCase())
+    .filter(Boolean);
+  if (patterns.length === 0) return undefined;
+  return patterns.map(pattern => {
+    // Escape regex special chars except *, then replace * with .*
+    const escaped = pattern.replace(/[.+?^${}()|[\]\\]/g, "\\$&").replace(/\*/g, ".*");
+    return new RegExp(`^${escaped}$`);
+  });
+}
+
+function isToolAllowedByUseTools(
+  toolName: string,
+  patterns: ReadonlyArray<RegExp>
+): boolean {
+  return patterns.some(re => re.test(toolName));
+}
+
 // Compute at startup
 const enabledToolsets = parseEnabledToolsets(GITLAB_TOOLSETS_RAW);
 const individuallyEnabledTools = parseIndividualTools(GITLAB_TOOLS_RAW);
 const featureFlagOverrides = buildFeatureFlagOverrides();
+const useToolsFilter = parseUseToolsFilter(USE_TOOLS_RAW);
 
 // Warn about potentially confusing configuration
 if (GITLAB_TOOLSETS_RAW && (USE_PIPELINE || USE_MILESTONE || USE_GITLAB_WIKI)) {

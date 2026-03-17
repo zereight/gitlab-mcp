@@ -604,4 +604,115 @@ describe("Toolset Filtering", () => {
       assertContainsNone(tools, ["nonexistent_tool_xyz"], "unknown tool");
     });
   });
+
+  // ---- 16. USE_TOOLS whitelist filter (exact names) ----
+
+  describe("USE_TOOLS=list_issues,get_issue", () => {
+    let server: ServerInstance;
+    let tools: string[];
+
+    before(async () => {
+      const port = await nextMcpPort();
+      server = await launchMcpServer(mockGitLabUrl, port, {
+        USE_TOOLS: "list_issues,get_issue",
+      });
+      tools = await getToolNames(`http://${HOST}:${port}/mcp`);
+    });
+
+    after(() => cleanupServers([server]));
+
+    test("returns only the two specified tools", () => {
+      assert.strictEqual(tools.length, 2);
+    });
+
+    test("includes both specified tools", () => {
+      assertContainsAll(tools, ["list_issues", "get_issue"], "USE_TOOLS whitelist");
+    });
+
+    test("excludes other tools", () => {
+      assertContainsNone(tools, ["create_issue", "list_merge_requests", "get_project"], "excluded by USE_TOOLS");
+    });
+  });
+
+  // ---- 17. USE_TOOLS with glob wildcard ----
+
+  describe("USE_TOOLS=list_*", () => {
+    let server: ServerInstance;
+    let tools: string[];
+
+    before(async () => {
+      const port = await nextMcpPort();
+      server = await launchMcpServer(mockGitLabUrl, port, {
+        USE_TOOLS: "list_*",
+      });
+      tools = await getToolNames(`http://${HOST}:${port}/mcp`);
+    });
+
+    after(() => cleanupServers([server]));
+
+    test("includes only tools starting with list_", () => {
+      for (const t of tools) {
+        assert.ok(t.startsWith("list_"), `Expected tool "${t}" to start with "list_"`);
+      }
+    });
+
+    test("includes known list_ tools", () => {
+      assertContainsAll(tools, ["list_issues", "list_merge_requests", "list_pipelines"], "list_ tools");
+    });
+
+    test("excludes non-list_ tools", () => {
+      assertContainsNone(tools, ["create_issue", "get_project", "merge_merge_request"], "non-list_ tools");
+    });
+  });
+
+  // ---- 18. USE_TOOLS combined with GITLAB_TOOLSETS ----
+
+  describe("GITLAB_TOOLSETS=issues + USE_TOOLS=list_*,get_*", () => {
+    let server: ServerInstance;
+    let tools: string[];
+
+    before(async () => {
+      const port = await nextMcpPort();
+      server = await launchMcpServer(mockGitLabUrl, port, {
+        GITLAB_TOOLSETS: "issues",
+        USE_TOOLS: "list_*,get_*",
+      });
+      tools = await getToolNames(`http://${HOST}:${port}/mcp`);
+    });
+
+    after(() => cleanupServers([server]));
+
+    test("includes only issue tools matching the USE_TOOLS patterns", () => {
+      assertContainsAll(tools, ["list_issues", "get_issue"], "matching issue tools");
+    });
+
+    test("excludes issue tools not matching the patterns", () => {
+      assertContainsNone(tools, ["create_issue", "update_issue", "delete_issue"], "non-matching issue tools");
+    });
+
+    test("excludes tools from other toolsets", () => {
+      assertContainsNone(tools, ["list_merge_requests", "get_project"], "other toolset tools");
+    });
+  });
+
+  // ---- 19. USE_TOOLS with no matches returns empty ----
+
+  describe("USE_TOOLS=nonexistent_tool_pattern", () => {
+    let server: ServerInstance;
+    let tools: string[];
+
+    before(async () => {
+      const port = await nextMcpPort();
+      server = await launchMcpServer(mockGitLabUrl, port, {
+        USE_TOOLS: "nonexistent_tool_pattern",
+      });
+      tools = await getToolNames(`http://${HOST}:${port}/mcp`);
+    });
+
+    after(() => cleanupServers([server]));
+
+    test("returns zero tools when no tools match", () => {
+      assert.strictEqual(tools.length, 0);
+    });
+  });
 });

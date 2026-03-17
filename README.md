@@ -119,6 +119,7 @@ Some MCP clients (like GitHub Copilot CLI) have issues with environment variable
 - `--use-wiki=true` - Enable wiki API (replaces `USE_GITLAB_WIKI`)
 - `--use-milestone=true` - Enable milestone API (replaces `USE_MILESTONE`)
 - `--use-pipeline=true` - Enable pipeline API (replaces `USE_PIPELINE`)
+- `--use-tools` - Comma-separated tool name patterns to expose as whitelist filter (replaces `USE_TOOLS`)
 
 CLI arguments take precedence over environment variables.
 
@@ -395,6 +396,19 @@ docker run -i --rm \
 
   # Legacy flags still work (backward compatible)
   USE_PIPELINE=true npx @zereight/mcp-gitlab
+  ```
+- `USE_TOOLS`: Comma-separated list of tool name patterns to expose (whitelist filter). When set, **only** tools whose names match at least one pattern are available. Supports glob-style `*` wildcards. Useful for MCP clients like IntelliJ IDEA that don't support client-side tool filtering. CLI arg: `--use-tools`
+
+  Examples:
+  ```bash
+  # Only expose specific tools
+  USE_TOOLS="list_issues,get_issue,list_merge_requests" npx @zereight/mcp-gitlab
+
+  # Use wildcards to match multiple tools
+  USE_TOOLS="list_*,get_*" npx @zereight/mcp-gitlab
+
+  # Combine with other filters
+  GITLAB_TOOLSETS="issues,merge_requests" USE_TOOLS="list_*,get_*" npx @zereight/mcp-gitlab
   ```
 - `GITLAB_AUTH_COOKIE_PATH`: Path to an authentication cookie file for GitLab instances that require cookie-based authentication. When provided, the cookie will be included in all GitLab API requests.
 - `SSE`: When set to 'true', enables the Server-Sent Events transport.
