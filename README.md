@@ -336,7 +336,7 @@ docker run -i --rm \
 - `GITLAB_OAUTH_REDIRECT_URI`: The OAuth callback URL. Default: `http://127.0.0.1:8888/callback`
 - `GITLAB_OAUTH_TOKEN_PATH`: Custom path to store the OAuth token. Default: `~/.gitlab-mcp-token.json`
 - `REMOTE_AUTHORIZATION`: When set to 'true', enables remote per-session authorization via HTTP headers. In this mode:
-  - The server accepts GitLab PAT tokens from HTTP headers (`Authorization: Bearer <token>` or `Private-Token: <token>`) on a per-session basis
+  - The server accepts GitLab PAT tokens from HTTP headers (`Authorization: Bearer <token>`, `Private-Token: <token>` or `Job-Token: <token>`) on a per-session basis
   - `GITLAB_PERSONAL_ACCESS_TOKEN` environment variable is **not required** and ignored
   - Only works with **Streamable HTTP transport** (`STREAMABLE_HTTP=true`) because session management was already handled by the transport layer
   - **SSE transport is disabled** - attempting to use SSE with remote authorization will cause the server to exit with an error
