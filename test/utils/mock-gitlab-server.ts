@@ -26,11 +26,29 @@ export class MockGitLabServer {
   private requestCount = 0;
   private customRouter: express.Router;
   private customHandlers = new Map<string, Handler>();
+  private rootRouter: express.Router;
+  private rootHandlers = new Map<string, Handler>();
 
   constructor(config: MockGitLabConfig) {
     this.config = config;
     this.app = express();
     this.customRouter = express.Router();
+    this.rootRouter = express.Router();
+
+    // Dynamic dispatcher for root handlers (outside /api/v4)
+    // This is needed to mock OAuth endpoints (/oauth/*, /.well-known/*)
+    // that GitLab serves at the root rather than under the API prefix.
+    this.rootRouter.use((req, res, next) => {
+      const key = `${req.method.toUpperCase()}:${req.path}`;
+      console.log(`[RootRouter] Checking key: '${key}'`);
+      const handler = this.rootHandlers.get(key);
+
+      if (handler) {
+        console.log(`[MockServer] Root handler hit: ${key}`);
+        return handler(req, res, next);
+      }
+      next();
+    });
 
     // Dynamic dispatcher for custom handlers
     this.customRouter.use((req, res, next) => {
@@ -50,7 +68,9 @@ export class MockGitLabServer {
     });
 
     this.setupMiddleware();
-    this.app.use('/api/v4', this.customRouter); // Mount router on API path
+    // Mount root router before API router so dynamic root handlers are matched first
+    this.app.use(this.rootRouter);
+    this.app.use("/api/v4", this.customRouter); // Mount router on API path
     this.setupRoutes();
   }
 
@@ -61,9 +81,24 @@ export class MockGitLabServer {
     this.customHandlers.set(key, handler);
   }
 
+  /**
+   * Register a handler at the instance root (outside /api/v4).
+   * Used to mock OAuth endpoints (/oauth/*) and well-known endpoints.
+   */
+  public addRootHandler(method: "get" | "post" | "put" | "delete", path: string, handler: Handler) {
+    const key = `${method.toUpperCase()}:${path}`;
+    console.log(`[MockServer] Adding root handler: ${key}`);
+    this.rootHandlers.set(key, handler);
+  }
+
   public clearCustomHandlers() {
     console.log('[MockServer] Clearing custom handlers');
     this.customHandlers.clear();
+  }
+
+  public clearRootHandlers() {
+    console.log("[MockServer] Clearing root handlers");
+    this.rootHandlers.clear();
   }
 
   /**
@@ -78,6 +113,7 @@ export class MockGitLabServer {
     });
 
     this.app.use(express.json());
+    this.app.use(express.urlencoded({ extended: true }));
 
     // Artificial delay middleware (for timeout testing)
     if (this.config.responseDelay) {

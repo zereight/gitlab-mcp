@@ -494,6 +494,59 @@ The token is stored per session (identified by `mcp-session-id` header) and reus
 - **Rate limiting:** Each session is limited to `MAX_REQUESTS_PER_MINUTE` requests per minute (default 60)
 - **Capacity limit:** Server accepts up to `MAX_SESSIONS` concurrent sessions (default 1000)
 
+### MCP OAuth Setup (Browser-Based Auth for MCP Clients)
+
+When using `GITLAB_MCP_OAUTH=true`, the MCP server acts as an OAuth proxy between MCP-compatible clients (e.g. Claude.ai, Cursor) and your GitLab instance. Users authenticate via their browser -- no personal access tokens are needed on the client side.
+
+**How it works:**
+
+1. MCP client discovers OAuth endpoints via `/.well-known/oauth-authorization-server`
+2. Client registers dynamically via `/register` (Dynamic Client Registration)
+3. User is redirected to GitLab to authorize the application
+4. GitLab redirects back to the MCP server, which issues its own MCP tokens
+5. MCP client uses the MCP token for all subsequent API calls
+
+**Prerequisites:**
+
+Create a GitLab OAuth Application at `https://your-gitlab.com/-/profile/applications` with:
+- **Redirect URI:** `https://your-mcp-server.example.com/gitlab/callback`
+- **Scopes:** `api`, `read_api`, `read_user`
+- **Confidential:** recommended (set `GITLAB_OAUTH_APP_SECRET` if so)
+
+**Setup Example:**
+
+```bash
+docker run -d \
+  -e HOST=0.0.0.0 \
+  -e STREAMABLE_HTTP=true \
+  -e GITLAB_MCP_OAUTH=true \
+  -e GITLAB_API_URL="https://gitlab.com" \
+  -e GITLAB_OAUTH_APP_ID="your-app-id" \
+  -e GITLAB_OAUTH_APP_SECRET="your-app-secret" \
+  -e MCP_SERVER_URL="https://your-mcp-server.example.com" \
+  -p 3333:3002 \
+  zereight050/gitlab-mcp
+```
+
+**Environment Variables:**
+
+| Variable | Required | Description |
+|---|---|---|
+| `GITLAB_MCP_OAUTH` | Yes | Set to `true` to enable MCP OAuth mode |
+| `STREAMABLE_HTTP` | Yes | Must be `true` (MCP OAuth requires Streamable HTTP) |
+| `GITLAB_API_URL` | Yes | GitLab instance URL (e.g. `https://gitlab.com`) |
+| `GITLAB_OAUTH_APP_ID` | Yes | Application ID from your GitLab OAuth app |
+| `GITLAB_OAUTH_APP_SECRET` | No | Application secret (required for confidential apps) |
+| `MCP_SERVER_URL` | Yes | Public URL of this MCP server (must be HTTPS in production) |
+| `MCP_DANGEROUSLY_ALLOW_INSECURE_ISSUER_URL` | No | Set `true` for local HTTP development only |
+
+**Important Notes:**
+
+- MCP OAuth **only works with Streamable HTTP transport**
+- `MCP_SERVER_URL` must use HTTPS in production; set `MCP_DANGEROUSLY_ALLOW_INSECURE_ISSUER_URL=true` for local HTTP testing
+- Each user gets their own GitLab token via the browser flow; no shared tokens
+- Session management, rate limiting, and timeouts work the same as remote authorization
+
 ## Tools 🛠️
 
 <details>
@@ -605,14 +658,17 @@ The token is stored per session (identified by `mcp-session-id` header) and reus
 
 ## Testing 🧪
 
-The project includes comprehensive test coverage including remote authorization:
+The project includes comprehensive test coverage including remote authorization and MCP OAuth:
 
 ```bash
-# Run all tests (API validation + remote auth)
+# Run all tests (API validation + remote auth + MCP OAuth)
 npm test
 
 # Run only remote authorization tests
 npm run test:remote-auth
+
+# Run only MCP OAuth proxy tests
+npm run test:mcp-oauth
 
 # Run all tests including readonly MCP tests
 npm run test:all
@@ -621,4 +677,4 @@ npm run test:all
 npm run test:integration
 ```
 
-All remote authorization tests use a mock GitLab server and do not require actual GitLab credentials.
+All remote authorization and MCP OAuth tests use a mock GitLab server and do not require actual GitLab credentials.
