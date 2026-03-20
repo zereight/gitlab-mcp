@@ -2239,9 +2239,10 @@ async function getFileContents(
   const data = await response.json();
   const parsedData = GitLabContentSchema.parse(data);
 
-  // Decode base64-encoded file content to plain text
+  // Decode Base64-encoded file content to UTF-8
   if (!Array.isArray(parsedData) && parsedData.content) {
-    parsedData.content = Buffer.from(parsedData.content, "base64").toString();
+    parsedData.content = Buffer.from(parsedData.content, "base64").toString("utf8");
+    parsedData.encoding = "utf8";
   }
 
   return parsedData;
