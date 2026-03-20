@@ -2032,6 +2032,11 @@ const GITLAB_COMMIT_FILES_PER_PAGE = process.env.GITLAB_COMMIT_FILES_PER_PAGE
   ? Number.parseInt(process.env.GITLAB_COMMIT_FILES_PER_PAGE, 10)
   : 20;
 
+const GITLAB_REPO_FILE_ENCODING =
+  getConfig("repo-file-encoding", "GITLAB_REPO_FILE_ENCODING", "text") === "base64"
+    ? "base64"
+    : "text";
+
 // Validate authentication configuration
 if (REMOTE_AUTHORIZATION) {
   // Remote authorization mode: token comes from HTTP headers
@@ -2234,10 +2239,9 @@ async function getFileContents(
   const data = await response.json();
   const parsedData = GitLabContentSchema.parse(data);
 
-  // Decode Base64-encoded file content to UTF-8
+  // Decode base64-encoded file content to plain text
   if (!Array.isArray(parsedData) && parsedData.content) {
-    parsedData.content = Buffer.from(parsedData.content, "base64").toString("utf8");
-    parsedData.encoding = "utf8";
+    parsedData.content = Buffer.from(parsedData.content, "base64").toString();
   }
 
   return parsedData;
@@ -3083,6 +3087,13 @@ async function updateMergeRequestNote(
   return GitLabDiscussionNoteSchema.parse(data);
 }
 
+function encodeRepoFilePayloadContent(content: string): string {
+  if (GITLAB_REPO_FILE_ENCODING === "base64") {
+    return Buffer.from(content).toString("base64");
+  }
+  return content;
+}
+
 /**
  * Create or update a file in a GitLab project
  * 파일 생성 또는 업데이트
@@ -3113,9 +3124,9 @@ async function createOrUpdateFile(
 
   const body: Record<string, any> = {
     branch,
-    content,
+    content: encodeRepoFilePayloadContent(content),
     commit_message: commitMessage,
-    encoding: "text",
+    encoding: GITLAB_REPO_FILE_ENCODING,
     ...(previousPath ? { previous_path: previousPath } : {}),
   };
 
@@ -3199,8 +3210,8 @@ async function createTree(
     body: JSON.stringify({
       files: files.map(file => ({
         file_path: file.path,
-        content: file.content,
-        encoding: "text",
+        content: encodeRepoFilePayloadContent(file.content),
+        encoding: GITLAB_REPO_FILE_ENCODING,
       })),
     }),
   });
@@ -3249,8 +3260,8 @@ async function createCommit(
       actions: actions.map(action => ({
         action: "create",
         file_path: action.path,
-        content: action.content,
-        encoding: "text",
+        content: encodeRepoFilePayloadContent(action.content),
+        encoding: GITLAB_REPO_FILE_ENCODING,
       })),
     }),
   });
