@@ -186,6 +186,8 @@ import {
   ListIssuesSchema,
   ListLabelsSchema,
   ListMergeRequestDiffsSchema, // Added
+  GetMergeRequestFileDiffSchema,
+  ListMergeRequestChangedFilesSchema,
   ListMergeRequestDiscussionsSchema,
   ListMergeRequestsSchema,
   ListMergeRequestVersionsSchema,
@@ -984,10 +986,30 @@ const allTools = [
     inputSchema: toJSONSchema(GetMergeRequestDiffsSchema),
   },
   {
+    name: "list_merge_request_changed_files",
+    description:
+      "STEP 1 of code review workflow. " +
+      "Returns ONLY the list of changed file paths in a merge request — WITHOUT diff content. " +
+      "Use this first to get file paths, then call get_merge_request_file_diff for each file. " +
+      "This avoids loading the entire diff payload at once. " +
+      "Returns: new_path, old_path, new_file, deleted_file, renamed_file flags for each file. " +
+      "(Either mergeRequestIid or branchName must be provided)",
+    inputSchema: toJSONSchema(ListMergeRequestChangedFilesSchema),
+  },
+  {
     name: "list_merge_request_diffs",
     description:
       "List merge request diffs with pagination support (Either mergeRequestIid or branchName must be provided)",
     inputSchema: toJSONSchema(ListMergeRequestDiffsSchema),
+  },
+  {
+    name: "get_merge_request_file_diff",
+    description:
+      "STEP 2 of code review workflow. " +
+      "Get the full diff for a single file in a merge request. " +
+      "Call list_merge_request_changed_files first to get file paths, then call this for each file. " +
+      "(Either mergeRequestIid or branchName must be provided)",
+    inputSchema: toJSONSchema(GetMergeRequestFileDiffSchema),
   },
   {
     name: "list_merge_request_versions",
@@ -1515,6 +1537,8 @@ const readOnlyTools = new Set([
   "get_file_contents",
   "get_merge_request",
   "get_merge_request_diffs",
+  "list_merge_request_changed_files",
+  "get_merge_request_file_diff",
   "list_merge_request_versions",
   "get_merge_request_version",
   "get_branch_diffs",
@@ -1653,7 +1677,9 @@ const TOOLSET_DEFINITIONS: readonly ToolsetDefinition[] = [
       "get_merge_request_approval_state",
       "get_merge_request",
       "get_merge_request_diffs",
+      "list_merge_request_changed_files",
       "list_merge_request_diffs",
+      "get_merge_request_file_diff",
       "list_merge_request_versions",
       "get_merge_request_version",
       "update_merge_request",
@@ -3751,6 +3777,137 @@ async function listMergeRequestDiffs(
 
   await handleGitLabError(response);
   return await response.json(); // Return full response including commits, diff_refs, changes, etc.
+}
+
+/**
+ * Get diff for a single file in a merge request.
+ * Use this instead of getMergeRequestDiffs to avoid fetching the entire diff at once.
+ * Workflow: first call listMergeRequestDiffs to get the list of changed file paths,
+ * then call this function for each file you want to review.
+ *
+ * @param {string} projectId - The ID or URL-encoded path of the project
+ * @param {string} filePath - Path of the specific file to retrieve diff for
+ * @param {number|string} [mergeRequestIid] - The internal ID of the merge request
+ * @param {string} [branchName] - The name of the source branch (used to resolve MR if iid not provided)
+ * @param {boolean} [unidiff] - Return diff in unidiff format
+ * @returns {Promise<any>} Diff object for the requested file, or an error if the file is not found
+ */
+/**
+ * Returns the list of changed files in a merge request WITHOUT diff content.
+ * Use this as STEP 1 of code review: get file paths, then fetch diffs one by one
+ * with getMergeRequestFileDiff to avoid loading the entire diff payload at once.
+ */
+async function listMergeRequestChangedFiles(
+  projectId: string,
+  mergeRequestIid?: number | string,
+  branchName?: string,
+  excludedFilePatterns?: string[]
+): Promise<any[]> {
+  projectId = decodeURIComponent(projectId);
+  if (!mergeRequestIid && !branchName) {
+    throw new Error("Either mergeRequestIid or branchName must be provided");
+  }
+
+  if (branchName && !mergeRequestIid) {
+    const mergeRequest = await getMergeRequest(projectId, undefined, branchName);
+    mergeRequestIid = mergeRequest.iid;
+  }
+
+  const url = new URL(
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(
+      getEffectiveProjectId(projectId)
+    )}/merge_requests/${mergeRequestIid}/changes`
+  );
+
+  const response = await fetch(url.toString(), { ...getFetchConfig() });
+  await handleGitLabError(response);
+  const data = (await response.json()) as { changes: any[] };
+
+  let files: any[] = (data.changes || []).map((f: any) => ({
+    new_path: f.new_path,
+    old_path: f.old_path,
+    new_file: f.new_file,
+    deleted_file: f.deleted_file,
+    renamed_file: f.renamed_file,
+  }));
+
+  if (excludedFilePatterns && excludedFilePatterns.length > 0) {
+    const regexes = excludedFilePatterns.map((p) => new RegExp(p));
+    files = files.filter(
+      (f) => !regexes.some((re) => re.test(f.new_path) || re.test(f.old_path))
+    );
+  }
+
+  return files;
+}
+
+async function getMergeRequestFileDiff(
+  projectId: string,
+  filePaths: string[],
+  mergeRequestIid?: number | string,
+  branchName?: string,
+  unidiff?: boolean
+): Promise<any[]> {
+  projectId = decodeURIComponent(projectId);
+  if (!mergeRequestIid && !branchName) {
+    throw new Error("Either mergeRequestIid or branchName must be provided");
+  }
+
+  if (branchName && !mergeRequestIid) {
+    const mergeRequest = await getMergeRequest(projectId, undefined, branchName);
+    mergeRequestIid = mergeRequest.iid;
+  }
+
+  // Paginate through /diffs once, collecting all requested files.
+  // More efficient than N separate searches when fetching multiple files.
+  const remaining = new Set(filePaths);
+  const results: any[] = [];
+  let page = 1;
+  const perPage = 20;
+
+  while (remaining.size > 0) {
+    const url = new URL(
+      `${getEffectiveApiUrl()}/projects/${encodeURIComponent(
+        getEffectiveProjectId(projectId)
+      )}/merge_requests/${mergeRequestIid}/diffs`
+    );
+    url.searchParams.append("page", page.toString());
+    url.searchParams.append("per_page", perPage.toString());
+    if (unidiff) {
+      url.searchParams.append("unidiff", "true");
+    }
+
+    const response = await fetch(url.toString(), { ...getFetchConfig() });
+    await handleGitLabError(response);
+    const items = (await response.json()) as any[];
+
+    if (!Array.isArray(items) || items.length === 0) {
+      break;
+    }
+
+    for (const item of items) {
+      if (remaining.has(item.new_path) || remaining.has(item.old_path)) {
+        results.push(item);
+        remaining.delete(item.new_path);
+        remaining.delete(item.old_path);
+      }
+    }
+
+    if (items.length < perPage) {
+      break;
+    }
+
+    page++;
+  }
+
+  for (const notFound of remaining) {
+    results.push({
+      error: `File not found in merge request diffs: ${notFound}`,
+      hint: "Use list_merge_request_changed_files to verify the correct file paths.",
+    });
+  }
+
+  return results;
 }
 
 /**
@@ -7157,6 +7314,19 @@ async function handleToolCall(params: any) {
         };
       }
 
+      case "list_merge_request_changed_files": {
+        const args = ListMergeRequestChangedFilesSchema.parse(params.arguments);
+        const files = await listMergeRequestChangedFiles(
+          args.project_id,
+          args.merge_request_iid,
+          args.source_branch,
+          args.excluded_file_patterns
+        );
+        return {
+          content: [{ type: "text", text: JSON.stringify(files, null, 2) }],
+        };
+      }
+
       case "list_merge_request_diffs": {
         const args = ListMergeRequestDiffsSchema.parse(params.arguments);
         const changes = await listMergeRequestDiffs(
@@ -7169,6 +7339,20 @@ async function handleToolCall(params: any) {
         );
         return {
           content: [{ type: "text", text: JSON.stringify(changes, null, 2) }],
+        };
+      }
+
+      case "get_merge_request_file_diff": {
+        const args = GetMergeRequestFileDiffSchema.parse(params.arguments);
+        const fileDiff = await getMergeRequestFileDiff(
+          args.project_id,
+          args.file_paths,
+          args.merge_request_iid,
+          args.source_branch,
+          args.unidiff
+        );
+        return {
+          content: [{ type: "text", text: JSON.stringify(fileDiff, null, 2) }],
         };
       }
 

@@ -1508,6 +1508,28 @@ export const ListMergeRequestDiffsSchema = GetMergeRequestSchema.extend({
     ),
 });
 
+export const ListMergeRequestChangedFilesSchema = GetMergeRequestSchema.extend({
+  excluded_file_patterns: z
+    .array(z.string())
+    .optional()
+    .describe(
+      'Array of regex patterns to exclude files. Examples: ["^vendor/", "\\.pb\\.go$"]'
+    ),
+});
+
+export const GetMergeRequestFileDiffSchema = GetMergeRequestSchema.extend({
+  file_paths: z
+    .array(z.string())
+    .describe(
+      "List of file paths to retrieve diffs for (e.g. ['src/api/users.ts', 'src/repo/user.go']). " +
+      "Call list_merge_request_changed_files first to get the full list of changed paths."
+    ),
+  unidiff: z
+    .boolean()
+    .optional()
+    .describe("Present diff in the unified diff format. Default is false."),
+});
+
 // Merge Request Versions API operation schemas
 export const ListMergeRequestVersionsSchema = ProjectParamsSchema.extend({
   merge_request_iid: z.coerce.string().describe("The internal ID of the merge request"),
