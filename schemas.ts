@@ -1599,27 +1599,27 @@ export const ListMergeRequestsSchema = z
     assignee_id: z.coerce
       .string()
       .optional()
-      .describe("Return issues assigned to the given user ID. user id or none or any"),
+      .describe("Return MRs assigned to the given user ID (integer), 'none', or 'any'. Mutually exclusive with assignee_username."),
     assignee_username: z
       .string()
       .optional()
-      .describe("Returns merge requests assigned to the given username"),
+      .describe("Returns merge requests assigned to the given username. Mutually exclusive with assignee_id."),
     author_id: z.coerce
       .string()
       .optional()
-      .describe("Returns merge requests created by the given user ID"),
+      .describe("Returns merge requests created by the given user ID (integer). Mutually exclusive with author_username."),
     author_username: z
       .string()
       .optional()
-      .describe("Returns merge requests created by the given username"),
+      .describe("Returns merge requests created by the given username. Mutually exclusive with author_id."),
     reviewer_id: z.coerce
       .string()
       .optional()
-      .describe("Returns merge requests which have the user as a reviewer. user id or none or any"),
+      .describe("Returns merge requests which have the user as a reviewer. Must be an integer, 'none', or 'any'. Mutually exclusive with reviewer_username."),
     reviewer_username: z
       .string()
       .optional()
-      .describe("Returns merge requests which have the user as a reviewer"),
+      .describe("Returns merge requests which have the user as a reviewer by username. Mutually exclusive with reviewer_id."),
     created_after: z
       .string()
       .optional()
