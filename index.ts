@@ -8016,8 +8016,22 @@ async function handleToolCall(params: any) {
       }
 
       case "list_merge_requests": {
-        const args = ListMergeRequestsSchema.parse(params.arguments);
-        const mergeRequests = await listMergeRequests(args.project_id, args);
+        const { project_id, ...options } = ListMergeRequestsSchema.parse(params.arguments);
+
+        // GitLab API treats _id and _username as mutually exclusive for these fields.
+        // When both are provided, prefer _username and remove _id to avoid 400 errors.
+        const cleanedOptions = { ...options } as Record<string, unknown>;
+        if (cleanedOptions.author_id && cleanedOptions.author_username) {
+          delete cleanedOptions.author_id;
+        }
+        if (cleanedOptions.assignee_id && cleanedOptions.assignee_username) {
+          delete cleanedOptions.assignee_id;
+        }
+        if (cleanedOptions.reviewer_id && cleanedOptions.reviewer_username) {
+          delete cleanedOptions.reviewer_id;
+        }
+
+        const mergeRequests = await listMergeRequests(project_id, cleanedOptions);
         return {
           content: [{ type: "text", text: JSON.stringify(mergeRequests, null, 2) }],
         };
