@@ -400,6 +400,7 @@ docker run -i --rm \
 - `SSE`: When set to 'true', enables the Server-Sent Events transport.
 - `STREAMABLE_HTTP`: When set to 'true', enables the Streamable HTTP transport. If both **SSE** and **STREAMABLE_HTTP** are set to 'true', the server will prioritize Streamable HTTP over SSE transport.
 - `GITLAB_COMMIT_FILES_PER_PAGE`: The number of files per page that GitLab returns for commit diffs. This value should match the server-side GitLab setting. Adjust this if your GitLab instance uses a custom per-page value for commit diffs.
+- `GITLAB_REPO_FILE_ENCODING`: Encoding for repository file create/update and related commit payloads sent to the GitLab API. Use `text` (default) or `base64`. Equivalent CLI: `--repo-file-encoding=text|base64`.
 
 #### Performance & Security Configuration
 
