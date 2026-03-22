@@ -231,11 +231,12 @@ echo "---"
 echo "$RELEASE_NOTES"
 echo "---"
 
-# Create GitHub release with the notes
-gh release create "v$NEW_VERSION" --title "v$NEW_VERSION" --notes "$RELEASE_NOTES"
-
+# Push commit and tag before creating release
 git push origin HEAD
 git push origin "v$NEW_VERSION"
+
+# Create GitHub release with the notes
+gh release create "v$NEW_VERSION" --title "v$NEW_VERSION" --notes "$RELEASE_NOTES"
 
 echo "✅ Release v$NEW_VERSION created and pushed!"
 echo "GitHub Actions will now publish to npm and Docker Hub automatically."
