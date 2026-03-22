@@ -757,14 +757,14 @@ async function ensureSessionForRequest(): Promise<void> {
 // Session auth context for remote authorization
 interface SessionAuth {
   sessionId: string;
-  header: "Authorization" | "Private-Token";
+  header: "Authorization" | "Private-Token" | "JOB-TOKEN";
   token: string;
   lastUsed: number;
   apiUrl: string; // The API URL for the current request
 }
 
 interface AuthData {
-  header: "Authorization" | "Private-Token";
+  header: "Authorization" | "Private-Token" | "JOB-TOKEN";
   token: string;
   lastUsed: number;
   apiUrl: string;
@@ -8492,10 +8492,12 @@ async function startStreamableHTTPServer(): Promise<void> {
   /**
    * Parse authentication from request headers
    * Returns null if no auth found or invalid format
+   * Supports: JOB-TOKEN header, Private-Token header, Authorization Bearer header
    */
   const parseAuthHeaders = (req: Request): AuthData | null => {
     const authHeader = (req.headers["authorization"] as string | undefined) || "";
     const privateToken = (req.headers["private-token"] as string | undefined) || "";
+    const jobToken = (req.headers["job-token"] as string | undefined) || "";
     const dynamicApiUrl = (req.headers["x-gitlab-api-url"] as string | undefined)?.trim();
 
     let apiUrl = GITLAB_API_URL; // Default API URL
@@ -8513,9 +8515,12 @@ async function startStreamableHTTPServer(): Promise<void> {
 
     // Extract token
     let token: string | null = null;
-    let header: "Authorization" | "Private-Token" | null = null;
+    let header: "Authorization" | "Private-Token" | "JOB-TOKEN" | null = null;
 
-    if (privateToken) {
+    if (jobToken) {
+      token = jobToken.trim();
+      header = "JOB-TOKEN";
+    } else if (privateToken) {
       token = privateToken.trim();
       header = "Private-Token";
     } else if (authHeader) {
@@ -8617,9 +8622,9 @@ async function startStreamableHTTPServer(): Promise<void> {
         if (!authData) {
           metrics.authFailures++;
           res.status(401).json({
-            error: "Missing Authorization or Private-Token header",
+            error: "Missing Authorization, Private-Token, or JOB-TOKEN header",
             message:
-              "Remote authorization is enabled. Please provide Authorization or Private-Token header.",
+              "Remote authorization is enabled. Please provide Authorization, Private-Token, or JOB-TOKEN header.",
           });
           return;
         }
