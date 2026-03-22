@@ -4090,7 +4090,8 @@ async function getDraftNote(
   draft_note_id: string
 ): Promise<GitLabDraftNote> {
   const response = await fetch(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(project_id)}/merge_requests/${merge_request_iid}/draft_notes/${draft_note_id}`
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(project_id)}/merge_requests/${merge_request_iid}/draft_notes/${draft_note_id}`,
+    { ...getFetchConfig() }
   );
 
   if (!response.ok) {
@@ -5608,11 +5609,8 @@ async function createPipeline(
   }
 
   const response = await fetch(url.toString(), {
+    ...getFetchConfig(),
     method: "POST",
-    headers: {
-      ...BASE_HEADERS,
-      ...buildAuthHeaders(),
-    },
     body: JSON.stringify(body),
   });
 
@@ -5638,11 +5636,8 @@ async function retryPipeline(
   );
 
   const response = await fetch(url.toString(), {
+    ...getFetchConfig(),
     method: "POST",
-    headers: {
-      ...BASE_HEADERS,
-      ...buildAuthHeaders(),
-    },
   });
 
   await handleGitLabError(response);
@@ -5667,11 +5662,8 @@ async function cancelPipeline(
   );
 
   const response = await fetch(url.toString(), {
+    ...getFetchConfig(),
     method: "POST",
-    headers: {
-      ...BASE_HEADERS,
-      ...buildAuthHeaders(),
-    },
   });
 
   await handleGitLabError(response);
@@ -5787,17 +5779,11 @@ async function getRepositoryTree(options: GetRepositoryTreeOptions): Promise<Git
   if (options.page_token) queryParams.append("page_token", options.page_token);
   if (options.pagination) queryParams.append("pagination", options.pagination);
 
-  const headers: Record<string, string> = {
-    ...BASE_HEADERS,
-    ...buildAuthHeaders(),
-  };
   const response = await fetch(
     `${getEffectiveApiUrl()}/projects/${encodeURIComponent(
       getEffectiveProjectId(options.project_id)
     )}/repository/tree?${queryParams.toString()}`,
-    {
-      headers,
-    }
+    { ...getFetchConfig() }
   );
 
   if (response.status === 404) {
@@ -6379,15 +6365,13 @@ async function markdownUpload(projectId: string, filePath: string): Promise<GitL
     `${getEffectiveApiUrl()}/projects/${encodeURIComponent(effectiveProjectId)}/uploads`
   );
 
+  const defaultFetchConfig = getFetchConfig();
+  delete defaultFetchConfig.headers["Content-Type"]; // Let form-data set the correct Content-Type with boundary
+    
   const response = await fetch(url.toString(), {
+    ...defaultFetchConfig,
     method: "POST",
-    headers: {
-      ...BASE_HEADERS,
-      ...buildAuthHeaders(),
-      // Remove Content-Type header to let form-data set it with boundary
-      "Content-Type": undefined as any,
-    },
-    body: form,
+    body: form
   });
 
   if (!response.ok) {
@@ -6434,11 +6418,8 @@ async function downloadAttachment(
   );
 
   const response = await fetch(url.toString(), {
+    ...getFetchConfig(),
     method: "GET",
-    headers: {
-      ...BASE_HEADERS,
-      ...buildAuthHeaders(),
-    },
   });
 
   if (!response.ok) {
@@ -6493,13 +6474,7 @@ async function listEvents(options: z.infer<typeof ListEventsSchema> = {}): Promi
     }
   });
 
-  const response = await fetch(url.toString(), {
-    method: "GET",
-    headers: {
-      ...BASE_HEADERS,
-      ...buildAuthHeaders(),
-    },
-  });
+  const response = await fetch(url.toString(), { ...getFetchConfig() });
 
   if (!response.ok) {
     await handleGitLabError(response);
@@ -6531,13 +6506,7 @@ async function getProjectEvents(
     }
   });
 
-  const response = await fetch(url.toString(), {
-    method: "GET",
-    headers: {
-      ...BASE_HEADERS,
-      ...buildAuthHeaders(),
-    },
-  });
+  const response = await fetch(url.toString(), { ...getFetchConfig() });
 
   if (!response.ok) {
     await handleGitLabError(response);
