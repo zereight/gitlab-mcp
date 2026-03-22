@@ -546,7 +546,8 @@ const GITLAB_DENIED_TOOLS_REGEX = (() => {
 
   // Reject patterns with nested quantifiers that can cause catastrophic backtracking (ReDoS)
   // e.g., (a+)+, (a*)+, (a+)*, (a{1,})+
-  const NESTED_QUANTIFIER_PATTERN = /(\(.*[+*?].*\)|\[.*\])[+*?]|\(\?[^:)]/;
+  // Note: lookahead (?!), (?=), lookbehind (?<), and named groups (?<name>) are safe and allowed
+  const NESTED_QUANTIFIER_PATTERN = /(\(.*[+*?].*\)|\[.*\])[+*?]/;
   if (NESTED_QUANTIFIER_PATTERN.test(pattern)) {
     logger.error(
       `GITLAB_DENIED_TOOLS_REGEX contains potentially unsafe nested quantifiers. Ignoring.`
