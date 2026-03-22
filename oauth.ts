@@ -637,7 +637,7 @@ export async function initializeOAuthClient(gitlabUrl: string = "https://gitlab.
     clientSecret,
     redirectUri,
     gitlabUrl,
-    scopes: ["api"],
+    scopes: [process.env.GITLAB_READ_ONLY_MODE === "true" ? "read_api" : "api"],
     tokenStoragePath,
   });
 
