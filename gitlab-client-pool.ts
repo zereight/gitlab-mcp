@@ -160,6 +160,33 @@ export class GitLabClientPool {
    * @returns The corresponding `Agent` for the URL's protocol.
    */
   public getOrCreateAgentForUrl(apiUrl: string): Agent {
+    const agents = this.getOrCreateAgentsForUrl(apiUrl);
+    const url = new URL(apiUrl);
+    return url.protocol === "https:" ? agents.httpsAgent : agents.httpAgent;
+  }
+
+  /**
+   * Returns an agent-selection function for use with node-fetch's `agent` option.
+   * The returned function picks the correct HTTP or HTTPS agent based on the
+   * request URL's protocol. This is critical for self-hosted GitLab instances
+   * where the server may redirect between HTTP and HTTPS (e.g., when
+   * `external_url` differs from the actual internal protocol).
+   * @param apiUrl The base API URL used to look up or create the agent pair.
+   * @returns A function `(parsedURL: URL) => Agent` suitable for node-fetch.
+   */
+  public getAgentFunctionForUrl(apiUrl: string): (parsedURL: URL) => Agent {
+    const agents = this.getOrCreateAgentsForUrl(apiUrl);
+    return (parsedURL: URL) => {
+      return parsedURL.protocol === "https:" ? agents.httpsAgent : agents.httpAgent;
+    };
+  }
+
+  /**
+   * Ensures agents exist for the given API URL and returns the pair.
+   * @param apiUrl The full URL of the request.
+   * @returns The `ClientAgents` (both HTTP and HTTPS agents) for the URL.
+   */
+  private getOrCreateAgentsForUrl(apiUrl: string): ClientAgents {
     const url = new URL(apiUrl);
     const baseUrl = `${url.protocol}//${url.host}${url.pathname.substring(0, url.pathname.lastIndexOf('/api/v4') + '/api/v4'.length)}`;
 
@@ -177,7 +204,7 @@ export class GitLabClientPool {
       throw new Error(`Failed to create or get client for URL: ${baseUrl}`);
     }
 
-    return url.protocol === "https:" ? agents.httpsAgent : agents.httpAgent;
+    return agents;
   }
 
   /**

@@ -848,7 +848,7 @@ function getEffectiveApiUrl(): string {
  */
 const getFetchConfig = () => {
   const effectiveApiUrl = getEffectiveApiUrl();
-  const agent = clientPool.getOrCreateAgentForUrl(effectiveApiUrl);
+  const agent = clientPool.getAgentFunctionForUrl(effectiveApiUrl);
 
   return {
     headers: { ...BASE_HEADERS, ...buildAuthHeaders() },
