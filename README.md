@@ -500,18 +500,27 @@ When using `GITLAB_MCP_OAUTH=true`, the server acts as an OAuth proxy to your Gi
 instance. Claude.ai (and any MCP-spec-compliant client) handles the entire browser
 authentication flow automatically — no manual Personal Access Token management needed.
 
+**Prerequisites:**
+
+A **pre-registered GitLab OAuth application** is required. GitLab restricts dynamically
+registered (unverified) applications to the `mcp` scope, which is insufficient for API
+calls (need `api` or `read_api`).
+
+1. Go to your GitLab instance → **Admin Area > Applications** (instance-wide) or **User Settings > Applications** (personal)
+2. Create a new application with:
+   - **Confidential**: unchecked
+   - **Scopes**: `api`, `read_api`, `read_user`
+3. Save and copy the **Application ID** — this is your `GITLAB_OAUTH_APP_ID`
+
 **How it works:**
 
 1. User adds your MCP server URL in Claude.ai
 2. Claude.ai discovers OAuth endpoints via `/.well-known/oauth-authorization-server`
-3. Claude.ai registers itself via Dynamic Client Registration (`POST /register`)
-4. Claude.ai redirects the user's browser to your GitLab login page
+3. Claude.ai registers itself via Dynamic Client Registration (`POST /register`) — handled locally by the MCP server (each client gets a virtual client ID)
+4. Claude.ai redirects the user's browser to GitLab's login page using the pre-registered OAuth application
 5. User authenticates; GitLab redirects back to `https://claude.ai/api/mcp/auth_callback`
 6. Claude.ai sends `Authorization: Bearer <token>` on every MCP request
 7. Server validates the token with GitLab and stores it per session
-
-No GitLab OAuth application needs to be pre-created — GitLab's open DCR handles
-client registration automatically.
 
 **Server setup:**
 
@@ -519,6 +528,7 @@ client registration automatically.
 docker run -d \
   -e STREAMABLE_HTTP=true \
   -e GITLAB_MCP_OAUTH=true \
+  -e GITLAB_OAUTH_APP_ID="your-gitlab-oauth-app-client-id" \
   -e GITLAB_API_URL="https://gitlab.example.com/api/v4" \
   -e MCP_SERVER_URL="https://your-mcp-server.example.com" \
   -p 3002:3002 \
@@ -531,6 +541,7 @@ For local development (HTTP allowed):
 MCP_DANGEROUSLY_ALLOW_INSECURE_ISSUER_URL=true \
 STREAMABLE_HTTP=true \
 GITLAB_MCP_OAUTH=true \
+GITLAB_OAUTH_APP_ID=your-gitlab-oauth-app-client-id \
 MCP_SERVER_URL=http://localhost:3002 \
 GITLAB_API_URL=https://gitlab.com/api/v4 \
 node build/index.js
@@ -555,6 +566,7 @@ No `headers` field is needed — Claude.ai obtains the token via OAuth automatic
 | Variable | Required | Description |
 |---|---|---|
 | `GITLAB_MCP_OAUTH` | Yes | Set to `true` to enable |
+| `GITLAB_OAUTH_APP_ID` | Yes | Client ID of the pre-registered GitLab OAuth application |
 | `MCP_SERVER_URL` | Yes | Public HTTPS URL of your MCP server |
 | `GITLAB_API_URL` | Yes | Your GitLab instance API URL (e.g. `https://gitlab.com/api/v4`) |
 | `STREAMABLE_HTTP` | Yes | Must be `true` (SSE is not supported) |
