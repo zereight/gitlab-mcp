@@ -421,6 +421,40 @@ export class MockGitLabServer {
       });
     });
 
+    // GET /api/v4/projects/:projectId/merge_requests/:mr_iid/diffs - Get paginated diffs
+    this.app.get('/api/v4/projects/:projectId/merge_requests/:mr_iid/diffs', (req: AuthenticatedRequest, res: Response) => {
+      const mrIid = parseInt(req.params.mr_iid);
+      
+      // Paginate results for testing pagination logic
+      const allDiffs = [
+        { new_path: 'src/index.ts', old_path: 'src/index.ts' },
+        { new_path: 'vendor/package/file.js', old_path: 'vendor/package/file.js' },
+        { new_path: 'README.md', old_path: 'README.md' },
+        { new_path: 'package-lock.json', old_path: 'package-lock.json' },
+        { new_path: 'config/settings.yml', old_path: 'config/settings.yml' },
+        { new_path: 'lib/utils/helper.rb', old_path: 'lib/utils/helper.rb' },
+        { new_path: 'test/unit_test.py', old_path: 'test/unit_test.py' },
+        { new_path: 'docs/api.md', old_path: 'docs/api.md' },
+        { new_path: 'assets/style.css', old_path: 'assets/style.css' },
+        { new_path: 'scripts/build.sh', old_path: 'scripts/build.sh' },
+        { new_path: 'src/app.component.ts', old_path: 'src/app.component.ts' },
+        { new_path: 'views/layout.ejs', old_path: 'views/layout.eis' },
+        { new_path: 'models/user.go', old_path: 'models/user.go' },
+        { new_path: 'controllers/controller.rs', old_path: 'controllers/controller.rs' },
+        { new_path: 'database/schema.sql', old_path: 'database/schema.sql' }
+      ];
+      
+      // Parse pagination params
+      const page = parseInt(req.query.page as string) || 1;
+      const perPage = parseInt(req.query.per_page as string) || 20;
+      
+      const startIdx = (page - 1) * perPage;
+      const endIdx = startIdx + perPage;
+      const paginatedDiffs = allDiffs.slice(startIdx, endIdx);
+      
+      res.json(paginatedDiffs);
+    });
+
     // Health check endpoint
     this.app.get('/health', (req: Request, res: Response) => {
       res.json({ status: 'ok', message: 'Mock GitLab API is running' });

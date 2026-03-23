@@ -990,8 +990,9 @@ const allTools = [
     description:
       "STEP 1 of code review workflow. " +
       "Returns ONLY the list of changed file paths in a merge request — WITHOUT diff content. " +
-      "Use this first to get file paths, then call get_merge_request_file_diff for each file. " +
-      "This avoids loading the entire diff payload at once. " +
+      "Call this first to get file paths, then call get_merge_request_file_diff with multiple files in a single batched call (recommended 3-5 files per call). " +
+      "This avoids loading the entire diff payload at once and reduces API calls. " +
+      "Supports excluded_file_patterns filtering using regex. " +
       "Returns: new_path, old_path, new_file, deleted_file, renamed_file flags for each file. " +
       "(Either mergeRequestIid or branchName must be provided)",
     inputSchema: toJSONSchema(ListMergeRequestChangedFilesSchema),
@@ -1006,8 +1007,10 @@ const allTools = [
     name: "get_merge_request_file_diff",
     description:
       "STEP 2 of code review workflow. " +
-      "Get the full diff for a single file in a merge request. " +
-      "Call list_merge_request_changed_files first to get file paths, then call this for each file. " +
+      "Get diffs for one or more files from a merge request. " +
+      "Call list_merge_request_changed_files first to get file paths, then pass them as an array to fetch their diffs efficiently. " +
+      "Batching multiple files (recommended 3-5) is supported and preferred over individual requests. " +
+      "Returns an array of results - one per requested file path. Files not found are returned with error messages. " +
       "(Either mergeRequestIid or branchName must be provided)",
     inputSchema: toJSONSchema(GetMergeRequestFileDiffSchema),
   },
@@ -3780,10 +3783,9 @@ async function listMergeRequestDiffs(
 }
 
 /**
- * Get diff for a single file in a merge request.
- * Use this instead of getMergeRequestDiffs to avoid fetching the entire diff at once.
- * Workflow: first call listMergeRequestDiffs to get the list of changed file paths,
- * then call this function for each file you want to review.
+ * Returns the list of changed files in a merge request WITHOUT diff content.
+ * Use this as STEP 1 of code review: get file paths, then fetch diffs one by one
+ * with getMergeRequestFileDiff to avoid loading the entire diff payload at once.
  *
  * @param {string} projectId - The ID or URL-encoded path of the project
  * @param {string} filePath - Path of the specific file to retrieve diff for
@@ -3791,11 +3793,6 @@ async function listMergeRequestDiffs(
  * @param {string} [branchName] - The name of the source branch (used to resolve MR if iid not provided)
  * @param {boolean} [unidiff] - Return diff in unidiff format
  * @returns {Promise<any>} Diff object for the requested file, or an error if the file is not found
- */
-/**
- * Returns the list of changed files in a merge request WITHOUT diff content.
- * Use this as STEP 1 of code review: get file paths, then fetch diffs one by one
- * with getMergeRequestFileDiff to avoid loading the entire diff payload at once.
  */
 async function listMergeRequestChangedFiles(
   projectId: string,
@@ -3823,7 +3820,7 @@ async function listMergeRequestChangedFiles(
   await handleGitLabError(response);
   const data = (await response.json()) as { changes: any[] };
 
-  let files: any[] = (data.changes || []).map((f: any) => ({
+  const rawFiles = (data.changes || []).map((f: any) => ({
     new_path: f.new_path,
     old_path: f.old_path,
     new_file: f.new_file,
@@ -3831,14 +3828,7 @@ async function listMergeRequestChangedFiles(
     renamed_file: f.renamed_file,
   }));
 
-  if (excludedFilePatterns && excludedFilePatterns.length > 0) {
-    const regexes = excludedFilePatterns.map((p) => new RegExp(p));
-    files = files.filter(
-      (f) => !regexes.some((re) => re.test(f.new_path) || re.test(f.old_path))
-    );
-  }
-
-  return files;
+  return filterDiffsByPatterns(rawFiles, excludedFilePatterns);
 }
 
 async function getMergeRequestFileDiff(
