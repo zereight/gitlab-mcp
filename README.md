@@ -336,7 +336,7 @@ docker run -i --rm \
 - `GITLAB_OAUTH_REDIRECT_URI`: The OAuth callback URL. Default: `http://127.0.0.1:8888/callback`
 - `GITLAB_OAUTH_TOKEN_PATH`: Custom path to store the OAuth token. Default: `~/.gitlab-mcp-token.json`
 - `REMOTE_AUTHORIZATION`: When set to 'true', enables remote per-session authorization via HTTP headers. In this mode:
-  - The server accepts GitLab PAT tokens from HTTP headers (`Authorization: Bearer <token>` or `Private-Token: <token>`) on a per-session basis
+  - The server accepts GitLab PAT tokens from HTTP headers (`Authorization: Bearer <token>`, `Private-Token: <token>` or `Job-Token: <token>`) on a per-session basis
   - `GITLAB_PERSONAL_ACCESS_TOKEN` environment variable is **not required** and ignored
   - Only works with **Streamable HTTP transport** (`STREAMABLE_HTTP=true`) because session management was already handled by the transport layer
   - **SSE transport is disabled** - attempting to use SSE with remote authorization will cause the server to exit with an error
@@ -353,9 +353,9 @@ docker run -i --rm \
   - Multiple values `123,456,789`: MCP server can access projects 123, 456, and 789 but requires explicit project ID in requests
 - `GITLAB_READ_ONLY_MODE`: When set to 'true', restricts the server to only expose read-only operations. Useful for enhanced security or when write access is not needed. Also useful for using with Cursor and it's 40 tool limit.
 - `GITLAB_DENIED_TOOLS_REGEX`: When set as a regular expression, it excludes the matching tools.
-- `USE_GITLAB_WIKI`: When set to 'true', enables the wiki-related tools (list_wiki_pages, get_wiki_page, create_wiki_page, update_wiki_page, delete_wiki_page). By default, wiki features are disabled.
-- `USE_MILESTONE`: When set to 'true', enables the milestone-related tools (list_milestones, get_milestone, create_milestone, edit_milestone, delete_milestone, get_milestone_issue, get_milestone_merge_requests, promote_milestone, get_milestone_burndown_events). By default, milestone features are disabled.
-- `USE_PIPELINE`: When set to 'true', enables the pipeline-related tools (list_pipelines, get_pipeline, list_pipeline_jobs, list_pipeline_trigger_jobs, get_pipeline_job, get_pipeline_job_output, create_pipeline, retry_pipeline, cancel_pipeline, play_pipeline_job, retry_pipeline_job, cancel_pipeline_job). By default, pipeline features are disabled.
+- `USE_GITLAB_WIKI`: Legacy flag. Wiki features are now enabled by default. When set to 'true', ensures wiki-related tools are included even if the `wiki` toolset is not explicitly listed in `GITLAB_TOOLSETS`.
+- `USE_MILESTONE`: Legacy flag. Milestone features are now enabled by default. When set to 'true', ensures milestone-related tools are included even if the `milestones` toolset is not explicitly listed in `GITLAB_TOOLSETS`.
+- `USE_PIPELINE`: Legacy flag. Pipeline features are now enabled by default. When set to 'true', ensures pipeline-related tools are included even if the `pipelines` toolset is not explicitly listed in `GITLAB_TOOLSETS`.
 - `GITLAB_TOOLSETS`: Comma-separated list of toolset IDs to enable. When empty or unset, default toolsets are used. Set to `"all"` to enable every toolset. Available toolsets (default toolsets marked with `*`):
   - `merge_requests`\* — MR operations, notes, discussions, draft notes, threads (31 tools)
   - `issues`\* — Issue CRUD, notes, links, discussions (14 tools)
@@ -363,9 +363,9 @@ docker run -i --rm \
   - `branches`\* — Branch creation, commits, diffs (4 tools)
   - `projects`\* — Project/namespace info, group projects, iterations (8 tools)
   - `labels`\* — Label CRUD (5 tools)
-  - `pipelines` — Pipeline and job operations (12 tools)
-  - `milestones` — Milestone CRUD, issues, MRs, burndown (9 tools)
-  - `wiki` — Wiki page CRUD (5 tools)
+  - `pipelines`\* — Pipeline and job operations (19 tools)
+  - `milestones`\* — Milestone CRUD, issues, MRs, burndown (9 tools)
+  - `wiki`\* — Wiki page CRUD (5 tools)
   - `releases`\* — Release CRUD, evidence, asset download (7 tools)
   - `users`\* — User info, events, markdown upload, attachments (5 tools)
 
@@ -400,6 +400,7 @@ docker run -i --rm \
 - `SSE`: When set to 'true', enables the Server-Sent Events transport.
 - `STREAMABLE_HTTP`: When set to 'true', enables the Streamable HTTP transport. If both **SSE** and **STREAMABLE_HTTP** are set to 'true', the server will prioritize Streamable HTTP over SSE transport.
 - `GITLAB_COMMIT_FILES_PER_PAGE`: The number of files per page that GitLab returns for commit diffs. This value should match the server-side GitLab setting. Adjust this if your GitLab instance uses a custom per-page value for commit diffs.
+- `GITLAB_REPO_FILE_ENCODING`: Encoding for repository file create/update and related commit payloads sent to the GitLab API. Use `text` (default) or `base64`. Equivalent CLI: `--repo-file-encoding=text|base64`.
 
 #### Performance & Security Configuration
 
@@ -407,6 +408,16 @@ docker run -i --rm \
 - `MAX_SESSIONS`: Maximum number of concurrent sessions allowed. Default: `1000`. Valid range: 1-10000. When limit is reached, new connections are rejected with HTTP 503.
 - `MAX_REQUESTS_PER_MINUTE`: Rate limit per session in requests per minute. Default: `60`. Valid range: 1-1000. Exceeded requests return HTTP 429.
 - `PORT`: Server port. Default: `3002`. Valid range: 1-65535.
+- `HTTP_PROXY`: HTTP proxy server URL for outgoing requests. Example: `http://proxy.example.com:8080`. Supports HTTP/HTTPS and SOCKS proxies (URLs starting with `socks://` or `socks5://`). CLI arg: `--http-proxy`
+- `HTTPS_PROXY`: HTTPS proxy server URL for outgoing requests. Example: `https://proxy.example.com:8080`. Supports HTTP/HTTPS and SOCKS proxies. CLI arg: `--https-proxy`
+- `NO_PROXY`: Comma-separated list of hosts that should bypass the proxy. Supports:
+  - Exact hostname matches (e.g., `localhost`, `gitlab.internal.com`)
+  - Domain suffix matches (e.g., `.internal.com` matches any subdomain)
+  - IP addresses (e.g., `127.0.0.1`, `192.168.1.1`)
+  - Port-specific matches (e.g., `example.com:443`)
+  - Wildcard `*` to bypass proxy for all hosts
+  - Example: `NO_PROXY=localhost,127.0.0.1,.internal.com`
+  - CLI arg: `--no-proxy`
 
 #### Monitoring Endpoints
 
@@ -500,7 +511,7 @@ The token is stored per session (identified by `mcp-session-id` header) and reus
 8. `create_merge_request` - Create a new merge request in a GitLab project
 9. `fork_repository` - Fork a GitLab project to your account or specified namespace
 10. `create_branch` - Create a new branch in a GitLab project
-11. `get_merge_request` - Get details of a merge request (Either mergeRequestIid or branchName must be provided)
+11. `get_merge_request` - Get details of a merge request with compact deployment summary, behind-count, commit addition summary, and approval summary (Either mergeRequestIid or branchName must be provided)
 12. `get_merge_request_diffs` - Get the changes/diffs of a merge request (Either mergeRequestIid or branchName must be provided)
 13. `list_merge_request_diffs` - List merge request diffs with pagination support (Either mergeRequestIid or branchName must be provided)
 14. `get_branch_diffs` - Get the changes/diffs between two branches or commits in a GitLab project
@@ -587,7 +598,7 @@ The token is stored per session (identified by `mcp-session-id` header) and reus
 95. `download_release_asset` - Download a release asset file by direct asset path
 96. `approve_merge_request` - Approve a merge request (requires appropriate permissions)
 97. `unapprove_merge_request` - Unapprove a previously approved merge request
-98. `get_merge_request_approval_state` - Get the approval state of a merge request including approval rules and who has approved
+98. `get_merge_request_approval_state` - Get merge request approval details including approvers (uses `approval_state` when available, otherwise falls back to `approvals`)
 <!-- TOOLS-END -->
 
 </details>

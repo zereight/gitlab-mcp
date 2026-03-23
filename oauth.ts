@@ -1,4 +1,6 @@
+import * as crypto from "crypto";
 import * as fs from "fs";
+import * as os from "os";
 import * as path from "path";
 import * as http from "http";
 import * as net from "net";
@@ -10,7 +12,12 @@ import { pino } from "pino";
 const logger = pino({
   name: "gitlab-mcp-oauth",
   level: process.env.LOG_LEVEL || "info",
-});
+}, pino.destination(2));
+
+function escapeHtml(str: string): string {
+  const map: Record<string, string> = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" };
+  return String(str).replace(/[&<>"']/g, c => map[c] || c);
+}
 
 // Track pending auth requests across multiple MCP instances
 const pendingAuthRequests = new Map<
@@ -118,7 +125,7 @@ export class GitLabOAuth {
   constructor(config: OAuthConfig) {
     this.config = config;
     this.tokenStoragePath =
-      config.tokenStoragePath || path.join(process.env.HOME || "", ".gitlab-mcp-token.json");
+      config.tokenStoragePath || path.join(os.homedir(), ".gitlab-mcp-token.json");
   }
 
   /**
@@ -293,7 +300,7 @@ export class GitLabOAuth {
    */
   private async startOAuthFlow(): Promise<TokenData> {
     const callbackPort = parseInt(new URL(this.config.redirectUri).port || "8888");
-    const requestId = Math.random().toString(36).substring(7);
+    const requestId = crypto.randomUUID();
 
     // Check if port is already in use
     const portInUse = await isPortInUse(callbackPort);
@@ -327,7 +334,7 @@ export class GitLabOAuth {
 
     return new Promise((resolve, reject) => {
       // Create initial request
-      const state = Math.random().toString(36).substring(7);
+      const state = crypto.randomUUID();
       stateToRequestId.set(state, initialRequestId);
       requestIdToOAuthInstance.set(initialRequestId, this);
 
@@ -357,7 +364,7 @@ export class GitLabOAuth {
             logger.info(`Received auth request from another instance: ${newRequestId}`);
 
             // Create a new OAuth flow for this request
-            const newState = Math.random().toString(36).substring(7);
+            const newState = crypto.randomUUID();
             stateToRequestId.set(newState, newRequestId);
 
             // Store a reference to use the same OAuth config
@@ -411,7 +418,7 @@ export class GitLabOAuth {
                 <html>
                   <body>
                     <h1>Authentication Failed</h1>
-                    <p>Error: ${error}</p>
+                    <p>Error: ${escapeHtml(String(error))}</p>
                     <p>You can close this window.</p>
                   </body>
                 </html>
@@ -609,9 +616,11 @@ export class GitLabOAuth {
 }
 
 /**
- * Initialize OAuth authentication for GitLab MCP server
+ * Create and initialize a GitLabOAuth client.
+ * Performs initial authentication (triggers browser flow if needed).
+ * Returns the client instance and the initial access token.
  */
-export async function initializeOAuth(gitlabUrl: string = "https://gitlab.com"): Promise<string> {
+export async function initializeOAuthClient(gitlabUrl: string = "https://gitlab.com"): Promise<{ client: GitLabOAuth; accessToken: string }> {
   const clientId = process.env.GITLAB_OAUTH_CLIENT_ID;
   const clientSecret = process.env.GITLAB_OAUTH_CLIENT_SECRET;
   const redirectUri = process.env.GITLAB_OAUTH_REDIRECT_URI || "http://127.0.0.1:8888/callback";
@@ -628,9 +637,20 @@ export async function initializeOAuth(gitlabUrl: string = "https://gitlab.com"):
     clientSecret,
     redirectUri,
     gitlabUrl,
-    scopes: ["api"],
+    scopes: [process.env.GITLAB_READ_ONLY_MODE === "true" ? "read_api" : "api"],
     tokenStoragePath,
   });
 
-  return await oauth.getAccessToken();
+  // Single call: triggers browser flow if needed, or reads cached token
+  const accessToken = await oauth.getAccessToken();
+
+  return { client: oauth, accessToken };
+}
+
+/**
+ * Initialize OAuth authentication for GitLab MCP server
+ */
+export async function initializeOAuth(gitlabUrl: string = "https://gitlab.com"): Promise<string> {
+  const { accessToken } = await initializeOAuthClient(gitlabUrl);
+  return accessToken;
 }

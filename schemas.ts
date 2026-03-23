@@ -66,6 +66,8 @@ export const GitLabPipelineJobSchema = z.object({
   started_at: z.string().nullable().optional(),
   finished_at: z.string().nullable().optional(),
   duration: z.number().nullable().optional(),
+  queued_duration: z.number().nullable().optional(),
+  failure_reason: z.string().nullable().optional(),
   user: z
     .object({
       id: z.coerce.string(),
@@ -93,6 +95,19 @@ export const GitLabPipelineJobSchema = z.object({
     })
     .optional(),
   web_url: z.string().optional(),
+  allow_failure: z.boolean().optional(),
+  retried: z.boolean().optional(),
+  tag_list: z.array(z.string()).optional(),
+  runner: z
+    .object({
+      id: z.coerce.string().optional(),
+      description: z.string().nullable().optional(),
+      active: z.boolean().optional(),
+      is_shared: z.boolean().optional(),
+      runner_type: z.string().optional(),
+    })
+    .nullable()
+    .optional(),
 });
 
 // Pipeline trigger job (bridge) schema
@@ -258,6 +273,133 @@ export const ListPipelineTriggerJobsSchema = z
   })
   .merge(PaginationOptionsSchema);
 
+// Deployment related schemas
+export const GitLabDeploymentSchema = z.object({
+  id: z.coerce.string(),
+  iid: z.coerce.string().optional(),
+  status: z.string(),
+  ref: z.string().optional(),
+  sha: z.string(),
+  created_at: z.string(),
+  updated_at: z.string().optional(),
+  finished_at: z.string().nullable().optional(),
+  environment: z
+    .object({
+      id: z.coerce.string().optional(),
+      name: z.string(),
+      slug: z.string().optional(),
+      external_url: z.string().nullable().optional(),
+      state: z.string().optional(),
+      tier: z.string().optional(),
+    })
+    .optional(),
+  deployable: z
+    .object({
+      id: z.coerce.string().optional(),
+      name: z.string().optional(),
+      status: z.string().optional(),
+      stage: z.string().optional(),
+      web_url: z.string().optional(),
+      pipeline: z
+        .object({
+          id: z.coerce.string().optional(),
+          status: z.string().optional(),
+          ref: z.string().optional(),
+          sha: z.string().optional(),
+          web_url: z.string().optional(),
+        })
+        .optional(),
+    })
+    .nullable()
+    .optional(),
+  user: z
+    .object({
+      id: z.coerce.string().optional(),
+      username: z.string().optional(),
+      name: z.string().optional(),
+      avatar_url: z.string().nullable().optional(),
+    })
+    .optional(),
+  web_url: z.string().optional(),
+});
+
+export const ListDeploymentsSchema = z
+  .object({
+    project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
+    environment: z.string().optional().describe("Filter by environment name"),
+    ref: z.string().optional().describe("Filter by ref"),
+    sha: z
+      .string()
+      .optional()
+      .describe("Filter by commit SHA (if supported by your GitLab version)"),
+    status: z.string().optional().describe("Filter by deployment status"),
+    updated_after: z
+      .string()
+      .optional()
+      .describe("Return deployments updated after the specified date"),
+    updated_before: z
+      .string()
+      .optional()
+      .describe("Return deployments updated before the specified date"),
+    order_by: z
+      .enum(["id", "iid", "created_at", "updated_at", "ref", "status", "environment"])
+      .optional()
+      .describe("Order deployments by"),
+    sort: z.enum(["asc", "desc"]).optional().describe("Sort deployments"),
+  })
+  .merge(PaginationOptionsSchema);
+
+export const GetDeploymentSchema = z.object({
+  project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
+  deployment_id: z.coerce.string().describe("The ID of the deployment"),
+});
+
+// Environment related schemas
+const GitLabEnvironmentLastDeploymentSchema = z.object({
+  id: z.coerce.string().optional(),
+  iid: z.coerce.string().optional(),
+  status: z.string().optional(),
+  ref: z.string().optional(),
+  sha: z.string().optional(),
+  created_at: z.string().optional(),
+  updated_at: z.string().optional(),
+  web_url: z.string().optional(),
+});
+
+export const GitLabEnvironmentSchema = z.object({
+  id: z.coerce.string(),
+  name: z.string(),
+  slug: z.string().optional(),
+  external_url: z.string().nullable().optional(),
+  state: z.string().optional(),
+  tier: z.string().optional(),
+  environment_type: z.string().optional(),
+  created_at: z.string().optional(),
+  updated_at: z.string().optional(),
+  auto_stop_at: z.string().nullable().optional(),
+  enable_advanced_logs_querying: z.boolean().optional(),
+  logs_api_path: z.string().optional(),
+  web_url: z.string().optional(),
+  last_deployment: GitLabEnvironmentLastDeploymentSchema.nullable().optional(),
+});
+
+export const ListEnvironmentsSchema = z
+  .object({
+    project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
+    name: z.string().optional().describe("Return environments with this exact name"),
+    search: z.string().optional().describe("Search environments by name"),
+    states: z
+      .enum(["available", "stopped"])
+      .optional()
+      .describe("Filter environments by state"),
+  })
+  .merge(PaginationOptionsSchema);
+
+export const GetEnvironmentSchema = z.object({
+  project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
+  environment_id: z.coerce.string().describe("The ID of the environment"),
+});
+
 // Schema for creating a new pipeline
 export const CreatePipelineSchema = z.object({
   project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
@@ -271,6 +413,10 @@ export const CreatePipelineSchema = z.object({
     )
     .optional()
     .describe("An array of variables to use for the pipeline"),
+  inputs: z
+    .record(z.string(), z.string())
+    .optional()
+    .describe("Input parameters for the pipeline (key-value pairs for spec:inputs)"),
 });
 
 // Schema for retrying a pipeline
@@ -473,17 +619,17 @@ export const GitLabProjectSchema = GitLabRepositorySchema;
 
 // File content schemas
 export const GitLabFileContentSchema = z.object({
-  file_name: z.string(), // Changed from name to match GitLab API
-  file_path: z.string(), // Changed from path to match GitLab API
-  size: z.number(),
+  file_name: z.string().optional(),
+  file_path: z.string(),
+  size: z.coerce.number().optional(),
   encoding: z.string(),
   content: z.string(),
-  content_sha256: z.string(), // Changed from sha to match GitLab API
-  ref: z.string(), // Added as GitLab requires branch reference
-  blob_id: z.string(), // Added to match GitLab API
-  commit_id: z.string(), // ID of the current file version
-  last_commit_id: z.string(), // Added to match GitLab API
-  execute_filemode: z.boolean().optional(), // Added to match GitLab API
+  content_sha256: z.string().optional(),
+  ref: z.string().optional(),
+  blob_id: z.string().optional(),
+  commit_id: z.string().optional(),
+  last_commit_id: z.string().optional(),
+  execute_filemode: z.boolean().optional(),
 });
 
 export const GitLabDirectoryContentSchema = z.object({
@@ -779,6 +925,15 @@ export const GitLabMergeRequestSchema = z.object({
   allow_collaboration: z.boolean().optional(),
   allow_maintainer_to_push: z.boolean().optional(),
   changes_count: z.string().nullable().optional(),
+  diverged_commits_count: z.coerce
+    .number()
+    .nullable()
+    .optional()
+    .describe("Number of commits the source branch is behind the target branch"),
+  rebase_in_progress: z
+    .boolean()
+    .optional()
+    .describe("Whether rebase is currently in progress for this merge request"),
   merge_when_pipeline_succeeds: z.boolean().optional(),
   squash: z.boolean().optional(),
   labels: z.array(z.string()).optional(),
@@ -1074,10 +1229,45 @@ export const CreateRepositorySchema = z.object({
   initialize_with_readme: z.boolean().optional().describe("Initialize with README.md"),
 });
 
-export const GetFileContentsSchema = ProjectParamsSchema.extend({
-  file_path: z.string().describe("Path to the file or directory"),
-  ref: z.string().optional().describe("Branch/tag/commit to get contents from"),
-});
+export const GetFileContentsSchema = z
+  .object({
+    project_id: z.coerce
+      .string()
+      .optional()
+      .describe("Project ID or URL-encoded path (optional; falls back to env)"),
+    file_path: z
+      .string()
+      .optional()
+      .describe(
+        "Path to the file or directory. Takes precedence over 'path' when both are provided"
+      ),
+    path: z.string().optional().describe("Alias of file_path"),
+    ref: z.string().optional().describe("Branch/tag/commit to get contents from"),
+  })
+  .superRefine((data, ctx) => {
+    const fp = data.file_path?.trim();
+    const p = data.path?.trim();
+    if (!fp && !p) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Either 'file_path' or 'path' must be provided",
+        path: ["file_path"],
+      });
+    }
+    const finalPath = fp && fp.length > 0 ? fp : p ?? "";
+    if (finalPath.trim().length === 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "file_path cannot be empty or whitespace",
+        path: ["file_path"],
+      });
+    }
+  })
+  .transform(data => ({
+    project_id: (data.project_id ?? "").trim() || undefined,
+    file_path: ((data.file_path ?? "").trim() || (data.path ?? "").trim()).trim(),
+    ref: (data.ref ?? "").trim() || undefined,
+  }));
 
 export const PushFilesSchema = ProjectParamsSchema.extend({
   branch: z.string().describe("Branch to push to"),
@@ -1275,12 +1465,35 @@ export const GitLabApprovalRuleSchema = z.object({
   approved: z.boolean().optional(),
 });
 
+export const GitLabMergeRequestApprovalsResponseSchema = z.object({
+  approved: z.boolean().optional(),
+  user_has_approved: z.boolean().optional(),
+  user_can_approve: z.boolean().optional(),
+  approved_by: z
+    .array(
+      z.object({
+        user: GitLabApprovalUserSchema,
+      })
+    )
+    .optional(),
+});
+
 export const GitLabMergeRequestApprovalStateSchema = z.object({
   approval_rules_overwritten: z.boolean().optional(),
   rules: z.array(GitLabApprovalRuleSchema).optional(),
+  approved: z.boolean().optional(),
+  user_has_approved: z.boolean().optional(),
+  user_can_approve: z.boolean().optional(),
+  approved_by: z.array(GitLabApprovalUserSchema).optional(),
+  approved_by_usernames: z.array(z.string()).optional(),
+  source_endpoint: z.enum(["approval_state", "approvals"]).optional(),
 });
 
 export const GetMergeRequestApprovalStateSchema = ProjectParamsSchema.extend({
+  merge_request_iid: z.coerce.string().describe("The IID of the merge request"),
+});
+
+export const GetMergeRequestConflictsSchema = ProjectParamsSchema.extend({
   merge_request_iid: z.coerce.string().describe("The IID of the merge request"),
 });
 
@@ -1392,27 +1605,27 @@ export const ListMergeRequestsSchema = z
     assignee_id: z.coerce
       .string()
       .optional()
-      .describe("Return issues assigned to the given user ID. user id or none or any"),
+      .describe("Return MRs assigned to the given user ID (integer), 'none', or 'any'. Mutually exclusive with assignee_username."),
     assignee_username: z
       .string()
       .optional()
-      .describe("Returns merge requests assigned to the given username"),
+      .describe("Returns merge requests assigned to the given username. Mutually exclusive with assignee_id."),
     author_id: z.coerce
       .string()
       .optional()
-      .describe("Returns merge requests created by the given user ID"),
+      .describe("Returns merge requests created by the given user ID (integer). Mutually exclusive with author_username."),
     author_username: z
       .string()
       .optional()
-      .describe("Returns merge requests created by the given username"),
+      .describe("Returns merge requests created by the given username. Mutually exclusive with author_id."),
     reviewer_id: z.coerce
       .string()
       .optional()
-      .describe("Returns merge requests which have the user as a reviewer. user id or none or any"),
+      .describe("Returns merge requests which have the user as a reviewer. Must be an integer, 'none', or 'any'. Mutually exclusive with reviewer_username."),
     reviewer_username: z
       .string()
       .optional()
-      .describe("Returns merge requests which have the user as a reviewer"),
+      .describe("Returns merge requests which have the user as a reviewer by username. Mutually exclusive with reviewer_id."),
     created_after: z
       .string()
       .optional()
@@ -2383,10 +2596,16 @@ export type CreateMergeRequestDiscussionNoteOptions = z.infer<
 export type GitLabPipelineJob = z.infer<typeof GitLabPipelineJobSchema>;
 export type GitLabPipelineTriggerJob = z.infer<typeof GitLabPipelineTriggerJobSchema>;
 export type GitLabPipeline = z.infer<typeof GitLabPipelineSchema>;
+export type GitLabDeployment = z.infer<typeof GitLabDeploymentSchema>;
+export type GitLabEnvironment = z.infer<typeof GitLabEnvironmentSchema>;
 export type ListPipelinesOptions = z.infer<typeof ListPipelinesSchema>;
 export type GetPipelineOptions = z.infer<typeof GetPipelineSchema>;
 export type ListPipelineJobsOptions = z.infer<typeof ListPipelineJobsSchema>;
 export type ListPipelineTriggerJobsOptions = z.infer<typeof ListPipelineTriggerJobsSchema>;
+export type ListDeploymentsOptions = z.infer<typeof ListDeploymentsSchema>;
+export type GetDeploymentOptions = z.infer<typeof GetDeploymentSchema>;
+export type ListEnvironmentsOptions = z.infer<typeof ListEnvironmentsSchema>;
+export type GetEnvironmentOptions = z.infer<typeof GetEnvironmentSchema>;
 export type CreatePipelineOptions = z.infer<typeof CreatePipelineSchema>;
 export type RetryPipelineOptions = z.infer<typeof RetryPipelineSchema>;
 export type CancelPipelineOptions = z.infer<typeof CancelPipelineSchema>;
@@ -2630,6 +2849,50 @@ export const CreateReleaseEvidenceSchema = z.object({
   tag_name: z.string().describe("The Git tag the release is associated with"),
 });
 
+// Job Artifacts schemas
+export const ListJobArtifactsSchema = z.object({
+  project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
+  job_id: z.coerce.string().describe("The ID of the job"),
+  path: z
+    .string()
+    .optional()
+    .describe("Directory path within the artifacts archive (defaults to root)"),
+  recursive: z
+    .boolean()
+    .optional()
+    .describe("Whether to list artifacts recursively"),
+});
+
+export const GitLabArtifactEntrySchema = z.object({
+  name: z.string(),
+  path: z.string(),
+  type: z.enum(["file", "directory"]),
+  size: z.number().optional(),
+  mode: z.string().optional(),
+});
+
+export const DownloadJobArtifactsSchema = z.object({
+  project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
+  job_id: z.coerce.string().describe("The ID of the job"),
+  local_path: z
+    .string()
+    .optional()
+    .describe("Local directory to save the artifact archive (defaults to current directory)"),
+});
+
+export const GetJobArtifactFileSchema = z.object({
+  project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
+  job_id: z.coerce.string().describe("The ID of the job"),
+  artifact_path: z
+    .string()
+    .describe("Path to the file within the artifacts archive"),
+});
+
+export type GitLabArtifactEntry = z.infer<typeof GitLabArtifactEntrySchema>;
+export type ListJobArtifactsOptions = z.infer<typeof ListJobArtifactsSchema>;
+export type DownloadJobArtifactsOptions = z.infer<typeof DownloadJobArtifactsSchema>;
+export type GetJobArtifactFileOptions = z.infer<typeof GetJobArtifactFileSchema>;
+
 export const DownloadReleaseAssetSchema = z.object({
   project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
   tag_name: z.string().describe("The Git tag the release is associated with"),
@@ -2662,6 +2925,9 @@ export type ApproveMergeRequestOptions = z.infer<typeof ApproveMergeRequestSchem
 export type UnapproveMergeRequestOptions = z.infer<typeof UnapproveMergeRequestSchema>;
 export type GitLabApprovalUser = z.infer<typeof GitLabApprovalUserSchema>;
 export type GitLabApprovalRule = z.infer<typeof GitLabApprovalRuleSchema>;
+export type GitLabMergeRequestApprovalsResponse = z.infer<
+  typeof GitLabMergeRequestApprovalsResponseSchema
+>;
 export type GitLabMergeRequestApprovalState = z.infer<typeof GitLabMergeRequestApprovalStateSchema>;
 export type GetMergeRequestApprovalStateOptions = z.infer<
   typeof GetMergeRequestApprovalStateSchema
@@ -2850,4 +3116,78 @@ export const CreateTimelineEventSchema = z.object({
     .describe("Timeline event tags to attach. Available: 'Start time', 'End time', 'Impact detected', 'Response initiated', 'Impact mitigated', 'Cause identified'."),
 });
 
+// --- Webhook schemas ---
 
+export const ListWebhooksSchema = z
+  .object({
+    project_id: z.coerce
+      .string()
+      .optional()
+      .describe("Project ID or URL-encoded path. Provide either project_id or group_id, not both."),
+    group_id: z.coerce
+      .string()
+      .optional()
+      .describe("Group ID or URL-encoded path. Provide either project_id or group_id, not both."),
+  })
+  .merge(PaginationOptionsSchema)
+  .refine(data => (data.project_id || data.group_id) && !(data.project_id && data.group_id), {
+    message: "Provide exactly one of project_id or group_id",
+  });
+
+export const ListWebhookEventsSchema = z
+  .object({
+    project_id: z.coerce
+      .string()
+      .optional()
+      .describe("Project ID or URL-encoded path. Provide either project_id or group_id, not both."),
+    group_id: z.coerce
+      .string()
+      .optional()
+      .describe("Group ID or URL-encoded path. Provide either project_id or group_id, not both."),
+    hook_id: z.coerce.number().describe("ID of the webhook"),
+    status: z
+      .union([z.number(), z.string()])
+      .optional()
+      .describe(
+        "Filter by response status code (e.g. 200, 500) or category: successful, client_failure, server_failure"
+      ),
+    summary: z
+      .boolean()
+      .optional()
+      .describe(
+        "If true, return only summary fields (id, url, trigger, response_status, execution_duration) without full request/response payloads. Recommended for overview queries to avoid huge responses."
+      ),
+    per_page: z
+      .number()
+      .max(20)
+      .optional()
+      .default(20)
+      .describe("Number of events per page"),
+    page: z.number().optional().describe("Page number for pagination"),
+  })
+  .refine(data => (data.project_id || data.group_id) && !(data.project_id && data.group_id), {
+    message: "Provide exactly one of project_id or group_id",
+  });
+
+export const GetWebhookEventSchema = z
+  .object({
+    project_id: z.coerce
+      .string()
+      .optional()
+      .describe("Project ID or URL-encoded path. Provide either project_id or group_id, not both."),
+    group_id: z.coerce
+      .string()
+      .optional()
+      .describe("Group ID or URL-encoded path. Provide either project_id or group_id, not both."),
+    hook_id: z.coerce.number().describe("ID of the webhook"),
+    event_id: z.coerce.number().describe("ID of the webhook event to retrieve"),
+    page: z
+      .number()
+      .optional()
+      .describe(
+        "If known, the page where the event is located (from list_webhook_events). Skips auto-pagination and fetches only this page."
+      ),
+  })
+  .refine(data => (data.project_id || data.group_id) && !(data.project_id && data.group_id), {
+    message: "Provide exactly one of project_id or group_id",
+  });

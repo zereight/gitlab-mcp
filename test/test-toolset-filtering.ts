@@ -50,11 +50,12 @@ const DEFAULT_TOOLSETS = [
   "branches",
   "projects",
   "labels",
+  "pipelines",
+  "milestones",
+  "wiki",
   "releases",
   "users",
 ];
-
-const NON_DEFAULT_TOOLSETS = ["pipelines", "milestones", "wiki"];
 
 const DEFAULT_TOOL_COUNT = DEFAULT_TOOLSETS.reduce(
   (sum, id) => sum + TOOLSET_TOOL_COUNTS[id],
@@ -173,10 +174,9 @@ describe("Toolset Filtering", () => {
       }
     });
 
-    test("excludes non-default toolsets (pipelines, milestones, wiki)", () => {
-      for (const id of NON_DEFAULT_TOOLSETS) {
-        assertContainsNone(tools, TOOLSET_SAMPLE_TOOLS[id], id);
-      }
+    test("includes all toolsets by default (no non-default toolsets)", () => {
+      // All toolsets are now default, so default count equals all toolset count
+      assert.strictEqual(tools.length, ALL_TOOLSET_TOOL_COUNT);
     });
 
     test("excludes execute_graphql (not in any toolset)", () => {
@@ -234,7 +234,7 @@ describe("Toolset Filtering", () => {
     });
 
     test("includes pipelines, milestones, and wiki", () => {
-      for (const id of NON_DEFAULT_TOOLSETS) {
+      for (const id of ["pipelines", "milestones", "wiki"]) {
         assertContainsAll(tools, TOOLSET_SAMPLE_TOOLS[id], id);
       }
     });

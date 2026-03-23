@@ -188,11 +188,23 @@ if [ -n "$LOCAL_TAG_EXISTS" ] && [ -z "$REMOTE_TAG_EXISTS" ]; then
   NEW_VERSION="$CURRENT_VERSION"
   PREV_TAG=$(get_previous_tag "v$CURRENT_VERSION")
   
-elif [ -n "$LOCAL_TAG_EXISTS" ] && [ -n "$REMOTE_TAG_EXISTS" ]; then
-  # Tag already exists on remote - just use it for GitHub release
-  echo "⚠️  Tag v$CURRENT_VERSION already exists on remote. Creating GitHub release..."
-  NEW_VERSION="$CURRENT_VERSION"
-  PREV_TAG=$(get_previous_tag "v$CURRENT_VERSION")
+elif [ -n "$REMOTE_TAG_EXISTS" ]; then
+  # Tag already exists on remote - bump patch and release new version
+  echo "⚠️  Tag v$CURRENT_VERSION already exists on remote. Bumping patch version..."
+  PREV_TAG="v$CURRENT_VERSION"
+
+  # Delete local tag if it exists (to avoid conflict with new tag)
+  git tag -d "v$CURRENT_VERSION" 2>/dev/null || true
+
+  npm version patch --no-git-tag-version
+
+  NEW_VERSION=$(node -p "require('./package.json').version")
+  echo "New version: $NEW_VERSION"
+
+  git add package.json package-lock.json
+  git commit -m "chore(release): v$NEW_VERSION"
+
+  git tag "v$NEW_VERSION"
   
 else
   # No existing tag - create new version bump
@@ -219,11 +231,12 @@ echo "---"
 echo "$RELEASE_NOTES"
 echo "---"
 
-# Create GitHub release with the notes
-gh release create "v$NEW_VERSION" --title "v$NEW_VERSION" --notes "$RELEASE_NOTES"
-
+# Push commit and tag before creating release
 git push origin HEAD
 git push origin "v$NEW_VERSION"
+
+# Create GitHub release with the notes
+gh release create "v$NEW_VERSION" --title "v$NEW_VERSION" --notes "$RELEASE_NOTES"
 
 echo "✅ Release v$NEW_VERSION created and pushed!"
 echo "GitHub Actions will now publish to npm and Docker Hub automatically."
