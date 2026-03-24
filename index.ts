@@ -241,6 +241,9 @@ import {
   RetryPipelineJobSchema,
   RetryPipelineSchema,
   SearchRepositoriesSchema,
+  ALL_SEARCH_SCOPES,
+  SEARCH_SCOPE_TOOLSET_MAP,
+  createSearchSchema,
   UpdateDraftNoteSchema,
   UpdateIssueNoteSchema,
   UpdateIssueSchema,
@@ -1520,6 +1523,7 @@ const allTools = [
 
 // Define which tools are read-only
 const readOnlyTools = new Set([
+  "search",
   "search_repositories",
   "execute_graphql",
   "get_file_contents",
@@ -1716,6 +1720,7 @@ const TOOLSET_DEFINITIONS: readonly ToolsetDefinition[] = [
     id: "repositories",
     isDefault: true,
     tools: new Set([
+      "search",
       "search_repositories",
       "create_repository",
       "get_file_contents",
@@ -1935,6 +1940,26 @@ function isToolInEnabledToolset(
 const enabledToolsets = parseEnabledToolsets(GITLAB_TOOLSETS_RAW);
 const individuallyEnabledTools = parseIndividualTools(GITLAB_TOOLS_RAW);
 const featureFlagOverrides = buildFeatureFlagOverrides();
+
+// Build search schema dynamically based on enabled toolsets
+const allowedSearchScopes = ALL_SEARCH_SCOPES.filter((scope) => {
+  const toolset = SEARCH_SCOPE_TOOLSET_MAP[scope];
+  return toolset === null || enabledToolsets.has(toolset as ToolsetId);
+});
+
+// Only register the search tool if at least one scope is available
+let SearchSchema: ReturnType<typeof createSearchSchema> | undefined;
+if (allowedSearchScopes.length > 0) {
+  SearchSchema = createSearchSchema(
+    allowedSearchScopes as [string, ...string[]]
+  );
+
+  allTools.push({
+    name: "search",
+    description: `Search across GitLab using the Search API. Supports: ${allowedSearchScopes.join(", ")}. Can search globally, within a group, or within a project.`,
+    inputSchema: toJSONSchema(SearchSchema),
+  });
+}
 
 // Warn about potentially confusing configuration
 if (GITLAB_TOOLSETS_RAW && (USE_PIPELINE || USE_MILESTONE || USE_GITLAB_WIKI)) {
@@ -3343,6 +3368,54 @@ async function searchProjects(
     current_page: page,
     items: projects,
   });
+}
+
+/**
+ * Search across GitLab using the Search API
+ * GitLab Search APIを使用した検索
+ *
+ * @param {object} options - Search options
+ * @returns {Promise<unknown[]>} The search results (shape varies by scope)
+ */
+async function search(options: {
+  search: string;
+  scope: string;
+  project_id?: string;
+  group_id?: string;
+  ref?: string;
+  page?: number;
+  per_page?: number;
+}): Promise<unknown[]> {
+  let basePath: string;
+
+  if (options.project_id) {
+    const decoded = decodeURIComponent(options.project_id);
+    const effectiveId = getEffectiveProjectId(decoded);
+    basePath = `/projects/${encodeURIComponent(effectiveId)}/search`;
+  } else if (options.group_id) {
+    const decoded = decodeURIComponent(options.group_id);
+    basePath = `/groups/${encodeURIComponent(decoded)}/search`;
+  } else {
+    basePath = `/search`;
+  }
+
+  const url = new URL(`${getEffectiveApiUrl()}${basePath}`);
+  url.searchParams.append("scope", options.scope);
+  url.searchParams.append("search", options.search);
+
+  if (options.ref && options.scope === "blobs" && options.project_id) {
+    url.searchParams.append("ref", options.ref);
+  }
+  if (options.page) {
+    url.searchParams.append("page", options.page.toString());
+  }
+  if (options.per_page) {
+    url.searchParams.append("per_page", options.per_page.toString());
+  }
+
+  const response = await fetch(url.toString(), { ...getFetchConfig() });
+  await handleGitLabError(response);
+  return (await response.json()) as unknown[];
 }
 
 /**
@@ -6924,6 +6997,17 @@ async function handleToolCall(params: any) {
       case "search_repositories": {
         const args = SearchRepositoriesSchema.parse(params.arguments);
         const results = await searchProjects(args.search, args.page, args.per_page);
+        return {
+          content: [{ type: "text", text: JSON.stringify(results, null, 2) }],
+        };
+      }
+
+      case "search": {
+        if (!SearchSchema) {
+          throw new Error("Search tool is not available: no search scopes are enabled");
+        }
+        const args = SearchSchema.parse(params.arguments);
+        const results = await search(args);
         return {
           content: [{ type: "text", text: JSON.stringify(results, null, 2) }],
         };

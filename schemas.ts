@@ -1214,6 +1214,62 @@ export const SearchRepositoriesSchema = z
   })
   .merge(PaginationOptionsSchema);
 
+export const ALL_SEARCH_SCOPES = [
+  "blobs",
+  "commits",
+  "issues",
+  "merge_requests",
+  "wiki_blobs",
+  "milestones",
+  "users",
+  "notes",
+  "snippet_titles",
+] as const;
+
+export const SEARCH_SCOPE_TOOLSET_MAP: Record<string, string | null> = {
+  blobs: "repositories",
+  commits: "branches",
+  issues: "issues",
+  merge_requests: "merge_requests",
+  wiki_blobs: "wiki",
+  milestones: "milestones",
+  users: "users",
+  notes: "issues",
+  snippet_titles: null, // always available
+};
+
+export function createSearchSchema(allowedScopes: [string, ...string[]]) {
+  return z
+    .object({
+      search: z.string().min(2).describe("Search query string (minimum 2 characters)"),
+      scope: z.enum(allowedScopes).describe(
+        "What to search: blobs (code), commits, issues, merge_requests, wiki_blobs, milestones, users, notes, snippet_titles"
+      ),
+      project_id: z.coerce
+        .string()
+        .optional()
+        .describe(
+          "Project ID or URL-encoded path. Scopes search to a project. Cannot be used with group_id."
+        ),
+      group_id: z.coerce
+        .string()
+        .optional()
+        .describe(
+          "Group ID or URL-encoded path. Scopes search to a group. Cannot be used with project_id."
+        ),
+      ref: z
+        .string()
+        .optional()
+        .describe(
+          "Branch or tag name to search in. Only applicable when scope is 'blobs' and project_id is provided."
+        ),
+    })
+    .merge(PaginationOptionsSchema)
+    .refine((data) => !(data.project_id && data.group_id), {
+      message: "Provide at most one of project_id or group_id, not both",
+    });
+}
+
 export const CreateRepositorySchema = z.object({
   name: z.string().describe("Repository name"),
   description: z.string().optional().describe("Repository description"),

@@ -30,17 +30,18 @@ const MCP_PORT_BASE = 3200;
 
 // Known tool counts per toolset (from TOOLSET_DEFINITIONS)
 const TOOLSET_TOOL_COUNTS: Record<string, number> = {
-  merge_requests: 31,
+  merge_requests: 32,
   issues: 14,
-  repositories: 7,
+  repositories: 8,
   branches: 4,
   projects: 8,
   labels: 5,
-  pipelines: 12,
+  pipelines: 19,
   milestones: 9,
   wiki: 5,
   releases: 7,
   users: 5,
+  webhooks: 3,
 };
 
 const DEFAULT_TOOLSETS = [
@@ -71,7 +72,7 @@ const ALL_TOOLSET_TOOL_COUNT = Object.values(TOOLSET_TOOL_COUNTS).reduce(
 const TOOLSET_SAMPLE_TOOLS: Record<string, string[]> = {
   merge_requests: ["merge_merge_request", "create_merge_request_thread", "list_draft_notes"],
   issues: ["create_issue", "list_issues", "create_note"],
-  repositories: ["search_repositories", "get_file_contents", "push_files"],
+  repositories: ["search", "search_repositories", "get_file_contents", "push_files"],
   branches: ["create_branch", "list_commits"],
   projects: ["get_project", "list_namespaces", "list_group_iterations"],
   labels: ["list_labels", "create_label"],
@@ -174,9 +175,9 @@ describe("Toolset Filtering", () => {
       }
     });
 
-    test("includes all toolsets by default (no non-default toolsets)", () => {
-      // All toolsets are now default, so default count equals all toolset count
-      assert.strictEqual(tools.length, ALL_TOOLSET_TOOL_COUNT);
+    test("excludes non-default toolsets (webhooks)", () => {
+      // webhooks is the only non-default toolset, so its tools should be absent
+      assertContainsNone(tools, ["list_webhooks", "list_webhook_events", "get_webhook_event"], "webhooks");
     });
 
     test("excludes execute_graphql (not in any toolset)", () => {
@@ -260,19 +261,22 @@ describe("Toolset Filtering", () => {
 
     after(() => cleanupServers([server]));
 
-    test("returns default tools plus the two individual tools", () => {
-      assert.strictEqual(tools.length, DEFAULT_TOOL_COUNT + 2);
+    test("returns default tools plus execute_graphql", () => {
+      // list_pipelines is already in the default pipelines toolset,
+      // so only execute_graphql is truly additive
+      assert.strictEqual(tools.length, DEFAULT_TOOL_COUNT + 1);
     });
 
     test("includes the individually added tools", () => {
       assertContainsAll(tools, ["list_pipelines", "execute_graphql"], "individual");
     });
 
-    test("does not include other pipeline tools", () => {
-      assertContainsNone(
+    test("includes other pipeline tools from default pipelines toolset", () => {
+      // pipelines is a default toolset, so all pipeline tools are present
+      assertContainsAll(
         tools,
         ["create_pipeline", "cancel_pipeline"],
-        "other pipelines"
+        "default pipeline tools"
       );
     });
   });
@@ -353,11 +357,9 @@ describe("Toolset Filtering", () => {
 
     after(() => cleanupServers([server]));
 
-    test("returns default tools + wiki tools", () => {
-      assert.strictEqual(
-        tools.length,
-        DEFAULT_TOOL_COUNT + TOOLSET_TOOL_COUNTS.wiki
-      );
+    test("returns default tool count (wiki is already a default toolset)", () => {
+      // wiki is a default toolset, so USE_GITLAB_WIKI=true adds no extra tools
+      assert.strictEqual(tools.length, DEFAULT_TOOL_COUNT);
     });
 
     test("includes wiki tools", () => {
@@ -574,8 +576,9 @@ describe("Toolset Filtering", () => {
       assertContainsAll(tools, ["list_pipelines", "execute_graphql"], "case-insensitive tools");
     });
 
-    test("returns default tools plus the two individual tools", () => {
-      assert.strictEqual(tools.length, DEFAULT_TOOL_COUNT + 2);
+    test("returns default tools plus execute_graphql", () => {
+      // list_pipelines is already in the default pipelines toolset
+      assert.strictEqual(tools.length, DEFAULT_TOOL_COUNT + 1);
     });
   });
 
