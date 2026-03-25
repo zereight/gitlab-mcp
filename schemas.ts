@@ -234,6 +234,56 @@ export const GetPipelineSchema = z.object({
   pipeline_id: z.coerce.string().describe("The ID of the pipeline"),
 });
 
+// Schema for waiting for a pipeline to reach a terminal state
+export const WaitForPipelineSchema = z.object({
+  project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
+  pipeline_id: z.coerce.string().describe("The ID of the pipeline"),
+  interval_seconds: z
+    .number()
+    .min(5)
+    .max(60)
+    .optional()
+    .default(10)
+    .describe("Polling interval in seconds (default: 10, min: 5, max: 60)"),
+  timeout_seconds: z
+    .number()
+    .min(1)
+    .max(3600)
+    .optional()
+    .default(600)
+    .describe("Maximum time to wait in seconds (default: 600, max: 3600)"),
+  fail_on_error: z
+    .boolean()
+    .optional()
+    .default(true)
+    .describe("Return isError when pipeline finishes with failed/canceled status (default: true)"),
+});
+
+// Schema for waiting for a pipeline job to reach a terminal state
+export const WaitForPipelineJobSchema = z.object({
+  project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
+  job_id: z.coerce.string().describe("The ID of the job"),
+  interval_seconds: z
+    .number()
+    .min(5)
+    .max(60)
+    .optional()
+    .default(10)
+    .describe("Polling interval in seconds (default: 10, min: 5, max: 60)"),
+  timeout_seconds: z
+    .number()
+    .min(1)
+    .max(3600)
+    .optional()
+    .default(600)
+    .describe("Maximum time to wait in seconds (default: 600, max: 3600)"),
+  fail_on_error: z
+    .boolean()
+    .optional()
+    .default(true)
+    .describe("Return isError when job finishes with failed/canceled status (default: true)"),
+});
+
 // Schema for listing jobs in a pipeline
 export const ListPipelineJobsSchema = z
   .object({
