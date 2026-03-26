@@ -34,7 +34,7 @@ For detailed OAuth2 setup instructions, see [OAuth Setup Guide](./docs/oauth-set
 
 Quick setup - first create a GitLab OAuth application:
 
-1. Go to your GitLab instance: `Settings` → `Applications`
+1. Go to your GitLab instance: `Admin area` → `Applications`
 2. Create a new application with:
    - **Name**: `GitLab MCP Server` (or any name you prefer)
    - **Redirect URI**: `http://127.0.0.1:8888/callback`
