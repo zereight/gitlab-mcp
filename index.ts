@@ -3967,15 +3967,14 @@ async function listMergeRequestDiffs(
 
 /**
  * Returns the list of changed files in a merge request WITHOUT diff content.
- * Use this as STEP 1 of code review: get file paths, then fetch diffs one by one
+ * Use this as STEP 1 of code review: get file paths, then fetch diffs in batches
  * with getMergeRequestFileDiff to avoid loading the entire diff payload at once.
  *
  * @param {string} projectId - The ID or URL-encoded path of the project
- * @param {string} filePath - Path of the specific file to retrieve diff for
  * @param {number|string} [mergeRequestIid] - The internal ID of the merge request
  * @param {string} [branchName] - The name of the source branch (used to resolve MR if iid not provided)
- * @param {boolean} [unidiff] - Return diff in unidiff format
- * @returns {Promise<any>} Diff object for the requested file, or an error if the file is not found
+ * @param {string[]} [excludedFilePatterns] - Regex patterns to exclude files from the result
+ * @returns {Promise<any[]>} Array of changed file metadata (new_path, old_path, new_file, deleted_file, renamed_file)
  */
 async function listMergeRequestChangedFiles(
   projectId: string,
@@ -4014,6 +4013,18 @@ async function listMergeRequestChangedFiles(
   return filterDiffsByPatterns(rawFiles, excludedFilePatterns);
 }
 
+/**
+ * Get diffs for specific files from a merge request.
+ * Use this as STEP 2 of code review: pass file paths obtained from
+ * listMergeRequestChangedFiles to fetch their diffs efficiently.
+ *
+ * @param {string} projectId - The ID or URL-encoded path of the project
+ * @param {string[]} filePaths - List of file paths to retrieve diffs for
+ * @param {number|string} [mergeRequestIid] - The internal ID of the merge request
+ * @param {string} [branchName] - The name of the source branch (used to resolve MR if iid not provided)
+ * @param {boolean} [unidiff] - Return diff in unified diff format
+ * @returns {Promise<any[]>} Array of diff objects for each requested file, or error objects for files not found
+ */
 async function getMergeRequestFileDiff(
   projectId: string,
   filePaths: string[],
