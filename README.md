@@ -34,7 +34,7 @@ For detailed OAuth2 setup instructions, see [OAuth Setup Guide](./docs/oauth-set
 
 Quick setup - first create a GitLab OAuth application:
 
-1. Go to your GitLab instance: `Settings` → `Applications`
+1. Go to your GitLab instance: `Admin area` → `Applications`
 2. Create a new application with:
    - **Name**: `GitLab MCP Server` (or any name you prefer)
    - **Redirect URI**: `http://127.0.0.1:8888/callback`
@@ -368,6 +368,7 @@ docker run -i --rm \
   - `wiki`\* — Wiki page CRUD (5 tools)
   - `releases`\* — Release CRUD, evidence, asset download (7 tools)
   - `users`\* — User info, events, markdown upload, attachments (5 tools)
+  - `search` — Code search across projects, groups, or globally (3 tools, requires advanced search or exact code search enabled)
 
   Note: `execute_graphql` is not in any toolset and must be added individually via `GITLAB_TOOLS` if needed.
   Exposing arbitrary GraphQL would allow bypassing toolset boundaries (e.g. querying data that the user intentionally disabled via toolsets like wiki or pipelines), which is a security and permission-containment concern. Keeping `execute_graphql` out of all toolsets and requiring explicit opt-in via `GITLAB_TOOLS=execute_graphql` is intentional, to align with that principle rather than for backward compatibility.
@@ -494,6 +495,92 @@ The token is stored per session (identified by `mcp-session-id` header) and reus
 - **Rate limiting:** Each session is limited to `MAX_REQUESTS_PER_MINUTE` requests per minute (default 60)
 - **Capacity limit:** Server accepts up to `MAX_SESSIONS` concurrent sessions (default 1000)
 
+### MCP OAuth Setup (Claude.ai Native OAuth)
+
+When using `GITLAB_MCP_OAUTH=true`, the server acts as an OAuth proxy to your GitLab
+instance. Claude.ai (and any MCP-spec-compliant client) handles the entire browser
+authentication flow automatically — no manual Personal Access Token management needed.
+
+**Prerequisites:**
+
+A **pre-registered GitLab OAuth application** is required. GitLab restricts dynamically
+registered (unverified) applications to the `mcp` scope, which is insufficient for API
+calls (need `api` or `read_api`).
+
+1. Go to your GitLab instance → **Admin Area > Applications** (instance-wide) or **User Settings > Applications** (personal)
+2. Create a new application with:
+   - **Confidential**: unchecked
+   - **Scopes**: `api`, `read_api`, `read_user`
+3. Save and copy the **Application ID** — this is your `GITLAB_OAUTH_APP_ID`
+
+**How it works:**
+
+1. User adds your MCP server URL in Claude.ai
+2. Claude.ai discovers OAuth endpoints via `/.well-known/oauth-authorization-server`
+3. Claude.ai registers itself via Dynamic Client Registration (`POST /register`) — handled locally by the MCP server (each client gets a virtual client ID)
+4. Claude.ai redirects the user's browser to GitLab's login page using the pre-registered OAuth application
+5. User authenticates; GitLab redirects back to `https://claude.ai/api/mcp/auth_callback`
+6. Claude.ai sends `Authorization: Bearer <token>` on every MCP request
+7. Server validates the token with GitLab and stores it per session
+
+**Server setup:**
+
+```bash
+docker run -d \
+  -e STREAMABLE_HTTP=true \
+  -e GITLAB_MCP_OAUTH=true \
+  -e GITLAB_OAUTH_APP_ID="your-gitlab-oauth-app-client-id" \
+  -e GITLAB_API_URL="https://gitlab.example.com/api/v4" \
+  -e MCP_SERVER_URL="https://your-mcp-server.example.com" \
+  -p 3002:3002 \
+  zereight050/gitlab-mcp
+```
+
+For local development (HTTP allowed):
+
+```bash
+MCP_DANGEROUSLY_ALLOW_INSECURE_ISSUER_URL=true \
+STREAMABLE_HTTP=true \
+GITLAB_MCP_OAUTH=true \
+GITLAB_OAUTH_APP_ID=your-gitlab-oauth-app-client-id \
+MCP_SERVER_URL=http://localhost:3002 \
+GITLAB_API_URL=https://gitlab.com/api/v4 \
+node build/index.js
+```
+
+**Claude.ai configuration:**
+
+```json
+{
+  "mcpServers": {
+    "GitLab": {
+      "url": "https://your-mcp-server.example.com/mcp"
+    }
+  }
+}
+```
+
+No `headers` field is needed — Claude.ai obtains the token via OAuth automatically.
+
+**Environment variables:**
+
+| Variable | Required | Description |
+|---|---|---|
+| `GITLAB_MCP_OAUTH` | Yes | Set to `true` to enable |
+| `GITLAB_OAUTH_APP_ID` | Yes | Client ID of the pre-registered GitLab OAuth application |
+| `MCP_SERVER_URL` | Yes | Public HTTPS URL of your MCP server |
+| `GITLAB_API_URL` | Yes | Your GitLab instance API URL (e.g. `https://gitlab.com/api/v4`) |
+| `STREAMABLE_HTTP` | Yes | Must be `true` (SSE is not supported) |
+| `MCP_DANGEROUSLY_ALLOW_INSECURE_ISSUER_URL` | No | Set `true` for local HTTP dev only |
+
+**Important Notes:**
+
+- MCP OAuth **only works with Streamable HTTP transport** (`SSE=true` is incompatible)
+- Each user session stores its own OAuth token — sessions are fully isolated
+- Session timeout, rate limiting, and capacity limits apply identically to the
+  `REMOTE_AUTHORIZATION` mode (`SESSION_TIMEOUT_SECONDS`, `MAX_REQUESTS_PER_MINUTE`,
+  `MAX_SESSIONS`)
+
 ## Tools 🛠️
 
 <details>
@@ -599,6 +686,9 @@ The token is stored per session (identified by `mcp-session-id` header) and reus
 96. `approve_merge_request` - Approve a merge request (requires appropriate permissions)
 97. `unapprove_merge_request` - Unapprove a previously approved merge request
 98. `get_merge_request_approval_state` - Get merge request approval details including approvers (uses `approval_state` when available, otherwise falls back to `approvals`)
+99. `search_code` - Search for code across all projects on the GitLab instance (requires advanced search or exact code search to be enabled)
+100. `search_project_code` - Search for code within a specific GitLab project (requires advanced search or exact code search to be enabled)
+101. `search_group_code` - Search for code within a specific GitLab group (requires advanced search or exact code search to be enabled)
 <!-- TOOLS-END -->
 
 </details>
