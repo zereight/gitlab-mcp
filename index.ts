@@ -1807,7 +1807,6 @@ type ToolsetId =
   | "releases"
   | "users"
   | "workitems"
-  | "webhooks";
   | "webhooks"
   | "search";
 
