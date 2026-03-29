@@ -30,7 +30,7 @@ const MCP_PORT_BASE = 3200;
 
 // Known tool counts per toolset (from TOOLSET_DEFINITIONS)
 const TOOLSET_TOOL_COUNTS: Record<string, number> = {
-  merge_requests: 31,
+  merge_requests: 32,
   issues: 14,
   repositories: 7,
   branches: 4,
@@ -42,6 +42,7 @@ const TOOLSET_TOOL_COUNTS: Record<string, number> = {
   releases: 7,
   users: 5,
   search: 3,
+  webhooks: 3,
 };
 
 const DEFAULT_TOOLSETS = [
@@ -58,7 +59,7 @@ const DEFAULT_TOOLSETS = [
   "users",
 ];
 
-const NON_DEFAULT_TOOLSETS = ["search"];
+const NON_DEFAULT_TOOLSETS = ["search", "webhooks"];
 
 const DEFAULT_TOOL_COUNT = DEFAULT_TOOLSETS.reduce(
   (sum, id) => sum + TOOLSET_TOOL_COUNTS[id],
@@ -84,6 +85,7 @@ const TOOLSET_SAMPLE_TOOLS: Record<string, string[]> = {
   releases: ["list_releases", "create_release", "download_release_asset"],
   users: ["get_users", "upload_markdown", "download_attachment"],
   search: ["search_code", "search_project_code", "search_group_code"],
+  webhooks: ["list_webhooks", "list_webhook_events", "get_webhook_event"],
 };
 
 // --- Helpers ---
