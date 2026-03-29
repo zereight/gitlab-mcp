@@ -29,7 +29,7 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
 import { AsyncLocalStorage } from "node:async_hooks";
-import express, { Request, Response } from "express";
+import express, { NextFunction, Request, Response } from "express";
 import fetchCookie from "fetch-cookie";
 import fs from "node:fs";
 import os from "node:os";
@@ -43,6 +43,9 @@ import { fileURLToPath, URL } from "node:url";
 import { z } from "zod";
 import { zodToJsonSchema } from "zod-to-json-schema";
 import { initializeOAuthClient, GitLabOAuth } from "./oauth.js";
+import { createGitLabOAuthProvider } from "./oauth-proxy.js";
+import { mcpAuthRouter } from "@modelcontextprotocol/sdk/server/auth/router.js";
+import { requireBearerAuth } from "@modelcontextprotocol/sdk/server/auth/middleware/bearerAuth.js";
 import { GitLabClientPool } from "./gitlab-client-pool.js";
 // Add type imports for proxy agents
 import { Agent } from "node:http";
@@ -480,11 +483,48 @@ function validateConfiguration(): void {
   const hasToken = !!getConfig("token", "GITLAB_PERSONAL_ACCESS_TOKEN");
   const hasJobToken = !!getConfig("job-token", "GITLAB_JOB_TOKEN");
   const hasCookie = !!getConfig("cookie-path", "GITLAB_AUTH_COOKIE_PATH");
+  const mcpOAuth = getConfig("mcp-oauth", "GITLAB_MCP_OAUTH") === "true";
+  const mcpServerUrl = getConfig("mcp-server-url", "MCP_SERVER_URL");
 
-  if (!remoteAuth && !useOAuth && !hasToken && !hasJobToken && !hasCookie) {
+  if (!remoteAuth && !useOAuth && !hasToken && !hasJobToken && !hasCookie && !mcpOAuth) {
     errors.push(
-      "Either --token, --job-token, --cookie-path, --use-oauth=true, or --remote-auth=true must be set (or use environment variables)"
+      "Either --token, --job-token, --cookie-path, --use-oauth=true, --remote-auth=true, or --mcp-oauth=true must be set (or use environment variables)"
     );
+  }
+
+  if (mcpOAuth) {
+    if (!mcpServerUrl) {
+      errors.push(
+        "MCP_SERVER_URL is required when GITLAB_MCP_OAUTH=true (e.g. https://mcp.example.com)"
+      );
+    } else {
+      try {
+        const u = new URL(mcpServerUrl);
+        const isInsecure = u.protocol !== "https:";
+        const isLocalhost = u.hostname === "localhost" || u.hostname === "127.0.0.1";
+        const allowInsecure =
+          process.env.MCP_DANGEROUSLY_ALLOW_INSECURE_ISSUER_URL === "true";
+        if (isInsecure && !isLocalhost && !allowInsecure) {
+          errors.push(
+            "MCP_SERVER_URL must use HTTPS in production " +
+              "(set MCP_DANGEROUSLY_ALLOW_INSECURE_ISSUER_URL=true for local dev)"
+          );
+        }
+      } catch {
+        errors.push(`MCP_SERVER_URL is not a valid URL: ${mcpServerUrl}`);
+      }
+    }
+
+    if (!getConfig("api-url", "GITLAB_API_URL")) {
+      errors.push("GITLAB_API_URL is required when GITLAB_MCP_OAUTH=true");
+    }
+
+    if (!getConfig("oauth-app-id", "GITLAB_OAUTH_APP_ID")) {
+      errors.push(
+        "GITLAB_OAUTH_APP_ID is required when GITLAB_MCP_OAUTH=true " +
+          "(create an OAuth application in GitLab Admin with the required scopes)"
+      );
+    }
   }
 
   const enableDynamicApiUrl =
@@ -573,6 +613,9 @@ const GITLAB_TOOLS_RAW = getConfig("tools", "GITLAB_TOOLS");
 const SSE = getConfig("sse", "SSE") === "true";
 const STREAMABLE_HTTP = getConfig("streamable-http", "STREAMABLE_HTTP") === "true";
 const REMOTE_AUTHORIZATION = getConfig("remote-auth", "REMOTE_AUTHORIZATION") === "true";
+const GITLAB_MCP_OAUTH = getConfig("mcp-oauth", "GITLAB_MCP_OAUTH") === "true";
+const MCP_SERVER_URL = getConfig("mcp-server-url", "MCP_SERVER_URL");
+const GITLAB_OAUTH_APP_ID = getConfig("oauth-app-id", "GITLAB_OAUTH_APP_ID");
 const ENABLE_DYNAMIC_API_URL =
   getConfig("enable-dynamic-api-url", "ENABLE_DYNAMIC_API_URL") === "true";
 const SESSION_TIMEOUT_SECONDS = Number.parseInt(
@@ -788,11 +831,11 @@ const BASE_HEADERS: Record<string, string> = {
 
 /**
  * Build authentication headers dynamically based on context
- * In REMOTE_AUTHORIZATION mode, reads from AsyncLocalStorage session context
+ * In REMOTE_AUTHORIZATION or GITLAB_MCP_OAUTH mode, reads from AsyncLocalStorage session context
  * Otherwise, uses environment token (OAuth token is refreshed lazily before each tool call)
  */
 function buildAuthHeaders(): Record<string, string> {
-  if (REMOTE_AUTHORIZATION) {
+  if (REMOTE_AUTHORIZATION || GITLAB_MCP_OAUTH) {
     const ctx = sessionAuthStore.getStore();
     logger.debug({ context: ctx }, "buildAuthHeaders: session context");
     if (ctx?.token) {
@@ -2063,7 +2106,23 @@ if (REMOTE_AUTHORIZATION) {
     process.exit(1);
   }
   logger.info("Remote authorization enabled: tokens will be read from HTTP headers");
-} else if (!USE_OAUTH && !GITLAB_PERSONAL_ACCESS_TOKEN && !GITLAB_JOB_TOKEN && !GITLAB_AUTH_COOKIE_PATH) {
+}
+
+if (GITLAB_MCP_OAUTH) {
+  if (SSE) {
+    logger.error("GITLAB_MCP_OAUTH=true is not compatible with SSE transport mode");
+    logger.error("Please use STREAMABLE_HTTP=true instead");
+    process.exit(1);
+  }
+  if (!STREAMABLE_HTTP) {
+    logger.error("GITLAB_MCP_OAUTH=true requires STREAMABLE_HTTP=true");
+    logger.error("Set STREAMABLE_HTTP=true to enable MCP OAuth");
+    process.exit(1);
+  }
+  logger.info("MCP OAuth enabled: GitLab OAuth proxy active");
+}
+
+if (!REMOTE_AUTHORIZATION && !GITLAB_MCP_OAUTH && !USE_OAUTH && !GITLAB_PERSONAL_ACCESS_TOKEN && !GITLAB_JOB_TOKEN && !GITLAB_AUTH_COOKIE_PATH) {
   // Standard mode: token must be in environment (unless using OAuth)
   logger.error("GITLAB_PERSONAL_ACCESS_TOKEN environment variable is not set");
   logger.info("Either set GITLAB_PERSONAL_ACCESS_TOKEN or enable OAuth with GITLAB_USE_OAUTH=true");
@@ -8667,15 +8726,51 @@ async function startStreamableHTTPServer(): Promise<void> {
   // Configure Express middleware
   app.use(express.json());
 
+  // MCP OAuth — mount auth router and prepare bearer-auth middleware
+  if (GITLAB_MCP_OAUTH) {
+    // Trust first proxy so express-rate-limit uses X-Forwarded-For for real client IP.
+    // Only enabled in OAuth mode where the server is typically behind a reverse proxy.
+    app.set("trust proxy", 1);
+    const gitlabBaseUrl = GITLAB_API_URL.replace(/\/api\/v4\/?$/, "").replace(/\/$/, "");
+    const issuerUrl = new URL(MCP_SERVER_URL!);
+    const oauthProvider = createGitLabOAuthProvider(gitlabBaseUrl, GITLAB_OAUTH_APP_ID!, "GitLab MCP Server", GITLAB_READ_ONLY_MODE);
+
+    // Mounts /.well-known/oauth-authorization-server,
+    //        /.well-known/oauth-protected-resource,
+    //        /authorize, /token, /register, /revoke
+    app.use(
+      mcpAuthRouter({
+        provider: oauthProvider,
+        issuerUrl,
+        baseUrl: issuerUrl,
+        scopesSupported: ["api", "read_api", "read_user"],
+        resourceName: "GitLab MCP Server",
+      })
+    );
+
+    // Expose provider so the /mcp route middleware can reference it
+    (app as any)._mcpOAuthProvider = oauthProvider;
+  }
+
+  // Build bearer-auth middleware — no-op unless GITLAB_MCP_OAUTH is enabled.
+  // Unauthenticated requests receive 401 + WWW-Authenticate header, which is
+  // exactly what Claude.ai needs to trigger the OAuth browser flow.
+  const mcpBearerAuth = GITLAB_MCP_OAUTH
+    ? requireBearerAuth({
+        verifier: (app as any)._mcpOAuthProvider,
+        requiredScopes: [],
+      })
+    : (_req: Request, _res: Response, next: NextFunction) => next();
+
   // Streamable HTTP endpoint - handles both session creation and message handling
-  app.post("/mcp", async (req: Request, res: Response) => {
+  app.post("/mcp", mcpBearerAuth, async (req: Request, res: Response) => {
     const sessionId = req.headers["mcp-session-id"] as string;
 
     // Track request
     metrics.requestsProcessed++;
 
     // Rate limiting check for existing sessions
-    if (REMOTE_AUTHORIZATION && sessionId && !checkRateLimit(sessionId)) {
+    if ((REMOTE_AUTHORIZATION || GITLAB_MCP_OAUTH) && sessionId && !checkRateLimit(sessionId)) {
       metrics.rejectedByRateLimit++;
       res.status(429).json({
         error: "Rate limit exceeded",
@@ -8727,6 +8822,33 @@ async function startStreamableHTTPServer(): Promise<void> {
       }
     }
 
+    // MCP OAuth mode — token already validated by requireBearerAuth middleware.
+    // req.auth is populated by the middleware; store/refresh per session so that
+    // buildAuthHeaders() can pick it up via AsyncLocalStorage, exactly like the
+    // REMOTE_AUTHORIZATION path.
+    if (GITLAB_MCP_OAUTH) {
+      const authInfo = req.auth;
+      if (authInfo?.token && sessionId) {
+        if (!authBySession[sessionId]) {
+          authBySession[sessionId] = {
+            header: "Authorization",
+            token: authInfo.token,
+            lastUsed: Date.now(),
+            apiUrl: GITLAB_API_URL,
+          };
+          logger.info(
+            `Session ${sessionId}: stored OAuth token (client: ${authInfo.clientId})`
+          );
+          setAuthTimeout(sessionId);
+        } else {
+          // Update token on every request — the client may have refreshed it
+          authBySession[sessionId].token = authInfo.token;
+          authBySession[sessionId].lastUsed = Date.now();
+          setAuthTimeout(sessionId);
+        }
+      }
+    }
+
     // Handle request with proper AsyncLocalStorage context
     const handleRequest = async () => {
       try {
@@ -8756,6 +8878,23 @@ async function startStreamableHTTPServer(): Promise<void> {
                   setAuthTimeout(newSessionId);
                 }
               }
+
+              // Store OAuth token for newly created session in MCP OAuth mode
+              if (GITLAB_MCP_OAUTH && !authBySession[newSessionId]) {
+                const authInfo = req.auth;
+                if (authInfo?.token) {
+                  authBySession[newSessionId] = {
+                    header: "Authorization",
+                    token: authInfo.token,
+                    lastUsed: Date.now(),
+                    apiUrl: GITLAB_API_URL,
+                  };
+                  logger.info(
+                    `Session ${newSessionId}: stored OAuth token (client: ${authInfo.clientId})`
+                  );
+                  setAuthTimeout(newSessionId);
+                }
+              }
             },
           });
 
@@ -8766,7 +8905,7 @@ async function startStreamableHTTPServer(): Promise<void> {
               logger.warn(`Streamable HTTP transport closed for session ${sid}, cleaning up`);
               delete streamableTransports[sid];
               metrics.activeSessions--;
-              if (REMOTE_AUTHORIZATION) {
+              if (REMOTE_AUTHORIZATION || GITLAB_MCP_OAUTH) {
                 cleanupSessionAuth(sid);
                 delete sessionRequestCounts[sid];
                 logger.info(`Session ${sid}: cleaned up auth mapping`);
@@ -8791,8 +8930,8 @@ async function startStreamableHTTPServer(): Promise<void> {
       }
     };
 
-    // Execute with auth context in remote mode
-    if (REMOTE_AUTHORIZATION && sessionId && authBySession[sessionId]) {
+    // Execute with auth context in remote mode (REMOTE_AUTHORIZATION or GITLAB_MCP_OAUTH)
+    if ((REMOTE_AUTHORIZATION || GITLAB_MCP_OAUTH) && sessionId && authBySession[sessionId]) {
       const authData = authBySession[sessionId];
       const ctx: SessionAuth = {
         sessionId,
@@ -8805,7 +8944,7 @@ async function startStreamableHTTPServer(): Promise<void> {
       // Run the entire request handling within AsyncLocalStorage context
       await sessionAuthStore.run(ctx, handleRequest);
     } else {
-      // Standard execution (no remote auth or no session yet)
+      // Standard execution (no per-session auth or no session yet)
       await handleRequest();
     }
   });
@@ -8833,6 +8972,7 @@ async function startStreamableHTTPServer(): Promise<void> {
         maxRequestsPerMinute: MAX_REQUESTS_PER_MINUTE,
         sessionTimeoutSeconds: SESSION_TIMEOUT_SECONDS,
         remoteAuthEnabled: REMOTE_AUTHORIZATION,
+        mcpOAuthEnabled: GITLAB_MCP_OAUTH,
       },
     });
   });
@@ -8863,7 +9003,7 @@ async function startStreamableHTTPServer(): Promise<void> {
       try {
         await transport.close();
         logger.info(`Explicitly closed session via DELETE request: ${sessionId}`);
-        if (REMOTE_AUTHORIZATION) {
+        if (REMOTE_AUTHORIZATION || GITLAB_MCP_OAUTH) {
           cleanupSessionAuth(sessionId);
           delete sessionRequestCounts[sessionId];
           logger.info(`Session ${sessionId}: cleaned up auth mapping on DELETE`);
@@ -8902,7 +9042,7 @@ async function startStreamableHTTPServer(): Promise<void> {
         const transport = streamableTransports[sessionId];
         if (transport) {
           await transport.close();
-          if (REMOTE_AUTHORIZATION) {
+          if (REMOTE_AUTHORIZATION || GITLAB_MCP_OAUTH) {
             cleanupSessionAuth(sessionId);
             delete sessionRequestCounts[sessionId];
           }
