@@ -3937,7 +3937,7 @@ async function listWorkItems(
   };
 
   if (options.types && options.types.length > 0) {
-    variables.types = options.types.map((t) => typeMap[t] || t.toUpperCase());
+    variables.types = options.types.map((t) => typeMap[t] || t.replace(/ /g, "_").toUpperCase());
   }
   if (options.state) {
     variables.state = options.state === "opened" ? "opened" : "closed";
