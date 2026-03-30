@@ -29,7 +29,7 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
 import { AsyncLocalStorage } from "node:async_hooks";
-import express, { Request, Response } from "express";
+import express, { NextFunction, Request, Response } from "express";
 import fetchCookie from "fetch-cookie";
 import fs from "node:fs";
 import os from "node:os";
@@ -43,6 +43,9 @@ import { fileURLToPath, URL } from "node:url";
 import { z } from "zod";
 import { zodToJsonSchema } from "zod-to-json-schema";
 import { initializeOAuthClient, GitLabOAuth } from "./oauth.js";
+import { createGitLabOAuthProvider } from "./oauth-proxy.js";
+import { mcpAuthRouter } from "@modelcontextprotocol/sdk/server/auth/router.js";
+import { requireBearerAuth } from "@modelcontextprotocol/sdk/server/auth/middleware/bearerAuth.js";
 import { GitLabClientPool } from "./gitlab-client-pool.js";
 // Add type imports for proxy agents
 import { Agent } from "node:http";
@@ -165,6 +168,8 @@ import {
   GitLabReferenceSchema,
   type GitLabRepository,
   GitLabRepositorySchema,
+  GitLabSearchBlobResultSchema,
+  type GitLabSearchBlobResult,
   type GitLabSearchResponse,
   GitLabSearchResponseSchema,
   type GitLabTree,
@@ -188,6 +193,8 @@ import {
   ListIssuesSchema,
   ListLabelsSchema,
   ListMergeRequestDiffsSchema, // Added
+  GetMergeRequestFileDiffSchema,
+  ListMergeRequestChangedFilesSchema,
   ListMergeRequestDiscussionsSchema,
   ListMergeRequestsSchema,
   ListMergeRequestVersionsSchema,
@@ -246,6 +253,9 @@ import {
   PushFilesSchema,
   RetryPipelineJobSchema,
   RetryPipelineSchema,
+  SearchCodeSchema,
+  SearchGroupCodeSchema,
+  SearchProjectCodeSchema,
   SearchRepositoriesSchema,
   UpdateDraftNoteSchema,
   UpdateIssueNoteSchema,
@@ -486,11 +496,48 @@ function validateConfiguration(): void {
   const hasToken = !!getConfig("token", "GITLAB_PERSONAL_ACCESS_TOKEN");
   const hasJobToken = !!getConfig("job-token", "GITLAB_JOB_TOKEN");
   const hasCookie = !!getConfig("cookie-path", "GITLAB_AUTH_COOKIE_PATH");
+  const mcpOAuth = getConfig("mcp-oauth", "GITLAB_MCP_OAUTH") === "true";
+  const mcpServerUrl = getConfig("mcp-server-url", "MCP_SERVER_URL");
 
-  if (!remoteAuth && !useOAuth && !hasToken && !hasJobToken && !hasCookie) {
+  if (!remoteAuth && !useOAuth && !hasToken && !hasJobToken && !hasCookie && !mcpOAuth) {
     errors.push(
-      "Either --token, --job-token, --cookie-path, --use-oauth=true, or --remote-auth=true must be set (or use environment variables)"
+      "Either --token, --job-token, --cookie-path, --use-oauth=true, --remote-auth=true, or --mcp-oauth=true must be set (or use environment variables)"
     );
+  }
+
+  if (mcpOAuth) {
+    if (!mcpServerUrl) {
+      errors.push(
+        "MCP_SERVER_URL is required when GITLAB_MCP_OAUTH=true (e.g. https://mcp.example.com)"
+      );
+    } else {
+      try {
+        const u = new URL(mcpServerUrl);
+        const isInsecure = u.protocol !== "https:";
+        const isLocalhost = u.hostname === "localhost" || u.hostname === "127.0.0.1";
+        const allowInsecure =
+          process.env.MCP_DANGEROUSLY_ALLOW_INSECURE_ISSUER_URL === "true";
+        if (isInsecure && !isLocalhost && !allowInsecure) {
+          errors.push(
+            "MCP_SERVER_URL must use HTTPS in production " +
+              "(set MCP_DANGEROUSLY_ALLOW_INSECURE_ISSUER_URL=true for local dev)"
+          );
+        }
+      } catch {
+        errors.push(`MCP_SERVER_URL is not a valid URL: ${mcpServerUrl}`);
+      }
+    }
+
+    if (!getConfig("api-url", "GITLAB_API_URL")) {
+      errors.push("GITLAB_API_URL is required when GITLAB_MCP_OAUTH=true");
+    }
+
+    if (!getConfig("oauth-app-id", "GITLAB_OAUTH_APP_ID")) {
+      errors.push(
+        "GITLAB_OAUTH_APP_ID is required when GITLAB_MCP_OAUTH=true " +
+          "(create an OAuth application in GitLab Admin with the required scopes)"
+      );
+    }
   }
 
   const enableDynamicApiUrl =
@@ -579,6 +626,9 @@ const GITLAB_TOOLS_RAW = getConfig("tools", "GITLAB_TOOLS");
 const SSE = getConfig("sse", "SSE") === "true";
 const STREAMABLE_HTTP = getConfig("streamable-http", "STREAMABLE_HTTP") === "true";
 const REMOTE_AUTHORIZATION = getConfig("remote-auth", "REMOTE_AUTHORIZATION") === "true";
+const GITLAB_MCP_OAUTH = getConfig("mcp-oauth", "GITLAB_MCP_OAUTH") === "true";
+const MCP_SERVER_URL = getConfig("mcp-server-url", "MCP_SERVER_URL");
+const GITLAB_OAUTH_APP_ID = getConfig("oauth-app-id", "GITLAB_OAUTH_APP_ID");
 const ENABLE_DYNAMIC_API_URL =
   getConfig("enable-dynamic-api-url", "ENABLE_DYNAMIC_API_URL") === "true";
 const SESSION_TIMEOUT_SECONDS = Number.parseInt(
@@ -794,11 +844,11 @@ const BASE_HEADERS: Record<string, string> = {
 
 /**
  * Build authentication headers dynamically based on context
- * In REMOTE_AUTHORIZATION mode, reads from AsyncLocalStorage session context
+ * In REMOTE_AUTHORIZATION or GITLAB_MCP_OAUTH mode, reads from AsyncLocalStorage session context
  * Otherwise, uses environment token (OAuth token is refreshed lazily before each tool call)
  */
 function buildAuthHeaders(): Record<string, string> {
-  if (REMOTE_AUTHORIZATION) {
+  if (REMOTE_AUTHORIZATION || GITLAB_MCP_OAUTH) {
     const ctx = sessionAuthStore.getStore();
     logger.debug({ context: ctx }, "buildAuthHeaders: session context");
     if (ctx?.token) {
@@ -1000,10 +1050,33 @@ const allTools = [
     inputSchema: toJSONSchema(GetMergeRequestDiffsSchema),
   },
   {
+    name: "list_merge_request_changed_files",
+    description:
+      "STEP 1 of code review workflow. " +
+      "Returns ONLY the list of changed file paths in a merge request — WITHOUT diff content. " +
+      "Call this first to get file paths, then call get_merge_request_file_diff with multiple files in a single batched call (recommended 3-5 files per call). " +
+      "This avoids loading the entire diff payload at once and reduces API calls. " +
+      "Supports excluded_file_patterns filtering using regex. " +
+      "Returns: new_path, old_path, new_file, deleted_file, renamed_file flags for each file. " +
+      "(Either mergeRequestIid or branchName must be provided)",
+    inputSchema: toJSONSchema(ListMergeRequestChangedFilesSchema),
+  },
+  {
     name: "list_merge_request_diffs",
     description:
       "List merge request diffs with pagination support (Either mergeRequestIid or branchName must be provided)",
     inputSchema: toJSONSchema(ListMergeRequestDiffsSchema),
+  },
+  {
+    name: "get_merge_request_file_diff",
+    description:
+      "STEP 2 of code review workflow. " +
+      "Get diffs for one or more files from a merge request. " +
+      "Call list_merge_request_changed_files first to get file paths, then pass them as an array to fetch their diffs efficiently. " +
+      "Batching multiple files (recommended 3-5) is supported and preferred over individual requests. " +
+      "Returns an array of results - one per requested file path. Files not found are returned with error messages. " +
+      "(Either mergeRequestIid or branchName must be provided)",
+    inputSchema: toJSONSchema(GetMergeRequestFileDiffSchema),
   },
   {
     name: "list_merge_request_versions",
@@ -1547,18 +1620,46 @@ const allTools = [
       "Get full details of a specific webhook event by ID, including request/response payloads. Searches up to 500 most recent events.",
     inputSchema: toJSONSchema(GetWebhookEventSchema),
   },
+  {
+    name: "search_code",
+    description:
+      "Search for code across all projects on the GitLab instance (requires advanced search or exact code search to be enabled). If exact code search (Zoekt) is enabled, the search query supports rich syntax including file:, lang:, sym: filters.",
+    inputSchema: toJSONSchema(SearchCodeSchema),
+  },
+  {
+    name: "search_project_code",
+    description:
+      "Search for code within a specific GitLab project (requires advanced search or exact code search to be enabled). If exact code search (Zoekt) is enabled, the search query supports rich syntax including file:, lang:, sym: filters.",
+    inputSchema: toJSONSchema(SearchProjectCodeSchema),
+  },
+  {
+    name: "search_group_code",
+    description:
+      "Search for code within a specific GitLab group (requires advanced search or exact code search to be enabled). If exact code search (Zoekt) is enabled, the search query supports rich syntax including file:, lang:, sym: filters.",
+    inputSchema: toJSONSchema(SearchGroupCodeSchema),
+  },
 ];
 
 // Define which tools are read-only
 const readOnlyTools = new Set([
   "search_repositories",
+  "search_code",
+  "search_project_code",
+  "search_group_code",
   "execute_graphql",
   "get_file_contents",
   "get_merge_request",
   "get_merge_request_diffs",
+  "list_merge_request_changed_files",
+  "list_merge_request_diffs",
+  "get_merge_request_file_diff",
   "list_merge_request_versions",
   "get_merge_request_version",
   "get_branch_diffs",
+  "get_merge_request_note",
+  "get_merge_request_notes",
+  "get_draft_note",
+  "list_draft_notes",
   "mr_discussions",
   "list_issues",
   "my_issues",
@@ -1681,7 +1782,8 @@ type ToolsetId =
   | "wiki"
   | "releases"
   | "users"
-  | "webhooks";
+  | "webhooks"
+  | "search";
 
 interface ToolsetDefinition {
   readonly id: ToolsetId;
@@ -1701,7 +1803,9 @@ const TOOLSET_DEFINITIONS: readonly ToolsetDefinition[] = [
       "get_merge_request_conflicts",
       "get_merge_request",
       "get_merge_request_diffs",
+      "list_merge_request_changed_files",
       "list_merge_request_diffs",
+      "get_merge_request_file_diff",
       "list_merge_request_versions",
       "get_merge_request_version",
       "update_merge_request",
@@ -1884,6 +1988,11 @@ const TOOLSET_DEFINITIONS: readonly ToolsetDefinition[] = [
       "list_webhook_events",
       "get_webhook_event",
     ]),
+  },
+  {
+    id: "search",
+    isDefault: false,
+    tools: new Set(["search_code", "search_project_code", "search_group_code"]),
   },
 ] as const;
 
@@ -2104,7 +2213,23 @@ if (REMOTE_AUTHORIZATION) {
     process.exit(1);
   }
   logger.info("Remote authorization enabled: tokens will be read from HTTP headers");
-} else if (!USE_OAUTH && !GITLAB_PERSONAL_ACCESS_TOKEN && !GITLAB_JOB_TOKEN && !GITLAB_AUTH_COOKIE_PATH) {
+}
+
+if (GITLAB_MCP_OAUTH) {
+  if (SSE) {
+    logger.error("GITLAB_MCP_OAUTH=true is not compatible with SSE transport mode");
+    logger.error("Please use STREAMABLE_HTTP=true instead");
+    process.exit(1);
+  }
+  if (!STREAMABLE_HTTP) {
+    logger.error("GITLAB_MCP_OAUTH=true requires STREAMABLE_HTTP=true");
+    logger.error("Set STREAMABLE_HTTP=true to enable MCP OAuth");
+    process.exit(1);
+  }
+  logger.info("MCP OAuth enabled: GitLab OAuth proxy active");
+}
+
+if (!REMOTE_AUTHORIZATION && !GITLAB_MCP_OAUTH && !USE_OAUTH && !GITLAB_PERSONAL_ACCESS_TOKEN && !GITLAB_JOB_TOKEN && !GITLAB_AUTH_COOKIE_PATH) {
   // Standard mode: token must be in environment (unless using OAuth)
   logger.error("GITLAB_PERSONAL_ACCESS_TOKEN environment variable is not set");
   logger.info("Either set GITLAB_PERSONAL_ACCESS_TOKEN or enable OAuth with GITLAB_USE_OAUTH=true");
@@ -3387,6 +3512,67 @@ async function searchProjects(
 }
 
 /**
+ * Search for code blobs using GitLab Search API
+ * Supports global, project-level, and group-level search
+ */
+async function searchBlobs(params: {
+  search: string;
+  project_id?: string;
+  group_id?: string;
+  ref?: string;
+  filename?: string;
+  path?: string;
+  extension?: string;
+  page?: number;
+  per_page?: number;
+}): Promise<GitLabSearchBlobResult[]> {
+  let basePath: string;
+  if (params.project_id) {
+    const decodedProjectId = decodeURIComponent(params.project_id);
+    const projectId = encodeURIComponent(getEffectiveProjectId(decodedProjectId));
+    basePath = `${getEffectiveApiUrl()}/projects/${projectId}/search`;
+  } else if (params.group_id) {
+    const groupId = encodeURIComponent(decodeURIComponent(params.group_id));
+    basePath = `${getEffectiveApiUrl()}/groups/${groupId}/search`;
+  } else {
+    basePath = `${getEffectiveApiUrl()}/search`;
+  }
+
+  const url = new URL(basePath);
+  url.searchParams.append("scope", "blobs");
+  url.searchParams.append("search", params.search);
+
+  if (params.ref) {
+    url.searchParams.append("ref", params.ref);
+  }
+  if (params.page) {
+    url.searchParams.append("page", params.page.toString());
+  }
+  if (params.per_page) {
+    url.searchParams.append("per_page", params.per_page.toString());
+  }
+
+  if (params.filename) {
+    url.searchParams.append("filename", params.filename);
+  }
+  if (params.path) {
+    url.searchParams.append("path", params.path);
+  }
+  if (params.extension) {
+    url.searchParams.append("extension", params.extension);
+  }
+
+  const response = await fetch(url.toString(), {
+    ...getFetchConfig(),
+  });
+
+  await handleGitLabError(response);
+
+  const data = await response.json();
+  return z.array(GitLabSearchBlobResultSchema).parse(data);
+}
+
+/**
  * Create a new GitLab repository
  * 새 저장소 생성
  *
@@ -3823,6 +4009,135 @@ async function listMergeRequestDiffs(
 
   await handleGitLabError(response);
   return await response.json(); // Return full response including commits, diff_refs, changes, etc.
+}
+
+/**
+ * Returns the list of changed files in a merge request WITHOUT diff content.
+ * Use this as STEP 1 of code review: get file paths, then fetch diffs in batches
+ * with getMergeRequestFileDiff to avoid loading the entire diff payload at once.
+ *
+ * @param {string} projectId - The ID or URL-encoded path of the project
+ * @param {number|string} [mergeRequestIid] - The internal ID of the merge request
+ * @param {string} [branchName] - The name of the source branch (used to resolve MR if iid not provided)
+ * @param {string[]} [excludedFilePatterns] - Regex patterns to exclude files from the result
+ * @returns {Promise<any[]>} Array of changed file metadata (new_path, old_path, new_file, deleted_file, renamed_file)
+ */
+async function listMergeRequestChangedFiles(
+  projectId: string,
+  mergeRequestIid?: number | string,
+  branchName?: string,
+  excludedFilePatterns?: string[]
+): Promise<any[]> {
+  projectId = decodeURIComponent(projectId);
+  if (!mergeRequestIid && !branchName) {
+    throw new Error("Either mergeRequestIid or branchName must be provided");
+  }
+
+  if (branchName && !mergeRequestIid) {
+    const mergeRequest = await getMergeRequest(projectId, undefined, branchName);
+    mergeRequestIid = mergeRequest.iid;
+  }
+
+  const url = new URL(
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(
+      getEffectiveProjectId(projectId)
+    )}/merge_requests/${mergeRequestIid}/changes`
+  );
+
+  const response = await fetch(url.toString(), { ...getFetchConfig() });
+  await handleGitLabError(response);
+  const data = (await response.json()) as { changes: any[] };
+
+  const rawFiles = (data.changes || []).map((f: any) => ({
+    new_path: f.new_path,
+    old_path: f.old_path,
+    new_file: f.new_file,
+    deleted_file: f.deleted_file,
+    renamed_file: f.renamed_file,
+  }));
+
+  return filterDiffsByPatterns(rawFiles, excludedFilePatterns);
+}
+
+/**
+ * Get diffs for specific files from a merge request.
+ * Use this as STEP 2 of code review: pass file paths obtained from
+ * listMergeRequestChangedFiles to fetch their diffs efficiently.
+ *
+ * @param {string} projectId - The ID or URL-encoded path of the project
+ * @param {string[]} filePaths - List of file paths to retrieve diffs for
+ * @param {number|string} [mergeRequestIid] - The internal ID of the merge request
+ * @param {string} [branchName] - The name of the source branch (used to resolve MR if iid not provided)
+ * @param {boolean} [unidiff] - Return diff in unified diff format
+ * @returns {Promise<any[]>} Array of diff objects for each requested file, or error objects for files not found
+ */
+async function getMergeRequestFileDiff(
+  projectId: string,
+  filePaths: string[],
+  mergeRequestIid?: number | string,
+  branchName?: string,
+  unidiff?: boolean
+): Promise<any[]> {
+  projectId = decodeURIComponent(projectId);
+  if (!mergeRequestIid && !branchName) {
+    throw new Error("Either mergeRequestIid or branchName must be provided");
+  }
+
+  if (branchName && !mergeRequestIid) {
+    const mergeRequest = await getMergeRequest(projectId, undefined, branchName);
+    mergeRequestIid = mergeRequest.iid;
+  }
+
+  // Paginate through /diffs once, collecting all requested files.
+  // More efficient than N separate searches when fetching multiple files.
+  const remaining = new Set(filePaths);
+  const results: any[] = [];
+  let page = 1;
+  const perPage = 20;
+
+  while (remaining.size > 0) {
+    const url = new URL(
+      `${getEffectiveApiUrl()}/projects/${encodeURIComponent(
+        getEffectiveProjectId(projectId)
+      )}/merge_requests/${mergeRequestIid}/diffs`
+    );
+    url.searchParams.append("page", page.toString());
+    url.searchParams.append("per_page", perPage.toString());
+    if (unidiff) {
+      url.searchParams.append("unidiff", "true");
+    }
+
+    const response = await fetch(url.toString(), { ...getFetchConfig() });
+    await handleGitLabError(response);
+    const items = (await response.json()) as any[];
+
+    if (!Array.isArray(items) || items.length === 0) {
+      break;
+    }
+
+    for (const item of items) {
+      if (remaining.has(item.new_path) || remaining.has(item.old_path)) {
+        results.push(item);
+        remaining.delete(item.new_path);
+        remaining.delete(item.old_path);
+      }
+    }
+
+    if (items.length < perPage) {
+      break;
+    }
+
+    page++;
+  }
+
+  for (const notFound of remaining) {
+    results.push({
+      error: `File not found in merge request diffs: ${notFound}`,
+      hint: "Use list_merge_request_changed_files to verify the correct file paths.",
+    });
+  }
+
+  return results;
 }
 
 /**
@@ -7075,6 +7390,54 @@ async function handleToolCall(params: any) {
         };
       }
 
+      case "search_code": {
+        const args = SearchCodeSchema.parse(params.arguments);
+        const results = await searchBlobs({
+          search: args.search,
+          filename: args.filename,
+          path: args.path,
+          extension: args.extension,
+          page: args.page,
+          per_page: args.per_page,
+        });
+        return {
+          content: [{ type: "text", text: JSON.stringify(results, null, 2) }],
+        };
+      }
+
+      case "search_project_code": {
+        const args = SearchProjectCodeSchema.parse(params.arguments);
+        const results = await searchBlobs({
+          search: args.search,
+          project_id: args.project_id,
+          ref: args.ref,
+          filename: args.filename,
+          path: args.path,
+          extension: args.extension,
+          page: args.page,
+          per_page: args.per_page,
+        });
+        return {
+          content: [{ type: "text", text: JSON.stringify(results, null, 2) }],
+        };
+      }
+
+      case "search_group_code": {
+        const args = SearchGroupCodeSchema.parse(params.arguments);
+        const results = await searchBlobs({
+          search: args.search,
+          group_id: args.group_id,
+          filename: args.filename,
+          path: args.path,
+          extension: args.extension,
+          page: args.page,
+          per_page: args.per_page,
+        });
+        return {
+          content: [{ type: "text", text: JSON.stringify(results, null, 2) }],
+        };
+      }
+
       case "create_repository": {
         if (GITLAB_PROJECT_ID) {
           throw new Error("Direct project ID is set. So fork_repository is not allowed");
@@ -7329,6 +7692,19 @@ async function handleToolCall(params: any) {
         };
       }
 
+      case "list_merge_request_changed_files": {
+        const args = ListMergeRequestChangedFilesSchema.parse(params.arguments);
+        const files = await listMergeRequestChangedFiles(
+          args.project_id,
+          args.merge_request_iid,
+          args.source_branch,
+          args.excluded_file_patterns
+        );
+        return {
+          content: [{ type: "text", text: JSON.stringify(files, null, 2) }],
+        };
+      }
+
       case "list_merge_request_diffs": {
         const args = ListMergeRequestDiffsSchema.parse(params.arguments);
         const changes = await listMergeRequestDiffs(
@@ -7341,6 +7717,20 @@ async function handleToolCall(params: any) {
         );
         return {
           content: [{ type: "text", text: JSON.stringify(changes, null, 2) }],
+        };
+      }
+
+      case "get_merge_request_file_diff": {
+        const args = GetMergeRequestFileDiffSchema.parse(params.arguments);
+        const fileDiff = await getMergeRequestFileDiff(
+          args.project_id,
+          args.file_paths,
+          args.merge_request_iid,
+          args.source_branch,
+          args.unidiff
+        );
+        return {
+          content: [{ type: "text", text: JSON.stringify(fileDiff, null, 2) }],
         };
       }
 
@@ -8875,15 +9265,51 @@ async function startStreamableHTTPServer(): Promise<void> {
   // Configure Express middleware
   app.use(express.json());
 
+  // MCP OAuth — mount auth router and prepare bearer-auth middleware
+  if (GITLAB_MCP_OAUTH) {
+    // Trust first proxy so express-rate-limit uses X-Forwarded-For for real client IP.
+    // Only enabled in OAuth mode where the server is typically behind a reverse proxy.
+    app.set("trust proxy", 1);
+    const gitlabBaseUrl = GITLAB_API_URL.replace(/\/api\/v4\/?$/, "").replace(/\/$/, "");
+    const issuerUrl = new URL(MCP_SERVER_URL!);
+    const oauthProvider = createGitLabOAuthProvider(gitlabBaseUrl, GITLAB_OAUTH_APP_ID!, "GitLab MCP Server", GITLAB_READ_ONLY_MODE);
+
+    // Mounts /.well-known/oauth-authorization-server,
+    //        /.well-known/oauth-protected-resource,
+    //        /authorize, /token, /register, /revoke
+    app.use(
+      mcpAuthRouter({
+        provider: oauthProvider,
+        issuerUrl,
+        baseUrl: issuerUrl,
+        scopesSupported: ["api", "read_api", "read_user"],
+        resourceName: "GitLab MCP Server",
+      })
+    );
+
+    // Expose provider so the /mcp route middleware can reference it
+    (app as any)._mcpOAuthProvider = oauthProvider;
+  }
+
+  // Build bearer-auth middleware — no-op unless GITLAB_MCP_OAUTH is enabled.
+  // Unauthenticated requests receive 401 + WWW-Authenticate header, which is
+  // exactly what Claude.ai needs to trigger the OAuth browser flow.
+  const mcpBearerAuth = GITLAB_MCP_OAUTH
+    ? requireBearerAuth({
+        verifier: (app as any)._mcpOAuthProvider,
+        requiredScopes: [],
+      })
+    : (_req: Request, _res: Response, next: NextFunction) => next();
+
   // Streamable HTTP endpoint - handles both session creation and message handling
-  app.post("/mcp", async (req: Request, res: Response) => {
+  app.post("/mcp", mcpBearerAuth, async (req: Request, res: Response) => {
     const sessionId = req.headers["mcp-session-id"] as string;
 
     // Track request
     metrics.requestsProcessed++;
 
     // Rate limiting check for existing sessions
-    if (REMOTE_AUTHORIZATION && sessionId && !checkRateLimit(sessionId)) {
+    if ((REMOTE_AUTHORIZATION || GITLAB_MCP_OAUTH) && sessionId && !checkRateLimit(sessionId)) {
       metrics.rejectedByRateLimit++;
       res.status(429).json({
         error: "Rate limit exceeded",
@@ -8935,6 +9361,33 @@ async function startStreamableHTTPServer(): Promise<void> {
       }
     }
 
+    // MCP OAuth mode — token already validated by requireBearerAuth middleware.
+    // req.auth is populated by the middleware; store/refresh per session so that
+    // buildAuthHeaders() can pick it up via AsyncLocalStorage, exactly like the
+    // REMOTE_AUTHORIZATION path.
+    if (GITLAB_MCP_OAUTH) {
+      const authInfo = req.auth;
+      if (authInfo?.token && sessionId) {
+        if (!authBySession[sessionId]) {
+          authBySession[sessionId] = {
+            header: "Authorization",
+            token: authInfo.token,
+            lastUsed: Date.now(),
+            apiUrl: GITLAB_API_URL,
+          };
+          logger.info(
+            `Session ${sessionId}: stored OAuth token (client: ${authInfo.clientId})`
+          );
+          setAuthTimeout(sessionId);
+        } else {
+          // Update token on every request — the client may have refreshed it
+          authBySession[sessionId].token = authInfo.token;
+          authBySession[sessionId].lastUsed = Date.now();
+          setAuthTimeout(sessionId);
+        }
+      }
+    }
+
     // Handle request with proper AsyncLocalStorage context
     const handleRequest = async () => {
       try {
@@ -8964,6 +9417,23 @@ async function startStreamableHTTPServer(): Promise<void> {
                   setAuthTimeout(newSessionId);
                 }
               }
+
+              // Store OAuth token for newly created session in MCP OAuth mode
+              if (GITLAB_MCP_OAUTH && !authBySession[newSessionId]) {
+                const authInfo = req.auth;
+                if (authInfo?.token) {
+                  authBySession[newSessionId] = {
+                    header: "Authorization",
+                    token: authInfo.token,
+                    lastUsed: Date.now(),
+                    apiUrl: GITLAB_API_URL,
+                  };
+                  logger.info(
+                    `Session ${newSessionId}: stored OAuth token (client: ${authInfo.clientId})`
+                  );
+                  setAuthTimeout(newSessionId);
+                }
+              }
             },
           });
 
@@ -8974,7 +9444,7 @@ async function startStreamableHTTPServer(): Promise<void> {
               logger.warn(`Streamable HTTP transport closed for session ${sid}, cleaning up`);
               delete streamableTransports[sid];
               metrics.activeSessions--;
-              if (REMOTE_AUTHORIZATION) {
+              if (REMOTE_AUTHORIZATION || GITLAB_MCP_OAUTH) {
                 cleanupSessionAuth(sid);
                 delete sessionRequestCounts[sid];
                 logger.info(`Session ${sid}: cleaned up auth mapping`);
@@ -8999,8 +9469,8 @@ async function startStreamableHTTPServer(): Promise<void> {
       }
     };
 
-    // Execute with auth context in remote mode
-    if (REMOTE_AUTHORIZATION && sessionId && authBySession[sessionId]) {
+    // Execute with auth context in remote mode (REMOTE_AUTHORIZATION or GITLAB_MCP_OAUTH)
+    if ((REMOTE_AUTHORIZATION || GITLAB_MCP_OAUTH) && sessionId && authBySession[sessionId]) {
       const authData = authBySession[sessionId];
       const ctx: SessionAuth = {
         sessionId,
@@ -9013,7 +9483,7 @@ async function startStreamableHTTPServer(): Promise<void> {
       // Run the entire request handling within AsyncLocalStorage context
       await sessionAuthStore.run(ctx, handleRequest);
     } else {
-      // Standard execution (no remote auth or no session yet)
+      // Standard execution (no per-session auth or no session yet)
       await handleRequest();
     }
   });
@@ -9041,6 +9511,7 @@ async function startStreamableHTTPServer(): Promise<void> {
         maxRequestsPerMinute: MAX_REQUESTS_PER_MINUTE,
         sessionTimeoutSeconds: SESSION_TIMEOUT_SECONDS,
         remoteAuthEnabled: REMOTE_AUTHORIZATION,
+        mcpOAuthEnabled: GITLAB_MCP_OAUTH,
       },
     });
   });
@@ -9071,7 +9542,7 @@ async function startStreamableHTTPServer(): Promise<void> {
       try {
         await transport.close();
         logger.info(`Explicitly closed session via DELETE request: ${sessionId}`);
-        if (REMOTE_AUTHORIZATION) {
+        if (REMOTE_AUTHORIZATION || GITLAB_MCP_OAUTH) {
           cleanupSessionAuth(sessionId);
           delete sessionRequestCounts[sessionId];
           logger.info(`Session ${sessionId}: cleaned up auth mapping on DELETE`);
@@ -9110,7 +9581,7 @@ async function startStreamableHTTPServer(): Promise<void> {
         const transport = streamableTransports[sessionId];
         if (transport) {
           await transport.close();
-          if (REMOTE_AUTHORIZATION) {
+          if (REMOTE_AUTHORIZATION || GITLAB_MCP_OAUTH) {
             cleanupSessionAuth(sessionId);
             delete sessionRequestCounts[sessionId];
           }

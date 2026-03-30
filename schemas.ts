@@ -771,6 +771,54 @@ export const GitLabSearchResponseSchema = z.object({
   items: z.array(GitLabRepositorySchema),
 });
 
+// Search blobs (code search) schemas
+export const GitLabSearchBlobResultSchema = z.object({
+  basename: z.string(),
+  data: z.string(),
+  path: z.string(),
+  filename: z.string(),
+  id: z.union([z.string(), z.null()]).optional(),
+  ref: z.string(),
+  startline: z.number(),
+  project_id: z.coerce.string(),
+});
+
+const SearchBlobsBaseSchema = z.object({
+  search: z
+    .string()
+    .describe(
+      'Code search query string. On instances with exact code search (Zoekt), the query supports rich inline syntax: "class foo" (exact match), foo file:\\.js$ (file pattern), foo lang:ruby (language), sym:foo (symbol search), foo -bar (negation), case:yes (case-sensitive). When using Zoekt inline filters, prefer them over the separate filename/path/extension params which are for basic search.'
+    ),
+  filename: z
+    .string()
+    .optional()
+    .describe("Filter by filename (supports * wildcard, e.g. '*.ts')"),
+  path: z
+    .string()
+    .optional()
+    .describe("Filter by file path (supports * wildcard, e.g. 'src/utils/*')"),
+  extension: z
+    .string()
+    .optional()
+    .describe("Filter by file extension without dot (e.g. 'py', 'ts')"),
+});
+
+export const SearchCodeSchema = SearchBlobsBaseSchema.merge(PaginationOptionsSchema);
+
+export const SearchProjectCodeSchema = ProjectParamsSchema.extend({
+  ...SearchBlobsBaseSchema.shape,
+  ref: z.string().optional().describe("Branch or tag to search in (defaults to default branch)"),
+}).merge(PaginationOptionsSchema);
+
+export const SearchGroupCodeSchema = z
+  .object({
+    group_id: z.coerce.string().describe("Group ID or URL-encoded path"),
+  })
+  .extend({
+    ...SearchBlobsBaseSchema.shape,
+  })
+  .merge(PaginationOptionsSchema);
+
 // create branch schemas
 export const CreateBranchOptionsSchema = z.object({
   name: z.string(), // Changed from ref to match GitLab API
@@ -1510,6 +1558,28 @@ export const ListMergeRequestDiffsSchema = GetMergeRequestSchema.extend({
     .describe(
       "Present diffs in the unified diff format. Default is false. Introduced in GitLab 16.5."
     ),
+});
+
+export const ListMergeRequestChangedFilesSchema = GetMergeRequestSchema.extend({
+  excluded_file_patterns: z
+    .array(z.string())
+    .optional()
+    .describe(
+      'Array of regex patterns to exclude files. Examples: ["^vendor/", "\\.pb\\.go$"]'
+    ),
+});
+
+export const GetMergeRequestFileDiffSchema = GetMergeRequestSchema.extend({
+  file_paths: z
+    .array(z.string())
+    .describe(
+      "List of file paths to retrieve diffs for (e.g. ['src/api/users.ts', 'src/repo/user.go']). " +
+      "Call list_merge_request_changed_files first to get the full list of changed paths."
+    ),
+  unidiff: z
+    .boolean()
+    .optional()
+    .describe("Present diff in the unified diff format. Default is false."),
 });
 
 // Merge Request Versions API operation schemas
@@ -2965,6 +3035,7 @@ export type GetMergeRequestApprovalStateOptions = z.infer<
   typeof GetMergeRequestApprovalStateSchema
 >;
 
+
 // --- Webhook schemas ---
 
 export const ListWebhooksSchema = z
@@ -3040,3 +3111,9 @@ export const GetWebhookEventSchema = z
   .refine(data => (data.project_id || data.group_id) && !(data.project_id && data.group_id), {
     message: "Provide exactly one of project_id or group_id",
   });
+
+// Search code types
+export type GitLabSearchBlobResult = z.infer<typeof GitLabSearchBlobResultSchema>;
+export type SearchCodeOptions = z.infer<typeof SearchCodeSchema>;
+export type SearchProjectCodeOptions = z.infer<typeof SearchProjectCodeSchema>;
+export type SearchGroupCodeOptions = z.infer<typeof SearchGroupCodeSchema>;
