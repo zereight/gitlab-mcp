@@ -42,6 +42,7 @@ const TOOLSET_TOOL_COUNTS: Record<string, number> = {
   releases: 7,
   users: 5,
   search: 3,
+  workitems: 12,
   webhooks: 3,
 };
 
