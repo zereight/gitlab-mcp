@@ -1698,6 +1698,8 @@ const readOnlyTools = new Set([
   "get_milestone_burndown_events",
   "list_wiki_pages",
   "get_wiki_page",
+  "list_group_wiki_pages",
+  "get_group_wiki_page",
   "get_users",
   "list_commits",
   "get_commit",
@@ -5532,7 +5534,7 @@ async function listGroupWikiPages(
 ): Promise<GitLabWikiPage[]> {
   groupId = decodeURIComponent(groupId); // Decode group ID
   const url = new URL(
-    `${getEffectiveApiUrl()}/groups/${encodeURIComponent(getEffectiveProjectId(groupId))}/wikis`
+    `${getEffectiveApiUrl()}/groups/${encodeURIComponent(groupId)}/wikis`
   );
   if (options.page) url.searchParams.append("page", options.page.toString());
   if (options.per_page) url.searchParams.append("per_page", options.per_page.toString());
@@ -5552,7 +5554,7 @@ async function listGroupWikiPages(
 async function getGroupWikiPage(groupId: string, slug: string): Promise<GitLabWikiPage> {
   groupId = decodeURIComponent(groupId); // Decode group ID
   const response = await fetch(
-    `${getEffectiveApiUrl()}/groups/${encodeURIComponent(getEffectiveProjectId(groupId))}/wikis/${encodeURIComponent(slug)}`,
+    `${getEffectiveApiUrl()}/groups/${encodeURIComponent(groupId)}/wikis/${encodeURIComponent(slug)}`,
     { ...getFetchConfig() }
   );
   await handleGitLabError(response);
@@ -5573,7 +5575,7 @@ async function createGroupWikiPage(
   const body: Record<string, any> = { title, content };
   if (format) body.format = format;
   const response = await fetch(
-    `${getEffectiveApiUrl()}/groups/${encodeURIComponent(getEffectiveProjectId(groupId))}/wikis`,
+    `${getEffectiveApiUrl()}/groups/${encodeURIComponent(groupId)}/wikis`,
     {
       ...getFetchConfig(),
       method: "POST",
@@ -5601,7 +5603,7 @@ async function updateGroupWikiPage(
   if (content) body.content = content;
   if (format) body.format = format;
   const response = await fetch(
-    `${getEffectiveApiUrl()}/groups/${encodeURIComponent(getEffectiveProjectId(groupId))}/wikis/${encodeURIComponent(slug)}`,
+    `${getEffectiveApiUrl()}/groups/${encodeURIComponent(groupId)}/wikis/${encodeURIComponent(slug)}`,
     {
       ...getFetchConfig(),
       method: "PUT",
@@ -5619,7 +5621,7 @@ async function updateGroupWikiPage(
 async function deleteGroupWikiPage(groupId: string, slug: string): Promise<void> {
   groupId = decodeURIComponent(groupId); // Decode group ID
   const response = await fetch(
-    `${getEffectiveApiUrl()}/groups/${encodeURIComponent(getEffectiveProjectId(groupId))}/wikis/${encodeURIComponent(slug)}`,
+    `${getEffectiveApiUrl()}/groups/${encodeURIComponent(groupId)}/wikis/${encodeURIComponent(slug)}`,
     {
       ...getFetchConfig(),
       method: "DELETE",
