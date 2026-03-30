@@ -1954,7 +1954,7 @@ export const ListWikiPagesSchema = z
 
 export const GetWikiPageSchema = z.object({
   project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
-  slug: z.string().describe("URL-encoded slug of the wiki page"),
+  slug: z.string().describe("Slug of the wiki page (will be URL-encoded internally)"),
 });
 export const CreateWikiPageSchema = z.object({
   project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
@@ -1964,7 +1964,7 @@ export const CreateWikiPageSchema = z.object({
 });
 export const UpdateWikiPageSchema = z.object({
   project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
-  slug: z.string().describe("URL-encoded slug of the wiki page"),
+  slug: z.string().describe("Slug of the wiki page (will be URL-encoded internally)"),
   title: z.string().optional().describe("New title of the wiki page"),
   content: z.string().optional().describe("New content of the wiki page"),
   format: z.string().optional().describe("Content format, e.g., markdown, rdoc"),
@@ -1972,7 +1972,7 @@ export const UpdateWikiPageSchema = z.object({
 
 export const DeleteWikiPageSchema = z.object({
   project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
-  slug: z.string().describe("URL-encoded slug of the wiki page"),
+  slug: z.string().describe("Slug of the wiki page (will be URL-encoded internally)"),
 });
 
 // Define wiki response schemas
@@ -1995,7 +1995,7 @@ export const ListGroupWikiPagesSchema = z
 
 export const GetGroupWikiPageSchema = z.object({
   group_id: z.coerce.string().describe("Group ID or URL-encoded path"),
-  slug: z.string().describe("URL-encoded slug of the wiki page"),
+  slug: z.string().describe("Slug of the wiki page (will be URL-encoded internally)"),
 });
 
 export const CreateGroupWikiPageSchema = z.object({
@@ -2007,7 +2007,7 @@ export const CreateGroupWikiPageSchema = z.object({
 
 export const UpdateGroupWikiPageSchema = z.object({
   group_id: z.coerce.string().describe("Group ID or URL-encoded path"),
-  slug: z.string().describe("URL-encoded slug of the wiki page"),
+  slug: z.string().describe("Slug of the wiki page (will be URL-encoded internally)"),
   title: z.string().optional().describe("New title of the wiki page"),
   content: z.string().optional().describe("New content of the wiki page"),
   format: z.string().optional().describe("Content format, e.g., markdown, rdoc"),
@@ -2015,7 +2015,7 @@ export const UpdateGroupWikiPageSchema = z.object({
 
 export const DeleteGroupWikiPageSchema = z.object({
   group_id: z.coerce.string().describe("Group ID or URL-encoded path"),
-  slug: z.string().describe("URL-encoded slug of the wiki page"),
+  slug: z.string().describe("Slug of the wiki page (will be URL-encoded internally)"),
 });
 
 // Merge Request Thread position schema - used for diff notes
