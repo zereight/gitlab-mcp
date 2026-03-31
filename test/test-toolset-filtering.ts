@@ -141,7 +141,7 @@ async function nextMcpPort(): Promise<number> {
   return findAvailablePort(MCP_PORT_BASE + portCounter++ * 10);
 }
 
-describe("Toolset Filtering", () => {
+describe("Toolset Filtering", { concurrency: 1 }, () => {
   before(async () => {
     const mockPort = await findMockServerPort(MOCK_PORT_BASE);
     mockGitLab = new MockGitLabServer({

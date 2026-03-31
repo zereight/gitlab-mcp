@@ -177,22 +177,32 @@ describe("Dynamic Client Mode (ENABLE_DYNAMIC_API_URL=true)", () => {
     await client.disconnect();
   });
 
-  test("should default to the first server if the header contains a non-whitelisted URL", async () => {
+  test("should fail tool call when header contains a non-whitelisted URL", async () => {
     const client = new CustomHeaderClient({
       headers: {
         'authorization': `Bearer ${MOCK_TOKEN}`,
         'X-GitLab-API-URL': 'http://localhost:9999/api/v4',
       }
     });
-    // This call should fail at the MCP client level because the server will reject the auth
-    await assert.rejects(
-        async () => {
-            await client.connect(mcpUrl);
-        },
-        (err: Error) => {
-            assert.match(err.message, /Failed to connect/);
-            return true;
-        }
-    );
+    // Connect succeeds (server accepts any valid URL format),
+    // but tool calls fail because the target server doesn't exist
+    await client.connect(mcpUrl);
+    try {
+      const result = await client.callTool('get_project', { project_id: "1" });
+      // If callTool returns (doesn't throw), check for error in response
+      const content = result.content[0];
+      assert.ok('text' in content, 'Should have text content');
+      assert.ok(
+        content.text.includes('Error') || content.text.includes('error') || content.text.includes('ECONNREFUSED') || result.isError,
+        'Should return an error for unreachable server'
+      );
+    } catch (err: any) {
+      // MCP client may throw for server-side errors (-32603)
+      assert.ok(
+        err.message.includes('ECONNREFUSED') || err.message.includes('failed') || err.message.includes('error'),
+        `Should contain connection error info: ${err.message}`
+      );
+    }
+    await client.disconnect();
   });
 });

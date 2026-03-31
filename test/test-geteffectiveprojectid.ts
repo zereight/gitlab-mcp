@@ -20,9 +20,18 @@ import { StreamableHTTPTestClient } from './clients/streamable-http-client.js';
 const MOCK_TOKEN = process.env.GITLAB_TOKEN_TEST || 'glpat-mock-token-12345';
 const DEFAULT_PROJECT_ID = '123';
 const OTHER_PROJECT_ID = '456';
+// Ensure GITLAB_TOKEN_TEST is set for launchServer() validation
+if (!process.env.GITLAB_TOKEN_TEST && !process.env.GITLAB_TOKEN) {
+  process.env.GITLAB_TOKEN_TEST = MOCK_TOKEN;
+}
+if (!process.env.TEST_PROJECT_ID) {
+  process.env.TEST_PROJECT_ID = DEFAULT_PROJECT_ID;
+}
 
 console.log('🔍 Testing getEffectiveProjectId functionality');
 console.log('');
+
+describe('getEffectiveProjectId', { concurrency: 1 }, () => {
 
 describe('getEffectiveProjectId - No GITLAB_ALLOWED_PROJECT_IDS', () => {
   let mcpUrl: string;
@@ -277,3 +286,5 @@ describe('getEffectiveProjectId - With multiple GITLAB_ALLOWED_PROJECT_IDS', () 
     console.log(`  ✓ Allowed access to second project ${OTHER_PROJECT_ID}`);
   });
 });
+
+}); // end wrapper describe

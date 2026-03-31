@@ -249,4 +249,11 @@ export class GitLabClientPool {
     }
     this.clients.clear();
   }
+
+  public getStats(): { size: number; maxSize: number } {
+    return {
+      size: this.clients.size,
+      maxSize: this.options.poolMaxSize ?? 0,
+    };
+  }
 }

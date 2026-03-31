@@ -11574,6 +11574,7 @@ async function startStreamableHTTPServer(): Promise<void> {
       ...metrics,
       activeSessions: Object.keys(streamableTransports).length,
       authenticatedSessions: Object.keys(authBySession).length,
+      gitlabClientPool: clientPool.getStats(),
       uptime: process.uptime(),
       memoryUsage: process.memoryUsage(),
       config: {
