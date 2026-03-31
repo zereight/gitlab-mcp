@@ -74,7 +74,9 @@ import {
   CreateRepositoryOptionsSchema,
   CreateRepositorySchema,
   CreateWikiPageSchema,
+  CreateGroupWikiPageSchema,
   DeleteDraftNoteSchema,
+  DeleteGroupWikiPageSchema,
   DeleteIssueLinkSchema,
   DeleteIssueSchema,
   DeleteLabelSchema,
@@ -218,6 +220,10 @@ import {
   ListProjectsSchema,
   ListWikiPagesOptions,
   ListWikiPagesSchema,
+  GetGroupWikiPageSchema,
+  ListGroupWikiPagesSchema,
+  UpdateGroupWikiPageSchema,
+  type ListGroupWikiPagesOptions,
   MarkdownUploadSchema,
   DownloadAttachmentSchema,
   DownloadJobArtifactsSchema,
@@ -1346,6 +1352,31 @@ const allTools = [
     inputSchema: toJSONSchema(DeleteWikiPageSchema),
   },
   {
+    name: "list_group_wiki_pages",
+    description: "List wiki pages in a GitLab group",
+    inputSchema: toJSONSchema(ListGroupWikiPagesSchema),
+  },
+  {
+    name: "get_group_wiki_page",
+    description: "Get details of a specific group wiki page",
+    inputSchema: toJSONSchema(GetGroupWikiPageSchema),
+  },
+  {
+    name: "create_group_wiki_page",
+    description: "Create a new wiki page in a GitLab group",
+    inputSchema: toJSONSchema(CreateGroupWikiPageSchema),
+  },
+  {
+    name: "update_group_wiki_page",
+    description: "Update an existing wiki page in a GitLab group",
+    inputSchema: toJSONSchema(UpdateGroupWikiPageSchema),
+  },
+  {
+    name: "delete_group_wiki_page",
+    description: "Delete a wiki page from a GitLab group",
+    inputSchema: toJSONSchema(DeleteGroupWikiPageSchema),
+  },
+  {
     name: "get_repository_tree",
     description: "Get the repository tree for a GitLab project (list files and directories)",
     inputSchema: toJSONSchema(GetRepositoryTreeSchema),
@@ -1753,6 +1784,8 @@ const readOnlyTools = new Set([
   "get_milestone_burndown_events",
   "list_wiki_pages",
   "get_wiki_page",
+  "list_group_wiki_pages",
+  "get_group_wiki_page",
   "get_users",
   "list_commits",
   "get_commit",
@@ -1785,6 +1818,11 @@ const wikiToolNames = new Set([
   "create_wiki_page",
   "update_wiki_page",
   "delete_wiki_page",
+  "list_group_wiki_pages",
+  "get_group_wiki_page",
+  "create_group_wiki_page",
+  "update_group_wiki_page",
+  "delete_group_wiki_page",
   "upload_wiki_attachment",
 ]);
 
@@ -2006,6 +2044,11 @@ const TOOLSET_DEFINITIONS: readonly ToolsetDefinition[] = [
       "create_wiki_page",
       "update_wiki_page",
       "delete_wiki_page",
+      "list_group_wiki_pages",
+      "get_group_wiki_page",
+      "create_group_wiki_page",
+      "update_group_wiki_page",
+      "delete_group_wiki_page",
     ]),
   },
   {
@@ -7442,6 +7485,111 @@ async function deleteWikiPage(projectId: string, slug: string): Promise<void> {
 }
 
 /**
+ * List wiki pages in a GitLab group
+ */
+async function listGroupWikiPages(
+  groupId: string,
+  options: Omit<ListGroupWikiPagesOptions, "group_id"> = {}
+): Promise<GitLabWikiPage[]> {
+  groupId = decodeURIComponent(groupId); // Decode group ID
+  const url = new URL(
+    `${getEffectiveApiUrl()}/groups/${encodeURIComponent(groupId)}/wikis`
+  );
+  if (options.page) url.searchParams.append("page", options.page.toString());
+  if (options.per_page) url.searchParams.append("per_page", options.per_page.toString());
+  if (options.with_content)
+    url.searchParams.append("with_content", options.with_content.toString());
+  const response = await fetch(url.toString(), {
+    ...getFetchConfig(),
+  });
+  await handleGitLabError(response);
+  const data = await response.json();
+  return GitLabWikiPageSchema.array().parse(data);
+}
+
+/**
+ * Get a specific group wiki page
+ */
+async function getGroupWikiPage(groupId: string, slug: string): Promise<GitLabWikiPage> {
+  groupId = decodeURIComponent(groupId); // Decode group ID
+  const response = await fetch(
+    `${getEffectiveApiUrl()}/groups/${encodeURIComponent(groupId)}/wikis/${encodeURIComponent(slug)}`,
+    { ...getFetchConfig() }
+  );
+  await handleGitLabError(response);
+  const data = await response.json();
+  return GitLabWikiPageSchema.parse(data);
+}
+
+/**
+ * Create a new group wiki page
+ */
+async function createGroupWikiPage(
+  groupId: string,
+  title: string,
+  content: string,
+  format?: string
+): Promise<GitLabWikiPage> {
+  groupId = decodeURIComponent(groupId); // Decode group ID
+  const body: Record<string, any> = { title, content };
+  if (format) body.format = format;
+  const response = await fetch(
+    `${getEffectiveApiUrl()}/groups/${encodeURIComponent(groupId)}/wikis`,
+    {
+      ...getFetchConfig(),
+      method: "POST",
+      body: JSON.stringify(body),
+    }
+  );
+  await handleGitLabError(response);
+  const data = await response.json();
+  return GitLabWikiPageSchema.parse(data);
+}
+
+/**
+ * Update an existing group wiki page
+ */
+async function updateGroupWikiPage(
+  groupId: string,
+  slug: string,
+  title?: string,
+  content?: string,
+  format?: string
+): Promise<GitLabWikiPage> {
+  groupId = decodeURIComponent(groupId); // Decode group ID
+  const body: Record<string, any> = {};
+  if (title) body.title = title;
+  if (content) body.content = content;
+  if (format) body.format = format;
+  const response = await fetch(
+    `${getEffectiveApiUrl()}/groups/${encodeURIComponent(groupId)}/wikis/${encodeURIComponent(slug)}`,
+    {
+      ...getFetchConfig(),
+      method: "PUT",
+      body: JSON.stringify(body),
+    }
+  );
+  await handleGitLabError(response);
+  const data = await response.json();
+  return GitLabWikiPageSchema.parse(data);
+}
+
+/**
+ * Delete a group wiki page
+ */
+async function deleteGroupWikiPage(groupId: string, slug: string): Promise<void> {
+  groupId = decodeURIComponent(groupId); // Decode group ID
+  const response = await fetch(
+    `${getEffectiveApiUrl()}/groups/${encodeURIComponent(groupId)}/wikis/${encodeURIComponent(slug)}`,
+    {
+      ...getFetchConfig(),
+      method: "DELETE",
+    }
+  );
+  await handleGitLabError(response);
+}
+
+/**
  * List pipelines in a GitLab project
  *
  * @param {string} projectId - The ID or URL-encoded path of the project
@@ -8698,7 +8846,7 @@ async function markdownUpload(projectId: string, filePath: string): Promise<GitL
 
   const defaultFetchConfig = getFetchConfig();
   delete defaultFetchConfig.headers["Content-Type"]; // Let form-data set the correct Content-Type with boundary
-    
+
   const response = await fetch(url.toString(), {
     ...defaultFetchConfig,
     method: "POST",
@@ -10218,6 +10366,68 @@ async function handleToolCall(params: any) {
                 {
                   status: "success",
                   message: "Wiki page deleted successfully",
+                },
+                null,
+                2
+              ),
+            },
+          ],
+        };
+      }
+
+      case "list_group_wiki_pages": {
+        const { group_id, page, per_page, with_content } = ListGroupWikiPagesSchema.parse(
+          params.arguments
+        );
+        const wikiPages = await listGroupWikiPages(group_id, {
+          page,
+          per_page,
+          with_content,
+        });
+        return {
+          content: [{ type: "text", text: JSON.stringify(wikiPages, null, 2) }],
+        };
+      }
+
+      case "get_group_wiki_page": {
+        const { group_id, slug } = GetGroupWikiPageSchema.parse(params.arguments);
+        const wikiPage = await getGroupWikiPage(group_id, slug);
+        return {
+          content: [{ type: "text", text: JSON.stringify(wikiPage, null, 2) }],
+        };
+      }
+
+      case "create_group_wiki_page": {
+        const { group_id, title, content, format } = CreateGroupWikiPageSchema.parse(
+          params.arguments
+        );
+        const wikiPage = await createGroupWikiPage(group_id, title, content, format);
+        return {
+          content: [{ type: "text", text: JSON.stringify(wikiPage, null, 2) }],
+        };
+      }
+
+      case "update_group_wiki_page": {
+        const { group_id, slug, title, content, format } = UpdateGroupWikiPageSchema.parse(
+          params.arguments
+        );
+        const wikiPage = await updateGroupWikiPage(group_id, slug, title, content, format);
+        return {
+          content: [{ type: "text", text: JSON.stringify(wikiPage, null, 2) }],
+        };
+      }
+
+      case "delete_group_wiki_page": {
+        const { group_id, slug } = DeleteGroupWikiPageSchema.parse(params.arguments);
+        await deleteGroupWikiPage(group_id, slug);
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(
+                {
+                  status: "success",
+                  message: "Group wiki page deleted successfully",
                 },
                 null,
                 2

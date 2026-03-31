@@ -30,7 +30,7 @@ const MCP_PORT_BASE = 3200;
 
 // Known tool counts per toolset (from TOOLSET_DEFINITIONS)
 const TOOLSET_TOOL_COUNTS: Record<string, number> = {
-  merge_requests: 32,
+  merge_requests: 34,
   issues: 14,
   repositories: 7,
   branches: 4,
@@ -38,7 +38,7 @@ const TOOLSET_TOOL_COUNTS: Record<string, number> = {
   labels: 5,
   pipelines: 19,
   milestones: 9,
-  wiki: 5,
+  wiki: 10,
   releases: 7,
   users: 5,
   search: 3,
@@ -82,7 +82,7 @@ const TOOLSET_SAMPLE_TOOLS: Record<string, string[]> = {
   labels: ["list_labels", "create_label"],
   pipelines: ["list_pipelines", "create_pipeline", "cancel_pipeline_job", "list_deployments", "list_job_artifacts"],
   milestones: ["list_milestones", "create_milestone", "get_milestone_burndown_events"],
-  wiki: ["list_wiki_pages", "create_wiki_page"],
+  wiki: ["list_wiki_pages", "create_wiki_page", "list_group_wiki_pages", "create_group_wiki_page"],
   releases: ["list_releases", "create_release", "download_release_asset"],
   users: ["get_users", "upload_markdown", "download_attachment"],
   search: ["search_code", "search_project_code", "search_group_code"],

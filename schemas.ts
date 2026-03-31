@@ -1961,7 +1961,7 @@ export const ListWikiPagesSchema = z
 
 export const GetWikiPageSchema = z.object({
   project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
-  slug: z.string().describe("URL-encoded slug of the wiki page"),
+  slug: z.string().describe("Slug of the wiki page (will be URL-encoded internally)"),
 });
 export const CreateWikiPageSchema = z.object({
   project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
@@ -1971,7 +1971,7 @@ export const CreateWikiPageSchema = z.object({
 });
 export const UpdateWikiPageSchema = z.object({
   project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
-  slug: z.string().describe("URL-encoded slug of the wiki page"),
+  slug: z.string().describe("Slug of the wiki page (will be URL-encoded internally)"),
   title: z.string().optional().describe("New title of the wiki page"),
   content: z.string().optional().describe("New content of the wiki page"),
   format: z.string().optional().describe("Content format, e.g., markdown, rdoc"),
@@ -1979,7 +1979,7 @@ export const UpdateWikiPageSchema = z.object({
 
 export const DeleteWikiPageSchema = z.object({
   project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
-  slug: z.string().describe("URL-encoded slug of the wiki page"),
+  slug: z.string().describe("Slug of the wiki page (will be URL-encoded internally)"),
 });
 
 // Define wiki response schemas
@@ -1990,6 +1990,39 @@ export const GitLabWikiPageSchema = z.object({
   content: z.string().optional(),
   created_at: z.string().optional(),
   updated_at: z.string().optional(),
+});
+
+// Group Wiki operation schemas
+export const ListGroupWikiPagesSchema = z
+  .object({
+    group_id: z.coerce.string().describe("Group ID or URL-encoded path"),
+    with_content: z.boolean().optional().describe("Include content of the wiki pages"),
+  })
+  .merge(PaginationOptionsSchema);
+
+export const GetGroupWikiPageSchema = z.object({
+  group_id: z.coerce.string().describe("Group ID or URL-encoded path"),
+  slug: z.string().describe("Slug of the wiki page (will be URL-encoded internally)"),
+});
+
+export const CreateGroupWikiPageSchema = z.object({
+  group_id: z.coerce.string().describe("Group ID or URL-encoded path"),
+  title: z.string().describe("Title of the wiki page"),
+  content: z.string().describe("Content of the wiki page"),
+  format: z.string().optional().describe("Content format, e.g., markdown, rdoc"),
+});
+
+export const UpdateGroupWikiPageSchema = z.object({
+  group_id: z.coerce.string().describe("Group ID or URL-encoded path"),
+  slug: z.string().describe("Slug of the wiki page (will be URL-encoded internally)"),
+  title: z.string().optional().describe("New title of the wiki page"),
+  content: z.string().optional().describe("New content of the wiki page"),
+  format: z.string().optional().describe("Content format, e.g., markdown, rdoc"),
+});
+
+export const DeleteGroupWikiPageSchema = z.object({
+  group_id: z.coerce.string().describe("Group ID or URL-encoded path"),
+  slug: z.string().describe("Slug of the wiki page (will be URL-encoded internally)"),
 });
 
 // Merge Request Thread position schema - used for diff notes
@@ -2653,6 +2686,12 @@ export type CreateWikiPageOptions = z.infer<typeof CreateWikiPageSchema>;
 export type UpdateWikiPageOptions = z.infer<typeof UpdateWikiPageSchema>;
 export type DeleteWikiPageOptions = z.infer<typeof DeleteWikiPageSchema>;
 export type GitLabWikiPage = z.infer<typeof GitLabWikiPageSchema>;
+// Group wiki types
+export type ListGroupWikiPagesOptions = z.infer<typeof ListGroupWikiPagesSchema>;
+export type GetGroupWikiPageOptions = z.infer<typeof GetGroupWikiPageSchema>;
+export type CreateGroupWikiPageOptions = z.infer<typeof CreateGroupWikiPageSchema>;
+export type UpdateGroupWikiPageOptions = z.infer<typeof UpdateGroupWikiPageSchema>;
+export type DeleteGroupWikiPageOptions = z.infer<typeof DeleteGroupWikiPageSchema>;
 export type GitLabTreeItem = z.infer<typeof GitLabTreeItemSchema>;
 export type GetRepositoryTreeOptions = z.infer<typeof GetRepositoryTreeSchema>;
 export type MergeRequestThreadPosition = z.infer<typeof MergeRequestThreadPositionSchema>;

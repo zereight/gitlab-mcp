@@ -365,7 +365,7 @@ docker run -i --rm \
   - `labels`\* — Label CRUD (5 tools)
   - `pipelines`\* — Pipeline and job operations (19 tools)
   - `milestones`\* — Milestone CRUD, issues, MRs, burndown (9 tools)
-  - `wiki`\* — Wiki page CRUD (5 tools)
+  - `wiki`\* — Wiki page CRUD for projects and groups (10 tools)
   - `releases`\* — Release CRUD, evidence, asset download (7 tools)
   - `users`\* — User info, events, markdown upload, attachments (5 tools)
   - `search` — Code search across projects, groups, or globally (3 tools, requires advanced search or exact code search enabled)
@@ -644,51 +644,56 @@ No `headers` field is needed — Claude.ai obtains the token via OAuth automatic
 54. `create_wiki_page` - Create a new wiki page in a GitLab project
 55. `update_wiki_page` - Update an existing wiki page in a GitLab project
 56. `delete_wiki_page` - Delete a wiki page from a GitLab project
-57. `get_repository_tree` - Get the repository tree for a GitLab project (list files and directories)
-58. `list_pipelines` - List pipelines in a GitLab project with filtering options
-59. `get_pipeline` - Get details of a specific pipeline in a GitLab project
-60. `list_pipeline_jobs` - List all jobs in a specific pipeline
-61. `list_pipeline_trigger_jobs` - List all trigger jobs (bridges) in a specific pipeline that trigger downstream pipelines
-62. `get_pipeline_job` - Get details of a GitLab pipeline job number
-63. `get_pipeline_job_output` - Get the output/trace of a GitLab pipeline job with optional pagination to limit context window usage
-64. `create_pipeline` - Create a new pipeline for a branch or tag
-65. `retry_pipeline` - Retry a failed or canceled pipeline
-66. `cancel_pipeline` - Cancel a running pipeline
-67. `play_pipeline_job` - Run a manual pipeline job
-68. `retry_pipeline_job` - Retry a failed or canceled pipeline job
-69. `cancel_pipeline_job` - Cancel a running pipeline job
-70. `list_merge_requests` - List merge requests globally or in a specific GitLab project with filtering options (project_id is now optional)
-71. `list_milestones` - List milestones in a GitLab project with filtering options
-72. `get_milestone` - Get details of a specific milestone
-73. `create_milestone` - Create a new milestone in a GitLab project
-74. `edit_milestone` - Edit an existing milestone in a GitLab project
-75. `delete_milestone` - Delete a milestone from a GitLab project
-76. `get_milestone_issue` - Get issues associated with a specific milestone
-77. `get_milestone_merge_requests` - Get merge requests associated with a specific milestone
-78. `promote_milestone` - Promote a milestone to the next stage
-79. `get_milestone_burndown_events` - Get burndown events for a specific milestone
-80. `get_users` - Get GitLab user details by usernames
-81. `list_commits` - List repository commits with filtering options
-82. `get_commit` - Get details of a specific commit
-83. `get_commit_diff` - Get changes/diffs of a specific commit
-84. `list_group_iterations` - List group iterations with filtering options
-85. `upload_markdown` - Upload a file to a GitLab project for use in markdown content
-86. `download_attachment` - Download an uploaded file from a GitLab project by secret and filename
-87. `list_events` - List all events for the currently authenticated user
-88. `get_project_events` - List all visible events for a specified project
-89. `list_releases` - List all releases for a project
-90. `get_release` - Get a release by tag name
-91. `create_release` - Create a new release in a GitLab project
-92. `update_release` - Update an existing release in a GitLab project
-93. `delete_release` - Delete a release from a GitLab project (does not delete the associated tag)
-94. `create_release_evidence` - Create release evidence for an existing release (GitLab Premium/Ultimate only)
-95. `download_release_asset` - Download a release asset file by direct asset path
-96. `approve_merge_request` - Approve a merge request (requires appropriate permissions)
-97. `unapprove_merge_request` - Unapprove a previously approved merge request
-98. `get_merge_request_approval_state` - Get merge request approval details including approvers (uses `approval_state` when available, otherwise falls back to `approvals`)
-99. `search_code` - Search for code across all projects on the GitLab instance (requires advanced search or exact code search to be enabled)
-100. `search_project_code` - Search for code within a specific GitLab project (requires advanced search or exact code search to be enabled)
-101. `search_group_code` - Search for code within a specific GitLab group (requires advanced search or exact code search to be enabled)
+57. `list_group_wiki_pages` - List wiki pages in a GitLab group
+58. `get_group_wiki_page` - Get details of a specific group wiki page
+59. `create_group_wiki_page` - Create a new wiki page in a GitLab group
+60. `update_group_wiki_page` - Update an existing wiki page in a GitLab group
+61. `delete_group_wiki_page` - Delete a wiki page from a GitLab group
+62. `get_repository_tree` - Get the repository tree for a GitLab project (list files and directories)
+63. `list_pipelines` - List pipelines in a GitLab project with filtering options
+64. `get_pipeline` - Get details of a specific pipeline in a GitLab project
+65. `list_pipeline_jobs` - List all jobs in a specific pipeline
+66. `list_pipeline_trigger_jobs` - List all trigger jobs (bridges) in a specific pipeline that trigger downstream pipelines
+67. `get_pipeline_job` - Get details of a GitLab pipeline job number
+68. `get_pipeline_job_output` - Get the output/trace of a GitLab pipeline job with optional pagination to limit context window usage
+69. `create_pipeline` - Create a new pipeline for a branch or tag
+70. `retry_pipeline` - Retry a failed or canceled pipeline
+71. `cancel_pipeline` - Cancel a running pipeline
+72. `play_pipeline_job` - Run a manual pipeline job
+73. `retry_pipeline_job` - Retry a failed or canceled pipeline job
+74. `cancel_pipeline_job` - Cancel a running pipeline job
+75. `list_merge_requests` - List merge requests globally or in a specific GitLab project with filtering options (project_id is now optional)
+76. `list_milestones` - List milestones in a GitLab project with filtering options
+77. `get_milestone` - Get details of a specific milestone
+78. `create_milestone` - Create a new milestone in a GitLab project
+79. `edit_milestone` - Edit an existing milestone in a GitLab project
+80. `delete_milestone` - Delete a milestone from a GitLab project
+81. `get_milestone_issue` - Get issues associated with a specific milestone
+82. `get_milestone_merge_requests` - Get merge requests associated with a specific milestone
+83. `promote_milestone` - Promote a milestone to the next stage
+84. `get_milestone_burndown_events` - Get burndown events for a specific milestone
+85. `get_users` - Get GitLab user details by usernames
+86. `list_commits` - List repository commits with filtering options
+87. `get_commit` - Get details of a specific commit
+88. `get_commit_diff` - Get changes/diffs of a specific commit
+89. `list_group_iterations` - List group iterations with filtering options
+90. `upload_markdown` - Upload a file to a GitLab project for use in markdown content
+91. `download_attachment` - Download an uploaded file from a GitLab project by secret and filename
+92. `list_events` - List all events for the currently authenticated user
+93. `get_project_events` - List all visible events for a specified project
+94. `list_releases` - List all releases for a project
+95. `get_release` - Get a release by tag name
+96. `create_release` - Create a new release in a GitLab project
+97. `update_release` - Update an existing release in a GitLab project
+98. `delete_release` - Delete a release from a GitLab project (does not delete the associated tag)
+99. `create_release_evidence` - Create release evidence for an existing release (GitLab Premium/Ultimate only)
+100. `download_release_asset` - Download a release asset file by direct asset path
+101. `approve_merge_request` - Approve a merge request (requires appropriate permissions)
+102. `unapprove_merge_request` - Unapprove a previously approved merge request
+103. `get_merge_request_approval_state` - Get merge request approval details including approvers (uses `approval_state` when available, otherwise falls back to `approvals`)
+104. `search_code` - Search for code across all projects on the GitLab instance (requires advanced search or exact code search to be enabled)
+105. `search_project_code` - Search for code within a specific GitLab project (requires advanced search or exact code search to be enabled)
+106. `search_group_code` - Search for code within a specific GitLab group (requires advanced search or exact code search to be enabled)
 <!-- TOOLS-END -->
 
 </details>
