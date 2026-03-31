@@ -641,6 +641,11 @@ const REMOTE_AUTHORIZATION = getConfig("remote-auth", "REMOTE_AUTHORIZATION") ==
 const GITLAB_MCP_OAUTH = getConfig("mcp-oauth", "GITLAB_MCP_OAUTH") === "true";
 const MCP_SERVER_URL = getConfig("mcp-server-url", "MCP_SERVER_URL");
 const GITLAB_OAUTH_APP_ID = getConfig("oauth-app-id", "GITLAB_OAUTH_APP_ID");
+const GITLAB_OAUTH_SCOPES_RAW = getConfig("oauth-scopes", "GITLAB_OAUTH_SCOPES");
+const GITLAB_OAUTH_SCOPES =
+  GITLAB_OAUTH_SCOPES_RAW
+    ? GITLAB_OAUTH_SCOPES_RAW.split(",").map((s) => s.trim()).filter(Boolean)
+    : undefined;
 const ENABLE_DYNAMIC_API_URL =
   getConfig("enable-dynamic-api-url", "ENABLE_DYNAMIC_API_URL") === "true";
 const SESSION_TIMEOUT_SECONDS = Number.parseInt(
@@ -11342,7 +11347,7 @@ async function startStreamableHTTPServer(): Promise<void> {
     app.set("trust proxy", 1);
     const gitlabBaseUrl = GITLAB_API_URL.replace(/\/api\/v4\/?$/, "").replace(/\/$/, "");
     const issuerUrl = new URL(MCP_SERVER_URL!);
-    const oauthProvider = createGitLabOAuthProvider(gitlabBaseUrl, GITLAB_OAUTH_APP_ID!, "GitLab MCP Server", GITLAB_READ_ONLY_MODE);
+    const oauthProvider = createGitLabOAuthProvider(gitlabBaseUrl, GITLAB_OAUTH_APP_ID!, "GitLab MCP Server", GITLAB_READ_ONLY_MODE, GITLAB_OAUTH_SCOPES);
 
     // Mounts /.well-known/oauth-authorization-server,
     //        /.well-known/oauth-protected-resource,
@@ -11352,7 +11357,7 @@ async function startStreamableHTTPServer(): Promise<void> {
         provider: oauthProvider,
         issuerUrl,
         baseUrl: issuerUrl,
-        scopesSupported: ["api", "read_api", "read_user"],
+        scopesSupported: GITLAB_OAUTH_SCOPES ?? ["api", "read_api", "read_user"],
         resourceName: "GitLab MCP Server",
       })
     );
