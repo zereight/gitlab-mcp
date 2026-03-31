@@ -871,12 +871,8 @@ function buildAuthHeaders(): Record<string, string> {
     return {}; // No auth headers if no session context
   }
 
-  // CI job tokens use a dedicated header (not Bearer/Private-Token)
-  if (GITLAB_JOB_TOKEN) {
-    return { "JOB-TOKEN": String(GITLAB_JOB_TOKEN) };
-  }
-
-  // Standard mode: prioritize OAuth token, then fall back to environment token
+  // Standard mode: PAT preferred over job token (broader permissions).
+  // OAuth token takes priority over PAT when both are set.
   const token = OAUTH_ACCESS_TOKEN || GITLAB_PERSONAL_ACCESS_TOKEN;
 
   if (IS_OLD && token) {
@@ -885,6 +881,12 @@ function buildAuthHeaders(): Record<string, string> {
   if (token) {
     return { Authorization: `Bearer ${token}` };
   }
+
+  // Fall back to CI job token
+  if (GITLAB_JOB_TOKEN) {
+    return { "JOB-TOKEN": String(GITLAB_JOB_TOKEN) };
+  }
+
   return {};
 }
 
@@ -11241,7 +11243,8 @@ async function startStreamableHTTPServer(): Promise<void> {
   /**
    * Parse authentication from request headers
    * Returns null if no auth found or invalid format
-   * Supports: JOB-TOKEN header, Private-Token header, Authorization Bearer header
+   * Supports: Private-Token header, JOB-TOKEN header, Authorization Bearer header
+   * Priority: Private-Token > JOB-TOKEN > Authorization Bearer
    */
   const parseAuthHeaders = (req: Request): AuthData | null => {
     const authHeader = (req.headers["authorization"] as string | undefined) || "";
@@ -11262,16 +11265,17 @@ async function startStreamableHTTPServer(): Promise<void> {
       }
     }
 
-    // Extract token
+    // Extract token — priority: Private-Token > JOB-TOKEN > Authorization Bearer
+    // PATs are preferred over job tokens because they carry broader permissions.
     let token: string | null = null;
     let header: "Authorization" | "Private-Token" | "JOB-TOKEN" | null = null;
 
-    if (jobToken) {
-      token = jobToken.trim();
-      header = "JOB-TOKEN";
-    } else if (privateToken) {
+    if (privateToken) {
       token = privateToken.trim();
       header = "Private-Token";
+    } else if (jobToken) {
+      token = jobToken.trim();
+      header = "JOB-TOKEN";
     } else if (authHeader) {
       // Use \S+ instead of .+ to prevent ReDoS attacks
       // \S+ only matches non-whitespace, so trim() is technically unnecessary,
@@ -11423,9 +11427,9 @@ async function startStreamableHTTPServer(): Promise<void> {
         if (!authData) {
           metrics.authFailures++;
           res.status(401).json({
-            error: "Missing Authorization, Private-Token, or JOB-TOKEN header",
+            error: "Missing Private-Token, JOB-TOKEN, or Authorization header",
             message:
-              "Remote authorization is enabled. Please provide Authorization, Private-Token, or JOB-TOKEN header.",
+              "Remote authorization is enabled. Please provide Private-Token, JOB-TOKEN, or Authorization header.",
           });
           return;
         }
