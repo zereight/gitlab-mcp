@@ -25,6 +25,8 @@ import { MockGitLabServer, findMockServerPort } from "./utils/mock-gitlab-server
 
 const MOCK_OAUTH_TOKEN = "ya29.mock-oauth-token-abcdef123456";
 const MOCK_CLIENT_ID = "mock-app-uid-from-dcr";
+const MOCK_PAT_TOKEN = "glpat-mockpat-testtoken-abcdef12";  // ≥20 chars, valid charset
+const MOCK_JOB_TOKEN = "mockjobtoken-testenv-1234567890";   // ≥20 chars, valid charset
 
 const MOCK_GITLAB_PORT_BASE = 9200;
 const MCP_SERVER_PORT_BASE = 3200;
@@ -562,5 +564,129 @@ describe("MCP OAuth — createGitLabOAuthProvider", () => {
       "  ✓ DCR response cached: getClient returns real redirect_uris after registration"
     );
     console.log(`  ✓ client_name annotated: ${registered.client_name}`);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Test suite: Header auth fallback within GITLAB_MCP_OAUTH mode
+// ---------------------------------------------------------------------------
+
+describe("MCP OAuth — Header Auth Fallback", () => {
+  let mcpUrl: string;
+  let mcpBaseUrl: string;
+  let mockGitLab: MockGitLabServer;
+  let servers: ServerInstance[] = [];
+
+  before(async () => {
+    const mockPort = await findMockServerPort(MOCK_GITLAB_PORT_BASE + 150);
+    mockGitLab = new MockGitLabServer({
+      port: mockPort,
+      // Include both OAuth token and raw tokens so GitLab API calls succeed
+      validTokens: [MOCK_OAUTH_TOKEN, MOCK_PAT_TOKEN, MOCK_JOB_TOKEN],
+    });
+    await mockGitLab.start();
+    const mockGitLabUrl = mockGitLab.getUrl();
+
+    // OAuth endpoints needed for server startup AS metadata
+    addOAuthEndpoints(mockGitLab, MOCK_OAUTH_TOKEN, MOCK_CLIENT_ID, mockGitLabUrl);
+
+    const mcpPort = await findAvailablePort(MCP_SERVER_PORT_BASE + 150);
+    mcpBaseUrl = `http://${HOST}:${mcpPort}`;
+    mcpUrl = `${mcpBaseUrl}/mcp`;
+
+    const server = await launchServer({
+      mode: TransportMode.STREAMABLE_HTTP,
+      port: mcpPort,
+      timeout: 5000,
+      env: {
+        STREAMABLE_HTTP: "true",
+        GITLAB_MCP_OAUTH: "true",
+        GITLAB_OAUTH_APP_ID: "test-oauth-app-id",
+        GITLAB_API_URL: `${mockGitLabUrl}/api/v4`,
+        MCP_SERVER_URL: mcpBaseUrl,
+        MCP_DANGEROUSLY_ALLOW_INSECURE_ISSUER_URL: "true",
+      },
+    });
+    servers.push(server);
+
+    console.log(`Mock GitLab (header-auth): ${mockGitLabUrl}`);
+    console.log(`MCP Server  (header-auth): ${mcpBaseUrl}`);
+  });
+
+  after(async () => {
+    cleanupServers(servers);
+    if (mockGitLab) {
+      await mockGitLab.stop();
+    }
+  });
+
+  const initBody = JSON.stringify({
+    jsonrpc: "2.0",
+    id: 1,
+    method: "initialize",
+    params: {
+      protocolVersion: "2024-11-05",
+      capabilities: {},
+      clientInfo: { name: "test-client", version: "1.0.0" },
+    },
+  });
+
+  test("POST /mcp with Private-Token header bypasses OAuth and is accepted", async () => {
+    const res = await fetch(mcpUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json, text/event-stream",
+        "Private-Token": MOCK_PAT_TOKEN,
+      },
+      body: initBody,
+    });
+
+    assert.notStrictEqual(res.status, 401, "Should not return 401 with valid Private-Token");
+    assert.notStrictEqual(res.status, 403, "Should not return 403 with valid Private-Token");
+    console.log(`  ✓ Private-Token header accepted (status: ${res.status})`);
+  });
+
+  test("POST /mcp with JOB-TOKEN header bypasses OAuth and is accepted", async () => {
+    const res = await fetch(mcpUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json, text/event-stream",
+        "job-token": MOCK_JOB_TOKEN,
+      },
+      body: initBody,
+    });
+
+    assert.notStrictEqual(res.status, 401, "Should not return 401 with valid JOB-TOKEN");
+    assert.notStrictEqual(res.status, 403, "Should not return 403 with valid JOB-TOKEN");
+    console.log(`  ✓ JOB-TOKEN header accepted (status: ${res.status})`);
+  });
+
+  test("POST /mcp with valid OAuth Bearer token still works normally", async () => {
+    const res = await fetch(mcpUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json, text/event-stream",
+        Authorization: `Bearer ${MOCK_OAUTH_TOKEN}`,
+      },
+      body: initBody,
+    });
+
+    assert.notStrictEqual(res.status, 401, "OAuth Bearer should still work alongside header auth");
+    assert.notStrictEqual(res.status, 403, "Should not return 403 with valid OAuth token");
+    console.log(`  ✓ OAuth Bearer token still accepted (status: ${res.status})`);
+  });
+
+  test("POST /mcp with no auth still returns 401", async () => {
+    const res = await fetch(mcpUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: initBody,
+    });
+
+    assert.strictEqual(res.status, 401, "Should return 401 with no auth");
+    console.log("  ✓ No auth still returns 401");
   });
 });

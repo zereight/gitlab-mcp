@@ -582,6 +582,11 @@ No `headers` field is needed — Claude.ai obtains the token via OAuth automatic
 - Session timeout, rate limiting, and capacity limits apply identically to the
   `REMOTE_AUTHORIZATION` mode (`SESSION_TIMEOUT_SECONDS`, `MAX_REQUESTS_PER_MINUTE`,
   `MAX_SESSIONS`)
+- **Header auth fallback:** when `Private-Token` or `JOB-TOKEN` request headers are
+  present, OAuth validation is skipped and the raw token is used directly for that
+  session. This allows PATs and CI job tokens to be used alongside the OAuth flow on
+  the same server instance. `Authorization: Bearer` is always treated as an OAuth
+  token — use `Private-Token` for PAT-based header auth.
 
 ## Tools 🛠️
 
