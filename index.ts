@@ -1212,7 +1212,7 @@ const allTools = [
   },
   {
     name: "create_issue_note",
-    description: "Add a new note to an existing issue thread",
+    description: "Add a note to an issue. Creates a top-level comment, or replies to a discussion thread if discussion_id is provided",
     inputSchema: toJSONSchema(CreateIssueNoteSchema),
   },
   {
@@ -5012,7 +5012,7 @@ async function updateIssueNote(
  * Create a note in an issue discussion
  * @param {string} projectId - The ID or URL-encoded path of the project
  * @param {number} issueIid - The IID of an issue
- * @param {string} discussionId - The ID of a thread
+ * @param {string} [discussionId] - The ID of a thread (omit for top-level note)
  * @param {string} body - The content of the new note
  * @param {string} [createdAt] - The creation date of the note (ISO 8601 format)
  * @returns {Promise<GitLabDiscussionNote>} The created note
@@ -5020,15 +5020,18 @@ async function updateIssueNote(
 async function createIssueNote(
   projectId: string,
   issueIid: number | string,
-  discussionId: string,
+  discussionId: string | undefined,
   body: string,
   createdAt?: string
 ): Promise<GitLabDiscussionNote> {
   projectId = decodeURIComponent(projectId); // Decode project ID
+  const basePath = `${getEffectiveApiUrl()}/projects/${encodeURIComponent(
+    getEffectiveProjectId(projectId)
+  )}/issues/${issueIid}`;
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(
-      getEffectiveProjectId(projectId)
-    )}/issues/${issueIid}/discussions/${discussionId}/notes`
+    discussionId
+      ? `${basePath}/discussions/${discussionId}/notes`
+      : `${basePath}/notes`
   );
 
   const payload: { body: string; created_at?: string } = { body };
