@@ -759,9 +759,37 @@ const createCookieJar = async (): Promise<CookieJar | null> => {
   return jar;
 };
 
+/**
+ * Wrap a fetch function with automatic OAuth token refresh on 401 responses.
+ * On a 401, force-refreshes the OAuth token and retries the request once.
+ * The retry calls baseFetch directly (not the wrapper), so infinite loops are impossible.
+ * In non-OAuth mode, the wrapper is a transparent pass-through.
+ */
+function wrapWithAuthRetry(baseFetch: typeof nodeFetch): typeof nodeFetch {
+  return (async (url: any, options?: any) => {
+    const response = await baseFetch(url, options);
+
+    if (response.status === 401 && USE_OAUTH && oauthClient) {
+      logger.info("Received 401, force-refreshing OAuth token and retrying...");
+      try {
+        OAUTH_ACCESS_TOKEN = await oauthClient.getAccessToken(true);
+        const retryOptions = {
+          ...options,
+          headers: { ...options?.headers, ...buildAuthHeaders() },
+        };
+        return await baseFetch(url, retryOptions);
+      } catch (refreshError) {
+        logger.error("OAuth token refresh failed, returning original 401 response:", refreshError);
+      }
+    }
+
+    return response;
+  }) as typeof nodeFetch;
+}
+
 // Cookie jar and fetch - reloaded when cookie file changes
 let cookieJar: CookieJar | null = null;
-let fetch: typeof nodeFetch = nodeFetch;
+let fetch: typeof nodeFetch = wrapWithAuthRetry(nodeFetch);
 let lastCookieMtime = 0;
 let cookieReloadLock: Promise<void> | null = null; // Mutex to prevent parallel reloads
 // Auth proxies may redirect and set cookies on the first request. We make a throwaway
@@ -785,7 +813,7 @@ async function reloadCookiesIfChanged(): Promise<void> {
         lastCookieMtime = mtime;
         const newJar = await createCookieJar();
         cookieJar = newJar;
-        fetch = newJar ? fetchCookie(nodeFetch, newJar) : nodeFetch;
+        fetch = wrapWithAuthRetry(newJar ? fetchCookie(nodeFetch, newJar) : nodeFetch);
         initialSessionRequestMade = false;
       }
     } catch {
@@ -793,7 +821,7 @@ async function reloadCookiesIfChanged(): Promise<void> {
       if (cookieJar) {
         logger.info("Cookie file removed, clearing cached cookies");
         cookieJar = null;
-        fetch = nodeFetch;
+        fetch = wrapWithAuthRetry(nodeFetch);
         lastCookieMtime = 0;
         initialSessionRequestMade = false;
       }

@@ -563,14 +563,14 @@ export class GitLabOAuth {
   /**
    * Get a valid access token, refreshing if necessary
    */
-  async getAccessToken(): Promise<string> {
+  async getAccessToken(force = false): Promise<string> {
     let tokenData = this.loadToken();
 
-    // If no token or expired, start OAuth flow or refresh
+    // If no token or expired (or forced), start OAuth flow or refresh
     if (!tokenData) {
       logger.info("No stored token found. Starting OAuth flow...");
       tokenData = await this.startOAuthFlow();
-    } else if (this.isTokenExpired(tokenData)) {
+    } else if (force || this.isTokenExpired(tokenData)) {
       logger.info("Token expired. Refreshing...");
       if (tokenData.refresh_token) {
         try {
