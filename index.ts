@@ -105,6 +105,8 @@ import {
   // pipeline job schemas
   GetPipelineJobOutputSchema,
   GetPipelineSchema,
+  WaitForPipelineSchema,
+  WaitForPipelineJobSchema,
   GetProjectMilestoneSchema,
   GetProjectSchema,
   type GetRepositoryTreeOptions,
@@ -417,7 +419,7 @@ function createServer(): Server {
     };
   });
 
-  serverInstance.setRequestHandler(CallToolRequestSchema, async (request: any) => {
+  serverInstance.setRequestHandler(CallToolRequestSchema, async (request: any, extra: any) => {
     // Manually retrieve the session context using the session ID passed in the request.
     // This is a robust workaround for AsyncLocalStorage context loss.
     const sessionId = request.params.sessionId;
@@ -431,10 +433,10 @@ function createServer(): Server {
         apiUrl: authData.apiUrl,
       };
       // Run the handler within the retrieved context
-      return await sessionAuthStore.run(sessionContext, () => handleToolCall(request.params));
+      return await sessionAuthStore.run(sessionContext, () => handleToolCall(request.params, extra));
     }
     // Fallback for non-remote-auth mode or if session is not found
-    return handleToolCall(request.params);
+    return handleToolCall(request.params, extra);
   });
 
   return serverInstance;
@@ -1466,6 +1468,18 @@ const allTools = [
     inputSchema: toJSONSchema(CancelPipelineJobSchema),
   },
   {
+    name: "wait_for_pipeline",
+    description:
+      "Wait for a pipeline to reach a terminal state (success, failed, canceled, skipped, or manual). Polls the pipeline status at a configurable interval and returns the final pipeline object. Sends progress notifications to keep the connection alive.",
+    inputSchema: toJSONSchema(WaitForPipelineSchema),
+  },
+  {
+    name: "wait_for_pipeline_job",
+    description:
+      "Wait for a pipeline job to reach a terminal state (success, failed, canceled, skipped, or manual). Polls the job status at a configurable interval and returns the final job object. Sends progress notifications to keep the connection alive.",
+    inputSchema: toJSONSchema(WaitForPipelineJobSchema),
+  },
+  {
     name: "list_job_artifacts",
     description: "List artifact files in a job's artifacts archive. Returns file names, paths, types, and sizes.",
     inputSchema: toJSONSchema(ListJobArtifactsSchema),
@@ -1772,6 +1786,8 @@ const readOnlyTools = new Set([
   "list_pipeline_trigger_jobs",
   "get_pipeline_job",
   "get_pipeline_job_output",
+  "wait_for_pipeline",
+  "wait_for_pipeline_job",
   "list_job_artifacts",
   "download_job_artifacts",
   "get_job_artifact_file",
@@ -1859,6 +1875,8 @@ const pipelineToolNames = new Set([
   "play_pipeline_job",
   "retry_pipeline_job",
   "cancel_pipeline_job",
+  "wait_for_pipeline",
+  "wait_for_pipeline_job",
   "list_job_artifacts",
   "download_job_artifacts",
   "get_job_artifact_file",
@@ -2017,6 +2035,8 @@ const TOOLSET_DEFINITIONS: readonly ToolsetDefinition[] = [
       "play_pipeline_job",
       "retry_pipeline_job",
       "cancel_pipeline_job",
+      "wait_for_pipeline",
+      "wait_for_pipeline_job",
       "list_job_artifacts",
       "download_job_artifacts",
       "get_job_artifact_file",
@@ -7652,6 +7672,124 @@ async function getPipeline(
   return GitLabPipelineSchema.parse(data);
 }
 
+const PIPELINE_TERMINAL_STATES = new Set(["success", "failed", "canceled", "skipped", "manual"]);
+const JOB_TERMINAL_STATES = new Set(["success", "failed", "canceled", "skipped", "manual"]);
+
+/**
+ * Sleep that can be interrupted by an AbortSignal.
+ */
+function abortableSleep(ms: number, signal?: AbortSignal): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (signal?.aborted) {
+      reject(signal.reason);
+      return;
+    }
+    const timer = setTimeout(resolve, ms);
+    signal?.addEventListener(
+      "abort",
+      () => {
+        clearTimeout(timer);
+        reject(signal.reason);
+      },
+      { once: true }
+    );
+  });
+}
+
+/**
+ * Wait for a pipeline to reach a terminal state by polling.
+ *
+ * @param {string} projectId - The ID or URL-encoded path of the project
+ * @param {number|string} pipelineId - The ID of the pipeline
+ * @param {number} intervalSeconds - Polling interval in seconds
+ * @param {number} timeoutSeconds - Maximum wait time in seconds
+ * @param {function|undefined} sendProgress - Callback to send MCP progress notifications
+ * @param {AbortSignal|undefined} signal - Signal to abort polling on client disconnect
+ * @returns {Promise<{pipeline: GitLabPipeline, timedOut: boolean}>} Final pipeline state
+ */
+async function waitForPipeline(
+  projectId: string,
+  pipelineId: number | string,
+  intervalSeconds: number,
+  timeoutSeconds: number,
+  sendProgress?: (elapsed: number, total: number) => Promise<void>,
+  signal?: AbortSignal
+): Promise<{ pipeline: GitLabPipeline; timedOut: boolean }> {
+  const deadline = Date.now() + timeoutSeconds * 1000;
+  const startTime = Date.now();
+
+  let pipeline = await getPipeline(projectId, pipelineId);
+  if (PIPELINE_TERMINAL_STATES.has(pipeline.status)) {
+    return { pipeline, timedOut: false };
+  }
+
+  while (Date.now() < deadline) {
+    signal?.throwIfAborted();
+
+    await abortableSleep(intervalSeconds * 1000, signal);
+
+    pipeline = await getPipeline(projectId, pipelineId);
+
+    if (sendProgress) {
+      const elapsed = Math.round((Date.now() - startTime) / 1000);
+      await sendProgress(elapsed, timeoutSeconds);
+    }
+
+    if (PIPELINE_TERMINAL_STATES.has(pipeline.status)) {
+      return { pipeline, timedOut: false };
+    }
+  }
+
+  return { pipeline, timedOut: true };
+}
+
+/**
+ * Wait for a pipeline job to reach a terminal state by polling.
+ *
+ * @param {string} projectId - The ID or URL-encoded path of the project
+ * @param {number|string} jobId - The ID of the job
+ * @param {number} intervalSeconds - Polling interval in seconds
+ * @param {number} timeoutSeconds - Maximum wait time in seconds
+ * @param {function|undefined} sendProgress - Callback to send MCP progress notifications
+ * @param {AbortSignal|undefined} signal - Signal to abort polling on client disconnect
+ * @returns {Promise<{job: GitLabPipelineJob, timedOut: boolean}>} Final job state
+ */
+async function waitForPipelineJob(
+  projectId: string,
+  jobId: number | string,
+  intervalSeconds: number,
+  timeoutSeconds: number,
+  sendProgress?: (elapsed: number, total: number) => Promise<void>,
+  signal?: AbortSignal
+): Promise<{ job: GitLabPipelineJob; timedOut: boolean }> {
+  const deadline = Date.now() + timeoutSeconds * 1000;
+  const startTime = Date.now();
+
+  let job = await getPipelineJob(projectId, jobId);
+  if (JOB_TERMINAL_STATES.has(job.status)) {
+    return { job, timedOut: false };
+  }
+
+  while (Date.now() < deadline) {
+    signal?.throwIfAborted();
+
+    await abortableSleep(intervalSeconds * 1000, signal);
+
+    job = await getPipelineJob(projectId, jobId);
+
+    if (sendProgress) {
+      const elapsed = Math.round((Date.now() - startTime) / 1000);
+      await sendProgress(elapsed, timeoutSeconds);
+    }
+
+    if (JOB_TERMINAL_STATES.has(job.status)) {
+      return { job, timedOut: false };
+    }
+  }
+
+  return { job, timedOut: true };
+}
+
 /**
  * List deployments in a GitLab project
  *
@@ -9229,7 +9367,7 @@ function filterDiffsByPatterns<T extends { new_path: string }>(
   return diffs.filter(diff => !matchesAnyPattern(diff.new_path));
 }
 
-async function handleToolCall(params: any) {
+async function handleToolCall(params: any, extra?: any) {
   try {
     if (!params.arguments) {
       throw new Error("Arguments are required");
@@ -10639,6 +10777,94 @@ async function handleToolCall(params: any) {
             },
           ],
         };
+      }
+
+      case "wait_for_pipeline": {
+        const { project_id, pipeline_id, interval_seconds, timeout_seconds, fail_on_error } =
+          WaitForPipelineSchema.parse(params.arguments);
+        const progressToken = params._meta?.progressToken;
+        const signal = extra?.signal as AbortSignal | undefined;
+        const sendProgress =
+          progressToken !== undefined && extra?.sendNotification
+            ? async (elapsed: number, total: number) => {
+                await extra.sendNotification({
+                  method: "notifications/progress",
+                  params: { progressToken, progress: elapsed, total },
+                });
+              }
+            : undefined;
+        try {
+          const { pipeline, timedOut } = await waitForPipeline(
+            project_id,
+            pipeline_id,
+            interval_seconds,
+            timeout_seconds,
+            sendProgress,
+            signal
+          );
+          const isError =
+            timedOut || (fail_on_error && (pipeline.status === "failed" || pipeline.status === "canceled"));
+          const result: any = { ...pipeline };
+          if (timedOut) {
+            result.timed_out = true;
+          }
+          return {
+            content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+            isError,
+          };
+        } catch (e: any) {
+          if (e?.name === "AbortError") {
+            return {
+              content: [{ type: "text", text: "Request was cancelled by the client." }],
+              isError: true,
+            };
+          }
+          throw e;
+        }
+      }
+
+      case "wait_for_pipeline_job": {
+        const { project_id, job_id, interval_seconds, timeout_seconds, fail_on_error } =
+          WaitForPipelineJobSchema.parse(params.arguments);
+        const progressToken = params._meta?.progressToken;
+        const signal = extra?.signal as AbortSignal | undefined;
+        const sendProgress =
+          progressToken !== undefined && extra?.sendNotification
+            ? async (elapsed: number, total: number) => {
+                await extra.sendNotification({
+                  method: "notifications/progress",
+                  params: { progressToken, progress: elapsed, total },
+                });
+              }
+            : undefined;
+        try {
+          const { job, timedOut } = await waitForPipelineJob(
+            project_id,
+            job_id,
+            interval_seconds,
+            timeout_seconds,
+            sendProgress,
+            signal
+          );
+          const isError =
+            timedOut || (fail_on_error && (job.status === "failed" || job.status === "canceled"));
+          const result: any = { ...job };
+          if (timedOut) {
+            result.timed_out = true;
+          }
+          return {
+            content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+            isError,
+          };
+        } catch (e: any) {
+          if (e?.name === "AbortError") {
+            return {
+              content: [{ type: "text", text: "Request was cancelled by the client." }],
+              isError: true,
+            };
+          }
+          throw e;
+        }
       }
 
       case "list_job_artifacts": {
