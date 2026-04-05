@@ -342,6 +342,9 @@ docker run -i --rm \
   - **SSE transport is disabled** - attempting to use SSE with remote authorization will cause the server to exit with an error
   - Each client session can use a different token, enabling multi-user support with secure session isolation
   - Tokens are stored per session and automatically cleaned up when sessions close or timeout
+- `GITLAB_MCP_OAUTH`: Set to `true` to enable the server-side MCP OAuth proxy mode. See [MCP OAuth Setup](#mcp-oauth-setup-claudeai-native-oauth) for details.
+- `GITLAB_OAUTH_APP_ID`: Client ID of the pre-registered GitLab OAuth application. Required when `GITLAB_MCP_OAUTH=true`.
+- `GITLAB_OAUTH_SCOPES`: Comma-separated list of GitLab scopes to request during the MCP OAuth flow (e.g. `api,read_user`). Defaults to `api` (or `read_api` when `GITLAB_READ_ONLY_MODE=true`). Only used when `GITLAB_MCP_OAUTH=true`. The pre-registered application must be configured with at least these scopes.
 - `SESSION_TIMEOUT_SECONDS`: Session auth token timeout in seconds. Default: `3600` (1 hour). Valid range: 1-86400 seconds (recommended: 60+). After this period of inactivity, the auth token is removed but the transport session remains active. The client must provide auth headers again on the next request. Only applies when `REMOTE_AUTHORIZATION=true`.
 
 #### General Configuration
@@ -512,7 +515,7 @@ calls (need `api` or `read_api`).
 1. Go to your GitLab instance → **Admin Area > Applications** (instance-wide) or **User Settings > Applications** (personal)
 2. Create a new application with:
    - **Confidential**: unchecked
-   - **Scopes**: `api`, `read_api`, `read_user`
+   - **Scopes**: `api`, `read_api`, `read_user` (or whichever scopes you intend to request via `GITLAB_OAUTH_SCOPES`)
 3. Save and copy the **Application ID** — this is your `GITLAB_OAUTH_APP_ID`
 
 **How it works:**
@@ -573,6 +576,7 @@ No `headers` field is needed — Claude.ai obtains the token via OAuth automatic
 | `MCP_SERVER_URL` | Yes | Public HTTPS URL of your MCP server |
 | `GITLAB_API_URL` | Yes | Your GitLab instance API URL (e.g. `https://gitlab.com/api/v4`) |
 | `STREAMABLE_HTTP` | Yes | Must be `true` (SSE is not supported) |
+| `GITLAB_OAUTH_SCOPES` | No | Comma-separated GitLab scopes to request (e.g. `api,read_user`). Defaults to `api` (or `read_api` when `GITLAB_READ_ONLY_MODE=true`). The pre-registered application must be configured with at least these scopes. |
 | `MCP_DANGEROUSLY_ALLOW_INSECURE_ISSUER_URL` | No | Set `true` for local HTTP dev only |
 
 **Important Notes:**

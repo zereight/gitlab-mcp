@@ -115,11 +115,22 @@ class GitLabOAuthServerProvider implements OAuthServerProvider {
   private readonly _requiredScopes: string[];
   private readonly _clientCache = new BoundedClientCache(CLIENT_CACHE_MAX_SIZE);
 
-  constructor(gitlabBaseUrl: string, gitlabAppId: string, resourceName: string, readOnly: boolean) {
+  constructor(
+    gitlabBaseUrl: string,
+    gitlabAppId: string,
+    resourceName: string,
+    readOnly: boolean,
+    customScopes?: string[]
+  ) {
     this._gitlabBaseUrl = gitlabBaseUrl;
     this._gitlabAppId = gitlabAppId;
     this._resourceName = resourceName;
-    this._requiredScopes = readOnly ? REQUIRED_GITLAB_SCOPES_RO : REQUIRED_GITLAB_SCOPES_RW;
+    this._requiredScopes =
+      customScopes && customScopes.length > 0
+        ? customScopes
+        : readOnly
+          ? REQUIRED_GITLAB_SCOPES_RO
+          : REQUIRED_GITLAB_SCOPES_RW;
   }
 
   // ---- Client store (local DCR) ------------------------------------------
@@ -343,12 +354,15 @@ class GitLabOAuthServerProvider implements OAuthServerProvider {
  * @param gitlabBaseUrl  Root URL of the GitLab instance (no trailing slash, no /api/v4).
  * @param gitlabAppId    Client ID of the pre-registered GitLab OAuth application.
  * @param resourceName   Human-readable name shown on the GitLab consent screen.
+ * @param readOnly       When true and customScopes is not set, restricts to read_api scope.
+ * @param customScopes   Explicit list of GitLab scopes to require. Overrides readOnly when set.
  */
 export function createGitLabOAuthProvider(
   gitlabBaseUrl: string,
   gitlabAppId: string,
   resourceName = "GitLab MCP Server",
-  readOnly = false
+  readOnly = false,
+  customScopes?: string[]
 ): GitLabOAuthServerProvider {
-  return new GitLabOAuthServerProvider(gitlabBaseUrl, gitlabAppId, resourceName, readOnly);
+  return new GitLabOAuthServerProvider(gitlabBaseUrl, gitlabAppId, resourceName, readOnly, customScopes);
 }
