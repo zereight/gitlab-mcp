@@ -54,6 +54,9 @@ import { zodToJsonSchema } from "zod-to-json-schema";
 import { initializeOAuthClient, GitLabOAuth } from "./oauth.js";
 import { createGitLabOAuthProvider } from "./oauth-proxy.js";
 import { mcpAuthRouter } from "@modelcontextprotocol/sdk/server/auth/router.js";
+import { normalizeGitLabApiUrl } from "./utils/url.js";
+import { toJSONSchema } from "./utils/schema.js";
+import { estimateMergeCommitCount, filterDiffsByPatterns, summarizeWebhookEvents } from "./utils/helpers.js";
 import { requireBearerAuth } from "@modelcontextprotocol/sdk/server/auth/middleware/bearerAuth.js";
 import { GitLabClientPool } from "./gitlab-client-pool.js";
 // Add type imports for proxy agents
@@ -871,50 +874,7 @@ const getFetchConfig = () => {
   };
 };
 
-const toJSONSchema = (schema: z.ZodTypeAny) => {
-  const jsonSchema = zodToJsonSchema(schema, { $refStrategy: "none" });
 
-  // Post-process to fix nullable/optional fields that should truly be optional
-  function fixNullableOptional(obj: any): any {
-    if (obj && typeof obj === "object") {
-      // If this object has properties, process them
-      if (obj.properties) {
-        const requiredSet = new Set<string>(obj.required || []);
-        Object.keys(obj.properties).forEach(key => {
-          const prop = obj.properties[key];
-
-          // Handle fields that can be null or omitted
-          // If a property has type: ["object", "null"] or anyOf with null, it should not be required
-          if (prop.anyOf && prop.anyOf.some((t: any) => t.type === "null")) {
-            requiredSet.delete(key);
-          } else if (Array.isArray(prop.type) && prop.type.includes("null")) {
-            requiredSet.delete(key);
-          }
-
-          // Recursively process nested objects
-          obj.properties[key] = fixNullableOptional(prop);
-        });
-        // Normalize the required array after processing all properties
-        if (requiredSet.size > 0) {
-          obj.required = Array.from(requiredSet);
-        } else if (Object.prototype.hasOwnProperty.call(obj, "required")) {
-          delete obj.required;
-        }
-      }
-
-      // Process anyOf/allOf/oneOf
-      ["anyOf", "allOf", "oneOf"].forEach(combiner => {
-        if (obj[combiner]) {
-          obj[combiner] = obj[combiner].map(fixNullableOptional);
-        }
-      });
-    }
-
-    return obj;
-  }
-
-  return fixNullableOptional(jsonSchema);
-};
 
 // Define all available tools
 const allTools = [
@@ -2218,25 +2178,7 @@ type GitLabMergeRequestWithDeploymentSummary = GitLabMergeRequest & {
   };
 };
 
-/**
- * Smart URL handling for GitLab API
- *
- * @param {string | undefined} url - Input GitLab API URL
- * @returns {string} Normalized GitLab API URL with /api/v4 path
- */
-function normalizeGitLabApiUrl(url: string): string {
-  if (!url) {
-    return "https://gitlab.com/api/v4";
-  }
-  let normalizedUrl = url.trim();
-  if (normalizedUrl.endsWith("/")) {
-    normalizedUrl = normalizedUrl.slice(0, -1);
-  }
-  if (!normalizedUrl.endsWith("/api/v4")) {
-    normalizedUrl = `${normalizedUrl}/api/v4`;
-  }
-  return normalizedUrl;
-}
+
 
 // Use the normalizeGitLabApiUrl function to handle various URL formats
 const GITLAB_API_URLS = (getConfig("api-url", "GITLAB_API_URL") || "https://gitlab.com")
@@ -5626,21 +5568,7 @@ async function getProjectMergeMethod(projectId: string): Promise<string | null> 
   return typeof mergeMethod === "string" ? mergeMethod : null;
 }
 
-function estimateMergeCommitCount(mergeMethod: string | null, sourceCommitCount: number): number | null {
-  if (sourceCommitCount === 0) {
-    return 0;
-  }
 
-  if (mergeMethod === "merge") {
-    return 1;
-  }
-
-  if (mergeMethod === "ff" || mergeMethod === "rebase_merge") {
-    return 0;
-  }
-
-  return null;
-}
 
 async function buildMergeRequestCommitAdditionSummary(
   projectId: string,
@@ -7250,18 +7178,7 @@ async function listWebhooks(
   return (await response.json()) as unknown[];
 }
 
-/**
- * Summarize webhook events by stripping heavy payload fields
- */
-function summarizeWebhookEvents(events: Record<string, unknown>[]): Record<string, unknown>[] {
-  return events.map(event => ({
-    id: event.id,
-    url: event.url,
-    trigger: event.trigger,
-    response_status: event.response_status,
-    execution_duration: event.execution_duration,
-  }));
-}
+
 
 /**
  * Fetch a single page of webhook events
@@ -9140,41 +9057,6 @@ async function downloadReleaseAsset(
 
 // Request handlers are now registered inside createServer() factory function
 // to ensure each transport connection gets its own Server instance (GHSA-345p-7cg4-v4c7).
-
-/**
- * Filter diffs by excluded file patterns
- * Safely handles invalid regex patterns by logging and ignoring them
- *
- * @param diffs - Array of diff objects with new_path property
- * @param excludedFilePatterns - Array of regex patterns to exclude
- * @returns Filtered array of diffs
- */
-function filterDiffsByPatterns<T extends { new_path: string }>(
-  diffs: T[],
-  excludedFilePatterns: string[] | undefined
-): T[] {
-  if (!excludedFilePatterns?.length) return diffs;
-
-  const regexPatterns = excludedFilePatterns
-    .map(pattern => {
-      try {
-        return new RegExp(pattern);
-      } catch (e) {
-        console.warn(`Invalid regex pattern ignored: ${pattern}`);
-        return null;
-      }
-    })
-    .filter((regex): regex is RegExp => regex !== null);
-
-  if (regexPatterns.length === 0) return diffs;
-
-  const matchesAnyPattern = (path: string): boolean => {
-    if (!path) return false;
-    return regexPatterns.some(regex => regex.test(path));
-  };
-
-  return diffs.filter(diff => !matchesAnyPattern(diff.new_path));
-}
 
 async function handleToolCall(params: any) {
   try {
