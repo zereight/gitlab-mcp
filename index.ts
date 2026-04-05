@@ -421,7 +421,7 @@ function createServer(): Server {
     // Manually retrieve the session context using the session ID passed in the request.
     // This is a robust workaround for AsyncLocalStorage context loss.
     const sessionId = request.params.sessionId;
-    if (REMOTE_AUTHORIZATION && sessionId && authBySession[sessionId]) {
+    if ((REMOTE_AUTHORIZATION || GITLAB_MCP_OAUTH) && sessionId && authBySession[sessionId]) {
       const authData = authBySession[sessionId];
       const sessionContext: SessionAuth = {
         sessionId,
@@ -871,12 +871,8 @@ function buildAuthHeaders(): Record<string, string> {
     return {}; // No auth headers if no session context
   }
 
-  // CI job tokens use a dedicated header (not Bearer/Private-Token)
-  if (GITLAB_JOB_TOKEN) {
-    return { "JOB-TOKEN": String(GITLAB_JOB_TOKEN) };
-  }
-
-  // Standard mode: prioritize OAuth token, then fall back to environment token
+  // Standard mode: PAT preferred over job token (broader permissions).
+  // OAuth token takes priority over PAT when both are set.
   const token = OAUTH_ACCESS_TOKEN || GITLAB_PERSONAL_ACCESS_TOKEN;
 
   if (IS_OLD && token) {
@@ -885,6 +881,12 @@ function buildAuthHeaders(): Record<string, string> {
   if (token) {
     return { Authorization: `Bearer ${token}` };
   }
+
+  // Fall back to CI job token
+  if (GITLAB_JOB_TOKEN) {
+    return { "JOB-TOKEN": String(GITLAB_JOB_TOKEN) };
+  }
+
   return {};
 }
 
@@ -2339,7 +2341,7 @@ if (GITLAB_MCP_OAUTH) {
     logger.error("Set STREAMABLE_HTTP=true to enable MCP OAuth");
     process.exit(1);
   }
-  logger.info("MCP OAuth enabled: GitLab OAuth proxy active");
+  logger.info("MCP OAuth enabled: GitLab OAuth proxy active (Private-Token/JOB-TOKEN headers bypass OAuth)");
 }
 
 if (!REMOTE_AUTHORIZATION && !GITLAB_MCP_OAUTH && !USE_OAUTH && !GITLAB_PERSONAL_ACCESS_TOKEN && !GITLAB_JOB_TOKEN && !GITLAB_AUTH_COOKIE_PATH) {
@@ -11241,7 +11243,8 @@ async function startStreamableHTTPServer(): Promise<void> {
   /**
    * Parse authentication from request headers
    * Returns null if no auth found or invalid format
-   * Supports: JOB-TOKEN header, Private-Token header, Authorization Bearer header
+   * Supports: Private-Token header, JOB-TOKEN header, Authorization Bearer header
+   * Priority: Private-Token > JOB-TOKEN > Authorization Bearer
    */
   const parseAuthHeaders = (req: Request): AuthData | null => {
     const authHeader = (req.headers["authorization"] as string | undefined) || "";
@@ -11262,16 +11265,17 @@ async function startStreamableHTTPServer(): Promise<void> {
       }
     }
 
-    // Extract token
+    // Extract token — priority: Private-Token > JOB-TOKEN > Authorization Bearer
+    // PATs are preferred over job tokens because they carry broader permissions.
     let token: string | null = null;
     let header: "Authorization" | "Private-Token" | "JOB-TOKEN" | null = null;
 
-    if (jobToken) {
-      token = jobToken.trim();
-      header = "JOB-TOKEN";
-    } else if (privateToken) {
+    if (privateToken) {
       token = privateToken.trim();
       header = "Private-Token";
+    } else if (jobToken) {
+      token = jobToken.trim();
+      header = "JOB-TOKEN";
     } else if (authHeader) {
       // Use \S+ instead of .+ to prevent ReDoS attacks
       // \S+ only matches non-whitespace, so trim() is technically unnecessary,
@@ -11364,11 +11368,27 @@ async function startStreamableHTTPServer(): Promise<void> {
   // Build bearer-auth middleware — no-op unless GITLAB_MCP_OAUTH is enabled.
   // Unauthenticated requests receive 401 + WWW-Authenticate header, which is
   // exactly what Claude.ai needs to trigger the OAuth browser flow.
-  const mcpBearerAuth = GITLAB_MCP_OAUTH
+  //
+  // Header auth fallback: if Private-Token or JOB-TOKEN headers are present,
+  // OAuth validation is skipped and the raw token is used directly per-session.
+  // Note: Authorization: Bearer is always treated as an OAuth token and goes
+  // through OAuth validation — use Private-Token for PAT-based header auth.
+  const oauthBearerAuth = GITLAB_MCP_OAUTH
     ? requireBearerAuth({
         verifier: (app as any)._mcpOAuthProvider,
         requiredScopes: [],
       })
+    : undefined;
+  const mcpBearerAuth = GITLAB_MCP_OAUTH
+    ? (req: Request, res: Response, next: NextFunction) => {
+        const privateToken = (req.headers["private-token"] as string | undefined) || "";
+        const jobToken = (req.headers["job-token"] as string | undefined) || "";
+        if (privateToken || jobToken) {
+          // Raw header auth — bypass OAuth validation, handled in the /mcp route body
+          return next();
+        }
+        return oauthBearerAuth!(req, res, next);
+      }
     : (_req: Request, _res: Response, next: NextFunction) => next();
 
   // Streamable HTTP endpoint - handles both session creation and message handling
@@ -11407,9 +11427,9 @@ async function startStreamableHTTPServer(): Promise<void> {
         if (!authData) {
           metrics.authFailures++;
           res.status(401).json({
-            error: "Missing Authorization, Private-Token, or JOB-TOKEN header",
+            error: "Missing Private-Token, JOB-TOKEN, or Authorization header",
             message:
-              "Remote authorization is enabled. Please provide Authorization, Private-Token, or JOB-TOKEN header.",
+              "Remote authorization is enabled. Please provide Private-Token, JOB-TOKEN, or Authorization header.",
           });
           return;
         }
@@ -11431,29 +11451,55 @@ async function startStreamableHTTPServer(): Promise<void> {
       }
     }
 
-    // MCP OAuth mode — token already validated by requireBearerAuth middleware.
-    // req.auth is populated by the middleware; store/refresh per session so that
-    // buildAuthHeaders() can pick it up via AsyncLocalStorage, exactly like the
-    // REMOTE_AUTHORIZATION path.
+    // MCP OAuth mode — either header auth (PAT/job token) or OAuth Bearer token.
+    // Header auth takes precedence: if Private-Token or JOB-TOKEN is present the
+    // OAuth middleware was bypassed and we store the raw token per-session.
+    // Otherwise req.auth is populated by requireBearerAuth; store the OAuth token.
     if (GITLAB_MCP_OAUTH) {
-      const authInfo = req.auth;
-      if (authInfo?.token && sessionId) {
-        if (!authBySession[sessionId]) {
-          authBySession[sessionId] = {
-            header: "Authorization",
-            token: authInfo.token,
-            lastUsed: Date.now(),
-            apiUrl: GITLAB_API_URL,
-          };
-          logger.info(
-            `Session ${sessionId}: stored OAuth token (client: ${authInfo.clientId})`
-          );
-          setAuthTimeout(sessionId);
-        } else {
-          // Update token on every request — the client may have refreshed it
-          authBySession[sessionId].token = authInfo.token;
-          authBySession[sessionId].lastUsed = Date.now();
-          setAuthTimeout(sessionId);
+      const isHeaderAuth = !!(
+        (req.headers["private-token"] as string | undefined) ||
+        (req.headers["job-token"] as string | undefined)
+      );
+
+      if (isHeaderAuth) {
+        const headerAuthData = parseAuthHeaders(req);
+        if (headerAuthData && sessionId) {
+          if (!authBySession[sessionId]) {
+            authBySession[sessionId] = headerAuthData;
+            logger.info(
+              `Session ${sessionId}: stored ${headerAuthData.header} header (header auth)`
+            );
+            setAuthTimeout(sessionId);
+          } else {
+            authBySession[sessionId] = {
+              ...authBySession[sessionId],
+              header: headerAuthData.header,
+              token: headerAuthData.token,
+              lastUsed: Date.now(),
+            };
+            setAuthTimeout(sessionId);
+          }
+        }
+      } else {
+        const authInfo = req.auth;
+        if (authInfo?.token && sessionId) {
+          if (!authBySession[sessionId]) {
+            authBySession[sessionId] = {
+              header: "Authorization",
+              token: authInfo.token,
+              lastUsed: Date.now(),
+              apiUrl: GITLAB_API_URL,
+            };
+            logger.info(
+              `Session ${sessionId}: stored OAuth token (client: ${authInfo.clientId})`
+            );
+            setAuthTimeout(sessionId);
+          } else {
+            // Update token on every request — the client may have refreshed it
+            authBySession[sessionId].token = authInfo.token;
+            authBySession[sessionId].lastUsed = Date.now();
+            setAuthTimeout(sessionId);
+          }
         }
       }
     }
@@ -11488,20 +11534,37 @@ async function startStreamableHTTPServer(): Promise<void> {
                 }
               }
 
-              // Store OAuth token for newly created session in MCP OAuth mode
+              // Store OAuth token for newly created session in MCP OAuth mode.
+              // If Private-Token or JOB-TOKEN headers are present, prefer them.
               if (GITLAB_MCP_OAUTH && !authBySession[newSessionId]) {
-                const authInfo = req.auth;
-                if (authInfo?.token) {
-                  authBySession[newSessionId] = {
-                    header: "Authorization",
-                    token: authInfo.token,
-                    lastUsed: Date.now(),
-                    apiUrl: GITLAB_API_URL,
-                  };
-                  logger.info(
-                    `Session ${newSessionId}: stored OAuth token (client: ${authInfo.clientId})`
-                  );
-                  setAuthTimeout(newSessionId);
+                const isHeaderAuth = !!(
+                  (req.headers["private-token"] as string | undefined) ||
+                  (req.headers["job-token"] as string | undefined)
+                );
+
+                if (isHeaderAuth) {
+                  const authData = parseAuthHeaders(req);
+                  if (authData) {
+                    authBySession[newSessionId] = authData;
+                    logger.info(
+                      `Session ${newSessionId}: stored ${authData.header} header (header auth)`
+                    );
+                    setAuthTimeout(newSessionId);
+                  }
+                } else {
+                  const authInfo = req.auth;
+                  if (authInfo?.token) {
+                    authBySession[newSessionId] = {
+                      header: "Authorization",
+                      token: authInfo.token,
+                      lastUsed: Date.now(),
+                      apiUrl: GITLAB_API_URL,
+                    };
+                    logger.info(
+                      `Session ${newSessionId}: stored OAuth token (client: ${authInfo.clientId})`
+                    );
+                    setAuthTimeout(newSessionId);
+                  }
                 }
               }
             },
