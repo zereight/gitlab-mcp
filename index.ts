@@ -1,27 +1,36 @@
 #!/usr/bin/env node
 
-// Parse CLI arguments
-const args = process.argv.slice(2);
-const cliArgs: Record<string, string> = {};
-
-for (let i = 0; i < args.length; i++) {
-  const arg = args[i];
-  if (arg.startsWith("--")) {
-    const [key, value] = arg.slice(2).split("=");
-    if (value) {
-      cliArgs[key] = value;
-    } else if (i + 1 < args.length && !args[i + 1].startsWith("--")) {
-      cliArgs[key] = args[++i];
-    }
-  }
-}
-
-// Helper function to get config value (CLI args take precedence over env vars)
-function getConfig(cliKey: string, envKey: string): string | undefined;
-function getConfig(cliKey: string, envKey: string, defaultValue: string): string;
-function getConfig(cliKey: string, envKey: string, defaultValue?: string): string | undefined {
-  return cliArgs[cliKey] || process.env[envKey] || defaultValue;
-}
+import {
+  getConfig,
+  ENABLE_DYNAMIC_API_URL,
+  GITLAB_AUTH_COOKIE_PATH,
+  GITLAB_CA_CERT_PATH,
+  GITLAB_JOB_TOKEN,
+  GITLAB_MCP_OAUTH,
+  GITLAB_OAUTH_APP_ID,
+  GITLAB_OAUTH_SCOPES,
+  GITLAB_PERSONAL_ACCESS_TOKEN,
+  GITLAB_POOL_MAX_SIZE,
+  GITLAB_READ_ONLY_MODE,
+  GITLAB_TOOLSETS_RAW,
+  GITLAB_TOOLS_RAW,
+  HOST,
+  HTTP_PROXY,
+  HTTPS_PROXY,
+  IS_OLD,
+  MCP_SERVER_URL,
+  NODE_TLS_REJECT_UNAUTHORIZED,
+  NO_PROXY,
+  PORT,
+  REMOTE_AUTHORIZATION,
+  SESSION_TIMEOUT_SECONDS,
+  SSE,
+  STREAMABLE_HTTP,
+  USE_GITLAB_WIKI,
+  USE_MILESTONE,
+  USE_OAUTH,
+  USE_PIPELINE,
+} from "./config.js";
 
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
@@ -567,8 +576,6 @@ function validateConfiguration(): void {
   logger.info("Configuration validation passed");
 }
 
-const GITLAB_PERSONAL_ACCESS_TOKEN = getConfig("token", "GITLAB_PERSONAL_ACCESS_TOKEN");
-const GITLAB_JOB_TOKEN = getConfig("job-token", "GITLAB_JOB_TOKEN");
 let OAUTH_ACCESS_TOKEN: string | null = null;
 let oauthClient: GitLabOAuth | null = null;
 /**
@@ -592,10 +599,6 @@ async function ensureValidOAuthToken(): Promise<void> {
   }
 }
 
-const GITLAB_AUTH_COOKIE_PATH = getConfig("cookie-path", "GITLAB_AUTH_COOKIE_PATH");
-const USE_OAUTH = getConfig("use-oauth", "GITLAB_USE_OAUTH") === "true";
-const IS_OLD = getConfig("is-old", "GITLAB_IS_OLD") === "true";
-const GITLAB_READ_ONLY_MODE = getConfig("read-only", "GITLAB_READ_ONLY_MODE") === "true";
 const GITLAB_DENIED_TOOLS_REGEX = (() => {
   const pattern = getConfig("denied-tools-regex", "GITLAB_DENIED_TOOLS_REGEX");
   if (!pattern) return undefined;
@@ -630,73 +633,7 @@ const GITLAB_DENIED_TOOLS_REGEX = (() => {
     return undefined;
   }
 })();
-const USE_GITLAB_WIKI = getConfig("use-wiki", "USE_GITLAB_WIKI") === "true";
-const USE_MILESTONE = getConfig("use-milestone", "USE_MILESTONE") === "true";
-const USE_PIPELINE = getConfig("use-pipeline", "USE_PIPELINE") === "true";
-const GITLAB_TOOLSETS_RAW = getConfig("toolsets", "GITLAB_TOOLSETS");
-const GITLAB_TOOLS_RAW = getConfig("tools", "GITLAB_TOOLS");
-const SSE = getConfig("sse", "SSE") === "true";
-const STREAMABLE_HTTP = getConfig("streamable-http", "STREAMABLE_HTTP") === "true";
-const REMOTE_AUTHORIZATION = getConfig("remote-auth", "REMOTE_AUTHORIZATION") === "true";
-const GITLAB_MCP_OAUTH = getConfig("mcp-oauth", "GITLAB_MCP_OAUTH") === "true";
-const MCP_SERVER_URL = getConfig("mcp-server-url", "MCP_SERVER_URL");
-const GITLAB_OAUTH_APP_ID = getConfig("oauth-app-id", "GITLAB_OAUTH_APP_ID");
-const GITLAB_OAUTH_SCOPES_RAW = getConfig("oauth-scopes", "GITLAB_OAUTH_SCOPES");
-const GITLAB_OAUTH_SCOPES =
-  GITLAB_OAUTH_SCOPES_RAW
-    ? GITLAB_OAUTH_SCOPES_RAW.split(",").map((s) => s.trim()).filter(Boolean)
-    : undefined;
-const ENABLE_DYNAMIC_API_URL =
-  getConfig("enable-dynamic-api-url", "ENABLE_DYNAMIC_API_URL") === "true";
-const SESSION_TIMEOUT_SECONDS = Number.parseInt(
-  getConfig("session-timeout", "SESSION_TIMEOUT_SECONDS", "3600"),
-  10
-);
-const HOST = getConfig("host", "HOST") || "127.0.0.1";
-const PORT = Number.parseInt(getConfig("port", "PORT", "3002"), 10);
-// Add proxy configuration
-const HTTP_PROXY = getConfig("http-proxy", "HTTP_PROXY");
-const HTTPS_PROXY = getConfig("https-proxy", "HTTPS_PROXY");
-const NO_PROXY = getConfig("no-proxy", "NO_PROXY");
-const NODE_TLS_REJECT_UNAUTHORIZED = getConfig(
-  "tls-reject-unauthorized",
-  "NODE_TLS_REJECT_UNAUTHORIZED"
-);
-const GITLAB_CA_CERT_PATH = getConfig("ca-cert-path", "GITLAB_CA_CERT_PATH");
-const GITLAB_POOL_MAX_SIZE = getConfig("pool-max-size", "GITLAB_POOL_MAX_SIZE")
-  ? Number.parseInt(getConfig("pool-max-size", "GITLAB_POOL_MAX_SIZE")!, 10)
-  : 100;
 
-let sslOptions = undefined;
-if (NODE_TLS_REJECT_UNAUTHORIZED === "0") {
-  sslOptions = { rejectUnauthorized: false };
-} else if (GITLAB_CA_CERT_PATH) {
-  const ca = fs.readFileSync(GITLAB_CA_CERT_PATH);
-  sslOptions = { ca };
-}
-
-// Configure proxy agents if proxies are set
-let httpAgent: Agent | undefined = undefined;
-let httpsAgent: Agent | undefined = undefined;
-
-if (HTTP_PROXY) {
-  if (HTTP_PROXY.startsWith("socks")) {
-    httpAgent = new SocksProxyAgent(HTTP_PROXY);
-  } else {
-    httpAgent = new HttpProxyAgent(HTTP_PROXY);
-  }
-}
-if (HTTPS_PROXY) {
-  if (HTTPS_PROXY.startsWith("socks")) {
-    httpsAgent = new SocksProxyAgent(HTTPS_PROXY);
-  } else {
-    httpsAgent = new HttpsProxyAgent(HTTPS_PROXY, sslOptions);
-  }
-}
-httpsAgent = httpsAgent || new HttpsAgent(sslOptions);
-httpAgent = httpAgent || new Agent();
-
-// Initialize the client pool for managing multiple GitLab instances
 const clientPool = new GitLabClientPool({
   apiUrls: (getConfig("api-url", "GITLAB_API_URL") || "https://gitlab.com")
     .split(",")
