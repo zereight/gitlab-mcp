@@ -873,6 +873,8 @@ function buildAuthHeaders(): Record<string, string> {
 
   // Standard mode: PAT preferred over job token (broader permissions).
   // OAuth token takes priority over PAT when both are set.
+  // NOTE: Changed in PR #400 — previously GITLAB_JOB_TOKEN had highest priority.
+  // If both GITLAB_PERSONAL_ACCESS_TOKEN and GITLAB_JOB_TOKEN are set, PAT wins.
   const token = OAUTH_ACCESS_TOKEN || GITLAB_PERSONAL_ACCESS_TOKEN;
 
   if (IS_OLD && token) {
@@ -11241,6 +11243,17 @@ async function startStreamableHTTPServer(): Promise<void> {
   };
 
   /**
+   * Check whether the request carries a raw header auth token (Private-Token or JOB-TOKEN).
+   * Used to decide whether to bypass OAuth validation.
+   */
+  const hasHeaderAuth = (req: Request): boolean => {
+    return !!(
+      (req.headers["private-token"] as string | undefined) ||
+      (req.headers["job-token"] as string | undefined)
+    );
+  };
+
+  /**
    * Parse authentication from request headers
    * Returns null if no auth found or invalid format
    * Supports: Private-Token header, JOB-TOKEN header, Authorization Bearer header
@@ -11384,10 +11397,19 @@ async function startStreamableHTTPServer(): Promise<void> {
         const privateToken = (req.headers["private-token"] as string | undefined) || "";
         const jobToken = (req.headers["job-token"] as string | undefined) || "";
         if (privateToken || jobToken) {
-          // Raw header auth — bypass OAuth validation, handled in the /mcp route body
-          return next();
+          // Validate the raw token before bypassing OAuth
+          const authData = parseAuthHeaders(req);
+          if (authData) {
+            next();
+            return;
+          }
+          res.status(401).json({
+            error: "Invalid Private-Token or JOB-TOKEN header",
+            message: "The provided token failed validation. Check the token value and format.",
+          });
+          return;
         }
-        return oauthBearerAuth!(req, res, next);
+        oauthBearerAuth!(req, res, next);
       }
     : (_req: Request, _res: Response, next: NextFunction) => next();
 
@@ -11456,13 +11478,9 @@ async function startStreamableHTTPServer(): Promise<void> {
     // OAuth middleware was bypassed and we store the raw token per-session.
     // Otherwise req.auth is populated by requireBearerAuth; store the OAuth token.
     if (GITLAB_MCP_OAUTH) {
-      const isHeaderAuth = !!(
-        (req.headers["private-token"] as string | undefined) ||
-        (req.headers["job-token"] as string | undefined)
-      );
+      const headerAuthData = hasHeaderAuth(req) ? parseAuthHeaders(req) : null;
 
-      if (isHeaderAuth) {
-        const headerAuthData = parseAuthHeaders(req);
+      if (headerAuthData) {
         if (headerAuthData && sessionId) {
           if (!authBySession[sessionId]) {
             authBySession[sessionId] = headerAuthData;
@@ -11537,12 +11555,7 @@ async function startStreamableHTTPServer(): Promise<void> {
               // Store OAuth token for newly created session in MCP OAuth mode.
               // If Private-Token or JOB-TOKEN headers are present, prefer them.
               if (GITLAB_MCP_OAUTH && !authBySession[newSessionId]) {
-                const isHeaderAuth = !!(
-                  (req.headers["private-token"] as string | undefined) ||
-                  (req.headers["job-token"] as string | undefined)
-                );
-
-                if (isHeaderAuth) {
+                if (hasHeaderAuth(req)) {
                   const authData = parseAuthHeaders(req);
                   if (authData) {
                     authBySession[newSessionId] = authData;
