@@ -1,5 +1,4 @@
 import { z } from "zod";
-import { flexibleBoolean } from "./customSchemas.js";
 
 // Base schemas for common types
 export const GitLabAuthorSchema = z.object({

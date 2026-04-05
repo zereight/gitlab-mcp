@@ -107,7 +107,6 @@ export class GitLabClientPool {
    */
   private createAgentsForUrl(apiUrl: string): ClientAgents {
     const { httpProxy, httpsProxy, noProxy, rejectUnauthorized, caCertPath } = this.options;
-    const url = new URL(apiUrl);
 
     let sslOptions: { rejectUnauthorized?: boolean; ca?: Buffer } = {};
     if (rejectUnauthorized === false) {

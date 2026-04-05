@@ -42,11 +42,8 @@ import express, { NextFunction, Request, Response } from "express";
 import fetchCookie from "fetch-cookie";
 import fs from "node:fs";
 import os from "node:os";
-import { HttpProxyAgent } from "http-proxy-agent";
-import { HttpsProxyAgent } from "https-proxy-agent";
 import nodeFetch from "node-fetch";
 import path, { dirname } from "node:path";
-import { SocksProxyAgent } from "socks-proxy-agent";
 import { CookieJar, parse as parseCookie } from "tough-cookie";
 import { fileURLToPath, URL } from "node:url";
 import { z } from "zod";
@@ -59,9 +56,6 @@ import { toJSONSchema } from "./utils/schema.js";
 import { estimateMergeCommitCount, filterDiffsByPatterns, summarizeWebhookEvents } from "./utils/helpers.js";
 import { requireBearerAuth } from "@modelcontextprotocol/sdk/server/auth/middleware/bearerAuth.js";
 import { GitLabClientPool } from "./gitlab-client-pool.js";
-// Add type imports for proxy agents
-import { Agent } from "node:http";
-import { Agent as HttpsAgent } from "node:https";
 import {
   BulkPublishDraftNotesSchema,
   CancelPipelineJobSchema,
@@ -158,8 +152,6 @@ import {
   GitLabMergeRequestSchema,
   type GitLabMilestones,
   GitLabMilestonesSchema,
-  type GitLabNamespace,
-  type GitLabNamespaceExistsResponse,
   GitLabNamespaceExistsResponseSchema,
   GitLabNamespaceSchema,
   type GitLabPipeline,
@@ -184,10 +176,8 @@ import {
   type GitLabSearchBlobResult,
   type GitLabSearchResponse,
   GitLabSearchResponseSchema,
-  type GitLabTree,
   type GitLabTreeItem,
   GitLabTreeItemSchema,
-  GitLabTreeSchema,
   type GitLabUser,
   GitLabUserSchema,
   type GitLabUsersResponse,
@@ -253,7 +243,6 @@ import {
   type GitLabApprovalUser,
   type GitLabMergeRequestApprovalState,
   type MergeRequestThreadPosition,
-  type MergeRequestThreadPositionCreate,
   type MyIssuesOptions,
   MyIssuesSchema,
   type PaginatedDiscussionsResponse,
@@ -2851,43 +2840,6 @@ async function convertIssueType(
 // --- Work item hierarchy ---
 
 /**
- * Set a parent for a work item (issue hierarchy).
- */
-async function setIssueParent(
-  projectId: string,
-  issueIid: number,
-  parentProjectId: string,
-  parentIssueIid: number
-): Promise<{ id: string; parentId: string }> {
-  const { workItemGID } = await resolveWorkItemGID(projectId, issueIid);
-  const { workItemGID: parentGID } = await resolveWorkItemGID(
-    parentProjectId,
-    parentIssueIid
-  );
-
-  const data = await executeGraphQL<{
-    workItemUpdate: {
-      workItem: { id: string } | null;
-      errors: string[];
-    };
-  }>(
-    `mutation($id: WorkItemID!, $parentId: WorkItemID!) {
-      workItemUpdate(input: { id: $id, hierarchyWidget: { parentId: $parentId } }) {
-        workItem { id }
-        errors
-      }
-    }`,
-    { id: workItemGID, parentId: parentGID }
-  );
-
-  if (data.workItemUpdate.errors?.length > 0) {
-    throw new Error(`Failed to set parent: ${data.workItemUpdate.errors.join(", ")}`);
-  }
-
-  return { id: workItemGID, parentId: parentGID };
-}
-
-/**
  * Remove the parent from a work item.
  */
 async function removeIssueParent(
@@ -2914,133 +2866,6 @@ async function removeIssueParent(
   if (data.workItemUpdate.errors?.length > 0) {
     throw new Error(`Failed to remove parent: ${data.workItemUpdate.errors.join(", ")}`);
   }
-}
-
-/**
- * List children of a work item (hierarchy widget).
- */
-async function listIssueChildren(
-  projectId: string,
-  issueIid: number
-): Promise<any> {
-  projectId = decodeURIComponent(projectId);
-  const effectiveProjectId = getEffectiveProjectId(projectId);
-
-  // Get project path
-  const projectUrl = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(effectiveProjectId)}`
-  );
-  const projectResponse = await fetch(projectUrl.toString(), {
-    ...getFetchConfig(),
-  });
-  await handleGitLabError(projectResponse);
-  const project: any = await projectResponse.json();
-
-  const data = await executeGraphQL<{
-    namespace: {
-      workItem: {
-        id: string;
-        title: string;
-        widgets: Array<any>;
-      } | null;
-    };
-  }>(
-    `query($path: ID!, $iid: String!) {
-      namespace(fullPath: $path) {
-        workItem(iid: $iid) {
-          id
-          title
-          widgets {
-            __typename
-            ... on WorkItemWidgetHierarchy {
-              parent {
-                id
-                title
-                webUrl
-                workItemType { name }
-              }
-              children {
-                nodes {
-                  id
-                  title
-                  state
-                  webUrl
-                  workItemType { name }
-                }
-              }
-            }
-          }
-        }
-      }
-    }`,
-    { path: project.path_with_namespace, iid: String(issueIid) }
-  );
-
-  if (!data.namespace?.workItem) {
-    throw new Error(`Work item #${issueIid} not found`);
-  }
-
-  // Extract hierarchy widget
-  const hierarchyWidget = data.namespace.workItem.widgets?.find(
-    (w: any) => w.__typename === "WorkItemWidgetHierarchy"
-  );
-
-  return {
-    id: data.namespace.workItem.id,
-    title: data.namespace.workItem.title,
-    parent: hierarchyWidget?.parent || null,
-    children: hierarchyWidget?.children?.nodes || [],
-  };
-}
-
-/**
- * Add a child to a parent work item.
- */
-async function addIssueChild(
-  projectId: string,
-  issueIid: number,
-  childProjectId: string,
-  childIssueIid: number
-): Promise<{ parentId: string; childId: string }> {
-  const { workItemGID: parentGID } = await resolveWorkItemGID(projectId, issueIid);
-  const { workItemGID: childGID } = await resolveWorkItemGID(
-    childProjectId,
-    childIssueIid
-  );
-
-  const data = await executeGraphQL<{
-    workItemUpdate: {
-      workItem: { id: string } | null;
-      errors: string[];
-    };
-  }>(
-    `mutation($id: WorkItemID!, $childId: WorkItemID!) {
-      workItemUpdate(input: { id: $id, hierarchyWidget: { childrenIds: [$childId] } }) {
-        workItem { id }
-        errors
-      }
-    }`,
-    { id: parentGID, childId: childGID }
-  );
-
-  if (data.workItemUpdate.errors?.length > 0) {
-    throw new Error(`Failed to add child: ${data.workItemUpdate.errors.join(", ")}`);
-  }
-
-  return { parentId: parentGID, childId: childGID };
-}
-
-/**
- * Remove a child from a parent work item by setting the child's parent to null.
- */
-async function removeIssueChild(
-  projectId: string,
-  issueIid: number,
-  childProjectId: string,
-  childIssueIid: number
-): Promise<void> {
-  // Removing a child is done by removing the parent from the child
-  await removeIssueParent(childProjectId, childIssueIid);
 }
 
 // --- Work item status ---
@@ -3594,57 +3419,6 @@ async function updateIncidentEscalationStatus(
   }
 
   return data.issueSetEscalationStatus.issue;
-}
-
-/**
- * Set the status of a work item.
- */
-async function setIssueStatus(
-  projectId: string,
-  issueIid: number,
-  status: string
-): Promise<{ id: string; status: string }> {
-  const { workItemGID } = await resolveWorkItemGID(projectId, issueIid);
-
-  const data = await executeGraphQL<{
-    workItemUpdate: {
-      workItem: {
-        id: string;
-        widgets: Array<any>;
-      } | null;
-      errors: string[];
-    };
-  }>(
-    `mutation($id: WorkItemID!, $status: WorkItemsStatusesStatusID!) {
-      workItemUpdate(input: { id: $id, statusWidget: { status: $status } }) {
-        workItem {
-          id
-          widgets {
-            __typename
-            ... on WorkItemWidgetStatus {
-              status { id name category color }
-            }
-          }
-        }
-        errors
-      }
-    }`,
-    { id: workItemGID, status }
-  );
-
-  if (data.workItemUpdate.errors?.length > 0) {
-    throw new Error(`Failed to set status: ${data.workItemUpdate.errors.join(", ")}`);
-  }
-
-  // Extract the current status from the response
-  const statusWidget = data.workItemUpdate.workItem?.widgets?.find(
-    (w: any) => w.__typename === "WorkItemWidgetStatus"
-  );
-
-  return {
-    id: data.workItemUpdate.workItem!.id,
-    status: statusWidget?.status || null,
-  };
 }
 
 /**
@@ -5220,55 +4994,6 @@ async function createOrUpdateFile(
 }
 
 /**
- * Create a tree structure in a GitLab project repository
- * 저장소에 트리 구조 생성
- *
- * @param {string} projectId - The ID or URL-encoded path of the project
- * @param {FileOperation[]} files - Array of file operations
- * @param {string} [ref] - The name of the branch, tag or commit
- * @returns {Promise<GitLabTree>} The created tree
- */
-async function createTree(
-  projectId: string,
-  files: FileOperation[],
-  ref?: string
-): Promise<GitLabTree> {
-  projectId = decodeURIComponent(projectId); // Decode project ID
-  const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/repository/tree`
-  );
-
-  if (ref) {
-    url.searchParams.append("ref", ref);
-  }
-
-  const response = await fetch(url.toString(), {
-    ...getFetchConfig(),
-    method: "POST",
-    body: JSON.stringify({
-      files: files.map(file => ({
-        file_path: file.path,
-        content: encodeRepoFilePayloadContent(file.content),
-        encoding: GITLAB_REPO_FILE_ENCODING,
-      })),
-    }),
-  });
-
-  if (response.status === 400) {
-    const errorBody = await response.text();
-    throw new Error(`Invalid request: ${errorBody}`);
-  }
-
-  if (!response.ok) {
-    const errorBody = await response.text();
-    throw new Error(`GitLab API error: ${response.status} ${response.statusText}\n${errorBody}`);
-  }
-
-  const data = await response.json();
-  return GitLabTreeSchema.parse(data);
-}
-
-/**
  * Create a commit in a GitLab project repository
  * 저장소에 커밋 생성
  *
@@ -6763,137 +6488,6 @@ async function getMergeRequestVersion(
   await handleGitLabError(response);
   const data = await response.json();
   return GitLabMergeRequestVersionDetailSchema.parse(data);
-}
-
-/**
- * List all namespaces
- * 사용 가능한 모든 네임스페이스 목록 조회
- *
- * @param {Object} options - Options for listing namespaces
- * @param {string} [options.search] - Search query to filter namespaces
- * @param {boolean} [options.owned_only] - Only return namespaces owned by the authenticated user
- * @param {boolean} [options.top_level_only] - Only return top-level namespaces
- * @returns {Promise<GitLabNamespace[]>} List of namespaces
- */
-async function listNamespaces(options: {
-  search?: string;
-  owned_only?: boolean;
-  top_level_only?: boolean;
-}): Promise<GitLabNamespace[]> {
-  const url = new URL(`${getEffectiveApiUrl()}/namespaces`);
-
-  if (options.search) {
-    url.searchParams.append("search", options.search);
-  }
-
-  if (options.owned_only) {
-    url.searchParams.append("owned_only", "true");
-  }
-
-  if (options.top_level_only) {
-    url.searchParams.append("top_level_only", "true");
-  }
-
-  const response = await fetch(url.toString(), {
-    ...getFetchConfig(),
-  });
-
-  await handleGitLabError(response);
-  const data = await response.json();
-  return z.array(GitLabNamespaceSchema).parse(data);
-}
-
-/**
- * Get details on a namespace
- * 네임스페이스 상세 정보 조회
- *
- * @param {string} id - The ID or URL-encoded path of the namespace
- * @returns {Promise<GitLabNamespace>} The namespace details
- */
-async function getNamespace(id: string): Promise<GitLabNamespace> {
-  const url = new URL(`${getEffectiveApiUrl()}/namespaces/${encodeURIComponent(id)}`);
-
-  const response = await fetch(url.toString(), {
-    ...getFetchConfig(),
-  });
-
-  await handleGitLabError(response);
-  const data = await response.json();
-  return GitLabNamespaceSchema.parse(data);
-}
-
-/**
- * Verify if a namespace exists
- * 네임스페이스 존재 여부 확인
- *
- * @param {string} namespacePath - The path of the namespace to check
- * @param {number} [parentId] - The ID of the parent namespace
- * @returns {Promise<GitLabNamespaceExistsResponse>} The verification result
- */
-async function verifyNamespaceExistence(
-  namespacePath: string,
-  parentId?: number
-): Promise<GitLabNamespaceExistsResponse> {
-  const url = new URL(
-    `${getEffectiveApiUrl()}/namespaces/${encodeURIComponent(namespacePath)}/exists`
-  );
-
-  if (parentId) {
-    url.searchParams.append("parent_id", parentId.toString());
-  }
-
-  const response = await fetch(url.toString(), {
-    ...getFetchConfig(),
-  });
-
-  await handleGitLabError(response);
-  const data = await response.json();
-  return GitLabNamespaceExistsResponseSchema.parse(data);
-}
-
-/**
- * Get a single project
- * 단일 프로젝트 조회
- *
- * @param {string} projectId - The ID or URL-encoded path of the project
- * @param {Object} options - Options for getting project details
- * @param {boolean} [options.license] - Include project license data
- * @param {boolean} [options.statistics] - Include project statistics
- * @param {boolean} [options.with_custom_attributes] - Include custom attributes in response
- * @returns {Promise<GitLabProject>} Project details
- */
-async function getProject(
-  projectId: string,
-  options: {
-    license?: boolean;
-    statistics?: boolean;
-    with_custom_attributes?: boolean;
-  } = {}
-): Promise<GitLabProject> {
-  projectId = decodeURIComponent(projectId); // Decode project ID
-  const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}`
-  );
-
-  if (options.license) {
-    url.searchParams.append("license", "true");
-  }
-
-  if (options.statistics) {
-    url.searchParams.append("statistics", "true");
-  }
-
-  if (options.with_custom_attributes) {
-    url.searchParams.append("with_custom_attributes", "true");
-  }
-
-  const response = await fetch(url.toString(), {
-    ...getFetchConfig(),
-  });
-
-  await handleGitLabError(response);
-  const data = await response.json();
-  return GitLabRepositorySchema.parse(data);
 }
 
 /**
