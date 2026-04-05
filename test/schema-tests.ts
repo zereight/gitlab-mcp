@@ -1,6 +1,6 @@
 #!/usr/bin/env ts-node
 
-import { GetFileContentsSchema, GitLabFileContentSchema, CreatePipelineSchema } from '../schemas.js';
+import { GetFileContentsSchema, GitLabFileContentSchema, CreatePipelineSchema, CreateIssueNoteSchema } from '../schemas.js';
 
 interface TestResult {
   name: string;
@@ -355,13 +355,98 @@ function runCreatePipelineSchemaTests(): { passed: number; failed: number } {
   return { passed, failed };
 }
 
+interface CreateIssueNoteSchemaTestCase {
+  name: string;
+  input: Record<string, any>;
+  expected?: Record<string, any>;
+  shouldFail?: boolean;
+}
+
+function runCreateIssueNoteSchemaTests(): { passed: number; failed: number } {
+  console.log('\n🧪 Testing CreateIssueNoteSchema...');
+
+  const cases: CreateIssueNoteSchemaTestCase[] = [
+    {
+      name: 'schema:create_issue_note:top-level-note-without-discussion-id',
+      input: { project_id: 'my/project', issue_iid: '42', body: 'A comment' },
+      expected: { project_id: 'my/project', issue_iid: '42', body: 'A comment', discussion_id: undefined }
+    },
+    {
+      name: 'schema:create_issue_note:reply-with-discussion-id',
+      input: { project_id: 'my/project', issue_iid: '42', discussion_id: 'abc123', body: 'A reply' },
+      expected: { project_id: 'my/project', issue_iid: '42', discussion_id: 'abc123', body: 'A reply' }
+    },
+    {
+      name: 'schema:create_issue_note:with-created-at',
+      input: { project_id: 'my/project', issue_iid: '7', body: 'Note', created_at: '2025-01-01T00:00:00Z' },
+      expected: { project_id: 'my/project', issue_iid: '7', body: 'Note', created_at: '2025-01-01T00:00:00Z' }
+    },
+    {
+      name: 'schema:create_issue_note:numeric-issue-iid-coerced',
+      input: { project_id: 'my/project', issue_iid: 99, body: 'Coerced' },
+      expected: { project_id: 'my/project', issue_iid: '99', body: 'Coerced' }
+    },
+    {
+      name: 'schema:create_issue_note:reject-missing-body',
+      input: { project_id: 'my/project', issue_iid: '1' },
+      shouldFail: true
+    }
+  ];
+
+  let passed = 0;
+  let failed = 0;
+
+  cases.forEach(testCase => {
+    const result: TestResult = {
+      name: testCase.name,
+      status: 'failed'
+    };
+
+    const parsed = CreateIssueNoteSchema.safeParse(testCase.input);
+
+    if (testCase.shouldFail) {
+      if (parsed.success) {
+        result.error = 'Expected schema validation to fail';
+      } else {
+        result.status = 'passed';
+      }
+    } else if (parsed.success) {
+      const expected = testCase.expected || {};
+      const matches = Object.entries(expected).every(([key, value]) => {
+        const actual = (parsed.data as Record<string, unknown>)[key];
+        return actual === value;
+      });
+      if (matches) {
+        result.status = 'passed';
+      } else {
+        result.error = `Unexpected parsed result: ${JSON.stringify(parsed.data)}`;
+      }
+    } else {
+      result.error = parsed.error?.message || 'Schema validation failed';
+    }
+
+    if (result.status === 'passed') {
+      passed++;
+      console.log(`✅ ${result.name}`);
+    } else {
+      failed++;
+      console.log(`❌ ${result.name}: ${result.error}`);
+    }
+  });
+
+  console.log(`\nResults: ${passed} passed, ${failed} failed`);
+
+  return { passed, failed };
+}
+
 if (import.meta.url === `file://${process.argv[1]}`) {
   const getFileContentsResult = runGetFileContentsSchemaTests();
   const fileContentResult = runGitLabFileContentSchemaTests();
   const createPipelineResult = runCreatePipelineSchemaTests();
+  const createIssueNoteResult = runCreateIssueNoteSchemaTests();
 
-  const totalPassed = getFileContentsResult.passed + fileContentResult.passed + createPipelineResult.passed;
-  const totalFailed = getFileContentsResult.failed + fileContentResult.failed + createPipelineResult.failed;
+  const totalPassed = getFileContentsResult.passed + fileContentResult.passed + createPipelineResult.passed + createIssueNoteResult.passed;
+  const totalFailed = getFileContentsResult.failed + fileContentResult.failed + createPipelineResult.failed + createIssueNoteResult.failed;
 
   console.log(`\nTotal Results: ${totalPassed} passed, ${totalFailed} failed`);
 
