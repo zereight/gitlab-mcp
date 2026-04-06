@@ -32,7 +32,7 @@ import {
   USE_PIPELINE,
 } from "./config.js";
 
-import { Server } from "@modelcontextprotocol/sdk/server/index.js";
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
@@ -353,7 +353,7 @@ try {
  * Each transport connection gets its own Server instance to prevent
  * cross-client data leakage (GHSA-345p-7cg4-v4c7).
  */
-function createServer(): Server {
+function createServer(): McpServer {
   // Precompute filtered tool list once at server creation (Steps 1–5 are static)
   // Step 1: Toolset filter — keep tools in enabled toolsets
   const toolsAfterToolsets = allTools.filter(tool =>
@@ -388,7 +388,7 @@ function createServer(): Server {
     ? toolsAfterReadOnly.filter(tool => !GITLAB_DENIED_TOOLS_REGEX!.test(tool.name))
     : toolsAfterReadOnly;
 
-  const serverInstance = new Server(
+  const mcpServer = new McpServer(
     {
       name: "better-gitlab-mcp-server",
       version: SERVER_VERSION,
@@ -400,7 +400,7 @@ function createServer(): Server {
     }
   );
 
-  serverInstance.setRequestHandler(ListToolsRequestSchema, async () => {
+  mcpServer.server.setRequestHandler(ListToolsRequestSchema, async () => {
     // Step 6: Gemini $schema cleanup (only dynamic step per request)
     // <<< START: Remove $schema for Gemini compatibility >>>
     const tools = precomputedFilteredTools.map(tool => {
@@ -424,7 +424,7 @@ function createServer(): Server {
     };
   });
 
-  serverInstance.setRequestHandler(CallToolRequestSchema, async (request: any) => {
+  mcpServer.server.setRequestHandler(CallToolRequestSchema, async (request: any) => {
     // Manually retrieve the session context using the session ID passed in the request.
     // This is a robust workaround for AsyncLocalStorage context loss.
     const sessionId = request.params.sessionId;
@@ -444,7 +444,7 @@ function createServer(): Server {
     return handleToolCall(request.params);
   });
 
-  return serverInstance;
+  return mcpServer;
 }
 
 /**
@@ -9353,9 +9353,7 @@ async function startSSEServer(): Promise<void> {
   });
 
   const httpServer = app.listen(Number(PORT), HOST, () => {
-    logger.info(`GitLab MCP Server running with SSE transport`);
-    const colorGreen = "\x1b[32m";
-    const colorReset = "\x1b[0m";
+    logger.info("GitLab MCP Server running with SSE transport");
     logger.info(`${colorGreen}Endpoint: http://${HOST}:${PORT}/sse${colorReset}`);
   });
 
