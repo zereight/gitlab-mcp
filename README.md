@@ -6,7 +6,9 @@
 
 ## @zereight/mcp-gitlab
 
-GitLab MCP(Model Context Protocol) Server. **Includes bug fixes and improvements over the original GitLab MCP server.**
+A comprehensive GitLab MCP server for AI clients. Manage projects, merge requests, issues, pipelines, wiki, releases, and more through stdio, SSE, and Streamable HTTP.
+
+Supports PAT, OAuth, read-only mode, and remote authorization for VS Code, Claude, Cursor, Copilot, and other MCP clients.
 
 ## Usage
 
