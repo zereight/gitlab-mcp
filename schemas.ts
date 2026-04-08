@@ -1,5 +1,17 @@
 import { z } from "zod";
 
+// Helper: coerce a JSON-stringified array to an actual array.
+// LLMs sometimes send '["a", "b"]' (string) instead of ["a", "b"] (array).
+const coerceStringArray = z.preprocess((val) => {
+  if (typeof val === "string") {
+    try {
+      const parsed = JSON.parse(val);
+      if (Array.isArray(parsed)) return parsed;
+    } catch { /* not JSON, fall through */ }
+  }
+  return val;
+}, z.array(z.string()));
+
 // Base schemas for common types
 export const GitLabAuthorSchema = z.object({
   name: z.string(),
@@ -1262,9 +1274,17 @@ export const CreateOrUpdateFileSchema = ProjectParamsSchema.extend({
 
 export const SearchRepositoriesSchema = z
   .object({
-    search: z.string().describe("Search query"), // Changed from query to match GitLab API
+    search: z.string().optional().describe("Search query"),
+    query: z.string().optional().describe("Search query (alias for 'search')"),
   })
-  .merge(PaginationOptionsSchema);
+  .merge(PaginationOptionsSchema)
+  .transform((data) => {
+    const search = data.search || data.query;
+    if (!search) {
+      throw new Error("Either 'search' or 'query' must be provided");
+    }
+    return { ...data, search, query: undefined };
+  });
 
 export const CreateRepositorySchema = z.object({
   name: z.string().describe("Repository name"),
@@ -1767,14 +1787,14 @@ export const UpdateIssueSchema = z.object({
   confidential: z.coerce.boolean().optional().describe("Set the issue to be confidential"),
   discussion_locked: z.coerce.boolean().optional().describe("Flag to lock discussions"),
   due_date: z.string().optional().describe("Date the issue is due (YYYY-MM-DD)"),
-  labels: z.array(z.string()).optional().describe("Array of label names"),
+  labels: coerceStringArray.optional().describe("Array of label names"),
   milestone_id: z.coerce.string().optional().describe("Milestone ID to assign"),
   state_event: z.enum(["close", "reopen"]).optional().describe("Update issue state (close/reopen)"),
   weight: z.coerce.number().optional().describe("Weight of the issue (numeric, typically hours of work)"),
-  issue_type: z
-    .enum(["issue", "incident", "test_case", "task"])
-    .optional()
-    .describe("The type of issue. One of issue, incident, test_case or task."),
+  issue_type: z.preprocess(
+    (val) => (typeof val === "string" ? val.toLowerCase() : val),
+    z.enum(["issue", "incident", "test_case", "task"]).optional()
+  ).describe("The type of issue. One of issue, incident, test_case or task."),
 });
 
 export const DeleteIssueSchema = z.object({
@@ -3097,8 +3117,8 @@ export const CreateWorkItemSchema = z.object({
     .default("issue")
     .describe("Type of work item to create. Defaults to 'issue'."),
   description: z.string().optional().describe("Description of the work item (Markdown supported)"),
-  labels: z.array(z.string()).optional().describe("Array of label names to assign"),
-  assignee_usernames: z.array(z.string()).optional().describe("Array of usernames to assign"),
+  labels: coerceStringArray.optional().describe("Array of label names to assign"),
+  assignee_usernames: coerceStringArray.optional().describe("Array of usernames to assign"),
   parent_iid: z.coerce.number().optional().describe("IID of the parent work item to set hierarchy"),
   weight: z.coerce.number().optional().describe("Weight of the work item"),
   health_status: z.enum(["onTrack", "needsAttention", "atRisk"]).optional().describe("Set health status"),
@@ -3112,9 +3132,9 @@ export const CreateWorkItemSchema = z.object({
 export const UpdateWorkItemSchema = WorkItemParamsSchema.extend({
   title: z.string().optional().describe("New title"),
   description: z.string().optional().describe("New description (Markdown supported)"),
-  add_labels: z.array(z.string()).optional().describe("Label names to add"),
-  remove_labels: z.array(z.string()).optional().describe("Label names to remove"),
-  assignee_usernames: z.array(z.string()).optional().describe("Set assignees by username (replaces existing)"),
+  add_labels: coerceStringArray.optional().describe("Label names to add"),
+  remove_labels: coerceStringArray.optional().describe("Label names to remove"),
+  assignee_usernames: coerceStringArray.optional().describe("Set assignees by username (replaces existing)"),
   state_event: z.enum(["close", "reopen"]).optional().describe("Close or reopen the work item"),
   weight: z.coerce.number().optional().describe("Set weight (issues, tasks, epics only)"),
   status: z.string().optional().describe("Set status by ID. Use list_work_item_statuses to get available status IDs."),
@@ -3122,11 +3142,11 @@ export const UpdateWorkItemSchema = WorkItemParamsSchema.extend({
   parent_project_id: z.coerce.string().optional().describe("Project ID or path of the parent work item (defaults to same project as the work item)"),
   remove_parent: z.coerce.boolean().optional().describe("Set to true to remove the parent from hierarchy"),
   children_to_add: z.array(z.object({
-    project_id: z.coerce.string().describe("Project ID or path of the child work item"),
+    project_id: z.coerce.string().optional().describe("Project ID or path of the child work item. Defaults to the parent work item's project if omitted."),
     iid: z.coerce.number().describe("IID of the child work item"),
   })).optional().describe("Array of children to add to this work item's hierarchy"),
   children_to_remove: z.array(z.object({
-    project_id: z.coerce.string().describe("Project ID or path of the child work item"),
+    project_id: z.coerce.string().optional().describe("Project ID or path of the child work item. Defaults to the parent work item's project if omitted."),
     iid: z.coerce.number().describe("IID of the child work item"),
   })).optional().describe("Array of children to remove from this work item's hierarchy"),
   health_status: z.enum(["onTrack", "needsAttention", "atRisk"]).optional().describe("Set health status on issues and epics"),
@@ -3136,12 +3156,12 @@ export const UpdateWorkItemSchema = WorkItemParamsSchema.extend({
   iteration_id: z.string().optional().describe("Iteration ID (e.g. 'gid://gitlab/Iteration/123' or numeric ID). Use list_group_iterations to find available iterations."),
   confidential: z.coerce.boolean().optional().describe("Set confidentiality"),
   linked_items_to_add: z.array(z.object({
-    project_id: z.coerce.string().describe("Project ID or path of the work item to link"),
+    project_id: z.coerce.string().optional().describe("Project ID or path of the work item to link. Defaults to the same project if omitted."),
     iid: z.coerce.number().describe("IID of the work item to link"),
     link_type: z.enum(["RELATED", "BLOCKED_BY", "BLOCKS"]).optional().default("RELATED").describe("Link type: RELATED, BLOCKED_BY, or BLOCKS. Defaults to RELATED."),
   })).optional().describe("Work items to link"),
   linked_items_to_remove: z.array(z.object({
-    project_id: z.coerce.string().describe("Project ID or path of the linked work item to remove"),
+    project_id: z.coerce.string().optional().describe("Project ID or path of the linked work item to remove. Defaults to the same project if omitted."),
     iid: z.coerce.number().describe("IID of the linked work item to remove"),
   })).optional().describe("Linked work items to remove"),
   custom_fields: z.array(z.object({

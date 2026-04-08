@@ -2596,7 +2596,8 @@ async function createWorkItem(
     variables.labelIds = labelIds;
   }
 
-  if (options.weight !== undefined) {
+  // Incidents don't support the weight widget
+  if (options.weight !== undefined && typeName !== "incident") {
     inputFields.push("$weight: Int");
     inputValues.push("weightWidget: { weight: $weight }");
     variables.weight = options.weight;
@@ -2716,16 +2717,16 @@ async function updateWorkItem(
     parent_iid?: number;
     parent_project_id?: string;
     remove_parent?: boolean;
-    children_to_add?: Array<{ project_id: string; iid: number }>;
-    children_to_remove?: Array<{ project_id: string; iid: number }>;
+    children_to_add?: Array<{ project_id?: string; iid: number }>;
+    children_to_remove?: Array<{ project_id?: string; iid: number }>;
     health_status?: string;
     start_date?: string;
     due_date?: string;
     milestone_id?: string;
     iteration_id?: string;
     confidential?: boolean;
-    linked_items_to_add?: Array<{ project_id: string; iid: number; link_type?: string }>;
-    linked_items_to_remove?: Array<{ project_id: string; iid: number }>;
+    linked_items_to_add?: Array<{ project_id?: string; iid: number; link_type?: string }>;
+    linked_items_to_remove?: Array<{ project_id?: string; iid: number }>;
     custom_fields?: Array<{
       custom_field_id: string;
       text_value?: string;
@@ -2930,7 +2931,7 @@ async function updateWorkItem(
   if (options.children_to_add && options.children_to_add.length > 0) {
     const childGIDs: string[] = [];
     for (const child of options.children_to_add) {
-      const { workItemGID: childGID } = await resolveWorkItemGID(child.project_id, child.iid);
+      const { workItemGID: childGID } = await resolveWorkItemGID(child.project_id || projectId, child.iid);
       childGIDs.push(childGID);
     }
     const addData = await executeGraphQL<{
@@ -2951,7 +2952,7 @@ async function updateWorkItem(
   // Handle children_to_remove: remove parent from each child
   if (options.children_to_remove && options.children_to_remove.length > 0) {
     for (const child of options.children_to_remove) {
-      await removeIssueParent(child.project_id, child.iid);
+      await removeIssueParent(child.project_id || projectId, child.iid);
     }
   }
 
@@ -2962,7 +2963,7 @@ async function updateWorkItem(
     for (const item of options.linked_items_to_add) {
       const linkType = item.link_type || "RELATED";
       if (!groupedByType[linkType]) groupedByType[linkType] = [];
-      const { workItemGID: targetGID } = await resolveWorkItemGID(item.project_id, item.iid);
+      const { workItemGID: targetGID } = await resolveWorkItemGID(item.project_id || projectId, item.iid);
       groupedByType[linkType].push(targetGID);
     }
     for (const [linkType, targetGIDs] of Object.entries(groupedByType)) {
@@ -2986,7 +2987,7 @@ async function updateWorkItem(
   if (options.linked_items_to_remove && options.linked_items_to_remove.length > 0) {
     const targetGIDs: string[] = [];
     for (const item of options.linked_items_to_remove) {
-      const { workItemGID: targetGID } = await resolveWorkItemGID(item.project_id, item.iid);
+      const { workItemGID: targetGID } = await resolveWorkItemGID(item.project_id || projectId, item.iid);
       targetGIDs.push(targetGID);
     }
     const removeLinkedData = await executeGraphQL<{
@@ -7446,6 +7447,16 @@ async function handleToolCall(params: any) {
 
     // Lazy OAuth token refresh: only validate/refresh when a tool is actually called
     await ensureValidOAuthToken();
+
+    // Normalize common parameter aliases that LLMs send
+    const args = params.arguments as Record<string, unknown>;
+    if (args) {
+      // work_item_iid -> iid (for work item tools)
+      if (args.work_item_iid !== undefined && args.iid === undefined) {
+        args.iid = args.work_item_iid;
+        delete args.work_item_iid;
+      }
+    }
 
     logger.info(params.name);
     switch (params.name) {
