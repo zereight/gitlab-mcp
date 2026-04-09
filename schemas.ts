@@ -2562,8 +2562,8 @@ export const GitLabEventSchema = z
     created_at: z.string(),
     author: GitLabEventAuthorSchema,
     author_username: z.string(),
-    imported: z.coerce.boolean(),
-    imported_from: z.string(),
+    imported: z.coerce.boolean().optional(),
+    imported_from: z.string().nullable().optional(),
   })
   .passthrough(); // Allow additional fields
 
