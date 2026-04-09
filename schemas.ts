@@ -1,5 +1,4 @@
 import { z } from "zod";
-import { flexibleBoolean } from "./customSchemas.js";
 
 // Base schemas for common types
 export const GitLabAuthorSchema = z.object({
@@ -1241,10 +1240,10 @@ export const UpdateIssueNoteSchema = ProjectParamsSchema.extend({
     message: "Only one of 'body' or 'resolved' can be provided, not both",
   });
 
-// Input schema for adding a note to an existing issue discussion
+// Input schema for adding a note to an issue (top-level comment or discussion reply)
 export const CreateIssueNoteSchema = ProjectParamsSchema.extend({
   issue_iid: z.coerce.string().describe("The IID of an issue"),
-  discussion_id: z.coerce.string().describe("The ID of a thread"),
+  discussion_id: z.coerce.string().optional().describe("The ID of a thread. If provided, replies to that thread; otherwise creates a top-level note"),
   body: z.string().describe("The content of the note or reply"),
   created_at: z.string().optional().describe("Date the note was created at (ISO 8601 format)"),
 });

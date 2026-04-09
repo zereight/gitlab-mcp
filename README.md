@@ -6,7 +6,9 @@
 
 ## @zereight/mcp-gitlab
 
-GitLab MCP(Model Context Protocol) Server. **Includes bug fixes and improvements over the original GitLab MCP server.**
+A comprehensive GitLab MCP server for AI clients. Manage projects, merge requests, issues, pipelines, wiki, releases, and more through stdio, SSE, and Streamable HTTP.
+
+Supports PAT, OAuth, read-only mode, and remote authorization for VS Code, Claude, Cursor, Copilot, and other MCP clients.
 
 ## Usage
 
@@ -16,10 +18,17 @@ When using with the Claude App, you need to set up your API key and URLs directl
 
 #### Authentication Methods
 
-The server supports two authentication methods:
+The server supports four authentication methods:
 
-1. **Personal Access Token** (traditional method)
-2. **OAuth2** (recommended for better security)
+**For local/desktop use** (most common):
+
+1. **Personal Access Token** (`GITLAB_PERSONAL_ACCESS_TOKEN`) — simplest setup
+2. **OAuth2 — Local Browser** (`GITLAB_USE_OAUTH`) — recommended for better security
+
+**For server/remote deployments**:
+
+3. **OAuth2 — MCP Proxy** (`GITLAB_MCP_OAUTH`) — for remote MCP clients such as Claude.ai
+4. **Remote Authorization** (`REMOTE_AUTHORIZATION`) — multi-user deployments where each caller provides their own token
 
 #### Using OAuth2 Authentication
 
@@ -325,6 +334,89 @@ docker run -i --rm \
 }
 ```
 
+#### Using MCP OAuth Proxy (`GITLAB_MCP_OAUTH`)
+
+> **For server/remote deployments only.** This mode requires the MCP server to be deployed with a publicly accessible HTTPS URL. For local/desktop use, see `GITLAB_USE_OAUTH` above.
+
+For remote MCP clients that support the MCP OAuth specification (e.g. Claude.ai).
+The server acts as a full OAuth 2.0 authorization server — unauthenticated requests
+receive a `401 + WWW-Authenticate` response, which triggers the OAuth browser flow
+automatically on the client side.
+
+**How it works**: You deploy this MCP server somewhere with a public HTTPS URL. MCP
+clients connect to `{MCP_SERVER_URL}/mcp`. The server handles the OAuth 2.0 flow,
+exchanging credentials with GitLab on behalf of the client.
+
+**Prerequisites**:
+
+1. A publicly accessible HTTPS server URL (`MCP_SERVER_URL`) — use [ngrok](https://ngrok.com) for local testing
+2. A pre-registered GitLab OAuth application with `api` (or `read_api`) scopes
+   — Go to `Admin area` → `Applications`, set Redirect URI to `{MCP_SERVER_URL}/callback`
+
+| Environment Variable  | Required | Description                                                |
+| --------------------- | -------- | ---------------------------------------------------------- |
+| `GITLAB_MCP_OAUTH`    | ✅       | Set to `true` to enable                                    |
+| `GITLAB_API_URL`      | ✅       | GitLab API base URL                                        |
+| `GITLAB_OAUTH_APP_ID` | ✅       | GitLab OAuth Application ID                                |
+| `MCP_SERVER_URL`      | ✅       | Public HTTPS URL of this MCP server                        |
+| `STREAMABLE_HTTP`     | ✅       | Must be `true`                                             |
+| `GITLAB_OAUTH_SCOPES` | optional | Comma-separated scopes (default: `api,read_api,read_user`) |
+
+```shell
+docker run -i --rm \
+  -e HOST=0.0.0.0 \
+  -e GITLAB_MCP_OAUTH=true \
+  -e STREAMABLE_HTTP=true \
+  -e MCP_SERVER_URL=https://your-server.example.com \
+  -e GITLAB_API_URL="https://gitlab.com/api/v4" \
+  -e GITLAB_OAUTH_APP_ID=your_app_id \
+  -p 3000:3002 \
+  zereight050/gitlab-mcp
+```
+
+MCP client configuration:
+
+```json
+{
+  "mcpServers": {
+    "gitlab": {
+      "type": "http",
+      "url": "https://your-server.example.com/mcp"
+    }
+  }
+}
+```
+
+#### Using Remote Authorization (`REMOTE_AUTHORIZATION`)
+
+> **For server/remote deployments only.** Each HTTP caller provides their own GitLab token directly in request headers — no OAuth flow involved.
+
+For multi-user or multi-tenant deployments where each caller provides their own
+GitLab token in the HTTP request header. No OAuth flow — the MCP server forwards
+the token to GitLab on behalf of the caller.
+
+**Header priority**: `Private-Token` > `JOB-TOKEN` > `Authorization: Bearer`
+
+| Environment Variable     | Required | Description                                                |
+| ------------------------ | -------- | ---------------------------------------------------------- |
+| `REMOTE_AUTHORIZATION`   | ✅       | Set to `true` to enable                                    |
+| `STREAMABLE_HTTP`        | ✅       | Must be `true`                                             |
+| `ENABLE_DYNAMIC_API_URL` | optional | Allow per-request GitLab URL via `X-GitLab-API-URL` header |
+
+**Example request headers**:
+
+```http
+Private-Token: glpat-xxxxxxxxxxxxxxxxxxxx
+```
+
+or using a Bearer token:
+
+```http
+Authorization: Bearer glpat-xxxxxxxxxxxxxxxxxxxx
+```
+
+> ⚠️ `REMOTE_AUTHORIZATION` is **not compatible** with SSE transport. `STREAMABLE_HTTP=true` is required.
+
 ### Environment Variables
 
 #### Authentication Configuration
@@ -342,6 +434,9 @@ docker run -i --rm \
   - **SSE transport is disabled** - attempting to use SSE with remote authorization will cause the server to exit with an error
   - Each client session can use a different token, enabling multi-user support with secure session isolation
   - Tokens are stored per session and automatically cleaned up when sessions close or timeout
+- `GITLAB_MCP_OAUTH`: Set to `true` to enable the server-side MCP OAuth proxy mode. See [MCP OAuth Setup](#mcp-oauth-setup-claudeai-native-oauth) for details.
+- `GITLAB_OAUTH_APP_ID`: Client ID of the pre-registered GitLab OAuth application. Required when `GITLAB_MCP_OAUTH=true`.
+- `GITLAB_OAUTH_SCOPES`: Comma-separated list of GitLab scopes to request during the MCP OAuth flow (e.g. `api,read_user`). Defaults to `api` (or `read_api` when `GITLAB_READ_ONLY_MODE=true`). Only used when `GITLAB_MCP_OAUTH=true`. The pre-registered application must be configured with at least these scopes.
 - `SESSION_TIMEOUT_SECONDS`: Session auth token timeout in seconds. Default: `3600` (1 hour). Valid range: 1-86400 seconds (recommended: 60+). After this period of inactivity, the auth token is removed but the transport session remains active. The client must provide auth headers again on the next request. Only applies when `REMOTE_AUTHORIZATION=true`.
 
 #### General Configuration
@@ -357,6 +452,7 @@ docker run -i --rm \
 - `USE_MILESTONE`: Legacy flag. Milestone features are now enabled by default. When set to 'true', ensures milestone-related tools are included even if the `milestones` toolset is not explicitly listed in `GITLAB_TOOLSETS`.
 - `USE_PIPELINE`: Legacy flag. Pipeline features are now enabled by default. When set to 'true', ensures pipeline-related tools are included even if the `pipelines` toolset is not explicitly listed in `GITLAB_TOOLSETS`.
 - `GITLAB_TOOLSETS`: Comma-separated list of toolset IDs to enable. When empty or unset, default toolsets are used. Set to `"all"` to enable every toolset. Available toolsets (default toolsets marked with `*`):
+
   - `merge_requests`\* — MR operations, notes, discussions, draft notes, threads, versions, file diffs, conflicts (34 tools)
   - `issues`\* — Issue CRUD, notes, links, discussions (14 tools)
   - `repositories`\* — Search, create, file contents, push, fork, tree (7 tools)
@@ -375,11 +471,13 @@ docker run -i --rm \
   Note: `execute_graphql` is not in any toolset and must be added individually via `GITLAB_TOOLS` if needed.
   Exposing arbitrary GraphQL would allow bypassing toolset boundaries (e.g. querying data that the user intentionally disabled via toolsets like wiki or pipelines), which is a security and permission-containment concern. Keeping `execute_graphql` out of all toolsets and requiring explicit opt-in via `GITLAB_TOOLS=execute_graphql` is intentional, to align with that principle rather than for backward compatibility.
   CLI arg: `--toolsets`
+
 - `GITLAB_TOOLS`: Comma-separated list of individual tool names to add on top of the enabled toolsets (additive). Useful for cherry-picking specific tools without enabling an entire toolset. Example: `GITLAB_TOOLS="list_pipelines,execute_graphql"`. CLI arg: `--tools`
 
   Combined logic: `final tools = (tools from enabled toolsets) ∪ (GITLAB_TOOLS) ∪ (legacy flag overrides)`
 
   Examples:
+
   ```bash
   # Default behavior (unchanged)
   GITLAB_PERSONAL_ACCESS_TOKEN=xxx npx @zereight/mcp-gitlab
@@ -399,6 +497,7 @@ docker run -i --rm \
   # Legacy flags still work (backward compatible)
   USE_PIPELINE=true npx @zereight/mcp-gitlab
   ```
+
 - `GITLAB_AUTH_COOKIE_PATH`: Path to an authentication cookie file for GitLab instances that require cookie-based authentication. When provided, the cookie will be included in all GitLab API requests.
 - `SSE`: When set to 'true', enables the Server-Sent Events transport.
 - `STREAMABLE_HTTP`: When set to 'true', enables the Streamable HTTP transport. If both **SSE** and **STREAMABLE_HTTP** are set to 'true', the server will prioritize Streamable HTTP over SSE transport.
@@ -512,7 +611,7 @@ calls (need `api` or `read_api`).
 1. Go to your GitLab instance → **Admin Area > Applications** (instance-wide) or **User Settings > Applications** (personal)
 2. Create a new application with:
    - **Confidential**: unchecked
-   - **Scopes**: `api`, `read_api`, `read_user`
+   - **Scopes**: `api`, `read_api`, `read_user` (or whichever scopes you intend to request via `GITLAB_OAUTH_SCOPES`)
 3. Save and copy the **Application ID** — this is your `GITLAB_OAUTH_APP_ID`
 
 **How it works:**
@@ -566,14 +665,15 @@ No `headers` field is needed — Claude.ai obtains the token via OAuth automatic
 
 **Environment variables:**
 
-| Variable | Required | Description |
-|---|---|---|
-| `GITLAB_MCP_OAUTH` | Yes | Set to `true` to enable |
-| `GITLAB_OAUTH_APP_ID` | Yes | Client ID of the pre-registered GitLab OAuth application |
-| `MCP_SERVER_URL` | Yes | Public HTTPS URL of your MCP server |
-| `GITLAB_API_URL` | Yes | Your GitLab instance API URL (e.g. `https://gitlab.com/api/v4`) |
-| `STREAMABLE_HTTP` | Yes | Must be `true` (SSE is not supported) |
-| `MCP_DANGEROUSLY_ALLOW_INSECURE_ISSUER_URL` | No | Set `true` for local HTTP dev only |
+| Variable                                    | Required | Description                                                                                                                                                                                                         |
+| ------------------------------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GITLAB_MCP_OAUTH`                          | Yes      | Set to `true` to enable                                                                                                                                                                                             |
+| `GITLAB_OAUTH_APP_ID`                       | Yes      | Client ID of the pre-registered GitLab OAuth application                                                                                                                                                            |
+| `MCP_SERVER_URL`                            | Yes      | Public HTTPS URL of your MCP server                                                                                                                                                                                 |
+| `GITLAB_API_URL`                            | Yes      | Your GitLab instance API URL (e.g. `https://gitlab.com/api/v4`)                                                                                                                                                     |
+| `STREAMABLE_HTTP`                           | Yes      | Must be `true` (SSE is not supported)                                                                                                                                                                               |
+| `GITLAB_OAUTH_SCOPES`                       | No       | Comma-separated GitLab scopes to request (e.g. `api,read_user`). Defaults to `api` (or `read_api` when `GITLAB_READ_ONLY_MODE=true`). The pre-registered application must be configured with at least these scopes. |
+| `MCP_DANGEROUSLY_ALLOW_INSECURE_ISSUER_URL` | No       | Set `true` for local HTTP dev only                                                                                                                                                                                  |
 
 **Important Notes:**
 
@@ -582,6 +682,11 @@ No `headers` field is needed — Claude.ai obtains the token via OAuth automatic
 - Session timeout, rate limiting, and capacity limits apply identically to the
   `REMOTE_AUTHORIZATION` mode (`SESSION_TIMEOUT_SECONDS`, `MAX_REQUESTS_PER_MINUTE`,
   `MAX_SESSIONS`)
+- **Header auth fallback:** when `Private-Token` or `JOB-TOKEN` request headers are
+  present, OAuth validation is skipped and the raw token is used directly for that
+  session. This allows PATs and CI job tokens to be used alongside the OAuth flow on
+  the same server instance. `Authorization: Bearer` is always treated as an OAuth
+  token — use `Private-Token` for PAT-based header auth.
 
 ## Tools 🛠️
 

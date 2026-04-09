@@ -169,9 +169,13 @@ generate_changelog_notes() {
     notes+="### Other Changes\n$other\n"
   fi
   
-  # Add contributors section
+  # Add contributors section (scoped to this release range)
   notes+="\n### Contributors\n"
-  notes+="$(git shortlog -sne HEAD | head -10)\n"
+  if [ -n "$previous_tag" ]; then
+    notes+="$(git shortlog -sne "$previous_tag..HEAD" | head -10)\n"
+  else
+    notes+="$(git shortlog -sne HEAD | head -20)\n"
+  fi
   
   echo -e "$notes"
 }

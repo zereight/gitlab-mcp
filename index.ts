@@ -1,29 +1,38 @@
 #!/usr/bin/env node
 
-// Parse CLI arguments
-const args = process.argv.slice(2);
-const cliArgs: Record<string, string> = {};
+import {
+  getConfig,
+  ENABLE_DYNAMIC_API_URL,
+  GITLAB_AUTH_COOKIE_PATH,
+  GITLAB_CA_CERT_PATH,
+  GITLAB_JOB_TOKEN,
+  GITLAB_MCP_OAUTH,
+  GITLAB_OAUTH_APP_ID,
+  GITLAB_OAUTH_SCOPES,
+  GITLAB_PERSONAL_ACCESS_TOKEN,
+  GITLAB_POOL_MAX_SIZE,
+  GITLAB_READ_ONLY_MODE,
+  GITLAB_TOOLSETS_RAW,
+  GITLAB_TOOLS_RAW,
+  HOST,
+  HTTP_PROXY,
+  HTTPS_PROXY,
+  IS_OLD,
+  MCP_SERVER_URL,
+  NODE_TLS_REJECT_UNAUTHORIZED,
+  NO_PROXY,
+  PORT,
+  REMOTE_AUTHORIZATION,
+  SESSION_TIMEOUT_SECONDS,
+  SSE,
+  STREAMABLE_HTTP,
+  USE_GITLAB_WIKI,
+  USE_MILESTONE,
+  USE_OAUTH,
+  USE_PIPELINE,
+} from "./config.js";
 
-for (let i = 0; i < args.length; i++) {
-  const arg = args[i];
-  if (arg.startsWith("--")) {
-    const [key, value] = arg.slice(2).split("=");
-    if (value) {
-      cliArgs[key] = value;
-    } else if (i + 1 < args.length && !args[i + 1].startsWith("--")) {
-      cliArgs[key] = args[++i];
-    }
-  }
-}
-
-// Helper function to get config value (CLI args take precedence over env vars)
-function getConfig(cliKey: string, envKey: string): string | undefined;
-function getConfig(cliKey: string, envKey: string, defaultValue: string): string;
-function getConfig(cliKey: string, envKey: string, defaultValue?: string): string | undefined {
-  return cliArgs[cliKey] || process.env[envKey] || defaultValue;
-}
-
-import { Server } from "@modelcontextprotocol/sdk/server/index.js";
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
@@ -37,19 +46,24 @@ import { HttpProxyAgent } from "http-proxy-agent";
 import { HttpsProxyAgent } from "https-proxy-agent";
 import nodeFetch, { Headers } from "node-fetch";
 import path, { dirname } from "node:path";
-import { SocksProxyAgent } from "socks-proxy-agent";
 import { CookieJar, parse as parseCookie } from "tough-cookie";
 import { fileURLToPath, URL } from "node:url";
 import { z } from "zod";
-import { zodToJsonSchema } from "zod-to-json-schema";
 import { initializeOAuthClient, GitLabOAuth } from "./oauth.js";
 import { createGitLabOAuthProvider } from "./oauth-proxy.js";
 import { mcpAuthRouter } from "@modelcontextprotocol/sdk/server/auth/router.js";
+import { normalizeGitLabApiUrl } from "./utils/url.js";
+import { estimateMergeCommitCount, filterDiffsByPatterns, summarizeWebhookEvents } from "./utils/helpers.js";
 import { requireBearerAuth } from "@modelcontextprotocol/sdk/server/auth/middleware/bearerAuth.js";
 import { GitLabClientPool } from "./gitlab-client-pool.js";
-// Add type imports for proxy agents
-import { Agent } from "node:http";
-import { Agent as HttpsAgent } from "node:https";
+import {
+  allTools,
+  readOnlyTools,
+  parseEnabledToolsets,
+  parseIndividualTools,
+  buildFeatureFlagOverrides,
+  isToolInEnabledToolset,
+} from "./tools/registry.js";
 import {
   BulkPublishDraftNotesSchema,
   CancelPipelineJobSchema,
@@ -146,8 +160,6 @@ import {
   GitLabMergeRequestSchema,
   type GitLabMilestones,
   GitLabMilestonesSchema,
-  type GitLabNamespace,
-  type GitLabNamespaceExistsResponse,
   GitLabNamespaceExistsResponseSchema,
   GitLabNamespaceSchema,
   type GitLabPipeline,
@@ -172,10 +184,8 @@ import {
   type GitLabSearchBlobResult,
   type GitLabSearchResponse,
   GitLabSearchResponseSchema,
-  type GitLabTree,
   type GitLabTreeItem,
   GitLabTreeItemSchema,
-  GitLabTreeSchema,
   type GitLabUser,
   GitLabUserSchema,
   type GitLabUsersResponse,
@@ -241,7 +251,6 @@ import {
   type GitLabApprovalUser,
   type GitLabMergeRequestApprovalState,
   type MergeRequestThreadPosition,
-  type MergeRequestThreadPositionCreate,
   type MyIssuesOptions,
   MyIssuesSchema,
   type PaginatedDiscussionsResponse,
@@ -346,7 +355,7 @@ try {
  * Each transport connection gets its own Server instance to prevent
  * cross-client data leakage (GHSA-345p-7cg4-v4c7).
  */
-function createServer(): Server {
+function createServer(): McpServer {
   // Precompute filtered tool list once at server creation (Steps 1–5 are static)
   // Step 1: Toolset filter — keep tools in enabled toolsets
   const toolsAfterToolsets = allTools.filter(tool =>
@@ -381,7 +390,7 @@ function createServer(): Server {
     ? toolsAfterReadOnly.filter(tool => !GITLAB_DENIED_TOOLS_REGEX!.test(tool.name))
     : toolsAfterReadOnly;
 
-  const serverInstance = new Server(
+  const mcpServer = new McpServer(
     {
       name: "better-gitlab-mcp-server",
       version: SERVER_VERSION,
@@ -393,7 +402,7 @@ function createServer(): Server {
     }
   );
 
-  serverInstance.setRequestHandler(ListToolsRequestSchema, async () => {
+  mcpServer.server.setRequestHandler(ListToolsRequestSchema, async () => {
     // Step 6: Gemini $schema cleanup (only dynamic step per request)
     // <<< START: Remove $schema for Gemini compatibility >>>
     const tools = precomputedFilteredTools.map(tool => {
@@ -417,11 +426,11 @@ function createServer(): Server {
     };
   });
 
-  serverInstance.setRequestHandler(CallToolRequestSchema, async (request: any) => {
+  mcpServer.server.setRequestHandler(CallToolRequestSchema, async (request: any) => {
     // Manually retrieve the session context using the session ID passed in the request.
     // This is a robust workaround for AsyncLocalStorage context loss.
     const sessionId = request.params.sessionId;
-    if (REMOTE_AUTHORIZATION && sessionId && authBySession[sessionId]) {
+    if ((REMOTE_AUTHORIZATION || GITLAB_MCP_OAUTH) && sessionId && authBySession[sessionId]) {
       const authData = authBySession[sessionId];
       const sessionContext: SessionAuth = {
         sessionId,
@@ -437,7 +446,7 @@ function createServer(): Server {
     return handleToolCall(request.params);
   });
 
-  return serverInstance;
+  return mcpServer;
 }
 
 /**
@@ -567,8 +576,6 @@ function validateConfiguration(): void {
   logger.info("Configuration validation passed");
 }
 
-const GITLAB_PERSONAL_ACCESS_TOKEN = getConfig("token", "GITLAB_PERSONAL_ACCESS_TOKEN");
-const GITLAB_JOB_TOKEN = getConfig("job-token", "GITLAB_JOB_TOKEN");
 let OAUTH_ACCESS_TOKEN: string | null = null;
 let oauthClient: GitLabOAuth | null = null;
 /**
@@ -592,10 +599,6 @@ async function ensureValidOAuthToken(): Promise<void> {
   }
 }
 
-const GITLAB_AUTH_COOKIE_PATH = getConfig("cookie-path", "GITLAB_AUTH_COOKIE_PATH");
-const USE_OAUTH = getConfig("use-oauth", "GITLAB_USE_OAUTH") === "true";
-const IS_OLD = getConfig("is-old", "GITLAB_IS_OLD") === "true";
-const GITLAB_READ_ONLY_MODE = getConfig("read-only", "GITLAB_READ_ONLY_MODE") === "true";
 const GITLAB_DENIED_TOOLS_REGEX = (() => {
   const pattern = getConfig("denied-tools-regex", "GITLAB_DENIED_TOOLS_REGEX");
   if (!pattern) return undefined;
@@ -630,68 +633,7 @@ const GITLAB_DENIED_TOOLS_REGEX = (() => {
     return undefined;
   }
 })();
-const USE_GITLAB_WIKI = getConfig("use-wiki", "USE_GITLAB_WIKI") === "true";
-const USE_MILESTONE = getConfig("use-milestone", "USE_MILESTONE") === "true";
-const USE_PIPELINE = getConfig("use-pipeline", "USE_PIPELINE") === "true";
-const GITLAB_TOOLSETS_RAW = getConfig("toolsets", "GITLAB_TOOLSETS");
-const GITLAB_TOOLS_RAW = getConfig("tools", "GITLAB_TOOLS");
-const SSE = getConfig("sse", "SSE") === "true";
-const STREAMABLE_HTTP = getConfig("streamable-http", "STREAMABLE_HTTP") === "true";
-const REMOTE_AUTHORIZATION = getConfig("remote-auth", "REMOTE_AUTHORIZATION") === "true";
-const GITLAB_MCP_OAUTH = getConfig("mcp-oauth", "GITLAB_MCP_OAUTH") === "true";
-const MCP_SERVER_URL = getConfig("mcp-server-url", "MCP_SERVER_URL");
-const GITLAB_OAUTH_APP_ID = getConfig("oauth-app-id", "GITLAB_OAUTH_APP_ID");
-const ENABLE_DYNAMIC_API_URL =
-  getConfig("enable-dynamic-api-url", "ENABLE_DYNAMIC_API_URL") === "true";
-const SESSION_TIMEOUT_SECONDS = Number.parseInt(
-  getConfig("session-timeout", "SESSION_TIMEOUT_SECONDS", "3600"),
-  10
-);
-const HOST = getConfig("host", "HOST") || "127.0.0.1";
-const PORT = Number.parseInt(getConfig("port", "PORT", "3002"), 10);
-// Add proxy configuration
-const HTTP_PROXY = getConfig("http-proxy", "HTTP_PROXY");
-const HTTPS_PROXY = getConfig("https-proxy", "HTTPS_PROXY");
-const NO_PROXY = getConfig("no-proxy", "NO_PROXY");
-const NODE_TLS_REJECT_UNAUTHORIZED = getConfig(
-  "tls-reject-unauthorized",
-  "NODE_TLS_REJECT_UNAUTHORIZED"
-);
-const GITLAB_CA_CERT_PATH = getConfig("ca-cert-path", "GITLAB_CA_CERT_PATH");
-const GITLAB_POOL_MAX_SIZE = getConfig("pool-max-size", "GITLAB_POOL_MAX_SIZE")
-  ? Number.parseInt(getConfig("pool-max-size", "GITLAB_POOL_MAX_SIZE")!, 10)
-  : 100;
 
-let sslOptions = undefined;
-if (NODE_TLS_REJECT_UNAUTHORIZED === "0") {
-  sslOptions = { rejectUnauthorized: false };
-} else if (GITLAB_CA_CERT_PATH) {
-  const ca = fs.readFileSync(GITLAB_CA_CERT_PATH);
-  sslOptions = { ca };
-}
-
-// Configure proxy agents if proxies are set
-let httpAgent: Agent | undefined = undefined;
-let httpsAgent: Agent | undefined = undefined;
-
-if (HTTP_PROXY) {
-  if (HTTP_PROXY.startsWith("socks")) {
-    httpAgent = new SocksProxyAgent(HTTP_PROXY);
-  } else {
-    httpAgent = new HttpProxyAgent(HTTP_PROXY);
-  }
-}
-if (HTTPS_PROXY) {
-  if (HTTPS_PROXY.startsWith("socks")) {
-    httpsAgent = new SocksProxyAgent(HTTPS_PROXY);
-  } else {
-    httpsAgent = new HttpsProxyAgent(HTTPS_PROXY, sslOptions);
-  }
-}
-httpsAgent = httpsAgent || new HttpsAgent(sslOptions);
-httpAgent = httpAgent || new Agent();
-
-// Initialize the client pool for managing multiple GitLab instances
 const clientPool = new GitLabClientPool({
   apiUrls: (getConfig("api-url", "GITLAB_API_URL") || "https://gitlab.com")
     .split(",")
@@ -891,12 +833,10 @@ function buildAuthHeaders(): Record<string, string> {
     return {}; // No auth headers if no session context
   }
 
-  // CI job tokens use a dedicated header (not Bearer/Private-Token)
-  if (GITLAB_JOB_TOKEN) {
-    return { "JOB-TOKEN": String(GITLAB_JOB_TOKEN) };
-  }
-
-  // Standard mode: prioritize OAuth token, then fall back to environment token
+  // Standard mode: PAT preferred over job token (broader permissions).
+  // OAuth token takes priority over PAT when both are set.
+  // NOTE: Changed in PR #400 — previously GITLAB_JOB_TOKEN had highest priority.
+  // If both GITLAB_PERSONAL_ACCESS_TOKEN and GITLAB_JOB_TOKEN are set, PAT wins.
   const token = OAUTH_ACCESS_TOKEN || GITLAB_PERSONAL_ACCESS_TOKEN;
 
   if (IS_OLD && token) {
@@ -905,6 +845,12 @@ function buildAuthHeaders(): Record<string, string> {
   if (token) {
     return { Authorization: `Bearer ${token}` };
   }
+
+  // Fall back to CI job token
+  if (GITLAB_JOB_TOKEN) {
+    return { "JOB-TOKEN": String(GITLAB_JOB_TOKEN) };
+  }
+
   return {};
 }
 
@@ -945,1274 +891,6 @@ const getFetchConfig = () => {
   };
 };
 
-const toJSONSchema = (schema: z.ZodTypeAny) => {
-  const jsonSchema = zodToJsonSchema(schema, { $refStrategy: "none" });
-
-  // Post-process to fix nullable/optional fields that should truly be optional
-  function fixNullableOptional(obj: any): any {
-    if (obj && typeof obj === "object") {
-      // If this object has properties, process them
-      if (obj.properties) {
-        const requiredSet = new Set<string>(obj.required || []);
-        Object.keys(obj.properties).forEach(key => {
-          const prop = obj.properties[key];
-
-          // Handle fields that can be null or omitted
-          // If a property has type: ["object", "null"] or anyOf with null, it should not be required
-          if (prop.anyOf && prop.anyOf.some((t: any) => t.type === "null")) {
-            requiredSet.delete(key);
-          } else if (Array.isArray(prop.type) && prop.type.includes("null")) {
-            requiredSet.delete(key);
-          }
-
-          // Recursively process nested objects
-          obj.properties[key] = fixNullableOptional(prop);
-        });
-        // Normalize the required array after processing all properties
-        if (requiredSet.size > 0) {
-          obj.required = Array.from(requiredSet);
-        } else if (Object.prototype.hasOwnProperty.call(obj, "required")) {
-          delete obj.required;
-        }
-      }
-
-      // Process anyOf/allOf/oneOf
-      ["anyOf", "allOf", "oneOf"].forEach(combiner => {
-        if (obj[combiner]) {
-          obj[combiner] = obj[combiner].map(fixNullableOptional);
-        }
-      });
-    }
-
-    return obj;
-  }
-
-  return fixNullableOptional(jsonSchema);
-};
-
-// Define all available tools
-const allTools = [
-  {
-    name: "merge_merge_request",
-    description: "Merge a merge request in a GitLab project",
-    inputSchema: toJSONSchema(MergeMergeRequestSchema),
-  },
-  {
-    name: "approve_merge_request",
-    description: "Approve a merge request. Requires appropriate permissions.",
-    inputSchema: toJSONSchema(ApproveMergeRequestSchema),
-  },
-  {
-    name: "unapprove_merge_request",
-    description: "Unapprove a previously approved merge request. Requires appropriate permissions.",
-    inputSchema: toJSONSchema(UnapproveMergeRequestSchema),
-  },
-  {
-    name: "get_merge_request_approval_state",
-    description:
-      "Get merge request approval details including approvers (uses approval_state when available, falls back to approvals endpoint)",
-    inputSchema: toJSONSchema(GetMergeRequestApprovalStateSchema),
-  },
-  {
-    name: "get_merge_request_conflicts",
-    description:
-      "Get the conflicts of a merge request in a GitLab project",
-    inputSchema: toJSONSchema(GetMergeRequestConflictsSchema),
-  },
-  {
-    name: "execute_graphql",
-    description: "Execute a GitLab GraphQL query",
-    inputSchema: zodToJsonSchema(ExecuteGraphQLSchema),
-  },
-  {
-    name: "create_or_update_file",
-    description: "Create or update a single file in a GitLab project",
-    inputSchema: toJSONSchema(CreateOrUpdateFileSchema),
-  },
-  {
-    name: "search_repositories",
-    description: "Search for GitLab projects",
-    inputSchema: toJSONSchema(SearchRepositoriesSchema),
-  },
-  {
-    name: "create_repository",
-    description: "Create a new GitLab project",
-    inputSchema: toJSONSchema(CreateRepositorySchema),
-  },
-  {
-    name: "get_file_contents",
-    description: "Get the contents of a file or directory from a GitLab project",
-    inputSchema: toJSONSchema(GetFileContentsSchema),
-  },
-  {
-    name: "push_files",
-    description: "Push multiple files to a GitLab project in a single commit",
-    inputSchema: toJSONSchema(PushFilesSchema),
-  },
-  {
-    name: "create_issue",
-    description: "Create a new issue in a GitLab project",
-    inputSchema: toJSONSchema(CreateIssueSchema),
-  },
-  {
-    name: "create_merge_request",
-    description: "Create a new merge request in a GitLab project",
-    inputSchema: toJSONSchema(CreateMergeRequestSchema),
-  },
-  {
-    name: "fork_repository",
-    description: "Fork a GitLab project to your account or specified namespace",
-    inputSchema: toJSONSchema(ForkRepositorySchema),
-  },
-  {
-    name: "create_branch",
-    description: "Create a new branch in a GitLab project",
-    inputSchema: toJSONSchema(CreateBranchSchema),
-  },
-  {
-    name: "get_merge_request",
-    description:
-      "Get details of a merge request with compact deployment, commit addition, and approval summaries (Either mergeRequestIid or branchName must be provided)",
-    inputSchema: toJSONSchema(GetMergeRequestSchema),
-  },
-  {
-    name: "get_merge_request_diffs",
-    description:
-      "Get the changes/diffs of a merge request (Either mergeRequestIid or branchName must be provided)",
-    inputSchema: toJSONSchema(GetMergeRequestDiffsSchema),
-  },
-  {
-    name: "list_merge_request_changed_files",
-    description:
-      "STEP 1 of code review workflow. " +
-      "Returns ONLY the list of changed file paths in a merge request — WITHOUT diff content. " +
-      "Call this first to get file paths, then call get_merge_request_file_diff with multiple files in a single batched call (recommended 3-5 files per call). " +
-      "This avoids loading the entire diff payload at once and reduces API calls. " +
-      "Supports excluded_file_patterns filtering using regex. " +
-      "Returns: new_path, old_path, new_file, deleted_file, renamed_file flags for each file. " +
-      "(Either mergeRequestIid or branchName must be provided)",
-    inputSchema: toJSONSchema(ListMergeRequestChangedFilesSchema),
-  },
-  {
-    name: "list_merge_request_diffs",
-    description:
-      "List merge request diffs with pagination support (Either mergeRequestIid or branchName must be provided)",
-    inputSchema: toJSONSchema(ListMergeRequestDiffsSchema),
-  },
-  {
-    name: "get_merge_request_file_diff",
-    description:
-      "STEP 2 of code review workflow. " +
-      "Get diffs for one or more files from a merge request. " +
-      "Call list_merge_request_changed_files first to get file paths, then pass them as an array to fetch their diffs efficiently. " +
-      "Batching multiple files (recommended 3-5) is supported and preferred over individual requests. " +
-      "Returns an array of results - one per requested file path. Files not found are returned with error messages. " +
-      "(Either mergeRequestIid or branchName must be provided)",
-    inputSchema: toJSONSchema(GetMergeRequestFileDiffSchema),
-  },
-  {
-    name: "list_merge_request_versions",
-    description: "List all versions of a merge request",
-    inputSchema: toJSONSchema(ListMergeRequestVersionsSchema),
-  },
-  {
-    name: "get_merge_request_version",
-    description: "Get a specific version of a merge request",
-    inputSchema: toJSONSchema(GetMergeRequestVersionSchema),
-  },
-  {
-    name: "get_branch_diffs",
-    description: "Get the changes/diffs between two branches or commits in a GitLab project",
-    inputSchema: toJSONSchema(GetBranchDiffsSchema),
-  },
-  {
-    name: "update_merge_request",
-    description: "Update a merge request (Either mergeRequestIid or branchName must be provided)",
-    inputSchema: toJSONSchema(UpdateMergeRequestSchema),
-  },
-  {
-    name: "create_note",
-    description: "Create a new note (comment) to an issue or merge request",
-    inputSchema: toJSONSchema(CreateNoteSchema),
-  },
-  {
-    name: "create_merge_request_thread",
-    description: "Create a new thread on a merge request",
-    inputSchema: toJSONSchema(CreateMergeRequestThreadSchema),
-  },
-  {
-    name: "resolve_merge_request_thread",
-    description: "Resolve a thread on a merge request",
-    inputSchema: toJSONSchema(ResolveMergeRequestThreadSchema),
-  },
-  {
-    name: "mr_discussions",
-    description: "List discussion items for a merge request",
-    inputSchema: toJSONSchema(ListMergeRequestDiscussionsSchema),
-  },
-  {
-    name: "delete_merge_request_discussion_note",
-    description: "Delete a discussion note on a merge request",
-    inputSchema: toJSONSchema(DeleteMergeRequestDiscussionNoteSchema),
-  },
-  {
-    name: "update_merge_request_discussion_note",
-    description: "Update a discussion note on a merge request",
-    inputSchema: toJSONSchema(UpdateMergeRequestDiscussionNoteSchema),
-  },
-  {
-    name: "create_merge_request_discussion_note",
-    description: "Add a new discussion note to an existing merge request thread",
-    inputSchema: toJSONSchema(CreateMergeRequestDiscussionNoteSchema),
-  },
-  {
-    name: "create_merge_request_note",
-    description: "Add a new note to a merge request",
-    inputSchema: toJSONSchema(CreateMergeRequestNoteSchema),
-  },
-  {
-    name: "delete_merge_request_note",
-    description: "Delete an existing merge request note",
-    inputSchema: toJSONSchema(DeleteMergeRequestNoteSchema),
-  },
-  {
-    name: "get_merge_request_note",
-    description: "Get a specific note for a merge request",
-    inputSchema: toJSONSchema(GetMergeRequestNoteSchema),
-  },
-  {
-    name: "get_merge_request_notes",
-    description: "List notes for a merge request",
-    inputSchema: toJSONSchema(GetMergeRequestNotesSchema),
-  },
-  {
-    name: "update_merge_request_note",
-    description: "Modify an existing merge request note",
-    inputSchema: toJSONSchema(UpdateMergeRequestNoteSchema),
-  },
-  {
-    name: "get_draft_note",
-    description: "Get a single draft note from a merge request",
-    inputSchema: toJSONSchema(GetDraftNoteSchema),
-  },
-  {
-    name: "list_draft_notes",
-    description: "List draft notes for a merge request",
-    inputSchema: toJSONSchema(ListDraftNotesSchema),
-  },
-  {
-    name: "create_draft_note",
-    description: "Create a draft note for a merge request",
-    inputSchema: toJSONSchema(CreateDraftNoteSchema),
-  },
-  {
-    name: "update_draft_note",
-    description: "Update an existing draft note",
-    inputSchema: toJSONSchema(UpdateDraftNoteSchema),
-  },
-  {
-    name: "delete_draft_note",
-    description: "Delete a draft note",
-    inputSchema: toJSONSchema(DeleteDraftNoteSchema),
-  },
-  {
-    name: "publish_draft_note",
-    description: "Publish a single draft note",
-    inputSchema: toJSONSchema(PublishDraftNoteSchema),
-  },
-  {
-    name: "bulk_publish_draft_notes",
-    description: "Publish all draft notes for a merge request",
-    inputSchema: toJSONSchema(BulkPublishDraftNotesSchema),
-  },
-  {
-    name: "update_issue_note",
-    description: "Modify an existing issue thread note",
-    inputSchema: toJSONSchema(UpdateIssueNoteSchema),
-  },
-  {
-    name: "create_issue_note",
-    description: "Add a new note to an existing issue thread",
-    inputSchema: toJSONSchema(CreateIssueNoteSchema),
-  },
-  {
-    name: "list_issues",
-    description:
-      "List issues (default: created by current user only; use scope='all' for all accessible issues)",
-    inputSchema: toJSONSchema(ListIssuesSchema),
-  },
-  {
-    name: "my_issues",
-    description: "List issues assigned to the authenticated user (defaults to open issues)",
-    inputSchema: toJSONSchema(MyIssuesSchema),
-  },
-  {
-    name: "get_issue",
-    description: "Get details of a specific issue in a GitLab project",
-    inputSchema: toJSONSchema(GetIssueSchema),
-  },
-  {
-    name: "update_issue",
-    description: "Update an issue in a GitLab project",
-    inputSchema: toJSONSchema(UpdateIssueSchema),
-  },
-  {
-    name: "delete_issue",
-    description: "Delete an issue from a GitLab project",
-    inputSchema: toJSONSchema(DeleteIssueSchema),
-  },
-  {
-    name: "list_issue_links",
-    description: "List all issue links for a specific issue",
-    inputSchema: toJSONSchema(ListIssueLinksSchema),
-  },
-  {
-    name: "list_issue_discussions",
-    description: "List discussions for an issue in a GitLab project",
-    inputSchema: toJSONSchema(ListIssueDiscussionsSchema),
-  },
-  {
-    name: "get_issue_link",
-    description: "Get a specific issue link",
-    inputSchema: toJSONSchema(GetIssueLinkSchema),
-  },
-  {
-    name: "create_issue_link",
-    description: "Create an issue link between two issues",
-    inputSchema: toJSONSchema(CreateIssueLinkSchema),
-  },
-  {
-    name: "delete_issue_link",
-    description: "Delete an issue link",
-    inputSchema: toJSONSchema(DeleteIssueLinkSchema),
-  },
-  {
-    name: "list_namespaces",
-    description: "List all namespaces available to the current user",
-    inputSchema: toJSONSchema(ListNamespacesSchema),
-  },
-  {
-    name: "get_namespace",
-    description: "Get details of a namespace by ID or path",
-    inputSchema: toJSONSchema(GetNamespaceSchema),
-  },
-  {
-    name: "verify_namespace",
-    description: "Verify if a namespace path exists",
-    inputSchema: toJSONSchema(VerifyNamespaceSchema),
-  },
-  {
-    name: "get_project",
-    description: "Get details of a specific project",
-    inputSchema: toJSONSchema(GetProjectSchema),
-  },
-  {
-    name: "list_projects",
-    description: "List projects accessible by the current user",
-    inputSchema: toJSONSchema(ListProjectsSchema),
-  },
-  {
-    name: "list_project_members",
-    description: "List members of a GitLab project",
-    inputSchema: toJSONSchema(ListProjectMembersSchema),
-  },
-  {
-    name: "list_labels",
-    description: "List labels for a project",
-    inputSchema: toJSONSchema(ListLabelsSchema),
-  },
-  {
-    name: "get_label",
-    description: "Get a single label from a project",
-    inputSchema: toJSONSchema(GetLabelSchema),
-  },
-  {
-    name: "create_label",
-    description: "Create a new label in a project",
-    inputSchema: toJSONSchema(CreateLabelSchema),
-  },
-  {
-    name: "update_label",
-    description: "Update an existing label in a project",
-    inputSchema: toJSONSchema(UpdateLabelSchema),
-  },
-  {
-    name: "delete_label",
-    description: "Delete a label from a project",
-    inputSchema: toJSONSchema(DeleteLabelSchema),
-  },
-  {
-    name: "list_group_projects",
-    description: "List projects in a GitLab group with filtering options",
-    inputSchema: toJSONSchema(ListGroupProjectsSchema),
-  },
-  {
-    name: "list_wiki_pages",
-    description: "List wiki pages in a GitLab project",
-    inputSchema: toJSONSchema(ListWikiPagesSchema),
-  },
-  {
-    name: "get_wiki_page",
-    description: "Get details of a specific wiki page",
-    inputSchema: toJSONSchema(GetWikiPageSchema),
-  },
-  {
-    name: "create_wiki_page",
-    description: "Create a new wiki page in a GitLab project",
-    inputSchema: toJSONSchema(CreateWikiPageSchema),
-  },
-  {
-    name: "update_wiki_page",
-    description: "Update an existing wiki page in a GitLab project",
-    inputSchema: toJSONSchema(UpdateWikiPageSchema),
-  },
-  {
-    name: "delete_wiki_page",
-    description: "Delete a wiki page from a GitLab project",
-    inputSchema: toJSONSchema(DeleteWikiPageSchema),
-  },
-  {
-    name: "list_group_wiki_pages",
-    description: "List wiki pages in a GitLab group",
-    inputSchema: toJSONSchema(ListGroupWikiPagesSchema),
-  },
-  {
-    name: "get_group_wiki_page",
-    description: "Get details of a specific group wiki page",
-    inputSchema: toJSONSchema(GetGroupWikiPageSchema),
-  },
-  {
-    name: "create_group_wiki_page",
-    description: "Create a new wiki page in a GitLab group",
-    inputSchema: toJSONSchema(CreateGroupWikiPageSchema),
-  },
-  {
-    name: "update_group_wiki_page",
-    description: "Update an existing wiki page in a GitLab group",
-    inputSchema: toJSONSchema(UpdateGroupWikiPageSchema),
-  },
-  {
-    name: "delete_group_wiki_page",
-    description: "Delete a wiki page from a GitLab group",
-    inputSchema: toJSONSchema(DeleteGroupWikiPageSchema),
-  },
-  {
-    name: "get_repository_tree",
-    description: "Get the repository tree for a GitLab project (list files and directories)",
-    inputSchema: toJSONSchema(GetRepositoryTreeSchema),
-  },
-  {
-    name: "list_pipelines",
-    description: "List pipelines in a GitLab project with filtering options",
-    inputSchema: toJSONSchema(ListPipelinesSchema),
-  },
-  {
-    name: "get_pipeline",
-    description: "Get details of a specific pipeline in a GitLab project",
-    inputSchema: toJSONSchema(GetPipelineSchema),
-  },
-  {
-    name: "list_deployments",
-    description: "List deployments in a GitLab project with filtering options",
-    inputSchema: toJSONSchema(ListDeploymentsSchema),
-  },
-  {
-    name: "get_deployment",
-    description: "Get details of a specific deployment in a GitLab project",
-    inputSchema: toJSONSchema(GetDeploymentSchema),
-  },
-  {
-    name: "list_environments",
-    description: "List environments in a GitLab project",
-    inputSchema: toJSONSchema(ListEnvironmentsSchema),
-  },
-  {
-    name: "get_environment",
-    description: "Get details of a specific environment in a GitLab project",
-    inputSchema: toJSONSchema(GetEnvironmentSchema),
-  },
-  {
-    name: "list_pipeline_jobs",
-    description: "List all jobs in a specific pipeline",
-    inputSchema: toJSONSchema(ListPipelineJobsSchema),
-  },
-  {
-    name: "list_pipeline_trigger_jobs",
-    description:
-      "List all trigger jobs (bridges) in a specific pipeline that trigger downstream pipelines",
-    inputSchema: toJSONSchema(ListPipelineTriggerJobsSchema),
-  },
-  {
-    name: "get_pipeline_job",
-    description: "Get details of a GitLab pipeline job number",
-    inputSchema: toJSONSchema(GetPipelineJobOutputSchema),
-  },
-  {
-    name: "get_pipeline_job_output",
-    description:
-      "Get the output/trace of a GitLab pipeline job with optional pagination to limit context window usage",
-    inputSchema: toJSONSchema(GetPipelineJobOutputSchema),
-  },
-  {
-    name: "create_pipeline",
-    description: "Create a new pipeline for a branch or tag",
-    inputSchema: toJSONSchema(CreatePipelineSchema),
-  },
-  {
-    name: "retry_pipeline",
-    description: "Retry a failed or canceled pipeline",
-    inputSchema: toJSONSchema(RetryPipelineSchema),
-  },
-  {
-    name: "cancel_pipeline",
-    description: "Cancel a running pipeline",
-    inputSchema: toJSONSchema(CancelPipelineSchema),
-  },
-  {
-    name: "play_pipeline_job",
-    description: "Run a manual pipeline job",
-    inputSchema: toJSONSchema(PlayPipelineJobSchema),
-  },
-  {
-    name: "retry_pipeline_job",
-    description: "Retry a failed or canceled pipeline job",
-    inputSchema: toJSONSchema(RetryPipelineJobSchema),
-  },
-  {
-    name: "cancel_pipeline_job",
-    description: "Cancel a running pipeline job",
-    inputSchema: toJSONSchema(CancelPipelineJobSchema),
-  },
-  {
-    name: "list_job_artifacts",
-    description: "List artifact files in a job's artifacts archive. Returns file names, paths, types, and sizes.",
-    inputSchema: toJSONSchema(ListJobArtifactsSchema),
-  },
-  {
-    name: "download_job_artifacts",
-    description:
-      "Download the entire artifact archive (zip) for a job to a local path. Returns the saved file path.",
-    inputSchema: toJSONSchema(DownloadJobArtifactsSchema),
-  },
-  {
-    name: "get_job_artifact_file",
-    description:
-      "Get the content of a single file from a job's artifacts by its path within the archive",
-    inputSchema: toJSONSchema(GetJobArtifactFileSchema),
-  },
-  {
-    name: "list_merge_requests",
-    description:
-      "List merge requests. Without project_id, lists MRs assigned to the authenticated user by default (use scope='all' for all accessible MRs). With project_id, lists MRs for that specific project.",
-    inputSchema: toJSONSchema(ListMergeRequestsSchema),
-  },
-  {
-    name: "list_milestones",
-    description: "List milestones in a GitLab project with filtering options",
-    inputSchema: toJSONSchema(ListProjectMilestonesSchema),
-  },
-  {
-    name: "get_milestone",
-    description: "Get details of a specific milestone",
-    inputSchema: toJSONSchema(GetProjectMilestoneSchema),
-  },
-  {
-    name: "create_milestone",
-    description: "Create a new milestone in a GitLab project",
-    inputSchema: toJSONSchema(CreateProjectMilestoneSchema),
-  },
-  {
-    name: "edit_milestone",
-    description: "Edit an existing milestone in a GitLab project",
-    inputSchema: toJSONSchema(EditProjectMilestoneSchema),
-  },
-  {
-    name: "delete_milestone",
-    description: "Delete a milestone from a GitLab project",
-    inputSchema: toJSONSchema(DeleteProjectMilestoneSchema),
-  },
-  {
-    name: "get_milestone_issue",
-    description: "Get issues associated with a specific milestone",
-    inputSchema: toJSONSchema(GetMilestoneIssuesSchema),
-  },
-  {
-    name: "get_milestone_merge_requests",
-    description: "Get merge requests associated with a specific milestone",
-    inputSchema: toJSONSchema(GetMilestoneMergeRequestsSchema),
-  },
-  {
-    name: "promote_milestone",
-    description: "Promote a milestone to the next stage",
-    inputSchema: toJSONSchema(PromoteProjectMilestoneSchema),
-  },
-  {
-    name: "get_milestone_burndown_events",
-    description: "Get burndown events for a specific milestone",
-    inputSchema: toJSONSchema(GetMilestoneBurndownEventsSchema),
-  },
-  {
-    name: "get_users",
-    description: "Get GitLab user details by usernames",
-    inputSchema: toJSONSchema(GetUsersSchema),
-  },
-  {
-    name: "list_commits",
-    description: "List repository commits with filtering options",
-    inputSchema: toJSONSchema(ListCommitsSchema),
-  },
-  {
-    name: "get_commit",
-    description: "Get details of a specific commit",
-    inputSchema: toJSONSchema(GetCommitSchema),
-  },
-  {
-    name: "get_commit_diff",
-    description: "Get changes/diffs of a specific commit",
-    inputSchema: toJSONSchema(GetCommitDiffSchema),
-  },
-  {
-    name: "list_group_iterations",
-    description: "List group iterations with filtering options",
-    inputSchema: toJSONSchema(ListGroupIterationsSchema),
-  },
-  {
-    name: "upload_markdown",
-    description: "Upload a file to a GitLab project for use in markdown content",
-    inputSchema: toJSONSchema(MarkdownUploadSchema),
-  },
-  {
-    name: "download_attachment",
-    description:
-      "Download an uploaded file from a GitLab project by secret and filename. Image files (png, jpg, gif, webp, svg, bmp, ico) are returned inline as base64 image content so the AI can view them directly. Non-image files are saved to disk. Use local_path to force saving image files to disk instead.",
-    inputSchema: toJSONSchema(DownloadAttachmentSchema),
-  },
-  {
-    name: "list_events",
-    description:
-      "List all events for the currently authenticated user. Note: before/after parameters accept date format YYYY-MM-DD only",
-    inputSchema: toJSONSchema(ListEventsSchema),
-  },
-  {
-    name: "get_project_events",
-    description:
-      "List all visible events for a specified project. Note: before/after parameters accept date format YYYY-MM-DD only",
-    inputSchema: toJSONSchema(GetProjectEventsSchema),
-  },
-  {
-    name: "list_releases",
-    description: "List all releases for a project",
-    inputSchema: toJSONSchema(ListReleasesSchema),
-  },
-  {
-    name: "get_release",
-    description: "Get a release by tag name",
-    inputSchema: toJSONSchema(GetReleaseSchema),
-  },
-  {
-    name: "create_release",
-    description: "Create a new release in a GitLab project",
-    inputSchema: toJSONSchema(CreateReleaseSchema),
-  },
-  {
-    name: "update_release",
-    description: "Update an existing release in a GitLab project",
-    inputSchema: toJSONSchema(UpdateReleaseSchema),
-  },
-  {
-    name: "delete_release",
-    description: "Delete a release from a GitLab project (does not delete the associated tag)",
-    inputSchema: toJSONSchema(DeleteReleaseSchema),
-  },
-  {
-    name: "create_release_evidence",
-    description: "Create release evidence for an existing release (GitLab Premium/Ultimate only)",
-    inputSchema: toJSONSchema(CreateReleaseEvidenceSchema),
-  },
-  {
-    name: "download_release_asset",
-    description: "Download a release asset file by direct asset path",
-    inputSchema: toJSONSchema(DownloadReleaseAssetSchema),
-  },
-  // --- Work item tools (GraphQL-based) ---
-  {
-    name: "get_work_item",
-    description:
-      "Get a single work item with full details including status, hierarchy (parent/children), type, labels, assignees, and all widgets.",
-    inputSchema: toJSONSchema(GetWorkItemSchema),
-  },
-  {
-    name: "list_work_items",
-    description:
-      "List work items in a project with filters (type, state, search, assignees, labels). Returns items with status and hierarchy info.",
-    inputSchema: toJSONSchema(ListWorkItemsSchema),
-  },
-  {
-    name: "create_work_item",
-    description:
-      "Create a new work item (issue, task, incident, test_case, epic, key_result, objective, requirement, ticket). Supports setting title, description, labels, assignees, weight, parent, health status, start/due dates, milestone, and confidentiality.",
-    inputSchema: toJSONSchema(CreateWorkItemSchema),
-  },
-  {
-    name: "update_work_item",
-    description:
-      "Update a work item. Can modify title, description, labels, assignees, weight, state, status, parent hierarchy, children, health status, start/due dates, milestone, confidentiality, linked items, and custom fields.",
-    inputSchema: toJSONSchema(UpdateWorkItemSchema),
-  },
-  {
-    name: "convert_work_item_type",
-    description:
-      "Convert a work item to a different type (e.g. issue to task, task to incident).",
-    inputSchema: toJSONSchema(ConvertWorkItemTypeSchema),
-  },
-  {
-    name: "list_work_item_statuses",
-    description:
-      "List available statuses for a work item type in a project. Requires GitLab Premium/Ultimate with configurable statuses.",
-    inputSchema: toJSONSchema(ListWorkItemStatusesSchema),
-  },
-  {
-    name: "list_custom_field_definitions",
-    description:
-      "List available custom field definitions for a work item type in a project. Returns field names, types, and IDs needed for setting custom fields via update_work_item.",
-    inputSchema: toJSONSchema(ListCustomFieldDefinitionsSchema),
-  },
-  {
-    name: "move_work_item",
-    description:
-      "Move a work item (issue, task, etc.) to a different project. Uses GitLab GraphQL issueMove mutation.",
-    inputSchema: toJSONSchema(MoveWorkItemSchema),
-  },
-  {
-    name: "list_work_item_notes",
-    description:
-      "List notes and discussions on a work item. Returns threaded discussions with author, body, timestamps, and system/internal flags.",
-    inputSchema: toJSONSchema(ListWorkItemNotesSchema),
-  },
-  {
-    name: "create_work_item_note",
-    description:
-      "Add a note/comment to a work item. Supports Markdown, internal notes, and threaded replies.",
-    inputSchema: toJSONSchema(CreateWorkItemNoteSchema),
-  },
-  // --- Incident timeline event tools ---
-  {
-    name: "get_timeline_events",
-    description:
-      "List timeline events for an incident. Returns chronological events with notes, timestamps, and tags (Start time, End time, Impact detected, etc.).",
-    inputSchema: toJSONSchema(GetTimelineEventsSchema),
-  },
-  {
-    name: "create_timeline_event",
-    description:
-      "Create a timeline event on an incident. Supports tags: 'Start time', 'End time', 'Impact detected', 'Response initiated', 'Impact mitigated', 'Cause identified'.",
-    inputSchema: toJSONSchema(CreateTimelineEventSchema),
-  },
-  {
-    name: "list_webhooks",
-    description:
-      "List all configured webhooks for a GitLab project or group. Provide either project_id or group_id.",
-    inputSchema: toJSONSchema(ListWebhooksSchema),
-  },
-  {
-    name: "list_webhook_events",
-    description:
-      "List recent webhook events (past 7 days) for a project or group webhook. Use summary mode for overview, then get_webhook_event for full details.",
-    inputSchema: toJSONSchema(ListWebhookEventsSchema),
-  },
-  {
-    name: "get_webhook_event",
-    description:
-      "Get full details of a specific webhook event by ID, including request/response payloads. Searches up to 500 most recent events.",
-    inputSchema: toJSONSchema(GetWebhookEventSchema),
-  },
-  {
-    name: "search_code",
-    description:
-      "Search for code across all projects on the GitLab instance (requires advanced search or exact code search to be enabled). If exact code search (Zoekt) is enabled, the search query supports rich syntax including file:, lang:, sym: filters.",
-    inputSchema: toJSONSchema(SearchCodeSchema),
-  },
-  {
-    name: "search_project_code",
-    description:
-      "Search for code within a specific GitLab project (requires advanced search or exact code search to be enabled). If exact code search (Zoekt) is enabled, the search query supports rich syntax including file:, lang:, sym: filters.",
-    inputSchema: toJSONSchema(SearchProjectCodeSchema),
-  },
-  {
-    name: "search_group_code",
-    description:
-      "Search for code within a specific GitLab group (requires advanced search or exact code search to be enabled). If exact code search (Zoekt) is enabled, the search query supports rich syntax including file:, lang:, sym: filters.",
-    inputSchema: toJSONSchema(SearchGroupCodeSchema),
-  },
-];
-
-// Define which tools are read-only
-const readOnlyTools = new Set([
-  "search_repositories",
-  "search_code",
-  "search_project_code",
-  "search_group_code",
-  "execute_graphql",
-  "get_file_contents",
-  "get_merge_request",
-  "get_merge_request_diffs",
-  "list_merge_request_changed_files",
-  "list_merge_request_diffs",
-  "get_merge_request_file_diff",
-  "list_merge_request_versions",
-  "get_merge_request_version",
-  "get_branch_diffs",
-  "get_merge_request_note",
-  "get_merge_request_notes",
-  "get_draft_note",
-  "list_draft_notes",
-  "mr_discussions",
-  "list_issues",
-  "my_issues",
-  "list_merge_requests",
-  "get_issue",
-  "list_issue_links",
-  "list_issue_discussions",
-  "get_issue_link",
-  "list_namespaces",
-  "get_namespace",
-  "verify_namespace",
-  "get_project",
-  "list_projects",
-  "list_project_members",
-  "get_pipeline",
-  "list_pipelines",
-  "list_deployments",
-  "get_deployment",
-  "list_environments",
-  "get_environment",
-  "list_pipeline_jobs",
-  "list_pipeline_trigger_jobs",
-  "get_pipeline_job",
-  "get_pipeline_job_output",
-  "list_job_artifacts",
-  "download_job_artifacts",
-  "get_job_artifact_file",
-  "list_labels",
-  "get_label",
-  "list_group_projects",
-  "get_repository_tree",
-  "list_milestones",
-  "get_milestone",
-  "get_milestone_issue",
-  "get_milestone_merge_requests",
-  "get_milestone_burndown_events",
-  "list_wiki_pages",
-  "get_wiki_page",
-  "list_group_wiki_pages",
-  "get_group_wiki_page",
-  "get_users",
-  "list_commits",
-  "get_commit",
-  "get_commit_diff",
-  "list_group_iterations",
-  "get_group_iteration",
-  "download_attachment",
-  "list_events",
-  "get_project_events",
-  "list_releases",
-  "get_release",
-  "download_release_asset",
-  "get_merge_request_approval_state",
-  "get_work_item",
-  "list_work_items",
-  "list_work_item_statuses",
-  "list_custom_field_definitions",
-  "list_work_item_notes",
-  "get_timeline_events",
-  "get_merge_request_conflicts",
-  "list_webhooks",
-  "list_webhook_events",
-  "get_webhook_event",
-]);
-
-// Define which tools are related to wiki and can be toggled by USE_GITLAB_WIKI
-const wikiToolNames = new Set([
-  "list_wiki_pages",
-  "get_wiki_page",
-  "create_wiki_page",
-  "update_wiki_page",
-  "delete_wiki_page",
-  "list_group_wiki_pages",
-  "get_group_wiki_page",
-  "create_group_wiki_page",
-  "update_group_wiki_page",
-  "delete_group_wiki_page",
-  "upload_wiki_attachment",
-]);
-
-// Define which tools are related to milestones and can be toggled by USE_MILESTONE
-const milestoneToolNames = new Set([
-  "list_milestones",
-  "get_milestone",
-  "create_milestone",
-  "edit_milestone",
-  "delete_milestone",
-  "get_milestone_issue",
-  "get_milestone_merge_requests",
-  "promote_milestone",
-  "get_milestone_burndown_events",
-]);
-
-// Define which tools are related to pipelines and can be toggled by USE_PIPELINE
-const pipelineToolNames = new Set([
-  "list_pipelines",
-  "get_pipeline",
-  "list_deployments",
-  "get_deployment",
-  "list_environments",
-  "get_environment",
-  "list_pipeline_jobs",
-  "list_pipeline_trigger_jobs",
-  "get_pipeline_job",
-  "get_pipeline_job_output",
-  "create_pipeline",
-  "retry_pipeline",
-  "cancel_pipeline",
-  "play_pipeline_job",
-  "retry_pipeline_job",
-  "cancel_pipeline_job",
-  "list_job_artifacts",
-  "download_job_artifacts",
-  "get_job_artifact_file",
-]);
-
-// --- Toolset definitions ---
-
-type ToolsetId =
-  | "merge_requests"
-  | "issues"
-  | "repositories"
-  | "branches"
-  | "projects"
-  | "labels"
-  | "pipelines"
-  | "milestones"
-  | "wiki"
-  | "releases"
-  | "users"
-  | "workitems"
-  | "webhooks"
-  | "search";
-
-interface ToolsetDefinition {
-  readonly id: ToolsetId;
-  readonly isDefault: boolean;
-  readonly tools: ReadonlySet<string>;
-}
-
-const TOOLSET_DEFINITIONS: readonly ToolsetDefinition[] = [
-  {
-    id: "merge_requests",
-    isDefault: true,
-    tools: new Set([
-      "merge_merge_request",
-      "approve_merge_request",
-      "unapprove_merge_request",
-      "get_merge_request_approval_state",
-      "get_merge_request_conflicts",
-      "get_merge_request",
-      "get_merge_request_diffs",
-      "list_merge_request_changed_files",
-      "list_merge_request_diffs",
-      "get_merge_request_file_diff",
-      "list_merge_request_versions",
-      "get_merge_request_version",
-      "update_merge_request",
-      "create_merge_request",
-      "list_merge_requests",
-      "get_branch_diffs",
-      "mr_discussions",
-      "create_merge_request_note",
-      "update_merge_request_note",
-      "delete_merge_request_note",
-      "get_merge_request_note",
-      "get_merge_request_notes",
-      "delete_merge_request_discussion_note",
-      "update_merge_request_discussion_note",
-      "create_merge_request_discussion_note",
-      "get_draft_note",
-      "list_draft_notes",
-      "create_draft_note",
-      "update_draft_note",
-      "delete_draft_note",
-      "publish_draft_note",
-      "bulk_publish_draft_notes",
-      "create_merge_request_thread",
-      "resolve_merge_request_thread",
-    ]),
-  },
-  {
-    id: "issues",
-    isDefault: true,
-    tools: new Set([
-      "create_issue",
-      "list_issues",
-      "my_issues",
-      "get_issue",
-      "update_issue",
-      "delete_issue",
-      "create_issue_note",
-      "update_issue_note",
-      "list_issue_links",
-      "list_issue_discussions",
-      "get_issue_link",
-      "create_issue_link",
-      "delete_issue_link",
-      "create_note",
-    ]),
-  },
-  {
-    id: "repositories",
-    isDefault: true,
-    tools: new Set([
-      "search_repositories",
-      "create_repository",
-      "get_file_contents",
-      "push_files",
-      "create_or_update_file",
-      "fork_repository",
-      "get_repository_tree",
-    ]),
-  },
-  {
-    id: "branches",
-    isDefault: true,
-    tools: new Set([
-      "create_branch",
-      "list_commits",
-      "get_commit",
-      "get_commit_diff",
-    ]),
-  },
-  {
-    id: "projects",
-    isDefault: true,
-    tools: new Set([
-      "get_project",
-      "list_projects",
-      "list_project_members",
-      "list_namespaces",
-      "get_namespace",
-      "verify_namespace",
-      "list_group_projects",
-      "list_group_iterations",
-    ]),
-  },
-  {
-    id: "labels",
-    isDefault: true,
-    tools: new Set([
-      "list_labels",
-      "get_label",
-      "create_label",
-      "update_label",
-      "delete_label",
-    ]),
-  },
-  {
-    id: "pipelines",
-    isDefault: true,
-    tools: new Set([
-      "list_pipelines",
-      "get_pipeline",
-      "list_deployments",
-      "get_deployment",
-      "list_environments",
-      "get_environment",
-      "list_pipeline_jobs",
-      "list_pipeline_trigger_jobs",
-      "get_pipeline_job",
-      "get_pipeline_job_output",
-      "create_pipeline",
-      "retry_pipeline",
-      "cancel_pipeline",
-      "play_pipeline_job",
-      "retry_pipeline_job",
-      "cancel_pipeline_job",
-      "list_job_artifacts",
-      "download_job_artifacts",
-      "get_job_artifact_file",
-    ]),
-  },
-  {
-    id: "milestones",
-    isDefault: true,
-    tools: new Set([
-      "list_milestones",
-      "get_milestone",
-      "create_milestone",
-      "edit_milestone",
-      "delete_milestone",
-      "get_milestone_issue",
-      "get_milestone_merge_requests",
-      "promote_milestone",
-      "get_milestone_burndown_events",
-    ]),
-  },
-  {
-    id: "wiki",
-    isDefault: true,
-    tools: new Set([
-      "list_wiki_pages",
-      "get_wiki_page",
-      "create_wiki_page",
-      "update_wiki_page",
-      "delete_wiki_page",
-      "list_group_wiki_pages",
-      "get_group_wiki_page",
-      "create_group_wiki_page",
-      "update_group_wiki_page",
-      "delete_group_wiki_page",
-    ]),
-  },
-  {
-    id: "releases",
-    isDefault: true,
-    tools: new Set([
-      "list_releases",
-      "get_release",
-      "create_release",
-      "update_release",
-      "delete_release",
-      "create_release_evidence",
-      "download_release_asset",
-    ]),
-  },
-  {
-    id: "users",
-    isDefault: true,
-    tools: new Set([
-      "get_users",
-      "list_events",
-      "get_project_events",
-      "upload_markdown",
-      "download_attachment",
-    ]),
-  },
-  {
-    id: "workitems",
-    isDefault: false,
-    tools: new Set([
-      "get_work_item",
-      "list_work_items",
-      "create_work_item",
-      "update_work_item",
-      "convert_work_item_type",
-      "list_work_item_statuses",
-      "list_custom_field_definitions",
-      "move_work_item",
-      "list_work_item_notes",
-      "create_work_item_note",
-      "get_timeline_events",
-      "create_timeline_event",
-    ]),
-  },
-  {
-    id: "webhooks",
-    isDefault: false,
-    tools: new Set([
-      "list_webhooks",
-      "list_webhook_events",
-      "get_webhook_event",
-    ]),
-  },
-  {
-    id: "search",
-    isDefault: false,
-    tools: new Set(["search_code", "search_project_code", "search_group_code"]),
-  },
-] as const;
-
-// Derived lookup: tool name → toolset ID
-const TOOLSET_BY_TOOL_NAME = new Map<string, ToolsetId>();
-for (const def of TOOLSET_DEFINITIONS) {
-  for (const tool of def.tools) {
-    if (TOOLSET_BY_TOOL_NAME.has(tool)) {
-      logger.warn(
-        `Tool "${tool}" is defined in multiple toolsets: "${TOOLSET_BY_TOOL_NAME.get(tool)}" and "${def.id}"`
-      );
-    }
-    TOOLSET_BY_TOOL_NAME.set(tool, def.id);
-  }
-}
-
-const DEFAULT_TOOLSET_IDS: ReadonlySet<ToolsetId> = new Set(
-  TOOLSET_DEFINITIONS.filter(d => d.isDefault).map(d => d.id)
-);
-
-const ALL_TOOLSET_IDS: ReadonlySet<ToolsetId> = new Set(
-  TOOLSET_DEFINITIONS.map(d => d.id)
-);
-
-function parseEnabledToolsets(raw: string | undefined): ReadonlySet<ToolsetId> {
-  if (!raw || raw.trim() === "") {
-    return DEFAULT_TOOLSET_IDS;
-  }
-  const trimmed = raw.trim().toLowerCase();
-  if (trimmed === "all") {
-    return ALL_TOOLSET_IDS;
-  }
-  const selected = new Set(
-    trimmed
-      .split(",")
-      .map(s => s.trim())
-      .filter((s): s is ToolsetId => ALL_TOOLSET_IDS.has(s as ToolsetId))
-  );
-  if (selected.size === 0) {
-    logger.warn(
-      `No valid toolsets found in configuration (${raw}). Falling back to default toolsets.`
-    );
-    return DEFAULT_TOOLSET_IDS;
-  }
-  return selected;
-}
-
-function parseIndividualTools(raw: string | undefined): ReadonlySet<string> {
-  if (!raw || raw.trim() === "") {
-    return new Set();
-  }
-  const allToolNames = new Set(allTools.map((t: { name: string }) => t.name));
-  const parsed = raw
-    .trim()
-    .split(",")
-    .map(s => s.trim().toLowerCase())
-    .filter(Boolean);
-  const unknown = parsed.filter(name => !allToolNames.has(name));
-  if (unknown.length > 0) {
-    logger.warn(`Unknown tool names in GITLAB_TOOLS (will be ignored): ${unknown.join(", ")}`);
-  }
-  return new Set(parsed);
-}
-
-function buildFeatureFlagOverrides(): ReadonlySet<string> {
-  const overrides = new Set<string>();
-  if (USE_GITLAB_WIKI) {
-    for (const t of wikiToolNames) overrides.add(t);
-  }
-  if (USE_MILESTONE) {
-    for (const t of milestoneToolNames) overrides.add(t);
-  }
-  if (USE_PIPELINE) {
-    for (const t of pipelineToolNames) overrides.add(t);
-  }
-  return overrides;
-}
-
-function isToolInEnabledToolset(
-  toolName: string,
-  enabledToolsets: ReadonlySet<ToolsetId>
-): boolean {
-  const toolsetId = TOOLSET_BY_TOOL_NAME.get(toolName);
-  // Tools not in any toolset (e.g. execute_graphql) are excluded by default
-  if (toolsetId === undefined) return false;
-  return enabledToolsets.has(toolsetId);
-}
 
 // Compute at startup
 const enabledToolsets = parseEnabledToolsets(GITLAB_TOOLSETS_RAW);
@@ -2292,25 +970,7 @@ type GitLabMergeRequestWithDeploymentSummary = GitLabMergeRequest & {
   };
 };
 
-/**
- * Smart URL handling for GitLab API
- *
- * @param {string | undefined} url - Input GitLab API URL
- * @returns {string} Normalized GitLab API URL with /api/v4 path
- */
-function normalizeGitLabApiUrl(url: string): string {
-  if (!url) {
-    return "https://gitlab.com/api/v4";
-  }
-  let normalizedUrl = url.trim();
-  if (normalizedUrl.endsWith("/")) {
-    normalizedUrl = normalizedUrl.slice(0, -1);
-  }
-  if (!normalizedUrl.endsWith("/api/v4")) {
-    normalizedUrl = `${normalizedUrl}/api/v4`;
-  }
-  return normalizedUrl;
-}
+
 
 // Use the normalizeGitLabApiUrl function to handle various URL formats
 const GITLAB_API_URLS = (getConfig("api-url", "GITLAB_API_URL") || "https://gitlab.com")
@@ -2359,7 +1019,7 @@ if (GITLAB_MCP_OAUTH) {
     logger.error("Set STREAMABLE_HTTP=true to enable MCP OAuth");
     process.exit(1);
   }
-  logger.info("MCP OAuth enabled: GitLab OAuth proxy active");
+  logger.info("MCP OAuth enabled: GitLab OAuth proxy active (Private-Token/JOB-TOKEN headers bypass OAuth)");
 }
 
 if (!REMOTE_AUTHORIZATION && !GITLAB_MCP_OAUTH && !USE_OAUTH && !GITLAB_PERSONAL_ACCESS_TOKEN && !GITLAB_JOB_TOKEN && !GITLAB_AUTH_COOKIE_PATH) {
@@ -2983,43 +1643,6 @@ async function convertIssueType(
 // --- Work item hierarchy ---
 
 /**
- * Set a parent for a work item (issue hierarchy).
- */
-async function setIssueParent(
-  projectId: string,
-  issueIid: number,
-  parentProjectId: string,
-  parentIssueIid: number
-): Promise<{ id: string; parentId: string }> {
-  const { workItemGID } = await resolveWorkItemGID(projectId, issueIid);
-  const { workItemGID: parentGID } = await resolveWorkItemGID(
-    parentProjectId,
-    parentIssueIid
-  );
-
-  const data = await executeGraphQL<{
-    workItemUpdate: {
-      workItem: { id: string } | null;
-      errors: string[];
-    };
-  }>(
-    `mutation($id: WorkItemID!, $parentId: WorkItemID!) {
-      workItemUpdate(input: { id: $id, hierarchyWidget: { parentId: $parentId } }) {
-        workItem { id }
-        errors
-      }
-    }`,
-    { id: workItemGID, parentId: parentGID }
-  );
-
-  if (data.workItemUpdate.errors?.length > 0) {
-    throw new Error(`Failed to set parent: ${data.workItemUpdate.errors.join(", ")}`);
-  }
-
-  return { id: workItemGID, parentId: parentGID };
-}
-
-/**
  * Remove the parent from a work item.
  */
 async function removeIssueParent(
@@ -3046,133 +1669,6 @@ async function removeIssueParent(
   if (data.workItemUpdate.errors?.length > 0) {
     throw new Error(`Failed to remove parent: ${data.workItemUpdate.errors.join(", ")}`);
   }
-}
-
-/**
- * List children of a work item (hierarchy widget).
- */
-async function listIssueChildren(
-  projectId: string,
-  issueIid: number
-): Promise<any> {
-  projectId = decodeURIComponent(projectId);
-  const effectiveProjectId = getEffectiveProjectId(projectId);
-
-  // Get project path
-  const projectUrl = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(effectiveProjectId)}`
-  );
-  const projectResponse = await fetch(projectUrl.toString(), {
-    ...getFetchConfig(),
-  });
-  await handleGitLabError(projectResponse);
-  const project: any = await projectResponse.json();
-
-  const data = await executeGraphQL<{
-    namespace: {
-      workItem: {
-        id: string;
-        title: string;
-        widgets: Array<any>;
-      } | null;
-    };
-  }>(
-    `query($path: ID!, $iid: String!) {
-      namespace(fullPath: $path) {
-        workItem(iid: $iid) {
-          id
-          title
-          widgets {
-            __typename
-            ... on WorkItemWidgetHierarchy {
-              parent {
-                id
-                title
-                webUrl
-                workItemType { name }
-              }
-              children {
-                nodes {
-                  id
-                  title
-                  state
-                  webUrl
-                  workItemType { name }
-                }
-              }
-            }
-          }
-        }
-      }
-    }`,
-    { path: project.path_with_namespace, iid: String(issueIid) }
-  );
-
-  if (!data.namespace?.workItem) {
-    throw new Error(`Work item #${issueIid} not found`);
-  }
-
-  // Extract hierarchy widget
-  const hierarchyWidget = data.namespace.workItem.widgets?.find(
-    (w: any) => w.__typename === "WorkItemWidgetHierarchy"
-  );
-
-  return {
-    id: data.namespace.workItem.id,
-    title: data.namespace.workItem.title,
-    parent: hierarchyWidget?.parent || null,
-    children: hierarchyWidget?.children?.nodes || [],
-  };
-}
-
-/**
- * Add a child to a parent work item.
- */
-async function addIssueChild(
-  projectId: string,
-  issueIid: number,
-  childProjectId: string,
-  childIssueIid: number
-): Promise<{ parentId: string; childId: string }> {
-  const { workItemGID: parentGID } = await resolveWorkItemGID(projectId, issueIid);
-  const { workItemGID: childGID } = await resolveWorkItemGID(
-    childProjectId,
-    childIssueIid
-  );
-
-  const data = await executeGraphQL<{
-    workItemUpdate: {
-      workItem: { id: string } | null;
-      errors: string[];
-    };
-  }>(
-    `mutation($id: WorkItemID!, $childId: WorkItemID!) {
-      workItemUpdate(input: { id: $id, hierarchyWidget: { childrenIds: [$childId] } }) {
-        workItem { id }
-        errors
-      }
-    }`,
-    { id: parentGID, childId: childGID }
-  );
-
-  if (data.workItemUpdate.errors?.length > 0) {
-    throw new Error(`Failed to add child: ${data.workItemUpdate.errors.join(", ")}`);
-  }
-
-  return { parentId: parentGID, childId: childGID };
-}
-
-/**
- * Remove a child from a parent work item by setting the child's parent to null.
- */
-async function removeIssueChild(
-  projectId: string,
-  issueIid: number,
-  childProjectId: string,
-  childIssueIid: number
-): Promise<void> {
-  // Removing a child is done by removing the parent from the child
-  await removeIssueParent(childProjectId, childIssueIid);
 }
 
 // --- Work item status ---
@@ -3726,57 +2222,6 @@ async function updateIncidentEscalationStatus(
   }
 
   return data.issueSetEscalationStatus.issue;
-}
-
-/**
- * Set the status of a work item.
- */
-async function setIssueStatus(
-  projectId: string,
-  issueIid: number,
-  status: string
-): Promise<{ id: string; status: string }> {
-  const { workItemGID } = await resolveWorkItemGID(projectId, issueIid);
-
-  const data = await executeGraphQL<{
-    workItemUpdate: {
-      workItem: {
-        id: string;
-        widgets: Array<any>;
-      } | null;
-      errors: string[];
-    };
-  }>(
-    `mutation($id: WorkItemID!, $status: WorkItemsStatusesStatusID!) {
-      workItemUpdate(input: { id: $id, statusWidget: { status: $status } }) {
-        workItem {
-          id
-          widgets {
-            __typename
-            ... on WorkItemWidgetStatus {
-              status { id name category color }
-            }
-          }
-        }
-        errors
-      }
-    }`,
-    { id: workItemGID, status }
-  );
-
-  if (data.workItemUpdate.errors?.length > 0) {
-    throw new Error(`Failed to set status: ${data.workItemUpdate.errors.join(", ")}`);
-  }
-
-  // Extract the current status from the response
-  const statusWidget = data.workItemUpdate.workItem?.widgets?.find(
-    (w: any) => w.__typename === "WorkItemWidgetStatus"
-  );
-
-  return {
-    id: data.workItemUpdate.workItem!.id,
-    status: statusWidget?.status || null,
-  };
 }
 
 /**
@@ -5032,7 +3477,7 @@ async function updateIssueNote(
  * Create a note in an issue discussion
  * @param {string} projectId - The ID or URL-encoded path of the project
  * @param {number} issueIid - The IID of an issue
- * @param {string} discussionId - The ID of a thread
+ * @param {string} [discussionId] - The ID of a thread (omit for top-level note)
  * @param {string} body - The content of the new note
  * @param {string} [createdAt] - The creation date of the note (ISO 8601 format)
  * @returns {Promise<GitLabDiscussionNote>} The created note
@@ -5040,15 +3485,18 @@ async function updateIssueNote(
 async function createIssueNote(
   projectId: string,
   issueIid: number | string,
-  discussionId: string,
+  discussionId: string | undefined,
   body: string,
   createdAt?: string
 ): Promise<GitLabDiscussionNote> {
   projectId = decodeURIComponent(projectId); // Decode project ID
+  const basePath = `${getEffectiveApiUrl()}/projects/${encodeURIComponent(
+    getEffectiveProjectId(projectId)
+  )}/issues/${issueIid}`;
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(
-      getEffectiveProjectId(projectId)
-    )}/issues/${issueIid}/discussions/${discussionId}/notes`
+    discussionId
+      ? `${basePath}/discussions/${discussionId}/notes`
+      : `${basePath}/notes`
   );
 
   const payload: { body: string; created_at?: string } = { body };
@@ -5346,55 +3794,6 @@ async function createOrUpdateFile(
 
   const data = await response.json();
   return GitLabCreateUpdateFileResponseSchema.parse(data);
-}
-
-/**
- * Create a tree structure in a GitLab project repository
- * 저장소에 트리 구조 생성
- *
- * @param {string} projectId - The ID or URL-encoded path of the project
- * @param {FileOperation[]} files - Array of file operations
- * @param {string} [ref] - The name of the branch, tag or commit
- * @returns {Promise<GitLabTree>} The created tree
- */
-async function createTree(
-  projectId: string,
-  files: FileOperation[],
-  ref?: string
-): Promise<GitLabTree> {
-  projectId = decodeURIComponent(projectId); // Decode project ID
-  const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/repository/tree`
-  );
-
-  if (ref) {
-    url.searchParams.append("ref", ref);
-  }
-
-  const response = await fetch(url.toString(), {
-    ...getFetchConfig(),
-    method: "POST",
-    body: JSON.stringify({
-      files: files.map(file => ({
-        file_path: file.path,
-        content: encodeRepoFilePayloadContent(file.content),
-        encoding: GITLAB_REPO_FILE_ENCODING,
-      })),
-    }),
-  });
-
-  if (response.status === 400) {
-    const errorBody = await response.text();
-    throw new Error(`Invalid request: ${errorBody}`);
-  }
-
-  if (!response.ok) {
-    const errorBody = await response.text();
-    throw new Error(`GitLab API error: ${response.status} ${response.statusText}\n${errorBody}`);
-  }
-
-  const data = await response.json();
-  return GitLabTreeSchema.parse(data);
 }
 
 /**
@@ -5697,21 +4096,7 @@ async function getProjectMergeMethod(projectId: string): Promise<string | null> 
   return typeof mergeMethod === "string" ? mergeMethod : null;
 }
 
-function estimateMergeCommitCount(mergeMethod: string | null, sourceCommitCount: number): number | null {
-  if (sourceCommitCount === 0) {
-    return 0;
-  }
 
-  if (mergeMethod === "merge") {
-    return 1;
-  }
-
-  if (mergeMethod === "ff" || mergeMethod === "rebase_merge") {
-    return 0;
-  }
-
-  return null;
-}
 
 async function buildMergeRequestCommitAdditionSummary(
   projectId: string,
@@ -6909,137 +5294,6 @@ async function getMergeRequestVersion(
 }
 
 /**
- * List all namespaces
- * 사용 가능한 모든 네임스페이스 목록 조회
- *
- * @param {Object} options - Options for listing namespaces
- * @param {string} [options.search] - Search query to filter namespaces
- * @param {boolean} [options.owned_only] - Only return namespaces owned by the authenticated user
- * @param {boolean} [options.top_level_only] - Only return top-level namespaces
- * @returns {Promise<GitLabNamespace[]>} List of namespaces
- */
-async function listNamespaces(options: {
-  search?: string;
-  owned_only?: boolean;
-  top_level_only?: boolean;
-}): Promise<GitLabNamespace[]> {
-  const url = new URL(`${getEffectiveApiUrl()}/namespaces`);
-
-  if (options.search) {
-    url.searchParams.append("search", options.search);
-  }
-
-  if (options.owned_only) {
-    url.searchParams.append("owned_only", "true");
-  }
-
-  if (options.top_level_only) {
-    url.searchParams.append("top_level_only", "true");
-  }
-
-  const response = await fetch(url.toString(), {
-    ...getFetchConfig(),
-  });
-
-  await handleGitLabError(response);
-  const data = await response.json();
-  return z.array(GitLabNamespaceSchema).parse(data);
-}
-
-/**
- * Get details on a namespace
- * 네임스페이스 상세 정보 조회
- *
- * @param {string} id - The ID or URL-encoded path of the namespace
- * @returns {Promise<GitLabNamespace>} The namespace details
- */
-async function getNamespace(id: string): Promise<GitLabNamespace> {
-  const url = new URL(`${getEffectiveApiUrl()}/namespaces/${encodeURIComponent(id)}`);
-
-  const response = await fetch(url.toString(), {
-    ...getFetchConfig(),
-  });
-
-  await handleGitLabError(response);
-  const data = await response.json();
-  return GitLabNamespaceSchema.parse(data);
-}
-
-/**
- * Verify if a namespace exists
- * 네임스페이스 존재 여부 확인
- *
- * @param {string} namespacePath - The path of the namespace to check
- * @param {number} [parentId] - The ID of the parent namespace
- * @returns {Promise<GitLabNamespaceExistsResponse>} The verification result
- */
-async function verifyNamespaceExistence(
-  namespacePath: string,
-  parentId?: number
-): Promise<GitLabNamespaceExistsResponse> {
-  const url = new URL(
-    `${getEffectiveApiUrl()}/namespaces/${encodeURIComponent(namespacePath)}/exists`
-  );
-
-  if (parentId) {
-    url.searchParams.append("parent_id", parentId.toString());
-  }
-
-  const response = await fetch(url.toString(), {
-    ...getFetchConfig(),
-  });
-
-  await handleGitLabError(response);
-  const data = await response.json();
-  return GitLabNamespaceExistsResponseSchema.parse(data);
-}
-
-/**
- * Get a single project
- * 단일 프로젝트 조회
- *
- * @param {string} projectId - The ID or URL-encoded path of the project
- * @param {Object} options - Options for getting project details
- * @param {boolean} [options.license] - Include project license data
- * @param {boolean} [options.statistics] - Include project statistics
- * @param {boolean} [options.with_custom_attributes] - Include custom attributes in response
- * @returns {Promise<GitLabProject>} Project details
- */
-async function getProject(
-  projectId: string,
-  options: {
-    license?: boolean;
-    statistics?: boolean;
-    with_custom_attributes?: boolean;
-  } = {}
-): Promise<GitLabProject> {
-  projectId = decodeURIComponent(projectId); // Decode project ID
-  const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}`
-  );
-
-  if (options.license) {
-    url.searchParams.append("license", "true");
-  }
-
-  if (options.statistics) {
-    url.searchParams.append("statistics", "true");
-  }
-
-  if (options.with_custom_attributes) {
-    url.searchParams.append("with_custom_attributes", "true");
-  }
-
-  const response = await fetch(url.toString(), {
-    ...getFetchConfig(),
-  });
-
-  await handleGitLabError(response);
-  const data = await response.json();
-  return GitLabRepositorySchema.parse(data);
-}
-
-/**
  * List projects
  * 프로젝트 목록 조회
  *
@@ -7321,18 +5575,7 @@ async function listWebhooks(
   return (await response.json()) as unknown[];
 }
 
-/**
- * Summarize webhook events by stripping heavy payload fields
- */
-function summarizeWebhookEvents(events: Record<string, unknown>[]): Record<string, unknown>[] {
-  return events.map(event => ({
-    id: event.id,
-    url: event.url,
-    trigger: event.trigger,
-    response_status: event.response_status,
-    execution_duration: event.execution_duration,
-  }));
-}
+
 
 /**
  * Fetch a single page of webhook events
@@ -9211,41 +7454,6 @@ async function downloadReleaseAsset(
 
 // Request handlers are now registered inside createServer() factory function
 // to ensure each transport connection gets its own Server instance (GHSA-345p-7cg4-v4c7).
-
-/**
- * Filter diffs by excluded file patterns
- * Safely handles invalid regex patterns by logging and ignoring them
- *
- * @param diffs - Array of diff objects with new_path property
- * @param excludedFilePatterns - Array of regex patterns to exclude
- * @returns Filtered array of diffs
- */
-function filterDiffsByPatterns<T extends { new_path: string }>(
-  diffs: T[],
-  excludedFilePatterns: string[] | undefined
-): T[] {
-  if (!excludedFilePatterns?.length) return diffs;
-
-  const regexPatterns = excludedFilePatterns
-    .map(pattern => {
-      try {
-        return new RegExp(pattern);
-      } catch (e) {
-        console.warn(`Invalid regex pattern ignored: ${pattern}`);
-        return null;
-      }
-    })
-    .filter((regex): regex is RegExp => regex !== null);
-
-  if (regexPatterns.length === 0) return diffs;
-
-  const matchesAnyPattern = (path: string): boolean => {
-    if (!path) return false;
-    return regexPatterns.some(regex => regex.test(path));
-  };
-
-  return diffs.filter(diff => !matchesAnyPattern(diff.new_path));
-}
 
 async function handleToolCall(params: any) {
   try {
@@ -11167,9 +9375,7 @@ async function startSSEServer(): Promise<void> {
   });
 
   const httpServer = app.listen(Number(PORT), HOST, () => {
-    logger.info(`GitLab MCP Server running with SSE transport`);
-    const colorGreen = "\x1b[32m";
-    const colorReset = "\x1b[0m";
+    logger.info("GitLab MCP Server running with SSE transport");
     logger.info(`${colorGreen}Endpoint: http://${HOST}:${PORT}/sse${colorReset}`);
   });
 
@@ -11259,9 +9465,21 @@ async function startStreamableHTTPServer(): Promise<void> {
   };
 
   /**
+   * Check whether the request carries a raw header auth token (Private-Token or JOB-TOKEN).
+   * Used to decide whether to bypass OAuth validation.
+   */
+  const hasHeaderAuth = (req: Request): boolean => {
+    return !!(
+      (req.headers["private-token"] as string | undefined) ||
+      (req.headers["job-token"] as string | undefined)
+    );
+  };
+
+  /**
    * Parse authentication from request headers
    * Returns null if no auth found or invalid format
-   * Supports: JOB-TOKEN header, Private-Token header, Authorization Bearer header
+   * Supports: Private-Token header, JOB-TOKEN header, Authorization Bearer header
+   * Priority: Private-Token > JOB-TOKEN > Authorization Bearer
    */
   const parseAuthHeaders = (req: Request): AuthData | null => {
     const authHeader = (req.headers["authorization"] as string | undefined) || "";
@@ -11282,16 +9500,17 @@ async function startStreamableHTTPServer(): Promise<void> {
       }
     }
 
-    // Extract token
+    // Extract token — priority: Private-Token > JOB-TOKEN > Authorization Bearer
+    // PATs are preferred over job tokens because they carry broader permissions.
     let token: string | null = null;
     let header: "Authorization" | "Private-Token" | "JOB-TOKEN" | null = null;
 
-    if (jobToken) {
-      token = jobToken.trim();
-      header = "JOB-TOKEN";
-    } else if (privateToken) {
+    if (privateToken) {
       token = privateToken.trim();
       header = "Private-Token";
+    } else if (jobToken) {
+      token = jobToken.trim();
+      header = "JOB-TOKEN";
     } else if (authHeader) {
       // Use \S+ instead of .+ to prevent ReDoS attacks
       // \S+ only matches non-whitespace, so trim() is technically unnecessary,
@@ -11362,7 +9581,7 @@ async function startStreamableHTTPServer(): Promise<void> {
     app.set("trust proxy", 1);
     const gitlabBaseUrl = GITLAB_API_URL.replace(/\/api\/v4\/?$/, "").replace(/\/$/, "");
     const issuerUrl = new URL(MCP_SERVER_URL!);
-    const oauthProvider = createGitLabOAuthProvider(gitlabBaseUrl, GITLAB_OAUTH_APP_ID!, "GitLab MCP Server", GITLAB_READ_ONLY_MODE);
+    const oauthProvider = createGitLabOAuthProvider(gitlabBaseUrl, GITLAB_OAUTH_APP_ID!, "GitLab MCP Server", GITLAB_READ_ONLY_MODE, GITLAB_OAUTH_SCOPES);
 
     // Mounts /.well-known/oauth-authorization-server,
     //        /.well-known/oauth-protected-resource,
@@ -11372,7 +9591,7 @@ async function startStreamableHTTPServer(): Promise<void> {
         provider: oauthProvider,
         issuerUrl,
         baseUrl: issuerUrl,
-        scopesSupported: ["api", "read_api", "read_user"],
+        scopesSupported: GITLAB_OAUTH_SCOPES ?? ["api", "read_api", "read_user"],
         resourceName: "GitLab MCP Server",
       })
     );
@@ -11384,11 +9603,36 @@ async function startStreamableHTTPServer(): Promise<void> {
   // Build bearer-auth middleware — no-op unless GITLAB_MCP_OAUTH is enabled.
   // Unauthenticated requests receive 401 + WWW-Authenticate header, which is
   // exactly what Claude.ai needs to trigger the OAuth browser flow.
-  const mcpBearerAuth = GITLAB_MCP_OAUTH
+  //
+  // Header auth fallback: if Private-Token or JOB-TOKEN headers are present,
+  // OAuth validation is skipped and the raw token is used directly per-session.
+  // Note: Authorization: Bearer is always treated as an OAuth token and goes
+  // through OAuth validation — use Private-Token for PAT-based header auth.
+  const oauthBearerAuth = GITLAB_MCP_OAUTH
     ? requireBearerAuth({
         verifier: (app as any)._mcpOAuthProvider,
         requiredScopes: [],
       })
+    : undefined;
+  const mcpBearerAuth = GITLAB_MCP_OAUTH
+    ? (req: Request, res: Response, next: NextFunction) => {
+        const privateToken = (req.headers["private-token"] as string | undefined) || "";
+        const jobToken = (req.headers["job-token"] as string | undefined) || "";
+        if (privateToken || jobToken) {
+          // Validate the raw token before bypassing OAuth
+          const authData = parseAuthHeaders(req);
+          if (authData) {
+            next();
+            return;
+          }
+          res.status(401).json({
+            error: "Invalid Private-Token or JOB-TOKEN header",
+            message: "The provided token failed validation. Check the token value and format.",
+          });
+          return;
+        }
+        oauthBearerAuth!(req, res, next);
+      }
     : (_req: Request, _res: Response, next: NextFunction) => next();
 
   // Streamable HTTP endpoint - handles both session creation and message handling
@@ -11427,9 +9671,9 @@ async function startStreamableHTTPServer(): Promise<void> {
         if (!authData) {
           metrics.authFailures++;
           res.status(401).json({
-            error: "Missing Authorization, Private-Token, or JOB-TOKEN header",
+            error: "Missing Private-Token, JOB-TOKEN, or Authorization header",
             message:
-              "Remote authorization is enabled. Please provide Authorization, Private-Token, or JOB-TOKEN header.",
+              "Remote authorization is enabled. Please provide Private-Token, JOB-TOKEN, or Authorization header.",
           });
           return;
         }
@@ -11451,29 +9695,51 @@ async function startStreamableHTTPServer(): Promise<void> {
       }
     }
 
-    // MCP OAuth mode — token already validated by requireBearerAuth middleware.
-    // req.auth is populated by the middleware; store/refresh per session so that
-    // buildAuthHeaders() can pick it up via AsyncLocalStorage, exactly like the
-    // REMOTE_AUTHORIZATION path.
+    // MCP OAuth mode — either header auth (PAT/job token) or OAuth Bearer token.
+    // Header auth takes precedence: if Private-Token or JOB-TOKEN is present the
+    // OAuth middleware was bypassed and we store the raw token per-session.
+    // Otherwise req.auth is populated by requireBearerAuth; store the OAuth token.
     if (GITLAB_MCP_OAUTH) {
-      const authInfo = req.auth;
-      if (authInfo?.token && sessionId) {
-        if (!authBySession[sessionId]) {
-          authBySession[sessionId] = {
-            header: "Authorization",
-            token: authInfo.token,
-            lastUsed: Date.now(),
-            apiUrl: GITLAB_API_URL,
-          };
-          logger.info(
-            `Session ${sessionId}: stored OAuth token (client: ${authInfo.clientId})`
-          );
-          setAuthTimeout(sessionId);
-        } else {
-          // Update token on every request — the client may have refreshed it
-          authBySession[sessionId].token = authInfo.token;
-          authBySession[sessionId].lastUsed = Date.now();
-          setAuthTimeout(sessionId);
+      const headerAuthData = hasHeaderAuth(req) ? parseAuthHeaders(req) : null;
+
+      if (headerAuthData) {
+        if (headerAuthData && sessionId) {
+          if (!authBySession[sessionId]) {
+            authBySession[sessionId] = headerAuthData;
+            logger.info(
+              `Session ${sessionId}: stored ${headerAuthData.header} header (header auth)`
+            );
+            setAuthTimeout(sessionId);
+          } else {
+            authBySession[sessionId] = {
+              ...authBySession[sessionId],
+              header: headerAuthData.header,
+              token: headerAuthData.token,
+              lastUsed: Date.now(),
+            };
+            setAuthTimeout(sessionId);
+          }
+        }
+      } else {
+        const authInfo = req.auth;
+        if (authInfo?.token && sessionId) {
+          if (!authBySession[sessionId]) {
+            authBySession[sessionId] = {
+              header: "Authorization",
+              token: authInfo.token,
+              lastUsed: Date.now(),
+              apiUrl: GITLAB_API_URL,
+            };
+            logger.info(
+              `Session ${sessionId}: stored OAuth token (client: ${authInfo.clientId})`
+            );
+            setAuthTimeout(sessionId);
+          } else {
+            // Update token on every request — the client may have refreshed it
+            authBySession[sessionId].token = authInfo.token;
+            authBySession[sessionId].lastUsed = Date.now();
+            setAuthTimeout(sessionId);
+          }
         }
       }
     }
@@ -11508,20 +9774,32 @@ async function startStreamableHTTPServer(): Promise<void> {
                 }
               }
 
-              // Store OAuth token for newly created session in MCP OAuth mode
+              // Store OAuth token for newly created session in MCP OAuth mode.
+              // If Private-Token or JOB-TOKEN headers are present, prefer them.
               if (GITLAB_MCP_OAUTH && !authBySession[newSessionId]) {
-                const authInfo = req.auth;
-                if (authInfo?.token) {
-                  authBySession[newSessionId] = {
-                    header: "Authorization",
-                    token: authInfo.token,
-                    lastUsed: Date.now(),
-                    apiUrl: GITLAB_API_URL,
-                  };
-                  logger.info(
-                    `Session ${newSessionId}: stored OAuth token (client: ${authInfo.clientId})`
-                  );
-                  setAuthTimeout(newSessionId);
+                if (hasHeaderAuth(req)) {
+                  const authData = parseAuthHeaders(req);
+                  if (authData) {
+                    authBySession[newSessionId] = authData;
+                    logger.info(
+                      `Session ${newSessionId}: stored ${authData.header} header (header auth)`
+                    );
+                    setAuthTimeout(newSessionId);
+                  }
+                } else {
+                  const authInfo = req.auth;
+                  if (authInfo?.token) {
+                    authBySession[newSessionId] = {
+                      header: "Authorization",
+                      token: authInfo.token,
+                      lastUsed: Date.now(),
+                      apiUrl: GITLAB_API_URL,
+                    };
+                    logger.info(
+                      `Session ${newSessionId}: stored OAuth token (client: ${authInfo.clientId})`
+                    );
+                    setAuthTimeout(newSessionId);
+                  }
                 }
               }
             },
