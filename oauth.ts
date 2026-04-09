@@ -571,7 +571,7 @@ export class GitLabOAuth {
       logger.info("No stored token found. Starting OAuth flow...");
       tokenData = await this.startOAuthFlow();
     } else if (force || this.isTokenExpired(tokenData)) {
-      logger.info("Token expired. Refreshing...");
+      logger.info(force && !this.isTokenExpired(tokenData) ? "Force-refreshing OAuth token..." : "Token expired. Refreshing...");
       if (tokenData.refresh_token) {
         try {
           tokenData = await this.refreshAccessToken(tokenData.refresh_token);
