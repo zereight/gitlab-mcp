@@ -30,6 +30,8 @@ import {
   USE_MILESTONE,
   USE_OAUTH,
   USE_PIPELINE,
+  GITLAB_TOOL_POLICY_APPROVE_RAW,
+  GITLAB_TOOL_POLICY_HIDDEN_RAW,
 } from "./config.js";
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
@@ -62,6 +64,9 @@ import {
   parseIndividualTools,
   buildFeatureFlagOverrides,
   isToolInEnabledToolset,
+  TOOLSET_DEFINITIONS,
+  ALL_TOOLSET_IDS,
+  type ToolsetId,
 } from "./tools/registry.js";
 import {
   BulkPublishDraftNotesSchema,
@@ -385,9 +390,29 @@ function createServer(): McpServer {
     : toolsAfterLegacy;
 
   // Step 5: Regex denial filter
-  const precomputedFilteredTools = GITLAB_DENIED_TOOLS_REGEX
+  let filteredTools = GITLAB_DENIED_TOOLS_REGEX
     ? toolsAfterReadOnly.filter(tool => !GITLAB_DENIED_TOOLS_REGEX!.test(tool.name))
-    : toolsAfterReadOnly;
+    : [...toolsAfterReadOnly];
+
+  // Step 5.5: Always include discover_tools meta-tool (bypasses toolset filter)
+  const discoverTool = allTools.find(t => t.name === "discover_tools");
+  const filteredToolNames = new Set(filteredTools.map(t => t.name));
+  if (discoverTool && !filteredToolNames.has("discover_tools")) {
+    // Respect read-only and regex denial filters
+    const passesReadOnly = !GITLAB_READ_ONLY_MODE || readOnlyTools.has("discover_tools");
+    const passesRegex = !GITLAB_DENIED_TOOLS_REGEX?.test("discover_tools");
+    if (passesReadOnly && passesRegex) {
+      filteredTools.push(discoverTool);
+    }
+  }
+
+  // Track which toolsets have been dynamically activated for this connection
+  const dynamicallyActivatedToolsets: string[] = [];
+
+  // Step 5.7: Remove hidden policy tools
+  if (hiddenToolSet.size > 0) {
+    filteredTools = filteredTools.filter(tool => !hiddenToolSet.has(tool.name));
+  }
 
   const mcpServer = new McpServer(
     {
@@ -404,7 +429,7 @@ function createServer(): McpServer {
   mcpServer.server.setRequestHandler(ListToolsRequestSchema, async () => {
     // Step 6: Gemini $schema cleanup + annotations (only dynamic step per request)
     // <<< START: Remove $schema for Gemini compatibility >>>
-    const tools = precomputedFilteredTools.map(tool => {
+    const tools = filteredTools.map(tool => {
       const modified: any = { ...tool };
 
       // Remove $schema key if present (Gemini compatibility)
@@ -419,6 +444,7 @@ function createServer(): McpServer {
       modified.annotations = {
         ...(readOnlyTools.has(tool.name) ? { readOnlyHint: true } : {}),
         ...(destructiveTools.has(tool.name) ? { destructiveHint: true } : {}),
+        ...(approveToolSet.has(tool.name) ? { confirmationHint: true } : {}),
         openWorldHint: true,
       };
 
@@ -451,6 +477,108 @@ function createServer(): McpServer {
     };
 
     try {
+      // Handle discover_tools meta-tool directly (needs access to mcpServer and filteredTools)
+      if (toolName === "discover_tools") {
+        const category = request.params.arguments?.category?.trim()?.toLowerCase();
+        const currentToolNames = new Set(filteredTools.map(t => t.name));
+
+        if (!category) {
+          // List available categories with activation status
+          const categories = TOOLSET_DEFINITIONS.map(def => ({
+            id: def.id,
+            toolCount: def.tools.size,
+            active: [...def.tools].some(t => currentToolNames.has(t)),
+            isDefault: def.isDefault,
+          }));
+          return logCompletion({
+            content: [{
+              type: "text",
+              text: JSON.stringify({ categories, hint: "Call discover_tools with a category name to activate it" }, null, 2),
+            }],
+          });
+        }
+
+        if (!ALL_TOOLSET_IDS.has(category as ToolsetId)) {
+          return logCompletion({
+            content: [{
+              type: "text",
+              text: `Unknown category "${category}". Available: ${[...ALL_TOOLSET_IDS].join(", ")}`,
+            }],
+            isError: true,
+          });
+        }
+
+        const toolsetDef = TOOLSET_DEFINITIONS.find(d => d.id === category);
+        if (!toolsetDef) {
+          return logCompletion({
+            content: [{ type: "text", text: `Category "${category}" not found.` }],
+            isError: true,
+          });
+        }
+
+        // Check if already fully active
+        const alreadyActive = [...toolsetDef.tools].every(t => currentToolNames.has(t));
+        if (alreadyActive) {
+          return logCompletion({
+            content: [{
+              type: "text",
+              text: `Category "${category}" is already active (${toolsetDef.tools.size} tools).`,
+            }],
+          });
+        }
+
+        // Add tools from this toolset, respecting read-only and regex denial filters
+        const newTools: typeof allTools = [];
+        for (const tool of allTools) {
+          if (!toolsetDef.tools.has(tool.name)) continue;
+          if (currentToolNames.has(tool.name)) continue;
+          if (GITLAB_READ_ONLY_MODE && !readOnlyTools.has(tool.name)) continue;
+          if (GITLAB_DENIED_TOOLS_REGEX?.test(tool.name)) continue;
+          newTools.push(tool);
+        }
+
+        filteredTools.push(...newTools);
+        dynamicallyActivatedToolsets.push(category);
+
+        // Notify client that tool list has changed
+        try {
+          await mcpServer.server.sendToolListChanged();
+        } catch {
+          // Client may not support notifications - safe to ignore
+        }
+
+        const addedNames = newTools.map(t => t.name);
+        logger.info({ event: "toolset_activated", category, toolCount: addedNames.length }, `Activated toolset: ${category} (+${addedNames.length} tools)`);
+
+        return logCompletion({
+          content: [{
+            type: "text",
+            text: JSON.stringify({
+              activated: category,
+              addedTools: addedNames,
+              totalTools: filteredTools.length,
+            }, null, 2),
+          }],
+        });
+      }
+
+      // Check approve policy: tool is exposed but requires explicit confirmation
+      if (approveToolSet.has(toolName)) {
+        const confirmed = request.params.arguments?._confirmed === true;
+        if (!confirmed) {
+          logger.info({ tool: toolName, event: "tool_call_approval_required" }, `Approval required: ${toolName}`);
+          return logCompletion({
+            content: [{
+              type: "text",
+              text: `Tool "${toolName}" requires confirmation. This tool is marked as requiring approval before execution. Re-call with _confirmed: true to proceed.`,
+            }],
+          });
+        }
+        // Strip _confirmed from args before forwarding to handler
+        const { _confirmed, ...cleanArgs } = request.params.arguments || {};
+        request.params.arguments = cleanArgs;
+      }
+
       if ((REMOTE_AUTHORIZATION || GITLAB_MCP_OAUTH) && sessionId && authBySession[sessionId]) {
         const authData = authBySession[sessionId];
         const sessionContext: SessionAuth = {
@@ -659,6 +787,22 @@ const GITLAB_DENIED_TOOLS_REGEX = (() => {
     return undefined;
   }
 })();
+
+// ---------------------------------------------------------------------------
+// Tool policy: approve / hidden sets
+// ---------------------------------------------------------------------------
+const approveToolSet = new Set(
+  (GITLAB_TOOL_POLICY_APPROVE_RAW || "")
+    .split(",")
+    .map(s => s.trim())
+    .filter(Boolean)
+);
+const hiddenToolSet = new Set(
+  (GITLAB_TOOL_POLICY_HIDDEN_RAW || "")
+    .split(",")
+    .map(s => s.trim())
+    .filter(Boolean)
+);
 
 const clientPool = new GitLabClientPool({
   apiUrls: (getConfig("api-url", "GITLAB_API_URL") || "https://gitlab.com")

@@ -859,10 +859,27 @@ export const allTools = [
     description: "Search for code within a specific group (requires advanced search or Zoekt)",
     inputSchema: toJSONSchema(SearchGroupCodeSchema),
   },
+  // --- Meta tool: Dynamic tool discovery ---
+  {
+    name: "discover_tools",
+    description:
+      "Discover and activate additional tool categories for this session. Available categories: pipelines, milestones, wiki, releases, workitems, webhooks, search. Already-active categories are listed in the response.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        category: {
+          type: "string",
+          description:
+            "Toolset category to activate (e.g. 'pipelines', 'wiki'). Omit to list available categories.",
+        },
+      },
+    },
+  },
 ];
 
 // Define which tools are read-only
 export const readOnlyTools = new Set([
+  "discover_tools",
   "search_repositories",
   "search_code",
   "search_project_code",

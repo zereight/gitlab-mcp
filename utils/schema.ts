@@ -8,9 +8,14 @@ import { zodToJsonSchema } from "zod-to-json-schema";
 export const toJSONSchema = (schema: z.ZodTypeAny) => {
   const jsonSchema = zodToJsonSchema(schema, { $refStrategy: "none" });
 
-  // Post-process to fix nullable/optional fields that should truly be optional
+  // Post-process to fix nullable/optional fields and strip verbose keys
   function fixNullableOptional(obj: any): any {
     if (obj && typeof obj === "object") {
+      // Strip $schema (meta-only, not needed for tool input validation)
+      delete obj.$schema;
+      // Strip additionalProperties (MCP clients ignore it, saves tokens)
+      delete obj.additionalProperties;
+
       // If this object has properties, process them
       if (obj.properties) {
         const requiredSet = new Set<string>(obj.required || []);

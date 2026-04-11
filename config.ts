@@ -51,6 +51,17 @@ export const USE_PIPELINE = getConfig("use-pipeline", "USE_PIPELINE") === "true"
 export const GITLAB_TOOLSETS_RAW = getConfig("toolsets", "GITLAB_TOOLSETS");
 export const GITLAB_TOOLS_RAW = getConfig("tools", "GITLAB_TOOLS");
 
+// Tool policy: comma-separated tool names
+// approve = exposed but requires confirmation; hidden = not exposed at all
+export const GITLAB_TOOL_POLICY_APPROVE_RAW = getConfig(
+  "tool-policy-approve",
+  "GITLAB_TOOL_POLICY_APPROVE"
+);
+export const GITLAB_TOOL_POLICY_HIDDEN_RAW = getConfig(
+  "tool-policy-hidden",
+  "GITLAB_TOOL_POLICY_HIDDEN"
+);
+
 // ---------------------------------------------------------------------------
 // Transport
 // ---------------------------------------------------------------------------
