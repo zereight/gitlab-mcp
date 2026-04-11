@@ -843,4 +843,54 @@ describe("Dynamic Discovery (Proposal H)", { concurrency: 1 }, () => {
       );
     });
   });
+
+  // ---- Hidden policy respected by discover_tools ----
+
+  describe("discover_tools respects hidden policy", () => {
+    let server: ServerInstance;
+    let client: CustomHeaderClient;
+
+    before(async () => {
+      server = await launchMcp(mockGitLabUrl, {
+        GITLAB_TOOLSETS: "issues",
+        GITLAB_TOOL_POLICY_HIDDEN: "delete_issue,delete_issue_link",
+      });
+      client = await getClient(server.port ?? 0);
+    });
+
+    after(async () => {
+      await client.disconnect();
+      cleanupServers([server]);
+    });
+
+    test("hidden tools not present after discover_tools activation", async () => {
+      // Re-activate issues toolset (partially active from GITLAB_TOOLSETS)
+      // Force activation of a non-default toolset that also has hidden tools
+      const listBefore = await client.listTools();
+      const namesBefore = new Set(listBefore.tools.map((t: any) => t.name));
+      assert.ok(!namesBefore.has("delete_issue"), "delete_issue should be hidden initially");
+      assert.ok(!namesBefore.has("delete_issue_link"), "delete_issue_link should be hidden initially");
+
+      // Activate pipelines (different toolset) to ensure discover_tools works
+      await client.callTool("discover_tools", { category: "pipelines" });
+
+      // Re-list tools - hidden tools from issues should still be absent
+      const listAfter = await client.listTools();
+      const namesAfter = new Set(listAfter.tools.map((t: any) => t.name));
+      assert.ok(!namesAfter.has("delete_issue"), "delete_issue should remain hidden after discover_tools");
+      assert.ok(!namesAfter.has("delete_issue_link"), "delete_issue_link should remain hidden after discover_tools");
+      // Non-hidden issues tools should still be present
+      assert.ok(namesAfter.has("list_issues"), "list_issues should still be present");
+    });
+
+    test("discover_tools with no new tools returns filtered message", async () => {
+      // issues toolset already active from GITLAB_TOOLSETS, so re-activating should say already active
+      const result = await client.callTool("discover_tools", { category: "issues" });
+      const text = (result.content as any)[0]?.text || "";
+      assert.ok(
+        text.includes("already active") || text.includes("no additional tools"),
+        `Expected already-active or no-additional message, got: ${text}`
+      );
+    });
+  });
 });

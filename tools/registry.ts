@@ -863,7 +863,7 @@ export const allTools = [
   {
     name: "discover_tools",
     description:
-      "Discover and activate additional tool categories for this session. Available categories: pipelines, milestones, wiki, releases, workitems, webhooks, search. Already-active categories are listed in the response.",
+      "Discover and activate additional tool categories for this session. Call without arguments to see available categories.",
     inputSchema: {
       type: "object" as const,
       properties: {
@@ -1297,6 +1297,12 @@ export const DEFAULT_TOOLSET_IDS: ReadonlySet<ToolsetId> = new Set(
 export const ALL_TOOLSET_IDS: ReadonlySet<ToolsetId> = new Set(
   TOOLSET_DEFINITIONS.map(d => d.id)
 );
+
+// Update discover_tools description with all known categories (must be after TOOLSET_DEFINITIONS)
+const discoverTool = allTools.find(t => t.name === "discover_tools");
+if (discoverTool) {
+  discoverTool.description = `Discover and activate additional tool categories for this session. Available categories: ${[...ALL_TOOLSET_IDS].join(", ")}. Already-active categories are listed in the response.`;
+}
 
 export function parseEnabledToolsets(raw: string | undefined): ReadonlySet<ToolsetId> {
   if (!raw || raw.trim() === "") {

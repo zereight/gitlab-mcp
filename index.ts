@@ -527,18 +527,30 @@ function createServer(): McpServer {
           });
         }
 
-        // Add tools from this toolset, respecting read-only and regex denial filters
+        // Add tools from this toolset, respecting all filtering policies
         const newTools: typeof allTools = [];
         for (const tool of allTools) {
           if (!toolsetDef.tools.has(tool.name)) continue;
           if (currentToolNames.has(tool.name)) continue;
           if (GITLAB_READ_ONLY_MODE && !readOnlyTools.has(tool.name)) continue;
           if (GITLAB_DENIED_TOOLS_REGEX?.test(tool.name)) continue;
+          if (hiddenToolSet.has(tool.name)) continue;
           newTools.push(tool);
         }
 
+        if (newTools.length === 0) {
+          return logCompletion({
+            content: [{
+              type: "text",
+              text: `Category "${category}" has no additional tools to activate (all already active or filtered).`,
+            }],
+          });
+        }
+
         filteredTools.push(...newTools);
-        dynamicallyActivatedToolsets.push(category);
+        if (!dynamicallyActivatedToolsets.includes(category)) {
+          dynamicallyActivatedToolsets.push(category);
+        }
 
         // Notify client that tool list has changed
         try {
