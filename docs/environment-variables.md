@@ -143,6 +143,31 @@ Comma-separated list of individual tool names to add on top of enabled toolsets.
 
 Optional regex denylist for tool names.
 
+### `GITLAB_TOOL_POLICY_APPROVE`
+
+Comma-separated tool names that require explicit confirmation before execution. Tools listed here are visible in `tools/list` with `confirmationHint: true` but will return a confirmation prompt unless called with `_confirmed: true`.
+
+CLI: `--tool-policy-approve`
+
+Examples:
+
+- `create_issue,delete_issue`
+- `merge_merge_request`
+
+### `GITLAB_TOOL_POLICY_HIDDEN`
+
+Comma-separated tool names to hide from `tools/list`. Hidden tools are not visible to the agent but remain callable if invoked directly. Takes precedence over `GITLAB_TOOL_POLICY_APPROVE` when the same tool appears in both.
+
+CLI: `--tool-policy-hidden`
+
+Examples:
+
+- `delete_issue,delete_wiki_page`
+
+### `discover_tools` Meta-Tool
+
+When `GITLAB_TOOLSETS` limits the initial tool set, the `discover_tools` meta-tool is always available. Agents can call `discover_tools` with a `category` parameter to dynamically activate additional toolsets on demand, reducing the initial token payload.
+
 ### `USE_GITLAB_WIKI`
 
 Legacy additive flag for wiki-related tools.
