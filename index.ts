@@ -57,6 +57,7 @@ import { GitLabClientPool } from "./gitlab-client-pool.js";
 import {
   allTools,
   readOnlyTools,
+  destructiveTools,
   parseEnabledToolsets,
   parseIndividualTools,
   buildFeatureFlagOverrides,
@@ -401,21 +402,27 @@ function createServer(): McpServer {
   );
 
   mcpServer.server.setRequestHandler(ListToolsRequestSchema, async () => {
-    // Step 6: Gemini $schema cleanup (only dynamic step per request)
+    // Step 6: Gemini $schema cleanup + annotations (only dynamic step per request)
     // <<< START: Remove $schema for Gemini compatibility >>>
     const tools = precomputedFilteredTools.map(tool => {
-      // Check if inputSchema exists and is an object
-      if (tool.inputSchema && typeof tool.inputSchema === "object" && tool.inputSchema !== null) {
-        // Remove $schema key if present
-        if ("$schema" in tool.inputSchema) {
-          // Create a new object to preserve immutability (optional but recommended)
-          const modifiedSchema = { ...tool.inputSchema };
-          delete modifiedSchema.$schema;
-          return { ...tool, inputSchema: modifiedSchema };
+      const modified: any = { ...tool };
+
+      // Remove $schema key if present (Gemini compatibility)
+      if (modified.inputSchema && typeof modified.inputSchema === "object" && modified.inputSchema !== null) {
+        if ("$schema" in modified.inputSchema) {
+          modified.inputSchema = { ...modified.inputSchema };
+          delete modified.inputSchema.$schema;
         }
       }
-      // Return as-is if no modification needed
-      return tool;
+
+      // Add MCP tool annotations
+      modified.annotations = {
+        ...(readOnlyTools.has(tool.name) ? { readOnlyHint: true } : {}),
+        ...(destructiveTools.has(tool.name) ? { destructiveHint: true } : {}),
+        openWorldHint: true,
+      };
+
+      return modified;
     });
     // <<< END: Remove $schema for Gemini compatibility >>>
 
@@ -428,20 +435,41 @@ function createServer(): McpServer {
     // Manually retrieve the session context using the session ID passed in the request.
     // This is a robust workaround for AsyncLocalStorage context loss.
     const sessionId = request.params.sessionId;
-    if ((REMOTE_AUTHORIZATION || GITLAB_MCP_OAUTH) && sessionId && authBySession[sessionId]) {
-      const authData = authBySession[sessionId];
-      const sessionContext: SessionAuth = {
-        sessionId,
-        header: authData.header,
-        token: authData.token,
-        lastUsed: authData.lastUsed,
-        apiUrl: authData.apiUrl,
-      };
-      // Run the handler within the retrieved context
-      return await sessionAuthStore.run(sessionContext, () => handleToolCall(request.params));
+    const toolName = request.params.name;
+    const start = Date.now();
+
+    const logCompletion = (result: any) => {
+      const durationMs = Date.now() - start;
+      logger.info({ tool: toolName, event: "tool_call_done", durationMs }, `tool_call_done: ${toolName} (${durationMs}ms)`);
+      return result;
+    };
+
+    const logError = (error: unknown) => {
+      const durationMs = Date.now() - start;
+      logger.error({ tool: toolName, event: "tool_call_error", durationMs, error: error instanceof Error ? error.message : String(error) }, `tool_call_error: ${toolName} (${durationMs}ms)`);
+      throw error;
+    };
+
+    try {
+      if ((REMOTE_AUTHORIZATION || GITLAB_MCP_OAUTH) && sessionId && authBySession[sessionId]) {
+        const authData = authBySession[sessionId];
+        const sessionContext: SessionAuth = {
+          sessionId,
+          header: authData.header,
+          token: authData.token,
+          lastUsed: authData.lastUsed,
+          apiUrl: authData.apiUrl,
+        };
+        // Run the handler within the retrieved context
+        const result = await sessionAuthStore.run(sessionContext, () => handleToolCall(request.params));
+        return logCompletion(result);
+      }
+      // Fallback for non-remote-auth mode or if session is not found
+      const result = await handleToolCall(request.params);
+      return logCompletion(result);
+    } catch (error) {
+      logError(error);
     }
-    // Fallback for non-remote-auth mode or if session is not found
-    return handleToolCall(request.params);
   });
 
   return mcpServer;
@@ -7447,7 +7475,7 @@ async function handleToolCall(params: any) {
     // Lazy OAuth token refresh: only validate/refresh when a tool is actually called
     await ensureValidOAuthToken();
 
-    logger.info(params.name);
+    logger.info({ tool: params.name, event: "tool_call_start" }, `tool_call_start: ${params.name}`);
     switch (params.name) {
       case "execute_graphql": {
         const args = ExecuteGraphQLSchema.parse(params.arguments);

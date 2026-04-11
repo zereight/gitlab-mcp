@@ -6,15 +6,34 @@
 
 ## @zereight/mcp-gitlab
 
-A comprehensive GitLab MCP server for AI clients. Manage projects, merge requests, issues, pipelines, wiki, releases, and more through stdio, SSE, and Streamable HTTP.
+A comprehensive GitLab MCP server for AI clients. Manage projects, merge requests, issues, pipelines, wiki, releases, milestones, and more through stdio, SSE, and Streamable HTTP.
 
-Supports PAT, OAuth, read-only mode, and remote authorization for VS Code, Claude, Cursor, Copilot, and other MCP clients.
+Supports PAT, OAuth, read-only mode, dynamic API URLs, and remote authorization for VS Code, Claude, Cursor, Copilot, and other MCP clients.
+
+### Why use this GitLab MCP?
+
+- Broad GitLab coverage — projects, repository browsing, merge requests, issues, pipelines, wiki, releases, labels, milestones, and more
+- Flexible auth — Personal Access Token, local OAuth2 browser flow, MCP OAuth proxy, and per-request remote authorization
+- Multiple transports — stdio for local clients, SSE for legacy clients, and Streamable HTTP for modern remote deployments
+- Client-friendly setup — examples for Claude Code, Codex, Antigravity, OpenCode, Copilot, Cline, Roo Code, Cursor, Kilo Code, and Amp Code
+- Self-hosted ready — works with custom GitLab instances, proxy settings, and dynamic API URL routing
+
+Quick start: choose either Personal Access Token or OAuth2 setup below and use `@zereight/mcp-gitlab` in your MCP client configuration.
+
+### Client Setup Guides
+
+- [Claude Code Setup Guide](./docs/claude-code-setup.md)
+- [VS Code Setup Guide](./docs/vscode-setup.md)
+- [GitHub Copilot Setup Guide](./docs/copilot-setup.md)
+- [Codex Setup Guide](./docs/codex-setup.md)
+- [Cursor Setup Guide](./docs/cursor-setup.md)
+- [JSON-Based MCP Clients Setup Guide](./docs/json-mcp-clients-setup.md) - for Factory AI Droid, OpenClaw, and OpenCode style clients
+- [OAuth2 Authentication Setup Guide](./docs/oauth-setup.md)
+- [Environment Variables Reference](./docs/environment-variables.md)
 
 ## Usage
 
-### Using with Claude Code, Codex, Antigravity, OpenCode, Copilot, Cline, Roo Code, Cursor, Kilo Code, Amp Code
-
-When using with the Claude App, you need to set up your API key and URLs directly.
+### Setup Overview
 
 #### Authentication Methods
 
@@ -30,74 +49,17 @@ The server supports four authentication methods:
 3. **OAuth2 — MCP Proxy** (`GITLAB_MCP_OAUTH`) — for remote MCP clients such as Claude.ai
 4. **Remote Authorization** (`REMOTE_AUTHORIZATION`) — multi-user deployments where each caller provides their own token
 
-#### Using OAuth2 Authentication
+#### Quick setup paths
 
-OAuth2 provides a more secure authentication flow using browser-based authentication. When enabled, the server will:
+- **Claude Code**: see [Claude Code Setup Guide](./docs/claude-code-setup.md)
+- **VS Code**: see [VS Code Setup Guide](./docs/vscode-setup.md)
+- **GitHub Copilot**: see [GitHub Copilot Setup Guide](./docs/copilot-setup.md)
+- **Codex**: see [Codex Setup Guide](./docs/codex-setup.md)
+- **Cursor**: see [Cursor Setup Guide](./docs/cursor-setup.md)
+- **Factory AI Droid / OpenClaw / OpenCode style clients**: see [JSON-Based MCP Clients Setup Guide](./docs/json-mcp-clients-setup.md)
+- **OAuth browser flow details**: see [OAuth2 Authentication Setup Guide](./docs/oauth-setup.md)
 
-1. Open your browser to GitLab's authorization page
-2. Wait for you to approve the access
-3. Store the token securely for future use
-4. Automatically refresh the token when it expires
-
-For detailed OAuth2 setup instructions, see [OAuth Setup Guide](./docs/oauth-setup.md).
-
-Quick setup - first create a GitLab OAuth application:
-
-1. Go to your GitLab instance: `Admin area` → `Applications`
-2. Create a new application with:
-   - **Name**: `GitLab MCP Server` (or any name you prefer)
-   - **Redirect URI**: `http://127.0.0.1:8888/callback`
-   - **Scopes**: Select `api` (provides complete read/write access to the API)
-3. Copy the **Application ID** (this is your Client ID)
-
-Then configure the MCP server with OAuth:
-
-```json
-{
-  "mcpServers": {
-    "gitlab": {
-      "command": "npx",
-      "args": ["-y", "@zereight/mcp-gitlab"],
-      "env": {
-        "GITLAB_USE_OAUTH": "true",
-        "GITLAB_OAUTH_CLIENT_ID": "your_oauth_client_id",
-        "GITLAB_OAUTH_CLIENT_SECRET": "your_oauth_client_secret", // Required for Confidential apps only
-        "GITLAB_OAUTH_REDIRECT_URI": "http://127.0.0.1:8888/callback",
-        "GITLAB_API_URL": "your_gitlab_api_url",
-        "GITLAB_PROJECT_ID": "your_project_id", // Optional: default project
-        "GITLAB_ALLOWED_PROJECT_IDS": "", // Optional: comma-separated list of allowed project IDs
-        "GITLAB_READ_ONLY_MODE": "false",
-        "USE_GITLAB_WIKI": "false", // use wiki api?
-        "USE_MILESTONE": "false", // use milestone api?
-        "USE_PIPELINE": "false" // use pipeline api?
-      }
-    }
-  }
-}
-```
-
-#### Using Personal Access Token (traditional)
-
-```json
-{
-  "mcpServers": {
-    "gitlab": {
-      "command": "npx",
-      "args": ["-y", "@zereight/mcp-gitlab"],
-      "env": {
-        "GITLAB_PERSONAL_ACCESS_TOKEN": "your_gitlab_token",
-        "GITLAB_API_URL": "your_gitlab_api_url",
-        "GITLAB_PROJECT_ID": "your_project_id", // Optional: default project
-        "GITLAB_ALLOWED_PROJECT_IDS": "", // Optional: comma-separated list of allowed project IDs
-        "GITLAB_READ_ONLY_MODE": "false",
-        "USE_GITLAB_WIKI": "false", // use wiki api?
-        "USE_MILESTONE": "false", // use milestone api?
-        "USE_PIPELINE": "false" // use pipeline api?
-      }
-    }
-  }
-}
-```
+For the simplest local setup, start with a Personal Access Token. For browser-based local auth, use OAuth2. For remote or multi-user deployments, continue to the MCP OAuth and Remote Authorization sections later in this README.
 
 #### Using CLI Arguments (for clients with env var issues)
 
@@ -130,155 +92,6 @@ Some MCP clients (like GitHub Copilot CLI) have issues with environment variable
 - `--use-pipeline=true` - Enable pipeline API (replaces `USE_PIPELINE`)
 
 CLI arguments take precedence over environment variables.
-
-#### vscode .vscode/mcp.json
-
-**Using OAuth2 (Non-Confidential - Recommended):**
-
-```json
-{
-  "servers": {
-    "GitLab-MCP": {
-      "type": "stdio",
-      "command": "npx",
-      "args": ["-y", "@zereight/mcp-gitlab"],
-      "env": {
-        "GITLAB_USE_OAUTH": "true",
-        "GITLAB_OAUTH_CLIENT_ID": "your_oauth_client_id",
-        "GITLAB_OAUTH_REDIRECT_URI": "http://127.0.0.1:8888/callback",
-        "GITLAB_API_URL": "https://gitlab.com/api/v4",
-        "GITLAB_READ_ONLY_MODE": "false",
-        "USE_GITLAB_WIKI": "false",
-        "USE_MILESTONE": "false",
-        "USE_PIPELINE": "false"
-      }
-    }
-  }
-}
-```
-
-**Using OAuth2 (Confidential):**
-
-```json
-{
-  "inputs": [
-    {
-      "type": "promptString",
-      "id": "gitlab-oauth-secret",
-      "description": "GitLab OAuth Client Secret",
-      "password": true
-    }
-  ],
-  "servers": {
-    "GitLab-MCP": {
-      "type": "stdio",
-      "command": "npx",
-      "args": ["-y", "@zereight/mcp-gitlab"],
-      "env": {
-        "GITLAB_USE_OAUTH": "true",
-        "GITLAB_OAUTH_CLIENT_ID": "your_oauth_client_id",
-        "GITLAB_OAUTH_CLIENT_SECRET": "${input:gitlab-oauth-secret}",
-        "GITLAB_OAUTH_REDIRECT_URI": "http://127.0.0.1:8888/callback",
-        "GITLAB_API_URL": "https://gitlab.com/api/v4",
-        "GITLAB_READ_ONLY_MODE": "false"
-      }
-    }
-  }
-}
-```
-
-**Using Personal Access Token:**
-
-```json
-{
-  "inputs": [
-    {
-      "type": "promptString",
-      "id": "gitlab-token",
-      "description": "GitLab Personal Access Token",
-      "password": true
-    }
-  ],
-  "servers": {
-    "GitLab-MCP": {
-      "type": "stdio",
-      "command": "npx",
-      "args": ["-y", "@zereight/mcp-gitlab"],
-      "env": {
-        "GITLAB_PERSONAL_ACCESS_TOKEN": "${input:gitlab-token}",
-        "GITLAB_API_URL": "https://gitlab.com/api/v4",
-        "GITLAB_READ_ONLY_MODE": "false",
-        "USE_GITLAB_WIKI": "false",
-        "USE_MILESTONE": "false",
-        "USE_PIPELINE": "false"
-      }
-    }
-  }
-}
-```
-
-#### Strands Agents SDK (MCP Tools)
-
-```python
-env_vars = {
-        "GITLAB_PERSONAL_ACCESS_TOKEN": gitlab_access_token,
-        "GITLAB_API_URL": gitlab_api_url,
-        "USE_GITLAB_WIKI": use_gitlab_wiki
-        # ......the rest of the optional parameters
-}
-
-stdio_gitlab_mcp_client = MCPClient(
-        lambda: stdio_client(
-            StdioServerParameters(
-                command="npx",
-                args=["-y", "@zereight/mcp-gitlab"],
-                env=env_vars,
-            )
-        )
-    )
-```
-
-#### Docker
-
-> **Note**: For Docker deployments, **Personal Access Token is recommended**. OAuth requires browser-based authentication and a local callback server, which does not work properly in containerized environments.
-
-**Using Personal Access Token (stdio) - Recommended:**
-
-```json
-{
-  "mcpServers": {
-    "gitlab": {
-      "command": "docker",
-      "args": [
-        "run",
-        "-i",
-        "--rm",
-        "-e",
-        "GITLAB_PERSONAL_ACCESS_TOKEN",
-        "-e",
-        "GITLAB_API_URL",
-        "-e",
-        "GITLAB_READ_ONLY_MODE",
-        "-e",
-        "USE_GITLAB_WIKI",
-        "-e",
-        "USE_MILESTONE",
-        "-e",
-        "USE_PIPELINE",
-        "zereight050/gitlab-mcp"
-      ],
-      "env": {
-        "GITLAB_PERSONAL_ACCESS_TOKEN": "your_gitlab_token",
-        "GITLAB_API_URL": "https://gitlab.com/api/v4",
-        "GITLAB_READ_ONLY_MODE": "false",
-        "USE_GITLAB_WIKI": "true",
-        "USE_MILESTONE": "true",
-        "USE_PIPELINE": "true"
-      }
-    }
-  }
-}
-```
 
 - sse
 
@@ -419,119 +232,31 @@ Authorization: Bearer glpat-xxxxxxxxxxxxxxxxxxxx
 
 ### Environment Variables
 
-#### Authentication Configuration
+Use the dedicated reference for the full environment variable list:
 
-- `GITLAB_PERSONAL_ACCESS_TOKEN`: Your GitLab personal access token. **Required in standard mode**; not used when `REMOTE_AUTHORIZATION=true` or when using OAuth.
-- `GITLAB_USE_OAUTH`: Set to `true` to enable OAuth2 authentication instead of personal access token.
-- `GITLAB_OAUTH_CLIENT_ID`: The Client ID from your GitLab OAuth application. Required when using OAuth.
-- `GITLAB_OAUTH_CLIENT_SECRET`: The Client Secret from your GitLab OAuth application. Required only for Confidential applications.
-- `GITLAB_OAUTH_REDIRECT_URI`: The OAuth callback URL. Default: `http://127.0.0.1:8888/callback`
-- `GITLAB_OAUTH_TOKEN_PATH`: Custom path to store the OAuth token. Default: `~/.gitlab-mcp-token.json`
-- `REMOTE_AUTHORIZATION`: When set to 'true', enables remote per-session authorization via HTTP headers. In this mode:
-  - The server accepts GitLab PAT tokens from HTTP headers (`Authorization: Bearer <token>`, `Private-Token: <token>` or `Job-Token: <token>`) on a per-session basis
-  - `GITLAB_PERSONAL_ACCESS_TOKEN` environment variable is **not required** and ignored
-  - Only works with **Streamable HTTP transport** (`STREAMABLE_HTTP=true`) because session management was already handled by the transport layer
-  - **SSE transport is disabled** - attempting to use SSE with remote authorization will cause the server to exit with an error
-  - Each client session can use a different token, enabling multi-user support with secure session isolation
-  - Tokens are stored per session and automatically cleaned up when sessions close or timeout
-- `GITLAB_MCP_OAUTH`: Set to `true` to enable the server-side MCP OAuth proxy mode. See [MCP OAuth Setup](#mcp-oauth-setup-claudeai-native-oauth) for details.
-- `GITLAB_OAUTH_APP_ID`: Client ID of the pre-registered GitLab OAuth application. Required when `GITLAB_MCP_OAUTH=true`.
-- `GITLAB_OAUTH_SCOPES`: Comma-separated list of GitLab scopes to request during the MCP OAuth flow (e.g. `api,read_user`). Defaults to `api` (or `read_api` when `GITLAB_READ_ONLY_MODE=true`). Only used when `GITLAB_MCP_OAUTH=true`. The pre-registered application must be configured with at least these scopes.
-- `SESSION_TIMEOUT_SECONDS`: Session auth token timeout in seconds. Default: `3600` (1 hour). Valid range: 1-86400 seconds (recommended: 60+). After this period of inactivity, the auth token is removed but the transport session remains active. The client must provide auth headers again on the next request. Only applies when `REMOTE_AUTHORIZATION=true`.
+- [Environment Variables Reference](./docs/environment-variables.md)
 
-#### General Configuration
+Most users only need one of these starting sets:
 
-- `GITLAB_API_URL`: Your GitLab API URL. (Default: `https://gitlab.com/api/v4`)
-- `GITLAB_PROJECT_ID`: Default project ID. If set, Overwrite this value when making an API request.
-- `GITLAB_ALLOWED_PROJECT_IDS`: Optional comma-separated list of allowed project IDs. When set with a single value, acts as a default project (like the old "lock" mode). When set with multiple values, restricts access to only those projects. Examples:
-  - Single value `123`: MCP server can only access project 123 and uses it as default
-  - Multiple values `123,456,789`: MCP server can access projects 123, 456, and 789 but requires explicit project ID in requests
-- `GITLAB_READ_ONLY_MODE`: When set to 'true', restricts the server to only expose read-only operations. Useful for enhanced security or when write access is not needed. Also useful for using with Cursor and it's 40 tool limit.
-- `GITLAB_DENIED_TOOLS_REGEX`: When set as a regular expression, it excludes the matching tools.
-- `USE_GITLAB_WIKI`: Legacy flag. Wiki features are now enabled by default. When set to 'true', ensures wiki-related tools are included even if the `wiki` toolset is not explicitly listed in `GITLAB_TOOLSETS`.
-- `USE_MILESTONE`: Legacy flag. Milestone features are now enabled by default. When set to 'true', ensures milestone-related tools are included even if the `milestones` toolset is not explicitly listed in `GITLAB_TOOLSETS`.
-- `USE_PIPELINE`: Legacy flag. Pipeline features are now enabled by default. When set to 'true', ensures pipeline-related tools are included even if the `pipelines` toolset is not explicitly listed in `GITLAB_TOOLSETS`.
-- `GITLAB_TOOLSETS`: Comma-separated list of toolset IDs to enable. When empty or unset, default toolsets are used. Set to `"all"` to enable every toolset. Available toolsets (default toolsets marked with `*`):
+- **Local PAT**: `GITLAB_PERSONAL_ACCESS_TOKEN`, `GITLAB_API_URL`
+- **Local OAuth**: `GITLAB_USE_OAUTH=true`, `GITLAB_OAUTH_CLIENT_ID`, `GITLAB_OAUTH_REDIRECT_URI`, `GITLAB_API_URL`
+- **Remote multi-user HTTP**: `STREAMABLE_HTTP=true`, `REMOTE_AUTHORIZATION=true`, `HOST`, `PORT`
 
-  - `merge_requests`\* — MR operations, notes, discussions, draft notes, threads, versions, file diffs, conflicts (34 tools)
-  - `issues`\* — Issue CRUD, notes, links, discussions (14 tools)
-  - `repositories`\* — Search, create, file contents, push, fork, tree (7 tools)
-  - `branches`\* — Branch creation, commits, diffs (4 tools)
-  - `projects`\* — Project/namespace info, group projects, iterations (8 tools)
-  - `labels`\* — Label CRUD (5 tools)
-  - `pipelines`\* — Pipeline, job, deployment, environment, and artifact operations (19 tools)
-  - `milestones`\* — Milestone CRUD, issues, MRs, burndown (9 tools)
-  - `wiki`\* — Wiki page CRUD for projects and groups (10 tools)
-  - `releases`\* — Release CRUD, evidence, asset download (7 tools)
-  - `users`\* — User info, events, markdown upload, attachments (5 tools)
-  - `workitems` — Work item CRUD via GraphQL, type conversion, statuses, custom fields, notes, timeline events (12 tools, opt-in)
-  - `webhooks` — Webhook listing and event inspection (3 tools, opt-in)
-  - `search` — Code search across projects, groups, or globally (3 tools, requires advanced search or exact code search enabled)
+Commonly referenced variables:
 
-  Note: `execute_graphql` is not in any toolset and must be added individually via `GITLAB_TOOLS` if needed.
-  Exposing arbitrary GraphQL would allow bypassing toolset boundaries (e.g. querying data that the user intentionally disabled via toolsets like wiki or pipelines), which is a security and permission-containment concern. Keeping `execute_graphql` out of all toolsets and requiring explicit opt-in via `GITLAB_TOOLS=execute_graphql` is intentional, to align with that principle rather than for backward compatibility.
-  CLI arg: `--toolsets`
+- `GITLAB_API_URL`
+- `GITLAB_PERSONAL_ACCESS_TOKEN`
+- `GITLAB_USE_OAUTH`
+- `REMOTE_AUTHORIZATION`
+- `GITLAB_MCP_OAUTH`
 
-- `GITLAB_TOOLS`: Comma-separated list of individual tool names to add on top of the enabled toolsets (additive). Useful for cherry-picking specific tools without enabling an entire toolset. Example: `GITLAB_TOOLS="list_pipelines,execute_graphql"`. CLI arg: `--tools`
+The reference document also covers:
 
-  Combined logic: `final tools = (tools from enabled toolsets) ∪ (GITLAB_TOOLS) ∪ (legacy flag overrides)`
-
-  Examples:
-
-  ```bash
-  # Default behavior (unchanged)
-  GITLAB_PERSONAL_ACCESS_TOKEN=xxx npx @zereight/mcp-gitlab
-
-  # Only issues and repositories
-  GITLAB_TOOLSETS="issues,repositories" npx @zereight/mcp-gitlab
-
-  # All toolsets
-  GITLAB_TOOLSETS="all" npx @zereight/mcp-gitlab
-
-  # Default toolsets + one extra pipeline tool
-  GITLAB_TOOLS="list_pipelines" npx @zereight/mcp-gitlab
-
-  # Specific toolsets + individual tools
-  GITLAB_TOOLSETS="issues,merge_requests" GITLAB_TOOLS="list_pipelines,get_pipeline" npx @zereight/mcp-gitlab
-
-  # Legacy flags still work (backward compatible)
-  USE_PIPELINE=true npx @zereight/mcp-gitlab
-  ```
-
-- `GITLAB_AUTH_COOKIE_PATH`: Path to an authentication cookie file for GitLab instances that require cookie-based authentication. When provided, the cookie will be included in all GitLab API requests.
-- `SSE`: When set to 'true', enables the Server-Sent Events transport.
-- `STREAMABLE_HTTP`: When set to 'true', enables the Streamable HTTP transport. If both **SSE** and **STREAMABLE_HTTP** are set to 'true', the server will prioritize Streamable HTTP over SSE transport.
-- `GITLAB_COMMIT_FILES_PER_PAGE`: The number of files per page that GitLab returns for commit diffs. This value should match the server-side GitLab setting. Adjust this if your GitLab instance uses a custom per-page value for commit diffs.
-- `GITLAB_REPO_FILE_ENCODING`: Encoding for repository file create/update and related commit payloads sent to the GitLab API. Use `text` (default) or `base64`. Equivalent CLI: `--repo-file-encoding=text|base64`.
-
-#### Performance & Security Configuration
-
-- `HOST`: Server host address. Default: `127.0.0.1` (localhost only). Set to `0.0.0.0` to allow external connections (required for Docker with port forwarding).
-- `MAX_SESSIONS`: Maximum number of concurrent sessions allowed. Default: `1000`. Valid range: 1-10000. When limit is reached, new connections are rejected with HTTP 503.
-- `MAX_REQUESTS_PER_MINUTE`: Rate limit per session in requests per minute. Default: `60`. Valid range: 1-1000. Exceeded requests return HTTP 429.
-- `PORT`: Server port. Default: `3002`. Valid range: 1-65535.
-- `HTTP_PROXY`: HTTP proxy server URL for outgoing requests. Example: `http://proxy.example.com:8080`. Supports HTTP/HTTPS and SOCKS proxies (URLs starting with `socks://` or `socks5://`). CLI arg: `--http-proxy`
-- `HTTPS_PROXY`: HTTPS proxy server URL for outgoing requests. Example: `https://proxy.example.com:8080`. Supports HTTP/HTTPS and SOCKS proxies. CLI arg: `--https-proxy`
-- `NO_PROXY`: Comma-separated list of hosts that should bypass the proxy. Supports:
-  - Exact hostname matches (e.g., `localhost`, `gitlab.internal.com`)
-  - Domain suffix matches (e.g., `.internal.com` matches any subdomain)
-  - IP addresses (e.g., `127.0.0.1`, `192.168.1.1`)
-  - Port-specific matches (e.g., `example.com:443`)
-  - Wildcard `*` to bypass proxy for all hosts
-  - Example: `NO_PROXY=localhost,127.0.0.1,.internal.com`
-  - CLI arg: `--no-proxy`
-
-#### Monitoring Endpoints
-
-When using Streamable HTTP transport, the following endpoints are available:
-
-- `/health`: Health check endpoint returning server status, active sessions count, and uptime.
-- `/metrics`: Detailed metrics including:
-  - Active and total session counts
-  - Authentication metrics (failures, expirations)
-  - Rate limiting statistics
-  - Resource usage (memory, uptime)
-  - Configuration summary
+- auth and OAuth variables
+- MCP OAuth proxy variables
+- project and tool filtering variables
+- transport and session variables
+- proxy and TLS variables
 
 ### Remote Authorization Setup (Multi-User Support)
 
@@ -687,6 +412,15 @@ No `headers` field is needed — Claude.ai obtains the token via OAuth automatic
   session. This allows PATs and CI job tokens to be used alongside the OAuth flow on
   the same server instance. `Authorization: Bearer` is always treated as an OAuth
   token — use `Private-Token` for PAT-based header auth.
+
+## Agent Skill Files
+
+Pre-built skill files are available in [`skills/gitlab-mcp/`](./skills/gitlab-mcp/) for AI agents that support skill/instruction loading (Claude Code, GitHub Copilot, Cursor, etc.).
+
+- **[SKILL.md](./skills/gitlab-mcp/SKILL.md)** — Core guide (~800 tokens) with toolset overview, key workflows, and parameter hints
+- **[reference/](./skills/gitlab-mcp/reference/)** — Detailed workflow docs for code review, merge requests, issues, and pipelines
+
+Register the skill directory in your AI client to get optimal tool usage guidance without relying solely on the full ListTools response.
 
 ## Tools 🛠️
 

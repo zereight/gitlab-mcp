@@ -154,29 +154,27 @@ import {
 export const allTools = [
   {
     name: "merge_merge_request",
-    description: "Merge a merge request in a GitLab project",
+    description: "Merge a merge request",
     inputSchema: toJSONSchema(MergeMergeRequestSchema),
   },
   {
     name: "approve_merge_request",
-    description: "Approve a merge request. Requires appropriate permissions.",
+    description: "Approve a merge request",
     inputSchema: toJSONSchema(ApproveMergeRequestSchema),
   },
   {
     name: "unapprove_merge_request",
-    description: "Unapprove a previously approved merge request. Requires appropriate permissions.",
+    description: "Unapprove a merge request",
     inputSchema: toJSONSchema(UnapproveMergeRequestSchema),
   },
   {
     name: "get_merge_request_approval_state",
-    description:
-      "Get merge request approval details including approvers (uses approval_state when available, falls back to approvals endpoint)",
+    description: "Get merge request approval details including approvers",
     inputSchema: toJSONSchema(GetMergeRequestApprovalStateSchema),
   },
   {
     name: "get_merge_request_conflicts",
-    description:
-      "Get the conflicts of a merge request in a GitLab project",
+    description: "Get the conflicts of a merge request",
     inputSchema: toJSONSchema(GetMergeRequestConflictsSchema),
   },
   {
@@ -186,7 +184,7 @@ export const allTools = [
   },
   {
     name: "create_or_update_file",
-    description: "Create or update a single file in a GitLab project",
+    description: "Create or update a file in a GitLab project",
     inputSchema: toJSONSchema(CreateOrUpdateFileSchema),
   },
   {
@@ -201,73 +199,57 @@ export const allTools = [
   },
   {
     name: "get_file_contents",
-    description: "Get the contents of a file or directory from a GitLab project",
+    description: "Get contents of a file or directory from a GitLab project",
     inputSchema: toJSONSchema(GetFileContentsSchema),
   },
   {
     name: "push_files",
-    description: "Push multiple files to a GitLab project in a single commit",
+    description: "Push multiple files in a single commit",
     inputSchema: toJSONSchema(PushFilesSchema),
   },
   {
     name: "create_issue",
-    description: "Create a new issue in a GitLab project",
+    description: "Create a new issue",
     inputSchema: toJSONSchema(CreateIssueSchema),
   },
   {
     name: "create_merge_request",
-    description: "Create a new merge request in a GitLab project",
+    description: "Create a new merge request",
     inputSchema: toJSONSchema(CreateMergeRequestSchema),
   },
   {
     name: "fork_repository",
-    description: "Fork a GitLab project to your account or specified namespace",
+    description: "Fork a project to your account or specified namespace",
     inputSchema: toJSONSchema(ForkRepositorySchema),
   },
   {
     name: "create_branch",
-    description: "Create a new branch in a GitLab project",
+    description: "Create a new branch",
     inputSchema: toJSONSchema(CreateBranchSchema),
   },
   {
     name: "get_merge_request",
-    description:
-      "Get details of a merge request with compact deployment, commit addition, and approval summaries (Either mergeRequestIid or branchName must be provided)",
+    description: "Get details of a merge request (mergeRequestIid or branchName required)",
     inputSchema: toJSONSchema(GetMergeRequestSchema),
   },
   {
     name: "get_merge_request_diffs",
-    description:
-      "Get the changes/diffs of a merge request (Either mergeRequestIid or branchName must be provided)",
+    description: "Get the changes/diffs of a merge request (mergeRequestIid or branchName required)",
     inputSchema: toJSONSchema(GetMergeRequestDiffsSchema),
   },
   {
     name: "list_merge_request_changed_files",
-    description:
-      "STEP 1 of code review workflow. " +
-      "Returns ONLY the list of changed file paths in a merge request — WITHOUT diff content. " +
-      "Call this first to get file paths, then call get_merge_request_file_diff with multiple files in a single batched call (recommended 3-5 files per call). " +
-      "This avoids loading the entire diff payload at once and reduces API calls. " +
-      "Supports excluded_file_patterns filtering using regex. " +
-      "Returns: new_path, old_path, new_file, deleted_file, renamed_file flags for each file. " +
-      "(Either mergeRequestIid or branchName must be provided)",
+    description: "List changed file paths in a merge request without diff content (mergeRequestIid or branchName required)",
     inputSchema: toJSONSchema(ListMergeRequestChangedFilesSchema),
   },
   {
     name: "list_merge_request_diffs",
-    description:
-      "List merge request diffs with pagination support (Either mergeRequestIid or branchName must be provided)",
+    description: "List merge request diffs with pagination (mergeRequestIid or branchName required)",
     inputSchema: toJSONSchema(ListMergeRequestDiffsSchema),
   },
   {
     name: "get_merge_request_file_diff",
-    description:
-      "STEP 2 of code review workflow. " +
-      "Get diffs for one or more files from a merge request. " +
-      "Call list_merge_request_changed_files first to get file paths, then pass them as an array to fetch their diffs efficiently. " +
-      "Batching multiple files (recommended 3-5) is supported and preferred over individual requests. " +
-      "Returns an array of results - one per requested file path. Files not found are returned with error messages. " +
-      "(Either mergeRequestIid or branchName must be provided)",
+    description: "Get diffs for specific files from a merge request (mergeRequestIid or branchName required)",
     inputSchema: toJSONSchema(GetMergeRequestFileDiffSchema),
   },
   {
@@ -282,12 +264,12 @@ export const allTools = [
   },
   {
     name: "get_branch_diffs",
-    description: "Get the changes/diffs between two branches or commits in a GitLab project",
+    description: "Get diffs between two branches or commits",
     inputSchema: toJSONSchema(GetBranchDiffsSchema),
   },
   {
     name: "update_merge_request",
-    description: "Update a merge request (Either mergeRequestIid or branchName must be provided)",
+    description: "Update a merge request (mergeRequestIid or branchName required)",
     inputSchema: toJSONSchema(UpdateMergeRequestSchema),
   },
   {
@@ -392,33 +374,32 @@ export const allTools = [
   },
   {
     name: "create_issue_note",
-    description: "Add a note to an issue. Creates a top-level comment, or replies to a discussion thread if discussion_id is provided",
+    description: "Add a note to an issue, optionally replying to a discussion thread",
     inputSchema: toJSONSchema(CreateIssueNoteSchema),
   },
   {
     name: "list_issues",
-    description:
-      "List issues (default: created by current user only; use scope='all' for all accessible issues)",
+    description: "List issues (default: created by current user; use scope='all' for all)",
     inputSchema: toJSONSchema(ListIssuesSchema),
   },
   {
     name: "my_issues",
-    description: "List issues assigned to the authenticated user (defaults to open issues)",
+    description: "List issues assigned to the authenticated user",
     inputSchema: toJSONSchema(MyIssuesSchema),
   },
   {
     name: "get_issue",
-    description: "Get details of a specific issue in a GitLab project",
+    description: "Get details of a specific issue",
     inputSchema: toJSONSchema(GetIssueSchema),
   },
   {
     name: "update_issue",
-    description: "Update an issue in a GitLab project",
+    description: "Update an issue",
     inputSchema: toJSONSchema(UpdateIssueSchema),
   },
   {
     name: "delete_issue",
-    description: "Delete an issue from a GitLab project",
+    description: "Delete an issue",
     inputSchema: toJSONSchema(DeleteIssueSchema),
   },
   {
@@ -428,7 +409,7 @@ export const allTools = [
   },
   {
     name: "list_issue_discussions",
-    description: "List discussions for an issue in a GitLab project",
+    description: "List discussions for an issue",
     inputSchema: toJSONSchema(ListIssueDiscussionsSchema),
   },
   {
@@ -503,12 +484,12 @@ export const allTools = [
   },
   {
     name: "list_group_projects",
-    description: "List projects in a GitLab group with filtering options",
+    description: "List projects in a group",
     inputSchema: toJSONSchema(ListGroupProjectsSchema),
   },
   {
     name: "list_wiki_pages",
-    description: "List wiki pages in a GitLab project",
+    description: "List wiki pages in a project",
     inputSchema: toJSONSchema(ListWikiPagesSchema),
   },
   {
@@ -518,22 +499,22 @@ export const allTools = [
   },
   {
     name: "create_wiki_page",
-    description: "Create a new wiki page in a GitLab project",
+    description: "Create a wiki page in a project",
     inputSchema: toJSONSchema(CreateWikiPageSchema),
   },
   {
     name: "update_wiki_page",
-    description: "Update an existing wiki page in a GitLab project",
+    description: "Update a wiki page in a project",
     inputSchema: toJSONSchema(UpdateWikiPageSchema),
   },
   {
     name: "delete_wiki_page",
-    description: "Delete a wiki page from a GitLab project",
+    description: "Delete a wiki page from a project",
     inputSchema: toJSONSchema(DeleteWikiPageSchema),
   },
   {
     name: "list_group_wiki_pages",
-    description: "List wiki pages in a GitLab group",
+    description: "List wiki pages in a group",
     inputSchema: toJSONSchema(ListGroupWikiPagesSchema),
   },
   {
@@ -543,52 +524,52 @@ export const allTools = [
   },
   {
     name: "create_group_wiki_page",
-    description: "Create a new wiki page in a GitLab group",
+    description: "Create a wiki page in a group",
     inputSchema: toJSONSchema(CreateGroupWikiPageSchema),
   },
   {
     name: "update_group_wiki_page",
-    description: "Update an existing wiki page in a GitLab group",
+    description: "Update a wiki page in a group",
     inputSchema: toJSONSchema(UpdateGroupWikiPageSchema),
   },
   {
     name: "delete_group_wiki_page",
-    description: "Delete a wiki page from a GitLab group",
+    description: "Delete a wiki page from a group",
     inputSchema: toJSONSchema(DeleteGroupWikiPageSchema),
   },
   {
     name: "get_repository_tree",
-    description: "Get the repository tree for a GitLab project (list files and directories)",
+    description: "List files and directories in a repository",
     inputSchema: toJSONSchema(GetRepositoryTreeSchema),
   },
   {
     name: "list_pipelines",
-    description: "List pipelines in a GitLab project with filtering options",
+    description: "List pipelines with filtering options",
     inputSchema: toJSONSchema(ListPipelinesSchema),
   },
   {
     name: "get_pipeline",
-    description: "Get details of a specific pipeline in a GitLab project",
+    description: "Get details of a specific pipeline",
     inputSchema: toJSONSchema(GetPipelineSchema),
   },
   {
     name: "list_deployments",
-    description: "List deployments in a GitLab project with filtering options",
+    description: "List deployments with filtering options",
     inputSchema: toJSONSchema(ListDeploymentsSchema),
   },
   {
     name: "get_deployment",
-    description: "Get details of a specific deployment in a GitLab project",
+    description: "Get details of a specific deployment",
     inputSchema: toJSONSchema(GetDeploymentSchema),
   },
   {
     name: "list_environments",
-    description: "List environments in a GitLab project",
+    description: "List environments in a project",
     inputSchema: toJSONSchema(ListEnvironmentsSchema),
   },
   {
     name: "get_environment",
-    description: "Get details of a specific environment in a GitLab project",
+    description: "Get details of a specific environment",
     inputSchema: toJSONSchema(GetEnvironmentSchema),
   },
   {
@@ -598,8 +579,7 @@ export const allTools = [
   },
   {
     name: "list_pipeline_trigger_jobs",
-    description:
-      "List all trigger jobs (bridges) in a specific pipeline that trigger downstream pipelines",
+    description: "List trigger jobs (bridges) in a pipeline",
     inputSchema: toJSONSchema(ListPipelineTriggerJobsSchema),
   },
   {
@@ -609,8 +589,7 @@ export const allTools = [
   },
   {
     name: "get_pipeline_job_output",
-    description:
-      "Get the output/trace of a GitLab pipeline job with optional pagination to limit context window usage",
+    description: "Get the output/trace of a pipeline job with optional pagination",
     inputSchema: toJSONSchema(GetPipelineJobOutputSchema),
   },
   {
@@ -645,30 +624,27 @@ export const allTools = [
   },
   {
     name: "list_job_artifacts",
-    description: "List artifact files in a job's artifacts archive. Returns file names, paths, types, and sizes.",
+    description: "List artifact files in a job's archive",
     inputSchema: toJSONSchema(ListJobArtifactsSchema),
   },
   {
     name: "download_job_artifacts",
-    description:
-      "Download the entire artifact archive (zip) for a job to a local path. Returns the saved file path.",
+    description: "Download job artifact archive (zip) to a local path",
     inputSchema: toJSONSchema(DownloadJobArtifactsSchema),
   },
   {
     name: "get_job_artifact_file",
-    description:
-      "Get the content of a single file from a job's artifacts by its path within the archive",
+    description: "Get content of a single file from a job's artifacts",
     inputSchema: toJSONSchema(GetJobArtifactFileSchema),
   },
   {
     name: "list_merge_requests",
-    description:
-      "List merge requests. Without project_id, lists MRs assigned to the authenticated user by default (use scope='all' for all accessible MRs). With project_id, lists MRs for that specific project.",
+    description: "List merge requests (without project_id: user's MRs; with project_id: project MRs)",
     inputSchema: toJSONSchema(ListMergeRequestsSchema),
   },
   {
     name: "list_milestones",
-    description: "List milestones in a GitLab project with filtering options",
+    description: "List milestones with filtering options",
     inputSchema: toJSONSchema(ListProjectMilestonesSchema),
   },
   {
@@ -678,17 +654,17 @@ export const allTools = [
   },
   {
     name: "create_milestone",
-    description: "Create a new milestone in a GitLab project",
+    description: "Create a new milestone",
     inputSchema: toJSONSchema(CreateProjectMilestoneSchema),
   },
   {
     name: "edit_milestone",
-    description: "Edit an existing milestone in a GitLab project",
+    description: "Edit an existing milestone",
     inputSchema: toJSONSchema(EditProjectMilestoneSchema),
   },
   {
     name: "delete_milestone",
-    description: "Delete a milestone from a GitLab project",
+    description: "Delete a milestone",
     inputSchema: toJSONSchema(DeleteProjectMilestoneSchema),
   },
   {
@@ -738,25 +714,22 @@ export const allTools = [
   },
   {
     name: "upload_markdown",
-    description: "Upload a file to a GitLab project for use in markdown content",
+    description: "Upload a file for use in markdown content",
     inputSchema: toJSONSchema(MarkdownUploadSchema),
   },
   {
     name: "download_attachment",
-    description:
-      "Download an uploaded file from a GitLab project by secret and filename. Image files (png, jpg, gif, webp, svg, bmp, ico) are returned inline as base64 image content so the AI can view them directly. Non-image files are saved to disk. Use local_path to force saving image files to disk instead.",
+    description: "Download an uploaded file from a project (images returned as base64; use local_path to save to disk)",
     inputSchema: toJSONSchema(DownloadAttachmentSchema),
   },
   {
     name: "list_events",
-    description:
-      "List all events for the currently authenticated user. Note: before/after parameters accept date format YYYY-MM-DD only",
+    description: "List events for the authenticated user (before/after: YYYY-MM-DD)",
     inputSchema: toJSONSchema(ListEventsSchema),
   },
   {
     name: "get_project_events",
-    description:
-      "List all visible events for a specified project. Note: before/after parameters accept date format YYYY-MM-DD only",
+    description: "List events for a project (before/after: YYYY-MM-DD)",
     inputSchema: toJSONSchema(GetProjectEventsSchema),
   },
   {
@@ -771,22 +744,22 @@ export const allTools = [
   },
   {
     name: "create_release",
-    description: "Create a new release in a GitLab project",
+    description: "Create a new release",
     inputSchema: toJSONSchema(CreateReleaseSchema),
   },
   {
     name: "update_release",
-    description: "Update an existing release in a GitLab project",
+    description: "Update an existing release",
     inputSchema: toJSONSchema(UpdateReleaseSchema),
   },
   {
     name: "delete_release",
-    description: "Delete a release from a GitLab project (does not delete the associated tag)",
+    description: "Delete a release (does not delete the tag)",
     inputSchema: toJSONSchema(DeleteReleaseSchema),
   },
   {
     name: "create_release_evidence",
-    description: "Create release evidence for an existing release (GitLab Premium/Ultimate only)",
+    description: "Create release evidence (Premium/Ultimate)",
     inputSchema: toJSONSchema(CreateReleaseEvidenceSchema),
   },
   {
@@ -797,111 +770,93 @@ export const allTools = [
   // --- Work item tools (GraphQL-based) ---
   {
     name: "get_work_item",
-    description:
-      "Get a single work item with full details including status, hierarchy (parent/children), type, labels, assignees, and all widgets.",
+    description: "Get a work item with full details including status, hierarchy, type, and widgets",
     inputSchema: toJSONSchema(GetWorkItemSchema),
   },
   {
     name: "list_work_items",
-    description:
-      "List work items in a project with filters (type, state, search, assignees, labels). Returns items with status and hierarchy info.",
+    description: "List work items with filters (type, state, search, assignees, labels)",
     inputSchema: toJSONSchema(ListWorkItemsSchema),
   },
   {
     name: "create_work_item",
-    description:
-      "Create a new work item (issue, task, incident, test_case, epic, key_result, objective, requirement, ticket). Supports setting title, description, labels, assignees, weight, parent, health status, start/due dates, milestone, and confidentiality.",
+    description: "Create a work item (issue, task, incident, epic, etc.) with full field support",
     inputSchema: toJSONSchema(CreateWorkItemSchema),
   },
   {
     name: "update_work_item",
-    description:
-      "Update a work item. Can modify title, description, labels, assignees, weight, state, status, parent hierarchy, children, health status, start/due dates, milestone, confidentiality, linked items, and custom fields.",
+    description: "Update a work item (title, description, labels, assignees, state, parent, custom fields, etc.)",
     inputSchema: toJSONSchema(UpdateWorkItemSchema),
   },
   {
     name: "convert_work_item_type",
-    description:
-      "Convert a work item to a different type (e.g. issue to task, task to incident).",
+    description: "Convert a work item to a different type",
     inputSchema: toJSONSchema(ConvertWorkItemTypeSchema),
   },
   {
     name: "list_work_item_statuses",
-    description:
-      "List available statuses for a work item type in a project. Requires GitLab Premium/Ultimate with configurable statuses.",
+    description: "List available statuses for a work item type (Premium/Ultimate)",
     inputSchema: toJSONSchema(ListWorkItemStatusesSchema),
   },
   {
     name: "list_custom_field_definitions",
-    description:
-      "List available custom field definitions for a work item type in a project. Returns field names, types, and IDs needed for setting custom fields via update_work_item.",
+    description: "List custom field definitions for a work item type",
     inputSchema: toJSONSchema(ListCustomFieldDefinitionsSchema),
   },
   {
     name: "move_work_item",
-    description:
-      "Move a work item (issue, task, etc.) to a different project. Uses GitLab GraphQL issueMove mutation.",
+    description: "Move a work item to a different project",
     inputSchema: toJSONSchema(MoveWorkItemSchema),
   },
   {
     name: "list_work_item_notes",
-    description:
-      "List notes and discussions on a work item. Returns threaded discussions with author, body, timestamps, and system/internal flags.",
+    description: "List notes and discussions on a work item",
     inputSchema: toJSONSchema(ListWorkItemNotesSchema),
   },
   {
     name: "create_work_item_note",
-    description:
-      "Add a note/comment to a work item. Supports Markdown, internal notes, and threaded replies.",
+    description: "Add a note to a work item (supports Markdown, internal notes, threads)",
     inputSchema: toJSONSchema(CreateWorkItemNoteSchema),
   },
   // --- Incident timeline event tools ---
   {
     name: "get_timeline_events",
-    description:
-      "List timeline events for an incident. Returns chronological events with notes, timestamps, and tags (Start time, End time, Impact detected, etc.).",
+    description: "List timeline events for an incident",
     inputSchema: toJSONSchema(GetTimelineEventsSchema),
   },
   {
     name: "create_timeline_event",
-    description:
-      "Create a timeline event on an incident. Supports tags: 'Start time', 'End time', 'Impact detected', 'Response initiated', 'Impact mitigated', 'Cause identified'.",
+    description: "Create a timeline event on an incident",
     inputSchema: toJSONSchema(CreateTimelineEventSchema),
   },
   {
     name: "list_webhooks",
-    description:
-      "List all configured webhooks for a GitLab project or group. Provide either project_id or group_id.",
+    description: "List webhooks for a project or group",
     inputSchema: toJSONSchema(ListWebhooksSchema),
   },
   {
     name: "list_webhook_events",
-    description:
-      "List recent webhook events (past 7 days) for a project or group webhook. Use summary mode for overview, then get_webhook_event for full details.",
+    description: "List recent webhook events (past 7 days)",
     inputSchema: toJSONSchema(ListWebhookEventsSchema),
   },
   {
     name: "get_webhook_event",
-    description:
-      "Get full details of a specific webhook event by ID, including request/response payloads. Searches up to 500 most recent events.",
+    description: "Get full details of a specific webhook event",
     inputSchema: toJSONSchema(GetWebhookEventSchema),
   },
   {
     name: "search_code",
-    description:
-      "Search for code across all projects on the GitLab instance (requires advanced search or exact code search to be enabled). If exact code search (Zoekt) is enabled, the search query supports rich syntax including file:, lang:, sym: filters.",
+    description: "Search for code across all projects (requires advanced search or Zoekt)",
     inputSchema: toJSONSchema(SearchCodeSchema),
   },
   {
     name: "search_project_code",
-    description:
-      "Search for code within a specific GitLab project (requires advanced search or exact code search to be enabled). If exact code search (Zoekt) is enabled, the search query supports rich syntax including file:, lang:, sym: filters.",
+    description: "Search for code within a specific project (requires advanced search or Zoekt)",
     inputSchema: toJSONSchema(SearchProjectCodeSchema),
   },
   {
     name: "search_group_code",
-    description:
-      "Search for code within a specific GitLab group (requires advanced search or exact code search to be enabled). If exact code search (Zoekt) is enabled, the search query supports rich syntax including file:, lang:, sym: filters.",
+    description: "Search for code within a specific group (requires advanced search or Zoekt)",
     inputSchema: toJSONSchema(SearchGroupCodeSchema),
   },
 ];
@@ -989,6 +944,22 @@ export const readOnlyTools = new Set([
   "list_webhooks",
   "list_webhook_events",
   "get_webhook_event",
+]);
+
+// Define which tools are destructive (data loss potential)
+export const destructiveTools = new Set([
+  "delete_issue",
+  "delete_issue_link",
+  "delete_label",
+  "delete_wiki_page",
+  "delete_group_wiki_page",
+  "delete_milestone",
+  "delete_release",
+  "delete_merge_request_note",
+  "delete_merge_request_discussion_note",
+  "delete_draft_note",
+  "merge_merge_request",
+  "push_files",
 ]);
 
 // Define which tools are related to wiki and can be toggled by USE_GITLAB_WIKI
@@ -1177,7 +1148,7 @@ export const TOOLSET_DEFINITIONS: readonly ToolsetDefinition[] = [
   },
   {
     id: "pipelines",
-    isDefault: true,
+    isDefault: false,
     tools: new Set([
       "list_pipelines",
       "get_pipeline",
@@ -1202,7 +1173,7 @@ export const TOOLSET_DEFINITIONS: readonly ToolsetDefinition[] = [
   },
   {
     id: "milestones",
-    isDefault: true,
+    isDefault: false,
     tools: new Set([
       "list_milestones",
       "get_milestone",
@@ -1217,7 +1188,7 @@ export const TOOLSET_DEFINITIONS: readonly ToolsetDefinition[] = [
   },
   {
     id: "wiki",
-    isDefault: true,
+    isDefault: false,
     tools: new Set([
       "list_wiki_pages",
       "get_wiki_page",
@@ -1233,7 +1204,7 @@ export const TOOLSET_DEFINITIONS: readonly ToolsetDefinition[] = [
   },
   {
     id: "releases",
-    isDefault: true,
+    isDefault: false,
     tools: new Set([
       "list_releases",
       "get_release",
