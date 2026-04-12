@@ -44,7 +44,9 @@ import express, { NextFunction, Request, Response } from "express";
 import fetchCookie from "fetch-cookie";
 import fs from "node:fs";
 import os from "node:os";
-import nodeFetch from "node-fetch";
+import { HttpProxyAgent } from "http-proxy-agent";
+import { HttpsProxyAgent } from "https-proxy-agent";
+import nodeFetch, { Headers } from "node-fetch";
 import path, { dirname } from "node:path";
 import { CookieJar, parse as parseCookie } from "tough-cookie";
 import { fileURLToPath, URL } from "node:url";
@@ -907,9 +909,29 @@ const createCookieJar = async (): Promise<CookieJar | null> => {
   return jar;
 };
 
+// Auth retry helpers — extracted to auth-retry.ts for testability (no side effects)
+export {
+  headersToPlainObject,
+  isNonReplayableBody,
+  wrapWithAuthRetry,
+  type AuthRetryConfig,
+} from "./auth-retry.js";
+import { wrapWithAuthRetry } from "./auth-retry.js";
+
+/** Build AuthRetryConfig from module globals (lazy — reads globals at call time). */
+function defaultAuthRetryConfig() {
+  return {
+    isOAuthEnabled: () => USE_OAUTH && oauthClient != null,
+    refreshToken: (force: boolean) => oauthClient!.getAccessToken(force),
+    onTokenRefreshed: (token: string) => { OAUTH_ACCESS_TOKEN = token; },
+    buildAuthHeaders,
+    logger,
+  };
+}
+
 // Cookie jar and fetch - reloaded when cookie file changes
 let cookieJar: CookieJar | null = null;
-let fetch: typeof nodeFetch = nodeFetch;
+let fetch: typeof nodeFetch = wrapWithAuthRetry(nodeFetch, defaultAuthRetryConfig());
 let lastCookieMtime = 0;
 let cookieReloadLock: Promise<void> | null = null; // Mutex to prevent parallel reloads
 // Auth proxies may redirect and set cookies on the first request. We make a throwaway
@@ -933,7 +955,7 @@ async function reloadCookiesIfChanged(): Promise<void> {
         lastCookieMtime = mtime;
         const newJar = await createCookieJar();
         cookieJar = newJar;
-        fetch = newJar ? fetchCookie(nodeFetch, newJar) : nodeFetch;
+        fetch = wrapWithAuthRetry(newJar ? fetchCookie(nodeFetch, newJar) : nodeFetch, defaultAuthRetryConfig());
         initialSessionRequestMade = false;
       }
     } catch {
@@ -941,7 +963,7 @@ async function reloadCookiesIfChanged(): Promise<void> {
       if (cookieJar) {
         logger.info("Cookie file removed, clearing cached cookies");
         cookieJar = null;
-        fetch = nodeFetch;
+        fetch = wrapWithAuthRetry(nodeFetch, defaultAuthRetryConfig());
         lastCookieMtime = 0;
         initialSessionRequestMade = false;
       }
