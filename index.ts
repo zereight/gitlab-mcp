@@ -406,9 +406,6 @@ function createServer(): McpServer {
     }
   }
 
-  // Track which toolsets have been dynamically activated for this connection
-  const dynamicallyActivatedToolsets: string[] = [];
-
   // Step 5.7: Remove hidden policy tools
   if (hiddenToolSet.size > 0) {
     filteredTools = filteredTools.filter(tool => !hiddenToolSet.has(tool.name));
@@ -432,7 +429,8 @@ function createServer(): McpServer {
     const tools = filteredTools.map(tool => {
       const modified: any = { ...tool };
 
-      // Remove $schema key if present (Gemini compatibility)
+      // Safety net: remove $schema if present (toJSONSchema strips it for zod schemas,
+      // but manually-defined schemas like discover_tools may still have it)
       if (modified.inputSchema && typeof modified.inputSchema === "object" && modified.inputSchema !== null) {
         if ("$schema" in modified.inputSchema) {
           modified.inputSchema = { ...modified.inputSchema };
@@ -447,6 +445,20 @@ function createServer(): McpServer {
         ...(approveToolSet.has(tool.name) ? { confirmationHint: true } : {}),
         openWorldHint: true,
       };
+
+      // Inject _confirmed optional parameter for approve-policy tools
+      if (approveToolSet.has(tool.name) && modified.inputSchema?.properties) {
+        modified.inputSchema = {
+          ...modified.inputSchema,
+          properties: {
+            ...modified.inputSchema.properties,
+            _confirmed: {
+              type: "boolean",
+              description: "Set to true to confirm execution of this approval-required tool.",
+            },
+          },
+        };
+      }
 
       return modified;
     });
@@ -548,9 +560,6 @@ function createServer(): McpServer {
         }
 
         filteredTools.push(...newTools);
-        if (!dynamicallyActivatedToolsets.includes(category)) {
-          dynamicallyActivatedToolsets.push(category);
-        }
 
         // Notify client that tool list has changed
         try {
@@ -815,6 +824,21 @@ const hiddenToolSet = new Set(
     .map(s => s.trim())
     .filter(Boolean)
 );
+
+// Validate approve/hidden tool names against known tools at startup
+{
+  const knownToolNames = new Set(allTools.map(t => t.name));
+  for (const name of approveToolSet) {
+    if (!knownToolNames.has(name)) {
+      logger.warn({ event: "unknown_approve_tool", name }, `GITLAB_TOOL_POLICY_APPROVE contains unknown tool: "${name}"`);
+    }
+  }
+  for (const name of hiddenToolSet) {
+    if (!knownToolNames.has(name)) {
+      logger.warn({ event: "unknown_hidden_tool", name }, `GITLAB_TOOL_POLICY_HIDDEN contains unknown tool: "${name}"`);
+    }
+  }
+}
 
 const clientPool = new GitLabClientPool({
   apiUrls: (getConfig("api-url", "GITLAB_API_URL") || "https://gitlab.com")

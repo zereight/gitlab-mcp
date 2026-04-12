@@ -255,6 +255,7 @@ The reference document also covers:
 - auth and OAuth variables
 - MCP OAuth proxy variables
 - project and tool filtering variables
+- dynamic tool discovery via `discover_tools` (on-demand toolset activation)
 - transport and session variables
 - proxy and TLS variables
 

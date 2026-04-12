@@ -164,10 +164,6 @@ Examples:
 
 - `delete_issue,delete_wiki_page`
 
-### `discover_tools` Meta-Tool
-
-When `GITLAB_TOOLSETS` limits the initial tool set, the `discover_tools` meta-tool is always available. Agents can call `discover_tools` with a `category` parameter to dynamically activate additional toolsets on demand, reducing the initial token payload.
-
 ### `USE_GITLAB_WIKI`
 
 Legacy additive flag for wiki-related tools.
