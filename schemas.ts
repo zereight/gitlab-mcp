@@ -3226,6 +3226,120 @@ export const ListCustomFieldDefinitionsSchema = z.object({
     .describe("The work item type to list custom field definitions for. Defaults to 'issue'."),
 });
 
+
+// --- Emoji Reaction schemas (REST: MRs and Issues) ---
+
+const emojiNameField = z.string().describe("Name of the emoji without colons (e.g. 'thumbsup', 'rocket', 'eyes')");
+const awardIdField = z.coerce.string().describe("The ID of the emoji reaction to delete");
+const noteEmojiDiscussionField = z.coerce.string().optional().describe("The ID of a discussion thread. Required for notes that are discussion replies; omit for top-level notes.");
+
+export const CreateMergeRequestEmojiReactionSchema = ProjectParamsSchema.extend({
+  merge_request_iid: z.coerce.string().describe("The IID of a merge request"),
+  name: emojiNameField,
+});
+
+export const DeleteMergeRequestEmojiReactionSchema = ProjectParamsSchema.extend({
+  merge_request_iid: z.coerce.string().describe("The IID of a merge request"),
+  award_id: awardIdField,
+});
+
+export const CreateMergeRequestNoteEmojiReactionSchema = ProjectParamsSchema.extend({
+  merge_request_iid: z.coerce.string().describe("The IID of a merge request"),
+  note_id: z.coerce.string().describe("The ID of a note (comment or thread reply)"),
+  discussion_id: noteEmojiDiscussionField,
+  name: emojiNameField,
+});
+
+export const DeleteMergeRequestNoteEmojiReactionSchema = ProjectParamsSchema.extend({
+  merge_request_iid: z.coerce.string().describe("The IID of a merge request"),
+  note_id: z.coerce.string().describe("The ID of a note (comment or thread reply)"),
+  discussion_id: noteEmojiDiscussionField,
+  award_id: awardIdField,
+});
+
+export const CreateIssueEmojiReactionSchema = ProjectParamsSchema.extend({
+  issue_iid: z.coerce.string().describe("The IID of an issue"),
+  name: emojiNameField,
+});
+
+export const DeleteIssueEmojiReactionSchema = ProjectParamsSchema.extend({
+  issue_iid: z.coerce.string().describe("The IID of an issue"),
+  award_id: awardIdField,
+});
+
+export const CreateIssueNoteEmojiReactionSchema = ProjectParamsSchema.extend({
+  issue_iid: z.coerce.string().describe("The IID of an issue"),
+  note_id: z.coerce.string().describe("The ID of a note (comment or thread reply)"),
+  discussion_id: noteEmojiDiscussionField,
+  name: emojiNameField,
+});
+
+export const DeleteIssueNoteEmojiReactionSchema = ProjectParamsSchema.extend({
+  issue_iid: z.coerce.string().describe("The IID of an issue"),
+  note_id: z.coerce.string().describe("The ID of a note (comment or thread reply)"),
+  discussion_id: noteEmojiDiscussionField,
+  award_id: awardIdField,
+});
+
+// --- Emoji Reaction schemas (GraphQL: Work Items) ---
+
+export const CreateWorkItemEmojiReactionSchema = z.object({
+  project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
+  iid: z.coerce.number().describe("The internal ID of the work item"),
+  name: emojiNameField,
+});
+
+export const DeleteWorkItemEmojiReactionSchema = z.object({
+  project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
+  iid: z.coerce.number().describe("The internal ID of the work item"),
+  name: emojiNameField,
+});
+
+export const CreateWorkItemNoteEmojiReactionSchema = z.object({
+  project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
+  iid: z.coerce.number().describe("The internal ID of the work item"),
+  note_id: z.string().describe("The GraphQL GID of the note (e.g. 'gid://gitlab/Note/123' from list_work_item_notes)"),
+  name: emojiNameField,
+});
+
+export const DeleteWorkItemNoteEmojiReactionSchema = z.object({
+  project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
+  iid: z.coerce.number().describe("The internal ID of the work item"),
+  note_id: z.string().describe("The GraphQL GID of the note (e.g. 'gid://gitlab/Note/123' from list_work_item_notes)"),
+  name: emojiNameField,
+});
+
+export const ListMergeRequestEmojiReactionsSchema = ProjectParamsSchema.extend({
+  merge_request_iid: z.coerce.string().describe("The IID of a merge request"),
+});
+
+export const ListMergeRequestNoteEmojiReactionsSchema = ProjectParamsSchema.extend({
+  merge_request_iid: z.coerce.string().describe("The IID of a merge request"),
+  note_id: z.coerce.string().describe("The ID of a note (comment or thread reply)"),
+  discussion_id: noteEmojiDiscussionField,
+});
+
+export const ListIssueEmojiReactionsSchema = ProjectParamsSchema.extend({
+  issue_iid: z.coerce.string().describe("The IID of an issue"),
+});
+
+export const ListIssueNoteEmojiReactionsSchema = ProjectParamsSchema.extend({
+  issue_iid: z.coerce.string().describe("The IID of an issue"),
+  note_id: z.coerce.string().describe("The ID of a note (comment or thread reply)"),
+  discussion_id: noteEmojiDiscussionField,
+});
+
+export const ListWorkItemEmojiReactionsSchema = z.object({
+  project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
+  iid: z.coerce.number().describe("The internal ID of the work item"),
+});
+
+export const ListWorkItemNoteEmojiReactionsSchema = z.object({
+  project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
+  iid: z.coerce.number().describe("The internal ID of the work item"),
+  note_id: z.string().describe("The GraphQL GID of the note (e.g. 'gid://gitlab/Note/123' from list_work_item_notes)"),
+});
+
 // --- Incident Timeline Event schemas ---
 
 export const GetTimelineEventsSchema = z.object({
