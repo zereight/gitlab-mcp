@@ -1,6 +1,6 @@
 {
   "name": "@zereight/mcp-gitlab",
-  "version": "2.0.36",
+  "version": "2.1.0",
   "description": "GitLab MCP server for projects, merge requests, issues, pipelines, wiki, releases, and more",
   "keywords": [
     "gitlab",
