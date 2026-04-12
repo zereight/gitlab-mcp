@@ -11,5 +11,5 @@
     "forceConsistentCasingInFileNames": true
   },
   "include": ["./**/*"],
-  "exclude": ["node_modules", "build"]
+  "exclude": ["node_modules", "build", "mcp-server"]
 }
