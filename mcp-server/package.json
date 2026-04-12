@@ -1,0 +1,20 @@
+{
+  "name": "omg-mcp-server",
+  "version": "1.0.0",
+  "description": "OMG (oh-my-githubcopilot) MCP server for workflow state, PRD, and memory management",
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "start": "node dist/index.js",
+    "test": "node --test test/run-tests.mjs"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.7.0"
+  }
+}

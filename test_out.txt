@@ -1,0 +1,2626 @@
+TAP version 13
+# Mock GitLab API listening on http://127.0.0.1:9200
+# Mock GitLab: http://127.0.0.1:9200
+# Launcher: launchServer function entered.
+# Launcher: Spawning server process with env: {
+#   ANDROID_HOME: '/Users/tao.exe/Library/Android/sdk',
+#   BUN_INSTALL: '/Users/tao.exe/.bun',
+#   COLORTERM: 'truecolor',
+#   COMMAND_MODE: 'unix2003',
+#   GIT_ASKPASS: '/Applications/Visual Studio Code - Insiders.app/Contents/Resources/app/extensions/git/dist/askpass.sh',
+#   GIT_EDITOR: ':',
+#   GIT_MERGE_AUTOEDIT: 'no',
+#   GIT_PAGER: 'cat',
+#   HOME: '/Users/tao.exe',
+#   JAVA_HOME: '/Library/Java/JavaVirtualMachines/zulu-17.jdk/Contents/Home',
+#   LANG: 'C.UTF-8',
+#   LOGNAME: 'tao.exe',
+#   MallocNanoZone: '0',
+#   NVM_BIN: '/Users/tao.exe/.nvm/versions/node/v22.19.0/bin',
+#   NVM_CD_FLAGS: '-q',
+#   NVM_DIR: '/Users/tao.exe/.nvm',
+#   NVM_INC: '/Users/tao.exe/.nvm/versions/node/v22.19.0/include/node',
+#   OLDPWD: '/Users/tao.exe/Documents/gitlab-mcp',
+#   OSLogRateLimit: '64',
+#   PATH: '/Users/tao.exe/.opencode/bin:/Users/tao.exe/.bun/bin:/Users/tao.exe/.antigravity/antigravity/bin:/Users/tao.exe/.rbenv/shims:/Users/tao.exe/.codeium/windsurf/bin:/Users/tao.exe/.codeium/windsurf/bin:/Users/tao.exe/.codeium/windsurf/bin:/Users/tao.exe/.antigravity/antigravity/bin:/Users/tao.exe/.codeium/windsurf/bin:/Users/tao.exe/.local/bin:/Users/tao.exe/.rbenv/shims:/Users/tao.exe/.local/bin:/Users/tao.exe/.nvm/versions/node/v22.19.0/bin:/usr/local/bin:/System/Cryptexes/App/usr/bin:/usr/bin:/bin:/usr/sbin:/sbin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/local/bin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/bin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/appleinternal/bin:/opt/pmk/env/global/bin:/Library/Apple/usr/bin:/opt/homebrew/bin:/Users/tao.exe/Library/Application Support/Code - Insiders/User/globalStorage/github.copilot-chat/debugCommand:/Users/tao.exe/Library/Application Support/Code - Insiders/User/globalStorage/github.copilot-chat/copilotCli:/Users/tao.exe/.opencode/bin:/Users/tao.exe/.bun/bin:/Users/tao.exe/.antigravity/antigravity/bin:/Users/tao.exe/.rbenv/shims:/Users/tao.exe/.codeium/windsurf/bin:/Users/tao.exe/.local/bin:/Users/tao.exe/.nvm/versions/node/v22.19.0/bin:/Users/tao.exe/.swiftly/bin:/Users/tao.exe/.cargo/bin:/Users/tao.exe/Library/Android/sdk/emulator:/Users/tao.exe/Library/Android/sdk/platform-tools:/Users/tao.exe/.lmstudio/bin:/Users/tao.exe/Library/Android/sdk/emulator:/Users/tao.exe/Library/Android/sdk/platform-tools:/Users/tao.exe/.lmstudio/bin',
+#   PWD: '/Users/tao.exe/Documents/gitlab-mcp',
+#   QTERM_SESSION_ID: '4af59943197040408dfc47e2aad59dbb',
+#   Q_SET_PARENT_CHECK: '1',
+#   Q_TERM: '1.26.2',
+#   RBENV_SHELL: 'zsh',
+#   SHELL: '/bin/zsh',
+#   SHELL_PID: '54817',
+#   SHLVL: '1',
+#   SSH_AUTH_SOCK: '/private/tmp/com.apple.launchd.lg93zG90Bg/Listeners',
+#   SWIFTLY_BIN_DIR: '/Users/tao.exe/.swiftly/bin',
+#   SWIFTLY_HOME_DIR: '/Users/tao.exe/.swiftly',
+#   SWIFTLY_TOOLCHAINS_DIR: '/Users/tao.exe/Library/Developer/Toolchains',
+#   SYNTHETIC_API_KEY: 'syn_35a76bd4c1d5ed18b8e4e8a4f1b07b76',
+#   TERM: 'xterm-256color',
+#   TERM_PROGRAM: 'vscode',
+#   TERM_PROGRAM_VERSION: '1.116.0-insider',
+#   TMPDIR: '/var/folders/kc/hx_s_dg96p7czwjjwc789vx00000gp/T/',
+#   TTY: '/dev/ttys098',
+#   USER: 'tao.exe',
+#   USER_ZDOTDIR: '/Users/tao.exe',
+#   VSCODE_GIT_ASKPASS_EXTRA_ARGS: '',
+#   VSCODE_GIT_ASKPASS_MAIN: '/Applications/Visual Studio Code - Insiders.app/Contents/Resources/app/extensions/git/dist/askpass-main.js',
+#   VSCODE_GIT_ASKPASS_NODE: '/Applications/Visual Studio Code - Insiders.app/Contents/Frameworks/Code - Insiders Helper (Plugin).app/Contents/MacOS/Code - Insiders Helper (Plugin)',
+#   VSCODE_GIT_IPC_HANDLE: '/var/folders/kc/hx_s_dg96p7czwjjwc789vx00000gp/T/vscode-git-1d2807ead6.sock',
+#   VSCODE_INJECTION: '1',
+#   VSCODE_NONCE: 'daf2368a-ef1d-4131-81e7-4b337e7ae923',
+#   VSCODE_PATH_PREFIX: '/Users/tao.exe/Library/Application Support/Code - Insiders/User/globalStorage/github.copilot-chat/debugCommand:/Users/tao.exe/Library/Application Support/Code - Insiders/User/globalStorage/github.copilot-chat/copilotCli:',
+#   VSCODE_PREVENT_SHELL_HISTORY: '1',
+#   VSCODE_PROFILE_INITIALIZED: '1',
+#   VSCODE_SHELL_ENV_REPORTING: 'PATH,VIRTUAL_ENV,HOME,SHELL,PWD',
+#   XPC_FLAGS: '0x0',
+#   XPC_SERVICE_NAME: '0',
+#   ZDOTDIR: '/Users/tao.exe',
+#   ZENMUX_API_KEY: 'sk-ss-v1-95eae04a95ac9bba411c32cede234295deaa21a02ee2d8a90e830fc9c0004779',
+#   __CFBundleIdentifier: 'com.microsoft.VSCodeInsiders',
+#   __CF_USER_TEXT_ENCODING: '0x1F6:0x3:0x33',
+#   _: '/Users/tao.exe/.nvm/versions/node/v22.19.0/bin/node',
+#   NODE_TEST_CONTEXT: 'child-v8',
+#   STREAMABLE_HTTP: 'true',
+#   REMOTE_AUTHORIZATION: 'true',
+#   GITLAB_API_URL: 'http://127.0.0.1:9200/api/v4',
+#   PORT: '3200'
+# }
+# Launcher: Spawning server process with env: {
+#   ANDROID_HOME: '/Users/tao.exe/Library/Android/sdk',
+#   BUN_INSTALL: '/Users/tao.exe/.bun',
+#   COLORTERM: 'truecolor',
+#   COMMAND_MODE: 'unix2003',
+#   GIT_ASKPASS: '/Applications/Visual Studio Code - Insiders.app/Contents/Resources/app/extensions/git/dist/askpass.sh',
+#   GIT_EDITOR: ':',
+#   GIT_MERGE_AUTOEDIT: 'no',
+#   GIT_PAGER: 'cat',
+#   HOME: '/Users/tao.exe',
+#   JAVA_HOME: '/Library/Java/JavaVirtualMachines/zulu-17.jdk/Contents/Home',
+#   LANG: 'C.UTF-8',
+#   LOGNAME: 'tao.exe',
+#   MallocNanoZone: '0',
+#   NVM_BIN: '/Users/tao.exe/.nvm/versions/node/v22.19.0/bin',
+#   NVM_CD_FLAGS: '-q',
+#   NVM_DIR: '/Users/tao.exe/.nvm',
+#   NVM_INC: '/Users/tao.exe/.nvm/versions/node/v22.19.0/include/node',
+#   OLDPWD: '/Users/tao.exe/Documents/gitlab-mcp',
+#   OSLogRateLimit: '64',
+#   PATH: '/Users/tao.exe/.opencode/bin:/Users/tao.exe/.bun/bin:/Users/tao.exe/.antigravity/antigravity/bin:/Users/tao.exe/.rbenv/shims:/Users/tao.exe/.codeium/windsurf/bin:/Users/tao.exe/.codeium/windsurf/bin:/Users/tao.exe/.codeium/windsurf/bin:/Users/tao.exe/.antigravity/antigravity/bin:/Users/tao.exe/.codeium/windsurf/bin:/Users/tao.exe/.local/bin:/Users/tao.exe/.rbenv/shims:/Users/tao.exe/.local/bin:/Users/tao.exe/.nvm/versions/node/v22.19.0/bin:/usr/local/bin:/System/Cryptexes/App/usr/bin:/usr/bin:/bin:/usr/sbin:/sbin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/local/bin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/bin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/appleinternal/bin:/opt/pmk/env/global/bin:/Library/Apple/usr/bin:/opt/homebrew/bin:/Users/tao.exe/Library/Application Support/Code - Insiders/User/globalStorage/github.copilot-chat/debugCommand:/Users/tao.exe/Library/Application Support/Code - Insiders/User/globalStorage/github.copilot-chat/copilotCli:/Users/tao.exe/.opencode/bin:/Users/tao.exe/.bun/bin:/Users/tao.exe/.antigravity/antigravity/bin:/Users/tao.exe/.rbenv/shims:/Users/tao.exe/.codeium/windsurf/bin:/Users/tao.exe/.local/bin:/Users/tao.exe/.nvm/versions/node/v22.19.0/bin:/Users/tao.exe/.swiftly/bin:/Users/tao.exe/.cargo/bin:/Users/tao.exe/Library/Android/sdk/emulator:/Users/tao.exe/Library/Android/sdk/platform-tools:/Users/tao.exe/.lmstudio/bin:/Users/tao.exe/Library/Android/sdk/emulator:/Users/tao.exe/Library/Android/sdk/platform-tools:/Users/tao.exe/.lmstudio/bin',
+#   PWD: '/Users/tao.exe/Documents/gitlab-mcp',
+#   QTERM_SESSION_ID: '4af59943197040408dfc47e2aad59dbb',
+#   Q_SET_PARENT_CHECK: '1',
+#   Q_TERM: '1.26.2',
+#   RBENV_SHELL: 'zsh',
+#   SHELL: '/bin/zsh',
+#   SHELL_PID: '54817',
+#   SHLVL: '1',
+#   SSH_AUTH_SOCK: '/private/tmp/com.apple.launchd.lg93zG90Bg/Listeners',
+#   SWIFTLY_BIN_DIR: '/Users/tao.exe/.swiftly/bin',
+#   SWIFTLY_HOME_DIR: '/Users/tao.exe/.swiftly',
+#   SWIFTLY_TOOLCHAINS_DIR: '/Users/tao.exe/Library/Developer/Toolchains',
+#   SYNTHETIC_API_KEY: 'syn_35a76bd4c1d5ed18b8e4e8a4f1b07b76',
+#   TERM: 'xterm-256color',
+#   TERM_PROGRAM: 'vscode',
+#   TERM_PROGRAM_VERSION: '1.116.0-insider',
+#   TMPDIR: '/var/folders/kc/hx_s_dg96p7czwjjwc789vx00000gp/T/',
+#   TTY: '/dev/ttys098',
+#   USER: 'tao.exe',
+#   USER_ZDOTDIR: '/Users/tao.exe',
+#   VSCODE_GIT_ASKPASS_EXTRA_ARGS: '',
+#   VSCODE_GIT_ASKPASS_MAIN: '/Applications/Visual Studio Code - Insiders.app/Contents/Resources/app/extensions/git/dist/askpass-main.js',
+#   VSCODE_GIT_ASKPASS_NODE: '/Applications/Visual Studio Code - Insiders.app/Contents/Frameworks/Code - Insiders Helper (Plugin).app/Contents/MacOS/Code - Insiders Helper (Plugin)',
+#   VSCODE_GIT_IPC_HANDLE: '/var/folders/kc/hx_s_dg96p7czwjjwc789vx00000gp/T/vscode-git-1d2807ead6.sock',
+#   VSCODE_INJECTION: '1',
+#   VSCODE_NONCE: 'daf2368a-ef1d-4131-81e7-4b337e7ae923',
+#   VSCODE_PATH_PREFIX: '/Users/tao.exe/Library/Application Support/Code - Insiders/User/globalStorage/github.copilot-chat/debugCommand:/Users/tao.exe/Library/Application Support/Code - Insiders/User/globalStorage/github.copilot-chat/copilotCli:',
+#   VSCODE_PREVENT_SHELL_HISTORY: '1',
+#   VSCODE_PROFILE_INITIALIZED: '1',
+#   VSCODE_SHELL_ENV_REPORTING: 'PATH,VIRTUAL_ENV,HOME,SHELL,PWD',
+#   XPC_FLAGS: '0x0',
+#   XPC_SERVICE_NAME: '0',
+#   ZDOTDIR: '/Users/tao.exe',
+#   ZENMUX_API_KEY: 'sk-ss-v1-95eae04a95ac9bba411c32cede234295deaa21a02ee2d8a90e830fc9c0004779',
+#   __CFBundleIdentifier: 'com.microsoft.VSCodeInsiders',
+#   __CF_USER_TEXT_ENCODING: '0x1F6:0x3:0x33',
+#   _: '/Users/tao.exe/.nvm/versions/node/v22.19.0/bin/node',
+#   NODE_TEST_CONTEXT: 'child-v8',
+#   STREAMABLE_HTTP: 'true',
+#   REMOTE_AUTHORIZATION: 'true',
+#   GITLAB_API_URL: 'http://127.0.0.1:9200/api/v4',
+#   PORT: '3200'
+# }
+# Launcher: Server process spawned with PID: 56539
+# Launcher: Server process spawned.
+# [Server Output]: [32mINFO[39m [14:05:53.528] (56539): [36mRemote authorization enabled: tokens will be read from HTTP headers[39m
+# [Server Output]: [32mINFO[39m [14:05:53.528] (56539): [36mConfiguration validation passed[39m
+# [32mINFO[39m [14:05:53.528] (56539): [36mInitializing server with transport mode:[39m
+# [33mWARN[39m [14:05:53.528] (56539): [36mStarting GitLab MCP Server with Streamable HTTP transport[39m
+# [32mINFO[39m [14:05:53.530] (56539): [36mConfigured GitLab API URLs: http://127.0.0.1:9200/api/v4[39m
+# [32mINFO[39m [14:05:53.530] (56539): [36mDefault GitLab API URL: http://127.0.0.1:9200/api/v4[39m
+# [32mINFO[39m [14:05:53.532] (56539): [36mGitLab MCP Server running with Streamable HTTP transport[39m
+# [32mINFO[39m [14:05:53.532] (56539): [36m[32mEndpoint: http://127.0.0.1:3200/mcp[0m[39m
+# [Server Output]: [33mWARN[39m [14:05:54.577] (56539): [36mStreamable HTTP session initialized: 2a0c7788-94d3-4e76-98e6-10ec95057501[39m
+# [32mINFO[39m [14:05:54.578] (56539): [36mSession 2a0c7788-94d3-4e76-98e6-10ec95057501: stored Authorization header[39m
+# Launcher: launchServer function entered.
+# Launcher: Spawning server process with env: {
+#   ANDROID_HOME: '/Users/tao.exe/Library/Android/sdk',
+#   BUN_INSTALL: '/Users/tao.exe/.bun',
+#   COLORTERM: 'truecolor',
+#   COMMAND_MODE: 'unix2003',
+#   GIT_ASKPASS: '/Applications/Visual Studio Code - Insiders.app/Contents/Resources/app/extensions/git/dist/askpass.sh',
+#   GIT_EDITOR: ':',
+#   GIT_MERGE_AUTOEDIT: 'no',
+#   GIT_PAGER: 'cat',
+#   HOME: '/Users/tao.exe',
+#   JAVA_HOME: '/Library/Java/JavaVirtualMachines/zulu-17.jdk/Contents/Home',
+#   LANG: 'C.UTF-8',
+#   LOGNAME: 'tao.exe',
+#   MallocNanoZone: '0',
+#   NVM_BIN: '/Users/tao.exe/.nvm/versions/node/v22.19.0/bin',
+#   NVM_CD_FLAGS: '-q',
+#   NVM_DIR: '/Users/tao.exe/.nvm',
+#   NVM_INC: '/Users/tao.exe/.nvm/versions/node/v22.19.0/include/node',
+#   OLDPWD: '/Users/tao.exe/Documents/gitlab-mcp',
+#   OSLogRateLimit: '64',
+#   PATH: '/Users/tao.exe/.opencode/bin:/Users/tao.exe/.bun/bin:/Users/tao.exe/.antigravity/antigravity/bin:/Users/tao.exe/.rbenv/shims:/Users/tao.exe/.codeium/windsurf/bin:/Users/tao.exe/.codeium/windsurf/bin:/Users/tao.exe/.codeium/windsurf/bin:/Users/tao.exe/.antigravity/antigravity/bin:/Users/tao.exe/.codeium/windsurf/bin:/Users/tao.exe/.local/bin:/Users/tao.exe/.rbenv/shims:/Users/tao.exe/.local/bin:/Users/tao.exe/.nvm/versions/node/v22.19.0/bin:/usr/local/bin:/System/Cryptexes/App/usr/bin:/usr/bin:/bin:/usr/sbin:/sbin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/local/bin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/bin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/appleinternal/bin:/opt/pmk/env/global/bin:/Library/Apple/usr/bin:/opt/homebrew/bin:/Users/tao.exe/Library/Application Support/Code - Insiders/User/globalStorage/github.copilot-chat/debugCommand:/Users/tao.exe/Library/Application Support/Code - Insiders/User/globalStorage/github.copilot-chat/copilotCli:/Users/tao.exe/.opencode/bin:/Users/tao.exe/.bun/bin:/Users/tao.exe/.antigravity/antigravity/bin:/Users/tao.exe/.rbenv/shims:/Users/tao.exe/.codeium/windsurf/bin:/Users/tao.exe/.local/bin:/Users/tao.exe/.nvm/versions/node/v22.19.0/bin:/Users/tao.exe/.swiftly/bin:/Users/tao.exe/.cargo/bin:/Users/tao.exe/Library/Android/sdk/emulator:/Users/tao.exe/Library/Android/sdk/platform-tools:/Users/tao.exe/.lmstudio/bin:/Users/tao.exe/Library/Android/sdk/emulator:/Users/tao.exe/Library/Android/sdk/platform-tools:/Users/tao.exe/.lmstudio/bin',
+#   PWD: '/Users/tao.exe/Documents/gitlab-mcp',
+#   QTERM_SESSION_ID: '4af59943197040408dfc47e2aad59dbb',
+#   Q_SET_PARENT_CHECK: '1',
+#   Q_TERM: '1.26.2',
+#   RBENV_SHELL: 'zsh',
+#   SHELL: '/bin/zsh',
+#   SHELL_PID: '54817',
+#   SHLVL: '1',
+#   SSH_AUTH_SOCK: '/private/tmp/com.apple.launchd.lg93zG90Bg/Listeners',
+#   SWIFTLY_BIN_DIR: '/Users/tao.exe/.swiftly/bin',
+#   SWIFTLY_HOME_DIR: '/Users/tao.exe/.swiftly',
+#   SWIFTLY_TOOLCHAINS_DIR: '/Users/tao.exe/Library/Developer/Toolchains',
+#   SYNTHETIC_API_KEY: 'syn_35a76bd4c1d5ed18b8e4e8a4f1b07b76',
+#   TERM: 'xterm-256color',
+#   TERM_PROGRAM: 'vscode',
+#   TERM_PROGRAM_VERSION: '1.116.0-insider',
+#   TMPDIR: '/var/folders/kc/hx_s_dg96p7czwjjwc789vx00000gp/T/',
+#   TTY: '/dev/ttys098',
+#   USER: 'tao.exe',
+#   USER_ZDOTDIR: '/Users/tao.exe',
+#   VSCODE_GIT_ASKPASS_EXTRA_ARGS: '',
+#   VSCODE_GIT_ASKPASS_MAIN: '/Applications/Visual Studio Code - Insiders.app/Contents/Resources/app/extensions/git/dist/askpass-main.js',
+#   VSCODE_GIT_ASKPASS_NODE: '/Applications/Visual Studio Code - Insiders.app/Contents/Frameworks/Code - Insiders Helper (Plugin).app/Contents/MacOS/Code - Insiders Helper (Plugin)',
+#   VSCODE_GIT_IPC_HANDLE: '/var/folders/kc/hx_s_dg96p7czwjjwc789vx00000gp/T/vscode-git-1d2807ead6.sock',
+#   VSCODE_INJECTION: '1',
+#   VSCODE_NONCE: 'daf2368a-ef1d-4131-81e7-4b337e7ae923',
+#   VSCODE_PATH_PREFIX: '/Users/tao.exe/Library/Application Support/Code - Insiders/User/globalStorage/github.copilot-chat/debugCommand:/Users/tao.exe/Library/Application Support/Code - Insiders/User/globalStorage/github.copilot-chat/copilotCli:',
+#   VSCODE_PREVENT_SHELL_HISTORY: '1',
+#   VSCODE_PROFILE_INITIALIZED: '1',
+#   VSCODE_SHELL_ENV_REPORTING: 'PATH,VIRTUAL_ENV,HOME,SHELL,PWD',
+#   XPC_FLAGS: '0x0',
+#   XPC_SERVICE_NAME: '0',
+#   ZDOTDIR: '/Users/tao.exe',
+#   ZENMUX_API_KEY: 'sk-ss-v1-95eae04a95ac9bba411c32cede234295deaa21a02ee2d8a90e830fc9c0004779',
+#   __CFBundleIdentifier: 'com.microsoft.VSCodeInsiders',
+#   __CF_USER_TEXT_ENCODING: '0x1F6:0x3:0x33',
+#   _: '/Users/tao.exe/.nvm/versions/node/v22.19.0/bin/node',
+#   NODE_TEST_CONTEXT: 'child-v8',
+#   STREAMABLE_HTTP: 'true',
+#   REMOTE_AUTHORIZATION: 'true',
+#   GITLAB_API_URL: 'http://127.0.0.1:9200/api/v4',
+#   GITLAB_TOOLSETS: 'issues',
+#   PORT: '3210'
+# }
+# Launcher: Spawning server process with env: {
+#   ANDROID_HOME: '/Users/tao.exe/Library/Android/sdk',
+#   BUN_INSTALL: '/Users/tao.exe/.bun',
+#   COLORTERM: 'truecolor',
+#   COMMAND_MODE: 'unix2003',
+#   GIT_ASKPASS: '/Applications/Visual Studio Code - Insiders.app/Contents/Resources/app/extensions/git/dist/askpass.sh',
+#   GIT_EDITOR: ':',
+#   GIT_MERGE_AUTOEDIT: 'no',
+#   GIT_PAGER: 'cat',
+#   HOME: '/Users/tao.exe',
+#   JAVA_HOME: '/Library/Java/JavaVirtualMachines/zulu-17.jdk/Contents/Home',
+#   LANG: 'C.UTF-8',
+#   LOGNAME: 'tao.exe',
+#   MallocNanoZone: '0',
+#   NVM_BIN: '/Users/tao.exe/.nvm/versions/node/v22.19.0/bin',
+#   NVM_CD_FLAGS: '-q',
+#   NVM_DIR: '/Users/tao.exe/.nvm',
+#   NVM_INC: '/Users/tao.exe/.nvm/versions/node/v22.19.0/include/node',
+#   OLDPWD: '/Users/tao.exe/Documents/gitlab-mcp',
+#   OSLogRateLimit: '64',
+#   PATH: '/Users/tao.exe/.opencode/bin:/Users/tao.exe/.bun/bin:/Users/tao.exe/.antigravity/antigravity/bin:/Users/tao.exe/.rbenv/shims:/Users/tao.exe/.codeium/windsurf/bin:/Users/tao.exe/.codeium/windsurf/bin:/Users/tao.exe/.codeium/windsurf/bin:/Users/tao.exe/.antigravity/antigravity/bin:/Users/tao.exe/.codeium/windsurf/bin:/Users/tao.exe/.local/bin:/Users/tao.exe/.rbenv/shims:/Users/tao.exe/.local/bin:/Users/tao.exe/.nvm/versions/node/v22.19.0/bin:/usr/local/bin:/System/Cryptexes/App/usr/bin:/usr/bin:/bin:/usr/sbin:/sbin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/local/bin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/bin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/appleinternal/bin:/opt/pmk/env/global/bin:/Library/Apple/usr/bin:/opt/homebrew/bin:/Users/tao.exe/Library/Application Support/Code - Insiders/User/globalStorage/github.copilot-chat/debugCommand:/Users/tao.exe/Library/Application Support/Code - Insiders/User/globalStorage/github.copilot-chat/copilotCli:/Users/tao.exe/.opencode/bin:/Users/tao.exe/.bun/bin:/Users/tao.exe/.antigravity/antigravity/bin:/Users/tao.exe/.rbenv/shims:/Users/tao.exe/.codeium/windsurf/bin:/Users/tao.exe/.local/bin:/Users/tao.exe/.nvm/versions/node/v22.19.0/bin:/Users/tao.exe/.swiftly/bin:/Users/tao.exe/.cargo/bin:/Users/tao.exe/Library/Android/sdk/emulator:/Users/tao.exe/Library/Android/sdk/platform-tools:/Users/tao.exe/.lmstudio/bin:/Users/tao.exe/Library/Android/sdk/emulator:/Users/tao.exe/Library/Android/sdk/platform-tools:/Users/tao.exe/.lmstudio/bin',
+#   PWD: '/Users/tao.exe/Documents/gitlab-mcp',
+#   QTERM_SESSION_ID: '4af59943197040408dfc47e2aad59dbb',
+#   Q_SET_PARENT_CHECK: '1',
+#   Q_TERM: '1.26.2',
+#   RBENV_SHELL: 'zsh',
+#   SHELL: '/bin/zsh',
+#   SHELL_PID: '54817',
+#   SHLVL: '1',
+#   SSH_AUTH_SOCK: '/private/tmp/com.apple.launchd.lg93zG90Bg/Listeners',
+#   SWIFTLY_BIN_DIR: '/Users/tao.exe/.swiftly/bin',
+#   SWIFTLY_HOME_DIR: '/Users/tao.exe/.swiftly',
+#   SWIFTLY_TOOLCHAINS_DIR: '/Users/tao.exe/Library/Developer/Toolchains',
+#   SYNTHETIC_API_KEY: 'syn_35a76bd4c1d5ed18b8e4e8a4f1b07b76',
+#   TERM: 'xterm-256color',
+#   TERM_PROGRAM: 'vscode',
+#   TERM_PROGRAM_VERSION: '1.116.0-insider',
+#   TMPDIR: '/var/folders/kc/hx_s_dg96p7czwjjwc789vx00000gp/T/',
+#   TTY: '/dev/ttys098',
+#   USER: 'tao.exe',
+#   USER_ZDOTDIR: '/Users/tao.exe',
+#   VSCODE_GIT_ASKPASS_EXTRA_ARGS: '',
+#   VSCODE_GIT_ASKPASS_MAIN: '/Applications/Visual Studio Code - Insiders.app/Contents/Resources/app/extensions/git/dist/askpass-main.js',
+#   VSCODE_GIT_ASKPASS_NODE: '/Applications/Visual Studio Code - Insiders.app/Contents/Frameworks/Code - Insiders Helper (Plugin).app/Contents/MacOS/Code - Insiders Helper (Plugin)',
+#   VSCODE_GIT_IPC_HANDLE: '/var/folders/kc/hx_s_dg96p7czwjjwc789vx00000gp/T/vscode-git-1d2807ead6.sock',
+#   VSCODE_INJECTION: '1',
+#   VSCODE_NONCE: 'daf2368a-ef1d-4131-81e7-4b337e7ae923',
+#   VSCODE_PATH_PREFIX: '/Users/tao.exe/Library/Application Support/Code - Insiders/User/globalStorage/github.copilot-chat/debugCommand:/Users/tao.exe/Library/Application Support/Code - Insiders/User/globalStorage/github.copilot-chat/copilotCli:',
+#   VSCODE_PREVENT_SHELL_HISTORY: '1',
+#   VSCODE_PROFILE_INITIALIZED: '1',
+#   VSCODE_SHELL_ENV_REPORTING: 'PATH,VIRTUAL_ENV,HOME,SHELL,PWD',
+#   XPC_FLAGS: '0x0',
+#   XPC_SERVICE_NAME: '0',
+#   ZDOTDIR: '/Users/tao.exe',
+#   ZENMUX_API_KEY: 'sk-ss-v1-95eae04a95ac9bba411c32cede234295deaa21a02ee2d8a90e830fc9c0004779',
+#   __CFBundleIdentifier: 'com.microsoft.VSCodeInsiders',
+#   __CF_USER_TEXT_ENCODING: '0x1F6:0x3:0x33',
+#   _: '/Users/tao.exe/.nvm/versions/node/v22.19.0/bin/node',
+#   NODE_TEST_CONTEXT: 'child-v8',
+#   STREAMABLE_HTTP: 'true',
+#   REMOTE_AUTHORIZATION: 'true',
+#   GITLAB_API_URL: 'http://127.0.0.1:9200/api/v4',
+#   GITLAB_TOOLSETS: 'issues',
+#   PORT: '3210'
+# }
+# Launcher: Server process spawned with PID: 56559
+# Launcher: Server process spawned.
+# Subtest: Toolset Filtering
+    # Subtest: defaults (no GITLAB_TOOLSETS)
+        # Subtest: returns expected default tool count
+        ok 1 - returns expected default tool count
+          ---
+          duration_ms: 0.240583
+          type: 'test'
+          ...
+        # Subtest: includes tools from every default toolset
+        ok 2 - includes tools from every default toolset
+          ---
+          duration_ms: 0.131917
+          type: 'test'
+          ...
+        # Subtest: excludes non-default toolsets (search, pipelines, wiki)
+        ok 3 - excludes non-default toolsets (search, pipelines, wiki)
+          ---
+          duration_ms: 0.057875
+          type: 'test'
+          ...
+        # Subtest: excludes execute_graphql (not in any toolset)
+        ok 4 - excludes execute_graphql (not in any toolset)
+          ---
+          duration_ms: 0.10775
+          type: 'test'
+          ...
+        1..4
+    ok 1 - defaults (no GITLAB_TOOLSETS)
+      ---
+      duration_ms: 1238.340917
+      type: 'suite'
+      ...
+# [Server Output]: [32mINFO[39m [14:05:54.598] (56539): [36mSIGTERM received, starting graceful shutdown...[39m
+# [32mINFO[39m [14:05:54.598] (56539): [36mClosing 1 active sessions...[39m
+# [33mWARN[39m [14:05:54.598] (56539): [36mStreamable HTTP transport closed for session 2a0c7788-94d3-4e76-98e6-10ec95057501, cleaning up[39m
+# [32mINFO[39m [14:05:54.598] (56539): [36mSession 2a0c7788-94d3-4e76-98e6-10ec95057501: cleaned up auth mapping[39m
+# [32mINFO[39m [14:05:54.599] (56539): [36mHTTP server closed[39m
+# [32mINFO[39m [14:05:54.599] (56539): [36mGraceful shutdown complete[39m
+# [Launcher DEBUG] Process 56539 exited with code 0
+# [Launcher DEBUG] Process 56539 closed with code 0
+# [Server Output]: [32mINFO[39m [14:05:54.776] (56559): [36mRemote authorization enabled: tokens will be read from HTTP headers[39m
+# [Server Output]: [32mINFO[39m [14:05:54.776] (56559): [36mConfiguration validation passed[39m
+# [32mINFO[39m [14:05:54.776] (56559): [36mInitializing server with transport mode:[39m
+# [33mWARN[39m [14:05:54.776] (56559): [36mStarting GitLab MCP Server with Streamable HTTP transport[39m
+# [32mINFO[39m [14:05:54.778] (56559): [36mConfigured GitLab API URLs: http://127.0.0.1:9200/api/v4[39m
+# [32mINFO[39m [14:05:54.778] (56559): [36mDefault GitLab API URL: http://127.0.0.1:9200/api/v4[39m
+# [32mINFO[39m [14:05:54.781] (56559): [36mGitLab MCP Server running with Streamable HTTP transport[39m
+# [32mINFO[39m [14:05:54.781] (56559): [36m[32mEndpoint: http://127.0.0.1:3210/mcp[0m[39m
+# Launcher: launchServer function entered.
+# Launcher: Spawning server process with env: {
+#   ANDROID_HOME: '/Users/tao.exe/Library/Android/sdk',
+#   BUN_INSTALL: '/Users/tao.exe/.bun',
+#   COLORTERM: 'truecolor',
+#   COMMAND_MODE: 'unix2003',
+#   GIT_ASKPASS: '/Applications/Visual Studio Code - Insiders.app/Contents/Resources/app/extensions/git/dist/askpass.sh',
+#   GIT_EDITOR: ':',
+#   GIT_MERGE_AUTOEDIT: 'no',
+#   GIT_PAGER: 'cat',
+#   HOME: '/Users/tao.exe',
+#   JAVA_HOME: '/Library/Java/JavaVirtualMachines/zulu-17.jdk/Contents/Home',
+#   LANG: 'C.UTF-8',
+#   LOGNAME: 'tao.exe',
+#   MallocNanoZone: '0',
+#   NVM_BIN: '/Users/tao.exe/.nvm/versions/node/v22.19.0/bin',
+#   NVM_CD_FLAGS: '-q',
+#   NVM_DIR: '/Users/tao.exe/.nvm',
+#   NVM_INC: '/Users/tao.exe/.nvm/versions/node/v22.19.0/include/node',
+#   OLDPWD: '/Users/tao.exe/Documents/gitlab-mcp',
+#   OSLogRateLimit: '64',
+#   PATH: '/Users/tao.exe/.opencode/bin:/Users/tao.exe/.bun/bin:/Users/tao.exe/.antigravity/antigravity/bin:/Users/tao.exe/.rbenv/shims:/Users/tao.exe/.codeium/windsurf/bin:/Users/tao.exe/.codeium/windsurf/bin:/Users/tao.exe/.codeium/windsurf/bin:/Users/tao.exe/.antigravity/antigravity/bin:/Users/tao.exe/.codeium/windsurf/bin:/Users/tao.exe/.local/bin:/Users/tao.exe/.rbenv/shims:/Users/tao.exe/.local/bin:/Users/tao.exe/.nvm/versions/node/v22.19.0/bin:/usr/local/bin:/System/Cryptexes/App/usr/bin:/usr/bin:/bin:/usr/sbin:/sbin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/local/bin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/bin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/appleinternal/bin:/opt/pmk/env/global/bin:/Library/Apple/usr/bin:/opt/homebrew/bin:/Users/tao.exe/Library/Application Support/Code - Insiders/User/globalStorage/github.copilot-chat/debugCommand:/Users/tao.exe/Library/Application Support/Code - Insiders/User/globalStorage/github.copilot-chat/copilotCli:/Users/tao.exe/.opencode/bin:/Users/tao.exe/.bun/bin:/Users/tao.exe/.antigravity/antigravity/bin:/Users/tao.exe/.rbenv/shims:/Users/tao.exe/.codeium/windsurf/bin:/Users/tao.exe/.local/bin:/Users/tao.exe/.nvm/versions/node/v22.19.0/bin:/Users/tao.exe/.swiftly/bin:/Users/tao.exe/.cargo/bin:/Users/tao.exe/Library/Android/sdk/emulator:/Users/tao.exe/Library/Android/sdk/platform-tools:/Users/tao.exe/.lmstudio/bin:/Users/tao.exe/Library/Android/sdk/emulator:/Users/tao.exe/Library/Android/sdk/platform-tools:/Users/tao.exe/.lmstudio/bin',
+#   PWD: '/Users/tao.exe/Documents/gitlab-mcp',
+#   QTERM_SESSION_ID: '4af59943197040408dfc47e2aad59dbb',
+#   Q_SET_PARENT_CHECK: '1',
+#   Q_TERM: '1.26.2',
+#   RBENV_SHELL: 'zsh',
+#   SHELL: '/bin/zsh',
+#   SHELL_PID: '54817',
+#   SHLVL: '1',
+#   SSH_AUTH_SOCK: '/private/tmp/com.apple.launchd.lg93zG90Bg/Listeners',
+#   SWIFTLY_BIN_DIR: '/Users/tao.exe/.swiftly/bin',
+#   SWIFTLY_HOME_DIR: '/Users/tao.exe/.swiftly',
+#   SWIFTLY_TOOLCHAINS_DIR: '/Users/tao.exe/Library/Developer/Toolchains',
+#   SYNTHETIC_API_KEY: 'syn_35a76bd4c1d5ed18b8e4e8a4f1b07b76',
+#   TERM: 'xterm-256color',
+#   TERM_PROGRAM: 'vscode',
+#   TERM_PROGRAM_VERSION: '1.116.0-insider',
+#   TMPDIR: '/var/folders/kc/hx_s_dg96p7czwjjwc789vx00000gp/T/',
+#   TTY: '/dev/ttys098',
+#   USER: 'tao.exe',
+#   USER_ZDOTDIR: '/Users/tao.exe',
+#   VSCODE_GIT_ASKPASS_EXTRA_ARGS: '',
+#   VSCODE_GIT_ASKPASS_MAIN: '/Applications/Visual Studio Code - Insiders.app/Contents/Resources/app/extensions/git/dist/askpass-main.js',
+#   VSCODE_GIT_ASKPASS_NODE: '/Applications/Visual Studio Code - Insiders.app/Contents/Frameworks/Code - Insiders Helper (Plugin).app/Contents/MacOS/Code - Insiders Helper (Plugin)',
+#   VSCODE_GIT_IPC_HANDLE: '/var/folders/kc/hx_s_dg96p7czwjjwc789vx00000gp/T/vscode-git-1d2807ead6.sock',
+#   VSCODE_INJECTION: '1',
+#   VSCODE_NONCE: 'daf2368a-ef1d-4131-81e7-4b337e7ae923',
+#   VSCODE_PATH_PREFIX: '/Users/tao.exe/Library/Application Support/Code - Insiders/User/globalStorage/github.copilot-chat/debugCommand:/Users/tao.exe/Library/Application Support/Code - Insiders/User/globalStorage/github.copilot-chat/copilotCli:',
+#   VSCODE_PREVENT_SHELL_HISTORY: '1',
+#   VSCODE_PROFILE_INITIALIZED: '1',
+#   VSCODE_SHELL_ENV_REPORTING: 'PATH,VIRTUAL_ENV,HOME,SHELL,PWD',
+#   XPC_FLAGS: '0x0',
+#   XPC_SERVICE_NAME: '0',
+#   ZDOTDIR: '/Users/tao.exe',
+#   ZENMUX_API_KEY: 'sk-ss-v1-95eae04a95ac9bba411c32cede234295deaa21a02ee2d8a90e830fc9c0004779',
+#   __CFBundleIdentifier: 'com.microsoft.VSCodeInsiders',
+#   __CF_USER_TEXT_ENCODING: '0x1F6:0x3:0x33',
+#   _: '/Users/tao.exe/.nvm/versions/node/v22.19.0/bin/node',
+#   NODE_TEST_CONTEXT: 'child-v8',
+#   STREAMABLE_HTTP: 'true',
+#   REMOTE_AUTHORIZATION: 'true',
+#   GITLAB_API_URL: 'http://127.0.0.1:9200/api/v4',
+#   GITLAB_TOOLSETS: 'all',
+#   PORT: '3220'
+# }
+# Launcher: Spawning server process with env: {
+#   ANDROID_HOME: '/Users/tao.exe/Library/Android/sdk',
+#   BUN_INSTALL: '/Users/tao.exe/.bun',
+#   COLORTERM: 'truecolor',
+#   COMMAND_MODE: 'unix2003',
+#   GIT_ASKPASS: '/Applications/Visual Studio Code - Insiders.app/Contents/Resources/app/extensions/git/dist/askpass.sh',
+#   GIT_EDITOR: ':',
+#   GIT_MERGE_AUTOEDIT: 'no',
+#   GIT_PAGER: 'cat',
+#   HOME: '/Users/tao.exe',
+#   JAVA_HOME: '/Library/Java/JavaVirtualMachines/zulu-17.jdk/Contents/Home',
+#   LANG: 'C.UTF-8',
+#   LOGNAME: 'tao.exe',
+#   MallocNanoZone: '0',
+#   NVM_BIN: '/Users/tao.exe/.nvm/versions/node/v22.19.0/bin',
+#   NVM_CD_FLAGS: '-q',
+#   NVM_DIR: '/Users/tao.exe/.nvm',
+#   NVM_INC: '/Users/tao.exe/.nvm/versions/node/v22.19.0/include/node',
+#   OLDPWD: '/Users/tao.exe/Documents/gitlab-mcp',
+#   OSLogRateLimit: '64',
+#   PATH: '/Users/tao.exe/.opencode/bin:/Users/tao.exe/.bun/bin:/Users/tao.exe/.antigravity/antigravity/bin:/Users/tao.exe/.rbenv/shims:/Users/tao.exe/.codeium/windsurf/bin:/Users/tao.exe/.codeium/windsurf/bin:/Users/tao.exe/.codeium/windsurf/bin:/Users/tao.exe/.antigravity/antigravity/bin:/Users/tao.exe/.codeium/windsurf/bin:/Users/tao.exe/.local/bin:/Users/tao.exe/.rbenv/shims:/Users/tao.exe/.local/bin:/Users/tao.exe/.nvm/versions/node/v22.19.0/bin:/usr/local/bin:/System/Cryptexes/App/usr/bin:/usr/bin:/bin:/usr/sbin:/sbin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/local/bin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/bin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/appleinternal/bin:/opt/pmk/env/global/bin:/Library/Apple/usr/bin:/opt/homebrew/bin:/Users/tao.exe/Library/Application Support/Code - Insiders/User/globalStorage/github.copilot-chat/debugCommand:/Users/tao.exe/Library/Application Support/Code - Insiders/User/globalStorage/github.copilot-chat/copilotCli:/Users/tao.exe/.opencode/bin:/Users/tao.exe/.bun/bin:/Users/tao.exe/.antigravity/antigravity/bin:/Users/tao.exe/.rbenv/shims:/Users/tao.exe/.codeium/windsurf/bin:/Users/tao.exe/.local/bin:/Users/tao.exe/.nvm/versions/node/v22.19.0/bin:/Users/tao.exe/.swiftly/bin:/Users/tao.exe/.cargo/bin:/Users/tao.exe/Library/Android/sdk/emulator:/Users/tao.exe/Library/Android/sdk/platform-tools:/Users/tao.exe/.lmstudio/bin:/Users/tao.exe/Library/Android/sdk/emulator:/Users/tao.exe/Library/Android/sdk/platform-tools:/Users/tao.exe/.lmstudio/bin',
+#   PWD: '/Users/tao.exe/Documents/gitlab-mcp',
+#   QTERM_SESSION_ID: '4af59943197040408dfc47e2aad59dbb',
+#   Q_SET_PARENT_CHECK: '1',
+#   Q_TERM: '1.26.2',
+#   RBENV_SHELL: 'zsh',
+#   SHELL: '/bin/zsh',
+#   SHELL_PID: '54817',
+#   SHLVL: '1',
+#   SSH_AUTH_SOCK: '/private/tmp/com.apple.launchd.lg93zG90Bg/Listeners',
+#   SWIFTLY_BIN_DIR: '/Users/tao.exe/.swiftly/bin',
+#   SWIFTLY_HOME_DIR: '/Users/tao.exe/.swiftly',
+#   SWIFTLY_TOOLCHAINS_DIR: '/Users/tao.exe/Library/Developer/Toolchains',
+#   SYNTHETIC_API_KEY: 'syn_35a76bd4c1d5ed18b8e4e8a4f1b07b76',
+#   TERM: 'xterm-256color',
+#   TERM_PROGRAM: 'vscode',
+#   TERM_PROGRAM_VERSION: '1.116.0-insider',
+#   TMPDIR: '/var/folders/kc/hx_s_dg96p7czwjjwc789vx00000gp/T/',
+#   TTY: '/dev/ttys098',
+#   USER: 'tao.exe',
+#   USER_ZDOTDIR: '/Users/tao.exe',
+#   VSCODE_GIT_ASKPASS_EXTRA_ARGS: '',
+#   VSCODE_GIT_ASKPASS_MAIN: '/Applications/Visual Studio Code - Insiders.app/Contents/Resources/app/extensions/git/dist/askpass-main.js',
+#   VSCODE_GIT_ASKPASS_NODE: '/Applications/Visual Studio Code - Insiders.app/Contents/Frameworks/Code - Insiders Helper (Plugin).app/Contents/MacOS/Code - Insiders Helper (Plugin)',
+#   VSCODE_GIT_IPC_HANDLE: '/var/folders/kc/hx_s_dg96p7czwjjwc789vx00000gp/T/vscode-git-1d2807ead6.sock',
+#   VSCODE_INJECTION: '1',
+#   VSCODE_NONCE: 'daf2368a-ef1d-4131-81e7-4b337e7ae923',
+#   VSCODE_PATH_PREFIX: '/Users/tao.exe/Library/Application Support/Code - Insiders/User/globalStorage/github.copilot-chat/debugCommand:/Users/tao.exe/Library/Application Support/Code - Insiders/User/globalStorage/github.copilot-chat/copilotCli:',
+#   VSCODE_PREVENT_SHELL_HISTORY: '1',
+#   VSCODE_PROFILE_INITIALIZED: '1',
+#   VSCODE_SHELL_ENV_REPORTING: 'PATH,VIRTUAL_ENV,HOME,SHELL,PWD',
+#   XPC_FLAGS: '0x0',
+#   XPC_SERVICE_NAME: '0',
+#   ZDOTDIR: '/Users/tao.exe',
+#   ZENMUX_API_KEY: 'sk-ss-v1-95eae04a95ac9bba411c32cede234295deaa21a02ee2d8a90e830fc9c0004779',
+#   __CFBundleIdentifier: 'com.microsoft.VSCodeInsiders',
+#   __CF_USER_TEXT_ENCODING: '0x1F6:0x3:0x33',
+#   _: '/Users/tao.exe/.nvm/versions/node/v22.19.0/bin/node',
+#   NODE_TEST_CONTEXT: 'child-v8',
+#   STREAMABLE_HTTP: 'true',
+#   REMOTE_AUTHORIZATION: 'true',
+#   GITLAB_API_URL: 'http://127.0.0.1:9200/api/v4',
+#   GITLAB_TOOLSETS: 'all',
+#   PORT: '3220'
+# }
+# Launcher: Server process spawned with PID: 56608
+# Launcher: Server process spawned.
+    # Subtest: GITLAB_TOOLSETS=issues
+        # Subtest: returns only issue tools + discover_tools
+        ok 1 - returns only issue tools + discover_tools
+          ---
+          duration_ms: 0.096
+          type: 'test'
+          ...
+        # Subtest: includes issue sample tools
+        ok 2 - includes issue sample tools
+          ---
+          duration_ms: 0.129458
+          type: 'test'
+          ...
+        # Subtest: excludes merge_requests tools
+        ok 3 - excludes merge_requests tools
+          ---
+          duration_ms: 0.038458
+          type: 'test'
+          ...
+        1..3
+    ok 2 - GITLAB_TOOLSETS=issues
+      ---
+      duration_ms: 1232.761292
+      type: 'suite'
+      ...
+# [Server Output]: [33mWARN[39m [14:05:55.818] (56559): [36mStreamable HTTP session initialized: 491acf30-190d-49f7-af43-1dab888cc4d1[39m
+# [32mINFO[39m [14:05:55.818] (56559): [36mSession 491acf30-190d-49f7-af43-1dab888cc4d1: stored Authorization header[39m
+# [32mINFO[39m [14:05:55.831] (56559): [36mSIGTERM received, starting graceful shutdown...[39m
+# [32mINFO[39m [14:05:55.831] (56559): [36mClosing 1 active sessions...[39m
+# [33mWARN[39m [14:05:55.831] (56559): [36mStreamable HTTP transport closed for session 491acf30-190d-49f7-af43-1dab888cc4d1, cleaning up[39m
+# [32mINFO[39m [14:05:55.831] (56559): [36mSession 491acf30-190d-49f7-af43-1dab888cc4d1: cleaned up auth mapping[39m
+# [32mINFO[39m [14:05:55.831] (56559): [36mHTTP server closed[39m
+# [32mINFO[39m [14:05:55.831] (56559): [36mGraceful shutdown complete[39m
+# [Launcher DEBUG] Process 56559 exited with code 0
+# [Launcher DEBUG] Process 56559 closed with code 0
+# [Server Output]: [32mINFO[39m [14:05:56.013] (56608): [36mRemote authorization enabled: tokens will be read from HTTP headers[39m
+# [Server Output]: [32mINFO[39m [14:05:56.013] (56608): [36mConfiguration validation passed[39m
+# [32mINFO[39m [14:05:56.013] (56608): [36mInitializing server with transport mode:[39m
+# [33mWARN[39m [14:05:56.013] (56608): [36mStarting GitLab MCP Server with Streamable HTTP transport[39m
+# [32mINFO[39m [14:05:56.015] (56608): [36mConfigured GitLab API URLs: http://127.0.0.1:9200/api/v4[39m
+# [32mINFO[39m [14:05:56.015] (56608): [36mDefault GitLab API URL: http://127.0.0.1:9200/api/v4[39m
+# [32mINFO[39m [14:05:56.017] (56608): [36mGitLab MCP Server running with Streamable HTTP transport[39m
+# [32mINFO[39m [14:05:56.017] (56608): [36m[32mEndpoint: http://127.0.0.1:3220/mcp[0m[39m
+# Launcher: launchServer function entered.
+# Launcher: Spawning server process with env: {
+#   ANDROID_HOME: '/Users/tao.exe/Library/Android/sdk',
+#   BUN_INSTALL: '/Users/tao.exe/.bun',
+#   COLORTERM: 'truecolor',
+#   COMMAND_MODE: 'unix2003',
+#   GIT_ASKPASS: '/Applications/Visual Studio Code - Insiders.app/Contents/Resources/app/extensions/git/dist/askpass.sh',
+#   GIT_EDITOR: ':',
+#   GIT_MERGE_AUTOEDIT: 'no',
+#   GIT_PAGER: 'cat',
+#   HOME: '/Users/tao.exe',
+#   JAVA_HOME: '/Library/Java/JavaVirtualMachines/zulu-17.jdk/Contents/Home',
+#   LANG: 'C.UTF-8',
+#   LOGNAME: 'tao.exe',
+#   MallocNanoZone: '0',
+#   NVM_BIN: '/Users/tao.exe/.nvm/versions/node/v22.19.0/bin',
+#   NVM_CD_FLAGS: '-q',
+#   NVM_DIR: '/Users/tao.exe/.nvm',
+#   NVM_INC: '/Users/tao.exe/.nvm/versions/node/v22.19.0/include/node',
+#   OLDPWD: '/Users/tao.exe/Documents/gitlab-mcp',
+#   OSLogRateLimit: '64',
+#   PATH: '/Users/tao.exe/.opencode/bin:/Users/tao.exe/.bun/bin:/Users/tao.exe/.antigravity/antigravity/bin:/Users/tao.exe/.rbenv/shims:/Users/tao.exe/.codeium/windsurf/bin:/Users/tao.exe/.codeium/windsurf/bin:/Users/tao.exe/.codeium/windsurf/bin:/Users/tao.exe/.antigravity/antigravity/bin:/Users/tao.exe/.codeium/windsurf/bin:/Users/tao.exe/.local/bin:/Users/tao.exe/.rbenv/shims:/Users/tao.exe/.local/bin:/Users/tao.exe/.nvm/versions/node/v22.19.0/bin:/usr/local/bin:/System/Cryptexes/App/usr/bin:/usr/bin:/bin:/usr/sbin:/sbin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/local/bin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/bin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/appleinternal/bin:/opt/pmk/env/global/bin:/Library/Apple/usr/bin:/opt/homebrew/bin:/Users/tao.exe/Library/Application Support/Code - Insiders/User/globalStorage/github.copilot-chat/debugCommand:/Users/tao.exe/Library/Application Support/Code - Insiders/User/globalStorage/github.copilot-chat/copilotCli:/Users/tao.exe/.opencode/bin:/Users/tao.exe/.bun/bin:/Users/tao.exe/.antigravity/antigravity/bin:/Users/tao.exe/.rbenv/shims:/Users/tao.exe/.codeium/windsurf/bin:/Users/tao.exe/.local/bin:/Users/tao.exe/.nvm/versions/node/v22.19.0/bin:/Users/tao.exe/.swiftly/bin:/Users/tao.exe/.cargo/bin:/Users/tao.exe/Library/Android/sdk/emulator:/Users/tao.exe/Library/Android/sdk/platform-tools:/Users/tao.exe/.lmstudio/bin:/Users/tao.exe/Library/Android/sdk/emulator:/Users/tao.exe/Library/Android/sdk/platform-tools:/Users/tao.exe/.lmstudio/bin',
+#   PWD: '/Users/tao.exe/Documents/gitlab-mcp',
+#   QTERM_SESSION_ID: '4af59943197040408dfc47e2aad59dbb',
+#   Q_SET_PARENT_CHECK: '1',
+#   Q_TERM: '1.26.2',
+#   RBENV_SHELL: 'zsh',
+#   SHELL: '/bin/zsh',
+#   SHELL_PID: '54817',
+#   SHLVL: '1',
+#   SSH_AUTH_SOCK: '/private/tmp/com.apple.launchd.lg93zG90Bg/Listeners',
+#   SWIFTLY_BIN_DIR: '/Users/tao.exe/.swiftly/bin',
+#   SWIFTLY_HOME_DIR: '/Users/tao.exe/.swiftly',
+#   SWIFTLY_TOOLCHAINS_DIR: '/Users/tao.exe/Library/Developer/Toolchains',
+#   SYNTHETIC_API_KEY: 'syn_35a76bd4c1d5ed18b8e4e8a4f1b07b76',
+#   TERM: 'xterm-256color',
+#   TERM_PROGRAM: 'vscode',
+#   TERM_PROGRAM_VERSION: '1.116.0-insider',
+#   TMPDIR: '/var/folders/kc/hx_s_dg96p7czwjjwc789vx00000gp/T/',
+#   TTY: '/dev/ttys098',
+#   USER: 'tao.exe',
+#   USER_ZDOTDIR: '/Users/tao.exe',
+#   VSCODE_GIT_ASKPASS_EXTRA_ARGS: '',
+#   VSCODE_GIT_ASKPASS_MAIN: '/Applications/Visual Studio Code - Insiders.app/Contents/Resources/app/extensions/git/dist/askpass-main.js',
+#   VSCODE_GIT_ASKPASS_NODE: '/Applications/Visual Studio Code - Insiders.app/Contents/Frameworks/Code - Insiders Helper (Plugin).app/Contents/MacOS/Code - Insiders Helper (Plugin)',
+#   VSCODE_GIT_IPC_HANDLE: '/var/folders/kc/hx_s_dg96p7czwjjwc789vx00000gp/T/vscode-git-1d2807ead6.sock',
+#   VSCODE_INJECTION: '1',
+#   VSCODE_NONCE: 'daf2368a-ef1d-4131-81e7-4b337e7ae923',
+#   VSCODE_PATH_PREFIX: '/Users/tao.exe/Library/Application Support/Code - Insiders/User/globalStorage/github.copilot-chat/debugCommand:/Users/tao.exe/Library/Application Support/Code - Insiders/User/globalStorage/github.copilot-chat/copilotCli:',
+#   VSCODE_PREVENT_SHELL_HISTORY: '1',
+#   VSCODE_PROFILE_INITIALIZED: '1',
+#   VSCODE_SHELL_ENV_REPORTING: 'PATH,VIRTUAL_ENV,HOME,SHELL,PWD',
+#   XPC_FLAGS: '0x0',
+#   XPC_SERVICE_NAME: '0',
+#   ZDOTDIR: '/Users/tao.exe',
+#   ZENMUX_API_KEY: 'sk-ss-v1-95eae04a95ac9bba411c32cede234295deaa21a02ee2d8a90e830fc9c0004779',
+#   __CFBundleIdentifier: 'com.microsoft.VSCodeInsiders',
+#   __CF_USER_TEXT_ENCODING: '0x1F6:0x3:0x33',
+#   _: '/Users/tao.exe/.nvm/versions/node/v22.19.0/bin/node',
+#   NODE_TEST_CONTEXT: 'child-v8',
+#   STREAMABLE_HTTP: 'true',
+#   REMOTE_AUTHORIZATION: 'true',
+#   GITLAB_API_URL: 'http://127.0.0.1:9200/api/v4',
+#   GITLAB_TOOLS: 'list_pipelines,execute_graphql',
+#   PORT: '3230'
+# }
+# Launcher: Spawning server process with env: {
+#   ANDROID_HOME: '/Users/tao.exe/Library/Android/sdk',
+#   BUN_INSTALL: '/Users/tao.exe/.bun',
+#   COLORTERM: 'truecolor',
+#   COMMAND_MODE: 'unix2003',
+#   GIT_ASKPASS: '/Applications/Visual Studio Code - Insiders.app/Contents/Resources/app/extensions/git/dist/askpass.sh',
+#   GIT_EDITOR: ':',
+#   GIT_MERGE_AUTOEDIT: 'no',
+#   GIT_PAGER: 'cat',
+#   HOME: '/Users/tao.exe',
+#   JAVA_HOME: '/Library/Java/JavaVirtualMachines/zulu-17.jdk/Contents/Home',
+#   LANG: 'C.UTF-8',
+#   LOGNAME: 'tao.exe',
+#   MallocNanoZone: '0',
+#   NVM_BIN: '/Users/tao.exe/.nvm/versions/node/v22.19.0/bin',
+#   NVM_CD_FLAGS: '-q',
+#   NVM_DIR: '/Users/tao.exe/.nvm',
+#   NVM_INC: '/Users/tao.exe/.nvm/versions/node/v22.19.0/include/node',
+#   OLDPWD: '/Users/tao.exe/Documents/gitlab-mcp',
+#   OSLogRateLimit: '64',
+#   PATH: '/Users/tao.exe/.opencode/bin:/Users/tao.exe/.bun/bin:/Users/tao.exe/.antigravity/antigravity/bin:/Users/tao.exe/.rbenv/shims:/Users/tao.exe/.codeium/windsurf/bin:/Users/tao.exe/.codeium/windsurf/bin:/Users/tao.exe/.codeium/windsurf/bin:/Users/tao.exe/.antigravity/antigravity/bin:/Users/tao.exe/.codeium/windsurf/bin:/Users/tao.exe/.local/bin:/Users/tao.exe/.rbenv/shims:/Users/tao.exe/.local/bin:/Users/tao.exe/.nvm/versions/node/v22.19.0/bin:/usr/local/bin:/System/Cryptexes/App/usr/bin:/usr/bin:/bin:/usr/sbin:/sbin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/local/bin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/bin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/appleinternal/bin:/opt/pmk/env/global/bin:/Library/Apple/usr/bin:/opt/homebrew/bin:/Users/tao.exe/Library/Application Support/Code - Insiders/User/globalStorage/github.copilot-chat/debugCommand:/Users/tao.exe/Library/Application Support/Code - Insiders/User/globalStorage/github.copilot-chat/copilotCli:/Users/tao.exe/.opencode/bin:/Users/tao.exe/.bun/bin:/Users/tao.exe/.antigravity/antigravity/bin:/Users/tao.exe/.rbenv/shims:/Users/tao.exe/.codeium/windsurf/bin:/Users/tao.exe/.local/bin:/Users/tao.exe/.nvm/versions/node/v22.19.0/bin:/Users/tao.exe/.swiftly/bin:/Users/tao.exe/.cargo/bin:/Users/tao.exe/Library/Android/sdk/emulator:/Users/tao.exe/Library/Android/sdk/platform-tools:/Users/tao.exe/.lmstudio/bin:/Users/tao.exe/Library/Android/sdk/emulator:/Users/tao.exe/Library/Android/sdk/platform-tools:/Users/tao.exe/.lmstudio/bin',
+#   PWD: '/Users/tao.exe/Documents/gitlab-mcp',
+#   QTERM_SESSION_ID: '4af59943197040408dfc47e2aad59dbb',
+#   Q_SET_PARENT_CHECK: '1',
+#   Q_TERM: '1.26.2',
+#   RBENV_SHELL: 'zsh',
+#   SHELL: '/bin/zsh',
+#   SHELL_PID: '54817',
+#   SHLVL: '1',
+#   SSH_AUTH_SOCK: '/private/tmp/com.apple.launchd.lg93zG90Bg/Listeners',
+#   SWIFTLY_BIN_DIR: '/Users/tao.exe/.swiftly/bin',
+#   SWIFTLY_HOME_DIR: '/Users/tao.exe/.swiftly',
+#   SWIFTLY_TOOLCHAINS_DIR: '/Users/tao.exe/Library/Developer/Toolchains',
+#   SYNTHETIC_API_KEY: 'syn_35a76bd4c1d5ed18b8e4e8a4f1b07b76',
+#   TERM: 'xterm-256color',
+#   TERM_PROGRAM: 'vscode',
+#   TERM_PROGRAM_VERSION: '1.116.0-insider',
+#   TMPDIR: '/var/folders/kc/hx_s_dg96p7czwjjwc789vx00000gp/T/',
+#   TTY: '/dev/ttys098',
+#   USER: 'tao.exe',
+#   USER_ZDOTDIR: '/Users/tao.exe',
+#   VSCODE_GIT_ASKPASS_EXTRA_ARGS: '',
+#   VSCODE_GIT_ASKPASS_MAIN: '/Applications/Visual Studio Code - Insiders.app/Contents/Resources/app/extensions/git/dist/askpass-main.js',
+#   VSCODE_GIT_ASKPASS_NODE: '/Applications/Visual Studio Code - Insiders.app/Contents/Frameworks/Code - Insiders Helper (Plugin).app/Contents/MacOS/Code - Insiders Helper (Plugin)',
+#   VSCODE_GIT_IPC_HANDLE: '/var/folders/kc/hx_s_dg96p7czwjjwc789vx00000gp/T/vscode-git-1d2807ead6.sock',
+#   VSCODE_INJECTION: '1',
+#   VSCODE_NONCE: 'daf2368a-ef1d-4131-81e7-4b337e7ae923',
+#   VSCODE_PATH_PREFIX: '/Users/tao.exe/Library/Application Support/Code - Insiders/User/globalStorage/github.copilot-chat/debugCommand:/Users/tao.exe/Library/Application Support/Code - Insiders/User/globalStorage/github.copilot-chat/copilotCli:',
+#   VSCODE_PREVENT_SHELL_HISTORY: '1',
+#   VSCODE_PROFILE_INITIALIZED: '1',
+#   VSCODE_SHELL_ENV_REPORTING: 'PATH,VIRTUAL_ENV,HOME,SHELL,PWD',
+#   XPC_FLAGS: '0x0',
+#   XPC_SERVICE_NAME: '0',
+#   ZDOTDIR: '/Users/tao.exe',
+#   ZENMUX_API_KEY: 'sk-ss-v1-95eae04a95ac9bba411c32cede234295deaa21a02ee2d8a90e830fc9c0004779',
+#   __CFBundleIdentifier: 'com.microsoft.VSCodeInsiders',
+#   __CF_USER_TEXT_ENCODING: '0x1F6:0x3:0x33',
+#   _: '/Users/tao.exe/.nvm/versions/node/v22.19.0/bin/node',
+#   NODE_TEST_CONTEXT: 'child-v8',
+#   STREAMABLE_HTTP: 'true',
+#   REMOTE_AUTHORIZATION: 'true',
+#   GITLAB_API_URL: 'http://127.0.0.1:9200/api/v4',
+#   GITLAB_TOOLS: 'list_pipelines,execute_graphql',
+#   PORT: '3230'
+# }
+# Launcher: Server process spawned with PID: 56621
+# Launcher: Server process spawned.
+    # Subtest: GITLAB_TOOLSETS=all
+        # Subtest: returns all toolset tools
+        ok 1 - returns all toolset tools
+          ---
+          duration_ms: 0.1655
+          type: 'test'
+          ...
+        # Subtest: includes pipelines, milestones, and wiki
+        ok 2 - includes pipelines, milestones, and wiki
+          ---
+          duration_ms: 0.066416
+          type: 'test'
+          ...
+        # Subtest: still excludes execute_graphql
+        ok 3 - still excludes execute_graphql
+          ---
+          duration_ms: 0.049916
+          type: 'test'
+          ...
+        1..3
+    ok 3 - GITLAB_TOOLSETS=all
+      ---
+      duration_ms: 1252.744084
+      type: 'suite'
+      ...
+# [Server Output]: [32mINFO[39m [14:05:57.256] (56621): [36mRemote authorization enabled: tokens will be read from HTTP headers[39m
+# [Server Output]: [32mINFO[39m [14:05:57.256] (56621): [36mConfiguration validation passed[39m
+# [32mINFO[39m [14:05:57.256] (56621): [36mInitializing server with transport mode:[39m
+# [33mWARN[39m [14:05:57.256] (56621): [36mStarting GitLab MCP Server with Streamable HTTP transport[39m
+# [32mINFO[39m [14:05:57.258] (56621): [36mConfigured GitLab API URLs: http://127.0.0.1:9200/api/v4[39m
+# [32mINFO[39m [14:05:57.258] (56621): [36mDefault GitLab API URL: http://127.0.0.1:9200/api/v4[39m
+# [32mINFO[39m [14:05:57.260] (56621): [36mGitLab MCP Server running with Streamable HTTP transport[39m
+# [32mINFO[39m [14:05:57.260] (56621): [36m[32mEndpoint: http://127.0.0.1:3230/mcp[0m[39m
+# [Server Output]: [33mWARN[39m [14:05:57.066] (56608): [36mStreamable HTTP session initialized: 7367b90e-ccd1-43ca-80b4-3ad2b0a5b465[39m
+# [Server Output]: [32mINFO[39m [14:05:57.066] (56608): [36mSession 7367b90e-ccd1-43ca-80b4-3ad2b0a5b465: stored Authorization header[39m
+# [32mINFO[39m [14:05:57.084] (56608): [36mSIGTERM received, starting graceful shutdown...[39m
+# [32mINFO[39m [14:05:57.084] (56608): [36mClosing 1 active sessions...[39m
+# [33mWARN[39m [14:05:57.084] (56608): [36mStreamable HTTP transport closed for session 7367b90e-ccd1-43ca-80b4-3ad2b0a5b465, cleaning up[39m
+# [32mINFO[39m [14:05:57.084] (56608): [36mSession 7367b90e-ccd1-43ca-80b4-3ad2b0a5b465: cleaned up auth mapping[39m
+# [32mINFO[39m [14:05:57.084] (56608): [36mHTTP server closed[39m
+# [32mINFO[39m [14:05:57.084] (56608): [36mGraceful shutdown complete[39m
+# [Launcher DEBUG] Process 56608 exited with code 0
+# [Launcher DEBUG] Process 56608 closed with code 0
+# Launcher: launchServer function entered.
+# Launcher: Spawning server process with env: {
+#   ANDROID_HOME: '/Users/tao.exe/Library/Android/sdk',
+#   BUN_INSTALL: '/Users/tao.exe/.bun',
+#   COLORTERM: 'truecolor',
+#   COMMAND_MODE: 'unix2003',
+#   GIT_ASKPASS: '/Applications/Visual Studio Code - Insiders.app/Contents/Resources/app/extensions/git/dist/askpass.sh',
+#   GIT_EDITOR: ':',
+#   GIT_MERGE_AUTOEDIT: 'no',
+#   GIT_PAGER: 'cat',
+#   HOME: '/Users/tao.exe',
+#   JAVA_HOME: '/Library/Java/JavaVirtualMachines/zulu-17.jdk/Contents/Home',
+#   LANG: 'C.UTF-8',
+#   LOGNAME: 'tao.exe',
+#   MallocNanoZone: '0',
+#   NVM_BIN: '/Users/tao.exe/.nvm/versions/node/v22.19.0/bin',
+#   NVM_CD_FLAGS: '-q',
+#   NVM_DIR: '/Users/tao.exe/.nvm',
+#   NVM_INC: '/Users/tao.exe/.nvm/versions/node/v22.19.0/include/node',
+#   OLDPWD: '/Users/tao.exe/Documents/gitlab-mcp',
+#   OSLogRateLimit: '64',
+#   PATH: '/Users/tao.exe/.opencode/bin:/Users/tao.exe/.bun/bin:/Users/tao.exe/.antigravity/antigravity/bin:/Users/tao.exe/.rbenv/shims:/Users/tao.exe/.codeium/windsurf/bin:/Users/tao.exe/.codeium/windsurf/bin:/Users/tao.exe/.codeium/windsurf/bin:/Users/tao.exe/.antigravity/antigravity/bin:/Users/tao.exe/.codeium/windsurf/bin:/Users/tao.exe/.local/bin:/Users/tao.exe/.rbenv/shims:/Users/tao.exe/.local/bin:/Users/tao.exe/.nvm/versions/node/v22.19.0/bin:/usr/local/bin:/System/Cryptexes/App/usr/bin:/usr/bin:/bin:/usr/sbin:/sbin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/local/bin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/bin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/appleinternal/bin:/opt/pmk/env/global/bin:/Library/Apple/usr/bin:/opt/homebrew/bin:/Users/tao.exe/Library/Application Support/Code - Insiders/User/globalStorage/github.copilot-chat/debugCommand:/Users/tao.exe/Library/Application Support/Code - Insiders/User/globalStorage/github.copilot-chat/copilotCli:/Users/tao.exe/.opencode/bin:/Users/tao.exe/.bun/bin:/Users/tao.exe/.antigravity/antigravity/bin:/Users/tao.exe/.rbenv/shims:/Users/tao.exe/.codeium/windsurf/bin:/Users/tao.exe/.local/bin:/Users/tao.exe/.nvm/versions/node/v22.19.0/bin:/Users/tao.exe/.swiftly/bin:/Users/tao.exe/.cargo/bin:/Users/tao.exe/Library/Android/sdk/emulator:/Users/tao.exe/Library/Android/sdk/platform-tools:/Users/tao.exe/.lmstudio/bin:/Users/tao.exe/Library/Android/sdk/emulator:/Users/tao.exe/Library/Android/sdk/platform-tools:/Users/tao.exe/.lmstudio/bin',
+#   PWD: '/Users/tao.exe/Documents/gitlab-mcp',
+#   QTERM_SESSION_ID: '4af59943197040408dfc47e2aad59dbb',
+#   Q_SET_PARENT_CHECK: '1',
+#   Q_TERM: '1.26.2',
+#   RBENV_SHELL: 'zsh',
+#   SHELL: '/bin/zsh',
+#   SHELL_PID: '54817',
+#   SHLVL: '1',
+#   SSH_AUTH_SOCK: '/private/tmp/com.apple.launchd.lg93zG90Bg/Listeners',
+#   SWIFTLY_BIN_DIR: '/Users/tao.exe/.swiftly/bin',
+#   SWIFTLY_HOME_DIR: '/Users/tao.exe/.swiftly',
+#   SWIFTLY_TOOLCHAINS_DIR: '/Users/tao.exe/Library/Developer/Toolchains',
+#   SYNTHETIC_API_KEY: 'syn_35a76bd4c1d5ed18b8e4e8a4f1b07b76',
+#   TERM: 'xterm-256color',
+#   TERM_PROGRAM: 'vscode',
+#   TERM_PROGRAM_VERSION: '1.116.0-insider',
+#   TMPDIR: '/var/folders/kc/hx_s_dg96p7czwjjwc789vx00000gp/T/',
+#   TTY: '/dev/ttys098',
+#   USER: 'tao.exe',
+#   USER_ZDOTDIR: '/Users/tao.exe',
+#   VSCODE_GIT_ASKPASS_EXTRA_ARGS: '',
+#   VSCODE_GIT_ASKPASS_MAIN: '/Applications/Visual Studio Code - Insiders.app/Contents/Resources/app/extensions/git/dist/askpass-main.js',
+#   VSCODE_GIT_ASKPASS_NODE: '/Applications/Visual Studio Code - Insiders.app/Contents/Frameworks/Code - Insiders Helper (Plugin).app/Contents/MacOS/Code - Insiders Helper (Plugin)',
+#   VSCODE_GIT_IPC_HANDLE: '/var/folders/kc/hx_s_dg96p7czwjjwc789vx00000gp/T/vscode-git-1d2807ead6.sock',
+#   VSCODE_INJECTION: '1',
+#   VSCODE_NONCE: 'daf2368a-ef1d-4131-81e7-4b337e7ae923',
+#   VSCODE_PATH_PREFIX: '/Users/tao.exe/Library/Application Support/Code - Insiders/User/globalStorage/github.copilot-chat/debugCommand:/Users/tao.exe/Library/Application Support/Code - Insiders/User/globalStorage/github.copilot-chat/copilotCli:',
+#   VSCODE_PREVENT_SHELL_HISTORY: '1',
+#   VSCODE_PROFILE_INITIALIZED: '1',
+#   VSCODE_SHELL_ENV_REPORTING: 'PATH,VIRTUAL_ENV,HOME,SHELL,PWD',
+#   XPC_FLAGS: '0x0',
+#   XPC_SERVICE_NAME: '0',
+#   ZDOTDIR: '/Users/tao.exe',
+#   ZENMUX_API_KEY: 'sk-ss-v1-95eae04a95ac9bba411c32cede234295deaa21a02ee2d8a90e830fc9c0004779',
+#   __CFBundleIdentifier: 'com.microsoft.VSCodeInsiders',
+#   __CF_USER_TEXT_ENCODING: '0x1F6:0x3:0x33',
+#   _: '/Users/tao.exe/.nvm/versions/node/v22.19.0/bin/node',
+#   NODE_TEST_CONTEXT: 'child-v8',
+#   STREAMABLE_HTTP: 'true',
+#   REMOTE_AUTHORIZATION: 'true',
+#   GITLAB_API_URL: 'http://127.0.0.1:9200/api/v4',
+#   GITLAB_TOOLSETS: 'issues',
+#   GITLAB_TOOLS: 'list_pipelines,get_pipeline',
+#   PORT: '3240'
+# }
+# Launcher: Spawning server process with env: {
+#   ANDROID_HOME: '/Users/tao.exe/Library/Android/sdk',
+#   BUN_INSTALL: '/Users/tao.exe/.bun',
+#   COLORTERM: 'truecolor',
+#   COMMAND_MODE: 'unix2003',
+#   GIT_ASKPASS: '/Applications/Visual Studio Code - Insiders.app/Contents/Resources/app/extensions/git/dist/askpass.sh',
+#   GIT_EDITOR: ':',
+#   GIT_MERGE_AUTOEDIT: 'no',
+#   GIT_PAGER: 'cat',
+#   HOME: '/Users/tao.exe',
+#   JAVA_HOME: '/Library/Java/JavaVirtualMachines/zulu-17.jdk/Contents/Home',
+#   LANG: 'C.UTF-8',
+#   LOGNAME: 'tao.exe',
+#   MallocNanoZone: '0',
+#   NVM_BIN: '/Users/tao.exe/.nvm/versions/node/v22.19.0/bin',
+#   NVM_CD_FLAGS: '-q',
+#   NVM_DIR: '/Users/tao.exe/.nvm',
+#   NVM_INC: '/Users/tao.exe/.nvm/versions/node/v22.19.0/include/node',
+#   OLDPWD: '/Users/tao.exe/Documents/gitlab-mcp',
+#   OSLogRateLimit: '64',
+#   PATH: '/Users/tao.exe/.opencode/bin:/Users/tao.exe/.bun/bin:/Users/tao.exe/.antigravity/antigravity/bin:/Users/tao.exe/.rbenv/shims:/Users/tao.exe/.codeium/windsurf/bin:/Users/tao.exe/.codeium/windsurf/bin:/Users/tao.exe/.codeium/windsurf/bin:/Users/tao.exe/.antigravity/antigravity/bin:/Users/tao.exe/.codeium/windsurf/bin:/Users/tao.exe/.local/bin:/Users/tao.exe/.rbenv/shims:/Users/tao.exe/.local/bin:/Users/tao.exe/.nvm/versions/node/v22.19.0/bin:/usr/local/bin:/System/Cryptexes/App/usr/bin:/usr/bin:/bin:/usr/sbin:/sbin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/local/bin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/bin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/appleinternal/bin:/opt/pmk/env/global/bin:/Library/Apple/usr/bin:/opt/homebrew/bin:/Users/tao.exe/Library/Application Support/Code - Insiders/User/globalStorage/github.copilot-chat/debugCommand:/Users/tao.exe/Library/Application Support/Code - Insiders/User/globalStorage/github.copilot-chat/copilotCli:/Users/tao.exe/.opencode/bin:/Users/tao.exe/.bun/bin:/Users/tao.exe/.antigravity/antigravity/bin:/Users/tao.exe/.rbenv/shims:/Users/tao.exe/.codeium/windsurf/bin:/Users/tao.exe/.local/bin:/Users/tao.exe/.nvm/versions/node/v22.19.0/bin:/Users/tao.exe/.swiftly/bin:/Users/tao.exe/.cargo/bin:/Users/tao.exe/Library/Android/sdk/emulator:/Users/tao.exe/Library/Android/sdk/platform-tools:/Users/tao.exe/.lmstudio/bin:/Users/tao.exe/Library/Android/sdk/emulator:/Users/tao.exe/Library/Android/sdk/platform-tools:/Users/tao.exe/.lmstudio/bin',
+#   PWD: '/Users/tao.exe/Documents/gitlab-mcp',
+#   QTERM_SESSION_ID: '4af59943197040408dfc47e2aad59dbb',
+#   Q_SET_PARENT_CHECK: '1',
+#   Q_TERM: '1.26.2',
+#   RBENV_SHELL: 'zsh',
+#   SHELL: '/bin/zsh',
+#   SHELL_PID: '54817',
+#   SHLVL: '1',
+#   SSH_AUTH_SOCK: '/private/tmp/com.apple.launchd.lg93zG90Bg/Listeners',
+#   SWIFTLY_BIN_DIR: '/Users/tao.exe/.swiftly/bin',
+#   SWIFTLY_HOME_DIR: '/Users/tao.exe/.swiftly',
+#   SWIFTLY_TOOLCHAINS_DIR: '/Users/tao.exe/Library/Developer/Toolchains',
+#   SYNTHETIC_API_KEY: 'syn_35a76bd4c1d5ed18b8e4e8a4f1b07b76',
+#   TERM: 'xterm-256color',
+#   TERM_PROGRAM: 'vscode',
+#   TERM_PROGRAM_VERSION: '1.116.0-insider',
+#   TMPDIR: '/var/folders/kc/hx_s_dg96p7czwjjwc789vx00000gp/T/',
+#   TTY: '/dev/ttys098',
+#   USER: 'tao.exe',
+#   USER_ZDOTDIR: '/Users/tao.exe',
+#   VSCODE_GIT_ASKPASS_EXTRA_ARGS: '',
+#   VSCODE_GIT_ASKPASS_MAIN: '/Applications/Visual Studio Code - Insiders.app/Contents/Resources/app/extensions/git/dist/askpass-main.js',
+#   VSCODE_GIT_ASKPASS_NODE: '/Applications/Visual Studio Code - Insiders.app/Contents/Frameworks/Code - Insiders Helper (Plugin).app/Contents/MacOS/Code - Insiders Helper (Plugin)',
+#   VSCODE_GIT_IPC_HANDLE: '/var/folders/kc/hx_s_dg96p7czwjjwc789vx00000gp/T/vscode-git-1d2807ead6.sock',
+#   VSCODE_INJECTION: '1',
+#   VSCODE_NONCE: 'daf2368a-ef1d-4131-81e7-4b337e7ae923',
+#   VSCODE_PATH_PREFIX: '/Users/tao.exe/Library/Application Support/Code - Insiders/User/globalStorage/github.copilot-chat/debugCommand:/Users/tao.exe/Library/Application Support/Code - Insiders/User/globalStorage/github.copilot-chat/copilotCli:',
+#   VSCODE_PREVENT_SHELL_HISTORY: '1',
+#   VSCODE_PROFILE_INITIALIZED: '1',
+#   VSCODE_SHELL_ENV_REPORTING: 'PATH,VIRTUAL_ENV,HOME,SHELL,PWD',
+#   XPC_FLAGS: '0x0',
+#   XPC_SERVICE_NAME: '0',
+#   ZDOTDIR: '/Users/tao.exe',
+#   ZENMUX_API_KEY: 'sk-ss-v1-95eae04a95ac9bba411c32cede234295deaa21a02ee2d8a90e830fc9c0004779',
+#   __CFBundleIdentifier: 'com.microsoft.VSCodeInsiders',
+#   __CF_USER_TEXT_ENCODING: '0x1F6:0x3:0x33',
+#   _: '/Users/tao.exe/.nvm/versions/node/v22.19.0/bin/node',
+#   NODE_TEST_CONTEXT: 'child-v8',
+#   STREAMABLE_HTTP: 'true',
+#   REMOTE_AUTHORIZATION: 'true',
+#   GITLAB_API_URL: 'http://127.0.0.1:9200/api/v4',
+#   GITLAB_TOOLSETS: 'issues',
+#   GITLAB_TOOLS: 'list_pipelines,get_pipeline',
+#   PORT: '3240'
+# }
+# Launcher: Server process spawned with PID: 56635
+# Launcher: Server process spawned.
+    # Subtest: GITLAB_TOOLS=list_pipelines,execute_graphql
+        # Subtest: returns default tools plus list_pipelines and execute_graphql (both not in default toolsets)
+        ok 1 - returns default tools plus list_pipelines and execute_graphql (both not in default toolsets)
+          ---
+          duration_ms: 0.07975
+          type: 'test'
+          ...
+        # Subtest: includes the individually added tools
+        ok 2 - includes the individually added tools
+          ---
+          duration_ms: 0.031375
+          type: 'test'
+          ...
+        # Subtest: excludes other pipeline tools (not individually enabled)
+        ok 3 - excludes other pipeline tools (not individually enabled)
+          ---
+          duration_ms: 0.027
+          type: 'test'
+          ...
+        1..3
+    ok 4 - GITLAB_TOOLS=list_pipelines,execute_graphql
+      ---
+      duration_ms: 1230.232083
+      type: 'suite'
+      ...
+# [Server Output]: [33mWARN[39m [14:05:58.303] (56621): [36mStreamable HTTP session initialized: f2ed95c0-44e7-46b2-9961-eeeb78b9389d[39m
+# [32mINFO[39m [14:05:58.304] (56621): [36mSession f2ed95c0-44e7-46b2-9961-eeeb78b9389d: stored Authorization header[39m
+# [32mINFO[39m [14:05:58.314] (56621): [36mSIGTERM received, starting graceful shutdown...[39m
+# [Server Output]: [32mINFO[39m [14:05:58.314] (56621): [36mClosing 1 active sessions...[39m
+# [33mWARN[39m [14:05:58.314] (56621): [36mStreamable HTTP transport closed for session f2ed95c0-44e7-46b2-9961-eeeb78b9389d, cleaning up[39m
+# [32mINFO[39m [14:05:58.314] (56621): [36mSession f2ed95c0-44e7-46b2-9961-eeeb78b9389d: cleaned up auth mapping[39m
+# [32mINFO[39m [14:05:58.314] (56621): [36mHTTP server closed[39m
+# [32mINFO[39m [14:05:58.314] (56621): [36mGraceful shutdown complete[39m
+# [Launcher DEBUG] Process 56621 exited with code 0
+# [Launcher DEBUG] Process 56621 closed with code 0
+# [Server Output]: [32mINFO[39m [14:05:58.500] (56635): [36mRemote authorization enabled: tokens will be read from HTTP headers[39m
+# [Server Output]: [32mINFO[39m [14:05:58.500] (56635): [36mConfiguration validation passed[39m
+# [32mINFO[39m [14:05:58.501] (56635): [36mInitializing server with transport mode:[39m
+# [33mWARN[39m [14:05:58.501] (56635): [36mStarting GitLab MCP Server with Streamable HTTP transport[39m
+# [32mINFO[39m [14:05:58.502] (56635): [36mConfigured GitLab API URLs: http://127.0.0.1:9200/api/v4[39m
+# [32mINFO[39m [14:05:58.502] (56635): [36mDefault GitLab API URL: http://127.0.0.1:9200/api/v4[39m
+# [32mINFO[39m [14:05:58.505] (56635): [36mGitLab MCP Server running with Streamable HTTP transport[39m
+# [32mINFO[39m [14:05:58.505] (56635): [36m[32mEndpoint: http://127.0.0.1:3240/mcp[0m[39m
+# [Server Output]: [33mWARN[39m [14:05:59.550] (56635): [36mStreamable HTTP session initialized: 473de7cc-ff78-4e15-85fe-ba40fe2b716f[39m
+# [Server Output]: [32mINFO[39m [14:05:59.550] (56635): [36mSession 473de7cc-ff78-4e15-85fe-ba40fe2b716f: stored Authorization header[39m
+# Launcher: launchServer function entered.
+# Launcher: Spawning server process with env: {
+#   ANDROID_HOME: '/Users/tao.exe/Library/Android/sdk',
+#   BUN_INSTALL: '/Users/tao.exe/.bun',
+#   COLORTERM: 'truecolor',
+#   COMMAND_MODE: 'unix2003',
+#   GIT_ASKPASS: '/Applications/Visual Studio Code - Insiders.app/Contents/Resources/app/extensions/git/dist/askpass.sh',
+#   GIT_EDITOR: ':',
+#   GIT_MERGE_AUTOEDIT: 'no',
+#   GIT_PAGER: 'cat',
+#   HOME: '/Users/tao.exe',
+#   JAVA_HOME: '/Library/Java/JavaVirtualMachines/zulu-17.jdk/Contents/Home',
+#   LANG: 'C.UTF-8',
+#   LOGNAME: 'tao.exe',
+#   MallocNanoZone: '0',
+#   NVM_BIN: '/Users/tao.exe/.nvm/versions/node/v22.19.0/bin',
+#   NVM_CD_FLAGS: '-q',
+#   NVM_DIR: '/Users/tao.exe/.nvm',
+#   NVM_INC: '/Users/tao.exe/.nvm/versions/node/v22.19.0/include/node',
+#   OLDPWD: '/Users/tao.exe/Documents/gitlab-mcp',
+#   OSLogRateLimit: '64',
+#   PATH: '/Users/tao.exe/.opencode/bin:/Users/tao.exe/.bun/bin:/Users/tao.exe/.antigravity/antigravity/bin:/Users/tao.exe/.rbenv/shims:/Users/tao.exe/.codeium/windsurf/bin:/Users/tao.exe/.codeium/windsurf/bin:/Users/tao.exe/.codeium/windsurf/bin:/Users/tao.exe/.antigravity/antigravity/bin:/Users/tao.exe/.codeium/windsurf/bin:/Users/tao.exe/.local/bin:/Users/tao.exe/.rbenv/shims:/Users/tao.exe/.local/bin:/Users/tao.exe/.nvm/versions/node/v22.19.0/bin:/usr/local/bin:/System/Cryptexes/App/usr/bin:/usr/bin:/bin:/usr/sbin:/sbin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/local/bin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/bin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/appleinternal/bin:/opt/pmk/env/global/bin:/Library/Apple/usr/bin:/opt/homebrew/bin:/Users/tao.exe/Library/Application Support/Code - Insiders/User/globalStorage/github.copilot-chat/debugCommand:/Users/tao.exe/Library/Application Support/Code - Insiders/User/globalStorage/github.copilot-chat/copilotCli:/Users/tao.exe/.opencode/bin:/Users/tao.exe/.bun/bin:/Users/tao.exe/.antigravity/antigravity/bin:/Users/tao.exe/.rbenv/shims:/Users/tao.exe/.codeium/windsurf/bin:/Users/tao.exe/.local/bin:/Users/tao.exe/.nvm/versions/node/v22.19.0/bin:/Users/tao.exe/.swiftly/bin:/Users/tao.exe/.cargo/bin:/Users/tao.exe/Library/Android/sdk/emulator:/Users/tao.exe/Library/Android/sdk/platform-tools:/Users/tao.exe/.lmstudio/bin:/Users/tao.exe/Library/Android/sdk/emulator:/Users/tao.exe/Library/Android/sdk/platform-tools:/Users/tao.exe/.lmstudio/bin',
+#   PWD: '/Users/tao.exe/Documents/gitlab-mcp',
+#   QTERM_SESSION_ID: '4af59943197040408dfc47e2aad59dbb',
+#   Q_SET_PARENT_CHECK: '1',
+#   Q_TERM: '1.26.2',
+#   RBENV_SHELL: 'zsh',
+#   SHELL: '/bin/zsh',
+#   SHELL_PID: '54817',
+#   SHLVL: '1',
+#   SSH_AUTH_SOCK: '/private/tmp/com.apple.launchd.lg93zG90Bg/Listeners',
+#   SWIFTLY_BIN_DIR: '/Users/tao.exe/.swiftly/bin',
+#   SWIFTLY_HOME_DIR: '/Users/tao.exe/.swiftly',
+#   SWIFTLY_TOOLCHAINS_DIR: '/Users/tao.exe/Library/Developer/Toolchains',
+#   SYNTHETIC_API_KEY: 'syn_35a76bd4c1d5ed18b8e4e8a4f1b07b76',
+#   TERM: 'xterm-256color',
+#   TERM_PROGRAM: 'vscode',
+#   TERM_PROGRAM_VERSION: '1.116.0-insider',
+#   TMPDIR: '/var/folders/kc/hx_s_dg96p7czwjjwc789vx00000gp/T/',
+#   TTY: '/dev/ttys098',
+#   USER: 'tao.exe',
+#   USER_ZDOTDIR: '/Users/tao.exe',
+#   VSCODE_GIT_ASKPASS_EXTRA_ARGS: '',
+#   VSCODE_GIT_ASKPASS_MAIN: '/Applications/Visual Studio Code - Insiders.app/Contents/Resources/app/extensions/git/dist/askpass-main.js',
+#   VSCODE_GIT_ASKPASS_NODE: '/Applications/Visual Studio Code - Insiders.app/Contents/Frameworks/Code - Insiders Helper (Plugin).app/Contents/MacOS/Code - Insiders Helper (Plugin)',
+#   VSCODE_GIT_IPC_HANDLE: '/var/folders/kc/hx_s_dg96p7czwjjwc789vx00000gp/T/vscode-git-1d2807ead6.sock',
+#   VSCODE_INJECTION: '1',
+#   VSCODE_NONCE: 'daf2368a-ef1d-4131-81e7-4b337e7ae923',
+#   VSCODE_PATH_PREFIX: '/Users/tao.exe/Library/Application Support/Code - Insiders/User/globalStorage/github.copilot-chat/debugCommand:/Users/tao.exe/Library/Application Support/Code - Insiders/User/globalStorage/github.copilot-chat/copilotCli:',
+#   VSCODE_PREVENT_SHELL_HISTORY: '1',
+#   VSCODE_PROFILE_INITIALIZED: '1',
+#   VSCODE_SHELL_ENV_REPORTING: 'PATH,VIRTUAL_ENV,HOME,SHELL,PWD',
+#   XPC_FLAGS: '0x0',
+#   XPC_SERVICE_NAME: '0',
+#   ZDOTDIR: '/Users/tao.exe',
+#   ZENMUX_API_KEY: 'sk-ss-v1-95eae04a95ac9bba411c32cede234295deaa21a02ee2d8a90e830fc9c0004779',
+#   __CFBundleIdentifier: 'com.microsoft.VSCodeInsiders',
+#   __CF_USER_TEXT_ENCODING: '0x1F6:0x3:0x33',
+#   _: '/Users/tao.exe/.nvm/versions/node/v22.19.0/bin/node',
+#   NODE_TEST_CONTEXT: 'child-v8',
+#   STREAMABLE_HTTP: 'true',
+#   REMOTE_AUTHORIZATION: 'true',
+#   GITLAB_API_URL: 'http://127.0.0.1:9200/api/v4',
+#   GITLAB_TOOLSETS: 'issues',
+#   USE_PIPELINE: 'true',
+#   PORT: '3250'
+# }
+# Launcher: Spawning server process with env: {
+#   ANDROID_HOME: '/Users/tao.exe/Library/Android/sdk',
+#   BUN_INSTALL: '/Users/tao.exe/.bun',
+#   COLORTERM: 'truecolor',
+#   COMMAND_MODE: 'unix2003',
+#   GIT_ASKPASS: '/Applications/Visual Studio Code - Insiders.app/Contents/Resources/app/extensions/git/dist/askpass.sh',
+#   GIT_EDITOR: ':',
+#   GIT_MERGE_AUTOEDIT: 'no',
+#   GIT_PAGER: 'cat',
+#   HOME: '/Users/tao.exe',
+#   JAVA_HOME: '/Library/Java/JavaVirtualMachines/zulu-17.jdk/Contents/Home',
+#   LANG: 'C.UTF-8',
+#   LOGNAME: 'tao.exe',
+#   MallocNanoZone: '0',
+#   NVM_BIN: '/Users/tao.exe/.nvm/versions/node/v22.19.0/bin',
+#   NVM_CD_FLAGS: '-q',
+#   NVM_DIR: '/Users/tao.exe/.nvm',
+#   NVM_INC: '/Users/tao.exe/.nvm/versions/node/v22.19.0/include/node',
+#   OLDPWD: '/Users/tao.exe/Documents/gitlab-mcp',
+#   OSLogRateLimit: '64',
+#   PATH: '/Users/tao.exe/.opencode/bin:/Users/tao.exe/.bun/bin:/Users/tao.exe/.antigravity/antigravity/bin:/Users/tao.exe/.rbenv/shims:/Users/tao.exe/.codeium/windsurf/bin:/Users/tao.exe/.codeium/windsurf/bin:/Users/tao.exe/.codeium/windsurf/bin:/Users/tao.exe/.antigravity/antigravity/bin:/Users/tao.exe/.codeium/windsurf/bin:/Users/tao.exe/.local/bin:/Users/tao.exe/.rbenv/shims:/Users/tao.exe/.local/bin:/Users/tao.exe/.nvm/versions/node/v22.19.0/bin:/usr/local/bin:/System/Cryptexes/App/usr/bin:/usr/bin:/bin:/usr/sbin:/sbin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/local/bin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/bin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/appleinternal/bin:/opt/pmk/env/global/bin:/Library/Apple/usr/bin:/opt/homebrew/bin:/Users/tao.exe/Library/Application Support/Code - Insiders/User/globalStorage/github.copilot-chat/debugCommand:/Users/tao.exe/Library/Application Support/Code - Insiders/User/globalStorage/github.copilot-chat/copilotCli:/Users/tao.exe/.opencode/bin:/Users/tao.exe/.bun/bin:/Users/tao.exe/.antigravity/antigravity/bin:/Users/tao.exe/.rbenv/shims:/Users/tao.exe/.codeium/windsurf/bin:/Users/tao.exe/.local/bin:/Users/tao.exe/.nvm/versions/node/v22.19.0/bin:/Users/tao.exe/.swiftly/bin:/Users/tao.exe/.cargo/bin:/Users/tao.exe/Library/Android/sdk/emulator:/Users/tao.exe/Library/Android/sdk/platform-tools:/Users/tao.exe/.lmstudio/bin:/Users/tao.exe/Library/Android/sdk/emulator:/Users/tao.exe/Library/Android/sdk/platform-tools:/Users/tao.exe/.lmstudio/bin',
+#   PWD: '/Users/tao.exe/Documents/gitlab-mcp',
+#   QTERM_SESSION_ID: '4af59943197040408dfc47e2aad59dbb',
+#   Q_SET_PARENT_CHECK: '1',
+#   Q_TERM: '1.26.2',
+#   RBENV_SHELL: 'zsh',
+#   SHELL: '/bin/zsh',
+#   SHELL_PID: '54817',
+#   SHLVL: '1',
+#   SSH_AUTH_SOCK: '/private/tmp/com.apple.launchd.lg93zG90Bg/Listeners',
+#   SWIFTLY_BIN_DIR: '/Users/tao.exe/.swiftly/bin',
+#   SWIFTLY_HOME_DIR: '/Users/tao.exe/.swiftly',
+#   SWIFTLY_TOOLCHAINS_DIR: '/Users/tao.exe/Library/Developer/Toolchains',
+#   SYNTHETIC_API_KEY: 'syn_35a76bd4c1d5ed18b8e4e8a4f1b07b76',
+#   TERM: 'xterm-256color',
+#   TERM_PROGRAM: 'vscode',
+#   TERM_PROGRAM_VERSION: '1.116.0-insider',
+#   TMPDIR: '/var/folders/kc/hx_s_dg96p7czwjjwc789vx00000gp/T/',
+#   TTY: '/dev/ttys098',
+#   USER: 'tao.exe',
+#   USER_ZDOTDIR: '/Users/tao.exe',
+#   VSCODE_GIT_ASKPASS_EXTRA_ARGS: '',
+#   VSCODE_GIT_ASKPASS_MAIN: '/Applications/Visual Studio Code - Insiders.app/Contents/Resources/app/extensions/git/dist/askpass-main.js',
+#   VSCODE_GIT_ASKPASS_NODE: '/Applications/Visual Studio Code - Insiders.app/Contents/Frameworks/Code - Insiders Helper (Plugin).app/Contents/MacOS/Code - Insiders Helper (Plugin)',
+#   VSCODE_GIT_IPC_HANDLE: '/var/folders/kc/hx_s_dg96p7czwjjwc789vx00000gp/T/vscode-git-1d2807ead6.sock',
+#   VSCODE_INJECTION: '1',
+#   VSCODE_NONCE: 'daf2368a-ef1d-4131-81e7-4b337e7ae923',
+#   VSCODE_PATH_PREFIX: '/Users/tao.exe/Library/Application Support/Code - Insiders/User/globalStorage/github.copilot-chat/debugCommand:/Users/tao.exe/Library/Application Support/Code - Insiders/User/globalStorage/github.copilot-chat/copilotCli:',
+#   VSCODE_PREVENT_SHELL_HISTORY: '1',
+#   VSCODE_PROFILE_INITIALIZED: '1',
+#   VSCODE_SHELL_ENV_REPORTING: 'PATH,VIRTUAL_ENV,HOME,SHELL,PWD',
+#   XPC_FLAGS: '0x0',
+#   XPC_SERVICE_NAME: '0',
+#   ZDOTDIR: '/Users/tao.exe',
+#   ZENMUX_API_KEY: 'sk-ss-v1-95eae04a95ac9bba411c32cede234295deaa21a02ee2d8a90e830fc9c0004779',
+#   __CFBundleIdentifier: 'com.microsoft.VSCodeInsiders',
+#   __CF_USER_TEXT_ENCODING: '0x1F6:0x3:0x33',
+#   _: '/Users/tao.exe/.nvm/versions/node/v22.19.0/bin/node',
+#   NODE_TEST_CONTEXT: 'child-v8',
+#   STREAMABLE_HTTP: 'true',
+#   REMOTE_AUTHORIZATION: 'true',
+#   GITLAB_API_URL: 'http://127.0.0.1:9200/api/v4',
+#   GITLAB_TOOLSETS: 'issues',
+#   USE_PIPELINE: 'true',
+#   PORT: '3250'
+# }
+# Launcher: Server process spawned with PID: 56663
+# Launcher: Server process spawned.
+    # Subtest: GITLAB_TOOLSETS=issues + GITLAB_TOOLS=list_pipelines,get_pipeline
+        # Subtest: returns issue tools + 2 individual pipeline tools + discover_tools
+        ok 1 - returns issue tools + 2 individual pipeline tools + discover_tools
+          ---
+          duration_ms: 0.105333
+          type: 'test'
+          ...
+        # Subtest: includes issue tools and the two pipeline tools
+        ok 2 - includes issue tools and the two pipeline tools
+          ---
+          duration_ms: 0.036167
+          type: 'test'
+          ...
+        # Subtest: excludes other pipeline tools
+        ok 3 - excludes other pipeline tools
+          ---
+          duration_ms: 0.025375
+          type: 'test'
+          ...
+        1..3
+    ok 5 - GITLAB_TOOLSETS=issues + GITLAB_TOOLS=list_pipelines,get_pipeline
+      ---
+      duration_ms: 1246.480167
+      type: 'suite'
+      ...
+# [Server Output]: [32mINFO[39m [14:05:59.561] (56635): [36mSIGTERM received, starting graceful shutdown...[39m
+# [Server Output]: [32mINFO[39m [14:05:59.561] (56635): [36mClosing 1 active sessions...[39m
+# [33mWARN[39m [14:05:59.561] (56635): [36mStreamable HTTP transport closed for session 473de7cc-ff78-4e15-85fe-ba40fe2b716f, cleaning up[39m
+# [32mINFO[39m [14:05:59.561] (56635): [36mSession 473de7cc-ff78-4e15-85fe-ba40fe2b716f: cleaned up auth mapping[39m
+# [32mINFO[39m [14:05:59.561] (56635): [36mHTTP server closed[39m
+# [32mINFO[39m [14:05:59.561] (56635): [36mGraceful shutdown complete[39m
+# [Launcher DEBUG] Process 56635 exited with code 0
+# [Launcher DEBUG] Process 56635 closed with code 0
+# [Server Output]: [33mWARN[39m [14:05:59.740] (56663): [36mGITLAB_TOOLSETS is set alongside legacy flags (USE_PIPELINE, USE_MILESTONE, USE_GITLAB_WIKI). Legacy flags add tools additively on top of the toolset selection and may produce unexpected results.[39m
+# [Server Output]: [32mINFO[39m [14:05:59.740] (56663): [36mRemote authorization enabled: tokens will be read from HTTP headers[39m
+# [32mINFO[39m [14:05:59.740] (56663): [36mConfiguration validation passed[39m
+# [32mINFO[39m [14:05:59.740] (56663): [36mInitializing server with transport mode:[39m
+# [33mWARN[39m [14:05:59.740] (56663): [36mStarting GitLab MCP Server with Streamable HTTP transport[39m
+# [32mINFO[39m [14:05:59.742] (56663): [36mConfigured GitLab API URLs: http://127.0.0.1:9200/api/v4[39m
+# [32mINFO[39m [14:05:59.742] (56663): [36mDefault GitLab API URL: http://127.0.0.1:9200/api/v4[39m
+# [32mINFO[39m [14:05:59.744] (56663): [36mGitLab MCP Server running with Streamable HTTP transport[39m
+# [32mINFO[39m [14:05:59.744] (56663): [36m[32mEndpoint: http://127.0.0.1:3250/mcp[0m[39m
+# Launcher: launchServer function entered.
+# Launcher: Spawning server process with env: {
+#   ANDROID_HOME: '/Users/tao.exe/Library/Android/sdk',
+#   BUN_INSTALL: '/Users/tao.exe/.bun',
+#   COLORTERM: 'truecolor',
+#   COMMAND_MODE: 'unix2003',
+#   GIT_ASKPASS: '/Applications/Visual Studio Code - Insiders.app/Contents/Resources/app/extensions/git/dist/askpass.sh',
+#   GIT_EDITOR: ':',
+#   GIT_MERGE_AUTOEDIT: 'no',
+#   GIT_PAGER: 'cat',
+#   HOME: '/Users/tao.exe',
+#   JAVA_HOME: '/Library/Java/JavaVirtualMachines/zulu-17.jdk/Contents/Home',
+#   LANG: 'C.UTF-8',
+#   LOGNAME: 'tao.exe',
+#   MallocNanoZone: '0',
+#   NVM_BIN: '/Users/tao.exe/.nvm/versions/node/v22.19.0/bin',
+#   NVM_CD_FLAGS: '-q',
+#   NVM_DIR: '/Users/tao.exe/.nvm',
+#   NVM_INC: '/Users/tao.exe/.nvm/versions/node/v22.19.0/include/node',
+#   OLDPWD: '/Users/tao.exe/Documents/gitlab-mcp',
+#   OSLogRateLimit: '64',
+#   PATH: '/Users/tao.exe/.opencode/bin:/Users/tao.exe/.bun/bin:/Users/tao.exe/.antigravity/antigravity/bin:/Users/tao.exe/.rbenv/shims:/Users/tao.exe/.codeium/windsurf/bin:/Users/tao.exe/.codeium/windsurf/bin:/Users/tao.exe/.codeium/windsurf/bin:/Users/tao.exe/.antigravity/antigravity/bin:/Users/tao.exe/.codeium/windsurf/bin:/Users/tao.exe/.local/bin:/Users/tao.exe/.rbenv/shims:/Users/tao.exe/.local/bin:/Users/tao.exe/.nvm/versions/node/v22.19.0/bin:/usr/local/bin:/System/Cryptexes/App/usr/bin:/usr/bin:/bin:/usr/sbin:/sbin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/local/bin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/bin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/appleinternal/bin:/opt/pmk/env/global/bin:/Library/Apple/usr/bin:/opt/homebrew/bin:/Users/tao.exe/Library/Application Support/Code - Insiders/User/globalStorage/github.copilot-chat/debugCommand:/Users/tao.exe/Library/Application Support/Code - Insiders/User/globalStorage/github.copilot-chat/copilotCli:/Users/tao.exe/.opencode/bin:/Users/tao.exe/.bun/bin:/Users/tao.exe/.antigravity/antigravity/bin:/Users/tao.exe/.rbenv/shims:/Users/tao.exe/.codeium/windsurf/bin:/Users/tao.exe/.local/bin:/Users/tao.exe/.nvm/versions/node/v22.19.0/bin:/Users/tao.exe/.swiftly/bin:/Users/tao.exe/.cargo/bin:/Users/tao.exe/Library/Android/sdk/emulator:/Users/tao.exe/Library/Android/sdk/platform-tools:/Users/tao.exe/.lmstudio/bin:/Users/tao.exe/Library/Android/sdk/emulator:/Users/tao.exe/Library/Android/sdk/platform-tools:/Users/tao.exe/.lmstudio/bin',
+#   PWD: '/Users/tao.exe/Documents/gitlab-mcp',
+#   QTERM_SESSION_ID: '4af59943197040408dfc47e2aad59dbb',
+#   Q_SET_PARENT_CHECK: '1',
+#   Q_TERM: '1.26.2',
+#   RBENV_SHELL: 'zsh',
+#   SHELL: '/bin/zsh',
+#   SHELL_PID: '54817',
+#   SHLVL: '1',
+#   SSH_AUTH_SOCK: '/private/tmp/com.apple.launchd.lg93zG90Bg/Listeners',
+#   SWIFTLY_BIN_DIR: '/Users/tao.exe/.swiftly/bin',
+#   SWIFTLY_HOME_DIR: '/Users/tao.exe/.swiftly',
+#   SWIFTLY_TOOLCHAINS_DIR: '/Users/tao.exe/Library/Developer/Toolchains',
+#   SYNTHETIC_API_KEY: 'syn_35a76bd4c1d5ed18b8e4e8a4f1b07b76',
+#   TERM: 'xterm-256color',
+#   TERM_PROGRAM: 'vscode',
+#   TERM_PROGRAM_VERSION: '1.116.0-insider',
+#   TMPDIR: '/var/folders/kc/hx_s_dg96p7czwjjwc789vx00000gp/T/',
+#   TTY: '/dev/ttys098',
+#   USER: 'tao.exe',
+#   USER_ZDOTDIR: '/Users/tao.exe',
+#   VSCODE_GIT_ASKPASS_EXTRA_ARGS: '',
+#   VSCODE_GIT_ASKPASS_MAIN: '/Applications/Visual Studio Code - Insiders.app/Contents/Resources/app/extensions/git/dist/askpass-main.js',
+#   VSCODE_GIT_ASKPASS_NODE: '/Applications/Visual Studio Code - Insiders.app/Contents/Frameworks/Code - Insiders Helper (Plugin).app/Contents/MacOS/Code - Insiders Helper (Plugin)',
+#   VSCODE_GIT_IPC_HANDLE: '/var/folders/kc/hx_s_dg96p7czwjjwc789vx00000gp/T/vscode-git-1d2807ead6.sock',
+#   VSCODE_INJECTION: '1',
+#   VSCODE_NONCE: 'daf2368a-ef1d-4131-81e7-4b337e7ae923',
+#   VSCODE_PATH_PREFIX: '/Users/tao.exe/Library/Application Support/Code - Insiders/User/globalStorage/github.copilot-chat/debugCommand:/Users/tao.exe/Library/Application Support/Code - Insiders/User/globalStorage/github.copilot-chat/copilotCli:',
+#   VSCODE_PREVENT_SHELL_HISTORY: '1',
+#   VSCODE_PROFILE_INITIALIZED: '1',
+#   VSCODE_SHELL_ENV_REPORTING: 'PATH,VIRTUAL_ENV,HOME,SHELL,PWD',
+#   XPC_FLAGS: '0x0',
+#   XPC_SERVICE_NAME: '0',
+#   ZDOTDIR: '/Users/tao.exe',
+#   ZENMUX_API_KEY: 'sk-ss-v1-95eae04a95ac9bba411c32cede234295deaa21a02ee2d8a90e830fc9c0004779',
+#   __CFBundleIdentifier: 'com.microsoft.VSCodeInsiders',
+#   __CF_USER_TEXT_ENCODING: '0x1F6:0x3:0x33',
+#   _: '/Users/tao.exe/.nvm/versions/node/v22.19.0/bin/node',
+#   NODE_TEST_CONTEXT: 'child-v8',
+#   STREAMABLE_HTTP: 'true',
+#   REMOTE_AUTHORIZATION: 'true',
+#   GITLAB_API_URL: 'http://127.0.0.1:9200/api/v4',
+#   USE_GITLAB_WIKI: 'true',
+#   PORT: '3260'
+# }
+# Launcher: Spawning server process with env: {
+#   ANDROID_HOME: '/Users/tao.exe/Library/Android/sdk',
+#   BUN_INSTALL: '/Users/tao.exe/.bun',
+#   COLORTERM: 'truecolor',
+#   COMMAND_MODE: 'unix2003',
+#   GIT_ASKPASS: '/Applications/Visual Studio Code - Insiders.app/Contents/Resources/app/extensions/git/dist/askpass.sh',
+#   GIT_EDITOR: ':',
+#   GIT_MERGE_AUTOEDIT: 'no',
+#   GIT_PAGER: 'cat',
+#   HOME: '/Users/tao.exe',
+#   JAVA_HOME: '/Library/Java/JavaVirtualMachines/zulu-17.jdk/Contents/Home',
+#   LANG: 'C.UTF-8',
+#   LOGNAME: 'tao.exe',
+#   MallocNanoZone: '0',
+#   NVM_BIN: '/Users/tao.exe/.nvm/versions/node/v22.19.0/bin',
+#   NVM_CD_FLAGS: '-q',
+#   NVM_DIR: '/Users/tao.exe/.nvm',
+#   NVM_INC: '/Users/tao.exe/.nvm/versions/node/v22.19.0/include/node',
+#   OLDPWD: '/Users/tao.exe/Documents/gitlab-mcp',
+#   OSLogRateLimit: '64',
+#   PATH: '/Users/tao.exe/.opencode/bin:/Users/tao.exe/.bun/bin:/Users/tao.exe/.antigravity/antigravity/bin:/Users/tao.exe/.rbenv/shims:/Users/tao.exe/.codeium/windsurf/bin:/Users/tao.exe/.codeium/windsurf/bin:/Users/tao.exe/.codeium/windsurf/bin:/Users/tao.exe/.antigravity/antigravity/bin:/Users/tao.exe/.codeium/windsurf/bin:/Users/tao.exe/.local/bin:/Users/tao.exe/.rbenv/shims:/Users/tao.exe/.local/bin:/Users/tao.exe/.nvm/versions/node/v22.19.0/bin:/usr/local/bin:/System/Cryptexes/App/usr/bin:/usr/bin:/bin:/usr/sbin:/sbin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/local/bin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/bin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/appleinternal/bin:/opt/pmk/env/global/bin:/Library/Apple/usr/bin:/opt/homebrew/bin:/Users/tao.exe/Library/Application Support/Code - Insiders/User/globalStorage/github.copilot-chat/debugCommand:/Users/tao.exe/Library/Application Support/Code - Insiders/User/globalStorage/github.copilot-chat/copilotCli:/Users/tao.exe/.opencode/bin:/Users/tao.exe/.bun/bin:/Users/tao.exe/.antigravity/antigravity/bin:/Users/tao.exe/.rbenv/shims:/Users/tao.exe/.codeium/windsurf/bin:/Users/tao.exe/.local/bin:/Users/tao.exe/.nvm/versions/node/v22.19.0/bin:/Users/tao.exe/.swiftly/bin:/Users/tao.exe/.cargo/bin:/Users/tao.exe/Library/Android/sdk/emulator:/Users/tao.exe/Library/Android/sdk/platform-tools:/Users/tao.exe/.lmstudio/bin:/Users/tao.exe/Library/Android/sdk/emulator:/Users/tao.exe/Library/Android/sdk/platform-tools:/Users/tao.exe/.lmstudio/bin',
+#   PWD: '/Users/tao.exe/Documents/gitlab-mcp',
+#   QTERM_SESSION_ID: '4af59943197040408dfc47e2aad59dbb',
+#   Q_SET_PARENT_CHECK: '1',
+#   Q_TERM: '1.26.2',
+#   RBENV_SHELL: 'zsh',
+#   SHELL: '/bin/zsh',
+#   SHELL_PID: '54817',
+#   SHLVL: '1',
+#   SSH_AUTH_SOCK: '/private/tmp/com.apple.launchd.lg93zG90Bg/Listeners',
+#   SWIFTLY_BIN_DIR: '/Users/tao.exe/.swiftly/bin',
+#   SWIFTLY_HOME_DIR: '/Users/tao.exe/.swiftly',
+#   SWIFTLY_TOOLCHAINS_DIR: '/Users/tao.exe/Library/Developer/Toolchains',
+#   SYNTHETIC_API_KEY: 'syn_35a76bd4c1d5ed18b8e4e8a4f1b07b76',
+#   TERM: 'xterm-256color',
+#   TERM_PROGRAM: 'vscode',
+#   TERM_PROGRAM_VERSION: '1.116.0-insider',
+#   TMPDIR: '/var/folders/kc/hx_s_dg96p7czwjjwc789vx00000gp/T/',
+#   TTY: '/dev/ttys098',
+#   USER: 'tao.exe',
+#   USER_ZDOTDIR: '/Users/tao.exe',
+#   VSCODE_GIT_ASKPASS_EXTRA_ARGS: '',
+#   VSCODE_GIT_ASKPASS_MAIN: '/Applications/Visual Studio Code - Insiders.app/Contents/Resources/app/extensions/git/dist/askpass-main.js',
+#   VSCODE_GIT_ASKPASS_NODE: '/Applications/Visual Studio Code - Insiders.app/Contents/Frameworks/Code - Insiders Helper (Plugin).app/Contents/MacOS/Code - Insiders Helper (Plugin)',
+#   VSCODE_GIT_IPC_HANDLE: '/var/folders/kc/hx_s_dg96p7czwjjwc789vx00000gp/T/vscode-git-1d2807ead6.sock',
+#   VSCODE_INJECTION: '1',
+#   VSCODE_NONCE: 'daf2368a-ef1d-4131-81e7-4b337e7ae923',
+#   VSCODE_PATH_PREFIX: '/Users/tao.exe/Library/Application Support/Code - Insiders/User/globalStorage/github.copilot-chat/debugCommand:/Users/tao.exe/Library/Application Support/Code - Insiders/User/globalStorage/github.copilot-chat/copilotCli:',
+#   VSCODE_PREVENT_SHELL_HISTORY: '1',
+#   VSCODE_PROFILE_INITIALIZED: '1',
+#   VSCODE_SHELL_ENV_REPORTING: 'PATH,VIRTUAL_ENV,HOME,SHELL,PWD',
+#   XPC_FLAGS: '0x0',
+#   XPC_SERVICE_NAME: '0',
+#   ZDOTDIR: '/Users/tao.exe',
+#   ZENMUX_API_KEY: 'sk-ss-v1-95eae04a95ac9bba411c32cede234295deaa21a02ee2d8a90e830fc9c0004779',
+#   __CFBundleIdentifier: 'com.microsoft.VSCodeInsiders',
+#   __CF_USER_TEXT_ENCODING: '0x1F6:0x3:0x33',
+#   _: '/Users/tao.exe/.nvm/versions/node/v22.19.0/bin/node',
+#   NODE_TEST_CONTEXT: 'child-v8',
+#   STREAMABLE_HTTP: 'true',
+#   REMOTE_AUTHORIZATION: 'true',
+#   GITLAB_API_URL: 'http://127.0.0.1:9200/api/v4',
+#   USE_GITLAB_WIKI: 'true',
+#   PORT: '3260'
+# }
+# Launcher: Server process spawned with PID: 56699
+# Launcher: Server process spawned.
+    # Subtest: GITLAB_TOOLSETS=issues + USE_PIPELINE=true
+        # Subtest: returns issue tools + all pipeline tools + discover_tools
+        ok 1 - returns issue tools + all pipeline tools + discover_tools
+          ---
+          duration_ms: 0.117166
+          type: 'test'
+          ...
+        # Subtest: includes all pipeline tools via legacy flag
+        ok 2 - includes all pipeline tools via legacy flag
+          ---
+          duration_ms: 0.042833
+          type: 'test'
+          ...
+        1..2
+    ok 6 - GITLAB_TOOLSETS=issues + USE_PIPELINE=true
+      ---
+      duration_ms: 1248.248375
+      type: 'suite'
+      ...
+# [Server Output]: [32mINFO[39m [14:06:00.981] (56699): [36mRemote authorization enabled: tokens will be read from HTTP headers[39m
+# [Server Output]: [32mINFO[39m [14:06:00.981] (56699): [36mConfiguration validation passed[39m
+# [32mINFO[39m [14:06:00.982] (56699): [36mInitializing server with transport mode:[39m
+# [33mWARN[39m [14:06:00.982] (56699): [36mStarting GitLab MCP Server with Streamable HTTP transport[39m
+# [32mINFO[39m [14:06:00.983] (56699): [36mConfigured GitLab API URLs: http://127.0.0.1:9200/api/v4[39m
+# [32mINFO[39m [14:06:00.983] (56699): [36mDefault GitLab API URL: http://127.0.0.1:9200/api/v4[39m
+# [32mINFO[39m [14:06:00.986] (56699): [36mGitLab MCP Server running with Streamable HTTP transport[39m
+# [32mINFO[39m [14:06:00.986] (56699): [36m[32mEndpoint: http://127.0.0.1:3260/mcp[0m[39m
+# [Server Output]: [33mWARN[39m [14:06:00.795] (56663): [36mStreamable HTTP session initialized: b90de96b-02bb-46da-aea8-b1bf5fd7c92b[39m
+# [Server Output]: [32mINFO[39m [14:06:00.795] (56663): [36mSession b90de96b-02bb-46da-aea8-b1bf5fd7c92b: stored Authorization header[39m
+# [32mINFO[39m [14:06:00.809] (56663): [36mSIGTERM received, starting graceful shutdown...[39m
+# [32mINFO[39m [14:06:00.809] (56663): [36mClosing 1 active sessions...[39m
+# [33mWARN[39m [14:06:00.809] (56663): [36mStreamable HTTP transport closed for session b90de96b-02bb-46da-aea8-b1bf5fd7c92b, cleaning up[39m
+# [32mINFO[39m [14:06:00.809] (56663): [36mSession b90de96b-02bb-46da-aea8-b1bf5fd7c92b: cleaned up auth mapping[39m
+# [32mINFO[39m [14:06:00.809] (56663): [36mHTTP server closed[39m
+# [32mINFO[39m [14:06:00.809] (56663): [36mGraceful shutdown complete[39m
+# [Launcher DEBUG] Process 56663 exited with code 0
+# [Launcher DEBUG] Process 56663 closed with code 0
+# [Server Output]: [33mWARN[39m [14:06:02.029] (56699): [36mStreamable HTTP session initialized: 0083be39-fcbc-4084-8119-e61008b51689[39m
+# [Server Output]: [32mINFO[39m [14:06:02.029] (56699): [36mSession 0083be39-fcbc-4084-8119-e61008b51689: stored Authorization header[39m
+# Launcher: launchServer function entered.
+# Launcher: Spawning server process with env: {
+#   ANDROID_HOME: '/Users/tao.exe/Library/Android/sdk',
+#   BUN_INSTALL: '/Users/tao.exe/.bun',
+#   COLORTERM: 'truecolor',
+#   COMMAND_MODE: 'unix2003',
+#   GIT_ASKPASS: '/Applications/Visual Studio Code - Insiders.app/Contents/Resources/app/extensions/git/dist/askpass.sh',
+#   GIT_EDITOR: ':',
+#   GIT_MERGE_AUTOEDIT: 'no',
+#   GIT_PAGER: 'cat',
+#   HOME: '/Users/tao.exe',
+#   JAVA_HOME: '/Library/Java/JavaVirtualMachines/zulu-17.jdk/Contents/Home',
+#   LANG: 'C.UTF-8',
+#   LOGNAME: 'tao.exe',
+#   MallocNanoZone: '0',
+#   NVM_BIN: '/Users/tao.exe/.nvm/versions/node/v22.19.0/bin',
+#   NVM_CD_FLAGS: '-q',
+#   NVM_DIR: '/Users/tao.exe/.nvm',
+#   NVM_INC: '/Users/tao.exe/.nvm/versions/node/v22.19.0/include/node',
+#   OLDPWD: '/Users/tao.exe/Documents/gitlab-mcp',
+#   OSLogRateLimit: '64',
+#   PATH: '/Users/tao.exe/.opencode/bin:/Users/tao.exe/.bun/bin:/Users/tao.exe/.antigravity/antigravity/bin:/Users/tao.exe/.rbenv/shims:/Users/tao.exe/.codeium/windsurf/bin:/Users/tao.exe/.codeium/windsurf/bin:/Users/tao.exe/.codeium/windsurf/bin:/Users/tao.exe/.antigravity/antigravity/bin:/Users/tao.exe/.codeium/windsurf/bin:/Users/tao.exe/.local/bin:/Users/tao.exe/.rbenv/shims:/Users/tao.exe/.local/bin:/Users/tao.exe/.nvm/versions/node/v22.19.0/bin:/usr/local/bin:/System/Cryptexes/App/usr/bin:/usr/bin:/bin:/usr/sbin:/sbin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/local/bin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/bin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/appleinternal/bin:/opt/pmk/env/global/bin:/Library/Apple/usr/bin:/opt/homebrew/bin:/Users/tao.exe/Library/Application Support/Code - Insiders/User/globalStorage/github.copilot-chat/debugCommand:/Users/tao.exe/Library/Application Support/Code - Insiders/User/globalStorage/github.copilot-chat/copilotCli:/Users/tao.exe/.opencode/bin:/Users/tao.exe/.bun/bin:/Users/tao.exe/.antigravity/antigravity/bin:/Users/tao.exe/.rbenv/shims:/Users/tao.exe/.codeium/windsurf/bin:/Users/tao.exe/.local/bin:/Users/tao.exe/.nvm/versions/node/v22.19.0/bin:/Users/tao.exe/.swiftly/bin:/Users/tao.exe/.cargo/bin:/Users/tao.exe/Library/Android/sdk/emulator:/Users/tao.exe/Library/Android/sdk/platform-tools:/Users/tao.exe/.lmstudio/bin:/Users/tao.exe/Library/Android/sdk/emulator:/Users/tao.exe/Library/Android/sdk/platform-tools:/Users/tao.exe/.lmstudio/bin',
+#   PWD: '/Users/tao.exe/Documents/gitlab-mcp',
+#   QTERM_SESSION_ID: '4af59943197040408dfc47e2aad59dbb',
+#   Q_SET_PARENT_CHECK: '1',
+#   Q_TERM: '1.26.2',
+#   RBENV_SHELL: 'zsh',
+#   SHELL: '/bin/zsh',
+#   SHELL_PID: '54817',
+#   SHLVL: '1',
+#   SSH_AUTH_SOCK: '/private/tmp/com.apple.launchd.lg93zG90Bg/Listeners',
+#   SWIFTLY_BIN_DIR: '/Users/tao.exe/.swiftly/bin',
+#   SWIFTLY_HOME_DIR: '/Users/tao.exe/.swiftly',
+#   SWIFTLY_TOOLCHAINS_DIR: '/Users/tao.exe/Library/Developer/Toolchains',
+#   SYNTHETIC_API_KEY: 'syn_35a76bd4c1d5ed18b8e4e8a4f1b07b76',
+#   TERM: 'xterm-256color',
+#   TERM_PROGRAM: 'vscode',
+#   TERM_PROGRAM_VERSION: '1.116.0-insider',
+#   TMPDIR: '/var/folders/kc/hx_s_dg96p7czwjjwc789vx00000gp/T/',
+#   TTY: '/dev/ttys098',
+#   USER: 'tao.exe',
+#   USER_ZDOTDIR: '/Users/tao.exe',
+#   VSCODE_GIT_ASKPASS_EXTRA_ARGS: '',
+#   VSCODE_GIT_ASKPASS_MAIN: '/Applications/Visual Studio Code - Insiders.app/Contents/Resources/app/extensions/git/dist/askpass-main.js',
+#   VSCODE_GIT_ASKPASS_NODE: '/Applications/Visual Studio Code - Insiders.app/Contents/Frameworks/Code - Insiders Helper (Plugin).app/Contents/MacOS/Code - Insiders Helper (Plugin)',
+#   VSCODE_GIT_IPC_HANDLE: '/var/folders/kc/hx_s_dg96p7czwjjwc789vx00000gp/T/vscode-git-1d2807ead6.sock',
+#   VSCODE_INJECTION: '1',
+#   VSCODE_NONCE: 'daf2368a-ef1d-4131-81e7-4b337e7ae923',
+#   VSCODE_PATH_PREFIX: '/Users/tao.exe/Library/Application Support/Code - Insiders/User/globalStorage/github.copilot-chat/debugCommand:/Users/tao.exe/Library/Application Support/Code - Insiders/User/globalStorage/github.copilot-chat/copilotCli:',
+#   VSCODE_PREVENT_SHELL_HISTORY: '1',
+#   VSCODE_PROFILE_INITIALIZED: '1',
+#   VSCODE_SHELL_ENV_REPORTING: 'PATH,VIRTUAL_ENV,HOME,SHELL,PWD',
+#   XPC_FLAGS: '0x0',
+#   XPC_SERVICE_NAME: '0',
+#   ZDOTDIR: '/Users/tao.exe',
+#   ZENMUX_API_KEY: 'sk-ss-v1-95eae04a95ac9bba411c32cede234295deaa21a02ee2d8a90e830fc9c0004779',
+#   __CFBundleIdentifier: 'com.microsoft.VSCodeInsiders',
+#   __CF_USER_TEXT_ENCODING: '0x1F6:0x3:0x33',
+#   _: '/Users/tao.exe/.nvm/versions/node/v22.19.0/bin/node',
+#   NODE_TEST_CONTEXT: 'child-v8',
+#   STREAMABLE_HTTP: 'true',
+#   REMOTE_AUTHORIZATION: 'true',
+#   GITLAB_API_URL: 'http://127.0.0.1:9200/api/v4',
+#   GITLAB_TOOLSETS: 'issues',
+#   GITLAB_READ_ONLY_MODE: 'true',
+#   PORT: '3270'
+# }
+# Launcher: Spawning server process with env: {
+#   ANDROID_HOME: '/Users/tao.exe/Library/Android/sdk',
+#   BUN_INSTALL: '/Users/tao.exe/.bun',
+#   COLORTERM: 'truecolor',
+#   COMMAND_MODE: 'unix2003',
+#   GIT_ASKPASS: '/Applications/Visual Studio Code - Insiders.app/Contents/Resources/app/extensions/git/dist/askpass.sh',
+#   GIT_EDITOR: ':',
+#   GIT_MERGE_AUTOEDIT: 'no',
+#   GIT_PAGER: 'cat',
+#   HOME: '/Users/tao.exe',
+#   JAVA_HOME: '/Library/Java/JavaVirtualMachines/zulu-17.jdk/Contents/Home',
+#   LANG: 'C.UTF-8',
+#   LOGNAME: 'tao.exe',
+#   MallocNanoZone: '0',
+#   NVM_BIN: '/Users/tao.exe/.nvm/versions/node/v22.19.0/bin',
+#   NVM_CD_FLAGS: '-q',
+#   NVM_DIR: '/Users/tao.exe/.nvm',
+#   NVM_INC: '/Users/tao.exe/.nvm/versions/node/v22.19.0/include/node',
+#   OLDPWD: '/Users/tao.exe/Documents/gitlab-mcp',
+#   OSLogRateLimit: '64',
+#   PATH: '/Users/tao.exe/.opencode/bin:/Users/tao.exe/.bun/bin:/Users/tao.exe/.antigravity/antigravity/bin:/Users/tao.exe/.rbenv/shims:/Users/tao.exe/.codeium/windsurf/bin:/Users/tao.exe/.codeium/windsurf/bin:/Users/tao.exe/.codeium/windsurf/bin:/Users/tao.exe/.antigravity/antigravity/bin:/Users/tao.exe/.codeium/windsurf/bin:/Users/tao.exe/.local/bin:/Users/tao.exe/.rbenv/shims:/Users/tao.exe/.local/bin:/Users/tao.exe/.nvm/versions/node/v22.19.0/bin:/usr/local/bin:/System/Cryptexes/App/usr/bin:/usr/bin:/bin:/usr/sbin:/sbin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/local/bin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/bin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/appleinternal/bin:/opt/pmk/env/global/bin:/Library/Apple/usr/bin:/opt/homebrew/bin:/Users/tao.exe/Library/Application Support/Code - Insiders/User/globalStorage/github.copilot-chat/debugCommand:/Users/tao.exe/Library/Application Support/Code - Insiders/User/globalStorage/github.copilot-chat/copilotCli:/Users/tao.exe/.opencode/bin:/Users/tao.exe/.bun/bin:/Users/tao.exe/.antigravity/antigravity/bin:/Users/tao.exe/.rbenv/shims:/Users/tao.exe/.codeium/windsurf/bin:/Users/tao.exe/.local/bin:/Users/tao.exe/.nvm/versions/node/v22.19.0/bin:/Users/tao.exe/.swiftly/bin:/Users/tao.exe/.cargo/bin:/Users/tao.exe/Library/Android/sdk/emulator:/Users/tao.exe/Library/Android/sdk/platform-tools:/Users/tao.exe/.lmstudio/bin:/Users/tao.exe/Library/Android/sdk/emulator:/Users/tao.exe/Library/Android/sdk/platform-tools:/Users/tao.exe/.lmstudio/bin',
+#   PWD: '/Users/tao.exe/Documents/gitlab-mcp',
+#   QTERM_SESSION_ID: '4af59943197040408dfc47e2aad59dbb',
+#   Q_SET_PARENT_CHECK: '1',
+#   Q_TERM: '1.26.2',
+#   RBENV_SHELL: 'zsh',
+#   SHELL: '/bin/zsh',
+#   SHELL_PID: '54817',
+#   SHLVL: '1',
+#   SSH_AUTH_SOCK: '/private/tmp/com.apple.launchd.lg93zG90Bg/Listeners',
+#   SWIFTLY_BIN_DIR: '/Users/tao.exe/.swiftly/bin',
+#   SWIFTLY_HOME_DIR: '/Users/tao.exe/.swiftly',
+#   SWIFTLY_TOOLCHAINS_DIR: '/Users/tao.exe/Library/Developer/Toolchains',
+#   SYNTHETIC_API_KEY: 'syn_35a76bd4c1d5ed18b8e4e8a4f1b07b76',
+#   TERM: 'xterm-256color',
+#   TERM_PROGRAM: 'vscode',
+#   TERM_PROGRAM_VERSION: '1.116.0-insider',
+#   TMPDIR: '/var/folders/kc/hx_s_dg96p7czwjjwc789vx00000gp/T/',
+#   TTY: '/dev/ttys098',
+#   USER: 'tao.exe',
+#   USER_ZDOTDIR: '/Users/tao.exe',
+#   VSCODE_GIT_ASKPASS_EXTRA_ARGS: '',
+#   VSCODE_GIT_ASKPASS_MAIN: '/Applications/Visual Studio Code - Insiders.app/Contents/Resources/app/extensions/git/dist/askpass-main.js',
+#   VSCODE_GIT_ASKPASS_NODE: '/Applications/Visual Studio Code - Insiders.app/Contents/Frameworks/Code - Insiders Helper (Plugin).app/Contents/MacOS/Code - Insiders Helper (Plugin)',
+#   VSCODE_GIT_IPC_HANDLE: '/var/folders/kc/hx_s_dg96p7czwjjwc789vx00000gp/T/vscode-git-1d2807ead6.sock',
+#   VSCODE_INJECTION: '1',
+#   VSCODE_NONCE: 'daf2368a-ef1d-4131-81e7-4b337e7ae923',
+#   VSCODE_PATH_PREFIX: '/Users/tao.exe/Library/Application Support/Code - Insiders/User/globalStorage/github.copilot-chat/debugCommand:/Users/tao.exe/Library/Application Support/Code - Insiders/User/globalStorage/github.copilot-chat/copilotCli:',
+#   VSCODE_PREVENT_SHELL_HISTORY: '1',
+#   VSCODE_PROFILE_INITIALIZED: '1',
+#   VSCODE_SHELL_ENV_REPORTING: 'PATH,VIRTUAL_ENV,HOME,SHELL,PWD',
+#   XPC_FLAGS: '0x0',
+#   XPC_SERVICE_NAME: '0',
+#   ZDOTDIR: '/Users/tao.exe',
+#   ZENMUX_API_KEY: 'sk-ss-v1-95eae04a95ac9bba411c32cede234295deaa21a02ee2d8a90e830fc9c0004779',
+#   __CFBundleIdentifier: 'com.microsoft.VSCodeInsiders',
+#   __CF_USER_TEXT_ENCODING: '0x1F6:0x3:0x33',
+#   _: '/Users/tao.exe/.nvm/versions/node/v22.19.0/bin/node',
+#   NODE_TEST_CONTEXT: 'child-v8',
+#   STREAMABLE_HTTP: 'true',
+#   REMOTE_AUTHORIZATION: 'true',
+#   GITLAB_API_URL: 'http://127.0.0.1:9200/api/v4',
+#   GITLAB_TOOLSETS: 'issues',
+#   GITLAB_READ_ONLY_MODE: 'true',
+#   PORT: '3270'
+# }
+# Launcher: Server process spawned with PID: 56712
+# Launcher: Server process spawned.
+    # Subtest: USE_GITLAB_WIKI=true (no GITLAB_TOOLSETS)
+        # Subtest: returns default tools + wiki tools (wiki is NOT default, USE_GITLAB_WIKI adds it)
+        ok 1 - returns default tools + wiki tools (wiki is NOT default, USE_GITLAB_WIKI adds it)
+          ---
+          duration_ms: 0.125875
+          type: 'test'
+          ...
+        # Subtest: includes wiki tools
+        ok 2 - includes wiki tools
+          ---
+          duration_ms: 0.043375
+          type: 'test'
+          ...
+        1..2
+    ok 7 - USE_GITLAB_WIKI=true (no GITLAB_TOOLSETS)
+      ---
+      duration_ms: 1234.275083
+      type: 'suite'
+      ...
+# [Server Output]: [32mINFO[39m [14:06:02.043] (56699): [36mSIGTERM received, starting graceful shutdown...[39m
+# [Server Output]: [32mINFO[39m [14:06:02.043] (56699): [36mClosing 1 active sessions...[39m
+# [33mWARN[39m [14:06:02.043] (56699): [36mStreamable HTTP transport closed for session 0083be39-fcbc-4084-8119-e61008b51689, cleaning up[39m
+# [32mINFO[39m [14:06:02.043] (56699): [36mSession 0083be39-fcbc-4084-8119-e61008b51689: cleaned up auth mapping[39m
+# [32mINFO[39m [14:06:02.044] (56699): [36mHTTP server closed[39m
+# [32mINFO[39m [14:06:02.044] (56699): [36mGraceful shutdown complete[39m
+# [Launcher DEBUG] Process 56699 exited with code 0
+# [Launcher DEBUG] Process 56699 closed with code 0
+# [Server Output]: [32mINFO[39m [14:06:02.214] (56712): [36mRemote authorization enabled: tokens will be read from HTTP headers[39m
+# [Server Output]: [32mINFO[39m [14:06:02.215] (56712): [36mConfiguration validation passed[39m
+# [32mINFO[39m [14:06:02.215] (56712): [36mInitializing server with transport mode:[39m
+# [33mWARN[39m [14:06:02.215] (56712): [36mStarting GitLab MCP Server with Streamable HTTP transport[39m
+# [32mINFO[39m [14:06:02.217] (56712): [36mConfigured GitLab API URLs: http://127.0.0.1:9200/api/v4[39m
+# [32mINFO[39m [14:06:02.217] (56712): [36mDefault GitLab API URL: http://127.0.0.1:9200/api/v4[39m
+# [32mINFO[39m [14:06:02.219] (56712): [36mGitLab MCP Server running with Streamable HTTP transport[39m
+# [32mINFO[39m [14:06:02.219] (56712): [36m[32mEndpoint: http://127.0.0.1:3270/mcp[0m[39m
+# Launcher: launchServer function entered.
+# Launcher: Spawning server process with env: {
+#   ANDROID_HOME: '/Users/tao.exe/Library/Android/sdk',
+#   BUN_INSTALL: '/Users/tao.exe/.bun',
+#   COLORTERM: 'truecolor',
+#   COMMAND_MODE: 'unix2003',
+#   GIT_ASKPASS: '/Applications/Visual Studio Code - Insiders.app/Contents/Resources/app/extensions/git/dist/askpass.sh',
+#   GIT_EDITOR: ':',
+#   GIT_MERGE_AUTOEDIT: 'no',
+#   GIT_PAGER: 'cat',
+#   HOME: '/Users/tao.exe',
+#   JAVA_HOME: '/Library/Java/JavaVirtualMachines/zulu-17.jdk/Contents/Home',
+#   LANG: 'C.UTF-8',
+#   LOGNAME: 'tao.exe',
+#   MallocNanoZone: '0',
+#   NVM_BIN: '/Users/tao.exe/.nvm/versions/node/v22.19.0/bin',
+#   NVM_CD_FLAGS: '-q',
+#   NVM_DIR: '/Users/tao.exe/.nvm',
+#   NVM_INC: '/Users/tao.exe/.nvm/versions/node/v22.19.0/include/node',
+#   OLDPWD: '/Users/tao.exe/Documents/gitlab-mcp',
+#   OSLogRateLimit: '64',
+#   PATH: '/Users/tao.exe/.opencode/bin:/Users/tao.exe/.bun/bin:/Users/tao.exe/.antigravity/antigravity/bin:/Users/tao.exe/.rbenv/shims:/Users/tao.exe/.codeium/windsurf/bin:/Users/tao.exe/.codeium/windsurf/bin:/Users/tao.exe/.codeium/windsurf/bin:/Users/tao.exe/.antigravity/antigravity/bin:/Users/tao.exe/.codeium/windsurf/bin:/Users/tao.exe/.local/bin:/Users/tao.exe/.rbenv/shims:/Users/tao.exe/.local/bin:/Users/tao.exe/.nvm/versions/node/v22.19.0/bin:/usr/local/bin:/System/Cryptexes/App/usr/bin:/usr/bin:/bin:/usr/sbin:/sbin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/local/bin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/bin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/appleinternal/bin:/opt/pmk/env/global/bin:/Library/Apple/usr/bin:/opt/homebrew/bin:/Users/tao.exe/Library/Application Support/Code - Insiders/User/globalStorage/github.copilot-chat/debugCommand:/Users/tao.exe/Library/Application Support/Code - Insiders/User/globalStorage/github.copilot-chat/copilotCli:/Users/tao.exe/.opencode/bin:/Users/tao.exe/.bun/bin:/Users/tao.exe/.antigravity/antigravity/bin:/Users/tao.exe/.rbenv/shims:/Users/tao.exe/.codeium/windsurf/bin:/Users/tao.exe/.local/bin:/Users/tao.exe/.nvm/versions/node/v22.19.0/bin:/Users/tao.exe/.swiftly/bin:/Users/tao.exe/.cargo/bin:/Users/tao.exe/Library/Android/sdk/emulator:/Users/tao.exe/Library/Android/sdk/platform-tools:/Users/tao.exe/.lmstudio/bin:/Users/tao.exe/Library/Android/sdk/emulator:/Users/tao.exe/Library/Android/sdk/platform-tools:/Users/tao.exe/.lmstudio/bin',
+#   PWD: '/Users/tao.exe/Documents/gitlab-mcp',
+#   QTERM_SESSION_ID: '4af59943197040408dfc47e2aad59dbb',
+#   Q_SET_PARENT_CHECK: '1',
+#   Q_TERM: '1.26.2',
+#   RBENV_SHELL: 'zsh',
+#   SHELL: '/bin/zsh',
+#   SHELL_PID: '54817',
+#   SHLVL: '1',
+#   SSH_AUTH_SOCK: '/private/tmp/com.apple.launchd.lg93zG90Bg/Listeners',
+#   SWIFTLY_BIN_DIR: '/Users/tao.exe/.swiftly/bin',
+#   SWIFTLY_HOME_DIR: '/Users/tao.exe/.swiftly',
+#   SWIFTLY_TOOLCHAINS_DIR: '/Users/tao.exe/Library/Developer/Toolchains',
+#   SYNTHETIC_API_KEY: 'syn_35a76bd4c1d5ed18b8e4e8a4f1b07b76',
+#   TERM: 'xterm-256color',
+#   TERM_PROGRAM: 'vscode',
+#   TERM_PROGRAM_VERSION: '1.116.0-insider',
+#   TMPDIR: '/var/folders/kc/hx_s_dg96p7czwjjwc789vx00000gp/T/',
+#   TTY: '/dev/ttys098',
+#   USER: 'tao.exe',
+#   USER_ZDOTDIR: '/Users/tao.exe',
+#   VSCODE_GIT_ASKPASS_EXTRA_ARGS: '',
+#   VSCODE_GIT_ASKPASS_MAIN: '/Applications/Visual Studio Code - Insiders.app/Contents/Resources/app/extensions/git/dist/askpass-main.js',
+#   VSCODE_GIT_ASKPASS_NODE: '/Applications/Visual Studio Code - Insiders.app/Contents/Frameworks/Code - Insiders Helper (Plugin).app/Contents/MacOS/Code - Insiders Helper (Plugin)',
+#   VSCODE_GIT_IPC_HANDLE: '/var/folders/kc/hx_s_dg96p7czwjjwc789vx00000gp/T/vscode-git-1d2807ead6.sock',
+#   VSCODE_INJECTION: '1',
+#   VSCODE_NONCE: 'daf2368a-ef1d-4131-81e7-4b337e7ae923',
+#   VSCODE_PATH_PREFIX: '/Users/tao.exe/Library/Application Support/Code - Insiders/User/globalStorage/github.copilot-chat/debugCommand:/Users/tao.exe/Library/Application Support/Code - Insiders/User/globalStorage/github.copilot-chat/copilotCli:',
+#   VSCODE_PREVENT_SHELL_HISTORY: '1',
+#   VSCODE_PROFILE_INITIALIZED: '1',
+#   VSCODE_SHELL_ENV_REPORTING: 'PATH,VIRTUAL_ENV,HOME,SHELL,PWD',
+#   XPC_FLAGS: '0x0',
+#   XPC_SERVICE_NAME: '0',
+#   ZDOTDIR: '/Users/tao.exe',
+#   ZENMUX_API_KEY: 'sk-ss-v1-95eae04a95ac9bba411c32cede234295deaa21a02ee2d8a90e830fc9c0004779',
+#   __CFBundleIdentifier: 'com.microsoft.VSCodeInsiders',
+#   __CF_USER_TEXT_ENCODING: '0x1F6:0x3:0x33',
+#   _: '/Users/tao.exe/.nvm/versions/node/v22.19.0/bin/node',
+#   NODE_TEST_CONTEXT: 'child-v8',
+#   STREAMABLE_HTTP: 'true',
+#   REMOTE_AUTHORIZATION: 'true',
+#   GITLAB_API_URL: 'http://127.0.0.1:9200/api/v4',
+#   GITLAB_TOOLSETS: 'issues',
+#   GITLAB_DENIED_TOOLS_REGEX: '^(create_|delete_)',
+#   PORT: '3280'
+# }
+# Launcher: Spawning server process with env: {
+#   ANDROID_HOME: '/Users/tao.exe/Library/Android/sdk',
+#   BUN_INSTALL: '/Users/tao.exe/.bun',
+#   COLORTERM: 'truecolor',
+#   COMMAND_MODE: 'unix2003',
+#   GIT_ASKPASS: '/Applications/Visual Studio Code - Insiders.app/Contents/Resources/app/extensions/git/dist/askpass.sh',
+#   GIT_EDITOR: ':',
+#   GIT_MERGE_AUTOEDIT: 'no',
+#   GIT_PAGER: 'cat',
+#   HOME: '/Users/tao.exe',
+#   JAVA_HOME: '/Library/Java/JavaVirtualMachines/zulu-17.jdk/Contents/Home',
+#   LANG: 'C.UTF-8',
+#   LOGNAME: 'tao.exe',
+#   MallocNanoZone: '0',
+#   NVM_BIN: '/Users/tao.exe/.nvm/versions/node/v22.19.0/bin',
+#   NVM_CD_FLAGS: '-q',
+#   NVM_DIR: '/Users/tao.exe/.nvm',
+#   NVM_INC: '/Users/tao.exe/.nvm/versions/node/v22.19.0/include/node',
+#   OLDPWD: '/Users/tao.exe/Documents/gitlab-mcp',
+#   OSLogRateLimit: '64',
+#   PATH: '/Users/tao.exe/.opencode/bin:/Users/tao.exe/.bun/bin:/Users/tao.exe/.antigravity/antigravity/bin:/Users/tao.exe/.rbenv/shims:/Users/tao.exe/.codeium/windsurf/bin:/Users/tao.exe/.codeium/windsurf/bin:/Users/tao.exe/.codeium/windsurf/bin:/Users/tao.exe/.antigravity/antigravity/bin:/Users/tao.exe/.codeium/windsurf/bin:/Users/tao.exe/.local/bin:/Users/tao.exe/.rbenv/shims:/Users/tao.exe/.local/bin:/Users/tao.exe/.nvm/versions/node/v22.19.0/bin:/usr/local/bin:/System/Cryptexes/App/usr/bin:/usr/bin:/bin:/usr/sbin:/sbin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/local/bin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/bin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/appleinternal/bin:/opt/pmk/env/global/bin:/Library/Apple/usr/bin:/opt/homebrew/bin:/Users/tao.exe/Library/Application Support/Code - Insiders/User/globalStorage/github.copilot-chat/debugCommand:/Users/tao.exe/Library/Application Support/Code - Insiders/User/globalStorage/github.copilot-chat/copilotCli:/Users/tao.exe/.opencode/bin:/Users/tao.exe/.bun/bin:/Users/tao.exe/.antigravity/antigravity/bin:/Users/tao.exe/.rbenv/shims:/Users/tao.exe/.codeium/windsurf/bin:/Users/tao.exe/.local/bin:/Users/tao.exe/.nvm/versions/node/v22.19.0/bin:/Users/tao.exe/.swiftly/bin:/Users/tao.exe/.cargo/bin:/Users/tao.exe/Library/Android/sdk/emulator:/Users/tao.exe/Library/Android/sdk/platform-tools:/Users/tao.exe/.lmstudio/bin:/Users/tao.exe/Library/Android/sdk/emulator:/Users/tao.exe/Library/Android/sdk/platform-tools:/Users/tao.exe/.lmstudio/bin',
+#   PWD: '/Users/tao.exe/Documents/gitlab-mcp',
+#   QTERM_SESSION_ID: '4af59943197040408dfc47e2aad59dbb',
+#   Q_SET_PARENT_CHECK: '1',
+#   Q_TERM: '1.26.2',
+#   RBENV_SHELL: 'zsh',
+#   SHELL: '/bin/zsh',
+#   SHELL_PID: '54817',
+#   SHLVL: '1',
+#   SSH_AUTH_SOCK: '/private/tmp/com.apple.launchd.lg93zG90Bg/Listeners',
+#   SWIFTLY_BIN_DIR: '/Users/tao.exe/.swiftly/bin',
+#   SWIFTLY_HOME_DIR: '/Users/tao.exe/.swiftly',
+#   SWIFTLY_TOOLCHAINS_DIR: '/Users/tao.exe/Library/Developer/Toolchains',
+#   SYNTHETIC_API_KEY: 'syn_35a76bd4c1d5ed18b8e4e8a4f1b07b76',
+#   TERM: 'xterm-256color',
+#   TERM_PROGRAM: 'vscode',
+#   TERM_PROGRAM_VERSION: '1.116.0-insider',
+#   TMPDIR: '/var/folders/kc/hx_s_dg96p7czwjjwc789vx00000gp/T/',
+#   TTY: '/dev/ttys098',
+#   USER: 'tao.exe',
+#   USER_ZDOTDIR: '/Users/tao.exe',
+#   VSCODE_GIT_ASKPASS_EXTRA_ARGS: '',
+#   VSCODE_GIT_ASKPASS_MAIN: '/Applications/Visual Studio Code - Insiders.app/Contents/Resources/app/extensions/git/dist/askpass-main.js',
+#   VSCODE_GIT_ASKPASS_NODE: '/Applications/Visual Studio Code - Insiders.app/Contents/Frameworks/Code - Insiders Helper (Plugin).app/Contents/MacOS/Code - Insiders Helper (Plugin)',
+#   VSCODE_GIT_IPC_HANDLE: '/var/folders/kc/hx_s_dg96p7czwjjwc789vx00000gp/T/vscode-git-1d2807ead6.sock',
+#   VSCODE_INJECTION: '1',
+#   VSCODE_NONCE: 'daf2368a-ef1d-4131-81e7-4b337e7ae923',
+#   VSCODE_PATH_PREFIX: '/Users/tao.exe/Library/Application Support/Code - Insiders/User/globalStorage/github.copilot-chat/debugCommand:/Users/tao.exe/Library/Application Support/Code - Insiders/User/globalStorage/github.copilot-chat/copilotCli:',
+#   VSCODE_PREVENT_SHELL_HISTORY: '1',
+#   VSCODE_PROFILE_INITIALIZED: '1',
+#   VSCODE_SHELL_ENV_REPORTING: 'PATH,VIRTUAL_ENV,HOME,SHELL,PWD',
+#   XPC_FLAGS: '0x0',
+#   XPC_SERVICE_NAME: '0',
+#   ZDOTDIR: '/Users/tao.exe',
+#   ZENMUX_API_KEY: 'sk-ss-v1-95eae04a95ac9bba411c32cede234295deaa21a02ee2d8a90e830fc9c0004779',
+#   __CFBundleIdentifier: 'com.microsoft.VSCodeInsiders',
+#   __CF_USER_TEXT_ENCODING: '0x1F6:0x3:0x33',
+#   _: '/Users/tao.exe/.nvm/versions/node/v22.19.0/bin/node',
+#   NODE_TEST_CONTEXT: 'child-v8',
+#   STREAMABLE_HTTP: 'true',
+#   REMOTE_AUTHORIZATION: 'true',
+#   GITLAB_API_URL: 'http://127.0.0.1:9200/api/v4',
+#   GITLAB_TOOLSETS: 'issues',
+#   GITLAB_DENIED_TOOLS_REGEX: '^(create_|delete_)',
+#   PORT: '3280'
+# }
+# Launcher: Server process spawned with PID: 56726
+# Launcher: Server process spawned.
+    # Subtest: GITLAB_TOOLSETS=issues + GITLAB_READ_ONLY_MODE=true
+        # Subtest: includes only read-only issue tools
+        ok 1 - includes only read-only issue tools
+          ---
+          duration_ms: 0.184459
+          type: 'test'
+          ...
+        # Subtest: excludes write issue tools
+        ok 2 - excludes write issue tools
+          ---
+          duration_ms: 0.036875
+          type: 'test'
+          ...
+        # Subtest: returns correct count (read-only issues + discover_tools)
+        ok 3 - returns correct count (read-only issues + discover_tools)
+          ---
+          duration_ms: 0.037125
+          type: 'test'
+          ...
+        1..3
+    ok 8 - GITLAB_TOOLSETS=issues + GITLAB_READ_ONLY_MODE=true
+      ---
+      duration_ms: 1242.952417
+      type: 'suite'
+      ...
+# [Server Output]: [32mINFO[39m [14:06:03.459] (56726): [36mRemote authorization enabled: tokens will be read from HTTP headers[39m
+# [Server Output]: [32mINFO[39m [14:06:03.459] (56726): [36mConfiguration validation passed[39m
+# [32mINFO[39m [14:06:03.459] (56726): [36mInitializing server with transport mode:[39m
+# [33mWARN[39m [14:06:03.459] (56726): [36mStarting GitLab MCP Server with Streamable HTTP transport[39m
+# [32mINFO[39m [14:06:03.461] (56726): [36mConfigured GitLab API URLs: http://127.0.0.1:9200/api/v4[39m
+# [32mINFO[39m [14:06:03.461] (56726): [36mDefault GitLab API URL: http://127.0.0.1:9200/api/v4[39m
+# [32mINFO[39m [14:06:03.464] (56726): [36mGitLab MCP Server running with Streamable HTTP transport[39m
+# [32mINFO[39m [14:06:03.464] (56726): [36m[32mEndpoint: http://127.0.0.1:3280/mcp[0m[39m
+# [Server Output]: [33mWARN[39m [14:06:03.272] (56712): [36mStreamable HTTP session initialized: ea9ec616-7e1a-4a91-a54d-9bf50828d0d8[39m
+# [Server Output]: [32mINFO[39m [14:06:03.273] (56712): [36mSession ea9ec616-7e1a-4a91-a54d-9bf50828d0d8: stored Authorization header[39m
+# [32mINFO[39m [14:06:03.286] (56712): [36mSIGTERM received, starting graceful shutdown...[39m
+# [32mINFO[39m [14:06:03.286] (56712): [36mClosing 1 active sessions...[39m
+# [33mWARN[39m [14:06:03.286] (56712): [36mStreamable HTTP transport closed for session ea9ec616-7e1a-4a91-a54d-9bf50828d0d8, cleaning up[39m
+# [32mINFO[39m [14:06:03.286] (56712): [36mSession ea9ec616-7e1a-4a91-a54d-9bf50828d0d8: cleaned up auth mapping[39m
+# [32mINFO[39m [14:06:03.286] (56712): [36mHTTP server closed[39m
+# [32mINFO[39m [14:06:03.286] (56712): [36mGraceful shutdown complete[39m
+# [Launcher DEBUG] Process 56712 exited with code 0
+# [Launcher DEBUG] Process 56712 closed with code 0
+# [Server Output]: [33mWARN[39m [14:06:04.504] (56726): [36mStreamable HTTP session initialized: 02688ecd-0318-4fc0-879a-57aa21c8aeff[39m
+# [Server Output]: [32mINFO[39m [14:06:04.504] (56726): [36mSession 02688ecd-0318-4fc0-879a-57aa21c8aeff: stored Authorization header[39m
+# Launcher: launchServer function entered.
+# Launcher: Spawning server process with env: {
+#   ANDROID_HOME: '/Users/tao.exe/Library/Android/sdk',
+#   BUN_INSTALL: '/Users/tao.exe/.bun',
+#   COLORTERM: 'truecolor',
+#   COMMAND_MODE: 'unix2003',
+#   GIT_ASKPASS: '/Applications/Visual Studio Code - Insiders.app/Contents/Resources/app/extensions/git/dist/askpass.sh',
+#   GIT_EDITOR: ':',
+#   GIT_MERGE_AUTOEDIT: 'no',
+#   GIT_PAGER: 'cat',
+#   HOME: '/Users/tao.exe',
+#   JAVA_HOME: '/Library/Java/JavaVirtualMachines/zulu-17.jdk/Contents/Home',
+#   LANG: 'C.UTF-8',
+#   LOGNAME: 'tao.exe',
+#   MallocNanoZone: '0',
+#   NVM_BIN: '/Users/tao.exe/.nvm/versions/node/v22.19.0/bin',
+#   NVM_CD_FLAGS: '-q',
+#   NVM_DIR: '/Users/tao.exe/.nvm',
+#   NVM_INC: '/Users/tao.exe/.nvm/versions/node/v22.19.0/include/node',
+#   OLDPWD: '/Users/tao.exe/Documents/gitlab-mcp',
+#   OSLogRateLimit: '64',
+#   PATH: '/Users/tao.exe/.opencode/bin:/Users/tao.exe/.bun/bin:/Users/tao.exe/.antigravity/antigravity/bin:/Users/tao.exe/.rbenv/shims:/Users/tao.exe/.codeium/windsurf/bin:/Users/tao.exe/.codeium/windsurf/bin:/Users/tao.exe/.codeium/windsurf/bin:/Users/tao.exe/.antigravity/antigravity/bin:/Users/tao.exe/.codeium/windsurf/bin:/Users/tao.exe/.local/bin:/Users/tao.exe/.rbenv/shims:/Users/tao.exe/.local/bin:/Users/tao.exe/.nvm/versions/node/v22.19.0/bin:/usr/local/bin:/System/Cryptexes/App/usr/bin:/usr/bin:/bin:/usr/sbin:/sbin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/local/bin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/bin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/appleinternal/bin:/opt/pmk/env/global/bin:/Library/Apple/usr/bin:/opt/homebrew/bin:/Users/tao.exe/Library/Application Support/Code - Insiders/User/globalStorage/github.copilot-chat/debugCommand:/Users/tao.exe/Library/Application Support/Code - Insiders/User/globalStorage/github.copilot-chat/copilotCli:/Users/tao.exe/.opencode/bin:/Users/tao.exe/.bun/bin:/Users/tao.exe/.antigravity/antigravity/bin:/Users/tao.exe/.rbenv/shims:/Users/tao.exe/.codeium/windsurf/bin:/Users/tao.exe/.local/bin:/Users/tao.exe/.nvm/versions/node/v22.19.0/bin:/Users/tao.exe/.swiftly/bin:/Users/tao.exe/.cargo/bin:/Users/tao.exe/Library/Android/sdk/emulator:/Users/tao.exe/Library/Android/sdk/platform-tools:/Users/tao.exe/.lmstudio/bin:/Users/tao.exe/Library/Android/sdk/emulator:/Users/tao.exe/Library/Android/sdk/platform-tools:/Users/tao.exe/.lmstudio/bin',
+#   PWD: '/Users/tao.exe/Documents/gitlab-mcp',
+#   QTERM_SESSION_ID: '4af59943197040408dfc47e2aad59dbb',
+#   Q_SET_PARENT_CHECK: '1',
+#   Q_TERM: '1.26.2',
+#   RBENV_SHELL: 'zsh',
+#   SHELL: '/bin/zsh',
+#   SHELL_PID: '54817',
+#   SHLVL: '1',
+#   SSH_AUTH_SOCK: '/private/tmp/com.apple.launchd.lg93zG90Bg/Listeners',
+#   SWIFTLY_BIN_DIR: '/Users/tao.exe/.swiftly/bin',
+#   SWIFTLY_HOME_DIR: '/Users/tao.exe/.swiftly',
+#   SWIFTLY_TOOLCHAINS_DIR: '/Users/tao.exe/Library/Developer/Toolchains',
+#   SYNTHETIC_API_KEY: 'syn_35a76bd4c1d5ed18b8e4e8a4f1b07b76',
+#   TERM: 'xterm-256color',
+#   TERM_PROGRAM: 'vscode',
+#   TERM_PROGRAM_VERSION: '1.116.0-insider',
+#   TMPDIR: '/var/folders/kc/hx_s_dg96p7czwjjwc789vx00000gp/T/',
+#   TTY: '/dev/ttys098',
+#   USER: 'tao.exe',
+#   USER_ZDOTDIR: '/Users/tao.exe',
+#   VSCODE_GIT_ASKPASS_EXTRA_ARGS: '',
+#   VSCODE_GIT_ASKPASS_MAIN: '/Applications/Visual Studio Code - Insiders.app/Contents/Resources/app/extensions/git/dist/askpass-main.js',
+#   VSCODE_GIT_ASKPASS_NODE: '/Applications/Visual Studio Code - Insiders.app/Contents/Frameworks/Code - Insiders Helper (Plugin).app/Contents/MacOS/Code - Insiders Helper (Plugin)',
+#   VSCODE_GIT_IPC_HANDLE: '/var/folders/kc/hx_s_dg96p7czwjjwc789vx00000gp/T/vscode-git-1d2807ead6.sock',
+#   VSCODE_INJECTION: '1',
+#   VSCODE_NONCE: 'daf2368a-ef1d-4131-81e7-4b337e7ae923',
+#   VSCODE_PATH_PREFIX: '/Users/tao.exe/Library/Application Support/Code - Insiders/User/globalStorage/github.copilot-chat/debugCommand:/Users/tao.exe/Library/Application Support/Code - Insiders/User/globalStorage/github.copilot-chat/copilotCli:',
+#   VSCODE_PREVENT_SHELL_HISTORY: '1',
+#   VSCODE_PROFILE_INITIALIZED: '1',
+#   VSCODE_SHELL_ENV_REPORTING: 'PATH,VIRTUAL_ENV,HOME,SHELL,PWD',
+#   XPC_FLAGS: '0x0',
+#   XPC_SERVICE_NAME: '0',
+#   ZDOTDIR: '/Users/tao.exe',
+#   ZENMUX_API_KEY: 'sk-ss-v1-95eae04a95ac9bba411c32cede234295deaa21a02ee2d8a90e830fc9c0004779',
+#   __CFBundleIdentifier: 'com.microsoft.VSCodeInsiders',
+#   __CF_USER_TEXT_ENCODING: '0x1F6:0x3:0x33',
+#   _: '/Users/tao.exe/.nvm/versions/node/v22.19.0/bin/node',
+#   NODE_TEST_CONTEXT: 'child-v8',
+#   STREAMABLE_HTTP: 'true',
+#   REMOTE_AUTHORIZATION: 'true',
+#   GITLAB_API_URL: 'http://127.0.0.1:9200/api/v4',
+#   GITLAB_TOOLSETS: 'issues',
+#   GITLAB_TOOLS: 'list_pipelines',
+#   USE_GITLAB_WIKI: 'true',
+#   GITLAB_READ_ONLY_MODE: 'true',
+#   PORT: '3290'
+# }
+# Launcher: Spawning server process with env: {
+#   ANDROID_HOME: '/Users/tao.exe/Library/Android/sdk',
+#   BUN_INSTALL: '/Users/tao.exe/.bun',
+#   COLORTERM: 'truecolor',
+#   COMMAND_MODE: 'unix2003',
+#   GIT_ASKPASS: '/Applications/Visual Studio Code - Insiders.app/Contents/Resources/app/extensions/git/dist/askpass.sh',
+#   GIT_EDITOR: ':',
+#   GIT_MERGE_AUTOEDIT: 'no',
+#   GIT_PAGER: 'cat',
+#   HOME: '/Users/tao.exe',
+#   JAVA_HOME: '/Library/Java/JavaVirtualMachines/zulu-17.jdk/Contents/Home',
+#   LANG: 'C.UTF-8',
+#   LOGNAME: 'tao.exe',
+#   MallocNanoZone: '0',
+#   NVM_BIN: '/Users/tao.exe/.nvm/versions/node/v22.19.0/bin',
+#   NVM_CD_FLAGS: '-q',
+#   NVM_DIR: '/Users/tao.exe/.nvm',
+#   NVM_INC: '/Users/tao.exe/.nvm/versions/node/v22.19.0/include/node',
+#   OLDPWD: '/Users/tao.exe/Documents/gitlab-mcp',
+#   OSLogRateLimit: '64',
+#   PATH: '/Users/tao.exe/.opencode/bin:/Users/tao.exe/.bun/bin:/Users/tao.exe/.antigravity/antigravity/bin:/Users/tao.exe/.rbenv/shims:/Users/tao.exe/.codeium/windsurf/bin:/Users/tao.exe/.codeium/windsurf/bin:/Users/tao.exe/.codeium/windsurf/bin:/Users/tao.exe/.antigravity/antigravity/bin:/Users/tao.exe/.codeium/windsurf/bin:/Users/tao.exe/.local/bin:/Users/tao.exe/.rbenv/shims:/Users/tao.exe/.local/bin:/Users/tao.exe/.nvm/versions/node/v22.19.0/bin:/usr/local/bin:/System/Cryptexes/App/usr/bin:/usr/bin:/bin:/usr/sbin:/sbin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/local/bin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/bin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/appleinternal/bin:/opt/pmk/env/global/bin:/Library/Apple/usr/bin:/opt/homebrew/bin:/Users/tao.exe/Library/Application Support/Code - Insiders/User/globalStorage/github.copilot-chat/debugCommand:/Users/tao.exe/Library/Application Support/Code - Insiders/User/globalStorage/github.copilot-chat/copilotCli:/Users/tao.exe/.opencode/bin:/Users/tao.exe/.bun/bin:/Users/tao.exe/.antigravity/antigravity/bin:/Users/tao.exe/.rbenv/shims:/Users/tao.exe/.codeium/windsurf/bin:/Users/tao.exe/.local/bin:/Users/tao.exe/.nvm/versions/node/v22.19.0/bin:/Users/tao.exe/.swiftly/bin:/Users/tao.exe/.cargo/bin:/Users/tao.exe/Library/Android/sdk/emulator:/Users/tao.exe/Library/Android/sdk/platform-tools:/Users/tao.exe/.lmstudio/bin:/Users/tao.exe/Library/Android/sdk/emulator:/Users/tao.exe/Library/Android/sdk/platform-tools:/Users/tao.exe/.lmstudio/bin',
+#   PWD: '/Users/tao.exe/Documents/gitlab-mcp',
+#   QTERM_SESSION_ID: '4af59943197040408dfc47e2aad59dbb',
+#   Q_SET_PARENT_CHECK: '1',
+#   Q_TERM: '1.26.2',
+#   RBENV_SHELL: 'zsh',
+#   SHELL: '/bin/zsh',
+#   SHELL_PID: '54817',
+#   SHLVL: '1',
+#   SSH_AUTH_SOCK: '/private/tmp/com.apple.launchd.lg93zG90Bg/Listeners',
+#   SWIFTLY_BIN_DIR: '/Users/tao.exe/.swiftly/bin',
+#   SWIFTLY_HOME_DIR: '/Users/tao.exe/.swiftly',
+#   SWIFTLY_TOOLCHAINS_DIR: '/Users/tao.exe/Library/Developer/Toolchains',
+#   SYNTHETIC_API_KEY: 'syn_35a76bd4c1d5ed18b8e4e8a4f1b07b76',
+#   TERM: 'xterm-256color',
+#   TERM_PROGRAM: 'vscode',
+#   TERM_PROGRAM_VERSION: '1.116.0-insider',
+#   TMPDIR: '/var/folders/kc/hx_s_dg96p7czwjjwc789vx00000gp/T/',
+#   TTY: '/dev/ttys098',
+#   USER: 'tao.exe',
+#   USER_ZDOTDIR: '/Users/tao.exe',
+#   VSCODE_GIT_ASKPASS_EXTRA_ARGS: '',
+#   VSCODE_GIT_ASKPASS_MAIN: '/Applications/Visual Studio Code - Insiders.app/Contents/Resources/app/extensions/git/dist/askpass-main.js',
+#   VSCODE_GIT_ASKPASS_NODE: '/Applications/Visual Studio Code - Insiders.app/Contents/Frameworks/Code - Insiders Helper (Plugin).app/Contents/MacOS/Code - Insiders Helper (Plugin)',
+#   VSCODE_GIT_IPC_HANDLE: '/var/folders/kc/hx_s_dg96p7czwjjwc789vx00000gp/T/vscode-git-1d2807ead6.sock',
+#   VSCODE_INJECTION: '1',
+#   VSCODE_NONCE: 'daf2368a-ef1d-4131-81e7-4b337e7ae923',
+#   VSCODE_PATH_PREFIX: '/Users/tao.exe/Library/Application Support/Code - Insiders/User/globalStorage/github.copilot-chat/debugCommand:/Users/tao.exe/Library/Application Support/Code - Insiders/User/globalStorage/github.copilot-chat/copilotCli:',
+#   VSCODE_PREVENT_SHELL_HISTORY: '1',
+#   VSCODE_PROFILE_INITIALIZED: '1',
+#   VSCODE_SHELL_ENV_REPORTING: 'PATH,VIRTUAL_ENV,HOME,SHELL,PWD',
+#   XPC_FLAGS: '0x0',
+#   XPC_SERVICE_NAME: '0',
+#   ZDOTDIR: '/Users/tao.exe',
+#   ZENMUX_API_KEY: 'sk-ss-v1-95eae04a95ac9bba411c32cede234295deaa21a02ee2d8a90e830fc9c0004779',
+#   __CFBundleIdentifier: 'com.microsoft.VSCodeInsiders',
+#   __CF_USER_TEXT_ENCODING: '0x1F6:0x3:0x33',
+#   _: '/Users/tao.exe/.nvm/versions/node/v22.19.0/bin/node',
+#   NODE_TEST_CONTEXT: 'child-v8',
+#   STREAMABLE_HTTP: 'true',
+#   REMOTE_AUTHORIZATION: 'true',
+#   GITLAB_API_URL: 'http://127.0.0.1:9200/api/v4',
+#   GITLAB_TOOLSETS: 'issues',
+#   GITLAB_TOOLS: 'list_pipelines',
+#   USE_GITLAB_WIKI: 'true',
+#   GITLAB_READ_ONLY_MODE: 'true',
+#   PORT: '3290'
+# }
+# Launcher: Server process spawned with PID: 56739
+# Launcher: Server process spawned.
+    # Subtest: GITLAB_TOOLSETS=issues + GITLAB_DENIED_TOOLS_REGEX=^(create_|delete_)
+        # Subtest: excludes tools matching the denial regex
+        ok 1 - excludes tools matching the denial regex
+          ---
+          duration_ms: 0.131167
+          type: 'test'
+          ...
+        # Subtest: keeps non-matching issue tools
+        ok 2 - keeps non-matching issue tools
+          ---
+          duration_ms: 0.040459
+          type: 'test'
+          ...
+        1..2
+    ok 9 - GITLAB_TOOLSETS=issues + GITLAB_DENIED_TOOLS_REGEX=^(create_|delete_)
+      ---
+      duration_ms: 1231.025417
+      type: 'suite'
+      ...
+# [Server Output]: [32mINFO[39m [14:06:04.517] (56726): [36mSIGTERM received, starting graceful shutdown...[39m
+# [32mINFO[39m [14:06:04.517] (56726): [36mClosing 1 active sessions...[39m
+# [33mWARN[39m [14:06:04.517] (56726): [36mStreamable HTTP transport closed for session 02688ecd-0318-4fc0-879a-57aa21c8aeff, cleaning up[39m
+# [32mINFO[39m [14:06:04.517] (56726): [36mSession 02688ecd-0318-4fc0-879a-57aa21c8aeff: cleaned up auth mapping[39m
+# [32mINFO[39m [14:06:04.517] (56726): [36mHTTP server closed[39m
+# [32mINFO[39m [14:06:04.517] (56726): [36mGraceful shutdown complete[39m
+# [Launcher DEBUG] Process 56726 exited with code 0
+# [Launcher DEBUG] Process 56726 closed with code 0
+# [Server Output]: [33mWARN[39m [14:06:04.692] (56739): [36mGITLAB_TOOLSETS is set alongside legacy flags (USE_PIPELINE, USE_MILESTONE, USE_GITLAB_WIKI). Legacy flags add tools additively on top of the toolset selection and may produce unexpected results.[39m
+# [Server Output]: [32mINFO[39m [14:06:04.692] (56739): [36mRemote authorization enabled: tokens will be read from HTTP headers[39m
+# [32mINFO[39m [14:06:04.692] (56739): [36mConfiguration validation passed[39m
+# [32mINFO[39m [14:06:04.692] (56739): [36mInitializing server with transport mode:[39m
+# [33mWARN[39m [14:06:04.692] (56739): [36mStarting GitLab MCP Server with Streamable HTTP transport[39m
+# [32mINFO[39m [14:06:04.694] (56739): [36mConfigured GitLab API URLs: http://127.0.0.1:9200/api/v4[39m
+# [32mINFO[39m [14:06:04.694] (56739): [36mDefault GitLab API URL: http://127.0.0.1:9200/api/v4[39m
+# [32mINFO[39m [14:06:04.696] (56739): [36mGitLab MCP Server running with Streamable HTTP transport[39m
+# [32mINFO[39m [14:06:04.696] (56739): [36m[32mEndpoint: http://127.0.0.1:3290/mcp[0m[39m
+# Launcher: launchServer function entered.
+# Launcher: Spawning server process with env: {
+#   ANDROID_HOME: '/Users/tao.exe/Library/Android/sdk',
+#   BUN_INSTALL: '/Users/tao.exe/.bun',
+#   COLORTERM: 'truecolor',
+#   COMMAND_MODE: 'unix2003',
+#   GIT_ASKPASS: '/Applications/Visual Studio Code - Insiders.app/Contents/Resources/app/extensions/git/dist/askpass.sh',
+#   GIT_EDITOR: ':',
+#   GIT_MERGE_AUTOEDIT: 'no',
+#   GIT_PAGER: 'cat',
+#   HOME: '/Users/tao.exe',
+#   JAVA_HOME: '/Library/Java/JavaVirtualMachines/zulu-17.jdk/Contents/Home',
+#   LANG: 'C.UTF-8',
+#   LOGNAME: 'tao.exe',
+#   MallocNanoZone: '0',
+#   NVM_BIN: '/Users/tao.exe/.nvm/versions/node/v22.19.0/bin',
+#   NVM_CD_FLAGS: '-q',
+#   NVM_DIR: '/Users/tao.exe/.nvm',
+#   NVM_INC: '/Users/tao.exe/.nvm/versions/node/v22.19.0/include/node',
+#   OLDPWD: '/Users/tao.exe/Documents/gitlab-mcp',
+#   OSLogRateLimit: '64',
+#   PATH: '/Users/tao.exe/.opencode/bin:/Users/tao.exe/.bun/bin:/Users/tao.exe/.antigravity/antigravity/bin:/Users/tao.exe/.rbenv/shims:/Users/tao.exe/.codeium/windsurf/bin:/Users/tao.exe/.codeium/windsurf/bin:/Users/tao.exe/.codeium/windsurf/bin:/Users/tao.exe/.antigravity/antigravity/bin:/Users/tao.exe/.codeium/windsurf/bin:/Users/tao.exe/.local/bin:/Users/tao.exe/.rbenv/shims:/Users/tao.exe/.local/bin:/Users/tao.exe/.nvm/versions/node/v22.19.0/bin:/usr/local/bin:/System/Cryptexes/App/usr/bin:/usr/bin:/bin:/usr/sbin:/sbin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/local/bin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/bin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/appleinternal/bin:/opt/pmk/env/global/bin:/Library/Apple/usr/bin:/opt/homebrew/bin:/Users/tao.exe/Library/Application Support/Code - Insiders/User/globalStorage/github.copilot-chat/debugCommand:/Users/tao.exe/Library/Application Support/Code - Insiders/User/globalStorage/github.copilot-chat/copilotCli:/Users/tao.exe/.opencode/bin:/Users/tao.exe/.bun/bin:/Users/tao.exe/.antigravity/antigravity/bin:/Users/tao.exe/.rbenv/shims:/Users/tao.exe/.codeium/windsurf/bin:/Users/tao.exe/.local/bin:/Users/tao.exe/.nvm/versions/node/v22.19.0/bin:/Users/tao.exe/.swiftly/bin:/Users/tao.exe/.cargo/bin:/Users/tao.exe/Library/Android/sdk/emulator:/Users/tao.exe/Library/Android/sdk/platform-tools:/Users/tao.exe/.lmstudio/bin:/Users/tao.exe/Library/Android/sdk/emulator:/Users/tao.exe/Library/Android/sdk/platform-tools:/Users/tao.exe/.lmstudio/bin',
+#   PWD: '/Users/tao.exe/Documents/gitlab-mcp',
+#   QTERM_SESSION_ID: '4af59943197040408dfc47e2aad59dbb',
+#   Q_SET_PARENT_CHECK: '1',
+#   Q_TERM: '1.26.2',
+#   RBENV_SHELL: 'zsh',
+#   SHELL: '/bin/zsh',
+#   SHELL_PID: '54817',
+#   SHLVL: '1',
+#   SSH_AUTH_SOCK: '/private/tmp/com.apple.launchd.lg93zG90Bg/Listeners',
+#   SWIFTLY_BIN_DIR: '/Users/tao.exe/.swiftly/bin',
+#   SWIFTLY_HOME_DIR: '/Users/tao.exe/.swiftly',
+#   SWIFTLY_TOOLCHAINS_DIR: '/Users/tao.exe/Library/Developer/Toolchains',
+#   SYNTHETIC_API_KEY: 'syn_35a76bd4c1d5ed18b8e4e8a4f1b07b76',
+#   TERM: 'xterm-256color',
+#   TERM_PROGRAM: 'vscode',
+#   TERM_PROGRAM_VERSION: '1.116.0-insider',
+#   TMPDIR: '/var/folders/kc/hx_s_dg96p7czwjjwc789vx00000gp/T/',
+#   TTY: '/dev/ttys098',
+#   USER: 'tao.exe',
+#   USER_ZDOTDIR: '/Users/tao.exe',
+#   VSCODE_GIT_ASKPASS_EXTRA_ARGS: '',
+#   VSCODE_GIT_ASKPASS_MAIN: '/Applications/Visual Studio Code - Insiders.app/Contents/Resources/app/extensions/git/dist/askpass-main.js',
+#   VSCODE_GIT_ASKPASS_NODE: '/Applications/Visual Studio Code - Insiders.app/Contents/Frameworks/Code - Insiders Helper (Plugin).app/Contents/MacOS/Code - Insiders Helper (Plugin)',
+#   VSCODE_GIT_IPC_HANDLE: '/var/folders/kc/hx_s_dg96p7czwjjwc789vx00000gp/T/vscode-git-1d2807ead6.sock',
+#   VSCODE_INJECTION: '1',
+#   VSCODE_NONCE: 'daf2368a-ef1d-4131-81e7-4b337e7ae923',
+#   VSCODE_PATH_PREFIX: '/Users/tao.exe/Library/Application Support/Code - Insiders/User/globalStorage/github.copilot-chat/debugCommand:/Users/tao.exe/Library/Application Support/Code - Insiders/User/globalStorage/github.copilot-chat/copilotCli:',
+#   VSCODE_PREVENT_SHELL_HISTORY: '1',
+#   VSCODE_PROFILE_INITIALIZED: '1',
+#   VSCODE_SHELL_ENV_REPORTING: 'PATH,VIRTUAL_ENV,HOME,SHELL,PWD',
+#   XPC_FLAGS: '0x0',
+#   XPC_SERVICE_NAME: '0',
+#   ZDOTDIR: '/Users/tao.exe',
+#   ZENMUX_API_KEY: 'sk-ss-v1-95eae04a95ac9bba411c32cede234295deaa21a02ee2d8a90e830fc9c0004779',
+#   __CFBundleIdentifier: 'com.microsoft.VSCodeInsiders',
+#   __CF_USER_TEXT_ENCODING: '0x1F6:0x3:0x33',
+#   _: '/Users/tao.exe/.nvm/versions/node/v22.19.0/bin/node',
+#   NODE_TEST_CONTEXT: 'child-v8',
+#   STREAMABLE_HTTP: 'true',
+#   REMOTE_AUTHORIZATION: 'true',
+#   GITLAB_API_URL: 'http://127.0.0.1:9200/api/v4',
+#   GITLAB_TOOLSETS: 'pipelines',
+#   USE_PIPELINE: 'true',
+#   PORT: '3300'
+# }
+# Launcher: Spawning server process with env: {
+#   ANDROID_HOME: '/Users/tao.exe/Library/Android/sdk',
+#   BUN_INSTALL: '/Users/tao.exe/.bun',
+#   COLORTERM: 'truecolor',
+#   COMMAND_MODE: 'unix2003',
+#   GIT_ASKPASS: '/Applications/Visual Studio Code - Insiders.app/Contents/Resources/app/extensions/git/dist/askpass.sh',
+#   GIT_EDITOR: ':',
+#   GIT_MERGE_AUTOEDIT: 'no',
+#   GIT_PAGER: 'cat',
+#   HOME: '/Users/tao.exe',
+#   JAVA_HOME: '/Library/Java/JavaVirtualMachines/zulu-17.jdk/Contents/Home',
+#   LANG: 'C.UTF-8',
+#   LOGNAME: 'tao.exe',
+#   MallocNanoZone: '0',
+#   NVM_BIN: '/Users/tao.exe/.nvm/versions/node/v22.19.0/bin',
+#   NVM_CD_FLAGS: '-q',
+#   NVM_DIR: '/Users/tao.exe/.nvm',
+#   NVM_INC: '/Users/tao.exe/.nvm/versions/node/v22.19.0/include/node',
+#   OLDPWD: '/Users/tao.exe/Documents/gitlab-mcp',
+#   OSLogRateLimit: '64',
+#   PATH: '/Users/tao.exe/.opencode/bin:/Users/tao.exe/.bun/bin:/Users/tao.exe/.antigravity/antigravity/bin:/Users/tao.exe/.rbenv/shims:/Users/tao.exe/.codeium/windsurf/bin:/Users/tao.exe/.codeium/windsurf/bin:/Users/tao.exe/.codeium/windsurf/bin:/Users/tao.exe/.antigravity/antigravity/bin:/Users/tao.exe/.codeium/windsurf/bin:/Users/tao.exe/.local/bin:/Users/tao.exe/.rbenv/shims:/Users/tao.exe/.local/bin:/Users/tao.exe/.nvm/versions/node/v22.19.0/bin:/usr/local/bin:/System/Cryptexes/App/usr/bin:/usr/bin:/bin:/usr/sbin:/sbin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/local/bin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/bin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/appleinternal/bin:/opt/pmk/env/global/bin:/Library/Apple/usr/bin:/opt/homebrew/bin:/Users/tao.exe/Library/Application Support/Code - Insiders/User/globalStorage/github.copilot-chat/debugCommand:/Users/tao.exe/Library/Application Support/Code - Insiders/User/globalStorage/github.copilot-chat/copilotCli:/Users/tao.exe/.opencode/bin:/Users/tao.exe/.bun/bin:/Users/tao.exe/.antigravity/antigravity/bin:/Users/tao.exe/.rbenv/shims:/Users/tao.exe/.codeium/windsurf/bin:/Users/tao.exe/.local/bin:/Users/tao.exe/.nvm/versions/node/v22.19.0/bin:/Users/tao.exe/.swiftly/bin:/Users/tao.exe/.cargo/bin:/Users/tao.exe/Library/Android/sdk/emulator:/Users/tao.exe/Library/Android/sdk/platform-tools:/Users/tao.exe/.lmstudio/bin:/Users/tao.exe/Library/Android/sdk/emulator:/Users/tao.exe/Library/Android/sdk/platform-tools:/Users/tao.exe/.lmstudio/bin',
+#   PWD: '/Users/tao.exe/Documents/gitlab-mcp',
+#   QTERM_SESSION_ID: '4af59943197040408dfc47e2aad59dbb',
+#   Q_SET_PARENT_CHECK: '1',
+#   Q_TERM: '1.26.2',
+#   RBENV_SHELL: 'zsh',
+#   SHELL: '/bin/zsh',
+#   SHELL_PID: '54817',
+#   SHLVL: '1',
+#   SSH_AUTH_SOCK: '/private/tmp/com.apple.launchd.lg93zG90Bg/Listeners',
+#   SWIFTLY_BIN_DIR: '/Users/tao.exe/.swiftly/bin',
+#   SWIFTLY_HOME_DIR: '/Users/tao.exe/.swiftly',
+#   SWIFTLY_TOOLCHAINS_DIR: '/Users/tao.exe/Library/Developer/Toolchains',
+#   SYNTHETIC_API_KEY: 'syn_35a76bd4c1d5ed18b8e4e8a4f1b07b76',
+#   TERM: 'xterm-256color',
+#   TERM_PROGRAM: 'vscode',
+#   TERM_PROGRAM_VERSION: '1.116.0-insider',
+#   TMPDIR: '/var/folders/kc/hx_s_dg96p7czwjjwc789vx00000gp/T/',
+#   TTY: '/dev/ttys098',
+#   USER: 'tao.exe',
+#   USER_ZDOTDIR: '/Users/tao.exe',
+#   VSCODE_GIT_ASKPASS_EXTRA_ARGS: '',
+#   VSCODE_GIT_ASKPASS_MAIN: '/Applications/Visual Studio Code - Insiders.app/Contents/Resources/app/extensions/git/dist/askpass-main.js',
+#   VSCODE_GIT_ASKPASS_NODE: '/Applications/Visual Studio Code - Insiders.app/Contents/Frameworks/Code - Insiders Helper (Plugin).app/Contents/MacOS/Code - Insiders Helper (Plugin)',
+#   VSCODE_GIT_IPC_HANDLE: '/var/folders/kc/hx_s_dg96p7czwjjwc789vx00000gp/T/vscode-git-1d2807ead6.sock',
+#   VSCODE_INJECTION: '1',
+#   VSCODE_NONCE: 'daf2368a-ef1d-4131-81e7-4b337e7ae923',
+#   VSCODE_PATH_PREFIX: '/Users/tao.exe/Library/Application Support/Code - Insiders/User/globalStorage/github.copilot-chat/debugCommand:/Users/tao.exe/Library/Application Support/Code - Insiders/User/globalStorage/github.copilot-chat/copilotCli:',
+#   VSCODE_PREVENT_SHELL_HISTORY: '1',
+#   VSCODE_PROFILE_INITIALIZED: '1',
+#   VSCODE_SHELL_ENV_REPORTING: 'PATH,VIRTUAL_ENV,HOME,SHELL,PWD',
+#   XPC_FLAGS: '0x0',
+#   XPC_SERVICE_NAME: '0',
+#   ZDOTDIR: '/Users/tao.exe',
+#   ZENMUX_API_KEY: 'sk-ss-v1-95eae04a95ac9bba411c32cede234295deaa21a02ee2d8a90e830fc9c0004779',
+#   __CFBundleIdentifier: 'com.microsoft.VSCodeInsiders',
+#   __CF_USER_TEXT_ENCODING: '0x1F6:0x3:0x33',
+#   _: '/Users/tao.exe/.nvm/versions/node/v22.19.0/bin/node',
+#   NODE_TEST_CONTEXT: 'child-v8',
+#   STREAMABLE_HTTP: 'true',
+#   REMOTE_AUTHORIZATION: 'true',
+#   GITLAB_API_URL: 'http://127.0.0.1:9200/api/v4',
+#   GITLAB_TOOLSETS: 'pipelines',
+#   USE_PIPELINE: 'true',
+#   PORT: '3300'
+# }
+# Launcher: Server process spawned with PID: 56752
+# Launcher: Server process spawned.
+    # Subtest: GITLAB_TOOLSETS=issues + GITLAB_TOOLS=list_pipelines + USE_GITLAB_WIKI=true + GITLAB_READ_ONLY_MODE=true
+        # Subtest: includes read-only issue tools
+        ok 1 - includes read-only issue tools
+          ---
+          duration_ms: 0.080958
+          type: 'test'
+          ...
+        # Subtest: includes list_pipelines (read-only individual tool)
+        ok 2 - includes list_pipelines (read-only individual tool)
+          ---
+          duration_ms: 0.026459
+          type: 'test'
+          ...
+        # Subtest: includes read-only wiki tools from legacy flag
+        ok 3 - includes read-only wiki tools from legacy flag
+          ---
+          duration_ms: 0.024875
+          type: 'test'
+          ...
+        # Subtest: excludes write tools across all sources
+        ok 4 - excludes write tools across all sources
+          ---
+          duration_ms: 0.021083
+          type: 'test'
+          ...
+        1..4
+    ok 10 - GITLAB_TOOLSETS=issues + GITLAB_TOOLS=list_pipelines + USE_GITLAB_WIKI=true + GITLAB_READ_ONLY_MODE=true
+      ---
+      duration_ms: 1220.306833
+      type: 'suite'
+      ...
+# [Server Output]: [33mWARN[39m [14:06:05.728] (56739): [36mStreamable HTTP session initialized: 4a4997b9-b912-4c33-8a48-4f674cdb1b0c[39m
+# [Server Output]: [32mINFO[39m [14:06:05.728] (56739): [36mSession 4a4997b9-b912-4c33-8a48-4f674cdb1b0c: stored Authorization header[39m
+# [32mINFO[39m [14:06:05.737] (56739): [36mSIGTERM received, starting graceful shutdown...[39m
+# [32mINFO[39m [14:06:05.738] (56739): [36mClosing 1 active sessions...[39m
+# [33mWARN[39m [14:06:05.738] (56739): [36mStreamable HTTP transport closed for session 4a4997b9-b912-4c33-8a48-4f674cdb1b0c, cleaning up[39m
+# [32mINFO[39m [14:06:05.738] (56739): [36mSession 4a4997b9-b912-4c33-8a48-4f674cdb1b0c: cleaned up auth mapping[39m
+# [32mINFO[39m [14:06:05.738] (56739): [36mHTTP server closed[39m
+# [32mINFO[39m [14:06:05.738] (56739): [36mGraceful shutdown complete[39m
+# [Launcher DEBUG] Process 56739 exited with code 0
+# [Launcher DEBUG] Process 56739 closed with code 0
+# [Server Output]: [33mWARN[39m [14:06:05.912] (56752): [36mGITLAB_TOOLSETS is set alongside legacy flags (USE_PIPELINE, USE_MILESTONE, USE_GITLAB_WIKI). Legacy flags add tools additively on top of the toolset selection and may produce unexpected results.[39m
+# [Server Output]: [32mINFO[39m [14:06:05.912] (56752): [36mRemote authorization enabled: tokens will be read from HTTP headers[39m
+# [32mINFO[39m [14:06:05.912] (56752): [36mConfiguration validation passed[39m
+# [32mINFO[39m [14:06:05.913] (56752): [36mInitializing server with transport mode:[39m
+# [33mWARN[39m [14:06:05.913] (56752): [36mStarting GitLab MCP Server with Streamable HTTP transport[39m
+# [32mINFO[39m [14:06:05.914] (56752): [36mConfigured GitLab API URLs: http://127.0.0.1:9200/api/v4[39m
+# [32mINFO[39m [14:06:05.914] (56752): [36mDefault GitLab API URL: http://127.0.0.1:9200/api/v4[39m
+# [32mINFO[39m [14:06:05.917] (56752): [36mGitLab MCP Server running with Streamable HTTP transport[39m
+# [32mINFO[39m [14:06:05.917] (56752): [36m[32mEndpoint: http://127.0.0.1:3300/mcp[0m[39m
+# [Server Output]: [33mWARN[39m [14:06:06.964] (56752): [36mStreamable HTTP session initialized: 2cedcbfe-e72c-4bc8-b208-0716a89ae569[39m
+# [32mINFO[39m [14:06:06.964] (56752): [36mSession 2cedcbfe-e72c-4bc8-b208-0716a89ae569: stored Authorization header[39m
+# Launcher: launchServer function entered.
+# Launcher: Spawning server process with env: {
+#   ANDROID_HOME: '/Users/tao.exe/Library/Android/sdk',
+#   BUN_INSTALL: '/Users/tao.exe/.bun',
+#   COLORTERM: 'truecolor',
+#   COMMAND_MODE: 'unix2003',
+#   GIT_ASKPASS: '/Applications/Visual Studio Code - Insiders.app/Contents/Resources/app/extensions/git/dist/askpass.sh',
+#   GIT_EDITOR: ':',
+#   GIT_MERGE_AUTOEDIT: 'no',
+#   GIT_PAGER: 'cat',
+#   HOME: '/Users/tao.exe',
+#   JAVA_HOME: '/Library/Java/JavaVirtualMachines/zulu-17.jdk/Contents/Home',
+#   LANG: 'C.UTF-8',
+#   LOGNAME: 'tao.exe',
+#   MallocNanoZone: '0',
+#   NVM_BIN: '/Users/tao.exe/.nvm/versions/node/v22.19.0/bin',
+#   NVM_CD_FLAGS: '-q',
+#   NVM_DIR: '/Users/tao.exe/.nvm',
+#   NVM_INC: '/Users/tao.exe/.nvm/versions/node/v22.19.0/include/node',
+#   OLDPWD: '/Users/tao.exe/Documents/gitlab-mcp',
+#   OSLogRateLimit: '64',
+#   PATH: '/Users/tao.exe/.opencode/bin:/Users/tao.exe/.bun/bin:/Users/tao.exe/.antigravity/antigravity/bin:/Users/tao.exe/.rbenv/shims:/Users/tao.exe/.codeium/windsurf/bin:/Users/tao.exe/.codeium/windsurf/bin:/Users/tao.exe/.codeium/windsurf/bin:/Users/tao.exe/.antigravity/antigravity/bin:/Users/tao.exe/.codeium/windsurf/bin:/Users/tao.exe/.local/bin:/Users/tao.exe/.rbenv/shims:/Users/tao.exe/.local/bin:/Users/tao.exe/.nvm/versions/node/v22.19.0/bin:/usr/local/bin:/System/Cryptexes/App/usr/bin:/usr/bin:/bin:/usr/sbin:/sbin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/local/bin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/bin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/appleinternal/bin:/opt/pmk/env/global/bin:/Library/Apple/usr/bin:/opt/homebrew/bin:/Users/tao.exe/Library/Application Support/Code - Insiders/User/globalStorage/github.copilot-chat/debugCommand:/Users/tao.exe/Library/Application Support/Code - Insiders/User/globalStorage/github.copilot-chat/copilotCli:/Users/tao.exe/.opencode/bin:/Users/tao.exe/.bun/bin:/Users/tao.exe/.antigravity/antigravity/bin:/Users/tao.exe/.rbenv/shims:/Users/tao.exe/.codeium/windsurf/bin:/Users/tao.exe/.local/bin:/Users/tao.exe/.nvm/versions/node/v22.19.0/bin:/Users/tao.exe/.swiftly/bin:/Users/tao.exe/.cargo/bin:/Users/tao.exe/Library/Android/sdk/emulator:/Users/tao.exe/Library/Android/sdk/platform-tools:/Users/tao.exe/.lmstudio/bin:/Users/tao.exe/Library/Android/sdk/emulator:/Users/tao.exe/Library/Android/sdk/platform-tools:/Users/tao.exe/.lmstudio/bin',
+#   PWD: '/Users/tao.exe/Documents/gitlab-mcp',
+#   QTERM_SESSION_ID: '4af59943197040408dfc47e2aad59dbb',
+#   Q_SET_PARENT_CHECK: '1',
+#   Q_TERM: '1.26.2',
+#   RBENV_SHELL: 'zsh',
+#   SHELL: '/bin/zsh',
+#   SHELL_PID: '54817',
+#   SHLVL: '1',
+#   SSH_AUTH_SOCK: '/private/tmp/com.apple.launchd.lg93zG90Bg/Listeners',
+#   SWIFTLY_BIN_DIR: '/Users/tao.exe/.swiftly/bin',
+#   SWIFTLY_HOME_DIR: '/Users/tao.exe/.swiftly',
+#   SWIFTLY_TOOLCHAINS_DIR: '/Users/tao.exe/Library/Developer/Toolchains',
+#   SYNTHETIC_API_KEY: 'syn_35a76bd4c1d5ed18b8e4e8a4f1b07b76',
+#   TERM: 'xterm-256color',
+#   TERM_PROGRAM: 'vscode',
+#   TERM_PROGRAM_VERSION: '1.116.0-insider',
+#   TMPDIR: '/var/folders/kc/hx_s_dg96p7czwjjwc789vx00000gp/T/',
+#   TTY: '/dev/ttys098',
+#   USER: 'tao.exe',
+#   USER_ZDOTDIR: '/Users/tao.exe',
+#   VSCODE_GIT_ASKPASS_EXTRA_ARGS: '',
+#   VSCODE_GIT_ASKPASS_MAIN: '/Applications/Visual Studio Code - Insiders.app/Contents/Resources/app/extensions/git/dist/askpass-main.js',
+#   VSCODE_GIT_ASKPASS_NODE: '/Applications/Visual Studio Code - Insiders.app/Contents/Frameworks/Code - Insiders Helper (Plugin).app/Contents/MacOS/Code - Insiders Helper (Plugin)',
+#   VSCODE_GIT_IPC_HANDLE: '/var/folders/kc/hx_s_dg96p7czwjjwc789vx00000gp/T/vscode-git-1d2807ead6.sock',
+#   VSCODE_INJECTION: '1',
+#   VSCODE_NONCE: 'daf2368a-ef1d-4131-81e7-4b337e7ae923',
+#   VSCODE_PATH_PREFIX: '/Users/tao.exe/Library/Application Support/Code - Insiders/User/globalStorage/github.copilot-chat/debugCommand:/Users/tao.exe/Library/Application Support/Code - Insiders/User/globalStorage/github.copilot-chat/copilotCli:',
+#   VSCODE_PREVENT_SHELL_HISTORY: '1',
+#   VSCODE_PROFILE_INITIALIZED: '1',
+#   VSCODE_SHELL_ENV_REPORTING: 'PATH,VIRTUAL_ENV,HOME,SHELL,PWD',
+#   XPC_FLAGS: '0x0',
+#   XPC_SERVICE_NAME: '0',
+#   ZDOTDIR: '/Users/tao.exe',
+#   ZENMUX_API_KEY: 'sk-ss-v1-95eae04a95ac9bba411c32cede234295deaa21a02ee2d8a90e830fc9c0004779',
+#   __CFBundleIdentifier: 'com.microsoft.VSCodeInsiders',
+#   __CF_USER_TEXT_ENCODING: '0x1F6:0x3:0x33',
+#   _: '/Users/tao.exe/.nvm/versions/node/v22.19.0/bin/node',
+#   NODE_TEST_CONTEXT: 'child-v8',
+#   STREAMABLE_HTTP: 'true',
+#   REMOTE_AUTHORIZATION: 'true',
+#   GITLAB_API_URL: 'http://127.0.0.1:9200/api/v4',
+#   GITLAB_TOOLSETS: 'issues',
+#   GITLAB_TOOLS: 'list_issues',
+#   PORT: '3310'
+# }
+# Launcher: Spawning server process with env: {
+#   ANDROID_HOME: '/Users/tao.exe/Library/Android/sdk',
+#   BUN_INSTALL: '/Users/tao.exe/.bun',
+#   COLORTERM: 'truecolor',
+#   COMMAND_MODE: 'unix2003',
+#   GIT_ASKPASS: '/Applications/Visual Studio Code - Insiders.app/Contents/Resources/app/extensions/git/dist/askpass.sh',
+#   GIT_EDITOR: ':',
+#   GIT_MERGE_AUTOEDIT: 'no',
+#   GIT_PAGER: 'cat',
+#   HOME: '/Users/tao.exe',
+#   JAVA_HOME: '/Library/Java/JavaVirtualMachines/zulu-17.jdk/Contents/Home',
+#   LANG: 'C.UTF-8',
+#   LOGNAME: 'tao.exe',
+#   MallocNanoZone: '0',
+#   NVM_BIN: '/Users/tao.exe/.nvm/versions/node/v22.19.0/bin',
+#   NVM_CD_FLAGS: '-q',
+#   NVM_DIR: '/Users/tao.exe/.nvm',
+#   NVM_INC: '/Users/tao.exe/.nvm/versions/node/v22.19.0/include/node',
+#   OLDPWD: '/Users/tao.exe/Documents/gitlab-mcp',
+#   OSLogRateLimit: '64',
+#   PATH: '/Users/tao.exe/.opencode/bin:/Users/tao.exe/.bun/bin:/Users/tao.exe/.antigravity/antigravity/bin:/Users/tao.exe/.rbenv/shims:/Users/tao.exe/.codeium/windsurf/bin:/Users/tao.exe/.codeium/windsurf/bin:/Users/tao.exe/.codeium/windsurf/bin:/Users/tao.exe/.antigravity/antigravity/bin:/Users/tao.exe/.codeium/windsurf/bin:/Users/tao.exe/.local/bin:/Users/tao.exe/.rbenv/shims:/Users/tao.exe/.local/bin:/Users/tao.exe/.nvm/versions/node/v22.19.0/bin:/usr/local/bin:/System/Cryptexes/App/usr/bin:/usr/bin:/bin:/usr/sbin:/sbin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/local/bin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/bin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/appleinternal/bin:/opt/pmk/env/global/bin:/Library/Apple/usr/bin:/opt/homebrew/bin:/Users/tao.exe/Library/Application Support/Code - Insiders/User/globalStorage/github.copilot-chat/debugCommand:/Users/tao.exe/Library/Application Support/Code - Insiders/User/globalStorage/github.copilot-chat/copilotCli:/Users/tao.exe/.opencode/bin:/Users/tao.exe/.bun/bin:/Users/tao.exe/.antigravity/antigravity/bin:/Users/tao.exe/.rbenv/shims:/Users/tao.exe/.codeium/windsurf/bin:/Users/tao.exe/.local/bin:/Users/tao.exe/.nvm/versions/node/v22.19.0/bin:/Users/tao.exe/.swiftly/bin:/Users/tao.exe/.cargo/bin:/Users/tao.exe/Library/Android/sdk/emulator:/Users/tao.exe/Library/Android/sdk/platform-tools:/Users/tao.exe/.lmstudio/bin:/Users/tao.exe/Library/Android/sdk/emulator:/Users/tao.exe/Library/Android/sdk/platform-tools:/Users/tao.exe/.lmstudio/bin',
+#   PWD: '/Users/tao.exe/Documents/gitlab-mcp',
+#   QTERM_SESSION_ID: '4af59943197040408dfc47e2aad59dbb',
+#   Q_SET_PARENT_CHECK: '1',
+#   Q_TERM: '1.26.2',
+#   RBENV_SHELL: 'zsh',
+#   SHELL: '/bin/zsh',
+#   SHELL_PID: '54817',
+#   SHLVL: '1',
+#   SSH_AUTH_SOCK: '/private/tmp/com.apple.launchd.lg93zG90Bg/Listeners',
+#   SWIFTLY_BIN_DIR: '/Users/tao.exe/.swiftly/bin',
+#   SWIFTLY_HOME_DIR: '/Users/tao.exe/.swiftly',
+#   SWIFTLY_TOOLCHAINS_DIR: '/Users/tao.exe/Library/Developer/Toolchains',
+#   SYNTHETIC_API_KEY: 'syn_35a76bd4c1d5ed18b8e4e8a4f1b07b76',
+#   TERM: 'xterm-256color',
+#   TERM_PROGRAM: 'vscode',
+#   TERM_PROGRAM_VERSION: '1.116.0-insider',
+#   TMPDIR: '/var/folders/kc/hx_s_dg96p7czwjjwc789vx00000gp/T/',
+#   TTY: '/dev/ttys098',
+#   USER: 'tao.exe',
+#   USER_ZDOTDIR: '/Users/tao.exe',
+#   VSCODE_GIT_ASKPASS_EXTRA_ARGS: '',
+#   VSCODE_GIT_ASKPASS_MAIN: '/Applications/Visual Studio Code - Insiders.app/Contents/Resources/app/extensions/git/dist/askpass-main.js',
+#   VSCODE_GIT_ASKPASS_NODE: '/Applications/Visual Studio Code - Insiders.app/Contents/Frameworks/Code - Insiders Helper (Plugin).app/Contents/MacOS/Code - Insiders Helper (Plugin)',
+#   VSCODE_GIT_IPC_HANDLE: '/var/folders/kc/hx_s_dg96p7czwjjwc789vx00000gp/T/vscode-git-1d2807ead6.sock',
+#   VSCODE_INJECTION: '1',
+#   VSCODE_NONCE: 'daf2368a-ef1d-4131-81e7-4b337e7ae923',
+#   VSCODE_PATH_PREFIX: '/Users/tao.exe/Library/Application Support/Code - Insiders/User/globalStorage/github.copilot-chat/debugCommand:/Users/tao.exe/Library/Application Support/Code - Insiders/User/globalStorage/github.copilot-chat/copilotCli:',
+#   VSCODE_PREVENT_SHELL_HISTORY: '1',
+#   VSCODE_PROFILE_INITIALIZED: '1',
+#   VSCODE_SHELL_ENV_REPORTING: 'PATH,VIRTUAL_ENV,HOME,SHELL,PWD',
+#   XPC_FLAGS: '0x0',
+#   XPC_SERVICE_NAME: '0',
+#   ZDOTDIR: '/Users/tao.exe',
+#   ZENMUX_API_KEY: 'sk-ss-v1-95eae04a95ac9bba411c32cede234295deaa21a02ee2d8a90e830fc9c0004779',
+#   __CFBundleIdentifier: 'com.microsoft.VSCodeInsiders',
+#   __CF_USER_TEXT_ENCODING: '0x1F6:0x3:0x33',
+#   _: '/Users/tao.exe/.nvm/versions/node/v22.19.0/bin/node',
+#   NODE_TEST_CONTEXT: 'child-v8',
+#   STREAMABLE_HTTP: 'true',
+#   REMOTE_AUTHORIZATION: 'true',
+#   GITLAB_API_URL: 'http://127.0.0.1:9200/api/v4',
+#   GITLAB_TOOLSETS: 'issues',
+#   GITLAB_TOOLS: 'list_issues',
+#   PORT: '3310'
+# }
+# Launcher: Server process spawned with PID: 56765
+# Launcher: Server process spawned.
+    # Subtest: GITLAB_TOOLSETS=pipelines + USE_PIPELINE=true (redundant)
+        # Subtest: returns exactly pipeline tool count + discover_tools (no duplicates)
+        ok 1 - returns exactly pipeline tool count + discover_tools (no duplicates)
+          ---
+          duration_ms: 0.169042
+          type: 'test'
+          ...
+        1..1
+    ok 11 - GITLAB_TOOLSETS=pipelines + USE_PIPELINE=true (redundant)
+      ---
+      duration_ms: 1241.305916
+      type: 'suite'
+      ...
+# [Server Output]: [32mINFO[39m [14:06:06.980] (56752): [36mSIGTERM received, starting graceful shutdown...[39m
+# [Server Output]: [32mINFO[39m [14:06:06.980] (56752): [36mClosing 1 active sessions...[39m
+# [33mWARN[39m [14:06:06.980] (56752): [36mStreamable HTTP transport closed for session 2cedcbfe-e72c-4bc8-b208-0716a89ae569, cleaning up[39m
+# [32mINFO[39m [14:06:06.980] (56752): [36mSession 2cedcbfe-e72c-4bc8-b208-0716a89ae569: cleaned up auth mapping[39m
+# [32mINFO[39m [14:06:06.980] (56752): [36mHTTP server closed[39m
+# [32mINFO[39m [14:06:06.980] (56752): [36mGraceful shutdown complete[39m
+# [Launcher DEBUG] Process 56752 exited with code 0
+# [Launcher DEBUG] Process 56752 closed with code 0
+# [Server Output]: [32mINFO[39m [14:06:07.173] (56765): [36mRemote authorization enabled: tokens will be read from HTTP headers[39m
+# [Server Output]: [32mINFO[39m [14:06:07.173] (56765): [36mConfiguration validation passed[39m
+# [32mINFO[39m [14:06:07.173] (56765): [36mInitializing server with transport mode:[39m
+# [33mWARN[39m [14:06:07.173] (56765): [36mStarting GitLab MCP Server with Streamable HTTP transport[39m
+# [32mINFO[39m [14:06:07.175] (56765): [36mConfigured GitLab API URLs: http://127.0.0.1:9200/api/v4[39m
+# [32mINFO[39m [14:06:07.175] (56765): [36mDefault GitLab API URL: http://127.0.0.1:9200/api/v4[39m
+# [32mINFO[39m [14:06:07.178] (56765): [36mGitLab MCP Server running with Streamable HTTP transport[39m
+# [32mINFO[39m [14:06:07.178] (56765): [36m[32mEndpoint: http://127.0.0.1:3310/mcp[0m[39m
+# Launcher: launchServer function entered.
+# Launcher: Spawning server process with env: {
+#   ANDROID_HOME: '/Users/tao.exe/Library/Android/sdk',
+#   BUN_INSTALL: '/Users/tao.exe/.bun',
+#   COLORTERM: 'truecolor',
+#   COMMAND_MODE: 'unix2003',
+#   GIT_ASKPASS: '/Applications/Visual Studio Code - Insiders.app/Contents/Resources/app/extensions/git/dist/askpass.sh',
+#   GIT_EDITOR: ':',
+#   GIT_MERGE_AUTOEDIT: 'no',
+#   GIT_PAGER: 'cat',
+#   HOME: '/Users/tao.exe',
+#   JAVA_HOME: '/Library/Java/JavaVirtualMachines/zulu-17.jdk/Contents/Home',
+#   LANG: 'C.UTF-8',
+#   LOGNAME: 'tao.exe',
+#   MallocNanoZone: '0',
+#   NVM_BIN: '/Users/tao.exe/.nvm/versions/node/v22.19.0/bin',
+#   NVM_CD_FLAGS: '-q',
+#   NVM_DIR: '/Users/tao.exe/.nvm',
+#   NVM_INC: '/Users/tao.exe/.nvm/versions/node/v22.19.0/include/node',
+#   OLDPWD: '/Users/tao.exe/Documents/gitlab-mcp',
+#   OSLogRateLimit: '64',
+#   PATH: '/Users/tao.exe/.opencode/bin:/Users/tao.exe/.bun/bin:/Users/tao.exe/.antigravity/antigravity/bin:/Users/tao.exe/.rbenv/shims:/Users/tao.exe/.codeium/windsurf/bin:/Users/tao.exe/.codeium/windsurf/bin:/Users/tao.exe/.codeium/windsurf/bin:/Users/tao.exe/.antigravity/antigravity/bin:/Users/tao.exe/.codeium/windsurf/bin:/Users/tao.exe/.local/bin:/Users/tao.exe/.rbenv/shims:/Users/tao.exe/.local/bin:/Users/tao.exe/.nvm/versions/node/v22.19.0/bin:/usr/local/bin:/System/Cryptexes/App/usr/bin:/usr/bin:/bin:/usr/sbin:/sbin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/local/bin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/bin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/appleinternal/bin:/opt/pmk/env/global/bin:/Library/Apple/usr/bin:/opt/homebrew/bin:/Users/tao.exe/Library/Application Support/Code - Insiders/User/globalStorage/github.copilot-chat/debugCommand:/Users/tao.exe/Library/Application Support/Code - Insiders/User/globalStorage/github.copilot-chat/copilotCli:/Users/tao.exe/.opencode/bin:/Users/tao.exe/.bun/bin:/Users/tao.exe/.antigravity/antigravity/bin:/Users/tao.exe/.rbenv/shims:/Users/tao.exe/.codeium/windsurf/bin:/Users/tao.exe/.local/bin:/Users/tao.exe/.nvm/versions/node/v22.19.0/bin:/Users/tao.exe/.swiftly/bin:/Users/tao.exe/.cargo/bin:/Users/tao.exe/Library/Android/sdk/emulator:/Users/tao.exe/Library/Android/sdk/platform-tools:/Users/tao.exe/.lmstudio/bin:/Users/tao.exe/Library/Android/sdk/emulator:/Users/tao.exe/Library/Android/sdk/platform-tools:/Users/tao.exe/.lmstudio/bin',
+#   PWD: '/Users/tao.exe/Documents/gitlab-mcp',
+#   QTERM_SESSION_ID: '4af59943197040408dfc47e2aad59dbb',
+#   Q_SET_PARENT_CHECK: '1',
+#   Q_TERM: '1.26.2',
+#   RBENV_SHELL: 'zsh',
+#   SHELL: '/bin/zsh',
+#   SHELL_PID: '54817',
+#   SHLVL: '1',
+#   SSH_AUTH_SOCK: '/private/tmp/com.apple.launchd.lg93zG90Bg/Listeners',
+#   SWIFTLY_BIN_DIR: '/Users/tao.exe/.swiftly/bin',
+#   SWIFTLY_HOME_DIR: '/Users/tao.exe/.swiftly',
+#   SWIFTLY_TOOLCHAINS_DIR: '/Users/tao.exe/Library/Developer/Toolchains',
+#   SYNTHETIC_API_KEY: 'syn_35a76bd4c1d5ed18b8e4e8a4f1b07b76',
+#   TERM: 'xterm-256color',
+#   TERM_PROGRAM: 'vscode',
+#   TERM_PROGRAM_VERSION: '1.116.0-insider',
+#   TMPDIR: '/var/folders/kc/hx_s_dg96p7czwjjwc789vx00000gp/T/',
+#   TTY: '/dev/ttys098',
+#   USER: 'tao.exe',
+#   USER_ZDOTDIR: '/Users/tao.exe',
+#   VSCODE_GIT_ASKPASS_EXTRA_ARGS: '',
+#   VSCODE_GIT_ASKPASS_MAIN: '/Applications/Visual Studio Code - Insiders.app/Contents/Resources/app/extensions/git/dist/askpass-main.js',
+#   VSCODE_GIT_ASKPASS_NODE: '/Applications/Visual Studio Code - Insiders.app/Contents/Frameworks/Code - Insiders Helper (Plugin).app/Contents/MacOS/Code - Insiders Helper (Plugin)',
+#   VSCODE_GIT_IPC_HANDLE: '/var/folders/kc/hx_s_dg96p7czwjjwc789vx00000gp/T/vscode-git-1d2807ead6.sock',
+#   VSCODE_INJECTION: '1',
+#   VSCODE_NONCE: 'daf2368a-ef1d-4131-81e7-4b337e7ae923',
+#   VSCODE_PATH_PREFIX: '/Users/tao.exe/Library/Application Support/Code - Insiders/User/globalStorage/github.copilot-chat/debugCommand:/Users/tao.exe/Library/Application Support/Code - Insiders/User/globalStorage/github.copilot-chat/copilotCli:',
+#   VSCODE_PREVENT_SHELL_HISTORY: '1',
+#   VSCODE_PROFILE_INITIALIZED: '1',
+#   VSCODE_SHELL_ENV_REPORTING: 'PATH,VIRTUAL_ENV,HOME,SHELL,PWD',
+#   XPC_FLAGS: '0x0',
+#   XPC_SERVICE_NAME: '0',
+#   ZDOTDIR: '/Users/tao.exe',
+#   ZENMUX_API_KEY: 'sk-ss-v1-95eae04a95ac9bba411c32cede234295deaa21a02ee2d8a90e830fc9c0004779',
+#   __CFBundleIdentifier: 'com.microsoft.VSCodeInsiders',
+#   __CF_USER_TEXT_ENCODING: '0x1F6:0x3:0x33',
+#   _: '/Users/tao.exe/.nvm/versions/node/v22.19.0/bin/node',
+#   NODE_TEST_CONTEXT: 'child-v8',
+#   STREAMABLE_HTTP: 'true',
+#   REMOTE_AUTHORIZATION: 'true',
+#   GITLAB_API_URL: 'http://127.0.0.1:9200/api/v4',
+#   GITLAB_TOOLSETS: 'issues,nonexistent_toolset',
+#   PORT: '3320'
+# }
+# Launcher: Spawning server process with env: {
+#   ANDROID_HOME: '/Users/tao.exe/Library/Android/sdk',
+#   BUN_INSTALL: '/Users/tao.exe/.bun',
+#   COLORTERM: 'truecolor',
+#   COMMAND_MODE: 'unix2003',
+#   GIT_ASKPASS: '/Applications/Visual Studio Code - Insiders.app/Contents/Resources/app/extensions/git/dist/askpass.sh',
+#   GIT_EDITOR: ':',
+#   GIT_MERGE_AUTOEDIT: 'no',
+#   GIT_PAGER: 'cat',
+#   HOME: '/Users/tao.exe',
+#   JAVA_HOME: '/Library/Java/JavaVirtualMachines/zulu-17.jdk/Contents/Home',
+#   LANG: 'C.UTF-8',
+#   LOGNAME: 'tao.exe',
+#   MallocNanoZone: '0',
+#   NVM_BIN: '/Users/tao.exe/.nvm/versions/node/v22.19.0/bin',
+#   NVM_CD_FLAGS: '-q',
+#   NVM_DIR: '/Users/tao.exe/.nvm',
+#   NVM_INC: '/Users/tao.exe/.nvm/versions/node/v22.19.0/include/node',
+#   OLDPWD: '/Users/tao.exe/Documents/gitlab-mcp',
+#   OSLogRateLimit: '64',
+#   PATH: '/Users/tao.exe/.opencode/bin:/Users/tao.exe/.bun/bin:/Users/tao.exe/.antigravity/antigravity/bin:/Users/tao.exe/.rbenv/shims:/Users/tao.exe/.codeium/windsurf/bin:/Users/tao.exe/.codeium/windsurf/bin:/Users/tao.exe/.codeium/windsurf/bin:/Users/tao.exe/.antigravity/antigravity/bin:/Users/tao.exe/.codeium/windsurf/bin:/Users/tao.exe/.local/bin:/Users/tao.exe/.rbenv/shims:/Users/tao.exe/.local/bin:/Users/tao.exe/.nvm/versions/node/v22.19.0/bin:/usr/local/bin:/System/Cryptexes/App/usr/bin:/usr/bin:/bin:/usr/sbin:/sbin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/local/bin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/bin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/appleinternal/bin:/opt/pmk/env/global/bin:/Library/Apple/usr/bin:/opt/homebrew/bin:/Users/tao.exe/Library/Application Support/Code - Insiders/User/globalStorage/github.copilot-chat/debugCommand:/Users/tao.exe/Library/Application Support/Code - Insiders/User/globalStorage/github.copilot-chat/copilotCli:/Users/tao.exe/.opencode/bin:/Users/tao.exe/.bun/bin:/Users/tao.exe/.antigravity/antigravity/bin:/Users/tao.exe/.rbenv/shims:/Users/tao.exe/.codeium/windsurf/bin:/Users/tao.exe/.local/bin:/Users/tao.exe/.nvm/versions/node/v22.19.0/bin:/Users/tao.exe/.swiftly/bin:/Users/tao.exe/.cargo/bin:/Users/tao.exe/Library/Android/sdk/emulator:/Users/tao.exe/Library/Android/sdk/platform-tools:/Users/tao.exe/.lmstudio/bin:/Users/tao.exe/Library/Android/sdk/emulator:/Users/tao.exe/Library/Android/sdk/platform-tools:/Users/tao.exe/.lmstudio/bin',
+#   PWD: '/Users/tao.exe/Documents/gitlab-mcp',
+#   QTERM_SESSION_ID: '4af59943197040408dfc47e2aad59dbb',
+#   Q_SET_PARENT_CHECK: '1',
+#   Q_TERM: '1.26.2',
+#   RBENV_SHELL: 'zsh',
+#   SHELL: '/bin/zsh',
+#   SHELL_PID: '54817',
+#   SHLVL: '1',
+#   SSH_AUTH_SOCK: '/private/tmp/com.apple.launchd.lg93zG90Bg/Listeners',
+#   SWIFTLY_BIN_DIR: '/Users/tao.exe/.swiftly/bin',
+#   SWIFTLY_HOME_DIR: '/Users/tao.exe/.swiftly',
+#   SWIFTLY_TOOLCHAINS_DIR: '/Users/tao.exe/Library/Developer/Toolchains',
+#   SYNTHETIC_API_KEY: 'syn_35a76bd4c1d5ed18b8e4e8a4f1b07b76',
+#   TERM: 'xterm-256color',
+#   TERM_PROGRAM: 'vscode',
+#   TERM_PROGRAM_VERSION: '1.116.0-insider',
+#   TMPDIR: '/var/folders/kc/hx_s_dg96p7czwjjwc789vx00000gp/T/',
+#   TTY: '/dev/ttys098',
+#   USER: 'tao.exe',
+#   USER_ZDOTDIR: '/Users/tao.exe',
+#   VSCODE_GIT_ASKPASS_EXTRA_ARGS: '',
+#   VSCODE_GIT_ASKPASS_MAIN: '/Applications/Visual Studio Code - Insiders.app/Contents/Resources/app/extensions/git/dist/askpass-main.js',
+#   VSCODE_GIT_ASKPASS_NODE: '/Applications/Visual Studio Code - Insiders.app/Contents/Frameworks/Code - Insiders Helper (Plugin).app/Contents/MacOS/Code - Insiders Helper (Plugin)',
+#   VSCODE_GIT_IPC_HANDLE: '/var/folders/kc/hx_s_dg96p7czwjjwc789vx00000gp/T/vscode-git-1d2807ead6.sock',
+#   VSCODE_INJECTION: '1',
+#   VSCODE_NONCE: 'daf2368a-ef1d-4131-81e7-4b337e7ae923',
+#   VSCODE_PATH_PREFIX: '/Users/tao.exe/Library/Application Support/Code - Insiders/User/globalStorage/github.copilot-chat/debugCommand:/Users/tao.exe/Library/Application Support/Code - Insiders/User/globalStorage/github.copilot-chat/copilotCli:',
+#   VSCODE_PREVENT_SHELL_HISTORY: '1',
+#   VSCODE_PROFILE_INITIALIZED: '1',
+#   VSCODE_SHELL_ENV_REPORTING: 'PATH,VIRTUAL_ENV,HOME,SHELL,PWD',
+#   XPC_FLAGS: '0x0',
+#   XPC_SERVICE_NAME: '0',
+#   ZDOTDIR: '/Users/tao.exe',
+#   ZENMUX_API_KEY: 'sk-ss-v1-95eae04a95ac9bba411c32cede234295deaa21a02ee2d8a90e830fc9c0004779',
+#   __CFBundleIdentifier: 'com.microsoft.VSCodeInsiders',
+#   __CF_USER_TEXT_ENCODING: '0x1F6:0x3:0x33',
+#   _: '/Users/tao.exe/.nvm/versions/node/v22.19.0/bin/node',
+#   NODE_TEST_CONTEXT: 'child-v8',
+#   STREAMABLE_HTTP: 'true',
+#   REMOTE_AUTHORIZATION: 'true',
+#   GITLAB_API_URL: 'http://127.0.0.1:9200/api/v4',
+#   GITLAB_TOOLSETS: 'issues,nonexistent_toolset',
+#   PORT: '3320'
+# }
+# Launcher: Server process spawned with PID: 56781
+# Launcher: Server process spawned.
+    # Subtest: GITLAB_TOOLSETS=issues + GITLAB_TOOLS=list_issues (already included)
+        # Subtest: returns exactly issue tool count + discover_tools (no duplicates)
+        ok 1 - returns exactly issue tool count + discover_tools (no duplicates)
+          ---
+          duration_ms: 0.08175
+          type: 'test'
+          ...
+        1..1
+    ok 12 - GITLAB_TOOLSETS=issues + GITLAB_TOOLS=list_issues (already included)
+      ---
+      duration_ms: 1241.965958
+      type: 'suite'
+      ...
+# [Server Output]: [33mWARN[39m [14:06:08.211] (56765): [36mStreamable HTTP session initialized: b5fee727-726e-486a-9803-98e1fb750712[39m
+# [Server Output]: [32mINFO[39m [14:06:08.211] (56765): [36mSession b5fee727-726e-486a-9803-98e1fb750712: stored Authorization header[39m
+# [32mINFO[39m [14:06:08.221] (56765): [36mSIGTERM received, starting graceful shutdown...[39m
+# [32mINFO[39m [14:06:08.221] (56765): [36mClosing 1 active sessions...[39m
+# [33mWARN[39m [14:06:08.221] (56765): [36mStreamable HTTP transport closed for session b5fee727-726e-486a-9803-98e1fb750712, cleaning up[39m
+# [32mINFO[39m [14:06:08.221] (56765): [36mSession b5fee727-726e-486a-9803-98e1fb750712: cleaned up auth mapping[39m
+# [32mINFO[39m [14:06:08.221] (56765): [36mHTTP server closed[39m
+# [32mINFO[39m [14:06:08.221] (56765): [36mGraceful shutdown complete[39m
+# [Launcher DEBUG] Process 56765 exited with code 0
+# [Launcher DEBUG] Process 56765 closed with code 0
+# [Server Output]: [32mINFO[39m [14:06:08.408] (56781): [36mRemote authorization enabled: tokens will be read from HTTP headers[39m
+# [Server Output]: [32mINFO[39m [14:06:08.408] (56781): [36mConfiguration validation passed[39m
+# [32mINFO[39m [14:06:08.408] (56781): [36mInitializing server with transport mode:[39m
+# [33mWARN[39m [14:06:08.408] (56781): [36mStarting GitLab MCP Server with Streamable HTTP transport[39m
+# [32mINFO[39m [14:06:08.410] (56781): [36mConfigured GitLab API URLs: http://127.0.0.1:9200/api/v4[39m
+# [32mINFO[39m [14:06:08.410] (56781): [36mDefault GitLab API URL: http://127.0.0.1:9200/api/v4[39m
+# [32mINFO[39m [14:06:08.412] (56781): [36mGitLab MCP Server running with Streamable HTTP transport[39m
+# [32mINFO[39m [14:06:08.412] (56781): [36m[32mEndpoint: http://127.0.0.1:3320/mcp[0m[39m
+# Launcher: launchServer function entered.
+# Launcher: Spawning server process with env: {
+#   ANDROID_HOME: '/Users/tao.exe/Library/Android/sdk',
+#   BUN_INSTALL: '/Users/tao.exe/.bun',
+#   COLORTERM: 'truecolor',
+#   COMMAND_MODE: 'unix2003',
+#   GIT_ASKPASS: '/Applications/Visual Studio Code - Insiders.app/Contents/Resources/app/extensions/git/dist/askpass.sh',
+#   GIT_EDITOR: ':',
+#   GIT_MERGE_AUTOEDIT: 'no',
+#   GIT_PAGER: 'cat',
+#   HOME: '/Users/tao.exe',
+#   JAVA_HOME: '/Library/Java/JavaVirtualMachines/zulu-17.jdk/Contents/Home',
+#   LANG: 'C.UTF-8',
+#   LOGNAME: 'tao.exe',
+#   MallocNanoZone: '0',
+#   NVM_BIN: '/Users/tao.exe/.nvm/versions/node/v22.19.0/bin',
+#   NVM_CD_FLAGS: '-q',
+#   NVM_DIR: '/Users/tao.exe/.nvm',
+#   NVM_INC: '/Users/tao.exe/.nvm/versions/node/v22.19.0/include/node',
+#   OLDPWD: '/Users/tao.exe/Documents/gitlab-mcp',
+#   OSLogRateLimit: '64',
+#   PATH: '/Users/tao.exe/.opencode/bin:/Users/tao.exe/.bun/bin:/Users/tao.exe/.antigravity/antigravity/bin:/Users/tao.exe/.rbenv/shims:/Users/tao.exe/.codeium/windsurf/bin:/Users/tao.exe/.codeium/windsurf/bin:/Users/tao.exe/.codeium/windsurf/bin:/Users/tao.exe/.antigravity/antigravity/bin:/Users/tao.exe/.codeium/windsurf/bin:/Users/tao.exe/.local/bin:/Users/tao.exe/.rbenv/shims:/Users/tao.exe/.local/bin:/Users/tao.exe/.nvm/versions/node/v22.19.0/bin:/usr/local/bin:/System/Cryptexes/App/usr/bin:/usr/bin:/bin:/usr/sbin:/sbin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/local/bin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/bin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/appleinternal/bin:/opt/pmk/env/global/bin:/Library/Apple/usr/bin:/opt/homebrew/bin:/Users/tao.exe/Library/Application Support/Code - Insiders/User/globalStorage/github.copilot-chat/debugCommand:/Users/tao.exe/Library/Application Support/Code - Insiders/User/globalStorage/github.copilot-chat/copilotCli:/Users/tao.exe/.opencode/bin:/Users/tao.exe/.bun/bin:/Users/tao.exe/.antigravity/antigravity/bin:/Users/tao.exe/.rbenv/shims:/Users/tao.exe/.codeium/windsurf/bin:/Users/tao.exe/.local/bin:/Users/tao.exe/.nvm/versions/node/v22.19.0/bin:/Users/tao.exe/.swiftly/bin:/Users/tao.exe/.cargo/bin:/Users/tao.exe/Library/Android/sdk/emulator:/Users/tao.exe/Library/Android/sdk/platform-tools:/Users/tao.exe/.lmstudio/bin:/Users/tao.exe/Library/Android/sdk/emulator:/Users/tao.exe/Library/Android/sdk/platform-tools:/Users/tao.exe/.lmstudio/bin',
+#   PWD: '/Users/tao.exe/Documents/gitlab-mcp',
+#   QTERM_SESSION_ID: '4af59943197040408dfc47e2aad59dbb',
+#   Q_SET_PARENT_CHECK: '1',
+#   Q_TERM: '1.26.2',
+#   RBENV_SHELL: 'zsh',
+#   SHELL: '/bin/zsh',
+#   SHELL_PID: '54817',
+#   SHLVL: '1',
+#   SSH_AUTH_SOCK: '/private/tmp/com.apple.launchd.lg93zG90Bg/Listeners',
+#   SWIFTLY_BIN_DIR: '/Users/tao.exe/.swiftly/bin',
+#   SWIFTLY_HOME_DIR: '/Users/tao.exe/.swiftly',
+#   SWIFTLY_TOOLCHAINS_DIR: '/Users/tao.exe/Library/Developer/Toolchains',
+#   SYNTHETIC_API_KEY: 'syn_35a76bd4c1d5ed18b8e4e8a4f1b07b76',
+#   TERM: 'xterm-256color',
+#   TERM_PROGRAM: 'vscode',
+#   TERM_PROGRAM_VERSION: '1.116.0-insider',
+#   TMPDIR: '/var/folders/kc/hx_s_dg96p7czwjjwc789vx00000gp/T/',
+#   TTY: '/dev/ttys098',
+#   USER: 'tao.exe',
+#   USER_ZDOTDIR: '/Users/tao.exe',
+#   VSCODE_GIT_ASKPASS_EXTRA_ARGS: '',
+#   VSCODE_GIT_ASKPASS_MAIN: '/Applications/Visual Studio Code - Insiders.app/Contents/Resources/app/extensions/git/dist/askpass-main.js',
+#   VSCODE_GIT_ASKPASS_NODE: '/Applications/Visual Studio Code - Insiders.app/Contents/Frameworks/Code - Insiders Helper (Plugin).app/Contents/MacOS/Code - Insiders Helper (Plugin)',
+#   VSCODE_GIT_IPC_HANDLE: '/var/folders/kc/hx_s_dg96p7czwjjwc789vx00000gp/T/vscode-git-1d2807ead6.sock',
+#   VSCODE_INJECTION: '1',
+#   VSCODE_NONCE: 'daf2368a-ef1d-4131-81e7-4b337e7ae923',
+#   VSCODE_PATH_PREFIX: '/Users/tao.exe/Library/Application Support/Code - Insiders/User/globalStorage/github.copilot-chat/debugCommand:/Users/tao.exe/Library/Application Support/Code - Insiders/User/globalStorage/github.copilot-chat/copilotCli:',
+#   VSCODE_PREVENT_SHELL_HISTORY: '1',
+#   VSCODE_PROFILE_INITIALIZED: '1',
+#   VSCODE_SHELL_ENV_REPORTING: 'PATH,VIRTUAL_ENV,HOME,SHELL,PWD',
+#   XPC_FLAGS: '0x0',
+#   XPC_SERVICE_NAME: '0',
+#   ZDOTDIR: '/Users/tao.exe',
+#   ZENMUX_API_KEY: 'sk-ss-v1-95eae04a95ac9bba411c32cede234295deaa21a02ee2d8a90e830fc9c0004779',
+#   __CFBundleIdentifier: 'com.microsoft.VSCodeInsiders',
+#   __CF_USER_TEXT_ENCODING: '0x1F6:0x3:0x33',
+#   _: '/Users/tao.exe/.nvm/versions/node/v22.19.0/bin/node',
+#   NODE_TEST_CONTEXT: 'child-v8',
+#   STREAMABLE_HTTP: 'true',
+#   REMOTE_AUTHORIZATION: 'true',
+#   GITLAB_API_URL: 'http://127.0.0.1:9200/api/v4',
+#   GITLAB_TOOLS: 'List_Pipelines,Execute_GraphQL',
+#   PORT: '3330'
+# }
+# Launcher: Spawning server process with env: {
+#   ANDROID_HOME: '/Users/tao.exe/Library/Android/sdk',
+#   BUN_INSTALL: '/Users/tao.exe/.bun',
+#   COLORTERM: 'truecolor',
+#   COMMAND_MODE: 'unix2003',
+#   GIT_ASKPASS: '/Applications/Visual Studio Code - Insiders.app/Contents/Resources/app/extensions/git/dist/askpass.sh',
+#   GIT_EDITOR: ':',
+#   GIT_MERGE_AUTOEDIT: 'no',
+#   GIT_PAGER: 'cat',
+#   HOME: '/Users/tao.exe',
+#   JAVA_HOME: '/Library/Java/JavaVirtualMachines/zulu-17.jdk/Contents/Home',
+#   LANG: 'C.UTF-8',
+#   LOGNAME: 'tao.exe',
+#   MallocNanoZone: '0',
+#   NVM_BIN: '/Users/tao.exe/.nvm/versions/node/v22.19.0/bin',
+#   NVM_CD_FLAGS: '-q',
+#   NVM_DIR: '/Users/tao.exe/.nvm',
+#   NVM_INC: '/Users/tao.exe/.nvm/versions/node/v22.19.0/include/node',
+#   OLDPWD: '/Users/tao.exe/Documents/gitlab-mcp',
+#   OSLogRateLimit: '64',
+#   PATH: '/Users/tao.exe/.opencode/bin:/Users/tao.exe/.bun/bin:/Users/tao.exe/.antigravity/antigravity/bin:/Users/tao.exe/.rbenv/shims:/Users/tao.exe/.codeium/windsurf/bin:/Users/tao.exe/.codeium/windsurf/bin:/Users/tao.exe/.codeium/windsurf/bin:/Users/tao.exe/.antigravity/antigravity/bin:/Users/tao.exe/.codeium/windsurf/bin:/Users/tao.exe/.local/bin:/Users/tao.exe/.rbenv/shims:/Users/tao.exe/.local/bin:/Users/tao.exe/.nvm/versions/node/v22.19.0/bin:/usr/local/bin:/System/Cryptexes/App/usr/bin:/usr/bin:/bin:/usr/sbin:/sbin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/local/bin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/bin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/appleinternal/bin:/opt/pmk/env/global/bin:/Library/Apple/usr/bin:/opt/homebrew/bin:/Users/tao.exe/Library/Application Support/Code - Insiders/User/globalStorage/github.copilot-chat/debugCommand:/Users/tao.exe/Library/Application Support/Code - Insiders/User/globalStorage/github.copilot-chat/copilotCli:/Users/tao.exe/.opencode/bin:/Users/tao.exe/.bun/bin:/Users/tao.exe/.antigravity/antigravity/bin:/Users/tao.exe/.rbenv/shims:/Users/tao.exe/.codeium/windsurf/bin:/Users/tao.exe/.local/bin:/Users/tao.exe/.nvm/versions/node/v22.19.0/bin:/Users/tao.exe/.swiftly/bin:/Users/tao.exe/.cargo/bin:/Users/tao.exe/Library/Android/sdk/emulator:/Users/tao.exe/Library/Android/sdk/platform-tools:/Users/tao.exe/.lmstudio/bin:/Users/tao.exe/Library/Android/sdk/emulator:/Users/tao.exe/Library/Android/sdk/platform-tools:/Users/tao.exe/.lmstudio/bin',
+#   PWD: '/Users/tao.exe/Documents/gitlab-mcp',
+#   QTERM_SESSION_ID: '4af59943197040408dfc47e2aad59dbb',
+#   Q_SET_PARENT_CHECK: '1',
+#   Q_TERM: '1.26.2',
+#   RBENV_SHELL: 'zsh',
+#   SHELL: '/bin/zsh',
+#   SHELL_PID: '54817',
+#   SHLVL: '1',
+#   SSH_AUTH_SOCK: '/private/tmp/com.apple.launchd.lg93zG90Bg/Listeners',
+#   SWIFTLY_BIN_DIR: '/Users/tao.exe/.swiftly/bin',
+#   SWIFTLY_HOME_DIR: '/Users/tao.exe/.swiftly',
+#   SWIFTLY_TOOLCHAINS_DIR: '/Users/tao.exe/Library/Developer/Toolchains',
+#   SYNTHETIC_API_KEY: 'syn_35a76bd4c1d5ed18b8e4e8a4f1b07b76',
+#   TERM: 'xterm-256color',
+#   TERM_PROGRAM: 'vscode',
+#   TERM_PROGRAM_VERSION: '1.116.0-insider',
+#   TMPDIR: '/var/folders/kc/hx_s_dg96p7czwjjwc789vx00000gp/T/',
+#   TTY: '/dev/ttys098',
+#   USER: 'tao.exe',
+#   USER_ZDOTDIR: '/Users/tao.exe',
+#   VSCODE_GIT_ASKPASS_EXTRA_ARGS: '',
+#   VSCODE_GIT_ASKPASS_MAIN: '/Applications/Visual Studio Code - Insiders.app/Contents/Resources/app/extensions/git/dist/askpass-main.js',
+#   VSCODE_GIT_ASKPASS_NODE: '/Applications/Visual Studio Code - Insiders.app/Contents/Frameworks/Code - Insiders Helper (Plugin).app/Contents/MacOS/Code - Insiders Helper (Plugin)',
+#   VSCODE_GIT_IPC_HANDLE: '/var/folders/kc/hx_s_dg96p7czwjjwc789vx00000gp/T/vscode-git-1d2807ead6.sock',
+#   VSCODE_INJECTION: '1',
+#   VSCODE_NONCE: 'daf2368a-ef1d-4131-81e7-4b337e7ae923',
+#   VSCODE_PATH_PREFIX: '/Users/tao.exe/Library/Application Support/Code - Insiders/User/globalStorage/github.copilot-chat/debugCommand:/Users/tao.exe/Library/Application Support/Code - Insiders/User/globalStorage/github.copilot-chat/copilotCli:',
+#   VSCODE_PREVENT_SHELL_HISTORY: '1',
+#   VSCODE_PROFILE_INITIALIZED: '1',
+#   VSCODE_SHELL_ENV_REPORTING: 'PATH,VIRTUAL_ENV,HOME,SHELL,PWD',
+#   XPC_FLAGS: '0x0',
+#   XPC_SERVICE_NAME: '0',
+#   ZDOTDIR: '/Users/tao.exe',
+#   ZENMUX_API_KEY: 'sk-ss-v1-95eae04a95ac9bba411c32cede234295deaa21a02ee2d8a90e830fc9c0004779',
+#   __CFBundleIdentifier: 'com.microsoft.VSCodeInsiders',
+#   __CF_USER_TEXT_ENCODING: '0x1F6:0x3:0x33',
+#   _: '/Users/tao.exe/.nvm/versions/node/v22.19.0/bin/node',
+#   NODE_TEST_CONTEXT: 'child-v8',
+#   STREAMABLE_HTTP: 'true',
+#   REMOTE_AUTHORIZATION: 'true',
+#   GITLAB_API_URL: 'http://127.0.0.1:9200/api/v4',
+#   GITLAB_TOOLS: 'List_Pipelines,Execute_GraphQL',
+#   PORT: '3330'
+# }
+# Launcher: Server process spawned with PID: 56796
+# Launcher: Server process spawned.
+    # Subtest: GITLAB_TOOLSETS=issues,nonexistent_toolset
+        # Subtest: returns only issue tools + discover_tools (invalid toolset ignored)
+        ok 1 - returns only issue tools + discover_tools (invalid toolset ignored)
+          ---
+          duration_ms: 0.120792
+          type: 'test'
+          ...
+        1..1
+    ok 13 - GITLAB_TOOLSETS=issues,nonexistent_toolset
+      ---
+      duration_ms: 1239.717833
+      type: 'suite'
+      ...
+# [Server Output]: [33mWARN[39m [14:06:09.450] (56781): [36mStreamable HTTP session initialized: 4187bb20-d205-4388-ba7b-dd678f142f48[39m
+# [Server Output]: [32mINFO[39m [14:06:09.450] (56781): [36mSession 4187bb20-d205-4388-ba7b-dd678f142f48: stored Authorization header[39m
+# [32mINFO[39m [14:06:09.461] (56781): [36mSIGTERM received, starting graceful shutdown...[39m
+# [32mINFO[39m [14:06:09.461] (56781): [36mClosing 1 active sessions...[39m
+# [33mWARN[39m [14:06:09.461] (56781): [36mStreamable HTTP transport closed for session 4187bb20-d205-4388-ba7b-dd678f142f48, cleaning up[39m
+# [32mINFO[39m [14:06:09.461] (56781): [36mSession 4187bb20-d205-4388-ba7b-dd678f142f48: cleaned up auth mapping[39m
+# [32mINFO[39m [14:06:09.461] (56781): [36mHTTP server closed[39m
+# [32mINFO[39m [14:06:09.461] (56781): [36mGraceful shutdown complete[39m
+# [Launcher DEBUG] Process 56781 exited with code 0
+# [Launcher DEBUG] Process 56781 closed with code 0
+# [Server Output]: [32mINFO[39m [14:06:09.647] (56796): [36mRemote authorization enabled: tokens will be read from HTTP headers[39m
+# [Server Output]: [32mINFO[39m [14:06:09.647] (56796): [36mConfiguration validation passed[39m
+# [32mINFO[39m [14:06:09.647] (56796): [36mInitializing server with transport mode:[39m
+# [33mWARN[39m [14:06:09.647] (56796): [36mStarting GitLab MCP Server with Streamable HTTP transport[39m
+# [32mINFO[39m [14:06:09.649] (56796): [36mConfigured GitLab API URLs: http://127.0.0.1:9200/api/v4[39m
+# [32mINFO[39m [14:06:09.649] (56796): [36mDefault GitLab API URL: http://127.0.0.1:9200/api/v4[39m
+# [32mINFO[39m [14:06:09.652] (56796): [36mGitLab MCP Server running with Streamable HTTP transport[39m
+# [32mINFO[39m [14:06:09.652] (56796): [36m[32mEndpoint: http://127.0.0.1:3330/mcp[0m[39m
+# Launcher: launchServer function entered.
+# Launcher: Spawning server process with env: {
+#   ANDROID_HOME: '/Users/tao.exe/Library/Android/sdk',
+#   BUN_INSTALL: '/Users/tao.exe/.bun',
+#   COLORTERM: 'truecolor',
+#   COMMAND_MODE: 'unix2003',
+#   GIT_ASKPASS: '/Applications/Visual Studio Code - Insiders.app/Contents/Resources/app/extensions/git/dist/askpass.sh',
+#   GIT_EDITOR: ':',
+#   GIT_MERGE_AUTOEDIT: 'no',
+#   GIT_PAGER: 'cat',
+#   HOME: '/Users/tao.exe',
+#   JAVA_HOME: '/Library/Java/JavaVirtualMachines/zulu-17.jdk/Contents/Home',
+#   LANG: 'C.UTF-8',
+#   LOGNAME: 'tao.exe',
+#   MallocNanoZone: '0',
+#   NVM_BIN: '/Users/tao.exe/.nvm/versions/node/v22.19.0/bin',
+#   NVM_CD_FLAGS: '-q',
+#   NVM_DIR: '/Users/tao.exe/.nvm',
+#   NVM_INC: '/Users/tao.exe/.nvm/versions/node/v22.19.0/include/node',
+#   OLDPWD: '/Users/tao.exe/Documents/gitlab-mcp',
+#   OSLogRateLimit: '64',
+#   PATH: '/Users/tao.exe/.opencode/bin:/Users/tao.exe/.bun/bin:/Users/tao.exe/.antigravity/antigravity/bin:/Users/tao.exe/.rbenv/shims:/Users/tao.exe/.codeium/windsurf/bin:/Users/tao.exe/.codeium/windsurf/bin:/Users/tao.exe/.codeium/windsurf/bin:/Users/tao.exe/.antigravity/antigravity/bin:/Users/tao.exe/.codeium/windsurf/bin:/Users/tao.exe/.local/bin:/Users/tao.exe/.rbenv/shims:/Users/tao.exe/.local/bin:/Users/tao.exe/.nvm/versions/node/v22.19.0/bin:/usr/local/bin:/System/Cryptexes/App/usr/bin:/usr/bin:/bin:/usr/sbin:/sbin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/local/bin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/bin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/appleinternal/bin:/opt/pmk/env/global/bin:/Library/Apple/usr/bin:/opt/homebrew/bin:/Users/tao.exe/Library/Application Support/Code - Insiders/User/globalStorage/github.copilot-chat/debugCommand:/Users/tao.exe/Library/Application Support/Code - Insiders/User/globalStorage/github.copilot-chat/copilotCli:/Users/tao.exe/.opencode/bin:/Users/tao.exe/.bun/bin:/Users/tao.exe/.antigravity/antigravity/bin:/Users/tao.exe/.rbenv/shims:/Users/tao.exe/.codeium/windsurf/bin:/Users/tao.exe/.local/bin:/Users/tao.exe/.nvm/versions/node/v22.19.0/bin:/Users/tao.exe/.swiftly/bin:/Users/tao.exe/.cargo/bin:/Users/tao.exe/Library/Android/sdk/emulator:/Users/tao.exe/Library/Android/sdk/platform-tools:/Users/tao.exe/.lmstudio/bin:/Users/tao.exe/Library/Android/sdk/emulator:/Users/tao.exe/Library/Android/sdk/platform-tools:/Users/tao.exe/.lmstudio/bin',
+#   PWD: '/Users/tao.exe/Documents/gitlab-mcp',
+#   QTERM_SESSION_ID: '4af59943197040408dfc47e2aad59dbb',
+#   Q_SET_PARENT_CHECK: '1',
+#   Q_TERM: '1.26.2',
+#   RBENV_SHELL: 'zsh',
+#   SHELL: '/bin/zsh',
+#   SHELL_PID: '54817',
+#   SHLVL: '1',
+#   SSH_AUTH_SOCK: '/private/tmp/com.apple.launchd.lg93zG90Bg/Listeners',
+#   SWIFTLY_BIN_DIR: '/Users/tao.exe/.swiftly/bin',
+#   SWIFTLY_HOME_DIR: '/Users/tao.exe/.swiftly',
+#   SWIFTLY_TOOLCHAINS_DIR: '/Users/tao.exe/Library/Developer/Toolchains',
+#   SYNTHETIC_API_KEY: 'syn_35a76bd4c1d5ed18b8e4e8a4f1b07b76',
+#   TERM: 'xterm-256color',
+#   TERM_PROGRAM: 'vscode',
+#   TERM_PROGRAM_VERSION: '1.116.0-insider',
+#   TMPDIR: '/var/folders/kc/hx_s_dg96p7czwjjwc789vx00000gp/T/',
+#   TTY: '/dev/ttys098',
+#   USER: 'tao.exe',
+#   USER_ZDOTDIR: '/Users/tao.exe',
+#   VSCODE_GIT_ASKPASS_EXTRA_ARGS: '',
+#   VSCODE_GIT_ASKPASS_MAIN: '/Applications/Visual Studio Code - Insiders.app/Contents/Resources/app/extensions/git/dist/askpass-main.js',
+#   VSCODE_GIT_ASKPASS_NODE: '/Applications/Visual Studio Code - Insiders.app/Contents/Frameworks/Code - Insiders Helper (Plugin).app/Contents/MacOS/Code - Insiders Helper (Plugin)',
+#   VSCODE_GIT_IPC_HANDLE: '/var/folders/kc/hx_s_dg96p7czwjjwc789vx00000gp/T/vscode-git-1d2807ead6.sock',
+#   VSCODE_INJECTION: '1',
+#   VSCODE_NONCE: 'daf2368a-ef1d-4131-81e7-4b337e7ae923',
+#   VSCODE_PATH_PREFIX: '/Users/tao.exe/Library/Application Support/Code - Insiders/User/globalStorage/github.copilot-chat/debugCommand:/Users/tao.exe/Library/Application Support/Code - Insiders/User/globalStorage/github.copilot-chat/copilotCli:',
+#   VSCODE_PREVENT_SHELL_HISTORY: '1',
+#   VSCODE_PROFILE_INITIALIZED: '1',
+#   VSCODE_SHELL_ENV_REPORTING: 'PATH,VIRTUAL_ENV,HOME,SHELL,PWD',
+#   XPC_FLAGS: '0x0',
+#   XPC_SERVICE_NAME: '0',
+#   ZDOTDIR: '/Users/tao.exe',
+#   ZENMUX_API_KEY: 'sk-ss-v1-95eae04a95ac9bba411c32cede234295deaa21a02ee2d8a90e830fc9c0004779',
+#   __CFBundleIdentifier: 'com.microsoft.VSCodeInsiders',
+#   __CF_USER_TEXT_ENCODING: '0x1F6:0x3:0x33',
+#   _: '/Users/tao.exe/.nvm/versions/node/v22.19.0/bin/node',
+#   NODE_TEST_CONTEXT: 'child-v8',
+#   STREAMABLE_HTTP: 'true',
+#   REMOTE_AUTHORIZATION: 'true',
+#   GITLAB_API_URL: 'http://127.0.0.1:9200/api/v4',
+#   GITLAB_TOOLS: 'list_pipelines,nonexistent_tool_xyz',
+#   PORT: '3340'
+# }
+# Launcher: Spawning server process with env: {
+#   ANDROID_HOME: '/Users/tao.exe/Library/Android/sdk',
+#   BUN_INSTALL: '/Users/tao.exe/.bun',
+#   COLORTERM: 'truecolor',
+#   COMMAND_MODE: 'unix2003',
+#   GIT_ASKPASS: '/Applications/Visual Studio Code - Insiders.app/Contents/Resources/app/extensions/git/dist/askpass.sh',
+#   GIT_EDITOR: ':',
+#   GIT_MERGE_AUTOEDIT: 'no',
+#   GIT_PAGER: 'cat',
+#   HOME: '/Users/tao.exe',
+#   JAVA_HOME: '/Library/Java/JavaVirtualMachines/zulu-17.jdk/Contents/Home',
+#   LANG: 'C.UTF-8',
+#   LOGNAME: 'tao.exe',
+#   MallocNanoZone: '0',
+#   NVM_BIN: '/Users/tao.exe/.nvm/versions/node/v22.19.0/bin',
+#   NVM_CD_FLAGS: '-q',
+#   NVM_DIR: '/Users/tao.exe/.nvm',
+#   NVM_INC: '/Users/tao.exe/.nvm/versions/node/v22.19.0/include/node',
+#   OLDPWD: '/Users/tao.exe/Documents/gitlab-mcp',
+#   OSLogRateLimit: '64',
+#   PATH: '/Users/tao.exe/.opencode/bin:/Users/tao.exe/.bun/bin:/Users/tao.exe/.antigravity/antigravity/bin:/Users/tao.exe/.rbenv/shims:/Users/tao.exe/.codeium/windsurf/bin:/Users/tao.exe/.codeium/windsurf/bin:/Users/tao.exe/.codeium/windsurf/bin:/Users/tao.exe/.antigravity/antigravity/bin:/Users/tao.exe/.codeium/windsurf/bin:/Users/tao.exe/.local/bin:/Users/tao.exe/.rbenv/shims:/Users/tao.exe/.local/bin:/Users/tao.exe/.nvm/versions/node/v22.19.0/bin:/usr/local/bin:/System/Cryptexes/App/usr/bin:/usr/bin:/bin:/usr/sbin:/sbin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/local/bin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/bin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/appleinternal/bin:/opt/pmk/env/global/bin:/Library/Apple/usr/bin:/opt/homebrew/bin:/Users/tao.exe/Library/Application Support/Code - Insiders/User/globalStorage/github.copilot-chat/debugCommand:/Users/tao.exe/Library/Application Support/Code - Insiders/User/globalStorage/github.copilot-chat/copilotCli:/Users/tao.exe/.opencode/bin:/Users/tao.exe/.bun/bin:/Users/tao.exe/.antigravity/antigravity/bin:/Users/tao.exe/.rbenv/shims:/Users/tao.exe/.codeium/windsurf/bin:/Users/tao.exe/.local/bin:/Users/tao.exe/.nvm/versions/node/v22.19.0/bin:/Users/tao.exe/.swiftly/bin:/Users/tao.exe/.cargo/bin:/Users/tao.exe/Library/Android/sdk/emulator:/Users/tao.exe/Library/Android/sdk/platform-tools:/Users/tao.exe/.lmstudio/bin:/Users/tao.exe/Library/Android/sdk/emulator:/Users/tao.exe/Library/Android/sdk/platform-tools:/Users/tao.exe/.lmstudio/bin',
+#   PWD: '/Users/tao.exe/Documents/gitlab-mcp',
+#   QTERM_SESSION_ID: '4af59943197040408dfc47e2aad59dbb',
+#   Q_SET_PARENT_CHECK: '1',
+#   Q_TERM: '1.26.2',
+#   RBENV_SHELL: 'zsh',
+#   SHELL: '/bin/zsh',
+#   SHELL_PID: '54817',
+#   SHLVL: '1',
+#   SSH_AUTH_SOCK: '/private/tmp/com.apple.launchd.lg93zG90Bg/Listeners',
+#   SWIFTLY_BIN_DIR: '/Users/tao.exe/.swiftly/bin',
+#   SWIFTLY_HOME_DIR: '/Users/tao.exe/.swiftly',
+#   SWIFTLY_TOOLCHAINS_DIR: '/Users/tao.exe/Library/Developer/Toolchains',
+#   SYNTHETIC_API_KEY: 'syn_35a76bd4c1d5ed18b8e4e8a4f1b07b76',
+#   TERM: 'xterm-256color',
+#   TERM_PROGRAM: 'vscode',
+#   TERM_PROGRAM_VERSION: '1.116.0-insider',
+#   TMPDIR: '/var/folders/kc/hx_s_dg96p7czwjjwc789vx00000gp/T/',
+#   TTY: '/dev/ttys098',
+#   USER: 'tao.exe',
+#   USER_ZDOTDIR: '/Users/tao.exe',
+#   VSCODE_GIT_ASKPASS_EXTRA_ARGS: '',
+#   VSCODE_GIT_ASKPASS_MAIN: '/Applications/Visual Studio Code - Insiders.app/Contents/Resources/app/extensions/git/dist/askpass-main.js',
+#   VSCODE_GIT_ASKPASS_NODE: '/Applications/Visual Studio Code - Insiders.app/Contents/Frameworks/Code - Insiders Helper (Plugin).app/Contents/MacOS/Code - Insiders Helper (Plugin)',
+#   VSCODE_GIT_IPC_HANDLE: '/var/folders/kc/hx_s_dg96p7czwjjwc789vx00000gp/T/vscode-git-1d2807ead6.sock',
+#   VSCODE_INJECTION: '1',
+#   VSCODE_NONCE: 'daf2368a-ef1d-4131-81e7-4b337e7ae923',
+#   VSCODE_PATH_PREFIX: '/Users/tao.exe/Library/Application Support/Code - Insiders/User/globalStorage/github.copilot-chat/debugCommand:/Users/tao.exe/Library/Application Support/Code - Insiders/User/globalStorage/github.copilot-chat/copilotCli:',
+#   VSCODE_PREVENT_SHELL_HISTORY: '1',
+#   VSCODE_PROFILE_INITIALIZED: '1',
+#   VSCODE_SHELL_ENV_REPORTING: 'PATH,VIRTUAL_ENV,HOME,SHELL,PWD',
+#   XPC_FLAGS: '0x0',
+#   XPC_SERVICE_NAME: '0',
+#   ZDOTDIR: '/Users/tao.exe',
+#   ZENMUX_API_KEY: 'sk-ss-v1-95eae04a95ac9bba411c32cede234295deaa21a02ee2d8a90e830fc9c0004779',
+#   __CFBundleIdentifier: 'com.microsoft.VSCodeInsiders',
+#   __CF_USER_TEXT_ENCODING: '0x1F6:0x3:0x33',
+#   _: '/Users/tao.exe/.nvm/versions/node/v22.19.0/bin/node',
+#   NODE_TEST_CONTEXT: 'child-v8',
+#   STREAMABLE_HTTP: 'true',
+#   REMOTE_AUTHORIZATION: 'true',
+#   GITLAB_API_URL: 'http://127.0.0.1:9200/api/v4',
+#   GITLAB_TOOLS: 'list_pipelines,nonexistent_tool_xyz',
+#   PORT: '3340'
+# }
+# Launcher: Server process spawned with PID: 56846
+# Launcher: Server process spawned.
+    # Subtest: GITLAB_TOOLS with mixed-case tool names
+        # Subtest: resolves mixed-case tool names to lowercase equivalents
+        ok 1 - resolves mixed-case tool names to lowercase equivalents
+          ---
+          duration_ms: 0.10625
+          type: 'test'
+          ...
+        # Subtest: returns default tools plus list_pipelines and execute_graphql
+        ok 2 - returns default tools plus list_pipelines and execute_graphql
+          ---
+          duration_ms: 0.041834
+          type: 'test'
+          ...
+        1..2
+    ok 14 - GITLAB_TOOLS with mixed-case tool names
+      ---
+      duration_ms: 1243.176
+      type: 'suite'
+      ...
+# [Server Output]: [33mWARN[39m [14:06:10.688] (56796): [36mStreamable HTTP session initialized: a30e4cd9-e109-4707-90c8-ae4f84245fe7[39m
+# [32mINFO[39m [14:06:10.688] (56796): [36mSession a30e4cd9-e109-4707-90c8-ae4f84245fe7: stored Authorization header[39m
+# [32mINFO[39m [14:06:10.704] (56796): [36mSIGTERM received, starting graceful shutdown...[39m
+# [32mINFO[39m [14:06:10.704] (56796): [36mClosing 1 active sessions...[39m
+# [33mWARN[39m [14:06:10.704] (56796): [36mStreamable HTTP transport closed for session a30e4cd9-e109-4707-90c8-ae4f84245fe7, cleaning up[39m
+# [32mINFO[39m [14:06:10.704] (56796): [36mSession a30e4cd9-e109-4707-90c8-ae4f84245fe7: cleaned up auth mapping[39m
+# [32mINFO[39m [14:06:10.704] (56796): [36mHTTP server closed[39m
+# [32mINFO[39m [14:06:10.704] (56796): [36mGraceful shutdown complete[39m
+# [Launcher DEBUG] Process 56796 exited with code 0
+# [Launcher DEBUG] Process 56796 closed with code 0
+# [Server Output]: Unknown tool names in GITLAB_TOOLS (will be ignored): nonexistent_tool_xyz
+# [Server Output]: [32mINFO[39m [14:06:10.888] (56846): [36mRemote authorization enabled: tokens will be read from HTTP headers[39m
+# [Server Output]: [32mINFO[39m [14:06:10.888] (56846): [36mConfiguration validation passed[39m
+# [32mINFO[39m [14:06:10.888] (56846): [36mInitializing server with transport mode:[39m
+# [33mWARN[39m [14:06:10.888] (56846): [36mStarting GitLab MCP Server with Streamable HTTP transport[39m
+# [32mINFO[39m [14:06:10.890] (56846): [36mConfigured GitLab API URLs: http://127.0.0.1:9200/api/v4[39m
+# [32mINFO[39m [14:06:10.890] (56846): [36mDefault GitLab API URL: http://127.0.0.1:9200/api/v4[39m
+# [32mINFO[39m [14:06:10.893] (56846): [36mGitLab MCP Server running with Streamable HTTP transport[39m
+# [32mINFO[39m [14:06:10.893] (56846): [36m[32mEndpoint: http://127.0.0.1:3340/mcp[0m[39m
+# [Server Output]: [33mWARN[39m [14:06:11.935] (56846): [36mStreamable HTTP session initialized: 66777b11-1f51-463b-a3e0-64b4fa2dd9b6[39m
+# [Server Output]: [32mINFO[39m [14:06:11.936] (56846): [36mSession 66777b11-1f51-463b-a3e0-64b4fa2dd9b6: stored Authorization header[39m
+# Mock GitLab API stopped
+    # Subtest: GITLAB_TOOLS with unknown tool names
+        # Subtest: server starts normally and returns tools without crashing
+        ok 1 - server starts normally and returns tools without crashing
+          ---
+          duration_ms: 0.114959
+          type: 'test'
+          ...
+        # Subtest: includes the valid individual tool but ignores the unknown one
+        ok 2 - includes the valid individual tool but ignores the unknown one
+          ---
+          duration_ms: 0.044459
+          type: 'test'
+          ...
+        1..2
+    ok 15 - GITLAB_TOOLS with unknown tool names
+      ---
+      duration_ms: 1246.669125
+      type: 'suite'
+      ...
+    1..15
+ok 1 - Toolset Filtering
+  ---
+  duration_ms: 18598.062291
+  type: 'suite'
+  ...
+# [Server Output]: [32mINFO[39m [14:06:11.950] (56846): [36mSIGTERM received, starting graceful shutdown...[39m
+# [Server Output]: [32mINFO[39m [14:06:11.951] (56846): [36mClosing 1 active sessions...[39m
+# [33mWARN[39m [14:06:11.951] (56846): [36mStreamable HTTP transport closed for session 66777b11-1f51-463b-a3e0-64b4fa2dd9b6, cleaning up[39m
+# [32mINFO[39m [14:06:11.951] (56846): [36mSession 66777b11-1f51-463b-a3e0-64b4fa2dd9b6: cleaned up auth mapping[39m
+# [32mINFO[39m [14:06:11.951] (56846): [36mHTTP server closed[39m
+# [32mINFO[39m [14:06:11.951] (56846): [36mGraceful shutdown complete[39m
+# [Launcher DEBUG] Process 56846 exited with code 0
+# [Launcher DEBUG] Process 56846 closed with code 0
+1..1
+# tests 36
+# suites 16
+# pass 36
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 23734.146208
