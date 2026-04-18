@@ -15,11 +15,11 @@ export const toJSONSchema = (schema: z.ZodTypeAny) => {
       const requiredFields: string[] = [];
 
       Object.entries(shape).forEach(([key, fieldDef]) => {
-        // Check if the field is not optional and not nullable
-        // Zod marks optional fields with _def.typeName === 'ZodOptional'
-        const def = fieldDef as any;
-        const isOptional = def._def?.typeName === 'ZodOptional' || def._def?.optional === true;
-        const isNullable = def._def?.typeName === 'ZodNullable' || def._def?.nullable === true;
+        // Use Zod's public APIs to check if the field is optional or nullable
+        // Check before unwrapping to preserve optional status of fields with defaults
+        const zodType = fieldDef as z.ZodTypeAny;
+        const isOptional = zodType.isOptional();
+        const isNullable = zodType.isNullable();
 
         if (!isOptional && !isNullable) {
           requiredFields.push(key);
