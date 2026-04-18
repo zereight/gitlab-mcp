@@ -9799,16 +9799,63 @@ async function startStreamableHTTPServer(): Promise<void> {
     const gitlabBaseUrl = GITLAB_API_URL.replace(/\/api\/v4\/?$/, "").replace(/\/$/, "");
     const issuerUrl = new URL(MCP_SERVER_URL!);
     const oauthProvider = createGitLabOAuthProvider(gitlabBaseUrl, GITLAB_OAUTH_APP_ID!, "GitLab MCP Server", GITLAB_READ_ONLY_MODE, GITLAB_OAUTH_SCOPES);
+    const scopesSupported = GITLAB_OAUTH_SCOPES ?? ["api", "read_api", "read_user"];
 
-    // Mounts /.well-known/oauth-authorization-server,
-    //        /.well-known/oauth-protected-resource,
-    //        /authorize, /token, /register, /revoke
+    // When server URL has a path (e.g. behind Kong), the SDK's well-known metadata
+    // advertises root-level endpoints. Override to use path-prefixed endpoints.
+    const issuerPath = issuerUrl.pathname.replace(/\/$/, "");
+    if (issuerPath) {
+      const routedBaseUrl = `${issuerUrl.origin}${issuerPath}`;
+      const authorizationServerMetadata = {
+        issuer: issuerUrl.href,
+        authorization_endpoint: `${routedBaseUrl}/authorize`,
+        token_endpoint: `${routedBaseUrl}/token`,
+        registration_endpoint: `${routedBaseUrl}/register`,
+        revocation_endpoint: `${routedBaseUrl}/revoke`,
+        response_types_supported: ["code"],
+        code_challenge_methods_supported: ["S256"],
+        token_endpoint_auth_methods_supported: ["client_secret_post", "none"],
+        grant_types_supported: ["authorization_code", "refresh_token"],
+        scopes_supported: scopesSupported,
+        revocation_endpoint_auth_methods_supported: ["client_secret_post"],
+      };
+      const protectedResourceMetadata = {
+        resource: issuerUrl.href,
+        authorization_servers: [issuerUrl.href],
+        scopes_supported: scopesSupported,
+        resource_name: "GitLab MCP Server",
+      };
+      const authorizationMetadataRoutes = [
+        "/.well-known/oauth-authorization-server",
+        "/.well-known/oauth-authorization-server/*path",
+      ];
+      const protectedResourceRoutes = [
+        "/.well-known/oauth-protected-resource",
+        "/.well-known/oauth-protected-resource/*path",
+      ];
+
+      app.get(authorizationMetadataRoutes, (_req: Request, res: Response) => {
+        res.json(authorizationServerMetadata);
+      });
+
+      app.get(protectedResourceRoutes, (_req: Request, res: Response) => {
+        res.json(protectedResourceMetadata);
+      });
+
+      logger.info(
+        { issuerPath },
+        "Serving path-aware OAuth metadata for reverse-proxy deployments"
+      );
+    }
+
+    // Mounts /.well-known/oauth-authorization-server (shadowed above when basePath set),
+    //        /.well-known/oauth-protected-resource, /authorize, /token, /register, /revoke
     app.use(
       mcpAuthRouter({
         provider: oauthProvider,
         issuerUrl,
         baseUrl: issuerUrl,
-        scopesSupported: GITLAB_OAUTH_SCOPES ?? ["api", "read_api", "read_user"],
+        scopesSupported,
         resourceName: "GitLab MCP Server",
       })
     );
