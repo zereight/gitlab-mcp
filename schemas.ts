@@ -1353,7 +1353,7 @@ export const CreateIssueSchema = ProjectParamsSchema.extend({
   title: z.string().describe("Issue title"),
   description: z.string().optional().describe("Issue description"),
   assignee_ids: z.array(z.coerce.number()).optional().describe("Array of user IDs to assign"),
-  labels: z.array(z.string()).optional().describe("Array of label names"),
+  labels: coerceStringArray.optional().describe("Array of label names"),
   milestone_id: z.coerce.string().optional().describe("Milestone ID to assign"),
   issue_type: z
     .enum(["issue", "incident", "test_case", "task"])
@@ -1374,7 +1374,7 @@ const MergeRequestOptionsSchema = {
     .array(z.coerce.number())
     .optional()
     .describe("The ID of the users to assign as reviewers of the MR"),
-  labels: z.array(z.string()).optional().describe("Labels for the MR"),
+  labels: coerceStringArray.optional().describe("Labels for the MR"),
   draft: z.coerce.boolean().optional().describe("Create as draft merge request"),
   allow_collaboration: z.coerce.boolean().optional().describe("Allow commits from upstream members"),
   remove_source_branch: z
@@ -1430,7 +1430,7 @@ export const UpdateMergeRequestSchema = GetMergeRequestSchema.extend({
     .array(z.coerce.number())
     .optional()
     .describe("The ID of the users to assign as reviewers of the MR"),
-  labels: z.array(z.string()).optional().describe("Labels for the MR"),
+  labels: coerceStringArray.optional().describe("Labels for the MR"),
   state_event: z
     .enum(["close", "reopen"])
     .optional()
@@ -1654,7 +1654,7 @@ export const ListIssuesSchema = z
     created_after: z.string().optional().describe("Return issues created after the given time"),
     created_before: z.string().optional().describe("Return issues created before the given time"),
     due_date: z.string().optional().describe("Return issues that have the due date"),
-    labels: z.array(z.string()).optional().describe("Array of label names"),
+    labels: coerceStringArray.optional().describe("Array of label names"),
     milestone: z.string().optional().describe("Milestone title"),
 
     issue_type: z
@@ -1731,7 +1731,7 @@ export const ListMergeRequestsSchema = z
       .string()
       .optional()
       .describe("Return merge requests updated before the given time"),
-    labels: z.array(z.string()).optional().describe("Array of label names"),
+    labels: coerceStringArray.optional().describe("Array of label names"),
     milestone: z.string().optional().describe("Milestone title"),
     scope: z
       .enum(["created_by_me", "assigned_to_me", "all"])
