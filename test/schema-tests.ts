@@ -3,6 +3,7 @@
 import {
   GetFileContentsSchema,
   GitLabFileContentSchema,
+  GitLabRepositorySchema,
   CreatePipelineSchema,
   CreateIssueNoteSchema,
   CreateMergeRequestEmojiReactionSchema,
@@ -514,15 +515,76 @@ function runEmojiReactionSchemaTests(): { passed: number; failed: number } {
   return { passed, failed };
 }
 
+function runGitLabRepositorySchemaTests(): { passed: number; failed: number } {
+  console.log('🧪 Testing GitLabRepositorySchema...');
+
+  const baseProject = {
+    id: '42',
+    name: 'my-project',
+    path_with_namespace: 'group/my-project',
+    description: null,
+  };
+
+  const cases = [
+    {
+      name: 'schema:repository:default_branch-null',
+      input: { ...baseProject, default_branch: null },
+      shouldFail: false,
+    },
+    {
+      name: 'schema:repository:default_branch-string',
+      input: { ...baseProject, default_branch: 'main' },
+      shouldFail: false,
+    },
+    {
+      name: 'schema:repository:default_branch-omitted',
+      input: { ...baseProject },
+      shouldFail: false,
+    },
+  ];
+
+  let passed = 0;
+  let failed = 0;
+
+  cases.forEach(testCase => {
+    const result: TestResult = { name: testCase.name, status: 'failed' };
+    const parsed = GitLabRepositorySchema.safeParse(testCase.input);
+
+    if (testCase.shouldFail) {
+      if (parsed.success) {
+        result.error = 'Expected schema validation to fail';
+      } else {
+        result.status = 'passed';
+      }
+    } else if (parsed.success) {
+      result.status = 'passed';
+    } else {
+      result.error = parsed.error?.message || 'Schema validation failed';
+    }
+
+    if (result.status === 'passed') {
+      passed++;
+      console.log(`✅ ${result.name}`);
+    } else {
+      failed++;
+      console.log(`❌ ${result.name}: ${result.error}`);
+    }
+  });
+
+  console.log(`\nResults: ${passed} passed, ${failed} failed`);
+  return { passed, failed };
+}
+
 if (import.meta.url === `file://${process.argv[1]}`) {
   const getFileContentsResult = runGetFileContentsSchemaTests();
   const fileContentResult = runGitLabFileContentSchemaTests();
   const createPipelineResult = runCreatePipelineSchemaTests();
   const createIssueNoteResult = runCreateIssueNoteSchemaTests();
   const emojiReactionResult = runEmojiReactionSchemaTests();
+  const repositorySchemaResult = runGitLabRepositorySchemaTests();
 
-  const totalPassed = getFileContentsResult.passed + fileContentResult.passed + createPipelineResult.passed + createIssueNoteResult.passed + emojiReactionResult.passed;
-  const totalFailed = getFileContentsResult.failed + fileContentResult.failed + createPipelineResult.failed + createIssueNoteResult.failed + emojiReactionResult.failed;
+  const totalPassed = getFileContentsResult.passed + fileContentResult.passed + createPipelineResult.passed + createIssueNoteResult.passed + emojiReactionResult.passed + repositorySchemaResult.passed;
+  const totalFailed = getFileContentsResult.failed + fileContentResult.failed + createPipelineResult.failed + createIssueNoteResult.failed + emojiReactionResult.failed + repositorySchemaResult.failed;
 
   console.log(`\nTotal Results: ${totalPassed} passed, ${totalFailed} failed`);
 
