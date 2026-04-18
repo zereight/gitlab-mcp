@@ -667,7 +667,7 @@ export const FileOperationSchema = z.object({
 export const GitLabTreeItemSchema = z.object({
   id: z.string(),
   name: z.string(),
-  type: z.enum(["tree", "blob"]),
+  type: z.enum(["tree", "blob", "commit"]),
   path: z.string(),
   mode: z.string(),
 });
