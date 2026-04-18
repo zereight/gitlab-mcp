@@ -5858,6 +5858,7 @@ async function listGroupProjects(
     url.searchParams.append("with_custom_attributes", options.with_custom_attributes.toString());
   if (options.with_security_reports !== undefined)
     url.searchParams.append("with_security_reports", options.with_security_reports.toString());
+  if (options.topic) url.searchParams.append("topic", options.topic);
 
   const response = await fetch(url.toString(), {
     ...getFetchConfig(),

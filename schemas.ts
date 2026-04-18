@@ -1890,6 +1890,7 @@ export const ListProjectsSchema = z
       .optional()
       .describe("Filter projects with merge requests feature enabled"),
     min_access_level: z.coerce.number().optional().describe("Filter by minimum access level"),
+    topic: z.string().optional().describe("Filter by topic (projects tagged with this topic)"),
   })
   .merge(PaginationOptionsSchema);
 
@@ -1967,6 +1968,7 @@ export const ListGroupProjectsSchema = z
     statistics: z.coerce.boolean().optional().describe("Include project statistics"),
     with_custom_attributes: z.coerce.boolean().optional().describe("Include custom attributes"),
     with_security_reports: z.coerce.boolean().optional().describe("Include security reports"),
+    topic: z.string().optional().describe("Filter by topic (projects tagged with this topic)"),
   })
   .merge(PaginationOptionsSchema);
 
