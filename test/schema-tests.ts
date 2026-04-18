@@ -21,6 +21,7 @@ import {
   CreateIssueSchema,
   ListIssuesSchema,
   ListMergeRequestsSchema,
+  GitLabTreeItemSchema
 } from '../schemas.js';
 
 interface TestResult {
@@ -689,6 +690,58 @@ function runLabelsCoercionSchemaTests(): { passed: number; failed: number } {
   return { passed, failed };
 }
 
+function runGitLabTreeItemSchemaTests(): { passed: number; failed: number } {
+  console.log('\n=== GitLabTreeItem Schema Tests ===');
+
+  const cases: { name: string; input: Record<string, unknown>; shouldFail?: boolean }[] = [
+    {
+      name: 'schema:tree_item:type-blob',
+      input: { id: 'abc123', name: 'README.md', type: 'blob', path: 'README.md', mode: '100644' },
+    },
+    {
+      name: 'schema:tree_item:type-tree',
+      input: { id: 'def456', name: 'src', type: 'tree', path: 'src', mode: '040000' },
+    },
+    {
+      name: 'schema:tree_item:type-commit-submodule',
+      input: { id: 'ghi789', name: 'vendor', type: 'commit', path: 'vendor', mode: '160000' },
+    },
+    {
+      name: 'schema:tree_item:reject-unknown-type',
+      input: { id: 'xyz', name: 'foo', type: 'symlink', path: 'foo', mode: '120000' },
+      shouldFail: true,
+    },
+  ];
+
+  let passed = 0;
+  let failed = 0;
+
+  cases.forEach(testCase => {
+    const result: TestResult = { name: testCase.name, status: 'failed' };
+    const parsed = GitLabTreeItemSchema.safeParse(testCase.input);
+
+    if (testCase.shouldFail) {
+      result.status = parsed.success ? 'failed' : 'passed';
+      if (parsed.success) result.error = 'Expected schema validation to fail';
+    } else if (parsed.success) {
+      result.status = 'passed';
+    } else {
+      result.error = parsed.error?.message || 'Schema validation failed';
+    }
+
+    if (result.status === 'passed') {
+      passed++;
+      console.log(`✅ ${result.name}`);
+    } else {
+      failed++;
+      console.log(`❌ ${result.name}: ${result.error}`);
+    }
+  });
+
+  console.log(`\nResults: ${passed} passed, ${failed} failed`);
+  return { passed, failed };
+}
+
 if (import.meta.url === `file://${process.argv[1]}`) {
   const getFileContentsResult = runGetFileContentsSchemaTests();
   const fileContentResult = runGitLabFileContentSchemaTests();
@@ -697,9 +750,10 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   const emojiReactionResult = runEmojiReactionSchemaTests();
   const repositorySchemaResult = runGitLabRepositorySchemaTests();
   const labelsCoercionResult = runLabelsCoercionSchemaTests();
+  const treeItemResult = runGitLabTreeItemSchemaTests();
 
-  const totalPassed = getFileContentsResult.passed + fileContentResult.passed + createPipelineResult.passed + createIssueNoteResult.passed + emojiReactionResult.passed + repositorySchemaResult.passed + labelsCoercionResult.passed;
-  const totalFailed = getFileContentsResult.failed + fileContentResult.failed + createPipelineResult.failed + createIssueNoteResult.failed + emojiReactionResult.failed + repositorySchemaResult.failed + labelsCoercionResult.failed;
+  const totalPassed = getFileContentsResult.passed + fileContentResult.passed + createPipelineResult.passed + createIssueNoteResult.passed + emojiReactionResult.passed + repositorySchemaResult.passed + labelsCoercionResult.passed + treeItemResult.passed;
+  const totalFailed = getFileContentsResult.failed + fileContentResult.failed + createPipelineResult.failed + createIssueNoteResult.failed + emojiReactionResult.failed + repositorySchemaResult.failed + labelsCoercionResult.failed + treeItemResult.failed;
 
   console.log(`\nTotal Results: ${totalPassed} passed, ${totalFailed} failed`);
 
