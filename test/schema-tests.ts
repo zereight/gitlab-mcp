@@ -17,7 +17,10 @@ import {
   CreateWorkItemEmojiReactionSchema,
   DeleteWorkItemEmojiReactionSchema,
   CreateWorkItemNoteEmojiReactionSchema,
-  DeleteWorkItemNoteEmojiReactionSchema
+  DeleteWorkItemNoteEmojiReactionSchema,
+  CreateIssueSchema,
+  ListIssuesSchema,
+  ListMergeRequestsSchema,
 } from '../schemas.js';
 
 interface TestResult {
@@ -575,6 +578,117 @@ function runGitLabRepositorySchemaTests(): { passed: number; failed: number } {
   return { passed, failed };
 }
 
+function runLabelsCoercionSchemaTests(): { passed: number; failed: number } {
+  console.log('\n=== Labels Coercion Schema Tests ===');
+
+  interface LabelTestCase {
+    name: string;
+    schema: { safeParse: (input: unknown) => { success: boolean; data?: any; error?: any } };
+    input: Record<string, any>;
+    expectedLabels?: string[];
+    shouldFail?: boolean;
+  }
+
+  const cases: LabelTestCase[] = [
+    {
+      name: 'schema:create_issue:labels-native-array',
+      schema: CreateIssueSchema,
+      input: { project_id: 'my/project', title: 'Test', labels: ['bug', 'enhancement'] },
+      expectedLabels: ['bug', 'enhancement'],
+    },
+    {
+      name: 'schema:create_issue:labels-stringified-array',
+      schema: CreateIssueSchema,
+      input: { project_id: 'my/project', title: 'Test', labels: '["bug","enhancement"]' },
+      expectedLabels: ['bug', 'enhancement'],
+    },
+    {
+      name: 'schema:create_issue:labels-omitted',
+      schema: CreateIssueSchema,
+      input: { project_id: 'my/project', title: 'Test' },
+      expectedLabels: undefined,
+    },
+    {
+      name: 'schema:list_issues:labels-native-array',
+      schema: ListIssuesSchema,
+      input: { project_id: 'my/project', labels: ['bug'] },
+      expectedLabels: ['bug'],
+    },
+    {
+      name: 'schema:list_issues:labels-stringified-array',
+      schema: ListIssuesSchema,
+      input: { project_id: 'my/project', labels: '["bug","enhancement"]' },
+      expectedLabels: ['bug', 'enhancement'],
+    },
+    {
+      name: 'schema:list_merge_requests:labels-native-array',
+      schema: ListMergeRequestsSchema,
+      input: { labels: ['feature'] },
+      expectedLabels: ['feature'],
+    },
+    {
+      name: 'schema:list_merge_requests:labels-stringified-array',
+      schema: ListMergeRequestsSchema,
+      input: { labels: '["feature","bugfix"]' },
+      expectedLabels: ['feature', 'bugfix'],
+    },
+  ];
+
+  let passed = 0;
+  let failed = 0;
+
+  function checkLabelResult(
+    testCase: LabelTestCase,
+    parsed: { success: boolean; data?: any; error?: any }
+  ): TestResult {
+    const result: TestResult = { name: testCase.name, status: 'failed' };
+    if (!parsed.success) {
+      result.error = parsed.error?.message || 'Schema validation failed';
+      return result;
+    }
+    const actualLabels = (parsed.data as Record<string, unknown>)['labels'];
+    if (testCase.expectedLabels === undefined) {
+      result.status = actualLabels === undefined ? 'passed' : 'failed';
+      if (actualLabels !== undefined) {
+        result.error = `Expected labels to be undefined, got ${JSON.stringify(actualLabels)}`;
+      }
+      return result;
+    }
+    const match =
+      Array.isArray(actualLabels) &&
+      actualLabels.length === testCase.expectedLabels.length &&
+      testCase.expectedLabels.every((v, i) => (actualLabels as string[])[i] === v);
+    result.status = match ? 'passed' : 'failed';
+    if (!match) {
+      result.error = `Expected ${JSON.stringify(testCase.expectedLabels)}, got ${JSON.stringify(actualLabels)}`;
+    }
+    return result;
+  }
+
+  cases.forEach(testCase => {
+    const parsed = testCase.schema.safeParse(testCase.input);
+    let result: TestResult;
+
+    if (testCase.shouldFail) {
+      result = { name: testCase.name, status: parsed.success ? 'failed' : 'passed' };
+      if (parsed.success) result.error = 'Expected schema validation to fail';
+    } else {
+      result = checkLabelResult(testCase, parsed);
+    }
+
+    if (result.status === 'passed') {
+      passed++;
+      console.log(`✅ ${result.name}`);
+    } else {
+      failed++;
+      console.log(`❌ ${result.name}: ${result.error}`);
+    }
+  });
+
+  console.log(`\nResults: ${passed} passed, ${failed} failed`);
+  return { passed, failed };
+}
+
 if (import.meta.url === `file://${process.argv[1]}`) {
   const getFileContentsResult = runGetFileContentsSchemaTests();
   const fileContentResult = runGitLabFileContentSchemaTests();
@@ -582,9 +696,10 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   const createIssueNoteResult = runCreateIssueNoteSchemaTests();
   const emojiReactionResult = runEmojiReactionSchemaTests();
   const repositorySchemaResult = runGitLabRepositorySchemaTests();
+  const labelsCoercionResult = runLabelsCoercionSchemaTests();
 
-  const totalPassed = getFileContentsResult.passed + fileContentResult.passed + createPipelineResult.passed + createIssueNoteResult.passed + emojiReactionResult.passed + repositorySchemaResult.passed;
-  const totalFailed = getFileContentsResult.failed + fileContentResult.failed + createPipelineResult.failed + createIssueNoteResult.failed + emojiReactionResult.failed + repositorySchemaResult.failed;
+  const totalPassed = getFileContentsResult.passed + fileContentResult.passed + createPipelineResult.passed + createIssueNoteResult.passed + emojiReactionResult.passed + repositorySchemaResult.passed + labelsCoercionResult.passed;
+  const totalFailed = getFileContentsResult.failed + fileContentResult.failed + createPipelineResult.failed + createIssueNoteResult.failed + emojiReactionResult.failed + repositorySchemaResult.failed + labelsCoercionResult.failed;
 
   console.log(`\nTotal Results: ${totalPassed} passed, ${totalFailed} failed`);
 

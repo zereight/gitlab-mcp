@@ -2430,7 +2430,7 @@ export const MyIssuesSchema = z.object({
     .enum(["opened", "closed", "all"])
     .optional()
     .describe("Return issues with a specific state (default: opened)"),
-  labels: z.array(z.string()).optional().describe("Array of label names to filter by"),
+  labels: coerceStringArray.optional().describe("Array of label names to filter by"),
   milestone: z.string().optional().describe("Milestone title to filter by"),
   search: z.string().optional().describe("Search for specific terms in title and description"),
   created_after: z
