@@ -9,14 +9,13 @@ export const toJSONSchema = (schema: z.ZodTypeAny) => {
   const jsonSchema = zodToJsonSchema(schema, { $refStrategy: "none" });
 
   // Extract required fields from Zod schema
-  function extractRequiredFields(zodSchema: z.ZodTypeAny): string[] {
-    if (zodSchema instanceof z.ZodObject) {
-      const shape = zodSchema.shape;
+  const zodRequiredFields = (() => {
+    if (schema instanceof z.ZodObject) {
+      const shape = schema.shape;
       const requiredFields: string[] = [];
 
       Object.entries(shape).forEach(([key, fieldDef]) => {
-        // Use Zod's public APIs to check if the field is optional or nullable
-        // Check before unwrapping to preserve optional status of fields with defaults
+        // Check if the field is optional or nullable before unwrapping to preserve optional status of fields with defaults
         const zodType = fieldDef as z.ZodTypeAny;
         const isOptional = zodType.isOptional();
         const isNullable = zodType.isNullable();
@@ -29,7 +28,7 @@ export const toJSONSchema = (schema: z.ZodTypeAny) => {
       return requiredFields;
     }
     return [];
-  }
+  })();
 
   // Post-process to fix nullable/optional fields and strip verbose keys
   function fixNullableOptional(obj: any, isRoot: boolean = false): any {
@@ -45,7 +44,6 @@ export const toJSONSchema = (schema: z.ZodTypeAny) => {
 
         // Add required fields extracted from Zod schema (only for root object)
         if (isRoot) {
-          const zodRequiredFields = extractRequiredFields(schema);
           zodRequiredFields.forEach(field => {
             if (obj.properties[field]) {
               requiredSet.add(field);
