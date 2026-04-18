@@ -526,6 +526,9 @@ describe("Policy Edge Cases", { concurrency: 1 }, () => {
       "update_issue", "delete_issue", "create_issue_note", "update_issue_note",
       "list_issue_links", "list_issue_discussions", "get_issue_link",
       "create_issue_link", "delete_issue_link", "create_note",
+      "list_issue_emoji_reactions", "list_issue_note_emoji_reactions",
+      "create_issue_emoji_reaction", "delete_issue_emoji_reaction",
+      "create_issue_note_emoji_reaction", "delete_issue_note_emoji_reaction",
     ].join(",");
 
     const server = await launchMcp(mockGitLabUrl, {

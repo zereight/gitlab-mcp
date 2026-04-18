@@ -1,6 +1,23 @@
 #!/usr/bin/env ts-node
 
-import { GetFileContentsSchema, GitLabFileContentSchema, CreatePipelineSchema, CreateIssueNoteSchema } from '../schemas.js';
+import {
+  GetFileContentsSchema,
+  GitLabFileContentSchema,
+  CreatePipelineSchema,
+  CreateIssueNoteSchema,
+  CreateMergeRequestEmojiReactionSchema,
+  CreateIssueEmojiReactionSchema,
+  DeleteMergeRequestEmojiReactionSchema,
+  DeleteIssueEmojiReactionSchema,
+  CreateMergeRequestNoteEmojiReactionSchema,
+  DeleteMergeRequestNoteEmojiReactionSchema,
+  CreateIssueNoteEmojiReactionSchema,
+  DeleteIssueNoteEmojiReactionSchema,
+  CreateWorkItemEmojiReactionSchema,
+  DeleteWorkItemEmojiReactionSchema,
+  CreateWorkItemNoteEmojiReactionSchema,
+  DeleteWorkItemNoteEmojiReactionSchema
+} from '../schemas.js';
 
 interface TestResult {
   name: string;
@@ -439,14 +456,73 @@ function runCreateIssueNoteSchemaTests(): { passed: number; failed: number } {
   return { passed, failed };
 }
 
+
+function runEmojiReactionSchemaTests(): { passed: number; failed: number } {
+  console.log('\n🧪 Testing Emoji Reaction Schemas...');
+
+  const cases: { name: string; schema: any; input: Record<string, any>; expected?: Record<string, any>; shouldFail?: boolean }[] = [
+    { name: 'schema:create_mr_emoji:valid', schema: CreateMergeRequestEmojiReactionSchema, input: { project_id: 'my/project', merge_request_iid: '42', name: 'thumbsup' }, expected: { project_id: 'my/project', merge_request_iid: '42', name: 'thumbsup' } },
+    { name: 'schema:create_mr_emoji:numeric-iid-coerced', schema: CreateMergeRequestEmojiReactionSchema, input: { project_id: 'my/project', merge_request_iid: 42, name: 'rocket' }, expected: { merge_request_iid: '42', name: 'rocket' } },
+    { name: 'schema:create_mr_emoji:reject-missing-name', schema: CreateMergeRequestEmojiReactionSchema, input: { project_id: 'my/project', merge_request_iid: '42' }, shouldFail: true },
+    { name: 'schema:delete_mr_emoji:valid', schema: DeleteMergeRequestEmojiReactionSchema, input: { project_id: 'my/project', merge_request_iid: '42', award_id: '123' }, expected: { merge_request_iid: '42', award_id: '123' } },
+    { name: 'schema:create_issue_emoji:valid', schema: CreateIssueEmojiReactionSchema, input: { project_id: 'my/project', issue_iid: '10', name: 'thumbsdown' }, expected: { issue_iid: '10', name: 'thumbsdown' } },
+    { name: 'schema:create_issue_emoji:reject-missing-name', schema: CreateIssueEmojiReactionSchema, input: { project_id: 'my/project', issue_iid: '10' }, shouldFail: true },
+    { name: 'schema:delete_issue_emoji:valid', schema: DeleteIssueEmojiReactionSchema, input: { project_id: 'my/project', issue_iid: '10', award_id: '99' }, expected: { issue_iid: '10', award_id: '99' } },
+    { name: 'schema:create_work_item_emoji:valid', schema: CreateWorkItemEmojiReactionSchema, input: { project_id: 'my/project', iid: 5, name: 'rocket' }, expected: { iid: 5, name: 'rocket' } },
+    { name: 'schema:create_work_item_emoji:reject-missing-name', schema: CreateWorkItemEmojiReactionSchema, input: { project_id: 'my/project', iid: 5 }, shouldFail: true },
+    { name: 'schema:create_work_item_note_emoji:valid', schema: CreateWorkItemNoteEmojiReactionSchema, input: { project_id: 'my/project', iid: 5, note_id: 'gid://gitlab/Note/123', name: 'thumbsup' }, expected: { iid: 5, note_id: 'gid://gitlab/Note/123', name: 'thumbsup' } },
+    { name: 'schema:create_work_item_note_emoji:reject-missing-note-id', schema: CreateWorkItemNoteEmojiReactionSchema, input: { project_id: 'my/project', iid: 5, name: 'thumbsup' }, shouldFail: true },
+  ];
+
+  let passed = 0;
+  let failed = 0;
+
+  cases.forEach(testCase => {
+    const result: TestResult = { name: testCase.name, status: 'failed' };
+    const parsed = testCase.schema.safeParse(testCase.input);
+
+    if (testCase.shouldFail) {
+      if (parsed.success) {
+        result.error = 'Expected schema validation to fail';
+      } else {
+        result.status = 'passed';
+      }
+    } else if (parsed.success) {
+      const expected = testCase.expected || {};
+      const matches = Object.entries(expected).every(([key, value]) => {
+        return (parsed.data as Record<string, unknown>)[key] === value;
+      });
+      if (matches) {
+        result.status = 'passed';
+      } else {
+        result.error = `Unexpected parsed result: ${JSON.stringify(parsed.data)}`;
+      }
+    } else {
+      result.error = parsed.error?.message || 'Schema validation failed';
+    }
+
+    if (result.status === 'passed') {
+      passed++;
+      console.log(`✅ ${result.name}`);
+    } else {
+      failed++;
+      console.log(`❌ ${result.name}: ${result.error}`);
+    }
+  });
+
+  console.log(`\nResults: ${passed} passed, ${failed} failed`);
+  return { passed, failed };
+}
+
 if (import.meta.url === `file://${process.argv[1]}`) {
   const getFileContentsResult = runGetFileContentsSchemaTests();
   const fileContentResult = runGitLabFileContentSchemaTests();
   const createPipelineResult = runCreatePipelineSchemaTests();
   const createIssueNoteResult = runCreateIssueNoteSchemaTests();
+  const emojiReactionResult = runEmojiReactionSchemaTests();
 
-  const totalPassed = getFileContentsResult.passed + fileContentResult.passed + createPipelineResult.passed + createIssueNoteResult.passed;
-  const totalFailed = getFileContentsResult.failed + fileContentResult.failed + createPipelineResult.failed + createIssueNoteResult.failed;
+  const totalPassed = getFileContentsResult.passed + fileContentResult.passed + createPipelineResult.passed + createIssueNoteResult.passed + emojiReactionResult.passed;
+  const totalFailed = getFileContentsResult.failed + fileContentResult.failed + createPipelineResult.failed + createIssueNoteResult.failed + emojiReactionResult.failed;
 
   console.log(`\nTotal Results: ${totalPassed} passed, ${totalFailed} failed`);
 
