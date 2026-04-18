@@ -32,7 +32,7 @@ export const toJSONSchema = (schema: z.ZodTypeAny) => {
   }
 
   // Post-process to fix nullable/optional fields and strip verbose keys
-  function fixNullableOptional(obj: any): any {
+  function fixNullableOptional(obj: any, isRoot: boolean = false): any {
     if (obj && typeof obj === "object") {
       // Strip $schema (meta-only, not needed for tool input validation)
       delete obj.$schema;
@@ -43,13 +43,15 @@ export const toJSONSchema = (schema: z.ZodTypeAny) => {
       if (obj.properties) {
         const requiredSet = new Set<string>(obj.required || []);
 
-        // Add required fields extracted from Zod schema
-        const zodRequiredFields = extractRequiredFields(schema);
-        zodRequiredFields.forEach(field => {
-          if (obj.properties[field]) {
-            requiredSet.add(field);
-          }
-        });
+        // Add required fields extracted from Zod schema (only for root object)
+        if (isRoot) {
+          const zodRequiredFields = extractRequiredFields(schema);
+          zodRequiredFields.forEach(field => {
+            if (obj.properties[field]) {
+              requiredSet.add(field);
+            }
+          });
+        }
 
         Object.keys(obj.properties).forEach(key => {
           const prop = obj.properties[key];
@@ -62,8 +64,8 @@ export const toJSONSchema = (schema: z.ZodTypeAny) => {
             requiredSet.delete(key);
           }
 
-          // Recursively process nested objects
-          obj.properties[key] = fixNullableOptional(prop);
+          // Recursively process nested objects (not root)
+          obj.properties[key] = fixNullableOptional(prop, false);
         });
 
         // Normalize the required array after processing all properties
@@ -77,7 +79,7 @@ export const toJSONSchema = (schema: z.ZodTypeAny) => {
       // Process anyOf/allOf/oneOf
       ["anyOf", "allOf", "oneOf"].forEach(combiner => {
         if (obj[combiner]) {
-          obj[combiner] = obj[combiner].map(fixNullableOptional);
+          obj[combiner] = obj[combiner].map((item: any) => fixNullableOptional(item, false));
         }
       });
     }
@@ -85,5 +87,5 @@ export const toJSONSchema = (schema: z.ZodTypeAny) => {
     return obj;
   }
 
-  return fixNullableOptional(jsonSchema);
+  return fixNullableOptional(jsonSchema, true);
 };
