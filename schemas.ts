@@ -565,7 +565,7 @@ export const GitLabRepositorySchema = z.object({
   http_url_to_repo: z.string().optional(),
   created_at: z.string().optional(),
   last_activity_at: z.string().optional(),
-  default_branch: z.string().optional(),
+  default_branch: z.string().nullable().optional(),
   namespace: z
     .object({
       id: z.coerce.string(),
@@ -667,7 +667,7 @@ export const FileOperationSchema = z.object({
 export const GitLabTreeItemSchema = z.object({
   id: z.string(),
   name: z.string(),
-  type: z.enum(["tree", "blob"]),
+  type: z.enum(["tree", "blob", "commit"]),
   path: z.string(),
   mode: z.string(),
 });

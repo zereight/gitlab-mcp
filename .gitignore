@@ -1,15 +1,66 @@
-node_modules
-.DS_Store
-build
-.local/
+# Environment & secrets
 .env
-.env.local
-.env.test
-coverage/
-*.log
-# ai
-.opencode*
+.env.*
+!.env.example
+.secrets
+REMOTE.md
+
+# AI agents — NEVER track
+AGENTS.md
+.github/copilot-instructions.md
+.github/copilot*.md
+.copilot/
+.kiro/
+.cursor/
 .aider*
-.sisyphus
+.continue/
+.cline/
+.roo/
+.windsurf/
+.augment*
+codex.md
+claude.md
+CLAUDE.md
+.claude/
+
+# Debug & reference
+debug/
+reference/
+
+# Node/TS
+node_modules/
+build/
+dist/
+*.tsbuildinfo
+.eslintcache
+
+# IDE & OS
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Logs & temp
+*.log
+tmp/
+.cache/
+*.tmp
+*.bak
+*.orig
+.local/
+
+# Test
+coverage/
 test-results*.json
+
+# AI tools
+.opencode*
+.sisyphus
 docs/plans/
+
+# Docker
+docker-compose.override.yml

@@ -1,26 +1,24 @@
 FROM node:22.21.1-alpine AS builder
 
-COPY . /app
-COPY tsconfig.json /tsconfig.json
-
 WORKDIR /app
 
-RUN --mount=type=cache,target=/root/.npm npm install
+COPY package.json package-lock.json ./
+RUN npm ci
 
-RUN --mount=type=cache,target=/root/.npm-production npm ci --ignore-scripts --omit-dev
+COPY . .
+RUN npm run build
+RUN npm ci --ignore-scripts --omit-dev
 
 FROM node:22.21.1-alpine AS release
 
 WORKDIR /app
 
-COPY --from=builder /app/build /app/build
-COPY --from=builder /app/package.json /app/package.json
-COPY --from=builder /app/package-lock.json /app/package-lock.json
+COPY --from=builder /app/build ./build
+COPY --from=builder /app/package.json ./
+COPY --from=builder /app/node_modules ./node_modules
 
 ENV NODE_ENV=production
 
 EXPOSE 3002
-
-RUN npm ci --ignore-scripts --omit-dev
 
 ENTRYPOINT ["node", "build/index.js"]
