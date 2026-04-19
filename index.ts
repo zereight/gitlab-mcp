@@ -6835,7 +6835,9 @@ async function cancelPipelineJob(
  * @param {GetRepositoryTreeOptions} options - Options for the tree
  * @returns {Promise<GitLabTreeItem[]>}
  */
-async function getRepositoryTree(options: GetRepositoryTreeOptions): Promise<GitLabTreeItem[]> {
+async function getRepositoryTree(
+  options: GetRepositoryTreeOptions
+): Promise<{ items: GitLabTreeItem[]; next_page_token?: string }> {
   options.project_id = decodeURIComponent(options.project_id); // Decode project_id within options
   const queryParams = new URLSearchParams();
   if (options.path) queryParams.append("path", options.path);
@@ -6861,7 +6863,9 @@ async function getRepositoryTree(options: GetRepositoryTreeOptions): Promise<Git
   }
 
   const data = await response.json();
-  return z.array(GitLabTreeItemSchema).parse(data);
+  const items = z.array(GitLabTreeItemSchema).parse(data);
+  const next_page_token = response.headers.get("x-next-page-token") ?? undefined;
+  return { items, next_page_token };
 }
 
 /**
@@ -9127,9 +9131,15 @@ async function handleToolCall(params: any) {
 
       case "get_repository_tree": {
         const args = GetRepositoryTreeSchema.parse(params.arguments);
-        const tree = await getRepositoryTree(args);
+        const { items, next_page_token } = await getRepositoryTree(args);
+        const result: Record<string, unknown> = { items };
+        if (next_page_token) {
+          result.next_page_token = next_page_token;
+          result.pagination_note =
+            "Pass next_page_token as page_token with pagination=keyset to retrieve the next page.";
+        }
         return {
-          content: [{ type: "text", text: JSON.stringify(tree, null, 2) }],
+          content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
         };
       }
 
