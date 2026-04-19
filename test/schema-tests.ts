@@ -1,6 +1,6 @@
 #!/usr/bin/env ts-node
 
-import { GetFileContentsSchema, GitLabFileContentSchema, CreatePipelineSchema, CreateIssueNoteSchema } from '../schemas.js';
+import { GetFileContentsSchema, GitLabFileContentSchema, CreatePipelineSchema, CreateIssueNoteSchema, GetMergeRequestSchema } from '../schemas.js';
 
 interface TestResult {
   name: string;
@@ -35,7 +35,7 @@ interface GitLabFileContentSchemaTestCase {
 
 function runGetFileContentsSchemaTests(): { passed: number; failed: number } {
   console.log('🧪 Testing GetFileContentsSchema...');
-  
+
   const cases: GetFileContentsSchemaTestCase[] = [
     {
       name: 'schema:get_file_contents:path-only',
@@ -439,14 +439,107 @@ function runCreateIssueNoteSchemaTests(): { passed: number; failed: number } {
   return { passed, failed };
 }
 
+interface GetMergeRequestSchemaTestCase {
+  name: string;
+  input: Record<string, any>;
+  expected?: {
+    project_id?: string;
+    merge_request_iid?: string;
+    source_branch?: string;
+  };
+  shouldFail?: boolean;
+}
+
+function runGetMergeRequestSchemaTests(): { passed: number; failed: number } {
+  console.log("\n🧪 Testing GetMergeRequestSchema...");
+
+  const cases: GetMergeRequestSchemaTestCase[] = [
+    {
+      name: "schema:get_merge_request:with-project-id-and-merge-request-iid",
+      input: { project_id: "my/project", merge_request_iid: "42" },
+      expected: { project_id: "my/project", merge_request_iid: "42" },
+    },
+    {
+      name: "schema:get_merge_request:with-project-id-and-source-branch",
+      input: { project_id: "my/project", source_branch: "feature-branch" },
+      expected: { project_id: "my/project", source_branch: "feature-branch" },
+    },
+    {
+      name: "schema:get_merge_request:with-all-params",
+      input: { project_id: "my/project", merge_request_iid: "42", source_branch: "feature-branch" },
+      expected: {
+        project_id: "my/project",
+        merge_request_iid: "42",
+        source_branch: "feature-branch",
+      },
+    },
+    {
+      name: "schema:get_merge_request:coerced-merge-request-iid",
+      input: { project_id: "my/project", merge_request_iid: 24 },
+      expected: { project_id: "my/project", merge_request_iid: "24" },
+    },
+    {
+      name: "schema:get_merge_request:coerced-source-branch",
+      input: { project_id: "my/project", source_branch: "feature" },
+      expected: { project_id: "my/project", source_branch: "feature" },
+    },
+  ];
+
+  let passed = 0;
+  let failed = 0;
+
+  cases.forEach(testCase => {
+    const result: TestResult = {
+      name: testCase.name,
+      status: "failed",
+    };
+
+    const parsed = GetMergeRequestSchema.safeParse(testCase.input);
+
+    if (testCase.shouldFail) {
+      if (parsed.success) {
+        result.error = "Expected schema validation to fail";
+      } else {
+        result.status = "passed";
+      }
+    } else if (parsed.success) {
+      const expected = testCase.expected || {};
+      const matches = Object.entries(expected).every(([key, value]) => {
+        const actual = (parsed.data as Record<string, unknown>)[key];
+        return actual === value;
+      });
+      if (matches) {
+        result.status = "passed";
+      } else {
+        result.error = `Unexpected parsed result: ${JSON.stringify(parsed.data)}`;
+      }
+    } else {
+      result.error = parsed.error?.message || "Schema validation failed";
+    }
+
+    if (result.status === "passed") {
+      passed++;
+      console.log(`✅ ${result.name}`);
+    } else {
+      failed++;
+      console.log(`❌ ${result.name}: ${result.error}`);
+    }
+  });
+
+  console.log(`\nResults: ${passed} passed, ${failed} failed`);
+
+  return { passed, failed };
+}
+
 if (import.meta.url === `file://${process.argv[1]}`) {
   const getFileContentsResult = runGetFileContentsSchemaTests();
   const fileContentResult = runGitLabFileContentSchemaTests();
   const createPipelineResult = runCreatePipelineSchemaTests();
   const createIssueNoteResult = runCreateIssueNoteSchemaTests();
+  const getMergeRequestResult = runGetMergeRequestSchemaTests();
 
-  const totalPassed = getFileContentsResult.passed + fileContentResult.passed + createPipelineResult.passed + createIssueNoteResult.passed;
-  const totalFailed = getFileContentsResult.failed + fileContentResult.failed + createPipelineResult.failed + createIssueNoteResult.failed;
+  const totalPassed = getFileContentsResult.passed + fileContentResult.passed + createPipelineResult.passed + createIssueNoteResult.passed + getMergeRequestResult.passed;
+  const totalFailed = getFileContentsResult.failed + fileContentResult.failed + createPipelineResult.failed + createIssueNoteResult.failed + getMergeRequestResult.failed;
 
   console.log(`\nTotal Results: ${totalPassed} passed, ${totalFailed} failed`);
 

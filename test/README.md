@@ -77,6 +77,7 @@ Tests for Zod schema validation used in GitLab MCP tools.
 - GitLabFileContentSchema validation
 - CreatePipelineSchema validation
 - CreateIssueNoteSchema validation
+- GetMergeRequestSchema validation
 - Input coercion and trimming
 - Required field handling
 
@@ -86,7 +87,7 @@ npm run test:schema
 ```
 
 ### test-json-schema.ts
-Tests for the Zod to JSON Schema conversion utility (`toJSONSchema`).
+Tests for the Zod to JSON Schema conversion extension (`toJSONSchema`).
 
 **What it tests:**
 - Required field extraction from Zod schemas
