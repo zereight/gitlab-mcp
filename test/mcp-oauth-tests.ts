@@ -25,8 +25,8 @@ import { MockGitLabServer, findMockServerPort } from "./utils/mock-gitlab-server
 
 const MOCK_OAUTH_TOKEN = "ya29.mock-oauth-token-abcdef123456";
 const MOCK_CLIENT_ID = "mock-app-uid-from-dcr";
-const MOCK_PAT_TOKEN = "glpat-mockpat-testtoken-abcdef12";  // ≥20 chars, valid charset
-const MOCK_JOB_TOKEN = "mockjobtoken-testenv-1234567890";   // ≥20 chars, valid charset
+const MOCK_PAT_TOKEN = "glpat-mockpat-testtoken-abcdef12"; // ≥20 chars, valid charset
+const MOCK_JOB_TOKEN = "mockjobtoken-testenv-1234567890"; // ≥20 chars, valid charset
 
 const MOCK_GITLAB_PORT_BASE = 9200;
 const MCP_SERVER_PORT_BASE = 3200;
@@ -172,6 +172,68 @@ describe("MCP OAuth — Discovery Endpoints", () => {
     const body = (await res.json()) as Record<string, unknown>;
     assert.ok(body.resource, "Should have resource field");
     console.log("  ✓ Protected resource metadata returned");
+  });
+
+  test("path-prefixed MCP_SERVER_URL serves path-aware discovery metadata", async () => {
+    const mockPort = await findMockServerPort(MOCK_GITLAB_PORT_BASE + 25);
+    const prefixedMockGitLab = new MockGitLabServer({
+      port: mockPort,
+      validTokens: [MOCK_OAUTH_TOKEN],
+    });
+    await prefixedMockGitLab.start();
+
+    const scopedServers: ServerInstance[] = [];
+
+    try {
+      const mockGitLabUrl = prefixedMockGitLab.getUrl();
+      addOAuthEndpoints(prefixedMockGitLab, MOCK_OAUTH_TOKEN, MOCK_CLIENT_ID, mockGitLabUrl);
+
+      const mcpPort = await findAvailablePort(MCP_SERVER_PORT_BASE + 25);
+      const mcpBaseUrl = `http://${HOST}:${mcpPort}`;
+      const issuerPath = "/gitlab-mcp";
+      const prefixedServerUrl = `${mcpBaseUrl}${issuerPath}`;
+
+      const server = await launchServer({
+        mode: TransportMode.STREAMABLE_HTTP,
+        port: mcpPort,
+        timeout: 5000,
+        env: {
+          STREAMABLE_HTTP: "true",
+          GITLAB_MCP_OAUTH: "true",
+          GITLAB_OAUTH_APP_ID: "test-oauth-app-id",
+          GITLAB_API_URL: `${mockGitLabUrl}/api/v4`,
+          MCP_SERVER_URL: prefixedServerUrl,
+          MCP_DANGEROUSLY_ALLOW_INSECURE_ISSUER_URL: "true",
+        },
+      });
+      scopedServers.push(server);
+
+      const authMetadataRes = await fetch(
+        `${mcpBaseUrl}/.well-known/oauth-authorization-server${issuerPath}`
+      );
+      assert.strictEqual(authMetadataRes.status, 200, "Should return 200");
+
+      const authMetadata = (await authMetadataRes.json()) as Record<string, unknown>;
+      assert.strictEqual(authMetadata.issuer, prefixedServerUrl);
+      assert.strictEqual(authMetadata.authorization_endpoint, `${prefixedServerUrl}/authorize`);
+      assert.strictEqual(authMetadata.token_endpoint, `${prefixedServerUrl}/token`);
+      assert.strictEqual(authMetadata.registration_endpoint, `${prefixedServerUrl}/register`);
+      assert.strictEqual(authMetadata.revocation_endpoint, `${prefixedServerUrl}/revoke`);
+
+      const resourceMetadataRes = await fetch(
+        `${mcpBaseUrl}/.well-known/oauth-protected-resource${issuerPath}/mcp`
+      );
+      assert.strictEqual(resourceMetadataRes.status, 200, "Should return 200");
+
+      const resourceMetadata = (await resourceMetadataRes.json()) as Record<string, unknown>;
+      assert.strictEqual(resourceMetadata.resource, prefixedServerUrl);
+      assert.deepStrictEqual(resourceMetadata.authorization_servers, [prefixedServerUrl]);
+
+      console.log("  ✓ Path-prefixed discovery metadata returned at RFC well-known URLs");
+    } finally {
+      cleanupServers(scopedServers);
+      await prefixedMockGitLab.stop();
+    }
   });
 });
 
@@ -388,7 +450,11 @@ describe("MCP OAuth — BoundedClientCache", () => {
 
       // Both entries remain accessible
       const firstStill = await store.getClient(first.client_id);
-      assert.deepStrictEqual(firstStill!.redirect_uris, ["https://old.com/cb"], "First entry still cached");
+      assert.deepStrictEqual(
+        firstStill!.redirect_uris,
+        ["https://old.com/cb"],
+        "First entry still cached"
+      );
       console.log("  ✓ Re-registration creates a new cached entry");
     } finally {
       stub.close();
@@ -520,7 +586,11 @@ describe("MCP OAuth — createGitLabOAuthProvider", () => {
     const REGISTERED_REDIRECT_URI = "https://claude.ai/api/mcp/auth_callback";
 
     const { createGitLabOAuthProvider } = await import("../oauth-proxy.js");
-    const provider = createGitLabOAuthProvider("https://gitlab.example.com", "test-app-id", "My MCP Server");
+    const provider = createGitLabOAuthProvider(
+      "https://gitlab.example.com",
+      "test-app-id",
+      "My MCP Server"
+    );
 
     // Before registration: getClient returns a stub with empty redirect_uris
     const beforeReg = await provider.clientsStore.getClient("some-unknown-id");
@@ -560,9 +630,7 @@ describe("MCP OAuth — createGitLabOAuthProvider", () => {
       [REGISTERED_REDIRECT_URI],
       "getClient should return real redirect_uris from cache after registration"
     );
-    console.log(
-      "  ✓ DCR response cached: getClient returns real redirect_uris after registration"
-    );
+    console.log("  ✓ DCR response cached: getClient returns real redirect_uris after registration");
     console.log(`  ✓ client_name annotated: ${registered.client_name}`);
   });
 });

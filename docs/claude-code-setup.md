@@ -28,11 +28,11 @@ Use an API URL, not the web root:
 This is the fastest path for a local personal setup.
 
 ```bash
-claude mcp add --transport stdio \
+claude mcp add gitlab --transport stdio \
   --scope local \
   --env GITLAB_PERSONAL_ACCESS_TOKEN=glpat-your-token \
   --env GITLAB_API_URL=https://gitlab.com/api/v4 \
-  gitlab -- npx -y @zereight/mcp-gitlab
+  -- npx -y @zereight/mcp-gitlab
 ```
 
 Optional flags you can add as extra `--env` values:
@@ -63,13 +63,13 @@ to inspect server status.
 Use this for a local browser-based auth flow instead of a PAT.
 
 ```bash
-claude mcp add --transport stdio \
+claude mcp add gitlab --transport stdio \
   --scope local \
   --env GITLAB_USE_OAUTH=true \
   --env GITLAB_OAUTH_CLIENT_ID=your-client-id \
   --env GITLAB_OAUTH_REDIRECT_URI=http://127.0.0.1:8888/callback \
   --env GITLAB_API_URL=https://gitlab.com/api/v4 \
-  gitlab -- npx -y @zereight/mcp-gitlab
+  -- npx -y @zereight/mcp-gitlab
 ```
 
 If your GitLab OAuth app is confidential, also add:

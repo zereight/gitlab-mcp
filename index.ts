@@ -79,9 +79,17 @@ import {
   CreateIssueNoteSchema,
   CreateIssueOptionsSchema,
   CreateIssueSchema,
+  CreateIssueEmojiReactionSchema,
+  CreateIssueNoteEmojiReactionSchema,
+  ListIssueEmojiReactionsSchema,
+  ListIssueNoteEmojiReactionsSchema,
   CreateLabelSchema, // Added
   CreateMergeRequestNoteSchema,
   CreateMergeRequestDiscussionNoteSchema,
+  CreateMergeRequestEmojiReactionSchema,
+  CreateMergeRequestNoteEmojiReactionSchema,
+  ListMergeRequestEmojiReactionsSchema,
+  ListMergeRequestNoteEmojiReactionsSchema,
   CreateMergeRequestOptionsSchema,
   CreateMergeRequestSchema,
   CreateMergeRequestThreadSchema,
@@ -97,10 +105,14 @@ import {
   DeleteGroupWikiPageSchema,
   DeleteIssueLinkSchema,
   DeleteIssueSchema,
+  DeleteIssueEmojiReactionSchema,
+  DeleteIssueNoteEmojiReactionSchema,
   DeleteLabelSchema,
   DeleteProjectMilestoneSchema,
   DeleteWikiPageSchema,
   DeleteMergeRequestNoteSchema,
+  DeleteMergeRequestEmojiReactionSchema,
+  DeleteMergeRequestNoteEmojiReactionSchema,
   EditProjectMilestoneSchema,
   type FileOperation,
   ForkRepositorySchema,
@@ -305,6 +317,12 @@ import {
   ListWorkItemStatusesSchema,
   ListWorkItemNotesSchema,
   CreateWorkItemNoteSchema,
+  CreateWorkItemEmojiReactionSchema,
+  CreateWorkItemNoteEmojiReactionSchema,
+  ListWorkItemEmojiReactionsSchema,
+  ListWorkItemNoteEmojiReactionsSchema,
+  DeleteWorkItemEmojiReactionSchema,
+  DeleteWorkItemNoteEmojiReactionSchema,
   MoveWorkItemSchema,
   ListCustomFieldDefinitionsSchema,
   GetTimelineEventsSchema,
@@ -2236,6 +2254,59 @@ async function createWorkItemNote(
   return data.createNote.note;
 }
 
+
+// --- Emoji Reactions (GraphQL) ---
+
+async function addGraphQLAwardEmoji(awardableId: string, name: string): Promise<any> {
+  const data = await executeGraphQL<{
+    awardEmojiAdd: { awardEmoji: { name: string; user: { username: string } } | null; errors: string[] };
+  }>(
+    `mutation($awardableId: AwardableID!, $name: String!) {
+      awardEmojiAdd(input: { awardableId: $awardableId, name: $name }) {
+        awardEmoji { name user { username } }
+        errors
+      }
+    }`,
+    { awardableId, name }
+  );
+  if (data.awardEmojiAdd.errors?.length > 0) {
+    throw new Error(`Failed to add emoji reaction: ${data.awardEmojiAdd.errors.join(", ")}`);
+  }
+  return data.awardEmojiAdd.awardEmoji;
+}
+
+async function listGraphQLAwardEmoji(awardableId: string): Promise<any[]> {
+  const data = await executeGraphQL<{
+    awardable: { awardEmoji: { nodes: { name: string; user: { username: string } }[] } } | null;
+  }>(
+    `query($id: AwardableID!) {
+      awardable(id: $id) {
+        awardEmoji { nodes { name user { username } } }
+      }
+    }`,
+    { id: awardableId }
+  );
+  return data.awardable?.awardEmoji?.nodes ?? [];
+}
+
+async function removeGraphQLAwardEmoji(awardableId: string, name: string): Promise<any> {
+  const data = await executeGraphQL<{
+    awardEmojiRemove: { awardEmoji: { name: string } | null; errors: string[] };
+  }>(
+    `mutation($awardableId: AwardableID!, $name: String!) {
+      awardEmojiRemove(input: { awardableId: $awardableId, name: $name }) {
+        awardEmoji { name }
+        errors
+      }
+    }`,
+    { awardableId, name }
+  );
+  if (data.awardEmojiRemove.errors?.length > 0) {
+    throw new Error(`Failed to remove emoji reaction: ${data.awardEmojiRemove.errors.join(", ")}`);
+  }
+  return data.awardEmojiRemove.awardEmoji;
+}
+
 // --- Incident Timeline Events ---
 
 /**
@@ -3813,6 +3884,51 @@ async function deleteMergeRequestNote(
     const errorText = await response.text();
     throw new Error(`GitLab API error: ${response.status} ${response.statusText}\n${errorText}`);
   }
+}
+
+// --- Emoji Reactions (REST) ---
+
+function buildAwardEmojiPath(
+  entity: "merge_requests" | "issues",
+  projectId: string,
+  entityIid: string,
+  opts?: { noteId?: string; discussionId?: string; awardId?: string }
+): string {
+  projectId = decodeURIComponent(projectId);
+  const pp = encodeURIComponent(getEffectiveProjectId(projectId));
+  let path = `${getEffectiveApiUrl()}/projects/${pp}/${entity}/${entityIid}`;
+  if (opts?.noteId) {
+    path = opts.discussionId
+      ? `${path}/discussions/${opts.discussionId}/notes/${opts.noteId}`
+      : `${path}/notes/${opts.noteId}`;
+  }
+  path += "/award_emoji";
+  if (opts?.awardId) path += `/${opts.awardId}`;
+  return path;
+}
+
+async function createRestAwardEmoji(path: string, name: string): Promise<any> {
+  const response = await fetch(path, {
+    ...getFetchConfig(),
+    method: "POST",
+    body: JSON.stringify({ name }),
+  });
+  await handleGitLabError(response);
+  return response.json();
+}
+
+async function listRestAwardEmoji(path: string): Promise<any[]> {
+  const response = await fetch(path, getFetchConfig());
+  await handleGitLabError(response);
+  return response.json() as Promise<any[]>;
+}
+
+async function deleteRestAwardEmoji(path: string): Promise<void> {
+  const response = await fetch(path, {
+    ...getFetchConfig(),
+    method: "DELETE",
+  });
+  await handleGitLabError(response);
 }
 
 async function getMergeRequestNote(
@@ -5742,6 +5858,7 @@ async function listGroupProjects(
     url.searchParams.append("with_custom_attributes", options.with_custom_attributes.toString());
   if (options.with_security_reports !== undefined)
     url.searchParams.append("with_security_reports", options.with_security_reports.toString());
+  if (options.topic) url.searchParams.append("topic", options.topic);
 
   const response = await fetch(url.toString(), {
     ...getFetchConfig(),
@@ -8020,6 +8137,49 @@ async function handleToolCall(params: any) {
         };
       }
 
+
+      case "list_merge_request_emoji_reactions": {
+        const args = ListMergeRequestEmojiReactionsSchema.parse(params.arguments);
+        const path = buildAwardEmojiPath("merge_requests", args.project_id, args.merge_request_iid);
+        const result = await listRestAwardEmoji(path);
+        return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
+      }
+
+      case "list_merge_request_note_emoji_reactions": {
+        const args = ListMergeRequestNoteEmojiReactionsSchema.parse(params.arguments);
+        const path = buildAwardEmojiPath("merge_requests", args.project_id, args.merge_request_iid, { noteId: args.note_id, discussionId: args.discussion_id });
+        const result = await listRestAwardEmoji(path);
+        return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
+      }
+
+      case "create_merge_request_emoji_reaction": {
+        const args = CreateMergeRequestEmojiReactionSchema.parse(params.arguments);
+        const path = buildAwardEmojiPath("merge_requests", args.project_id, args.merge_request_iid);
+        const result = await createRestAwardEmoji(path, args.name);
+        return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
+      }
+
+      case "delete_merge_request_emoji_reaction": {
+        const args = DeleteMergeRequestEmojiReactionSchema.parse(params.arguments);
+        const path = buildAwardEmojiPath("merge_requests", args.project_id, args.merge_request_iid, { awardId: args.award_id });
+        await deleteRestAwardEmoji(path);
+        return { content: [{ type: "text", text: "Merge request emoji reaction deleted successfully" }] };
+      }
+
+      case "create_merge_request_note_emoji_reaction": {
+        const args = CreateMergeRequestNoteEmojiReactionSchema.parse(params.arguments);
+        const path = buildAwardEmojiPath("merge_requests", args.project_id, args.merge_request_iid, { noteId: args.note_id, discussionId: args.discussion_id });
+        const result = await createRestAwardEmoji(path, args.name);
+        return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
+      }
+
+      case "delete_merge_request_note_emoji_reaction": {
+        const args = DeleteMergeRequestNoteEmojiReactionSchema.parse(params.arguments);
+        const path = buildAwardEmojiPath("merge_requests", args.project_id, args.merge_request_iid, { noteId: args.note_id, discussionId: args.discussion_id, awardId: args.award_id });
+        await deleteRestAwardEmoji(path);
+        return { content: [{ type: "text", text: "Merge request note emoji reaction deleted successfully" }] };
+      }
+
       case "update_issue_note": {
         const args = UpdateIssueNoteSchema.parse(params.arguments);
         const note = await updateIssueNote(
@@ -8047,6 +8207,49 @@ async function handleToolCall(params: any) {
         return {
           content: [{ type: "text", text: JSON.stringify(note, null, 2) }],
         };
+      }
+
+
+      case "list_issue_emoji_reactions": {
+        const args = ListIssueEmojiReactionsSchema.parse(params.arguments);
+        const path = buildAwardEmojiPath("issues", args.project_id, args.issue_iid);
+        const result = await listRestAwardEmoji(path);
+        return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
+      }
+
+      case "list_issue_note_emoji_reactions": {
+        const args = ListIssueNoteEmojiReactionsSchema.parse(params.arguments);
+        const path = buildAwardEmojiPath("issues", args.project_id, args.issue_iid, { noteId: args.note_id, discussionId: args.discussion_id });
+        const result = await listRestAwardEmoji(path);
+        return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
+      }
+
+      case "create_issue_emoji_reaction": {
+        const args = CreateIssueEmojiReactionSchema.parse(params.arguments);
+        const path = buildAwardEmojiPath("issues", args.project_id, args.issue_iid);
+        const result = await createRestAwardEmoji(path, args.name);
+        return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
+      }
+
+      case "delete_issue_emoji_reaction": {
+        const args = DeleteIssueEmojiReactionSchema.parse(params.arguments);
+        const path = buildAwardEmojiPath("issues", args.project_id, args.issue_iid, { awardId: args.award_id });
+        await deleteRestAwardEmoji(path);
+        return { content: [{ type: "text", text: "Issue emoji reaction deleted successfully" }] };
+      }
+
+      case "create_issue_note_emoji_reaction": {
+        const args = CreateIssueNoteEmojiReactionSchema.parse(params.arguments);
+        const path = buildAwardEmojiPath("issues", args.project_id, args.issue_iid, { noteId: args.note_id, discussionId: args.discussion_id });
+        const result = await createRestAwardEmoji(path, args.name);
+        return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
+      }
+
+      case "delete_issue_note_emoji_reaction": {
+        const args = DeleteIssueNoteEmojiReactionSchema.parse(params.arguments);
+        const path = buildAwardEmojiPath("issues", args.project_id, args.issue_iid, { noteId: args.note_id, discussionId: args.discussion_id, awardId: args.award_id });
+        await deleteRestAwardEmoji(path);
+        return { content: [{ type: "text", text: "Issue note emoji reaction deleted successfully" }] };
       }
 
       case "get_merge_request": {
@@ -8678,6 +8881,46 @@ async function handleToolCall(params: any) {
         return {
           content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
         };
+      }
+
+
+      case "list_work_item_emoji_reactions": {
+        const args = ListWorkItemEmojiReactionsSchema.parse(params.arguments);
+        const { workItemGID } = await resolveWorkItemGID(args.project_id, args.iid);
+        const result = await listGraphQLAwardEmoji(workItemGID);
+        return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
+      }
+
+      case "list_work_item_note_emoji_reactions": {
+        const args = ListWorkItemNoteEmojiReactionsSchema.parse(params.arguments);
+        const result = await listGraphQLAwardEmoji(args.note_id);
+        return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
+      }
+
+      case "create_work_item_emoji_reaction": {
+        const args = CreateWorkItemEmojiReactionSchema.parse(params.arguments);
+        const { workItemGID } = await resolveWorkItemGID(args.project_id, args.iid);
+        const result = await addGraphQLAwardEmoji(workItemGID, args.name);
+        return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
+      }
+
+      case "delete_work_item_emoji_reaction": {
+        const args = DeleteWorkItemEmojiReactionSchema.parse(params.arguments);
+        const { workItemGID } = await resolveWorkItemGID(args.project_id, args.iid);
+        const result = await removeGraphQLAwardEmoji(workItemGID, args.name);
+        return { content: [{ type: "text", text: JSON.stringify(result ?? { status: "success", message: "Work item emoji reaction removed" }, null, 2) }] };
+      }
+
+      case "create_work_item_note_emoji_reaction": {
+        const args = CreateWorkItemNoteEmojiReactionSchema.parse(params.arguments);
+        const result = await addGraphQLAwardEmoji(args.note_id, args.name);
+        return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
+      }
+
+      case "delete_work_item_note_emoji_reaction": {
+        const args = DeleteWorkItemNoteEmojiReactionSchema.parse(params.arguments);
+        const result = await removeGraphQLAwardEmoji(args.note_id, args.name);
+        return { content: [{ type: "text", text: JSON.stringify(result ?? { status: "success", message: "Work item note emoji reaction removed" }, null, 2) }] };
       }
 
       case "get_timeline_events": {
@@ -9799,16 +10042,63 @@ async function startStreamableHTTPServer(): Promise<void> {
     const gitlabBaseUrl = GITLAB_API_URL.replace(/\/api\/v4\/?$/, "").replace(/\/$/, "");
     const issuerUrl = new URL(MCP_SERVER_URL!);
     const oauthProvider = createGitLabOAuthProvider(gitlabBaseUrl, GITLAB_OAUTH_APP_ID!, "GitLab MCP Server", GITLAB_READ_ONLY_MODE, GITLAB_OAUTH_SCOPES);
+    const scopesSupported = GITLAB_OAUTH_SCOPES ?? ["api", "read_api", "read_user"];
 
-    // Mounts /.well-known/oauth-authorization-server,
-    //        /.well-known/oauth-protected-resource,
-    //        /authorize, /token, /register, /revoke
+    // When server URL has a path (e.g. behind Kong), the SDK's well-known metadata
+    // advertises root-level endpoints. Override to use path-prefixed endpoints.
+    const issuerPath = issuerUrl.pathname.replace(/\/$/, "");
+    if (issuerPath) {
+      const routedBaseUrl = `${issuerUrl.origin}${issuerPath}`;
+      const authorizationServerMetadata = {
+        issuer: issuerUrl.href,
+        authorization_endpoint: `${routedBaseUrl}/authorize`,
+        token_endpoint: `${routedBaseUrl}/token`,
+        registration_endpoint: `${routedBaseUrl}/register`,
+        revocation_endpoint: `${routedBaseUrl}/revoke`,
+        response_types_supported: ["code"],
+        code_challenge_methods_supported: ["S256"],
+        token_endpoint_auth_methods_supported: ["client_secret_post", "none"],
+        grant_types_supported: ["authorization_code", "refresh_token"],
+        scopes_supported: scopesSupported,
+        revocation_endpoint_auth_methods_supported: ["client_secret_post"],
+      };
+      const protectedResourceMetadata = {
+        resource: issuerUrl.href,
+        authorization_servers: [issuerUrl.href],
+        scopes_supported: scopesSupported,
+        resource_name: "GitLab MCP Server",
+      };
+      const authorizationMetadataRoutes = [
+        "/.well-known/oauth-authorization-server",
+        "/.well-known/oauth-authorization-server/*path",
+      ];
+      const protectedResourceRoutes = [
+        "/.well-known/oauth-protected-resource",
+        "/.well-known/oauth-protected-resource/*path",
+      ];
+
+      app.get(authorizationMetadataRoutes, (_req: Request, res: Response) => {
+        res.json(authorizationServerMetadata);
+      });
+
+      app.get(protectedResourceRoutes, (_req: Request, res: Response) => {
+        res.json(protectedResourceMetadata);
+      });
+
+      logger.info(
+        { issuerPath },
+        "Serving path-aware OAuth metadata for reverse-proxy deployments"
+      );
+    }
+
+    // Mounts /.well-known/oauth-authorization-server (shadowed above when basePath set),
+    //        /.well-known/oauth-protected-resource, /authorize, /token, /register, /revoke
     app.use(
       mcpAuthRouter({
         provider: oauthProvider,
         issuerUrl,
         baseUrl: issuerUrl,
-        scopesSupported: GITLAB_OAUTH_SCOPES ?? ["api", "read_api", "read_user"],
+        scopesSupported,
         resourceName: "GitLab MCP Server",
       })
     );

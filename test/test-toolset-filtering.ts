@@ -30,8 +30,8 @@ const MCP_PORT_BASE = 3200;
 
 // Known tool counts per toolset (from TOOLSET_DEFINITIONS)
 const TOOLSET_TOOL_COUNTS: Record<string, number> = {
-  merge_requests: 34,
-  issues: 14,
+  merge_requests: 40,
+  issues: 20,
   repositories: 7,
   branches: 4,
   projects: 8,
@@ -42,7 +42,7 @@ const TOOLSET_TOOL_COUNTS: Record<string, number> = {
   releases: 7,
   users: 5,
   search: 3,
-  workitems: 12,
+  workitems: 18,
   webhooks: 3,
 };
 
@@ -379,6 +379,8 @@ describe("Toolset Filtering", { concurrency: 1 }, () => {
       "list_issue_links",
       "list_issue_discussions",
       "get_issue_link",
+      "list_issue_emoji_reactions",
+      "list_issue_note_emoji_reactions",
     ];
 
     const writeIssueTools = [
@@ -390,6 +392,10 @@ describe("Toolset Filtering", { concurrency: 1 }, () => {
       "create_issue_link",
       "delete_issue_link",
       "create_note",
+      "create_issue_emoji_reaction",
+      "delete_issue_emoji_reaction",
+      "create_issue_note_emoji_reaction",
+      "delete_issue_note_emoji_reaction",
     ];
 
     before(async () => {

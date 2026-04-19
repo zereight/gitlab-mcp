@@ -565,7 +565,7 @@ export const GitLabRepositorySchema = z.object({
   http_url_to_repo: z.string().optional(),
   created_at: z.string().optional(),
   last_activity_at: z.string().optional(),
-  default_branch: z.string().optional(),
+  default_branch: z.string().nullable().optional(),
   namespace: z
     .object({
       id: z.coerce.string(),
@@ -667,7 +667,7 @@ export const FileOperationSchema = z.object({
 export const GitLabTreeItemSchema = z.object({
   id: z.string(),
   name: z.string(),
-  type: z.enum(["tree", "blob"]),
+  type: z.enum(["tree", "blob", "commit"]),
   path: z.string(),
   mode: z.string(),
 });
@@ -1353,7 +1353,7 @@ export const CreateIssueSchema = ProjectParamsSchema.extend({
   title: z.string().describe("Issue title"),
   description: z.string().optional().describe("Issue description"),
   assignee_ids: z.array(z.coerce.number()).optional().describe("Array of user IDs to assign"),
-  labels: z.array(z.string()).optional().describe("Array of label names"),
+  labels: coerceStringArray.optional().describe("Array of label names"),
   milestone_id: z.coerce.string().optional().describe("Milestone ID to assign"),
   issue_type: z
     .enum(["issue", "incident", "test_case", "task"])
@@ -1374,7 +1374,7 @@ const MergeRequestOptionsSchema = {
     .array(z.coerce.number())
     .optional()
     .describe("The ID of the users to assign as reviewers of the MR"),
-  labels: z.array(z.string()).optional().describe("Labels for the MR"),
+  labels: coerceStringArray.optional().describe("Labels for the MR"),
   draft: z.coerce.boolean().optional().describe("Create as draft merge request"),
   allow_collaboration: z.coerce.boolean().optional().describe("Allow commits from upstream members"),
   remove_source_branch: z
@@ -1430,7 +1430,7 @@ export const UpdateMergeRequestSchema = GetMergeRequestSchema.extend({
     .array(z.coerce.number())
     .optional()
     .describe("The ID of the users to assign as reviewers of the MR"),
-  labels: z.array(z.string()).optional().describe("Labels for the MR"),
+  labels: coerceStringArray.optional().describe("Labels for the MR"),
   state_event: z
     .enum(["close", "reopen"])
     .optional()
@@ -1654,7 +1654,7 @@ export const ListIssuesSchema = z
     created_after: z.string().optional().describe("Return issues created after the given time"),
     created_before: z.string().optional().describe("Return issues created before the given time"),
     due_date: z.string().optional().describe("Return issues that have the due date"),
-    labels: z.array(z.string()).optional().describe("Array of label names"),
+    labels: coerceStringArray.optional().describe("Array of label names"),
     milestone: z.string().optional().describe("Milestone title"),
 
     issue_type: z
@@ -1731,7 +1731,7 @@ export const ListMergeRequestsSchema = z
       .string()
       .optional()
       .describe("Return merge requests updated before the given time"),
-    labels: z.array(z.string()).optional().describe("Array of label names"),
+    labels: coerceStringArray.optional().describe("Array of label names"),
     milestone: z.string().optional().describe("Milestone title"),
     scope: z
       .enum(["created_by_me", "assigned_to_me", "all"])
@@ -1890,6 +1890,7 @@ export const ListProjectsSchema = z
       .optional()
       .describe("Filter projects with merge requests feature enabled"),
     min_access_level: z.coerce.number().optional().describe("Filter by minimum access level"),
+    topic: z.string().optional().describe("Filter by topic (projects tagged with this topic)"),
   })
   .merge(PaginationOptionsSchema);
 
@@ -1967,6 +1968,7 @@ export const ListGroupProjectsSchema = z
     statistics: z.coerce.boolean().optional().describe("Include project statistics"),
     with_custom_attributes: z.coerce.boolean().optional().describe("Include custom attributes"),
     with_security_reports: z.coerce.boolean().optional().describe("Include security reports"),
+    topic: z.string().optional().describe("Filter by topic (projects tagged with this topic)"),
   })
   .merge(PaginationOptionsSchema);
 
@@ -2428,7 +2430,7 @@ export const MyIssuesSchema = z.object({
     .enum(["opened", "closed", "all"])
     .optional()
     .describe("Return issues with a specific state (default: opened)"),
-  labels: z.array(z.string()).optional().describe("Array of label names to filter by"),
+  labels: coerceStringArray.optional().describe("Array of label names to filter by"),
   milestone: z.string().optional().describe("Milestone title to filter by"),
   search: z.string().optional().describe("Search for specific terms in title and description"),
   created_after: z
@@ -3224,6 +3226,120 @@ export const ListCustomFieldDefinitionsSchema = z.object({
     .optional()
     .default("issue")
     .describe("The work item type to list custom field definitions for. Defaults to 'issue'."),
+});
+
+
+// --- Emoji Reaction schemas (REST: MRs and Issues) ---
+
+const emojiNameField = z.string().describe("Name of the emoji without colons (e.g. 'thumbsup', 'rocket', 'eyes')");
+const awardIdField = z.coerce.string().describe("The ID of the emoji reaction to delete");
+const noteEmojiDiscussionField = z.coerce.string().optional().describe("The ID of a discussion thread. Required for notes that are discussion replies; omit for top-level notes.");
+
+export const CreateMergeRequestEmojiReactionSchema = ProjectParamsSchema.extend({
+  merge_request_iid: z.coerce.string().describe("The IID of a merge request"),
+  name: emojiNameField,
+});
+
+export const DeleteMergeRequestEmojiReactionSchema = ProjectParamsSchema.extend({
+  merge_request_iid: z.coerce.string().describe("The IID of a merge request"),
+  award_id: awardIdField,
+});
+
+export const CreateMergeRequestNoteEmojiReactionSchema = ProjectParamsSchema.extend({
+  merge_request_iid: z.coerce.string().describe("The IID of a merge request"),
+  note_id: z.coerce.string().describe("The ID of a note (comment or thread reply)"),
+  discussion_id: noteEmojiDiscussionField,
+  name: emojiNameField,
+});
+
+export const DeleteMergeRequestNoteEmojiReactionSchema = ProjectParamsSchema.extend({
+  merge_request_iid: z.coerce.string().describe("The IID of a merge request"),
+  note_id: z.coerce.string().describe("The ID of a note (comment or thread reply)"),
+  discussion_id: noteEmojiDiscussionField,
+  award_id: awardIdField,
+});
+
+export const CreateIssueEmojiReactionSchema = ProjectParamsSchema.extend({
+  issue_iid: z.coerce.string().describe("The IID of an issue"),
+  name: emojiNameField,
+});
+
+export const DeleteIssueEmojiReactionSchema = ProjectParamsSchema.extend({
+  issue_iid: z.coerce.string().describe("The IID of an issue"),
+  award_id: awardIdField,
+});
+
+export const CreateIssueNoteEmojiReactionSchema = ProjectParamsSchema.extend({
+  issue_iid: z.coerce.string().describe("The IID of an issue"),
+  note_id: z.coerce.string().describe("The ID of a note (comment or thread reply)"),
+  discussion_id: noteEmojiDiscussionField,
+  name: emojiNameField,
+});
+
+export const DeleteIssueNoteEmojiReactionSchema = ProjectParamsSchema.extend({
+  issue_iid: z.coerce.string().describe("The IID of an issue"),
+  note_id: z.coerce.string().describe("The ID of a note (comment or thread reply)"),
+  discussion_id: noteEmojiDiscussionField,
+  award_id: awardIdField,
+});
+
+// --- Emoji Reaction schemas (GraphQL: Work Items) ---
+
+export const CreateWorkItemEmojiReactionSchema = z.object({
+  project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
+  iid: z.coerce.number().describe("The internal ID of the work item"),
+  name: emojiNameField,
+});
+
+export const DeleteWorkItemEmojiReactionSchema = z.object({
+  project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
+  iid: z.coerce.number().describe("The internal ID of the work item"),
+  name: emojiNameField,
+});
+
+export const CreateWorkItemNoteEmojiReactionSchema = z.object({
+  project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
+  iid: z.coerce.number().describe("The internal ID of the work item"),
+  note_id: z.string().describe("The GraphQL GID of the note (e.g. 'gid://gitlab/Note/123' from list_work_item_notes)"),
+  name: emojiNameField,
+});
+
+export const DeleteWorkItemNoteEmojiReactionSchema = z.object({
+  project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
+  iid: z.coerce.number().describe("The internal ID of the work item"),
+  note_id: z.string().describe("The GraphQL GID of the note (e.g. 'gid://gitlab/Note/123' from list_work_item_notes)"),
+  name: emojiNameField,
+});
+
+export const ListMergeRequestEmojiReactionsSchema = ProjectParamsSchema.extend({
+  merge_request_iid: z.coerce.string().describe("The IID of a merge request"),
+});
+
+export const ListMergeRequestNoteEmojiReactionsSchema = ProjectParamsSchema.extend({
+  merge_request_iid: z.coerce.string().describe("The IID of a merge request"),
+  note_id: z.coerce.string().describe("The ID of a note (comment or thread reply)"),
+  discussion_id: noteEmojiDiscussionField,
+});
+
+export const ListIssueEmojiReactionsSchema = ProjectParamsSchema.extend({
+  issue_iid: z.coerce.string().describe("The IID of an issue"),
+});
+
+export const ListIssueNoteEmojiReactionsSchema = ProjectParamsSchema.extend({
+  issue_iid: z.coerce.string().describe("The IID of an issue"),
+  note_id: z.coerce.string().describe("The ID of a note (comment or thread reply)"),
+  discussion_id: noteEmojiDiscussionField,
+});
+
+export const ListWorkItemEmojiReactionsSchema = z.object({
+  project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
+  iid: z.coerce.number().describe("The internal ID of the work item"),
+});
+
+export const ListWorkItemNoteEmojiReactionsSchema = z.object({
+  project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
+  iid: z.coerce.number().describe("The internal ID of the work item"),
+  note_id: z.string().describe("The GraphQL GID of the note (e.g. 'gid://gitlab/Note/123' from list_work_item_notes)"),
 });
 
 // --- Incident Timeline Event schemas ---
