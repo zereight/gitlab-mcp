@@ -4295,6 +4295,7 @@ async function createRepository(
       initialize_with_readme: options.initialize_with_readme,
       default_branch: "main",
       path: options.name.toLowerCase().replaceAll(/\s+/g, "-"),
+      ...(options.namespace_id !== undefined && { namespace_id: options.namespace_id }),
     }),
   });
 
