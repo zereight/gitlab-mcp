@@ -9,6 +9,7 @@ import {
   GITLAB_MCP_OAUTH,
   GITLAB_OAUTH_APP_ID,
   GITLAB_OAUTH_SCOPES,
+  GITLAB_OAUTH_CALLBACK_PROXY,
   GITLAB_PERSONAL_ACCESS_TOKEN,
   GITLAB_POOL_MAX_SIZE,
   GITLAB_READ_ONLY_MODE,
@@ -10041,7 +10042,10 @@ async function startStreamableHTTPServer(): Promise<void> {
     app.set("trust proxy", 1);
     const gitlabBaseUrl = GITLAB_API_URL.replace(/\/api\/v4\/?$/, "").replace(/\/$/, "");
     const issuerUrl = new URL(MCP_SERVER_URL!);
-    const oauthProvider = createGitLabOAuthProvider(gitlabBaseUrl, GITLAB_OAUTH_APP_ID!, "GitLab MCP Server", GITLAB_READ_ONLY_MODE, GITLAB_OAUTH_SCOPES);
+    const callbackUrl = GITLAB_OAUTH_CALLBACK_PROXY
+      ? `${issuerUrl.origin}${issuerUrl.pathname.replace(/\/$/, "")}/callback`
+      : undefined;
+    const oauthProvider = createGitLabOAuthProvider(gitlabBaseUrl, GITLAB_OAUTH_APP_ID!, "GitLab MCP Server", GITLAB_READ_ONLY_MODE, GITLAB_OAUTH_SCOPES, GITLAB_OAUTH_CALLBACK_PROXY, callbackUrl);
     const scopesSupported = GITLAB_OAUTH_SCOPES ?? ["api", "read_api", "read_user"];
 
     // When server URL has a path (e.g. behind Kong), the SDK's well-known metadata
@@ -10105,6 +10109,15 @@ async function startStreamableHTTPServer(): Promise<void> {
 
     // Expose provider so the /mcp route middleware can reference it
     (app as any)._mcpOAuthProvider = oauthProvider;
+
+    // Mount /callback route for callback proxy mode
+    if (GITLAB_OAUTH_CALLBACK_PROXY) {
+      const callbackPath = `${issuerUrl.pathname.replace(/\/$/, "")}/callback`;
+      app.get(callbackPath, (req: Request, res: Response, next: NextFunction) => {
+        oauthProvider.handleCallback(req, res).catch(next);
+      });
+      logger.info(`Callback proxy mode enabled — ${callbackPath} route mounted`);
+    }
   }
 
   // Build bearer-auth middleware — no-op unless GITLAB_MCP_OAUTH is enabled.
