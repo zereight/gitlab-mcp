@@ -1,0 +1,67 @@
+name: MCP Registry Publish
+
+on:
+  workflow_run:
+    workflows: ["NPM Publish"]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Git ref to publish, such as a release tag, branch, or SHA. Defaults to the current ref."
+        required: false
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout release commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || inputs.ref || github.sha }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22.21.1"
+          registry-url: "https://registry.npmjs.org/"
+
+      - name: Install mcp-publisher
+        run: |
+          curl -L "https://github.com/modelcontextprotocol/registry/releases/latest/download/mcp-publisher_$(uname -s | tr '[:upper:]' '[:lower:]')_$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/').tar.gz" | tar xz mcp-publisher
+          chmod +x mcp-publisher
+          echo "$PWD" >> "$GITHUB_PATH"
+
+      - name: Validate registry metadata
+        run: |
+          npm run release:mcp-registry -- --check
+          mcp-publisher validate server.json
+
+      - name: Wait for npm package
+        run: |
+          PACKAGE_NAME="$(node -p 'require("./package.json").name')"
+          PACKAGE_VERSION="$(node -p 'require("./package.json").version')"
+
+          for attempt in {1..12}; do
+            if npm view "${PACKAGE_NAME}@${PACKAGE_VERSION}" version; then
+              exit 0
+            fi
+
+            echo "Package ${PACKAGE_NAME}@${PACKAGE_VERSION} is not visible on npm yet. Retry ${attempt}/12..."
+            sleep 10
+          done
+
+          echo "Package ${PACKAGE_NAME}@${PACKAGE_VERSION} was not visible on npm after waiting."
+          exit 1
+
+      - name: Authenticate to MCP Registry
+        run: mcp-publisher login github-oidc
+
+      - name: Publish to MCP Registry
+        run: npm run release:mcp-registry
