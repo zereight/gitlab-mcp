@@ -69,6 +69,38 @@ Tests for different MCP transport protocols (stdio, SSE, streamable-http).
 npm run test:server
 ```
 
+### schema-tests.ts
+Tests for Zod schema validation used in GitLab MCP tools.
+
+**What it tests:**
+- GetFileContentsSchema validation
+- GitLabFileContentSchema validation
+- CreatePipelineSchema validation
+- CreateIssueNoteSchema validation
+- GetMergeRequestSchema validation
+- Input coercion and trimming
+- Required field handling
+
+**Running the tests:**
+```bash
+npm run test:schema
+```
+
+### test-json-schema.ts
+Tests for the Zod to JSON Schema conversion extension (`toJSONSchema`).
+
+**What it tests:**
+- Required field extraction from Zod schemas
+- Handling of fields with defaults (z.default)
+- Nullable and optional field handling
+- Nested objects with shared property names
+- Coerced fields (z.coerce)
+
+**Running the tests:**
+```bash
+npm run test:schema
+```
+
 ## Running All Tests
 
 To run the complete test suite:
