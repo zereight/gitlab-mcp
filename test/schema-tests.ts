@@ -21,7 +21,8 @@ import {
   CreateIssueSchema,
   ListIssuesSchema,
   ListMergeRequestsSchema,
-  GitLabTreeItemSchema
+  GitLabTreeItemSchema,
+  GetRepositoryTreeSchema
 } from '../schemas.js';
 
 interface TestResult {
@@ -742,6 +743,80 @@ function runGitLabTreeItemSchemaTests(): { passed: number; failed: number } {
   return { passed, failed };
 }
 
+function runGetRepositoryTreeSchemaTests(): { passed: number; failed: number } {
+  console.log('\n=== GetRepositoryTree Schema Tests ===');
+
+  const cases: { name: string; input: Record<string, unknown>; expected?: Record<string, unknown>; shouldFail?: boolean }[] = [
+    {
+      name: 'schema:get_repository_tree:minimal-project-id',
+      input: { project_id: 'my/project' },
+      expected: { project_id: 'my/project', path: undefined, ref: undefined, recursive: undefined, per_page: undefined, page_token: undefined, pagination: undefined },
+    },
+    {
+      name: 'schema:get_repository_tree:with-keyset-pagination',
+      input: { project_id: 'my/project', pagination: 'keyset', per_page: 100 },
+      expected: { project_id: 'my/project', pagination: 'keyset', per_page: 100 },
+    },
+    {
+      name: 'schema:get_repository_tree:page-token-for-next-page',
+      input: { project_id: 'my/project', pagination: 'keyset', per_page: 100, page_token: 'eyJpZCI6IjEyMyJ9' },
+      expected: { project_id: 'my/project', pagination: 'keyset', per_page: 100, page_token: 'eyJpZCI6IjEyMyJ9' },
+    },
+    {
+      name: 'schema:get_repository_tree:per-page-coerces-from-string',
+      input: { project_id: 'my/project', per_page: '50' },
+      expected: { project_id: 'my/project', per_page: 50 },
+    },
+    {
+      name: 'schema:get_repository_tree:recursive-coerces-from-string',
+      input: { project_id: 'my/project', recursive: 'true' },
+      expected: { project_id: 'my/project', recursive: true },
+    },
+    {
+      name: 'schema:get_repository_tree:with-path-and-ref',
+      input: { project_id: 'my/project', path: 'src/', ref: 'main' },
+      expected: { project_id: 'my/project', path: 'src/', ref: 'main' },
+    },
+  ];
+
+  let passed = 0;
+  let failed = 0;
+
+  cases.forEach(testCase => {
+    const result: TestResult = { name: testCase.name, status: 'failed' };
+    const parsed = GetRepositoryTreeSchema.safeParse(testCase.input);
+
+    if (testCase.shouldFail) {
+      result.status = parsed.success ? 'failed' : 'passed';
+      if (parsed.success) result.error = 'Expected schema validation to fail';
+    } else if (parsed.success) {
+      const expected = testCase.expected || {};
+      const matches = Object.entries(expected).every(([key, value]) => {
+        const actual = (parsed.data as Record<string, unknown>)[key];
+        return JSON.stringify(actual) === JSON.stringify(value);
+      });
+      if (matches) {
+        result.status = 'passed';
+      } else {
+        result.error = `Unexpected parsed result: ${JSON.stringify(parsed.data)}`;
+      }
+    } else {
+      result.error = parsed.error?.message || 'Schema validation failed';
+    }
+
+    if (result.status === 'passed') {
+      passed++;
+      console.log(`✅ ${result.name}`);
+    } else {
+      failed++;
+      console.log(`❌ ${result.name}: ${result.error}`);
+    }
+  });
+
+  console.log(`\nResults: ${passed} passed, ${failed} failed`);
+  return { passed, failed };
+}
+
 if (import.meta.url === `file://${process.argv[1]}`) {
   const getFileContentsResult = runGetFileContentsSchemaTests();
   const fileContentResult = runGitLabFileContentSchemaTests();
@@ -751,9 +826,10 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   const repositorySchemaResult = runGitLabRepositorySchemaTests();
   const labelsCoercionResult = runLabelsCoercionSchemaTests();
   const treeItemResult = runGitLabTreeItemSchemaTests();
+  const repositoryTreeResult = runGetRepositoryTreeSchemaTests();
 
-  const totalPassed = getFileContentsResult.passed + fileContentResult.passed + createPipelineResult.passed + createIssueNoteResult.passed + emojiReactionResult.passed + repositorySchemaResult.passed + labelsCoercionResult.passed + treeItemResult.passed;
-  const totalFailed = getFileContentsResult.failed + fileContentResult.failed + createPipelineResult.failed + createIssueNoteResult.failed + emojiReactionResult.failed + repositorySchemaResult.failed + labelsCoercionResult.failed + treeItemResult.failed;
+  const totalPassed = getFileContentsResult.passed + fileContentResult.passed + createPipelineResult.passed + createIssueNoteResult.passed + emojiReactionResult.passed + repositorySchemaResult.passed + labelsCoercionResult.passed + treeItemResult.passed + repositoryTreeResult.passed;
+  const totalFailed = getFileContentsResult.failed + fileContentResult.failed + createPipelineResult.failed + createIssueNoteResult.failed + emojiReactionResult.failed + repositorySchemaResult.failed + labelsCoercionResult.failed + treeItemResult.failed + repositoryTreeResult.failed;
 
   console.log(`\nTotal Results: ${totalPassed} passed, ${totalFailed} failed`);
 

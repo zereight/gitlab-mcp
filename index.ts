@@ -6831,11 +6831,12 @@ async function cancelPipelineJob(
 
 /**
  * Get the repository tree for a project
- * @param {string} projectId - The ID or URL-encoded path of the project
  * @param {GetRepositoryTreeOptions} options - Options for the tree
- * @returns {Promise<GitLabTreeItem[]>}
+ * @returns Parsed tree items plus optional keyset pagination metadata.
  */
-async function getRepositoryTree(options: GetRepositoryTreeOptions): Promise<GitLabTreeItem[]> {
+async function getRepositoryTree(
+  options: GetRepositoryTreeOptions
+): Promise<{ items: GitLabTreeItem[]; next_page_token?: string }> {
   options.project_id = decodeURIComponent(options.project_id); // Decode project_id within options
   const queryParams = new URLSearchParams();
   if (options.path) queryParams.append("path", options.path);
@@ -6861,7 +6862,12 @@ async function getRepositoryTree(options: GetRepositoryTreeOptions): Promise<Git
   }
 
   const data = await response.json();
-  return z.array(GitLabTreeItemSchema).parse(data);
+  const items = z.array(GitLabTreeItemSchema).parse(data);
+  const next_page_token =
+    response.headers.get("x-next-page-token") ||
+    (options.pagination === "keyset" ? response.headers.get("x-next-page") : null) ||
+    undefined;
+  return { items, next_page_token };
 }
 
 /**
@@ -9127,9 +9133,19 @@ async function handleToolCall(params: any) {
 
       case "get_repository_tree": {
         const args = GetRepositoryTreeSchema.parse(params.arguments);
-        const tree = await getRepositoryTree(args);
+        const { items, next_page_token } = await getRepositoryTree(args);
+        const result =
+          args.pagination === "keyset" || next_page_token
+            ? {
+                items,
+                ...(next_page_token ? { next_page_token } : {}),
+                pagination_note: next_page_token
+                  ? "Pass next_page_token as page_token with pagination=keyset to retrieve the next page."
+                  : "No next_page_token was returned; this is the final keyset page.",
+              }
+            : items;
         return {
-          content: [{ type: "text", text: JSON.stringify(tree, null, 2) }],
+          content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
         };
       }
 
