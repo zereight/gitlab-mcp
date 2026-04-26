@@ -691,7 +691,7 @@ export const GetRepositoryTreeSchema = z.object({
     .string()
     .optional()
     .describe(
-      "Pagination method. Use 'keyset' for keyset-based pagination (required for repositories with many files). When using keyset pagination, the response includes next_page_token if more pages are available."
+      "Pagination method. Use 'keyset' for keyset-based pagination (required for repositories with many files). Non-keyset calls keep the legacy array response for backward compatibility; that legacy response shape is deprecated and may be removed in a future major release. Keyset calls return a structured response with items and next_page_token when more pages are available."
     ),
 });
 

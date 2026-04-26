@@ -6831,9 +6831,8 @@ async function cancelPipelineJob(
 
 /**
  * Get the repository tree for a project
- * @param {string} projectId - The ID or URL-encoded path of the project
  * @param {GetRepositoryTreeOptions} options - Options for the tree
- * @returns {Promise<GitLabTreeItem[]>}
+ * @returns Parsed tree items plus optional keyset pagination metadata.
  */
 async function getRepositoryTree(
   options: GetRepositoryTreeOptions
@@ -6864,7 +6863,10 @@ async function getRepositoryTree(
 
   const data = await response.json();
   const items = z.array(GitLabTreeItemSchema).parse(data);
-  const next_page_token = response.headers.get("x-next-page-token") ?? undefined;
+  const next_page_token =
+    response.headers.get("x-next-page-token") ||
+    (options.pagination === "keyset" ? response.headers.get("x-next-page") : null) ||
+    undefined;
   return { items, next_page_token };
 }
 
@@ -9132,12 +9134,16 @@ async function handleToolCall(params: any) {
       case "get_repository_tree": {
         const args = GetRepositoryTreeSchema.parse(params.arguments);
         const { items, next_page_token } = await getRepositoryTree(args);
-        const result: Record<string, unknown> = { items };
-        if (next_page_token) {
-          result.next_page_token = next_page_token;
-          result.pagination_note =
-            "Pass next_page_token as page_token with pagination=keyset to retrieve the next page.";
-        }
+        const result =
+          args.pagination === "keyset" || next_page_token
+            ? {
+                items,
+                ...(next_page_token ? { next_page_token } : {}),
+                pagination_note: next_page_token
+                  ? "Pass next_page_token as page_token with pagination=keyset to retrieve the next page."
+                  : "No next_page_token was returned; this is the final keyset page.",
+              }
+            : items;
         return {
           content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
         };

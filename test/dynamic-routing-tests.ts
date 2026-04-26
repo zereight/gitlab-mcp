@@ -262,6 +262,63 @@ describe('Dynamic Routing and Authentication Scenarios', () => {
 
       await client.disconnect();
     });
+
+    test('should preserve legacy tree array response and return keyset metadata when requested', async () => {
+      const client = new CustomHeaderClient({
+        headers: {
+          'authorization': `Bearer ${MOCK_TOKEN_HEADER}`,
+          'X-GitLab-API-URL': `${headerMockServer.getUrl()}/api/v4`,
+        }
+      });
+      await client.connect(mcpUrl);
+
+      headerMockServer.clearCustomHandlers();
+      headerMockServer.addMockHandler('get', '/projects/4/repository/tree', (req: Request, res: Response) => {
+        assert.strictEqual(req.headers['authorization'], `Bearer ${MOCK_TOKEN_HEADER}`);
+        assert.strictEqual(req.query.pagination, undefined);
+        res.json([createMockTreeItem('legacy-blob')]);
+      });
+
+      const legacyResult = await client.callTool('get_repository_tree', { project_id: '4' });
+      const legacyContent = JSON.parse((legacyResult.content[0] as any).text);
+      assert.ok(Array.isArray(legacyContent));
+      assert.strictEqual(legacyContent[0].id, 'legacy-blob');
+
+      headerMockServer.clearCustomHandlers();
+      headerMockServer.addMockHandler('get', '/projects/4/repository/tree', (req: Request, res: Response) => {
+        assert.strictEqual(req.headers['authorization'], `Bearer ${MOCK_TOKEN_HEADER}`);
+        assert.strictEqual(req.query.pagination, 'keyset');
+        res.set('x-next-page-token', 'token-blob');
+        res.json([createMockTreeItem('keyset-blob')]);
+      });
+
+      const keysetResult = await client.callTool('get_repository_tree', {
+        project_id: '4',
+        pagination: 'keyset',
+      });
+      const keysetContent = JSON.parse((keysetResult.content[0] as any).text);
+      assert.ok(!Array.isArray(keysetContent));
+      assert.strictEqual(keysetContent.items[0].id, 'keyset-blob');
+      assert.strictEqual(keysetContent.next_page_token, 'token-blob');
+
+      headerMockServer.clearCustomHandlers();
+      headerMockServer.addMockHandler('get', '/projects/4/repository/tree', (req: Request, res: Response) => {
+        assert.strictEqual(req.headers['authorization'], `Bearer ${MOCK_TOKEN_HEADER}`);
+        assert.strictEqual(req.query.pagination, 'keyset');
+        res.set('x-next-page', 'fallback-token');
+        res.json([createMockTreeItem('fallback-blob')]);
+      });
+
+      const fallbackResult = await client.callTool('get_repository_tree', {
+        project_id: '4',
+        pagination: 'keyset',
+      });
+      const fallbackContent = JSON.parse((fallbackResult.content[0] as any).text);
+      assert.strictEqual(fallbackContent.items[0].id, 'fallback-blob');
+      assert.strictEqual(fallbackContent.next_page_token, 'fallback-token');
+
+      await client.disconnect();
+    });
   });
 });
 
