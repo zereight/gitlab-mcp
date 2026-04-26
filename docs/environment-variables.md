@@ -72,6 +72,14 @@ Default:
 
 Enables the server-side MCP OAuth proxy mode for remote MCP clients.
 
+### `GITLAB_OAUTH_CALLBACK_PROXY`
+
+Set to `true` to make the MCP server handle GitLab's OAuth callback at
+`{MCP_SERVER_URL}/callback`, then redirect the client with a proxy authorization
+code. This keeps the GitLab OAuth Application redirect URI fixed to one MCP
+server callback URL instead of requiring each MCP client's callback URL to be
+registered in GitLab.
+
 ### `MCP_SERVER_URL`
 
 Public HTTPS MCP server base URL required for MCP OAuth mode.
@@ -256,6 +264,7 @@ Maximum GitLab client pool size.
 ## Related Guides
 
 - [OAuth2 Authentication Setup Guide](./oauth-setup.md)
+- [GitLab MCP OAuth Callback Proxy](./oauth-callback-proxy.md)
 - [Claude Code Setup Guide](./claude-code-setup.md)
 - [VS Code Setup Guide](./vscode-setup.md)
 - [GitHub Copilot Setup Guide](./copilot-setup.md)

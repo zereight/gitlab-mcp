@@ -173,12 +173,14 @@ exchanging credentials with GitLab on behalf of the client.
 | `GITLAB_OAUTH_APP_ID` | ✅       | GitLab OAuth Application ID                                |
 | `MCP_SERVER_URL`      | ✅       | Public HTTPS URL of this MCP server                        |
 | `STREAMABLE_HTTP`     | ✅       | Must be `true`                                             |
+| `GITLAB_OAUTH_CALLBACK_PROXY` | optional | Set to `true` to use the MCP server's fixed `/callback` URL |
 | `GITLAB_OAUTH_SCOPES` | optional | Comma-separated scopes (default: `api,read_api,read_user`) |
 
 ```shell
 docker run -i --rm \
   -e HOST=0.0.0.0 \
   -e GITLAB_MCP_OAUTH=true \
+  -e GITLAB_OAUTH_CALLBACK_PROXY=true \
   -e STREAMABLE_HTTP=true \
   -e MCP_SERVER_URL=https://your-server.example.com \
   -e GITLAB_API_URL="https://gitlab.com/api/v4" \
@@ -249,6 +251,7 @@ Commonly referenced variables:
 - `GITLAB_USE_OAUTH`
 - `REMOTE_AUTHORIZATION`
 - `GITLAB_MCP_OAUTH`
+- `GITLAB_OAUTH_CALLBACK_PROXY`
 
 The reference document also covers:
 
@@ -258,6 +261,8 @@ The reference document also covers:
 - dynamic tool discovery via `discover_tools` (on-demand toolset activation)
 - transport and session variables
 - proxy and TLS variables
+
+For callback proxy mode details, see [GitLab MCP OAuth Callback Proxy](./docs/oauth-callback-proxy.md).
 
 ### Remote Authorization Setup (Multi-User Support)
 
