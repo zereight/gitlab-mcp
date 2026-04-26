@@ -756,6 +756,12 @@ export const CreateRepositoryOptionsSchema = z.object({
   description: z.string().optional(),
   visibility: z.enum(["private", "internal", "public"]).optional(), // Changed from private to match GitLab API
   initialize_with_readme: z.coerce.boolean().optional(), // Changed from auto_init to match GitLab API
+  namespace_id: z
+    .union([z.coerce.number(), z.string()])
+    .optional()
+    .describe(
+      "Namespace ID (numeric) or full path for the group/user to create the project under. Omit to use the authenticated user's personal namespace."
+    ),
 });
 
 export const CreateIssueOptionsSchema = z.object({
@@ -1304,6 +1310,12 @@ export const CreateRepositorySchema = z.object({
     .optional()
     .describe("Repository visibility level"),
   initialize_with_readme: z.coerce.boolean().optional().describe("Initialize with README.md"),
+  namespace_id: z
+    .union([z.coerce.number(), z.string()])
+    .optional()
+    .describe(
+      "Namespace ID (numeric) or full path to create the project under. Omit to use the authenticated user's personal namespace."
+    ),
 });
 
 export const GetFileContentsSchema = z
