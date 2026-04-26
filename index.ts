@@ -1281,6 +1281,22 @@ async function handleGitLabError(response: import("node-fetch").Response): Promi
  * @throws {Error} If GITLAB_ALLOWED_PROJECT_IDS is set and the requested project is not in the whitelist
  */
 function getEffectiveProjectId(projectId: string): string {
+  // Guard against z.coerce.string() converting undefined/null to literal strings
+  if (!projectId || projectId === "undefined" || projectId === "null") {
+    if (GITLAB_ALLOWED_PROJECT_IDS.length === 1) {
+      return GITLAB_ALLOWED_PROJECT_IDS[0];
+    }
+    if (GITLAB_ALLOWED_PROJECT_IDS.length > 1) {
+      throw new Error(
+        `Multiple projects allowed (${GITLAB_ALLOWED_PROJECT_IDS.join(", ")}). Please specify a project ID.`
+      );
+    }
+    if (GITLAB_PROJECT_ID) {
+      return GITLAB_PROJECT_ID;
+    }
+    throw new Error("No project ID provided and GITLAB_PROJECT_ID is not set");
+  }
+
   if (GITLAB_ALLOWED_PROJECT_IDS.length > 0) {
     // If there's only one allowed project, use it as default
     if (GITLAB_ALLOWED_PROJECT_IDS.length === 1 && !projectId) {
@@ -1509,16 +1525,10 @@ async function listIssues(
   // Add all query parameters
   Object.entries(options).forEach(([key, value]) => {
     if (value !== undefined) {
-      const keys = ["labels", "assignee_username"];
-      if (keys.includes(key)) {
-        if (Array.isArray(value)) {
-          // Handle array of labels
-          value.forEach(label => {
-            url.searchParams.append(`${key}[]`, label.toString());
-          });
-        } else if (value) {
-          url.searchParams.append(`${key}[]`, value.toString());
-        }
+      if (key === "labels" && Array.isArray(value)) {
+        url.searchParams.append(key, value.join(","));
+      } else if (key === "assignee_username" && Array.isArray(value)) {
+        value.forEach(v => url.searchParams.append(`${key}[]`, v.toString()));
       } else {
         url.searchParams.append(key, String(value));
       }
@@ -9390,7 +9400,7 @@ async function handleToolCall(params: any) {
 
         const mergeRequests = await listMergeRequests(project_id, cleanedOptions);
         return {
-          content: [{ type: "text", text: JSON.stringify(mergeRequests, null, 2) }],
+          content: [{ type: "text", text: JSON.stringify(mergeRequests ?? [], null, 2) }],
         };
       }
 
