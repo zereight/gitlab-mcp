@@ -307,6 +307,50 @@ describe("Callback Proxy Mode", () => {
     assert.notStrictEqual(second.status, 200);
   });
 
+  // ---- Client binding -----------------------------------------------------
+
+  test("proxy code cannot be redeemed by a different client_id", async () => {
+    const clientPKCE = generatePKCE();
+    const clientId = await registerClient(mcpBaseUrl, clientRedirectUri);
+    const otherClientId = await registerClient(
+      mcpBaseUrl,
+      "http://localhost:19998/oauth/callback"
+    );
+    const gitlabUrl = await authorize(
+      mcpBaseUrl, clientId, clientRedirectUri, clientPKCE.challenge, "state-client-binding"
+    );
+    const proxyState = gitlabUrl.searchParams.get("state")!;
+
+    const cb = await simulateGitLabCallback(mcpBaseUrl, "code-client-binding", proxyState);
+    const proxyCode = new URL(cb.location!).searchParams.get("code")!;
+
+    const result = await exchangeToken(
+      mcpBaseUrl, otherClientId, proxyCode, clientPKCE.verifier, clientRedirectUri
+    );
+    assert.notStrictEqual(result.status, 200);
+  });
+
+  test("proxy code cannot be redeemed with a different redirect_uri", async () => {
+    const clientPKCE = generatePKCE();
+    const clientId = await registerClient(mcpBaseUrl, clientRedirectUri);
+    const gitlabUrl = await authorize(
+      mcpBaseUrl, clientId, clientRedirectUri, clientPKCE.challenge, "state-redirect-binding"
+    );
+    const proxyState = gitlabUrl.searchParams.get("state")!;
+
+    const cb = await simulateGitLabCallback(mcpBaseUrl, "code-redirect-binding", proxyState);
+    const proxyCode = new URL(cb.location!).searchParams.get("code")!;
+
+    const result = await exchangeToken(
+      mcpBaseUrl,
+      clientId,
+      proxyCode,
+      clientPKCE.verifier,
+      "http://localhost:19998/oauth/callback"
+    );
+    assert.notStrictEqual(result.status, 200);
+  });
+
   // ---- Unknown state parameter -------------------------------------------
 
   test("callback with unknown state returns 400", async () => {

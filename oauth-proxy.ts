@@ -95,6 +95,7 @@ const CLIENT_CACHE_MAX_SIZE = 1000;
 
 /** Stored while user is on GitLab consent screen. Keyed by `state`. */
 interface PendingAuthTransaction {
+  clientId: string;
   clientRedirectUri: string;
   clientState: string | undefined;
   clientCodeChallenge: string;
@@ -105,8 +106,9 @@ interface PendingAuthTransaction {
 /** Stored after /callback exchanges the code. Keyed by proxy auth code. */
 interface StoredTokenEntry {
   tokens: OAuthTokens;
+  clientId: string;
   clientCodeChallenge: string; // for PKCE verification when client calls /token
-  redirectUri: string; // the fixed callback URI used with GitLab
+  clientRedirectUri: string;
   createdAt: number;
 }
 
@@ -251,7 +253,7 @@ class GitLabOAuthServerProvider implements OAuthServerProvider {
   // ---- Authorize ---------------------------------------------------------
 
   async authorize(
-    _client: OAuthClientInformationFull,
+    client: OAuthClientInformationFull,
     params: AuthorizationParams,
     res: Response
   ): Promise<void> {
@@ -277,6 +279,7 @@ class GitLabOAuthServerProvider implements OAuthServerProvider {
 
       // Store the client's original params so /callback can redirect back
       this._pendingAuth.set(proxyState, {
+        clientId: client.client_id,
         clientRedirectUri: params.redirectUri,
         clientState: params.state,
         clientCodeChallenge: params.codeChallenge,
@@ -337,7 +340,7 @@ class GitLabOAuthServerProvider implements OAuthServerProvider {
   // ---- Token exchange ----------------------------------------------------
 
   async exchangeAuthorizationCode(
-    _client: OAuthClientInformationFull,
+    client: OAuthClientInformationFull,
     authorizationCode: string,
     codeVerifier?: string,
     redirectUri?: string,
@@ -361,6 +364,15 @@ class GitLabOAuthServerProvider implements OAuthServerProvider {
 
       // One-time use: delete after validation
       this._storedTokens.delete(authorizationCode);
+
+      // Bind the proxy code to the client and redirect_uri that initiated
+      // /authorize, preserving the normal OAuth authorization-code invariant.
+      if (client.client_id !== entry.clientId) {
+        throw new ServerError("Invalid client for authorization code");
+      }
+      if (redirectUri !== entry.clientRedirectUri) {
+        throw new ServerError("Invalid redirect_uri for authorization code");
+      }
 
       // Verify client PKCE: the client's code_verifier must match the
       // code_challenge stored during /authorize.
@@ -533,8 +545,9 @@ class GitLabOAuthServerProvider implements OAuthServerProvider {
       const proxyCode = randomUUID();
       this._storedTokens.set(proxyCode, {
         tokens,
+        clientId: pending.clientId,
         clientCodeChallenge: pending.clientCodeChallenge,
-        redirectUri: this._callbackUrl,
+        clientRedirectUri: pending.clientRedirectUri,
         createdAt: Date.now(),
       });
 
