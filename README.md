@@ -30,6 +30,7 @@ Quick start: choose either Personal Access Token or OAuth2 setup below and use `
 - [JSON-Based MCP Clients Setup Guide](./docs/json-mcp-clients-setup.md) - for Factory AI Droid, OpenClaw, and OpenCode style clients
 - [OAuth2 Authentication Setup Guide](./docs/oauth-setup.md)
 - [Environment Variables Reference](./docs/environment-variables.md)
+- [Stateless Mode — Multi-Pod HPA](./docs/stateless-mode.md)
 
 ## Usage
 
@@ -243,6 +244,7 @@ Most users only need one of these starting sets:
 - **Local PAT**: `GITLAB_PERSONAL_ACCESS_TOKEN`, `GITLAB_API_URL`
 - **Local OAuth**: `GITLAB_USE_OAUTH=true`, `GITLAB_OAUTH_CLIENT_ID`, `GITLAB_OAUTH_REDIRECT_URI`, `GITLAB_API_URL`
 - **Remote multi-user HTTP**: `STREAMABLE_HTTP=true`, `REMOTE_AUTHORIZATION=true`, `HOST`, `PORT`
+- **Multi-pod HPA (stateless)**: above + `OAUTH_STATELESS_MODE=true`, `OAUTH_STATELESS_SECRET` (same across all pods). See [Stateless Mode](./docs/stateless-mode.md).
 
 Commonly referenced variables:
 
@@ -252,6 +254,8 @@ Commonly referenced variables:
 - `REMOTE_AUTHORIZATION`
 - `GITLAB_MCP_OAUTH`
 - `GITLAB_OAUTH_CALLBACK_PROXY`
+- `OAUTH_STATELESS_MODE`
+- `OAUTH_STATELESS_SECRET`
 
 The reference document also covers:
 

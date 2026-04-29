@@ -105,3 +105,24 @@ In GitLab Admin → Applications:
 - Set the redirect URI to `https://mcp-server.example.com/callback`
 - Ensure Confidential is **unchecked** (public client, PKCE replaces client_secret)
 - Enable the required scopes (e.g. `api`, `read_api`, `read_user`)
+
+## Multi-pod deployments (HPA)
+
+The callback-proxy flow stores per-authorization state in memory: the
+pending transaction between `/authorize` and `/callback`, and the stored
+tokens between `/callback` and `/token`. Under Kubernetes with multiple
+replicas, a request routed to a different pod from the one that created the
+state will fail.
+
+The fix is [Stateless Mode](./stateless-mode.md), which seals these values
+into the opaque OAuth parameters themselves with a shared server secret.
+No external cache, no sticky sessions, no affinity required.
+
+To enable:
+
+```bash
+OAUTH_STATELESS_MODE=true
+OAUTH_STATELESS_SECRET=<from: openssl rand -base64 32>
+```
+
+All pods must mount the same `OAUTH_STATELESS_SECRET`.
