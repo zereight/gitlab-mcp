@@ -120,6 +120,16 @@ export const OAUTH_STATELESS_STORED_TTL_SECONDS = _intEnv(
   600
 );
 
+/** Defaults to SESSION_TIMEOUT_SECONDS when unset. */
+export const OAUTH_STATELESS_SESSION_TTL_SECONDS = _intEnv(
+  "OAUTH_STATELESS_SESSION_TTL_SECONDS",
+  "oauth-stateless-session-ttl",
+  Number.parseInt(
+    getConfig("session-timeout", "SESSION_TIMEOUT_SECONDS", "3600"),
+    10
+  )
+);
+
 // ---------------------------------------------------------------------------
 // Session / server settings
 // ---------------------------------------------------------------------------
