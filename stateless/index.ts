@@ -37,3 +37,30 @@ export type {
   SealedVerifyOptions,
   SignedVerifyOptions,
 } from "./codec.js";
+
+export {
+  looksLikeStatelessClientId,
+  mintClientId,
+  openClientId,
+} from "./client-id.js";
+export type { ClientIdPayload, MintClientIdInput } from "./client-id.js";
+
+export {
+  looksLikeStatelessState,
+  mintPendingAuthState,
+  openPendingAuthState,
+} from "./pending-auth.js";
+export type {
+  MintPendingAuthInput,
+  PendingAuthPayload,
+} from "./pending-auth.js";
+
+export {
+  looksLikeStatelessStoredTokensCode,
+  mintStoredTokensCode,
+  openStoredTokensCode,
+} from "./stored-tokens.js";
+export type {
+  MintStoredTokensInput,
+  StoredTokensPayload,
+} from "./stored-tokens.js";
