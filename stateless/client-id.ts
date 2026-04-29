@@ -9,6 +9,8 @@
  * grant types, client name) and does not require encryption.
  */
 
+import { randomBytes } from "node:crypto";
+
 import { sign, verify } from "./codec.js";
 import { StatelessCodecError } from "./errors.js";
 import {
@@ -21,6 +23,12 @@ import {
 export interface ClientIdPayload extends StatelessBasePayload {
   v: 1;
   iat: number;
+  /**
+   * Per-registration nonce (base64url). Ensures two DCR calls with identical
+   * inputs produce distinct client_ids, preserving the OAuth invariant that
+   * each registered client has a unique identity.
+   */
+  n: string;
   /** Redirect URIs registered by the client. */
   ruris: string[];
   /** Requested grant types (defaults to ["authorization_code"]). */
@@ -48,9 +56,13 @@ export function mintClientId(
   input: MintClientIdInput
 ): string {
   const iat = input.now ? input.now() : Math.floor(Date.now() / 1000);
+  // 16 bytes of entropy ⇒ negligible collision probability even across
+  // arbitrarily many DCR registrations. Kept at 16 to keep the client_id
+  // short on the wire.
   const payload: ClientIdPayload = {
     v: 1,
     iat,
+    n: randomBytes(16).toString("base64url"),
     ruris: input.redirectUris,
   };
   if (input.grantTypes && input.grantTypes.length > 0) payload.gt = input.grantTypes;
@@ -79,7 +91,9 @@ export function openClientId(
     );
     if (
       !Array.isArray(payload.ruris) ||
-      payload.ruris.some((u) => typeof u !== "string")
+      payload.ruris.some((u) => typeof u !== "string") ||
+      typeof payload.n !== "string" ||
+      payload.n.length === 0
     ) {
       return null;
     }
