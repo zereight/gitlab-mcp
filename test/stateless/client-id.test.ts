@@ -51,7 +51,14 @@ function makeProvider(
     undefined, // customScopes
     callbackProxy,
     callbackProxy ? "https://mcp.example.com/callback" : "",
-    material ? { material, clientTtlSeconds: 86400 } : null
+    material
+      ? {
+          material,
+          clientTtlSeconds: 86400,
+          pendingTtlSeconds: 600,
+          storedTtlSeconds: 600,
+        }
+      : null
   );
 }
 

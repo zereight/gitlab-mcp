@@ -24,6 +24,8 @@ import {
   NO_PROXY,
   OAUTH_STATELESS_CLIENT_TTL_SECONDS,
   OAUTH_STATELESS_MODE,
+  OAUTH_STATELESS_PENDING_TTL_SECONDS,
+  OAUTH_STATELESS_STORED_TTL_SECONDS,
   PORT,
   REMOTE_AUTHORIZATION,
   SESSION_TIMEOUT_SECONDS,
@@ -10092,6 +10094,8 @@ async function startStreamableHTTPServer(): Promise<void> {
         ? {
             material: STATELESS_MATERIAL,
             clientTtlSeconds: OAUTH_STATELESS_CLIENT_TTL_SECONDS,
+            pendingTtlSeconds: OAUTH_STATELESS_PENDING_TTL_SECONDS,
+            storedTtlSeconds: OAUTH_STATELESS_STORED_TTL_SECONDS,
           }
         : null;
     const oauthProvider = createGitLabOAuthProvider(
