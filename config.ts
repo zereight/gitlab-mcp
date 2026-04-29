@@ -88,6 +88,39 @@ export const ENABLE_DYNAMIC_API_URL =
   getConfig("enable-dynamic-api-url", "ENABLE_DYNAMIC_API_URL") === "true";
 
 // ---------------------------------------------------------------------------
+// Stateless mode (multi-pod safe OAuth / session encoding)
+// ---------------------------------------------------------------------------
+
+/** Master switch — when true, opaque OAuth values carry the state instead of
+ * an in-memory per-pod cache. Requires OAUTH_STATELESS_SECRET. */
+export const OAUTH_STATELESS_MODE =
+  getConfig("oauth-stateless-mode", "OAUTH_STATELESS_MODE") === "true";
+
+/** Per-surface TTLs (seconds). Defaults apply when the env var is unset. */
+function _intEnv(name: string, cliKey: string, fallback: number): number {
+  const raw = getConfig(cliKey, name);
+  if (!raw) return fallback;
+  const n = Number.parseInt(raw, 10);
+  return Number.isFinite(n) && n > 0 ? n : fallback;
+}
+
+export const OAUTH_STATELESS_CLIENT_TTL_SECONDS = _intEnv(
+  "OAUTH_STATELESS_CLIENT_TTL_SECONDS",
+  "oauth-stateless-client-ttl",
+  86_400
+);
+export const OAUTH_STATELESS_PENDING_TTL_SECONDS = _intEnv(
+  "OAUTH_STATELESS_PENDING_TTL_SECONDS",
+  "oauth-stateless-pending-ttl",
+  600
+);
+export const OAUTH_STATELESS_STORED_TTL_SECONDS = _intEnv(
+  "OAUTH_STATELESS_STORED_TTL_SECONDS",
+  "oauth-stateless-stored-ttl",
+  600
+);
+
+// ---------------------------------------------------------------------------
 // Session / server settings
 // ---------------------------------------------------------------------------
 

@@ -22,6 +22,8 @@ import {
   MCP_SERVER_URL,
   NODE_TLS_REJECT_UNAUTHORIZED,
   NO_PROXY,
+  OAUTH_STATELESS_CLIENT_TTL_SECONDS,
+  OAUTH_STATELESS_MODE,
   PORT,
   REMOTE_AUTHORIZATION,
   SESSION_TIMEOUT_SECONDS,
@@ -34,6 +36,8 @@ import {
   GITLAB_TOOL_POLICY_APPROVE_RAW,
   GITLAB_TOOL_POLICY_HIDDEN_RAW,
 } from "./config.js";
+import { loadKeyMaterialFromEnv } from "./stateless/index.js";
+import type { StatelessKeyMaterial } from "./stateless/index.js";
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
@@ -772,6 +776,28 @@ function validateConfiguration(): void {
 
 let OAUTH_ACCESS_TOKEN: string | null = null;
 let oauthClient: GitLabOAuth | null = null;
+
+/**
+ * Loaded once at startup. Null when OAUTH_STATELESS_MODE is disabled.
+ * When set, the OAuth provider and (later phases) the Mcp-Session-Id path
+ * switch to signed/sealed opaque values instead of per-pod in-memory caches.
+ */
+let STATELESS_MATERIAL: StatelessKeyMaterial | null = null;
+try {
+  STATELESS_MATERIAL = loadKeyMaterialFromEnv();
+  if (OAUTH_STATELESS_MODE && STATELESS_MATERIAL) {
+    // Avoid logging anything that could leak key length / entropy details.
+    // Keep the message aligned with similar startup banners.
+    // eslint-disable-next-line no-console -- startup banner parity
+    console.error("[gitlab-mcp] stateless OAuth mode enabled");
+  }
+} catch (err) {
+  // eslint-disable-next-line no-console -- startup failure must be visible
+  console.error(
+    `[gitlab-mcp] failed to load stateless secret: ${(err as Error).message}`
+  );
+  process.exit(1);
+}
 /**
  * Ensure the OAuth token is valid before making an API call.
  * Refreshes the token lazily (only when a tool is actually called).
@@ -10061,7 +10087,23 @@ async function startStreamableHTTPServer(): Promise<void> {
     const callbackUrl = GITLAB_OAUTH_CALLBACK_PROXY
       ? `${issuerUrl.origin}${issuerUrl.pathname.replace(/\/$/, "")}/callback`
       : undefined;
-    const oauthProvider = createGitLabOAuthProvider(gitlabBaseUrl, GITLAB_OAUTH_APP_ID!, "GitLab MCP Server", GITLAB_READ_ONLY_MODE, GITLAB_OAUTH_SCOPES, GITLAB_OAUTH_CALLBACK_PROXY, callbackUrl);
+    const statelessOptions =
+      OAUTH_STATELESS_MODE && STATELESS_MATERIAL
+        ? {
+            material: STATELESS_MATERIAL,
+            clientTtlSeconds: OAUTH_STATELESS_CLIENT_TTL_SECONDS,
+          }
+        : null;
+    const oauthProvider = createGitLabOAuthProvider(
+      gitlabBaseUrl,
+      GITLAB_OAUTH_APP_ID!,
+      "GitLab MCP Server",
+      GITLAB_READ_ONLY_MODE,
+      GITLAB_OAUTH_SCOPES,
+      GITLAB_OAUTH_CALLBACK_PROXY,
+      callbackUrl,
+      statelessOptions
+    );
     const scopesSupported = GITLAB_OAUTH_SCOPES ?? ["api", "read_api", "read_user"];
 
     // When server URL has a path (e.g. behind Kong), the SDK's well-known metadata
