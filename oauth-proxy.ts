@@ -60,6 +60,13 @@ import { randomUUID, randomBytes, createHash } from "node:crypto";
 import { pino } from "pino";
 import type { Request } from "express";
 
+import {
+  looksLikeStatelessClientId,
+  mintClientId,
+  openClientId,
+} from "./stateless/client-id.js";
+import type { StatelessKeyMaterial } from "./stateless/index.js";
+
 const logger = pino({ name: "gitlab-mcp-oauth-proxy" });
 
 /**
@@ -92,6 +99,20 @@ const REQUIRED_GITLAB_SCOPES_RO = ["read_api"];
 const PENDING_AUTH_MAX_SIZE = 1000;
 const PENDING_AUTH_TTL_MS = 10 * 60 * 1000; // 10 minutes
 const CLIENT_CACHE_MAX_SIZE = 1000;
+
+/**
+ * Stateless-mode configuration for the OAuth provider.
+ *
+ * When `material` is set, DCR entries (and in later phases: pending auth
+ * transactions and stored tokens) are serialised into the opaque OAuth values
+ * themselves rather than held in a per-pod in-memory cache. This makes the
+ * provider safe to run behind a load balancer that distributes requests
+ * across multiple pods with no session affinity.
+ */
+export interface StatelessOAuthOptions {
+  material: StatelessKeyMaterial;
+  clientTtlSeconds: number;
+}
 
 /** Stored while user is on GitLab consent screen. Keyed by `state`. */
 interface PendingAuthTransaction {
@@ -175,6 +196,11 @@ class GitLabOAuthServerProvider implements OAuthServerProvider {
   private readonly _pendingAuth = new BoundedLRUMap<PendingAuthTransaction>(PENDING_AUTH_MAX_SIZE);
   private readonly _storedTokens = new BoundedLRUMap<StoredTokenEntry>(PENDING_AUTH_MAX_SIZE);
 
+  // Stateless mode (optional). When set, DCR and callback-proxy state are
+  // serialised into opaque OAuth values and the in-memory caches above are
+  // bypassed. Enabled independently of callback-proxy mode.
+  private readonly _stateless: StatelessOAuthOptions | null;
+
   constructor(
     gitlabBaseUrl: string,
     gitlabAppId: string,
@@ -182,7 +208,8 @@ class GitLabOAuthServerProvider implements OAuthServerProvider {
     readOnly: boolean,
     customScopes?: string[],
     callbackProxyEnabled = false,
-    callbackUrl = ""
+    callbackUrl = "",
+    stateless: StatelessOAuthOptions | null = null
   ) {
     this._gitlabBaseUrl = gitlabBaseUrl;
     this._gitlabAppId = gitlabAppId;
@@ -195,12 +222,18 @@ class GitLabOAuthServerProvider implements OAuthServerProvider {
           : REQUIRED_GITLAB_SCOPES_RW;
     this._callbackProxyEnabled = callbackProxyEnabled;
     this._callbackUrl = callbackUrl;
+    this._stateless = stateless;
 
     if (callbackProxyEnabled && !callbackUrl) {
       throw new Error("callbackUrl is required when callbackProxyEnabled is true");
     }
     if (callbackProxyEnabled) {
       logger.info(`Callback proxy mode enabled — fixed callback URL: ${callbackUrl}`);
+    }
+    if (stateless) {
+      logger.info(
+        `Stateless mode enabled for DCR (client_id TTL: ${stateless.clientTtlSeconds}s)`
+      );
     }
   }
 
@@ -209,9 +242,35 @@ class GitLabOAuthServerProvider implements OAuthServerProvider {
   get clientsStore(): OAuthRegisteredClientsStore {
     const cache = this._clientCache;
     const resourceName = this._resourceName;
+    const stateless = this._stateless;
 
     return {
       getClient: async (clientId: string) => {
+        // Stateless path: a signed client_id carries the registration.
+        // If verification succeeds, reconstruct the OAuthClientInformationFull.
+        if (stateless && looksLikeStatelessClientId(clientId)) {
+          const payload = openClientId(
+            stateless.material,
+            clientId,
+            stateless.clientTtlSeconds
+          );
+          if (!payload) {
+            logger.warn(`DCR: stateless client_id rejected (bad signature or expired)`);
+            // Mimic legacy behaviour: return a stub so the SDK surfaces the
+            // standard InvalidClientError path. We return null to let the SDK
+            // handler emit a proper OAuth error.
+            return undefined;
+          }
+          return {
+            client_id: clientId,
+            client_id_issued_at: payload.iat,
+            redirect_uris: payload.ruris,
+            token_endpoint_auth_method: "none",
+            grant_types: payload.gt ?? ["authorization_code"],
+            client_name: payload.cn ?? resourceName,
+          };
+        }
+
         const cached = cache.get(clientId);
         if (cached) return cached;
 
@@ -227,18 +286,45 @@ class GitLabOAuthServerProvider implements OAuthServerProvider {
       registerClient: async (
         client: Omit<OAuthClientInformationFull, "client_id" | "client_id_issued_at">
       ) => {
+        const grantTypes = client.grant_types ?? ["authorization_code"];
+        const redirectUris = client.redirect_uris ?? [];
+        const clientName = client.client_name
+          ? `${client.client_name} via ${resourceName}`
+          : resourceName;
+
+        // Stateless path: mint a signed client_id and return the registration
+        // without touching the in-memory cache.
+        if (stateless) {
+          const issuedAt = Math.floor(Date.now() / 1000);
+          const clientId = mintClientId(stateless.material, {
+            redirectUris,
+            grantTypes,
+            clientName,
+          });
+          const registered: OAuthClientInformationFull = {
+            client_id: clientId,
+            client_id_issued_at: issuedAt,
+            redirect_uris: redirectUris,
+            token_endpoint_auth_method: "none",
+            grant_types: grantTypes,
+            client_name: clientName,
+          };
+          logger.info(
+            `DCR (stateless): issued signed client_id (name: ${clientName}, ruris: ${redirectUris.length})`
+          );
+          return registered;
+        }
+
         // Generate a virtual client_id; all real OAuth operations use _gitlabAppId.
         const virtualClientId = randomUUID();
 
         const registered: OAuthClientInformationFull = {
           client_id: virtualClientId,
           client_id_issued_at: Math.floor(Date.now() / 1000),
-          redirect_uris: client.redirect_uris ?? [],
+          redirect_uris: redirectUris,
           token_endpoint_auth_method: "none",
-          grant_types: client.grant_types ?? ["authorization_code"],
-          client_name: client.client_name
-            ? `${client.client_name} via ${resourceName}`
-            : resourceName,
+          grant_types: grantTypes,
+          client_name: clientName,
         };
 
         cache.set(virtualClientId, registered);
@@ -613,6 +699,9 @@ class GitLabOAuthServerProvider implements OAuthServerProvider {
  *                              Only ONE fixed callback URL needs to be registered with GitLab.
  * @param callbackUrl    The fixed callback URL (e.g. https://mcp.example.com/callback).
  *                        Required when callbackProxyEnabled is true.
+ * @param stateless      Optional stateless-mode options. When set, DCR and later
+ *                        callback-proxy state is encoded into opaque OAuth values
+ *                        instead of an in-memory cache, enabling multi-pod deploys.
  */
 export function createGitLabOAuthProvider(
   gitlabBaseUrl: string,
@@ -621,7 +710,17 @@ export function createGitLabOAuthProvider(
   readOnly = false,
   customScopes?: string[],
   callbackProxyEnabled = false,
-  callbackUrl = ""
+  callbackUrl = "",
+  stateless: StatelessOAuthOptions | null = null
 ): GitLabOAuthServerProvider {
-  return new GitLabOAuthServerProvider(gitlabBaseUrl, gitlabAppId, resourceName, readOnly, customScopes, callbackProxyEnabled, callbackUrl);
+  return new GitLabOAuthServerProvider(
+    gitlabBaseUrl,
+    gitlabAppId,
+    resourceName,
+    readOnly,
+    customScopes,
+    callbackProxyEnabled,
+    callbackUrl,
+    stateless
+  );
 }
