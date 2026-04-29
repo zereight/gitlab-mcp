@@ -64,3 +64,14 @@ export type {
   MintStoredTokensInput,
   StoredTokensPayload,
 } from "./stored-tokens.js";
+
+export {
+  looksLikeStatelessSessionId,
+  mintSessionId,
+  openSessionId,
+} from "./session-id.js";
+export type {
+  MintSessionIdInput,
+  SessionAuthHeader,
+  SessionIdPayload,
+} from "./session-id.js";
