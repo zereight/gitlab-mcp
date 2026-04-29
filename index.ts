@@ -353,6 +353,32 @@ import { pino } from "pino";
 
 const logger = pino({
   level: process.env.LOG_LEVEL || "info",
+  // Redact sensitive values that must never appear in logs. Covers both
+  // typical auth-context property names and common HTTP header-bag shapes
+  // that tool/fetch wrappers may include when logging errors.
+  redact: {
+    paths: [
+      "token",
+      "*.token",
+      "ctx.token",
+      "context.token",
+      "authData.token",
+      "auth.token",
+      "headers.authorization",
+      "headers.Authorization",
+      'headers["private-token"]',
+      'headers["Private-Token"]',
+      'headers["job-token"]',
+      'headers["JOB-TOKEN"]',
+      'headers["mcp-session-id"]',
+      'headers["Mcp-Session-Id"]',
+      "sessionId",
+      "*.sessionId",
+      "ctx.sessionId",
+      "context.sessionId",
+    ],
+    censor: "[REDACTED]",
+  },
   transport: {
     target: "pino-pretty",
     options: {
@@ -787,6 +813,19 @@ function validateConfiguration(): void {
 
 let OAUTH_ACCESS_TOKEN: string | null = null;
 let oauthClient: GitLabOAuth | null = null;
+
+/**
+ * Produce a safe short form of a session id for logs. Legacy UUIDs pass
+ * through; stateless sealed sids are truncated to the "v1.sid." prefix
+ * plus a handful of bytes of the ciphertext so operators can correlate
+ * flows without the log line carrying the sealed bearer token.
+ */
+function redactSessionIdForLog(sid: string | undefined): string {
+  if (!sid) return "<none>";
+  if (sid.startsWith("v1.sid.")) return "v1.sid.<redacted>";
+  // UUIDs / other formats are low-sensitivity; show first 8 chars.
+  return sid.length > 8 ? `${sid.slice(0, 8)}…` : sid;
+}
 
 /**
  * Detect whether an MCP JSON-RPC request body represents an "initialize"
@@ -9960,6 +9999,12 @@ async function startStreamableHTTPServer(): Promise<void> {
     requestsProcessed: 0,
     rejectedByRateLimit: 0,
     rejectedByCapacity: 0,
+    // Stateless-mode counters. Only non-zero when OAUTH_STATELESS_MODE=true.
+    statelessRequests: 0,
+    statelessAuthFromHeader: 0,  // fresh Authorization/Private-Token/JOB-TOKEN present
+    statelessAuthFromSealedSid: 0,  // auth reconstructed from sealed Mcp-Session-Id
+    statelessAuthFailures: 0,   // neither source yielded usable auth
+    statelessSidRotated: 0,     // minted a new sid because fresh auth was present
   };
 
   // Rate limiting per session
@@ -10128,6 +10173,8 @@ async function startStreamableHTTPServer(): Promise<void> {
     material: StatelessKeyMaterial,
     sessionTtlSeconds: number
   ): Promise<void> => {
+    metrics.statelessRequests++;
+
     // Step 1: derive the effective auth for this request.
     // Priority: live headers > sealed sid. This lets clients refresh OAuth
     // tokens without re-initializing their MCP session.
@@ -10140,12 +10187,14 @@ async function startStreamableHTTPServer(): Promise<void> {
       token: string;
       apiUrl: string;
     } | null = null;
+    let freshAuthPresent = false;
     if (headerAuth) {
       effective = {
         header: headerAuth.header,
         token: headerAuth.token,
         apiUrl: headerAuth.apiUrl,
       };
+      freshAuthPresent = true;
     } else if (GITLAB_MCP_OAUTH) {
       const authInfo = req.auth;
       if (authInfo?.token) {
@@ -10154,8 +10203,10 @@ async function startStreamableHTTPServer(): Promise<void> {
           token: authInfo.token,
           apiUrl: GITLAB_API_URL,
         };
+        freshAuthPresent = true;
       }
     }
+    if (freshAuthPresent) metrics.statelessAuthFromHeader++;
 
     // Fall back to the sealed sid when no live headers are present.
     const incomingSid = req.headers["mcp-session-id"] as string | undefined;
@@ -10163,11 +10214,13 @@ async function startStreamableHTTPServer(): Promise<void> {
       const opened = openSessionId(material, incomingSid, sessionTtlSeconds);
       if (opened) {
         effective = { header: opened.h, token: opened.t, apiUrl: opened.u };
+        metrics.statelessAuthFromSealedSid++;
       }
     }
 
     if (!effective) {
       metrics.authFailures++;
+      metrics.statelessAuthFailures++;
       res.status(401).json({
         error: "Authentication required",
         message:
@@ -10189,20 +10242,32 @@ async function startStreamableHTTPServer(): Promise<void> {
     // When a live auth header is present, always mint a fresh sid so the
     // payload reflects the latest token (handles OAuth refresh). Otherwise
     // keep the incoming sealed sid, so the client sees a stable value.
-    const freshSid =
-      headerAuth || (GITLAB_MCP_OAUTH && req.auth?.token)
-        ? mintSessionId(material, {
-            header: effective.header,
-            token: effective.token,
-            apiUrl: effective.apiUrl,
-          })
-        : incomingSid && looksLikeStatelessSessionId(incomingSid)
-          ? incomingSid
-          : mintSessionId(material, {
-              header: effective.header,
-              token: effective.token,
-              apiUrl: effective.apiUrl,
-            });
+    let freshSid: string;
+    if (freshAuthPresent) {
+      freshSid = mintSessionId(material, {
+        header: effective.header,
+        token: effective.token,
+        apiUrl: effective.apiUrl,
+      });
+      metrics.statelessSidRotated++;
+    } else if (incomingSid && looksLikeStatelessSessionId(incomingSid)) {
+      freshSid = incomingSid;
+    } else {
+      freshSid = mintSessionId(material, {
+        header: effective.header,
+        token: effective.token,
+        apiUrl: effective.apiUrl,
+      });
+    }
+
+    logger.debug(
+      {
+        sidPrefix: redactSessionIdForLog(freshSid),
+        freshAuthPresent,
+        header: effective.header,
+      },
+      "stateless /mcp request"
+    );
 
     // Step 3: build the AsyncLocalStorage context so buildAuthHeaders and
     // getEffectiveApiUrl read from the derived auth.
@@ -10654,6 +10719,8 @@ async function startStreamableHTTPServer(): Promise<void> {
         sessionTimeoutSeconds: SESSION_TIMEOUT_SECONDS,
         remoteAuthEnabled: REMOTE_AUTHORIZATION,
         mcpOAuthEnabled: GITLAB_MCP_OAUTH,
+        statelessModeEnabled: OAUTH_STATELESS_MODE && STATELESS_MATERIAL !== null,
+        statelessRotationKey: OAUTH_STATELESS_MODE && STATELESS_MATERIAL?.previous != null,
       },
     });
   });
