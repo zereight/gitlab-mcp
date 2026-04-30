@@ -10239,25 +10239,19 @@ async function startStreamableHTTPServer(): Promise<void> {
     // a freshly-constructed transport).
     const isInit = isInitializationRequestBody(req.body);
 
-    // When a live auth header is present, always mint a fresh sid so the
-    // payload reflects the latest token (handles OAuth refresh). Otherwise
-    // keep the incoming sealed sid, so the client sees a stable value.
-    let freshSid: string;
+    // Always mint a fresh sid so the embedded iat advances on every request.
+    // This makes OAUTH_STATELESS_SESSION_TTL_SECONDS behave as an inactivity
+    // timeout rather than an absolute-age cap — matching the legacy
+    // setAuthTimeout semantics. Reusing the incoming sid would regress
+    // long-lived sessions that authenticate via sealed-sid replay (typical
+    // REMOTE_AUTHORIZATION flow after init).
+    const freshSid = mintSessionId(material, {
+      header: effective.header,
+      token: effective.token,
+      apiUrl: effective.apiUrl,
+    });
     if (freshAuthPresent) {
-      freshSid = mintSessionId(material, {
-        header: effective.header,
-        token: effective.token,
-        apiUrl: effective.apiUrl,
-      });
       metrics.statelessSidRotated++;
-    } else if (incomingSid && looksLikeStatelessSessionId(incomingSid)) {
-      freshSid = incomingSid;
-    } else {
-      freshSid = mintSessionId(material, {
-        header: effective.header,
-        token: effective.token,
-        apiUrl: effective.apiUrl,
-      });
     }
 
     logger.debug(
@@ -10287,6 +10281,19 @@ async function startStreamableHTTPServer(): Promise<void> {
       : new StreamableHTTPServerTransport({
           sessionIdGenerator: undefined, // SDK stateless mode for non-init
         });
+
+    // For non-init requests the SDK runs in its internal stateless mode and
+    // does not emit an Mcp-Session-Id response header. We pre-set the
+    // freshly minted sid on the Express response so clients can adopt the
+    // latest sid (and its advanced iat) on every response. Headers passed
+    // to the SDK's writeHead() call are merged with pre-set headers per
+    // Node.js semantics, so this does not clobber SDK-managed values.
+    // Without this, the inactivity-timeout semantics of
+    // OAUTH_STATELESS_SESSION_TTL_SECONDS silently regress to an
+    // absolute-age cap for sid-only auth flows.
+    if (!isInit) {
+      res.setHeader("Mcp-Session-Id", freshSid);
+    }
 
     const serverInstance = createServer();
     await serverInstance.connect(transport);

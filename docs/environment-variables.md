@@ -152,9 +152,13 @@ Max age for a sealed proxy authorization `code` during the `/callback` →
 
 ### `OAUTH_STATELESS_SESSION_TTL_SECONDS`
 
-Max age for a sealed `Mcp-Session-Id`. Defaults to `SESSION_TIMEOUT_SECONDS`
-when unset, so the inactivity-window behaviour matches legacy mode without
-additional configuration.
+Inactivity timeout for a sealed `Mcp-Session-Id`, evaluated against the
+`iat` of the most recently minted sid. The server mints a fresh sid on
+every `/mcp` request, so continuously-used sessions never expire; a
+session is only rejected when no traffic has arrived for longer than this
+window. Defaults to `SESSION_TIMEOUT_SECONDS` when unset, matching the
+legacy stateful `setAuthTimeout` semantics without additional
+configuration.
 
 ## Core GitLab Configuration
 

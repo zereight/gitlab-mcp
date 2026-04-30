@@ -13,6 +13,11 @@ import assert from "node:assert";
 import { randomBytes } from "node:crypto";
 import { after, before, describe, test } from "node:test";
 
+import {
+  loadKeyMaterialFromEnv,
+  openSessionId,
+} from "../../stateless/index.js";
+import type { StatelessKeyMaterial } from "../../stateless/index.js";
 import { MockGitLabServer, findMockServerPort } from "../utils/mock-gitlab-server.js";
 import {
   cleanupServers,
@@ -29,6 +34,7 @@ const MOCK_TOKEN = "glpat-mockstateless-12345-abcdef";
 const MOCK_PORT_BASE = 9800;
 const SERVER_PORT_BASE_A = 3800;
 const SERVER_PORT_BASE_B = 3850;
+const SERVER_PORT_BASE_TTL = 3900;
 
 describe("Stateless Mcp-Session-Id — cross-pod integration", () => {
   let servers: ServerInstance[] = [];
@@ -211,14 +217,271 @@ describe("Stateless Mcp-Session-Id — cross-pod integration", () => {
     const sidFromA = initRes.sid!;
 
     // Supply BOTH the old sid and a fresh Private-Token header. Our handler
-    // prefers the fresh header and mints a new sid. For non-init requests the
-    // SDK runs in stateless mode and does not emit an Mcp-Session-Id response
-    // header — so we cannot directly observe the new sid here. But we can
-    // assert the request succeeds, which proves live auth is being honoured.
+    // prefers the fresh header and mints a new sid. The handler now also
+    // emits the freshly minted sid on non-init responses (so clients can
+    // adopt it) — assert it changed.
     const listRes = await post(urlB, listToolsRequest(5), {
       "mcp-session-id": sidFromA,
       "private-token": MOCK_TOKEN,
     });
     assert.equal(listRes.status, 200);
+    assert.ok(listRes.sid, "non-init response should now carry a rotated sid");
+    assert.notEqual(
+      listRes.sid,
+      sidFromA,
+      "fresh auth must rotate the sid on every request"
+    );
+  });
+
+  test("sid-only request also rotates the sid (inactivity-TTL semantics)", async () => {
+    const initRes = await post(urlA, initRequest(), {
+      "private-token": MOCK_TOKEN,
+    });
+    const sid0 = initRes.sid!;
+
+    // Sid-only: no live auth headers. Prior to the fix the server would
+    // reuse sid0 verbatim, freezing the embedded iat. After the fix the
+    // server mints a fresh sid with an advanced iat on every request.
+    const listRes = await post(urlB, listToolsRequest(6), {
+      "mcp-session-id": sid0,
+    });
+    assert.equal(listRes.status, 200);
+    assert.ok(listRes.sid, "sid-only response must carry a rotated sid");
+    assert.notEqual(
+      listRes.sid,
+      sid0,
+      "iat must advance → sid value must differ"
+    );
+  });
+});
+
+// =============================================================================
+// TTL / inactivity semantics
+// =============================================================================
+//
+// These tests exercise the rotation + TTL behaviour that makes
+// OAUTH_STATELESS_SESSION_TTL_SECONDS an inactivity timeout rather than an
+// absolute-age cap. They run a single dedicated server with a deliberately
+// small TTL (3 s) so the whole suite completes in a few seconds of wall-clock
+// time — no fake-clock plumbing required.
+
+describe("Stateless Mcp-Session-Id — inactivity-TTL semantics", () => {
+  const servers: ServerInstance[] = [];
+  let mockGitLab: MockGitLabServer;
+  let url: string;
+  let material: StatelessKeyMaterial;
+  const sharedSecret = randomBytes(32).toString("base64url");
+  const TTL_SECONDS = 3;
+
+  before(async () => {
+    const mockPort = await findMockServerPort(MOCK_PORT_BASE + 100);
+    mockGitLab = new MockGitLabServer({
+      port: mockPort,
+      validTokens: [MOCK_TOKEN],
+    });
+    await mockGitLab.start();
+    const mockUrl = mockGitLab.getUrl();
+
+    const port = await findAvailablePort(SERVER_PORT_BASE_TTL);
+
+    const s = await launchServer({
+      mode: TransportMode.STREAMABLE_HTTP,
+      port,
+      timeout: 5000,
+      env: {
+        STREAMABLE_HTTP: "true",
+        REMOTE_AUTHORIZATION: "true",
+        GITLAB_API_URL: `${mockUrl}/api/v4`,
+        GITLAB_READ_ONLY_MODE: "true",
+        OAUTH_STATELESS_MODE: "true",
+        OAUTH_STATELESS_SECRET: sharedSecret,
+        OAUTH_STATELESS_SESSION_TTL_SECONDS: String(TTL_SECONDS),
+      },
+    });
+    servers.push(s);
+    url = `http://${HOST}:${port}/mcp`;
+
+    // Load key material locally so the test can decode sid payloads
+    // (specifically to read back iat and verify it advances).
+    material = loadKeyMaterialFromEnv({
+      OAUTH_STATELESS_MODE: "true",
+      OAUTH_STATELESS_SECRET: sharedSecret,
+    } as NodeJS.ProcessEnv)!;
+    assert.ok(material, "test failed to load stateless key material");
+  });
+
+  after(async () => {
+    cleanupServers(servers);
+    if (mockGitLab) {
+      await mockGitLab.stop();
+    }
+  });
+
+  async function post(
+    body: unknown,
+    headers: Record<string, string> = {}
+  ): Promise<{ status: number; sid: string | null; bodyText: string }> {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json, text/event-stream",
+        ...headers,
+      },
+      body: JSON.stringify(body),
+    });
+    const sid = res.headers.get("mcp-session-id");
+    const bodyText = await res.text();
+    return { status: res.status, sid, bodyText };
+  }
+
+  function initRequest() {
+    return {
+      jsonrpc: "2.0",
+      id: 1,
+      method: "initialize",
+      params: {
+        protocolVersion: "2025-03-26",
+        capabilities: {},
+        clientInfo: { name: "ttl-test", version: "1.0.0" },
+      },
+    };
+  }
+
+  function listToolsRequest(id: number) {
+    return { jsonrpc: "2.0", id, method: "tools/list", params: {} };
+  }
+
+  // ---------------------------------------------------------------------
+  // (a) iat advances on sid-only authenticated requests
+  // ---------------------------------------------------------------------
+  test("iat advances on sid-only authenticated requests", async () => {
+    const initRes = await post(initRequest(), { "private-token": MOCK_TOKEN });
+    assert.equal(initRes.status, 200);
+    const sid1 = initRes.sid!;
+    const opened1 = openSessionId(material, sid1, 3600);
+    assert.ok(opened1, "init sid must decode");
+    const iat1 = opened1!.iat;
+
+    // Wait long enough that a 1s-granularity iat can plausibly change, but
+    // well under the TTL so the session itself is still valid.
+    await new Promise((r) => setTimeout(r, 1500));
+
+    const sidOnlyRes = await post(listToolsRequest(2), {
+      "mcp-session-id": sid1,
+    });
+    assert.equal(sidOnlyRes.status, 200);
+    assert.ok(
+      sidOnlyRes.sid,
+      "sid-only request should emit a rotated Mcp-Session-Id header"
+    );
+    assert.notEqual(
+      sidOnlyRes.sid,
+      sid1,
+      "handler must mint a fresh sid on sid-only requests"
+    );
+    const opened2 = openSessionId(material, sidOnlyRes.sid!, 3600);
+    assert.ok(opened2, "rotated sid must decode");
+    assert.ok(
+      opened2!.iat > iat1,
+      `iat must advance: initial=${iat1}, rotated=${opened2!.iat}`
+    );
+  });
+
+  // ---------------------------------------------------------------------
+  // (b) continuously-used session survives past TTL
+  // ---------------------------------------------------------------------
+  test("continuously-used session survives past TTL", async () => {
+    const initRes = await post(initRequest(), { "private-token": MOCK_TOKEN });
+    assert.equal(initRes.status, 200);
+    let sid = initRes.sid!;
+    const startTs = Date.now();
+
+    // Run sid-only requests with spacing < TTL, for a total window > TTL.
+    // Step = TTL/2 (seconds). Iterations ≥ 2*TTL + 1 → total elapsed > TTL.
+    const stepMs = Math.floor((TTL_SECONDS * 1000) / 2);
+    const iterations = TTL_SECONDS * 2 + 1;
+    for (let i = 0; i < iterations; i++) {
+      await new Promise((r) => setTimeout(r, stepMs));
+      const res = await post(listToolsRequest(100 + i), {
+        "mcp-session-id": sid,
+      });
+      assert.equal(
+        res.status,
+        200,
+        `iteration ${i}: continuously-used session must stay alive past TTL`
+      );
+      assert.ok(res.sid, `iteration ${i}: must emit rotated sid`);
+      sid = res.sid!;
+    }
+
+    const totalElapsedSec = (Date.now() - startTs) / 1000;
+    assert.ok(
+      totalElapsedSec > TTL_SECONDS,
+      `test must span more than TTL (${TTL_SECONDS}s), actual=${totalElapsedSec}s`
+    );
+
+    // Final sid must still validate.
+    const finalOpened = openSessionId(material, sid, TTL_SECONDS);
+    assert.ok(
+      finalOpened,
+      "final sid must still validate despite total elapsed > TTL"
+    );
+  });
+
+  // ---------------------------------------------------------------------
+  // (c) statelessSidRotated counter does not bump on sid-only mints
+  // ---------------------------------------------------------------------
+  //
+  // We cannot introspect the child-process counter directly, so we instead
+  // verify the contract by observing that the *response sid* changes on
+  // sid-only requests (as in test (a)) — which means minting occurs — while
+  // the counter-bump gate (`freshAuthPresent`) was false. If the counter
+  // had bumped, freshAuthPresent would have been true, which means live
+  // headers were honoured — but sid-only requests carry no live headers,
+  // so the counter path is unreachable for them by construction of the
+  // handler. This test documents that invariant at the HTTP surface.
+  test("sid-only request mints without marking freshAuthPresent (statelessSidRotated gate)", async () => {
+    const initRes = await post(initRequest(), { "private-token": MOCK_TOKEN });
+    assert.equal(initRes.status, 200);
+    const sid1 = initRes.sid!;
+
+    const sidOnlyRes = await post(listToolsRequest(3), {
+      "mcp-session-id": sid1,
+    });
+    assert.equal(sidOnlyRes.status, 200);
+    assert.ok(sidOnlyRes.sid);
+    // Mint happened (different sid) but no live auth header was present.
+    assert.notEqual(sidOnlyRes.sid, sid1);
+
+    // Sanity: a request with a live header also rotates the sid — that path
+    // *is* the path that bumps the counter in-process. Asserting both paths
+    // rotate confirms our change is uniform.
+    const freshRes = await post(listToolsRequest(4), {
+      "mcp-session-id": sid1,
+      "private-token": MOCK_TOKEN,
+    });
+    assert.equal(freshRes.status, 200);
+    assert.ok(freshRes.sid);
+    assert.notEqual(freshRes.sid, sid1);
+  });
+
+  // ---------------------------------------------------------------------
+  // (d) still 401s after genuine inactivity > TTL
+  // ---------------------------------------------------------------------
+  test("still 401s after inactivity greater than TTL", async () => {
+    const initRes = await post(initRequest(), { "private-token": MOCK_TOKEN });
+    assert.equal(initRes.status, 200);
+    const sid1 = initRes.sid!;
+
+    // Sleep just past TTL with no traffic at all.
+    await new Promise((r) => setTimeout(r, (TTL_SECONDS + 1) * 1000));
+
+    const res = await post(listToolsRequest(5), { "mcp-session-id": sid1 });
+    assert.equal(
+      res.status,
+      401,
+      `sid older than TTL with no activity must 401, got ${res.status}: ${res.bodyText.slice(0, 200)}`
+    );
   });
 });

@@ -68,7 +68,7 @@ spec:
 | DCR registration                     | `_clientCache` on pod          | Signed `client_id` (`v1.cid.…`)                  |
 | Callback-proxy `/authorize` state    | `_pendingAuth` on pod          | Sealed `state` (`v1.ps.…`)                       |
 | Callback-proxy `/callback` → `/token` | `_storedTokens` on pod         | Sealed proxy `code` (`v1.pc.…`)                  |
-| `/mcp` session auth                  | `authBySession` map on pod     | Sealed `Mcp-Session-Id` (`v1.sid.…`)             |
+| `/mcp` session auth                  | `authBySession` map on pod     | Sealed `Mcp-Session-Id` (`v1.sid.…`), rotated per request |
 | Per-session rate-limit counter       | `sessionRequestCounts` on pod  | **Disabled** (rate-limit at Traefik/WAF instead) |
 | `StreamableHTTPServerTransport`      | Reused per session on pod      | Fresh transport per request (always)             |
 
@@ -88,7 +88,7 @@ Cryptography:
 | `OAUTH_STATELESS_CLIENT_TTL_SECONDS`      | `86400`                        | Max age for a signed `client_id`.                      |
 | `OAUTH_STATELESS_PENDING_TTL_SECONDS`     | `600`                          | Max age for a sealed OAuth `state`.                    |
 | `OAUTH_STATELESS_STORED_TTL_SECONDS`      | `600`                          | Max age for a sealed proxy `code`.                     |
-| `OAUTH_STATELESS_SESSION_TTL_SECONDS`     | inherits `SESSION_TIMEOUT_SECONDS` | Max age for a sealed `Mcp-Session-Id`.             |
+| `OAUTH_STATELESS_SESSION_TTL_SECONDS`     | inherits `SESSION_TIMEOUT_SECONDS` | Inactivity timeout for a sealed `Mcp-Session-Id`.  |
 
 CLI arguments take the same names with dashes (e.g. `--oauth-stateless-mode=true`).
 
@@ -157,6 +157,21 @@ In practice this is rarely a problem because:
 Deployments that require guaranteed notification delivery should use
 cookie-based stickiness at the ingress. Stateless mode does not preclude
 this; the two can be combined.
+
+### Session lifetime and sid rotation
+
+The sealed `Mcp-Session-Id` rotates on every authenticated `/mcp` request.
+Each response carries a new sid whose embedded `iat` is the current server
+time, and clients are expected to adopt the latest value from each
+response — this is the standard MCP SDK pattern and the SDK handles it
+transparently.
+
+Because `iat` advances on every request,
+`OAUTH_STATELESS_SESSION_TTL_SECONDS` behaves as an **inactivity**
+timeout rather than an absolute-age cap. A continuously-used session
+persists indefinitely; a session is only rejected when no traffic has
+arrived for longer than the configured TTL. This matches the legacy
+stateful `setAuthTimeout` semantics.
 
 ### Metrics
 
