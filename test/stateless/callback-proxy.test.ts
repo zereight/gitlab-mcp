@@ -44,11 +44,10 @@ function secret(): string {
 
 function loadMaterial(current: string, previous?: string): StatelessKeyMaterial {
   const env: NodeJS.ProcessEnv = {
-    OAUTH_STATELESS_MODE: "true",
     OAUTH_STATELESS_SECRET: current,
   };
   if (previous) env.OAUTH_STATELESS_SECRET_PREVIOUS = previous;
-  const m = loadKeyMaterialFromEnv(env);
+  const m = loadKeyMaterialFromEnv(true, env);
   assert.ok(m);
   return m!;
 }

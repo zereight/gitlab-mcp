@@ -42,11 +42,10 @@ function genSecret(): string {
 
 function buildMaterial(current?: string, previous?: string): StatelessKeyMaterial {
   const env: NodeJS.ProcessEnv = {
-    OAUTH_STATELESS_MODE: "true",
     OAUTH_STATELESS_SECRET: current ?? genSecret(),
   };
   if (previous) env.OAUTH_STATELESS_SECRET_PREVIOUS = previous;
-  const material = loadKeyMaterialFromEnv(env);
+  const material = loadKeyMaterialFromEnv(true, env);
   assert.ok(material, "material should load");
   return material!;
 }
@@ -67,24 +66,41 @@ function dummyPayload(now = Math.floor(Date.now() / 1000)): DummyPayload {
 
 describe("loadKeyMaterialFromEnv", () => {
   test("returns null when mode disabled", () => {
-    assert.equal(loadKeyMaterialFromEnv({}), null);
-    assert.equal(loadKeyMaterialFromEnv({ OAUTH_STATELESS_MODE: "false" }), null);
-    // Explicit opt-out; any other value (empty, "no") is treated as disabled.
-    assert.equal(loadKeyMaterialFromEnv({ OAUTH_STATELESS_MODE: "" }), null);
+    // `enabled=false` short-circuits regardless of env contents.
+    assert.equal(loadKeyMaterialFromEnv(false, {}), null);
+    assert.equal(
+      loadKeyMaterialFromEnv(false, { OAUTH_STATELESS_SECRET: genSecret() }),
+      null
+    );
+  });
+
+  test("ignores env.OAUTH_STATELESS_MODE — enablement is caller-resolved", () => {
+    // The loader must not re-parse the raw env var; the resolved config flag
+    // (which honors the CLI --oauth-stateless-mode) is the single source of
+    // truth. Regression guard for the silent fallback-to-per-pod bug when
+    // stateless mode was enabled only via CLI.
+    const secret = genSecret();
+    // enabled=true with no env.OAUTH_STATELESS_MODE set → still loads.
+    const m = loadKeyMaterialFromEnv(true, { OAUTH_STATELESS_SECRET: secret });
+    assert.ok(m, "loader must not require env.OAUTH_STATELESS_MODE");
+    // enabled=false with env.OAUTH_STATELESS_MODE=true → still null.
+    assert.equal(
+      loadKeyMaterialFromEnv(false, {
+        OAUTH_STATELESS_MODE: "true",
+        OAUTH_STATELESS_SECRET: secret,
+      }),
+      null
+    );
   });
 
   test("throws when mode enabled but secret missing", () => {
-    assert.throws(
-      () => loadKeyMaterialFromEnv({ OAUTH_STATELESS_MODE: "true" }),
-      StatelessConfigError
-    );
+    assert.throws(() => loadKeyMaterialFromEnv(true, {}), StatelessConfigError);
   });
 
   test("throws on too-short secret", () => {
     assert.throws(
       () =>
-        loadKeyMaterialFromEnv({
-          OAUTH_STATELESS_MODE: "true",
+        loadKeyMaterialFromEnv(true, {
           OAUTH_STATELESS_SECRET: Buffer.from("short").toString("base64url"),
         }),
       StatelessConfigError
@@ -92,8 +108,7 @@ describe("loadKeyMaterialFromEnv", () => {
   });
 
   test("loads current only", () => {
-    const m = loadKeyMaterialFromEnv({
-      OAUTH_STATELESS_MODE: "true",
+    const m = loadKeyMaterialFromEnv(true, {
       OAUTH_STATELESS_SECRET: genSecret(),
     });
     assert.ok(m);
@@ -101,8 +116,7 @@ describe("loadKeyMaterialFromEnv", () => {
   });
 
   test("loads current + previous", () => {
-    const m = loadKeyMaterialFromEnv({
-      OAUTH_STATELESS_MODE: "true",
+    const m = loadKeyMaterialFromEnv(true, {
       OAUTH_STATELESS_SECRET: genSecret(),
       OAUTH_STATELESS_SECRET_PREVIOUS: genSecret(),
     });
@@ -114,8 +128,7 @@ describe("loadKeyMaterialFromEnv", () => {
   test("rejects malformed base64url previous", () => {
     assert.throws(
       () =>
-        loadKeyMaterialFromEnv({
-          OAUTH_STATELESS_MODE: "true",
+        loadKeyMaterialFromEnv(true, {
           OAUTH_STATELESS_SECRET: genSecret(),
           OAUTH_STATELESS_SECRET_PREVIOUS: "!!!not-base64!!!",
         }),

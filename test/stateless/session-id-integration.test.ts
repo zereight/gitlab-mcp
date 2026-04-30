@@ -303,8 +303,7 @@ describe("Stateless Mcp-Session-Id — inactivity-TTL semantics", () => {
 
     // Load key material locally so the test can decode sid payloads
     // (specifically to read back iat and verify it advances).
-    material = loadKeyMaterialFromEnv({
-      OAUTH_STATELESS_MODE: "true",
+    material = loadKeyMaterialFromEnv(true, {
       OAUTH_STATELESS_SECRET: sharedSecret,
     } as NodeJS.ProcessEnv)!;
     assert.ok(material, "test failed to load stateless key material");

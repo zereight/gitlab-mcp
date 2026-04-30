@@ -851,7 +851,11 @@ function isInitializationRequestBody(body: unknown): boolean {
  */
 let STATELESS_MATERIAL: StatelessKeyMaterial | null = null;
 try {
-  STATELESS_MATERIAL = loadKeyMaterialFromEnv();
+  // Drive enablement from the already-resolved config flag so the CLI flag
+  // (--oauth-stateless-mode) is honored. Re-reading env.OAUTH_STATELESS_MODE
+  // inside the loader would silently ignore the CLI flag and leave
+  // STATELESS_MATERIAL null, falling back to per-pod state.
+  STATELESS_MATERIAL = loadKeyMaterialFromEnv(OAUTH_STATELESS_MODE);
   if (OAUTH_STATELESS_MODE && STATELESS_MATERIAL) {
     // Avoid logging anything that could leak key length / entropy details.
     // Keep the message aligned with similar startup banners.

@@ -49,11 +49,18 @@ export function decodeSecret(value: string, label: string): Buffer {
 /**
  * Load the keyring from the environment. Returns null when stateless mode is
  * disabled. Throws StatelessConfigError when enabled but misconfigured.
+ *
+ * `enabled` is an explicit input so the caller can drive enablement from the
+ * already-resolved config flag (which honors both env var and CLI flag
+ * precedence), rather than re-reading raw env state here. Re-parsing
+ * `OAUTH_STATELESS_MODE` from `env` would silently ignore the CLI flag
+ * `--oauth-stateless-mode`, leaving `STATELESS_MATERIAL` null and falling back
+ * to per-pod state in multi-pod deployments.
  */
 export function loadKeyMaterialFromEnv(
+  enabled: boolean,
   env: NodeJS.ProcessEnv = process.env
 ): StatelessKeyMaterial | null {
-  const enabled = (env.OAUTH_STATELESS_MODE ?? "").toLowerCase() === "true";
   if (!enabled) return null;
 
   const current = env.OAUTH_STATELESS_SECRET;
