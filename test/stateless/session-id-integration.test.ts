@@ -185,7 +185,7 @@ describe("Stateless Mcp-Session-Id — cross-pod integration", () => {
     );
   });
 
-  test("pod B rejects a tampered sid", async () => {
+  test("pod B rejects a tampered sid with 404 (session ended)", async () => {
     const initRes = await post(urlA, initRequest(), {
       "private-token": MOCK_TOKEN,
     });
@@ -200,7 +200,11 @@ describe("Stateless Mcp-Session-Id — cross-pod integration", () => {
     const listRes = await post(urlB, listToolsRequest(3), {
       "mcp-session-id": tampered,
     });
-    assert.equal(listRes.status, 401);
+    // 404 (not 401) per MCP Streamable HTTP: a tampered / unknown sid looks
+    // identical to a terminated session from the client's perspective; 404
+    // tells it to re-initialize, whereas 401 would trip the auth-failure
+    // path and break automatic recovery.
+    assert.equal(listRes.status, 404);
   });
 
   test("request without sid or auth header is 401", async () => {
@@ -466,9 +470,9 @@ describe("Stateless Mcp-Session-Id — inactivity-TTL semantics", () => {
   });
 
   // ---------------------------------------------------------------------
-  // (d) still 401s after genuine inactivity > TTL
+  // (d) still returns terminated-session response after inactivity > TTL
   // ---------------------------------------------------------------------
-  test("still 401s after inactivity greater than TTL", async () => {
+  test("returns 404 (session ended) after inactivity greater than TTL", async () => {
     const initRes = await post(initRequest(), { "private-token": MOCK_TOKEN });
     assert.equal(initRes.status, 200);
     const sid1 = initRes.sid!;
@@ -477,10 +481,46 @@ describe("Stateless Mcp-Session-Id — inactivity-TTL semantics", () => {
     await new Promise((r) => setTimeout(r, (TTL_SECONDS + 1) * 1000));
 
     const res = await post(listToolsRequest(5), { "mcp-session-id": sid1 });
+    // Per MCP Streamable HTTP: 404 on a session-bound request means
+    // "session ended, re-initialize". The client should start a fresh
+    // handshake, not retry auth. This is the critical contract for
+    // automatic recovery after inactivity TTL expiry in stateless mode.
     assert.equal(
       res.status,
-      401,
-      `sid older than TTL with no activity must 401, got ${res.status}: ${res.bodyText.slice(0, 200)}`
+      404,
+      `expired sid must 404 (session ended), got ${res.status}: ${res.bodyText.slice(0, 200)}`
     );
+  });
+
+  // ---------------------------------------------------------------------
+  // (e) request without any sid or auth still returns 401 (genuine auth)
+  // ---------------------------------------------------------------------
+  test("no sid and no auth headers is 401 (not 404)", async () => {
+    // Guard: 404 must only be returned when the client presented a sid we
+    // failed to open. With nothing at all, the client is unauthenticated
+    // and 401 is the correct signal.
+    const res = await post(listToolsRequest(6));
+    assert.equal(res.status, 401);
+  });
+
+  // ---------------------------------------------------------------------
+  // (f) expired sid + live auth headers → client auto-recovers
+  // ---------------------------------------------------------------------
+  test("expired sid with live auth headers still succeeds (auto-recovery)", async () => {
+    const initRes = await post(initRequest(), { "private-token": MOCK_TOKEN });
+    assert.equal(initRes.status, 200);
+    const staleSid = initRes.sid!;
+
+    await new Promise((r) => setTimeout(r, (TTL_SECONDS + 1) * 1000));
+
+    // Client presents the stale sid AND fresh auth. Live headers take
+    // priority, so the request succeeds and a fresh sid is minted.
+    const res = await post(listToolsRequest(7), {
+      "mcp-session-id": staleSid,
+      "private-token": MOCK_TOKEN,
+    });
+    assert.equal(res.status, 200);
+    assert.ok(res.sid);
+    assert.notEqual(res.sid, staleSid, "a fresh sid must be minted");
   });
 });

@@ -173,6 +173,20 @@ persists indefinitely; a session is only rejected when no traffic has
 arrived for longer than the configured TTL. This matches the legacy
 stateful `setAuthTimeout` semantics.
 
+When a client presents a sid that fails to open (expired past the
+inactivity window, tampered, or sealed under a different key), the
+server responds with `404 Session not found` — the standard MCP
+Streamable HTTP signal meaning "session ended, re-initialize." SDK
+clients handle this transparently by starting a fresh `initialize`
+handshake. Clients that still have live credentials (Private-Token,
+JOB-TOKEN, Authorization, or OAuth bearer) may also recover by
+re-sending with both the stale sid and the live header; live auth
+takes priority and a new sid is minted in the response.
+
+A `401 Authentication required` is only returned when the request
+carries neither a sid nor any live auth header — i.e. a genuinely
+unauthenticated caller.
+
 ### Metrics
 
 The `/metrics` endpoint reports per-instance counters. In stateless mode,

@@ -10212,19 +10212,48 @@ async function startStreamableHTTPServer(): Promise<void> {
     }
     if (freshAuthPresent) metrics.statelessAuthFromHeader++;
 
-    // Fall back to the sealed sid when no live headers are present.
+    // Fall back to the sealed sid when no live headers are present. Track
+    // whether a sid was presented but rejected (expired / tampered / wrong
+    // key / malformed) so we can return 404 below — the MCP Streamable HTTP
+    // contract is that session-bound requests get 404 on a terminated session,
+    // which tells the client to re-initialize. Returning 401 here would
+    // instead trigger the client's auth-failure path and break automatic
+    // recovery after inactivity TTL expiry.
     const incomingSid = req.headers["mcp-session-id"] as string | undefined;
-    if (!effective && incomingSid && looksLikeStatelessSessionId(incomingSid)) {
-      const opened = openSessionId(material, incomingSid, sessionTtlSeconds);
-      if (opened) {
-        effective = { header: opened.h, token: opened.t, apiUrl: opened.u };
-        metrics.statelessAuthFromSealedSid++;
+    let sidPresentedButInvalid = false;
+    if (!effective && incomingSid) {
+      if (looksLikeStatelessSessionId(incomingSid)) {
+        const opened = openSessionId(material, incomingSid, sessionTtlSeconds);
+        if (opened) {
+          effective = { header: opened.h, token: opened.t, apiUrl: opened.u };
+          metrics.statelessAuthFromSealedSid++;
+        } else {
+          sidPresentedButInvalid = true;
+        }
+      } else {
+        // Non-stateless-shaped sid (e.g. a UUID from a prior stateful run, or
+        // garbage). From the caller's perspective the session is unknown — we
+        // surface that as "session ended" rather than as an auth problem.
+        sidPresentedButInvalid = true;
       }
     }
 
     if (!effective) {
       metrics.authFailures++;
       metrics.statelessAuthFailures++;
+      if (sidPresentedButInvalid) {
+        // Per MCP Streamable HTTP: a 404 on a session-bound request signals
+        // "session ended, re-initialize". The inactivity TTL expiring looks
+        // identical to a session the server no longer recognizes — in both
+        // cases the client should start a fresh initialize handshake.
+        res.status(404).json({
+          error: "Session not found",
+          message:
+            "Stateless mode: Mcp-Session-Id is expired, invalid, or from a " +
+            "different key. Re-initialize to obtain a new session id.",
+        });
+        return;
+      }
       res.status(401).json({
         error: "Authentication required",
         message:
