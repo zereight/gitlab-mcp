@@ -9,6 +9,7 @@ import {
   GITLAB_MCP_OAUTH,
   GITLAB_OAUTH_APP_ID,
   GITLAB_OAUTH_SCOPES,
+  GITLAB_OAUTH_CALLBACK_PROXY,
   GITLAB_PERSONAL_ACCESS_TOKEN,
   GITLAB_POOL_MAX_SIZE,
   GITLAB_READ_ONLY_MODE,
@@ -6831,11 +6832,12 @@ async function cancelPipelineJob(
 
 /**
  * Get the repository tree for a project
- * @param {string} projectId - The ID or URL-encoded path of the project
  * @param {GetRepositoryTreeOptions} options - Options for the tree
- * @returns {Promise<GitLabTreeItem[]>}
+ * @returns Parsed tree items plus optional keyset pagination metadata.
  */
-async function getRepositoryTree(options: GetRepositoryTreeOptions): Promise<GitLabTreeItem[]> {
+async function getRepositoryTree(
+  options: GetRepositoryTreeOptions
+): Promise<{ items: GitLabTreeItem[]; next_page_token?: string }> {
   options.project_id = decodeURIComponent(options.project_id); // Decode project_id within options
   const queryParams = new URLSearchParams();
   if (options.path) queryParams.append("path", options.path);
@@ -6861,7 +6863,12 @@ async function getRepositoryTree(options: GetRepositoryTreeOptions): Promise<Git
   }
 
   const data = await response.json();
-  return z.array(GitLabTreeItemSchema).parse(data);
+  const items = z.array(GitLabTreeItemSchema).parse(data);
+  const next_page_token =
+    response.headers.get("x-next-page-token") ||
+    (options.pagination === "keyset" ? response.headers.get("x-next-page") : null) ||
+    undefined;
+  return { items, next_page_token };
 }
 
 /**
@@ -9127,9 +9134,19 @@ async function handleToolCall(params: any) {
 
       case "get_repository_tree": {
         const args = GetRepositoryTreeSchema.parse(params.arguments);
-        const tree = await getRepositoryTree(args);
+        const { items, next_page_token } = await getRepositoryTree(args);
+        const result =
+          args.pagination === "keyset" || next_page_token
+            ? {
+                items,
+                ...(next_page_token ? { next_page_token } : {}),
+                pagination_note: next_page_token
+                  ? "Pass next_page_token as page_token with pagination=keyset to retrieve the next page."
+                  : "No next_page_token was returned; this is the final keyset page.",
+              }
+            : items;
         return {
-          content: [{ type: "text", text: JSON.stringify(tree, null, 2) }],
+          content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
         };
       }
 
@@ -10041,7 +10058,10 @@ async function startStreamableHTTPServer(): Promise<void> {
     app.set("trust proxy", 1);
     const gitlabBaseUrl = GITLAB_API_URL.replace(/\/api\/v4\/?$/, "").replace(/\/$/, "");
     const issuerUrl = new URL(MCP_SERVER_URL!);
-    const oauthProvider = createGitLabOAuthProvider(gitlabBaseUrl, GITLAB_OAUTH_APP_ID!, "GitLab MCP Server", GITLAB_READ_ONLY_MODE, GITLAB_OAUTH_SCOPES);
+    const callbackUrl = GITLAB_OAUTH_CALLBACK_PROXY
+      ? `${issuerUrl.origin}${issuerUrl.pathname.replace(/\/$/, "")}/callback`
+      : undefined;
+    const oauthProvider = createGitLabOAuthProvider(gitlabBaseUrl, GITLAB_OAUTH_APP_ID!, "GitLab MCP Server", GITLAB_READ_ONLY_MODE, GITLAB_OAUTH_SCOPES, GITLAB_OAUTH_CALLBACK_PROXY, callbackUrl);
     const scopesSupported = GITLAB_OAUTH_SCOPES ?? ["api", "read_api", "read_user"];
 
     // When server URL has a path (e.g. behind Kong), the SDK's well-known metadata
@@ -10105,6 +10125,15 @@ async function startStreamableHTTPServer(): Promise<void> {
 
     // Expose provider so the /mcp route middleware can reference it
     (app as any)._mcpOAuthProvider = oauthProvider;
+
+    // Mount /callback route for callback proxy mode
+    if (GITLAB_OAUTH_CALLBACK_PROXY) {
+      const callbackPath = `${issuerUrl.pathname.replace(/\/$/, "")}/callback`;
+      app.get(callbackPath, (req: Request, res: Response, next: NextFunction) => {
+        oauthProvider.handleCallback(req, res).catch(next);
+      });
+      logger.info(`Callback proxy mode enabled — ${callbackPath} route mounted`);
+    }
   }
 
   // Build bearer-auth middleware — no-op unless GITLAB_MCP_OAUTH is enabled.

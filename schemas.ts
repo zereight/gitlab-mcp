@@ -681,8 +681,18 @@ export const GetRepositoryTreeSchema = z.object({
     .describe("The name of a repository branch or tag. Defaults to the default branch."),
   recursive: z.coerce.boolean().optional().describe("Boolean value to get a recursive tree"),
   per_page: z.coerce.number().optional().describe("Number of results to show per page"),
-  page_token: z.string().optional().describe("The tree record ID for pagination"),
-  pagination: z.string().optional().describe("Pagination method (keyset)"),
+  page_token: z
+    .string()
+    .optional()
+    .describe(
+      "Token for keyset pagination. Use the next_page_token value returned in the previous response to retrieve the next page."
+    ),
+  pagination: z
+    .string()
+    .optional()
+    .describe(
+      "Pagination method. Use 'keyset' for keyset-based pagination (required for repositories with many files). Non-keyset calls keep the legacy array response for backward compatibility; that legacy response shape is deprecated and may be removed in a future major release. Keyset calls return a structured response with items and next_page_token when more pages are available."
+    ),
 });
 
 export const GitLabTreeSchema = z.object({

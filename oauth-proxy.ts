@@ -13,7 +13,26 @@
  * and handles DCR locally — each MCP client gets a unique virtual client_id
  * mapped to the real GitLab app.
  *
- * ### Flow
+ * ### Flow (callback proxy mode — GITLAB_OAUTH_CALLBACK_PROXY=true)
+ *
+ * When callback proxy mode is enabled, the MCP server acts as a full OAuth
+ * intermediary, similar to the Atlassian MCP's OAuthProxy pattern. Only ONE
+ * fixed callback URL needs to be registered with GitLab, regardless of how
+ * many MCP clients connect.
+ *
+ * 1. MCP client calls POST /register (DCR) — proxy stores redirect_uris locally
+ *    and returns a virtual client_id.
+ * 2. MCP client redirects to /authorize — proxy stores the client's original
+ *    redirect_uri and state, generates its own PKCE pair, then redirects to
+ *    GitLab using the MCP server's fixed /callback URL as redirect_uri.
+ * 3. User authorizes on GitLab — GitLab redirects to the MCP server's /callback.
+ * 4. /callback handler exchanges the code with GitLab for tokens, stores them
+ *    server-side, generates a new proxy auth code, and redirects to the client's
+ *    original redirect_uri with the proxy code.
+ * 5. MCP client calls POST /token with the proxy code — proxy returns the
+ *    stored GitLab tokens.
+ *
+ * ### Flow (passthrough mode — default)
  *
  * 1. MCP client calls POST /register (DCR) — proxy stores redirect_uris locally
  *    and returns a virtual client_id.
@@ -37,8 +56,9 @@ import { OAuthTokensSchema } from "@modelcontextprotocol/sdk/shared/auth.js";
 import type { OAuthRegisteredClientsStore } from "@modelcontextprotocol/sdk/server/auth/clients.js";
 import type { AuthorizationParams, OAuthServerProvider } from "@modelcontextprotocol/sdk/server/auth/provider.js";
 import type { Response } from "express";
-import { randomUUID } from "node:crypto";
+import { randomUUID, randomBytes, createHash } from "node:crypto";
 import { pino } from "pino";
+import type { Request } from "express";
 
 const logger = pino({ name: "gitlab-mcp-oauth-proxy" });
 
@@ -55,44 +75,6 @@ export interface GitLabTokenInfo {
 }
 
 // ---------------------------------------------------------------------------
-// Bounded LRU client cache
-// ---------------------------------------------------------------------------
-
-const CLIENT_CACHE_MAX_SIZE = 1000;
-
-class BoundedClientCache {
-  private readonly _map = new Map<string, OAuthClientInformationFull>();
-  private readonly _maxSize: number;
-
-  constructor(maxSize: number) {
-    this._maxSize = maxSize;
-  }
-
-  get(clientId: string): OAuthClientInformationFull | undefined {
-    const entry = this._map.get(clientId);
-    if (entry) {
-      this._map.delete(clientId);
-      this._map.set(clientId, entry);
-    }
-    return entry;
-  }
-
-  set(clientId: string, client: OAuthClientInformationFull): void {
-    if (this._map.has(clientId)) {
-      this._map.delete(clientId);
-    } else if (this._map.size >= this._maxSize) {
-      const lruKey = this._map.keys().next().value;
-      if (lruKey !== undefined) this._map.delete(lruKey);
-    }
-    this._map.set(clientId, client);
-  }
-
-  get size(): number {
-    return this._map.size;
-  }
-}
-
-// ---------------------------------------------------------------------------
 // GitLab OAuth Server Provider
 // ---------------------------------------------------------------------------
 
@@ -103,9 +85,81 @@ class BoundedClientCache {
 const REQUIRED_GITLAB_SCOPES_RW = ["api"];
 const REQUIRED_GITLAB_SCOPES_RO = ["read_api"];
 
+// ---------------------------------------------------------------------------
+// Callback proxy mode — pending auth transactions
+// ---------------------------------------------------------------------------
+
+const PENDING_AUTH_MAX_SIZE = 1000;
+const PENDING_AUTH_TTL_MS = 10 * 60 * 1000; // 10 minutes
+const CLIENT_CACHE_MAX_SIZE = 1000;
+
+/** Stored while user is on GitLab consent screen. Keyed by `state`. */
+interface PendingAuthTransaction {
+  clientId: string;
+  clientRedirectUri: string;
+  clientState: string | undefined;
+  clientCodeChallenge: string;
+  proxyCodeVerifier: string;
+  createdAt: number;
+}
+
+/** Stored after /callback exchanges the code. Keyed by proxy auth code. */
+interface StoredTokenEntry {
+  tokens: OAuthTokens;
+  clientId: string;
+  clientCodeChallenge: string; // for PKCE verification when client calls /token
+  clientRedirectUri: string;
+  createdAt: number;
+}
+
+class BoundedLRUMap<V> {
+  private readonly _map = new Map<string, V>();
+  private readonly _maxSize: number;
+
+  constructor(maxSize: number) {
+    this._maxSize = maxSize;
+  }
+
+  get(key: string): V | undefined {
+    const v = this._map.get(key);
+    if (v !== undefined) {
+      this._map.delete(key);
+      this._map.set(key, v);
+    }
+    return v;
+  }
+
+  /** Get and remove in one operation — for one-time-use entries. */
+  getAndDelete(key: string): V | undefined {
+    const v = this._map.get(key);
+    if (v !== undefined) this._map.delete(key);
+    return v;
+  }
+
+  set(key: string, value: V): void {
+    if (this._map.has(key)) this._map.delete(key);
+    else if (this._map.size >= this._maxSize) {
+      const lruKey = this._map.keys().next().value;
+      if (lruKey !== undefined) this._map.delete(lruKey);
+    }
+    this._map.set(key, value);
+  }
+
+  delete(key: string): boolean {
+    return this._map.delete(key);
+  }
+
+  get size(): number {
+    return this._map.size;
+  }
+}
+
 class GitLabOAuthServerProvider implements OAuthServerProvider {
   /**
-   * Tell the SDK not to validate PKCE locally — GitLab handles it.
+   * Tell the SDK not to validate PKCE locally.
+   * - Passthrough mode: GitLab handles PKCE validation.
+   * - Callback proxy mode: we verify the client's PKCE manually in
+   *   exchangeAuthorizationCode() after looking up stored tokens.
    */
   readonly skipLocalPkceValidation = true;
 
@@ -113,14 +167,22 @@ class GitLabOAuthServerProvider implements OAuthServerProvider {
   private readonly _gitlabAppId: string;
   private readonly _resourceName: string;
   private readonly _requiredScopes: string[];
-  private readonly _clientCache = new BoundedClientCache(CLIENT_CACHE_MAX_SIZE);
+  private readonly _clientCache = new BoundedLRUMap<OAuthClientInformationFull>(CLIENT_CACHE_MAX_SIZE);
+
+  // Callback proxy mode fields
+  private readonly _callbackProxyEnabled: boolean;
+  private readonly _callbackUrl: string;
+  private readonly _pendingAuth = new BoundedLRUMap<PendingAuthTransaction>(PENDING_AUTH_MAX_SIZE);
+  private readonly _storedTokens = new BoundedLRUMap<StoredTokenEntry>(PENDING_AUTH_MAX_SIZE);
 
   constructor(
     gitlabBaseUrl: string,
     gitlabAppId: string,
     resourceName: string,
     readOnly: boolean,
-    customScopes?: string[]
+    customScopes?: string[],
+    callbackProxyEnabled = false,
+    callbackUrl = ""
   ) {
     this._gitlabBaseUrl = gitlabBaseUrl;
     this._gitlabAppId = gitlabAppId;
@@ -131,6 +193,15 @@ class GitLabOAuthServerProvider implements OAuthServerProvider {
         : readOnly
           ? REQUIRED_GITLAB_SCOPES_RO
           : REQUIRED_GITLAB_SCOPES_RW;
+    this._callbackProxyEnabled = callbackProxyEnabled;
+    this._callbackUrl = callbackUrl;
+
+    if (callbackProxyEnabled && !callbackUrl) {
+      throw new Error("callbackUrl is required when callbackProxyEnabled is true");
+    }
+    if (callbackProxyEnabled) {
+      logger.info(`Callback proxy mode enabled — fixed callback URL: ${callbackUrl}`);
+    }
   }
 
   // ---- Client store (local DCR) ------------------------------------------
@@ -182,7 +253,7 @@ class GitLabOAuthServerProvider implements OAuthServerProvider {
   // ---- Authorize ---------------------------------------------------------
 
   async authorize(
-    _client: OAuthClientInformationFull,
+    client: OAuthClientInformationFull,
     params: AuthorizationParams,
     res: Response
   ): Promise<void> {
@@ -194,23 +265,66 @@ class GitLabOAuthServerProvider implements OAuthServerProvider {
 
     // Build the GitLab authorize URL with the REAL app client_id
     const targetUrl = new URL(`${this._gitlabBaseUrl}/oauth/authorize`);
-    const searchParams = new URLSearchParams({
-      client_id: this._gitlabAppId,
-      response_type: "code",
-      redirect_uri: params.redirectUri,
-      code_challenge: params.codeChallenge,
-      code_challenge_method: "S256",
-    });
 
-    if (params.state) searchParams.set("state", params.state);
-    if (effectiveScopes.length) searchParams.set("scope", effectiveScopes.join(" "));
-    if (params.resource) searchParams.set("resource", params.resource.href);
+    if (this._callbackProxyEnabled) {
+      // --- Callback proxy mode ---
+      // Generate a proxy PKCE pair (MCP server ↔ GitLab)
+      const proxyCodeVerifier = randomBytes(32).toString("base64url");
+      const proxyCodeChallenge = createHash("sha256")
+        .update(proxyCodeVerifier)
+        .digest("base64url");
 
-    targetUrl.search = searchParams.toString();
+      // Use a unique state to correlate the callback
+      const proxyState = randomUUID();
 
-    logger.info(
-      `authorize: redirecting to GitLab (app: ${this._gitlabAppId}, scopes: ${effectiveScopes.join(" ")})`
-    );
+      // Store the client's original params so /callback can redirect back
+      this._pendingAuth.set(proxyState, {
+        clientId: client.client_id,
+        clientRedirectUri: params.redirectUri,
+        clientState: params.state,
+        clientCodeChallenge: params.codeChallenge,
+        proxyCodeVerifier,
+        createdAt: Date.now(),
+      });
+
+      const searchParams = new URLSearchParams({
+        client_id: this._gitlabAppId,
+        response_type: "code",
+        redirect_uri: this._callbackUrl,
+        code_challenge: proxyCodeChallenge,
+        code_challenge_method: "S256",
+        state: proxyState,
+      });
+
+      if (effectiveScopes.length) searchParams.set("scope", effectiveScopes.join(" "));
+      if (params.resource) searchParams.set("resource", params.resource.href);
+
+      targetUrl.search = searchParams.toString();
+
+      logger.info(
+        `authorize (callback proxy): redirecting to GitLab with fixed callback URL (app: ${this._gitlabAppId}, scopes: ${effectiveScopes.join(" ")})`
+      );
+    } else {
+      // --- Passthrough mode (original behavior) ---
+      const searchParams = new URLSearchParams({
+        client_id: this._gitlabAppId,
+        response_type: "code",
+        redirect_uri: params.redirectUri,
+        code_challenge: params.codeChallenge,
+        code_challenge_method: "S256",
+      });
+
+      if (params.state) searchParams.set("state", params.state);
+      if (effectiveScopes.length) searchParams.set("scope", effectiveScopes.join(" "));
+      if (params.resource) searchParams.set("resource", params.resource.href);
+
+      targetUrl.search = searchParams.toString();
+
+      logger.info(
+        `authorize: redirecting to GitLab (app: ${this._gitlabAppId}, scopes: ${effectiveScopes.join(" ")})`
+      );
+    }
+
     res.redirect(targetUrl.toString());
   }
 
@@ -226,12 +340,56 @@ class GitLabOAuthServerProvider implements OAuthServerProvider {
   // ---- Token exchange ----------------------------------------------------
 
   async exchangeAuthorizationCode(
-    _client: OAuthClientInformationFull,
+    client: OAuthClientInformationFull,
     authorizationCode: string,
     codeVerifier?: string,
     redirectUri?: string,
     resource?: URL
   ): Promise<OAuthTokens> {
+    if (this._callbackProxyEnabled) {
+      // --- Callback proxy mode ---
+      // The authorizationCode is a proxy code we generated in handleCallback().
+      // Look up the stored tokens by proxy code.
+      const entry = this._storedTokens.get(authorizationCode);
+      if (!entry) {
+        throw new ServerError("Invalid or expired authorization code");
+      }
+
+      // Check TTL before consuming — expired entries can't be retried anyway,
+      // but we give a specific error so the client knows to restart the flow.
+      if (Date.now() - entry.createdAt > PENDING_AUTH_TTL_MS) {
+        this._storedTokens.delete(authorizationCode);
+        throw new ServerError("Authorization code expired — please restart the OAuth flow");
+      }
+
+      // One-time use: delete after validation
+      this._storedTokens.delete(authorizationCode);
+
+      // Bind the proxy code to the client and redirect_uri that initiated
+      // /authorize, preserving the normal OAuth authorization-code invariant.
+      if (client.client_id !== entry.clientId) {
+        throw new ServerError("Invalid client for authorization code");
+      }
+      if (redirectUri !== entry.clientRedirectUri) {
+        throw new ServerError("Invalid redirect_uri for authorization code");
+      }
+
+      // Verify client PKCE: the client's code_verifier must match the
+      // code_challenge stored during /authorize.
+      if (entry.clientCodeChallenge) {
+        if (!codeVerifier) {
+          throw new ServerError("PKCE code_verifier is required");
+        }
+        const computed = createHash("sha256").update(codeVerifier).digest("base64url");
+        if (computed !== entry.clientCodeChallenge) {
+          throw new ServerError("PKCE verification failed");
+        }
+      }
+
+      return entry.tokens;
+    }
+
+    // --- Passthrough mode (original behavior) ---
     const params = new URLSearchParams({
       grant_type: "authorization_code",
       client_id: this._gitlabAppId,
@@ -315,6 +473,101 @@ class GitLabOAuthServerProvider implements OAuthServerProvider {
     };
   }
 
+  // ---- Callback handler (callback proxy mode) ----------------------------
+
+  /**
+   * Handle the OAuth callback from GitLab.
+   * Exchanges the auth code for tokens, stores them, generates a proxy code,
+   * and redirects to the MCP client's original callback URL.
+   *
+   * Mount this as GET /callback in the Express app.
+   */
+  async handleCallback(req: Request, res: Response): Promise<void> {
+    if (!this._callbackProxyEnabled) {
+      res.status(404).send("Callback proxy mode is not enabled");
+      return;
+    }
+
+    const code = req.query.code as string | undefined;
+    const state = req.query.state as string | undefined;
+    const error = req.query.error as string | undefined;
+
+    if (error) {
+      logger.error(`GitLab OAuth error: ${error} — ${req.query.error_description ?? "(no description)"}`);
+      res.status(400).send("Authorization failed");
+      return;
+    }
+
+    if (!code || !state) {
+      res.status(400).send("Missing code or state parameter");
+      return;
+    }
+
+    // Look up the pending auth transaction
+    const pending = this._pendingAuth.getAndDelete(state);
+    if (!pending) {
+      res.status(400).send("Unknown or expired state parameter");
+      return;
+    }
+
+    // Check TTL
+    if (Date.now() - pending.createdAt > PENDING_AUTH_TTL_MS) {
+      res.status(400).send("Authorization request expired");
+      return;
+    }
+
+    // Exchange the GitLab auth code for tokens using the proxy's PKCE verifier
+    try {
+      const tokenParams = new URLSearchParams({
+        grant_type: "authorization_code",
+        client_id: this._gitlabAppId,
+        code,
+        redirect_uri: this._callbackUrl,
+        code_verifier: pending.proxyCodeVerifier,
+      });
+
+      const tokenResponse = await fetch(`${this._gitlabBaseUrl}/oauth/token`, {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: tokenParams.toString(),
+      });
+
+      if (!tokenResponse.ok) {
+        const body = await tokenResponse.text();
+        logger.error(`Callback token exchange failed (${tokenResponse.status}): ${body}`);
+        res.status(502).send("Token exchange with GitLab failed");
+        return;
+      }
+
+      const tokens = OAuthTokensSchema.parse(await tokenResponse.json());
+
+      // Generate a proxy auth code for the MCP client
+      const proxyCode = randomUUID();
+      this._storedTokens.set(proxyCode, {
+        tokens,
+        clientId: pending.clientId,
+        clientCodeChallenge: pending.clientCodeChallenge,
+        clientRedirectUri: pending.clientRedirectUri,
+        createdAt: Date.now(),
+      });
+
+      // Redirect to the MCP client's original callback URL
+      const clientCallback = new URL(pending.clientRedirectUri);
+      clientCallback.searchParams.set("code", proxyCode);
+      if (pending.clientState) {
+        clientCallback.searchParams.set("state", pending.clientState);
+      }
+
+      logger.info(
+        `callback: exchanged code with GitLab, redirecting to client callback`
+      );
+      res.redirect(clientCallback.toString());
+    } catch (err) {
+      logger.error({ err }, "Callback handler error");
+      res.status(500).send("Internal error during token exchange");
+    }
+  }
+
   // ---- Revoke token ------------------------------------------------------
 
   async revokeToken(
@@ -356,13 +609,19 @@ class GitLabOAuthServerProvider implements OAuthServerProvider {
  * @param resourceName   Human-readable name shown on the GitLab consent screen.
  * @param readOnly       When true and customScopes is not set, restricts to read_api scope.
  * @param customScopes   Explicit list of GitLab scopes to require. Overrides readOnly when set.
+ * @param callbackProxyEnabled  When true, the MCP server handles the OAuth callback internally.
+ *                              Only ONE fixed callback URL needs to be registered with GitLab.
+ * @param callbackUrl    The fixed callback URL (e.g. https://mcp.example.com/callback).
+ *                        Required when callbackProxyEnabled is true.
  */
 export function createGitLabOAuthProvider(
   gitlabBaseUrl: string,
   gitlabAppId: string,
   resourceName = "GitLab MCP Server",
   readOnly = false,
-  customScopes?: string[]
+  customScopes?: string[],
+  callbackProxyEnabled = false,
+  callbackUrl = ""
 ): GitLabOAuthServerProvider {
-  return new GitLabOAuthServerProvider(gitlabBaseUrl, gitlabAppId, resourceName, readOnly, customScopes);
+  return new GitLabOAuthServerProvider(gitlabBaseUrl, gitlabAppId, resourceName, readOnly, customScopes, callbackProxyEnabled, callbackUrl);
 }

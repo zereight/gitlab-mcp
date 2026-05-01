@@ -82,6 +82,8 @@ export const GITLAB_OAUTH_SCOPES =
   GITLAB_OAUTH_SCOPES_RAW
     ? GITLAB_OAUTH_SCOPES_RAW.split(",").map((s) => s.trim()).filter(Boolean)
     : undefined;
+export const GITLAB_OAUTH_CALLBACK_PROXY =
+  getConfig("oauth-callback-proxy", "GITLAB_OAUTH_CALLBACK_PROXY") === "true";
 export const ENABLE_DYNAMIC_API_URL =
   getConfig("enable-dynamic-api-url", "ENABLE_DYNAMIC_API_URL") === "true";
 
