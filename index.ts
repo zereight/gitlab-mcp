@@ -845,6 +845,31 @@ function isInitializationRequestBody(body: unknown): boolean {
 }
 
 /**
+ * Normalize an `Mcp-Session-Id` header value.
+ *
+ * Node's HTTP types allow any request header to surface as `string[]` when
+ * the client sends it more than once. Casting to `string` and calling
+ * `.startsWith()` on an array throws `TypeError: startsWith is not a
+ * function`, which Express converts to a 500 — silently turning malformed
+ * requests into server errors and breaking the 401/404 semantics we
+ * carefully distinguish in stateless mode. A duplicated `Mcp-Session-Id` is
+ * also ill-formed at the protocol level: there is no well-defined way to
+ * pick between two values, so we reject arrays rather than guess.
+ *
+ * Empty-string is normalized to `undefined` so call sites can use truthy
+ * checks and `?? undefined`-style fallbacks uniformly.
+ *
+ * Exported for unit tests; otherwise used only by the /mcp handlers below.
+ */
+export function readMcpSessionIdHeader(
+  req: { headers: Record<string, string | string[] | undefined> }
+): string | undefined {
+  const raw = req.headers["mcp-session-id"];
+  if (typeof raw !== "string") return undefined;
+  return raw.length > 0 ? raw : undefined;
+}
+
+/**
  * Loaded once at startup. Null when OAUTH_STATELESS_MODE is disabled.
  * When set, the OAuth provider and (later phases) the Mcp-Session-Id path
  * switch to signed/sealed opaque values instead of per-pod in-memory caches.
@@ -10219,7 +10244,7 @@ async function startStreamableHTTPServer(): Promise<void> {
     // which tells the client to re-initialize. Returning 401 here would
     // instead trigger the client's auth-failure path and break automatic
     // recovery after inactivity TTL expiry.
-    const incomingSid = req.headers["mcp-session-id"] as string | undefined;
+    const incomingSid = readMcpSessionIdHeader(req);
     let sidPresentedButInvalid = false;
     if (!effective && incomingSid) {
       if (looksLikeStatelessSessionId(incomingSid)) {
@@ -10497,7 +10522,7 @@ async function startStreamableHTTPServer(): Promise<void> {
 
   // Streamable HTTP endpoint - handles both session creation and message handling
   app.post("/mcp", mcpBearerAuth, async (req: Request, res: Response) => {
-    const sessionId = req.headers["mcp-session-id"] as string;
+    const sessionId = readMcpSessionIdHeader(req);
 
     // Track request
     metrics.requestsProcessed++;
@@ -10778,7 +10803,7 @@ async function startStreamableHTTPServer(): Promise<void> {
 
   // to delete a mcp server session explicitly
   app.delete("/mcp", async (req: Request, res: Response) => {
-    const sessionId = req.headers["mcp-session-id"] as string;
+    const sessionId = readMcpSessionIdHeader(req);
 
     if (!sessionId) {
       res.status(400).json({ error: "mcp-session-id header is required" });

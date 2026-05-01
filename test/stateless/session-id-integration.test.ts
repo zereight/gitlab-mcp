@@ -11,6 +11,7 @@
 
 import assert from "node:assert";
 import { randomBytes } from "node:crypto";
+import { request as httpRequest } from "node:http";
 import { after, before, describe, test } from "node:test";
 
 import {
@@ -522,5 +523,56 @@ describe("Stateless Mcp-Session-Id — inactivity-TTL semantics", () => {
     assert.equal(res.status, 200);
     assert.ok(res.sid);
     assert.notEqual(res.sid, staleSid, "a fresh sid must be minted");
+  });
+
+  // ---------------------------------------------------------------------
+  // (g) duplicate Mcp-Session-Id must not 500
+  // ---------------------------------------------------------------------
+  test("duplicate Mcp-Session-Id headers do not crash the server", async () => {
+    // Node's HTTP types allow repeated headers to arrive as string[]. The
+    // old handler cast to `string` unconditionally and called .startsWith
+    // on the array, throwing TypeError and yielding 500. This test sends a
+    // request with two Mcp-Session-Id values using raw node:http (fetch
+    // can't emit duplicate headers) and asserts the server responds with
+    // a well-formed 401/404 — never 5xx.
+    const u = new URL(url);
+    const body = JSON.stringify(listToolsRequest(8));
+
+    const status = await new Promise<number>((resolve, reject) => {
+      const r = httpRequest(
+        {
+          hostname: u.hostname,
+          port: Number(u.port),
+          path: u.pathname,
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Accept: "application/json, text/event-stream",
+            "Content-Length": Buffer.byteLength(body),
+            // Pass as array → node emits two separate header lines.
+            "Mcp-Session-Id": ["v1.sid.aaaa.bbbb.cccc", "v1.sid.dddd.eeee.ffff"],
+          },
+        },
+        (res) => {
+          res.resume();
+          res.on("end", () => resolve(res.statusCode ?? 0));
+        }
+      );
+      r.on("error", reject);
+      r.write(body);
+      r.end();
+    });
+
+    assert.ok(
+      status < 500,
+      `duplicate Mcp-Session-Id must not yield 5xx, got ${status}`
+    );
+    // Either 401 (treated as "no sid presented", since array-valued sid is
+    // rejected at normalization) or 404 (if future implementations treat
+    // it as an invalid session) are both acceptable — only 5xx is a bug.
+    assert.ok(
+      status === 401 || status === 404,
+      `expected 401 or 404, got ${status}`
+    );
   });
 });
