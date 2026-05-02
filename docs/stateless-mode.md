@@ -187,6 +187,35 @@ A `401 Authentication required` is only returned when the request
 carries neither a sid nor any live auth header — i.e. a genuinely
 unauthenticated caller.
 
+#### sid-only follow-ups under `GITLAB_MCP_OAUTH`
+
+Under `GITLAB_MCP_OAUTH=true` + stateless, clients can issue sid-only
+follow-up requests across pods without re-sending the OAuth bearer
+token. The sealed `Mcp-Session-Id` carries the token (sealed with
+the shared `OAUTH_STATELESS_SECRET`); the server opens it on each
+request and uses the embedded token to authenticate. This is the
+headline multi-pod behaviour of stateless mode: pod A initializes
+the session with `Authorization: Bearer …`, and any other pod B can
+serve a subsequent `POST /mcp` carrying only the sid.
+
+The bearer middleware detects this case by checking for an
+`Mcp-Session-Id` header in the absence of an `Authorization` header
+and lets the stateless handler open the sid. If an `Authorization`
+header IS present alongside the sid, normal bearer validation still
+runs — so refreshed OAuth tokens are validated, and malformed /
+expired sids without an `Authorization` header still reach the
+handler and get `404 Session not found` rather than being masked
+by a `401`.
+
+#### `DELETE /mcp` authentication
+
+In `GITLAB_MCP_OAUTH=true` mode, `DELETE /mcp` is now gated by the
+same bearer middleware as `POST /mcp`: a caller must present a
+bearer token, a valid `Private-Token` / `JOB-TOKEN`, or a sealed
+`Mcp-Session-Id`. Previously `DELETE /mcp` had no auth middleware,
+which was a gap in the security posture for explicit session
+termination. In non-OAuth modes the behaviour is unchanged.
+
 ### Metrics
 
 The `/metrics` endpoint reports per-instance counters. In stateless mode,

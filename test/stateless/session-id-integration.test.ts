@@ -16,6 +16,7 @@ import { after, before, describe, test } from "node:test";
 
 import {
   loadKeyMaterialFromEnv,
+  mintSessionId,
   openSessionId,
 } from "../../stateless/index.js";
 import type { StatelessKeyMaterial } from "../../stateless/index.js";
@@ -573,6 +574,312 @@ describe("Stateless Mcp-Session-Id — inactivity-TTL semantics", () => {
     assert.ok(
       status === 401 || status === 404,
       `expected 401 or 404, got ${status}`
+    );
+  });
+});
+
+// =============================================================================
+// OAuth + stateless — sid-only follow-up across pods
+// =============================================================================
+//
+// Regression coverage for the PR #442 review finding: the mcpBearerAuth
+// middleware runs BEFORE handleStatelessMcpRequest and, without the bypass,
+// requireBearerAuth returns 401 for sid-only requests in GITLAB_MCP_OAUTH
+// mode — breaking the headline multi-pod OAuth use case of this PR.
+//
+// These tests launch two pods with GITLAB_MCP_OAUTH=true +
+// OAUTH_STATELESS_MODE=true and a shared stateless secret, then:
+//   1. initialize on pod A with Authorization: Bearer <token>, capture sid;
+//   2. issue a sid-only POST on pod B — must succeed with 200 + rotated sid;
+//   3. verify sid + invalid Authorization still 401s (bypass is guarded on
+//      `!req.headers.authorization`);
+//   4. verify a malformed sid reaches the handler and returns 404 (presence-
+//      not-validity);
+//   5. verify DELETE /mcp with sid-only reaches the handler (not 401 from
+//      mcpBearerAuth), since DELETE is now gated by the same middleware.
+
+describe("Stateless Mcp-Session-Id — OAuth + sid-only follow-up", () => {
+  const MOCK_OAUTH_TOKEN = "ya29.mock-oauth-token-stateless-abcdef";
+  const MOCK_CLIENT_ID = "mock-app-uid-oauth-stateless";
+  const OAUTH_MOCK_PORT_BASE = 9950;
+  const OAUTH_SERVER_PORT_BASE_A = 3950;
+  const OAUTH_SERVER_PORT_BASE_B = 3970;
+
+  const servers: ServerInstance[] = [];
+  let mockGitLab: MockGitLabServer;
+  let urlA: string;
+  let urlB: string;
+  let mockGitLabUrl: string;
+  let material: StatelessKeyMaterial;
+  const sharedSecret = randomBytes(32).toString("base64url");
+
+  before(async () => {
+    const mockPort = await findMockServerPort(OAUTH_MOCK_PORT_BASE);
+    mockGitLab = new MockGitLabServer({
+      port: mockPort,
+      validTokens: [MOCK_OAUTH_TOKEN],
+    });
+    await mockGitLab.start();
+    mockGitLabUrl = mockGitLab.getUrl();
+
+    // Minimal OAuth endpoints — same pattern as test/mcp-oauth-tests.ts.
+    // Only token/info is strictly required for these tests (the server's
+    // OAuth verifier calls it to validate the bearer token). DCR +
+    // well-known are added for parity so the server boots cleanly.
+    mockGitLab.addRootHandler("get", "/oauth/token/info", (req, res) => {
+      const auth = req.headers["authorization"] as string | undefined;
+      const token = auth?.replace(/^Bearer\s+/i, "");
+      if (token !== MOCK_OAUTH_TOKEN) {
+        res.status(401).json({ error: "invalid_token" });
+        return;
+      }
+      res.json({
+        resource_owner_id: 42,
+        scopes: ["api"],
+        expires_in_seconds: 7200,
+        application: { uid: MOCK_CLIENT_ID },
+        created_at: Math.floor(Date.now() / 1000),
+      });
+    });
+    mockGitLab.addRootHandler("post", "/oauth/register", (req, res) => {
+      res.status(201).json({
+        client_id: MOCK_CLIENT_ID,
+        client_name: req.body?.client_name ?? "test",
+        redirect_uris: req.body?.redirect_uris ?? [],
+        token_endpoint_auth_method: "none",
+        require_pkce: true,
+      });
+    });
+    mockGitLab.addRootHandler(
+      "get",
+      "/.well-known/oauth-authorization-server",
+      (_req, res) => {
+        res.json({
+          issuer: mockGitLabUrl,
+          authorization_endpoint: `${mockGitLabUrl}/oauth/authorize`,
+          token_endpoint: `${mockGitLabUrl}/oauth/token`,
+          registration_endpoint: `${mockGitLabUrl}/oauth/register`,
+          revocation_endpoint: `${mockGitLabUrl}/oauth/revoke`,
+          scopes_supported: ["api", "read_api", "read_user"],
+          response_types_supported: ["code"],
+          grant_types_supported: ["authorization_code", "refresh_token"],
+          code_challenge_methods_supported: ["S256"],
+        });
+      }
+    );
+
+    const portA = await findAvailablePort(OAUTH_SERVER_PORT_BASE_A);
+    const portB = await findAvailablePort(OAUTH_SERVER_PORT_BASE_B);
+    const baseUrlA = `http://${HOST}:${portA}`;
+    const baseUrlB = `http://${HOST}:${portB}`;
+
+    const commonEnv = {
+      STREAMABLE_HTTP: "true",
+      GITLAB_MCP_OAUTH: "true",
+      GITLAB_OAUTH_APP_ID: "test-oauth-app-id",
+      GITLAB_API_URL: `${mockGitLabUrl}/api/v4`,
+      MCP_DANGEROUSLY_ALLOW_INSECURE_ISSUER_URL: "true",
+      OAUTH_STATELESS_MODE: "true",
+      OAUTH_STATELESS_SECRET: sharedSecret,
+    };
+
+    const sA = await launchServer({
+      mode: TransportMode.STREAMABLE_HTTP,
+      port: portA,
+      timeout: 5000,
+      env: { ...commonEnv, MCP_SERVER_URL: baseUrlA },
+    });
+    servers.push(sA);
+    urlA = `${baseUrlA}/mcp`;
+
+    const sB = await launchServer({
+      mode: TransportMode.STREAMABLE_HTTP,
+      port: portB,
+      timeout: 5000,
+      env: { ...commonEnv, MCP_SERVER_URL: baseUrlB },
+    });
+    servers.push(sB);
+    urlB = `${baseUrlB}/mcp`;
+
+    // Load key material in-process so tests can decode sids for assertions.
+    material = loadKeyMaterialFromEnv(true, {
+      OAUTH_STATELESS_SECRET: sharedSecret,
+    } as NodeJS.ProcessEnv)!;
+    assert.ok(material, "test failed to load stateless key material");
+
+    console.log(`OAuth+stateless pod A: ${urlA}`);
+    console.log(`OAuth+stateless pod B: ${urlB}`);
+  });
+
+  after(async () => {
+    cleanupServers(servers);
+    if (mockGitLab) {
+      await mockGitLab.stop();
+    }
+  });
+
+  interface PostResult {
+    status: number;
+    sid: string | null;
+    bodyText: string;
+  }
+
+  async function post(
+    url: string,
+    body: unknown,
+    headers: Record<string, string> = {}
+  ): Promise<PostResult> {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json, text/event-stream",
+        ...headers,
+      },
+      body: JSON.stringify(body),
+    });
+    const sid = res.headers.get("mcp-session-id");
+    const bodyText = await res.text();
+    return { status: res.status, sid, bodyText };
+  }
+
+  function initRequest() {
+    return {
+      jsonrpc: "2.0",
+      id: 1,
+      method: "initialize",
+      params: {
+        protocolVersion: "2025-03-26",
+        capabilities: {},
+        clientInfo: { name: "oauth-stateless-integration-test", version: "1.0.0" },
+      },
+    };
+  }
+
+  function listToolsRequest(id: number) {
+    return { jsonrpc: "2.0", id, method: "tools/list", params: {} };
+  }
+
+  // ---------------------------------------------------------------------
+  // Test 1 (CRITICAL): the PR #442 regression scenario.
+  // Init on pod A with Authorization, follow-up on pod B with ONLY the sid.
+  // Without the bypass in mcpBearerAuth, requireBearerAuth would 401 before
+  // handleStatelessMcpRequest ever ran.
+  // ---------------------------------------------------------------------
+  test("init on pod A with Authorization → sid-only follow-up on pod B succeeds with rotated sid", async () => {
+    const initRes = await post(urlA, initRequest(), {
+      Authorization: `Bearer ${MOCK_OAUTH_TOKEN}`,
+    });
+    assert.equal(
+      initRes.status,
+      200,
+      `init must succeed, got ${initRes.status}: ${initRes.bodyText.slice(0, 200)}`
+    );
+    const sid1 = initRes.sid!;
+    assert.ok(sid1, "init response must include Mcp-Session-Id");
+    assert.ok(
+      sid1.startsWith("v1.sid."),
+      `sid must be stateless-shaped, got: ${sid1.slice(0, 20)}…`
+    );
+
+    const opened1 = openSessionId(material, sid1, 3600);
+    assert.ok(opened1, "init sid must decode");
+
+    // Follow-up on pod B with ONLY the sid — no Authorization header.
+    // This is the exact scenario zereight called out in the PR review.
+    const followUp = await post(urlB, listToolsRequest(2), {
+      "mcp-session-id": sid1,
+    });
+    assert.equal(
+      followUp.status,
+      200,
+      `sid-only follow-up on pod B must succeed (was masked by 401 before fix), got ${followUp.status}: ${followUp.bodyText.slice(0, 200)}`
+    );
+    assert.ok(followUp.sid, "follow-up response must carry a rotated sid");
+    assert.notEqual(
+      followUp.sid,
+      sid1,
+      "sid must rotate on every authenticated request"
+    );
+    const opened2 = openSessionId(material, followUp.sid!, 3600);
+    assert.ok(opened2, "rotated sid must decode");
+    assert.ok(
+      opened2!.iat >= opened1!.iat,
+      `rotated iat must be >= original: initial=${opened1!.iat}, rotated=${opened2!.iat}`
+    );
+  });
+
+  // ---------------------------------------------------------------------
+  // Test 2: sid + INVALID Authorization still runs bearer validation.
+  // The bypass is guarded on `!req.headers.authorization`, so the presence
+  // of any Authorization header must fall through to oauthBearerAuth.
+  // ---------------------------------------------------------------------
+  test("sid + invalid Authorization still runs bearer validation (bypass guarded on !authorization)", async () => {
+    const initRes = await post(urlA, initRequest(), {
+      Authorization: `Bearer ${MOCK_OAUTH_TOKEN}`,
+    });
+    assert.equal(initRes.status, 200);
+    const sid = initRes.sid!;
+
+    const res = await post(urlB, listToolsRequest(3), {
+      "mcp-session-id": sid,
+      Authorization: "Bearer garbage-invalid-token",
+    });
+    assert.equal(
+      res.status,
+      401,
+      `invalid bearer must 401 even with valid sid present, got ${res.status}`
+    );
+  });
+
+  // ---------------------------------------------------------------------
+  // Test 3: malformed sid without Authorization reaches the handler and
+  // gets 404 (not 401). Proves the bypass keys off header PRESENCE, not
+  // validity — malformed / expired / legacy sids must reach
+  // handleStatelessMcpRequest to produce the intended "session ended"
+  // signal per MCP Streamable HTTP.
+  // ---------------------------------------------------------------------
+  test("malformed sid without Authorization reaches handler → 404 (not 401)", async () => {
+    const res = await post(urlA, listToolsRequest(4), {
+      "mcp-session-id": "v1.sid.garbage.garbage.garbage",
+    });
+    assert.equal(
+      res.status,
+      404,
+      `malformed sid must reach handler and get 404, got ${res.status}: ${res.bodyText.slice(0, 200)}`
+    );
+  });
+
+  // ---------------------------------------------------------------------
+  // Test 4: DELETE /mcp is now gated by mcpBearerAuth. A sid-only DELETE
+  // must REACH the handler body (not 401 from the middleware). In
+  // stateless mode the DELETE handler doesn't track the sid in
+  // streamableTransports, so the handler responds 404 "Session not found".
+  // The critical assertion is !=401 from mcpBearerAuth.
+  // ---------------------------------------------------------------------
+  test("DELETE /mcp with sid-only reaches handler (not 401 from mcpBearerAuth)", async () => {
+    // Use a freshly-minted, valid sealed sid so the presence check
+    // succeeds and the middleware does not 401.
+    const sealedSid = mintSessionId(material, {
+      header: "Authorization",
+      token: MOCK_OAUTH_TOKEN,
+      apiUrl: `${mockGitLabUrl}/api/v4`,
+    });
+
+    const res = await fetch(urlA, {
+      method: "DELETE",
+      headers: { "mcp-session-id": sealedSid },
+    });
+    assert.notEqual(
+      res.status,
+      401,
+      `DELETE with sid must bypass mcpBearerAuth 401; got ${res.status}`
+    );
+    // Handler body returns 404 because the sid is not in streamableTransports.
+    assert.equal(
+      res.status,
+      404,
+      `DELETE handler should respond 404 Session not found in stateless mode, got ${res.status}`
     );
   });
 });

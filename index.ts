@@ -894,6 +894,25 @@ try {
   );
   process.exit(1);
 }
+
+/**
+ * True when this request is a candidate for the stateless sid-auth path:
+ * stateless mode is enabled, key material loaded, and the client sent an
+ * Mcp-Session-Id header. We deliberately key off *presence* (not validity)
+ * so malformed / expired / legacy sids still reach handleStatelessMcpRequest
+ * and get the intended 404 Session not found — rather than being masked by
+ * a 401 from the OAuth bearer middleware.
+ */
+export function hasStatelessSessionId(
+  req: { headers: Record<string, string | string[] | undefined> }
+): boolean {
+  return Boolean(
+    OAUTH_STATELESS_MODE &&
+      STATELESS_MATERIAL &&
+      readMcpSessionIdHeader(req)
+  );
+}
+
 /**
  * Ensure the OAuth token is valid before making an API call.
  * Refreshes the token lazily (only when a tool is actually called).
@@ -10516,6 +10535,24 @@ async function startStreamableHTTPServer(): Promise<void> {
           });
           return;
         }
+
+        // Stateless-mode sid bypass: when the client sends only an
+        // Mcp-Session-Id (no live Authorization), let handleStatelessMcpRequest
+        // open the sealed sid. Without this, requireBearerAuth would 401
+        // before the handler can reconstruct auth from the sid — breaking
+        // sid-only follow-up requests across pods under GITLAB_MCP_OAUTH.
+        //
+        // We still run oauthBearerAuth when an Authorization header IS
+        // present alongside the sid, so a client refreshing its OAuth token
+        // gets the new token validated normally. We also key this off
+        // header *presence* (not validity): malformed / expired / legacy
+        // sids still reach the handler and get the intended 404 Session
+        // not found response rather than being masked by a 401 here.
+        if (hasStatelessSessionId(req) && !req.headers.authorization) {
+          next();
+          return;
+        }
+
         oauthBearerAuth!(req, res, next);
       }
     : (_req: Request, _res: Response, next: NextFunction) => next();
@@ -10802,7 +10839,7 @@ async function startStreamableHTTPServer(): Promise<void> {
   });
 
   // to delete a mcp server session explicitly
-  app.delete("/mcp", async (req: Request, res: Response) => {
+  app.delete("/mcp", mcpBearerAuth, async (req: Request, res: Response) => {
     const sessionId = readMcpSessionIdHeader(req);
 
     if (!sessionId) {
