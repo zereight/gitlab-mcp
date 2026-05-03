@@ -160,6 +160,14 @@ window. Defaults to `SESSION_TIMEOUT_SECONDS` when unset, matching the
 legacy stateful `setAuthTimeout` semantics without additional
 configuration.
 
+Value validation: must parse as a finite positive integer. If the env var
+(or `--oauth-stateless-session-ttl` CLI flag) is unset or invalid, the
+value falls back to `SESSION_TIMEOUT_SECONDS` when that is itself a finite
+positive integer, otherwise to the hardcoded default of `3600` seconds.
+Misconfigurations never produce `NaN` — this guarantees the TTL check in
+the stateless codec (`ttlSec > 0` in `checkIat`) always enforces an
+inactivity window for sealed sids.
+
 ## Core GitLab Configuration
 
 ### `GITLAB_API_URL`
