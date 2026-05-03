@@ -79,6 +79,17 @@ update_issue_note         -> edit a comment
 list_issue_discussions    -> list all discussion threads
 ```
 
+### Emoji reactions
+
+```
+list_issue_emoji_reactions       -> list reactions on an issue
+create_issue_emoji_reaction      -> add reaction to an issue
+delete_issue_emoji_reaction      -> remove reaction from an issue
+list_issue_note_emoji_reactions  -> list reactions on an issue note or thread reply
+create_issue_note_emoji_reaction -> add reaction to an issue note or thread reply
+delete_issue_note_emoji_reaction -> remove reaction from an issue note or thread reply
+```
+
 Generic note creation (works for both issues and MRs):
 
 ```

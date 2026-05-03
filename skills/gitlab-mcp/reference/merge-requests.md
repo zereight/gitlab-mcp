@@ -96,6 +96,17 @@ publish_draft_note         -> publish single draft
 bulk_publish_draft_notes   -> publish all drafts at once
 ```
 
+### Emoji reactions
+
+```
+list_merge_request_emoji_reactions       -> list reactions on an MR
+create_merge_request_emoji_reaction      -> add reaction to an MR
+delete_merge_request_emoji_reaction      -> remove reaction from an MR
+list_merge_request_note_emoji_reactions  -> list reactions on an MR note or thread reply
+create_merge_request_note_emoji_reaction -> add reaction to an MR note or thread reply
+delete_merge_request_note_emoji_reaction -> remove reaction from an MR note or thread reply
+```
+
 ## Branch Comparison
 
 Compare without an existing MR:
