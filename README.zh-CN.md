@@ -409,6 +409,12 @@ node build/index.js
 - **[SKILL.md](./skills/gitlab-mcp/SKILL.md)** — 核心指南，包含工具集概览、关键工作流和参数提示
 - **[reference/](./skills/gitlab-mcp/reference/)** — 代码审查、合并请求、议题和流水线的详细工作流文档
 
+使用 `skills` CLI 安装：
+
+```bash
+npx skills add zereight/gitlab-mcp --skill gitlab-mcp-skill
+```
+
 在 AI 客户端中注册 skill 目录，可以在不完全依赖完整 ListTools 响应的情况下获得更好的工具使用指导。
 
 ## 工具 🛠️

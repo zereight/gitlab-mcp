@@ -428,6 +428,12 @@ Pre-built skill files are available in [`skills/gitlab-mcp/`](./skills/gitlab-mc
 - **[SKILL.md](./skills/gitlab-mcp/SKILL.md)** — Core guide (~800 tokens) with toolset overview, key workflows, and parameter hints
 - **[reference/](./skills/gitlab-mcp/reference/)** — Detailed workflow docs for code review, merge requests, issues, and pipelines
 
+Install with the `skills` CLI:
+
+```bash
+npx skills add zereight/gitlab-mcp --skill gitlab-mcp-skill
+```
+
 Register the skill directory in your AI client to get optimal tool usage guidance without relying solely on the full ListTools response.
 
 ## Tools 🛠️

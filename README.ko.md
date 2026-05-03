@@ -409,6 +409,12 @@ AI 에이전트가 skill/instruction 로딩을 지원하는 경우(Claude Code, 
 - **[SKILL.md](./skills/gitlab-mcp/SKILL.md)** — 도구셋 개요, 핵심 워크플로우, 파라미터 힌트를 담은 핵심 가이드
 - **[reference/](./skills/gitlab-mcp/reference/)** — 코드 리뷰, 머지 리퀘스트, 이슈, 파이프라인용 상세 워크플로우 문서
 
+`skills` CLI로 설치:
+
+```bash
+npx skills add zereight/gitlab-mcp --skill gitlab-mcp-skill
+```
+
 AI 클라이언트에 skill 디렉터리를 등록하면 전체 ListTools 응답에만 의존하지 않고 더 좋은 도구 사용 지침을 얻을 수 있습니다.
 
 ## 도구 🛠️
