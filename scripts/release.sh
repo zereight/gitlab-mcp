@@ -20,6 +20,44 @@ fi
 CURRENT_VERSION=$(node -p "require('./package.json').version")
 echo "Current version: $CURRENT_VERSION"
 
+git fetch --tags origin >/dev/null 2>&1 || true
+
+tag_exists() {
+  git rev-parse -q --verify "refs/tags/$1" >/dev/null
+}
+
+sync_registry_metadata_version() {
+  local version="$1"
+
+  if [ ! -f server.json ]; then
+    return
+  fi
+
+  node - "$version" <<'NODE'
+const fs = require("fs");
+const version = process.argv[2];
+const packageJson = JSON.parse(fs.readFileSync("package.json", "utf8"));
+const serverJson = JSON.parse(fs.readFileSync("server.json", "utf8"));
+
+serverJson.version = version;
+for (const pkg of serverJson.packages || []) {
+  if (!pkg.identifier || pkg.identifier === packageJson.name) {
+    pkg.version = version;
+  }
+}
+
+fs.writeFileSync("server.json", `${JSON.stringify(serverJson, null, 2)}\n`);
+NODE
+}
+
+preflight_registry_metadata() {
+  if [ ! -f server.json ]; then
+    return
+  fi
+
+  npm run release:mcp-registry -- --check
+}
+
 # Determine the previous tag for changelog
 get_previous_tag() {
   local current_tag="$1"
@@ -69,7 +107,12 @@ generate_changelog_notes() {
   # Get all commits since previous tag
   local commits
   if [ -n "$previous_tag" ]; then
-    commits=$(git log "$previous_tag"..HEAD --oneline 2>/dev/null || git log --oneline -50)
+    if ! tag_exists "$previous_tag"; then
+      echo "❌ Release notes base tag $previous_tag does not exist locally." >&2
+      echo "Run git fetch --tags origin and retry." >&2
+      exit 1
+    fi
+    commits=$(git log "$previous_tag"..HEAD --oneline)
   else
     commits=$(git log --oneline -50)
   fi
@@ -197,15 +240,18 @@ elif [ -n "$REMOTE_TAG_EXISTS" ]; then
   echo "⚠️  Tag v$CURRENT_VERSION already exists on remote. Bumping patch version..."
   PREV_TAG="v$CURRENT_VERSION"
 
-  # Delete local tag if it exists (to avoid conflict with new tag)
-  git tag -d "v$CURRENT_VERSION" 2>/dev/null || true
-
   npm version patch --no-git-tag-version
 
   NEW_VERSION=$(node -p "require('./package.json').version")
   echo "New version: $NEW_VERSION"
 
+  sync_registry_metadata_version "$NEW_VERSION"
+  preflight_registry_metadata
+
   git add package.json package-lock.json
+  if [ -f server.json ]; then
+    git add server.json
+  fi
   git commit -m "chore(release): v$NEW_VERSION"
 
   git tag "v$NEW_VERSION"
@@ -219,7 +265,13 @@ else
   NEW_VERSION=$(node -p "require('./package.json').version")
   echo "New version: $NEW_VERSION"
 
+  sync_registry_metadata_version "$NEW_VERSION"
+  preflight_registry_metadata
+
   git add package.json package-lock.json
+  if [ -f server.json ]; then
+    git add server.json
+  fi
   git commit -m "chore(release): v$NEW_VERSION"
 
   git tag "v$NEW_VERSION"
