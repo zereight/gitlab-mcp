@@ -109,10 +109,11 @@ export const OAUTH_STATELESS_MODE =
  * documented inactivity timeout for sealed sids and OAuth proxy values.
  *
  * `safeFallback` picks the supplied fallback only when it is itself a
- * valid positive integer; otherwise a hardcoded secondary default is
- * used (the same constant each caller passes for its "first-choice"
- * default). This keeps misconfigurations loud-and-safe instead of
- * silent-and-unbounded.
+ * valid positive integer; otherwise it falls back to `safeFallback`,
+ * which must itself be a valid positive integer. In dev/test a bad
+ * `safeFallback` throws eagerly rather than returning NaN, so bugs
+ * introduced by a future caller show up at module-load time with a
+ * clear stack trace instead of silent TTL suppression at runtime.
  */
 function _intEnv(
   name: string,
@@ -120,6 +121,15 @@ function _intEnv(
   fallback: number,
   safeFallback: number = fallback
 ): number {
+  // Guard the guard: if *both* fallback and safeFallback are invalid, we
+  // have no last-resort positive value — refuse at load time rather than
+  // return NaN and silently disable TTL checks downstream.
+  if (!(Number.isFinite(safeFallback) && safeFallback > 0)) {
+    throw new Error(
+      `_intEnv(${name}): safeFallback must be a finite positive integer ` +
+        `(got ${safeFallback}). Fix the caller in config.ts.`
+    );
+  }
   const safe =
     Number.isFinite(fallback) && fallback > 0 ? fallback : safeFallback;
   const raw = getConfig(cliKey, name);

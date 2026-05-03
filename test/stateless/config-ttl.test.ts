@@ -190,4 +190,20 @@ describe("config.ts TTL parsing — finite-positive guards", () => {
       "invalid PORT should fall back to the default rather than NaN"
     );
   });
+
+  test("empty-string SESSION_TIMEOUT_SECONDS falls back to the safe default", () => {
+    // getConfig returns the value only when truthy; empty string is falsy
+    // and picks the default branch. This guards against regressions in the
+    // "raw empty" → "use defaultValue" short-circuit at getConfig.
+    const cfg = loadConfig({ SESSION_TIMEOUT_SECONDS: "" });
+    assert.equal(cfg.SESSION_TIMEOUT_SECONDS, 3600);
+    assert.equal(cfg.OAUTH_STATELESS_SESSION_TTL_SECONDS, 3600);
+  });
+
+  test("whitespace-only SESSION_TIMEOUT_SECONDS also falls back", () => {
+    // parseInt("   ", 10) is NaN, so the _intEnv guard must catch it.
+    const cfg = loadConfig({ SESSION_TIMEOUT_SECONDS: "   " });
+    assert.equal(cfg.SESSION_TIMEOUT_SECONDS, 3600);
+    assert.equal(cfg.OAUTH_STATELESS_SESSION_TTL_SECONDS, 3600);
+  });
 });
