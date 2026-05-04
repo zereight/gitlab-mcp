@@ -31,6 +31,7 @@ function buildTag(overrides: Record<string, unknown> = {}) {
       description: "Release notes",
     },
     protected: false,
+    created_at: "2026-03-13T10:00:00.000Z",
     ...overrides,
   };
 }
@@ -126,15 +127,18 @@ describe("tag tools", () => {
       }
     );
 
-    mockGitLab.addMockHandler("post", `/projects/${TEST_PROJECT_ID}/repository/tags`, (req, res) => {
-      assert.deepStrictEqual(req.body, {
-        tag_name: TEST_TAG_NAME,
-        ref: "main",
-        message: "Release tag",
-        release_description: "Tagged from test",
-      });
-      res.json(buildTag());
-    });
+    mockGitLab.addMockHandler(
+      "post",
+      `/projects/${TEST_PROJECT_ID}/repository/tags`,
+      (req, res) => {
+        assert.deepStrictEqual(req.body, {
+          tag_name: TEST_TAG_NAME,
+          ref: "main",
+          message: "Release tag",
+        });
+        res.json(buildTag({ created_at: null }));
+      }
+    );
 
     mockGitLab.addMockHandler(
       "delete",
@@ -150,8 +154,21 @@ describe("tag tools", () => {
       (_req, res) => {
         res.json({
           signature_type: "X509",
-          signature: "signed-payload",
-          public_key: "public-key",
+          verification_status: "unverified",
+          x509_certificate: {
+            id: 1,
+            subject: "CN=Test User,O=Example",
+            subject_key_identifier: "A1725E379E7B25B2",
+            email: null,
+            serial_number: 123456789,
+            certificate_status: "good",
+            x509_issuer: {
+              id: 1,
+              subject: "CN=Example CA,O=Example",
+              subject_key_identifier: "C6411E6F5B9E2CFD",
+              crl_url: null,
+            },
+          },
         });
       }
     );
@@ -208,13 +225,13 @@ describe("tag tools", () => {
         tag_name: TEST_TAG_NAME,
         ref: "main",
         message: "Release tag",
-        release_description: "Tagged from test",
       },
       env()
     );
 
     assert.strictEqual(result.name, TEST_TAG_NAME);
     assert.strictEqual(result.release.description, "Release notes");
+    assert.strictEqual(result.created_at, null);
   });
 
   test("delete_tag returns a success payload", async () => {
@@ -239,8 +256,21 @@ describe("tag tools", () => {
 
     assert.deepStrictEqual(result, {
       signature_type: "X509",
-      signature: "signed-payload",
-      public_key: "public-key",
+      verification_status: "unverified",
+      x509_certificate: {
+        id: 1,
+        subject: "CN=Test User,O=Example",
+        subject_key_identifier: "A1725E379E7B25B2",
+        email: null,
+        serial_number: 123456789,
+        certificate_status: "good",
+        x509_issuer: {
+          id: 1,
+          subject: "CN=Example CA,O=Example",
+          subject_key_identifier: "C6411E6F5B9E2CFD",
+          crl_url: null,
+        },
+      },
     });
   });
 });

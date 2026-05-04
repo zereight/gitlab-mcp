@@ -3069,7 +3069,6 @@ export const CreateTagSchema = z.object({
   tag_name: z.string().describe("The name of the tag"),
   ref: z.string().describe("Create tag using commit SHA, another tag name, or branch name"),
   message: z.string().optional().describe("Create annotated tag with message"),
-  release_description: z.string().optional().describe("Release notes for the tag"),
 });
 
 export const DeleteTagSchema = z.object({
@@ -3107,12 +3106,26 @@ export const GitLabTagSchema = z.object({
     })
     .nullable(),
   protected: z.boolean(),
+  created_at: z.string().nullable(),
 });
 
 export const GitLabTagSignatureSchema = z.object({
-  signature_type: z.string(),
-  signature: z.string(),
-  public_key: z.string(),
+  signature_type: z.literal("X509"),
+  verification_status: z.string(),
+  x509_certificate: z.object({
+    id: z.number(),
+    subject: z.string(),
+    subject_key_identifier: z.string(),
+    email: z.string().nullable().optional(),
+    serial_number: z.number(),
+    certificate_status: z.string(),
+    x509_issuer: z.object({
+      id: z.number(),
+      subject: z.string(),
+      subject_key_identifier: z.string(),
+      crl_url: z.string().nullable().optional(),
+    }),
+  }),
 });
 
 // Export release types
