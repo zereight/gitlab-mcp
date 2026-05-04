@@ -88,15 +88,112 @@ export const ENABLE_DYNAMIC_API_URL =
   getConfig("enable-dynamic-api-url", "ENABLE_DYNAMIC_API_URL") === "true";
 
 // ---------------------------------------------------------------------------
+// Stateless mode (multi-pod safe OAuth / session encoding)
+// ---------------------------------------------------------------------------
+
+/** Master switch — when true, opaque OAuth values carry the state instead of
+ * an in-memory per-pod cache. Requires OAUTH_STATELESS_SECRET. */
+export const OAUTH_STATELESS_MODE =
+  getConfig("oauth-stateless-mode", "OAUTH_STATELESS_MODE") === "true";
+
+/**
+ * Per-surface TTLs (seconds). Defaults apply when the env var is unset.
+ *
+ * Both the parsed raw value AND the fallback are validated as finite
+ * positive integers. Without the fallback guard, a caller that computes
+ * its fallback from another (unvalidated) env var could smuggle `NaN`
+ * through here — e.g. `parseInt(SESSION_TIMEOUT_SECONDS, 10)` returns
+ * NaN when the operator sets `SESSION_TIMEOUT_SECONDS=not-a-number`.
+ * That NaN would silently disable TTL checks downstream (see `checkIat`
+ * in stateless/codec.ts: `ttlSec > 0` is false for NaN), breaking the
+ * documented inactivity timeout for sealed sids and OAuth proxy values.
+ *
+ * `safeFallback` picks the supplied fallback only when it is itself a
+ * valid positive integer; otherwise it falls back to `safeFallback`,
+ * which must itself be a valid positive integer. In dev/test a bad
+ * `safeFallback` throws eagerly rather than returning NaN, so bugs
+ * introduced by a future caller show up at module-load time with a
+ * clear stack trace instead of silent TTL suppression at runtime.
+ */
+function _intEnv(
+  name: string,
+  cliKey: string,
+  fallback: number,
+  safeFallback: number = fallback
+): number {
+  // Guard the guard: if *both* fallback and safeFallback are invalid, we
+  // have no last-resort positive value — refuse at load time rather than
+  // return NaN and silently disable TTL checks downstream.
+  if (!(Number.isFinite(safeFallback) && safeFallback > 0)) {
+    throw new Error(
+      `_intEnv(${name}): safeFallback must be a finite positive integer ` +
+        `(got ${safeFallback}). Fix the caller in config.ts.`
+    );
+  }
+  const safe =
+    Number.isFinite(fallback) && fallback > 0 ? fallback : safeFallback;
+  const raw = getConfig(cliKey, name);
+  if (!raw) return safe;
+  const n = Number.parseInt(raw, 10);
+  return Number.isFinite(n) && n > 0 ? n : safe;
+}
+
+export const OAUTH_STATELESS_CLIENT_TTL_SECONDS = _intEnv(
+  "OAUTH_STATELESS_CLIENT_TTL_SECONDS",
+  "oauth-stateless-client-ttl",
+  86_400
+);
+export const OAUTH_STATELESS_PENDING_TTL_SECONDS = _intEnv(
+  "OAUTH_STATELESS_PENDING_TTL_SECONDS",
+  "oauth-stateless-pending-ttl",
+  600
+);
+export const OAUTH_STATELESS_STORED_TTL_SECONDS = _intEnv(
+  "OAUTH_STATELESS_STORED_TTL_SECONDS",
+  "oauth-stateless-stored-ttl",
+  600
+);
+
+// ---------------------------------------------------------------------------
 // Session / server settings
 // ---------------------------------------------------------------------------
 
-export const SESSION_TIMEOUT_SECONDS = Number.parseInt(
-  getConfig("session-timeout", "SESSION_TIMEOUT_SECONDS", "3600"),
-  10
+/** Default inactivity window for in-memory session state (seconds). */
+const _SESSION_TIMEOUT_DEFAULT = 3600;
+
+/**
+ * Sanitized session timeout. Invalid values (non-numeric, zero, negative,
+ * NaN) fall back to _SESSION_TIMEOUT_DEFAULT so downstream consumers —
+ * notably the stateless codec's TTL check — always see a finite positive
+ * number. A silent NaN here would disable the inactivity timeout for
+ * sealed Mcp-Session-Id values.
+ */
+export const SESSION_TIMEOUT_SECONDS = _intEnv(
+  "SESSION_TIMEOUT_SECONDS",
+  "session-timeout",
+  _SESSION_TIMEOUT_DEFAULT
 );
+
+/**
+ * Defaults to SESSION_TIMEOUT_SECONDS when unset. Both the direct env/CLI
+ * value and the fallback are validated inside _intEnv, so a broken
+ * SESSION_TIMEOUT_SECONDS cannot poison this value. Declared in the
+ * session-settings section so the SESSION_TIMEOUT_SECONDS reference is
+ * guaranteed to be initialized; logically it belongs to the stateless
+ * mode above.
+ */
+export const OAUTH_STATELESS_SESSION_TTL_SECONDS = _intEnv(
+  "OAUTH_STATELESS_SESSION_TTL_SECONDS",
+  "oauth-stateless-session-ttl",
+  SESSION_TIMEOUT_SECONDS,
+  _SESSION_TIMEOUT_DEFAULT
+);
+
 export const HOST = getConfig("host", "HOST") || "127.0.0.1";
-export const PORT = Number.parseInt(getConfig("port", "PORT", "3002"), 10);
+
+/** Default HTTP port for the MCP server. */
+const _PORT_DEFAULT = 3002;
+export const PORT = _intEnv("PORT", "port", _PORT_DEFAULT);
 
 // ---------------------------------------------------------------------------
 // Proxy configuration

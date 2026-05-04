@@ -60,6 +60,23 @@ import { randomUUID, randomBytes, createHash } from "node:crypto";
 import { pino } from "pino";
 import type { Request } from "express";
 
+import {
+  looksLikeStatelessClientId,
+  mintClientId,
+  openClientId,
+} from "./stateless/client-id.js";
+import {
+  looksLikeStatelessState,
+  mintPendingAuthState,
+  openPendingAuthState,
+} from "./stateless/pending-auth.js";
+import {
+  looksLikeStatelessStoredTokensCode,
+  mintStoredTokensCode,
+  openStoredTokensCode,
+} from "./stateless/stored-tokens.js";
+import type { StatelessKeyMaterial } from "./stateless/index.js";
+
 const logger = pino({ name: "gitlab-mcp-oauth-proxy" });
 
 /**
@@ -92,6 +109,24 @@ const REQUIRED_GITLAB_SCOPES_RO = ["read_api"];
 const PENDING_AUTH_MAX_SIZE = 1000;
 const PENDING_AUTH_TTL_MS = 10 * 60 * 1000; // 10 minutes
 const CLIENT_CACHE_MAX_SIZE = 1000;
+
+/**
+ * Stateless-mode configuration for the OAuth provider.
+ *
+ * When `material` is set, DCR entries, callback-proxy pending-auth
+ * transactions, and callback-proxy stored-token entries are serialised into
+ * the opaque OAuth values themselves rather than held in a per-pod in-memory
+ * cache. This makes the provider safe to run behind a load balancer that
+ * distributes requests across multiple pods with no session affinity.
+ */
+export interface StatelessOAuthOptions {
+  material: StatelessKeyMaterial;
+  clientTtlSeconds: number;
+  /** TTL for sealed OAuth `state` values (default 600s). */
+  pendingTtlSeconds: number;
+  /** TTL for sealed proxy authorization codes (default 600s). */
+  storedTtlSeconds: number;
+}
 
 /** Stored while user is on GitLab consent screen. Keyed by `state`. */
 interface PendingAuthTransaction {
@@ -175,6 +210,11 @@ class GitLabOAuthServerProvider implements OAuthServerProvider {
   private readonly _pendingAuth = new BoundedLRUMap<PendingAuthTransaction>(PENDING_AUTH_MAX_SIZE);
   private readonly _storedTokens = new BoundedLRUMap<StoredTokenEntry>(PENDING_AUTH_MAX_SIZE);
 
+  // Stateless mode (optional). When set, DCR and callback-proxy state are
+  // serialised into opaque OAuth values and the in-memory caches above are
+  // bypassed. Enabled independently of callback-proxy mode.
+  private readonly _stateless: StatelessOAuthOptions | null;
+
   constructor(
     gitlabBaseUrl: string,
     gitlabAppId: string,
@@ -182,7 +222,8 @@ class GitLabOAuthServerProvider implements OAuthServerProvider {
     readOnly: boolean,
     customScopes?: string[],
     callbackProxyEnabled = false,
-    callbackUrl = ""
+    callbackUrl = "",
+    stateless: StatelessOAuthOptions | null = null
   ) {
     this._gitlabBaseUrl = gitlabBaseUrl;
     this._gitlabAppId = gitlabAppId;
@@ -195,12 +236,20 @@ class GitLabOAuthServerProvider implements OAuthServerProvider {
           : REQUIRED_GITLAB_SCOPES_RW;
     this._callbackProxyEnabled = callbackProxyEnabled;
     this._callbackUrl = callbackUrl;
+    this._stateless = stateless;
 
     if (callbackProxyEnabled && !callbackUrl) {
       throw new Error("callbackUrl is required when callbackProxyEnabled is true");
     }
     if (callbackProxyEnabled) {
       logger.info(`Callback proxy mode enabled — fixed callback URL: ${callbackUrl}`);
+    }
+    if (stateless) {
+      logger.info(
+        `Stateless mode enabled (client_id TTL: ${stateless.clientTtlSeconds}s, ` +
+          `pending TTL: ${stateless.pendingTtlSeconds}s, ` +
+          `stored TTL: ${stateless.storedTtlSeconds}s)`
+      );
     }
   }
 
@@ -209,9 +258,35 @@ class GitLabOAuthServerProvider implements OAuthServerProvider {
   get clientsStore(): OAuthRegisteredClientsStore {
     const cache = this._clientCache;
     const resourceName = this._resourceName;
+    const stateless = this._stateless;
 
     return {
       getClient: async (clientId: string) => {
+        // Stateless path: a signed client_id carries the registration.
+        // If verification succeeds, reconstruct the OAuthClientInformationFull.
+        if (stateless && looksLikeStatelessClientId(clientId)) {
+          const payload = openClientId(
+            stateless.material,
+            clientId,
+            stateless.clientTtlSeconds
+          );
+          if (!payload) {
+            logger.warn(`DCR: stateless client_id rejected (bad signature or expired)`);
+            // Mimic legacy behaviour: return a stub so the SDK surfaces the
+            // standard InvalidClientError path. We return null to let the SDK
+            // handler emit a proper OAuth error.
+            return undefined;
+          }
+          return {
+            client_id: clientId,
+            client_id_issued_at: payload.iat,
+            redirect_uris: payload.ruris,
+            token_endpoint_auth_method: "none",
+            grant_types: payload.gt ?? ["authorization_code"],
+            client_name: payload.cn ?? resourceName,
+          };
+        }
+
         const cached = cache.get(clientId);
         if (cached) return cached;
 
@@ -227,18 +302,45 @@ class GitLabOAuthServerProvider implements OAuthServerProvider {
       registerClient: async (
         client: Omit<OAuthClientInformationFull, "client_id" | "client_id_issued_at">
       ) => {
+        const grantTypes = client.grant_types ?? ["authorization_code"];
+        const redirectUris = client.redirect_uris ?? [];
+        const clientName = client.client_name
+          ? `${client.client_name} via ${resourceName}`
+          : resourceName;
+
+        // Stateless path: mint a signed client_id and return the registration
+        // without touching the in-memory cache.
+        if (stateless) {
+          const issuedAt = Math.floor(Date.now() / 1000);
+          const clientId = mintClientId(stateless.material, {
+            redirectUris,
+            grantTypes,
+            clientName,
+          });
+          const registered: OAuthClientInformationFull = {
+            client_id: clientId,
+            client_id_issued_at: issuedAt,
+            redirect_uris: redirectUris,
+            token_endpoint_auth_method: "none",
+            grant_types: grantTypes,
+            client_name: clientName,
+          };
+          logger.info(
+            `DCR (stateless): issued signed client_id (name: ${clientName}, ruris: ${redirectUris.length})`
+          );
+          return registered;
+        }
+
         // Generate a virtual client_id; all real OAuth operations use _gitlabAppId.
         const virtualClientId = randomUUID();
 
         const registered: OAuthClientInformationFull = {
           client_id: virtualClientId,
           client_id_issued_at: Math.floor(Date.now() / 1000),
-          redirect_uris: client.redirect_uris ?? [],
+          redirect_uris: redirectUris,
           token_endpoint_auth_method: "none",
-          grant_types: client.grant_types ?? ["authorization_code"],
-          client_name: client.client_name
-            ? `${client.client_name} via ${resourceName}`
-            : resourceName,
+          grant_types: grantTypes,
+          client_name: clientName,
         };
 
         cache.set(virtualClientId, registered);
@@ -274,18 +376,31 @@ class GitLabOAuthServerProvider implements OAuthServerProvider {
         .update(proxyCodeVerifier)
         .digest("base64url");
 
-      // Use a unique state to correlate the callback
-      const proxyState = randomUUID();
+      // Correlate the callback via either a sealed state (stateless mode) or
+      // a random UUID stored in the pendingAuth LRU (legacy mode).
+      const stateless = this._stateless;
+      const proxyState = stateless
+        ? mintPendingAuthState(stateless.material, {
+            clientId: client.client_id,
+            clientRedirectUri: params.redirectUri,
+            clientState: params.state,
+            clientCodeChallenge: params.codeChallenge,
+            proxyCodeVerifier,
+          })
+        : randomUUID();
 
-      // Store the client's original params so /callback can redirect back
-      this._pendingAuth.set(proxyState, {
-        clientId: client.client_id,
-        clientRedirectUri: params.redirectUri,
-        clientState: params.state,
-        clientCodeChallenge: params.codeChallenge,
-        proxyCodeVerifier,
-        createdAt: Date.now(),
-      });
+      if (!stateless) {
+        // Store the client's original params so /callback can redirect back.
+        // Stateless mode carries these inside proxyState itself.
+        this._pendingAuth.set(proxyState, {
+          clientId: client.client_id,
+          clientRedirectUri: params.redirectUri,
+          clientState: params.state,
+          clientCodeChallenge: params.codeChallenge,
+          proxyCodeVerifier,
+          createdAt: Date.now(),
+        });
+      }
 
       const searchParams = new URLSearchParams({
         client_id: this._gitlabAppId,
@@ -349,21 +464,53 @@ class GitLabOAuthServerProvider implements OAuthServerProvider {
     if (this._callbackProxyEnabled) {
       // --- Callback proxy mode ---
       // The authorizationCode is a proxy code we generated in handleCallback().
-      // Look up the stored tokens by proxy code.
-      const entry = this._storedTokens.get(authorizationCode);
-      if (!entry) {
-        throw new ServerError("Invalid or expired authorization code");
-      }
+      // It is either a sealed token (stateless mode) or a random UUID that
+      // keys into the _storedTokens LRU (legacy mode).
+      const stateless = this._stateless;
+      let entry: {
+        tokens: OAuthTokens;
+        clientId: string;
+        clientCodeChallenge: string;
+        clientRedirectUri: string;
+      } | null = null;
 
-      // Check TTL before consuming — expired entries can't be retried anyway,
-      // but we give a specific error so the client knows to restart the flow.
-      if (Date.now() - entry.createdAt > PENDING_AUTH_TTL_MS) {
+      if (stateless && looksLikeStatelessStoredTokensCode(authorizationCode)) {
+        const payload = openStoredTokensCode(
+          stateless.material,
+          authorizationCode,
+          stateless.storedTtlSeconds
+        );
+        if (!payload) {
+          throw new ServerError("Invalid or expired authorization code");
+        }
+        entry = {
+          tokens: payload.t,
+          clientId: payload.cid,
+          clientCodeChallenge: payload.ccc,
+          clientRedirectUri: payload.cru,
+        };
+        // NOTE: Stateless mode cannot enforce one-time use without a shared
+        // store. Replay is mitigated by short TTL + client PKCE verification
+        // below (attacker needs the code_verifier). Documented in
+        // stateless/stored-tokens.ts.
+      } else {
+        const lru = this._storedTokens.get(authorizationCode);
+        if (!lru) {
+          throw new ServerError("Invalid or expired authorization code");
+        }
+        if (Date.now() - lru.createdAt > PENDING_AUTH_TTL_MS) {
+          this._storedTokens.delete(authorizationCode);
+          throw new ServerError("Authorization code expired — please restart the OAuth flow");
+        }
+        // One-time use: delete after validation
         this._storedTokens.delete(authorizationCode);
-        throw new ServerError("Authorization code expired — please restart the OAuth flow");
+        entry = {
+          tokens: lru.tokens,
+          clientId: lru.clientId,
+          clientCodeChallenge: lru.clientCodeChallenge,
+          clientRedirectUri: lru.clientRedirectUri,
+        };
       }
-
-      // One-time use: delete after validation
-      this._storedTokens.delete(authorizationCode);
 
       // Bind the proxy code to the client and redirect_uri that initiated
       // /authorize, preserving the normal OAuth authorization-code invariant.
@@ -503,17 +650,52 @@ class GitLabOAuthServerProvider implements OAuthServerProvider {
       return;
     }
 
-    // Look up the pending auth transaction
-    const pending = this._pendingAuth.getAndDelete(state);
-    if (!pending) {
-      res.status(400).send("Unknown or expired state parameter");
-      return;
-    }
+    // Look up the pending auth transaction. The sealed-state path carries
+    // the transaction inline; the legacy path fetches it from the LRU.
+    // Both produce the same normalized shape below.
+    const stateless = this._stateless;
+    let pending: {
+      clientId: string;
+      clientRedirectUri: string;
+      clientState: string | undefined;
+      clientCodeChallenge: string;
+      proxyCodeVerifier: string;
+    } | null = null;
 
-    // Check TTL
-    if (Date.now() - pending.createdAt > PENDING_AUTH_TTL_MS) {
-      res.status(400).send("Authorization request expired");
-      return;
+    if (stateless && looksLikeStatelessState(state)) {
+      const payload = openPendingAuthState(
+        stateless.material,
+        state,
+        stateless.pendingTtlSeconds
+      );
+      if (!payload) {
+        res.status(400).send("Unknown or expired state parameter");
+        return;
+      }
+      pending = {
+        clientId: payload.cid,
+        clientRedirectUri: payload.cru,
+        clientState: payload.cs,
+        clientCodeChallenge: payload.ccc,
+        proxyCodeVerifier: payload.pcv,
+      };
+    } else {
+      const lru = this._pendingAuth.getAndDelete(state);
+      if (!lru) {
+        res.status(400).send("Unknown or expired state parameter");
+        return;
+      }
+      if (Date.now() - lru.createdAt > PENDING_AUTH_TTL_MS) {
+        res.status(400).send("Authorization request expired");
+        return;
+      }
+      pending = {
+        clientId: lru.clientId,
+        clientRedirectUri: lru.clientRedirectUri,
+        clientState: lru.clientState,
+        clientCodeChallenge: lru.clientCodeChallenge,
+        proxyCodeVerifier: lru.proxyCodeVerifier,
+      };
     }
 
     // Exchange the GitLab auth code for tokens using the proxy's PKCE verifier
@@ -541,15 +723,26 @@ class GitLabOAuthServerProvider implements OAuthServerProvider {
 
       const tokens = OAuthTokensSchema.parse(await tokenResponse.json());
 
-      // Generate a proxy auth code for the MCP client
-      const proxyCode = randomUUID();
-      this._storedTokens.set(proxyCode, {
-        tokens,
-        clientId: pending.clientId,
-        clientCodeChallenge: pending.clientCodeChallenge,
-        clientRedirectUri: pending.clientRedirectUri,
-        createdAt: Date.now(),
-      });
+      // Generate a proxy auth code for the MCP client. Sealed in stateless
+      // mode; random UUID + LRU entry in legacy mode.
+      const proxyCode = stateless
+        ? mintStoredTokensCode(stateless.material, {
+            tokens,
+            clientId: pending.clientId,
+            clientRedirectUri: pending.clientRedirectUri,
+            clientCodeChallenge: pending.clientCodeChallenge,
+          })
+        : (() => {
+            const id = randomUUID();
+            this._storedTokens.set(id, {
+              tokens,
+              clientId: pending!.clientId,
+              clientCodeChallenge: pending!.clientCodeChallenge,
+              clientRedirectUri: pending!.clientRedirectUri,
+              createdAt: Date.now(),
+            });
+            return id;
+          })();
 
       // Redirect to the MCP client's original callback URL
       const clientCallback = new URL(pending.clientRedirectUri);
@@ -613,6 +806,9 @@ class GitLabOAuthServerProvider implements OAuthServerProvider {
  *                              Only ONE fixed callback URL needs to be registered with GitLab.
  * @param callbackUrl    The fixed callback URL (e.g. https://mcp.example.com/callback).
  *                        Required when callbackProxyEnabled is true.
+ * @param stateless      Optional stateless-mode options. When set, DCR and later
+ *                        callback-proxy state is encoded into opaque OAuth values
+ *                        instead of an in-memory cache, enabling multi-pod deploys.
  */
 export function createGitLabOAuthProvider(
   gitlabBaseUrl: string,
@@ -621,7 +817,17 @@ export function createGitLabOAuthProvider(
   readOnly = false,
   customScopes?: string[],
   callbackProxyEnabled = false,
-  callbackUrl = ""
+  callbackUrl = "",
+  stateless: StatelessOAuthOptions | null = null
 ): GitLabOAuthServerProvider {
-  return new GitLabOAuthServerProvider(gitlabBaseUrl, gitlabAppId, resourceName, readOnly, customScopes, callbackProxyEnabled, callbackUrl);
+  return new GitLabOAuthServerProvider(
+    gitlabBaseUrl,
+    gitlabAppId,
+    resourceName,
+    readOnly,
+    customScopes,
+    callbackProxyEnabled,
+    callbackUrl,
+    stateless
+  );
 }

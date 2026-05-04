@@ -22,6 +22,11 @@ import {
   MCP_SERVER_URL,
   NODE_TLS_REJECT_UNAUTHORIZED,
   NO_PROXY,
+  OAUTH_STATELESS_CLIENT_TTL_SECONDS,
+  OAUTH_STATELESS_MODE,
+  OAUTH_STATELESS_PENDING_TTL_SECONDS,
+  OAUTH_STATELESS_SESSION_TTL_SECONDS,
+  OAUTH_STATELESS_STORED_TTL_SECONDS,
   PORT,
   REMOTE_AUTHORIZATION,
   SESSION_TIMEOUT_SECONDS,
@@ -34,6 +39,16 @@ import {
   GITLAB_TOOL_POLICY_APPROVE_RAW,
   GITLAB_TOOL_POLICY_HIDDEN_RAW,
 } from "./config.js";
+import {
+  loadKeyMaterialFromEnv,
+  looksLikeStatelessSessionId,
+  mintSessionId,
+  openSessionId,
+} from "./stateless/index.js";
+import type {
+  SessionAuthHeader,
+  StatelessKeyMaterial,
+} from "./stateless/index.js";
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
@@ -338,6 +353,32 @@ import { pino } from "pino";
 
 const logger = pino({
   level: process.env.LOG_LEVEL || "info",
+  // Redact sensitive values that must never appear in logs. Covers both
+  // typical auth-context property names and common HTTP header-bag shapes
+  // that tool/fetch wrappers may include when logging errors.
+  redact: {
+    paths: [
+      "token",
+      "*.token",
+      "ctx.token",
+      "context.token",
+      "authData.token",
+      "auth.token",
+      "headers.authorization",
+      "headers.Authorization",
+      'headers["private-token"]',
+      'headers["Private-Token"]',
+      'headers["job-token"]',
+      'headers["JOB-TOKEN"]',
+      'headers["mcp-session-id"]',
+      'headers["Mcp-Session-Id"]',
+      "sessionId",
+      "*.sessionId",
+      "ctx.sessionId",
+      "context.sessionId",
+    ],
+    censor: "[REDACTED]",
+  },
   transport: {
     target: "pino-pretty",
     options: {
@@ -772,6 +813,106 @@ function validateConfiguration(): void {
 
 let OAUTH_ACCESS_TOKEN: string | null = null;
 let oauthClient: GitLabOAuth | null = null;
+
+/**
+ * Produce a safe short form of a session id for logs. Legacy UUIDs pass
+ * through; stateless sealed sids are truncated to the "v1.sid." prefix
+ * plus a handful of bytes of the ciphertext so operators can correlate
+ * flows without the log line carrying the sealed bearer token.
+ */
+function redactSessionIdForLog(sid: string | undefined): string {
+  if (!sid) return "<none>";
+  if (sid.startsWith("v1.sid.")) return "v1.sid.<redacted>";
+  // UUIDs / other formats are low-sensitivity; show first 8 chars.
+  return sid.length > 8 ? `${sid.slice(0, 8)}…` : sid;
+}
+
+/**
+ * Detect whether an MCP JSON-RPC request body represents an "initialize"
+ * request. Accepts both single-message and batch forms. Returns false on any
+ * unexpected shape — callers treat an ambiguous body as non-init, which is
+ * the safer default (it means the SDK will fail loudly rather than silently
+ * spawning a new session).
+ */
+function isInitializationRequestBody(body: unknown): boolean {
+  if (!body) return false;
+  const isInitObj = (m: unknown): boolean =>
+    typeof m === "object" &&
+    m !== null &&
+    (m as { method?: unknown }).method === "initialize";
+  if (Array.isArray(body)) return body.some(isInitObj);
+  return isInitObj(body);
+}
+
+/**
+ * Normalize an `Mcp-Session-Id` header value.
+ *
+ * Node's HTTP types allow any request header to surface as `string[]` when
+ * the client sends it more than once. Casting to `string` and calling
+ * `.startsWith()` on an array throws `TypeError: startsWith is not a
+ * function`, which Express converts to a 500 — silently turning malformed
+ * requests into server errors and breaking the 401/404 semantics we
+ * carefully distinguish in stateless mode. A duplicated `Mcp-Session-Id` is
+ * also ill-formed at the protocol level: there is no well-defined way to
+ * pick between two values, so we reject arrays rather than guess.
+ *
+ * Empty-string is normalized to `undefined` so call sites can use truthy
+ * checks and `?? undefined`-style fallbacks uniformly.
+ *
+ * Exported for unit tests; otherwise used only by the /mcp handlers below.
+ */
+export function readMcpSessionIdHeader(
+  req: { headers: Record<string, string | string[] | undefined> }
+): string | undefined {
+  const raw = req.headers["mcp-session-id"];
+  if (typeof raw !== "string") return undefined;
+  return raw.length > 0 ? raw : undefined;
+}
+
+/**
+ * Loaded once at startup. Null when OAUTH_STATELESS_MODE is disabled.
+ * When set, the OAuth provider and (later phases) the Mcp-Session-Id path
+ * switch to signed/sealed opaque values instead of per-pod in-memory caches.
+ */
+let STATELESS_MATERIAL: StatelessKeyMaterial | null = null;
+try {
+  // Drive enablement from the already-resolved config flag so the CLI flag
+  // (--oauth-stateless-mode) is honored. Re-reading env.OAUTH_STATELESS_MODE
+  // inside the loader would silently ignore the CLI flag and leave
+  // STATELESS_MATERIAL null, falling back to per-pod state.
+  STATELESS_MATERIAL = loadKeyMaterialFromEnv(OAUTH_STATELESS_MODE);
+  if (OAUTH_STATELESS_MODE && STATELESS_MATERIAL) {
+    // Avoid logging anything that could leak key length / entropy details.
+    // Keep the message aligned with similar startup banners.
+    // eslint-disable-next-line no-console -- startup banner parity
+    console.error("[gitlab-mcp] stateless OAuth mode enabled");
+  }
+} catch (err) {
+  // eslint-disable-next-line no-console -- startup failure must be visible
+  console.error(
+    `[gitlab-mcp] failed to load stateless secret: ${(err as Error).message}`
+  );
+  process.exit(1);
+}
+
+/**
+ * True when this request is a candidate for the stateless sid-auth path:
+ * stateless mode is enabled, key material loaded, and the client sent an
+ * Mcp-Session-Id header. We deliberately key off *presence* (not validity)
+ * so malformed / expired / legacy sids still reach handleStatelessMcpRequest
+ * and get the intended 404 Session not found — rather than being masked by
+ * a 401 from the OAuth bearer middleware.
+ */
+export function hasStatelessSessionId(
+  req: { headers: Record<string, string | string[] | undefined> }
+): boolean {
+  return Boolean(
+    OAUTH_STATELESS_MODE &&
+      STATELESS_MATERIAL &&
+      readMcpSessionIdHeader(req)
+  );
+}
+
 /**
  * Ensure the OAuth token is valid before making an API call.
  * Refreshes the token lazily (only when a tool is actually called).
@@ -9906,6 +10047,12 @@ async function startStreamableHTTPServer(): Promise<void> {
     requestsProcessed: 0,
     rejectedByRateLimit: 0,
     rejectedByCapacity: 0,
+    // Stateless-mode counters. Only non-zero when OAUTH_STATELESS_MODE=true.
+    statelessRequests: 0,
+    statelessAuthFromHeader: 0,  // fresh Authorization/Private-Token/JOB-TOKEN present
+    statelessAuthFromSealedSid: 0,  // auth reconstructed from sealed Mcp-Session-Id
+    statelessAuthFailures: 0,   // neither source yielded usable auth
+    statelessSidRotated: 0,     // minted a new sid because fresh auth was present
   };
 
   // Rate limiting per session
@@ -10048,6 +10195,209 @@ async function startStreamableHTTPServer(): Promise<void> {
     clearAuthTimeout(sessionId);
   };
 
+  /**
+   * Stateless-mode handler for /mcp POSTs.
+   *
+   * The MCP Streamable HTTP SDK can run in "stateless mode" when
+   * `sessionIdGenerator` is undefined — it creates no session state and
+   * short-circuits session validation. We exploit that by driving the
+   * session identity ourselves via an AEAD-sealed `Mcp-Session-Id`:
+   *
+   *   1. Every request gets a freshly-instantiated transport (SDK-stateless).
+   *   2. The caller's auth is derived from:
+   *      - live request headers (preferred; handles OAuth token refresh),
+   *      - or the sealed Mcp-Session-Id (for requests that omit headers).
+   *   3. We assign `transport.sessionId = <sealed>` so the SDK emits the
+   *      Mcp-Session-Id response header for the client to echo back.
+   *   4. The AsyncLocalStorage auth context is populated from the derived
+   *      auth, bypassing authBySession / authTimeouts entirely.
+   *
+   * Rate limiting is explicitly disabled in stateless mode (per-pod counters
+   * would yield a loose global bound — operators can rate-limit upstream).
+   */
+  const handleStatelessMcpRequest = async (
+    req: Request,
+    res: Response,
+    material: StatelessKeyMaterial,
+    sessionTtlSeconds: number
+  ): Promise<void> => {
+    metrics.statelessRequests++;
+
+    // Step 1: derive the effective auth for this request.
+    // Priority: live headers > sealed sid. This lets clients refresh OAuth
+    // tokens without re-initializing their MCP session.
+    const headerAuth = parseAuthHeaders(req);
+
+    // In GITLAB_MCP_OAUTH mode, req.auth may be populated by requireBearerAuth.
+    // Use it when headerAuth is null (no Private-Token / JOB-TOKEN / Authorization).
+    let effective: {
+      header: SessionAuthHeader;
+      token: string;
+      apiUrl: string;
+    } | null = null;
+    let freshAuthPresent = false;
+    if (headerAuth) {
+      effective = {
+        header: headerAuth.header,
+        token: headerAuth.token,
+        apiUrl: headerAuth.apiUrl,
+      };
+      freshAuthPresent = true;
+    } else if (GITLAB_MCP_OAUTH) {
+      const authInfo = req.auth;
+      if (authInfo?.token) {
+        effective = {
+          header: "Authorization",
+          token: authInfo.token,
+          apiUrl: GITLAB_API_URL,
+        };
+        freshAuthPresent = true;
+      }
+    }
+    if (freshAuthPresent) metrics.statelessAuthFromHeader++;
+
+    // Fall back to the sealed sid when no live headers are present. Track
+    // whether a sid was presented but rejected (expired / tampered / wrong
+    // key / malformed) so we can return 404 below — the MCP Streamable HTTP
+    // contract is that session-bound requests get 404 on a terminated session,
+    // which tells the client to re-initialize. Returning 401 here would
+    // instead trigger the client's auth-failure path and break automatic
+    // recovery after inactivity TTL expiry.
+    const incomingSid = readMcpSessionIdHeader(req);
+    let sidPresentedButInvalid = false;
+    if (!effective && incomingSid) {
+      if (looksLikeStatelessSessionId(incomingSid)) {
+        const opened = openSessionId(material, incomingSid, sessionTtlSeconds);
+        if (opened) {
+          effective = { header: opened.h, token: opened.t, apiUrl: opened.u };
+          metrics.statelessAuthFromSealedSid++;
+        } else {
+          sidPresentedButInvalid = true;
+        }
+      } else {
+        // Non-stateless-shaped sid (e.g. a UUID from a prior stateful run, or
+        // garbage). From the caller's perspective the session is unknown — we
+        // surface that as "session ended" rather than as an auth problem.
+        sidPresentedButInvalid = true;
+      }
+    }
+
+    if (!effective) {
+      metrics.authFailures++;
+      metrics.statelessAuthFailures++;
+      if (sidPresentedButInvalid) {
+        // Per MCP Streamable HTTP: a 404 on a session-bound request signals
+        // "session ended, re-initialize". The inactivity TTL expiring looks
+        // identical to a session the server no longer recognizes — in both
+        // cases the client should start a fresh initialize handshake.
+        res.status(404).json({
+          error: "Session not found",
+          message:
+            "Stateless mode: Mcp-Session-Id is expired, invalid, or from a " +
+            "different key. Re-initialize to obtain a new session id.",
+        });
+        return;
+      }
+      res.status(401).json({
+        error: "Authentication required",
+        message:
+          "Stateless mode: provide Private-Token, JOB-TOKEN, or Authorization " +
+          "header, or a valid Mcp-Session-Id from a previous response.",
+      });
+      return;
+    }
+
+    // Step 2: detect whether this is the initialization request. The MCP SDK
+    // only emits an Mcp-Session-Id response header when the transport is in
+    // SDK-stateful mode, which requires a sessionIdGenerator. We use
+    // SDK-stateful mode for init requests (so the client receives the sid)
+    // and SDK-stateless mode for subsequent requests (to avoid the SDK's
+    // per-instance _initialized / sessionId equality checks that would reject
+    // a freshly-constructed transport).
+    const isInit = isInitializationRequestBody(req.body);
+
+    // Always mint a fresh sid so the embedded iat advances on every request.
+    // This makes OAUTH_STATELESS_SESSION_TTL_SECONDS behave as an inactivity
+    // timeout rather than an absolute-age cap — matching the legacy
+    // setAuthTimeout semantics. Reusing the incoming sid would regress
+    // long-lived sessions that authenticate via sealed-sid replay (typical
+    // REMOTE_AUTHORIZATION flow after init).
+    const freshSid = mintSessionId(material, {
+      header: effective.header,
+      token: effective.token,
+      apiUrl: effective.apiUrl,
+    });
+    if (freshAuthPresent) {
+      metrics.statelessSidRotated++;
+    }
+
+    logger.debug(
+      {
+        sidPrefix: redactSessionIdForLog(freshSid),
+        freshAuthPresent,
+        header: effective.header,
+      },
+      "stateless /mcp request"
+    );
+
+    // Step 3: build the AsyncLocalStorage context so buildAuthHeaders and
+    // getEffectiveApiUrl read from the derived auth.
+    const ctx: SessionAuth = {
+      sessionId: freshSid,
+      header: effective.header,
+      token: effective.token,
+      lastUsed: Date.now(),
+      apiUrl: effective.apiUrl,
+    };
+
+    // Step 4: create a fresh transport per request.
+    const transport = isInit
+      ? new StreamableHTTPServerTransport({
+          sessionIdGenerator: () => freshSid,
+        })
+      : new StreamableHTTPServerTransport({
+          sessionIdGenerator: undefined, // SDK stateless mode for non-init
+        });
+
+    // For non-init requests the SDK runs in its internal stateless mode and
+    // does not emit an Mcp-Session-Id response header. We pre-set the
+    // freshly minted sid on the Express response so clients can adopt the
+    // latest sid (and its advanced iat) on every response. Headers passed
+    // to the SDK's writeHead() call are merged with pre-set headers per
+    // Node.js semantics, so this does not clobber SDK-managed values.
+    // Without this, the inactivity-timeout semantics of
+    // OAUTH_STATELESS_SESSION_TTL_SECONDS silently regress to an
+    // absolute-age cap for sid-only auth flows.
+    if (!isInit) {
+      res.setHeader("Mcp-Session-Id", freshSid);
+    }
+
+    const serverInstance = createServer();
+    await serverInstance.connect(transport);
+
+    await sessionAuthStore.run(ctx, async () => {
+      try {
+        await transport.handleRequest(req, res, req.body);
+      } catch (err) {
+        logger.error({ err }, "stateless /mcp error");
+        if (!res.headersSent) {
+          res.status(500).json({
+            error: "Internal server error",
+            message: err instanceof Error ? err.message : "Unknown error",
+          });
+        }
+      } finally {
+        // Fresh transport per request — always close to release any stream
+        // resources. The SDK treats close() as idempotent.
+        try {
+          await transport.close();
+        } catch {
+          // ignore
+        }
+      }
+    });
+  };
+
   // Configure Express middleware
   app.use(express.json());
 
@@ -10061,7 +10411,25 @@ async function startStreamableHTTPServer(): Promise<void> {
     const callbackUrl = GITLAB_OAUTH_CALLBACK_PROXY
       ? `${issuerUrl.origin}${issuerUrl.pathname.replace(/\/$/, "")}/callback`
       : undefined;
-    const oauthProvider = createGitLabOAuthProvider(gitlabBaseUrl, GITLAB_OAUTH_APP_ID!, "GitLab MCP Server", GITLAB_READ_ONLY_MODE, GITLAB_OAUTH_SCOPES, GITLAB_OAUTH_CALLBACK_PROXY, callbackUrl);
+    const statelessOptions =
+      OAUTH_STATELESS_MODE && STATELESS_MATERIAL
+        ? {
+            material: STATELESS_MATERIAL,
+            clientTtlSeconds: OAUTH_STATELESS_CLIENT_TTL_SECONDS,
+            pendingTtlSeconds: OAUTH_STATELESS_PENDING_TTL_SECONDS,
+            storedTtlSeconds: OAUTH_STATELESS_STORED_TTL_SECONDS,
+          }
+        : null;
+    const oauthProvider = createGitLabOAuthProvider(
+      gitlabBaseUrl,
+      GITLAB_OAUTH_APP_ID!,
+      "GitLab MCP Server",
+      GITLAB_READ_ONLY_MODE,
+      GITLAB_OAUTH_SCOPES,
+      GITLAB_OAUTH_CALLBACK_PROXY,
+      callbackUrl,
+      statelessOptions
+    );
     const scopesSupported = GITLAB_OAUTH_SCOPES ?? ["api", "read_api", "read_user"];
 
     // When server URL has a path (e.g. behind Kong), the SDK's well-known metadata
@@ -10167,16 +10535,52 @@ async function startStreamableHTTPServer(): Promise<void> {
           });
           return;
         }
+
+        // Stateless-mode sid bypass: when the client sends only an
+        // Mcp-Session-Id (no live Authorization), let handleStatelessMcpRequest
+        // open the sealed sid. Without this, requireBearerAuth would 401
+        // before the handler can reconstruct auth from the sid — breaking
+        // sid-only follow-up requests across pods under GITLAB_MCP_OAUTH.
+        //
+        // We still run oauthBearerAuth when an Authorization header IS
+        // present alongside the sid, so a client refreshing its OAuth token
+        // gets the new token validated normally. We also key this off
+        // header *presence* (not validity): malformed / expired / legacy
+        // sids still reach the handler and get the intended 404 Session
+        // not found response rather than being masked by a 401 here.
+        if (hasStatelessSessionId(req) && !req.headers.authorization) {
+          next();
+          return;
+        }
+
         oauthBearerAuth!(req, res, next);
       }
     : (_req: Request, _res: Response, next: NextFunction) => next();
 
   // Streamable HTTP endpoint - handles both session creation and message handling
   app.post("/mcp", mcpBearerAuth, async (req: Request, res: Response) => {
-    const sessionId = req.headers["mcp-session-id"] as string;
+    const sessionId = readMcpSessionIdHeader(req);
 
     // Track request
     metrics.requestsProcessed++;
+
+    // Stateless-mode branch: bypass authBySession / streamableTransports
+    // entirely and derive the session auth from either the current request
+    // headers (init) or a sealed Mcp-Session-Id (subsequent requests).
+    // Rate limiting is disabled here because there is no shared counter.
+    if (
+      OAUTH_STATELESS_MODE &&
+      STATELESS_MATERIAL &&
+      (REMOTE_AUTHORIZATION || GITLAB_MCP_OAUTH)
+    ) {
+      await handleStatelessMcpRequest(
+        req,
+        res,
+        STATELESS_MATERIAL,
+        OAUTH_STATELESS_SESSION_TTL_SECONDS
+      );
+      return;
+    }
 
     // Rate limiting check for existing sessions
     if ((REMOTE_AUTHORIZATION || GITLAB_MCP_OAUTH) && sessionId && !checkRateLimit(sessionId)) {
@@ -10417,6 +10821,8 @@ async function startStreamableHTTPServer(): Promise<void> {
         sessionTimeoutSeconds: SESSION_TIMEOUT_SECONDS,
         remoteAuthEnabled: REMOTE_AUTHORIZATION,
         mcpOAuthEnabled: GITLAB_MCP_OAUTH,
+        statelessModeEnabled: OAUTH_STATELESS_MODE && STATELESS_MATERIAL !== null,
+        statelessRotationKey: OAUTH_STATELESS_MODE && STATELESS_MATERIAL?.previous != null,
       },
     });
   });
@@ -10433,8 +10839,8 @@ async function startStreamableHTTPServer(): Promise<void> {
   });
 
   // to delete a mcp server session explicitly
-  app.delete("/mcp", async (req: Request, res: Response) => {
-    const sessionId = req.headers["mcp-session-id"] as string;
+  app.delete("/mcp", mcpBearerAuth, async (req: Request, res: Response) => {
+    const sessionId = readMcpSessionIdHeader(req);
 
     if (!sessionId) {
       res.status(400).json({ error: "mcp-session-id header is required" });

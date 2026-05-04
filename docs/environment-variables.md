@@ -106,6 +106,68 @@ Notes:
 - Requires `REMOTE_AUTHORIZATION=true`
 - Uses the `X-GitLab-API-URL` request header in HTTP mode
 
+## Stateless mode (multi-pod HPA)
+
+See [Stateless Mode](./stateless-mode.md) for the full design and trade-off
+discussion. Stateless mode makes the OAuth proxy, DCR registry, and
+`Mcp-Session-Id` path safe to distribute across multiple pods with no shared
+cache, no sticky sessions, and no external dependency.
+
+### `OAUTH_STATELESS_MODE`
+
+Set to `true` to enable stateless encodings for `client_id`, OAuth `state`,
+OAuth `code`, and `Mcp-Session-Id`. Default `false` — legacy (per-pod memory)
+behaviour is unchanged.
+
+### `OAUTH_STATELESS_SECRET`
+
+Required when `OAUTH_STATELESS_MODE=true`. Base64url-encoded ≥32 bytes. Must
+be identical across all pods.
+
+Generate with:
+
+```bash
+openssl rand -base64 32
+```
+
+### `OAUTH_STATELESS_SECRET_PREVIOUS`
+
+Optional. Accepted on reads only; during key rotation the previous secret
+keeps verifying tokens minted before the swap. Remove after `max(TTL)` has
+elapsed.
+
+### `OAUTH_STATELESS_CLIENT_TTL_SECONDS`
+
+Max age for a signed DCR `client_id`. Default `86400` (24 h).
+
+### `OAUTH_STATELESS_PENDING_TTL_SECONDS`
+
+Max age for a sealed OAuth `state` during the callback-proxy `/authorize`
+→ `/callback` hop. Default `600` (10 min).
+
+### `OAUTH_STATELESS_STORED_TTL_SECONDS`
+
+Max age for a sealed proxy authorization `code` during the `/callback` →
+`/token` hop. Default `600` (10 min).
+
+### `OAUTH_STATELESS_SESSION_TTL_SECONDS`
+
+Inactivity timeout for a sealed `Mcp-Session-Id`, evaluated against the
+`iat` of the most recently minted sid. The server mints a fresh sid on
+every `/mcp` request, so continuously-used sessions never expire; a
+session is only rejected when no traffic has arrived for longer than this
+window. Defaults to `SESSION_TIMEOUT_SECONDS` when unset, matching the
+legacy stateful `setAuthTimeout` semantics without additional
+configuration.
+
+Value validation: must parse as a finite positive integer. If the env var
+(or `--oauth-stateless-session-ttl` CLI flag) is unset or invalid, the
+value falls back to `SESSION_TIMEOUT_SECONDS` when that is itself a finite
+positive integer, otherwise to the hardcoded default of `3600` seconds.
+Misconfigurations never produce `NaN` — this guarantees the TTL check in
+the stateless codec (`ttlSec > 0` in `checkIat`) always enforces an
+inactivity window for sealed sids.
+
 ## Core GitLab Configuration
 
 ### `GITLAB_API_URL`
@@ -265,6 +327,7 @@ Maximum GitLab client pool size.
 
 - [OAuth2 Authentication Setup Guide](./oauth-setup.md)
 - [GitLab MCP OAuth Callback Proxy](./oauth-callback-proxy.md)
+- [Stateless Mode (multi-pod HPA)](./stateless-mode.md)
 - [Claude Code Setup Guide](./claude-code-setup.md)
 - [VS Code Setup Guide](./vscode-setup.md)
 - [GitHub Copilot Setup Guide](./copilot-setup.md)
