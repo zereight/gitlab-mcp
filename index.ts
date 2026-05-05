@@ -149,6 +149,8 @@ import {
   GetEnvironmentSchema,
   GetNamespaceSchema,
   // pipeline job schemas
+  type GitLabCiLintResult,
+  GitLabCiLintResultSchema,
   GetPipelineJobOutputSchema,
   GetPipelineSchema,
   GetProjectMilestoneSchema,
@@ -256,6 +258,10 @@ import {
   ListEnvironmentsSchema,
   type ListPipelineTriggerJobsOptions,
   ListPipelineTriggerJobsSchema,
+  type ValidateCiLintOptions,
+  ValidateCiLintSchema,
+  type ValidateProjectCiLintOptions,
+  ValidateProjectCiLintSchema,
   type ListProjectMembersOptions,
   ListProjectMembersSchema,
   ListProjectMilestonesSchema,
@@ -6679,6 +6685,54 @@ async function getPipelineJobOutput(
   return fullTrace;
 }
 
+async function validateCiLint(
+  projectId: string,
+  options: Omit<ValidateCiLintOptions, "project_id">
+): Promise<GitLabCiLintResult> {
+  projectId = decodeURIComponent(projectId);
+  const url = new URL(
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/ci/lint`
+  );
+
+  const response = await fetch(url.toString(), {
+    ...getFetchConfig(),
+    method: "POST",
+    body: JSON.stringify(options),
+  });
+
+  await handleGitLabError(response);
+  const data = await response.json();
+  return GitLabCiLintResultSchema.parse(data);
+}
+
+async function validateProjectCiLint(
+  projectId: string,
+  options: Omit<ValidateProjectCiLintOptions, "project_id">
+): Promise<GitLabCiLintResult> {
+  projectId = decodeURIComponent(projectId);
+  const url = new URL(
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/ci/lint`
+  );
+
+  Object.entries(options).forEach(([key, value]) => {
+    if (value !== undefined) {
+      if (typeof value === "boolean") {
+        url.searchParams.append(key, value ? "true" : "false");
+      } else {
+        url.searchParams.append(key, value.toString());
+      }
+    }
+  });
+
+  const response = await fetch(url.toString(), {
+    ...getFetchConfig(),
+  });
+
+  await handleGitLabError(response);
+  const data = await response.json();
+  return GitLabCiLintResultSchema.parse(data);
+}
+
 /**
  * List artifact files in a job's artifacts archive
  *
@@ -9540,6 +9594,24 @@ async function handleToolCall(params: any) {
               text: jobOutput,
             },
           ],
+        };
+      }
+
+      case "validate_ci_lint": {
+        const args = ValidateCiLintSchema.parse(params.arguments);
+        const { project_id, ...options } = args;
+        const result = await validateCiLint(project_id, options);
+        return {
+          content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+        };
+      }
+
+      case "validate_project_ci_lint": {
+        const args = ValidateProjectCiLintSchema.parse(params.arguments);
+        const { project_id, ...options } = args;
+        const result = await validateProjectCiLint(project_id, options);
+        return {
+          content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
         };
       }
 
