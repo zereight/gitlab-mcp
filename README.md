@@ -8,13 +8,13 @@
 
 ## @zereight/mcp-gitlab
 
-A comprehensive GitLab MCP server for AI clients. Manage projects, merge requests, issues, pipelines, wiki, releases, milestones, and more through stdio, SSE, and Streamable HTTP.
+A comprehensive GitLab MCP server for AI clients. Manage projects, merge requests, issues, pipelines, wiki, releases, tags, milestones, and more through stdio, SSE, and Streamable HTTP.
 
 Supports PAT, OAuth, read-only mode, dynamic API URLs, and remote authorization for VS Code, Claude, Cursor, Copilot, and other MCP clients.
 
 ### Why use this GitLab MCP?
 
-- Broad GitLab coverage — projects, repository browsing, merge requests, issues, pipelines, wiki, releases, labels, milestones, and more
+- Broad GitLab coverage — projects, repository browsing, merge requests, issues, pipelines, wiki, releases, tags, labels, milestones, and more
 - Flexible auth — Personal Access Token, local OAuth2 browser flow, MCP OAuth proxy, and per-request remote authorization
 - Multiple transports — stdio for local clients, SSE for legacy clients, and Streamable HTTP for modern remote deployments
 - Client-friendly setup — examples for Claude Code, Codex, Antigravity, OpenCode, Copilot, Cline, Roo Code, Cursor, Kilo Code, and Amp Code
@@ -564,30 +564,35 @@ Register the skill directory in your AI client to get optimal tool usage guidanc
 115. `delete_release` - Delete a release from a GitLab project (does not delete the associated tag)
 116. `create_release_evidence` - Create release evidence for an existing release (GitLab Premium/Ultimate only)
 117. `download_release_asset` - Download a release asset file by direct asset path
-118. `get_users` - Get GitLab user details by usernames
-119. `list_events` - List all events for the currently authenticated user
-120. `get_project_events` - List all visible events for a specified project
-121. `upload_markdown` - Upload a file to a GitLab project for use in markdown content
-122. `download_attachment` - Download an uploaded file from a GitLab project by secret and filename
-123. `get_work_item` - Get a single work item with full details including status, hierarchy (parent/children), type, labels, assignees, and all widgets
-124. `list_work_items` - List work items in a project with filters (type, state, search, assignees, labels). Returns items with status and hierarchy info
-125. `create_work_item` - Create a new work item (issue, task, incident, test_case, epic, key_result, objective, requirement, ticket). Supports setting title, description, labels, assignees, weight, parent, health status, start/due dates, milestone, and confidentiality
-126. `update_work_item` - Update a work item. Can modify title, description, labels, assignees, weight, state, status, parent hierarchy, children, health status, start/due dates, milestone, confidentiality, linked items, and custom fields
-127. `convert_work_item_type` - Convert a work item to a different type (e.g. issue to task, task to incident)
-128. `list_work_item_statuses` - List available statuses for a work item type in a project. Requires GitLab Premium/Ultimate with configurable statuses
-129. `list_custom_field_definitions` - List available custom field definitions for a work item type in a project. Returns field names, types, and IDs needed for setting custom fields via update_work_item
-130. `move_work_item` - Move a work item (issue, task, etc.) to a different project. Uses GitLab GraphQL issueMove mutation
-131. `list_work_item_notes` - List notes and discussions on a work item. Returns threaded discussions with author, body, timestamps, and system/internal flags
-132. `create_work_item_note` - Add a note/comment to a work item. Supports Markdown, internal notes, and threaded replies
-133. `get_timeline_events` - List timeline events for an incident. Returns chronological events with notes, timestamps, and tags
-134. `create_timeline_event` - Create a timeline event on an incident. Supports tags: 'Start time', 'End time', 'Impact detected', 'Response initiated', 'Impact mitigated', 'Cause identified'
-135. `list_webhooks` - List all configured webhooks for a GitLab project or group. Provide either project_id or group_id
-136. `list_webhook_events` - List recent webhook events (past 7 days) for a project or group webhook. Use summary mode for overview, then get_webhook_event for full details
-137. `get_webhook_event` - Get full details of a specific webhook event by ID, including request/response payloads
-138. `search_code` - Search for code across all projects on the GitLab instance (requires advanced search or exact code search to be enabled)
-139. `search_project_code` - Search for code within a specific GitLab project (requires advanced search or exact code search to be enabled)
-140. `search_group_code` - Search for code within a specific GitLab group (requires advanced search or exact code search to be enabled)
-141. `execute_graphql` - Execute a GitLab GraphQL query
+118. `list_tags` - List repository tags with filtering and pagination support
+119. `get_tag` - Get details of a specific repository tag
+120. `create_tag` - Create a new tag in the repository
+121. `delete_tag` - Delete a tag from the repository
+122. `get_tag_signature` - Get the signature of a signed tag
+123. `get_users` - Get GitLab user details by usernames
+124. `list_events` - List all events for the currently authenticated user
+125. `get_project_events` - List all visible events for a specified project
+126. `upload_markdown` - Upload a file to a GitLab project for use in markdown content
+127. `download_attachment` - Download an uploaded file from a GitLab project by secret and filename
+128. `get_work_item` - Get a single work item with full details including status, hierarchy (parent/children), type, labels, assignees, and all widgets
+129. `list_work_items` - List work items in a project with filters (type, state, search, assignees, labels). Returns items with status and hierarchy info
+130. `create_work_item` - Create a new work item (issue, task, incident, test_case, epic, key_result, objective, requirement, ticket). Supports setting title, description, labels, assignees, weight, parent, health status, start/due dates, milestone, and confidentiality
+131. `update_work_item` - Update a work item. Can modify title, description, labels, assignees, weight, state, status, parent hierarchy, children, health status, start/due dates, milestone, confidentiality, linked items, and custom fields
+132. `convert_work_item_type` - Convert a work item to a different type (e.g. issue to task, task to incident)
+133. `list_work_item_statuses` - List available statuses for a work item type in a project. Requires GitLab Premium/Ultimate with configurable statuses
+134. `list_custom_field_definitions` - List available custom field definitions for a work item type in a project. Returns field names, types, and IDs needed for setting custom fields via update_work_item
+135. `move_work_item` - Move a work item (issue, task, etc.) to a different project. Uses GitLab GraphQL issueMove mutation
+136. `list_work_item_notes` - List notes and discussions on a work item. Returns threaded discussions with author, body, timestamps, and system/internal flags
+137. `create_work_item_note` - Add a note/comment to a work item. Supports Markdown, internal notes, and threaded replies
+138. `get_timeline_events` - List timeline events for an incident. Returns chronological events with notes, timestamps, and tags
+139. `create_timeline_event` - Create a timeline event on an incident. Supports tags: 'Start time', 'End time', 'Impact detected', 'Response initiated', 'Impact mitigated', 'Cause identified'
+140. `list_webhooks` - List all configured webhooks for a GitLab project or group. Provide either project_id or group_id
+141. `list_webhook_events` - List recent webhook events (past 7 days) for a project or group webhook. Use summary mode for overview, then get_webhook_event for full details
+142. `get_webhook_event` - Get full details of a specific webhook event by ID, including request/response payloads
+143. `search_code` - Search for code across all projects on the GitLab instance (requires advanced search or exact code search to be enabled)
+144. `search_project_code` - Search for code within a specific GitLab project (requires advanced search or exact code search to be enabled)
+145. `search_group_code` - Search for code within a specific GitLab group (requires advanced search or exact code search to be enabled)
+146. `execute_graphql` - Execute a GitLab GraphQL query
 <!-- TOOLS-END -->
 
 </details>

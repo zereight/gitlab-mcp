@@ -40,6 +40,7 @@ const TOOLSET_TOOL_COUNTS: Record<string, number> = {
   milestones: 9,
   wiki: 10,
   releases: 7,
+  tags: 5,
   users: 5,
   search: 3,
   workitems: 18,
@@ -56,7 +57,16 @@ const DEFAULT_TOOLSETS = [
   "users",
 ];
 
-const NON_DEFAULT_TOOLSETS = ["pipelines", "milestones", "wiki", "releases", "workitems", "webhooks", "search"];
+const NON_DEFAULT_TOOLSETS = [
+  "pipelines",
+  "milestones",
+  "wiki",
+  "releases",
+  "tags",
+  "workitems",
+  "webhooks",
+  "search",
+];
 
 // discover_tools meta-tool is always force-injected (Step 5.5)
 const DISCOVER_TOOLS_COUNT = 1;
@@ -83,6 +93,7 @@ const TOOLSET_SAMPLE_TOOLS: Record<string, string[]> = {
   milestones: ["list_milestones", "create_milestone", "get_milestone_burndown_events"],
   wiki: ["list_wiki_pages", "create_wiki_page", "list_group_wiki_pages", "create_group_wiki_page"],
   releases: ["list_releases", "create_release", "download_release_asset"],
+  tags: ["list_tags", "create_tag", "get_tag_signature"],
   users: ["get_users", "upload_markdown", "download_attachment"],
   search: ["search_code", "search_project_code", "search_group_code"],
   webhooks: ["list_webhooks", "list_webhook_events", "get_webhook_event"],
