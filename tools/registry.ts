@@ -23,6 +23,7 @@ import {
   ListIssueEmojiReactionsSchema,
   ListIssueNoteEmojiReactionsSchema,
   CreateLabelSchema,
+  MarkAllTodosDoneSchema,
   ListTodosSchema,
   MarkTodoDoneSchema,
   CreateMergeRequestDiscussionNoteSchema,
@@ -504,7 +505,7 @@ export const allTools = [
   {
     name: "mark_all_todos_done",
     description: "Mark all pending GitLab to-do items as done for the current user",
-    inputSchema: { type: "object" as const, properties: {} },
+    inputSchema: toJSONSchema(MarkAllTodosDoneSchema),
   },
   {
     name: "list_issue_links",

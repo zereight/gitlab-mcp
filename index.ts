@@ -295,6 +295,7 @@ import {
   type MergeRequestThreadPosition,
   type MyIssuesOptions,
   MyIssuesSchema,
+  MarkAllTodosDoneSchema,
   MarkTodoDoneSchema,
   type PaginatedDiscussionsResponse,
   PaginatedDiscussionsResponseSchema,
@@ -8165,7 +8166,7 @@ async function getTagSignature(
 async function handleToolCall(params: any) {
   try {
     if (!params.arguments) {
-      throw new Error("Arguments are required");
+      params.arguments = {};
     }
 
     // Ensure session is established for every request if cookie authentication is enabled
@@ -8652,6 +8653,7 @@ async function handleToolCall(params: any) {
       }
 
       case "mark_all_todos_done": {
+        MarkAllTodosDoneSchema.parse(params.arguments);
         await markAllTodosDone();
         return {
           content: [

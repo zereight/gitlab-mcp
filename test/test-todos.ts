@@ -7,7 +7,7 @@ const MOCK_TOKEN = "glpat-todos-test-token";
 
 async function callTool(
   toolName: string,
-  args: Record<string, any>,
+  args: Record<string, any> | undefined,
   env: NodeJS.ProcessEnv
 ): Promise<any> {
   return new Promise<any>((resolve, reject) => {
@@ -50,7 +50,7 @@ async function callTool(
         jsonrpc: "2.0",
         id: 1,
         method: "tools/call",
-        params: { name: toolName, arguments: args },
+        params: args === undefined ? { name: toolName } : { name: toolName, arguments: args },
       }) + "\n"
     );
   });
@@ -193,6 +193,22 @@ describe("GitLab todos tools", () => {
     const result = await callTool(
       "mark_all_todos_done",
       {},
+      {
+        GITLAB_API_URL: `${mockGitLabUrl}/api/v4`,
+        GITLAB_PERSONAL_ACCESS_TOKEN: MOCK_TOKEN,
+      }
+    );
+
+    assert.deepStrictEqual(result, {
+      status: "success",
+      message: "All pending to-do items marked as done",
+    });
+  });
+
+  test("mark_all_todos_done accepts omitted arguments", async () => {
+    const result = await callTool(
+      "mark_all_todos_done",
+      undefined,
       {
         GITLAB_API_URL: `${mockGitLabUrl}/api/v4`,
         GITLAB_PERSONAL_ACCESS_TOKEN: MOCK_TOKEN,

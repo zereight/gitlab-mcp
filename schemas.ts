@@ -1460,6 +1460,8 @@ export const MarkTodoDoneSchema = z.object({
   id: z.coerce.number().describe("The ID of the to-do item"),
 });
 
+export const MarkAllTodosDoneSchema = z.object({});
+
 const MergeRequestOptionsSchema = {
   title: z.string().describe("Merge request title"),
   description: z.string().optional().describe("Merge request description"),
