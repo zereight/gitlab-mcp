@@ -97,6 +97,47 @@ get_merged_prs() {
   echo "$commits" | grep -oE '#[0-9]+' | sed 's/#//' | sort -u
 }
 
+format_contributors() {
+  local range="$1"
+  local limit="$2"
+  
+  git shortlog -sne "$range" | head -n "$limit" | awk '
+    {
+      count = $1
+      sub(/^[[:space:]]*[0-9]+[[:space:]]+/, "", $0)
+      name = $0
+      email = ""
+      if (match(name, /<[^>]+>$/)) {
+        email = substr(name, RSTART + 1, RLENGTH - 2)
+      }
+      sub(/[[:space:]]*<[^>]+>[[:space:]]*$/, "", name)
+      mention = name
+      if (email ~ /^[0-9]+\+[^@]+@users\.noreply\.github\.com$/) {
+        mention = email
+        sub(/^[0-9]+\+/, "", mention)
+        sub(/@users\.noreply\.github\.com$/, "", mention)
+        mention = "@" mention
+      } else if (email ~ /^[^@]+@users\.noreply\.github\.com$/) {
+        mention = email
+        sub(/@users\.noreply\.github\.com$/, "", mention)
+        mention = "@" mention
+      } else {
+        gsub(/^[[:space:]]+|[[:space:]]+$/, "", mention)
+        gsub(/[^A-Za-z0-9-]/, "-", mention)
+        gsub(/-+/, "-", mention)
+        gsub(/^-|-$/, "", mention)
+        if (mention != "") {
+          mention = "@" mention
+        }
+      }
+      if (mention != "") {
+        suffix = count == 1 ? "commit" : "commits"
+        printf "- %s (%s %s)\n", mention, count, suffix
+      }
+    }
+  '
+}
+
 # Generate CHANGELOG-style release notes
 generate_changelog_notes() {
   local version="$1"
@@ -213,11 +254,15 @@ generate_changelog_notes() {
   fi
   
   # Add contributors section (scoped to this release range)
-  notes+="\n### Contributors\n"
+  local contributors
   if [ -n "$previous_tag" ]; then
-    notes+="$(git shortlog -sne "$previous_tag..HEAD" | head -10)\n"
+    contributors=$(format_contributors "$previous_tag..HEAD" 10)
   else
-    notes+="$(git shortlog -sne HEAD | head -20)\n"
+    contributors=$(format_contributors HEAD 20)
+  fi
+  
+  if [ -n "$contributors" ]; then
+    notes+="\n### Contributors\n$contributors\n"
   fi
   
   echo -e "$notes"
