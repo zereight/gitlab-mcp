@@ -63,6 +63,8 @@ Optional custom path for the stored OAuth token file.
 
 Set to `true` to require GitLab auth headers per HTTP session.
 
+See also: [Custom Agents and Multiple PAT Setup](./custom-agent-multiple-pat.md).
+
 Notes:
 
 - Requires `STREAMABLE_HTTP=true`
@@ -222,6 +224,9 @@ Set to `true` to expose only read-only tools.
 
 Comma-separated list of toolset IDs to enable.
 
+For agent-specific tool surfaces, see
+[Custom Agents and Multiple PAT Setup](./custom-agent-multiple-pat.md).
+
 Special value:
 
 - `all`
@@ -229,6 +234,10 @@ Special value:
 ### `GITLAB_TOOLS`
 
 Comma-separated list of individual tool names to add on top of enabled toolsets.
+
+For restricted custom agents, combine this with `GITLAB_TOOLSETS`,
+`GITLAB_DENIED_TOOLS_REGEX`, and the tool policy variables documented in
+[Custom Agents and Multiple PAT Setup](./custom-agent-multiple-pat.md).
 
 ### `GITLAB_DENIED_TOOLS_REGEX`
 
