@@ -33,6 +33,7 @@ Quick start: choose either Personal Access Token or OAuth2 setup below and use `
 - [OAuth2 Authentication Setup Guide](./docs/oauth-setup.md)
 - [Environment Variables Reference](./docs/environment-variables.md)
 - [Stateless Mode — Multi-Pod HPA](./docs/stateless-mode.md)
+- [Custom Agents and Multiple PAT Setup](./docs/custom-agent-multiple-pat.md)
 
 ## Usage
 
