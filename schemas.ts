@@ -284,6 +284,37 @@ export const ListPipelineTriggerJobsSchema = z
   })
   .merge(PaginationOptionsSchema);
 
+export const GitLabCiLintResultSchema = z.object({
+  valid: z.coerce.boolean(),
+  errors: z.array(z.string()),
+  warnings: z.array(z.string()).optional(),
+  merged_yaml: z.string().optional(),
+  includes: z.array(z.unknown()).optional(),
+  jobs: z.array(z.unknown()).optional(),
+});
+
+export const ValidateCiLintSchema = z.object({
+  project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
+  content: z.string().describe("GitLab CI/CD YAML content to validate"),
+  dry_run: z.coerce.boolean().optional().describe("Run pipeline creation simulation"),
+  include_jobs: z.coerce.boolean().optional().describe("Include jobs in the lint response"),
+  ref: z.string().optional().describe("Branch or tag context for dry_run validation"),
+});
+
+export const ValidateProjectCiLintSchema = z.object({
+  project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
+  content_ref: z
+    .string()
+    .optional()
+    .describe("Commit SHA, branch, or tag to read the existing CI config from"),
+  dry_run: z.coerce.boolean().optional().describe("Run pipeline creation simulation"),
+  dry_run_ref: z
+    .string()
+    .optional()
+    .describe("Branch or tag context for dry_run validation"),
+  include_jobs: z.coerce.boolean().optional().describe("Include jobs in the lint response"),
+});
+
 // Deployment related schemas
 export const GitLabDeploymentSchema = z.object({
   id: z.coerce.string(),
@@ -2736,12 +2767,15 @@ export type CreateMergeRequestDiscussionNoteOptions = z.infer<
 export type GitLabPipelineJob = z.infer<typeof GitLabPipelineJobSchema>;
 export type GitLabPipelineTriggerJob = z.infer<typeof GitLabPipelineTriggerJobSchema>;
 export type GitLabPipeline = z.infer<typeof GitLabPipelineSchema>;
+export type GitLabCiLintResult = z.infer<typeof GitLabCiLintResultSchema>;
 export type GitLabDeployment = z.infer<typeof GitLabDeploymentSchema>;
 export type GitLabEnvironment = z.infer<typeof GitLabEnvironmentSchema>;
 export type ListPipelinesOptions = z.infer<typeof ListPipelinesSchema>;
 export type GetPipelineOptions = z.infer<typeof GetPipelineSchema>;
 export type ListPipelineJobsOptions = z.infer<typeof ListPipelineJobsSchema>;
 export type ListPipelineTriggerJobsOptions = z.infer<typeof ListPipelineTriggerJobsSchema>;
+export type ValidateCiLintOptions = z.infer<typeof ValidateCiLintSchema>;
+export type ValidateProjectCiLintOptions = z.infer<typeof ValidateProjectCiLintSchema>;
 export type ListDeploymentsOptions = z.infer<typeof ListDeploymentsSchema>;
 export type GetDeploymentOptions = z.infer<typeof GetDeploymentSchema>;
 export type ListEnvironmentsOptions = z.infer<typeof ListEnvironmentsSchema>;
