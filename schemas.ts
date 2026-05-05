@@ -1404,6 +1404,64 @@ export const CreateIssueSchema = ProjectParamsSchema.extend({
   weight: z.coerce.number().optional().describe("Weight of the issue (numeric, typically hours of work)"),
 });
 
+export const GitLabTodoSchema = z.object({
+  id: z.coerce.number(),
+  project: z.unknown().optional(),
+  author: z.unknown().optional(),
+  action_name: z.string().optional(),
+  target_type: z.string().optional(),
+  target: z.unknown().optional(),
+  target_url: z.string().optional(),
+  body: z.string().optional(),
+  state: z.string(),
+  created_at: z.string().optional(),
+  updated_at: z.string().optional(),
+});
+
+export const ListTodosSchema = z
+  .object({
+    action: z
+      .enum([
+        "assigned",
+        "mentioned",
+        "build_failed",
+        "marked",
+        "approval_required",
+        "unmergeable",
+        "directly_addressed",
+        "merge_train_removed",
+        "member_access_requested",
+      ])
+      .optional()
+      .describe("Filter by to-do action"),
+    author_id: z.coerce.number().optional().describe("Filter by author ID"),
+    project_id: z.coerce.number().optional().describe("Filter by project ID"),
+    group_id: z.coerce.number().optional().describe("Filter by group ID"),
+    state: z.enum(["pending", "done"]).optional().describe("Filter by to-do state"),
+    type: z
+      .enum([
+        "Issue",
+        "MergeRequest",
+        "Commit",
+        "Epic",
+        "DesignManagement::Design",
+        "AlertManagement::Alert",
+        "Project",
+        "Namespace",
+        "Vulnerability",
+        "WikiPage::Meta",
+      ])
+      .optional()
+      .describe("Filter by to-do target type"),
+  })
+  .merge(PaginationOptionsSchema);
+
+export const MarkTodoDoneSchema = z.object({
+  id: z.coerce.number().describe("The ID of the to-do item"),
+});
+
+export const MarkAllTodosDoneSchema = z.object({});
+
 const MergeRequestOptionsSchema = {
   title: z.string().describe("Merge request title"),
   description: z.string().optional().describe("Merge request description"),
@@ -2741,6 +2799,8 @@ export type CreateIssueNoteOptions = z.infer<typeof CreateIssueNoteSchema>;
 export type GitLabNamespace = z.infer<typeof GitLabNamespaceSchema>;
 export type GitLabNamespaceExistsResponse = z.infer<typeof GitLabNamespaceExistsResponseSchema>;
 export type GitLabProject = z.infer<typeof GitLabProjectSchema>;
+export type GitLabTodo = z.infer<typeof GitLabTodoSchema>;
+export type ListTodosOptions = z.infer<typeof ListTodosSchema>;
 export type GitLabLabel = z.infer<typeof GitLabLabelSchema>;
 export type ListWikiPagesOptions = z.infer<typeof ListWikiPagesSchema>;
 export type GetWikiPageOptions = z.infer<typeof GetWikiPageSchema>;

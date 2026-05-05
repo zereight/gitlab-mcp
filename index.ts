@@ -210,6 +210,8 @@ import {
   type GitLabProjectMember,
   GitLabProjectMemberSchema,
   GitLabProjectSchema,
+  type GitLabTodo,
+  GitLabTodoSchema,
   type GitLabReference,
   GitLabReferenceSchema,
   type GitLabRepository,
@@ -235,6 +237,8 @@ import {
   ListIssueDiscussionsSchema,
   ListIssueLinksSchema,
   ListIssuesSchema,
+  type ListTodosOptions,
+  ListTodosSchema,
   ListLabelsSchema,
   ListMergeRequestDiffsSchema, // Added
   GetMergeRequestFileDiffSchema,
@@ -291,6 +295,8 @@ import {
   type MergeRequestThreadPosition,
   type MyIssuesOptions,
   MyIssuesSchema,
+  MarkAllTodosDoneSchema,
+  MarkTodoDoneSchema,
   type PaginatedDiscussionsResponse,
   PaginatedDiscussionsResponseSchema,
   type PaginationOptions,
@@ -1689,6 +1695,44 @@ async function listIssues(
   await handleGitLabError(response);
   const data = await response.json();
   return z.array(GitLabIssueSchema).parse(data);
+}
+
+async function listTodos(options: ListTodosOptions = {}): Promise<GitLabTodo[]> {
+  const url = new URL(`${getEffectiveApiUrl()}/todos`);
+
+  Object.entries(options).forEach(([key, value]) => {
+    if (value !== undefined) {
+      url.searchParams.append(key, String(value));
+    }
+  });
+
+  const response = await fetch(url.toString(), {
+    ...getFetchConfig(),
+  });
+
+  await handleGitLabError(response);
+  const data = await response.json();
+  return z.array(GitLabTodoSchema).parse(data);
+}
+
+async function markTodoDone(id: number): Promise<GitLabTodo> {
+  const response = await fetch(`${getEffectiveApiUrl()}/todos/${id}/mark_as_done`, {
+    ...getFetchConfig(),
+    method: "POST",
+  });
+
+  await handleGitLabError(response);
+  const data = await response.json();
+  return GitLabTodoSchema.parse(data);
+}
+
+async function markAllTodosDone(): Promise<void> {
+  const response = await fetch(`${getEffectiveApiUrl()}/todos/mark_as_done`, {
+    ...getFetchConfig(),
+    method: "POST",
+  });
+
+  await handleGitLabError(response);
 }
 
 /**
@@ -8122,7 +8166,7 @@ async function getTagSignature(
 async function handleToolCall(params: any) {
   try {
     if (!params.arguments) {
-      throw new Error("Arguments are required");
+      params.arguments = {};
     }
 
     // Ensure session is established for every request if cookie authentication is enabled
@@ -8590,6 +8634,42 @@ async function handleToolCall(params: any) {
         const path = buildAwardEmojiPath("issues", args.project_id, args.issue_iid, { noteId: args.note_id, discussionId: args.discussion_id, awardId: args.award_id });
         await deleteRestAwardEmoji(path);
         return { content: [{ type: "text", text: "Issue note emoji reaction deleted successfully" }] };
+      }
+
+      case "list_todos": {
+        const args = ListTodosSchema.parse(params.arguments);
+        const todos = await listTodos(args);
+        return {
+          content: [{ type: "text", text: JSON.stringify(todos, null, 2) }],
+        };
+      }
+
+      case "mark_todo_done": {
+        const args = MarkTodoDoneSchema.parse(params.arguments);
+        const todo = await markTodoDone(args.id);
+        return {
+          content: [{ type: "text", text: JSON.stringify(todo, null, 2) }],
+        };
+      }
+
+      case "mark_all_todos_done": {
+        MarkAllTodosDoneSchema.parse(params.arguments);
+        await markAllTodosDone();
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(
+                {
+                  status: "success",
+                  message: "All pending to-do items marked as done",
+                },
+                null,
+                2
+              ),
+            },
+          ],
+        };
       }
 
       case "get_merge_request": {

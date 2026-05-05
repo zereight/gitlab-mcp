@@ -31,7 +31,7 @@ const MCP_PORT_BASE = 3200;
 // Known tool counts per toolset (from TOOLSET_DEFINITIONS)
 const TOOLSET_TOOL_COUNTS: Record<string, number> = {
   merge_requests: 40,
-  issues: 20,
+  issues: 23,
   repositories: 7,
   branches: 4,
   projects: 8,
@@ -88,7 +88,7 @@ const ALL_TOOLSET_TOOL_COUNT = Object.values(TOOLSET_TOOL_COUNTS).reduce(
 // Representative tools per toolset for spot-checking
 const TOOLSET_SAMPLE_TOOLS: Record<string, string[]> = {
   merge_requests: ["merge_merge_request", "create_merge_request_thread", "list_draft_notes"],
-  issues: ["create_issue", "list_issues", "create_note"],
+  issues: ["create_issue", "list_issues", "create_note", "list_todos"],
   repositories: ["search_repositories", "get_file_contents", "push_files"],
   branches: ["create_branch", "list_commits"],
   projects: ["get_project", "list_namespaces", "list_group_iterations"],
@@ -395,6 +395,7 @@ describe("Toolset Filtering", { concurrency: 1 }, () => {
       "list_issue_links",
       "list_issue_discussions",
       "get_issue_link",
+      "list_todos",
       "list_issue_emoji_reactions",
       "list_issue_note_emoji_reactions",
     ];
@@ -403,6 +404,8 @@ describe("Toolset Filtering", { concurrency: 1 }, () => {
       "create_issue",
       "update_issue",
       "delete_issue",
+      "mark_todo_done",
+      "mark_all_todos_done",
       "create_issue_note",
       "update_issue_note",
       "create_issue_link",
