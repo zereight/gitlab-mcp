@@ -29,7 +29,7 @@ GitLab tokens.
 STREAMABLE_HTTP=true \
 REMOTE_AUTHORIZATION=true \
 GITLAB_API_URL=https://gitlab.com/api/v4 \
-node build/index.js
+npx -y @zereight/mcp-gitlab
 ```
 
 Clients send their GitLab token on each HTTP session:
@@ -63,7 +63,7 @@ instances.
 STREAMABLE_HTTP=true \
 REMOTE_AUTHORIZATION=true \
 ENABLE_DYNAMIC_API_URL=true \
-node build/index.js
+npx -y @zereight/mcp-gitlab
 ```
 
 Clients include the target instance:
@@ -72,8 +72,8 @@ Clients include the target instance:
 X-GitLab-API-URL: https://gitlab.example.com/api/v4
 ```
 
-The server accepts either a full API URL or a GitLab base URL and normalizes it
-to `/api/v4`.
+`/api/v4` URLs are recommended. The server also accepts a GitLab base URL and
+normalizes it by appending `/api/v4`.
 
 ## Tool Customization
 
@@ -83,7 +83,7 @@ Custom agents can expose only the tools they need.
 GITLAB_TOOLSETS=issues,merge_requests,projects \
 GITLAB_TOOLS=get_file_contents \
 GITLAB_DENIED_TOOLS_REGEX="^(delete_|merge_)" \
-node build/index.js
+npx -y @zereight/mcp-gitlab
 ```
 
 Available controls:
@@ -114,7 +114,7 @@ STREAMABLE_HTTP=true \
 REMOTE_AUTHORIZATION=true \
 SESSION_TIMEOUT_SECONDS=3600 \
 GITLAB_API_URL=https://gitlab.com/api/v4 \
-node build/index.js
+npx -y @zereight/mcp-gitlab
 ```
 
 Each client sends `Authorization: Bearer <PAT>` or `Private-Token: <PAT>`.
@@ -127,7 +127,7 @@ REMOTE_AUTHORIZATION=true \
 GITLAB_TOOLSETS=issues,merge_requests,projects \
 GITLAB_DENIED_TOOLS_REGEX="^(delete_|merge_)" \
 GITLAB_TOOL_POLICY_APPROVE="create_issue,update_issue,create_merge_request" \
-node build/index.js
+npx -y @zereight/mcp-gitlab
 ```
 
 This exposes issue, merge request, and project tools while hiding destructive
