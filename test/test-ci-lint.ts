@@ -130,14 +130,6 @@ describe("GitLab CI lint tools", () => {
       });
     });
 
-    mockGitLab.addMockHandler("post", `/projects/${TEST_PROJECT_ID}/ci/lint-invalid`, (req, res) => {
-      res.json({
-        valid: false,
-        errors: ["jobs config should contain at least one visible job"],
-        warnings: [],
-      });
-    });
-
     mockGitLab.addMockHandler("get", `/projects/${TEST_PROJECT_ID}/ci/lint`, (req, res) => {
       assert.strictEqual(req.query.content_ref, "feature/test");
       assert.strictEqual(req.query.dry_run, "true");
@@ -228,12 +220,11 @@ describe("GitLab CI lint tools", () => {
     assert.strictEqual(result.jobs[0].name, "include-job");
   });
 
-  test("CI lint tools stay visible in read-only mode when pipelines are enabled", async () => {
+  test("CI lint tools are visible by default in read-only mode", async () => {
     const tools = await listToolNames({
       GITLAB_API_URL: `${mockGitLabUrl}/api/v4`,
       GITLAB_PERSONAL_ACCESS_TOKEN: MOCK_TOKEN,
       GITLAB_READ_ONLY_MODE: "true",
-      USE_PIPELINE: "true",
     });
 
     assert.ok(tools.includes("validate_ci_lint"));

@@ -1212,6 +1212,7 @@ export type ToolsetId =
   | "branches"
   | "projects"
   | "labels"
+  | "ci"
   | "pipelines"
   | "milestones"
   | "wiki"
@@ -1350,6 +1351,11 @@ export const TOOLSET_DEFINITIONS: readonly ToolsetDefinition[] = [
     ]),
   },
   {
+    id: "ci",
+    isDefault: true,
+    tools: new Set(["validate_ci_lint", "validate_project_ci_lint"]),
+  },
+  {
     id: "pipelines",
     isDefault: false,
     tools: new Set([
@@ -1363,8 +1369,6 @@ export const TOOLSET_DEFINITIONS: readonly ToolsetDefinition[] = [
       "list_pipeline_trigger_jobs",
       "get_pipeline_job",
       "get_pipeline_job_output",
-      "validate_ci_lint",
-      "validate_project_ci_lint",
       "create_pipeline",
       "retry_pipeline",
       "cancel_pipeline",

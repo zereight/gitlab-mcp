@@ -36,7 +36,8 @@ const TOOLSET_TOOL_COUNTS: Record<string, number> = {
   branches: 4,
   projects: 8,
   labels: 5,
-  pipelines: 21,
+  ci: 2,
+  pipelines: 19,
   milestones: 9,
   wiki: 10,
   releases: 7,
@@ -47,6 +48,8 @@ const TOOLSET_TOOL_COUNTS: Record<string, number> = {
   webhooks: 3,
 };
 
+const LEGACY_PIPELINE_TOOL_COUNT = TOOLSET_TOOL_COUNTS.pipelines + TOOLSET_TOOL_COUNTS.ci;
+
 const DEFAULT_TOOLSETS = [
   "merge_requests",
   "issues",
@@ -54,6 +57,7 @@ const DEFAULT_TOOLSETS = [
   "branches",
   "projects",
   "labels",
+  "ci",
   "users",
 ];
 
@@ -89,7 +93,8 @@ const TOOLSET_SAMPLE_TOOLS: Record<string, string[]> = {
   branches: ["create_branch", "list_commits"],
   projects: ["get_project", "list_namespaces", "list_group_iterations"],
   labels: ["list_labels", "create_label"],
-  pipelines: ["list_pipelines", "create_pipeline", "cancel_pipeline_job", "list_deployments", "list_job_artifacts", "validate_ci_lint"],
+  ci: ["validate_ci_lint", "validate_project_ci_lint"],
+  pipelines: ["list_pipelines", "create_pipeline", "cancel_pipeline_job", "list_deployments", "list_job_artifacts"],
   milestones: ["list_milestones", "create_milestone", "get_milestone_burndown_events"],
   wiki: ["list_wiki_pages", "create_wiki_page", "list_group_wiki_pages", "create_group_wiki_page"],
   releases: ["list_releases", "create_release", "download_release_asset"],
@@ -342,7 +347,7 @@ describe("Toolset Filtering", { concurrency: 1 }, () => {
     test("returns issue tools + all pipeline tools + discover_tools", () => {
       assert.strictEqual(
         tools.length,
-        TOOLSET_TOOL_COUNTS.issues + TOOLSET_TOOL_COUNTS.pipelines + DISCOVER_TOOLS_COUNT
+        TOOLSET_TOOL_COUNTS.issues + LEGACY_PIPELINE_TOOL_COUNT + DISCOVER_TOOLS_COUNT
       );
     });
 
@@ -524,7 +529,7 @@ describe("Toolset Filtering", { concurrency: 1 }, () => {
     after(() => cleanupServers([server]));
 
     test("returns exactly pipeline tool count + discover_tools (no duplicates)", () => {
-      assert.strictEqual(tools.length, TOOLSET_TOOL_COUNTS.pipelines + DISCOVER_TOOLS_COUNT);
+      assert.strictEqual(tools.length, LEGACY_PIPELINE_TOOL_COUNT + DISCOVER_TOOLS_COUNT);
     });
   });
 
