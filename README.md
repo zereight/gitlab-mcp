@@ -159,6 +159,15 @@ The server acts as a full OAuth 2.0 authorization server — unauthenticated req
 receive a `401 + WWW-Authenticate` response, which triggers the OAuth browser flow
 automatically on the client side.
 
+Remote MCP clients such as OpenCode, MCPJam, and Claude.ai can send their own
+callback URL during authorization. If you cannot register every client callback
+URL in GitLab, enable `GITLAB_OAUTH_CALLBACK_PROXY=true`. With callback proxy
+mode, GitLab only needs one registered redirect URI: `{MCP_SERVER_URL}/callback`.
+
+`GITLAB_OAUTH_REDIRECT_URI` is for local OAuth (`GITLAB_USE_OAUTH`) only. It does
+not override remote MCP OAuth client callback URLs and should not be used to fix
+remote `Unregistered redirect_uri` errors.
+
 **How it works**: You deploy this MCP server somewhere with a public HTTPS URL. MCP
 clients connect to `{MCP_SERVER_URL}/mcp`. The server handles the OAuth 2.0 flow,
 exchanging credentials with GitLab on behalf of the client.
@@ -178,6 +187,18 @@ exchanging credentials with GitLab on behalf of the client.
 | `STREAMABLE_HTTP`     | ✅       | Must be `true`                                             |
 | `GITLAB_OAUTH_CALLBACK_PROXY` | optional | Set to `true` to use the MCP server's fixed `/callback` URL |
 | `GITLAB_OAUTH_SCOPES` | optional | Comma-separated scopes (default: `api,read_api,read_user`) |
+
+> **Troubleshooting `Unregistered redirect_uri`**
+>
+> Check the `redirect_uri` in the browser URL. If it points to a client callback
+> such as `http://127.0.0.1:xxxxx/.../callback`, enable:
+>
+> ```env
+> GITLAB_OAUTH_CALLBACK_PROXY=true
+> ```
+>
+> Do not fix remote MCP OAuth by changing `GITLAB_OAUTH_REDIRECT_URI`. That
+> variable is for local OAuth (`GITLAB_USE_OAUTH`) only.
 
 ```shell
 docker run -i --rm \

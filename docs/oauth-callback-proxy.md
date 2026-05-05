@@ -4,6 +4,29 @@
 
 The current OAuth flow requires each MCP client's callback URL to be pre-registered in the GitLab OAuth Application settings. This means GitLab admin involvement for every new client deployment.
 
+## When You Need This
+
+Enable callback proxy mode when all of the following are true:
+
+- You run a public or remote MCP server with `GITLAB_MCP_OAUTH=true`.
+- Your MCP client sends its own callback URL, such as `redirect_uri=http://127.0.0.1:...` or another client-owned callback.
+- GitLab returns `invalid_request` or `Unregistered redirect_uri`.
+- You want the GitLab OAuth Application to know only the MCP server callback URL, not every MCP client callback URL.
+
+In this mode, GitLab should only register `https://mcp-server.example.com/callback`
+or the equivalent `{MCP_SERVER_URL}/callback` for your deployment.
+
+## Common Misconfiguration
+
+Do not try to fix remote MCP OAuth by setting
+`GITLAB_OAUTH_REDIRECT_URI=https://mcp-server.example.com/callback`. That variable
+is for local OAuth (`GITLAB_USE_OAUTH`) only.
+
+In the default passthrough mode, the client-provided `redirect_uri` can still be
+forwarded to GitLab. If that client callback is not registered in GitLab, GitLab
+rejects the request. Enable `GITLAB_OAUTH_CALLBACK_PROXY=true` so the MCP server
+uses its fixed `/callback` URL with GitLab, then redirects back to the client.
+
 ## Passthrough Mode (Default — GITLAB_OAUTH_CALLBACK_PROXY=false)
 
 GitLab redirects **directly back to the MCP client**. The MCP server only proxies the client_id and token exchange — it never receives the callback.

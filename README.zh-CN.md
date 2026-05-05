@@ -155,6 +155,10 @@ docker run -i --rm \
 
 适用于支持 MCP OAuth 规范的远程 MCP 客户端（例如 Claude.ai）。服务器会作为完整 OAuth 2.0 授权服务器运行。未认证请求会收到 `401 + WWW-Authenticate` 响应，从而触发客户端侧 OAuth 浏览器流程。
 
+OpenCode、MCPJam、Claude.ai 等远程 MCP 客户端可能会在授权时发送自己的 callback URL。如果你无法在 GitLab 中注册每个客户端 callback URL，请启用 `GITLAB_OAUTH_CALLBACK_PROXY=true`。启用回调代理模式后，GitLab 只需要注册一个 Redirect URI：`{MCP_SERVER_URL}/callback`。
+
+`GITLAB_OAUTH_REDIRECT_URI` 仅用于本地 OAuth（`GITLAB_USE_OAUTH`）。它不会覆盖远程 MCP OAuth 客户端 callback URL，也不应用来修复远程 `Unregistered redirect_uri` 错误。
+
 **工作方式**：将此 MCP 服务器部署到拥有公开 HTTPS URL 的位置。MCP 客户端连接到 `{MCP_SERVER_URL}/mcp`。服务器处理 OAuth 2.0 流程，并代表客户端与 GitLab 交换凭据。
 
 **前置条件：**
@@ -172,6 +176,16 @@ docker run -i --rm \
 | `STREAMABLE_HTTP` | 是 | 必须为 `true` |
 | `GITLAB_OAUTH_CALLBACK_PROXY` | 可选 | 设置为 `true` 时使用 MCP 服务器固定的 `/callback` URL |
 | `GITLAB_OAUTH_SCOPES` | 可选 | 逗号分隔的 scope（默认：`api,read_api,read_user`） |
+
+> **排查 `Unregistered redirect_uri`**
+>
+> 检查浏览器 URL 中的 `redirect_uri`。如果它指向客户端 callback，例如 `http://127.0.0.1:xxxxx/.../callback`，请启用：
+>
+> ```env
+> GITLAB_OAUTH_CALLBACK_PROXY=true
+> ```
+>
+> 不要通过修改 `GITLAB_OAUTH_REDIRECT_URI` 来修复远程 MCP OAuth。该变量仅用于本地 OAuth（`GITLAB_USE_OAUTH`）。
 
 ```shell
 docker run -i --rm \

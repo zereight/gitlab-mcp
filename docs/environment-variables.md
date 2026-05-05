@@ -37,6 +37,10 @@ Client secret for confidential OAuth applications only.
 
 OAuth callback URI for the local browser flow.
 
+Use this only with local OAuth (`GITLAB_USE_OAUTH=true`). It does not override
+remote MCP OAuth callback URLs and is not a fix for `Unregistered redirect_uri`
+errors when `GITLAB_MCP_OAUTH=true`.
+
 Default:
 
 - `http://127.0.0.1:8888/callback`
@@ -79,6 +83,11 @@ Set to `true` to make the MCP server handle GitLab's OAuth callback at
 code. This keeps the GitLab OAuth Application redirect URI fixed to one MCP
 server callback URL instead of requiring each MCP client's callback URL to be
 registered in GitLab.
+
+Use this with remote MCP OAuth (`GITLAB_MCP_OAUTH=true`) when clients such as
+OpenCode, MCPJam, Claude.ai, or another MCP client send their own callback URL.
+It is recommended when you cannot register every client callback URI in GitLab
+Admin.
 
 ### `MCP_SERVER_URL`
 
