@@ -22,10 +22,29 @@ Do not try to fix remote MCP OAuth by setting
 `GITLAB_OAUTH_REDIRECT_URI=https://mcp-server.example.com/callback`. That variable
 is for local OAuth (`GITLAB_USE_OAUTH`) only.
 
+`GITLAB_OAUTH_REDIRECT_URI` is read by the local OAuth client initialization path.
+The remote MCP OAuth provider builds its GitLab callback from `MCP_SERVER_URL`
+only when `GITLAB_OAUTH_CALLBACK_PROXY=true`.
+
 In the default passthrough mode, the client-provided `redirect_uri` can still be
 forwarded to GitLab. If that client callback is not registered in GitLab, GitLab
 rejects the request. Enable `GITLAB_OAUTH_CALLBACK_PROXY=true` so the MCP server
 uses its fixed `/callback` URL with GitLab, then redirects back to the client.
+
+## Which Variable Should I Use?
+
+Use `GITLAB_OAUTH_REDIRECT_URI` when:
+
+- You run the stdio/local OAuth flow.
+- `GITLAB_USE_OAUTH=true`.
+- The MCP server opens a browser and receives the callback locally.
+
+Use `GITLAB_OAUTH_CALLBACK_PROXY=true` when:
+
+- You run a public remote MCP server.
+- `GITLAB_MCP_OAUTH=true`.
+- Your MCP client sends its own callback URL.
+- GitLab returns `Unregistered redirect_uri`.
 
 ## Passthrough Mode (Default — GITLAB_OAUTH_CALLBACK_PROXY=false)
 

@@ -159,6 +159,17 @@ OpenCode、MCPJam、Claude.ai 等远程 MCP 客户端可能会在授权时发送
 
 `GITLAB_OAUTH_REDIRECT_URI` 仅用于本地 OAuth（`GITLAB_USE_OAUTH`）。它不会覆盖远程 MCP OAuth 客户端 callback URL，也不应用来修复远程 `Unregistered redirect_uri` 错误。
 
+这个变量存在是因为本地 OAuth 流程会在与 MCP 服务器相同的机器上打开浏览器，并通过本地 HTTP 服务器接收 callback，例如 `http://127.0.0.1:8888/callback`。
+
+远程 MCP OAuth 不同。在 `GITLAB_MCP_OAUTH=true` 模式下，MCP 客户端会在 `/authorize` 请求中提供自己的 callback URL。`GITLAB_OAUTH_REDIRECT_URI` 不会替换这个客户端提供的 URL。
+
+| 模式 | 启用方式 | Callback 变量 | GitLab Redirect URI |
+| --- | --- | --- | --- |
+| 本地 OAuth | `GITLAB_USE_OAUTH=true` | `GITLAB_OAUTH_REDIRECT_URI` | `http://127.0.0.1:8888/callback` 或你的本地 callback |
+| 远程 MCP OAuth | `GITLAB_MCP_OAUTH=true` | `GITLAB_OAUTH_CALLBACK_PROXY=true` | `{MCP_SERVER_URL}/callback` |
+
+只有当 MCP 服务器自己接收本地浏览器 callback 时，才使用 `GITLAB_OAUTH_REDIRECT_URI`。当远程 MCP 客户端拥有 callback URL 时，请使用 `GITLAB_OAUTH_CALLBACK_PROXY=true`。
+
 **工作方式**：将此 MCP 服务器部署到拥有公开 HTTPS URL 的位置。MCP 客户端连接到 `{MCP_SERVER_URL}/mcp`。服务器处理 OAuth 2.0 流程，并代表客户端与 GitLab 交换凭据。
 
 **前置条件：**
