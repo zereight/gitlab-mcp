@@ -21,6 +21,7 @@ import {
   CreateIssueSchema,
   ListIssuesSchema,
   ListMergeRequestsSchema,
+  GitLabMergeRequestSchema,
   GitLabTreeItemSchema,
   GetMergeRequestSchema,
   GetRepositoryTreeSchema
@@ -555,6 +556,99 @@ function runGetMergeRequestSchemaTests(): { passed: number; failed: number } {
   return { passed, failed };
 }
 
+function runGitLabMergeRequestSchemaTests(): { passed: number; failed: number } {
+  console.log('\n🧪 Testing GitLabMergeRequestSchema...');
+
+  const baseMergeRequest = {
+    id: '1001',
+    iid: '42',
+    project_id: '123',
+    title: 'Add milestone exposure',
+    description: 'Expose MR milestone',
+    state: 'opened',
+    author: {
+      id: '1',
+      username: 'octocat',
+      name: 'Octo Cat',
+      avatar_url: null,
+      web_url: 'https://gitlab.example.com/octocat',
+    },
+    assignees: [],
+    reviewers: [],
+    source_branch: 'feature/milestone',
+    target_branch: 'main',
+    web_url: 'https://gitlab.example.com/group/project/-/merge_requests/42',
+    created_at: '2026-05-07T00:00:00.000Z',
+    updated_at: '2026-05-07T00:00:00.000Z',
+    merged_at: null,
+    closed_at: null,
+    merge_commit_sha: null,
+  };
+
+  const cases = [
+    {
+      name: 'schema:gitlab_merge_request:preserves-milestone',
+      input: {
+        ...baseMergeRequest,
+        milestone: {
+          id: '5',
+          iid: '2',
+          title: 'v1.0',
+          description: 'Version 1.0',
+          state: 'active',
+          web_url: 'https://gitlab.example.com/group/project/-/milestones/2',
+        },
+      },
+      validate: (data: Record<string, any>) =>
+        data.milestone?.title === 'v1.0' &&
+        data.milestone?.id === '5' &&
+        data.milestone?.iid === '2',
+    },
+    {
+      name: 'schema:gitlab_merge_request:allows-null-milestone',
+      input: {
+        ...baseMergeRequest,
+        milestone: null,
+      },
+      validate: (data: Record<string, any>) => data.milestone === null,
+    },
+    {
+      name: 'schema:gitlab_merge_request:allows-omitted-milestone',
+      input: {
+        ...baseMergeRequest,
+      },
+      validate: (data: Record<string, any>) => data.milestone === undefined,
+    },
+  ];
+
+  let passed = 0;
+  let failed = 0;
+
+  cases.forEach(testCase => {
+    const result: TestResult = { name: testCase.name, status: 'failed' };
+    const parsed = GitLabMergeRequestSchema.safeParse(testCase.input);
+
+    if (parsed.success && testCase.validate(parsed.data)) {
+      result.status = 'passed';
+    } else if (parsed.success) {
+      result.error = `Unexpected parsed result: ${JSON.stringify(parsed.data)}`;
+    } else {
+      result.error = parsed.error?.message || 'Schema validation failed';
+    }
+
+    if (result.status === 'passed') {
+      passed++;
+      console.log(`✅ ${result.name}`);
+    } else {
+      failed++;
+      console.log(`❌ ${result.name}: ${result.error}`);
+    }
+  });
+
+  console.log(`\nResults: ${passed} passed, ${failed} failed`);
+  return { passed, failed };
+}
+
 function runEmojiReactionSchemaTests(): { passed: number; failed: number } {
   console.log('\n🧪 Testing Emoji Reaction Schemas...');
 
@@ -915,14 +1009,15 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   const createPipelineResult = runCreatePipelineSchemaTests();
   const createIssueNoteResult = runCreateIssueNoteSchemaTests();
   const getMergeRequestResult = runGetMergeRequestSchemaTests();
+  const gitLabMergeRequestResult = runGitLabMergeRequestSchemaTests();
   const emojiReactionResult = runEmojiReactionSchemaTests();
   const repositorySchemaResult = runGitLabRepositorySchemaTests();
   const labelsCoercionResult = runLabelsCoercionSchemaTests();
   const treeItemResult = runGitLabTreeItemSchemaTests();
   const repositoryTreeResult = runGetRepositoryTreeSchemaTests();
 
-  const totalPassed = getFileContentsResult.passed + fileContentResult.passed + createPipelineResult.passed + createIssueNoteResult.passed + getMergeRequestResult.passed + emojiReactionResult.passed + repositorySchemaResult.passed + labelsCoercionResult.passed + treeItemResult.passed + repositoryTreeResult.passed;
-  const totalFailed = getFileContentsResult.failed + fileContentResult.failed + createPipelineResult.failed + createIssueNoteResult.failed + getMergeRequestResult.failed + emojiReactionResult.failed + repositorySchemaResult.failed + labelsCoercionResult.failed + treeItemResult.failed + repositoryTreeResult.failed;
+  const totalPassed = getFileContentsResult.passed + fileContentResult.passed + createPipelineResult.passed + createIssueNoteResult.passed + getMergeRequestResult.passed + gitLabMergeRequestResult.passed + emojiReactionResult.passed + repositorySchemaResult.passed + labelsCoercionResult.passed + treeItemResult.passed + repositoryTreeResult.passed;
+  const totalFailed = getFileContentsResult.failed + fileContentResult.failed + createPipelineResult.failed + createIssueNoteResult.failed + getMergeRequestResult.failed + gitLabMergeRequestResult.failed + emojiReactionResult.failed + repositorySchemaResult.failed + labelsCoercionResult.failed + treeItemResult.failed + repositoryTreeResult.failed;
 
   console.log(`\nTotal Results: ${totalPassed} passed, ${totalFailed} failed`);
 
