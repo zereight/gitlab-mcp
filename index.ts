@@ -775,10 +775,17 @@ function validateConfiguration(): void {
   const hasCookie = !!getConfig("cookie-path", "GITLAB_AUTH_COOKIE_PATH");
   const mcpOAuth = getConfig("mcp-oauth", "GITLAB_MCP_OAUTH") === "true";
   const mcpServerUrl = getConfig("mcp-server-url", "MCP_SERVER_URL");
+  const streamableHttp = getConfig("streamable-http", "STREAMABLE_HTTP") === "true";
 
   if (!remoteAuth && !useOAuth && !hasToken && !hasJobToken && !hasCookie && !mcpOAuth) {
     errors.push(
       "Either --token, --job-token, --cookie-path, --use-oauth=true, --remote-auth=true, or --mcp-oauth=true must be set (or use environment variables)"
+    );
+  }
+
+  if (streamableHttp && (hasToken || hasJobToken) && !remoteAuth && !mcpOAuth) {
+    errors.push(
+      "STREAMABLE_HTTP=true with GITLAB_PERSONAL_ACCESS_TOKEN or GITLAB_JOB_TOKEN requires REMOTE_AUTHORIZATION=true or GITLAB_MCP_OAUTH=true"
     );
   }
 
