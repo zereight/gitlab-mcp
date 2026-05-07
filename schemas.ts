@@ -756,6 +756,36 @@ export const GitLabCommitSchema = z.object({
   extended_trailers: z.record(z.array(z.string())).optional().default({}), // Extended trailers, may be empty object
 });
 
+export const GitLabCommitStatusSchema = z
+  .object({
+    id: z.coerce.number().optional(),
+    sha: z.string(),
+    ref: z.string().nullable().optional(),
+    status: z.string(),
+    name: z.string().optional(),
+    context: z.string().optional(),
+    target_url: z.string().nullable().optional(),
+    description: z.string().nullable().optional(),
+    coverage: z.coerce.number().nullable().optional(),
+    allow_failure: z.coerce.boolean().optional(),
+    created_at: z.string().optional(),
+    started_at: z.string().nullable().optional(),
+    finished_at: z.string().nullable().optional(),
+    author: z
+      .object({
+        id: z.coerce.number().optional(),
+        name: z.string().optional(),
+        username: z.string().optional(),
+        state: z.string().optional(),
+        avatar_url: z.string().nullable().optional(),
+        web_url: z.string().optional(),
+      })
+      .passthrough()
+      .nullable()
+      .optional(),
+  })
+  .passthrough();
+
 // Reference schema
 export const GitLabReferenceSchema = z.object({
   name: z.string(), // Changed from ref to match GitLab API
@@ -2519,6 +2549,46 @@ export const GetCommitDiffSchema = z.object({
     .describe("Whether to return the full diff or only first page (default: false)"),
 });
 
+export const ListCommitStatusesSchema = z
+  .object({
+    project_id: z.coerce.string().describe("Project ID or complete URL-encoded path to project"),
+    sha: z.string().describe("The commit hash or name of a repository branch or tag"),
+    ref: z.string().optional().describe("Filter statuses by Git ref"),
+    stage: z.string().optional().describe("Filter statuses by build stage"),
+    name: z.string().optional().describe("Filter statuses by status name or context"),
+    pipeline_id: z.coerce.number().optional().describe("Filter statuses by pipeline ID"),
+    order_by: z
+      .enum(["id", "pipeline_id"])
+      .optional()
+      .describe("Field to order statuses by"),
+    sort: z.enum(["asc", "desc"]).optional().describe("Sort direction"),
+    all: z.coerce.boolean().optional().describe("Return all statuses, not only latest ones"),
+  })
+  .merge(PaginationOptionsSchema);
+
+export const CreateCommitStatusSchema = z.object({
+  project_id: z.coerce.string().describe("Project ID or complete URL-encoded path to project"),
+  sha: z.string().describe("The commit hash to set the status on"),
+  state: z
+    .enum(["pending", "running", "success", "failed", "canceled", "skipped"])
+    .describe("Commit status state"),
+  ref: z.string().max(255).optional().describe("The branch or tag ref"),
+  name: z
+    .string()
+    .max(255)
+    .optional()
+    .describe("Status name. GitLab defaults to 'default' when omitted."),
+  context: z
+    .string()
+    .max(255)
+    .optional()
+    .describe("Alias for name. Provide either name or context, not both."),
+  target_url: z.string().max(255).optional().describe("Target URL associated with this status"),
+  description: z.string().max(255).optional().describe("Short status description"),
+  coverage: z.coerce.number().optional().describe("Total code coverage for this status"),
+  pipeline_id: z.coerce.number().optional().describe("Pipeline ID to attach the status to"),
+});
+
 // Schema for listing issues assigned to the current user
 export const MyIssuesSchema = z.object({
   project_id: z
@@ -2782,6 +2852,7 @@ export type FileOperation = z.infer<typeof FileOperationSchema>;
 export type GitLabTree = z.infer<typeof GitLabTreeSchema>;
 export type GitLabCompareResult = z.infer<typeof GitLabCompareResultSchema>;
 export type GitLabCommit = z.infer<typeof GitLabCommitSchema>;
+export type GitLabCommitStatus = z.infer<typeof GitLabCommitStatusSchema>;
 export type GitLabReference = z.infer<typeof GitLabReferenceSchema>;
 export type CreateRepositoryOptions = z.infer<typeof CreateRepositoryOptionsSchema>;
 export type CreateIssueOptions = z.infer<typeof CreateIssueOptionsSchema>;
@@ -2859,6 +2930,8 @@ export type PaginationOptions = z.infer<typeof PaginationOptionsSchema>;
 export type ListCommitsOptions = z.infer<typeof ListCommitsSchema>;
 export type GetCommitOptions = z.infer<typeof GetCommitSchema>;
 export type GetCommitDiffOptions = z.infer<typeof GetCommitDiffSchema>;
+export type ListCommitStatusesOptions = z.infer<typeof ListCommitStatusesSchema>;
+export type CreateCommitStatusOptions = z.infer<typeof CreateCommitStatusSchema>;
 export type MyIssuesOptions = z.infer<typeof MyIssuesSchema>;
 export type ListProjectMembersOptions = z.infer<typeof ListProjectMembersSchema>;
 export type GitLabProjectMember = z.infer<typeof GitLabProjectMemberSchema>;
