@@ -10837,11 +10837,10 @@ async function startStreamableHTTPServer(): Promise<void> {
 
     // Mount /callback route for callback proxy mode
     if (GITLAB_OAUTH_CALLBACK_PROXY) {
-      const callbackPath = `${issuerUrl.pathname.replace(/\/$/, "")}/callback`;
-      app.get(callbackPath, (req: Request, res: Response, next: NextFunction) => {
+      app.get("/callback", (req: Request, res: Response, next: NextFunction) => {
         oauthProvider.handleCallback(req, res).catch(next);
       });
-      logger.info(`Callback proxy mode enabled — ${callbackPath} route mounted`);
+      logger.info(`Callback proxy mode enabled — /callback route mounted`);
     }
   }
 
