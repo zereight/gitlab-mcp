@@ -460,6 +460,18 @@ function runCommitStatusSchemaTests(): { passed: number; failed: number } {
         page: 2,
         per_page: 50
       }
+    },
+    {
+      name: 'schema:list_commit_statuses:all-false-string',
+      schema: ListCommitStatusesSchema,
+      input: { project_id: 'my/project', sha: 'abc123', all: 'false' },
+      expected: { project_id: 'my/project', sha: 'abc123', all: false }
+    },
+    {
+      name: 'schema:list_commit_statuses:reject-invalid-all-string',
+      schema: ListCommitStatusesSchema,
+      input: { project_id: 'my/project', sha: 'abc123', all: 'yes' },
+      shouldFail: true
     }
   ];
 

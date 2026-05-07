@@ -12,6 +12,15 @@ const coerceStringArray = z.preprocess((val) => {
   return val;
 }, z.array(z.string()));
 
+const coerceBooleanString = z.preprocess((val) => {
+  if (typeof val === "string") {
+    const normalized = val.trim().toLowerCase();
+    if (normalized === "true") return true;
+    if (normalized === "false") return false;
+  }
+  return val;
+}, z.boolean());
+
 // Base schemas for common types
 export const GitLabAuthorSchema = z.object({
   name: z.string(),
@@ -2562,7 +2571,7 @@ export const ListCommitStatusesSchema = z
       .optional()
       .describe("Field to order statuses by"),
     sort: z.enum(["asc", "desc"]).optional().describe("Sort direction"),
-    all: z.coerce.boolean().optional().describe("Return all statuses, not only latest ones"),
+    all: coerceBooleanString.optional().describe("Return all statuses, not only latest ones"),
   })
   .merge(PaginationOptionsSchema);
 
