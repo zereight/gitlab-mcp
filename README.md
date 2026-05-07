@@ -129,7 +129,7 @@ docker run -i --rm \
 ```shell
 docker run -i --rm \
   -e HOST=0.0.0.0 \
-  -e GITLAB_PERSONAL_ACCESS_TOKEN=your_gitlab_token \
+  -e REMOTE_AUTHORIZATION=true \
   -e GITLAB_API_URL="https://gitlab.com/api/v4" \
   -e GITLAB_READ_ONLY_MODE=true \
   -e USE_GITLAB_WIKI=true \
@@ -145,7 +145,10 @@ docker run -i --rm \
   "mcpServers": {
     "gitlab": {
       "type": "streamable-http",
-      "url": "http://localhost:3333/mcp"
+      "url": "http://localhost:3333/mcp",
+      "headers": {
+        "Authorization": "Bearer glpat-..."
+      }
     }
   }
 }
@@ -205,6 +208,8 @@ exchanging credentials with GitLab on behalf of the client.
 | `STREAMABLE_HTTP`     | ✅       | Must be `true`                                             |
 | `GITLAB_OAUTH_CALLBACK_PROXY` | optional | Set to `true` to use the MCP server's fixed `/callback` URL |
 | `GITLAB_OAUTH_SCOPES` | optional | Comma-separated scopes (default: `api,read_api,read_user`) |
+
+When `STREAMABLE_HTTP=true`, server-side `GITLAB_PERSONAL_ACCESS_TOKEN` or `GITLAB_JOB_TOKEN` require `REMOTE_AUTHORIZATION=true` or `GITLAB_MCP_OAUTH=true`.
 
 > **Troubleshooting `Unregistered redirect_uri`**
 >
