@@ -781,10 +781,17 @@ function validateConfiguration(): void {
   const hasCookie = !!getConfig("cookie-path", "GITLAB_AUTH_COOKIE_PATH");
   const mcpOAuth = getConfig("mcp-oauth", "GITLAB_MCP_OAUTH") === "true";
   const mcpServerUrl = getConfig("mcp-server-url", "MCP_SERVER_URL");
+  const streamableHttp = getConfig("streamable-http", "STREAMABLE_HTTP") === "true";
 
   if (!remoteAuth && !useOAuth && !hasToken && !hasJobToken && !hasCookie && !mcpOAuth) {
     errors.push(
       "Either --token, --job-token, --cookie-path, --use-oauth=true, --remote-auth=true, or --mcp-oauth=true must be set (or use environment variables)"
+    );
+  }
+
+  if (streamableHttp && (hasToken || hasJobToken) && !remoteAuth && !mcpOAuth) {
+    errors.push(
+      "STREAMABLE_HTTP=true/--streamable-http with GITLAB_PERSONAL_ACCESS_TOKEN/--token or GITLAB_JOB_TOKEN/--job-token requires REMOTE_AUTHORIZATION=true/--remote-auth=true or GITLAB_MCP_OAUTH=true/--mcp-oauth=true"
     );
   }
 
@@ -10932,11 +10939,10 @@ async function startStreamableHTTPServer(): Promise<void> {
 
     // Mount /callback route for callback proxy mode
     if (GITLAB_OAUTH_CALLBACK_PROXY) {
-      const callbackPath = `${issuerUrl.pathname.replace(/\/$/, "")}/callback`;
-      app.get(callbackPath, (req: Request, res: Response, next: NextFunction) => {
+      app.get("/callback", (req: Request, res: Response, next: NextFunction) => {
         oauthProvider.handleCallback(req, res).catch(next);
       });
-      logger.info(`Callback proxy mode enabled — ${callbackPath} route mounted`);
+      logger.info(`Callback proxy mode enabled — /callback route mounted`);
     }
   }
 
