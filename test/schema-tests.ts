@@ -612,6 +612,13 @@ function runGitLabMergeRequestSchemaTests(): { passed: number; failed: number } 
       },
       validate: (data: Record<string, any>) => data.milestone === null,
     },
+    {
+      name: 'schema:gitlab_merge_request:allows-omitted-milestone',
+      input: {
+        ...baseMergeRequest,
+      },
+      validate: (data: Record<string, any>) => data.milestone === undefined,
+    },
   ];
 
   let passed = 0;
