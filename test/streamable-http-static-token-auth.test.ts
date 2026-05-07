@@ -6,7 +6,7 @@ import * as path from "node:path";
 import { findAvailablePort } from "./utils/server-launcher.js";
 
 const ERROR_MESSAGE =
-  "STREAMABLE_HTTP=true with GITLAB_PERSONAL_ACCESS_TOKEN or GITLAB_JOB_TOKEN requires REMOTE_AUTHORIZATION=true or GITLAB_MCP_OAUTH=true";
+  "STREAMABLE_HTTP=true/--streamable-http with GITLAB_PERSONAL_ACCESS_TOKEN/--token or GITLAB_JOB_TOKEN/--job-token requires REMOTE_AUTHORIZATION=true/--remote-auth=true or GITLAB_MCP_OAUTH=true/--mcp-oauth=true";
 
 const HOST = process.env.HOST || "127.0.0.1";
 const SERVER_PATH = path.resolve(process.cwd(), "build/index.js");
@@ -48,12 +48,20 @@ async function waitForExit(child: ReturnType<typeof spawn>, timeoutMs = 5000) {
     output += chunk.toString();
   });
 
+  let timeoutHandle: NodeJS.Timeout;
   const timeout = new Promise<never>((_, reject) => {
-    setTimeout(() => reject(new Error(`server did not exit within ${timeoutMs}ms`)), timeoutMs);
+    timeoutHandle = setTimeout(
+      () => reject(new Error(`server did not exit within ${timeoutMs}ms`)),
+      timeoutMs
+    );
   });
 
-  const [code] = (await Promise.race([once(child, "exit"), timeout])) as [number | null];
-  return { code, output };
+  try {
+    const [code] = (await Promise.race([once(child, "exit"), timeout])) as [number | null];
+    return { code, output };
+  } finally {
+    clearTimeout(timeoutHandle!);
+  }
 }
 
 async function waitForHealth(port: number, timeoutMs = 5000) {
@@ -85,7 +93,7 @@ async function postMcpWithoutAuth(port: number) {
       id: 1,
       method: "initialize",
       params: {
-        protocolVersion: "2025-06-18",
+        protocolVersion: "2025-03-26",
         capabilities: {},
         clientInfo: { name: "static-token-auth-test", version: "1.0.0" },
       },
