@@ -1006,6 +1006,7 @@ export const GitLabMergeRequestSchema = z.object({
   author: GitLabUserSchema,
   assignees: z.array(GitLabUserSchema).optional(),
   reviewers: z.array(GitLabUserSchema).optional(),
+  milestone: GitLabMilestoneSchema.nullable().optional(),
   source_branch: z.string(),
   target_branch: z.string(),
   diff_refs: GitLabMergeRequestDiffRefSchema.nullable().optional(),
