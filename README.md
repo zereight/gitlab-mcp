@@ -206,6 +206,8 @@ exchanging credentials with GitLab on behalf of the client.
 | `GITLAB_OAUTH_CALLBACK_PROXY` | optional | Set to `true` to use the MCP server's fixed `/callback` URL |
 | `GITLAB_OAUTH_SCOPES` | optional | Comma-separated scopes (default: `api,read_api,read_user`) |
 
+When `STREAMABLE_HTTP=true`, server-side `GITLAB_PERSONAL_ACCESS_TOKEN` or `GITLAB_JOB_TOKEN` requires `REMOTE_AUTHORIZATION=true` or `GITLAB_MCP_OAUTH=true`.
+
 > **Troubleshooting `Unregistered redirect_uri`**
 >
 > Check the `redirect_uri` in the browser URL. If it points to a client callback
