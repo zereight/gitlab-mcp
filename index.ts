@@ -110,6 +110,8 @@ import {
   CreateMergeRequestSchema,
   CreateMergeRequestThreadSchema,
   CreateNoteSchema,
+  CreateCommitStatusSchema,
+  type CreateCommitStatusOptions,
   CreateOrUpdateFileSchema,
   CreatePipelineSchema,
   CreateProjectMilestoneSchema,
@@ -161,6 +163,8 @@ import {
   GetWikiPageSchema,
   type GitLabCommit,
   GitLabCommitSchema,
+  type GitLabCommitStatus,
+  GitLabCommitStatusSchema,
   GitLabCompareResult,
   GitLabCompareResultSchema,
   type GitLabContent,
@@ -230,6 +234,8 @@ import {
   GitLabWikiPageSchema,
   GroupIteration,
   type ListCommitsOptions,
+  type ListCommitStatusesOptions,
+  ListCommitStatusesSchema,
   ListCommitsSchema,
   ListDraftNotesSchema,
   ListGroupIterationsSchema,
@@ -7531,6 +7537,77 @@ async function getCommitDiff(
 }
 
 /**
+ * List statuses for a commit.
+ *
+ * @param {string} projectId - Project ID or URL-encoded path
+ * @param {string} sha - The commit hash or name of a repository branch or tag
+ * @param {ListCommitStatusesOptions} options - List commit statuses options
+ * @returns {Promise<GitLabCommitStatus[]>} List of commit statuses
+ */
+async function listCommitStatuses(
+  projectId: string,
+  sha: string,
+  options: Omit<ListCommitStatusesOptions, "project_id" | "sha"> = {}
+): Promise<GitLabCommitStatus[]> {
+  projectId = decodeURIComponent(projectId);
+  const url = new URL(
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/repository/commits/${encodeURIComponent(sha)}/statuses`
+  );
+
+  Object.entries(options).forEach(([key, value]) => {
+    if (value !== undefined) {
+      url.searchParams.append(key, value.toString());
+    }
+  });
+
+  const response = await fetch(url.toString(), {
+    ...getFetchConfig(),
+  });
+
+  await handleGitLabError(response);
+  const data = await response.json();
+  return z.array(GitLabCommitStatusSchema).parse(data);
+}
+
+/**
+ * Create or update a commit status.
+ *
+ * @param {string} projectId - Project ID or URL-encoded path
+ * @param {string} sha - The commit hash
+ * @param {CreateCommitStatusOptions} options - Commit status fields
+ * @returns {Promise<GitLabCommitStatus>} The created commit status
+ */
+async function createCommitStatus(
+  projectId: string,
+  sha: string,
+  options: Omit<CreateCommitStatusOptions, "project_id" | "sha">
+): Promise<GitLabCommitStatus> {
+  if (options.name && options.context) {
+    throw new Error("Use either name or context when creating a commit status, not both.");
+  }
+
+  projectId = decodeURIComponent(projectId);
+  const url = new URL(
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/statuses/${encodeURIComponent(sha)}`
+  );
+
+  Object.entries(options).forEach(([key, value]) => {
+    if (value !== undefined) {
+      url.searchParams.append(key, value.toString());
+    }
+  });
+
+  const response = await fetch(url.toString(), {
+    ...getFetchConfig(),
+    method: "POST",
+  });
+
+  await handleGitLabError(response);
+  const data = await response.json();
+  return GitLabCommitStatusSchema.parse(data);
+}
+
+/**
  * Get the current authenticated user
  * 현재 인증된 사용자 가져오기
  *
@@ -9993,6 +10070,24 @@ async function handleToolCall(params: any) {
         const diff = await getCommitDiff(args.project_id, args.sha, args.full_diff);
         return {
           content: [{ type: "text", text: JSON.stringify(diff, null, 2) }],
+        };
+      }
+
+      case "list_commit_statuses": {
+        const args = ListCommitStatusesSchema.parse(params.arguments);
+        const { project_id, sha, ...options } = args;
+        const statuses = await listCommitStatuses(project_id, sha, options);
+        return {
+          content: [{ type: "text", text: JSON.stringify(statuses, null, 2) }],
+        };
+      }
+
+      case "create_commit_status": {
+        const args = CreateCommitStatusSchema.parse(params.arguments);
+        const { project_id, sha, ...options } = args;
+        const status = await createCommitStatus(project_id, sha, options);
+        return {
+          content: [{ type: "text", text: JSON.stringify(status, null, 2) }],
         };
       }
 

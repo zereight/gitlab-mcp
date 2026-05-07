@@ -5,6 +5,8 @@ import {
   GitLabFileContentSchema,
   GitLabRepositorySchema,
   CreatePipelineSchema,
+  CreateCommitStatusSchema,
+  ListCommitStatusesSchema,
   CreateIssueNoteSchema,
   CreateMergeRequestEmojiReactionSchema,
   CreateIssueEmojiReactionSchema,
@@ -343,6 +345,146 @@ function runCreatePipelineSchemaTests(): { passed: number; failed: number } {
     };
 
     const parsed = CreatePipelineSchema.safeParse(testCase.input);
+
+    if (testCase.shouldFail) {
+      if (parsed.success) {
+        result.error = 'Expected schema validation to fail';
+      } else {
+        result.status = 'passed';
+      }
+    } else if (parsed.success) {
+      const expected = testCase.expected || {};
+      const matches = Object.entries(expected).every(([key, value]) => {
+        const actual = (parsed.data as Record<string, unknown>)[key];
+        return JSON.stringify(actual) === JSON.stringify(value);
+      });
+      if (matches) {
+        result.status = 'passed';
+      } else {
+        result.error = `Unexpected parsed result: ${JSON.stringify(parsed.data)}`;
+      }
+    } else {
+      result.error = parsed.error?.message || 'Schema validation failed';
+    }
+
+    if (result.status === 'passed') {
+      passed++;
+      console.log(`✅ ${result.name}`);
+    } else {
+      failed++;
+      console.log(`❌ ${result.name}: ${result.error}`);
+    }
+  });
+
+  console.log(`\nResults: ${passed} passed, ${failed} failed`);
+
+  return { passed, failed };
+}
+
+function runCommitStatusSchemaTests(): { passed: number; failed: number } {
+  console.log('\n🧪 Testing Commit Status Schemas...');
+
+  const cases = [
+    {
+      name: 'schema:create_commit_status:minimal-required-fields',
+      schema: CreateCommitStatusSchema,
+      input: { project_id: 'my/project', sha: 'abc123', state: 'success' },
+      expected: { project_id: 'my/project', sha: 'abc123', state: 'success' }
+    },
+    {
+      name: 'schema:create_commit_status:with-optional-fields',
+      schema: CreateCommitStatusSchema,
+      input: {
+        project_id: 'my/project',
+        sha: 'abc123',
+        state: 'failed',
+        name: 'external/check',
+        target_url: 'https://ci.example.com/build/1',
+        description: 'External check failed',
+        coverage: '87.5',
+        pipeline_id: '42'
+      },
+      expected: {
+        project_id: 'my/project',
+        sha: 'abc123',
+        state: 'failed',
+        name: 'external/check',
+        target_url: 'https://ci.example.com/build/1',
+        description: 'External check failed',
+        coverage: 87.5,
+        pipeline_id: 42
+      }
+    },
+    {
+      name: 'schema:create_commit_status:context-alias',
+      schema: CreateCommitStatusSchema,
+      input: { project_id: 123, sha: 'abc123', state: 'pending', context: 'external/check' },
+      expected: { project_id: '123', sha: 'abc123', state: 'pending', context: 'external/check' }
+    },
+    {
+      name: 'schema:create_commit_status:reject-invalid-state',
+      schema: CreateCommitStatusSchema,
+      input: { project_id: 'my/project', sha: 'abc123', state: 'passing' },
+      shouldFail: true
+    },
+    {
+      name: 'schema:create_commit_status:reject-missing-state',
+      schema: CreateCommitStatusSchema,
+      input: { project_id: 'my/project', sha: 'abc123' },
+      shouldFail: true
+    },
+    {
+      name: 'schema:list_commit_statuses:filters',
+      schema: ListCommitStatusesSchema,
+      input: {
+        project_id: 'my/project',
+        sha: 'abc123',
+        ref: 'main',
+        name: 'external/check',
+        pipeline_id: '42',
+        order_by: 'pipeline_id',
+        sort: 'desc',
+        all: 'true',
+        page: '2',
+        per_page: '50'
+      },
+      expected: {
+        project_id: 'my/project',
+        sha: 'abc123',
+        ref: 'main',
+        name: 'external/check',
+        pipeline_id: 42,
+        order_by: 'pipeline_id',
+        sort: 'desc',
+        all: true,
+        page: 2,
+        per_page: 50
+      }
+    },
+    {
+      name: 'schema:list_commit_statuses:all-false-string',
+      schema: ListCommitStatusesSchema,
+      input: { project_id: 'my/project', sha: 'abc123', all: 'false' },
+      expected: { project_id: 'my/project', sha: 'abc123', all: false }
+    },
+    {
+      name: 'schema:list_commit_statuses:reject-invalid-all-string',
+      schema: ListCommitStatusesSchema,
+      input: { project_id: 'my/project', sha: 'abc123', all: 'yes' },
+      shouldFail: true
+    }
+  ];
+
+  let passed = 0;
+  let failed = 0;
+
+  cases.forEach(testCase => {
+    const result: TestResult = {
+      name: testCase.name,
+      status: 'failed'
+    };
+
+    const parsed = testCase.schema.safeParse(testCase.input);
 
     if (testCase.shouldFail) {
       if (parsed.success) {
@@ -913,6 +1055,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   const getFileContentsResult = runGetFileContentsSchemaTests();
   const fileContentResult = runGitLabFileContentSchemaTests();
   const createPipelineResult = runCreatePipelineSchemaTests();
+  const commitStatusResult = runCommitStatusSchemaTests();
   const createIssueNoteResult = runCreateIssueNoteSchemaTests();
   const getMergeRequestResult = runGetMergeRequestSchemaTests();
   const emojiReactionResult = runEmojiReactionSchemaTests();
@@ -921,8 +1064,8 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   const treeItemResult = runGitLabTreeItemSchemaTests();
   const repositoryTreeResult = runGetRepositoryTreeSchemaTests();
 
-  const totalPassed = getFileContentsResult.passed + fileContentResult.passed + createPipelineResult.passed + createIssueNoteResult.passed + getMergeRequestResult.passed + emojiReactionResult.passed + repositorySchemaResult.passed + labelsCoercionResult.passed + treeItemResult.passed + repositoryTreeResult.passed;
-  const totalFailed = getFileContentsResult.failed + fileContentResult.failed + createPipelineResult.failed + createIssueNoteResult.failed + getMergeRequestResult.failed + emojiReactionResult.failed + repositorySchemaResult.failed + labelsCoercionResult.failed + treeItemResult.failed + repositoryTreeResult.failed;
+  const totalPassed = getFileContentsResult.passed + fileContentResult.passed + createPipelineResult.passed + commitStatusResult.passed + createIssueNoteResult.passed + getMergeRequestResult.passed + emojiReactionResult.passed + repositorySchemaResult.passed + labelsCoercionResult.passed + treeItemResult.passed + repositoryTreeResult.passed;
+  const totalFailed = getFileContentsResult.failed + fileContentResult.failed + createPipelineResult.failed + commitStatusResult.failed + createIssueNoteResult.failed + getMergeRequestResult.failed + emojiReactionResult.failed + repositorySchemaResult.failed + labelsCoercionResult.failed + treeItemResult.failed + repositoryTreeResult.failed;
 
   console.log(`\nTotal Results: ${totalPassed} passed, ${totalFailed} failed`);
 
