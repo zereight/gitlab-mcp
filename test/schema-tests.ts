@@ -646,6 +646,11 @@ function runGetMergeRequestSchemaTests(): { passed: number; failed: number } {
       expected: { project_id: 'my/project', merge_request_iid: '24' },
     },
     {
+      name: 'schema:get_merge_request:coerced-project-id',
+      input: { project_id: 123, merge_request_iid: '42' },
+      expected: { project_id: '123', merge_request_iid: '42' },
+    },
+    {
       name: 'schema:get_merge_request:coerced-source-branch',
       input: { project_id: 'my/project', source_branch: 'feature' },
       expected: { project_id: 'my/project', source_branch: 'feature' },
@@ -663,6 +668,11 @@ function runGetMergeRequestSchemaTests(): { passed: number; failed: number } {
     {
       name: 'schema:get_merge_request:reject-empty-project-id',
       input: { project_id: '', merge_request_iid: '42' },
+      shouldFail: true,
+    },
+    {
+      name: 'schema:get_merge_request:reject-whitespace-project-id',
+      input: { project_id: '   ', merge_request_iid: '42' },
       shouldFail: true,
     },
   ];

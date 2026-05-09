@@ -177,6 +177,24 @@ function runTests(): { passed: number; failed: number } {
     });
   }
 
+  // Test 7: Effects fields
+  try {
+    const schema = z.object({
+      effectRequired: z.preprocess(value => value, z.string()),
+      effectOptional: z.preprocess(value => value, z.string().optional()),
+    });
+    const result = toJSONSchema(schema);
+    assert(result.required?.includes("effectRequired"), "effectRequired should be in required array");
+    assert(!result.required?.includes("effectOptional"), "effectOptional should NOT be in required array");
+    results.push({ name: "effects fields", status: "passed" });
+  } catch (error) {
+    results.push({
+      name: "effects fields",
+      status: "failed",
+      error: (error as Error).message,
+    });
+  }
+
   // Print results
   const passed = results.filter((r) => r.status === "passed").length;
   const failed = results.filter((r) => r.status === "failed").length;
