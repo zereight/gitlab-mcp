@@ -2034,17 +2034,17 @@ export const ListProjectsSchema = z
   .merge(PaginationOptionsSchema);
 
 // Label operation schemas
-export const ListLabelsSchema = z.object({
-  project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
-  with_counts: z
-    .coerce.boolean()
-    .optional()
-    .describe("Whether or not to include issue and merge request counts"),
-  include_ancestor_groups: z.coerce.boolean().optional().describe("Include ancestor groups"),
-  search: z.string().optional().describe("Keyword to filter labels by"),
-  page: z.coerce.number().optional().describe("Page number for pagination"),
-  per_page: z.coerce.number().optional().describe("Number of labels per page"),
-});
+export const ListLabelsSchema = z
+  .object({
+    project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
+    with_counts: z
+      .coerce.boolean()
+      .optional()
+      .describe("Whether or not to include issue and merge request counts"),
+    include_ancestor_groups: z.coerce.boolean().optional().describe("Include ancestor groups"),
+    search: z.string().optional().describe("Keyword to filter labels by"),
+  })
+  .merge(PaginationOptionsSchema);
 
 export const GetLabelSchema = z.object({
   project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
