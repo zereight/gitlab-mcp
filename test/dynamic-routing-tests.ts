@@ -466,7 +466,7 @@ async function validateToolCalls(client: CustomHeaderClient, mockServer: MockGit
     { name: 'get_merge_request', params: { project_id: '1', merge_request_iid: '1' } },
     { name: 'list_merge_requests', params: { project_id: '1' } },
     { name: 'get_repository_tree', params: { project_id: '1' } },
-    { name: 'list_labels', params: { project_id: '1' } },
+    { name: 'list_labels', params: { project_id: '1', page: 2, per_page: 50 } },
     { name: 'list_pipelines', params: { project_id: '1' } },
     { name: 'list_commits', params: { project_id: '1' } },
   ];
@@ -519,6 +519,10 @@ async function validateToolCalls(client: CustomHeaderClient, mockServer: MockGit
         assert.strictEqual(req.headers['authorization'], `Bearer ${expectedToken}`);
       } else {
         assert.strictEqual(req.headers['private-token'], expectedToken);
+      }
+      if (tool.name === 'list_labels') {
+        assert.strictEqual(req.query.page, '2');
+        assert.strictEqual(req.query.per_page, '50');
       }
       res.json(mockResponse);
     });
