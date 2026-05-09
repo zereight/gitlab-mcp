@@ -8,6 +8,29 @@ import { zodToJsonSchema } from "zod-to-json-schema";
 export const toJSONSchema = (schema: z.ZodTypeAny) => {
   const jsonSchema = zodToJsonSchema(schema, { $refStrategy: "none" });
 
+  const isOptionalLikeField = (zodType: z.ZodTypeAny): boolean => {
+    const def = zodType._def as any;
+    const typeName = def?.typeName;
+
+    if (["ZodOptional", "ZodNullable", "ZodDefault", "ZodCatch"].includes(typeName)) {
+      return true;
+    }
+
+    if (typeName === "ZodEffects") {
+      return isOptionalLikeField(def.schema);
+    }
+
+    if (typeName === "ZodBranded") {
+      return isOptionalLikeField(def.type);
+    }
+
+    if (typeName === "ZodPipeline") {
+      return isOptionalLikeField(def.in);
+    }
+
+    return false;
+  };
+
   // Extract required fields from Zod schema
   const zodRequiredFields = (() => {
     if (schema instanceof z.ZodObject) {
@@ -16,19 +39,8 @@ export const toJSONSchema = (schema: z.ZodTypeAny) => {
 
       Object.entries(shape).forEach(([key, fieldDef]) => {
         const zodType = fieldDef as z.ZodTypeAny;
-        const typeName = zodType._def?.typeName;
 
-        // Check if field is wrapped in zod required types
-        const isRequired = [
-          "ZodOptional",
-          "ZodNullable",
-          "ZodDefault",
-          "ZodEffects",
-          "ZodCatch",
-          "ZodBranded",
-        ].includes(typeName);
-
-        if (!isRequired) {
+        if (!isOptionalLikeField(zodType)) {
           requiredFields.push(key);
         }
       });
