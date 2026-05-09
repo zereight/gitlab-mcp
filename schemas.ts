@@ -1564,8 +1564,8 @@ export const GetMergeRequestSchema = ProjectParamsSchema.extend({
           required_error: "project_id is required",
           invalid_type_error: "project_id is required",
         })
-        .trim()
-        .min(1, "project_id is required")
+        .refine(value => value === "" || value.trim().length > 0, "project_id is required")
+        .transform(value => (value === "" ? value : value.trim()))
     )
     .describe("Project ID or complete URL-encoded path to project"),
   merge_request_iid: z.coerce.string().optional().describe("The IID of a merge request"),

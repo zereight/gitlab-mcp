@@ -666,9 +666,9 @@ function runGetMergeRequestSchemaTests(): { passed: number; failed: number } {
       shouldFail: true,
     },
     {
-      name: 'schema:get_merge_request:reject-empty-project-id',
+      name: 'schema:get_merge_request:allow-empty-project-id-for-default-project',
       input: { project_id: '', merge_request_iid: '42' },
-      shouldFail: true,
+      expected: { project_id: '', merge_request_iid: '42' },
     },
     {
       name: 'schema:get_merge_request:reject-whitespace-project-id',
