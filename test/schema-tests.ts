@@ -650,6 +650,21 @@ function runGetMergeRequestSchemaTests(): { passed: number; failed: number } {
       input: { project_id: 'my/project', source_branch: 'feature' },
       expected: { project_id: 'my/project', source_branch: 'feature' },
     },
+    {
+      name: 'schema:get_merge_request:reject-missing-project-id-with-merge-request-iid',
+      input: { merge_request_iid: '42' },
+      shouldFail: true,
+    },
+    {
+      name: 'schema:get_merge_request:reject-missing-project-id-with-source-branch',
+      input: { source_branch: 'feature' },
+      shouldFail: true,
+    },
+    {
+      name: 'schema:get_merge_request:reject-empty-project-id',
+      input: { project_id: '', merge_request_iid: '42' },
+      shouldFail: true,
+    },
   ];
 
   let passed = 0;

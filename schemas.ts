@@ -1556,6 +1556,12 @@ export const GetBranchDiffsSchema = ProjectParamsSchema.extend({
 });
 
 export const GetMergeRequestSchema = ProjectParamsSchema.extend({
+  project_id: z
+    .preprocess(
+      value => (value === undefined || value === null ? value : String(value)),
+      z.string().min(1, "project_id is required")
+    )
+    .describe("Project ID or complete URL-encoded path to project"),
   merge_request_iid: z.coerce.string().optional().describe("The IID of a merge request"),
   source_branch: z.string().optional().describe("Source branch name"),
 });
