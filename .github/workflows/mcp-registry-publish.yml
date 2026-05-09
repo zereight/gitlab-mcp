@@ -32,9 +32,35 @@ jobs:
           node-version: "22.21.1"
           registry-url: "https://registry.npmjs.org/"
 
+      - name: Install cosign
+        uses: sigstore/cosign-installer@v4.1.2
+        with:
+          cosign-release: v3.0.6
+
       - name: Install mcp-publisher
+        env:
+          GH_TOKEN: ${{ github.token }}
+          MCP_PUBLISHER_VERSION: v1.7.8
         run: |
-          curl -L "https://github.com/modelcontextprotocol/registry/releases/latest/download/mcp-publisher_$(uname -s | tr '[:upper:]' '[:lower:]')_$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/').tar.gz" | tar xz mcp-publisher
+          os="$(uname -s | tr '[:upper:]' '[:lower:]')"
+          arch="$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/')"
+          asset="mcp-publisher_${os}_${arch}.tar.gz"
+          checksums="registry_${MCP_PUBLISHER_VERSION#v}_checksums.txt"
+
+          gh release download "$MCP_PUBLISHER_VERSION" \
+            --repo modelcontextprotocol/registry \
+            --pattern "$asset" \
+            --pattern "$checksums" \
+            --pattern "$checksums.sigstore.json" \
+            --dir .
+
+          cosign verify-blob "$checksums" \
+            --bundle "$checksums.sigstore.json" \
+            --certificate-identity "https://github.com/modelcontextprotocol/registry/.github/workflows/release.yml@refs/tags/${MCP_PUBLISHER_VERSION}" \
+            --certificate-oidc-issuer "https://token.actions.githubusercontent.com"
+
+          grep "  ${asset}$" "$checksums" | sha256sum -c -
+          tar xzf "$asset" mcp-publisher
           chmod +x mcp-publisher
           echo "$PWD" >> "$GITHUB_PATH"
 
