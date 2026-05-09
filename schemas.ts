@@ -2042,6 +2042,8 @@ export const ListLabelsSchema = z.object({
     .describe("Whether or not to include issue and merge request counts"),
   include_ancestor_groups: z.coerce.boolean().optional().describe("Include ancestor groups"),
   search: z.string().optional().describe("Keyword to filter labels by"),
+  page: z.coerce.number().optional().describe("Page number for pagination"),
+  per_page: z.coerce.number().optional().describe("Number of labels per page"),
 });
 
 export const GetLabelSchema = z.object({

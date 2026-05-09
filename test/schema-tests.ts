@@ -23,6 +23,7 @@ import {
   CreateIssueSchema,
   ListIssuesSchema,
   ListMergeRequestsSchema,
+  ListLabelsSchema,
   GitLabMergeRequestSchema,
   GitLabTreeItemSchema,
   GetMergeRequestSchema,
@@ -1019,6 +1020,56 @@ function runLabelsCoercionSchemaTests(): { passed: number; failed: number } {
   return { passed, failed };
 }
 
+function runListLabelsSchemaTests(): { passed: number; failed: number } {
+  console.log('\n=== List Labels Schema Tests ===');
+
+  const cases = [
+    {
+      name: 'schema:list_labels:pagination-coercion',
+      input: { project_id: 'my/project', page: '2', per_page: '100' },
+      expected: { project_id: 'my/project', page: 2, per_page: 100 },
+    },
+    {
+      name: 'schema:list_labels:filters-with-pagination',
+      input: { project_id: 'my/project', search: 'backend', with_counts: 'true', page: 3, per_page: 50 },
+      expected: { project_id: 'my/project', search: 'backend', with_counts: true, page: 3, per_page: 50 },
+    },
+  ];
+
+  let passed = 0;
+  let failed = 0;
+
+  cases.forEach(testCase => {
+    const result: TestResult = { name: testCase.name, status: 'failed' };
+    const parsed = ListLabelsSchema.safeParse(testCase.input);
+
+    if (!parsed.success) {
+      result.error = parsed.error?.message || 'Schema validation failed';
+    } else {
+      const matches = Object.entries(testCase.expected).every(([key, value]) => {
+        const actual = (parsed.data as Record<string, unknown>)[key];
+        return actual === value;
+      });
+      if (matches) {
+        result.status = 'passed';
+      } else {
+        result.error = `Unexpected parsed result: ${JSON.stringify(parsed.data)}`;
+      }
+    }
+
+    if (result.status === 'passed') {
+      passed++;
+      console.log(`✅ ${result.name}`);
+    } else {
+      failed++;
+      console.log(`❌ ${result.name}: ${result.error}`);
+    }
+  });
+
+  console.log(`\nResults: ${passed} passed, ${failed} failed`);
+  return { passed, failed };
+}
+
 function runGitLabTreeItemSchemaTests(): { passed: number; failed: number } {
   console.log('\n=== GitLabTreeItem Schema Tests ===');
 
@@ -1156,11 +1207,12 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   const emojiReactionResult = runEmojiReactionSchemaTests();
   const repositorySchemaResult = runGitLabRepositorySchemaTests();
   const labelsCoercionResult = runLabelsCoercionSchemaTests();
+  const listLabelsResult = runListLabelsSchemaTests();
   const treeItemResult = runGitLabTreeItemSchemaTests();
   const repositoryTreeResult = runGetRepositoryTreeSchemaTests();
 
-  const totalPassed = getFileContentsResult.passed + fileContentResult.passed + createPipelineResult.passed + commitStatusResult.passed + createIssueNoteResult.passed + getMergeRequestResult.passed + gitLabMergeRequestResult.passed + emojiReactionResult.passed + repositorySchemaResult.passed + labelsCoercionResult.passed + treeItemResult.passed + repositoryTreeResult.passed;
-  const totalFailed = getFileContentsResult.failed + fileContentResult.failed + createPipelineResult.failed + commitStatusResult.failed + createIssueNoteResult.failed + getMergeRequestResult.failed + gitLabMergeRequestResult.failed + emojiReactionResult.failed + repositorySchemaResult.failed + labelsCoercionResult.failed + treeItemResult.failed + repositoryTreeResult.failed;
+  const totalPassed = getFileContentsResult.passed + fileContentResult.passed + createPipelineResult.passed + commitStatusResult.passed + createIssueNoteResult.passed + getMergeRequestResult.passed + gitLabMergeRequestResult.passed + emojiReactionResult.passed + repositorySchemaResult.passed + labelsCoercionResult.passed + listLabelsResult.passed + treeItemResult.passed + repositoryTreeResult.passed;
+  const totalFailed = getFileContentsResult.failed + fileContentResult.failed + createPipelineResult.failed + commitStatusResult.failed + createIssueNoteResult.failed + getMergeRequestResult.failed + gitLabMergeRequestResult.failed + emojiReactionResult.failed + repositorySchemaResult.failed + labelsCoercionResult.failed + listLabelsResult.failed + treeItemResult.failed + repositoryTreeResult.failed;
 
   console.log(`\nTotal Results: ${totalPassed} passed, ${totalFailed} failed`);
 
