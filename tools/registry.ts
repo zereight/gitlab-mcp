@@ -74,6 +74,7 @@ import {
   EditProjectMilestoneSchema,
   ExecuteGraphQLSchema,
   ForkRepositorySchema,
+  HealthCheckSchema,
   GetBranchDiffsSchema,
   GetCommitDiffSchema,
   GetCommitSchema,
@@ -850,6 +851,11 @@ export const allTools = [
     inputSchema: toJSONSchema(DownloadAttachmentSchema),
   },
   {
+    name: "health_check",
+    description: "Verify server status and authentication",
+    inputSchema: toJSONSchema(HealthCheckSchema),
+  },
+  {
     name: "list_events",
     description: "List events for the authenticated user (before/after: YYYY-MM-DD)",
     inputSchema: toJSONSchema(ListEventsSchema),
@@ -1063,6 +1069,7 @@ export const allTools = [
 // Define which tools are read-only
 export const readOnlyTools = new Set([
   "discover_tools",
+  "health_check",
   "search_repositories",
   "search_code",
   "search_project_code",
@@ -1374,6 +1381,7 @@ export const TOOLSET_DEFINITIONS: readonly ToolsetDefinition[] = [
       "verify_namespace",
       "list_group_projects",
       "list_group_iterations",
+      "health_check",
     ]),
   },
   {

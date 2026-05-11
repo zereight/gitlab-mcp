@@ -373,6 +373,7 @@ import {
   ListWebhooksSchema,
   ListWebhookEventsSchema,
   GetWebhookEventSchema,
+  HealthCheckSchema,
 } from "./schemas.js";
 
 import { randomUUID } from "node:crypto";
@@ -1252,6 +1253,15 @@ function buildAuthHeaders(): Record<string, string> {
   }
 
   return {};
+}
+
+function usesJobTokenHeader(): boolean {
+  if (GITLAB_JOB_TOKEN) return true;
+  if (REMOTE_AUTHORIZATION || GITLAB_MCP_OAUTH) {
+    const ctx = sessionAuthStore.getStore();
+    return ctx?.header === "JOB-TOKEN";
+  }
+  return false;
 }
 
 /**
@@ -7623,9 +7633,23 @@ async function createCommitStatus(
 async function getCurrentUser(): Promise<GitLabUser> {
   const response = await fetch(`${getEffectiveApiUrl()}/user`, getFetchConfig());
 
+  if (response.ok) {
+    const data = await response.json();
+    return GitLabUserSchema.parse(data);
+  }
+
+  if ((response.status === 401 || response.status === 403) && usesJobTokenHeader()) {
+    const jobResponse = await fetch(`${getEffectiveApiUrl()}/job`, getFetchConfig());
+    if (jobResponse.ok) {
+      const jobData = await jobResponse.json() as { user?: { username?: string; id?: number; name?: string } };
+      if (jobData.user) {
+        return GitLabUserSchema.parse(jobData.user);
+      }
+    }
+  }
+
   await handleGitLabError(response);
-  const data = await response.json();
-  return GitLabUserSchema.parse(data);
+  throw new Error(`GitLab API error: ${response.status} ${response.statusText}`);
 }
 
 /**
@@ -10338,6 +10362,21 @@ async function handleToolCall(params: any) {
         }
         return {
           content: [{ type: "text", text: JSON.stringify(event, null, 2) }],
+        };
+      }
+
+      case "health_check": {
+        HealthCheckSchema.parse(params.arguments ?? {});
+        const url = new URL(`${getEffectiveApiUrl()}/user`);
+        const response = await fetch(url.toString(), getFetchConfig());
+        let authenticated = response.ok;
+        if (!authenticated && (response.status === 401 || response.status === 403) && (GITLAB_JOB_TOKEN || usesJobTokenHeader())) {
+          const jobUrl = new URL(`${getEffectiveApiUrl()}/job`);
+          const jobResponse = await fetch(jobUrl.toString(), getFetchConfig());
+          authenticated = jobResponse.ok;
+        }
+        return {
+          content: [{ type: "text", text: JSON.stringify({ status: authenticated ? "ok" : "error", authenticated, gitlab_url: getEffectiveApiUrl() }) }],
         };
       }
 

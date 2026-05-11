@@ -110,11 +110,12 @@ export async function launchServer(config: ServerConfig): Promise<ServerInstance
         serverProcess.kill("SIGTERM");
 
         // Force kill if not terminated within 5 seconds
-        setTimeout(() => {
+        const forceKillTimer = setTimeout(() => {
           if (!serverProcess.killed) {
             serverProcess.kill("SIGKILL");
           }
         }, 5000);
+        forceKillTimer.unref();
       }
     },
   };
