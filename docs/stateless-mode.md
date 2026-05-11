@@ -61,6 +61,14 @@ spec:
             # …other env
 ```
 
+## Upgrading from 2.0.x
+
+In v2.1.x, stateless Streamable HTTP deployments should use
+`REMOTE_AUTHORIZATION=true`. The old `STREAMABLE_HTTP=true` +
+static `GITLAB_PERSONAL_ACCESS_TOKEN` setup is rejected for this mode.
+
+Pass the caller token through request headers instead.
+
 ## What stateless mode changes
 
 | Surface                              | Legacy                         | Stateless                                        |
