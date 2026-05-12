@@ -645,6 +645,11 @@ Register the skill directory in your AI client to get optimal tool usage guidanc
 152. `search_group_code` - Search for code within a specific GitLab group (requires advanced search or exact code search to be enabled)
 153. `execute_graphql` - Execute a GitLab GraphQL query
 154. `list_merge_request_pipelines` - List pipelines for a merge request with pagination support
+155. `list_snippets` - List snippets — project snippets when project_id is given, otherwise personal snippets
+156. `get_snippet` - Get a snippet's metadata. Set include_content=true to also fetch the raw file content
+157. `create_snippet` - Create a snippet — project-scoped when project_id is given, otherwise a personal snippet. Supports single-file (file_name + content) or multi-file (files[])
+158. `update_snippet` - Update an existing snippet (provide at least one field to change)
+159. `delete_snippet` - Delete a snippet
 
 <!-- TOOLS-END -->
 

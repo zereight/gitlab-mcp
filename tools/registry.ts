@@ -168,6 +168,11 @@ import {
   SearchGroupCodeSchema,
   SearchProjectCodeSchema,
   SearchRepositoriesSchema,
+  ListSnippetsSchema,
+  GetSnippetSchema,
+  CreateSnippetSchema,
+  UpdateSnippetSchema,
+  DeleteSnippetSchema,
   UnapproveMergeRequestSchema,
   UpdateDraftNoteSchema,
   UpdateGroupWikiPageSchema,
@@ -943,6 +948,35 @@ export const allTools = [
     description: "Get the X.509 signature of a signed tag (404 if unsigned)",
     inputSchema: toJSONSchema(GetTagSignatureSchema),
   },
+  // --- Snippet tools ---
+  {
+    name: "list_snippets",
+    description:
+      "List snippets — project snippets when project_id is given, otherwise personal snippets",
+    inputSchema: toJSONSchema(ListSnippetsSchema),
+  },
+  {
+    name: "get_snippet",
+    description:
+      "Get a snippet's metadata. Set include_content=true to also fetch the raw file content.",
+    inputSchema: toJSONSchema(GetSnippetSchema),
+  },
+  {
+    name: "create_snippet",
+    description:
+      "Create a snippet — project-scoped when project_id is given, otherwise a personal snippet. Supports single-file (file_name + content) or multi-file (files[]).",
+    inputSchema: toJSONSchema(CreateSnippetSchema),
+  },
+  {
+    name: "update_snippet",
+    description: "Update an existing snippet (provide at least one field to change)",
+    inputSchema: toJSONSchema(UpdateSnippetSchema),
+  },
+  {
+    name: "delete_snippet",
+    description: "Delete a snippet",
+    inputSchema: toJSONSchema(DeleteSnippetSchema),
+  },
   // --- Work item tools (GraphQL-based) ---
   {
     name: "get_work_item",
@@ -1168,6 +1202,8 @@ export const readOnlyTools = new Set([
   "list_tags",
   "get_tag",
   "get_tag_signature",
+  "list_snippets",
+  "get_snippet",
   "get_merge_request_approval_state",
   "get_work_item",
   "list_work_items",
@@ -1197,6 +1233,7 @@ export const destructiveTools = new Set([
   "delete_milestone",
   "delete_release",
   "delete_tag",
+  "delete_snippet",
   "delete_merge_request_note",
   "delete_merge_request_discussion_note",
   "delete_draft_note",
@@ -1278,6 +1315,7 @@ export type ToolsetId =
   | "wiki"
   | "releases"
   | "tags"
+  | "snippets"
   | "users"
   | "workitems"
   | "webhooks"
@@ -1500,6 +1538,17 @@ export const TOOLSET_DEFINITIONS: readonly ToolsetDefinition[] = [
       "create_tag",
       "delete_tag",
       "get_tag_signature",
+    ]),
+  },
+  {
+    id: "snippets",
+    isDefault: false,
+    tools: new Set([
+      "list_snippets",
+      "get_snippet",
+      "create_snippet",
+      "update_snippet",
+      "delete_snippet",
     ]),
   },
   {

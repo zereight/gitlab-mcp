@@ -356,6 +356,13 @@ import {
   GitLabTagSignatureSchema,
   type GitLabTag,
   type GitLabTagSignature,
+  ListSnippetsSchema,
+  GetSnippetSchema,
+  CreateSnippetSchema,
+  UpdateSnippetSchema,
+  DeleteSnippetSchema,
+  GitLabSnippetSchema,
+  type GitLabSnippet,
   GetMergeRequestNotesSchema,
   GetMergeRequestNoteSchema,
   DeleteMergeRequestDiscussionNoteSchema,
@@ -8303,6 +8310,173 @@ async function getTagSignature(
   return GitLabTagSignatureSchema.parse(data);
 }
 
+/**
+ * Build the snippets endpoint URL.
+ *
+ * When projectId is provided, returns the project snippets endpoint.
+ * Otherwise, returns the personal snippets endpoint.
+ */
+function getSnippetsEndpoint(projectId?: string): string {
+  if (projectId) {
+    const effectiveProjectId = getEffectiveProjectId(projectId);
+    return `${getEffectiveApiUrl()}/projects/${encodeURIComponent(effectiveProjectId)}/snippets`;
+  }
+  return `${getEffectiveApiUrl()}/snippets`;
+}
+
+/**
+ * List snippets — project snippets if projectId is given, otherwise personal snippets.
+ */
+async function listSnippets(
+  projectId: string | undefined,
+  options: Omit<z.infer<typeof ListSnippetsSchema>, "project_id"> = {}
+): Promise<GitLabSnippet[]> {
+  const url = new URL(getSnippetsEndpoint(projectId));
+
+  Object.entries(options).forEach(([key, value]) => {
+    if (value !== undefined) {
+      url.searchParams.append(key, String(value));
+    }
+  });
+
+  const response = await fetch(url.toString(), {
+    ...getFetchConfig(),
+  });
+
+  await handleGitLabError(response);
+
+  const data = await response.json();
+  return GitLabSnippetSchema.array().parse(data);
+}
+
+/**
+ * Get a snippet's metadata. Use getSnippetRawContent to fetch the raw file content.
+ */
+async function getSnippet(
+  projectId: string | undefined,
+  snippetId: number
+): Promise<GitLabSnippet> {
+  const response = await fetch(`${getSnippetsEndpoint(projectId)}/${snippetId}`, {
+    ...getFetchConfig(),
+  });
+
+  await handleGitLabError(response);
+
+  const data = await response.json();
+  return GitLabSnippetSchema.parse(data);
+}
+
+/**
+ * Get the raw content of a single-file snippet via the `/raw` endpoint.
+ * For multi-file snippets, use getSnippetFileRawContent instead.
+ */
+async function getSnippetRawContent(
+  projectId: string | undefined,
+  snippetId: number
+): Promise<string> {
+  const response = await fetch(`${getSnippetsEndpoint(projectId)}/${snippetId}/raw`, {
+    ...getFetchConfig(),
+  });
+
+  await handleGitLabError(response);
+
+  return await response.text();
+}
+
+/**
+ * Get the raw content of a specific file inside a (possibly multi-file) snippet.
+ */
+async function getSnippetFileRawContent(
+  projectId: string | undefined,
+  snippetId: number,
+  ref: string,
+  filePath: string
+): Promise<string> {
+  const url = `${getSnippetsEndpoint(projectId)}/${snippetId}/files/${encodeURIComponent(ref)}/${encodeURIComponent(filePath)}/raw`;
+  const response = await fetch(url, { ...getFetchConfig() });
+
+  await handleGitLabError(response);
+
+  return await response.text();
+}
+
+/**
+ * Create a snippet — project-scoped if projectId is given, otherwise personal.
+ */
+async function createSnippet(
+  projectId: string | undefined,
+  options: Omit<z.infer<typeof CreateSnippetSchema>, "project_id">
+): Promise<GitLabSnippet> {
+  const { title, file_name, content, files, description, visibility } = options;
+  const filesPayload =
+    files && files.length > 0
+      ? files
+      : [{ file_path: file_name as string, content: content as string }];
+  const body: Record<string, unknown> = {
+    title,
+    visibility: visibility ?? "private",
+    files: filesPayload,
+  };
+  if (description !== undefined) {
+    body.description = description;
+  }
+
+  const response = await fetch(getSnippetsEndpoint(projectId), {
+    ...getFetchConfig(),
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+
+  await handleGitLabError(response);
+
+  const data = await response.json();
+  return GitLabSnippetSchema.parse(data);
+}
+
+/**
+ * Update an existing snippet — project-scoped if projectId is given, otherwise personal.
+ */
+async function updateSnippet(
+  projectId: string | undefined,
+  options: Omit<z.infer<typeof UpdateSnippetSchema>, "project_id">
+): Promise<GitLabSnippet> {
+  const { snippet_id, title, file_name, content, description, visibility } = options;
+  const body: Record<string, unknown> = {};
+  if (title !== undefined) body.title = title;
+  if (description !== undefined) body.description = description;
+  if (visibility !== undefined) body.visibility = visibility;
+
+  if (file_name !== undefined && content !== undefined) {
+    body.files = [{ action: "update", file_path: file_name, content }];
+  }
+
+  const response = await fetch(`${getSnippetsEndpoint(projectId)}/${snippet_id}`, {
+    ...getFetchConfig(),
+    method: "PUT",
+    body: JSON.stringify(body),
+  });
+
+  await handleGitLabError(response);
+
+  const data = await response.json();
+  return GitLabSnippetSchema.parse(data);
+}
+
+/**
+ * Delete a snippet — project-scoped if projectId is given, otherwise personal.
+ */
+async function deleteSnippet(
+  projectId: string | undefined,
+  snippetId: number
+): Promise<void> {
+  const response = await fetch(`${getSnippetsEndpoint(projectId)}/${snippetId}`, {
+    ...getFetchConfig(),
+    method: "DELETE",
+  });
+
+  await handleGitLabError(response);
+}
+
 // Request handlers are now registered inside createServer() factory function
 // to ensure each transport connection gets its own Server instance (GHSA-345p-7cg4-v4c7).
 
@@ -10401,6 +10575,84 @@ async function handleToolCall(params: any) {
         const signature = await getTagSignature(args.project_id, args.tag_name);
         return {
           content: [{ type: "text", text: JSON.stringify(signature, null, 2) }],
+        };
+      }
+
+      case "list_snippets": {
+        const args = ListSnippetsSchema.parse(params.arguments);
+        const { project_id, ...options } = args;
+        const snippets = await listSnippets(project_id, options);
+        return {
+          content: [{ type: "text", text: JSON.stringify(snippets, null, 2) }],
+        };
+      }
+
+      case "get_snippet": {
+        const args = GetSnippetSchema.parse(params.arguments);
+        const snippet = await getSnippet(args.project_id, args.snippet_id);
+        const result: Record<string, unknown> = { ...snippet };
+        if (args.include_content) {
+          const files = snippet.files ?? [];
+          if (files.length > 1) {
+            const ref = snippet.default_branch ?? "main";
+            result.files = await Promise.all(
+              files.map(async f => ({
+                ...f,
+                content: await getSnippetFileRawContent(
+                  args.project_id,
+                  args.snippet_id,
+                  ref,
+                  f.path
+                ),
+              }))
+            );
+          } else {
+            result.content = await getSnippetRawContent(
+              args.project_id,
+              args.snippet_id
+            );
+          }
+        }
+        return {
+          content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+        };
+      }
+
+      case "create_snippet": {
+        const args = CreateSnippetSchema.parse(params.arguments);
+        const { project_id, ...options } = args;
+        const snippet = await createSnippet(project_id, options);
+        return {
+          content: [{ type: "text", text: JSON.stringify(snippet, null, 2) }],
+        };
+      }
+
+      case "update_snippet": {
+        const args = UpdateSnippetSchema.parse(params.arguments);
+        const { project_id, ...options } = args;
+        const snippet = await updateSnippet(project_id, options);
+        return {
+          content: [{ type: "text", text: JSON.stringify(snippet, null, 2) }],
+        };
+      }
+
+      case "delete_snippet": {
+        const args = DeleteSnippetSchema.parse(params.arguments);
+        await deleteSnippet(args.project_id, args.snippet_id);
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(
+                {
+                  status: "success",
+                  message: `Snippet ${args.snippet_id} deleted successfully`,
+                },
+                null,
+                2
+              ),
+            },
+          ],
         };
       }
 

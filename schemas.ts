@@ -3403,6 +3403,180 @@ export const GitLabTagSchema = z.object({
   created_at: z.string().nullable(),
 });
 
+// --- Snippet schemas ---
+
+export const ListSnippetsSchema = z
+  .object({
+    project_id: z
+      .coerce.string()
+      .optional()
+      .describe(
+        "Project ID or URL-encoded path. Omit to list personal snippets for the authenticated user."
+      ),
+  })
+  .merge(PaginationOptionsSchema);
+
+export const GetSnippetSchema = z.object({
+  project_id: z
+    .coerce.string()
+    .optional()
+    .describe("Project ID or URL-encoded path. Omit for personal snippets."),
+  snippet_id: z.coerce.number().describe("The snippet ID"),
+  include_content: z
+    .boolean()
+    .optional()
+    .default(false)
+    .describe("Whether to fetch the raw file content (default: false)"),
+});
+
+export const SnippetFileSchema = z.object({
+  file_path: z.string().describe("File path within the snippet (e.g., 'src/script.py')"),
+  content: z.string().describe("File content"),
+});
+
+export const CreateSnippetSchema = z
+  .object({
+    project_id: z
+      .coerce.string()
+      .optional()
+      .describe(
+        "Project ID or URL-encoded path. Omit to create a personal snippet for the authenticated user."
+      ),
+    title: z.string().describe("Snippet title"),
+    file_name: z
+      .string()
+      .optional()
+      .describe(
+        "File name for a single-file snippet (e.g., 'script.py'). Use together with content. Mutually exclusive with files[]."
+      ),
+    content: z
+      .string()
+      .optional()
+      .describe("File content for a single-file snippet. Use together with file_name."),
+    files: z
+      .array(SnippetFileSchema)
+      .optional()
+      .describe(
+        "Array of files for a multi-file snippet. Each item needs file_path and content. Mutually exclusive with file_name/content."
+      ),
+    description: z.string().optional().describe("Optional snippet description"),
+    visibility: z
+      .enum(["private", "internal", "public"])
+      .optional()
+      .describe("Snippet visibility (default: private)"),
+  })
+  .refine(
+    data =>
+      (data.files !== undefined && data.files.length > 0) ||
+      (data.file_name !== undefined && data.content !== undefined),
+    {
+      message: "Provide either files[] (multi-file) or both file_name and content (single-file)",
+      path: ["files"],
+    }
+  )
+  .refine(
+    data =>
+      !(
+        data.files !== undefined &&
+        (data.file_name !== undefined || data.content !== undefined)
+      ),
+    {
+      message: "Cannot mix files[] with file_name/content — pick one shape",
+      path: ["files"],
+    }
+  );
+
+export const UpdateSnippetSchema = z
+  .object({
+    project_id: z
+      .coerce.string()
+      .optional()
+      .describe("Project ID or URL-encoded path. Omit for personal snippets."),
+    snippet_id: z.coerce.number().describe("The snippet ID to update"),
+    title: z.string().optional().describe("New title"),
+    file_name: z
+      .string()
+      .optional()
+      .describe(
+        "File name to update. Provide together with content to replace a single-file snippet's contents."
+      ),
+    content: z.string().optional().describe("New file content (requires file_name)"),
+    description: z.string().optional().describe("New description"),
+    visibility: z
+      .enum(["private", "internal", "public"])
+      .optional()
+      .describe("New visibility"),
+  })
+  .refine(
+    data =>
+      data.title !== undefined ||
+      data.content !== undefined ||
+      data.file_name !== undefined ||
+      data.description !== undefined ||
+      data.visibility !== undefined,
+    { message: "At least one field must be provided to update" }
+  )
+  .refine(data => !(data.content !== undefined && data.file_name === undefined), {
+    message: "content requires file_name",
+    path: ["content"],
+  })
+  .refine(data => !(data.file_name !== undefined && data.content === undefined), {
+    message:
+      "file_name requires content — renaming a file alone is not supported (the modern GitLab snippet API requires a files[] action with previous_path)",
+    path: ["file_name"],
+  });
+
+export const DeleteSnippetSchema = z.object({
+  project_id: z
+    .coerce.string()
+    .optional()
+    .describe("Project ID or URL-encoded path. Omit for personal snippets."),
+  snippet_id: z.coerce.number().describe("The snippet ID to delete"),
+});
+
+export const GitLabSnippetAuthorSchema = z
+  .object({
+    id: z.number().optional(),
+    username: z.string().optional(),
+    name: z.string().optional(),
+    state: z.string().optional(),
+    avatar_url: z.string().nullable().optional(),
+    web_url: z.string().optional(),
+  })
+  .passthrough();
+
+export const GitLabSnippetFileSchema = z
+  .object({
+    path: z.string(),
+    raw_url: z.string().optional(),
+  })
+  .passthrough();
+
+export const GitLabSnippetSchema = z
+  .object({
+    id: z.number(),
+    title: z.string(),
+    description: z.string().nullable().optional(),
+    visibility: z.string(),
+    author: GitLabSnippetAuthorSchema.optional(),
+    updated_at: z.string().optional(),
+    created_at: z.string().optional(),
+    web_url: z.string().optional(),
+    raw_url: z.string().optional(),
+    file_name: z.string().nullable().optional(),
+    files: z.array(GitLabSnippetFileSchema).optional(),
+    project_id: z.number().nullable().optional(),
+    default_branch: z.string().optional(),
+  })
+  .passthrough();
+
+export type GitLabSnippet = z.infer<typeof GitLabSnippetSchema>;
+export type ListSnippetsOptions = z.infer<typeof ListSnippetsSchema>;
+export type GetSnippetOptions = z.infer<typeof GetSnippetSchema>;
+export type CreateSnippetOptions = z.infer<typeof CreateSnippetSchema>;
+export type UpdateSnippetOptions = z.infer<typeof UpdateSnippetSchema>;
+export type DeleteSnippetOptions = z.infer<typeof DeleteSnippetSchema>;
+
 export const GitLabTagSignatureSchema = z.object({
   signature_type: z.literal("X509"),
   verification_status: z.string(),
