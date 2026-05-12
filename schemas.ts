@@ -3738,3 +3738,5 @@ export type GitLabSearchBlobResult = z.infer<typeof GitLabSearchBlobResultSchema
 export type SearchCodeOptions = z.infer<typeof SearchCodeSchema>;
 export type SearchProjectCodeOptions = z.infer<typeof SearchProjectCodeSchema>;
 export type SearchGroupCodeOptions = z.infer<typeof SearchGroupCodeSchema>;
+
+export const HealthCheckSchema = z.object({});
