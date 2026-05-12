@@ -21,6 +21,7 @@ list_merge_requests         -> list with filters (state, labels, author, etc.)
   - without project_id: current user's MRs across all projects
   - with project_id: MRs in that project
 get_merge_request_conflicts -> check for merge conflicts
+list_merge_request_pipelines -> list pipelines attached to an MR
 ```
 
 ## Update

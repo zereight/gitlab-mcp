@@ -254,6 +254,18 @@ export const GetPipelineSchema = z.object({
   pipeline_id: z.coerce.string().describe("The ID of the pipeline"),
 });
 
+export const GitLabMergeRequestPipelineSchema = z.object({
+  id: z.coerce.string(),
+  sha: z.string(),
+  ref: z.string(),
+  status: z.string(),
+  project_id: z.coerce.string().optional(),
+  source: z.string().optional(),
+  created_at: z.string().optional(),
+  updated_at: z.string().optional(),
+  web_url: z.string().optional(),
+});
+
 // Schema for listing jobs in a pipeline
 export const ListPipelineJobsSchema = z
   .object({
@@ -1715,6 +1727,21 @@ export const GetMergeRequestConflictsSchema = ProjectParamsSchema.extend({
   merge_request_iid: z.coerce.string().describe("The IID of the merge request"),
 });
 
+export const ListMergeRequestPipelinesSchema = ProjectParamsSchema.extend({
+  merge_request_iid: z
+    .preprocess(
+      value => (value === undefined || value === null ? value : String(value)),
+      z
+        .string({
+          required_error: "merge_request_iid is required",
+          invalid_type_error: "merge_request_iid is required",
+        })
+        .refine(value => value.trim().length > 0, "merge_request_iid is required")
+        .transform(value => value.trim())
+    )
+    .describe("The internal ID of the merge request"),
+}).merge(PaginationOptionsSchema);
+
 export const GetMergeRequestDiffsSchema = GetMergeRequestSchema.extend({
   view: z.enum(["inline", "parallel"]).optional().describe("Diff view type"),
   excluded_file_patterns: z
@@ -2922,11 +2949,13 @@ export type CreateMergeRequestDiscussionNoteOptions = z.infer<
 export type GitLabPipelineJob = z.infer<typeof GitLabPipelineJobSchema>;
 export type GitLabPipelineTriggerJob = z.infer<typeof GitLabPipelineTriggerJobSchema>;
 export type GitLabPipeline = z.infer<typeof GitLabPipelineSchema>;
+export type GitLabMergeRequestPipeline = z.infer<typeof GitLabMergeRequestPipelineSchema>;
 export type GitLabCiLintResult = z.infer<typeof GitLabCiLintResultSchema>;
 export type GitLabDeployment = z.infer<typeof GitLabDeploymentSchema>;
 export type GitLabEnvironment = z.infer<typeof GitLabEnvironmentSchema>;
 export type ListPipelinesOptions = z.infer<typeof ListPipelinesSchema>;
 export type GetPipelineOptions = z.infer<typeof GetPipelineSchema>;
+export type ListMergeRequestPipelinesOptions = z.infer<typeof ListMergeRequestPipelinesSchema>;
 export type ListPipelineJobsOptions = z.infer<typeof ListPipelineJobsSchema>;
 export type ListPipelineTriggerJobsOptions = z.infer<typeof ListPipelineTriggerJobsSchema>;
 export type ValidateCiLintOptions = z.infer<typeof ValidateCiLintSchema>;

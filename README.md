@@ -644,6 +644,7 @@ Register the skill directory in your AI client to get optimal tool usage guidanc
 151. `search_project_code` - Search for code within a specific GitLab project (requires advanced search or exact code search to be enabled)
 152. `search_group_code` - Search for code within a specific GitLab group (requires advanced search or exact code search to be enabled)
 153. `execute_graphql` - Execute a GitLab GraphQL query
+154. `list_merge_request_pipelines` - List pipelines for a merge request with pagination support
 
 <!-- TOOLS-END -->
 

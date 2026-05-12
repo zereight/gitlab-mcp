@@ -5,13 +5,13 @@ description: Use this skill when working with the GitLab MCP server tools for me
 
 # gitlab-mcp
 
-GitLab MCP server providing 172 tools: 170 tools across 16 toolsets, plus `execute_graphql` and the always-available `discover_tools` meta-tool.
+GitLab MCP server providing 173 tools: 171 tools across 16 toolsets, plus `execute_graphql` and the always-available `discover_tools` meta-tool.
 
 ## Toolsets
 
 | Toolset                   | Default | Enable with                                          |
 | ------------------------- | ------- | ---------------------------------------------------- |
-| merge_requests (40 tools) | yes     | -                                                    |
+| merge_requests (41 tools) | yes     | -                                                    |
 | issues (23 tools)         | yes     | -                                                    |
 | repositories (7 tools)    | yes     | -                                                    |
 | branches (6 tools)        | yes     | -                                                    |
