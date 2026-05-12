@@ -3566,7 +3566,6 @@ export const GitLabSnippetSchema = z
     file_name: z.string().nullable().optional(),
     files: z.array(GitLabSnippetFileSchema).optional(),
     project_id: z.number().nullable().optional(),
-    default_branch: z.string().optional(),
   })
   .passthrough();
 

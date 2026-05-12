@@ -8384,19 +8384,35 @@ async function getSnippetRawContent(
 }
 
 /**
- * Get the raw content of a specific file inside a (possibly multi-file) snippet.
+ * Get the raw content of a specific file inside a multi-file snippet.
+ * Extracts the ref from the file's raw_url (e.g. .../raw/main/file.md) so we
+ * never have to guess it, then hits the proper REST API endpoint.
  */
 async function getSnippetFileRawContent(
   projectId: string | undefined,
   snippetId: number,
-  ref: string,
+  rawUrl: string,
   filePath: string
 ): Promise<string> {
-  const url = `${getSnippetsEndpoint(projectId)}/${snippetId}/files/${encodeURIComponent(ref)}/${encodeURIComponent(filePath)}/raw`;
+  // Anchor on the unambiguous /snippets/{id}/raw/ segment so branch names and
+  // file paths containing the word "raw" don't confuse the extraction.
+  const rawMarker = `/snippets/${snippetId}/raw/`;
+  const decoded = decodeURIComponent(new URL(rawUrl).pathname);
+  const markerIdx = decoded.indexOf(rawMarker);
+  if (markerIdx === -1) {
+    throw new Error(`Cannot extract ref from snippet file raw_url: ${rawUrl}`);
+  }
+  const afterRaw = decoded.slice(markerIdx + rawMarker.length); // "{ref}/{filePath}"
+  const fileStart = afterRaw.lastIndexOf("/" + filePath);
+  if (fileStart === -1) {
+    throw new Error(`Cannot locate file path "${filePath}" in snippet file raw_url: ${rawUrl}`);
+  }
+  const ref = afterRaw.slice(0, fileStart);
+  const encodedRef = encodeURIComponent(ref);
+  const encodedPath = filePath.split("/").map(encodeURIComponent).join("/");
+  const url = `${getSnippetsEndpoint(projectId)}/${snippetId}/files/${encodedRef}/${encodedPath}/raw`;
   const response = await fetch(url, { ...getFetchConfig() });
-
   await handleGitLabError(response);
-
   return await response.text();
 }
 
@@ -10594,17 +10610,11 @@ async function handleToolCall(params: any) {
         if (args.include_content) {
           const files = snippet.files ?? [];
           if (files.length > 1) {
-            const ref = snippet.default_branch ?? "main";
             result.files = await Promise.all(
-              files.map(async f => ({
-                ...f,
-                content: await getSnippetFileRawContent(
-                  args.project_id,
-                  args.snippet_id,
-                  ref,
-                  f.path
-                ),
-              }))
+              files.map(async f => {
+                if (!f.raw_url) throw new Error(`Snippet file "${f.path}" has no raw_url`);
+                return { ...f, content: await getSnippetFileRawContent(args.project_id, args.snippet_id, f.raw_url, f.path) };
+              })
             );
           } else {
             result.content = await getSnippetRawContent(

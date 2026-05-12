@@ -8,6 +8,8 @@ const TEST_PROJECT_ID = "456";
 const TEST_PROJECT_SNIPPET_ID = 42;
 const TEST_PERSONAL_SNIPPET_ID = 99;
 const TEST_MULTIFILE_SNIPPET_ID = 77;
+const TEST_MASTER_SNIPPET_ID = 88;
+const TEST_SLASH_REF_SNIPPET_ID = 101;
 const RAW_CONTENT = "console.log('hello world');\n";
 const MULTIFILE_A_CONTENT = "# policy\nbody A\n";
 const MULTIFILE_B_CONTENT = "# instructions\nbody B\n";
@@ -191,10 +193,15 @@ describe("snippet tools", () => {
             id: TEST_MULTIFILE_SNIPPET_ID,
             title: "Multi-file snippet",
             file_name: null,
-            default_branch: "main",
             files: [
-              { path: "policy.md", raw_url: "https://gitlab.example.com/raw/policy" },
-              { path: "instructions.md", raw_url: "https://gitlab.example.com/raw/instructions" },
+              {
+                path: "policy.md",
+                raw_url: `${mockGitLabUrl}/-/snippets/${TEST_MULTIFILE_SNIPPET_ID}/raw/main/policy.md`,
+              },
+              {
+                path: "instructions.md",
+                raw_url: `${mockGitLabUrl}/-/snippets/${TEST_MULTIFILE_SNIPPET_ID}/raw/main/instructions.md`,
+              },
             ],
           })
         );
@@ -204,17 +211,89 @@ describe("snippet tools", () => {
     mockGitLab.addMockHandler(
       "get",
       `/projects/${TEST_PROJECT_ID}/snippets/${TEST_MULTIFILE_SNIPPET_ID}/files/main/policy.md/raw`,
-      (_req, res) => {
-        res.type("text/plain").send(MULTIFILE_A_CONTENT);
-      }
+      (_req, res) => { res.type("text/plain").send(MULTIFILE_A_CONTENT); }
     );
 
     mockGitLab.addMockHandler(
       "get",
       `/projects/${TEST_PROJECT_ID}/snippets/${TEST_MULTIFILE_SNIPPET_ID}/files/main/instructions.md/raw`,
+      (_req, res) => { res.type("text/plain").send(MULTIFILE_B_CONTENT); }
+    );
+
+    // --- Snippet with master default branch (raw_url contains "master") ---
+    mockGitLab.addMockHandler(
+      "get",
+      `/projects/${TEST_PROJECT_ID}/snippets/${TEST_MASTER_SNIPPET_ID}`,
       (_req, res) => {
-        res.type("text/plain").send(MULTIFILE_B_CONTENT);
+        // No default_branch field — simulates an instance where it's absent
+        res.json(
+          buildSnippet({
+            id: TEST_MASTER_SNIPPET_ID,
+            title: "Master branch snippet",
+            file_name: null,
+            files: [
+              {
+                path: "policy.md",
+                raw_url: `${mockGitLabUrl}/-/snippets/${TEST_MASTER_SNIPPET_ID}/raw/master/policy.md`,
+              },
+              {
+                path: "instructions.md",
+                raw_url: `${mockGitLabUrl}/-/snippets/${TEST_MASTER_SNIPPET_ID}/raw/master/instructions.md`,
+              },
+            ],
+          })
+        );
       }
+    );
+
+    mockGitLab.addMockHandler(
+      "get",
+      `/projects/${TEST_PROJECT_ID}/snippets/${TEST_MASTER_SNIPPET_ID}/files/master/policy.md/raw`,
+      (_req, res) => { res.type("text/plain").send(MULTIFILE_A_CONTENT); }
+    );
+
+    mockGitLab.addMockHandler(
+      "get",
+      `/projects/${TEST_PROJECT_ID}/snippets/${TEST_MASTER_SNIPPET_ID}/files/master/instructions.md/raw`,
+      (_req, res) => { res.type("text/plain").send(MULTIFILE_B_CONTENT); }
+    );
+
+    // --- Snippet with slash-containing ref (e.g. feature/foo) ---
+    mockGitLab.addMockHandler(
+      "get",
+      `/projects/${TEST_PROJECT_ID}/snippets/${TEST_SLASH_REF_SNIPPET_ID}`,
+      (_req, res) => {
+        res.json(
+          buildSnippet({
+            id: TEST_SLASH_REF_SNIPPET_ID,
+            title: "Slash ref snippet",
+            file_name: null,
+            files: [
+              {
+                path: "policy.md",
+                raw_url: `${mockGitLabUrl}/-/snippets/${TEST_SLASH_REF_SNIPPET_ID}/raw/feature/foo/policy.md`,
+              },
+              {
+                path: "instructions.md",
+                raw_url: `${mockGitLabUrl}/-/snippets/${TEST_SLASH_REF_SNIPPET_ID}/raw/feature/foo/instructions.md`,
+              },
+            ],
+          })
+        );
+      }
+    );
+
+    // ref "feature/foo" must arrive as "feature%2Ffoo" in the API URL
+    mockGitLab.addMockHandler(
+      "get",
+      `/projects/${TEST_PROJECT_ID}/snippets/${TEST_SLASH_REF_SNIPPET_ID}/files/feature%2Ffoo/policy.md/raw`,
+      (_req, res) => { res.type("text/plain").send(MULTIFILE_A_CONTENT); }
+    );
+
+    mockGitLab.addMockHandler(
+      "get",
+      `/projects/${TEST_PROJECT_ID}/snippets/${TEST_SLASH_REF_SNIPPET_ID}/files/feature%2Ffoo/instructions.md/raw`,
+      (_req, res) => { res.type("text/plain").send(MULTIFILE_B_CONTENT); }
     );
 
     // --- Personal snippet handlers ---
@@ -429,6 +508,46 @@ describe("snippet tools", () => {
       status: "success",
       message: `Snippet ${TEST_PROJECT_SNIPPET_ID} deleted successfully`,
     });
+  });
+
+  test("get_snippet fetches multi-file content from raw_url regardless of branch name", async () => {
+    const result = await callTool(
+      "get_snippet",
+      {
+        project_id: TEST_PROJECT_ID,
+        snippet_id: TEST_MASTER_SNIPPET_ID,
+        include_content: true,
+      },
+      env()
+    );
+
+    assert.strictEqual(result.id, TEST_MASTER_SNIPPET_ID);
+    assert.ok(Array.isArray(result.files));
+    assert.strictEqual(result.files.length, 2);
+    assert.strictEqual(result.files[0].path, "policy.md");
+    assert.strictEqual(result.files[0].content, MULTIFILE_A_CONTENT);
+    assert.strictEqual(result.files[1].path, "instructions.md");
+    assert.strictEqual(result.files[1].content, MULTIFILE_B_CONTENT);
+  });
+
+  test("get_snippet with include_content encodes slashes in ref as %2F", async () => {
+    const result = await callTool(
+      "get_snippet",
+      {
+        project_id: TEST_PROJECT_ID,
+        snippet_id: TEST_SLASH_REF_SNIPPET_ID,
+        include_content: true,
+      },
+      env()
+    );
+
+    assert.strictEqual(result.id, TEST_SLASH_REF_SNIPPET_ID);
+    assert.ok(Array.isArray(result.files));
+    assert.strictEqual(result.files.length, 2);
+    assert.strictEqual(result.files[0].path, "policy.md");
+    assert.strictEqual(result.files[0].content, MULTIFILE_A_CONTENT);
+    assert.strictEqual(result.files[1].path, "instructions.md");
+    assert.strictEqual(result.files[1].content, MULTIFILE_B_CONTENT);
   });
 
   test("create_snippet supports multi-file snippets via files[]", async () => {
