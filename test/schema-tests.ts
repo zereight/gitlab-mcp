@@ -27,6 +27,7 @@ import {
   GitLabMergeRequestSchema,
   GitLabTreeItemSchema,
   GetMergeRequestSchema,
+  ListMergeRequestPipelinesSchema,
   GetRepositoryTreeSchema
 } from '../schemas.js';
 
@@ -724,6 +725,62 @@ function runGetMergeRequestSchemaTests(): { passed: number; failed: number } {
   return { passed, failed };
 }
 
+function runListMergeRequestPipelinesSchemaTests(): { passed: number; failed: number } {
+  console.log('\n🧪 Testing ListMergeRequestPipelinesSchema...');
+
+  const cases: { name: string; input: Record<string, any>; expected?: Record<string, any>; shouldFail?: boolean }[] = [
+    {
+      name: 'schema:list_merge_request_pipelines:minimal-required-fields',
+      input: { project_id: 'my/project', merge_request_iid: '42' },
+      expected: { project_id: 'my/project', merge_request_iid: '42' },
+    },
+    {
+      name: 'schema:list_merge_request_pipelines:coerces-pagination',
+      input: { project_id: 123, merge_request_iid: 42, page: '2', per_page: '10' },
+      expected: { project_id: '123', merge_request_iid: '42', page: 2, per_page: 10 },
+    },
+    {
+      name: 'schema:list_merge_request_pipelines:reject-missing-merge-request-iid',
+      input: { project_id: 'my/project' },
+      shouldFail: true,
+    },
+  ];
+
+  let passed = 0;
+  let failed = 0;
+
+  cases.forEach(testCase => {
+    const result: TestResult = { name: testCase.name, status: 'failed' };
+    const parsed = ListMergeRequestPipelinesSchema.safeParse(testCase.input);
+
+    if (testCase.shouldFail) {
+      result.status = parsed.success ? 'failed' : 'passed';
+      if (parsed.success) result.error = 'Expected schema validation to fail';
+    } else if (parsed.success) {
+      const expected = testCase.expected || {};
+      const matches = Object.entries(expected).every(([key, value]) => {
+        const actual = (parsed.data as Record<string, unknown>)[key];
+        return actual === value;
+      });
+      result.status = matches ? 'passed' : 'failed';
+      if (!matches) result.error = `Unexpected parsed result: ${JSON.stringify(parsed.data)}`;
+    } else {
+      result.error = parsed.error?.message || 'Schema validation failed';
+    }
+
+    if (result.status === 'passed') {
+      passed++;
+      console.log(`✅ ${result.name}`);
+    } else {
+      failed++;
+      console.log(`❌ ${result.name}: ${result.error}`);
+    }
+  });
+
+  console.log(`\nResults: ${passed} passed, ${failed} failed`);
+  return { passed, failed };
+}
+
 function runGitLabMergeRequestSchemaTests(): { passed: number; failed: number } {
   console.log('\n🧪 Testing GitLabMergeRequestSchema...');
 
@@ -1228,6 +1285,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   const commitStatusResult = runCommitStatusSchemaTests();
   const createIssueNoteResult = runCreateIssueNoteSchemaTests();
   const getMergeRequestResult = runGetMergeRequestSchemaTests();
+  const listMergeRequestPipelinesResult = runListMergeRequestPipelinesSchemaTests();
   const gitLabMergeRequestResult = runGitLabMergeRequestSchemaTests();
   const emojiReactionResult = runEmojiReactionSchemaTests();
   const repositorySchemaResult = runGitLabRepositorySchemaTests();
@@ -1236,8 +1294,8 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   const treeItemResult = runGitLabTreeItemSchemaTests();
   const repositoryTreeResult = runGetRepositoryTreeSchemaTests();
 
-  const totalPassed = getFileContentsResult.passed + fileContentResult.passed + createPipelineResult.passed + commitStatusResult.passed + createIssueNoteResult.passed + getMergeRequestResult.passed + gitLabMergeRequestResult.passed + emojiReactionResult.passed + repositorySchemaResult.passed + labelsCoercionResult.passed + listLabelsResult.passed + treeItemResult.passed + repositoryTreeResult.passed;
-  const totalFailed = getFileContentsResult.failed + fileContentResult.failed + createPipelineResult.failed + commitStatusResult.failed + createIssueNoteResult.failed + getMergeRequestResult.failed + gitLabMergeRequestResult.failed + emojiReactionResult.failed + repositorySchemaResult.failed + labelsCoercionResult.failed + listLabelsResult.failed + treeItemResult.failed + repositoryTreeResult.failed;
+  const totalPassed = getFileContentsResult.passed + fileContentResult.passed + createPipelineResult.passed + commitStatusResult.passed + createIssueNoteResult.passed + getMergeRequestResult.passed + listMergeRequestPipelinesResult.passed + gitLabMergeRequestResult.passed + emojiReactionResult.passed + repositorySchemaResult.passed + labelsCoercionResult.passed + listLabelsResult.passed + treeItemResult.passed + repositoryTreeResult.passed;
+  const totalFailed = getFileContentsResult.failed + fileContentResult.failed + createPipelineResult.failed + commitStatusResult.failed + createIssueNoteResult.failed + getMergeRequestResult.failed + listMergeRequestPipelinesResult.failed + gitLabMergeRequestResult.failed + emojiReactionResult.failed + repositorySchemaResult.failed + labelsCoercionResult.failed + listLabelsResult.failed + treeItemResult.failed + repositoryTreeResult.failed;
 
   console.log(`\nTotal Results: ${totalPassed} passed, ${totalFailed} failed`);
 

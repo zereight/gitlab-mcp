@@ -195,6 +195,8 @@ import {
   GitLabMarkdownUploadSchema,
   type GitLabMergeRequest,
   type GitLabMergeRequestDiff,
+  type GitLabMergeRequestPipeline,
+  GitLabMergeRequestPipelineSchema,
   GitLabMergeRequestSchema,
   type GitLabMilestones,
   GitLabMilestonesSchema,
@@ -250,6 +252,8 @@ import {
   GetMergeRequestFileDiffSchema,
   ListMergeRequestChangedFilesSchema,
   ListMergeRequestDiscussionsSchema,
+  type ListMergeRequestPipelinesOptions,
+  ListMergeRequestPipelinesSchema,
   ListMergeRequestsSchema,
   ListMergeRequestVersionsSchema,
   GetMergeRequestVersionSchema,
@@ -4624,6 +4628,33 @@ async function getMergeRequestSourceCommitCount(
   return totalCount;
 }
 
+async function listMergeRequestPipelines(
+  projectId: string,
+  mergeRequestIid: number | string,
+  options: Omit<ListMergeRequestPipelinesOptions, "project_id" | "merge_request_iid"> = {}
+): Promise<GitLabMergeRequestPipeline[]> {
+  projectId = decodeURIComponent(projectId);
+  const url = new URL(
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(
+      getEffectiveProjectId(projectId)
+    )}/merge_requests/${mergeRequestIid}/pipelines`
+  );
+
+  Object.entries(options).forEach(([key, value]) => {
+    if (value !== undefined) {
+      url.searchParams.append(key, value.toString());
+    }
+  });
+
+  const response = await fetch(url.toString(), {
+    ...getFetchConfig(),
+  });
+
+  await handleGitLabError(response);
+  const data = await response.json();
+  return z.array(GitLabMergeRequestPipelineSchema).parse(data);
+}
+
 async function getProjectMergeMethod(projectId: string): Promise<string | null> {
   const url = new URL(
     `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}`
@@ -8839,6 +8870,15 @@ async function handleToolCall(params: any) {
         );
         return {
           content: [{ type: "text", text: JSON.stringify(files, null, 2) }],
+        };
+      }
+
+      case "list_merge_request_pipelines": {
+        const args = ListMergeRequestPipelinesSchema.parse(params.arguments);
+        const { project_id, merge_request_iid, ...options } = args;
+        const pipelines = await listMergeRequestPipelines(project_id, merge_request_iid, options);
+        return {
+          content: [{ type: "text", text: JSON.stringify(pipelines, null, 2) }],
         };
       }
 
