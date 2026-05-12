@@ -5,16 +5,16 @@
 
 import { describe, test, before, after } from 'node:test';
 import assert from 'node:assert';
-import { 
-  launchServer, 
-  findAvailablePort, 
-  cleanupServers, 
-  ServerInstance, 
+import {
+  launchServer,
+  findAvailablePort,
+  cleanupServers,
+  ServerInstance,
   TransportMode,
-  HOST 
+  HOST
 } from './utils/server-launcher.js';
 import { MockGitLabServer, findMockServerPort } from './utils/mock-gitlab-server.js';
-import { StreamableHTTPTestClient } from './clients/streamable-http-client.js';
+import { CustomHeaderClient } from './clients/custom-header-client.js';
 
 // Use the same token that will be passed via GITLAB_TOKEN_TEST environment variable
 const MOCK_TOKEN = process.env.GITLAB_TOKEN_TEST || 'glpat-mock-token-12345';
@@ -37,7 +37,7 @@ describe('getEffectiveProjectId - No GITLAB_ALLOWED_PROJECT_IDS', () => {
   let mcpUrl: string;
   let mockGitLab: MockGitLabServer;
   let servers: ServerInstance[] = [];
-  let client: StreamableHTTPTestClient;
+  let client: CustomHeaderClient;
 
   before(async () => {
     // Start mock GitLab server
@@ -57,6 +57,7 @@ describe('getEffectiveProjectId - No GITLAB_ALLOWED_PROJECT_IDS', () => {
       timeout: 5000,
       env: {
         STREAMABLE_HTTP: 'true',
+        REMOTE_AUTHORIZATION: 'true',
         GITLAB_API_URL: `${mockGitLabUrl}/api/v4`,
         GITLAB_PROJECT_ID: DEFAULT_PROJECT_ID,
         GITLAB_READ_ONLY_MODE: 'true',
@@ -64,10 +65,12 @@ describe('getEffectiveProjectId - No GITLAB_ALLOWED_PROJECT_IDS', () => {
     });
     servers.push(server);
     mcpUrl = `http://${HOST}:${mcpPort}/mcp`;
-    
-    client = new StreamableHTTPTestClient();
+
+    client = new CustomHeaderClient({
+      authorization: `Bearer ${MOCK_TOKEN}`,
+    });
     await client.connect(mcpUrl);
-    
+
     console.log(`Mock GitLab: ${mockGitLabUrl}`);
     console.log(`MCP Server: ${mcpUrl}`);
     console.log(`Default Project: ${DEFAULT_PROJECT_ID}`);
@@ -88,12 +91,12 @@ describe('getEffectiveProjectId - No GITLAB_ALLOWED_PROJECT_IDS', () => {
     const result = await client.callTool('get_project', {
       project_id: ''
     });
-    
+
     assert.ok(result.content, 'Should have content');
     const content = result.content[0];
     assert.ok('text' in content, 'Content should have text');
     const project = JSON.parse(content.text);
-    
+
     // The mock server should receive a request for the default project
     assert.strictEqual(project.id.toString(), DEFAULT_PROJECT_ID, 'Should use GITLAB_PROJECT_ID as default');
     console.log(`  ✓ Used default project ${DEFAULT_PROJECT_ID} when no project_id provided`);
@@ -104,12 +107,12 @@ describe('getEffectiveProjectId - No GITLAB_ALLOWED_PROJECT_IDS', () => {
     const result = await client.callTool('get_project', {
       project_id: OTHER_PROJECT_ID
     });
-    
+
     assert.ok(result.content, 'Should have content');
     const content = result.content[0];
     assert.ok('text' in content, 'Content should have text');
     const project = JSON.parse(content.text);
-    
+
     // Should use the passed project_id, not GITLAB_PROJECT_ID
     assert.strictEqual(project.id.toString(), OTHER_PROJECT_ID, 'Should use passed project_id');
     console.log(`  ✓ Used passed project_id ${OTHER_PROJECT_ID} instead of default ${DEFAULT_PROJECT_ID}`);
@@ -120,7 +123,7 @@ describe('getEffectiveProjectId - With single GITLAB_ALLOWED_PROJECT_IDS', () =>
   let mcpUrl: string;
   let mockGitLab: MockGitLabServer;
   let servers: ServerInstance[] = [];
-  let client: StreamableHTTPTestClient;
+  let client: CustomHeaderClient;
 
   before(async () => {
     // Start mock GitLab server
@@ -139,7 +142,7 @@ describe('getEffectiveProjectId - With single GITLAB_ALLOWED_PROJECT_IDS', () =>
       port: mcpPort,
       timeout: 5000,
       env: {
-        STREAMABLE_HTTP: 'true',
+        REMOTE_AUTHORIZATION: 'true',
         GITLAB_API_URL: `${mockGitLabUrl}/api/v4`,
         GITLAB_PROJECT_ID: DEFAULT_PROJECT_ID,
         GITLAB_ALLOWED_PROJECT_IDS: DEFAULT_PROJECT_ID,
@@ -148,10 +151,12 @@ describe('getEffectiveProjectId - With single GITLAB_ALLOWED_PROJECT_IDS', () =>
     });
     servers.push(server);
     mcpUrl = `http://${HOST}:${mcpPort}/mcp`;
-    
-    client = new StreamableHTTPTestClient();
+
+    client = new CustomHeaderClient({
+      authorization: `Bearer ${MOCK_TOKEN}`,
+    });
     await client.connect(mcpUrl);
-    
+
     console.log(`Mock GitLab: ${mockGitLabUrl}`);
     console.log(`MCP Server: ${mcpUrl}`);
     console.log(`Allowed Project: ${DEFAULT_PROJECT_ID}`);
@@ -171,12 +176,12 @@ describe('getEffectiveProjectId - With single GITLAB_ALLOWED_PROJECT_IDS', () =>
     const result = await client.callTool('get_project', {
       project_id: ''
     });
-    
+
     assert.ok(result.content, 'Should have content');
     const content = result.content[0];
     assert.ok('text' in content, 'Content should have text');
     const project = JSON.parse(content.text);
-    
+
     assert.strictEqual(project.id.toString(), DEFAULT_PROJECT_ID, 'Should use allowed project as default');
     console.log(`  ✓ Used allowed project ${DEFAULT_PROJECT_ID} as default`);
   });
@@ -199,7 +204,7 @@ describe('getEffectiveProjectId - With multiple GITLAB_ALLOWED_PROJECT_IDS', () 
   let mcpUrl: string;
   let mockGitLab: MockGitLabServer;
   let servers: ServerInstance[] = [];
-  let client: StreamableHTTPTestClient;
+  let client: CustomHeaderClient;
 
   before(async () => {
     // Start mock GitLab server
@@ -218,7 +223,7 @@ describe('getEffectiveProjectId - With multiple GITLAB_ALLOWED_PROJECT_IDS', () 
       port: mcpPort,
       timeout: 5000,
       env: {
-        STREAMABLE_HTTP: 'true',
+        REMOTE_AUTHORIZATION: 'true',
         GITLAB_API_URL: `${mockGitLabUrl}/api/v4`,
         GITLAB_ALLOWED_PROJECT_IDS: `${DEFAULT_PROJECT_ID},${OTHER_PROJECT_ID}`,
         GITLAB_READ_ONLY_MODE: 'true',
@@ -226,10 +231,12 @@ describe('getEffectiveProjectId - With multiple GITLAB_ALLOWED_PROJECT_IDS', () 
     });
     servers.push(server);
     mcpUrl = `http://${HOST}:${mcpPort}/mcp`;
-    
-    client = new StreamableHTTPTestClient();
+
+    client = new CustomHeaderClient({
+      authorization: `Bearer ${MOCK_TOKEN}`,
+    });
     await client.connect(mcpUrl);
-    
+
     console.log(`Mock GitLab: ${mockGitLabUrl}`);
     console.log(`MCP Server: ${mcpUrl}`);
     console.log(`Allowed Projects: ${DEFAULT_PROJECT_ID},${OTHER_PROJECT_ID}`);
@@ -262,12 +269,12 @@ describe('getEffectiveProjectId - With multiple GITLAB_ALLOWED_PROJECT_IDS', () 
     const result = await client.callTool('get_project', {
       project_id: DEFAULT_PROJECT_ID
     });
-    
+
     assert.ok(result.content, 'Should have content');
     const content = result.content[0];
     assert.ok('text' in content, 'Content should have text');
     const project = JSON.parse(content.text);
-    
+
     assert.strictEqual(project.id.toString(), DEFAULT_PROJECT_ID, 'Should allow first project');
     console.log(`  ✓ Allowed access to first project ${DEFAULT_PROJECT_ID}`);
   });
@@ -276,14 +283,96 @@ describe('getEffectiveProjectId - With multiple GITLAB_ALLOWED_PROJECT_IDS', () 
     const result = await client.callTool('get_project', {
       project_id: OTHER_PROJECT_ID
     });
-    
+
     assert.ok(result.content, 'Should have content');
     const content = result.content[0];
     assert.ok('text' in content, 'Content should have text');
     const project = JSON.parse(content.text);
-    
+
     assert.strictEqual(project.id.toString(), OTHER_PROJECT_ID, 'Should allow second project');
     console.log(`  ✓ Allowed access to second project ${OTHER_PROJECT_ID}`);
+  });
+});
+
+describe('GITLAB_PROJECT_ID guards repository and group mutators', () => {
+  let mcpUrl: string;
+  let mockGitLab: MockGitLabServer;
+  let servers: ServerInstance[] = [];
+  let client: CustomHeaderClient;
+
+  before(async () => {
+    const mockPort = await findMockServerPort(9400);
+    mockGitLab = new MockGitLabServer({
+      port: mockPort,
+      validTokens: [MOCK_TOKEN]
+    });
+    await mockGitLab.start();
+    const mockGitLabUrl = mockGitLab.getUrl();
+
+    const mcpPort = await findAvailablePort(3400);
+    const server = await launchServer({
+      mode: TransportMode.STREAMABLE_HTTP,
+      port: mcpPort,
+      timeout: 5000,
+      env: {
+        REMOTE_AUTHORIZATION: 'true',
+        GITLAB_API_URL: `${mockGitLabUrl}/api/v4`,
+        GITLAB_PROJECT_ID: DEFAULT_PROJECT_ID,
+        GITLAB_READ_ONLY_MODE: 'true',
+      }
+    });
+    servers.push(server);
+    mcpUrl = `http://${HOST}:${mcpPort}/mcp`;
+
+    client = new CustomHeaderClient({
+      authorization: `Bearer ${MOCK_TOKEN}`,
+    });
+    await client.connect(mcpUrl);
+  });
+
+  after(async () => {
+    if (client) await client.disconnect();
+    cleanupServers(servers);
+    if (mockGitLab) await mockGitLab.stop();
+  });
+
+  test('should reject create_repository when GITLAB_PROJECT_ID is set', async () => {
+    try {
+      await client.callTool('create_repository', { name: 'test-repo' });
+      assert.fail('Should have rejected create_repository');
+    } catch (error) {
+      assert.ok(error instanceof Error);
+      assert.ok(error.message.includes('create_repository is not allowed'), 'Should mention create_repository');
+    }
+  });
+
+  test('should reject fork_repository when GITLAB_PROJECT_ID is set', async () => {
+    try {
+      await client.callTool('fork_repository', { project_id: '999' });
+      assert.fail('Should have rejected fork_repository');
+    } catch (error) {
+      assert.ok(error instanceof Error);
+      assert.ok(error.message.includes('fork_repository is not allowed'), 'Should mention fork_repository');
+    }
+  });
+
+  test('should reject create_group when GITLAB_PROJECT_ID is set', async () => {
+    try {
+      await client.callTool('create_group', { name: 'test-group', path: 'test-group' });
+      assert.fail('Should have rejected create_group');
+    } catch (error) {
+      assert.ok(error instanceof Error);
+      assert.ok(error.message.includes('create_group is not allowed'), 'Should mention create_group');
+    }
+  });
+
+  test('should allow get_project (non-mutator) when GITLAB_PROJECT_ID is set', async () => {
+    const result = await client.callTool('get_project', { project_id: '' });
+    assert.ok(result.content, 'Should have content');
+    const content = result.content[0];
+    assert.ok('text' in content, 'Content should have text');
+    const project = JSON.parse(content.text);
+    assert.strictEqual(project.id.toString(), DEFAULT_PROJECT_ID, 'Should use default project');
   });
 });
 

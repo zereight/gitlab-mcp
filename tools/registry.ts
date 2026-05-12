@@ -14,6 +14,7 @@ import {
   ConvertWorkItemTypeSchema,
   CreateBranchSchema,
   CreateDraftNoteSchema,
+  CreateGroupSchema,
   CreateGroupWikiPageSchema,
   CreateIssueLinkSchema,
   CreateIssueNoteSchema,
@@ -239,6 +240,11 @@ export const allTools = [
     name: "create_repository",
     description: "Create a new GitLab project",
     inputSchema: toJSONSchema(CreateRepositorySchema),
+  },
+  {
+    name: "create_group",
+    description: "Create new group or subgroup",
+    inputSchema: toJSONSchema(CreateGroupSchema),
   },
   {
     name: "get_file_contents",
@@ -572,12 +578,12 @@ export const allTools = [
   },
   {
     name: "list_namespaces",
-    description: "List all namespaces available to the current user",
+    description: "List all namespaces (users and groups) available to the current user. Filter by kind='group' for groups only.",
     inputSchema: toJSONSchema(ListNamespacesSchema),
   },
   {
     name: "get_namespace",
-    description: "Get details of a namespace by ID or path",
+    description: "Get details of a namespace (user or group) by ID or path. Groups are namespaces with kind='group'.",
     inputSchema: toJSONSchema(GetNamespaceSchema),
   },
   {
@@ -1304,6 +1310,7 @@ export type ToolsetId =
   | "projects"
   | "labels"
   | "ci"
+  | "groups"
   | "pipelines"
   | "milestones"
   | "wiki"
@@ -1458,6 +1465,11 @@ export const TOOLSET_DEFINITIONS: readonly ToolsetDefinition[] = [
     id: "ci",
     isDefault: true,
     tools: new Set(["validate_ci_lint", "validate_project_ci_lint"]),
+  },
+  {
+    id: "groups",
+    isDefault: true,
+    tools: new Set(["create_group"]),
   },
   {
     id: "pipelines",

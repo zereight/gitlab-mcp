@@ -122,6 +122,7 @@ import {
   CreateProjectMilestoneSchema,
   CreateRepositoryOptionsSchema,
   CreateRepositorySchema,
+  CreateGroupSchema,
   CreateWikiPageSchema,
   CreateGroupWikiPageSchema,
   DeleteBranchSchema,
@@ -196,6 +197,7 @@ import {
   type GitLabFork,
   GitLabForkSchema,
   GitLabBranchSchema,
+  GitLabGroupSchema,
   type GitLabIssue,
   type GitLabIssueLink,
   GitLabIssueLinkSchema,
@@ -8501,12 +8503,43 @@ async function handleToolCall(params: any) {
 
       case "create_repository": {
         if (GITLAB_PROJECT_ID) {
-          throw new Error("Direct project ID is set. So fork_repository is not allowed");
+          throw new Error("Direct project ID is set. So create_repository is not allowed");
         }
         const args = CreateRepositorySchema.parse(params.arguments);
         const repository = await createRepository(args);
         return {
           content: [{ type: "text", text: JSON.stringify(repository, null, 2) }],
+        };
+      }
+
+      case "create_group": {
+        if (GITLAB_PROJECT_ID) {
+          throw new Error("Direct project ID is set. So create_group is not allowed");
+        }
+        const args = CreateGroupSchema.parse(params.arguments);
+        const url = new URL(`${getEffectiveApiUrl()}/groups`);
+
+        const body: Record<string, unknown> = {
+          name: args.name,
+          path: args.path,
+        };
+        if (args.description) body.description = args.description;
+        if (args.visibility) body.visibility = args.visibility;
+        if (args.parent_id) body.parent_id = args.parent_id;
+
+        const response = await fetch(url.toString(), {
+          ...getFetchConfig(),
+          method: "POST",
+          headers: { ...getFetchConfig().headers, "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+
+        await handleGitLabError(response);
+        const data = await response.json();
+        const group = GitLabGroupSchema.parse(data);
+
+        return {
+          content: [{ type: "text", text: JSON.stringify(group, null, 2) }],
         };
       }
 

@@ -46,6 +46,7 @@ const TOOLSET_TOOL_COUNTS: Record<string, number> = {
   search: 3,
   workitems: 18,
   webhooks: 3,
+  groups: 1,
 };
 
 const LEGACY_PIPELINE_TOOL_COUNT = TOOLSET_TOOL_COUNTS.pipelines + TOOLSET_TOOL_COUNTS.ci;
@@ -59,6 +60,7 @@ const DEFAULT_TOOLSETS = [
   "labels",
   "ci",
   "users",
+  "groups",
 ];
 
 const NON_DEFAULT_TOOLSETS = [
@@ -102,6 +104,7 @@ const TOOLSET_SAMPLE_TOOLS: Record<string, string[]> = {
   users: ["get_users", "upload_markdown", "download_attachment"],
   search: ["search_code", "search_project_code", "search_group_code"],
   webhooks: ["list_webhooks", "list_webhook_events", "get_webhook_event"],
+  groups: ["create_group"],
 };
 
 // --- Helpers ---
