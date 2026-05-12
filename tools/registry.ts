@@ -110,6 +110,8 @@ import {
   GetTagSignatureSchema,
   GetTimelineEventsSchema,
   GetUsersSchema,
+  GetUserSchema,
+  WhoAmISchema,
   GetWebhookEventSchema,
   GetWikiPageSchema,
   GetWorkItemSchema,
@@ -817,6 +819,16 @@ export const allTools = [
     inputSchema: toJSONSchema(GetUsersSchema),
   },
   {
+    name: "get_user",
+    description: "Get user details by ID",
+    inputSchema: toJSONSchema(GetUserSchema),
+  },
+  {
+    name: "whoami",
+    description: "Get current authenticated user details",
+    inputSchema: toJSONSchema(WhoAmISchema),
+  },
+  {
     name: "list_commits",
     description: "List repository commits with filtering options",
     inputSchema: toJSONSchema(ListCommitsSchema),
@@ -1139,6 +1151,8 @@ export const readOnlyTools = new Set([
   "list_group_wiki_pages",
   "get_group_wiki_page",
   "get_users",
+  "get_user",
+  "whoami",
   "list_commits",
   "get_commit",
   "get_commit_diff",
@@ -1493,6 +1507,8 @@ export const TOOLSET_DEFINITIONS: readonly ToolsetDefinition[] = [
     isDefault: true,
     tools: new Set([
       "get_users",
+      "get_user",
+      "whoami",
       "list_events",
       "get_project_events",
       "upload_markdown",

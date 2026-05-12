@@ -42,7 +42,7 @@ const TOOLSET_TOOL_COUNTS: Record<string, number> = {
   wiki: 10,
   releases: 7,
   tags: 5,
-  users: 5,
+  users: 7,
   search: 3,
   workitems: 18,
   webhooks: 3,
