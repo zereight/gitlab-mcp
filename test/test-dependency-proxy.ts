@@ -59,7 +59,7 @@ describe("dependency proxy tools", () => {
 
   before(async () => {
     mockPort = await findMockServerPort();
-    mockServer = new MockGitLabServer(mockPort);
+    mockServer = new MockGitLabServer({ port: mockPort, validTokens: [MOCK_TOKEN] });
 
     // Mock GraphQL endpoint for get/list operations
     mockServer.addRootHandler("post", "/api/graphql", (req, res) => {
