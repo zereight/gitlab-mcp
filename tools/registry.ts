@@ -1111,7 +1111,7 @@ export const allTools = [
   },
   {
     name: "update_dependency_proxy_settings",
-    description: "Update dependency proxy settings for a group (enable/disable, TTL, credentials)",
+    description: "Update dependency proxy settings for a group (enable/disable, credentials for authenticated Docker Hub pulls)",
     inputSchema: toJSONSchema(UpdateDependencyProxySettingsSchema),
   },
   {
