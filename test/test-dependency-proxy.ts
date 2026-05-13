@@ -31,7 +31,7 @@ async function callTool(
       try {
         const response = JSON.parse(line);
         if (response.error) {
-          reject(response.error);
+          reject(new Error(response.error?.message ?? String(response.error)));
         } else {
           const content = response.result?.content?.[0]?.text;
           resolve(content ? JSON.parse(content) : response.result);
@@ -194,15 +194,32 @@ describe("dependency proxy tools", () => {
     });
   });
 
-  test("write tools are blocked in read-only mode", async () => {
-    await assert.rejects(
-      () =>
-        callTool(
-          "purge_dependency_proxy_cache",
-          { group_id: TEST_GROUP_PATH },
-          { ...baseEnv, GITLAB_READ_ONLY_MODE: "true" }
-        ),
-      /read.only/i
-    );
+  test("write tools are absent from tools/list in read-only mode", async () => {
+    return new Promise<void>((resolve, reject) => {
+      const proc = spawn("node", ["build/index.js"], {
+        stdio: ["pipe", "pipe", "pipe"],
+        env: { ...process.env, ...baseEnv, GITLAB_READ_ONLY_MODE: "true" },
+      });
+      let output = "";
+      proc.stdout?.on("data", (d: Buffer) => (output += d));
+      proc.on("close", () => {
+        try {
+          const line = output.split("\n").find(l => l.startsWith("{"));
+          if (!line) return reject(new Error("No JSON output found"));
+          const response = JSON.parse(line);
+          const names: string[] = (response.result?.tools ?? []).map((t: { name: string }) => t.name);
+          assert.ok(!names.includes("purge_dependency_proxy_cache"), "purge should be absent in read-only mode");
+          assert.ok(!names.includes("update_dependency_proxy_settings"), "update should be absent in read-only mode");
+          assert.ok(names.includes("get_dependency_proxy_settings"), "get should be present in read-only mode");
+          assert.ok(names.includes("list_dependency_proxy_blobs"), "list should be present in read-only mode");
+          resolve();
+        } catch (e) {
+          reject(e);
+        }
+      });
+      proc.stdin?.end(
+        JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/list", params: {} }) + "\n"
+      );
+    });
   });
 });
