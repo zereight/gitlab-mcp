@@ -7867,6 +7867,9 @@ async function updateDependencyProxySettings(
   groupPath: string,
   options: Omit<z.infer<typeof UpdateDependencyProxySettingsSchema>, "group_id">
 ): Promise<GitLabDependencyProxy> {
+  if (options.enabled === undefined && options.identity === undefined && options.secret === undefined) {
+    throw new Error("At least one of enabled, identity, or secret must be provided");
+  }
   const input: Record<string, unknown> = { groupPath };
   if (options.enabled !== undefined) input["enabled"] = options.enabled;
   if (options.identity !== undefined) input["identity"] = options.identity;
