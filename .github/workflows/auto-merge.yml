@@ -23,8 +23,8 @@ jobs:
       with:
         github-token: "${{ secrets.GITHUB_TOKEN }}"
     
-    - name: Auto-merge minor updates
-      if: steps.metadata.outputs.update-type == 'version-update:semver-minor' || steps.metadata.outputs.update-type == 'version-update:semver-patch'
+    - name: Auto-merge patch updates only
+      if: steps.metadata.outputs.update-type == 'version-update:semver-patch'
       run: gh pr merge --auto --merge "${{ github.event.pull_request.number }}"
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
