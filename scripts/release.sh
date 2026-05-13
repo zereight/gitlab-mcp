@@ -138,6 +138,65 @@ format_contributors() {
   '
 }
 
+format_pr_contributors() {
+  local pr_numbers="$1"
+  local fallback_range="$2"
+  local limit="$3"
+
+  if [ -z "$pr_numbers" ]; then
+    format_contributors "$fallback_range" "$limit"
+    return
+  fi
+
+  local contributors
+  contributors=$(
+    while IFS= read -r pr_num; do
+      if [ -z "$pr_num" ]; then
+        continue
+      fi
+
+      local pr_data
+      pr_data=$(gh api "repos/$REPO_OWNER/$REPO_NAME/pulls/$pr_num" 2>/dev/null || true)
+      if [ -z "$pr_data" ]; then
+        continue
+      fi
+
+      local login
+      login=$(echo "$pr_data" | jq -r '.user.login // empty' 2>/dev/null || true)
+      if [ -z "$login" ]; then
+        continue
+      fi
+
+      printf "%s\t#%s\n" "$login" "$pr_num"
+    done <<< "$pr_numbers" |
+      awk -F '\t' '
+        {
+          count[$1]++
+          prs[$1] = prs[$1] ? prs[$1] ", " $2 : $2
+        }
+        END {
+          for (login in count) {
+            printf "%s\t%s\t%s\n", count[login], login, prs[login]
+          }
+        }
+        ' |
+        sort -k1,1nr -k2,2 |
+        head -n "$limit" |
+      awk -F '\t' '
+        {
+          suffix = $1 == 1 ? "PR" : "PRs"
+          printf "- @%s (%s %s: %s)\n", $2, $1, suffix, $3
+        }
+      '
+  )
+
+  if [ -n "$contributors" ]; then
+    echo "$contributors"
+  else
+    format_contributors "$fallback_range" "$limit"
+  fi
+}
+
 # Generate CHANGELOG-style release notes
 generate_changelog_notes() {
   local version="$1"
@@ -255,11 +314,17 @@ generate_changelog_notes() {
   
   # Add contributors section (scoped to this release range)
   local contributors
+  local contributor_range
+  local contributor_limit
   if [ -n "$previous_tag" ]; then
-    contributors=$(format_contributors "$previous_tag..HEAD" 10)
+    contributor_range="$previous_tag..HEAD"
+    contributor_limit=10
   else
-    contributors=$(format_contributors HEAD 20)
+    contributor_range="HEAD"
+    contributor_limit=20
   fi
+
+  contributors=$(format_pr_contributors "$pr_numbers" "$contributor_range" "$contributor_limit")
   
   if [ -n "$contributors" ]; then
     notes+="\n### Contributors\n$contributors\n"
