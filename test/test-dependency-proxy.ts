@@ -65,7 +65,9 @@ describe("dependency proxy tools", () => {
     mockServer.addRootHandler("post", "/api/graphql", (req, res) => {
       const { query } = req.body as { query: string; variables: Record<string, unknown> };
 
-      if (query.includes("dependencyProxySetting")) {
+      if (query.includes("updateDependencyProxySettings")) {
+        res.json({ data: { updateDependencyProxySettings: { errors: [] } } });
+      } else if (query.includes("dependencyProxySetting")) {
         res.json({
           data: {
             group: {
@@ -139,6 +141,15 @@ describe("dependency proxy tools", () => {
     const result = await callTool("purge_dependency_proxy_cache", { group_id: TEST_GROUP_PATH }, baseEnv);
     assert.strictEqual(result.status, "success");
     assert.ok(result.message.includes("scheduled"));
+  });
+
+  test("update_dependency_proxy_settings enables the proxy and returns settings", async () => {
+    const result = await callTool(
+      "update_dependency_proxy_settings",
+      { group_id: TEST_GROUP_PATH, enabled: true },
+      baseEnv
+    );
+    assert.strictEqual(result.enabled, true);
   });
 
   test("update_dependency_proxy_settings rejects empty options", async () => {
