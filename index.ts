@@ -160,6 +160,10 @@ import {
   type GetRepositoryTreeOptions,
   GetRepositoryTreeSchema,
   GetUsersSchema,
+  GetUserSchema,
+  GitLabUserFullSchema,
+  WhoAmISchema,
+  GitLabCurrentUserSchema,
   GetWikiPageSchema,
   type GitLabCommit,
   GitLabCommitSchema,
@@ -9130,6 +9134,42 @@ async function handleToolCall(params: any) {
 
         return {
           content: [{ type: "text", text: JSON.stringify(usersMap, null, 2) }],
+        };
+      }
+
+      case "get_user": {
+        const args = GetUserSchema.parse(params.arguments);
+        const url = new URL(
+          `${getEffectiveApiUrl()}/users/${encodeURIComponent(args.user_id)}`
+        );
+
+        const response = await fetch(url.toString(), {
+          ...getFetchConfig(),
+        });
+
+        await handleGitLabError(response);
+        const data = await response.json();
+        const user = GitLabUserFullSchema.parse(data);
+
+        return {
+          content: [{ type: "text", text: JSON.stringify(user, null, 2) }],
+        };
+      }
+
+      case "whoami": {
+        WhoAmISchema.parse(params.arguments ?? {});
+        const url = new URL(`${getEffectiveApiUrl()}/user`);
+
+        const response = await fetch(url.toString(), {
+          ...getFetchConfig(),
+        });
+
+        await handleGitLabError(response);
+        const data = await response.json();
+        const user = GitLabCurrentUserSchema.parse(data);
+
+        return {
+          content: [{ type: "text", text: JSON.stringify(user, null, 2) }],
         };
       }
 

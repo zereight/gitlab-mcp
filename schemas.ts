@@ -562,6 +562,80 @@ export const GitLabUsersResponseSchema = z.record(
     .nullable()
 );
 
+export const GetUserSchema = z.object({
+  user_id: z.coerce.string().describe("The ID of the user"),
+});
+
+export const GitLabUserFullSchema = z.object({
+  id: z.coerce.string(),
+  username: z.string(),
+  name: z.string(),
+  state: z.string(),
+  avatar_url: z.string().nullable(),
+  web_url: z.string(),
+  created_at: z.string(),
+  bio: z.string().nullable(),
+  location: z.string().nullable(),
+  public_email: z.string().nullable(),
+  website_url: z.string().nullable(),
+  organization: z.string().nullable(),
+  job_title: z.string().nullable(),
+  pronouns: z.string().nullable(),
+  bot: z.boolean().optional(),
+  work_information: z.string().nullable(),
+  followers: z.number().optional(),
+  following: z.number().optional(),
+  is_followed: z.boolean().optional(),
+  local_time: z.string().nullable().optional(),
+  last_sign_in_at: z.string().nullable().optional(),
+  confirmed_at: z.string().nullable().optional(),
+  last_activity_on: z.string().nullable().optional(),
+  email: z.string().nullable().optional(),
+  theme_id: z.number().nullable().optional(),
+  color_scheme_id: z.number().nullable().optional(),
+  projects_limit: z.number().nullable().optional(),
+  current_sign_in_at: z.string().nullable().optional(),
+  identities: z.array(z.object({
+    provider: z.string(),
+    extern_uid: z.string(),
+  })).optional(),
+  can_create_group: z.boolean().nullable().optional(),
+  can_create_project: z.boolean().nullable().optional(),
+  two_factor_enabled: z.boolean().nullable().optional(),
+  external: z.boolean().nullable().optional(),
+  private_profile: z.boolean().nullable().optional(),
+  is_admin: z.boolean().nullable().optional(),
+}).passthrough();
+
+export const WhoAmISchema = z.object({});
+
+export const GitLabCurrentUserSchema = z.object({
+  id: z.coerce.string(),
+  username: z.string(),
+  name: z.string(),
+  state: z.string(),
+  avatar_url: z.string().nullable(),
+  web_url: z.string(),
+  created_at: z.string(),
+  bio: z.string().nullable(),
+  location: z.string().nullable(),
+  public_email: z.string().nullable(),
+  website_url: z.string().nullable(),
+  organization: z.string().nullable(),
+  job_title: z.string().nullable(),
+  email: z.string().nullable(),
+  last_sign_in_at: z.string().nullable(),
+  confirmed_at: z.string().nullable(),
+  last_activity_on: z.string().nullable(),
+  is_admin: z.boolean().optional(),
+  can_create_group: z.boolean().optional(),
+  can_create_project: z.boolean().optional(),
+  identities: z.array(z.object({
+    provider: z.string(),
+    extern_uid: z.string(),
+  })).optional(),
+}).passthrough();
+
 // Namespace related schemas
 
 // Base schema for project-related operations

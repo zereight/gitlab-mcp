@@ -28,7 +28,8 @@ import {
   GitLabTreeItemSchema,
   GetMergeRequestSchema,
   ListMergeRequestPipelinesSchema,
-  GetRepositoryTreeSchema
+  GetRepositoryTreeSchema,
+  GitLabUserFullSchema
 } from '../schemas.js';
 
 interface TestResult {
@@ -1278,6 +1279,91 @@ function runGetRepositoryTreeSchemaTests(): { passed: number; failed: number } {
   return { passed, failed };
 }
 
+function runGitLabUserFullSchemaTests(): { passed: number; failed: number } {
+  console.log('🧪 Testing GitLabUserFullSchema...');
+
+  const adminResponse = {
+    id: 1,
+    username: 'root',
+    name: 'Administrator',
+    state: 'active',
+    avatar_url: 'https://gitlab.example.com/uploads/-/system/user/avatar/1/avatar.png',
+    web_url: 'https://gitlab.example.com/root',
+    created_at: '2012-09-22T16:50:56.000Z',
+    bio: null,
+    location: null,
+    public_email: '',
+    website_url: '',
+    organization: null,
+    job_title: null,
+    pronouns: null,
+    work_information: null,
+    followers: 0,
+    following: 0,
+    is_followed: false,
+    local_time: null,
+    last_sign_in_at: null,
+    confirmed_at: '2012-09-22T16:50:56.000Z',
+    last_activity_on: '2026-05-12',
+    email: 'admin@example.com',
+    theme_id: 1,
+    color_scheme_id: 1,
+    projects_limit: 100000,
+    current_sign_in_at: '2026-05-12T08:14:22.885Z',
+    identities: [],
+    can_create_group: true,
+    can_create_project: true,
+    two_factor_enabled: false,
+    external: false,
+    private_profile: false,
+    is_admin: true,
+  };
+
+  const cases = [
+    {
+      name: 'schema:user_full:admin-response-no-bot',
+      input: { ...adminResponse },
+      shouldFail: false,
+    },
+    {
+      name: 'schema:user_full:admin-response-with-bot',
+      input: { ...adminResponse, bot: false },
+      shouldFail: false,
+    },
+  ];
+
+  let passed = 0;
+  let failed = 0;
+
+  cases.forEach(testCase => {
+    const result: TestResult = { name: testCase.name, status: 'failed' };
+    const parsed = GitLabUserFullSchema.safeParse(testCase.input);
+
+    if (testCase.shouldFail) {
+      if (parsed.success) {
+        result.error = 'Expected schema validation to fail';
+      } else {
+        result.status = 'passed';
+      }
+    } else if (parsed.success) {
+      result.status = 'passed';
+    } else {
+      result.error = parsed.error?.message || 'Schema validation failed';
+    }
+
+    if (result.status === 'passed') {
+      passed++;
+      console.log(`✅ ${result.name}`);
+    } else {
+      failed++;
+      console.log(`❌ ${result.name}: ${result.error}`);
+    }
+  });
+
+  console.log(`\nResults: ${passed} passed, ${failed} failed`);
+  return { passed, failed };
+}
+
 if (import.meta.url === `file://${process.argv[1]}`) {
   const getFileContentsResult = runGetFileContentsSchemaTests();
   const fileContentResult = runGitLabFileContentSchemaTests();
@@ -1293,9 +1379,10 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   const listLabelsResult = runListLabelsSchemaTests();
   const treeItemResult = runGitLabTreeItemSchemaTests();
   const repositoryTreeResult = runGetRepositoryTreeSchemaTests();
+  const gitLabUserFullResult = runGitLabUserFullSchemaTests();
 
-  const totalPassed = getFileContentsResult.passed + fileContentResult.passed + createPipelineResult.passed + commitStatusResult.passed + createIssueNoteResult.passed + getMergeRequestResult.passed + listMergeRequestPipelinesResult.passed + gitLabMergeRequestResult.passed + emojiReactionResult.passed + repositorySchemaResult.passed + labelsCoercionResult.passed + listLabelsResult.passed + treeItemResult.passed + repositoryTreeResult.passed;
-  const totalFailed = getFileContentsResult.failed + fileContentResult.failed + createPipelineResult.failed + commitStatusResult.failed + createIssueNoteResult.failed + getMergeRequestResult.failed + listMergeRequestPipelinesResult.failed + gitLabMergeRequestResult.failed + emojiReactionResult.failed + repositorySchemaResult.failed + labelsCoercionResult.failed + listLabelsResult.failed + treeItemResult.failed + repositoryTreeResult.failed;
+  const totalPassed = getFileContentsResult.passed + fileContentResult.passed + createPipelineResult.passed + commitStatusResult.passed + createIssueNoteResult.passed + getMergeRequestResult.passed + listMergeRequestPipelinesResult.passed + gitLabMergeRequestResult.passed + emojiReactionResult.passed + repositorySchemaResult.passed + labelsCoercionResult.passed + listLabelsResult.passed + treeItemResult.passed + repositoryTreeResult.passed + gitLabUserFullResult.passed;
+  const totalFailed = getFileContentsResult.failed + fileContentResult.failed + createPipelineResult.failed + commitStatusResult.failed + createIssueNoteResult.failed + getMergeRequestResult.failed + listMergeRequestPipelinesResult.failed + gitLabMergeRequestResult.failed + emojiReactionResult.failed + repositorySchemaResult.failed + labelsCoercionResult.failed + listLabelsResult.failed + treeItemResult.failed + repositoryTreeResult.failed + gitLabUserFullResult.failed;
 
   console.log(`\nTotal Results: ${totalPassed} passed, ${totalFailed} failed`);
 
