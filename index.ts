@@ -7874,7 +7874,7 @@ async function updateDependencyProxySettings(
   if (options.enabled !== undefined) input["enabled"] = options.enabled;
   if (options.identity !== undefined) input["identity"] = options.identity;
   if (options.secret !== undefined) input["secret"] = options.secret;
-  await executeGraphQL<{
+  const mutationResult = await executeGraphQL<{
     updateDependencyProxySettings: { errors: string[] };
   }>(
     `mutation($input: UpdateDependencyProxySettingsInput!) {
@@ -7882,6 +7882,10 @@ async function updateDependencyProxySettings(
     }`,
     { input }
   );
+  const errors = mutationResult.updateDependencyProxySettings?.errors;
+  if (errors && errors.length > 0) {
+    throw new Error(`Failed to update dependency proxy settings: ${errors.join(", ")}`);
+  }
   return getDependencyProxySettings(groupPath);
 }
 
@@ -7919,7 +7923,7 @@ async function listDependencyProxyBlobs(
 
 async function purgeDependencyProxyCache(groupId: string): Promise<void> {
   const url = new URL(
-    `${getEffectiveApiUrl()}/groups/${encodeURIComponent(groupId)}/dependency_proxy/cache`
+    `${getEffectiveApiUrl()}/groups/${encodeURIComponent(decodeURIComponent(groupId))}/dependency_proxy/cache`
   );
   const response = await fetch(url.toString(), { ...getFetchConfig(), method: "DELETE" });
   await handleGitLabError(response);
