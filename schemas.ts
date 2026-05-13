@@ -4148,3 +4148,54 @@ export const DeleteGroupVariableSchema = z.object({
     .optional()
     .describe("Filter by environment scope to disambiguate when multiple variables share the same key"),
 });
+
+// --- Dependency Proxy types ---
+export const GitLabDependencyProxySchema = z.object({
+  enabled: z.boolean(),
+  blob_count: z.number(),
+  total_size: z.number(),
+  total_size_human_size: z.string().optional(),
+  dependency_proxy_image_prefix: z.string().optional(),
+  dependency_proxy_image_ttl_policy: z
+    .object({
+      enabled: z.boolean(),
+      ttl: z.number(),
+    })
+    .optional(),
+});
+export type GitLabDependencyProxy = z.infer<typeof GitLabDependencyProxySchema>;
+
+export const GitLabDependencyProxyBlobSchema = z.object({
+  size: z.number(),
+  file_name: z.string(),
+  created_at: z.string(),
+  blob_path: z.string().optional(),
+});
+export type GitLabDependencyProxyBlob = z.infer<typeof GitLabDependencyProxyBlobSchema>;
+
+export const GetDependencyProxySettingsSchema = z.object({
+  group_id: z.string().describe("The ID or URL-encoded path of the group"),
+});
+
+export const UpdateDependencyProxySettingsSchema = z.object({
+  group_id: z.string().describe("The ID or URL-encoded path of the group"),
+  enabled: z.boolean().optional().describe("Enable or disable the dependency proxy"),
+  identity: z.string().optional().describe("Proxy username for authenticated Docker Hub pulls (Premium/Ultimate)"),
+  secret: z.string().optional().describe("Proxy password / access token for authenticated pulls"),
+  ttl: z.number().int().optional().describe("TTL in seconds for cached blobs (0 = indefinite)"),
+});
+
+export const ListDependencyProxyBlobsSchema = z.object({
+  group_id: z.string().describe("The ID or URL-encoded path of the group"),
+  page: z.number().int().optional().describe("Page number (default: 1)"),
+  per_page: z.number().int().optional().describe("Items per page (default: 20, max: 100)"),
+});
+
+export const DeleteDependencyProxyBlobSchema = z.object({
+  group_id: z.string().describe("The ID or URL-encoded path of the group"),
+  sha: z.string().describe("SHA of the blob to delete"),
+});
+
+export const PurgeDependencyProxyCacheSchema = z.object({
+  group_id: z.string().describe("The ID or URL-encoded path of the group"),
+});
