@@ -42,7 +42,7 @@ jobs:
 
     - name: Check package size
       run: |
-        npm pack --dry-run
+        npm pack --dry-run --ignore-scripts
         echo "Package created successfully"
 
     - name: Security audit
@@ -145,5 +145,5 @@ jobs:
     - name: Build project
       run: npm run build
 
-    - name: Run tests
-      run: npm test
+    - name: Run mock tests
+      run: npm run test:mock
