@@ -5,6 +5,9 @@ on:
     branches: [ main ]
     types: [opened, synchronize, reopened]
 
+permissions:
+  contents: read
+
 jobs:
   schema-tests:
     runs-on: ubuntu-latest
@@ -20,7 +23,7 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: npm ci
+        run: npm ci --ignore-scripts
 
       - name: Run schema tests
         run: npm run test:schema

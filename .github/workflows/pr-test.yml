@@ -5,34 +5,29 @@ on:
     branches: [ main ]
     types: [opened, synchronize, reopened]
 
+permissions:
+  contents: read
+
 jobs:
   test:
     runs-on: ubuntu-latest
-    
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-    
+
     - name: Setup Node.js
       uses: actions/setup-node@v4
       with:
         node-version: '22.21.1'
         cache: 'npm'
-    
+
     - name: Install dependencies
-      run: npm ci
-    
+      run: npm ci --ignore-scripts
+
     - name: Build project
       run: npm run build
-    
-    - name: Run API validation tests
-      run: node test/validate-api.js
-      env:
-        GITLAB_API_URL: ${{ secrets.GITLAB_API_URL }}
-        GITLAB_TOKEN: ${{ secrets.GITLAB_TOKEN_TEST }}
-        GITLAB_PERSONAL_ACCESS_TOKEN: ${{ secrets.GITLAB_PERSONAL_ACCESS_TOKEN }}
-        TEST_PROJECT_ID: ${{ secrets.TEST_PROJECT_ID }}
-    
+
     - name: Run remote authorization tests
       run: npm run test:remote-auth
 
@@ -41,69 +36,45 @@ jobs:
 
     - name: Type check
       run: npx tsc --noEmit
-    
+
     - name: Lint check
       run: npm run lint || echo "No lint script found"
-    
+
     - name: Check package size
       run: |
-        npm pack --dry-run
+        npm pack --dry-run --ignore-scripts
         echo "Package created successfully"
-    
+
     - name: Security audit
       run: npm audit --production || echo "Some vulnerabilities found"
       continue-on-error: true
-    
-    - name: Test MCP server startup
-      run: |
-        echo "MCP server startup test temporarily disabled for debugging"
-        echo "GITLAB_PERSONAL_ACCESS_TOKEN is: ${GITLAB_PERSONAL_ACCESS_TOKEN:0:10}..."
-      env:
-        GITLAB_API_URL: ${{ secrets.GITLAB_API_URL }}
-        GITLAB_TOKEN: ${{ secrets.GITLAB_TOKEN_TEST }}
-        GITLAB_PERSONAL_ACCESS_TOKEN: ${{ secrets.GITLAB_PERSONAL_ACCESS_TOKEN }}
-        TEST_PROJECT_ID: ${{ secrets.TEST_PROJECT_ID }}
 
   integration-test:
     runs-on: ubuntu-latest
     needs: test
     if: github.event.pull_request.draft == false
-    
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-    
+
     - name: Setup Node.js
       uses: actions/setup-node@v4
       with:
         node-version: '22.21.1'
         cache: 'npm'
-    
+
     - name: Install dependencies
-      run: npm ci
-    
+      run: npm ci --ignore-scripts
+
     - name: Build project
       run: npm run build
-    
-    - name: Run live API validation tests
-      if: ${{ github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository }}
-      run: |
-        echo "Running live API validation tests with real GitLab API..."
-        echo "This includes: validate-api.js + readonly-mcp-tests.ts"
-        npm run test:live
-      env:
-        GITLAB_API_URL: ${{ secrets.GITLAB_API_URL }}
-        GITLAB_TOKEN: ${{ secrets.GITLAB_TOKEN_TEST }}
-        GITLAB_PERSONAL_ACCESS_TOKEN: ${{ secrets.GITLAB_PERSONAL_ACCESS_TOKEN }}
-        PROJECT_ID: ${{ secrets.TEST_PROJECT_ID }}
-        GITLAB_PROJECT_ID: ${{ secrets.TEST_PROJECT_ID }}
-        TEST_PROJECT_ID: ${{ secrets.TEST_PROJECT_ID }}
-    
+
     - name: Run OAuth tests (mock server)
       run: |
         echo "Running OAuth tests with mock server..."
         npm run test:oauth
-    
+
     - name: Run list_merge_requests tests (mock server)
       run: |
         echo "Running list_merge_requests tests with mock server..."
@@ -118,66 +89,61 @@ jobs:
 
   code-quality:
     runs-on: ubuntu-latest
-    
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
       with:
         fetch-depth: 0
-    
+
     - name: Setup Node.js
       uses: actions/setup-node@v4
       with:
         node-version: '22.21.1'
         cache: 'npm'
-    
+
     - name: Install dependencies
-      run: npm ci
-    
+      run: npm ci --ignore-scripts
+
     - name: Check code formatting
       run: |
         npx prettier --check "**/*.{js,ts,json,md}" || echo "Some files need formatting"
-    
+
     - name: Check for console.log statements
       run: |
         if grep -r "console\.log" --include="*.ts" --exclude-dir=node_modules --exclude-dir=build --exclude="test*.ts" .; then
-          echo "⚠️ Found console.log statements in source code"
+          echo "Warning: Found console.log statements in source code"
         else
-          echo "✅ No console.log statements found"
+          echo "No console.log statements found"
         fi
-    
+
     - name: Check for TODO comments
       run: |
         if grep -r "TODO\|FIXME\|XXX" --include="*.ts" --exclude-dir=node_modules --exclude-dir=build .; then
-          echo "⚠️ Found TODO/FIXME comments"
+          echo "Warning: Found TODO/FIXME comments"
         else
-          echo "✅ No TODO/FIXME comments found"
+          echo "No TODO/FIXME comments found"
         fi
 
   coverage:
     runs-on: ubuntu-latest
     if: github.event.pull_request.draft == false
-    
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-    
+
     - name: Setup Node.js
       uses: actions/setup-node@v4
       with:
         node-version: '22.21.1'
         cache: 'npm'
-    
+
     - name: Install dependencies
-      run: npm ci
-    
+      run: npm ci --ignore-scripts
+
     - name: Build project
       run: npm run build
-    
-    - name: Run tests
-      run: npm test
-      env:
-        GITLAB_API_URL: ${{ secrets.GITLAB_API_URL }}
-        GITLAB_TOKEN: ${{ secrets.GITLAB_TOKEN_TEST }}
-        GITLAB_PERSONAL_ACCESS_TOKEN: ${{ secrets.GITLAB_PERSONAL_ACCESS_TOKEN }}
-        TEST_PROJECT_ID: ${{ secrets.TEST_PROJECT_ID }}
+
+    - name: Run mock tests
+      run: npm run test:mock
