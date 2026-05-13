@@ -10,6 +10,7 @@ const TEST_PERSONAL_SNIPPET_ID = 99;
 const TEST_MULTIFILE_SNIPPET_ID = 77;
 const TEST_MASTER_SNIPPET_ID = 88;
 const TEST_SLASH_REF_SNIPPET_ID = 101;
+const TEST_EXPLICIT_REF_SNIPPET_ID = 102;
 const RAW_CONTENT = "console.log('hello world');\n";
 const MULTIFILE_A_CONTENT = "# policy\nbody A\n";
 const MULTIFILE_B_CONTENT = "# instructions\nbody B\n";
@@ -296,6 +297,43 @@ describe("snippet tools", () => {
       (_req, res) => { res.type("text/plain").send(MULTIFILE_B_CONTENT); }
     );
 
+    // --- Explicit ref snippet: raw_url carries ref "wrong" but caller overrides with "v2" ---
+    mockGitLab.addMockHandler(
+      "get",
+      `/projects/${TEST_PROJECT_ID}/snippets/${TEST_EXPLICIT_REF_SNIPPET_ID}`,
+      (_req, res) => {
+        res.json(
+          buildSnippet({
+            id: TEST_EXPLICIT_REF_SNIPPET_ID,
+            title: "Explicit ref snippet",
+            file_name: null,
+            files: [
+              {
+                path: "a.md",
+                raw_url: `${mockGitLabUrl}/-/snippets/${TEST_EXPLICIT_REF_SNIPPET_ID}/raw/wrong/a.md`,
+              },
+              {
+                path: "b.md",
+                raw_url: `${mockGitLabUrl}/-/snippets/${TEST_EXPLICIT_REF_SNIPPET_ID}/raw/wrong/b.md`,
+              },
+            ],
+          })
+        );
+      }
+    );
+
+    mockGitLab.addMockHandler(
+      "get",
+      `/projects/${TEST_PROJECT_ID}/snippets/${TEST_EXPLICIT_REF_SNIPPET_ID}/files/v2/a.md/raw`,
+      (_req, res) => { res.type("text/plain").send(MULTIFILE_A_CONTENT); }
+    );
+
+    mockGitLab.addMockHandler(
+      "get",
+      `/projects/${TEST_PROJECT_ID}/snippets/${TEST_EXPLICIT_REF_SNIPPET_ID}/files/v2/b.md/raw`,
+      (_req, res) => { res.type("text/plain").send(MULTIFILE_B_CONTENT); }
+    );
+
     // --- Personal snippet handlers ---
     mockGitLab.addMockHandler("get", "/snippets", (_req, res) => {
       res.json([
@@ -547,6 +585,25 @@ describe("snippet tools", () => {
     assert.strictEqual(result.files[0].path, "policy.md");
     assert.strictEqual(result.files[0].content, MULTIFILE_A_CONTENT);
     assert.strictEqual(result.files[1].path, "instructions.md");
+    assert.strictEqual(result.files[1].content, MULTIFILE_B_CONTENT);
+  });
+
+  test("get_snippet with include_content uses explicit ref when provided, ignoring raw_url ref", async () => {
+    const result = await callTool(
+      "get_snippet",
+      {
+        project_id: TEST_PROJECT_ID,
+        snippet_id: TEST_EXPLICIT_REF_SNIPPET_ID,
+        include_content: true,
+        ref: "v2",
+      },
+      env()
+    );
+
+    assert.strictEqual(result.id, TEST_EXPLICIT_REF_SNIPPET_ID);
+    assert.ok(Array.isArray(result.files));
+    assert.strictEqual(result.files.length, 2);
+    assert.strictEqual(result.files[0].content, MULTIFILE_A_CONTENT);
     assert.strictEqual(result.files[1].content, MULTIFILE_B_CONTENT);
   });
 

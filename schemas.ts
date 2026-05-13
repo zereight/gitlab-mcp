@@ -4602,6 +4602,10 @@ export const GetSnippetSchema = z.object({
     .optional()
     .default(false)
     .describe("Whether to fetch the raw file content (default: false)"),
+  ref: z
+    .string()
+    .optional()
+    .describe("Branch, tag, or commit to fetch content from. Inferred from the snippet's raw_url when omitted."),
 });
 
 export const SnippetFileSchema = z.object({
