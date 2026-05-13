@@ -189,7 +189,6 @@ import {
   GetDependencyProxySettingsSchema,
   UpdateDependencyProxySettingsSchema,
   ListDependencyProxyBlobsSchema,
-  DeleteDependencyProxyBlobSchema,
   PurgeDependencyProxyCacheSchema,
 } from "../schemas.js";
 
@@ -1121,13 +1120,8 @@ export const allTools = [
     inputSchema: toJSONSchema(ListDependencyProxyBlobsSchema),
   },
   {
-    name: "delete_dependency_proxy_blob",
-    description: "Delete a specific cached dependency proxy blob by SHA",
-    inputSchema: toJSONSchema(DeleteDependencyProxyBlobSchema),
-  },
-  {
     name: "purge_dependency_proxy_cache",
-    description: "Purge all cached dependency proxy blobs for a group",
+    description: "Schedule purge of all cached dependency proxy blobs for a group",
     inputSchema: toJSONSchema(PurgeDependencyProxyCacheSchema),
   },
   // --- Meta tool: Dynamic tool discovery ---
@@ -1277,7 +1271,6 @@ export const destructiveTools = new Set([
   "delete_branch",
   "merge_merge_request",
   "push_files",
-  "delete_dependency_proxy_blob",
   "purge_dependency_proxy_cache",
 ]);
 
@@ -1644,7 +1637,6 @@ export const TOOLSET_DEFINITIONS: readonly ToolsetDefinition[] = [
       "get_dependency_proxy_settings",
       "update_dependency_proxy_settings",
       "list_dependency_proxy_blobs",
-      "delete_dependency_proxy_blob",
       "purge_dependency_proxy_cache",
     ]),
   },

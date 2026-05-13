@@ -264,7 +264,6 @@ import {
   GetDependencyProxySettingsSchema,
   UpdateDependencyProxySettingsSchema,
   ListDependencyProxyBlobsSchema,
-  DeleteDependencyProxyBlobSchema,
   PurgeDependencyProxyCacheSchema,
   ListIssueDiscussionsSchema,
   ListIssueLinksSchema,
@@ -7832,59 +7831,87 @@ async function listGroupIterations(
   return z.array(GroupIteration).parse(data);
 }
 
-async function getDependencyProxySettings(groupId: string): Promise<GitLabDependencyProxy> {
-  const url = new URL(
-    `${getEffectiveApiUrl()}/groups/${encodeURIComponent(groupId)}/dependency_proxy`
+async function getDependencyProxySettings(groupPath: string): Promise<GitLabDependencyProxy> {
+  const data = await executeGraphQL<{
+    group: {
+      dependencyProxySetting: { enabled: boolean } | null;
+      dependencyProxyBlobCount: number | null;
+      dependencyProxyTotalSize: string | null;
+      dependencyProxyImagePrefix: string | null;
+      dependencyProxyImageTtlPolicy: { enabled: boolean; ttl: number | null } | null;
+    } | null;
+  }>(
+    `query($fullPath: ID!) {
+      group(fullPath: $fullPath) {
+        dependencyProxySetting { enabled }
+        dependencyProxyBlobCount
+        dependencyProxyTotalSize
+        dependencyProxyImagePrefix
+        dependencyProxyImageTtlPolicy { enabled ttl }
+      }
+    }`,
+    { fullPath: groupPath }
   );
-  const response = await fetch(url.toString(), getFetchConfig());
-  await handleGitLabError(response);
-  const data = await response.json();
-  return GitLabDependencyProxySchema.parse(data);
+  const g = data.group;
+  if (!g) throw new Error(`Group not found: ${groupPath}`);
+  return GitLabDependencyProxySchema.parse({
+    enabled: g.dependencyProxySetting?.enabled ?? false,
+    blob_count: g.dependencyProxyBlobCount,
+    total_size: g.dependencyProxyTotalSize,
+    image_prefix: g.dependencyProxyImagePrefix,
+    ttl_policy: g.dependencyProxyImageTtlPolicy,
+  });
 }
 
 async function updateDependencyProxySettings(
-  groupId: string,
+  groupPath: string,
   options: Omit<z.infer<typeof UpdateDependencyProxySettingsSchema>, "group_id">
 ): Promise<GitLabDependencyProxy> {
-  const url = new URL(
-    `${getEffectiveApiUrl()}/groups/${encodeURIComponent(groupId)}/dependency_proxy`
+  const input: Record<string, unknown> = { groupPath };
+  if (options.enabled !== undefined) input["enabled"] = options.enabled;
+  if (options.identity !== undefined) input["identity"] = options.identity;
+  if (options.secret !== undefined) input["secret"] = options.secret;
+  await executeGraphQL<{
+    updateDependencyProxySettings: { errors: string[] };
+  }>(
+    `mutation($input: UpdateDependencyProxySettingsInput!) {
+      updateDependencyProxySettings(input: $input) { errors }
+    }`,
+    { input }
   );
-  const body: Record<string, unknown> = {};
-  if (options.enabled !== undefined) body["enabled"] = options.enabled;
-  if (options.identity !== undefined) body["identity"] = options.identity;
-  if (options.secret !== undefined) body["secret"] = options.secret;
-  if (options.ttl !== undefined) body["dependency_proxy_blob_ttl"] = options.ttl;
-  const response = await fetch(url.toString(), {
-    ...getFetchConfig(),
-    method: "PATCH",
-    body: JSON.stringify(body),
-  });
-  await handleGitLabError(response);
-  const data = await response.json();
-  return GitLabDependencyProxySchema.parse(data);
+  return getDependencyProxySettings(groupPath);
 }
 
 async function listDependencyProxyBlobs(
-  groupId: string,
+  groupPath: string,
   options: Omit<z.infer<typeof ListDependencyProxyBlobsSchema>, "group_id"> = {}
-): Promise<GitLabDependencyProxyBlob[]> {
-  const url = new URL(
-    `${getEffectiveApiUrl()}/groups/${encodeURIComponent(groupId)}/dependency_proxy/blobs`
+): Promise<{ blobs: GitLabDependencyProxyBlob[]; pageInfo: { hasNextPage: boolean; endCursor: string | null } }> {
+  const data = await executeGraphQL<{
+    group: {
+      dependencyProxyBlobs: {
+        nodes: { fileName: string; size: string; createdAt: string | null }[];
+        pageInfo: { hasNextPage: boolean; endCursor: string | null };
+      } | null;
+    } | null;
+  }>(
+    `query($fullPath: ID!, $first: Int, $after: String) {
+      group(fullPath: $fullPath) {
+        dependencyProxyBlobs(first: $first, after: $after) {
+          nodes { fileName size createdAt }
+          pageInfo { hasNextPage endCursor }
+        }
+      }
+    }`,
+    { fullPath: groupPath, first: options.first ?? 20, after: options.after }
   );
-  if (options.page !== undefined) url.searchParams.append("page", options.page.toString());
-  if (options.per_page !== undefined) url.searchParams.append("per_page", options.per_page.toString());
-  const response = await fetch(url.toString(), getFetchConfig());
-  await handleGitLabError(response);
-  const data = await response.json();
-  return GitLabDependencyProxyBlobSchema.array().parse(data);
-}
-
-async function deleteDependencyProxyBlob(groupId: string, sha: string): Promise<void> {
-  const url = new URL(
-    `${getEffectiveApiUrl()}/groups/${encodeURIComponent(groupId)}/dependency_proxy/blobs/${encodeURIComponent(sha)}`
-  );
-  const response = await fetch(url.toString(), { ...getFetchConfig(), method: "DELETE" });
-  await handleGitLabError(response);
+  const conn = data.group?.dependencyProxyBlobs;
+  if (!conn) throw new Error(`Group not found or dependency proxy not enabled: ${groupPath}`);
+  return {
+    blobs: conn.nodes.map(n =>
+      GitLabDependencyProxyBlobSchema.parse({ file_name: n.fileName, size: n.size, created_at: n.createdAt })
+    ),
+    pageInfo: conn.pageInfo,
+  };
 }
 
 async function purgeDependencyProxyCache(groupId: string): Promise<void> {
@@ -10455,22 +10482,9 @@ async function handleToolCall(params: any) {
       case "list_dependency_proxy_blobs": {
         const args = ListDependencyProxyBlobsSchema.parse(params.arguments);
         const { group_id, ...options } = args;
-        const blobs = await listDependencyProxyBlobs(group_id, options);
+        const result = await listDependencyProxyBlobs(group_id, options);
         return {
-          content: [{ type: "text", text: JSON.stringify(blobs, null, 2) }],
-        };
-      }
-
-      case "delete_dependency_proxy_blob": {
-        const args = DeleteDependencyProxyBlobSchema.parse(params.arguments);
-        await deleteDependencyProxyBlob(args.group_id, args.sha);
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify({ status: "success", message: "Blob deleted successfully" }, null, 2),
-            },
-          ],
+          content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
         };
       }
 
@@ -10482,7 +10496,7 @@ async function handleToolCall(params: any) {
             {
               type: "text",
               text: JSON.stringify(
-                { status: "success", message: "Dependency proxy cache purged successfully" },
+                { status: "success", message: "Dependency proxy cache purge scheduled" },
                 null,
                 2
               ),
