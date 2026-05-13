@@ -3956,22 +3956,22 @@ export const GitLabDependencyProxyBlobSchema = z.object({
 export type GitLabDependencyProxyBlob = z.infer<typeof GitLabDependencyProxyBlobSchema>;
 
 export const GetDependencyProxySettingsSchema = z.object({
-  group_id: z.string().describe("The full path of the group (e.g. 'my-org/my-group')"),
+  group_id: z.coerce.string().describe("Group ID or URL-encoded path"),
 });
 
 export const UpdateDependencyProxySettingsSchema = z.object({
-  group_id: z.string().describe("The full path of the group (e.g. 'my-org/my-group')"),
+  group_id: z.coerce.string().describe("Group ID or URL-encoded path"),
   enabled: z.boolean().optional().describe("Enable or disable the dependency proxy"),
   identity: z.string().optional().describe("Proxy username for authenticated Docker Hub pulls (Premium/Ultimate)"),
   secret: z.string().optional().describe("Proxy password / access token for authenticated pulls"),
 });
 
 export const ListDependencyProxyBlobsSchema = z.object({
-  group_id: z.string().describe("The full path of the group (e.g. 'my-org/my-group')"),
+  group_id: z.coerce.string().describe("Group ID or URL-encoded path"),
   first: z.number().int().optional().describe("Number of blobs to return (default: 20)"),
   after: z.string().optional().describe("Cursor for pagination (from previous response pageInfo.endCursor)"),
 });
 
 export const PurgeDependencyProxyCacheSchema = z.object({
-  group_id: z.string().describe("The ID or URL-encoded path of the group"),
+  group_id: z.coerce.string().describe("Group ID or URL-encoded path"),
 });

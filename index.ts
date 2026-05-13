@@ -7923,7 +7923,7 @@ async function listDependencyProxyBlobs(
 
 async function purgeDependencyProxyCache(groupId: string): Promise<void> {
   const url = new URL(
-    `${getEffectiveApiUrl()}/groups/${encodeURIComponent(decodeURIComponent(groupId))}/dependency_proxy/cache`
+    `${getEffectiveApiUrl()}/groups/${encodeURIComponent(groupId)}/dependency_proxy/cache`
   );
   const response = await fetch(url.toString(), { ...getFetchConfig(), method: "DELETE" });
   await handleGitLabError(response);
