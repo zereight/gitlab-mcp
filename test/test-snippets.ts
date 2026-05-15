@@ -11,6 +11,8 @@ const TEST_MULTIFILE_SNIPPET_ID = 77;
 const TEST_MASTER_SNIPPET_ID = 88;
 const TEST_SLASH_REF_SNIPPET_ID = 101;
 const TEST_EXPLICIT_REF_SNIPPET_ID = 102;
+const TEST_NESTED_PATH_SNIPPET_ID = 103;
+const TEST_NO_VISIBILITY_SNIPPET_ID = 104;
 const RAW_CONTENT = "console.log('hello world');\n";
 const MULTIFILE_A_CONTENT = "# policy\nbody A\n";
 const MULTIFILE_B_CONTENT = "# instructions\nbody B\n";
@@ -334,6 +336,59 @@ describe("snippet tools", () => {
       (_req, res) => { res.type("text/plain").send(MULTIFILE_B_CONTENT); }
     );
 
+    // --- Nested file path snippet (file_path with a "/" inside) ---
+    mockGitLab.addMockHandler(
+      "get",
+      `/projects/${TEST_PROJECT_ID}/snippets/${TEST_NESTED_PATH_SNIPPET_ID}`,
+      (_req, res) => {
+        res.json(
+          buildSnippet({
+            id: TEST_NESTED_PATH_SNIPPET_ID,
+            title: "Nested path snippet",
+            file_name: null,
+            files: [
+              {
+                path: "dir/policy.md",
+                raw_url: `${mockGitLabUrl}/-/snippets/${TEST_NESTED_PATH_SNIPPET_ID}/raw/main/dir/policy.md`,
+              },
+              {
+                path: "other/sub/instructions.md",
+                raw_url: `${mockGitLabUrl}/-/snippets/${TEST_NESTED_PATH_SNIPPET_ID}/raw/main/other/sub/instructions.md`,
+              },
+            ],
+          })
+        );
+      }
+    );
+
+    // Per GitLab docs, file_path must be a single URL-encoded segment, so
+    // "dir/policy.md" arrives as "dir%2Fpolicy.md" in the API URL.
+    mockGitLab.addMockHandler(
+      "get",
+      `/projects/${TEST_PROJECT_ID}/snippets/${TEST_NESTED_PATH_SNIPPET_ID}/files/main/dir%2Fpolicy.md/raw`,
+      (_req, res) => { res.type("text/plain").send(MULTIFILE_A_CONTENT); }
+    );
+
+    mockGitLab.addMockHandler(
+      "get",
+      `/projects/${TEST_PROJECT_ID}/snippets/${TEST_NESTED_PATH_SNIPPET_ID}/files/main/other%2Fsub%2Finstructions.md/raw`,
+      (_req, res) => { res.type("text/plain").send(MULTIFILE_B_CONTENT); }
+    );
+
+    // --- Snippet response missing visibility (per GitLab project snippets API shape) ---
+    mockGitLab.addMockHandler(
+      "get",
+      `/projects/${TEST_PROJECT_ID}/snippets/${TEST_NO_VISIBILITY_SNIPPET_ID}`,
+      (_req, res) => {
+        const snippet: Record<string, unknown> = buildSnippet({
+          id: TEST_NO_VISIBILITY_SNIPPET_ID,
+          title: "No visibility snippet",
+        });
+        delete snippet.visibility;
+        res.json(snippet);
+      }
+    );
+
     // --- Personal snippet handlers ---
     mockGitLab.addMockHandler("get", "/snippets", (_req, res) => {
       res.json([
@@ -356,6 +411,21 @@ describe("snippet tools", () => {
             project_id: null,
           })
         );
+      }
+    );
+
+    // --- URL-encoded project path handler ---
+    // Express keeps "%2F" literal in req.path (it never collapses encoded slashes
+    // into path separators), so the mock key is the single-encoded form.
+    // Correct: caller decodes "my-group%2Fmy-project" → "my-group/my-project" →
+    //          re-encodes → "my-group%2Fmy-project" → req.path is "/projects/my-group%2Fmy-project/snippets".
+    // Double-encoded bug: caller encodes "my-group%2Fmy-project" → "my-group%252Fmy-project"
+    //          → req.path is "/projects/my-group%252Fmy-project/snippets" (no handler match).
+    mockGitLab.addMockHandler(
+      "get",
+      "/projects/my-group%2Fmy-project/snippets",
+      (_req, res) => {
+        res.json([buildSnippet({ id: 555, title: "Encoded path snippet" })]);
       }
     );
 
@@ -533,6 +603,64 @@ describe("snippet tools", () => {
     });
   });
 
+  test("update_snippet supports files[] move action with previous_path", async () => {
+    await callTool(
+      "update_snippet",
+      {
+        project_id: TEST_PROJECT_ID,
+        snippet_id: TEST_PROJECT_SNIPPET_ID,
+        files: [
+          { action: "move", previous_path: "old.md", file_path: "new.md" },
+        ],
+      },
+      env()
+    );
+
+    assert.deepStrictEqual(lastUpdateBody, {
+      files: [{ action: "move", previous_path: "old.md", file_path: "new.md" }],
+    });
+  });
+
+  test("update_snippet supports files[] delete and create actions", async () => {
+    await callTool(
+      "update_snippet",
+      {
+        project_id: TEST_PROJECT_ID,
+        snippet_id: TEST_PROJECT_SNIPPET_ID,
+        files: [
+          { action: "delete", file_path: "gone.md" },
+          { action: "create", file_path: "added.md", content: "new body" },
+        ],
+      },
+      env()
+    );
+
+    assert.deepStrictEqual(lastUpdateBody, {
+      files: [
+        { action: "delete", file_path: "gone.md" },
+        { action: "create", file_path: "added.md", content: "new body" },
+      ],
+    });
+  });
+
+  test("update_snippet rejects mixing files[] with file_name/content", async () => {
+    await assert.rejects(
+      () =>
+        callTool(
+          "update_snippet",
+          {
+            project_id: TEST_PROJECT_ID,
+            snippet_id: TEST_PROJECT_SNIPPET_ID,
+            file_name: "a.txt",
+            content: "x",
+            files: [{ action: "update", file_path: "a.txt", content: "y" }],
+          },
+          env()
+        ),
+      (err: any) => /Cannot mix files\[\] with file_name\/content/.test(JSON.stringify(err))
+    );
+  });
+
   test("delete_snippet calls DELETE and returns success", async () => {
     deleteCalled = false;
     const result = await callTool(
@@ -604,6 +732,26 @@ describe("snippet tools", () => {
     assert.ok(Array.isArray(result.files));
     assert.strictEqual(result.files.length, 2);
     assert.strictEqual(result.files[0].content, MULTIFILE_A_CONTENT);
+    assert.strictEqual(result.files[1].content, MULTIFILE_B_CONTENT);
+  });
+
+  test("get_snippet with include_content encodes nested file paths as a single segment", async () => {
+    const result = await callTool(
+      "get_snippet",
+      {
+        project_id: TEST_PROJECT_ID,
+        snippet_id: TEST_NESTED_PATH_SNIPPET_ID,
+        include_content: true,
+      },
+      env()
+    );
+
+    assert.strictEqual(result.id, TEST_NESTED_PATH_SNIPPET_ID);
+    assert.ok(Array.isArray(result.files));
+    assert.strictEqual(result.files.length, 2);
+    assert.strictEqual(result.files[0].path, "dir/policy.md");
+    assert.strictEqual(result.files[0].content, MULTIFILE_A_CONTENT);
+    assert.strictEqual(result.files[1].path, "other/sub/instructions.md");
     assert.strictEqual(result.files[1].content, MULTIFILE_B_CONTENT);
   });
 
@@ -715,6 +863,31 @@ describe("snippet tools", () => {
     assert.strictEqual(result.title, "Personal new");
     assert.strictEqual(result.visibility, "public");
     assert.strictEqual(result.project_id, null);
+  });
+
+  test("list_snippets does not double-encode URL-encoded project paths", async () => {
+    const result = await callTool(
+      "list_snippets",
+      { project_id: "my-group%2Fmy-project" },
+      env()
+    );
+
+    assert.ok(Array.isArray(result));
+    assert.strictEqual(result.length, 1);
+    assert.strictEqual(result[0].id, 555);
+    assert.strictEqual(result[0].title, "Encoded path snippet");
+  });
+
+  test("get_snippet accepts responses with no visibility field", async () => {
+    const result = await callTool(
+      "get_snippet",
+      { project_id: TEST_PROJECT_ID, snippet_id: TEST_NO_VISIBILITY_SNIPPET_ID },
+      env()
+    );
+
+    assert.strictEqual(result.id, TEST_NO_VISIBILITY_SNIPPET_ID);
+    assert.strictEqual(result.title, "No visibility snippet");
+    assert.strictEqual(result.visibility, undefined);
   });
 
   test("get_snippet without project_id hits personal endpoint", async () => {
