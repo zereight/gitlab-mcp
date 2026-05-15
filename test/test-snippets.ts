@@ -643,6 +643,22 @@ describe("snippet tools", () => {
     });
   });
 
+  test("update_snippet rejects files[] move action without previous_path at parse time", async () => {
+    await assert.rejects(
+      () =>
+        callTool(
+          "update_snippet",
+          {
+            project_id: TEST_PROJECT_ID,
+            snippet_id: TEST_PROJECT_SNIPPET_ID,
+            files: [{ action: "move", file_path: "new.md" }],
+          },
+          env()
+        ),
+      (err: any) => /previous_path.*required.*move/i.test(JSON.stringify(err))
+    );
+  });
+
   test("update_snippet rejects mixing files[] with file_name/content", async () => {
     await assert.rejects(
       () =>

@@ -3458,6 +3458,15 @@ export const SnippetFileUpdateActionSchema = z
       .optional()
       .describe("Content of the snippet file (required for 'create' and 'update')."),
   })
+  .superRefine((data, ctx) => {
+    if (data.action === "move" && data.previous_path === undefined) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "previous_path is required for action: 'move'",
+        path: ["previous_path"],
+      });
+    }
+  })
   .describe(
     "Multi-file snippet update action. Mirrors GitLab's PUT /snippets/:id files[] payload."
   );
