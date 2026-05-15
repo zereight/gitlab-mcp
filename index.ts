@@ -8343,6 +8343,11 @@ async function handleToolCall(params: any) {
       }
     }
 
+    // Centralized read-only guard: reject write tools even if client bypasses list_tools filtering
+    if (GITLAB_READ_ONLY_MODE && !readOnlyTools.has(params.name)) {
+      throw new Error(`${params.name} is not allowed in read-only mode`);
+    }
+
     logger.info({ tool: params.name, event: "tool_call_start" }, `tool_call_start: ${params.name}`);
     switch (params.name) {
       case "execute_graphql": {
@@ -8393,7 +8398,7 @@ async function handleToolCall(params: any) {
         }
       }
       case "fork_repository": {
-        if (GITLAB_PROJECT_ID) {
+        if (GITLAB_PROJECT_ID || GITLAB_ALLOWED_PROJECT_IDS.length > 0) {
           throw new Error("Direct project ID is set. So fork_repository is not allowed");
         }
         const forkArgs = ForkRepositorySchema.parse(params.arguments);
@@ -8502,7 +8507,7 @@ async function handleToolCall(params: any) {
       }
 
       case "create_repository": {
-        if (GITLAB_PROJECT_ID) {
+        if (GITLAB_PROJECT_ID || GITLAB_ALLOWED_PROJECT_IDS.length > 0) {
           throw new Error("Direct project ID is set. So create_repository is not allowed");
         }
         const args = CreateRepositorySchema.parse(params.arguments);
@@ -8513,7 +8518,7 @@ async function handleToolCall(params: any) {
       }
 
       case "create_group": {
-        if (GITLAB_PROJECT_ID) {
+        if (GITLAB_PROJECT_ID || GITLAB_ALLOWED_PROJECT_IDS.length > 0) {
           throw new Error("Direct project ID is set. So create_group is not allowed");
         }
         const args = CreateGroupSchema.parse(params.arguments);

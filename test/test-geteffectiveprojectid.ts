@@ -318,7 +318,6 @@ describe('GITLAB_PROJECT_ID guards repository and group mutators', () => {
         REMOTE_AUTHORIZATION: 'true',
         GITLAB_API_URL: `${mockGitLabUrl}/api/v4`,
         GITLAB_PROJECT_ID: DEFAULT_PROJECT_ID,
-        GITLAB_READ_ONLY_MODE: 'true',
       }
     });
     servers.push(server);
@@ -373,6 +372,154 @@ describe('GITLAB_PROJECT_ID guards repository and group mutators', () => {
     assert.ok('text' in content, 'Content should have text');
     const project = JSON.parse(content.text);
     assert.strictEqual(project.id.toString(), DEFAULT_PROJECT_ID, 'Should use default project');
+  });
+});
+
+describe('GITLAB_ALLOWED_PROJECT_IDS guards repository and group mutators (allowlist-only, no GITLAB_PROJECT_ID)', () => {
+  let mcpUrl: string;
+  let mockGitLab: MockGitLabServer;
+  let servers: ServerInstance[] = [];
+  let client: CustomHeaderClient;
+
+  before(async () => {
+    const mockPort = await findMockServerPort(9600);
+    mockGitLab = new MockGitLabServer({
+      port: mockPort,
+      validTokens: [MOCK_TOKEN]
+    });
+    await mockGitLab.start();
+    const mockGitLabUrl = mockGitLab.getUrl();
+
+    const mcpPort = await findAvailablePort(3600);
+    const server = await launchServer({
+      mode: TransportMode.STREAMABLE_HTTP,
+      port: mcpPort,
+      timeout: 5000,
+      env: {
+        REMOTE_AUTHORIZATION: 'true',
+        GITLAB_API_URL: `${mockGitLabUrl}/api/v4`,
+        GITLAB_ALLOWED_PROJECT_IDS: DEFAULT_PROJECT_ID,
+      }
+    });
+    servers.push(server);
+    mcpUrl = `http://${HOST}:${mcpPort}/mcp`;
+
+    client = new CustomHeaderClient({
+      authorization: `Bearer ${MOCK_TOKEN}`,
+    });
+    await client.connect(mcpUrl);
+  });
+
+  after(async () => {
+    if (client) await client.disconnect();
+    cleanupServers(servers);
+    if (mockGitLab) await mockGitLab.stop();
+  });
+
+  test('should reject create_repository with GITLAB_ALLOWED_PROJECT_IDS', async () => {
+    try {
+      await client.callTool('create_repository', { name: 'test-repo' });
+      assert.fail('Should have rejected create_repository');
+    } catch (error) {
+      assert.ok(error instanceof Error);
+      assert.ok(error.message.includes('create_repository is not allowed'), 'Should mention create_repository');
+    }
+  });
+
+  test('should reject fork_repository with GITLAB_ALLOWED_PROJECT_IDS', async () => {
+    try {
+      await client.callTool('fork_repository', { project_id: '999' });
+      assert.fail('Should have rejected fork_repository');
+    } catch (error) {
+      assert.ok(error instanceof Error);
+      assert.ok(error.message.includes('fork_repository is not allowed'), 'Should mention fork_repository');
+    }
+  });
+
+  test('should reject create_group with GITLAB_ALLOWED_PROJECT_IDS', async () => {
+    try {
+      await client.callTool('create_group', { name: 'test-group', path: 'test-group' });
+      assert.fail('Should have rejected create_group');
+    } catch (error) {
+      assert.ok(error instanceof Error);
+      assert.ok(error.message.includes('create_group is not allowed'), 'Should mention create_group');
+    }
+  });
+
+  test('should allow get_project (non-mutator) with GITLAB_ALLOWED_PROJECT_IDS', async () => {
+    const result = await client.callTool('get_project', { project_id: '' });
+    assert.ok(result.content, 'Should have content');
+    const content = result.content[0];
+    assert.ok('text' in content, 'Content should have text');
+    const project = JSON.parse(content.text);
+    assert.strictEqual(project.id.toString(), DEFAULT_PROJECT_ID, 'Should use default project');
+  });
+});
+
+describe('GITLAB_READ_ONLY_MODE enforces read-only for all write tools', () => {
+  let mcpUrl: string;
+  let mockGitLab: MockGitLabServer;
+  let servers: ServerInstance[] = [];
+  let client: CustomHeaderClient;
+
+  before(async () => {
+    const mockPort = await findMockServerPort(9500);
+    mockGitLab = new MockGitLabServer({
+      port: mockPort,
+      validTokens: [MOCK_TOKEN]
+    });
+    await mockGitLab.start();
+    const mockGitLabUrl = mockGitLab.getUrl();
+
+    const mcpPort = await findAvailablePort(3500);
+    const server = await launchServer({
+      mode: TransportMode.STREAMABLE_HTTP,
+      port: mcpPort,
+      timeout: 5000,
+      env: {
+        REMOTE_AUTHORIZATION: 'true',
+        GITLAB_API_URL: `${mockGitLabUrl}/api/v4`,
+        GITLAB_READ_ONLY_MODE: 'true',
+      }
+    });
+    servers.push(server);
+    mcpUrl = `http://${HOST}:${mcpPort}/mcp`;
+
+    client = new CustomHeaderClient({
+      authorization: `Bearer ${MOCK_TOKEN}`,
+    });
+    await client.connect(mcpUrl);
+  });
+
+  after(async () => {
+    if (client) await client.disconnect();
+    cleanupServers(servers);
+    if (mockGitLab) await mockGitLab.stop();
+  });
+
+  test('should reject create_group in read-only mode (no project ID)', async () => {
+    try {
+      await client.callTool('create_group', { name: 'test-group', path: 'test-group' });
+      assert.fail('Should have rejected create_group in read-only mode');
+    } catch (error) {
+      assert.ok(error instanceof Error);
+      assert.ok(error.message.includes('create_group is not allowed'), 'Should mention create_group');
+    }
+  });
+
+  test('should reject create_repository in read-only mode', async () => {
+    try {
+      await client.callTool('create_repository', { name: 'test-repo' });
+      assert.fail('Should have rejected create_repository in read-only mode');
+    } catch (error) {
+      assert.ok(error instanceof Error);
+      assert.ok(error.message.includes('create_repository is not allowed'), 'Should mention create_repository');
+    }
+  });
+
+  test('should allow get_project (read-only) in read-only mode', async () => {
+    const result = await client.callTool('get_project', { project_id: DEFAULT_PROJECT_ID });
+    assert.ok(result.content, 'Should have content');
   });
 });
 
