@@ -3438,6 +3438,30 @@ export const SnippetFileSchema = z.object({
   content: z.string().describe("File content"),
 });
 
+export const SnippetFileUpdateActionSchema = z
+  .object({
+    action: z
+      .enum(["create", "update", "delete", "move"])
+      .describe("Type of action to perform on the file"),
+    file_path: z
+      .string()
+      .optional()
+      .describe(
+        "File path of the snippet file. For 'move', this is the new path; for 'create'/'update'/'delete', the target path."
+      ),
+    previous_path: z
+      .string()
+      .optional()
+      .describe("Previous path of the snippet file (required for 'move')."),
+    content: z
+      .string()
+      .optional()
+      .describe("Content of the snippet file (required for 'create' and 'update')."),
+  })
+  .describe(
+    "Multi-file snippet update action. Mirrors GitLab's PUT /snippets/:id files[] payload."
+  );
+
 export const CreateSnippetSchema = z
   .object({
     project_id: z
@@ -3505,6 +3529,12 @@ export const UpdateSnippetSchema = z
         "File name to update. Provide together with content to replace a single-file snippet's contents."
       ),
     content: z.string().optional().describe("New file content (requires file_name)"),
+    files: z
+      .array(SnippetFileUpdateActionSchema)
+      .optional()
+      .describe(
+        "Multi-file update actions. Each item has 'action' (create/update/delete/move) plus the relevant path/content fields. Use this for renames (action: 'move' with previous_path), deletions, and additions. Mutually exclusive with file_name/content."
+      ),
     description: z.string().optional().describe("New description"),
     visibility: z
       .enum(["private", "internal", "public"])
@@ -3516,9 +3546,21 @@ export const UpdateSnippetSchema = z
       data.title !== undefined ||
       data.content !== undefined ||
       data.file_name !== undefined ||
+      data.files !== undefined ||
       data.description !== undefined ||
       data.visibility !== undefined,
     { message: "At least one field must be provided to update" }
+  )
+  .refine(
+    data =>
+      !(
+        data.files !== undefined &&
+        (data.file_name !== undefined || data.content !== undefined)
+      ),
+    {
+      message: "Cannot mix files[] with file_name/content — pick one shape",
+      path: ["files"],
+    }
   )
   .refine(data => !(data.content !== undefined && data.file_name === undefined), {
     message: "content requires file_name",
@@ -3561,7 +3603,7 @@ export const GitLabSnippetSchema = z
     id: z.number(),
     title: z.string(),
     description: z.string().nullable().optional(),
-    visibility: z.string(),
+    visibility: z.string().optional(),
     author: GitLabSnippetAuthorSchema.optional(),
     updated_at: z.string().optional(),
     created_at: z.string().optional(),

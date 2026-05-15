@@ -969,7 +969,8 @@ export const allTools = [
   },
   {
     name: "update_snippet",
-    description: "Update an existing snippet (provide at least one field to change)",
+    description:
+      "Update an existing snippet (provide at least one field to change). For multi-file edits — renames, deletions, additions — pass files[] with action (create/update/delete/move) and previous_path. The file_name + content shortcut still works for single-file content replacement.",
     inputSchema: toJSONSchema(UpdateSnippetSchema),
   },
   {

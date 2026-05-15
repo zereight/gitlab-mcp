@@ -8318,7 +8318,8 @@ async function getTagSignature(
  */
 function getSnippetsEndpoint(projectId?: string): string {
   if (projectId) {
-    const effectiveProjectId = getEffectiveProjectId(projectId);
+    const decoded = decodeURIComponent(projectId);
+    const effectiveProjectId = getEffectiveProjectId(decoded);
     return `${getEffectiveApiUrl()}/projects/${encodeURIComponent(effectiveProjectId)}/snippets`;
   }
   return `${getEffectiveApiUrl()}/snippets`;
@@ -8415,7 +8416,7 @@ async function getSnippetFileRawContent(
   filePath: string
 ): Promise<string> {
   const encodedRef = encodeURIComponent(ref);
-  const encodedPath = filePath.split("/").map(encodeURIComponent).join("/");
+  const encodedPath = encodeURIComponent(filePath);
   const url = `${getSnippetsEndpoint(projectId)}/${snippetId}/files/${encodedRef}/${encodedPath}/raw`;
   const response = await fetch(url, { ...getFetchConfig() });
   await handleGitLabError(response);
@@ -8462,13 +8463,15 @@ async function updateSnippet(
   projectId: string | undefined,
   options: Omit<z.infer<typeof UpdateSnippetSchema>, "project_id">
 ): Promise<GitLabSnippet> {
-  const { snippet_id, title, file_name, content, description, visibility } = options;
+  const { snippet_id, title, file_name, content, files, description, visibility } = options;
   const body: Record<string, unknown> = {};
   if (title !== undefined) body.title = title;
   if (description !== undefined) body.description = description;
   if (visibility !== undefined) body.visibility = visibility;
 
-  if (file_name !== undefined && content !== undefined) {
+  if (files !== undefined) {
+    body.files = files;
+  } else if (file_name !== undefined && content !== undefined) {
     body.files = [{ action: "update", file_path: file_name, content }];
   }
 
