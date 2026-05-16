@@ -3459,6 +3459,20 @@ export const SnippetFileUpdateActionSchema = z
       .describe("Content of the snippet file (required for 'create' and 'update')."),
   })
   .superRefine((data, ctx) => {
+    if (data.file_path === undefined) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "file_path is required for all snippet file actions",
+        path: ["file_path"],
+      });
+    }
+    if ((data.action === "create" || data.action === "update") && data.content === undefined) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: `content is required for action: '${data.action}'`,
+        path: ["content"],
+      });
+    }
     if (data.action === "move" && data.previous_path === undefined) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
@@ -3540,6 +3554,7 @@ export const UpdateSnippetSchema = z
     content: z.string().optional().describe("New file content (requires file_name)"),
     files: z
       .array(SnippetFileUpdateActionSchema)
+      .min(1, "files[] must be non-empty when provided")
       .optional()
       .describe(
         "Multi-file update actions. Each item has 'action' (create/update/delete/move) plus the relevant path/content fields. Use this for renames (action: 'move' with previous_path), deletions, and additions. Mutually exclusive with file_name/content."
