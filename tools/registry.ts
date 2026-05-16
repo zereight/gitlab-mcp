@@ -51,6 +51,7 @@ import {
   ListWorkItemEmojiReactionsSchema,
   ListWorkItemNoteEmojiReactionsSchema,
   CreateWorkItemSchema,
+  DeleteBranchSchema,
   DeleteDraftNoteSchema,
   DeleteGroupWikiPageSchema,
   DeleteIssueLinkSchema,
@@ -76,6 +77,7 @@ import {
   ForkRepositorySchema,
   HealthCheckSchema,
   GetBranchDiffsSchema,
+  GetBranchSchema,
   GetCommitDiffSchema,
   GetCommitSchema,
   GetDeploymentSchema,
@@ -115,6 +117,7 @@ import {
   GetWebhookEventSchema,
   GetWikiPageSchema,
   GetWorkItemSchema,
+  ListBranchesSchema,
   ListCommitsSchema,
   ListCommitStatusesSchema,
   ListCustomFieldDefinitionsSchema,
@@ -265,6 +268,21 @@ export const allTools = [
     name: "create_branch",
     description: "Create a new branch",
     inputSchema: toJSONSchema(CreateBranchSchema),
+  },
+  {
+    name: "get_branch",
+    description: "Get branch details (commit, protection status)",
+    inputSchema: toJSONSchema(GetBranchSchema),
+  },
+  {
+    name: "list_branches",
+    description: "List branches in project with search filter",
+    inputSchema: toJSONSchema(ListBranchesSchema),
+  },
+  {
+    name: "delete_branch",
+    description: "Delete branch from project",
+    inputSchema: toJSONSchema(DeleteBranchSchema),
   },
   {
     name: "get_merge_request",
@@ -1101,6 +1119,8 @@ export const readOnlyTools = new Set([
   "get_merge_request_file_diff",
   "list_merge_request_versions",
   "get_merge_request_version",
+  "get_branch",
+  "list_branches",
   "get_branch_diffs",
   "list_merge_request_pipelines",
   "get_merge_request_note",
@@ -1208,6 +1228,7 @@ export const destructiveTools = new Set([
   "delete_work_item_note_emoji_reaction",
   "merge_merge_request",
   "push_files",
+  "delete_branch",
 ]);
 
 // Define which tools are related to wiki and can be toggled by USE_GITLAB_WIKI
@@ -1298,6 +1319,8 @@ export const TOOLSET_DEFINITIONS: readonly ToolsetDefinition[] = [
       "approve_merge_request",
       "unapprove_merge_request",
       "get_merge_request_approval_state",
+      "get_branch",
+      "list_branches",
       "get_merge_request_conflicts",
       "list_merge_request_pipelines",
       "get_merge_request",
@@ -1384,6 +1407,9 @@ export const TOOLSET_DEFINITIONS: readonly ToolsetDefinition[] = [
     isDefault: true,
     tools: new Set([
       "create_branch",
+      "get_branch",
+      "list_branches",
+      "delete_branch",
       "list_commits",
       "get_commit",
       "get_commit_diff",
