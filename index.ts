@@ -10620,8 +10620,13 @@ async function handleToolCall(params: any) {
           const files = snippet.files ?? [];
           if (files.length > 1) {
             const firstFile = files[0];
-            if (!firstFile.raw_url) throw new Error(`Snippet file "${firstFile.path}" has no raw_url`);
-            const ref = args.ref ?? extractSnippetRef(firstFile.raw_url, args.snippet_id, firstFile.path);
+            let ref: string;
+            if (args.ref !== undefined) {
+              ref = args.ref;
+            } else {
+              if (!firstFile.raw_url) throw new Error(`Snippet file "${firstFile.path}" has no raw_url`);
+              ref = extractSnippetRef(firstFile.raw_url, args.snippet_id, firstFile.path);
+            }
             result.files = await Promise.all(
               files.map(async f => ({
                 ...f,
