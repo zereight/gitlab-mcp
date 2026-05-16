@@ -13,6 +13,7 @@ const TEST_SLASH_REF_SNIPPET_ID = 101;
 const TEST_EXPLICIT_REF_SNIPPET_ID = 102;
 const TEST_NESTED_PATH_SNIPPET_ID = 103;
 const TEST_NO_VISIBILITY_SNIPPET_ID = 104;
+const TEST_NO_RAWURL_SNIPPET_ID = 105;
 const RAW_CONTENT = "console.log('hello world');\n";
 const MULTIFILE_A_CONTENT = "# policy\nbody A\n";
 const MULTIFILE_B_CONTENT = "# instructions\nbody B\n";
@@ -389,6 +390,39 @@ describe("snippet tools", () => {
       }
     );
 
+    // --- Snippet whose files[] entries omit raw_url (only `path` present) ---
+    // Used to verify get_snippet(include_content=true, ref=...) succeeds when
+    // the caller provides ref explicitly, without parsing raw_url.
+    mockGitLab.addMockHandler(
+      "get",
+      `/projects/${TEST_PROJECT_ID}/snippets/${TEST_NO_RAWURL_SNIPPET_ID}`,
+      (_req, res) => {
+        res.json(
+          buildSnippet({
+            id: TEST_NO_RAWURL_SNIPPET_ID,
+            title: "No raw_url snippet",
+            file_name: null,
+            files: [
+              { path: "policy.md" },
+              { path: "instructions.md" },
+            ],
+          })
+        );
+      }
+    );
+
+    mockGitLab.addMockHandler(
+      "get",
+      `/projects/${TEST_PROJECT_ID}/snippets/${TEST_NO_RAWURL_SNIPPET_ID}/files/main/policy.md/raw`,
+      (_req, res) => { res.type("text/plain").send(MULTIFILE_A_CONTENT); }
+    );
+
+    mockGitLab.addMockHandler(
+      "get",
+      `/projects/${TEST_PROJECT_ID}/snippets/${TEST_NO_RAWURL_SNIPPET_ID}/files/main/instructions.md/raw`,
+      (_req, res) => { res.type("text/plain").send(MULTIFILE_B_CONTENT); }
+    );
+
     // --- Personal snippet handlers ---
     mockGitLab.addMockHandler("get", "/snippets", (_req, res) => {
       res.json([
@@ -749,6 +783,41 @@ describe("snippet tools", () => {
     assert.strictEqual(result.files.length, 2);
     assert.strictEqual(result.files[0].content, MULTIFILE_A_CONTENT);
     assert.strictEqual(result.files[1].content, MULTIFILE_B_CONTENT);
+  });
+
+  test("get_snippet with include_content and explicit ref succeeds when files[].raw_url is missing", async () => {
+    const result = await callTool(
+      "get_snippet",
+      {
+        project_id: TEST_PROJECT_ID,
+        snippet_id: TEST_NO_RAWURL_SNIPPET_ID,
+        include_content: true,
+        ref: "main",
+      },
+      env()
+    );
+
+    assert.strictEqual(result.id, TEST_NO_RAWURL_SNIPPET_ID);
+    assert.ok(Array.isArray(result.files));
+    assert.strictEqual(result.files.length, 2);
+    assert.strictEqual(result.files[0].content, MULTIFILE_A_CONTENT);
+    assert.strictEqual(result.files[1].content, MULTIFILE_B_CONTENT);
+  });
+
+  test("get_snippet with include_content still throws when both raw_url and ref are missing", async () => {
+    await assert.rejects(
+      () =>
+        callTool(
+          "get_snippet",
+          {
+            project_id: TEST_PROJECT_ID,
+            snippet_id: TEST_NO_RAWURL_SNIPPET_ID,
+            include_content: true,
+          },
+          env()
+        ),
+      (err: any) => /has no raw_url/.test(JSON.stringify(err))
+    );
   });
 
   test("get_snippet with include_content encodes nested file paths as a single segment", async () => {
