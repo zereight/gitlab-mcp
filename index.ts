@@ -8313,12 +8313,15 @@ async function getTagSignature(
 /**
  * Build the snippets endpoint URL.
  *
- * When projectId is provided, returns the project snippets endpoint.
- * Otherwise, returns the personal snippets endpoint.
+ * When projectId is provided, or when project scoping is configured via
+ * GITLAB_PROJECT_ID / GITLAB_ALLOWED_PROJECT_IDS, returns the project snippets
+ * endpoint (routing through getEffectiveProjectId so the scope env is enforced).
+ * Only falls back to the personal /snippets endpoint when neither is set.
  */
 function getSnippetsEndpoint(projectId?: string): string {
-  if (projectId) {
-    const decoded = decodeURIComponent(projectId);
+  const scopeActive = GITLAB_ALLOWED_PROJECT_IDS.length > 0 || !!GITLAB_PROJECT_ID;
+  if (projectId || scopeActive) {
+    const decoded = projectId ? decodeURIComponent(projectId) : "";
     const effectiveProjectId = getEffectiveProjectId(decoded);
     return `${getEffectiveApiUrl()}/projects/${encodeURIComponent(effectiveProjectId)}/snippets`;
   }

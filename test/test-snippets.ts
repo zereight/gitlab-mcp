@@ -975,6 +975,53 @@ describe("snippet tools", () => {
     assert.strictEqual(result.visibility, undefined);
   });
 
+  test("list_snippets without project_id routes through GITLAB_PROJECT_ID when set", async () => {
+    const result = await callTool(
+      "list_snippets",
+      { per_page: 5 },
+      { ...env(), GITLAB_PROJECT_ID: TEST_PROJECT_ID }
+    );
+
+    assert.ok(Array.isArray(result));
+    assert.strictEqual(result.length, 1);
+    assert.strictEqual(result[0].id, TEST_PROJECT_SNIPPET_ID);
+  });
+
+  test("get_snippet without project_id routes through GITLAB_PROJECT_ID when set", async () => {
+    const result = await callTool(
+      "get_snippet",
+      { snippet_id: TEST_PROJECT_SNIPPET_ID },
+      { ...env(), GITLAB_PROJECT_ID: TEST_PROJECT_ID }
+    );
+
+    assert.strictEqual(result.id, TEST_PROJECT_SNIPPET_ID);
+    assert.strictEqual(result.project_id, Number(TEST_PROJECT_ID));
+  });
+
+  test("list_snippets without project_id routes through single GITLAB_ALLOWED_PROJECT_IDS", async () => {
+    const result = await callTool(
+      "list_snippets",
+      { per_page: 5 },
+      { ...env(), GITLAB_ALLOWED_PROJECT_IDS: TEST_PROJECT_ID }
+    );
+
+    assert.ok(Array.isArray(result));
+    assert.strictEqual(result.length, 1);
+    assert.strictEqual(result[0].id, TEST_PROJECT_SNIPPET_ID);
+  });
+
+  test("list_snippets without project_id rejects when GITLAB_ALLOWED_PROJECT_IDS has multiple entries", async () => {
+    await assert.rejects(
+      () =>
+        callTool(
+          "list_snippets",
+          {},
+          { ...env(), GITLAB_ALLOWED_PROJECT_IDS: `${TEST_PROJECT_ID},789` }
+        ),
+      (err: any) => /Multiple projects allowed/.test(JSON.stringify(err))
+    );
+  });
+
   test("get_snippet without project_id hits personal endpoint", async () => {
     const result = await callTool(
       "get_snippet",
