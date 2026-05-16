@@ -173,6 +173,7 @@ import {
   UpdateGroupWikiPageSchema,
   UpdateIssueNoteSchema,
   UpdateIssueSchema,
+  UpdateIssueDescriptionPatchSchema,
   UpdateLabelSchema,
   UpdateMergeRequestDiscussionNoteSchema,
   UpdateMergeRequestNoteSchema,
@@ -497,6 +498,14 @@ export const allTools = [
     name: "update_issue",
     description: "Update an issue",
     inputSchema: toJSONSchema(UpdateIssueSchema),
+  },
+  {
+    name: "update_issue_description_patch",
+    description:
+      "Apply a patch (search/replace or unified diff) to an issue description. " +
+      "Reduces token usage by allowing small changes without sending the full description. " +
+      "Supports dry_run to preview changes and create_note to summarize updates.",
+    inputSchema: toJSONSchema(UpdateIssueDescriptionPatchSchema),
   },
   {
     name: "delete_issue",
@@ -1346,6 +1355,7 @@ export const TOOLSET_DEFINITIONS: readonly ToolsetDefinition[] = [
       "my_issues",
       "get_issue",
       "update_issue",
+      "update_issue_description_patch",
       "delete_issue",
       "list_todos",
       "mark_todo_done",

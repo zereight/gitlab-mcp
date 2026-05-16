@@ -2054,6 +2054,23 @@ export const DeleteIssueSchema = z.object({
   issue_iid: z.coerce.string().describe("The internal ID of the project issue"),
 });
 
+export const UpdateIssueDescriptionPatchSchema = z.object({
+  project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
+  issue_iid: z.coerce.string().describe("The internal ID of the project issue"),
+  patch_type: z.enum(["search_replace", "unified_diff"]).describe("Type of patch format to apply"),
+  patch: z
+    .string()
+    .min(1)
+    .max(50000)
+    .describe("The patch content to apply to the issue description"),
+  dry_run: z.coerce.boolean().optional().describe("If true, preview changes without updating the issue"),
+  create_note: z.coerce.boolean().optional().describe("If true, add a note summarizing the change after update"),
+  allow_multiple: z
+    .coerce.boolean()
+    .optional()
+    .describe("For search_replace: allow multiple matches to all be replaced (default: false — fail on duplicate)"),
+});
+
 // Issue links related schemas
 export const GitLabIssueLinkSchema = z.object({
   source_issue: GitLabIssueSchema,
@@ -2991,6 +3008,7 @@ export type GitLabIssueLink = z.infer<typeof GitLabIssueLinkSchema>;
 export type ListIssueDiscussionsOptions = z.infer<typeof ListIssueDiscussionsSchema>;
 export type ListMergeRequestDiscussionsOptions = z.infer<typeof ListMergeRequestDiscussionsSchema>;
 export type UpdateIssueNoteOptions = z.infer<typeof UpdateIssueNoteSchema>;
+export type UpdateIssueDescriptionPatchOptions = z.infer<typeof UpdateIssueDescriptionPatchSchema>;
 export type CreateIssueNoteOptions = z.infer<typeof CreateIssueNoteSchema>;
 export type GitLabNamespace = z.infer<typeof GitLabNamespaceSchema>;
 export type GitLabNamespaceExistsResponse = z.infer<typeof GitLabNamespaceExistsResponseSchema>;

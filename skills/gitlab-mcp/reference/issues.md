@@ -37,6 +37,46 @@ update_issue
   assignee_ids: [456]
 ```
 
+### Patch-based description update (token-efficient)
+
+```
+update_issue_description_patch
+  project_id: "my-group/my-project"
+  issue_iid: 10
+  patch_type: "search_replace"  # or "unified_diff"
+  patch: |
+    <<<<<<< SEARCH
+    Status: In progress
+    =======
+    Status: Ready for review
+    >>>>>>> REPLACE
+  dry_run: false
+  create_note: true
+```
+
+Applies a small patch to the issue description without sending the full text.
+Reduces token usage for AI agents editing long descriptions.
+
+**Search/Replace format**:
+```
+<<<<<<< SEARCH
+text to find
+=======
+replacement text
+>>>>>>> REPLACE
+```
+
+**Options**:
+- `dry_run: true` — preview changes without updating
+- `create_note: true` — add a comment summarizing the change after update
+- `allow_multiple: true` — allow multiple matches to all be replaced (search_replace only)
+
+**Error handling**:
+- Search text not found → fails with clear message
+- Multiple matches (without `allow_multiple`) → fails with count
+- Patch results in identical description → fails (no-op)
+- Unified diff doesn't match → fails
+
 ## Delete
 
 ```

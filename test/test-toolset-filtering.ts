@@ -31,7 +31,7 @@ const MCP_PORT_BASE = 3200;
 // Known tool counts per toolset (from TOOLSET_DEFINITIONS)
 const TOOLSET_TOOL_COUNTS: Record<string, number> = {
   merge_requests: 41,
-  issues: 23,
+  issues: 24,
   repositories: 7,
   branches: 6,
   projects: 9,
@@ -403,6 +403,7 @@ describe("Toolset Filtering", { concurrency: 1 }, () => {
     const writeIssueTools = [
       "create_issue",
       "update_issue",
+      "update_issue_description_patch",
       "delete_issue",
       "mark_todo_done",
       "mark_all_todos_done",
