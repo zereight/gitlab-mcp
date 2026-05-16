@@ -900,6 +900,70 @@ describe("snippet tools", () => {
     );
   });
 
+  test("update_snippet rejects files[] create action without content at parse time", async () => {
+    await assert.rejects(
+      () =>
+        callTool(
+          "update_snippet",
+          {
+            project_id: TEST_PROJECT_ID,
+            snippet_id: TEST_PROJECT_SNIPPET_ID,
+            files: [{ action: "create", file_path: "a.md" }],
+          },
+          env()
+        ),
+      (err: any) => /content is required for action: 'create'/.test(JSON.stringify(err))
+    );
+  });
+
+  test("update_snippet rejects files[] update action without content at parse time", async () => {
+    await assert.rejects(
+      () =>
+        callTool(
+          "update_snippet",
+          {
+            project_id: TEST_PROJECT_ID,
+            snippet_id: TEST_PROJECT_SNIPPET_ID,
+            files: [{ action: "update", file_path: "a.md" }],
+          },
+          env()
+        ),
+      (err: any) => /content is required for action: 'update'/.test(JSON.stringify(err))
+    );
+  });
+
+  test("update_snippet rejects files[] action without file_path at parse time", async () => {
+    await assert.rejects(
+      () =>
+        callTool(
+          "update_snippet",
+          {
+            project_id: TEST_PROJECT_ID,
+            snippet_id: TEST_PROJECT_SNIPPET_ID,
+            files: [{ action: "delete" }],
+          },
+          env()
+        ),
+      (err: any) => /file_path is required/.test(JSON.stringify(err))
+    );
+  });
+
+  test("update_snippet rejects empty files[] array at parse time", async () => {
+    await assert.rejects(
+      () =>
+        callTool(
+          "update_snippet",
+          {
+            project_id: TEST_PROJECT_ID,
+            snippet_id: TEST_PROJECT_SNIPPET_ID,
+            files: [],
+          },
+          env()
+        ),
+      (err: any) => /files\[\] must be non-empty/.test(JSON.stringify(err))
+    );
+  });
+
   test("update_snippet rejects file_name without content at parse time", async () => {
     await assert.rejects(
       () =>
