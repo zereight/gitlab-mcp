@@ -523,7 +523,7 @@ describe("Policy Edge Cases", { concurrency: 1 }, () => {
   test("hiding all toolset tools leaves only discover_tools", async () => {
     const allIssueTools = [
       "create_issue", "list_issues", "my_issues", "get_issue",
-      "update_issue", "delete_issue", "create_issue_note", "update_issue_note",
+      "update_issue", "update_issue_description_patch", "delete_issue", "list_todos", "mark_todo_done", "mark_all_todos_done", "create_issue_note", "update_issue_note",
       "list_issue_links", "list_issue_discussions", "get_issue_link",
       "create_issue_link", "delete_issue_link", "create_note",
       "list_issue_emoji_reactions", "list_issue_note_emoji_reactions",

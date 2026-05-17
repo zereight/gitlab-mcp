@@ -14,3 +14,6 @@ coverage/
 test-results*.json
 docs/plans/
 .codex
+
+# AI agent worktrees (local development only)
+.claude/worktrees/

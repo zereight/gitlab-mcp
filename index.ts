@@ -70,6 +70,11 @@ import { createGitLabOAuthProvider } from "./oauth-proxy.js";
 import { mcpAuthRouter } from "@modelcontextprotocol/sdk/server/auth/router.js";
 import { normalizeGitLabApiUrl } from "./utils/url.js";
 import { estimateMergeCommitCount, filterDiffsByPatterns, summarizeWebhookEvents } from "./utils/helpers.js";
+import {
+  parseSearchReplaceBlocks,
+  applySearchReplace,
+  applyUnifiedDiff,
+} from "./utils/patch-helper.js";
 import { requireBearerAuth } from "@modelcontextprotocol/sdk/server/auth/middleware/bearerAuth.js";
 import { GitLabClientPool } from "./gitlab-client-pool.js";
 import {
@@ -331,6 +336,8 @@ import {
   UpdateDraftNoteSchema,
   UpdateIssueNoteSchema,
   UpdateIssueSchema,
+  UpdateIssueDescriptionPatchSchema,
+  type UpdateIssueDescriptionPatchOptions,
   UpdateLabelSchema,
   UpdateMergeRequestNoteSchema,
   UpdateMergeRequestDiscussionNoteSchema,
@@ -9328,6 +9335,103 @@ async function handleToolCall(params: any) {
         const issue = await updateIssue(project_id, issue_iid, options);
         return {
           content: [{ type: "text", text: JSON.stringify(issue, null, 2) }],
+        };
+      }
+
+      case "update_issue_description_patch": {
+        const args = UpdateIssueDescriptionPatchSchema.parse(params.arguments);
+        const { project_id, issue_iid, patch_type, patch, dry_run, create_note, allow_multiple } = args;
+
+        // Fetch current issue description
+        const currentIssue = await getIssue(project_id, issue_iid);
+        const currentDescription = currentIssue.description ?? "";
+
+        // Apply the patch
+        let result: {
+          description: string;
+          changes: number;
+          summary: string;
+          preview: string;
+        };
+
+        if (patch_type === "search_replace") {
+          const blocks = parseSearchReplaceBlocks(patch);
+          if (blocks.length === 0) {
+            throw new Error(
+              "No valid search/replace blocks found. Expected format: <<<<<<< SEARCH\\ntext\\n=======\\nnew text\\n>>>>>>> REPLACE"
+            );
+          }
+          result = applySearchReplace(currentDescription, blocks, allow_multiple);
+        } else {
+          // unified_diff
+          result = applyUnifiedDiff(currentDescription, patch);
+        }
+
+        // Dry-run: return preview without updating
+        if (dry_run) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: JSON.stringify(
+                  {
+                    status: "preview",
+                    dry_run: true,
+                    changes: result.changes,
+                    summary: result.summary,
+                    preview: result.preview,
+                  },
+                  null,
+                  2
+                ),
+              },
+            ],
+          };
+        }
+
+        // Apply the update
+        const updatedIssue = await updateIssue(project_id, issue_iid, {
+          description: result.description,
+        });
+
+        // Optionally create a note summarizing the change
+        let noteResult = null;
+        if (create_note) {
+          try {
+            const noteBody =
+              `Updated issue description using patch-based tool.\n\n${result.summary}`;
+            await createIssueNote(project_id, issue_iid, undefined, noteBody);
+            noteResult = { status: "created" };
+          } catch (noteError: any) {
+            noteResult = {
+              status: "failed",
+              message: `Note creation failed: ${noteError.message ?? noteError}`,
+            };
+          }
+        }
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(
+                {
+                  status: "success",
+                  changes: result.changes,
+                  summary: result.summary,
+                  note: noteResult,
+                  issue: {
+                    iid: updatedIssue.iid,
+                    title: updatedIssue.title,
+                    web_url: updatedIssue.web_url,
+                    updated_at: updatedIssue.updated_at,
+                  },
+                },
+                null,
+                2
+              ),
+            },
+          ],
         };
       }
 

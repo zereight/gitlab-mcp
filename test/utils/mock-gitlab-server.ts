@@ -29,6 +29,8 @@ export class MockGitLabServer {
   // Root-level dynamic router (for OAuth paths not under /api/v4)
   private rootRouter: express.Router;
   private rootHandlers = new Map<string, Handler>();
+  // In-memory store for mutable resources (issues, etc.)
+  private issueStore: Map<string, Record<string, any>> = new Map();
 
   constructor(config: MockGitLabConfig) {
     this.config = config;
@@ -365,6 +367,12 @@ export class MockGitLabServer {
       (req: AuthenticatedRequest, res: Response) => {
         const issueIid = parseInt(req.params.issue_iid);
         const projectId = req.params.projectId;
+        const storeKey = `${projectId}:${issueIid}`;
+        const stored = this.issueStore.get(storeKey);
+        if (stored) {
+          res.json(stored);
+          return;
+        }
         res.json({
           id: issueIid,
           iid: issueIid,
@@ -387,6 +395,52 @@ export class MockGitLabServer {
           labels: [],
           milestone: null,
         });
+      }
+    );
+
+    // PUT /api/v4/projects/:projectId/issues/:issue_iid - Update issue
+    this.app.put(
+      "/api/v4/projects/:projectId/issues/:issue_iid",
+      (req: AuthenticatedRequest, res: Response) => {
+        const issueIid = parseInt(req.params.issue_iid);
+        const projectId = req.params.projectId;
+        const storeKey = `${projectId}:${issueIid}`;
+
+        // Build response from stored data (if previously updated) or defaults
+        const stored = this.issueStore.get(storeKey) || {};
+        const description = (req.body?.description as string) ?? stored.description ?? `Description for issue ${issueIid}`;
+        const title = (req.body?.title as string) ?? stored.title ?? `Test Issue ${issueIid}`;
+        const state = (req.body?.state_event as string) === "close" ? "closed" :
+                      (req.body?.state_event as string) === "reopen" ? "opened" :
+                      (stored.state ?? "opened");
+
+        const updatedIssue = {
+          id: issueIid,
+          iid: issueIid,
+          project_id: projectId,
+          title,
+          description,
+          state,
+          created_at: stored.created_at ?? "2024-01-01T00:00:00Z",
+          updated_at: new Date().toISOString(),
+          closed_at: state === "closed" ? new Date().toISOString() : null,
+          web_url: `https://gitlab.mock/project/${projectId}/issues/${issueIid}`,
+          author: {
+            id: 1,
+            username: "test-user",
+            name: "Test User",
+            avatar_url: null,
+            web_url: "https://gitlab.mock/test-user",
+          },
+          assignees: [],
+          labels: [],
+          milestone: null,
+        };
+
+        // Store for subsequent GET requests
+        this.issueStore.set(storeKey, updatedIssue);
+
+        res.json(updatedIssue);
       }
     );
 
