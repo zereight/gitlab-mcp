@@ -24,7 +24,7 @@ import {
   applyUnifiedDiff,
 } from "../utils/patch-helper.js";
 
-const MOCK_TOKEN = "glpat-patch-test";
+const MOCK_TOKEN = "glpat-patch-test-token-12345";
 
 // ---- Unit tests for patch helper ----
 
@@ -227,9 +227,9 @@ async function getClient(port: number): Promise<CustomHeaderClient> {
   });
 
   after(async () => {
-    await client.disconnect();
+    await client?.disconnect();
     cleanupServers([server]);
-    if (mockGitLab) await mockGitLab.stop();
+    await mockGitLab?.stop();
   });
 
   test("tool appears in tool list", async () => {
