@@ -1626,6 +1626,18 @@ export const CreateBranchSchema = ProjectParamsSchema.extend({
   ref: z.string().optional().describe("Source branch/commit for new branch"),
 });
 
+export const GetBranchSchema = ProjectParamsSchema.extend({
+  branch_name: z.string().describe("Name of the branch"),
+});
+
+export const ListBranchesSchema = ProjectParamsSchema.extend({
+  search: z.string().optional().describe("Search term to filter branches by name"),
+}).merge(PaginationOptionsSchema);
+
+export const DeleteBranchSchema = ProjectParamsSchema.extend({
+  branch_name: z.string().describe("Name of the branch to delete"),
+});
+
 export const GetBranchDiffsSchema = ProjectParamsSchema.extend({
   from: z.string().describe("The base branch or commit SHA to compare from"),
   to: z.string().describe("The target branch or commit SHA to compare to"),

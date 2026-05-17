@@ -37,7 +37,7 @@ export interface SearchReplaceBlock {
 export function parseSearchReplaceBlocks(patch: string): SearchReplaceBlock[] {
   const blocks: SearchReplaceBlock[] = [];
   // Match SEARCH...REPLACE blocks (greedy multiline)
-  const regex = /<<<<<<< SEARCH\s*\n([\s\S]*?)=======\s*\n([\s\S]*?)>>>>>>> REPLACE\s*/g;
+  const regex = /<<<<<<< SEARCH[^\S\n]*\n([\s\S]*?)=======[^\S\n]*\n([\s\S]*?)>>>>>>> REPLACE[^\S\n]*/g;
   let match: RegExpExecArray | null;
 
   while ((match = regex.exec(patch)) !== null) {

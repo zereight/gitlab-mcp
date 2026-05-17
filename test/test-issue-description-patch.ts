@@ -95,6 +95,30 @@ describe("applySearchReplace", () => {
       /did not change/
     );
   });
+
+  test("preserves leading blank line in SEARCH block", () => {
+    const source = "\n\nStatus: In progress\n";
+    const result = applySearchReplace(source, [
+      { search: "\n\nStatus: In progress", replace: "\n\nStatus: Done" },
+    ]);
+    assert.strictEqual(result.description, "\n\nStatus: Done\n");
+  });
+
+  test("preserves leading blank line when patch starts with blank line", () => {
+    const blocks = parseSearchReplaceBlocks(
+      "<<<<<<< SEARCH\n\nfoo\n=======\n\nbar\n>>>>>>> REPLACE"
+    );
+    assert.strictEqual(blocks.length, 1);
+    assert.strictEqual(blocks[0].search, "\nfoo");
+    assert.strictEqual(blocks[0].replace, "\nbar");
+  });
+
+  test("replacement with leading blank line works", () => {
+    const result = applySearchReplace("Header\n\nContent\n", [
+      { search: "Content", replace: "\nNewContent" },
+    ]);
+    assert.strictEqual(result.description, "Header\n\n\nNewContent\n");
+  });
 });
 
 describe("applyUnifiedDiff", () => {
