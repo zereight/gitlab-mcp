@@ -1638,6 +1638,29 @@ export const DeleteBranchSchema = ProjectParamsSchema.extend({
   branch_name: z.string().describe("Name of the branch to delete"),
 });
 
+export const GitLabBranchSchema = z.object({
+  name: z.string(),
+  commit: z.object({
+    id: z.string(),
+    short_id: z.string(),
+    title: z.string(),
+    author_name: z.string(),
+    author_email: z.string(),
+    authored_date: z.string(),
+    committer_name: z.string(),
+    committer_email: z.string(),
+    committed_date: z.string(),
+    web_url: z.string(),
+  }),
+  merged: z.boolean(),
+  protected: z.boolean(),
+  developers_can_push: z.boolean(),
+  developers_can_merge: z.boolean(),
+  can_push: z.boolean(),
+  default: z.boolean(),
+  web_url: z.string().optional(),
+});
+
 export const GetBranchDiffsSchema = ProjectParamsSchema.extend({
   from: z.string().describe("The base branch or commit SHA to compare from"),
   to: z.string().describe("The target branch or commit SHA to compare to"),

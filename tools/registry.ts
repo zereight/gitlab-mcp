@@ -1238,6 +1238,7 @@ export const destructiveTools = new Set([
   "delete_branch",
   "merge_merge_request",
   "push_files",
+  "delete_branch",
 ]);
 
 // Define which tools are related to wiki and can be toggled by USE_GITLAB_WIKI
@@ -1328,6 +1329,8 @@ export const TOOLSET_DEFINITIONS: readonly ToolsetDefinition[] = [
       "approve_merge_request",
       "unapprove_merge_request",
       "get_merge_request_approval_state",
+      "get_branch",
+      "list_branches",
       "get_merge_request_conflicts",
       "list_merge_request_pipelines",
       "get_merge_request",

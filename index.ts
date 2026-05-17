@@ -124,6 +124,7 @@ import {
   CreateRepositorySchema,
   CreateWikiPageSchema,
   CreateGroupWikiPageSchema,
+  DeleteBranchSchema,
   DeleteDraftNoteSchema,
   DeleteGroupWikiPageSchema,
   DeleteIssueLinkSchema,
@@ -140,6 +141,7 @@ import {
   type FileOperation,
   ForkRepositorySchema,
   GetBranchDiffsSchema,
+  GetBranchSchema,
   GetCommitDiffSchema,
   GetCommitSchema,
   GetDraftNoteSchema,
@@ -193,6 +195,7 @@ import {
   GitLabDraftNoteSchema,
   type GitLabFork,
   GitLabForkSchema,
+  GitLabBranchSchema,
   type GitLabIssue,
   type GitLabIssueLink,
   GitLabIssueLinkSchema,
@@ -247,6 +250,7 @@ import {
   type ListCommitsOptions,
   type ListCommitStatusesOptions,
   ListCommitStatusesSchema,
+  ListBranchesSchema,
   ListCommitsSchema,
   ListDraftNotesSchema,
   ListGroupIterationsSchema,
@@ -10561,6 +10565,75 @@ async function handleToolCall(params: any) {
         }
         return {
           content: [{ type: "text", text: JSON.stringify({ status: authenticated ? "ok" : "error", authenticated, gitlab_url: getEffectiveApiUrl() }) }],
+        };
+      }
+
+      case "get_branch": {
+        const args = GetBranchSchema.parse(params.arguments);
+        const projectId = decodeURIComponent(args.project_id);
+        const url = new URL(
+          `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/repository/branches/${encodeURIComponent(args.branch_name)}`
+        );
+
+        const response = await fetch(url.toString(), {
+          ...getFetchConfig(),
+        });
+
+        await handleGitLabError(response);
+        const data = await response.json();
+        const branch = GitLabBranchSchema.parse(data);
+
+        return {
+          content: [{ type: "text", text: JSON.stringify(branch, null, 2) }],
+        };
+      }
+
+      case "list_branches": {
+        const args = ListBranchesSchema.parse(params.arguments);
+        const projectId = decodeURIComponent(args.project_id);
+        const url = new URL(
+          `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/repository/branches`
+        );
+
+        if (args.search) {
+          url.searchParams.append("search", args.search);
+        }
+        if (args.page) {
+          url.searchParams.append("page", args.page.toString());
+        }
+        if (args.per_page) {
+          url.searchParams.append("per_page", args.per_page.toString());
+        }
+
+        const response = await fetch(url.toString(), {
+          ...getFetchConfig(),
+        });
+
+        await handleGitLabError(response);
+        const data = await response.json();
+        const branches = z.array(GitLabBranchSchema).parse(data);
+
+        return {
+          content: [{ type: "text", text: JSON.stringify(branches, null, 2) }],
+        };
+      }
+
+      case "delete_branch": {
+        const args = DeleteBranchSchema.parse(params.arguments);
+        const projectId = decodeURIComponent(args.project_id);
+        const url = new URL(
+          `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/repository/branches/${encodeURIComponent(args.branch_name)}`
+        );
+
+        const response = await fetch(url.toString(), {
+          ...getFetchConfig(),
+          method: "DELETE",
+        });
+
+        await handleGitLabError(response);
+
+        return {
+          content: [{ type: "text", text: JSON.stringify({ status: "deleted", branch: args.branch_name }, null, 2) }],
         };
       }
 
