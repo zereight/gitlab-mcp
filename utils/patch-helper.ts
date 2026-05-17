@@ -49,6 +49,18 @@ export function parseSearchReplaceBlocks(patch: string): SearchReplaceBlock[] {
     blocks.push({ search, replace });
   }
 
+  // Detect malformed blocks: check if SEARCH/REPLACE markers exist but weren't captured
+  const searchMarkers = (patch.match(/<<<<<<<\s+SEARCH/g) || []).length;
+  const replaceMarkers = (patch.match(/>>>>>>>\s+REPLACE/g) || []).length;
+  if (searchMarkers !== blocks.length || replaceMarkers !== blocks.length) {
+    throw new Error(
+      `Found ${searchMarkers} SEARCH marker(s) and ${replaceMarkers} REPLACE marker(s), ` +
+      `but only parsed ${blocks.length} valid block(s). ` +
+      "Some blocks may be malformed (e.g. missing ======= or >>>>>>> REPLACE). " +
+      "Each block must follow the exact format: <<<<<<< SEARCH\ntext\n=======\nnew text\n>>>>>>> REPLACE"
+    );
+  }
+
   return blocks;
 }
 
@@ -70,6 +82,14 @@ export function applySearchReplace(
   const changeLines: string[] = [];
 
   for (const block of blocks) {
+    // Empty SEARCH body would produce an empty regex that corrupts the description
+    if (block.search.length === 0) {
+      throw new Error(
+        "Empty SEARCH block is not allowed. " +
+        "Each SEARCH block must contain the text to find. " +
+        "Block:\n---\n" + block.replace.slice(0, 200) + "\n---"
+      );
+    }
     // Count occurrences
     const escapedSearch = escapeRegex(block.search);
     const regex = new RegExp(escapedSearch, "g");

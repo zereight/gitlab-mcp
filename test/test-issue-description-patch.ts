@@ -56,6 +56,32 @@ describe("parseSearchReplaceBlocks", () => {
     );
     assert.strictEqual(blocks.length, 1);
   });
+
+  test("rejects malformed block with missing REPLACE marker", () => {
+    assert.throws(
+      () => parseSearchReplaceBlocks(
+        "<<<<<<< SEARCH\nfirst\n=======\nfirst new\n>>>>>>> REPLACE\n" +
+        "<<<<<<< SEARCH\nsecond\n=======\nsecond new\n>>>>>>> TYPO"
+      ),
+      /malformed|Marker|marker/
+    );
+  });
+
+  test("rejects block with missing ======= marker", () => {
+    assert.throws(
+      () => parseSearchReplaceBlocks(
+        "<<<<<<< SEARCH\nfoo\n\nbar\n>>>>>>> REPLACE"
+      ),
+      /malformed|Marker|marker/
+    );
+  });
+
+  test("allows prose around valid blocks", () => {
+    const blocks = parseSearchReplaceBlocks(
+      "# Some notes\n\n<<<<<<< SEARCH\nfoo\n=======\nbar\n>>>>>>> REPLACE\n\nMore context"
+    );
+    assert.strictEqual(blocks.length, 1);
+  });
 });
 
 describe("applySearchReplace", () => {
@@ -73,6 +99,13 @@ describe("applySearchReplace", () => {
     assert.throws(
       () => applySearchReplace("Some text.", [{ search: "Nonexistent", replace: "x" }]),
       /Search text not found/
+    );
+  });
+
+  test("rejects empty SEARCH body", () => {
+    assert.throws(
+      () => applySearchReplace("Some text.", [{ search: "", replace: "x" }], true),
+      /Empty SEARCH/
     );
   });
 
