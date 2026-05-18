@@ -647,6 +647,16 @@ Register the skill directory in your AI client to get optimal tool usage guidanc
 154. `search_group_code` - Search for code within a specific GitLab group (requires advanced search or exact code search to be enabled)
 155. `execute_graphql` - Execute a GitLab GraphQL query
 156. `list_merge_request_pipelines` - List pipelines for a merge request with pagination support
+157. `list_project_variables` - List CI/CD variables for a project with optional environment scope filter
+158. `get_project_variable` - Get a single CI/CD variable from a project by key, with optional environment scope filter
+159. `create_project_variable` - Create a new CI/CD variable in a project
+160. `update_project_variable` - Update an existing CI/CD variable in a project, with optional filter to disambiguate by environment scope
+161. `delete_project_variable` - Delete a CI/CD variable from a project, with optional filter to disambiguate by environment scope
+162. `list_group_variables` - List CI/CD variables for a group with optional environment scope filter
+163. `get_group_variable` - Get a single CI/CD variable from a group by key, with optional environment scope filter
+164. `create_group_variable` - Create a new CI/CD variable in a group
+165. `update_group_variable` - Update an existing CI/CD variable in a group, with optional filter to disambiguate by environment scope
+166. `delete_group_variable` - Delete a CI/CD variable from a group, with optional filter to disambiguate by environment scope
 
 <!-- TOOLS-END -->
 

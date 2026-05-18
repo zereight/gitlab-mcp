@@ -17,3 +17,5 @@ docs/plans/
 
 # AI agent worktrees (local development only)
 .claude/worktrees/
+# OpenWolf local context (session notes, anatomy, memory)
+.wolf/
