@@ -8194,7 +8194,19 @@ async function deleteGroupVariable(
 
 // --- Dependency Proxy ---
 
+async function resolveGroupFullPath(groupId: string): Promise<string> {
+  const decoded = decodeURIComponent(groupId);
+  if (/^\d+$/.test(decoded)) {
+    const response = await fetch(`${getEffectiveApiUrl()}/groups/${decoded}`, getFetchConfig());
+    await handleGitLabError(response);
+    const data = await response.json();
+    return data.full_path as string;
+  }
+  return decoded;
+}
+
 async function getDependencyProxySettings(groupPath: string): Promise<GitLabDependencyProxy> {
+  const fullPath = await resolveGroupFullPath(groupPath);
   const data = await executeGraphQL<{
     group: {
       dependencyProxySetting: { enabled: boolean } | null;
@@ -8213,10 +8225,10 @@ async function getDependencyProxySettings(groupPath: string): Promise<GitLabDepe
         dependencyProxyImageTtlPolicy { enabled ttl }
       }
     }`,
-    { fullPath: groupPath }
+    { fullPath }
   );
   const g = data.group;
-  if (!g) throw new Error(`Group not found: ${groupPath}`);
+  if (!g) throw new Error(`Group not found: ${fullPath}`);
   return GitLabDependencyProxySchema.parse({
     enabled: g.dependencyProxySetting?.enabled ?? false,
     blob_count: g.dependencyProxyBlobCount,
@@ -8233,7 +8245,8 @@ async function updateDependencyProxySettings(
   if (options.enabled === undefined && options.identity === undefined && options.secret === undefined) {
     throw new Error("At least one of enabled, identity, or secret must be provided");
   }
-  const input: Record<string, unknown> = { groupPath };
+  const fullPath = await resolveGroupFullPath(groupPath);
+  const input: Record<string, unknown> = { groupPath: fullPath };
   if (options.enabled !== undefined) input["enabled"] = options.enabled;
   if (options.identity !== undefined) input["identity"] = options.identity;
   if (options.secret !== undefined) input["secret"] = options.secret;
@@ -8249,13 +8262,14 @@ async function updateDependencyProxySettings(
   if (errors && errors.length > 0) {
     throw new Error(`Failed to update dependency proxy settings: ${errors.join(", ")}`);
   }
-  return getDependencyProxySettings(groupPath);
+  return getDependencyProxySettings(fullPath);
 }
 
 async function listDependencyProxyBlobs(
   groupPath: string,
   options: Omit<z.infer<typeof ListDependencyProxyBlobsSchema>, "group_id"> = {}
 ): Promise<{ blobs: GitLabDependencyProxyBlob[]; pageInfo: { hasNextPage: boolean; endCursor: string | null } }> {
+  const fullPath = await resolveGroupFullPath(groupPath);
   const data = await executeGraphQL<{
     group: {
       dependencyProxyBlobs: {
@@ -8272,10 +8286,10 @@ async function listDependencyProxyBlobs(
         }
       }
     }`,
-    { fullPath: groupPath, first: options.first ?? 20, after: options.after }
+    { fullPath, first: options.first ?? 20, after: options.after }
   );
   const conn = data.group?.dependencyProxyBlobs;
-  if (!conn) throw new Error(`Group not found or dependency proxy not enabled: ${groupPath}`);
+  if (!conn) throw new Error(`Group not found or dependency proxy not enabled: ${fullPath}`);
   return {
     blobs: conn.nodes.map(n =>
       GitLabDependencyProxyBlobSchema.parse({ file_name: n.fileName, size: n.size, created_at: n.createdAt })
@@ -8285,9 +8299,8 @@ async function listDependencyProxyBlobs(
 }
 
 async function purgeDependencyProxyCache(groupId: string): Promise<void> {
-  const url = new URL(
-    `${getEffectiveApiUrl()}/groups/${encodeURIComponent(groupId)}/dependency_proxy/cache`
-  );
+  const encoded = encodeURIComponent(decodeURIComponent(groupId));
+  const url = new URL(`${getEffectiveApiUrl()}/groups/${encoded}/dependency_proxy/cache`);
   const response = await fetch(url.toString(), { ...getFetchConfig(), method: "DELETE" });
   await handleGitLabError(response);
 }
