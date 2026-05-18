@@ -4008,3 +4008,140 @@ export type SearchProjectCodeOptions = z.infer<typeof SearchProjectCodeSchema>;
 export type SearchGroupCodeOptions = z.infer<typeof SearchGroupCodeSchema>;
 
 export const HealthCheckSchema = z.object({});
+
+// --- CI/CD Variable types ---
+export const GitLabCiVariableSchema = z.object({
+  variable_type: z.enum(["env_var", "file"]).optional(),
+  key: z.string(),
+  value: z.string(),
+  protected: z.boolean().optional(),
+  masked: z.boolean().optional(),
+  raw: z.boolean().optional(),
+  environment_scope: z.string().optional(),
+  description: z.string().nullable().optional(),
+});
+export type GitLabCiVariable = z.infer<typeof GitLabCiVariableSchema>;
+
+const ciVariableFields = {
+  key: z.string().describe("The key of the variable (must match /[a-zA-Z0-9_]+/)"),
+  value: z.string().describe("The value of the variable"),
+  variable_type: z
+    .enum(["env_var", "file"])
+    .optional()
+    .describe("The type of variable: 'env_var' (default) or 'file'"),
+  protected: z
+    .boolean()
+    .optional()
+    .describe("Whether the variable is only available on protected branches/tags"),
+  masked: z.boolean().optional().describe("Whether the variable value is masked in job logs"),
+  raw: z.boolean().optional().describe("Whether the variable is not expanded (treated as raw string)"),
+  environment_scope: z
+    .string()
+    .optional()
+    .describe("Environment scope (e.g. '*', 'production'). Default: '*'"),
+  description: z.string().optional().describe("Description of the variable"),
+};
+
+export const ListProjectVariablesSchema = z
+  .object({
+    project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
+    filter: z
+      .object({ environment_scope: z.string() })
+      .optional()
+      .describe("Filter by environment scope (e.g. '*', 'production')"),
+  })
+  .merge(PaginationOptionsSchema);
+
+export const GetProjectVariableSchema = z.object({
+  project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
+  key: z.string().describe("The key of the variable"),
+  filter: z
+    .object({ environment_scope: z.string() })
+    .optional()
+    .describe("Filter by environment scope"),
+});
+
+export const CreateProjectVariableSchema = z.object({
+  project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
+  ...ciVariableFields,
+});
+
+export const UpdateProjectVariableSchema = z.object({
+  project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
+  key: z.string().describe("The key of the variable to update"),
+  value: z.string().describe("The new value of the variable"),
+  variable_type: z.enum(["env_var", "file"]).optional().describe("The type of variable"),
+  protected: z.boolean().optional().describe("Whether the variable is protected"),
+  masked: z.boolean().optional().describe("Whether the variable value is masked in job logs"),
+  raw: z.boolean().optional().describe("Whether the variable is not expanded"),
+  environment_scope: z
+    .string()
+    .optional()
+    .describe("New environment scope to assign to the variable (renames the scope, e.g. '*', 'production'). Use filter.environment_scope to identify which variable to update when multiple share the same key."),
+  description: z.string().optional().describe("Description of the variable"),
+  filter: z
+    .object({ environment_scope: z.string() })
+    .optional()
+    .describe("Identifies which variable to update when multiple variables share the same key across different environment scopes"),
+});
+
+export const DeleteProjectVariableSchema = z.object({
+  project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
+  key: z.string().describe("The key of the variable to delete"),
+  filter: z
+    .object({ environment_scope: z.string() })
+    .optional()
+    .describe("Filter by environment scope to disambiguate when multiple variables share the same key"),
+});
+
+export const ListGroupVariablesSchema = z
+  .object({
+    group_id: z.coerce.string().describe("Group ID or URL-encoded path"),
+    filter: z
+      .object({ environment_scope: z.string() })
+      .optional()
+      .describe("Filter by environment scope (e.g. '*', 'production')"),
+  })
+  .merge(PaginationOptionsSchema);
+
+export const GetGroupVariableSchema = z.object({
+  group_id: z.coerce.string().describe("Group ID or URL-encoded path"),
+  key: z.string().describe("The key of the variable"),
+  filter: z
+    .object({ environment_scope: z.string() })
+    .optional()
+    .describe("Filter by environment scope"),
+});
+
+export const CreateGroupVariableSchema = z.object({
+  group_id: z.coerce.string().describe("Group ID or URL-encoded path"),
+  ...ciVariableFields,
+});
+
+export const UpdateGroupVariableSchema = z.object({
+  group_id: z.coerce.string().describe("Group ID or URL-encoded path"),
+  key: z.string().describe("The key of the variable to update"),
+  value: z.string().describe("The new value of the variable"),
+  variable_type: z.enum(["env_var", "file"]).optional().describe("The type of variable"),
+  protected: z.boolean().optional().describe("Whether the variable is protected"),
+  masked: z.boolean().optional().describe("Whether the variable value is masked in job logs"),
+  raw: z.boolean().optional().describe("Whether the variable is not expanded"),
+  environment_scope: z
+    .string()
+    .optional()
+    .describe("New environment scope to assign to the variable (renames the scope, e.g. '*', 'production'). Use filter.environment_scope to identify which variable to update when multiple share the same key."),
+  description: z.string().optional().describe("Description of the variable"),
+  filter: z
+    .object({ environment_scope: z.string() })
+    .optional()
+    .describe("Identifies which variable to update when multiple variables share the same key across different environment scopes"),
+});
+
+export const DeleteGroupVariableSchema = z.object({
+  group_id: z.coerce.string().describe("Group ID or URL-encoded path"),
+  key: z.string().describe("The key of the variable to delete"),
+  filter: z
+    .object({ environment_scope: z.string() })
+    .optional()
+    .describe("Filter by environment scope to disambiguate when multiple variables share the same key"),
+});

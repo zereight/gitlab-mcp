@@ -192,6 +192,16 @@ import {
   UpdateWikiPageSchema,
   UpdateWorkItemSchema,
   VerifyNamespaceSchema,
+  ListProjectVariablesSchema,
+  GetProjectVariableSchema,
+  CreateProjectVariableSchema,
+  UpdateProjectVariableSchema,
+  DeleteProjectVariableSchema,
+  ListGroupVariablesSchema,
+  GetGroupVariableSchema,
+  CreateGroupVariableSchema,
+  UpdateGroupVariableSchema,
+  DeleteGroupVariableSchema,
 } from "../schemas.js";
 
 const IS_REMOTE = SSE || STREAMABLE_HTTP;
@@ -1125,6 +1135,57 @@ export const allTools = [
     description: "Search for code within a specific group (requires advanced search or Zoekt)",
     inputSchema: toJSONSchema(SearchGroupCodeSchema),
   },
+  // --- CI/CD Variable tools ---
+  {
+    name: "list_project_variables",
+    description: "List CI/CD variables for a project",
+    inputSchema: toJSONSchema(ListProjectVariablesSchema),
+  },
+  {
+    name: "get_project_variable",
+    description: "Get a single CI/CD variable from a project",
+    inputSchema: toJSONSchema(GetProjectVariableSchema),
+  },
+  {
+    name: "create_project_variable",
+    description: "Create a CI/CD variable for a project",
+    inputSchema: toJSONSchema(CreateProjectVariableSchema),
+  },
+  {
+    name: "update_project_variable",
+    description: "Update an existing CI/CD variable in a project",
+    inputSchema: toJSONSchema(UpdateProjectVariableSchema),
+  },
+  {
+    name: "delete_project_variable",
+    description: "Delete a CI/CD variable from a project",
+    inputSchema: toJSONSchema(DeleteProjectVariableSchema),
+  },
+  {
+    name: "list_group_variables",
+    description: "List CI/CD variables for a group",
+    inputSchema: toJSONSchema(ListGroupVariablesSchema),
+  },
+  {
+    name: "get_group_variable",
+    description: "Get a single CI/CD variable from a group",
+    inputSchema: toJSONSchema(GetGroupVariableSchema),
+  },
+  {
+    name: "create_group_variable",
+    description: "Create a CI/CD variable for a group",
+    inputSchema: toJSONSchema(CreateGroupVariableSchema),
+  },
+  {
+    name: "update_group_variable",
+    description: "Update an existing CI/CD variable in a group",
+    inputSchema: toJSONSchema(UpdateGroupVariableSchema),
+  },
+  {
+    name: "delete_group_variable",
+    description: "Delete a CI/CD variable from a group",
+    inputSchema: toJSONSchema(DeleteGroupVariableSchema),
+  },
   // --- Meta tool: Dynamic tool discovery ---
   {
     name: "discover_tools",
@@ -1247,6 +1308,10 @@ export const readOnlyTools = new Set([
   "list_webhooks",
   "list_webhook_events",
   "get_webhook_event",
+  "list_project_variables",
+  "get_project_variable",
+  "list_group_variables",
+  "get_group_variable",
 ]);
 
 // Define which tools are destructive (data loss potential)
@@ -1271,7 +1336,8 @@ export const destructiveTools = new Set([
   "delete_branch",
   "merge_merge_request",
   "push_files",
-  "delete_branch",
+  "delete_project_variable",
+  "delete_group_variable",
 ]);
 
 // Define which tools are related to wiki and can be toggled by USE_GITLAB_WIKI
@@ -1346,7 +1412,8 @@ export type ToolsetId =
   | "users"
   | "workitems"
   | "webhooks"
-  | "search";
+  | "search"
+  | "variables";
 
 export interface ToolsetDefinition {
   readonly id: ToolsetId;
@@ -1629,6 +1696,22 @@ export const TOOLSET_DEFINITIONS: readonly ToolsetDefinition[] = [
     id: "search",
     isDefault: false,
     tools: new Set(["search_code", "search_project_code", "search_group_code"]),
+  },
+  {
+    id: "variables",
+    isDefault: false,
+    tools: new Set([
+      "list_project_variables",
+      "get_project_variable",
+      "create_project_variable",
+      "update_project_variable",
+      "delete_project_variable",
+      "list_group_variables",
+      "get_group_variable",
+      "create_group_variable",
+      "update_group_variable",
+      "delete_group_variable",
+    ]),
   },
 ] as const;
 
