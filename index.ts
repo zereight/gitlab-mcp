@@ -145,6 +145,10 @@ import {
   GetBranchSchema,
   GetCommitDiffSchema,
   GetCommitSchema,
+  GetFileBlameSchema,
+  type GetFileBlameOptions,
+  GitLabBlameEntrySchema,
+  type GitLabBlameEntry,
   GetDraftNoteSchema,
   GetFileContentsSchema,
   GetIssueLinkSchema,
@@ -7615,6 +7619,42 @@ async function getCommitDiff(
 }
 
 /**
+ * Get blame for a file at a specific ref.
+ *
+ * Wraps GitLab REST endpoint
+ *   GET /projects/:id/repository/files/:file_path/blame?ref=
+ * Returns an array of entries; each entry has `lines` (the source lines covered)
+ * and `commit` (the commit that last changed those lines: id, author, message, ...).
+ *
+ * @param {string} projectId  - Project ID or URL-encoded path
+ * @param {Omit<GetFileBlameOptions,"project_id">} options - file_path, ref, optional range_start/range_end
+ * @returns {Promise<GitLabBlameEntry[]>} Blame entries in source order.
+ */
+async function getFileBlame(
+  projectId: string,
+  options: Omit<GetFileBlameOptions, "project_id">
+): Promise<GitLabBlameEntry[]> {
+  projectId = decodeURIComponent(projectId);
+  const url = new URL(
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/repository/files/${encodeURIComponent(options.file_path)}/blame`
+  );
+  url.searchParams.append("ref", options.ref);
+  if (options.range_start !== undefined && options.range_end !== undefined) {
+    url.searchParams.append("range[start]", options.range_start.toString());
+    url.searchParams.append("range[end]", options.range_end.toString());
+  }
+
+  const response = await fetch(url.toString(), {
+    ...getFetchConfig(),
+  });
+
+  await handleGitLabError(response);
+
+  const data = await response.json();
+  return z.array(GitLabBlameEntrySchema).parse(data);
+}
+
+/**
  * List statuses for a commit.
  *
  * @param {string} projectId - Project ID or URL-encoded path
@@ -10334,6 +10374,15 @@ async function handleToolCall(params: any) {
         const diff = await getCommitDiff(args.project_id, args.sha, args.full_diff);
         return {
           content: [{ type: "text", text: JSON.stringify(diff, null, 2) }],
+        };
+      }
+
+      case "get_file_blame": {
+        const args = GetFileBlameSchema.parse(params.arguments);
+        const { project_id, ...options } = args;
+        const blame = await getFileBlame(project_id, options);
+        return {
+          content: [{ type: "text", text: JSON.stringify(blame, null, 2) }],
         };
       }
 
