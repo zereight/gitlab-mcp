@@ -636,6 +636,41 @@ export const GitLabCurrentUserSchema = z.object({
   })).optional(),
 }).passthrough();
 
+// Group related schemas
+export const CreateGroupSchema = z.object({
+  name: z.string().describe("The name of the group"),
+  path: z.string().describe("The path of the group"),
+  description: z.string().optional().describe("The group's description"),
+  visibility: z.enum(["private", "internal", "public"]).optional().describe("The group's visibility level"),
+  parent_id: z.coerce.number().optional().describe("The parent group ID for creating a subgroup"),
+});
+
+export const GitLabGroupSchema = z.object({
+  id: z.coerce.string(),
+  name: z.string(),
+  path: z.string(),
+  description: z.string().nullable(),
+  visibility: z.string().optional(),
+  share_with_group_lock: z.boolean().optional(),
+  require_two_factor_authentication: z.boolean().optional(),
+  two_factor_grace_period: z.number().optional(),
+  project_creation_level: z.string().optional(),
+  auto_devops_enabled: z.boolean().nullable().optional(),
+  subgroup_creation_level: z.string().optional(),
+  emails_disabled: z.boolean().nullable().optional(),
+  mentions_disabled: z.boolean().nullable().optional(),
+  lfs_enabled: z.boolean().nullable().optional(),
+  avatar_url: z.string().nullable().optional(),
+  web_url: z.string(),
+  request_access_enabled: z.boolean().nullable().optional(),
+  full_name: z.string(),
+  full_path: z.string(),
+  file_template_project_id: z.number().nullable().optional(),
+  parent_id: z.coerce.string().nullable().optional(),
+  created_at: z.string().optional(),
+  statistics: z.any().optional(),
+});
+
 // Namespace related schemas
 
 // Base schema for project-related operations
