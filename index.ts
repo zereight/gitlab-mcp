@@ -257,6 +257,14 @@ import {
   ListDraftNotesSchema,
   ListGroupIterationsSchema,
   ListGroupProjectsSchema,
+  GitLabDependencyProxySchema,
+  type GitLabDependencyProxy,
+  GitLabDependencyProxyBlobSchema,
+  type GitLabDependencyProxyBlob,
+  GetDependencyProxySettingsSchema,
+  UpdateDependencyProxySettingsSchema,
+  ListDependencyProxyBlobsSchema,
+  PurgeDependencyProxyCacheSchema,
   ListIssueDiscussionsSchema,
   ListIssueLinksSchema,
   ListIssuesSchema,
@@ -7823,6 +7831,117 @@ async function listGroupIterations(
   return z.array(GroupIteration).parse(data);
 }
 
+async function resolveGroupFullPath(groupId: string): Promise<string> {
+  const decoded = decodeURIComponent(groupId);
+  if (/^\d+$/.test(decoded)) {
+    const response = await fetch(`${getEffectiveApiUrl()}/groups/${decoded}`, getFetchConfig());
+    await handleGitLabError(response);
+    const data = z.object({ full_path: z.string() }).parse(await response.json());
+    return data.full_path;
+  }
+  return decoded;
+}
+
+async function getDependencyProxySettings(groupPath: string): Promise<GitLabDependencyProxy> {
+  const fullPath = await resolveGroupFullPath(groupPath);
+  const data = await executeGraphQL<{
+    group: {
+      dependencyProxySetting: { enabled: boolean } | null;
+      dependencyProxyBlobCount: number | null;
+      dependencyProxyTotalSize: string | null;
+      dependencyProxyImagePrefix: string | null;
+      dependencyProxyImageTtlPolicy: { enabled: boolean; ttl: number | null } | null;
+    } | null;
+  }>(
+    `query($fullPath: ID!) {
+      group(fullPath: $fullPath) {
+        dependencyProxySetting { enabled }
+        dependencyProxyBlobCount
+        dependencyProxyTotalSize
+        dependencyProxyImagePrefix
+        dependencyProxyImageTtlPolicy { enabled ttl }
+      }
+    }`,
+    { fullPath }
+  );
+  const g = data.group;
+  if (!g) throw new Error(`Group not found: ${fullPath}`);
+  return GitLabDependencyProxySchema.parse({
+    enabled: g.dependencyProxySetting?.enabled ?? false,
+    blob_count: g.dependencyProxyBlobCount,
+    total_size: g.dependencyProxyTotalSize,
+    image_prefix: g.dependencyProxyImagePrefix,
+    ttl_policy: g.dependencyProxyImageTtlPolicy,
+  });
+}
+
+async function updateDependencyProxySettings(
+  groupPath: string,
+  options: Omit<z.infer<typeof UpdateDependencyProxySettingsSchema>, "group_id">
+): Promise<GitLabDependencyProxy> {
+  if (options.enabled === undefined && options.identity === undefined && options.secret === undefined) {
+    throw new Error("At least one of enabled, identity, or secret must be provided");
+  }
+  const fullPath = await resolveGroupFullPath(groupPath);
+  const input: Record<string, unknown> = { groupPath: fullPath };
+  if (options.enabled !== undefined) input["enabled"] = options.enabled;
+  if (options.identity !== undefined) input["identity"] = options.identity;
+  if (options.secret !== undefined) input["secret"] = options.secret;
+  const mutationResult = await executeGraphQL<{
+    updateDependencyProxySettings: { errors: string[] };
+  }>(
+    `mutation($input: UpdateDependencyProxySettingsInput!) {
+      updateDependencyProxySettings(input: $input) { errors }
+    }`,
+    { input }
+  );
+  const errors = mutationResult.updateDependencyProxySettings?.errors;
+  if (errors && errors.length > 0) {
+    throw new Error(`Failed to update dependency proxy settings: ${errors.join(", ")}`);
+  }
+  return getDependencyProxySettings(fullPath);
+}
+
+async function listDependencyProxyBlobs(
+  groupPath: string,
+  options: Omit<z.infer<typeof ListDependencyProxyBlobsSchema>, "group_id"> = {}
+): Promise<{ blobs: GitLabDependencyProxyBlob[]; pageInfo: { hasNextPage: boolean; endCursor: string | null } }> {
+  const fullPath = await resolveGroupFullPath(groupPath);
+  const data = await executeGraphQL<{
+    group: {
+      dependencyProxyBlobs: {
+        nodes: { fileName: string; size: string; createdAt: string | null }[];
+        pageInfo: { hasNextPage: boolean; endCursor: string | null };
+      } | null;
+    } | null;
+  }>(
+    `query($fullPath: ID!, $first: Int, $after: String) {
+      group(fullPath: $fullPath) {
+        dependencyProxyBlobs(first: $first, after: $after) {
+          nodes { fileName size createdAt }
+          pageInfo { hasNextPage endCursor }
+        }
+      }
+    }`,
+    { fullPath, first: options.first ?? 20, after: options.after }
+  );
+  const conn = data.group?.dependencyProxyBlobs;
+  if (!conn) throw new Error(`Group not found or dependency proxy not enabled: ${fullPath}`);
+  return {
+    blobs: conn.nodes.map(n =>
+      GitLabDependencyProxyBlobSchema.parse({ file_name: n.fileName, size: n.size, created_at: n.createdAt })
+    ),
+    pageInfo: conn.pageInfo,
+  };
+}
+
+async function purgeDependencyProxyCache(groupId: string): Promise<void> {
+  const encoded = encodeURIComponent(decodeURIComponent(groupId));
+  const url = new URL(`${getEffectiveApiUrl()}/groups/${encoded}/dependency_proxy/cache`);
+  const response = await fetch(url.toString(), { ...getFetchConfig(), method: "DELETE" });
+  await handleGitLabError(response);
+}
+
 /**
  * Upload a file to a GitLab project for use in markdown content
  *
@@ -10360,6 +10479,49 @@ async function handleToolCall(params: any) {
         const iterations = await listGroupIterations(args.group_id, args);
         return {
           content: [{ type: "text", text: JSON.stringify(iterations, null, 2) }],
+        };
+      }
+
+      case "get_dependency_proxy_settings": {
+        const args = GetDependencyProxySettingsSchema.parse(params.arguments);
+        const settings = await getDependencyProxySettings(args.group_id);
+        return {
+          content: [{ type: "text", text: JSON.stringify(settings, null, 2) }],
+        };
+      }
+
+      case "update_dependency_proxy_settings": {
+        const args = UpdateDependencyProxySettingsSchema.parse(params.arguments);
+        const { group_id, ...options } = args;
+        const settings = await updateDependencyProxySettings(group_id, options);
+        return {
+          content: [{ type: "text", text: JSON.stringify(settings, null, 2) }],
+        };
+      }
+
+      case "list_dependency_proxy_blobs": {
+        const args = ListDependencyProxyBlobsSchema.parse(params.arguments);
+        const { group_id, ...options } = args;
+        const result = await listDependencyProxyBlobs(group_id, options);
+        return {
+          content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+        };
+      }
+
+      case "purge_dependency_proxy_cache": {
+        const args = PurgeDependencyProxyCacheSchema.parse(params.arguments);
+        await purgeDependencyProxyCache(args.group_id);
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(
+                { status: "success", message: "Dependency proxy cache purge scheduled" },
+                null,
+                2
+              ),
+            },
+          ],
         };
       }
 

@@ -29,7 +29,9 @@ import {
   GetMergeRequestSchema,
   ListMergeRequestPipelinesSchema,
   GetRepositoryTreeSchema,
-  GitLabUserFullSchema
+  GitLabUserFullSchema,
+  GitLabDependencyProxySchema,
+  GitLabDependencyProxyBlobSchema,
 } from '../schemas.js';
 
 interface TestResult {
@@ -1364,6 +1366,96 @@ function runGitLabUserFullSchemaTests(): { passed: number; failed: number } {
   return { passed, failed };
 }
 
+function runGitLabDependencyProxySchemaTests(): { passed: number; failed: number } {
+  console.log('🧪 Testing GitLabDependencyProxySchema...');
+
+  const cases = [
+    {
+      name: 'schema:dependency_proxy:minimal',
+      input: { enabled: true, blob_count: 0, total_size: '0' },
+      shouldFail: false,
+    },
+    {
+      name: 'schema:dependency_proxy:full',
+      input: {
+        enabled: true,
+        blob_count: 42,
+        total_size: '1234567890',
+        image_prefix: 'gitlab.example.com:5050/my-group/dependency_proxy/containers',
+        ttl_policy: { enabled: true, ttl: 90 },
+      },
+      shouldFail: false,
+    },
+    {
+      name: 'schema:dependency_proxy:nulls-allowed',
+      input: { enabled: false, blob_count: null, total_size: null, image_prefix: null, ttl_policy: null },
+      shouldFail: false,
+    },
+  ];
+
+  let passed = 0;
+  let failed = 0;
+  cases.forEach(testCase => {
+    const result: TestResult = { name: testCase.name, status: 'failed' };
+    const parsed = GitLabDependencyProxySchema.safeParse(testCase.input);
+    if (testCase.shouldFail) {
+      result.status = parsed.success ? 'failed' : 'passed';
+      if (parsed.success) result.error = 'Expected schema validation to fail';
+    } else if (parsed.success) {
+      result.status = 'passed';
+    } else {
+      result.error = parsed.error?.message || 'Schema validation failed';
+    }
+    if (result.status === 'passed') { passed++; console.log(`✅ ${result.name}`); }
+    else { failed++; console.log(`❌ ${result.name}: ${result.error}`); }
+  });
+
+  console.log(`\nResults: ${passed} passed, ${failed} failed`);
+  return { passed, failed };
+}
+
+function runGitLabDependencyProxyBlobSchemaTests(): { passed: number; failed: number } {
+  console.log('🧪 Testing GitLabDependencyProxyBlobSchema...');
+
+  const cases = [
+    {
+      name: 'schema:dependency_proxy_blob:basic',
+      input: { file_name: 'sha256:abc123', size: '2.5 MiB', created_at: '2026-01-01T00:00:00Z' },
+      shouldFail: false,
+    },
+    {
+      name: 'schema:dependency_proxy_blob:no-created-at',
+      input: { file_name: 'sha256:def456', size: '512 KiB' },
+      shouldFail: false,
+    },
+    {
+      name: 'schema:dependency_proxy_blob:size-must-be-string',
+      input: { file_name: 'sha256:ghi789', size: 12345 },
+      shouldFail: true,
+    },
+  ];
+
+  let passed = 0;
+  let failed = 0;
+  cases.forEach(testCase => {
+    const result: TestResult = { name: testCase.name, status: 'failed' };
+    const parsed = GitLabDependencyProxyBlobSchema.safeParse(testCase.input);
+    if (testCase.shouldFail) {
+      result.status = parsed.success ? 'failed' : 'passed';
+      if (parsed.success) result.error = 'Expected schema validation to fail';
+    } else if (parsed.success) {
+      result.status = 'passed';
+    } else {
+      result.error = parsed.error?.message || 'Schema validation failed';
+    }
+    if (result.status === 'passed') { passed++; console.log(`✅ ${result.name}`); }
+    else { failed++; console.log(`❌ ${result.name}: ${result.error}`); }
+  });
+
+  console.log(`\nResults: ${passed} passed, ${failed} failed`);
+  return { passed, failed };
+}
+
 if (import.meta.url === `file://${process.argv[1]}`) {
   const getFileContentsResult = runGetFileContentsSchemaTests();
   const fileContentResult = runGitLabFileContentSchemaTests();
@@ -1380,9 +1472,11 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   const treeItemResult = runGitLabTreeItemSchemaTests();
   const repositoryTreeResult = runGetRepositoryTreeSchemaTests();
   const gitLabUserFullResult = runGitLabUserFullSchemaTests();
+  const dependencyProxyResult = runGitLabDependencyProxySchemaTests();
+  const dependencyProxyBlobResult = runGitLabDependencyProxyBlobSchemaTests();
 
-  const totalPassed = getFileContentsResult.passed + fileContentResult.passed + createPipelineResult.passed + commitStatusResult.passed + createIssueNoteResult.passed + getMergeRequestResult.passed + listMergeRequestPipelinesResult.passed + gitLabMergeRequestResult.passed + emojiReactionResult.passed + repositorySchemaResult.passed + labelsCoercionResult.passed + listLabelsResult.passed + treeItemResult.passed + repositoryTreeResult.passed + gitLabUserFullResult.passed;
-  const totalFailed = getFileContentsResult.failed + fileContentResult.failed + createPipelineResult.failed + commitStatusResult.failed + createIssueNoteResult.failed + getMergeRequestResult.failed + listMergeRequestPipelinesResult.failed + gitLabMergeRequestResult.failed + emojiReactionResult.failed + repositorySchemaResult.failed + labelsCoercionResult.failed + listLabelsResult.failed + treeItemResult.failed + repositoryTreeResult.failed + gitLabUserFullResult.failed;
+  const totalPassed = getFileContentsResult.passed + fileContentResult.passed + createPipelineResult.passed + commitStatusResult.passed + createIssueNoteResult.passed + getMergeRequestResult.passed + listMergeRequestPipelinesResult.passed + gitLabMergeRequestResult.passed + emojiReactionResult.passed + repositorySchemaResult.passed + labelsCoercionResult.passed + listLabelsResult.passed + treeItemResult.passed + repositoryTreeResult.passed + gitLabUserFullResult.passed + dependencyProxyResult.passed + dependencyProxyBlobResult.passed;
+  const totalFailed = getFileContentsResult.failed + fileContentResult.failed + createPipelineResult.failed + commitStatusResult.failed + createIssueNoteResult.failed + getMergeRequestResult.failed + listMergeRequestPipelinesResult.failed + gitLabMergeRequestResult.failed + emojiReactionResult.failed + repositorySchemaResult.failed + labelsCoercionResult.failed + listLabelsResult.failed + treeItemResult.failed + repositoryTreeResult.failed + gitLabUserFullResult.failed + dependencyProxyResult.failed + dependencyProxyBlobResult.failed;
 
   console.log(`\nTotal Results: ${totalPassed} passed, ${totalFailed} failed`);
 

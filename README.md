@@ -647,6 +647,10 @@ Register the skill directory in your AI client to get optimal tool usage guidanc
 154. `search_group_code` - Search for code within a specific GitLab group (requires advanced search or exact code search to be enabled)
 155. `execute_graphql` - Execute a GitLab GraphQL query
 156. `list_merge_request_pipelines` - List pipelines for a merge request with pagination support
+157. `get_dependency_proxy_settings` - Get dependency proxy settings for a group (enabled status, blob count, total size, image prefix, TTL policy)
+158. `update_dependency_proxy_settings` - Update dependency proxy settings for a group (enable/disable, credentials for authenticated Docker Hub pulls)
+159. `list_dependency_proxy_blobs` - List cached dependency proxy blobs for a group with cursor-based pagination
+160. `purge_dependency_proxy_cache` - Schedule purge of all cached dependency proxy blobs for a group
 
 <!-- TOOLS-END -->
 

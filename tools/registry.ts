@@ -186,6 +186,10 @@ import {
   UpdateWikiPageSchema,
   UpdateWorkItemSchema,
   VerifyNamespaceSchema,
+  GetDependencyProxySettingsSchema,
+  UpdateDependencyProxySettingsSchema,
+  ListDependencyProxyBlobsSchema,
+  PurgeDependencyProxyCacheSchema,
 } from "../schemas.js";
 
 
@@ -1099,6 +1103,27 @@ export const allTools = [
     description: "Search for code within a specific group (requires advanced search or Zoekt)",
     inputSchema: toJSONSchema(SearchGroupCodeSchema),
   },
+  // --- Dependency proxy tools ---
+  {
+    name: "get_dependency_proxy_settings",
+    description: "Get dependency proxy settings for a group",
+    inputSchema: toJSONSchema(GetDependencyProxySettingsSchema),
+  },
+  {
+    name: "update_dependency_proxy_settings",
+    description: "Update dependency proxy settings for a group (enable/disable, credentials for authenticated Docker Hub pulls)",
+    inputSchema: toJSONSchema(UpdateDependencyProxySettingsSchema),
+  },
+  {
+    name: "list_dependency_proxy_blobs",
+    description: "List cached dependency proxy blobs for a group",
+    inputSchema: toJSONSchema(ListDependencyProxyBlobsSchema),
+  },
+  {
+    name: "purge_dependency_proxy_cache",
+    description: "Schedule purge of all cached dependency proxy blobs for a group",
+    inputSchema: toJSONSchema(PurgeDependencyProxyCacheSchema),
+  },
   // --- Meta tool: Dynamic tool discovery ---
   {
     name: "discover_tools",
@@ -1220,6 +1245,8 @@ export const readOnlyTools = new Set([
   "list_webhooks",
   "list_webhook_events",
   "get_webhook_event",
+  "get_dependency_proxy_settings",
+  "list_dependency_proxy_blobs",
 ]);
 
 // Define which tools are destructive (data loss potential)
@@ -1244,7 +1271,7 @@ export const destructiveTools = new Set([
   "delete_branch",
   "merge_merge_request",
   "push_files",
-  "delete_branch",
+  "purge_dependency_proxy_cache",
 ]);
 
 // Define which tools are related to wiki and can be toggled by USE_GITLAB_WIKI
@@ -1319,7 +1346,8 @@ export type ToolsetId =
   | "users"
   | "workitems"
   | "webhooks"
-  | "search";
+  | "search"
+  | "dependency_proxy";
 
 export interface ToolsetDefinition {
   readonly id: ToolsetId;
@@ -1601,6 +1629,16 @@ export const TOOLSET_DEFINITIONS: readonly ToolsetDefinition[] = [
     id: "search",
     isDefault: false,
     tools: new Set(["search_code", "search_project_code", "search_group_code"]),
+  },
+  {
+    id: "dependency_proxy",
+    isDefault: false,
+    tools: new Set([
+      "get_dependency_proxy_settings",
+      "update_dependency_proxy_settings",
+      "list_dependency_proxy_blobs",
+      "purge_dependency_proxy_cache",
+    ]),
   },
 ] as const;
 
