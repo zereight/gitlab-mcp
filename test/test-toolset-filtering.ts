@@ -33,7 +33,7 @@ const TOOLSET_TOOL_COUNTS: Record<string, number> = {
   merge_requests: 41,
   issues: 24,
   repositories: 7,
-  branches: 9,
+  branches: 10,
   projects: 9,
   labels: 5,
   ci: 2,
