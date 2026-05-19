@@ -7901,7 +7901,7 @@ async function listProjectVariables(
   const response = await fetch(url.toString(), getFetchConfig());
   await handleGitLabError(response);
   const data = await response.json();
-  return data as GitLabCiVariable[];
+  return z.array(GitLabCiVariableSchema).parse(data);
 }
 
 async function getProjectVariable(
@@ -7996,7 +7996,7 @@ async function listGroupVariables(
   const response = await fetch(url.toString(), getFetchConfig());
   await handleGitLabError(response);
   const data = await response.json();
-  return data as GitLabCiVariable[];
+  return z.array(GitLabCiVariableSchema).parse(data);
 }
 
 async function getGroupVariable(
@@ -10660,6 +10660,7 @@ async function handleToolCall(params: any) {
       }
 
       case "list_group_variables": {
+        rejectIfProjectScopedDeployment("list_group_variables");
         const args = ListGroupVariablesSchema.parse(params.arguments);
         const { group_id, ...options } = args;
         const variables = await listGroupVariables(group_id, options);
@@ -10667,6 +10668,7 @@ async function handleToolCall(params: any) {
       }
 
       case "get_group_variable": {
+        rejectIfProjectScopedDeployment("get_group_variable");
         const args = GetGroupVariableSchema.parse(params.arguments);
         const variable = await getGroupVariable(args.group_id, args.key, args.filter);
         return { content: [{ type: "text", text: JSON.stringify(variable, null, 2) }] };
