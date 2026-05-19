@@ -7836,8 +7836,8 @@ async function resolveGroupFullPath(groupId: string): Promise<string> {
   if (/^\d+$/.test(decoded)) {
     const response = await fetch(`${getEffectiveApiUrl()}/groups/${decoded}`, getFetchConfig());
     await handleGitLabError(response);
-    const data = await response.json();
-    return data.full_path as string;
+    const data = z.object({ full_path: z.string() }).parse(await response.json());
+    return data.full_path;
   }
   return decoded;
 }
