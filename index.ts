@@ -1520,6 +1520,19 @@ function getEffectiveProjectId(projectId: string): string {
   throw new Error("No project ID provided and GITLAB_PROJECT_ID is not set");
 }
 
+function rejectIfProjectScopedDeployment(toolName: string): void {
+  if (GITLAB_PROJECT_ID) {
+    throw new Error(
+      `${toolName} is not allowed when GITLAB_PROJECT_ID is set (server is locked to a single project)`
+    );
+  }
+  if (GITLAB_ALLOWED_PROJECT_IDS.length > 0) {
+    throw new Error(
+      `${toolName} is not allowed when GITLAB_ALLOWED_PROJECT_IDS is set (server access is restricted to configured projects)`
+    );
+  }
+}
+
 /**
  * Create a fork of a GitLab project
  * 프로젝트 포크 생성 (Create a project fork)
@@ -8398,9 +8411,7 @@ async function handleToolCall(params: any) {
         }
       }
       case "fork_repository": {
-        if (GITLAB_PROJECT_ID || GITLAB_ALLOWED_PROJECT_IDS.length > 0) {
-          throw new Error("Direct project ID is set. So fork_repository is not allowed");
-        }
+        rejectIfProjectScopedDeployment("fork_repository");
         const forkArgs = ForkRepositorySchema.parse(params.arguments);
         try {
           const forkedProject = await forkProject(forkArgs.project_id, forkArgs.namespace);
@@ -8507,9 +8518,7 @@ async function handleToolCall(params: any) {
       }
 
       case "create_repository": {
-        if (GITLAB_PROJECT_ID || GITLAB_ALLOWED_PROJECT_IDS.length > 0) {
-          throw new Error("Direct project ID is set. So create_repository is not allowed");
-        }
+        rejectIfProjectScopedDeployment("create_repository");
         const args = CreateRepositorySchema.parse(params.arguments);
         const repository = await createRepository(args);
         return {
@@ -8518,9 +8527,7 @@ async function handleToolCall(params: any) {
       }
 
       case "create_group": {
-        if (GITLAB_PROJECT_ID || GITLAB_ALLOWED_PROJECT_IDS.length > 0) {
-          throw new Error("Direct project ID is set. So create_group is not allowed");
-        }
+        rejectIfProjectScopedDeployment("create_group");
         const args = CreateGroupSchema.parse(params.arguments);
         const url = new URL(`${getEffectiveApiUrl()}/groups`);
 
