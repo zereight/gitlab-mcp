@@ -8,6 +8,7 @@ const TEST_PROJECT_ID = "123";
 const TEST_GROUP_ID = "my-group";
 const TEST_VAR_KEY = "DB_URL";
 const TEST_GROUP_VAR_KEY = "SHARED_SECRET";
+const TEST_SCOPE = "production";
 
 const MOCK_PROJECT_VARIABLE = {
   variable_type: "env_var",
@@ -81,6 +82,7 @@ describe("CI/CD variable tools", () => {
   let mockServer: MockGitLabServer;
   let mockPort: number;
   let baseEnv: NodeJS.ProcessEnv;
+  let lastReceivedFilterScope: string | undefined;
 
   before(async () => {
     mockPort = await findMockServerPort();
@@ -94,8 +96,10 @@ describe("CI/CD variable tools", () => {
     mockServer.addMockHandler(
       "get",
       `/projects/${TEST_PROJECT_ID}/variables/${TEST_VAR_KEY}`,
-      (_req, res) => {
-        res.json(MOCK_PROJECT_VARIABLE);
+      (req, res) => {
+        const scope = (req.query as Record<string, string>)["filter[environment_scope]"];
+        lastReceivedFilterScope = scope;
+        res.json({ ...MOCK_PROJECT_VARIABLE, environment_scope: scope ?? "*" });
       }
     );
 
@@ -107,14 +111,17 @@ describe("CI/CD variable tools", () => {
       "put",
       `/projects/${TEST_PROJECT_ID}/variables/${TEST_VAR_KEY}`,
       (req, res) => {
-        res.json({ ...MOCK_PROJECT_VARIABLE, ...(req.body as object) });
+        const scope = (req.query as Record<string, string>)["filter[environment_scope]"];
+        lastReceivedFilterScope = scope;
+        res.json({ ...MOCK_PROJECT_VARIABLE, ...(req.body as object), environment_scope: scope ?? "*" });
       }
     );
 
     mockServer.addMockHandler(
       "delete",
       `/projects/${TEST_PROJECT_ID}/variables/${TEST_VAR_KEY}`,
-      (_req, res) => {
+      (req, res) => {
+        lastReceivedFilterScope = (req.query as Record<string, string>)["filter[environment_scope]"];
         res.status(204).send();
       }
     );
@@ -289,6 +296,46 @@ describe("CI/CD variable tools", () => {
     );
     assert.strictEqual(result.status, "success");
     assert.ok(result.message.includes(TEST_GROUP_VAR_KEY));
+  });
+
+  // --- filter[environment_scope] tests ---
+
+  test("get_project_variable passes filter[environment_scope] to GitLab", async () => {
+    lastReceivedFilterScope = undefined;
+    const result = await callTool(
+      "get_project_variable",
+      { project_id: TEST_PROJECT_ID, key: TEST_VAR_KEY, filter: { environment_scope: TEST_SCOPE } },
+      baseEnv
+    );
+    assert.strictEqual(lastReceivedFilterScope, TEST_SCOPE);
+    assert.strictEqual(result.environment_scope, TEST_SCOPE);
+  });
+
+  test("update_project_variable passes filter[environment_scope] to GitLab", async () => {
+    lastReceivedFilterScope = undefined;
+    const result = await callTool(
+      "update_project_variable",
+      {
+        project_id: TEST_PROJECT_ID,
+        key: TEST_VAR_KEY,
+        value: "scoped-value",
+        filter: { environment_scope: TEST_SCOPE },
+      },
+      baseEnv
+    );
+    assert.strictEqual(lastReceivedFilterScope, TEST_SCOPE);
+    assert.strictEqual(result.environment_scope, TEST_SCOPE);
+  });
+
+  test("delete_project_variable passes filter[environment_scope] to GitLab", async () => {
+    lastReceivedFilterScope = undefined;
+    const result = await callTool(
+      "delete_project_variable",
+      { project_id: TEST_PROJECT_ID, key: TEST_VAR_KEY, filter: { environment_scope: TEST_SCOPE } },
+      baseEnv
+    );
+    assert.strictEqual(lastReceivedFilterScope, TEST_SCOPE);
+    assert.strictEqual(result.status, "success");
   });
 
   // --- Toolset behaviour ---
