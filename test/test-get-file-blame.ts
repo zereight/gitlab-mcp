@@ -148,4 +148,47 @@ describe("get_file_blame", () => {
     assert.strictEqual(lastQuery["range[start]"], "10");
     assert.strictEqual(lastQuery["range[end]"], "20");
   });
+
+  test("rejects partial range (range_start only) at schema layer", async () => {
+    await assert.rejects(
+      () =>
+        callGetFileBlame(
+          {
+            project_id: TEST_PROJECT_ID,
+            file_path: "src/example.txt",
+            ref: "main",
+            range_start: 10,
+          },
+          {
+            GITLAB_API_URL: `${mockGitLabUrl}/api/v4`,
+            GITLAB_PERSONAL_ACCESS_TOKEN: MOCK_TOKEN,
+          }
+        ),
+      (e: any) =>
+        typeof e?.message === "string" &&
+        e.message.includes("range_start and range_end must be provided together")
+    );
+  });
+
+  test("rejects inverted range (start > end) at schema layer", async () => {
+    await assert.rejects(
+      () =>
+        callGetFileBlame(
+          {
+            project_id: TEST_PROJECT_ID,
+            file_path: "src/example.txt",
+            ref: "main",
+            range_start: 20,
+            range_end: 10,
+          },
+          {
+            GITLAB_API_URL: `${mockGitLabUrl}/api/v4`,
+            GITLAB_PERSONAL_ACCESS_TOKEN: MOCK_TOKEN,
+          }
+        ),
+      (e: any) =>
+        typeof e?.message === "string" &&
+        e.message.includes("range_start must be less than or equal to range_end")
+    );
+  });
 });
