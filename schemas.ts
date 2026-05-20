@@ -2761,6 +2761,62 @@ export const GetCommitDiffSchema = z.object({
     .describe("Whether to return the full diff or only first page (default: false)"),
 });
 
+export const GetFileBlameSchema = z
+  .object({
+    project_id: z.coerce.string().describe("Project ID or complete URL-encoded path to project"),
+    file_path: z.string().describe("The full path of the file to blame, relative to repo root"),
+    ref: z
+      .string()
+      .describe("The name of branch, tag or commit (required by GitLab blame API)"),
+    range_start: z
+      .coerce.number()
+      .int()
+      .optional()
+      .describe("First line of the blame range (inclusive, 1-based). Both range[start] and range[end] must be set together."),
+    range_end: z
+      .coerce.number()
+      .int()
+      .optional()
+      .describe("Last line of the blame range (inclusive, 1-based). Both range[start] and range[end] must be set together."),
+  })
+  .refine(
+    (v) => (v.range_start === undefined) === (v.range_end === undefined),
+    {
+      message:
+        "range_start and range_end must be provided together (both or neither). Passing only one silently returned full-file blame on GitLab side.",
+      path: ["range_end"],
+    }
+  )
+  .refine(
+    (v) =>
+      v.range_start === undefined ||
+      v.range_end === undefined ||
+      v.range_start <= v.range_end,
+    {
+      message: "range_start must be less than or equal to range_end.",
+      path: ["range_start"],
+    }
+  );
+export type GetFileBlameOptions = z.infer<typeof GetFileBlameSchema>;
+
+export const GitLabBlameEntrySchema = z.object({
+  lines: z.array(z.string()).describe("Source lines covered by this blame range"),
+  commit: z
+    .object({
+      id: z.string(),
+      parent_ids: z.array(z.string()).optional(),
+      message: z.string().optional(),
+      authored_date: z.string().optional(),
+      author_name: z.string().optional(),
+      author_email: z.string().optional(),
+      committed_date: z.string().optional(),
+      committer_name: z.string().optional(),
+      committer_email: z.string().optional(),
+    })
+    .passthrough(),
+});
+export type GitLabBlameEntry = z.infer<typeof GitLabBlameEntrySchema>;
+
 export const ListCommitStatusesSchema = z
   .object({
     project_id: z.coerce.string().describe("Project ID or complete URL-encoded path to project"),
