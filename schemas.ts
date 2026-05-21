@@ -2933,6 +2933,12 @@ export const MarkdownUploadSchema = z.object({
   file_path: z.string().describe("Path to the file to upload"),
 });
 
+export const MarkdownUploadRemoteSchema = z.object({
+  project_id: z.string().describe("Project ID or URL-encoded path of the project"),
+  content: z.string().describe("File content as base64-encoded string"),
+  filename: z.string().describe("Filename for the uploaded content"),
+});
+
 export const DownloadAttachmentSchema = z.object({
   project_id: z.string().describe("Project ID or URL-encoded path of the project"),
   secret: z.string().describe("The 32-character secret of the upload"),
@@ -2941,6 +2947,12 @@ export const DownloadAttachmentSchema = z.object({
     .string()
     .optional()
     .describe("Local path to save the file (optional, defaults to current directory)"),
+});
+
+export const DownloadAttachmentRemoteSchema = z.object({
+  project_id: z.string().describe("Project ID or URL-encoded path of the project"),
+  secret: z.string().describe("The 32-character secret of the upload"),
+  filename: z.string().describe("The filename of the upload"),
 });
 
 export const GroupIteration = z.object({
@@ -3218,6 +3230,7 @@ export type PublishDraftNoteOptions = z.infer<typeof PublishDraftNoteSchema>;
 export type BulkPublishDraftNotesOptions = z.infer<typeof BulkPublishDraftNotesSchema>;
 export type GitLabMarkdownUpload = z.infer<typeof GitLabMarkdownUploadSchema>;
 export type MarkdownUploadOptions = z.infer<typeof MarkdownUploadSchema>;
+export type MarkdownUploadRemoteOptions = z.infer<typeof MarkdownUploadRemoteSchema>;
 
 // Events API type exports
 export type GitLabEvent = z.infer<typeof GitLabEventSchema>;
@@ -3456,6 +3469,11 @@ export const DownloadJobArtifactsSchema = z.object({
     .string()
     .optional()
     .describe("Local directory to save the artifact archive (defaults to current directory)"),
+});
+
+export const DownloadJobArtifactsRemoteSchema = z.object({
+  project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
+  job_id: z.coerce.string().describe("The ID of the job"),
 });
 
 export const GetJobArtifactFileSchema = z.object({
