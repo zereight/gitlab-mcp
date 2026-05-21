@@ -39,6 +39,116 @@ import {
   GITLAB_TOOL_POLICY_APPROVE_RAW,
   GITLAB_TOOL_POLICY_HIDDEN_RAW,
 } from "./config.js";
+
+/** True when the server is running in remote/network mode (SSE or StreamableHTTP transport). */
+const IS_REMOTE = SSE || STREAMABLE_HTTP;
+
+/**
+ * Encryption key for download tokens. When DOWNLOAD_TOKEN_SECRET is set
+ * (recommended for HA deployments behind a load balancer) the key is
+ * derived from that value so all replicas share the same key. Otherwise
+ * a random key is generated per process (tokens are not portable across
+ * restarts or replicas).
+ */
+const DOWNLOAD_TOKEN_KEY: Buffer = (() => {
+  const secret = process.env.DOWNLOAD_TOKEN_SECRET;
+  if (secret) {
+    return createHash("sha256").update(secret).digest();
+  }
+  return randomBytes(32);
+})();
+
+/** Download token TTL in seconds (default 5 minutes). */
+const DOWNLOAD_TOKEN_TTL = Number.parseInt(process.env.DOWNLOAD_TOKEN_TTL || "300", 10);
+
+function createDownloadToken(header: string, token: string, apiUrl?: string, resource?: { type: string; params: Record<string, string> }): string {
+  const iv = randomBytes(12);
+  const cipher = createCipheriv("aes-256-gcm", DOWNLOAD_TOKEN_KEY, iv);
+  const payload = JSON.stringify({
+    h: header,
+    t: token,
+    e: Math.floor(Date.now() / 1000) + DOWNLOAD_TOKEN_TTL,
+    ...(apiUrl ? { u: apiUrl } : {}),
+    ...(resource ? { r: resource.type, p: resource.params } : {}),
+  });
+  const encrypted = Buffer.concat([cipher.update(payload, "utf8"), cipher.final()]);
+  const tag = cipher.getAuthTag();
+  return Buffer.concat([iv, tag, encrypted]).toString("base64url");
+}
+
+function decryptDownloadToken(
+  tokenStr: string
+): { header: string; token: string; apiUrl?: string; resourceType?: string; resourceParams?: Record<string, string> } | null {
+  try {
+    const buf = Buffer.from(tokenStr, "base64url");
+    if (buf.length < 29) return null;
+    const iv = buf.subarray(0, 12);
+    const tag = buf.subarray(12, 28);
+    const encrypted = buf.subarray(28);
+    const decipher = createDecipheriv("aes-256-gcm", DOWNLOAD_TOKEN_KEY, iv);
+    decipher.setAuthTag(tag);
+    const decrypted = Buffer.concat([decipher.update(encrypted), decipher.final()]);
+    const payload = JSON.parse(decrypted.toString("utf8"));
+    // Check TTL
+    if (payload.e && Math.floor(Date.now() / 1000) > payload.e) {
+      return null; // expired
+    }
+    return {
+      header: payload.h,
+      token: payload.t,
+      ...(payload.u ? { apiUrl: payload.u } : {}),
+      ...(payload.r ? { resourceType: payload.r, resourceParams: payload.p } : {}),
+    };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Build a URL pointing to the download proxy endpoint.
+ * Embeds an encrypted auth token (and API URL for dynamic routing)
+ * from the current session so the URL works standalone.
+ */
+function buildDownloadUrl(type: string, params: Record<string, string>): string {
+  const base = MCP_SERVER_URL || `http://${HOST}:${PORT}`;
+  const baseUrl = new URL(base);
+  // Preserve any path prefix (e.g. /gitlab-mcp) from the base URL
+  const basePath = baseUrl.pathname.replace(/\/+$/, "");
+  const url = new URL(`${basePath}/downloads/${type}`, baseUrl.origin);
+  for (const [key, value] of Object.entries(params)) {
+    url.searchParams.set(key, value);
+  }
+  // Embed auth (and apiUrl when dynamic routing is active) from current session or static config
+  // Token is bound to the specific resource (type + params) to prevent URL tampering
+  const resource = { type, params };
+  const ctx = sessionAuthStore.getStore();
+  if (ctx?.token) {
+    const headerValue = ctx.header === "Authorization" ? `Bearer ${ctx.token}` : ctx.token;
+    const apiUrl = ENABLE_DYNAMIC_API_URL && ctx.apiUrl !== GITLAB_API_URL ? ctx.apiUrl : undefined;
+    url.searchParams.set("_token", createDownloadToken(ctx.header, headerValue, apiUrl, resource));
+  } else {
+    // Fallback for SSE/static-token mode (no session auth context)
+    // Priority matches buildAuthHeaders: OAuth > PAT > JOB token
+    const staticToken = OAUTH_ACCESS_TOKEN || GITLAB_PERSONAL_ACCESS_TOKEN || GITLAB_JOB_TOKEN;
+    if (staticToken) {
+      let header: string;
+      let headerValue: string;
+      if (GITLAB_JOB_TOKEN && !GITLAB_PERSONAL_ACCESS_TOKEN && !OAUTH_ACCESS_TOKEN) {
+        header = "JOB-TOKEN";
+        headerValue = String(staticToken);
+      } else if (IS_OLD) {
+        header = "Private-Token";
+        headerValue = String(staticToken);
+      } else {
+        header = "Authorization";
+        headerValue = `Bearer ${staticToken}`;
+      }
+      url.searchParams.set("_token", createDownloadToken(header, headerValue, undefined, resource));
+    }
+  }
+  return url.toString();
+}
+
 import {
   loadKeyMaterialFromEnv,
   looksLikeStatelessSessionId,
@@ -59,12 +169,14 @@ import { AsyncLocalStorage } from "node:async_hooks";
 import express, { NextFunction, Request, Response } from "express";
 import fetchCookie from "fetch-cookie";
 import fs from "node:fs";
+import { pipeline as streamPipeline } from "node:stream/promises";
 import os from "node:os";
 import nodeFetch from "node-fetch";
 import path, { dirname } from "node:path";
 import { CookieJar, parse as parseCookie } from "tough-cookie";
 import { fileURLToPath, URL } from "node:url";
 import { z } from "zod";
+
 import { initializeOAuthClient, GitLabOAuth } from "./oauth.js";
 import { createGitLabOAuthProvider } from "./oauth-proxy.js";
 import { mcpAuthRouter } from "@modelcontextprotocol/sdk/server/auth/router.js";
@@ -306,6 +418,7 @@ import {
   UpdateGroupWikiPageSchema,
   type ListGroupWikiPagesOptions,
   MarkdownUploadSchema,
+  MarkdownUploadRemoteSchema,
   DownloadAttachmentSchema,
   DownloadJobArtifactsSchema,
   GetJobArtifactFileSchema,
@@ -401,7 +514,7 @@ import {
   HealthCheckSchema,
 } from "./schemas.js";
 
-import { randomUUID } from "node:crypto";
+import { randomUUID, createCipheriv, createDecipheriv, randomBytes, createHash } from "node:crypto";
 import { pino } from "pino";
 
 const logger = pino({
@@ -6936,12 +7049,14 @@ async function downloadJobArtifacts(
 
   await handleGitLabError(response);
 
-  const buffer = await response.arrayBuffer();
   const filename = `artifacts_job_${jobId}.zip`;
   const savePath = localPath ? path.join(localPath, filename) : filename;
   fs.mkdirSync(path.dirname(savePath), { recursive: true });
 
-  fs.writeFileSync(savePath, Buffer.from(buffer));
+  if (!response.body) {
+    throw new Error("No response body from GitLab");
+  }
+  await streamPipeline(response.body, fs.createWriteStream(savePath));
 
   return savePath;
 }
@@ -7864,24 +7979,48 @@ async function listGroupIterations(
 }
 
 /**
- * Upload a file to a GitLab project for use in markdown content
+ * Upload a file to a GitLab project for use in markdown content.
+ *
+ * Accepts either a local file path or inline base64-encoded content
+ * (the latter is useful for remote deployments where the client cannot
+ * write to the server's filesystem).
  *
  * @param {string} projectId - The ID or URL-encoded path of the project
- * @param {string} filePath - Path to the local file to upload
+ * @param {string} filePath - Path to the local file to upload (optional if content provided)
+ * @param {string} content - Base64-encoded file content (optional if filePath provided)
+ * @param {string} filename - Filename for the uploaded content (required when content provided)
  * @returns {Promise<GitLabMarkdownUpload>} The upload response
  */
-async function markdownUpload(projectId: string, filePath: string): Promise<GitLabMarkdownUpload> {
+async function markdownUpload(
+  projectId: string,
+  filePath?: string,
+  content?: string,
+  filename?: string
+): Promise<GitLabMarkdownUpload> {
   projectId = decodeURIComponent(projectId);
   const effectiveProjectId = getEffectiveProjectId(projectId);
 
-  // Check if file exists
-  if (!fs.existsSync(filePath)) {
-    throw new Error(`File not found: ${filePath}`);
+  let fileBuffer: Buffer;
+  let fileName: string;
+
+  if (IS_REMOTE && filePath) {
+    throw new Error("file_path cannot be used in remote mode. Provide base64-encoded content and filename instead.");
   }
 
-  // Read the file
-  const fileBuffer = fs.readFileSync(filePath);
-  const fileName = path.basename(filePath);
+  if (content) {
+    // Inline content mode (remote deployments)
+    fileBuffer = Buffer.from(content, "base64");
+    fileName = filename || "upload";
+  } else if (filePath) {
+    // Local file mode
+    if (!fs.existsSync(filePath)) {
+      throw new Error(`File not found: ${filePath}`);
+    }
+    fileBuffer = fs.readFileSync(filePath);
+    fileName = path.basename(filePath);
+  } else {
+    throw new Error("Either file_path or content must be provided");
+  }
 
   // Create form data
   const FormData = (await import("form-data")).default;
@@ -7956,8 +8095,6 @@ async function downloadAttachment(
     await handleGitLabError(response);
   }
 
-  // Get the file content as buffer
-  const buffer = Buffer.from(await response.arrayBuffer());
   const mimeType = getImageMimeType(filename);
 
   // For non-image files, always save to disk.
@@ -7982,10 +8119,17 @@ async function downloadAttachment(
     if (!fs.existsSync(dir)) {
       fs.mkdirSync(dir, { recursive: true });
     }
-    fs.writeFileSync(savePath, buffer);
-    return { buffer, filename, mimeType, savedPath: savePath };
+
+    // Stream directly to disk instead of buffering in memory
+    if (!response.body) {
+      throw new Error("No response body from GitLab");
+    }
+    await streamPipeline(response.body, fs.createWriteStream(savePath));
+    return { buffer: Buffer.alloc(0), filename, mimeType, savedPath: savePath };
   }
 
+  // Images returned inline — buffer into memory for base64 encoding
+  const buffer = Buffer.from(await response.arrayBuffer());
   return { buffer, filename, mimeType };
 }
 
@@ -10175,6 +10319,15 @@ async function handleToolCall(params: any) {
         const { project_id, job_id, local_path } = DownloadJobArtifactsSchema.parse(
           params.arguments
         );
+        if (IS_REMOTE) {
+          if (local_path) {
+            throw new Error("local_path cannot be used in remote mode — use the returned download_url instead");
+          }
+          const downloadUrl = buildDownloadUrl("job-artifacts", { project_id, job_id });
+          return {
+            content: [{ type: "text", text: JSON.stringify({ download_url: downloadUrl, filename: `artifacts_job_${job_id}.zip` }, null, 2) }],
+          };
+        }
         const filePath = await downloadJobArtifacts(project_id, job_id, local_path);
         return {
           content: [
@@ -10413,6 +10566,13 @@ async function handleToolCall(params: any) {
       }
 
       case "upload_markdown": {
+        if (IS_REMOTE) {
+          const args = MarkdownUploadRemoteSchema.parse(params.arguments);
+          const upload = await markdownUpload(args.project_id, undefined, args.content, args.filename);
+          return {
+            content: [{ type: "text", text: JSON.stringify(upload, null, 2) }],
+          };
+        }
         const args = MarkdownUploadSchema.parse(params.arguments);
         const upload = await markdownUpload(args.project_id, args.file_path);
         return {
@@ -10422,6 +10582,22 @@ async function handleToolCall(params: any) {
 
       case "download_attachment": {
         const args = DownloadAttachmentSchema.parse(params.arguments);
+
+        if (IS_REMOTE && args.local_path) {
+          throw new Error("local_path cannot be used in remote mode — use the returned download_url instead");
+        }
+
+        // In remote mode for non-image files, return proxy URL
+        const mimeType = getImageMimeType(args.filename);
+        if (IS_REMOTE && !mimeType) {
+          const downloadUrl = buildDownloadUrl("attachment", {
+            project_id: args.project_id, secret: args.secret, filename: args.filename,
+          });
+          return {
+            content: [{ type: "text", text: JSON.stringify({ download_url: downloadUrl, filename: args.filename }, null, 2) }],
+          };
+        }
+
         const result = await downloadAttachment(
           args.project_id,
           args.secret,
@@ -10545,6 +10721,14 @@ async function handleToolCall(params: any) {
 
       case "download_release_asset": {
         const args = DownloadReleaseAssetSchema.parse(params.arguments);
+        if (IS_REMOTE) {
+          const downloadUrl = buildDownloadUrl("release-asset", {
+            project_id: args.project_id, tag_name: args.tag_name, direct_asset_path: args.direct_asset_path,
+          });
+          return {
+            content: [{ type: "text", text: JSON.stringify({ download_url: downloadUrl, filename: args.direct_asset_path.split("/").pop() || args.direct_asset_path }, null, 2) }],
+          };
+        }
         const assetContent = await downloadReleaseAsset(
           args.project_id,
           args.tag_name,
@@ -10790,6 +10974,189 @@ async function startStdioServer(): Promise<void> {
 }
 
 /**
+ * Register the /downloads/:type proxy endpoint on an Express app.
+ * Streams GitLab API responses directly to the client. Auth is read from
+ * an encrypted `_token` query param (self-contained URL) or from request headers.
+ */
+function registerDownloadProxy(
+  app: ReturnType<typeof express>,
+  maxRequestsPerMinute: number = Number.parseInt(process.env.MAX_REQUESTS_PER_MINUTE || "60", 10),
+): void {
+  const downloadRateLimits: Record<string, { count: number; resetAt: number }> = {};
+  let lastEviction = Date.now();
+
+  const checkDownloadRateLimit = (token: string): boolean => {
+    const now = Date.now();
+
+    // Evict expired entries every 60s to prevent unbounded growth
+    if (now - lastEviction > 60000) {
+      for (const key of Object.keys(downloadRateLimits)) {
+        if (now > downloadRateLimits[key].resetAt) delete downloadRateLimits[key];
+      }
+      lastEviction = now;
+    }
+
+    const entry = downloadRateLimits[token];
+    if (!entry || now > entry.resetAt) {
+      downloadRateLimits[token] = { count: 1, resetAt: now + 60000 };
+      return true;
+    }
+    if (entry.count >= maxRequestsPerMinute) return false;
+    entry.count++;
+    return true;
+  };
+
+  app.get("/downloads/:type", async (req: Request, res: Response) => {
+    const headers: Record<string, string> = { Accept: "application/octet-stream" };
+    let rateLimitKey: string;
+
+    // Try embedded encrypted token first (self-contained URL), then headers
+    const encryptedToken = req.query._token as string | undefined;
+    let tokenApiUrl: string | undefined;
+    if (encryptedToken) {
+      const decrypted = decryptDownloadToken(encryptedToken);
+      if (!decrypted) {
+        res.status(401).json({ error: "Invalid or expired download token" });
+        return;
+      }
+      // Verify resource binding — token must match the requested type and params
+      if (decrypted.resourceType || decrypted.resourceParams) {
+        const { type } = req.params;
+        const queryParams: Record<string, string> = {};
+        for (const [k, v] of Object.entries(req.query)) {
+          if (k !== "_token" && typeof v === "string") queryParams[k] = v;
+        }
+        if (
+          decrypted.resourceType !== type ||
+          JSON.stringify(decrypted.resourceParams) !== JSON.stringify(queryParams)
+        ) {
+          res.status(403).json({ error: "Download token does not match the requested resource" });
+          return;
+        }
+      }
+      headers[decrypted.header] = decrypted.token;
+      rateLimitKey = decrypted.token;
+      tokenApiUrl = decrypted.apiUrl;
+    } else {
+      const privateToken = req.headers["private-token"] as string | undefined;
+      const jobToken = req.headers["job-token"] as string | undefined;
+      const authHeader = req.headers["authorization"] as string | undefined;
+
+      if (privateToken) {
+        headers["Private-Token"] = privateToken;
+        rateLimitKey = privateToken;
+      } else if (jobToken) {
+        headers["JOB-TOKEN"] = jobToken;
+        rateLimitKey = jobToken;
+      } else if (authHeader) {
+        headers["Authorization"] = authHeader;
+        rateLimitKey = authHeader;
+      } else {
+        res.status(401).json({ error: "Authentication required" });
+        return;
+      }
+    }
+
+    if (!checkDownloadRateLimit(rateLimitKey)) {
+      res.status(429).json({ error: "Rate limit exceeded" });
+      return;
+    }
+
+    // API URL: prefer token-embedded URL, then X-GitLab-API-URL header, then default
+    let apiUrl = tokenApiUrl || GITLAB_API_URL;
+    if (!tokenApiUrl) {
+      const dynamicApiUrl = (req.headers["x-gitlab-api-url"] as string | undefined)?.trim();
+      if (ENABLE_DYNAMIC_API_URL && dynamicApiUrl) {
+        try {
+          new URL(dynamicApiUrl);
+          apiUrl = normalizeGitLabApiUrl(dynamicApiUrl);
+        } catch {
+          res.status(400).json({ error: "Invalid X-GitLab-API-URL" });
+          return;
+        }
+      }
+    }
+
+    const { type } = req.params;
+    let gitlabUrl: string;
+
+    try {
+      switch (type) {
+        case "job-artifacts": {
+          const { project_id, job_id } = req.query as Record<string, string>;
+          if (!project_id || !job_id) {
+            res.status(400).json({ error: "project_id and job_id are required" });
+            return;
+          }
+          const effectiveProjectId = getEffectiveProjectId(decodeURIComponent(project_id));
+          gitlabUrl = `${apiUrl}/projects/${encodeURIComponent(effectiveProjectId)}/jobs/${job_id}/artifacts`;
+          break;
+        }
+        case "attachment": {
+          const { project_id, secret, filename } = req.query as Record<string, string>;
+          if (!project_id || !secret || !filename) {
+            res.status(400).json({ error: "project_id, secret, and filename are required" });
+            return;
+          }
+          const effectiveProjectId = getEffectiveProjectId(decodeURIComponent(project_id));
+          gitlabUrl = `${apiUrl}/projects/${encodeURIComponent(effectiveProjectId)}/uploads/${secret}/${filename}`;
+          break;
+        }
+        case "release-asset": {
+          const { project_id, tag_name, direct_asset_path } = req.query as Record<string, string>;
+          if (!project_id || !tag_name || !direct_asset_path) {
+            res.status(400).json({ error: "project_id, tag_name, and direct_asset_path are required" });
+            return;
+          }
+          const effectiveProjectId = getEffectiveProjectId(decodeURIComponent(project_id));
+          gitlabUrl = `${apiUrl}/projects/${encodeURIComponent(effectiveProjectId)}/releases/${encodeURIComponent(tag_name)}/downloads/${direct_asset_path}`;
+          break;
+        }
+        default:
+          res.status(400).json({ error: `Unknown download type: ${type}` });
+          return;
+      }
+    } catch (e) {
+      // getEffectiveProjectId throws on access-denied
+      const message = e instanceof Error ? e.message : "Invalid parameters";
+      res.status(403).json({ error: message });
+      return;
+    }
+
+    try {
+      const agent = clientPool.getAgentFunctionForUrl(apiUrl);
+      const gitlabResponse = await nodeFetch(gitlabUrl, { headers, agent });
+
+      if (!gitlabResponse.ok) {
+        res.status(gitlabResponse.status).json({
+          error: `GitLab API error: ${gitlabResponse.status} ${gitlabResponse.statusText}`,
+        });
+        return;
+      }
+
+      const contentType = gitlabResponse.headers.get("content-type");
+      const contentDisposition = gitlabResponse.headers.get("content-disposition");
+      const contentLength = gitlabResponse.headers.get("content-length");
+
+      if (contentType) res.setHeader("Content-Type", contentType);
+      if (contentDisposition) res.setHeader("Content-Disposition", contentDisposition);
+      if (contentLength) res.setHeader("Content-Length", contentLength);
+
+      if (gitlabResponse.body) {
+        gitlabResponse.body.pipe(res);
+      } else {
+        res.status(502).json({ error: "No response body from GitLab" });
+      }
+    } catch (error) {
+      logger.error("Download proxy error:", error);
+      if (!res.headersSent) {
+        res.status(502).json({ error: "Failed to proxy download from GitLab" });
+      }
+    }
+  });
+}
+
+/**
  * Start server with traditional SSE transport
  */
 async function startSSEServer(): Promise<void> {
@@ -10816,6 +11183,8 @@ async function startSSEServer(): Promise<void> {
       res.status(400).send("No transport found for sessionId");
     }
   });
+
+  registerDownloadProxy(app);
 
   app.get("/health", (_: Request, res: Response) => {
     res.status(200).json({
@@ -11233,6 +11602,8 @@ async function startStreamableHTTPServer(): Promise<void> {
 
   // Configure Express middleware
   app.use(express.json());
+
+  registerDownloadProxy(app);
 
   // MCP OAuth — mount auth router and prepare bearer-auth middleware
   if (GITLAB_MCP_OAUTH) {

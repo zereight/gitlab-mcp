@@ -5,6 +5,8 @@ import {
   USE_GITLAB_WIKI,
   USE_MILESTONE,
   USE_PIPELINE,
+  SSE,
+  STREAMABLE_HTTP,
 } from "../config.js";
 import {
   ApproveMergeRequestSchema,
@@ -71,7 +73,9 @@ import {
   DeleteWorkItemEmojiReactionSchema,
   DeleteWorkItemNoteEmojiReactionSchema,
   DownloadAttachmentSchema,
+  DownloadAttachmentRemoteSchema,
   DownloadJobArtifactsSchema,
+  DownloadJobArtifactsRemoteSchema,
   DownloadReleaseAssetSchema,
   EditProjectMilestoneSchema,
   ExecuteGraphQLSchema,
@@ -159,6 +163,7 @@ import {
   ListWorkItemStatusesSchema,
   ListWorkItemsSchema,
   MarkdownUploadSchema,
+  MarkdownUploadRemoteSchema,
   MergeMergeRequestSchema,
   MoveWorkItemSchema,
   MyIssuesSchema,
@@ -189,6 +194,7 @@ import {
   VerifyNamespaceSchema,
 } from "../schemas.js";
 
+const IS_REMOTE = SSE || STREAMABLE_HTTP;
 
 // Define all available tools
 export const allTools = [
@@ -789,8 +795,12 @@ export const allTools = [
   },
   {
     name: "download_job_artifacts",
-    description: "Download job artifact archive (zip) to a local path",
-    inputSchema: toJSONSchema(DownloadJobArtifactsSchema),
+    description: IS_REMOTE
+      ? "Get a download URL for a job's artifact archive (zip)"
+      : "Download job artifact archive (zip) and save to a local path",
+    inputSchema: IS_REMOTE
+      ? toJSONSchema(DownloadJobArtifactsRemoteSchema)
+      : toJSONSchema(DownloadJobArtifactsSchema),
   },
   {
     name: "get_job_artifact_file",
@@ -899,13 +909,21 @@ export const allTools = [
   },
   {
     name: "upload_markdown",
-    description: "Upload a file for use in markdown content",
-    inputSchema: toJSONSchema(MarkdownUploadSchema),
+    description: IS_REMOTE
+      ? "Upload base64-encoded content for use in markdown"
+      : "Upload a file for use in markdown content",
+    inputSchema: IS_REMOTE
+      ? toJSONSchema(MarkdownUploadRemoteSchema)
+      : toJSONSchema(MarkdownUploadSchema),
   },
   {
     name: "download_attachment",
-    description: "Download an uploaded file from a project (images returned as base64; use local_path to save to disk)",
-    inputSchema: toJSONSchema(DownloadAttachmentSchema),
+    description: IS_REMOTE
+      ? "Download an uploaded file from a project (images returned inline as base64, other files returned as download URL)"
+      : "Download an uploaded file from a project (images returned as base64; use local_path to save to disk)",
+    inputSchema: IS_REMOTE
+      ? toJSONSchema(DownloadAttachmentRemoteSchema)
+      : toJSONSchema(DownloadAttachmentSchema),
   },
   {
     name: "health_check",
@@ -954,7 +972,9 @@ export const allTools = [
   },
   {
     name: "download_release_asset",
-    description: "Download a release asset file by direct asset path",
+    description: IS_REMOTE
+      ? "Get a download URL for a release asset file"
+      : "Download a release asset file by direct asset path",
     inputSchema: toJSONSchema(DownloadReleaseAssetSchema),
   },
   {
