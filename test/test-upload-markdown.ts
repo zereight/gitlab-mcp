@@ -1,4 +1,4 @@
-import { describe, test, before, after } from 'node:test';
+import { describe, test, before, after, beforeEach } from 'node:test';
 import assert from 'node:assert';
 import { spawn } from 'node:child_process';
 import fs from 'node:fs';
@@ -76,6 +76,8 @@ const MOCK_UPLOAD_RESPONSE = {
   markdown: '[test-file.txt](/uploads/abc123secret/test-file.txt)',
 };
 
+let uploadResponse: Record<string, unknown> = MOCK_UPLOAD_RESPONSE;
+
 describe('upload_markdown', () => {
   let mockGitLab: MockGitLabServer;
   let env: NodeJS.ProcessEnv;
@@ -83,6 +85,12 @@ describe('upload_markdown', () => {
   // Captured per-request state, reset before each invocation via the handler
   let lastContentType: string | undefined;
   let lastRawBody: string | undefined;
+
+  beforeEach(() => {
+    uploadResponse = MOCK_UPLOAD_RESPONSE;
+    lastContentType = undefined;
+    lastRawBody = undefined;
+  });
 
   before(async () => {
     const port = await findMockServerPort(9200);
@@ -103,7 +111,7 @@ describe('upload_markdown', () => {
         req.on('data', (chunk: Buffer) => chunks.push(chunk));
         req.on('end', () => {
           lastRawBody = Buffer.concat(chunks).toString('binary');
-          res.status(201).json(MOCK_UPLOAD_RESPONSE);
+          res.status(201).json(uploadResponse);
         });
       }
     );
@@ -181,6 +189,30 @@ describe('upload_markdown', () => {
       assert.ok(text, 'Result should contain a text content block');
 
       const parsed = JSON.parse(text);
+      assert.strictEqual(parsed.markdown, MOCK_UPLOAD_RESPONSE.markdown);
+      assert.strictEqual(parsed.url, MOCK_UPLOAD_RESPONSE.url);
+      assert.strictEqual(parsed.alt, MOCK_UPLOAD_RESPONSE.alt);
+      assert.strictEqual(parsed.full_path, MOCK_UPLOAD_RESPONSE.full_path);
+    } finally {
+      fs.unlinkSync(tmpFile);
+    }
+  });
+
+  test('accepts upload responses without id from older self-hosted GitLab', async () => {
+    const { id: _id, ...idlessUploadResponse } = MOCK_UPLOAD_RESPONSE;
+    uploadResponse = idlessUploadResponse;
+
+    const tmpFile = path.join(os.tmpdir(), 'mcp-upload-idless-response-test.txt');
+    fs.writeFileSync(tmpFile, 'idless response field test');
+    try {
+      const raw = await callUploadMarkdown({ project_id: TEST_PROJECT_ID, file_path: tmpFile }, env);
+
+      assert.ok(!raw.error, `Unexpected RPC error: ${raw.error?.message}`);
+      const text = raw.result?.content?.[0]?.text;
+      assert.ok(text, 'Result should contain a text content block');
+
+      const parsed = JSON.parse(text);
+      assert.strictEqual(parsed.id, undefined);
       assert.strictEqual(parsed.markdown, MOCK_UPLOAD_RESPONSE.markdown);
       assert.strictEqual(parsed.url, MOCK_UPLOAD_RESPONSE.url);
       assert.strictEqual(parsed.alt, MOCK_UPLOAD_RESPONSE.alt);
