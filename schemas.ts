@@ -2921,7 +2921,7 @@ export const GitLabProjectMemberSchema = z.object({
 
 // Markdown upload schemas
 export const GitLabMarkdownUploadSchema = z.object({
-  id: z.coerce.number().optional(),
+  id: z.preprocess((val) => (val == null ? undefined : val), z.coerce.number().optional()),
   alt: z.string(),
   url: z.string(),
   full_path: z.string(),

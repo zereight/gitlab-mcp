@@ -29,7 +29,8 @@ import {
   GetMergeRequestSchema,
   ListMergeRequestPipelinesSchema,
   GetRepositoryTreeSchema,
-  GitLabUserFullSchema
+  GitLabUserFullSchema,
+  GitLabMarkdownUploadSchema,
 } from '../schemas.js';
 
 interface TestResult {
@@ -1279,6 +1280,82 @@ function runGetRepositoryTreeSchemaTests(): { passed: number; failed: number } {
   return { passed, failed };
 }
 
+function runGitLabMarkdownUploadSchemaTests(): { passed: number; failed: number } {
+  console.log('\n=== GitLabMarkdownUpload Schema Tests ===');
+
+  const idlessUpload = {
+    alt: 'report.md',
+    url: '/uploads/c617e74a47dfb1a6dd59d419619b725d/report.md',
+    full_path: '/group/project/uploads/c617e74a47dfb1a6dd59d419619b725d/report.md',
+    markdown: '[report.md](/uploads/c617e74a47dfb1a6dd59d419619b725d/report.md)',
+  };
+
+  const cases: {
+    name: string;
+    input: Record<string, unknown>;
+    expectedId?: number | 'absent';
+    shouldFail?: boolean;
+  }[] = [
+    {
+      name: 'schema:markdown_upload:accepts-idless-response',
+      input: idlessUpload,
+      expectedId: 'absent',
+    },
+    {
+      name: 'schema:markdown_upload:accepts-numeric-id',
+      input: { ...idlessUpload, id: 42 },
+      expectedId: 42,
+    },
+    {
+      name: 'schema:markdown_upload:coerces-string-id',
+      input: { ...idlessUpload, id: '99' },
+      expectedId: 99,
+    },
+    {
+      name: 'schema:markdown_upload:treats-null-id-as-absent',
+      input: { ...idlessUpload, id: null },
+      expectedId: 'absent',
+    },
+    {
+      name: 'schema:markdown_upload:rejects-invalid-id',
+      input: { ...idlessUpload, id: 'not-a-number' },
+      shouldFail: true,
+    },
+  ];
+
+  let passed = 0;
+  let failed = 0;
+
+  cases.forEach(testCase => {
+    const result: TestResult = { name: testCase.name, status: 'failed' };
+    const parsed = GitLabMarkdownUploadSchema.safeParse(testCase.input);
+
+    if (testCase.shouldFail) {
+      result.status = parsed.success ? 'failed' : 'passed';
+      if (parsed.success) result.error = 'Expected schema validation to fail';
+    } else if (!parsed.success) {
+      result.error = parsed.error?.message || 'Schema validation failed';
+    } else if (testCase.expectedId === 'absent' && parsed.data.id !== undefined) {
+      result.error = `Expected id undefined, got ${parsed.data.id}`;
+    } else if (typeof testCase.expectedId === 'number' && parsed.data.id !== testCase.expectedId) {
+      result.error = `Expected id ${testCase.expectedId}, got ${parsed.data.id}`;
+    } else {
+      result.status = 'passed';
+    }
+
+    if (result.status === 'passed') {
+      passed++;
+      console.log(`✅ ${result.name}`);
+    } else {
+      failed++;
+      console.log(`❌ ${result.name}: ${result.error}`);
+    }
+  });
+
+  console.log(`\nResults: ${passed} passed, ${failed} failed`);
+  return { passed, failed };
+}
+
 function runGitLabUserFullSchemaTests(): { passed: number; failed: number } {
   console.log('🧪 Testing GitLabUserFullSchema...');
 
@@ -1380,9 +1457,10 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   const treeItemResult = runGitLabTreeItemSchemaTests();
   const repositoryTreeResult = runGetRepositoryTreeSchemaTests();
   const gitLabUserFullResult = runGitLabUserFullSchemaTests();
+  const gitLabMarkdownUploadResult = runGitLabMarkdownUploadSchemaTests();
 
-  const totalPassed = getFileContentsResult.passed + fileContentResult.passed + createPipelineResult.passed + commitStatusResult.passed + createIssueNoteResult.passed + getMergeRequestResult.passed + listMergeRequestPipelinesResult.passed + gitLabMergeRequestResult.passed + emojiReactionResult.passed + repositorySchemaResult.passed + labelsCoercionResult.passed + listLabelsResult.passed + treeItemResult.passed + repositoryTreeResult.passed + gitLabUserFullResult.passed;
-  const totalFailed = getFileContentsResult.failed + fileContentResult.failed + createPipelineResult.failed + commitStatusResult.failed + createIssueNoteResult.failed + getMergeRequestResult.failed + listMergeRequestPipelinesResult.failed + gitLabMergeRequestResult.failed + emojiReactionResult.failed + repositorySchemaResult.failed + labelsCoercionResult.failed + listLabelsResult.failed + treeItemResult.failed + repositoryTreeResult.failed + gitLabUserFullResult.failed;
+  const totalPassed = getFileContentsResult.passed + fileContentResult.passed + createPipelineResult.passed + commitStatusResult.passed + createIssueNoteResult.passed + getMergeRequestResult.passed + listMergeRequestPipelinesResult.passed + gitLabMergeRequestResult.passed + emojiReactionResult.passed + repositorySchemaResult.passed + labelsCoercionResult.passed + listLabelsResult.passed + treeItemResult.passed + repositoryTreeResult.passed + gitLabUserFullResult.passed + gitLabMarkdownUploadResult.passed;
+  const totalFailed = getFileContentsResult.failed + fileContentResult.failed + createPipelineResult.failed + commitStatusResult.failed + createIssueNoteResult.failed + getMergeRequestResult.failed + listMergeRequestPipelinesResult.failed + gitLabMergeRequestResult.failed + emojiReactionResult.failed + repositorySchemaResult.failed + labelsCoercionResult.failed + listLabelsResult.failed + treeItemResult.failed + repositoryTreeResult.failed + gitLabUserFullResult.failed + gitLabMarkdownUploadResult.failed;
 
   console.log(`\nTotal Results: ${totalPassed} passed, ${totalFailed} failed`);
 
