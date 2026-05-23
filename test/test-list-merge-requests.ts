@@ -109,8 +109,40 @@ describe('list_merge_requests', () => {
       GITLAB_API_URL: `${mockGitLabUrl}/api/v4`,
       GITLAB_PERSONAL_ACCESS_TOKEN: MOCK_TOKEN
     });
-    
+
     assert.ok(Array.isArray(mrs), 'Response should be an array');
     assert.strictEqual(mrs.length, 2, 'Should return 2 mock MRs');
+  });
+
+  test('forwards approved_by_usernames in bracket-array form', async () => {
+    let capturedUrl: string | undefined;
+    mockGitLab.addMockHandler('get', '/merge_requests', (req, res) => {
+      capturedUrl = req.originalUrl;
+      res.json([]);
+    });
+
+    try {
+      await callListMergeRequests(
+        { approved_by_usernames: ['alice', 'bob'] },
+        {
+          GITLAB_API_URL: `${mockGitLabUrl}/api/v4`,
+          GITLAB_PERSONAL_ACCESS_TOKEN: MOCK_TOKEN,
+        }
+      );
+
+      assert.ok(capturedUrl, 'Mock handler should have received a request');
+      assert.match(
+        capturedUrl!,
+        /approved_by_usernames%5B%5D=alice/,
+        'Request URL should contain approved_by_usernames[]=alice (URL-encoded)'
+      );
+      assert.match(
+        capturedUrl!,
+        /approved_by_usernames%5B%5D=bob/,
+        'Request URL should contain approved_by_usernames[]=bob (URL-encoded)'
+      );
+    } finally {
+      mockGitLab.clearCustomHandlers();
+    }
   });
 });
