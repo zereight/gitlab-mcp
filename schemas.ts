@@ -1197,7 +1197,7 @@ export const GitLabMergeRequestSchema = z.object({
     .describe("Whether rebase is currently in progress for this merge request"),
   merge_when_pipeline_succeeds: z.coerce.boolean().optional(),
   squash: z.coerce.boolean().optional(),
-  labels: z.array(z.string()).optional(),
+  labels: z.array(GitLabLabelSchema).or(z.array(z.string())).optional(), // Support both label objects and strings
 });
 
 export const LineRangeSchema = z

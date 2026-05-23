@@ -846,6 +846,56 @@ function runGitLabMergeRequestSchemaTests(): { passed: number; failed: number } 
       },
       validate: (data: Record<string, any>) => data.milestone === undefined,
     },
+    {
+      name: 'schema:gitlab_merge_request:labels-string-array',
+      input: {
+        ...baseMergeRequest,
+        labels: ['bug', 'enhancement'],
+      },
+      validate: (data: Record<string, any>) =>
+        Array.isArray(data.labels) &&
+        data.labels.length === 2 &&
+        data.labels[0] === 'bug' &&
+        data.labels[1] === 'enhancement',
+    },
+    {
+      name: 'schema:gitlab_merge_request:labels-object-array',
+      input: {
+        ...baseMergeRequest,
+        labels: [
+          {
+            id: 1,
+            name: 'bug',
+            color: '#ff0000',
+            text_color: '#ffffff',
+            description: null,
+            description_html: null,
+          },
+          {
+            id: 2,
+            name: 'enhancement',
+            color: '#00ff00',
+            text_color: '#000000',
+            description: 'Improvements',
+            description_html: '<p>Improvements</p>',
+          },
+        ],
+      },
+      validate: (data: Record<string, any>) =>
+        Array.isArray(data.labels) &&
+        data.labels.length === 2 &&
+        data.labels[0].name === 'bug' &&
+        data.labels[0].id === '1' &&
+        data.labels[1].name === 'enhancement' &&
+        data.labels[1].id === '2',
+    },
+    {
+      name: 'schema:gitlab_merge_request:labels-omitted',
+      input: {
+        ...baseMergeRequest,
+      },
+      validate: (data: Record<string, any>) => data.labels === undefined,
+    },
   ];
 
   let passed = 0;
