@@ -1933,6 +1933,11 @@ async function listMergeRequests(
       if (key === "labels" && Array.isArray(value)) {
         // Handle array of labels
         url.searchParams.append(key, value.join(","));
+      } else if (key === "approved_by_usernames" && Array.isArray(value)) {
+        // GitLab expects array-bracket form: approved_by_usernames[]=alice&approved_by_usernames[]=bob
+        for (const v of value) {
+          url.searchParams.append(`${key}[]`, String(v));
+        }
       } else {
         url.searchParams.append(key, String(value));
       }

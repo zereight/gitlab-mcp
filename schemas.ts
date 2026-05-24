@@ -2037,6 +2037,9 @@ export const ListMergeRequestsSchema = z
       .string()
       .optional()
       .describe("Returns merge requests which have the user as a reviewer by username. Mutually exclusive with reviewer_id."),
+    approved_by_usernames: coerceStringArray
+      .optional()
+      .describe("Returns merge requests approved by the given usernames (array)."),
     created_after: z
       .string()
       .optional()
