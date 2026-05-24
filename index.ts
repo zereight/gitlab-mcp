@@ -182,6 +182,7 @@ import { createGitLabOAuthProvider } from "./oauth-proxy.js";
 import { mcpAuthRouter } from "@modelcontextprotocol/sdk/server/auth/router.js";
 import { normalizeGitLabApiUrl } from "./utils/url.js";
 import { estimateMergeCommitCount, filterDiffsByPatterns, summarizeWebhookEvents } from "./utils/helpers.js";
+import { stripNullishToolArguments } from "./utils/tool-args.js";
 import {
   parseSearchReplaceBlocks,
   applySearchReplace,
@@ -8545,12 +8546,21 @@ async function handleToolCall(params: any) {
       }
     }
 
+    if (
+      params.arguments &&
+      typeof params.arguments === "object" &&
+      !Array.isArray(params.arguments)
+    ) {
+      params.arguments = stripNullishToolArguments(params.arguments) as Record<string, unknown>;
+    }
+
     // Centralized read-only guard: reject write tools even if client bypasses list_tools filtering
     if (GITLAB_READ_ONLY_MODE && !readOnlyTools.has(params.name)) {
       throw new Error(`${params.name} is not allowed in read-only mode`);
     }
 
     logger.info({ tool: params.name, event: "tool_call_start" }, `tool_call_start: ${params.name}`);
+
     switch (params.name) {
       case "execute_graphql": {
         const args = ExecuteGraphQLSchema.parse(params.arguments);
