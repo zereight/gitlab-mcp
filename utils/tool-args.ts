@@ -1,42 +1,30 @@
-function isNullish(value: unknown): value is null | undefined {
-  return value === null || value === undefined;
-}
+const TOOL_PRESERVE_TOP_LEVEL_NULL_KEYS: Readonly<Record<string, readonly string[]>> = {
+  create_label: ["priority"],
+  update_label: ["priority"],
+};
 
-function isPlainObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function stripObjectEntries(input: Record<string, unknown>): Record<string, unknown> {
+/**
+ * Remove omitted optional fields injected as top-level null/undefined by MCP clients.
+ * Does not recurse into nested objects so intentional nulls (diff line numbers, GraphQL variables) stay intact.
+ */
+export function sanitizeToolArguments(
+  toolName: string,
+  args: Record<string, unknown>
+): Record<string, unknown> {
+  const preserveNullKeys = new Set(TOOL_PRESERVE_TOP_LEVEL_NULL_KEYS[toolName] ?? []);
   const result: Record<string, unknown> = {};
 
-  for (const [key, nested] of Object.entries(input)) {
-    if (isNullish(nested)) {
+  for (const [key, value] of Object.entries(args)) {
+    if (value === undefined) {
       continue;
     }
 
-    const cleaned = stripNullishToolArguments(nested);
-    if (isNullish(cleaned) || (isPlainObject(cleaned) && Object.keys(cleaned).length === 0)) {
+    if (value === null && !preserveNullKeys.has(key)) {
       continue;
     }
 
-    result[key] = cleaned;
+    result[key] = value;
   }
 
   return result;
-}
-
-export function stripNullishToolArguments(value: unknown): unknown {
-  if (isNullish(value)) {
-    return value;
-  }
-
-  if (Array.isArray(value)) {
-    return value.map(stripNullishToolArguments).filter(item => !isNullish(item));
-  }
-
-  if (isPlainObject(value)) {
-    return stripObjectEntries(value);
-  }
-
-  return value;
 }

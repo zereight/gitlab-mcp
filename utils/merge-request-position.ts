@@ -1,6 +1,11 @@
+function isShaNullish(value: unknown): boolean {
+  return value === null || value === undefined;
+}
+
 /**
  * Normalize optional merge request thread position input before Zod validation.
- * Keeps position only when base_sha, head_sha, and start_sha are all present.
+ * Omits position only when it was not provided or all commit SHAs are nullish (MCP null injection).
+ * Partial or invalid SHA sets are passed through so schema validation can reject them.
  */
 export function omitIncompleteMergeRequestPosition(value: unknown): unknown {
   if (value === null || value === undefined) {
@@ -12,12 +17,21 @@ export function omitIncompleteMergeRequestPosition(value: unknown): unknown {
   }
 
   const record = value as Record<string, unknown>;
-  const hasRequiredShas =
-    typeof record.base_sha === "string" &&
-    typeof record.head_sha === "string" &&
-    typeof record.start_sha === "string";
+  const { base_sha, head_sha, start_sha } = record;
 
-  if (!hasRequiredShas) {
+  const hasAllRequiredShas =
+    typeof base_sha === "string" &&
+    typeof head_sha === "string" &&
+    typeof start_sha === "string";
+
+  if (hasAllRequiredShas) {
+    return value;
+  }
+
+  const allShasNullish =
+    isShaNullish(base_sha) && isShaNullish(head_sha) && isShaNullish(start_sha);
+
+  if (allShasNullish) {
     return undefined;
   }
 
