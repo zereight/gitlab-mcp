@@ -8556,7 +8556,6 @@ async function handleToolCall(params: any) {
     }
 
     logger.info({ tool: params.name, event: "tool_call_start" }, `tool_call_start: ${params.name}`);
-
     switch (params.name) {
       case "execute_graphql": {
         const args = ExecuteGraphQLSchema.parse(params.arguments);

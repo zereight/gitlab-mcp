@@ -81,7 +81,14 @@ describe("When stripNullishToolArguments runs", () => {
         },
       });
 
-      assert.equal(typeof (result as Record<string, unknown>).position, "object");
+      assert.deepEqual(result, {
+        position: {
+          base_sha: "abc",
+          head_sha: "def",
+          start_sha: "ghi",
+          position_type: "text",
+        },
+      });
     });
   });
 });

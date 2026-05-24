@@ -6,21 +6,16 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-function isEmptyPlainObject(value: unknown): boolean {
-  return isPlainObject(value) && Object.keys(value).length === 0;
-}
-
-function hasMergeRequestPositionShas(position: Record<string, unknown>): boolean {
-  return (
+function omitIncompletePositionArgument(args: Record<string, unknown>): void {
+  const position = args.position;
+  if (!isPlainObject(position)) {
+    return;
+  }
+  if (
     typeof position.base_sha === "string" &&
     typeof position.head_sha === "string" &&
     typeof position.start_sha === "string"
-  );
-}
-
-function omitIncompletePositionArgument(args: Record<string, unknown>): void {
-  const position = args.position;
-  if (!isPlainObject(position) || hasMergeRequestPositionShas(position)) {
+  ) {
     return;
   }
   delete args.position;
@@ -35,7 +30,7 @@ function stripObjectEntries(input: Record<string, unknown>): Record<string, unkn
     }
 
     const cleaned = stripNullishToolArguments(nested);
-    if (isNullish(cleaned) || isEmptyPlainObject(cleaned)) {
+    if (isNullish(cleaned) || (isPlainObject(cleaned) && Object.keys(cleaned).length === 0)) {
       continue;
     }
 
@@ -46,10 +41,6 @@ function stripObjectEntries(input: Record<string, unknown>): Record<string, unkn
   return result;
 }
 
-/**
- * Remove null/undefined keys from MCP tool arguments before Zod validation.
- * MCP clients sometimes inject optional fields as null instead of omitting them.
- */
 export function stripNullishToolArguments(value: unknown): unknown {
   if (isNullish(value)) {
     return value;
