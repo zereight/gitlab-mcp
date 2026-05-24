@@ -6,12 +6,12 @@
     "url": "https://github.com/zereight/gitlab-mcp",
     "source": "github"
   },
-  "version": "2.1.14",
+  "version": "2.1.15",
   "packages": [
     {
       "registryType": "npm",
       "identifier": "@zereight/mcp-gitlab",
-      "version": "2.1.14",
+      "version": "2.1.15",
       "transport": {
         "type": "stdio"
       },
