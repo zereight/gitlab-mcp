@@ -1,18 +1,49 @@
+function isNullish(value: unknown): value is null | undefined {
+  return value === null || value === undefined;
+}
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isEmptyPlainObject(value: unknown): boolean {
+  return isPlainObject(value) && Object.keys(value).length === 0;
+}
+
+function hasMergeRequestPositionShas(position: Record<string, unknown>): boolean {
+  return (
+    typeof position.base_sha === "string" &&
+    typeof position.head_sha === "string" &&
+    typeof position.start_sha === "string"
+  );
+}
+
 function omitIncompletePositionArgument(args: Record<string, unknown>): void {
   const position = args.position;
-  if (!position || typeof position !== "object" || Array.isArray(position)) {
+  if (!isPlainObject(position) || hasMergeRequestPositionShas(position)) {
     return;
   }
+  delete args.position;
+}
 
-  const record = position as Record<string, unknown>;
-  const hasRequiredShas =
-    typeof record.base_sha === "string" &&
-    typeof record.head_sha === "string" &&
-    typeof record.start_sha === "string";
+function stripObjectEntries(input: Record<string, unknown>): Record<string, unknown> {
+  const result: Record<string, unknown> = {};
 
-  if (!hasRequiredShas) {
-    delete args.position;
+  for (const [key, nested] of Object.entries(input)) {
+    if (isNullish(nested)) {
+      continue;
+    }
+
+    const cleaned = stripNullishToolArguments(nested);
+    if (isNullish(cleaned) || isEmptyPlainObject(cleaned)) {
+      continue;
+    }
+
+    result[key] = cleaned;
   }
+
+  omitIncompletePositionArgument(result);
+  return result;
 }
 
 /**
@@ -20,45 +51,16 @@ function omitIncompletePositionArgument(args: Record<string, unknown>): void {
  * MCP clients sometimes inject optional fields as null instead of omitting them.
  */
 export function stripNullishToolArguments(value: unknown): unknown {
-  if (value === null || value === undefined) {
+  if (isNullish(value)) {
     return value;
   }
 
   if (Array.isArray(value)) {
-    const cleaned = value
-      .map(item => stripNullishToolArguments(item))
-      .filter(item => item !== null && item !== undefined);
-    return cleaned;
+    return value.map(stripNullishToolArguments).filter(item => !isNullish(item));
   }
 
-  if (typeof value === "object") {
-    const input = value as Record<string, unknown>;
-    const result: Record<string, unknown> = {};
-
-    for (const [key, nested] of Object.entries(input)) {
-      if (nested === null || nested === undefined) {
-        continue;
-      }
-
-      const cleaned = stripNullishToolArguments(nested);
-
-      if (cleaned === null || cleaned === undefined) {
-        continue;
-      }
-
-      if (
-        typeof cleaned === "object" &&
-        !Array.isArray(cleaned) &&
-        Object.keys(cleaned as Record<string, unknown>).length === 0
-      ) {
-        continue;
-      }
-
-      result[key] = cleaned;
-    }
-
-    omitIncompletePositionArgument(result);
-    return result;
+  if (isPlainObject(value)) {
+    return stripObjectEntries(value);
   }
 
   return value;

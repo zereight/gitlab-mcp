@@ -7,37 +7,49 @@ import {
 } from "../schemas.js";
 import { stripNullishToolArguments } from "../utils/tool-args.js";
 
+const PROJECT_ID = "group/project";
+const MERGE_REQUEST_IID = "1";
+
 function parseAfterStrip<T>(raw: Record<string, unknown>, parse: (value: unknown) => T): T {
   return parse(stripNullishToolArguments(raw));
+}
+
+function draftNoteArgs(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+  return {
+    project_id: PROJECT_ID,
+    merge_request_iid: MERGE_REQUEST_IID,
+    body: "Test note",
+    ...overrides,
+  };
+}
+
+function discussionNoteArgs(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+  return {
+    project_id: PROJECT_ID,
+    merge_request_iid: MERGE_REQUEST_IID,
+    discussion_id: "d1",
+    note_id: "n1",
+    ...overrides,
+  };
 }
 
 describe("When validating issue #281 reported argument shapes", () => {
   describe("with create_draft_note", () => {
     test("should accept only required fields when position is omitted", () => {
-      const parsed = parseAfterStrip(
-        {
-          project_id: "group/project",
-          merge_request_iid: "1",
-          body: "Test note",
-        },
-        value => CreateDraftNoteSchema.parse(value)
-      );
+      const parsed = parseAfterStrip(draftNoteArgs(), value => CreateDraftNoteSchema.parse(value));
       assert.equal(parsed.body, "Test note");
     });
 
     test("should accept position object with null SHAs after strip", () => {
       const parsed = parseAfterStrip(
-        {
-          project_id: "group/project",
-          merge_request_iid: "1",
-          body: "Test note",
+        draftNoteArgs({
           position: {
             base_sha: null,
             head_sha: null,
             start_sha: null,
             position_type: "text",
           },
-        },
+        }),
         value => CreateDraftNoteSchema.parse(value)
       );
       assert.equal(parsed.position, undefined);
@@ -45,14 +57,11 @@ describe("When validating issue #281 reported argument shapes", () => {
 
     test("should accept when optional fields are explicitly null after strip", () => {
       const parsed = parseAfterStrip(
-        {
-          project_id: "group/project",
-          merge_request_iid: "1",
-          body: "Test note",
+        draftNoteArgs({
           in_reply_to_discussion_id: null,
           position: null,
           resolve_discussion: null,
-        },
+        }),
         value => CreateDraftNoteSchema.parse(value)
       );
       assert.equal(parsed.position, undefined);
@@ -60,12 +69,7 @@ describe("When validating issue #281 reported argument shapes", () => {
 
     test("should accept empty position object after strip omits position", () => {
       const parsed = parseAfterStrip(
-        {
-          project_id: "group/project",
-          merge_request_iid: "1",
-          body: "Test note",
-          position: {},
-        },
+        draftNoteArgs({ position: {} }),
         value => CreateDraftNoteSchema.parse(value)
       );
       assert.equal(parsed.position, undefined);
@@ -75,14 +79,7 @@ describe("When validating issue #281 reported argument shapes", () => {
   describe("with update_merge_request_discussion_note", () => {
     test("should accept body plus resolved null after strip", () => {
       const parsed = parseAfterStrip(
-        {
-          project_id: "group/project",
-          merge_request_iid: "1",
-          discussion_id: "d1",
-          note_id: "n1",
-          body: "updated",
-          resolved: null,
-        },
+        discussionNoteArgs({ body: "updated", resolved: null }),
         value => UpdateMergeRequestDiscussionNoteSchema.parse(value)
       );
       assert.equal(parsed.body, "updated");
@@ -93,13 +90,7 @@ describe("When validating issue #281 reported argument shapes", () => {
       assert.throws(
         () =>
           parseAfterStrip(
-            {
-              project_id: "group/project",
-              merge_request_iid: "1",
-              discussion_id: "d1",
-              note_id: "n1",
-              resolved: null,
-            },
+            discussionNoteArgs({ resolved: null }),
             value => UpdateMergeRequestDiscussionNoteSchema.parse(value)
           ),
         /At least one of 'body' or 'resolved'/
@@ -111,7 +102,7 @@ describe("When validating issue #281 reported argument shapes", () => {
     test("should ignore unknown commit null field from older clients", () => {
       const parsed = parseAfterStrip(
         {
-          project_id: "group/project",
+          project_id: PROJECT_ID,
           from: "main",
           to: "dev",
           commit: null,

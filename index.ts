@@ -8544,14 +8544,10 @@ async function handleToolCall(params: any) {
         args.iid = args.work_item_iid;
         delete args.work_item_iid;
       }
-    }
 
-    if (
-      params.arguments &&
-      typeof params.arguments === "object" &&
-      !Array.isArray(params.arguments)
-    ) {
-      params.arguments = stripNullishToolArguments(params.arguments) as Record<string, unknown>;
+      if (!Array.isArray(args)) {
+        params.arguments = stripNullishToolArguments(args) as Record<string, unknown>;
+      }
     }
 
     // Centralized read-only guard: reject write tools even if client bypasses list_tools filtering
