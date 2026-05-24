@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { omitIncompleteMergeRequestPosition } from "./utils/merge-request-position.js";
 
 // Helper: coerce a JSON-stringified array to an actual array.
 // LLMs sometimes send '["a", "b"]' (string) instead of ["a", "b"] (array).
@@ -2543,6 +2544,11 @@ export const MergeRequestThreadPositionSchema = z.object({
     .describe("IMAGE DIFFS ONLY: Y coordinate on the image (for position_type='image')."),
 });
 
+const optionalMergeRequestThreadPosition = z.preprocess(
+  omitIncompleteMergeRequestPosition,
+  MergeRequestThreadPositionSchema.optional()
+);
+
 // Draft Notes API schemas
 export const GitLabDraftNoteSchema = z
   .object({
@@ -2589,9 +2595,7 @@ export const CreateDraftNoteSchema = ProjectParamsSchema.extend({
     .string()
     .optional()
     .describe("The ID of a discussion the draft note replies to"),
-  position: MergeRequestThreadPositionSchema.optional().describe(
-    "Position when creating a diff note"
-  ),
+  position: optionalMergeRequestThreadPosition.describe("Position when creating a diff note"),
   resolve_discussion: z
     .coerce.boolean()
     .optional()
@@ -2603,9 +2607,7 @@ export const UpdateDraftNoteSchema = ProjectParamsSchema.extend({
   merge_request_iid: z.coerce.string().describe("The IID of a merge request"),
   draft_note_id: z.coerce.string().describe("The ID of the draft note"),
   body: z.string().optional().describe("The content of the draft note"),
-  position: MergeRequestThreadPositionSchema.optional().describe(
-    "Position when creating a diff note"
-  ),
+  position: optionalMergeRequestThreadPosition.describe("Position when creating a diff note"),
   resolve_discussion: z
     .coerce.boolean()
     .optional()
@@ -2633,9 +2635,7 @@ export const BulkPublishDraftNotesSchema = ProjectParamsSchema.extend({
 export const CreateMergeRequestThreadSchema = ProjectParamsSchema.extend({
   merge_request_iid: z.coerce.string().describe("The IID of a merge request"),
   body: z.string().describe("The content of the thread"),
-  position: MergeRequestThreadPositionSchema.optional().describe(
-    "Position when creating a diff note"
-  ),
+  position: optionalMergeRequestThreadPosition.describe("Position when creating a diff note"),
   created_at: z.string().optional().describe("Date the thread was created at (ISO 8601 format)"),
 });
 

@@ -6,21 +6,6 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-function omitIncompletePositionArgument(args: Record<string, unknown>): void {
-  const position = args.position;
-  if (!isPlainObject(position)) {
-    return;
-  }
-  if (
-    typeof position.base_sha === "string" &&
-    typeof position.head_sha === "string" &&
-    typeof position.start_sha === "string"
-  ) {
-    return;
-  }
-  delete args.position;
-}
-
 function stripObjectEntries(input: Record<string, unknown>): Record<string, unknown> {
   const result: Record<string, unknown> = {};
 
@@ -37,7 +22,6 @@ function stripObjectEntries(input: Record<string, unknown>): Record<string, unkn
     result[key] = cleaned;
   }
 
-  omitIncompletePositionArgument(result);
   return result;
 }
 

@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
-import { GetBranchDiffsSchema, UpdateMergeRequestDiscussionNoteSchema } from "../schemas.js";
+import {
+  CreateDraftNoteSchema,
+  GetBranchDiffsSchema,
+  UpdateMergeRequestDiscussionNoteSchema,
+} from "../schemas.js";
 import { stripNullishToolArguments } from "../utils/tool-args.js";
 
 const PROJECT_ID = "group/project";
@@ -11,6 +15,26 @@ function parseAfterStrip<T>(raw: Record<string, unknown>, parse: (value: unknown
 }
 
 describe("When validating issue #281 reported argument shapes", () => {
+  describe("with create_draft_note", () => {
+    test("should accept position with null SHAs after strip and schema preprocess", () => {
+      const parsed = parseAfterStrip(
+        {
+          project_id: PROJECT_ID,
+          merge_request_iid: MERGE_REQUEST_IID,
+          body: "Test note",
+          position: {
+            base_sha: null,
+            head_sha: null,
+            start_sha: null,
+            position_type: "text",
+          },
+        },
+        value => CreateDraftNoteSchema.parse(value)
+      );
+      assert.equal(parsed.position, undefined);
+    });
+  });
+
   describe("with update_merge_request_discussion_note", () => {
     test("should accept body plus resolved null after strip", () => {
       const parsed = parseAfterStrip(

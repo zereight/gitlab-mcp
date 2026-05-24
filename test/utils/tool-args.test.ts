@@ -22,7 +22,7 @@ describe("When stripNullishToolArguments runs", () => {
   });
 
   describe("with nested position nulls", () => {
-    test("should omit position when all nested values are nullish", () => {
+    test("should strip null SHAs but leave other position fields for schema preprocess", () => {
       const result = stripNullishToolArguments({
         project_id: "g/p",
         merge_request_iid: "1",
@@ -39,6 +39,7 @@ describe("When stripNullishToolArguments runs", () => {
         project_id: "g/p",
         merge_request_iid: "1",
         body: "note",
+        position: { position_type: "text" },
       });
     });
   });
