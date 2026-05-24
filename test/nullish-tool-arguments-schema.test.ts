@@ -14,7 +14,7 @@ function parseAfterStrip<T>(raw: Record<string, unknown>, parse: (value: unknown
   return parse(stripNullishToolArguments(raw));
 }
 
-describe("When validating issue #281 reported argument shapes", () => {
+describe("When validating tool arguments after null stripping", () => {
   describe("with create_draft_note", () => {
     test("should accept position with null SHAs after strip and schema preprocess", () => {
       const parsed = parseAfterStrip(
