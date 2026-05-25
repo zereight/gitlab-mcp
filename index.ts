@@ -182,6 +182,7 @@ import { createGitLabOAuthProvider } from "./oauth-proxy.js";
 import { mcpAuthRouter } from "@modelcontextprotocol/sdk/server/auth/router.js";
 import { normalizeGitLabApiUrl } from "./utils/url.js";
 import { estimateMergeCommitCount, filterDiffsByPatterns, summarizeWebhookEvents } from "./utils/helpers.js";
+import { sanitizeToolArguments } from "./utils/tool-args.js";
 import {
   parseSearchReplaceBlocks,
   applySearchReplace,
@@ -8542,6 +8543,10 @@ async function handleToolCall(params: any) {
       if (args.work_item_iid !== undefined && args.iid === undefined) {
         args.iid = args.work_item_iid;
         delete args.work_item_iid;
+      }
+
+      if (!Array.isArray(args)) {
+        params.arguments = sanitizeToolArguments(params.name, args);
       }
     }
 
