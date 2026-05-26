@@ -3784,7 +3784,7 @@ export const CreateWorkItemNoteSchema = z.object({
 export const MoveWorkItemSchema = z.object({
   project_id: z.coerce.string().describe("Project ID, URL-encoded project path, or group path of the source namespace"),
   iid: z.coerce.number().describe("The internal ID of the work item to move"),
-  target_project_id: z.coerce.string().describe("Project ID or URL-encoded path of the target project"),
+  target_project_id: z.coerce.string().describe("Project ID, URL-encoded project path, or group path of the target namespace"),
 });
 
 export const ListCustomFieldDefinitionsSchema = z.object({
@@ -3853,26 +3853,26 @@ export const DeleteIssueNoteEmojiReactionSchema = ProjectParamsSchema.extend({
 // --- Emoji Reaction schemas (GraphQL: Work Items) ---
 
 export const CreateWorkItemEmojiReactionSchema = z.object({
-  project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
+  project_id: ProjectIdOrPathSchema,
   iid: z.coerce.number().describe("The internal ID of the work item"),
   name: emojiNameField,
 });
 
 export const DeleteWorkItemEmojiReactionSchema = z.object({
-  project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
+  project_id: ProjectIdOrPathSchema,
   iid: z.coerce.number().describe("The internal ID of the work item"),
   name: emojiNameField,
 });
 
 export const CreateWorkItemNoteEmojiReactionSchema = z.object({
-  project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
+  project_id: ProjectIdOrPathSchema,
   iid: z.coerce.number().describe("The internal ID of the work item"),
   note_id: z.string().describe("The GraphQL GID of the note (e.g. 'gid://gitlab/Note/123' from list_work_item_notes)"),
   name: emojiNameField,
 });
 
 export const DeleteWorkItemNoteEmojiReactionSchema = z.object({
-  project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
+  project_id: ProjectIdOrPathSchema,
   iid: z.coerce.number().describe("The internal ID of the work item"),
   note_id: z.string().describe("The GraphQL GID of the note (e.g. 'gid://gitlab/Note/123' from list_work_item_notes)"),
   name: emojiNameField,
