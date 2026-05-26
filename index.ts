@@ -2894,6 +2894,11 @@ async function resolveProjectPath(projectId: string): Promise<string> {
   const projectResponse = await fetch(projectUrl.toString(), {
     ...getFetchConfig(),
   });
+  // If the path resolves to a group rather than a project (404), use it directly —
+  // the GraphQL `namespace(fullPath: ...)` field accepts both project and group paths.
+  if (projectResponse.status === 404) {
+    return effectiveProjectId;
+  }
   await handleGitLabError(projectResponse);
   const project: any = await projectResponse.json();
   return project.path_with_namespace;
