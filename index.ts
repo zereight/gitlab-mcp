@@ -2894,10 +2894,21 @@ async function resolveProjectPath(projectId: string): Promise<string> {
   const projectResponse = await fetch(projectUrl.toString(), {
     ...getFetchConfig(),
   });
-  // If the path resolves to a group rather than a project (404), use it directly —
-  // the GraphQL `namespace(fullPath: ...)` field accepts both project and group paths.
+  // If the project lookup returned 404, check whether the path is a real group
+  // before falling through to GraphQL. This prevents typos, deleted projects, and
+  // permission-scoped 404s from silently producing empty GraphQL results.
   if (projectResponse.status === 404) {
-    return effectiveProjectId;
+    const groupUrl = new URL(
+      `${getEffectiveApiUrl()}/groups/${encodeURIComponent(effectiveProjectId)}`
+    );
+    const groupResponse = await fetch(groupUrl.toString(), {
+      ...getFetchConfig(),
+    });
+    if (groupResponse.ok) {
+      const group: any = await groupResponse.json();
+      return group.full_path as string;
+    }
+    // Not a group either — fall through to the outer error handler below
   }
   await handleGitLabError(projectResponse);
   const project: any = await projectResponse.json();
