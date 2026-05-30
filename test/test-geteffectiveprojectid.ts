@@ -318,6 +318,7 @@ describe('GITLAB_PROJECT_ID guards repository and group mutators', () => {
         REMOTE_AUTHORIZATION: 'true',
         GITLAB_API_URL: `${mockGitLabUrl}/api/v4`,
         GITLAB_PROJECT_ID: DEFAULT_PROJECT_ID,
+        GITLAB_TOOLSETS: 'variables',
       }
     });
     servers.push(server);
@@ -365,6 +366,26 @@ describe('GITLAB_PROJECT_ID guards repository and group mutators', () => {
     }
   });
 
+  test('should reject list_group_variables when GITLAB_PROJECT_ID is set', async () => {
+    try {
+      await client.callTool('list_group_variables', { group_id: 'my-group' });
+      assert.fail('Should have rejected list_group_variables');
+    } catch (error) {
+      assert.ok(error instanceof Error);
+      assert.ok(error.message.includes('list_group_variables is not allowed'), 'Should mention list_group_variables');
+    }
+  });
+
+  test('should reject get_group_variable when GITLAB_PROJECT_ID is set', async () => {
+    try {
+      await client.callTool('get_group_variable', { group_id: 'my-group', key: 'SHARED_SECRET' });
+      assert.fail('Should have rejected get_group_variable');
+    } catch (error) {
+      assert.ok(error instanceof Error);
+      assert.ok(error.message.includes('get_group_variable is not allowed'), 'Should mention get_group_variable');
+    }
+  });
+
   test('should allow get_project (non-mutator) when GITLAB_PROJECT_ID is set', async () => {
     const result = await client.callTool('get_project', { project_id: '' });
     assert.ok(result.content, 'Should have content');
@@ -399,6 +420,7 @@ describe('GITLAB_ALLOWED_PROJECT_IDS guards repository and group mutators (allow
         REMOTE_AUTHORIZATION: 'true',
         GITLAB_API_URL: `${mockGitLabUrl}/api/v4`,
         GITLAB_ALLOWED_PROJECT_IDS: DEFAULT_PROJECT_ID,
+        GITLAB_TOOLSETS: 'variables',
       }
     });
     servers.push(server);
@@ -443,6 +465,26 @@ describe('GITLAB_ALLOWED_PROJECT_IDS guards repository and group mutators (allow
     } catch (error) {
       assert.ok(error instanceof Error);
       assert.ok(error.message.includes('create_group is not allowed'), 'Should mention create_group');
+    }
+  });
+
+  test('should reject list_group_variables with GITLAB_ALLOWED_PROJECT_IDS', async () => {
+    try {
+      await client.callTool('list_group_variables', { group_id: 'my-group' });
+      assert.fail('Should have rejected list_group_variables');
+    } catch (error) {
+      assert.ok(error instanceof Error);
+      assert.ok(error.message.includes('list_group_variables is not allowed'), 'Should mention list_group_variables');
+    }
+  });
+
+  test('should reject get_group_variable with GITLAB_ALLOWED_PROJECT_IDS', async () => {
+    try {
+      await client.callTool('get_group_variable', { group_id: 'my-group', key: 'SHARED_SECRET' });
+      assert.fail('Should have rejected get_group_variable');
+    } catch (error) {
+      assert.ok(error instanceof Error);
+      assert.ok(error.message.includes('get_group_variable is not allowed'), 'Should mention get_group_variable');
     }
   });
 
