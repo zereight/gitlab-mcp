@@ -28,6 +28,24 @@ if (!process.env.TEST_PROJECT_ID) {
   process.env.TEST_PROJECT_ID = DEFAULT_PROJECT_ID;
 }
 
+const GROUP_VARIABLE_READ_TOOL_CASES = [
+  { toolName: 'list_group_variables', args: { group_id: 'my-group' } },
+  { toolName: 'get_group_variable', args: { group_id: 'my-group', key: 'SHARED_SECRET' } },
+] as const;
+
+async function assertToolNotAllowedAsync(
+  callToolAsync: () => Promise<unknown>,
+  toolName: string,
+): Promise<void> {
+  try {
+    await callToolAsync();
+    assert.fail(`Should have rejected ${toolName}`);
+  } catch (error) {
+    assert.ok(error instanceof Error);
+    assert.ok(error.message.includes(`${toolName} is not allowed`), `Should mention ${toolName}`);
+  }
+}
+
 console.log('🔍 Testing getEffectiveProjectId functionality');
 console.log('');
 
@@ -366,23 +384,9 @@ describe('GITLAB_PROJECT_ID guards repository and group mutators', () => {
     }
   });
 
-  test('should reject list_group_variables when GITLAB_PROJECT_ID is set', async () => {
-    try {
-      await client.callTool('list_group_variables', { group_id: 'my-group' });
-      assert.fail('Should have rejected list_group_variables');
-    } catch (error) {
-      assert.ok(error instanceof Error);
-      assert.ok(error.message.includes('list_group_variables is not allowed'), 'Should mention list_group_variables');
-    }
-  });
-
-  test('should reject get_group_variable when GITLAB_PROJECT_ID is set', async () => {
-    try {
-      await client.callTool('get_group_variable', { group_id: 'my-group', key: 'SHARED_SECRET' });
-      assert.fail('Should have rejected get_group_variable');
-    } catch (error) {
-      assert.ok(error instanceof Error);
-      assert.ok(error.message.includes('get_group_variable is not allowed'), 'Should mention get_group_variable');
+  test('should reject group variable read tools when GITLAB_PROJECT_ID is set', async () => {
+    for (const { toolName, args } of GROUP_VARIABLE_READ_TOOL_CASES) {
+      await assertToolNotAllowedAsync(() => client.callTool(toolName, args), toolName);
     }
   });
 
@@ -468,23 +472,9 @@ describe('GITLAB_ALLOWED_PROJECT_IDS guards repository and group mutators (allow
     }
   });
 
-  test('should reject list_group_variables with GITLAB_ALLOWED_PROJECT_IDS', async () => {
-    try {
-      await client.callTool('list_group_variables', { group_id: 'my-group' });
-      assert.fail('Should have rejected list_group_variables');
-    } catch (error) {
-      assert.ok(error instanceof Error);
-      assert.ok(error.message.includes('list_group_variables is not allowed'), 'Should mention list_group_variables');
-    }
-  });
-
-  test('should reject get_group_variable with GITLAB_ALLOWED_PROJECT_IDS', async () => {
-    try {
-      await client.callTool('get_group_variable', { group_id: 'my-group', key: 'SHARED_SECRET' });
-      assert.fail('Should have rejected get_group_variable');
-    } catch (error) {
-      assert.ok(error instanceof Error);
-      assert.ok(error.message.includes('get_group_variable is not allowed'), 'Should mention get_group_variable');
+  test('should reject group variable read tools with GITLAB_ALLOWED_PROJECT_IDS', async () => {
+    for (const { toolName, args } of GROUP_VARIABLE_READ_TOOL_CASES) {
+      await assertToolNotAllowedAsync(() => client.callTool(toolName, args), toolName);
     }
   });
 

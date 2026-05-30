@@ -33,6 +33,14 @@ const MOCK_GROUP_VARIABLE = {
   description: null,
 };
 
+const MOCK_HIDDEN_PROJECT_VARIABLE = {
+  ...MOCK_PROJECT_VARIABLE,
+  key: TEST_HIDDEN_VAR_KEY,
+  value: null,
+  hidden: true,
+  description: null,
+};
+
 async function callTool(
   toolName: string,
   args: Record<string, unknown>,
@@ -108,17 +116,7 @@ describe("CI/CD variable tools", () => {
       "get",
       `/projects/${TEST_PROJECT_ID}/variables/${TEST_HIDDEN_VAR_KEY}`,
       (_req, res) => {
-        res.json({
-          variable_type: "env_var",
-          key: TEST_HIDDEN_VAR_KEY,
-          value: null,
-          protected: false,
-          masked: true,
-          hidden: true,
-          raw: false,
-          environment_scope: "*",
-          description: null,
-        });
+        res.json(MOCK_HIDDEN_PROJECT_VARIABLE);
       }
     );
 
