@@ -177,7 +177,7 @@ import { CookieJar, parse as parseCookie } from "tough-cookie";
 import { fileURLToPath, URL } from "node:url";
 import { z } from "zod";
 
-import { initializeOAuthClient, GitLabOAuth } from "./oauth.js";
+import { createGitLabOAuthClient, GitLabOAuth } from "./oauth.js";
 import { createGitLabOAuthProvider } from "./oauth-proxy.js";
 import { mcpAuthRouter } from "@modelcontextprotocol/sdk/server/auth/router.js";
 import { normalizeGitLabApiUrl } from "./utils/url.js";
@@ -12470,10 +12470,12 @@ async function runServer() {
       logger.info("Using OAuth authentication...");
       try {
         const gitlabBaseUrl = GITLAB_API_URL.replace(/\/api\/v4$/, "");
-        const oauthResult = await initializeOAuthClient(gitlabBaseUrl);
-        oauthClient = oauthResult.client;
-        OAUTH_ACCESS_TOKEN = oauthResult.accessToken;
-        logger.info("OAuth authentication successful");
+        // Construct the client synchronously (no network). The token is
+        // acquired lazily on the first tool call via ensureValidOAuthToken,
+        // by which point the network is ready. This avoids blocking startup
+        // and avoids opening a browser on transient boot-time network errors.
+        oauthClient = createGitLabOAuthClient(gitlabBaseUrl);
+        logger.info("OAuth enabled; token acquired lazily on first use.");
       } catch (error) {
         logger.error("OAuth authentication failed:", error);
         process.exit(1);
