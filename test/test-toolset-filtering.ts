@@ -48,6 +48,7 @@ const TOOLSET_TOOL_COUNTS: Record<string, number> = {
   webhooks: 3,
   groups: 1,
   variables: 10,
+  dependency_proxy: 4,
 };
 
 const LEGACY_PIPELINE_TOOL_COUNT = TOOLSET_TOOL_COUNTS.pipelines + TOOLSET_TOOL_COUNTS.ci;
@@ -74,6 +75,7 @@ const NON_DEFAULT_TOOLSETS = [
   "webhooks",
   "search",
   "variables",
+  "dependency_proxy",
 ];
 
 // discover_tools meta-tool is always force-injected (Step 5.5)
@@ -108,6 +110,7 @@ const TOOLSET_SAMPLE_TOOLS: Record<string, string[]> = {
   webhooks: ["list_webhooks", "list_webhook_events", "get_webhook_event"],
   groups: ["create_group"],
   variables: ["list_project_variables", "create_project_variable", "delete_project_variable", "list_group_variables", "create_group_variable", "delete_group_variable"],
+  dependency_proxy: ["get_dependency_proxy_settings", "list_dependency_proxy_blobs", "purge_dependency_proxy_cache"],
 };
 
 // --- Helpers ---

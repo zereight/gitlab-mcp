@@ -4148,3 +4148,47 @@ export const DeleteGroupVariableSchema = z.object({
     .optional()
     .describe("Filter by environment scope to disambiguate when multiple variables share the same key"),
 });
+
+// --- Dependency Proxy types ---
+export const GitLabDependencyProxySchema = z.object({
+  enabled: z.boolean(),
+  blob_count: z.number().nullable().optional(),
+  total_size: z.string().nullable().optional(),
+  image_prefix: z.string().nullable().optional(),
+  ttl_policy: z
+    .object({
+      enabled: z.boolean(),
+      ttl: z.number().nullable().optional(),
+    })
+    .nullable()
+    .optional(),
+});
+export type GitLabDependencyProxy = z.infer<typeof GitLabDependencyProxySchema>;
+
+export const GitLabDependencyProxyBlobSchema = z.object({
+  file_name: z.string(),
+  size: z.string(),
+  created_at: z.string().nullable().optional(),
+});
+export type GitLabDependencyProxyBlob = z.infer<typeof GitLabDependencyProxyBlobSchema>;
+
+export const GetDependencyProxySettingsSchema = z.object({
+  group_id: z.coerce.string().describe("Group ID or URL-encoded path"),
+});
+
+export const UpdateDependencyProxySettingsSchema = z.object({
+  group_id: z.coerce.string().describe("Group ID or URL-encoded path"),
+  enabled: z.boolean().optional().describe("Enable or disable the dependency proxy"),
+  identity: z.string().optional().describe("Proxy username for authenticated Docker Hub pulls (Premium/Ultimate)"),
+  secret: z.string().optional().describe("Proxy password / access token for authenticated pulls"),
+});
+
+export const ListDependencyProxyBlobsSchema = z.object({
+  group_id: z.coerce.string().describe("Group ID or URL-encoded path"),
+  first: z.number().int().optional().describe("Number of blobs to return (default: 20)"),
+  after: z.string().optional().describe("Cursor for pagination (from previous response pageInfo.endCursor)"),
+});
+
+export const PurgeDependencyProxyCacheSchema = z.object({
+  group_id: z.coerce.string().describe("Group ID or URL-encoded path"),
+});
