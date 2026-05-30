@@ -2093,19 +2093,9 @@ async function resolveWorkItemGID(
   projectId: string,
   issueIid: number
 ): Promise<{ workItemGID: string; projectPath: string }> {
-  projectId = decodeURIComponent(projectId);
-  const effectiveProjectId = getEffectiveProjectId(projectId);
-
-  // First get the project path via REST (needed for GraphQL namespace query)
-  const projectUrl = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(effectiveProjectId)}`
-  );
-  const projectResponse = await fetch(projectUrl.toString(), {
-    ...getFetchConfig(),
-  });
-  await handleGitLabError(projectResponse);
-  const project: any = await projectResponse.json();
-  const projectPath: string = project.path_with_namespace;
+  // resolveProjectPath handles both project and group paths (including the
+  // group fallback), so work item tools work for group-level namespaces too.
+  const projectPath = await resolveProjectPath(projectId);
 
   // Resolve work item GID via GraphQL
   const data = await executeGraphQL<{
@@ -2298,19 +2288,7 @@ async function listIssueStatuses(
   projectId: string,
   workItemType: string = "issue"
 ): Promise<any> {
-  projectId = decodeURIComponent(projectId);
-  const effectiveProjectId = getEffectiveProjectId(projectId);
-
-  // Get project path
-  const projectUrl = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(effectiveProjectId)}`
-  );
-  const projectResponse = await fetch(projectUrl.toString(), {
-    ...getFetchConfig(),
-  });
-  await handleGitLabError(projectResponse);
-  const project: any = await projectResponse.json();
-
+  const projectPath = await resolveProjectPath(projectId);
   const typeName = WORK_ITEM_TYPE_NAMES[workItemType] || "Issue";
 
   const data = await executeGraphQL<{
@@ -2352,7 +2330,7 @@ async function listIssueStatuses(
         }
       }
     }`,
-    { path: project.path_with_namespace, typeName: typeName.replace(/ /g, "_").toUpperCase() }
+    { path: projectPath, typeName: typeName.replace(/ /g, "_").toUpperCase() }
   );
 
   const typeNodes = data.namespace?.workItemTypes?.nodes;
@@ -2906,6 +2884,26 @@ async function resolveProjectPath(projectId: string): Promise<string> {
   const projectResponse = await fetch(projectUrl.toString(), {
     ...getFetchConfig(),
   });
+
+  // On project 404, fall back to groups — but only for path-like identifiers.
+  // Numeric IDs must not fall back: group and project IDs share no namespace,
+  // so a numeric project 404 should fail immediately rather than silently
+  // resolving to an unrelated group with the same integer ID.
+  if (projectResponse.status === 404 && !/^\d+$/.test(effectiveProjectId)) {
+    const groupUrl = new URL(
+      `${getEffectiveApiUrl()}/groups/${encodeURIComponent(effectiveProjectId)}`
+    );
+    const groupResponse = await fetch(groupUrl.toString(), {
+      ...getFetchConfig(),
+    });
+    if (groupResponse.ok) {
+      const group: any = await groupResponse.json();
+      return group.full_path as string;
+    }
+    // Surface the group error
+    await handleGitLabError(groupResponse);
+  }
+
   await handleGitLabError(projectResponse);
   const project: any = await projectResponse.json();
   return project.path_with_namespace;
