@@ -10992,6 +10992,7 @@ async function handleToolCall(params: any) {
       }
 
       case "get_dependency_proxy_settings": {
+        rejectIfProjectScopedDeployment("get_dependency_proxy_settings");
         const args = GetDependencyProxySettingsSchema.parse(params.arguments);
         const settings = await getDependencyProxySettings(args.group_id);
         return {
@@ -11000,6 +11001,7 @@ async function handleToolCall(params: any) {
       }
 
       case "update_dependency_proxy_settings": {
+        rejectIfProjectScopedDeployment("update_dependency_proxy_settings");
         const args = UpdateDependencyProxySettingsSchema.parse(params.arguments);
         const { group_id, ...options } = args;
         const settings = await updateDependencyProxySettings(group_id, options);
@@ -11009,6 +11011,7 @@ async function handleToolCall(params: any) {
       }
 
       case "list_dependency_proxy_blobs": {
+        rejectIfProjectScopedDeployment("list_dependency_proxy_blobs");
         const args = ListDependencyProxyBlobsSchema.parse(params.arguments);
         const { group_id, ...options } = args;
         const result = await listDependencyProxyBlobs(group_id, options);
@@ -11018,6 +11021,7 @@ async function handleToolCall(params: any) {
       }
 
       case "purge_dependency_proxy_cache": {
+        rejectIfProjectScopedDeployment("purge_dependency_proxy_cache");
         const args = PurgeDependencyProxyCacheSchema.parse(params.arguments);
         await purgeDependencyProxyCache(args.group_id);
         return {

@@ -565,4 +565,73 @@ describe('GITLAB_READ_ONLY_MODE enforces read-only for all write tools', () => {
   });
 });
 
+describe('GITLAB_PROJECT_ID guards dependency proxy tools', () => {
+  let mcpUrl: string;
+  let mockGitLab: MockGitLabServer;
+  let servers: ServerInstance[] = [];
+  let client: CustomHeaderClient;
+
+  before(async () => {
+    const mockPort = await findMockServerPort(9500);
+    mockGitLab = new MockGitLabServer({
+      port: mockPort,
+      validTokens: [MOCK_TOKEN],
+    });
+    await mockGitLab.start();
+    const mockGitLabUrl = mockGitLab.getUrl();
+
+    const mcpPort = await findAvailablePort(3500);
+    const server = await launchServer({
+      mode: TransportMode.STREAMABLE_HTTP,
+      port: mcpPort,
+      timeout: 5000,
+      env: {
+        REMOTE_AUTHORIZATION: 'true',
+        GITLAB_API_URL: `${mockGitLabUrl}/api/v4`,
+        GITLAB_PROJECT_ID: DEFAULT_PROJECT_ID,
+        GITLAB_TOOLSETS: 'dependency_proxy',
+      },
+    });
+    servers.push(server);
+    mcpUrl = `http://${HOST}:${mcpPort}/mcp`;
+
+    client = new CustomHeaderClient({
+      authorization: `Bearer ${MOCK_TOKEN}`,
+    });
+    await client.connect(mcpUrl);
+  });
+
+  after(async () => {
+    if (client) await client.disconnect();
+    cleanupServers(servers);
+    if (mockGitLab) await mockGitLab.stop();
+  });
+
+  test('should reject get_dependency_proxy_settings when GITLAB_PROJECT_ID is set', async () => {
+    try {
+      await client.callTool('get_dependency_proxy_settings', { group_id: 'my-group' });
+      assert.fail('Should have rejected get_dependency_proxy_settings');
+    } catch (error) {
+      assert.ok(error instanceof Error);
+      assert.ok(
+        error.message.includes('get_dependency_proxy_settings is not allowed'),
+        'Should mention get_dependency_proxy_settings'
+      );
+    }
+  });
+
+  test('should reject purge_dependency_proxy_cache when GITLAB_PROJECT_ID is set', async () => {
+    try {
+      await client.callTool('purge_dependency_proxy_cache', { group_id: 'my-group' });
+      assert.fail('Should have rejected purge_dependency_proxy_cache');
+    } catch (error) {
+      assert.ok(error instanceof Error);
+      assert.ok(
+        error.message.includes('purge_dependency_proxy_cache is not allowed'),
+        'Should mention purge_dependency_proxy_cache'
+      );
+    }
+  });
+});
+
 }); // end wrapper describe
