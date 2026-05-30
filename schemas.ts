@@ -4016,6 +4016,7 @@ export const GitLabCiVariableSchema = z.object({
   value: z.string(),
   protected: z.boolean().optional(),
   masked: z.boolean().optional(),
+  hidden: z.boolean().optional(),
   raw: z.boolean().optional(),
   environment_scope: z.string().optional(),
   description: z.string().nullable().optional(),
