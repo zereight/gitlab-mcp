@@ -4013,7 +4013,7 @@ export const HealthCheckSchema = z.object({});
 export const GitLabCiVariableSchema = z.object({
   variable_type: z.enum(["env_var", "file"]).optional(),
   key: z.string(),
-  value: z.string(),
+  value: z.string().nullable(),
   protected: z.boolean().optional(),
   masked: z.boolean().optional(),
   hidden: z.boolean().optional(),

@@ -8,6 +8,7 @@ const TEST_PROJECT_ID = "123";
 const TEST_GROUP_ID = "my-group";
 const TEST_VAR_KEY = "DB_URL";
 const TEST_GROUP_VAR_KEY = "SHARED_SECRET";
+const TEST_HIDDEN_VAR_KEY = "HIDDEN_VAR";
 const TEST_SCOPE = "production";
 
 const MOCK_PROJECT_VARIABLE = {
@@ -100,6 +101,24 @@ describe("CI/CD variable tools", () => {
         const scope = (req.query as Record<string, string>)["filter[environment_scope]"];
         lastReceivedFilterScope = scope;
         res.json({ ...MOCK_PROJECT_VARIABLE, environment_scope: scope ?? "*" });
+      }
+    );
+
+    mockServer.addMockHandler(
+      "get",
+      `/projects/${TEST_PROJECT_ID}/variables/${TEST_HIDDEN_VAR_KEY}`,
+      (_req, res) => {
+        res.json({
+          variable_type: "env_var",
+          key: TEST_HIDDEN_VAR_KEY,
+          value: null,
+          protected: false,
+          masked: true,
+          hidden: true,
+          raw: false,
+          environment_scope: "*",
+          description: null,
+        });
       }
     );
 
@@ -196,6 +215,17 @@ describe("CI/CD variable tools", () => {
     assert.strictEqual(result.key, TEST_VAR_KEY);
     assert.strictEqual(result.environment_scope, "*");
     assert.strictEqual(result.variable_type, "env_var");
+  });
+
+  test("get_project_variable returns hidden variable with null value", async () => {
+    const result = await callTool(
+      "get_project_variable",
+      { project_id: TEST_PROJECT_ID, key: TEST_HIDDEN_VAR_KEY },
+      baseEnv
+    );
+    assert.strictEqual(result.key, TEST_HIDDEN_VAR_KEY);
+    assert.strictEqual(result.value, null);
+    assert.strictEqual(result.hidden, true);
   });
 
   test("create_project_variable returns created variable", async () => {
