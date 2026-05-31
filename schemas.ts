@@ -3350,6 +3350,26 @@ export const ExecuteGraphQLSchema = z.object({
 });
 export type ExecuteGraphQLOptions = z.infer<typeof ExecuteGraphQLSchema>;
 
+export const SwitchInstanceSchema = z.object({
+  apiUrl: z.string().url().optional().describe("The GitLab API URL (e.g. https://gitlab.com/api/v4)"),
+  token: z.string().optional().describe("The Personal Access Token for this instance"),
+  alias: z.string().optional().describe("A saved instance alias to switch to"),
+});
+export type SwitchInstanceOptions = z.infer<typeof SwitchInstanceSchema>;
+
+export const AddInstanceSchema = z.object({
+  alias: z.string().describe("Short name for this instance (e.g. 'work', 'personal')"),
+  apiUrl: z.string().url().describe("GitLab API URL"),
+  token: z.string().describe("Personal Access Token"),
+  description: z.string().optional().describe("Optional description of the instance"),
+});
+
+export const SelectInstanceSchema = z.object({
+  alias: z.string().describe("The alias of the instance to switch to"),
+});
+
+export const ListInstancesSchema = z.object({});
+
 // Release schemas
 export const GitLabReleaseAssetLinkSchema = z.object({
   id: z.coerce.number().optional(),
