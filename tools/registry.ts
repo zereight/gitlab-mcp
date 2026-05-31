@@ -1286,8 +1286,6 @@ export const allTools = [
 // Define which tools are read-only
 export const readOnlyTools = new Set([
   "gitlab_list_instances",
-  "gitlab_add_instance",
-  "gitlab_select_instance",
   "gitlab_switch_instance",
   "discover_tools",
   "health_check",

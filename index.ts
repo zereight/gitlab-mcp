@@ -887,11 +887,11 @@ function createServer(): McpServer {
           apiUrl: authData.apiUrl,
         };
         // Run the handler within the retrieved context
-        const result = await sessionAuthStore.run(sessionContext, () => handleToolCall(request.params));
+        const result = await sessionAuthStore.run(sessionContext, () => handleToolCall(request.params, sessionId));
         return logCompletion(result);
       }
       // Fallback for non-remote-auth mode or if session is not found
-      const result = await handleToolCall(request.params);
+      const result = await handleToolCall(request.params, sessionId);
       return logCompletion(result);
     } catch (error) {
       logError(error);
@@ -1421,7 +1421,7 @@ const BASE_HEADERS: Record<string, string> = {
 function buildAuthHeaders(): Record<string, string> {
   const getHeaderForToken = (token: string): Record<string, string> => {
     const trimmed = token.trim();
-    if (trimmed.startsWith("glpat-")) {
+    if (IS_OLD || trimmed.startsWith("glpat-")) {
       return { "Private-Token": trimmed };
     }
     return { Authorization: `Bearer ${trimmed}` };
@@ -9036,7 +9036,7 @@ async function handleToolCall(params: any, sessionId?: string) {
         targetApiUrl = normalizeGitLabApiUrl(targetApiUrl);
 
         const authData: AuthData = {
-          header: (targetToken.startsWith("glpat-") || !GITLAB_MCP_OAUTH) ? "Private-Token" : "Authorization",
+          header: (IS_OLD || targetToken.startsWith("glpat-") || !GITLAB_MCP_OAUTH) ? "Private-Token" : "Authorization",
           token: targetToken,
           lastUsed: Date.now(),
           apiUrl: targetApiUrl,
