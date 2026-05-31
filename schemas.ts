@@ -2060,13 +2060,21 @@ export const ListIssuesSchema = z
     assignee_id: z.coerce
       .string()
       .optional()
-      .describe("Return issues assigned to the given user ID. user id or none or any"),
+      .describe(
+        "Return issues assigned to the given user ID (user id, none, or any). Mutually exclusive with assignee_username."
+      ),
     assignee_username: z
       .array(z.string())
       .optional()
-      .describe("Return issues assigned to the given username"),
-    author_id: z.coerce.string().optional().describe("Return issues created by the given user ID"),
-    author_username: z.string().optional().describe("Return issues created by the given username"),
+      .describe("Return issues assigned to the given username. Mutually exclusive with assignee_id."),
+    author_id: z.coerce
+      .string()
+      .optional()
+      .describe("Return issues created by the given user ID. Mutually exclusive with author_username."),
+    author_username: z
+      .string()
+      .optional()
+      .describe("Return issues created by the given username. Mutually exclusive with author_id."),
     confidential: z.coerce.boolean().optional().describe("Filter confidential or public issues"),
     created_after: z.string().optional().describe("Return issues created after the given time"),
     created_before: z.string().optional().describe("Return issues created before the given time"),

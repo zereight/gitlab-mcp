@@ -183,7 +183,11 @@ import { createGitLabOAuthProvider } from "./oauth-proxy.js";
 import { mcpAuthRouter } from "@modelcontextprotocol/sdk/server/auth/router.js";
 import { normalizeGitLabApiUrl } from "./utils/url.js";
 import { estimateMergeCommitCount, filterDiffsByPatterns, summarizeWebhookEvents } from "./utils/helpers.js";
-import { sanitizeToolArguments } from "./utils/tool-args.js";
+import {
+  cleanMutuallyExclusiveIdUsernameOptions,
+  LIST_MERGE_REQUESTS_ID_USERNAME_PAIRS,
+  sanitizeToolArguments,
+} from "./utils/tool-args.js";
 import {
   parseSearchReplaceBlocks,
   applySearchReplace,
@@ -9874,7 +9878,8 @@ async function handleToolCall(params: any) {
       case "list_issues": {
         const args = ListIssuesSchema.parse(params.arguments);
         const { project_id, ...options } = args;
-        const issues = await listIssues(project_id, options);
+        const cleanedOptions = cleanMutuallyExclusiveIdUsernameOptions(options);
+        const issues = await listIssues(project_id, cleanedOptions);
         return {
           content: [{ type: "text", text: JSON.stringify(issues, null, 2) }],
         };
@@ -10694,19 +10699,10 @@ async function handleToolCall(params: any) {
 
       case "list_merge_requests": {
         const { project_id, ...options } = ListMergeRequestsSchema.parse(params.arguments);
-
-        // GitLab API treats _id and _username as mutually exclusive for these fields.
-        // When both are provided, prefer _username and remove _id to avoid 400 errors.
-        const cleanedOptions = { ...options } as Record<string, unknown>;
-        if (cleanedOptions.author_id && cleanedOptions.author_username) {
-          delete cleanedOptions.author_id;
-        }
-        if (cleanedOptions.assignee_id && cleanedOptions.assignee_username) {
-          delete cleanedOptions.assignee_id;
-        }
-        if (cleanedOptions.reviewer_id && cleanedOptions.reviewer_username) {
-          delete cleanedOptions.reviewer_id;
-        }
+        const cleanedOptions = cleanMutuallyExclusiveIdUsernameOptions(
+          options,
+          LIST_MERGE_REQUESTS_ID_USERNAME_PAIRS
+        );
 
         const mergeRequests = await listMergeRequests(project_id, cleanedOptions);
         return {

@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
-import { sanitizeToolArguments } from "../../utils/tool-args.js";
+import {
+  cleanMutuallyExclusiveIdUsernameOptions,
+  LIST_MERGE_REQUESTS_ID_USERNAME_PAIRS,
+  sanitizeToolArguments,
+} from "../../utils/tool-args.js";
 
 describe("When sanitizeToolArguments runs", () => {
   describe("with top-level null optionals", () => {
@@ -82,6 +86,52 @@ describe("When sanitizeToolArguments runs", () => {
       });
 
       assert.equal(result.priority, null);
+    });
+  });
+});
+
+describe("When cleanMutuallyExclusiveIdUsernameOptions runs", () => {
+  describe("with list_issues author filters", () => {
+    test("should drop author_id when author_username is also set", () => {
+      const result = cleanMutuallyExclusiveIdUsernameOptions({
+        author_id: "42",
+        author_username: "alice",
+        state: "opened",
+      });
+
+      assert.deepEqual(result, {
+        author_username: "alice",
+        state: "opened",
+      });
+    });
+  });
+
+  describe("with list_issues assignee filters", () => {
+    test("should drop assignee_id when assignee_username is also set", () => {
+      const result = cleanMutuallyExclusiveIdUsernameOptions({
+        assignee_id: "7",
+        assignee_username: ["bob"],
+      });
+
+      assert.deepEqual(result, {
+        assignee_username: ["bob"],
+      });
+    });
+  });
+
+  describe("with list_merge_requests reviewer filters", () => {
+    test("should drop reviewer_id when reviewer_username is also set", () => {
+      const result = cleanMutuallyExclusiveIdUsernameOptions(
+        {
+          reviewer_id: "3",
+          reviewer_username: "carol",
+        },
+        LIST_MERGE_REQUESTS_ID_USERNAME_PAIRS
+      );
+
+      assert.deepEqual(result, {
+        reviewer_username: "carol",
+      });
     });
   });
 });

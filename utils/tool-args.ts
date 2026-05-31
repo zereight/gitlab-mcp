@@ -28,3 +28,34 @@ export function sanitizeToolArguments(
 
   return result;
 }
+
+export type IdUsernameOptionPair = readonly [idKey: string, usernameKey: string];
+
+/** Pairs where GitLab rejects sending both *_id and *_username query params. */
+export const LIST_ISSUES_ID_USERNAME_PAIRS: readonly IdUsernameOptionPair[] = [
+  ["author_id", "author_username"],
+  ["assignee_id", "assignee_username"],
+];
+
+export const LIST_MERGE_REQUESTS_ID_USERNAME_PAIRS: readonly IdUsernameOptionPair[] = [
+  ...LIST_ISSUES_ID_USERNAME_PAIRS,
+  ["reviewer_id", "reviewer_username"],
+];
+
+/**
+ * When both id and username filters are set, GitLab returns 400. Prefer username and drop id.
+ */
+export function cleanMutuallyExclusiveIdUsernameOptions<T extends Record<string, unknown>>(
+  options: T,
+  pairs: readonly IdUsernameOptionPair[] = LIST_ISSUES_ID_USERNAME_PAIRS
+): T {
+  const cleaned = { ...options };
+
+  for (const [idKey, usernameKey] of pairs) {
+    if (cleaned[idKey] && cleaned[usernameKey]) {
+      delete cleaned[idKey];
+    }
+  }
+
+  return cleaned;
+}
