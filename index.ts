@@ -9780,7 +9780,7 @@ async function handleToolCall(params: any, sessionId?: string) {
 
       case "list_namespaces": {
         const args = ListNamespacesSchema.parse(params.arguments);
-        const url = new URL(`${GITLAB_API_URL}/namespaces`);
+        const url = new URL(`${getEffectiveApiUrl()}/namespaces`);
 
         if (args.search) {
           url.searchParams.append("search", args.search);
@@ -9811,7 +9811,7 @@ async function handleToolCall(params: any, sessionId?: string) {
       case "get_namespace": {
         const args = GetNamespaceSchema.parse(params.arguments);
         const url = new URL(
-          `${GITLAB_API_URL}/namespaces/${encodeURIComponent(args.namespace_id)}`
+          `${getEffectiveApiUrl()}/namespaces/${encodeURIComponent(args.namespace_id)}`
         );
 
         const response = await fetch(url.toString(), {
@@ -9829,7 +9829,7 @@ async function handleToolCall(params: any, sessionId?: string) {
 
       case "verify_namespace": {
         const args = VerifyNamespaceSchema.parse(params.arguments);
-        const url = new URL(`${GITLAB_API_URL}/namespaces/${encodeURIComponent(args.path)}/exists`);
+        const url = new URL(`${getEffectiveApiUrl()}/namespaces/${encodeURIComponent(args.path)}/exists`);
 
         const response = await fetch(url.toString(), {
           ...getFetchConfig(),
