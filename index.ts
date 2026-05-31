@@ -1483,12 +1483,9 @@ function usesJobTokenHeader(): boolean {
  * Otherwise, uses environment GITLAB_API_URL or persistent config
  */
 function getEffectiveApiUrl(): string {
-  if (ENABLE_DYNAMIC_API_URL) {
-    const ctx = sessionAuthStore.getStore();
-    if (ctx?.apiUrl) {
-      return ctx.apiUrl;
-    }
-    logger.warn({ ctx }, "getEffectiveApiUrl: No context or apiUrl found, falling back to default");
+  const ctx = sessionAuthStore.getStore();
+  if (ctx?.apiUrl) {
+    return ctx.apiUrl;
   }
 
   // Support globalSessionAuth for stdio dynamic switching (highest priority)
