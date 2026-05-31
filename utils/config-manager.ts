@@ -43,15 +43,22 @@ class ConfigManager {
 
   private migrateIfNeeded(): void {
     if (Object.keys(this.data.instances).length === 0) {
-      // We can't easily access process.env here if it's imported too early,
-      // but usually it's fine in Node.
+      // Simple normalization: ensure /api/v4 suffix
+      const normalize = (url: string) => {
+        let u = url.trim().replace(/\/$/, "");
+        if (!u.endsWith("/api/v4")) {
+          u += "/api/v4";
+        }
+        return u;
+      };
+
       const envToken = process.env.GITLAB_PERSONAL_ACCESS_TOKEN;
       const envUrl = process.env.GITLAB_API_URL || "https://gitlab.com/api/v4";
       const cloudToken = process.env.GITLAB_CLOUD_TOKEN;
 
       if (envToken) {
         this.addInstance("twinby", {
-          url: envUrl,
+          url: normalize(envUrl),
           token: envToken,
           description: "Default instance from environment",
         });
@@ -60,7 +67,7 @@ class ConfigManager {
 
       if (cloudToken) {
         this.addInstance("cloud", {
-          url: process.env.GITLAB_CLOUD_API_URL || "https://gitlab.com/api/v4",
+          url: normalize(process.env.GITLAB_CLOUD_API_URL || "https://gitlab.com/api/v4"),
           token: cloudToken,
           description: "Cloud instance from .env",
         });

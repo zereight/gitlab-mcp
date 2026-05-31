@@ -124,29 +124,46 @@ function buildDownloadUrl(type: string, params: Record<string, string>): string 
   // Embed auth (and apiUrl when dynamic routing is active) from current session or static config
   // Token is bound to the specific resource (type + params) to prevent URL tampering
   const resource = { type, params };
+  
+  const getHeaderAndValue = (token: string, headerOverride?: string): { header: string; headerValue: string } => {
+    const trimmed = token.trim();
+    if (headerOverride && headerOverride !== "Authorization") {
+      return { header: headerOverride, headerValue: trimmed };
+    }
+    if (IS_OLD || trimmed.startsWith("glpat-")) {
+      return { header: "Private-Token", headerValue: trimmed };
+    }
+    return { header: "Authorization", headerValue: `Bearer ${trimmed}` };
+  };
+
   const ctx = sessionAuthStore.getStore();
   if (ctx?.token) {
-    const headerValue = ctx.header === "Authorization" ? `Bearer ${ctx.token}` : ctx.token;
-    const apiUrl = ENABLE_DYNAMIC_API_URL && ctx.apiUrl !== GITLAB_API_URL ? ctx.apiUrl : undefined;
-    url.searchParams.set("_token", createDownloadToken(ctx.header, headerValue, apiUrl, resource));
+    const { header, headerValue } = getHeaderAndValue(ctx.token, ctx.header);
+    const apiUrl = ctx.apiUrl !== GITLAB_API_URL ? ctx.apiUrl : undefined;
+    url.searchParams.set("_token", createDownloadToken(header, headerValue, apiUrl, resource));
+  } else if (globalSessionAuth) {
+    const { header, headerValue } = getHeaderAndValue(globalSessionAuth.token, globalSessionAuth.header);
+    url.searchParams.set("_token", createDownloadToken(header, headerValue, globalSessionAuth.apiUrl, resource));
   } else {
-    // Fallback for SSE/static-token mode (no session auth context)
-    // Priority matches buildAuthHeaders: OAuth > PAT > JOB token
-    const staticToken = OAUTH_ACCESS_TOKEN || GITLAB_PERSONAL_ACCESS_TOKEN || GITLAB_JOB_TOKEN;
-    if (staticToken) {
-      let header: string;
-      let headerValue: string;
-      if (GITLAB_JOB_TOKEN && !GITLAB_PERSONAL_ACCESS_TOKEN && !OAUTH_ACCESS_TOKEN) {
-        header = "JOB-TOKEN";
-        headerValue = String(staticToken);
-      } else if (IS_OLD) {
-        header = "Private-Token";
-        headerValue = String(staticToken);
-      } else {
-        header = "Authorization";
-        headerValue = `Bearer ${staticToken}`;
+    const activeInstance = configManager.getActiveInstance();
+    if (activeInstance) {
+      const { header, headerValue } = getHeaderAndValue(activeInstance.token);
+      url.searchParams.set("_token", createDownloadToken(header, headerValue, activeInstance.url, resource));
+    } else {
+      const staticToken = OAUTH_ACCESS_TOKEN || GITLAB_PERSONAL_ACCESS_TOKEN || GITLAB_JOB_TOKEN;
+      if (staticToken) {
+        let header: string;
+        let headerValue: string;
+        if (GITLAB_JOB_TOKEN && !GITLAB_PERSONAL_ACCESS_TOKEN && !OAUTH_ACCESS_TOKEN) {
+          header = "JOB-TOKEN";
+          headerValue = String(staticToken);
+        } else {
+          const res = getHeaderAndValue(String(staticToken));
+          header = res.header;
+          headerValue = res.headerValue;
+        }
+        url.searchParams.set("_token", createDownloadToken(header, headerValue, undefined, resource));
       }
-      url.searchParams.set("_token", createDownloadToken(header, headerValue, undefined, resource));
     }
   }
   return url.toString();
