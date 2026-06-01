@@ -1,0 +1,117 @@
+site_name: GitLab MCP Server
+site_description: A comprehensive GitLab MCP server for AI clients — manage projects, merge requests, issues, pipelines, wiki, releases, tags, milestones, and more.
+site_url: https://zereight.github.io/gitlab-mcp/
+repo_url: https://github.com/zereight/gitlab-mcp
+repo_name: zereight/gitlab-mcp
+docs_dir: docs
+edit_uri: edit/main/docs/
+
+theme:
+  name: material
+  features:
+    - navigation.sections
+    - navigation.indexes
+    - navigation.top
+    - navigation.tracking
+    - navigation.tabs
+    - content.code.copy
+    - content.code.annotate
+    - content.action.edit
+    - search.suggest
+    - search.highlight
+    - toc.follow
+  palette:
+    - scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  icon:
+    repo: fontawesome/brands/github
+
+plugins:
+  - search
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - md_in_html
+  - tables
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - toc:
+      permalink: true
+
+nav:
+  - Home: index.md
+  - Getting Started:
+      - Overview: getting-started/index.md
+      - CLI Arguments: getting-started/cli-arguments.md
+  - Client Setup:
+      - Claude Code: clients/claude-code.md
+      - VS Code: clients/vscode.md
+      - GitHub Copilot: clients/copilot.md
+      - Cursor: clients/cursor.md
+      - Codex: clients/codex.md
+      - JSON-Based Clients: clients/json-clients.md
+  - Authentication:
+      - OAuth2 Setup: auth/oauth-setup.md
+      - OAuth Callback Proxy: auth/oauth-callback-proxy.md
+      - Custom Agents & Multiple PAT: auth/custom-agent-multiple-pat.md
+  - Configuration:
+      - Environment Variables: configuration/environment-variables.md
+      - Dynamic API URL: configuration/dynamic-api-url.md
+      - Stateless Mode: configuration/stateless-mode.md
+  - Features:
+      - Resolve Issue Thread: features/resolve-issue-thread.md
+  - Tools:
+      - Overview: tools/index.md
+      - Projects & Namespaces: tools/projects.md
+      - Projects & Files: tools/repositories.md
+      - Branches & Commits: tools/branches.md
+      - Groups: tools/groups.md
+      - Merge Requests: tools/merge-requests.md
+      - Issues: tools/issues.md
+      - Labels: tools/labels.md
+      - Work Items: tools/workitems.md
+      - CI Lint: tools/ci.md
+      - Pipelines, Jobs & Deployments: tools/pipelines.md
+      - Milestones: tools/milestones.md
+      - Wiki: tools/wiki.md
+      - Releases: tools/releases.md
+      - Tags: tools/tags.md
+      - Users & Events: tools/users.md
+      - Variables: tools/variables.md
+      - Webhooks: tools/webhooks.md
+      - Search: tools/search.md
+      - Dependency Proxy: tools/dependency-proxy.md
+      - Meta & GraphQL: tools/meta.md
+  - Reference:
+      - GitHub Secrets Setup: reference/setup-github-secrets.md
+      - Dependency Proxy Design: reference/dependency-proxy-design.md
+  - Contributing: contributing.md
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/zereight/gitlab-mcp
+    - icon: fontawesome/brands/npm
+      link: https://www.npmjs.com/package/@zereight/mcp-gitlab

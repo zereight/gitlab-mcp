@@ -115,6 +115,6 @@ Show me my GitLab projects and recent merge requests.
 
 ## See also
 
-- [VS Code Setup Guide](./vscode-setup.md)
-- [Claude Code Setup Guide](./claude-code-setup.md)
-- [OAuth2 Authentication Setup Guide](./oauth-setup.md)
+- [VS Code Setup Guide](vscode.md)
+- [Claude Code Setup Guide](claude-code.md)
+- [OAuth2 Authentication Setup Guide](../auth/oauth-setup.md)

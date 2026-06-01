@@ -113,6 +113,6 @@ If `npx` is not available in the environment where Codex launches subprocesses, 
 
 ## See also
 
-- [VS Code Setup Guide](./vscode-setup.md)
-- [Claude Code Setup Guide](./claude-code-setup.md)
-- [GitHub Copilot Setup Guide](./copilot-setup.md)
+- [VS Code Setup Guide](vscode.md)
+- [Claude Code Setup Guide](claude-code.md)
+- [GitHub Copilot Setup Guide](copilot.md)

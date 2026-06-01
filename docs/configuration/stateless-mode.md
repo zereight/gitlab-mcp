@@ -250,8 +250,8 @@ mode always use the new format.
 
 ## Related documents
 
-- [OAuth Callback Proxy](./oauth-callback-proxy.md) — the mode that benefits
+- [OAuth Callback Proxy](../auth/oauth-callback-proxy.md) — the mode that benefits
   most from stateless encodings.
-- [Environment Variables](./environment-variables.md) — the full reference.
-- [OAuth Setup](./oauth-setup.md) — how to configure the upstream GitLab
+- [Environment Variables](environment-variables.md) — the full reference.
+- [OAuth Setup](../auth/oauth-setup.md) — how to configure the upstream GitLab
   OAuth application.

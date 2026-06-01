@@ -138,6 +138,6 @@ Prefer input variables or environment files over committing secrets in `.vscode/
 
 ## See also
 
-- [OAuth2 Authentication Setup Guide](./oauth-setup.md)
-- [GitHub Copilot Setup Guide](./copilot-setup.md)
-- [Claude Code Setup Guide](./claude-code-setup.md)
+- [OAuth2 Authentication Setup Guide](../auth/oauth-setup.md)
+- [GitHub Copilot Setup Guide](copilot.md)
+- [Claude Code Setup Guide](claude-code.md)

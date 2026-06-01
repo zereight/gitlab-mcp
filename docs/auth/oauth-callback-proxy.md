@@ -156,7 +156,7 @@ tokens between `/callback` and `/token`. Under Kubernetes with multiple
 replicas, a request routed to a different pod from the one that created the
 state will fail.
 
-The fix is [Stateless Mode](./stateless-mode.md), which seals these values
+The fix is [Stateless Mode](../configuration/stateless-mode.md), which seals these values
 into the opaque OAuth parameters themselves with a shared server secret.
 No external cache, no sticky sessions, no affinity required.
 

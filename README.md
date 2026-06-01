@@ -2,7 +2,9 @@
 
 [English](./README.md) | [한국어](./README.ko.md) | [简体中文](./README.zh-CN.md)
 
-> **New Feature**: Dynamic GitLab API URL support with connection pooling! See [Dynamic API URL Documentation](docs/dynamic-api-url.md) for details.
+📖 **[Read the full documentation →](https://zereight.github.io/gitlab-mcp/)**
+
+> **New Feature**: Dynamic GitLab API URL support with connection pooling! See [Dynamic API URL Documentation](docs/configuration/dynamic-api-url.md) for details.
 
 [![Star History Chart](https://api.star-history.com/svg?repos=zereight/gitlab-mcp&type=Date)](https://www.star-history.com/#zereight/gitlab-mcp&Date)
 
@@ -24,16 +26,16 @@ Quick start: choose either Personal Access Token or OAuth2 setup below and use `
 
 ### Client Setup Guides
 
-- [Claude Code Setup Guide](./docs/claude-code-setup.md)
-- [VS Code Setup Guide](./docs/vscode-setup.md)
-- [GitHub Copilot Setup Guide](./docs/copilot-setup.md)
-- [Codex Setup Guide](./docs/codex-setup.md)
-- [Cursor Setup Guide](./docs/cursor-setup.md)
-- [JSON-Based MCP Clients Setup Guide](./docs/json-mcp-clients-setup.md) - for Factory AI Droid, OpenClaw, and OpenCode style clients
-- [OAuth2 Authentication Setup Guide](./docs/oauth-setup.md)
-- [Environment Variables Reference](./docs/environment-variables.md)
-- [Stateless Mode — Multi-Pod HPA](./docs/stateless-mode.md)
-- [Custom Agents and Multiple PAT Setup](./docs/custom-agent-multiple-pat.md)
+- [Claude Code Setup Guide](./docs/clients/claude-code.md)
+- [VS Code Setup Guide](./docs/clients/vscode.md)
+- [GitHub Copilot Setup Guide](./docs/clients/copilot.md)
+- [Codex Setup Guide](./docs/clients/codex.md)
+- [Cursor Setup Guide](./docs/clients/cursor.md)
+- [JSON-Based MCP Clients Setup Guide](./docs/clients/json-clients.md) - for Factory AI Droid, OpenClaw, and OpenCode style clients
+- [OAuth2 Authentication Setup Guide](./docs/auth/oauth-setup.md)
+- [Environment Variables Reference](./docs/configuration/environment-variables.md)
+- [Stateless Mode — Multi-Pod HPA](./docs/configuration/stateless-mode.md)
+- [Custom Agents and Multiple PAT Setup](./docs/auth/custom-agent-multiple-pat.md)
 
 ## Usage
 
@@ -55,13 +57,13 @@ The server supports four authentication methods:
 
 #### Quick setup paths
 
-- **Claude Code**: see [Claude Code Setup Guide](./docs/claude-code-setup.md)
-- **VS Code**: see [VS Code Setup Guide](./docs/vscode-setup.md)
-- **GitHub Copilot**: see [GitHub Copilot Setup Guide](./docs/copilot-setup.md)
-- **Codex**: see [Codex Setup Guide](./docs/codex-setup.md)
-- **Cursor**: see [Cursor Setup Guide](./docs/cursor-setup.md)
-- **Factory AI Droid / OpenClaw / OpenCode style clients**: see [JSON-Based MCP Clients Setup Guide](./docs/json-mcp-clients-setup.md)
-- **OAuth browser flow details**: see [OAuth2 Authentication Setup Guide](./docs/oauth-setup.md)
+- **Claude Code**: see [Claude Code Setup Guide](./docs/clients/claude-code.md)
+- **VS Code**: see [VS Code Setup Guide](./docs/clients/vscode.md)
+- **GitHub Copilot**: see [GitHub Copilot Setup Guide](./docs/clients/copilot.md)
+- **Codex**: see [Codex Setup Guide](./docs/clients/codex.md)
+- **Cursor**: see [Cursor Setup Guide](./docs/clients/cursor.md)
+- **Factory AI Droid / OpenClaw / OpenCode style clients**: see [JSON-Based MCP Clients Setup Guide](./docs/clients/json-clients.md)
+- **OAuth browser flow details**: see [OAuth2 Authentication Setup Guide](./docs/auth/oauth-setup.md)
 
 For the simplest local setup, start with a Personal Access Token. For browser-based local auth, use OAuth2. For remote or multi-user deployments, continue to the MCP OAuth and Remote Authorization sections later in this README.
 
@@ -283,14 +285,14 @@ Authorization: Bearer glpat-xxxxxxxxxxxxxxxxxxxx
 
 Use the dedicated reference for the full environment variable list:
 
-- [Environment Variables Reference](./docs/environment-variables.md)
+- [Environment Variables Reference](./docs/configuration/environment-variables.md)
 
 Most users only need one of these starting sets:
 
 - **Local PAT**: `GITLAB_PERSONAL_ACCESS_TOKEN`, `GITLAB_API_URL`
 - **Local OAuth**: `GITLAB_USE_OAUTH=true`, `GITLAB_OAUTH_CLIENT_ID`, `GITLAB_OAUTH_REDIRECT_URI`, `GITLAB_API_URL`
 - **Remote multi-user HTTP**: `STREAMABLE_HTTP=true`, `REMOTE_AUTHORIZATION=true`, `HOST`, `PORT`
-- **Multi-pod HPA (stateless)**: above + `OAUTH_STATELESS_MODE=true`, `OAUTH_STATELESS_SECRET` (same across all pods). See [Stateless Mode](./docs/stateless-mode.md).
+- **Multi-pod HPA (stateless)**: above + `OAUTH_STATELESS_MODE=true`, `OAUTH_STATELESS_SECRET` (same across all pods). See [Stateless Mode](./docs/configuration/stateless-mode.md).
 
 Commonly referenced variables:
 
@@ -312,7 +314,7 @@ The reference document also covers:
 - transport and session variables
 - proxy and TLS variables
 
-For callback proxy mode details, see [GitLab MCP OAuth Callback Proxy](./docs/oauth-callback-proxy.md).
+For callback proxy mode details, see [GitLab MCP OAuth Callback Proxy](./docs/auth/oauth-callback-proxy.md).
 
 ### Remote Authorization Setup (Multi-User Support)
 
