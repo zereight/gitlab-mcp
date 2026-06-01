@@ -85,6 +85,6 @@ Cursor MCP config commonly uses an `mcpServers` map for local stdio servers. If 
 
 ## See also
 
-- [VS Code Setup Guide](./vscode-setup.md)
-- [GitHub Copilot Setup Guide](./copilot-setup.md)
-- [Claude Code Setup Guide](./claude-code-setup.md)
+- [VS Code Setup Guide](vscode.md)
+- [GitHub Copilot Setup Guide](copilot.md)
+- [Claude Code Setup Guide](claude-code.md)

@@ -166,6 +166,6 @@ Claude Code supports multiple scopes:
 
 ## See also
 
-- [OAuth2 Authentication Setup Guide](./oauth-setup.md)
-- [VS Code Setup Guide](./vscode-setup.md)
-- [GitHub Copilot Setup Guide](./copilot-setup.md)
+- [OAuth2 Authentication Setup Guide](../auth/oauth-setup.md)
+- [VS Code Setup Guide](vscode.md)
+- [GitHub Copilot Setup Guide](copilot.md)

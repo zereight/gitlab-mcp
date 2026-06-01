@@ -63,7 +63,7 @@ Optional custom path for the stored OAuth token file.
 
 Set to `true` to require GitLab auth headers per HTTP session.
 
-See also: [Custom Agents and Multiple PAT Setup](./custom-agent-multiple-pat.md).
+See also: [Custom Agents and Multiple PAT Setup](../auth/custom-agent-multiple-pat.md).
 
 Notes:
 
@@ -131,7 +131,7 @@ Notes:
 
 ## Stateless mode (multi-pod HPA)
 
-See [Stateless Mode](./stateless-mode.md) for the full design and trade-off
+See [Stateless Mode](stateless-mode.md) for the full design and trade-off
 discussion. Stateless mode makes the OAuth proxy, DCR registry, and
 `Mcp-Session-Id` path safe to distribute across multiple pods with no shared
 cache, no sticky sessions, and no external dependency.
@@ -225,7 +225,7 @@ Set to `true` to expose only read-only tools.
 Comma-separated list of toolset IDs to enable.
 
 For agent-specific tool surfaces, see
-[Custom Agents and Multiple PAT Setup](./custom-agent-multiple-pat.md).
+[Custom Agents and Multiple PAT Setup](../auth/custom-agent-multiple-pat.md).
 
 Special value:
 
@@ -237,7 +237,7 @@ Comma-separated list of individual tool names to add on top of enabled toolsets.
 
 For restricted custom agents, combine this with `GITLAB_TOOLSETS`,
 `GITLAB_DENIED_TOOLS_REGEX`, and the tool policy variables documented in
-[Custom Agents and Multiple PAT Setup](./custom-agent-multiple-pat.md).
+[Custom Agents and Multiple PAT Setup](../auth/custom-agent-multiple-pat.md).
 
 ### `GITLAB_DENIED_TOOLS_REGEX`
 
@@ -355,12 +355,12 @@ Maximum GitLab client pool size.
 
 ## Related Guides
 
-- [OAuth2 Authentication Setup Guide](./oauth-setup.md)
-- [GitLab MCP OAuth Callback Proxy](./oauth-callback-proxy.md)
-- [Stateless Mode (multi-pod HPA)](./stateless-mode.md)
-- [Claude Code Setup Guide](./claude-code-setup.md)
-- [VS Code Setup Guide](./vscode-setup.md)
-- [GitHub Copilot Setup Guide](./copilot-setup.md)
-- [Codex Setup Guide](./codex-setup.md)
-- [Cursor Setup Guide](./cursor-setup.md)
-- [JSON-Based MCP Clients Setup Guide](./json-mcp-clients-setup.md)
+- [OAuth2 Authentication Setup Guide](../auth/oauth-setup.md)
+- [GitLab MCP OAuth Callback Proxy](../auth/oauth-callback-proxy.md)
+- [Stateless Mode (multi-pod HPA)](stateless-mode.md)
+- [Claude Code Setup Guide](../clients/claude-code.md)
+- [VS Code Setup Guide](../clients/vscode.md)
+- [GitHub Copilot Setup Guide](../clients/copilot.md)
+- [Codex Setup Guide](../clients/codex.md)
+- [Cursor Setup Guide](../clients/cursor.md)
+- [JSON-Based MCP Clients Setup Guide](../clients/json-clients.md)

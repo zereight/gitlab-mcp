@@ -17,7 +17,7 @@ OAuth2 provides several advantages over personal access tokens:
 - Node.js installed on your machine
 - The GitLab MCP server installed
 
-> ⚠️ **Important**: OAuth is designed for **local/desktop environments** (e.g., Claude Desktop, VS Code). For **Docker deployments**, use [Personal Access Token](../README.md#using-personal-access-token-traditional) instead, as OAuth requires browser-based authentication and a local callback server which does not work properly in containerized environments.
+> ⚠️ **Important**: OAuth is designed for **local/desktop environments** (e.g., Claude Desktop, VS Code). For **Docker deployments**, use [Personal Access Token](https://github.com/zereight/gitlab-mcp/blob/main/README.md#using-personal-access-token-traditional) instead, as OAuth requires browser-based authentication and a local callback server which does not work properly in containerized environments.
 
 ## Step 1: Create a GitLab OAuth Application
 
@@ -29,7 +29,7 @@ OAuth2 provides several advantages over personal access tokens:
    - Select **Settings** (or **Preferences**)
    - In the left sidebar, click **Applications**
 
-   ![alt text](<./img/step 2.png>)
+   ![alt text](<../img/step 2.png>)
 
 3. **Create a new application**:
 
@@ -44,7 +44,7 @@ OAuth2 provides several advantages over personal access tokens:
      - **Scopes**: Select the following scope:
        - `api` - Grants complete read/write access to the API (includes all necessary permissions)
 
-   ![alt text](<./img/step 3.png>)
+   ![alt text](<../img/step 3.png>)
 
 4. **Save the application**:
 
@@ -52,8 +52,8 @@ OAuth2 provides several advantages over personal access tokens:
    - **Important**: Copy the **Application ID** - you'll need this as your `GITLAB_OAUTH_CLIENT_ID`
    - **For Confidential apps**: Also copy the **Secret** - you'll need this as `GITLAB_OAUTH_CLIENT_SECRET`
 
-   ![alt text](<./img/step 4.png>)
-   ![alt text](<./img/step 5.png>)
+   ![alt text](<../img/step 4.png>)
+   ![alt text](<../img/step 5.png>)
 
 ## Step 2: Configure the MCP Server
 

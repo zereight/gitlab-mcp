@@ -142,8 +142,8 @@ List my GitLab projects and show me recent merge requests.
 
 ## See also
 
-- [VS Code Setup Guide](./vscode-setup.md)
-- [Cursor Setup Guide](./cursor-setup.md)
-- [Codex Setup Guide](./codex-setup.md)
-- [Claude Code Setup Guide](./claude-code-setup.md)
-- [OAuth2 Authentication Setup Guide](./oauth-setup.md)
+- [VS Code Setup Guide](vscode.md)
+- [Cursor Setup Guide](cursor.md)
+- [Codex Setup Guide](codex.md)
+- [Claude Code Setup Guide](claude-code.md)
+- [OAuth2 Authentication Setup Guide](../auth/oauth-setup.md)
