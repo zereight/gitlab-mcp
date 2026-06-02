@@ -2,7 +2,7 @@
 
 [English](./README.md) | [한국어](./README.ko.md) | [简体中文](./README.zh-CN.md)
 
-> **新功能**：支持带连接池的动态 GitLab API URL。详情请参阅 [Dynamic API URL 文档](docs/dynamic-api-url.md)。
+> **新功能**：支持带连接池的动态 GitLab API URL。详情请参阅 [Dynamic API URL 文档](docs/configuration/dynamic-api-url.md)。
 
 [![Star History Chart](https://api.star-history.com/svg?repos=zereight/gitlab-mcp&type=Date)](https://www.star-history.com/#zereight/gitlab-mcp&Date)
 
@@ -24,14 +24,14 @@
 
 ### 客户端设置指南
 
-- [Claude Code 设置指南](./docs/claude-code-setup.md)
-- [VS Code 设置指南](./docs/vscode-setup.md)
-- [GitHub Copilot 设置指南](./docs/copilot-setup.md)
-- [Codex 设置指南](./docs/codex-setup.md)
-- [Cursor 设置指南](./docs/cursor-setup.md)
-- [基于 JSON 的 MCP 客户端设置指南](./docs/json-mcp-clients-setup.md) - 适用于 Factory AI Droid、OpenClaw 和 OpenCode 风格客户端
-- [OAuth2 认证设置指南](./docs/oauth-setup.md)
-- [环境变量参考](./docs/environment-variables.md)
+- [Claude Code 设置指南](./docs/clients/claude-code.md)
+- [VS Code 设置指南](./docs/clients/vscode.md)
+- [GitHub Copilot 设置指南](./docs/clients/copilot.md)
+- [Codex 设置指南](./docs/clients/codex.md)
+- [Cursor 设置指南](./docs/clients/cursor.md)
+- [基于 JSON 的 MCP 客户端设置指南](./docs/clients/json-clients.md) - 适用于 Factory AI Droid、OpenClaw 和 OpenCode 风格客户端
+- [OAuth2 认证设置指南](./docs/auth/oauth-setup.md)
+- [环境变量参考](./docs/configuration/environment-variables.md)
 
 ## 使用方法
 
@@ -53,13 +53,13 @@
 
 #### 快速设置路径
 
-- **Claude Code**：[Claude Code 设置指南](./docs/claude-code-setup.md)
-- **VS Code**：[VS Code 设置指南](./docs/vscode-setup.md)
-- **GitHub Copilot**：[GitHub Copilot 设置指南](./docs/copilot-setup.md)
-- **Codex**：[Codex 设置指南](./docs/codex-setup.md)
-- **Cursor**：[Cursor 设置指南](./docs/cursor-setup.md)
-- **Factory AI Droid / OpenClaw / OpenCode 风格客户端**：[基于 JSON 的 MCP 客户端设置指南](./docs/json-mcp-clients-setup.md)
-- **OAuth 浏览器流程详情**：[OAuth2 认证设置指南](./docs/oauth-setup.md)
+- **Claude Code**：[Claude Code 设置指南](./docs/clients/claude-code.md)
+- **VS Code**：[VS Code 设置指南](./docs/clients/vscode.md)
+- **GitHub Copilot**：[GitHub Copilot 设置指南](./docs/clients/copilot.md)
+- **Codex**：[Codex 设置指南](./docs/clients/codex.md)
+- **Cursor**：[Cursor 设置指南](./docs/clients/cursor.md)
+- **Factory AI Droid / OpenClaw / OpenCode 风格客户端**：[基于 JSON 的 MCP 客户端设置指南](./docs/clients/json-clients.md)
+- **OAuth 浏览器流程详情**：[OAuth2 认证设置指南](./docs/auth/oauth-setup.md)
 
 最简单的本地设置可以从 Personal Access Token 开始。基于浏览器的本地认证使用 OAuth2。远程或多用户部署请继续查看下面的 MCP OAuth 和远程授权部分。
 
@@ -163,10 +163,10 @@ OpenCode、MCPJam、Claude.ai 等远程 MCP 客户端可能会在授权时发送
 
 远程 MCP OAuth 不同。在 `GITLAB_MCP_OAUTH=true` 模式下，MCP 客户端会在 `/authorize` 请求中提供自己的 callback URL。`GITLAB_OAUTH_REDIRECT_URI` 不会替换这个客户端提供的 URL。
 
-| 模式 | 启用方式 | Callback 变量 | GitLab Redirect URI |
-| --- | --- | --- | --- |
-| 本地 OAuth | `GITLAB_USE_OAUTH=true` | `GITLAB_OAUTH_REDIRECT_URI` | `http://127.0.0.1:8888/callback` 或你的本地 callback |
-| 远程 MCP OAuth | `GITLAB_MCP_OAUTH=true` | `GITLAB_OAUTH_CALLBACK_PROXY=true` | `{MCP_SERVER_URL}/callback` |
+| 模式           | 启用方式                | Callback 变量                      | GitLab Redirect URI                                  |
+| -------------- | ----------------------- | ---------------------------------- | ---------------------------------------------------- |
+| 本地 OAuth     | `GITLAB_USE_OAUTH=true` | `GITLAB_OAUTH_REDIRECT_URI`        | `http://127.0.0.1:8888/callback` 或你的本地 callback |
+| 远程 MCP OAuth | `GITLAB_MCP_OAUTH=true` | `GITLAB_OAUTH_CALLBACK_PROXY=true` | `{MCP_SERVER_URL}/callback`                          |
 
 只有当 MCP 服务器自己接收本地浏览器 callback 时，才使用 `GITLAB_OAUTH_REDIRECT_URI`。当远程 MCP 客户端拥有 callback URL 时，请使用 `GITLAB_OAUTH_CALLBACK_PROXY=true`。
 
@@ -178,15 +178,15 @@ OpenCode、MCPJam、Claude.ai 等远程 MCP 客户端可能会在授权时发送
 2. 预先注册的 GitLab OAuth 应用，包含 `api` 或 `read_api` scopes
    — 前往 `Admin area` → `Applications`，将 Redirect URI 设置为 `{MCP_SERVER_URL}/callback`
 
-| 环境变量 | 必需 | 说明 |
-| --- | --- | --- |
-| `GITLAB_MCP_OAUTH` | 是 | 设置为 `true` 以启用 |
-| `GITLAB_API_URL` | 是 | GitLab API base URL |
-| `GITLAB_OAUTH_APP_ID` | 是 | GitLab OAuth Application ID |
-| `MCP_SERVER_URL` | 是 | 此 MCP 服务器的公开 HTTPS URL |
-| `STREAMABLE_HTTP` | 是 | 必须为 `true` |
+| 环境变量                      | 必需 | 说明                                                  |
+| ----------------------------- | ---- | ----------------------------------------------------- |
+| `GITLAB_MCP_OAUTH`            | 是   | 设置为 `true` 以启用                                  |
+| `GITLAB_API_URL`              | 是   | GitLab API base URL                                   |
+| `GITLAB_OAUTH_APP_ID`         | 是   | GitLab OAuth Application ID                           |
+| `MCP_SERVER_URL`              | 是   | 此 MCP 服务器的公开 HTTPS URL                         |
+| `STREAMABLE_HTTP`             | 是   | 必须为 `true`                                         |
 | `GITLAB_OAUTH_CALLBACK_PROXY` | 可选 | 设置为 `true` 时使用 MCP 服务器固定的 `/callback` URL |
-| `GITLAB_OAUTH_SCOPES` | 可选 | 逗号分隔的 scope（默认：`api,read_api,read_user`） |
+| `GITLAB_OAUTH_SCOPES`         | 可选 | 逗号分隔的 scope（默认：`api,read_api,read_user`）    |
 
 > **排查 `Unregistered redirect_uri`**
 >
@@ -232,10 +232,10 @@ MCP 客户端配置：
 
 **请求头优先级**：`Private-Token` > `JOB-TOKEN` > `Authorization: Bearer`
 
-| 环境变量 | 必需 | 说明 |
-| --- | --- | --- |
-| `REMOTE_AUTHORIZATION` | 是 | 设置为 `true` 以启用 |
-| `STREAMABLE_HTTP` | 是 | 必须为 `true` |
+| 环境变量                 | 必需 | 说明                                                    |
+| ------------------------ | ---- | ------------------------------------------------------- |
+| `REMOTE_AUTHORIZATION`   | 是   | 设置为 `true` 以启用                                    |
+| `STREAMABLE_HTTP`        | 是   | 必须为 `true`                                           |
 | `ENABLE_DYNAMIC_API_URL` | 可选 | 允许按请求通过 `X-GitLab-API-URL` 请求头指定 GitLab URL |
 
 **示例请求头：**
@@ -256,7 +256,7 @@ Authorization: Bearer glpat-xxxxxxxxxxxxxxxxxxxx
 
 完整环境变量列表请查看专门的参考文档：
 
-- [环境变量参考](./docs/environment-variables.md)
+- [环境变量参考](./docs/configuration/environment-variables.md)
 
 大多数用户只需要以下起始组合之一：
 
@@ -282,7 +282,7 @@ Authorization: Bearer glpat-xxxxxxxxxxxxxxxxxxxx
 - 传输和会话变量
 - 代理和 TLS 变量
 
-回调代理模式详情请参阅 [GitLab MCP OAuth Callback Proxy](./docs/oauth-callback-proxy.md)。
+回调代理模式详情请参阅 [GitLab MCP OAuth Callback Proxy](./docs/auth/oauth-callback-proxy.md)。
 
 ### 远程授权设置（多用户支持）
 
@@ -410,15 +410,15 @@ node build/index.js
 
 **环境变量：**
 
-| 变量 | 必需 | 说明 |
-| --- | --- | --- |
-| `GITLAB_MCP_OAUTH` | 是 | 设置为 `true` 以启用 |
-| `GITLAB_OAUTH_APP_ID` | 是 | 预先注册的 GitLab OAuth 应用 client ID |
-| `MCP_SERVER_URL` | 是 | MCP 服务器的公开 HTTPS URL |
-| `GITLAB_API_URL` | 是 | GitLab 实例 API URL（例如 `https://gitlab.com/api/v4`） |
-| `STREAMABLE_HTTP` | 是 | 必须为 `true`（不支持 SSE） |
-| `GITLAB_OAUTH_SCOPES` | 否 | 要请求的 GitLab scopes，以逗号分隔。默认值为 `api`，当 `GITLAB_READ_ONLY_MODE=true` 时为 `read_api`。预注册应用必须配置至少这些 scopes。 |
-| `MCP_DANGEROUSLY_ALLOW_INSECURE_ISSUER_URL` | 否 | 仅用于本地 HTTP 开发 |
+| 变量                                        | 必需 | 说明                                                                                                                                     |
+| ------------------------------------------- | ---- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| `GITLAB_MCP_OAUTH`                          | 是   | 设置为 `true` 以启用                                                                                                                     |
+| `GITLAB_OAUTH_APP_ID`                       | 是   | 预先注册的 GitLab OAuth 应用 client ID                                                                                                   |
+| `MCP_SERVER_URL`                            | 是   | MCP 服务器的公开 HTTPS URL                                                                                                               |
+| `GITLAB_API_URL`                            | 是   | GitLab 实例 API URL（例如 `https://gitlab.com/api/v4`）                                                                                  |
+| `STREAMABLE_HTTP`                           | 是   | 必须为 `true`（不支持 SSE）                                                                                                              |
+| `GITLAB_OAUTH_SCOPES`                       | 否   | 要请求的 GitLab scopes，以逗号分隔。默认值为 `api`，当 `GITLAB_READ_ONLY_MODE=true` 时为 `read_api`。预注册应用必须配置至少这些 scopes。 |
+| `MCP_DANGEROUSLY_ALLOW_INSECURE_ISSUER_URL` | 否   | 仅用于本地 HTTP 开发                                                                                                                     |
 
 **重要说明：**
 
