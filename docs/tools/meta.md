@@ -2,6 +2,9 @@
 
 Tools the MCP exposes that aren't tied to a specific GitLab feature group — server diagnostics and the GraphQL escape hatch.
 
+!!! note "Feature toggle"
+    Mixed availability. `discover_tools` is always exposed (the server re-adds it after every toolset filter). `execute_graphql` is not part of any toolset — enable it explicitly with `GITLAB_TOOLS=execute_graphql`.
+
 ## Tools in this group
 
 - [`execute_graphql`](#execute_graphql) — ✏️ Writes

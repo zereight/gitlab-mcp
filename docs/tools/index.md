@@ -9,16 +9,23 @@ Complete catalog of every tool the GitLab MCP server exposes.
 
 ## Feature toggles
 
-The server groups tools into an always-on **core** and three optional
-feature toggles. By default only the core groups are exposed — turn the
-toggles on to enable the rest.
+Toolsets are split into a **default** set (exposed automatically) and an
+**opt-in** set (must be explicitly enabled). The lists below are derived
+directly from `TOOLSET_DEFINITIONS` in
+[`tools/registry.ts`](https://github.com/zereight/gitlab-mcp/blob/main/tools/registry.ts).
 
-| Toggle | Default | Groups |
-|---|---|---|
-| _(core)_ | enabled | Projects & Namespaces, Projects & Files, Branches & Commits, Groups, Merge Requests, Issues, Labels, Work Items, CI Lint, Releases, Tags, Users & Events, Variables, Webhooks, Search, Dependency Proxy |
-| `USE_PIPELINE` | off | Pipelines, Jobs & Deployments |
-| `USE_MILESTONE` | off | Milestones |
-| `USE_GITLAB_WIKI` | off | Wiki |
+| Status | Groups |
+|---|---|
+| **Default** — always exposed | [Projects & Namespaces](projects.md), [Projects & Files](repositories.md), [Branches & Commits](branches.md), [Groups](groups.md), [Merge Requests](merge-requests.md), [Issues](issues.md), [Labels](labels.md), [CI Lint](ci.md), [Users & Events](users.md) |
+| **Opt-in** — must be enabled | [Work Items](workitems.md), [Pipelines, Jobs & Deployments](pipelines.md) (also `USE_PIPELINE=true`), [Milestones](milestones.md) (also `USE_MILESTONE=true`), [Wiki](wiki.md) (also `USE_GITLAB_WIKI=true`), [Releases](releases.md), [Tags](tags.md), [Variables](variables.md), [Webhooks](webhooks.md), [Search](search.md), [Dependency Proxy](dependency-proxy.md), [Meta & GraphQL](meta.md) |
+
+**How to enable opt-in groups** (any one is sufficient):
+
+- `GITLAB_TOOLSETS=<group,…>` — comma-separated toolset IDs.
+- `GITLAB_TOOLSETS=all` — enables every group.
+- `GITLAB_TOOLS=<tool,…>` — enables individual tools regardless of group.
+- `USE_PIPELINE=true` / `USE_MILESTONE=true` / `USE_GITLAB_WIKI=true` — legacy single-group flags (Pipelines, Milestones, Wiki only).
+- Call the `discover_tools` MCP tool at runtime to activate categories for the current session.
 
 Read-only mode (`GITLAB_READ_ONLY_MODE=true`) hides every write tool
 regardless of toggles. See [Environment Variables](../configuration/environment-variables.md)
@@ -187,6 +194,8 @@ Project label CRUD. *(5 tools)*
 
 Modern unified API for issues, tasks, incidents, and other typed work items — including notes, emoji reactions, and incident timeline events. *(18 tools)*
 
+> Opt-in. Enable via `GITLAB_TOOLSETS=workitems` (or `GITLAB_TOOLSETS=all`), list individual tools in `GITLAB_TOOLS=`, or activate at runtime with the `discover_tools` MCP tool.
+
 | Tool | What it does | R/W |
 |---|---|:-:|
 | [`get_work_item`](workitems.md#get_work_item) | Get a work item with full details including status, hierarchy, type, and widgets | 📖 |
@@ -221,7 +230,7 @@ Validate `.gitlab-ci.yml` snippets and project pipeline configs. *(2 tools)*
 
 Pipeline + job control (trigger, retry, cancel, play manual jobs, fetch logs/artifacts), and the deployments/environments view. *(19 tools)*
 
-> Gated by `USE_PIPELINE=true`. Disabled by default; enable to expose this entire group.
+> Opt-in. Enable via `GITLAB_TOOLSETS=pipelines` (or `GITLAB_TOOLSETS=all`), or use the legacy `USE_PIPELINE=true` flag for backward compatibility.
 
 | Tool | What it does | R/W |
 |---|---|:-:|
@@ -249,7 +258,7 @@ Pipeline + job control (trigger, retry, cancel, play manual jobs, fetch logs/art
 
 Project milestone CRUD plus associated issues/MRs and burndown events. *(9 tools)*
 
-> Gated by `USE_MILESTONE=true`. Disabled by default; enable to expose this entire group.
+> Opt-in. Enable via `GITLAB_TOOLSETS=milestones` (or `GITLAB_TOOLSETS=all`), or use the legacy `USE_MILESTONE=true` flag for backward compatibility.
 
 | Tool | What it does | R/W |
 |---|---|:-:|
@@ -267,7 +276,7 @@ Project milestone CRUD plus associated issues/MRs and burndown events. *(9 tools
 
 Project and group wiki page CRUD. Attachment uploads where supported. *(10 tools)*
 
-> Gated by `USE_GITLAB_WIKI=true`. Disabled by default; enable to expose this entire group.
+> Opt-in. Enable via `GITLAB_TOOLSETS=wiki` (or `GITLAB_TOOLSETS=all`), or use the legacy `USE_GITLAB_WIKI=true` flag for backward compatibility.
 
 | Tool | What it does | R/W |
 |---|---|:-:|
@@ -286,6 +295,8 @@ Project and group wiki page CRUD. Attachment uploads where supported. *(10 tools
 
 Release lifecycle, release evidence, and asset download. *(7 tools)*
 
+> Opt-in. Enable via `GITLAB_TOOLSETS=releases` (or `GITLAB_TOOLSETS=all`), list individual tools in `GITLAB_TOOLS=`, or activate at runtime with the `discover_tools` MCP tool.
+
 | Tool | What it does | R/W |
 |---|---|:-:|
 | [`list_releases`](releases.md#list_releases) | List all releases for a project | 📖 |
@@ -299,6 +310,8 @@ Release lifecycle, release evidence, and asset download. *(7 tools)*
 ### [Tags](tags.md)
 
 Tag listing, creation, deletion, and signature inspection. *(5 tools)*
+
+> Opt-in. Enable via `GITLAB_TOOLSETS=tags` (or `GITLAB_TOOLSETS=all`), list individual tools in `GITLAB_TOOLS=`, or activate at runtime with the `discover_tools` MCP tool.
 
 | Tool | What it does | R/W |
 |---|---|:-:|
@@ -326,6 +339,8 @@ User lookup, the authenticated user (`whoami`), event streams, and markdown atta
 
 Project and group CI/CD variable CRUD. *(10 tools)*
 
+> Opt-in. Enable via `GITLAB_TOOLSETS=variables` (or `GITLAB_TOOLSETS=all`), list individual tools in `GITLAB_TOOLS=`, or activate at runtime with the `discover_tools` MCP tool.
+
 | Tool | What it does | R/W |
 |---|---|:-:|
 | [`list_project_variables`](variables.md#list_project_variables) | List CI/CD variables for a project | 📖 |
@@ -343,6 +358,8 @@ Project and group CI/CD variable CRUD. *(10 tools)*
 
 List webhooks configured on projects or groups, and inspect recent webhook events. *(3 tools)*
 
+> Opt-in. Enable via `GITLAB_TOOLSETS=webhooks` (or `GITLAB_TOOLSETS=all`), list individual tools in `GITLAB_TOOLS=`, or activate at runtime with the `discover_tools` MCP tool.
+
 | Tool | What it does | R/W |
 |---|---|:-:|
 | [`list_webhooks`](webhooks.md#list_webhooks) | List webhooks for a project or group | 📖 |
@@ -352,6 +369,8 @@ List webhooks configured on projects or groups, and inspect recent webhook event
 ### [Search](search.md)
 
 Code search across all visible projects, a specific project, or a specific group. *(3 tools)*
+
+> Opt-in. Enable via `GITLAB_TOOLSETS=search` (or `GITLAB_TOOLSETS=all`), list individual tools in `GITLAB_TOOLS=`, or activate at runtime with the `discover_tools` MCP tool.
 
 | Tool | What it does | R/W |
 |---|---|:-:|
@@ -363,6 +382,8 @@ Code search across all visible projects, a specific project, or a specific group
 
 Inspect and manage the GitLab dependency proxy cache settings, blob storage, and purge operations. *(4 tools)*
 
+> Opt-in. Enable via `GITLAB_TOOLSETS=dependency_proxy` (or `GITLAB_TOOLSETS=all`), list individual tools in `GITLAB_TOOLS=`, or activate at runtime with the `discover_tools` MCP tool.
+
 | Tool | What it does | R/W |
 |---|---|:-:|
 | [`get_dependency_proxy_settings`](dependency-proxy.md#get_dependency_proxy_settings) | Get dependency proxy settings for a group | 📖 |
@@ -373,6 +394,8 @@ Inspect and manage the GitLab dependency proxy cache settings, blob storage, and
 ### [Meta & GraphQL](meta.md)
 
 Server diagnostics, tool discovery, and the GraphQL escape hatch. *(2 tools)*
+
+> Mixed availability. `discover_tools` is always exposed (the server re-adds it after every toolset filter). `execute_graphql` is not part of any toolset — enable it explicitly with `GITLAB_TOOLS=execute_graphql`.
 
 | Tool | What it does | R/W |
 |---|---|:-:|

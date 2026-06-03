@@ -3,7 +3,7 @@
 Project and group wiki page CRUD. Attachment uploads where supported.
 
 !!! note "Feature toggle"
-    Gated by `USE_GITLAB_WIKI=true`. Disabled by default; enable to expose this entire group.
+    Opt-in. Enable via `GITLAB_TOOLSETS=wiki` (or `GITLAB_TOOLSETS=all`), or use the legacy `USE_GITLAB_WIKI=true` flag for backward compatibility.
 
 ## Tools in this group
 

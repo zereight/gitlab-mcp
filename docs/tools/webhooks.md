@@ -2,6 +2,9 @@
 
 List webhooks configured on projects or groups, and inspect recent webhook events.
 
+!!! note "Feature toggle"
+    Opt-in. Enable via `GITLAB_TOOLSETS=webhooks` (or `GITLAB_TOOLSETS=all`), list individual tools in `GITLAB_TOOLS=`, or activate at runtime with the `discover_tools` MCP tool.
+
 ## Tools in this group
 
 - [`list_webhooks`](#list_webhooks) — 📖 Read-only

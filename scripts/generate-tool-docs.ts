@@ -22,7 +22,33 @@ const OUT_DIR = join(REPO_ROOT, "docs", "tools");
 interface GroupMeta {
   title: string;
   blurb: string;
-  toggleNote?: string;
+}
+
+// Legacy single-group env flags that pre-date GITLAB_TOOLSETS.
+// Only three groups have these for backward compatibility; everything else
+// opt-in is configured via GITLAB_TOOLSETS / GITLAB_TOOLS / discover_tools.
+const LEGACY_TOGGLE_ENV: Partial<Record<ToolsetId, string>> = {
+  pipelines: "USE_PIPELINE",
+  milestones: "USE_MILESTONE",
+  wiki: "USE_GITLAB_WIKI",
+};
+
+function isDefaultToolset(id: ToolsetId): boolean {
+  return TOOLSET_DEFINITIONS.find(d => d.id === id)?.isDefault ?? false;
+}
+
+function computeToggleNote(id: ToolsetId): string | undefined {
+  if (isDefaultToolset(id)) return undefined;
+  // Synthetic group for tools not in any TOOLSET_DEFINITIONS entry.
+  // discover_tools is always exposed; execute_graphql is opt-in via GITLAB_TOOLS.
+  if ((id as string) === "meta") {
+    return "Mixed availability. `discover_tools` is always exposed (the server re-adds it after every toolset filter). `execute_graphql` is not part of any toolset — enable it explicitly with `GITLAB_TOOLS=execute_graphql`.";
+  }
+  const legacy = LEGACY_TOGGLE_ENV[id];
+  if (legacy) {
+    return `Opt-in. Enable via \`GITLAB_TOOLSETS=${id}\` (or \`GITLAB_TOOLSETS=all\`), or use the legacy \`${legacy}=true\` flag for backward compatibility.`;
+  }
+  return `Opt-in. Enable via \`GITLAB_TOOLSETS=${id}\` (or \`GITLAB_TOOLSETS=all\`), list individual tools in \`GITLAB_TOOLS=\`, or activate at runtime with the \`discover_tools\` MCP tool.`;
 }
 
 const GROUP_META: Record<ToolsetId, GroupMeta> = {
@@ -65,20 +91,14 @@ const GROUP_META: Record<ToolsetId, GroupMeta> = {
     title: "Pipelines, Jobs & Deployments",
     blurb:
       "Pipeline + job control (trigger, retry, cancel, play manual jobs, fetch logs/artifacts), and the deployments/environments view.",
-    toggleNote:
-      "Gated by `USE_PIPELINE=true`. Disabled by default; enable to expose this entire group.",
   },
   milestones: {
     title: "Milestones",
     blurb: "Project milestone CRUD plus associated issues/MRs and burndown events.",
-    toggleNote:
-      "Gated by `USE_MILESTONE=true`. Disabled by default; enable to expose this entire group.",
   },
   wiki: {
     title: "Wiki",
     blurb: "Project and group wiki page CRUD. Attachment uploads where supported.",
-    toggleNote:
-      "Gated by `USE_GITLAB_WIKI=true`. Disabled by default; enable to expose this entire group.",
   },
   releases: {
     title: "Releases",
@@ -238,9 +258,10 @@ function toolSection(name: string, description: string, schema: JsonSchema | und
 function buildGroupPage(id: ToolsetId, toolNames: string[]): string {
   const meta = GROUP_META[id];
   const lines: string[] = [`# ${meta.title}`, "", meta.blurb, ""];
-  if (meta.toggleNote) {
+  const toggle = computeToggleNote(id);
+  if (toggle) {
     lines.push(`!!! note "Feature toggle"`);
-    lines.push(`    ${meta.toggleNote}`);
+    lines.push(`    ${toggle}`);
     lines.push("");
   }
 
@@ -266,6 +287,39 @@ function buildGroupPage(id: ToolsetId, toolNames: string[]): string {
   return lines.join("\n");
 }
 
+function buildToggleSection(groupedToolsList: Array<[ToolsetId, string[]]>): string[] {
+  const grouped = groupedToolsList.filter(([id]) => GROUP_META[id]);
+  const defaults = grouped.filter(([id]) => isDefaultToolset(id));
+  const optins = grouped.filter(([id]) => !isDefaultToolset(id));
+
+  const formatList = (items: Array<[ToolsetId, string[]]>): string =>
+    items
+      .map(([id]) => {
+        const slug = id.replace(/_/g, "-");
+        const legacy = LEGACY_TOGGLE_ENV[id];
+        const suffix = legacy ? ` (also \`${legacy}=true\`)` : "";
+        return `[${GROUP_META[id].title}](${slug}.md)${suffix}`;
+      })
+      .join(", ");
+
+  return [
+    "| Status | Groups |",
+    "|---|---|",
+    `| **Default** — always exposed | ${formatList(defaults)} |`,
+    `| **Opt-in** — must be enabled | ${formatList(optins)} |`,
+    "",
+    "**How to enable opt-in groups** (any one is sufficient):",
+    "",
+    "- `GITLAB_TOOLSETS=<group,…>` — comma-separated toolset IDs.",
+    "- `GITLAB_TOOLSETS=all` — enables every group.",
+    "- `GITLAB_TOOLS=<tool,…>` — enables individual tools regardless of group.",
+    "- `USE_PIPELINE=true` / `USE_MILESTONE=true` / `USE_GITLAB_WIKI=true` —" +
+      " legacy single-group flags (Pipelines, Milestones, Wiki only).",
+    "- Call the `discover_tools` MCP tool at runtime to activate categories" +
+      " for the current session.",
+  ];
+}
+
 function buildIndexPage(groupedToolsList: Array<[ToolsetId, string[]]>): string {
   const lines: string[] = [
     "# Tools Reference",
@@ -279,16 +333,12 @@ function buildIndexPage(groupedToolsList: Array<[ToolsetId, string[]]>): string 
     "",
     "## Feature toggles",
     "",
-    "The server groups tools into an always-on **core** and three optional",
-    "feature toggles. By default only the core groups are exposed — turn the",
-    "toggles on to enable the rest.",
+    "Toolsets are split into a **default** set (exposed automatically) and an",
+    "**opt-in** set (must be explicitly enabled). The lists below are derived",
+    "directly from `TOOLSET_DEFINITIONS` in",
+    "[`tools/registry.ts`](https://github.com/zereight/gitlab-mcp/blob/main/tools/registry.ts).",
     "",
-    "| Toggle | Default | Groups |",
-    "|---|---|---|",
-    "| _(core)_ | enabled | Projects & Namespaces, Projects & Files, Branches & Commits, Groups, Merge Requests, Issues, Labels, Work Items, CI Lint, Releases, Tags, Users & Events, Variables, Webhooks, Search, Dependency Proxy |",
-    "| `USE_PIPELINE` | off | Pipelines, Jobs & Deployments |",
-    "| `USE_MILESTONE` | off | Milestones |",
-    "| `USE_GITLAB_WIKI` | off | Wiki |",
+    ...buildToggleSection(groupedToolsList),
     "",
     "Read-only mode (`GITLAB_READ_ONLY_MODE=true`) hides every write tool",
     "regardless of toggles. See [Environment Variables](../configuration/environment-variables.md)",
@@ -314,8 +364,9 @@ function buildIndexPage(groupedToolsList: Array<[ToolsetId, string[]]>): string 
     lines.push("");
     lines.push(`${meta.blurb} *(${tools.length} tools)*`);
     lines.push("");
-    if (meta.toggleNote) {
-      lines.push(`> ${meta.toggleNote}`);
+    const toggle = computeToggleNote(id);
+    if (toggle) {
+      lines.push(`> ${toggle}`);
       lines.push("");
     }
     lines.push("| Tool | What it does | R/W |");
@@ -379,14 +430,20 @@ function main(): void {
   const uncategorized = allTools.map(t => t.name).filter(n => !allCategorizedNames.has(n));
 
   if (uncategorized.length > 0) {
+    const metaToggle = computeToggleNote("meta" as ToolsetId);
     const lines: string[] = [
       `# Meta & GraphQL`,
       "",
       "Tools the MCP exposes that aren't tied to a specific GitLab feature group — server diagnostics and the GraphQL escape hatch.",
       "",
-      "## Tools in this group",
-      "",
     ];
+    if (metaToggle) {
+      lines.push(`!!! note "Feature toggle"`);
+      lines.push(`    ${metaToggle}`);
+      lines.push("");
+    }
+    lines.push("## Tools in this group");
+    lines.push("");
     for (const name of uncategorized) {
       lines.push(`- [\`${name}\`](#${name}) — ${rwBadge(name)}`);
     }
