@@ -2,6 +2,9 @@
 
 Code search across all visible projects, a specific project, or a specific group.
 
+!!! note "Feature toggle"
+    Opt-in. Enable via `GITLAB_TOOLSETS=search` (or `GITLAB_TOOLSETS=all`), list individual tools in `GITLAB_TOOLS=`, or activate at runtime with the `discover_tools` MCP tool.
+
 ## Tools in this group
 
 - [`search_code`](#search_code) — 📖 Read-only

@@ -2,6 +2,9 @@
 
 Tag listing, creation, deletion, and signature inspection.
 
+!!! note "Feature toggle"
+    Opt-in. Enable via `GITLAB_TOOLSETS=tags` (or `GITLAB_TOOLSETS=all`), list individual tools in `GITLAB_TOOLS=`, or activate at runtime with the `discover_tools` MCP tool.
+
 ## Tools in this group
 
 - [`list_tags`](#list_tags) — 📖 Read-only

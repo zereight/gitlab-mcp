@@ -2,6 +2,9 @@
 
 Inspect and manage the GitLab dependency proxy cache settings, blob storage, and purge operations.
 
+!!! note "Feature toggle"
+    Opt-in. Enable via `GITLAB_TOOLSETS=dependency_proxy` (or `GITLAB_TOOLSETS=all`), list individual tools in `GITLAB_TOOLS=`, or activate at runtime with the `discover_tools` MCP tool.
+
 ## Tools in this group
 
 - [`get_dependency_proxy_settings`](#get_dependency_proxy_settings) — 📖 Read-only

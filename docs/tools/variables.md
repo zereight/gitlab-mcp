@@ -2,6 +2,9 @@
 
 Project and group CI/CD variable CRUD.
 
+!!! note "Feature toggle"
+    Opt-in. Enable via `GITLAB_TOOLSETS=variables` (or `GITLAB_TOOLSETS=all`), list individual tools in `GITLAB_TOOLS=`, or activate at runtime with the `discover_tools` MCP tool.
+
 ## Tools in this group
 
 - [`list_project_variables`](#list_project_variables) — 📖 Read-only
