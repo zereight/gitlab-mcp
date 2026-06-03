@@ -399,7 +399,7 @@ Server diagnostics, tool discovery, and the GraphQL escape hatch. *(2 tools)*
 
 | Tool | What it does | R/W |
 |---|---|:-:|
-| [`execute_graphql`](meta.md#execute_graphql) | Execute a GitLab GraphQL query | ✏️ |
+| [`execute_graphql`](meta.md#execute_graphql) | Execute a GitLab GraphQL query | 📖 |
 | [`discover_tools`](meta.md#discover_tools) | Discover and activate additional tool categories for this session. Available categories: merge_requests, issues, repositories, branches, projects, labels, ci, groups, pipelines, milestones, wiki, releases, tags, users, workitems, webhooks, search, variables, dependency_proxy. Already-active categories are listed in the response. | 📖 |
 
 ---
