@@ -7,14 +7,14 @@ Tools the MCP exposes that aren't tied to a specific GitLab feature group — se
 
 ## Tools in this group
 
-- [`execute_graphql`](#execute_graphql) — ✏️ Writes
+- [`execute_graphql`](#execute_graphql) — 📖 Read-only
 - [`discover_tools`](#discover_tools) — 📖 Read-only
 
 ---
 
 ### `execute_graphql`
 
-*✏️ Writes*
+*📖 Read-only*
 
 Execute a GitLab GraphQL query
 

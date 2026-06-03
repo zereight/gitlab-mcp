@@ -11,7 +11,7 @@ import { writeFileSync, mkdirSync, readdirSync, unlinkSync, statSync } from "nod
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { allTools, TOOLSET_DEFINITIONS, type ToolsetId } from "../tools/registry.js";
+import { allTools, readOnlyTools, TOOLSET_DEFINITIONS, type ToolsetId } from "../tools/registry.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = join(__dirname, "..");
@@ -179,22 +179,12 @@ type JsonSchema = {
   description?: string;
 };
 
-const READ_PREFIXES = [
-  "list_",
-  "get_",
-  "search_",
-  "validate_",
-  "verify_",
-  "download_",
-  "discover_",
-  "my_",
-];
-const READ_EXACT = new Set(["whoami", "health_check", "mr_discussions"]);
-
+// Authoritative classification — uses the `readOnlyTools` set from
+// tools/registry.ts. That set is what the server itself consults to decide
+// which tools survive `GITLAB_READ_ONLY_MODE=true`, so the badges here
+// match real runtime behavior exactly (no prefix heuristics).
 function classify(name: string): "read" | "write" {
-  if (READ_EXACT.has(name)) return "read";
-  if (READ_PREFIXES.some(p => name.startsWith(p))) return "read";
-  return "write";
+  return readOnlyTools.has(name) ? "read" : "write";
 }
 
 function rwBadge(name: string): string {
