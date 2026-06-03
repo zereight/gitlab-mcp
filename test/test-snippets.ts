@@ -14,7 +14,9 @@ const TEST_EXPLICIT_REF_SNIPPET_ID = 102;
 const TEST_NESTED_PATH_SNIPPET_ID = 103;
 const TEST_NO_VISIBILITY_SNIPPET_ID = 104;
 const TEST_NO_RAWURL_SNIPPET_ID = 105;
+const TEST_SINGLE_EXPLICIT_REF_SNIPPET_ID = 106;
 const RAW_CONTENT = "console.log('hello world');\n";
+const SINGLE_REF_V2_CONTENT = "console.log('v2 branch');\n";
 const MULTIFILE_A_CONTENT = "# policy\nbody A\n";
 const MULTIFILE_B_CONTENT = "# instructions\nbody B\n";
 
@@ -143,6 +145,36 @@ describe("snippet tools", () => {
       `/projects/${TEST_PROJECT_ID}/snippets/${TEST_PROJECT_SNIPPET_ID}/raw`,
       (_req, res) => {
         res.type("text/plain").send(RAW_CONTENT);
+      }
+    );
+
+    mockGitLab.addMockHandler(
+      "get",
+      `/projects/${TEST_PROJECT_ID}/snippets/${TEST_SINGLE_EXPLICIT_REF_SNIPPET_ID}`,
+      (_req, res) => {
+        res.json(
+          buildSnippet({
+            id: TEST_SINGLE_EXPLICIT_REF_SNIPPET_ID,
+            title: "Single-file explicit ref snippet",
+            files: [{ path: "hello.js" }],
+          })
+        );
+      }
+    );
+
+    mockGitLab.addMockHandler(
+      "get",
+      `/projects/${TEST_PROJECT_ID}/snippets/${TEST_SINGLE_EXPLICIT_REF_SNIPPET_ID}/raw`,
+      (_req, res) => {
+        res.type("text/plain").send(RAW_CONTENT);
+      }
+    );
+
+    mockGitLab.addMockHandler(
+      "get",
+      `/projects/${TEST_PROJECT_ID}/snippets/${TEST_SINGLE_EXPLICIT_REF_SNIPPET_ID}/files/v2/hello.js/raw`,
+      (_req, res) => {
+        res.type("text/plain").send(SINGLE_REF_V2_CONTENT);
       }
     );
 
@@ -537,6 +569,22 @@ describe("snippet tools", () => {
 
     assert.strictEqual(result.id, TEST_PROJECT_SNIPPET_ID);
     assert.strictEqual(result.content, RAW_CONTENT);
+  });
+
+  test("get_snippet with include_content uses explicit ref for single-file snippet", async () => {
+    const result = await callTool(
+      "get_snippet",
+      {
+        project_id: TEST_PROJECT_ID,
+        snippet_id: TEST_SINGLE_EXPLICIT_REF_SNIPPET_ID,
+        include_content: true,
+        ref: "v2",
+      },
+      env()
+    );
+
+    assert.strictEqual(result.id, TEST_SINGLE_EXPLICIT_REF_SNIPPET_ID);
+    assert.strictEqual(result.content, SINGLE_REF_V2_CONTENT);
   });
 
   test("get_snippet with include_content fetches per-file raw for multi-file snippet", async () => {

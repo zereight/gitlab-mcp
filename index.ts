@@ -14149,10 +14149,20 @@ async function handleToolCall(params: any) {
               }))
             );
           } else {
-            result.content = await getSnippetRawContent(
-              args.project_id,
-              args.snippet_id
-            );
+            const file = files[0];
+            if (args.ref !== undefined && file?.path) {
+              result.content = await getSnippetFileRawContent(
+                args.project_id,
+                args.snippet_id,
+                args.ref,
+                file.path
+              );
+            } else {
+              result.content = await getSnippetRawContent(
+                args.project_id,
+                args.snippet_id
+              );
+            }
           }
         }
         return {
