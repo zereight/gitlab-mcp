@@ -1674,6 +1674,50 @@ export const DeleteBranchSchema = ProjectParamsSchema.extend({
   branch_name: z.string().describe("Name of the branch to delete"),
 });
 
+// Protected Branches related schemas
+export const ListProtectedBranchesSchema = ProjectParamsSchema.extend({
+  search: z.string().optional().describe("Search term to filter protected branches by name"),
+}).merge(PaginationOptionsSchema);
+
+export const GetProtectedBranchSchema = ProjectParamsSchema.extend({
+  branch_name: z.string().describe("Name of the protected branch"),
+});
+
+export const ProtectBranchSchema = ProjectParamsSchema.extend({
+  name: z.string().describe("Branch name or wildcard pattern to protect"),
+  push_access_level: z.coerce.number().optional().describe("Access level for pushing (0=No access, 30=Developer, 40=Maintainer, 60=Admin). Default: 40"),
+  merge_access_level: z.coerce.number().optional().describe("Access level for merging (0=No access, 30=Developer, 40=Maintainer, 60=Admin). Default: 40"),
+  unprotect_access_level: z.coerce.number().optional().describe("Access level for unprotecting (0=No access, 30=Developer, 40=Maintainer, 60=Admin). Default: 40"),
+  allow_force_push: z.coerce.boolean().optional().describe("Allow force push to the protected branch. Default: false"),
+  code_owner_approval_required: z.coerce.boolean().optional().describe("Require code owner approval before merging (PREMIUM). Default: false"),
+});
+
+export const UnprotectBranchSchema = ProjectParamsSchema.extend({
+  branch_name: z.string().describe("Name of the protected branch to unprotect"),
+});
+
+// Update default branch schema
+export const UpdateDefaultBranchSchema = ProjectParamsSchema.extend({
+  default_branch: z.string().describe("The new default branch name for the project"),
+});
+
+export const GitLabProtectedBranchAccessLevelSchema = z.object({
+  access_level: z.number().nullable().optional(),
+  access_level_description: z.string().optional(),
+  user_id: z.number().optional(),
+  group_id: z.number().optional(),
+});
+
+export const GitLabProtectedBranchSchema = z.object({
+  id: z.number().optional(),
+  name: z.string(),
+  push_access_levels: z.array(GitLabProtectedBranchAccessLevelSchema).optional(),
+  merge_access_levels: z.array(GitLabProtectedBranchAccessLevelSchema).optional(),
+  unprotect_access_levels: z.array(GitLabProtectedBranchAccessLevelSchema).optional(),
+  allow_force_push: z.boolean().optional(),
+  code_owner_approval_required: z.boolean().optional(),
+});
+
 export const GitLabBranchSchema = z.object({
   name: z.string(),
   commit: z.object({
