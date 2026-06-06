@@ -945,6 +945,7 @@ export const GitLabMilestonesSchema = z.object({
 // Input schemas for operations
 export const CreateRepositoryOptionsSchema = z.object({
   name: z.string(),
+  namespace_id: z.coerce.number().int().optional(),
   description: z.string().optional(),
   visibility: z.enum(["private", "internal", "public"]).optional(), // Changed from private to match GitLab API
   initialize_with_readme: z.coerce.boolean().optional(), // Changed from auto_init to match GitLab API
@@ -1491,6 +1492,7 @@ export const SearchRepositoriesSchema = z
 
 export const CreateRepositorySchema = z.object({
   name: z.string().describe("Repository name"),
+  namespace_id: z.coerce.number().int().optional().describe("The ID of the group namespace to create the project in. If not provided, the project is created in the current user's namespace."),
   description: z.string().optional().describe("Repository description"),
   visibility: z
     .enum(["private", "internal", "public"])
