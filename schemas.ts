@@ -1683,13 +1683,26 @@ export const GetProtectedBranchSchema = ProjectParamsSchema.extend({
   branch_name: z.string().describe("Name of the protected branch"),
 });
 
+// String-aware boolean preprocessing: correctly handles "false" → false
+const stringBoolean = z.preprocess(
+  (val) => {
+    if (typeof val === "string") {
+      const lower = val.toLowerCase();
+      if (lower === "false" || lower === "0") return false;
+      if (lower === "true" || lower === "1") return true;
+    }
+    return val;
+  },
+  z.boolean().optional()
+);
+
 export const ProtectBranchSchema = ProjectParamsSchema.extend({
   name: z.string().describe("Branch name or wildcard pattern to protect"),
   push_access_level: z.coerce.number().optional().describe("Access level for pushing (0=No access, 30=Developer, 40=Maintainer, 60=Admin). Default: 40"),
   merge_access_level: z.coerce.number().optional().describe("Access level for merging (0=No access, 30=Developer, 40=Maintainer, 60=Admin). Default: 40"),
   unprotect_access_level: z.coerce.number().optional().describe("Access level for unprotecting (0=No access, 30=Developer, 40=Maintainer, 60=Admin). Default: 40"),
-  allow_force_push: z.coerce.boolean().optional().describe("Allow force push to the protected branch. Default: false"),
-  code_owner_approval_required: z.coerce.boolean().optional().describe("Require code owner approval before merging (PREMIUM). Default: false"),
+  allow_force_push: stringBoolean.describe("Allow force push to the protected branch. Default: false"),
+  code_owner_approval_required: stringBoolean.describe("Require code owner approval before merging (PREMIUM). Default: false"),
 });
 
 export const UnprotectBranchSchema = ProjectParamsSchema.extend({

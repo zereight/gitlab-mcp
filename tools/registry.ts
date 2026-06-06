@@ -1394,6 +1394,8 @@ export const destructiveTools = new Set([
   "delete_work_item_note_emoji_reaction",
   "delete_branch",
   "unprotect_branch",
+  "protect_branch",
+  "update_default_branch",
   "merge_merge_request",
   "push_files",
   "delete_project_variable",
