@@ -235,6 +235,7 @@ import {
   CreateProjectMilestoneSchema,
   CreateRepositoryOptionsSchema,
   CreateRepositorySchema,
+  AddGroupMemberSchema,
   CreateGroupSchema,
   CreateWikiPageSchema,
   CreateGroupWikiPageSchema,
@@ -9068,6 +9069,32 @@ async function handleToolCall(params: any) {
 
         return {
           content: [{ type: "text", text: JSON.stringify(group, null, 2) }],
+        };
+      }
+
+      case "add_group_member": {
+        rejectIfProjectScopedDeployment("add_group_member");
+        const gmArgs = AddGroupMemberSchema.parse(params.arguments);
+        const { group_id, user_id, access_level, expires_at } = gmArgs;
+        const gmUrl = `${getEffectiveApiUrl()}/groups/${group_id}/members`;
+
+        const gmBody: Record<string, unknown> = {
+          user_id,
+          access_level,
+        };
+        if (expires_at) gmBody.expires_at = expires_at;
+
+        const gmResponse = await fetch(gmUrl, {
+          method: "POST",
+          headers: { ...getFetchConfig().headers, "Content-Type": "application/json" },
+          body: JSON.stringify(gmBody),
+        });
+
+        await handleGitLabError(gmResponse);
+        const gmData = await gmResponse.json();
+
+        return {
+          content: [{ type: "text", text: JSON.stringify(gmData, null, 2) }],
         };
       }
 

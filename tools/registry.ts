@@ -9,6 +9,7 @@ import {
   STREAMABLE_HTTP,
 } from "../config.js";
 import {
+  AddGroupMemberSchema,
   ApproveMergeRequestSchema,
   BulkPublishDraftNotesSchema,
   CancelPipelineJobSchema,
@@ -266,6 +267,11 @@ export const allTools = [
     name: "create_group",
     description: "Create new group or subgroup",
     inputSchema: toJSONSchema(CreateGroupSchema),
+  },
+  {
+    name: "add_group_member",
+    description: "Add a user to a GitLab group with specified access level",
+    inputSchema: toJSONSchema(AddGroupMemberSchema),
   },
   {
     name: "get_file_contents",
@@ -1593,7 +1599,7 @@ export const TOOLSET_DEFINITIONS: readonly ToolsetDefinition[] = [
   {
     id: "groups",
     isDefault: true,
-    tools: new Set(["create_group"]),
+    tools: new Set(["create_group", "add_group_member"]),
   },
   {
     id: "pipelines",

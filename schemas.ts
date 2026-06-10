@@ -4194,3 +4194,10 @@ export const ListDependencyProxyBlobsSchema = z.object({
 export const PurgeDependencyProxyCacheSchema = z.object({
   group_id: z.coerce.string().describe("Group ID or URL-encoded path"),
 });
+
+export const AddGroupMemberSchema = z.object({
+  group_id: z.coerce.number().int().min(1).describe("GitLab Group ID"),
+  user_id: z.coerce.number().int().min(1).describe("GitLab User ID to add"),
+  access_level: z.coerce.number().int().min(10).max(50).default(40).describe("Access level: 10=Guest, 20=Reporter, 30=Developer, 40=Maintainer, 50=Owner"),
+  expires_at: z.string().optional().describe("Optional expiration date (YYYY-MM-DD)"),
+});
