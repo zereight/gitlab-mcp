@@ -758,3 +758,197 @@ describe("MCP OAuth — Header Auth Fallback", () => {
     console.log("  ✓ No auth still returns 401");
   });
 });
+
+// ---------------------------------------------------------------------------
+// Test suite: Group Allowlist (unit tests — exchangeAuthorizationCode)
+// ---------------------------------------------------------------------------
+
+describe("MCP OAuth — Group Allowlist", () => {
+  let stubServer: import("node:http").Server;
+  let stubUrl: string;
+
+  // Mutable state lets each test control the stub's response without
+  // spinning up a new server.
+  let groupsForPage: (page: number) => Array<{ full_path: string }> = () => [];
+  let totalPages = 1;
+
+  before(async () => {
+    const { createServer } = await import("node:http");
+    stubServer = createServer((req, res) => {
+      const url = new URL(req.url!, "http://127.0.0.1");
+
+      res.setHeader("Content-Type", "application/json");
+
+      // Token exchange — passthrough mode calls POST /oauth/token
+      if (req.method === "POST" && url.pathname === "/oauth/token") {
+        res.writeHead(200).end(
+          JSON.stringify({
+            access_token: MOCK_OAUTH_TOKEN,
+            token_type: "bearer",
+            expires_in: 7200,
+            refresh_token: "mock-refresh",
+            scope: "api",
+          })
+        );
+        return;
+      }
+
+      if (req.method === "GET" && url.pathname === "/api/v4/groups") {
+        const page = Number.parseInt(url.searchParams.get("page") ?? "1", 10);
+        res
+          .writeHead(200, { "x-total-pages": String(totalPages) })
+          .end(JSON.stringify(groupsForPage(page)));
+        return;
+      }
+
+      res.writeHead(404).end("{}");
+    });
+
+    await new Promise<void>((resolve) => stubServer.listen(0, "127.0.0.1", resolve));
+    const addr = stubServer.address() as { port: number };
+    stubUrl = `http://127.0.0.1:${addr.port}`;
+  });
+
+  after(() => {
+    stubServer.close();
+  });
+
+  async function makeProvider(allowedGroups: string[] | undefined = undefined) {
+    const { createGitLabOAuthProvider } = await import("../oauth-proxy.js");
+    return createGitLabOAuthProvider(
+      stubUrl,
+      "test-app-id",
+      "GitLab MCP Server",
+      false,
+      undefined, // customScopes
+      allowedGroups,
+      false, // callbackProxyEnabled
+      "" // callbackUrl
+    );
+  }
+
+  // Passthrough mode: client is not used by exchangeAuthorizationCode.
+  type Provider = Awaited<ReturnType<typeof makeProvider>>;
+  function exchange(provider: Provider) {
+    return provider.exchangeAuthorizationCode(
+      {} as import("@modelcontextprotocol/sdk/shared/auth.js").OAuthClientInformationFull,
+      "mock-auth-code"
+    );
+  }
+
+  test("no allowedGroups — groups API not called, tokens returned", async () => {
+    const provider = await makeProvider(undefined);
+    groupsForPage = () => []; // wrong groups — proves endpoint isn't called
+    totalPages = 1;
+
+    const tokens = await exchange(provider);
+    assert.strictEqual(tokens.access_token, MOCK_OAUTH_TOKEN);
+    console.log("  ✓ No allowedGroups: token issued without group check");
+  });
+
+  test("user is direct member of the allowed group → token issued", async () => {
+    const provider = await makeProvider(["my-org"]);
+    groupsForPage = () => [{ full_path: "my-org" }];
+    totalPages = 1;
+
+    const tokens = await exchange(provider);
+    assert.strictEqual(tokens.access_token, MOCK_OAUTH_TOKEN);
+    console.log("  ✓ Direct group member: token issued");
+  });
+
+  test("user in first-level subgroup of allowed group → token issued", async () => {
+    const provider = await makeProvider(["my-org"]);
+    groupsForPage = () => [{ full_path: "my-org/team-a" }];
+    totalPages = 1;
+
+    const tokens = await exchange(provider);
+    assert.strictEqual(tokens.access_token, MOCK_OAUTH_TOKEN);
+    console.log("  ✓ First-level subgroup member: token issued");
+  });
+
+  test("user in nested subgroup → token issued", async () => {
+    const provider = await makeProvider(["my-org"]);
+    groupsForPage = () => [{ full_path: "my-org/team-a/squad-1" }];
+    totalPages = 1;
+
+    const tokens = await exchange(provider);
+    assert.strictEqual(tokens.access_token, MOCK_OAUTH_TOKEN);
+    console.log("  ✓ Nested subgroup member: token issued");
+  });
+
+  test("user not in any matching group → token issuance denied", async () => {
+    const provider = await makeProvider(["my-org"]);
+    groupsForPage = () => [{ full_path: "other-org" }];
+    totalPages = 1;
+
+    await assert.rejects(
+      () => exchange(provider),
+      (err: Error) => {
+        assert.ok(err.message.includes("Access denied"), `Unexpected message: ${err.message}`);
+        return true;
+      }
+    );
+    console.log("  ✓ Non-member: token issuance denied");
+  });
+
+  test("prefix spoofing rejected — my-org2 does not match my-org", async () => {
+    const provider = await makeProvider(["my-org"]);
+    groupsForPage = () => [{ full_path: "my-org2" }];
+    totalPages = 1;
+
+    await assert.rejects(
+      () => exchange(provider),
+      (err: Error) => {
+        assert.ok(err.message.includes("Access denied"), `Unexpected message: ${err.message}`);
+        return true;
+      }
+    );
+    console.log("  ✓ my-org2 correctly rejected (not a sub-path of my-org)");
+  });
+
+  test("user matches second of multiple allowed groups → token issued", async () => {
+    const provider = await makeProvider(["team-x", "my-org"]);
+    groupsForPage = () => [{ full_path: "my-org/backend" }];
+    totalPages = 1;
+
+    const tokens = await exchange(provider);
+    assert.strictEqual(tokens.access_token, MOCK_OAUTH_TOKEN);
+    console.log("  ✓ Match on second allowed group: token issued");
+  });
+
+  test("match found on page 2 of paginated groups response → token issued", async () => {
+    const provider = await makeProvider(["my-org"]);
+    totalPages = 2;
+    groupsForPage = (page) =>
+      page === 1 ? [{ full_path: "other-org" }] : [{ full_path: "my-org/team-b" }];
+
+    const tokens = await exchange(provider);
+    assert.strictEqual(tokens.access_token, MOCK_OAUTH_TOKEN);
+    console.log("  ✓ Group found on page 2: token issued");
+  });
+
+  test("user not in group across all pages → token issuance denied", async () => {
+    const provider = await makeProvider(["my-org"]);
+    totalPages = 2;
+    groupsForPage = () => [{ full_path: "other-org" }];
+
+    await assert.rejects(
+      () => exchange(provider),
+      (err: Error) => {
+        assert.ok(err.message.includes("Access denied"), `Unexpected message: ${err.message}`);
+        return true;
+      }
+    );
+    console.log("  ✓ Non-member across all pages: token issuance denied");
+  });
+
+  test("matching is case-insensitive", async () => {
+    const provider = await makeProvider(["My-Org"]);
+    groupsForPage = () => [{ full_path: "my-org/team-a" }];
+    totalPages = 1;
+
+    const tokens = await exchange(provider);
+    assert.strictEqual(tokens.access_token, MOCK_OAUTH_TOKEN);
+    console.log("  ✓ Case-insensitive match: token issued");
+  });
+});

@@ -48,6 +48,7 @@ function makeProvider(
     "GitLab MCP Server (test)",
     false, // readOnly
     undefined, // customScopes
+    undefined, // allowedGroups
     callbackProxy,
     callbackProxy ? "https://mcp.example.com/callback" : "",
     material

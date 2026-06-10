@@ -62,6 +62,7 @@ function makeProvider(
     "Test Server",
     false,
     undefined,
+    undefined,
     callbackProxy,
     callbackProxy ? CALLBACK_URL : "",
     material
