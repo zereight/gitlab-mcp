@@ -240,6 +240,11 @@ import {
   CreateWikiPageSchema,
   CreateGroupWikiPageSchema,
   DeleteBranchSchema,
+  GetProtectedBranchSchema,
+  ListProtectedBranchesSchema,
+  ProtectBranchSchema,
+  UnprotectBranchSchema,
+  UpdateDefaultBranchSchema,
   DeleteDraftNoteSchema,
   DeleteGroupWikiPageSchema,
   DeleteIssueLinkSchema,
@@ -11386,6 +11391,115 @@ async function handleToolCall(params: any) {
 
         return {
           content: [{ type: "text", text: JSON.stringify({ status: "deleted", branch: args.branch_name }, null, 2) }],
+        };
+      }
+
+      case "list_protected_branches": {
+        const args = ListProtectedBranchesSchema.parse(params.arguments);
+        const projectId = decodeURIComponent(args.project_id);
+        const effectiveProjectId = getEffectiveProjectId(projectId);
+        const url = new URL(
+          `${getEffectiveApiUrl()}/projects/${encodeURIComponent(effectiveProjectId)}/protected_branches`
+        );
+        if (args.search) url.searchParams.append("search", args.search);
+        if (args.page) url.searchParams.append("page", String(args.page));
+        if (args.per_page) url.searchParams.append("per_page", String(args.per_page));
+
+        const response = await fetch(url.toString(), {
+          ...getFetchConfig(),
+        });
+
+        await handleGitLabError(response);
+        const data = await response.json();
+        return {
+          content: [{ type: "text", text: JSON.stringify(data, null, 2) }],
+        };
+      }
+
+      case "get_protected_branch": {
+        const args = GetProtectedBranchSchema.parse(params.arguments);
+        const projectId = decodeURIComponent(args.project_id);
+        const effectiveProjectId = getEffectiveProjectId(projectId);
+        const url = new URL(
+          `${getEffectiveApiUrl()}/projects/${encodeURIComponent(effectiveProjectId)}/protected_branches/${encodeURIComponent(args.branch_name)}`
+        );
+
+        const response = await fetch(url.toString(), {
+          ...getFetchConfig(),
+        });
+
+        await handleGitLabError(response);
+        const data = await response.json();
+        return {
+          content: [{ type: "text", text: JSON.stringify(data, null, 2) }],
+        };
+      }
+
+      case "protect_branch": {
+        const args = ProtectBranchSchema.parse(params.arguments);
+        const projectId = decodeURIComponent(args.project_id);
+        const effectiveProjectId = getEffectiveProjectId(projectId);
+        const url = new URL(
+          `${getEffectiveApiUrl()}/projects/${encodeURIComponent(effectiveProjectId)}/protected_branches`
+        );
+
+        const body: Record<string, unknown> = { name: args.name };
+        if (args.push_access_level !== undefined) body.push_access_level = args.push_access_level;
+        if (args.merge_access_level !== undefined) body.merge_access_level = args.merge_access_level;
+        if (args.unprotect_access_level !== undefined) body.unprotect_access_level = args.unprotect_access_level;
+        if (args.allow_force_push !== undefined) body.allow_force_push = args.allow_force_push;
+        if (args.code_owner_approval_required !== undefined) body.code_owner_approval_required = args.code_owner_approval_required;
+
+        const response = await fetch(url.toString(), {
+          ...getFetchConfig(),
+          method: "POST",
+          body: JSON.stringify(body),
+        });
+
+        await handleGitLabError(response);
+        const data = await response.json();
+        return {
+          content: [{ type: "text", text: JSON.stringify(data, null, 2) }],
+        };
+      }
+
+      case "unprotect_branch": {
+        const args = UnprotectBranchSchema.parse(params.arguments);
+        const projectId = decodeURIComponent(args.project_id);
+        const effectiveProjectId = getEffectiveProjectId(projectId);
+        const url = new URL(
+          `${getEffectiveApiUrl()}/projects/${encodeURIComponent(effectiveProjectId)}/protected_branches/${encodeURIComponent(args.branch_name)}`
+        );
+
+        const response = await fetch(url.toString(), {
+          ...getFetchConfig(),
+          method: "DELETE",
+        });
+
+        await handleGitLabError(response);
+        return {
+          content: [{ type: "text", text: JSON.stringify({ status: "unprotected", branch: args.branch_name }, null, 2) }],
+        };
+      }
+
+      case "update_default_branch": {
+        const args = UpdateDefaultBranchSchema.parse(params.arguments);
+        const projectId = decodeURIComponent(args.project_id);
+        const effectiveProjectId = getEffectiveProjectId(projectId);
+        const url = new URL(
+          `${getEffectiveApiUrl()}/projects/${encodeURIComponent(effectiveProjectId)}`
+        );
+
+        const response = await fetch(url.toString(), {
+          ...getFetchConfig(),
+          method: "PUT",
+          body: JSON.stringify({ default_branch: args.default_branch }),
+        });
+
+        await handleGitLabError(response);
+        const data = await response.json();
+        return {
+          content: [{ type: "text", text: JSON.stringify({ status: "updated", default_branch: args.default_branch, project: data }, null, 2) }],
         };
       }
 
