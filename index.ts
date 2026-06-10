@@ -11847,6 +11847,14 @@ async function startStreamableHTTPServer(): Promise<void> {
         delete authBySession[sessionId];
         delete authTimeouts[sessionId];
         metrics.expiredSessions++;
+        // Close the transport to free the slot; without this, stale sessions accumulate and exhaust MAX_SESSIONS.
+        const transport = streamableTransports[sessionId];
+
+        if (transport) {
+          transport.close().catch(err => {
+            logger.error(`Error closing transport for expired session ${sessionId}:`, err);
+          });
+        }
       }
     }, SESSION_TIMEOUT_SECONDS * 1000);
   };
