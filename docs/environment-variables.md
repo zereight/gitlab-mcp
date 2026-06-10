@@ -120,6 +120,33 @@ Examples:
 - `api`
 - `api,read_user`
 
+### `GITLAB_ALLOWED_GROUPS`
+
+Comma-separated list of GitLab group full paths. When set, only users who
+belong to at least one of these groups (or any of their subgroups) are allowed
+to use the server. Users who authenticate successfully via OAuth but are not
+members of any matching group receive a `401 Access Denied` response.
+
+Requires `GITLAB_MCP_OAUTH=true`.
+
+Examples:
+
+- `my-org` — allows all members of `my-org` and any subgroup such as
+  `my-org/engineering` or `my-org/engineering/backend`
+- `my-org/engineering,my-org/security` — allows members of either
+  group or their subgroups
+
+Notes:
+
+- Group paths are globally unique on a GitLab instance — path squatting is not
+  possible.
+- Matching is case-insensitive and checks the group's `full_path` (e.g.
+  `my-org/team-a`), not its display name.
+- The check is performed once at token issuance (when the MCP client exchanges
+  the authorization code for tokens), not on every subsequent request. No
+  additional service account credentials are needed.
+- Leave unset to allow any authenticated GitLab user (default behaviour).
+
 ### `ENABLE_DYNAMIC_API_URL`
 
 Set to `true` to allow the GitLab API URL to be supplied per request.

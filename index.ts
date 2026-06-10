@@ -38,6 +38,7 @@ import {
   USE_PIPELINE,
   GITLAB_TOOL_POLICY_APPROVE_RAW,
   GITLAB_TOOL_POLICY_HIDDEN_RAW,
+  GITLAB_ALLOWED_GROUPS,
 } from "./config.js";
 
 /** True when the server is running in remote/network mode (SSE or StreamableHTTP transport). */
@@ -12111,6 +12112,7 @@ async function startStreamableHTTPServer(): Promise<void> {
       "GitLab MCP Server",
       GITLAB_READ_ONLY_MODE,
       GITLAB_OAUTH_SCOPES,
+      GITLAB_ALLOWED_GROUPS,
       GITLAB_OAUTH_CALLBACK_PROXY,
       callbackUrl,
       statelessOptions

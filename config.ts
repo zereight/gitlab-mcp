@@ -84,6 +84,12 @@ export const GITLAB_OAUTH_SCOPES =
     : undefined;
 export const GITLAB_OAUTH_CALLBACK_PROXY =
   getConfig("oauth-callback-proxy", "GITLAB_OAUTH_CALLBACK_PROXY") === "true";
+export const GITLAB_ALLOWED_GROUPS: string[] | undefined = (() => {
+  const raw = getConfig("allowed-groups", "GITLAB_ALLOWED_GROUPS");
+  if (!raw) return undefined;
+  const groups = raw.split(",").map((g) => g.trim()).filter(Boolean);
+  return groups.length > 0 ? groups : undefined;
+})();
 export const ENABLE_DYNAMIC_API_URL =
   getConfig("enable-dynamic-api-url", "ENABLE_DYNAMIC_API_URL") === "true";
 
