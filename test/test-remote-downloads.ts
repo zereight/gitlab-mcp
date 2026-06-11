@@ -19,6 +19,12 @@ const MOCK_TOKEN = 'glpat-mock-token-12345';
 const TEST_PROJECT_ID = '123';
 const TEST_JOB_ID = '456';
 const TEST_SECRET = 'testsecret';
+const FORWARDED_BASE_URL = 'https://gitlab.mcp.example.test/gitlab-mcp';
+const FORWARDED_HEADERS = {
+  'X-Forwarded-Proto': 'https',
+  'X-Forwarded-Host': 'gitlab.mcp.example.test',
+  'X-Forwarded-Prefix': '/gitlab-mcp',
+};
 
 // Minimal 1x1 transparent PNG
 const MINIMAL_PNG = Buffer.from(
@@ -239,6 +245,7 @@ describe('Remote Downloads - Tool Behavior via MCP Protocol', { timeout: 60_000 
       env: {
         STREAMABLE_HTTP: 'true',
         REMOTE_AUTHORIZATION: 'true',
+        MCP_SERVER_URL: '',
         GITLAB_API_URL: `${mockGitLab.getUrl()}/api/v4`,
         USE_PIPELINE: 'true',
       },
@@ -274,7 +281,12 @@ describe('Remote Downloads - Tool Behavior via MCP Protocol', { timeout: 60_000 
     if (mockGitLab) await mockGitLab.stop();
   });
 
-  async function callTool(id: number, name: string, args: Record<string, unknown>): Promise<JsonRpcResult> {
+  async function callTool(
+    id: number,
+    name: string,
+    args: Record<string, unknown>,
+    extraHeaders: Record<string, string> = {}
+  ): Promise<JsonRpcResult> {
     const res = await fetch(`http://${HOST}:${serverPort}/mcp`, {
       method: 'POST',
       headers: {
@@ -282,6 +294,7 @@ describe('Remote Downloads - Tool Behavior via MCP Protocol', { timeout: 60_000 
         'Accept': 'application/json, text/event-stream',
         'Private-Token': MOCK_TOKEN,
         'mcp-session-id': sessionId,
+        ...extraHeaders,
       },
       body: JSON.stringify({
         jsonrpc: '2.0',
@@ -325,6 +338,91 @@ describe('Remote Downloads - Tool Behavior via MCP Protocol', { timeout: 60_000 
     const buf = Buffer.from(await downloadRes.arrayBuffer());
     assert.ok(buf.length > 0, 'Downloaded content should not be empty');
     assert.ok(buf.includes(Buffer.from('PK')), 'Should contain zip magic bytes');
+  });
+
+  test('download_job_artifacts ignores authority-style forwarded prefixes', async () => {
+    const result = await callTool(15, 'download_job_artifacts', {
+      project_id: TEST_PROJECT_ID,
+      job_id: TEST_JOB_ID,
+    }, {
+      ...FORWARDED_HEADERS,
+      'X-Forwarded-Prefix': '//attacker.example.test',
+    });
+
+    assert.ok(result.result, 'Should have a result');
+    const content = result.result!.content;
+    assert.ok(content && content.length > 0, 'Should have content');
+
+    const textBlock = content!.find(c => c.type === 'text');
+    assert.ok(textBlock?.text, 'Should have text content');
+    const parsed = JSON.parse(textBlock!.text!);
+
+    assert.ok(parsed.download_url, 'Should contain download_url');
+    assert.ok(
+      parsed.download_url.startsWith(`http://${HOST}:${serverPort}/downloads/job-artifacts?`),
+      `URL should fall back to local server address, got ${parsed.download_url}`
+    );
+    assert.ok(
+      !parsed.download_url.includes('attacker.example.test'),
+      `URL should not contain authority-style prefix, got ${parsed.download_url}`
+    );
+    assert.ok(parsed.download_url.includes('_token='), 'URL should contain embedded auth token');
+  });
+
+  test('download_job_artifacts uses rightmost forwarded header values', async () => {
+    const result = await callTool(16, 'download_job_artifacts', {
+      project_id: TEST_PROJECT_ID,
+      job_id: TEST_JOB_ID,
+    }, {
+      'X-Forwarded-Proto': 'http, https',
+      'X-Forwarded-Host': 'attacker.example.test, gitlab.mcp.example.test',
+      'X-Forwarded-Prefix': '/attacker, /gitlab-mcp',
+    });
+
+    assert.ok(result.result, 'Should have a result');
+    const content = result.result!.content;
+    assert.ok(content && content.length > 0, 'Should have content');
+
+    const textBlock = content!.find(c => c.type === 'text');
+    assert.ok(textBlock?.text, 'Should have text content');
+    const parsed = JSON.parse(textBlock!.text!);
+
+    assert.ok(parsed.download_url, 'Should contain download_url');
+    assert.ok(
+      parsed.download_url.startsWith(`${FORWARDED_BASE_URL}/downloads/job-artifacts?`),
+      `URL should use the rightmost forwarded header values, got ${parsed.download_url}`
+    );
+    assert.ok(
+      !parsed.download_url.includes('attacker.example.test'),
+      `URL should not use the leftmost untrusted forwarded header value, got ${parsed.download_url}`
+    );
+    assert.ok(parsed.download_url.includes('_token='), 'URL should contain embedded auth token');
+  });
+
+  test('download_job_artifacts derives download_url from forwarded headers when MCP_SERVER_URL is unset', async () => {
+    const result = await callTool(17, 'download_job_artifacts', {
+      project_id: TEST_PROJECT_ID,
+      job_id: TEST_JOB_ID,
+    }, FORWARDED_HEADERS);
+
+    assert.ok(result.result, 'Should have a result');
+    const content = result.result!.content;
+    assert.ok(content && content.length > 0, 'Should have content');
+
+    const textBlock = content!.find(c => c.type === 'text');
+    assert.ok(textBlock?.text, 'Should have text content');
+    const parsed = JSON.parse(textBlock!.text!);
+
+    assert.ok(parsed.download_url, 'Should contain download_url');
+    assert.ok(
+      parsed.download_url.startsWith(`${FORWARDED_BASE_URL}/downloads/job-artifacts?`),
+      `URL should use forwarded public base URL, got ${parsed.download_url}`
+    );
+    assert.ok(
+      !parsed.download_url.startsWith(`http://${HOST}:${serverPort}`),
+      'URL should not fall back to local server address'
+    );
+    assert.ok(parsed.download_url.includes('_token='), 'URL should contain embedded auth token');
   });
 
   test('download_attachment for non-image returns download_url', async () => {
