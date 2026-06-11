@@ -25,6 +25,10 @@ const FORWARDED_HEADERS = {
   'X-Forwarded-Host': 'gitlab.mcp.example.test',
   'X-Forwarded-Prefix': '/gitlab-mcp',
 };
+const RFC_FORWARDED_HEADERS = {
+  'Forwarded': 'for=192.0.2.43;proto=http;host=attacker.example.test, for="[2001:db8:cafe::17]";proto="https";host="gitlab.mcp.example.test"',
+  'X-Forwarded-Prefix': '/gitlab-mcp',
+};
 
 // Minimal 1x1 transparent PNG
 const MINIMAL_PNG = Buffer.from(
@@ -496,6 +500,32 @@ describe('Remote Downloads - Tool Behavior via MCP Protocol', { timeout: 60_000 
     assert.ok(
       !parsed.download_url.includes('attacker.example.test'),
       `URL should not use the leftmost untrusted forwarded header value, got ${parsed.download_url}`
+    );
+    assert.ok(parsed.download_url.includes('_token='), 'URL should contain embedded auth token');
+  });
+
+  test('download_job_artifacts derives download_url from RFC 7239 Forwarded header', async () => {
+    const result = await callTool(18, 'download_job_artifacts', {
+      project_id: TEST_PROJECT_ID,
+      job_id: TEST_JOB_ID,
+    }, RFC_FORWARDED_HEADERS);
+
+    assert.ok(result.result, 'Should have a result');
+    const content = result.result!.content;
+    assert.ok(content && content.length > 0, 'Should have content');
+
+    const textBlock = content!.find(c => c.type === 'text');
+    assert.ok(textBlock?.text, 'Should have text content');
+    const parsed = JSON.parse(textBlock!.text!);
+
+    assert.ok(parsed.download_url, 'Should contain download_url');
+    assert.ok(
+      parsed.download_url.startsWith(`${FORWARDED_BASE_URL}/downloads/job-artifacts?`),
+      `URL should use RFC 7239 Forwarded header values, got ${parsed.download_url}`
+    );
+    assert.ok(
+      !parsed.download_url.includes('attacker.example.test'),
+      `URL should not use the leftmost untrusted Forwarded value, got ${parsed.download_url}`
     );
     assert.ok(parsed.download_url.includes('_token='), 'URL should contain embedded auth token');
   });
