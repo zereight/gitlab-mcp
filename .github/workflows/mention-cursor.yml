@@ -1,6 +1,8 @@
 name: Mention Cursor on PR
 
 on:
+  # Required so the workflow can comment on fork PRs. Keep this workflow free of
+  # checkout steps and any execution of pull request code.
   pull_request_target:
     types: [opened, reopened, ready_for_review, synchronize]
 
@@ -35,7 +37,7 @@ jobs:
             const alreadyRequested = comments.some(
               (comment) =>
                 comment.user?.login === 'github-actions[bot]' &&
-                comment.body?.startsWith(marker),
+                comment.body?.startsWith(body),
             );
 
             if (alreadyRequested) {
