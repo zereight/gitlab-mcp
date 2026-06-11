@@ -320,6 +320,7 @@ import {
   type GitLabFork,
   GitLabForkSchema,
   GitLabBranchSchema,
+  GitLabProtectedBranchSchema,
   GitLabGroupSchema,
   type GitLabIssue,
   type GitLabIssueLink,
@@ -11410,7 +11411,7 @@ async function handleToolCall(params: any) {
         });
 
         await handleGitLabError(response);
-        const data = await response.json();
+        const data = z.array(GitLabProtectedBranchSchema).parse(await response.json());
         return {
           content: [{ type: "text", text: JSON.stringify(data, null, 2) }],
         };
@@ -11429,7 +11430,7 @@ async function handleToolCall(params: any) {
         });
 
         await handleGitLabError(response);
-        const data = await response.json();
+        const data = GitLabProtectedBranchSchema.parse(await response.json());
         return {
           content: [{ type: "text", text: JSON.stringify(data, null, 2) }],
         };
@@ -11443,7 +11444,7 @@ async function handleToolCall(params: any) {
           `${getEffectiveApiUrl()}/projects/${encodeURIComponent(effectiveProjectId)}/protected_branches`
         );
 
-        const body: Record<string, unknown> = { name: args.name };
+        const body: Record<string, unknown> = { name: args.branch_name };
         if (args.push_access_level !== undefined) body.push_access_level = args.push_access_level;
         if (args.merge_access_level !== undefined) body.merge_access_level = args.merge_access_level;
         if (args.unprotect_access_level !== undefined) body.unprotect_access_level = args.unprotect_access_level;
@@ -11457,7 +11458,7 @@ async function handleToolCall(params: any) {
         });
 
         await handleGitLabError(response);
-        const data = await response.json();
+        const data = GitLabProtectedBranchSchema.parse(await response.json());
         return {
           content: [{ type: "text", text: JSON.stringify(data, null, 2) }],
         };
@@ -11945,9 +11946,9 @@ async function startStreamableHTTPServer(): Promise<void> {
   };
 
   /**
-   * Set or reset timeout for session auth
+   * Set or reset timeout for session auth.
    * After SESSION_TIMEOUT_SECONDS of inactivity, the auth token is removed
-   * but the transport session remains active
+   * and the Streamable HTTP transport is closed so the session slot is released.
    */
   const setAuthTimeout = (sessionId: string) => {
     // Clear existing timeout if any

@@ -19,7 +19,6 @@ import { CustomHeaderClient } from './clients/custom-header-client.js';
 // Test constants
 const MOCK_TOKEN = 'glpat-mock-token-12345';
 const MOCK_JOB_TOKEN = 'glcbt-mock-job-token-9876';
-const TEST_PROJECT_ID = '123';
 
 // Port ranges to avoid collisions
 const MOCK_GITLAB_PORT_BASE = 9000;
@@ -33,6 +32,42 @@ const TIMEOUT_BUFFER_MS = 1000; // Extra time beyond timeout to ensure expiratio
 const TIMEOUT_TEST_WAIT_MS = SESSION_TIMEOUT_SECONDS * 1000 + TIMEOUT_BUFFER_MS;
 const KEEPALIVE_INTERVAL_MS = 2000; // Must be less than SESSION_TIMEOUT_SECONDS
 const KEEPALIVE_REQUEST_COUNT = 3; // Number of keepalive requests to test
+
+async function getMetrics(mcpUrl: string): Promise<{ activeSessions: number; authenticatedSessions: number }> {
+  const metricsUrl = mcpUrl.replace(/\/mcp$/, '/metrics');
+  const response = await fetch(metricsUrl);
+  assert.strictEqual(response.status, 200, 'metrics endpoint should be available');
+  return (await response.json()) as { activeSessions: number; authenticatedSessions: number };
+}
+
+async function waitForSessionDecrease(
+  mcpUrl: string,
+  beforeTimeout: { activeSessions: number; authenticatedSessions: number },
+  timeoutMs = 3000
+): Promise<void> {
+  const startedAt = Date.now();
+  let last = await getMetrics(mcpUrl);
+
+  while (Date.now() - startedAt < timeoutMs) {
+    if (
+      last.activeSessions < beforeTimeout.activeSessions &&
+      last.authenticatedSessions < beforeTimeout.authenticatedSessions
+    ) {
+      return;
+    }
+    await new Promise(resolve => setTimeout(resolve, 100));
+    last = await getMetrics(mcpUrl);
+  }
+
+  assert.ok(
+    last.activeSessions < beforeTimeout.activeSessions,
+    `activeSessions should decrease after timeout (${last.activeSessions} !< ${beforeTimeout.activeSessions})`
+  );
+  assert.ok(
+    last.authenticatedSessions < beforeTimeout.authenticatedSessions,
+    `authenticatedSessions should decrease after timeout (${last.authenticatedSessions} !< ${beforeTimeout.authenticatedSessions})`
+  );
+}
 
 console.log('🔐 Remote Authorization Test Suite');
 console.log('');
@@ -224,6 +259,8 @@ describe('Remote Authorization - Session Timeout', () => {
     // Add a small delay to ensure server is ready/clean from previous test
     await new Promise(resolve => setTimeout(resolve, 1000));
 
+    const baseline = await getMetrics(mcpUrl);
+
     // Step 1: Connect WITH auth header to establish session
     const clientWithAuth = new CustomHeaderClient({
       'authorization': `Bearer ${MOCK_TOKEN}`
@@ -238,9 +275,24 @@ describe('Remote Authorization - Session Timeout', () => {
     assert.ok(sessionId, 'Session ID should exist');
     console.log(`  ℹ️  Session ID: ${sessionId}`);
 
+    const beforeTimeout = await getMetrics(mcpUrl);
+    assert.strictEqual(
+      beforeTimeout.activeSessions,
+      baseline.activeSessions + 1,
+      'Session should occupy one additional active slot'
+    );
+    assert.strictEqual(
+      beforeTimeout.authenticatedSessions,
+      baseline.authenticatedSessions + 1,
+      'Session should add one authenticated session'
+    );
+
     // Step 2: Wait for timeout WITHOUT making any requests
     console.log(`  ⏳ Waiting ${TIMEOUT_TEST_WAIT_MS/1000}s for timeout without activity...`);
     await new Promise(resolve => setTimeout(resolve, TIMEOUT_TEST_WAIT_MS));
+
+    await waitForSessionDecrease(mcpUrl, beforeTimeout);
+    console.log('  ✓ Timeout closed transport and released active session slot');
 
     // Step 3: Try to make request WITHOUT auth header - should fail with 401
     try {

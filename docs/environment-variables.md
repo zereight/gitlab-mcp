@@ -143,8 +143,13 @@ Notes:
 - Matching is case-insensitive and checks the group's `full_path` (e.g.
   `my-org/team-a`), not its display name.
 - The check is performed once at token issuance (when the MCP client exchanges
-  the authorization code for tokens), not on every subsequent request. No
-  additional service account credentials are needed.
+  the authorization code for tokens), not on every subsequent request. Existing
+  sessions are not retroactively revoked when this value changes; users are
+  re-checked when they complete a new OAuth flow or refresh through token issuance.
+- The groups lookup uses the user's OAuth token. If GitLab rejects that lookup
+  (for example because the token lacks a usable scope), login fails closed with
+  access denied.
+- No additional service account credentials are needed.
 - Leave unset to allow any authenticated GitLab user (default behaviour).
 
 ### `ENABLE_DYNAMIC_API_URL`

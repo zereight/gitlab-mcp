@@ -103,7 +103,6 @@ function addOAuthEndpoints(
 // ---------------------------------------------------------------------------
 
 describe("MCP OAuth — Discovery Endpoints", () => {
-  let mcpUrl: string;
   let mcpBaseUrl: string;
   let mockGitLab: MockGitLabServer;
   let servers: ServerInstance[] = [];
@@ -121,7 +120,6 @@ describe("MCP OAuth — Discovery Endpoints", () => {
 
     const mcpPort = await findAvailablePort(MCP_SERVER_PORT_BASE);
     mcpBaseUrl = `http://${HOST}:${mcpPort}`;
-    mcpUrl = `${mcpBaseUrl}/mcp`;
 
     const server = await launchServer({
       mode: TransportMode.STREAMABLE_HTTP,
@@ -352,14 +350,6 @@ describe("MCP OAuth — BoundedClientCache", () => {
   // Access the internal class via a minimal provider (it's not exported directly)
   // by driving it through the public clientsStore API.
 
-  function makeClient(id: string, redirectUri = "https://example.com/cb"): Record<string, unknown> {
-    return {
-      client_id: id,
-      redirect_uris: [redirectUri],
-      token_endpoint_auth_method: "none",
-    };
-  }
-
   async function buildCachingProvider() {
     // Spin up a DCR stub that returns a stable client_id from the request body.
     // The stub reads client_id from the incoming body (set by the SDK's register
@@ -470,7 +460,7 @@ describe("MCP OAuth — createGitLabOAuthProvider", () => {
   test("verifyAccessToken throws on non-OK response", async () => {
     // Spin up a tiny local server that always returns 401
     const { createServer } = await import("node:http");
-    const stub = createServer((req, res) => {
+    const stub = createServer((_req, res) => {
       res.writeHead(401);
       res.end(JSON.stringify({ error: "invalid_token" }));
     });
@@ -804,7 +794,7 @@ describe("MCP OAuth — Group Allowlist", () => {
       res.writeHead(404).end("{}");
     });
 
-    await new Promise<void>((resolve) => stubServer.listen(0, "127.0.0.1", resolve));
+    await new Promise<void>(resolve => stubServer.listen(0, "127.0.0.1", resolve));
     const addr = stubServer.address() as { port: number };
     stubUrl = `http://127.0.0.1:${addr.port}`;
   });
@@ -813,7 +803,10 @@ describe("MCP OAuth — Group Allowlist", () => {
     stubServer.close();
   });
 
-  async function makeProvider(allowedGroups: string[] | undefined = undefined) {
+  async function makeProvider(
+    allowedGroups: string[] | undefined = undefined,
+    callbackProxyEnabled = false
+  ) {
     const { createGitLabOAuthProvider } = await import("../oauth-proxy.js");
     return createGitLabOAuthProvider(
       stubUrl,
@@ -822,13 +815,33 @@ describe("MCP OAuth — Group Allowlist", () => {
       false,
       undefined, // customScopes
       allowedGroups,
-      false, // callbackProxyEnabled
-      "" // callbackUrl
+      callbackProxyEnabled,
+      callbackProxyEnabled ? "https://mcp.example.test/callback" : "" // callbackUrl
     );
   }
 
   // Passthrough mode: client is not used by exchangeAuthorizationCode.
   type Provider = Awaited<ReturnType<typeof makeProvider>>;
+  type StoredTokensAccessor = {
+    _storedTokens: {
+      set: (
+        key: string,
+        value: {
+          tokens: {
+            access_token: string;
+            token_type: "bearer";
+            expires_in: number;
+            refresh_token: string;
+            scope: string;
+          };
+          clientId: string;
+          clientCodeChallenge: string;
+          clientRedirectUri: string;
+          createdAt: number;
+        }
+      ) => void;
+    };
+  };
   function exchange(provider: Provider) {
     return provider.exchangeAuthorizationCode(
       {} as import("@modelcontextprotocol/sdk/shared/auth.js").OAuthClientInformationFull,
@@ -919,7 +932,7 @@ describe("MCP OAuth — Group Allowlist", () => {
   test("match found on page 2 of paginated groups response → token issued", async () => {
     const provider = await makeProvider(["my-org"]);
     totalPages = 2;
-    groupsForPage = (page) =>
+    groupsForPage = page =>
       page === 1 ? [{ full_path: "other-org" }] : [{ full_path: "my-org/team-b" }];
 
     const tokens = await exchange(provider);
@@ -940,6 +953,81 @@ describe("MCP OAuth — Group Allowlist", () => {
       }
     );
     console.log("  ✓ Non-member across all pages: token issuance denied");
+  });
+
+  test("callback-proxy exchange also enforces allowed groups", async () => {
+    const provider = await makeProvider(["my-org"], true);
+    groupsForPage = () => [{ full_path: "my-org/team-a" }];
+    totalPages = 1;
+
+    const proxyCode = "proxy-code-for-group-test";
+    const clientId = "test-client";
+    const redirectUri = "https://client.example.test/callback";
+    (provider as unknown as StoredTokensAccessor)._storedTokens.set(proxyCode, {
+      tokens: {
+        access_token: MOCK_OAUTH_TOKEN,
+        token_type: "bearer",
+        expires_in: 7200,
+        refresh_token: "mock-refresh",
+        scope: "api",
+      },
+      clientId,
+      clientCodeChallenge: "",
+      clientRedirectUri: redirectUri,
+      createdAt: Date.now(),
+    });
+
+    const tokens = await provider.exchangeAuthorizationCode(
+      {
+        client_id: clientId,
+      } as import("@modelcontextprotocol/sdk/shared/auth.js").OAuthClientInformationFull,
+      proxyCode,
+      undefined,
+      redirectUri
+    );
+
+    assert.strictEqual(tokens.access_token, MOCK_OAUTH_TOKEN);
+    console.log("  ✓ Callback-proxy exchange enforces allowedGroups before issuing tokens");
+  });
+
+  test("callback-proxy exchange denies users outside allowed groups", async () => {
+    const provider = await makeProvider(["my-org"], true);
+    groupsForPage = () => [{ full_path: "other-org/team-a" }];
+    totalPages = 1;
+
+    const proxyCode = "proxy-code-for-group-deny-test";
+    const clientId = "test-client-deny";
+    const redirectUri = "https://client.example.test/callback";
+    (provider as unknown as StoredTokensAccessor)._storedTokens.set(proxyCode, {
+      tokens: {
+        access_token: MOCK_OAUTH_TOKEN,
+        token_type: "bearer",
+        expires_in: 7200,
+        refresh_token: "mock-refresh",
+        scope: "api",
+      },
+      clientId,
+      clientCodeChallenge: "",
+      clientRedirectUri: redirectUri,
+      createdAt: Date.now(),
+    });
+
+    await assert.rejects(
+      () =>
+        provider.exchangeAuthorizationCode(
+          {
+            client_id: clientId,
+          } as import("@modelcontextprotocol/sdk/shared/auth.js").OAuthClientInformationFull,
+          proxyCode,
+          undefined,
+          redirectUri
+        ),
+      (err: Error) => {
+        assert.ok(err.message.includes("Access denied"), `Unexpected message: ${err.message}`);
+        return true;
+      }
+    );
+    console.log("  ✓ Callback-proxy exchange denies users outside allowedGroups");
   });
 
   test("matching is case-insensitive", async () => {

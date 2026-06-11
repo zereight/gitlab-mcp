@@ -1696,14 +1696,51 @@ const stringBoolean = z.preprocess(
   z.boolean().optional()
 );
 
-export const ProtectBranchSchema = ProjectParamsSchema.extend({
-  name: z.string().describe("Branch name or wildcard pattern to protect"),
-  push_access_level: z.coerce.number().optional().describe("Access level for pushing (0=No access, 30=Developer, 40=Maintainer, 60=Admin). Default: 40"),
-  merge_access_level: z.coerce.number().optional().describe("Access level for merging (0=No access, 30=Developer, 40=Maintainer, 60=Admin). Default: 40"),
-  unprotect_access_level: z.coerce.number().optional().describe("Access level for unprotecting (0=No access, 30=Developer, 40=Maintainer, 60=Admin). Default: 40"),
-  allow_force_push: stringBoolean.describe("Allow force push to the protected branch. Default: false"),
-  code_owner_approval_required: stringBoolean.describe("Require code owner approval before merging (PREMIUM). Default: false"),
-});
+const protectedBranchAccessLevel = z.coerce
+  .number()
+  .int()
+  .refine((level) => [0, 30, 40, 60].includes(level), {
+    message: "Access level must be one of 0 (No access), 30 (Developer), 40 (Maintainer), or 60 (Admin)",
+  });
+
+export const ProtectBranchSchema = z.preprocess(
+  (input) => {
+    if (typeof input !== "object" || input === null) {
+      return input;
+    }
+    const args = { ...(input as Record<string, unknown>) };
+    if (!args.branch_name && args.name) {
+      args.branch_name = args.name;
+    }
+    return args;
+  },
+  ProjectParamsSchema.extend({
+    branch_name: z.string().describe("Branch name or wildcard pattern to protect"),
+    name: z
+      .string()
+      .optional()
+      .describe("Deprecated alias for branch_name; prefer branch_name for consistency"),
+    push_access_level: protectedBranchAccessLevel
+      .optional()
+      .describe(
+        "Access level for pushing (0=No access, 30=Developer, 40=Maintainer, 60=Admin). GitLab default applies when omitted."
+      ),
+    merge_access_level: protectedBranchAccessLevel
+      .optional()
+      .describe(
+        "Access level for merging (0=No access, 30=Developer, 40=Maintainer, 60=Admin). GitLab default applies when omitted."
+      ),
+    unprotect_access_level: protectedBranchAccessLevel
+      .optional()
+      .describe(
+        "Access level for unprotecting (0=No access, 30=Developer, 40=Maintainer, 60=Admin). GitLab default applies when omitted."
+      ),
+    allow_force_push: stringBoolean.describe("Allow force push to the protected branch. Default: false"),
+    code_owner_approval_required: stringBoolean.describe(
+      "Require code owner approval before merging (PREMIUM). Default: false"
+    ),
+  })
+);
 
 export const UnprotectBranchSchema = ProjectParamsSchema.extend({
   branch_name: z.string().describe("Name of the protected branch to unprotect"),
