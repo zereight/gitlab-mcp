@@ -42,6 +42,14 @@ export const LIST_MERGE_REQUESTS_ID_USERNAME_PAIRS: readonly IdUsernameOptionPai
   ["reviewer_id", "reviewer_username"],
 ];
 
+function hasUsernameFilterValue(value: unknown): boolean {
+  if (Array.isArray(value)) {
+    return value.length > 0;
+  }
+
+  return Boolean(value);
+}
+
 /**
  * When both id and username filters are set, GitLab returns 400. Prefer username and drop id.
  */
@@ -52,7 +60,7 @@ export function cleanMutuallyExclusiveIdUsernameOptions<T extends Record<string,
   const cleaned = { ...options };
 
   for (const [idKey, usernameKey] of pairs) {
-    if (cleaned[idKey] && cleaned[usernameKey]) {
+    if (cleaned[idKey] && hasUsernameFilterValue(cleaned[usernameKey])) {
       delete cleaned[idKey];
     }
   }

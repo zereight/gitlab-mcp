@@ -117,6 +117,18 @@ describe("When cleanMutuallyExclusiveIdUsernameOptions runs", () => {
         assignee_username: ["bob"],
       });
     });
+
+    test("should keep assignee_id when assignee_username is an empty array", () => {
+      const result = cleanMutuallyExclusiveIdUsernameOptions({
+        assignee_id: "7",
+        assignee_username: [],
+      });
+
+      assert.deepEqual(result, {
+        assignee_id: "7",
+        assignee_username: [],
+      });
+    });
   });
 
   describe("with list_merge_requests reviewer filters", () => {
