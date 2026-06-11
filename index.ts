@@ -12301,9 +12301,6 @@ async function startStreamableHTTPServer(): Promise<void> {
 
   // MCP OAuth — mount auth router and prepare bearer-auth middleware
   if (GITLAB_MCP_OAUTH) {
-    // Trust first proxy so express-rate-limit uses X-Forwarded-For for real client IP.
-    // Only enabled in OAuth mode where the server is typically behind a reverse proxy.
-    app.set("trust proxy", 1);
     const gitlabBaseUrl = GITLAB_API_URL.replace(/\/api\/v4\/?$/, "").replace(/\/$/, "");
     const issuerUrl = new URL(MCP_SERVER_URL!);
     const callbackUrl = GITLAB_OAUTH_CALLBACK_PROXY
