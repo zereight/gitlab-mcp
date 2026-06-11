@@ -2,7 +2,7 @@ name: Mention Cursor on PR
 
 on:
   pull_request_target:
-    types: [opened, reopened, ready_for_review]
+    types: [opened, reopened, ready_for_review, synchronize]
 
 permissions:
   issues: write
@@ -18,8 +18,9 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
-            const marker = '<!-- cursor-review-request -->';
-            const body = `${marker}\n@cursor please review this pull request.`;
+            const headSha = context.payload.pull_request.head.sha;
+            const marker = `<!-- cursor-review-request:${headSha} -->`;
+            const body = `${marker}\n@cursor please review the latest changes in this pull request.`;
             const { owner, repo } = context.repo;
             const issue_number = context.payload.pull_request.number;
 
@@ -35,7 +36,7 @@ jobs:
             );
 
             if (alreadyRequested) {
-              core.notice('Cursor review has already been requested for this PR.');
+              core.notice(`Cursor review has already been requested for ${headSha}.`);
               return;
             }
 
