@@ -13,6 +13,7 @@ jobs:
     concurrency:
       group: mention-cursor-${{ github.event.pull_request.number }}
       cancel-in-progress: true
+    # issues: write is required to create the Cursor review request comment.
     permissions:
       issues: write
 
