@@ -196,6 +196,73 @@ describe('Remote Downloads - Download Proxy Endpoint', { timeout: 30_000 }, () =
     }
     assert.ok(got429, 'Should have received 429 within 10 requests (rate limit is 2/min)');
   });
+
+  test('ignores forwarded headers unless MCP_TRUST_PROXY is enabled', async () => {
+    const initRes = await fetch(`http://${HOST}:${serverPort}/mcp`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json, text/event-stream',
+        'Private-Token': MOCK_TOKEN,
+      },
+      body: JSON.stringify({
+        jsonrpc: '2.0',
+        id: 20,
+        method: 'initialize',
+        params: {
+          protocolVersion: '2025-03-26',
+          capabilities: {},
+          clientInfo: { name: 'test-remote-downloads-no-trust-proxy', version: '1.0' },
+        },
+      }),
+    });
+
+    assert.strictEqual(initRes.status, 200, 'Initialize should succeed');
+    const sessionId = initRes.headers.get('mcp-session-id')!;
+    assert.ok(sessionId, 'Should receive a session ID');
+
+    const toolRes = await fetch(`http://${HOST}:${serverPort}/mcp`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json, text/event-stream',
+        ...FORWARDED_HEADERS,
+        'Private-Token': MOCK_TOKEN,
+        'mcp-session-id': sessionId,
+      },
+      body: JSON.stringify({
+        jsonrpc: '2.0',
+        id: 21,
+        method: 'tools/call',
+        params: {
+          name: 'download_job_artifacts',
+          arguments: {
+            project_id: TEST_PROJECT_ID,
+            job_id: TEST_JOB_ID,
+          },
+        },
+      }),
+    });
+
+    assert.strictEqual(toolRes.status, 200, 'Tool call should return 200');
+    const responses = parseSSE(await toolRes.text());
+    const result = responses.find(r => r.id === 21);
+    assert.ok(result?.result, 'Should have a result');
+
+    const textBlock = result.result!.content!.find(c => c.type === 'text');
+    assert.ok(textBlock?.text, 'Should have text content');
+    const parsed = JSON.parse(textBlock!.text!);
+
+    assert.ok(parsed.download_url, 'Should contain download_url');
+    assert.ok(
+      parsed.download_url.startsWith(`http://${HOST}:${serverPort}/downloads/job-artifacts?`),
+      `URL should fall back to local server address when MCP_TRUST_PROXY is disabled, got ${parsed.download_url}`
+    );
+    assert.ok(
+      !parsed.download_url.startsWith(`${FORWARDED_BASE_URL}/downloads/job-artifacts?`),
+      'URL should not use forwarded public base URL when MCP_TRUST_PROXY is disabled'
+    );
+  });
 });
 
 describe('Remote Downloads - Tool Behavior via MCP Protocol', { timeout: 60_000 }, () => {
@@ -245,6 +312,7 @@ describe('Remote Downloads - Tool Behavior via MCP Protocol', { timeout: 60_000 
       env: {
         STREAMABLE_HTTP: 'true',
         REMOTE_AUTHORIZATION: 'true',
+        MCP_TRUST_PROXY: 'true',
         MCP_SERVER_URL: '',
         GITLAB_API_URL: `${mockGitLab.getUrl()}/api/v4`,
         USE_PIPELINE: 'true',
@@ -292,9 +360,9 @@ describe('Remote Downloads - Tool Behavior via MCP Protocol', { timeout: 60_000 
       headers: {
         'Content-Type': 'application/json',
         'Accept': 'application/json, text/event-stream',
+        ...extraHeaders,
         'Private-Token': MOCK_TOKEN,
         'mcp-session-id': sessionId,
-        ...extraHeaders,
       },
       body: JSON.stringify({
         jsonrpc: '2.0',
@@ -340,6 +408,35 @@ describe('Remote Downloads - Tool Behavior via MCP Protocol', { timeout: 60_000 
     assert.ok(buf.includes(Buffer.from('PK')), 'Should contain zip magic bytes');
   });
 
+  test('download_job_artifacts ignores forwarded hosts containing URL components', async () => {
+    const result = await callTool(14, 'download_job_artifacts', {
+      project_id: TEST_PROJECT_ID,
+      job_id: TEST_JOB_ID,
+    }, {
+      ...FORWARDED_HEADERS,
+      'X-Forwarded-Host': 'gitlab.mcp.example.test@attacker.example.test',
+    });
+
+    assert.ok(result.result, 'Should have a result');
+    const content = result.result!.content;
+    assert.ok(content && content.length > 0, 'Should have content');
+
+    const textBlock = content!.find(c => c.type === 'text');
+    assert.ok(textBlock?.text, 'Should have text content');
+    const parsed = JSON.parse(textBlock!.text!);
+
+    assert.ok(parsed.download_url, 'Should contain download_url');
+    assert.ok(
+      parsed.download_url.startsWith(`http://${HOST}:${serverPort}/downloads/job-artifacts?`),
+      `URL should fall back to local server address for unsafe forwarded host, got ${parsed.download_url}`
+    );
+    assert.ok(
+      !parsed.download_url.includes('attacker.example.test'),
+      `URL should not contain unsafe forwarded host, got ${parsed.download_url}`
+    );
+    assert.ok(parsed.download_url.includes('_token='), 'URL should contain embedded auth token');
+  });
+
   test('download_job_artifacts ignores authority-style forwarded prefixes', async () => {
     const result = await callTool(15, 'download_job_artifacts', {
       project_id: TEST_PROJECT_ID,
@@ -359,12 +456,16 @@ describe('Remote Downloads - Tool Behavior via MCP Protocol', { timeout: 60_000 
 
     assert.ok(parsed.download_url, 'Should contain download_url');
     assert.ok(
-      parsed.download_url.startsWith(`http://${HOST}:${serverPort}/downloads/job-artifacts?`),
-      `URL should fall back to local server address, got ${parsed.download_url}`
+      parsed.download_url.startsWith('https://gitlab.mcp.example.test/downloads/job-artifacts?'),
+      `URL should keep forwarded proto/host while ignoring unsafe prefix, got ${parsed.download_url}`
     );
     assert.ok(
       !parsed.download_url.includes('attacker.example.test'),
       `URL should not contain authority-style prefix, got ${parsed.download_url}`
+    );
+    assert.ok(
+      !parsed.download_url.startsWith(`http://${HOST}:${serverPort}`),
+      'URL should not fall back to local server address'
     );
     assert.ok(parsed.download_url.includes('_token='), 'URL should contain embedded auth token');
   });

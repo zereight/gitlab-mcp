@@ -32,6 +32,7 @@ import {
   SESSION_TIMEOUT_SECONDS,
   SSE,
   STREAMABLE_HTTP,
+  MCP_TRUST_PROXY,
   USE_GITLAB_WIKI,
   USE_MILESTONE,
   USE_OAUTH,
@@ -121,6 +122,8 @@ function unquoteHeaderValue(value: string): string {
 }
 
 function getForwardedPublicBaseUrl(req: Request): string | undefined {
+  if (!MCP_TRUST_PROXY) return undefined;
+
   const forwarded = getLastHeaderValue(req.headers.forwarded);
   const forwardedValues: Record<string, string> = {};
 
@@ -141,19 +144,21 @@ function getForwardedPublicBaseUrl(req: Request): string | undefined {
   if (/[\s/\\]/.test(host)) return undefined;
 
   const prefix = getLastHeaderValue(req.headers["x-forwarded-prefix"]);
-  if (
+  const safePrefix =
     prefix &&
-    (!prefix.startsWith("/") ||
-      prefix.startsWith("//") ||
-      prefix.includes("://") ||
-      /[\s\\]/.test(prefix))
-  ) {
-    return undefined;
-  }
+    prefix.startsWith("/") &&
+    !prefix.startsWith("//") &&
+    !prefix.includes("://") &&
+    !/[\s\\]/.test(prefix)
+      ? prefix.replace(/\/+$/, "")
+      : undefined;
 
   try {
     const baseUrl = new URL(`${proto}://${host}`);
-    if (prefix) baseUrl.pathname = prefix.replace(/\/+$/, "");
+    if (baseUrl.username || baseUrl.password || baseUrl.pathname !== "/" || baseUrl.search || baseUrl.hash) {
+      return undefined;
+    }
+    if (safePrefix) baseUrl.pathname = safePrefix;
     return baseUrl.toString().replace(/\/$/, "");
   } catch {
     return undefined;
@@ -12286,6 +12291,10 @@ async function startStreamableHTTPServer(): Promise<void> {
   };
 
   // Configure Express middleware
+  if (MCP_TRUST_PROXY) {
+    app.set("trust proxy", 1);
+  }
+
   app.use(express.json());
 
   registerDownloadProxy(app);
@@ -12542,13 +12551,11 @@ async function startStreamableHTTPServer(): Promise<void> {
             );
             setAuthTimeout(sessionId);
           } else {
-            authBySession[sessionId] = {
-              ...authBySession[sessionId],
-              header: headerAuthData.header,
-              token: headerAuthData.token,
-              lastUsed: Date.now(),
-              publicBaseUrl: publicBaseUrl || authBySession[sessionId].publicBaseUrl,
-            };
+            authBySession[sessionId] = withPublicBaseUrl(
+              headerAuthData,
+              publicBaseUrl,
+              authBySession[sessionId]
+            );
             setAuthTimeout(sessionId);
           }
         }

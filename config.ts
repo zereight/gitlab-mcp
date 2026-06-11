@@ -70,6 +70,7 @@ export const SSE = getConfig("sse", "SSE") === "true";
 export const STREAMABLE_HTTP = getConfig("streamable-http", "STREAMABLE_HTTP") === "true";
 export const REMOTE_AUTHORIZATION = getConfig("remote-auth", "REMOTE_AUTHORIZATION") === "true";
 export const GITLAB_MCP_OAUTH = getConfig("mcp-oauth", "GITLAB_MCP_OAUTH") === "true";
+export const MCP_TRUST_PROXY = getConfig("mcp-trust-proxy", "MCP_TRUST_PROXY") === "true";
 
 // ---------------------------------------------------------------------------
 // OAuth / MCP OAuth

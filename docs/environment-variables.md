@@ -161,6 +161,23 @@ Notes:
 - Requires `REMOTE_AUTHORIZATION=true`
 - Uses the `X-GitLab-API-URL` request header in HTTP mode
 
+### `MCP_TRUST_PROXY`
+
+Set to `true` to trust `Forwarded` and `X-Forwarded-*` request headers when
+deriving public download URLs in Streamable HTTP mode.
+
+Use this only when the MCP server is behind a trusted reverse proxy and direct
+client access to the MCP server port is blocked. When unset, forwarded headers
+are ignored and download URLs use `MCP_SERVER_URL` when configured, otherwise
+the local server address.
+
+Recognized forwarded headers:
+
+- `Forwarded`
+- `X-Forwarded-Proto`
+- `X-Forwarded-Host`
+- `X-Forwarded-Prefix`
+
 ## Stateless mode (multi-pod HPA)
 
 See [Stateless Mode](./stateless-mode.md) for the full design and trade-off
