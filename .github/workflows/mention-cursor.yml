@@ -4,18 +4,19 @@ on:
   pull_request_target:
     types: [opened, reopened, ready_for_review, synchronize]
 
-permissions:
-  issues: write
-  pull-requests: read
-
 jobs:
   mention-cursor:
     runs-on: ubuntu-latest
     if: github.event.pull_request.draft == false
+    concurrency:
+      group: mention-cursor-${{ github.event.pull_request.number }}
+      cancel-in-progress: true
+    permissions:
+      issues: write
 
     steps:
       - name: Request Cursor review
-        uses: actions/github-script@v7
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b
         with:
           script: |
             const headSha = context.payload.pull_request.head.sha;
@@ -31,8 +32,10 @@ jobs:
               per_page: 100,
             });
 
-            const alreadyRequested = comments.some((comment) =>
-              comment.body?.includes(marker),
+            const alreadyRequested = comments.some(
+              (comment) =>
+                comment.user?.login === 'github-actions[bot]' &&
+                comment.body?.startsWith(marker),
             );
 
             if (alreadyRequested) {
