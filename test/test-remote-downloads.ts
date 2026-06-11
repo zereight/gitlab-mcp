@@ -126,6 +126,8 @@ describe('Remote Downloads - Download Proxy Endpoint', { timeout: 30_000 }, () =
       env: {
         STREAMABLE_HTTP: 'true',
         REMOTE_AUTHORIZATION: 'true',
+        MCP_TRUST_PROXY: 'false',
+        MCP_SERVER_URL: '',
         GITLAB_API_URL: `${mockGitLab.getUrl()}/api/v4`,
         USE_PIPELINE: 'true',
         MAX_REQUESTS_PER_MINUTE: '2',
