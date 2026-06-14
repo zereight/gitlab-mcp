@@ -196,6 +196,18 @@ function runPushFilesSchemaTests(): { passed: number; failed: number } {
       check: d => d.files[0].action === 'move' && d.files[0].previous_path === 'a.txt',
     },
     {
+      // schema permits move without previous_path (GitLab's API validates it);
+      // this documents that contract.
+      name: 'schema:push_files:move-without-previous-path-parses',
+      input: { ...base, files: [{ file_path: 'b.txt', action: 'move' }] },
+      check: d => d.files[0].action === 'move' && d.files[0].previous_path === undefined,
+    },
+    {
+      name: 'schema:push_files:explicit-text-encoding',
+      input: { ...base, files: [{ file_path: 'a.txt', content: 'hi', encoding: 'text' }] },
+      check: d => d.files[0].encoding === 'text',
+    },
+    {
       name: 'schema:push_files:reject-bad-action',
       input: { ...base, files: [{ file_path: 'a.txt', content: 'x', action: 'frobnicate' }] },
       shouldFail: true,
