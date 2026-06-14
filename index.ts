@@ -184,6 +184,7 @@ import { mcpAuthRouter } from "@modelcontextprotocol/sdk/server/auth/router.js";
 import { normalizeGitLabApiUrl } from "./utils/url.js";
 import { estimateMergeCommitCount, filterDiffsByPatterns, summarizeWebhookEvents } from "./utils/helpers.js";
 import { graphqlQueryContainsWriteOperation } from "./utils/graphql-query.js";
+import { resolveNestedWikiUpdateTitle } from "./utils/wiki-title.js";
 import {
   cleanMutuallyExclusiveIdUsernameOptions,
   LIST_MERGE_REQUESTS_ID_USERNAME_PAIRS,
@@ -6478,7 +6479,14 @@ async function updateWikiPage(
 ): Promise<GitLabWikiPage> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const body: Record<string, any> = {};
-  if (title) body.title = title;
+  if (title) {
+    if (slug.includes("/") && !title.includes("/")) {
+      const existing = await getWikiPage(projectId, slug);
+      body.title = resolveNestedWikiUpdateTitle(slug, title, existing.title);
+    } else {
+      body.title = title;
+    }
+  }
   if (content) body.content = content;
   if (format) body.format = format;
   const response = await fetch(
@@ -6583,7 +6591,14 @@ async function updateGroupWikiPage(
 ): Promise<GitLabWikiPage> {
   groupId = decodeURIComponent(groupId); // Decode group ID
   const body: Record<string, any> = {};
-  if (title) body.title = title;
+  if (title) {
+    if (slug.includes("/") && !title.includes("/")) {
+      const existing = await getGroupWikiPage(groupId, slug);
+      body.title = resolveNestedWikiUpdateTitle(slug, title, existing.title);
+    } else {
+      body.title = title;
+    }
+  }
   if (content) body.content = content;
   if (format) body.format = format;
   const response = await fetch(
