@@ -4,7 +4,13 @@ import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // Go up two levels from build/utils/ to reach the project root
-const CONFIG_FILE = path.join(__dirname, '..', '..', 'instances.json');
+const DEFAULT_CONFIG_FILE = path.join(__dirname, '..', '..', 'instances.json');
+const CONFIG_FILE = process.env.GITLAB_CONFIG_PATH || DEFAULT_CONFIG_FILE;
+
+// In test mode, we want to avoid side effects and interference between tests
+// unless a specific config path is provided.
+const IS_TEST = process.env.GITLAB_TEST_MODE === 'true' || process.env.NODE_ENV === 'test' || process.env.VITEST === 'true' || process.env.JEST_WORKER_ID !== undefined || process.env.NODE_TEST_CONTEXT !== undefined;
+const SHOULD_PERSIST = !IS_TEST || process.env.GITLAB_CONFIG_PATH !== undefined;
 
 export interface GitLabInstance {
   url: string;
@@ -22,61 +28,37 @@ class ConfigManager {
 
   constructor() {
     this.data = this.load();
-    this.migrateIfNeeded();
   }
 
   private load(): ConfigData {
-    if (fs.existsSync(CONFIG_FILE)) {
+    if (SHOULD_PERSIST && fs.existsSync(CONFIG_FILE)) {
       try {
         const raw = fs.readFileSync(CONFIG_FILE, 'utf-8');
-        return JSON.parse(raw);
+        const data = JSON.parse(raw);
+        
+        // Migrate 'twinby' to 'default' if needed
+        if (data.active_alias === 'twinby') {
+          data.active_alias = 'default';
+        }
+        if (data.instances && data.instances['twinby']) {
+          data.instances['default'] = data.instances['twinby'];
+          delete data.instances['twinby'];
+        }
+        
+        return data;
       } catch (e) {
         console.error('Error reading instances.json, using defaults', e);
       }
     }
     
     return {
-      active_alias: 'twinby',
+      active_alias: 'default',
       instances: {}
     };
   }
 
-  private migrateIfNeeded(): void {
-    if (Object.keys(this.data.instances).length === 0) {
-      // Simple normalization: ensure /api/v4 suffix
-      const normalize = (url: string) => {
-        let u = url.trim().replace(/\/$/, "");
-        if (!u.endsWith("/api/v4")) {
-          u += "/api/v4";
-        }
-        return u;
-      };
-
-      const envToken = process.env.GITLAB_PERSONAL_ACCESS_TOKEN;
-      const envUrl = process.env.GITLAB_API_URL || "https://gitlab.com/api/v4";
-      const cloudToken = process.env.GITLAB_CLOUD_TOKEN;
-
-      if (envToken) {
-        this.addInstance("twinby", {
-          url: normalize(envUrl),
-          token: envToken,
-          description: "Default instance from environment",
-        });
-        this.data.active_alias = "twinby";
-      }
-
-      if (cloudToken) {
-        this.addInstance("cloud", {
-          url: normalize(process.env.GITLAB_CLOUD_API_URL || "https://gitlab.com/api/v4"),
-          token: cloudToken,
-          description: "Cloud instance from .env",
-        });
-      }
-      this.save();
-    }
-  }
-
   public save(): void {
+    if (!SHOULD_PERSIST) return;
     try {
       fs.writeFileSync(CONFIG_FILE, JSON.stringify(this.data, null, 2), 'utf-8');
     } catch (e) {

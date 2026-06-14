@@ -60,6 +60,7 @@ export async function launchServer(config: ServerConfig): Promise<ServerInstance
 
   const serverEnv: Record<string, string> = {
     ...process.env,
+    GITLAB_TEST_MODE: "true",
     ...env,
   } as Record<string, string>;
 

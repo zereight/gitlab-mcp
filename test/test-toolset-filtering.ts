@@ -78,8 +78,8 @@ const NON_DEFAULT_TOOLSETS = [
   "dependency_proxy",
 ];
 
-// discover_tools meta-tool is always force-injected (Step 5.5)
-const DISCOVER_TOOLS_COUNT = 1;
+// Instance management tools (Step 5.5) + discover_tools meta-tool are always force-injected
+const DISCOVER_TOOLS_COUNT = 5; // gitlab_list_instances, gitlab_add_instance, gitlab_select_instance, gitlab_switch_instance, discover_tools
 
 const DEFAULT_TOOL_COUNT = DEFAULT_TOOLSETS.reduce(
   (sum, id) => sum + TOOLSET_TOOL_COUNTS[id],
@@ -447,7 +447,9 @@ describe("Toolset Filtering", { concurrency: 1 }, () => {
     });
 
     test("returns correct count (read-only issues + discover_tools)", () => {
-      assert.strictEqual(tools.length, readOnlyIssueTools.length + DISCOVER_TOOLS_COUNT);
+      // 9 read-only issue tools + discover_tools (1) + gitlab_list_instances (1) + gitlab_switch_instance (1) = 12
+      const readOnlyManagementToolsCount = 3; 
+      assert.strictEqual(tools.length, readOnlyIssueTools.length + readOnlyManagementToolsCount);
     });
   });
 

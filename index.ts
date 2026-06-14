@@ -2,6 +2,7 @@
 
 import "dotenv/config";
 import { configManager } from "./utils/config-manager.js";
+import { normalizeGitLabApiUrl } from "./utils/url.js";
 import {
   getConfig,
   ENABLE_DYNAMIC_API_URL,
@@ -200,7 +201,6 @@ import { z } from "zod";
 import { initializeOAuthClient, GitLabOAuth } from "./oauth.js";
 import { createGitLabOAuthProvider } from "./oauth-proxy.js";
 import { mcpAuthRouter } from "@modelcontextprotocol/sdk/server/auth/router.js";
-import { normalizeGitLabApiUrl } from "./utils/url.js";
 import { estimateMergeCommitCount, filterDiffsByPatterns, summarizeWebhookEvents } from "./utils/helpers.js";
 import {
   cleanMutuallyExclusiveIdUsernameOptions,
@@ -998,8 +998,8 @@ function validateConfiguration(): void {
   }
 
   if (streamableHttp && (hasToken || hasJobToken) && !remoteAuth && !mcpOAuth) {
-    logger.warn(
-      "STREAMABLE_HTTP=true with static token is active. Dynamic switching via tools will use global state."
+    errors.push(
+      "STREAMABLE_HTTP=true/--streamable-http with GITLAB_PERSONAL_ACCESS_TOKEN/--token or GITLAB_JOB_TOKEN/--job-token requires REMOTE_AUTHORIZATION=true/--remote-auth=true or GITLAB_MCP_OAUTH=true/--mcp-oauth=true"
     );
   }
 
@@ -9010,6 +9010,11 @@ async function handleToolCall(params: any, sessionId?: string) {
 
         // Check if switching by alias
         if (args.alias) {
+          if (REMOTE_AUTHORIZATION || GITLAB_MCP_OAUTH) {
+            throw new Error(
+              "Alias-based instance switching is disabled in remote/OAuth modes for security. Please provide apiUrl and token directly."
+            );
+          }
           const inst = configManager.getInstance(args.alias);
           if (inst) {
             targetToken = inst.token;
@@ -12934,7 +12939,7 @@ async function initializeServerByTransportMode(mode: TransportMode): Promise<voi
 async function runServer() {
   try {
     // Perform initial migration to instances.json if needed
-    if (Object.keys(configManager.listInstances()).length === 0) {
+    if (Object.keys(configManager.listInstances()).length === 0 && !process.env.NODE_TEST_CONTEXT && !process.env.NODE_ENV?.includes('test')) {
       logger.info("Performing initial migration of credentials to instances.json...");
       
       // Migrate default instance from ENV
@@ -12949,7 +12954,7 @@ async function runServer() {
       // Migrate cloud instance from .env if present
       if (process.env.GITLAB_CLOUD_TOKEN) {
         configManager.addInstance("cloud", {
-          url: process.env.GITLAB_CLOUD_API_URL || "https://gitlab.com/api/v4",
+          url: normalizeGitLabApiUrl(process.env.GITLAB_CLOUD_API_URL || "https://gitlab.com"),
           token: process.env.GITLAB_CLOUD_TOKEN,
           description: "Cloud instance from .env",
         });
@@ -12985,7 +12990,6 @@ async function runServer() {
   }
 }
 
-// 下記の２行を追記
 runServer().catch(error => {
   logger.error("Fatal error in main():", error);
   process.exit(1);

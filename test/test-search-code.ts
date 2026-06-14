@@ -119,7 +119,8 @@ describe("Search Code Tools", () => {
     after(() => cleanupServers([server]));
 
     test("returns exactly 4 tools", () => {
-      assert.strictEqual(tools.length, 4, `Expected 4 tools but got ${tools.length}: ${tools.join(", ")}`);
+      // Expected: 3 search tools + 4 instance tools + 1 discover_tools
+      assert.strictEqual(tools.length, 8, `Expected 8 tools but got ${tools.length}: ${tools.join(", ")}`);
     });
 
     test("includes search_code", () => {

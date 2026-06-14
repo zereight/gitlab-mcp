@@ -42,7 +42,7 @@ function callDownloadAttachment(
   return new Promise((resolve, reject) => {
     const proc = spawn('node', ['build/index.js'], {
       stdio: ['pipe', 'pipe', 'pipe'],
-      env: { ...process.env, ...env, GITLAB_READ_ONLY_MODE: 'true' },
+      env: { ...process.env, GITLAB_TEST_MODE: 'true', ...env, GITLAB_READ_ONLY_MODE: 'true' },
     });
 
     const timer = setTimeout(() => {
