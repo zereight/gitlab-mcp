@@ -183,6 +183,7 @@ import { createGitLabOAuthProvider } from "./oauth-proxy.js";
 import { mcpAuthRouter } from "@modelcontextprotocol/sdk/server/auth/router.js";
 import { normalizeGitLabApiUrl } from "./utils/url.js";
 import { estimateMergeCommitCount, filterDiffsByPatterns, summarizeWebhookEvents } from "./utils/helpers.js";
+import { graphqlQueryContainsWriteOperation } from "./utils/graphql-query.js";
 import {
   cleanMutuallyExclusiveIdUsernameOptions,
   LIST_MERGE_REQUESTS_ID_USERNAME_PAIRS,
@@ -8891,6 +8892,11 @@ async function handleToolCall(params: any) {
     switch (params.name) {
       case "execute_graphql": {
         const args = ExecuteGraphQLSchema.parse(params.arguments);
+        if (GITLAB_READ_ONLY_MODE && graphqlQueryContainsWriteOperation(args.query)) {
+          throw new Error(
+            "execute_graphql does not allow mutation or subscription operations in read-only mode"
+          );
+        }
         const apiUrl = new URL(getEffectiveApiUrl());
         // Build GraphQL endpoint preserving any instance subpath (e.g. /gitlab)
         const restPath = apiUrl.pathname || ""; // e.g. /api/v4 or /gitlab/api/v4
