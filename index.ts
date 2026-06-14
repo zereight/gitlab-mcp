@@ -4464,7 +4464,8 @@ async function createOrUpdateFile(
   branch: string,
   previousPath?: string,
   last_commit_id?: string,
-  commit_id?: string
+  commit_id?: string,
+  encoding?: "text" | "base64"
 ): Promise<GitLabCreateUpdateFileResponse> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const encodedPath = encodeURIComponent(filePath);
@@ -4474,9 +4475,11 @@ async function createOrUpdateFile(
 
   const body: Record<string, any> = {
     branch,
-    content: encodeRepoFilePayloadContent(content),
+    // base64 content is passed through untouched (binary-safe); otherwise fall
+    // back to the global text/base64 convenience toggle.
+    content: encoding === "base64" ? content : encodeRepoFilePayloadContent(content),
     commit_message: commitMessage,
-    encoding: GITLAB_REPO_FILE_ENCODING,
+    encoding: encoding === "base64" ? "base64" : GITLAB_REPO_FILE_ENCODING,
     ...(previousPath ? { previous_path: previousPath } : {}),
   };
 
@@ -4558,12 +4561,26 @@ async function createCommit(
     body: JSON.stringify({
       branch,
       commit_message: message,
-      actions: actions.map(action => ({
-        action: "create",
-        file_path: action.path,
-        content: encodeRepoFilePayloadContent(action.content),
-        encoding: GITLAB_REPO_FILE_ENCODING,
-      })),
+      actions: actions.map(action => {
+        // Honour per-file action (create/update/delete/move) instead of
+        // hardcoding "create", and pass base64 content through untouched so
+        // binary files commit correctly.
+        const act = action.action ?? "create";
+        const entry: Record<string, any> = { action: act, file_path: action.path };
+        if (act === "move" && action.previous_path) {
+          entry.previous_path = action.previous_path;
+        }
+        if (act !== "delete") {
+          if (action.encoding === "base64") {
+            entry.content = action.content ?? ""; // already base64 (binary-safe)
+            entry.encoding = "base64";
+          } else {
+            entry.content = encodeRepoFilePayloadContent(action.content ?? "");
+            entry.encoding = GITLAB_REPO_FILE_ENCODING;
+          }
+        }
+        return entry;
+      }),
     }),
   });
 
@@ -9120,7 +9137,8 @@ async function handleToolCall(params: any) {
           args.branch,
           args.previous_path,
           args.last_commit_id,
-          args.commit_id
+          args.commit_id,
+          args.encoding
         );
         return {
           content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
@@ -9133,7 +9151,13 @@ async function handleToolCall(params: any) {
           args.project_id,
           args.commit_message,
           args.branch,
-          args.files.map(f => ({ path: f.file_path, content: f.content }))
+          args.files.map(f => ({
+            path: f.file_path,
+            content: f.content,
+            action: f.action,
+            encoding: f.encoding,
+            previous_path: f.previous_path,
+          }))
         );
         return {
           content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
