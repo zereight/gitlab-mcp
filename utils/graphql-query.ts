@@ -18,7 +18,7 @@ function stripGraphQLCommentsAndStrings(source: string): string {
       i++;
       while (i < source.length) {
         if (source[i] === "\\") {
-          i += 2;
+          i = Math.min(i + 2, source.length);
           continue;
         }
         if (source[i] === quote) {
@@ -36,7 +36,9 @@ function stripGraphQLCommentsAndStrings(source: string): string {
       while (i < source.length && source.slice(i, i + 3) !== '"""') {
         i++;
       }
-      i += 3;
+      if (i < source.length) {
+        i += 3;
+      }
       result += " ";
       continue;
     }
@@ -54,5 +56,5 @@ export function graphqlQueryContainsWriteOperation(query: string): boolean {
     return false;
   }
 
-  return /(?:^|}\s*)(mutation|subscription)\b/.test(normalized);
+  return /(?:^|[};]\s*)(mutation|subscription)\b/.test(normalized);
 }
