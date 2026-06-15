@@ -120,7 +120,7 @@ Examples:
 - `api`
 - `api,read_user`
 
-### `GITLAB_ALLOWED_GROUPS`
+### `GITLAB_OAUTH_ALLOWED_GROUPS`
 
 Comma-separated list of GitLab group full paths. When set, only users who
 belong to at least one of these groups (or any of their subgroups) are allowed
@@ -128,6 +128,9 @@ to use the server. Users who authenticate successfully via OAuth but are not
 members of any matching group receive a `401 Access Denied` response.
 
 Requires `GITLAB_MCP_OAUTH=true`.
+
+> **Deprecation notice:** The old name `GITLAB_ALLOWED_GROUPS` is still accepted but will be
+> removed in a future major version. Migrate to `GITLAB_OAUTH_ALLOWED_GROUPS`.
 
 Examples:
 
