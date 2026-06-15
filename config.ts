@@ -84,8 +84,13 @@ export const GITLAB_OAUTH_SCOPES =
     : undefined;
 export const GITLAB_OAUTH_CALLBACK_PROXY =
   getConfig("oauth-callback-proxy", "GITLAB_OAUTH_CALLBACK_PROXY") === "true";
-export const GITLAB_ALLOWED_GROUPS: string[] | undefined = (() => {
-  const raw = getConfig("allowed-groups", "GITLAB_ALLOWED_GROUPS");
+/** @deprecated Use GITLAB_OAUTH_ALLOWED_GROUPS_RAW instead. Will be removed in the next major version. */
+export const GITLAB_ALLOWED_GROUPS_RAW = getConfig("allowed-groups", "GITLAB_ALLOWED_GROUPS");
+export const GITLAB_OAUTH_ALLOWED_GROUPS_RAW = getConfig("oauth-allowed-groups", "GITLAB_OAUTH_ALLOWED_GROUPS");
+export const GITLAB_OAUTH_ALLOWED_GROUPS = (() => {
+  const newVar = GITLAB_OAUTH_ALLOWED_GROUPS_RAW;
+  const oldVar = GITLAB_ALLOWED_GROUPS_RAW;
+  const raw = newVar ?? oldVar;
   if (!raw) return undefined;
   const groups = raw.split(",").map((g) => g.trim()).filter(Boolean);
   return groups.length > 0 ? groups : undefined;

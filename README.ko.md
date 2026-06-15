@@ -187,7 +187,7 @@ MCP 서버가 직접 로컬 브라우저 callback을 받을 때만 `GITLAB_OAUTH
 | `STREAMABLE_HTTP` | 예 | 반드시 `true` |
 | `GITLAB_OAUTH_CALLBACK_PROXY` | 선택 | MCP 서버의 고정 `/callback` URL을 사용하려면 `true` |
 | `GITLAB_OAUTH_SCOPES` | 선택 | 쉼표로 구분된 scope 목록(기본값: `api,read_api,read_user`) |
-| `GITLAB_ALLOWED_GROUPS` | 선택 | 쉼표로 구분된 GitLab 그룹 전체 경로 — 해당 그룹 및 하위 그룹 멤버만 토큰을 발급받을 수 있음 |
+| `GITLAB_OAUTH_ALLOWED_GROUPS` | 선택 | 쉼표로 구분된 GitLab 그룹 전체 경로 — 해당 그룹 및 하위 그룹 멤버만 토큰을 발급받을 수 있음 (기존 `GITLAB_ALLOWED_GROUPS` 대체) |
 
 > **`Unregistered redirect_uri` 문제 해결**
 >

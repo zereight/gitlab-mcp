@@ -187,7 +187,7 @@ OpenCode、MCPJam、Claude.ai 等远程 MCP 客户端可能会在授权时发送
 | `STREAMABLE_HTTP` | 是 | 必须为 `true` |
 | `GITLAB_OAUTH_CALLBACK_PROXY` | 可选 | 设置为 `true` 时使用 MCP 服务器固定的 `/callback` URL |
 | `GITLAB_OAUTH_SCOPES` | 可选 | 逗号分隔的 scope（默认：`api,read_api,read_user`） |
-| `GITLAB_ALLOWED_GROUPS` | 可选 | 逗号分隔的 GitLab 群组完整路径 — 仅该群组及其子群组的成员可获取令牌 |
+| `GITLAB_OAUTH_ALLOWED_GROUPS` | 可选 | 逗号分隔的 GitLab 群组完整路径 — 仅该群组及其子群组的成员可获取令牌（替代已废弃的 `GITLAB_ALLOWED_GROUPS`）|
 
 > **排查 `Unregistered redirect_uri`**
 >

@@ -208,7 +208,7 @@ exchanging credentials with GitLab on behalf of the client.
 | `STREAMABLE_HTTP`     | ✅       | Must be `true`                                             |
 | `GITLAB_OAUTH_CALLBACK_PROXY` | optional | Set to `true` to use the MCP server's fixed `/callback` URL |
 | `GITLAB_OAUTH_SCOPES` | optional | Comma-separated scopes (default: `api,read_api,read_user`) |
-| `GITLAB_ALLOWED_GROUPS` | optional | Comma-separated group full paths — only members (and subgroup members) may obtain a token |
+| `GITLAB_OAUTH_ALLOWED_GROUPS` | optional | Comma-separated group full paths — only members (and subgroup members) may obtain a token (replaces deprecated `GITLAB_ALLOWED_GROUPS`) |
 
 When `STREAMABLE_HTTP=true`, server-side `GITLAB_PERSONAL_ACCESS_TOKEN` or `GITLAB_JOB_TOKEN` require `REMOTE_AUTHORIZATION=true` or `GITLAB_MCP_OAUTH=true`.
 

@@ -38,7 +38,9 @@ import {
   USE_PIPELINE,
   GITLAB_TOOL_POLICY_APPROVE_RAW,
   GITLAB_TOOL_POLICY_HIDDEN_RAW,
-  GITLAB_ALLOWED_GROUPS,
+  GITLAB_OAUTH_ALLOWED_GROUPS_RAW,
+  GITLAB_ALLOWED_GROUPS_RAW,
+  GITLAB_OAUTH_ALLOWED_GROUPS,
 } from "./config.js";
 
 /** True when the server is running in remote/network mode (SSE or StreamableHTTP transport). */
@@ -12244,7 +12246,7 @@ async function startStreamableHTTPServer(): Promise<void> {
       "GitLab MCP Server",
       GITLAB_READ_ONLY_MODE,
       GITLAB_OAUTH_SCOPES,
-      GITLAB_ALLOWED_GROUPS,
+      GITLAB_OAUTH_ALLOWED_GROUPS,
       GITLAB_OAUTH_CALLBACK_PROXY,
       callbackUrl,
       statelessOptions
@@ -12796,6 +12798,18 @@ async function runServer() {
 
     logger.info(`Configured GitLab API URLs: ${GITLAB_API_URLS.join(", ")}`);
     logger.info(`Default GitLab API URL: ${GITLAB_API_URL}`);
+
+    if (GITLAB_ALLOWED_GROUPS_RAW) {
+      if (GITLAB_OAUTH_ALLOWED_GROUPS_RAW) {
+        logger.warn("GITLAB_ALLOWED_GROUPS is set but ignored — GITLAB_OAUTH_ALLOWED_GROUPS takes precedence.");
+      } else {
+        logger.warn("GITLAB_ALLOWED_GROUPS is deprecated. Use GITLAB_OAUTH_ALLOWED_GROUPS instead.");
+      }
+    }
+
+    if (GITLAB_OAUTH_ALLOWED_GROUPS) {
+      logger.info(`Group access control enabled for: ${GITLAB_OAUTH_ALLOWED_GROUPS.join(", ")}`);
+    }
   } catch (error) {
     logger.error("Error initializing server:", error);
     process.exit(1);
