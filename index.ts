@@ -32,6 +32,7 @@ import {
   SESSION_TIMEOUT_SECONDS,
   SSE,
   STREAMABLE_HTTP,
+  MCP_TRUST_PROXY,
   USE_GITLAB_WIKI,
   USE_MILESTONE,
   USE_OAUTH,
@@ -107,17 +108,77 @@ function decryptDownloadToken(
   }
 }
 
+function getLastHeaderValue(value: string | string[] | undefined): string | undefined {
+  const raw = Array.isArray(value) ? value[value.length - 1] : value;
+  if (!raw) return undefined;
+
+  const parts = raw.split(",").map(part => part.trim()).filter(Boolean);
+  return parts.length > 0 ? parts[parts.length - 1] : undefined;
+}
+
+function unquoteHeaderValue(value: string): string {
+  if (value.length >= 2 && value.startsWith('"') && value.endsWith('"')) {
+    return value.slice(1, -1).replace(/\\"/g, '"').replace(/\\\\/g, "\\");
+  }
+  return value;
+}
+
+function getForwardedPublicBaseUrl(req: Request): string | undefined {
+  if (!MCP_TRUST_PROXY) return undefined;
+
+  const forwarded = getLastHeaderValue(req.headers.forwarded);
+  const forwardedValues: Record<string, string> = {};
+
+  if (forwarded) {
+    for (const part of forwarded.split(";")) {
+      const separator = part.indexOf("=");
+      if (separator <= 0) continue;
+
+      const key = part.slice(0, separator).trim().toLowerCase();
+      const value = unquoteHeaderValue(part.slice(separator + 1).trim());
+      if (key && value) forwardedValues[key] = value;
+    }
+  }
+
+  const proto = (forwardedValues.proto || getLastHeaderValue(req.headers["x-forwarded-proto"]))?.toLowerCase();
+  const host = forwardedValues.host || getLastHeaderValue(req.headers["x-forwarded-host"]);
+  if (!proto || !host || !/^https?$/.test(proto)) return undefined;
+  if (/[\s/\\]/.test(host)) return undefined;
+
+  const prefix = getLastHeaderValue(req.headers["x-forwarded-prefix"]);
+  const safePrefix =
+    prefix &&
+    prefix.startsWith("/") &&
+    !prefix.startsWith("//") &&
+    !prefix.includes("://") &&
+    !/[\s\\]/.test(prefix)
+      ? prefix.replace(/\/+$/, "")
+      : undefined;
+
+  try {
+    const baseUrl = new URL(`${proto}://${host}`);
+    if (baseUrl.username || baseUrl.password || baseUrl.pathname !== "/" || baseUrl.search || baseUrl.hash) {
+      return undefined;
+    }
+    if (safePrefix) baseUrl.pathname = safePrefix;
+    return baseUrl.toString().replace(/\/$/, "");
+  } catch {
+    return undefined;
+  }
+}
+
 /**
  * Build a URL pointing to the download proxy endpoint.
  * Embeds an encrypted auth token (and API URL for dynamic routing)
  * from the current session so the URL works standalone.
  */
 function buildDownloadUrl(type: string, params: Record<string, string>): string {
-  const base = MCP_SERVER_URL || `http://${HOST}:${PORT}`;
+  const base = MCP_SERVER_URL || sessionAuthStore.getStore()?.publicBaseUrl || `http://${HOST}:${PORT}`;
   const baseUrl = new URL(base);
   // Preserve any path prefix (e.g. /gitlab-mcp) from the base URL
   const basePath = baseUrl.pathname.replace(/\/+$/, "");
-  const url = new URL(`${basePath}/downloads/${type}`, baseUrl.origin);
+  const safeBasePath = basePath ? `/${basePath.replace(/^\/+/, "")}` : "";
+  const url = new URL(`${safeBasePath}/downloads/${type}`, baseUrl.origin);
   for (const [key, value] of Object.entries(params)) {
     url.searchParams.set(key, value);
   }
@@ -870,6 +931,7 @@ function createServer(): McpServer {
           token: authData.token,
           lastUsed: authData.lastUsed,
           apiUrl: authData.apiUrl,
+          publicBaseUrl: authData.publicBaseUrl,
         };
         // Run the handler within the retrieved context
         const result = await sessionAuthStore.run(sessionContext, () => handleToolCall(request.params));
@@ -1370,6 +1432,7 @@ interface SessionAuth {
   token: string;
   lastUsed: number;
   apiUrl: string; // The API URL for the current request
+  publicBaseUrl?: string;
 }
 
 interface AuthData {
@@ -1377,6 +1440,7 @@ interface AuthData {
   token: string;
   lastUsed: number;
   apiUrl: string;
+  publicBaseUrl?: string;
 }
 
 const sessionAuthStore = new AsyncLocalStorage<SessionAuth>();
@@ -1384,6 +1448,17 @@ const sessionAuthStore = new AsyncLocalStorage<SessionAuth>();
 // Session context map for storing auth data by session ID
 // This survives async boundaries where AsyncLocalStorage might not
 const authBySession: Record<string, AuthData> = {};
+
+function withPublicBaseUrl(authData: AuthData, publicBaseUrl?: string, previous?: AuthData): AuthData {
+  const effectivePublicBaseUrl = publicBaseUrl || previous?.publicBaseUrl;
+  return effectivePublicBaseUrl ? { ...authData, publicBaseUrl: effectivePublicBaseUrl } : authData;
+}
+
+function updateSessionPublicBaseUrl(sessionId: string | undefined, publicBaseUrl?: string): void {
+  if (sessionId && publicBaseUrl && authBySession[sessionId]) {
+    authBySession[sessionId].publicBaseUrl = publicBaseUrl;
+  }
+}
 
 // Base headers without authentication
 const BASE_HEADERS: Record<string, string> = {
@@ -12166,6 +12241,7 @@ async function startStreamableHTTPServer(): Promise<void> {
       token: effective.token,
       lastUsed: Date.now(),
       apiUrl: effective.apiUrl,
+      publicBaseUrl: getForwardedPublicBaseUrl(req),
     };
 
     // Step 4: create a fresh transport per request.
@@ -12217,15 +12293,16 @@ async function startStreamableHTTPServer(): Promise<void> {
   };
 
   // Configure Express middleware
+  if (MCP_TRUST_PROXY) {
+    app.set("trust proxy", 1);
+  }
+
   app.use(express.json());
 
   registerDownloadProxy(app);
 
   // MCP OAuth — mount auth router and prepare bearer-auth middleware
   if (GITLAB_MCP_OAUTH) {
-    // Trust first proxy so express-rate-limit uses X-Forwarded-For for real client IP.
-    // Only enabled in OAuth mode where the server is typically behind a reverse proxy.
-    app.set("trust proxy", 1);
     const gitlabBaseUrl = GITLAB_API_URL.replace(/\/api\/v4\/?$/, "").replace(/\/$/, "");
     const issuerUrl = new URL(MCP_SERVER_URL!);
     const callbackUrl = GITLAB_OAUTH_CALLBACK_PROXY
@@ -12380,6 +12457,7 @@ async function startStreamableHTTPServer(): Promise<void> {
   // Streamable HTTP endpoint - handles both session creation and message handling
   app.post("/mcp", mcpBearerAuth, async (req: Request, res: Response) => {
     const sessionId = readMcpSessionIdHeader(req);
+    const publicBaseUrl = getForwardedPublicBaseUrl(req);
 
     // Track request
     metrics.requestsProcessed++;
@@ -12438,17 +12516,18 @@ async function startStreamableHTTPServer(): Promise<void> {
           return;
         }
         // Store auth for this session
-        authBySession[sessionId] = authData;
+        authBySession[sessionId] = withPublicBaseUrl(authData, publicBaseUrl);
         logger.info(`Session ${sessionId}: stored ${authData.header} header`);
         setAuthTimeout(sessionId);
       } else if (sessionId && authData) {
         // Existing session: allow auth rotation/update
-        authBySession[sessionId] = authData;
+        authBySession[sessionId] = withPublicBaseUrl(authData, publicBaseUrl, authBySession[sessionId]);
         logger.debug(`Session ${sessionId}: updated ${authData.header} header`);
         setAuthTimeout(sessionId);
       } else if (sessionId && authBySession[sessionId]) {
         // Existing session with stored auth: update last used time and reset timeout
         authBySession[sessionId].lastUsed = Date.now();
+        updateSessionPublicBaseUrl(sessionId, publicBaseUrl);
         setAuthTimeout(sessionId);
       } else if (!sessionId && !authData) {
         // First request without session - will fail in initialization
@@ -12465,18 +12544,17 @@ async function startStreamableHTTPServer(): Promise<void> {
       if (headerAuthData) {
         if (headerAuthData && sessionId) {
           if (!authBySession[sessionId]) {
-            authBySession[sessionId] = headerAuthData;
+            authBySession[sessionId] = withPublicBaseUrl(headerAuthData, publicBaseUrl);
             logger.info(
               `Session ${sessionId}: stored ${headerAuthData.header} header (header auth)`
             );
             setAuthTimeout(sessionId);
           } else {
-            authBySession[sessionId] = {
-              ...authBySession[sessionId],
-              header: headerAuthData.header,
-              token: headerAuthData.token,
-              lastUsed: Date.now(),
-            };
+            authBySession[sessionId] = withPublicBaseUrl(
+              headerAuthData,
+              publicBaseUrl,
+              authBySession[sessionId]
+            );
             setAuthTimeout(sessionId);
           }
         }
@@ -12489,6 +12567,7 @@ async function startStreamableHTTPServer(): Promise<void> {
               token: authInfo.token,
               lastUsed: Date.now(),
               apiUrl: GITLAB_API_URL,
+              publicBaseUrl,
             };
             logger.info(
               `Session ${sessionId}: stored OAuth token (client: ${authInfo.clientId})`
@@ -12498,6 +12577,7 @@ async function startStreamableHTTPServer(): Promise<void> {
             // Update token on every request — the client may have refreshed it
             authBySession[sessionId].token = authInfo.token;
             authBySession[sessionId].lastUsed = Date.now();
+            updateSessionPublicBaseUrl(sessionId, publicBaseUrl);
             setAuthTimeout(sessionId);
           }
         }
@@ -12528,7 +12608,7 @@ async function startStreamableHTTPServer(): Promise<void> {
               if (REMOTE_AUTHORIZATION && !authBySession[newSessionId]) {
                 const authData = parseAuthHeaders(req);
                 if (authData) {
-                  authBySession[newSessionId] = authData;
+                  authBySession[newSessionId] = withPublicBaseUrl(authData, publicBaseUrl);
                   logger.info(`Session ${newSessionId}: stored ${authData.header} header`);
                   setAuthTimeout(newSessionId);
                 }
@@ -12540,7 +12620,7 @@ async function startStreamableHTTPServer(): Promise<void> {
                 if (hasHeaderAuth(req)) {
                   const authData = parseAuthHeaders(req);
                   if (authData) {
-                    authBySession[newSessionId] = authData;
+                    authBySession[newSessionId] = withPublicBaseUrl(authData, publicBaseUrl);
                     logger.info(
                       `Session ${newSessionId}: stored ${authData.header} header (header auth)`
                     );
@@ -12554,6 +12634,7 @@ async function startStreamableHTTPServer(): Promise<void> {
                       token: authInfo.token,
                       lastUsed: Date.now(),
                       apiUrl: GITLAB_API_URL,
+                      publicBaseUrl,
                     };
                     logger.info(
                       `Session ${newSessionId}: stored OAuth token (client: ${authInfo.clientId})`
@@ -12606,6 +12687,7 @@ async function startStreamableHTTPServer(): Promise<void> {
         token: authData.token,
         lastUsed: authData.lastUsed,
         apiUrl: authData.apiUrl,
+        publicBaseUrl: authData.publicBaseUrl,
       };
 
       // Run the entire request handling within AsyncLocalStorage context
