@@ -206,6 +206,7 @@ exchanging credentials with GitLab on behalf of the client.
 | `GITLAB_OAUTH_APP_ID` | ✅       | GitLab OAuth Application ID                                |
 | `MCP_SERVER_URL`      | ✅       | Public HTTPS URL of this MCP server                        |
 | `STREAMABLE_HTTP`     | ✅       | Must be `true`                                             |
+| `MCP_TRUST_PROXY`     | optional | Set to `true` when this server runs behind a trusted reverse proxy |
 | `GITLAB_OAUTH_CALLBACK_PROXY` | optional | Set to `true` to use the MCP server's fixed `/callback` URL |
 | `GITLAB_OAUTH_SCOPES` | optional | Comma-separated scopes (default: `api,read_api,read_user`) |
 | `GITLAB_OAUTH_ALLOWED_GROUPS` | optional | Comma-separated group full paths — only members (and subgroup members) may obtain a token (replaces deprecated `GITLAB_ALLOWED_GROUPS`) |

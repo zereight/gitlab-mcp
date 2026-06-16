@@ -11847,6 +11847,10 @@ async function startSSEServer(): Promise<void> {
   const transports: { [sessionId: string]: SSEServerTransport } = {};
   let shuttingDown = false;
 
+  if (MCP_TRUST_PROXY) {
+    app.set("trust proxy", 1);
+  }
+
   app.get("/sse", async (_: Request, res: Response) => {
     const serverInstance = createServer();
     const transport = new SSEServerTransport("/messages", res);

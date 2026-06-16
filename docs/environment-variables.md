@@ -166,8 +166,10 @@ Notes:
 
 ### `MCP_TRUST_PROXY`
 
-Set to `true` to trust `Forwarded` and `X-Forwarded-*` request headers when
-deriving public download URLs in Streamable HTTP mode.
+Set to `true` when the MCP server runs behind a trusted reverse proxy. This
+enables Express `trust proxy` for HTTP transports. In Streamable HTTP mode, it
+also allows `Forwarded` and `X-Forwarded-*` request headers to be used when
+deriving public download URLs.
 
 Use this only when the MCP server is behind a trusted reverse proxy and direct
 client access to the MCP server port is blocked. When unset, forwarded headers
