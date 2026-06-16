@@ -12389,7 +12389,7 @@ async function startStreamableHTTPServer(): Promise<void> {
     // express-rate-limit throw ERR_ERL_INVALID_IP_ADDRESS. Strip the port first, then
     // delegate to ipKeyGenerator for correct IPv6 subnet handling.
     const rateLimitKeyGenerator = (req: Request) =>
-      ipKeyGenerator((req.ip ?? "").replace(/:\d+$/, ""));
+      ipKeyGenerator((req.ip ?? "").replace(/^(\d+\.\d+\.\d+\.\d+):\d+$/, "$1"));
     const rateLimitOptions = { keyGenerator: rateLimitKeyGenerator };
     app.use(
       mcpAuthRouter({
