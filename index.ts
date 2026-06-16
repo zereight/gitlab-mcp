@@ -11844,6 +11844,11 @@ function registerDownloadProxy(
  */
 async function startSSEServer(): Promise<void> {
   const app = express();
+
+  if (MCP_TRUST_PROXY) {
+    app.set("trust proxy", 1);
+  }
+
   const transports: { [sessionId: string]: SSEServerTransport } = {};
   let shuttingDown = false;
 
