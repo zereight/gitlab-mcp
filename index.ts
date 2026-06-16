@@ -244,6 +244,7 @@ import { z } from "zod";
 import { initializeOAuthClient, GitLabOAuth } from "./oauth.js";
 import { createGitLabOAuthProvider } from "./oauth-proxy.js";
 import { mcpAuthRouter } from "@modelcontextprotocol/sdk/server/auth/router.js";
+import { ipKeyGenerator } from "express-rate-limit";
 import { normalizeGitLabApiUrl } from "./utils/url.js";
 import { estimateMergeCommitCount, filterDiffsByPatterns, summarizeWebhookEvents } from "./utils/helpers.js";
 import { graphqlQueryContainsWriteOperation } from "./utils/graphql-query.js";
@@ -12384,6 +12385,12 @@ async function startStreamableHTTPServer(): Promise<void> {
 
     // Mounts /.well-known/oauth-authorization-server (shadowed above when basePath set),
     //        /.well-known/oauth-protected-resource, /authorize, /token, /register, /revoke
+    // Some proxies include the port in X-Forwarded-For (e.g. "1.2.3.4:5678"), which makes
+    // express-rate-limit throw ERR_ERL_INVALID_IP_ADDRESS. Strip the port first, then
+    // delegate to ipKeyGenerator for correct IPv6 subnet handling.
+    const rateLimitKeyGenerator = (req: Request) =>
+      ipKeyGenerator((req.ip ?? "").replace(/:\d+$/, ""));
+    const rateLimitOptions = { keyGenerator: rateLimitKeyGenerator };
     app.use(
       mcpAuthRouter({
         provider: oauthProvider,
@@ -12391,6 +12398,10 @@ async function startStreamableHTTPServer(): Promise<void> {
         baseUrl: issuerUrl,
         scopesSupported,
         resourceName: "GitLab MCP Server",
+        authorizationOptions: { rateLimit: rateLimitOptions },
+        tokenOptions: { rateLimit: rateLimitOptions },
+        revocationOptions: { rateLimit: rateLimitOptions },
+        clientRegistrationOptions: { rateLimit: rateLimitOptions },
       })
     );
 
