@@ -12,3 +12,5 @@
 !.npmrc
 # Ignore test files
 test*.ts
+test
+mcp-server/test
