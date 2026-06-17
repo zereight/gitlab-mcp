@@ -268,8 +268,7 @@ function buildGroupPage(id: ToolsetId, toolNames: string[]): string {
   for (const name of toolNames) {
     const tool = allTools.find(t => t.name === name);
     if (!tool) {
-      console.warn(`Tool ${name} listed in toolset ${id} but missing from allTools`);
-      continue;
+      throw new Error(`Tool '${name}' referenced in toolset '${id}' but missing from allTools registry`);
     }
     lines.push(toolSection(name, tool.description, tool.inputSchema as JsonSchema));
   }
@@ -402,8 +401,9 @@ function main(): void {
   for (const id of GROUP_ORDER) {
     const def = TOOLSET_DEFINITIONS.find(d => d.id === id);
     if (!def) {
-      console.warn(`Toolset ${id} not found in TOOLSET_DEFINITIONS`);
-      continue;
+      throw new Error(
+        `Toolset '${id}' listed in GROUP_ORDER but missing from TOOLSET_DEFINITIONS — keep them in sync`
+      );
     }
     // Preserve insertion order from TOOLSET_DEFINITIONS
     const tools = [...def.tools];
@@ -441,7 +441,10 @@ function main(): void {
     lines.push("---");
     lines.push("");
     for (const name of uncategorized) {
-      const tool = allTools.find(t => t.name === name)!;
+      const tool = allTools.find(t => t.name === name);
+      if (!tool) {
+        throw new Error(`Uncategorized tool '${name}' missing from allTools registry`);
+      }
       lines.push(toolSection(name, tool.description, tool.inputSchema as JsonSchema));
     }
     writeFileSync(join(OUT_DIR, "meta.md"), lines.join("\n"));
