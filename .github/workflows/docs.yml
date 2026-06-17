@@ -13,10 +13,10 @@ on:
       - ".github/workflows/docs.yml"
   workflow_dispatch:
 
+# Workflow-level permissions are read-only by default; the deploy job opts
+# into the write scopes it actually needs.
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 concurrency:
   group: "pages"
@@ -27,12 +27,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        # actions/checkout@v4 — pin to commit SHA for supply-chain safety
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
         with:
           fetch-depth: 0
+          # Drop the GITHUB_TOKEN credential after checkout; nothing in the
+          # build job needs to push or call the API.
+          persist-credentials: false
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        # actions/setup-python@v5
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
         with:
           python-version: "3.12"
           cache: "pip"
@@ -45,17 +50,24 @@ jobs:
         run: mkdocs build --strict
 
       - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v3
+        # actions/upload-pages-artifact@v3
+        uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa
         with:
           path: site
 
   deploy:
     needs: build
     runs-on: ubuntu-latest
+    # Pages deployment needs to publish the artifact and request an OIDC
+    # token; scope those write permissions to this job only.
+    permissions:
+      pages: write
+      id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - name: Deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@v4
+        # actions/deploy-pages@v4
+        uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e
