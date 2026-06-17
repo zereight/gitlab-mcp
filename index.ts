@@ -12393,7 +12393,7 @@ async function startStreamableHTTPServer(): Promise<void> {
       ipKeyGenerator(
         (req.ip ?? "")
           .replace(/^(\d+\.\d+\.\d+\.\d+):\d+$/, "$1")
-          .replace(/^\[([^\]]+)\]:\d+$/, "$1"),
+          .replace(/^\[([^\]]+)\](?::\d+)?$/, "$1"),
       );
     const rateLimitOptions = { keyGenerator: rateLimitKeyGenerator };
     app.use(
