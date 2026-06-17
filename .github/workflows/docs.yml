@@ -7,6 +7,9 @@ on:
       - "docs/**"
       - "mkdocs.yml"
       - "requirements-docs.txt"
+      - "tools/registry.ts"
+      - "schemas.ts"
+      - "scripts/generate-tool-docs.ts"
       - ".github/workflows/docs.yml"
   workflow_dispatch:
 

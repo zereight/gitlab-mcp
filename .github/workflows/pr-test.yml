@@ -147,3 +147,42 @@ jobs:
 
     - name: Run mock tests
       run: npm run test:mock
+
+  docs-build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '22.21.1'
+        cache: 'npm'
+
+    - name: Install Node dependencies
+      run: npm ci --ignore-scripts
+
+    - name: Regenerate tool docs
+      run: npx tsx scripts/generate-tool-docs.ts
+
+    - name: Check for tool-docs drift
+      run: |
+        if ! git diff --exit-code docs/tools/; then
+          echo "::error::docs/tools/ is out of sync with tools/registry.ts. Run 'make tools-docs' and commit the result."
+          exit 1
+        fi
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.12"
+        cache: "pip"
+        cache-dependency-path: requirements-docs.txt
+
+    - name: Install docs dependencies
+      run: pip install -r requirements-docs.txt
+
+    - name: Build site (strict)
+      run: mkdocs build --strict
