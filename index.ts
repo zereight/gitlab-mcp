@@ -1200,7 +1200,7 @@ async function ensureValidOAuthToken(): Promise<void> {
     OAUTH_ACCESS_TOKEN = freshToken;
     logger.info("OAuth token refreshed successfully");
   } catch (error) {
-    logger.error("Failed to refresh OAuth token:", error);
+    logger.error({ err: error }, "Failed to refresh OAuth token");
     throw error;
   }
 }
@@ -1700,7 +1700,7 @@ async function handleGitLabError(response: import("node-fetch").Response): Promi
     const errorBody = await response.text();
     // Check specifically for Rate Limit error
     if (response.status === 403 && errorBody.includes("User API Key Rate limit exceeded")) {
-      logger.error("GitLab API Rate Limit Exceeded:", errorBody);
+      logger.error({ err: errorBody }, "GitLab API Rate Limit Exceeded");
       logger.error("User API Key Rate limit exceeded. Please try again later.");
       throw new Error(`GitLab API Rate Limit Exceeded: ${errorBody}`);
     } else {
@@ -7710,7 +7710,7 @@ async function getUser(username: string): Promise<GitLabUser | null> {
     // No matching user found
     return null;
   } catch (error) {
-    logger.error(`Error fetching user by username '${username}':`, error);
+    logger.error({ err: error }, `Error fetching user by username '${username}'`);
     return null;
   }
 }
@@ -7730,7 +7730,7 @@ async function getUsers(usernames: string[]): Promise<GitLabUsersResponse> {
       const user = await getUser(username);
       users[username] = user;
     } catch (error) {
-      logger.error(`Error processing username '${username}':`, error);
+      logger.error({ err: error }, `Error processing username '${username}'`);
       users[username] = null;
     }
   }
@@ -9043,7 +9043,7 @@ async function handleToolCall(params: any) {
             content: [{ type: "text", text: JSON.stringify(forkedProject, null, 2) }],
           };
         } catch (forkError) {
-          logger.error("Error forking repository:", forkError);
+          logger.error({ err: forkError }, "Error forking repository");
           let forkErrorMessage = "Failed to fork repository";
           if (forkError instanceof Error) {
             forkErrorMessage = `${forkErrorMessage}: ${forkError.message}`;
@@ -11831,7 +11831,7 @@ function registerDownloadProxy(
         res.status(502).json({ error: "No response body from GitLab" });
       }
     } catch (error) {
-      logger.error("Download proxy error:", error);
+      logger.error({ err: error }, "Download proxy error");
       if (!res.headersSent) {
         res.status(502).json({ error: "Failed to proxy download from GitLab" });
       }
@@ -11892,7 +11892,7 @@ async function startSSEServer(): Promise<void> {
         try {
           await transport.close();
         } catch (error) {
-          logger.error("Error closing SSE transport:", error);
+          logger.error({ err: error }, "Error closing SSE transport");
         }
       })
     );
@@ -12670,7 +12670,7 @@ async function startStreamableHTTPServer(): Promise<void> {
           await transport.handleRequest(req, res, req.body);
         }
       } catch (error) {
-        logger.error("Streamable HTTP error:", error);
+        logger.error({ err: error }, "Streamable HTTP error");
         res.status(500).json({
           error: "Internal server error",
           message: error instanceof Error ? error.message : "Unknown error",
@@ -12762,7 +12762,7 @@ async function startStreamableHTTPServer(): Promise<void> {
         }
         res.status(204).send();
       } catch (error) {
-        logger.error(`Error closing session ${sessionId}:`, error);
+        logger.error({ err: error }, `Error closing session ${sessionId}`);
         res.status(500).json({ error: "Failed to close session" });
       }
     } else {
@@ -12800,7 +12800,7 @@ async function startStreamableHTTPServer(): Promise<void> {
           }
         }
       } catch (error) {
-        logger.error(`Error closing session ${sessionId}:`, error);
+        logger.error({ err: error }, `Error closing session ${sessionId}`);
       }
     });
 
@@ -12826,7 +12826,7 @@ async function startStreamableHTTPServer(): Promise<void> {
  * Handle transport-specific initialization logic
  */
 async function initializeServerByTransportMode(mode: TransportMode): Promise<void> {
-  logger.info("Initializing server with transport mode:", mode);
+  logger.info({ mode }, "Initializing server with transport mode");
   switch (mode) {
     case TransportMode.STDIO:
       logger.warn("Starting GitLab MCP Server with stdio transport");
@@ -12870,7 +12870,7 @@ async function runServer() {
         OAUTH_ACCESS_TOKEN = oauthResult.accessToken;
         logger.info("OAuth authentication successful");
       } catch (error) {
-        logger.error("OAuth authentication failed:", error);
+        logger.error({ err: error }, "OAuth authentication failed");
         process.exit(1);
       }
     }
@@ -12893,13 +12893,13 @@ async function runServer() {
       logger.info(`Group access control enabled for: ${GITLAB_OAUTH_ALLOWED_GROUPS.join(", ")}`);
     }
   } catch (error) {
-    logger.error("Error initializing server:", error);
+    logger.error({ err: error }, "Error initializing server");
     process.exit(1);
   }
 }
 
 // 下記の２行を追記
 runServer().catch(error => {
-  logger.error("Fatal error in main():", error);
+  logger.fatal({ err: error }, "Fatal error in main()");
   process.exit(1);
 });

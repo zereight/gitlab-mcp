@@ -259,7 +259,7 @@ export class GitLabOAuth {
       );
       logger.info(`Token saved to ${this.tokenStoragePath}`);
     } catch (error) {
-      logger.error("Failed to save token:", error);
+      logger.error({ err: error }, "Failed to save token");
       throw error;
     }
   }
@@ -276,7 +276,7 @@ export class GitLabOAuth {
       const data = fs.readFileSync(this.tokenStoragePath, "utf8");
       return JSON.parse(data) as TokenData;
     } catch (error) {
-      logger.error("Failed to load token:", error);
+      logger.error({ err: error }, "Failed to load token");
       return null;
     }
   }
@@ -311,7 +311,7 @@ export class GitLabOAuth {
       try {
         return await requestAuthFromExistingServer(callbackPort, requestId);
       } catch (error) {
-        logger.error("Failed to connect to existing OAuth server:", error);
+        logger.error({ err: error }, "Failed to connect to existing OAuth server");
         throw new Error(
           `Port ${callbackPort} is in use but cannot connect to existing OAuth server. Please close other instances or use a different port.`
         );
@@ -375,7 +375,7 @@ export class GitLabOAuth {
             logger.info("Opening browser for new authentication request...");
             logger.info(`If browser doesn't open, visit: ${authUrl}`);
             open(authUrl).catch(err => {
-              logger.error("Failed to open browser:", err);
+              logger.error({ err }, "Failed to open browser");
               logger.info(`Please manually open: ${authUrl}`);
             });
 
@@ -531,7 +531,7 @@ export class GitLabOAuth {
             res.end("Not Found");
           }
         } catch (error) {
-          logger.error("Error handling request:", error);
+          logger.error({ err: error }, "Error handling request");
           res.writeHead(500, { "Content-Type": "text/plain" });
           res.end("Internal Server Error");
         }
@@ -543,13 +543,13 @@ export class GitLabOAuth {
         logger.info("Opening browser for authentication...");
         logger.info(`If browser doesn't open, visit: ${authUrl}`);
         open(authUrl).catch(err => {
-          logger.error("Failed to open browser:", err);
+          logger.error({ err }, "Failed to open browser");
           logger.info(`Please manually open: ${authUrl}`);
         });
       });
 
       server.on("error", error => {
-        logger.error("OAuth server error:", error);
+        logger.error({ err: error }, "OAuth server error");
         const pending = pendingAuthRequests.get(initialRequestId);
         if (pending) {
           clearTimeout(pending.timeout);
@@ -577,7 +577,7 @@ export class GitLabOAuth {
           tokenData = await this.refreshAccessToken(tokenData.refresh_token);
           this.saveToken(tokenData);
         } catch (error) {
-          logger.error("Token refresh failed. Starting new OAuth flow...", error);
+          logger.error({ err: error }, "Token refresh failed. Starting new OAuth flow...");
           tokenData = await this.startOAuthFlow();
         }
       } else {
@@ -599,7 +599,7 @@ export class GitLabOAuth {
         logger.info("Token cleared");
       }
     } catch (error) {
-      logger.error("Failed to clear token:", error);
+      logger.error({ err: error }, "Failed to clear token");
     }
   }
 
