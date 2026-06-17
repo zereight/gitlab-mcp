@@ -107,6 +107,7 @@ nav:
   - Reference:
       - GitHub Secrets Setup: reference/setup-github-secrets.md
       - Dependency Proxy Design: reference/dependency-proxy-design.md
+      - GitHub Pages Setup: reference/github-pages-setup.md
   - Contributing: contributing.md
 
 extra:

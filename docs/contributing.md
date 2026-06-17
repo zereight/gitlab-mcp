@@ -182,7 +182,13 @@ make tools-docs
 
 and commit the regenerated files alongside your code change. The docs CI
 workflow rebuilds and deploys the site on every push to `main` that touches
-`docs/`, `mkdocs.yml`, or `requirements-docs.txt`.
+`docs/`, `mkdocs.yml`, `requirements-docs.txt`, `tools/registry.ts`,
+`schemas.ts`, or `scripts/generate-tool-docs.ts`.
+
+**Hosted site (maintainers, one-time):** GitHub Pages must use
+**Build and deployment → Source: GitHub Actions**, not deploy from `main`.
+See [GitHub Pages Setup](reference/github-pages-setup.md) for details and
+verification steps.
 
 **When changing prose docs:**
 
