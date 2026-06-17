@@ -166,15 +166,27 @@ Notes:
 
 ### `MCP_TRUST_PROXY`
 
-Set to `true` to trust `Forwarded` and `X-Forwarded-*` request headers when
-deriving public download URLs in Streamable HTTP mode.
+Set to `true` when the MCP server runs behind a **trusted** reverse proxy.
 
-Use this only when the MCP server is behind a trusted reverse proxy and direct
-client access to the MCP server port is blocked. When unset, forwarded headers
-are ignored and download URLs use `MCP_SERVER_URL` when configured, otherwise
-the local server address.
+Effects when enabled:
 
-Recognized forwarded headers:
+- **Public download URLs** (Streamable HTTP): derives the client-facing origin
+  from `Forwarded` / `X-Forwarded-*` when `MCP_SERVER_URL` is unset.
+- **Express `trust proxy`**: enables proxy-aware `req.ip` in both Streamable
+  HTTP and SSE transports.
+- **OAuth rate limiting** (`GITLAB_MCP_OAUTH=true`): normalizes
+  `X-Forwarded-For` values that include a source port (for example
+  `1.2.3.4:5678` or `[2001:db8::1]:5678`) before `express-rate-limit` keys
+  requests on `/authorize`, `/token`, `/register`, and `/revoke`.
+
+Use this only when the proxy is trusted **and** direct client access to the MCP
+server port is blocked. When unset, forwarded headers are ignored for URL
+derivation and Express does not trust `X-Forwarded-For`.
+
+**Migration note:** OAuth deployments that previously relied on implicit proxy
+trust must set `MCP_TRUST_PROXY=true` explicitly.
+
+Recognized forwarded headers for URL derivation:
 
 - `Forwarded`
 - `X-Forwarded-Proto`

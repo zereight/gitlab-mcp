@@ -267,13 +267,17 @@ the token to GitLab on behalf of the caller.
 | `REMOTE_AUTHORIZATION`   | ✅       | Set to `true` to enable                                    |
 | `STREAMABLE_HTTP`        | ✅       | Must be `true`                                             |
 | `ENABLE_DYNAMIC_API_URL` | optional | Allow per-request GitLab URL via `X-GitLab-API-URL` header |
-| `MCP_TRUST_PROXY`        | optional | Trust `Forwarded` / `X-Forwarded-*` headers for public download URLs when deployed behind a trusted reverse proxy |
+| `MCP_TRUST_PROXY`        | optional | Trust `Forwarded` / `X-Forwarded-*` headers behind a reverse proxy (download URLs, Express `req.ip`, OAuth rate limits) |
 
 When `MCP_SERVER_URL` is not set, remote download URLs fall back to the local
 server address. Set `MCP_TRUST_PROXY=true` only if the server is reachable through a
 trusted reverse proxy and direct client access to the MCP server is blocked.
-This lets the server derive public download URLs from `Forwarded` /
-`X-Forwarded-Proto`, `X-Forwarded-Host`, and `X-Forwarded-Prefix`.
+This enables Express `trust proxy` for Streamable HTTP and SSE, derives public
+download URLs from `Forwarded` / `X-Forwarded-Proto` / `X-Forwarded-Host` /
+`X-Forwarded-Prefix`, and keeps OAuth endpoint rate limiting working when
+proxies send `X-Forwarded-For` with a client port (for example `1.2.3.4:5678`).
+Existing OAuth+proxy deployments must set this explicitly after the flag was
+introduced.
 
 **Example request headers**:
 

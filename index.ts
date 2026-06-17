@@ -245,6 +245,7 @@ import { initializeOAuthClient, GitLabOAuth } from "./oauth.js";
 import { createGitLabOAuthProvider } from "./oauth-proxy.js";
 import { mcpAuthRouter } from "@modelcontextprotocol/sdk/server/auth/router.js";
 import { ipKeyGenerator } from "express-rate-limit";
+import { normalizeProxyClientIpForRateLimit } from "./utils/proxy-client-ip.js";
 import { normalizeGitLabApiUrl } from "./utils/url.js";
 import { estimateMergeCommitCount, filterDiffsByPatterns, summarizeWebhookEvents } from "./utils/helpers.js";
 import { graphqlQueryContainsWriteOperation } from "./utils/graphql-query.js";
@@ -12390,11 +12391,7 @@ async function startStreamableHTTPServer(): Promise<void> {
     // ERR_ERL_INVALID_IP_ADDRESS. Strip the port first, then delegate to
     // ipKeyGenerator for correct IPv6 subnet handling.
     const rateLimitKeyGenerator = (req: Request) =>
-      ipKeyGenerator(
-        (req.ip ?? "")
-          .replace(/^(\d+\.\d+\.\d+\.\d+):\d+$/, "$1")
-          .replace(/^\[([^\]]+)\](?::\d+)?$/, "$1"),
-      );
+      ipKeyGenerator(normalizeProxyClientIpForRateLimit(req.ip ?? ""));
     const rateLimitOptions = { keyGenerator: rateLimitKeyGenerator };
     app.use(
       mcpAuthRouter({
