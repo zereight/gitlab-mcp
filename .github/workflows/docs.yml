@@ -47,7 +47,10 @@ jobs:
         run: pip install -r requirements-docs.txt
 
       - name: Build site
-        run: mkdocs build --strict
+        run: |
+          mkdocs build --strict
+          # Prevent Jekyll processing if legacy Pages ever reads the artifact
+          touch site/.nojekyll
 
       - name: Upload Pages artifact
         # actions/upload-pages-artifact@v3
