@@ -210,6 +210,7 @@ exchanging credentials with GitLab on behalf of the client.
 | `STREAMABLE_HTTP`     | ✅       | Must be `true`                                             |
 | `GITLAB_OAUTH_CALLBACK_PROXY` | optional | Set to `true` to use the MCP server's fixed `/callback` URL |
 | `GITLAB_OAUTH_SCOPES` | optional | Comma-separated scopes (default: `api,read_api,read_user`) |
+| `GITLAB_OAUTH_ALLOWED_GROUPS` | optional | Comma-separated group full paths — only members (and subgroup members) may obtain a token (replaces deprecated `GITLAB_ALLOWED_GROUPS`) |
 
 When `STREAMABLE_HTTP=true`, server-side `GITLAB_PERSONAL_ACCESS_TOKEN` or `GITLAB_JOB_TOKEN` require `REMOTE_AUTHORIZATION=true` or `GITLAB_MCP_OAUTH=true`.
 
@@ -266,6 +267,13 @@ the token to GitLab on behalf of the caller.
 | `REMOTE_AUTHORIZATION`   | ✅       | Set to `true` to enable                                    |
 | `STREAMABLE_HTTP`        | ✅       | Must be `true`                                             |
 | `ENABLE_DYNAMIC_API_URL` | optional | Allow per-request GitLab URL via `X-GitLab-API-URL` header |
+| `MCP_TRUST_PROXY`        | optional | Trust `Forwarded` / `X-Forwarded-*` headers for public download URLs when deployed behind a trusted reverse proxy |
+
+When `MCP_SERVER_URL` is not set, remote download URLs fall back to the local
+server address. Set `MCP_TRUST_PROXY=true` only if the server is reachable through a
+trusted reverse proxy and direct client access to the MCP server is blocked.
+This lets the server derive public download URLs from `Forwarded` /
+`X-Forwarded-Proto`, `X-Forwarded-Host`, and `X-Forwarded-Prefix`.
 
 **Example request headers**:
 
@@ -300,6 +308,7 @@ Commonly referenced variables:
 - `GITLAB_PERSONAL_ACCESS_TOKEN`
 - `GITLAB_USE_OAUTH`
 - `REMOTE_AUTHORIZATION`
+- `MCP_TRUST_PROXY`
 - `GITLAB_MCP_OAUTH`
 - `GITLAB_OAUTH_CALLBACK_PROXY`
 - `OAUTH_STATELESS_MODE`

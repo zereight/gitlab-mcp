@@ -1674,6 +1674,100 @@ export const DeleteBranchSchema = ProjectParamsSchema.extend({
   branch_name: z.string().describe("Name of the branch to delete"),
 });
 
+// Protected Branches related schemas
+export const ListProtectedBranchesSchema = ProjectParamsSchema.extend({
+  search: z.string().optional().describe("Search term to filter protected branches by name"),
+}).merge(PaginationOptionsSchema);
+
+export const GetProtectedBranchSchema = ProjectParamsSchema.extend({
+  branch_name: z.string().describe("Name of the protected branch"),
+});
+
+// String-aware boolean preprocessing: correctly handles "false" → false
+const stringBoolean = z.preprocess(
+  (val) => {
+    if (typeof val === "string") {
+      const lower = val.toLowerCase();
+      if (lower === "false" || lower === "0") return false;
+      if (lower === "true" || lower === "1") return true;
+    }
+    return val;
+  },
+  z.boolean().optional()
+);
+
+const protectedBranchAccessLevel = z.coerce
+  .number()
+  .int()
+  .refine((level) => [0, 30, 40, 60].includes(level), {
+    message: "Access level must be one of 0 (No access), 30 (Developer), 40 (Maintainer), or 60 (Admin)",
+  });
+
+export const ProtectBranchSchema = z.preprocess(
+  (input) => {
+    if (typeof input !== "object" || input === null) {
+      return input;
+    }
+    const args = { ...(input as Record<string, unknown>) };
+    if (!args.branch_name && args.name) {
+      args.branch_name = args.name;
+    }
+    return args;
+  },
+  ProjectParamsSchema.extend({
+    branch_name: z.string().describe("Branch name or wildcard pattern to protect"),
+    name: z
+      .string()
+      .optional()
+      .describe("Deprecated alias for branch_name; prefer branch_name for consistency"),
+    push_access_level: protectedBranchAccessLevel
+      .optional()
+      .describe(
+        "Access level for pushing (0=No access, 30=Developer, 40=Maintainer, 60=Admin). GitLab default applies when omitted."
+      ),
+    merge_access_level: protectedBranchAccessLevel
+      .optional()
+      .describe(
+        "Access level for merging (0=No access, 30=Developer, 40=Maintainer, 60=Admin). GitLab default applies when omitted."
+      ),
+    unprotect_access_level: protectedBranchAccessLevel
+      .optional()
+      .describe(
+        "Access level for unprotecting (0=No access, 30=Developer, 40=Maintainer, 60=Admin). GitLab default applies when omitted."
+      ),
+    allow_force_push: stringBoolean.describe("Allow force push to the protected branch. Default: false"),
+    code_owner_approval_required: stringBoolean.describe(
+      "Require code owner approval before merging (PREMIUM). Default: false"
+    ),
+  })
+);
+
+export const UnprotectBranchSchema = ProjectParamsSchema.extend({
+  branch_name: z.string().describe("Name of the protected branch to unprotect"),
+});
+
+// Update default branch schema
+export const UpdateDefaultBranchSchema = ProjectParamsSchema.extend({
+  default_branch: z.string().describe("The new default branch name for the project"),
+});
+
+export const GitLabProtectedBranchAccessLevelSchema = z.object({
+  access_level: z.number().nullable().optional(),
+  access_level_description: z.string().optional(),
+  user_id: z.number().optional(),
+  group_id: z.number().optional(),
+});
+
+export const GitLabProtectedBranchSchema = z.object({
+  id: z.number().optional(),
+  name: z.string(),
+  push_access_levels: z.array(GitLabProtectedBranchAccessLevelSchema).optional(),
+  merge_access_levels: z.array(GitLabProtectedBranchAccessLevelSchema).optional(),
+  unprotect_access_levels: z.array(GitLabProtectedBranchAccessLevelSchema).optional(),
+  allow_force_push: z.boolean().optional(),
+  code_owner_approval_required: z.boolean().optional(),
+});
+
 export const GitLabBranchSchema = z.object({
   name: z.string(),
   commit: z.object({
@@ -1966,13 +2060,21 @@ export const ListIssuesSchema = z
     assignee_id: z.coerce
       .string()
       .optional()
-      .describe("Return issues assigned to the given user ID. user id or none or any"),
+      .describe(
+        "Return issues assigned to the given user ID (user id, none, or any). Mutually exclusive with assignee_username."
+      ),
     assignee_username: z
       .array(z.string())
       .optional()
-      .describe("Return issues assigned to the given username"),
-    author_id: z.coerce.string().optional().describe("Return issues created by the given user ID"),
-    author_username: z.string().optional().describe("Return issues created by the given username"),
+      .describe("Return issues assigned to the given username. Mutually exclusive with assignee_id."),
+    author_id: z.coerce
+      .string()
+      .optional()
+      .describe("Return issues created by the given user ID. Mutually exclusive with author_username."),
+    author_username: z
+      .string()
+      .optional()
+      .describe("Return issues created by the given username. Mutually exclusive with author_id."),
     confidential: z.coerce.boolean().optional().describe("Filter confidential or public issues"),
     created_after: z.string().optional().describe("Return issues created after the given time"),
     created_before: z.string().optional().describe("Return issues created before the given time"),

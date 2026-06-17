@@ -32,12 +32,16 @@ import {
   SESSION_TIMEOUT_SECONDS,
   SSE,
   STREAMABLE_HTTP,
+  MCP_TRUST_PROXY,
   USE_GITLAB_WIKI,
   USE_MILESTONE,
   USE_OAUTH,
   USE_PIPELINE,
   GITLAB_TOOL_POLICY_APPROVE_RAW,
   GITLAB_TOOL_POLICY_HIDDEN_RAW,
+  GITLAB_OAUTH_ALLOWED_GROUPS_RAW,
+  GITLAB_ALLOWED_GROUPS_RAW,
+  GITLAB_OAUTH_ALLOWED_GROUPS,
 } from "./config.js";
 
 /** True when the server is running in remote/network mode (SSE or StreamableHTTP transport). */
@@ -104,17 +108,77 @@ function decryptDownloadToken(
   }
 }
 
+function getLastHeaderValue(value: string | string[] | undefined): string | undefined {
+  const raw = Array.isArray(value) ? value[value.length - 1] : value;
+  if (!raw) return undefined;
+
+  const parts = raw.split(",").map(part => part.trim()).filter(Boolean);
+  return parts.length > 0 ? parts[parts.length - 1] : undefined;
+}
+
+function unquoteHeaderValue(value: string): string {
+  if (value.length >= 2 && value.startsWith('"') && value.endsWith('"')) {
+    return value.slice(1, -1).replace(/\\"/g, '"').replace(/\\\\/g, "\\");
+  }
+  return value;
+}
+
+function getForwardedPublicBaseUrl(req: Request): string | undefined {
+  if (!MCP_TRUST_PROXY) return undefined;
+
+  const forwarded = getLastHeaderValue(req.headers.forwarded);
+  const forwardedValues: Record<string, string> = {};
+
+  if (forwarded) {
+    for (const part of forwarded.split(";")) {
+      const separator = part.indexOf("=");
+      if (separator <= 0) continue;
+
+      const key = part.slice(0, separator).trim().toLowerCase();
+      const value = unquoteHeaderValue(part.slice(separator + 1).trim());
+      if (key && value) forwardedValues[key] = value;
+    }
+  }
+
+  const proto = (forwardedValues.proto || getLastHeaderValue(req.headers["x-forwarded-proto"]))?.toLowerCase();
+  const host = forwardedValues.host || getLastHeaderValue(req.headers["x-forwarded-host"]);
+  if (!proto || !host || !/^https?$/.test(proto)) return undefined;
+  if (/[\s/\\]/.test(host)) return undefined;
+
+  const prefix = getLastHeaderValue(req.headers["x-forwarded-prefix"]);
+  const safePrefix =
+    prefix &&
+    prefix.startsWith("/") &&
+    !prefix.startsWith("//") &&
+    !prefix.includes("://") &&
+    !/[\s\\]/.test(prefix)
+      ? prefix.replace(/\/+$/, "")
+      : undefined;
+
+  try {
+    const baseUrl = new URL(`${proto}://${host}`);
+    if (baseUrl.username || baseUrl.password || baseUrl.pathname !== "/" || baseUrl.search || baseUrl.hash) {
+      return undefined;
+    }
+    if (safePrefix) baseUrl.pathname = safePrefix;
+    return baseUrl.toString().replace(/\/$/, "");
+  } catch {
+    return undefined;
+  }
+}
+
 /**
  * Build a URL pointing to the download proxy endpoint.
  * Embeds an encrypted auth token (and API URL for dynamic routing)
  * from the current session so the URL works standalone.
  */
 function buildDownloadUrl(type: string, params: Record<string, string>): string {
-  const base = MCP_SERVER_URL || `http://${HOST}:${PORT}`;
+  const base = MCP_SERVER_URL || sessionAuthStore.getStore()?.publicBaseUrl || `http://${HOST}:${PORT}`;
   const baseUrl = new URL(base);
   // Preserve any path prefix (e.g. /gitlab-mcp) from the base URL
   const basePath = baseUrl.pathname.replace(/\/+$/, "");
-  const url = new URL(`${basePath}/downloads/${type}`, baseUrl.origin);
+  const safeBasePath = basePath ? `/${basePath.replace(/^\/+/, "")}` : "";
+  const url = new URL(`${safeBasePath}/downloads/${type}`, baseUrl.origin);
   for (const [key, value] of Object.entries(params)) {
     url.searchParams.set(key, value);
   }
@@ -182,7 +246,13 @@ import { createGitLabOAuthProvider } from "./oauth-proxy.js";
 import { mcpAuthRouter } from "@modelcontextprotocol/sdk/server/auth/router.js";
 import { normalizeGitLabApiUrl } from "./utils/url.js";
 import { estimateMergeCommitCount, filterDiffsByPatterns, summarizeWebhookEvents } from "./utils/helpers.js";
-import { sanitizeToolArguments } from "./utils/tool-args.js";
+import { graphqlQueryContainsWriteOperation } from "./utils/graphql-query.js";
+import { resolveNestedWikiUpdateTitle } from "./utils/wiki-title.js";
+import {
+  cleanMutuallyExclusiveIdUsernameOptions,
+  LIST_MERGE_REQUESTS_ID_USERNAME_PAIRS,
+  sanitizeToolArguments,
+} from "./utils/tool-args.js";
 import {
   parseSearchReplaceBlocks,
   applySearchReplace,
@@ -239,6 +309,11 @@ import {
   CreateWikiPageSchema,
   CreateGroupWikiPageSchema,
   DeleteBranchSchema,
+  GetProtectedBranchSchema,
+  ListProtectedBranchesSchema,
+  ProtectBranchSchema,
+  UnprotectBranchSchema,
+  UpdateDefaultBranchSchema,
   DeleteDraftNoteSchema,
   DeleteGroupWikiPageSchema,
   DeleteIssueLinkSchema,
@@ -314,6 +389,7 @@ import {
   type GitLabFork,
   GitLabForkSchema,
   GitLabBranchSchema,
+  GitLabProtectedBranchSchema,
   GitLabGroupSchema,
   type GitLabIssue,
   type GitLabIssueLink,
@@ -855,6 +931,7 @@ function createServer(): McpServer {
           token: authData.token,
           lastUsed: authData.lastUsed,
           apiUrl: authData.apiUrl,
+          publicBaseUrl: authData.publicBaseUrl,
         };
         // Run the handler within the retrieved context
         const result = await sessionAuthStore.run(sessionContext, () => handleToolCall(request.params));
@@ -1355,6 +1432,7 @@ interface SessionAuth {
   token: string;
   lastUsed: number;
   apiUrl: string; // The API URL for the current request
+  publicBaseUrl?: string;
 }
 
 interface AuthData {
@@ -1362,6 +1440,7 @@ interface AuthData {
   token: string;
   lastUsed: number;
   apiUrl: string;
+  publicBaseUrl?: string;
 }
 
 const sessionAuthStore = new AsyncLocalStorage<SessionAuth>();
@@ -1369,6 +1448,17 @@ const sessionAuthStore = new AsyncLocalStorage<SessionAuth>();
 // Session context map for storing auth data by session ID
 // This survives async boundaries where AsyncLocalStorage might not
 const authBySession: Record<string, AuthData> = {};
+
+function withPublicBaseUrl(authData: AuthData, publicBaseUrl?: string, previous?: AuthData): AuthData {
+  const effectivePublicBaseUrl = publicBaseUrl || previous?.publicBaseUrl;
+  return effectivePublicBaseUrl ? { ...authData, publicBaseUrl: effectivePublicBaseUrl } : authData;
+}
+
+function updateSessionPublicBaseUrl(sessionId: string | undefined, publicBaseUrl?: string): void {
+  if (sessionId && publicBaseUrl && authBySession[sessionId]) {
+    authBySession[sessionId].publicBaseUrl = publicBaseUrl;
+  }
+}
 
 // Base headers without authentication
 const BASE_HEADERS: Record<string, string> = {
@@ -6466,7 +6556,14 @@ async function updateWikiPage(
 ): Promise<GitLabWikiPage> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const body: Record<string, any> = {};
-  if (title) body.title = title;
+  if (title) {
+    if (slug.includes("/") && !title.includes("/")) {
+      const existing = await getWikiPage(projectId, slug);
+      body.title = resolveNestedWikiUpdateTitle(slug, title, existing.title);
+    } else {
+      body.title = title;
+    }
+  }
   if (content) body.content = content;
   if (format) body.format = format;
   const response = await fetch(
@@ -6571,7 +6668,14 @@ async function updateGroupWikiPage(
 ): Promise<GitLabWikiPage> {
   groupId = decodeURIComponent(groupId); // Decode group ID
   const body: Record<string, any> = {};
-  if (title) body.title = title;
+  if (title) {
+    if (slug.includes("/") && !title.includes("/")) {
+      const existing = await getGroupWikiPage(groupId, slug);
+      body.title = resolveNestedWikiUpdateTitle(slug, title, existing.title);
+    } else {
+      body.title = title;
+    }
+  }
   if (content) body.content = content;
   if (format) body.format = format;
   const response = await fetch(
@@ -8880,6 +8984,11 @@ async function handleToolCall(params: any) {
     switch (params.name) {
       case "execute_graphql": {
         const args = ExecuteGraphQLSchema.parse(params.arguments);
+        if (GITLAB_READ_ONLY_MODE && graphqlQueryContainsWriteOperation(args.query)) {
+          throw new Error(
+            "execute_graphql does not allow mutation or subscription operations in read-only mode"
+          );
+        }
         const apiUrl = new URL(getEffectiveApiUrl());
         // Build GraphQL endpoint preserving any instance subpath (e.g. /gitlab)
         const restPath = apiUrl.pathname || ""; // e.g. /api/v4 or /gitlab/api/v4
@@ -9867,7 +9976,8 @@ async function handleToolCall(params: any) {
       case "list_issues": {
         const args = ListIssuesSchema.parse(params.arguments);
         const { project_id, ...options } = args;
-        const issues = await listIssues(project_id, options);
+        const cleanedOptions = cleanMutuallyExclusiveIdUsernameOptions(options);
+        const issues = await listIssues(project_id, cleanedOptions);
         return {
           content: [{ type: "text", text: JSON.stringify(issues, null, 2) }],
         };
@@ -10687,19 +10797,10 @@ async function handleToolCall(params: any) {
 
       case "list_merge_requests": {
         const { project_id, ...options } = ListMergeRequestsSchema.parse(params.arguments);
-
-        // GitLab API treats _id and _username as mutually exclusive for these fields.
-        // When both are provided, prefer _username and remove _id to avoid 400 errors.
-        const cleanedOptions = { ...options } as Record<string, unknown>;
-        if (cleanedOptions.author_id && cleanedOptions.author_username) {
-          delete cleanedOptions.author_id;
-        }
-        if (cleanedOptions.assignee_id && cleanedOptions.assignee_username) {
-          delete cleanedOptions.assignee_id;
-        }
-        if (cleanedOptions.reviewer_id && cleanedOptions.reviewer_username) {
-          delete cleanedOptions.reviewer_id;
-        }
+        const cleanedOptions = cleanMutuallyExclusiveIdUsernameOptions(
+          options,
+          LIST_MERGE_REQUESTS_ID_USERNAME_PAIRS
+        );
 
         const mergeRequests = await listMergeRequests(project_id, cleanedOptions);
         return {
@@ -11388,6 +11489,115 @@ async function handleToolCall(params: any) {
         };
       }
 
+      case "list_protected_branches": {
+        const args = ListProtectedBranchesSchema.parse(params.arguments);
+        const projectId = decodeURIComponent(args.project_id);
+        const effectiveProjectId = getEffectiveProjectId(projectId);
+        const url = new URL(
+          `${getEffectiveApiUrl()}/projects/${encodeURIComponent(effectiveProjectId)}/protected_branches`
+        );
+        if (args.search) url.searchParams.append("search", args.search);
+        if (args.page) url.searchParams.append("page", String(args.page));
+        if (args.per_page) url.searchParams.append("per_page", String(args.per_page));
+
+        const response = await fetch(url.toString(), {
+          ...getFetchConfig(),
+        });
+
+        await handleGitLabError(response);
+        const data = z.array(GitLabProtectedBranchSchema).parse(await response.json());
+        return {
+          content: [{ type: "text", text: JSON.stringify(data, null, 2) }],
+        };
+      }
+
+      case "get_protected_branch": {
+        const args = GetProtectedBranchSchema.parse(params.arguments);
+        const projectId = decodeURIComponent(args.project_id);
+        const effectiveProjectId = getEffectiveProjectId(projectId);
+        const url = new URL(
+          `${getEffectiveApiUrl()}/projects/${encodeURIComponent(effectiveProjectId)}/protected_branches/${encodeURIComponent(args.branch_name)}`
+        );
+
+        const response = await fetch(url.toString(), {
+          ...getFetchConfig(),
+        });
+
+        await handleGitLabError(response);
+        const data = GitLabProtectedBranchSchema.parse(await response.json());
+        return {
+          content: [{ type: "text", text: JSON.stringify(data, null, 2) }],
+        };
+      }
+
+      case "protect_branch": {
+        const args = ProtectBranchSchema.parse(params.arguments);
+        const projectId = decodeURIComponent(args.project_id);
+        const effectiveProjectId = getEffectiveProjectId(projectId);
+        const url = new URL(
+          `${getEffectiveApiUrl()}/projects/${encodeURIComponent(effectiveProjectId)}/protected_branches`
+        );
+
+        const body: Record<string, unknown> = { name: args.branch_name };
+        if (args.push_access_level !== undefined) body.push_access_level = args.push_access_level;
+        if (args.merge_access_level !== undefined) body.merge_access_level = args.merge_access_level;
+        if (args.unprotect_access_level !== undefined) body.unprotect_access_level = args.unprotect_access_level;
+        if (args.allow_force_push !== undefined) body.allow_force_push = args.allow_force_push;
+        if (args.code_owner_approval_required !== undefined) body.code_owner_approval_required = args.code_owner_approval_required;
+
+        const response = await fetch(url.toString(), {
+          ...getFetchConfig(),
+          method: "POST",
+          body: JSON.stringify(body),
+        });
+
+        await handleGitLabError(response);
+        const data = GitLabProtectedBranchSchema.parse(await response.json());
+        return {
+          content: [{ type: "text", text: JSON.stringify(data, null, 2) }],
+        };
+      }
+
+      case "unprotect_branch": {
+        const args = UnprotectBranchSchema.parse(params.arguments);
+        const projectId = decodeURIComponent(args.project_id);
+        const effectiveProjectId = getEffectiveProjectId(projectId);
+        const url = new URL(
+          `${getEffectiveApiUrl()}/projects/${encodeURIComponent(effectiveProjectId)}/protected_branches/${encodeURIComponent(args.branch_name)}`
+        );
+
+        const response = await fetch(url.toString(), {
+          ...getFetchConfig(),
+          method: "DELETE",
+        });
+
+        await handleGitLabError(response);
+        return {
+          content: [{ type: "text", text: JSON.stringify({ status: "unprotected", branch: args.branch_name }, null, 2) }],
+        };
+      }
+
+      case "update_default_branch": {
+        const args = UpdateDefaultBranchSchema.parse(params.arguments);
+        const projectId = decodeURIComponent(args.project_id);
+        const effectiveProjectId = getEffectiveProjectId(projectId);
+        const url = new URL(
+          `${getEffectiveApiUrl()}/projects/${encodeURIComponent(effectiveProjectId)}`
+        );
+
+        const response = await fetch(url.toString(), {
+          ...getFetchConfig(),
+          method: "PUT",
+          body: JSON.stringify({ default_branch: args.default_branch }),
+        });
+
+        await handleGitLabError(response);
+        const data = await response.json();
+        return {
+          content: [{ type: "text", text: JSON.stringify({ status: "updated", default_branch: args.default_branch, project: data }, null, 2) }],
+        };
+      }
+
       default:
         throw new Error(`Unknown tool: ${params.name}`);
     }
@@ -11830,9 +12040,9 @@ async function startStreamableHTTPServer(): Promise<void> {
   };
 
   /**
-   * Set or reset timeout for session auth
+   * Set or reset timeout for session auth.
    * After SESSION_TIMEOUT_SECONDS of inactivity, the auth token is removed
-   * but the transport session remains active
+   * and the Streamable HTTP transport is closed so the session slot is released.
    */
   const setAuthTimeout = (sessionId: string) => {
     // Clear existing timeout if any
@@ -11847,6 +12057,14 @@ async function startStreamableHTTPServer(): Promise<void> {
         delete authBySession[sessionId];
         delete authTimeouts[sessionId];
         metrics.expiredSessions++;
+        // Close the transport to free the slot; without this, stale sessions accumulate and exhaust MAX_SESSIONS.
+        const transport = streamableTransports[sessionId];
+
+        if (transport) {
+          transport.close().catch(err => {
+            logger.error(`Error closing transport for expired session ${sessionId}:`, err);
+          });
+        }
       }
     }, SESSION_TIMEOUT_SECONDS * 1000);
   };
@@ -12023,6 +12241,7 @@ async function startStreamableHTTPServer(): Promise<void> {
       token: effective.token,
       lastUsed: Date.now(),
       apiUrl: effective.apiUrl,
+      publicBaseUrl: getForwardedPublicBaseUrl(req),
     };
 
     // Step 4: create a fresh transport per request.
@@ -12074,15 +12293,16 @@ async function startStreamableHTTPServer(): Promise<void> {
   };
 
   // Configure Express middleware
+  if (MCP_TRUST_PROXY) {
+    app.set("trust proxy", 1);
+  }
+
   app.use(express.json());
 
   registerDownloadProxy(app);
 
   // MCP OAuth — mount auth router and prepare bearer-auth middleware
   if (GITLAB_MCP_OAUTH) {
-    // Trust first proxy so express-rate-limit uses X-Forwarded-For for real client IP.
-    // Only enabled in OAuth mode where the server is typically behind a reverse proxy.
-    app.set("trust proxy", 1);
     const gitlabBaseUrl = GITLAB_API_URL.replace(/\/api\/v4\/?$/, "").replace(/\/$/, "");
     const issuerUrl = new URL(MCP_SERVER_URL!);
     const callbackUrl = GITLAB_OAUTH_CALLBACK_PROXY
@@ -12103,6 +12323,7 @@ async function startStreamableHTTPServer(): Promise<void> {
       "GitLab MCP Server",
       GITLAB_READ_ONLY_MODE,
       GITLAB_OAUTH_SCOPES,
+      GITLAB_OAUTH_ALLOWED_GROUPS,
       GITLAB_OAUTH_CALLBACK_PROXY,
       callbackUrl,
       statelessOptions
@@ -12236,6 +12457,7 @@ async function startStreamableHTTPServer(): Promise<void> {
   // Streamable HTTP endpoint - handles both session creation and message handling
   app.post("/mcp", mcpBearerAuth, async (req: Request, res: Response) => {
     const sessionId = readMcpSessionIdHeader(req);
+    const publicBaseUrl = getForwardedPublicBaseUrl(req);
 
     // Track request
     metrics.requestsProcessed++;
@@ -12294,17 +12516,18 @@ async function startStreamableHTTPServer(): Promise<void> {
           return;
         }
         // Store auth for this session
-        authBySession[sessionId] = authData;
+        authBySession[sessionId] = withPublicBaseUrl(authData, publicBaseUrl);
         logger.info(`Session ${sessionId}: stored ${authData.header} header`);
         setAuthTimeout(sessionId);
       } else if (sessionId && authData) {
         // Existing session: allow auth rotation/update
-        authBySession[sessionId] = authData;
+        authBySession[sessionId] = withPublicBaseUrl(authData, publicBaseUrl, authBySession[sessionId]);
         logger.debug(`Session ${sessionId}: updated ${authData.header} header`);
         setAuthTimeout(sessionId);
       } else if (sessionId && authBySession[sessionId]) {
         // Existing session with stored auth: update last used time and reset timeout
         authBySession[sessionId].lastUsed = Date.now();
+        updateSessionPublicBaseUrl(sessionId, publicBaseUrl);
         setAuthTimeout(sessionId);
       } else if (!sessionId && !authData) {
         // First request without session - will fail in initialization
@@ -12321,18 +12544,17 @@ async function startStreamableHTTPServer(): Promise<void> {
       if (headerAuthData) {
         if (headerAuthData && sessionId) {
           if (!authBySession[sessionId]) {
-            authBySession[sessionId] = headerAuthData;
+            authBySession[sessionId] = withPublicBaseUrl(headerAuthData, publicBaseUrl);
             logger.info(
               `Session ${sessionId}: stored ${headerAuthData.header} header (header auth)`
             );
             setAuthTimeout(sessionId);
           } else {
-            authBySession[sessionId] = {
-              ...authBySession[sessionId],
-              header: headerAuthData.header,
-              token: headerAuthData.token,
-              lastUsed: Date.now(),
-            };
+            authBySession[sessionId] = withPublicBaseUrl(
+              headerAuthData,
+              publicBaseUrl,
+              authBySession[sessionId]
+            );
             setAuthTimeout(sessionId);
           }
         }
@@ -12345,6 +12567,7 @@ async function startStreamableHTTPServer(): Promise<void> {
               token: authInfo.token,
               lastUsed: Date.now(),
               apiUrl: GITLAB_API_URL,
+              publicBaseUrl,
             };
             logger.info(
               `Session ${sessionId}: stored OAuth token (client: ${authInfo.clientId})`
@@ -12354,6 +12577,7 @@ async function startStreamableHTTPServer(): Promise<void> {
             // Update token on every request — the client may have refreshed it
             authBySession[sessionId].token = authInfo.token;
             authBySession[sessionId].lastUsed = Date.now();
+            updateSessionPublicBaseUrl(sessionId, publicBaseUrl);
             setAuthTimeout(sessionId);
           }
         }
@@ -12384,7 +12608,7 @@ async function startStreamableHTTPServer(): Promise<void> {
               if (REMOTE_AUTHORIZATION && !authBySession[newSessionId]) {
                 const authData = parseAuthHeaders(req);
                 if (authData) {
-                  authBySession[newSessionId] = authData;
+                  authBySession[newSessionId] = withPublicBaseUrl(authData, publicBaseUrl);
                   logger.info(`Session ${newSessionId}: stored ${authData.header} header`);
                   setAuthTimeout(newSessionId);
                 }
@@ -12396,7 +12620,7 @@ async function startStreamableHTTPServer(): Promise<void> {
                 if (hasHeaderAuth(req)) {
                   const authData = parseAuthHeaders(req);
                   if (authData) {
-                    authBySession[newSessionId] = authData;
+                    authBySession[newSessionId] = withPublicBaseUrl(authData, publicBaseUrl);
                     logger.info(
                       `Session ${newSessionId}: stored ${authData.header} header (header auth)`
                     );
@@ -12410,6 +12634,7 @@ async function startStreamableHTTPServer(): Promise<void> {
                       token: authInfo.token,
                       lastUsed: Date.now(),
                       apiUrl: GITLAB_API_URL,
+                      publicBaseUrl,
                     };
                     logger.info(
                       `Session ${newSessionId}: stored OAuth token (client: ${authInfo.clientId})`
@@ -12462,6 +12687,7 @@ async function startStreamableHTTPServer(): Promise<void> {
         token: authData.token,
         lastUsed: authData.lastUsed,
         apiUrl: authData.apiUrl,
+        publicBaseUrl: authData.publicBaseUrl,
       };
 
       // Run the entire request handling within AsyncLocalStorage context
@@ -12654,6 +12880,18 @@ async function runServer() {
 
     logger.info(`Configured GitLab API URLs: ${GITLAB_API_URLS.join(", ")}`);
     logger.info(`Default GitLab API URL: ${GITLAB_API_URL}`);
+
+    if (GITLAB_ALLOWED_GROUPS_RAW) {
+      if (GITLAB_OAUTH_ALLOWED_GROUPS_RAW) {
+        logger.warn("GITLAB_ALLOWED_GROUPS is set but ignored — GITLAB_OAUTH_ALLOWED_GROUPS takes precedence.");
+      } else {
+        logger.warn("GITLAB_ALLOWED_GROUPS is deprecated. Use GITLAB_OAUTH_ALLOWED_GROUPS instead.");
+      }
+    }
+
+    if (GITLAB_OAUTH_ALLOWED_GROUPS) {
+      logger.info(`Group access control enabled for: ${GITLAB_OAUTH_ALLOWED_GROUPS.join(", ")}`);
+    }
   } catch (error) {
     logger.error("Error initializing server:", error);
     process.exit(1);

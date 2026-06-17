@@ -70,6 +70,7 @@ export const SSE = getConfig("sse", "SSE") === "true";
 export const STREAMABLE_HTTP = getConfig("streamable-http", "STREAMABLE_HTTP") === "true";
 export const REMOTE_AUTHORIZATION = getConfig("remote-auth", "REMOTE_AUTHORIZATION") === "true";
 export const GITLAB_MCP_OAUTH = getConfig("mcp-oauth", "GITLAB_MCP_OAUTH") === "true";
+export const MCP_TRUST_PROXY = getConfig("mcp-trust-proxy", "MCP_TRUST_PROXY") === "true";
 
 // ---------------------------------------------------------------------------
 // OAuth / MCP OAuth
@@ -84,6 +85,17 @@ export const GITLAB_OAUTH_SCOPES =
     : undefined;
 export const GITLAB_OAUTH_CALLBACK_PROXY =
   getConfig("oauth-callback-proxy", "GITLAB_OAUTH_CALLBACK_PROXY") === "true";
+/** @deprecated Use GITLAB_OAUTH_ALLOWED_GROUPS_RAW instead. Will be removed in the next major version. */
+export const GITLAB_ALLOWED_GROUPS_RAW = getConfig("allowed-groups", "GITLAB_ALLOWED_GROUPS");
+export const GITLAB_OAUTH_ALLOWED_GROUPS_RAW = getConfig("oauth-allowed-groups", "GITLAB_OAUTH_ALLOWED_GROUPS");
+export const GITLAB_OAUTH_ALLOWED_GROUPS = (() => {
+  const newVar = GITLAB_OAUTH_ALLOWED_GROUPS_RAW;
+  const oldVar = GITLAB_ALLOWED_GROUPS_RAW;
+  const raw = newVar ?? oldVar;
+  if (!raw) return undefined;
+  const groups = raw.split(",").map((g) => g.trim()).filter(Boolean);
+  return groups.length > 0 ? groups : undefined;
+})();
 export const ENABLE_DYNAMIC_API_URL =
   getConfig("enable-dynamic-api-url", "ENABLE_DYNAMIC_API_URL") === "true";
 
