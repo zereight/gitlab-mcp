@@ -61,10 +61,10 @@ List issues (default: created by current user; use scope='all' for all)
 | Parameter | Type | Required | Description |
 |---|---|:-:|---|
 | `project_id` | string |  | Project ID or URL-encoded path (optional - if not provided, lists issues across all accessible projects) |
-| `assignee_id` | string |  | Return issues assigned to the given user ID. user id or none or any |
-| `assignee_username` | array<string> |  | Return issues assigned to the given username |
-| `author_id` | string |  | Return issues created by the given user ID |
-| `author_username` | string |  | Return issues created by the given username |
+| `assignee_id` | string |  | Return issues assigned to the given user ID (user id, none, or any). Mutually exclusive with assignee_username. |
+| `assignee_username` | array<string> |  | Return issues assigned to the given username. Mutually exclusive with assignee_id. |
+| `author_id` | string |  | Return issues created by the given user ID. Mutually exclusive with author_username. |
+| `author_username` | string |  | Return issues created by the given username. Mutually exclusive with author_id. |
 | `confidential` | boolean |  | Filter confidential or public issues |
 | `created_after` | string |  | Return issues created after the given time |
 | `created_before` | string |  | Return issues created before the given time |

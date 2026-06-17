@@ -74,7 +74,7 @@ Project search/creation/fork plus the Files API for reading and writing reposito
 
 ### [Branches & Commits](branches.md)
 
-Branch management, commit listing/inspection, file blame, and CI commit-status manipulation. *(10 tools)*
+Branch management, commit listing/inspection, file blame, and CI commit-status manipulation. *(15 tools)*
 
 | Tool | What it does | R/W |
 |---|---|:-:|
@@ -82,6 +82,11 @@ Branch management, commit listing/inspection, file blame, and CI commit-status m
 | [`get_branch`](branches.md#get_branch) | Get branch details (commit, protection status) | 📖 |
 | [`list_branches`](branches.md#list_branches) | List branches in project with search filter | 📖 |
 | [`delete_branch`](branches.md#delete_branch) | Delete branch from project | ✏️ |
+| [`list_protected_branches`](branches.md#list_protected_branches) | List protected branches in a project, supports search filter | 📖 |
+| [`get_protected_branch`](branches.md#get_protected_branch) | Get details of a single protected branch (access levels, force push settings) | 📖 |
+| [`protect_branch`](branches.md#protect_branch) | Protect a repository branch (set push/merge/unprotect access levels) | ✏️ |
+| [`unprotect_branch`](branches.md#unprotect_branch) | Remove protection from a previously protected branch | ✏️ |
+| [`update_default_branch`](branches.md#update_default_branch) | Change the default branch of a project | ✏️ |
 | [`list_commits`](branches.md#list_commits) | List repository commits with filtering options | 📖 |
 | [`get_commit`](branches.md#get_commit) | Get details of a specific commit | 📖 |
 | [`get_commit_diff`](branches.md#get_commit_diff) | Get changes/diffs of a specific commit | 📖 |

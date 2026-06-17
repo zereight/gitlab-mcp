@@ -8,6 +8,11 @@ Branch management, commit listing/inspection, file blame, and CI commit-status m
 - [`get_branch`](#get_branch) — 📖 Read-only
 - [`list_branches`](#list_branches) — 📖 Read-only
 - [`delete_branch`](#delete_branch) — ✏️ Writes
+- [`list_protected_branches`](#list_protected_branches) — 📖 Read-only
+- [`get_protected_branch`](#get_protected_branch) — 📖 Read-only
+- [`protect_branch`](#protect_branch) — ✏️ Writes
+- [`unprotect_branch`](#unprotect_branch) — ✏️ Writes
+- [`update_default_branch`](#update_default_branch) — ✏️ Writes
 - [`list_commits`](#list_commits) — 📖 Read-only
 - [`get_commit`](#get_commit) — 📖 Read-only
 - [`get_commit_diff`](#get_commit_diff) — 📖 Read-only
@@ -71,6 +76,79 @@ Delete branch from project
 |---|---|:-:|---|
 | `project_id` | string | ✓ | Project ID or complete URL-encoded path to project |
 | `branch_name` | string | ✓ | Name of the branch to delete |
+
+### `list_protected_branches`
+
+*📖 Read-only*
+
+List protected branches in a project, supports search filter
+
+**Parameters**
+
+| Parameter | Type | Required | Description |
+|---|---|:-:|---|
+| `project_id` | string | ✓ | Project ID or complete URL-encoded path to project |
+| `search` | string |  | Search term to filter protected branches by name |
+| `page` | number |  | Page number for pagination (default: 1) |
+| `per_page` | number |  | Number of items per page (max: 100, default: 20) |
+
+### `get_protected_branch`
+
+*📖 Read-only*
+
+Get details of a single protected branch (access levels, force push settings)
+
+**Parameters**
+
+| Parameter | Type | Required | Description |
+|---|---|:-:|---|
+| `project_id` | string | ✓ | Project ID or complete URL-encoded path to project |
+| `branch_name` | string | ✓ | Name of the protected branch |
+
+### `protect_branch`
+
+*✏️ Writes*
+
+Protect a repository branch (set push/merge/unprotect access levels)
+
+**Parameters**
+
+| Parameter | Type | Required | Description |
+|---|---|:-:|---|
+| `project_id` | string |  | Project ID or complete URL-encoded path to project |
+| `branch_name` | string | ✓ | Branch name or wildcard pattern to protect |
+| `name` | string |  | Deprecated alias for branch_name; prefer branch_name for consistency |
+| `push_access_level` | integer |  | Access level for pushing (0=No access, 30=Developer, 40=Maintainer, 60=Admin). GitLab default applies when omitted. |
+| `merge_access_level` | integer |  | Access level for merging (0=No access, 30=Developer, 40=Maintainer, 60=Admin). GitLab default applies when omitted. |
+| `unprotect_access_level` | integer |  | Access level for unprotecting (0=No access, 30=Developer, 40=Maintainer, 60=Admin). GitLab default applies when omitted. |
+| `allow_force_push` | boolean |  | Allow force push to the protected branch. Default: false |
+| `code_owner_approval_required` | boolean |  | Require code owner approval before merging (PREMIUM). Default: false |
+
+### `unprotect_branch`
+
+*✏️ Writes*
+
+Remove protection from a previously protected branch
+
+**Parameters**
+
+| Parameter | Type | Required | Description |
+|---|---|:-:|---|
+| `project_id` | string | ✓ | Project ID or complete URL-encoded path to project |
+| `branch_name` | string | ✓ | Name of the protected branch to unprotect |
+
+### `update_default_branch`
+
+*✏️ Writes*
+
+Change the default branch of a project
+
+**Parameters**
+
+| Parameter | Type | Required | Description |
+|---|---|:-:|---|
+| `project_id` | string | ✓ | Project ID or complete URL-encoded path to project |
+| `default_branch` | string | ✓ | The new default branch name for the project |
 
 ### `list_commits`
 
