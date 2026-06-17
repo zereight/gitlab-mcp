@@ -19,3 +19,7 @@ docs/plans/
 .claude/worktrees/
 # OpenWolf local context (session notes, anatomy, memory)
 .wolf/
+
+# MkDocs build artifacts
+site/
+.venv-docs/
