@@ -12385,11 +12385,16 @@ async function startStreamableHTTPServer(): Promise<void> {
 
     // Mounts /.well-known/oauth-authorization-server (shadowed above when basePath set),
     //        /.well-known/oauth-protected-resource, /authorize, /token, /register, /revoke
-    // Some proxies include the port in X-Forwarded-For (e.g. "1.2.3.4:5678"), which makes
-    // express-rate-limit throw ERR_ERL_INVALID_IP_ADDRESS. Strip the port first, then
-    // delegate to ipKeyGenerator for correct IPv6 subnet handling.
+    // Some proxies include the port in X-Forwarded-For (e.g. "1.2.3.4:5678" or
+    // "[2001:db8::1]:5678"), which makes express-rate-limit throw
+    // ERR_ERL_INVALID_IP_ADDRESS. Strip the port first, then delegate to
+    // ipKeyGenerator for correct IPv6 subnet handling.
     const rateLimitKeyGenerator = (req: Request) =>
-      ipKeyGenerator((req.ip ?? "").replace(/^(\d+\.\d+\.\d+\.\d+):\d+$/, "$1"));
+      ipKeyGenerator(
+        (req.ip ?? "")
+          .replace(/^(\d+\.\d+\.\d+\.\d+):\d+$/, "$1")
+          .replace(/^\[([^\]]+)\]:\d+$/, "$1"),
+      );
     const rateLimitOptions = { keyGenerator: rateLimitKeyGenerator };
     app.use(
       mcpAuthRouter({
