@@ -490,7 +490,10 @@ export const RetryPipelineSchema = z.object({
 });
 
 // Schema for canceling a pipeline
-export const CancelPipelineSchema = RetryPipelineSchema;
+export const CancelPipelineSchema = z.object({
+  project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
+  pipeline_id: z.coerce.string().describe("The ID of the pipeline to cancel"),
+});
 
 // Schema for the input parameters for pipeline job operations
 export const GetPipelineJobOutputSchema = z.object({
@@ -1857,7 +1860,9 @@ export const MergeMergeRequestSchema = ProjectParamsSchema.extend({
     .boolean()
     .optional()
     .default(false)
-    .describe("If true, the merge request merges when the pipeline succeeds.in GitLab 17.11. Use"),
+    .describe(
+      "If true, the merge request merges when the pipeline succeeds. Deprecated in GitLab 17.11. Use `auto_merge` instead."
+    ),
   should_remove_source_branch: z.coerce
     .boolean()
     .optional()
@@ -2346,7 +2351,7 @@ export const ListLabelsSchema = z
     with_counts: z
       .coerce.boolean()
       .optional()
-      .describe("Whether or not to include issue and merge request counts"),
+      .describe("Whether to include issue and merge request counts"),
     include_ancestor_groups: z.coerce.boolean().optional().describe("Include ancestor groups"),
     search: z.string().optional().describe("Keyword to filter labels by"),
   })

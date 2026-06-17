@@ -23,7 +23,7 @@ List labels for a project
 | Parameter | Type | Required | Description |
 |---|---|:-:|---|
 | `project_id` | string | ✓ | Project ID or URL-encoded path |
-| `with_counts` | boolean |  | Whether or not to include issue and merge request counts |
+| `with_counts` | boolean |  | Whether to include issue and merge request counts |
 | `include_ancestor_groups` | boolean |  | Include ancestor groups |
 | `search` | string |  | Keyword to filter labels by |
 | `page` | number |  | Page number for pagination (default: 1) |

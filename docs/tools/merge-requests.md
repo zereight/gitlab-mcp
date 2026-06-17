@@ -64,7 +64,7 @@ Merge a merge request
 | `merge_request_iid` | string |  | The IID of a merge request |
 | `auto_merge` | boolean |  | If true, the merge request merges when the pipeline succeeds. |
 | `merge_commit_message` | string |  | Custom merge commit message |
-| `merge_when_pipeline_succeeds` | boolean |  | If true, the merge request merges when the pipeline succeeds.in GitLab 17.11. Use |
+| `merge_when_pipeline_succeeds` | boolean |  | If true, the merge request merges when the pipeline succeeds. Deprecated in GitLab 17.11. Use `auto_merge` instead. |
 | `should_remove_source_branch` | boolean |  | Remove source branch after merge |
 | `squash_commit_message` | string |  | Custom squash commit message |
 | `squash` | boolean |  | Squash commits into a single commit when merging |

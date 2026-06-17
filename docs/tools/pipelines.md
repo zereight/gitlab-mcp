@@ -233,7 +233,7 @@ Cancel a running pipeline
 | Parameter | Type | Required | Description |
 |---|---|:-:|---|
 | `project_id` | string | ✓ | Project ID or URL-encoded path |
-| `pipeline_id` | string | ✓ | The ID of the pipeline to retry |
+| `pipeline_id` | string | ✓ | The ID of the pipeline to cancel |
 
 ### `play_pipeline_job`
 
