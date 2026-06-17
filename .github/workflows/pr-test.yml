@@ -153,10 +153,16 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v4
+      # actions/checkout@v4 — pin to commit SHA for supply-chain safety
+      uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+      with:
+        # Drop the GITHUB_TOKEN credential after checkout; this job only
+        # needs read access to the working tree.
+        persist-credentials: false
 
     - name: Setup Node.js
-      uses: actions/setup-node@v4
+      # actions/setup-node@v4
+      uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
       with:
         node-version: '22.21.1'
         cache: 'npm'
@@ -169,13 +175,15 @@ jobs:
 
     - name: Check for tool-docs drift
       run: |
-        if ! git diff --exit-code docs/tools/; then
+        if ! git diff --exit-code -- docs/tools/ || [ -n "$(git ls-files --others --exclude-standard -- docs/tools/)" ]; then
           echo "::error::docs/tools/ is out of sync with tools/registry.ts. Run 'make tools-docs' and commit the result."
+          git status --porcelain -- docs/tools/
           exit 1
         fi
 
     - name: Set up Python
-      uses: actions/setup-python@v5
+      # actions/setup-python@v5
+      uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
       with:
         python-version: "3.12"
         cache: "pip"
