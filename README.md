@@ -2,9 +2,7 @@
 
 [English](./README.md) | [한국어](./README.ko.md) | [简体中文](./README.zh-CN.md)
 
-📖 **[Read the full documentation →](https://zereight.github.io/gitlab-mcp/)** — MkDocs Material site deployed by [`.github/workflows/docs.yml`](.github/workflows/docs.yml).
-
-**Maintainers / forks:** set **Settings → Pages → Source: GitHub Actions** (not deploy from `main`), then run **Deploy Documentation** or push a docs change. Legacy branch deploy serves Jekyll (no tabs/search). Details: [GitHub Pages Setup](docs/reference/github-pages-setup.md).
+📖 **[Documentation →](https://zereight.github.io/gitlab-mcp/)** Setup guides, environment variables, and the full tool reference live on the hosted docs site.
 
 > **New Feature**: Dynamic GitLab API URL support with connection pooling! See [Dynamic API URL Documentation](docs/configuration/dynamic-api-url.md) for details.
 
@@ -38,7 +36,6 @@ Quick start: choose either Personal Access Token or OAuth2 setup below and use `
 - [Environment Variables Reference](./docs/configuration/environment-variables.md)
 - [Stateless Mode — Multi-Pod HPA](./docs/configuration/stateless-mode.md)
 - [Custom Agents and Multiple PAT Setup](./docs/auth/custom-agent-multiple-pat.md)
-- [GitHub Pages Setup (MkDocs deploy)](./docs/reference/github-pages-setup.md)
 
 ## Usage
 
