@@ -2973,7 +2973,7 @@ export const MyIssuesSchema = z.object({
   project_id: z
     .string()
     .optional()
-    .describe("Project ID or URL-encoded path (optional when GITLAB_PROJECT_ID is set)"),
+    .describe("Project ID or URL-encoded path (optional to search across all accessible projects)"),
   state: z
     .enum(["opened", "closed", "all"])
     .optional()

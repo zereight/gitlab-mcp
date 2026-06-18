@@ -8009,8 +8009,12 @@ async function myIssues(options: MyIssuesOptions = {}): Promise<GitLabIssue[]> {
   // Get current user to find their username
   const currentUser = await getCurrentUser();
 
-  // Use getEffectiveProjectId to handle project ID resolution
-  const effectiveProjectId = getEffectiveProjectId(options.project_id || "");
+  let effectiveProjectId: string;
+  try {
+    effectiveProjectId = getEffectiveProjectId(options.project_id || "");
+  } catch {
+    effectiveProjectId = "";
+  }
 
   // Use listIssues with assignee_username filter
   let listIssuesOptions: Omit<z.infer<typeof ListIssuesSchema>, "project_id"> = {
