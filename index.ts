@@ -8012,8 +8012,12 @@ async function myIssues(options: MyIssuesOptions = {}): Promise<GitLabIssue[]> {
   let effectiveProjectId: string;
   try {
     effectiveProjectId = getEffectiveProjectId(options.project_id || "");
-  } catch {
-    effectiveProjectId = "";
+  } catch (err) {
+    if (err instanceof Error && err.message.includes("No project ID provided and GITLAB_PROJECT_ID is not set")) {
+      effectiveProjectId = "";
+    } else {
+      throw err;
+    }
   }
 
   // Use listIssues with assignee_username filter
