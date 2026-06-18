@@ -9749,6 +9749,7 @@ async function handleToolCall(params: any) {
       case "verify_namespace": {
         const args = VerifyNamespaceSchema.parse(params.arguments);
         const url = new URL(`${GITLAB_API_URL}/namespaces/${encodeURIComponent(args.path)}/exists`);
+        if (args.parent_id !== undefined) url.searchParams.set("parent_id", String(args.parent_id));
 
         const response = await fetch(url.toString(), {
           ...getFetchConfig(),

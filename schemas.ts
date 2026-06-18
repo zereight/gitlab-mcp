@@ -2301,6 +2301,7 @@ export const GetNamespaceSchema = z.object({
 
 export const VerifyNamespaceSchema = z.object({
   path: z.string().describe("Namespace path to verify"),
+  parent_id: z.coerce.number().int().optional().describe("Parent namespace ID; required to correctly resolve paths in nested namespaces where the same path may exist under different parents"),
 });
 
 // Project API operation schemas

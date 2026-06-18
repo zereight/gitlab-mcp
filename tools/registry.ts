@@ -639,7 +639,7 @@ export const allTools = [
   },
   {
     name: "verify_namespace",
-    description: "Verify if a namespace path exists",
+    description: "Verify if a namespace path exists. Use parent_id to scope the check to a specific parent namespace — required for nested namespaces where the same path may exist under different parents.",
     inputSchema: toJSONSchema(VerifyNamespaceSchema),
   },
   {
