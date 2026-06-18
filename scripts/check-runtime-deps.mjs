@@ -9,7 +9,6 @@ const builtins = new Set([...builtinModules, ...builtinModules.map((name) => `no
 const ignoredDirs = new Set([
   ".git",
   ".github",
-  "build",
   "docs",
   "mcp-server",
   "node_modules",
@@ -25,7 +24,7 @@ function walk(dir) {
     const filePath = path.join(dir, entry.name);
     if (entry.isDirectory()) {
       files.push(...walk(filePath));
-    } else if (entry.isFile() && filePath.endsWith(".ts")) {
+    } else if (entry.isFile() && filePath.endsWith(".js")) {
       files.push(filePath);
     }
   }
@@ -50,7 +49,7 @@ function packageName(specifier) {
 const importPattern = /(?:import\s+(?:type\s+)?(?:[^'";]+\s+from\s+)?|export\s+(?:type\s+)?[^'";]+\s+from\s+|import\s*\()\s*["']([^"']+)["']/g;
 const missing = new Map();
 
-for (const file of walk(".")) {
+for (const file of walk("build")) {
   const source = readFileSync(file, "utf8");
   let match;
   while ((match = importPattern.exec(source)) !== null) {
