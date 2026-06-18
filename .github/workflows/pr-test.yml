@@ -28,6 +28,12 @@ jobs:
     - name: Build project
       run: npm run build
 
+    - name: Check runtime dependencies
+      run: npm run check:runtime-deps
+
+    - name: Run consumer install smoke test
+      run: npm run test:consumer-smoke
+
     - name: Run remote authorization tests
       run: npm run test:remote-auth
 
