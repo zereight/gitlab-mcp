@@ -53,7 +53,7 @@ Project/namespace listing, member queries, group iterations, and server health. 
 | [`list_project_members`](projects.md#list_project_members) | List members of a GitLab project | 📖 |
 | [`list_namespaces`](projects.md#list_namespaces) | List all namespaces (users and groups) available to the current user. Filter by kind='group' for groups only. | 📖 |
 | [`get_namespace`](projects.md#get_namespace) | Get details of a namespace (user or group) by ID or path. Groups are namespaces with kind='group'. | 📖 |
-| [`verify_namespace`](projects.md#verify_namespace) | Verify if a namespace path exists | 📖 |
+| [`verify_namespace`](projects.md#verify_namespace) | Verify if a namespace path exists. Use parent_id to scope the check to a specific parent namespace — required for nested namespaces where the same path may exist under different parents. | 📖 |
 | [`list_group_projects`](projects.md#list_group_projects) | List projects in a group | 📖 |
 | [`list_group_iterations`](projects.md#list_group_iterations) | List group iterations with filtering options | 📖 |
 | [`health_check`](projects.md#health_check) | Verify server status and authentication | 📖 |
