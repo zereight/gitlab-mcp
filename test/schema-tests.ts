@@ -898,6 +898,61 @@ function runGitLabMergeRequestSchemaTests(): { passed: number; failed: number } 
       },
       validate: (data: Record<string, any>) => data.labels === undefined,
     },
+    {
+      name: 'schema:gitlab_merge_request:preserves-merge-user',
+      input: {
+        ...baseMergeRequest,
+        state: 'merged',
+        merged_at: '2026-05-08T00:00:00.000Z',
+        merge_commit_sha: 'abc123',
+        merge_user: {
+          id: '7',
+          username: 'merger',
+          name: 'Merge Bot',
+          avatar_url: null,
+          web_url: 'https://gitlab.example.com/merger',
+        },
+      },
+      validate: (data: Record<string, any>) =>
+        data.merge_user?.id === '7' &&
+        data.merge_user?.username === 'merger' &&
+        data.merge_user?.name === 'Merge Bot',
+    },
+    {
+      name: 'schema:gitlab_merge_request:preserves-merged-by',
+      input: {
+        ...baseMergeRequest,
+        state: 'merged',
+        merged_by: {
+          id: '8',
+          username: 'legacy-merger',
+          name: 'Legacy Merger',
+          avatar_url: null,
+          web_url: 'https://gitlab.example.com/legacy-merger',
+        },
+      },
+      validate: (data: Record<string, any>) =>
+        data.merged_by?.id === '8' &&
+        data.merged_by?.username === 'legacy-merger',
+    },
+    {
+      name: 'schema:gitlab_merge_request:allows-null-merge-user',
+      input: {
+        ...baseMergeRequest,
+        merge_user: null,
+        merged_by: null,
+      },
+      validate: (data: Record<string, any>) =>
+        data.merge_user === null && data.merged_by === null,
+    },
+    {
+      name: 'schema:gitlab_merge_request:allows-omitted-merge-user',
+      input: {
+        ...baseMergeRequest,
+      },
+      validate: (data: Record<string, any>) =>
+        data.merge_user === undefined && data.merged_by === undefined,
+    },
   ];
 
   let passed = 0;
