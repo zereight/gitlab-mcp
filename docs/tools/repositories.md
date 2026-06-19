@@ -40,6 +40,7 @@ Create a new GitLab project
 | Parameter | Type | Required | Description |
 |---|---|:-:|---|
 | `name` | string | ✓ | Repository name |
+| `namespace_id` | integer |  | Group namespace ID to create the project in. Omit to use the current user's namespace. |
 | `description` | string |  | Repository description |
 | `visibility` | enum (`private` \| `internal` \| `public`) |  | Repository visibility level |
 | `initialize_with_readme` | boolean |  | Initialize with README.md |

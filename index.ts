@@ -4781,6 +4781,7 @@ async function createRepository(
     method: "POST",
     body: JSON.stringify({
       name: options.name,
+      ...(options.namespace_id !== undefined ? { namespace_id: options.namespace_id } : {}),
       description: options.description,
       visibility: options.visibility,
       initialize_with_readme: options.initialize_with_readme,
