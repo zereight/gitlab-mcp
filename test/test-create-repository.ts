@@ -1,9 +1,9 @@
-import { describe, test, before, after } from "node:test";
+import { describe, test } from "node:test";
 import assert from "node:assert";
 import { spawn } from "child_process";
 import { MockGitLabServer, findMockServerPort } from "./utils/mock-gitlab-server.js";
 
-const MOCK_TOKEN = "glpat-mock-token-create-repository";
+const MOCK_TOKEN = "mock-token-create-repository";
 const TEST_NAMESPACE_ID = 6;
 
 const MOCK_CREATED_PROJECT = {
@@ -86,6 +86,63 @@ describe("When create_repository is called", () => {
 
         assert.deepStrictEqual(receivedBody?.namespace_id, TEST_NAMESPACE_ID);
         assert.strictEqual((result as { name: string }).name, "my-docs");
+      } finally {
+        await mockServer.stop();
+      }
+    });
+
+    test("should accept string namespace_id from list_namespaces", async () => {
+      const mockPort = await findMockServerPort();
+      const mockServer = new MockGitLabServer({ port: mockPort, validTokens: [MOCK_TOKEN] });
+      let receivedBody: Record<string, unknown> | undefined;
+
+      mockServer.addMockHandler("post", "/projects", (req, res) => {
+        receivedBody = req.body as Record<string, unknown>;
+        res.status(201).json(MOCK_CREATED_PROJECT);
+      });
+
+      await mockServer.start();
+
+      try {
+        await callCreateRepository(
+          { name: "my-docs", namespace_id: String(TEST_NAMESPACE_ID) },
+          {
+            GITLAB_API_URL: `${mockServer.getUrl()}/api/v4`,
+            GITLAB_PERSONAL_ACCESS_TOKEN: MOCK_TOKEN,
+          }
+        );
+
+        assert.deepStrictEqual(receivedBody?.namespace_id, TEST_NAMESPACE_ID);
+      } finally {
+        await mockServer.stop();
+      }
+    });
+  });
+
+  describe("without namespace_id", () => {
+    test("should omit namespace_id from POST /projects body", async () => {
+      const mockPort = await findMockServerPort();
+      const mockServer = new MockGitLabServer({ port: mockPort, validTokens: [MOCK_TOKEN] });
+      let receivedBody: Record<string, unknown> | undefined;
+
+      mockServer.addMockHandler("post", "/projects", (req, res) => {
+        receivedBody = req.body as Record<string, unknown>;
+        res.status(201).json(MOCK_CREATED_PROJECT);
+      });
+
+      await mockServer.start();
+
+      try {
+        await callCreateRepository(
+          { name: "my-docs" },
+          {
+            GITLAB_API_URL: `${mockServer.getUrl()}/api/v4`,
+            GITLAB_PERSONAL_ACCESS_TOKEN: MOCK_TOKEN,
+          }
+        );
+
+        assert.ok(receivedBody);
+        assert.ok(!Object.hasOwn(receivedBody, "namespace_id"));
       } finally {
         await mockServer.stop();
       }
