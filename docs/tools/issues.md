@@ -92,7 +92,7 @@ List issues assigned to the authenticated user
 
 | Parameter | Type | Required | Description |
 |---|---|:-:|---|
-| `project_id` | string |  | Project ID or URL-encoded path (optional when GITLAB_PROJECT_ID is set) |
+| `project_id` | string |  | Project ID or URL-encoded path (optional to search across all accessible projects) |
 | `state` | enum (`opened` \| `closed` \| `all`) |  | Return issues with a specific state (default: opened) |
 | `labels` | array<string> |  | Array of label names to filter by |
 | `milestone` | string |  | Milestone title to filter by |

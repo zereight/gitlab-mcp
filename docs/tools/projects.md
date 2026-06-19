@@ -103,13 +103,14 @@ Get details of a namespace (user or group) by ID or path. Groups are namespaces 
 
 *📖 Read-only*
 
-Verify if a namespace path exists
+Verify if a namespace path exists. Use parent_id to scope the check to a specific parent namespace — required for nested namespaces where the same path may exist under different parents.
 
 **Parameters**
 
 | Parameter | Type | Required | Description |
 |---|---|:-:|---|
 | `path` | string | ✓ | Namespace path to verify |
+| `parent_id` | integer |  | Parent namespace ID; required to correctly resolve paths in nested namespaces where the same path may exist under different parents |
 
 ### `list_group_projects`
 

@@ -2301,6 +2301,7 @@ export const GetNamespaceSchema = z.object({
 
 export const VerifyNamespaceSchema = z.object({
   path: z.string().describe("Namespace path to verify"),
+  parent_id: z.preprocess(val => (val === "" ? undefined : val), z.number().int().optional()).describe("Parent namespace ID; required to correctly resolve paths in nested namespaces where the same path may exist under different parents"),
 });
 
 // Project API operation schemas
@@ -2972,7 +2973,7 @@ export const MyIssuesSchema = z.object({
   project_id: z
     .string()
     .optional()
-    .describe("Project ID or URL-encoded path (optional when GITLAB_PROJECT_ID is set)"),
+    .describe("Project ID or URL-encoded path (optional to search across all accessible projects)"),
   state: z
     .enum(["opened", "closed", "all"])
     .optional()
