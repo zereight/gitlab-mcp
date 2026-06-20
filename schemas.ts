@@ -1180,6 +1180,8 @@ export const GitLabMergeRequestSchema = z.object({
   merged_at: z.string().nullable(),
   closed_at: z.string().nullable(),
   merge_commit_sha: z.string().nullable(),
+  merge_user: GitLabUserSchema.nullable().optional().describe("User who performed the merge (GitLab API v4 field)"),
+  merged_by: GitLabUserSchema.nullable().optional().describe("Deprecated alias for merge_user, kept for backwards compatibility"),
   detailed_merge_status: z.string().optional(),
   merge_status: z.string().optional(),
   merge_error: z.string().nullable().optional(),
