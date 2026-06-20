@@ -2397,6 +2397,37 @@ export const GetProjectSchema = z.object({
   project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
 });
 
+const ProjectFeatureAccessLevelSchema = z
+  .enum(["disabled", "private", "enabled", "public"])
+  .describe("Project feature access level. 'public' is only valid for pages_access_level.");
+
+export const UpdateProjectSchema = ProjectParamsSchema.extend({
+  name: z.string().optional().describe("Project display name"),
+  path: z.string().optional().describe("Project path/slug"),
+  description: z.string().optional().describe("Project description"),
+  default_branch: z.string().optional().describe("Default branch name"),
+  visibility: z.enum(["private", "internal", "public"]).optional().describe("Project visibility"),
+  topics: z.array(z.string()).optional().describe("Project topics"),
+  request_access_enabled: z.coerce.boolean().optional().describe("Allow users to request access"),
+  remove_source_branch_after_merge: z.coerce.boolean().optional().describe("Remove source branches after merge by default"),
+  only_allow_merge_if_pipeline_succeeds: z.coerce.boolean().optional().describe("Require successful pipeline before merge"),
+  only_allow_merge_if_all_discussions_are_resolved: z.coerce.boolean().optional().describe("Require all discussions to be resolved before merge"),
+  squash_option: z.enum(["never", "always", "default_on", "default_off"]).optional().describe("Squash commits setting"),
+  merge_method: z.enum(["merge", "rebase_merge", "ff"]).optional().describe("Merge method"),
+  issues_access_level: ProjectFeatureAccessLevelSchema.optional().describe("Issues feature visibility"),
+  merge_requests_access_level: ProjectFeatureAccessLevelSchema.optional().describe("Merge requests feature visibility"),
+  builds_access_level: ProjectFeatureAccessLevelSchema.optional().describe("CI/CD pipelines feature visibility"),
+  wiki_access_level: ProjectFeatureAccessLevelSchema.optional().describe("Wiki feature visibility"),
+  snippets_access_level: ProjectFeatureAccessLevelSchema.optional().describe("Snippets feature visibility"),
+  container_registry_access_level: ProjectFeatureAccessLevelSchema.optional().describe("Container registry feature visibility"),
+  environments_access_level: ProjectFeatureAccessLevelSchema.optional().describe("Environments feature visibility"),
+  forking_access_level: ProjectFeatureAccessLevelSchema.optional().describe("Forking feature visibility"),
+  package_registry_access_level: ProjectFeatureAccessLevelSchema.optional().describe("Package registry feature visibility"),
+  pages_access_level: ProjectFeatureAccessLevelSchema.optional().describe("Pages feature visibility"),
+}).refine(args => Object.keys(args).some(key => key !== "project_id" && (args as Record<string, unknown>)[key] !== undefined), {
+  message: "Provide at least one project setting to update",
+});
+
 export const ListProjectsSchema = z
   .object({
     search: z.string().optional().describe("Search term for projects"),
