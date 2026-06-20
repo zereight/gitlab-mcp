@@ -6,8 +6,8 @@ import { MockGitLabServer, findMockServerPort } from "./utils/mock-gitlab-server
 const MOCK_TOKEN = "glpat-mock-token-12345";
 const TEST_PROJECT_ID = "123";
 
-async function callListIssues(args: Record<string, unknown> = {}, env: NodeJS.ProcessEnv) {
-  return new Promise<unknown[]>((resolve, reject) => {
+async function callListIssuesResult(args: Record<string, unknown> = {}, env: NodeJS.ProcessEnv) {
+  return new Promise<{ data: unknown[]; text?: string }>((resolve, reject) => {
     const proc = spawn("node", ["build/index.js"], {
       stdio: ["pipe", "pipe", "pipe"],
       env: {
@@ -40,12 +40,12 @@ async function callListIssues(args: Record<string, unknown> = {}, env: NodeJS.Pr
           const content = response.result?.content?.[0]?.text;
           if (content) {
             try {
-              resolve(JSON.parse(content));
+              resolve({ data: JSON.parse(content), text: content });
             } catch {
               reject(new Error(`Failed to parse tool output JSON: ${content}`));
             }
           } else {
-            resolve(response.result);
+            resolve({ data: response.result });
           }
         }
       } catch (e) {
@@ -62,6 +62,10 @@ async function callListIssues(args: Record<string, unknown> = {}, env: NodeJS.Pr
       }) + "\n"
     );
   });
+}
+
+async function callListIssues(args: Record<string, unknown> = {}, env: NodeJS.ProcessEnv) {
+  return (await callListIssuesResult(args, env)).data;
 }
 
 describe("list_issues", () => {
@@ -97,6 +101,20 @@ describe("list_issues", () => {
     assert.ok(firstIssue && typeof firstIssue === "object" && "title" in firstIssue);
     const title = Reflect.get(firstIssue, "title");
     assert.strictEqual(title, "Test Issue 1");
+  });
+
+  test("returns compact JSON text", async () => {
+    const result = await callListIssuesResult(
+      { project_id: TEST_PROJECT_ID },
+      {
+        GITLAB_API_URL: `${mockGitLabUrl}/api/v4`,
+        GITLAB_PERSONAL_ACCESS_TOKEN: MOCK_TOKEN,
+      }
+    );
+
+    assert.ok(result.text, "Tool response should include text content");
+    assert.doesNotMatch(result.text!, /\n\s+\"/, "Tool response JSON should not be pretty-printed");
+    assert.ok(Array.isArray(result.data), "Response should remain valid JSON");
   });
 
   test("prefers author_username over author_id when both are provided", async () => {
