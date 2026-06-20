@@ -225,12 +225,14 @@ Modern unified API for issues, tasks, incidents, and other typed work items — 
 
 ### [CI Lint](ci.md)
 
-Validate `.gitlab-ci.yml` snippets and project pipeline configs. *(2 tools)*
+Validate `.gitlab-ci.yml` snippets and project pipeline configs. *(4 tools)*
 
 | Tool | What it does | R/W |
 |---|---|:-:|
 | [`validate_ci_lint`](ci.md#validate_ci_lint) | Validate provided GitLab CI/CD YAML content for a project | 📖 |
 | [`validate_project_ci_lint`](ci.md#validate_project_ci_lint) | Validate an existing .gitlab-ci.yml configuration for a project | 📖 |
+| [`list_ci_catalog_resources`](ci.md#list_ci_catalog_resources) | List GitLab CI/CD Catalog resources/components visible to the user | 📖 |
+| [`get_ci_catalog_resource`](ci.md#get_ci_catalog_resource) | Get details for a GitLab CI/CD Catalog resource, including versions and components | 📖 |
 
 ### [Pipelines, Jobs & Deployments](pipelines.md)
 

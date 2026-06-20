@@ -342,6 +342,51 @@ export const ValidateProjectCiLintSchema = z.object({
   include_jobs: z.coerce.boolean().optional().describe("Include jobs in the lint response"),
 });
 
+const CiCatalogResourceSortSchema = z.enum([
+  "CREATED_ASC",
+  "CREATED_DESC",
+  "LATEST_RELEASED_AT_ASC",
+  "LATEST_RELEASED_AT_DESC",
+  "NAME_ASC",
+  "NAME_DESC",
+  "STAR_COUNT_ASC",
+  "STAR_COUNT_DESC",
+  "USAGE_COUNT_ASC",
+  "USAGE_COUNT_DESC",
+]);
+
+const CiCatalogResourceVerificationLevelSchema = z.enum([
+  "GITLAB_MAINTAINED",
+  "GITLAB_PARTNER_MAINTAINED",
+  "UNVERIFIED",
+  "VERIFIED_CREATOR_MAINTAINED",
+  "VERIFIED_CREATOR_SELF_MANAGED",
+]);
+
+export const ListCiCatalogResourcesSchema = z.object({
+  search: z.string().optional().describe("Search catalog resources by name or description"),
+  first: z.coerce.number().int().min(1).max(100).optional().describe("Number of resources to return (default: 20, max: 100)"),
+  after: z.string().optional().describe("GraphQL cursor for the next page"),
+  group_ids: z.array(z.string()).optional().describe("Filter to catalog resources in these group IDs"),
+  scope: z.enum(["ALL", "NAMESPACES"]).optional().describe("Catalog resource scope"),
+  sort: CiCatalogResourceSortSchema.optional().describe("Sort order"),
+  topics: z.array(z.string()).optional().describe("Filter by project topic names"),
+  verification_level: CiCatalogResourceVerificationLevelSchema.optional().describe("Filter by verification level"),
+});
+
+export const GetCiCatalogResourceSchema = z
+  .object({
+    id: z.string().optional().describe("CI/CD Catalog resource global ID"),
+    full_path: z.string().optional().describe("CI/CD Catalog resource full project path"),
+    version_limit: z.coerce.number().int().min(1).max(20).optional().describe("Number of versions to include (default: 5, max: 20)"),
+    component_limit: z.coerce.number().int().min(1).max(50).optional().describe("Number of components per version to include (default: 20, max: 50)"),
+    component_name: z.string().optional().describe("Filter returned components by component name"),
+    include_readme: z.coerce.boolean().optional().describe("Include version README content"),
+  })
+  .refine(args => args.id || args.full_path, {
+    message: "Provide either id or full_path",
+  });
+
 // Deployment related schemas
 export const GitLabDeploymentSchema = z.object({
   id: z.coerce.string(),
