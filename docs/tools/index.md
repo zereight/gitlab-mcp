@@ -44,12 +44,13 @@ Each group has its own page with full parameter tables — click any tool name t
 
 ### [Projects & Namespaces](projects.md)
 
-Project/namespace listing, member queries, group iterations, and server health. *(9 tools)*
+Project/namespace listing, member queries, group iterations, and server health. *(10 tools)*
 
 | Tool | What it does | R/W |
 |---|---|:-:|
 | [`get_project`](projects.md#get_project) | Get details of a specific project | 📖 |
 | [`list_projects`](projects.md#list_projects) | List projects accessible by the current user | 📖 |
+| [`update_project`](projects.md#update_project) | Update project settings such as description, visibility, default branch, and feature access levels | ✏️ |
 | [`list_project_members`](projects.md#list_project_members) | List members of a GitLab project | 📖 |
 | [`list_namespaces`](projects.md#list_namespaces) | List all namespaces (users and groups) available to the current user. Filter by kind='group' for groups only. | 📖 |
 | [`get_namespace`](projects.md#get_namespace) | Get details of a namespace (user or group) by ID or path. Groups are namespaces with kind='group'. | 📖 |

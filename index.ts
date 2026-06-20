@@ -582,6 +582,7 @@ import {
   UpdateIssueDescriptionPatchSchema,
   type UpdateIssueDescriptionPatchOptions,
   UpdateLabelSchema,
+  UpdateProjectSchema,
   UpdateMergeRequestNoteSchema,
   UpdateMergeRequestDiscussionNoteSchema,
   UpdateMergeRequestSchema,
@@ -9974,6 +9975,28 @@ async function handleToolCall(params: any) {
 
         return {
           content: [{ type: "text", text: JSON.stringify(projects) }],
+        };
+      }
+
+      case "update_project": {
+        const { project_id, ...updates } = UpdateProjectSchema.parse(params.arguments);
+        const effectiveProjectId = getEffectiveProjectId(project_id);
+        const body = Object.fromEntries(
+          Object.entries(updates).filter(([, value]) => value !== undefined)
+        );
+        const response = await fetch(
+          `${getEffectiveApiUrl()}/projects/${encodeURIComponent(effectiveProjectId)}`,
+          {
+            ...getFetchConfig(),
+            method: "PUT",
+            body: JSON.stringify(body),
+          }
+        );
+
+        await handleGitLabError(response);
+        const data = await response.json();
+        return {
+          content: [{ type: "text", text: JSON.stringify(data, null, 2) }],
         };
       }
 

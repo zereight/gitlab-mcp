@@ -190,6 +190,7 @@ import {
   UpdateIssueSchema,
   UpdateIssueDescriptionPatchSchema,
   UpdateLabelSchema,
+  UpdateProjectSchema,
   UpdateMergeRequestDiscussionNoteSchema,
   UpdateMergeRequestNoteSchema,
   UpdateMergeRequestSchema,
@@ -651,6 +652,11 @@ export const allTools = [
     name: "list_projects",
     description: "List projects accessible by the current user",
     inputSchema: toJSONSchema(ListProjectsSchema),
+  },
+  {
+    name: "update_project",
+    description: "Update project settings such as description, visibility, default branch, and feature access levels",
+    inputSchema: toJSONSchema(UpdateProjectSchema),
   },
   {
     name: "list_project_members",
@@ -1605,6 +1611,7 @@ export const TOOLSET_DEFINITIONS: readonly ToolsetDefinition[] = [
     tools: new Set([
       "get_project",
       "list_projects",
+      "update_project",
       "list_project_members",
       "list_namespaces",
       "get_namespace",
