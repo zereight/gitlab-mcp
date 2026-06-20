@@ -57,6 +57,25 @@ Default:
 
 Optional custom path for the stored OAuth token file.
 
+### `GITLAB_OAUTH_TOKEN_SCRIPT`
+
+Optional command that prints an OAuth access token to stdout. When set with
+`GITLAB_USE_OAUTH=true`, the server uses this command instead of the local
+browser OAuth flow and token file refresh.
+
+Example:
+
+```bash
+GITLAB_USE_OAUTH=true \
+GITLAB_OAUTH_TOKEN_SCRIPT="coder external-auth access-token gitlab"
+```
+
+The command may also print JSON with an `access_token` or `token` field.
+
+### `GITLAB_OAUTH_TOKEN_SCRIPT_TIMEOUT_SECONDS`
+
+Timeout for `GITLAB_OAUTH_TOKEN_SCRIPT`. Default: `30`.
+
 ## Remote / Multi-User Authentication
 
 ### `REMOTE_AUTHORIZATION`
