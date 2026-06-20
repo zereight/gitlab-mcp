@@ -42,6 +42,19 @@ describe("getForwardedPublicBaseUrl", () => {
     );
   });
 
+  test("parses quoted Forwarded header values", () => {
+    assert.strictEqual(
+      getForwardedPublicBaseUrl(
+        req({
+          forwarded: 'for=192.0.2.43; proto="https"; host="mcp.example.com"',
+          "x-forwarded-prefix": "/gitlab-mcp",
+        }),
+        true
+      ),
+      "https://mcp.example.com/gitlab-mcp"
+    );
+  });
+
   test("rejects unsafe host and prefix values", () => {
     assert.strictEqual(
       getForwardedPublicBaseUrl(req({ "x-forwarded-proto": "https", "x-forwarded-host": "bad/host" }), true),
