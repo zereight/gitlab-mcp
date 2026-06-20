@@ -267,7 +267,12 @@ the token to GitLab on behalf of the caller.
 | `REMOTE_AUTHORIZATION`   | ✅       | Set to `true` to enable                                    |
 | `STREAMABLE_HTTP`        | ✅       | Must be `true`                                             |
 | `ENABLE_DYNAMIC_API_URL` | optional | Allow per-request GitLab URL via `X-GitLab-API-URL` header |
+| `GITLAB_ALLOW_UNAUTHENTICATED_TOOL_DISCOVERY` | optional | Allow unauthenticated `tools/list` discovery only (tool calls still require auth) |
 | `MCP_TRUST_PROXY`        | optional | Trust `Forwarded` / `X-Forwarded-*` headers behind a reverse proxy (download URLs, Express `req.ip`, OAuth rate limits) |
+
+`GITLAB_ALLOW_UNAUTHENTICATED_TOOL_DISCOVERY=true` is intended for MCP gateways
+or admin UIs that need to inspect tool metadata before a user provides a GitLab
+token. Leave it disabled unless the tool list is safe to expose in your deployment.
 
 When `MCP_SERVER_URL` is not set, remote download URLs fall back to the local
 server address. Set `MCP_TRUST_PROXY=true` only if the server is reachable through a

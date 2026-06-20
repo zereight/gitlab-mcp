@@ -74,6 +74,23 @@ Notes:
   - `Private-Token: <token>`
   - `Job-Token: <token>`
 
+### `GITLAB_ALLOW_UNAUTHENTICATED_TOOL_DISCOVERY`
+
+Optional. Set to `true` to let unauthenticated clients call `tools/list` in
+`REMOTE_AUTHORIZATION=true` deployments. This is intended for MCP gateways or
+admin UIs that need to inspect tool metadata before a user provides a GitLab
+token.
+
+Default:
+
+- `false`
+
+Security notes:
+
+- Only `initialize`, `notifications/initialized`, and `tools/list` may proceed without auth.
+- `tools/call` and all GitLab API access still require request auth headers.
+- Tool names and schemas can reveal enabled server capabilities; enable this only when that metadata is safe to expose.
+
 ### `SESSION_TIMEOUT_SECONDS`
 
 Per-session auth timeout in seconds when using remote authorization.

@@ -4,6 +4,7 @@ import {
   getConfig,
   ENABLE_DYNAMIC_API_URL,
   GITLAB_AUTH_COOKIE_PATH,
+  GITLAB_ALLOW_UNAUTHENTICATED_TOOL_DISCOVERY,
   GITLAB_CA_CERT_PATH,
   GITLAB_JOB_TOKEN,
   GITLAB_MCP_OAUTH,
@@ -1115,6 +1116,16 @@ function isInitializationRequestBody(body: unknown): boolean {
     (m as { method?: unknown }).method === "initialize";
   if (Array.isArray(body)) return body.some(isInitObj);
   return isInitObj(body);
+}
+
+function isUnauthenticatedDiscoveryRequestBody(body: unknown): boolean {
+  if (!body || Array.isArray(body) || typeof body !== "object") return false;
+  const method = (body as { method?: unknown }).method;
+  return (
+    method === "initialize" ||
+    method === "notifications/initialized" ||
+    method === "tools/list"
+  );
 }
 
 /**
@@ -12531,10 +12542,13 @@ async function startStreamableHTTPServer(): Promise<void> {
     // Handle remote authorization: extract and store auth headers per session
     if (REMOTE_AUTHORIZATION) {
       const authData = parseAuthHeaders(req);
+      const allowUnauthenticatedDiscovery =
+        GITLAB_ALLOW_UNAUTHENTICATED_TOOL_DISCOVERY &&
+        isUnauthenticatedDiscoveryRequestBody(req.body);
 
       if (sessionId && !authBySession[sessionId]) {
-        // New session: require auth headers
-        if (!authData) {
+        // New session: require auth headers unless public discovery was explicitly enabled.
+        if (!authData && !allowUnauthenticatedDiscovery) {
           metrics.authFailures++;
           res.status(401).json({
             error: "Missing Private-Token, JOB-TOKEN, or Authorization header",
@@ -12543,10 +12557,12 @@ async function startStreamableHTTPServer(): Promise<void> {
           });
           return;
         }
-        // Store auth for this session
-        authBySession[sessionId] = withPublicBaseUrl(authData, publicBaseUrl);
-        logger.info(`Session ${sessionId}: stored ${authData.header} header`);
-        setAuthTimeout(sessionId);
+        // Store auth only when provided. Public discovery intentionally leaves the session unauthenticated.
+        if (authData) {
+          authBySession[sessionId] = withPublicBaseUrl(authData, publicBaseUrl);
+          logger.info(`Session ${sessionId}: stored ${authData.header} header`);
+          setAuthTimeout(sessionId);
+        }
       } else if (sessionId && authData) {
         // Existing session: allow auth rotation/update
         authBySession[sessionId] = withPublicBaseUrl(authData, publicBaseUrl, authBySession[sessionId]);
