@@ -80,30 +80,38 @@ describe("Streamable HTTP concurrent session requests", { timeout: 20_000 }, () 
     try {
       assert.ok(client.getSessionId(), "initialize should return Mcp-Session-Id");
 
-      const [packageResult, readmeResult] = await Promise.race([
-        Promise.all([
-          client.callTool("get_file_contents", {
-            project_id: TEST_PROJECT_ID,
-            file_path: "package.json",
-            ref: "main",
+      let timeoutHandle: NodeJS.Timeout;
+      try {
+        const [packageResult, readmeResult] = await Promise.race([
+          Promise.all([
+            client.callTool("get_file_contents", {
+              project_id: TEST_PROJECT_ID,
+              file_path: "package.json",
+              ref: "main",
+            }),
+            client.callTool("get_file_contents", {
+              project_id: TEST_PROJECT_ID,
+              file_path: "README.md",
+              ref: "main",
+            }),
+          ]),
+          new Promise<never>((_, reject) => {
+            timeoutHandle = setTimeout(
+              () => reject(new Error("concurrent tool calls timed out")),
+              5_000
+            );
           }),
-          client.callTool("get_file_contents", {
-            project_id: TEST_PROJECT_ID,
-            file_path: "README.md",
-            ref: "main",
-          }),
-        ]),
-        new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error("concurrent tool calls timed out")), 5_000)
-        ),
-      ]);
+        ]);
 
-      const packageText =
-        packageResult.content?.[0]?.type === "text" ? packageResult.content[0].text : "";
-      const readmeText =
-        readmeResult.content?.[0]?.type === "text" ? readmeResult.content[0].text : "";
-      assert.ok(packageText.includes("package file"), packageText);
-      assert.ok(readmeText.includes("readme file"), readmeText);
+        const packageText =
+          packageResult.content?.[0]?.type === "text" ? packageResult.content[0].text : "";
+        const readmeText =
+          readmeResult.content?.[0]?.type === "text" ? readmeResult.content[0].text : "";
+        assert.ok(packageText.includes("package file"), packageText);
+        assert.ok(readmeText.includes("readme file"), readmeText);
+      } finally {
+        clearTimeout(timeoutHandle!);
+      }
     } finally {
       await client.disconnect();
     }
