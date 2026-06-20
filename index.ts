@@ -2239,6 +2239,9 @@ async function resolveNamesToIds(
     }`,
     { path: projectPath, usernames: usernames || [] }
   );
+  if (!data.project) {
+    throw new Error(`Project '${projectPath}' not found or inaccessible`);
+  }
   const labelIds = (labelNames || []).map(name => {
     const label = data.project.labels.nodes.find(l => l.title === name);
     if (!label) throw new Error(`Label '${name}' not found in project`);
