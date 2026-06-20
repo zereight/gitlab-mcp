@@ -113,7 +113,7 @@ describe("list_issues", () => {
     );
 
     assert.ok(result.text, "Tool response should include text content");
-    assert.doesNotMatch(result.text!, /\n\s+\"/, "Tool response JSON should not be pretty-printed");
+    assert.doesNotMatch(result.text!, /\n\s+"/, "Tool response JSON should not be pretty-printed");
     assert.ok(Array.isArray(result.data), "Response should remain valid JSON");
   });
 
