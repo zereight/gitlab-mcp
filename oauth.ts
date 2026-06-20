@@ -597,11 +597,15 @@ export class GitLabOAuth {
       } else if (parsed && typeof parsed === "object") {
         const value = (parsed as { access_token?: unknown; token?: unknown }).access_token ??
           (parsed as { token?: unknown }).token;
-        if (typeof value === "string") {
-          accessToken = value;
+        if (typeof value !== "string") {
+          throw new Error("OAuth token script JSON must include a string access_token or token field");
         }
+        accessToken = value;
       }
-    } catch {
+    } catch (error) {
+      if (error instanceof Error && error.message.startsWith("OAuth token script JSON")) {
+        throw error;
+      }
       // Plain-token stdout is the common case.
     }
 

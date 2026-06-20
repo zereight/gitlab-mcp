@@ -273,21 +273,41 @@ async function testPortAvailability(): Promise<void> {
 // Test: External OAuth token script
 async function testOAuthTokenScript(): Promise<void> {
   const scriptPath = path.join(process.cwd(), '.test-oauth-token-script.sh');
-  fs.writeFileSync(scriptPath, '#!/bin/sh\nprintf "%s\\n" "script-token-123"\n', { mode: 0o700 });
+
+  const writeScript = (output: string) => {
+    fs.writeFileSync(scriptPath, `#!/bin/sh\nprintf '%s\\n' '${output}'\n`, { mode: 0o700 });
+  };
+
+  const oauth = () => new GitLabOAuth({
+    clientId: TEST_CLIENT_ID,
+    redirectUri: TEST_REDIRECT_URI,
+    gitlabUrl: TEST_GITLAB_URL,
+    scopes: ['api'],
+    tokenStoragePath: TEST_TOKEN_PATH,
+    tokenScript: scriptPath,
+  });
 
   try {
-    const oauth = new GitLabOAuth({
-      clientId: TEST_CLIENT_ID,
-      redirectUri: TEST_REDIRECT_URI,
-      gitlabUrl: TEST_GITLAB_URL,
-      scopes: ['api'],
-      tokenStoragePath: TEST_TOKEN_PATH,
-      tokenScript: scriptPath,
-    });
+    writeScript('script-token-123');
+    const plainToken = await oauth().getAccessToken();
+    assert(plainToken === 'script-token-123', 'Should return plain token from external script');
+    assert(oauth().hasValidToken(), 'Token script should count as a valid token source');
 
-    const token = await oauth.getAccessToken();
-    assert(token === 'script-token-123', 'Should return token from external script');
-    assert(oauth.hasValidToken(), 'Token script should count as a valid token source');
+    writeScript(JSON.stringify({ access_token: 'json-token-123' }));
+    const jsonToken = await oauth().getAccessToken();
+    assert(jsonToken === 'json-token-123', 'Should extract access_token from JSON output');
+
+    writeScript(JSON.stringify({ expires_in: 3600 }));
+    try {
+      await oauth().getAccessToken();
+      assert(false, 'Should reject JSON output without a token field');
+    } catch (error) {
+      assert(
+        error instanceof Error &&
+          error.message.includes('OAuth token script JSON must include a string access_token or token field'),
+        'Should explain missing token field in JSON output'
+      );
+    }
   } finally {
     if (fs.existsSync(scriptPath)) {
       fs.unlinkSync(scriptPath);
