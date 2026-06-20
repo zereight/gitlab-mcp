@@ -15,6 +15,12 @@ function unquoteHeaderValue(value: string): string {
   return value;
 }
 
+function trimTrailingSlashes(value: string): string {
+  let end = value.length;
+  while (end > 0 && value[end - 1] === "/") end--;
+  return value.slice(0, end);
+}
+
 export function getForwardedPublicBaseUrl(req: Request, trustProxy: boolean): string | undefined {
   if (!trustProxy) return undefined;
 
@@ -44,7 +50,7 @@ export function getForwardedPublicBaseUrl(req: Request, trustProxy: boolean): st
     !prefix.startsWith("//") &&
     !prefix.includes("://") &&
     !/[\s\\]/.test(prefix)
-      ? prefix.replace(/\/+$/, "")
+      ? trimTrailingSlashes(prefix)
       : undefined;
 
   try {
