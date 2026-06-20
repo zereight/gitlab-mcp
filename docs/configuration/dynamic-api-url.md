@@ -220,13 +220,19 @@ curl -X POST http://localhost:3002/mcp \
 
 ### Pool Statistics
 
-You can monitor the connection pool via the metrics endpoint:
+Prometheus can scrape the metrics endpoint directly:
 
 ```bash
 curl http://localhost:3002/metrics
 ```
 
-Response:
+JSON metrics remain available for scripts:
+
+```bash
+curl http://localhost:3002/metrics.json
+```
+
+JSON response:
 ```json
 {
   "activeSessions": 5,
