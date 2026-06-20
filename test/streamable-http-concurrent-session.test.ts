@@ -78,7 +78,8 @@ describe("Streamable HTTP concurrent session requests", { timeout: 20_000 }, () 
     await client.connect(mcpUrl);
 
     try {
-      assert.ok(client.getSessionId(), "initialize should return Mcp-Session-Id");
+      const initialSessionId = client.getSessionId();
+      assert.ok(initialSessionId, "initialize should return Mcp-Session-Id");
 
       let timeoutHandle: NodeJS.Timeout;
       try {
@@ -107,6 +108,11 @@ describe("Streamable HTTP concurrent session requests", { timeout: 20_000 }, () 
           packageResult.content?.[0]?.type === "text" ? packageResult.content[0].text : "";
         const readmeText =
           readmeResult.content?.[0]?.type === "text" ? readmeResult.content[0].text : "";
+        assert.strictEqual(
+          client.getSessionId(),
+          initialSessionId,
+          "concurrent calls should reuse the same Mcp-Session-Id"
+        );
         assert.ok(packageText.includes("package file"), packageText);
         assert.ok(readmeText.includes("readme file"), readmeText);
       } finally {
