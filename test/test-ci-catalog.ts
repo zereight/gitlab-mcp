@@ -19,6 +19,8 @@ async function callTool(
       },
     });
 
+    proc.on("error", reject);
+
     let output = "";
     let errorOutput = "";
     proc.stdout?.on("data", (d: Buffer) => (output += d));
@@ -30,20 +32,24 @@ async function callTool(
         return;
       }
 
-      const line = output.split("\n").find(l => l.startsWith("{"));
-      if (!line) {
-        reject(new Error("No JSON output found"));
-        return;
-      }
+      try {
+        const line = output.split("\n").find(l => l.startsWith("{"));
+        if (!line) {
+          reject(new Error("No JSON output found"));
+          return;
+        }
 
-      const response = JSON.parse(line);
-      if (response.error) {
-        reject(response.error);
-        return;
-      }
+        const response = JSON.parse(line);
+        if (response.error) {
+          reject(new Error(response.error.message ?? JSON.stringify(response.error)));
+          return;
+        }
 
-      const content = response.result?.content?.[0]?.text;
-      resolve(content ? JSON.parse(content) : response.result);
+        const content = response.result?.content?.[0]?.text;
+        resolve(content ? JSON.parse(content) : response.result);
+      } catch (error) {
+        reject(error);
+      }
     });
 
     proc.stdin?.end(
@@ -188,6 +194,21 @@ describe("CI/CD Catalog tools", () => {
   });
 
   test("get_ci_catalog_resource rejects empty identity values", async () => {
-    await assert.rejects(() => callTool("get_ci_catalog_resource", { full_path: "" }, env()));
+    await assert.rejects(
+      () => callTool("get_ci_catalog_resource", { full_path: "" }, env()),
+      /full_path|Too small|minLength|invalid/i
+    );
+  });
+
+  test("get_ci_catalog_resource rejects multiple identity values", async () => {
+    await assert.rejects(
+      () =>
+        callTool(
+          "get_ci_catalog_resource",
+          { id: "gid://gitlab/Ci::Catalog::Resource/1", full_path: "components/docker" },
+          env()
+        ),
+      /exactly one|id|full_path/i
+    );
   });
 });

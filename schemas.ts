@@ -390,7 +390,9 @@ export const GetCiCatalogResourceSchema = z.union([
     id: z.string().min(1).optional().describe("CI/CD Catalog resource global ID"),
     full_path: z.string().min(1).describe("CI/CD Catalog resource full project path. Required when id is omitted."),
   }),
-]);
+]).refine(args => Boolean(args.id) !== Boolean(args.full_path), {
+  message: "Provide exactly one of id or full_path",
+});
 
 // Deployment related schemas
 export const GitLabDeploymentSchema = z.object({

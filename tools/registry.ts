@@ -156,6 +156,7 @@ import {
   ValidateCiLintSchema,
   ValidateProjectCiLintSchema,
   ListCiCatalogResourcesSchema,
+  GetCiCatalogResourceSchema,
   ListPipelinesSchema,
   ListProjectMembersSchema,
   ListProjectMilestonesSchema,
@@ -817,42 +818,7 @@ export const allTools = [
   {
     name: "get_ci_catalog_resource",
     description: "Get details for a GitLab CI/CD Catalog resource, including versions and components",
-    inputSchema: {
-      type: "object" as const,
-      properties: {
-        id: {
-          type: "string",
-          minLength: 1,
-          description: "CI/CD Catalog resource global ID. Required when full_path is omitted.",
-        },
-        full_path: {
-          type: "string",
-          minLength: 1,
-          description: "CI/CD Catalog resource full project path. Required when id is omitted.",
-        },
-        version_limit: {
-          type: "integer",
-          description: "Number of versions to include (default: 5, max: 20)",
-          minimum: 1,
-          maximum: 20,
-        },
-        component_limit: {
-          type: "integer",
-          description: "Number of components per version to include (default: 20, max: 50)",
-          minimum: 1,
-          maximum: 50,
-        },
-        component_name: {
-          type: "string",
-          description: "Filter returned components by component name",
-        },
-        include_readme: {
-          type: "boolean",
-          description: "Include version README content",
-        },
-      },
-      anyOf: [{ required: ["id"] }, { required: ["full_path"] }],
-    },
+    inputSchema: { type: "object" as const, ...toJSONSchema(GetCiCatalogResourceSchema) },
   },
   {
     name: "create_pipeline",
