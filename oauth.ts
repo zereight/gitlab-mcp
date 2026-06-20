@@ -5,6 +5,8 @@ import * as path from "path";
 import * as http from "http";
 import * as net from "net";
 import * as url from "url";
+import { execFile } from "child_process";
+import { promisify } from "util";
 import open from "open";
 import pkceChallenge from "pkce-challenge";
 import { pino } from "pino";
@@ -13,6 +15,8 @@ const logger = pino({
   name: "gitlab-mcp-oauth",
   level: process.env.LOG_LEVEL || "info",
 }, pino.destination(2));
+
+const execFileAsync = promisify(execFile);
 
 function escapeHtml(str: string): string {
   const map: Record<string, string> = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" };
@@ -44,6 +48,7 @@ interface OAuthConfig {
   gitlabUrl: string;
   scopes: string[];
   tokenStoragePath?: string;
+  tokenScript?: string;
 }
 
 /**
@@ -561,9 +566,68 @@ export class GitLabOAuth {
   }
 
   /**
+   * Get an access token from an external command.
+   */
+  private async getScriptToken(): Promise<TokenData> {
+    if (!this.config.tokenScript) {
+      throw new Error("OAuth token script is not configured");
+    }
+
+    const shell = process.platform === "win32" ? process.env.ComSpec || "cmd.exe" : "/bin/sh";
+    const args = process.platform === "win32"
+      ? ["/d", "/s", "/c", this.config.tokenScript]
+      : ["-c", this.config.tokenScript];
+    const timeoutSeconds = Number.parseInt(process.env.GITLAB_OAUTH_TOKEN_SCRIPT_TIMEOUT_SECONDS || "30", 10);
+    const timeoutMs = (Number.isFinite(timeoutSeconds) && timeoutSeconds > 0 ? timeoutSeconds : 30) * 1000;
+    const { stdout } = await execFileAsync(shell, args, {
+      timeout: timeoutMs,
+      maxBuffer: 1024 * 1024,
+    });
+    const output = stdout.trim();
+
+    if (!output) {
+      throw new Error("OAuth token script produced no output");
+    }
+
+    let accessToken = output;
+    try {
+      const parsed = JSON.parse(output) as unknown;
+      if (typeof parsed === "string") {
+        accessToken = parsed;
+      } else if (parsed && typeof parsed === "object") {
+        const value = (parsed as { access_token?: unknown; token?: unknown }).access_token ??
+          (parsed as { token?: unknown }).token;
+        if (typeof value !== "string") {
+          throw new Error("OAuth token script JSON must include a string access_token or token field");
+        }
+        accessToken = value;
+      }
+    } catch (error) {
+      if (error instanceof Error && error.message.startsWith("OAuth token script JSON")) {
+        throw error;
+      }
+      // Plain-token stdout is the common case.
+    }
+
+    if (!accessToken.trim()) {
+      throw new Error("OAuth token script returned an empty token");
+    }
+
+    return {
+      access_token: accessToken.trim(),
+      created_at: Date.now(),
+      token_type: "Bearer",
+    };
+  }
+
+  /**
    * Get a valid access token, refreshing if necessary
    */
   async getAccessToken(force = false): Promise<string> {
+    if (this.config.tokenScript) {
+      return (await this.getScriptToken()).access_token;
+    }
+
     let tokenData = this.loadToken();
 
     // If no token or expired (or forced), start OAuth flow or refresh
@@ -607,6 +671,10 @@ export class GitLabOAuth {
    * Check if a valid token exists
    */
   hasValidToken(): boolean {
+    if (this.config.tokenScript) {
+      return true;
+    }
+
     const tokenData = this.loadToken();
     if (!tokenData) {
       return false;
@@ -625,20 +693,22 @@ export async function initializeOAuthClient(gitlabUrl: string = "https://gitlab.
   const clientSecret = process.env.GITLAB_OAUTH_CLIENT_SECRET;
   const redirectUri = process.env.GITLAB_OAUTH_REDIRECT_URI || "http://127.0.0.1:8888/callback";
   const tokenStoragePath = process.env.GITLAB_OAUTH_TOKEN_PATH;
+  const tokenScript = process.env.GITLAB_OAUTH_TOKEN_SCRIPT;
 
-  if (!clientId) {
+  if (!clientId && !tokenScript) {
     throw new Error(
-      "GITLAB_OAUTH_CLIENT_ID environment variable is required for OAuth authentication"
+      "GITLAB_OAUTH_CLIENT_ID or GITLAB_OAUTH_TOKEN_SCRIPT environment variable is required for OAuth authentication"
     );
   }
 
   const oauth = new GitLabOAuth({
-    clientId,
+    clientId: clientId || "external-token-script",
     clientSecret,
     redirectUri,
     gitlabUrl,
     scopes: [process.env.GITLAB_READ_ONLY_MODE === "true" ? "read_api" : "api"],
     tokenStoragePath,
+    tokenScript,
   });
 
   // Single call: triggers browser flow if needed, or reads cached token

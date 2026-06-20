@@ -270,6 +270,51 @@ async function testPortAvailability(): Promise<void> {
   assert(typeof available === 'boolean', 'Port availability check should return boolean');
 }
 
+// Test: External OAuth token script
+async function testOAuthTokenScript(): Promise<void> {
+  const scriptPath = path.join(process.cwd(), '.test-oauth-token-script.sh');
+
+  const writeScript = (output: string) => {
+    fs.writeFileSync(scriptPath, `#!/bin/sh\nprintf '%s\\n' '${output}'\n`, { mode: 0o700 });
+  };
+
+  const oauth = () => new GitLabOAuth({
+    clientId: TEST_CLIENT_ID,
+    redirectUri: TEST_REDIRECT_URI,
+    gitlabUrl: TEST_GITLAB_URL,
+    scopes: ['api'],
+    tokenStoragePath: TEST_TOKEN_PATH,
+    tokenScript: scriptPath,
+  });
+
+  try {
+    writeScript('script-token-123');
+    const plainToken = await oauth().getAccessToken();
+    assert(plainToken === 'script-token-123', 'Should return plain token from external script');
+    assert(oauth().hasValidToken(), 'Token script should count as a valid token source');
+
+    writeScript(JSON.stringify({ access_token: 'json-token-123' }));
+    const jsonToken = await oauth().getAccessToken();
+    assert(jsonToken === 'json-token-123', 'Should extract access_token from JSON output');
+
+    writeScript(JSON.stringify({ expires_in: 3600 }));
+    try {
+      await oauth().getAccessToken();
+      assert(false, 'Should reject JSON output without a token field');
+    } catch (error) {
+      assert(
+        error instanceof Error &&
+          error.message.includes('OAuth token script JSON must include a string access_token or token field'),
+        'Should explain missing token field in JSON output'
+      );
+    }
+  } finally {
+    if (fs.existsSync(scriptPath)) {
+      fs.unlinkSync(scriptPath);
+    }
+  }
+}
+
 // Test 11: OAuth redirect URI parsing
 async function testRedirectUriParsing(): Promise<void> {
   const redirectUri = 'http://127.0.0.1:8888/callback';
@@ -420,6 +465,7 @@ async function runOAuthTests(): Promise<boolean> {
     testTokenFilePermissions,
     process.platform === 'win32'
   );
+  await runTest('External OAuth token script', testOAuthTokenScript, process.platform === 'win32');
 
   // Network and configuration tests
   await runTest('Port availability check', testPortAvailability);

@@ -157,6 +157,20 @@ The MCP server automatically handles token refresh:
 - Automatically refreshes the token if it's expired (or will expire within 5 minutes)
 - If refresh fails, it will restart the OAuth flow
 
+## External Token Script
+
+If another tool already manages OAuth credentials, let gitlab-mcp ask that tool
+for a token:
+
+```bash
+GITLAB_USE_OAUTH=true \
+GITLAB_OAUTH_TOKEN_SCRIPT="coder external-auth access-token gitlab"
+```
+
+The script must print an access token to stdout. JSON output with an
+`access_token` or `token` field is also accepted. When this is set, gitlab-mcp
+skips the browser flow and token file refresh.
+
 ## Using a Different Port
 
 If port 8888 is already in use, you can use a different port:
