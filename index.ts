@@ -2242,23 +2242,40 @@ async function resolveNamesToIds(
   if (!labelNames?.length && !usernames?.length) {
     return { labelIds: [], userIds: [] };
   }
-  const data = await executeGraphQL<{
-    project: { labels: { nodes: Array<{ id: string; title: string }> } };
+
+  labelNames ??= [];
+  usernames ??= [];
+
+  const labelVars = Object.fromEntries(labelNames.map((name, i) => [`l${i}`, name]));
+  // One alias per label — exact title match via the `title` argument, includes ancestor
+  // group labels, single round trip with no pagination needed.
+  const varDefs = labelNames.map((_, i) => `$l${i}: String!`).join(", ");
+  const aliases = labelNames.map((_, i) =>
+    `l${i}: labels(title: $l${i}, includeAncestorGroups: true, first: 1) { nodes { id } }`
+  ).join(" ");
+
+  const { project, users } = await executeGraphQL<{
+    project: { [alias: string]: { nodes: Array<{ id: string }> } } | null;
     users: { nodes: Array<{ id: string; username: string }> };
   }>(
-    `query($path: ID!, $usernames: [String!]!) {
-      project(fullPath: $path) { labels(includeAncestorGroups: true, first: 250) { nodes { id title } } }
+    `query($path: ID!, $usernames: [String!]!${varDefs ? `, ${varDefs}` : ""}) {
+      project(fullPath: $path) { ${aliases || "__typename"} }
       users(usernames: $usernames) { nodes { id username } }
     }`,
-    { path: projectPath, usernames: usernames || [] }
+    { path: projectPath, usernames, ...labelVars }
   );
-  const labelIds = (labelNames || []).map(name => {
-    const label = data.project.labels.nodes.find(l => l.title === name);
-    if (!label) throw new Error(`Label '${name}' not found in project`);
-    return label.id;
+
+  if (!project) {
+    throw new Error(`Project '${projectPath}' not found or inaccessible`);
+  }
+
+  const labelIds = labelNames.map((name, i) => {
+    const nodes = project[`l${i}`]?.nodes;
+    if (!nodes?.length) throw new Error(`Label '${name}' not found in project`);
+    return nodes[0].id;
   });
-  const userIds = (usernames || []).map(name => {
-    const user = data.users.nodes.find(u => u.username === name);
+  const userIds = usernames.map(name => {
+    const user = users.nodes.find(u => u.username === name);
     if (!user) throw new Error(`User '${name}' not found`);
     return user.id;
   });
