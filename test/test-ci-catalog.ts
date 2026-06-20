@@ -3,7 +3,7 @@ import assert from "node:assert";
 import { spawn } from "child_process";
 import { MockGitLabServer, findMockServerPort } from "./utils/mock-gitlab-server.js";
 
-const MOCK_TOKEN = "glpat-ci-catalog-test-token";
+const MOCK_TOKEN = "mock-ci-catalog-token";
 
 async function callTool(
   toolName: string,

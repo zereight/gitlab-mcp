@@ -72,8 +72,8 @@ Get details for a GitLab CI/CD Catalog resource, including versions and componen
 
 | Parameter | Type | Required | Description |
 |---|---|:-:|---|
-| `id` | string |  | CI/CD Catalog resource global ID |
-| `full_path` | string |  | CI/CD Catalog resource full project path |
+| `id` | string |  | CI/CD Catalog resource global ID. Required when full_path is omitted. |
+| `full_path` | string |  | CI/CD Catalog resource full project path. Required when id is omitted. |
 | `version_limit` | integer |  | Number of versions to include (default: 5, max: 20) |
 | `component_limit` | integer |  | Number of components per version to include (default: 20, max: 50) |
 | `component_name` | string |  | Filter returned components by component name |

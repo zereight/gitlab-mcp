@@ -374,18 +374,23 @@ export const ListCiCatalogResourcesSchema = z.object({
   verification_level: CiCatalogResourceVerificationLevelSchema.optional().describe("Filter by verification level"),
 });
 
-export const GetCiCatalogResourceSchema = z
-  .object({
-    id: z.string().optional().describe("CI/CD Catalog resource global ID"),
+const GetCiCatalogResourceOptionsSchema = z.object({
+  version_limit: z.coerce.number().int().min(1).max(20).optional().describe("Number of versions to include (default: 5, max: 20)"),
+  component_limit: z.coerce.number().int().min(1).max(50).optional().describe("Number of components per version to include (default: 20, max: 50)"),
+  component_name: z.string().optional().describe("Filter returned components by component name"),
+  include_readme: z.coerce.boolean().optional().describe("Include version README content"),
+});
+
+export const GetCiCatalogResourceSchema = z.union([
+  GetCiCatalogResourceOptionsSchema.extend({
+    id: z.string().describe("CI/CD Catalog resource global ID. Required when full_path is omitted."),
     full_path: z.string().optional().describe("CI/CD Catalog resource full project path"),
-    version_limit: z.coerce.number().int().min(1).max(20).optional().describe("Number of versions to include (default: 5, max: 20)"),
-    component_limit: z.coerce.number().int().min(1).max(50).optional().describe("Number of components per version to include (default: 20, max: 50)"),
-    component_name: z.string().optional().describe("Filter returned components by component name"),
-    include_readme: z.coerce.boolean().optional().describe("Include version README content"),
-  })
-  .refine(args => args.id || args.full_path, {
-    message: "Provide either id or full_path",
-  });
+  }),
+  GetCiCatalogResourceOptionsSchema.extend({
+    id: z.string().optional().describe("CI/CD Catalog resource global ID"),
+    full_path: z.string().describe("CI/CD Catalog resource full project path. Required when id is omitted."),
+  }),
+]);
 
 // Deployment related schemas
 export const GitLabDeploymentSchema = z.object({
