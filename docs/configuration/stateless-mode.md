@@ -226,10 +226,10 @@ termination. In non-OAuth modes the behaviour is unchanged.
 
 ### Metrics
 
-The `/metrics` endpoint reports per-instance counters. In stateless mode,
-`activeSessions` and `authenticatedSessions` become less meaningful (each
-request is its own session from the pod's perspective) — scale your
-dashboards accordingly.
+The `/metrics` endpoint reports Prometheus per-instance counters. JSON metrics
+are available at `/metrics.json`. In stateless mode, `activeSessions` and
+`authenticatedSessions` become less meaningful (each request is its own session
+from the pod's perspective) — scale your dashboards accordingly.
 
 ### Interop with legacy clients
 

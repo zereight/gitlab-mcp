@@ -34,9 +34,9 @@ const KEEPALIVE_INTERVAL_MS = 2000; // Must be less than SESSION_TIMEOUT_SECONDS
 const KEEPALIVE_REQUEST_COUNT = 3; // Number of keepalive requests to test
 
 async function getMetrics(mcpUrl: string): Promise<{ activeSessions: number; authenticatedSessions: number }> {
-  const metricsUrl = mcpUrl.replace(/\/mcp$/, '/metrics');
+  const metricsUrl = mcpUrl.replace(/\/mcp$/, '/metrics.json');
   const response = await fetch(metricsUrl);
-  assert.strictEqual(response.status, 200, 'metrics endpoint should be available');
+  assert.strictEqual(response.status, 200, 'metrics JSON endpoint should be available');
   return (await response.json()) as { activeSessions: number; authenticatedSessions: number };
 }
 
@@ -174,6 +174,19 @@ describe('Remote Authorization - Basic Functionality', () => {
     console.log('  ✓ Multiple tool list calls successful with persistent auth');
 
     await client.disconnect();
+  });
+
+  test('should expose Prometheus metrics at /metrics', async () => {
+    const metricsUrl = mcpUrl.replace(/\/mcp$/, '/metrics');
+    const response = await fetch(metricsUrl);
+    assert.strictEqual(response.status, 200, 'metrics endpoint should be available');
+    assert.match(response.headers.get('content-type') || '', /^text\/plain/);
+
+    const body = await response.text();
+    assert.match(body, /# HELP gitlab_mcp_requests_processed_total/);
+    assert.match(body, /# TYPE gitlab_mcp_active_sessions gauge/);
+    assert.match(body, /gitlab_mcp_config_info\{[^}]*remote_auth_enabled="true"/);
+    console.log('  ✓ Prometheus metrics available');
   });
 
   test('should reject connection without auth header', async () => {
