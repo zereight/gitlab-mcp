@@ -4,6 +4,7 @@ import {
   getConfig,
   ENABLE_DYNAMIC_API_URL,
   GITLAB_AUTH_COOKIE_PATH,
+  GITLAB_ALLOW_UNAUTHENTICATED_TOOL_DISCOVERY,
   GITLAB_CA_CERT_PATH,
   GITLAB_JOB_TOKEN,
   GITLAB_MCP_OAUTH,
@@ -65,7 +66,12 @@ const DOWNLOAD_TOKEN_KEY: Buffer = (() => {
 /** Download token TTL in seconds (default 5 minutes). */
 const DOWNLOAD_TOKEN_TTL = Number.parseInt(process.env.DOWNLOAD_TOKEN_TTL || "300", 10);
 
-function createDownloadToken(header: string, token: string, apiUrl?: string, resource?: { type: string; params: Record<string, string> }): string {
+function createDownloadToken(
+  header: string,
+  token: string,
+  apiUrl?: string,
+  resource?: { type: string; params: Record<string, string> }
+): string {
   const iv = randomBytes(12);
   const cipher = createCipheriv("aes-256-gcm", DOWNLOAD_TOKEN_KEY, iv);
   const payload = JSON.stringify({
@@ -82,7 +88,13 @@ function createDownloadToken(header: string, token: string, apiUrl?: string, res
 
 function decryptDownloadToken(
   tokenStr: string
-): { header: string; token: string; apiUrl?: string; resourceType?: string; resourceParams?: Record<string, string> } | null {
+): {
+  header: string;
+  token: string;
+  apiUrl?: string;
+  resourceType?: string;
+  resourceParams?: Record<string, string>;
+} | null {
   try {
     const buf = Buffer.from(tokenStr, "base64url");
     if (buf.length < 29) return null;
@@ -112,7 +124,10 @@ function getLastHeaderValue(value: string | string[] | undefined): string | unde
   const raw = Array.isArray(value) ? value[value.length - 1] : value;
   if (!raw) return undefined;
 
-  const parts = raw.split(",").map(part => part.trim()).filter(Boolean);
+  const parts = raw
+    .split(",")
+    .map(part => part.trim())
+    .filter(Boolean);
   return parts.length > 0 ? parts[parts.length - 1] : undefined;
 }
 
@@ -140,7 +155,9 @@ function getForwardedPublicBaseUrl(req: Request): string | undefined {
     }
   }
 
-  const proto = (forwardedValues.proto || getLastHeaderValue(req.headers["x-forwarded-proto"]))?.toLowerCase();
+  const proto = (
+    forwardedValues.proto || getLastHeaderValue(req.headers["x-forwarded-proto"])
+  )?.toLowerCase();
   const host = forwardedValues.host || getLastHeaderValue(req.headers["x-forwarded-host"]);
   if (!proto || !host || !/^https?$/.test(proto)) return undefined;
   if (/[\s/\\]/.test(host)) return undefined;
@@ -157,7 +174,13 @@ function getForwardedPublicBaseUrl(req: Request): string | undefined {
 
   try {
     const baseUrl = new URL(`${proto}://${host}`);
-    if (baseUrl.username || baseUrl.password || baseUrl.pathname !== "/" || baseUrl.search || baseUrl.hash) {
+    if (
+      baseUrl.username ||
+      baseUrl.password ||
+      baseUrl.pathname !== "/" ||
+      baseUrl.search ||
+      baseUrl.hash
+    ) {
       return undefined;
     }
     if (safePrefix) baseUrl.pathname = safePrefix;
@@ -173,7 +196,8 @@ function getForwardedPublicBaseUrl(req: Request): string | undefined {
  * from the current session so the URL works standalone.
  */
 function buildDownloadUrl(type: string, params: Record<string, string>): string {
-  const base = MCP_SERVER_URL || sessionAuthStore.getStore()?.publicBaseUrl || `http://${HOST}:${PORT}`;
+  const base =
+    MCP_SERVER_URL || sessionAuthStore.getStore()?.publicBaseUrl || `http://${HOST}:${PORT}`;
   const baseUrl = new URL(base);
   // Preserve any path prefix (e.g. /gitlab-mcp) from the base URL
   const basePath = baseUrl.pathname.replace(/\/+$/, "");
@@ -219,10 +243,7 @@ import {
   mintSessionId,
   openSessionId,
 } from "./stateless/index.js";
-import type {
-  SessionAuthHeader,
-  StatelessKeyMaterial,
-} from "./stateless/index.js";
+import type { SessionAuthHeader, StatelessKeyMaterial } from "./stateless/index.js";
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
@@ -247,7 +268,11 @@ import { mcpAuthRouter } from "@modelcontextprotocol/sdk/server/auth/router.js";
 import { ipKeyGenerator } from "express-rate-limit";
 import { normalizeProxyClientIpForRateLimit } from "./utils/proxy-client-ip.js";
 import { normalizeGitLabApiUrl } from "./utils/url.js";
-import { estimateMergeCommitCount, filterDiffsByPatterns, summarizeWebhookEvents } from "./utils/helpers.js";
+import {
+  estimateMergeCommitCount,
+  filterDiffsByPatterns,
+  summarizeWebhookEvents,
+} from "./utils/helpers.js";
 import { graphqlQueryContainsWriteOperation } from "./utils/graphql-query.js";
 import { resolveNestedWikiUpdateTitle } from "./utils/wiki-title.js";
 import {
@@ -756,7 +781,11 @@ function createServer(): McpServer {
 
       // Safety net: remove $schema if present (toJSONSchema strips it for zod schemas,
       // but manually-defined schemas like discover_tools may still have it)
-      if (modified.inputSchema && typeof modified.inputSchema === "object" && modified.inputSchema !== null) {
+      if (
+        modified.inputSchema &&
+        typeof modified.inputSchema === "object" &&
+        modified.inputSchema !== null
+      ) {
         if ("$schema" in modified.inputSchema) {
           modified.inputSchema = { ...modified.inputSchema };
           delete modified.inputSchema.$schema;
@@ -803,13 +832,24 @@ function createServer(): McpServer {
 
     const logCompletion = (result: any) => {
       const durationMs = Date.now() - start;
-      logger.info({ tool: toolName, event: "tool_call_done", durationMs }, `tool_call_done: ${toolName} (${durationMs}ms)`);
+      logger.info(
+        { tool: toolName, event: "tool_call_done", durationMs },
+        `tool_call_done: ${toolName} (${durationMs}ms)`
+      );
       return result;
     };
 
     const logError = (error: unknown) => {
       const durationMs = Date.now() - start;
-      logger.error({ tool: toolName, event: "tool_call_error", durationMs, error: error instanceof Error ? error.message : String(error) }, `tool_call_error: ${toolName} (${durationMs}ms)`);
+      logger.error(
+        {
+          tool: toolName,
+          event: "tool_call_error",
+          durationMs,
+          error: error instanceof Error ? error.message : String(error),
+        },
+        `tool_call_error: ${toolName} (${durationMs}ms)`
+      );
       throw error;
     };
 
@@ -837,10 +877,12 @@ function createServer(): McpServer {
 
         if (!ALL_TOOLSET_IDS.has(category as ToolsetId)) {
           return logCompletion({
-            content: [{
-              type: "text",
-              text: `Unknown category "${category}". Available: ${[...ALL_TOOLSET_IDS].join(", ")}`,
-            }],
+            content: [
+              {
+                type: "text",
+                text: `Unknown category "${category}". Available: ${[...ALL_TOOLSET_IDS].join(", ")}`,
+              },
+            ],
             isError: true,
           });
         }
@@ -857,10 +899,12 @@ function createServer(): McpServer {
         const alreadyActive = [...toolsetDef.tools].every(t => currentToolNames.has(t));
         if (alreadyActive) {
           return logCompletion({
-            content: [{
-              type: "text",
-              text: `Category "${category}" is already active (${toolsetDef.tools.size} tools).`,
-            }],
+            content: [
+              {
+                type: "text",
+                text: `Category "${category}" is already active (${toolsetDef.tools.size} tools).`,
+              },
+            ],
           });
         }
 
@@ -877,10 +921,12 @@ function createServer(): McpServer {
 
         if (newTools.length === 0) {
           return logCompletion({
-            content: [{
-              type: "text",
-              text: `Category "${category}" has no additional tools to activate (all already active or filtered).`,
-            }],
+            content: [
+              {
+                type: "text",
+                text: `Category "${category}" has no additional tools to activate (all already active or filtered).`,
+              },
+            ],
           });
         }
 
@@ -894,7 +940,10 @@ function createServer(): McpServer {
         }
 
         const addedNames = newTools.map(t => t.name);
-        logger.info({ event: "toolset_activated", category, toolCount: addedNames.length }, `Activated toolset: ${category} (+${addedNames.length} tools)`);
+        logger.info(
+          { event: "toolset_activated", category, toolCount: addedNames.length },
+          `Activated toolset: ${category} (+${addedNames.length} tools)`
+        );
 
         return logCompletion({
           content: [{
@@ -912,12 +961,17 @@ function createServer(): McpServer {
       if (approveToolSet.has(toolName)) {
         const confirmed = request.params.arguments?._confirmed === true;
         if (!confirmed) {
-          logger.info({ tool: toolName, event: "tool_call_approval_required" }, `Approval required: ${toolName}`);
+          logger.info(
+            { tool: toolName, event: "tool_call_approval_required" },
+            `Approval required: ${toolName}`
+          );
           return logCompletion({
-            content: [{
-              type: "text",
-              text: `Tool "${toolName}" requires confirmation. This tool is marked as requiring approval before execution. Re-call with _confirmed: true to proceed.`,
-            }],
+            content: [
+              {
+                type: "text",
+                text: `Tool "${toolName}" requires confirmation. This tool is marked as requiring approval before execution. Re-call with _confirmed: true to proceed.`,
+              },
+            ],
           });
         }
         // Strip _confirmed from args before forwarding to handler
@@ -936,7 +990,9 @@ function createServer(): McpServer {
           publicBaseUrl: authData.publicBaseUrl,
         };
         // Run the handler within the retrieved context
-        const result = await sessionAuthStore.run(sessionContext, () => handleToolCall(request.params));
+        const result = await sessionAuthStore.run(sessionContext, () =>
+          handleToolCall(request.params)
+        );
         return logCompletion(result);
       }
       // Fallback for non-remote-auth mode or if session is not found
@@ -1044,8 +1100,7 @@ function validateConfiguration(): void {
         const u = new URL(mcpServerUrl);
         const isInsecure = u.protocol !== "https:";
         const isLocalhost = u.hostname === "localhost" || u.hostname === "127.0.0.1";
-        const allowInsecure =
-          process.env.MCP_DANGEROUSLY_ALLOW_INSECURE_ISSUER_URL === "true";
+        const allowInsecure = process.env.MCP_DANGEROUSLY_ALLOW_INSECURE_ISSUER_URL === "true";
         if (isInsecure && !isLocalhost && !allowInsecure) {
           errors.push(
             "MCP_SERVER_URL must use HTTPS in production " +
@@ -1110,11 +1165,22 @@ function redactSessionIdForLog(sid: string | undefined): string {
 function isInitializationRequestBody(body: unknown): boolean {
   if (!body) return false;
   const isInitObj = (m: unknown): boolean =>
-    typeof m === "object" &&
-    m !== null &&
-    (m as { method?: unknown }).method === "initialize";
+    typeof m === "object" && m !== null && (m as { method?: unknown }).method === "initialize";
   if (Array.isArray(body)) return body.some(isInitObj);
   return isInitObj(body);
+}
+
+function isUnauthenticatedDiscoveryRequestBody(body: unknown): boolean {
+  if (!body) return false;
+  const isDiscoveryMethod = (m: unknown): boolean => {
+    if (typeof m !== "object" || m === null) return false;
+    const method = (m as { method?: unknown }).method;
+    return (
+      method === "initialize" || method === "notifications/initialized" || method === "tools/list"
+    );
+  };
+  if (Array.isArray(body)) return body.every(isDiscoveryMethod);
+  return isDiscoveryMethod(body);
 }
 
 /**
@@ -1134,9 +1200,9 @@ function isInitializationRequestBody(body: unknown): boolean {
  *
  * Exported for unit tests; otherwise used only by the /mcp handlers below.
  */
-export function readMcpSessionIdHeader(
-  req: { headers: Record<string, string | string[] | undefined> }
-): string | undefined {
+export function readMcpSessionIdHeader(req: {
+  headers: Record<string, string | string[] | undefined>;
+}): string | undefined {
   const raw = req.headers["mcp-session-id"];
   if (typeof raw !== "string") return undefined;
   return raw.length > 0 ? raw : undefined;
@@ -1162,9 +1228,7 @@ try {
   }
 } catch (err) {
   // eslint-disable-next-line no-console -- startup failure must be visible
-  console.error(
-    `[gitlab-mcp] failed to load stateless secret: ${(err as Error).message}`
-  );
+  console.error(`[gitlab-mcp] failed to load stateless secret: ${(err as Error).message}`);
   process.exit(1);
 }
 
@@ -1176,14 +1240,10 @@ try {
  * and get the intended 404 Session not found — rather than being masked by
  * a 401 from the OAuth bearer middleware.
  */
-export function hasStatelessSessionId(
-  req: { headers: Record<string, string | string[] | undefined> }
-): boolean {
-  return Boolean(
-    OAUTH_STATELESS_MODE &&
-      STATELESS_MATERIAL &&
-      readMcpSessionIdHeader(req)
-  );
+export function hasStatelessSessionId(req: {
+  headers: Record<string, string | string[] | undefined>;
+}): boolean {
+  return Boolean(OAUTH_STATELESS_MODE && STATELESS_MATERIAL && readMcpSessionIdHeader(req));
 }
 
 /**
@@ -1263,12 +1323,18 @@ const hiddenToolSet = new Set(
   const knownToolNames = new Set(allTools.map(t => t.name));
   for (const name of approveToolSet) {
     if (!knownToolNames.has(name)) {
-      logger.warn({ event: "unknown_approve_tool", name }, `GITLAB_TOOL_POLICY_APPROVE contains unknown tool: "${name}"`);
+      logger.warn(
+        { event: "unknown_approve_tool", name },
+        `GITLAB_TOOL_POLICY_APPROVE contains unknown tool: "${name}"`
+      );
     }
   }
   for (const name of hiddenToolSet) {
     if (!knownToolNames.has(name)) {
-      logger.warn({ event: "unknown_hidden_tool", name }, `GITLAB_TOOL_POLICY_HIDDEN contains unknown tool: "${name}"`);
+      logger.warn(
+        { event: "unknown_hidden_tool", name },
+        `GITLAB_TOOL_POLICY_HIDDEN contains unknown tool: "${name}"`
+      );
     }
   }
 }
@@ -1354,7 +1420,9 @@ function defaultAuthRetryConfig() {
   return {
     isOAuthEnabled: () => USE_OAUTH && oauthClient != null,
     refreshToken: (force: boolean) => oauthClient!.getAccessToken(force),
-    onTokenRefreshed: (token: string) => { OAUTH_ACCESS_TOKEN = token; },
+    onTokenRefreshed: (token: string) => {
+      OAUTH_ACCESS_TOKEN = token;
+    },
     buildAuthHeaders,
     logger,
   };
@@ -1386,7 +1454,10 @@ async function reloadCookiesIfChanged(): Promise<void> {
         lastCookieMtime = mtime;
         const newJar = await createCookieJar();
         cookieJar = newJar;
-        fetch = wrapWithAuthRetry(newJar ? fetchCookie(nodeFetch, newJar) : nodeFetch, defaultAuthRetryConfig());
+        fetch = wrapWithAuthRetry(
+          newJar ? fetchCookie(nodeFetch, newJar) : nodeFetch,
+          defaultAuthRetryConfig()
+        );
         initialSessionRequestMade = false;
       }
     } catch {
@@ -1451,7 +1522,11 @@ const sessionAuthStore = new AsyncLocalStorage<SessionAuth>();
 // This survives async boundaries where AsyncLocalStorage might not
 const authBySession: Record<string, AuthData> = {};
 
-function withPublicBaseUrl(authData: AuthData, publicBaseUrl?: string, previous?: AuthData): AuthData {
+function withPublicBaseUrl(
+  authData: AuthData,
+  publicBaseUrl?: string,
+  previous?: AuthData
+): AuthData {
   const effectivePublicBaseUrl = publicBaseUrl || previous?.publicBaseUrl;
   return effectivePublicBaseUrl ? { ...authData, publicBaseUrl: effectivePublicBaseUrl } : authData;
 }
@@ -1552,7 +1627,6 @@ const getFetchConfig = () => {
   };
 };
 
-
 // Compute at startup
 const enabledToolsets = parseEnabledToolsets(GITLAB_TOOLSETS_RAW);
 const individuallyEnabledTools = parseIndividualTools(GITLAB_TOOLS_RAW);
@@ -1562,7 +1636,7 @@ const featureFlagOverrides = buildFeatureFlagOverrides();
 if (GITLAB_TOOLSETS_RAW && (USE_PIPELINE || USE_MILESTONE || USE_GITLAB_WIKI)) {
   logger.warn(
     "GITLAB_TOOLSETS is set alongside legacy flags (USE_PIPELINE, USE_MILESTONE, USE_GITLAB_WIKI). " +
-    "Legacy flags add tools additively on top of the toolset selection and may produce unexpected results."
+      "Legacy flags add tools additively on top of the toolset selection and may produce unexpected results."
   );
 }
 
@@ -1631,8 +1705,6 @@ type GitLabMergeRequestWithDeploymentSummary = GitLabMergeRequest & {
   };
 };
 
-
-
 // Use the normalizeGitLabApiUrl function to handle various URL formats
 const GITLAB_API_URLS = (getConfig("api-url", "GITLAB_API_URL") || "https://gitlab.com")
   .split(",")
@@ -1680,10 +1752,19 @@ if (GITLAB_MCP_OAUTH) {
     logger.error("Set STREAMABLE_HTTP=true to enable MCP OAuth");
     process.exit(1);
   }
-  logger.info("MCP OAuth enabled: GitLab OAuth proxy active (Private-Token/JOB-TOKEN headers bypass OAuth)");
+  logger.info(
+    "MCP OAuth enabled: GitLab OAuth proxy active (Private-Token/JOB-TOKEN headers bypass OAuth)"
+  );
 }
 
-if (!REMOTE_AUTHORIZATION && !GITLAB_MCP_OAUTH && !USE_OAUTH && !GITLAB_PERSONAL_ACCESS_TOKEN && !GITLAB_JOB_TOKEN && !GITLAB_AUTH_COOKIE_PATH) {
+if (
+  !REMOTE_AUTHORIZATION &&
+  !GITLAB_MCP_OAUTH &&
+  !USE_OAUTH &&
+  !GITLAB_PERSONAL_ACCESS_TOKEN &&
+  !GITLAB_JOB_TOKEN &&
+  !GITLAB_AUTH_COOKIE_PATH
+) {
   // Standard mode: token must be in environment (unless using OAuth)
   logger.error("GITLAB_PERSONAL_ACCESS_TOKEN environment variable is not set");
   logger.info("Either set GITLAB_PERSONAL_ACCESS_TOKEN or enable OAuth with GITLAB_USE_OAUTH=true");
@@ -2161,8 +2242,7 @@ async function executeGraphQL<T = any>(
   const restPath = apiUrl.pathname || "";
   const idx = restPath.lastIndexOf("/api/v4");
   const prefix = idx >= 0 ? restPath.slice(0, idx) : "";
-  const graphqlUrl =
-    process.env.GITLAB_GRAPHQL_URL || `${apiUrl.origin}${prefix}/api/graphql`;
+  const graphqlUrl = process.env.GITLAB_GRAPHQL_URL || `${apiUrl.origin}${prefix}/api/graphql`;
 
   const response = await fetch(graphqlUrl, {
     ...getFetchConfig(),
@@ -2272,10 +2352,7 @@ const WORK_ITEM_TYPE_NAMES: Record<string, string> = {
 /**
  * Get the GraphQL GID for a work item type by querying the project's available types.
  */
-async function resolveWorkItemTypeGID(
-  projectPath: string,
-  typeName: string
-): Promise<string> {
+async function resolveWorkItemTypeGID(projectPath: string, typeName: string): Promise<string> {
   const targetName = WORK_ITEM_TYPE_NAMES[typeName];
   if (!targetName) {
     throw new Error(`Unknown work item type: ${typeName}`);
@@ -2297,13 +2374,9 @@ async function resolveWorkItemTypeGID(
     { path: projectPath }
   );
 
-  const typeNode = data.namespace?.workItemTypes?.nodes?.find(
-    (n) => n.name === targetName
-  );
+  const typeNode = data.namespace?.workItemTypes?.nodes?.find(n => n.name === targetName);
   if (!typeNode) {
-    throw new Error(
-      `Work item type '${targetName}' not found in project ${projectPath}`
-    );
+    throw new Error(`Work item type '${targetName}' not found in project ${projectPath}`);
   }
   return typeNode.id;
 }
@@ -2352,10 +2425,7 @@ async function convertIssueType(
 /**
  * Remove the parent from a work item.
  */
-async function removeIssueParent(
-  projectId: string,
-  issueIid: number
-): Promise<void> {
+async function removeIssueParent(projectId: string, issueIid: number): Promise<void> {
   const { workItemGID } = await resolveWorkItemGID(projectId, issueIid);
 
   const data = await executeGraphQL<{
@@ -2384,10 +2454,7 @@ async function removeIssueParent(
  * List available statuses for a work item type in a project.
  * Requires Premium/Ultimate with configurable statuses enabled.
  */
-async function listIssueStatuses(
-  projectId: string,
-  workItemType: string = "issue"
-): Promise<any> {
+async function listIssueStatuses(projectId: string, workItemType: string = "issue"): Promise<any> {
   const projectPath = await resolveProjectPath(projectId);
   const typeName = WORK_ITEM_TYPE_NAMES[workItemType] || "Issue";
 
@@ -2557,11 +2624,7 @@ async function listCustomFieldDefinitions(
 /**
  * Move a work item to a different project.
  */
-async function moveWorkItem(
-  projectId: string,
-  iid: number,
-  targetProjectId: string
-): Promise<any> {
+async function moveWorkItem(projectId: string, iid: number, targetProjectId: string): Promise<any> {
   const projectPath = await resolveProjectPath(projectId);
   const targetPath = await resolveProjectPath(targetProjectId);
 
@@ -2725,12 +2788,14 @@ async function createWorkItemNote(
   return data.createNote.note;
 }
 
-
 // --- Emoji Reactions (GraphQL) ---
 
 async function addGraphQLAwardEmoji(awardableId: string, name: string): Promise<any> {
   const data = await executeGraphQL<{
-    awardEmojiAdd: { awardEmoji: { name: string; user: { username: string } } | null; errors: string[] };
+    awardEmojiAdd: {
+      awardEmoji: { name: string; user: { username: string } } | null;
+      errors: string[];
+    };
   }>(
     `mutation($awardableId: AwardableID!, $name: String!) {
       awardEmojiAdd(input: { awardableId: $awardableId, name: $name }) {
@@ -2783,10 +2848,7 @@ async function removeGraphQLAwardEmoji(awardableId: string, name: string): Promi
 /**
  * List timeline events for an incident.
  */
-async function getTimelineEvents(
-  projectId: string,
-  incidentIid: number
-): Promise<any> {
+async function getTimelineEvents(projectId: string, incidentIid: number): Promise<any> {
   const { workItemGID, projectPath } = await resolveWorkItemGID(projectId, incidentIid);
   // Timeline events expect gid://gitlab/Issue/... not gid://gitlab/WorkItem/...
   const incidentGID = workItemGID.replace("/WorkItem/", "/Issue/");
@@ -2886,7 +2948,9 @@ async function createTimelineEvent(
   );
 
   if (data.timelineEventCreate.errors?.length > 0) {
-    throw new Error(`Failed to create timeline event: ${data.timelineEventCreate.errors.join(", ")}`);
+    throw new Error(
+      `Failed to create timeline event: ${data.timelineEventCreate.errors.join(", ")}`
+    );
   }
 
   const e = data.timelineEventCreate.timelineEvent;
@@ -2966,7 +3030,9 @@ async function updateIncidentEscalationStatus(
   );
 
   if (data.issueSetEscalationStatus.errors?.length > 0) {
-    throw new Error(`Failed to set escalation status: ${data.issueSetEscalationStatus.errors.join(", ")}`);
+    throw new Error(
+      `Failed to set escalation status: ${data.issueSetEscalationStatus.errors.join(", ")}`
+    );
   }
 
   return data.issueSetEscalationStatus.issue;
@@ -3012,10 +3078,7 @@ async function resolveProjectPath(projectId: string): Promise<string> {
 /**
  * Get a single work item with all widget data.
  */
-async function getWorkItem(
-  projectId: string,
-  iid: number
-): Promise<any> {
+async function getWorkItem(projectId: string, iid: number): Promise<any> {
   const projectPath = await resolveProjectPath(projectId);
 
   const data = await executeGraphQL<{
@@ -3105,13 +3168,19 @@ async function getWorkItem(
   const labelsWidget = widgets.find((w: any) => w.__typename === "WorkItemWidgetLabels");
   const assigneesWidget = widgets.find((w: any) => w.__typename === "WorkItemWidgetAssignees");
   const weightWidget = widgets.find((w: any) => w.__typename === "WorkItemWidgetWeight");
-  const healthStatusWidget = widgets.find((w: any) => w.__typename === "WorkItemWidgetHealthStatus");
+  const healthStatusWidget = widgets.find(
+    (w: any) => w.__typename === "WorkItemWidgetHealthStatus"
+  );
   const datesWidget = widgets.find((w: any) => w.__typename === "WorkItemWidgetStartAndDueDate");
   const milestoneWidget = widgets.find((w: any) => w.__typename === "WorkItemWidgetMilestone");
   const linkedItemsWidget = widgets.find((w: any) => w.__typename === "WorkItemWidgetLinkedItems");
-  const timeTrackingWidget = widgets.find((w: any) => w.__typename === "WorkItemWidgetTimeTracking");
+  const timeTrackingWidget = widgets.find(
+    (w: any) => w.__typename === "WorkItemWidgetTimeTracking"
+  );
   const developmentWidget = widgets.find((w: any) => w.__typename === "WorkItemWidgetDevelopment");
-  const customFieldsWidget = widgets.find((w: any) => w.__typename === "WorkItemWidgetCustomFields");
+  const customFieldsWidget = widgets.find(
+    (w: any) => w.__typename === "WorkItemWidgetCustomFields"
+  );
 
   // Build response, omitting null/empty values to keep output lean
   const result: Record<string, any> = {
@@ -3128,7 +3197,12 @@ async function getWorkItem(
   if (wi.author?.username) result.author = wi.author.username;
   if (wi.createdAt) result.createdAt = wi.createdAt;
   if (wi.closedAt) result.closedAt = wi.closedAt;
-  if (statusWidget?.status) result.status = { name: statusWidget.status.name, id: statusWidget.status.id, category: statusWidget.status.category };
+  if (statusWidget?.status)
+    result.status = {
+      name: statusWidget.status.name,
+      id: statusWidget.status.id,
+      category: statusWidget.status.category,
+    };
 
   const labels = (labelsWidget?.labels?.nodes || []).map((l: any) => l.title);
   if (labels.length > 0) result.labels = labels;
@@ -3139,12 +3213,14 @@ async function getWorkItem(
   if (weightWidget?.weight != null) {
     result.weight = weightWidget.weight;
     if (weightWidget.rolledUpWeight != null) result.rolledUpWeight = weightWidget.rolledUpWeight;
-    if (weightWidget.rolledUpCompletedWeight != null) result.rolledUpCompletedWeight = weightWidget.rolledUpCompletedWeight;
+    if (weightWidget.rolledUpCompletedWeight != null)
+      result.rolledUpCompletedWeight = weightWidget.rolledUpCompletedWeight;
   }
   if (healthStatusWidget?.healthStatus) result.healthStatus = healthStatusWidget.healthStatus;
   if (datesWidget?.startDate) result.startDate = datesWidget.startDate;
   if (datesWidget?.dueDate) result.dueDate = datesWidget.dueDate;
-  if (milestoneWidget?.milestone) result.milestone = { id: milestoneWidget.milestone.id, title: milestoneWidget.milestone.title };
+  if (milestoneWidget?.milestone)
+    result.milestone = { id: milestoneWidget.milestone.id, title: milestoneWidget.milestone.title };
 
   const iterationWidget = widgets.find((w: any) => w.__typename === "WorkItemWidgetIteration");
   if (iterationWidget?.iteration) {
@@ -3162,12 +3238,28 @@ async function getWorkItem(
   const colorWidget = widgets.find((w: any) => w.__typename === "WorkItemWidgetColor");
   if (colorWidget?.color) result.color = colorWidget.color;
 
-  if (hierarchyWidget?.parent) result.parent = { iid: hierarchyWidget.parent.iid, title: hierarchyWidget.parent.title, type: hierarchyWidget.parent.workItemType?.name, project: hierarchyWidget.parent.namespace?.fullPath, webUrl: hierarchyWidget.parent.webUrl };
+  if (hierarchyWidget?.parent)
+    result.parent = {
+      iid: hierarchyWidget.parent.iid,
+      title: hierarchyWidget.parent.title,
+      type: hierarchyWidget.parent.workItemType?.name,
+      project: hierarchyWidget.parent.namespace?.fullPath,
+      webUrl: hierarchyWidget.parent.webUrl,
+    };
   const children = hierarchyWidget?.children?.nodes || [];
-  if (children.length > 0) result.children = children.map((c: any) => ({ iid: c.iid, title: c.title, state: c.state, type: c.workItemType?.name, project: c.namespace?.fullPath, webUrl: c.webUrl }));
+  if (children.length > 0)
+    result.children = children.map((c: any) => ({
+      iid: c.iid,
+      title: c.title,
+      state: c.state,
+      type: c.workItemType?.name,
+      project: c.namespace?.fullPath,
+      webUrl: c.webUrl,
+    }));
 
   if (linkedItemsWidget?.blocked) result.blocked = true;
-  if (linkedItemsWidget?.blockedByCount > 0) result.blockedByCount = linkedItemsWidget.blockedByCount;
+  if (linkedItemsWidget?.blockedByCount > 0)
+    result.blockedByCount = linkedItemsWidget.blockedByCount;
   if (linkedItemsWidget?.blockingCount > 0) result.blockingCount = linkedItemsWidget.blockingCount;
   const linkedNodes = linkedItemsWidget?.linkedItems?.nodes || [];
   if (linkedNodes.length > 0) {
@@ -3183,11 +3275,14 @@ async function getWorkItem(
   }
 
   if (timeTrackingWidget?.timeEstimate > 0) result.timeEstimate = timeTrackingWidget.timeEstimate;
-  if (timeTrackingWidget?.totalTimeSpent > 0) result.totalTimeSpent = timeTrackingWidget.totalTimeSpent;
+  if (timeTrackingWidget?.totalTimeSpent > 0)
+    result.totalTimeSpent = timeTrackingWidget.totalTimeSpent;
 
   // Development: only include if there's actual data
   const relatedMRs = developmentWidget?.relatedMergeRequests?.nodes || [];
-  const closingMRs = (developmentWidget?.closingMergeRequests?.nodes || []).map((n: any) => n.mergeRequest);
+  const closingMRs = (developmentWidget?.closingMergeRequests?.nodes || []).map(
+    (n: any) => n.mergeRequest
+  );
   const branches = developmentWidget?.relatedBranches?.nodes || [];
   const flags = developmentWidget?.featureFlags?.nodes || [];
   if (relatedMRs.length > 0 || closingMRs.length > 0 || branches.length > 0 || flags.length > 0) {
@@ -3199,7 +3294,9 @@ async function getWorkItem(
     result.development = dev;
   }
 
-  const cfValues = (customFieldsWidget?.customFieldValues || []).filter((cfv: any) => cfv.value != null || cfv.selectedOptions != null);
+  const cfValues = (customFieldsWidget?.customFieldValues || []).filter(
+    (cfv: any) => cfv.value != null || cfv.selectedOptions != null
+  );
   if (cfValues.length > 0) {
     result.customFields = cfValues.map((cfv: any) => ({
       name: cfv.customField?.name,
@@ -3247,7 +3344,7 @@ async function listWorkItems(
   };
 
   if (options.types && options.types.length > 0) {
-    variables.types = options.types.map((t) => typeMap[t] || t.replace(/ /g, "_").toUpperCase());
+    variables.types = options.types.map(t => typeMap[t] || t.replace(/ /g, "_").toUpperCase());
   }
   if (options.state) {
     variables.state = options.state === "opened" ? "opened" : "closed";
@@ -3299,7 +3396,9 @@ async function listWorkItems(
     const labelsWidget = widgets.find((w: any) => w.__typename === "WorkItemWidgetLabels");
     const assigneesWidget = widgets.find((w: any) => w.__typename === "WorkItemWidgetAssignees");
     const weightWidget = widgets.find((w: any) => w.__typename === "WorkItemWidgetWeight");
-    const healthStatusWidget = widgets.find((w: any) => w.__typename === "WorkItemWidgetHealthStatus");
+    const healthStatusWidget = widgets.find(
+      (w: any) => w.__typename === "WorkItemWidgetHealthStatus"
+    );
     const datesWidget = widgets.find((w: any) => w.__typename === "WorkItemWidgetStartAndDueDate");
     const milestoneWidget = widgets.find((w: any) => w.__typename === "WorkItemWidgetMilestone");
     const item: Record<string, any> = {
@@ -3675,7 +3774,10 @@ async function updateWorkItem(
     inputParts.push("hierarchyWidget: { parentId: null }");
   } else if (options.parent_iid !== undefined) {
     const parentProjectId = options.parent_project_id || projectId;
-    const { workItemGID: parentGID } = await resolveWorkItemGID(parentProjectId, options.parent_iid);
+    const { workItemGID: parentGID } = await resolveWorkItemGID(
+      parentProjectId,
+      options.parent_iid
+    );
     varDefs.push("$parentId: WorkItemID");
     inputParts.push("hierarchyWidget: { parentId: $parentId }");
     variables.parentId = parentGID;
@@ -3721,7 +3823,10 @@ async function updateWorkItem(
   if (options.children_to_add && options.children_to_add.length > 0) {
     const childGIDs: string[] = [];
     for (const child of options.children_to_add) {
-      const { workItemGID: childGID } = await resolveWorkItemGID(child.project_id || projectId, child.iid);
+      const { workItemGID: childGID } = await resolveWorkItemGID(
+        child.project_id || projectId,
+        child.iid
+      );
       childGIDs.push(childGID);
     }
     const addData = await executeGraphQL<{
@@ -3753,7 +3858,10 @@ async function updateWorkItem(
     for (const item of options.linked_items_to_add) {
       const linkType = item.link_type || "RELATED";
       if (!groupedByType[linkType]) groupedByType[linkType] = [];
-      const { workItemGID: targetGID } = await resolveWorkItemGID(item.project_id || projectId, item.iid);
+      const { workItemGID: targetGID } = await resolveWorkItemGID(
+        item.project_id || projectId,
+        item.iid
+      );
       groupedByType[linkType].push(targetGID);
     }
     for (const [linkType, targetGIDs] of Object.entries(groupedByType)) {
@@ -3768,7 +3876,9 @@ async function updateWorkItem(
         { id: workItemGID, workItemsIds: targetGIDs, linkType }
       );
       if (addLinkedData.workItemAddLinkedItems.errors?.length > 0) {
-        throw new Error(`Failed to add linked items: ${addLinkedData.workItemAddLinkedItems.errors.join(", ")}`);
+        throw new Error(
+          `Failed to add linked items: ${addLinkedData.workItemAddLinkedItems.errors.join(", ")}`
+        );
       }
     }
   }
@@ -3777,7 +3887,10 @@ async function updateWorkItem(
   if (options.linked_items_to_remove && options.linked_items_to_remove.length > 0) {
     const targetGIDs: string[] = [];
     for (const item of options.linked_items_to_remove) {
-      const { workItemGID: targetGID } = await resolveWorkItemGID(item.project_id || projectId, item.iid);
+      const { workItemGID: targetGID } = await resolveWorkItemGID(
+        item.project_id || projectId,
+        item.iid
+      );
       targetGIDs.push(targetGID);
     }
     const removeLinkedData = await executeGraphQL<{
@@ -3791,7 +3904,9 @@ async function updateWorkItem(
       { id: workItemGID, workItemsIds: targetGIDs }
     );
     if (removeLinkedData.workItemRemoveLinkedItems.errors?.length > 0) {
-      throw new Error(`Failed to remove linked items: ${removeLinkedData.workItemRemoveLinkedItems.errors.join(", ")}`);
+      throw new Error(
+        `Failed to remove linked items: ${removeLinkedData.workItemRemoveLinkedItems.errors.join(", ")}`
+      );
     }
   }
 
@@ -3836,7 +3951,9 @@ async function updateWorkItem(
     linked_items_added: options.linked_items_to_add?.length || 0,
     linked_items_removed: options.linked_items_to_remove?.length || 0,
     ...(options.severity !== undefined && { severity: options.severity }),
-    ...(options.escalation_status !== undefined && { escalation_status: options.escalation_status }),
+    ...(options.escalation_status !== undefined && {
+      escalation_status: options.escalation_status,
+    }),
   };
 }
 
@@ -4263,9 +4380,7 @@ async function createIssueNote(
     getEffectiveProjectId(projectId)
   )}/issues/${issueIid}`;
   const url = new URL(
-    discussionId
-      ? `${basePath}/discussions/${discussionId}/notes`
-      : `${basePath}/notes`
+    discussionId ? `${basePath}/discussions/${discussionId}/notes` : `${basePath}/notes`
   );
 
   const payload: { body: string; created_at?: string } = { body };
@@ -4937,8 +5052,6 @@ async function getProjectMergeMethod(projectId: string): Promise<string | null> 
 
   return typeof mergeMethod === "string" ? mergeMethod : null;
 }
-
-
 
 async function buildMergeRequestCommitAdditionSummary(
   projectId: string,
@@ -6405,9 +6518,7 @@ function buildWebhookBaseUrl(projectId?: string, groupId?: string): string {
 /**
  * List webhooks for a project or group
  */
-async function listWebhooks(
-  options: z.infer<typeof ListWebhooksSchema>
-): Promise<unknown[]> {
+async function listWebhooks(options: z.infer<typeof ListWebhooksSchema>): Promise<unknown[]> {
   const url = new URL(buildWebhookBaseUrl(options.project_id, options.group_id));
 
   if (options.page) url.searchParams.append("page", options.page.toString());
@@ -6417,8 +6528,6 @@ async function listWebhooks(
   await handleGitLabError(response);
   return (await response.json()) as unknown[];
 }
-
-
 
 /**
  * Fetch a single page of webhook events
@@ -6605,9 +6714,7 @@ async function listGroupWikiPages(
   options: Omit<ListGroupWikiPagesOptions, "group_id"> = {}
 ): Promise<GitLabWikiPage[]> {
   groupId = decodeURIComponent(groupId); // Decode group ID
-  const url = new URL(
-    `${getEffectiveApiUrl()}/groups/${encodeURIComponent(groupId)}/wikis`
-  );
+  const url = new URL(`${getEffectiveApiUrl()}/groups/${encodeURIComponent(groupId)}/wikis`);
   if (options.page) url.searchParams.append("page", options.page.toString());
   if (options.per_page) url.searchParams.append("per_page", options.per_page.toString());
   if (options.with_content)
@@ -7142,7 +7249,9 @@ async function listJobArtifacts(
   });
 
   if (response.status === 404) {
-    throw new Error(`Job artifacts not found. The job may not have produced artifacts or the job ID is invalid.`);
+    throw new Error(
+      `Job artifacts not found. The job may not have produced artifacts or the job ID is invalid.`
+    );
   }
 
   await handleGitLabError(response);
@@ -7175,7 +7284,9 @@ async function downloadJobArtifacts(
   });
 
   if (response.status === 404) {
-    throw new Error(`Job artifacts not found. The job may not have produced artifacts or the job ID is invalid.`);
+    throw new Error(
+      `Job artifacts not found. The job may not have produced artifacts or the job ID is invalid.`
+    );
   }
 
   await handleGitLabError(response);
@@ -7988,7 +8099,9 @@ async function getCurrentUser(): Promise<GitLabUser> {
   if ((response.status === 401 || response.status === 403) && usesJobTokenHeader()) {
     const jobResponse = await fetch(`${getEffectiveApiUrl()}/job`, getFetchConfig());
     if (jobResponse.ok) {
-      const jobData = await jobResponse.json() as { user?: { username?: string; id?: number; name?: string } };
+      const jobData = (await jobResponse.json()) as {
+        user?: { username?: string; id?: number; name?: string };
+      };
       if (jobData.user) {
         return GitLabUserSchema.parse(jobData.user);
       }
@@ -8014,7 +8127,10 @@ async function myIssues(options: MyIssuesOptions = {}): Promise<GitLabIssue[]> {
   try {
     effectiveProjectId = getEffectiveProjectId(options.project_id || "");
   } catch (err) {
-    if (err instanceof Error && err.message.includes("No project ID provided and GITLAB_PROJECT_ID is not set")) {
+    if (
+      err instanceof Error &&
+      err.message.includes("No project ID provided and GITLAB_PROJECT_ID is not set")
+    ) {
       effectiveProjectId = "";
     } else {
       throw err;
@@ -8116,7 +8232,6 @@ async function listGroupIterations(
   const data = await response.json();
   return z.array(GroupIteration).parse(data);
 }
-
 
 // --- CI/CD Variables ---
 
@@ -8247,7 +8362,9 @@ async function getGroupVariable(
   filter?: { environment_scope: string }
 ): Promise<GitLabCiVariable> {
   const encoded = encodeURIComponent(decodeURIComponent(groupId));
-  const url = new URL(`${getEffectiveApiUrl()}/groups/${encoded}/variables/${encodeURIComponent(key)}`);
+  const url = new URL(
+    `${getEffectiveApiUrl()}/groups/${encoded}/variables/${encodeURIComponent(key)}`
+  );
   if (filter?.environment_scope) {
     url.searchParams.append("filter[environment_scope]", filter.environment_scope);
   }
@@ -8285,7 +8402,11 @@ async function updateGroupVariable(
   if (filter?.environment_scope) {
     url.searchParams.append("filter[environment_scope]", filter.environment_scope);
   }
-  const response = await fetch(url.toString(), { ...getFetchConfig(), method: "PUT", body: JSON.stringify(body) });
+  const response = await fetch(url.toString(), {
+    ...getFetchConfig(),
+    method: "PUT",
+    body: JSON.stringify(body),
+  });
   await handleGitLabError(response);
   const data = await response.json();
   return GitLabCiVariableSchema.parse(data);
@@ -8357,7 +8478,11 @@ async function updateDependencyProxySettings(
   groupPath: string,
   options: Omit<z.infer<typeof UpdateDependencyProxySettingsSchema>, "group_id">
 ): Promise<GitLabDependencyProxy> {
-  if (options.enabled === undefined && options.identity === undefined && options.secret === undefined) {
+  if (
+    options.enabled === undefined &&
+    options.identity === undefined &&
+    options.secret === undefined
+  ) {
     throw new Error("At least one of enabled, identity, or secret must be provided");
   }
   const fullPath = await resolveGroupFullPath(groupPath);
@@ -8383,7 +8508,10 @@ async function updateDependencyProxySettings(
 async function listDependencyProxyBlobs(
   groupPath: string,
   options: Omit<z.infer<typeof ListDependencyProxyBlobsSchema>, "group_id"> = {}
-): Promise<{ blobs: GitLabDependencyProxyBlob[]; pageInfo: { hasNextPage: boolean; endCursor: string | null } }> {
+): Promise<{
+  blobs: GitLabDependencyProxyBlob[];
+  pageInfo: { hasNextPage: boolean; endCursor: string | null };
+}> {
   const fullPath = await resolveGroupFullPath(groupPath);
   const data = await executeGraphQL<{
     group: {
@@ -8407,7 +8535,11 @@ async function listDependencyProxyBlobs(
   if (!conn) throw new Error(`Group not found or dependency proxy not enabled: ${fullPath}`);
   return {
     blobs: conn.nodes.map(n =>
-      GitLabDependencyProxyBlobSchema.parse({ file_name: n.fileName, size: n.size, created_at: n.createdAt })
+      GitLabDependencyProxyBlobSchema.parse({
+        file_name: n.fileName,
+        size: n.size,
+        created_at: n.createdAt,
+      })
     ),
     pageInfo: conn.pageInfo,
   };
@@ -8446,7 +8578,9 @@ async function markdownUpload(
   let fileName: string;
 
   if (IS_REMOTE && filePath) {
-    throw new Error("file_path cannot be used in remote mode. Provide base64-encoded content and filename instead.");
+    throw new Error(
+      "file_path cannot be used in remote mode. Provide base64-encoded content and filename instead."
+    );
   }
 
   if (content) {
@@ -8482,7 +8616,7 @@ async function markdownUpload(
   const response = await fetch(url.toString(), {
     ...defaultFetchConfig,
     method: "POST",
-    body: form
+    body: form,
   });
 
   if (!response.ok) {
@@ -8936,10 +9070,7 @@ async function deleteTag(projectId: string, tagName: string): Promise<void> {
  * @param tagName The name of the tag
  * @returns Tag signature
  */
-async function getTagSignature(
-  projectId: string,
-  tagName: string
-): Promise<GitLabTagSignature> {
+async function getTagSignature(projectId: string, tagName: string): Promise<GitLabTagSignature> {
   const effectiveProjectId = getEffectiveProjectId(projectId);
 
   const response = await fetch(
@@ -9355,7 +9486,6 @@ async function handleToolCall(params: any) {
         };
       }
 
-
       case "list_merge_request_emoji_reactions": {
         const args = ListMergeRequestEmojiReactionsSchema.parse(params.arguments);
         const path = buildAwardEmojiPath("merge_requests", args.project_id, args.merge_request_iid);
@@ -9365,7 +9495,12 @@ async function handleToolCall(params: any) {
 
       case "list_merge_request_note_emoji_reactions": {
         const args = ListMergeRequestNoteEmojiReactionsSchema.parse(params.arguments);
-        const path = buildAwardEmojiPath("merge_requests", args.project_id, args.merge_request_iid, { noteId: args.note_id, discussionId: args.discussion_id });
+        const path = buildAwardEmojiPath(
+          "merge_requests",
+          args.project_id,
+          args.merge_request_iid,
+          { noteId: args.note_id, discussionId: args.discussion_id }
+        );
         const result = await listRestAwardEmoji(path);
         return { content: [{ type: "text", text: JSON.stringify(result) }] };
       }
@@ -9379,23 +9514,44 @@ async function handleToolCall(params: any) {
 
       case "delete_merge_request_emoji_reaction": {
         const args = DeleteMergeRequestEmojiReactionSchema.parse(params.arguments);
-        const path = buildAwardEmojiPath("merge_requests", args.project_id, args.merge_request_iid, { awardId: args.award_id });
+        const path = buildAwardEmojiPath(
+          "merge_requests",
+          args.project_id,
+          args.merge_request_iid,
+          { awardId: args.award_id }
+        );
         await deleteRestAwardEmoji(path);
-        return { content: [{ type: "text", text: "Merge request emoji reaction deleted successfully" }] };
+        return {
+          content: [{ type: "text", text: "Merge request emoji reaction deleted successfully" }],
+        };
       }
 
       case "create_merge_request_note_emoji_reaction": {
         const args = CreateMergeRequestNoteEmojiReactionSchema.parse(params.arguments);
-        const path = buildAwardEmojiPath("merge_requests", args.project_id, args.merge_request_iid, { noteId: args.note_id, discussionId: args.discussion_id });
+        const path = buildAwardEmojiPath(
+          "merge_requests",
+          args.project_id,
+          args.merge_request_iid,
+          { noteId: args.note_id, discussionId: args.discussion_id }
+        );
         const result = await createRestAwardEmoji(path, args.name);
         return { content: [{ type: "text", text: JSON.stringify(result) }] };
       }
 
       case "delete_merge_request_note_emoji_reaction": {
         const args = DeleteMergeRequestNoteEmojiReactionSchema.parse(params.arguments);
-        const path = buildAwardEmojiPath("merge_requests", args.project_id, args.merge_request_iid, { noteId: args.note_id, discussionId: args.discussion_id, awardId: args.award_id });
+        const path = buildAwardEmojiPath(
+          "merge_requests",
+          args.project_id,
+          args.merge_request_iid,
+          { noteId: args.note_id, discussionId: args.discussion_id, awardId: args.award_id }
+        );
         await deleteRestAwardEmoji(path);
-        return { content: [{ type: "text", text: "Merge request note emoji reaction deleted successfully" }] };
+        return {
+          content: [
+            { type: "text", text: "Merge request note emoji reaction deleted successfully" },
+          ],
+        };
       }
 
       case "update_issue_note": {
@@ -9427,7 +9583,6 @@ async function handleToolCall(params: any) {
         };
       }
 
-
       case "list_issue_emoji_reactions": {
         const args = ListIssueEmojiReactionsSchema.parse(params.arguments);
         const path = buildAwardEmojiPath("issues", args.project_id, args.issue_iid);
@@ -9437,7 +9592,10 @@ async function handleToolCall(params: any) {
 
       case "list_issue_note_emoji_reactions": {
         const args = ListIssueNoteEmojiReactionsSchema.parse(params.arguments);
-        const path = buildAwardEmojiPath("issues", args.project_id, args.issue_iid, { noteId: args.note_id, discussionId: args.discussion_id });
+        const path = buildAwardEmojiPath("issues", args.project_id, args.issue_iid, {
+          noteId: args.note_id,
+          discussionId: args.discussion_id,
+        });
         const result = await listRestAwardEmoji(path);
         return { content: [{ type: "text", text: JSON.stringify(result) }] };
       }
@@ -9451,23 +9609,34 @@ async function handleToolCall(params: any) {
 
       case "delete_issue_emoji_reaction": {
         const args = DeleteIssueEmojiReactionSchema.parse(params.arguments);
-        const path = buildAwardEmojiPath("issues", args.project_id, args.issue_iid, { awardId: args.award_id });
+        const path = buildAwardEmojiPath("issues", args.project_id, args.issue_iid, {
+          awardId: args.award_id,
+        });
         await deleteRestAwardEmoji(path);
         return { content: [{ type: "text", text: "Issue emoji reaction deleted successfully" }] };
       }
 
       case "create_issue_note_emoji_reaction": {
         const args = CreateIssueNoteEmojiReactionSchema.parse(params.arguments);
-        const path = buildAwardEmojiPath("issues", args.project_id, args.issue_iid, { noteId: args.note_id, discussionId: args.discussion_id });
+        const path = buildAwardEmojiPath("issues", args.project_id, args.issue_iid, {
+          noteId: args.note_id,
+          discussionId: args.discussion_id,
+        });
         const result = await createRestAwardEmoji(path, args.name);
         return { content: [{ type: "text", text: JSON.stringify(result) }] };
       }
 
       case "delete_issue_note_emoji_reaction": {
         const args = DeleteIssueNoteEmojiReactionSchema.parse(params.arguments);
-        const path = buildAwardEmojiPath("issues", args.project_id, args.issue_iid, { noteId: args.note_id, discussionId: args.discussion_id, awardId: args.award_id });
+        const path = buildAwardEmojiPath("issues", args.project_id, args.issue_iid, {
+          noteId: args.note_id,
+          discussionId: args.discussion_id,
+          awardId: args.award_id,
+        });
         await deleteRestAwardEmoji(path);
-        return { content: [{ type: "text", text: "Issue note emoji reaction deleted successfully" }] };
+        return {
+          content: [{ type: "text", text: "Issue note emoji reaction deleted successfully" }],
+        };
       }
 
       case "list_todos": {
@@ -9684,10 +9853,7 @@ async function handleToolCall(params: any) {
 
       case "get_merge_request_conflicts": {
         const args = GetMergeRequestConflictsSchema.parse(params.arguments);
-        const conflicts = await getMergeRequestConflicts(
-          args.project_id,
-          args.merge_request_iid
-        );
+        const conflicts = await getMergeRequestConflicts(args.project_id, args.merge_request_iid);
         return {
           content: [{ type: "text", text: JSON.stringify(conflicts) }],
         };
@@ -9831,9 +9997,7 @@ async function handleToolCall(params: any) {
 
       case "get_user": {
         const args = GetUserSchema.parse(params.arguments);
-        const url = new URL(
-          `${getEffectiveApiUrl()}/users/${encodeURIComponent(args.user_id)}`
-        );
+        const url = new URL(`${getEffectiveApiUrl()}/users/${encodeURIComponent(args.user_id)}`);
 
         const response = await fetch(url.toString(), {
           ...getFetchConfig(),
@@ -9897,7 +10061,14 @@ async function handleToolCall(params: any) {
 
       case "create_draft_note": {
         const args = CreateDraftNoteSchema.parse(params.arguments);
-        const { project_id, merge_request_iid, body, in_reply_to_discussion_id, position, resolve_discussion } = args;
+        const {
+          project_id,
+          merge_request_iid,
+          body,
+          in_reply_to_discussion_id,
+          position,
+          resolve_discussion,
+        } = args;
 
         const draftNote = await createDraftNote(
           project_id,
@@ -10022,7 +10193,8 @@ async function handleToolCall(params: any) {
 
       case "update_issue_description_patch": {
         const args = UpdateIssueDescriptionPatchSchema.parse(params.arguments);
-        const { project_id, issue_iid, patch_type, patch, dry_run, create_note, allow_multiple } = args;
+        const { project_id, issue_iid, patch_type, patch, dry_run, create_note, allow_multiple } =
+          args;
 
         // Fetch current issue description
         const currentIssue = await getIssue(project_id, issue_iid);
@@ -10080,8 +10252,7 @@ async function handleToolCall(params: any) {
         let noteResult = null;
         if (create_note) {
           try {
-            const noteBody =
-              `Updated issue description using patch-based tool.\n\n${result.summary}`;
+            const noteBody = `Updated issue description using patch-based tool.\n\n${result.summary}`;
             await createIssueNote(project_id, issue_iid, undefined, noteBody);
             noteResult = { status: "created" };
           } catch (noteError: any) {
@@ -10231,11 +10402,7 @@ async function handleToolCall(params: any) {
 
       case "convert_work_item_type": {
         const args = ConvertWorkItemTypeSchema.parse(params.arguments);
-        const result = await convertIssueType(
-          args.project_id,
-          args.iid,
-          args.new_type
-        );
+        const result = await convertIssueType(args.project_id, args.iid, args.new_type);
         return {
           content: [{ type: "text", text: JSON.stringify(result) }],
         };
@@ -10280,7 +10447,6 @@ async function handleToolCall(params: any) {
           content: [{ type: "text", text: JSON.stringify(result) }],
         };
       }
-
 
       case "list_work_item_emoji_reactions": {
         const args = ListWorkItemEmojiReactionsSchema.parse(params.arguments);
@@ -10754,9 +10920,7 @@ async function handleToolCall(params: any) {
       }
 
       case "list_job_artifacts": {
-        const { project_id, job_id, ...options } = ListJobArtifactsSchema.parse(
-          params.arguments
-        );
+        const { project_id, job_id, ...options } = ListJobArtifactsSchema.parse(params.arguments);
         const artifacts = await listJobArtifacts(project_id, job_id, options);
         return {
           content: [
@@ -10774,7 +10938,9 @@ async function handleToolCall(params: any) {
         );
         if (IS_REMOTE) {
           if (local_path) {
-            throw new Error("local_path cannot be used in remote mode — use the returned download_url instead");
+            throw new Error(
+              "local_path cannot be used in remote mode — use the returned download_url instead"
+            );
           }
           const downloadUrl = buildDownloadUrl("job-artifacts", { project_id, job_id });
           return {
@@ -11154,7 +11320,12 @@ async function handleToolCall(params: any) {
       case "upload_markdown": {
         if (IS_REMOTE) {
           const args = MarkdownUploadRemoteSchema.parse(params.arguments);
-          const upload = await markdownUpload(args.project_id, undefined, args.content, args.filename);
+          const upload = await markdownUpload(
+            args.project_id,
+            undefined,
+            args.content,
+            args.filename
+          );
           return {
             content: [{ type: "text", text: JSON.stringify(upload) }],
           };
@@ -11170,14 +11341,18 @@ async function handleToolCall(params: any) {
         const args = DownloadAttachmentSchema.parse(params.arguments);
 
         if (IS_REMOTE && args.local_path) {
-          throw new Error("local_path cannot be used in remote mode — use the returned download_url instead");
+          throw new Error(
+            "local_path cannot be used in remote mode — use the returned download_url instead"
+          );
         }
 
         // In remote mode for non-image files, return proxy URL
         const mimeType = getImageMimeType(args.filename);
         if (IS_REMOTE && !mimeType) {
           const downloadUrl = buildDownloadUrl("attachment", {
-            project_id: args.project_id, secret: args.secret, filename: args.filename,
+            project_id: args.project_id,
+            secret: args.secret,
+            filename: args.filename,
           });
           return {
             content: [{ type: "text", text: JSON.stringify({ download_url: downloadUrl, filename: args.filename }) }],
@@ -11309,7 +11484,9 @@ async function handleToolCall(params: any) {
         const args = DownloadReleaseAssetSchema.parse(params.arguments);
         if (IS_REMOTE) {
           const downloadUrl = buildDownloadUrl("release-asset", {
-            project_id: args.project_id, tag_name: args.tag_name, direct_asset_path: args.direct_asset_path,
+            project_id: args.project_id,
+            tag_name: args.tag_name,
+            direct_asset_path: args.direct_asset_path,
           });
           return {
             content: [{ type: "text", text: JSON.stringify({ download_url: downloadUrl, filename: args.direct_asset_path.split("/").pop() || args.direct_asset_path }) }],
@@ -11396,9 +11573,7 @@ async function handleToolCall(params: any) {
         const args = GetWebhookEventSchema.parse(params.arguments);
         const event = await getWebhookEvent(args);
         if (!event) {
-          const searchScope = args.page
-            ? `on page ${args.page}`
-            : "in the 500 most recent events";
+          const searchScope = args.page ? `on page ${args.page}` : "in the 500 most recent events";
           return {
             content: [
               {
@@ -11422,13 +11597,26 @@ async function handleToolCall(params: any) {
         const url = new URL(`${getEffectiveApiUrl()}/user`);
         const response = await fetch(url.toString(), getFetchConfig());
         let authenticated = response.ok;
-        if (!authenticated && (response.status === 401 || response.status === 403) && (GITLAB_JOB_TOKEN || usesJobTokenHeader())) {
+        if (
+          !authenticated &&
+          (response.status === 401 || response.status === 403) &&
+          (GITLAB_JOB_TOKEN || usesJobTokenHeader())
+        ) {
           const jobUrl = new URL(`${getEffectiveApiUrl()}/job`);
           const jobResponse = await fetch(jobUrl.toString(), getFetchConfig());
           authenticated = jobResponse.ok;
         }
         return {
-          content: [{ type: "text", text: JSON.stringify({ status: authenticated ? "ok" : "error", authenticated, gitlab_url: getEffectiveApiUrl() }) }],
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify({
+                status: authenticated ? "ok" : "error",
+                authenticated,
+                gitlab_url: getEffectiveApiUrl(),
+              }),
+            },
+          ],
         };
       }
 
@@ -11552,10 +11740,13 @@ async function handleToolCall(params: any) {
 
         const body: Record<string, unknown> = { name: args.branch_name };
         if (args.push_access_level !== undefined) body.push_access_level = args.push_access_level;
-        if (args.merge_access_level !== undefined) body.merge_access_level = args.merge_access_level;
-        if (args.unprotect_access_level !== undefined) body.unprotect_access_level = args.unprotect_access_level;
+        if (args.merge_access_level !== undefined)
+          body.merge_access_level = args.merge_access_level;
+        if (args.unprotect_access_level !== undefined)
+          body.unprotect_access_level = args.unprotect_access_level;
         if (args.allow_force_push !== undefined) body.allow_force_push = args.allow_force_push;
-        if (args.code_owner_approval_required !== undefined) body.code_owner_approval_required = args.code_owner_approval_required;
+        if (args.code_owner_approval_required !== undefined)
+          body.code_owner_approval_required = args.code_owner_approval_required;
 
         const response = await fetch(url.toString(), {
           ...getFetchConfig(),
@@ -11675,7 +11866,7 @@ async function startStdioServer(): Promise<void> {
  */
 function registerDownloadProxy(
   app: ReturnType<typeof express>,
-  maxRequestsPerMinute: number = Number.parseInt(process.env.MAX_REQUESTS_PER_MINUTE || "60", 10),
+  maxRequestsPerMinute: number = Number.parseInt(process.env.MAX_REQUESTS_PER_MINUTE || "60", 10)
 ): void {
   const downloadRateLimits: Record<string, { count: number; resetAt: number }> = {};
   let lastEviction = Date.now();
@@ -11800,7 +11991,9 @@ function registerDownloadProxy(
         case "release-asset": {
           const { project_id, tag_name, direct_asset_path } = req.query as Record<string, string>;
           if (!project_id || !tag_name || !direct_asset_path) {
-            res.status(400).json({ error: "project_id, tag_name, and direct_asset_path are required" });
+            res
+              .status(400)
+              .json({ error: "project_id, tag_name, and direct_asset_path are required" });
             return;
           }
           const effectiveProjectId = getEffectiveProjectId(decodeURIComponent(project_id));
@@ -11951,10 +12144,10 @@ async function startStreamableHTTPServer(): Promise<void> {
     rejectedByCapacity: 0,
     // Stateless-mode counters. Only non-zero when OAUTH_STATELESS_MODE=true.
     statelessRequests: 0,
-    statelessAuthFromHeader: 0,  // fresh Authorization/Private-Token/JOB-TOKEN present
-    statelessAuthFromSealedSid: 0,  // auth reconstructed from sealed Mcp-Session-Id
-    statelessAuthFailures: 0,   // neither source yielded usable auth
-    statelessSidRotated: 0,     // minted a new sid because fresh auth was present
+    statelessAuthFromHeader: 0, // fresh Authorization/Private-Token/JOB-TOKEN present
+    statelessAuthFromSealedSid: 0, // auth reconstructed from sealed Mcp-Session-Id
+    statelessAuthFailures: 0, // neither source yielded usable auth
+    statelessSidRotated: 0, // minted a new sid because fresh auth was present
   };
 
   // Rate limiting per session
@@ -12494,11 +12687,7 @@ async function startStreamableHTTPServer(): Promise<void> {
     // entirely and derive the session auth from either the current request
     // headers (init) or a sealed Mcp-Session-Id (subsequent requests).
     // Rate limiting is disabled here because there is no shared counter.
-    if (
-      OAUTH_STATELESS_MODE &&
-      STATELESS_MATERIAL &&
-      (REMOTE_AUTHORIZATION || GITLAB_MCP_OAUTH)
-    ) {
+    if (OAUTH_STATELESS_MODE && STATELESS_MATERIAL && (REMOTE_AUTHORIZATION || GITLAB_MCP_OAUTH)) {
       await handleStatelessMcpRequest(
         req,
         res,
@@ -12531,10 +12720,13 @@ async function startStreamableHTTPServer(): Promise<void> {
     // Handle remote authorization: extract and store auth headers per session
     if (REMOTE_AUTHORIZATION) {
       const authData = parseAuthHeaders(req);
+      const allowUnauthenticatedDiscovery =
+        GITLAB_ALLOW_UNAUTHENTICATED_TOOL_DISCOVERY &&
+        isUnauthenticatedDiscoveryRequestBody(req.body);
 
       if (sessionId && !authBySession[sessionId]) {
-        // New session: require auth headers
-        if (!authData) {
+        // New session: require auth headers unless public discovery was explicitly enabled.
+        if (!authData && !allowUnauthenticatedDiscovery) {
           metrics.authFailures++;
           res.status(401).json({
             error: "Missing Private-Token, JOB-TOKEN, or Authorization header",
@@ -12543,13 +12735,22 @@ async function startStreamableHTTPServer(): Promise<void> {
           });
           return;
         }
-        // Store auth for this session
-        authBySession[sessionId] = withPublicBaseUrl(authData, publicBaseUrl);
-        logger.info(`Session ${sessionId}: stored ${authData.header} header`);
-        setAuthTimeout(sessionId);
+        // Store auth only when provided. Public discovery intentionally leaves the session unauthenticated.
+        if (authData) {
+          authBySession[sessionId] = withPublicBaseUrl(authData, publicBaseUrl);
+          logger.info(`Session ${sessionId}: stored ${authData.header} header`);
+          setAuthTimeout(sessionId);
+        } else if (allowUnauthenticatedDiscovery) {
+          // Schedule cleanup for unauthenticated discovery sessions to prevent slot exhaustion
+          setAuthTimeout(sessionId);
+        }
       } else if (sessionId && authData) {
         // Existing session: allow auth rotation/update
-        authBySession[sessionId] = withPublicBaseUrl(authData, publicBaseUrl, authBySession[sessionId]);
+        authBySession[sessionId] = withPublicBaseUrl(
+          authData,
+          publicBaseUrl,
+          authBySession[sessionId]
+        );
         logger.debug(`Session ${sessionId}: updated ${authData.header} header`);
         setAuthTimeout(sessionId);
       } else if (sessionId && authBySession[sessionId]) {
@@ -12597,9 +12798,7 @@ async function startStreamableHTTPServer(): Promise<void> {
               apiUrl: GITLAB_API_URL,
               publicBaseUrl,
             };
-            logger.info(
-              `Session ${sessionId}: stored OAuth token (client: ${authInfo.clientId})`
-            );
+            logger.info(`Session ${sessionId}: stored OAuth token (client: ${authInfo.clientId})`);
             setAuthTimeout(sessionId);
           } else {
             // Update token on every request — the client may have refreshed it
@@ -12911,9 +13110,13 @@ async function runServer() {
 
     if (GITLAB_ALLOWED_GROUPS_RAW) {
       if (GITLAB_OAUTH_ALLOWED_GROUPS_RAW) {
-        logger.warn("GITLAB_ALLOWED_GROUPS is set but ignored — GITLAB_OAUTH_ALLOWED_GROUPS takes precedence.");
+        logger.warn(
+          "GITLAB_ALLOWED_GROUPS is set but ignored — GITLAB_OAUTH_ALLOWED_GROUPS takes precedence."
+        );
       } else {
-        logger.warn("GITLAB_ALLOWED_GROUPS is deprecated. Use GITLAB_OAUTH_ALLOWED_GROUPS instead.");
+        logger.warn(
+          "GITLAB_ALLOWED_GROUPS is deprecated. Use GITLAB_OAUTH_ALLOWED_GROUPS instead."
+        );
       }
     }
 
