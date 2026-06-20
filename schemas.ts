@@ -384,10 +384,10 @@ const GetCiCatalogResourceOptionsSchema = z.object({
 export const GetCiCatalogResourceSchema = z.union([
   GetCiCatalogResourceOptionsSchema.extend({
     id: z.string().min(1).describe("CI/CD Catalog resource global ID. Required when full_path is omitted."),
-    full_path: z.string().min(1).optional().describe("CI/CD Catalog resource full project path"),
+    full_path: z.string().min(1).optional().describe("CI/CD Catalog resource full project path. Required when id is omitted."),
   }),
   GetCiCatalogResourceOptionsSchema.extend({
-    id: z.string().min(1).optional().describe("CI/CD Catalog resource global ID"),
+    id: z.string().min(1).optional().describe("CI/CD Catalog resource global ID. Required when full_path is omitted."),
     full_path: z.string().min(1).describe("CI/CD Catalog resource full project path. Required when id is omitted."),
   }),
 ]).refine(args => Boolean(args.id) !== Boolean(args.full_path), {

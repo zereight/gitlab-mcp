@@ -105,5 +105,22 @@ export const toJSONSchema = (schema: z.ZodTypeAny) => {
     return obj;
   }
 
-  return fixNullableOptional(jsonSchema, true);
+  const fixedSchema = fixNullableOptional(jsonSchema, true);
+
+  if (!fixedSchema.properties && Array.isArray(fixedSchema.anyOf)) {
+    const variants = fixedSchema.anyOf.filter(
+      (item: any) => item?.type === "object" && item.properties
+    );
+    if (variants.length === fixedSchema.anyOf.length) {
+      fixedSchema.type = "object";
+      fixedSchema.properties = variants.reduce((properties: any, item: any) => {
+        Object.entries(item.properties).forEach(([key, value]) => {
+          if (!properties[key]) properties[key] = value;
+        });
+        return properties;
+      }, {});
+    }
+  }
+
+  return fixedSchema;
 };

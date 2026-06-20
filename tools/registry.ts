@@ -818,7 +818,7 @@ export const allTools = [
   {
     name: "get_ci_catalog_resource",
     description: "Get details for a GitLab CI/CD Catalog resource, including versions and components",
-    inputSchema: { type: "object" as const, ...toJSONSchema(GetCiCatalogResourceSchema) },
+    inputSchema: toJSONSchema(GetCiCatalogResourceSchema),
   },
   {
     name: "create_pipeline",
