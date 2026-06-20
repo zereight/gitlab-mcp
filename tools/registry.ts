@@ -822,10 +822,12 @@ export const allTools = [
       properties: {
         id: {
           type: "string",
+          minLength: 1,
           description: "CI/CD Catalog resource global ID. Required when full_path is omitted.",
         },
         full_path: {
           type: "string",
+          minLength: 1,
           description: "CI/CD Catalog resource full project path. Required when id is omitted.",
         },
         version_limit: {

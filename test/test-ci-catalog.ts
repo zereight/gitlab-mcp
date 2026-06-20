@@ -186,4 +186,8 @@ describe("CI/CD Catalog tools", () => {
     assert.strictEqual(components[0].name, "build");
     assert.strictEqual(components[0].inputs[0].name, "image");
   });
+
+  test("get_ci_catalog_resource rejects empty identity values", async () => {
+    await assert.rejects(() => callTool("get_ci_catalog_resource", { full_path: "" }, env()));
+  });
 });
