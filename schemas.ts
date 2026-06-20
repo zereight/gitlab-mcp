@@ -1198,8 +1198,12 @@ export const GitLabMergeRequestSchema = z.object({
   merged_at: z.string().nullable(),
   closed_at: z.string().nullable(),
   merge_commit_sha: z.string().nullable(),
-  merge_user: GitLabUserSchema.nullable().optional().describe("User who performed the merge (GitLab API v4 field)"),
-  merged_by: GitLabUserSchema.nullable().optional().describe("Deprecated alias for merge_user, kept for backwards compatibility"),
+  merge_user: GitLabUserSchema.nullable()
+    .optional()
+    .describe("User who performed the merge (GitLab API v4 field)"),
+  merged_by: GitLabUserSchema.nullable()
+    .optional()
+    .describe("Deprecated alias for merge_user, kept for backwards compatibility"),
   detailed_merge_status: z.string().optional(),
   merge_status: z.string().optional(),
   merge_error: z.string().nullable().optional(),
@@ -2398,8 +2402,12 @@ export const GetProjectSchema = z.object({
 });
 
 const ProjectFeatureAccessLevelSchema = z
+  .enum(["disabled", "private", "enabled"])
+  .describe("Project feature access level");
+
+const ProjectPagesAccessLevelSchema = z
   .enum(["disabled", "private", "enabled", "public"])
-  .describe("Project feature access level. 'public' is only valid for pages_access_level.");
+  .describe("Project pages access level. Unlike other features, pages can be set to 'public'");
 
 export const UpdateProjectSchema = ProjectParamsSchema.extend({
   name: z.string().optional().describe("Project display name"),
@@ -2409,24 +2417,58 @@ export const UpdateProjectSchema = ProjectParamsSchema.extend({
   visibility: z.enum(["private", "internal", "public"]).optional().describe("Project visibility"),
   topics: z.array(z.string()).optional().describe("Project topics"),
   request_access_enabled: z.coerce.boolean().optional().describe("Allow users to request access"),
-  remove_source_branch_after_merge: z.coerce.boolean().optional().describe("Remove source branches after merge by default"),
-  only_allow_merge_if_pipeline_succeeds: z.coerce.boolean().optional().describe("Require successful pipeline before merge"),
-  only_allow_merge_if_all_discussions_are_resolved: z.coerce.boolean().optional().describe("Require all discussions to be resolved before merge"),
-  squash_option: z.enum(["never", "always", "default_on", "default_off"]).optional().describe("Squash commits setting"),
+  remove_source_branch_after_merge: z.coerce
+    .boolean()
+    .optional()
+    .describe("Remove source branches after merge by default"),
+  only_allow_merge_if_pipeline_succeeds: z.coerce
+    .boolean()
+    .optional()
+    .describe("Require successful pipeline before merge"),
+  only_allow_merge_if_all_discussions_are_resolved: z.coerce
+    .boolean()
+    .optional()
+    .describe("Require all discussions to be resolved before merge"),
+  squash_option: z
+    .enum(["never", "always", "default_on", "default_off"])
+    .optional()
+    .describe("Squash commits setting"),
   merge_method: z.enum(["merge", "rebase_merge", "ff"]).optional().describe("Merge method"),
-  issues_access_level: ProjectFeatureAccessLevelSchema.optional().describe("Issues feature visibility"),
-  merge_requests_access_level: ProjectFeatureAccessLevelSchema.optional().describe("Merge requests feature visibility"),
-  builds_access_level: ProjectFeatureAccessLevelSchema.optional().describe("CI/CD pipelines feature visibility"),
+  issues_access_level: ProjectFeatureAccessLevelSchema.optional().describe(
+    "Issues feature visibility"
+  ),
+  merge_requests_access_level: ProjectFeatureAccessLevelSchema.optional().describe(
+    "Merge requests feature visibility"
+  ),
+  builds_access_level: ProjectFeatureAccessLevelSchema.optional().describe(
+    "CI/CD pipelines feature visibility"
+  ),
   wiki_access_level: ProjectFeatureAccessLevelSchema.optional().describe("Wiki feature visibility"),
-  snippets_access_level: ProjectFeatureAccessLevelSchema.optional().describe("Snippets feature visibility"),
-  container_registry_access_level: ProjectFeatureAccessLevelSchema.optional().describe("Container registry feature visibility"),
-  environments_access_level: ProjectFeatureAccessLevelSchema.optional().describe("Environments feature visibility"),
-  forking_access_level: ProjectFeatureAccessLevelSchema.optional().describe("Forking feature visibility"),
-  package_registry_access_level: ProjectFeatureAccessLevelSchema.optional().describe("Package registry feature visibility"),
-  pages_access_level: ProjectFeatureAccessLevelSchema.optional().describe("Pages feature visibility"),
-}).refine(args => Object.keys(args).some(key => key !== "project_id" && (args as Record<string, unknown>)[key] !== undefined), {
-  message: "Provide at least one project setting to update",
-});
+  snippets_access_level: ProjectFeatureAccessLevelSchema.optional().describe(
+    "Snippets feature visibility"
+  ),
+  container_registry_access_level: ProjectFeatureAccessLevelSchema.optional().describe(
+    "Container registry feature visibility"
+  ),
+  environments_access_level: ProjectFeatureAccessLevelSchema.optional().describe(
+    "Environments feature visibility"
+  ),
+  forking_access_level: ProjectFeatureAccessLevelSchema.optional().describe(
+    "Forking feature visibility"
+  ),
+  package_registry_access_level: ProjectFeatureAccessLevelSchema.optional().describe(
+    "Package registry feature visibility"
+  ),
+  pages_access_level: ProjectPagesAccessLevelSchema.optional().describe("Pages feature visibility"),
+}).refine(
+  args =>
+    Object.keys(args).some(
+      key => key !== "project_id" && (args as Record<string, unknown>)[key] !== undefined
+    ),
+  {
+    message: "Provide at least one project setting to update",
+  }
+);
 
 export const ListProjectsSchema = z
   .object({
