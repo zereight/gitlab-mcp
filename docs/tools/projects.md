@@ -78,15 +78,15 @@ Update project settings such as description, visibility, default branch, and fea
 | `only_allow_merge_if_all_discussions_are_resolved` | boolean |  | Require all discussions to be resolved before merge |
 | `squash_option` | enum (`never` \| `always` \| `default_on` \| `default_off`) |  | Squash commits setting |
 | `merge_method` | enum (`merge` \| `rebase_merge` \| `ff`) |  | Merge method |
-| `issues_access_level` | enum (`disabled` \| `private` \| `enabled` \| `public`) |  | Issues feature visibility |
-| `merge_requests_access_level` | enum (`disabled` \| `private` \| `enabled` \| `public`) |  | Merge requests feature visibility |
-| `builds_access_level` | enum (`disabled` \| `private` \| `enabled` \| `public`) |  | CI/CD pipelines feature visibility |
-| `wiki_access_level` | enum (`disabled` \| `private` \| `enabled` \| `public`) |  | Wiki feature visibility |
-| `snippets_access_level` | enum (`disabled` \| `private` \| `enabled` \| `public`) |  | Snippets feature visibility |
-| `container_registry_access_level` | enum (`disabled` \| `private` \| `enabled` \| `public`) |  | Container registry feature visibility |
-| `environments_access_level` | enum (`disabled` \| `private` \| `enabled` \| `public`) |  | Environments feature visibility |
-| `forking_access_level` | enum (`disabled` \| `private` \| `enabled` \| `public`) |  | Forking feature visibility |
-| `package_registry_access_level` | enum (`disabled` \| `private` \| `enabled` \| `public`) |  | Package registry feature visibility |
+| `issues_access_level` | enum (`disabled` \| `private` \| `enabled`) |  | Issues feature visibility |
+| `merge_requests_access_level` | enum (`disabled` \| `private` \| `enabled`) |  | Merge requests feature visibility |
+| `builds_access_level` | enum (`disabled` \| `private` \| `enabled`) |  | CI/CD pipelines feature visibility |
+| `wiki_access_level` | enum (`disabled` \| `private` \| `enabled`) |  | Wiki feature visibility |
+| `snippets_access_level` | enum (`disabled` \| `private` \| `enabled`) |  | Snippets feature visibility |
+| `container_registry_access_level` | enum (`disabled` \| `private` \| `enabled`) |  | Container registry feature visibility |
+| `environments_access_level` | enum (`disabled` \| `private` \| `enabled`) |  | Environments feature visibility |
+| `forking_access_level` | enum (`disabled` \| `private` \| `enabled`) |  | Forking feature visibility |
+| `package_registry_access_level` | enum (`disabled` \| `private` \| `enabled`) |  | Package registry feature visibility |
 | `pages_access_level` | enum (`disabled` \| `private` \| `enabled` \| `public`) |  | Pages feature visibility |
 
 ### `list_project_members`

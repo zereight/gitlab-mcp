@@ -3,7 +3,7 @@ import assert from "node:assert";
 import { spawn } from "child_process";
 import { MockGitLabServer, findMockServerPort } from "./utils/mock-gitlab-server.js";
 
-const MOCK_TOKEN = "glpat-update-project-token";
+const MOCK_TOKEN = "mock-update-project-token";
 const TEST_PROJECT_ID = "123";
 
 async function callUpdateProject(
@@ -96,6 +96,47 @@ describe("update_project", () => {
     } finally {
       await mockServer.stop();
     }
+  });
+
+  test("keeps string false as boolean false", async () => {
+    const mockPort = await findMockServerPort();
+    const mockServer = new MockGitLabServer({ port: mockPort, validTokens: [MOCK_TOKEN] });
+    let receivedBody: Record<string, unknown> | undefined;
+
+    mockServer.addMockHandler("put", `/projects/${TEST_PROJECT_ID}`, (req, res) => {
+      receivedBody = req.body as Record<string, unknown>;
+      res.json({ id: Number(TEST_PROJECT_ID), ...receivedBody });
+    });
+
+    await mockServer.start();
+
+    try {
+      await callUpdateProject(
+        { project_id: TEST_PROJECT_ID, remove_source_branch_after_merge: "false" },
+        {
+          GITLAB_API_URL: `${mockServer.getUrl()}/api/v4`,
+          GITLAB_PERSONAL_ACCESS_TOKEN: MOCK_TOKEN,
+        }
+      );
+
+      assert.strictEqual(receivedBody?.remove_source_branch_after_merge, false);
+    } finally {
+      await mockServer.stop();
+    }
+  });
+
+  test("rejects public access level for non-pages features", async () => {
+    await assert.rejects(
+      () =>
+        callUpdateProject(
+          { project_id: TEST_PROJECT_ID, issues_access_level: "public" },
+          {
+            GITLAB_API_URL: "https://gitlab.example.com/api/v4",
+            GITLAB_PERSONAL_ACCESS_TOKEN: MOCK_TOKEN,
+          }
+        ),
+      /Invalid enum value/
+    );
   });
 
   test("rejects empty updates before calling GitLab", async () => {

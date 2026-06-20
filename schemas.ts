@@ -2416,17 +2416,14 @@ export const UpdateProjectSchema = ProjectParamsSchema.extend({
   default_branch: z.string().optional().describe("Default branch name"),
   visibility: z.enum(["private", "internal", "public"]).optional().describe("Project visibility"),
   topics: z.array(z.string()).optional().describe("Project topics"),
-  request_access_enabled: z.coerce.boolean().optional().describe("Allow users to request access"),
-  remove_source_branch_after_merge: z.coerce
-    .boolean()
+  request_access_enabled: coerceBooleanString.optional().describe("Allow users to request access"),
+  remove_source_branch_after_merge: coerceBooleanString
     .optional()
     .describe("Remove source branches after merge by default"),
-  only_allow_merge_if_pipeline_succeeds: z.coerce
-    .boolean()
+  only_allow_merge_if_pipeline_succeeds: coerceBooleanString
     .optional()
     .describe("Require successful pipeline before merge"),
-  only_allow_merge_if_all_discussions_are_resolved: z.coerce
-    .boolean()
+  only_allow_merge_if_all_discussions_are_resolved: coerceBooleanString
     .optional()
     .describe("Require all discussions to be resolved before merge"),
   squash_option: z
