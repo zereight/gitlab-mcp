@@ -868,16 +868,10 @@ function createServer(): McpServer {
             isDefault: def.isDefault,
           }));
           return logCompletion({
-            content: [
-              {
-                type: "text",
-                text: JSON.stringify(
-                  { categories, hint: "Call discover_tools with a category name to activate it" },
-                  null,
-                  2
-                ),
-              },
-            ],
+            content: [{
+              type: "text",
+              text: JSON.stringify({ categories, hint: "Call discover_tools with a category name to activate it" }),
+            }],
           });
         }
 
@@ -952,20 +946,14 @@ function createServer(): McpServer {
         );
 
         return logCompletion({
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify(
-                {
-                  activated: category,
-                  addedTools: addedNames,
-                  totalTools: filteredTools.length,
-                },
-                null,
-                2
-              ),
-            },
-          ],
+          content: [{
+            type: "text",
+            text: JSON.stringify({
+              activated: category,
+              addedTools: addedNames,
+              totalTools: filteredTools.length,
+            }),
+          }],
         });
       }
 
@@ -9172,7 +9160,7 @@ async function handleToolCall(params: any) {
           }
           const json = await response.json();
           return {
-            content: [{ type: "text", text: JSON.stringify(json, null, 2) }],
+            content: [{ type: "text", text: JSON.stringify(json) }],
           };
         } catch (err) {
           const message = err instanceof Error ? err.message : String(err);
@@ -9180,7 +9168,7 @@ async function handleToolCall(params: any) {
             content: [
               {
                 type: "text",
-                text: JSON.stringify({ error: `GraphQL request failed: ${message}` }, null, 2),
+                text: JSON.stringify({ error: `GraphQL request failed: ${message}` }),
               },
             ],
           };
@@ -9194,7 +9182,7 @@ async function handleToolCall(params: any) {
         try {
           const forkedProject = await forkProject(forkArgs.project_id, forkArgs.namespace);
           return {
-            content: [{ type: "text", text: JSON.stringify(forkedProject, null, 2) }],
+            content: [{ type: "text", text: JSON.stringify(forkedProject) }],
           };
         } catch (forkError) {
           logger.error({ err: forkError }, "Error forking repository");
@@ -9206,7 +9194,7 @@ async function handleToolCall(params: any) {
             content: [
               {
                 type: "text",
-                text: JSON.stringify({ error: forkErrorMessage }, null, 2),
+                text: JSON.stringify({ error: forkErrorMessage }),
               },
             ],
           };
@@ -9226,7 +9214,7 @@ async function handleToolCall(params: any) {
         });
 
         return {
-          content: [{ type: "text", text: JSON.stringify(branch, null, 2) }],
+          content: [{ type: "text", text: JSON.stringify(branch) }],
         };
       }
 
@@ -9235,7 +9223,7 @@ async function handleToolCall(params: any) {
         const diffResp = await getBranchDiffs(args.project_id, args.from, args.to, args.straight);
         diffResp.diffs = filterDiffsByPatterns(diffResp.diffs, args.excluded_file_patterns);
         return {
-          content: [{ type: "text", text: JSON.stringify(diffResp, null, 2) }],
+          content: [{ type: "text", text: JSON.stringify(diffResp) }],
         };
       }
 
@@ -9243,7 +9231,7 @@ async function handleToolCall(params: any) {
         const args = SearchRepositoriesSchema.parse(params.arguments);
         const results = await searchProjects(args.search, args.page, args.per_page);
         return {
-          content: [{ type: "text", text: JSON.stringify(results, null, 2) }],
+          content: [{ type: "text", text: JSON.stringify(results) }],
         };
       }
 
@@ -9258,7 +9246,7 @@ async function handleToolCall(params: any) {
           per_page: args.per_page,
         });
         return {
-          content: [{ type: "text", text: JSON.stringify(results, null, 2) }],
+          content: [{ type: "text", text: JSON.stringify(results) }],
         };
       }
 
@@ -9275,7 +9263,7 @@ async function handleToolCall(params: any) {
           per_page: args.per_page,
         });
         return {
-          content: [{ type: "text", text: JSON.stringify(results, null, 2) }],
+          content: [{ type: "text", text: JSON.stringify(results) }],
         };
       }
 
@@ -9291,7 +9279,7 @@ async function handleToolCall(params: any) {
           per_page: args.per_page,
         });
         return {
-          content: [{ type: "text", text: JSON.stringify(results, null, 2) }],
+          content: [{ type: "text", text: JSON.stringify(results) }],
         };
       }
 
@@ -9300,7 +9288,7 @@ async function handleToolCall(params: any) {
         const args = CreateRepositorySchema.parse(params.arguments);
         const repository = await createRepository(args);
         return {
-          content: [{ type: "text", text: JSON.stringify(repository, null, 2) }],
+          content: [{ type: "text", text: JSON.stringify(repository) }],
         };
       }
 
@@ -9329,7 +9317,7 @@ async function handleToolCall(params: any) {
         const group = GitLabGroupSchema.parse(data);
 
         return {
-          content: [{ type: "text", text: JSON.stringify(group, null, 2) }],
+          content: [{ type: "text", text: JSON.stringify(group) }],
         };
       }
 
@@ -9337,7 +9325,7 @@ async function handleToolCall(params: any) {
         const args = GetFileContentsSchema.parse(params.arguments);
         const contents = await getFileContents(args.project_id, args.file_path, args.ref);
         return {
-          content: [{ type: "text", text: JSON.stringify(contents, null, 2) }],
+          content: [{ type: "text", text: JSON.stringify(contents) }],
         };
       }
 
@@ -9354,7 +9342,7 @@ async function handleToolCall(params: any) {
           args.commit_id
         );
         return {
-          content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+          content: [{ type: "text", text: JSON.stringify(result) }],
         };
       }
 
@@ -9367,7 +9355,7 @@ async function handleToolCall(params: any) {
           args.files.map(f => ({ path: f.file_path, content: f.content }))
         );
         return {
-          content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+          content: [{ type: "text", text: JSON.stringify(result) }],
         };
       }
 
@@ -9376,7 +9364,7 @@ async function handleToolCall(params: any) {
         const { project_id, ...options } = args;
         const issue = await createIssue(project_id, options);
         return {
-          content: [{ type: "text", text: JSON.stringify(issue, null, 2) }],
+          content: [{ type: "text", text: JSON.stringify(issue) }],
         };
       }
 
@@ -9385,7 +9373,7 @@ async function handleToolCall(params: any) {
         const { project_id, ...options } = args;
         const mergeRequest = await createMergeRequest(project_id, options);
         return {
-          content: [{ type: "text", text: JSON.stringify(mergeRequest, null, 2) }],
+          content: [{ type: "text", text: JSON.stringify(mergeRequest) }],
         };
       }
 
@@ -9415,7 +9403,7 @@ async function handleToolCall(params: any) {
           args.resolved // Now one of body or resolved must be provided, not both
         );
         return {
-          content: [{ type: "text", text: JSON.stringify(note, null, 2) }],
+          content: [{ type: "text", text: JSON.stringify(note) }],
         };
       }
 
@@ -9429,7 +9417,7 @@ async function handleToolCall(params: any) {
           args.created_at
         );
         return {
-          content: [{ type: "text", text: JSON.stringify(note, null, 2) }],
+          content: [{ type: "text", text: JSON.stringify(note) }],
         };
       }
 
@@ -9442,7 +9430,7 @@ async function handleToolCall(params: any) {
         );
 
         return {
-          content: [{ type: "text", text: JSON.stringify(note, null, 2) }],
+          content: [{ type: "text", text: JSON.stringify(note) }],
         };
       }
 
@@ -9464,7 +9452,7 @@ async function handleToolCall(params: any) {
         );
 
         return {
-          content: [{ type: "text", text: JSON.stringify(note, null, 2) }],
+          content: [{ type: "text", text: JSON.stringify(note) }],
         };
       }
 
@@ -9480,7 +9468,7 @@ async function handleToolCall(params: any) {
         );
 
         return {
-          content: [{ type: "text", text: JSON.stringify(notes, null, 2) }],
+          content: [{ type: "text", text: JSON.stringify(notes) }],
         };
       }
 
@@ -9494,7 +9482,7 @@ async function handleToolCall(params: any) {
         );
 
         return {
-          content: [{ type: "text", text: JSON.stringify(note, null, 2) }],
+          content: [{ type: "text", text: JSON.stringify(note) }],
         };
       }
 
@@ -9502,7 +9490,7 @@ async function handleToolCall(params: any) {
         const args = ListMergeRequestEmojiReactionsSchema.parse(params.arguments);
         const path = buildAwardEmojiPath("merge_requests", args.project_id, args.merge_request_iid);
         const result = await listRestAwardEmoji(path);
-        return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
+        return { content: [{ type: "text", text: JSON.stringify(result) }] };
       }
 
       case "list_merge_request_note_emoji_reactions": {
@@ -9514,14 +9502,14 @@ async function handleToolCall(params: any) {
           { noteId: args.note_id, discussionId: args.discussion_id }
         );
         const result = await listRestAwardEmoji(path);
-        return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
+        return { content: [{ type: "text", text: JSON.stringify(result) }] };
       }
 
       case "create_merge_request_emoji_reaction": {
         const args = CreateMergeRequestEmojiReactionSchema.parse(params.arguments);
         const path = buildAwardEmojiPath("merge_requests", args.project_id, args.merge_request_iid);
         const result = await createRestAwardEmoji(path, args.name);
-        return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
+        return { content: [{ type: "text", text: JSON.stringify(result) }] };
       }
 
       case "delete_merge_request_emoji_reaction": {
@@ -9547,7 +9535,7 @@ async function handleToolCall(params: any) {
           { noteId: args.note_id, discussionId: args.discussion_id }
         );
         const result = await createRestAwardEmoji(path, args.name);
-        return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
+        return { content: [{ type: "text", text: JSON.stringify(result) }] };
       }
 
       case "delete_merge_request_note_emoji_reaction": {
@@ -9577,7 +9565,7 @@ async function handleToolCall(params: any) {
           args.resolved
         );
         return {
-          content: [{ type: "text", text: JSON.stringify(note, null, 2) }],
+          content: [{ type: "text", text: JSON.stringify(note) }],
         };
       }
 
@@ -9591,7 +9579,7 @@ async function handleToolCall(params: any) {
           args.created_at
         );
         return {
-          content: [{ type: "text", text: JSON.stringify(note, null, 2) }],
+          content: [{ type: "text", text: JSON.stringify(note) }],
         };
       }
 
@@ -9599,7 +9587,7 @@ async function handleToolCall(params: any) {
         const args = ListIssueEmojiReactionsSchema.parse(params.arguments);
         const path = buildAwardEmojiPath("issues", args.project_id, args.issue_iid);
         const result = await listRestAwardEmoji(path);
-        return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
+        return { content: [{ type: "text", text: JSON.stringify(result) }] };
       }
 
       case "list_issue_note_emoji_reactions": {
@@ -9609,14 +9597,14 @@ async function handleToolCall(params: any) {
           discussionId: args.discussion_id,
         });
         const result = await listRestAwardEmoji(path);
-        return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
+        return { content: [{ type: "text", text: JSON.stringify(result) }] };
       }
 
       case "create_issue_emoji_reaction": {
         const args = CreateIssueEmojiReactionSchema.parse(params.arguments);
         const path = buildAwardEmojiPath("issues", args.project_id, args.issue_iid);
         const result = await createRestAwardEmoji(path, args.name);
-        return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
+        return { content: [{ type: "text", text: JSON.stringify(result) }] };
       }
 
       case "delete_issue_emoji_reaction": {
@@ -9635,7 +9623,7 @@ async function handleToolCall(params: any) {
           discussionId: args.discussion_id,
         });
         const result = await createRestAwardEmoji(path, args.name);
-        return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
+        return { content: [{ type: "text", text: JSON.stringify(result) }] };
       }
 
       case "delete_issue_note_emoji_reaction": {
@@ -9655,7 +9643,7 @@ async function handleToolCall(params: any) {
         const args = ListTodosSchema.parse(params.arguments);
         const todos = await listTodos(args);
         return {
-          content: [{ type: "text", text: JSON.stringify(todos, null, 2) }],
+          content: [{ type: "text", text: JSON.stringify(todos) }],
         };
       }
 
@@ -9663,7 +9651,7 @@ async function handleToolCall(params: any) {
         const args = MarkTodoDoneSchema.parse(params.arguments);
         const todo = await markTodoDone(args.id);
         return {
-          content: [{ type: "text", text: JSON.stringify(todo, null, 2) }],
+          content: [{ type: "text", text: JSON.stringify(todo) }],
         };
       }
 
@@ -9716,7 +9704,7 @@ async function handleToolCall(params: any) {
           content: [
             {
               type: "text",
-              text: JSON.stringify(mergeRequestWithDeploymentSummary, null, 2),
+              text: JSON.stringify(mergeRequestWithDeploymentSummary),
             },
           ],
         };
@@ -9732,7 +9720,7 @@ async function handleToolCall(params: any) {
         );
         const filteredDiffs = filterDiffsByPatterns(diffs, args.excluded_file_patterns);
         return {
-          content: [{ type: "text", text: JSON.stringify(filteredDiffs, null, 2) }],
+          content: [{ type: "text", text: JSON.stringify(filteredDiffs) }],
         };
       }
 
@@ -9745,7 +9733,7 @@ async function handleToolCall(params: any) {
           args.excluded_file_patterns
         );
         return {
-          content: [{ type: "text", text: JSON.stringify(files, null, 2) }],
+          content: [{ type: "text", text: JSON.stringify(files) }],
         };
       }
 
@@ -9754,7 +9742,7 @@ async function handleToolCall(params: any) {
         const { project_id, merge_request_iid, ...options } = args;
         const pipelines = await listMergeRequestPipelines(project_id, merge_request_iid, options);
         return {
-          content: [{ type: "text", text: JSON.stringify(pipelines, null, 2) }],
+          content: [{ type: "text", text: JSON.stringify(pipelines) }],
         };
       }
 
@@ -9769,7 +9757,7 @@ async function handleToolCall(params: any) {
           args.unidiff
         );
         return {
-          content: [{ type: "text", text: JSON.stringify(changes, null, 2) }],
+          content: [{ type: "text", text: JSON.stringify(changes) }],
         };
       }
 
@@ -9783,7 +9771,7 @@ async function handleToolCall(params: any) {
           args.unidiff
         );
         return {
-          content: [{ type: "text", text: JSON.stringify(fileDiff, null, 2) }],
+          content: [{ type: "text", text: JSON.stringify(fileDiff) }],
         };
       }
 
@@ -9791,7 +9779,7 @@ async function handleToolCall(params: any) {
         const args = ListMergeRequestVersionsSchema.parse(params.arguments);
         const versions = await listMergeRequestVersions(args.project_id, args.merge_request_iid);
         return {
-          content: [{ type: "text", text: JSON.stringify(versions, null, 2) }],
+          content: [{ type: "text", text: JSON.stringify(versions) }],
         };
       }
 
@@ -9804,7 +9792,7 @@ async function handleToolCall(params: any) {
           args.unidiff
         );
         return {
-          content: [{ type: "text", text: JSON.stringify(version, null, 2) }],
+          content: [{ type: "text", text: JSON.stringify(version) }],
         };
       }
 
@@ -9818,7 +9806,7 @@ async function handleToolCall(params: any) {
           source_branch
         );
         return {
-          content: [{ type: "text", text: JSON.stringify(mergeRequest, null, 2) }],
+          content: [{ type: "text", text: JSON.stringify(mergeRequest) }],
         };
       }
 
@@ -9827,7 +9815,7 @@ async function handleToolCall(params: any) {
         const { project_id, merge_request_iid, ...options } = args;
         const mergeRequest = await mergeMergeRequest(project_id, options, merge_request_iid);
         return {
-          content: [{ type: "text", text: JSON.stringify(mergeRequest, null, 2) }],
+          content: [{ type: "text", text: JSON.stringify(mergeRequest) }],
         };
       }
 
@@ -9840,7 +9828,7 @@ async function handleToolCall(params: any) {
           args.approval_password
         );
         return {
-          content: [{ type: "text", text: JSON.stringify(approvalState, null, 2) }],
+          content: [{ type: "text", text: JSON.stringify(approvalState) }],
         };
       }
 
@@ -9848,7 +9836,7 @@ async function handleToolCall(params: any) {
         const args = UnapproveMergeRequestSchema.parse(params.arguments);
         const approvalState = await unapproveMergeRequest(args.project_id, args.merge_request_iid);
         return {
-          content: [{ type: "text", text: JSON.stringify(approvalState, null, 2) }],
+          content: [{ type: "text", text: JSON.stringify(approvalState) }],
         };
       }
 
@@ -9859,7 +9847,7 @@ async function handleToolCall(params: any) {
           args.merge_request_iid
         );
         return {
-          content: [{ type: "text", text: JSON.stringify(approvalState, null, 2) }],
+          content: [{ type: "text", text: JSON.stringify(approvalState) }],
         };
       }
 
@@ -9867,7 +9855,7 @@ async function handleToolCall(params: any) {
         const args = GetMergeRequestConflictsSchema.parse(params.arguments);
         const conflicts = await getMergeRequestConflicts(args.project_id, args.merge_request_iid);
         return {
-          content: [{ type: "text", text: JSON.stringify(conflicts, null, 2) }],
+          content: [{ type: "text", text: JSON.stringify(conflicts) }],
         };
       }
 
@@ -9880,7 +9868,7 @@ async function handleToolCall(params: any) {
           options
         );
         return {
-          content: [{ type: "text", text: JSON.stringify(discussions, null, 2) }],
+          content: [{ type: "text", text: JSON.stringify(discussions) }],
         };
       }
 
@@ -9910,7 +9898,7 @@ async function handleToolCall(params: any) {
         const namespaces = z.array(GitLabNamespaceSchema).parse(data);
 
         return {
-          content: [{ type: "text", text: JSON.stringify(namespaces, null, 2) }],
+          content: [{ type: "text", text: JSON.stringify(namespaces) }],
         };
       }
 
@@ -9929,7 +9917,7 @@ async function handleToolCall(params: any) {
         const namespace = GitLabNamespaceSchema.parse(data);
 
         return {
-          content: [{ type: "text", text: JSON.stringify(namespace, null, 2) }],
+          content: [{ type: "text", text: JSON.stringify(namespace) }],
         };
       }
 
@@ -9947,7 +9935,7 @@ async function handleToolCall(params: any) {
         const namespaceExists = GitLabNamespaceExistsResponseSchema.parse(data);
 
         return {
-          content: [{ type: "text", text: JSON.stringify(namespaceExists, null, 2) }],
+          content: [{ type: "text", text: JSON.stringify(namespaceExists) }],
         };
       }
 
@@ -9976,7 +9964,7 @@ async function handleToolCall(params: any) {
         const data = await response.json();
         // Return raw data without parsing through our schema to avoid type mismatches in tests
         return {
-          content: [{ type: "text", text: JSON.stringify(data, null, 2) }],
+          content: [{ type: "text", text: JSON.stringify(data) }],
         };
       }
 
@@ -9985,7 +9973,7 @@ async function handleToolCall(params: any) {
         const projects = await listProjects(args);
 
         return {
-          content: [{ type: "text", text: JSON.stringify(projects, null, 2) }],
+          content: [{ type: "text", text: JSON.stringify(projects) }],
         };
       }
 
@@ -9994,7 +9982,7 @@ async function handleToolCall(params: any) {
         const { project_id, ...options } = args;
         const members = await listProjectMembers(project_id, options);
         return {
-          content: [{ type: "text", text: JSON.stringify(members, null, 2) }],
+          content: [{ type: "text", text: JSON.stringify(members) }],
         };
       }
 
@@ -10003,7 +9991,7 @@ async function handleToolCall(params: any) {
         const usersMap = await getUsers(args.usernames);
 
         return {
-          content: [{ type: "text", text: JSON.stringify(usersMap, null, 2) }],
+          content: [{ type: "text", text: JSON.stringify(usersMap) }],
         };
       }
 
@@ -10020,7 +10008,7 @@ async function handleToolCall(params: any) {
         const user = GitLabUserFullSchema.parse(data);
 
         return {
-          content: [{ type: "text", text: JSON.stringify(user, null, 2) }],
+          content: [{ type: "text", text: JSON.stringify(user) }],
         };
       }
 
@@ -10037,7 +10025,7 @@ async function handleToolCall(params: any) {
         const user = GitLabCurrentUserSchema.parse(data);
 
         return {
-          content: [{ type: "text", text: JSON.stringify(user, null, 2) }],
+          content: [{ type: "text", text: JSON.stringify(user) }],
         };
       }
 
@@ -10047,7 +10035,7 @@ async function handleToolCall(params: any) {
 
         const note = await createNote(project_id, noteable_type, noteable_iid, body);
         return {
-          content: [{ type: "text", text: JSON.stringify(note, null, 2) }],
+          content: [{ type: "text", text: JSON.stringify(note) }],
         };
       }
 
@@ -10057,7 +10045,7 @@ async function handleToolCall(params: any) {
 
         const draftNote = await getDraftNote(project_id, merge_request_iid, draft_note_id);
         return {
-          content: [{ type: "text", text: JSON.stringify(draftNote, null, 2) }],
+          content: [{ type: "text", text: JSON.stringify(draftNote) }],
         };
       }
 
@@ -10067,7 +10055,7 @@ async function handleToolCall(params: any) {
 
         const draftNotes = await listDraftNotes(project_id, merge_request_iid);
         return {
-          content: [{ type: "text", text: JSON.stringify(draftNotes, null, 2) }],
+          content: [{ type: "text", text: JSON.stringify(draftNotes) }],
         };
       }
 
@@ -10091,7 +10079,7 @@ async function handleToolCall(params: any) {
           resolve_discussion
         );
         return {
-          content: [{ type: "text", text: JSON.stringify(draftNote, null, 2) }],
+          content: [{ type: "text", text: JSON.stringify(draftNote) }],
         };
       }
 
@@ -10109,7 +10097,7 @@ async function handleToolCall(params: any) {
           resolve_discussion
         );
         return {
-          content: [{ type: "text", text: JSON.stringify(draftNote, null, 2) }],
+          content: [{ type: "text", text: JSON.stringify(draftNote) }],
         };
       }
 
@@ -10129,7 +10117,7 @@ async function handleToolCall(params: any) {
 
         const publishedNote = await publishDraftNote(project_id, merge_request_iid, draft_note_id);
         return {
-          content: [{ type: "text", text: JSON.stringify(publishedNote, null, 2) }],
+          content: [{ type: "text", text: JSON.stringify(publishedNote) }],
         };
       }
 
@@ -10139,7 +10127,7 @@ async function handleToolCall(params: any) {
 
         const publishedNotes = await bulkPublishDraftNotes(project_id, merge_request_iid);
         return {
-          content: [{ type: "text", text: JSON.stringify(publishedNotes, null, 2) }],
+          content: [{ type: "text", text: JSON.stringify(publishedNotes) }],
         };
       }
 
@@ -10155,7 +10143,7 @@ async function handleToolCall(params: any) {
           created_at
         );
         return {
-          content: [{ type: "text", text: JSON.stringify(thread, null, 2) }],
+          content: [{ type: "text", text: JSON.stringify(thread) }],
         };
       }
 
@@ -10174,7 +10162,7 @@ async function handleToolCall(params: any) {
         const cleanedOptions = cleanMutuallyExclusiveIdUsernameOptions(options);
         const issues = await listIssues(project_id, cleanedOptions);
         return {
-          content: [{ type: "text", text: JSON.stringify(issues, null, 2) }],
+          content: [{ type: "text", text: JSON.stringify(issues) }],
         };
       }
 
@@ -10182,7 +10170,7 @@ async function handleToolCall(params: any) {
         const args = MyIssuesSchema.parse(params.arguments);
         const issues = await myIssues(args);
         return {
-          content: [{ type: "text", text: JSON.stringify(issues, null, 2) }],
+          content: [{ type: "text", text: JSON.stringify(issues) }],
         };
       }
 
@@ -10190,7 +10178,7 @@ async function handleToolCall(params: any) {
         const args = GetIssueSchema.parse(params.arguments);
         const issue = await getIssue(args.project_id, args.issue_iid);
         return {
-          content: [{ type: "text", text: JSON.stringify(issue, null, 2) }],
+          content: [{ type: "text", text: JSON.stringify(issue) }],
         };
       }
 
@@ -10199,7 +10187,7 @@ async function handleToolCall(params: any) {
         const { project_id, issue_iid, ...options } = args;
         const issue = await updateIssue(project_id, issue_iid, options);
         return {
-          content: [{ type: "text", text: JSON.stringify(issue, null, 2) }],
+          content: [{ type: "text", text: JSON.stringify(issue) }],
         };
       }
 
@@ -10321,7 +10309,7 @@ async function handleToolCall(params: any) {
         const args = ListIssueLinksSchema.parse(params.arguments);
         const links = await listIssueLinks(args.project_id, args.issue_iid);
         return {
-          content: [{ type: "text", text: JSON.stringify(links, null, 2) }],
+          content: [{ type: "text", text: JSON.stringify(links) }],
         };
       }
 
@@ -10331,7 +10319,7 @@ async function handleToolCall(params: any) {
 
         const discussions = await listIssueDiscussions(project_id, issue_iid, options);
         return {
-          content: [{ type: "text", text: JSON.stringify(discussions, null, 2) }],
+          content: [{ type: "text", text: JSON.stringify(discussions) }],
         };
       }
 
@@ -10339,7 +10327,7 @@ async function handleToolCall(params: any) {
         const args = GetIssueLinkSchema.parse(params.arguments);
         const link = await getIssueLink(args.project_id, args.issue_iid, args.issue_link_id);
         return {
-          content: [{ type: "text", text: JSON.stringify(link, null, 2) }],
+          content: [{ type: "text", text: JSON.stringify(link) }],
         };
       }
 
@@ -10353,7 +10341,7 @@ async function handleToolCall(params: any) {
           args.link_type
         );
         return {
-          content: [{ type: "text", text: JSON.stringify(link, null, 2) }],
+          content: [{ type: "text", text: JSON.stringify(link) }],
         };
       }
 
@@ -10381,7 +10369,7 @@ async function handleToolCall(params: any) {
         const args = GetWorkItemSchema.parse(params.arguments);
         const result = await getWorkItem(args.project_id, args.iid);
         return {
-          content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+          content: [{ type: "text", text: JSON.stringify(result) }],
         };
       }
 
@@ -10390,7 +10378,7 @@ async function handleToolCall(params: any) {
         const { project_id, ...options } = args;
         const result = await listWorkItems(project_id, options);
         return {
-          content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+          content: [{ type: "text", text: JSON.stringify(result) }],
         };
       }
 
@@ -10399,7 +10387,7 @@ async function handleToolCall(params: any) {
         const { project_id, ...options } = args;
         const result = await createWorkItem(project_id, options);
         return {
-          content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+          content: [{ type: "text", text: JSON.stringify(result) }],
         };
       }
 
@@ -10408,7 +10396,7 @@ async function handleToolCall(params: any) {
         const { project_id, iid, ...options } = args;
         const result = await updateWorkItem(project_id, iid, options);
         return {
-          content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+          content: [{ type: "text", text: JSON.stringify(result) }],
         };
       }
 
@@ -10416,7 +10404,7 @@ async function handleToolCall(params: any) {
         const args = ConvertWorkItemTypeSchema.parse(params.arguments);
         const result = await convertIssueType(args.project_id, args.iid, args.new_type);
         return {
-          content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+          content: [{ type: "text", text: JSON.stringify(result) }],
         };
       }
 
@@ -10424,7 +10412,7 @@ async function handleToolCall(params: any) {
         const args = ListWorkItemStatusesSchema.parse(params.arguments);
         const result = await listIssueStatuses(args.project_id, args.work_item_type);
         return {
-          content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+          content: [{ type: "text", text: JSON.stringify(result) }],
         };
       }
 
@@ -10432,7 +10420,7 @@ async function handleToolCall(params: any) {
         const args = ListCustomFieldDefinitionsSchema.parse(params.arguments);
         const result = await listCustomFieldDefinitions(args.project_id, args.work_item_type);
         return {
-          content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+          content: [{ type: "text", text: JSON.stringify(result) }],
         };
       }
 
@@ -10440,7 +10428,7 @@ async function handleToolCall(params: any) {
         const args = MoveWorkItemSchema.parse(params.arguments);
         const result = await moveWorkItem(args.project_id, args.iid, args.target_project_id);
         return {
-          content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+          content: [{ type: "text", text: JSON.stringify(result) }],
         };
       }
 
@@ -10448,7 +10436,7 @@ async function handleToolCall(params: any) {
         const args = ListWorkItemNotesSchema.parse(params.arguments);
         const result = await listWorkItemNotes(args.project_id, args.iid, args);
         return {
-          content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+          content: [{ type: "text", text: JSON.stringify(result) }],
         };
       }
 
@@ -10456,7 +10444,7 @@ async function handleToolCall(params: any) {
         const args = CreateWorkItemNoteSchema.parse(params.arguments);
         const result = await createWorkItemNote(args.project_id, args.iid, args.body, args);
         return {
-          content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+          content: [{ type: "text", text: JSON.stringify(result) }],
         };
       }
 
@@ -10464,68 +10452,46 @@ async function handleToolCall(params: any) {
         const args = ListWorkItemEmojiReactionsSchema.parse(params.arguments);
         const { workItemGID } = await resolveWorkItemGID(args.project_id, args.iid);
         const result = await listGraphQLAwardEmoji(workItemGID);
-        return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
+        return { content: [{ type: "text", text: JSON.stringify(result) }] };
       }
 
       case "list_work_item_note_emoji_reactions": {
         const args = ListWorkItemNoteEmojiReactionsSchema.parse(params.arguments);
         const result = await listGraphQLAwardEmoji(args.note_id);
-        return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
+        return { content: [{ type: "text", text: JSON.stringify(result) }] };
       }
 
       case "create_work_item_emoji_reaction": {
         const args = CreateWorkItemEmojiReactionSchema.parse(params.arguments);
         const { workItemGID } = await resolveWorkItemGID(args.project_id, args.iid);
         const result = await addGraphQLAwardEmoji(workItemGID, args.name);
-        return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
+        return { content: [{ type: "text", text: JSON.stringify(result) }] };
       }
 
       case "delete_work_item_emoji_reaction": {
         const args = DeleteWorkItemEmojiReactionSchema.parse(params.arguments);
         const { workItemGID } = await resolveWorkItemGID(args.project_id, args.iid);
         const result = await removeGraphQLAwardEmoji(workItemGID, args.name);
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify(
-                result ?? { status: "success", message: "Work item emoji reaction removed" },
-                null,
-                2
-              ),
-            },
-          ],
-        };
+        return { content: [{ type: "text", text: JSON.stringify(result ?? { status: "success", message: "Work item emoji reaction removed" }) }] };
       }
 
       case "create_work_item_note_emoji_reaction": {
         const args = CreateWorkItemNoteEmojiReactionSchema.parse(params.arguments);
         const result = await addGraphQLAwardEmoji(args.note_id, args.name);
-        return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
+        return { content: [{ type: "text", text: JSON.stringify(result) }] };
       }
 
       case "delete_work_item_note_emoji_reaction": {
         const args = DeleteWorkItemNoteEmojiReactionSchema.parse(params.arguments);
         const result = await removeGraphQLAwardEmoji(args.note_id, args.name);
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify(
-                result ?? { status: "success", message: "Work item note emoji reaction removed" },
-                null,
-                2
-              ),
-            },
-          ],
-        };
+        return { content: [{ type: "text", text: JSON.stringify(result ?? { status: "success", message: "Work item note emoji reaction removed" }) }] };
       }
 
       case "get_timeline_events": {
         const args = GetTimelineEventsSchema.parse(params.arguments);
         const result = await getTimelineEvents(args.project_id, args.incident_iid);
         return {
-          content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+          content: [{ type: "text", text: JSON.stringify(result) }],
         };
       }
 
@@ -10539,7 +10505,7 @@ async function handleToolCall(params: any) {
           args.tag_names
         );
         return {
-          content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+          content: [{ type: "text", text: JSON.stringify(result) }],
         };
       }
 
@@ -10547,7 +10513,7 @@ async function handleToolCall(params: any) {
         const args = ListLabelsSchema.parse(params.arguments);
         const labels = await listLabels(args.project_id, args);
         return {
-          content: [{ type: "text", text: JSON.stringify(labels, null, 2) }],
+          content: [{ type: "text", text: JSON.stringify(labels) }],
         };
       }
 
@@ -10555,7 +10521,7 @@ async function handleToolCall(params: any) {
         const args = GetLabelSchema.parse(params.arguments);
         const label = await getLabel(args.project_id, args.label_id, args.include_ancestor_groups);
         return {
-          content: [{ type: "text", text: JSON.stringify(label, null, 2) }],
+          content: [{ type: "text", text: JSON.stringify(label) }],
         };
       }
 
@@ -10563,7 +10529,7 @@ async function handleToolCall(params: any) {
         const args = CreateLabelSchema.parse(params.arguments);
         const label = await createLabel(args.project_id, args);
         return {
-          content: [{ type: "text", text: JSON.stringify(label, null, 2) }],
+          content: [{ type: "text", text: JSON.stringify(label) }],
         };
       }
 
@@ -10572,7 +10538,7 @@ async function handleToolCall(params: any) {
         const { project_id, label_id, ...options } = args;
         const label = await updateLabel(project_id, label_id, options);
         return {
-          content: [{ type: "text", text: JSON.stringify(label, null, 2) }],
+          content: [{ type: "text", text: JSON.stringify(label) }],
         };
       }
 
@@ -10597,7 +10563,7 @@ async function handleToolCall(params: any) {
         const args = ListGroupProjectsSchema.parse(params.arguments);
         const projects = await listGroupProjects(args);
         return {
-          content: [{ type: "text", text: JSON.stringify(projects, null, 2) }],
+          content: [{ type: "text", text: JSON.stringify(projects) }],
         };
       }
 
@@ -10611,7 +10577,7 @@ async function handleToolCall(params: any) {
           with_content,
         });
         return {
-          content: [{ type: "text", text: JSON.stringify(wikiPages, null, 2) }],
+          content: [{ type: "text", text: JSON.stringify(wikiPages) }],
         };
       }
 
@@ -10619,7 +10585,7 @@ async function handleToolCall(params: any) {
         const { project_id, slug } = GetWikiPageSchema.parse(params.arguments);
         const wikiPage = await getWikiPage(project_id, slug);
         return {
-          content: [{ type: "text", text: JSON.stringify(wikiPage, null, 2) }],
+          content: [{ type: "text", text: JSON.stringify(wikiPage) }],
         };
       }
 
@@ -10627,7 +10593,7 @@ async function handleToolCall(params: any) {
         const { project_id, title, content, format } = CreateWikiPageSchema.parse(params.arguments);
         const wikiPage = await createWikiPage(project_id, title, content, format);
         return {
-          content: [{ type: "text", text: JSON.stringify(wikiPage, null, 2) }],
+          content: [{ type: "text", text: JSON.stringify(wikiPage) }],
         };
       }
 
@@ -10637,7 +10603,7 @@ async function handleToolCall(params: any) {
         );
         const wikiPage = await updateWikiPage(project_id, slug, title, content, format);
         return {
-          content: [{ type: "text", text: JSON.stringify(wikiPage, null, 2) }],
+          content: [{ type: "text", text: JSON.stringify(wikiPage) }],
         };
       }
 
@@ -10671,7 +10637,7 @@ async function handleToolCall(params: any) {
           with_content,
         });
         return {
-          content: [{ type: "text", text: JSON.stringify(wikiPages, null, 2) }],
+          content: [{ type: "text", text: JSON.stringify(wikiPages) }],
         };
       }
 
@@ -10679,7 +10645,7 @@ async function handleToolCall(params: any) {
         const { group_id, slug } = GetGroupWikiPageSchema.parse(params.arguments);
         const wikiPage = await getGroupWikiPage(group_id, slug);
         return {
-          content: [{ type: "text", text: JSON.stringify(wikiPage, null, 2) }],
+          content: [{ type: "text", text: JSON.stringify(wikiPage) }],
         };
       }
 
@@ -10689,7 +10655,7 @@ async function handleToolCall(params: any) {
         );
         const wikiPage = await createGroupWikiPage(group_id, title, content, format);
         return {
-          content: [{ type: "text", text: JSON.stringify(wikiPage, null, 2) }],
+          content: [{ type: "text", text: JSON.stringify(wikiPage) }],
         };
       }
 
@@ -10699,7 +10665,7 @@ async function handleToolCall(params: any) {
         );
         const wikiPage = await updateGroupWikiPage(group_id, slug, title, content, format);
         return {
-          content: [{ type: "text", text: JSON.stringify(wikiPage, null, 2) }],
+          content: [{ type: "text", text: JSON.stringify(wikiPage) }],
         };
       }
 
@@ -10737,7 +10703,7 @@ async function handleToolCall(params: any) {
               }
             : items;
         return {
-          content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+          content: [{ type: "text", text: JSON.stringify(result) }],
         };
       }
 
@@ -10746,7 +10712,7 @@ async function handleToolCall(params: any) {
         const { project_id, ...options } = args;
         const pipelines = await listPipelines(project_id, options);
         return {
-          content: [{ type: "text", text: JSON.stringify(pipelines, null, 2) }],
+          content: [{ type: "text", text: JSON.stringify(pipelines) }],
         };
       }
 
@@ -10757,7 +10723,7 @@ async function handleToolCall(params: any) {
           content: [
             {
               type: "text",
-              text: JSON.stringify(pipeline, null, 2),
+              text: JSON.stringify(pipeline),
             },
           ],
         };
@@ -10768,7 +10734,7 @@ async function handleToolCall(params: any) {
         const { project_id, ...options } = args;
         const deployments = await listDeployments(project_id, options);
         return {
-          content: [{ type: "text", text: JSON.stringify(deployments, null, 2) }],
+          content: [{ type: "text", text: JSON.stringify(deployments) }],
         };
       }
 
@@ -10776,7 +10742,7 @@ async function handleToolCall(params: any) {
         const { project_id, deployment_id } = GetDeploymentSchema.parse(params.arguments);
         const deployment = await getDeployment(project_id, deployment_id);
         return {
-          content: [{ type: "text", text: JSON.stringify(deployment, null, 2) }],
+          content: [{ type: "text", text: JSON.stringify(deployment) }],
         };
       }
 
@@ -10785,7 +10751,7 @@ async function handleToolCall(params: any) {
         const { project_id, ...options } = args;
         const environments = await listEnvironments(project_id, options);
         return {
-          content: [{ type: "text", text: JSON.stringify(environments, null, 2) }],
+          content: [{ type: "text", text: JSON.stringify(environments) }],
         };
       }
 
@@ -10793,7 +10759,7 @@ async function handleToolCall(params: any) {
         const { project_id, environment_id } = GetEnvironmentSchema.parse(params.arguments);
         const environment = await getEnvironment(project_id, environment_id);
         return {
-          content: [{ type: "text", text: JSON.stringify(environment, null, 2) }],
+          content: [{ type: "text", text: JSON.stringify(environment) }],
         };
       }
 
@@ -10806,7 +10772,7 @@ async function handleToolCall(params: any) {
           content: [
             {
               type: "text",
-              text: JSON.stringify(jobs, null, 2),
+              text: JSON.stringify(jobs),
             },
           ],
         };
@@ -10821,7 +10787,7 @@ async function handleToolCall(params: any) {
           content: [
             {
               type: "text",
-              text: JSON.stringify(triggerJobs, null, 2),
+              text: JSON.stringify(triggerJobs),
             },
           ],
         };
@@ -10834,7 +10800,7 @@ async function handleToolCall(params: any) {
           content: [
             {
               type: "text",
-              text: JSON.stringify(jobDetails, null, 2),
+              text: JSON.stringify(jobDetails),
             },
           ],
         };
@@ -10860,7 +10826,7 @@ async function handleToolCall(params: any) {
         const { project_id, ...options } = args;
         const result = await validateCiLint(project_id, options);
         return {
-          content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+          content: [{ type: "text", text: JSON.stringify(result) }],
         };
       }
 
@@ -10869,7 +10835,7 @@ async function handleToolCall(params: any) {
         const { project_id, ...options } = args;
         const result = await validateProjectCiLint(project_id, options);
         return {
-          content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+          content: [{ type: "text", text: JSON.stringify(result) }],
         };
       }
 
@@ -10960,7 +10926,7 @@ async function handleToolCall(params: any) {
           content: [
             {
               type: "text",
-              text: JSON.stringify(artifacts, null, 2),
+              text: JSON.stringify(artifacts),
             },
           ],
         };
@@ -10978,16 +10944,7 @@ async function handleToolCall(params: any) {
           }
           const downloadUrl = buildDownloadUrl("job-artifacts", { project_id, job_id });
           return {
-            content: [
-              {
-                type: "text",
-                text: JSON.stringify(
-                  { download_url: downloadUrl, filename: `artifacts_job_${job_id}.zip` },
-                  null,
-                  2
-                ),
-              },
-            ],
+            content: [{ type: "text", text: JSON.stringify({ download_url: downloadUrl, filename: `artifacts_job_${job_id}.zip` }) }],
           };
         }
         const filePath = await downloadJobArtifacts(project_id, job_id, local_path);
@@ -10995,7 +10952,7 @@ async function handleToolCall(params: any) {
           content: [
             {
               type: "text",
-              text: JSON.stringify({ success: true, file_path: filePath }, null, 2),
+              text: JSON.stringify({ success: true, file_path: filePath }),
             },
           ],
         };
@@ -11025,7 +10982,7 @@ async function handleToolCall(params: any) {
 
         const mergeRequests = await listMergeRequests(project_id, cleanedOptions);
         return {
-          content: [{ type: "text", text: JSON.stringify(mergeRequests, null, 2) }],
+          content: [{ type: "text", text: JSON.stringify(mergeRequests) }],
         };
       }
 
@@ -11036,7 +10993,7 @@ async function handleToolCall(params: any) {
           content: [
             {
               type: "text",
-              text: JSON.stringify(milestones, null, 2),
+              text: JSON.stringify(milestones),
             },
           ],
         };
@@ -11049,7 +11006,7 @@ async function handleToolCall(params: any) {
           content: [
             {
               type: "text",
-              text: JSON.stringify(milestone, null, 2),
+              text: JSON.stringify(milestone),
             },
           ],
         };
@@ -11062,7 +11019,7 @@ async function handleToolCall(params: any) {
           content: [
             {
               type: "text",
-              text: JSON.stringify(milestone, null, 2),
+              text: JSON.stringify(milestone),
             },
           ],
         };
@@ -11077,7 +11034,7 @@ async function handleToolCall(params: any) {
           content: [
             {
               type: "text",
-              text: JSON.stringify(milestone, null, 2),
+              text: JSON.stringify(milestone),
             },
           ],
         };
@@ -11110,7 +11067,7 @@ async function handleToolCall(params: any) {
           content: [
             {
               type: "text",
-              text: JSON.stringify(issues, null, 2),
+              text: JSON.stringify(issues),
             },
           ],
         };
@@ -11125,7 +11082,7 @@ async function handleToolCall(params: any) {
           content: [
             {
               type: "text",
-              text: JSON.stringify(mergeRequests, null, 2),
+              text: JSON.stringify(mergeRequests),
             },
           ],
         };
@@ -11138,7 +11095,7 @@ async function handleToolCall(params: any) {
           content: [
             {
               type: "text",
-              text: JSON.stringify(milestone, null, 2),
+              text: JSON.stringify(milestone),
             },
           ],
         };
@@ -11153,7 +11110,7 @@ async function handleToolCall(params: any) {
           content: [
             {
               type: "text",
-              text: JSON.stringify(events, null, 2),
+              text: JSON.stringify(events),
             },
           ],
         };
@@ -11163,7 +11120,7 @@ async function handleToolCall(params: any) {
         const args = ListCommitsSchema.parse(params.arguments);
         const commits = await listCommits(args.project_id, args);
         return {
-          content: [{ type: "text", text: JSON.stringify(commits, null, 2) }],
+          content: [{ type: "text", text: JSON.stringify(commits) }],
         };
       }
 
@@ -11171,7 +11128,7 @@ async function handleToolCall(params: any) {
         const args = GetCommitSchema.parse(params.arguments);
         const commit = await getCommit(args.project_id, args.sha, args.stats);
         return {
-          content: [{ type: "text", text: JSON.stringify(commit, null, 2) }],
+          content: [{ type: "text", text: JSON.stringify(commit) }],
         };
       }
 
@@ -11179,7 +11136,7 @@ async function handleToolCall(params: any) {
         const args = GetCommitDiffSchema.parse(params.arguments);
         const diff = await getCommitDiff(args.project_id, args.sha, args.full_diff);
         return {
-          content: [{ type: "text", text: JSON.stringify(diff, null, 2) }],
+          content: [{ type: "text", text: JSON.stringify(diff) }],
         };
       }
 
@@ -11188,7 +11145,7 @@ async function handleToolCall(params: any) {
         const { project_id, ...options } = args;
         const blame = await getFileBlame(project_id, options);
         return {
-          content: [{ type: "text", text: JSON.stringify(blame, null, 2) }],
+          content: [{ type: "text", text: JSON.stringify(blame) }],
         };
       }
 
@@ -11197,7 +11154,7 @@ async function handleToolCall(params: any) {
         const { project_id, sha, ...options } = args;
         const statuses = await listCommitStatuses(project_id, sha, options);
         return {
-          content: [{ type: "text", text: JSON.stringify(statuses, null, 2) }],
+          content: [{ type: "text", text: JSON.stringify(statuses) }],
         };
       }
 
@@ -11206,7 +11163,7 @@ async function handleToolCall(params: any) {
         const { project_id, sha, ...options } = args;
         const status = await createCommitStatus(project_id, sha, options);
         return {
-          content: [{ type: "text", text: JSON.stringify(status, null, 2) }],
+          content: [{ type: "text", text: JSON.stringify(status) }],
         };
       }
 
@@ -11214,7 +11171,7 @@ async function handleToolCall(params: any) {
         const args = ListGroupIterationsSchema.parse(params.arguments);
         const iterations = await listGroupIterations(args.group_id, args);
         return {
-          content: [{ type: "text", text: JSON.stringify(iterations, null, 2) }],
+          content: [{ type: "text", text: JSON.stringify(iterations) }],
         };
       }
 
@@ -11224,27 +11181,27 @@ async function handleToolCall(params: any) {
         const args = ListProjectVariablesSchema.parse(params.arguments);
         const { project_id, ...options } = args;
         const variables = await listProjectVariables(project_id, options);
-        return { content: [{ type: "text", text: JSON.stringify(variables, null, 2) }] };
+        return { content: [{ type: "text", text: JSON.stringify(variables) }] };
       }
 
       case "get_project_variable": {
         const args = GetProjectVariableSchema.parse(params.arguments);
         const variable = await getProjectVariable(args.project_id, args.key, args.filter);
-        return { content: [{ type: "text", text: JSON.stringify(variable, null, 2) }] };
+        return { content: [{ type: "text", text: JSON.stringify(variable) }] };
       }
 
       case "create_project_variable": {
         const args = CreateProjectVariableSchema.parse(params.arguments);
         const { project_id, ...options } = args;
         const variable = await createProjectVariable(project_id, options);
-        return { content: [{ type: "text", text: JSON.stringify(variable, null, 2) }] };
+        return { content: [{ type: "text", text: JSON.stringify(variable) }] };
       }
 
       case "update_project_variable": {
         const args = UpdateProjectVariableSchema.parse(params.arguments);
         const { project_id, key, ...options } = args;
         const variable = await updateProjectVariable(project_id, key, options);
-        return { content: [{ type: "text", text: JSON.stringify(variable, null, 2) }] };
+        return { content: [{ type: "text", text: JSON.stringify(variable) }] };
       }
 
       case "delete_project_variable": {
@@ -11269,14 +11226,14 @@ async function handleToolCall(params: any) {
         const args = ListGroupVariablesSchema.parse(params.arguments);
         const { group_id, ...options } = args;
         const variables = await listGroupVariables(group_id, options);
-        return { content: [{ type: "text", text: JSON.stringify(variables, null, 2) }] };
+        return { content: [{ type: "text", text: JSON.stringify(variables) }] };
       }
 
       case "get_group_variable": {
         rejectIfProjectScopedDeployment("get_group_variable");
         const args = GetGroupVariableSchema.parse(params.arguments);
         const variable = await getGroupVariable(args.group_id, args.key, args.filter);
-        return { content: [{ type: "text", text: JSON.stringify(variable, null, 2) }] };
+        return { content: [{ type: "text", text: JSON.stringify(variable) }] };
       }
 
       case "create_group_variable": {
@@ -11284,7 +11241,7 @@ async function handleToolCall(params: any) {
         const args = CreateGroupVariableSchema.parse(params.arguments);
         const { group_id, ...options } = args;
         const variable = await createGroupVariable(group_id, options);
-        return { content: [{ type: "text", text: JSON.stringify(variable, null, 2) }] };
+        return { content: [{ type: "text", text: JSON.stringify(variable) }] };
       }
 
       case "update_group_variable": {
@@ -11292,7 +11249,7 @@ async function handleToolCall(params: any) {
         const args = UpdateGroupVariableSchema.parse(params.arguments);
         const { group_id, key, ...options } = args;
         const variable = await updateGroupVariable(group_id, key, options);
-        return { content: [{ type: "text", text: JSON.stringify(variable, null, 2) }] };
+        return { content: [{ type: "text", text: JSON.stringify(variable) }] };
       }
 
       case "delete_group_variable": {
@@ -11318,7 +11275,7 @@ async function handleToolCall(params: any) {
         const args = GetDependencyProxySettingsSchema.parse(params.arguments);
         const settings = await getDependencyProxySettings(args.group_id);
         return {
-          content: [{ type: "text", text: JSON.stringify(settings, null, 2) }],
+          content: [{ type: "text", text: JSON.stringify(settings) }],
         };
       }
 
@@ -11328,7 +11285,7 @@ async function handleToolCall(params: any) {
         const { group_id, ...options } = args;
         const settings = await updateDependencyProxySettings(group_id, options);
         return {
-          content: [{ type: "text", text: JSON.stringify(settings, null, 2) }],
+          content: [{ type: "text", text: JSON.stringify(settings) }],
         };
       }
 
@@ -11338,7 +11295,7 @@ async function handleToolCall(params: any) {
         const { group_id, ...options } = args;
         const result = await listDependencyProxyBlobs(group_id, options);
         return {
-          content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+          content: [{ type: "text", text: JSON.stringify(result) }],
         };
       }
 
@@ -11370,13 +11327,13 @@ async function handleToolCall(params: any) {
             args.filename
           );
           return {
-            content: [{ type: "text", text: JSON.stringify(upload, null, 2) }],
+            content: [{ type: "text", text: JSON.stringify(upload) }],
           };
         }
         const args = MarkdownUploadSchema.parse(params.arguments);
         const upload = await markdownUpload(args.project_id, args.file_path);
         return {
-          content: [{ type: "text", text: JSON.stringify(upload, null, 2) }],
+          content: [{ type: "text", text: JSON.stringify(upload) }],
         };
       }
 
@@ -11398,16 +11355,7 @@ async function handleToolCall(params: any) {
             filename: args.filename,
           });
           return {
-            content: [
-              {
-                type: "text",
-                text: JSON.stringify(
-                  { download_url: downloadUrl, filename: args.filename },
-                  null,
-                  2
-                ),
-              },
-            ],
+            content: [{ type: "text", text: JSON.stringify({ download_url: downloadUrl, filename: args.filename }) }],
           };
         }
 
@@ -11426,11 +11374,7 @@ async function handleToolCall(params: any) {
               { type: "image", data: base64, mimeType: result.mimeType },
               {
                 type: "text",
-                text: JSON.stringify(
-                  { filename: result.filename, mimeType: result.mimeType },
-                  null,
-                  2
-                ),
+                text: JSON.stringify({ filename: result.filename, mimeType: result.mimeType }),
               },
             ],
           };
@@ -11440,7 +11384,7 @@ async function handleToolCall(params: any) {
           content: [
             {
               type: "text",
-              text: JSON.stringify({ success: true, file_path: result.savedPath }, null, 2),
+              text: JSON.stringify({ success: true, file_path: result.savedPath }),
             },
           ],
         };
@@ -11450,7 +11394,7 @@ async function handleToolCall(params: any) {
         const args = ListEventsSchema.parse(params.arguments);
         const events = await listEvents(args);
         return {
-          content: [{ type: "text", text: JSON.stringify(events, null, 2) }],
+          content: [{ type: "text", text: JSON.stringify(events) }],
         };
       }
 
@@ -11459,7 +11403,7 @@ async function handleToolCall(params: any) {
         const { project_id, ...options } = args;
         const events = await getProjectEvents(project_id, options);
         return {
-          content: [{ type: "text", text: JSON.stringify(events, null, 2) }],
+          content: [{ type: "text", text: JSON.stringify(events) }],
         };
       }
 
@@ -11468,7 +11412,7 @@ async function handleToolCall(params: any) {
         const { project_id, ...options } = args;
         const releases = await listReleases(project_id, options);
         return {
-          content: [{ type: "text", text: JSON.stringify(releases, null, 2) }],
+          content: [{ type: "text", text: JSON.stringify(releases) }],
         };
       }
 
@@ -11480,7 +11424,7 @@ async function handleToolCall(params: any) {
           args.include_html_description
         );
         return {
-          content: [{ type: "text", text: JSON.stringify(release, null, 2) }],
+          content: [{ type: "text", text: JSON.stringify(release) }],
         };
       }
 
@@ -11489,7 +11433,7 @@ async function handleToolCall(params: any) {
         const { project_id, ...options } = args;
         const release = await createRelease(project_id, options);
         return {
-          content: [{ type: "text", text: JSON.stringify(release, null, 2) }],
+          content: [{ type: "text", text: JSON.stringify(release) }],
         };
       }
 
@@ -11498,7 +11442,7 @@ async function handleToolCall(params: any) {
         const { project_id, tag_name, ...options } = args;
         const release = await updateRelease(project_id, tag_name, options);
         return {
-          content: [{ type: "text", text: JSON.stringify(release, null, 2) }],
+          content: [{ type: "text", text: JSON.stringify(release) }],
         };
       }
 
@@ -11545,19 +11489,7 @@ async function handleToolCall(params: any) {
             direct_asset_path: args.direct_asset_path,
           });
           return {
-            content: [
-              {
-                type: "text",
-                text: JSON.stringify(
-                  {
-                    download_url: downloadUrl,
-                    filename: args.direct_asset_path.split("/").pop() || args.direct_asset_path,
-                  },
-                  null,
-                  2
-                ),
-              },
-            ],
+            content: [{ type: "text", text: JSON.stringify({ download_url: downloadUrl, filename: args.direct_asset_path.split("/").pop() || args.direct_asset_path }) }],
           };
         }
         const assetContent = await downloadReleaseAsset(
@@ -11575,7 +11507,7 @@ async function handleToolCall(params: any) {
         const { project_id, ...options } = args;
         const tags = await listTags(project_id, options);
         return {
-          content: [{ type: "text", text: JSON.stringify(tags, null, 2) }],
+          content: [{ type: "text", text: JSON.stringify(tags) }],
         };
       }
 
@@ -11583,7 +11515,7 @@ async function handleToolCall(params: any) {
         const args = GetTagSchema.parse(params.arguments);
         const tag = await getTag(args.project_id, args.tag_name);
         return {
-          content: [{ type: "text", text: JSON.stringify(tag, null, 2) }],
+          content: [{ type: "text", text: JSON.stringify(tag) }],
         };
       }
 
@@ -11592,7 +11524,7 @@ async function handleToolCall(params: any) {
         const { project_id, ...options } = args;
         const tag = await createTag(project_id, options);
         return {
-          content: [{ type: "text", text: JSON.stringify(tag, null, 2) }],
+          content: [{ type: "text", text: JSON.stringify(tag) }],
         };
       }
 
@@ -11617,7 +11549,7 @@ async function handleToolCall(params: any) {
         const args = GetTagSignatureSchema.parse(params.arguments);
         const signature = await getTagSignature(args.project_id, args.tag_name);
         return {
-          content: [{ type: "text", text: JSON.stringify(signature, null, 2) }],
+          content: [{ type: "text", text: JSON.stringify(signature) }],
         };
       }
 
@@ -11625,7 +11557,7 @@ async function handleToolCall(params: any) {
         const args = ListWebhooksSchema.parse(params.arguments);
         const webhooks = await listWebhooks(args);
         return {
-          content: [{ type: "text", text: JSON.stringify(webhooks, null, 2) }],
+          content: [{ type: "text", text: JSON.stringify(webhooks) }],
         };
       }
 
@@ -11633,7 +11565,7 @@ async function handleToolCall(params: any) {
         const args = ListWebhookEventsSchema.parse(params.arguments);
         const events = await listWebhookEvents(args);
         return {
-          content: [{ type: "text", text: JSON.stringify(events, null, 2) }],
+          content: [{ type: "text", text: JSON.stringify(events) }],
         };
       }
 
@@ -11656,7 +11588,7 @@ async function handleToolCall(params: any) {
           };
         }
         return {
-          content: [{ type: "text", text: JSON.stringify(event, null, 2) }],
+          content: [{ type: "text", text: JSON.stringify(event) }],
         };
       }
 
@@ -11704,7 +11636,7 @@ async function handleToolCall(params: any) {
         const branch = GitLabBranchSchema.parse(data);
 
         return {
-          content: [{ type: "text", text: JSON.stringify(branch, null, 2) }],
+          content: [{ type: "text", text: JSON.stringify(branch) }],
         };
       }
 
@@ -11734,7 +11666,7 @@ async function handleToolCall(params: any) {
         const branches = z.array(GitLabBranchSchema).parse(data);
 
         return {
-          content: [{ type: "text", text: JSON.stringify(branches, null, 2) }],
+          content: [{ type: "text", text: JSON.stringify(branches) }],
         };
       }
 
@@ -11753,12 +11685,7 @@ async function handleToolCall(params: any) {
         await handleGitLabError(response);
 
         return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify({ status: "deleted", branch: args.branch_name }, null, 2),
-            },
-          ],
+          content: [{ type: "text", text: JSON.stringify({ status: "deleted", branch: args.branch_name }) }],
         };
       }
 
@@ -11780,7 +11707,7 @@ async function handleToolCall(params: any) {
         await handleGitLabError(response);
         const data = z.array(GitLabProtectedBranchSchema).parse(await response.json());
         return {
-          content: [{ type: "text", text: JSON.stringify(data, null, 2) }],
+          content: [{ type: "text", text: JSON.stringify(data) }],
         };
       }
 
@@ -11799,7 +11726,7 @@ async function handleToolCall(params: any) {
         await handleGitLabError(response);
         const data = GitLabProtectedBranchSchema.parse(await response.json());
         return {
-          content: [{ type: "text", text: JSON.stringify(data, null, 2) }],
+          content: [{ type: "text", text: JSON.stringify(data) }],
         };
       }
 
@@ -11830,7 +11757,7 @@ async function handleToolCall(params: any) {
         await handleGitLabError(response);
         const data = GitLabProtectedBranchSchema.parse(await response.json());
         return {
-          content: [{ type: "text", text: JSON.stringify(data, null, 2) }],
+          content: [{ type: "text", text: JSON.stringify(data) }],
         };
       }
 
@@ -11849,12 +11776,7 @@ async function handleToolCall(params: any) {
 
         await handleGitLabError(response);
         return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify({ status: "unprotected", branch: args.branch_name }, null, 2),
-            },
-          ],
+          content: [{ type: "text", text: JSON.stringify({ status: "unprotected", branch: args.branch_name }) }],
         };
       }
 
@@ -11875,16 +11797,7 @@ async function handleToolCall(params: any) {
         await handleGitLabError(response);
         const data = await response.json();
         return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify(
-                { status: "updated", default_branch: args.default_branch, project: data },
-                null,
-                2
-              ),
-            },
-          ],
+          content: [{ type: "text", text: JSON.stringify({ status: "updated", default_branch: args.default_branch, project: data }) }],
         };
       }
 
