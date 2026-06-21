@@ -52,6 +52,11 @@ function computeToggleNote(id: ToolsetId): string | undefined {
 }
 
 const GROUP_META: Record<ToolsetId, GroupMeta> = {
+  core: {
+    title: "Core",
+    blurb:
+      "Lean default starter set for common MR, issue, repository, branch, project, label, and identity workflows.",
+  },
   merge_requests: {
     title: "Merge Requests",
     blurb:
@@ -138,6 +143,7 @@ const GROUP_META: Record<ToolsetId, GroupMeta> = {
 };
 
 const GROUP_ORDER: ToolsetId[] = [
+  "core",
   "projects",
   "repositories",
   "branches",
@@ -268,7 +274,9 @@ function buildGroupPage(id: ToolsetId, toolNames: string[]): string {
   for (const name of toolNames) {
     const tool = allTools.find(t => t.name === name);
     if (!tool) {
-      throw new Error(`Tool '${name}' referenced in toolset '${id}' but missing from allTools registry`);
+      throw new Error(
+        `Tool '${name}' referenced in toolset '${id}' but missing from allTools registry`
+      );
     }
     lines.push(toolSection(name, tool.description, tool.inputSchema as JsonSchema));
   }
@@ -301,6 +309,7 @@ function buildToggleSection(groupedToolsList: Array<[ToolsetId, string[]]>): str
     "",
     "- `GITLAB_TOOLSETS=<group,…>` — comma-separated toolset IDs.",
     "- `GITLAB_TOOLSETS=all` — enables every group.",
+    "- `GITLAB_TOOLSETS=merge_requests,issues,repositories,branches,projects,labels,ci,groups,users` — restores the pre-lean default set.",
     "- `GITLAB_TOOLS=<tool,…>` — enables individual tools regardless of group.",
     "- `USE_PIPELINE=true` / `USE_MILESTONE=true` / `USE_GITLAB_WIKI=true` —" +
       " legacy single-group flags (Pipelines, Milestones, Wiki only).",

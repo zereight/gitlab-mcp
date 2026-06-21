@@ -16,11 +16,9 @@ import {
   TransportMode,
   HOST,
 } from "./utils/server-launcher.js";
-import {
-  MockGitLabServer,
-  findMockServerPort,
-} from "./utils/mock-gitlab-server.js";
+import { MockGitLabServer, findMockServerPort } from "./utils/mock-gitlab-server.js";
 import { CustomHeaderClient } from "./clients/custom-header-client.js";
+import { TOOLSET_DEFINITIONS } from "../tools/registry.js";
 
 const MOCK_TOKEN = "glpat-toolset-test-token";
 
@@ -29,79 +27,64 @@ const MOCK_PORT_BASE = 9200;
 const MCP_PORT_BASE = 3200;
 
 // Known tool counts per toolset (from TOOLSET_DEFINITIONS)
-const TOOLSET_TOOL_COUNTS: Record<string, number> = {
-  merge_requests: 41,
-  issues: 24,
-  repositories: 7,
-  branches: 15,
-  projects: 10,
-  labels: 5,
-  ci: 4,
-  pipelines: 19,
-  milestones: 9,
-  wiki: 10,
-  releases: 7,
-  tags: 5,
-  users: 7,
-  search: 3,
-  workitems: 18,
-  webhooks: 3,
-  groups: 1,
-  variables: 10,
-  dependency_proxy: 4,
-};
+const TOOLSET_TOOL_COUNTS: Record<string, number> = Object.fromEntries(
+  TOOLSET_DEFINITIONS.map(def => [def.id, def.tools.size])
+);
 
 const LEGACY_PIPELINE_CI_TOOL_COUNT = 2;
 const LEGACY_PIPELINE_TOOL_COUNT = TOOLSET_TOOL_COUNTS.pipelines + LEGACY_PIPELINE_CI_TOOL_COUNT;
 
-const DEFAULT_TOOLSETS = [
-  "merge_requests",
-  "issues",
-  "repositories",
-  "branches",
-  "projects",
-  "labels",
-  "ci",
-  "users",
-  "groups",
-];
+const DEFAULT_TOOLSETS = TOOLSET_DEFINITIONS.filter(def => def.isDefault).map(def => def.id);
 
-const NON_DEFAULT_TOOLSETS = [
-  "pipelines",
-  "milestones",
-  "wiki",
-  "releases",
-  "tags",
-  "workitems",
-  "webhooks",
-  "search",
-  "variables",
-  "dependency_proxy",
-];
+const NON_DEFAULT_TOOLSETS = TOOLSET_DEFINITIONS.filter(def => !def.isDefault).map(def => def.id);
 
 // discover_tools meta-tool is always force-injected (Step 5.5)
 const DISCOVER_TOOLS_COUNT = 1;
 
-const DEFAULT_TOOL_COUNT = DEFAULT_TOOLSETS.reduce(
-  (sum, id) => sum + TOOLSET_TOOL_COUNTS[id],
-  0
-) + DISCOVER_TOOLS_COUNT;
+function uniqueToolCount(toolsetIds: readonly string[]): number {
+  const names = new Set<string>();
+  for (const id of toolsetIds) {
+    const def = TOOLSET_DEFINITIONS.find(def => def.id === id);
+    if (!def) continue;
+    for (const tool of def.tools) names.add(tool);
+  }
+  return names.size;
+}
 
-const ALL_TOOLSET_TOOL_COUNT = Object.values(TOOLSET_TOOL_COUNTS).reduce(
-  (sum, c) => sum + c,
-  0
-) + DISCOVER_TOOLS_COUNT;
+const DEFAULT_TOOL_COUNT = uniqueToolCount(DEFAULT_TOOLSETS) + DISCOVER_TOOLS_COUNT;
+const ALL_TOOLSET_TOOL_COUNT =
+  uniqueToolCount(TOOLSET_DEFINITIONS.map(def => def.id)) + DISCOVER_TOOLS_COUNT;
 
 // Representative tools per toolset for spot-checking
 const TOOLSET_SAMPLE_TOOLS: Record<string, string[]> = {
+  core: ["list_merge_requests", "get_file_contents", "list_issues", "whoami"],
   merge_requests: ["merge_merge_request", "create_merge_request_thread", "list_draft_notes"],
   issues: ["create_issue", "list_issues", "create_note", "list_todos"],
   repositories: ["search_repositories", "get_file_contents", "push_files"],
-  branches: ["create_branch", "get_branch", "list_branches", "delete_branch", "list_commits", "list_commit_statuses", "create_commit_status"],
+  branches: [
+    "create_branch",
+    "get_branch",
+    "list_branches",
+    "delete_branch",
+    "list_commits",
+    "list_commit_statuses",
+    "create_commit_status",
+  ],
   projects: ["get_project", "update_project", "list_namespaces", "list_group_iterations"],
   labels: ["list_labels", "create_label"],
-  ci: ["validate_ci_lint", "validate_project_ci_lint", "list_ci_catalog_resources", "get_ci_catalog_resource"],
-  pipelines: ["list_pipelines", "create_pipeline", "cancel_pipeline_job", "list_deployments", "list_job_artifacts"],
+  ci: [
+    "validate_ci_lint",
+    "validate_project_ci_lint",
+    "list_ci_catalog_resources",
+    "get_ci_catalog_resource",
+  ],
+  pipelines: [
+    "list_pipelines",
+    "create_pipeline",
+    "cancel_pipeline_job",
+    "list_deployments",
+    "list_job_artifacts",
+  ],
   milestones: ["list_milestones", "create_milestone", "get_milestone_burndown_events"],
   wiki: ["list_wiki_pages", "create_wiki_page", "list_group_wiki_pages", "create_group_wiki_page"],
   releases: ["list_releases", "create_release", "download_release_asset"],
@@ -110,8 +93,19 @@ const TOOLSET_SAMPLE_TOOLS: Record<string, string[]> = {
   search: ["search_code", "search_project_code", "search_group_code"],
   webhooks: ["list_webhooks", "list_webhook_events", "get_webhook_event"],
   groups: ["create_group"],
-  variables: ["list_project_variables", "create_project_variable", "delete_project_variable", "list_group_variables", "create_group_variable", "delete_group_variable"],
-  dependency_proxy: ["get_dependency_proxy_settings", "list_dependency_proxy_blobs", "purge_dependency_proxy_cache"],
+  variables: [
+    "list_project_variables",
+    "create_project_variable",
+    "delete_project_variable",
+    "list_group_variables",
+    "create_group_variable",
+    "delete_group_variable",
+  ],
+  dependency_proxy: [
+    "get_dependency_proxy_settings",
+    "list_dependency_proxy_blobs",
+    "purge_dependency_proxy_cache",
+  ],
 };
 
 // --- Helpers ---
@@ -210,6 +204,22 @@ describe("Toolset Filtering", { concurrency: 1 }, () => {
       assertContainsNone(tools, TOOLSET_SAMPLE_TOOLS.search, "non-default search");
       assertContainsNone(tools, TOOLSET_SAMPLE_TOOLS.pipelines, "non-default pipelines");
       assertContainsNone(tools, TOOLSET_SAMPLE_TOOLS.wiki, "non-default wiki");
+    });
+
+    test("excludes advanced and destructive tools from the lean default", () => {
+      assertContainsNone(
+        tools,
+        [
+          "merge_merge_request",
+          "create_draft_note",
+          "delete_issue",
+          "push_files",
+          "create_label",
+          "validate_ci_lint",
+          "create_group",
+        ],
+        "advanced defaults"
+      );
     });
 
     test("excludes execute_graphql (not in any toolset)", () => {
@@ -470,10 +480,12 @@ describe("Toolset Filtering", { concurrency: 1 }, () => {
     after(() => cleanupServers([server]));
 
     test("excludes tools matching the denial regex", () => {
-      const denied = tools.filter(
-        (t) => t.startsWith("create_") || t.startsWith("delete_")
+      const denied = tools.filter(t => t.startsWith("create_") || t.startsWith("delete_"));
+      assert.strictEqual(
+        denied.length,
+        0,
+        `Should have no create_/delete_ tools, found: ${denied}`
       );
-      assert.strictEqual(denied.length, 0, `Should have no create_/delete_ tools, found: ${denied}`);
     });
 
     test("keeps non-matching issue tools", () => {

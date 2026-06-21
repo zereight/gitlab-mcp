@@ -93,6 +93,8 @@ Some MCP clients (like GitHub Copilot CLI) have issues with environment variable
 - `--token` - GitLab Personal Access Token (replaces `GITLAB_PERSONAL_ACCESS_TOKEN`)
 - `--api-url` - GitLab API URL (replaces `GITLAB_API_URL`)
 - `--read-only=true` - Enable read-only mode (replaces `GITLAB_READ_ONLY_MODE`)
+- `--toolsets=all` - Enable named toolsets (replaces `GITLAB_TOOLSETS`; unset uses the lean `core` default)
+- `--tools=list_issues` - Add individual tools (replaces `GITLAB_TOOLS`)
 - `--use-wiki=true` - Enable wiki API (replaces `USE_GITLAB_WIKI`)
 - `--use-milestone=true` - Enable milestone API (replaces `USE_MILESTONE`)
 - `--use-pipeline=true` - Enable pipeline API (replaces `USE_PIPELINE`)

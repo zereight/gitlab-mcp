@@ -84,6 +84,7 @@ nav:
       - Resolve Issue Thread: features/resolve-issue-thread.md
   - Tools:
       - Overview: tools/index.md
+      - Core: tools/core.md
       - Projects & Namespaces: tools/projects.md
       - Projects & Files: tools/repositories.md
       - Branches & Commits: tools/branches.md

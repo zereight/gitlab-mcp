@@ -2,6 +2,9 @@
 
 Validate `.gitlab-ci.yml` snippets and project pipeline configs.
 
+!!! note "Feature toggle"
+    Opt-in. Enable via `GITLAB_TOOLSETS=ci` (or `GITLAB_TOOLSETS=all`), list individual tools in `GITLAB_TOOLS=`, or activate at runtime with the `discover_tools` MCP tool.
+
 ## Tools in this group
 
 - [`validate_ci_lint`](#validate_ci_lint) — 📖 Read-only
