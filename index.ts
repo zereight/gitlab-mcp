@@ -188,9 +188,9 @@ import fs from "node:fs";
 import { pipeline as streamPipeline } from "node:stream/promises";
 import os from "node:os";
 import nodeFetch from "node-fetch";
-import path, { dirname } from "node:path";
+import path from "node:path";
 import { CookieJar, parse as parseCookie } from "tough-cookie";
-import { fileURLToPath, URL } from "node:url";
+import { URL } from "node:url";
 import { z } from "zod";
 
 import { initializeOAuthClient, GitLabOAuth } from "./oauth.js";
@@ -199,6 +199,7 @@ import { mcpAuthRouter } from "@modelcontextprotocol/sdk/server/auth/router.js";
 import { ipKeyGenerator } from "express-rate-limit";
 import { normalizeProxyClientIpForRateLimit } from "./utils/proxy-client-ip.js";
 import { getForwardedPublicBaseUrl } from "./utils/forwarded-public-base-url.js";
+import { SERVER_VERSION } from "./server/version.js";
 import { normalizeGitLabApiUrl } from "./utils/url.js";
 import {
   estimateMergeCommitCount,
@@ -621,22 +622,6 @@ enum TransportMode {
   STDIO = "stdio",
   SSE = "sse",
   STREAMABLE_HTTP = "streamable-http",
-}
-
-/**
- * Read version from package.json
- */
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-const packageJsonPath = path.resolve(__dirname, "../package.json");
-let SERVER_VERSION = "unknown";
-try {
-  if (fs.existsSync(packageJsonPath)) {
-    const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, "utf8"));
-    SERVER_VERSION = packageJson.version || SERVER_VERSION;
-  }
-} catch {
-  // Intentionally ignored: version read failure is non-critical
 }
 
 /**
