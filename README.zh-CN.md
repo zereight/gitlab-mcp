@@ -134,6 +134,8 @@ command = lib.getExe inputs.gitlab-mcp.packages.${system}.default;
 - `--api-url` - GitLab API URL（替代 `GITLAB_API_URL`）
 - `--read-only=true` - 启用只读模式（替代 `GITLAB_READ_ONLY_MODE`，已弃用 — 推荐 `--permission-mode=readonly`）
 - `--permission-mode` - 权限级别：`readonly`、`modify`（禁用删除工具）或 `full`（替代 `GITLAB_PERMISSION_MODE`，默认 `full`）
+- `--toolsets=all` - 启用指定工具集（替代 `GITLAB_TOOLSETS`；未设置时使用精简 `core` 默认值）
+- `--tools=list_issues` - 添加单个工具（替代 `GITLAB_TOOLS`）
 - `--use-wiki=true` - 启用 Wiki API（替代 `USE_GITLAB_WIKI`，旧版 — 推荐 `GITLAB_TOOLSETS=wiki`）
 - `--use-milestone=true` - 启用里程碑 API（替代 `USE_MILESTONE`，旧版 — 推荐 `GITLAB_TOOLSETS=milestones`）
 - `--use-pipeline=true` - 启用流水线 API（替代 `USE_PIPELINE`，旧版 — 推荐 `GITLAB_TOOLSETS=pipelines`）
