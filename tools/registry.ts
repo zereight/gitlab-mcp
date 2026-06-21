@@ -155,6 +155,8 @@ import {
   ListPipelineTriggerJobsSchema,
   ValidateCiLintSchema,
   ValidateProjectCiLintSchema,
+  ListCiCatalogResourcesSchema,
+  GetCiCatalogResourceSchema,
   ListPipelinesSchema,
   ListProjectMembersSchema,
   ListProjectMilestonesSchema,
@@ -809,6 +811,16 @@ export const allTools = [
     inputSchema: toJSONSchema(ValidateProjectCiLintSchema),
   },
   {
+    name: "list_ci_catalog_resources",
+    description: "List GitLab CI/CD Catalog resources/components visible to the user",
+    inputSchema: toJSONSchema(ListCiCatalogResourcesSchema),
+  },
+  {
+    name: "get_ci_catalog_resource",
+    description: "Get details for a GitLab CI/CD Catalog resource, including versions and components",
+    inputSchema: toJSONSchema(GetCiCatalogResourceSchema),
+  },
+  {
     name: "create_pipeline",
     description: "Create a new pipeline for a branch or tag",
     inputSchema: toJSONSchema(CreatePipelineSchema),
@@ -1319,6 +1331,8 @@ export const readOnlyTools = new Set([
   "get_pipeline_job_output",
   "validate_ci_lint",
   "validate_project_ci_lint",
+  "list_ci_catalog_resources",
+  "get_ci_catalog_resource",
   "list_job_artifacts",
   "download_job_artifacts",
   "get_job_artifact_file",
@@ -1635,7 +1649,12 @@ export const TOOLSET_DEFINITIONS: readonly ToolsetDefinition[] = [
   {
     id: "ci",
     isDefault: true,
-    tools: new Set(["validate_ci_lint", "validate_project_ci_lint"]),
+    tools: new Set([
+      "validate_ci_lint",
+      "validate_project_ci_lint",
+      "list_ci_catalog_resources",
+      "get_ci_catalog_resource",
+    ]),
   },
   {
     id: "groups",

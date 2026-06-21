@@ -463,6 +463,8 @@ import {
   ValidateCiLintSchema,
   type ValidateProjectCiLintOptions,
   ValidateProjectCiLintSchema,
+  ListCiCatalogResourcesSchema,
+  GetCiCatalogResourceSchema,
   type ListProjectMembersOptions,
   ListProjectMembersSchema,
   ListProjectMilestonesSchema,
@@ -9036,6 +9038,35 @@ async function getTagSignature(projectId: string, tagName: string): Promise<GitL
   return GitLabTagSignatureSchema.parse(data);
 }
 
+async function executeGitLabGraphQL(query: string, variables: Record<string, unknown> = {}) {
+  const apiUrl = new URL(getEffectiveApiUrl());
+  const restPath = apiUrl.pathname || "";
+  const idx = restPath.lastIndexOf("/api/v4");
+  const prefix = idx >= 0 ? restPath.slice(0, idx) : "";
+  const graphqlUrl = process.env.GITLAB_GRAPHQL_URL || `${apiUrl.origin}${prefix}/api/graphql`;
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 45000);
+  try {
+    const response = await fetch(graphqlUrl, {
+      ...getFetchConfig(),
+      method: "POST",
+      headers: {
+        ...BASE_HEADERS,
+        ...buildAuthHeaders(),
+      },
+      body: JSON.stringify({ query, variables }),
+      signal: controller.signal as any,
+    });
+    if (!response.ok) {
+      await handleGitLabError(response);
+    }
+    return await response.json();
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 // Request handlers are now registered inside createServer() factory function
 // to ensure each transport connection gets its own Server instance (GHSA-345p-7cg4-v4c7).
 
@@ -10809,6 +10840,138 @@ async function handleToolCall(params: any) {
         return {
           content: [{ type: "text", text: JSON.stringify(result) }],
         };
+      }
+
+      case "list_ci_catalog_resources": {
+        const args = ListCiCatalogResourcesSchema.parse(params.arguments);
+        const result = await executeGitLabGraphQL(
+          `query ListCiCatalogResources(
+            $search: String,
+            $first: Int,
+            $after: String,
+            $groupIds: [GroupID!],
+            $scope: CiCatalogResourceScope,
+            $sort: CiCatalogResourceSort,
+            $topics: [String!],
+            $verificationLevel: CiCatalogResourceVerificationLevel
+          ) {
+            ciCatalogResources(
+              search: $search,
+              first: $first,
+              after: $after,
+              groupIds: $groupIds,
+              scope: $scope,
+              sort: $sort,
+              topics: $topics,
+              verificationLevel: $verificationLevel
+            ) {
+              nodes {
+                id
+                name
+                description
+                fullPath
+                icon
+                starCount
+                topics
+                verificationLevel
+                visibilityLevel
+                webPath
+                latestReleasedAt
+                last30DayUsageCount
+              }
+              pageInfo { hasNextPage endCursor }
+            }
+          }`,
+          {
+            search: args.search,
+            first: args.first ?? 20,
+            after: args.after,
+            groupIds: args.group_ids,
+            scope: args.scope,
+            sort: args.sort,
+            topics: args.topics,
+            verificationLevel: args.verification_level,
+          }
+        );
+        return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
+      }
+
+      case "get_ci_catalog_resource": {
+        const args = GetCiCatalogResourceSchema.parse(params.arguments);
+        const result = await executeGitLabGraphQL(
+          `query GetCiCatalogResource(
+            $id: CiCatalogResourceID,
+            $fullPath: ID,
+            $versionLimit: Int!,
+            $componentLimit: Int!,
+            $includeReadme: Boolean!
+          ) {
+            ciCatalogResource(id: $id, fullPath: $fullPath) {
+              id
+              name
+              description
+              fullPath
+              icon
+              starCount
+              topics
+              verificationLevel
+              visibilityLevel
+              webPath
+              latestReleasedAt
+              last30DayUsageCount
+              versions(first: $versionLimit) {
+                nodes {
+                  id
+                  name
+                  path
+                  createdAt
+                  releasedAt
+                  readme @include(if: $includeReadme)
+                  semver { major minor patch }
+                  components(first: $componentLimit) {
+                    nodes {
+                      id
+                      name
+                      description
+                      includePath
+                      last30DayUsageCount
+                      inputs {
+                        name
+                        description
+                        type
+                        required
+                        default
+                        options
+                        regex
+                      }
+                    }
+                    pageInfo { hasNextPage endCursor }
+                  }
+                }
+                pageInfo { hasNextPage endCursor }
+              }
+            }
+          }`,
+          {
+            id: args.id,
+            fullPath: args.full_path,
+            versionLimit: args.version_limit ?? 5,
+            componentLimit: args.component_limit ?? 20,
+            includeReadme: args.include_readme ?? false,
+          }
+        );
+
+        if (args.component_name) {
+          const resource = (result as any)?.data?.ciCatalogResource;
+          for (const version of resource?.versions?.nodes ?? []) {
+            const components = version?.components?.nodes;
+            if (Array.isArray(components)) {
+              version.components.nodes = components.filter(component => component?.name === args.component_name);
+            }
+          }
+        }
+
+        return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
       }
 
       case "create_pipeline": {
