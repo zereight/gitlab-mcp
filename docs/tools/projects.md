@@ -2,6 +2,9 @@
 
 Project/namespace listing, member queries, group iterations, and server health.
 
+!!! note "Feature toggle"
+    Opt-in. Enable via `GITLAB_TOOLSETS=projects` (or `GITLAB_TOOLSETS=all`), list individual tools in `GITLAB_TOOLS=`, or activate at runtime with the `discover_tools` MCP tool.
+
 ## Tools in this group
 
 - [`get_project`](#get_project) — 📖 Read-only

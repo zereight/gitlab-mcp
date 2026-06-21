@@ -126,7 +126,8 @@ describe('list_group_members', () => {
       test('should return direct members', async () => {
         const members = await callListGroupMembers({ group_id: TEST_GROUP_ID }, {
           GITLAB_API_URL: `${mockGitLabUrl}/api/v4`,
-          GITLAB_PERSONAL_ACCESS_TOKEN: MOCK_TOKEN
+          GITLAB_PERSONAL_ACCESS_TOKEN: MOCK_TOKEN,
+          GITLAB_TOOLSETS: "projects",
         });
 
         assert.ok(Array.isArray(members), 'Response should be an array');
@@ -143,7 +144,8 @@ describe('list_group_members', () => {
           { group_id: TEST_GROUP_ID, include_inheritance: true },
           {
             GITLAB_API_URL: `${mockGitLabUrl}/api/v4`,
-            GITLAB_PERSONAL_ACCESS_TOKEN: MOCK_TOKEN
+            GITLAB_PERSONAL_ACCESS_TOKEN: MOCK_TOKEN,
+            GITLAB_TOOLSETS: "projects",
           }
         );
 
@@ -161,7 +163,8 @@ describe('list_group_members', () => {
           { group_id: TEST_GROUP_ID, query: 'alice' },
           {
             GITLAB_API_URL: `${mockGitLabUrl}/api/v4`,
-            GITLAB_PERSONAL_ACCESS_TOKEN: MOCK_TOKEN
+            GITLAB_PERSONAL_ACCESS_TOKEN: MOCK_TOKEN,
+            GITLAB_TOOLSETS: "projects",
           }
         );
 
