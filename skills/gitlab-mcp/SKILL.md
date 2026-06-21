@@ -5,7 +5,7 @@ description: Use this skill when working with the GitLab MCP server tools for me
 
 # gitlab-mcp
 
-GitLab MCP server providing 268 tools: 266 tools across 22 toolsets, plus `execute_graphql` and the always-available `discover_tools` meta-tool.
+GitLab MCP server providing 268 tools: 266 tools across 23 toolsets, plus `execute_graphql` and the always-available `discover_tools` meta-tool.
 
 For exact generated parameter tables, see `docs/tools/`. Use this file for workflow shape and high-signal parameter hints.
 
@@ -13,15 +13,16 @@ For exact generated parameter tables, see `docs/tools/`. Use this file for workf
 
 | Toolset | Default | Enable with |
 |---|---|---|
-| merge_requests (45 tools) | yes | - |
-| issues (24 tools) | yes | - |
-| repositories (7 tools) | yes | - |
-| branches (15 tools) | yes | - |
-| projects (11 tools) | yes | - |
-| labels (5 tools) | yes | - |
-| ci (4 tools) | yes | - |
-| groups (1 tool) | yes | - |
-| users (7 tools) | yes | - |
+| core (35 tools) | yes | default lean starter set |
+| merge_requests (45 tools) | no | `GITLAB_TOOLSETS=merge_requests` |
+| issues (24 tools) | no | `GITLAB_TOOLSETS=issues` |
+| repositories (7 tools) | no | `GITLAB_TOOLSETS=repositories` |
+| branches (15 tools) | no | `GITLAB_TOOLSETS=branches` |
+| projects (11 tools) | no | `GITLAB_TOOLSETS=projects` |
+| labels (5 tools) | no | `GITLAB_TOOLSETS=labels` |
+| ci (4 tools) | no | `GITLAB_TOOLSETS=ci` |
+| groups (1 tool) | no | `GITLAB_TOOLSETS=groups` |
+| users (7 tools) | no | `GITLAB_TOOLSETS=users` |
 | pipelines (56 tools) | no | `USE_PIPELINE=true` or `GITLAB_TOOLSETS=pipelines` |
 | milestones (17 tools) | no | `USE_MILESTONE=true` or `GITLAB_TOOLSETS=milestones` |
 | wiki (10 tools) | no | `USE_GITLAB_WIKI=true` or `GITLAB_TOOLSETS=wiki` |
@@ -36,10 +37,11 @@ For exact generated parameter tables, see `docs/tools/`. Use this file for workf
 | vulnerabilities (4 tools) | no | `GITLAB_TOOLSETS=vulnerabilities` |
 | orbit (4 tools) | no | `GITLAB_TOOLSETS=orbit` |
 
-Enable all: `GITLAB_TOOLSETS=all`. Use `GITLAB_TOOLS` to enable individual tools outside their toolset. `discover_tools` can list and activate opt-in categories for the current session. `execute_graphql` is not in a toolset; enable it explicitly with `GITLAB_TOOLS=execute_graphql`.
+Enable all: `GITLAB_TOOLSETS=all`. Restore the pre-lean default with `GITLAB_TOOLSETS=merge_requests,issues,repositories,branches,projects,labels,ci,groups,users`. Use `GITLAB_TOOLS` to enable individual tools outside their toolset. `discover_tools` can list and activate opt-in categories for the current session. `execute_graphql` is not in a toolset; enable it explicitly with `GITLAB_TOOLS=execute_graphql`.
 
-The per-toolset counts above sum to 268 because `get_branch` and `list_branches` are each listed
-in both `merge_requests` and `branches`; the unique tool count across all toolsets is 266.
+The per-toolset counts above sum to 303 because the 35 `core` tools are each also listed
+in their full category (`get_branch` and `list_branches` additionally appear in both
+`merge_requests` and `branches`); the unique tool count across all toolsets is 266.
 
 ## Key Workflows
 
