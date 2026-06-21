@@ -1479,6 +1479,7 @@ export const pipelineToolNames = new Set([
 // --- Toolset definitions ---
 
 export type ToolsetId =
+  | "core"
   | "merge_requests"
   | "issues"
   | "repositories"
@@ -1507,8 +1508,49 @@ export interface ToolsetDefinition {
 
 export const TOOLSET_DEFINITIONS: readonly ToolsetDefinition[] = [
   {
-    id: "merge_requests",
+    id: "core",
     isDefault: true,
+    tools: new Set([
+      "list_merge_requests",
+      "get_merge_request",
+      "get_merge_request_approval_state",
+      "list_merge_request_changed_files",
+      "get_merge_request_file_diff",
+      "list_merge_request_diffs",
+      "get_merge_request_diffs",
+      "mr_discussions",
+      "create_merge_request",
+      "create_merge_request_thread",
+      "resolve_merge_request_thread",
+      "update_merge_request",
+      "list_issues",
+      "my_issues",
+      "get_issue",
+      "create_issue",
+      "update_issue",
+      "create_issue_note",
+      "list_issue_discussions",
+      "update_issue_description_patch",
+      "get_file_contents",
+      "get_repository_tree",
+      "search_repositories",
+      "get_branch",
+      "list_branches",
+      "list_commits",
+      "get_commit",
+      "get_commit_diff",
+      "get_file_blame",
+      "get_project",
+      "list_projects",
+      "list_project_members",
+      "list_labels",
+      "whoami",
+      "health_check",
+    ]),
+  },
+  {
+    id: "merge_requests",
+    isDefault: false,
     tools: new Set([
       "merge_merge_request",
       "approve_merge_request",
@@ -1557,7 +1599,7 @@ export const TOOLSET_DEFINITIONS: readonly ToolsetDefinition[] = [
   },
   {
     id: "issues",
-    isDefault: true,
+    isDefault: false,
     tools: new Set([
       "create_issue",
       "list_issues",
@@ -1587,7 +1629,7 @@ export const TOOLSET_DEFINITIONS: readonly ToolsetDefinition[] = [
   },
   {
     id: "repositories",
-    isDefault: true,
+    isDefault: false,
     tools: new Set([
       "search_repositories",
       "create_repository",
@@ -1600,7 +1642,7 @@ export const TOOLSET_DEFINITIONS: readonly ToolsetDefinition[] = [
   },
   {
     id: "branches",
-    isDefault: true,
+    isDefault: false,
     tools: new Set([
       "create_branch",
       "get_branch",
@@ -1621,7 +1663,7 @@ export const TOOLSET_DEFINITIONS: readonly ToolsetDefinition[] = [
   },
   {
     id: "projects",
-    isDefault: true,
+    isDefault: false,
     tools: new Set([
       "get_project",
       "list_projects",
@@ -1637,7 +1679,7 @@ export const TOOLSET_DEFINITIONS: readonly ToolsetDefinition[] = [
   },
   {
     id: "labels",
-    isDefault: true,
+    isDefault: false,
     tools: new Set([
       "list_labels",
       "get_label",
@@ -1648,7 +1690,7 @@ export const TOOLSET_DEFINITIONS: readonly ToolsetDefinition[] = [
   },
   {
     id: "ci",
-    isDefault: true,
+    isDefault: false,
     tools: new Set([
       "validate_ci_lint",
       "validate_project_ci_lint",
@@ -1658,7 +1700,7 @@ export const TOOLSET_DEFINITIONS: readonly ToolsetDefinition[] = [
   },
   {
     id: "groups",
-    isDefault: true,
+    isDefault: false,
     tools: new Set(["create_group"]),
   },
   {
@@ -1743,7 +1785,7 @@ export const TOOLSET_DEFINITIONS: readonly ToolsetDefinition[] = [
   },
   {
     id: "users",
-    isDefault: true,
+    isDefault: false,
     tools: new Set([
       "get_users",
       "get_user",
@@ -1820,15 +1862,17 @@ export const TOOLSET_DEFINITIONS: readonly ToolsetDefinition[] = [
   },
 ] as const;
 
-// Derived lookup: tool name → toolset ID
+// Derived lookup: tool name → toolset IDs. Most tools belong to one category.
+// The default `core` toolset intentionally overlaps with the full opt-in
+// categories so users get a small starter surface without losing the ability
+// to enable complete categories later.
+export const TOOLSETS_BY_TOOL_NAME = new Map<string, Set<ToolsetId>>();
 export const TOOLSET_BY_TOOL_NAME = new Map<string, ToolsetId>();
 for (const def of TOOLSET_DEFINITIONS) {
   for (const tool of def.tools) {
-    if (TOOLSET_BY_TOOL_NAME.has(tool)) {
-      console.warn(
-        `Tool "${tool}" is defined in multiple toolsets: "${TOOLSET_BY_TOOL_NAME.get(tool)}" and "${def.id}"`
-      );
-    }
+    const toolsets = TOOLSETS_BY_TOOL_NAME.get(tool) ?? new Set<ToolsetId>();
+    toolsets.add(def.id);
+    TOOLSETS_BY_TOOL_NAME.set(tool, toolsets);
     TOOLSET_BY_TOOL_NAME.set(tool, def.id);
   }
 }
@@ -1905,8 +1949,11 @@ export function isToolInEnabledToolset(
   toolName: string,
   enabledToolsets: ReadonlySet<ToolsetId>
 ): boolean {
-  const toolsetId = TOOLSET_BY_TOOL_NAME.get(toolName);
+  const toolsetIds = TOOLSETS_BY_TOOL_NAME.get(toolName);
   // Tools not in any toolset (e.g. execute_graphql) are excluded by default
-  if (toolsetId === undefined) return false;
-  return enabledToolsets.has(toolsetId);
+  if (toolsetIds === undefined) return false;
+  for (const toolsetId of toolsetIds) {
+    if (enabledToolsets.has(toolsetId)) return true;
+  }
+  return false;
 }

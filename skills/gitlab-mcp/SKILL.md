@@ -5,30 +5,34 @@ description: Use this skill when working with the GitLab MCP server tools for me
 
 # gitlab-mcp
 
-GitLab MCP server providing 173 tools: 171 tools across 16 toolsets, plus `execute_graphql` and the always-available `discover_tools` meta-tool.
+GitLab MCP server providing 204 tools total: 202 tools across 20 toolsets, plus `execute_graphql` and the always-available `discover_tools` meta-tool.
 
 ## Toolsets
 
-| Toolset                   | Default | Enable with                                          |
-| ------------------------- | ------- | ---------------------------------------------------- |
-| merge_requests (41 tools) | yes     | -                                                    |
-| issues (23 tools)         | yes     | -                                                    |
-| repositories (7 tools)    | yes     | -                                                    |
-| branches (6 tools)        | yes     | -                                                    |
-| projects (8 tools)        | yes     | -                                                    |
-| labels (5 tools)          | yes     | -                                                    |
-| ci (2 tools)              | yes     | -                                                    |
-| users (5 tools)           | yes     | -                                                    |
-| pipelines (19 tools)      | no      | `USE_PIPELINE=true` or `GITLAB_TOOLSETS=pipelines`   |
-| milestones (9 tools)      | no      | `USE_MILESTONE=true` or `GITLAB_TOOLSETS=milestones` |
-| wiki (10 tools)           | no      | `USE_GITLAB_WIKI=true` or `GITLAB_TOOLSETS=wiki`     |
-| releases (7 tools)        | no      | `GITLAB_TOOLSETS=releases`                           |
-| tags (5 tools)            | no      | `GITLAB_TOOLSETS=tags`                               |
-| workitems (18 tools)      | no      | `GITLAB_TOOLSETS=workitems`                          |
-| webhooks (3 tools)        | no      | `GITLAB_TOOLSETS=webhooks`                           |
-| search (3 tools)          | no      | `GITLAB_TOOLSETS=search`                             |
+| Toolset                    | Default | Enable with                                          |
+| -------------------------- | ------- | ---------------------------------------------------- |
+| core (35 tools)            | yes     | default lean starter set                             |
+| merge_requests (43 tools)  | no      | `GITLAB_TOOLSETS=merge_requests`                     |
+| issues (24 tools)          | no      | `GITLAB_TOOLSETS=issues`                             |
+| repositories (7 tools)     | no      | `GITLAB_TOOLSETS=repositories`                       |
+| branches (15 tools)        | no      | `GITLAB_TOOLSETS=branches`                           |
+| projects (10 tools)        | no      | `GITLAB_TOOLSETS=projects`                           |
+| labels (5 tools)           | no      | `GITLAB_TOOLSETS=labels`                             |
+| ci (4 tools)               | no      | `GITLAB_TOOLSETS=ci`                                 |
+| groups (1 tool)            | no      | `GITLAB_TOOLSETS=groups`                             |
+| users (7 tools)            | no      | `GITLAB_TOOLSETS=users`                              |
+| pipelines (19 tools)       | no      | `USE_PIPELINE=true` or `GITLAB_TOOLSETS=pipelines`   |
+| milestones (9 tools)       | no      | `USE_MILESTONE=true` or `GITLAB_TOOLSETS=milestones` |
+| wiki (10 tools)            | no      | `USE_GITLAB_WIKI=true` or `GITLAB_TOOLSETS=wiki`     |
+| releases (7 tools)         | no      | `GITLAB_TOOLSETS=releases`                           |
+| tags (5 tools)             | no      | `GITLAB_TOOLSETS=tags`                               |
+| workitems (18 tools)       | no      | `GITLAB_TOOLSETS=workitems`                          |
+| webhooks (3 tools)         | no      | `GITLAB_TOOLSETS=webhooks`                           |
+| search (3 tools)           | no      | `GITLAB_TOOLSETS=search`                             |
+| variables (10 tools)       | no      | `GITLAB_TOOLSETS=variables`                          |
+| dependency_proxy (4 tools) | no      | `GITLAB_TOOLSETS=dependency_proxy`                   |
 
-Enable all: `GITLAB_TOOLSETS=all`. Use `GITLAB_TOOLS` to enable individual tools outside their toolset. `discover_tools` can activate opt-in categories for the current session.
+Enable all: `GITLAB_TOOLSETS=all`. Restore the pre-lean default with `GITLAB_TOOLSETS=merge_requests,issues,repositories,branches,projects,labels,ci,groups,users`. Use `GITLAB_TOOLS` to enable individual tools outside their toolset. `discover_tools` can activate opt-in categories for the current session.
 
 ## Key Workflows
 

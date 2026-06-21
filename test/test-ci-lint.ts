@@ -220,10 +220,11 @@ describe("GitLab CI lint tools", () => {
     assert.strictEqual(result.jobs[0].name, "include-job");
   });
 
-  test("CI lint tools are visible by default in read-only mode", async () => {
+  test("CI lint tools are visible when ci toolset is enabled in read-only mode", async () => {
     const tools = await listToolNames({
       GITLAB_API_URL: `${mockGitLabUrl}/api/v4`,
       GITLAB_PERSONAL_ACCESS_TOKEN: MOCK_TOKEN,
+      GITLAB_TOOLSETS: "ci",
       GITLAB_READ_ONLY_MODE: "true",
     });
 

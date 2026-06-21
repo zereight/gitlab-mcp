@@ -322,14 +322,15 @@ Set to `true` to expose only read-only tools.
 
 ### `GITLAB_TOOLSETS`
 
-Comma-separated list of toolset IDs to enable.
+Comma-separated list of toolset IDs to enable. If unset, the server exposes the lean `core` toolset plus the always-on `discover_tools` meta-tool.
 
 For agent-specific tool surfaces, see
 [Custom Agents and Multiple PAT Setup](../auth/custom-agent-multiple-pat.md).
 
-Special value:
+Special values:
 
-- `all`
+- `all` — enable every toolset.
+- `merge_requests,issues,repositories,branches,projects,labels,ci,groups,users` — restore the pre-lean default set.
 
 ### `GITLAB_TOOLS`
 
