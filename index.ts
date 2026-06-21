@@ -132,9 +132,9 @@ import fs from "node:fs";
 import { pipeline as streamPipeline } from "node:stream/promises";
 import os from "node:os";
 import nodeFetch from "node-fetch";
-import path, { dirname } from "node:path";
+import path from "node:path";
 import { CookieJar, parse as parseCookie } from "tough-cookie";
-import { fileURLToPath, URL } from "node:url";
+import { URL } from "node:url";
 import { z } from "zod";
 
 import { initializeOAuthClient, GitLabOAuth } from "./oauth.js";
@@ -151,6 +151,7 @@ import type { DownloadProxyDependencies } from "./downloads/proxy.js";
 import { createDownloadToken } from "./utils/download-token.js";
 import { determineTransportMode, TransportMode } from "./server/transport-mode.js";
 import { formatPrometheusMetrics } from "./server/metrics.js";
+import { SERVER_VERSION } from "./server/version.js";
 import { normalizeGitLabApiUrl } from "./utils/url.js";
 import {
   estimateMergeCommitCount,
@@ -567,22 +568,6 @@ import {
 import { createLogger } from "./utils/logger.js";
 
 const logger = createLogger();
-
-/**
- * Read version from package.json
- */
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-const packageJsonPath = path.resolve(__dirname, "../package.json");
-let SERVER_VERSION = "unknown";
-try {
-  if (fs.existsSync(packageJsonPath)) {
-    const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, "utf8"));
-    SERVER_VERSION = packageJson.version || SERVER_VERSION;
-  }
-} catch {
-  // Intentionally ignored: version read failure is non-critical
-}
 
 const SERVER_NAME = process.env.MCP_SERVER_NAME?.trim() || "zereight-gitlab-mcp-server";
 
