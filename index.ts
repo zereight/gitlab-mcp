@@ -946,7 +946,13 @@ function createServer(): McpServer {
  */
 function isLoopbackBindHost(host: string): boolean {
   const normalized = host.trim().toLowerCase().replace(/^\[|\]$/g, "");
-  return normalized === "localhost" || normalized.startsWith("127.") || normalized === "::1";
+  const isIpv4Loopback = /^127(?:\.\d{1,3}){3}$/.test(normalized);
+  return (
+    normalized === "localhost" ||
+    isIpv4Loopback ||
+    normalized === "::1" ||
+    normalized === "0:0:0:0:0:0:0:1"
+  );
 }
 
 function validateConfiguration(): void {
