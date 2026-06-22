@@ -944,6 +944,17 @@ function createServer(): McpServer {
 /**
  * Validate configuration at startup
  */
+function isLoopbackBindHost(host: string): boolean {
+  const normalized = host.trim().toLowerCase().replace(/^\[|\]$/g, "");
+  const isIpv4Loopback = /^127(?:\.\d{1,3}){3}$/.test(normalized);
+  return (
+    normalized === "localhost" ||
+    isIpv4Loopback ||
+    normalized === "::1" ||
+    normalized === "0:0:0:0:0:0:0:1"
+  );
+}
+
 function validateConfiguration(): void {
   const errors: string[] = [];
 
@@ -1019,6 +1030,14 @@ function validateConfiguration(): void {
   const mcpOAuth = getConfig("mcp-oauth", "GITLAB_MCP_OAUTH") === "true";
   const mcpServerUrl = getConfig("mcp-server-url", "MCP_SERVER_URL");
   const streamableHttp = getConfig("streamable-http", "STREAMABLE_HTTP") === "true";
+  const sse = getConfig("sse", "SSE") === "true";
+  const bindHost = getConfig("host", "HOST") || "127.0.0.1";
+  const sseAuthToken = getConfig("sse-auth-token", "SSE_AUTH_TOKEN");
+  const allowUnauthenticatedRemoteSse =
+    getConfig(
+      "sse-dangerously-allow-unauthenticated-remote",
+      "SSE_DANGEROUSLY_ALLOW_UNAUTHENTICATED_REMOTE"
+    ) === "true";
 
   if (!remoteAuth && !useOAuth && !hasToken && !hasJobToken && !hasCookie && !mcpOAuth) {
     errors.push(
@@ -1029,6 +1048,12 @@ function validateConfiguration(): void {
   if (streamableHttp && (hasToken || hasJobToken) && !remoteAuth && !mcpOAuth) {
     errors.push(
       "STREAMABLE_HTTP=true/--streamable-http with GITLAB_PERSONAL_ACCESS_TOKEN/--token or GITLAB_JOB_TOKEN/--job-token requires REMOTE_AUTHORIZATION=true/--remote-auth=true or GITLAB_MCP_OAUTH=true/--mcp-oauth=true"
+    );
+  }
+
+  if (sse && !isLoopbackBindHost(bindHost) && !sseAuthToken && !allowUnauthenticatedRemoteSse) {
+    errors.push(
+      "SSE=true on a non-loopback HOST requires SSE_AUTH_TOKEN (or explicitly set SSE_DANGEROUSLY_ALLOW_UNAUTHENTICATED_REMOTE=true)"
     );
   }
 
@@ -12242,15 +12267,25 @@ function registerDownloadProxy(
  */
 async function startSSEServer(): Promise<void> {
   const app = express();
+  const sseAuthToken = getConfig("sse-auth-token", "SSE_AUTH_TOKEN");
 
   if (MCP_TRUST_PROXY) {
     app.set("trust proxy", 1);
   }
 
+  const requireSseAuth = (req: Request, res: Response, next: NextFunction) => {
+    if (!sseAuthToken) return next();
+
+    const match = /^Bearer\s+(\S+)$/i.exec(req.headers.authorization || "");
+    if (match?.[1] === sseAuthToken) return next();
+
+    res.status(401).json({ error: "SSE authentication required" });
+  };
+
   const transports: { [sessionId: string]: SSEServerTransport } = {};
   let shuttingDown = false;
 
-  app.get("/sse", async (_: Request, res: Response) => {
+  app.get("/sse", requireSseAuth, async (_: Request, res: Response) => {
     const serverInstance = createServer();
     const transport = new SSEServerTransport("/messages", res);
     transports[transport.sessionId] = transport;
@@ -12260,7 +12295,7 @@ async function startSSEServer(): Promise<void> {
     await serverInstance.connect(transport);
   });
 
-  app.post("/messages", async (req: Request, res: Response) => {
+  app.post("/messages", requireSseAuth, async (req: Request, res: Response) => {
     const sessionId = req.query.sessionId as string;
     const transport = transports[sessionId];
     if (transport) {
