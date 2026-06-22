@@ -28,4 +28,19 @@ describe("download token helpers", () => {
   test("returns null for invalid tokens", () => {
     assert.strictEqual(decryptDownloadToken("not-a-valid-token"), null);
   });
+
+  test("returns null for expired tokens", () => {
+    const originalNow = Date.now;
+    const issuedAt = 1_700_000_000_000;
+
+    try {
+      Date.now = () => issuedAt;
+      const token = createDownloadToken("Private-Token", "glpat-example-token");
+
+      Date.now = () => issuedAt + 301_000;
+      assert.strictEqual(decryptDownloadToken(token), null);
+    } finally {
+      Date.now = originalNow;
+    }
+  });
 });

@@ -29,8 +29,16 @@ const DOWNLOAD_TOKEN_KEY: Buffer = (() => {
 })();
 
 /** Download token TTL in seconds (default 5 minutes). */
-const DOWNLOAD_TOKEN_TTL = Number.parseInt(process.env.DOWNLOAD_TOKEN_TTL || "300", 10);
+const DEFAULT_DOWNLOAD_TOKEN_TTL = 300;
+const parsedDownloadTokenTtl = Number.parseInt(process.env.DOWNLOAD_TOKEN_TTL || "", 10);
+const DOWNLOAD_TOKEN_TTL =
+  Number.isFinite(parsedDownloadTokenTtl) && parsedDownloadTokenTtl > 0
+    ? parsedDownloadTokenTtl
+    : DEFAULT_DOWNLOAD_TOKEN_TTL;
 
+/**
+ * Create a self-contained encrypted download token for a specific GitLab resource.
+ */
 export function createDownloadToken(
   header: string,
   token: string,
@@ -51,6 +59,9 @@ export function createDownloadToken(
   return Buffer.concat([iv, tag, encrypted]).toString("base64url");
 }
 
+/**
+ * Decrypt and validate a download token, returning null when it is invalid or expired.
+ */
 export function decryptDownloadToken(tokenStr: string): DecryptedDownloadToken | null {
   try {
     const buf = Buffer.from(tokenStr, "base64url");
@@ -65,6 +76,8 @@ export function decryptDownloadToken(tokenStr: string): DecryptedDownloadToken |
     if (payload.e && Math.floor(Date.now() / 1000) > payload.e) {
       return null;
     }
+    if (typeof payload.h !== "string" || payload.h.length === 0) return null;
+    if (typeof payload.t !== "string" || payload.t.length === 0) return null;
     return {
       header: payload.h,
       token: payload.t,
