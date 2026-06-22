@@ -13188,10 +13188,17 @@ async function startStreamableHTTPServer(): Promise<void> {
 
   // Health check endpoint
   app.get("/health", (_req: Request, res: Response) => {
-    const isHealthy = Object.keys(streamableTransports).length < MAX_SESSIONS;
+    const activeSessions = Object.keys(streamableTransports).length;
+    const isHealthy = activeSessions < MAX_SESSIONS;
+    if (!isHealthy) {
+      logger.warn(
+        { activeSessions, maxSessions: MAX_SESSIONS },
+        "Health check degraded: active session capacity reached"
+      );
+    }
     res.status(isHealthy ? 200 : 503).json({
       status: isHealthy ? "healthy" : "degraded",
-      activeSessions: Object.keys(streamableTransports).length,
+      activeSessions,
       maxSessions: MAX_SESSIONS,
       uptime: process.uptime(),
     });
