@@ -111,6 +111,7 @@ docker run -i --rm \
   -e USE_MILESTONE=true \
   -e USE_PIPELINE=true \
   -e SSE=true \
+  -e SSE_AUTH_TOKEN=your_mcp_sse_token \
   -p 3333:3002 \
   zereight050/gitlab-mcp
 ```
@@ -120,7 +121,10 @@ docker run -i --rm \
   "mcpServers": {
     "gitlab": {
       "type": "sse",
-      "url": "http://localhost:3333/sse"
+      "url": "http://localhost:3333/sse",
+      "headers": {
+        "Authorization": "Bearer your_mcp_sse_token"
+      }
     }
   }
 }

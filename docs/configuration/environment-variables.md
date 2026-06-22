@@ -389,6 +389,17 @@ Set to `true` to run the legacy SSE transport.
 Notes:
 
 - Not compatible with `REMOTE_AUTHORIZATION=true`
+- If `HOST` is not loopback, startup requires `SSE_AUTH_TOKEN` unless you explicitly set `SSE_DANGEROUSLY_ALLOW_UNAUTHENTICATED_REMOTE=true`
+
+### `SSE_AUTH_TOKEN`
+
+Bearer token required for `/sse` and `/messages` when configured.
+Use this for any network-reachable SSE deployment.
+
+### `SSE_DANGEROUSLY_ALLOW_UNAUTHENTICATED_REMOTE`
+
+Set to `true` only if you intentionally expose SSE without MCP-layer auth.
+This allows any network client to use the server's configured GitLab token.
 
 ### `HOST`
 
