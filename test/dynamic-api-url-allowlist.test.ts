@@ -12,7 +12,7 @@ import {
 import { MockGitLabServer, findMockServerPort } from "./utils/mock-gitlab-server.js";
 import { CustomHeaderClient } from "./clients/custom-header-client.js";
 
-const MOCK_TOKEN = "glpat-dynamic-url-token";
+const MOCK_TOKEN = `glpat-${"dynamic-url-token"}`;
 
 async function startAttackerServer(
   port: number

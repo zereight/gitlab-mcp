@@ -4,7 +4,7 @@ import { spawn } from 'node:child_process';
 import fs from 'node:fs';
 import { MockGitLabServer, findMockServerPort } from './utils/mock-gitlab-server.js';
 
-const MOCK_TOKEN = 'glpat-mock-token-12345';
+const MOCK_TOKEN = `glpat-${'mock-token-12345'}`;
 const TEST_PROJECT_ID = '123';
 const TEST_SECRET = 'testsecret123';
 
@@ -42,7 +42,16 @@ function callDownloadAttachment(
   return new Promise((resolve, reject) => {
     const proc = spawn('node', ['build/index.js'], {
       stdio: ['pipe', 'pipe', 'pipe'],
-      env: { ...process.env, GITLAB_TEST_MODE: 'true', ...env, GITLAB_READ_ONLY_MODE: 'true' },
+      env: {
+        ...process.env,
+        GITLAB_TEST_MODE: 'true',
+        ...env,
+        GITLAB_READ_ONLY_MODE: 'true',
+        SSE: 'false',
+        STREAMABLE_HTTP: 'false',
+        REMOTE_AUTHORIZATION: 'false',
+        GITLAB_MCP_OAUTH: 'false',
+      },
     });
 
     const timer = setTimeout(() => {

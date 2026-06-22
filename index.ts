@@ -1082,9 +1082,9 @@ function validateConfiguration(): void {
     );
   }
 
-  if (streamableHttp && (hasToken || hasJobToken) && !remoteAuth && !mcpOAuth) {
+  if (streamableHttp && (hasToken || hasJobToken || hasPersistentInstance) && !remoteAuth && !mcpOAuth) {
     errors.push(
-      "STREAMABLE_HTTP=true/--streamable-http with GITLAB_PERSONAL_ACCESS_TOKEN/--token or GITLAB_JOB_TOKEN/--job-token requires REMOTE_AUTHORIZATION=true/--remote-auth=true or GITLAB_MCP_OAUTH=true/--mcp-oauth=true"
+      "STREAMABLE_HTTP=true/--streamable-http with GITLAB_PERSONAL_ACCESS_TOKEN/--token, GITLAB_JOB_TOKEN/--job-token, or a saved persistent instance requires REMOTE_AUTHORIZATION=true/--remote-auth=true or GITLAB_MCP_OAUTH=true/--mcp-oauth=true"
     );
   }
 
@@ -1520,6 +1520,20 @@ interface AuthData {
   publicBaseUrl?: string;
 }
 
+function resolveTokenHeader(
+  token: string,
+  headerOverride?: AuthData["header"]
+): AuthData["header"] {
+  const trimmed = token.trim();
+  if (headerOverride && headerOverride !== "Authorization") {
+    return headerOverride;
+  }
+  if (IS_OLD || trimmed.startsWith("glpat-")) {
+    return "Private-Token";
+  }
+  return "Authorization";
+}
+
 const sessionAuthStore = new AsyncLocalStorage<SessionAuth>();
 
 // Session context map for storing auth data by session ID
@@ -1561,7 +1575,8 @@ const BASE_HEADERS: Record<string, string> = {
 function buildAuthHeaders(): Record<string, string> {
   const getHeaderForToken = (token: string): Record<string, string> => {
     const trimmed = token.trim();
-    if (IS_OLD || trimmed.startsWith("glpat-")) {
+    const header = resolveTokenHeader(trimmed);
+    if (header === "Private-Token") {
       return { "Private-Token": trimmed };
     }
     return { Authorization: `Bearer ${trimmed}` };
@@ -1571,22 +1586,22 @@ function buildAuthHeaders(): Record<string, string> {
     const ctx = sessionAuthStore.getStore();
     logger.debug({ context: ctx }, "buildAuthHeaders: session context");
     if (ctx?.token) {
-      if (ctx.header === "Authorization") {
+      if (resolveTokenHeader(ctx.token, ctx.header) === "Authorization") {
         return getHeaderForToken(ctx.token);
       }
       return {
-        [ctx.header]: ctx.token,
+        [resolveTokenHeader(ctx.token, ctx.header)]: ctx.token,
       };
     }
     return {};
   }
 
   if (globalSessionAuth) {
-    if (globalSessionAuth.header === "Authorization") {
+    if (resolveTokenHeader(globalSessionAuth.token, globalSessionAuth.header) === "Authorization") {
       return getHeaderForToken(globalSessionAuth.token);
     }
     return {
-      [globalSessionAuth.header]: globalSessionAuth.token,
+      [resolveTokenHeader(globalSessionAuth.token, globalSessionAuth.header)]: globalSessionAuth.token,
     };
   }
 
@@ -9275,6 +9290,11 @@ async function handleToolCall(params: any, sessionId?: string) {
       }
 
       case "gitlab_add_instance": {
+        if (REMOTE_AUTHORIZATION || GITLAB_MCP_OAUTH) {
+          throw new Error(
+            "Persistent instance management is disabled in remote/OAuth modes for security."
+          );
+        }
         const args = AddInstanceSchema.parse(params.arguments);
         configManager.addInstance(args.alias, {
           url: normalizeGitLabApiUrl(args.apiUrl),
@@ -9290,6 +9310,11 @@ async function handleToolCall(params: any, sessionId?: string) {
       }
 
       case "gitlab_select_instance": {
+        if (REMOTE_AUTHORIZATION || GITLAB_MCP_OAUTH) {
+          throw new Error(
+            "Persistent instance management is disabled in remote/OAuth modes for security."
+          );
+        }
         const args = SelectInstanceSchema.parse(params.arguments);
         if (configManager.selectInstance(args.alias)) {
           // Also clear globalSessionAuth to use the newly selected persistent instance
@@ -9328,6 +9353,12 @@ async function handleToolCall(params: any, sessionId?: string) {
           }
         }
 
+        if ((REMOTE_AUTHORIZATION || GITLAB_MCP_OAUTH) && (!targetToken || !targetApiUrl)) {
+          throw new Error(
+            "Remote/OAuth mode requires explicit apiUrl and token for instance switching."
+          );
+        }
+
         // If arguments are missing and no alias, try 'cloud' alias first, then environment
         if (!targetToken || !targetApiUrl) {
           const cloudInst = configManager.getInstance("cloud");
@@ -9358,7 +9389,7 @@ async function handleToolCall(params: any, sessionId?: string) {
         targetApiUrl = normalizeGitLabApiUrl(targetApiUrl);
 
         const authData: AuthData = {
-          header: (IS_OLD || targetToken.startsWith("glpat-") || !GITLAB_MCP_OAUTH) ? "Private-Token" : "Authorization",
+          header: resolveTokenHeader(targetToken),
           token: targetToken,
           lastUsed: Date.now(),
           apiUrl: targetApiUrl,
@@ -13613,6 +13644,9 @@ async function runServer() {
           token: process.env.GITLAB_CLOUD_TOKEN,
           description: "Cloud instance from .env",
         });
+        if (!process.env.GITLAB_PERSONAL_ACCESS_TOKEN) {
+          configManager.selectInstance("cloud");
+        }
       }
     }
 

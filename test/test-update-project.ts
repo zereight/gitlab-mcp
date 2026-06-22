@@ -13,7 +13,14 @@ async function callUpdateProject(
   return new Promise((resolve, reject) => {
     const proc = spawn("node", ["build/index.js"], {
       stdio: ["pipe", "pipe", "pipe"],
-      env: { ...process.env, ...env },
+      env: {
+        ...process.env,
+        ...env,
+        SSE: "false",
+        STREAMABLE_HTTP: "false",
+        REMOTE_AUTHORIZATION: "false",
+        GITLAB_MCP_OAUTH: "false",
+      },
     });
 
     let output = "";

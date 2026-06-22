@@ -3587,15 +3587,20 @@ export const SwitchInstanceSchema = z.object({
 });
 export type SwitchInstanceOptions = z.infer<typeof SwitchInstanceSchema>;
 
+const RESERVED_INSTANCE_ALIASES = new Set(["__proto__", "constructor", "prototype"]);
+const SafeAliasSchema = z.string().refine(alias => !RESERVED_INSTANCE_ALIASES.has(alias), {
+  message: "Alias uses a reserved object key",
+});
+
 export const AddInstanceSchema = z.object({
-  alias: z.string().describe("Short name for this instance (e.g. 'work', 'personal')"),
+  alias: SafeAliasSchema.describe("Short name for this instance (e.g. 'work', 'personal')"),
   apiUrl: z.string().url().describe("GitLab API URL"),
   token: z.string().describe("Personal Access Token"),
   description: z.string().optional().describe("Optional description of the instance"),
 });
 
 export const SelectInstanceSchema = z.object({
-  alias: z.string().describe("The alias of the instance to switch to"),
+  alias: SafeAliasSchema.describe("The alias of the instance to switch to"),
 });
 
 export const ListInstancesSchema = z.object({});

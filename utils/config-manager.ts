@@ -41,7 +41,9 @@ class ConfigManager {
           data.active_alias = 'default';
         }
         if (data.instances && data.instances['twinby']) {
-          data.instances['default'] = data.instances['twinby'];
+          if (!data.instances['default']) {
+            data.instances['default'] = data.instances['twinby'];
+          }
           delete data.instances['twinby'];
         }
         
@@ -63,6 +65,7 @@ class ConfigManager {
       fs.writeFileSync(CONFIG_FILE, JSON.stringify(this.data, null, 2), 'utf-8');
     } catch (e) {
       console.error('Error saving instances.json', e);
+      throw e;
     }
   }
 

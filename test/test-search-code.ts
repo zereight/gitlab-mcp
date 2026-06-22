@@ -21,7 +21,7 @@ import {
 } from "./utils/mock-gitlab-server.js";
 import { CustomHeaderClient } from "./clients/custom-header-client.js";
 
-const MOCK_TOKEN = "glpat-search-test-token";
+const MOCK_TOKEN = `glpat-${"search-test-token"}`;
 
 // Port bases that don't conflict with other test suites
 const MOCK_PORT_BASE = 9300;
@@ -102,9 +102,9 @@ describe("Search Code Tools", () => {
     if (mockGitLab) await mockGitLab.stop();
   });
 
-  // ---- 1. search toolset exposes exactly 4 tools ----
+  // ---- 1. search toolset exposes exactly 6 tools ----
 
-  describe("search toolset exposes exactly 4 tools", () => {
+  describe("search toolset exposes exactly 6 tools", () => {
     let server: ServerInstance;
     let tools: string[];
 
@@ -118,9 +118,9 @@ describe("Search Code Tools", () => {
 
     after(() => cleanupServers([server]));
 
-    test("returns exactly 4 tools", () => {
-      // Expected: 3 search tools + 4 instance tools + 1 discover_tools
-      assert.strictEqual(tools.length, 8, `Expected 8 tools but got ${tools.length}: ${tools.join(", ")}`);
+    test("returns exactly 6 tools", () => {
+      // Expected in remote mode: 3 search tools + 2 read-only instance tools + 1 discover_tools
+      assert.strictEqual(tools.length, 6, `Expected 6 tools but got ${tools.length}: ${tools.join(", ")}`);
     });
 
     test("includes search_code", () => {

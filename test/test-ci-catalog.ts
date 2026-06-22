@@ -16,6 +16,10 @@ async function callTool(
       env: {
         ...process.env,
         ...env,
+        SSE: "false",
+        STREAMABLE_HTTP: "false",
+        REMOTE_AUTHORIZATION: "false",
+        GITLAB_MCP_OAUTH: "false",
       },
     });
 

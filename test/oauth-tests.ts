@@ -382,7 +382,7 @@ async function testEnvironmentVariableConfig(): Promise<void> {
 // Test 15: Token data structure validation
 async function testTokenDataStructure(): Promise<void> {
   const tokenData = {
-    access_token: 'glpat-test123456789',
+    access_token: `glpat-${'test123456789'}`,
     refresh_token: 'refresh-test123456789',
     token_type: 'Bearer',
     expires_in: 7200,

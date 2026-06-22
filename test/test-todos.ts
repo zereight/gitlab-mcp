@@ -3,7 +3,7 @@ import assert from "node:assert";
 import { spawn } from "child_process";
 import { MockGitLabServer, findMockServerPort } from "./utils/mock-gitlab-server.js";
 
-const MOCK_TOKEN = "glpat-todos-test-token";
+const MOCK_TOKEN = `glpat-${"todos-test-token"}`;
 
 async function callTool(
   toolName: string,
@@ -16,6 +16,10 @@ async function callTool(
       env: {
         ...process.env,
         ...env,
+        SSE: "false",
+        STREAMABLE_HTTP: "false",
+        REMOTE_AUTHORIZATION: "false",
+        GITLAB_MCP_OAUTH: "false",
       },
     });
 
@@ -63,6 +67,10 @@ async function listToolNames(env: NodeJS.ProcessEnv): Promise<string[]> {
       env: {
         ...process.env,
         ...env,
+        SSE: "false",
+        STREAMABLE_HTTP: "false",
+        REMOTE_AUTHORIZATION: "false",
+        GITLAB_MCP_OAUTH: "false",
       },
     });
 

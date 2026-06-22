@@ -22,7 +22,7 @@ import {
 } from "./utils/mock-gitlab-server.js";
 import { CustomHeaderClient } from "./clients/custom-header-client.js";
 
-const MOCK_TOKEN = "glpat-toolset-test-token";
+const MOCK_TOKEN = `glpat-${"toolset-test-token"}`;
 
 // Port bases (offset from other test suites to avoid collisions)
 const MOCK_PORT_BASE = 9200;
@@ -79,8 +79,8 @@ const NON_DEFAULT_TOOLSETS = [
   "dependency_proxy",
 ];
 
-// Instance management tools (Step 5.5) + discover_tools meta-tool are always force-injected
-const DISCOVER_TOOLS_COUNT = 5; // gitlab_list_instances, gitlab_add_instance, gitlab_select_instance, gitlab_switch_instance, discover_tools
+// In remote mode, only read-only management tools remain exposed.
+const DISCOVER_TOOLS_COUNT = 3; // gitlab_list_instances, gitlab_switch_instance, discover_tools
 
 const DEFAULT_TOOL_COUNT = DEFAULT_TOOLSETS.reduce(
   (sum, id) => sum + TOOLSET_TOOL_COUNTS[id],

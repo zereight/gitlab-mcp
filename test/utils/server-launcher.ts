@@ -73,9 +73,11 @@ export async function launchServer(config: ServerConfig): Promise<ServerInstance
   switch (mode) {
     case TransportMode.SSE:
       serverEnv.SSE = "true";
+      serverEnv.STREAMABLE_HTTP = "false";
       serverEnv.PORT = port.toString();
       break;
     case TransportMode.STREAMABLE_HTTP:
+      serverEnv.SSE = "false";
       serverEnv.STREAMABLE_HTTP = "true";
       serverEnv.PORT = port.toString();
       break;

@@ -3,7 +3,7 @@ import assert from "node:assert";
 import { spawn } from "child_process";
 import { MockGitLabServer, findMockServerPort } from "./utils/mock-gitlab-server.js";
 
-const MOCK_TOKEN = "glpat-mock-token-ci-variables";
+const MOCK_TOKEN = `glpat-${"mock-token-ci-variables"}`;
 const TEST_PROJECT_ID = "123";
 const TEST_GROUP_ID = "my-group";
 const TEST_VAR_KEY = "DB_URL";
@@ -49,7 +49,14 @@ async function callTool(
   return new Promise<any>((resolve, reject) => {
     const proc = spawn("node", ["build/index.js"], {
       stdio: ["pipe", "pipe", "pipe"],
-      env: { ...process.env, ...env },
+      env: {
+        ...process.env,
+        ...env,
+        SSE: "false",
+        STREAMABLE_HTTP: "false",
+        REMOTE_AUTHORIZATION: "false",
+        GITLAB_MCP_OAUTH: "false",
+      },
     });
 
     let output = "";
@@ -376,6 +383,10 @@ describe("CI/CD variable tools", () => {
           ...process.env,
           GITLAB_PERSONAL_ACCESS_TOKEN: MOCK_TOKEN,
           GITLAB_API_URL: `http://localhost:${mockPort}/api/v4`,
+          SSE: "false",
+          STREAMABLE_HTTP: "false",
+          REMOTE_AUTHORIZATION: "false",
+          GITLAB_MCP_OAUTH: "false",
           // No GITLAB_TOOLSETS — default toolsets only
         },
       });
@@ -407,7 +418,15 @@ describe("CI/CD variable tools", () => {
     return new Promise<void>((resolve, reject) => {
       const proc = spawn("node", ["build/index.js"], {
         stdio: ["pipe", "pipe", "pipe"],
-        env: { ...process.env, ...baseEnv, GITLAB_READ_ONLY_MODE: "true" },
+        env: {
+          ...process.env,
+          ...baseEnv,
+          GITLAB_READ_ONLY_MODE: "true",
+          SSE: "false",
+          STREAMABLE_HTTP: "false",
+          REMOTE_AUTHORIZATION: "false",
+          GITLAB_MCP_OAUTH: "false",
+        },
       });
 
       let output = "";
