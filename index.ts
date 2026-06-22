@@ -199,6 +199,7 @@ import { mcpAuthRouter } from "@modelcontextprotocol/sdk/server/auth/router.js";
 import { ipKeyGenerator } from "express-rate-limit";
 import { normalizeProxyClientIpForRateLimit } from "./utils/proxy-client-ip.js";
 import { getForwardedPublicBaseUrl } from "./utils/forwarded-public-base-url.js";
+import { determineTransportMode, TransportMode } from "./server/transport-mode.js";
 import { normalizeGitLabApiUrl } from "./utils/url.js";
 import {
   estimateMergeCommitCount,
@@ -613,15 +614,6 @@ const logger = pino({
     },
   },
 });
-
-/**
- * Available transport modes for MCP server
- */
-enum TransportMode {
-  STDIO = "stdio",
-  SSE = "sse",
-  STREAMABLE_HTTP = "streamable-http",
-}
 
 /**
  * Read version from package.json
@@ -12043,29 +12035,6 @@ async function handleToolCall(params: any) {
  */
 const colorGreen = "\x1b[32m";
 const colorReset = "\x1b[0m";
-
-/**
- * Determine the transport mode based on environment variables and availability
- *
- * Transport mode priority (highest to lowest):
- * 1. STREAMABLE_HTTP
- * 2. SSE
- * 3. STDIO
- */
-function determineTransportMode(): TransportMode {
-  // Check for streamable-http support (highest priority)
-  if (STREAMABLE_HTTP) {
-    return TransportMode.STREAMABLE_HTTP;
-  }
-
-  // Check for SSE support (medium priority)
-  if (SSE) {
-    return TransportMode.SSE;
-  }
-
-  // Default to stdio (lowest priority)
-  return TransportMode.STDIO;
-}
 
 /**
  * Start server with stdio transport
