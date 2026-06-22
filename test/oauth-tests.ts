@@ -275,7 +275,8 @@ async function testOAuthTokenScript(): Promise<void> {
   const scriptPath = path.join(process.cwd(), '.test-oauth-token-script.sh');
 
   const writeScript = (output: string) => {
-    fs.writeFileSync(scriptPath, `#!/bin/sh\nprintf '%s\\n' '${output}'\n`, { mode: 0o700 });
+    const escapedOutput = output.replace(/'/g, `'"'"'`);
+    fs.writeFileSync(scriptPath, `#!/bin/sh\nprintf '%s\\n' '${escapedOutput}'\n`, { mode: 0o700 });
   };
 
   const oauth = () => new GitLabOAuth({

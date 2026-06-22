@@ -72,7 +72,11 @@ async function callGetMergeRequestFileDiff(args: Record<string, any> = {}, env: 
       env: {
         ...process.env,
         ...env,
-        GITLAB_READ_ONLY_MODE: 'true'
+        GITLAB_READ_ONLY_MODE: 'true',
+        SSE: 'false',
+        STREAMABLE_HTTP: 'false',
+        REMOTE_AUTHORIZATION: 'false',
+        GITLAB_MCP_OAUTH: 'false',
       }
     });
 

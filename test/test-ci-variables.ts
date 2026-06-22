@@ -52,6 +52,7 @@ async function callTool(
       env: {
         ...process.env,
         ...env,
+        GITLAB_TEST_MODE: "true",
         SSE: "false",
         STREAMABLE_HTTP: "false",
         REMOTE_AUTHORIZATION: "false",
@@ -383,6 +384,7 @@ describe("CI/CD variable tools", () => {
           ...process.env,
           GITLAB_PERSONAL_ACCESS_TOKEN: MOCK_TOKEN,
           GITLAB_API_URL: `http://localhost:${mockPort}/api/v4`,
+          GITLAB_TEST_MODE: "true",
           SSE: "false",
           STREAMABLE_HTTP: "false",
           REMOTE_AUTHORIZATION: "false",
@@ -422,6 +424,7 @@ describe("CI/CD variable tools", () => {
           ...process.env,
           ...baseEnv,
           GITLAB_READ_ONLY_MODE: "true",
+          GITLAB_TEST_MODE: "true",
           SSE: "false",
           STREAMABLE_HTTP: "false",
           REMOTE_AUTHORIZATION: "false",

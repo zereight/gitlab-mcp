@@ -16,6 +16,7 @@ async function callTool(
       env: {
         ...process.env,
         ...env,
+        GITLAB_TEST_MODE: "true",
         SSE: "false",
         STREAMABLE_HTTP: "false",
         REMOTE_AUTHORIZATION: "false",

@@ -79,7 +79,7 @@ const NON_DEFAULT_TOOLSETS = [
   "dependency_proxy",
 ];
 
-// In remote mode, only read-only management tools remain exposed.
+// In remote mode, management tools remain exposed.
 const DISCOVER_TOOLS_COUNT = 3; // gitlab_list_instances, gitlab_switch_instance, discover_tools
 
 const DEFAULT_TOOL_COUNT = DEFAULT_TOOLSETS.reduce(
@@ -448,8 +448,8 @@ describe("Toolset Filtering", { concurrency: 1 }, () => {
     });
 
     test("returns correct count (read-only issues + discover_tools)", () => {
-      // 9 read-only issue tools + discover_tools (1) + gitlab_list_instances (1) + gitlab_switch_instance (1) = 12
-      const readOnlyManagementToolsCount = 3; 
+      // 9 read-only issue tools + discover_tools (1) + gitlab_list_instances (1) = 11
+      const readOnlyManagementToolsCount = 2; 
       assert.strictEqual(tools.length, readOnlyIssueTools.length + readOnlyManagementToolsCount);
     });
   });

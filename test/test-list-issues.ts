@@ -14,6 +14,7 @@ async function callListIssuesResult(args: Record<string, unknown> = {}, env: Nod
         ...process.env,
         ...env,
         GITLAB_READ_ONLY_MODE: "true",
+        GITLAB_TEST_MODE: "true",
         SSE: "false",
         STREAMABLE_HTTP: "false",
         REMOTE_AUTHORIZATION: "false",

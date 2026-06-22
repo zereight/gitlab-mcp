@@ -40,14 +40,18 @@ async function callUpdateProject(
         return;
       }
 
-      const response = JSON.parse(line);
-      if (response.error) {
-        reject(new Error(response.error?.message ?? String(response.error)));
-        return;
-      }
+      try {
+        const response = JSON.parse(line);
+        if (response.error) {
+          reject(new Error(response.error?.message ?? String(response.error)));
+          return;
+        }
 
-      const content = response.result?.content?.[0]?.text;
-      resolve(content ? JSON.parse(content) : response.result);
+        const content = response.result?.content?.[0]?.text;
+        resolve(content ? JSON.parse(content) : response.result);
+      } catch (error) {
+        reject(error);
+      }
     });
 
     proc.stdin?.end(

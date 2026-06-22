@@ -18,6 +18,7 @@ async function callTool(
         ...process.env,
         ...env,
         USE_PIPELINE: "true",
+        GITLAB_TEST_MODE: "true",
         SSE: "false",
         STREAMABLE_HTTP: "false",
         REMOTE_AUTHORIZATION: "false",
@@ -69,6 +70,7 @@ async function listToolNames(env: NodeJS.ProcessEnv): Promise<string[]> {
       env: {
         ...process.env,
         ...env,
+        GITLAB_TEST_MODE: "true",
         SSE: "false",
         STREAMABLE_HTTP: "false",
         REMOTE_AUTHORIZATION: "false",

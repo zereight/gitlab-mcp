@@ -3588,9 +3588,15 @@ export const SwitchInstanceSchema = z.object({
 export type SwitchInstanceOptions = z.infer<typeof SwitchInstanceSchema>;
 
 const RESERVED_INSTANCE_ALIASES = new Set(["__proto__", "constructor", "prototype"]);
-const SafeAliasSchema = z.string().refine(alias => !RESERVED_INSTANCE_ALIASES.has(alias), {
-  message: "Alias uses a reserved object key",
-});
+const SafeAliasSchema = z
+  .string()
+  .trim()
+  .min(1, "Alias cannot be empty")
+  .max(64, "Alias is too long")
+  .regex(/^[a-zA-Z0-9_-]+$/, "Alias must use letters, numbers, '_' or '-'")
+  .refine(alias => !RESERVED_INSTANCE_ALIASES.has(alias), {
+    message: "Alias uses a reserved object key",
+  });
 
 export const AddInstanceSchema = z.object({
   alias: SafeAliasSchema.describe("Short name for this instance (e.g. 'work', 'personal')"),
