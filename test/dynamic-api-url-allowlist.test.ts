@@ -72,7 +72,7 @@ describe("Dynamic API URL allowlist", () => {
         REMOTE_AUTHORIZATION: "true",
         ENABLE_DYNAMIC_API_URL: "true",
         GITLAB_API_URL: `${primaryGitLab.getUrl()}/api/v4`,
-        GITLAB_ALLOWED_HOSTS: `127.0.0.1:${secondaryPort}`,
+        GITLAB_ALLOWED_HOSTS: `${secondaryGitLab.getUrl()}/api/v4`,
       },
     });
     mcpUrl = `http://${HOST}:${mcpPort}/mcp`;

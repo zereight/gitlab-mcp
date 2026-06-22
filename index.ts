@@ -1005,8 +1005,8 @@ function validateConfiguration(): void {
 
   const allowedHosts = getConfig("allowed-hosts", "GITLAB_ALLOWED_HOSTS")?.split(",") || [];
   for (const host of allowedHosts) {
-    if (host.trim() && !toAllowedGitLabHost(host)) {
-      errors.push(`GITLAB_ALLOWED_HOSTS contains an invalid host: ${host.trim()}`);
+    if (host.trim() && !toAllowedGitLabApiUrl(host)) {
+      errors.push(`GITLAB_ALLOWED_HOSTS contains an invalid host or URL: ${host.trim()}`);
     }
   }
 
@@ -1647,39 +1647,47 @@ type GitLabMergeRequestWithDeploymentSummary = GitLabMergeRequest & {
   };
 };
 
-function toAllowedGitLabHost(value: string): string | null {
+function toAllowedGitLabApiUrl(value: string): { host: string; apiUrl: string } | null {
   const trimmed = value.trim();
   if (!trimmed) return null;
 
   try {
     const url = new URL(trimmed.includes("://") ? trimmed : `https://${trimmed}`);
     if (url.protocol !== "http:" && url.protocol !== "https:") return null;
-    return url.host;
+    return { host: url.host, apiUrl: normalizeGitLabApiUrl(url.toString()) };
   } catch {
     return null;
   }
 }
 
-function parseAllowedGitLabHosts(value: string): string[] {
+function parseAllowedGitLabApiUrls(value: string): Array<{ host: string; apiUrl: string }> {
   return value
     .split(",")
-    .map(toAllowedGitLabHost)
-    .filter((host): host is string => Boolean(host));
+    .map(toAllowedGitLabApiUrl)
+    .filter((entry): entry is { host: string; apiUrl: string } => Boolean(entry));
+}
+
+function encodeGitLabPathSegment(value: string): string {
+  return encodeURIComponent(decodeURIComponent(value));
+}
+
+function encodeGitLabPath(value: string): string {
+  return value.split("/").map(encodeGitLabPathSegment).join("/");
 }
 
 function resolveTrustedGitLabApiUrl(value: string): string {
-  const normalized = normalizeGitLabApiUrl(value);
-  const parsed = new URL(normalized);
+  const parsed = new URL(normalizeGitLabApiUrl(value));
 
   if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
     throw new Error("GitLab API URL must use HTTP or HTTPS");
   }
 
-  if (!GITLAB_ALLOWED_HOSTS.has(parsed.host)) {
+  const allowedApiUrl = GITLAB_ALLOWED_API_URLS_BY_HOST.get(parsed.host);
+  if (!allowedApiUrl) {
     throw new Error(`GitLab API URL host is not allowed: ${parsed.host}`);
   }
 
-  return normalized;
+  return allowedApiUrl;
 }
 
 // Use the normalizeGitLabApiUrl function to handle various URL formats
@@ -1687,10 +1695,17 @@ const GITLAB_API_URLS = (getConfig("api-url", "GITLAB_API_URL") || "https://gitl
   .split(",")
   .map(normalizeGitLabApiUrl);
 const GITLAB_API_URL = GITLAB_API_URLS[0];
-const GITLAB_ALLOWED_HOSTS = new Set([
-  ...GITLAB_API_URLS.map(toAllowedGitLabHost).filter((host): host is string => Boolean(host)),
-  ...parseAllowedGitLabHosts(getConfig("allowed-hosts", "GITLAB_ALLOWED_HOSTS") || ""),
-]);
+const GITLAB_ALLOWED_API_URLS_BY_HOST = new Map<string, string>();
+for (const { host, apiUrl } of [
+  ...GITLAB_API_URLS.map(toAllowedGitLabApiUrl).filter(
+    (entry): entry is { host: string; apiUrl: string } => Boolean(entry)
+  ),
+  ...parseAllowedGitLabApiUrls(getConfig("allowed-hosts", "GITLAB_ALLOWED_HOSTS") || ""),
+]) {
+  if (!GITLAB_ALLOWED_API_URLS_BY_HOST.has(host)) {
+    GITLAB_ALLOWED_API_URLS_BY_HOST.set(host, apiUrl);
+  }
+}
 const GITLAB_PROJECT_ID = process.env.GITLAB_PROJECT_ID;
 const GITLAB_ALLOWED_PROJECT_IDS =
   process.env.GITLAB_ALLOWED_PROJECT_IDS?.split(",")
@@ -12153,7 +12168,7 @@ function registerDownloadProxy(
             return;
           }
           const effectiveProjectId = getEffectiveProjectId(decodeURIComponent(project_id));
-          gitlabUrl = `${apiUrl}/projects/${encodeURIComponent(effectiveProjectId)}/jobs/${job_id}/artifacts`;
+          gitlabUrl = `${apiUrl}/projects/${encodeURIComponent(effectiveProjectId)}/jobs/${encodeGitLabPathSegment(job_id)}/artifacts`;
           break;
         }
         case "attachment": {
@@ -12163,7 +12178,7 @@ function registerDownloadProxy(
             return;
           }
           const effectiveProjectId = getEffectiveProjectId(decodeURIComponent(project_id));
-          gitlabUrl = `${apiUrl}/projects/${encodeURIComponent(effectiveProjectId)}/uploads/${secret}/${filename}`;
+          gitlabUrl = `${apiUrl}/projects/${encodeURIComponent(effectiveProjectId)}/uploads/${encodeGitLabPathSegment(secret)}/${encodeGitLabPath(filename)}`;
           break;
         }
         case "release-asset": {
@@ -12175,7 +12190,7 @@ function registerDownloadProxy(
             return;
           }
           const effectiveProjectId = getEffectiveProjectId(decodeURIComponent(project_id));
-          gitlabUrl = `${apiUrl}/projects/${encodeURIComponent(effectiveProjectId)}/releases/${encodeURIComponent(tag_name)}/downloads/${direct_asset_path}`;
+          gitlabUrl = `${apiUrl}/projects/${encodeURIComponent(effectiveProjectId)}/releases/${encodeURIComponent(tag_name)}/downloads/${encodeGitLabPath(direct_asset_path)}`;
           break;
         }
         default:

@@ -203,9 +203,10 @@ Notes:
 
 ### `GITLAB_ALLOWED_HOSTS`
 
-Comma-separated additional hosts allowed for `X-GitLab-API-URL` when
-`ENABLE_DYNAMIC_API_URL=true`. Use hostnames with optional ports, for example:
-`gitlab.example.com,gitlab.company.com:8443`.
+Comma-separated additional hosts or GitLab base/API URLs allowed for
+`X-GitLab-API-URL` when `ENABLE_DYNAMIC_API_URL=true`. This is only for hosts
+beyond those already listed in `GITLAB_API_URL`; do not repeat `GITLAB_API_URL`
+hosts here. Examples: `gitlab.example.com,https://gitlab.company.com:8443/api/v4`.
 
 ### `MCP_TRUST_PROXY`
 
