@@ -2,7 +2,9 @@
 
 [English](./README.md) | [한국어](./README.ko.md) | [简体中文](./README.zh-CN.md)
 
-> **New Feature**: Dynamic GitLab API URL support with connection pooling! See [Dynamic API URL Documentation](docs/dynamic-api-url.md) for details.
+📖 **[Documentation →](https://zereight.github.io/gitlab-mcp/)** Setup guides, environment variables, and the full tool reference live on the hosted docs site.
+
+> **New Feature**: Dynamic GitLab API URL support with connection pooling! See [Dynamic API URL Documentation](docs/configuration/dynamic-api-url.md) for details.
 
 [![Star History Chart](https://api.star-history.com/svg?repos=zereight/gitlab-mcp&type=Date)](https://www.star-history.com/#zereight/gitlab-mcp&Date)
 
@@ -24,16 +26,16 @@ Quick start: choose either Personal Access Token or OAuth2 setup below and use `
 
 ### Client Setup Guides
 
-- [Claude Code Setup Guide](./docs/claude-code-setup.md)
-- [VS Code Setup Guide](./docs/vscode-setup.md)
-- [GitHub Copilot Setup Guide](./docs/copilot-setup.md)
-- [Codex Setup Guide](./docs/codex-setup.md)
-- [Cursor Setup Guide](./docs/cursor-setup.md)
-- [JSON-Based MCP Clients Setup Guide](./docs/json-mcp-clients-setup.md) - for Factory AI Droid, OpenClaw, and OpenCode style clients
-- [OAuth2 Authentication Setup Guide](./docs/oauth-setup.md)
-- [Environment Variables Reference](./docs/environment-variables.md)
-- [Stateless Mode — Multi-Pod HPA](./docs/stateless-mode.md)
-- [Custom Agents and Multiple PAT Setup](./docs/custom-agent-multiple-pat.md)
+- [Claude Code Setup Guide](./docs/clients/claude-code.md)
+- [VS Code Setup Guide](./docs/clients/vscode.md)
+- [GitHub Copilot Setup Guide](./docs/clients/copilot.md)
+- [Codex Setup Guide](./docs/clients/codex.md)
+- [Cursor Setup Guide](./docs/clients/cursor.md)
+- [JSON-Based MCP Clients Setup Guide](./docs/clients/json-clients.md) - for Factory AI Droid, OpenClaw, and OpenCode style clients
+- [OAuth2 Authentication Setup Guide](./docs/auth/oauth-setup.md)
+- [Environment Variables Reference](./docs/configuration/environment-variables.md)
+- [Stateless Mode — Multi-Pod HPA](./docs/configuration/stateless-mode.md)
+- [Custom Agents and Multiple PAT Setup](./docs/auth/custom-agent-multiple-pat.md)
 
 ## Usage
 
@@ -55,13 +57,13 @@ The server supports four authentication methods:
 
 #### Quick setup paths
 
-- **Claude Code**: see [Claude Code Setup Guide](./docs/claude-code-setup.md)
-- **VS Code**: see [VS Code Setup Guide](./docs/vscode-setup.md)
-- **GitHub Copilot**: see [GitHub Copilot Setup Guide](./docs/copilot-setup.md)
-- **Codex**: see [Codex Setup Guide](./docs/codex-setup.md)
-- **Cursor**: see [Cursor Setup Guide](./docs/cursor-setup.md)
-- **Factory AI Droid / OpenClaw / OpenCode style clients**: see [JSON-Based MCP Clients Setup Guide](./docs/json-mcp-clients-setup.md)
-- **OAuth browser flow details**: see [OAuth2 Authentication Setup Guide](./docs/oauth-setup.md)
+- **Claude Code**: see [Claude Code Setup Guide](./docs/clients/claude-code.md)
+- **VS Code**: see [VS Code Setup Guide](./docs/clients/vscode.md)
+- **GitHub Copilot**: see [GitHub Copilot Setup Guide](./docs/clients/copilot.md)
+- **Codex**: see [Codex Setup Guide](./docs/clients/codex.md)
+- **Cursor**: see [Cursor Setup Guide](./docs/clients/cursor.md)
+- **Factory AI Droid / OpenClaw / OpenCode style clients**: see [JSON-Based MCP Clients Setup Guide](./docs/clients/json-clients.md)
+- **OAuth browser flow details**: see [OAuth2 Authentication Setup Guide](./docs/auth/oauth-setup.md)
 
 For the simplest local setup, start with a Personal Access Token. For browser-based local auth, use OAuth2. For remote or multi-user deployments, continue to the MCP OAuth and Remote Authorization sections later in this README.
 
@@ -109,6 +111,7 @@ docker run -i --rm \
   -e USE_MILESTONE=true \
   -e USE_PIPELINE=true \
   -e SSE=true \
+  -e SSE_AUTH_TOKEN=your_mcp_sse_token \
   -p 3333:3002 \
   zereight050/gitlab-mcp
 ```
@@ -118,7 +121,10 @@ docker run -i --rm \
   "mcpServers": {
     "gitlab": {
       "type": "sse",
-      "url": "http://localhost:3333/sse"
+      "url": "http://localhost:3333/sse",
+      "headers": {
+        "Authorization": "Bearer your_mcp_sse_token"
+      }
     }
   }
 }
@@ -208,7 +214,7 @@ exchanging credentials with GitLab on behalf of the client.
 | `STREAMABLE_HTTP`     | ✅       | Must be `true`                                             |
 | `GITLAB_OAUTH_CALLBACK_PROXY` | optional | Set to `true` to use the MCP server's fixed `/callback` URL |
 | `GITLAB_OAUTH_SCOPES` | optional | Comma-separated scopes (default: `api,read_api,read_user`) |
-| `GITLAB_ALLOWED_GROUPS` | optional | Comma-separated group full paths — only members (and subgroup members) may obtain a token |
+| `GITLAB_OAUTH_ALLOWED_GROUPS` | optional | Comma-separated group full paths — only members (and subgroup members) may obtain a token (replaces deprecated `GITLAB_ALLOWED_GROUPS`) |
 
 When `STREAMABLE_HTTP=true`, server-side `GITLAB_PERSONAL_ACCESS_TOKEN` or `GITLAB_JOB_TOKEN` require `REMOTE_AUTHORIZATION=true` or `GITLAB_MCP_OAUTH=true`.
 
@@ -265,6 +271,23 @@ the token to GitLab on behalf of the caller.
 | `REMOTE_AUTHORIZATION`   | ✅       | Set to `true` to enable                                    |
 | `STREAMABLE_HTTP`        | ✅       | Must be `true`                                             |
 | `ENABLE_DYNAMIC_API_URL` | optional | Allow per-request GitLab URL via `X-GitLab-API-URL` header |
+| `GITLAB_ALLOWED_HOSTS` | optional | Comma-separated allowed `X-GitLab-API-URL` hosts; `GITLAB_API_URL` hosts are always allowed |
+| `GITLAB_ALLOW_UNAUTHENTICATED_TOOL_DISCOVERY` | optional | Allow unauthenticated `initialize`, `notifications/initialized`, and `tools/list` only (tool calls still require auth) |
+| `MCP_TRUST_PROXY`        | optional | Trust `Forwarded` / `X-Forwarded-*` headers behind a reverse proxy (download URLs, Express `req.ip`, OAuth rate limits) |
+
+`GITLAB_ALLOW_UNAUTHENTICATED_TOOL_DISCOVERY=true` is intended for MCP gateways
+or admin UIs that need to inspect tool metadata before a user provides a GitLab
+token. Leave it disabled unless the tool list is safe to expose in your deployment.
+
+When `MCP_SERVER_URL` is not set, remote download URLs fall back to the local
+server address. Set `MCP_TRUST_PROXY=true` only if the server is reachable through a
+trusted reverse proxy and direct client access to the MCP server is blocked.
+This enables Express `trust proxy` for Streamable HTTP and SSE, derives public
+download URLs from `Forwarded` / `X-Forwarded-Proto` / `X-Forwarded-Host` /
+`X-Forwarded-Prefix`, and keeps OAuth endpoint rate limiting working when
+proxies send `X-Forwarded-For` with a client port (for example `1.2.3.4:5678`).
+Existing OAuth+proxy deployments must set this explicitly after the flag was
+introduced.
 
 **Example request headers**:
 
@@ -284,14 +307,14 @@ Authorization: Bearer glpat-xxxxxxxxxxxxxxxxxxxx
 
 Use the dedicated reference for the full environment variable list:
 
-- [Environment Variables Reference](./docs/environment-variables.md)
+- [Environment Variables Reference](./docs/configuration/environment-variables.md)
 
 Most users only need one of these starting sets:
 
 - **Local PAT**: `GITLAB_PERSONAL_ACCESS_TOKEN`, `GITLAB_API_URL`
 - **Local OAuth**: `GITLAB_USE_OAUTH=true`, `GITLAB_OAUTH_CLIENT_ID`, `GITLAB_OAUTH_REDIRECT_URI`, `GITLAB_API_URL`
 - **Remote multi-user HTTP**: `STREAMABLE_HTTP=true`, `REMOTE_AUTHORIZATION=true`, `HOST`, `PORT`
-- **Multi-pod HPA (stateless)**: above + `OAUTH_STATELESS_MODE=true`, `OAUTH_STATELESS_SECRET` (same across all pods). See [Stateless Mode](./docs/stateless-mode.md).
+- **Multi-pod HPA (stateless)**: above + `OAUTH_STATELESS_MODE=true`, `OAUTH_STATELESS_SECRET` (same across all pods). See [Stateless Mode](./docs/configuration/stateless-mode.md).
 
 Commonly referenced variables:
 
@@ -299,6 +322,7 @@ Commonly referenced variables:
 - `GITLAB_PERSONAL_ACCESS_TOKEN`
 - `GITLAB_USE_OAUTH`
 - `REMOTE_AUTHORIZATION`
+- `MCP_TRUST_PROXY`
 - `GITLAB_MCP_OAUTH`
 - `GITLAB_OAUTH_CALLBACK_PROXY`
 - `OAUTH_STATELESS_MODE`
@@ -313,7 +337,7 @@ The reference document also covers:
 - transport and session variables
 - proxy and TLS variables
 
-For callback proxy mode details, see [GitLab MCP OAuth Callback Proxy](./docs/oauth-callback-proxy.md).
+For callback proxy mode details, see [GitLab MCP OAuth Callback Proxy](./docs/auth/oauth-callback-proxy.md).
 
 ### Remote Authorization Setup (Multi-User Support)
 

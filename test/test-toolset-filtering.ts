@@ -34,9 +34,9 @@ const TOOLSET_TOOL_COUNTS: Record<string, number> = {
   issues: 24,
   repositories: 7,
   branches: 15,
-  projects: 9,
+  projects: 10,
   labels: 5,
-  ci: 2,
+  ci: 4,
   pipelines: 19,
   milestones: 9,
   wiki: 10,
@@ -51,7 +51,8 @@ const TOOLSET_TOOL_COUNTS: Record<string, number> = {
   dependency_proxy: 4,
 };
 
-const LEGACY_PIPELINE_TOOL_COUNT = TOOLSET_TOOL_COUNTS.pipelines + TOOLSET_TOOL_COUNTS.ci;
+const LEGACY_PIPELINE_CI_TOOL_COUNT = 2;
+const LEGACY_PIPELINE_TOOL_COUNT = TOOLSET_TOOL_COUNTS.pipelines + LEGACY_PIPELINE_CI_TOOL_COUNT;
 
 const DEFAULT_TOOLSETS = [
   "merge_requests",
@@ -97,9 +98,9 @@ const TOOLSET_SAMPLE_TOOLS: Record<string, string[]> = {
   issues: ["create_issue", "list_issues", "create_note", "list_todos"],
   repositories: ["search_repositories", "get_file_contents", "push_files"],
   branches: ["create_branch", "get_branch", "list_branches", "delete_branch", "list_commits", "list_commit_statuses", "create_commit_status"],
-  projects: ["get_project", "list_namespaces", "list_group_iterations"],
+  projects: ["get_project", "update_project", "list_namespaces", "list_group_iterations"],
   labels: ["list_labels", "create_label"],
-  ci: ["validate_ci_lint", "validate_project_ci_lint"],
+  ci: ["validate_ci_lint", "validate_project_ci_lint", "list_ci_catalog_resources", "get_ci_catalog_resource"],
   pipelines: ["list_pipelines", "create_pipeline", "cancel_pipeline_job", "list_deployments", "list_job_artifacts"],
   milestones: ["list_milestones", "create_milestone", "get_milestone_burndown_events"],
   wiki: ["list_wiki_pages", "create_wiki_page", "list_group_wiki_pages", "create_group_wiki_page"],

@@ -155,6 +155,8 @@ import {
   ListPipelineTriggerJobsSchema,
   ValidateCiLintSchema,
   ValidateProjectCiLintSchema,
+  ListCiCatalogResourcesSchema,
+  GetCiCatalogResourceSchema,
   ListPipelinesSchema,
   ListProjectMembersSchema,
   ListProjectMilestonesSchema,
@@ -194,6 +196,7 @@ import {
   UpdateIssueSchema,
   UpdateIssueDescriptionPatchSchema,
   UpdateLabelSchema,
+  UpdateProjectSchema,
   UpdateMergeRequestDiscussionNoteSchema,
   UpdateMergeRequestNoteSchema,
   UpdateMergeRequestSchema,
@@ -663,7 +666,7 @@ export const allTools = [
   },
   {
     name: "verify_namespace",
-    description: "Verify if a namespace path exists",
+    description: "Verify if a namespace path exists. Use parent_id to scope the check to a specific parent namespace — required for nested namespaces where the same path may exist under different parents.",
     inputSchema: toJSONSchema(VerifyNamespaceSchema),
   },
   {
@@ -675,6 +678,11 @@ export const allTools = [
     name: "list_projects",
     description: "List projects accessible by the current user",
     inputSchema: toJSONSchema(ListProjectsSchema),
+  },
+  {
+    name: "update_project",
+    description: "Update project settings such as description, visibility, default branch, and feature access levels",
+    inputSchema: toJSONSchema(UpdateProjectSchema),
   },
   {
     name: "list_project_members",
@@ -825,6 +833,16 @@ export const allTools = [
     name: "validate_project_ci_lint",
     description: "Validate an existing .gitlab-ci.yml configuration for a project",
     inputSchema: toJSONSchema(ValidateProjectCiLintSchema),
+  },
+  {
+    name: "list_ci_catalog_resources",
+    description: "List GitLab CI/CD Catalog resources/components visible to the user",
+    inputSchema: toJSONSchema(ListCiCatalogResourcesSchema),
+  },
+  {
+    name: "get_ci_catalog_resource",
+    description: "Get details for a GitLab CI/CD Catalog resource, including versions and components",
+    inputSchema: toJSONSchema(GetCiCatalogResourceSchema),
   },
   {
     name: "create_pipeline",
@@ -1339,6 +1357,8 @@ export const readOnlyTools = new Set([
   "get_pipeline_job_output",
   "validate_ci_lint",
   "validate_project_ci_lint",
+  "list_ci_catalog_resources",
+  "get_ci_catalog_resource",
   "list_job_artifacts",
   "download_job_artifacts",
   "get_job_artifact_file",
@@ -1635,6 +1655,7 @@ export const TOOLSET_DEFINITIONS: readonly ToolsetDefinition[] = [
       "gitlab_switch_instance",
       "get_project",
       "list_projects",
+      "update_project",
       "list_project_members",
       "list_namespaces",
       "get_namespace",
@@ -1658,7 +1679,12 @@ export const TOOLSET_DEFINITIONS: readonly ToolsetDefinition[] = [
   {
     id: "ci",
     isDefault: true,
-    tools: new Set(["validate_ci_lint", "validate_project_ci_lint"]),
+    tools: new Set([
+      "validate_ci_lint",
+      "validate_project_ci_lint",
+      "list_ci_catalog_resources",
+      "get_ci_catalog_resource",
+    ]),
   },
   {
     id: "groups",
