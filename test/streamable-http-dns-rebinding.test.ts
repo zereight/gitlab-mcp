@@ -7,9 +7,15 @@ import { findAvailablePort } from "./utils/server-launcher.js";
 
 const HOST = process.env.HOST || "127.0.0.1";
 const SERVER_PATH = path.resolve(process.cwd(), "build/index.js");
-const TEST_TOKEN = "glpat-12345678901234567890";
+const TEST_TOKEN = "test-token-123456789012345";
 
 const running = new Set<ReturnType<typeof spawn>>();
+
+function hostWithPort(host: string, port: number) {
+  const normalized = host.trim();
+  if (normalized.includes(":") && !normalized.startsWith("[")) return `[${normalized}]:${port}`;
+  return `${normalized}:${port}`;
+}
 
 function startServer(env: Record<string, string>, port: number) {
   const child = spawn("node", [SERVER_PATH], {
@@ -43,7 +49,7 @@ async function waitForHealth(port: number, timeoutMs = 5000) {
 
   while (Date.now() < deadline) {
     try {
-      const response = await fetch(`http://${HOST}:${port}/health`);
+      const response = await fetch(`http://${hostWithPort(HOST, port)}/health`);
       if (response.ok) return;
     } catch (error) {
       lastError = error;
@@ -56,9 +62,8 @@ async function waitForHealth(port: number, timeoutMs = 5000) {
 
 function postMcp(
   port: number,
-  headers: Record<string, string>
-): Promise<{ status: number; body: string }> {
-  const body = JSON.stringify({
+  headers: Record<string, string>,
+  body = JSON.stringify({
     jsonrpc: "2.0",
     id: 1,
     method: "initialize",
@@ -67,8 +72,8 @@ function postMcp(
       capabilities: {},
       clientInfo: { name: "dns-rebinding-test", version: "1.0.0" },
     },
-  });
-
+  })
+): Promise<{ status: number; body: string }> {
   return new Promise((resolve, reject) => {
     const req = http.request(
       {
@@ -77,7 +82,7 @@ function postMcp(
         path: "/mcp",
         method: "POST",
         headers: {
-          Host: `${HOST}:${port}`,
+          Host: hostWithPort(HOST, port),
           "Content-Type": "application/json",
           Accept: "application/json, text/event-stream",
           "Private-Token": TEST_TOKEN,
@@ -112,7 +117,18 @@ describe("Streamable HTTP DNS rebinding protection", () => {
     startServer({}, port);
     await waitForHealth(port);
 
-    const validHost = `${HOST}:${port}`;
+    const validHost = hostWithPort(HOST, port);
+
+    const badJson = await postMcp(
+      port,
+      {
+        Host: "attacker.example.test",
+        Origin: `http://${validHost}`,
+      },
+      "{"
+    );
+    assert.equal(badJson.status, 403);
+    assert.match(badJson.body, /Host header is not allowed/);
 
     const badHost = await postMcp(port, {
       Host: "attacker.example.test",

@@ -390,10 +390,10 @@ Legacy additive flag for pipeline-related tools.
 
 Set to `true` to run the Streamable HTTP transport.
 
-Streamable HTTP rejects `/mcp` requests whose `Host` header is not local
-(`127.0.0.1`, `localhost`, `[::1]`), not `MCP_SERVER_URL`, and not listed in
-`MCP_ALLOWED_HOSTS`. Requests with an `Origin` header must use a local origin,
-`MCP_SERVER_URL`, or an origin listed in `MCP_ALLOWED_ORIGINS`.
+Streamable HTTP allows `/mcp` requests when the `Host` header is local
+(`127.0.0.1`, `localhost`, `[::1]`), matches `MCP_SERVER_URL`, or is listed in
+`MCP_ALLOWED_HOSTS`. When an `Origin` header is present, it must be a local
+origin, match `MCP_SERVER_URL`, or be listed in `MCP_ALLOWED_ORIGINS`.
 
 ### `MCP_ALLOWED_HOSTS`
 
