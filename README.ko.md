@@ -238,6 +238,7 @@ MCP 클라이언트 설정:
 | `REMOTE_AUTHORIZATION`   | 예   | 활성화하려면 `true`                 |
 | `STREAMABLE_HTTP`        | 예   | 반드시 `true`                       |
 | `ENABLE_DYNAMIC_API_URL` | 선택 | 요청별 `X-GitLab-API-URL` 헤더 허용 |
+| `GITLAB_ALLOWED_HOSTS` | 선택 | 허용할 호스트의 쉼표 구분 목록; `GITLAB_API_URL` 호스트는 항상 허용 |
 
 **예시 요청 헤더:**
 
