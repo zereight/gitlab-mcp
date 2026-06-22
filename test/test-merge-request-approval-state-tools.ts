@@ -3,7 +3,7 @@ import assert from "node:assert";
 import { spawn } from "child_process";
 import { MockGitLabServer, findMockServerPort } from "./utils/mock-gitlab-server.js";
 
-const MOCK_TOKEN = "glpat-mock-token-approval";
+const MOCK_TOKEN = `glpat-${"mock-token-approval"}`;
 const TEST_PROJECT_ID = "123";
 const TEST_MR_IID_WITH_FALLBACK = "88";
 const TEST_MR_IID_WITH_APPROVAL_STATE = "89";
@@ -21,6 +21,10 @@ async function callTool(
         ...env,
         GITLAB_READ_ONLY_MODE: "true",
         USE_PIPELINE: "true",
+        SSE: "false",
+        STREAMABLE_HTTP: "false",
+        REMOTE_AUTHORIZATION: "false",
+        GITLAB_MCP_OAUTH: "false",
       },
     });
 

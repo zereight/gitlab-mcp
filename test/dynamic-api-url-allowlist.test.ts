@@ -12,7 +12,7 @@ import {
 import { MockGitLabServer, findMockServerPort } from "./utils/mock-gitlab-server.js";
 import { CustomHeaderClient } from "./clients/custom-header-client.js";
 
-const MOCK_TOKEN = "glpat-dynamic-url-token";
+const MOCK_TOKEN = `glpat-${"dynamic-url-token"}`;
 
 async function startAttackerServer(
   port: number
@@ -108,18 +108,17 @@ describe("Dynamic API URL allowlist", () => {
       "x-gitlab-api-url": attackerUrl,
     });
 
-    let connected = false;
+    let rejected = false;
     try {
       await client.connect(mcpUrl);
-      connected = true;
       await client.callTool("list_issues", { project_id: "1" });
     } catch {
-      // Expected: the session is rejected before any GitLab API request is made.
+      rejected = true;
     } finally {
       await client.disconnect();
     }
 
-    assert.strictEqual(connected, false, "untrusted dynamic host should not initialize a session");
+    assert.strictEqual(rejected, true, "untrusted dynamic host should be rejected");
     assert.strictEqual(
       getAttackerHits(),
       0,

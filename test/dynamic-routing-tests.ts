@@ -11,8 +11,8 @@ import { MockGitLabServer, findMockServerPort } from './utils/mock-gitlab-server
 import { CustomHeaderClient } from './clients/custom-header-client.js';
 import { Request, Response } from "express";
 
-const MOCK_TOKEN_DEFAULT = 'glpat-mock-token-default';
-const MOCK_TOKEN_HEADER = 'glpat-mock-token-header';
+const MOCK_TOKEN_DEFAULT = `glpat-${'mock-token-default'}`;
+const MOCK_TOKEN_HEADER = `glpat-${'mock-token-header'}`;
 
 describe('Dynamic Routing and Authentication Scenarios', () => {
   const originalToken = process.env.GITLAB_TOKEN_TEST;

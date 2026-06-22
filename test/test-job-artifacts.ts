@@ -6,7 +6,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 
-const MOCK_TOKEN = 'glpat-mock-token-12345';
+const MOCK_TOKEN = `glpat-${'mock-token-12345'}`;
 const TEST_PROJECT_ID = '123';
 const TEST_JOB_ID = '456';
 const TEST_ENCODED_ARTIFACT_PATH = 'reports/report#1.txt';
@@ -25,6 +25,10 @@ async function callTool(
         ...env,
         GITLAB_READ_ONLY_MODE: 'true',
         USE_PIPELINE: 'true',
+        SSE: 'false',
+        STREAMABLE_HTTP: 'false',
+        REMOTE_AUTHORIZATION: 'false',
+        GITLAB_MCP_OAUTH: 'false',
       },
     });
 

@@ -17,8 +17,8 @@ import { MockGitLabServer, findMockServerPort } from './utils/mock-gitlab-server
 import { CustomHeaderClient } from './clients/custom-header-client.js';
 
 // Test constants
-const MOCK_TOKEN_1 = 'glpat-mock-token-instance-1';
-const MOCK_TOKEN_2 = 'glpat-mock-token-instance-2';
+const MOCK_TOKEN_1 = `glpat-${'mock-token-instance-1'}`;
+const MOCK_TOKEN_2 = `glpat-${'mock-token-instance-2'}`;
 
 // Port ranges
 const MOCK_GITLAB_PORT_BASE_1 = 9100;

@@ -1,5 +1,8 @@
 #!/usr/bin/env node
 
+import "dotenv/config";
+import { configManager } from "./utils/config-manager.js";
+import { normalizeGitLabApiUrl } from "./utils/url.js";
 import {
   getConfig,
   ENABLE_DYNAMIC_API_URL,
@@ -140,29 +143,46 @@ function buildDownloadUrl(type: string, params: Record<string, string>): string 
   // Embed auth (and apiUrl when dynamic routing is active) from current session or static config
   // Token is bound to the specific resource (type + params) to prevent URL tampering
   const resource = { type, params };
+  
+  const getHeaderAndValue = (token: string, headerOverride?: string): { header: string; headerValue: string } => {
+    const trimmed = token.trim();
+    if (headerOverride && headerOverride !== "Authorization") {
+      return { header: headerOverride, headerValue: trimmed };
+    }
+    if (IS_OLD || trimmed.startsWith("glpat-")) {
+      return { header: "Private-Token", headerValue: trimmed };
+    }
+    return { header: "Authorization", headerValue: `Bearer ${trimmed}` };
+  };
+
   const ctx = sessionAuthStore.getStore();
   if (ctx?.token) {
-    const headerValue = ctx.header === "Authorization" ? `Bearer ${ctx.token}` : ctx.token;
-    const apiUrl = ENABLE_DYNAMIC_API_URL && ctx.apiUrl !== GITLAB_API_URL ? ctx.apiUrl : undefined;
-    url.searchParams.set("_token", createDownloadToken(ctx.header, headerValue, apiUrl, resource));
+    const { header, headerValue } = getHeaderAndValue(ctx.token, ctx.header);
+    const apiUrl = ctx.apiUrl !== GITLAB_API_URL ? ctx.apiUrl : undefined;
+    url.searchParams.set("_token", createDownloadToken(header, headerValue, apiUrl, resource));
+  } else if (globalSessionAuth) {
+    const { header, headerValue } = getHeaderAndValue(globalSessionAuth.token, globalSessionAuth.header);
+    url.searchParams.set("_token", createDownloadToken(header, headerValue, globalSessionAuth.apiUrl, resource));
   } else {
-    // Fallback for SSE/static-token mode (no session auth context)
-    // Priority matches buildAuthHeaders: OAuth > PAT > JOB token
-    const staticToken = OAUTH_ACCESS_TOKEN || GITLAB_PERSONAL_ACCESS_TOKEN || GITLAB_JOB_TOKEN;
-    if (staticToken) {
-      let header: string;
-      let headerValue: string;
-      if (GITLAB_JOB_TOKEN && !GITLAB_PERSONAL_ACCESS_TOKEN && !OAUTH_ACCESS_TOKEN) {
-        header = "JOB-TOKEN";
-        headerValue = String(staticToken);
-      } else if (IS_OLD) {
-        header = "Private-Token";
-        headerValue = String(staticToken);
-      } else {
-        header = "Authorization";
-        headerValue = `Bearer ${staticToken}`;
+    const activeInstance = configManager.getActiveInstance();
+    if (activeInstance) {
+      const { header, headerValue } = getHeaderAndValue(activeInstance.token);
+      url.searchParams.set("_token", createDownloadToken(header, headerValue, activeInstance.url, resource));
+    } else {
+      const staticToken = OAUTH_ACCESS_TOKEN || GITLAB_PERSONAL_ACCESS_TOKEN || GITLAB_JOB_TOKEN;
+      if (staticToken) {
+        let header: string;
+        let headerValue: string;
+        if (GITLAB_JOB_TOKEN && !GITLAB_PERSONAL_ACCESS_TOKEN && !OAUTH_ACCESS_TOKEN) {
+          header = "JOB-TOKEN";
+          headerValue = String(staticToken);
+        } else {
+          const res = getHeaderAndValue(String(staticToken));
+          header = res.header;
+          headerValue = res.headerValue;
+        }
+        url.searchParams.set("_token", createDownloadToken(header, headerValue, undefined, resource));
       }
-      url.searchParams.set("_token", createDownloadToken(header, headerValue, undefined, resource));
     }
   }
   return url.toString();
@@ -199,7 +219,6 @@ import { mcpAuthRouter } from "@modelcontextprotocol/sdk/server/auth/router.js";
 import { ipKeyGenerator } from "express-rate-limit";
 import { normalizeProxyClientIpForRateLimit } from "./utils/proxy-client-ip.js";
 import { getForwardedPublicBaseUrl } from "./utils/forwarded-public-base-url.js";
-import { normalizeGitLabApiUrl } from "./utils/url.js";
 import {
   estimateMergeCommitCount,
   filterDiffsByPatterns,
@@ -571,6 +590,10 @@ import {
   ListWebhookEventsSchema,
   GetWebhookEventSchema,
   HealthCheckSchema,
+  SwitchInstanceSchema,
+  AddInstanceSchema,
+  SelectInstanceSchema,
+  ListInstancesSchema,
 } from "./schemas.js";
 
 import { randomUUID, createCipheriv, createDecipheriv, randomBytes, createHash } from "node:crypto";
@@ -679,15 +702,28 @@ function createServer(): McpServer {
     ? toolsAfterReadOnly.filter(tool => !GITLAB_DENIED_TOOLS_REGEX!.test(tool.name))
     : [...toolsAfterReadOnly];
 
-  // Step 5.5: Always include discover_tools meta-tool (bypasses toolset filter)
-  const discoverTool = allTools.find(t => t.name === "discover_tools");
+  // Step 5.5: Always include management tools (bypasses toolset filter)
+  const managementToolNames = new Set([
+    "gitlab_list_instances",
+    "gitlab_add_instance",
+    "gitlab_select_instance",
+    "gitlab_switch_instance",
+    "discover_tools"
+  ]);
+
   const filteredToolNames = new Set(filteredTools.map(t => t.name));
-  if (discoverTool && !filteredToolNames.has("discover_tools")) {
-    // Respect read-only and regex denial filters
-    const passesReadOnly = !GITLAB_READ_ONLY_MODE || readOnlyTools.has("discover_tools");
-    const passesRegex = !GITLAB_DENIED_TOOLS_REGEX?.test("discover_tools");
-    if (passesReadOnly && passesRegex) {
-      filteredTools.push(discoverTool);
+  for (const name of managementToolNames) {
+    if (!filteredToolNames.has(name)) {
+      const tool = allTools.find(t => t.name === name);
+      if (tool) {
+        // Respect read-only and regex denial filters
+        const passesReadOnly = !GITLAB_READ_ONLY_MODE || readOnlyTools.has(name);
+        const passesRegex = !GITLAB_DENIED_TOOLS_REGEX?.test(name);
+        if (passesReadOnly && passesRegex) {
+          filteredTools.push(tool);
+          filteredToolNames.add(name);
+        }
+      }
     }
   }
 
@@ -926,12 +962,12 @@ function createServer(): McpServer {
         };
         // Run the handler within the retrieved context
         const result = await sessionAuthStore.run(sessionContext, () =>
-          handleToolCall(request.params)
+          handleToolCall(request.params, sessionId)
         );
         return logCompletion(result);
       }
       // Fallback for non-remote-auth mode or if session is not found
-      const result = await handleToolCall(request.params);
+      const result = await handleToolCall(request.params, sessionId);
       return logCompletion(result);
     } catch (error) {
       logError(error);
@@ -1030,6 +1066,7 @@ function validateConfiguration(): void {
   const mcpOAuth = getConfig("mcp-oauth", "GITLAB_MCP_OAUTH") === "true";
   const mcpServerUrl = getConfig("mcp-server-url", "MCP_SERVER_URL");
   const streamableHttp = getConfig("streamable-http", "STREAMABLE_HTTP") === "true";
+  const hasPersistentInstance = !!configManager.getActiveInstance();
   const sse = getConfig("sse", "SSE") === "true";
   const bindHost = getConfig("host", "HOST") || "127.0.0.1";
   const sseAuthToken = getConfig("sse-auth-token", "SSE_AUTH_TOKEN");
@@ -1039,15 +1076,15 @@ function validateConfiguration(): void {
       "SSE_DANGEROUSLY_ALLOW_UNAUTHENTICATED_REMOTE"
     ) === "true";
 
-  if (!remoteAuth && !useOAuth && !hasToken && !hasJobToken && !hasCookie && !mcpOAuth) {
+  if (!remoteAuth && !useOAuth && !hasToken && !hasJobToken && !hasCookie && !mcpOAuth && !hasPersistentInstance) {
     errors.push(
-      "Either --token, --job-token, --cookie-path, --use-oauth=true, --remote-auth=true, or --mcp-oauth=true must be set (or use environment variables)"
+      "Either --token, --job-token, --cookie-path, --use-oauth=true, --remote-auth=true, or --mcp-oauth=true must be set (or use environment variables or have a saved instance in instances.json)"
     );
   }
 
-  if (streamableHttp && (hasToken || hasJobToken) && !remoteAuth && !mcpOAuth) {
+  if (streamableHttp && (hasToken || hasJobToken || hasPersistentInstance) && !remoteAuth && !mcpOAuth) {
     errors.push(
-      "STREAMABLE_HTTP=true/--streamable-http with GITLAB_PERSONAL_ACCESS_TOKEN/--token or GITLAB_JOB_TOKEN/--job-token requires REMOTE_AUTHORIZATION=true/--remote-auth=true or GITLAB_MCP_OAUTH=true/--mcp-oauth=true"
+      "STREAMABLE_HTTP=true/--streamable-http with GITLAB_PERSONAL_ACCESS_TOKEN/--token, GITLAB_JOB_TOKEN/--job-token, or a saved persistent instance requires REMOTE_AUTHORIZATION=true/--remote-auth=true or GITLAB_MCP_OAUTH=true/--mcp-oauth=true"
     );
   }
 
@@ -1483,11 +1520,31 @@ interface AuthData {
   publicBaseUrl?: string;
 }
 
+function resolveTokenHeader(
+  token: string,
+  headerOverride?: AuthData["header"]
+): AuthData["header"] {
+  const trimmed = token.trim();
+  if (headerOverride && headerOverride !== "Authorization") {
+    return headerOverride;
+  }
+  if (IS_OLD || trimmed.startsWith("glpat-")) {
+    return "Private-Token";
+  }
+  return "Authorization";
+}
+
 const sessionAuthStore = new AsyncLocalStorage<SessionAuth>();
 
 // Session context map for storing auth data by session ID
 // This survives async boundaries where AsyncLocalStorage might not
 const authBySession: Record<string, AuthData> = {};
+
+/**
+ * Global session auth for stdio mode where session tracking might not be available
+ * but we still want to support dynamic switching.
+ */
+let globalSessionAuth: AuthData | null = null;
 
 function withPublicBaseUrl(
   authData: AuthData,
@@ -1516,31 +1573,48 @@ const BASE_HEADERS: Record<string, string> = {
  * Otherwise, uses environment token (OAuth token is refreshed lazily before each tool call)
  */
 function buildAuthHeaders(): Record<string, string> {
+  const getHeaderForToken = (token: string): Record<string, string> => {
+    const trimmed = token.trim();
+    const header = resolveTokenHeader(trimmed);
+    if (header === "Private-Token") {
+      return { "Private-Token": trimmed };
+    }
+    return { Authorization: `Bearer ${trimmed}` };
+  };
+
   if (REMOTE_AUTHORIZATION || GITLAB_MCP_OAUTH) {
     const ctx = sessionAuthStore.getStore();
     logger.debug({ context: ctx }, "buildAuthHeaders: session context");
     if (ctx?.token) {
+      if (resolveTokenHeader(ctx.token, ctx.header) === "Authorization") {
+        return getHeaderForToken(ctx.token);
+      }
       return {
-        [ctx.header]: ctx.header === "Authorization" ? `Bearer ${ctx.token}` : ctx.token,
+        [resolveTokenHeader(ctx.token, ctx.header)]: ctx.token,
       };
     }
-    return {}; // No auth headers if no session context
+    return {};
   }
 
-  // Standard mode: PAT preferred over job token (broader permissions).
-  // OAuth token takes priority over PAT when both are set.
-  // NOTE: Changed in PR #400 — previously GITLAB_JOB_TOKEN had highest priority.
-  // If both GITLAB_PERSONAL_ACCESS_TOKEN and GITLAB_JOB_TOKEN are set, PAT wins.
+  if (globalSessionAuth) {
+    if (resolveTokenHeader(globalSessionAuth.token, globalSessionAuth.header) === "Authorization") {
+      return getHeaderForToken(globalSessionAuth.token);
+    }
+    return {
+      [resolveTokenHeader(globalSessionAuth.token, globalSessionAuth.header)]: globalSessionAuth.token,
+    };
+  }
+
+  const activeInstance = configManager.getActiveInstance();
+  if (activeInstance) {
+    return getHeaderForToken(activeInstance.token);
+  }
+
   const token = OAUTH_ACCESS_TOKEN || GITLAB_PERSONAL_ACCESS_TOKEN;
-
-  if (IS_OLD && token) {
-    return { "Private-Token": String(token) };
-  }
   if (token) {
-    return { Authorization: `Bearer ${token}` };
+    return getHeaderForToken(String(token));
   }
 
-  // Fall back to CI job token
   if (GITLAB_JOB_TOKEN) {
     return { "JOB-TOKEN": String(GITLAB_JOB_TOKEN) };
   }
@@ -1554,22 +1628,32 @@ function usesJobTokenHeader(): boolean {
     const ctx = sessionAuthStore.getStore();
     return ctx?.header === "JOB-TOKEN";
   }
+  if (globalSessionAuth?.header === "JOB-TOKEN") return true;
   return false;
 }
 
 /**
  * Get the effective GitLab API URL for the current request
  * In REMOTE_AUTHORIZATION mode with ENABLE_DYNAMIC_API_URL, reads from session context
- * Otherwise, uses environment GITLAB_API_URL
+ * Otherwise, uses environment GITLAB_API_URL or persistent config
  */
 function getEffectiveApiUrl(): string {
-  if (ENABLE_DYNAMIC_API_URL) {
-    const ctx = sessionAuthStore.getStore();
-    if (ctx?.apiUrl) {
-      return ctx.apiUrl;
-    }
-    logger.warn({ ctx }, "getEffectiveApiUrl: No context or apiUrl found, falling back to default");
+  const ctx = sessionAuthStore.getStore();
+  if (ctx?.apiUrl) {
+    return ctx.apiUrl;
   }
+
+  // Support globalSessionAuth for stdio dynamic switching (highest priority)
+  if (globalSessionAuth?.apiUrl) {
+    return globalSessionAuth.apiUrl;
+  }
+
+  // Use persistent active instance from ConfigManager
+  const activeInstance = configManager.getActiveInstance();
+  if (activeInstance) {
+    return activeInstance.url;
+  }
+
   return GITLAB_API_URL;
 }
 
@@ -1784,11 +1868,12 @@ if (
   !USE_OAUTH &&
   !GITLAB_PERSONAL_ACCESS_TOKEN &&
   !GITLAB_JOB_TOKEN &&
-  !GITLAB_AUTH_COOKIE_PATH
+  !GITLAB_AUTH_COOKIE_PATH &&
+  !configManager.getActiveInstance()
 ) {
   // Standard mode: token must be in environment (unless using OAuth)
   logger.error("GITLAB_PERSONAL_ACCESS_TOKEN environment variable is not set");
-  logger.info("Either set GITLAB_PERSONAL_ACCESS_TOKEN or enable OAuth with GITLAB_USE_OAUTH=true");
+  logger.info("Either set GITLAB_PERSONAL_ACCESS_TOKEN or enable OAuth with GITLAB_USE_OAUTH=true (or have a saved instance in instances.json)");
   process.exit(1);
 }
 
@@ -9156,7 +9241,7 @@ async function executeGitLabGraphQL(query: string, variables: Record<string, unk
 // Request handlers are now registered inside createServer() factory function
 // to ensure each transport connection gets its own Server instance (GHSA-345p-7cg4-v4c7).
 
-async function handleToolCall(params: any) {
+async function handleToolCall(params: any, sessionId?: string) {
   try {
     if (!params.arguments) {
       params.arguments = {};
@@ -9191,6 +9276,139 @@ async function handleToolCall(params: any) {
 
     logger.info({ tool: params.name, event: "tool_call_start" }, `tool_call_start: ${params.name}`);
     switch (params.name) {
+      case "gitlab_list_instances": {
+        ListInstancesSchema.parse(params.arguments);
+        const instances = configManager.listInstances();
+        const active = configManager.getActiveAlias();
+        return {
+          content: [{
+            type: "text",
+            text: JSON.stringify({ active_instance: active, saved_instances: instances }, null, 2) + 
+                  "\n\nHint: You can switch to any of these instances using gitlab_switch_instance({ alias: 'alias_name' })",
+          }],
+        };
+      }
+
+      case "gitlab_add_instance": {
+        if (REMOTE_AUTHORIZATION || GITLAB_MCP_OAUTH) {
+          throw new Error(
+            "Persistent instance management is disabled in remote/OAuth modes for security."
+          );
+        }
+        const args = AddInstanceSchema.parse(params.arguments);
+        configManager.addInstance(args.alias, {
+          url: normalizeGitLabApiUrl(args.apiUrl),
+          token: args.token,
+          description: args.description,
+        });
+        return {
+          content: [{
+            type: "text",
+            text: `Successfully added instance: ${args.alias} (${args.apiUrl}). You can now switch to it using gitlab_switch_instance({ alias: '${args.alias}' })`,
+          }],
+        };
+      }
+
+      case "gitlab_select_instance": {
+        if (REMOTE_AUTHORIZATION || GITLAB_MCP_OAUTH) {
+          throw new Error(
+            "Persistent instance management is disabled in remote/OAuth modes for security."
+          );
+        }
+        const args = SelectInstanceSchema.parse(params.arguments);
+        if (configManager.selectInstance(args.alias)) {
+          // Also clear globalSessionAuth to use the newly selected persistent instance
+          globalSessionAuth = null;
+          return {
+            content: [{
+              type: "text",
+              text: `Successfully selected persistent instance: ${args.alias}. Future restarts will use this instance by default.`,
+            }],
+          };
+        }
+        throw new Error(`Instance with alias '${args.alias}' not found.`);
+      }
+
+      case "gitlab_switch_instance": {
+        const args = SwitchInstanceSchema.parse(params.arguments);
+        
+        let targetToken = args.token?.trim();
+        let targetApiUrl = args.apiUrl?.trim();
+        let source = "manual";
+
+        // Check if switching by alias
+        if (args.alias) {
+          if (REMOTE_AUTHORIZATION || GITLAB_MCP_OAUTH) {
+            throw new Error(
+              "Alias-based instance switching is disabled in remote/OAuth modes for security. Please provide apiUrl and token directly."
+            );
+          }
+          const inst = configManager.getInstance(args.alias);
+          if (inst) {
+            targetToken = inst.token;
+            targetApiUrl = inst.url;
+            source = `alias:${args.alias}`;
+          } else {
+            throw new Error(`Alias '${args.alias}' not found.`);
+          }
+        }
+
+        if ((REMOTE_AUTHORIZATION || GITLAB_MCP_OAUTH) && (!targetToken || !targetApiUrl)) {
+          throw new Error(
+            "Remote/OAuth mode requires explicit apiUrl and token for instance switching."
+          );
+        }
+
+        // If arguments are missing and no alias, try 'cloud' alias first, then environment
+        if (!targetToken || !targetApiUrl) {
+          const cloudInst = configManager.getInstance("cloud");
+          if (cloudInst) {
+            targetToken = cloudInst.token;
+            targetApiUrl = cloudInst.url;
+            source = "alias:cloud";
+          } else {
+            targetToken = process.env.GITLAB_CLOUD_TOKEN;
+            targetApiUrl = process.env.GITLAB_CLOUD_API_URL || "https://gitlab.com/api/v4";
+            source = "environment";
+            
+            if (!targetToken) {
+              throw new Error("Cloud credentials not found in server configuration (instances.json or .env). Please provide apiUrl/token or alias explicitly.");
+            }
+          }
+        }
+
+        // Basic token validation
+        if (targetToken.length < 10) {
+          throw new Error("Invalid token: token is too short.");
+        }
+
+        // URL normalization
+        if (!targetApiUrl.startsWith("http")) {
+          targetApiUrl = `https://${targetApiUrl}`;
+        }
+        targetApiUrl = normalizeGitLabApiUrl(targetApiUrl);
+
+        const authData: AuthData = {
+          header: resolveTokenHeader(targetToken),
+          token: targetToken,
+          lastUsed: Date.now(),
+          apiUrl: targetApiUrl,
+        };
+
+        if ((REMOTE_AUTHORIZATION || GITLAB_MCP_OAUTH) && sessionId) {
+          authBySession[sessionId] = authData;
+        } else {
+          // Fallback for stdio mode
+          globalSessionAuth = authData;
+        }
+
+        return {
+          content: [{
+            type: "text",
+            text: `Successfully switched to GitLab instance: ${authData.apiUrl}`,
+          }],
+        };
+      }
       case "execute_graphql": {
         const args = ExecuteGraphQLSchema.parse(params.arguments);
         if (GITLAB_READ_ONLY_MODE && graphqlQueryContainsWriteOperation(args.query)) {
@@ -9941,7 +10159,7 @@ async function handleToolCall(params: any) {
 
       case "list_namespaces": {
         const args = ListNamespacesSchema.parse(params.arguments);
-        const url = new URL(`${GITLAB_API_URL}/namespaces`);
+        const url = new URL(`${getEffectiveApiUrl()}/namespaces`);
 
         if (args.search) {
           url.searchParams.append("search", args.search);
@@ -9972,7 +10190,7 @@ async function handleToolCall(params: any) {
       case "get_namespace": {
         const args = GetNamespaceSchema.parse(params.arguments);
         const url = new URL(
-          `${GITLAB_API_URL}/namespaces/${encodeURIComponent(args.namespace_id)}`
+          `${getEffectiveApiUrl()}/namespaces/${encodeURIComponent(args.namespace_id)}`
         );
 
         const response = await fetch(url.toString(), {
@@ -9990,7 +10208,7 @@ async function handleToolCall(params: any) {
 
       case "verify_namespace": {
         const args = VerifyNamespaceSchema.parse(params.arguments);
-        const url = new URL(`${GITLAB_API_URL}/namespaces/${encodeURIComponent(args.path)}/exists`);
+        const url = new URL(`${getEffectiveApiUrl()}/namespaces/${encodeURIComponent(args.path)}/exists`);
         if (args.parent_id !== undefined) url.searchParams.set("parent_id", String(args.parent_id));
 
         const response = await fetch(url.toString(), {
@@ -13406,6 +13624,32 @@ async function initializeServerByTransportMode(mode: TransportMode): Promise<voi
  */
 async function runServer() {
   try {
+    // Perform initial migration to instances.json if needed
+    if (Object.keys(configManager.listInstances()).length === 0 && !process.env.NODE_TEST_CONTEXT && !process.env.NODE_ENV?.includes('test')) {
+      logger.info("Performing initial migration of credentials to instances.json...");
+      
+      // Migrate default instance from ENV
+      if (GITLAB_PERSONAL_ACCESS_TOKEN) {
+        configManager.addInstance("default", {
+          url: GITLAB_API_URL,
+          token: GITLAB_PERSONAL_ACCESS_TOKEN,
+          description: "Default instance from environment variables",
+        });
+      }
+
+      // Migrate cloud instance from .env if present
+      if (process.env.GITLAB_CLOUD_TOKEN) {
+        configManager.addInstance("cloud", {
+          url: normalizeGitLabApiUrl(process.env.GITLAB_CLOUD_API_URL || "https://gitlab.com"),
+          token: process.env.GITLAB_CLOUD_TOKEN,
+          description: "Cloud instance from .env",
+        });
+        if (!process.env.GITLAB_PERSONAL_ACCESS_TOKEN) {
+          configManager.selectInstance("cloud");
+        }
+      }
+    }
+
     // Validate configuration before starting server
     validateConfiguration();
 
@@ -13451,7 +13695,6 @@ async function runServer() {
   }
 }
 
-// 下記の２行を追記
 runServer().catch(error => {
   logger.fatal({ err: error }, "Fatal error in main()");
   process.exit(1);

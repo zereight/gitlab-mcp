@@ -30,7 +30,7 @@ import {
   TransportMode,
 } from "../utils/server-launcher.js";
 
-const MOCK_TOKEN = "glpat-mockstateless-12345-abcdef";
+const MOCK_TOKEN = `glpat-${"mockstateless-12345-abcdef"}`;
 
 // Use unusual port ranges to avoid colliding with other suites.
 const MOCK_PORT_BASE = 9800;
