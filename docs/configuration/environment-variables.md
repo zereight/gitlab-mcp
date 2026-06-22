@@ -199,6 +199,13 @@ Notes:
 
 - Requires `REMOTE_AUTHORIZATION=true`
 - Uses the `X-GitLab-API-URL` request header in HTTP mode
+- The header URL must use an allowed host: any host in `GITLAB_API_URL`, plus any host in `GITLAB_ALLOWED_HOSTS`
+
+### `GITLAB_ALLOWED_HOSTS`
+
+Comma-separated additional hosts allowed for `X-GitLab-API-URL` when
+`ENABLE_DYNAMIC_API_URL=true`. Use hostnames with optional ports, for example:
+`gitlab.example.com,gitlab.company.com:8443`.
 
 ### `MCP_TRUST_PROXY`
 

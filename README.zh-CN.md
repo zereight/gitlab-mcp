@@ -238,6 +238,7 @@ MCP 客户端配置：
 | `REMOTE_AUTHORIZATION`   | 是   | 设置为 `true` 以启用                                    |
 | `STREAMABLE_HTTP`        | 是   | 必须为 `true`                                           |
 | `ENABLE_DYNAMIC_API_URL` | 可选 | 允许按请求通过 `X-GitLab-API-URL` 请求头指定 GitLab URL |
+| `GITLAB_ALLOWED_HOSTS` | 可选 | 逗号分隔的允许主机；`GITLAB_API_URL` 中的主机始终允许 |
 
 **示例请求头：**
 

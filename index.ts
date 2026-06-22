@@ -1003,6 +1003,13 @@ function validateConfiguration(): void {
     }
   }
 
+  const allowedHosts = getConfig("allowed-hosts", "GITLAB_ALLOWED_HOSTS")?.split(",") || [];
+  for (const host of allowedHosts) {
+    if (host.trim() && !toAllowedGitLabHost(host)) {
+      errors.push(`GITLAB_ALLOWED_HOSTS contains an invalid host: ${host.trim()}`);
+    }
+  }
+
   // Validate auth configuration
   const remoteAuth = getConfig("remote-auth", "REMOTE_AUTHORIZATION") === "true";
   const useOAuth = getConfig("use-oauth", "GITLAB_USE_OAUTH") === "true";
@@ -1640,11 +1647,50 @@ type GitLabMergeRequestWithDeploymentSummary = GitLabMergeRequest & {
   };
 };
 
+function toAllowedGitLabHost(value: string): string | null {
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+
+  try {
+    const url = new URL(trimmed.includes("://") ? trimmed : `https://${trimmed}`);
+    if (url.protocol !== "http:" && url.protocol !== "https:") return null;
+    return url.host;
+  } catch {
+    return null;
+  }
+}
+
+function parseAllowedGitLabHosts(value: string): string[] {
+  return value
+    .split(",")
+    .map(toAllowedGitLabHost)
+    .filter((host): host is string => Boolean(host));
+}
+
+function resolveTrustedGitLabApiUrl(value: string): string {
+  const normalized = normalizeGitLabApiUrl(value);
+  const parsed = new URL(normalized);
+
+  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+    throw new Error("GitLab API URL must use HTTP or HTTPS");
+  }
+
+  if (!GITLAB_ALLOWED_HOSTS.has(parsed.host)) {
+    throw new Error(`GitLab API URL host is not allowed: ${parsed.host}`);
+  }
+
+  return normalized;
+}
+
 // Use the normalizeGitLabApiUrl function to handle various URL formats
 const GITLAB_API_URLS = (getConfig("api-url", "GITLAB_API_URL") || "https://gitlab.com")
   .split(",")
   .map(normalizeGitLabApiUrl);
 const GITLAB_API_URL = GITLAB_API_URLS[0];
+const GITLAB_ALLOWED_HOSTS = new Set([
+  ...GITLAB_API_URLS.map(toAllowedGitLabHost).filter((host): host is string => Boolean(host)),
+  ...parseAllowedGitLabHosts(getConfig("allowed-hosts", "GITLAB_ALLOWED_HOSTS") || ""),
+]);
 const GITLAB_PROJECT_ID = process.env.GITLAB_PROJECT_ID;
 const GITLAB_ALLOWED_PROJECT_IDS =
   process.env.GITLAB_ALLOWED_PROJECT_IDS?.split(",")
@@ -12084,17 +12130,14 @@ function registerDownloadProxy(
     }
 
     // API URL: prefer token-embedded URL, then X-GitLab-API-URL header, then default
-    let apiUrl = tokenApiUrl || GITLAB_API_URL;
-    if (!tokenApiUrl) {
-      const dynamicApiUrl = (req.headers["x-gitlab-api-url"] as string | undefined)?.trim();
-      if (ENABLE_DYNAMIC_API_URL && dynamicApiUrl) {
-        try {
-          new URL(dynamicApiUrl);
-          apiUrl = normalizeGitLabApiUrl(dynamicApiUrl);
-        } catch {
-          res.status(400).json({ error: "Invalid X-GitLab-API-URL" });
-          return;
-        }
+    let apiUrl = GITLAB_API_URL;
+    const requestedApiUrl = tokenApiUrl || (req.headers["x-gitlab-api-url"] as string | undefined)?.trim();
+    if (ENABLE_DYNAMIC_API_URL && requestedApiUrl) {
+      try {
+        apiUrl = resolveTrustedGitLabApiUrl(requestedApiUrl);
+      } catch {
+        res.status(400).json({ error: "Invalid X-GitLab-API-URL" });
+        return;
       }
     }
 
@@ -12346,11 +12389,10 @@ async function startStreamableHTTPServer(): Promise<void> {
     // Only process dynamic URL if the feature is enabled
     if (ENABLE_DYNAMIC_API_URL && dynamicApiUrl) {
       try {
-        new URL(dynamicApiUrl); // Ensure it's a valid URL format
-        apiUrl = normalizeGitLabApiUrl(dynamicApiUrl);
+        apiUrl = resolveTrustedGitLabApiUrl(dynamicApiUrl);
       } catch {
         logger.warn(`Invalid X-GitLab-API-URL provided: ${dynamicApiUrl}. Auth will fail.`);
-        return null; // Reject if URL is malformed
+        return null; // Reject if URL is malformed or not allowed
       }
     }
 

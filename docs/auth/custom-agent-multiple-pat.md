@@ -63,6 +63,7 @@ instances.
 STREAMABLE_HTTP=true \
 REMOTE_AUTHORIZATION=true \
 ENABLE_DYNAMIC_API_URL=true \
+GITLAB_ALLOWED_HOSTS=gitlab.example.com \
 npx -y @zereight/mcp-gitlab
 ```
 
@@ -73,7 +74,8 @@ X-GitLab-API-URL: https://gitlab.example.com/api/v4
 ```
 
 `/api/v4` URLs are recommended. The server also accepts a GitLab base URL and
-normalizes it by appending `/api/v4`.
+normalizes it by appending `/api/v4`. The header host must match `GITLAB_API_URL`
+or `GITLAB_ALLOWED_HOSTS`.
 
 ## Tool Customization
 
