@@ -390,6 +390,22 @@ Legacy additive flag for pipeline-related tools.
 
 Set to `true` to run the Streamable HTTP transport.
 
+Streamable HTTP rejects `/mcp` requests whose `Host` header is not local
+(`127.0.0.1`, `localhost`, `[::1]`), not `MCP_SERVER_URL`, and not listed in
+`MCP_ALLOWED_HOSTS`. Requests with an `Origin` header must use a local origin,
+`MCP_SERVER_URL`, or an origin listed in `MCP_ALLOWED_ORIGINS`.
+
+### `MCP_ALLOWED_HOSTS`
+
+Comma-separated extra allowed `Host` header values for `/mcp`.
+Use this when the public host clients send differs from `MCP_SERVER_URL`.
+Values may be bare hosts (`mcp.example.com`) or host:port pairs.
+
+### `MCP_ALLOWED_ORIGINS`
+
+Comma-separated extra allowed browser origins for `/mcp`, for example
+`https://mcp.example.com`.
+
 ### `SSE`
 
 Set to `true` to run the legacy SSE transport.
