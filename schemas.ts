@@ -381,16 +381,17 @@ const GetCiCatalogResourceOptionsSchema = z.object({
   include_readme: z.coerce.boolean().optional().describe("Include version README content"),
 });
 
-export const GetCiCatalogResourceSchema = z.union([
-  GetCiCatalogResourceOptionsSchema.extend({
-    id: z.string().min(1).describe("CI/CD Catalog resource global ID. Required when full_path is omitted."),
-    full_path: z.string().min(1).optional().describe("CI/CD Catalog resource full project path. Required when id is omitted."),
-  }),
-  GetCiCatalogResourceOptionsSchema.extend({
-    id: z.string().min(1).optional().describe("CI/CD Catalog resource global ID. Required when full_path is omitted."),
-    full_path: z.string().min(1).describe("CI/CD Catalog resource full project path. Required when id is omitted."),
-  }),
-]).refine(args => Boolean(args.id) !== Boolean(args.full_path), {
+// NOTE: Keep this as a single z.object(...).refine(...) rather than a
+// z.union([...]). A top-level union serializes to JSON Schema with `oneOf`
+// at the root of input_schema, which the Anthropic Messages API (Claude
+// Code, Kiro, etc.) rejects with:
+//   "input_schema does not support oneOf, allOf, or anyOf at the top level"
+// The id/full_path "exactly one of" constraint is enforced at runtime via
+// .refine() instead. See issue #550.
+export const GetCiCatalogResourceSchema = GetCiCatalogResourceOptionsSchema.extend({
+  id: z.string().min(1).optional().describe("CI/CD Catalog resource global ID. Required when full_path is omitted."),
+  full_path: z.string().min(1).optional().describe("CI/CD Catalog resource full project path. Required when id is omitted."),
+}).refine(args => Boolean(args.id) !== Boolean(args.full_path), {
   message: "Provide exactly one of id or full_path",
 });
 
