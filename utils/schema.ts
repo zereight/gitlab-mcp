@@ -124,16 +124,29 @@ export const toJSONSchema = (schema: z.ZodTypeAny) => {
             }
           }
         }
-        // Collect required fields shared across ALL variants (intersection)
+        // Compute required fields based on combiner semantics:
+        // - allOf: union (all schemas apply, so all requirements apply)
+        // - anyOf/oneOf: intersection (only shared requirements are universal)
         const requiredSets = variants.map(
           (v: any) => new Set<string>(Array.isArray(v.required) ? v.required : [])
         );
-        const sharedRequired = [...requiredSets[0]].filter(
-          field => requiredSets.every((s: Set<string>) => s.has(field))
-        );
-        if (sharedRequired.length > 0) {
+        let mergedRequired: string[];
+        if (combiner === "allOf") {
+          // Union: any field required in any variant is required
+          const all = new Set<string>();
+          for (const s of requiredSets) {
+            for (const field of s) all.add(field);
+          }
+          mergedRequired = [...all];
+        } else {
+          // Intersection: only fields required in ALL variants
+          mergedRequired = [...requiredSets[0]].filter(
+            field => requiredSets.every((s: Set<string>) => s.has(field))
+          );
+        }
+        if (mergedRequired.length > 0) {
           const existing = new Set<string>(Array.isArray(fixedSchema.required) ? fixedSchema.required : []);
-          for (const field of sharedRequired) {
+          for (const field of mergedRequired) {
             existing.add(field);
           }
           fixedSchema.required = [...existing];
