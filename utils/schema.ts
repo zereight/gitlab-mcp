@@ -124,6 +124,20 @@ export const toJSONSchema = (schema: z.ZodTypeAny) => {
             }
           }
         }
+        // Collect required fields shared across ALL variants (intersection)
+        const requiredSets = variants.map(
+          (v: any) => new Set<string>(Array.isArray(v.required) ? v.required : [])
+        );
+        const sharedRequired = [...requiredSets[0]].filter(
+          field => requiredSets.every((s: Set<string>) => s.has(field))
+        );
+        if (sharedRequired.length > 0) {
+          const existing = new Set<string>(Array.isArray(fixedSchema.required) ? fixedSchema.required : []);
+          for (const field of sharedRequired) {
+            existing.add(field);
+          }
+          fixedSchema.required = [...existing];
+        }
         delete fixedSchema[combiner];
       }
     }
