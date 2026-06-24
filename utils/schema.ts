@@ -107,18 +107,25 @@ export const toJSONSchema = (schema: z.ZodTypeAny) => {
 
   const fixedSchema = fixNullableOptional(jsonSchema, true);
 
-  if (!fixedSchema.properties && Array.isArray(fixedSchema.anyOf)) {
-    const variants = fixedSchema.anyOf.filter(
-      (item: any) => item?.type === "object" && item.properties
-    );
-    if (variants.length === fixedSchema.anyOf.length) {
-      fixedSchema.type = "object";
-      fixedSchema.properties = variants.reduce((properties: any, item: any) => {
-        Object.entries(item.properties).forEach(([key, value]) => {
-          if (!properties[key]) properties[key] = value;
-        });
-        return properties;
-      }, {});
+  // Flatten top-level anyOf/oneOf into a single object schema for Anthropic API compatibility.
+  // The Anthropic API rejects tool input_schema with top-level oneOf/allOf/anyOf.
+  for (const combiner of ["anyOf", "oneOf", "allOf"] as const) {
+    if (Array.isArray(fixedSchema[combiner])) {
+      const variants = fixedSchema[combiner].filter(
+        (item: any) => item?.type === "object" && item.properties
+      );
+      if (variants.length > 0 && variants.length === fixedSchema[combiner].length) {
+        fixedSchema.type = "object";
+        fixedSchema.properties = fixedSchema.properties || {};
+        for (const variant of variants) {
+          for (const [key, value] of Object.entries(variant.properties)) {
+            if (!fixedSchema.properties[key]) {
+              fixedSchema.properties[key] = value;
+            }
+          }
+        }
+        delete fixedSchema[combiner];
+      }
     }
   }
 
