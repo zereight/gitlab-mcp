@@ -955,6 +955,100 @@ function isLoopbackBindHost(host: string): boolean {
   );
 }
 
+function formatHostWithPort(host: string, port: number): string | null {
+  const normalized = host.trim().toLowerCase().replace(/^\[|\]$/g, "");
+  if (!normalized || normalized === "0.0.0.0" || normalized === "::") return null;
+  if (normalized.includes(":")) return `[${normalized}]:${port}`;
+  return `${normalized}:${port}`;
+}
+
+function toAllowedMcpHost(value: string): string | null {
+  const trimmed = value.trim().toLowerCase();
+  if (!trimmed || trimmed.includes(" ")) return null;
+
+  try {
+    if (trimmed.includes("://")) return new URL(trimmed).host.toLowerCase();
+    if (trimmed.includes("/")) return null;
+    return new URL(`http://${trimmed}`).host.toLowerCase();
+  } catch {
+    try {
+      return new URL(`http://[${trimmed}]`).host.toLowerCase();
+    } catch {
+      return null;
+    }
+  }
+}
+
+function toAllowedMcpOrigin(value: string): string | null {
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+
+  try {
+    const origin = new URL(trimmed).origin;
+    return origin === "null" ? null : origin.toLowerCase();
+  } catch {
+    return null;
+  }
+}
+
+function getMcpDnsRebindingProtection() {
+  const allowedHosts = new Set<string>();
+  const allowedOrigins = new Set<string>();
+  const addHost = (value: string | null | undefined) => {
+    const host = value ? toAllowedMcpHost(value) : null;
+    if (host) allowedHosts.add(host);
+  };
+  const addOrigin = (value: string | null | undefined) => {
+    const origin = value ? toAllowedMcpOrigin(value) : null;
+    if (origin) allowedOrigins.add(origin);
+  };
+
+  for (const host of ["127.0.0.1", "localhost", "::1", HOST]) {
+    const withPort = formatHostWithPort(host, PORT);
+    addHost(withPort);
+    if (withPort) addOrigin(`http://${withPort}`);
+  }
+
+  if (MCP_SERVER_URL) {
+    addHost(MCP_SERVER_URL);
+    addOrigin(MCP_SERVER_URL);
+  }
+
+  for (const host of (getConfig("mcp-allowed-hosts", "MCP_ALLOWED_HOSTS") || "").split(",")) {
+    addHost(host);
+  }
+  for (const origin of (getConfig("mcp-allowed-origins", "MCP_ALLOWED_ORIGINS") || "").split(",")) {
+    addOrigin(origin);
+  }
+
+  return {
+    enableDnsRebindingProtection: true,
+    allowedHosts: [...allowedHosts],
+    allowedOrigins: [...allowedOrigins],
+  };
+}
+
+const MCP_DNS_REBINDING_PROTECTION = getMcpDnsRebindingProtection();
+
+function requireMcpHostAndOrigin(req: Request, res: Response, next: NextFunction) {
+  const host = toAllowedMcpHost(req.headers.host || "");
+  if (!host || !MCP_DNS_REBINDING_PROTECTION.allowedHosts.includes(host)) {
+    res.status(403).json({ error: "Host header is not allowed" });
+    return;
+  }
+
+  const originHeader = req.headers.origin;
+  if (originHeader) {
+    const origin = toAllowedMcpOrigin(Array.isArray(originHeader) ? originHeader[0] : originHeader);
+    if (!origin || !MCP_DNS_REBINDING_PROTECTION.allowedOrigins.includes(origin)) {
+      res.status(403).json({ error: "Origin header is not allowed" });
+      return;
+    }
+  }
+
+  next();
+}
+
 function validateConfiguration(): void {
   const errors: string[] = [];
 
@@ -1018,6 +1112,20 @@ function validateConfiguration(): void {
   for (const host of allowedHosts) {
     if (host.trim() && !toAllowedGitLabApiUrl(host)) {
       errors.push(`GITLAB_ALLOWED_HOSTS contains an invalid host or URL: ${host.trim()}`);
+    }
+  }
+
+  const mcpAllowedHosts = getConfig("mcp-allowed-hosts", "MCP_ALLOWED_HOSTS")?.split(",") || [];
+  for (const host of mcpAllowedHosts) {
+    if (host.trim() && !toAllowedMcpHost(host)) {
+      errors.push(`MCP_ALLOWED_HOSTS contains an invalid host or URL: ${host.trim()}`);
+    }
+  }
+
+  const mcpAllowedOrigins = getConfig("mcp-allowed-origins", "MCP_ALLOWED_ORIGINS")?.split(",") || [];
+  for (const origin of mcpAllowedOrigins) {
+    if (origin.trim() && !toAllowedMcpOrigin(origin)) {
+      errors.push(`MCP_ALLOWED_ORIGINS contains an invalid origin URL: ${origin.trim()}`);
     }
   }
 
@@ -12684,9 +12792,11 @@ async function startStreamableHTTPServer(): Promise<void> {
     // Step 4: create a fresh transport per request.
     const transport = isInit
       ? new StreamableHTTPServerTransport({
+          ...MCP_DNS_REBINDING_PROTECTION,
           sessionIdGenerator: () => freshSid,
         })
       : new StreamableHTTPServerTransport({
+          ...MCP_DNS_REBINDING_PROTECTION,
           sessionIdGenerator: undefined, // SDK stateless mode for non-init
         });
 
@@ -12734,6 +12844,7 @@ async function startStreamableHTTPServer(): Promise<void> {
     app.set("trust proxy", 1);
   }
 
+  app.use("/mcp", requireMcpHostAndOrigin);
   app.use(express.json());
 
   registerDownloadProxy(app);
@@ -13051,6 +13162,7 @@ async function startStreamableHTTPServer(): Promise<void> {
         } else {
           // Create new transport for new session
           transport = new StreamableHTTPServerTransport({
+            ...MCP_DNS_REBINDING_PROTECTION,
             sessionIdGenerator: () => randomUUID(),
             onsessioninitialized: (newSessionId: string) => {
               streamableTransports[newSessionId] = transport;

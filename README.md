@@ -273,6 +273,7 @@ the token to GitLab on behalf of the caller.
 | `ENABLE_DYNAMIC_API_URL` | optional | Allow per-request GitLab URL via `X-GitLab-API-URL` header |
 | `GITLAB_ALLOWED_HOSTS` | optional | Comma-separated allowed `X-GitLab-API-URL` hosts; `GITLAB_API_URL` hosts are always allowed |
 | `GITLAB_ALLOW_UNAUTHENTICATED_TOOL_DISCOVERY` | optional | Allow unauthenticated `initialize`, `notifications/initialized`, and `tools/list` only (tool calls still require auth) |
+| `MCP_SERVER_URL` / `MCP_ALLOWED_HOSTS` / `MCP_ALLOWED_ORIGINS` | optional | Allowed public `/mcp` host/origin values for DNS rebinding protection |
 | `MCP_TRUST_PROXY`        | optional | Trust `Forwarded` / `X-Forwarded-*` headers behind a reverse proxy (download URLs, Express `req.ip`, OAuth rate limits) |
 
 `GITLAB_ALLOW_UNAUTHENTICATED_TOOL_DISCOVERY=true` is intended for MCP gateways
@@ -323,6 +324,8 @@ Commonly referenced variables:
 - `GITLAB_USE_OAUTH`
 - `REMOTE_AUTHORIZATION`
 - `MCP_TRUST_PROXY`
+- `MCP_ALLOWED_HOSTS`
+- `MCP_ALLOWED_ORIGINS`
 - `GITLAB_MCP_OAUTH`
 - `GITLAB_OAUTH_CALLBACK_PROXY`
 - `OAUTH_STATELESS_MODE`
@@ -475,7 +478,7 @@ No `headers` field is needed — Claude.ai obtains the token via OAuth automatic
 | ------------------------------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `GITLAB_MCP_OAUTH`                          | Yes      | Set to `true` to enable                                                                                                                                                                                             |
 | `GITLAB_OAUTH_APP_ID`                       | Yes      | Client ID of the pre-registered GitLab OAuth application                                                                                                                                                            |
-| `MCP_SERVER_URL`                            | Yes      | Public HTTPS URL of your MCP server                                                                                                                                                                                 |
+| `MCP_SERVER_URL`                            | Yes      | Public HTTPS URL of your MCP server; also allowed for `/mcp` Host/Origin checks                                                                                                                                     |
 | `GITLAB_API_URL`                            | Yes      | Your GitLab instance API URL (e.g. `https://gitlab.com/api/v4`)                                                                                                                                                     |
 | `STREAMABLE_HTTP`                           | Yes      | Must be `true` (SSE is not supported)                                                                                                                                                                               |
 | `GITLAB_OAUTH_SCOPES`                       | No       | Comma-separated GitLab scopes to request (e.g. `api,read_user`). Defaults to `api` (or `read_api` when `GITLAB_READ_ONLY_MODE=true`). The pre-registered application must be configured with at least these scopes. |
