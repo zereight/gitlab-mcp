@@ -71,7 +71,7 @@ npm install -g @zereight/mcp-gitlab
 
 예시는 기존 `mcp-gitlab`보다 충돌 가능성이 낮은 `zereight-mcp-gitlab` 별칭을 사용합니다. MCP 클라이언트가 찾지 못하면 `which zereight-mcp-gitlab`의 절대 경로를 사용하세요.
 
-전역 설치를 쓰지 않으려면 `npx -y @zereight/mcp-gitlab@2.1.27`처럼 버전을 고정하세요.
+전역 설치를 쓰지 않으려면 `npx -y @zereight/mcp-gitlab@2.1.28`처럼 버전을 고정하세요.
 
 #### CLI 인자 사용하기(환경 변수 문제가 있는 클라이언트용)
 

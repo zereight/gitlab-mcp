@@ -75,7 +75,7 @@ npm install -g @zereight/mcp-gitlab
 
 The examples use `zereight-mcp-gitlab`, a less collision-prone alias for the legacy `mcp-gitlab` binary. If your MCP client cannot find it, use the absolute path from `which zereight-mcp-gitlab`.
 
-No global install? Pin `npx` to a known version, for example `npx -y @zereight/mcp-gitlab@2.1.27`.
+No global install? Pin `npx` to a known version, for example `npx -y @zereight/mcp-gitlab@2.1.28`.
 
 #### Using CLI Arguments (for clients with env var issues)
 
