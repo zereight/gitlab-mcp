@@ -6,19 +6,22 @@ instead.
 
 CLI arguments take precedence over environment variables.
 
+Install the server globally once:
+
+```bash
+npm install -g @zereight/mcp-gitlab
+```
+
+No global install? Pin `npx` to a known version and keep the server flags after it, for example `npx -y @zereight/mcp-gitlab@2.1.27 --token=...`.
+
 ## Example config
 
 ```json
 {
   "mcpServers": {
     "gitlab": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "@zereight/mcp-gitlab",
-        "--token=YOUR_GITLAB_TOKEN",
-        "--api-url=https://gitlab.com/api/v4"
-      ],
+      "command": "zereight-mcp-gitlab",
+      "args": ["--token=YOUR_GITLAB_TOKEN", "--api-url=https://gitlab.com/api/v4"],
       "tools": ["*"]
     }
   }

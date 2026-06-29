@@ -26,7 +26,8 @@
   "author": "zereight",
   "type": "module",
   "bin": {
-    "mcp-gitlab": "build/index.js"
+    "mcp-gitlab": "build/index.js",
+    "zereight-mcp-gitlab": "build/index.js"
   },
   "files": [
     "build"

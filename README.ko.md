@@ -20,7 +20,7 @@ PAT, OAuth, 읽기 전용 모드, 동적 API URL, 원격 인증을 지원하며 
 - 클라이언트 친화적 설정: Claude Code, Codex, Antigravity, OpenCode, Copilot, Cline, Roo Code, Cursor, Kilo Code, Amp Code 예시 제공
 - 셀프 호스팅 대응: 커스텀 GitLab 인스턴스, 프록시 설정, 동적 API URL 라우팅 지원
 
-빠른 시작: 아래에서 Personal Access Token 또는 OAuth2 설정 중 하나를 선택하고 MCP 클라이언트 설정에서 `@zereight/mcp-gitlab`을 사용하세요.
+빠른 시작: 아래에서 Personal Access Token 또는 OAuth2 설정 중 하나를 선택하고 `@zereight/mcp-gitlab`을 설치한 뒤 MCP 클라이언트 설정에서 `zereight-mcp-gitlab`을 사용하세요.
 
 ### 클라이언트 설정 가이드
 
@@ -63,6 +63,16 @@ PAT, OAuth, 읽기 전용 모드, 동적 API URL, 원격 인증을 지원하며 
 
 가장 단순한 로컬 설정은 Personal Access Token으로 시작하세요. 브라우저 기반 로컬 인증은 OAuth2를 사용하세요. 원격 또는 멀티 유저 배포는 아래 MCP OAuth 및 원격 인증 섹션을 참고하세요.
 
+서버를 한 번 전역 설치하세요.
+
+```shell
+npm install -g @zereight/mcp-gitlab
+```
+
+예시는 기존 `mcp-gitlab`보다 충돌 가능성이 낮은 `zereight-mcp-gitlab` 별칭을 사용합니다. MCP 클라이언트가 찾지 못하면 `which zereight-mcp-gitlab`의 절대 경로를 사용하세요.
+
+전역 설치를 쓰지 않으려면 `npx -y @zereight/mcp-gitlab@2.1.27`처럼 버전을 고정하세요.
+
 #### CLI 인자 사용하기(환경 변수 문제가 있는 클라이언트용)
 
 일부 MCP 클라이언트(예: GitHub Copilot CLI)는 환경 변수 처리에 문제가 있을 수 있습니다. 이 경우 CLI 인자를 사용하세요.
@@ -71,13 +81,8 @@ PAT, OAuth, 읽기 전용 모드, 동적 API URL, 원격 인증을 지원하며 
 {
   "mcpServers": {
     "gitlab": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "@zereight/mcp-gitlab",
-        "--token=YOUR_GITLAB_TOKEN",
-        "--api-url=https://gitlab.com/api/v4"
-      ],
+      "command": "zereight-mcp-gitlab",
+      "args": ["--token=YOUR_GITLAB_TOKEN", "--api-url=https://gitlab.com/api/v4"],
       "tools": ["*"]
     }
   }
@@ -178,15 +183,15 @@ MCP 서버가 직접 로컬 브라우저 callback을 받을 때만 `GITLAB_OAUTH
 2. `api` 또는 `read_api` scope가 있는 사전 등록 GitLab OAuth 애플리케이션
    — `Admin area` → `Applications`에서 Redirect URI를 `{MCP_SERVER_URL}/callback`으로 설정하세요.
 
-| 환경 변수                     | 필수 | 설명                                                       |
-| ----------------------------- | ---- | ---------------------------------------------------------- |
-| `GITLAB_MCP_OAUTH`            | 예   | 활성화하려면 `true`                                        |
-| `GITLAB_API_URL`              | 예   | GitLab API base URL                                        |
-| `GITLAB_OAUTH_APP_ID`         | 예   | GitLab OAuth Application ID                                |
-| `MCP_SERVER_URL`              | 예   | 이 MCP 서버의 공개 HTTPS URL                               |
-| `STREAMABLE_HTTP`             | 예   | 반드시 `true`                                              |
-| `GITLAB_OAUTH_CALLBACK_PROXY` | 선택 | MCP 서버의 고정 `/callback` URL을 사용하려면 `true`        |
-| `GITLAB_OAUTH_SCOPES`         | 선택 | 쉼표로 구분된 scope 목록(기본값: `api,read_api,read_user`) |
+| 환경 변수                     | 필수 | 설명                                                                                                                            |
+| ----------------------------- | ---- | ------------------------------------------------------------------------------------------------------------------------------- |
+| `GITLAB_MCP_OAUTH`            | 예   | 활성화하려면 `true`                                                                                                             |
+| `GITLAB_API_URL`              | 예   | GitLab API base URL                                                                                                             |
+| `GITLAB_OAUTH_APP_ID`         | 예   | GitLab OAuth Application ID                                                                                                     |
+| `MCP_SERVER_URL`              | 예   | 이 MCP 서버의 공개 HTTPS URL                                                                                                    |
+| `STREAMABLE_HTTP`             | 예   | 반드시 `true`                                                                                                                   |
+| `GITLAB_OAUTH_CALLBACK_PROXY` | 선택 | MCP 서버의 고정 `/callback` URL을 사용하려면 `true`                                                                             |
+| `GITLAB_OAUTH_SCOPES`         | 선택 | 쉼표로 구분된 scope 목록(기본값: `api,read_api,read_user`)                                                                      |
 | `GITLAB_OAUTH_ALLOWED_GROUPS` | 선택 | 쉼표로 구분된 GitLab 그룹 전체 경로 — 해당 그룹 및 하위 그룹 멤버만 토큰을 발급받을 수 있음 (기존 `GITLAB_ALLOWED_GROUPS` 대체) |
 
 > **`Unregistered redirect_uri` 문제 해결**
@@ -233,12 +238,12 @@ MCP 클라이언트 설정:
 
 **헤더 우선순위**: `Private-Token` > `JOB-TOKEN` > `Authorization: Bearer`
 
-| 환경 변수                | 필수 | 설명                                |
-| ------------------------ | ---- | ----------------------------------- |
-| `REMOTE_AUTHORIZATION`   | 예   | 활성화하려면 `true`                 |
-| `STREAMABLE_HTTP`        | 예   | 반드시 `true`                       |
-| `ENABLE_DYNAMIC_API_URL` | 선택 | 요청별 `X-GitLab-API-URL` 헤더 허용 |
-| `GITLAB_ALLOWED_HOSTS` | 선택 | 허용할 호스트의 쉼표 구분 목록; `GITLAB_API_URL` 호스트는 항상 허용 |
+| 환경 변수                | 필수 | 설명                                                                |
+| ------------------------ | ---- | ------------------------------------------------------------------- |
+| `REMOTE_AUTHORIZATION`   | 예   | 활성화하려면 `true`                                                 |
+| `STREAMABLE_HTTP`        | 예   | 반드시 `true`                                                       |
+| `ENABLE_DYNAMIC_API_URL` | 선택 | 요청별 `X-GitLab-API-URL` 헤더 허용                                 |
+| `GITLAB_ALLOWED_HOSTS`   | 선택 | 허용할 호스트의 쉼표 구분 목록; `GITLAB_API_URL` 호스트는 항상 허용 |
 
 **예시 요청 헤더:**
 

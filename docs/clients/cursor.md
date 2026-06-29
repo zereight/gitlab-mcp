@@ -12,14 +12,21 @@ Use a common Cursor MCP config file pattern such as:
 
 If your team shares the setup, keep the config in version control when appropriate.
 
+Install the server globally once:
+
+```bash
+npm install -g @zereight/mcp-gitlab
+```
+
+If Cursor cannot find `zereight-mcp-gitlab`, use the absolute path from `which zereight-mcp-gitlab`.
+
 ## PAT setup
 
 ```json
 {
   "mcpServers": {
     "gitlab": {
-      "command": "npx",
-      "args": ["-y", "@zereight/mcp-gitlab"],
+      "command": "zereight-mcp-gitlab",
       "env": {
         "GITLAB_PERSONAL_ACCESS_TOKEN": "glpat-your-token",
         "GITLAB_API_URL": "https://gitlab.com/api/v4",
@@ -36,8 +43,7 @@ If your team shares the setup, keep the config in version control when appropria
 {
   "mcpServers": {
     "gitlab": {
-      "command": "npx",
-      "args": ["-y", "@zereight/mcp-gitlab"],
+      "command": "zereight-mcp-gitlab",
       "env": {
         "GITLAB_USE_OAUTH": "true",
         "GITLAB_OAUTH_CLIENT_ID": "your-client-id",
@@ -71,9 +77,9 @@ The redirect URI in GitLab must exactly match your config.
 
 Read-only flows usually need `read_api`. Write flows need `api`.
 
-### 4. `npx` is unavailable
+### 4. Global command is unavailable
 
-If Cursor cannot spawn the process, verify Node.js and `npx` are available to the environment Cursor uses.
+If Cursor cannot spawn the process, verify npm's global bin directory is on the PATH Cursor uses, or set `command` to the absolute path from `which zereight-mcp-gitlab`.
 
 ## Notes
 

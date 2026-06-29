@@ -11,6 +11,14 @@ That means you configure the server in:
 - `.vscode/mcp.json` for workspace scope, or
 - your user-profile `mcp.json` for global scope
 
+Install the server globally once:
+
+```bash
+npm install -g @zereight/mcp-gitlab
+```
+
+If VS Code cannot find `zereight-mcp-gitlab`, use the absolute path from `which zereight-mcp-gitlab`.
+
 ## PAT setup
 
 Recommended secure example:
@@ -28,8 +36,7 @@ Recommended secure example:
   "servers": {
     "gitlab": {
       "type": "stdio",
-      "command": "npx",
-      "args": ["-y", "@zereight/mcp-gitlab"],
+      "command": "zereight-mcp-gitlab",
       "env": {
         "GITLAB_PERSONAL_ACCESS_TOKEN": "${input:gitlab-token}",
         "GITLAB_API_URL": "https://gitlab.com/api/v4",
@@ -54,8 +61,7 @@ Recommended secure example:
   "servers": {
     "gitlab": {
       "type": "stdio",
-      "command": "npx",
-      "args": ["-y", "@zereight/mcp-gitlab"],
+      "command": "zereight-mcp-gitlab",
       "env": {
         "GITLAB_USE_OAUTH": "true",
         "GITLAB_OAUTH_CLIENT_ID": "${input:gitlab-oauth-client-id}",

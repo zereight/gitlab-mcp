@@ -17,7 +17,7 @@ npm install "$tarball_path" --ignore-scripts --no-audit --no-fund >/dev/null
 
 output_file="$tmp_dir/startup.log"
 set +e
-GITLAB_PERSONAL_ACCESS_TOKEN=smoke-test-token node node_modules/@zereight/mcp-gitlab/build/index.js >"$output_file" 2>&1 &
+GITLAB_PERSONAL_ACCESS_TOKEN=smoke-test-token ./node_modules/.bin/zereight-mcp-gitlab >"$output_file" 2>&1 &
 pid=$!
 
 for _ in 1 2 3 4 5; do

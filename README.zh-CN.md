@@ -20,7 +20,7 @@
 - 客户端设置友好：提供 Claude Code、Codex、Antigravity、OpenCode、Copilot、Cline、Roo Code、Cursor、Kilo Code 和 Amp Code 示例
 - 适合自托管：支持自定义 GitLab 实例、代理设置和动态 API URL 路由
 
-快速开始：在下面选择 Personal Access Token 或 OAuth2 设置，并在 MCP 客户端配置中使用 `@zereight/mcp-gitlab`。
+快速开始：在下面选择 Personal Access Token 或 OAuth2 设置，安装 `@zereight/mcp-gitlab`，并在 MCP 客户端配置中使用 `zereight-mcp-gitlab`。
 
 ### 客户端设置指南
 
@@ -63,6 +63,16 @@
 
 最简单的本地设置可以从 Personal Access Token 开始。基于浏览器的本地认证使用 OAuth2。远程或多用户部署请继续查看下面的 MCP OAuth 和远程授权部分。
 
+先全局安装一次服务器：
+
+```shell
+npm install -g @zereight/mcp-gitlab
+```
+
+示例使用 `zereight-mcp-gitlab`，这是比旧的 `mcp-gitlab` 更不容易冲突的别名。如果 MCP 客户端找不到它，请使用 `which zereight-mcp-gitlab` 输出的绝对路径。
+
+如果不想全局安装，请固定 `npx` 版本，例如 `npx -y @zereight/mcp-gitlab@2.1.27`。
+
 #### 使用 CLI 参数（适用于环境变量有问题的客户端）
 
 部分 MCP 客户端（例如 GitHub Copilot CLI）可能难以处理环境变量。可以改用 CLI 参数。
@@ -71,13 +81,8 @@
 {
   "mcpServers": {
     "gitlab": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "@zereight/mcp-gitlab",
-        "--token=YOUR_GITLAB_TOKEN",
-        "--api-url=https://gitlab.com/api/v4"
-      ],
+      "command": "zereight-mcp-gitlab",
+      "args": ["--token=YOUR_GITLAB_TOKEN", "--api-url=https://gitlab.com/api/v4"],
       "tools": ["*"]
     }
   }
@@ -178,16 +183,16 @@ OpenCode、MCPJam、Claude.ai 等远程 MCP 客户端可能会在授权时发送
 2. 预先注册的 GitLab OAuth 应用，包含 `api` 或 `read_api` scopes
    — 前往 `Admin area` → `Applications`，将 Redirect URI 设置为 `{MCP_SERVER_URL}/callback`
 
-| 环境变量                      | 必需 | 说明                                                  |
-| ----------------------------- | ---- | ----------------------------------------------------- |
-| `GITLAB_MCP_OAUTH`            | 是   | 设置为 `true` 以启用                                  |
-| `GITLAB_API_URL`              | 是   | GitLab API base URL                                   |
-| `GITLAB_OAUTH_APP_ID`         | 是   | GitLab OAuth Application ID                           |
-| `MCP_SERVER_URL`              | 是   | 此 MCP 服务器的公开 HTTPS URL                         |
-| `STREAMABLE_HTTP`             | 是   | 必须为 `true`                                         |
-| `GITLAB_OAUTH_CALLBACK_PROXY` | 可选 | 设置为 `true` 时使用 MCP 服务器固定的 `/callback` URL |
-| `GITLAB_OAUTH_SCOPES`         | 可选 | 逗号分隔的 scope（默认：`api,read_api,read_user`）    |
-| `GITLAB_OAUTH_ALLOWED_GROUPS` | 可选 | 逗号分隔的 GitLab 群组完整路径 — 仅该群组及其子群组的成员可获取令牌（替代已废弃的 `GITLAB_ALLOWED_GROUPS`）|
+| 环境变量                      | 必需 | 说明                                                                                                        |
+| ----------------------------- | ---- | ----------------------------------------------------------------------------------------------------------- |
+| `GITLAB_MCP_OAUTH`            | 是   | 设置为 `true` 以启用                                                                                        |
+| `GITLAB_API_URL`              | 是   | GitLab API base URL                                                                                         |
+| `GITLAB_OAUTH_APP_ID`         | 是   | GitLab OAuth Application ID                                                                                 |
+| `MCP_SERVER_URL`              | 是   | 此 MCP 服务器的公开 HTTPS URL                                                                               |
+| `STREAMABLE_HTTP`             | 是   | 必须为 `true`                                                                                               |
+| `GITLAB_OAUTH_CALLBACK_PROXY` | 可选 | 设置为 `true` 时使用 MCP 服务器固定的 `/callback` URL                                                       |
+| `GITLAB_OAUTH_SCOPES`         | 可选 | 逗号分隔的 scope（默认：`api,read_api,read_user`）                                                          |
+| `GITLAB_OAUTH_ALLOWED_GROUPS` | 可选 | 逗号分隔的 GitLab 群组完整路径 — 仅该群组及其子群组的成员可获取令牌（替代已废弃的 `GITLAB_ALLOWED_GROUPS`） |
 
 > **排查 `Unregistered redirect_uri`**
 >
@@ -238,7 +243,7 @@ MCP 客户端配置：
 | `REMOTE_AUTHORIZATION`   | 是   | 设置为 `true` 以启用                                    |
 | `STREAMABLE_HTTP`        | 是   | 必须为 `true`                                           |
 | `ENABLE_DYNAMIC_API_URL` | 可选 | 允许按请求通过 `X-GitLab-API-URL` 请求头指定 GitLab URL |
-| `GITLAB_ALLOWED_HOSTS` | 可选 | 逗号分隔的允许主机；`GITLAB_API_URL` 中的主机始终允许 |
+| `GITLAB_ALLOWED_HOSTS`   | 可选 | 逗号分隔的允许主机；`GITLAB_API_URL` 中的主机始终允许   |
 
 **示例请求头：**
 
