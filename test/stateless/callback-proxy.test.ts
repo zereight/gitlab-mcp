@@ -157,7 +157,7 @@ function makeFakeRes(): FakeRes {
   return res;
 }
 
-function fakeReq(query: Record<string, string>): ExpressRequest {
+function fakeReq(query: Record<string, unknown>): ExpressRequest {
   return { query } as unknown as ExpressRequest;
 }
 
@@ -365,6 +365,20 @@ describe("callback-proxy cross-pod flow (stateless)", () => {
       CLIENT_REDIRECT
     );
     assert.equal(tokens.access_token, "gl-access-123");
+  });
+
+  test("callback rejects repeated query parameters", async () => {
+    const pod = makeProvider(loadMaterial(secret()));
+    const cbRes = makeFakeRes();
+
+    await pod.handleCallback(
+      fakeReq({ code: "gitlab-code", state: ["one", "two"] }) as unknown as ExpressRequest,
+      cbRes as unknown as ExpressResponse
+    );
+
+    assert.equal(cbRes.statusCode, 400);
+    assert.equal(cbRes.body, "Invalid query parameter");
+    assert.equal(stub.calls.length, 0);
   });
 
   test("exchangeAuthorizationCode rejects wrong PKCE verifier", async () => {
