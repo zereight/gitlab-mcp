@@ -894,7 +894,12 @@ export const GitLabContentSchema = z.union([
 // Operation schemas
 export const FileOperationSchema = z.object({
   path: z.string(),
-  content: z.string(),
+  content: z.string().optional(),
+  // Per-file action + encoding so push_files can update/delete/move and carry
+  // binary files (base64). Defaults preserve existing behaviour.
+  action: z.enum(["create", "update", "delete", "move"]).optional(),
+  encoding: z.enum(["text", "base64"]).optional(),
+  previous_path: z.string().optional(),
 });
 
 // Tree and commit schemas
@@ -1557,6 +1562,10 @@ export const CreateOrUpdateFileSchema = ProjectParamsSchema.extend({
   previous_path: z.string().optional().describe("Path of the file to move/rename"),
   last_commit_id: z.string().optional().describe("Last known file commit ID"),
   commit_id: z.string().optional().describe("Current file commit ID (for update operations)"),
+  encoding: z
+    .enum(["text", "base64"])
+    .optional()
+    .describe("Content encoding. Use 'base64' for binary files (content must already be base64-encoded); defaults to text."),
 });
 
 export const SearchRepositoriesSchema = z
@@ -1633,11 +1642,20 @@ export const PushFilesSchema = ProjectParamsSchema.extend({
   files: z
     .array(
       z.object({
-        file_path: z.string().describe("Path where to create the file"),
-        content: z.string().describe("Content of the file"),
+        file_path: z.string().describe("Path of the file in the repo"),
+        content: z.string().optional().describe("File content (base64-encoded when encoding='base64'; omit for action='delete')"),
+        action: z
+          .enum(["create", "update", "delete", "move"])
+          .optional()
+          .describe("Commit action for this file. Defaults to 'create'."),
+        encoding: z
+          .enum(["text", "base64"])
+          .optional()
+          .describe("Use 'base64' for binary files (content must already be base64-encoded); defaults to text."),
+        previous_path: z.string().optional().describe("Source path when action='move'"),
       })
     )
-    .describe("Array of files to push"),
+    .describe("Array of files to commit in a single commit (create/update/delete/move, text or binary)"),
   commit_message: z.string().describe("Commit message"),
 });
 
