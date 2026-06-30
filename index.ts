@@ -3080,6 +3080,16 @@ async function updateIncidentEscalationStatus(
  * Resolve a project ID (numeric or path) to its full path_with_namespace.
  */
 async function resolveProjectPath(projectId: string): Promise<string> {
+  const { path } = await resolveProjectOrGroupPath(projectId);
+  return path;
+}
+
+/**
+ * Resolve a project or group path and identify which GraphQL root field to use.
+ */
+async function resolveProjectOrGroupPath(
+  projectId: string
+): Promise<{ path: string; kind: "project" | "group" }> {
   projectId = decodeURIComponent(projectId);
   const effectiveProjectId = getEffectiveProjectId(projectId);
   const projectUrl = new URL(
@@ -3102,7 +3112,7 @@ async function resolveProjectPath(projectId: string): Promise<string> {
     });
     if (groupResponse.ok) {
       const group: any = await groupResponse.json();
-      return group.full_path as string;
+      return { path: group.full_path as string, kind: "group" };
     }
     // Surface the group error
     await handleGitLabError(groupResponse);
@@ -3110,7 +3120,7 @@ async function resolveProjectPath(projectId: string): Promise<string> {
 
   await handleGitLabError(projectResponse);
   const project: any = await projectResponse.json();
-  return project.path_with_namespace;
+  return { path: project.path_with_namespace, kind: "project" };
 }
 
 /**
@@ -3361,7 +3371,8 @@ async function listWorkItems(
     after?: string;
   }
 ): Promise<any> {
-  const projectPath = await resolveProjectPath(projectId);
+  const namespace = await resolveProjectOrGroupPath(projectId);
+  const rootField = namespace.kind === "group" ? "group" : "project";
 
   // Map type names to GraphQL enum values
   const typeMap: Record<string, string> = {
@@ -3377,7 +3388,7 @@ async function listWorkItems(
   };
 
   const variables: Record<string, any> = {
-    path: projectPath,
+    path: namespace.path,
     first: options.first || 20,
   };
 
@@ -3400,9 +3411,9 @@ async function listWorkItems(
     variables.after = options.after;
   }
 
-  const data = await executeGraphQL<{ project: any }>(
+  const data = await executeGraphQL<{ project?: any; group?: any }>(
     `query($path: ID!, $types: [IssueType!], $state: IssuableState, $search: String, $assigneeUsernames: [String!], $labelName: [String!], $first: Int, $after: String) {
-      project(fullPath: $path) {
+      ${rootField}(fullPath: $path) {
         workItems(types: $types, state: $state, search: $search, assigneeUsernames: $assigneeUsernames, labelName: $labelName, first: $first, after: $after) {
           nodes {
             id iid title state webUrl workItemType { name }
@@ -3424,8 +3435,9 @@ async function listWorkItems(
     variables
   );
 
-  const workItems = data.project?.workItems?.nodes || [];
-  const pageInfo = data.project?.workItems?.pageInfo || {};
+  const workItemsRoot = namespace.kind === "group" ? data.group : data.project;
+  const workItems = workItemsRoot?.workItems?.nodes || [];
+  const pageInfo = workItemsRoot?.workItems?.pageInfo || {};
 
   // Flatten widget data for each item
   const items = workItems.map((wi: any) => {
