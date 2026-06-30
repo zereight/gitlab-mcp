@@ -3077,7 +3077,8 @@ async function updateIncidentEscalationStatus(
 }
 
 /**
- * Resolve a project ID (numeric or path) to its full path_with_namespace.
+ * Resolve a project ID/path or group path to its full namespace path.
+ * Numeric group IDs are not supported here because they are ambiguous with project IDs.
  */
 async function resolveProjectPath(projectId: string): Promise<string> {
   const { path } = await resolveProjectOrGroupPath(projectId);
@@ -3086,6 +3087,7 @@ async function resolveProjectPath(projectId: string): Promise<string> {
 
 /**
  * Resolve a project or group path and identify which GraphQL root field to use.
+ * Numeric group IDs are intentionally not resolved to avoid ambiguity with project IDs.
  */
 async function resolveProjectOrGroupPath(
   projectId: string
@@ -3357,7 +3359,7 @@ async function getWorkItem(projectId: string, iid: number): Promise<any> {
 }
 
 /**
- * List work items in a project with filters.
+ * List work items in a project or group namespace with filters.
  */
 async function listWorkItems(
   projectId: string,
