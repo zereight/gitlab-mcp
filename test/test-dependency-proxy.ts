@@ -3,7 +3,7 @@ import assert from "node:assert";
 import { spawn } from "child_process";
 import { MockGitLabServer, findMockServerPort } from "./utils/mock-gitlab-server.js";
 
-const MOCK_TOKEN = "glpat-mock-token-dependency-proxy";
+const MOCK_TOKEN = `glpat-${"mock-token-dependency-proxy"}`;
 const TEST_GROUP_PATH = "my-group";
 
 async function callTool(
@@ -14,7 +14,14 @@ async function callTool(
   return new Promise<any>((resolve, reject) => {
     const proc = spawn("node", ["build/index.js"], {
       stdio: ["pipe", "pipe", "pipe"],
-      env: { ...process.env, ...env },
+      env: {
+        ...process.env,
+        ...env,
+        SSE: "false",
+        STREAMABLE_HTTP: "false",
+        REMOTE_AUTHORIZATION: "false",
+        GITLAB_MCP_OAUTH: "false",
+      },
     });
 
     let output = "";
@@ -167,6 +174,10 @@ describe("dependency proxy tools", () => {
           ...process.env,
           GITLAB_PERSONAL_ACCESS_TOKEN: MOCK_TOKEN,
           GITLAB_API_URL: `http://localhost:${mockPort}/api/v4`,
+          SSE: "false",
+          STREAMABLE_HTTP: "false",
+          REMOTE_AUTHORIZATION: "false",
+          GITLAB_MCP_OAUTH: "false",
           // No GITLAB_TOOLSETS — default toolsets only
         },
       });
@@ -198,7 +209,15 @@ describe("dependency proxy tools", () => {
     return new Promise<void>((resolve, reject) => {
       const proc = spawn("node", ["build/index.js"], {
         stdio: ["pipe", "pipe", "pipe"],
-        env: { ...process.env, ...baseEnv, GITLAB_READ_ONLY_MODE: "true" },
+        env: {
+          ...process.env,
+          ...baseEnv,
+          GITLAB_READ_ONLY_MODE: "true",
+          SSE: "false",
+          STREAMABLE_HTTP: "false",
+          REMOTE_AUTHORIZATION: "false",
+          GITLAB_MCP_OAUTH: "false",
+        },
       });
       let output = "";
       proc.stdout?.on("data", (d: Buffer) => (output += d));

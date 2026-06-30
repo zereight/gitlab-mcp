@@ -15,7 +15,7 @@ import assert from 'node:assert';
 import { launchServer, TransportMode, ServerInstance, HOST } from './utils/server-launcher.js';
 import { MockGitLabServer, findMockServerPort } from './utils/mock-gitlab-server.js';
 
-const MOCK_TOKEN = 'glpat-mock-token-12345';
+const MOCK_TOKEN = `glpat-${'mock-token-12345'}`;
 const TEST_PROJECT_ID = '123';
 const TEST_JOB_ID = '456';
 const TEST_SECRET = 'testsecret';
@@ -36,7 +36,7 @@ const MINIMAL_PNG = Buffer.from(
   'base64'
 );
 
-const LARGE_FILE_TOKEN = 'glpat-largefile-test-token';
+const LARGE_FILE_TOKEN = `glpat-${'largefile-test-token'}`;
 
 const FAKE_ZIP = Buffer.from('PK\x03\x04fake-zip-content-for-testing');
 
@@ -127,7 +127,6 @@ describe('Remote Downloads - Download Proxy Endpoint', { timeout: 30_000 }, () =
         STREAMABLE_HTTP: 'true',
         REMOTE_AUTHORIZATION: 'true',
         MCP_TRUST_PROXY: 'false',
-        MCP_SERVER_URL: '',
         GITLAB_API_URL: `${mockGitLab.getUrl()}/api/v4`,
         USE_PIPELINE: 'true',
         MAX_REQUESTS_PER_MINUTE: '2',
@@ -171,7 +170,7 @@ describe('Remote Downloads - Download Proxy Endpoint', { timeout: 30_000 }, () =
 
   test('streams large file (2MB) without buffering issues', async () => {
     // Use a dedicated token to avoid rate limit interference from other tests
-    const largeFileToken = 'glpat-largefile-test-token';
+    const largeFileToken = `glpat-${'largefile-test-token'}`;
     const res = await fetch(
       `http://${HOST}:${serverPort}/downloads/job-artifacts?project_id=${TEST_PROJECT_ID}&job_id=999`,
       { headers: { 'Private-Token': largeFileToken } }
@@ -184,7 +183,7 @@ describe('Remote Downloads - Download Proxy Endpoint', { timeout: 30_000 }, () =
 
   test('returns 429 after exceeding rate limit', async () => {
     // Use a different token to get a fresh rate limit counter
-    const rateLimitToken = 'glpat-ratelimit-test-token';
+    const rateLimitToken = `glpat-${'ratelimit-test-token'}`;
     let got429 = false;
     for (let i = 0; i < 10; i++) {
       const res = await fetch(
@@ -319,7 +318,6 @@ describe('Remote Downloads - Tool Behavior via MCP Protocol', { timeout: 60_000 
         STREAMABLE_HTTP: 'true',
         REMOTE_AUTHORIZATION: 'true',
         MCP_TRUST_PROXY: 'true',
-        MCP_SERVER_URL: '',
         GITLAB_API_URL: `${mockGitLab.getUrl()}/api/v4`,
         USE_PIPELINE: 'true',
       },

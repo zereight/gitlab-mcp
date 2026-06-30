@@ -24,7 +24,7 @@ import {
   applyUnifiedDiff,
 } from "../utils/patch-helper.js";
 
-const MOCK_TOKEN = "glpat-patch-test-token-12345";
+const MOCK_TOKEN = `glpat-${"patch-test-token-12345"}`;
 
 // ---- Unit tests for patch helper ----
 

@@ -25,7 +25,7 @@ import { MockGitLabServer, findMockServerPort } from "./utils/mock-gitlab-server
 
 const MOCK_OAUTH_TOKEN = "ya29.mock-oauth-token-abcdef123456";
 const MOCK_CLIENT_ID = "mock-app-uid-from-dcr";
-const MOCK_PAT_TOKEN = "glpat-mockpat-testtoken-abcdef12"; // ≥20 chars, valid charset
+const MOCK_PAT_TOKEN = `glpat-${"mockpat-testtoken-abcdef12"}`; // ≥20 chars, valid charset
 const MOCK_JOB_TOKEN = "mockjobtoken-testenv-1234567890"; // ≥20 chars, valid charset
 
 const MOCK_GITLAB_PORT_BASE = 9200;

@@ -8,6 +8,9 @@ import {
   SSE,
   STREAMABLE_HTTP,
 } from "../config.js";
+
+const allowPersistentInstanceManagement =
+  process.env.REMOTE_AUTHORIZATION !== "true" && process.env.GITLAB_MCP_OAUTH !== "true";
 import {
   ApproveMergeRequestSchema,
   BulkPublishDraftNotesSchema,
@@ -185,6 +188,10 @@ import {
   SearchGroupCodeSchema,
   SearchProjectCodeSchema,
   SearchRepositoriesSchema,
+  SelectInstanceSchema,
+  ListInstancesSchema,
+  AddInstanceSchema,
+  SwitchInstanceSchema,
   UnapproveMergeRequestSchema,
   UpdateDraftNoteSchema,
   UpdateGroupWikiPageSchema,
@@ -220,6 +227,25 @@ const IS_REMOTE = SSE || STREAMABLE_HTTP;
 
 // Define all available tools
 export const allTools = [
+  {
+    name: "gitlab_list_instances",
+    description: "List all saved GitLab instance aliases and see which one is currently active.",
+    inputSchema: toJSONSchema(ListInstancesSchema),
+  },
+  ...(allowPersistentInstanceManagement ? [{
+    name: "gitlab_add_instance",
+    description: "Save a new GitLab instance configuration (URL and Token) with a friendly alias for future switching.",
+    inputSchema: toJSONSchema(AddInstanceSchema),
+  }, {
+    name: "gitlab_select_instance",
+    description: "Switch to a saved GitLab instance by its alias. This change is persistent across server restarts.",
+    inputSchema: toJSONSchema(SelectInstanceSchema),
+  }] : []),
+  {
+    name: "gitlab_switch_instance",
+    description: "Switch to a different GitLab instance for the current session. Use this to switch between GitLab Cloud (https://gitlab.com/api/v4) and Self-Hosted instances. All subsequent tool calls in this chat session will use the new instance and token until switched again. If apiUrl and token are omitted, the server will try to load Cloud credentials from its own internal configuration (e.g. .env).",
+    inputSchema: toJSONSchema(SwitchInstanceSchema),
+  },
   {
     name: "merge_merge_request",
     description: "Merge a merge request",
@@ -1279,6 +1305,7 @@ export const allTools = [
 
 // Define which tools are read-only
 export const readOnlyTools = new Set([
+  "gitlab_list_instances",
   "discover_tools",
   "health_check",
   "search_repositories",
@@ -1623,6 +1650,9 @@ export const TOOLSET_DEFINITIONS: readonly ToolsetDefinition[] = [
     id: "projects",
     isDefault: true,
     tools: new Set([
+      "gitlab_list_instances",
+      ...(allowPersistentInstanceManagement ? ["gitlab_add_instance", "gitlab_select_instance"] : []),
+      "gitlab_switch_instance",
       "get_project",
       "list_projects",
       "update_project",

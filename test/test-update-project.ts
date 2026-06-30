@@ -13,7 +13,14 @@ async function callUpdateProject(
   return new Promise((resolve, reject) => {
     const proc = spawn("node", ["build/index.js"], {
       stdio: ["pipe", "pipe", "pipe"],
-      env: { ...process.env, ...env },
+      env: {
+        ...process.env,
+        ...env,
+        SSE: "false",
+        STREAMABLE_HTTP: "false",
+        REMOTE_AUTHORIZATION: "false",
+        GITLAB_MCP_OAUTH: "false",
+      },
     });
 
     let output = "";
@@ -33,14 +40,18 @@ async function callUpdateProject(
         return;
       }
 
-      const response = JSON.parse(line);
-      if (response.error) {
-        reject(new Error(response.error?.message ?? String(response.error)));
-        return;
-      }
+      try {
+        const response = JSON.parse(line);
+        if (response.error) {
+          reject(new Error(response.error?.message ?? String(response.error)));
+          return;
+        }
 
-      const content = response.result?.content?.[0]?.text;
-      resolve(content ? JSON.parse(content) : response.result);
+        const content = response.result?.content?.[0]?.text;
+        resolve(content ? JSON.parse(content) : response.result);
+      } catch (error) {
+        reject(error);
+      }
     });
 
     proc.stdin?.end(

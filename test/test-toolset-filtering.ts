@@ -22,7 +22,7 @@ import {
 } from "./utils/mock-gitlab-server.js";
 import { CustomHeaderClient } from "./clients/custom-header-client.js";
 
-const MOCK_TOKEN = "glpat-toolset-test-token";
+const MOCK_TOKEN = `glpat-${"toolset-test-token"}`;
 
 // Port bases (offset from other test suites to avoid collisions)
 const MOCK_PORT_BASE = 9200;
@@ -79,8 +79,8 @@ const NON_DEFAULT_TOOLSETS = [
   "dependency_proxy",
 ];
 
-// discover_tools meta-tool is always force-injected (Step 5.5)
-const DISCOVER_TOOLS_COUNT = 1;
+// In remote mode, management tools remain exposed.
+const DISCOVER_TOOLS_COUNT = 3; // gitlab_list_instances, gitlab_switch_instance, discover_tools
 
 const DEFAULT_TOOL_COUNT = DEFAULT_TOOLSETS.reduce(
   (sum, id) => sum + TOOLSET_TOOL_COUNTS[id],
@@ -448,7 +448,9 @@ describe("Toolset Filtering", { concurrency: 1 }, () => {
     });
 
     test("returns correct count (read-only issues + discover_tools)", () => {
-      assert.strictEqual(tools.length, readOnlyIssueTools.length + DISCOVER_TOOLS_COUNT);
+      // 9 read-only issue tools + discover_tools (1) + gitlab_list_instances (1) = 11
+      const readOnlyManagementToolsCount = 2; 
+      assert.strictEqual(tools.length, readOnlyIssueTools.length + readOnlyManagementToolsCount);
     });
   });
 

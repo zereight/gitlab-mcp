@@ -20,6 +20,10 @@ docs/plans/
 # OpenWolf local context (session notes, anatomy, memory)
 .wolf/
 
+# Persistent config for multiple instances
+instances.json
+instances.test.json
+
 # MkDocs build artifacts
 site/
 .venv-docs/

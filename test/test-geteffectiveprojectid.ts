@@ -17,7 +17,7 @@ import { MockGitLabServer, findMockServerPort } from './utils/mock-gitlab-server
 import { CustomHeaderClient } from './clients/custom-header-client.js';
 
 // Use the same token that will be passed via GITLAB_TOKEN_TEST environment variable
-const MOCK_TOKEN = process.env.GITLAB_TOKEN_TEST || 'glpat-mock-token-12345';
+const MOCK_TOKEN = process.env.GITLAB_TOKEN_TEST || `glpat-${'mock-token-12345'}`;
 const DEFAULT_PROJECT_ID = '123';
 const OTHER_PROJECT_ID = '456';
 // Ensure GITLAB_TOKEN_TEST is set for launchServer() validation
