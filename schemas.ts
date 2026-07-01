@@ -3978,7 +3978,7 @@ const workItemTypeEnum = z
 const ProjectIdOrPathSchema = z.coerce
   .string()
   .describe(
-    "Project ID, URL-encoded project path, or group path (e.g. 'group/subgroup' for group-level work items)"
+    "Project ID, URL-encoded project path, group path, or explicit namespace prefix for ambiguous numeric IDs (e.g. 'group/subgroup', 'group:123', or 'project:123')"
   );
 
 // Common params for work item tools
