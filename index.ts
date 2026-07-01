@@ -2294,8 +2294,8 @@ async function resolveWorkItemGID(
   projectId: string,
   issueIid: number
 ): Promise<{ workItemGID: string; projectPath: string }> {
-  // resolveProjectPath handles both project and group paths (including the
-  // group fallback), so work item tools work for group-level namespaces too.
+  // resolveProjectPath handles project paths plus group namespace fallbacks,
+  // so work item tools work for group-level namespaces too.
   const projectPath = await resolveProjectPath(projectId);
 
   // Resolve work item GID via GraphQL
@@ -3077,8 +3077,8 @@ async function updateIncidentEscalationStatus(
 }
 
 /**
- * Resolve a project ID/path or group path to its full namespace path.
- * Numeric group IDs are not supported here because they are ambiguous with project IDs.
+ * Resolve a project ID/path or group ID/path to its full namespace path.
+ * Use group:<id-or-path> or project:<id-or-path> to disambiguate numeric IDs.
  */
 async function resolveProjectPath(projectId: string): Promise<string> {
   const { path } = await resolveProjectOrGroupPath(projectId);
@@ -3087,13 +3087,30 @@ async function resolveProjectPath(projectId: string): Promise<string> {
 
 /**
  * Resolve a project or group path and identify which GraphQL root field to use.
- * Numeric group IDs are intentionally not resolved to avoid ambiguity with project IDs.
+ * Bare numeric IDs resolve as projects for backwards compatibility; use group:<id>
+ * when the numeric value is a GitLab group ID.
  */
 async function resolveProjectOrGroupPath(
   projectId: string
 ): Promise<{ path: string; kind: "project" | "group" }> {
-  projectId = decodeURIComponent(projectId);
-  const effectiveProjectId = getEffectiveProjectId(projectId);
+  const decodedProjectId = decodeURIComponent(projectId);
+  const namespaceMatch = decodedProjectId.match(/^(group|project):(.+)$/i);
+  const explicitKind = namespaceMatch?.[1]?.toLowerCase() as "group" | "project" | undefined;
+  const requestedProjectId = namespaceMatch ? namespaceMatch[2] : decodedProjectId;
+  const effectiveProjectId = getEffectiveProjectId(requestedProjectId);
+
+  if (explicitKind === "group") {
+    const groupUrl = new URL(
+      `${getEffectiveApiUrl()}/groups/${encodeURIComponent(effectiveProjectId)}`
+    );
+    const groupResponse = await fetch(groupUrl.toString(), {
+      ...getFetchConfig(),
+    });
+    await handleGitLabError(groupResponse);
+    const group: any = await groupResponse.json();
+    return { path: group.full_path as string, kind: "group" };
+  }
+
   const projectUrl = new URL(
     `${getEffectiveApiUrl()}/projects/${encodeURIComponent(effectiveProjectId)}`
   );
@@ -3105,7 +3122,11 @@ async function resolveProjectOrGroupPath(
   // Numeric IDs must not fall back: group and project IDs share no namespace,
   // so a numeric project 404 should fail immediately rather than silently
   // resolving to an unrelated group with the same integer ID.
-  if (projectResponse.status === 404 && !/^\d+$/.test(effectiveProjectId)) {
+  if (
+    projectResponse.status === 404 &&
+    !explicitKind &&
+    !/^\d+$/.test(effectiveProjectId)
+  ) {
     const groupUrl = new URL(
       `${getEffectiveApiUrl()}/groups/${encodeURIComponent(effectiveProjectId)}`
     );
