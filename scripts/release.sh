@@ -50,8 +50,17 @@ fs.writeFileSync("server.json", `${JSON.stringify(serverJson, null, 2)}\n`);
 NODE
 }
 
+# Pin README/docs npx examples to the PREVIOUS stable release, not the version
+# being cut right now: a freshly released version has not been proven in the
+# wild yet, so new users get the last known-good release by default. Users who
+# always want the newest can use @latest (documented in the READMEs).
 sync_pinned_npx_docs_version() {
   local version="$1"
+
+  if [ -z "$version" ]; then
+    echo "⚠️  No previous release tag found; leaving pinned docs version unchanged."
+    return
+  fi
 
   node - "$version" <<'NODE'
 const fs = require("fs");
@@ -388,7 +397,7 @@ elif [ -n "$REMOTE_TAG_EXISTS" ]; then
   echo "New version: $NEW_VERSION"
 
   sync_registry_metadata_version "$NEW_VERSION"
-  sync_pinned_npx_docs_version "$NEW_VERSION"
+  sync_pinned_npx_docs_version "${PREV_TAG#v}"
   preflight_registry_metadata
   build_docs
 
@@ -410,7 +419,7 @@ else
   echo "New version: $NEW_VERSION"
 
   sync_registry_metadata_version "$NEW_VERSION"
-  sync_pinned_npx_docs_version "$NEW_VERSION"
+  sync_pinned_npx_docs_version "${PREV_TAG#v}"
   preflight_registry_metadata
   build_docs
 
