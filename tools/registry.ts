@@ -574,7 +574,8 @@ export const allTools = [
   },
   {
     name: "update_issue",
-    description: "Update an issue",
+    description:
+      "Update an issue. Returns a slim confirmation by default; set full_response=true for the complete updated issue object",
     inputSchema: toJSONSchema(UpdateIssueSchema),
   },
   {
