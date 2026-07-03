@@ -390,10 +390,15 @@ Legacy additive flag for pipeline-related tools.
 
 Set to `true` to run the Streamable HTTP transport.
 
-Streamable HTTP allows `/mcp` requests when the `Host` header is local
-(`127.0.0.1`, `localhost`, `[::1]`), matches `MCP_SERVER_URL`, or is listed in
-`MCP_ALLOWED_HOSTS`. When an `Origin` header is present, it must be a local
+Streamable HTTP allows `/mcp` requests when the `Host` header is a loopback
+host on any port (`127.0.0.1`, `localhost`, `[::1]`), matches `MCP_SERVER_URL`,
+matches the `HOST`:`PORT` the server binds to, or is listed in
+`MCP_ALLOWED_HOSTS`. When an `Origin` header is present, it must be a loopback
 origin, match `MCP_SERVER_URL`, or be listed in `MCP_ALLOWED_ORIGINS`.
+
+> **Upgrade note:** deployments reached through a non-loopback hostname or IP
+> (for example an internal DNS name or LAN IP) must set `MCP_SERVER_URL` or
+> `MCP_ALLOWED_HOSTS`, otherwise `/mcp` requests are rejected with `403`.
 
 ### `MCP_ALLOWED_HOSTS`
 

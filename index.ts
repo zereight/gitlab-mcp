@@ -991,6 +991,26 @@ function toAllowedMcpOrigin(value: string): string | null {
   }
 }
 
+// Loopback hosts are allowed on any port: DNS rebinding requires the browser
+// to send the attacker's hostname, and Docker port mapping (-p 3333:3002)
+// makes the external port unknowable to the server.
+function isLoopbackMcpHost(host: string): boolean {
+  try {
+    const hostname = new URL(`http://${host}`).hostname.replace(/^\[|\]$/g, "");
+    return hostname === "127.0.0.1" || hostname === "localhost" || hostname === "::1";
+  } catch {
+    return false;
+  }
+}
+
+function isLoopbackMcpOrigin(origin: string): boolean {
+  try {
+    return isLoopbackMcpHost(new URL(origin).host);
+  } catch {
+    return false;
+  }
+}
+
 function getMcpDnsRebindingProtection() {
   const allowedHosts = new Set<string>();
   const allowedOrigins = new Set<string>();
@@ -1003,11 +1023,9 @@ function getMcpDnsRebindingProtection() {
     if (origin) allowedOrigins.add(origin);
   };
 
-  for (const host of ["127.0.0.1", "localhost", "::1", HOST]) {
-    const withPort = formatHostWithPort(host, PORT);
-    addHost(withPort);
-    if (withPort) addOrigin(`http://${withPort}`);
-  }
+  const bindHostWithPort = formatHostWithPort(HOST, PORT);
+  addHost(bindHostWithPort);
+  if (bindHostWithPort) addOrigin(`http://${bindHostWithPort}`);
 
   if (MCP_SERVER_URL) {
     addHost(MCP_SERVER_URL);
@@ -1022,7 +1040,6 @@ function getMcpDnsRebindingProtection() {
   }
 
   return {
-    enableDnsRebindingProtection: true,
     allowedHosts: [...allowedHosts],
     allowedOrigins: [...allowedOrigins],
   };
@@ -1032,7 +1049,10 @@ const MCP_DNS_REBINDING_PROTECTION = getMcpDnsRebindingProtection();
 
 function requireMcpHostAndOrigin(req: Request, res: Response, next: NextFunction) {
   const host = toAllowedMcpHost(req.headers.host || "");
-  if (!host || !MCP_DNS_REBINDING_PROTECTION.allowedHosts.includes(host)) {
+  if (
+    !host ||
+    (!isLoopbackMcpHost(host) && !MCP_DNS_REBINDING_PROTECTION.allowedHosts.includes(host))
+  ) {
     res.status(403).json({ error: "Host header is not allowed" });
     return;
   }
@@ -1040,7 +1060,11 @@ function requireMcpHostAndOrigin(req: Request, res: Response, next: NextFunction
   const originHeader = req.headers.origin;
   if (originHeader) {
     const origin = toAllowedMcpOrigin(Array.isArray(originHeader) ? originHeader[0] : originHeader);
-    if (!origin || !MCP_DNS_REBINDING_PROTECTION.allowedOrigins.includes(origin)) {
+    if (
+      !origin ||
+      (!isLoopbackMcpOrigin(origin) &&
+        !MCP_DNS_REBINDING_PROTECTION.allowedOrigins.includes(origin))
+    ) {
       res.status(403).json({ error: "Origin header is not allowed" });
       return;
     }
@@ -12790,13 +12814,13 @@ async function startStreamableHTTPServer(): Promise<void> {
     };
 
     // Step 4: create a fresh transport per request.
+    // DNS rebinding protection is enforced by requireMcpHostAndOrigin middleware;
+    // the SDK's allowedHosts exact-match cannot express loopback-on-any-port.
     const transport = isInit
       ? new StreamableHTTPServerTransport({
-          ...MCP_DNS_REBINDING_PROTECTION,
           sessionIdGenerator: () => freshSid,
         })
       : new StreamableHTTPServerTransport({
-          ...MCP_DNS_REBINDING_PROTECTION,
           sessionIdGenerator: undefined, // SDK stateless mode for non-init
         });
 
@@ -13162,7 +13186,6 @@ async function startStreamableHTTPServer(): Promise<void> {
         } else {
           // Create new transport for new session
           transport = new StreamableHTTPServerTransport({
-            ...MCP_DNS_REBINDING_PROTECTION,
             sessionIdGenerator: () => randomUUID(),
             onsessioninitialized: (newSessionId: string) => {
               streamableTransports[newSessionId] = transport;

@@ -148,6 +148,28 @@ describe("Streamable HTTP DNS rebinding protection", () => {
     assert.equal(ok.status, 200);
   });
 
+  test("allows loopback Host and Origin on any port (Docker port mapping)", async () => {
+    const port = await findAvailablePort(4720);
+    startServer({}, port);
+    await waitForHealth(port);
+
+    // e.g. docker run -p 3333:3002 -> client sends Host: localhost:3333
+    const remappedHost = await postMcp(port, { Host: `localhost:${port + 1000}` });
+    assert.equal(remappedHost.status, 200);
+
+    const remappedIpv4 = await postMcp(port, { Host: `127.0.0.1:${port + 1000}` });
+    assert.equal(remappedIpv4.status, 200);
+
+    const remappedOrigin = await postMcp(port, {
+      Host: `localhost:${port + 1000}`,
+      Origin: `http://localhost:${port + 1000}`,
+    });
+    assert.equal(remappedOrigin.status, 200);
+
+    const bareLoopback = await postMcp(port, { Host: "localhost" });
+    assert.equal(bareLoopback.status, 200);
+  });
+
   test("allows the configured MCP_SERVER_URL host and origin", async () => {
     const port = await findAvailablePort(4710);
     startServer({ MCP_SERVER_URL: "https://mcp.example.test" }, port);
