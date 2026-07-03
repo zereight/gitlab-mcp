@@ -32,6 +32,7 @@ List wiki pages in a project
 |---|---|:-:|---|
 | `project_id` | string | ✓ | Project ID or URL-encoded path |
 | `with_content` | boolean |  | Include content of the wiki pages |
+| `render_html` | boolean |  | Return rendered HTML content and include front_matter (e.g., the custom title) |
 | `page` | number |  | Page number for pagination (default: 1) |
 | `per_page` | number |  | Number of items per page (max: 100, default: 20) |
 
@@ -47,6 +48,7 @@ Get details of a specific wiki page
 |---|---|:-:|---|
 | `project_id` | string | ✓ | Project ID or URL-encoded path |
 | `slug` | string | ✓ | Slug of the wiki page (will be URL-encoded internally) |
+| `render_html` | boolean |  | Return rendered HTML content and include front_matter (e.g., the custom title) |
 
 ### `create_wiki_page`
 
@@ -104,6 +106,7 @@ List wiki pages in a group
 |---|---|:-:|---|
 | `group_id` | string | ✓ | Group ID or URL-encoded path |
 | `with_content` | boolean |  | Include content of the wiki pages |
+| `render_html` | boolean |  | Return rendered HTML content and include front_matter (e.g., the custom title) |
 | `page` | number |  | Page number for pagination (default: 1) |
 | `per_page` | number |  | Number of items per page (max: 100, default: 20) |
 
@@ -119,6 +122,7 @@ Get details of a specific group wiki page
 |---|---|:-:|---|
 | `group_id` | string | ✓ | Group ID or URL-encoded path |
 | `slug` | string | ✓ | Slug of the wiki page (will be URL-encoded internally) |
+| `render_html` | boolean |  | Return rendered HTML content and include front_matter (e.g., the custom title) |
 
 ### `create_group_wiki_page`
 
