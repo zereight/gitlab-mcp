@@ -22,6 +22,14 @@ Use an API URL, not the web root:
 - `https://gitlab.com/api/v4`
 - `https://your-gitlab.example.com/api/v4`
 
+Install the server globally once:
+
+```bash
+npm install -g @zereight/mcp-gitlab
+```
+
+If Codex cannot find `zereight-mcp-gitlab`, use the absolute path from `which zereight-mcp-gitlab`.
+
 ## Option 1 — Add with `codex mcp add`
 
 PAT example:
@@ -30,7 +38,7 @@ PAT example:
 codex mcp add gitlab \
   --env GITLAB_PERSONAL_ACCESS_TOKEN=glpat-your-token \
   --env GITLAB_API_URL=https://gitlab.com/api/v4 \
-  -- npx -y @zereight/mcp-gitlab
+  -- zereight-mcp-gitlab
 ```
 
 Optional extra environment variables:
@@ -53,8 +61,7 @@ Example:
 
 ```toml
 [mcp_servers.gitlab]
-command = "npx"
-args = ["-y", "@zereight/mcp-gitlab"]
+command = "zereight-mcp-gitlab"
 
 [mcp_servers.gitlab.env]
 GITLAB_PERSONAL_ACCESS_TOKEN = "glpat-your-token"
@@ -109,7 +116,7 @@ Codex supports OAuth for remote MCP flows, but for this local stdio GitLab setup
 
 ### 4. Shell command not found
 
-If `npx` is not available in the environment where Codex launches subprocesses, use the full command path or ensure Node.js is on your `PATH`.
+If `zereight-mcp-gitlab` is not available in the environment where Codex launches subprocesses, use the full command path from `which zereight-mcp-gitlab` or ensure npm's global bin directory is on your `PATH`.
 
 ## See also
 

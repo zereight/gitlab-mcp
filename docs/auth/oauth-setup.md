@@ -15,7 +15,11 @@ OAuth2 provides several advantages over personal access tokens:
 
 - A GitLab account (GitLab.com or self-hosted GitLab instance)
 - Node.js installed on your machine
-- The GitLab MCP server installed
+- The GitLab MCP server installed globally:
+
+  ```bash
+  npm install -g @zereight/mcp-gitlab
+  ```
 
 > ⚠️ **Important**: OAuth is designed for **local/desktop environments** (e.g., Claude Desktop, VS Code). For **Docker deployments**, use [Personal Access Token](https://github.com/zereight/gitlab-mcp/blob/main/README.md#using-personal-access-token-traditional) instead, as OAuth requires browser-based authentication and a local callback server which does not work properly in containerized environments.
 
@@ -73,8 +77,7 @@ Add or update the GitLab MCP server configuration:
 {
   "mcpServers": {
     "gitlab": {
-      "command": "npx",
-      "args": ["-y", "@zereight/mcp-gitlab"],
+      "command": "zereight-mcp-gitlab",
       "env": {
         "GITLAB_USE_OAUTH": "true",
         "GITLAB_OAUTH_CLIENT_ID": "your_application_id_here",
@@ -97,8 +100,7 @@ If you're using a self-hosted GitLab instance, update the `GITLAB_API_URL`:
 {
   "mcpServers": {
     "gitlab": {
-      "command": "npx",
-      "args": ["-y", "@zereight/mcp-gitlab"],
+      "command": "zereight-mcp-gitlab",
       "env": {
         "GITLAB_USE_OAUTH": "true",
         "GITLAB_OAUTH_CLIENT_ID": "your_application_id_here",

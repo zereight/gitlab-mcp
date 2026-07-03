@@ -3,6 +3,12 @@
 This guide explains how to run `gitlab-mcp` for custom agents, single-user PAT
 setups, multi-user deployments, and restricted tool surfaces.
 
+Install the server globally once:
+
+```bash
+npm install -g @zereight/mcp-gitlab
+```
+
 ## Local Single-PAT Setup
 
 Use this when one local MCP client should access GitLab with one Personal Access
@@ -11,7 +17,7 @@ Token.
 ```bash
 GITLAB_PERSONAL_ACCESS_TOKEN=glpat-... \
 GITLAB_API_URL=https://gitlab.com/api/v4 \
-npx -y @zereight/mcp-gitlab
+zereight-mcp-gitlab
 ```
 
 In this mode:
@@ -29,7 +35,7 @@ GitLab tokens.
 STREAMABLE_HTTP=true \
 REMOTE_AUTHORIZATION=true \
 GITLAB_API_URL=https://gitlab.com/api/v4 \
-npx -y @zereight/mcp-gitlab
+zereight-mcp-gitlab
 ```
 
 Clients send their GitLab token on each HTTP session:
@@ -64,7 +70,7 @@ STREAMABLE_HTTP=true \
 REMOTE_AUTHORIZATION=true \
 ENABLE_DYNAMIC_API_URL=true \
 GITLAB_ALLOWED_HOSTS=gitlab.example.com \
-npx -y @zereight/mcp-gitlab
+zereight-mcp-gitlab
 ```
 
 Clients include the target instance:
@@ -85,7 +91,7 @@ Custom agents can expose only the tools they need.
 GITLAB_TOOLSETS=issues,merge_requests,projects \
 GITLAB_TOOLS=get_file_contents \
 GITLAB_DENIED_TOOLS_REGEX="^(delete_|merge_)" \
-npx -y @zereight/mcp-gitlab
+zereight-mcp-gitlab
 ```
 
 Available controls:
@@ -106,7 +112,7 @@ Available controls:
 ```bash
 GITLAB_PERSONAL_ACCESS_TOKEN=glpat-local-user \
 GITLAB_API_URL=https://gitlab.com/api/v4 \
-npx -y @zereight/mcp-gitlab
+zereight-mcp-gitlab
 ```
 
 ### Hosted Multi-User HTTP Server
@@ -116,7 +122,7 @@ STREAMABLE_HTTP=true \
 REMOTE_AUTHORIZATION=true \
 SESSION_TIMEOUT_SECONDS=3600 \
 GITLAB_API_URL=https://gitlab.com/api/v4 \
-npx -y @zereight/mcp-gitlab
+zereight-mcp-gitlab
 ```
 
 Each client sends `Authorization: Bearer <PAT>` or `Private-Token: <PAT>`.
@@ -129,7 +135,7 @@ REMOTE_AUTHORIZATION=true \
 GITLAB_TOOLSETS=issues,merge_requests,projects \
 GITLAB_DENIED_TOOLS_REGEX="^(delete_|merge_)" \
 GITLAB_TOOL_POLICY_APPROVE="create_issue,update_issue,create_merge_request" \
-npx -y @zereight/mcp-gitlab
+zereight-mcp-gitlab
 ```
 
 This exposes issue, merge request, and project tools while hiding destructive

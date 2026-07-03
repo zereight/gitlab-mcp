@@ -1,9 +1,8 @@
 name: MCP Registry Publish
 
 on:
-  workflow_run:
-    workflows: ["NPM Publish"]
-    types: [completed]
+  release:
+    types: [published]
   workflow_dispatch:
     inputs:
       ref:
@@ -20,14 +19,14 @@ jobs:
     permissions:
       contents: read
       id-token: write
-    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout release commit
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || inputs.ref || github.sha }}
+          ref: ${{ github.event.release.tag_name || inputs.ref || github.sha }}
+          persist-credentials: false
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -77,12 +76,12 @@ jobs:
           PACKAGE_NAME="$(node -p 'require("./package.json").name')"
           PACKAGE_VERSION="$(node -p 'require("./package.json").version')"
 
-          for attempt in {1..12}; do
+          for attempt in {1..30}; do
             if npm view "${PACKAGE_NAME}@${PACKAGE_VERSION}" version; then
               exit 0
             fi
 
-            echo "Package ${PACKAGE_NAME}@${PACKAGE_VERSION} is not visible on npm yet. Retry ${attempt}/12..."
+            echo "Package ${PACKAGE_NAME}@${PACKAGE_VERSION} is not visible on npm yet. Retry ${attempt}/30..."
             sleep 10
           done
 

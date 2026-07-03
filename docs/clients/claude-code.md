@@ -23,6 +23,14 @@ Use an API URL, not the web root:
 - `https://gitlab.com/api/v4`
 - `https://your-gitlab.example.com/api/v4`
 
+Install the server globally once:
+
+```bash
+npm install -g @zereight/mcp-gitlab
+```
+
+If Claude Code cannot find `zereight-mcp-gitlab`, use the absolute path from `which zereight-mcp-gitlab`.
+
 ## Option 1 — Add with `claude mcp add` (PAT)
 
 This is the fastest path for a local personal setup.
@@ -32,7 +40,7 @@ claude mcp add gitlab --transport stdio \
   --scope local \
   --env GITLAB_PERSONAL_ACCESS_TOKEN=glpat-your-token \
   --env GITLAB_API_URL=https://gitlab.com/api/v4 \
-  -- npx -y @zereight/mcp-gitlab
+  -- zereight-mcp-gitlab
 ```
 
 Optional flags you can add as extra `--env` values:
@@ -69,7 +77,7 @@ claude mcp add gitlab --transport stdio \
   --env GITLAB_OAUTH_CLIENT_ID=your-client-id \
   --env GITLAB_OAUTH_REDIRECT_URI=http://127.0.0.1:8888/callback \
   --env GITLAB_API_URL=https://gitlab.com/api/v4 \
-  -- npx -y @zereight/mcp-gitlab
+  -- zereight-mcp-gitlab
 ```
 
 If your GitLab OAuth app is confidential, also add:
@@ -85,13 +93,13 @@ Use this when you want to register a ready-made JSON server config.
 PAT example:
 
 ```bash
-claude mcp add-json gitlab '{"type":"stdio","command":"npx","args":["-y","@zereight/mcp-gitlab"],"env":{"GITLAB_PERSONAL_ACCESS_TOKEN":"glpat-your-token","GITLAB_API_URL":"https://gitlab.com/api/v4"}}'
+claude mcp add-json gitlab '{"type":"stdio","command":"zereight-mcp-gitlab","env":{"GITLAB_PERSONAL_ACCESS_TOKEN":"glpat-your-token","GITLAB_API_URL":"https://gitlab.com/api/v4"}}'
 ```
 
 OAuth example:
 
 ```bash
-claude mcp add-json gitlab '{"type":"stdio","command":"npx","args":["-y","@zereight/mcp-gitlab"],"env":{"GITLAB_USE_OAUTH":"true","GITLAB_OAUTH_CLIENT_ID":"your-client-id","GITLAB_OAUTH_REDIRECT_URI":"http://127.0.0.1:8888/callback","GITLAB_API_URL":"https://gitlab.com/api/v4"}}'
+claude mcp add-json gitlab '{"type":"stdio","command":"zereight-mcp-gitlab","env":{"GITLAB_USE_OAUTH":"true","GITLAB_OAUTH_CLIENT_ID":"your-client-id","GITLAB_OAUTH_REDIRECT_URI":"http://127.0.0.1:8888/callback","GITLAB_API_URL":"https://gitlab.com/api/v4"}}'
 ```
 
 ## Option 4 — Project `.mcp.json`
@@ -104,8 +112,7 @@ Create a `.mcp.json` file at your project root:
 {
   "mcpServers": {
     "gitlab": {
-      "command": "npx",
-      "args": ["-y", "@zereight/mcp-gitlab"],
+      "command": "zereight-mcp-gitlab",
       "env": {
         "GITLAB_API_URL": "https://gitlab.com/api/v4",
         "GITLAB_READ_ONLY_MODE": "false"

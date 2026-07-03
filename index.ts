@@ -207,6 +207,7 @@ import {
 } from "./utils/helpers.js";
 import { graphqlQueryContainsWriteOperation } from "./utils/graphql-query.js";
 import { resolveNestedWikiUpdateTitle } from "./utils/wiki-title.js";
+import { redactSensitiveGitLabFields } from "./utils/redact-sensitive.js";
 import {
   cleanMutuallyExclusiveIdUsernameOptions,
   LIST_MERGE_REQUESTS_ID_USERNAME_PAIRS,
@@ -1824,8 +1825,13 @@ function parseAllowedGitLabApiUrls(value: string): Array<{ host: string; apiUrl:
     .filter((entry): entry is { host: string; apiUrl: string } => Boolean(entry));
 }
 
-function encodeGitLabPathSegment(value: string): string {
-  return encodeURIComponent(decodeURIComponent(value));
+function encodeGitLabPathSegment(value: unknown): string {
+  const segment = String(value);
+  try {
+    return encodeURIComponent(decodeURIComponent(segment));
+  } catch {
+    return encodeURIComponent(segment);
+  }
 }
 
 function encodeGitLabPath(value: string): string {
@@ -2311,7 +2317,7 @@ async function listMergeRequests(
 async function getIssue(projectId: string, issueIid: number | string): Promise<GitLabIssue> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/issues/${issueIid}`
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/issues/${encodeGitLabPathSegment(issueIid)}`
   );
 
   const response = await fetch(url.toString(), {
@@ -2339,7 +2345,7 @@ async function updateIssue(
 ): Promise<GitLabIssue> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/issues/${issueIid}`
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/issues/${encodeGitLabPathSegment(issueIid)}`
   );
 
   // Convert labels array to comma-separated string if present
@@ -2370,7 +2376,7 @@ async function updateIssue(
 async function deleteIssue(projectId: string, issueIid: number | string): Promise<void> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/issues/${issueIid}`
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/issues/${encodeGitLabPathSegment(issueIid)}`
   );
 
   const response = await fetch(url.toString(), {
@@ -4141,7 +4147,7 @@ async function listIssueLinks(
 ): Promise<GitLabIssueWithLinkDetails[]> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/issues/${issueIid}/links`
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/issues/${encodeGitLabPathSegment(issueIid)}/links`
   );
 
   const response = await fetch(url.toString(), {
@@ -4171,7 +4177,7 @@ async function getIssueLink(
   const url = new URL(
     `${getEffectiveApiUrl()}/projects/${encodeURIComponent(
       getEffectiveProjectId(projectId)
-    )}/issues/${issueIid}/links/${issueLinkId}`
+    )}/issues/${encodeGitLabPathSegment(issueIid)}/links/${encodeGitLabPathSegment(issueLinkId)}`
   );
 
   const response = await fetch(url.toString(), {
@@ -4204,7 +4210,7 @@ async function createIssueLink(
   projectId = decodeURIComponent(projectId); // Decode project ID
   targetProjectId = decodeURIComponent(targetProjectId); // Decode target project ID as well
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/issues/${issueIid}/links`
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/issues/${encodeGitLabPathSegment(issueIid)}/links`
   );
 
   const response = await fetch(url.toString(), {
@@ -4240,7 +4246,7 @@ async function deleteIssueLink(
   const url = new URL(
     `${getEffectiveApiUrl()}/projects/${encodeURIComponent(
       getEffectiveProjectId(projectId)
-    )}/issues/${issueIid}/links/${issueLinkId}`
+    )}/issues/${encodeGitLabPathSegment(issueIid)}/links/${encodeGitLabPathSegment(issueLinkId)}`
   );
 
   const response = await fetch(url.toString(), {
@@ -4410,7 +4416,7 @@ async function deleteMergeRequestDiscussionNote(
   const url = new URL(
     `${getEffectiveApiUrl()}/projects/${encodeURIComponent(
       getEffectiveProjectId(projectId)
-    )}/merge_requests/${mergeRequestIid}/discussions/${discussionId}/notes/${noteId}`
+    )}/merge_requests/${encodeGitLabPathSegment(mergeRequestIid)}/discussions/${encodeGitLabPathSegment(discussionId)}/notes/${encodeGitLabPathSegment(noteId)}`
   );
   const response = await fetch(url.toString(), {
     ...getFetchConfig(),
@@ -4447,7 +4453,7 @@ async function updateMergeRequestDiscussionNote(
   const url = new URL(
     `${getEffectiveApiUrl()}/projects/${encodeURIComponent(
       getEffectiveProjectId(projectId)
-    )}/merge_requests/${mergeRequestIid}/discussions/${discussionId}/notes/${noteId}`
+    )}/merge_requests/${encodeGitLabPathSegment(mergeRequestIid)}/discussions/${encodeGitLabPathSegment(discussionId)}/notes/${encodeGitLabPathSegment(noteId)}`
   );
 
   // Only one of body or resolved can be sent according to GitLab API
@@ -4507,7 +4513,7 @@ async function updateIssueNote(
   const url = new URL(
     `${getEffectiveApiUrl()}/projects/${encodeURIComponent(
       getEffectiveProjectId(projectId)
-    )}/issues/${issueIid}/discussions/${discussionId}/notes/${noteId}`
+    )}/issues/${encodeGitLabPathSegment(issueIid)}/discussions/${encodeGitLabPathSegment(discussionId)}/notes/${encodeGitLabPathSegment(noteId)}`
   );
 
   // Only one of body or resolved can be sent according to GitLab API
@@ -4548,9 +4554,9 @@ async function createIssueNote(
   projectId = decodeURIComponent(projectId); // Decode project ID
   const basePath = `${getEffectiveApiUrl()}/projects/${encodeURIComponent(
     getEffectiveProjectId(projectId)
-  )}/issues/${issueIid}`;
+  )}/issues/${encodeGitLabPathSegment(issueIid)}`;
   const url = new URL(
-    discussionId ? `${basePath}/discussions/${discussionId}/notes` : `${basePath}/notes`
+    discussionId ? `${basePath}/discussions/${encodeGitLabPathSegment(discussionId)}/notes` : `${basePath}/notes`
   );
 
   const payload: { body: string; created_at?: string } = { body };
@@ -4591,7 +4597,7 @@ async function createMergeRequestDiscussionNote(
   const url = new URL(
     `${getEffectiveApiUrl()}/projects/${encodeURIComponent(
       getEffectiveProjectId(projectId)
-    )}/merge_requests/${mergeRequestIid}/discussions/${discussionId}/notes`
+    )}/merge_requests/${encodeGitLabPathSegment(mergeRequestIid)}/discussions/${encodeGitLabPathSegment(discussionId)}/notes`
   );
 
   const payload: { body: string; created_at?: string } = { body };
@@ -4619,7 +4625,7 @@ async function createMergeRequestNote(
   const url = new URL(
     `${getEffectiveApiUrl()}/projects/${encodeURIComponent(
       getEffectiveProjectId(projectId)
-    )}/merge_requests/${mergeRequestIid}/notes`
+    )}/merge_requests/${encodeGitLabPathSegment(mergeRequestIid)}/notes`
   );
 
   const payload = {
@@ -4648,7 +4654,7 @@ async function deleteMergeRequestNote(
   const url = new URL(
     `${getEffectiveApiUrl()}/projects/${encodeURIComponent(
       getEffectiveProjectId(projectId)
-    )}/merge_requests/${mergeRequestIid}/notes/${noteId}`
+    )}/merge_requests/${encodeGitLabPathSegment(mergeRequestIid)}/notes/${encodeGitLabPathSegment(noteId)}`
   );
 
   const response = await fetch(url.toString(), {
@@ -4716,7 +4722,7 @@ async function getMergeRequestNote(
   const url = new URL(
     `${getEffectiveApiUrl()}/projects/${encodeURIComponent(
       getEffectiveProjectId(projectId)
-    )}/merge_requests/${mergeRequestIid}/notes/${noteId}`
+    )}/merge_requests/${encodeGitLabPathSegment(mergeRequestIid)}/notes/${encodeGitLabPathSegment(noteId)}`
   );
 
   const response = await fetch(url.toString(), {
@@ -4741,7 +4747,7 @@ async function getMergeRequestNotes(
   const url = new URL(
     `${getEffectiveApiUrl()}/projects/${encodeURIComponent(
       getEffectiveProjectId(projectId)
-    )}/merge_requests/${mergeRequestIid}/notes`
+    )}/merge_requests/${encodeGitLabPathSegment(mergeRequestIid)}/notes`
   );
 
   if (sort) {
@@ -4780,7 +4786,7 @@ async function updateMergeRequestNote(
   const url = new URL(
     `${getEffectiveApiUrl()}/projects/${encodeURIComponent(
       getEffectiveProjectId(projectId)
-    )}/merge_requests/${mergeRequestIid}/notes/${noteId}`
+    )}/merge_requests/${encodeGitLabPathSegment(mergeRequestIid)}/notes/${encodeGitLabPathSegment(noteId)}`
   );
 
   const payload = {
@@ -5011,8 +5017,7 @@ async function searchBlobs(params: {
     const projectId = encodeURIComponent(getEffectiveProjectId(decodedProjectId));
     basePath = `${getEffectiveApiUrl()}/projects/${projectId}/search`;
   } else if (params.group_id) {
-    const groupId = encodeURIComponent(decodeURIComponent(params.group_id));
-    basePath = `${getEffectiveApiUrl()}/groups/${groupId}/search`;
+    basePath = `${getEffectiveApiUrl()}/groups/${encodeGitLabPathSegment(params.group_id)}/search`;
   } else {
     basePath = `${getEffectiveApiUrl()}/search`;
   }
@@ -5105,7 +5110,7 @@ async function getMergeRequest(
     url = new URL(
       `${getEffectiveApiUrl()}/projects/${encodeURIComponent(
         getEffectiveProjectId(projectId)
-      )}/merge_requests/${mergeRequestIid}`
+      )}/merge_requests/${encodeGitLabPathSegment(mergeRequestIid)}`
     );
     url.searchParams.append("include_diverged_commits_count", "true");
   } else if (branchName) {
@@ -5142,7 +5147,7 @@ async function getMergeRequestSourceCommitCount(
   const url = new URL(
     `${getEffectiveApiUrl()}/projects/${encodeURIComponent(
       getEffectiveProjectId(projectId)
-    )}/merge_requests/${mergeRequestIid}/commits`
+    )}/merge_requests/${encodeGitLabPathSegment(mergeRequestIid)}/commits`
   );
   url.searchParams.append("per_page", "100");
 
@@ -5186,7 +5191,7 @@ async function listMergeRequestPipelines(
   const url = new URL(
     `${getEffectiveApiUrl()}/projects/${encodeURIComponent(
       getEffectiveProjectId(projectId)
-    )}/merge_requests/${mergeRequestIid}/pipelines`
+    )}/merge_requests/${encodeGitLabPathSegment(mergeRequestIid)}/pipelines`
   );
 
   Object.entries(options).forEach(([key, value]) => {
@@ -5432,7 +5437,7 @@ async function getMergeRequestDiffs(
   const url = new URL(
     `${getEffectiveApiUrl()}/projects/${encodeURIComponent(
       getEffectiveProjectId(projectId)
-    )}/merge_requests/${mergeRequestIid}/changes`
+    )}/merge_requests/${encodeGitLabPathSegment(mergeRequestIid)}/changes`
   );
 
   if (view) {
@@ -5479,7 +5484,7 @@ async function listMergeRequestDiffs(
   const url = new URL(
     `${getEffectiveApiUrl()}/projects/${encodeURIComponent(
       getEffectiveProjectId(projectId)
-    )}/merge_requests/${mergeRequestIid}/diffs`
+    )}/merge_requests/${encodeGitLabPathSegment(mergeRequestIid)}/diffs`
   );
 
   if (page) {
@@ -5532,7 +5537,7 @@ async function listMergeRequestChangedFiles(
   const url = new URL(
     `${getEffectiveApiUrl()}/projects/${encodeURIComponent(
       getEffectiveProjectId(projectId)
-    )}/merge_requests/${mergeRequestIid}/changes`
+    )}/merge_requests/${encodeGitLabPathSegment(mergeRequestIid)}/changes`
   );
 
   const response = await fetch(url.toString(), { ...getFetchConfig() });
@@ -5590,7 +5595,7 @@ async function getMergeRequestFileDiff(
     const url = new URL(
       `${getEffectiveApiUrl()}/projects/${encodeURIComponent(
         getEffectiveProjectId(projectId)
-      )}/merge_requests/${mergeRequestIid}/diffs`
+      )}/merge_requests/${encodeGitLabPathSegment(mergeRequestIid)}/diffs`
     );
     url.searchParams.append("page", page.toString());
     url.searchParams.append("per_page", perPage.toString());
@@ -5702,7 +5707,7 @@ async function updateMergeRequest(
   }
 
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/merge_requests/${mergeRequestIid}`
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/merge_requests/${encodeGitLabPathSegment(mergeRequestIid)}`
   );
 
   const response = await fetch(url.toString(), {
@@ -5731,7 +5736,7 @@ async function mergeMergeRequest(
 ): Promise<GitLabMergeRequest> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/merge_requests/${mergeRequestIid}/merge`
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/merge_requests/${encodeGitLabPathSegment(mergeRequestIid)}/merge`
   );
 
   const response = await fetch(url.toString(), {
@@ -5761,7 +5766,7 @@ async function approveMergeRequest(
 ): Promise<GitLabMergeRequestApprovalState> {
   projectId = decodeURIComponent(projectId);
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/merge_requests/${mergeRequestIid}/approve`
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/merge_requests/${encodeGitLabPathSegment(mergeRequestIid)}/approve`
   );
 
   const body: Record<string, string> = {};
@@ -5795,7 +5800,7 @@ async function unapproveMergeRequest(
 ): Promise<GitLabMergeRequestApprovalState> {
   projectId = decodeURIComponent(projectId);
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/merge_requests/${mergeRequestIid}/unapprove`
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/merge_requests/${encodeGitLabPathSegment(mergeRequestIid)}/unapprove`
   );
 
   const response = await fetch(url.toString(), {
@@ -5821,7 +5826,7 @@ async function getMergeRequestApprovalState(
 ): Promise<GitLabMergeRequestApprovalState> {
   projectId = decodeURIComponent(projectId);
   const approvalStateUrl = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/merge_requests/${mergeRequestIid}/approval_state`
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/merge_requests/${encodeGitLabPathSegment(mergeRequestIid)}/approval_state`
   );
 
   const approvalStateResponse = await fetch(approvalStateUrl.toString(), {
@@ -5864,7 +5869,7 @@ async function getMergeRequestConflicts(
 ): Promise<Record<string, unknown>> {
   projectId = decodeURIComponent(projectId);
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/merge_requests/${mergeRequestIid}/conflicts`
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/merge_requests/${encodeGitLabPathSegment(mergeRequestIid)}/conflicts`
   );
 
   const response = await fetch(url.toString(), {
@@ -5882,7 +5887,7 @@ async function getMergeRequestApprovalsFallback(
   mergeRequestIid: string | number
 ): Promise<GitLabMergeRequestApprovalState> {
   const approvalsUrl = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/merge_requests/${mergeRequestIid}/approvals`
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/merge_requests/${encodeGitLabPathSegment(mergeRequestIid)}/approvals`
   );
 
   const approvalsResponse = await fetch(approvalsUrl.toString(), {
@@ -6015,7 +6020,7 @@ async function listDraftNotes(
   const url = new URL(
     `${getEffectiveApiUrl()}/projects/${encodeURIComponent(
       getEffectiveProjectId(projectId)
-    )}/merge_requests/${mergeRequestIid}/draft_notes`
+    )}/merge_requests/${encodeGitLabPathSegment(mergeRequestIid)}/draft_notes`
   );
 
   const response = await fetch(url.toString(), {
@@ -6054,7 +6059,7 @@ async function createDraftNote(
   const url = new URL(
     `${getEffectiveApiUrl()}/projects/${encodeURIComponent(
       getEffectiveProjectId(projectId)
-    )}/merge_requests/${mergeRequestIid}/draft_notes`
+    )}/merge_requests/${encodeGitLabPathSegment(mergeRequestIid)}/draft_notes`
   );
 
   const requestBody: any = { note: body };
@@ -6105,7 +6110,7 @@ async function updateDraftNote(
   const url = new URL(
     `${getEffectiveApiUrl()}/projects/${encodeURIComponent(
       getEffectiveProjectId(projectId)
-    )}/merge_requests/${mergeRequestIid}/draft_notes/${draftNoteId}`
+    )}/merge_requests/${encodeGitLabPathSegment(mergeRequestIid)}/draft_notes/${encodeGitLabPathSegment(draftNoteId)}`
   );
 
   const requestBody: any = {};
@@ -6150,7 +6155,7 @@ async function deleteDraftNote(
   const url = new URL(
     `${getEffectiveApiUrl()}/projects/${encodeURIComponent(
       getEffectiveProjectId(projectId)
-    )}/merge_requests/${mergeRequestIid}/draft_notes/${draftNoteId}`
+    )}/merge_requests/${encodeGitLabPathSegment(mergeRequestIid)}/draft_notes/${encodeGitLabPathSegment(draftNoteId)}`
   );
 
   const response = await fetch(url.toString(), {
@@ -6180,7 +6185,7 @@ async function publishDraftNote(
   const url = new URL(
     `${getEffectiveApiUrl()}/projects/${encodeURIComponent(
       getEffectiveProjectId(projectId)
-    )}/merge_requests/${mergeRequestIid}/draft_notes/${draftNoteId}/publish`
+    )}/merge_requests/${encodeGitLabPathSegment(mergeRequestIid)}/draft_notes/${encodeGitLabPathSegment(draftNoteId)}/publish`
   );
 
   const response = await fetch(url.toString(), {
@@ -6243,7 +6248,7 @@ async function bulkPublishDraftNotes(
   const url = new URL(
     `${getEffectiveApiUrl()}/projects/${encodeURIComponent(
       getEffectiveProjectId(projectId)
-    )}/merge_requests/${mergeRequestIid}/draft_notes/bulk_publish`
+    )}/merge_requests/${encodeGitLabPathSegment(mergeRequestIid)}/draft_notes/bulk_publish`
   );
 
   const response = await fetch(url.toString(), {
@@ -6285,7 +6290,7 @@ async function resolveMergeRequestThread(
   const url = new URL(
     `${getEffectiveApiUrl()}/projects/${encodeURIComponent(
       getEffectiveProjectId(projectId)
-    )}/merge_requests/${mergeRequestIid}/discussions/${discussionId}`
+    )}/merge_requests/${encodeGitLabPathSegment(mergeRequestIid)}/discussions/${encodeGitLabPathSegment(discussionId)}`
   );
 
   if (resolved !== undefined) {
@@ -6331,7 +6336,7 @@ async function createMergeRequestThread(
   const url = new URL(
     `${getEffectiveApiUrl()}/projects/${encodeURIComponent(
       getEffectiveProjectId(projectId)
-    )}/merge_requests/${mergeRequestIid}/discussions`
+    )}/merge_requests/${encodeGitLabPathSegment(mergeRequestIid)}/discussions`
   );
 
   const payload: Record<string, any> = { body };
@@ -6371,7 +6376,7 @@ async function listMergeRequestVersions(
   const url = new URL(
     `${getEffectiveApiUrl()}/projects/${encodeURIComponent(
       getEffectiveProjectId(projectId)
-    )}/merge_requests/${mergeRequestIid}/versions`
+    )}/merge_requests/${encodeGitLabPathSegment(mergeRequestIid)}/versions`
   );
 
   const response = await fetch(url.toString(), {
@@ -6402,7 +6407,7 @@ async function getMergeRequestVersion(
   const url = new URL(
     `${getEffectiveApiUrl()}/projects/${encodeURIComponent(
       getEffectiveProjectId(projectId)
-    )}/merge_requests/${mergeRequestIid}/versions/${versionId}`
+    )}/merge_requests/${encodeGitLabPathSegment(mergeRequestIid)}/versions/${encodeGitLabPathSegment(versionId)}`
   );
 
   if (unidiff !== undefined) {
@@ -6779,6 +6784,8 @@ async function listWikiPages(
   if (options.per_page) url.searchParams.append("per_page", options.per_page.toString());
   if (options.with_content)
     url.searchParams.append("with_content", options.with_content.toString());
+  if (options.render_html)
+    url.searchParams.append("render_html", options.render_html.toString());
   const response = await fetch(url.toString(), {
     ...getFetchConfig(),
   });
@@ -6790,12 +6797,17 @@ async function listWikiPages(
 /**
  * Get a specific wiki page
  */
-async function getWikiPage(projectId: string, slug: string): Promise<GitLabWikiPage> {
+async function getWikiPage(
+  projectId: string,
+  slug: string,
+  renderHtml?: boolean
+): Promise<GitLabWikiPage> {
   projectId = decodeURIComponent(projectId); // Decode project ID
-  const response = await fetch(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/wikis/${encodeURIComponent(slug)}`,
-    { ...getFetchConfig() }
+  const url = new URL(
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/wikis/${encodeURIComponent(slug)}`
   );
+  if (renderHtml) url.searchParams.append("render_html", renderHtml.toString());
+  const response = await fetch(url.toString(), { ...getFetchConfig() });
   await handleGitLabError(response);
   const data = await response.json();
   return GitLabWikiPageSchema.parse(data);
@@ -6889,6 +6901,8 @@ async function listGroupWikiPages(
   if (options.per_page) url.searchParams.append("per_page", options.per_page.toString());
   if (options.with_content)
     url.searchParams.append("with_content", options.with_content.toString());
+  if (options.render_html)
+    url.searchParams.append("render_html", options.render_html.toString());
   const response = await fetch(url.toString(), {
     ...getFetchConfig(),
   });
@@ -6900,12 +6914,17 @@ async function listGroupWikiPages(
 /**
  * Get a specific group wiki page
  */
-async function getGroupWikiPage(groupId: string, slug: string): Promise<GitLabWikiPage> {
+async function getGroupWikiPage(
+  groupId: string,
+  slug: string,
+  renderHtml?: boolean
+): Promise<GitLabWikiPage> {
   groupId = decodeURIComponent(groupId); // Decode group ID
-  const response = await fetch(
-    `${getEffectiveApiUrl()}/groups/${encodeURIComponent(groupId)}/wikis/${encodeURIComponent(slug)}`,
-    { ...getFetchConfig() }
+  const url = new URL(
+    `${getEffectiveApiUrl()}/groups/${encodeURIComponent(groupId)}/wikis/${encodeURIComponent(slug)}`
   );
+  if (renderHtml) url.searchParams.append("render_html", renderHtml.toString());
+  const response = await fetch(url.toString(), { ...getFetchConfig() });
   await handleGitLabError(response);
   const data = await response.json();
   return GitLabWikiPageSchema.parse(data);
@@ -10161,9 +10180,10 @@ async function handleToolCall(params: any) {
 
         await handleGitLabError(response);
         const data = await response.json();
-        // Return raw data without parsing through our schema to avoid type mismatches in tests
+        // Return raw data without parsing through our schema to avoid type mismatches in tests,
+        // but strip credential fields (e.g. runners_token) so they never reach the AI context.
         return {
-          content: [{ type: "text", text: JSON.stringify(data) }],
+          content: [{ type: "text", text: JSON.stringify(redactSensitiveGitLabFields(data)) }],
         };
       }
 
@@ -10194,7 +10214,9 @@ async function handleToolCall(params: any) {
         await handleGitLabError(response);
         const data = await response.json();
         return {
-          content: [{ type: "text", text: JSON.stringify(data, null, 2) }],
+          content: [
+            { type: "text", text: JSON.stringify(redactSensitiveGitLabFields(data), null, 2) },
+          ],
         };
       }
 
@@ -10789,13 +10811,13 @@ async function handleToolCall(params: any) {
       }
 
       case "list_wiki_pages": {
-        const { project_id, page, per_page, with_content } = ListWikiPagesSchema.parse(
-          params.arguments
-        );
+        const { project_id, page, per_page, with_content, render_html } =
+          ListWikiPagesSchema.parse(params.arguments);
         const wikiPages = await listWikiPages(project_id, {
           page,
           per_page,
           with_content,
+          render_html,
         });
         return {
           content: [{ type: "text", text: JSON.stringify(wikiPages) }],
@@ -10803,8 +10825,8 @@ async function handleToolCall(params: any) {
       }
 
       case "get_wiki_page": {
-        const { project_id, slug } = GetWikiPageSchema.parse(params.arguments);
-        const wikiPage = await getWikiPage(project_id, slug);
+        const { project_id, slug, render_html } = GetWikiPageSchema.parse(params.arguments);
+        const wikiPage = await getWikiPage(project_id, slug, render_html);
         return {
           content: [{ type: "text", text: JSON.stringify(wikiPage) }],
         };
@@ -10849,13 +10871,13 @@ async function handleToolCall(params: any) {
       }
 
       case "list_group_wiki_pages": {
-        const { group_id, page, per_page, with_content } = ListGroupWikiPagesSchema.parse(
-          params.arguments
-        );
+        const { group_id, page, per_page, with_content, render_html } =
+          ListGroupWikiPagesSchema.parse(params.arguments);
         const wikiPages = await listGroupWikiPages(group_id, {
           page,
           per_page,
           with_content,
+          render_html,
         });
         return {
           content: [{ type: "text", text: JSON.stringify(wikiPages) }],
@@ -10863,8 +10885,8 @@ async function handleToolCall(params: any) {
       }
 
       case "get_group_wiki_page": {
-        const { group_id, slug } = GetGroupWikiPageSchema.parse(params.arguments);
-        const wikiPage = await getGroupWikiPage(group_id, slug);
+        const { group_id, slug, render_html } = GetGroupWikiPageSchema.parse(params.arguments);
+        const wikiPage = await getGroupWikiPage(group_id, slug, render_html);
         return {
           content: [{ type: "text", text: JSON.stringify(wikiPage) }],
         };

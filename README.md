@@ -22,7 +22,7 @@ Supports PAT, OAuth, read-only mode, dynamic API URLs, and remote authorization 
 - Client-friendly setup — examples for Claude Code, Codex, Antigravity, OpenCode, Copilot, Cline, Roo Code, Cursor, Kilo Code, and Amp Code
 - Self-hosted ready — works with custom GitLab instances, proxy settings, and dynamic API URL routing
 
-Quick start: choose either Personal Access Token or OAuth2 setup below and use `@zereight/mcp-gitlab` in your MCP client configuration.
+Quick start: choose either Personal Access Token or OAuth2 setup below, install `@zereight/mcp-gitlab`, and use `zereight-mcp-gitlab` in your MCP client configuration.
 
 ### Client Setup Guides
 
@@ -67,6 +67,16 @@ The server supports four authentication methods:
 
 For the simplest local setup, start with a Personal Access Token. For browser-based local auth, use OAuth2. For remote or multi-user deployments, continue to the MCP OAuth and Remote Authorization sections later in this README.
 
+Install the server globally once:
+
+```shell
+npm install -g @zereight/mcp-gitlab
+```
+
+The examples use `zereight-mcp-gitlab`, a less collision-prone alias for the legacy `mcp-gitlab` binary. If your MCP client cannot find it, use the absolute path from `which zereight-mcp-gitlab`.
+
+No global install? Pin `npx` to a known version, for example `npx -y @zereight/mcp-gitlab@2.1.29`.
+
 #### Using CLI Arguments (for clients with env var issues)
 
 Some MCP clients (like GitHub Copilot CLI) have issues with environment variables. Use CLI arguments instead:
@@ -75,13 +85,8 @@ Some MCP clients (like GitHub Copilot CLI) have issues with environment variable
 {
   "mcpServers": {
     "gitlab": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "@zereight/mcp-gitlab",
-        "--token=YOUR_GITLAB_TOKEN",
-        "--api-url=https://gitlab.com/api/v4"
-      ],
+      "command": "zereight-mcp-gitlab",
+      "args": ["--token=YOUR_GITLAB_TOKEN", "--api-url=https://gitlab.com/api/v4"],
       "tools": ["*"]
     }
   }
@@ -93,11 +98,19 @@ Some MCP clients (like GitHub Copilot CLI) have issues with environment variable
 - `--token` - GitLab Personal Access Token (replaces `GITLAB_PERSONAL_ACCESS_TOKEN`)
 - `--api-url` - GitLab API URL (replaces `GITLAB_API_URL`)
 - `--read-only=true` - Enable read-only mode (replaces `GITLAB_READ_ONLY_MODE`)
-- `--use-wiki=true` - Enable wiki API (replaces `USE_GITLAB_WIKI`)
-- `--use-milestone=true` - Enable milestone API (replaces `USE_MILESTONE`)
-- `--use-pipeline=true` - Enable pipeline API (replaces `USE_PIPELINE`)
+- `--use-wiki=true` - Enable wiki API (replaces `USE_GITLAB_WIKI`, legacy — prefer `GITLAB_TOOLSETS=wiki`)
+- `--use-milestone=true` - Enable milestone API (replaces `USE_MILESTONE`, legacy — prefer `GITLAB_TOOLSETS=milestones`)
+- `--use-pipeline=true` - Enable pipeline API (replaces `USE_PIPELINE`, legacy — prefer `GITLAB_TOOLSETS=pipelines`)
 
 CLI arguments take precedence over environment variables.
+
+> **Fine-grained tool filtering:** beyond the all-or-nothing `GITLAB_READ_ONLY_MODE`, you can
+> enable toolset groups with `GITLAB_TOOLSETS=<group,…>`, allow-list individual tools with
+> `GITLAB_TOOLS=<tool,…>` (e.g. read-only groups plus a few specific write tools), and
+> deny-list by pattern with `GITLAB_DENIED_TOOLS_REGEX`. The legacy `USE_GITLAB_WIKI` /
+> `USE_MILESTONE` / `USE_PIPELINE` flags are kept for backward compatibility only.
+> See [Tools Reference](./docs/tools/index.md#feature-toggles) and
+> [Environment Variables](./docs/configuration/environment-variables.md).
 
 - sse
 
@@ -107,9 +120,7 @@ docker run -i --rm \
   -e GITLAB_PERSONAL_ACCESS_TOKEN=your_gitlab_token \
   -e GITLAB_API_URL="https://gitlab.com/api/v4" \
   -e GITLAB_READ_ONLY_MODE=true \
-  -e USE_GITLAB_WIKI=true \
-  -e USE_MILESTONE=true \
-  -e USE_PIPELINE=true \
+  -e GITLAB_TOOLSETS=wiki,milestones,pipelines \
   -e SSE=true \
   -e SSE_AUTH_TOKEN=your_mcp_sse_token \
   -p 3333:3002 \
@@ -138,9 +149,7 @@ docker run -i --rm \
   -e REMOTE_AUTHORIZATION=true \
   -e GITLAB_API_URL="https://gitlab.com/api/v4" \
   -e GITLAB_READ_ONLY_MODE=true \
-  -e USE_GITLAB_WIKI=true \
-  -e USE_MILESTONE=true \
-  -e USE_PIPELINE=true \
+  -e GITLAB_TOOLSETS=wiki,milestones,pipelines \
   -e STREAMABLE_HTTP=true \
   -p 3333:3002 \
   zereight050/gitlab-mcp
@@ -186,10 +195,10 @@ Remote MCP OAuth is different. In `GITLAB_MCP_OAUTH=true` mode, the MCP client
 provides its own callback URL during `/authorize`. `GITLAB_OAUTH_REDIRECT_URI`
 does not replace that client-provided URL.
 
-| Mode | Enable with | Callback variable | GitLab redirect URI |
-| --- | --- | --- | --- |
-| Local OAuth | `GITLAB_USE_OAUTH=true` | `GITLAB_OAUTH_REDIRECT_URI` | `http://127.0.0.1:8888/callback` or your local callback |
-| Remote MCP OAuth | `GITLAB_MCP_OAUTH=true` | `GITLAB_OAUTH_CALLBACK_PROXY=true` | `{MCP_SERVER_URL}/callback` |
+| Mode             | Enable with             | Callback variable                  | GitLab redirect URI                                     |
+| ---------------- | ----------------------- | ---------------------------------- | ------------------------------------------------------- |
+| Local OAuth      | `GITLAB_USE_OAUTH=true` | `GITLAB_OAUTH_REDIRECT_URI`        | `http://127.0.0.1:8888/callback` or your local callback |
+| Remote MCP OAuth | `GITLAB_MCP_OAUTH=true` | `GITLAB_OAUTH_CALLBACK_PROXY=true` | `{MCP_SERVER_URL}/callback`                             |
 
 Use `GITLAB_OAUTH_REDIRECT_URI` only when the MCP server itself owns the local
 browser callback. Use `GITLAB_OAUTH_CALLBACK_PROXY=true` when a remote MCP client
@@ -205,15 +214,15 @@ exchanging credentials with GitLab on behalf of the client.
 2. A pre-registered GitLab OAuth application with `api` (or `read_api`) scopes
    — Go to `Admin area` → `Applications`, set Redirect URI to `{MCP_SERVER_URL}/callback`
 
-| Environment Variable  | Required | Description                                                |
-| --------------------- | -------- | ---------------------------------------------------------- |
-| `GITLAB_MCP_OAUTH`    | ✅       | Set to `true` to enable                                    |
-| `GITLAB_API_URL`      | ✅       | GitLab API base URL                                        |
-| `GITLAB_OAUTH_APP_ID` | ✅       | GitLab OAuth Application ID                                |
-| `MCP_SERVER_URL`      | ✅       | Public HTTPS URL of this MCP server                        |
-| `STREAMABLE_HTTP`     | ✅       | Must be `true`                                             |
-| `GITLAB_OAUTH_CALLBACK_PROXY` | optional | Set to `true` to use the MCP server's fixed `/callback` URL |
-| `GITLAB_OAUTH_SCOPES` | optional | Comma-separated scopes (default: `api,read_api,read_user`) |
+| Environment Variable          | Required | Description                                                                                                                             |
+| ----------------------------- | -------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| `GITLAB_MCP_OAUTH`            | ✅       | Set to `true` to enable                                                                                                                 |
+| `GITLAB_API_URL`              | ✅       | GitLab API base URL                                                                                                                     |
+| `GITLAB_OAUTH_APP_ID`         | ✅       | GitLab OAuth Application ID                                                                                                             |
+| `MCP_SERVER_URL`              | ✅       | Public HTTPS URL of this MCP server                                                                                                     |
+| `STREAMABLE_HTTP`             | ✅       | Must be `true`                                                                                                                          |
+| `GITLAB_OAUTH_CALLBACK_PROXY` | optional | Set to `true` to use the MCP server's fixed `/callback` URL                                                                             |
+| `GITLAB_OAUTH_SCOPES`         | optional | Comma-separated scopes (default: `api,read_api,read_user`)                                                                              |
 | `GITLAB_OAUTH_ALLOWED_GROUPS` | optional | Comma-separated group full paths — only members (and subgroup members) may obtain a token (replaces deprecated `GITLAB_ALLOWED_GROUPS`) |
 
 When `STREAMABLE_HTTP=true`, server-side `GITLAB_PERSONAL_ACCESS_TOKEN` or `GITLAB_JOB_TOKEN` require `REMOTE_AUTHORIZATION=true` or `GITLAB_MCP_OAUTH=true`.
@@ -266,15 +275,15 @@ the token to GitLab on behalf of the caller.
 
 **Header priority**: `Private-Token` > `JOB-TOKEN` > `Authorization: Bearer`
 
-| Environment Variable     | Required | Description                                                |
-| ------------------------ | -------- | ---------------------------------------------------------- |
-| `REMOTE_AUTHORIZATION`   | ✅       | Set to `true` to enable                                    |
-| `STREAMABLE_HTTP`        | ✅       | Must be `true`                                             |
-| `ENABLE_DYNAMIC_API_URL` | optional | Allow per-request GitLab URL via `X-GitLab-API-URL` header |
-| `GITLAB_ALLOWED_HOSTS` | optional | Comma-separated allowed `X-GitLab-API-URL` hosts; `GITLAB_API_URL` hosts are always allowed |
-| `GITLAB_ALLOW_UNAUTHENTICATED_TOOL_DISCOVERY` | optional | Allow unauthenticated `initialize`, `notifications/initialized`, and `tools/list` only (tool calls still require auth) |
-| `MCP_SERVER_URL` / `MCP_ALLOWED_HOSTS` / `MCP_ALLOWED_ORIGINS` | optional | Allowed public `/mcp` host/origin values for DNS rebinding protection |
-| `MCP_TRUST_PROXY`        | optional | Trust `Forwarded` / `X-Forwarded-*` headers behind a reverse proxy (download URLs, Express `req.ip`, OAuth rate limits) |
+| Environment Variable                          | Required | Description                                                                                                             |
+| --------------------------------------------- | -------- | ----------------------------------------------------------------------------------------------------------------------- |
+| `REMOTE_AUTHORIZATION`                        | ✅       | Set to `true` to enable                                                                                                 |
+| `STREAMABLE_HTTP`                             | ✅       | Must be `true`                                                                                                          |
+| `ENABLE_DYNAMIC_API_URL`                      | optional | Allow per-request GitLab URL via `X-GitLab-API-URL` header                                                              |
+| `GITLAB_ALLOWED_HOSTS`                        | optional | Comma-separated allowed `X-GitLab-API-URL` hosts; `GITLAB_API_URL` hosts are always allowed                             |
+| `GITLAB_ALLOW_UNAUTHENTICATED_TOOL_DISCOVERY` | optional | Allow unauthenticated `initialize`, `notifications/initialized`, and `tools/list` only (tool calls still require auth)  |
+| `MCP_SERVER_URL` / `MCP_ALLOWED_HOSTS` / `MCP_ALLOWED_ORIGINS` | optional | Allowed public `/mcp` host/origin values for DNS rebinding protection                                   |
+| `MCP_TRUST_PROXY`                             | optional | Trust `Forwarded` / `X-Forwarded-*` headers behind a reverse proxy (download URLs, Express `req.ip`, OAuth rate limits) |
 
 `GITLAB_ALLOW_UNAUTHENTICATED_TOOL_DISCOVERY=true` is intended for MCP gateways
 or admin UIs that need to inspect tool metadata before a user provides a GitLab

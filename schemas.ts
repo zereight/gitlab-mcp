@@ -2643,12 +2643,20 @@ export const ListWikiPagesSchema = z
   .object({
     project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
     with_content: z.coerce.boolean().optional().describe("Include content of the wiki pages"),
+    render_html: z.coerce
+      .boolean()
+      .optional()
+      .describe("Return rendered HTML content and include front_matter (e.g., the custom title)"),
   })
   .merge(PaginationOptionsSchema);
 
 export const GetWikiPageSchema = z.object({
   project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
   slug: z.string().describe("Slug of the wiki page (will be URL-encoded internally)"),
+  render_html: z.coerce
+    .boolean()
+    .optional()
+    .describe("Return rendered HTML content and include front_matter (e.g., the custom title)"),
 });
 export const CreateWikiPageSchema = z.object({
   project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
@@ -2675,6 +2683,7 @@ export const GitLabWikiPageSchema = z.object({
   slug: z.string(),
   format: z.string(),
   content: z.string().optional(),
+  front_matter: z.record(z.unknown()).optional(),
   created_at: z.string().optional(),
   updated_at: z.string().optional(),
 });
@@ -2684,12 +2693,20 @@ export const ListGroupWikiPagesSchema = z
   .object({
     group_id: z.coerce.string().describe("Group ID or URL-encoded path"),
     with_content: z.coerce.boolean().optional().describe("Include content of the wiki pages"),
+    render_html: z.coerce
+      .boolean()
+      .optional()
+      .describe("Return rendered HTML content and include front_matter (e.g., the custom title)"),
   })
   .merge(PaginationOptionsSchema);
 
 export const GetGroupWikiPageSchema = z.object({
   group_id: z.coerce.string().describe("Group ID or URL-encoded path"),
   slug: z.string().describe("Slug of the wiki page (will be URL-encoded internally)"),
+  render_html: z.coerce
+    .boolean()
+    .optional()
+    .describe("Return rendered HTML content and include front_matter (e.g., the custom title)"),
 });
 
 export const CreateGroupWikiPageSchema = z.object({
