@@ -1694,7 +1694,12 @@ function parseAllowedGitLabApiUrls(value: string): Array<{ host: string; apiUrl:
 }
 
 function encodeGitLabPathSegment(value: unknown): string {
-  return encodeURIComponent(decodeURIComponent(String(value)));
+  const segment = String(value);
+  try {
+    return encodeURIComponent(decodeURIComponent(segment));
+  } catch {
+    return encodeURIComponent(segment);
+  }
 }
 
 function encodeGitLabPath(value: string): string {
@@ -4880,8 +4885,7 @@ async function searchBlobs(params: {
     const projectId = encodeURIComponent(getEffectiveProjectId(decodedProjectId));
     basePath = `${getEffectiveApiUrl()}/projects/${projectId}/search`;
   } else if (params.group_id) {
-    const groupId = encodeURIComponent(decodeURIComponent(params.group_id));
-    basePath = `${getEffectiveApiUrl()}/groups/${encodeGitLabPathSegment(groupId)}/search`;
+    basePath = `${getEffectiveApiUrl()}/groups/${encodeGitLabPathSegment(params.group_id)}/search`;
   } else {
     basePath = `${getEffectiveApiUrl()}/search`;
   }

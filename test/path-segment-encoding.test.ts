@@ -32,3 +32,7 @@ test("encoding keeps path traversal payloads inside one URL segment", () => {
     "/api/v4/projects/42/issues/1%2F..%2F..%2F..%2F..%2Fadmin%2Fci%2Fvariables/notes"
   );
 });
+
+test("malformed percent-encoded segments can still be encoded", () => {
+  assert.equal(encodeURIComponent("bad%zz/path"), "bad%25zz%2Fpath");
+});
