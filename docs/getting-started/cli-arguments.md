@@ -12,7 +12,7 @@ Install the server globally once:
 npm install -g @zereight/mcp-gitlab
 ```
 
-No global install? Pin `npx` to a known version and keep the server flags after it, for example `npx -y @zereight/mcp-gitlab@2.1.28 --token=...`.
+No global install? Pin `npx` to a known version and keep the server flags after it, for example `npx -y @zereight/mcp-gitlab@2.1.29 --token=...`.
 
 ## Example config
 

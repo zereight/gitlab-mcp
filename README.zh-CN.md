@@ -71,7 +71,7 @@ npm install -g @zereight/mcp-gitlab
 
 示例使用 `zereight-mcp-gitlab`，这是比旧的 `mcp-gitlab` 更不容易冲突的别名。如果 MCP 客户端找不到它，请使用 `which zereight-mcp-gitlab` 输出的绝对路径。
 
-如果不想全局安装，请固定 `npx` 版本，例如 `npx -y @zereight/mcp-gitlab@2.1.28`。
+如果不想全局安装，请固定 `npx` 版本，例如 `npx -y @zereight/mcp-gitlab@2.1.29`。
 
 #### 使用 CLI 参数（适用于环境变量有问题的客户端）
 

@@ -24,7 +24,7 @@ Use the local stdio server fields that your client expects and map in these valu
 
 The examples use `zereight-mcp-gitlab`, a less collision-prone alias for the legacy `mcp-gitlab` binary. If your client cannot find it, use the absolute path from `which zereight-mcp-gitlab`.
 
-No global install? Pin `npx` to a known version, for example use `command: "npx"` with `args: ["-y", "@zereight/mcp-gitlab@2.1.28"]` before any server flags.
+No global install? Pin `npx` to a known version, for example use `command: "npx"` with `args: ["-y", "@zereight/mcp-gitlab@2.1.29"]` before any server flags.
 
 ## Reusable PAT server block
 
