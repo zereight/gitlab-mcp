@@ -207,6 +207,7 @@ import {
 } from "./utils/helpers.js";
 import { graphqlQueryContainsWriteOperation } from "./utils/graphql-query.js";
 import { resolveNestedWikiUpdateTitle } from "./utils/wiki-title.js";
+import { redactSensitiveGitLabFields } from "./utils/redact-sensitive.js";
 import {
   cleanMutuallyExclusiveIdUsernameOptions,
   LIST_MERGE_REQUESTS_ID_USERNAME_PAIRS,
@@ -10029,9 +10030,10 @@ async function handleToolCall(params: any) {
 
         await handleGitLabError(response);
         const data = await response.json();
-        // Return raw data without parsing through our schema to avoid type mismatches in tests
+        // Return raw data without parsing through our schema to avoid type mismatches in tests,
+        // but strip credential fields (e.g. runners_token) so they never reach the AI context.
         return {
-          content: [{ type: "text", text: JSON.stringify(data) }],
+          content: [{ type: "text", text: JSON.stringify(redactSensitiveGitLabFields(data)) }],
         };
       }
 
@@ -10062,7 +10064,9 @@ async function handleToolCall(params: any) {
         await handleGitLabError(response);
         const data = await response.json();
         return {
-          content: [{ type: "text", text: JSON.stringify(data, null, 2) }],
+          content: [
+            { type: "text", text: JSON.stringify(redactSensitiveGitLabFields(data), null, 2) },
+          ],
         };
       }
 
