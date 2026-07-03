@@ -106,6 +106,20 @@ describe("Streamable HTTP unauthenticated tool discovery", { timeout: 20_000 }, 
     assert.strictEqual(initResponse.sessionId, null);
   });
 
+  test("rejects invalid auth headers even when unauthenticated discovery is enabled", async () => {
+    const { server, mcpUrl } = await launchRemoteAuthServer({
+      GITLAB_ALLOW_UNAUTHENTICATED_TOOL_DISCOVERY: "true",
+    });
+    servers.push(server);
+
+    const initResponse = await rawMcpRequest(mcpUrl, initializeBody, {
+      Authorization: "Bearer definitely-not-valid",
+    });
+
+    assert.strictEqual(initResponse.status, 401, initResponse.text);
+    assert.strictEqual(initResponse.sessionId, null);
+  });
+
   test("allows unauthenticated tools/list when explicitly enabled", async () => {
     const { server, mcpUrl } = await launchRemoteAuthServer({
       GITLAB_ALLOW_UNAUTHENTICATED_TOOL_DISCOVERY: "true",

@@ -418,6 +418,10 @@ Notes:
 Bearer token required for `/sse` and `/messages`.
 Use this for any SSE deployment.
 
+When SSE runs behind a reverse proxy on a different public hostname, also set
+`MCP_SERVER_URL` to the external URL or enable `MCP_TRUST_PROXY=true` so
+forwarded `Host` / `Origin` headers from the proxy are accepted.
+
 ### `SSE_DANGEROUSLY_ALLOW_UNAUTHENTICATED_REMOTE`
 
 Set to `true` only if you intentionally expose SSE without MCP-layer auth.

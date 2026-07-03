@@ -172,6 +172,17 @@ function buildDownloadUrl(type: string, params: Record<string, string>): string 
   return url.toString();
 }
 
+function isConstantTimeSecretMatch(
+  provided: string | undefined,
+  expected: string | undefined
+): boolean {
+  if (!provided || !expected || provided.length !== expected.length) {
+    return false;
+  }
+
+  return timingSafeEqual(Buffer.from(provided), Buffer.from(expected));
+}
+
 import {
   loadKeyMaterialFromEnv,
   looksLikeStatelessSessionId,
@@ -202,7 +213,10 @@ import { createGitLabOAuthProvider } from "./oauth-proxy.js";
 import { mcpAuthRouter } from "@modelcontextprotocol/sdk/server/auth/router.js";
 import { ipKeyGenerator } from "express-rate-limit";
 import { normalizeProxyClientIpForRateLimit } from "./utils/proxy-client-ip.js";
-import { getForwardedPublicBaseUrl } from "./utils/forwarded-public-base-url.js";
+import {
+  getForwardedPublicBaseUrl,
+  getForwardedRequestHost,
+} from "./utils/forwarded-public-base-url.js";
 import { normalizeGitLabApiUrl } from "./utils/url.js";
 import {
   estimateMergeCommitCount,
@@ -578,7 +592,14 @@ import {
   HealthCheckSchema,
 } from "./schemas.js";
 
-import { randomUUID, createCipheriv, createDecipheriv, randomBytes, createHash } from "node:crypto";
+import {
+  randomUUID,
+  createCipheriv,
+  createDecipheriv,
+  randomBytes,
+  createHash,
+  timingSafeEqual,
+} from "node:crypto";
 import { pino } from "pino";
 
 const logger = pino({
@@ -7205,8 +7226,8 @@ async function getPipelineJobOutput(
   const maxLines = Math.min(limit || MAX_JOB_TRACE_LINES, MAX_JOB_TRACE_LINES);
 
   // Return lines from the end, skipping offset lines and limiting to maxLines
-  const startIndex = Math.max(0, lines.length - startOffset - maxLines);
-  const endIndex = lines.length - startOffset;
+  const endIndex = Math.max(0, lines.length - startOffset);
+  const startIndex = Math.max(0, endIndex - maxLines);
 
   const selectedLines = lines.slice(startIndex, endIndex);
   const result = selectedLines.join("\n");
@@ -12301,7 +12322,7 @@ async function startSSEServer(): Promise<void> {
     if (!sseAuthToken) return next();
 
     const match = /^Bearer\s+(\S+)$/i.exec(req.headers.authorization || "");
-    if (match?.[1] === sseAuthToken) return next();
+    if (isConstantTimeSecretMatch(match?.[1], sseAuthToken)) return next();
 
     res.status(401).json({ error: "SSE authentication required" });
   };
@@ -12314,9 +12335,24 @@ async function startSSEServer(): Promise<void> {
   ]);
   if (MCP_SERVER_URL) allowedHosts.add(new URL(MCP_SERVER_URL).host);
 
+  const getEffectiveAllowedHosts = (req: Request): Set<string> => {
+    const effectiveHosts = new Set(allowedHosts);
+    if (MCP_TRUST_PROXY) {
+      const forwardedHost = getForwardedRequestHost(req, true);
+      if (forwardedHost) {
+        effectiveHosts.add(forwardedHost);
+      }
+    }
+    return effectiveHosts;
+  };
+
   const rejectDnsRebinding = (req: Request, res: Response, next: NextFunction) => {
+    const effectiveHosts = getEffectiveAllowedHosts(req);
     const host = req.headers.host;
-    if (!host || !allowedHosts.has(host)) {
+    const forwardedHost = MCP_TRUST_PROXY ? getForwardedRequestHost(req, true) : undefined;
+    const requestHosts = [host, forwardedHost].filter((value): value is string => Boolean(value));
+
+    if (requestHosts.length === 0 || !requestHosts.some(requestHost => effectiveHosts.has(requestHost))) {
       res.status(403).json({ error: "Invalid Host header" });
       return;
     }
@@ -12324,7 +12360,7 @@ async function startSSEServer(): Promise<void> {
     const origin = req.headers.origin;
     if (origin) {
       try {
-        if (!allowedHosts.has(new URL(origin).host)) {
+        if (!effectiveHosts.has(new URL(origin).host)) {
           res.status(403).json({ error: "Invalid Origin header" });
           return;
         }
@@ -12340,12 +12376,13 @@ async function startSSEServer(): Promise<void> {
   const transports: { [sessionId: string]: SSEServerTransport } = {};
   let shuttingDown = false;
 
-  app.get("/sse", rejectDnsRebinding, requireSseAuth, async (_: Request, res: Response) => {
+  app.get("/sse", rejectDnsRebinding, requireSseAuth, async (req: Request, res: Response) => {
     const serverInstance = createServer();
+    const effectiveHosts = getEffectiveAllowedHosts(req);
     const transport = new SSEServerTransport("/messages", res, {
       enableDnsRebindingProtection: true,
-      allowedHosts: [...allowedHosts],
-      allowedOrigins: [...allowedHosts].flatMap(host => [`http://${host}`, `https://${host}`]),
+      allowedHosts: [...effectiveHosts],
+      allowedOrigins: [...effectiveHosts].flatMap(host => [`http://${host}`, `https://${host}`]),
     });
     transports[transport.sessionId] = transport;
     res.on("close", () => {
@@ -12960,7 +12997,7 @@ async function startStreamableHTTPServer(): Promise<void> {
     : undefined;
   const staticMcpBearerAuth = (req: Request, res: Response, next: NextFunction) => {
     const match = /^Bearer\s+(\S+)$/i.exec(req.headers.authorization || "");
-    if (match?.[1] === STREAMABLE_HTTP_AUTH_TOKEN) {
+    if (isConstantTimeSecretMatch(match?.[1], STREAMABLE_HTTP_AUTH_TOKEN)) {
       next();
       return;
     }

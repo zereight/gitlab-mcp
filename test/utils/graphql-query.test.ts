@@ -28,6 +28,15 @@ describe("When graphqlQueryContainsWriteOperation runs", () => {
         false
       );
     });
+
+    test("should ignore escaped triple quotes inside block strings", () => {
+      assert.equal(
+        graphqlQueryContainsWriteOperation(
+          'query { project(fullPath: """contains \\""" not a mutation""") { id } }'
+        ),
+        false
+      );
+    });
   });
 
   describe("with write GraphQL documents", () => {

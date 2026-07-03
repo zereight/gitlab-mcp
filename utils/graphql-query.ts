@@ -16,6 +16,10 @@ function stripGraphQLCommentsAndStrings(source: string): string {
     if (source.slice(i, i + 3) === '"""') {
       i += 3;
       while (i < source.length && source.slice(i, i + 3) !== '"""') {
+        if (source[i] === "\\" && source.slice(i, i + 4) === '\\"""') {
+          i += 4;
+          continue;
+        }
         i++;
       }
       if (i < source.length) {

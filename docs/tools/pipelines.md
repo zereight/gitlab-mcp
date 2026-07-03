@@ -176,7 +176,7 @@ Get details of a GitLab pipeline job number
 |---|---|:-:|---|
 | `project_id` | string | ✓ | Project ID or URL-encoded path |
 | `job_id` | string | ✓ | The ID of the job |
-| `limit` | number |  | Maximum number of lines to return from the end of the log (default: 1000) |
+| `limit` | number |  | Maximum number of lines to return from the end of the log (default/max: 1000) |
 | `offset` | number |  | Number of lines to skip from the end of the log (default: 0) |
 
 ### `get_pipeline_job_output`
@@ -191,7 +191,7 @@ Get the output/trace of a pipeline job with optional pagination
 |---|---|:-:|---|
 | `project_id` | string | ✓ | Project ID or URL-encoded path |
 | `job_id` | string | ✓ | The ID of the job |
-| `limit` | number |  | Maximum number of lines to return from the end of the log (default: 1000) |
+| `limit` | number |  | Maximum number of lines to return from the end of the log (default/max: 1000) |
 | `offset` | number |  | Number of lines to skip from the end of the log (default: 0) |
 
 ### `create_pipeline`
