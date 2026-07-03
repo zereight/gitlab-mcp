@@ -94,11 +94,18 @@ npm install -g @zereight/mcp-gitlab
 - `--token` - GitLab Personal Access Token（替代 `GITLAB_PERSONAL_ACCESS_TOKEN`）
 - `--api-url` - GitLab API URL（替代 `GITLAB_API_URL`）
 - `--read-only=true` - 启用只读模式（替代 `GITLAB_READ_ONLY_MODE`）
-- `--use-wiki=true` - 启用 Wiki API（替代 `USE_GITLAB_WIKI`）
-- `--use-milestone=true` - 启用里程碑 API（替代 `USE_MILESTONE`）
-- `--use-pipeline=true` - 启用流水线 API（替代 `USE_PIPELINE`）
+- `--use-wiki=true` - 启用 Wiki API（替代 `USE_GITLAB_WIKI`，旧版 — 推荐 `GITLAB_TOOLSETS=wiki`）
+- `--use-milestone=true` - 启用里程碑 API（替代 `USE_MILESTONE`，旧版 — 推荐 `GITLAB_TOOLSETS=milestones`）
+- `--use-pipeline=true` - 启用流水线 API（替代 `USE_PIPELINE`，旧版 — 推荐 `GITLAB_TOOLSETS=pipelines`）
 
 CLI 参数优先于环境变量。
+
+> **细粒度工具过滤：**除了全开/全关的 `GITLAB_READ_ONLY_MODE`，还可以用
+> `GITLAB_TOOLSETS=<group,…>` 启用工具分组，用 `GITLAB_TOOLS=<tool,…>` 白名单启用单个工具
+> （例如：只读分组 + 少数几个写工具），用 `GITLAB_DENIED_TOOLS_REGEX` 按正则屏蔽工具。
+> 旧版 `USE_GITLAB_WIKI` / `USE_MILESTONE` / `USE_PIPELINE` 标志仅为向后兼容保留。
+> 参见 [Tools Reference](./docs/tools/index.md#feature-toggles) 和
+> [Environment Variables](./docs/configuration/environment-variables.md)。
 
 #### SSE
 
@@ -108,9 +115,7 @@ docker run -i --rm \
   -e GITLAB_PERSONAL_ACCESS_TOKEN=your_gitlab_token \
   -e GITLAB_API_URL="https://gitlab.com/api/v4" \
   -e GITLAB_READ_ONLY_MODE=true \
-  -e USE_GITLAB_WIKI=true \
-  -e USE_MILESTONE=true \
-  -e USE_PIPELINE=true \
+  -e GITLAB_TOOLSETS=wiki,milestones,pipelines \
   -e SSE=true \
   -p 3333:3002 \
   zereight050/gitlab-mcp
@@ -135,9 +140,7 @@ docker run -i --rm \
   -e GITLAB_PERSONAL_ACCESS_TOKEN=your_gitlab_token \
   -e GITLAB_API_URL="https://gitlab.com/api/v4" \
   -e GITLAB_READ_ONLY_MODE=true \
-  -e USE_GITLAB_WIKI=true \
-  -e USE_MILESTONE=true \
-  -e USE_PIPELINE=true \
+  -e GITLAB_TOOLSETS=wiki,milestones,pipelines \
   -e STREAMABLE_HTTP=true \
   -p 3333:3002 \
   zereight050/gitlab-mcp

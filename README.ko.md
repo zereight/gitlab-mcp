@@ -94,11 +94,18 @@ npm install -g @zereight/mcp-gitlab
 - `--token` - GitLab Personal Access Token (`GITLAB_PERSONAL_ACCESS_TOKEN` 대체)
 - `--api-url` - GitLab API URL (`GITLAB_API_URL` 대체)
 - `--read-only=true` - 읽기 전용 모드 활성화 (`GITLAB_READ_ONLY_MODE` 대체)
-- `--use-wiki=true` - 위키 API 활성화 (`USE_GITLAB_WIKI` 대체)
-- `--use-milestone=true` - 마일스톤 API 활성화 (`USE_MILESTONE` 대체)
-- `--use-pipeline=true` - 파이프라인 API 활성화 (`USE_PIPELINE` 대체)
+- `--use-wiki=true` - 위키 API 활성화 (`USE_GITLAB_WIKI` 대체, 레거시 — `GITLAB_TOOLSETS=wiki` 권장)
+- `--use-milestone=true` - 마일스톤 API 활성화 (`USE_MILESTONE` 대체, 레거시 — `GITLAB_TOOLSETS=milestones` 권장)
+- `--use-pipeline=true` - 파이프라인 API 활성화 (`USE_PIPELINE` 대체, 레거시 — `GITLAB_TOOLSETS=pipelines` 권장)
 
 CLI 인자는 환경 변수보다 우선합니다.
+
+> **세밀한 도구 필터링:** 전체 on/off 방식인 `GITLAB_READ_ONLY_MODE` 외에도,
+> `GITLAB_TOOLSETS=<group,…>`로 도구 그룹을 활성화하고, `GITLAB_TOOLS=<tool,…>`로 개별 도구만
+> 허용하며(예: 읽기 도구 + 특정 쓰기 도구 몇 개), `GITLAB_DENIED_TOOLS_REGEX`로 패턴 차단할 수
+> 있습니다. 레거시 `USE_GITLAB_WIKI` / `USE_MILESTONE` / `USE_PIPELINE` 플래그는 하위 호환용으로만
+> 유지됩니다. [Tools Reference](./docs/tools/index.md#feature-toggles)와
+> [Environment Variables](./docs/configuration/environment-variables.md)를 참고하세요.
 
 #### SSE
 
@@ -108,9 +115,7 @@ docker run -i --rm \
   -e GITLAB_PERSONAL_ACCESS_TOKEN=your_gitlab_token \
   -e GITLAB_API_URL="https://gitlab.com/api/v4" \
   -e GITLAB_READ_ONLY_MODE=true \
-  -e USE_GITLAB_WIKI=true \
-  -e USE_MILESTONE=true \
-  -e USE_PIPELINE=true \
+  -e GITLAB_TOOLSETS=wiki,milestones,pipelines \
   -e SSE=true \
   -p 3333:3002 \
   zereight050/gitlab-mcp
@@ -135,9 +140,7 @@ docker run -i --rm \
   -e GITLAB_PERSONAL_ACCESS_TOKEN=your_gitlab_token \
   -e GITLAB_API_URL="https://gitlab.com/api/v4" \
   -e GITLAB_READ_ONLY_MODE=true \
-  -e USE_GITLAB_WIKI=true \
-  -e USE_MILESTONE=true \
-  -e USE_PIPELINE=true \
+  -e GITLAB_TOOLSETS=wiki,milestones,pipelines \
   -e STREAMABLE_HTTP=true \
   -p 3333:3002 \
   zereight050/gitlab-mcp

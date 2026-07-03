@@ -98,11 +98,19 @@ Some MCP clients (like GitHub Copilot CLI) have issues with environment variable
 - `--token` - GitLab Personal Access Token (replaces `GITLAB_PERSONAL_ACCESS_TOKEN`)
 - `--api-url` - GitLab API URL (replaces `GITLAB_API_URL`)
 - `--read-only=true` - Enable read-only mode (replaces `GITLAB_READ_ONLY_MODE`)
-- `--use-wiki=true` - Enable wiki API (replaces `USE_GITLAB_WIKI`)
-- `--use-milestone=true` - Enable milestone API (replaces `USE_MILESTONE`)
-- `--use-pipeline=true` - Enable pipeline API (replaces `USE_PIPELINE`)
+- `--use-wiki=true` - Enable wiki API (replaces `USE_GITLAB_WIKI`, legacy — prefer `GITLAB_TOOLSETS=wiki`)
+- `--use-milestone=true` - Enable milestone API (replaces `USE_MILESTONE`, legacy — prefer `GITLAB_TOOLSETS=milestones`)
+- `--use-pipeline=true` - Enable pipeline API (replaces `USE_PIPELINE`, legacy — prefer `GITLAB_TOOLSETS=pipelines`)
 
 CLI arguments take precedence over environment variables.
+
+> **Fine-grained tool filtering:** beyond the all-or-nothing `GITLAB_READ_ONLY_MODE`, you can
+> enable toolset groups with `GITLAB_TOOLSETS=<group,…>`, allow-list individual tools with
+> `GITLAB_TOOLS=<tool,…>` (e.g. read-only groups plus a few specific write tools), and
+> deny-list by pattern with `GITLAB_DENIED_TOOLS_REGEX`. The legacy `USE_GITLAB_WIKI` /
+> `USE_MILESTONE` / `USE_PIPELINE` flags are kept for backward compatibility only.
+> See [Tools Reference](./docs/tools/index.md#feature-toggles) and
+> [Environment Variables](./docs/configuration/environment-variables.md).
 
 - sse
 
@@ -112,9 +120,7 @@ docker run -i --rm \
   -e GITLAB_PERSONAL_ACCESS_TOKEN=your_gitlab_token \
   -e GITLAB_API_URL="https://gitlab.com/api/v4" \
   -e GITLAB_READ_ONLY_MODE=true \
-  -e USE_GITLAB_WIKI=true \
-  -e USE_MILESTONE=true \
-  -e USE_PIPELINE=true \
+  -e GITLAB_TOOLSETS=wiki,milestones,pipelines \
   -e SSE=true \
   -e SSE_AUTH_TOKEN=your_mcp_sse_token \
   -p 3333:3002 \
@@ -143,9 +149,7 @@ docker run -i --rm \
   -e REMOTE_AUTHORIZATION=true \
   -e GITLAB_API_URL="https://gitlab.com/api/v4" \
   -e GITLAB_READ_ONLY_MODE=true \
-  -e USE_GITLAB_WIKI=true \
-  -e USE_MILESTONE=true \
-  -e USE_PIPELINE=true \
+  -e GITLAB_TOOLSETS=wiki,milestones,pipelines \
   -e STREAMABLE_HTTP=true \
   -p 3333:3002 \
   zereight050/gitlab-mcp

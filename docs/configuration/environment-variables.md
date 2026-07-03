@@ -374,15 +374,19 @@ Examples:
 
 ### `USE_GITLAB_WIKI`
 
-Legacy additive flag for wiki-related tools.
+Legacy additive flag for wiki-related tools. Prefer `GITLAB_TOOLSETS=wiki`.
 
 ### `USE_MILESTONE`
 
-Legacy additive flag for milestone-related tools.
+Legacy additive flag for milestone-related tools. Prefer `GITLAB_TOOLSETS=milestones`.
 
 ### `USE_PIPELINE`
 
-Legacy additive flag for pipeline-related tools.
+Legacy additive flag for pipeline-related tools. Prefer `GITLAB_TOOLSETS=pipelines`.
+
+> **Deprecation notice:** The `USE_*` flags are kept for backward compatibility only and cover
+> just three toolsets. Use `GITLAB_TOOLSETS` (groups) and `GITLAB_TOOLS` (individual tools)
+> instead.
 
 ## Transport and Server Runtime
 
