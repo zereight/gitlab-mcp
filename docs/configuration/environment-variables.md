@@ -394,6 +394,16 @@ Legacy additive flag for pipeline-related tools. Prefer `GITLAB_TOOLSETS=pipelin
 
 Set to `true` to run the Streamable HTTP transport.
 
+When using server-side GitLab credentials (`GITLAB_PERSONAL_ACCESS_TOKEN`,
+`GITLAB_JOB_TOKEN`, `GITLAB_AUTH_COOKIE_PATH`, or `GITLAB_USE_OAUTH`), also set
+one MCP-layer auth mode: `REMOTE_AUTHORIZATION=true`, `GITLAB_MCP_OAUTH=true`,
+or `STREAMABLE_HTTP_AUTH_TOKEN`.
+
+### `STREAMABLE_HTTP_AUTH_TOKEN`
+
+Bearer token required on `/mcp` when Streamable HTTP uses server-side GitLab
+credentials without `REMOTE_AUTHORIZATION` or `GITLAB_MCP_OAUTH`.
+
 ### `SSE`
 
 Set to `true` to run the legacy SSE transport.
@@ -401,12 +411,12 @@ Set to `true` to run the legacy SSE transport.
 Notes:
 
 - Not compatible with `REMOTE_AUTHORIZATION=true`
-- If `HOST` is not loopback, startup requires `SSE_AUTH_TOKEN` unless you explicitly set `SSE_DANGEROUSLY_ALLOW_UNAUTHENTICATED_REMOTE=true`
+- Startup requires `SSE_AUTH_TOKEN` unless you explicitly set `SSE_DANGEROUSLY_ALLOW_UNAUTHENTICATED_REMOTE=true`
 
 ### `SSE_AUTH_TOKEN`
 
-Bearer token required for `/sse` and `/messages` when configured.
-Use this for any network-reachable SSE deployment.
+Bearer token required for `/sse` and `/messages`.
+Use this for any SSE deployment.
 
 ### `SSE_DANGEROUSLY_ALLOW_UNAUTHENTICATED_REMOTE`
 

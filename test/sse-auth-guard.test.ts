@@ -6,7 +6,7 @@ import * as path from "node:path";
 import { findAvailablePort } from "./utils/server-launcher.js";
 
 const ERROR_MESSAGE =
-  "SSE=true on a non-loopback HOST requires SSE_AUTH_TOKEN (or explicitly set SSE_DANGEROUSLY_ALLOW_UNAUTHENTICATED_REMOTE=true)";
+  "SSE=true requires SSE_AUTH_TOKEN (or explicitly set SSE_DANGEROUSLY_ALLOW_UNAUTHENTICATED_REMOTE=true)";
 const LOOPBACK = "127.0.0.1";
 const SERVER_PATH = path.resolve(process.cwd(), "build/index.js");
 
@@ -87,7 +87,7 @@ afterEach(() => {
 });
 
 describe("SSE remote auth guard", () => {
-  test("refuses unauthenticated SSE on non-loopback hosts", async () => {
+  test("refuses unauthenticated SSE", async () => {
     const port = await findAvailablePort(4400);
     const child = startSseServer({}, port);
 

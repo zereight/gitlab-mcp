@@ -13,6 +13,18 @@ function stripGraphQLCommentsAndStrings(source: string): string {
       continue;
     }
 
+    if (source.slice(i, i + 3) === '"""') {
+      i += 3;
+      while (i < source.length && source.slice(i, i + 3) !== '"""') {
+        i++;
+      }
+      if (i < source.length) {
+        i += 3;
+      }
+      result += " ";
+      continue;
+    }
+
     if (ch === '"' || ch === "'") {
       const quote = ch;
       i++;
@@ -31,18 +43,6 @@ function stripGraphQLCommentsAndStrings(source: string): string {
       continue;
     }
 
-    if (source.slice(i, i + 3) === '"""') {
-      i += 3;
-      while (i < source.length && source.slice(i, i + 3) !== '"""') {
-        i++;
-      }
-      if (i < source.length) {
-        i += 3;
-      }
-      result += " ";
-      continue;
-    }
-
     result += ch;
     i++;
   }
@@ -56,5 +56,5 @@ export function graphqlQueryContainsWriteOperation(query: string): boolean {
     return false;
   }
 
-  return /(?:^|[};]\s*)(mutation|subscription)\b/.test(normalized);
+  return /(?:^|[};,]\s*)(mutation|subscription)\b/.test(normalized);
 }

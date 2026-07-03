@@ -60,5 +60,14 @@ describe("When graphqlQueryContainsWriteOperation runs", () => {
         true
       );
     });
+
+    test("should detect comma-prefixed write operations", () => {
+      assert.equal(
+        graphqlQueryContainsWriteOperation(
+          ",mutation { destroyProject(input: { projectId: 1 }) { errors } }"
+        ),
+        true
+      );
+    });
   });
 });

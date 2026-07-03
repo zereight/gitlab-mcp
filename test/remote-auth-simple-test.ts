@@ -114,6 +114,33 @@ describe('Remote Authorization - Basic Functionality', () => {
     }
   });
 
+  test('should reject invalid tokens before creating a session', async () => {
+    const before = await getMetrics(mcpUrl);
+    const response = await fetch(mcpUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json, text/event-stream',
+        'Private-Token': 'aaaaaaaaaaaaaaaaaaaaaaaa',
+      },
+      body: JSON.stringify({
+        jsonrpc: '2.0',
+        id: 1,
+        method: 'initialize',
+        params: {
+          protocolVersion: '2025-03-26',
+          capabilities: {},
+          clientInfo: { name: 'invalid-token-test', version: '1.0.0' },
+        },
+      }),
+    });
+
+    assert.strictEqual(response.status, 401);
+    const after = await getMetrics(mcpUrl);
+    assert.strictEqual(after.activeSessions, before.activeSessions);
+    assert.strictEqual(after.authenticatedSessions, before.authenticatedSessions);
+  });
+
   test('should connect with Authorization Bearer header', async () => {
     const client = new CustomHeaderClient({
       'authorization': `Bearer ${MOCK_TOKEN}`
