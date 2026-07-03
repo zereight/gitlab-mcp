@@ -6647,6 +6647,8 @@ async function listWikiPages(
   if (options.per_page) url.searchParams.append("per_page", options.per_page.toString());
   if (options.with_content)
     url.searchParams.append("with_content", options.with_content.toString());
+  if (options.render_html)
+    url.searchParams.append("render_html", options.render_html.toString());
   const response = await fetch(url.toString(), {
     ...getFetchConfig(),
   });
@@ -6658,12 +6660,17 @@ async function listWikiPages(
 /**
  * Get a specific wiki page
  */
-async function getWikiPage(projectId: string, slug: string): Promise<GitLabWikiPage> {
+async function getWikiPage(
+  projectId: string,
+  slug: string,
+  renderHtml?: boolean
+): Promise<GitLabWikiPage> {
   projectId = decodeURIComponent(projectId); // Decode project ID
-  const response = await fetch(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/wikis/${encodeURIComponent(slug)}`,
-    { ...getFetchConfig() }
+  const url = new URL(
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/wikis/${encodeURIComponent(slug)}`
   );
+  if (renderHtml) url.searchParams.append("render_html", renderHtml.toString());
+  const response = await fetch(url.toString(), { ...getFetchConfig() });
   await handleGitLabError(response);
   const data = await response.json();
   return GitLabWikiPageSchema.parse(data);
@@ -6757,6 +6764,8 @@ async function listGroupWikiPages(
   if (options.per_page) url.searchParams.append("per_page", options.per_page.toString());
   if (options.with_content)
     url.searchParams.append("with_content", options.with_content.toString());
+  if (options.render_html)
+    url.searchParams.append("render_html", options.render_html.toString());
   const response = await fetch(url.toString(), {
     ...getFetchConfig(),
   });
@@ -6768,12 +6777,17 @@ async function listGroupWikiPages(
 /**
  * Get a specific group wiki page
  */
-async function getGroupWikiPage(groupId: string, slug: string): Promise<GitLabWikiPage> {
+async function getGroupWikiPage(
+  groupId: string,
+  slug: string,
+  renderHtml?: boolean
+): Promise<GitLabWikiPage> {
   groupId = decodeURIComponent(groupId); // Decode group ID
-  const response = await fetch(
-    `${getEffectiveApiUrl()}/groups/${encodeURIComponent(groupId)}/wikis/${encodeURIComponent(slug)}`,
-    { ...getFetchConfig() }
+  const url = new URL(
+    `${getEffectiveApiUrl()}/groups/${encodeURIComponent(groupId)}/wikis/${encodeURIComponent(slug)}`
   );
+  if (renderHtml) url.searchParams.append("render_html", renderHtml.toString());
+  const response = await fetch(url.toString(), { ...getFetchConfig() });
   await handleGitLabError(response);
   const data = await response.json();
   return GitLabWikiPageSchema.parse(data);
@@ -10657,13 +10671,13 @@ async function handleToolCall(params: any) {
       }
 
       case "list_wiki_pages": {
-        const { project_id, page, per_page, with_content } = ListWikiPagesSchema.parse(
-          params.arguments
-        );
+        const { project_id, page, per_page, with_content, render_html } =
+          ListWikiPagesSchema.parse(params.arguments);
         const wikiPages = await listWikiPages(project_id, {
           page,
           per_page,
           with_content,
+          render_html,
         });
         return {
           content: [{ type: "text", text: JSON.stringify(wikiPages) }],
@@ -10671,8 +10685,8 @@ async function handleToolCall(params: any) {
       }
 
       case "get_wiki_page": {
-        const { project_id, slug } = GetWikiPageSchema.parse(params.arguments);
-        const wikiPage = await getWikiPage(project_id, slug);
+        const { project_id, slug, render_html } = GetWikiPageSchema.parse(params.arguments);
+        const wikiPage = await getWikiPage(project_id, slug, render_html);
         return {
           content: [{ type: "text", text: JSON.stringify(wikiPage) }],
         };
@@ -10717,13 +10731,13 @@ async function handleToolCall(params: any) {
       }
 
       case "list_group_wiki_pages": {
-        const { group_id, page, per_page, with_content } = ListGroupWikiPagesSchema.parse(
-          params.arguments
-        );
+        const { group_id, page, per_page, with_content, render_html } =
+          ListGroupWikiPagesSchema.parse(params.arguments);
         const wikiPages = await listGroupWikiPages(group_id, {
           page,
           per_page,
           with_content,
+          render_html,
         });
         return {
           content: [{ type: "text", text: JSON.stringify(wikiPages) }],
@@ -10731,8 +10745,8 @@ async function handleToolCall(params: any) {
       }
 
       case "get_group_wiki_page": {
-        const { group_id, slug } = GetGroupWikiPageSchema.parse(params.arguments);
-        const wikiPage = await getGroupWikiPage(group_id, slug);
+        const { group_id, slug, render_html } = GetGroupWikiPageSchema.parse(params.arguments);
+        const wikiPage = await getGroupWikiPage(group_id, slug, render_html);
         return {
           content: [{ type: "text", text: JSON.stringify(wikiPage) }],
         };
