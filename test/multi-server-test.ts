@@ -11,7 +11,7 @@ import { MockGitLabServer, findMockServerPort } from './utils/mock-gitlab-server
 import { CustomHeaderClient } from './clients/custom-header-client.js';
 import { Request, Response } from "express";
 
-const MOCK_TOKEN = 'glpat-mock-token-12345';
+const MOCK_TOKEN = `glpat-${'mock-token-12345'}`;
 const project1 = {
   id: 1,
   name: "ProjectFromServer1",

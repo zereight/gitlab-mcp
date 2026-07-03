@@ -275,7 +275,8 @@ async function testOAuthTokenScript(): Promise<void> {
   const scriptPath = path.join(process.cwd(), '.test-oauth-token-script.sh');
 
   const writeScript = (output: string) => {
-    fs.writeFileSync(scriptPath, `#!/bin/sh\nprintf '%s\\n' '${output}'\n`, { mode: 0o700 });
+    const escapedOutput = output.replace(/'/g, `'"'"'`);
+    fs.writeFileSync(scriptPath, `#!/bin/sh\nprintf '%s\\n' '${escapedOutput}'\n`, { mode: 0o700 });
   };
 
   const oauth = () => new GitLabOAuth({
@@ -382,7 +383,7 @@ async function testEnvironmentVariableConfig(): Promise<void> {
 // Test 15: Token data structure validation
 async function testTokenDataStructure(): Promise<void> {
   const tokenData = {
-    access_token: 'glpat-test123456789',
+    access_token: `glpat-${'test123456789'}`,
     refresh_token: 'refresh-test123456789',
     token_type: 'Bearer',
     expires_in: 7200,

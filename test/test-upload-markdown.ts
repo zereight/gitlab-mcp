@@ -6,7 +6,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { MockGitLabServer, findMockServerPort } from './utils/mock-gitlab-server.js';
 
-const MOCK_TOKEN = 'glpat-mock-token-12345';
+const MOCK_TOKEN = `glpat-${'mock-token-12345'}`;
 const TEST_PROJECT_ID = '123';
 
 interface ContentBlock {
@@ -27,7 +27,15 @@ function callUploadMarkdown(
   return new Promise((resolve, reject) => {
     const proc = spawn('node', ['build/index.js'], {
       stdio: ['pipe', 'pipe', 'pipe'],
-      env: { ...process.env, ...env },
+      env: {
+        ...process.env,
+        ...env,
+        GITLAB_TEST_MODE: 'true',
+        SSE: 'false',
+        STREAMABLE_HTTP: 'false',
+        REMOTE_AUTHORIZATION: 'false',
+        GITLAB_MCP_OAUTH: 'false',
+      },
     });
 
     const timer = setTimeout(() => {

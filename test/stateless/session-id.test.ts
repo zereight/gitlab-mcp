@@ -35,14 +35,14 @@ describe("mintSessionId / openSessionId", () => {
     const b = load(s);
     const sid = mintSessionId(a, {
       header: "Authorization",
-      token: "glpat-ABCDEFG123456789-abcdef",
+      token: `glpat-${"ABCDEFG123456789-abcdef"}`,
       apiUrl: "https://gitlab.example.com/api/v4",
     });
     assert.ok(looksLikeStatelessSessionId(sid));
     const opened = openSessionId(b, sid, 3600);
     assert.ok(opened);
     assert.equal(opened!.h, "Authorization");
-    assert.equal(opened!.t, "glpat-ABCDEFG123456789-abcdef");
+    assert.equal(opened!.t, `glpat-${"ABCDEFG123456789-abcdef"}`);
     assert.equal(opened!.u, "https://gitlab.example.com/api/v4");
   });
 

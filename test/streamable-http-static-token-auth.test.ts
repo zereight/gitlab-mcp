@@ -6,7 +6,7 @@ import * as path from "node:path";
 import { findAvailablePort } from "./utils/server-launcher.js";
 
 const ERROR_MESSAGE =
-  "STREAMABLE_HTTP=true/--streamable-http with GITLAB_PERSONAL_ACCESS_TOKEN/--token or GITLAB_JOB_TOKEN/--job-token requires REMOTE_AUTHORIZATION=true/--remote-auth=true or GITLAB_MCP_OAUTH=true/--mcp-oauth=true";
+  "STREAMABLE_HTTP=true/--streamable-http with GITLAB_PERSONAL_ACCESS_TOKEN/--token, GITLAB_JOB_TOKEN/--job-token, or a saved persistent instance requires REMOTE_AUTHORIZATION=true/--remote-auth=true or GITLAB_MCP_OAUTH=true/--mcp-oauth=true";
 
 const HOST = process.env.HOST || "127.0.0.1";
 const SERVER_PATH = path.resolve(process.cwd(), "build/index.js");
@@ -20,6 +20,7 @@ function startServer(env: Record<string, string>, port: number) {
       GITLAB_API_URL: "https://gitlab.example.com",
       HOST,
       PORT: String(port),
+      SSE: "false",
       STREAMABLE_HTTP: "true",
       REMOTE_AUTHORIZATION: "false",
       GITLAB_MCP_OAUTH: "false",

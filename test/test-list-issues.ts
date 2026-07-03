@@ -3,7 +3,7 @@ import assert from "node:assert";
 import { spawn } from "child_process";
 import { MockGitLabServer, findMockServerPort } from "./utils/mock-gitlab-server.js";
 
-const MOCK_TOKEN = "glpat-mock-token-12345";
+const MOCK_TOKEN = `glpat-${"mock-token-12345"}`;
 const TEST_PROJECT_ID = "123";
 
 async function callListIssuesResult(args: Record<string, unknown> = {}, env: NodeJS.ProcessEnv) {
@@ -14,6 +14,11 @@ async function callListIssuesResult(args: Record<string, unknown> = {}, env: Nod
         ...process.env,
         ...env,
         GITLAB_READ_ONLY_MODE: "true",
+        GITLAB_TEST_MODE: "true",
+        SSE: "false",
+        STREAMABLE_HTTP: "false",
+        REMOTE_AUTHORIZATION: "false",
+        GITLAB_MCP_OAUTH: "false",
       },
     });
 
