@@ -44,15 +44,15 @@ export const GITLAB_READ_ONLY_MODE = getConfig("read-only", "GITLAB_READ_ONLY_MO
 export type GitLabPermissionMode = "readonly" | "modify" | "full";
 const PERMISSION_MODES: readonly GitLabPermissionMode[] = ["readonly", "modify", "full"];
 export const GITLAB_PERMISSION_MODE: GitLabPermissionMode = (() => {
+  // Legacy GITLAB_READ_ONLY_MODE=true always wins (most restrictive)
+  if (GITLAB_READ_ONLY_MODE) {
+    return "readonly";
+  }
   const raw = getConfig("permission-mode", "GITLAB_PERMISSION_MODE");
   if (raw !== undefined && !PERMISSION_MODES.includes(raw as GitLabPermissionMode)) {
     throw new Error(
       `Invalid GITLAB_PERMISSION_MODE: "${raw}". Expected one of: ${PERMISSION_MODES.join(", ")}`
     );
-  }
-  // Legacy GITLAB_READ_ONLY_MODE=true always wins (most restrictive)
-  if (GITLAB_READ_ONLY_MODE) {
-    return "readonly";
   }
   return (raw as GitLabPermissionMode | undefined) ?? "full";
 })();
