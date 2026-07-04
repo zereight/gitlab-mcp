@@ -168,6 +168,13 @@ describe("Streamable HTTP DNS rebinding protection", () => {
 
     const bareLoopback = await postMcp(port, { Host: "localhost" });
     assert.equal(bareLoopback.status, 200);
+
+    const loopbackHostBadOrigin = await postMcp(port, {
+      Host: `localhost:${port + 1000}`,
+      Origin: "http://attacker.example.test",
+    });
+    assert.equal(loopbackHostBadOrigin.status, 403);
+    assert.match(loopbackHostBadOrigin.body, /Origin header is not allowed/);
   });
 
   test("allows the configured MCP_SERVER_URL host and origin", async () => {

@@ -457,6 +457,22 @@ npx skills add zereight/gitlab-mcp --skill gitlab-mcp-skill
 
 完整工具列表请参考英文 README 的 [Tools 部分](./README.md#tools-%EF%B8%8F)。当前服务器提供合并请求、议题、流水线、部署、环境、制品、里程碑、Wiki、仓库、发布、用户、事件、work item、webhook、代码搜索和 GraphQL 执行相关工具。
 
+### Wiki 页面标题与 slug
+
+GitLab 会根据 wiki 页面标题推导其 **slug**（即 URL，`/-/wikis/<slug>`）。因此向 `update_wiki_page` / `update_group_wiki_page` 传入 `title` 会**重命名页面并改变其 URL**——对于嵌套页面，还可能把页面移动到不同的路径——从而导致已有链接失效。
+
+若只想修改**显示标题**而保持 URL 不变，请**不要**传入 `title`，而是把显示标题写入页面内容的 YAML front matter 并更新内容：
+
+```markdown
+---
+title: 我的自定义显示标题
+---
+
+页面正文…
+```
+
+GitLab 会保持 slug/URL 不变，并在界面中显示 front matter 中的标题。读取时对 `get_wiki_page` 传入 `render_html: true`，即可填充 `front_matter` 字段——而普通的 `title` 字段始终反映由 slug 推导的值。
+
 ## 测试 🧪
 
 项目包含完整测试覆盖，包括远程授权：
