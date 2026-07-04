@@ -2360,6 +2360,17 @@ export const UpdateIssueSchema = z.object({
       z.enum(["issue", "incident", "test_case", "task"]).optional()
     )
     .describe("The type of issue. One of issue, incident, test_case or task."),
+  full_response: z
+    .preprocess(val => {
+      if (typeof val !== "string") return val;
+      const normalized = val.trim().toLowerCase();
+      if (normalized === "true") return true;
+      if (normalized === "false") return false;
+      return val;
+    }, z.boolean().optional())
+    .describe(
+      "If true, return the complete updated issue object. Default returns a slim confirmation (iid, title, state, web_url, updated_at) to reduce token usage."
+    ),
 });
 
 export const DeleteIssueSchema = z.object({

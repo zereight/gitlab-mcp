@@ -10297,10 +10297,21 @@ async function handleToolCall(params: any) {
 
       case "update_issue": {
         const args = UpdateIssueSchema.parse(params.arguments);
-        const { project_id, issue_iid, ...options } = args;
+        const { project_id, issue_iid, full_response, ...options } = args;
         const issue = await updateIssue(project_id, issue_iid, options);
+        const responseBody = full_response
+          ? issue
+          : {
+              id: issue.id,
+              iid: issue.iid,
+              project_id: issue.project_id,
+              title: issue.title,
+              state: issue.state,
+              updated_at: issue.updated_at,
+              web_url: issue.web_url,
+            };
         return {
-          content: [{ type: "text", text: JSON.stringify(issue) }],
+          content: [{ type: "text", text: JSON.stringify(responseBody) }],
         };
       }
 
