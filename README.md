@@ -702,7 +702,7 @@ Register the skill directory in your AI client to get optimal tool usage guidanc
 
 ### Wiki page titles vs. slugs
 
-GitLab derives a wiki page's **slug** (its URL, `/-/wikis/<slug>`) from the page title. Passing `title` to `update_wiki_page` / `update_group_wiki_page` therefore **renames the page and changes its URL** — for nested pages, only the leaf segment changes — which breaks existing links.
+GitLab derives a wiki page's **slug** (its URL, `/-/wikis/<slug>`) from the page title. Passing `title` to `update_wiki_page` / `update_group_wiki_page` therefore **renames the page and changes its URL** — for nested pages it can also move the page to a different path — which breaks existing links.
 
 To change only the **displayed title** while keeping the URL stable, do **not** pass `title`. Instead, store the display title in the page content's YAML front matter and update the content:
 

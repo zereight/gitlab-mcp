@@ -458,7 +458,7 @@ npx skills add zereight/gitlab-mcp --skill gitlab-mcp-skill
 
 ### Wiki 页面标题与 slug
 
-GitLab 会根据 wiki 页面标题推导其 **slug**（即 URL，`/-/wikis/<slug>`）。因此向 `update_wiki_page` / `update_group_wiki_page` 传入 `title` 会**重命名页面并改变其 URL**——对于嵌套页面，仅叶子段会变——从而导致已有链接失效。
+GitLab 会根据 wiki 页面标题推导其 **slug**（即 URL，`/-/wikis/<slug>`）。因此向 `update_wiki_page` / `update_group_wiki_page` 传入 `title` 会**重命名页面并改变其 URL**——对于嵌套页面，还可能把页面移动到不同的路径——从而导致已有链接失效。
 
 若只想修改**显示标题**而保持 URL 不变，请**不要**传入 `title`，而是把显示标题写入页面内容的 YAML front matter 并更新内容：
 

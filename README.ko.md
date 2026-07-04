@@ -458,7 +458,7 @@ AI 클라이언트에 skill 디렉터리를 등록하면 전체 ListTools 응답
 
 ### Wiki 페이지 제목과 slug
 
-GitLab은 wiki 페이지 제목에서 **slug**(URL, `/-/wikis/<slug>`)를 도출합니다. 따라서 `update_wiki_page` / `update_group_wiki_page`에 `title`을 전달하면 **페이지 이름이 바뀌고 URL이 변경**되어(중첩 페이지의 경우 마지막 세그먼트만 변경됨) 기존 링크가 깨집니다.
+GitLab은 wiki 페이지 제목에서 **slug**(URL, `/-/wikis/<slug>`)를 도출합니다. 따라서 `update_wiki_page` / `update_group_wiki_page`에 `title`을 전달하면 **페이지 이름이 바뀌고 URL이 변경**되어(중첩 페이지의 경우 페이지가 다른 경로로 이동할 수도 있음) 기존 링크가 깨집니다.
 
 URL을 유지한 채 **표시 제목**만 변경하려면 `title`을 전달하지 **말고**, 표시 제목을 페이지 내용의 YAML front matter에 저장한 뒤 내용을 업데이트하세요:
 

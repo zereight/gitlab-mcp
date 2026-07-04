@@ -77,7 +77,7 @@ Update a wiki page in a project
 |---|---|:-:|---|
 | `project_id` | string | ✓ | Project ID or URL-encoded path |
 | `slug` | string | ✓ | Slug of the wiki page (will be URL-encoded internally) |
-| `title` | string |  | New title of the wiki page. WARNING: setting this renames the page and changes its slug/URL (for nested pages, only the leaf segment changes), which breaks existing links. To change only the displayed title while keeping the URL, omit this parameter and instead set a `title:` field in the content's YAML front matter. |
+| `title` | string |  | New title of the wiki page. WARNING: setting this renames the page and changes its slug/URL (for nested pages it can also move the page to a different path), which breaks existing links. To change only the displayed title while keeping the URL, omit this parameter and instead set a `title:` field in the content's YAML front matter. |
 | `content` | string |  | New content of the wiki page |
 | `format` | string |  | Content format, e.g., markdown, rdoc |
 
@@ -151,7 +151,7 @@ Update a wiki page in a group
 |---|---|:-:|---|
 | `group_id` | string | ✓ | Group ID or URL-encoded path |
 | `slug` | string | ✓ | Slug of the wiki page (will be URL-encoded internally) |
-| `title` | string |  | New title of the wiki page. WARNING: setting this renames the page and changes its slug/URL (for nested pages, only the leaf segment changes), which breaks existing links. To change only the displayed title while keeping the URL, omit this parameter and instead set a `title:` field in the content's YAML front matter. |
+| `title` | string |  | New title of the wiki page. WARNING: setting this renames the page and changes its slug/URL (for nested pages it can also move the page to a different path), which breaks existing links. To change only the displayed title while keeping the URL, omit this parameter and instead set a `title:` field in the content's YAML front matter. |
 | `content` | string |  | New content of the wiki page |
 | `format` | string |  | Content format, e.g., markdown, rdoc |
 

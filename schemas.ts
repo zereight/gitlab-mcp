@@ -2671,7 +2671,7 @@ export const UpdateWikiPageSchema = z.object({
     .string()
     .optional()
     .describe(
-      "New title of the wiki page. WARNING: setting this renames the page and changes its slug/URL (for nested pages, only the leaf segment changes), which breaks existing links. To change only the displayed title while keeping the URL, omit this parameter and instead set a `title:` field in the content's YAML front matter."
+      "New title of the wiki page. WARNING: setting this renames the page and changes its slug/URL (for nested pages it can also move the page to a different path), which breaks existing links. To change only the displayed title while keeping the URL, omit this parameter and instead set a `title:` field in the content's YAML front matter."
     ),
   content: z.string().optional().describe("New content of the wiki page"),
   format: z.string().optional().describe("Content format, e.g., markdown, rdoc"),
@@ -2728,7 +2728,7 @@ export const UpdateGroupWikiPageSchema = z.object({
     .string()
     .optional()
     .describe(
-      "New title of the wiki page. WARNING: setting this renames the page and changes its slug/URL (for nested pages, only the leaf segment changes), which breaks existing links. To change only the displayed title while keeping the URL, omit this parameter and instead set a `title:` field in the content's YAML front matter."
+      "New title of the wiki page. WARNING: setting this renames the page and changes its slug/URL (for nested pages it can also move the page to a different path), which breaks existing links. To change only the displayed title while keeping the URL, omit this parameter and instead set a `title:` field in the content's YAML front matter."
     ),
   content: z.string().optional().describe("New content of the wiki page"),
   format: z.string().optional().describe("Content format, e.g., markdown, rdoc"),
