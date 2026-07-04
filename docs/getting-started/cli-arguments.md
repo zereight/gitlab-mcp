@@ -12,7 +12,7 @@ Install the server globally once:
 npm install -g @zereight/mcp-gitlab
 ```
 
-No global install? Pin `npx` to a known version and keep the server flags after it, for example `npx -y @zereight/mcp-gitlab@2.1.29 --token=...`.
+No global install? Pin `npx` to the previous stable release and keep the server flags after it, for example `npx -y @zereight/mcp-gitlab@2.1.28 --token=...`. Use `@zereight/mcp-gitlab@latest` if you always want the newest release.
 
 ## Example config
 
@@ -38,6 +38,7 @@ No global install? Pin `npx` to a known version and keep the server flags after 
 | `--use-wiki=true`      | `USE_GITLAB_WIKI`              | Enable wiki API tools.                              |
 | `--use-milestone=true` | `USE_MILESTONE`                | Enable milestone API tools.                         |
 | `--use-pipeline=true`  | `USE_PIPELINE`                 | Enable pipeline API tools.                          |
+| `--disable-version-check=true` | `GITLAB_DISABLE_VERSION_CHECK` | Disable the startup new-version notice.     |
 
 For the full list of configuration options, see
 [Environment Variables](../configuration/environment-variables.md).

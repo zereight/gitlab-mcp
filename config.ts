@@ -43,6 +43,8 @@ export const GITLAB_READ_ONLY_MODE = getConfig("read-only", "GITLAB_READ_ONLY_MO
 export const USE_GITLAB_WIKI = getConfig("use-wiki", "USE_GITLAB_WIKI") === "true";
 export const USE_MILESTONE = getConfig("use-milestone", "USE_MILESTONE") === "true";
 export const USE_PIPELINE = getConfig("use-pipeline", "USE_PIPELINE") === "true";
+export const GITLAB_DISABLE_VERSION_CHECK =
+  getConfig("disable-version-check", "GITLAB_DISABLE_VERSION_CHECK") === "true";
 
 // ---------------------------------------------------------------------------
 // Tool filtering
