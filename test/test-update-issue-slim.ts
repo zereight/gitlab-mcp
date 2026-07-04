@@ -91,10 +91,24 @@ describe("update_issue slim response", () => {
     assert.strictEqual(data.description, undefined);
   });
 
-  test("full_response=true returns the complete issue object", async () => {
+  test('full_response="false" string keeps the response slim', async () => {
     const result = await client.callTool("update_issue", {
       project_id: "test/project",
       issue_iid: "3",
+      description: "A long description that should still not be echoed",
+      full_response: "false",
+    });
+    const data = JSON.parse((result.content as any)[0]?.text || "{}");
+
+    assert.strictEqual(data.description, undefined);
+    assert.strictEqual(data.author, undefined);
+    assert.strictEqual(data.iid, "3");
+  });
+
+  test("full_response=true returns the complete issue object", async () => {
+    const result = await client.callTool("update_issue", {
+      project_id: "test/project",
+      issue_iid: "4",
       description: "Full description expected in response",
       full_response: true,
     });
@@ -102,13 +116,13 @@ describe("update_issue slim response", () => {
 
     assert.strictEqual(data.description, "Full description expected in response");
     assert.ok(data.author, "author should be present in full response");
-    assert.strictEqual(data.iid, "3");
+    assert.strictEqual(data.iid, "4");
   });
 
   test("full_response is not forwarded to the GitLab API", async () => {
     const result = await client.callTool("update_issue", {
       project_id: "test/project",
-      issue_iid: "4",
+      issue_iid: "5",
       title: "Updated title",
       full_response: true,
     });
