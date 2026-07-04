@@ -35,6 +35,7 @@ No global install? Pin `npx` to the previous stable release and keep the server 
 | `--token`              | `GITLAB_PERSONAL_ACCESS_TOKEN` | GitLab Personal Access Token.                       |
 | `--api-url`            | `GITLAB_API_URL`               | GitLab API URL (e.g., `https://gitlab.com/api/v4`). |
 | `--read-only=true`     | `GITLAB_READ_ONLY_MODE`        | Enable read-only mode.                              |
+| `--permission-mode`    | `GITLAB_PERMISSION_MODE`       | `readonly`, `modify` (no delete tools), or `full`.  |
 | `--use-wiki=true`      | `USE_GITLAB_WIKI`              | Enable wiki API tools.                              |
 | `--use-milestone=true` | `USE_MILESTONE`                | Enable milestone API tools.                         |
 | `--use-pipeline=true`  | `USE_PIPELINE`                 | Enable pipeline API tools.                          |

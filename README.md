@@ -98,6 +98,7 @@ Some MCP clients (like GitHub Copilot CLI) have issues with environment variable
 - `--token` - GitLab Personal Access Token (replaces `GITLAB_PERSONAL_ACCESS_TOKEN`)
 - `--api-url` - GitLab API URL (replaces `GITLAB_API_URL`)
 - `--read-only=true` - Enable read-only mode (replaces `GITLAB_READ_ONLY_MODE`)
+- `--permission-mode` - Permission level: `readonly`, `modify` (no delete tools), or `full` (replaces `GITLAB_PERMISSION_MODE`, default `full`)
 - `--use-wiki=true` - Enable wiki API (replaces `USE_GITLAB_WIKI`, legacy — prefer `GITLAB_TOOLSETS=wiki`)
 - `--use-milestone=true` - Enable milestone API (replaces `USE_MILESTONE`, legacy — prefer `GITLAB_TOOLSETS=milestones`)
 - `--use-pipeline=true` - Enable pipeline API (replaces `USE_PIPELINE`, legacy — prefer `GITLAB_TOOLSETS=pipelines`)
@@ -105,7 +106,9 @@ Some MCP clients (like GitHub Copilot CLI) have issues with environment variable
 
 CLI arguments take precedence over environment variables.
 
-> **Fine-grained tool filtering:** beyond the all-or-nothing `GITLAB_READ_ONLY_MODE`, you can
+> **Fine-grained tool filtering:** beyond `GITLAB_READ_ONLY_MODE`, you can set
+> `GITLAB_PERMISSION_MODE=modify` to allow create/update while blocking every delete tool
+> (including delete mutations through `execute_graphql`). You can also
 > enable toolset groups with `GITLAB_TOOLSETS=<group,…>`, allow-list individual tools with
 > `GITLAB_TOOLS=<tool,…>` (e.g. read-only groups plus a few specific write tools), and
 > deny-list by pattern with `GITLAB_DENIED_TOOLS_REGEX`. The legacy `USE_GITLAB_WIKI` /
