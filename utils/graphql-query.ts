@@ -60,5 +60,5 @@ export function graphqlQueryContainsWriteOperation(query: string): boolean {
     return false;
   }
 
-  return /(?:^|[};,]\s*)(mutation|subscription)\b/.test(normalized);
+  return /(?:^|[};]\s*)(mutation|subscription)\b/.test(normalized);
 }
