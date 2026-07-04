@@ -60,5 +60,7 @@ export function graphqlQueryContainsWriteOperation(query: string): boolean {
     return false;
   }
 
-  return /(?:^|[};]\s*)(mutation|subscription)\b/.test(normalized);
+  // Leading comma only at document start (F1); omit comma from [};,] to avoid
+  // matching field names like `subscription` after `foo, subscription { ... }`.
+  return /(?:^(?:,\s*)?|[};]\s*)(mutation|subscription)\b/.test(normalized);
 }

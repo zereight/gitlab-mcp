@@ -37,6 +37,13 @@ describe("When graphqlQueryContainsWriteOperation runs", () => {
         false
       );
     });
+
+    test("should not treat subscription field names as write operations", () => {
+      assert.equal(
+        graphqlQueryContainsWriteOperation("query { project { id }, subscription { count } }"),
+        false
+      );
+    });
   });
 
   describe("with write GraphQL documents", () => {
