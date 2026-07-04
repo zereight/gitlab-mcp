@@ -13005,13 +13005,13 @@ async function startStreamableHTTPServer(): Promise<void> {
     res.status(401).json({ error: "Streamable HTTP authentication required" });
   };
   const mcpBearerAuth = GITLAB_MCP_OAUTH
-    ? (req: Request, res: Response, next: NextFunction) => {
+    ? async (req: Request, res: Response, next: NextFunction) => {
         const privateToken = (req.headers["private-token"] as string | undefined) || "";
         const jobToken = (req.headers["job-token"] as string | undefined) || "";
         if (privateToken || jobToken) {
-          // Validate the raw token before bypassing OAuth
+          // Validate the raw token upstream before bypassing OAuth.
           const authData = parseAuthHeaders(req);
-          if (authData) {
+          if (authData && (await validateAuthDataUpstream(authData))) {
             next();
             return;
           }
