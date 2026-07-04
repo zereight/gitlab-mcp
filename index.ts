@@ -211,7 +211,7 @@ import { z } from "zod";
 import { initializeOAuthClient, GitLabOAuth } from "./oauth.js";
 import { createGitLabOAuthProvider } from "./oauth-proxy.js";
 import { mcpAuthRouter } from "@modelcontextprotocol/sdk/server/auth/router.js";
-import { ipKeyGenerator } from "express-rate-limit";
+import rateLimit, { ipKeyGenerator } from "express-rate-limit";
 import { normalizeProxyClientIpForRateLimit } from "./utils/proxy-client-ip.js";
 import {
   getForwardedPublicBaseUrl,
@@ -12870,6 +12870,23 @@ async function startStreamableHTTPServer(): Promise<void> {
 
   registerDownloadProxy(app);
 
+  const mcpRateLimitKeyGenerator = (req: Request) =>
+    ipKeyGenerator(normalizeProxyClientIpForRateLimit(req.ip ?? ""));
+  const mcpRequestRateLimit = rateLimit({
+    windowMs: 60_000,
+    limit: MAX_REQUESTS_PER_MINUTE,
+    keyGenerator: mcpRateLimitKeyGenerator,
+    standardHeaders: true,
+    legacyHeaders: false,
+    handler: (_req: Request, res: Response) => {
+      metrics.rejectedByRateLimit++;
+      res.status(429).json({
+        error: "Rate limit exceeded",
+        message: `Maximum ${MAX_REQUESTS_PER_MINUTE} requests per minute allowed`,
+      });
+    },
+  });
+
   // MCP OAuth — mount auth router and prepare bearer-auth middleware
   if (GITLAB_MCP_OAUTH) {
     const gitlabBaseUrl = GITLAB_API_URL.replace(/\/api\/v4\/?$/, "").replace(/\/$/, "");
@@ -12952,9 +12969,7 @@ async function startStreamableHTTPServer(): Promise<void> {
     // "[2001:db8::1]:5678"), which makes express-rate-limit throw
     // ERR_ERL_INVALID_IP_ADDRESS. Strip the port first, then delegate to
     // ipKeyGenerator for correct IPv6 subnet handling.
-    const rateLimitKeyGenerator = (req: Request) =>
-      ipKeyGenerator(normalizeProxyClientIpForRateLimit(req.ip ?? ""));
-    const rateLimitOptions = { keyGenerator: rateLimitKeyGenerator };
+    const rateLimitOptions = { keyGenerator: mcpRateLimitKeyGenerator };
     app.use(
       mcpAuthRouter({
         provider: oauthProvider,
@@ -13046,7 +13061,7 @@ async function startStreamableHTTPServer(): Promise<void> {
       : (_req: Request, _res: Response, next: NextFunction) => next();
 
   // Streamable HTTP endpoint - handles both session creation and message handling
-  app.post("/mcp", mcpBearerAuth, async (req: Request, res: Response) => {
+  app.post("/mcp", mcpRequestRateLimit, mcpBearerAuth, async (req: Request, res: Response) => {
     const sessionId = readMcpSessionIdHeader(req);
     const publicBaseUrl = getForwardedPublicBaseUrl(req, MCP_TRUST_PROXY);
 
@@ -13459,7 +13474,7 @@ async function startStreamableHTTPServer(): Promise<void> {
   });
 
   // to delete a mcp server session explicitly
-  app.delete("/mcp", mcpBearerAuth, async (req: Request, res: Response) => {
+  app.delete("/mcp", mcpRequestRateLimit, mcpBearerAuth, async (req: Request, res: Response) => {
     const sessionId = readMcpSessionIdHeader(req);
 
     if (!sessionId) {
