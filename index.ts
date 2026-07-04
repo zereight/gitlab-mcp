@@ -13,6 +13,7 @@ import {
   GITLAB_OAUTH_CALLBACK_PROXY,
   GITLAB_PERSONAL_ACCESS_TOKEN,
   GITLAB_POOL_MAX_SIZE,
+  GITLAB_DISABLE_VERSION_CHECK,
   GITLAB_READ_ONLY_MODE,
   GITLAB_TOOLSETS_RAW,
   GITLAB_TOOLS_RAW,
@@ -208,6 +209,7 @@ import {
 import { graphqlQueryContainsWriteOperation } from "./utils/graphql-query.js";
 import { resolveNestedWikiUpdateTitle } from "./utils/wiki-title.js";
 import { redactSensitiveGitLabFields } from "./utils/redact-sensitive.js";
+import { checkForNewVersion } from "./utils/version-check.js";
 import {
   cleanMutuallyExclusiveIdUsernameOptions,
   LIST_MERGE_REQUESTS_ID_USERNAME_PAIRS,
@@ -13459,6 +13461,19 @@ async function runServer() {
 
     const transportMode = determineTransportMode();
     await initializeServerByTransportMode(transportMode);
+
+    if (!GITLAB_DISABLE_VERSION_CHECK) {
+      // Fire-and-forget: logs to stderr only, never blocks or fails startup.
+      void checkForNewVersion(SERVER_VERSION).then(latestVersion => {
+        if (latestVersion) {
+          logger.warn(
+            `A newer version of @zereight/mcp-gitlab is available: v${latestVersion} (current: v${SERVER_VERSION}). ` +
+              `Upgrade with \`npx -y @zereight/mcp-gitlab@latest\` or \`npm install -g @zereight/mcp-gitlab\`. ` +
+              `Set GITLAB_DISABLE_VERSION_CHECK=true to disable this check.`
+          );
+        }
+      });
+    }
 
     logger.info(`Configured GitLab API URLs: ${GITLAB_API_URLS.join(", ")}`);
     logger.info(`Default GitLab API URL: ${GITLAB_API_URL}`);

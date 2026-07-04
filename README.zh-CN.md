@@ -71,7 +71,7 @@ npm install -g @zereight/mcp-gitlab
 
 示例使用 `zereight-mcp-gitlab`，这是比旧的 `mcp-gitlab` 更不容易冲突的别名。如果 MCP 客户端找不到它，请使用 `which zereight-mcp-gitlab` 输出的绝对路径。
 
-如果不想全局安装，请固定 `npx` 版本，例如 `npx -y @zereight/mcp-gitlab@2.1.29`。
+如果不想全局安装，请将 `npx` 固定到上一个稳定版本（即文档推荐的版本），例如 `npx -y @zereight/mcp-gitlab@2.1.28`。如果始终想使用最新版本，请改用 `npx -y @zereight/mcp-gitlab@latest`。有新版本发布时，服务器会在启动时通过 stderr 提示（可用 `GITLAB_DISABLE_VERSION_CHECK=true` 关闭）。
 
 #### 使用 CLI 参数（适用于环境变量有问题的客户端）
 
@@ -97,6 +97,7 @@ npm install -g @zereight/mcp-gitlab
 - `--use-wiki=true` - 启用 Wiki API（替代 `USE_GITLAB_WIKI`，旧版 — 推荐 `GITLAB_TOOLSETS=wiki`）
 - `--use-milestone=true` - 启用里程碑 API（替代 `USE_MILESTONE`，旧版 — 推荐 `GITLAB_TOOLSETS=milestones`）
 - `--use-pipeline=true` - 启用流水线 API（替代 `USE_PIPELINE`，旧版 — 推荐 `GITLAB_TOOLSETS=pipelines`）
+- `--disable-version-check=true` - 关闭启动时的新版本提示（替代 `GITLAB_DISABLE_VERSION_CHECK`）
 
 CLI 参数优先于环境变量。
 
