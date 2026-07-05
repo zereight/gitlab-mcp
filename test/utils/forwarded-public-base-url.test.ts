@@ -1,7 +1,7 @@
 import { describe, test } from "node:test";
 import assert from "node:assert";
 import type { Request } from "express";
-import { getForwardedPublicBaseUrl } from "../../utils/forwarded-public-base-url.js";
+import { getForwardedPublicBaseUrl, getForwardedRequestHost } from "../../utils/forwarded-public-base-url.js";
 
 function req(headers: Record<string, string | string[]>): Request {
   return { headers } as unknown as Request;
@@ -70,6 +70,22 @@ describe("getForwardedPublicBaseUrl", () => {
         true
       ),
       "https://mcp.example.com"
+    );
+  });
+});
+
+describe("getForwardedRequestHost", () => {
+  test("returns undefined unless proxy headers are trusted", () => {
+    assert.strictEqual(
+      getForwardedRequestHost(req({ "x-forwarded-host": "mcp.example.com" }), false),
+      undefined
+    );
+  });
+
+  test("returns the forwarded host when proxy headers are trusted", () => {
+    assert.strictEqual(
+      getForwardedRequestHost(req({ "x-forwarded-host": "mcp.example.com" }), true),
+      "mcp.example.com"
     );
   });
 });

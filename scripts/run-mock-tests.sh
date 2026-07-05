@@ -20,7 +20,7 @@ run_mock_tests() {
   shift
   find test -type f "$@" "${EXCLUDE_OPTS[@]}" -print0 \
     | sort -z \
-    | xargs -0 -P "$parallelism" -I {} node --import tsx/esm --test --test-concurrency=1 {}
+    | xargs -0 -P "$parallelism" -I {} node --import tsx/esm --test --experimental-test-isolation=none --test-concurrency=1 {}
 }
 
 # Pure unit tests — no MCP/mock server processes

@@ -13,6 +13,22 @@ function stripGraphQLCommentsAndStrings(source: string): string {
       continue;
     }
 
+    if (source.slice(i, i + 3) === '"""') {
+      i += 3;
+      while (i < source.length && source.slice(i, i + 3) !== '"""') {
+        if (source[i] === "\\" && source.slice(i, i + 4) === '\\"""') {
+          i += 4;
+          continue;
+        }
+        i++;
+      }
+      if (i < source.length) {
+        i += 3;
+      }
+      result += " ";
+      continue;
+    }
+
     if (ch === '"' || ch === "'") {
       const quote = ch;
       i++;
@@ -31,18 +47,6 @@ function stripGraphQLCommentsAndStrings(source: string): string {
       continue;
     }
 
-    if (source.slice(i, i + 3) === '"""') {
-      i += 3;
-      while (i < source.length && source.slice(i, i + 3) !== '"""') {
-        i++;
-      }
-      if (i < source.length) {
-        i += 3;
-      }
-      result += " ";
-      continue;
-    }
-
     result += ch;
     i++;
   }
@@ -56,7 +60,48 @@ export function graphqlQueryContainsWriteOperation(query: string): boolean {
     return false;
   }
 
-  return /(?:^|[};]\s*)(mutation|subscription)\b/.test(normalized);
+  const operationTypePattern = /\s*(?:,\s*)?(query|mutation|subscription)\b/y;
+
+  let depth = 0;
+  let expectingOperationType = true;
+
+  for (let i = 0; i < normalized.length; i++) {
+    const ch = normalized[i];
+
+    if (ch === "{") {
+      depth++;
+      expectingOperationType = false;
+      continue;
+    }
+
+    if (ch === "}") {
+      depth = Math.max(0, depth - 1);
+      if (depth === 0) {
+        expectingOperationType = true;
+      }
+      continue;
+    }
+
+    if (depth === 0 && (ch === ";" || ch === ",")) {
+      expectingOperationType = true;
+      continue;
+    }
+
+    if (depth === 0 && expectingOperationType) {
+      operationTypePattern.lastIndex = i;
+      const operationMatch = operationTypePattern.exec(normalized);
+      if (operationMatch) {
+        const operationType = operationMatch[1];
+        expectingOperationType = false;
+        if (operationType === "mutation" || operationType === "subscription") {
+          return true;
+        }
+        i = operationTypePattern.lastIndex - 1;
+      }
+    }
+  }
+
+  return false;
 }
 
 const DELETE_FIELD_PATTERN = /delete|destroy|remove|prune|purge/i;

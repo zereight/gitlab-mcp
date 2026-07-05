@@ -72,6 +72,7 @@ async function waitForSessionDecrease(
 console.log('🔐 Remote Authorization Test Suite');
 console.log('');
 
+describe('Remote Authorization', { concurrency: 1 }, () => {
 describe('Remote Authorization - Basic Functionality', () => {
   let mcpUrl: string;
   let mockGitLab: MockGitLabServer;
@@ -112,6 +113,33 @@ describe('Remote Authorization - Basic Functionality', () => {
     if (mockGitLab) {
       await mockGitLab.stop();
     }
+  });
+
+  test('should reject invalid tokens before creating a session', async () => {
+    const before = await getMetrics(mcpUrl);
+    const response = await fetch(mcpUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json, text/event-stream',
+        'Private-Token': 'aaaaaaaaaaaaaaaaaaaaaaaa',
+      },
+      body: JSON.stringify({
+        jsonrpc: '2.0',
+        id: 1,
+        method: 'initialize',
+        params: {
+          protocolVersion: '2025-03-26',
+          capabilities: {},
+          clientInfo: { name: 'invalid-token-test', version: '1.0.0' },
+        },
+      }),
+    });
+
+    assert.strictEqual(response.status, 401);
+    const after = await getMetrics(mcpUrl);
+    assert.strictEqual(after.activeSessions, before.activeSessions);
+    assert.strictEqual(after.authenticatedSessions, before.authenticatedSessions);
   });
 
   test('should connect with Authorization Bearer header', async () => {
@@ -339,4 +367,5 @@ describe('Remote Authorization - Session Timeout', () => {
 
     await clientWithAuth.disconnect();
   });
+});
 });

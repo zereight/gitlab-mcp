@@ -31,6 +31,36 @@ describe("When graphqlQueryContainsWriteOperation runs", () => {
         false
       );
     });
+
+    test("should ignore escaped triple quotes inside block strings", () => {
+      assert.equal(
+        graphqlQueryContainsWriteOperation(
+          'query { project(fullPath: """contains \\""" not a mutation""") { id } }'
+        ),
+        false
+      );
+    });
+
+    test("should not treat subscription field names as write operations", () => {
+      assert.equal(
+        graphqlQueryContainsWriteOperation("query { project { id }, subscription { count } }"),
+        false
+      );
+    });
+
+    test("should allow query with operation name 'mutation'", () => {
+      assert.equal(
+        graphqlQueryContainsWriteOperation("query mutation { project { id } }"),
+        false
+      );
+    });
+
+    test("should allow query with operation name 'subscription'", () => {
+      assert.equal(
+        graphqlQueryContainsWriteOperation("query subscription { project { id } }"),
+        false
+      );
+    });
   });
 
   describe("with write GraphQL documents", () => {
@@ -60,6 +90,22 @@ describe("When graphqlQueryContainsWriteOperation runs", () => {
     test("should detect semicolon-separated write operations", () => {
       assert.equal(
         graphqlQueryContainsWriteOperation("query A { a }; mutation B { b }"),
+        true
+      );
+    });
+
+    test("should detect comma-prefixed write operations", () => {
+      assert.equal(
+        graphqlQueryContainsWriteOperation(
+          ",mutation { destroyProject(input: { projectId: 1 }) { errors } }"
+        ),
+        true
+      );
+    });
+
+    test("should detect comma-separated write operations", () => {
+      assert.equal(
+        graphqlQueryContainsWriteOperation("query A { a }, mutation B { b }"),
         true
       );
     });
