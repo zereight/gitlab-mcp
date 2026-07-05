@@ -657,38 +657,26 @@ export async function findMockServerPort(
 ): Promise<number> {
   const net = await import("net");
 
+  return new Promise((resolve, reject) => {
+    const server = net.createServer();
+    server.unref();
 
-  const tryPort = async (port: number, attemptsLeft: number): Promise<number> => {
-    if (attemptsLeft === 0) {
-      throw new Error(
-        `Could not find available port after ${maxAttempts} attempts starting from ${basePort}`
-      );
-    }
+    server.on("error", (err) => {
+      reject(err);
+    });
 
-    return new Promise((resolve, reject) => {
-      const server = net.createServer();
-      server.unref();
-
-      server.on("error", async () => {
-        try {
-          const nextPort = await tryPort(port + 1, attemptsLeft - 1);
-          resolve(nextPort);
-        } catch (err) {
-          reject(err);
+    server.listen(0, "127.0.0.1", () => {
+      const addr = server.address();
+      const actualPort = typeof addr === "object" && addr ? addr.port : 0;
+      server.close(() => {
+        if (actualPort === 0) {
+          reject(new Error("Failed to get OS-assigned port"));
+        } else {
+          resolve(actualPort);
         }
       });
-
-      server.listen(port, "127.0.0.1", () => {
-        const addr = server.address();
-        const actualPort = typeof addr === "object" && addr ? addr.port : port;
-        server.close(() => {
-          resolve(actualPort);
-        });
-      });
     });
-  };
-
-  return tryPort(basePort, maxAttempts);
+  });
 }
 
 /**
