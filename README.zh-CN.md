@@ -4,14 +4,6 @@
 
 > **新功能**：支持带连接池的动态 GitLab API URL。详情请参阅 [Dynamic API URL 文档](docs/configuration/dynamic-api-url.md)。
 
-<a href="https://www.star-history.com/?repos=zereight%2Fgitlab-mcp&type=date&legend=top-left">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/image?repos=zereight/gitlab-mcp&type=date&theme=dark&legend=top-left" />
-    <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/image?repos=zereight/gitlab-mcp&type=date&legend=top-left" />
-    <img alt="Star History Chart" src="https://api.star-history.com/image?repos=zereight/gitlab-mcp&type=date&legend=top-left" />
-  </picture>
-</a>
-
 ## @zereight/mcp-gitlab
 
 这是面向 AI 客户端的完整 GitLab MCP 服务器。可通过 stdio、SSE 和 Streamable HTTP 管理项目、合并请求、议题、流水线、Wiki、发布、里程碑等。
@@ -500,3 +492,13 @@ npm run test:integration
 ```
 
 所有远程授权测试都使用 mock GitLab 服务器，不需要真实 GitLab 凭据。
+
+## Star History
+
+<a href="https://www.star-history.com/?repos=zereight%2Fgitlab-mcp&type=date&legend=top-left">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/image?repos=zereight/gitlab-mcp&type=date&theme=dark&legend=top-left&v=2" />
+    <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/image?repos=zereight/gitlab-mcp&type=date&legend=top-left&v=2" />
+    <img alt="Star History Chart" src="https://api.star-history.com/image?repos=zereight/gitlab-mcp&type=date&legend=top-left&v=2" />
+  </picture>
+</a>
