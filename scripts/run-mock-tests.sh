@@ -2,6 +2,8 @@
 set -euo pipefail
 
 # ponytail: discover mock tests; exclusions = live/schema/manual suites only
+# One node --test per file (-P 4) avoids node:test IPC deserialize flakes when
+# many server-spawning suites share a single --test-concurrency batch.
 find test -type f \( -name '*.test.ts' -o -name 'test-*.ts' -o -name '*-tests.ts' -o -name 'remote-auth-simple-test.ts' \) \
   ! -path 'test/clients/*' \
   ! -name 'mock-gitlab-server.ts' ! -name 'server-launcher.ts' \
@@ -13,6 +15,6 @@ find test -type f \( -name '*.test.ts' -o -name 'test-*.ts' -o -name '*-tests.ts
   ! -name 'remote-auth-tests.ts' ! -name 'test-mr-diffs-filter.ts' \
   ! -name 'test-mr-file-diffs.ts' ! -name 'test-token-optimizations.ts' \
   ! -name 'test-merge-request-approvals.ts' ! -name 'config-allowed-groups.test.ts' \
-  -print0 | sort -z | xargs -0 node --import tsx/esm --test --test-concurrency=4
+  -print0 | sort -z | xargs -0 -P 4 -I {} node --import tsx/esm --test {}
 
 tsx test/oauth-tests.ts
