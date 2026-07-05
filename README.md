@@ -75,7 +75,7 @@ npm install -g @zereight/mcp-gitlab
 
 The examples use `zereight-mcp-gitlab`, a less collision-prone alias for the legacy `mcp-gitlab` binary. If your MCP client cannot find it, use the absolute path from `which zereight-mcp-gitlab`.
 
-No global install? Pin `npx` to a known version, for example `npx -y @zereight/mcp-gitlab@2.1.29`.
+No global install? Pin `npx` to the previous stable release (the version these docs recommend), for example `npx -y @zereight/mcp-gitlab@2.1.28`. If you always want the newest release, use `npx -y @zereight/mcp-gitlab@latest` instead. The server prints a notice to stderr on startup when a newer version is available (disable with `GITLAB_DISABLE_VERSION_CHECK=true`).
 
 #### Using CLI Arguments (for clients with env var issues)
 
@@ -101,6 +101,7 @@ Some MCP clients (like GitHub Copilot CLI) have issues with environment variable
 - `--use-wiki=true` - Enable wiki API (replaces `USE_GITLAB_WIKI`, legacy — prefer `GITLAB_TOOLSETS=wiki`)
 - `--use-milestone=true` - Enable milestone API (replaces `USE_MILESTONE`, legacy — prefer `GITLAB_TOOLSETS=milestones`)
 - `--use-pipeline=true` - Enable pipeline API (replaces `USE_PIPELINE`, legacy — prefer `GITLAB_TOOLSETS=pipelines`)
+- `--disable-version-check=true` - Disable the startup new-version notice (replaces `GITLAB_DISABLE_VERSION_CHECK`)
 
 CLI arguments take precedence over environment variables.
 
@@ -699,6 +700,22 @@ Register the skill directory in your AI client to get optimal tool usage guidanc
 <!-- TOOLS-END -->
 
 </details>
+
+### Wiki page titles vs. slugs
+
+GitLab derives a wiki page's **slug** (its URL, `/-/wikis/<slug>`) from the page title. Passing `title` to `update_wiki_page` / `update_group_wiki_page` therefore **renames the page and changes its URL** — for nested pages it can also move the page to a different path — which breaks existing links.
+
+To change only the **displayed title** while keeping the URL stable, do **not** pass `title`. Instead, store the display title in the page content's YAML front matter and update the content:
+
+```markdown
+---
+title: My Custom Display Title
+---
+
+Page body…
+```
+
+GitLab keeps the slug/URL untouched and shows the front-matter title in the UI. Read it back with `get_wiki_page` using `render_html: true`, which populates the `front_matter` field — the plain `title` field always reflects the slug-derived value.
 
 ## Testing 🧪
 

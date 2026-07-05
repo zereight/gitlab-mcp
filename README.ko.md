@@ -71,7 +71,7 @@ npm install -g @zereight/mcp-gitlab
 
 예시는 기존 `mcp-gitlab`보다 충돌 가능성이 낮은 `zereight-mcp-gitlab` 별칭을 사용합니다. MCP 클라이언트가 찾지 못하면 `which zereight-mcp-gitlab`의 절대 경로를 사용하세요.
 
-전역 설치를 쓰지 않으려면 `npx -y @zereight/mcp-gitlab@2.1.29`처럼 버전을 고정하세요.
+전역 설치를 쓰지 않으려면 `npx -y @zereight/mcp-gitlab@2.1.28`처럼 직전 안정 버전(문서가 권장하는 버전)으로 고정하세요. 항상 최신 버전을 원하면 `npx -y @zereight/mcp-gitlab@latest`를 사용하세요. 새 버전이 나오면 서버가 시작 시 stderr로 알려줍니다(`GITLAB_DISABLE_VERSION_CHECK=true`로 비활성화 가능).
 
 #### CLI 인자 사용하기(환경 변수 문제가 있는 클라이언트용)
 
@@ -97,6 +97,7 @@ npm install -g @zereight/mcp-gitlab
 - `--use-wiki=true` - 위키 API 활성화 (`USE_GITLAB_WIKI` 대체, 레거시 — `GITLAB_TOOLSETS=wiki` 권장)
 - `--use-milestone=true` - 마일스톤 API 활성화 (`USE_MILESTONE` 대체, 레거시 — `GITLAB_TOOLSETS=milestones` 권장)
 - `--use-pipeline=true` - 파이프라인 API 활성화 (`USE_PIPELINE` 대체, 레거시 — `GITLAB_TOOLSETS=pipelines` 권장)
+- `--disable-version-check=true` - 시작 시 신규 버전 알림 비활성화 (`GITLAB_DISABLE_VERSION_CHECK` 대체)
 
 CLI 인자는 환경 변수보다 우선합니다.
 
@@ -455,6 +456,22 @@ AI 클라이언트에 skill 디렉터리를 등록하면 전체 ListTools 응답
 ## 도구 🛠️
 
 전체 도구 목록은 영어 README의 [Tools 섹션](./README.md#tools-%EF%B8%8F)을 참고하세요. 현재 서버는 머지 리퀘스트, 이슈, 파이프라인, 배포, 환경, 아티팩트, 마일스톤, 위키, 저장소, 릴리스, 사용자, 이벤트, work item, 웹훅, 코드 검색, GraphQL 실행 도구를 제공합니다.
+
+### Wiki 페이지 제목과 slug
+
+GitLab은 wiki 페이지 제목에서 **slug**(URL, `/-/wikis/<slug>`)를 도출합니다. 따라서 `update_wiki_page` / `update_group_wiki_page`에 `title`을 전달하면 **페이지 이름이 바뀌고 URL이 변경**되어(중첩 페이지의 경우 페이지가 다른 경로로 이동할 수도 있음) 기존 링크가 깨집니다.
+
+URL을 유지한 채 **표시 제목**만 변경하려면 `title`을 전달하지 **말고**, 표시 제목을 페이지 내용의 YAML front matter에 저장한 뒤 내용을 업데이트하세요:
+
+```markdown
+---
+title: 사용자 지정 표시 제목
+---
+
+페이지 본문…
+```
+
+GitLab은 slug/URL을 그대로 유지하고 UI에 front matter의 제목을 표시합니다. 다시 읽을 때는 `get_wiki_page`에 `render_html: true`를 전달하면 `front_matter` 필드가 채워집니다 — 일반 `title` 필드는 항상 slug에서 도출된 값을 반영합니다.
 
 ## 테스트 🧪
 

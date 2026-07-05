@@ -71,7 +71,7 @@ npm install -g @zereight/mcp-gitlab
 
 示例使用 `zereight-mcp-gitlab`，这是比旧的 `mcp-gitlab` 更不容易冲突的别名。如果 MCP 客户端找不到它，请使用 `which zereight-mcp-gitlab` 输出的绝对路径。
 
-如果不想全局安装，请固定 `npx` 版本，例如 `npx -y @zereight/mcp-gitlab@2.1.29`。
+如果不想全局安装，请将 `npx` 固定到上一个稳定版本（即文档推荐的版本），例如 `npx -y @zereight/mcp-gitlab@2.1.28`。如果始终想使用最新版本，请改用 `npx -y @zereight/mcp-gitlab@latest`。有新版本发布时，服务器会在启动时通过 stderr 提示（可用 `GITLAB_DISABLE_VERSION_CHECK=true` 关闭）。
 
 #### 使用 CLI 参数（适用于环境变量有问题的客户端）
 
@@ -97,6 +97,7 @@ npm install -g @zereight/mcp-gitlab
 - `--use-wiki=true` - 启用 Wiki API（替代 `USE_GITLAB_WIKI`，旧版 — 推荐 `GITLAB_TOOLSETS=wiki`）
 - `--use-milestone=true` - 启用里程碑 API（替代 `USE_MILESTONE`，旧版 — 推荐 `GITLAB_TOOLSETS=milestones`）
 - `--use-pipeline=true` - 启用流水线 API（替代 `USE_PIPELINE`，旧版 — 推荐 `GITLAB_TOOLSETS=pipelines`）
+- `--disable-version-check=true` - 关闭启动时的新版本提示（替代 `GITLAB_DISABLE_VERSION_CHECK`）
 
 CLI 参数优先于环境变量。
 
@@ -455,6 +456,22 @@ npx skills add zereight/gitlab-mcp --skill gitlab-mcp-skill
 ## 工具 🛠️
 
 完整工具列表请参考英文 README 的 [Tools 部分](./README.md#tools-%EF%B8%8F)。当前服务器提供合并请求、议题、流水线、部署、环境、制品、里程碑、Wiki、仓库、发布、用户、事件、work item、webhook、代码搜索和 GraphQL 执行相关工具。
+
+### Wiki 页面标题与 slug
+
+GitLab 会根据 wiki 页面标题推导其 **slug**（即 URL，`/-/wikis/<slug>`）。因此向 `update_wiki_page` / `update_group_wiki_page` 传入 `title` 会**重命名页面并改变其 URL**——对于嵌套页面，还可能把页面移动到不同的路径——从而导致已有链接失效。
+
+若只想修改**显示标题**而保持 URL 不变，请**不要**传入 `title`，而是把显示标题写入页面内容的 YAML front matter 并更新内容：
+
+```markdown
+---
+title: 我的自定义显示标题
+---
+
+页面正文…
+```
+
+GitLab 会保持 slug/URL 不变，并在界面中显示 front matter 中的标题。读取时对 `get_wiki_page` 传入 `render_html: true`，即可填充 `front_matter` 字段——而普通的 `title` 字段始终反映由 slug 推导的值。
 
 ## 测试 🧪
 

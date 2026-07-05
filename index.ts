@@ -13,6 +13,7 @@ import {
   GITLAB_OAUTH_CALLBACK_PROXY,
   GITLAB_PERSONAL_ACCESS_TOKEN,
   GITLAB_POOL_MAX_SIZE,
+  GITLAB_DISABLE_VERSION_CHECK,
   GITLAB_READ_ONLY_MODE,
   GITLAB_TOOLSETS_RAW,
   GITLAB_TOOLS_RAW,
@@ -217,6 +218,7 @@ import {
   getForwardedPublicBaseUrl,
   getForwardedRequestHost,
 } from "./utils/forwarded-public-base-url.js";
+import { determineTransportMode, TransportMode } from "./server/transport-mode.js";
 import { normalizeGitLabApiUrl } from "./utils/url.js";
 import {
   estimateMergeCommitCount,
@@ -226,6 +228,7 @@ import {
 import { graphqlQueryContainsWriteOperation } from "./utils/graphql-query.js";
 import { resolveNestedWikiUpdateTitle } from "./utils/wiki-title.js";
 import { redactSensitiveGitLabFields } from "./utils/redact-sensitive.js";
+import { checkForNewVersion } from "./utils/version-check.js";
 import {
   cleanMutuallyExclusiveIdUsernameOptions,
   LIST_MERGE_REQUESTS_ID_USERNAME_PAIRS,
@@ -639,15 +642,6 @@ const logger = pino({
     },
   },
 });
-
-/**
- * Available transport modes for MCP server
- */
-enum TransportMode {
-  STDIO = "stdio",
-  SSE = "sse",
-  STREAMABLE_HTTP = "streamable-http",
-}
 
 /**
  * Read version from package.json
@@ -10318,10 +10312,21 @@ async function handleToolCall(params: any) {
 
       case "update_issue": {
         const args = UpdateIssueSchema.parse(params.arguments);
-        const { project_id, issue_iid, ...options } = args;
+        const { project_id, issue_iid, full_response, ...options } = args;
         const issue = await updateIssue(project_id, issue_iid, options);
+        const responseBody = full_response
+          ? issue
+          : {
+              id: issue.id,
+              iid: issue.iid,
+              project_id: issue.project_id,
+              title: issue.title,
+              state: issue.state,
+              updated_at: issue.updated_at,
+              web_url: issue.web_url,
+            };
         return {
-          content: [{ type: "text", text: JSON.stringify(issue) }],
+          content: [{ type: "text", text: JSON.stringify(responseBody) }],
         };
       }
 
@@ -12090,29 +12095,6 @@ const colorGreen = "\x1b[32m";
 const colorReset = "\x1b[0m";
 
 /**
- * Determine the transport mode based on environment variables and availability
- *
- * Transport mode priority (highest to lowest):
- * 1. STREAMABLE_HTTP
- * 2. SSE
- * 3. STDIO
- */
-function determineTransportMode(): TransportMode {
-  // Check for streamable-http support (highest priority)
-  if (STREAMABLE_HTTP) {
-    return TransportMode.STREAMABLE_HTTP;
-  }
-
-  // Check for SSE support (medium priority)
-  if (SSE) {
-    return TransportMode.SSE;
-  }
-
-  // Default to stdio (lowest priority)
-  return TransportMode.STDIO;
-}
-
-/**
  * Start server with stdio transport
  */
 async function startStdioServer(): Promise<void> {
@@ -13610,6 +13592,19 @@ async function runServer() {
 
     const transportMode = determineTransportMode();
     await initializeServerByTransportMode(transportMode);
+
+    if (!GITLAB_DISABLE_VERSION_CHECK) {
+      // Fire-and-forget: logs to stderr only, never blocks or fails startup.
+      void checkForNewVersion(SERVER_VERSION).then(latestVersion => {
+        if (latestVersion) {
+          logger.warn(
+            `A newer version of @zereight/mcp-gitlab is available: v${latestVersion} (current: v${SERVER_VERSION}). ` +
+              `Upgrade with \`npx -y @zereight/mcp-gitlab@latest\` or \`npm install -g @zereight/mcp-gitlab\`. ` +
+              `Set GITLAB_DISABLE_VERSION_CHECK=true to disable this check.`
+          );
+        }
+      });
+    }
 
     logger.info(`Configured GitLab API URLs: ${GITLAB_API_URLS.join(", ")}`);
     logger.info(`Default GitLab API URL: ${GITLAB_API_URL}`);

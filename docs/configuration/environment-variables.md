@@ -326,6 +326,18 @@ Behavior:
 
 Set to `true` to expose only read-only tools.
 
+### `GITLAB_DISABLE_VERSION_CHECK`
+
+Set to `true` to disable the startup update check.
+
+By default the server queries the npm registry once at startup (3 second
+timeout, fail-silent — it never blocks or breaks startup) and logs a notice to
+stderr when a newer version than the one running is available. No data other
+than the standard HTTP request to `registry.npmjs.org` is sent.
+
+Set this in offline or air-gapped environments, or when you do not want the
+server to make any outbound request beyond your GitLab instance.
+
 ## Tool Exposure and Filtering
 
 ### `GITLAB_TOOLSETS`

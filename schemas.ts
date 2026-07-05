@@ -2360,6 +2360,17 @@ export const UpdateIssueSchema = z.object({
       z.enum(["issue", "incident", "test_case", "task"]).optional()
     )
     .describe("The type of issue. One of issue, incident, test_case or task."),
+  full_response: z
+    .preprocess(val => {
+      if (typeof val !== "string") return val;
+      const normalized = val.trim().toLowerCase();
+      if (normalized === "true") return true;
+      if (normalized === "false") return false;
+      return val;
+    }, z.boolean().optional())
+    .describe(
+      "If true, return the complete updated issue object. Default returns a slim confirmation (iid, title, state, web_url, updated_at) to reduce token usage."
+    ),
 });
 
 export const DeleteIssueSchema = z.object({
@@ -2667,7 +2678,12 @@ export const CreateWikiPageSchema = z.object({
 export const UpdateWikiPageSchema = z.object({
   project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
   slug: z.string().describe("Slug of the wiki page (will be URL-encoded internally)"),
-  title: z.string().optional().describe("New title of the wiki page"),
+  title: z
+    .string()
+    .optional()
+    .describe(
+      "New title of the wiki page. WARNING: setting this renames the page and changes its slug/URL (for nested pages it can also move the page to a different path), which breaks existing links. To change only the displayed title while keeping the URL, omit this parameter and instead set a `title:` field in the content's YAML front matter."
+    ),
   content: z.string().optional().describe("New content of the wiki page"),
   format: z.string().optional().describe("Content format, e.g., markdown, rdoc"),
 });
@@ -2719,7 +2735,12 @@ export const CreateGroupWikiPageSchema = z.object({
 export const UpdateGroupWikiPageSchema = z.object({
   group_id: z.coerce.string().describe("Group ID or URL-encoded path"),
   slug: z.string().describe("Slug of the wiki page (will be URL-encoded internally)"),
-  title: z.string().optional().describe("New title of the wiki page"),
+  title: z
+    .string()
+    .optional()
+    .describe(
+      "New title of the wiki page. WARNING: setting this renames the page and changes its slug/URL (for nested pages it can also move the page to a different path), which breaks existing links. To change only the displayed title while keeping the URL, omit this parameter and instead set a `title:` field in the content's YAML front matter."
+    ),
   content: z.string().optional().describe("New content of the wiki page"),
   format: z.string().optional().describe("Content format, e.g., markdown, rdoc"),
 });
