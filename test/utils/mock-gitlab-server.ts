@@ -651,10 +651,16 @@ export class MockGitLabServer {
   getUrl(): string {
     return `http://127.0.0.1:${this.config.port}`;
   }
+
+  getPort(): number {
+    return this.config.port;
+  }
 }
 
 /**
- * Placeholder port for MockGitLabServer; actual port is assigned in start().
+ * Helper to find available port for mock server (OS-assigned ephemeral port).
+ * Returns 0 to signal MockGitLabServer.start() to use OS-assigned port,
+ * avoiding TOCTOU race where another test grabs the port before binding.
  */
 export async function findMockServerPort(): Promise<number> {
   return 0;
