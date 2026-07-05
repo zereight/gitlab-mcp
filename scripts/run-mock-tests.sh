@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# Runs mock/unit tests for CI and local dev (see CONTRIBUTING.md).
 set -euo pipefail
 
 EXCLUDE_OPTS=(
