@@ -6,7 +6,13 @@ instead.
 
 CLI arguments take precedence over environment variables.
 
-Install the server globally once:
+Install the server once:
+
+```bash
+brew install zereight/gitlab-mcp/zereight-mcp-gitlab
+```
+
+Or with npm:
 
 ```bash
 npm install -g @zereight/mcp-gitlab

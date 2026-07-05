@@ -69,16 +69,16 @@ PAT, OAuth, 읽기 전용 모드, 동적 API URL, 원격 인증을 지원하며 
 
 가장 단순한 로컬 설정은 Personal Access Token으로 시작하세요. 브라우저 기반 로컬 인증은 OAuth2를 사용하세요. 원격 또는 멀티 유저 배포는 아래 MCP OAuth 및 원격 인증 섹션을 참고하세요.
 
-서버를 한 번 전역 설치하세요.
-
-```shell
-npm install -g @zereight/mcp-gitlab
-```
-
-Homebrew로 설치할 수도 있습니다:
+서버를 한 번 설치하세요.
 
 ```shell
 brew install zereight/gitlab-mcp/zereight-mcp-gitlab
+```
+
+npm으로 설치할 수도 있습니다:
+
+```shell
+npm install -g @zereight/mcp-gitlab
 ```
 
 예시는 기존 `mcp-gitlab`보다 충돌 가능성이 낮은 `zereight-mcp-gitlab` 별칭을 사용합니다. MCP 클라이언트가 찾지 못하면 `which zereight-mcp-gitlab`의 절대 경로를 사용하세요.

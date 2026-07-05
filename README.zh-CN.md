@@ -69,16 +69,16 @@
 
 最简单的本地设置可以从 Personal Access Token 开始。基于浏览器的本地认证使用 OAuth2。远程或多用户部署请继续查看下面的 MCP OAuth 和远程授权部分。
 
-先全局安装一次服务器：
-
-```shell
-npm install -g @zereight/mcp-gitlab
-```
-
-也可以使用 Homebrew 安装：
+安装服务器：
 
 ```shell
 brew install zereight/gitlab-mcp/zereight-mcp-gitlab
+```
+
+也可以使用 npm 安装：
+
+```shell
+npm install -g @zereight/mcp-gitlab
 ```
 
 示例使用 `zereight-mcp-gitlab`，这是比旧的 `mcp-gitlab` 更不容易冲突的别名。如果 MCP 客户端找不到它，请使用 `which zereight-mcp-gitlab` 输出的绝对路径。

@@ -11,7 +11,13 @@ That means you configure the server in:
 - `.vscode/mcp.json` for workspace scope, or
 - your user-profile `mcp.json` for global scope
 
-Install the server globally once:
+Install the server once:
+
+```bash
+brew install zereight/gitlab-mcp/zereight-mcp-gitlab
+```
+
+Or with npm:
 
 ```bash
 npm install -g @zereight/mcp-gitlab
