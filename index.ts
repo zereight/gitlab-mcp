@@ -693,9 +693,9 @@ function createServer(): McpServer {
   const filteredToolNames = new Set(filteredTools.map(t => t.name));
   if (discoverTool && !filteredToolNames.has("discover_tools")) {
     // Respect permission mode and regex denial filters
-    const passesReadOnly = isToolAllowedByPermissionMode("discover_tools");
+    const passesPermissionMode = isToolAllowedByPermissionMode("discover_tools");
     const passesRegex = !GITLAB_DENIED_TOOLS_REGEX?.test("discover_tools");
-    if (passesReadOnly && passesRegex) {
+    if (passesPermissionMode && passesRegex) {
       filteredTools.push(discoverTool);
     }
   }

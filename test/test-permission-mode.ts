@@ -143,6 +143,14 @@ describe("Permission Mode", { concurrency: 1 }, () => {
       assert.ok(!names.some(n => n.startsWith("delete_")), "no delete_* tool should be listed");
     });
 
+    test("hides purge_dependency_proxy_cache", async () => {
+      const names = await getToolNames(server);
+      assert.ok(
+        !names.includes("purge_dependency_proxy_cache"),
+        "modify mode: purge_dependency_proxy_cache should be absent"
+      );
+    });
+
     test("rejects direct delete tool calls", async () => {
       const client = await connectClient(server);
       try {
@@ -150,6 +158,11 @@ describe("Permission Mode", { concurrency: 1 }, () => {
           () => client.callTool("delete_issue", { project_id: "1", issue_iid: 1 }),
           (error: Error) => error.message.includes("not allowed in modify mode"),
           "delete_issue should be rejected in modify mode"
+        );
+        await assert.rejects(
+          () => client.callTool("purge_dependency_proxy_cache", { group_id: "my-group" }),
+          (error: Error) => error.message.includes("not allowed in modify mode"),
+          "purge_dependency_proxy_cache should be rejected in modify mode"
         );
       } finally {
         await client.disconnect();
@@ -250,6 +263,17 @@ describe("Permission Mode", { concurrency: 1 }, () => {
       const names = await getToolNames(server);
       assert.ok(!names.includes("create_issue"), "legacy readonly should take precedence");
       assert.ok(!names.includes("delete_issue"), "legacy readonly should take precedence");
+    });
+
+    test("rejects invalid GITLAB_PERMISSION_MODE even when GITLAB_READ_ONLY_MODE=true", async () => {
+      await assert.rejects(
+        launchMcpServer({
+          GITLAB_READ_ONLY_MODE: "true",
+          GITLAB_PERMISSION_MODE: "write",
+        }),
+        (error: Error) => error.message.includes("Server process exited with code 1"),
+        "invalid permission mode should fail startup before legacy override applies"
+      );
     });
   });
 });

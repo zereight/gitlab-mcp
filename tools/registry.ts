@@ -1447,6 +1447,7 @@ export const deleteTools = new Set([
   "delete_wiki_page",
   "delete_work_item_emoji_reaction",
   "delete_work_item_note_emoji_reaction",
+  "purge_dependency_proxy_cache",
 ]);
 
 // Define which tools are related to wiki and can be toggled by USE_GITLAB_WIKI
