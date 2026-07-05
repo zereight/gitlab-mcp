@@ -5,6 +5,7 @@
 !mcp-server
 !package-lock.json
 !package.json
+!server
 !stateless
 !tools
 !tsconfig.json
