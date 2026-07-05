@@ -85,5 +85,12 @@ describe("When graphqlQueryContainsWriteOperation runs", () => {
         true
       );
     });
+
+    test("should detect comma-separated write operations", () => {
+      assert.equal(
+        graphqlQueryContainsWriteOperation("query A { a }, mutation B { b }"),
+        true
+      );
+    });
   });
 });
