@@ -1,23 +1,19 @@
 name: Sync Homebrew Formula
 
 on:
-  workflow_run:
-    workflows: ["NPM Publish"]
-    types: [completed]
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   sync:
-    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || '' }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
