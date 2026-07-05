@@ -279,9 +279,12 @@ JSON response:
 
 ### Rate Limiting
 
-- Each session is subject to rate limiting (`MAX_REQUESTS_PER_MINUTE`)
+- `/mcp` requests are limited per client IP (`MAX_REQUESTS_PER_MINUTE`, default 60)
+- OAuth and remote-authorization sessions have an additional per-session limit (same env var)
+- Download proxy routes (`/downloads/*`) are limited per auth token (same env var)
+- Behind a reverse proxy, set `MCP_TRUST_PROXY=true` so the IP limit keys on real clients
 - The connection pool has a maximum size (`GITLAB_POOL_MAX_SIZE`)
-- Requests are rejected when limits are exceeded
+- Requests are rejected with HTTP 429 when limits are exceeded
 
 ### SSL/TLS
 
@@ -306,8 +309,9 @@ JSON response:
    - Wait for idle connections to be cleaned up or increase `GITLAB_POOL_MAX_SIZE`
 
 4. **"Rate limit exceeded"**
-   - You've exceeded `MAX_REQUESTS_PER_MINUTE` for your session
-   - Wait for the rate limit window to reset (1 minute)
+   - You've exceeded `MAX_REQUESTS_PER_MINUTE` for your client IP, MCP session, or download token
+   - Behind a shared proxy without `MCP_TRUST_PROXY=true`, all users share one IP bucket
+   - Wait for the rate limit window to reset (1 minute), or raise the limit and enable `MCP_TRUST_PROXY`
 
 ### Debug Logging
 
