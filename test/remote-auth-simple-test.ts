@@ -72,6 +72,7 @@ async function waitForSessionDecrease(
 console.log('🔐 Remote Authorization Test Suite');
 console.log('');
 
+describe('Remote Authorization', { concurrency: 1 }, () => {
 describe('Remote Authorization - Basic Functionality', () => {
   let mcpUrl: string;
   let mockGitLab: MockGitLabServer;
@@ -366,4 +367,5 @@ describe('Remote Authorization - Session Timeout', () => {
 
     await clientWithAuth.disconnect();
   });
+});
 });

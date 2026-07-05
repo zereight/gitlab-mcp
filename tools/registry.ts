@@ -113,6 +113,7 @@ import {
   GetMilestoneMergeRequestsSchema,
   GetNamespaceSchema,
   GetPipelineJobOutputSchema,
+  PipelineJobControlSchema,
   GetPipelineSchema,
   GetProjectEventsSchema,
   GetProjectMilestoneSchema,
@@ -794,7 +795,7 @@ export const allTools = [
   {
     name: "get_pipeline_job",
     description: "Get details of a GitLab pipeline job number",
-    inputSchema: toJSONSchema(GetPipelineJobOutputSchema),
+    inputSchema: toJSONSchema(PipelineJobControlSchema),
   },
   {
     name: "get_pipeline_job_output",

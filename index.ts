@@ -335,6 +335,7 @@ import {
   type GitLabCiLintResult,
   GitLabCiLintResultSchema,
   GetPipelineJobOutputSchema,
+  PipelineJobControlSchema,
   GetPipelineSchema,
   GetProjectMilestoneSchema,
   GetProjectSchema,
@@ -10933,7 +10934,7 @@ async function handleToolCall(params: any) {
       }
 
       case "get_pipeline_job": {
-        const { project_id, job_id } = GetPipelineJobOutputSchema.parse(params.arguments);
+        const { project_id, job_id } = PipelineJobControlSchema.parse(params.arguments);
         const jobDetails = await getPipelineJob(project_id, job_id);
         return {
           content: [
