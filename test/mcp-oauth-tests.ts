@@ -721,6 +721,21 @@ describe("MCP OAuth — Header Auth Fallback", () => {
     console.log(`  ✓ JOB-TOKEN header accepted (status: ${res.status})`);
   });
 
+  test("POST /mcp with invalid Private-Token is rejected before session creation", async () => {
+    const res = await fetch(mcpUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json, text/event-stream",
+        "Private-Token": "glpat-invalid-token-0000",
+      },
+      body: initBody,
+    });
+
+    assert.strictEqual(res.status, 401);
+    assert.strictEqual(res.headers.get("mcp-session-id"), null);
+  });
+
   test("POST /mcp with valid OAuth Bearer token still works normally", async () => {
     const res = await fetch(mcpUrl, {
       method: "POST",

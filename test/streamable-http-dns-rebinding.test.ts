@@ -4,12 +4,14 @@ import http from "node:http";
 import { afterEach, describe, test } from "node:test";
 import * as path from "node:path";
 import { findAvailablePort } from "./utils/server-launcher.js";
+import { MockGitLabServer, findMockServerPort } from "./utils/mock-gitlab-server.js";
 
 const HOST = process.env.HOST || "127.0.0.1";
 const SERVER_PATH = path.resolve(process.cwd(), "build/index.js");
 const TEST_TOKEN = "test-token-123456789012345";
 
 const running = new Set<ReturnType<typeof spawn>>();
+const mockGitLabServers: MockGitLabServer[] = [];
 
 function hostWithPort(host: string, port: number) {
   const normalized = host.trim();
@@ -41,6 +43,24 @@ function startServer(env: Record<string, string>, port: number) {
   running.add(child);
   child.once("exit", () => running.delete(child));
   return child;
+}
+
+async function startAuthenticatedServer(env: Record<string, string>, port: number) {
+  const mockPort = await findMockServerPort(8800 + (port % 100));
+  const mockGitLab = new MockGitLabServer({
+    port: mockPort,
+    validTokens: [TEST_TOKEN],
+  });
+  await mockGitLab.start();
+  mockGitLabServers.push(mockGitLab);
+
+  startServer(
+    {
+      GITLAB_API_URL: `${mockGitLab.getUrl()}/api/v4`,
+      ...env,
+    },
+    port
+  );
 }
 
 async function waitForHealth(port: number, timeoutMs = 5000) {
@@ -104,17 +124,23 @@ function postMcp(
   });
 }
 
-afterEach(() => {
+afterEach(async () => {
   for (const child of running) {
     if (!child.killed) child.kill("SIGTERM");
   }
   running.clear();
+  while (mockGitLabServers.length > 0) {
+    const mockGitLab = mockGitLabServers.pop();
+    if (mockGitLab) {
+      await mockGitLab.stop();
+    }
+  }
 });
 
 describe("Streamable HTTP DNS rebinding protection", () => {
   test("rejects forged Host and Origin headers before handling /mcp", async () => {
     const port = await findAvailablePort(4700);
-    startServer({}, port);
+    await startAuthenticatedServer({}, port);
     await waitForHealth(port);
 
     const validHost = hostWithPort(HOST, port);
@@ -153,7 +179,7 @@ describe("Streamable HTTP DNS rebinding protection", () => {
 
   test("allows loopback Host and Origin on any port (Docker port mapping)", async () => {
     const port = await findAvailablePort(4720);
-    startServer({}, port);
+    await startAuthenticatedServer({}, port);
     await waitForHealth(port);
 
     // e.g. docker run -p 3333:3002 -> client sends Host: localhost:3333
@@ -183,7 +209,7 @@ describe("Streamable HTTP DNS rebinding protection", () => {
 
   test("allows the configured MCP_SERVER_URL host and origin", async () => {
     const port = await findAvailablePort(4710);
-    startServer({ MCP_SERVER_URL: "https://mcp.example.test" }, port);
+    await startAuthenticatedServer({ MCP_SERVER_URL: "https://mcp.example.test" }, port);
     await waitForHealth(port);
 
     const ok = await postMcp(port, {

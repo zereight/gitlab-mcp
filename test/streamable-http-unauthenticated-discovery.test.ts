@@ -52,17 +52,19 @@ async function rawMcpRequest(
   };
 }
 
+const initializeBody = {
+  jsonrpc: "2.0",
+  id: 1,
+  method: "initialize",
+  params: {
+    protocolVersion: "2025-03-26",
+    capabilities: {},
+    clientInfo: { name: "unauth-discovery-test", version: "1.0.0" },
+  },
+};
+
 async function initialize(mcpUrl: string) {
-  const response = await rawMcpRequest(mcpUrl, {
-    jsonrpc: "2.0",
-    id: 1,
-    method: "initialize",
-    params: {
-      protocolVersion: "2025-03-26",
-      capabilities: {},
-      clientInfo: { name: "unauth-discovery-test", version: "1.0.0" },
-    },
-  });
+  const response = await rawMcpRequest(mcpUrl, initializeBody);
   assert.strictEqual(response.status, 200, response.text);
   assert.ok(response.sessionId, "initialize should return Mcp-Session-Id");
   return response.sessionId;
@@ -71,7 +73,8 @@ async function initialize(mcpUrl: string) {
 let portOffset = 0;
 
 async function launchRemoteAuthServer(extraEnv: Record<string, string> = {}) {
-  const port = await findAvailablePort(3470 + portOffset++ * 10);
+  // Keep above remote-auth-simple-test timeout suite (3500+) to avoid parallel bind races.
+  const port = await findAvailablePort(3600 + portOffset++ * 10);
   const server = await launchServer({
     mode: TransportMode.STREAMABLE_HTTP,
     port,
@@ -94,18 +97,28 @@ describe("Streamable HTTP unauthenticated tool discovery", { timeout: 20_000 }, 
     servers = [];
   });
 
-  test("keeps unauthenticated tools/list blocked by default", async () => {
+  test("keeps unauthenticated initialize blocked by default", async () => {
     const { server, mcpUrl } = await launchRemoteAuthServer();
     servers.push(server);
 
-    const sessionId = await initialize(mcpUrl);
-    const listResponse = await rawMcpRequest(
-      mcpUrl,
-      { jsonrpc: "2.0", id: 2, method: "tools/list", params: {} },
-      { "mcp-session-id": sessionId }
-    );
+    const initResponse = await rawMcpRequest(mcpUrl, initializeBody);
 
-    assert.strictEqual(listResponse.status, 401, listResponse.text);
+    assert.strictEqual(initResponse.status, 401, initResponse.text);
+    assert.strictEqual(initResponse.sessionId, null);
+  });
+
+  test("rejects invalid auth headers even when unauthenticated discovery is enabled", async () => {
+    const { server, mcpUrl } = await launchRemoteAuthServer({
+      GITLAB_ALLOW_UNAUTHENTICATED_TOOL_DISCOVERY: "true",
+    });
+    servers.push(server);
+
+    const initResponse = await rawMcpRequest(mcpUrl, initializeBody, {
+      Authorization: "Bearer definitely-not-valid",
+    });
+
+    assert.strictEqual(initResponse.status, 401, initResponse.text);
+    assert.strictEqual(initResponse.sessionId, null);
   });
 
   test("allows unauthenticated tools/list when explicitly enabled", async () => {

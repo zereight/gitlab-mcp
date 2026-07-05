@@ -1,5 +1,30 @@
 import type { Request } from "express";
 
+export function getForwardedRequestHost(req: Request, trustProxy: boolean): string | undefined {
+  if (!trustProxy) return undefined;
+
+  const forwarded = getLastHeaderValue(req.headers.forwarded);
+  if (forwarded) {
+    for (const part of forwarded.split(";")) {
+      const separator = part.indexOf("=");
+      if (separator <= 0) continue;
+
+      const key = part.slice(0, separator).trim().toLowerCase();
+      const value = unquoteHeaderValue(part.slice(separator + 1).trim());
+      if (key === "host" && value && !/[\s/\\]/.test(value)) {
+        return value;
+      }
+    }
+  }
+
+  const host = getLastHeaderValue(req.headers["x-forwarded-host"]);
+  if (host && !/[\s/\\]/.test(host)) {
+    return host;
+  }
+
+  return undefined;
+}
+
 function getLastHeaderValue(value: string | string[] | undefined): string | undefined {
   const raw = Array.isArray(value) ? value[value.length - 1] : value;
   if (!raw) return undefined;

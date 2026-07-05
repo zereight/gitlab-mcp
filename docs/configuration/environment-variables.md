@@ -434,6 +434,11 @@ Legacy additive flag for pipeline-related tools. Prefer `GITLAB_TOOLSETS=pipelin
 
 Set to `true` to run the Streamable HTTP transport.
 
+When using server-side GitLab credentials (`GITLAB_PERSONAL_ACCESS_TOKEN`,
+`GITLAB_JOB_TOKEN`, `GITLAB_AUTH_COOKIE_PATH`, or `GITLAB_USE_OAUTH`), also set
+one MCP-layer auth mode: `REMOTE_AUTHORIZATION=true`, `GITLAB_MCP_OAUTH=true`,
+or `STREAMABLE_HTTP_AUTH_TOKEN`.
+
 Streamable HTTP allows `/mcp` requests when the `Host` header is a loopback
 host on any port (`127.0.0.1`, `localhost`, `[::1]`), matches `MCP_SERVER_URL`,
 matches the `HOST`:`PORT` the server binds to, or is listed in
@@ -444,6 +449,11 @@ listed in `MCP_ALLOWED_ORIGINS`.
 > **Upgrade note:** deployments reached through a non-loopback hostname or IP
 > (for example an internal DNS name or LAN IP) must set `MCP_SERVER_URL` or
 > `MCP_ALLOWED_HOSTS`, otherwise `/mcp` requests are rejected with `403`.
+
+### `STREAMABLE_HTTP_AUTH_TOKEN`
+
+Bearer token required on `/mcp` when Streamable HTTP uses server-side GitLab
+credentials without `REMOTE_AUTHORIZATION` or `GITLAB_MCP_OAUTH`.
 
 ### `MCP_ALLOWED_HOSTS`
 
@@ -463,12 +473,16 @@ Set to `true` to run the legacy SSE transport.
 Notes:
 
 - Not compatible with `REMOTE_AUTHORIZATION=true`
-- If `HOST` is not loopback, startup requires `SSE_AUTH_TOKEN` unless you explicitly set `SSE_DANGEROUSLY_ALLOW_UNAUTHENTICATED_REMOTE=true`
+- Startup requires `SSE_AUTH_TOKEN` unless you explicitly set `SSE_DANGEROUSLY_ALLOW_UNAUTHENTICATED_REMOTE=true`
 
 ### `SSE_AUTH_TOKEN`
 
-Bearer token required for `/sse` and `/messages` when configured.
-Use this for any network-reachable SSE deployment.
+Bearer token required for `/sse` and `/messages`.
+Use this for any SSE deployment.
+
+When SSE runs behind a reverse proxy on a different public hostname, also set
+`MCP_SERVER_URL` to the external URL or enable `MCP_TRUST_PROXY=true` so
+forwarded `Host` / `Origin` headers from the proxy are accepted.
 
 ### `SSE_DANGEROUSLY_ALLOW_UNAUTHENTICATED_REMOTE`
 

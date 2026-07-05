@@ -6,7 +6,7 @@ import * as path from "node:path";
 import { findAvailablePort } from "./utils/server-launcher.js";
 
 const ERROR_MESSAGE =
-  "STREAMABLE_HTTP=true/--streamable-http with GITLAB_PERSONAL_ACCESS_TOKEN/--token or GITLAB_JOB_TOKEN/--job-token requires REMOTE_AUTHORIZATION=true/--remote-auth=true or GITLAB_MCP_OAUTH=true/--mcp-oauth=true";
+  "STREAMABLE_HTTP=true/--streamable-http with server-side GitLab credentials requires REMOTE_AUTHORIZATION=true/--remote-auth=true, GITLAB_MCP_OAUTH=true/--mcp-oauth=true, or STREAMABLE_HTTP_AUTH_TOKEN/--streamable-http-auth-token";
 
 const HOST = process.env.HOST || "127.0.0.1";
 const SERVER_PATH = path.resolve(process.cwd(), "build/index.js");
@@ -82,11 +82,16 @@ async function waitForHealth(port: number, timeoutMs = 5000) {
 }
 
 async function postMcpWithoutAuth(port: number) {
+  return postMcp(port);
+}
+
+async function postMcp(port: number, token?: string) {
   return fetch(`http://${HOST}:${port}/mcp`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       Accept: "application/json, text/event-stream",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
     body: JSON.stringify({
       jsonrpc: "2.0",
@@ -97,23 +102,6 @@ async function postMcpWithoutAuth(port: number) {
         capabilities: {},
         clientInfo: { name: "static-token-auth-test", version: "1.0.0" },
       },
-    }),
-  });
-}
-
-async function postMcpWithSessionWithoutAuth(port: number, sessionId: string) {
-  return fetch(`http://${HOST}:${port}/mcp`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Accept: "application/json, text/event-stream",
-      "Mcp-Session-Id": sessionId,
-    },
-    body: JSON.stringify({
-      jsonrpc: "2.0",
-      id: 2,
-      method: "tools/list",
-      params: {},
     }),
   });
 }
@@ -146,6 +134,16 @@ describe("Streamable HTTP static server token auth", () => {
     assert.match(output, new RegExp(ERROR_MESSAGE.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
   });
 
+  test("refuses startup with cookie auth and no MCP-layer auth", async () => {
+    const port = await findAvailablePort(4315);
+    const child = startServer({ GITLAB_AUTH_COOKIE_PATH: "./cookies.txt" }, port);
+
+    const { code, output } = await waitForExit(child);
+
+    assert.notEqual(code, 0);
+    assert.match(output, new RegExp(ERROR_MESSAGE.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+  });
+
   test("allows startup with PAT when REMOTE_AUTHORIZATION is enabled", async () => {
     const port = await findAvailablePort(4320);
     startServer(
@@ -159,13 +157,26 @@ describe("Streamable HTTP static server token auth", () => {
     await waitForHealth(port);
 
     const initResponse = await postMcpWithoutAuth(port);
-    assert.equal(initResponse.status, 200);
+    assert.equal(initResponse.status, 401);
+  });
 
-    const sessionId = initResponse.headers.get("mcp-session-id");
-    assert.ok(sessionId);
+  test("requires configured Streamable HTTP auth token", async () => {
+    const port = await findAvailablePort(4325);
+    startServer(
+      {
+        GITLAB_PERSONAL_ACCESS_TOKEN: "glpat_test",
+        STREAMABLE_HTTP_AUTH_TOKEN: "mcp_static_secret",
+      },
+      port
+    );
 
-    const followUpResponse = await postMcpWithSessionWithoutAuth(port, sessionId);
-    assert.equal(followUpResponse.status, 401);
+    await waitForHealth(port);
+
+    const unauthenticated = await postMcpWithoutAuth(port);
+    assert.equal(unauthenticated.status, 401);
+
+    const authenticated = await postMcp(port, "mcp_static_secret");
+    assert.equal(authenticated.status, 200);
   });
 
   test("allows startup with PAT when GITLAB_MCP_OAUTH is enabled", async () => {

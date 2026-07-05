@@ -556,7 +556,7 @@ export const GetPipelineJobOutputSchema = z.object({
   limit: z
     .number()
     .optional()
-    .describe("Maximum number of lines to return from the end of the log (default: 1000)"),
+    .describe("Maximum number of lines to return from the end of the log (default/max: 1000)"),
   offset: z
     .number()
     .optional()
