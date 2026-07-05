@@ -100,8 +100,8 @@ npm run test:stateless   # Multi-pod / stateless OAuth helpers.
 ```
 
 CI ([`.github/workflows/pr-test.yml`](.github/workflows/pr-test.yml))
-runs `test:mock`, `test:oauth`, `test:remote-auth`, and `npx tsc --noEmit` on
-every PR. Make sure those pass locally before pushing.
+runs `test:mock`, `test:consumer-smoke`, and `npx tsc --noEmit` on every PR.
+Make sure those pass locally before pushing.
 
 ### Live integration tests
 

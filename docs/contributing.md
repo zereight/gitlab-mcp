@@ -99,8 +99,8 @@ npm run test:oauth       # OAuth2 flow against the mock server.
 npm run test:stateless   # Multi-pod / stateless OAuth helpers.
 ```
 
-CI runs `test:mock`, `test:oauth`, `test:remote-auth`, and `npx tsc --noEmit`
-on every PR. Make sure those pass locally before pushing.
+CI runs `test:mock`, `test:consumer-smoke`, and `npx tsc --noEmit` on every PR.
+Make sure those pass locally before pushing.
 
 ### Live integration tests
 
