@@ -130,4 +130,47 @@ describe("update_issue slim response", () => {
     assert.strictEqual(data.title, "Updated title");
     assert.strictEqual(data.full_response, undefined, "full_response must not leak into the issue");
   });
+
+  test("get_issue slims the milestone by default", async () => {
+    const result = await client.callTool("get_issue", {
+      project_id: "test/project",
+      issue_iid: "100",
+    });
+    const data = JSON.parse((result.content as any)[0]?.text || "{}");
+
+    assert.ok(data.milestone, "milestone should be present");
+    assert.strictEqual(data.milestone.title, "Sprint 42");
+    assert.ok(data.milestone.web_url, "milestone web_url should be present");
+    assert.strictEqual(
+      data.milestone.description,
+      undefined,
+      "milestone description must not be echoed by default"
+    );
+    assert.ok(data.description, "issue description should still be present");
+  });
+
+  test("get_issue full_response=true returns the full milestone", async () => {
+    const result = await client.callTool("get_issue", {
+      project_id: "test/project",
+      issue_iid: "100",
+      full_response: true,
+    });
+    const data = JSON.parse((result.content as any)[0]?.text || "{}");
+
+    assert.ok(data.milestone, "milestone should be present");
+    assert.ok(
+      typeof data.milestone.description === "string" && data.milestone.description.length > 0,
+      "milestone description should be included with full_response"
+    );
+  });
+
+  test("get_issue without milestone is unaffected", async () => {
+    const result = await client.callTool("get_issue", {
+      project_id: "test/project",
+      issue_iid: "6",
+    });
+    const data = JSON.parse((result.content as any)[0]?.text || "{}");
+    assert.strictEqual(data.milestone, null);
+    assert.strictEqual(data.iid, "6");
+  });
 });

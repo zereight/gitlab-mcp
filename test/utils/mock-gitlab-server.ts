@@ -393,7 +393,17 @@ export class MockGitLabServer {
           },
           assignees: [],
           labels: [],
-          milestone: null,
+          milestone:
+            issueIid === 100
+              ? {
+                  id: 42,
+                  iid: 7,
+                  title: "Sprint 42",
+                  description: "A very long milestone description ".repeat(50),
+                  state: "active",
+                  web_url: `https://gitlab.mock/project/${projectId}/milestones/7`,
+                }
+              : null,
         });
       }
     );

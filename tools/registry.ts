@@ -348,7 +348,8 @@ export const allTools = [
   },
   {
     name: "get_merge_request",
-    description: "Get details of a merge request (mergeRequestIid or branchName required)",
+    description:
+      "Get details of a merge request (mergeRequestIid or branchName required). Set include_summaries=true for deployment/commit/approval summaries",
     inputSchema: toJSONSchema(GetMergeRequestSchema),
   },
   {
@@ -570,7 +571,8 @@ export const allTools = [
   },
   {
     name: "get_issue",
-    description: "Get details of a specific issue",
+    description:
+      "Get details of a specific issue. Returns a slim milestone by default; set full_response=true for the complete milestone object",
     inputSchema: toJSONSchema(GetIssueSchema),
   },
   {
