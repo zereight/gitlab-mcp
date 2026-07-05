@@ -291,7 +291,7 @@ the token to GitLab on behalf of the caller.
 | `GITLAB_ALLOWED_HOSTS`                        | optional | Comma-separated allowed `X-GitLab-API-URL` hosts; `GITLAB_API_URL` hosts are always allowed                             |
 | `GITLAB_ALLOW_UNAUTHENTICATED_TOOL_DISCOVERY` | optional | Allow unauthenticated `initialize`, `notifications/initialized`, and `tools/list` only (tool calls still require auth)  |
 | `MCP_SERVER_URL` / `MCP_ALLOWED_HOSTS` / `MCP_ALLOWED_ORIGINS` | optional | Allowed public `/mcp` host/origin values for DNS rebinding protection                                   |
-| `MCP_TRUST_PROXY`                             | optional | Trust `Forwarded` / `X-Forwarded-*` headers behind a reverse proxy (download URLs, Express `req.ip`, OAuth rate limits) |
+| `MCP_TRUST_PROXY`                             | optional | Trust `Forwarded` / `X-Forwarded-*` headers behind a reverse proxy (download URLs, Express `req.ip`, `/mcp` IP rate limits, OAuth rate limits) |
 
 `GITLAB_ALLOW_UNAUTHENTICATED_TOOL_DISCOVERY=true` is intended for MCP gateways
 or admin UIs that need to inspect tool metadata before a user provides a GitLab
@@ -331,7 +331,7 @@ Most users only need one of these starting sets:
 
 - **Local PAT**: `GITLAB_PERSONAL_ACCESS_TOKEN`, `GITLAB_API_URL`
 - **Local OAuth**: `GITLAB_USE_OAUTH=true`, `GITLAB_OAUTH_CLIENT_ID`, `GITLAB_OAUTH_REDIRECT_URI`, `GITLAB_API_URL`
-- **Remote multi-user HTTP**: `STREAMABLE_HTTP=true`, `REMOTE_AUTHORIZATION=true`, `HOST`, `PORT`
+- **Remote multi-user HTTP**: `STREAMABLE_HTTP=true`, `REMOTE_AUTHORIZATION=true` (or `GITLAB_MCP_OAUTH=true`), `MCP_TRUST_PROXY=true` (behind a reverse proxy), `MAX_REQUESTS_PER_MINUTE=300`, `MCP_SERVER_URL` or `MCP_ALLOWED_HOSTS`, `HOST`, `PORT`
 - **Multi-pod HPA (stateless)**: above + `OAUTH_STATELESS_MODE=true`, `OAUTH_STATELESS_SECRET` (same across all pods). See [Stateless Mode](./docs/configuration/stateless-mode.md).
 
 Commonly referenced variables:
@@ -341,6 +341,8 @@ Commonly referenced variables:
 - `GITLAB_USE_OAUTH`
 - `REMOTE_AUTHORIZATION`
 - `MCP_TRUST_PROXY`
+- `MAX_REQUESTS_PER_MINUTE`
+- `MAX_SESSIONS`
 - `MCP_ALLOWED_HOSTS`
 - `MCP_ALLOWED_ORIGINS`
 - `GITLAB_MCP_OAUTH`
@@ -419,7 +421,7 @@ The token is stored per session (identified by `mcp-session-id` header) and reus
   Tokens are automatically cleaned up when sessions close
 - **Session timeout:** Auth tokens expire after `SESSION_TIMEOUT_SECONDS` (default 1 hour) of inactivity. After timeout, the client must send auth headers again. The transport session remains active.
 - Each request resets the timeout timer for that session
-- **Rate limiting:** Each session is limited to `MAX_REQUESTS_PER_MINUTE` requests per minute (default 60)
+- **Rate limiting:** `/mcp` requests are limited to `MAX_REQUESTS_PER_MINUTE` per client IP, and per MCP session when using OAuth or remote authorization (default 60). See [environment-variables.md](docs/configuration/environment-variables.md#max_requests_per_minute).
 - **Capacity limit:** Server accepts up to `MAX_SESSIONS` concurrent sessions (default 1000)
 
 ### MCP OAuth Setup (Claude.ai Native OAuth)

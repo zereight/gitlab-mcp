@@ -222,6 +222,10 @@ Effects when enabled:
   `X-Forwarded-For` values that include a source port (for example
   `1.2.3.4:5678` or `[2001:db8::1]:5678`) before `express-rate-limit` keys
   requests on `/authorize`, `/token`, `/register`, and `/revoke`.
+- **`/mcp` rate limiting** (Streamable HTTP): keys `POST` and `DELETE /mcp`
+  requests by the real client IP instead of the reverse-proxy IP. Required for
+  shared deployments behind a single egress IP so each user gets their own
+  `MAX_REQUESTS_PER_MINUTE` bucket.
 
 Use this only when the proxy is trusted **and** direct client access to the MCP
 server port is blocked. When unset, forwarded headers are ignored for URL
@@ -505,6 +509,46 @@ Default:
 
 - `3002`
 
+### `MAX_REQUESTS_PER_MINUTE`
+
+Maximum requests allowed per rolling 60-second window. Applies to Streamable HTTP
+and SSE remote deployments. Valid range: `1`–`1000`.
+
+Default:
+
+- `60`
+
+This single value is reused in three places (whichever limit is hit first wins):
+
+| Layer | Key | Routes |
+|-------|-----|--------|
+| Express middleware | Client IP | `POST` / `DELETE /mcp` |
+| Session handler | MCP session ID | Existing sessions when `REMOTE_AUTHORIZATION=true` or `GITLAB_MCP_OAUTH=true` |
+| Download proxy | Auth token | `GET /downloads/*` |
+
+When `MCP_TRUST_PROXY` is unset behind a reverse proxy, all clients share one IP
+bucket and the per-IP limit becomes the bottleneck for the whole deployment.
+
+**Shared deployment starting point:** `MCP_TRUST_PROXY=true` with
+`MAX_REQUESTS_PER_MINUTE=300` (raise if `/metrics` shows
+`rejectedByRateLimit` growth). This limits MCP server abuse; GitLab API rate
+limits are separate upstream constraints.
+
+Monitor rejections via `/metrics` → `rejectedByRateLimit` or
+`gitlab_mcp_requests_rejected_total{reason="rate_limit"}`.
+
+### `MAX_SESSIONS`
+
+Maximum concurrent MCP sessions on a single server instance (Streamable HTTP /
+remote authorization / MCP OAuth).
+
+Default:
+
+- `1000`
+
+When the limit is reached, new session creation is rejected until an existing
+session expires or is closed.
+
 ## Network and TLS
 
 ### `HTTP_PROXY`
@@ -548,7 +592,10 @@ Maximum GitLab client pool size.
 ## Remote shared deployment
 
 - `STREAMABLE_HTTP=true`
-- `REMOTE_AUTHORIZATION=true`
+- `REMOTE_AUTHORIZATION=true` or `GITLAB_MCP_OAUTH=true`
+- `MCP_TRUST_PROXY=true` (when behind a reverse proxy)
+- `MAX_REQUESTS_PER_MINUTE=300` (tune from metrics)
+- `MCP_SERVER_URL` or `MCP_ALLOWED_HOSTS` (non-loopback public host)
 - `HOST`
 - `PORT`
 

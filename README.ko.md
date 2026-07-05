@@ -269,7 +269,7 @@ MCP 클라이언트 설정:
 | `GITLAB_ALLOWED_HOSTS`                                           | 선택 | 허용할 `X-GitLab-API-URL` 호스트의 쉼표 구분 목록; `GITLAB_API_URL` 호스트는 항상 허용                                  |
 | `GITLAB_ALLOW_UNAUTHENTICATED_TOOL_DISCOVERY`                    | 선택 | 인증 없이 `initialize`, `notifications/initialized`, `tools/list`만 허용(도구 호출은 여전히 인증 필요)                  |
 | `MCP_SERVER_URL` / `MCP_ALLOWED_HOSTS` / `MCP_ALLOWED_ORIGINS` | 선택 | DNS rebinding 방지를 위한 허용 `/mcp` 호스트/오리진 값                                                                  |
-| `MCP_TRUST_PROXY`                                                | 선택 | 리버스 프록시 뒤에서 `Forwarded` / `X-Forwarded-*` 헤더 신뢰(다운로드 URL, Express `req.ip`, OAuth rate limit) |
+| `MCP_TRUST_PROXY`                                                | 선택 | 리버스 프록시 뒤에서 `Forwarded` / `X-Forwarded-*` 헤더 신뢰(다운로드 URL, Express `req.ip`, `/mcp` IP rate limit, OAuth rate limit) |
 
 `GITLAB_ALLOW_UNAUTHENTICATED_TOOL_DISCOVERY=true`는 사용자가 GitLab 토큰을 제공하기 전에 도구 메타데이터를 조회해야 하는 MCP 게이트웨이나 관리 UI용입니다. 배포 환경에서 도구 목록 공개가 안전한 경우가 아니면 비활성화하세요.
 
@@ -299,7 +299,7 @@ Authorization: Bearer glpat-xxxxxxxxxxxxxxxxxxxx
 
 - **로컬 PAT**: `GITLAB_PERSONAL_ACCESS_TOKEN`, `GITLAB_API_URL`
 - **로컬 OAuth**: `GITLAB_USE_OAUTH=true`, `GITLAB_OAUTH_CLIENT_ID`, `GITLAB_OAUTH_REDIRECT_URI`, `GITLAB_API_URL`
-- **원격 멀티 유저 HTTP**: `STREAMABLE_HTTP=true`, `REMOTE_AUTHORIZATION=true`, `HOST`, `PORT`
+- **원격 멀티 유저 HTTP**: `STREAMABLE_HTTP=true`, `REMOTE_AUTHORIZATION=true`(또는 `GITLAB_MCP_OAUTH=true`), `MCP_TRUST_PROXY=true`(리버스 프록시 뒤), `MAX_REQUESTS_PER_MINUTE=300`, `MCP_SERVER_URL` 또는 `MCP_ALLOWED_HOSTS`, `HOST`, `PORT`
 - **멀티 Pod HPA (stateless)**: 위 설정 + `OAUTH_STATELESS_MODE=true`, `OAUTH_STATELESS_SECRET`(모든 Pod에서 동일). [Stateless Mode](./docs/configuration/stateless-mode.md) 참고.
 
 자주 참조하는 변수:
@@ -309,6 +309,8 @@ Authorization: Bearer glpat-xxxxxxxxxxxxxxxxxxxx
 - `GITLAB_USE_OAUTH`
 - `REMOTE_AUTHORIZATION`
 - `MCP_TRUST_PROXY`
+- `MAX_REQUESTS_PER_MINUTE`
+- `MAX_SESSIONS`
 - `MCP_ALLOWED_HOSTS`
 - `MCP_ALLOWED_ORIGINS`
 - `GITLAB_MCP_OAUTH`

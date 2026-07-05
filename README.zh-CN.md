@@ -269,7 +269,7 @@ MCP 客户端配置：
 | `GITLAB_ALLOWED_HOSTS`                                           | 可选 | 允许的 `X-GitLab-API-URL` 主机逗号分隔列表；`GITLAB_API_URL` 中的主机始终允许                                          |
 | `GITLAB_ALLOW_UNAUTHENTICATED_TOOL_DISCOVERY`                    | 可选 | 仅允许未认证的 `initialize`、`notifications/initialized`、`tools/list`（工具调用仍需认证）                                |
 | `MCP_SERVER_URL` / `MCP_ALLOWED_HOSTS` / `MCP_ALLOWED_ORIGINS` | 可选 | 用于 DNS rebinding 防护的允许 `/mcp` 主机/来源值                                                                        |
-| `MCP_TRUST_PROXY`                                                | 可选 | 在反向代理后信任 `Forwarded` / `X-Forwarded-*` 请求头（下载 URL、Express `req.ip`、OAuth 速率限制）                      |
+| `MCP_TRUST_PROXY`                                                | 可选 | 在反向代理后信任 `Forwarded` / `X-Forwarded-*` 请求头（下载 URL、Express `req.ip`、`/mcp` IP 速率限制、OAuth 速率限制） |
 
 `GITLAB_ALLOW_UNAUTHENTICATED_TOOL_DISCOVERY=true` 适用于在用户提供 GitLab token 之前需要检查工具元数据的 MCP 网关或管理 UI。除非你的部署可以安全地暴露工具列表，否则请保持禁用。
 
@@ -299,7 +299,7 @@ Authorization: Bearer glpat-xxxxxxxxxxxxxxxxxxxx
 
 - **本地 PAT**：`GITLAB_PERSONAL_ACCESS_TOKEN`, `GITLAB_API_URL`
 - **本地 OAuth**：`GITLAB_USE_OAUTH=true`, `GITLAB_OAUTH_CLIENT_ID`, `GITLAB_OAUTH_REDIRECT_URI`, `GITLAB_API_URL`
-- **远程多用户 HTTP**：`STREAMABLE_HTTP=true`, `REMOTE_AUTHORIZATION=true`, `HOST`, `PORT`
+- **远程多用户 HTTP**：`STREAMABLE_HTTP=true`, `REMOTE_AUTHORIZATION=true`（或 `GITLAB_MCP_OAUTH=true`）, `MCP_TRUST_PROXY=true`（反向代理后）, `MAX_REQUESTS_PER_MINUTE=300`, `MCP_SERVER_URL` 或 `MCP_ALLOWED_HOSTS`, `HOST`, `PORT`
 - **多 Pod HPA（stateless）**：上述配置 + `OAUTH_STATELESS_MODE=true`, `OAUTH_STATELESS_SECRET`（所有 Pod 相同）。参见 [Stateless Mode](./docs/configuration/stateless-mode.md)。
 
 常用变量：
@@ -309,6 +309,8 @@ Authorization: Bearer glpat-xxxxxxxxxxxxxxxxxxxx
 - `GITLAB_USE_OAUTH`
 - `REMOTE_AUTHORIZATION`
 - `MCP_TRUST_PROXY`
+- `MAX_REQUESTS_PER_MINUTE`
+- `MAX_SESSIONS`
 - `MCP_ALLOWED_HOSTS`
 - `MCP_ALLOWED_ORIGINS`
 - `GITLAB_MCP_OAUTH`
