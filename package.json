@@ -64,6 +64,7 @@
     "test:approvals": "npm run build && tsx test/test-merge-request-approvals.ts",
     "lint": "eslint . --ext .ts",
     "check:runtime-deps": "node scripts/check-runtime-deps.mjs",
+    "check:skill-sync": "tsx scripts/check-skill-sync.ts",
     "lint:fix": "eslint . --ext .ts --fix",
     "release": "bash scripts/release.sh",
     "release:mcp-registry": "bash scripts/publish_mcp_registry.sh",
