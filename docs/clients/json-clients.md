@@ -10,18 +10,27 @@ Different clients use different top-level schemas and file locations.
 
 Because those client-specific schemas can vary, this guide does **not** assume a single exact file path or wrapper format. Instead, it gives you reusable server blocks for `@zereight/mcp-gitlab` that you can place inside the client's MCP configuration structure.
 
+Install the server globally once:
+
+```bash
+npm install -g @zereight/mcp-gitlab
+```
+
 Use the local stdio server fields that your client expects and map in these values:
 
 - `command`
 - `args`
 - `env`
 
+The examples use `zereight-mcp-gitlab`, a less collision-prone alias for the legacy `mcp-gitlab` binary. If your client cannot find it, use the absolute path from `which zereight-mcp-gitlab`.
+
+No global install? Pin `npx` to the previous stable release, for example use `command: "npx"` with `args: ["-y", "@zereight/mcp-gitlab@2.1.28"]` before any server flags. Use `@zereight/mcp-gitlab@latest` if you always want the newest release.
+
 ## Reusable PAT server block
 
 ```json
 {
-  "command": "npx",
-  "args": ["-y", "@zereight/mcp-gitlab"],
+  "command": "zereight-mcp-gitlab",
   "env": {
     "GITLAB_PERSONAL_ACCESS_TOKEN": "glpat-your-token",
     "GITLAB_API_URL": "https://gitlab.com/api/v4",
@@ -34,8 +43,7 @@ Use the local stdio server fields that your client expects and map in these valu
 
 ```json
 {
-  "command": "npx",
-  "args": ["-y", "@zereight/mcp-gitlab"],
+  "command": "zereight-mcp-gitlab",
   "env": {
     "GITLAB_USE_OAUTH": "true",
     "GITLAB_OAUTH_CLIENT_ID": "your-client-id",
@@ -61,8 +69,7 @@ If your client expects an `mcpServers` object:
 {
   "mcpServers": {
     "gitlab": {
-      "command": "npx",
-      "args": ["-y", "@zereight/mcp-gitlab"],
+      "command": "zereight-mcp-gitlab",
       "env": {
         "GITLAB_PERSONAL_ACCESS_TOKEN": "glpat-your-token",
         "GITLAB_API_URL": "https://gitlab.com/api/v4"
@@ -79,8 +86,7 @@ If your client expects a `servers` object:
   "servers": {
     "gitlab": {
       "type": "stdio",
-      "command": "npx",
-      "args": ["-y", "@zereight/mcp-gitlab"],
+      "command": "zereight-mcp-gitlab",
       "env": {
         "GITLAB_PERSONAL_ACCESS_TOKEN": "glpat-your-token",
         "GITLAB_API_URL": "https://gitlab.com/api/v4"

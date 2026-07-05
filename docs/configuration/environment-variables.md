@@ -199,6 +199,14 @@ Notes:
 
 - Requires `REMOTE_AUTHORIZATION=true`
 - Uses the `X-GitLab-API-URL` request header in HTTP mode
+- The header URL must use an allowed host: any host in `GITLAB_API_URL`, plus any host in `GITLAB_ALLOWED_HOSTS`
+
+### `GITLAB_ALLOWED_HOSTS`
+
+Comma-separated additional hosts or GitLab base/API URLs allowed for
+`X-GitLab-API-URL` when `ENABLE_DYNAMIC_API_URL=true`. This is only for hosts
+beyond those already listed in `GITLAB_API_URL`; do not repeat `GITLAB_API_URL`
+hosts here. Examples: `gitlab.example.com,https://gitlab.company.com:8443/api/v4`.
 
 ### `MCP_TRUST_PROXY`
 
@@ -318,6 +326,18 @@ Behavior:
 
 Set to `true` to expose only read-only tools.
 
+### `GITLAB_DISABLE_VERSION_CHECK`
+
+Set to `true` to disable the startup update check.
+
+By default the server queries the npm registry once at startup (3 second
+timeout, fail-silent — it never blocks or breaks startup) and logs a notice to
+stderr when a newer version than the one running is available. No data other
+than the standard HTTP request to `registry.npmjs.org` is sent.
+
+Set this in offline or air-gapped environments, or when you do not want the
+server to make any outbound request beyond your GitLab instance.
+
 ## Tool Exposure and Filtering
 
 ### `GITLAB_TOOLSETS`
@@ -366,15 +386,19 @@ Examples:
 
 ### `USE_GITLAB_WIKI`
 
-Legacy additive flag for wiki-related tools.
+Legacy additive flag for wiki-related tools. Prefer `GITLAB_TOOLSETS=wiki`.
 
 ### `USE_MILESTONE`
 
-Legacy additive flag for milestone-related tools.
+Legacy additive flag for milestone-related tools. Prefer `GITLAB_TOOLSETS=milestones`.
 
 ### `USE_PIPELINE`
 
-Legacy additive flag for pipeline-related tools.
+Legacy additive flag for pipeline-related tools. Prefer `GITLAB_TOOLSETS=pipelines`.
+
+> **Deprecation notice:** The `USE_*` flags are kept for backward compatibility only and cover
+> just three toolsets. Use `GITLAB_TOOLSETS` (groups) and `GITLAB_TOOLS` (individual tools)
+> instead.
 
 ## Transport and Server Runtime
 
@@ -389,6 +413,17 @@ Set to `true` to run the legacy SSE transport.
 Notes:
 
 - Not compatible with `REMOTE_AUTHORIZATION=true`
+- If `HOST` is not loopback, startup requires `SSE_AUTH_TOKEN` unless you explicitly set `SSE_DANGEROUSLY_ALLOW_UNAUTHENTICATED_REMOTE=true`
+
+### `SSE_AUTH_TOKEN`
+
+Bearer token required for `/sse` and `/messages` when configured.
+Use this for any network-reachable SSE deployment.
+
+### `SSE_DANGEROUSLY_ALLOW_UNAUTHENTICATED_REMOTE`
+
+Set to `true` only if you intentionally expose SSE without MCP-layer auth.
+This allows any network client to use the server's configured GitLab token.
 
 ### `HOST`
 

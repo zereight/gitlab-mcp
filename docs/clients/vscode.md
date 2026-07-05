@@ -11,6 +11,14 @@ VS Code supports two MCP configuration locations:
 
 Use workspace config when you want to share the MCP server with your team.
 
+Install the server globally once:
+
+```bash
+npm install -g @zereight/mcp-gitlab
+```
+
+If VS Code cannot find `zereight-mcp-gitlab`, use the absolute path from `which zereight-mcp-gitlab`.
+
 ## PAT setup
 
 A secure workspace example using input prompts:
@@ -28,8 +36,7 @@ A secure workspace example using input prompts:
   "servers": {
     "gitlab": {
       "type": "stdio",
-      "command": "npx",
-      "args": ["-y", "@zereight/mcp-gitlab"],
+      "command": "zereight-mcp-gitlab",
       "env": {
         "GITLAB_PERSONAL_ACCESS_TOKEN": "${input:gitlab-token}",
         "GITLAB_API_URL": "https://gitlab.com/api/v4",
@@ -56,8 +63,7 @@ A local OAuth example:
   "servers": {
     "gitlab": {
       "type": "stdio",
-      "command": "npx",
-      "args": ["-y", "@zereight/mcp-gitlab"],
+      "command": "zereight-mcp-gitlab",
       "env": {
         "GITLAB_USE_OAUTH": "true",
         "GITLAB_OAUTH_CLIENT_ID": "${input:gitlab-oauth-client-id}",

@@ -2,7 +2,7 @@ services:
   gitlab-mcp:
     image: zereight050/gitlab-mcp:latest
     ports:
-      - 3002:3002
+      - 127.0.0.1:3002:3002
     environment:
       - GITLAB_PERSONAL_ACCESS_TOKEN=${GITLAB_PERSONAL_ACCESS_TOKEN}
       - GITLAB_API_URL=${GITLAB_API_URL}
@@ -14,3 +14,4 @@ services:
       - USE_PIPELINE=${USE_PIPELINE}
       - STREAMABLE_HTTP=${STREAMABLE_HTTP}
       - SSE=${SSE}
+      - SSE_AUTH_TOKEN=${SSE_AUTH_TOKEN}

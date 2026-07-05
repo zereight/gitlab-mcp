@@ -3,15 +3,29 @@ import type { Express, Request, Response } from "express";
 import type nodeFetch from "node-fetch";
 import { decryptDownloadToken } from "../utils/download-token.js";
 
+const DEFAULT_DOWNLOAD_TIMEOUT_MS = 120_000;
+
 export interface DownloadProxyDependencies {
   defaultApiUrl: string;
   enableDynamicApiUrl: boolean;
   maxRequestsPerMinute: number;
-  normalizeGitLabApiUrl: (url: string) => string;
+  resolveTrustedGitLabApiUrl: (url: string) => string;
+  encodeGitLabPathSegment: (value: unknown) => string;
+  encodeGitLabPath: (value: string) => string;
   getEffectiveProjectId: (projectId: string) => string;
   getAgentFunctionForUrl: (apiUrl: string) => (parsedURL: URL) => Agent;
   fetch: typeof nodeFetch;
   logger: { error: (obj: unknown, message?: string) => void };
+  downloadTimeoutMs?: number;
+}
+
+function canonicalizeQueryParams(params: Record<string, string>): string {
+  const sortedKeys = Object.keys(params).sort();
+  const normalized: Record<string, string> = {};
+  for (const key of sortedKeys) {
+    normalized[key] = params[key];
+  }
+  return JSON.stringify(normalized);
 }
 
 /**
@@ -22,6 +36,7 @@ export interface DownloadProxyDependencies {
 export function registerDownloadProxy(app: Express, deps: DownloadProxyDependencies): void {
   const downloadRateLimits: Record<string, { count: number; resetAt: number }> = {};
   let lastEviction = Date.now();
+  const downloadTimeoutMs = deps.downloadTimeoutMs ?? DEFAULT_DOWNLOAD_TIMEOUT_MS;
 
   const checkDownloadRateLimit = (token: string): boolean => {
     const now = Date.now();
@@ -66,7 +81,8 @@ export function registerDownloadProxy(app: Express, deps: DownloadProxyDependenc
         }
         if (
           decrypted.resourceType !== type ||
-          JSON.stringify(decrypted.resourceParams) !== JSON.stringify(queryParams)
+          canonicalizeQueryParams(decrypted.resourceParams ?? {}) !==
+            canonicalizeQueryParams(queryParams)
         ) {
           res.status(403).json({ error: "Download token does not match the requested resource" });
           return;
@@ -101,17 +117,15 @@ export function registerDownloadProxy(app: Express, deps: DownloadProxyDependenc
     }
 
     // API URL: prefer token-embedded URL, then X-GitLab-API-URL header, then default
-    let apiUrl = tokenApiUrl || deps.defaultApiUrl;
-    if (!tokenApiUrl) {
-      const dynamicApiUrl = (req.headers["x-gitlab-api-url"] as string | undefined)?.trim();
-      if (deps.enableDynamicApiUrl && dynamicApiUrl) {
-        try {
-          new URL(dynamicApiUrl);
-          apiUrl = deps.normalizeGitLabApiUrl(dynamicApiUrl);
-        } catch {
-          res.status(400).json({ error: "Invalid X-GitLab-API-URL" });
-          return;
-        }
+    let apiUrl = deps.defaultApiUrl;
+    const requestedApiUrl =
+      tokenApiUrl || (req.headers["x-gitlab-api-url"] as string | undefined)?.trim();
+    if (deps.enableDynamicApiUrl && requestedApiUrl) {
+      try {
+        apiUrl = deps.resolveTrustedGitLabApiUrl(requestedApiUrl);
+      } catch {
+        res.status(400).json({ error: "Invalid X-GitLab-API-URL" });
+        return;
       }
     }
 
@@ -127,7 +141,7 @@ export function registerDownloadProxy(app: Express, deps: DownloadProxyDependenc
             return;
           }
           const effectiveProjectId = deps.getEffectiveProjectId(decodeURIComponent(project_id));
-          gitlabUrl = `${apiUrl}/projects/${encodeURIComponent(effectiveProjectId)}/jobs/${job_id}/artifacts`;
+          gitlabUrl = `${apiUrl}/projects/${encodeURIComponent(effectiveProjectId)}/jobs/${deps.encodeGitLabPathSegment(job_id)}/artifacts`;
           break;
         }
         case "attachment": {
@@ -137,7 +151,7 @@ export function registerDownloadProxy(app: Express, deps: DownloadProxyDependenc
             return;
           }
           const effectiveProjectId = deps.getEffectiveProjectId(decodeURIComponent(project_id));
-          gitlabUrl = `${apiUrl}/projects/${encodeURIComponent(effectiveProjectId)}/uploads/${secret}/${filename}`;
+          gitlabUrl = `${apiUrl}/projects/${encodeURIComponent(effectiveProjectId)}/uploads/${deps.encodeGitLabPathSegment(secret)}/${deps.encodeGitLabPath(filename)}`;
           break;
         }
         case "release-asset": {
@@ -149,7 +163,7 @@ export function registerDownloadProxy(app: Express, deps: DownloadProxyDependenc
             return;
           }
           const effectiveProjectId = deps.getEffectiveProjectId(decodeURIComponent(project_id));
-          gitlabUrl = `${apiUrl}/projects/${encodeURIComponent(effectiveProjectId)}/releases/${encodeURIComponent(tag_name)}/downloads/${direct_asset_path}`;
+          gitlabUrl = `${apiUrl}/projects/${encodeURIComponent(effectiveProjectId)}/releases/${encodeURIComponent(tag_name)}/downloads/${deps.encodeGitLabPath(direct_asset_path)}`;
           break;
         }
         default:
@@ -163,9 +177,16 @@ export function registerDownloadProxy(app: Express, deps: DownloadProxyDependenc
       return;
     }
 
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), downloadTimeoutMs);
+
     try {
       const agent = deps.getAgentFunctionForUrl(apiUrl);
-      const gitlabResponse = await deps.fetch(gitlabUrl, { headers, agent });
+      const gitlabResponse = await deps.fetch(gitlabUrl, {
+        headers,
+        agent,
+        signal: controller.signal,
+      });
 
       if (!gitlabResponse.ok) {
         res.status(gitlabResponse.status).json({
@@ -190,8 +211,13 @@ export function registerDownloadProxy(app: Express, deps: DownloadProxyDependenc
     } catch (error) {
       deps.logger.error({ err: error }, "Download proxy error");
       if (!res.headersSent) {
-        res.status(502).json({ error: "Failed to proxy download from GitLab" });
+        const message = error instanceof Error && error.name === "AbortError"
+          ? "GitLab download timed out"
+          : "Failed to proxy download from GitLab";
+        res.status(502).json({ error: message });
       }
+    } finally {
+      clearTimeout(timeout);
     }
   });
 }

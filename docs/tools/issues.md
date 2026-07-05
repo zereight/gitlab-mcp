@@ -121,7 +121,7 @@ Get details of a specific issue
 
 *✏️ Writes*
 
-Update an issue
+Update an issue. Returns a slim confirmation by default; set full_response=true for the complete updated issue object
 
 **Parameters**
 
@@ -140,6 +140,7 @@ Update an issue
 | `state_event` | enum (`close` \| `reopen`) |  | Update issue state (close/reopen) |
 | `weight` | number |  | Weight of the issue (numeric, typically hours of work) |
 | `issue_type` | enum (`issue` \| `incident` \| `test_case` \| `task`) |  | The type of issue. One of issue, incident, test_case or task. |
+| `full_response` | boolean |  | If true, return the complete updated issue object. Default returns a slim confirmation (iid, title, state, web_url, updated_at) to reduce token usage. |
 
 ### `update_issue_description_patch`
 

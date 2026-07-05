@@ -20,7 +20,7 @@ PAT, OAuth, 읽기 전용 모드, 동적 API URL, 원격 인증을 지원하며 
 - 클라이언트 친화적 설정: Claude Code, Codex, Antigravity, OpenCode, Copilot, Cline, Roo Code, Cursor, Kilo Code, Amp Code 예시 제공
 - 셀프 호스팅 대응: 커스텀 GitLab 인스턴스, 프록시 설정, 동적 API URL 라우팅 지원
 
-빠른 시작: 아래에서 Personal Access Token 또는 OAuth2 설정 중 하나를 선택하고 MCP 클라이언트 설정에서 `@zereight/mcp-gitlab`을 사용하세요.
+빠른 시작: 아래에서 Personal Access Token 또는 OAuth2 설정 중 하나를 선택하고 `@zereight/mcp-gitlab`을 설치한 뒤 MCP 클라이언트 설정에서 `zereight-mcp-gitlab`을 사용하세요.
 
 ### 클라이언트 설정 가이드
 
@@ -63,6 +63,16 @@ PAT, OAuth, 읽기 전용 모드, 동적 API URL, 원격 인증을 지원하며 
 
 가장 단순한 로컬 설정은 Personal Access Token으로 시작하세요. 브라우저 기반 로컬 인증은 OAuth2를 사용하세요. 원격 또는 멀티 유저 배포는 아래 MCP OAuth 및 원격 인증 섹션을 참고하세요.
 
+서버를 한 번 전역 설치하세요.
+
+```shell
+npm install -g @zereight/mcp-gitlab
+```
+
+예시는 기존 `mcp-gitlab`보다 충돌 가능성이 낮은 `zereight-mcp-gitlab` 별칭을 사용합니다. MCP 클라이언트가 찾지 못하면 `which zereight-mcp-gitlab`의 절대 경로를 사용하세요.
+
+전역 설치를 쓰지 않으려면 `npx -y @zereight/mcp-gitlab@2.1.28`처럼 직전 안정 버전(문서가 권장하는 버전)으로 고정하세요. 항상 최신 버전을 원하면 `npx -y @zereight/mcp-gitlab@latest`를 사용하세요. 새 버전이 나오면 서버가 시작 시 stderr로 알려줍니다(`GITLAB_DISABLE_VERSION_CHECK=true`로 비활성화 가능).
+
 #### CLI 인자 사용하기(환경 변수 문제가 있는 클라이언트용)
 
 일부 MCP 클라이언트(예: GitHub Copilot CLI)는 환경 변수 처리에 문제가 있을 수 있습니다. 이 경우 CLI 인자를 사용하세요.
@@ -71,13 +81,8 @@ PAT, OAuth, 읽기 전용 모드, 동적 API URL, 원격 인증을 지원하며 
 {
   "mcpServers": {
     "gitlab": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "@zereight/mcp-gitlab",
-        "--token=YOUR_GITLAB_TOKEN",
-        "--api-url=https://gitlab.com/api/v4"
-      ],
+      "command": "zereight-mcp-gitlab",
+      "args": ["--token=YOUR_GITLAB_TOKEN", "--api-url=https://gitlab.com/api/v4"],
       "tools": ["*"]
     }
   }
@@ -89,11 +94,19 @@ PAT, OAuth, 읽기 전용 모드, 동적 API URL, 원격 인증을 지원하며 
 - `--token` - GitLab Personal Access Token (`GITLAB_PERSONAL_ACCESS_TOKEN` 대체)
 - `--api-url` - GitLab API URL (`GITLAB_API_URL` 대체)
 - `--read-only=true` - 읽기 전용 모드 활성화 (`GITLAB_READ_ONLY_MODE` 대체)
-- `--use-wiki=true` - 위키 API 활성화 (`USE_GITLAB_WIKI` 대체)
-- `--use-milestone=true` - 마일스톤 API 활성화 (`USE_MILESTONE` 대체)
-- `--use-pipeline=true` - 파이프라인 API 활성화 (`USE_PIPELINE` 대체)
+- `--use-wiki=true` - 위키 API 활성화 (`USE_GITLAB_WIKI` 대체, 레거시 — `GITLAB_TOOLSETS=wiki` 권장)
+- `--use-milestone=true` - 마일스톤 API 활성화 (`USE_MILESTONE` 대체, 레거시 — `GITLAB_TOOLSETS=milestones` 권장)
+- `--use-pipeline=true` - 파이프라인 API 활성화 (`USE_PIPELINE` 대체, 레거시 — `GITLAB_TOOLSETS=pipelines` 권장)
+- `--disable-version-check=true` - 시작 시 신규 버전 알림 비활성화 (`GITLAB_DISABLE_VERSION_CHECK` 대체)
 
 CLI 인자는 환경 변수보다 우선합니다.
+
+> **세밀한 도구 필터링:** 전체 on/off 방식인 `GITLAB_READ_ONLY_MODE` 외에도,
+> `GITLAB_TOOLSETS=<group,…>`로 도구 그룹을 활성화하고, `GITLAB_TOOLS=<tool,…>`로 개별 도구만
+> 허용하며(예: 읽기 도구 + 특정 쓰기 도구 몇 개), `GITLAB_DENIED_TOOLS_REGEX`로 패턴 차단할 수
+> 있습니다. 레거시 `USE_GITLAB_WIKI` / `USE_MILESTONE` / `USE_PIPELINE` 플래그는 하위 호환용으로만
+> 유지됩니다. [Tools Reference](./docs/tools/index.md#feature-toggles)와
+> [Environment Variables](./docs/configuration/environment-variables.md)를 참고하세요.
 
 #### SSE
 
@@ -103,9 +116,7 @@ docker run -i --rm \
   -e GITLAB_PERSONAL_ACCESS_TOKEN=your_gitlab_token \
   -e GITLAB_API_URL="https://gitlab.com/api/v4" \
   -e GITLAB_READ_ONLY_MODE=true \
-  -e USE_GITLAB_WIKI=true \
-  -e USE_MILESTONE=true \
-  -e USE_PIPELINE=true \
+  -e GITLAB_TOOLSETS=wiki,milestones,pipelines \
   -e SSE=true \
   -p 3333:3002 \
   zereight050/gitlab-mcp
@@ -130,9 +141,7 @@ docker run -i --rm \
   -e GITLAB_PERSONAL_ACCESS_TOKEN=your_gitlab_token \
   -e GITLAB_API_URL="https://gitlab.com/api/v4" \
   -e GITLAB_READ_ONLY_MODE=true \
-  -e USE_GITLAB_WIKI=true \
-  -e USE_MILESTONE=true \
-  -e USE_PIPELINE=true \
+  -e GITLAB_TOOLSETS=wiki,milestones,pipelines \
   -e STREAMABLE_HTTP=true \
   -p 3333:3002 \
   zereight050/gitlab-mcp
@@ -178,15 +187,15 @@ MCP 서버가 직접 로컬 브라우저 callback을 받을 때만 `GITLAB_OAUTH
 2. `api` 또는 `read_api` scope가 있는 사전 등록 GitLab OAuth 애플리케이션
    — `Admin area` → `Applications`에서 Redirect URI를 `{MCP_SERVER_URL}/callback`으로 설정하세요.
 
-| 환경 변수                     | 필수 | 설명                                                       |
-| ----------------------------- | ---- | ---------------------------------------------------------- |
-| `GITLAB_MCP_OAUTH`            | 예   | 활성화하려면 `true`                                        |
-| `GITLAB_API_URL`              | 예   | GitLab API base URL                                        |
-| `GITLAB_OAUTH_APP_ID`         | 예   | GitLab OAuth Application ID                                |
-| `MCP_SERVER_URL`              | 예   | 이 MCP 서버의 공개 HTTPS URL                               |
-| `STREAMABLE_HTTP`             | 예   | 반드시 `true`                                              |
-| `GITLAB_OAUTH_CALLBACK_PROXY` | 선택 | MCP 서버의 고정 `/callback` URL을 사용하려면 `true`        |
-| `GITLAB_OAUTH_SCOPES`         | 선택 | 쉼표로 구분된 scope 목록(기본값: `api,read_api,read_user`) |
+| 환경 변수                     | 필수 | 설명                                                                                                                            |
+| ----------------------------- | ---- | ------------------------------------------------------------------------------------------------------------------------------- |
+| `GITLAB_MCP_OAUTH`            | 예   | 활성화하려면 `true`                                                                                                             |
+| `GITLAB_API_URL`              | 예   | GitLab API base URL                                                                                                             |
+| `GITLAB_OAUTH_APP_ID`         | 예   | GitLab OAuth Application ID                                                                                                     |
+| `MCP_SERVER_URL`              | 예   | 이 MCP 서버의 공개 HTTPS URL                                                                                                    |
+| `STREAMABLE_HTTP`             | 예   | 반드시 `true`                                                                                                                   |
+| `GITLAB_OAUTH_CALLBACK_PROXY` | 선택 | MCP 서버의 고정 `/callback` URL을 사용하려면 `true`                                                                             |
+| `GITLAB_OAUTH_SCOPES`         | 선택 | 쉼표로 구분된 scope 목록(기본값: `api,read_api,read_user`)                                                                      |
 | `GITLAB_OAUTH_ALLOWED_GROUPS` | 선택 | 쉼표로 구분된 GitLab 그룹 전체 경로 — 해당 그룹 및 하위 그룹 멤버만 토큰을 발급받을 수 있음 (기존 `GITLAB_ALLOWED_GROUPS` 대체) |
 
 > **`Unregistered redirect_uri` 문제 해결**
@@ -233,11 +242,12 @@ MCP 클라이언트 설정:
 
 **헤더 우선순위**: `Private-Token` > `JOB-TOKEN` > `Authorization: Bearer`
 
-| 환경 변수                | 필수 | 설명                                |
-| ------------------------ | ---- | ----------------------------------- |
-| `REMOTE_AUTHORIZATION`   | 예   | 활성화하려면 `true`                 |
-| `STREAMABLE_HTTP`        | 예   | 반드시 `true`                       |
-| `ENABLE_DYNAMIC_API_URL` | 선택 | 요청별 `X-GitLab-API-URL` 헤더 허용 |
+| 환경 변수                | 필수 | 설명                                                                |
+| ------------------------ | ---- | ------------------------------------------------------------------- |
+| `REMOTE_AUTHORIZATION`   | 예   | 활성화하려면 `true`                                                 |
+| `STREAMABLE_HTTP`        | 예   | 반드시 `true`                                                       |
+| `ENABLE_DYNAMIC_API_URL` | 선택 | 요청별 `X-GitLab-API-URL` 헤더 허용                                 |
+| `GITLAB_ALLOWED_HOSTS`   | 선택 | 허용할 호스트의 쉼표 구분 목록; `GITLAB_API_URL` 호스트는 항상 허용 |
 
 **예시 요청 헤더:**
 
@@ -446,6 +456,22 @@ AI 클라이언트에 skill 디렉터리를 등록하면 전체 ListTools 응답
 ## 도구 🛠️
 
 전체 도구 목록은 영어 README의 [Tools 섹션](./README.md#tools-%EF%B8%8F)을 참고하세요. 현재 서버는 머지 리퀘스트, 이슈, 파이프라인, 배포, 환경, 아티팩트, 마일스톤, 위키, 저장소, 릴리스, 사용자, 이벤트, work item, 웹훅, 코드 검색, GraphQL 실행 도구를 제공합니다.
+
+### Wiki 페이지 제목과 slug
+
+GitLab은 wiki 페이지 제목에서 **slug**(URL, `/-/wikis/<slug>`)를 도출합니다. 따라서 `update_wiki_page` / `update_group_wiki_page`에 `title`을 전달하면 **페이지 이름이 바뀌고 URL이 변경**되어(중첩 페이지의 경우 페이지가 다른 경로로 이동할 수도 있음) 기존 링크가 깨집니다.
+
+URL을 유지한 채 **표시 제목**만 변경하려면 `title`을 전달하지 **말고**, 표시 제목을 페이지 내용의 YAML front matter에 저장한 뒤 내용을 업데이트하세요:
+
+```markdown
+---
+title: 사용자 지정 표시 제목
+---
+
+페이지 본문…
+```
+
+GitLab은 slug/URL을 그대로 유지하고 UI에 front matter의 제목을 표시합니다. 다시 읽을 때는 `get_wiki_page`에 `render_html: true`를 전달하면 `front_matter` 필드가 채워집니다 — 일반 `title` 필드는 항상 slug에서 도출된 값을 반영합니다.
 
 ## 테스트 🧪
 

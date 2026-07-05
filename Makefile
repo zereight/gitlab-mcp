@@ -1,4 +1,4 @@
-.PHONY: help install serve build tools-docs clean
+.PHONY: help install serve build docs tools-docs clean
 
 VENV   := .venv-docs
 PIP    := $(VENV)/bin/pip
@@ -19,6 +19,8 @@ install: $(VENV)/bin/activate ## Create .venv-docs and install docs dependencies
 
 tools-docs: ## Regenerate docs/tools/*.md from tools/registry.ts
 	npx tsx scripts/generate-tool-docs.ts
+
+docs: tools-docs build ## Regenerate and build documentation
 
 serve: install ## Preview docs at http://127.0.0.1:8000 (auto-reload)
 	$(MKDOCS) serve

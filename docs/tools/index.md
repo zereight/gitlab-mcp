@@ -163,7 +163,7 @@ Issue CRUD, links, discussions and notes, todos, and emoji reactions. *(24 tools
 | [`list_issues`](issues.md#list_issues) | List issues (default: created by current user; use scope='all' for all) | 📖 |
 | [`my_issues`](issues.md#my_issues) | List issues assigned to the authenticated user | 📖 |
 | [`get_issue`](issues.md#get_issue) | Get details of a specific issue | 📖 |
-| [`update_issue`](issues.md#update_issue) | Update an issue | ✏️ |
+| [`update_issue`](issues.md#update_issue) | Update an issue. Returns a slim confirmation by default; set full_response=true for the complete updated issue object | ✏️ |
 | [`update_issue_description_patch`](issues.md#update_issue_description_patch) | Apply a patch (search/replace or unified diff) to an issue description. Reduces token usage by allowing small changes without sending the full description. Supports dry_run to preview changes and create_note to summarize updates. | ✏️ |
 | [`delete_issue`](issues.md#delete_issue) | Delete an issue | ✏️ |
 | [`list_todos`](issues.md#list_todos) | List GitLab to-do items for the current user | 📖 |

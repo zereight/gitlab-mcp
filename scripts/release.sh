@@ -50,12 +50,53 @@ fs.writeFileSync("server.json", `${JSON.stringify(serverJson, null, 2)}\n`);
 NODE
 }
 
+# Pin README/docs npx examples to the PREVIOUS stable release, not the version
+# being cut right now: a freshly released version has not been proven in the
+# wild yet, so new users get the last known-good release by default. Users who
+# always want the newest can use @latest (documented in the READMEs).
+sync_pinned_npx_docs_version() {
+  local version="$1"
+
+  if [ -z "$version" ]; then
+    echo "⚠️  No previous release tag found; leaving pinned docs version unchanged."
+    return
+  fi
+
+  node - "$version" <<'NODE'
+const fs = require("fs");
+const path = require("path");
+const version = process.argv[2];
+const roots = ["README.md", "README.ko.md", "README.zh-CN.md", "docs"];
+
+function files(root) {
+  if (!fs.existsSync(root)) return [];
+  const stat = fs.statSync(root);
+  if (stat.isFile()) return root.endsWith(".md") ? [root] : [];
+  return fs.readdirSync(root, { withFileTypes: true }).flatMap((entry) => {
+    const next = path.join(root, entry.name);
+    if (entry.isDirectory()) return files(next);
+    return entry.isFile() && next.endsWith(".md") ? [next] : [];
+  });
+}
+
+for (const file of roots.flatMap(files)) {
+  const before = fs.readFileSync(file, "utf8");
+  const after = before.replace(/@zereight\/mcp-gitlab@\d+\.\d+\.\d+/g, `@zereight/mcp-gitlab@${version}`);
+  if (after !== before) fs.writeFileSync(file, after);
+}
+NODE
+}
+
 preflight_registry_metadata() {
   if [ ! -f server.json ]; then
     return
   fi
 
   npm run release:mcp-registry -- --check
+}
+
+build_docs() {
+  make docs
 }
 
 # Determine the previous tag for changelog
@@ -356,9 +397,11 @@ elif [ -n "$REMOTE_TAG_EXISTS" ]; then
   echo "New version: $NEW_VERSION"
 
   sync_registry_metadata_version "$NEW_VERSION"
+  sync_pinned_npx_docs_version "${PREV_TAG#v}"
   preflight_registry_metadata
+  build_docs
 
-  git add package.json package-lock.json
+  git add -u package.json package-lock.json README.md README.ko.md README.zh-CN.md docs
   if [ -f server.json ]; then
     git add server.json
   fi
@@ -376,9 +419,11 @@ else
   echo "New version: $NEW_VERSION"
 
   sync_registry_metadata_version "$NEW_VERSION"
+  sync_pinned_npx_docs_version "${PREV_TAG#v}"
   preflight_registry_metadata
+  build_docs
 
-  git add package.json package-lock.json
+  git add -u package.json package-lock.json README.md README.ko.md README.zh-CN.md docs
   if [ -f server.json ]; then
     git add server.json
   fi

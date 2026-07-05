@@ -32,6 +32,7 @@ List wiki pages in a project
 |---|---|:-:|---|
 | `project_id` | string | ✓ | Project ID or URL-encoded path |
 | `with_content` | boolean |  | Include content of the wiki pages |
+| `render_html` | boolean |  | Return rendered HTML content and include front_matter (e.g., the custom title) |
 | `page` | number |  | Page number for pagination (default: 1) |
 | `per_page` | number |  | Number of items per page (max: 100, default: 20) |
 
@@ -47,6 +48,7 @@ Get details of a specific wiki page
 |---|---|:-:|---|
 | `project_id` | string | ✓ | Project ID or URL-encoded path |
 | `slug` | string | ✓ | Slug of the wiki page (will be URL-encoded internally) |
+| `render_html` | boolean |  | Return rendered HTML content and include front_matter (e.g., the custom title) |
 
 ### `create_wiki_page`
 
@@ -75,7 +77,7 @@ Update a wiki page in a project
 |---|---|:-:|---|
 | `project_id` | string | ✓ | Project ID or URL-encoded path |
 | `slug` | string | ✓ | Slug of the wiki page (will be URL-encoded internally) |
-| `title` | string |  | New title of the wiki page |
+| `title` | string |  | New title of the wiki page. WARNING: setting this renames the page and changes its slug/URL (for nested pages it can also move the page to a different path), which breaks existing links. To change only the displayed title while keeping the URL, omit this parameter and instead set a `title:` field in the content's YAML front matter. |
 | `content` | string |  | New content of the wiki page |
 | `format` | string |  | Content format, e.g., markdown, rdoc |
 
@@ -104,6 +106,7 @@ List wiki pages in a group
 |---|---|:-:|---|
 | `group_id` | string | ✓ | Group ID or URL-encoded path |
 | `with_content` | boolean |  | Include content of the wiki pages |
+| `render_html` | boolean |  | Return rendered HTML content and include front_matter (e.g., the custom title) |
 | `page` | number |  | Page number for pagination (default: 1) |
 | `per_page` | number |  | Number of items per page (max: 100, default: 20) |
 
@@ -119,6 +122,7 @@ Get details of a specific group wiki page
 |---|---|:-:|---|
 | `group_id` | string | ✓ | Group ID or URL-encoded path |
 | `slug` | string | ✓ | Slug of the wiki page (will be URL-encoded internally) |
+| `render_html` | boolean |  | Return rendered HTML content and include front_matter (e.g., the custom title) |
 
 ### `create_group_wiki_page`
 
@@ -147,7 +151,7 @@ Update a wiki page in a group
 |---|---|:-:|---|
 | `group_id` | string | ✓ | Group ID or URL-encoded path |
 | `slug` | string | ✓ | Slug of the wiki page (will be URL-encoded internally) |
-| `title` | string |  | New title of the wiki page |
+| `title` | string |  | New title of the wiki page. WARNING: setting this renames the page and changes its slug/URL (for nested pages it can also move the page to a different path), which breaks existing links. To change only the displayed title while keeping the URL, omit this parameter and instead set a `title:` field in the content's YAML front matter. |
 | `content` | string |  | New content of the wiki page |
 | `format` | string |  | Content format, e.g., markdown, rdoc |
 

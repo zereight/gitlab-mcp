@@ -29,14 +29,23 @@ from any MCP-compatible AI client.
 Pick the auth method that fits your environment and drop it into your MCP
 client config.
 
+Install the server globally once:
+
+```bash
+npm install -g @zereight/mcp-gitlab
+```
+
+The examples use `zereight-mcp-gitlab`, a less collision-prone alias for the legacy `mcp-gitlab` binary. If your MCP client cannot find it, use the absolute path from `which zereight-mcp-gitlab`.
+
+No global install? Pin `npx` to the previous stable release (the version these docs recommend), for example `npx -y @zereight/mcp-gitlab@2.1.28`. If you always want the newest release, use `npx -y @zereight/mcp-gitlab@latest` instead.
+
 === "Personal Access Token"
 
     ```json
     {
       "mcpServers": {
         "gitlab": {
-          "command": "npx",
-          "args": ["-y", "@zereight/mcp-gitlab"],
+          "command": "zereight-mcp-gitlab",
           "env": {
             "GITLAB_PERSONAL_ACCESS_TOKEN": "glpat-xxxxxxxxxxxxxxxxxxxx",
             "GITLAB_API_URL": "https://gitlab.com/api/v4"
@@ -52,8 +61,7 @@ client config.
     {
       "mcpServers": {
         "gitlab": {
-          "command": "npx",
-          "args": ["-y", "@zereight/mcp-gitlab"],
+          "command": "zereight-mcp-gitlab",
           "env": {
             "GITLAB_USE_OAUTH": "true",
             "GITLAB_API_URL": "https://gitlab.com/api/v4"
@@ -69,10 +77,8 @@ client config.
     {
       "mcpServers": {
         "gitlab": {
-          "command": "npx",
+          "command": "zereight-mcp-gitlab",
           "args": [
-            "-y",
-            "@zereight/mcp-gitlab",
             "--token=glpat-xxxxxxxxxxxxxxxxxxxx",
             "--api-url=https://gitlab.com/api/v4"
           ]

@@ -13,6 +13,7 @@ import {
   GITLAB_OAUTH_CALLBACK_PROXY,
   GITLAB_PERSONAL_ACCESS_TOKEN,
   GITLAB_POOL_MAX_SIZE,
+  GITLAB_DISABLE_VERSION_CHECK,
   GITLAB_READ_ONLY_MODE,
   GITLAB_TOOLSETS_RAW,
   GITLAB_TOOLS_RAW,
@@ -127,7 +128,9 @@ import { ipKeyGenerator } from "express-rate-limit";
 import { normalizeProxyClientIpForRateLimit } from "./utils/proxy-client-ip.js";
 import { getForwardedPublicBaseUrl } from "./utils/forwarded-public-base-url.js";
 import { registerDownloadProxy } from "./downloads/proxy.js";
+import type { DownloadProxyDependencies } from "./downloads/proxy.js";
 import { createDownloadToken } from "./utils/download-token.js";
+import { determineTransportMode, TransportMode } from "./server/transport-mode.js";
 import { normalizeGitLabApiUrl } from "./utils/url.js";
 import {
   estimateMergeCommitCount,
@@ -136,6 +139,8 @@ import {
 } from "./utils/helpers.js";
 import { graphqlQueryContainsWriteOperation } from "./utils/graphql-query.js";
 import { resolveNestedWikiUpdateTitle } from "./utils/wiki-title.js";
+import { redactSensitiveGitLabFields } from "./utils/redact-sensitive.js";
+import { checkForNewVersion } from "./utils/version-check.js";
 import {
   cleanMutuallyExclusiveIdUsernameOptions,
   LIST_MERGE_REQUESTS_ID_USERNAME_PAIRS,
@@ -544,15 +549,6 @@ const logger = pino({
 });
 
 /**
- * Available transport modes for MCP server
- */
-enum TransportMode {
-  STDIO = "stdio",
-  SSE = "sse",
-  STREAMABLE_HTTP = "streamable-http",
-}
-
-/**
  * Read version from package.json
  */
 const __filename = fileURLToPath(import.meta.url);
@@ -873,6 +869,17 @@ function createServer(): McpServer {
 /**
  * Validate configuration at startup
  */
+function isLoopbackBindHost(host: string): boolean {
+  const normalized = host.trim().toLowerCase().replace(/^\[|\]$/g, "");
+  const isIpv4Loopback = /^127(?:\.\d{1,3}){3}$/.test(normalized);
+  return (
+    normalized === "localhost" ||
+    isIpv4Loopback ||
+    normalized === "::1" ||
+    normalized === "0:0:0:0:0:0:0:1"
+  );
+}
+
 function validateConfiguration(): void {
   const errors: string[] = [];
 
@@ -932,6 +939,13 @@ function validateConfiguration(): void {
     }
   }
 
+  const allowedHosts = getConfig("allowed-hosts", "GITLAB_ALLOWED_HOSTS")?.split(",") || [];
+  for (const host of allowedHosts) {
+    if (host.trim() && !toAllowedGitLabApiUrl(host)) {
+      errors.push(`GITLAB_ALLOWED_HOSTS contains an invalid host or URL: ${host.trim()}`);
+    }
+  }
+
   // Validate auth configuration
   const remoteAuth = getConfig("remote-auth", "REMOTE_AUTHORIZATION") === "true";
   const useOAuth = getConfig("use-oauth", "GITLAB_USE_OAUTH") === "true";
@@ -941,6 +955,14 @@ function validateConfiguration(): void {
   const mcpOAuth = getConfig("mcp-oauth", "GITLAB_MCP_OAUTH") === "true";
   const mcpServerUrl = getConfig("mcp-server-url", "MCP_SERVER_URL");
   const streamableHttp = getConfig("streamable-http", "STREAMABLE_HTTP") === "true";
+  const sse = getConfig("sse", "SSE") === "true";
+  const bindHost = getConfig("host", "HOST") || "127.0.0.1";
+  const sseAuthToken = getConfig("sse-auth-token", "SSE_AUTH_TOKEN");
+  const allowUnauthenticatedRemoteSse =
+    getConfig(
+      "sse-dangerously-allow-unauthenticated-remote",
+      "SSE_DANGEROUSLY_ALLOW_UNAUTHENTICATED_REMOTE"
+    ) === "true";
 
   if (!remoteAuth && !useOAuth && !hasToken && !hasJobToken && !hasCookie && !mcpOAuth) {
     errors.push(
@@ -951,6 +973,12 @@ function validateConfiguration(): void {
   if (streamableHttp && (hasToken || hasJobToken) && !remoteAuth && !mcpOAuth) {
     errors.push(
       "STREAMABLE_HTTP=true/--streamable-http with GITLAB_PERSONAL_ACCESS_TOKEN/--token or GITLAB_JOB_TOKEN/--job-token requires REMOTE_AUTHORIZATION=true/--remote-auth=true or GITLAB_MCP_OAUTH=true/--mcp-oauth=true"
+    );
+  }
+
+  if (sse && !isLoopbackBindHost(bindHost) && !sseAuthToken && !allowUnauthenticatedRemoteSse) {
+    errors.push(
+      "SSE=true on a non-loopback HOST requires SSE_AUTH_TOKEN (or explicitly set SSE_DANGEROUSLY_ALLOW_UNAUTHENTICATED_REMOTE=true)"
     );
   }
 
@@ -1569,11 +1597,70 @@ type GitLabMergeRequestWithDeploymentSummary = GitLabMergeRequest & {
   };
 };
 
+function toAllowedGitLabApiUrl(value: string): { host: string; apiUrl: string } | null {
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+
+  try {
+    const url = new URL(trimmed.includes("://") ? trimmed : `https://${trimmed}`);
+    if (url.protocol !== "http:" && url.protocol !== "https:") return null;
+    return { host: url.host, apiUrl: normalizeGitLabApiUrl(url.toString()) };
+  } catch {
+    return null;
+  }
+}
+
+function parseAllowedGitLabApiUrls(value: string): Array<{ host: string; apiUrl: string }> {
+  return value
+    .split(",")
+    .map(toAllowedGitLabApiUrl)
+    .filter((entry): entry is { host: string; apiUrl: string } => Boolean(entry));
+}
+
+function encodeGitLabPathSegment(value: unknown): string {
+  const segment = String(value);
+  try {
+    return encodeURIComponent(decodeURIComponent(segment));
+  } catch {
+    return encodeURIComponent(segment);
+  }
+}
+
+function encodeGitLabPath(value: string): string {
+  return value.split("/").map(encodeGitLabPathSegment).join("/");
+}
+
+function resolveTrustedGitLabApiUrl(value: string): string {
+  const parsed = new URL(normalizeGitLabApiUrl(value));
+
+  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+    throw new Error("GitLab API URL must use HTTP or HTTPS");
+  }
+
+  const allowedApiUrl = GITLAB_ALLOWED_API_URLS_BY_HOST.get(parsed.host);
+  if (!allowedApiUrl) {
+    throw new Error(`GitLab API URL host is not allowed: ${parsed.host}`);
+  }
+
+  return allowedApiUrl;
+}
+
 // Use the normalizeGitLabApiUrl function to handle various URL formats
 const GITLAB_API_URLS = (getConfig("api-url", "GITLAB_API_URL") || "https://gitlab.com")
   .split(",")
   .map(normalizeGitLabApiUrl);
 const GITLAB_API_URL = GITLAB_API_URLS[0];
+const GITLAB_ALLOWED_API_URLS_BY_HOST = new Map<string, string>();
+for (const { host, apiUrl } of [
+  ...GITLAB_API_URLS.map(toAllowedGitLabApiUrl).filter(
+    (entry): entry is { host: string; apiUrl: string } => Boolean(entry)
+  ),
+  ...parseAllowedGitLabApiUrls(getConfig("allowed-hosts", "GITLAB_ALLOWED_HOSTS") || ""),
+]) {
+  if (!GITLAB_ALLOWED_API_URLS_BY_HOST.has(host)) {
+    GITLAB_ALLOWED_API_URLS_BY_HOST.set(host, apiUrl);
+  }
+}
 const GITLAB_PROJECT_ID = process.env.GITLAB_PROJECT_ID;
 const GITLAB_ALLOWED_PROJECT_IDS =
   process.env.GITLAB_ALLOWED_PROJECT_IDS?.split(",")
@@ -2022,7 +2109,7 @@ async function listMergeRequests(
 async function getIssue(projectId: string, issueIid: number | string): Promise<GitLabIssue> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/issues/${issueIid}`
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/issues/${encodeGitLabPathSegment(issueIid)}`
   );
 
   const response = await fetch(url.toString(), {
@@ -2050,7 +2137,7 @@ async function updateIssue(
 ): Promise<GitLabIssue> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/issues/${issueIid}`
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/issues/${encodeGitLabPathSegment(issueIid)}`
   );
 
   // Convert labels array to comma-separated string if present
@@ -2081,7 +2168,7 @@ async function updateIssue(
 async function deleteIssue(projectId: string, issueIid: number | string): Promise<void> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/issues/${issueIid}`
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/issues/${encodeGitLabPathSegment(issueIid)}`
   );
 
   const response = await fetch(url.toString(), {
@@ -3852,7 +3939,7 @@ async function listIssueLinks(
 ): Promise<GitLabIssueWithLinkDetails[]> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/issues/${issueIid}/links`
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/issues/${encodeGitLabPathSegment(issueIid)}/links`
   );
 
   const response = await fetch(url.toString(), {
@@ -3882,7 +3969,7 @@ async function getIssueLink(
   const url = new URL(
     `${getEffectiveApiUrl()}/projects/${encodeURIComponent(
       getEffectiveProjectId(projectId)
-    )}/issues/${issueIid}/links/${issueLinkId}`
+    )}/issues/${encodeGitLabPathSegment(issueIid)}/links/${encodeGitLabPathSegment(issueLinkId)}`
   );
 
   const response = await fetch(url.toString(), {
@@ -3915,7 +4002,7 @@ async function createIssueLink(
   projectId = decodeURIComponent(projectId); // Decode project ID
   targetProjectId = decodeURIComponent(targetProjectId); // Decode target project ID as well
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/issues/${issueIid}/links`
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/issues/${encodeGitLabPathSegment(issueIid)}/links`
   );
 
   const response = await fetch(url.toString(), {
@@ -3951,7 +4038,7 @@ async function deleteIssueLink(
   const url = new URL(
     `${getEffectiveApiUrl()}/projects/${encodeURIComponent(
       getEffectiveProjectId(projectId)
-    )}/issues/${issueIid}/links/${issueLinkId}`
+    )}/issues/${encodeGitLabPathSegment(issueIid)}/links/${encodeGitLabPathSegment(issueLinkId)}`
   );
 
   const response = await fetch(url.toString(), {
@@ -4121,7 +4208,7 @@ async function deleteMergeRequestDiscussionNote(
   const url = new URL(
     `${getEffectiveApiUrl()}/projects/${encodeURIComponent(
       getEffectiveProjectId(projectId)
-    )}/merge_requests/${mergeRequestIid}/discussions/${discussionId}/notes/${noteId}`
+    )}/merge_requests/${encodeGitLabPathSegment(mergeRequestIid)}/discussions/${encodeGitLabPathSegment(discussionId)}/notes/${encodeGitLabPathSegment(noteId)}`
   );
   const response = await fetch(url.toString(), {
     ...getFetchConfig(),
@@ -4158,7 +4245,7 @@ async function updateMergeRequestDiscussionNote(
   const url = new URL(
     `${getEffectiveApiUrl()}/projects/${encodeURIComponent(
       getEffectiveProjectId(projectId)
-    )}/merge_requests/${mergeRequestIid}/discussions/${discussionId}/notes/${noteId}`
+    )}/merge_requests/${encodeGitLabPathSegment(mergeRequestIid)}/discussions/${encodeGitLabPathSegment(discussionId)}/notes/${encodeGitLabPathSegment(noteId)}`
   );
 
   // Only one of body or resolved can be sent according to GitLab API
@@ -4218,7 +4305,7 @@ async function updateIssueNote(
   const url = new URL(
     `${getEffectiveApiUrl()}/projects/${encodeURIComponent(
       getEffectiveProjectId(projectId)
-    )}/issues/${issueIid}/discussions/${discussionId}/notes/${noteId}`
+    )}/issues/${encodeGitLabPathSegment(issueIid)}/discussions/${encodeGitLabPathSegment(discussionId)}/notes/${encodeGitLabPathSegment(noteId)}`
   );
 
   // Only one of body or resolved can be sent according to GitLab API
@@ -4259,9 +4346,9 @@ async function createIssueNote(
   projectId = decodeURIComponent(projectId); // Decode project ID
   const basePath = `${getEffectiveApiUrl()}/projects/${encodeURIComponent(
     getEffectiveProjectId(projectId)
-  )}/issues/${issueIid}`;
+  )}/issues/${encodeGitLabPathSegment(issueIid)}`;
   const url = new URL(
-    discussionId ? `${basePath}/discussions/${discussionId}/notes` : `${basePath}/notes`
+    discussionId ? `${basePath}/discussions/${encodeGitLabPathSegment(discussionId)}/notes` : `${basePath}/notes`
   );
 
   const payload: { body: string; created_at?: string } = { body };
@@ -4302,7 +4389,7 @@ async function createMergeRequestDiscussionNote(
   const url = new URL(
     `${getEffectiveApiUrl()}/projects/${encodeURIComponent(
       getEffectiveProjectId(projectId)
-    )}/merge_requests/${mergeRequestIid}/discussions/${discussionId}/notes`
+    )}/merge_requests/${encodeGitLabPathSegment(mergeRequestIid)}/discussions/${encodeGitLabPathSegment(discussionId)}/notes`
   );
 
   const payload: { body: string; created_at?: string } = { body };
@@ -4330,7 +4417,7 @@ async function createMergeRequestNote(
   const url = new URL(
     `${getEffectiveApiUrl()}/projects/${encodeURIComponent(
       getEffectiveProjectId(projectId)
-    )}/merge_requests/${mergeRequestIid}/notes`
+    )}/merge_requests/${encodeGitLabPathSegment(mergeRequestIid)}/notes`
   );
 
   const payload = {
@@ -4359,7 +4446,7 @@ async function deleteMergeRequestNote(
   const url = new URL(
     `${getEffectiveApiUrl()}/projects/${encodeURIComponent(
       getEffectiveProjectId(projectId)
-    )}/merge_requests/${mergeRequestIid}/notes/${noteId}`
+    )}/merge_requests/${encodeGitLabPathSegment(mergeRequestIid)}/notes/${encodeGitLabPathSegment(noteId)}`
   );
 
   const response = await fetch(url.toString(), {
@@ -4427,7 +4514,7 @@ async function getMergeRequestNote(
   const url = new URL(
     `${getEffectiveApiUrl()}/projects/${encodeURIComponent(
       getEffectiveProjectId(projectId)
-    )}/merge_requests/${mergeRequestIid}/notes/${noteId}`
+    )}/merge_requests/${encodeGitLabPathSegment(mergeRequestIid)}/notes/${encodeGitLabPathSegment(noteId)}`
   );
 
   const response = await fetch(url.toString(), {
@@ -4452,7 +4539,7 @@ async function getMergeRequestNotes(
   const url = new URL(
     `${getEffectiveApiUrl()}/projects/${encodeURIComponent(
       getEffectiveProjectId(projectId)
-    )}/merge_requests/${mergeRequestIid}/notes`
+    )}/merge_requests/${encodeGitLabPathSegment(mergeRequestIid)}/notes`
   );
 
   if (sort) {
@@ -4491,7 +4578,7 @@ async function updateMergeRequestNote(
   const url = new URL(
     `${getEffectiveApiUrl()}/projects/${encodeURIComponent(
       getEffectiveProjectId(projectId)
-    )}/merge_requests/${mergeRequestIid}/notes/${noteId}`
+    )}/merge_requests/${encodeGitLabPathSegment(mergeRequestIid)}/notes/${encodeGitLabPathSegment(noteId)}`
   );
 
   const payload = {
@@ -4722,8 +4809,7 @@ async function searchBlobs(params: {
     const projectId = encodeURIComponent(getEffectiveProjectId(decodedProjectId));
     basePath = `${getEffectiveApiUrl()}/projects/${projectId}/search`;
   } else if (params.group_id) {
-    const groupId = encodeURIComponent(decodeURIComponent(params.group_id));
-    basePath = `${getEffectiveApiUrl()}/groups/${groupId}/search`;
+    basePath = `${getEffectiveApiUrl()}/groups/${encodeGitLabPathSegment(params.group_id)}/search`;
   } else {
     basePath = `${getEffectiveApiUrl()}/search`;
   }
@@ -4816,7 +4902,7 @@ async function getMergeRequest(
     url = new URL(
       `${getEffectiveApiUrl()}/projects/${encodeURIComponent(
         getEffectiveProjectId(projectId)
-      )}/merge_requests/${mergeRequestIid}`
+      )}/merge_requests/${encodeGitLabPathSegment(mergeRequestIid)}`
     );
     url.searchParams.append("include_diverged_commits_count", "true");
   } else if (branchName) {
@@ -4853,7 +4939,7 @@ async function getMergeRequestSourceCommitCount(
   const url = new URL(
     `${getEffectiveApiUrl()}/projects/${encodeURIComponent(
       getEffectiveProjectId(projectId)
-    )}/merge_requests/${mergeRequestIid}/commits`
+    )}/merge_requests/${encodeGitLabPathSegment(mergeRequestIid)}/commits`
   );
   url.searchParams.append("per_page", "100");
 
@@ -4897,7 +4983,7 @@ async function listMergeRequestPipelines(
   const url = new URL(
     `${getEffectiveApiUrl()}/projects/${encodeURIComponent(
       getEffectiveProjectId(projectId)
-    )}/merge_requests/${mergeRequestIid}/pipelines`
+    )}/merge_requests/${encodeGitLabPathSegment(mergeRequestIid)}/pipelines`
   );
 
   Object.entries(options).forEach(([key, value]) => {
@@ -5143,7 +5229,7 @@ async function getMergeRequestDiffs(
   const url = new URL(
     `${getEffectiveApiUrl()}/projects/${encodeURIComponent(
       getEffectiveProjectId(projectId)
-    )}/merge_requests/${mergeRequestIid}/changes`
+    )}/merge_requests/${encodeGitLabPathSegment(mergeRequestIid)}/changes`
   );
 
   if (view) {
@@ -5190,7 +5276,7 @@ async function listMergeRequestDiffs(
   const url = new URL(
     `${getEffectiveApiUrl()}/projects/${encodeURIComponent(
       getEffectiveProjectId(projectId)
-    )}/merge_requests/${mergeRequestIid}/diffs`
+    )}/merge_requests/${encodeGitLabPathSegment(mergeRequestIid)}/diffs`
   );
 
   if (page) {
@@ -5243,7 +5329,7 @@ async function listMergeRequestChangedFiles(
   const url = new URL(
     `${getEffectiveApiUrl()}/projects/${encodeURIComponent(
       getEffectiveProjectId(projectId)
-    )}/merge_requests/${mergeRequestIid}/changes`
+    )}/merge_requests/${encodeGitLabPathSegment(mergeRequestIid)}/changes`
   );
 
   const response = await fetch(url.toString(), { ...getFetchConfig() });
@@ -5301,7 +5387,7 @@ async function getMergeRequestFileDiff(
     const url = new URL(
       `${getEffectiveApiUrl()}/projects/${encodeURIComponent(
         getEffectiveProjectId(projectId)
-      )}/merge_requests/${mergeRequestIid}/diffs`
+      )}/merge_requests/${encodeGitLabPathSegment(mergeRequestIid)}/diffs`
     );
     url.searchParams.append("page", page.toString());
     url.searchParams.append("per_page", perPage.toString());
@@ -5413,7 +5499,7 @@ async function updateMergeRequest(
   }
 
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/merge_requests/${mergeRequestIid}`
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/merge_requests/${encodeGitLabPathSegment(mergeRequestIid)}`
   );
 
   const response = await fetch(url.toString(), {
@@ -5442,7 +5528,7 @@ async function mergeMergeRequest(
 ): Promise<GitLabMergeRequest> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/merge_requests/${mergeRequestIid}/merge`
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/merge_requests/${encodeGitLabPathSegment(mergeRequestIid)}/merge`
   );
 
   const response = await fetch(url.toString(), {
@@ -5472,7 +5558,7 @@ async function approveMergeRequest(
 ): Promise<GitLabMergeRequestApprovalState> {
   projectId = decodeURIComponent(projectId);
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/merge_requests/${mergeRequestIid}/approve`
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/merge_requests/${encodeGitLabPathSegment(mergeRequestIid)}/approve`
   );
 
   const body: Record<string, string> = {};
@@ -5506,7 +5592,7 @@ async function unapproveMergeRequest(
 ): Promise<GitLabMergeRequestApprovalState> {
   projectId = decodeURIComponent(projectId);
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/merge_requests/${mergeRequestIid}/unapprove`
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/merge_requests/${encodeGitLabPathSegment(mergeRequestIid)}/unapprove`
   );
 
   const response = await fetch(url.toString(), {
@@ -5532,7 +5618,7 @@ async function getMergeRequestApprovalState(
 ): Promise<GitLabMergeRequestApprovalState> {
   projectId = decodeURIComponent(projectId);
   const approvalStateUrl = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/merge_requests/${mergeRequestIid}/approval_state`
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/merge_requests/${encodeGitLabPathSegment(mergeRequestIid)}/approval_state`
   );
 
   const approvalStateResponse = await fetch(approvalStateUrl.toString(), {
@@ -5575,7 +5661,7 @@ async function getMergeRequestConflicts(
 ): Promise<Record<string, unknown>> {
   projectId = decodeURIComponent(projectId);
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/merge_requests/${mergeRequestIid}/conflicts`
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/merge_requests/${encodeGitLabPathSegment(mergeRequestIid)}/conflicts`
   );
 
   const response = await fetch(url.toString(), {
@@ -5593,7 +5679,7 @@ async function getMergeRequestApprovalsFallback(
   mergeRequestIid: string | number
 ): Promise<GitLabMergeRequestApprovalState> {
   const approvalsUrl = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/merge_requests/${mergeRequestIid}/approvals`
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/merge_requests/${encodeGitLabPathSegment(mergeRequestIid)}/approvals`
   );
 
   const approvalsResponse = await fetch(approvalsUrl.toString(), {
@@ -5726,7 +5812,7 @@ async function listDraftNotes(
   const url = new URL(
     `${getEffectiveApiUrl()}/projects/${encodeURIComponent(
       getEffectiveProjectId(projectId)
-    )}/merge_requests/${mergeRequestIid}/draft_notes`
+    )}/merge_requests/${encodeGitLabPathSegment(mergeRequestIid)}/draft_notes`
   );
 
   const response = await fetch(url.toString(), {
@@ -5765,7 +5851,7 @@ async function createDraftNote(
   const url = new URL(
     `${getEffectiveApiUrl()}/projects/${encodeURIComponent(
       getEffectiveProjectId(projectId)
-    )}/merge_requests/${mergeRequestIid}/draft_notes`
+    )}/merge_requests/${encodeGitLabPathSegment(mergeRequestIid)}/draft_notes`
   );
 
   const requestBody: any = { note: body };
@@ -5816,7 +5902,7 @@ async function updateDraftNote(
   const url = new URL(
     `${getEffectiveApiUrl()}/projects/${encodeURIComponent(
       getEffectiveProjectId(projectId)
-    )}/merge_requests/${mergeRequestIid}/draft_notes/${draftNoteId}`
+    )}/merge_requests/${encodeGitLabPathSegment(mergeRequestIid)}/draft_notes/${encodeGitLabPathSegment(draftNoteId)}`
   );
 
   const requestBody: any = {};
@@ -5861,7 +5947,7 @@ async function deleteDraftNote(
   const url = new URL(
     `${getEffectiveApiUrl()}/projects/${encodeURIComponent(
       getEffectiveProjectId(projectId)
-    )}/merge_requests/${mergeRequestIid}/draft_notes/${draftNoteId}`
+    )}/merge_requests/${encodeGitLabPathSegment(mergeRequestIid)}/draft_notes/${encodeGitLabPathSegment(draftNoteId)}`
   );
 
   const response = await fetch(url.toString(), {
@@ -5891,7 +5977,7 @@ async function publishDraftNote(
   const url = new URL(
     `${getEffectiveApiUrl()}/projects/${encodeURIComponent(
       getEffectiveProjectId(projectId)
-    )}/merge_requests/${mergeRequestIid}/draft_notes/${draftNoteId}/publish`
+    )}/merge_requests/${encodeGitLabPathSegment(mergeRequestIid)}/draft_notes/${encodeGitLabPathSegment(draftNoteId)}/publish`
   );
 
   const response = await fetch(url.toString(), {
@@ -5954,7 +6040,7 @@ async function bulkPublishDraftNotes(
   const url = new URL(
     `${getEffectiveApiUrl()}/projects/${encodeURIComponent(
       getEffectiveProjectId(projectId)
-    )}/merge_requests/${mergeRequestIid}/draft_notes/bulk_publish`
+    )}/merge_requests/${encodeGitLabPathSegment(mergeRequestIid)}/draft_notes/bulk_publish`
   );
 
   const response = await fetch(url.toString(), {
@@ -5996,7 +6082,7 @@ async function resolveMergeRequestThread(
   const url = new URL(
     `${getEffectiveApiUrl()}/projects/${encodeURIComponent(
       getEffectiveProjectId(projectId)
-    )}/merge_requests/${mergeRequestIid}/discussions/${discussionId}`
+    )}/merge_requests/${encodeGitLabPathSegment(mergeRequestIid)}/discussions/${encodeGitLabPathSegment(discussionId)}`
   );
 
   if (resolved !== undefined) {
@@ -6042,7 +6128,7 @@ async function createMergeRequestThread(
   const url = new URL(
     `${getEffectiveApiUrl()}/projects/${encodeURIComponent(
       getEffectiveProjectId(projectId)
-    )}/merge_requests/${mergeRequestIid}/discussions`
+    )}/merge_requests/${encodeGitLabPathSegment(mergeRequestIid)}/discussions`
   );
 
   const payload: Record<string, any> = { body };
@@ -6082,7 +6168,7 @@ async function listMergeRequestVersions(
   const url = new URL(
     `${getEffectiveApiUrl()}/projects/${encodeURIComponent(
       getEffectiveProjectId(projectId)
-    )}/merge_requests/${mergeRequestIid}/versions`
+    )}/merge_requests/${encodeGitLabPathSegment(mergeRequestIid)}/versions`
   );
 
   const response = await fetch(url.toString(), {
@@ -6113,7 +6199,7 @@ async function getMergeRequestVersion(
   const url = new URL(
     `${getEffectiveApiUrl()}/projects/${encodeURIComponent(
       getEffectiveProjectId(projectId)
-    )}/merge_requests/${mergeRequestIid}/versions/${versionId}`
+    )}/merge_requests/${encodeGitLabPathSegment(mergeRequestIid)}/versions/${encodeGitLabPathSegment(versionId)}`
   );
 
   if (unidiff !== undefined) {
@@ -6490,6 +6576,8 @@ async function listWikiPages(
   if (options.per_page) url.searchParams.append("per_page", options.per_page.toString());
   if (options.with_content)
     url.searchParams.append("with_content", options.with_content.toString());
+  if (options.render_html)
+    url.searchParams.append("render_html", options.render_html.toString());
   const response = await fetch(url.toString(), {
     ...getFetchConfig(),
   });
@@ -6501,12 +6589,17 @@ async function listWikiPages(
 /**
  * Get a specific wiki page
  */
-async function getWikiPage(projectId: string, slug: string): Promise<GitLabWikiPage> {
+async function getWikiPage(
+  projectId: string,
+  slug: string,
+  renderHtml?: boolean
+): Promise<GitLabWikiPage> {
   projectId = decodeURIComponent(projectId); // Decode project ID
-  const response = await fetch(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/wikis/${encodeURIComponent(slug)}`,
-    { ...getFetchConfig() }
+  const url = new URL(
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/wikis/${encodeURIComponent(slug)}`
   );
+  if (renderHtml) url.searchParams.append("render_html", renderHtml.toString());
+  const response = await fetch(url.toString(), { ...getFetchConfig() });
   await handleGitLabError(response);
   const data = await response.json();
   return GitLabWikiPageSchema.parse(data);
@@ -6600,6 +6693,8 @@ async function listGroupWikiPages(
   if (options.per_page) url.searchParams.append("per_page", options.per_page.toString());
   if (options.with_content)
     url.searchParams.append("with_content", options.with_content.toString());
+  if (options.render_html)
+    url.searchParams.append("render_html", options.render_html.toString());
   const response = await fetch(url.toString(), {
     ...getFetchConfig(),
   });
@@ -6611,12 +6706,17 @@ async function listGroupWikiPages(
 /**
  * Get a specific group wiki page
  */
-async function getGroupWikiPage(groupId: string, slug: string): Promise<GitLabWikiPage> {
+async function getGroupWikiPage(
+  groupId: string,
+  slug: string,
+  renderHtml?: boolean
+): Promise<GitLabWikiPage> {
   groupId = decodeURIComponent(groupId); // Decode group ID
-  const response = await fetch(
-    `${getEffectiveApiUrl()}/groups/${encodeURIComponent(groupId)}/wikis/${encodeURIComponent(slug)}`,
-    { ...getFetchConfig() }
+  const url = new URL(
+    `${getEffectiveApiUrl()}/groups/${encodeURIComponent(groupId)}/wikis/${encodeURIComponent(slug)}`
   );
+  if (renderHtml) url.searchParams.append("render_html", renderHtml.toString());
+  const response = await fetch(url.toString(), { ...getFetchConfig() });
   await handleGitLabError(response);
   const data = await response.json();
   return GitLabWikiPageSchema.parse(data);
@@ -9872,9 +9972,10 @@ async function handleToolCall(params: any) {
 
         await handleGitLabError(response);
         const data = await response.json();
-        // Return raw data without parsing through our schema to avoid type mismatches in tests
+        // Return raw data without parsing through our schema to avoid type mismatches in tests,
+        // but strip credential fields (e.g. runners_token) so they never reach the AI context.
         return {
-          content: [{ type: "text", text: JSON.stringify(data) }],
+          content: [{ type: "text", text: JSON.stringify(redactSensitiveGitLabFields(data)) }],
         };
       }
 
@@ -9905,7 +10006,9 @@ async function handleToolCall(params: any) {
         await handleGitLabError(response);
         const data = await response.json();
         return {
-          content: [{ type: "text", text: JSON.stringify(data, null, 2) }],
+          content: [
+            { type: "text", text: JSON.stringify(redactSensitiveGitLabFields(data), null, 2) },
+          ],
         };
       }
 
@@ -10116,10 +10219,21 @@ async function handleToolCall(params: any) {
 
       case "update_issue": {
         const args = UpdateIssueSchema.parse(params.arguments);
-        const { project_id, issue_iid, ...options } = args;
+        const { project_id, issue_iid, full_response, ...options } = args;
         const issue = await updateIssue(project_id, issue_iid, options);
+        const responseBody = full_response
+          ? issue
+          : {
+              id: issue.id,
+              iid: issue.iid,
+              project_id: issue.project_id,
+              title: issue.title,
+              state: issue.state,
+              updated_at: issue.updated_at,
+              web_url: issue.web_url,
+            };
         return {
-          content: [{ type: "text", text: JSON.stringify(issue) }],
+          content: [{ type: "text", text: JSON.stringify(responseBody) }],
         };
       }
 
@@ -10500,13 +10614,13 @@ async function handleToolCall(params: any) {
       }
 
       case "list_wiki_pages": {
-        const { project_id, page, per_page, with_content } = ListWikiPagesSchema.parse(
-          params.arguments
-        );
+        const { project_id, page, per_page, with_content, render_html } =
+          ListWikiPagesSchema.parse(params.arguments);
         const wikiPages = await listWikiPages(project_id, {
           page,
           per_page,
           with_content,
+          render_html,
         });
         return {
           content: [{ type: "text", text: JSON.stringify(wikiPages) }],
@@ -10514,8 +10628,8 @@ async function handleToolCall(params: any) {
       }
 
       case "get_wiki_page": {
-        const { project_id, slug } = GetWikiPageSchema.parse(params.arguments);
-        const wikiPage = await getWikiPage(project_id, slug);
+        const { project_id, slug, render_html } = GetWikiPageSchema.parse(params.arguments);
+        const wikiPage = await getWikiPage(project_id, slug, render_html);
         return {
           content: [{ type: "text", text: JSON.stringify(wikiPage) }],
         };
@@ -10560,13 +10674,13 @@ async function handleToolCall(params: any) {
       }
 
       case "list_group_wiki_pages": {
-        const { group_id, page, per_page, with_content } = ListGroupWikiPagesSchema.parse(
-          params.arguments
-        );
+        const { group_id, page, per_page, with_content, render_html } =
+          ListGroupWikiPagesSchema.parse(params.arguments);
         const wikiPages = await listGroupWikiPages(group_id, {
           page,
           per_page,
           with_content,
+          render_html,
         });
         return {
           content: [{ type: "text", text: JSON.stringify(wikiPages) }],
@@ -10574,8 +10688,8 @@ async function handleToolCall(params: any) {
       }
 
       case "get_group_wiki_page": {
-        const { group_id, slug } = GetGroupWikiPageSchema.parse(params.arguments);
-        const wikiPage = await getGroupWikiPage(group_id, slug);
+        const { group_id, slug, render_html } = GetGroupWikiPageSchema.parse(params.arguments);
+        const wikiPage = await getGroupWikiPage(group_id, slug, render_html);
         return {
           content: [{ type: "text", text: JSON.stringify(wikiPage) }],
         };
@@ -11888,29 +12002,6 @@ const colorGreen = "\x1b[32m";
 const colorReset = "\x1b[0m";
 
 /**
- * Determine the transport mode based on environment variables and availability
- *
- * Transport mode priority (highest to lowest):
- * 1. STREAMABLE_HTTP
- * 2. SSE
- * 3. STDIO
- */
-function determineTransportMode(): TransportMode {
-  // Check for streamable-http support (highest priority)
-  if (STREAMABLE_HTTP) {
-    return TransportMode.STREAMABLE_HTTP;
-  }
-
-  // Check for SSE support (medium priority)
-  if (SSE) {
-    return TransportMode.SSE;
-  }
-
-  // Default to stdio (lowest priority)
-  return TransportMode.STDIO;
-}
-
-/**
  * Start server with stdio transport
  */
 async function startStdioServer(): Promise<void> {
@@ -11923,20 +12014,45 @@ async function startStdioServer(): Promise<void> {
   await serverInstance.connect(transport);
 }
 
+function buildDownloadProxyDeps(): DownloadProxyDependencies {
+  return {
+    defaultApiUrl: GITLAB_API_URL,
+    enableDynamicApiUrl: ENABLE_DYNAMIC_API_URL,
+    maxRequestsPerMinute: Number.parseInt(process.env.MAX_REQUESTS_PER_MINUTE || "60", 10),
+    resolveTrustedGitLabApiUrl,
+    encodeGitLabPathSegment,
+    encodeGitLabPath,
+    getEffectiveProjectId,
+    getAgentFunctionForUrl: clientPool.getAgentFunctionForUrl.bind(clientPool),
+    fetch: nodeFetch,
+    logger,
+  };
+}
+
 /**
  * Start server with traditional SSE transport
  */
 async function startSSEServer(): Promise<void> {
   const app = express();
+  const sseAuthToken = getConfig("sse-auth-token", "SSE_AUTH_TOKEN");
 
   if (MCP_TRUST_PROXY) {
     app.set("trust proxy", 1);
   }
 
+  const requireSseAuth = (req: Request, res: Response, next: NextFunction) => {
+    if (!sseAuthToken) return next();
+
+    const match = /^Bearer\s+(\S+)$/i.exec(req.headers.authorization || "");
+    if (match?.[1] === sseAuthToken) return next();
+
+    res.status(401).json({ error: "SSE authentication required" });
+  };
+
   const transports: { [sessionId: string]: SSEServerTransport } = {};
   let shuttingDown = false;
 
-  app.get("/sse", async (_: Request, res: Response) => {
+  app.get("/sse", requireSseAuth, async (_: Request, res: Response) => {
     const serverInstance = createServer();
     const transport = new SSEServerTransport("/messages", res);
     transports[transport.sessionId] = transport;
@@ -11946,7 +12062,7 @@ async function startSSEServer(): Promise<void> {
     await serverInstance.connect(transport);
   });
 
-  app.post("/messages", async (req: Request, res: Response) => {
+  app.post("/messages", requireSseAuth, async (req: Request, res: Response) => {
     const sessionId = req.query.sessionId as string;
     const transport = transports[sessionId];
     if (transport) {
@@ -11956,16 +12072,7 @@ async function startSSEServer(): Promise<void> {
     }
   });
 
-  registerDownloadProxy(app, {
-    defaultApiUrl: GITLAB_API_URL,
-    enableDynamicApiUrl: ENABLE_DYNAMIC_API_URL,
-    maxRequestsPerMinute: Number.parseInt(process.env.MAX_REQUESTS_PER_MINUTE || "60", 10),
-    normalizeGitLabApiUrl,
-    getEffectiveProjectId,
-    getAgentFunctionForUrl: clientPool.getAgentFunctionForUrl.bind(clientPool),
-    fetch: nodeFetch,
-    logger,
-  });
+  registerDownloadProxy(app, buildDownloadProxyDeps());
 
   app.get("/health", (_: Request, res: Response) => {
     res.status(200).json({
@@ -12099,11 +12206,10 @@ async function startStreamableHTTPServer(): Promise<void> {
     // Only process dynamic URL if the feature is enabled
     if (ENABLE_DYNAMIC_API_URL && dynamicApiUrl) {
       try {
-        new URL(dynamicApiUrl); // Ensure it's a valid URL format
-        apiUrl = normalizeGitLabApiUrl(dynamicApiUrl);
+        apiUrl = resolveTrustedGitLabApiUrl(dynamicApiUrl);
       } catch {
         logger.warn(`Invalid X-GitLab-API-URL provided: ${dynamicApiUrl}. Auth will fail.`);
-        return null; // Reject if URL is malformed
+        return null; // Reject if URL is malformed or not allowed
       }
     }
 
@@ -12397,16 +12503,7 @@ async function startStreamableHTTPServer(): Promise<void> {
 
   app.use(express.json());
 
-  registerDownloadProxy(app, {
-    defaultApiUrl: GITLAB_API_URL,
-    enableDynamicApiUrl: ENABLE_DYNAMIC_API_URL,
-    maxRequestsPerMinute: Number.parseInt(process.env.MAX_REQUESTS_PER_MINUTE || "60", 10),
-    normalizeGitLabApiUrl,
-    getEffectiveProjectId,
-    getAgentFunctionForUrl: clientPool.getAgentFunctionForUrl.bind(clientPool),
-    fetch: nodeFetch,
-    logger,
-  });
+  registerDownloadProxy(app, buildDownloadProxyDeps());
 
   // MCP OAuth — mount auth router and prepare bearer-auth middleware
   if (GITLAB_MCP_OAUTH) {
@@ -13096,6 +13193,19 @@ async function runServer() {
 
     const transportMode = determineTransportMode();
     await initializeServerByTransportMode(transportMode);
+
+    if (!GITLAB_DISABLE_VERSION_CHECK) {
+      // Fire-and-forget: logs to stderr only, never blocks or fails startup.
+      void checkForNewVersion(SERVER_VERSION).then(latestVersion => {
+        if (latestVersion) {
+          logger.warn(
+            `A newer version of @zereight/mcp-gitlab is available: v${latestVersion} (current: v${SERVER_VERSION}). ` +
+              `Upgrade with \`npx -y @zereight/mcp-gitlab@latest\` or \`npm install -g @zereight/mcp-gitlab\`. ` +
+              `Set GITLAB_DISABLE_VERSION_CHECK=true to disable this check.`
+          );
+        }
+      });
+    }
 
     logger.info(`Configured GitLab API URLs: ${GITLAB_API_URLS.join(", ")}`);
     logger.info(`Default GitLab API URL: ${GITLAB_API_URL}`);

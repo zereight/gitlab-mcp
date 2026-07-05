@@ -6,19 +6,22 @@ instead.
 
 CLI arguments take precedence over environment variables.
 
+Install the server globally once:
+
+```bash
+npm install -g @zereight/mcp-gitlab
+```
+
+No global install? Pin `npx` to the previous stable release and keep the server flags after it, for example `npx -y @zereight/mcp-gitlab@2.1.28 --token=...`. Use `@zereight/mcp-gitlab@latest` if you always want the newest release.
+
 ## Example config
 
 ```json
 {
   "mcpServers": {
     "gitlab": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "@zereight/mcp-gitlab",
-        "--token=YOUR_GITLAB_TOKEN",
-        "--api-url=https://gitlab.com/api/v4"
-      ],
+      "command": "zereight-mcp-gitlab",
+      "args": ["--token=YOUR_GITLAB_TOKEN", "--api-url=https://gitlab.com/api/v4"],
       "tools": ["*"]
     }
   }
@@ -35,6 +38,7 @@ CLI arguments take precedence over environment variables.
 | `--use-wiki=true`      | `USE_GITLAB_WIKI`              | Enable wiki API tools.                              |
 | `--use-milestone=true` | `USE_MILESTONE`                | Enable milestone API tools.                         |
 | `--use-pipeline=true`  | `USE_PIPELINE`                 | Enable pipeline API tools.                          |
+| `--disable-version-check=true` | `GITLAB_DISABLE_VERSION_CHECK` | Disable the startup new-version notice.     |
 
 For the full list of configuration options, see
 [Environment Variables](../configuration/environment-variables.md).
