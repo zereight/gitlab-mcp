@@ -3,7 +3,13 @@
 This guide explains how to run `gitlab-mcp` for custom agents, single-user PAT
 setups, multi-user deployments, and restricted tool surfaces.
 
-Install the server globally once:
+Install the server once:
+
+```bash
+brew install zereight/gitlab-mcp/zereight-mcp-gitlab
+```
+
+Or with npm:
 
 ```bash
 npm install -g @zereight/mcp-gitlab

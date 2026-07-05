@@ -22,7 +22,13 @@ Use an API URL, not the web root:
 - `https://gitlab.com/api/v4`
 - `https://your-gitlab.example.com/api/v4`
 
-Install the server globally once:
+Install the server once:
+
+```bash
+brew install zereight/gitlab-mcp/zereight-mcp-gitlab
+```
+
+Or with npm:
 
 ```bash
 npm install -g @zereight/mcp-gitlab

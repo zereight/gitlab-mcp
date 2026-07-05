@@ -12,7 +12,13 @@ Use a common Cursor MCP config file pattern such as:
 
 If your team shares the setup, keep the config in version control when appropriate.
 
-Install the server globally once:
+Install the server once:
+
+```bash
+brew install zereight/gitlab-mcp/zereight-mcp-gitlab
+```
+
+Or with npm:
 
 ```bash
 npm install -g @zereight/mcp-gitlab

@@ -11,7 +11,13 @@ VS Code supports two MCP configuration locations:
 
 Use workspace config when you want to share the MCP server with your team.
 
-Install the server globally once:
+Install the server once:
+
+```bash
+brew install zereight/gitlab-mcp/zereight-mcp-gitlab
+```
+
+Or with npm:
 
 ```bash
 npm install -g @zereight/mcp-gitlab

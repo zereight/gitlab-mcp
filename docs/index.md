@@ -29,7 +29,13 @@ from any MCP-compatible AI client.
 Pick the auth method that fits your environment and drop it into your MCP
 client config.
 
-Install the server globally once:
+Install the server once:
+
+```bash
+brew install zereight/gitlab-mcp/zereight-mcp-gitlab
+```
+
+Or with npm:
 
 ```bash
 npm install -g @zereight/mcp-gitlab
