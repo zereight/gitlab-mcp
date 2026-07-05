@@ -6,13 +6,7 @@
 
 > **New Feature**: Dynamic GitLab API URL support with connection pooling! See [Dynamic API URL Documentation](docs/configuration/dynamic-api-url.md) for details.
 
-<a href="https://www.star-history.com/?repos=zereight%2Fgitlab-mcp&type=date&legend=top-left">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/image?repos=zereight/gitlab-mcp&type=date&theme=dark&legend=top-left&v=3" />
-    <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/image?repos=zereight/gitlab-mcp&type=date&legend=top-left&v=3" />
-    <img alt="Star History Chart" src="https://api.star-history.com/image?repos=zereight/gitlab-mcp&type=date&legend=top-left&v=3" />
-  </picture>
-</a>
+[![Star History Chart](./assets/star-history.png)](https://www.star-history.com/?repos=zereight%2Fgitlab-mcp&type=date&legend=top-left)
 
 ## @zereight/mcp-gitlab
 
