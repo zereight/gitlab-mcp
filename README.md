@@ -97,7 +97,8 @@ Some MCP clients (like GitHub Copilot CLI) have issues with environment variable
 
 - `--token` - GitLab Personal Access Token (replaces `GITLAB_PERSONAL_ACCESS_TOKEN`)
 - `--api-url` - GitLab API URL (replaces `GITLAB_API_URL`)
-- `--read-only=true` - Enable read-only mode (replaces `GITLAB_READ_ONLY_MODE`)
+- `--read-only=true` - Enable read-only mode (replaces `GITLAB_READ_ONLY_MODE`, deprecated — prefer `--permission-mode=readonly`)
+- `--permission-mode` - Permission level: `readonly`, `modify` (no delete tools), or `full` (replaces `GITLAB_PERMISSION_MODE`, default `full`)
 - `--use-wiki=true` - Enable wiki API (replaces `USE_GITLAB_WIKI`, legacy — prefer `GITLAB_TOOLSETS=wiki`)
 - `--use-milestone=true` - Enable milestone API (replaces `USE_MILESTONE`, legacy — prefer `GITLAB_TOOLSETS=milestones`)
 - `--use-pipeline=true` - Enable pipeline API (replaces `USE_PIPELINE`, legacy — prefer `GITLAB_TOOLSETS=pipelines`)
@@ -105,7 +106,9 @@ Some MCP clients (like GitHub Copilot CLI) have issues with environment variable
 
 CLI arguments take precedence over environment variables.
 
-> **Fine-grained tool filtering:** beyond the all-or-nothing `GITLAB_READ_ONLY_MODE`, you can
+> **Fine-grained tool filtering:** use `GITLAB_PERMISSION_MODE=modify` to allow create/update while
+> blocking every delete tool (including delete mutations through `execute_graphql`), or
+> `GITLAB_PERMISSION_MODE=readonly` for read-only access. You can also
 > enable toolset groups with `GITLAB_TOOLSETS=<group,…>`, allow-list individual tools with
 > `GITLAB_TOOLS=<tool,…>` (e.g. read-only groups plus a few specific write tools), and
 > deny-list by pattern with `GITLAB_DENIED_TOOLS_REGEX`. The legacy `USE_GITLAB_WIKI` /
@@ -120,7 +123,7 @@ docker run -i --rm \
   -e HOST=0.0.0.0 \
   -e GITLAB_PERSONAL_ACCESS_TOKEN=your_gitlab_token \
   -e GITLAB_API_URL="https://gitlab.com/api/v4" \
-  -e GITLAB_READ_ONLY_MODE=true \
+  -e GITLAB_PERMISSION_MODE=readonly \
   -e GITLAB_TOOLSETS=wiki,milestones,pipelines \
   -e SSE=true \
   -e SSE_AUTH_TOKEN=your_mcp_sse_token \
@@ -149,7 +152,7 @@ docker run -i --rm \
   -e HOST=0.0.0.0 \
   -e REMOTE_AUTHORIZATION=true \
   -e GITLAB_API_URL="https://gitlab.com/api/v4" \
-  -e GITLAB_READ_ONLY_MODE=true \
+  -e GITLAB_PERMISSION_MODE=readonly \
   -e GITLAB_TOOLSETS=wiki,milestones,pipelines \
   -e STREAMABLE_HTTP=true \
   -p 3333:3002 \
@@ -365,7 +368,7 @@ docker run -d \
   -e STREAMABLE_HTTP=true \
   -e REMOTE_AUTHORIZATION=true \
   -e GITLAB_API_URL="https://gitlab.com/api/v4" \
-  -e GITLAB_READ_ONLY_MODE=true \
+  -e GITLAB_PERMISSION_MODE=readonly \
   -e SESSION_TIMEOUT_SECONDS=3600 \
   -p 3333:3002 \
   zereight050/gitlab-mcp

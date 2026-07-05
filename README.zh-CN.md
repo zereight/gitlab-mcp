@@ -93,7 +93,8 @@ npm install -g @zereight/mcp-gitlab
 
 - `--token` - GitLab Personal Access Token（替代 `GITLAB_PERSONAL_ACCESS_TOKEN`）
 - `--api-url` - GitLab API URL（替代 `GITLAB_API_URL`）
-- `--read-only=true` - 启用只读模式（替代 `GITLAB_READ_ONLY_MODE`）
+- `--read-only=true` - 启用只读模式（替代 `GITLAB_READ_ONLY_MODE`，已弃用 — 推荐 `--permission-mode=readonly`）
+- `--permission-mode` - 权限级别：`readonly`、`modify`（禁用删除工具）或 `full`（替代 `GITLAB_PERMISSION_MODE`，默认 `full`）
 - `--use-wiki=true` - 启用 Wiki API（替代 `USE_GITLAB_WIKI`，旧版 — 推荐 `GITLAB_TOOLSETS=wiki`）
 - `--use-milestone=true` - 启用里程碑 API（替代 `USE_MILESTONE`，旧版 — 推荐 `GITLAB_TOOLSETS=milestones`）
 - `--use-pipeline=true` - 启用流水线 API（替代 `USE_PIPELINE`，旧版 — 推荐 `GITLAB_TOOLSETS=pipelines`）
@@ -101,7 +102,8 @@ npm install -g @zereight/mcp-gitlab
 
 CLI 参数优先于环境变量。
 
-> **细粒度工具过滤：**除了全开/全关的 `GITLAB_READ_ONLY_MODE`，还可以用
+> **细粒度工具过滤：**使用 `GITLAB_PERMISSION_MODE=modify` 允许创建/更新并阻止所有删除工具，
+> 或使用 `GITLAB_PERMISSION_MODE=readonly` 只读运行。还可以用
 > `GITLAB_TOOLSETS=<group,…>` 启用工具分组，用 `GITLAB_TOOLS=<tool,…>` 白名单启用单个工具
 > （例如：只读分组 + 少数几个写工具），用 `GITLAB_DENIED_TOOLS_REGEX` 按正则屏蔽工具。
 > 旧版 `USE_GITLAB_WIKI` / `USE_MILESTONE` / `USE_PIPELINE` 标志仅为向后兼容保留。
@@ -115,7 +117,7 @@ docker run -i --rm \
   -e HOST=0.0.0.0 \
   -e GITLAB_PERSONAL_ACCESS_TOKEN=your_gitlab_token \
   -e GITLAB_API_URL="https://gitlab.com/api/v4" \
-  -e GITLAB_READ_ONLY_MODE=true \
+  -e GITLAB_PERMISSION_MODE=readonly \
   -e GITLAB_TOOLSETS=wiki,milestones,pipelines \
   -e SSE=true \
   -p 3333:3002 \
@@ -140,7 +142,7 @@ docker run -i --rm \
   -e HOST=0.0.0.0 \
   -e GITLAB_PERSONAL_ACCESS_TOKEN=your_gitlab_token \
   -e GITLAB_API_URL="https://gitlab.com/api/v4" \
-  -e GITLAB_READ_ONLY_MODE=true \
+  -e GITLAB_PERMISSION_MODE=readonly \
   -e GITLAB_TOOLSETS=wiki,milestones,pipelines \
   -e STREAMABLE_HTTP=true \
   -p 3333:3002 \
@@ -310,7 +312,7 @@ docker run -d \
   -e STREAMABLE_HTTP=true \
   -e REMOTE_AUTHORIZATION=true \
   -e GITLAB_API_URL="https://gitlab.com/api/v4" \
-  -e GITLAB_READ_ONLY_MODE=true \
+  -e GITLAB_PERMISSION_MODE=readonly \
   -e SESSION_TIMEOUT_SECONDS=3600 \
   -p 3333:3002 \
   zereight050/gitlab-mcp
