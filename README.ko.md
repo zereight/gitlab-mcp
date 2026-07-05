@@ -4,8 +4,6 @@
 
 > **새 기능**: 커넥션 풀링을 포함한 동적 GitLab API URL을 지원합니다. 자세한 내용은 [Dynamic API URL 문서](docs/configuration/dynamic-api-url.md)를 참고하세요.
 
-[![Star History Chart](https://api.star-history.com/svg?repos=zereight/gitlab-mcp&type=Date)](https://www.star-history.com/#zereight/gitlab-mcp&Date)
-
 ## @zereight/mcp-gitlab
 
 AI 클라이언트를 위한 포괄적인 GitLab MCP 서버입니다. stdio, SSE, Streamable HTTP를 통해 프로젝트, 머지 리퀘스트, 이슈, 파이프라인, 위키, 릴리스, 마일스톤 등을 관리할 수 있습니다.
@@ -494,3 +492,13 @@ npm run test:integration
 ```
 
 모든 원격 인증 테스트는 mock GitLab 서버를 사용하므로 실제 GitLab 자격 증명이 필요하지 않습니다.
+
+## Star History
+
+<a href="https://www.star-history.com/?repos=zereight%2Fgitlab-mcp&type=date&legend=top-left">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/image?repos=zereight/gitlab-mcp&type=date&theme=dark&legend=top-left&v=2" />
+    <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/image?repos=zereight/gitlab-mcp&type=date&legend=top-left&v=2" />
+    <img alt="Star History Chart" src="https://api.star-history.com/image?repos=zereight/gitlab-mcp&type=date&legend=top-left&v=2" />
+  </picture>
+</a>
