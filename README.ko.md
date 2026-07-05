@@ -4,7 +4,13 @@
 
 > **새 기능**: 커넥션 풀링을 포함한 동적 GitLab API URL을 지원합니다. 자세한 내용은 [Dynamic API URL 문서](docs/configuration/dynamic-api-url.md)를 참고하세요.
 
-[![Star History Chart](https://api.star-history.com/svg?repos=zereight/gitlab-mcp&type=Date)](https://www.star-history.com/#zereight/gitlab-mcp&Date)
+<a href="https://www.star-history.com/?repos=zereight%2Fgitlab-mcp&type=date&legend=top-left">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/image?repos=zereight/gitlab-mcp&type=date&theme=dark&legend=top-left" />
+    <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/image?repos=zereight/gitlab-mcp&type=date&legend=top-left" />
+    <img alt="Star History Chart" src="https://api.star-history.com/image?repos=zereight/gitlab-mcp&type=date&legend=top-left" />
+  </picture>
+</a>
 
 ## @zereight/mcp-gitlab
 
