@@ -15,6 +15,7 @@ import {
   GITLAB_POOL_MAX_SIZE,
   GITLAB_DISABLE_VERSION_CHECK,
   GITLAB_READ_ONLY_MODE,
+  GITLAB_PERMISSION_MODE,
   GITLAB_TOOLSETS_RAW,
   GITLAB_TOOLS_RAW,
   HOST,
@@ -52,79 +53,6 @@ const STREAMABLE_HTTP_AUTH_TOKEN = getConfig(
   "streamable-http-auth-token",
   "STREAMABLE_HTTP_AUTH_TOKEN"
 );
-
-/**
- * Encryption key for download tokens. When DOWNLOAD_TOKEN_SECRET is set
- * (recommended for HA deployments behind a load balancer) the key is
- * derived from that value so all replicas share the same key. Otherwise
- * a random key is generated per process (tokens are not portable across
- * restarts or replicas).
- */
-const DOWNLOAD_TOKEN_KEY: Buffer = (() => {
-  const secret = process.env.DOWNLOAD_TOKEN_SECRET;
-  if (secret) {
-    return createHash("sha256").update(secret).digest();
-  }
-  return randomBytes(32);
-})();
-
-/** Download token TTL in seconds (default 5 minutes). */
-const DOWNLOAD_TOKEN_TTL = Number.parseInt(process.env.DOWNLOAD_TOKEN_TTL || "300", 10);
-
-function createDownloadToken(
-  header: string,
-  token: string,
-  apiUrl?: string,
-  resource?: { type: string; params: Record<string, string> }
-): string {
-  const iv = randomBytes(12);
-  const cipher = createCipheriv("aes-256-gcm", DOWNLOAD_TOKEN_KEY, iv);
-  const payload = JSON.stringify({
-    h: header,
-    t: token,
-    e: Math.floor(Date.now() / 1000) + DOWNLOAD_TOKEN_TTL,
-    ...(apiUrl ? { u: apiUrl } : {}),
-    ...(resource ? { r: resource.type, p: resource.params } : {}),
-  });
-  const encrypted = Buffer.concat([cipher.update(payload, "utf8"), cipher.final()]);
-  const tag = cipher.getAuthTag();
-  return Buffer.concat([iv, tag, encrypted]).toString("base64url");
-}
-
-function decryptDownloadToken(
-  tokenStr: string
-): {
-  header: string;
-  token: string;
-  apiUrl?: string;
-  resourceType?: string;
-  resourceParams?: Record<string, string>;
-} | null {
-  try {
-    const buf = Buffer.from(tokenStr, "base64url");
-    if (buf.length < 29) return null;
-    const iv = buf.subarray(0, 12);
-    const tag = buf.subarray(12, 28);
-    const encrypted = buf.subarray(28);
-    const decipher = createDecipheriv("aes-256-gcm", DOWNLOAD_TOKEN_KEY, iv);
-    decipher.setAuthTag(tag);
-    const decrypted = Buffer.concat([decipher.update(encrypted), decipher.final()]);
-    const payload = JSON.parse(decrypted.toString("utf8"));
-    // Check TTL
-    if (payload.e && Math.floor(Date.now() / 1000) > payload.e) {
-      return null; // expired
-    }
-    return {
-      header: payload.h,
-      token: payload.t,
-      ...(payload.u ? { apiUrl: payload.u } : {}),
-      ...(payload.r ? { resourceType: payload.r, resourceParams: payload.p } : {}),
-    };
-  } catch {
-    return null;
-  }
-}
-
 
 /**
  * Build a URL pointing to the download proxy endpoint.
@@ -218,6 +146,9 @@ import {
   getForwardedPublicBaseUrl,
   getForwardedRequestHost,
 } from "./utils/forwarded-public-base-url.js";
+import { registerDownloadProxy } from "./downloads/proxy.js";
+import type { DownloadProxyDependencies } from "./downloads/proxy.js";
+import { createDownloadToken } from "./utils/download-token.js";
 import { determineTransportMode, TransportMode } from "./server/transport-mode.js";
 import { normalizeGitLabApiUrl } from "./utils/url.js";
 import {
@@ -225,7 +156,10 @@ import {
   filterDiffsByPatterns,
   summarizeWebhookEvents,
 } from "./utils/helpers.js";
-import { graphqlQueryContainsWriteOperation } from "./utils/graphql-query.js";
+import {
+  graphqlQueryContainsWriteOperation,
+  graphqlQueryContainsDeleteOperation,
+} from "./utils/graphql-query.js";
 import { resolveNestedWikiUpdateTitle } from "./utils/wiki-title.js";
 import { redactSensitiveGitLabFields } from "./utils/redact-sensitive.js";
 import { checkForNewVersion } from "./utils/version-check.js";
@@ -245,6 +179,7 @@ import {
   allTools,
   readOnlyTools,
   destructiveTools,
+  deleteTools,
   parseEnabledToolsets,
   parseIndividualTools,
   buildFeatureFlagOverrides,
@@ -690,10 +625,11 @@ function createServer(): McpServer {
     ),
   ];
 
-  // Step 4: Read-only filter
-  const toolsAfterReadOnly = GITLAB_READ_ONLY_MODE
-    ? toolsAfterLegacy.filter(tool => readOnlyTools.has(tool.name))
-    : toolsAfterLegacy;
+  // Step 4: Permission mode filter (readonly / modify / full)
+  const toolsAfterReadOnly =
+    GITLAB_PERMISSION_MODE === "full"
+      ? toolsAfterLegacy
+      : toolsAfterLegacy.filter(tool => isToolAllowedByPermissionMode(tool.name));
 
   // Step 5: Regex denial filter
   let filteredTools = GITLAB_DENIED_TOOLS_REGEX
@@ -704,10 +640,10 @@ function createServer(): McpServer {
   const discoverTool = allTools.find(t => t.name === "discover_tools");
   const filteredToolNames = new Set(filteredTools.map(t => t.name));
   if (discoverTool && !filteredToolNames.has("discover_tools")) {
-    // Respect read-only and regex denial filters
-    const passesReadOnly = !GITLAB_READ_ONLY_MODE || readOnlyTools.has("discover_tools");
+    // Respect permission mode and regex denial filters
+    const passesPermissionMode = isToolAllowedByPermissionMode("discover_tools");
     const passesRegex = !GITLAB_DENIED_TOOLS_REGEX?.test("discover_tools");
-    if (passesReadOnly && passesRegex) {
+    if (passesPermissionMode && passesRegex) {
       filteredTools.push(discoverTool);
     }
   }
@@ -869,7 +805,7 @@ function createServer(): McpServer {
         for (const tool of allTools) {
           if (!toolsetDef.tools.has(tool.name)) continue;
           if (currentToolNames.has(tool.name)) continue;
-          if (GITLAB_READ_ONLY_MODE && !readOnlyTools.has(tool.name)) continue;
+          if (!isToolAllowedByPermissionMode(tool.name)) continue;
           if (GITLAB_DENIED_TOOLS_REGEX?.test(tool.name)) continue;
           if (hiddenToolSet.has(tool.name)) continue;
           newTools.push(tool);
@@ -965,6 +901,141 @@ function createServer(): McpServer {
 /**
  * Validate configuration at startup
  */
+function isLoopbackBindHost(host: string): boolean {
+  const normalized = host.trim().toLowerCase().replace(/^\[|\]$/g, "");
+  const isIpv4Loopback = /^127(?:\.\d{1,3}){3}$/.test(normalized);
+  return (
+    normalized === "localhost" ||
+    isIpv4Loopback ||
+    normalized === "::1" ||
+    normalized === "0:0:0:0:0:0:0:1"
+  );
+}
+
+function formatHostWithPort(host: string, port: number): string | null {
+  const normalized = host.trim().toLowerCase().replace(/^\[|\]$/g, "");
+  if (!normalized || normalized === "0.0.0.0" || normalized === "::") return null;
+  if (normalized.includes(":")) return `[${normalized}]:${port}`;
+  return `${normalized}:${port}`;
+}
+
+function toAllowedMcpHost(value: string): string | null {
+  const trimmed = value.trim().toLowerCase();
+  if (!trimmed || trimmed.includes(" ")) return null;
+
+  try {
+    if (trimmed.includes("://")) return new URL(trimmed).host.toLowerCase();
+    if (trimmed.includes("/")) return null;
+    return new URL(`http://${trimmed}`).host.toLowerCase();
+  } catch {
+    try {
+      return new URL(`http://[${trimmed}]`).host.toLowerCase();
+    } catch {
+      return null;
+    }
+  }
+}
+
+function toAllowedMcpOrigin(value: string): string | null {
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+
+  try {
+    const origin = new URL(trimmed).origin;
+    return origin === "null" ? null : origin.toLowerCase();
+  } catch {
+    return null;
+  }
+}
+
+// Loopback hosts are allowed on any port: DNS rebinding requires the browser
+// to send the attacker's hostname, and Docker port mapping (-p 3333:3002)
+// makes the external port unknowable to the server.
+function isLoopbackMcpHost(host: string): boolean {
+  try {
+    const hostname = new URL(`http://${host}`).hostname.replace(/^\[|\]$/g, "");
+    return hostname === "127.0.0.1" || hostname === "localhost" || hostname === "::1";
+  } catch {
+    return false;
+  }
+}
+
+function isLoopbackMcpOrigin(origin: string): boolean {
+  try {
+    return isLoopbackMcpHost(new URL(origin).host);
+  } catch {
+    return false;
+  }
+}
+
+function getMcpDnsRebindingProtection() {
+  const allowedHosts = new Set<string>();
+  const allowedOrigins = new Set<string>();
+  const addHost = (value: string | null | undefined) => {
+    const host = value ? toAllowedMcpHost(value) : null;
+    if (host) allowedHosts.add(host);
+  };
+  const addOrigin = (value: string | null | undefined) => {
+    const origin = value ? toAllowedMcpOrigin(value) : null;
+    if (origin) allowedOrigins.add(origin);
+  };
+
+  const bindHostWithPort = formatHostWithPort(HOST, PORT);
+  addHost(bindHostWithPort);
+  if (bindHostWithPort) addOrigin(`http://${bindHostWithPort}`);
+
+  if (MCP_SERVER_URL) {
+    addHost(MCP_SERVER_URL);
+    addOrigin(MCP_SERVER_URL);
+  }
+
+  for (const host of (getConfig("mcp-allowed-hosts", "MCP_ALLOWED_HOSTS") || "").split(",")) {
+    addHost(host);
+  }
+  for (const origin of (getConfig("mcp-allowed-origins", "MCP_ALLOWED_ORIGINS") || "").split(",")) {
+    addOrigin(origin);
+  }
+
+  return {
+    allowedHosts: [...allowedHosts],
+    allowedOrigins: [...allowedOrigins],
+  };
+}
+
+const MCP_DNS_REBINDING_PROTECTION = getMcpDnsRebindingProtection();
+
+function requireMcpHostAndOrigin(req: Request, res: Response, next: NextFunction) {
+  const host = toAllowedMcpHost(req.headers.host || "");
+  if (
+    !host ||
+    (!isLoopbackMcpHost(host) && !MCP_DNS_REBINDING_PROTECTION.allowedHosts.includes(host))
+  ) {
+    res.status(403).json({
+      error: "Host header is not allowed",
+      hint: "Set MCP_SERVER_URL or MCP_ALLOWED_HOSTS for non-loopback /mcp hosts.",
+    });
+    return;
+  }
+
+  const originHeader = req.headers.origin;
+  if (originHeader) {
+    const origin = toAllowedMcpOrigin(Array.isArray(originHeader) ? originHeader[0] : originHeader);
+    if (
+      !origin ||
+      (!isLoopbackMcpOrigin(origin) &&
+        !MCP_DNS_REBINDING_PROTECTION.allowedOrigins.includes(origin))
+    ) {
+      res.status(403).json({
+        error: "Origin header is not allowed",
+        hint: "Set MCP_SERVER_URL or MCP_ALLOWED_ORIGINS for non-loopback browser origins.",
+      });
+      return;
+    }
+  }
+
+  next();
+}
+
 function validateConfiguration(): void {
   const errors: string[] = [];
 
@@ -1028,6 +1099,20 @@ function validateConfiguration(): void {
   for (const host of allowedHosts) {
     if (host.trim() && !toAllowedGitLabApiUrl(host)) {
       errors.push(`GITLAB_ALLOWED_HOSTS contains an invalid host or URL: ${host.trim()}`);
+    }
+  }
+
+  const mcpAllowedHosts = getConfig("mcp-allowed-hosts", "MCP_ALLOWED_HOSTS")?.split(",") || [];
+  for (const host of mcpAllowedHosts) {
+    if (host.trim() && !toAllowedMcpHost(host)) {
+      errors.push(`MCP_ALLOWED_HOSTS contains an invalid host or URL: ${host.trim()}`);
+    }
+  }
+
+  const mcpAllowedOrigins = getConfig("mcp-allowed-origins", "MCP_ALLOWED_ORIGINS")?.split(",") || [];
+  for (const origin of mcpAllowedOrigins) {
+    if (origin.trim() && !toAllowedMcpOrigin(origin)) {
+      errors.push(`MCP_ALLOWED_ORIGINS contains an invalid origin URL: ${origin.trim()}`);
     }
   }
 
@@ -1250,6 +1335,18 @@ async function ensureValidOAuthToken(): Promise<void> {
   } catch (error) {
     logger.error({ err: error }, "Failed to refresh OAuth token");
     throw error;
+  }
+}
+
+// Permission mode gate: readonly exposes only read tools; modify blocks delete tools; full allows all
+function isToolAllowedByPermissionMode(toolName: string): boolean {
+  switch (GITLAB_PERMISSION_MODE) {
+    case "readonly":
+      return readOnlyTools.has(toolName);
+    case "modify":
+      return !deleteTools.has(toolName);
+    default:
+      return true;
   }
 }
 
@@ -9220,9 +9317,13 @@ async function handleToolCall(params: any) {
       }
     }
 
-    // Centralized read-only guard: reject write tools even if client bypasses list_tools filtering
-    if (GITLAB_READ_ONLY_MODE && !readOnlyTools.has(params.name)) {
-      throw new Error(`${params.name} is not allowed in read-only mode`);
+    // Centralized permission guard: reject disallowed tools even if client bypasses list_tools filtering
+    if (!isToolAllowedByPermissionMode(params.name)) {
+      throw new Error(
+        GITLAB_PERMISSION_MODE === "readonly"
+          ? `${params.name} is not allowed in read-only mode`
+          : `${params.name} is not allowed in modify mode (delete operations are disabled)`
+      );
     }
 
     logger.info({ tool: params.name, event: "tool_call_start" }, `tool_call_start: ${params.name}`);
@@ -9230,10 +9331,19 @@ async function handleToolCall(params: any) {
       case "execute_graphql": {
         rejectIfProjectScopedDeployment("execute_graphql");
         const args = ExecuteGraphQLSchema.parse(params.arguments);
-        if (GITLAB_READ_ONLY_MODE && graphqlQueryContainsWriteOperation(args.query)) {
+        if (
+          GITLAB_PERMISSION_MODE === "readonly" &&
+          graphqlQueryContainsWriteOperation(args.query)
+        ) {
           throw new Error(
             "execute_graphql does not allow mutation or subscription operations in read-only mode"
           );
+        }
+        if (
+          GITLAB_PERMISSION_MODE === "modify" &&
+          graphqlQueryContainsDeleteOperation(args.query)
+        ) {
+          throw new Error("execute_graphql does not allow delete mutations in modify mode");
         }
         const apiUrl = new URL(getEffectiveApiUrl());
         // Build GraphQL endpoint preserving any instance subpath (e.g. /gitlab)
@@ -12108,186 +12218,19 @@ async function startStdioServer(): Promise<void> {
   await serverInstance.connect(transport);
 }
 
-/**
- * Register the /downloads/:type proxy endpoint on an Express app.
- * Streams GitLab API responses directly to the client. Auth is read from
- * an encrypted `_token` query param (self-contained URL) or from request headers.
- */
-function registerDownloadProxy(
-  app: ReturnType<typeof express>,
-  maxRequestsPerMinute: number = Number.parseInt(process.env.MAX_REQUESTS_PER_MINUTE || "60", 10)
-): void {
-  const downloadRateLimits: Record<string, { count: number; resetAt: number }> = {};
-  let lastEviction = Date.now();
-
-  const checkDownloadRateLimit = (token: string): boolean => {
-    const now = Date.now();
-
-    // Evict expired entries every 60s to prevent unbounded growth
-    if (now - lastEviction > 60000) {
-      for (const key of Object.keys(downloadRateLimits)) {
-        if (now > downloadRateLimits[key].resetAt) delete downloadRateLimits[key];
-      }
-      lastEviction = now;
-    }
-
-    const entry = downloadRateLimits[token];
-    if (!entry || now > entry.resetAt) {
-      downloadRateLimits[token] = { count: 1, resetAt: now + 60000 };
-      return true;
-    }
-    if (entry.count >= maxRequestsPerMinute) return false;
-    entry.count++;
-    return true;
+function buildDownloadProxyDeps(): DownloadProxyDependencies {
+  return {
+    defaultApiUrl: GITLAB_API_URL,
+    enableDynamicApiUrl: ENABLE_DYNAMIC_API_URL,
+    maxRequestsPerMinute: Number.parseInt(process.env.MAX_REQUESTS_PER_MINUTE || "60", 10),
+    resolveTrustedGitLabApiUrl,
+    encodeGitLabPathSegment,
+    encodeGitLabPath,
+    getEffectiveProjectId,
+    getAgentFunctionForUrl: clientPool.getAgentFunctionForUrl.bind(clientPool),
+    fetch: nodeFetch,
+    logger,
   };
-
-  app.get("/downloads/:type", async (req: Request, res: Response) => {
-    const headers: Record<string, string> = { Accept: "application/octet-stream" };
-    let rateLimitKey: string;
-
-    // Try embedded encrypted token first (self-contained URL), then headers
-    const encryptedToken = req.query._token as string | undefined;
-    let tokenApiUrl: string | undefined;
-    if (encryptedToken) {
-      const decrypted = decryptDownloadToken(encryptedToken);
-      if (!decrypted) {
-        res.status(401).json({ error: "Invalid or expired download token" });
-        return;
-      }
-      // Verify resource binding — token must match the requested type and params
-      if (decrypted.resourceType || decrypted.resourceParams) {
-        const { type } = req.params;
-        const queryParams: Record<string, string> = {};
-        for (const [k, v] of Object.entries(req.query)) {
-          if (k !== "_token" && typeof v === "string") queryParams[k] = v;
-        }
-        if (
-          decrypted.resourceType !== type ||
-          JSON.stringify(decrypted.resourceParams) !== JSON.stringify(queryParams)
-        ) {
-          res.status(403).json({ error: "Download token does not match the requested resource" });
-          return;
-        }
-      }
-      headers[decrypted.header] = decrypted.token;
-      rateLimitKey = decrypted.token;
-      tokenApiUrl = decrypted.apiUrl;
-    } else {
-      const privateToken = req.headers["private-token"] as string | undefined;
-      const jobToken = req.headers["job-token"] as string | undefined;
-      const authHeader = req.headers["authorization"] as string | undefined;
-
-      if (privateToken) {
-        headers["Private-Token"] = privateToken;
-        rateLimitKey = privateToken;
-      } else if (jobToken) {
-        headers["JOB-TOKEN"] = jobToken;
-        rateLimitKey = jobToken;
-      } else if (authHeader) {
-        headers["Authorization"] = authHeader;
-        rateLimitKey = authHeader;
-      } else {
-        res.status(401).json({ error: "Authentication required" });
-        return;
-      }
-    }
-
-    if (!checkDownloadRateLimit(rateLimitKey)) {
-      res.status(429).json({ error: "Rate limit exceeded" });
-      return;
-    }
-
-    // API URL: prefer token-embedded URL, then X-GitLab-API-URL header, then default
-    let apiUrl = GITLAB_API_URL;
-    const requestedApiUrl = tokenApiUrl || (req.headers["x-gitlab-api-url"] as string | undefined)?.trim();
-    if (ENABLE_DYNAMIC_API_URL && requestedApiUrl) {
-      try {
-        apiUrl = resolveTrustedGitLabApiUrl(requestedApiUrl);
-      } catch {
-        res.status(400).json({ error: "Invalid X-GitLab-API-URL" });
-        return;
-      }
-    }
-
-    const { type } = req.params;
-    let gitlabUrl: string;
-
-    try {
-      switch (type) {
-        case "job-artifacts": {
-          const { project_id, job_id } = req.query as Record<string, string>;
-          if (!project_id || !job_id) {
-            res.status(400).json({ error: "project_id and job_id are required" });
-            return;
-          }
-          const effectiveProjectId = getEffectiveProjectId(decodeURIComponent(project_id));
-          gitlabUrl = `${apiUrl}/projects/${encodeURIComponent(effectiveProjectId)}/jobs/${encodeGitLabPathSegment(job_id)}/artifacts`;
-          break;
-        }
-        case "attachment": {
-          const { project_id, secret, filename } = req.query as Record<string, string>;
-          if (!project_id || !secret || !filename) {
-            res.status(400).json({ error: "project_id, secret, and filename are required" });
-            return;
-          }
-          const effectiveProjectId = getEffectiveProjectId(decodeURIComponent(project_id));
-          gitlabUrl = `${apiUrl}/projects/${encodeURIComponent(effectiveProjectId)}/uploads/${encodeGitLabPathSegment(secret)}/${encodeGitLabPath(filename)}`;
-          break;
-        }
-        case "release-asset": {
-          const { project_id, tag_name, direct_asset_path } = req.query as Record<string, string>;
-          if (!project_id || !tag_name || !direct_asset_path) {
-            res
-              .status(400)
-              .json({ error: "project_id, tag_name, and direct_asset_path are required" });
-            return;
-          }
-          const effectiveProjectId = getEffectiveProjectId(decodeURIComponent(project_id));
-          gitlabUrl = `${apiUrl}/projects/${encodeURIComponent(effectiveProjectId)}/releases/${encodeURIComponent(tag_name)}/downloads/${encodeGitLabPath(direct_asset_path)}`;
-          break;
-        }
-        default:
-          res.status(400).json({ error: `Unknown download type: ${type}` });
-          return;
-      }
-    } catch (e) {
-      // getEffectiveProjectId throws on access-denied
-      const message = e instanceof Error ? e.message : "Invalid parameters";
-      res.status(403).json({ error: message });
-      return;
-    }
-
-    try {
-      const agent = clientPool.getAgentFunctionForUrl(apiUrl);
-      const gitlabResponse = await nodeFetch(gitlabUrl, { headers, agent });
-
-      if (!gitlabResponse.ok) {
-        res.status(gitlabResponse.status).json({
-          error: `GitLab API error: ${gitlabResponse.status} ${gitlabResponse.statusText}`,
-        });
-        return;
-      }
-
-      const contentType = gitlabResponse.headers.get("content-type");
-      const contentDisposition = gitlabResponse.headers.get("content-disposition");
-      const contentLength = gitlabResponse.headers.get("content-length");
-
-      if (contentType) res.setHeader("Content-Type", contentType);
-      if (contentDisposition) res.setHeader("Content-Disposition", contentDisposition);
-      if (contentLength) res.setHeader("Content-Length", contentLength);
-
-      if (gitlabResponse.body) {
-        gitlabResponse.body.pipe(res);
-      } else {
-        res.status(502).json({ error: "No response body from GitLab" });
-      }
-    } catch (error) {
-      logger.error({ err: error }, "Download proxy error");
-      if (!res.headersSent) {
-        res.status(502).json({ error: "Failed to proxy download from GitLab" });
-      }
-    }
-  });
 }
 
 /**
@@ -12384,7 +12327,7 @@ async function startSSEServer(): Promise<void> {
     }
   });
 
-  registerDownloadProxy(app);
+  registerDownloadProxy(app, buildDownloadProxyDeps());
 
   app.get("/health", (_: Request, res: Response) => {
     res.status(200).json({
@@ -12825,6 +12768,8 @@ async function startStreamableHTTPServer(): Promise<void> {
     };
 
     // Step 4: create a fresh transport per request.
+    // DNS rebinding protection is enforced by requireMcpHostAndOrigin middleware;
+    // the SDK's allowedHosts exact-match cannot express loopback-on-any-port.
     const transport = isInit
       ? new StreamableHTTPServerTransport({
           sessionIdGenerator: () => freshSid,
@@ -12877,9 +12822,10 @@ async function startStreamableHTTPServer(): Promise<void> {
     app.set("trust proxy", 1);
   }
 
+  app.use("/mcp", requireMcpHostAndOrigin);
   app.use(express.json());
 
-  registerDownloadProxy(app);
+  registerDownloadProxy(app, buildDownloadProxyDeps());
 
   const mcpRateLimitKeyGenerator = (req: Request) =>
     ipKeyGenerator(normalizeProxyClientIpForRateLimit(req.ip ?? ""));
@@ -12918,7 +12864,7 @@ async function startStreamableHTTPServer(): Promise<void> {
       gitlabBaseUrl,
       GITLAB_OAUTH_APP_ID!,
       "GitLab MCP Server",
-      GITLAB_READ_ONLY_MODE,
+      GITLAB_PERMISSION_MODE === "readonly",
       GITLAB_OAUTH_SCOPES,
       GITLAB_OAUTH_ALLOWED_GROUPS,
       GITLAB_OAUTH_CALLBACK_PROXY,
@@ -13685,6 +13631,12 @@ async function runServer() {
           "GITLAB_ALLOWED_GROUPS is deprecated. Use GITLAB_OAUTH_ALLOWED_GROUPS instead."
         );
       }
+    }
+
+    if (GITLAB_READ_ONLY_MODE) {
+      logger.warn(
+        "GITLAB_READ_ONLY_MODE is deprecated. Use GITLAB_PERMISSION_MODE=readonly or --permission-mode=readonly instead."
+      );
     }
 
     if (GITLAB_OAUTH_ALLOWED_GROUPS) {

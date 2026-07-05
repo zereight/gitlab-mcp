@@ -87,8 +87,7 @@ export async function launchServer(config: ServerConfig): Promise<ServerInstance
 
   const serverPath = path.resolve(process.cwd(), "build/index.js");
 
-  console.log("Launcher: Spawning server process with env:", serverEnv);
-  console.log("Launcher: Spawning server process with env:", serverEnv);
+  console.log("Launcher: Spawning server process", { mode, port });
   const serverProcess = spawn("node", [serverPath], {
     env: serverEnv,
     stdio: ["pipe", "pipe", "pipe"],

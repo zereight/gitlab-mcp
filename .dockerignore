@@ -8,6 +8,7 @@
 !server
 !stateless
 !tools
+!downloads
 !tsconfig.json
 !utils
 !.npmrc

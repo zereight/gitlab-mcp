@@ -6,7 +6,13 @@
 
 > **New Feature**: Dynamic GitLab API URL support with connection pooling! See [Dynamic API URL Documentation](docs/configuration/dynamic-api-url.md) for details.
 
-[![Star History Chart](https://api.star-history.com/svg?repos=zereight/gitlab-mcp&type=Date)](https://www.star-history.com/#zereight/gitlab-mcp&Date)
+<a href="https://www.star-history.com/?repos=zereight%2Fgitlab-mcp&type=date&legend=top-left">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/image?repos=zereight/gitlab-mcp&type=date&theme=dark&legend=top-left&v=3" />
+    <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/image?repos=zereight/gitlab-mcp&type=date&legend=top-left&v=3" />
+    <img alt="Star History Chart" src="https://api.star-history.com/image?repos=zereight/gitlab-mcp&type=date&legend=top-left&v=3" />
+  </picture>
+</a>
 
 ## @zereight/mcp-gitlab
 
@@ -97,7 +103,8 @@ Some MCP clients (like GitHub Copilot CLI) have issues with environment variable
 
 - `--token` - GitLab Personal Access Token (replaces `GITLAB_PERSONAL_ACCESS_TOKEN`)
 - `--api-url` - GitLab API URL (replaces `GITLAB_API_URL`)
-- `--read-only=true` - Enable read-only mode (replaces `GITLAB_READ_ONLY_MODE`)
+- `--read-only=true` - Enable read-only mode (replaces `GITLAB_READ_ONLY_MODE`, deprecated — prefer `--permission-mode=readonly`)
+- `--permission-mode` - Permission level: `readonly`, `modify` (no delete tools), or `full` (replaces `GITLAB_PERMISSION_MODE`, default `full`)
 - `--use-wiki=true` - Enable wiki API (replaces `USE_GITLAB_WIKI`, legacy — prefer `GITLAB_TOOLSETS=wiki`)
 - `--use-milestone=true` - Enable milestone API (replaces `USE_MILESTONE`, legacy — prefer `GITLAB_TOOLSETS=milestones`)
 - `--use-pipeline=true` - Enable pipeline API (replaces `USE_PIPELINE`, legacy — prefer `GITLAB_TOOLSETS=pipelines`)
@@ -105,7 +112,9 @@ Some MCP clients (like GitHub Copilot CLI) have issues with environment variable
 
 CLI arguments take precedence over environment variables.
 
-> **Fine-grained tool filtering:** beyond the all-or-nothing `GITLAB_READ_ONLY_MODE`, you can
+> **Fine-grained tool filtering:** use `GITLAB_PERMISSION_MODE=modify` to allow create/update while
+> blocking every delete tool (including delete mutations through `execute_graphql`), or
+> `GITLAB_PERMISSION_MODE=readonly` for read-only access. You can also
 > enable toolset groups with `GITLAB_TOOLSETS=<group,…>`, allow-list individual tools with
 > `GITLAB_TOOLS=<tool,…>` (e.g. read-only groups plus a few specific write tools), and
 > deny-list by pattern with `GITLAB_DENIED_TOOLS_REGEX`. The legacy `USE_GITLAB_WIKI` /
@@ -120,7 +129,7 @@ docker run -i --rm \
   -e HOST=0.0.0.0 \
   -e GITLAB_PERSONAL_ACCESS_TOKEN=your_gitlab_token \
   -e GITLAB_API_URL="https://gitlab.com/api/v4" \
-  -e GITLAB_READ_ONLY_MODE=true \
+  -e GITLAB_PERMISSION_MODE=readonly \
   -e GITLAB_TOOLSETS=wiki,milestones,pipelines \
   -e SSE=true \
   -e SSE_AUTH_TOKEN=your_mcp_sse_token \
@@ -149,7 +158,7 @@ docker run -i --rm \
   -e HOST=0.0.0.0 \
   -e REMOTE_AUTHORIZATION=true \
   -e GITLAB_API_URL="https://gitlab.com/api/v4" \
-  -e GITLAB_READ_ONLY_MODE=true \
+  -e GITLAB_PERMISSION_MODE=readonly \
   -e GITLAB_TOOLSETS=wiki,milestones,pipelines \
   -e STREAMABLE_HTTP=true \
   -p 3333:3002 \
@@ -283,6 +292,7 @@ the token to GitLab on behalf of the caller.
 | `ENABLE_DYNAMIC_API_URL`                      | optional | Allow per-request GitLab URL via `X-GitLab-API-URL` header                                                              |
 | `GITLAB_ALLOWED_HOSTS`                        | optional | Comma-separated allowed `X-GitLab-API-URL` hosts; `GITLAB_API_URL` hosts are always allowed                             |
 | `GITLAB_ALLOW_UNAUTHENTICATED_TOOL_DISCOVERY` | optional | Allow unauthenticated `initialize`, `notifications/initialized`, and `tools/list` only (tool calls still require auth)  |
+| `MCP_SERVER_URL` / `MCP_ALLOWED_HOSTS` / `MCP_ALLOWED_ORIGINS` | optional | Allowed public `/mcp` host/origin values for DNS rebinding protection                                   |
 | `MCP_TRUST_PROXY`                             | optional | Trust `Forwarded` / `X-Forwarded-*` headers behind a reverse proxy (download URLs, Express `req.ip`, OAuth rate limits) |
 
 `GITLAB_ALLOW_UNAUTHENTICATED_TOOL_DISCOVERY=true` is intended for MCP gateways
@@ -333,6 +343,8 @@ Commonly referenced variables:
 - `GITLAB_USE_OAUTH`
 - `REMOTE_AUTHORIZATION`
 - `MCP_TRUST_PROXY`
+- `MCP_ALLOWED_HOSTS`
+- `MCP_ALLOWED_ORIGINS`
 - `GITLAB_MCP_OAUTH`
 - `GITLAB_OAUTH_CALLBACK_PROXY`
 - `OAUTH_STATELESS_MODE`
@@ -365,7 +377,7 @@ docker run -d \
   -e STREAMABLE_HTTP=true \
   -e REMOTE_AUTHORIZATION=true \
   -e GITLAB_API_URL="https://gitlab.com/api/v4" \
-  -e GITLAB_READ_ONLY_MODE=true \
+  -e GITLAB_PERMISSION_MODE=readonly \
   -e SESSION_TIMEOUT_SECONDS=3600 \
   -p 3333:3002 \
   zereight050/gitlab-mcp
@@ -485,7 +497,7 @@ No `headers` field is needed — Claude.ai obtains the token via OAuth automatic
 | ------------------------------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `GITLAB_MCP_OAUTH`                          | Yes      | Set to `true` to enable                                                                                                                                                                                             |
 | `GITLAB_OAUTH_APP_ID`                       | Yes      | Client ID of the pre-registered GitLab OAuth application                                                                                                                                                            |
-| `MCP_SERVER_URL`                            | Yes      | Public HTTPS URL of your MCP server                                                                                                                                                                                 |
+| `MCP_SERVER_URL`                            | Yes      | Public HTTPS URL of your MCP server; also allowed for `/mcp` Host/Origin checks                                                                                                                                     |
 | `GITLAB_API_URL`                            | Yes      | Your GitLab instance API URL (e.g. `https://gitlab.com/api/v4`)                                                                                                                                                     |
 | `STREAMABLE_HTTP`                           | Yes      | Must be `true` (SSE is not supported)                                                                                                                                                                               |
 | `GITLAB_OAUTH_SCOPES`                       | No       | Comma-separated GitLab scopes to request (e.g. `api,read_user`). Defaults to `api` (or `read_api` when `GITLAB_READ_ONLY_MODE=true`). The pre-registered application must be configured with at least these scopes. |

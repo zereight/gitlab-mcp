@@ -108,7 +108,7 @@ describe("MCP OAuth — Discovery Endpoints", () => {
   let servers: ServerInstance[] = [];
 
   before(async () => {
-    const mockPort = await findMockServerPort(MOCK_GITLAB_PORT_BASE);
+    const mockPort = await findMockServerPort();
     mockGitLab = new MockGitLabServer({
       port: mockPort,
       validTokens: [MOCK_OAUTH_TOKEN],
@@ -173,7 +173,7 @@ describe("MCP OAuth — Discovery Endpoints", () => {
   });
 
   test("path-prefixed MCP_SERVER_URL serves path-aware discovery metadata", async () => {
-    const mockPort = await findMockServerPort(MOCK_GITLAB_PORT_BASE + 25);
+    const mockPort = await findMockServerPort();
     const prefixedMockGitLab = new MockGitLabServer({
       port: mockPort,
       validTokens: [MOCK_OAUTH_TOKEN],
@@ -246,7 +246,7 @@ describe("MCP OAuth — /mcp Auth Enforcement", () => {
   let servers: ServerInstance[] = [];
 
   before(async () => {
-    const mockPort = await findMockServerPort(MOCK_GITLAB_PORT_BASE + 50);
+    const mockPort = await findMockServerPort();
     mockGitLab = new MockGitLabServer({
       port: mockPort,
       validTokens: [MOCK_OAUTH_TOKEN],
@@ -636,7 +636,7 @@ describe("MCP OAuth — Header Auth Fallback", () => {
   let servers: ServerInstance[] = [];
 
   before(async () => {
-    const mockPort = await findMockServerPort(MOCK_GITLAB_PORT_BASE + 150);
+    const mockPort = await findMockServerPort();
     mockGitLab = new MockGitLabServer({
       port: mockPort,
       // Include both OAuth token and raw tokens so GitLab API calls succeed

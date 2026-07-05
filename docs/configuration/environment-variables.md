@@ -326,6 +326,34 @@ Behavior:
 
 Set to `true` to expose only read-only tools.
 
+> **Deprecation notice:** `GITLAB_READ_ONLY_MODE` and `--read-only=true` are kept for
+> backward compatibility but will be removed in a future major version.
+> Use `GITLAB_PERMISSION_MODE=readonly` or `--permission-mode=readonly` instead.
+
+When set to `true` it takes precedence over `GITLAB_PERMISSION_MODE`.
+
+### `GITLAB_PERMISSION_MODE`
+
+Permission level for the exposed tool surface. One of:
+
+| Value      | Read | Create/Update | Delete |
+| ---------- | ---- | ------------- | ------ |
+| `readonly` | ✅   | ❌            | ❌     |
+| `modify`   | ✅   | ✅            | ❌     |
+| `full`     | ✅   | ✅            | ✅     |
+
+Default: `full`
+
+CLI: `--permission-mode`
+
+Behavior:
+
+- `readonly` is equivalent to `GITLAB_READ_ONLY_MODE=true`
+- `modify` hides all `delete_*` tools from `tools/list`, rejects them when called
+  directly, and rejects delete/destroy/remove mutations sent through `execute_graphql`
+- Invalid values fail startup with an error
+- `GITLAB_DENIED_TOOLS_REGEX` and the tool policy variables still apply on top
+
 ### `GITLAB_DISABLE_VERSION_CHECK`
 
 Set to `true` to disable the startup update check.
@@ -411,10 +439,32 @@ When using server-side GitLab credentials (`GITLAB_PERSONAL_ACCESS_TOKEN`,
 one MCP-layer auth mode: `REMOTE_AUTHORIZATION=true`, `GITLAB_MCP_OAUTH=true`,
 or `STREAMABLE_HTTP_AUTH_TOKEN`.
 
+Streamable HTTP allows `/mcp` requests when the `Host` header is a loopback
+host on any port (`127.0.0.1`, `localhost`, `[::1]`), matches `MCP_SERVER_URL`,
+matches the `HOST`:`PORT` the server binds to, or is listed in
+`MCP_ALLOWED_HOSTS`. When an `Origin` header is present, it must be a loopback
+origin, match `MCP_SERVER_URL`, match the bound `http://HOST:PORT` origin, or be
+listed in `MCP_ALLOWED_ORIGINS`.
+
+> **Upgrade note:** deployments reached through a non-loopback hostname or IP
+> (for example an internal DNS name or LAN IP) must set `MCP_SERVER_URL` or
+> `MCP_ALLOWED_HOSTS`, otherwise `/mcp` requests are rejected with `403`.
+
 ### `STREAMABLE_HTTP_AUTH_TOKEN`
 
 Bearer token required on `/mcp` when Streamable HTTP uses server-side GitLab
 credentials without `REMOTE_AUTHORIZATION` or `GITLAB_MCP_OAUTH`.
+
+### `MCP_ALLOWED_HOSTS`
+
+Comma-separated extra allowed `Host` header values for `/mcp`.
+Use this when the public host clients send differs from `MCP_SERVER_URL`.
+Values may be bare hosts (`mcp.example.com`) or host:port pairs.
+
+### `MCP_ALLOWED_ORIGINS`
+
+Comma-separated extra allowed browser origins for `/mcp`, for example
+`https://mcp.example.com`.
 
 ### `SSE`
 
