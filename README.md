@@ -6,6 +6,14 @@
 
 > **New Feature**: Dynamic GitLab API URL support with connection pooling! See [Dynamic API URL Documentation](docs/configuration/dynamic-api-url.md) for details.
 
+<a href="https://www.star-history.com/?repos=zereight%2Fgitlab-mcp&type=date&legend=top-left">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/image?repos=zereight/gitlab-mcp&type=date&theme=dark&legend=top-left&v=3" />
+    <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/image?repos=zereight/gitlab-mcp&type=date&legend=top-left&v=3" />
+    <img alt="Star History Chart" src="https://api.star-history.com/image?repos=zereight/gitlab-mcp&type=date&legend=top-left&v=3" />
+  </picture>
+</a>
+
 ## @zereight/mcp-gitlab
 
 A comprehensive GitLab MCP server for AI clients. Manage projects, merge requests, issues, pipelines, wiki, releases, tags, milestones, and more through stdio, SSE, and Streamable HTTP.
@@ -740,13 +748,3 @@ npm run test:integration
 ```
 
 All remote authorization tests use a mock GitLab server and do not require actual GitLab credentials.
-
-## Star History
-
-<a href="https://www.star-history.com/?repos=zereight%2Fgitlab-mcp&type=date&legend=top-left">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/image?repos=zereight/gitlab-mcp&type=date&theme=dark&legend=top-left&v=2" />
-    <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/image?repos=zereight/gitlab-mcp&type=date&legend=top-left&v=2" />
-    <img alt="Star History Chart" src="https://api.star-history.com/image?repos=zereight/gitlab-mcp&type=date&legend=top-left&v=2" />
-  </picture>
-</a>
