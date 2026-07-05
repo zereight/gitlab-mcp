@@ -44,6 +44,20 @@ describe("When graphqlQueryContainsWriteOperation runs", () => {
         false
       );
     });
+
+    test("should allow query with operation name 'mutation'", () => {
+      assert.equal(
+        graphqlQueryContainsWriteOperation("query mutation { project { id } }"),
+        false
+      );
+    });
+
+    test("should allow query with operation name 'subscription'", () => {
+      assert.equal(
+        graphqlQueryContainsWriteOperation("query subscription { project { id } }"),
+        false
+      );
+    });
   });
 
   describe("with write GraphQL documents", () => {

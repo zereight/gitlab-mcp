@@ -61,20 +61,35 @@ export function graphqlQueryContainsWriteOperation(query: string): boolean {
   }
 
   const writeOpPattern = /^\s*(?:,\s*)?(mutation|subscription)\b/;
+  const operationTypePattern = /^\s*(?:,\s*)?(query|mutation|subscription)\b/;
 
   let depth = 0;
+  let expectingOperationType = true;
+
   for (let i = 0; i < normalized.length; i++) {
     const ch = normalized[i];
+
     if (ch === "{") {
       depth++;
+      expectingOperationType = false;
       continue;
     }
+
     if (ch === "}") {
       depth = Math.max(0, depth - 1);
+      if (depth === 0) {
+        expectingOperationType = true;
+      }
       continue;
     }
-    if (depth === 0 && writeOpPattern.test(normalized.slice(i))) {
-      return true;
+
+    if (depth === 0 && expectingOperationType) {
+      if (operationTypePattern.test(normalized.slice(i))) {
+        expectingOperationType = false;
+        if (writeOpPattern.test(normalized.slice(i))) {
+          return true;
+        }
+      }
     }
   }
 
