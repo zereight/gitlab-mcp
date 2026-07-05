@@ -79,6 +79,12 @@ Install the server globally once:
 npm install -g @zereight/mcp-gitlab
 ```
 
+Or with Homebrew:
+
+```shell
+brew install zereight/gitlab-mcp/zereight-mcp-gitlab
+```
+
 The examples use `zereight-mcp-gitlab`, a less collision-prone alias for the legacy `mcp-gitlab` binary. If your MCP client cannot find it, use the absolute path from `which zereight-mcp-gitlab`.
 
 No global install? Pin `npx` to the previous stable release (the version these docs recommend), for example `npx -y @zereight/mcp-gitlab@2.1.28`. If you always want the newest release, use `npx -y @zereight/mcp-gitlab@latest` instead. The server prints a notice to stderr on startup when a newer version is available (disable with `GITLAB_DISABLE_VERSION_CHECK=true`).
