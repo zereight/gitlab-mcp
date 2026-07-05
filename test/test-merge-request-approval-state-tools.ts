@@ -76,7 +76,7 @@ describe("merge request approval state tools", () => {
   let mockGitLabUrl: string;
 
   before(async () => {
-    const mockPort = await findMockServerPort(9400);
+    const mockPort = await findMockServerPort();
     mockGitLab = new MockGitLabServer({
       port: mockPort,
       validTokens: [MOCK_TOKEN],

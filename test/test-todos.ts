@@ -123,7 +123,7 @@ describe("GitLab todos tools", () => {
   let mockGitLabUrl: string;
 
   before(async () => {
-    const mockPort = await findMockServerPort(9250);
+    const mockPort = await findMockServerPort();
     mockGitLab = new MockGitLabServer({
       port: mockPort,
       validTokens: [MOCK_TOKEN],

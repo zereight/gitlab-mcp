@@ -78,7 +78,7 @@ describe('job artifacts tools', () => {
   let tmpDir: string;
 
   before(async () => {
-    const mockPort = await findMockServerPort(9200);
+    const mockPort = await findMockServerPort();
     mockGitLab = new MockGitLabServer({
       port: mockPort,
       validTokens: [MOCK_TOKEN],

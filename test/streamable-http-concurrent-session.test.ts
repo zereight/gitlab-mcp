@@ -30,7 +30,7 @@ describe("Streamable HTTP concurrent session requests", { timeout: 20_000 }, () 
   let mcpUrl: string;
 
   before(async () => {
-    const mockPort = await findMockServerPort(9360);
+    const mockPort = await findMockServerPort();
     mockGitLab = new MockGitLabServer({
       port: mockPort,
       validTokens: [MOCK_TOKEN],

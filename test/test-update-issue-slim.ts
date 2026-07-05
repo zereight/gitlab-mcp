@@ -28,7 +28,7 @@ describe("update_issue slim response", () => {
   const MCP_PORT_BASE = 3650;
 
   before(async () => {
-    const mockPort = await findMockServerPort(MOCK_PORT_BASE);
+    const mockPort = await findMockServerPort();
     mockGitLab = new MockGitLabServer({
       port: mockPort,
       validTokens: [MOCK_TOKEN],

@@ -127,7 +127,7 @@ describe("deployment and environment tools", () => {
   let mockGitLabUrl: string;
 
   before(async () => {
-    const mockPort = await findMockServerPort(9300);
+    const mockPort = await findMockServerPort();
     mockGitLab = new MockGitLabServer({
       port: mockPort,
       validTokens: [MOCK_TOKEN],

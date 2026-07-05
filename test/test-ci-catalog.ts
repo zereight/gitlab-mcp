@@ -72,7 +72,7 @@ describe("CI/CD Catalog tools", () => {
   });
 
   before(async () => {
-    const port = await findMockServerPort(9000);
+    const port = await findMockServerPort();
     mockGitLab = new MockGitLabServer({ port, validTokens: [MOCK_TOKEN] });
     mockGitLab.addRootHandler("post", "/api/graphql", (req, res) => {
       if (req.body.query.includes("ListCiCatalogResources")) {

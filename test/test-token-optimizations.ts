@@ -176,7 +176,7 @@ describe("Tool Policy (Proposal F)", { concurrency: 1 }, () => {
   let mockGitLabUrl: string;
 
   before(async () => {
-    const mockPort = await findMockServerPort(MOCK_PORT_BASE);
+    const mockPort = await findMockServerPort();
     mockGitLab = new MockGitLabServer({
       port: mockPort,
       validTokens: [MOCK_TOKEN],
@@ -393,7 +393,7 @@ describe("Policy Edge Cases", { concurrency: 1 }, () => {
   let mockGitLabUrl: string;
 
   before(async () => {
-    const mockPort = await findMockServerPort(MOCK_PORT_BASE + 50);
+    const mockPort = await findMockServerPort();
     mockGitLab = new MockGitLabServer({
       port: mockPort,
       validTokens: [MOCK_TOKEN],
@@ -715,7 +715,7 @@ describe("Dynamic Discovery (Proposal H)", { concurrency: 1 }, () => {
   let mockGitLabUrl: string;
 
   before(async () => {
-    const mockPort = await findMockServerPort(MOCK_PORT_BASE + 100);
+    const mockPort = await findMockServerPort();
     mockGitLab = new MockGitLabServer({
       port: mockPort,
       validTokens: [MOCK_TOKEN],

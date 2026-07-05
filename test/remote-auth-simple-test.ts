@@ -79,7 +79,7 @@ describe('Remote Authorization - Basic Functionality', () => {
 
   before(async () => {
     // Start mock GitLab server
-    const mockPort = await findMockServerPort(MOCK_GITLAB_PORT_BASE);
+    const mockPort = await findMockServerPort();
     mockGitLab = new MockGitLabServer({
       port: mockPort,
       validTokens: [MOCK_TOKEN, MOCK_JOB_TOKEN],
@@ -211,7 +211,7 @@ describe('Remote Authorization - Session Timeout', () => {
 
   before(async () => {
     // Use different port ranges to avoid collisions with basic tests
-    const mockPort = await findMockServerPort(MOCK_GITLAB_PORT_BASE + MOCK_GITLAB_PORT_OFFSET);
+    const mockPort = await findMockServerPort();
     mockGitLab = new MockGitLabServer({
       port: mockPort,
       validTokens: [MOCK_TOKEN]

@@ -46,7 +46,7 @@ describe("Stateless Mcp-Session-Id — cross-pod integration", () => {
   const sharedSecret = randomBytes(32).toString("base64url");
 
   before(async () => {
-    const mockPort = await findMockServerPort(MOCK_PORT_BASE);
+    const mockPort = await findMockServerPort();
     mockGitLab = new MockGitLabServer({
       port: mockPort,
       validTokens: [MOCK_TOKEN],
@@ -280,7 +280,7 @@ describe("Stateless Mcp-Session-Id — inactivity-TTL semantics", () => {
   const TTL_SECONDS = 3;
 
   before(async () => {
-    const mockPort = await findMockServerPort(MOCK_PORT_BASE + 100);
+    const mockPort = await findMockServerPort();
     mockGitLab = new MockGitLabServer({
       port: mockPort,
       validTokens: [MOCK_TOKEN],
@@ -614,7 +614,7 @@ describe("Stateless Mcp-Session-Id — OAuth + sid-only follow-up", () => {
   const sharedSecret = randomBytes(32).toString("base64url");
 
   before(async () => {
-    const mockPort = await findMockServerPort(OAUTH_MOCK_PORT_BASE);
+    const mockPort = await findMockServerPort();
     mockGitLab = new MockGitLabServer({
       port: mockPort,
       validTokens: [MOCK_OAUTH_TOKEN],

@@ -41,7 +41,7 @@ describe('getEffectiveProjectId - No GITLAB_ALLOWED_PROJECT_IDS', () => {
 
   before(async () => {
     // Start mock GitLab server
-    const mockPort = await findMockServerPort(9100);
+    const mockPort = await findMockServerPort();
     mockGitLab = new MockGitLabServer({
       port: mockPort,
       validTokens: [MOCK_TOKEN]
@@ -127,7 +127,7 @@ describe('getEffectiveProjectId - With single GITLAB_ALLOWED_PROJECT_IDS', () =>
 
   before(async () => {
     // Start mock GitLab server
-    const mockPort = await findMockServerPort(9200);
+    const mockPort = await findMockServerPort();
     mockGitLab = new MockGitLabServer({
       port: mockPort,
       validTokens: [MOCK_TOKEN]
@@ -208,7 +208,7 @@ describe('getEffectiveProjectId - With multiple GITLAB_ALLOWED_PROJECT_IDS', () 
 
   before(async () => {
     // Start mock GitLab server
-    const mockPort = await findMockServerPort(9300);
+    const mockPort = await findMockServerPort();
     mockGitLab = new MockGitLabServer({
       port: mockPort,
       validTokens: [MOCK_TOKEN]
@@ -301,7 +301,7 @@ describe('GITLAB_PROJECT_ID guards repository and group mutators', () => {
   let client: CustomHeaderClient;
 
   before(async () => {
-    const mockPort = await findMockServerPort(9400);
+    const mockPort = await findMockServerPort();
     mockGitLab = new MockGitLabServer({
       port: mockPort,
       validTokens: [MOCK_TOKEN]
@@ -403,7 +403,7 @@ describe('GITLAB_ALLOWED_PROJECT_IDS guards repository and group mutators (allow
   let client: CustomHeaderClient;
 
   before(async () => {
-    const mockPort = await findMockServerPort(9600);
+    const mockPort = await findMockServerPort();
     mockGitLab = new MockGitLabServer({
       port: mockPort,
       validTokens: [MOCK_TOKEN]
@@ -505,7 +505,7 @@ describe('GITLAB_READ_ONLY_MODE enforces read-only for all write tools', () => {
   let client: CustomHeaderClient;
 
   before(async () => {
-    const mockPort = await findMockServerPort(9500);
+    const mockPort = await findMockServerPort();
     mockGitLab = new MockGitLabServer({
       port: mockPort,
       validTokens: [MOCK_TOKEN]
@@ -572,7 +572,7 @@ describe('GITLAB_PROJECT_ID guards dependency proxy tools', () => {
   let client: CustomHeaderClient;
 
   before(async () => {
-    const mockPort = await findMockServerPort(9500);
+    const mockPort = await findMockServerPort();
     mockGitLab = new MockGitLabServer({
       port: mockPort,
       validTokens: [MOCK_TOKEN],

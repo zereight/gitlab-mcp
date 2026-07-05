@@ -214,7 +214,7 @@ async function getClient(port: number): Promise<CustomHeaderClient> {
   }
 
   before(async () => {
-    const mockPort = await findMockServerPort(MOCK_PORT_BASE);
+    const mockPort = await findMockServerPort();
     mockGitLab = new MockGitLabServer({
       port: mockPort,
       validTokens: [MOCK_TOKEN],

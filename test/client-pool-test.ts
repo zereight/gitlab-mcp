@@ -35,7 +35,7 @@ describe('Client Pool Limits', () => {
 
   before(async () => {
     // Start mock GitLab server
-    const mockPort = await findMockServerPort(MOCK_GITLAB_PORT_BASE);
+    const mockPort = await findMockServerPort();
     mockGitLab = new MockGitLabServer({
       port: mockPort,
       validTokens: [MOCK_TOKEN]

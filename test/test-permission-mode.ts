@@ -89,7 +89,7 @@ const READ_SAMPLE_TOOLS = ["list_issues", "get_project", "list_merge_requests"];
 
 describe("Permission Mode", { concurrency: 1 }, () => {
   before(async () => {
-    const mockPort = await findMockServerPort(MOCK_PORT_BASE);
+    const mockPort = await findMockServerPort();
     mockGitLab = new MockGitLabServer({
       port: mockPort,
       validTokens: [MOCK_TOKEN],

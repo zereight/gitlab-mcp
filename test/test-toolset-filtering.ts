@@ -168,7 +168,7 @@ async function nextMcpPort(): Promise<number> {
 
 describe("Toolset Filtering", { concurrency: 1 }, () => {
   before(async () => {
-    const mockPort = await findMockServerPort(MOCK_PORT_BASE);
+    const mockPort = await findMockServerPort();
     mockGitLab = new MockGitLabServer({
       port: mockPort,
       validTokens: [MOCK_TOKEN],

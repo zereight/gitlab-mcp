@@ -65,7 +65,7 @@ describe('list_merge_requests', () => {
   let mockGitLabUrl: string;
 
   before(async () => {
-    const mockPort = await findMockServerPort(9000);
+    const mockPort = await findMockServerPort();
     mockGitLab = new MockGitLabServer({
       port: mockPort,
       validTokens: [MOCK_TOKEN]

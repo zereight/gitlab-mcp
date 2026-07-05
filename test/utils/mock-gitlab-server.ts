@@ -649,12 +649,9 @@ export class MockGitLabServer {
 }
 
 /**
- * Helper to find available port for mock server
+ * Helper to find available port for mock server (OS-assigned ephemeral port).
  */
-export async function findMockServerPort(
-  basePort: number = 9000,
-  maxAttempts: number = 10
-): Promise<number> {
+export async function findMockServerPort(): Promise<number> {
   const net = await import("net");
 
   return new Promise((resolve, reject) => {

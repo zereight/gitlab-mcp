@@ -136,7 +136,7 @@ describe("Callback Proxy Mode", () => {
   let lastTokenRequest: Record<string, string> = {};
 
   before(async () => {
-    const mockPort = await findMockServerPort(MOCK_GITLAB_PORT_BASE);
+    const mockPort = await findMockServerPort();
     mockGitLab = new MockGitLabServer({
       port: mockPort,
       validTokens: [MOCK_ACCESS_TOKEN],
