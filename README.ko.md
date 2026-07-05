@@ -2,6 +2,8 @@
 
 [English](./README.md) | [한국어](./README.ko.md) | [简体中文](./README.zh-CN.md)
 
+📖 **[문서 →](https://zereight.github.io/gitlab-mcp/)** 설정 가이드, 환경 변수, 전체 도구 레퍼런스는 호스팅된 문서 사이트에서 확인할 수 있습니다.
+
 [![Star History Chart](./assets/star-history.png)](https://www.star-history.com/?repos=zereight%2Fgitlab-mcp&type=date&legend=top-left)
 
 ## @zereight/mcp-gitlab
@@ -30,6 +32,8 @@ PAT, OAuth, 읽기 전용 모드, 동적 API URL, 원격 인증을 지원하며 
 - [JSON 기반 MCP 클라이언트 설정 가이드](./docs/clients/json-clients.md) - Factory AI Droid, OpenClaw, OpenCode 스타일 클라이언트용
 - [OAuth2 인증 설정 가이드](./docs/auth/oauth-setup.md)
 - [환경 변수 레퍼런스](./docs/configuration/environment-variables.md)
+- [Stateless Mode — 멀티 Pod HPA](./docs/configuration/stateless-mode.md)
+- [커스텀 에이전트 및 다중 PAT 설정](./docs/auth/custom-agent-multiple-pat.md)
 
 ## 사용법
 
@@ -124,6 +128,7 @@ docker run -i --rm \
   -e GITLAB_PERMISSION_MODE=readonly \
   -e GITLAB_TOOLSETS=wiki,milestones,pipelines \
   -e SSE=true \
+  -e SSE_AUTH_TOKEN=your_mcp_sse_token \
   -p 3333:3002 \
   zereight050/gitlab-mcp
 ```
@@ -133,7 +138,10 @@ docker run -i --rm \
   "mcpServers": {
     "gitlab": {
       "type": "sse",
-      "url": "http://localhost:3333/sse"
+      "url": "http://localhost:3333/sse",
+      "headers": {
+        "Authorization": "Bearer your_mcp_sse_token"
+      }
     }
   }
 }
@@ -144,7 +152,7 @@ docker run -i --rm \
 ```shell
 docker run -i --rm \
   -e HOST=0.0.0.0 \
-  -e GITLAB_PERSONAL_ACCESS_TOKEN=your_gitlab_token \
+  -e REMOTE_AUTHORIZATION=true \
   -e GITLAB_API_URL="https://gitlab.com/api/v4" \
   -e GITLAB_PERMISSION_MODE=readonly \
   -e GITLAB_TOOLSETS=wiki,milestones,pipelines \
@@ -158,7 +166,10 @@ docker run -i --rm \
   "mcpServers": {
     "gitlab": {
       "type": "streamable-http",
-      "url": "http://localhost:3333/mcp"
+      "url": "http://localhost:3333/mcp",
+      "headers": {
+        "Authorization": "Bearer glpat-..."
+      }
     }
   }
 }
@@ -204,6 +215,8 @@ MCP 서버가 직접 로컬 브라우저 callback을 받을 때만 `GITLAB_OAUTH
 | `GITLAB_OAUTH_SCOPES`         | 선택 | 쉼표로 구분된 scope 목록(기본값: `api,read_api,read_user`)                                                                      |
 | `GITLAB_OAUTH_ALLOWED_GROUPS` | 선택 | 쉼표로 구분된 GitLab 그룹 전체 경로 — 해당 그룹 및 하위 그룹 멤버만 토큰을 발급받을 수 있음 (기존 `GITLAB_ALLOWED_GROUPS` 대체) |
 
+`STREAMABLE_HTTP=true`일 때 서버 측 GitLab 자격 증명(`GITLAB_PERSONAL_ACCESS_TOKEN`, `GITLAB_JOB_TOKEN`, `GITLAB_AUTH_COOKIE_PATH`, 또는 `GITLAB_USE_OAUTH`)은 `REMOTE_AUTHORIZATION=true`, `GITLAB_MCP_OAUTH=true`, 또는 `STREAMABLE_HTTP_AUTH_TOKEN`이 필요합니다.
+
 > **`Unregistered redirect_uri` 문제 해결**
 >
 > 브라우저 URL의 `redirect_uri`를 확인하세요. 값이 `http://127.0.0.1:xxxxx/.../callback` 같은 클라이언트 callback을 가리키면 다음 설정을 켜세요.
@@ -248,12 +261,19 @@ MCP 클라이언트 설정:
 
 **헤더 우선순위**: `Private-Token` > `JOB-TOKEN` > `Authorization: Bearer`
 
-| 환경 변수                | 필수 | 설명                                                                |
-| ------------------------ | ---- | ------------------------------------------------------------------- |
-| `REMOTE_AUTHORIZATION`   | 예   | 활성화하려면 `true`                                                 |
-| `STREAMABLE_HTTP`        | 예   | 반드시 `true`                                                       |
-| `ENABLE_DYNAMIC_API_URL` | 선택 | 요청별 `X-GitLab-API-URL` 헤더 허용                                 |
-| `GITLAB_ALLOWED_HOSTS`   | 선택 | 허용할 호스트의 쉼표 구분 목록; `GITLAB_API_URL` 호스트는 항상 허용 |
+| 환경 변수                                                        | 필수 | 설명                                                                                                                    |
+| ---------------------------------------------------------------- | ---- | ----------------------------------------------------------------------------------------------------------------------- |
+| `REMOTE_AUTHORIZATION`                                           | 예   | 활성화하려면 `true`                                                                                                     |
+| `STREAMABLE_HTTP`                                                | 예   | 반드시 `true`                                                                                                           |
+| `ENABLE_DYNAMIC_API_URL`                                         | 선택 | 요청별 `X-GitLab-API-URL` 헤더 허용                                                                                     |
+| `GITLAB_ALLOWED_HOSTS`                                           | 선택 | 허용할 `X-GitLab-API-URL` 호스트의 쉼표 구분 목록; `GITLAB_API_URL` 호스트는 항상 허용                                  |
+| `GITLAB_ALLOW_UNAUTHENTICATED_TOOL_DISCOVERY`                    | 선택 | 인증 없이 `initialize`, `notifications/initialized`, `tools/list`만 허용(도구 호출은 여전히 인증 필요)                  |
+| `MCP_SERVER_URL` / `MCP_ALLOWED_HOSTS` / `MCP_ALLOWED_ORIGINS` | 선택 | DNS rebinding 방지를 위한 허용 `/mcp` 호스트/오리진 값                                                                  |
+| `MCP_TRUST_PROXY`                                                | 선택 | 리버스 프록시 뒤에서 `Forwarded` / `X-Forwarded-*` 헤더 신뢰(다운로드 URL, Express `req.ip`, OAuth rate limit) |
+
+`GITLAB_ALLOW_UNAUTHENTICATED_TOOL_DISCOVERY=true`는 사용자가 GitLab 토큰을 제공하기 전에 도구 메타데이터를 조회해야 하는 MCP 게이트웨이나 관리 UI용입니다. 배포 환경에서 도구 목록 공개가 안전한 경우가 아니면 비활성화하세요.
+
+`MCP_SERVER_URL`이 설정되지 않으면 원격 다운로드 URL은 로컬 서버 주소로 대체됩니다. `MCP_TRUST_PROXY=true`는 서버가 신뢰할 수 있는 리버스 프록시를 통해서만 접근 가능하고 MCP 서버에 대한 직접 클라이언트 접근이 차단된 경우에만 설정하세요. 이 설정은 Streamable HTTP 및 SSE용 Express `trust proxy`를 활성화하고, `Forwarded` / `X-Forwarded-Proto` / `X-Forwarded-Host` / `X-Forwarded-Prefix`에서 공개 다운로드 URL을 파생하며, 프록시가 `X-Forwarded-For`에 클라이언트 포트를 포함해 보낼 때(예: `1.2.3.4:5678`) OAuth 엔드포인트 rate limiting이 동작하도록 유지합니다. 이 플래그 도입 이후 기존 OAuth+프록시 배포는 명시적으로 설정해야 합니다.
 
 **예시 요청 헤더:**
 
@@ -280,6 +300,7 @@ Authorization: Bearer glpat-xxxxxxxxxxxxxxxxxxxx
 - **로컬 PAT**: `GITLAB_PERSONAL_ACCESS_TOKEN`, `GITLAB_API_URL`
 - **로컬 OAuth**: `GITLAB_USE_OAUTH=true`, `GITLAB_OAUTH_CLIENT_ID`, `GITLAB_OAUTH_REDIRECT_URI`, `GITLAB_API_URL`
 - **원격 멀티 유저 HTTP**: `STREAMABLE_HTTP=true`, `REMOTE_AUTHORIZATION=true`, `HOST`, `PORT`
+- **멀티 Pod HPA (stateless)**: 위 설정 + `OAUTH_STATELESS_MODE=true`, `OAUTH_STATELESS_SECRET`(모든 Pod에서 동일). [Stateless Mode](./docs/configuration/stateless-mode.md) 참고.
 
 자주 참조하는 변수:
 
@@ -287,8 +308,13 @@ Authorization: Bearer glpat-xxxxxxxxxxxxxxxxxxxx
 - `GITLAB_PERSONAL_ACCESS_TOKEN`
 - `GITLAB_USE_OAUTH`
 - `REMOTE_AUTHORIZATION`
+- `MCP_TRUST_PROXY`
+- `MCP_ALLOWED_HOSTS`
+- `MCP_ALLOWED_ORIGINS`
 - `GITLAB_MCP_OAUTH`
 - `GITLAB_OAUTH_CALLBACK_PROXY`
+- `OAUTH_STATELESS_MODE`
+- `OAUTH_STATELESS_SECRET`
 
 레퍼런스 문서는 다음 내용도 다룹니다.
 
@@ -359,7 +385,7 @@ Private-Token: glpat-xxxxxxxxxxxxxxxxxxxx
 - 각 세션은 격리됩니다. 한 세션의 토큰은 다른 세션 데이터에 접근할 수 없습니다. 세션이 종료되면 토큰은 자동으로 정리됩니다.
 - **세션 타임아웃:** 인증 토큰은 `SESSION_TIMEOUT_SECONDS`(기본 1시간) 동안 비활성 상태가 지속되면 만료됩니다. 만료 후 클라이언트는 인증 헤더를 다시 보내야 합니다. 전송 세션은 유지됩니다.
 - 각 요청은 해당 세션의 타임아웃 타이머를 초기화합니다.
-- **Rate limiting:** 각 세션은 분당 `MAX_REQUESTS_PER_MINUTE` 요청으로 제한됩니다(기본 60).
+- **Rate limiting:** `/mcp` 요청은 클라이언트 IP당 `MAX_REQUESTS_PER_MINUTE`로 제한되며, OAuth 또는 원격 인증 사용 시 MCP 세션당으로도 제한됩니다(기본 60). 자세한 내용은 [environment-variables.md](docs/configuration/environment-variables.md#max_requests_per_minute)를 참고하세요.
 - **Capacity limit:** 서버는 최대 `MAX_SESSIONS` 동시 세션을 허용합니다(기본 1000).
 
 ### MCP OAuth 설정(Claude.ai Native OAuth)
