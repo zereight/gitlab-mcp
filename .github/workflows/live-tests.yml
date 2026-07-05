@@ -39,5 +39,8 @@ jobs:
         GITLAB_PROJECT_ID: ${{ secrets.TEST_PROJECT_ID }}
         TEST_PROJECT_ID: ${{ secrets.TEST_PROJECT_ID }}
 
+    - name: Run remote authorization tests
+      run: npm run test:remote-auth
+
     - name: Run mock tests
       run: npm run test:mock
