@@ -326,6 +326,34 @@ Behavior:
 
 Set to `true` to expose only read-only tools.
 
+> **Deprecation notice:** `GITLAB_READ_ONLY_MODE` and `--read-only=true` are kept for
+> backward compatibility but will be removed in a future major version.
+> Use `GITLAB_PERMISSION_MODE=readonly` or `--permission-mode=readonly` instead.
+
+When set to `true` it takes precedence over `GITLAB_PERMISSION_MODE`.
+
+### `GITLAB_PERMISSION_MODE`
+
+Permission level for the exposed tool surface. One of:
+
+| Value      | Read | Create/Update | Delete |
+| ---------- | ---- | ------------- | ------ |
+| `readonly` | ✅   | ❌            | ❌     |
+| `modify`   | ✅   | ✅            | ❌     |
+| `full`     | ✅   | ✅            | ✅     |
+
+Default: `full`
+
+CLI: `--permission-mode`
+
+Behavior:
+
+- `readonly` is equivalent to `GITLAB_READ_ONLY_MODE=true`
+- `modify` hides all `delete_*` tools from `tools/list`, rejects them when called
+  directly, and rejects delete/destroy/remove mutations sent through `execute_graphql`
+- Invalid values fail startup with an error
+- `GITLAB_DENIED_TOOLS_REGEX` and the tool policy variables still apply on top
+
 ### `GITLAB_DISABLE_VERSION_CHECK`
 
 Set to `true` to disable the startup update check.

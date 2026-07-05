@@ -1424,6 +1424,32 @@ export const destructiveTools = new Set([
   "purge_dependency_proxy_cache",
 ]);
 
+// Tools that permanently delete resources — blocked in "modify" permission mode.
+// Narrower than destructiveTools: merge/protect/push are modifications, not deletions.
+export const deleteTools = new Set([
+  "delete_branch",
+  "delete_draft_note",
+  "delete_group_variable",
+  "delete_group_wiki_page",
+  "delete_issue",
+  "delete_issue_emoji_reaction",
+  "delete_issue_link",
+  "delete_issue_note_emoji_reaction",
+  "delete_label",
+  "delete_merge_request_discussion_note",
+  "delete_merge_request_emoji_reaction",
+  "delete_merge_request_note",
+  "delete_merge_request_note_emoji_reaction",
+  "delete_milestone",
+  "delete_project_variable",
+  "delete_release",
+  "delete_tag",
+  "delete_wiki_page",
+  "delete_work_item_emoji_reaction",
+  "delete_work_item_note_emoji_reaction",
+  "purge_dependency_proxy_cache",
+]);
+
 // Define which tools are related to wiki and can be toggled by USE_GITLAB_WIKI
 export const wikiToolNames = new Set([
   "list_wiki_pages",
