@@ -9896,6 +9896,11 @@ async function handleToolCall(params: any) {
           args.merge_request_iid,
           args.source_branch
         );
+        if (!args.include_summaries) {
+          return {
+            content: [{ type: "text", text: JSON.stringify(mergeRequest) }],
+          };
+        }
         const deploymentSummary = await buildMergeRequestDeploymentSummary(
           args.project_id,
           mergeRequest
@@ -10416,8 +10421,21 @@ async function handleToolCall(params: any) {
       case "get_issue": {
         const args = GetIssueSchema.parse(params.arguments);
         const issue = await getIssue(args.project_id, args.issue_iid);
+        const responseBody =
+          args.full_response || !issue.milestone
+            ? issue
+            : {
+                ...issue,
+                milestone: {
+                  id: issue.milestone.id,
+                  iid: issue.milestone.iid,
+                  title: issue.milestone.title,
+                  state: issue.milestone.state,
+                  web_url: issue.milestone.web_url,
+                },
+              };
         return {
-          content: [{ type: "text", text: JSON.stringify(issue) }],
+          content: [{ type: "text", text: JSON.stringify(responseBody) }],
         };
       }
 

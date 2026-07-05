@@ -1904,7 +1904,15 @@ export const GetBranchDiffsSchema = ProjectParamsSchema.extend({
     ),
 });
 
-export const GetMergeRequestSchema = ProjectParamsSchema.extend({
+const flexibleBooleanOptional = z.preprocess(val => {
+  if (typeof val !== "string") return val;
+  const normalized = val.trim().toLowerCase();
+  if (normalized === "true") return true;
+  if (normalized === "false") return false;
+  return val;
+}, z.boolean().optional());
+
+const MergeRequestParamsSchema = ProjectParamsSchema.extend({
   project_id: z
     .preprocess(
       value => (value === undefined || value === null ? value : String(value)),
@@ -1921,7 +1929,13 @@ export const GetMergeRequestSchema = ProjectParamsSchema.extend({
   source_branch: z.string().optional().describe("Source branch name"),
 });
 
-export const UpdateMergeRequestSchema = GetMergeRequestSchema.extend({
+export const GetMergeRequestSchema = MergeRequestParamsSchema.extend({
+  include_summaries: flexibleBooleanOptional.describe(
+    "If true, include deployment_summary, commit_addition_summary and approval_summary (extra API calls, larger response). Default false to reduce token usage."
+  ),
+});
+
+export const UpdateMergeRequestSchema = MergeRequestParamsSchema.extend({
   title: z.string().optional().describe("The title of the merge request"),
   description: z.string().optional().describe("The description of the merge request"),
   target_branch: z.string().optional().describe("The target branch"),
@@ -2087,7 +2101,7 @@ export const ListMergeRequestPipelinesSchema = ProjectParamsSchema.extend({
     .describe("The internal ID of the merge request"),
 }).merge(PaginationOptionsSchema);
 
-export const GetMergeRequestDiffsSchema = GetMergeRequestSchema.extend({
+export const GetMergeRequestDiffsSchema = MergeRequestParamsSchema.extend({
   view: z.enum(["inline", "parallel"]).optional().describe("Diff view type"),
   excluded_file_patterns: z
     .array(z.string())
@@ -2097,7 +2111,7 @@ export const GetMergeRequestDiffsSchema = GetMergeRequestSchema.extend({
     ),
 });
 
-export const ListMergeRequestDiffsSchema = GetMergeRequestSchema.extend({
+export const ListMergeRequestDiffsSchema = MergeRequestParamsSchema.extend({
   page: z.coerce.number().optional().describe("Page number for pagination (default: 1)"),
   per_page: z.coerce
     .number()
@@ -2111,14 +2125,14 @@ export const ListMergeRequestDiffsSchema = GetMergeRequestSchema.extend({
     ),
 });
 
-export const ListMergeRequestChangedFilesSchema = GetMergeRequestSchema.extend({
+export const ListMergeRequestChangedFilesSchema = MergeRequestParamsSchema.extend({
   excluded_file_patterns: z
     .array(z.string())
     .optional()
     .describe('Array of regex patterns to exclude files. Examples: ["^vendor/", "\\.pb\\.go$"]'),
 });
 
-export const GetMergeRequestFileDiffSchema = GetMergeRequestSchema.extend({
+export const GetMergeRequestFileDiffSchema = MergeRequestParamsSchema.extend({
   file_paths: z
     .array(z.string())
     .describe(
@@ -2333,6 +2347,9 @@ export const ListMergeRequestsSchema = z
 export const GetIssueSchema = z.object({
   project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
   issue_iid: z.coerce.string().describe("The internal ID of the project issue"),
+  full_response: flexibleBooleanOptional.describe(
+    "If true, return the complete issue object including the full milestone description. Default returns a slim milestone (id, iid, title, state, web_url) to reduce token usage."
+  ),
 });
 
 export const UpdateIssueSchema = z.object({
@@ -2360,17 +2377,9 @@ export const UpdateIssueSchema = z.object({
       z.enum(["issue", "incident", "test_case", "task"]).optional()
     )
     .describe("The type of issue. One of issue, incident, test_case or task."),
-  full_response: z
-    .preprocess(val => {
-      if (typeof val !== "string") return val;
-      const normalized = val.trim().toLowerCase();
-      if (normalized === "true") return true;
-      if (normalized === "false") return false;
-      return val;
-    }, z.boolean().optional())
-    .describe(
-      "If true, return the complete updated issue object. Default returns a slim confirmation (iid, title, state, web_url, updated_at) to reduce token usage."
-    ),
+  full_response: flexibleBooleanOptional.describe(
+    "If true, return the complete updated issue object. Default returns a slim confirmation (iid, title, state, web_url, updated_at) to reduce token usage."
+  ),
 });
 
 export const DeleteIssueSchema = z.object({

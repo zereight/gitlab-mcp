@@ -395,10 +395,42 @@ describe("deployment and environment tools", () => {
     assert.strictEqual(result.state, "available");
   });
 
-  test("get_merge_request returns compact deployment summary sorted by created_at desc", async () => {
+  test("get_merge_request omits summaries by default", async () => {
     const result = await callTool(
       "get_merge_request",
       { project_id: TEST_PROJECT_ID, merge_request_iid: TEST_MERGE_REQUEST_IID },
+      {
+        GITLAB_API_URL: `${mockGitLabUrl}/api/v4`,
+        GITLAB_PERSONAL_ACCESS_TOKEN: MOCK_TOKEN,
+      }
+    );
+
+    assert.strictEqual(result.iid, TEST_MERGE_REQUEST_IID);
+    assert.strictEqual(
+      result.deployment_summary,
+      undefined,
+      "deployment_summary should be omitted by default"
+    );
+    assert.strictEqual(
+      result.commit_addition_summary,
+      undefined,
+      "commit_addition_summary should be omitted by default"
+    );
+    assert.strictEqual(
+      result.approval_summary,
+      undefined,
+      "approval_summary should be omitted by default"
+    );
+  });
+
+  test("get_merge_request returns compact deployment summary sorted by created_at desc", async () => {
+    const result = await callTool(
+      "get_merge_request",
+      {
+        project_id: TEST_PROJECT_ID,
+        merge_request_iid: TEST_MERGE_REQUEST_IID,
+        include_summaries: true,
+      },
       {
         GITLAB_API_URL: `${mockGitLabUrl}/api/v4`,
         GITLAB_PERSONAL_ACCESS_TOKEN: MOCK_TOKEN,
