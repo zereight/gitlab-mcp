@@ -122,7 +122,7 @@ MR lifecycle — create, update, merge, approve, plus diff/conflict inspection a
 | [`list_branches`](merge-requests.md#list_branches) | List branches in project with search filter | 📖 |
 | [`get_merge_request_conflicts`](merge-requests.md#get_merge_request_conflicts) | Get the conflicts of a merge request | 📖 |
 | [`list_merge_request_pipelines`](merge-requests.md#list_merge_request_pipelines) | List pipelines for a merge request with pagination | 📖 |
-| [`get_merge_request`](merge-requests.md#get_merge_request) | Get details of a merge request (mergeRequestIid or branchName required) | 📖 |
+| [`get_merge_request`](merge-requests.md#get_merge_request) | Get details of a merge request (mergeRequestIid or branchName required). Set include_summaries=true for deployment/commit/approval summaries | 📖 |
 | [`get_merge_request_diffs`](merge-requests.md#get_merge_request_diffs) | Get the changes/diffs of a merge request (mergeRequestIid or branchName required) | 📖 |
 | [`list_merge_request_changed_files`](merge-requests.md#list_merge_request_changed_files) | List changed file paths in a merge request without diff content (mergeRequestIid or branchName required) | 📖 |
 | [`list_merge_request_diffs`](merge-requests.md#list_merge_request_diffs) | List merge request diffs with pagination (mergeRequestIid or branchName required) | 📖 |
@@ -167,7 +167,7 @@ Issue CRUD, links, discussions and notes, todos, and emoji reactions. *(24 tools
 | [`create_issue`](issues.md#create_issue) | Create a new issue | ✏️ |
 | [`list_issues`](issues.md#list_issues) | List issues (default: created by current user; use scope='all' for all) | 📖 |
 | [`my_issues`](issues.md#my_issues) | List issues assigned to the authenticated user | 📖 |
-| [`get_issue`](issues.md#get_issue) | Get details of a specific issue | 📖 |
+| [`get_issue`](issues.md#get_issue) | Get details of a specific issue. Returns a slim milestone by default; set full_response=true for the complete milestone object | 📖 |
 | [`update_issue`](issues.md#update_issue) | Update an issue. Returns a slim confirmation by default; set full_response=true for the complete updated issue object | ✏️ |
 | [`update_issue_description_patch`](issues.md#update_issue_description_patch) | Apply a patch (search/replace or unified diff) to an issue description. Reduces token usage by allowing small changes without sending the full description. Supports dry_run to preview changes and create_note to summarize updates. | ✏️ |
 | [`delete_issue`](issues.md#delete_issue) | Delete an issue | ✏️ |

@@ -170,7 +170,7 @@ List pipelines for a merge request with pagination
 
 *📖 Read-only*
 
-Get details of a merge request (mergeRequestIid or branchName required)
+Get details of a merge request (mergeRequestIid or branchName required). Set include_summaries=true for deployment/commit/approval summaries
 
 **Parameters**
 
@@ -179,6 +179,7 @@ Get details of a merge request (mergeRequestIid or branchName required)
 | `project_id` | string | ✓ | Project ID or complete URL-encoded path to project |
 | `merge_request_iid` | string |  | The IID of a merge request |
 | `source_branch` | string |  | Source branch name |
+| `include_summaries` | boolean |  | If true, include deployment_summary, commit_addition_summary and approval_summary (extra API calls, larger response). Default false to reduce token usage. |
 
 ### `get_merge_request_diffs`
 

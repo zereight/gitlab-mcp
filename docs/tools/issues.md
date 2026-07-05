@@ -108,7 +108,7 @@ List issues assigned to the authenticated user
 
 *📖 Read-only*
 
-Get details of a specific issue
+Get details of a specific issue. Returns a slim milestone by default; set full_response=true for the complete milestone object
 
 **Parameters**
 
@@ -116,6 +116,7 @@ Get details of a specific issue
 |---|---|:-:|---|
 | `project_id` | string | ✓ | Project ID or URL-encoded path |
 | `issue_iid` | string | ✓ | The internal ID of the project issue |
+| `full_response` | boolean |  | If true, return the complete issue object including the full milestone description. Default returns a slim milestone (id, iid, title, state, web_url) to reduce token usage. |
 
 ### `update_issue`
 
