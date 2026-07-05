@@ -81,7 +81,7 @@ describe("get_file_blame", () => {
   let lastQuery: Record<string, any> = {};
 
   before(async () => {
-    const mockPort = await findMockServerPort(9000);
+    const mockPort = await findMockServerPort();
     mockGitLab = new MockGitLabServer({
       port: mockPort,
       validTokens: [MOCK_TOKEN],

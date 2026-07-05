@@ -41,7 +41,7 @@ describe('Dynamic Routing and Authentication Scenarios', () => {
       // to avoid launchServer overwriting GITLAB_PERSONAL_ACCESS_TOKEN with a different value
       process.env.GITLAB_TOKEN_TEST = MOCK_TOKEN_DEFAULT;
       process.env.TEST_PROJECT_ID = '1';
-      const mockPort = await findMockServerPort(9021);
+      const mockPort = await findMockServerPort();
       mockServer = new MockGitLabServer({ port: mockPort, validTokens: [MOCK_TOKEN_DEFAULT] });
       await mockServer.start();
 
@@ -97,7 +97,7 @@ describe('Dynamic Routing and Authentication Scenarios', () => {
     let mockServer: MockGitLabServer;
 
     before(async () => {
-      const mockPort = await findMockServerPort(9022);
+      const mockPort = await findMockServerPort();
       mockServer = new MockGitLabServer({ port: mockPort, validTokens: [MOCK_TOKEN_HEADER] });
       await mockServer.start();
 
@@ -169,11 +169,11 @@ describe('Dynamic Routing and Authentication Scenarios', () => {
     let headerMockServer: MockGitLabServer;
 
     before(async () => {
-      const defaultPort = await findMockServerPort(9024);
+      const defaultPort = await findMockServerPort();
       defaultMockServer = new MockGitLabServer({ port: defaultPort, validTokens: [MOCK_TOKEN_DEFAULT, MOCK_TOKEN_HEADER] });
       await defaultMockServer.start();
 
-      const headerPort = await findMockServerPort(9025);
+      const headerPort = await findMockServerPort();
       headerMockServer = new MockGitLabServer({ port: headerPort, validTokens: [MOCK_TOKEN_DEFAULT, MOCK_TOKEN_HEADER] });
       await headerMockServer.start();
 

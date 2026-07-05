@@ -619,11 +619,16 @@ export class MockGitLabServer {
   }
 
   async start(): Promise<void> {
-    return new Promise(resolve => {
+    return new Promise((resolve, reject) => {
       this.server = this.app.listen(this.config.port, "127.0.0.1", () => {
+        const address = this.server?.address();
+        if (typeof address === "object" && address) {
+          this.config.port = address.port;
+        }
         console.log(`Mock GitLab API listening on http://127.0.0.1:${this.config.port}`);
         resolve();
       });
+      this.server.once("error", reject);
     });
   }
 
@@ -646,49 +651,19 @@ export class MockGitLabServer {
   getUrl(): string {
     return `http://127.0.0.1:${this.config.port}`;
   }
+
+  getPort(): number {
+    return this.config.port;
+  }
 }
 
 /**
- * Helper to find available port for mock server
+ * Helper to find available port for mock server (OS-assigned ephemeral port).
+ * Returns 0 to signal MockGitLabServer.start() to use OS-assigned port,
+ * avoiding TOCTOU race where another test grabs the port before binding.
  */
-export async function findMockServerPort(
-  basePort: number = 9000,
-  maxAttempts: number = 10
-): Promise<number> {
-  const net = await import("net");
-
-
-  const tryPort = async (port: number, attemptsLeft: number): Promise<number> => {
-    if (attemptsLeft === 0) {
-      throw new Error(
-        `Could not find available port after ${maxAttempts} attempts starting from ${basePort}`
-      );
-    }
-
-    return new Promise((resolve, reject) => {
-      const server = net.createServer();
-      server.unref();
-
-      server.on("error", async () => {
-        try {
-          const nextPort = await tryPort(port + 1, attemptsLeft - 1);
-          resolve(nextPort);
-        } catch (err) {
-          reject(err);
-        }
-      });
-
-      server.listen(port, "127.0.0.1", () => {
-        const addr = server.address();
-        const actualPort = typeof addr === "object" && addr ? addr.port : port;
-        server.close(() => {
-          resolve(actualPort);
-        });
-      });
-    });
-  };
-
-  return tryPort(basePort, maxAttempts);
+export async function findMockServerPort(): Promise<number> {
+  return 0;
 }
 
 /**

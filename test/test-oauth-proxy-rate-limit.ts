@@ -51,7 +51,7 @@ describe("When MCP OAuth runs behind a trusted proxy", () => {
     let servers: ServerInstance[] = [];
 
     before(async () => {
-      const mockPort = await findMockServerPort(MOCK_GITLAB_PORT_BASE);
+      const mockPort = await findMockServerPort();
       mockGitLab = new MockGitLabServer({ port: mockPort, validTokens: [] });
       await mockGitLab.start();
 

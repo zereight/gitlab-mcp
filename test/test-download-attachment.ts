@@ -89,7 +89,7 @@ describe('download_attachment', () => {
   let env: NodeJS.ProcessEnv;
 
   before(async () => {
-    const port = await findMockServerPort(9100);
+    const port = await findMockServerPort();
     mockGitLab = new MockGitLabServer({ port, validTokens: [MOCK_TOKEN] });
     await mockGitLab.start();
 

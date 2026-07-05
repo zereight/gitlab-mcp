@@ -54,12 +54,17 @@ async function callTool(
 
 describe("dependency proxy tools", () => {
   let mockServer: MockGitLabServer;
-  let mockPort: number;
+  let mockApiUrl: string;
   let baseEnv: NodeJS.ProcessEnv;
 
   before(async () => {
-    mockPort = await findMockServerPort();
-    mockServer = new MockGitLabServer({ port: mockPort, validTokens: [MOCK_TOKEN] });
+    mockServer = new MockGitLabServer({
+      port: await findMockServerPort(),
+      validTokens: [MOCK_TOKEN],
+    });
+    await mockServer.start();
+    const mockHost = new URL(mockServer.getUrl()).host;
+    mockApiUrl = `${mockServer.getUrl()}/api/v4`;
 
     // Mock GraphQL endpoint for get/list operations
     mockServer.addRootHandler("post", "/api/graphql", (req, res) => {
@@ -75,7 +80,7 @@ describe("dependency proxy tools", () => {
               dependencyProxyBlobCount: 3,
               dependencyProxyTotalSize: "15728640",
               dependencyProxyImagePrefix:
-                `localhost:${mockPort}/my-group/dependency_proxy/containers`,
+                `${mockHost}/my-group/dependency_proxy/containers`,
               dependencyProxyImageTtlPolicy: { enabled: true, ttl: 90 },
             },
           },
@@ -108,11 +113,9 @@ describe("dependency proxy tools", () => {
       }
     );
 
-    await mockServer.start();
-
     baseEnv = {
       GITLAB_PERSONAL_ACCESS_TOKEN: MOCK_TOKEN,
-      GITLAB_API_URL: `http://localhost:${mockPort}/api/v4`,
+      GITLAB_API_URL: mockApiUrl,
       GITLAB_TOOLSETS: "dependency_proxy",
     };
   });
@@ -166,7 +169,7 @@ describe("dependency proxy tools", () => {
         env: {
           ...process.env,
           GITLAB_PERSONAL_ACCESS_TOKEN: MOCK_TOKEN,
-          GITLAB_API_URL: `http://localhost:${mockPort}/api/v4`,
+          GITLAB_API_URL: mockApiUrl,
           // No GITLAB_TOOLSETS — default toolsets only
         },
       });

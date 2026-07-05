@@ -45,11 +45,11 @@ describe("Dynamic API URL allowlist", () => {
   let getAttackerHits = () => 0;
 
   before(async () => {
-    const primaryPort = await findMockServerPort(9100);
+    const primaryPort = await findMockServerPort();
     primaryGitLab = new MockGitLabServer({ port: primaryPort, validTokens: [MOCK_TOKEN] });
     await primaryGitLab.start();
 
-    const secondaryPort = await findMockServerPort(9200);
+    const secondaryPort = await findMockServerPort();
     secondaryGitLab = new MockGitLabServer({ port: secondaryPort, validTokens: [MOCK_TOKEN] });
     secondaryGitLab.addMockHandler("get", "/projects/1/issues", (_req, res) => {
       secondaryHit = true;

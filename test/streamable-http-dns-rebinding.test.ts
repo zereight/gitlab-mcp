@@ -46,7 +46,7 @@ function startServer(env: Record<string, string>, port: number) {
 }
 
 async function startAuthenticatedServer(env: Record<string, string>, port: number) {
-  const mockPort = await findMockServerPort(8800 + (port % 100));
+  const mockPort = await findMockServerPort();
   const mockGitLab = new MockGitLabServer({
     port: mockPort,
     validTokens: [TEST_TOKEN],

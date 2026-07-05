@@ -68,7 +68,7 @@ describe("list_merge_request_pipelines", () => {
   let lastQuery: Record<string, unknown> = {};
 
   before(async () => {
-    const mockPort = await findMockServerPort(9250);
+    const mockPort = await findMockServerPort();
     mockGitLab = new MockGitLabServer({
       port: mockPort,
       validTokens: [MOCK_TOKEN],

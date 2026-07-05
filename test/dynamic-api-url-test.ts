@@ -38,7 +38,7 @@ describe('Dynamic API URL - Multiple GitLab Instances', () => {
 
   before(async () => {
     // Start first mock GitLab server
-    const mockPort1 = await findMockServerPort(MOCK_GITLAB_PORT_BASE_1);
+    const mockPort1 = await findMockServerPort();
     mockGitLab1 = new MockGitLabServer({
       port: mockPort1,
       validTokens: [MOCK_TOKEN_1]
@@ -47,7 +47,7 @@ describe('Dynamic API URL - Multiple GitLab Instances', () => {
     mockGitLabUrl1 = mockGitLab1.getUrl();
 
     // Start second mock GitLab server
-    const mockPort2 = await findMockServerPort(MOCK_GITLAB_PORT_BASE_2);
+    const mockPort2 = await findMockServerPort();
     mockGitLab2 = new MockGitLabServer({
       port: mockPort2,
       validTokens: [MOCK_TOKEN_2]
@@ -250,7 +250,7 @@ describe('Dynamic API URL - Connection Pool', () => {
 
   before(async () => {
     // Start mock GitLab servers
-    const mockPort1 = await findMockServerPort(MOCK_GITLAB_PORT_BASE_1 + 50);
+    const mockPort1 = await findMockServerPort();
     mockGitLab1 = new MockGitLabServer({
       port: mockPort1,
       validTokens: [MOCK_TOKEN_1]
@@ -258,7 +258,7 @@ describe('Dynamic API URL - Connection Pool', () => {
     await mockGitLab1.start();
     mockGitLabUrl1 = mockGitLab1.getUrl();
 
-    const mockPort2 = await findMockServerPort(MOCK_GITLAB_PORT_BASE_2 + 50);
+    const mockPort2 = await findMockServerPort();
     mockGitLab2 = new MockGitLabServer({
       port: mockPort2,
       validTokens: [MOCK_TOKEN_2]

@@ -56,7 +56,7 @@ describe("Single Client Mode (ENABLE_DYNAMIC_API_URL=false)", () => {
   let mockServer1: MockGitLabServer;
 
   before(async () => {
-    const mockPort = await findMockServerPort(9001);
+    const mockPort = await findMockServerPort();
     mockServer1 = new MockGitLabServer({ port: mockPort, validTokens: [MOCK_TOKEN] });
     mockServer1.addMockHandler('get', '/projects/1', (req: Request, res: Response) => { res.json(project1); });
     await mockServer1.start();
@@ -118,8 +118,8 @@ describe("Dynamic Client Mode (ENABLE_DYNAMIC_API_URL=true)", () => {
   let mockServer2: MockGitLabServer;
 
   before(async () => {
-    const port1 = await findMockServerPort(9011);
-    const port2 = await findMockServerPort(9012);
+    const port1 = await findMockServerPort();
+    const port2 = await findMockServerPort();
     mockServer1 = new MockGitLabServer({ port: port1, validTokens: [MOCK_TOKEN] });
     mockServer2 = new MockGitLabServer({ port: port2, validTokens: [MOCK_TOKEN] });
     mockServer1.addMockHandler('get', '/projects/1', (req: Request, res: Response) => { res.json(project1); });

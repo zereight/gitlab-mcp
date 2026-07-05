@@ -88,7 +88,7 @@ let mockGitLabUrl: string;
 
 describe("Search Code Tools", () => {
   before(async () => {
-    const mockPort = await findMockServerPort(MOCK_PORT_BASE);
+    const mockPort = await findMockServerPort();
     mockGitLab = new MockGitLabServer({
       port: mockPort,
       validTokens: [MOCK_TOKEN],

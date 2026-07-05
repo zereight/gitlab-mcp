@@ -90,7 +90,7 @@ describe('list_project_members', () => {
   let inheritedEndpointHit = false;
 
   before(async () => {
-    const mockPort = await findMockServerPort(9000);
+    const mockPort = await findMockServerPort();
     mockGitLab = new MockGitLabServer({
       port: mockPort,
       validTokens: [MOCK_TOKEN]

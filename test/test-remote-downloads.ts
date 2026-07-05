@@ -70,7 +70,7 @@ describe('Remote Downloads - Download Proxy Endpoint', { timeout: 30_000 }, () =
   let serverPort: number;
 
   before(async () => {
-    const mockPort = await findMockServerPort(9300);
+    const mockPort = await findMockServerPort();
     mockGitLab = new MockGitLabServer({
       port: mockPort,
       validTokens: [MOCK_TOKEN, LARGE_FILE_TOKEN],
@@ -278,7 +278,7 @@ describe('Remote Downloads - Tool Behavior via MCP Protocol', { timeout: 60_000 
   let sessionId: string;
 
   before(async () => {
-    const mockPort = await findMockServerPort(9310);
+    const mockPort = await findMockServerPort();
     mockGitLab = new MockGitLabServer({
       port: mockPort,
       validTokens: [MOCK_TOKEN],
