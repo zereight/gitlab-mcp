@@ -1054,7 +1054,10 @@ function requireMcpHostAndOrigin(req: Request, res: Response, next: NextFunction
     !host ||
     (!isLoopbackMcpHost(host) && !MCP_DNS_REBINDING_PROTECTION.allowedHosts.includes(host))
   ) {
-    res.status(403).json({ error: "Host header is not allowed" });
+    res.status(403).json({
+      error: "Host header is not allowed",
+      hint: "Set MCP_SERVER_URL or MCP_ALLOWED_HOSTS for non-loopback /mcp hosts.",
+    });
     return;
   }
 
@@ -1066,7 +1069,10 @@ function requireMcpHostAndOrigin(req: Request, res: Response, next: NextFunction
       (!isLoopbackMcpOrigin(origin) &&
         !MCP_DNS_REBINDING_PROTECTION.allowedOrigins.includes(origin))
     ) {
-      res.status(403).json({ error: "Origin header is not allowed" });
+      res.status(403).json({
+        error: "Origin header is not allowed",
+        hint: "Set MCP_SERVER_URL or MCP_ALLOWED_ORIGINS for non-loopback browser origins.",
+      });
       return;
     }
   }

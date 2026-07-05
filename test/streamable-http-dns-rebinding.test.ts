@@ -129,6 +129,7 @@ describe("Streamable HTTP DNS rebinding protection", () => {
     );
     assert.equal(badJson.status, 403);
     assert.match(badJson.body, /Host header is not allowed/);
+    assert.match(badJson.body, /MCP_ALLOWED_HOSTS/);
 
     const badHost = await postMcp(port, {
       Host: "attacker.example.test",
@@ -136,6 +137,7 @@ describe("Streamable HTTP DNS rebinding protection", () => {
     });
     assert.equal(badHost.status, 403);
     assert.match(badHost.body, /Host header is not allowed/);
+    assert.match(badHost.body, /MCP_ALLOWED_HOSTS/);
 
     const badOrigin = await postMcp(port, {
       Host: validHost,
@@ -143,6 +145,7 @@ describe("Streamable HTTP DNS rebinding protection", () => {
     });
     assert.equal(badOrigin.status, 403);
     assert.match(badOrigin.body, /Origin header is not allowed/);
+    assert.match(badOrigin.body, /MCP_ALLOWED_ORIGINS/);
 
     const ok = await postMcp(port, { Host: validHost });
     assert.equal(ok.status, 200);
@@ -175,6 +178,7 @@ describe("Streamable HTTP DNS rebinding protection", () => {
     });
     assert.equal(loopbackHostBadOrigin.status, 403);
     assert.match(loopbackHostBadOrigin.body, /Origin header is not allowed/);
+    assert.match(loopbackHostBadOrigin.body, /MCP_ALLOWED_ORIGINS/);
   });
 
   test("allows the configured MCP_SERVER_URL host and origin", async () => {
