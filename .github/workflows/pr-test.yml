@@ -34,6 +34,9 @@ jobs:
     - name: Run consumer install smoke test
       run: npm run test:consumer-smoke
 
+    - name: Run remote authorization tests
+      run: npm run test:remote-auth
+
     - name: Run mock tests
       run: npm run test:mock
 
