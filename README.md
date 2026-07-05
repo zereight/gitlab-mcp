@@ -4,8 +4,6 @@
 
 📖 **[Documentation →](https://zereight.github.io/gitlab-mcp/)** Setup guides, environment variables, and the full tool reference live on the hosted docs site.
 
-> **New Feature**: Dynamic GitLab API URL support with connection pooling! See [Dynamic API URL Documentation](docs/configuration/dynamic-api-url.md) for details.
-
 [![Star History Chart](./assets/star-history.png)](https://www.star-history.com/?repos=zereight%2Fgitlab-mcp&type=date&legend=top-left)
 
 ## @zereight/mcp-gitlab

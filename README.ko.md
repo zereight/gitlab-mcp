@@ -2,8 +2,6 @@
 
 [English](./README.md) | [한국어](./README.ko.md) | [简体中文](./README.zh-CN.md)
 
-> **새 기능**: 커넥션 풀링을 포함한 동적 GitLab API URL을 지원합니다. 자세한 내용은 [Dynamic API URL 문서](docs/configuration/dynamic-api-url.md)를 참고하세요.
-
 [![Star History Chart](./assets/star-history.png)](https://www.star-history.com/?repos=zereight%2Fgitlab-mcp&type=date&legend=top-left)
 
 ## @zereight/mcp-gitlab

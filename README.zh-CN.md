@@ -2,8 +2,6 @@
 
 [English](./README.md) | [한국어](./README.ko.md) | [简体中文](./README.zh-CN.md)
 
-> **新功能**：支持带连接池的动态 GitLab API URL。详情请参阅 [Dynamic API URL 文档](docs/configuration/dynamic-api-url.md)。
-
 [![Star History Chart](./assets/star-history.png)](https://www.star-history.com/?repos=zereight%2Fgitlab-mcp&type=date&legend=top-left)
 
 ## @zereight/mcp-gitlab
