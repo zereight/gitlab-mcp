@@ -73,7 +73,8 @@ async function initialize(mcpUrl: string) {
 let portOffset = 0;
 
 async function launchRemoteAuthServer(extraEnv: Record<string, string> = {}) {
-  const port = await findAvailablePort(3470 + portOffset++ * 10);
+  // Keep above remote-auth-simple-test timeout suite (3500+) to avoid parallel bind races.
+  const port = await findAvailablePort(3600 + portOffset++ * 10);
   const server = await launchServer({
     mode: TransportMode.STREAMABLE_HTTP,
     port,

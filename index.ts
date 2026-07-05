@@ -12556,30 +12556,57 @@ async function startStreamableHTTPServer(): Promise<void> {
   };
 
   const validateAuthDataUpstream = async (authData: AuthData): Promise<boolean> => {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 5000);
     const apiUrl = authData.apiUrl.replace(/\/$/, "");
     const paths = authData.header === "JOB-TOKEN" ? ["user", "job"] : ["user"];
     try {
       for (const path of paths) {
-        const response = await fetch(`${apiUrl}/${path}`, {
-          ...getFetchConfig(),
-          headers: {
-            ...BASE_HEADERS,
-            [authData.header]:
-              authData.header === "Authorization" ? `Bearer ${authData.token}` : authData.token,
-          },
-          signal: controller.signal as any,
-        });
-        if (response.ok) return true;
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 5000);
+        try {
+          const response = await fetch(`${apiUrl}/${path}`, {
+            ...getFetchConfig(),
+            headers: {
+              ...BASE_HEADERS,
+              [authData.header]:
+                authData.header === "Authorization" ? `Bearer ${authData.token}` : authData.token,
+            },
+            signal: controller.signal as any,
+          });
+          if (response.ok) return true;
+        } finally {
+          clearTimeout(timeout);
+        }
       }
       return false;
     } catch (error) {
       logger.warn({ err: error }, "Remote auth token validation failed");
       return false;
-    } finally {
-      clearTimeout(timeout);
     }
+  };
+
+  const sessionAuthTokensMatch = (left: AuthData, right: AuthData): boolean =>
+    left.header === right.header && left.token === right.token && left.apiUrl === right.apiUrl;
+
+  const storeValidatedSessionAuth = async (
+    targetSessionId: string,
+    authData: AuthData,
+    publicBaseUrl?: string,
+    existing?: AuthData,
+    options?: { skipIfUnchanged?: boolean }
+  ): Promise<"stored" | "unchanged" | "invalid"> => {
+    const current = authBySession[targetSessionId];
+    if (options?.skipIfUnchanged && current && sessionAuthTokensMatch(current, authData)) {
+      authBySession[targetSessionId].lastUsed = Date.now();
+      updateSessionPublicBaseUrl(targetSessionId, publicBaseUrl);
+      setAuthTimeout(targetSessionId);
+      return "unchanged";
+    }
+    if (!(await validateAuthDataUpstream(authData))) {
+      return "invalid";
+    }
+    authBySession[targetSessionId] = withPublicBaseUrl(authData, publicBaseUrl, existing ?? current);
+    setAuthTimeout(targetSessionId);
+    return "stored";
   };
 
   /**
@@ -12662,6 +12689,8 @@ async function startStreamableHTTPServer(): Promise<void> {
     // Step 1: derive the effective auth for this request.
     // Priority: live headers > sealed sid. This lets clients refresh OAuth
     // tokens without re-initializing their MCP session.
+    const incomingSid = readMcpSessionIdHeader(req);
+    const isInit = isInitializationRequestBody(req.body);
     const headerAuth = parseAuthHeaders(req);
 
     // In GITLAB_MCP_OAUTH mode, req.auth may be populated by requireBearerAuth.
@@ -12673,7 +12702,16 @@ async function startStreamableHTTPServer(): Promise<void> {
     } | null = null;
     let freshAuthPresent = false;
     if (headerAuth) {
-      if (!(await validateAuthDataUpstream(headerAuth))) {
+      let needsUpstreamValidation = isInit || !incomingSid;
+      if (!needsUpstreamValidation && incomingSid && looksLikeStatelessSessionId(incomingSid)) {
+        const opened = openSessionId(material, incomingSid, sessionTtlSeconds);
+        needsUpstreamValidation =
+          !opened ||
+          opened.h !== headerAuth.header ||
+          opened.t !== headerAuth.token ||
+          opened.u !== headerAuth.apiUrl;
+      }
+      if (needsUpstreamValidation && !(await validateAuthDataUpstream(headerAuth))) {
         metrics.authFailures++;
         metrics.statelessAuthFailures++;
         res.status(401).json({
@@ -12708,7 +12746,6 @@ async function startStreamableHTTPServer(): Promise<void> {
     // which tells the client to re-initialize. Returning 401 here would
     // instead trigger the client's auth-failure path and break automatic
     // recovery after inactivity TTL expiry.
-    const incomingSid = readMcpSessionIdHeader(req);
     let sidPresentedButInvalid = false;
     if (!effective && incomingSid) {
       if (looksLikeStatelessSessionId(incomingSid)) {
@@ -12751,15 +12788,6 @@ async function startStreamableHTTPServer(): Promise<void> {
       });
       return;
     }
-
-    // Step 2: detect whether this is the initialization request. The MCP SDK
-    // only emits an Mcp-Session-Id response header when the transport is in
-    // SDK-stateful mode, which requires a sessionIdGenerator. We use
-    // SDK-stateful mode for init requests (so the client receives the sid)
-    // and SDK-stateless mode for subsequent requests (to avoid the SDK's
-    // per-instance _initialized / sessionId equality checks that would reject
-    // a freshly-constructed transport).
-    const isInit = isInitializationRequestBody(req.body);
 
     // Always mint a fresh sid so the embedded iat advances on every request.
     // This makes OAUTH_STATELESS_SESSION_TTL_SECONDS behave as an inactivity
@@ -13007,9 +13035,21 @@ async function startStreamableHTTPServer(): Promise<void> {
         const privateToken = (req.headers["private-token"] as string | undefined) || "";
         const jobToken = (req.headers["job-token"] as string | undefined) || "";
         if (privateToken || jobToken) {
-          // Validate the raw token upstream before bypassing OAuth.
           const authData = parseAuthHeaders(req);
-          if (authData && (await validateAuthDataUpstream(authData))) {
+          if (!authData) {
+            res.status(401).json({
+              error: "Invalid Private-Token or JOB-TOKEN header",
+              message: "The provided token failed validation. Check the token value and format.",
+            });
+            return;
+          }
+          const sessionId = readMcpSessionIdHeader(req);
+          const cached = sessionId ? authBySession[sessionId] : undefined;
+          if (cached && sessionAuthTokensMatch(cached, authData)) {
+            next();
+            return;
+          }
+          if (await validateAuthDataUpstream(authData)) {
             next();
             return;
           }
@@ -13066,6 +13106,7 @@ async function startStreamableHTTPServer(): Promise<void> {
     }
 
     const newRemoteAuthData = !sessionId && REMOTE_AUTHORIZATION ? parseAuthHeaders(req) : null;
+    let remoteAuthValidatedForInit = false;
     if (!sessionId && REMOTE_AUTHORIZATION) {
       const allowUnauthenticatedDiscovery =
         GITLAB_ALLOW_UNAUTHENTICATED_TOOL_DISCOVERY &&
@@ -13088,6 +13129,9 @@ async function startStreamableHTTPServer(): Promise<void> {
           message: "The provided GitLab token was rejected by the configured GitLab API.",
         });
         return;
+      }
+      if (newRemoteAuthData) {
+        remoteAuthValidatedForInit = true;
       }
     }
 
@@ -13131,22 +13175,43 @@ async function startStreamableHTTPServer(): Promise<void> {
         }
         // Store auth only when provided. Public discovery intentionally leaves the session unauthenticated.
         if (authData) {
-          authBySession[sessionId] = withPublicBaseUrl(authData, publicBaseUrl);
-          logger.info(`Session ${sessionId}: stored ${authData.header} header`);
-          setAuthTimeout(sessionId);
+          const result = await storeValidatedSessionAuth(sessionId, authData, publicBaseUrl);
+          if (result === "invalid") {
+            metrics.authFailures++;
+            res.status(401).json({
+              error: "Invalid GitLab authentication header",
+              message: "The provided GitLab token was rejected by the configured GitLab API.",
+            });
+            return;
+          }
+          remoteAuthValidatedForInit = true;
+          if (result === "stored") {
+            logger.info(`Session ${sessionId}: stored ${authData.header} header`);
+          }
         } else if (allowUnauthenticatedDiscovery) {
           // Schedule cleanup for unauthenticated discovery sessions to prevent slot exhaustion
           setAuthTimeout(sessionId);
         }
       } else if (sessionId && authData) {
-        // Existing session: allow auth rotation/update
-        authBySession[sessionId] = withPublicBaseUrl(
+        const result = await storeValidatedSessionAuth(
+          sessionId,
           authData,
           publicBaseUrl,
-          authBySession[sessionId]
+          authBySession[sessionId],
+          { skipIfUnchanged: true }
         );
-        logger.debug(`Session ${sessionId}: updated ${authData.header} header`);
-        setAuthTimeout(sessionId);
+        if (result === "invalid") {
+          metrics.authFailures++;
+          res.status(401).json({
+            error: "Invalid GitLab authentication header",
+            message: "The provided GitLab token was rejected by the configured GitLab API.",
+          });
+          return;
+        }
+        remoteAuthValidatedForInit = true;
+        if (result === "stored") {
+          logger.debug(`Session ${sessionId}: updated ${authData.header} header`);
+        }
       } else if (sessionId && authBySession[sessionId]) {
         // Existing session with stored auth: update last used time and reset timeout
         authBySession[sessionId].lastUsed = Date.now();
@@ -13228,7 +13293,7 @@ async function startStreamableHTTPServer(): Promise<void> {
               // Store auth for newly created session in remote mode
               if (REMOTE_AUTHORIZATION && !authBySession[newSessionId]) {
                 const authData = parseAuthHeaders(req);
-                if (authData) {
+                if (authData && remoteAuthValidatedForInit) {
                   authBySession[newSessionId] = withPublicBaseUrl(authData, publicBaseUrl);
                   logger.info(`Session ${newSessionId}: stored ${authData.header} header`);
                   setAuthTimeout(newSessionId);

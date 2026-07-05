@@ -83,10 +83,16 @@ export function graphqlQueryContainsWriteOperation(query: string): boolean {
       continue;
     }
 
+    if (depth === 0 && (ch === ";" || ch === ",")) {
+      expectingOperationType = true;
+      continue;
+    }
+
     if (depth === 0 && expectingOperationType) {
-      if (operationTypePattern.test(normalized.slice(i))) {
+      const rest = normalized.slice(i);
+      if (operationTypePattern.test(rest)) {
         expectingOperationType = false;
-        if (writeOpPattern.test(normalized.slice(i))) {
+        if (writeOpPattern.test(rest)) {
           return true;
         }
       }
