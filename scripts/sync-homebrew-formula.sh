@@ -3,13 +3,32 @@ set -euo pipefail
 
 FORMULA_PATH="Formula/zereight-mcp-gitlab.rb"
 VERSION=$(node -p "require('./package.json').version")
-TARBALL_URL="https://registry.npmjs.org/@zereight/mcp-gitlab/-/mcp-gitlab-${VERSION}.tgz"
+METADATA_URL="https://registry.npmjs.org/@zereight/mcp-gitlab/${VERSION}"
 
-if ! SHA256=$(curl -fsSL "$TARBALL_URL" | shasum -a 256 | awk '{print $1}'); then
-  echo "Error: failed to download npm tarball for @zereight/mcp-gitlab@${VERSION}."
+if ! METADATA=$(curl -fsSL "$METADATA_URL"); then
+  echo "Error: failed to fetch npm metadata for @zereight/mcp-gitlab@${VERSION}."
   echo "Publish to npm first, then rerun this script."
   exit 1
 fi
+
+TARBALL_URL=$(node -e "const dist=JSON.parse(process.argv[1]).dist; if (!dist?.tarball || !dist?.shasum) process.exit(1); console.log(dist.tarball)" "$METADATA")
+EXPECTED_SHASUM=$(node -e "console.log(JSON.parse(process.argv[1]).dist.shasum)" "$METADATA")
+
+tmp_tarball=$(mktemp)
+trap 'rm -f "$tmp_tarball"' EXIT
+
+if ! curl -fsSL "$TARBALL_URL" -o "$tmp_tarball"; then
+  echo "Error: failed to download npm tarball for @zereight/mcp-gitlab@${VERSION}."
+  exit 1
+fi
+
+ACTUAL_SHASUM=$(shasum -a 1 "$tmp_tarball" | awk '{print $1}')
+if [ "$ACTUAL_SHASUM" != "$EXPECTED_SHASUM" ]; then
+  echo "Error: npm tarball shasum mismatch for @zereight/mcp-gitlab@${VERSION}."
+  exit 1
+fi
+
+SHA256=$(shasum -a 256 "$tmp_tarball" | awk '{print $1}')
 
 mkdir -p "$(dirname "$FORMULA_PATH")"
 
