@@ -619,11 +619,16 @@ export class MockGitLabServer {
   }
 
   async start(): Promise<void> {
-    return new Promise(resolve => {
+    return new Promise((resolve, reject) => {
       this.server = this.app.listen(this.config.port, "127.0.0.1", () => {
+        const address = this.server?.address();
+        if (typeof address === "object" && address) {
+          this.config.port = address.port;
+        }
         console.log(`Mock GitLab API listening on http://127.0.0.1:${this.config.port}`);
         resolve();
       });
+      this.server.once("error", reject);
     });
   }
 
@@ -649,31 +654,10 @@ export class MockGitLabServer {
 }
 
 /**
- * Helper to find available port for mock server (OS-assigned ephemeral port).
+ * Placeholder port for MockGitLabServer; actual port is assigned in start().
  */
 export async function findMockServerPort(): Promise<number> {
-  const net = await import("net");
-
-  return new Promise((resolve, reject) => {
-    const server = net.createServer();
-    server.unref();
-
-    server.on("error", (err) => {
-      reject(err);
-    });
-
-    server.listen(0, "127.0.0.1", () => {
-      const addr = server.address();
-      const actualPort = typeof addr === "object" && addr ? addr.port : 0;
-      server.close(() => {
-        if (actualPort === 0) {
-          reject(new Error("Failed to get OS-assigned port"));
-        } else {
-          resolve(actualPort);
-        }
-      });
-    });
-  });
+  return 0;
 }
 
 /**

@@ -89,13 +89,15 @@ async function callTool(
 
 describe("CI/CD variable tools", () => {
   let mockServer: MockGitLabServer;
-  let mockPort: number;
+  let mockApiUrl: string;
   let baseEnv: NodeJS.ProcessEnv;
   let lastReceivedFilterScope: string | undefined;
 
   before(async () => {
-    mockPort = await findMockServerPort();
-    mockServer = new MockGitLabServer({ port: mockPort, validTokens: [MOCK_TOKEN] });
+    mockServer = new MockGitLabServer({
+      port: await findMockServerPort(),
+      validTokens: [MOCK_TOKEN],
+    });
 
     // --- Project variable endpoints ---
     mockServer.addMockHandler("get", `/projects/${TEST_PROJECT_ID}/variables`, (_req, res) => {
@@ -177,10 +179,11 @@ describe("CI/CD variable tools", () => {
     );
 
     await mockServer.start();
+    mockApiUrl = `${mockServer.getUrl()}/api/v4`;
 
     baseEnv = {
       GITLAB_PERSONAL_ACCESS_TOKEN: MOCK_TOKEN,
-      GITLAB_API_URL: `http://localhost:${mockPort}/api/v4`,
+      GITLAB_API_URL: mockApiUrl,
       GITLAB_TOOLSETS: "variables",
     };
   });
@@ -375,7 +378,7 @@ describe("CI/CD variable tools", () => {
         env: {
           ...process.env,
           GITLAB_PERSONAL_ACCESS_TOKEN: MOCK_TOKEN,
-          GITLAB_API_URL: `http://localhost:${mockPort}/api/v4`,
+          GITLAB_API_URL: mockApiUrl,
           // No GITLAB_TOOLSETS — default toolsets only
         },
       });
