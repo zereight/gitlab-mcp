@@ -40,6 +40,22 @@ export const IS_OLD = getConfig("is-old", "GITLAB_IS_OLD") === "true";
 // ---------------------------------------------------------------------------
 
 export const GITLAB_READ_ONLY_MODE = getConfig("read-only", "GITLAB_READ_ONLY_MODE") === "true";
+
+export type GitLabPermissionMode = "readonly" | "modify" | "full";
+const PERMISSION_MODES: readonly GitLabPermissionMode[] = ["readonly", "modify", "full"];
+export const GITLAB_PERMISSION_MODE: GitLabPermissionMode = (() => {
+  const raw = getConfig("permission-mode", "GITLAB_PERMISSION_MODE");
+  if (raw !== undefined && !PERMISSION_MODES.includes(raw as GitLabPermissionMode)) {
+    throw new Error(
+      `Invalid GITLAB_PERMISSION_MODE: "${raw}". Expected one of: ${PERMISSION_MODES.join(", ")}`
+    );
+  }
+  // Legacy GITLAB_READ_ONLY_MODE=true always wins (most restrictive)
+  if (GITLAB_READ_ONLY_MODE) {
+    return "readonly";
+  }
+  return (raw as GitLabPermissionMode | undefined) ?? "full";
+})();
 export const USE_GITLAB_WIKI = getConfig("use-wiki", "USE_GITLAB_WIKI") === "true";
 export const USE_MILESTONE = getConfig("use-milestone", "USE_MILESTONE") === "true";
 export const USE_PIPELINE = getConfig("use-pipeline", "USE_PIPELINE") === "true";

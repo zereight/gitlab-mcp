@@ -15,6 +15,7 @@ import {
   GITLAB_POOL_MAX_SIZE,
   GITLAB_DISABLE_VERSION_CHECK,
   GITLAB_READ_ONLY_MODE,
+  GITLAB_PERMISSION_MODE,
   GITLAB_TOOLSETS_RAW,
   GITLAB_TOOLS_RAW,
   HOST,
@@ -200,13 +201,17 @@ import { mcpAuthRouter } from "@modelcontextprotocol/sdk/server/auth/router.js";
 import { ipKeyGenerator } from "express-rate-limit";
 import { normalizeProxyClientIpForRateLimit } from "./utils/proxy-client-ip.js";
 import { getForwardedPublicBaseUrl } from "./utils/forwarded-public-base-url.js";
+import { determineTransportMode, TransportMode } from "./server/transport-mode.js";
 import { normalizeGitLabApiUrl } from "./utils/url.js";
 import {
   estimateMergeCommitCount,
   filterDiffsByPatterns,
   summarizeWebhookEvents,
 } from "./utils/helpers.js";
-import { graphqlQueryContainsWriteOperation } from "./utils/graphql-query.js";
+import {
+  graphqlQueryContainsWriteOperation,
+  graphqlQueryContainsDeleteOperation,
+} from "./utils/graphql-query.js";
 import { resolveNestedWikiUpdateTitle } from "./utils/wiki-title.js";
 import { redactSensitiveGitLabFields } from "./utils/redact-sensitive.js";
 import { checkForNewVersion } from "./utils/version-check.js";
@@ -226,6 +231,7 @@ import {
   allTools,
   readOnlyTools,
   destructiveTools,
+  deleteTools,
   parseEnabledToolsets,
   parseIndividualTools,
   buildFeatureFlagOverrides,
@@ -618,15 +624,6 @@ const logger = pino({
 });
 
 /**
- * Available transport modes for MCP server
- */
-enum TransportMode {
-  STDIO = "stdio",
-  SSE = "sse",
-  STREAMABLE_HTTP = "streamable-http",
-}
-
-/**
  * Read version from package.json
  */
 const __filename = fileURLToPath(import.meta.url);
@@ -672,10 +669,11 @@ function createServer(): McpServer {
     ),
   ];
 
-  // Step 4: Read-only filter
-  const toolsAfterReadOnly = GITLAB_READ_ONLY_MODE
-    ? toolsAfterLegacy.filter(tool => readOnlyTools.has(tool.name))
-    : toolsAfterLegacy;
+  // Step 4: Permission mode filter (readonly / modify / full)
+  const toolsAfterReadOnly =
+    GITLAB_PERMISSION_MODE === "full"
+      ? toolsAfterLegacy
+      : toolsAfterLegacy.filter(tool => isToolAllowedByPermissionMode(tool.name));
 
   // Step 5: Regex denial filter
   let filteredTools = GITLAB_DENIED_TOOLS_REGEX
@@ -686,10 +684,10 @@ function createServer(): McpServer {
   const discoverTool = allTools.find(t => t.name === "discover_tools");
   const filteredToolNames = new Set(filteredTools.map(t => t.name));
   if (discoverTool && !filteredToolNames.has("discover_tools")) {
-    // Respect read-only and regex denial filters
-    const passesReadOnly = !GITLAB_READ_ONLY_MODE || readOnlyTools.has("discover_tools");
+    // Respect permission mode and regex denial filters
+    const passesPermissionMode = isToolAllowedByPermissionMode("discover_tools");
     const passesRegex = !GITLAB_DENIED_TOOLS_REGEX?.test("discover_tools");
-    if (passesReadOnly && passesRegex) {
+    if (passesPermissionMode && passesRegex) {
       filteredTools.push(discoverTool);
     }
   }
@@ -851,7 +849,7 @@ function createServer(): McpServer {
         for (const tool of allTools) {
           if (!toolsetDef.tools.has(tool.name)) continue;
           if (currentToolNames.has(tool.name)) continue;
-          if (GITLAB_READ_ONLY_MODE && !readOnlyTools.has(tool.name)) continue;
+          if (!isToolAllowedByPermissionMode(tool.name)) continue;
           if (GITLAB_DENIED_TOOLS_REGEX?.test(tool.name)) continue;
           if (hiddenToolSet.has(tool.name)) continue;
           newTools.push(tool);
@@ -1366,6 +1364,18 @@ async function ensureValidOAuthToken(): Promise<void> {
   } catch (error) {
     logger.error({ err: error }, "Failed to refresh OAuth token");
     throw error;
+  }
+}
+
+// Permission mode gate: readonly exposes only read tools; modify blocks delete tools; full allows all
+function isToolAllowedByPermissionMode(toolName: string): boolean {
+  switch (GITLAB_PERMISSION_MODE) {
+    case "readonly":
+      return readOnlyTools.has(toolName);
+    case "modify":
+      return !deleteTools.has(toolName);
+    default:
+      return true;
   }
 }
 
@@ -9337,19 +9347,32 @@ async function handleToolCall(params: any) {
       }
     }
 
-    // Centralized read-only guard: reject write tools even if client bypasses list_tools filtering
-    if (GITLAB_READ_ONLY_MODE && !readOnlyTools.has(params.name)) {
-      throw new Error(`${params.name} is not allowed in read-only mode`);
+    // Centralized permission guard: reject disallowed tools even if client bypasses list_tools filtering
+    if (!isToolAllowedByPermissionMode(params.name)) {
+      throw new Error(
+        GITLAB_PERMISSION_MODE === "readonly"
+          ? `${params.name} is not allowed in read-only mode`
+          : `${params.name} is not allowed in modify mode (delete operations are disabled)`
+      );
     }
 
     logger.info({ tool: params.name, event: "tool_call_start" }, `tool_call_start: ${params.name}`);
     switch (params.name) {
       case "execute_graphql": {
         const args = ExecuteGraphQLSchema.parse(params.arguments);
-        if (GITLAB_READ_ONLY_MODE && graphqlQueryContainsWriteOperation(args.query)) {
+        if (
+          GITLAB_PERMISSION_MODE === "readonly" &&
+          graphqlQueryContainsWriteOperation(args.query)
+        ) {
           throw new Error(
             "execute_graphql does not allow mutation or subscription operations in read-only mode"
           );
+        }
+        if (
+          GITLAB_PERMISSION_MODE === "modify" &&
+          graphqlQueryContainsDeleteOperation(args.query)
+        ) {
+          throw new Error("execute_graphql does not allow delete mutations in modify mode");
         }
         const apiUrl = new URL(getEffectiveApiUrl());
         // Build GraphQL endpoint preserving any instance subpath (e.g. /gitlab)
@@ -12212,29 +12235,6 @@ const colorGreen = "\x1b[32m";
 const colorReset = "\x1b[0m";
 
 /**
- * Determine the transport mode based on environment variables and availability
- *
- * Transport mode priority (highest to lowest):
- * 1. STREAMABLE_HTTP
- * 2. SSE
- * 3. STDIO
- */
-function determineTransportMode(): TransportMode {
-  // Check for streamable-http support (highest priority)
-  if (STREAMABLE_HTTP) {
-    return TransportMode.STREAMABLE_HTTP;
-  }
-
-  // Check for SSE support (medium priority)
-  if (SSE) {
-    return TransportMode.SSE;
-  }
-
-  // Default to stdio (lowest priority)
-  return TransportMode.STDIO;
-}
-
-/**
  * Start server with stdio transport
  */
 async function startStdioServer(): Promise<void> {
@@ -12928,7 +12928,7 @@ async function startStreamableHTTPServer(): Promise<void> {
       gitlabBaseUrl,
       GITLAB_OAUTH_APP_ID!,
       "GitLab MCP Server",
-      GITLAB_READ_ONLY_MODE,
+      GITLAB_PERMISSION_MODE === "readonly",
       GITLAB_OAUTH_SCOPES,
       GITLAB_OAUTH_ALLOWED_GROUPS,
       GITLAB_OAUTH_CALLBACK_PROXY,
@@ -13623,6 +13623,12 @@ async function runServer() {
           "GITLAB_ALLOWED_GROUPS is deprecated. Use GITLAB_OAUTH_ALLOWED_GROUPS instead."
         );
       }
+    }
+
+    if (GITLAB_READ_ONLY_MODE) {
+      logger.warn(
+        "GITLAB_READ_ONLY_MODE is deprecated. Use GITLAB_PERMISSION_MODE=readonly or --permission-mode=readonly instead."
+      );
     }
 
     if (GITLAB_OAUTH_ALLOWED_GROUPS) {
