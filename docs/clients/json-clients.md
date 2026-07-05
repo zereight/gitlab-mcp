@@ -10,7 +10,13 @@ Different clients use different top-level schemas and file locations.
 
 Because those client-specific schemas can vary, this guide does **not** assume a single exact file path or wrapper format. Instead, it gives you reusable server blocks for `@zereight/mcp-gitlab` that you can place inside the client's MCP configuration structure.
 
-Install the server globally once:
+Install the server once:
+
+```bash
+brew install zereight/gitlab-mcp/zereight-mcp-gitlab
+```
+
+Or with npm:
 
 ```bash
 npm install -g @zereight/mcp-gitlab

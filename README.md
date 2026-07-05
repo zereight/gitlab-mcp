@@ -65,7 +65,13 @@ The server supports four authentication methods:
 
 For the simplest local setup, start with a Personal Access Token. For browser-based local auth, use OAuth2. For remote or multi-user deployments, continue to the MCP OAuth and Remote Authorization sections later in this README.
 
-Install the server globally once:
+Install the server once:
+
+```shell
+brew install zereight/gitlab-mcp/zereight-mcp-gitlab
+```
+
+Or with npm:
 
 ```shell
 npm install -g @zereight/mcp-gitlab

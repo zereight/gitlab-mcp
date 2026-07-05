@@ -13611,7 +13611,7 @@ async function runServer() {
         if (latestVersion) {
           logger.warn(
             `A newer version of @zereight/mcp-gitlab is available: v${latestVersion} (current: v${SERVER_VERSION}). ` +
-              `Upgrade with \`npx -y @zereight/mcp-gitlab@latest\` or \`npm install -g @zereight/mcp-gitlab\`. ` +
+              `Upgrade with \`brew upgrade zereight-mcp-gitlab\`, \`npx -y @zereight/mcp-gitlab@latest\`, or \`npm install -g @zereight/mcp-gitlab\`. ` +
               `Set GITLAB_DISABLE_VERSION_CHECK=true to disable this check.`
           );
         }

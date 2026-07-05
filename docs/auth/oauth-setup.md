@@ -15,7 +15,13 @@ OAuth2 provides several advantages over personal access tokens:
 
 - A GitLab account (GitLab.com or self-hosted GitLab instance)
 - Node.js installed on your machine
-- The GitLab MCP server installed globally:
+- The GitLab MCP server installed:
+
+  ```bash
+  brew install zereight/gitlab-mcp/zereight-mcp-gitlab
+  ```
+
+  Or with npm:
 
   ```bash
   npm install -g @zereight/mcp-gitlab
