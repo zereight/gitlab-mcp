@@ -14,6 +14,7 @@ import {
   GITLAB_PERSONAL_ACCESS_TOKEN,
   GITLAB_POOL_MAX_SIZE,
   GITLAB_DISABLE_VERSION_CHECK,
+  GITLAB_READ_ONLY_MODE,
   GITLAB_PERMISSION_MODE,
   GITLAB_TOOLSETS_RAW,
   GITLAB_TOOLS_RAW,
@@ -13518,6 +13519,12 @@ async function runServer() {
           "GITLAB_ALLOWED_GROUPS is deprecated. Use GITLAB_OAUTH_ALLOWED_GROUPS instead."
         );
       }
+    }
+
+    if (GITLAB_READ_ONLY_MODE) {
+      logger.warn(
+        "GITLAB_READ_ONLY_MODE is deprecated. Use GITLAB_PERMISSION_MODE=readonly or --permission-mode=readonly instead."
+      );
     }
 
     if (GITLAB_OAUTH_ALLOWED_GROUPS) {

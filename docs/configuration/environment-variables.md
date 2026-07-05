@@ -326,8 +326,11 @@ Behavior:
 
 Set to `true` to expose only read-only tools.
 
-Legacy equivalent of `GITLAB_PERMISSION_MODE=readonly`. When set to `true` it takes
-precedence over `GITLAB_PERMISSION_MODE`.
+> **Deprecation notice:** `GITLAB_READ_ONLY_MODE` and `--read-only=true` are kept for
+> backward compatibility but will be removed in a future major version.
+> Use `GITLAB_PERMISSION_MODE=readonly` or `--permission-mode=readonly` instead.
+
+When set to `true` it takes precedence over `GITLAB_PERMISSION_MODE`.
 
 ### `GITLAB_PERMISSION_MODE`
 

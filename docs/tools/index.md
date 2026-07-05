@@ -27,8 +27,13 @@ directly from `TOOLSET_DEFINITIONS` in
 - `USE_PIPELINE=true` / `USE_MILESTONE=true` / `USE_GITLAB_WIKI=true` — legacy single-group flags (Pipelines, Milestones, Wiki only).
 - Call the `discover_tools` MCP tool at runtime to activate categories for the current session.
 
-Read-only mode (`GITLAB_READ_ONLY_MODE=true`) hides every write tool
-regardless of toggles. See [Environment Variables](../configuration/environment-variables.md)
+Permission modes control which tools are exposed:
+
+- `GITLAB_PERMISSION_MODE=readonly` — hides every write tool regardless of toggles.
+- `GITLAB_PERMISSION_MODE=modify` — allows create/update but blocks all `delete_*` tools.
+- `GITLAB_READ_ONLY_MODE=true` (deprecated) — same as `readonly`; prefer `GITLAB_PERMISSION_MODE=readonly`.
+
+See [Environment Variables](../configuration/environment-variables.md)
 and [CLI Arguments](../getting-started/cli-arguments.md) for the full list.
 
 ## Legend
