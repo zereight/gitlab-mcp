@@ -172,6 +172,29 @@ describe("MCP OAuth — Discovery Endpoints", () => {
     console.log("  ✓ Protected resource metadata returned");
   });
 
+  test("unprefixed MCP_SERVER_URL serves /mcp resource discovery at /.well-known/oauth-protected-resource/mcp", async () => {
+    // When MCP_SERVER_URL has no path, the server registers a dedicated route
+    // at /.well-known/oauth-protected-resource/mcp (RFC 9728 path-suffixed
+    // discovery) so clients connecting to /mcp can discover the resource.
+    const issuerUrl = new URL(mcpBaseUrl);
+
+    const res = await fetch(`${mcpBaseUrl}/.well-known/oauth-protected-resource/mcp`);
+    assert.strictEqual(res.status, 200, "Should return 200");
+
+    const body = (await res.json()) as Record<string, unknown>;
+    assert.strictEqual(
+      body.resource,
+      `${issuerUrl.origin}/mcp`,
+      "resource should be ${origin}/mcp"
+    );
+    assert.deepStrictEqual(
+      body.authorization_servers,
+      [issuerUrl.href],
+      "authorization_servers should contain the issuer URL"
+    );
+    console.log("  ✓ Unprefixed MCP_SERVER_URL: /mcp resource discovery returned correct metadata");
+  });
+
   test("path-prefixed MCP_SERVER_URL serves path-aware discovery metadata", async () => {
     const mockPort = await findMockServerPort();
     const prefixedMockGitLab = new MockGitLabServer({
