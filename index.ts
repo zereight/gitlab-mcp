@@ -3097,6 +3097,13 @@ async function resolveProjectOrGroupPath(
   const namespaceMatch = decodedProjectId.match(/^(group|project):(.+)$/i);
   const explicitKind = namespaceMatch?.[1]?.toLowerCase() as "group" | "project" | undefined;
   const requestedProjectId = namespaceMatch ? namespaceMatch[2] : decodedProjectId;
+
+  if (explicitKind === "group" && GITLAB_ALLOWED_PROJECT_IDS.length > 0) {
+    throw new Error(
+      "group:<id-or-path> cannot be used when GITLAB_ALLOWED_PROJECT_IDS is set, because the project allowlist does not cover groups"
+    );
+  }
+
   const effectiveProjectId = getEffectiveProjectId(requestedProjectId);
 
   if (explicitKind === "group") {

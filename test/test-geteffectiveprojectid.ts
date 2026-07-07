@@ -38,6 +38,8 @@ describe('getEffectiveProjectId - No GITLAB_ALLOWED_PROJECT_IDS', () => {
   let mockGitLab: MockGitLabServer;
   let servers: ServerInstance[] = [];
   let client: CustomHeaderClient;
+  let group123Requested = false;
+  let group789Requested = false;
 
   before(async () => {
     // Start mock GitLab server
@@ -46,6 +48,62 @@ describe('getEffectiveProjectId - No GITLAB_ALLOWED_PROJECT_IDS', () => {
       port: mockPort,
       validTokens: [MOCK_TOKEN]
     });
+
+    mockGitLab.addMockHandler('get', '/groups/123', (_req, res) => {
+      group123Requested = true;
+      res.json({
+        id: 123,
+        name: 'Test Group',
+        path: 'test-group',
+        full_path: 'test-group',
+      });
+    });
+
+    mockGitLab.addMockHandler('get', '/projects/789', (_req, res) => {
+      res.status(404).json({ message: '404 Project Not Found' });
+    });
+
+    mockGitLab.addMockHandler('get', '/groups/789', (_req, res) => {
+      group789Requested = true;
+      res.json({
+        id: 789,
+        name: 'Numeric Group',
+        path: 'numeric-group',
+        full_path: 'numeric-group',
+      });
+    });
+
+    mockGitLab.addRootHandler('post', '/api/graphql', (req, res) => {
+      const { query, variables } = req.body as {
+        query: string;
+        variables: Record<string, unknown>;
+      };
+
+      assert.ok(query.includes('group(fullPath: $path)'), 'Should query the group GraphQL root');
+      assert.strictEqual(variables.path, 'test-group', 'Should use resolved group full_path');
+
+      res.json({
+        data: {
+          group: {
+            workItems: {
+              nodes: [
+                {
+                  id: 'gid://gitlab/WorkItem/1',
+                  iid: '1',
+                  title: 'Group work item',
+                  state: 'OPEN',
+                  webUrl: 'https://gitlab.mock/groups/test-group/-/work_items/1',
+                  workItemType: { name: 'Issue' },
+                  widgets: [],
+                },
+              ],
+              pageInfo: { hasNextPage: false, endCursor: null },
+            },
+          },
+        },
+      });
+    });
+
     await mockGitLab.start();
     const mockGitLabUrl = mockGitLab.getUrl();
 
@@ -116,6 +174,40 @@ describe('getEffectiveProjectId - No GITLAB_ALLOWED_PROJECT_IDS', () => {
     // Should use the passed project_id, not GITLAB_PROJECT_ID
     assert.strictEqual(project.id.toString(), OTHER_PROJECT_ID, 'Should use passed project_id');
     console.log(`  ✓ Used passed project_id ${OTHER_PROJECT_ID} instead of default ${DEFAULT_PROJECT_ID}`);
+  });
+
+  test('should resolve explicit numeric group IDs through the groups endpoint', async () => {
+    group123Requested = false;
+
+    const result = await client.callTool('list_work_items', {
+      project_id: 'group:123',
+    });
+
+    assert.ok(group123Requested, 'Should request /groups/123');
+    assert.ok(result.content, 'Should have content');
+    const content = result.content[0];
+    assert.ok('text' in content, 'Content should have text');
+    const parsed = JSON.parse(content.text);
+
+    assert.strictEqual(parsed.items.length, 1, 'Should return group work items');
+    assert.strictEqual(parsed.items[0].title, 'Group work item');
+    console.log('  ✓ Resolved group:123 via /groups/123 when no project allowlist is set');
+  });
+
+  test('should not fall back from bare numeric project IDs to groups', async () => {
+    group789Requested = false;
+
+    try {
+      await client.callTool('list_work_items', {
+        project_id: '789',
+      });
+      assert.fail('Should have failed on the project 404');
+    } catch (error) {
+      assert.ok(error instanceof Error);
+      assert.ok(error.message.includes('404'), 'Should surface the project 404');
+      assert.strictEqual(group789Requested, false, 'Should not request /groups/789');
+      console.log('  ✓ Bare numeric ID 789 did not fall back to /groups/789');
+    }
   });
 });
 
@@ -196,6 +288,23 @@ describe('getEffectiveProjectId - With single GITLAB_ALLOWED_PROJECT_IDS', () =>
       assert.ok(error instanceof Error);
       assert.ok(error.message.includes('Access denied'), 'Should indicate access denied');
       console.log('  ✓ Correctly rejected access to non-allowed project');
+    }
+  });
+
+  test('should reject explicit group IDs when GITLAB_ALLOWED_PROJECT_IDS is set', async () => {
+    try {
+      await client.callTool('list_work_items', {
+        project_id: 'group:123',
+      });
+      assert.fail('Should have rejected explicit group access');
+    } catch (error) {
+      assert.ok(error instanceof Error);
+      assert.ok(
+        error.message.includes('GITLAB_ALLOWED_PROJECT_IDS') &&
+          error.message.includes('project allowlist does not cover groups'),
+        'Should explain that project allowlists do not authorize groups'
+      );
+      console.log('  ✓ Rejected group:123 when GITLAB_ALLOWED_PROJECT_IDS is set');
     }
   });
 });

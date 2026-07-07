@@ -3975,7 +3975,7 @@ const workItemTypeEnum = z
     ])
   );
 
-const ProjectIdOrPathSchema = z.coerce
+const NamespaceIdOrPathSchema = z.coerce
   .string()
   .describe(
     "Project ID, URL-encoded project path, group path, or explicit namespace prefix for ambiguous numeric IDs (e.g. 'group/subgroup', 'group:123', or 'project:123')"
@@ -3983,14 +3983,14 @@ const ProjectIdOrPathSchema = z.coerce
 
 // Common params for work item tools
 const WorkItemParamsSchema = z.object({
-  project_id: ProjectIdOrPathSchema,
+  project_id: NamespaceIdOrPathSchema,
   iid: z.coerce.number().describe("The internal ID (IID) of the work item"),
 });
 
 export const GetWorkItemSchema = WorkItemParamsSchema;
 
 export const ListWorkItemsSchema = z.object({
-  project_id: ProjectIdOrPathSchema,
+  project_id: NamespaceIdOrPathSchema,
   types: z
     .array(workItemTypeEnum)
     .optional()
@@ -4011,7 +4011,7 @@ export const ListWorkItemsSchema = z.object({
 });
 
 export const CreateWorkItemSchema = z.object({
-  project_id: ProjectIdOrPathSchema,
+  project_id: NamespaceIdOrPathSchema,
   title: z.string().describe("Title of the work item"),
   type: workItemTypeEnum
     .optional()
@@ -4184,13 +4184,13 @@ export const UpdateWorkItemSchema = WorkItemParamsSchema.extend({
 });
 
 export const ConvertWorkItemTypeSchema = z.object({
-  project_id: ProjectIdOrPathSchema,
+  project_id: NamespaceIdOrPathSchema,
   iid: z.coerce.number().describe("The internal ID of the work item"),
   new_type: workItemTypeEnum.describe("The target work item type to convert to"),
 });
 
 export const ListWorkItemStatusesSchema = z.object({
-  project_id: ProjectIdOrPathSchema,
+  project_id: NamespaceIdOrPathSchema,
   work_item_type: workItemTypeEnum
     .optional()
     .default("issue")
@@ -4198,7 +4198,7 @@ export const ListWorkItemStatusesSchema = z.object({
 });
 
 export const ListWorkItemNotesSchema = z.object({
-  project_id: ProjectIdOrPathSchema,
+  project_id: NamespaceIdOrPathSchema,
   iid: z.coerce.number().describe("The internal ID of the work item"),
   page_size: z.coerce
     .number()
@@ -4214,7 +4214,7 @@ export const ListWorkItemNotesSchema = z.object({
 });
 
 export const CreateWorkItemNoteSchema = z.object({
-  project_id: ProjectIdOrPathSchema,
+  project_id: NamespaceIdOrPathSchema,
   iid: z.coerce.number().describe("The internal ID of the work item"),
   body: z.string().describe("Note body (Markdown supported)"),
   internal: z.coerce
@@ -4241,7 +4241,7 @@ export const MoveWorkItemSchema = z.object({
 });
 
 export const ListCustomFieldDefinitionsSchema = z.object({
-  project_id: ProjectIdOrPathSchema,
+  project_id: NamespaceIdOrPathSchema,
   work_item_type: workItemTypeEnum
     .optional()
     .default("issue")
@@ -4312,19 +4312,19 @@ export const DeleteIssueNoteEmojiReactionSchema = ProjectParamsSchema.extend({
 // --- Emoji Reaction schemas (GraphQL: Work Items) ---
 
 export const CreateWorkItemEmojiReactionSchema = z.object({
-  project_id: ProjectIdOrPathSchema,
+  project_id: NamespaceIdOrPathSchema,
   iid: z.coerce.number().describe("The internal ID of the work item"),
   name: emojiNameField,
 });
 
 export const DeleteWorkItemEmojiReactionSchema = z.object({
-  project_id: ProjectIdOrPathSchema,
+  project_id: NamespaceIdOrPathSchema,
   iid: z.coerce.number().describe("The internal ID of the work item"),
   name: emojiNameField,
 });
 
 export const CreateWorkItemNoteEmojiReactionSchema = z.object({
-  project_id: ProjectIdOrPathSchema,
+  project_id: NamespaceIdOrPathSchema,
   iid: z.coerce.number().describe("The internal ID of the work item"),
   note_id: z
     .string()
@@ -4335,7 +4335,7 @@ export const CreateWorkItemNoteEmojiReactionSchema = z.object({
 });
 
 export const DeleteWorkItemNoteEmojiReactionSchema = z.object({
-  project_id: ProjectIdOrPathSchema,
+  project_id: NamespaceIdOrPathSchema,
   iid: z.coerce.number().describe("The internal ID of the work item"),
   note_id: z
     .string()
@@ -4366,12 +4366,12 @@ export const ListIssueNoteEmojiReactionsSchema = ProjectParamsSchema.extend({
 });
 
 export const ListWorkItemEmojiReactionsSchema = z.object({
-  project_id: ProjectIdOrPathSchema,
+  project_id: NamespaceIdOrPathSchema,
   iid: z.coerce.number().describe("The internal ID of the work item"),
 });
 
 export const ListWorkItemNoteEmojiReactionsSchema = z.object({
-  project_id: ProjectIdOrPathSchema,
+  project_id: NamespaceIdOrPathSchema,
   iid: z.coerce.number().describe("The internal ID of the work item"),
   note_id: z
     .string()
