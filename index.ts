@@ -12939,6 +12939,23 @@ async function startStreamableHTTPServer(): Promise<void> {
       );
     }
 
+    // RFC 9728 path-suffixed discovery: clients connecting to /mcp will
+    // request /.well-known/oauth-protected-resource/mcp to discover the
+    // resource identifier. Register this route so the resource field matches
+    // the actual transport URL the client connects to - regardless of
+    // whether the server is deployed behind a path-stripping reverse proxy.
+    if (!issuerPath) {
+      const mcpResourceUrl = `${issuerUrl.origin}/mcp`;
+      app.get("/.well-known/oauth-protected-resource/mcp", (_req: Request, res: Response) => {
+        res.json({
+          resource: mcpResourceUrl,
+          authorization_servers: [issuerUrl.href],
+          scopes_supported: scopesSupported,
+          resource_name: "GitLab MCP Server",
+        });
+      });
+    }
+
     // Mounts /.well-known/oauth-authorization-server (shadowed above when basePath set),
     //        /.well-known/oauth-protected-resource, /authorize, /token, /register, /revoke
     // Some proxies include the port in X-Forwarded-For (e.g. "1.2.3.4:5678" or
