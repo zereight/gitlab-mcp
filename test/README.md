@@ -101,19 +101,6 @@ Tests for the Zod to JSON Schema conversion extension (`toJSONSchema`).
 npm run test:schema
 ```
 
-### mcp-server-name.test.ts
-Tests for the `MCP_SERVER_NAME` environment variable.
-
-**What it tests:**
-- Defaults to `better-gitlab-mcp-server` when unset
-- Reports the overridden name in the `initialize` handshake's `serverInfo.name` when set
-- Treats a whitespace-only value as unset
-
-**Running the tests:**
-```bash
-node --import tsx/esm --test --experimental-test-isolation=none test/mcp-server-name.test.ts
-```
-
 ## Running All Tests
 
 To run the complete test suite:
