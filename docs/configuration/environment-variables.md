@@ -509,6 +509,16 @@ Default:
 
 - `3002`
 
+### `MCP_SERVER_NAME`
+
+Name this server advertises to MCP clients during the `initialize` handshake
+(`serverInfo.name`). Set a distinct value to tell multiple GitLab MCP
+deployments apart in client UIs and logs.
+
+Default:
+
+- `better-gitlab-mcp-server`
+
 ### `MAX_REQUESTS_PER_MINUTE`
 
 Maximum requests allowed per rolling 60-second window. Applies to Streamable HTTP

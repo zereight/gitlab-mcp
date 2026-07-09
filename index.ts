@@ -596,6 +596,8 @@ try {
   // Intentionally ignored: version read failure is non-critical
 }
 
+const SERVER_NAME = process.env.MCP_SERVER_NAME?.trim() || "better-gitlab-mcp-server";
+
 /**
  * Create a new MCP Server instance with request handlers registered.
  * Each transport connection gets its own Server instance to prevent
@@ -656,7 +658,7 @@ function createServer(): McpServer {
 
   const mcpServer = new McpServer(
     {
-      name: "better-gitlab-mcp-server",
+      name: SERVER_NAME,
       version: SERVER_VERSION,
     },
     {
