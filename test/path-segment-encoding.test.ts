@@ -13,6 +13,8 @@ const rawPathSegmentPatterns = [
   "/draft_notes/${draftNoteId}",
   "/versions/${versionId}",
   "/groups/${groupId}",
+  "/jobs/${jobId}",
+  "/pipelines/${pipelineId}",
 ];
 
 test("GitLab URL path IDs are encoded before interpolation", () => {
@@ -31,6 +33,21 @@ test("encoding keeps path traversal payloads inside one URL segment", () => {
     url.pathname,
     "/api/v4/projects/42/issues/1%2F..%2F..%2F..%2F..%2Fadmin%2Fci%2Fvariables/notes"
   );
+});
+
+test("job_id path traversal stays under /jobs/", () => {
+  // GHSA-7c3w-fxgh-frc7 / #587: unencoded job_id with ../ escaped to /api/v4/user
+  const payload = "../../../user";
+  const url = new URL(
+    `https://gitlab.com/api/v4/projects/1/jobs/${encodeURIComponent(payload)}/trace`
+  );
+
+  assert.equal(
+    url.pathname,
+    "/api/v4/projects/1/jobs/..%2F..%2F..%2Fuser/trace"
+  );
+  assert.match(url.pathname, /\/jobs\/[^/]+\/trace$/);
+  assert.equal(url.pathname.includes("/api/v4/user"), false);
 });
 
 test("malformed percent-encoded segments can still be encoded", () => {
