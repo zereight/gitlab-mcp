@@ -1117,6 +1117,7 @@ export const CreateBranchOptionsSchema = z.object({
 });
 
 export const GitLabCompareResultSchema = z.object({
+  // GitLab may return null commit for empty/no-op compare ranges
   commit: z
     .object({
       id: z.string().optional(),
@@ -1126,6 +1127,7 @@ export const GitLabCompareResultSchema = z.object({
       author_email: z.string().optional(),
       created_at: z.string().optional(),
     })
+    .nullable()
     .optional(),
   commits: z.array(GitLabCommitSchema),
   diffs: z.array(GitLabDiffSchema),
@@ -1852,8 +1854,9 @@ export const UpdateDefaultBranchSchema = ProjectParamsSchema.extend({
 export const GitLabProtectedBranchAccessLevelSchema = z.object({
   access_level: z.number().nullable().optional(),
   access_level_description: z.string().optional(),
-  user_id: z.number().optional(),
-  group_id: z.number().optional(),
+  // GitLab returns null for role-based access levels (not user-/group-specific)
+  user_id: z.number().nullable().optional(),
+  group_id: z.number().nullable().optional(),
 });
 
 export const GitLabProtectedBranchSchema = z.object({

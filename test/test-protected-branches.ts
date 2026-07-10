@@ -12,10 +12,29 @@ function buildProtectedBranch(overrides: Record<string, unknown> = {}) {
     id: 1,
     name: TEST_BRANCH,
     push_access_levels: [
-      { access_level: 30, access_level_description: "Developers + Maintainers" },
+      {
+        access_level: 30,
+        access_level_description: "Developers + Maintainers",
+        user_id: null,
+        group_id: null,
+      },
     ],
-    merge_access_levels: [{ access_level: 40, access_level_description: "Maintainers" }],
-    unprotect_access_levels: [{ access_level: 60, access_level_description: "Administrators" }],
+    merge_access_levels: [
+      {
+        access_level: 40,
+        access_level_description: "Maintainers",
+        user_id: null,
+        group_id: null,
+      },
+    ],
+    unprotect_access_levels: [
+      {
+        access_level: 60,
+        access_level_description: "Administrators",
+        user_id: null,
+        group_id: null,
+      },
+    ],
     allow_force_push: false,
     code_owner_approval_required: false,
     ...overrides,
