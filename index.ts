@@ -331,7 +331,9 @@ import {
   GitLabMergeRequestPipelineSchema,
   GitLabMergeRequestSchema,
   type GitLabMilestones,
+  type GitLabGroupMilestones,
   GitLabMilestonesSchema,
+  GitLabGroupMilestonesSchema,
   GitLabNamespaceExistsResponseSchema,
   GitLabNamespaceSchema,
   type GitLabPipeline,
@@ -7886,12 +7888,19 @@ async function deleteProjectMilestone(
  */
 async function getMilestoneIssues(
   projectId: string,
-  milestoneId: number | string
+  milestoneId: number | string,
+  options: Omit<z.infer<typeof GetMilestoneIssuesSchema>, "project_id" | "milestone_id"> = {}
 ): Promise<GitLabIssue[]> {
   projectId = decodeURIComponent(projectId);
   const url = new URL(
     `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/milestones/${encodeGitLabPathSegment(milestoneId)}/issues`
   );
+
+  Object.entries(options).forEach(([key, value]) => {
+    if (value !== undefined) {
+      url.searchParams.append(key, String(value));
+    }
+  });
 
   const response = await fetch(url.toString(), {
     ...getFetchConfig(),
@@ -7909,7 +7918,11 @@ async function getMilestoneIssues(
  */
 async function getMilestoneMergeRequests(
   projectId: string,
-  milestoneId: number | string
+  milestoneId: number | string,
+  options: Omit<
+    z.infer<typeof GetMilestoneMergeRequestsSchema>,
+    "project_id" | "milestone_id"
+  > = {}
 ): Promise<GitLabMergeRequest[]> {
   projectId = decodeURIComponent(projectId);
   const url = new URL(
@@ -7917,6 +7930,12 @@ async function getMilestoneMergeRequests(
       getEffectiveProjectId(projectId)
     )}/milestones/${encodeGitLabPathSegment(milestoneId)}/merge_requests`
   );
+
+  Object.entries(options).forEach(([key, value]) => {
+    if (value !== undefined) {
+      url.searchParams.append(key, String(value));
+    }
+  });
 
   const response = await fetch(url.toString(), {
     ...getFetchConfig(),
@@ -7930,12 +7949,12 @@ async function getMilestoneMergeRequests(
  * Promote a project milestone to a group milestone
  * @param {string} projectId - The ID or URL-encoded path of the project
  * @param {number} milestoneId - The ID of the milestone
- * @returns {Promise<GitLabMilestones>} Promoted milestone
+ * @returns {Promise<GitLabGroupMilestones>} Promoted milestone
  */
 async function promoteProjectMilestone(
   projectId: string,
   milestoneId: number | string
-): Promise<GitLabMilestones> {
+): Promise<GitLabGroupMilestones> {
   projectId = decodeURIComponent(projectId);
   const url = new URL(
     `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/milestones/${encodeGitLabPathSegment(milestoneId)}/promote`
@@ -7947,7 +7966,7 @@ async function promoteProjectMilestone(
   });
   await handleGitLabError(response);
   const data = await response.json();
-  return GitLabMilestonesSchema.parse(data);
+  return GitLabGroupMilestonesSchema.parse(data);
 }
 
 /**
@@ -7958,7 +7977,11 @@ async function promoteProjectMilestone(
  */
 async function getMilestoneBurndownEvents(
   projectId: string,
-  milestoneId: number | string
+  milestoneId: number | string,
+  options: Omit<
+    z.infer<typeof GetMilestoneBurndownEventsSchema>,
+    "project_id" | "milestone_id"
+  > = {}
 ): Promise<any[]> {
   projectId = decodeURIComponent(projectId);
   const url = new URL(
@@ -7966,6 +7989,12 @@ async function getMilestoneBurndownEvents(
       getEffectiveProjectId(projectId)
     )}/milestones/${encodeGitLabPathSegment(milestoneId)}/burndown_events`
   );
+
+  Object.entries(options).forEach(([key, value]) => {
+    if (value !== undefined) {
+      url.searchParams.append(key, String(value));
+    }
+  });
 
   const response = await fetch(url.toString(), {
     ...getFetchConfig(),
@@ -7981,7 +8010,7 @@ async function getMilestoneBurndownEvents(
 async function listGroupMilestones(
   groupId: string,
   options: Omit<z.infer<typeof ListGroupMilestonesSchema>, "group_id">
-): Promise<GitLabMilestones[]> {
+): Promise<GitLabGroupMilestones[]> {
   groupId = decodeURIComponent(groupId);
   const url = new URL(
     `${getEffectiveApiUrl()}/groups/${encodeURIComponent(groupId)}/milestones`
@@ -8004,7 +8033,7 @@ async function listGroupMilestones(
   });
   await handleGitLabError(response);
   const data = await response.json();
-  return z.array(GitLabMilestonesSchema).parse(data);
+  return z.array(GitLabGroupMilestonesSchema).parse(data);
 }
 
 /**
@@ -8013,7 +8042,7 @@ async function listGroupMilestones(
 async function getGroupMilestone(
   groupId: string,
   milestoneId: number | string
-): Promise<GitLabMilestones> {
+): Promise<GitLabGroupMilestones> {
   groupId = decodeURIComponent(groupId);
   const url = new URL(
     `${getEffectiveApiUrl()}/groups/${encodeURIComponent(groupId)}/milestones/${encodeGitLabPathSegment(milestoneId)}`
@@ -8024,7 +8053,7 @@ async function getGroupMilestone(
   });
   await handleGitLabError(response);
   const data = await response.json();
-  return GitLabMilestonesSchema.parse(data);
+  return GitLabGroupMilestonesSchema.parse(data);
 }
 
 /**
@@ -8033,7 +8062,7 @@ async function getGroupMilestone(
 async function createGroupMilestone(
   groupId: string,
   options: Omit<z.infer<typeof CreateGroupMilestoneSchema>, "group_id">
-): Promise<GitLabMilestones> {
+): Promise<GitLabGroupMilestones> {
   groupId = decodeURIComponent(groupId);
   const url = new URL(
     `${getEffectiveApiUrl()}/groups/${encodeURIComponent(groupId)}/milestones`
@@ -8046,7 +8075,7 @@ async function createGroupMilestone(
   });
   await handleGitLabError(response);
   const data = await response.json();
-  return GitLabMilestonesSchema.parse(data);
+  return GitLabGroupMilestonesSchema.parse(data);
 }
 
 /**
@@ -8056,7 +8085,7 @@ async function editGroupMilestone(
   groupId: string,
   milestoneId: number | string,
   options: Omit<z.infer<typeof EditGroupMilestoneSchema>, "group_id" | "milestone_id">
-): Promise<GitLabMilestones> {
+): Promise<GitLabGroupMilestones> {
   groupId = decodeURIComponent(groupId);
   const url = new URL(
     `${getEffectiveApiUrl()}/groups/${encodeURIComponent(groupId)}/milestones/${encodeGitLabPathSegment(milestoneId)}`
@@ -8069,7 +8098,7 @@ async function editGroupMilestone(
   });
   await handleGitLabError(response);
   const data = await response.json();
-  return GitLabMilestonesSchema.parse(data);
+  return GitLabGroupMilestonesSchema.parse(data);
 }
 
 /**
@@ -8096,12 +8125,22 @@ async function deleteGroupMilestone(
  */
 async function getGroupMilestoneIssues(
   groupId: string,
-  milestoneId: number | string
+  milestoneId: number | string,
+  options: Omit<
+    z.infer<typeof GetGroupMilestoneIssuesSchema>,
+    "group_id" | "milestone_id"
+  > = {}
 ): Promise<GitLabIssue[]> {
   groupId = decodeURIComponent(groupId);
   const url = new URL(
     `${getEffectiveApiUrl()}/groups/${encodeURIComponent(groupId)}/milestones/${encodeGitLabPathSegment(milestoneId)}/issues`
   );
+
+  Object.entries(options).forEach(([key, value]) => {
+    if (value !== undefined) {
+      url.searchParams.append(key, String(value));
+    }
+  });
 
   const response = await fetch(url.toString(), {
     ...getFetchConfig(),
@@ -8116,12 +8155,22 @@ async function getGroupMilestoneIssues(
  */
 async function getGroupMilestoneMergeRequests(
   groupId: string,
-  milestoneId: number | string
+  milestoneId: number | string,
+  options: Omit<
+    z.infer<typeof GetGroupMilestoneMergeRequestsSchema>,
+    "group_id" | "milestone_id"
+  > = {}
 ): Promise<GitLabMergeRequest[]> {
   groupId = decodeURIComponent(groupId);
   const url = new URL(
     `${getEffectiveApiUrl()}/groups/${encodeURIComponent(groupId)}/milestones/${encodeGitLabPathSegment(milestoneId)}/merge_requests`
   );
+
+  Object.entries(options).forEach(([key, value]) => {
+    if (value !== undefined) {
+      url.searchParams.append(key, String(value));
+    }
+  });
 
   const response = await fetch(url.toString(), {
     ...getFetchConfig(),
@@ -8136,12 +8185,22 @@ async function getGroupMilestoneMergeRequests(
  */
 async function getGroupMilestoneBurndownEvents(
   groupId: string,
-  milestoneId: number | string
+  milestoneId: number | string,
+  options: Omit<
+    z.infer<typeof GetGroupMilestoneBurndownEventsSchema>,
+    "group_id" | "milestone_id"
+  > = {}
 ): Promise<any[]> {
   groupId = decodeURIComponent(groupId);
   const url = new URL(
     `${getEffectiveApiUrl()}/groups/${encodeURIComponent(groupId)}/milestones/${encodeGitLabPathSegment(milestoneId)}/burndown_events`
   );
+
+  Object.entries(options).forEach(([key, value]) => {
+    if (value !== undefined) {
+      url.searchParams.append(key, String(value));
+    }
+  });
 
   const response = await fetch(url.toString(), {
     ...getFetchConfig(),
@@ -11648,8 +11707,10 @@ async function handleToolCall(params: any) {
       }
 
       case "get_milestone_issue": {
-        const { project_id, milestone_id } = GetMilestoneIssuesSchema.parse(params.arguments);
-        const issues = await getMilestoneIssues(project_id, milestone_id);
+        const { project_id, milestone_id, ...options } = GetMilestoneIssuesSchema.parse(
+          params.arguments
+        );
+        const issues = await getMilestoneIssues(project_id, milestone_id, options);
         return {
           content: [
             {
@@ -11661,10 +11722,10 @@ async function handleToolCall(params: any) {
       }
 
       case "get_milestone_merge_requests": {
-        const { project_id, milestone_id } = GetMilestoneMergeRequestsSchema.parse(
+        const { project_id, milestone_id, ...options } = GetMilestoneMergeRequestsSchema.parse(
           params.arguments
         );
-        const mergeRequests = await getMilestoneMergeRequests(project_id, milestone_id);
+        const mergeRequests = await getMilestoneMergeRequests(project_id, milestone_id, options);
         return {
           content: [
             {
@@ -11689,10 +11750,10 @@ async function handleToolCall(params: any) {
       }
 
       case "get_milestone_burndown_events": {
-        const { project_id, milestone_id } = GetMilestoneBurndownEventsSchema.parse(
+        const { project_id, milestone_id, ...options } = GetMilestoneBurndownEventsSchema.parse(
           params.arguments
         );
-        const events = await getMilestoneBurndownEvents(project_id, milestone_id);
+        const events = await getMilestoneBurndownEvents(project_id, milestone_id, options);
         return {
           content: [
             {
@@ -11778,8 +11839,10 @@ async function handleToolCall(params: any) {
       }
 
       case "get_group_milestone_issue": {
-        const { group_id, milestone_id } = GetGroupMilestoneIssuesSchema.parse(params.arguments);
-        const issues = await getGroupMilestoneIssues(group_id, milestone_id);
+        const { group_id, milestone_id, ...options } = GetGroupMilestoneIssuesSchema.parse(
+          params.arguments
+        );
+        const issues = await getGroupMilestoneIssues(group_id, milestone_id, options);
         return {
           content: [
             {
@@ -11791,10 +11854,14 @@ async function handleToolCall(params: any) {
       }
 
       case "get_group_milestone_merge_requests": {
-        const { group_id, milestone_id } = GetGroupMilestoneMergeRequestsSchema.parse(
+        const { group_id, milestone_id, ...options } = GetGroupMilestoneMergeRequestsSchema.parse(
           params.arguments
         );
-        const mergeRequests = await getGroupMilestoneMergeRequests(group_id, milestone_id);
+        const mergeRequests = await getGroupMilestoneMergeRequests(
+          group_id,
+          milestone_id,
+          options
+        );
         return {
           content: [
             {
@@ -11806,10 +11873,9 @@ async function handleToolCall(params: any) {
       }
 
       case "get_group_milestone_burndown_events": {
-        const { group_id, milestone_id } = GetGroupMilestoneBurndownEventsSchema.parse(
-          params.arguments
-        );
-        const events = await getGroupMilestoneBurndownEvents(group_id, milestone_id);
+        const { group_id, milestone_id, ...options } =
+          GetGroupMilestoneBurndownEventsSchema.parse(params.arguments);
+        const events = await getGroupMilestoneBurndownEvents(group_id, milestone_id, options);
         return {
           content: [
             {

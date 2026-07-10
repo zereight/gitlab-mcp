@@ -120,6 +120,8 @@ Get issues associated with a specific milestone
 |---|---|:-:|---|
 | `project_id` | string | ✓ | Project ID or complete URL-encoded path to project |
 | `milestone_id` | string | ✓ | The ID of a project milestone |
+| `page` | number |  | Page number for pagination (default: 1) |
+| `per_page` | number |  | Number of items per page (max: 100, default: 20) |
 
 ### `get_milestone_merge_requests`
 
@@ -258,6 +260,8 @@ Get issues associated with a specific group milestone
 |---|---|:-:|---|
 | `group_id` | string | ✓ | Group ID or URL-encoded path |
 | `milestone_id` | string | ✓ | The ID of a group milestone |
+| `page` | number |  | Page number for pagination (default: 1) |
+| `per_page` | number |  | Number of items per page (max: 100, default: 20) |
 
 ### `get_group_milestone_merge_requests`
 

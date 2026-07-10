@@ -1014,6 +1014,13 @@ export const GitLabMilestonesSchema = z.object({
   web_url: z.string().optional(),
 });
 
+// Group milestones return group_id (not project_id)
+export const GitLabGroupMilestonesSchema = GitLabMilestonesSchema.omit({
+  project_id: true,
+}).extend({
+  group_id: z.coerce.string(),
+});
+
 // Input schemas for operations
 export const CreateRepositoryOptionsSchema = z.object({
   name: z.string(),
@@ -3075,7 +3082,8 @@ export const EditProjectMilestoneSchema = GetProjectMilestoneSchema.extend({
 export const DeleteProjectMilestoneSchema = GetProjectMilestoneSchema;
 
 // Schema for getting issues assigned to a milestone
-export const GetMilestoneIssuesSchema = GetProjectMilestoneSchema;
+export const GetMilestoneIssuesSchema =
+  GetProjectMilestoneSchema.merge(PaginationOptionsSchema);
 
 // Schema for getting merge requests assigned to a milestone
 export const GetMilestoneMergeRequestsSchema =
@@ -3147,7 +3155,8 @@ export const EditGroupMilestoneSchema = GetGroupMilestoneSchema.extend({
 
 export const DeleteGroupMilestoneSchema = GetGroupMilestoneSchema;
 
-export const GetGroupMilestoneIssuesSchema = GetGroupMilestoneSchema;
+export const GetGroupMilestoneIssuesSchema =
+  GetGroupMilestoneSchema.merge(PaginationOptionsSchema);
 
 export const GetGroupMilestoneMergeRequestsSchema =
   GetGroupMilestoneSchema.merge(PaginationOptionsSchema);
@@ -3650,6 +3659,7 @@ export type CreatePipelineOptions = z.infer<typeof CreatePipelineSchema>;
 export type RetryPipelineOptions = z.infer<typeof RetryPipelineSchema>;
 export type CancelPipelineOptions = z.infer<typeof CancelPipelineSchema>;
 export type GitLabMilestones = z.infer<typeof GitLabMilestonesSchema>;
+export type GitLabGroupMilestones = z.infer<typeof GitLabGroupMilestonesSchema>;
 export type ListProjectMilestonesOptions = z.infer<typeof ListProjectMilestonesSchema>;
 export type GetProjectMilestoneOptions = z.infer<typeof GetProjectMilestoneSchema>;
 export type CreateProjectMilestoneOptions = z.infer<typeof CreateProjectMilestoneSchema>;
