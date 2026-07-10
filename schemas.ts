@@ -3088,6 +3088,73 @@ export const PromoteProjectMilestoneSchema = GetProjectMilestoneSchema;
 export const GetMilestoneBurndownEventsSchema =
   GetProjectMilestoneSchema.merge(PaginationOptionsSchema);
 
+// Group milestone schemas (mirror project milestones against /groups/:id/milestones)
+export const ListGroupMilestonesSchema = z
+  .object({
+    group_id: z.coerce.string().describe("Group ID or URL-encoded path"),
+    iids: z
+      .array(z.coerce.number())
+      .optional()
+      .describe("Return only the milestones having the given iid"),
+    state: z
+      .enum(["active", "closed"])
+      .optional()
+      .describe("Return only active or closed milestones"),
+    title: z
+      .string()
+      .optional()
+      .describe("Return only milestones with a title matching the provided string"),
+    search: z
+      .string()
+      .optional()
+      .describe("Return only milestones with a title or description matching the provided string"),
+    include_ancestors: z.coerce.boolean().optional().describe("Include ancestor groups"),
+    include_descendants: z.coerce.boolean().optional().describe("Include descendant groups"),
+    updated_before: z
+      .string()
+      .optional()
+      .describe("Return milestones updated before the specified date (ISO 8601 format)"),
+    updated_after: z
+      .string()
+      .optional()
+      .describe("Return milestones updated after the specified date (ISO 8601 format)"),
+  })
+  .merge(PaginationOptionsSchema);
+
+export const GetGroupMilestoneSchema = z.object({
+  group_id: z.coerce.string().describe("Group ID or URL-encoded path"),
+  milestone_id: z.coerce.string().describe("The ID of a group milestone"),
+});
+
+export const CreateGroupMilestoneSchema = z.object({
+  group_id: z.coerce.string().describe("Group ID or URL-encoded path"),
+  title: z.string().describe("The title of the milestone"),
+  description: z.string().optional().describe("The description of the milestone"),
+  due_date: z.string().optional().describe("The due date of the milestone (YYYY-MM-DD)"),
+  start_date: z.string().optional().describe("The start date of the milestone (YYYY-MM-DD)"),
+});
+
+export const EditGroupMilestoneSchema = GetGroupMilestoneSchema.extend({
+  title: z.string().optional().describe("The title of the milestone"),
+  description: z.string().optional().describe("The description of the milestone"),
+  due_date: z.string().optional().describe("The due date of the milestone (YYYY-MM-DD)"),
+  start_date: z.string().optional().describe("The start date of the milestone (YYYY-MM-DD)"),
+  state_event: z
+    .enum(["close", "activate"])
+    .optional()
+    .describe("The state event of the milestone"),
+});
+
+export const DeleteGroupMilestoneSchema = GetGroupMilestoneSchema;
+
+export const GetGroupMilestoneIssuesSchema = GetGroupMilestoneSchema;
+
+export const GetGroupMilestoneMergeRequestsSchema =
+  GetGroupMilestoneSchema.merge(PaginationOptionsSchema);
+
+export const GetGroupMilestoneBurndownEventsSchema =
+  GetGroupMilestoneSchema.merge(PaginationOptionsSchema);
+
 // Add schemas for commit operations
 export const ListCommitsSchema = z.object({
   project_id: z.coerce.string().describe("Project ID or complete URL-encoded path to project"),
@@ -3592,6 +3659,18 @@ export type GetMilestoneIssuesOptions = z.infer<typeof GetMilestoneIssuesSchema>
 export type GetMilestoneMergeRequestsOptions = z.infer<typeof GetMilestoneMergeRequestsSchema>;
 export type PromoteProjectMilestoneOptions = z.infer<typeof PromoteProjectMilestoneSchema>;
 export type GetMilestoneBurndownEventsOptions = z.infer<typeof GetMilestoneBurndownEventsSchema>;
+export type ListGroupMilestonesOptions = z.infer<typeof ListGroupMilestonesSchema>;
+export type GetGroupMilestoneOptions = z.infer<typeof GetGroupMilestoneSchema>;
+export type CreateGroupMilestoneOptions = z.infer<typeof CreateGroupMilestoneSchema>;
+export type EditGroupMilestoneOptions = z.infer<typeof EditGroupMilestoneSchema>;
+export type DeleteGroupMilestoneOptions = z.infer<typeof DeleteGroupMilestoneSchema>;
+export type GetGroupMilestoneIssuesOptions = z.infer<typeof GetGroupMilestoneIssuesSchema>;
+export type GetGroupMilestoneMergeRequestsOptions = z.infer<
+  typeof GetGroupMilestoneMergeRequestsSchema
+>;
+export type GetGroupMilestoneBurndownEventsOptions = z.infer<
+  typeof GetGroupMilestoneBurndownEventsSchema
+>;
 export type GitLabUser = z.infer<typeof GitLabUserSchema>;
 export type GitLabUsersResponse = z.infer<typeof GitLabUsersResponseSchema>;
 export type PaginationOptions = z.infer<typeof PaginationOptionsSchema>;

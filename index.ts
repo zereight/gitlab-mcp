@@ -220,6 +220,7 @@ import {
   CreateOrUpdateFileSchema,
   CreatePipelineSchema,
   CreateProjectMilestoneSchema,
+  CreateGroupMilestoneSchema,
   CreateRepositoryOptionsSchema,
   CreateRepositorySchema,
   CreateGroupSchema,
@@ -232,6 +233,7 @@ import {
   UnprotectBranchSchema,
   UpdateDefaultBranchSchema,
   DeleteDraftNoteSchema,
+  DeleteGroupMilestoneSchema,
   DeleteGroupWikiPageSchema,
   DeleteIssueLinkSchema,
   DeleteIssueSchema,
@@ -244,6 +246,7 @@ import {
   DeleteMergeRequestEmojiReactionSchema,
   DeleteMergeRequestNoteEmojiReactionSchema,
   EditProjectMilestoneSchema,
+  EditGroupMilestoneSchema,
   type FileOperation,
   ForkRepositorySchema,
   GetBranchDiffsSchema,
@@ -264,6 +267,10 @@ import {
   GetMilestoneBurndownEventsSchema,
   GetMilestoneIssuesSchema,
   GetMilestoneMergeRequestsSchema,
+  GetGroupMilestoneSchema,
+  GetGroupMilestoneIssuesSchema,
+  GetGroupMilestoneMergeRequestsSchema,
+  GetGroupMilestoneBurndownEventsSchema,
   GetDeploymentSchema,
   GetEnvironmentSchema,
   GetNamespaceSchema,
@@ -427,6 +434,7 @@ import {
   type ListProjectMembersOptions,
   ListProjectMembersSchema,
   ListProjectMilestonesSchema,
+  ListGroupMilestonesSchema,
   ListProjectsSchema,
   ListWikiPagesOptions,
   ListWikiPagesSchema,
@@ -7968,6 +7976,182 @@ async function getMilestoneBurndownEvents(
 }
 
 /**
+ * List milestones in a GitLab group
+ */
+async function listGroupMilestones(
+  groupId: string,
+  options: Omit<z.infer<typeof ListGroupMilestonesSchema>, "group_id">
+): Promise<GitLabMilestones[]> {
+  groupId = decodeURIComponent(groupId);
+  const url = new URL(
+    `${getEffectiveApiUrl()}/groups/${encodeURIComponent(groupId)}/milestones`
+  );
+
+  Object.entries(options).forEach(([key, value]) => {
+    if (value !== undefined) {
+      if (key === "iids" && Array.isArray(value) && value.length > 0) {
+        value.forEach(iid => {
+          url.searchParams.append("iids[]", iid.toString());
+        });
+      } else {
+        url.searchParams.append(key, value.toString());
+      }
+    }
+  });
+
+  const response = await fetch(url.toString(), {
+    ...getFetchConfig(),
+  });
+  await handleGitLabError(response);
+  const data = await response.json();
+  return z.array(GitLabMilestonesSchema).parse(data);
+}
+
+/**
+ * Get a single milestone in a GitLab group
+ */
+async function getGroupMilestone(
+  groupId: string,
+  milestoneId: number | string
+): Promise<GitLabMilestones> {
+  groupId = decodeURIComponent(groupId);
+  const url = new URL(
+    `${getEffectiveApiUrl()}/groups/${encodeURIComponent(groupId)}/milestones/${milestoneId}`
+  );
+
+  const response = await fetch(url.toString(), {
+    ...getFetchConfig(),
+  });
+  await handleGitLabError(response);
+  const data = await response.json();
+  return GitLabMilestonesSchema.parse(data);
+}
+
+/**
+ * Create a new milestone in a GitLab group
+ */
+async function createGroupMilestone(
+  groupId: string,
+  options: Omit<z.infer<typeof CreateGroupMilestoneSchema>, "group_id">
+): Promise<GitLabMilestones> {
+  groupId = decodeURIComponent(groupId);
+  const url = new URL(
+    `${getEffectiveApiUrl()}/groups/${encodeURIComponent(groupId)}/milestones`
+  );
+
+  const response = await fetch(url.toString(), {
+    ...getFetchConfig(),
+    method: "POST",
+    body: JSON.stringify(options),
+  });
+  await handleGitLabError(response);
+  const data = await response.json();
+  return GitLabMilestonesSchema.parse(data);
+}
+
+/**
+ * Edit an existing milestone in a GitLab group
+ */
+async function editGroupMilestone(
+  groupId: string,
+  milestoneId: number | string,
+  options: Omit<z.infer<typeof EditGroupMilestoneSchema>, "group_id" | "milestone_id">
+): Promise<GitLabMilestones> {
+  groupId = decodeURIComponent(groupId);
+  const url = new URL(
+    `${getEffectiveApiUrl()}/groups/${encodeURIComponent(groupId)}/milestones/${milestoneId}`
+  );
+
+  const response = await fetch(url.toString(), {
+    ...getFetchConfig(),
+    method: "PUT",
+    body: JSON.stringify(options),
+  });
+  await handleGitLabError(response);
+  const data = await response.json();
+  return GitLabMilestonesSchema.parse(data);
+}
+
+/**
+ * Delete a milestone from a GitLab group
+ */
+async function deleteGroupMilestone(
+  groupId: string,
+  milestoneId: number | string
+): Promise<void> {
+  groupId = decodeURIComponent(groupId);
+  const url = new URL(
+    `${getEffectiveApiUrl()}/groups/${encodeURIComponent(groupId)}/milestones/${milestoneId}`
+  );
+
+  const response = await fetch(url.toString(), {
+    ...getFetchConfig(),
+    method: "DELETE",
+  });
+  await handleGitLabError(response);
+}
+
+/**
+ * Get all issues assigned to a single group milestone
+ */
+async function getGroupMilestoneIssues(
+  groupId: string,
+  milestoneId: number | string
+): Promise<GitLabIssue[]> {
+  groupId = decodeURIComponent(groupId);
+  const url = new URL(
+    `${getEffectiveApiUrl()}/groups/${encodeURIComponent(groupId)}/milestones/${milestoneId}/issues`
+  );
+
+  const response = await fetch(url.toString(), {
+    ...getFetchConfig(),
+  });
+  await handleGitLabError(response);
+  const data = await response.json();
+  return z.array(GitLabIssueSchema).parse(data);
+}
+
+/**
+ * Get all merge requests assigned to a single group milestone
+ */
+async function getGroupMilestoneMergeRequests(
+  groupId: string,
+  milestoneId: number | string
+): Promise<GitLabMergeRequest[]> {
+  groupId = decodeURIComponent(groupId);
+  const url = new URL(
+    `${getEffectiveApiUrl()}/groups/${encodeURIComponent(groupId)}/milestones/${milestoneId}/merge_requests`
+  );
+
+  const response = await fetch(url.toString(), {
+    ...getFetchConfig(),
+  });
+  await handleGitLabError(response);
+  const data = await response.json();
+  return z.array(GitLabMergeRequestSchema).parse(data);
+}
+
+/**
+ * Get burndown chart events for a group milestone
+ */
+async function getGroupMilestoneBurndownEvents(
+  groupId: string,
+  milestoneId: number | string
+): Promise<any[]> {
+  groupId = decodeURIComponent(groupId);
+  const url = new URL(
+    `${getEffectiveApiUrl()}/groups/${encodeURIComponent(groupId)}/milestones/${milestoneId}/burndown_events`
+  );
+
+  const response = await fetch(url.toString(), {
+    ...getFetchConfig(),
+  });
+  await handleGitLabError(response);
+  const data = await response.json();
+  return data as any[];
+}
+
+/**
  * Get a single user from GitLab
  *
  * @param {string} username - The username to look up
@@ -11509,6 +11693,123 @@ async function handleToolCall(params: any) {
           params.arguments
         );
         const events = await getMilestoneBurndownEvents(project_id, milestone_id);
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(events),
+            },
+          ],
+        };
+      }
+
+      case "list_group_milestones": {
+        const { group_id, ...options } = ListGroupMilestonesSchema.parse(params.arguments);
+        const milestones = await listGroupMilestones(group_id, options);
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(milestones),
+            },
+          ],
+        };
+      }
+
+      case "get_group_milestone": {
+        const { group_id, milestone_id } = GetGroupMilestoneSchema.parse(params.arguments);
+        const milestone = await getGroupMilestone(group_id, milestone_id);
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(milestone),
+            },
+          ],
+        };
+      }
+
+      case "create_group_milestone": {
+        const { group_id, ...options } = CreateGroupMilestoneSchema.parse(params.arguments);
+        const milestone = await createGroupMilestone(group_id, options);
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(milestone),
+            },
+          ],
+        };
+      }
+
+      case "edit_group_milestone": {
+        const { group_id, milestone_id, ...options } = EditGroupMilestoneSchema.parse(
+          params.arguments
+        );
+        const milestone = await editGroupMilestone(group_id, milestone_id, options);
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(milestone),
+            },
+          ],
+        };
+      }
+
+      case "delete_group_milestone": {
+        const { group_id, milestone_id } = DeleteGroupMilestoneSchema.parse(params.arguments);
+        await deleteGroupMilestone(group_id, milestone_id);
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(
+                {
+                  status: "success",
+                  message: "Group milestone deleted successfully",
+                },
+                null,
+                2
+              ),
+            },
+          ],
+        };
+      }
+
+      case "get_group_milestone_issue": {
+        const { group_id, milestone_id } = GetGroupMilestoneIssuesSchema.parse(params.arguments);
+        const issues = await getGroupMilestoneIssues(group_id, milestone_id);
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(issues),
+            },
+          ],
+        };
+      }
+
+      case "get_group_milestone_merge_requests": {
+        const { group_id, milestone_id } = GetGroupMilestoneMergeRequestsSchema.parse(
+          params.arguments
+        );
+        const mergeRequests = await getGroupMilestoneMergeRequests(group_id, milestone_id);
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(mergeRequests),
+            },
+          ],
+        };
+      }
+
+      case "get_group_milestone_burndown_events": {
+        const { group_id, milestone_id } = GetGroupMilestoneBurndownEventsSchema.parse(
+          params.arguments
+        );
+        const events = await getGroupMilestoneBurndownEvents(group_id, milestone_id);
         return {
           content: [
             {
