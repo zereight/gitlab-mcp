@@ -7036,7 +7036,7 @@ async function getPipeline(
 ): Promise<GitLabPipeline> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/pipelines/${pipelineId}`
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/pipelines/${encodeGitLabPathSegment(pipelineId)}`
   );
 
   const response = await fetch(url.toString(), {
@@ -7187,7 +7187,7 @@ async function listPipelineJobs(
 ): Promise<GitLabPipelineJob[]> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/pipelines/${pipelineId}/jobs`
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/pipelines/${encodeGitLabPathSegment(pipelineId)}/jobs`
   );
 
   // Add all query parameters
@@ -7229,7 +7229,7 @@ async function listPipelineTriggerJobs(
 ): Promise<GitLabPipelineTriggerJob[]> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/pipelines/${pipelineId}/bridges`
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/pipelines/${encodeGitLabPathSegment(pipelineId)}/bridges`
   );
 
   // Add all query parameters
@@ -7262,7 +7262,7 @@ async function getPipelineJob(
 ): Promise<GitLabPipelineJob> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/jobs/${jobId}`
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/jobs/${encodeGitLabPathSegment(jobId)}`
   );
 
   const response = await fetch(url.toString(), {
@@ -7297,7 +7297,7 @@ async function getPipelineJobOutput(
 ): Promise<string> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/jobs/${jobId}/trace`
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/jobs/${encodeGitLabPathSegment(jobId)}/trace`
   );
 
   const response = await fetch(url.toString(), {
@@ -7405,7 +7405,7 @@ async function listJobArtifacts(
 ): Promise<GitLabArtifactEntry[]> {
   projectId = decodeURIComponent(projectId);
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/jobs/${jobId}/artifacts/tree`
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/jobs/${encodeGitLabPathSegment(jobId)}/artifacts/tree`
   );
 
   Object.entries(options).forEach(([key, value]) => {
@@ -7450,7 +7450,7 @@ async function downloadJobArtifacts(
   const effectiveProjectId = getEffectiveProjectId(projectId);
 
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(effectiveProjectId)}/jobs/${jobId}/artifacts`
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(effectiveProjectId)}/jobs/${encodeGitLabPathSegment(jobId)}/artifacts`
   );
 
   const response = await fetch(url.toString(), {
@@ -7498,7 +7498,7 @@ async function getJobArtifactFile(
     .join("/");
 
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(effectiveProjectId)}/jobs/${jobId}/artifacts/${encodedArtifactPath}`
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(effectiveProjectId)}/jobs/${encodeGitLabPathSegment(jobId)}/artifacts/${encodedArtifactPath}`
   );
 
   const response = await fetch(url.toString(), {
@@ -7566,7 +7566,7 @@ async function retryPipeline(
 ): Promise<GitLabPipeline> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/pipelines/${pipelineId}/retry`
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/pipelines/${encodeGitLabPathSegment(pipelineId)}/retry`
   );
 
   const response = await fetch(url.toString(), {
@@ -7592,7 +7592,7 @@ async function cancelPipeline(
 ): Promise<GitLabPipeline> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/pipelines/${pipelineId}/cancel`
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/pipelines/${encodeGitLabPathSegment(pipelineId)}/cancel`
   );
 
   const response = await fetch(url.toString(), {
@@ -7620,7 +7620,7 @@ async function playPipelineJob(
 ): Promise<GitLabPipelineJob> {
   projectId = decodeURIComponent(projectId);
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/jobs/${jobId}/play`
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/jobs/${encodeGitLabPathSegment(jobId)}/play`
   );
 
   const body: any = {};
@@ -7652,7 +7652,7 @@ async function retryPipelineJob(
 ): Promise<GitLabPipelineJob> {
   projectId = decodeURIComponent(projectId);
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/jobs/${jobId}/retry`
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/jobs/${encodeGitLabPathSegment(jobId)}/retry`
   );
 
   const response = await fetch(url.toString(), {
@@ -7680,7 +7680,7 @@ async function cancelPipelineJob(
 ): Promise<GitLabPipelineJob> {
   projectId = decodeURIComponent(projectId);
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/jobs/${jobId}/cancel`
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/jobs/${encodeGitLabPathSegment(jobId)}/cancel`
   );
 
   if (force !== undefined) {
