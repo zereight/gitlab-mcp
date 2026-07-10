@@ -300,6 +300,7 @@ Authorization: Bearer glpat-xxxxxxxxxxxxxxxxxxxx
 - **本地 PAT**：`GITLAB_PERSONAL_ACCESS_TOKEN`, `GITLAB_API_URL`
 - **本地 OAuth**：`GITLAB_USE_OAUTH=true`, `GITLAB_OAUTH_CLIENT_ID`, `GITLAB_OAUTH_REDIRECT_URI`, `GITLAB_API_URL`
 - **远程多用户 HTTP**：`STREAMABLE_HTTP=true`, `REMOTE_AUTHORIZATION=true`（或 `GITLAB_MCP_OAUTH=true`）, `MCP_TRUST_PROXY=true`（反向代理后）, `MAX_REQUESTS_PER_MINUTE=300`, `MCP_SERVER_URL` 或 `MCP_ALLOWED_HOSTS`, `HOST`, `PORT`
+- **并行运行多个部署**：为每个实例设置不同的 `MCP_SERVER_NAME`（例如 `gitlab-selfhosted-readonly`），以便在客户端、日志和遥测数据中区分它们
 - **多 Pod HPA（stateless）**：上述配置 + `OAUTH_STATELESS_MODE=true`, `OAUTH_STATELESS_SECRET`（所有 Pod 相同）。参见 [Stateless Mode](./docs/configuration/stateless-mode.md)。
 
 常用变量：

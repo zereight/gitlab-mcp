@@ -300,6 +300,7 @@ Authorization: Bearer glpat-xxxxxxxxxxxxxxxxxxxx
 - **로컬 PAT**: `GITLAB_PERSONAL_ACCESS_TOKEN`, `GITLAB_API_URL`
 - **로컬 OAuth**: `GITLAB_USE_OAUTH=true`, `GITLAB_OAUTH_CLIENT_ID`, `GITLAB_OAUTH_REDIRECT_URI`, `GITLAB_API_URL`
 - **원격 멀티 유저 HTTP**: `STREAMABLE_HTTP=true`, `REMOTE_AUTHORIZATION=true`(또는 `GITLAB_MCP_OAUTH=true`), `MCP_TRUST_PROXY=true`(리버스 프록시 뒤), `MAX_REQUESTS_PER_MINUTE=300`, `MCP_SERVER_URL` 또는 `MCP_ALLOWED_HOSTS`, `HOST`, `PORT`
+- **여러 배포를 동시에 운영**: 배포마다 `MCP_SERVER_NAME`을 다르게 설정(예: `gitlab-selfhosted-readonly`)하면 클라이언트, 로그, 텔레메트리에서 서로 구분할 수 있습니다
 - **멀티 Pod HPA (stateless)**: 위 설정 + `OAUTH_STATELESS_MODE=true`, `OAUTH_STATELESS_SECRET`(모든 Pod에서 동일). [Stateless Mode](./docs/configuration/stateless-mode.md) 참고.
 
 자주 참조하는 변수:
