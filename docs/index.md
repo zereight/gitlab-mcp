@@ -43,7 +43,7 @@ npm install -g @zereight/mcp-gitlab
 
 The examples use `zereight-mcp-gitlab`, a less collision-prone alias for the legacy `mcp-gitlab` binary. If your MCP client cannot find it, use the absolute path from `which zereight-mcp-gitlab`.
 
-No global install? Pin `npx` to the previous stable release (the version these docs recommend), for example `npx -y @zereight/mcp-gitlab@2.1.29`. If you always want the newest release, use `npx -y @zereight/mcp-gitlab@latest` instead.
+No global install? Pin `npx` to the previous stable release (the version these docs recommend), for example `npx -y @zereight/mcp-gitlab@2.1.30`. If you always want the newest release, use `npx -y @zereight/mcp-gitlab@latest` instead.
 
 === "Personal Access Token"
 
