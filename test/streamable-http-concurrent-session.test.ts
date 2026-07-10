@@ -132,7 +132,7 @@ describe("Streamable HTTP health check capacity logging", { timeout: 20_000 }, (
   let output = "";
 
   before(async () => {
-    const mockPort = await findMockServerPort(9370);
+    const mockPort = await findMockServerPort();
     mockGitLab = new MockGitLabServer({
       port: mockPort,
       validTokens: [MOCK_TOKEN],
@@ -185,7 +185,11 @@ describe("Streamable HTTP health check capacity logging", { timeout: 20_000 }, (
       assert.strictEqual(body.activeSessions, 1);
       assert.strictEqual(body.maxSessions, 1);
 
-      await new Promise(resolve => setTimeout(resolve, 100));
+      // ponytail: poll stdout; fixed 100ms sleep flakes under CI jitter
+      const deadline = Date.now() + 2000;
+      while (Date.now() < deadline && !/Health check degraded/.test(output)) {
+        await new Promise(resolve => setTimeout(resolve, 50));
+      }
 
       assert.match(output, /Health check degraded/);
       assert.match(output, /activeSessions.*1/);

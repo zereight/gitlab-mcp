@@ -517,7 +517,7 @@ deployments apart in client UIs and logs.
 
 Default:
 
-- `better-gitlab-mcp-server`
+- `zereight-gitlab-mcp-server`
 
 ### `MAX_REQUESTS_PER_MINUTE`
 

@@ -21,6 +21,6 @@ class ZereightMcpGitlab < Formula
     JSON
 
     output = pipe_output(bin/"zereight-mcp-gitlab", json, 0)
-    assert_match "better-gitlab-mcp-server", output
+    assert_match "zereight-gitlab-mcp-server", output
   end
 end

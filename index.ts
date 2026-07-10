@@ -596,7 +596,7 @@ try {
   // Intentionally ignored: version read failure is non-critical
 }
 
-const SERVER_NAME = process.env.MCP_SERVER_NAME?.trim() || "better-gitlab-mcp-server";
+const SERVER_NAME = process.env.MCP_SERVER_NAME?.trim() || "zereight-gitlab-mcp-server";
 
 /**
  * Create a new MCP Server instance with request handlers registered.
