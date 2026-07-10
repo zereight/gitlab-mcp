@@ -196,18 +196,21 @@ describe('getEffectiveProjectId - No GITLAB_ALLOWED_PROJECT_IDS', () => {
 
   test('should not fall back from bare numeric project IDs to groups', async () => {
     group789Requested = false;
+    let didThrow = false;
 
     try {
       await client.callTool('list_work_items', {
         project_id: '789',
       });
-      assert.fail('Should have failed on the project 404');
     } catch (error) {
+      didThrow = true;
       assert.ok(error instanceof Error);
       assert.ok(error.message.includes('404'), 'Should surface the project 404');
-      assert.strictEqual(group789Requested, false, 'Should not request /groups/789');
-      console.log('  ✓ Bare numeric ID 789 did not fall back to /groups/789');
     }
+
+    assert.ok(didThrow, 'Should have failed on the project 404');
+    assert.strictEqual(group789Requested, false, 'Should not request /groups/789');
+    console.log('  ✓ Bare numeric ID 789 did not fall back to /groups/789');
   });
 });
 

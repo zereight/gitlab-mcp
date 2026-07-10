@@ -2342,24 +2342,24 @@ async function resolveNamesToIds(
     `l${i}: labels(title: $l${i}, includeAncestorGroups: true, first: 1) { nodes { id } }`
   ).join(" ");
 
-  const { project, users } = await executeGraphQL<{
-    project: { [alias: string]: { nodes: Array<{ id: string }> } } | null;
+  const { namespace, users } = await executeGraphQL<{
+    namespace: { [alias: string]: { nodes: Array<{ id: string }> } } | null;
     users: { nodes: Array<{ id: string; username: string }> };
   }>(
     `query($path: ID!, $usernames: [String!]!${varDefs ? `, ${varDefs}` : ""}) {
-      project(fullPath: $path) { ${aliases || "__typename"} }
+      namespace(fullPath: $path) { ${aliases || "__typename"} }
       users(usernames: $usernames) { nodes { id username } }
     }`,
     { path: projectPath, usernames, ...labelVars }
   );
 
-  if (!project) {
-    throw new Error(`Project '${projectPath}' not found or inaccessible`);
+  if (!namespace) {
+    throw new Error(`Namespace '${projectPath}' not found or inaccessible`);
   }
 
   const labelIds = labelNames.map((name, i) => {
-    const nodes = project[`l${i}`]?.nodes;
-    if (!nodes?.length) throw new Error(`Label '${name}' not found in project`);
+    const nodes = namespace[`l${i}`]?.nodes;
+    if (!nodes?.length) throw new Error(`Label '${name}' not found in namespace`);
     return nodes[0].id;
   });
   const userIds = usernames.map(name => {
@@ -3132,6 +3132,7 @@ async function resolveProjectOrGroupPath(
   if (
     projectResponse.status === 404 &&
     !explicitKind &&
+    GITLAB_ALLOWED_PROJECT_IDS.length === 0 &&
     !/^\d+$/.test(effectiveProjectId)
   ) {
     const groupUrl = new URL(
