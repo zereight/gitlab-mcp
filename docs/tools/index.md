@@ -269,7 +269,7 @@ Pipeline + job control (trigger, retry, cancel, play manual jobs, fetch logs/art
 
 ### [Milestones](milestones.md)
 
-Project milestone CRUD plus associated issues/MRs and burndown events. *(9 tools)*
+Project and group milestone CRUD plus associated issues/MRs and burndown events. *(17 tools)*
 
 > Opt-in. Enable via `GITLAB_TOOLSETS=milestones` (or `GITLAB_TOOLSETS=all`), or use the legacy `USE_MILESTONE=true` flag for backward compatibility.
 
@@ -284,6 +284,14 @@ Project milestone CRUD plus associated issues/MRs and burndown events. *(9 tools
 | [`get_milestone_merge_requests`](milestones.md#get_milestone_merge_requests) | Get merge requests associated with a specific milestone | 📖 |
 | [`promote_milestone`](milestones.md#promote_milestone) | Promote a milestone to the next stage | ✏️ |
 | [`get_milestone_burndown_events`](milestones.md#get_milestone_burndown_events) | Get burndown events for a specific milestone | 📖 |
+| [`list_group_milestones`](milestones.md#list_group_milestones) | List group milestones with filtering options | 📖 |
+| [`get_group_milestone`](milestones.md#get_group_milestone) | Get details of a specific group milestone | 📖 |
+| [`create_group_milestone`](milestones.md#create_group_milestone) | Create a new group milestone | ✏️ |
+| [`edit_group_milestone`](milestones.md#edit_group_milestone) | Edit an existing group milestone | ✏️ |
+| [`delete_group_milestone`](milestones.md#delete_group_milestone) | Delete a group milestone | ✏️ |
+| [`get_group_milestone_issue`](milestones.md#get_group_milestone_issue) | Get issues associated with a specific group milestone | 📖 |
+| [`get_group_milestone_merge_requests`](milestones.md#get_group_milestone_merge_requests) | Get merge requests associated with a specific group milestone | 📖 |
+| [`get_group_milestone_burndown_events`](milestones.md#get_group_milestone_burndown_events) | Get burndown events for a specific group milestone | 📖 |
 
 ### [Wiki](wiki.md)
 

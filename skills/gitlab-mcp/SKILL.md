@@ -5,7 +5,7 @@ description: Use this skill when working with the GitLab MCP server tools for me
 
 # gitlab-mcp
 
-GitLab MCP server providing 204 tools: 202 tools across 19 toolsets, plus `execute_graphql` and the always-available `discover_tools` meta-tool.
+GitLab MCP server providing 212 tools: 210 tools across 19 toolsets, plus `execute_graphql` and the always-available `discover_tools` meta-tool.
 
 For exact generated parameter tables, see `docs/tools/`. Use this file for workflow shape and high-signal parameter hints.
 
@@ -23,7 +23,7 @@ For exact generated parameter tables, see `docs/tools/`. Use this file for workf
 | groups (1 tool) | yes | - |
 | users (7 tools) | yes | - |
 | pipelines (19 tools) | no | `USE_PIPELINE=true` or `GITLAB_TOOLSETS=pipelines` |
-| milestones (9 tools) | no | `USE_MILESTONE=true` or `GITLAB_TOOLSETS=milestones` |
+| milestones (17 tools) | no | `USE_MILESTONE=true` or `GITLAB_TOOLSETS=milestones` |
 | wiki (10 tools) | no | `USE_GITLAB_WIKI=true` or `GITLAB_TOOLSETS=wiki` |
 | releases (7 tools) | no | `GITLAB_TOOLSETS=releases` |
 | tags (5 tools) | no | `GITLAB_TOOLSETS=tags` |
@@ -109,7 +109,7 @@ Enable with `GITLAB_TOOLSETS=variables` or `GITLAB_TOOLSETS=dependency_proxy`.
 
 ## Destructive Tools (require caution)
 
-`delete_branch`, `delete_draft_note`, `delete_group_variable`, `delete_group_wiki_page`, `delete_issue`, `delete_issue_emoji_reaction`, `delete_issue_link`, `delete_issue_note_emoji_reaction`, `delete_label`, `delete_merge_request_discussion_note`, `delete_merge_request_emoji_reaction`, `delete_merge_request_note`, `delete_merge_request_note_emoji_reaction`, `delete_milestone`, `delete_project_variable`, `delete_release`, `delete_tag`, `delete_wiki_page`, `delete_work_item_emoji_reaction`, `delete_work_item_note_emoji_reaction`, `merge_merge_request`, `protect_branch`, `purge_dependency_proxy_cache`, `push_files`, `unprotect_branch`, `update_default_branch`
+`delete_branch`, `delete_draft_note`, `delete_group_milestone`, `delete_group_variable`, `delete_group_wiki_page`, `delete_issue`, `delete_issue_emoji_reaction`, `delete_issue_link`, `delete_issue_note_emoji_reaction`, `delete_label`, `delete_merge_request_discussion_note`, `delete_merge_request_emoji_reaction`, `delete_merge_request_note`, `delete_merge_request_note_emoji_reaction`, `delete_milestone`, `delete_project_variable`, `delete_release`, `delete_tag`, `delete_wiki_page`, `delete_work_item_emoji_reaction`, `delete_work_item_note_emoji_reaction`, `merge_merge_request`, `protect_branch`, `purge_dependency_proxy_cache`, `push_files`, `unprotect_branch`, `update_default_branch`
 
 ## Advanced
 

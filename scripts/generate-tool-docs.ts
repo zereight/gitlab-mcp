@@ -94,7 +94,7 @@ const GROUP_META: Record<ToolsetId, GroupMeta> = {
   },
   milestones: {
     title: "Milestones",
-    blurb: "Project milestone CRUD plus associated issues/MRs and burndown events.",
+    blurb: "Project and group milestone CRUD plus associated issues/MRs and burndown events.",
   },
   wiki: {
     title: "Wiki",

@@ -1014,6 +1014,13 @@ export const GitLabMilestonesSchema = z.object({
   web_url: z.string().optional(),
 });
 
+// Group milestones return group_id (not project_id)
+export const GitLabGroupMilestonesSchema = GitLabMilestonesSchema.omit({
+  project_id: true,
+}).extend({
+  group_id: z.coerce.string(),
+});
+
 // Input schemas for operations
 export const CreateRepositoryOptionsSchema = z.object({
   name: z.string(),
@@ -3075,7 +3082,8 @@ export const EditProjectMilestoneSchema = GetProjectMilestoneSchema.extend({
 export const DeleteProjectMilestoneSchema = GetProjectMilestoneSchema;
 
 // Schema for getting issues assigned to a milestone
-export const GetMilestoneIssuesSchema = GetProjectMilestoneSchema;
+export const GetMilestoneIssuesSchema =
+  GetProjectMilestoneSchema.merge(PaginationOptionsSchema);
 
 // Schema for getting merge requests assigned to a milestone
 export const GetMilestoneMergeRequestsSchema =
@@ -3087,6 +3095,74 @@ export const PromoteProjectMilestoneSchema = GetProjectMilestoneSchema;
 // Schema for getting burndown chart events for a milestone
 export const GetMilestoneBurndownEventsSchema =
   GetProjectMilestoneSchema.merge(PaginationOptionsSchema);
+
+// Group milestone schemas (mirror project milestones against /groups/:id/milestones)
+export const ListGroupMilestonesSchema = z
+  .object({
+    group_id: z.coerce.string().describe("Group ID or URL-encoded path"),
+    iids: z
+      .array(z.coerce.number())
+      .optional()
+      .describe("Return only the milestones having the given iid"),
+    state: z
+      .enum(["active", "closed"])
+      .optional()
+      .describe("Return only active or closed milestones"),
+    title: z
+      .string()
+      .optional()
+      .describe("Return only milestones with a title matching the provided string"),
+    search: z
+      .string()
+      .optional()
+      .describe("Return only milestones with a title or description matching the provided string"),
+    include_ancestors: z.coerce.boolean().optional().describe("Include ancestor groups"),
+    include_descendants: z.coerce.boolean().optional().describe("Include descendant groups"),
+    updated_before: z
+      .string()
+      .optional()
+      .describe("Return milestones updated before the specified date (ISO 8601 format)"),
+    updated_after: z
+      .string()
+      .optional()
+      .describe("Return milestones updated after the specified date (ISO 8601 format)"),
+  })
+  .merge(PaginationOptionsSchema);
+
+export const GetGroupMilestoneSchema = z.object({
+  group_id: z.coerce.string().describe("Group ID or URL-encoded path"),
+  milestone_id: z.coerce.string().describe("The ID of a group milestone"),
+});
+
+export const CreateGroupMilestoneSchema = z.object({
+  group_id: z.coerce.string().describe("Group ID or URL-encoded path"),
+  title: z.string().describe("The title of the milestone"),
+  description: z.string().optional().describe("The description of the milestone"),
+  due_date: z.string().optional().describe("The due date of the milestone (YYYY-MM-DD)"),
+  start_date: z.string().optional().describe("The start date of the milestone (YYYY-MM-DD)"),
+});
+
+export const EditGroupMilestoneSchema = GetGroupMilestoneSchema.extend({
+  title: z.string().optional().describe("The title of the milestone"),
+  description: z.string().optional().describe("The description of the milestone"),
+  due_date: z.string().optional().describe("The due date of the milestone (YYYY-MM-DD)"),
+  start_date: z.string().optional().describe("The start date of the milestone (YYYY-MM-DD)"),
+  state_event: z
+    .enum(["close", "activate"])
+    .optional()
+    .describe("The state event of the milestone"),
+});
+
+export const DeleteGroupMilestoneSchema = GetGroupMilestoneSchema;
+
+export const GetGroupMilestoneIssuesSchema =
+  GetGroupMilestoneSchema.merge(PaginationOptionsSchema);
+
+export const GetGroupMilestoneMergeRequestsSchema =
+  GetGroupMilestoneSchema.merge(PaginationOptionsSchema);
+
+export const GetGroupMilestoneBurndownEventsSchema =
+  GetGroupMilestoneSchema.merge(PaginationOptionsSchema);
 
 // Add schemas for commit operations
 export const ListCommitsSchema = z.object({
@@ -3583,6 +3659,7 @@ export type CreatePipelineOptions = z.infer<typeof CreatePipelineSchema>;
 export type RetryPipelineOptions = z.infer<typeof RetryPipelineSchema>;
 export type CancelPipelineOptions = z.infer<typeof CancelPipelineSchema>;
 export type GitLabMilestones = z.infer<typeof GitLabMilestonesSchema>;
+export type GitLabGroupMilestones = z.infer<typeof GitLabGroupMilestonesSchema>;
 export type ListProjectMilestonesOptions = z.infer<typeof ListProjectMilestonesSchema>;
 export type GetProjectMilestoneOptions = z.infer<typeof GetProjectMilestoneSchema>;
 export type CreateProjectMilestoneOptions = z.infer<typeof CreateProjectMilestoneSchema>;
@@ -3592,6 +3669,18 @@ export type GetMilestoneIssuesOptions = z.infer<typeof GetMilestoneIssuesSchema>
 export type GetMilestoneMergeRequestsOptions = z.infer<typeof GetMilestoneMergeRequestsSchema>;
 export type PromoteProjectMilestoneOptions = z.infer<typeof PromoteProjectMilestoneSchema>;
 export type GetMilestoneBurndownEventsOptions = z.infer<typeof GetMilestoneBurndownEventsSchema>;
+export type ListGroupMilestonesOptions = z.infer<typeof ListGroupMilestonesSchema>;
+export type GetGroupMilestoneOptions = z.infer<typeof GetGroupMilestoneSchema>;
+export type CreateGroupMilestoneOptions = z.infer<typeof CreateGroupMilestoneSchema>;
+export type EditGroupMilestoneOptions = z.infer<typeof EditGroupMilestoneSchema>;
+export type DeleteGroupMilestoneOptions = z.infer<typeof DeleteGroupMilestoneSchema>;
+export type GetGroupMilestoneIssuesOptions = z.infer<typeof GetGroupMilestoneIssuesSchema>;
+export type GetGroupMilestoneMergeRequestsOptions = z.infer<
+  typeof GetGroupMilestoneMergeRequestsSchema
+>;
+export type GetGroupMilestoneBurndownEventsOptions = z.infer<
+  typeof GetGroupMilestoneBurndownEventsSchema
+>;
 export type GitLabUser = z.infer<typeof GitLabUserSchema>;
 export type GitLabUsersResponse = z.infer<typeof GitLabUsersResponseSchema>;
 export type PaginationOptions = z.infer<typeof PaginationOptionsSchema>;

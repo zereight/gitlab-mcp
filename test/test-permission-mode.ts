@@ -73,6 +73,7 @@ const DELETE_SAMPLE_TOOLS = [
   "delete_label",
   "delete_wiki_page",
   "delete_milestone",
+  "delete_group_milestone",
   "delete_project_variable",
 ];
 
