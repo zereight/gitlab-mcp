@@ -2293,10 +2293,12 @@ async function executeGraphQL<T = any>(
 async function resolveWorkItemGID(
   projectId: string,
   issueIid: number
-): Promise<{ workItemGID: string; projectPath: string }> {
-  // resolveProjectPath handles project paths plus group namespace fallbacks,
-  // so work item tools work for group-level namespaces too.
-  const projectPath = await resolveProjectPath(projectId);
+): Promise<{
+  workItemGID: string;
+  projectPath: string;
+  namespaceKind: "project" | "group";
+}> {
+  const { path: projectPath, kind: namespaceKind } = await resolveProjectOrGroupPath(projectId);
 
   // Resolve work item GID via GraphQL
   const data = await executeGraphQL<{
@@ -2316,7 +2318,7 @@ async function resolveWorkItemGID(
     throw new Error(`Work item #${issueIid} not found in project ${projectPath}`);
   }
 
-  return { workItemGID: data.namespace.workItem.id, projectPath };
+  return { workItemGID: data.namespace.workItem.id, projectPath, namespaceKind };
 }
 
 /**
@@ -2324,6 +2326,7 @@ async function resolveWorkItemGID(
  */
 async function resolveNamesToIds(
   projectPath: string,
+  namespaceKind: "project" | "group",
   labelNames?: string[],
   usernames?: string[]
 ): Promise<{ labelIds: string[]; userIds: string[] }> {
@@ -2341,29 +2344,32 @@ async function resolveNamesToIds(
   const aliases = labelNames.map((_, i) =>
     `l${i}: labels(title: $l${i}, includeAncestorGroups: true, first: 1) { nodes { id } }`
   ).join(" ");
+  const rootField = namespaceKind === "group" ? "group" : "project";
 
-  const { namespace, users } = await executeGraphQL<{
-    namespace: { [alias: string]: { nodes: Array<{ id: string }> } } | null;
+  const data = await executeGraphQL<{
+    project?: { [alias: string]: { nodes: Array<{ id: string }> } } | null;
+    group?: { [alias: string]: { nodes: Array<{ id: string }> } } | null;
     users: { nodes: Array<{ id: string; username: string }> };
   }>(
     `query($path: ID!, $usernames: [String!]!${varDefs ? `, ${varDefs}` : ""}) {
-      namespace(fullPath: $path) { ${aliases || "__typename"} }
+      ${rootField}(fullPath: $path) { ${aliases || "__typename"} }
       users(usernames: $usernames) { nodes { id username } }
     }`,
     { path: projectPath, usernames, ...labelVars }
   );
+  const labelNamespace = namespaceKind === "group" ? data.group : data.project;
 
-  if (!namespace) {
+  if (!labelNamespace) {
     throw new Error(`Namespace '${projectPath}' not found or inaccessible`);
   }
 
   const labelIds = labelNames.map((name, i) => {
-    const nodes = namespace[`l${i}`]?.nodes;
+    const nodes = labelNamespace[`l${i}`]?.nodes;
     if (!nodes?.length) throw new Error(`Label '${name}' not found in namespace`);
     return nodes[0].id;
   });
   const userIds = usernames.map(name => {
-    const user = users.nodes.find(u => u.username === name);
+    const user = data.users.nodes.find(u => u.username === name);
     if (!user) throw new Error(`User '${name}' not found`);
     return user.id;
   });
@@ -3526,7 +3532,7 @@ async function createWorkItem(
     confidential?: boolean;
   }
 ): Promise<any> {
-  const projectPath = await resolveProjectPath(projectId);
+  const { path: projectPath, kind: namespaceKind } = await resolveProjectOrGroupPath(projectId);
   const typeName = options.type || "issue";
   const typeGID = await resolveWorkItemTypeGID(projectPath, typeName);
 
@@ -3556,6 +3562,7 @@ async function createWorkItem(
   // Resolve label names and usernames to GIDs in a single GraphQL call
   const { labelIds, userIds } = await resolveNamesToIds(
     projectPath,
+    namespaceKind,
     options.labels,
     options.assignee_usernames
   );
@@ -3708,7 +3715,7 @@ async function updateWorkItem(
     escalation_status?: string;
   }
 ): Promise<any> {
-  const { workItemGID, projectPath } = await resolveWorkItemGID(projectId, iid);
+  const { workItemGID, projectPath, namespaceKind } = await resolveWorkItemGID(projectId, iid);
 
   // Build the main workItemUpdate mutation dynamically
   const inputParts: string[] = ["id: $id"];
@@ -3733,6 +3740,7 @@ async function updateWorkItem(
   const { labelIds: resolvedLabelIds, userIds } = needsResolve
     ? await resolveNamesToIds(
         projectPath,
+        namespaceKind,
         allLabelNames.length > 0 ? allLabelNames : undefined,
         options.assignee_usernames
       )
