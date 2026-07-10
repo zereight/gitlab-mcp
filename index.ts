@@ -2288,7 +2288,7 @@ async function executeGraphQL<T = any>(
 }
 
 /**
- * Resolve a project path and issue IID to a work item GraphQL GID.
+ * Resolve a namespace path and issue IID to a work item GraphQL GID.
  */
 async function resolveWorkItemGID(
   projectId: string,
@@ -2315,7 +2315,7 @@ async function resolveWorkItemGID(
   );
 
   if (!data.namespace?.workItem?.id) {
-    throw new Error(`Work item #${issueIid} not found in project ${projectPath}`);
+    throw new Error(`Work item #${issueIid} not found in namespace ${projectPath}`);
   }
 
   return { workItemGID: data.namespace.workItem.id, projectPath, namespaceKind };
