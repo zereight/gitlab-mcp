@@ -123,3 +123,75 @@ describe("Streamable HTTP concurrent session requests", { timeout: 20_000 }, () 
     }
   });
 });
+
+describe("Streamable HTTP health check capacity logging", { timeout: 20_000 }, () => {
+  let mockGitLab: MockGitLabServer;
+  let server: ServerInstance;
+  let mcpUrl: string;
+  let baseUrl: string;
+  let output = "";
+
+  before(async () => {
+    const mockPort = await findMockServerPort(9370);
+    mockGitLab = new MockGitLabServer({
+      port: mockPort,
+      validTokens: [MOCK_TOKEN],
+    });
+    await mockGitLab.start();
+
+    const port = await findAvailablePort(3470);
+    server = await launchServer({
+      mode: TransportMode.STREAMABLE_HTTP,
+      port,
+      timeout: 10_000,
+      env: {
+        STREAMABLE_HTTP: "true",
+        REMOTE_AUTHORIZATION: "true",
+        GITLAB_API_URL: `${mockGitLab.getUrl()}/api/v4`,
+        MAX_SESSIONS: "1",
+      },
+    });
+
+    server.process.stdout?.on("data", data => {
+      output += data.toString();
+    });
+    server.process.stderr?.on("data", data => {
+      output += data.toString();
+    });
+
+    baseUrl = `http://${HOST}:${port}`;
+    mcpUrl = `${baseUrl}/mcp`;
+  });
+
+  after(async () => {
+    cleanupServers([server]);
+    if (mockGitLab) await mockGitLab.stop();
+  });
+
+  test("logs active session capacity when health check is degraded", async () => {
+    const client = new CustomHeaderClient({ Authorization: `Bearer ${MOCK_TOKEN}` });
+    await client.connect(mcpUrl);
+
+    try {
+      const response = await fetch(`${baseUrl}/health`);
+      const body = (await response.json()) as {
+        status: string;
+        activeSessions: number;
+        maxSessions: number;
+      };
+
+      assert.strictEqual(response.status, 503);
+      assert.strictEqual(body.status, "degraded");
+      assert.strictEqual(body.activeSessions, 1);
+      assert.strictEqual(body.maxSessions, 1);
+
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      assert.match(output, /Health check degraded/);
+      assert.match(output, /activeSessions.*1/);
+      assert.match(output, /maxSessions.*1/);
+    } finally {
+      await client.disconnect();
+    }
+  });
+});
