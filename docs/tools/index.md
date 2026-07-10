@@ -269,7 +269,7 @@ Pipeline + job control (trigger, retry, cancel, play manual jobs, fetch logs/art
 
 ### [Milestones](milestones.md)
 
-Project milestone CRUD plus associated issues/MRs and burndown events. *(17 tools)*
+Project and group milestone CRUD plus associated issues/MRs and burndown events. *(17 tools)*
 
 > Opt-in. Enable via `GITLAB_TOOLSETS=milestones` (or `GITLAB_TOOLSETS=all`), or use the legacy `USE_MILESTONE=true` flag for backward compatibility.
 

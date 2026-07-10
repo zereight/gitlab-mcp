@@ -7793,7 +7793,7 @@ async function getProjectMilestone(
 ): Promise<GitLabMilestones> {
   projectId = decodeURIComponent(projectId);
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/milestones/${milestoneId}`
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/milestones/${encodeGitLabPathSegment(milestoneId)}`
   );
 
   const response = await fetch(url.toString(), {
@@ -7843,7 +7843,7 @@ async function editProjectMilestone(
 ): Promise<GitLabMilestones> {
   projectId = decodeURIComponent(projectId);
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/milestones/${milestoneId}`
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/milestones/${encodeGitLabPathSegment(milestoneId)}`
   );
 
   const response = await fetch(url.toString(), {
@@ -7868,7 +7868,7 @@ async function deleteProjectMilestone(
 ): Promise<void> {
   projectId = decodeURIComponent(projectId);
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/milestones/${milestoneId}`
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/milestones/${encodeGitLabPathSegment(milestoneId)}`
   );
 
   const response = await fetch(url.toString(), {
@@ -7890,7 +7890,7 @@ async function getMilestoneIssues(
 ): Promise<GitLabIssue[]> {
   projectId = decodeURIComponent(projectId);
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/milestones/${milestoneId}/issues`
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/milestones/${encodeGitLabPathSegment(milestoneId)}/issues`
   );
 
   const response = await fetch(url.toString(), {
@@ -7915,7 +7915,7 @@ async function getMilestoneMergeRequests(
   const url = new URL(
     `${getEffectiveApiUrl()}/projects/${encodeURIComponent(
       getEffectiveProjectId(projectId)
-    )}/milestones/${milestoneId}/merge_requests`
+    )}/milestones/${encodeGitLabPathSegment(milestoneId)}/merge_requests`
   );
 
   const response = await fetch(url.toString(), {
@@ -7938,7 +7938,7 @@ async function promoteProjectMilestone(
 ): Promise<GitLabMilestones> {
   projectId = decodeURIComponent(projectId);
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/milestones/${milestoneId}/promote`
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/milestones/${encodeGitLabPathSegment(milestoneId)}/promote`
   );
 
   const response = await fetch(url.toString(), {
@@ -7964,7 +7964,7 @@ async function getMilestoneBurndownEvents(
   const url = new URL(
     `${getEffectiveApiUrl()}/projects/${encodeURIComponent(
       getEffectiveProjectId(projectId)
-    )}/milestones/${milestoneId}/burndown_events`
+    )}/milestones/${encodeGitLabPathSegment(milestoneId)}/burndown_events`
   );
 
   const response = await fetch(url.toString(), {
@@ -8016,7 +8016,7 @@ async function getGroupMilestone(
 ): Promise<GitLabMilestones> {
   groupId = decodeURIComponent(groupId);
   const url = new URL(
-    `${getEffectiveApiUrl()}/groups/${encodeURIComponent(groupId)}/milestones/${milestoneId}`
+    `${getEffectiveApiUrl()}/groups/${encodeURIComponent(groupId)}/milestones/${encodeGitLabPathSegment(milestoneId)}`
   );
 
   const response = await fetch(url.toString(), {
@@ -8059,7 +8059,7 @@ async function editGroupMilestone(
 ): Promise<GitLabMilestones> {
   groupId = decodeURIComponent(groupId);
   const url = new URL(
-    `${getEffectiveApiUrl()}/groups/${encodeURIComponent(groupId)}/milestones/${milestoneId}`
+    `${getEffectiveApiUrl()}/groups/${encodeURIComponent(groupId)}/milestones/${encodeGitLabPathSegment(milestoneId)}`
   );
 
   const response = await fetch(url.toString(), {
@@ -8081,7 +8081,7 @@ async function deleteGroupMilestone(
 ): Promise<void> {
   groupId = decodeURIComponent(groupId);
   const url = new URL(
-    `${getEffectiveApiUrl()}/groups/${encodeURIComponent(groupId)}/milestones/${milestoneId}`
+    `${getEffectiveApiUrl()}/groups/${encodeURIComponent(groupId)}/milestones/${encodeGitLabPathSegment(milestoneId)}`
   );
 
   const response = await fetch(url.toString(), {
@@ -8100,7 +8100,7 @@ async function getGroupMilestoneIssues(
 ): Promise<GitLabIssue[]> {
   groupId = decodeURIComponent(groupId);
   const url = new URL(
-    `${getEffectiveApiUrl()}/groups/${encodeURIComponent(groupId)}/milestones/${milestoneId}/issues`
+    `${getEffectiveApiUrl()}/groups/${encodeURIComponent(groupId)}/milestones/${encodeGitLabPathSegment(milestoneId)}/issues`
   );
 
   const response = await fetch(url.toString(), {
@@ -8120,7 +8120,7 @@ async function getGroupMilestoneMergeRequests(
 ): Promise<GitLabMergeRequest[]> {
   groupId = decodeURIComponent(groupId);
   const url = new URL(
-    `${getEffectiveApiUrl()}/groups/${encodeURIComponent(groupId)}/milestones/${milestoneId}/merge_requests`
+    `${getEffectiveApiUrl()}/groups/${encodeURIComponent(groupId)}/milestones/${encodeGitLabPathSegment(milestoneId)}/merge_requests`
   );
 
   const response = await fetch(url.toString(), {
@@ -8140,7 +8140,7 @@ async function getGroupMilestoneBurndownEvents(
 ): Promise<any[]> {
   groupId = decodeURIComponent(groupId);
   const url = new URL(
-    `${getEffectiveApiUrl()}/groups/${encodeURIComponent(groupId)}/milestones/${milestoneId}/burndown_events`
+    `${getEffectiveApiUrl()}/groups/${encodeURIComponent(groupId)}/milestones/${encodeGitLabPathSegment(milestoneId)}/burndown_events`
   );
 
   const response = await fetch(url.toString(), {
