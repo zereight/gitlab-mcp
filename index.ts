@@ -2422,15 +2422,17 @@ async function executeGraphQL<T = any>(
 }
 
 /**
- * Resolve a project path and issue IID to a work item GraphQL GID.
+ * Resolve a namespace path and issue IID to a work item GraphQL GID.
  */
 async function resolveWorkItemGID(
   projectId: string,
   issueIid: number
-): Promise<{ workItemGID: string; projectPath: string }> {
-  // resolveProjectPath handles both project and group paths (including the
-  // group fallback), so work item tools work for group-level namespaces too.
-  const projectPath = await resolveProjectPath(projectId);
+): Promise<{
+  workItemGID: string;
+  projectPath: string;
+  namespaceKind: "project" | "group";
+}> {
+  const { path: projectPath, kind: namespaceKind } = await resolveProjectOrGroupPath(projectId);
 
   // Resolve work item GID via GraphQL
   const data = await executeGraphQL<{
@@ -2447,10 +2449,10 @@ async function resolveWorkItemGID(
   );
 
   if (!data.namespace?.workItem?.id) {
-    throw new Error(`Work item #${issueIid} not found in project ${projectPath}`);
+    throw new Error(`Work item #${issueIid} not found in namespace ${projectPath}`);
   }
 
-  return { workItemGID: data.namespace.workItem.id, projectPath };
+  return { workItemGID: data.namespace.workItem.id, projectPath, namespaceKind };
 }
 
 /**
@@ -2458,6 +2460,7 @@ async function resolveWorkItemGID(
  */
 async function resolveNamesToIds(
   projectPath: string,
+  namespaceKind: "project" | "group",
   labelNames?: string[],
   usernames?: string[]
 ): Promise<{ labelIds: string[]; userIds: string[] }> {
@@ -2475,29 +2478,32 @@ async function resolveNamesToIds(
   const aliases = labelNames.map((_, i) =>
     `l${i}: labels(title: $l${i}, includeAncestorGroups: true, first: 1) { nodes { id } }`
   ).join(" ");
+  const rootField = namespaceKind === "group" ? "group" : "project";
 
-  const { project, users } = await executeGraphQL<{
-    project: { [alias: string]: { nodes: Array<{ id: string }> } } | null;
+  const data = await executeGraphQL<{
+    project?: { [alias: string]: { nodes: Array<{ id: string }> } } | null;
+    group?: { [alias: string]: { nodes: Array<{ id: string }> } } | null;
     users: { nodes: Array<{ id: string; username: string }> };
   }>(
     `query($path: ID!, $usernames: [String!]!${varDefs ? `, ${varDefs}` : ""}) {
-      project(fullPath: $path) { ${aliases || "__typename"} }
+      ${rootField}(fullPath: $path) { ${aliases || "__typename"} }
       users(usernames: $usernames) { nodes { id username } }
     }`,
     { path: projectPath, usernames, ...labelVars }
   );
+  const labelNamespace = namespaceKind === "group" ? data.group : data.project;
 
-  if (!project) {
-    throw new Error(`Project '${projectPath}' not found or inaccessible`);
+  if (!labelNamespace) {
+    throw new Error(`Namespace '${projectPath}' not found or inaccessible`);
   }
 
   const labelIds = labelNames.map((name, i) => {
-    const nodes = project[`l${i}`]?.nodes;
-    if (!nodes?.length) throw new Error(`Label '${name}' not found in project`);
+    const nodes = labelNamespace[`l${i}`]?.nodes;
+    if (!nodes?.length) throw new Error(`Label '${name}' not found in namespace`);
     return nodes[0].id;
   });
   const userIds = usernames.map(name => {
-    const user = users.nodes.find(u => u.username === name);
+    const user = data.users.nodes.find(u => u.username === name);
     if (!user) throw new Error(`User '${name}' not found`);
     return user.id;
   });
@@ -3211,11 +3217,47 @@ async function updateIncidentEscalationStatus(
 }
 
 /**
- * Resolve a project ID (numeric or path) to its full path_with_namespace.
+ * Resolve a project ID/path or group ID/path to its full namespace path.
+ * Use group:<id-or-path> or project:<id-or-path> to disambiguate numeric IDs.
  */
 async function resolveProjectPath(projectId: string): Promise<string> {
-  projectId = decodeURIComponent(projectId);
-  const effectiveProjectId = getEffectiveProjectId(projectId);
+  const { path } = await resolveProjectOrGroupPath(projectId);
+  return path;
+}
+
+/**
+ * Resolve a project or group path and identify which GraphQL root field to use.
+ * Bare numeric IDs resolve as projects for backwards compatibility; use group:<id>
+ * when the numeric value is a GitLab group ID.
+ */
+async function resolveProjectOrGroupPath(
+  projectId: string
+): Promise<{ path: string; kind: "project" | "group" }> {
+  const decodedProjectId = decodeURIComponent(projectId);
+  const namespaceMatch = decodedProjectId.match(/^(group|project):(.+)$/i);
+  const explicitKind = namespaceMatch?.[1]?.toLowerCase() as "group" | "project" | undefined;
+  const requestedProjectId = namespaceMatch ? namespaceMatch[2] : decodedProjectId;
+
+  if (explicitKind === "group" && GITLAB_ALLOWED_PROJECT_IDS.length > 0) {
+    throw new Error(
+      "group:<id-or-path> cannot be used when GITLAB_ALLOWED_PROJECT_IDS is set, because the project allowlist does not cover groups"
+    );
+  }
+
+  const effectiveProjectId = getEffectiveProjectId(requestedProjectId);
+
+  if (explicitKind === "group") {
+    const groupUrl = new URL(
+      `${getEffectiveApiUrl()}/groups/${encodeURIComponent(effectiveProjectId)}`
+    );
+    const groupResponse = await fetch(groupUrl.toString(), {
+      ...getFetchConfig(),
+    });
+    await handleGitLabError(groupResponse);
+    const group: any = await groupResponse.json();
+    return { path: group.full_path as string, kind: "group" };
+  }
+
   const projectUrl = new URL(
     `${getEffectiveApiUrl()}/projects/${encodeURIComponent(effectiveProjectId)}`
   );
@@ -3227,7 +3269,12 @@ async function resolveProjectPath(projectId: string): Promise<string> {
   // Numeric IDs must not fall back: group and project IDs share no namespace,
   // so a numeric project 404 should fail immediately rather than silently
   // resolving to an unrelated group with the same integer ID.
-  if (projectResponse.status === 404 && !/^\d+$/.test(effectiveProjectId)) {
+  if (
+    projectResponse.status === 404 &&
+    !explicitKind &&
+    GITLAB_ALLOWED_PROJECT_IDS.length === 0 &&
+    !/^\d+$/.test(effectiveProjectId)
+  ) {
     const groupUrl = new URL(
       `${getEffectiveApiUrl()}/groups/${encodeURIComponent(effectiveProjectId)}`
     );
@@ -3236,7 +3283,7 @@ async function resolveProjectPath(projectId: string): Promise<string> {
     });
     if (groupResponse.ok) {
       const group: any = await groupResponse.json();
-      return group.full_path as string;
+      return { path: group.full_path as string, kind: "group" };
     }
     // Surface the group error
     await handleGitLabError(groupResponse);
@@ -3244,7 +3291,7 @@ async function resolveProjectPath(projectId: string): Promise<string> {
 
   await handleGitLabError(projectResponse);
   const project: any = await projectResponse.json();
-  return project.path_with_namespace;
+  return { path: project.path_with_namespace, kind: "project" };
 }
 
 /**
@@ -3481,7 +3528,7 @@ async function getWorkItem(projectId: string, iid: number): Promise<any> {
 }
 
 /**
- * List work items in a project with filters.
+ * List work items in a project or group namespace with filters.
  */
 async function listWorkItems(
   projectId: string,
@@ -3495,7 +3542,8 @@ async function listWorkItems(
     after?: string;
   }
 ): Promise<any> {
-  const projectPath = await resolveProjectPath(projectId);
+  const namespace = await resolveProjectOrGroupPath(projectId);
+  const rootField = namespace.kind === "group" ? "group" : "project";
 
   // Map type names to GraphQL enum values
   const typeMap: Record<string, string> = {
@@ -3511,7 +3559,7 @@ async function listWorkItems(
   };
 
   const variables: Record<string, any> = {
-    path: projectPath,
+    path: namespace.path,
     first: options.first || 20,
   };
 
@@ -3534,9 +3582,9 @@ async function listWorkItems(
     variables.after = options.after;
   }
 
-  const data = await executeGraphQL<{ project: any }>(
+  const data = await executeGraphQL<{ project?: any; group?: any }>(
     `query($path: ID!, $types: [IssueType!], $state: IssuableState, $search: String, $assigneeUsernames: [String!], $labelName: [String!], $first: Int, $after: String) {
-      project(fullPath: $path) {
+      ${rootField}(fullPath: $path) {
         workItems(types: $types, state: $state, search: $search, assigneeUsernames: $assigneeUsernames, labelName: $labelName, first: $first, after: $after) {
           nodes {
             id iid title state webUrl workItemType { name }
@@ -3558,8 +3606,9 @@ async function listWorkItems(
     variables
   );
 
-  const workItems = data.project?.workItems?.nodes || [];
-  const pageInfo = data.project?.workItems?.pageInfo || {};
+  const workItemsRoot = namespace.kind === "group" ? data.group : data.project;
+  const workItems = workItemsRoot?.workItems?.nodes || [];
+  const pageInfo = workItemsRoot?.workItems?.pageInfo || {};
 
   // Flatten widget data for each item
   const items = workItems.map((wi: any) => {
@@ -3617,7 +3666,7 @@ async function createWorkItem(
     confidential?: boolean;
   }
 ): Promise<any> {
-  const projectPath = await resolveProjectPath(projectId);
+  const { path: projectPath, kind: namespaceKind } = await resolveProjectOrGroupPath(projectId);
   const typeName = options.type || "issue";
   const typeGID = await resolveWorkItemTypeGID(projectPath, typeName);
 
@@ -3647,6 +3696,7 @@ async function createWorkItem(
   // Resolve label names and usernames to GIDs in a single GraphQL call
   const { labelIds, userIds } = await resolveNamesToIds(
     projectPath,
+    namespaceKind,
     options.labels,
     options.assignee_usernames
   );
@@ -3799,7 +3849,7 @@ async function updateWorkItem(
     escalation_status?: string;
   }
 ): Promise<any> {
-  const { workItemGID, projectPath } = await resolveWorkItemGID(projectId, iid);
+  const { workItemGID, projectPath, namespaceKind } = await resolveWorkItemGID(projectId, iid);
 
   // Build the main workItemUpdate mutation dynamically
   const inputParts: string[] = ["id: $id"];
@@ -3824,6 +3874,7 @@ async function updateWorkItem(
   const { labelIds: resolvedLabelIds, userIds } = needsResolve
     ? await resolveNamesToIds(
         projectPath,
+        namespaceKind,
         allLabelNames.length > 0 ? allLabelNames : undefined,
         options.assignee_usernames
       )
