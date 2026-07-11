@@ -38,7 +38,7 @@ Get a work item with full details including status, hierarchy, type, and widgets
 
 | Parameter | Type | Required | Description |
 |---|---|:-:|---|
-| `project_id` | string | ✓ | Project ID, URL-encoded project path, or group path (e.g. 'group/subgroup' for group-level work items) |
+| `project_id` | string | ✓ | Project ID, URL-encoded project path, group path, or explicit namespace prefix for ambiguous numeric IDs (e.g. 'group/subgroup', 'group:123', or 'project:123') |
 | `iid` | number | ✓ | The internal ID (IID) of the work item |
 
 ### `list_work_items`
@@ -51,7 +51,7 @@ List work items with filters (type, state, search, assignees, labels)
 
 | Parameter | Type | Required | Description |
 |---|---|:-:|---|
-| `project_id` | string | ✓ | Project ID, URL-encoded project path, or group path (e.g. 'group/subgroup' for group-level work items) |
+| `project_id` | string | ✓ | Project ID, URL-encoded project path, group path, or explicit namespace prefix for ambiguous numeric IDs (e.g. 'group/subgroup', 'group:123', or 'project:123') |
 | `types` | array<any> |  | Filter by work item types. If not set, returns all types. |
 | `state` | enum (`opened` \| `closed`) |  | Filter by state |
 | `search` | string |  | Search in title and description |
@@ -70,7 +70,7 @@ Create a work item (issue, task, incident, epic, etc.) with full field support
 
 | Parameter | Type | Required | Description |
 |---|---|:-:|---|
-| `project_id` | string | ✓ | Project ID, URL-encoded project path, or group path (e.g. 'group/subgroup' for group-level work items) |
+| `project_id` | string | ✓ | Project ID, URL-encoded project path, group path, or explicit namespace prefix for ambiguous numeric IDs (e.g. 'group/subgroup', 'group:123', or 'project:123') |
 | `title` | string | ✓ | Title of the work item |
 | `type` | any |  | Type of work item to create. Defaults to 'issue'. |
 | `description` | string |  | Description of the work item (Markdown supported) |
@@ -95,7 +95,7 @@ Update a work item (title, description, labels, assignees, state, parent, custom
 
 | Parameter | Type | Required | Description |
 |---|---|:-:|---|
-| `project_id` | string | ✓ | Project ID, URL-encoded project path, or group path (e.g. 'group/subgroup' for group-level work items) |
+| `project_id` | string | ✓ | Project ID, URL-encoded project path, group path, or explicit namespace prefix for ambiguous numeric IDs (e.g. 'group/subgroup', 'group:123', or 'project:123') |
 | `iid` | number | ✓ | The internal ID (IID) of the work item |
 | `title` | string |  | New title |
 | `description` | string |  | New description (Markdown supported) |
@@ -132,7 +132,7 @@ Convert a work item to a different type
 
 | Parameter | Type | Required | Description |
 |---|---|:-:|---|
-| `project_id` | string | ✓ | Project ID, URL-encoded project path, or group path (e.g. 'group/subgroup' for group-level work items) |
+| `project_id` | string | ✓ | Project ID, URL-encoded project path, group path, or explicit namespace prefix for ambiguous numeric IDs (e.g. 'group/subgroup', 'group:123', or 'project:123') |
 | `iid` | number | ✓ | The internal ID of the work item |
 | `new_type` | any | ✓ | The target work item type to convert to |
 
@@ -146,7 +146,7 @@ List available statuses for a work item type (Premium/Ultimate)
 
 | Parameter | Type | Required | Description |
 |---|---|:-:|---|
-| `project_id` | string | ✓ | Project ID, URL-encoded project path, or group path (e.g. 'group/subgroup' for group-level work items) |
+| `project_id` | string | ✓ | Project ID, URL-encoded project path, group path, or explicit namespace prefix for ambiguous numeric IDs (e.g. 'group/subgroup', 'group:123', or 'project:123') |
 | `work_item_type` | any |  | The work item type to list available statuses for. Defaults to 'issue'. |
 
 ### `list_custom_field_definitions`
@@ -159,7 +159,7 @@ List custom field definitions for a work item type
 
 | Parameter | Type | Required | Description |
 |---|---|:-:|---|
-| `project_id` | string | ✓ | Project ID, URL-encoded project path, or group path (e.g. 'group/subgroup' for group-level work items) |
+| `project_id` | string | ✓ | Project ID, URL-encoded project path, group path, or explicit namespace prefix for ambiguous numeric IDs (e.g. 'group/subgroup', 'group:123', or 'project:123') |
 | `work_item_type` | any |  | The work item type to list custom field definitions for. Defaults to 'issue'. |
 
 ### `move_work_item`
@@ -186,7 +186,7 @@ List notes and discussions on a work item
 
 | Parameter | Type | Required | Description |
 |---|---|:-:|---|
-| `project_id` | string | ✓ | Project ID, URL-encoded project path, or group path (e.g. 'group/subgroup' for group-level work items) |
+| `project_id` | string | ✓ | Project ID, URL-encoded project path, group path, or explicit namespace prefix for ambiguous numeric IDs (e.g. 'group/subgroup', 'group:123', or 'project:123') |
 | `iid` | number | ✓ | The internal ID of the work item |
 | `page_size` | number |  | Number of discussions to return (default 20) |
 | `after` | string |  | Cursor for pagination |
@@ -202,7 +202,7 @@ Add a note to a work item (supports Markdown, internal notes, threads)
 
 | Parameter | Type | Required | Description |
 |---|---|:-:|---|
-| `project_id` | string | ✓ | Project ID, URL-encoded project path, or group path (e.g. 'group/subgroup' for group-level work items) |
+| `project_id` | string | ✓ | Project ID, URL-encoded project path, group path, or explicit namespace prefix for ambiguous numeric IDs (e.g. 'group/subgroup', 'group:123', or 'project:123') |
 | `iid` | number | ✓ | The internal ID of the work item |
 | `body` | string | ✓ | Note body (Markdown supported) |
 | `internal` | boolean |  | Create as internal/confidential note (only visible to project members) |
@@ -218,7 +218,7 @@ List all emoji reactions on a work item
 
 | Parameter | Type | Required | Description |
 |---|---|:-:|---|
-| `project_id` | string | ✓ | Project ID, URL-encoded project path, or group path (e.g. 'group/subgroup' for group-level work items) |
+| `project_id` | string | ✓ | Project ID, URL-encoded project path, group path, or explicit namespace prefix for ambiguous numeric IDs (e.g. 'group/subgroup', 'group:123', or 'project:123') |
 | `iid` | number | ✓ | The internal ID of the work item |
 
 ### `list_work_item_note_emoji_reactions`
@@ -231,7 +231,7 @@ List all emoji reactions on a work item note (comment, thread, or thread reply)
 
 | Parameter | Type | Required | Description |
 |---|---|:-:|---|
-| `project_id` | string | ✓ | Project ID, URL-encoded project path, or group path (e.g. 'group/subgroup' for group-level work items) |
+| `project_id` | string | ✓ | Project ID, URL-encoded project path, group path, or explicit namespace prefix for ambiguous numeric IDs (e.g. 'group/subgroup', 'group:123', or 'project:123') |
 | `iid` | number | ✓ | The internal ID of the work item |
 | `note_id` | string | ✓ | The GraphQL GID of the note (e.g. 'gid://gitlab/Note/123' from list_work_item_notes) |
 
@@ -245,7 +245,7 @@ Add an emoji reaction to a work item (e.g. thumbsup, rocket, eyes)
 
 | Parameter | Type | Required | Description |
 |---|---|:-:|---|
-| `project_id` | string | ✓ | Project ID, URL-encoded project path, or group path (e.g. 'group/subgroup' for group-level work items) |
+| `project_id` | string | ✓ | Project ID, URL-encoded project path, group path, or explicit namespace prefix for ambiguous numeric IDs (e.g. 'group/subgroup', 'group:123', or 'project:123') |
 | `iid` | number | ✓ | The internal ID of the work item |
 | `name` | string | ✓ | Name of the emoji without colons (e.g. 'thumbsup', 'rocket', 'eyes') |
 
@@ -259,7 +259,7 @@ Remove an emoji reaction from a work item
 
 | Parameter | Type | Required | Description |
 |---|---|:-:|---|
-| `project_id` | string | ✓ | Project ID, URL-encoded project path, or group path (e.g. 'group/subgroup' for group-level work items) |
+| `project_id` | string | ✓ | Project ID, URL-encoded project path, group path, or explicit namespace prefix for ambiguous numeric IDs (e.g. 'group/subgroup', 'group:123', or 'project:123') |
 | `iid` | number | ✓ | The internal ID of the work item |
 | `name` | string | ✓ | Name of the emoji without colons (e.g. 'thumbsup', 'rocket', 'eyes') |
 
@@ -273,7 +273,7 @@ Add an emoji reaction to a work item note (comment, thread, or thread reply)
 
 | Parameter | Type | Required | Description |
 |---|---|:-:|---|
-| `project_id` | string | ✓ | Project ID, URL-encoded project path, or group path (e.g. 'group/subgroup' for group-level work items) |
+| `project_id` | string | ✓ | Project ID, URL-encoded project path, group path, or explicit namespace prefix for ambiguous numeric IDs (e.g. 'group/subgroup', 'group:123', or 'project:123') |
 | `iid` | number | ✓ | The internal ID of the work item |
 | `note_id` | string | ✓ | The GraphQL GID of the note (e.g. 'gid://gitlab/Note/123' from list_work_item_notes) |
 | `name` | string | ✓ | Name of the emoji without colons (e.g. 'thumbsup', 'rocket', 'eyes') |
@@ -288,7 +288,7 @@ Remove an emoji reaction from a work item note (comment, thread, or thread reply
 
 | Parameter | Type | Required | Description |
 |---|---|:-:|---|
-| `project_id` | string | ✓ | Project ID, URL-encoded project path, or group path (e.g. 'group/subgroup' for group-level work items) |
+| `project_id` | string | ✓ | Project ID, URL-encoded project path, group path, or explicit namespace prefix for ambiguous numeric IDs (e.g. 'group/subgroup', 'group:123', or 'project:123') |
 | `iid` | number | ✓ | The internal ID of the work item |
 | `note_id` | string | ✓ | The GraphQL GID of the note (e.g. 'gid://gitlab/Note/123' from list_work_item_notes) |
 | `name` | string | ✓ | Name of the emoji without colons (e.g. 'thumbsup', 'rocket', 'eyes') |
