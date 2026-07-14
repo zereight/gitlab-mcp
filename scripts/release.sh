@@ -62,6 +62,33 @@ sync_pinned_npx_docs_version() {
     return
   fi
 
+  # Git tags can outpace npm when publish fails; pin must exist on the registry.
+  if ! npm view "@zereight/mcp-gitlab@${version}" version >/dev/null 2>&1; then
+    local npm_pin
+    npm_pin=$(
+      npm view @zereight/mcp-gitlab versions --json 2>/dev/null | node -e '
+const wanted = process.argv[1];
+let raw = "";
+process.stdin.on("data", (c) => (raw += c));
+process.stdin.on("end", () => {
+  const versions = JSON.parse(raw);
+  const pin = [...versions].reverse().find(
+    (v) => v.localeCompare(wanted, undefined, { numeric: true }) < 0
+  );
+  if (!pin) process.exit(1);
+  process.stdout.write(pin);
+});
+' "$version"
+    ) || true
+    if [ -n "$npm_pin" ]; then
+      echo "⚠️  @$version is not on npm; pinning docs to @$npm_pin instead."
+      version="$npm_pin"
+    else
+      echo "⚠️  Could not resolve an npm-published pin for @$version; leaving docs unchanged."
+      return
+    fi
+  fi
+
   node - "$version" <<'NODE'
 const fs = require("fs");
 const path = require("path");
