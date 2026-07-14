@@ -155,7 +155,7 @@ describe("Streamable HTTP unauthenticated tool discovery", { timeout: 20_000 }, 
     servers.push(server);
 
     await initialize(mcpUrl);
-    await new Promise(resolve => setTimeout(resolve, 1_250));
+    await new Promise(resolve => setTimeout(resolve, 2_000));
 
     const healthResponse = await fetch(mcpUrl.replace("/mcp", "/health"));
     assert.strictEqual(healthResponse.status, 200);
