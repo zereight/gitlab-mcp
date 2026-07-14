@@ -26,12 +26,9 @@ jobs:
         run: npm ci --ignore-scripts
       - name: Build
         run: npm run build
-      # setup-node writes a dummy NODE_AUTH_TOKEN unless we pass the real secret.
-      # npm install -g for OIDC trusted publishing is broken on this runner image.
+      # Trusted publishing needs npm >= 11.5. Avoid `npm install -g` (breaks arborist on this image).
       - name: Publish to npm
-        run: npm publish --access public --provenance
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npx --yes npm@11.5.2 publish --access public --provenance
 
   sync-homebrew:
     needs: npm
