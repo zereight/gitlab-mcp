@@ -18,7 +18,7 @@ Or with npm:
 npm install -g @zereight/mcp-gitlab
 ```
 
-No global install? Pin `npx` to the previous stable release and keep the server flags after it, for example `npx -y @zereight/mcp-gitlab@2.1.34 --token=...`. Use `@zereight/mcp-gitlab@latest` if you always want the newest release.
+No global install? Pin `npx` to the previous stable release and keep the server flags after it, for example `npx -y @zereight/mcp-gitlab@2.1.35 --token=...`. Use `@zereight/mcp-gitlab@latest` if you always want the newest release.
 
 ## Example config
 
