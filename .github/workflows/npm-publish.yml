@@ -20,7 +20,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "22.21.1"
+          node-version: "22.22.2"
           registry-url: "https://registry.npmjs.org/"
       - name: Upgrade npm for OIDC support
         run: npm install -g npm@latest
@@ -45,7 +45,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "22.21.1"
+          node-version: "22.22.2"
 
       - name: Sync formula from npm tarball
         run: bash scripts/sync-homebrew-formula.sh
