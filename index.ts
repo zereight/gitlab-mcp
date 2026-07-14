@@ -1823,11 +1823,18 @@ function parseAllowedGitLabApiUrls(value: string): Array<{ host: string; apiUrl:
 
 function encodeGitLabPathSegment(value: unknown): string {
   const segment = String(value);
+  let decodedSegment: string;
   try {
-    return encodeURIComponent(decodeURIComponent(segment));
+    decodedSegment = decodeURIComponent(segment);
   } catch {
-    return encodeURIComponent(segment);
+    decodedSegment = segment;
   }
+
+  if (decodedSegment === "." || decodedSegment === "..") {
+    throw new Error("GitLab URL path segments cannot be '.' or '..'");
+  }
+
+  return encodeURIComponent(decodedSegment);
 }
 
 function encodeGitLabPath(value: string): string {
@@ -4374,7 +4381,7 @@ async function listDiscussions(
   const url = new URL(
     `${getEffectiveApiUrl()}/projects/${encodeURIComponent(
       getEffectiveProjectId(projectId)
-    )}/${resourceType}/${resourceIid}/discussions`
+    )}/${resourceType}/${encodeGitLabPathSegment(resourceIid)}/discussions`
   );
 
   // Add query parameters for pagination and sorting
@@ -4725,14 +4732,14 @@ function buildAwardEmojiPath(
 ): string {
   projectId = decodeURIComponent(projectId);
   const pp = encodeURIComponent(getEffectiveProjectId(projectId));
-  let path = `${getEffectiveApiUrl()}/projects/${pp}/${entity}/${entityIid}`;
+  let path = `${getEffectiveApiUrl()}/projects/${pp}/${entity}/${encodeGitLabPathSegment(entityIid)}`;
   if (opts?.noteId) {
     path = opts.discussionId
-      ? `${path}/discussions/${opts.discussionId}/notes/${opts.noteId}`
-      : `${path}/notes/${opts.noteId}`;
+      ? `${path}/discussions/${encodeGitLabPathSegment(opts.discussionId)}/notes/${encodeGitLabPathSegment(opts.noteId)}`
+      : `${path}/notes/${encodeGitLabPathSegment(opts.noteId)}`;
   }
   path += "/award_emoji";
-  if (opts?.awardId) path += `/${opts.awardId}`;
+  if (opts?.awardId) path += `/${encodeGitLabPathSegment(opts.awardId)}`;
   return path;
 }
 
@@ -6017,7 +6024,7 @@ async function createNote(
   const url = new URL(
     `${getEffectiveApiUrl()}/projects/${encodeURIComponent(
       getEffectiveProjectId(projectId)
-    )}/${noteableType}s/${noteableIid}/notes` // Using plural form (issues/merge_requests) as per GitLab API documentation
+    )}/${noteableType}s/${encodeGitLabPathSegment(noteableIid)}/notes` // Using plural form (issues/merge_requests) as per GitLab API documentation
   );
 
   const response = await fetch(url.toString(), {
@@ -6045,8 +6052,9 @@ async function getDraftNote(
   merge_request_iid: string,
   draft_note_id: string
 ): Promise<GitLabDraftNote> {
+  const effectiveProjectId = getEffectiveProjectId(decodeURIComponent(project_id));
   const response = await fetch(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(project_id)}/merge_requests/${merge_request_iid}/draft_notes/${draft_note_id}`,
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(effectiveProjectId)}/merge_requests/${encodeGitLabPathSegment(merge_request_iid)}/draft_notes/${encodeGitLabPathSegment(draft_note_id)}`,
     { ...getFetchConfig() }
   );
 
@@ -7526,7 +7534,7 @@ async function downloadJobArtifacts(
 
   await handleGitLabError(response);
 
-  const filename = `artifacts_job_${jobId}.zip`;
+  const filename = `artifacts_job_${encodeGitLabPathSegment(jobId)}.zip`;
   const savePath = localPath ? path.join(localPath, filename) : filename;
   fs.mkdirSync(path.dirname(savePath), { recursive: true });
 
@@ -7555,7 +7563,7 @@ async function getJobArtifactFile(
   const effectiveProjectId = getEffectiveProjectId(projectId);
   const encodedArtifactPath = artifactPath
     .split("/")
-    .map(segment => encodeURIComponent(segment))
+    .map(segment => encodeGitLabPathSegment(segment))
     .join("/");
 
   const url = new URL(
@@ -9111,6 +9119,20 @@ function getImageMimeType(filename: string): string | null {
   return IMAGE_MIME_TYPES[ext] ?? null;
 }
 
+function getSafeAttachmentFilename(filename: string): string {
+  if (
+    !filename ||
+    filename === "." ||
+    filename === ".." ||
+    filename.includes("/") ||
+    filename.includes("\\")
+  ) {
+    throw new Error("Invalid filename: directory separators are not allowed.");
+  }
+
+  return filename;
+}
+
 interface DownloadAttachmentResult {
   buffer: Buffer;
   filename: string;
@@ -9125,9 +9147,10 @@ async function downloadAttachment(
   localPath?: string
 ): Promise<DownloadAttachmentResult> {
   const effectiveProjectId = getEffectiveProjectId(projectId);
+  const safeFilename = getSafeAttachmentFilename(filename);
 
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(effectiveProjectId)}/uploads/${secret}/${filename}`
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(effectiveProjectId)}/uploads/${encodeGitLabPathSegment(secret)}/${encodeGitLabPathSegment(safeFilename)}`
   );
 
   const response = await fetch(url.toString(), {
@@ -9139,7 +9162,7 @@ async function downloadAttachment(
     await handleGitLabError(response);
   }
 
-  const mimeType = getImageMimeType(filename);
+  const mimeType = getImageMimeType(safeFilename);
 
   // For non-image files, always save to disk.
   // For image files, only save to disk if local_path is explicitly provided.
@@ -9155,9 +9178,9 @@ async function downloadAttachment(
       ) {
         throw new Error("Invalid local_path: directory traversal is not allowed.");
       }
-      savePath = path.join(normalizedLocalPath, filename);
+      savePath = path.join(normalizedLocalPath, safeFilename);
     } else {
-      savePath = filename;
+      savePath = safeFilename;
     }
     const dir = path.dirname(savePath);
     if (!fs.existsSync(dir)) {
@@ -9169,12 +9192,12 @@ async function downloadAttachment(
       throw new Error("No response body from GitLab");
     }
     await streamPipeline(response.body, fs.createWriteStream(savePath));
-    return { buffer: Buffer.alloc(0), filename, mimeType, savedPath: savePath };
+    return { buffer: Buffer.alloc(0), filename: safeFilename, mimeType, savedPath: savePath };
   }
 
   // Images returned inline — buffer into memory for base64 encoding
   const buffer = Buffer.from(await response.arrayBuffer());
-  return { buffer, filename, mimeType };
+  return { buffer, filename: safeFilename, mimeType };
 }
 
 /**
@@ -9282,7 +9305,7 @@ async function getRelease(
 ): Promise<GitLabRelease> {
   const effectiveProjectId = getEffectiveProjectId(projectId);
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(effectiveProjectId)}/releases/${encodeURIComponent(tagName)}`
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(effectiveProjectId)}/releases/${encodeGitLabPathSegment(tagName)}`
   );
 
   if (includeHtmlDescription !== undefined) {
@@ -9343,7 +9366,7 @@ async function updateRelease(
   const effectiveProjectId = getEffectiveProjectId(projectId);
 
   const response = await fetch(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(effectiveProjectId)}/releases/${encodeURIComponent(tagName)}`,
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(effectiveProjectId)}/releases/${encodeGitLabPathSegment(tagName)}`,
     {
       ...getFetchConfig(),
       method: "PUT",
@@ -9368,7 +9391,7 @@ async function deleteRelease(projectId: string, tagName: string): Promise<GitLab
   const effectiveProjectId = getEffectiveProjectId(projectId);
 
   const response = await fetch(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(effectiveProjectId)}/releases/${encodeURIComponent(tagName)}`,
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(effectiveProjectId)}/releases/${encodeGitLabPathSegment(tagName)}`,
     {
       ...getFetchConfig(),
       method: "DELETE",
@@ -9391,7 +9414,7 @@ async function createReleaseEvidence(projectId: string, tagName: string): Promis
   const effectiveProjectId = getEffectiveProjectId(projectId);
 
   const response = await fetch(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(effectiveProjectId)}/releases/${encodeURIComponent(tagName)}/evidence`,
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(effectiveProjectId)}/releases/${encodeGitLabPathSegment(tagName)}/evidence`,
     {
       ...getFetchConfig(),
       method: "POST",
@@ -9417,7 +9440,7 @@ async function downloadReleaseAsset(
   const effectiveProjectId = getEffectiveProjectId(projectId);
 
   const response = await fetch(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(effectiveProjectId)}/releases/${encodeURIComponent(tagName)}/downloads/${directAssetPath}`,
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(effectiveProjectId)}/releases/${encodeGitLabPathSegment(tagName)}/downloads/${encodeGitLabPath(directAssetPath)}`,
     {
       ...getFetchConfig(),
     }
@@ -13002,16 +13025,18 @@ async function startStreamableHTTPServer(): Promise<void> {
 
     // Set new timeout
     authTimeouts[sessionId] = setTimeout(() => {
-      if (authBySession[sessionId]) {
+      const authData = authBySession[sessionId];
+      const transport = streamableTransports[sessionId];
+      if (authData || transport) {
         logger.info(
-          `Session ${sessionId}: auth token expired after ${SESSION_TIMEOUT_SECONDS}s of inactivity`
+          authData
+            ? `Session ${sessionId}: auth token expired after ${SESSION_TIMEOUT_SECONDS}s of inactivity`
+            : `Session ${sessionId}: unauthenticated discovery expired after ${SESSION_TIMEOUT_SECONDS}s`
         );
         delete authBySession[sessionId];
         delete authTimeouts[sessionId];
         metrics.expiredSessions++;
         // Close the transport to free the slot; without this, stale sessions accumulate and exhaust MAX_SESSIONS.
-        const transport = streamableTransports[sessionId];
-
         if (transport) {
           transport.close().catch(err => {
             logger.error(`Error closing transport for expired session ${sessionId}:`, err);
@@ -13508,11 +13533,13 @@ async function startStreamableHTTPServer(): Promise<void> {
     }
 
     const newRemoteAuthData = !sessionId && REMOTE_AUTHORIZATION ? parseAuthHeaders(req) : null;
+    let unauthenticatedDiscoveryRequested = false;
     let remoteAuthValidatedForInit = false;
     if (!sessionId && REMOTE_AUTHORIZATION) {
       const allowUnauthenticatedDiscovery =
         GITLAB_ALLOW_UNAUTHENTICATED_TOOL_DISCOVERY &&
         isUnauthenticatedDiscoveryRequestBody(req.body);
+      unauthenticatedDiscoveryRequested = allowUnauthenticatedDiscovery && !newRemoteAuthData;
 
       if (!newRemoteAuthData && !allowUnauthenticatedDiscovery) {
         metrics.authFailures++;
@@ -13698,6 +13725,8 @@ async function startStreamableHTTPServer(): Promise<void> {
                 if (authData && remoteAuthValidatedForInit) {
                   authBySession[newSessionId] = withPublicBaseUrl(authData, publicBaseUrl);
                   logger.info(`Session ${newSessionId}: stored ${authData.header} header`);
+                  setAuthTimeout(newSessionId);
+                } else if (unauthenticatedDiscoveryRequested) {
                   setAuthTimeout(newSessionId);
                 }
               }

@@ -16,6 +16,10 @@ const rawPathSegmentPatterns = [
   "/jobs/${jobId}",
   "/pipelines/${pipelineId}",
   "/milestones/${milestoneId}",
+  "/merge_requests/${merge_request_iid}/draft_notes/${draft_note_id}",
+  "/uploads/${secret}/${filename}",
+  "/downloads/${directAssetPath}",
+  "/${entity}/${entityIid}",
 ];
 
 test("GitLab URL path IDs are encoded before interpolation", () => {

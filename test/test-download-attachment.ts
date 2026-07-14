@@ -195,6 +195,22 @@ describe('download_attachment', () => {
     assert.ok(isRpcError || isContentError, 'Should return an error mentioning directory traversal');
   });
 
+  test('filename with directory traversal is rejected before writing to disk', async () => {
+    const raw = await callDownloadAttachment(
+      { project_id: TEST_PROJECT_ID, secret: TEST_SECRET, filename: 'image.png#../../owned.txt' },
+      env
+    );
+
+    const isRpcError =
+      typeof raw.error?.message === 'string' &&
+      raw.error.message.toLowerCase().includes('filename');
+    const isContentError =
+      Array.isArray(raw.result?.content) &&
+      raw.result.content.some(c => typeof c.text === 'string' && c.text.toLowerCase().includes('filename'));
+
+    assert.ok(isRpcError || isContentError, 'Should return an error mentioning filename validation');
+  });
+
   test('non-existent local_path directory is auto-created before saving', async () => {
     const baseDir = `omc-test-newdir-${RUN_ID}`;
     const localPath = `${baseDir}/subdir`;
