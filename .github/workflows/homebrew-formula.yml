@@ -4,13 +4,15 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
+  pull-requests: write
 
 jobs:
   sync:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      pull-requests: write
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -18,13 +20,17 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "22.21.1"
+          node-version: "22.22.2"
 
       - name: Sync formula from npm tarball
         run: bash scripts/sync-homebrew-formula.sh
 
-      - name: Commit formula update
-        uses: stefanzweifel/git-auto-commit-action@v5
+      # main is PR-protected; do not push with git-auto-commit-action.
+      - name: Open Homebrew formula PR
+        uses: peter-evans/create-pull-request@v7
         with:
-          commit_message: "chore(homebrew): sync formula for release"
-          file_pattern: Formula/zereight-mcp-gitlab.rb
+          branch: automation/homebrew-formula
+          title: "chore(homebrew): sync formula for release"
+          commit-message: "chore(homebrew): sync formula for release"
+          body: "Automated Homebrew formula sync."
+          add-paths: Formula/zereight-mcp-gitlab.rb
