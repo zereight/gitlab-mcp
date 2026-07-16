@@ -401,6 +401,18 @@ generate_changelog_notes() {
   echo -e "$notes"
 }
 
+# True when commits after $1 mention a PR (#123). Empty base → recent history.
+commits_mention_prs() {
+  local since_tag="$1"
+  local commits
+  if [ -n "$since_tag" ]; then
+    commits=$(git log "$since_tag"..HEAD --format="%s" 2>/dev/null || echo "")
+  else
+    commits=$(git log --oneline -50 --format="%s" 2>/dev/null || echo "")
+  fi
+  echo "$commits" | grep -qE '#[0-9]+'
+}
+
 # Check if the current version tag already exists locally
 LOCAL_TAG_EXISTS=$(git tag -l "v$CURRENT_VERSION" 2>/dev/null || echo "")
 REMOTE_TAG_EXISTS=$(git ls-remote --tags origin "v$CURRENT_VERSION" 2>/dev/null | grep -v "^{}" || echo "")
@@ -414,7 +426,20 @@ if [ -n "$LOCAL_TAG_EXISTS" ] && [ -z "$REMOTE_TAG_EXISTS" ]; then
   PREV_TAG=$(get_previous_tag "v$CURRENT_VERSION")
   
 elif [ -n "$REMOTE_TAG_EXISTS" ]; then
-  # Tag already exists on remote - bump patch and release new version
+  # Tag already exists on remote. Only bump when HEAD actually moved past it —
+  # otherwise a second release.sh run creates an empty patch (blank notes).
+  COMMITS_SINCE_TAG=$(git rev-list --count "v${CURRENT_VERSION}..HEAD" 2>/dev/null || echo 0)
+  if [ "$COMMITS_SINCE_TAG" = "0" ]; then
+    echo "✅ Tag v$CURRENT_VERSION already exists on remote and HEAD has no new commits."
+    echo "   Refusing empty patch bump (would produce blank release notes)."
+    exit 0
+  fi
+  if ! commits_mention_prs "v${CURRENT_VERSION}"; then
+    echo "❌ Commits since v$CURRENT_VERSION have no PR references (#N)."
+    echo "   Refusing release that would produce blank categorized notes."
+    exit 1
+  fi
+
   echo "⚠️  Tag v$CURRENT_VERSION already exists on remote. Bumping patch version..."
   PREV_TAG="v$CURRENT_VERSION"
 
@@ -439,6 +464,12 @@ elif [ -n "$REMOTE_TAG_EXISTS" ]; then
 else
   # No existing tag - create new version bump
   PREV_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+
+  if ! commits_mention_prs "$PREV_TAG"; then
+    echo "❌ Commits since ${PREV_TAG:-start} have no PR references (#N)."
+    echo "   Refusing release that would produce blank categorized notes."
+    exit 1
+  fi
 
   npm version patch --no-git-tag-version
 
