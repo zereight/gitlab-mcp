@@ -296,6 +296,7 @@ Update a merge request (mergeRequestIid or branchName required)
 | `remove_source_branch` | boolean |  | Flag indicating if the source branch should be removed |
 | `squash` | boolean |  | Squash commits into a single commit when merging |
 | `draft` | boolean |  | Work in progress merge request |
+| `milestone_id` | string |  | Milestone ID to assign. Set to 0 to unassign. |
 
 ### `create_merge_request`
 

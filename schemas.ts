@@ -1971,6 +1971,10 @@ export const UpdateMergeRequestSchema = MergeRequestParamsSchema.extend({
     .optional()
     .describe("Squash commits into a single commit when merging"),
   draft: z.coerce.boolean().optional().describe("Work in progress merge request"),
+  milestone_id: z.coerce
+    .string()
+    .optional()
+    .describe("Milestone ID to assign. Set to 0 to unassign."),
 });
 
 export const MergeMergeRequestSchema = ProjectParamsSchema.extend({
