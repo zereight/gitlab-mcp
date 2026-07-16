@@ -27,7 +27,7 @@ jobs:
 
       # main is PR-protected; do not push with git-auto-commit-action.
       - name: Open Homebrew formula PR
-        uses: peter-evans/create-pull-request@v7
+        uses: peter-evans/create-pull-request@v8
         with:
           branch: automation/homebrew-formula
           title: "chore(homebrew): sync formula for release"
