@@ -6,6 +6,7 @@ import {
   ExecuteGraphQLSchema,
   GetBranchDiffsSchema,
   UpdateMergeRequestDiscussionNoteSchema,
+  UpdateMergeRequestSchema,
 } from "../schemas.js";
 import { sanitizeToolArguments } from "../utils/tool-args.js";
 
@@ -62,6 +63,27 @@ describe("When validating tool arguments after sanitization", () => {
       );
       assert.equal(parsed.position?.old_line, null);
       assert.equal(parsed.position?.new_line, 10);
+    });
+  });
+
+  describe("with update_merge_request", () => {
+    test("should omit null milestone_id instead of coercing to string null", () => {
+      const parsed = UpdateMergeRequestSchema.parse({
+        project_id: PROJECT_ID,
+        merge_request_iid: MERGE_REQUEST_IID,
+        title: "keep",
+        milestone_id: null,
+      });
+      assert.equal(parsed.milestone_id, undefined);
+    });
+
+    test("should keep 0 as unassign sentinel", () => {
+      const parsed = UpdateMergeRequestSchema.parse({
+        project_id: PROJECT_ID,
+        merge_request_iid: MERGE_REQUEST_IID,
+        milestone_id: 0,
+      });
+      assert.equal(parsed.milestone_id, "0");
     });
   });
 
