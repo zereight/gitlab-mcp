@@ -604,7 +604,7 @@ Publish a single draft note
 
 *✏️ Writes*
 
-Publish all draft notes for a merge request
+Publish all draft notes for a merge request. Optionally sets reviewer_state and posts a summary note (GitLab 19.2+). Can set reviewer_state even with no drafts.
 
 **Parameters**
 
@@ -612,6 +612,9 @@ Publish all draft notes for a merge request
 |---|---|:-:|---|
 | `project_id` | string | ✓ | Project ID or complete URL-encoded path to project |
 | `merge_request_iid` | string | ✓ | The IID of a merge request |
+| `reviewer_state` | enum (`requested_changes` \| `reviewed`) |  | Set reviewer review state after publishing (GitLab 19.2+). Does not record a formal approval. Works even with no draft notes. |
+| `note` | string |  | Summary note body to post on the merge request (GitLab 19.2+) |
+| `internal` | boolean |  | If true, the summary note is internal (GitLab 19.2+, default false) |
 
 ### `create_merge_request_thread`
 

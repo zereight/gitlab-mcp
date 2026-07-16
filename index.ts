@@ -164,6 +164,7 @@ import {
 import { resolveNestedWikiUpdateTitle } from "./utils/wiki-title.js";
 import { redactSensitiveGitLabFields } from "./utils/redact-sensitive.js";
 import { checkForNewVersion } from "./utils/version-check.js";
+import { assertGitLabVersionAtLeast } from "./utils/gitlab-version-gate.js";
 import {
   cleanMutuallyExclusiveIdUsernameOptions,
   LIST_MERGE_REQUESTS_ID_USERNAME_PAIRS,
@@ -6281,15 +6282,52 @@ async function publishDraftNote(
   }
 }
 
+type BulkPublishDraftNotesBody = {
+  reviewer_state?: "requested_changes" | "reviewed";
+  note?: string;
+  internal?: boolean;
+};
+
+function usesGitLab19_2BulkPublishOptions(options: BulkPublishDraftNotesBody): boolean {
+  return (
+    options.reviewer_state !== undefined ||
+    options.note !== undefined ||
+    options.internal !== undefined
+  );
+}
+
+async function fetchGitLabInstanceVersion(): Promise<string | null> {
+  try {
+    const response = await fetch(`${getEffectiveApiUrl()}/version`, {
+      ...getFetchConfig(),
+    });
+    if (!response.ok) return null;
+    const data: unknown = await response.json();
+    if (
+      typeof data === "object" &&
+      data !== null &&
+      "version" in data &&
+      typeof data.version === "string"
+    ) {
+      return data.version;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Publish all draft notes for a merge request
  * @param {string} projectId - The ID or URL-encoded path of the project
  * @param {number|string} mergeRequestIid - The internal ID of the merge request
+ * @param {BulkPublishDraftNotesBody} options - Optional GitLab 19.2+ bulk_publish body fields
  * @returns {Promise<GitLabDiscussionNote[]>} Array of published notes
  */
 async function bulkPublishDraftNotes(
   projectId: string,
-  mergeRequestIid: number | string
+  mergeRequestIid: number | string,
+  options: BulkPublishDraftNotesBody = {}
 ): Promise<GitLabDiscussionNote[]> {
   projectId = decodeURIComponent(projectId);
   const url = new URL(
@@ -6298,10 +6336,33 @@ async function bulkPublishDraftNotes(
     )}/merge_requests/${encodeGitLabPathSegment(mergeRequestIid)}/draft_notes/bulk_publish`
   );
 
+  if (usesGitLab19_2BulkPublishOptions(options)) {
+    await assertGitLabVersionAtLeast(
+      {
+        major: 19,
+        minor: 2,
+        feature: "reviewer_state, note, and internal on bulk_publish_draft_notes",
+        retryHint: "Omit reviewer_state, note, and internal, then retry.",
+      },
+      fetchGitLabInstanceVersion
+    );
+  }
+
+  const body: BulkPublishDraftNotesBody = {};
+  if (options.reviewer_state !== undefined) {
+    body.reviewer_state = options.reviewer_state;
+  }
+  if (options.note !== undefined) {
+    body.note = options.note;
+  }
+  if (options.internal !== undefined) {
+    body.internal = options.internal;
+  }
+
   const response = await fetch(url.toString(), {
     ...getFetchConfig(),
     method: "POST", // Changed from PUT to POST
-    body: JSON.stringify({}), // Send empty body for POST request
+    body: JSON.stringify(body),
   });
 
   if (!response.ok) {
@@ -10664,9 +10725,9 @@ async function handleToolCall(params: any) {
 
       case "bulk_publish_draft_notes": {
         const args = BulkPublishDraftNotesSchema.parse(params.arguments);
-        const { project_id, merge_request_iid } = args;
+        const { project_id, merge_request_iid, ...options } = args;
 
-        const publishedNotes = await bulkPublishDraftNotes(project_id, merge_request_iid);
+        const publishedNotes = await bulkPublishDraftNotes(project_id, merge_request_iid, options);
         return {
           content: [{ type: "text", text: JSON.stringify(publishedNotes) }],
         };
