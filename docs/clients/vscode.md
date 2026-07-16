@@ -14,6 +14,7 @@ Use workspace config when you want to share the MCP server with your team.
 Install the server once:
 
 ```bash
+brew tap zereight/gitlab-mcp https://github.com/zereight/gitlab-mcp
 brew install zereight/gitlab-mcp/zereight-mcp-gitlab
 ```
 

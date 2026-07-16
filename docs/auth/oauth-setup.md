@@ -18,6 +18,7 @@ OAuth2 provides several advantages over personal access tokens:
 - The GitLab MCP server installed:
 
   ```bash
+  brew tap zereight/gitlab-mcp https://github.com/zereight/gitlab-mcp
   brew install zereight/gitlab-mcp/zereight-mcp-gitlab
   ```
 
