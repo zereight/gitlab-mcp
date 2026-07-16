@@ -26,6 +26,7 @@ Use an API URL, not the web root:
 Install the server once:
 
 ```bash
+brew tap zereight/gitlab-mcp https://github.com/zereight/gitlab-mcp
 brew install zereight/gitlab-mcp/zereight-mcp-gitlab
 ```
 

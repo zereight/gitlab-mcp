@@ -13,6 +13,7 @@ Because those client-specific schemas can vary, this guide does **not** assume a
 Install the server once:
 
 ```bash
+brew tap zereight/gitlab-mcp https://github.com/zereight/gitlab-mcp
 brew install zereight/gitlab-mcp/zereight-mcp-gitlab
 ```
 

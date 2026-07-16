@@ -68,6 +68,7 @@ For the simplest local setup, start with a Personal Access Token. For browser-ba
 Install the server once:
 
 ```shell
+brew tap zereight/gitlab-mcp https://github.com/zereight/gitlab-mcp
 brew install zereight/gitlab-mcp/zereight-mcp-gitlab
 ```
 
