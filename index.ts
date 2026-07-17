@@ -9024,33 +9024,183 @@ async function purgeDependencyProxyCache(groupId: string): Promise<void> {
   await handleGitLabError(response);
 }
 
-// --- Vulnerability functions ---
+// --- Vulnerability functions (GraphQL) ---
+//
+// The REST Vulnerabilities API is deprecated and silently ignores filter
+// params on list and reason/comment on dismiss. GitLab recommends the
+// GraphQL API for vulnerability management, which supports all of these.
+
+/** Convert a numeric vulnerability ID (or an existing GID) to a GraphQL global ID. */
+function toVulnerabilityGid(vulnerabilityId: string): string {
+  return vulnerabilityId.startsWith("gid://")
+    ? vulnerabilityId
+    : `gid://gitlab/Vulnerability/${vulnerabilityId}`;
+}
+
+/**
+ * Resolve a project ID or path to the full namespace path required by
+ * GraphQL's `project(fullPath:)` query. Numeric IDs are resolved via a
+ * REST lookup; paths are returned as-is (decoded).
+ */
+async function resolveProjectFullPath(projectId: string): Promise<string> {
+  const decoded = decodeURIComponent(getEffectiveProjectId(decodeURIComponent(projectId)));
+  if (!/^\d+$/.test(decoded)) {
+    return decoded;
+  }
+  const url = new URL(`${getEffectiveApiUrl()}/projects/${encodeURIComponent(decoded)}`);
+  const response = await fetch(url.toString(), { ...getFetchConfig() });
+  await handleGitLabError(response);
+  const project = (await response.json()) as { path_with_namespace?: string };
+  if (!project.path_with_namespace) {
+    throw new Error(`Could not resolve full path for project ${decoded}`);
+  }
+  return project.path_with_namespace;
+}
+
+/** Shared GraphQL selection set for vulnerability objects. */
+const VULNERABILITY_FIELDS = `
+  id
+  title
+  description
+  state
+  severity
+  reportType
+  detectedAt
+  confirmedAt
+  resolvedAt
+  dismissedAt
+  dismissalReason
+  webUrl
+  scanner {
+    name
+    externalId
+    vendor
+  }
+  identifiers {
+    externalType
+    externalId
+    name
+    url
+  }
+  links {
+    name
+    url
+  }
+  location {
+    ... on VulnerabilityLocationSast {
+      file
+      startLine
+      endLine
+    }
+    ... on VulnerabilityLocationSecretDetection {
+      file
+      startLine
+      endLine
+    }
+    ... on VulnerabilityLocationDependencyScanning {
+      file
+      dependency {
+        package {
+          name
+        }
+        version
+      }
+    }
+    ... on VulnerabilityLocationContainerScanning {
+      image
+      operatingSystem
+      dependency {
+        package {
+          name
+        }
+        version
+      }
+    }
+    ... on VulnerabilityLocationDast {
+      path
+      hostname
+    }
+  }
+`;
 
 async function listProjectVulnerabilities(
   projectId: string,
   options: Omit<z.infer<typeof ListProjectVulnerabilitiesSchema>, "project_id"> = {}
-): Promise<unknown[]> {
-  projectId = decodeURIComponent(projectId);
-  const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/vulnerabilities`
+): Promise<unknown> {
+  const fullPath = await resolveProjectFullPath(projectId);
+  const variables: Record<string, unknown> = {
+    fullPath,
+    first: Math.min(options.first ?? 20, 100),
+  };
+  if (options.state) variables.state = [options.state.toUpperCase()];
+  if (options.severity) variables.severity = [options.severity.toUpperCase()];
+  if (options.report_type) variables.reportType = [options.report_type.toUpperCase()];
+  if (options.after) variables.after = options.after;
+
+  const data = await executeGraphQL<{
+    project: {
+      vulnerabilities: {
+        nodes: unknown[];
+        pageInfo: { endCursor: string | null; hasNextPage: boolean };
+      };
+    } | null;
+  }>(
+    `query listProjectVulnerabilities(
+      $fullPath: ID!
+      $state: [VulnerabilityState!]
+      $severity: [VulnerabilitySeverity!]
+      $reportType: [VulnerabilityReportType!]
+      $first: Int
+      $after: String
+    ) {
+      project(fullPath: $fullPath) {
+        vulnerabilities(
+          state: $state
+          severity: $severity
+          reportType: $reportType
+          first: $first
+          after: $after
+        ) {
+          nodes {
+            ${VULNERABILITY_FIELDS}
+          }
+          pageInfo {
+            endCursor
+            hasNextPage
+          }
+        }
+      }
+    }`,
+    variables
   );
-  Object.entries(options).forEach(([key, value]) => {
-    if (value !== undefined) {
-      url.searchParams.append(key, value.toString());
-    }
-  });
-  const response = await fetch(url.toString(), { ...getFetchConfig() });
-  await handleGitLabError(response);
-  return (await response.json()) as unknown[];
+
+  if (!data.project) {
+    throw new Error(`Project not found or not accessible: ${fullPath}`);
+  }
+  return {
+    vulnerabilities: data.project.vulnerabilities.nodes,
+    pageInfo: data.project.vulnerabilities.pageInfo,
+  };
 }
 
 async function getVulnerability(vulnerabilityId: string): Promise<unknown> {
-  const url = new URL(
-    `${getEffectiveApiUrl()}/vulnerabilities/${encodeURIComponent(vulnerabilityId)}`
+  const data = await executeGraphQL<{ vulnerability: unknown | null }>(
+    `query getVulnerability($id: VulnerabilityID!) {
+      vulnerability(id: $id) {
+        ${VULNERABILITY_FIELDS}
+        project {
+          id
+          name
+          fullPath
+        }
+      }
+    }`,
+    { id: toVulnerabilityGid(vulnerabilityId) }
   );
-  const response = await fetch(url.toString(), { ...getFetchConfig() });
-  await handleGitLabError(response);
-  return (await response.json()) as unknown;
+  if (!data.vulnerability) {
+    throw new Error(`Vulnerability not found: ${vulnerabilityId}`);
+  }
+  return data.vulnerability;
 }
 
 async function dismissVulnerability(
@@ -9058,36 +9208,72 @@ async function dismissVulnerability(
   reason: string,
   comment?: string
 ): Promise<unknown> {
-  const url = new URL(
-    `${getEffectiveApiUrl()}/vulnerabilities/${encodeURIComponent(vulnerabilityId)}/dismiss`
+  const input: Record<string, string> = {
+    id: toVulnerabilityGid(vulnerabilityId),
+    dismissalReason: reason.toUpperCase(),
+  };
+  if (comment) input.comment = comment;
+
+  const data = await executeGraphQL<{
+    vulnerabilityDismiss: {
+      vulnerability: unknown | null;
+      errors: string[];
+    };
+  }>(
+    `mutation dismissVulnerability($input: VulnerabilityDismissInput!) {
+      vulnerabilityDismiss(input: $input) {
+        vulnerability {
+          id
+          state
+          dismissedAt
+          dismissalReason
+        }
+        errors
+      }
+    }`,
+    { input }
   );
-  const body: Record<string, string> = { reason };
-  if (comment) body.comment = comment;
-  const response = await fetch(url.toString(), {
-    ...getFetchConfig(),
-    method: "POST",
-    body: JSON.stringify(body),
-  });
-  await handleGitLabError(response);
-  return (await response.json()) as unknown;
+
+  if (data.vulnerabilityDismiss.errors?.length) {
+    throw new Error(
+      `Failed to dismiss vulnerability: ${data.vulnerabilityDismiss.errors.join(", ")}`
+    );
+  }
+  return data.vulnerabilityDismiss.vulnerability;
 }
 
 async function confirmVulnerability(
   vulnerabilityId: string,
   comment?: string
 ): Promise<unknown> {
-  const url = new URL(
-    `${getEffectiveApiUrl()}/vulnerabilities/${encodeURIComponent(vulnerabilityId)}/confirm`
+  const input: Record<string, string> = { id: toVulnerabilityGid(vulnerabilityId) };
+  if (comment) input.comment = comment;
+
+  const data = await executeGraphQL<{
+    vulnerabilityConfirm: {
+      vulnerability: unknown | null;
+      errors: string[];
+    };
+  }>(
+    `mutation confirmVulnerability($input: VulnerabilityConfirmInput!) {
+      vulnerabilityConfirm(input: $input) {
+        vulnerability {
+          id
+          state
+          confirmedAt
+        }
+        errors
+      }
+    }`,
+    { input }
   );
-  const body: Record<string, string> = {};
-  if (comment) body.comment = comment;
-  const response = await fetch(url.toString(), {
-    ...getFetchConfig(),
-    method: "POST",
-    body: JSON.stringify(body),
-  });
-  await handleGitLabError(response);
-  return (await response.json()) as unknown;
+
+  if (data.vulnerabilityConfirm.errors?.length) {
+    throw new Error(
+      `Failed to confirm vulnerability: ${data.vulnerabilityConfirm.errors.join(", ")}`
+    );
+  }
+  return data.vulnerabilityConfirm.vulnerability;
 }
 
 /**

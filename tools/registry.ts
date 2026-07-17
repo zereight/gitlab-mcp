@@ -1318,7 +1318,7 @@ export const allTools = [
   // --- Vulnerability tools ---
   {
     name: "list_project_vulnerabilities",
-    description: "List vulnerabilities for a project with optional state, severity, and scanner filters",
+    description: "List vulnerabilities for a project with optional state, severity, and report type filters (GraphQL-backed, cursor pagination)",
     inputSchema: toJSONSchema(ListProjectVulnerabilitiesSchema),
   },
   {
@@ -1328,7 +1328,7 @@ export const allTools = [
   },
   {
     name: "dismiss_vulnerability",
-    description: "Dismiss a vulnerability with a reason (acceptable_risk, false_positive, used_in_tests, no_longer_relevant)",
+    description: "Dismiss a vulnerability with a reason (acceptable_risk, false_positive, used_in_tests, mitigating_control, not_applicable) and optional comment",
     inputSchema: toJSONSchema(DismissVulnerabilitySchema),
   },
   {

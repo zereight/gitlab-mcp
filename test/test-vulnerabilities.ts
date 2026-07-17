@@ -5,58 +5,53 @@ import { MockGitLabServer, findMockServerPort } from "./utils/mock-gitlab-server
 
 const MOCK_TOKEN = "glpat-mock-token-12345";
 const TEST_PROJECT_ID = "456";
+const TEST_PROJECT_FULL_PATH = "test-group/test-project";
 const TEST_VULNERABILITY_ID = "789";
+const TEST_VULNERABILITY_GID = `gid://gitlab/Vulnerability/${TEST_VULNERABILITY_ID}`;
 
 const mockVulnerability = {
-  id: 789,
+  id: TEST_VULNERABILITY_GID,
   title: "Hard-coded credential detected",
   description: "A hard-coded credential was found in source code",
-  state: "detected",
-  severity: "critical",
-  scanner: { name: "SECRET_DETECTION" },
-  location: { file: "config/secrets.yml", start_line: 42, end_line: 42 },
-  identifiers: [{ type: "cve", name: "CVE-2024-0001", value: "CVE-2024-0001" }],
+  state: "DETECTED",
+  severity: "CRITICAL",
+  reportType: "SECRET_DETECTION",
+  detectedAt: "2024-06-01T10:00:00Z",
+  confirmedAt: null,
+  resolvedAt: null,
+  dismissedAt: null,
+  dismissalReason: null,
+  webUrl: "https://gitlab.mock/test-group/test-project/-/security/vulnerabilities/789",
+  scanner: { name: "GitLeaks", externalId: "gitleaks", vendor: "GitLab" },
+  identifiers: [
+    { externalType: "cve", externalId: "CVE-2024-0001", name: "CVE-2024-0001", url: null },
+  ],
   links: [{ name: "More info", url: "https://example.com/vuln/789" }],
-  detected_at: "2024-06-01T10:00:00Z",
-  dismissed_at: null,
-  confirmed_at: null,
-  resolved_at: null,
-  dismissal_reason: null,
+  location: { file: "config/secrets.yml", startLine: 42, endLine: 42 },
 };
 
 const mockVulnerabilityList = [
   mockVulnerability,
   {
-    id: 790,
+    ...mockVulnerability,
+    id: "gid://gitlab/Vulnerability/790",
     title: "SQL Injection in login form",
-    description: "Unsanitized input used in SQL query",
-    state: "confirmed",
-    severity: "high",
-    scanner: { name: "SAST" },
-    location: { file: "src/auth/login.ts", start_line: 18, end_line: 22 },
-    identifiers: [{ type: "cwe", name: "CWE-89", value: "CWE-89" }],
-    links: [],
-    detected_at: "2024-06-02T08:00:00Z",
-    dismissed_at: null,
-    confirmed_at: "2024-06-03T09:00:00Z",
-    resolved_at: null,
-    dismissal_reason: null,
+    state: "CONFIRMED",
+    severity: "HIGH",
+    reportType: "SAST",
+    confirmedAt: "2024-06-03T09:00:00Z",
+    location: { file: "src/auth/login.ts", startLine: 18, endLine: 22 },
   },
   {
-    id: 791,
+    ...mockVulnerability,
+    id: "gid://gitlab/Vulnerability/791",
     title: "Outdated dependency with known CVE",
-    description: "Package foo@1.2.3 has a known vulnerability",
-    state: "dismissed",
-    severity: "medium",
-    scanner: { name: "DAST" },
-    location: { file: "package.json", start_line: 10, end_line: 10 },
-    identifiers: [{ type: "cve", name: "CVE-2024-9999", value: "CVE-2024-9999" }],
-    links: [{ name: "Advisory", url: "https://example.com/advisory/9999" }],
-    detected_at: "2024-05-15T12:00:00Z",
-    dismissed_at: "2024-05-20T14:00:00Z",
-    confirmed_at: null,
-    resolved_at: null,
-    dismissal_reason: "acceptable_risk",
+    state: "DISMISSED",
+    severity: "MEDIUM",
+    reportType: "DEPENDENCY_SCANNING",
+    dismissedAt: "2024-05-20T14:00:00Z",
+    dismissalReason: "ACCEPTABLE_RISK",
+    location: { file: "package.json", dependency: { package: { name: "foo" }, version: "1.2.3" } },
   },
 ];
 
@@ -80,12 +75,12 @@ async function callTool(
     proc.stdout?.on("data", (d: Buffer) => (output += d));
     proc.stderr?.on("data", (d: Buffer) => (errorOutput += d));
 
-    proc.on("close", (code) => {
+    proc.on("close", code => {
       if (code !== 0) {
         return reject(new Error(`Process exited with code ${code}: ${errorOutput}`));
       }
 
-      const line = output.split("\n").find((l) => l.startsWith("{"));
+      const line = output.split("\n").find(l => l.startsWith("{"));
       if (!line) {
         return reject(new Error("No JSON output found"));
       }
@@ -126,10 +121,17 @@ describe("vulnerability tools", () => {
   let mockGitLab: MockGitLabServer;
   let mockGitLabUrl: string;
 
-  // Capture variables for verifying request bodies and query params
-  let lastDismissBody: any = null;
-  let lastConfirmBody: any = null;
-  let lastListQueryParams: any = null;
+  // Capture variables for verifying GraphQL payloads
+  let lastListVariables: any = null;
+  let lastDismissInput: any = null;
+  let lastConfirmInput: any = null;
+  let lastGetId: any = null;
+
+  const baseEnv = () => ({
+    GITLAB_API_URL: `${mockGitLabUrl}/api/v4`,
+    GITLAB_PERSONAL_ACCESS_TOKEN: MOCK_TOKEN,
+    GITLAB_TOOLSETS: "vulnerabilities",
+  });
 
   before(async () => {
     const mockPort = await findMockServerPort();
@@ -138,36 +140,91 @@ describe("vulnerability tools", () => {
       validTokens: [MOCK_TOKEN],
     });
 
-    // GET /projects/456/vulnerabilities - list with filter capture
-    mockGitLab.addMockHandler("get", `/projects/${TEST_PROJECT_ID}/vulnerabilities`, (req, res) => {
-      lastListQueryParams = { ...req.query };
-      res.json(mockVulnerabilityList);
-    });
+    // All four tools go through POST /api/graphql; dispatch on operation name
+    mockGitLab.addRootHandler("post", "/api/graphql", (req, res) => {
+      const query: string = req.body.query || "";
+      const variables = req.body.variables || {};
 
-    // GET /vulnerabilities/789 - single vulnerability detail
-    mockGitLab.addMockHandler("get", `/vulnerabilities/${TEST_VULNERABILITY_ID}`, (req, res) => {
-      res.json(mockVulnerability);
-    });
+      if (query.includes("vulnerabilityDismiss")) {
+        lastDismissInput = variables.input;
+        res.json({
+          data: {
+            vulnerabilityDismiss: {
+              vulnerability: {
+                id: TEST_VULNERABILITY_GID,
+                state: "DISMISSED",
+                dismissedAt: "2024-06-10T12:00:00Z",
+                dismissalReason: variables.input?.dismissalReason || null,
+              },
+              errors: [],
+            },
+          },
+        });
+        return;
+      }
 
-    // POST /vulnerabilities/789/dismiss - dismiss with body capture
-    mockGitLab.addMockHandler("post", `/vulnerabilities/${TEST_VULNERABILITY_ID}/dismiss`, (req, res) => {
-      lastDismissBody = req.body;
-      res.json({
-        ...mockVulnerability,
-        state: "dismissed",
-        dismissed_at: "2024-06-10T12:00:00Z",
-        dismissal_reason: req.body?.reason || "false_positive",
-      });
-    });
+      if (query.includes("vulnerabilityConfirm")) {
+        lastConfirmInput = variables.input;
+        res.json({
+          data: {
+            vulnerabilityConfirm: {
+              vulnerability: {
+                id: TEST_VULNERABILITY_GID,
+                state: "CONFIRMED",
+                confirmedAt: "2024-06-10T12:00:00Z",
+              },
+              errors: [],
+            },
+          },
+        });
+        return;
+      }
 
-    // POST /vulnerabilities/789/confirm - confirm with body capture
-    mockGitLab.addMockHandler("post", `/vulnerabilities/${TEST_VULNERABILITY_ID}/confirm`, (req, res) => {
-      lastConfirmBody = req.body;
-      res.json({
-        ...mockVulnerability,
-        state: "confirmed",
-        confirmed_at: "2024-06-10T12:00:00Z",
-      });
+      if (query.includes("listProjectVulnerabilities")) {
+        lastListVariables = variables;
+        let nodes = mockVulnerabilityList;
+        if (variables.state) {
+          nodes = nodes.filter(v => variables.state.includes(v.state));
+        }
+        if (variables.severity) {
+          nodes = nodes.filter(v => variables.severity.includes(v.severity));
+        }
+        if (variables.reportType) {
+          nodes = nodes.filter(v => variables.reportType.includes(v.reportType));
+        }
+        res.json({
+          data: {
+            project: {
+              vulnerabilities: {
+                nodes,
+                pageInfo: { endCursor: "cursor-abc", hasNextPage: false },
+              },
+            },
+          },
+        });
+        return;
+      }
+
+      if (query.includes("getVulnerability")) {
+        lastGetId = variables.id;
+        res.json({
+          data: {
+            vulnerability: {
+              ...mockVulnerability,
+              project: {
+                id: "gid://gitlab/Project/456",
+                name: "Test Project",
+                fullPath: TEST_PROJECT_FULL_PATH,
+              },
+            },
+          },
+        });
+        return;
+      }
+
+      res
+        .status(400)
+        .json({ errors: [{ message: `Unexpected GraphQL query: ${query.slice(0, 80)}` }] });
     });
 
     await mockGitLab.start();
@@ -178,117 +235,150 @@ describe("vulnerability tools", () => {
     await mockGitLab.stop();
   });
 
-  test("list_project_vulnerabilities returns array of vulnerabilities", async () => {
+  test("list_project_vulnerabilities returns vulnerabilities with pageInfo", async () => {
     const result = await callTool(
       "list_project_vulnerabilities",
       { project_id: TEST_PROJECT_ID },
-      {
-        GITLAB_API_URL: `${mockGitLabUrl}/api/v4`,
-        GITLAB_PERSONAL_ACCESS_TOKEN: MOCK_TOKEN,
-        GITLAB_TOOLSETS: "vulnerabilities",
-      }
+      baseEnv()
     );
 
-    assert.ok(Array.isArray(result), "Response should be an array");
-    assert.strictEqual(result.length, 3, "Should return 3 vulnerabilities");
-    assert.strictEqual(result[0].id, 789);
-    assert.strictEqual(result[0].title, "Hard-coded credential detected");
+    assert.ok(
+      Array.isArray(result.vulnerabilities),
+      "Response should contain vulnerabilities array"
+    );
+    assert.strictEqual(result.vulnerabilities.length, 3, "Should return 3 vulnerabilities");
+    assert.strictEqual(result.vulnerabilities[0].id, TEST_VULNERABILITY_GID);
+    assert.strictEqual(result.vulnerabilities[0].title, "Hard-coded credential detected");
+    assert.ok(result.pageInfo, "Response should include pageInfo for cursor pagination");
+    assert.strictEqual(result.pageInfo.hasNextPage, false);
   });
 
-  test("list_project_vulnerabilities forwards state filter as query param", async () => {
-    lastListQueryParams = null;
+  test("list_project_vulnerabilities resolves numeric project ID to full path", async () => {
+    lastListVariables = null;
 
-    await callTool(
+    await callTool("list_project_vulnerabilities", { project_id: TEST_PROJECT_ID }, baseEnv());
+
+    assert.ok(lastListVariables, "GraphQL variables should have been captured");
+    assert.strictEqual(
+      lastListVariables.fullPath,
+      TEST_PROJECT_FULL_PATH,
+      "Numeric project ID should be resolved to the project full path"
+    );
+  });
+
+  test("list_project_vulnerabilities passes state filter as GraphQL enum", async () => {
+    lastListVariables = null;
+
+    const result = await callTool(
       "list_project_vulnerabilities",
       { project_id: TEST_PROJECT_ID, state: "detected" },
-      {
-        GITLAB_API_URL: `${mockGitLabUrl}/api/v4`,
-        GITLAB_PERSONAL_ACCESS_TOKEN: MOCK_TOKEN,
-        GITLAB_TOOLSETS: "vulnerabilities",
-      }
+      baseEnv()
     );
 
-    assert.ok(lastListQueryParams, "Query params should have been captured");
-    assert.strictEqual(lastListQueryParams.state, "detected", "state filter should be forwarded");
+    assert.ok(lastListVariables, "GraphQL variables should have been captured");
+    assert.deepStrictEqual(
+      lastListVariables.state,
+      ["DETECTED"],
+      "state should be uppercased enum array"
+    );
+    assert.strictEqual(result.vulnerabilities.length, 1, "Mock should filter to only DETECTED");
   });
 
-  test("list_project_vulnerabilities forwards severity filter as query param", async () => {
-    lastListQueryParams = null;
+  test("list_project_vulnerabilities passes severity filter as GraphQL enum", async () => {
+    lastListVariables = null;
 
-    await callTool(
+    const result = await callTool(
       "list_project_vulnerabilities",
       { project_id: TEST_PROJECT_ID, severity: "critical" },
-      {
-        GITLAB_API_URL: `${mockGitLabUrl}/api/v4`,
-        GITLAB_PERSONAL_ACCESS_TOKEN: MOCK_TOKEN,
-        GITLAB_TOOLSETS: "vulnerabilities",
-      }
+      baseEnv()
     );
 
-    assert.ok(lastListQueryParams, "Query params should have been captured");
-    assert.strictEqual(lastListQueryParams.severity, "critical", "severity filter should be forwarded");
+    assert.ok(lastListVariables, "GraphQL variables should have been captured");
+    assert.deepStrictEqual(lastListVariables.severity, ["CRITICAL"]);
+    assert.strictEqual(result.vulnerabilities.length, 1, "Mock should filter to only CRITICAL");
   });
 
-  test("list_project_vulnerabilities forwards scanner filter as query param", async () => {
-    lastListQueryParams = null;
+  test("list_project_vulnerabilities passes report_type filter as GraphQL enum", async () => {
+    lastListVariables = null;
+
+    const result = await callTool(
+      "list_project_vulnerabilities",
+      { project_id: TEST_PROJECT_ID, report_type: "secret_detection" },
+      baseEnv()
+    );
+
+    assert.ok(lastListVariables, "GraphQL variables should have been captured");
+    assert.deepStrictEqual(lastListVariables.reportType, ["SECRET_DETECTION"]);
+    assert.strictEqual(
+      result.vulnerabilities.length,
+      1,
+      "Mock should filter to only SECRET_DETECTION"
+    );
+  });
+
+  test("list_project_vulnerabilities forwards cursor pagination", async () => {
+    lastListVariables = null;
 
     await callTool(
       "list_project_vulnerabilities",
-      { project_id: TEST_PROJECT_ID, scanner: "SECRET_DETECTION" },
-      {
-        GITLAB_API_URL: `${mockGitLabUrl}/api/v4`,
-        GITLAB_PERSONAL_ACCESS_TOKEN: MOCK_TOKEN,
-        GITLAB_TOOLSETS: "vulnerabilities",
-      }
+      { project_id: TEST_PROJECT_ID, first: 50, after: "cursor-abc" },
+      baseEnv()
     );
 
-    assert.ok(lastListQueryParams, "Query params should have been captured");
-    assert.strictEqual(lastListQueryParams.scanner, "SECRET_DETECTION", "scanner filter should be forwarded");
+    assert.ok(lastListVariables, "GraphQL variables should have been captured");
+    assert.strictEqual(lastListVariables.first, 50);
+    assert.strictEqual(lastListVariables.after, "cursor-abc");
   });
 
-  test("get_vulnerability returns full vulnerability object", async () => {
+  test("get_vulnerability returns full vulnerability object via GID", async () => {
+    lastGetId = null;
+
     const result = await callTool(
       "get_vulnerability",
       { vulnerability_id: TEST_VULNERABILITY_ID },
-      {
-        GITLAB_API_URL: `${mockGitLabUrl}/api/v4`,
-        GITLAB_PERSONAL_ACCESS_TOKEN: MOCK_TOKEN,
-        GITLAB_TOOLSETS: "vulnerabilities",
-      }
+      baseEnv()
     );
 
-    assert.strictEqual(result.id, 789);
+    assert.strictEqual(
+      lastGetId,
+      TEST_VULNERABILITY_GID,
+      "Numeric ID should be converted to a GraphQL global ID"
+    );
+    assert.strictEqual(result.id, TEST_VULNERABILITY_GID);
     assert.strictEqual(result.title, "Hard-coded credential detected");
     assert.strictEqual(result.description, "A hard-coded credential was found in source code");
-    assert.strictEqual(result.state, "detected");
-    assert.strictEqual(result.severity, "critical");
-    assert.strictEqual(result.scanner.name, "SECRET_DETECTION");
+    assert.strictEqual(result.state, "DETECTED");
+    assert.strictEqual(result.severity, "CRITICAL");
+    assert.strictEqual(result.reportType, "SECRET_DETECTION");
     assert.strictEqual(result.location.file, "config/secrets.yml");
-    assert.strictEqual(result.location.start_line, 42);
+    assert.strictEqual(result.location.startLine, 42);
     assert.strictEqual(result.identifiers[0].name, "CVE-2024-0001");
     assert.strictEqual(result.links[0].url, "https://example.com/vuln/789");
+    assert.strictEqual(result.project.fullPath, TEST_PROJECT_FULL_PATH);
   });
 
-  test("dismiss_vulnerability sends correct POST body with reason", async () => {
-    lastDismissBody = null;
+  test("dismiss_vulnerability sends dismissalReason in mutation input", async () => {
+    lastDismissInput = null;
 
     const result = await callTool(
       "dismiss_vulnerability",
       { vulnerability_id: TEST_VULNERABILITY_ID, reason: "false_positive" },
-      {
-        GITLAB_API_URL: `${mockGitLabUrl}/api/v4`,
-        GITLAB_PERSONAL_ACCESS_TOKEN: MOCK_TOKEN,
-        GITLAB_TOOLSETS: "vulnerabilities",
-      }
+      baseEnv()
     );
 
-    assert.ok(lastDismissBody, "Request body should have been captured");
-    assert.strictEqual(lastDismissBody.reason, "false_positive", "reason should be in request body");
-    assert.strictEqual(result.state, "dismissed");
+    assert.ok(lastDismissInput, "Mutation input should have been captured");
+    assert.strictEqual(lastDismissInput.id, TEST_VULNERABILITY_GID);
+    assert.strictEqual(
+      lastDismissInput.dismissalReason,
+      "FALSE_POSITIVE",
+      "Reason should be mapped to the GraphQL enum"
+    );
+    assert.strictEqual(result.state, "DISMISSED");
+    assert.strictEqual(result.dismissalReason, "FALSE_POSITIVE");
   });
 
   test("dismiss_vulnerability includes comment when provided", async () => {
-    lastDismissBody = null;
+    lastDismissInput = null;
 
     await callTool(
       "dismiss_vulnerability",
@@ -297,37 +387,49 @@ describe("vulnerability tools", () => {
         reason: "acceptable_risk",
         comment: "Reviewed by security team, risk accepted",
       },
-      {
-        GITLAB_API_URL: `${mockGitLabUrl}/api/v4`,
-        GITLAB_PERSONAL_ACCESS_TOKEN: MOCK_TOKEN,
-        GITLAB_TOOLSETS: "vulnerabilities",
-      }
+      baseEnv()
     );
 
-    assert.ok(lastDismissBody, "Request body should have been captured");
-    assert.strictEqual(lastDismissBody.reason, "acceptable_risk");
-    assert.strictEqual(lastDismissBody.comment, "Reviewed by security team, risk accepted");
+    assert.ok(lastDismissInput, "Mutation input should have been captured");
+    assert.strictEqual(lastDismissInput.dismissalReason, "ACCEPTABLE_RISK");
+    assert.strictEqual(lastDismissInput.comment, "Reviewed by security team, risk accepted");
   });
 
-  test("confirm_vulnerability sends POST to correct endpoint", async () => {
-    lastConfirmBody = null;
+  test("dismiss_vulnerability accepts mitigating_control and not_applicable reasons", async () => {
+    lastDismissInput = null;
+    await callTool(
+      "dismiss_vulnerability",
+      { vulnerability_id: TEST_VULNERABILITY_ID, reason: "mitigating_control" },
+      baseEnv()
+    );
+    assert.strictEqual(lastDismissInput.dismissalReason, "MITIGATING_CONTROL");
+
+    lastDismissInput = null;
+    await callTool(
+      "dismiss_vulnerability",
+      { vulnerability_id: TEST_VULNERABILITY_ID, reason: "not_applicable" },
+      baseEnv()
+    );
+    assert.strictEqual(lastDismissInput.dismissalReason, "NOT_APPLICABLE");
+  });
+
+  test("confirm_vulnerability sends mutation with GID", async () => {
+    lastConfirmInput = null;
 
     const result = await callTool(
       "confirm_vulnerability",
       { vulnerability_id: TEST_VULNERABILITY_ID },
-      {
-        GITLAB_API_URL: `${mockGitLabUrl}/api/v4`,
-        GITLAB_PERSONAL_ACCESS_TOKEN: MOCK_TOKEN,
-        GITLAB_TOOLSETS: "vulnerabilities",
-      }
+      baseEnv()
     );
 
-    assert.strictEqual(result.state, "confirmed");
-    assert.strictEqual(result.confirmed_at, "2024-06-10T12:00:00Z");
+    assert.ok(lastConfirmInput, "Mutation input should have been captured");
+    assert.strictEqual(lastConfirmInput.id, TEST_VULNERABILITY_GID);
+    assert.strictEqual(result.state, "CONFIRMED");
+    assert.strictEqual(result.confirmedAt, "2024-06-10T12:00:00Z");
   });
 
   test("confirm_vulnerability includes comment when provided", async () => {
-    lastConfirmBody = null;
+    lastConfirmInput = null;
 
     await callTool(
       "confirm_vulnerability",
@@ -335,15 +437,11 @@ describe("vulnerability tools", () => {
         vulnerability_id: TEST_VULNERABILITY_ID,
         comment: "Confirmed after manual verification",
       },
-      {
-        GITLAB_API_URL: `${mockGitLabUrl}/api/v4`,
-        GITLAB_PERSONAL_ACCESS_TOKEN: MOCK_TOKEN,
-        GITLAB_TOOLSETS: "vulnerabilities",
-      }
+      baseEnv()
     );
 
-    assert.ok(lastConfirmBody, "Request body should have been captured");
-    assert.strictEqual(lastConfirmBody.comment, "Confirmed after manual verification");
+    assert.ok(lastConfirmInput, "Mutation input should have been captured");
+    assert.strictEqual(lastConfirmInput.comment, "Confirmed after manual verification");
   });
 
   // Read-only mode tests
@@ -351,31 +449,24 @@ describe("vulnerability tools", () => {
     const result = await callTool(
       "list_project_vulnerabilities",
       { project_id: TEST_PROJECT_ID },
-      {
-        GITLAB_API_URL: `${mockGitLabUrl}/api/v4`,
-        GITLAB_PERSONAL_ACCESS_TOKEN: MOCK_TOKEN,
-        GITLAB_TOOLSETS: "vulnerabilities",
-        GITLAB_PERMISSION_MODE: "readonly",
-      }
+      { ...baseEnv(), GITLAB_PERMISSION_MODE: "readonly" }
     );
 
-    assert.ok(Array.isArray(result), "Response should be an array in readonly mode");
-    assert.strictEqual(result.length, 3);
+    assert.ok(
+      Array.isArray(result.vulnerabilities),
+      "Should return vulnerabilities in readonly mode"
+    );
+    assert.strictEqual(result.vulnerabilities.length, 3);
   });
 
   test("read-only mode: get_vulnerability succeeds", async () => {
     const result = await callTool(
       "get_vulnerability",
       { vulnerability_id: TEST_VULNERABILITY_ID },
-      {
-        GITLAB_API_URL: `${mockGitLabUrl}/api/v4`,
-        GITLAB_PERSONAL_ACCESS_TOKEN: MOCK_TOKEN,
-        GITLAB_TOOLSETS: "vulnerabilities",
-        GITLAB_PERMISSION_MODE: "readonly",
-      }
+      { ...baseEnv(), GITLAB_PERMISSION_MODE: "readonly" }
     );
 
-    assert.strictEqual(result.id, 789);
+    assert.strictEqual(result.id, TEST_VULNERABILITY_GID);
     assert.strictEqual(result.title, "Hard-coded credential detected");
   });
 
@@ -385,12 +476,7 @@ describe("vulnerability tools", () => {
         callTool(
           "dismiss_vulnerability",
           { vulnerability_id: TEST_VULNERABILITY_ID, reason: "false_positive" },
-          {
-            GITLAB_API_URL: `${mockGitLabUrl}/api/v4`,
-            GITLAB_PERSONAL_ACCESS_TOKEN: MOCK_TOKEN,
-            GITLAB_TOOLSETS: "vulnerabilities",
-            GITLAB_PERMISSION_MODE: "readonly",
-          }
+          { ...baseEnv(), GITLAB_PERMISSION_MODE: "readonly" }
         ),
       (err: any) => {
         const msg = typeof err === "string" ? err : err?.message || JSON.stringify(err);
@@ -412,12 +498,7 @@ describe("vulnerability tools", () => {
         callTool(
           "confirm_vulnerability",
           { vulnerability_id: TEST_VULNERABILITY_ID },
-          {
-            GITLAB_API_URL: `${mockGitLabUrl}/api/v4`,
-            GITLAB_PERSONAL_ACCESS_TOKEN: MOCK_TOKEN,
-            GITLAB_TOOLSETS: "vulnerabilities",
-            GITLAB_PERMISSION_MODE: "readonly",
-          }
+          { ...baseEnv(), GITLAB_PERMISSION_MODE: "readonly" }
         ),
       (err: any) => {
         const msg = typeof err === "string" ? err : err?.message || JSON.stringify(err);

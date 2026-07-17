@@ -414,15 +414,15 @@ Inspect and manage the GitLab dependency proxy cache settings, blob storage, and
 
 ### [Vulnerabilities](vulnerabilities.md)
 
-AI-assisted vulnerability triage — list findings, inspect details, dismiss with reason, or confirm for remediation. *(4 tools)*
+AI-assisted vulnerability triage — list findings, inspect details, dismiss with reason, or confirm for remediation. Backed by the GitLab GraphQL API; requires GitLab Ultimate. *(4 tools)*
 
 > Opt-in. Enable via `GITLAB_TOOLSETS=vulnerabilities` (or `GITLAB_TOOLSETS=all`), list individual tools in `GITLAB_TOOLS=`, or activate at runtime with the `discover_tools` MCP tool.
 
 | Tool | What it does | R/W |
 |---|---|:-:|
-| [`list_project_vulnerabilities`](vulnerabilities.md#list_project_vulnerabilities) | List vulnerabilities for a project with optional state, severity, and scanner filters | 📖 |
+| [`list_project_vulnerabilities`](vulnerabilities.md#list_project_vulnerabilities) | List vulnerabilities for a project with optional state, severity, and report type filters (GraphQL-backed, cursor pagination) | 📖 |
 | [`get_vulnerability`](vulnerabilities.md#get_vulnerability) | Get full details of a specific vulnerability | 📖 |
-| [`dismiss_vulnerability`](vulnerabilities.md#dismiss_vulnerability) | Dismiss a vulnerability with a reason (acceptable_risk, false_positive, used_in_tests, no_longer_relevant) | ✏️ |
+| [`dismiss_vulnerability`](vulnerabilities.md#dismiss_vulnerability) | Dismiss a vulnerability with a reason (acceptable_risk, false_positive, used_in_tests, mitigating_control, not_applicable) and optional comment | ✏️ |
 | [`confirm_vulnerability`](vulnerabilities.md#confirm_vulnerability) | Confirm a vulnerability as a real finding requiring remediation | ✏️ |
 
 ### [Meta & GraphQL](meta.md)

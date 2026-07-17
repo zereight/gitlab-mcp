@@ -138,7 +138,7 @@ const GROUP_META: Record<ToolsetId, GroupMeta> = {
   vulnerabilities: {
     title: "Vulnerabilities",
     blurb:
-      "AI-assisted vulnerability triage — list findings, inspect details, dismiss with reason, or confirm for remediation.",
+      "AI-assisted vulnerability triage — list findings, inspect details, dismiss with reason, or confirm for remediation. Backed by the GitLab GraphQL API; requires GitLab Ultimate.",
   },
 };
 
