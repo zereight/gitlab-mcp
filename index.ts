@@ -9239,6 +9239,9 @@ async function dismissVulnerability(
       `Failed to dismiss vulnerability: ${data.vulnerabilityDismiss.errors.join(", ")}`
     );
   }
+  if (!data.vulnerabilityDismiss.vulnerability) {
+    throw new Error(`Vulnerability not returned after dismissal (id: ${vulnerabilityId})`);
+  }
   return data.vulnerabilityDismiss.vulnerability;
 }
 
@@ -9272,6 +9275,9 @@ async function confirmVulnerability(
     throw new Error(
       `Failed to confirm vulnerability: ${data.vulnerabilityConfirm.errors.join(", ")}`
     );
+  }
+  if (!data.vulnerabilityConfirm.vulnerability) {
+    throw new Error(`Vulnerability not returned after confirmation (id: ${vulnerabilityId})`);
   }
   return data.vulnerabilityConfirm.vulnerability;
 }

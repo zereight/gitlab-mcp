@@ -4864,6 +4864,9 @@ export const ListProjectVulnerabilitiesSchema = z.object({
     .describe("Filter by scan/report type (e.g. secret_detection, sast, dast)"),
   first: z.coerce
     .number()
+    .int()
+    .min(1)
+    .max(100)
     .optional()
     .describe("Number of vulnerabilities to return (max: 100, default: 20)"),
   after: z
