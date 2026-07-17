@@ -4834,3 +4834,44 @@ export const ListDependencyProxyBlobsSchema = z.object({
 export const PurgeDependencyProxyCacheSchema = z.object({
   group_id: z.coerce.string().describe("Group ID or URL-encoded path"),
 });
+
+// --- Vulnerability schemas ---
+
+// Schema for listing project vulnerabilities with optional filters
+export const ListProjectVulnerabilitiesSchema = z
+  .object({
+    project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
+    state: z
+      .enum(["detected", "confirmed", "resolved", "dismissed"])
+      .optional()
+      .describe("Filter by vulnerability state"),
+    severity: z
+      .enum(["critical", "high", "medium", "low", "info", "unknown"])
+      .optional()
+      .describe("Filter by severity level"),
+    scanner: z
+      .string()
+      .optional()
+      .describe("Filter by scanner type (e.g. SECRET_DETECTION, SAST, DAST)"),
+  })
+  .merge(PaginationOptionsSchema);
+
+// Schema for getting a single vulnerability by ID
+export const GetVulnerabilitySchema = z.object({
+  vulnerability_id: z.coerce.string().describe("The ID of the vulnerability"),
+});
+
+// Schema for dismissing a vulnerability with required reason and optional comment
+export const DismissVulnerabilitySchema = z.object({
+  vulnerability_id: z.coerce.string().describe("The ID of the vulnerability to dismiss"),
+  reason: z
+    .enum(["acceptable_risk", "false_positive", "used_in_tests", "no_longer_relevant"])
+    .describe("Reason for dismissal"),
+  comment: z.string().optional().describe("Optional comment explaining the dismissal"),
+});
+
+// Schema for confirming a vulnerability with optional comment
+export const ConfirmVulnerabilitySchema = z.object({
+  vulnerability_id: z.coerce.string().describe("The ID of the vulnerability to confirm"),
+  comment: z.string().optional().describe("Optional comment explaining the confirmation"),
+});

@@ -397,6 +397,10 @@ import {
   UpdateDependencyProxySettingsSchema,
   ListDependencyProxyBlobsSchema,
   PurgeDependencyProxyCacheSchema,
+  ListProjectVulnerabilitiesSchema,
+  GetVulnerabilitySchema,
+  DismissVulnerabilitySchema,
+  ConfirmVulnerabilitySchema,
   ListIssueDiscussionsSchema,
   ListIssueLinksSchema,
   ListIssuesSchema,
@@ -9020,6 +9024,72 @@ async function purgeDependencyProxyCache(groupId: string): Promise<void> {
   await handleGitLabError(response);
 }
 
+// --- Vulnerability functions ---
+
+async function listProjectVulnerabilities(
+  projectId: string,
+  options: Omit<z.infer<typeof ListProjectVulnerabilitiesSchema>, "project_id"> = {}
+): Promise<unknown[]> {
+  projectId = decodeURIComponent(projectId);
+  const url = new URL(
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/vulnerabilities`
+  );
+  Object.entries(options).forEach(([key, value]) => {
+    if (value !== undefined) {
+      url.searchParams.append(key, value.toString());
+    }
+  });
+  const response = await fetch(url.toString(), { ...getFetchConfig() });
+  await handleGitLabError(response);
+  return (await response.json()) as unknown[];
+}
+
+async function getVulnerability(vulnerabilityId: string): Promise<unknown> {
+  const url = new URL(
+    `${getEffectiveApiUrl()}/vulnerabilities/${encodeURIComponent(vulnerabilityId)}`
+  );
+  const response = await fetch(url.toString(), { ...getFetchConfig() });
+  await handleGitLabError(response);
+  return (await response.json()) as unknown;
+}
+
+async function dismissVulnerability(
+  vulnerabilityId: string,
+  reason: string,
+  comment?: string
+): Promise<unknown> {
+  const url = new URL(
+    `${getEffectiveApiUrl()}/vulnerabilities/${encodeURIComponent(vulnerabilityId)}/dismiss`
+  );
+  const body: Record<string, string> = { reason };
+  if (comment) body.comment = comment;
+  const response = await fetch(url.toString(), {
+    ...getFetchConfig(),
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+  await handleGitLabError(response);
+  return (await response.json()) as unknown;
+}
+
+async function confirmVulnerability(
+  vulnerabilityId: string,
+  comment?: string
+): Promise<unknown> {
+  const url = new URL(
+    `${getEffectiveApiUrl()}/vulnerabilities/${encodeURIComponent(vulnerabilityId)}/confirm`
+  );
+  const body: Record<string, string> = {};
+  if (comment) body.comment = comment;
+  const response = await fetch(url.toString(), {
+    ...getFetchConfig(),
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+  await handleGitLabError(response);
+  return (await response.json()) as unknown;
+}
+
 /**
  * Upload a file to a GitLab project for use in markdown content.
  *
@@ -12136,6 +12206,33 @@ async function handleToolCall(params: any) {
             },
           ],
         };
+      }
+
+      // --- Vulnerability tools ---
+
+      case "list_project_vulnerabilities": {
+        const args = ListProjectVulnerabilitiesSchema.parse(params.arguments);
+        const { project_id, ...options } = args;
+        const result = await listProjectVulnerabilities(project_id, options);
+        return { content: [{ type: "text", text: JSON.stringify(result) }] };
+      }
+
+      case "get_vulnerability": {
+        const args = GetVulnerabilitySchema.parse(params.arguments);
+        const result = await getVulnerability(args.vulnerability_id);
+        return { content: [{ type: "text", text: JSON.stringify(result) }] };
+      }
+
+      case "dismiss_vulnerability": {
+        const args = DismissVulnerabilitySchema.parse(params.arguments);
+        const result = await dismissVulnerability(args.vulnerability_id, args.reason, args.comment);
+        return { content: [{ type: "text", text: JSON.stringify(result) }] };
+      }
+
+      case "confirm_vulnerability": {
+        const args = ConfirmVulnerabilitySchema.parse(params.arguments);
+        const result = await confirmVulnerability(args.vulnerability_id, args.comment);
+        return { content: [{ type: "text", text: JSON.stringify(result) }] };
       }
 
       case "upload_markdown": {

@@ -135,6 +135,11 @@ const GROUP_META: Record<ToolsetId, GroupMeta> = {
     blurb:
       "Inspect and manage the GitLab dependency proxy cache settings, blob storage, and purge operations.",
   },
+  vulnerabilities: {
+    title: "Vulnerabilities",
+    blurb:
+      "AI-assisted vulnerability triage — list findings, inspect details, dismiss with reason, or confirm for remediation.",
+  },
 };
 
 const GROUP_ORDER: ToolsetId[] = [
@@ -157,6 +162,7 @@ const GROUP_ORDER: ToolsetId[] = [
   "webhooks",
   "search",
   "dependency_proxy",
+  "vulnerabilities",
 ];
 
 // --- Helpers --------------------------------------------------------------

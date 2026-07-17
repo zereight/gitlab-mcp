@@ -223,6 +223,10 @@ import {
   UpdateDependencyProxySettingsSchema,
   ListDependencyProxyBlobsSchema,
   PurgeDependencyProxyCacheSchema,
+  ListProjectVulnerabilitiesSchema,
+  GetVulnerabilitySchema,
+  DismissVulnerabilitySchema,
+  ConfirmVulnerabilitySchema,
 } from "../schemas.js";
 
 const IS_REMOTE = SSE || STREAMABLE_HTTP;
@@ -1311,6 +1315,27 @@ export const allTools = [
     description: "Schedule purge of all cached dependency proxy blobs for a group",
     inputSchema: toJSONSchema(PurgeDependencyProxyCacheSchema),
   },
+  // --- Vulnerability tools ---
+  {
+    name: "list_project_vulnerabilities",
+    description: "List vulnerabilities for a project with optional state, severity, and scanner filters",
+    inputSchema: toJSONSchema(ListProjectVulnerabilitiesSchema),
+  },
+  {
+    name: "get_vulnerability",
+    description: "Get full details of a specific vulnerability",
+    inputSchema: toJSONSchema(GetVulnerabilitySchema),
+  },
+  {
+    name: "dismiss_vulnerability",
+    description: "Dismiss a vulnerability with a reason (acceptable_risk, false_positive, used_in_tests, no_longer_relevant)",
+    inputSchema: toJSONSchema(DismissVulnerabilitySchema),
+  },
+  {
+    name: "confirm_vulnerability",
+    description: "Confirm a vulnerability as a real finding requiring remediation",
+    inputSchema: toJSONSchema(ConfirmVulnerabilitySchema),
+  },
   // --- Meta tool: Dynamic tool discovery ---
   {
     name: "discover_tools",
@@ -1448,6 +1473,8 @@ export const readOnlyTools = new Set([
   "get_group_variable",
   "get_dependency_proxy_settings",
   "list_dependency_proxy_blobs",
+  "list_project_vulnerabilities",
+  "get_vulnerability",
 ]);
 
 // Define which tools are destructive (data loss potential)
@@ -1590,7 +1617,8 @@ export type ToolsetId =
   | "webhooks"
   | "search"
   | "variables"
-  | "dependency_proxy";
+  | "dependency_proxy"
+  | "vulnerabilities";
 
 export interface ToolsetDefinition {
   readonly id: ToolsetId;
@@ -1917,6 +1945,16 @@ export const TOOLSET_DEFINITIONS: readonly ToolsetDefinition[] = [
       "update_dependency_proxy_settings",
       "list_dependency_proxy_blobs",
       "purge_dependency_proxy_cache",
+    ]),
+  },
+  {
+    id: "vulnerabilities",
+    isDefault: false,
+    tools: new Set([
+      "list_project_vulnerabilities",
+      "get_vulnerability",
+      "dismiss_vulnerability",
+      "confirm_vulnerability",
     ]),
   },
 ] as const;
