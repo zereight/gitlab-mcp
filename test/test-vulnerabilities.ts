@@ -513,4 +513,132 @@ describe("vulnerability tools", () => {
       }
     );
   });
+
+  // GITLAB_ALLOWED_PROJECT_IDS tests: the mock vulnerability belongs to
+  // project 456 (test-group/test-project), so an allowlist of "999" must
+  // deny all id-only vulnerability tools.
+  const assertAccessDenied = (err: any) => {
+    const msg = typeof err === "string" ? err : err?.message || JSON.stringify(err);
+    assert.ok(msg.includes("Access denied"), `Expected allowlist rejection, got: ${msg}`);
+    return true;
+  };
+
+  test("allowlist: get_vulnerability is rejected for a vulnerability outside allowed projects", async () => {
+    await assert.rejects(
+      () =>
+        callTool(
+          "get_vulnerability",
+          { vulnerability_id: TEST_VULNERABILITY_ID },
+          { ...baseEnv(), GITLAB_ALLOWED_PROJECT_IDS: "999" }
+        ),
+      assertAccessDenied
+    );
+  });
+
+  test("allowlist: get_vulnerability succeeds when project is allowed by numeric ID", async () => {
+    const result = await callTool(
+      "get_vulnerability",
+      { vulnerability_id: TEST_VULNERABILITY_ID },
+      { ...baseEnv(), GITLAB_ALLOWED_PROJECT_IDS: TEST_PROJECT_ID }
+    );
+    assert.strictEqual(result.id, TEST_VULNERABILITY_GID);
+  });
+
+  test("allowlist: get_vulnerability succeeds when project is allowed by full path", async () => {
+    const result = await callTool(
+      "get_vulnerability",
+      { vulnerability_id: TEST_VULNERABILITY_ID },
+      { ...baseEnv(), GITLAB_ALLOWED_PROJECT_IDS: `999,${TEST_PROJECT_FULL_PATH}` }
+    );
+    assert.strictEqual(result.id, TEST_VULNERABILITY_GID);
+  });
+
+  test("allowlist: dismiss_vulnerability is rejected before the mutation is sent", async () => {
+    lastDismissInput = null;
+
+    await assert.rejects(
+      () =>
+        callTool(
+          "dismiss_vulnerability",
+          { vulnerability_id: TEST_VULNERABILITY_ID, reason: "false_positive" },
+          { ...baseEnv(), GITLAB_ALLOWED_PROJECT_IDS: "999" }
+        ),
+      assertAccessDenied
+    );
+    assert.strictEqual(
+      lastDismissInput,
+      null,
+      "vulnerabilityDismiss mutation must not be sent for a denied project"
+    );
+  });
+
+  test("allowlist: confirm_vulnerability is rejected before the mutation is sent", async () => {
+    lastConfirmInput = null;
+
+    await assert.rejects(
+      () =>
+        callTool(
+          "confirm_vulnerability",
+          { vulnerability_id: TEST_VULNERABILITY_ID },
+          { ...baseEnv(), GITLAB_ALLOWED_PROJECT_IDS: "999" }
+        ),
+      assertAccessDenied
+    );
+    assert.strictEqual(
+      lastConfirmInput,
+      null,
+      "vulnerabilityConfirm mutation must not be sent for a denied project"
+    );
+  });
+
+  test("allowlist: dismiss_vulnerability succeeds when the vulnerability's project is allowed", async () => {
+    lastDismissInput = null;
+
+    const result = await callTool(
+      "dismiss_vulnerability",
+      { vulnerability_id: TEST_VULNERABILITY_ID, reason: "false_positive" },
+      { ...baseEnv(), GITLAB_ALLOWED_PROJECT_IDS: TEST_PROJECT_ID }
+    );
+
+    assert.ok(lastDismissInput, "Mutation should be sent after the allowlist check passes");
+    assert.strictEqual(lastDismissInput.id, TEST_VULNERABILITY_GID);
+    assert.strictEqual(result.state, "DISMISSED");
+  });
+
+  // GID validation tests: only numeric IDs and Vulnerability GIDs are accepted
+  const assertInvalidVulnerabilityId = (err: any) => {
+    const msg = typeof err === "string" ? err : err?.message || JSON.stringify(err);
+    assert.ok(
+      msg.includes("Invalid vulnerability ID"),
+      `Expected invalid-ID rejection, got: ${msg}`
+    );
+    return true;
+  };
+
+  test("gid validation: get_vulnerability rejects non-Vulnerability GIDs", async () => {
+    await assert.rejects(
+      () =>
+        callTool("get_vulnerability", { vulnerability_id: "gid://gitlab/Project/456" }, baseEnv()),
+      assertInvalidVulnerabilityId
+    );
+  });
+
+  test("gid validation: dismiss_vulnerability rejects a non-numeric ID before any request", async () => {
+    lastDismissInput = null;
+
+    await assert.rejects(
+      () =>
+        callTool(
+          "dismiss_vulnerability",
+          { vulnerability_id: "not-a-vuln-id", reason: "false_positive" },
+          baseEnv()
+        ),
+      assertInvalidVulnerabilityId
+    );
+    assert.strictEqual(
+      lastDismissInput,
+      null,
+      "vulnerabilityDismiss mutation must not be sent for an invalid ID"
+    );
+  });
 });

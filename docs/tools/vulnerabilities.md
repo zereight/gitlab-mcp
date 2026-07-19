@@ -28,7 +28,7 @@ List vulnerabilities for a project with optional state, severity, and report typ
 | `state` | enum (`detected` \| `confirmed` \| `resolved` \| `dismissed`) |  | Filter by vulnerability state |
 | `severity` | enum (`critical` \| `high` \| `medium` \| `low` \| `info` \| `unknown`) |  | Filter by severity level |
 | `report_type` | enum (`sast` \| `dast` \| `dependency_scanning` \| `container_scanning` \| `secret_detection` \| `coverage_fuzzing` \| `api_fuzzing` \| `cluster_image_scanning` \| `generic`) |  | Filter by scan/report type (e.g. secret_detection, sast, dast) |
-| `first` | number |  | Number of vulnerabilities to return (max: 100, default: 20) |
+| `first` | integer |  | Number of vulnerabilities to return (max: 100, default: 20) |
 | `after` | string |  | Cursor for pagination; use the endCursor from a previous response |
 
 ### `get_vulnerability`

@@ -9030,11 +9030,17 @@ async function purgeDependencyProxyCache(groupId: string): Promise<void> {
 // params on list and reason/comment on dismiss. GitLab recommends the
 // GraphQL API for vulnerability management, which supports all of these.
 
-/** Convert a numeric vulnerability ID (or an existing GID) to a GraphQL global ID. */
+/** Convert a numeric vulnerability ID (or an existing Vulnerability GID) to a GraphQL global ID. */
 function toVulnerabilityGid(vulnerabilityId: string): string {
-  return vulnerabilityId.startsWith("gid://")
-    ? vulnerabilityId
-    : `gid://gitlab/Vulnerability/${vulnerabilityId}`;
+  if (/^\d+$/.test(vulnerabilityId)) {
+    return `gid://gitlab/Vulnerability/${vulnerabilityId}`;
+  }
+  if (/^gid:\/\/gitlab\/Vulnerability\/\d+$/.test(vulnerabilityId)) {
+    return vulnerabilityId;
+  }
+  throw new Error(
+    `Invalid vulnerability ID "${vulnerabilityId}": expected a numeric ID or a gid://gitlab/Vulnerability/<id> global ID`
+  );
 }
 
 /**
@@ -9055,6 +9061,63 @@ async function resolveProjectFullPath(projectId: string): Promise<string> {
     throw new Error(`Could not resolve full path for project ${decoded}`);
   }
   return project.path_with_namespace;
+}
+
+/**
+ * Enforce GITLAB_ALLOWED_PROJECT_IDS for vulnerability tools. Vulnerability
+ * GIDs are globally unique rather than project-scoped, so the boundary must
+ * be checked against the project the vulnerability actually belongs to —
+ * mirroring what getEffectiveProjectId does for project-scoped REST calls.
+ * Allowlist entries may be numeric IDs or full namespace paths.
+ */
+function assertVulnerabilityProjectAllowed(
+  vulnerabilityId: string,
+  project: { id?: string | null; fullPath?: string | null } | null | undefined
+): void {
+  if (GITLAB_ALLOWED_PROJECT_IDS.length === 0) {
+    return;
+  }
+  const fullPath = project?.fullPath ?? undefined;
+  const numericId = project?.id?.match(/^gid:\/\/gitlab\/Project\/(\d+)$/)?.[1];
+  const allowed =
+    (fullPath !== undefined && GITLAB_ALLOWED_PROJECT_IDS.includes(fullPath)) ||
+    (numericId !== undefined && GITLAB_ALLOWED_PROJECT_IDS.includes(numericId));
+  if (!allowed) {
+    throw new Error(
+      `Access denied: Vulnerability ${vulnerabilityId} belongs to project ${
+        fullPath ?? numericId ?? "unknown"
+      }, which is not in the allowed project list: ${GITLAB_ALLOWED_PROJECT_IDS.join(", ")}`
+    );
+  }
+}
+
+/**
+ * Pre-flight allowlist check for vulnerability mutations: resolves the
+ * vulnerability's project and verifies it against GITLAB_ALLOWED_PROJECT_IDS
+ * before any write is issued. No-op (no extra request) when the allowlist
+ * is not configured.
+ */
+async function ensureVulnerabilityProjectAllowed(vulnerabilityId: string): Promise<void> {
+  if (GITLAB_ALLOWED_PROJECT_IDS.length === 0) {
+    return;
+  }
+  const data = await executeGraphQL<{
+    vulnerability: { project: { id: string; fullPath: string } | null } | null;
+  }>(
+    `query getVulnerabilityProject($id: VulnerabilityID!) {
+      vulnerability(id: $id) {
+        project {
+          id
+          fullPath
+        }
+      }
+    }`,
+    { id: toVulnerabilityGid(vulnerabilityId) }
+  );
+  if (!data.vulnerability) {
+    throw new Error(`Vulnerability not found: ${vulnerabilityId}`);
+  }
+  assertVulnerabilityProjectAllowed(vulnerabilityId, data.vulnerability.project);
 }
 
 /** Shared GraphQL selection set for vulnerability objects. */
@@ -9184,7 +9247,11 @@ async function listProjectVulnerabilities(
 }
 
 async function getVulnerability(vulnerabilityId: string): Promise<unknown> {
-  const data = await executeGraphQL<{ vulnerability: unknown | null }>(
+  const data = await executeGraphQL<{
+    vulnerability:
+      | ({ project?: { id?: string; fullPath?: string } | null } & Record<string, unknown>)
+      | null;
+  }>(
     `query getVulnerability($id: VulnerabilityID!) {
       vulnerability(id: $id) {
         ${VULNERABILITY_FIELDS}
@@ -9200,6 +9267,7 @@ async function getVulnerability(vulnerabilityId: string): Promise<unknown> {
   if (!data.vulnerability) {
     throw new Error(`Vulnerability not found: ${vulnerabilityId}`);
   }
+  assertVulnerabilityProjectAllowed(vulnerabilityId, data.vulnerability.project);
   return data.vulnerability;
 }
 
@@ -9208,6 +9276,7 @@ async function dismissVulnerability(
   reason: string,
   comment?: string
 ): Promise<unknown> {
+  await ensureVulnerabilityProjectAllowed(vulnerabilityId);
   const input: Record<string, string> = {
     id: toVulnerabilityGid(vulnerabilityId),
     dismissalReason: reason.toUpperCase(),
@@ -9249,6 +9318,7 @@ async function confirmVulnerability(
   vulnerabilityId: string,
   comment?: string
 ): Promise<unknown> {
+  await ensureVulnerabilityProjectAllowed(vulnerabilityId);
   const input: Record<string, string> = { id: toVulnerabilityGid(vulnerabilityId) };
   if (comment) input.comment = comment;
 
