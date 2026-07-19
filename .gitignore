@@ -12,6 +12,8 @@ coverage/
 .aider*
 .sisyphus
 test-results*.json
+test_results.txt
+test_out.txt
 docs/plans/
 .codex
 
