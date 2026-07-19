@@ -2931,26 +2931,31 @@ const optionalMergeRequestThreadPosition = z.preprocess(
 );
 
 // Draft Notes API schemas
+// Response shape follows Draft Notes API (not Notes API): note, author_id,
+// line_code, merge_request_id, commit_id — no created_at/updated_at.
 export const GitLabDraftNoteSchema = z
   .object({
     id: z.coerce.string(),
+    author_id: z.coerce.number().nullable().optional(),
     author: GitLabUserSchema.optional(),
     body: z.string().optional(),
-    note: z.string().optional(), // Some APIs might use 'note' instead of 'body'
-    created_at: z.string().optional(),
-    updated_at: z.string().optional(),
+    note: z.string().optional(), // Draft Notes API uses 'note'; keep 'body' for callers
+    line_code: z.string().nullable().optional(),
+    merge_request_id: z.coerce.number().nullable().optional(),
+    commit_id: z.string().nullable().optional(),
     discussion_id: z.string().nullable().optional(),
     position: z.record(z.unknown()).nullable().optional(),
     resolve_discussion: z.coerce.boolean().optional(),
   })
   .transform(data => ({
-    // Normalize the response to always have consistent field names
     id: data.id,
+    author_id: data.author_id ?? null,
     author: data.author,
     body: data.body || data.note || "",
-    created_at: data.created_at || "",
-    updated_at: data.updated_at || "",
-    discussion_id: data.discussion_id || null,
+    line_code: data.line_code ?? null,
+    merge_request_id: data.merge_request_id ?? null,
+    commit_id: data.commit_id ?? null,
+    discussion_id: data.discussion_id ?? null,
     position: data.position,
     resolve_discussion: data.resolve_discussion,
   }));
