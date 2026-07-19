@@ -146,6 +146,25 @@ describe("Streamable HTTP unauthenticated tool discovery", { timeout: 20_000 }, 
     assert.ok(listResponse.data.result.tools.length > 0, "tools/list should not be empty");
   });
 
+  test("expires unauthenticated discovery sessions and frees capacity", async () => {
+    const { server, mcpUrl } = await launchRemoteAuthServer({
+      GITLAB_ALLOW_UNAUTHENTICATED_TOOL_DISCOVERY: "true",
+      MAX_SESSIONS: "1",
+      SESSION_TIMEOUT_SECONDS: "1",
+    });
+    servers.push(server);
+
+    await initialize(mcpUrl);
+    await new Promise(resolve => setTimeout(resolve, 2_000));
+
+    const healthResponse = await fetch(mcpUrl.replace("/mcp", "/health"));
+    assert.strictEqual(healthResponse.status, 200);
+
+    const nextSession = await rawMcpRequest(mcpUrl, initializeBody);
+    assert.strictEqual(nextSession.status, 200, nextSession.text);
+    assert.ok(nextSession.sessionId, "expired discovery session should free capacity");
+  });
+
   test("still blocks unauthenticated tools/call when discovery is enabled", async () => {
     const { server, mcpUrl } = await launchRemoteAuthServer({
       GITLAB_ALLOW_UNAUTHENTICATED_TOOL_DISCOVERY: "true",

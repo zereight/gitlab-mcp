@@ -667,7 +667,7 @@ describe('GITLAB_ALLOWED_PROJECT_IDS guards repository and group mutators (allow
         REMOTE_AUTHORIZATION: 'true',
         GITLAB_API_URL: `${mockGitLabUrl}/api/v4`,
         GITLAB_ALLOWED_PROJECT_IDS: DEFAULT_PROJECT_ID,
-        GITLAB_TOOLSETS: 'variables',
+        GITLAB_TOOLSETS: 'variables,merge_requests,issues,pipelines',
       }
     });
     servers.push(server);
@@ -742,6 +742,38 @@ describe('GITLAB_ALLOWED_PROJECT_IDS guards repository and group mutators (allow
     assert.ok('text' in content, 'Content should have text');
     const project = JSON.parse(content.text);
     assert.strictEqual(project.id.toString(), DEFAULT_PROJECT_ID, 'Should use default project');
+  });
+
+  test('should enforce the project allowlist for get_draft_note', async () => {
+    await assert.rejects(
+      client.callTool('get_draft_note', {
+        project_id: OTHER_PROJECT_ID,
+        merge_request_iid: '1',
+        draft_note_id: '1',
+      }),
+      /Access denied/
+    );
+  });
+
+  test('should reject dot path segments before making GitLab requests', async () => {
+    const calls = [
+      {
+        name: 'get_draft_note',
+        args: { project_id: DEFAULT_PROJECT_ID, merge_request_iid: '..', draft_note_id: '1' },
+      },
+      {
+        name: 'get_job_artifact_file',
+        args: { project_id: DEFAULT_PROJECT_ID, job_id: '1', artifact_path: '../file.txt' },
+      },
+      {
+        name: 'list_issue_emoji_reactions',
+        args: { project_id: DEFAULT_PROJECT_ID, issue_iid: '..' },
+      },
+    ];
+
+    for (const { name, args } of calls) {
+      await assert.rejects(client.callTool(name, args), /path segments/);
+    }
   });
 });
 
