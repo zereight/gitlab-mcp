@@ -13,6 +13,9 @@ test("draft note schema keeps Draft Notes API fields and drops fake timestamps",
     discussion_id: null,
     position: { new_path: "src/app.ts", new_line: 17 },
     resolve_discussion: false,
+    // Notes-API leftovers that Draft Notes API never returns — must be stripped
+    created_at: "2024-01-01T00:00:00Z",
+    updated_at: "2024-01-02T00:00:00Z",
   });
 
   assert.equal(parsed.id, "42");
