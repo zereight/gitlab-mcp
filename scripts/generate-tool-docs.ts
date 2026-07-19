@@ -259,7 +259,7 @@ function buildGroupPage(id: ToolsetId, toolNames: string[]): string {
   lines.push("## Tools in this group");
   lines.push("");
   for (const name of toolNames) {
-    lines.push(`- [\`${name}\`](#${name.replace(/_/g, "_")}) — ${rwBadge(name)}`);
+    lines.push(`- [\`${name}\`](#${name}) — ${rwBadge(name)}`);
   }
   lines.push("");
   lines.push("---");
