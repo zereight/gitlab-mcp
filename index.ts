@@ -166,6 +166,11 @@ import { redactSensitiveGitLabFields } from "./utils/redact-sensitive.js";
 import { checkForNewVersion } from "./utils/version-check.js";
 import { assertGitLabVersionAtLeast } from "./utils/gitlab-version-gate.js";
 import {
+  buildBulkPublishDraftNotesBody,
+  needsGitLab19_2BulkPublish,
+  type BulkPublishDraftNotesBody,
+} from "./utils/bulk-publish-options.js";
+import {
   cleanMutuallyExclusiveIdUsernameOptions,
   LIST_MERGE_REQUESTS_ID_USERNAME_PAIRS,
   sanitizeToolArguments,
@@ -6282,20 +6287,6 @@ async function publishDraftNote(
   }
 }
 
-type BulkPublishDraftNotesBody = {
-  reviewer_state?: "requested_changes" | "reviewed";
-  note?: string;
-  internal?: boolean;
-};
-
-function usesGitLab19_2BulkPublishOptions(options: BulkPublishDraftNotesBody): boolean {
-  return (
-    options.reviewer_state !== undefined ||
-    options.note !== undefined ||
-    options.internal !== undefined
-  );
-}
-
 async function fetchGitLabInstanceVersion(): Promise<string | null> {
   try {
     const response = await fetch(`${getEffectiveApiUrl()}/version`, {
@@ -6336,7 +6327,8 @@ async function bulkPublishDraftNotes(
     )}/merge_requests/${encodeGitLabPathSegment(mergeRequestIid)}/draft_notes/bulk_publish`
   );
 
-  if (usesGitLab19_2BulkPublishOptions(options)) {
+  const body = buildBulkPublishDraftNotesBody(options);
+  if (needsGitLab19_2BulkPublish(body)) {
     await assertGitLabVersionAtLeast(
       {
         major: 19,
@@ -6346,17 +6338,6 @@ async function bulkPublishDraftNotes(
       },
       fetchGitLabInstanceVersion
     );
-  }
-
-  const body: BulkPublishDraftNotesBody = {};
-  if (options.reviewer_state !== undefined) {
-    body.reviewer_state = options.reviewer_state;
-  }
-  if (options.note !== undefined) {
-    body.note = options.note;
-  }
-  if (options.internal !== undefined) {
-    body.internal = options.internal;
   }
 
   const response = await fetch(url.toString(), {
