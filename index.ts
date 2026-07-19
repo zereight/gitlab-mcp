@@ -403,6 +403,10 @@ import {
   UpdateDependencyProxySettingsSchema,
   ListDependencyProxyBlobsSchema,
   PurgeDependencyProxyCacheSchema,
+  ListProjectVulnerabilitiesSchema,
+  GetVulnerabilitySchema,
+  DismissVulnerabilitySchema,
+  ConfirmVulnerabilitySchema,
   ListIssueDiscussionsSchema,
   ListIssueLinksSchema,
   ListIssuesSchema,
@@ -9070,6 +9074,334 @@ async function purgeDependencyProxyCache(groupId: string): Promise<void> {
   await handleGitLabError(response);
 }
 
+// --- Vulnerability functions (GraphQL) ---
+//
+// The REST Vulnerabilities API is deprecated and silently ignores filter
+// params on list and reason/comment on dismiss. GitLab recommends the
+// GraphQL API for vulnerability management, which supports all of these.
+
+/** Convert a numeric vulnerability ID (or an existing Vulnerability GID) to a GraphQL global ID. */
+function toVulnerabilityGid(vulnerabilityId: string): string {
+  if (/^\d+$/.test(vulnerabilityId)) {
+    return `gid://gitlab/Vulnerability/${vulnerabilityId}`;
+  }
+  if (/^gid:\/\/gitlab\/Vulnerability\/\d+$/.test(vulnerabilityId)) {
+    return vulnerabilityId;
+  }
+  throw new Error(
+    `Invalid vulnerability ID "${vulnerabilityId}": expected a numeric ID or a gid://gitlab/Vulnerability/<id> global ID`
+  );
+}
+
+/**
+ * Resolve a project ID or path to the full namespace path required by
+ * GraphQL's `project(fullPath:)` query. Numeric IDs are resolved via a
+ * REST lookup; paths are returned as-is (decoded).
+ */
+async function resolveProjectFullPath(projectId: string): Promise<string> {
+  const decoded = decodeURIComponent(getEffectiveProjectId(decodeURIComponent(projectId)));
+  if (!/^\d+$/.test(decoded)) {
+    return decoded;
+  }
+  const url = new URL(`${getEffectiveApiUrl()}/projects/${encodeURIComponent(decoded)}`);
+  const response = await fetch(url.toString(), { ...getFetchConfig() });
+  await handleGitLabError(response);
+  const project = (await response.json()) as { path_with_namespace?: string };
+  if (!project.path_with_namespace) {
+    throw new Error(`Could not resolve full path for project ${decoded}`);
+  }
+  return project.path_with_namespace;
+}
+
+/**
+ * Enforce GITLAB_ALLOWED_PROJECT_IDS for vulnerability tools. Vulnerability
+ * GIDs are globally unique rather than project-scoped, so the boundary must
+ * be checked against the project the vulnerability actually belongs to —
+ * mirroring what getEffectiveProjectId does for project-scoped REST calls.
+ * Allowlist entries may be numeric IDs or full namespace paths.
+ */
+function assertVulnerabilityProjectAllowed(
+  vulnerabilityId: string,
+  project: { id?: string | null; fullPath?: string | null } | null | undefined
+): void {
+  if (GITLAB_ALLOWED_PROJECT_IDS.length === 0) {
+    return;
+  }
+  const fullPath = project?.fullPath ?? undefined;
+  const numericId = project?.id?.match(/^gid:\/\/gitlab\/Project\/(\d+)$/)?.[1];
+  const allowed =
+    (fullPath !== undefined && GITLAB_ALLOWED_PROJECT_IDS.includes(fullPath)) ||
+    (numericId !== undefined && GITLAB_ALLOWED_PROJECT_IDS.includes(numericId));
+  if (!allowed) {
+    throw new Error(
+      `Access denied: Vulnerability ${vulnerabilityId} belongs to project ${
+        fullPath ?? numericId ?? "unknown"
+      }, which is not in the allowed project list: ${GITLAB_ALLOWED_PROJECT_IDS.join(", ")}`
+    );
+  }
+}
+
+/**
+ * Pre-flight allowlist check for vulnerability mutations: resolves the
+ * vulnerability's project and verifies it against GITLAB_ALLOWED_PROJECT_IDS
+ * before any write is issued. No-op (no extra request) when the allowlist
+ * is not configured.
+ */
+async function ensureVulnerabilityProjectAllowed(vulnerabilityId: string): Promise<void> {
+  if (GITLAB_ALLOWED_PROJECT_IDS.length === 0) {
+    return;
+  }
+  const data = await executeGraphQL<{
+    vulnerability: { project: { id: string; fullPath: string } | null } | null;
+  }>(
+    `query getVulnerabilityProject($id: VulnerabilityID!) {
+      vulnerability(id: $id) {
+        project {
+          id
+          fullPath
+        }
+      }
+    }`,
+    { id: toVulnerabilityGid(vulnerabilityId) }
+  );
+  if (!data.vulnerability) {
+    throw new Error(`Vulnerability not found: ${vulnerabilityId}`);
+  }
+  assertVulnerabilityProjectAllowed(vulnerabilityId, data.vulnerability.project);
+}
+
+/** Shared GraphQL selection set for vulnerability objects. */
+const VULNERABILITY_FIELDS = `
+  id
+  title
+  description
+  state
+  severity
+  reportType
+  detectedAt
+  confirmedAt
+  resolvedAt
+  dismissedAt
+  dismissalReason
+  webUrl
+  scanner {
+    name
+    externalId
+    vendor
+  }
+  identifiers {
+    externalType
+    externalId
+    name
+    url
+  }
+  links {
+    name
+    url
+  }
+  location {
+    ... on VulnerabilityLocationSast {
+      file
+      startLine
+      endLine
+    }
+    ... on VulnerabilityLocationSecretDetection {
+      file
+      startLine
+      endLine
+    }
+    ... on VulnerabilityLocationDependencyScanning {
+      file
+      dependency {
+        package {
+          name
+        }
+        version
+      }
+    }
+    ... on VulnerabilityLocationContainerScanning {
+      image
+      operatingSystem
+      dependency {
+        package {
+          name
+        }
+        version
+      }
+    }
+    ... on VulnerabilityLocationDast {
+      path
+      hostname
+    }
+  }
+`;
+
+async function listProjectVulnerabilities(
+  projectId: string,
+  options: Omit<z.infer<typeof ListProjectVulnerabilitiesSchema>, "project_id"> = {}
+): Promise<unknown> {
+  const fullPath = await resolveProjectFullPath(projectId);
+  const variables: Record<string, unknown> = {
+    fullPath,
+    first: Math.min(options.first ?? 20, 100),
+  };
+  if (options.state) variables.state = [options.state.toUpperCase()];
+  if (options.severity) variables.severity = [options.severity.toUpperCase()];
+  if (options.report_type) variables.reportType = [options.report_type.toUpperCase()];
+  if (options.after) variables.after = options.after;
+
+  const data = await executeGraphQL<{
+    project: {
+      vulnerabilities: {
+        nodes: unknown[];
+        pageInfo: { endCursor: string | null; hasNextPage: boolean };
+      };
+    } | null;
+  }>(
+    `query listProjectVulnerabilities(
+      $fullPath: ID!
+      $state: [VulnerabilityState!]
+      $severity: [VulnerabilitySeverity!]
+      $reportType: [VulnerabilityReportType!]
+      $first: Int
+      $after: String
+    ) {
+      project(fullPath: $fullPath) {
+        vulnerabilities(
+          state: $state
+          severity: $severity
+          reportType: $reportType
+          first: $first
+          after: $after
+        ) {
+          nodes {
+            ${VULNERABILITY_FIELDS}
+          }
+          pageInfo {
+            endCursor
+            hasNextPage
+          }
+        }
+      }
+    }`,
+    variables
+  );
+
+  if (!data.project) {
+    throw new Error(`Project not found or not accessible: ${fullPath}`);
+  }
+  return {
+    vulnerabilities: data.project.vulnerabilities.nodes,
+    pageInfo: data.project.vulnerabilities.pageInfo,
+  };
+}
+
+async function getVulnerability(vulnerabilityId: string): Promise<unknown> {
+  const data = await executeGraphQL<{
+    vulnerability:
+      | ({ project?: { id?: string; fullPath?: string } | null } & Record<string, unknown>)
+      | null;
+  }>(
+    `query getVulnerability($id: VulnerabilityID!) {
+      vulnerability(id: $id) {
+        ${VULNERABILITY_FIELDS}
+        project {
+          id
+          name
+          fullPath
+        }
+      }
+    }`,
+    { id: toVulnerabilityGid(vulnerabilityId) }
+  );
+  if (!data.vulnerability) {
+    throw new Error(`Vulnerability not found: ${vulnerabilityId}`);
+  }
+  assertVulnerabilityProjectAllowed(vulnerabilityId, data.vulnerability.project);
+  return data.vulnerability;
+}
+
+async function dismissVulnerability(
+  vulnerabilityId: string,
+  reason: string,
+  comment?: string
+): Promise<unknown> {
+  await ensureVulnerabilityProjectAllowed(vulnerabilityId);
+  const input: Record<string, string> = {
+    id: toVulnerabilityGid(vulnerabilityId),
+    dismissalReason: reason.toUpperCase(),
+  };
+  if (comment) input.comment = comment;
+
+  const data = await executeGraphQL<{
+    vulnerabilityDismiss: {
+      vulnerability: unknown | null;
+      errors: string[];
+    };
+  }>(
+    `mutation dismissVulnerability($input: VulnerabilityDismissInput!) {
+      vulnerabilityDismiss(input: $input) {
+        vulnerability {
+          id
+          state
+          dismissedAt
+          dismissalReason
+        }
+        errors
+      }
+    }`,
+    { input }
+  );
+
+  if (data.vulnerabilityDismiss.errors?.length) {
+    throw new Error(
+      `Failed to dismiss vulnerability: ${data.vulnerabilityDismiss.errors.join(", ")}`
+    );
+  }
+  if (!data.vulnerabilityDismiss.vulnerability) {
+    throw new Error(`Vulnerability not returned after dismissal (id: ${vulnerabilityId})`);
+  }
+  return data.vulnerabilityDismiss.vulnerability;
+}
+
+async function confirmVulnerability(
+  vulnerabilityId: string,
+  comment?: string
+): Promise<unknown> {
+  await ensureVulnerabilityProjectAllowed(vulnerabilityId);
+  const input: Record<string, string> = { id: toVulnerabilityGid(vulnerabilityId) };
+  if (comment) input.comment = comment;
+
+  const data = await executeGraphQL<{
+    vulnerabilityConfirm: {
+      vulnerability: unknown | null;
+      errors: string[];
+    };
+  }>(
+    `mutation confirmVulnerability($input: VulnerabilityConfirmInput!) {
+      vulnerabilityConfirm(input: $input) {
+        vulnerability {
+          id
+          state
+          confirmedAt
+        }
+        errors
+      }
+    }`,
+    { input }
+  );
+
+  if (data.vulnerabilityConfirm.errors?.length) {
+    throw new Error(
+      `Failed to confirm vulnerability: ${data.vulnerabilityConfirm.errors.join(", ")}`
+    );
+  }
+  if (!data.vulnerabilityConfirm.vulnerability) {
+    throw new Error(`Vulnerability not returned after confirmation (id: ${vulnerabilityId})`);
+  }
+  return data.vulnerabilityConfirm.vulnerability;
+}
+
 /**
  * Upload a file to a GitLab project for use in markdown content.
  *
@@ -12201,6 +12533,33 @@ async function handleToolCall(params: any) {
             },
           ],
         };
+      }
+
+      // --- Vulnerability tools ---
+
+      case "list_project_vulnerabilities": {
+        const args = ListProjectVulnerabilitiesSchema.parse(params.arguments);
+        const { project_id, ...options } = args;
+        const result = await listProjectVulnerabilities(project_id, options);
+        return { content: [{ type: "text", text: JSON.stringify(result) }] };
+      }
+
+      case "get_vulnerability": {
+        const args = GetVulnerabilitySchema.parse(params.arguments);
+        const result = await getVulnerability(args.vulnerability_id);
+        return { content: [{ type: "text", text: JSON.stringify(result) }] };
+      }
+
+      case "dismiss_vulnerability": {
+        const args = DismissVulnerabilitySchema.parse(params.arguments);
+        const result = await dismissVulnerability(args.vulnerability_id, args.reason, args.comment);
+        return { content: [{ type: "text", text: JSON.stringify(result) }] };
+      }
+
+      case "confirm_vulnerability": {
+        const args = ConfirmVulnerabilitySchema.parse(params.arguments);
+        const result = await confirmVulnerability(args.vulnerability_id, args.comment);
+        return { content: [{ type: "text", text: JSON.stringify(result) }] };
       }
 
       case "upload_markdown": {

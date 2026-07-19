@@ -751,7 +751,11 @@ Register the skill directory in your AI client to get optimal tool usage guidanc
 209. `update_dependency_proxy_settings` - Update dependency proxy settings for a group (enable/disable, credentials for authenticated Docker Hub pulls)
 210. `list_dependency_proxy_blobs` - List cached dependency proxy blobs for a group with cursor-based pagination
 211. `purge_dependency_proxy_cache` - Schedule purge of all cached dependency proxy blobs for a group
-212. `discover_tools` - Discover and activate additional tool categories for this session. Available categories: merge_requests, issues, repositories, branches, projects, labels, ci, groups, pipelines, milestones, wiki, releases, tags, users, workitems, webhooks, search, variables, dependency_proxy. Already-active categories are listed in the response.
+212. `list_project_vulnerabilities` - List vulnerabilities for a project with optional state, severity, and report type filters (GraphQL-backed, cursor pagination)
+213. `get_vulnerability` - Get full details of a specific vulnerability
+214. `dismiss_vulnerability` - Dismiss a vulnerability with a reason (acceptable_risk, false_positive, used_in_tests, mitigating_control, not_applicable) and optional comment
+215. `confirm_vulnerability` - Confirm a vulnerability as a real finding requiring remediation
+216. `discover_tools` - Discover and activate additional tool categories for this session. Available categories: merge_requests, issues, repositories, branches, projects, labels, ci, groups, pipelines, milestones, wiki, releases, tags, users, workitems, webhooks, search, variables, dependency_proxy, vulnerabilities. Already-active categories are listed in the response.
 
 <!-- TOOLS-END -->
 

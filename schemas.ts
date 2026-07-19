@@ -4853,3 +4853,75 @@ export const ListDependencyProxyBlobsSchema = z.object({
 export const PurgeDependencyProxyCacheSchema = z.object({
   group_id: z.coerce.string().describe("Group ID or URL-encoded path"),
 });
+
+// --- Vulnerability schemas ---
+
+// Schema for listing project vulnerabilities with optional filters (GraphQL-backed)
+export const ListProjectVulnerabilitiesSchema = z.object({
+  project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
+  state: z
+    .enum(["detected", "confirmed", "resolved", "dismissed"])
+    .optional()
+    .describe("Filter by vulnerability state"),
+  severity: z
+    .enum(["critical", "high", "medium", "low", "info", "unknown"])
+    .optional()
+    .describe("Filter by severity level"),
+  report_type: z
+    .enum([
+      "sast",
+      "dast",
+      "dependency_scanning",
+      "container_scanning",
+      "secret_detection",
+      "coverage_fuzzing",
+      "api_fuzzing",
+      "cluster_image_scanning",
+      "generic",
+    ])
+    .optional()
+    .describe("Filter by scan/report type (e.g. secret_detection, sast, dast)"),
+  first: z.coerce
+    .number()
+    .int()
+    .min(1)
+    .max(100)
+    .optional()
+    .describe("Number of vulnerabilities to return (max: 100, default: 20)"),
+  after: z
+    .string()
+    .optional()
+    .describe("Cursor for pagination; use the endCursor from a previous response"),
+});
+
+// Schema for getting a single vulnerability by ID
+export const GetVulnerabilitySchema = z.object({
+  vulnerability_id: z.coerce
+    .string()
+    .describe("The vulnerability ID (numeric or GraphQL global ID)"),
+});
+
+// Schema for dismissing a vulnerability with required reason and optional comment
+export const DismissVulnerabilitySchema = z.object({
+  vulnerability_id: z.coerce
+    .string()
+    .describe("The ID of the vulnerability to dismiss (numeric or GraphQL global ID)"),
+  reason: z
+    .enum([
+      "acceptable_risk",
+      "false_positive",
+      "used_in_tests",
+      "mitigating_control",
+      "not_applicable",
+    ])
+    .describe("Reason for dismissal"),
+  comment: z.string().optional().describe("Optional comment explaining the dismissal"),
+});
+
+// Schema for confirming a vulnerability with optional comment
+export const ConfirmVulnerabilitySchema = z.object({
+  vulnerability_id: z.coerce
+    .string()
+    .describe("The ID of the vulnerability to confirm (numeric or GraphQL global ID)"),
+  comment: z.string().optional().describe("Optional comment explaining the confirmation"),
+});
