@@ -4881,7 +4881,8 @@ async function createOrUpdateFile(
   branch: string,
   previousPath?: string,
   last_commit_id?: string,
-  commit_id?: string
+  commit_id?: string,
+  encoding?: "text" | "base64"
 ): Promise<GitLabCreateUpdateFileResponse> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const encodedPath = encodeURIComponent(filePath);
@@ -4891,9 +4892,11 @@ async function createOrUpdateFile(
 
   const body: Record<string, any> = {
     branch,
-    content: encodeRepoFilePayloadContent(content),
+    // An explicit per-call encoding wins (text or base64, content sent as-is);
+    // when omitted, fall back to the global text/base64 convenience toggle.
+    content: encoding !== undefined ? content : encodeRepoFilePayloadContent(content),
     commit_message: commitMessage,
-    encoding: GITLAB_REPO_FILE_ENCODING,
+    encoding: encoding ?? GITLAB_REPO_FILE_ENCODING,
     ...(previousPath ? { previous_path: previousPath } : {}),
   };
 
@@ -4975,12 +4978,33 @@ async function createCommit(
     body: JSON.stringify({
       branch,
       commit_message: message,
-      actions: actions.map(action => ({
-        action: "create",
-        file_path: action.path,
-        content: encodeRepoFilePayloadContent(action.content),
-        encoding: GITLAB_REPO_FILE_ENCODING,
-      })),
+      actions: actions.map(action => {
+        // Honour per-file action (create/update/delete/move) instead of
+        // hardcoding "create", and pass base64 content through untouched so
+        // binary files commit correctly.
+        const act = action.action ?? "create";
+        const entry: Record<string, any> = { action: act, file_path: action.path };
+        if (act === "move" && action.previous_path) {
+          entry.previous_path = action.previous_path;
+        }
+        if (act !== "delete") {
+          const hasContent = action.content !== undefined;
+          // A `move` with no content must keep the original file's content — omit the
+          // content field entirely rather than blanking it with "".
+          if (!(act === "move" && !hasContent)) {
+            if (action.encoding !== undefined) {
+              // explicit text or base64 — send content as-is
+              entry.content = action.content ?? "";
+              entry.encoding = action.encoding;
+            } else {
+              // fall back to the global text/base64 convenience toggle
+              entry.content = encodeRepoFilePayloadContent(action.content ?? "");
+              entry.encoding = GITLAB_REPO_FILE_ENCODING;
+            }
+          }
+        }
+        return entry;
+      }),
     }),
   });
 
@@ -9850,7 +9874,8 @@ async function handleToolCall(params: any) {
           args.branch,
           args.previous_path,
           args.last_commit_id,
-          args.commit_id
+          args.commit_id,
+          args.encoding
         );
         return {
           content: [{ type: "text", text: JSON.stringify(result) }],
@@ -9863,7 +9888,13 @@ async function handleToolCall(params: any) {
           args.project_id,
           args.commit_message,
           args.branch,
-          args.files.map(f => ({ path: f.file_path, content: f.content }))
+          args.files.map(f => ({
+            path: f.file_path,
+            content: f.content,
+            action: f.action,
+            encoding: f.encoding,
+            previous_path: f.previous_path,
+          }))
         );
         return {
           content: [{ type: "text", text: JSON.stringify(result) }],
