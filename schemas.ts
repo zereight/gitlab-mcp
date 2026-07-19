@@ -3015,6 +3015,20 @@ export const PublishDraftNoteSchema = ProjectParamsSchema.extend({
 // Bulk publish draft notes schema
 export const BulkPublishDraftNotesSchema = ProjectParamsSchema.extend({
   merge_request_iid: z.coerce.string().describe("The IID of a merge request"),
+  reviewer_state: z
+    .enum(["requested_changes", "reviewed"])
+    .optional()
+    .describe(
+      "Set reviewer review state after publishing (GitLab 19.2+). Does not record a formal approval. Works even with no draft notes."
+    ),
+  note: z
+    .string()
+    .optional()
+    .describe("Summary note body to post on the merge request (GitLab 19.2+)"),
+  internal: z.coerce
+    .boolean()
+    .optional()
+    .describe("If true, the summary note is internal (GitLab 19.2+, default false)"),
 });
 
 // Schema for creating a new merge request thread

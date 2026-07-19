@@ -492,7 +492,8 @@ export const allTools = [
   },
   {
     name: "bulk_publish_draft_notes",
-    description: "Publish all draft notes for a merge request",
+    description:
+      "Publish all draft notes for a merge request. Optionally sets reviewer_state and posts a summary note (GitLab 19.2+). Can set reviewer_state even with no drafts.",
     inputSchema: toJSONSchema(BulkPublishDraftNotesSchema),
   },
   // --- Merge request emoji reaction tools ---

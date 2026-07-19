@@ -148,7 +148,7 @@ MR lifecycle — create, update, merge, approve, plus diff/conflict inspection a
 | [`update_draft_note`](merge-requests.md#update_draft_note) | Update an existing draft note | ✏️ |
 | [`delete_draft_note`](merge-requests.md#delete_draft_note) | Delete a draft note | ✏️ |
 | [`publish_draft_note`](merge-requests.md#publish_draft_note) | Publish a single draft note | ✏️ |
-| [`bulk_publish_draft_notes`](merge-requests.md#bulk_publish_draft_notes) | Publish all draft notes for a merge request | ✏️ |
+| [`bulk_publish_draft_notes`](merge-requests.md#bulk_publish_draft_notes) | Publish all draft notes for a merge request. Optionally sets reviewer_state and posts a summary note (GitLab 19.2+). Can set reviewer_state even with no drafts. | ✏️ |
 | [`create_merge_request_thread`](merge-requests.md#create_merge_request_thread) | Create a new thread on a merge request | ✏️ |
 | [`resolve_merge_request_thread`](merge-requests.md#resolve_merge_request_thread) | Resolve a thread on a merge request | ✏️ |
 | [`list_merge_request_emoji_reactions`](merge-requests.md#list_merge_request_emoji_reactions) | List all emoji reactions on a merge request | 📖 |
