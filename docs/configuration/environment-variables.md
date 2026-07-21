@@ -432,6 +432,36 @@ Legacy additive flag for pipeline-related tools. Prefer `GITLAB_TOOLSETS=pipelin
 > just three toolsets. Use `GITLAB_TOOLSETS` (groups) and `GITLAB_TOOLS` (individual tools)
 > instead.
 
+## Logging
+
+### `LOG_LEVEL`
+
+Pino log level.
+
+Values: `fatal`, `error`, `warn`, `info`, `debug`, `trace`, `silent`
+
+Default:
+
+- `info`
+
+### `LOG_FORMAT`
+
+Controls log output format. When set to `json`, disables `pino-pretty` and
+writes newline-delimited JSON to stderr. Useful for production deployments
+where logs are ingested by a collector (Datadog, Loki, CloudWatch, etc.).
+
+Values: `json` | _(any other value or unset uses `pino-pretty`)_
+
+Default:
+
+- _(unset — human-readable colored output via `pino-pretty`)_
+
+Example:
+
+```bash
+LOG_FORMAT=json LOG_LEVEL=warn npm start
+```
+
 ## Transport and Server Runtime
 
 ### `STREAMABLE_HTTP`
