@@ -77,7 +77,23 @@ import {
 } from "./stateless/stored-tokens.js";
 import type { StatelessKeyMaterial } from "./stateless/index.js";
 
-const logger = pino({ name: "gitlab-mcp-oauth-proxy" });
+const logger = pino(
+  {
+    name: "gitlab-mcp-oauth-proxy",
+    level: process.env.LOG_LEVEL || "info",
+    ...(process.env.LOG_FORMAT !== "json" && {
+      transport: {
+        target: "pino-pretty",
+        options: {
+          colorize: true,
+          levelFirst: true,
+          destination: 2,
+        },
+      },
+    }),
+  },
+  ...(process.env.LOG_FORMAT === "json" ? [pino.destination(2)] : []),
+);
 
 /**
  * Shape of the response from GitLab's /oauth/token/info endpoint.
