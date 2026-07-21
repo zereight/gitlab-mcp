@@ -550,50 +550,9 @@ import {
   createHash,
   timingSafeEqual,
 } from "node:crypto";
-import { pino } from "pino";
+import { createLogger } from "./utils/logger.js";
 
-const logger = pino(
-  {
-    level: process.env.LOG_LEVEL || "info",
-    // Redact sensitive values that must never appear in logs. Covers both
-    // typical auth-context property names and common HTTP header-bag shapes
-    // that tool/fetch wrappers may include when logging errors.
-    redact: {
-      paths: [
-        "token",
-        "*.token",
-        "ctx.token",
-        "context.token",
-        "authData.token",
-        "auth.token",
-        "headers.authorization",
-        "headers.Authorization",
-        'headers["private-token"]',
-        'headers["Private-Token"]',
-        'headers["job-token"]',
-        'headers["JOB-TOKEN"]',
-        'headers["mcp-session-id"]',
-        'headers["Mcp-Session-Id"]',
-        "sessionId",
-        "*.sessionId",
-        "ctx.sessionId",
-        "context.sessionId",
-      ],
-      censor: "[REDACTED]",
-    },
-    ...(process.env.LOG_FORMAT !== "json" && {
-      transport: {
-        target: "pino-pretty",
-        options: {
-          colorize: true,
-          levelFirst: true,
-          destination: 2,
-        },
-      },
-    }),
-  },
-  ...(process.env.LOG_FORMAT === "json" ? [pino.destination(2)] : []),
-);
+const logger = createLogger();
 
 /**
  * Read version from package.json

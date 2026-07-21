@@ -9,25 +9,9 @@ import { execFile } from "child_process";
 import { promisify } from "util";
 import open from "open";
 import pkceChallenge from "pkce-challenge";
-import { pino } from "pino";
+import { createLogger } from "./utils/logger.js";
 
-const logger = pino(
-  {
-    name: "gitlab-mcp-oauth",
-    level: process.env.LOG_LEVEL || "info",
-    ...(process.env.LOG_FORMAT !== "json" && {
-      transport: {
-        target: "pino-pretty",
-        options: {
-          colorize: true,
-          levelFirst: true,
-          destination: 2,
-        },
-      },
-    }),
-  },
-  ...(process.env.LOG_FORMAT === "json" ? [pino.destination(2)] : []),
-);
+const logger = createLogger("gitlab-mcp-oauth");
 
 const execFileAsync = promisify(execFile);
 

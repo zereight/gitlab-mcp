@@ -57,7 +57,6 @@ import type { OAuthRegisteredClientsStore } from "@modelcontextprotocol/sdk/serv
 import type { AuthorizationParams, OAuthServerProvider } from "@modelcontextprotocol/sdk/server/auth/provider.js";
 import type { Response } from "express";
 import { randomUUID, randomBytes, createHash } from "node:crypto";
-import { pino } from "pino";
 import type { Request } from "express";
 
 import {
@@ -76,24 +75,9 @@ import {
   openStoredTokensCode,
 } from "./stateless/stored-tokens.js";
 import type { StatelessKeyMaterial } from "./stateless/index.js";
+import { createLogger } from "./utils/logger.js";
 
-const logger = pino(
-  {
-    name: "gitlab-mcp-oauth-proxy",
-    level: process.env.LOG_LEVEL || "info",
-    ...(process.env.LOG_FORMAT !== "json" && {
-      transport: {
-        target: "pino-pretty",
-        options: {
-          colorize: true,
-          levelFirst: true,
-          destination: 2,
-        },
-      },
-    }),
-  },
-  ...(process.env.LOG_FORMAT === "json" ? [pino.destination(2)] : []),
-);
+const logger = createLogger("gitlab-mcp-oauth-proxy");
 
 /**
  * Shape of the response from GitLab's /oauth/token/info endpoint.
