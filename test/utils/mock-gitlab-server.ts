@@ -185,6 +185,15 @@ export class MockGitLabServer {
       });
     });
 
+    // GET /api/v4/version - GitLab instance version
+    this.app.get("/api/v4/version", (_req: AuthenticatedRequest, res: Response) => {
+      res.json({
+        version: "18.3.1-ee",
+        revision: "abc1234",
+        enterprise: true,
+      });
+    });
+
     // GET /api/v4/projects/:projectId - Get project
     this.app.get("/api/v4/projects/:projectId", (req: AuthenticatedRequest, res: Response) => {
       const projectId = req.params.projectId;
