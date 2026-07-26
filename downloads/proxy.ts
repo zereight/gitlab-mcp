@@ -123,8 +123,9 @@ export function registerDownloadProxy(app: Express, deps: DownloadProxyDependenc
     if (deps.enableDynamicApiUrl && requestedApiUrl) {
       try {
         apiUrl = deps.resolveTrustedGitLabApiUrl(requestedApiUrl);
-      } catch {
-        res.status(400).json({ error: "Invalid X-GitLab-API-URL" });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Invalid X-GitLab-API-URL";
+        res.status(400).json({ error: message });
         return;
       }
     }

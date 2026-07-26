@@ -1824,7 +1824,10 @@ function resolveTrustedGitLabApiUrl(value: string): string {
 
   const allowedApiUrl = GITLAB_ALLOWED_API_URLS_BY_HOST.get(parsed.host);
   if (!allowedApiUrl) {
-    throw new Error(`GitLab API URL host is not allowed: ${parsed.host}`);
+    throw new Error(
+      `GitLab API URL host is not allowed: ${parsed.host}. ` +
+        "Add the host to GITLAB_ALLOWED_HOSTS or GITLAB_API_URL."
+    );
   }
 
   return allowedApiUrl;
@@ -13289,8 +13292,9 @@ async function startStreamableHTTPServer(): Promise<void> {
     if (ENABLE_DYNAMIC_API_URL && dynamicApiUrl) {
       try {
         apiUrl = resolveTrustedGitLabApiUrl(dynamicApiUrl);
-      } catch {
-        logger.warn(`Invalid X-GitLab-API-URL provided: ${dynamicApiUrl}. Auth will fail.`);
+      } catch (error) {
+        const reason = error instanceof Error ? error.message : "Invalid X-GitLab-API-URL";
+        logger.warn(`Invalid X-GitLab-API-URL provided: ${dynamicApiUrl}. ${reason}`);
         return null; // Reject if URL is malformed or not allowed
       }
     }

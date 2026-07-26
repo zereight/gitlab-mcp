@@ -40,6 +40,7 @@ describe("Dynamic API URL allowlist", () => {
   let secondaryGitLab: MockGitLabServer;
   let attackerServer: Server | undefined;
   let mcpServer: ServerInstance | undefined;
+  let mcpPort: number;
   let mcpUrl: string;
   let secondaryHit = false;
   let getAttackerHits = () => 0;
@@ -62,7 +63,7 @@ describe("Dynamic API URL allowlist", () => {
     attackerServer = attacker.server;
     getAttackerHits = attacker.getHits;
 
-    const mcpPort = await findAvailablePort(3100);
+    mcpPort = await findAvailablePort(3100);
     mcpServer = await launchServer({
       mode: TransportMode.STREAMABLE_HTTP,
       port: mcpPort,
@@ -125,5 +126,27 @@ describe("Dynamic API URL allowlist", () => {
       0,
       "token-bearing requests must not reach untrusted hosts"
     );
+  });
+
+  test("returns remediation text when download proxy rejects untrusted dynamic hosts", async () => {
+    const server = attackerServer;
+    assert.ok(server, "attacker server should be running");
+    const attackerUrl = `http://${HOST}:${(server.address() as { port: number }).port}/api/v4`;
+
+    const response = await fetch(
+      `http://${HOST}:${mcpPort}/downloads/job-artifacts?project_id=1&job_id=1`,
+      {
+        headers: {
+          "Private-Token": MOCK_TOKEN,
+          "x-gitlab-api-url": attackerUrl,
+        },
+      }
+    );
+
+    assert.strictEqual(response.status, 400);
+    const body = (await response.json()) as { error: string };
+    assert.match(body.error, /not allowed/);
+    assert.match(body.error, /GITLAB_ALLOWED_HOSTS/);
+    assert.strictEqual(getAttackerHits(), 0, "download proxy must not forward to untrusted hosts");
   });
 });
