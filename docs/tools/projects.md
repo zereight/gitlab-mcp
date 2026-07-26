@@ -201,8 +201,21 @@ List group iterations with filtering options
 
 *📖 Read-only*
 
-Verify server status and authentication
+Verify server status and authentication. When authenticated, also reports the GitLab instance version from `GET /api/v4/version` (`version`, `revision`, `enterprise`). Version lookup failures do not fail the health check — those fields are omitted.
 
 **Parameters**
 
 _No parameters._
+
+**Response example**
+
+```json
+{
+  "status": "ok",
+  "authenticated": true,
+  "gitlab_url": "https://gitlab.example.com/api/v4",
+  "version": "18.3.1-ee",
+  "revision": "abc1234",
+  "enterprise": true
+}
+```
