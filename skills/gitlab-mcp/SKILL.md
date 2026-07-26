@@ -1,6 +1,6 @@
 ---
 name: gitlab-mcp-skill
-description: Use this skill when working with the GitLab MCP server tools for merge requests, issues, repositories, pipelines, work items, variables, dependency proxy, webhooks, search, CI catalog, and related GitLab workflows.
+description: Use this skill when working with the GitLab MCP server tools for merge requests, issues, repositories, pipelines, work items, variables, dependency proxy, vulnerabilities, webhooks, search, CI catalog, and related GitLab workflows.
 ---
 
 # gitlab-mcp
