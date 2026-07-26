@@ -62,7 +62,7 @@ Project/namespace listing, member queries, group iterations, and server health. 
 | [`verify_namespace`](projects.md#verify_namespace) | Verify if a namespace path exists. Use parent_id to scope the check to a specific parent namespace — required for nested namespaces where the same path may exist under different parents. | 📖 |
 | [`list_group_projects`](projects.md#list_group_projects) | List projects in a group | 📖 |
 | [`list_group_iterations`](projects.md#list_group_iterations) | List group iterations with filtering options | 📖 |
-| [`health_check`](projects.md#health_check) | Verify server status and authentication | 📖 |
+| [`health_check`](projects.md#health_check) | Verify server status and authentication. When authenticated, also reports the GitLab instance version from GET /api/v4/version (version, revision, enterprise). Version lookup failures do not fail the health check — those fields are omitted. | 📖 |
 
 ### [Projects & Files](repositories.md)
 
