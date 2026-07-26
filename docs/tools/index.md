@@ -17,7 +17,7 @@ directly from `TOOLSET_DEFINITIONS` in
 | Status | Groups |
 |---|---|
 | **Default** — always exposed | [Projects & Namespaces](projects.md), [Projects & Files](repositories.md), [Branches & Commits](branches.md), [Groups](groups.md), [Merge Requests](merge-requests.md), [Issues](issues.md), [Labels](labels.md), [CI Lint](ci.md), [Users & Events](users.md) |
-| **Opt-in** — must be enabled | [Work Items](workitems.md), [Pipelines, Jobs & Deployments](pipelines.md) (also `USE_PIPELINE=true`), [Milestones](milestones.md) (also `USE_MILESTONE=true`), [Wiki](wiki.md) (also `USE_GITLAB_WIKI=true`), [Releases](releases.md), [Tags](tags.md), [Variables](variables.md), [Webhooks](webhooks.md), [Search](search.md), [Dependency Proxy](dependency-proxy.md), [Meta & GraphQL](meta.md) |
+| **Opt-in** — must be enabled | [Work Items](workitems.md), [Pipelines, Jobs & Deployments](pipelines.md) (also `USE_PIPELINE=true`), [Milestones](milestones.md) (also `USE_MILESTONE=true`), [Wiki](wiki.md) (also `USE_GITLAB_WIKI=true`), [Releases](releases.md), [Tags](tags.md), [Variables](variables.md), [Webhooks](webhooks.md), [Search](search.md), [Dependency Proxy](dependency-proxy.md), [Vulnerabilities](vulnerabilities.md), [Meta & GraphQL](meta.md) |
 
 **How to enable opt-in groups** (any one is sufficient):
 
@@ -412,6 +412,19 @@ Inspect and manage the GitLab dependency proxy cache settings, blob storage, and
 | [`list_dependency_proxy_blobs`](dependency-proxy.md#list_dependency_proxy_blobs) | List cached dependency proxy blobs for a group | 📖 |
 | [`purge_dependency_proxy_cache`](dependency-proxy.md#purge_dependency_proxy_cache) | Schedule purge of all cached dependency proxy blobs for a group | ✏️ |
 
+### [Vulnerabilities](vulnerabilities.md)
+
+AI-assisted vulnerability triage — list findings, inspect details, dismiss with reason, or confirm for remediation. Backed by the GitLab GraphQL API; requires GitLab Ultimate. *(4 tools)*
+
+> Opt-in. Enable via `GITLAB_TOOLSETS=vulnerabilities` (or `GITLAB_TOOLSETS=all`), list individual tools in `GITLAB_TOOLS=`, or activate at runtime with the `discover_tools` MCP tool.
+
+| Tool | What it does | R/W |
+|---|---|:-:|
+| [`list_project_vulnerabilities`](vulnerabilities.md#list_project_vulnerabilities) | List vulnerabilities for a project with optional state, severity, and report type filters (GraphQL-backed, cursor pagination) | 📖 |
+| [`get_vulnerability`](vulnerabilities.md#get_vulnerability) | Get full details of a specific vulnerability | 📖 |
+| [`dismiss_vulnerability`](vulnerabilities.md#dismiss_vulnerability) | Dismiss a vulnerability with a reason (acceptable_risk, false_positive, used_in_tests, mitigating_control, not_applicable) and optional comment | ✏️ |
+| [`confirm_vulnerability`](vulnerabilities.md#confirm_vulnerability) | Confirm a vulnerability as a real finding requiring remediation | ✏️ |
+
 ### [Meta & GraphQL](meta.md)
 
 Server diagnostics, tool discovery, and the GraphQL escape hatch. *(2 tools)*
@@ -421,7 +434,7 @@ Server diagnostics, tool discovery, and the GraphQL escape hatch. *(2 tools)*
 | Tool | What it does | R/W |
 |---|---|:-:|
 | [`execute_graphql`](meta.md#execute_graphql) | Execute a GitLab GraphQL query | 📖 |
-| [`discover_tools`](meta.md#discover_tools) | Discover and activate additional tool categories for this session. Available categories: merge_requests, issues, repositories, branches, projects, labels, ci, groups, pipelines, milestones, wiki, releases, tags, users, workitems, webhooks, search, variables, dependency_proxy. Already-active categories are listed in the response. | 📖 |
+| [`discover_tools`](meta.md#discover_tools) | Discover and activate additional tool categories for this session. Available categories: merge_requests, issues, repositories, branches, projects, labels, ci, groups, pipelines, milestones, wiki, releases, tags, users, workitems, webhooks, search, variables, dependency_proxy, vulnerabilities. Already-active categories are listed in the response. | 📖 |
 
 ---
 

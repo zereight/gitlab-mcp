@@ -23,6 +23,7 @@ const REF_DIR = join(REPO_ROOT, "skills", "gitlab-mcp", "reference");
 
 // Response field names in reference docs — not MCP tools.
 const REFERENCE_FIELD_ALLOWLIST = new Set([
+  "after",
   "allow_multiple",
   "deleted_file",
   "excluded_file_patterns",
