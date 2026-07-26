@@ -80,7 +80,7 @@ npm install -g @zereight/mcp-gitlab
 
 示例使用 `zereight-mcp-gitlab`，这是比旧的 `mcp-gitlab` 更不容易冲突的别名。如果 MCP 客户端找不到它，请使用 `which zereight-mcp-gitlab` 输出的绝对路径。
 
-如果不想全局安装，请将 `npx` 固定到上一个稳定版本（即文档推荐的版本），例如 `npx -y @zereight/mcp-gitlab@2.1.41`。如果始终想使用最新版本，请改用 `npx -y @zereight/mcp-gitlab@latest`。有新版本发布时，服务器会在启动时通过 stderr 提示（可用 `GITLAB_DISABLE_VERSION_CHECK=true` 关闭）。
+如果不想全局安装，请将 `npx` 固定到上一个稳定版本（即文档推荐的版本），例如 `npx -y @zereight/mcp-gitlab@2.1.42`。如果始终想使用最新版本，请改用 `npx -y @zereight/mcp-gitlab@latest`。有新版本发布时，服务器会在启动时通过 stderr 提示（可用 `GITLAB_DISABLE_VERSION_CHECK=true` 关闭）。
 
 #### 使用 CLI 参数（适用于环境变量有问题的客户端）
 
@@ -479,7 +479,7 @@ node build/index.js
 对于支持 skill/instruction 加载的 AI 代理（Claude Code、GitHub Copilot、Cursor 等），[`skills/gitlab-mcp/`](./skills/gitlab-mcp/) 中提供了预构建 skill 文件。
 
 - **[SKILL.md](./skills/gitlab-mcp/SKILL.md)** — 核心指南，包含工具集概览、关键工作流和参数提示
-- **[reference/](./skills/gitlab-mcp/reference/)** — 代码审查、合并请求、议题和流水线的详细工作流文档
+- **[reference/](./skills/gitlab-mcp/reference/)** — 代码审查、合并请求、议题、流水线和漏洞分类的详细工作流文档
 
 使用 `skills` CLI 安装：
 
@@ -491,7 +491,7 @@ npx skills add zereight/gitlab-mcp --skill gitlab-mcp-skill
 
 ## 工具 🛠️
 
-完整工具列表请参考英文 README 的 [Tools 部分](./README.md#tools-%EF%B8%8F)。当前服务器提供合并请求、议题、流水线、部署、环境、制品、里程碑、Wiki、仓库、发布、用户、事件、work item、webhook、代码搜索和 GraphQL 执行相关工具。
+完整工具列表请参考英文 README 的 [Tools 部分](./README.md#tools-%EF%B8%8F)。当前服务器提供合并请求、议题、流水线、部署、环境、制品、里程碑、Wiki、仓库、发布、用户、事件、work item、webhook、代码搜索、CI/CD 变量、dependency proxy、漏洞分类和 GraphQL 执行相关工具。
 
 ### Wiki 页面标题与 slug
 

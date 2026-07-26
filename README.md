@@ -82,7 +82,7 @@ npm install -g @zereight/mcp-gitlab
 
 The examples use `zereight-mcp-gitlab`, a less collision-prone alias for the legacy `mcp-gitlab` binary. If your MCP client cannot find it, use the absolute path from `which zereight-mcp-gitlab`.
 
-No global install? Pin `npx` to the previous stable release (the version these docs recommend), for example `npx -y @zereight/mcp-gitlab@2.1.41`. If you always want the newest release, use `npx -y @zereight/mcp-gitlab@latest` instead. The server prints a notice to stderr on startup when a newer version is available (disable with `GITLAB_DISABLE_VERSION_CHECK=true`).
+No global install? Pin `npx` to the previous stable release (the version these docs recommend), for example `npx -y @zereight/mcp-gitlab@2.1.42`. If you always want the newest release, use `npx -y @zereight/mcp-gitlab@latest` instead. The server prints a notice to stderr on startup when a newer version is available (disable with `GITLAB_DISABLE_VERSION_CHECK=true`).
 
 #### Using CLI Arguments (for clients with env var issues)
 
@@ -525,7 +525,7 @@ No `headers` field is needed — Claude.ai obtains the token via OAuth automatic
 Pre-built skill files are available in [`skills/gitlab-mcp/`](./skills/gitlab-mcp/) for AI agents that support skill/instruction loading (Claude Code, GitHub Copilot, Cursor, etc.).
 
 - **[SKILL.md](./skills/gitlab-mcp/SKILL.md)** — Core guide (~800 tokens) with toolset overview, key workflows, and parameter hints
-- **[reference/](./skills/gitlab-mcp/reference/)** — Detailed workflow docs for code review, merge requests, issues, and pipelines
+- **[reference/](./skills/gitlab-mcp/reference/)** — Detailed workflow docs for code review, merge requests, issues, pipelines, and vulnerability triage
 
 Install with the `skills` CLI:
 

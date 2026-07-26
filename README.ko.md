@@ -80,7 +80,7 @@ npm install -g @zereight/mcp-gitlab
 
 예시는 기존 `mcp-gitlab`보다 충돌 가능성이 낮은 `zereight-mcp-gitlab` 별칭을 사용합니다. MCP 클라이언트가 찾지 못하면 `which zereight-mcp-gitlab`의 절대 경로를 사용하세요.
 
-전역 설치를 쓰지 않으려면 `npx -y @zereight/mcp-gitlab@2.1.41`처럼 직전 안정 버전(문서가 권장하는 버전)으로 고정하세요. 항상 최신 버전을 원하면 `npx -y @zereight/mcp-gitlab@latest`를 사용하세요. 새 버전이 나오면 서버가 시작 시 stderr로 알려줍니다(`GITLAB_DISABLE_VERSION_CHECK=true`로 비활성화 가능).
+전역 설치를 쓰지 않으려면 `npx -y @zereight/mcp-gitlab@2.1.42`처럼 직전 안정 버전(문서가 권장하는 버전)으로 고정하세요. 항상 최신 버전을 원하면 `npx -y @zereight/mcp-gitlab@latest`를 사용하세요. 새 버전이 나오면 서버가 시작 시 stderr로 알려줍니다(`GITLAB_DISABLE_VERSION_CHECK=true`로 비활성화 가능).
 
 #### CLI 인자 사용하기(환경 변수 문제가 있는 클라이언트용)
 
@@ -479,7 +479,7 @@ node build/index.js
 AI 에이전트가 skill/instruction 로딩을 지원하는 경우(Claude Code, GitHub Copilot, Cursor 등), [`skills/gitlab-mcp/`](./skills/gitlab-mcp/)에 미리 작성된 skill 파일을 사용할 수 있습니다.
 
 - **[SKILL.md](./skills/gitlab-mcp/SKILL.md)** — 도구셋 개요, 핵심 워크플로우, 파라미터 힌트를 담은 핵심 가이드
-- **[reference/](./skills/gitlab-mcp/reference/)** — 코드 리뷰, 머지 리퀘스트, 이슈, 파이프라인용 상세 워크플로우 문서
+- **[reference/](./skills/gitlab-mcp/reference/)** — 코드 리뷰, 머지 리퀘스트, 이슈, 파이프라인, 취약점 트리아지용 상세 워크플로우 문서
 
 `skills` CLI로 설치:
 
@@ -491,7 +491,7 @@ AI 클라이언트에 skill 디렉터리를 등록하면 전체 ListTools 응답
 
 ## 도구 🛠️
 
-전체 도구 목록은 영어 README의 [Tools 섹션](./README.md#tools-%EF%B8%8F)을 참고하세요. 현재 서버는 머지 리퀘스트, 이슈, 파이프라인, 배포, 환경, 아티팩트, 마일스톤, 위키, 저장소, 릴리스, 사용자, 이벤트, work item, 웹훅, 코드 검색, GraphQL 실행 도구를 제공합니다.
+전체 도구 목록은 영어 README의 [Tools 섹션](./README.md#tools-%EF%B8%8F)을 참고하세요. 현재 서버는 머지 리퀘스트, 이슈, 파이프라인, 배포, 환경, 아티팩트, 마일스톤, 위키, 저장소, 릴리스, 사용자, 이벤트, work item, 웹훅, 코드 검색, CI/CD 변수, dependency proxy, 취약점 트리아지, GraphQL 실행 도구를 제공합니다.
 
 ### Wiki 페이지 제목과 slug
 
