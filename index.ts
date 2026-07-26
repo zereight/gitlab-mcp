@@ -166,6 +166,10 @@ import { redactSensitiveGitLabFields } from "./utils/redact-sensitive.js";
 import { checkForNewVersion } from "./utils/version-check.js";
 import { assertGitLabVersionAtLeast } from "./utils/gitlab-version-gate.js";
 import {
+  parseGitLabVersionApiResponse,
+  type GitLabInstanceVersionMetadata,
+} from "./utils/gitlab-instance-version.js";
+import {
   buildBulkPublishDraftNotesBody,
   needsGitLab19_2BulkPublish,
   type BulkPublishDraftNotesBody,
@@ -6266,25 +6270,22 @@ async function publishDraftNote(
   }
 }
 
-async function fetchGitLabInstanceVersion(): Promise<string | null> {
+async function fetchGitLabVersionMetadata(): Promise<GitLabInstanceVersionMetadata | null> {
   try {
     const response = await fetch(`${getEffectiveApiUrl()}/version`, {
       ...getFetchConfig(),
     });
     if (!response.ok) return null;
     const data: unknown = await response.json();
-    if (
-      typeof data === "object" &&
-      data !== null &&
-      "version" in data &&
-      typeof data.version === "string"
-    ) {
-      return data.version;
-    }
-    return null;
+    return parseGitLabVersionApiResponse(data);
   } catch {
     return null;
   }
+}
+
+async function fetchGitLabInstanceVersion(): Promise<string | null> {
+  const metadata = await fetchGitLabVersionMetadata();
+  return metadata?.version ?? null;
 }
 
 /**
@@ -12818,6 +12819,9 @@ async function handleToolCall(params: any) {
           const jobResponse = await fetch(jobUrl.toString(), getFetchConfig());
           authenticated = jobResponse.ok;
         }
+        const versionMetadata = authenticated
+          ? await fetchGitLabVersionMetadata()
+          : null;
         return {
           content: [
             {
@@ -12826,6 +12830,7 @@ async function handleToolCall(params: any) {
                 status: authenticated ? "ok" : "error",
                 authenticated,
                 gitlab_url: getEffectiveApiUrl(),
+                ...(versionMetadata ?? {}),
               }),
             },
           ],

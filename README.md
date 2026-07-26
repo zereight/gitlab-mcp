@@ -700,7 +700,7 @@ Register the skill directory in your AI client to get optimal tool usage guidanc
 156. `list_group_iterations` - List group iterations with filtering options
 157. `upload_markdown` - Upload a file to a GitLab project for use in markdown content
 158. `download_attachment` - Download an uploaded file from a GitLab project by secret and filename
-159. `health_check` - Verify server status and authentication
+159. `health_check` - Verify server status and authentication; when authenticated, reports GitLab instance version from `/api/v4/version` (`version`, `revision`, `enterprise`)
 160. `list_events` - List all events for the currently authenticated user
 161. `get_project_events` - List all visible events for a specified project
 162. `list_releases` - List all releases for a project
