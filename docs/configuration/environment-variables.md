@@ -577,6 +577,20 @@ limits are separate upstream constraints.
 Monitor rejections via `/metrics` → `rejectedByRateLimit` or
 `gitlab_mcp_requests_rejected_total{reason="rate_limit"}`.
 
+### `OAUTH_REGISTER_RATE_LIMIT_PER_HOUR`
+
+Maximum client registration (`POST /register`) requests allowed per IP per
+rolling 1-hour window. Applies when `GITLAB_MCP_OAUTH=true`.
+
+Valid range: `1`-`1000`.
+
+Default:
+
+- `20`
+
+Raise this if legitimate MCP clients are being throttled during dynamic client
+registration, or lower it to harden against registration abuse.
+
 ### `MAX_SESSIONS`
 
 Maximum concurrent MCP sessions on a single server instance (Streamable HTTP /
