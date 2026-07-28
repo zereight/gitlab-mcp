@@ -1068,9 +1068,9 @@ function validateConfiguration(): void {
   // Validate OAUTH_REGISTER_RATE_LIMIT_PER_HOUR
   const registerRateLimitStr = process.env.OAUTH_REGISTER_RATE_LIMIT_PER_HOUR;
   if (registerRateLimitStr) {
-    const limit = Number.parseInt(registerRateLimitStr, 10);
-    if (Number.isNaN(limit) || limit < 1 || limit > 1000) {
-      errors.push(`OAUTH_REGISTER_RATE_LIMIT_PER_HOUR must be between 1 and 1000, got: ${registerRateLimitStr}`);
+    const limit = Number(registerRateLimitStr);
+    if (!Number.isInteger(limit) || limit < 1 || limit > 1000) {
+      errors.push(`OAUTH_REGISTER_RATE_LIMIT_PER_HOUR must be an integer between 1 and 1000, got: ${registerRateLimitStr}`);
     }
   }
 
@@ -13791,10 +13791,11 @@ async function startStreamableHTTPServer(): Promise<void> {
     // ERR_ERL_INVALID_IP_ADDRESS. Strip the port first, then delegate to
     // ipKeyGenerator for correct IPv6 subnet handling.
     const rateLimitOptions = { keyGenerator: mcpRateLimitKeyGenerator };
-    const OAUTH_REGISTER_RATE_LIMIT_PER_HOUR = Number.parseInt(
-      process.env.OAUTH_REGISTER_RATE_LIMIT_PER_HOUR || "20",
-      10
-    );
+    const parsedRegisterLimit = Number(process.env.OAUTH_REGISTER_RATE_LIMIT_PER_HOUR);
+    const OAUTH_REGISTER_RATE_LIMIT_PER_HOUR =
+      Number.isInteger(parsedRegisterLimit) && parsedRegisterLimit >= 1
+        ? parsedRegisterLimit
+        : 20;
     const clientRegistrationRateLimitOptions = {
       ...rateLimitOptions,
       windowMs: 60 * 60 * 1000, // 1 hour
