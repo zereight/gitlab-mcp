@@ -123,5 +123,6 @@ Enable with `GITLAB_TOOLSETS=vulnerabilities` (requires GitLab Ultimate).
 - **Dynamic discovery**: `discover_tools` lists and activates opt-in toolsets at runtime
 - **GraphQL**: `execute_graphql` for queries not covered by REST tools
 - **Tool docs**: `docs/tools/` is generated from `tools/registry.ts`; prefer it for exact schemas
+- **Remote MCP OAuth**: when `GITLAB_MCP_OAUTH=true`, `POST /register` (DCR) is rate-limited per client IP (default 20/hour via MCP SDK; tune with `OAUTH_REGISTER_RATE_LIMIT_PER_HOUR`). Separate from `MAX_REQUESTS_PER_MINUTE` and GitLab API quotas — see [environment-variables.md](../../docs/configuration/environment-variables.md#oauth_register_rate_limit_per_hour)
 - **Zoekt search**: `search_code`, `search_project_code`, `search_group_code` (requires advanced search enabled)
 - **Work Items**: GraphQL-based alternative to issues (Premium/Ultimate features)

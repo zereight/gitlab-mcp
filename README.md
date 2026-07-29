@@ -351,6 +351,7 @@ Commonly referenced variables:
 - `MCP_ALLOWED_ORIGINS`
 - `GITLAB_MCP_OAUTH`
 - `GITLAB_OAUTH_CALLBACK_PROXY`
+- `OAUTH_REGISTER_RATE_LIMIT_PER_HOUR`
 - `OAUTH_STATELESS_MODE`
 - `OAUTH_STATELESS_SECRET`
 
@@ -505,6 +506,7 @@ No `headers` field is needed — Claude.ai obtains the token via OAuth automatic
 | `GITLAB_API_URL`                            | Yes      | Your GitLab instance API URL (e.g. `https://gitlab.com/api/v4`)                                                                                                                                                     |
 | `STREAMABLE_HTTP`                           | Yes      | Must be `true` (SSE is not supported)                                                                                                                                                                               |
 | `GITLAB_OAUTH_SCOPES`                       | No       | Comma-separated GitLab scopes to request (e.g. `api,read_user`). Defaults to `api` (or `read_api` when `GITLAB_READ_ONLY_MODE=true`). The pre-registered application must be configured with at least these scopes. |
+| `OAUTH_REGISTER_RATE_LIMIT_PER_HOUR`        | No       | Per-IP rolling limit for Dynamic Client Registration (`POST /register`). Default `20`/hour; range `1`–`1000`. Raise when clients (e.g. multiple IDE windows) hit registration throttling. Not a GitLab API limit. |
 | `MCP_DANGEROUSLY_ALLOW_INSECURE_ISSUER_URL` | No       | Set `true` for local HTTP dev only                                                                                                                                                                                  |
 
 **Important Notes:**
@@ -514,6 +516,9 @@ No `headers` field is needed — Claude.ai obtains the token via OAuth automatic
 - Session timeout, rate limiting, and capacity limits apply identically to the
   `REMOTE_AUTHORIZATION` mode (`SESSION_TIMEOUT_SECONDS`, `MAX_REQUESTS_PER_MINUTE`,
   `MAX_SESSIONS`)
+- **DCR rate limiting:** `POST /register` is limited to `OAUTH_REGISTER_RATE_LIMIT_PER_HOUR`
+  per client IP (default 20/hour). Separate from `/mcp` limits and GitLab API quotas.
+  See [environment-variables.md](docs/configuration/environment-variables.md#oauth_register_rate_limit_per_hour).
 - **Header auth fallback:** when `Private-Token` or `JOB-TOKEN` request headers are
   present, OAuth validation is skipped and the raw token is used directly for that
   session. This allows PATs and CI job tokens to be used alongside the OAuth flow on

@@ -132,6 +132,7 @@ sequenceDiagram
 | State is not replayable | Deleted from pending store after `/callback` consumes it |
 | Error responses are sanitized | Generic messages to clients, details in server logs only |
 | Bounded memory | In-memory LRU cache, max 1000 entries |
+| DCR rate limit | `POST /register` limited per client IP (`OAUTH_REGISTER_RATE_LIMIT_PER_HOUR`, default 20/hour) |
 
 ## Configuration
 
@@ -141,6 +142,8 @@ GITLAB_MCP_OAUTH=true
 GITLAB_OAUTH_CALLBACK_PROXY=true
 MCP_SERVER_URL=https://mcp-server.example.com
 GITLAB_OAUTH_APP_ID=<app-id>
+# Optional: raise when many MCP clients register at once (e.g. multiple IDE windows)
+# OAUTH_REGISTER_RATE_LIMIT_PER_HOUR=50
 ```
 
 In GitLab Admin → Applications:

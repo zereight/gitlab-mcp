@@ -317,6 +317,7 @@ Authorization: Bearer glpat-xxxxxxxxxxxxxxxxxxxx
 - `MCP_ALLOWED_ORIGINS`
 - `GITLAB_MCP_OAUTH`
 - `GITLAB_OAUTH_CALLBACK_PROXY`
+- `OAUTH_REGISTER_RATE_LIMIT_PER_HOUR`
 - `OAUTH_STATELESS_MODE`
 - `OAUTH_STATELESS_SECRET`
 
@@ -465,6 +466,7 @@ node build/index.js
 | `GITLAB_API_URL`                            | 是   | GitLab 实例 API URL（例如 `https://gitlab.com/api/v4`）                                                                                  |
 | `STREAMABLE_HTTP`                           | 是   | 必须为 `true`（不支持 SSE）                                                                                                              |
 | `GITLAB_OAUTH_SCOPES`                       | 否   | 要请求的 GitLab scopes，以逗号分隔。默认值为 `api`，当 `GITLAB_READ_ONLY_MODE=true` 时为 `read_api`。预注册应用必须配置至少这些 scopes。 |
+| `OAUTH_REGISTER_RATE_LIMIT_PER_HOUR`        | 否   | Dynamic Client Registration（`POST /register`）的每客户端 IP rolling 限制。默认 `20`/小时，范围 `1`–`1000`。多个 IDE 窗口等导致注册被限流时可调高。与 GitLab API 限额无关。 |
 | `MCP_DANGEROUSLY_ALLOW_INSECURE_ISSUER_URL` | 否   | 仅用于本地 HTTP 开发                                                                                                                     |
 
 **重要说明：**
@@ -472,6 +474,7 @@ node build/index.js
 - MCP OAuth **仅适用于 Streamable HTTP 传输**（与 `SSE=true` 不兼容）。
 - 每个用户会话保存自己的 OAuth token，会话完全隔离。
 - 会话超时、rate limiting 和 capacity limit 与 `REMOTE_AUTHORIZATION` 模式相同（`SESSION_TIMEOUT_SECONDS`, `MAX_REQUESTS_PER_MINUTE`, `MAX_SESSIONS`）。
+- **DCR rate limiting：** `POST /register` 按客户端 IP 受 `OAUTH_REGISTER_RATE_LIMIT_PER_HOUR` 限制（默认 20/小时）。与 `/mcp` 限制及 GitLab API 配额无关。详见 [environment-variables.md](docs/configuration/environment-variables.md#oauth_register_rate_limit_per_hour)。
 - **请求头认证 fallback：** 当请求头中存在 `Private-Token` 或 `JOB-TOKEN` 时，会跳过 OAuth 验证，并直接将原始 token 用于该会话。这样可以在同一服务器实例中同时使用 OAuth 流程、PAT 和 CI job token。`Authorization: Bearer` 始终被视为 OAuth token。PAT 请求头认证请使用 `Private-Token`。
 
 ## Agent Skill Files

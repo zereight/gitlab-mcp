@@ -122,6 +122,9 @@ Default:
 
 Enables the server-side MCP OAuth proxy mode for remote MCP clients.
 
+Dynamic Client Registration (`POST /register`) is rate-limited per client IP;
+tune with `OAUTH_REGISTER_RATE_LIMIT_PER_HOUR` (default `20`/hour).
+
 ### `GITLAB_OAUTH_CALLBACK_PROXY`
 
 Set to `true` to make the MCP server handle GitLab's OAuth callback at
@@ -579,8 +582,8 @@ Monitor rejections via `/metrics` → `rejectedByRateLimit` or
 
 ### `OAUTH_REGISTER_RATE_LIMIT_PER_HOUR`
 
-Maximum client registration (`POST /register`) requests allowed per IP per
-rolling 1-hour window. Applies when `GITLAB_MCP_OAUTH=true`.
+Maximum client registration (`POST /register`) requests allowed per client IP
+per rolling 1-hour window. Applies when `GITLAB_MCP_OAUTH=true`.
 
 Valid range: `1`-`1000`.
 
@@ -589,7 +592,15 @@ Default:
 - `20`
 
 Raise this if legitimate MCP clients are being throttled during dynamic client
-registration, or lower it to harden against registration abuse.
+registration (for example multiple IDE windows each calling `POST /register`), or
+lower it to harden against registration abuse.
+
+Counts apply **per server process** (in-memory `express-rate-limit` store). In
+multi-instance deployments each replica maintains its own counter; use
+ingress-level limits when you need a strict global cap.
+
+Separate from `MAX_REQUESTS_PER_MINUTE` (`/mcp` and other OAuth routes) and
+from GitLab upstream API rate limits.
 
 ### `MAX_SESSIONS`
 
@@ -649,6 +660,7 @@ Maximum GitLab client pool size.
 - `REMOTE_AUTHORIZATION=true` or `GITLAB_MCP_OAUTH=true`
 - `MCP_TRUST_PROXY=true` (when behind a reverse proxy)
 - `MAX_REQUESTS_PER_MINUTE=300` (tune from metrics)
+- `OAUTH_REGISTER_RATE_LIMIT_PER_HOUR` (when `GITLAB_MCP_OAUTH=true`; raise if DCR `/register` returns 429)
 - `MCP_SERVER_URL` or `MCP_ALLOWED_HOSTS` (non-loopback public host)
 - `HOST`
 - `PORT`

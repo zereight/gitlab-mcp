@@ -317,6 +317,7 @@ Authorization: Bearer glpat-xxxxxxxxxxxxxxxxxxxx
 - `MCP_ALLOWED_ORIGINS`
 - `GITLAB_MCP_OAUTH`
 - `GITLAB_OAUTH_CALLBACK_PROXY`
+- `OAUTH_REGISTER_RATE_LIMIT_PER_HOUR`
 - `OAUTH_STATELESS_MODE`
 - `OAUTH_STATELESS_SECRET`
 
@@ -465,6 +466,7 @@ node build/index.js
 | `GITLAB_API_URL`                            | 예     | GitLab 인스턴스 API URL(예: `https://gitlab.com/api/v4`)                                                                                                                   |
 | `STREAMABLE_HTTP`                           | 예     | 반드시 `true`(SSE 미지원)                                                                                                                                                  |
 | `GITLAB_OAUTH_SCOPES`                       | 아니오 | 요청할 GitLab scope 목록(쉼표 구분). 기본값은 `api` 또는 `GITLAB_READ_ONLY_MODE=true`일 때 `read_api`입니다. 사전 등록 애플리케이션에 해당 scope가 설정되어 있어야 합니다. |
+| `OAUTH_REGISTER_RATE_LIMIT_PER_HOUR`        | 아니오 | Dynamic Client Registration(`POST /register`)의 클라이언트 IP당 rolling 한도. 기본 `20`/시간, 범위 `1`–`1000`. IDE 창 여러 개 등으로 등록이 막히면 올리세요. GitLab API 한도와 무관합니다. |
 | `MCP_DANGEROUSLY_ALLOW_INSECURE_ISSUER_URL` | 아니오 | 로컬 HTTP 개발에서만 `true`                                                                                                                                                |
 
 **중요 사항:**
@@ -472,6 +474,7 @@ node build/index.js
 - MCP OAuth는 **Streamable HTTP 전송에서만** 동작합니다(`SSE=true`와 호환되지 않음).
 - 각 사용자 세션은 자체 OAuth 토큰을 저장하며 완전히 격리됩니다.
 - 세션 타임아웃, rate limiting, capacity limit은 `REMOTE_AUTHORIZATION` 모드와 동일하게 적용됩니다(`SESSION_TIMEOUT_SECONDS`, `MAX_REQUESTS_PER_MINUTE`, `MAX_SESSIONS`).
+- **DCR rate limiting:** `POST /register`는 클라이언트 IP당 `OAUTH_REGISTER_RATE_LIMIT_PER_HOUR`로 제한됩니다(기본 20/시간). `/mcp` 한도 및 GitLab API quota와 별개입니다. [environment-variables.md](docs/configuration/environment-variables.md#oauth_register_rate_limit_per_hour) 참고.
 - **헤더 인증 fallback:** `Private-Token` 또는 `JOB-TOKEN` 요청 헤더가 있으면 OAuth 검증을 건너뛰고 raw token을 해당 세션에 직접 사용합니다. 같은 서버 인스턴스에서 OAuth 플로우와 함께 PAT 및 CI job token을 사용할 수 있습니다. `Authorization: Bearer`는 항상 OAuth token으로 처리됩니다. PAT 기반 헤더 인증에는 `Private-Token`을 사용하세요.
 
 ## Agent Skill Files
