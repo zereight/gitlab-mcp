@@ -56,6 +56,7 @@ jobs:
       - name: Open Homebrew formula PR
         uses: peter-evans/create-pull-request@v8
         with:
+          base: main
           branch: automation/homebrew-formula
           title: "chore(homebrew): sync formula for release"
           commit-message: "chore(homebrew): sync formula for release"
