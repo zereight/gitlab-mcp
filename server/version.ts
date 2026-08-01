@@ -17,7 +17,10 @@ export const SERVER_VERSION: string = (() => {
     try {
       if (fs.existsSync(packageJsonPath)) {
         const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, "utf8"));
-        return packageJson.version || "unknown";
+        const version = packageJson.version;
+        if (typeof version === "string" && version.length > 0) {
+          return version;
+        }
       }
     } catch {
       // Intentionally ignored: version read failure is non-critical.
