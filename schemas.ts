@@ -3387,6 +3387,23 @@ export const ListProjectMembersSchema = z.object({
   page: z.coerce.number().optional().describe("Page number for pagination (default: 1)"),
 });
 
+// Schema for listing group members
+export const ListGroupMembersSchema = z.object({
+  group_id: z.string().describe("Group ID or URL-encoded path"),
+  query: z.string().optional().describe("Search for members by name or username"),
+  user_ids: z.array(z.coerce.number()).optional().describe("Filter by user IDs"),
+  skip_users: z.array(z.coerce.number()).optional().describe("User IDs to exclude"),
+  include_inheritance: z.coerce
+    .boolean()
+    .optional()
+    .describe("Include inherited members. Defaults to false."),
+  per_page: z.coerce
+    .number()
+    .optional()
+    .describe("Number of items per page (default: 20, max: 100)"),
+  page: z.coerce.number().optional().describe("Page number for pagination (default: 1)"),
+});
+
 // Schema for GitLab project member
 export const GitLabProjectMemberSchema = z.object({
   id: z.coerce.number(),
@@ -3713,6 +3730,7 @@ export type ListCommitStatusesOptions = z.infer<typeof ListCommitStatusesSchema>
 export type CreateCommitStatusOptions = z.infer<typeof CreateCommitStatusSchema>;
 export type MyIssuesOptions = z.infer<typeof MyIssuesSchema>;
 export type ListProjectMembersOptions = z.infer<typeof ListProjectMembersSchema>;
+export type ListGroupMembersOptions = z.infer<typeof ListGroupMembersSchema>;
 export type GitLabProjectMember = z.infer<typeof GitLabProjectMemberSchema>;
 export type GroupIteration = z.infer<typeof GroupIteration>;
 export type ListGroupIterationsOptions = z.infer<typeof ListGroupIterationsSchema>;

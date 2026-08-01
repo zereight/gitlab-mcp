@@ -5,7 +5,7 @@ description: Use this skill when working with the GitLab MCP server tools for me
 
 # gitlab-mcp
 
-GitLab MCP server providing 216 tools: 214 tools across 20 toolsets, plus `execute_graphql` and the always-available `discover_tools` meta-tool.
+GitLab MCP server providing 217 tools: 215 tools across 20 toolsets, plus `execute_graphql` and the always-available `discover_tools` meta-tool.
 
 For exact generated parameter tables, see `docs/tools/`. Use this file for workflow shape and high-signal parameter hints.
 
@@ -17,7 +17,7 @@ For exact generated parameter tables, see `docs/tools/`. Use this file for workf
 | issues (24 tools) | yes | - |
 | repositories (7 tools) | yes | - |
 | branches (15 tools) | yes | - |
-| projects (10 tools) | yes | - |
+| projects (11 tools) | yes | - |
 | labels (5 tools) | yes | - |
 | ci (4 tools) | yes | - |
 | groups (1 tool) | yes | - |
@@ -58,6 +58,7 @@ Use `update_issue_description_patch` for small edits to long issue descriptions 
 ### Projects & Namespaces
 
 - `get_project`, `list_projects`, `update_project` - inspect or change project settings
+- `list_project_members`, `list_group_members` - search members by name or username within a project or group
 - `list_namespaces`, `get_namespace`, `verify_namespace` - find target namespaces before creating projects/groups
 - `verify_namespace.parent_id` scopes nested namespace checks
 - `create_repository.namespace_id` creates a project under a group namespace
