@@ -8,6 +8,7 @@ Project/namespace listing, member queries, group iterations, and server health.
 - [`list_projects`](#list_projects) — 📖 Read-only
 - [`update_project`](#update_project) — ✏️ Writes
 - [`list_project_members`](#list_project_members) — 📖 Read-only
+- [`list_group_members`](#list_group_members) — 📖 Read-only
 - [`list_namespaces`](#list_namespaces) — 📖 Read-only
 - [`get_namespace`](#get_namespace) — 📖 Read-only
 - [`verify_namespace`](#verify_namespace) — 📖 Read-only
@@ -100,6 +101,24 @@ List members of a GitLab project
 | Parameter | Type | Required | Description |
 |---|---|:-:|---|
 | `project_id` | string | ✓ | Project ID or URL-encoded path |
+| `query` | string |  | Search for members by name or username |
+| `user_ids` | array<number> |  | Filter by user IDs |
+| `skip_users` | array<number> |  | User IDs to exclude |
+| `include_inheritance` | boolean |  | Include inherited members. Defaults to false. |
+| `per_page` | number |  | Number of items per page (default: 20, max: 100) |
+| `page` | number |  | Page number for pagination (default: 1) |
+
+### `list_group_members`
+
+*📖 Read-only*
+
+List members of a GitLab group with optional name or username search
+
+**Parameters**
+
+| Parameter | Type | Required | Description |
+|---|---|:-:|---|
+| `group_id` | string | ✓ | Group ID or URL-encoded path |
 | `query` | string |  | Search for members by name or username |
 | `user_ids` | array<number> |  | Filter by user IDs |
 | `skip_users` | array<number> |  | User IDs to exclude |

@@ -450,6 +450,8 @@ import {
   GetCiCatalogResourceSchema,
   type ListProjectMembersOptions,
   ListProjectMembersSchema,
+  type ListGroupMembersOptions,
+  ListGroupMembersSchema,
   ListProjectMilestonesSchema,
   ListGroupMilestonesSchema,
   ListProjectsSchema,
@@ -8681,6 +8683,41 @@ async function listProjectMembers(
 }
 
 /**
+ * List members of a GitLab group
+ * GitLab 그룹 멤버 목록 조회
+ *
+ * @param {string} groupId - Group ID or URL-encoded path
+ * @param {Omit<ListGroupMembersOptions, "group_id">} options - Options for filtering members
+ * @returns {Promise<GitLabProjectMember[]>} List of group members
+ */
+async function listGroupMembers(
+  groupId: string,
+  options: Omit<ListGroupMembersOptions, "group_id"> = {}
+): Promise<GitLabProjectMember[]> {
+  groupId = decodeURIComponent(groupId);
+  const membersPath = options.include_inheritance ? "members/all" : "members";
+  const url = new URL(
+    `${getEffectiveApiUrl()}/groups/${encodeURIComponent(groupId)}/${membersPath}`
+  );
+
+  if (options.query) url.searchParams.append("query", options.query);
+  if (options.user_ids) {
+    options.user_ids.forEach(id => url.searchParams.append("user_ids[]", id.toString()));
+  }
+  if (options.skip_users) {
+    options.skip_users.forEach(id => url.searchParams.append("skip_users[]", id.toString()));
+  }
+  if (options.per_page) url.searchParams.append("per_page", options.per_page.toString());
+  if (options.page) url.searchParams.append("page", options.page.toString());
+
+  const response = await fetch(url.toString(), getFetchConfig());
+
+  await handleGitLabError(response);
+  const data = await response.json();
+  return z.array(GitLabProjectMemberSchema).parse(data);
+}
+
+/**
  * list group iterations
  *
  * @param {string} groupId
@@ -10881,6 +10918,15 @@ async function handleToolCall(params: any) {
         const args = ListProjectMembersSchema.parse(params.arguments);
         const { project_id, ...options } = args;
         const members = await listProjectMembers(project_id, options);
+        return {
+          content: [{ type: "text", text: JSON.stringify(members) }],
+        };
+      }
+
+      case "list_group_members": {
+        const args = ListGroupMembersSchema.parse(params.arguments);
+        const { group_id, ...options } = args;
+        const members = await listGroupMembers(group_id, options);
         return {
           content: [{ type: "text", text: JSON.stringify(members) }],
         };

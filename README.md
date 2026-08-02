@@ -635,134 +635,135 @@ Register the skill directory in your AI client to get optimal tool usage guidanc
 86. `list_projects` - List projects accessible by the current user
 87. `update_project` - Update project settings such as description, visibility, default branch, and feature access levels
 88. `list_project_members` - List members of a GitLab project
-89. `list_labels` - List labels for a project
-90. `get_label` - Get a single label from a project
-91. `create_label` - Create a new label in a project
-92. `update_label` - Update an existing label in a project
-93. `delete_label` - Delete a label from a project
-94. `list_group_projects` - List projects in a GitLab group with filtering options
-95. `list_wiki_pages` - List wiki pages in a GitLab project
-96. `get_wiki_page` - Get details of a specific wiki page
-97. `create_wiki_page` - Create a new wiki page in a GitLab project
-98. `update_wiki_page` - Update an existing wiki page in a GitLab project
-99. `delete_wiki_page` - Delete a wiki page from a GitLab project
-100. `list_group_wiki_pages` - List wiki pages in a GitLab group
-101. `get_group_wiki_page` - Get details of a specific group wiki page
-102. `create_group_wiki_page` - Create a new wiki page in a GitLab group
-103. `update_group_wiki_page` - Update an existing wiki page in a GitLab group
-104. `delete_group_wiki_page` - Delete a wiki page from a GitLab group
-105. `get_repository_tree` - Get the repository tree for a GitLab project (list files and directories)
-106. `list_pipelines` - List pipelines in a GitLab project with filtering options
-107. `get_pipeline` - Get details of a specific pipeline in a GitLab project
-108. `list_deployments` - List deployments in a GitLab project with filtering options
-109. `get_deployment` - Get details of a specific deployment in a GitLab project
-110. `list_environments` - List environments in a GitLab project
-111. `get_environment` - Get details of a specific environment in a GitLab project
-112. `list_pipeline_jobs` - List all jobs in a specific pipeline
-113. `list_pipeline_trigger_jobs` - List all trigger jobs (bridges) in a specific pipeline that trigger downstream pipelines
-114. `get_pipeline_job` - Get details of a GitLab pipeline job number
-115. `get_pipeline_job_output` - Get the output/trace of a GitLab pipeline job with optional pagination to limit context window usage
-116. `validate_ci_lint` - Validate provided GitLab CI/CD YAML content for a project
-117. `validate_project_ci_lint` - Validate an existing `.gitlab-ci.yml` configuration for a project
-118. `list_ci_catalog_resources` - List GitLab CI/CD Catalog resources/components visible to the user
-119. `get_ci_catalog_resource` - Get details for a GitLab CI/CD Catalog resource, including versions and components
-120. `create_pipeline` - Create a new pipeline for a branch or tag
-121. `retry_pipeline` - Retry a failed or canceled pipeline
-122. `cancel_pipeline` - Cancel a running pipeline
-123. `play_pipeline_job` - Run a manual pipeline job
-124. `retry_pipeline_job` - Retry a failed or canceled pipeline job
-125. `cancel_pipeline_job` - Cancel a running pipeline job
-126. `list_job_artifacts` - List artifact files in a job's artifacts archive. Returns file names, paths, types, and sizes
-127. `download_job_artifacts` - Download the entire artifact archive (zip) for a job to a local path. Returns the saved file path
-128. `get_job_artifact_file` - Get the content of a single file from a job's artifacts by its path within the archive
-129. `list_merge_requests` - List merge requests globally or in a specific GitLab project with filtering options (project_id is now optional)
-130. `list_milestones` - List milestones in a GitLab project with filtering options
-131. `get_milestone` - Get details of a specific milestone
-132. `create_milestone` - Create a new milestone in a GitLab project
-133. `edit_milestone` - Edit an existing milestone in a GitLab project
-134. `delete_milestone` - Delete a milestone from a GitLab project
-135. `get_milestone_issue` - Get issues associated with a specific milestone
-136. `get_milestone_merge_requests` - Get merge requests associated with a specific milestone
-137. `promote_milestone` - Promote a milestone to the next stage
-138. `get_milestone_burndown_events` - Get burndown events for a specific milestone
-139. `list_group_milestones` - List milestones in a GitLab group with filtering options
-140. `get_group_milestone` - Get details of a specific group milestone
-141. `create_group_milestone` - Create a new milestone in a GitLab group
-142. `edit_group_milestone` - Edit an existing group milestone
-143. `delete_group_milestone` - Delete a milestone from a GitLab group
-144. `get_group_milestone_issue` - Get issues associated with a specific group milestone
-145. `get_group_milestone_merge_requests` - Get merge requests associated with a specific group milestone
-146. `get_group_milestone_burndown_events` - Get burndown events for a specific group milestone
-147. `get_users` - Get GitLab user details by usernames
-148. `get_user` - Get user details by ID
-149. `whoami` - Get current authenticated user details
-150. `list_commits` - List repository commits with filtering options
-151. `get_commit` - Get details of a specific commit
-152. `get_commit_diff` - Get changes/diffs of a specific commit
-153. `get_file_blame` - Get git blame for a file at a given ref. Each entry maps a contiguous range of source lines to the commit that last changed them (id, author, authored_date, message). Use range_start/range_end to limit blame to specific lines.
-154. `list_commit_statuses` - List statuses for a specific commit
-155. `create_commit_status` - Create or update the status of a specific commit
-156. `list_group_iterations` - List group iterations with filtering options
-157. `upload_markdown` - Upload a file to a GitLab project for use in markdown content
-158. `download_attachment` - Download an uploaded file from a GitLab project by secret and filename
-159. `health_check` - Verify server status and authentication; when authenticated, reports GitLab instance version from `/api/v4/version` (`version`, `revision`, `enterprise`)
-160. `list_events` - List all events for the currently authenticated user
-161. `get_project_events` - List all visible events for a specified project
-162. `list_releases` - List all releases for a project
-163. `get_release` - Get a release by tag name
-164. `create_release` - Create a new release in a GitLab project
-165. `update_release` - Update an existing release in a GitLab project
-166. `delete_release` - Delete a release from a GitLab project (does not delete the associated tag)
-167. `create_release_evidence` - Create release evidence for an existing release (GitLab Premium/Ultimate only)
-168. `download_release_asset` - Download a release asset file by direct asset path
-169. `list_tags` - List repository tags with filtering and pagination support
-170. `get_tag` - Get details of a specific repository tag
-171. `create_tag` - Create a new tag in the repository
-172. `delete_tag` - Delete a tag from the repository
-173. `get_tag_signature` - Get the signature of a signed tag
-174. `get_work_item` - Get a single work item with full details including status, hierarchy (parent/children), type, labels, assignees, and all widgets
-175. `list_work_items` - List work items in a project with filters (type, state, search, assignees, labels). Returns items with status and hierarchy info
-176. `create_work_item` - Create a new work item (issue, task, incident, test_case, epic, key_result, objective, requirement, ticket). Supports setting title, description, labels, assignees, weight, parent, health status, start/due dates, milestone, and confidentiality
-177. `update_work_item` - Update a work item. Can modify title, description, labels, assignees, weight, state, status, parent hierarchy, children, health status, start/due dates, milestone, confidentiality, linked items, and custom fields
-178. `convert_work_item_type` - Convert a work item to a different type (e.g. issue to task, task to incident)
-179. `list_work_item_statuses` - List available statuses for a work item type in a project. Requires GitLab Premium/Ultimate with configurable statuses
-180. `list_custom_field_definitions` - List available custom field definitions for a work item type in a project. Returns field names, types, and IDs needed for setting custom fields via update_work_item
-181. `move_work_item` - Move a work item (issue, task, etc.) to a different project. Uses GitLab GraphQL issueMove mutation
-182. `list_work_item_notes` - List notes and discussions on a work item. Returns threaded discussions with author, body, timestamps, and system/internal flags
-183. `create_work_item_note` - Add a note/comment to a work item. Supports Markdown, internal notes, and threaded replies
-184. `list_work_item_emoji_reactions` - List all emoji reactions on a work item
-185. `list_work_item_note_emoji_reactions` - List all emoji reactions on a work item note (comment, thread, or thread reply)
-186. `create_work_item_emoji_reaction` - Add an emoji reaction to a work item (e.g. thumbsup, rocket, eyes)
-187. `delete_work_item_emoji_reaction` - Remove an emoji reaction from a work item
-188. `create_work_item_note_emoji_reaction` - Add an emoji reaction to a work item note (comment, thread, or thread reply)
-189. `delete_work_item_note_emoji_reaction` - Remove an emoji reaction from a work item note (comment, thread, or thread reply)
-190. `get_timeline_events` - List timeline events for an incident. Returns chronological events with notes, timestamps, and tags
-191. `create_timeline_event` - Create a timeline event on an incident. Supports tags: 'Start time', 'End time', 'Impact detected', 'Response initiated', 'Impact mitigated', 'Cause identified'
-192. `list_webhooks` - List all configured webhooks for a GitLab project or group. Provide either project_id or group_id
-193. `list_webhook_events` - List recent webhook events (past 7 days) for a project or group webhook. Use summary mode for overview, then get_webhook_event for full details
-194. `get_webhook_event` - Get full details of a specific webhook event by ID, including request/response payloads
-195. `search_code` - Search for code across all projects on the GitLab instance (requires advanced search or exact code search to be enabled)
-196. `search_project_code` - Search for code within a specific GitLab project (requires advanced search or exact code search to be enabled)
-197. `search_group_code` - Search for code within a specific GitLab group (requires advanced search or exact code search to be enabled)
-198. `list_project_variables` - List CI/CD variables for a project with optional environment scope filter
-199. `get_project_variable` - Get a single CI/CD variable from a project by key, with optional environment scope filter
-200. `create_project_variable` - Create a new CI/CD variable in a project
-201. `update_project_variable` - Update an existing CI/CD variable in a project, with optional filter to disambiguate by environment scope
-202. `delete_project_variable` - Delete a CI/CD variable from a project, with optional filter to disambiguate by environment scope
-203. `list_group_variables` - List CI/CD variables for a group with optional environment scope filter
-204. `get_group_variable` - Get a single CI/CD variable from a group by key, with optional environment scope filter
-205. `create_group_variable` - Create a new CI/CD variable in a group
-206. `update_group_variable` - Update an existing CI/CD variable in a group, with optional filter to disambiguate by environment scope
-207. `delete_group_variable` - Delete a CI/CD variable from a group, with optional filter to disambiguate by environment scope
-208. `get_dependency_proxy_settings` - Get dependency proxy settings for a group (enabled status, blob count, total size, image prefix, TTL policy)
-209. `update_dependency_proxy_settings` - Update dependency proxy settings for a group (enable/disable, credentials for authenticated Docker Hub pulls)
-210. `list_dependency_proxy_blobs` - List cached dependency proxy blobs for a group with cursor-based pagination
-211. `purge_dependency_proxy_cache` - Schedule purge of all cached dependency proxy blobs for a group
-212. `list_project_vulnerabilities` - List vulnerabilities for a project with optional state, severity, and report type filters (GraphQL-backed, cursor pagination)
-213. `get_vulnerability` - Get full details of a specific vulnerability
-214. `dismiss_vulnerability` - Dismiss a vulnerability with a reason (acceptable_risk, false_positive, used_in_tests, mitigating_control, not_applicable) and optional comment
-215. `confirm_vulnerability` - Confirm a vulnerability as a real finding requiring remediation
-216. `discover_tools` - Discover and activate additional tool categories for this session. Available categories: merge_requests, issues, repositories, branches, projects, labels, ci, groups, pipelines, milestones, wiki, releases, tags, users, workitems, webhooks, search, variables, dependency_proxy, vulnerabilities. Already-active categories are listed in the response.
+89. `list_group_members` - List members of a GitLab group with optional name or username search
+90. `list_labels` - List labels for a project
+91. `get_label` - Get a single label from a project
+92. `create_label` - Create a new label in a project
+93. `update_label` - Update an existing label in a project
+94. `delete_label` - Delete a label from a project
+95. `list_group_projects` - List projects in a GitLab group with filtering options
+96. `list_wiki_pages` - List wiki pages in a GitLab project
+97. `get_wiki_page` - Get details of a specific wiki page
+98. `create_wiki_page` - Create a new wiki page in a GitLab project
+99. `update_wiki_page` - Update an existing wiki page in a GitLab project
+100. `delete_wiki_page` - Delete a wiki page from a GitLab project
+101. `list_group_wiki_pages` - List wiki pages in a GitLab group
+102. `get_group_wiki_page` - Get details of a specific group wiki page
+103. `create_group_wiki_page` - Create a new wiki page in a GitLab group
+104. `update_group_wiki_page` - Update an existing wiki page in a GitLab group
+105. `delete_group_wiki_page` - Delete a wiki page from a GitLab group
+106. `get_repository_tree` - Get the repository tree for a GitLab project (list files and directories)
+107. `list_pipelines` - List pipelines in a GitLab project with filtering options
+108. `get_pipeline` - Get details of a specific pipeline in a GitLab project
+109. `list_deployments` - List deployments in a GitLab project with filtering options
+110. `get_deployment` - Get details of a specific deployment in a GitLab project
+111. `list_environments` - List environments in a GitLab project
+112. `get_environment` - Get details of a specific environment in a GitLab project
+113. `list_pipeline_jobs` - List all jobs in a specific pipeline
+114. `list_pipeline_trigger_jobs` - List all trigger jobs (bridges) in a specific pipeline that trigger downstream pipelines
+115. `get_pipeline_job` - Get details of a GitLab pipeline job number
+116. `get_pipeline_job_output` - Get the output/trace of a GitLab pipeline job with optional pagination to limit context window usage
+117. `validate_ci_lint` - Validate provided GitLab CI/CD YAML content for a project
+118. `validate_project_ci_lint` - Validate an existing `.gitlab-ci.yml` configuration for a project
+119. `list_ci_catalog_resources` - List GitLab CI/CD Catalog resources/components visible to the user
+120. `get_ci_catalog_resource` - Get details for a GitLab CI/CD Catalog resource, including versions and components
+121. `create_pipeline` - Create a new pipeline for a branch or tag
+122. `retry_pipeline` - Retry a failed or canceled pipeline
+123. `cancel_pipeline` - Cancel a running pipeline
+124. `play_pipeline_job` - Run a manual pipeline job
+125. `retry_pipeline_job` - Retry a failed or canceled pipeline job
+126. `cancel_pipeline_job` - Cancel a running pipeline job
+127. `list_job_artifacts` - List artifact files in a job's artifacts archive. Returns file names, paths, types, and sizes
+128. `download_job_artifacts` - Download the entire artifact archive (zip) for a job to a local path. Returns the saved file path
+129. `get_job_artifact_file` - Get the content of a single file from a job's artifacts by its path within the archive
+130. `list_merge_requests` - List merge requests globally or in a specific GitLab project with filtering options (project_id is now optional)
+131. `list_milestones` - List milestones in a GitLab project with filtering options
+132. `get_milestone` - Get details of a specific milestone
+133. `create_milestone` - Create a new milestone in a GitLab project
+134. `edit_milestone` - Edit an existing milestone in a GitLab project
+135. `delete_milestone` - Delete a milestone from a GitLab project
+136. `get_milestone_issue` - Get issues associated with a specific milestone
+137. `get_milestone_merge_requests` - Get merge requests associated with a specific milestone
+138. `promote_milestone` - Promote a milestone to the next stage
+139. `get_milestone_burndown_events` - Get burndown events for a specific milestone
+140. `list_group_milestones` - List milestones in a GitLab group with filtering options
+141. `get_group_milestone` - Get details of a specific group milestone
+142. `create_group_milestone` - Create a new milestone in a GitLab group
+143. `edit_group_milestone` - Edit an existing group milestone
+144. `delete_group_milestone` - Delete a milestone from a GitLab group
+145. `get_group_milestone_issue` - Get issues associated with a specific group milestone
+146. `get_group_milestone_merge_requests` - Get merge requests associated with a specific group milestone
+147. `get_group_milestone_burndown_events` - Get burndown events for a specific group milestone
+148. `get_users` - Get GitLab user details by usernames
+149. `get_user` - Get user details by ID
+150. `whoami` - Get current authenticated user details
+151. `list_commits` - List repository commits with filtering options
+152. `get_commit` - Get details of a specific commit
+153. `get_commit_diff` - Get changes/diffs of a specific commit
+154. `get_file_blame` - Get git blame for a file at a given ref. Each entry maps a contiguous range of source lines to the commit that last changed them (id, author, authored_date, message). Use range_start/range_end to limit blame to specific lines.
+155. `list_commit_statuses` - List statuses for a specific commit
+156. `create_commit_status` - Create or update the status of a specific commit
+157. `list_group_iterations` - List group iterations with filtering options
+158. `upload_markdown` - Upload a file to a GitLab project for use in markdown content
+159. `download_attachment` - Download an uploaded file from a GitLab project by secret and filename
+160. `health_check` - Verify server status and authentication; when authenticated, reports GitLab instance version from `/api/v4/version` (`version`, `revision`, `enterprise`)
+161. `list_events` - List all events for the currently authenticated user
+162. `get_project_events` - List all visible events for a specified project
+163. `list_releases` - List all releases for a project
+164. `get_release` - Get a release by tag name
+165. `create_release` - Create a new release in a GitLab project
+166. `update_release` - Update an existing release in a GitLab project
+167. `delete_release` - Delete a release from a GitLab project (does not delete the associated tag)
+168. `create_release_evidence` - Create release evidence for an existing release (GitLab Premium/Ultimate only)
+169. `download_release_asset` - Download a release asset file by direct asset path
+170. `list_tags` - List repository tags with filtering and pagination support
+171. `get_tag` - Get details of a specific repository tag
+172. `create_tag` - Create a new tag in the repository
+173. `delete_tag` - Delete a tag from the repository
+174. `get_tag_signature` - Get the signature of a signed tag
+175. `get_work_item` - Get a single work item with full details including status, hierarchy (parent/children), type, labels, assignees, and all widgets
+176. `list_work_items` - List work items in a project with filters (type, state, search, assignees, labels). Returns items with status and hierarchy info
+177. `create_work_item` - Create a new work item (issue, task, incident, test_case, epic, key_result, objective, requirement, ticket). Supports setting title, description, labels, assignees, weight, parent, health status, start/due dates, milestone, and confidentiality
+178. `update_work_item` - Update a work item. Can modify title, description, labels, assignees, weight, state, status, parent hierarchy, children, health status, start/due dates, milestone, confidentiality, linked items, and custom fields
+179. `convert_work_item_type` - Convert a work item to a different type (e.g. issue to task, task to incident)
+180. `list_work_item_statuses` - List available statuses for a work item type in a project. Requires GitLab Premium/Ultimate with configurable statuses
+181. `list_custom_field_definitions` - List available custom field definitions for a work item type in a project. Returns field names, types, and IDs needed for setting custom fields via update_work_item
+182. `move_work_item` - Move a work item (issue, task, etc.) to a different project. Uses GitLab GraphQL issueMove mutation
+183. `list_work_item_notes` - List notes and discussions on a work item. Returns threaded discussions with author, body, timestamps, and system/internal flags
+184. `create_work_item_note` - Add a note/comment to a work item. Supports Markdown, internal notes, and threaded replies
+185. `list_work_item_emoji_reactions` - List all emoji reactions on a work item
+186. `list_work_item_note_emoji_reactions` - List all emoji reactions on a work item note (comment, thread, or thread reply)
+187. `create_work_item_emoji_reaction` - Add an emoji reaction to a work item (e.g. thumbsup, rocket, eyes)
+188. `delete_work_item_emoji_reaction` - Remove an emoji reaction from a work item
+189. `create_work_item_note_emoji_reaction` - Add an emoji reaction to a work item note (comment, thread, or thread reply)
+190. `delete_work_item_note_emoji_reaction` - Remove an emoji reaction from a work item note (comment, thread, or thread reply)
+191. `get_timeline_events` - List timeline events for an incident. Returns chronological events with notes, timestamps, and tags
+192. `create_timeline_event` - Create a timeline event on an incident. Supports tags: 'Start time', 'End time', 'Impact detected', 'Response initiated', 'Impact mitigated', 'Cause identified'
+193. `list_webhooks` - List all configured webhooks for a GitLab project or group. Provide either project_id or group_id
+194. `list_webhook_events` - List recent webhook events (past 7 days) for a project or group webhook. Use summary mode for overview, then get_webhook_event for full details
+195. `get_webhook_event` - Get full details of a specific webhook event by ID, including request/response payloads
+196. `search_code` - Search for code across all projects on the GitLab instance (requires advanced search or exact code search to be enabled)
+197. `search_project_code` - Search for code within a specific GitLab project (requires advanced search or exact code search to be enabled)
+198. `search_group_code` - Search for code within a specific GitLab group (requires advanced search or exact code search to be enabled)
+199. `list_project_variables` - List CI/CD variables for a project with optional environment scope filter
+200. `get_project_variable` - Get a single CI/CD variable from a project by key, with optional environment scope filter
+201. `create_project_variable` - Create a new CI/CD variable in a project
+202. `update_project_variable` - Update an existing CI/CD variable in a project, with optional filter to disambiguate by environment scope
+203. `delete_project_variable` - Delete a CI/CD variable from a project, with optional filter to disambiguate by environment scope
+204. `list_group_variables` - List CI/CD variables for a group with optional environment scope filter
+205. `get_group_variable` - Get a single CI/CD variable from a group by key, with optional environment scope filter
+206. `create_group_variable` - Create a new CI/CD variable in a group
+207. `update_group_variable` - Update an existing CI/CD variable in a group, with optional filter to disambiguate by environment scope
+208. `delete_group_variable` - Delete a CI/CD variable from a group, with optional filter to disambiguate by environment scope
+209. `get_dependency_proxy_settings` - Get dependency proxy settings for a group (enabled status, blob count, total size, image prefix, TTL policy)
+210. `update_dependency_proxy_settings` - Update dependency proxy settings for a group (enable/disable, credentials for authenticated Docker Hub pulls)
+211. `list_dependency_proxy_blobs` - List cached dependency proxy blobs for a group with cursor-based pagination
+212. `purge_dependency_proxy_cache` - Schedule purge of all cached dependency proxy blobs for a group
+213. `list_project_vulnerabilities` - List vulnerabilities for a project with optional state, severity, and report type filters (GraphQL-backed, cursor pagination)
+214. `get_vulnerability` - Get full details of a specific vulnerability
+215. `dismiss_vulnerability` - Dismiss a vulnerability with a reason (acceptable_risk, false_positive, used_in_tests, mitigating_control, not_applicable) and optional comment
+216. `confirm_vulnerability` - Confirm a vulnerability as a real finding requiring remediation
+217. `discover_tools` - Discover and activate additional tool categories for this session. Available categories: merge_requests, issues, repositories, branches, projects, labels, ci, groups, pipelines, milestones, wiki, releases, tags, users, workitems, webhooks, search, variables, dependency_proxy, vulnerabilities. Already-active categories are listed in the response.
 
 <!-- TOOLS-END -->
 
