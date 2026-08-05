@@ -7,6 +7,7 @@ const MOCK_TOKEN = "glpat-mock-token-approval";
 const TEST_PROJECT_ID = "123";
 const TEST_MR_IID_WITH_FALLBACK = "88";
 const TEST_MR_IID_WITH_APPROVAL_STATE = "89";
+const TEST_MR_IID_WITHOUT_RULES = "90";
 
 async function callTool(
   toolName: string,
@@ -160,6 +161,43 @@ describe("merge request approval state tools", () => {
       }
     );
 
+    // A project without approval rules answers 200 with an empty rules array, while
+    // the approval itself is only visible on /approvals.
+    mockGitLab.addMockHandler(
+      "get",
+      `/projects/${TEST_PROJECT_ID}/merge_requests/${TEST_MR_IID_WITHOUT_RULES}/approval_state`,
+      (_req, res) => {
+        res.json({
+          approval_rules_overwritten: false,
+          rules: [],
+        });
+      }
+    );
+
+    mockGitLab.addMockHandler(
+      "get",
+      `/projects/${TEST_PROJECT_ID}/merge_requests/${TEST_MR_IID_WITHOUT_RULES}/approvals`,
+      (_req, res) => {
+        res.json({
+          approved: true,
+          user_has_approved: false,
+          user_can_approve: true,
+          approved_by: [
+            {
+              user: {
+                id: "35",
+                username: "sergey.kravchenya",
+                name: "Sergey Kravchenya",
+                state: "active",
+                avatar_url: "https://gitlab.mock/uploads/avatar.png",
+                web_url: "https://gitlab.mock/sergey.kravchenya",
+              },
+            },
+          ],
+        });
+      }
+    );
+
     await mockGitLab.start();
     mockGitLabUrl = mockGitLab.getUrl();
   });
@@ -174,6 +212,26 @@ describe("merge request approval state tools", () => {
       {
         project_id: TEST_PROJECT_ID,
         merge_request_iid: TEST_MR_IID_WITH_FALLBACK,
+      },
+      {
+        GITLAB_API_URL: `${mockGitLabUrl}/api/v4`,
+        GITLAB_PERSONAL_ACCESS_TOKEN: MOCK_TOKEN,
+      }
+    );
+
+    assert.strictEqual(result.source_endpoint, "approvals");
+    assert.strictEqual(result.approved, true);
+    assert.deepStrictEqual(result.approved_by_usernames, ["sergey.kravchenya"]);
+    assert.ok(Array.isArray(result.approved_by));
+    assert.strictEqual(result.approved_by[0].username, "sergey.kravchenya");
+  });
+
+  test("finds approvers via approvals when approval_state reports no rules", async () => {
+    const result = await callTool(
+      "get_merge_request_approval_state",
+      {
+        project_id: TEST_PROJECT_ID,
+        merge_request_iid: TEST_MR_IID_WITHOUT_RULES,
       },
       {
         GITLAB_API_URL: `${mockGitLabUrl}/api/v4`,
