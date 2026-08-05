@@ -318,8 +318,10 @@ export const GitLabCiLintResultSchema = z.object({
   valid: z.coerce.boolean(),
   errors: z.array(z.string()),
   warnings: z.array(z.string()).optional(),
-  merged_yaml: z.string().optional(),
-  includes: z.array(z.unknown()).optional(),
+  // GitLab sends null (not an omitted field) for both when the config is
+  // invalid, which is exactly when this tool is called. See #638.
+  merged_yaml: z.string().nullish(),
+  includes: z.array(z.unknown()).nullish(),
   jobs: z.array(z.unknown()).optional(),
 });
 

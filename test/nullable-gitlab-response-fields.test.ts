@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
+  GitLabCiLintResultSchema,
   GitLabCompareResultSchema,
   GitLabProtectedBranchAccessLevelSchema,
 } from "../schemas.js";
@@ -24,4 +25,20 @@ test("branch compare accepts null commit", () => {
     diffs: [],
   });
   assert.equal(parsed.commit, null);
+});
+
+test("ci lint result accepts null merged_yaml/includes on an invalid config", () => {
+  // #638: GitLab nulls both fields whenever the config is invalid — i.e. in
+  // exactly the case validate_ci_lint exists to report on.
+  const parsed = GitLabCiLintResultSchema.parse({
+    valid: false,
+    errors: ["image is defined in top-level and `default:` entry"],
+    warnings: [],
+    merged_yaml: null,
+    includes: null,
+  });
+  assert.equal(parsed.valid, false);
+  assert.equal(parsed.merged_yaml, null);
+  assert.equal(parsed.includes, null);
+  assert.deepEqual(parsed.errors, ["image is defined in top-level and `default:` entry"]);
 });
