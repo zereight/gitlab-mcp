@@ -665,9 +665,21 @@ class GitLabOAuthServerProvider implements OAuthServerProvider {
   // ---- Verify access token -----------------------------------------------
 
   async verifyAccessToken(token: string): Promise<AuthInfo> {
-    const res = await fetch(`${this._gitlabBaseUrl}/oauth/token/info`, {
+    let res = await fetch(`${this._gitlabBaseUrl}/oauth/token/info`, {
       headers: { Authorization: `Bearer ${token}` },
     });
+
+    if (res.status === 401) {
+      // Some GitLab instances sit behind an edge cache that strips the
+      // Authorization header on /oauth/* paths (observed on
+      // git.drupalcode.org, fronted by Varnish), so a valid token 401s
+      // here while working fine against /api/v4. Doorkeeper also accepts
+      // the RFC 6750 access_token query parameter — retry with that form
+      // before rejecting the token.
+      res = await fetch(
+        `${this._gitlabBaseUrl}/oauth/token/info?access_token=${encodeURIComponent(token)}`
+      );
+    }
 
     if (!res.ok) {
       throw new InvalidTokenError("Invalid or expired GitLab OAuth token");
