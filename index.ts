@@ -161,6 +161,7 @@ import {
 export { readMcpSessionIdHeader } from "./server/request-helpers.js";
 import { normalizeGitLabApiUrl } from "./utils/url.js";
 import {
+  assertSafeRelativePath,
   estimateMergeCommitCount,
   filterDiffsByPatterns,
   summarizeWebhookEvents,
@@ -7486,7 +7487,9 @@ async function downloadJobArtifacts(
   await handleGitLabError(response);
 
   const filename = `artifacts_job_${encodeGitLabPathSegment(jobId)}.zip`;
-  const savePath = localPath ? path.join(localPath, filename) : filename;
+  const savePath = localPath
+    ? path.join(assertSafeRelativePath(localPath, "local_path"), filename)
+    : filename;
   fs.mkdirSync(path.dirname(savePath), { recursive: true });
 
   if (!response.body) {
@@ -9378,12 +9381,13 @@ async function markdownUpload(
     fileBuffer = Buffer.from(content, "base64");
     fileName = filename || "upload";
   } else if (filePath) {
-    // Local file mode
-    if (!fs.existsSync(filePath)) {
-      throw new Error(`File not found: ${filePath}`);
+    // Local file mode — reject absolute paths and traversal before reading
+    const safeFilePath = assertSafeRelativePath(filePath, "file_path");
+    if (!fs.existsSync(safeFilePath)) {
+      throw new Error(`File not found: ${safeFilePath}`);
     }
-    fileBuffer = fs.readFileSync(filePath);
-    fileName = path.basename(filePath);
+    fileBuffer = fs.readFileSync(safeFilePath);
+    fileName = path.basename(safeFilePath);
   } else {
     throw new Error("Either file_path or content must be provided");
   }
@@ -9483,16 +9487,7 @@ async function downloadAttachment(
   if (!mimeType || localPath) {
     let savePath: string;
     if (localPath) {
-      const normalizedLocalPath = path.normalize(localPath);
-      if (
-        path.isAbsolute(normalizedLocalPath) ||
-        normalizedLocalPath === ".." ||
-        normalizedLocalPath.startsWith(".." + path.sep) ||
-        normalizedLocalPath.includes(path.sep + ".." + path.sep)
-      ) {
-        throw new Error("Invalid local_path: directory traversal is not allowed.");
-      }
-      savePath = path.join(normalizedLocalPath, safeFilename);
+      savePath = path.join(assertSafeRelativePath(localPath, "local_path"), safeFilename);
     } else {
       savePath = safeFilename;
     }
@@ -13003,7 +12998,9 @@ async function handleToolCall(params: any) {
         throw new Error(`Unknown tool: ${params.name}`);
     }
   } catch (error) {
-    logger.debug(params);
+    // Log tool name only — never dump raw params (may contain approval_password).
+    // Sensitive fields are also covered by REDACT_PATHS if arguments are logged elsewhere.
+    logger.debug({ tool: params.name }, "Tool call failed");
     if (error instanceof z.ZodError) {
       throw new Error(
         `Invalid arguments: ${error.errors

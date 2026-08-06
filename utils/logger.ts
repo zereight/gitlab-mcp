@@ -19,6 +19,10 @@ const REDACT_PATHS = [
   "*.sessionId",
   "ctx.sessionId",
   "context.sessionId",
+  "approval_password",
+  "*.approval_password",
+  "arguments.approval_password",
+  "params.arguments.approval_password",
 ];
 
 /**

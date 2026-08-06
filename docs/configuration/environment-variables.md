@@ -286,7 +286,9 @@ Max age for a sealed OAuth `state` during the callback-proxy `/authorize`
 ### `OAUTH_STATELESS_STORED_TTL_SECONDS`
 
 Max age for a sealed proxy authorization `code` during the `/callback` →
-`/token` hop. Default `600` (10 min).
+`/token` hop. Default `120` (2 min). Kept short because sealed codes cannot
+enforce cross-pod one-time use; each pod also tracks recently consumed code
+hashes in a bounded in-memory cache.
 
 ### `OAUTH_STATELESS_SESSION_TTL_SECONDS`
 
