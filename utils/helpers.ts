@@ -1,3 +1,24 @@
+import path from "node:path";
+
+/**
+ * Reject absolute paths and directory-traversal sequences for user-supplied
+ * local filesystem paths (e.g. local_path / file_path tool arguments).
+ *
+ * Returns the normalized relative path on success.
+ */
+export function assertSafeRelativePath(inputPath: string, label = "path"): string {
+  const normalized = path.normalize(inputPath);
+  if (
+    path.isAbsolute(normalized) ||
+    normalized === ".." ||
+    normalized.startsWith(".." + path.sep) ||
+    normalized.includes(path.sep + ".." + path.sep)
+  ) {
+    throw new Error(`Invalid ${label}: directory traversal is not allowed.`);
+  }
+  return normalized;
+}
+
 /**
  * Estimate the number of merge commits that will be added based on the merge method.
  */

@@ -95,7 +95,7 @@ Cryptography:
 | `OAUTH_STATELESS_SECRET_PREVIOUS`         | —                              | Optional. Accepted on reads only, for rotation.        |
 | `OAUTH_STATELESS_CLIENT_TTL_SECONDS`      | `86400`                        | Max age for a signed `client_id`.                      |
 | `OAUTH_STATELESS_PENDING_TTL_SECONDS`     | `600`                          | Max age for a sealed OAuth `state`.                    |
-| `OAUTH_STATELESS_STORED_TTL_SECONDS`      | `600`                          | Max age for a sealed proxy `code`.                     |
+| `OAUTH_STATELESS_STORED_TTL_SECONDS`      | `120`                          | Max age for a sealed proxy `code`.                     |
 | `OAUTH_STATELESS_SESSION_TTL_SECONDS`     | inherits `SESSION_TIMEOUT_SECONDS` | Inactivity timeout for a sealed `Mcp-Session-Id`.  |
 
 CLI arguments take the same names with dashes (e.g. `--oauth-stateless-mode=true`).
@@ -126,17 +126,19 @@ re-authenticate.
 
 - **OAuth `state`** — replay is tolerated. A replayed state without a matching
   valid GitLab auth code yields nothing; GitLab's code is single-use.
-- **Proxy `code`** — replay is defeated by the existing PKCE check. An
-  attacker replaying the code without the matching `code_verifier` fails at
-  `/token`. Combined with the 10 minute TTL.
+- **Proxy `code`** — replay is defeated by PKCE, a short TTL (default 120s),
+  and a per-pod bounded cache of consumed code hashes. An attacker replaying
+  the code without the matching `code_verifier` fails at `/token`; a second
+  exchange of a consumed code is rejected on the same pod.
 - **`Mcp-Session-Id`** — replay is equivalent to presenting the stolen bearer
   token, which is a known threat model at the HTTP layer. TLS and operator
   discipline on log redaction protect this surface.
 
-One-time-use semantics cannot be enforced in stateless mode without a shared
-store. This is an explicit design trade-off: the plan chose "no external
-dependency" over "strict one-time use" because the PKCE + TTL combination
-provides equivalent practical security.
+One-time-use semantics cannot be enforced *across pods* in stateless mode
+without a shared store. This is an explicit design trade-off: the plan chose
+"no external dependency" over "strict cross-pod one-time use" because the
+PKCE + short TTL + per-pod replay cache combination provides equivalent
+practical security.
 
 ## Operational notes
 

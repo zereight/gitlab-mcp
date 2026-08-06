@@ -15,9 +15,10 @@
  * Uses AEAD (AES-256-GCM) because the payload contains the GitLab access
  * token and refresh token.
  *
- * Replay: proxyCode replay is defeated by two mitigations:
- *   - short TTL (OAUTH_STATELESS_STORED_TTL_SECONDS, default 600s)
+ * Replay: proxyCode replay is defeated by three mitigations:
+ *   - short TTL (OAUTH_STATELESS_STORED_TTL_SECONDS, default 120s)
  *   - PKCE binding (the client must still present a matching code_verifier)
+ *   - per-pod bounded replay-prevention cache of consumed code hashes
  */
 
 import { open, seal } from "./codec.js";

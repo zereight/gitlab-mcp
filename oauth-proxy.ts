@@ -132,7 +132,7 @@ export interface StatelessOAuthOptions {
   clientTtlSeconds: number;
   /** TTL for sealed OAuth `state` values (default 600s). */
   pendingTtlSeconds: number;
-  /** TTL for sealed proxy authorization codes (default 600s). */
+  /** TTL for sealed proxy authorization codes (default 120s). */
   storedTtlSeconds: number;
 }
 
@@ -217,6 +217,12 @@ class GitLabOAuthServerProvider implements OAuthServerProvider {
   private readonly _callbackUrl: string;
   private readonly _pendingAuth = new BoundedLRUMap<PendingAuthTransaction>(PENDING_AUTH_MAX_SIZE);
   private readonly _storedTokens = new BoundedLRUMap<StoredTokenEntry>(PENDING_AUTH_MAX_SIZE);
+  /**
+   * Per-pod replay-prevention cache for sealed (stateless) proxy authorization
+   * codes. Keys are SHA-256 hashes of the code; values are consumption timestamps.
+   * Cross-pod replay remains mitigated by the short stored-code TTL + PKCE.
+   */
+  private readonly _usedProxyCodes = new BoundedLRUMap<number>(PENDING_AUTH_MAX_SIZE);
 
   // Stateless mode (optional). When set, DCR and callback-proxy state are
   // serialised into opaque OAuth values and the in-memory caches above are
@@ -492,6 +498,11 @@ class GitLabOAuthServerProvider implements OAuthServerProvider {
       } | null = null;
 
       if (stateless && looksLikeStatelessStoredTokensCode(authorizationCode)) {
+        const codeHash = createHash("sha256").update(authorizationCode).digest("hex");
+        if (this._usedProxyCodes.get(codeHash) !== undefined) {
+          throw new ServerError("Authorization code already used");
+        }
+
         const payload = openStoredTokensCode(
           stateless.material,
           authorizationCode,
@@ -506,10 +517,13 @@ class GitLabOAuthServerProvider implements OAuthServerProvider {
           clientCodeChallenge: payload.ccc,
           clientRedirectUri: payload.cru,
         };
-        // NOTE: Stateless mode cannot enforce one-time use without a shared
-        // store. Replay is mitigated by short TTL + client PKCE verification
-        // below (attacker needs the code_verifier). Documented in
-        // stateless/stored-tokens.ts.
+        // Mark consumed before PKCE/client checks so a failed attempt with a
+        // stolen code + wrong verifier cannot be retried after learning PKCE.
+        // Legitimate clients present the correct verifier on the first try.
+        this._usedProxyCodes.set(codeHash, Date.now());
+        // NOTE: Cross-pod one-time use still requires a shared store. Replay
+        // across pods is mitigated by short TTL (default 120s) + client PKCE.
+        // Documented in stateless/stored-tokens.ts.
       } else {
         const lru = this._storedTokens.get(authorizationCode);
         if (!lru) {

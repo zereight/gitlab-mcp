@@ -5,6 +5,7 @@ build
 .env
 .env.local
 .env.test
+.secrets
 coverage/
 *.log
 # ai
