@@ -4814,7 +4814,12 @@ async function repositoryFileExists(
     method: "HEAD",
   });
 
-  return response.ok;
+  if (response.status === 404) {
+    return false;
+  }
+
+  await handleGitLabError(response);
+  return true;
 }
 
 /**

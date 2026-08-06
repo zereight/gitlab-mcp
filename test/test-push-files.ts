@@ -91,7 +91,8 @@ async function actionsForPush(
     mockServer.addMockHandler(
       "head",
       `/projects/${PROJECT_ID}/repository/files/${encodeURIComponent(path)}`,
-      (_req, res) => {
+      (req, res) => {
+        assert.strictEqual(req.query.ref, BRANCH);
         res.status(200).end();
       }
     );
