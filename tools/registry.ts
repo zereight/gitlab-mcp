@@ -296,7 +296,7 @@ export const allTools = [
   },
   {
     name: "push_files",
-    description: "Push multiple files in a single commit",
+    description: "Create or update multiple files in a single commit",
     inputSchema: toJSONSchema(PushFilesSchema),
   },
   {

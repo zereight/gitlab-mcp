@@ -4787,6 +4787,42 @@ function encodeRepoFilePayloadContent(content: string): string {
 }
 
 /**
+ * Check whether a path already exists in a branch.
+ *
+ * Uses HEAD on the Repository Files API so the check costs headers rather than the
+ * whole blob — a commit may carry several files, and their content is irrelevant here.
+ * A missing branch answers 404 just like a missing file, which is the right answer:
+ * a commit that also creates the branch has to use `create`.
+ *
+ * @param {string} projectId - The ID or URL-encoded path of the project
+ * @param {string} filePath - The path to look for, relative to the repository root
+ * @param {string} ref - The branch the commit targets
+ * @returns {Promise<boolean>} Whether the path is already tracked in that ref
+ */
+async function repositoryFileExists(
+  projectId: string,
+  filePath: string,
+  ref: string
+): Promise<boolean> {
+  const url = new URL(
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/repository/files/${encodeURIComponent(filePath)}`
+  );
+  url.searchParams.append("ref", ref);
+
+  const response = await fetch(url.toString(), {
+    ...getFetchConfig(),
+    method: "HEAD",
+  });
+
+  if (response.status === 404) {
+    return false;
+  }
+
+  await handleGitLabError(response);
+  return true;
+}
+
+/**
  * Create or update a file in a GitLab project
  * 파일 생성 또는 업데이트
  *
@@ -4894,18 +4930,25 @@ async function createCommit(
     `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/repository/commits`
   );
 
+  // The action has to be resolved per file: GitLab rejects `create` for a path that
+  // already exists ("A file with this name already exists") and `update` for one that
+  // does not. Assuming `create` made push_files unable to change any tracked file.
+  const resolvedActions = await Promise.all(
+    actions.map(async action => ({
+      action: (await repositoryFileExists(projectId, action.path, branch)) ? "update" : "create",
+      file_path: action.path,
+      content: encodeRepoFilePayloadContent(action.content),
+      encoding: GITLAB_REPO_FILE_ENCODING,
+    }))
+  );
+
   const response = await fetch(url.toString(), {
     ...getFetchConfig(),
     method: "POST",
     body: JSON.stringify({
       branch,
       commit_message: message,
-      actions: actions.map(action => ({
-        action: "create",
-        file_path: action.path,
-        content: encodeRepoFilePayloadContent(action.content),
-        encoding: GITLAB_REPO_FILE_ENCODING,
-      })),
+      actions: resolvedActions,
     }),
   });
 

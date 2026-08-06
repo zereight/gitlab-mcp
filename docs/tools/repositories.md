@@ -64,7 +64,7 @@ Get contents of a file or directory from a GitLab project
 
 *✏️ Writes*
 
-Push multiple files in a single commit
+Create or update multiple files in a single commit
 
 **Parameters**
 

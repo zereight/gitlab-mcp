@@ -559,7 +559,7 @@ Register the skill directory in your AI client to get optimal tool usage guidanc
 10. `create_repository` - Create a new GitLab project
 11. `create_group` - Create a new GitLab group or subgroup (name, path, description, visibility, and optional parent_id)
 12. `get_file_contents` - Get the contents of a file or directory from a GitLab project
-13. `push_files` - Push multiple files to a GitLab project in a single commit
+13. `push_files` - Create or update multiple files in a GitLab project in a single commit
 14. `create_issue` - Create a new issue in a GitLab project
 15. `create_merge_request` - Create a new merge request in a GitLab project
 16. `fork_repository` - Fork a GitLab project to your account or specified namespace
