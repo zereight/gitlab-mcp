@@ -56,6 +56,9 @@ async function callPushFiles(
           reject(new Error(response.error?.message ?? String(response.error)));
         } else {
           const content = response.result?.content?.[0]?.text;
+          if (response.result?.isError) {
+            return reject(new Error(content ?? "Tool call failed"));
+          }
           resolve(content ? JSON.parse(content) : response.result);
         }
       } catch (e) {
@@ -150,6 +153,51 @@ describe("When push_files commits a file that does not exist", () => {
 
     assert.strictEqual(actions.length, 1);
     assert.strictEqual(actions[0].action, "create");
+  });
+});
+
+describe("When checking whether a file exists fails", () => {
+  test("should propagate the error without sending a commit request", async () => {
+    const mockPort = await findMockServerPort();
+    const mockServer = new MockGitLabServer({ port: mockPort, validTokens: [MOCK_TOKEN] });
+    let commitRequested = false;
+
+    mockServer.addMockHandler(
+      "head",
+      `/projects/${PROJECT_ID}/repository/files/${encodeURIComponent("src/index.ts")}`,
+      (req, res) => {
+        assert.strictEqual(req.query.ref, BRANCH);
+        res.status(403).end();
+      }
+    );
+    mockServer.addMockHandler("post", `/projects/${PROJECT_ID}/repository/commits`, (_req, res) => {
+      commitRequested = true;
+      res.status(201).json(MOCK_COMMIT);
+    });
+
+    await mockServer.start();
+
+    try {
+      await assert.rejects(
+        callPushFiles(
+          {
+            project_id: PROJECT_ID,
+            branch: BRANCH,
+            commit_message: "Update files",
+            files: [{ file_path: "src/index.ts", content: "export const x = 1;\n" }],
+          },
+          {
+            GITLAB_API_URL: `${mockServer.getUrl()}/api/v4`,
+            GITLAB_PERSONAL_ACCESS_TOKEN: MOCK_TOKEN,
+          }
+        ),
+        /GitLab API error: 403 Forbidden/
+      );
+    } finally {
+      await mockServer.stop();
+    }
+
+    assert.strictEqual(commitRequested, false);
   });
 });
 
