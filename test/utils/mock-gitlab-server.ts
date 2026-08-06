@@ -75,7 +75,11 @@ export class MockGitLabServer {
     this.setupRoutes();
   }
 
-  public addMockHandler(method: "get" | "post" | "put" | "delete", path: string, handler: Handler) {
+  public addMockHandler(
+    method: "get" | "post" | "put" | "delete" | "head",
+    path: string,
+    handler: Handler
+  ) {
     // Note: path should be relative to /api/v4
     const key = `${method.toUpperCase()}:${path}`;
     console.log(`[MockServer] Adding custom handler: ${key}`);

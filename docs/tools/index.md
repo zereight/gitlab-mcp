@@ -74,7 +74,7 @@ Project search/creation/fork plus the Files API for reading and writing reposito
 | [`search_repositories`](repositories.md#search_repositories) | Search for GitLab projects | 📖 |
 | [`create_repository`](repositories.md#create_repository) | Create a new GitLab project | ✏️ |
 | [`get_file_contents`](repositories.md#get_file_contents) | Get contents of a file or directory from a GitLab project | 📖 |
-| [`push_files`](repositories.md#push_files) | Push multiple files in a single commit | ✏️ |
+| [`push_files`](repositories.md#push_files) | Create or update multiple files in a single commit | ✏️ |
 | [`create_or_update_file`](repositories.md#create_or_update_file) | Create or update a file in a GitLab project | ✏️ |
 | [`fork_repository`](repositories.md#fork_repository) | Fork a project to your account or specified namespace | ✏️ |
 | [`get_repository_tree`](repositories.md#get_repository_tree) | List files and directories in a repository | 📖 |
