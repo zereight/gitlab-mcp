@@ -7486,7 +7486,21 @@ async function downloadJobArtifacts(
   await handleGitLabError(response);
 
   const filename = `artifacts_job_${encodeGitLabPathSegment(jobId)}.zip`;
-  const savePath = localPath ? path.join(localPath, filename) : filename;
+  let savePath: string;
+  if (localPath) {
+    const normalizedLocalPath = path.normalize(localPath);
+    if (
+      path.isAbsolute(normalizedLocalPath) ||
+      normalizedLocalPath === ".." ||
+      normalizedLocalPath.startsWith(".." + path.sep) ||
+      normalizedLocalPath.includes(path.sep + ".." + path.sep)
+    ) {
+      throw new Error("Invalid local_path: directory traversal is not allowed.");
+    }
+    savePath = path.join(normalizedLocalPath, filename);
+  } else {
+    savePath = filename;
+  }
   fs.mkdirSync(path.dirname(savePath), { recursive: true });
 
   if (!response.body) {
