@@ -512,11 +512,11 @@ describe("MCP OAuth — createGitLabOAuthProvider", () => {
     // header on /oauth/* (e.g. git.drupalcode.org behind Varnish): the
     // Bearer-header request 401s, the RFC 6750 query-param retry succeeds.
     const TOKEN = "tok+en/with?special=chars&more"; // exercises URL encoding
-    const requests: { url: string; hasAuthHeader: boolean }[] = [];
+    const requests: { url: string; authHeader: string | undefined }[] = [];
 
     const { createServer } = await import("node:http");
     const stub = createServer((req, res) => {
-      requests.push({ url: req.url!, hasAuthHeader: "authorization" in req.headers });
+      requests.push({ url: req.url!, authHeader: req.headers["authorization"] });
       const url = new URL(req.url!, "http://localhost");
       if (url.searchParams.get("access_token") === TOKEN) {
         res.writeHead(200, { "Content-Type": "application/json" });
@@ -546,10 +546,19 @@ describe("MCP OAuth — createGitLabOAuthProvider", () => {
       const authInfo = await provider.verifyAccessToken(TOKEN);
 
       assert.strictEqual(requests.length, 2, "exactly one retry after the 401");
-      assert.ok(requests[0].hasAuthHeader, "first attempt uses the Authorization header");
+      assert.strictEqual(
+        requests[0].authHeader,
+        `Bearer ${TOKEN}`,
+        "first attempt sends the token as a Bearer Authorization header"
+      );
       assert.ok(
         !requests[0].url.includes("access_token="),
         "first attempt does not use the query param"
+      );
+      assert.strictEqual(
+        requests[1].authHeader,
+        undefined,
+        "retry omits the Authorization header"
       );
       assert.ok(
         requests[1].url.includes(`access_token=${encodeURIComponent(TOKEN)}`),
