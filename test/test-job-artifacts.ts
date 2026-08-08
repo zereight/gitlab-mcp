@@ -4,7 +4,6 @@ import { spawn } from 'child_process';
 import { MockGitLabServer, findMockServerPort } from './utils/mock-gitlab-server.js';
 import fs from 'node:fs';
 import path from 'node:path';
-import os from 'node:os';
 
 const MOCK_TOKEN = 'glpat-mock-token-12345';
 const TEST_PROJECT_ID = '123';
@@ -143,8 +142,12 @@ describe('job artifacts tools', () => {
     await mockGitLab.start();
     mockGitLabUrl = mockGitLab.getUrl();
 
-    // Create a temp directory for download tests
-    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'gitlab-mcp-test-'));
+    // Create a temp directory for download tests. Must be relative to the
+    // process cwd — download_job_artifacts rejects absolute local_path
+    // values as directory traversal (see downloadJobArtifacts/downloadAttachment).
+    tmpDir = `gitlab-mcp-test-artifacts-${process.pid}`;
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+    fs.mkdirSync(tmpDir, { recursive: true });
   });
 
   after(async () => {
@@ -208,6 +211,44 @@ describe('job artifacts tools', () => {
     assert.ok(result.success, 'Download should succeed');
     assert.ok(fs.existsSync(result.file_path), `File should exist at ${result.file_path}`);
     assert.ok(fs.existsSync(nestedLocalPath), `Directory should be created at ${nestedLocalPath}`);
+  });
+
+  test('download_job_artifacts rejects local_path directory traversal', async () => {
+    try {
+      await callTool(
+        'download_job_artifacts',
+        { project_id: TEST_PROJECT_ID, job_id: TEST_JOB_ID, local_path: '../../../tmp' },
+        {
+          GITLAB_API_URL: `${mockGitLabUrl}/api/v4`,
+          GITLAB_PERSONAL_ACCESS_TOKEN: MOCK_TOKEN,
+        }
+      );
+      assert.fail('Expected download_job_artifacts to reject a traversal local_path');
+    } catch (error: any) {
+      assert.ok(
+        typeof error?.message === 'string' && error.message.toLowerCase().includes('traversal'),
+        `Expected a traversal error, got: ${error?.message}`
+      );
+    }
+  });
+
+  test('download_job_artifacts rejects absolute local_path', async () => {
+    try {
+      await callTool(
+        'download_job_artifacts',
+        { project_id: TEST_PROJECT_ID, job_id: TEST_JOB_ID, local_path: '/tmp' },
+        {
+          GITLAB_API_URL: `${mockGitLabUrl}/api/v4`,
+          GITLAB_PERSONAL_ACCESS_TOKEN: MOCK_TOKEN,
+        }
+      );
+      assert.fail('Expected download_job_artifacts to reject an absolute local_path');
+    } catch (error: any) {
+      assert.ok(
+        typeof error?.message === 'string' && error.message.toLowerCase().includes('traversal'),
+        `Expected a traversal error, got: ${error?.message}`
+      );
+    }
   });
 
   test('get_job_artifact_file returns file content', async () => {
