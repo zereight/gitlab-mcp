@@ -214,6 +214,7 @@ describe('job artifacts tools', () => {
   });
 
   test('download_job_artifacts rejects local_path directory traversal', async () => {
+    let error: any;
     try {
       await callTool(
         'download_job_artifacts',
@@ -223,16 +224,18 @@ describe('job artifacts tools', () => {
           GITLAB_PERSONAL_ACCESS_TOKEN: MOCK_TOKEN,
         }
       );
-      assert.fail('Expected download_job_artifacts to reject a traversal local_path');
-    } catch (error: any) {
-      assert.ok(
-        typeof error?.message === 'string' && error.message.toLowerCase().includes('traversal'),
-        `Expected a traversal error, got: ${error?.message}`
-      );
+    } catch (err: any) {
+      error = err;
     }
+    assert.ok(error, 'Expected download_job_artifacts to reject a traversal local_path');
+    assert.ok(
+      typeof error?.message === 'string' && error.message.toLowerCase().includes('traversal'),
+      `Expected a traversal error, got: ${error?.message}`
+    );
   });
 
   test('download_job_artifacts rejects absolute local_path', async () => {
+    let error: any;
     try {
       await callTool(
         'download_job_artifacts',
@@ -242,13 +245,14 @@ describe('job artifacts tools', () => {
           GITLAB_PERSONAL_ACCESS_TOKEN: MOCK_TOKEN,
         }
       );
-      assert.fail('Expected download_job_artifacts to reject an absolute local_path');
-    } catch (error: any) {
-      assert.ok(
-        typeof error?.message === 'string' && error.message.toLowerCase().includes('traversal'),
-        `Expected a traversal error, got: ${error?.message}`
-      );
+    } catch (err: any) {
+      error = err;
     }
+    assert.ok(error, 'Expected download_job_artifacts to reject an absolute local_path');
+    assert.ok(
+      typeof error?.message === 'string' && error.message.toLowerCase().includes('traversal'),
+      `Expected a traversal error, got: ${error?.message}`
+    );
   });
 
   test('get_job_artifact_file returns file content', async () => {
