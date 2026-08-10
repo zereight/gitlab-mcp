@@ -4,6 +4,7 @@ import { spawn } from 'child_process';
 import { MockGitLabServer, findMockServerPort } from './utils/mock-gitlab-server.js';
 import fs from 'node:fs';
 import path from 'node:path';
+import os from 'node:os';
 
 const MOCK_TOKEN = 'glpat-mock-token-12345';
 const TEST_PROJECT_ID = '123';
@@ -224,6 +225,32 @@ describe('job artifacts tools', () => {
       (err: Error) => {
         const msg = String(err.message || err).toLowerCase();
         return msg.includes('traversal') || msg.includes('invalid');
+      }
+    );
+  });
+
+  test('download_job_artifacts rejects symlink local_path escape', async () => {
+    const linkName = path.join(tmpDir, 'symlink-escape');
+    fs.symlinkSync(os.tmpdir(), linkName);
+    await assert.rejects(
+      () =>
+        callTool(
+          'download_job_artifacts',
+          { project_id: TEST_PROJECT_ID, job_id: TEST_JOB_ID, local_path: linkName },
+          {
+            GITLAB_API_URL: `${mockGitLabUrl}/api/v4`,
+            GITLAB_PERSONAL_ACCESS_TOKEN: MOCK_TOKEN,
+          }
+        ),
+      (err: Error) => {
+        const msg = String(err.message || err).toLowerCase();
+        return (
+          msg.includes('symbolic') ||
+          msg.includes('symlink') ||
+          msg.includes('escapes') ||
+          msg.includes('traversal') ||
+          msg.includes('invalid')
+        );
       }
     );
   });

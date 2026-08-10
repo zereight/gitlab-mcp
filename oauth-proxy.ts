@@ -74,6 +74,10 @@ import {
   mintStoredTokensCode,
   openStoredTokensCode,
 } from "./stateless/stored-tokens.js";
+import {
+  ConsumedProxyCodeCache,
+  PROXY_CODE_CACHE_FULL,
+} from "./stateless/consumed-proxy-code-cache.js";
 import type { StatelessKeyMaterial } from "./stateless/index.js";
 import { createLogger } from "./utils/logger.js";
 
@@ -219,10 +223,11 @@ class GitLabOAuthServerProvider implements OAuthServerProvider {
   private readonly _storedTokens = new BoundedLRUMap<StoredTokenEntry>(PENDING_AUTH_MAX_SIZE);
   /**
    * Per-pod replay-prevention cache for sealed (stateless) proxy authorization
-   * codes. Keys are SHA-256 hashes of the code; values are consumption timestamps.
-   * Cross-pod replay remains mitigated by the short stored-code TTL + PKCE.
+   * codes. Keys are SHA-256 hashes of the code; entries are TTL-bound (never
+   * LRU-evicted early) and hold pending→consumed state. Cross-pod replay
+   * remains mitigated by the short stored-code TTL + PKCE.
    */
-  private readonly _usedProxyCodes = new BoundedLRUMap<number>(PENDING_AUTH_MAX_SIZE);
+  private readonly _usedProxyCodes = new ConsumedProxyCodeCache(PENDING_AUTH_MAX_SIZE);
 
   // Stateless mode (optional). When set, DCR and callback-proxy state are
   // serialised into opaque OAuth values and the in-memory caches above are
@@ -483,127 +488,159 @@ class GitLabOAuthServerProvider implements OAuthServerProvider {
     resource?: URL
   ): Promise<OAuthTokens> {
     let tokens: OAuthTokens;
+    /** Reserved sealed-code hash; released on failure, committed on success. */
+    let reservedProxyCodeHash: string | null = null;
+    /**
+     * Legacy (non-stateless) proxy code taken from `_storedTokens` before
+     * binding checks. Restored on binding/PKCE failure so a wrong verifier
+     * cannot burn the code for the legitimate client.
+     */
+    let legacyRestorable: { code: string; entry: StoredTokenEntry } | null = null;
 
-    if (this._callbackProxyEnabled) {
-      // --- Callback proxy mode ---
-      // The authorizationCode is a proxy code we generated in handleCallback().
-      // It is either a sealed token (stateless mode) or a random UUID that
-      // keys into the _storedTokens LRU (legacy mode).
-      const stateless = this._stateless;
-      let entry: {
-        tokens: OAuthTokens;
-        clientId: string;
-        clientCodeChallenge: string;
-        clientRedirectUri: string;
-      } | null = null;
+    try {
+      if (this._callbackProxyEnabled) {
+        // --- Callback proxy mode ---
+        // The authorizationCode is a proxy code we generated in handleCallback().
+        // It is either a sealed token (stateless mode) or a random UUID that
+        // keys into the _storedTokens LRU (legacy mode).
+        const stateless = this._stateless;
+        let entry: {
+          tokens: OAuthTokens;
+          clientId: string;
+          clientCodeChallenge: string;
+          clientRedirectUri: string;
+        } | null = null;
 
-      if (stateless && looksLikeStatelessStoredTokensCode(authorizationCode)) {
-        const codeHash = createHash("sha256").update(authorizationCode).digest("hex");
-        if (this._usedProxyCodes.get(codeHash) !== undefined) {
-          throw new ServerError("Authorization code already used");
+        if (stateless && looksLikeStatelessStoredTokensCode(authorizationCode)) {
+          const codeHash = createHash("sha256").update(authorizationCode).digest("hex");
+          try {
+            if (!this._usedProxyCodes.tryReserve(codeHash, stateless.storedTtlSeconds)) {
+              throw new ServerError("Authorization code already used");
+            }
+          } catch (err) {
+            if (err instanceof Error && err.message === PROXY_CODE_CACHE_FULL) {
+              throw new ServerError(
+                "Authorization server busy — please retry the OAuth flow"
+              );
+            }
+            throw err;
+          }
+          reservedProxyCodeHash = codeHash;
+
+          const payload = openStoredTokensCode(
+            stateless.material,
+            authorizationCode,
+            stateless.storedTtlSeconds
+          );
+          if (!payload) {
+            throw new ServerError("Invalid or expired authorization code");
+          }
+          entry = {
+            tokens: payload.t,
+            clientId: payload.cid,
+            clientCodeChallenge: payload.ccc,
+            clientRedirectUri: payload.cru,
+          };
+          // NOTE: Cross-pod one-time use still requires a shared store. Replay
+          // across pods is mitigated by short TTL (default 120s) + client PKCE.
+          // Documented in stateless/stored-tokens.ts.
+        } else {
+          // Atomic take: serialize concurrent exchanges. Restored below if
+          // client/redirect/PKCE binding checks fail (DoS prevention).
+          const lru = this._storedTokens.getAndDelete(authorizationCode);
+          if (!lru) {
+            throw new ServerError("Invalid or expired authorization code");
+          }
+          if (Date.now() - lru.createdAt > PENDING_AUTH_TTL_MS) {
+            throw new ServerError("Authorization code expired — please restart the OAuth flow");
+          }
+          legacyRestorable = { code: authorizationCode, entry: lru };
+          entry = {
+            tokens: lru.tokens,
+            clientId: lru.clientId,
+            clientCodeChallenge: lru.clientCodeChallenge,
+            clientRedirectUri: lru.clientRedirectUri,
+          };
         }
 
-        const payload = openStoredTokensCode(
-          stateless.material,
-          authorizationCode,
-          stateless.storedTtlSeconds
-        );
-        if (!payload) {
-          throw new ServerError("Invalid or expired authorization code");
+        // Bind the proxy code to the client and redirect_uri that initiated
+        // /authorize, preserving the normal OAuth authorization-code invariant.
+        // Binding + PKCE run while consumption is only *reserved* (pending /
+        // restorable); failed checks release so the legitimate client can retry.
+        if (client.client_id !== entry.clientId) {
+          throw new ServerError("Invalid client for authorization code");
         }
-        entry = {
-          tokens: payload.t,
-          clientId: payload.cid,
-          clientCodeChallenge: payload.ccc,
-          clientRedirectUri: payload.cru,
-        };
-        // Mark consumed before PKCE/client checks so a failed attempt with a
-        // stolen code + wrong verifier cannot be retried after learning PKCE.
-        // Legitimate clients present the correct verifier on the first try.
-        this._usedProxyCodes.set(codeHash, Date.now());
-        // NOTE: Cross-pod one-time use still requires a shared store. Replay
-        // across pods is mitigated by short TTL (default 120s) + client PKCE.
-        // Documented in stateless/stored-tokens.ts.
+        if (redirectUri !== entry.clientRedirectUri) {
+          throw new ServerError("Invalid redirect_uri for authorization code");
+        }
+
+        // Verify client PKCE: the client's code_verifier must match the
+        // code_challenge stored during /authorize.
+        if (entry.clientCodeChallenge) {
+          if (!codeVerifier) {
+            throw new ServerError("PKCE code_verifier is required");
+          }
+          const computed = createHash("sha256").update(codeVerifier).digest("base64url");
+          if (computed !== entry.clientCodeChallenge) {
+            throw new ServerError("PKCE verification failed");
+          }
+        }
+
+        tokens = entry.tokens;
       } else {
-        const lru = this._storedTokens.get(authorizationCode);
-        if (!lru) {
-          throw new ServerError("Invalid or expired authorization code");
+        // --- Passthrough mode (original behavior) ---
+        const params = new URLSearchParams({
+          grant_type: "authorization_code",
+          client_id: this._gitlabAppId,
+          code: authorizationCode,
+        });
+
+        if (codeVerifier) params.append("code_verifier", codeVerifier);
+        if (redirectUri) params.append("redirect_uri", redirectUri);
+        if (resource) params.append("resource", resource.href);
+
+        const response = await fetch(`${this._gitlabBaseUrl}/oauth/token`, {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: params.toString(),
+        });
+
+        if (!response.ok) {
+          const body = await response.text();
+          logger.error(`Token exchange failed (${response.status}): ${body}`);
+          throw new ServerError(`Token exchange failed: ${response.status}`);
         }
-        if (Date.now() - lru.createdAt > PENDING_AUTH_TTL_MS) {
-          this._storedTokens.delete(authorizationCode);
-          throw new ServerError("Authorization code expired — please restart the OAuth flow");
-        }
-        // One-time use: delete after validation
-        this._storedTokens.delete(authorizationCode);
-        entry = {
-          tokens: lru.tokens,
-          clientId: lru.clientId,
-          clientCodeChallenge: lru.clientCodeChallenge,
-          clientRedirectUri: lru.clientRedirectUri,
-        };
+
+        const data = await response.json();
+        tokens = OAuthTokensSchema.parse(data);
       }
 
-      // Bind the proxy code to the client and redirect_uri that initiated
-      // /authorize, preserving the normal OAuth authorization-code invariant.
-      if (client.client_id !== entry.clientId) {
-        throw new ServerError("Invalid client for authorization code");
-      }
-      if (redirectUri !== entry.clientRedirectUri) {
-        throw new ServerError("Invalid redirect_uri for authorization code");
-      }
-
-      // Verify client PKCE: the client's code_verifier must match the
-      // code_challenge stored during /authorize.
-      if (entry.clientCodeChallenge) {
-        if (!codeVerifier) {
-          throw new ServerError("PKCE code_verifier is required");
-        }
-        const computed = createHash("sha256").update(codeVerifier).digest("base64url");
-        if (computed !== entry.clientCodeChallenge) {
-          throw new ServerError("PKCE verification failed");
+      if (this._allowedGroups) {
+        const isMember = await this._checkGroupMembership(tokens.access_token);
+        if (!isMember) {
+          logger.warn({ allowedGroups: this._allowedGroups }, "Token issuance denied: user is not a member of any allowed group");
+          throw new ServerError("Access denied: user is not a member of an allowed group");
         }
       }
 
-      tokens = entry.tokens;
-    } else {
-      // --- Passthrough mode (original behavior) ---
-      const params = new URLSearchParams({
-        grant_type: "authorization_code",
-        client_id: this._gitlabAppId,
-        code: authorizationCode,
-      });
-
-      if (codeVerifier) params.append("code_verifier", codeVerifier);
-      if (redirectUri) params.append("redirect_uri", redirectUri);
-      if (resource) params.append("resource", resource.href);
-
-      const response = await fetch(`${this._gitlabBaseUrl}/oauth/token`, {
-        method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: params.toString(),
-      });
-
-      if (!response.ok) {
-        const body = await response.text();
-        logger.error(`Token exchange failed (${response.status}): ${body}`);
-        throw new ServerError(`Token exchange failed: ${response.status}`);
+      // All checks passed — permanently consume the proxy code.
+      legacyRestorable = null;
+      if (reservedProxyCodeHash) {
+        this._usedProxyCodes.commit(reservedProxyCodeHash);
+        reservedProxyCodeHash = null;
       }
 
-      const data = await response.json();
-      tokens = OAuthTokensSchema.parse(data);
+      return tokens;
+    } catch (err) {
+      if (legacyRestorable) {
+        this._storedTokens.set(legacyRestorable.code, legacyRestorable.entry);
+      }
+      if (reservedProxyCodeHash) {
+        this._usedProxyCodes.release(reservedProxyCodeHash);
+      }
+      throw err;
     }
-
-    if (this._allowedGroups) {
-      const isMember = await this._checkGroupMembership(tokens.access_token);
-      if (!isMember) {
-        logger.warn({ allowedGroups: this._allowedGroups }, "Token issuance denied: user is not a member of any allowed group");
-        throw new ServerError("Access denied: user is not a member of an allowed group");
-      }
-    }
-
-    return tokens;
   }
-
   /**
    * Returns true if the token owner belongs to at least one group whose
    * full_path equals or is a sub-path of any configured allowed group.

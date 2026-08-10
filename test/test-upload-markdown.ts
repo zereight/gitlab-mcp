@@ -2,6 +2,8 @@ import { describe, test, before, after, beforeEach } from 'node:test';
 import assert from 'node:assert';
 import { spawn } from 'node:child_process';
 import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import { MockGitLabServer, findMockServerPort } from './utils/mock-gitlab-server.js';
 
 const MOCK_TOKEN = 'glpat-mock-token-12345';
@@ -262,5 +264,31 @@ describe('upload_markdown', () => {
       msg.toLowerCase().includes('traversal') || msg.toLowerCase().includes('invalid'),
       `Expected traversal rejection, got: ${msg}`
     );
+  });
+
+  test('rejects file_path that is a symlink escape', async () => {
+    const linkName = `mcp-upload-symlink-${process.pid}.txt`;
+    const target = path.join(os.tmpdir(), `mcp-upload-secret-${process.pid}.txt`);
+    fs.writeFileSync(target, 'secret-content');
+    fs.symlinkSync(target, linkName);
+    try {
+      const raw = await callUploadMarkdown(
+        { project_id: TEST_PROJECT_ID, file_path: linkName },
+        env
+      );
+      const msg =
+        (typeof raw.error?.message === 'string' ? raw.error.message : '') +
+        (raw.result?.content?.map(c => c.text || '').join(' ') || '');
+      assert.ok(
+        msg.toLowerCase().includes('symbolic') ||
+          msg.toLowerCase().includes('symlink') ||
+          msg.toLowerCase().includes('escapes') ||
+          msg.toLowerCase().includes('invalid'),
+        `Expected symlink rejection, got: ${msg}`
+      );
+    } finally {
+      fs.rmSync(linkName, { force: true });
+      fs.rmSync(target, { force: true });
+    }
   });
 });

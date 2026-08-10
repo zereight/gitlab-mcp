@@ -127,9 +127,10 @@ re-authenticate.
 - **OAuth `state`** — replay is tolerated. A replayed state without a matching
   valid GitLab auth code yields nothing; GitLab's code is single-use.
 - **Proxy `code`** — replay is defeated by PKCE, a short TTL (default 120s),
-  and a per-pod bounded cache of consumed code hashes. An attacker replaying
-  the code without the matching `code_verifier` fails at `/token`; a second
-  exchange of a consumed code is rejected on the same pod.
+  and a per-pod TTL-bound cache of code hashes (pending while validating,
+  consumed after a successful `/token`). Failed client/PKCE checks release the
+  reservation so the legitimate client can retry. Entries are never LRU-evicted
+  before their TTL; when the cache is full the server fails closed.
 - **`Mcp-Session-Id`** — replay is equivalent to presenting the stolen bearer
   token, which is a known threat model at the HTTP layer. TLS and operator
   discipline on log redaction protect this surface.

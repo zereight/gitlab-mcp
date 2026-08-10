@@ -161,9 +161,10 @@ import {
 export { readMcpSessionIdHeader } from "./server/request-helpers.js";
 import { normalizeGitLabApiUrl } from "./utils/url.js";
 import {
-  assertSafeRelativePath,
   estimateMergeCommitCount,
   filterDiffsByPatterns,
+  resolveSafeExistingPath,
+  resolveSafeOutputFile,
   summarizeWebhookEvents,
 } from "./utils/helpers.js";
 import {
@@ -7487,9 +7488,7 @@ async function downloadJobArtifacts(
   await handleGitLabError(response);
 
   const filename = `artifacts_job_${encodeGitLabPathSegment(jobId)}.zip`;
-  const savePath = localPath
-    ? path.join(assertSafeRelativePath(localPath, "local_path"), filename)
-    : filename;
+  const savePath = resolveSafeOutputFile(filename, localPath, "local_path");
   fs.mkdirSync(path.dirname(savePath), { recursive: true });
 
   if (!response.body) {
@@ -9381,11 +9380,8 @@ async function markdownUpload(
     fileBuffer = Buffer.from(content, "base64");
     fileName = filename || "upload";
   } else if (filePath) {
-    // Local file mode — reject absolute paths and traversal before reading
-    const safeFilePath = assertSafeRelativePath(filePath, "file_path");
-    if (!fs.existsSync(safeFilePath)) {
-      throw new Error(`File not found: ${safeFilePath}`);
-    }
+    // Local file mode — reject absolute/traversal/symlink escapes before reading
+    const safeFilePath = resolveSafeExistingPath(filePath, "file_path");
     fileBuffer = fs.readFileSync(safeFilePath);
     fileName = path.basename(safeFilePath);
   } else {
@@ -9485,12 +9481,7 @@ async function downloadAttachment(
   // For non-image files, always save to disk.
   // For image files, only save to disk if local_path is explicitly provided.
   if (!mimeType || localPath) {
-    let savePath: string;
-    if (localPath) {
-      savePath = path.join(assertSafeRelativePath(localPath, "local_path"), safeFilename);
-    } else {
-      savePath = safeFilename;
-    }
+    const savePath = resolveSafeOutputFile(safeFilename, localPath, "local_path");
     const dir = path.dirname(savePath);
     if (!fs.existsSync(dir)) {
       fs.mkdirSync(dir, { recursive: true });

@@ -18,7 +18,8 @@
  * Replay: proxyCode replay is defeated by three mitigations:
  *   - short TTL (OAUTH_STATELESS_STORED_TTL_SECONDS, default 120s)
  *   - PKCE binding (the client must still present a matching code_verifier)
- *   - per-pod bounded replay-prevention cache of consumed code hashes
+ *   - per-pod TTL-bound replay cache (pending reservation → commit on success;
+ *     failed binding/PKCE releases the reservation; never LRU-evicts early)
  */
 
 import { open, seal } from "./codec.js";

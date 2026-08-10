@@ -53,7 +53,7 @@
     "test": "npm run test:all",
     "test:all": "npm run build && npm run test:mock && npm run test:live",
     "test:mock": "bash scripts/run-mock-tests.sh",
-    "test:stateless": "npm run build && node --import tsx/esm --test --experimental-test-isolation=none test/stateless/codec.test.ts test/stateless/client-id.test.ts test/stateless/callback-proxy.test.ts test/stateless/session-id.test.ts test/stateless/session-id-integration.test.ts test/stateless/config-ttl.test.ts",
+    "test:stateless": "npm run build && node --import tsx/esm --test --experimental-test-isolation=none test/stateless/codec.test.ts test/stateless/client-id.test.ts test/stateless/callback-proxy.test.ts test/stateless/session-id.test.ts test/stateless/session-id-integration.test.ts test/stateless/config-ttl.test.ts test/stateless/consumed-proxy-code-cache.test.ts",
     "test:mcp-oauth": "npm run build && node --import tsx/esm --test test/mcp-oauth-tests.ts",
     "test:live": "node test/validate-api.js",
     "test:consumer-smoke": "bash scripts/consumer-install-smoke.sh",
