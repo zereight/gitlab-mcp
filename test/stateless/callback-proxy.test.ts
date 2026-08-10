@@ -524,6 +524,58 @@ describe("callback-proxy cross-pod flow (stateless)", () => {
     );
   });
 
+  test("exchangeAuthorizationCode reports busy when replay cache is full", async () => {
+    const s = secret();
+    const pod = makeProvider(loadMaterial(s));
+    const registered = await pod.clientsStore.registerClient!({
+      redirect_uris: [CLIENT_REDIRECT],
+      token_endpoint_auth_method: "none",
+    });
+    const verifier = randomBytes(32).toString("base64url");
+    const challenge = createHash("sha256").update(verifier).digest("base64url");
+    const authorizeRes = makeAuthorizeRes();
+    await pod.authorize(
+      registered,
+      {
+        state: "s",
+        scopes: ["api"],
+        redirectUri: CLIENT_REDIRECT,
+        codeChallenge: challenge,
+      },
+      authorizeRes as unknown as ExpressResponse
+    );
+    const proxyState = new URL(authorizeRes.redirectedTo!).searchParams.get("state")!;
+    const cbRes = makeFakeRes();
+    await pod.handleCallback(
+      fakeReq({ code: "gitlab-code", state: proxyState }) as unknown as ExpressRequest,
+      cbRes as unknown as ExpressResponse
+    );
+    const proxyCode = new URL(cbRes.redirectedTo!).searchParams.get("code")!;
+
+    const cache = (
+      pod as unknown as {
+        _usedProxyCodes: {
+          tryReserve(key: string, ttlSeconds: number): unknown;
+          maxSize: number;
+        };
+      }
+    )._usedProxyCodes;
+    for (let i = 0; i < cache.maxSize; i++) {
+      cache.tryReserve(`fill-${i}`, 600);
+    }
+
+    await assert.rejects(
+      () =>
+        pod.exchangeAuthorizationCode(
+          registered,
+          proxyCode,
+          verifier,
+          CLIENT_REDIRECT
+        ),
+      /Authorization server busy/
+    );
+  });
+
   test("exchangeAuthorizationCode rejects wrong client_id", async () => {
     const s = secret();
     const pod = makeProvider(loadMaterial(s));

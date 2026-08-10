@@ -69,7 +69,10 @@ export {
   ConsumedProxyCodeCache,
   PROXY_CODE_CACHE_FULL,
 } from "./consumed-proxy-code-cache.js";
-export type { ProxyCodeCacheEntry } from "./consumed-proxy-code-cache.js";
+export type {
+  ProxyCodeCacheEntry,
+  TryReserveResult,
+} from "./consumed-proxy-code-cache.js";
 
 export {
   looksLikeStatelessSessionId,

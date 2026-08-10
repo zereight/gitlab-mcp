@@ -19,34 +19,40 @@ describe("ConsumedProxyCodeCache", () => {
     const cache = new ConsumedProxyCodeCache(10, () => now);
     const ttlSeconds = 120;
 
-    assert.equal(cache.tryReserve("hash-a", ttlSeconds), true);
+    assert.equal(cache.tryReserve("hash-a", ttlSeconds).ok, true);
     cache.commit("hash-a");
 
-    // Still within TTL — must reject.
+    // Still within TTL — must reject as consumed.
     now += (ttlSeconds - 1) * 1000;
-    assert.equal(cache.tryReserve("hash-a", ttlSeconds), false);
+    assert.deepEqual(cache.tryReserve("hash-a", ttlSeconds), {
+      ok: false,
+      reason: "consumed",
+    });
 
     // Exactly at expiry boundary — still rejected while expiresAt > now.
     now += 999;
-    assert.equal(cache.tryReserve("hash-a", ttlSeconds), false);
+    assert.deepEqual(cache.tryReserve("hash-a", ttlSeconds), {
+      ok: false,
+      reason: "consumed",
+    });
 
     // After TTL — purged; a new reservation is allowed (sealed code itself
     // would also be expired by openStoredTokensCode at this point).
     now += 1;
-    assert.equal(cache.tryReserve("hash-a", ttlSeconds), true);
+    assert.equal(cache.tryReserve("hash-a", ttlSeconds).ok, true);
   });
 
   test("never LRU-evicts a live entry; fails closed when full", () => {
-    let now = 5_000_000;
+    const now = 5_000_000;
     const maxSize = 3;
     const cache = new ConsumedProxyCodeCache(maxSize, () => now);
     const ttlSeconds = 600;
 
-    assert.equal(cache.tryReserve("h1", ttlSeconds), true);
+    assert.equal(cache.tryReserve("h1", ttlSeconds).ok, true);
     cache.commit("h1");
-    assert.equal(cache.tryReserve("h2", ttlSeconds), true);
+    assert.equal(cache.tryReserve("h2", ttlSeconds).ok, true);
     cache.commit("h2");
-    assert.equal(cache.tryReserve("h3", ttlSeconds), true);
+    assert.equal(cache.tryReserve("h3", ttlSeconds).ok, true);
     cache.commit("h3");
     assert.equal(cache.size, 3);
 
@@ -56,9 +62,18 @@ describe("ConsumedProxyCodeCache", () => {
     });
 
     // Original consumed hashes are still covered through the TTL window.
-    assert.equal(cache.tryReserve("h1", ttlSeconds), false);
-    assert.equal(cache.tryReserve("h2", ttlSeconds), false);
-    assert.equal(cache.tryReserve("h3", ttlSeconds), false);
+    assert.deepEqual(cache.tryReserve("h1", ttlSeconds), {
+      ok: false,
+      reason: "consumed",
+    });
+    assert.deepEqual(cache.tryReserve("h2", ttlSeconds), {
+      ok: false,
+      reason: "consumed",
+    });
+    assert.deepEqual(cache.tryReserve("h3", ttlSeconds), {
+      ok: false,
+      reason: "consumed",
+    });
     assert.equal(cache.size, 3);
   });
 
@@ -66,20 +81,23 @@ describe("ConsumedProxyCodeCache", () => {
     let now = 9_000_000;
     const cache = new ConsumedProxyCodeCache(2, () => now);
 
-    assert.equal(cache.tryReserve("old", 10), true);
+    assert.equal(cache.tryReserve("old", 10).ok, true);
     cache.commit("old");
-    assert.equal(cache.tryReserve("live", 600), true);
+    assert.equal(cache.tryReserve("live", 600).ok, true);
     cache.commit("live");
     assert.equal(cache.size, 2);
 
     // Expire only "old" so a new insert can reclaim that slot.
     now += 10_000;
-    assert.equal(cache.tryReserve("fresh", 600), true);
+    assert.equal(cache.tryReserve("fresh", 600).ok, true);
     cache.commit("fresh");
     assert.equal(cache.size, 2);
 
     // Still-valid "live" hash must remain rejected through its TTL.
-    assert.equal(cache.tryReserve("live", 600), false);
+    assert.deepEqual(cache.tryReserve("live", 600), {
+      ok: false,
+      reason: "consumed",
+    });
 
     // Cache is full of non-expired entries — fail closed, do not LRU-evict.
     assert.throws(() => cache.tryReserve("another", 600), (err: Error) => {
@@ -88,23 +106,38 @@ describe("ConsumedProxyCodeCache", () => {
   });
 
   test("release drops pending reservation but not committed entries", () => {
-    let now = 2_000_000;
+    const now = 2_000_000;
     const cache = new ConsumedProxyCodeCache(10, () => now);
 
-    assert.equal(cache.tryReserve("pending", 60), true);
+    assert.equal(cache.tryReserve("pending", 60).ok, true);
     cache.release("pending");
     assert.equal(cache.size, 0);
-    assert.equal(cache.tryReserve("pending", 60), true);
+    assert.equal(cache.tryReserve("pending", 60).ok, true);
 
     cache.commit("pending");
     cache.release("pending");
     assert.equal(cache.size, 1);
-    assert.equal(cache.tryReserve("pending", 60), false);
+    assert.deepEqual(cache.tryReserve("pending", 60), {
+      ok: false,
+      reason: "consumed",
+    });
   });
 
   test("pending reservation also blocks concurrent replay attempts", () => {
     const cache = new ConsumedProxyCodeCache(10, () => 3_000_000);
-    assert.equal(cache.tryReserve("in-flight", 120), true);
-    assert.equal(cache.tryReserve("in-flight", 120), false);
+    assert.equal(cache.tryReserve("in-flight", 120).ok, true);
+    assert.deepEqual(cache.tryReserve("in-flight", 120), {
+      ok: false,
+      reason: "pending",
+    });
+  });
+
+  test("non-finite TTL still blocks a second reservation for the same key", () => {
+    const cache = new ConsumedProxyCodeCache(10, () => 4_000_000);
+    assert.equal(cache.tryReserve("nan-ttl", Number.NaN).ok, true);
+    assert.deepEqual(cache.tryReserve("nan-ttl", Number.NaN), {
+      ok: false,
+      reason: "pending",
+    });
   });
 });

@@ -12,7 +12,19 @@ export type ProxyCodeCacheEntry = {
   state: "pending" | "consumed";
 };
 
+export type TryReserveResult =
+  | { ok: true }
+  | { ok: false; reason: "pending" | "consumed" };
+
 export const PROXY_CODE_CACHE_FULL = "PROXY_CODE_CACHE_FULL";
+
+function ttlToExpiryMs(now: number, ttlSeconds: number): number {
+  // Non-finite / non-positive TTLs must still create a usable expiry so a
+  // reservation blocks concurrent replay instead of leaving expiresAt as NaN.
+  const safeSeconds =
+    Number.isFinite(ttlSeconds) && ttlSeconds > 0 ? ttlSeconds : 1;
+  return now + safeSeconds * 1000;
+}
 
 export class ConsumedProxyCodeCache {
   private readonly _map = new Map<string, ProxyCodeCacheEntry>();
@@ -32,25 +44,26 @@ export class ConsumedProxyCodeCache {
 
   /**
    * Atomically reserve a code hash for an in-flight exchange.
-   * @returns true if reserved, false if already pending/consumed within TTL.
+   * @returns `{ ok: true }` if reserved, or `{ ok: false, reason }` when an
+   *   in-TTL pending/consumed entry already exists.
    * @throws Error with message {@link PROXY_CODE_CACHE_FULL} when the cache
    *   is full of non-expired entries (fail closed).
    */
-  tryReserve(key: string, ttlSeconds: number): boolean {
+  tryReserve(key: string, ttlSeconds: number): TryReserveResult {
     const now = this._now();
     this.purgeExpired(now);
     const existing = this._map.get(key);
     if (existing && existing.expiresAt > now) {
-      return false;
+      return { ok: false, reason: existing.state };
     }
     if (this._map.size >= this._maxSize) {
       throw new Error(PROXY_CODE_CACHE_FULL);
     }
     this._map.set(key, {
-      expiresAt: now + Math.max(1, ttlSeconds) * 1000,
+      expiresAt: ttlToExpiryMs(now, ttlSeconds),
       state: "pending",
     });
-    return true;
+    return { ok: true };
   }
 
   /** Mark a reserved code as fully consumed (replay rejected until TTL). */
@@ -67,5 +80,9 @@ export class ConsumedProxyCodeCache {
 
   get size(): number {
     return this._map.size;
+  }
+
+  get maxSize(): number {
+    return this._maxSize;
   }
 }

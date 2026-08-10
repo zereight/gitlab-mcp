@@ -73,11 +73,9 @@ import {
   looksLikeStatelessStoredTokensCode,
   mintStoredTokensCode,
   openStoredTokensCode,
-} from "./stateless/stored-tokens.js";
-import {
   ConsumedProxyCodeCache,
   PROXY_CODE_CACHE_FULL,
-} from "./stateless/consumed-proxy-code-cache.js";
+} from "./stateless/index.js";
 import type { StatelessKeyMaterial } from "./stateless/index.js";
 import { createLogger } from "./utils/logger.js";
 
@@ -514,11 +512,27 @@ class GitLabOAuthServerProvider implements OAuthServerProvider {
         if (stateless && looksLikeStatelessStoredTokensCode(authorizationCode)) {
           const codeHash = createHash("sha256").update(authorizationCode).digest("hex");
           try {
-            if (!this._usedProxyCodes.tryReserve(codeHash, stateless.storedTtlSeconds)) {
+            const reserved = this._usedProxyCodes.tryReserve(
+              codeHash,
+              stateless.storedTtlSeconds
+            );
+            if (!reserved.ok) {
+              if (reserved.reason === "pending") {
+                throw new ServerError(
+                  "Authorization code exchange in progress — please retry"
+                );
+              }
               throw new ServerError("Authorization code already used");
             }
           } catch (err) {
             if (err instanceof Error && err.message === PROXY_CODE_CACHE_FULL) {
+              logger.warn(
+                {
+                  cacheSize: this._usedProxyCodes.size,
+                  cacheMaxSize: this._usedProxyCodes.maxSize,
+                },
+                "Proxy code replay cache at capacity"
+              );
               throw new ServerError(
                 "Authorization server busy — please retry the OAuth flow"
               );

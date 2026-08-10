@@ -24,7 +24,9 @@ export function assertSafeRelativePath(inputPath: string, label = "path"): strin
 }
 
 function isInsideBase(candidate: string, baseReal: string): boolean {
-  return candidate === baseReal || candidate.startsWith(baseReal + path.sep);
+  const relative = path.relative(baseReal, candidate);
+  // "" = same path; absolute relative = different Windows volume root.
+  return relative === "" || (!relative.startsWith("..") && !path.isAbsolute(relative));
 }
 
 /**
@@ -67,7 +69,10 @@ export function resolveSafeExistingPath(
   const baseReal = fs.realpathSync(baseDir);
   assertNoSymlinkComponents(baseReal, relative, label);
 
-  const absolute = path.resolve(baseDir, relative);
+  const absolute = path.resolve(baseReal, relative);
+  if (!isInsideBase(absolute, baseReal)) {
+    throw new Error(`Invalid ${label}: path escapes the allowed directory.`);
+  }
   if (!fs.existsSync(absolute)) {
     throw new Error(`File not found: ${relative}`);
   }
@@ -93,7 +98,12 @@ export function resolveSafeOutputDir(
   const baseReal = fs.realpathSync(baseDir);
   assertNoSymlinkComponents(baseReal, relative, label);
 
-  const absolute = path.resolve(baseDir, relative);
+  const absolute = path.resolve(baseReal, relative);
+  // Reject escapes before mkdir so we never create dirs outside the base.
+  if (!isInsideBase(absolute, baseReal)) {
+    throw new Error(`Invalid ${label}: path escapes the allowed directory.`);
+  }
+
   fs.mkdirSync(absolute, { recursive: true });
 
   const real = fs.realpathSync(absolute);

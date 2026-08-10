@@ -64,7 +64,9 @@ describe("resolveSafeExistingPath / resolveSafeOutputDir", () => {
 
   test("creates nested output dirs that stay inside the base", () => {
     const out = resolveSafeOutputDir(path.join("artifacts", "run-1"), "local_path", base);
-    assert.ok(out.startsWith(fs.realpathSync(base) + path.sep));
+    const baseReal = fs.realpathSync(base);
+    const rel = path.relative(baseReal, out);
+    assert.ok(rel === "" || (!rel.startsWith("..") && !path.isAbsolute(rel)));
     assert.ok(fs.statSync(out).isDirectory());
   });
 
