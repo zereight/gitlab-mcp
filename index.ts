@@ -7488,15 +7488,15 @@ async function downloadJobArtifacts(
   await handleGitLabError(response);
 
   const filename = `artifacts_job_${encodeGitLabPathSegment(jobId)}.zip`;
+
+  if (!response.body) {
+    throw new Error("No response body from GitLab");
+  }
   const { stream: saveStream, path: savePath } = openSafeOutputWriteStream(
     filename,
     localPath,
     "local_path"
   );
-
-  if (!response.body) {
-    throw new Error("No response body from GitLab");
-  }
   await streamPipeline(response.body, saveStream);
 
   return savePath;
@@ -9484,6 +9484,9 @@ async function downloadAttachment(
   // For non-image files, always save to disk.
   // For image files, only save to disk if local_path is explicitly provided.
   if (!mimeType || localPath) {
+    if (!response.body) {
+      throw new Error("No response body from GitLab");
+    }
     const { stream: saveStream, path: savePath } = openSafeOutputWriteStream(
       safeFilename,
       localPath,
@@ -9491,9 +9494,6 @@ async function downloadAttachment(
     );
 
     // Stream directly to disk instead of buffering in memory
-    if (!response.body) {
-      throw new Error("No response body from GitLab");
-    }
     await streamPipeline(response.body, saveStream);
     return { buffer: Buffer.alloc(0), filename: safeFilename, mimeType, savedPath: savePath };
   }
