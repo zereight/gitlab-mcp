@@ -5,6 +5,8 @@ import os from "node:os";
 import path from "node:path";
 import {
   assertSafeRelativePath,
+  openSafeOutputWriteStream,
+  readSafeExistingFile,
   resolveSafeExistingPath,
   resolveSafeOutputDir,
   resolveSafeOutputFile,
@@ -106,6 +108,28 @@ describe("resolveSafeExistingPath / resolveSafeOutputDir", () => {
     } finally {
       process.chdir(originalCwd);
     }
+  });
+
+  test("readSafeExistingFile reads without returning a reusable path", () => {
+    const file = path.join(base, "inline.txt");
+    fs.writeFileSync(file, "payload");
+    const { buffer, basename } = readSafeExistingFile("inline.txt", "file_path", base);
+    assert.strictEqual(buffer.toString(), "payload");
+    assert.strictEqual(basename, "inline.txt");
+  });
+
+  test("openSafeOutputWriteStream writes without a separate createWriteStream call", async () => {
+    const { stream, path: dest } = openSafeOutputWriteStream(
+      "streamed.bin",
+      "downloads",
+      "local_path",
+      base
+    );
+    await new Promise<void>((resolve, reject) => {
+      stream.on("error", reject);
+      stream.end("streamed", () => resolve());
+    });
+    assert.strictEqual(fs.readFileSync(dest, "utf8"), "streamed");
   });
 
   test("cleanup base dir", () => {

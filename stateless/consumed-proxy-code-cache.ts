@@ -7,13 +7,16 @@
  * pushing a consumed hash out before `storedTtlSeconds` elapses.
  */
 
+import { randomBytes } from "node:crypto";
+
 export type ProxyCodeCacheEntry = {
   expiresAt: number;
   state: "pending" | "consumed";
+  reservationId: string;
 };
 
 export type TryReserveResult =
-  | { ok: true }
+  | { ok: true; reservationId: string }
   | { ok: false; reason: "pending" | "consumed" };
 
 export const PROXY_CODE_CACHE_FULL = "PROXY_CODE_CACHE_FULL";
@@ -69,20 +72,26 @@ export class ConsumedProxyCodeCache {
     this._map.set(key, {
       expiresAt: ttlToExpiryMs(now, ttlSeconds),
       state: "pending",
+      reservationId: randomBytes(16).toString("hex"),
     });
-    return { ok: true };
+    const entry = this._map.get(key)!;
+    return { ok: true, reservationId: entry.reservationId };
   }
 
   /** Mark a reserved code as fully consumed (replay rejected until TTL). */
-  commit(key: string): void {
+  commit(key: string, reservationId: string): void {
     const entry = this._map.get(key);
-    if (entry) entry.state = "consumed";
+    if (entry && entry.reservationId === reservationId) {
+      entry.state = "consumed";
+    }
   }
 
   /** Drop an in-flight reservation so a later legitimate exchange can proceed. */
-  release(key: string): void {
+  release(key: string, reservationId: string): void {
     const entry = this._map.get(key);
-    if (entry?.state === "pending") this._map.delete(key);
+    if (entry?.state === "pending" && entry.reservationId === reservationId) {
+      this._map.delete(key);
+    }
   }
 
   get size(): number {

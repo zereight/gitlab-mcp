@@ -162,6 +162,96 @@ export function resolveSafeOutputFile(
   return dest;
 }
 
+const READ_OPEN_FLAGS = fs.constants.O_RDONLY | (fs.constants.O_NOFOLLOW ?? 0);
+const WRITE_OPEN_FLAGS =
+  fs.constants.O_WRONLY |
+  fs.constants.O_CREAT |
+  fs.constants.O_TRUNC |
+  (fs.constants.O_NOFOLLOW ?? 0);
+
+/**
+ * Validate and read a file in one step so callers never reuse a path string
+ * after a symlink swap (final-component TOCTOU mitigation via O_NOFOLLOW).
+ */
+export function readSafeExistingFile(
+  inputPath: string,
+  label = "path",
+  baseDir?: string
+): { buffer: Buffer; basename: string } {
+  const relative = assertSafeRelativePath(inputPath, label);
+  const baseReal = resolveTrustedBaseDir(baseDir);
+  assertNoSymlinkComponents(baseReal, relative, label);
+
+  const absolute = path.resolve(baseReal, relative);
+  if (!isInsideBase(absolute, baseReal)) {
+    throw new Error(`Invalid ${label}: path escapes the allowed directory.`);
+  }
+  if (!fs.existsSync(absolute)) {
+    throw new Error(`File not found: ${relative}`);
+  }
+
+  const fd = fs.openSync(absolute, READ_OPEN_FLAGS);
+  try {
+    const st = fs.fstatSync(fd);
+    if (st.isSymbolicLink()) {
+      throw new Error(`Invalid ${label}: symbolic links are not allowed.`);
+    }
+    const real = fs.realpathSync(absolute);
+    if (!isInsideBase(real, baseReal)) {
+      throw new Error(`Invalid ${label}: path escapes the allowed directory.`);
+    }
+    return { buffer: fs.readFileSync(fd), basename: path.basename(relative) };
+  } finally {
+    fs.closeSync(fd);
+  }
+}
+
+/**
+ * Validate an output destination and open a write stream immediately so the
+ * path is not handed back for a separate createWriteStream call.
+ */
+export function openSafeOutputWriteStream(
+  filename: string,
+  inputDir?: string,
+  label = "local_path",
+  baseDir?: string
+): { stream: fs.WriteStream; path: string } {
+  if (
+    !filename ||
+    filename === "." ||
+    filename === ".." ||
+    filename.includes("/") ||
+    filename.includes("\\") ||
+    filename.includes(path.sep)
+  ) {
+    throw new Error(`Invalid ${label}: directory separators are not allowed in filename.`);
+  }
+
+  const dirReal = inputDir
+    ? resolveSafeOutputDir(inputDir, label, baseDir)
+    : resolveTrustedBaseDir(baseDir);
+  const dest = path.join(dirReal, filename);
+
+  try {
+    const st = fs.lstatSync(dest);
+    if (st.isSymbolicLink()) {
+      throw new Error(`Invalid ${label}: symbolic links are not allowed.`);
+    }
+  } catch (err) {
+    const code = (err as NodeJS.ErrnoException).code;
+    if (code !== "ENOENT") {
+      throw err;
+    }
+  }
+
+  const fd = fs.openSync(dest, WRITE_OPEN_FLAGS, 0o666);
+  const stream = fs.createWriteStream(null as unknown as fs.PathLike, {
+    fd,
+    autoClose: true,
+  });
+  return { stream, path: dest };
+}
+
 /**
  * Estimate the number of merge commits that will be added based on the merge method.
  */

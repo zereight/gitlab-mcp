@@ -163,8 +163,8 @@ import { normalizeGitLabApiUrl } from "./utils/url.js";
 import {
   estimateMergeCommitCount,
   filterDiffsByPatterns,
-  resolveSafeExistingPath,
-  resolveSafeOutputFile,
+  openSafeOutputWriteStream,
+  readSafeExistingFile,
   summarizeWebhookEvents,
 } from "./utils/helpers.js";
 import {
@@ -7488,13 +7488,16 @@ async function downloadJobArtifacts(
   await handleGitLabError(response);
 
   const filename = `artifacts_job_${encodeGitLabPathSegment(jobId)}.zip`;
-  const savePath = resolveSafeOutputFile(filename, localPath, "local_path");
-  fs.mkdirSync(path.dirname(savePath), { recursive: true });
+  const { stream: saveStream, path: savePath } = openSafeOutputWriteStream(
+    filename,
+    localPath,
+    "local_path"
+  );
 
   if (!response.body) {
     throw new Error("No response body from GitLab");
   }
-  await streamPipeline(response.body, fs.createWriteStream(savePath));
+  await streamPipeline(response.body, saveStream);
 
   return savePath;
 }
@@ -9381,9 +9384,9 @@ async function markdownUpload(
     fileName = filename || "upload";
   } else if (filePath) {
     // Local file mode — reject absolute/traversal/symlink escapes before reading
-    const safeFilePath = resolveSafeExistingPath(filePath, "file_path");
-    fileBuffer = fs.readFileSync(safeFilePath);
-    fileName = path.basename(safeFilePath);
+    const { buffer, basename: safeBasename } = readSafeExistingFile(filePath, "file_path");
+    fileBuffer = buffer;
+    fileName = safeBasename;
   } else {
     throw new Error("Either file_path or content must be provided");
   }
@@ -9481,17 +9484,17 @@ async function downloadAttachment(
   // For non-image files, always save to disk.
   // For image files, only save to disk if local_path is explicitly provided.
   if (!mimeType || localPath) {
-    const savePath = resolveSafeOutputFile(safeFilename, localPath, "local_path");
-    const dir = path.dirname(savePath);
-    if (!fs.existsSync(dir)) {
-      fs.mkdirSync(dir, { recursive: true });
-    }
+    const { stream: saveStream, path: savePath } = openSafeOutputWriteStream(
+      safeFilename,
+      localPath,
+      "local_path"
+    );
 
     // Stream directly to disk instead of buffering in memory
     if (!response.body) {
       throw new Error("No response body from GitLab");
     }
-    await streamPipeline(response.body, fs.createWriteStream(savePath));
+    await streamPipeline(response.body, saveStream);
     return { buffer: Buffer.alloc(0), filename: safeFilename, mimeType, savedPath: savePath };
   }
 

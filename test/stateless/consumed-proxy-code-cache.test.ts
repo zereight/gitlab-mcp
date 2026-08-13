@@ -13,14 +13,27 @@ import {
   PROXY_CODE_CACHE_FULL,
 } from "../../stateless/consumed-proxy-code-cache.js";
 
+function reserveId(
+  cache: ConsumedProxyCodeCache,
+  key: string,
+  ttlSeconds: number
+): string {
+  const result = cache.tryReserve(key, ttlSeconds);
+  assert.equal(result.ok, true);
+  if (!result.ok) {
+    throw new Error("expected reservation to succeed");
+  }
+  return result.reservationId;
+}
+
 describe("ConsumedProxyCodeCache", () => {
   test("rejects replay of a committed hash for the full configured TTL", () => {
     let now = 1_000_000;
     const cache = new ConsumedProxyCodeCache(10, () => now);
     const ttlSeconds = 120;
 
-    assert.equal(cache.tryReserve("hash-a", ttlSeconds).ok, true);
-    cache.commit("hash-a");
+    const id = reserveId(cache, "hash-a", ttlSeconds);
+    cache.commit("hash-a", id);
 
     // Still within TTL — must reject as consumed.
     now += (ttlSeconds - 1) * 1000;
@@ -48,12 +61,9 @@ describe("ConsumedProxyCodeCache", () => {
     const cache = new ConsumedProxyCodeCache(maxSize, () => now);
     const ttlSeconds = 600;
 
-    assert.equal(cache.tryReserve("h1", ttlSeconds).ok, true);
-    cache.commit("h1");
-    assert.equal(cache.tryReserve("h2", ttlSeconds).ok, true);
-    cache.commit("h2");
-    assert.equal(cache.tryReserve("h3", ttlSeconds).ok, true);
-    cache.commit("h3");
+    cache.commit("h1", reserveId(cache, "h1", ttlSeconds));
+    cache.commit("h2", reserveId(cache, "h2", ttlSeconds));
+    cache.commit("h3", reserveId(cache, "h3", ttlSeconds));
     assert.equal(cache.size, 3);
 
     // A fourth insert must fail closed — not silently drop h1.
@@ -81,16 +91,13 @@ describe("ConsumedProxyCodeCache", () => {
     let now = 9_000_000;
     const cache = new ConsumedProxyCodeCache(2, () => now);
 
-    assert.equal(cache.tryReserve("old", 10).ok, true);
-    cache.commit("old");
-    assert.equal(cache.tryReserve("live", 600).ok, true);
-    cache.commit("live");
+    cache.commit("old", reserveId(cache, "old", 10));
+    cache.commit("live", reserveId(cache, "live", 600));
     assert.equal(cache.size, 2);
 
     // Expire only "old" so a new insert can reclaim that slot.
     now += 10_000;
-    assert.equal(cache.tryReserve("fresh", 600).ok, true);
-    cache.commit("fresh");
+    cache.commit("fresh", reserveId(cache, "fresh", 600));
     assert.equal(cache.size, 2);
 
     // Still-valid "live" hash must remain rejected through its TTL.
@@ -109,13 +116,13 @@ describe("ConsumedProxyCodeCache", () => {
     const now = 2_000_000;
     const cache = new ConsumedProxyCodeCache(10, () => now);
 
-    assert.equal(cache.tryReserve("pending", 60).ok, true);
-    cache.release("pending");
+    const pendingId = reserveId(cache, "pending", 60);
+    cache.release("pending", pendingId);
     assert.equal(cache.size, 0);
-    assert.equal(cache.tryReserve("pending", 60).ok, true);
+    const retryId = reserveId(cache, "pending", 60);
 
-    cache.commit("pending");
-    cache.release("pending");
+    cache.commit("pending", retryId);
+    cache.release("pending", retryId);
     assert.equal(cache.size, 1);
     assert.deepEqual(cache.tryReserve("pending", 60), {
       ok: false,
@@ -144,8 +151,7 @@ describe("ConsumedProxyCodeCache", () => {
   test("extreme finite TTL keeps expiresAt finite and evictable", () => {
     let now = 1_000_000;
     const cache = new ConsumedProxyCodeCache(10, () => now);
-    assert.equal(cache.tryReserve("max-ttl", Number.MAX_VALUE).ok, true);
-    cache.commit("max-ttl");
+    cache.commit("max-ttl", reserveId(cache, "max-ttl", Number.MAX_VALUE));
 
     assert.deepEqual(cache.tryReserve("max-ttl", Number.MAX_VALUE), {
       ok: false,
@@ -155,5 +161,25 @@ describe("ConsumedProxyCodeCache", () => {
     // Advance past the capped expiry so purgeExpired can reclaim the slot.
     now += Math.floor(Number.MAX_SAFE_INTEGER / 1000) * 1000 + 1;
     assert.equal(cache.tryReserve("max-ttl", 60).ok, true);
+  });
+
+  test("stale reservation id cannot release or commit a newer reservation", () => {
+    let now = 1_000_000;
+    const cache = new ConsumedProxyCodeCache(10, () => now);
+    const ttlSeconds = 10;
+
+    const staleId = reserveId(cache, "key", ttlSeconds);
+    now += 11_000;
+
+    const liveId = reserveId(cache, "key", ttlSeconds);
+    cache.release("key", staleId);
+    assert.deepEqual(cache.tryReserve("key", ttlSeconds), {
+      ok: false,
+      reason: "pending",
+    });
+
+    cache.commit("key", staleId);
+    cache.release("key", liveId);
+    assert.equal(cache.tryReserve("key", ttlSeconds).ok, true);
   });
 });

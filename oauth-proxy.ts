@@ -486,8 +486,8 @@ class GitLabOAuthServerProvider implements OAuthServerProvider {
     resource?: URL
   ): Promise<OAuthTokens> {
     let tokens: OAuthTokens;
-    /** Reserved sealed-code hash; released on failure, committed on success. */
-    let reservedProxyCodeHash: string | null = null;
+    /** Reserved sealed-code hash + id; released on failure, committed on success. */
+    let reservedProxyCode: { hash: string; id: string } | null = null;
     /**
      * Legacy (non-stateless) proxy code taken from `_storedTokens` before
      * binding checks. Restored on binding/PKCE failure so a wrong verifier
@@ -511,8 +511,9 @@ class GitLabOAuthServerProvider implements OAuthServerProvider {
 
         if (stateless && looksLikeStatelessStoredTokensCode(authorizationCode)) {
           const codeHash = createHash("sha256").update(authorizationCode).digest("hex");
+          let reserved;
           try {
-            const reserved = this._usedProxyCodes.tryReserve(
+            reserved = this._usedProxyCodes.tryReserve(
               codeHash,
               stateless.storedTtlSeconds
             );
@@ -539,7 +540,7 @@ class GitLabOAuthServerProvider implements OAuthServerProvider {
             }
             throw err;
           }
-          reservedProxyCodeHash = codeHash;
+          reservedProxyCode = { hash: codeHash, id: reserved.reservationId };
 
           const payload = openStoredTokensCode(
             stateless.material,
@@ -639,9 +640,9 @@ class GitLabOAuthServerProvider implements OAuthServerProvider {
 
       // All checks passed — permanently consume the proxy code.
       legacyRestorable = null;
-      if (reservedProxyCodeHash) {
-        this._usedProxyCodes.commit(reservedProxyCodeHash);
-        reservedProxyCodeHash = null;
+      if (reservedProxyCode) {
+        this._usedProxyCodes.commit(reservedProxyCode.hash, reservedProxyCode.id);
+        reservedProxyCode = null;
       }
 
       return tokens;
@@ -649,8 +650,8 @@ class GitLabOAuthServerProvider implements OAuthServerProvider {
       if (legacyRestorable) {
         this._storedTokens.set(legacyRestorable.code, legacyRestorable.entry);
       }
-      if (reservedProxyCodeHash) {
-        this._usedProxyCodes.release(reservedProxyCodeHash);
+      if (reservedProxyCode) {
+        this._usedProxyCodes.release(reservedProxyCode.hash, reservedProxyCode.id);
       }
       throw err;
     }
