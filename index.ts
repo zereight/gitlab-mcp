@@ -2053,7 +2053,7 @@ async function getFileContents(
   const parsedData = GitLabContentSchema.parse(data);
 
   // Decode Base64-encoded text files while preserving binary content losslessly.
-  if (!Array.isArray(parsedData) && parsedData.content) {
+  if (!Array.isArray(parsedData) && typeof parsedData.content === "string") {
     const decodedContent = Buffer.from(parsedData.content, "base64");
     const utf8Content = decodedContent.toString("utf8");
 

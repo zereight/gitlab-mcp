@@ -53,6 +53,18 @@ describe("get_file_contents", { timeout: 20_000 }, () => {
         });
       }
     );
+    mockGitLab.addMockHandler(
+      "get",
+      `/projects/${TEST_PROJECT_ID}/repository/files/empty.txt`,
+      (_req, res) => {
+        res.json({
+          file_name: "empty.txt",
+          file_path: "empty.txt",
+          encoding: "base64",
+          content: "",
+        });
+      }
+    );
     await mockGitLab.start();
 
     const port = await findAvailablePort(3480);
@@ -117,6 +129,26 @@ describe("get_file_contents", { timeout: 20_000 }, () => {
       const file = JSON.parse(responseText) as { content: string; encoding: string };
 
       assert.strictEqual(file.content, "Hello, 世界\n");
+      assert.strictEqual(file.encoding, "utf8");
+    } finally {
+      await client.disconnect();
+    }
+  });
+
+  test("decodes empty file content as UTF-8", async () => {
+    const client = new CustomHeaderClient({ Authorization: `Bearer ${MOCK_TOKEN}` });
+    await client.connect(mcpUrl);
+
+    try {
+      const result = await client.callTool("get_file_contents", {
+        project_id: TEST_PROJECT_ID,
+        file_path: "empty.txt",
+        ref: "main",
+      });
+      const responseText = result.content?.[0]?.type === "text" ? result.content[0].text : "";
+      const file = JSON.parse(responseText) as { content: string; encoding: string };
+
+      assert.strictEqual(file.content, "");
       assert.strictEqual(file.encoding, "utf8");
     } finally {
       await client.disconnect();
