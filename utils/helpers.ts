@@ -23,6 +23,12 @@ export function assertSafeRelativePath(inputPath: string, label = "path"): strin
   return normalized;
 }
 
+/** Snapshot and canonicalize the trusted base directory once per operation. */
+function resolveTrustedBaseDir(baseDir?: string): string {
+  const anchor = baseDir ?? process.cwd();
+  return fs.realpathSync(anchor);
+}
+
 function isInsideBase(candidate: string, baseReal: string): boolean {
   const relative = path.relative(baseReal, candidate);
   // "" = same path; absolute relative = different Windows volume root.
@@ -63,10 +69,10 @@ function assertNoSymlinkComponents(baseReal: string, relative: string, label: st
 export function resolveSafeExistingPath(
   inputPath: string,
   label = "path",
-  baseDir: string = process.cwd()
+  baseDir?: string
 ): string {
   const relative = assertSafeRelativePath(inputPath, label);
-  const baseReal = fs.realpathSync(baseDir);
+  const baseReal = resolveTrustedBaseDir(baseDir);
   assertNoSymlinkComponents(baseReal, relative, label);
 
   const absolute = path.resolve(baseReal, relative);
@@ -92,10 +98,10 @@ export function resolveSafeExistingPath(
 export function resolveSafeOutputDir(
   inputDir: string,
   label = "local_path",
-  baseDir: string = process.cwd()
+  baseDir?: string
 ): string {
   const relative = assertSafeRelativePath(inputDir, label);
-  const baseReal = fs.realpathSync(baseDir);
+  const baseReal = resolveTrustedBaseDir(baseDir);
   assertNoSymlinkComponents(baseReal, relative, label);
 
   const absolute = path.resolve(baseReal, relative);
@@ -124,7 +130,7 @@ export function resolveSafeOutputFile(
   filename: string,
   inputDir?: string,
   label = "local_path",
-  baseDir: string = process.cwd()
+  baseDir?: string
 ): string {
   if (
     !filename ||
@@ -137,9 +143,8 @@ export function resolveSafeOutputFile(
     throw new Error(`Invalid ${label}: directory separators are not allowed in filename.`);
   }
 
-  const dirReal = inputDir
-    ? resolveSafeOutputDir(inputDir, label, baseDir)
-    : fs.realpathSync(baseDir);
+  const baseReal = resolveTrustedBaseDir(baseDir);
+  const dirReal = inputDir ? resolveSafeOutputDir(inputDir, label, baseReal) : baseReal;
   const dest = path.join(dirReal, filename);
 
   try {

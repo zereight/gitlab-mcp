@@ -92,6 +92,22 @@ describe("resolveSafeExistingPath / resolveSafeOutputDir", () => {
     assert.ok(dest.endsWith(`${path.sep}fresh.bin`));
   });
 
+  test("anchors to cwd snapshot when baseDir is omitted", () => {
+    const nested = path.join(base, "anchored");
+    fs.mkdirSync(nested, { recursive: true });
+    const file = path.join(nested, "data.txt");
+    fs.writeFileSync(file, "anchored");
+
+    const originalCwd = process.cwd();
+    try {
+      process.chdir(nested);
+      const resolved = resolveSafeExistingPath("data.txt", "file_path");
+      assert.strictEqual(resolved, fs.realpathSync(file));
+    } finally {
+      process.chdir(originalCwd);
+    }
+  });
+
   test("cleanup base dir", () => {
     fs.rmSync(base, { recursive: true, force: true });
   });

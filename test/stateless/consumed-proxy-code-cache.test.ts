@@ -140,4 +140,20 @@ describe("ConsumedProxyCodeCache", () => {
       reason: "pending",
     });
   });
+
+  test("extreme finite TTL keeps expiresAt finite and evictable", () => {
+    let now = 1_000_000;
+    const cache = new ConsumedProxyCodeCache(10, () => now);
+    assert.equal(cache.tryReserve("max-ttl", Number.MAX_VALUE).ok, true);
+    cache.commit("max-ttl");
+
+    assert.deepEqual(cache.tryReserve("max-ttl", Number.MAX_VALUE), {
+      ok: false,
+      reason: "consumed",
+    });
+
+    // Advance past the capped expiry so purgeExpired can reclaim the slot.
+    now += Math.floor(Number.MAX_SAFE_INTEGER / 1000) * 1000 + 1;
+    assert.equal(cache.tryReserve("max-ttl", 60).ok, true);
+  });
 });

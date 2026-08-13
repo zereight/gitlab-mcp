@@ -18,12 +18,19 @@ export type TryReserveResult =
 
 export const PROXY_CODE_CACHE_FULL = "PROXY_CODE_CACHE_FULL";
 
+/** Largest TTL (seconds) that keeps `now + ttl * 1000` finite. */
+const MAX_TTL_SECONDS = Math.floor(Number.MAX_SAFE_INTEGER / 1000);
+
 function ttlToExpiryMs(now: number, ttlSeconds: number): number {
   // Non-finite / non-positive TTLs must still create a usable expiry so a
   // reservation blocks concurrent replay instead of leaving expiresAt as NaN.
-  const safeSeconds =
+  let safeSeconds =
     Number.isFinite(ttlSeconds) && ttlSeconds > 0 ? ttlSeconds : 1;
-  return now + safeSeconds * 1000;
+  if (safeSeconds > MAX_TTL_SECONDS) {
+    safeSeconds = MAX_TTL_SECONDS;
+  }
+  const expiresAt = now + safeSeconds * 1000;
+  return Number.isFinite(expiresAt) ? expiresAt : Number.MAX_SAFE_INTEGER;
 }
 
 export class ConsumedProxyCodeCache {
