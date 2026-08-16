@@ -1,0 +1,104 @@
+/**
+ * Per-pod replay-prevention cache for sealed proxy authorization codes.
+ *
+ * Unlike an LRU map, entries are retained until their TTL expires — never
+ * evicted early. Inserts fail closed when the cache is full of still-valid
+ * entries, so a burst of traffic cannot reopen a capture-replay window by
+ * pushing a consumed hash out before `storedTtlSeconds` elapses.
+ */
+
+import { randomBytes } from "node:crypto";
+
+export type ProxyCodeCacheEntry = {
+  expiresAt: number;
+  state: "pending" | "consumed";
+  reservationId: string;
+};
+
+export type TryReserveResult =
+  | { ok: true; reservationId: string }
+  | { ok: false; reason: "pending" | "consumed" };
+
+export const PROXY_CODE_CACHE_FULL = "PROXY_CODE_CACHE_FULL";
+
+/** Largest TTL (seconds) that keeps `now + ttl * 1000` finite. */
+const MAX_TTL_SECONDS = Math.floor(Number.MAX_SAFE_INTEGER / 1000);
+
+function ttlToExpiryMs(now: number, ttlSeconds: number): number {
+  // Non-finite / non-positive TTLs must still create a usable expiry so a
+  // reservation blocks concurrent replay instead of leaving expiresAt as NaN.
+  let safeSeconds =
+    Number.isFinite(ttlSeconds) && ttlSeconds > 0 ? ttlSeconds : 1;
+  if (safeSeconds > MAX_TTL_SECONDS) {
+    safeSeconds = MAX_TTL_SECONDS;
+  }
+  const expiresAt = now + safeSeconds * 1000;
+  return Number.isFinite(expiresAt) ? expiresAt : Number.MAX_SAFE_INTEGER;
+}
+
+export class ConsumedProxyCodeCache {
+  private readonly _map = new Map<string, ProxyCodeCacheEntry>();
+  private readonly _maxSize: number;
+  private readonly _now: () => number;
+
+  constructor(maxSize: number, now: () => number = Date.now) {
+    this._maxSize = maxSize;
+    this._now = now;
+  }
+
+  private purgeExpired(now: number): void {
+    for (const [key, entry] of this._map) {
+      if (entry.expiresAt <= now) this._map.delete(key);
+    }
+  }
+
+  /**
+   * Atomically reserve a code hash for an in-flight exchange.
+   * @returns `{ ok: true }` if reserved, or `{ ok: false, reason }` when an
+   *   in-TTL pending/consumed entry already exists.
+   * @throws Error with message {@link PROXY_CODE_CACHE_FULL} when the cache
+   *   is full of non-expired entries (fail closed).
+   */
+  tryReserve(key: string, ttlSeconds: number): TryReserveResult {
+    const now = this._now();
+    this.purgeExpired(now);
+    const existing = this._map.get(key);
+    if (existing && existing.expiresAt > now) {
+      return { ok: false, reason: existing.state };
+    }
+    if (this._map.size >= this._maxSize) {
+      throw new Error(PROXY_CODE_CACHE_FULL);
+    }
+    this._map.set(key, {
+      expiresAt: ttlToExpiryMs(now, ttlSeconds),
+      state: "pending",
+      reservationId: randomBytes(16).toString("hex"),
+    });
+    const entry = this._map.get(key)!;
+    return { ok: true, reservationId: entry.reservationId };
+  }
+
+  /** Mark a reserved code as fully consumed (replay rejected until TTL). */
+  commit(key: string, reservationId: string): void {
+    const entry = this._map.get(key);
+    if (entry && entry.reservationId === reservationId) {
+      entry.state = "consumed";
+    }
+  }
+
+  /** Drop an in-flight reservation so a later legitimate exchange can proceed. */
+  release(key: string, reservationId: string): void {
+    const entry = this._map.get(key);
+    if (entry?.state === "pending" && entry.reservationId === reservationId) {
+      this._map.delete(key);
+    }
+  }
+
+  get size(): number {
+    return this._map.size;
+  }
+
+  get maxSize(): number {
+    return this._maxSize;
+  }
+}

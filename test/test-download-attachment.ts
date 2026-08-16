@@ -2,6 +2,7 @@ import { describe, test, before, after } from 'node:test';
 import assert from 'node:assert';
 import { spawn } from 'node:child_process';
 import fs from 'node:fs';
+import os from 'node:os';
 import { MockGitLabServer, findMockServerPort } from './utils/mock-gitlab-server.js';
 
 const MOCK_TOKEN = 'glpat-mock-token-12345';
@@ -193,6 +194,40 @@ describe('download_attachment', () => {
       );
 
     assert.ok(isRpcError || isContentError, 'Should return an error mentioning directory traversal');
+  });
+
+  test('local_path through a symlink directory is rejected', async () => {
+    const linkDir = `omc-test-symlink-${RUN_ID}`;
+    fs.rmSync(linkDir, { recursive: true, force: true });
+    fs.symlinkSync(os.tmpdir(), linkDir);
+    try {
+      const raw = await callDownloadAttachment(
+        {
+          project_id: TEST_PROJECT_ID,
+          secret: TEST_SECRET,
+          filename: 'image.png',
+          local_path: linkDir,
+        },
+        env
+      );
+
+      const msg =
+        (typeof raw.error?.message === 'string' ? raw.error.message : '') +
+        (Array.isArray(raw.result?.content)
+          ? raw.result.content.map(c => c.text || '').join(' ')
+          : '');
+      const lower = msg.toLowerCase();
+      assert.ok(
+        lower.includes('symbolic') ||
+          lower.includes('symlink') ||
+          lower.includes('escapes') ||
+          lower.includes('traversal') ||
+          lower.includes('invalid'),
+        `Expected symlink rejection, got: ${msg}`
+      );
+    } finally {
+      fs.rmSync(linkDir, { recursive: true, force: true });
+    }
   });
 
   test('filename with directory traversal is rejected before writing to disk', async () => {

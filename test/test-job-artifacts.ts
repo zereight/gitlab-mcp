@@ -143,8 +143,9 @@ describe('job artifacts tools', () => {
     await mockGitLab.start();
     mockGitLabUrl = mockGitLab.getUrl();
 
-    // Create a temp directory for download tests
-    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'gitlab-mcp-test-'));
+    // Relative temp dir — absolute local_path is rejected as traversal
+    tmpDir = `gitlab-mcp-test-artifacts-${process.pid}`;
+    fs.mkdirSync(tmpDir, { recursive: true });
   });
 
   after(async () => {
@@ -208,6 +209,50 @@ describe('job artifacts tools', () => {
     assert.ok(result.success, 'Download should succeed');
     assert.ok(fs.existsSync(result.file_path), `File should exist at ${result.file_path}`);
     assert.ok(fs.existsSync(nestedLocalPath), `Directory should be created at ${nestedLocalPath}`);
+  });
+
+  test('download_job_artifacts rejects local_path with directory traversal', async () => {
+    await assert.rejects(
+      () =>
+        callTool(
+          'download_job_artifacts',
+          { project_id: TEST_PROJECT_ID, job_id: TEST_JOB_ID, local_path: '../../../tmp' },
+          {
+            GITLAB_API_URL: `${mockGitLabUrl}/api/v4`,
+            GITLAB_PERSONAL_ACCESS_TOKEN: MOCK_TOKEN,
+          }
+        ),
+      (err: Error) => {
+        const msg = String(err.message || err).toLowerCase();
+        return msg.includes('traversal') || msg.includes('invalid');
+      }
+    );
+  });
+
+  test('download_job_artifacts rejects symlink local_path escape', async () => {
+    const linkName = path.join(tmpDir, 'symlink-escape');
+    fs.symlinkSync(os.tmpdir(), linkName);
+    await assert.rejects(
+      () =>
+        callTool(
+          'download_job_artifacts',
+          { project_id: TEST_PROJECT_ID, job_id: TEST_JOB_ID, local_path: linkName },
+          {
+            GITLAB_API_URL: `${mockGitLabUrl}/api/v4`,
+            GITLAB_PERSONAL_ACCESS_TOKEN: MOCK_TOKEN,
+          }
+        ),
+      (err: Error) => {
+        const msg = String(err.message || err).toLowerCase();
+        return (
+          msg.includes('symbolic') ||
+          msg.includes('symlink') ||
+          msg.includes('escapes') ||
+          msg.includes('traversal') ||
+          msg.includes('invalid')
+        );
+      }
+    );
   });
 
   test('get_job_artifact_file returns file content', async () => {

@@ -186,7 +186,7 @@ export const OAUTH_STATELESS_PENDING_TTL_SECONDS = _intEnv(
 export const OAUTH_STATELESS_STORED_TTL_SECONDS = _intEnv(
   "OAUTH_STATELESS_STORED_TTL_SECONDS",
   "oauth-stateless-stored-ttl",
-  600
+  120
 );
 
 // ---------------------------------------------------------------------------

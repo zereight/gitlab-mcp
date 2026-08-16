@@ -163,6 +163,8 @@ import { normalizeGitLabApiUrl } from "./utils/url.js";
 import {
   estimateMergeCommitCount,
   filterDiffsByPatterns,
+  openSafeOutputWriteStream,
+  readSafeExistingFile,
   summarizeWebhookEvents,
 } from "./utils/helpers.js";
 import {
@@ -7486,13 +7488,16 @@ async function downloadJobArtifacts(
   await handleGitLabError(response);
 
   const filename = `artifacts_job_${encodeGitLabPathSegment(jobId)}.zip`;
-  const savePath = localPath ? path.join(localPath, filename) : filename;
-  fs.mkdirSync(path.dirname(savePath), { recursive: true });
 
   if (!response.body) {
     throw new Error("No response body from GitLab");
   }
-  await streamPipeline(response.body, fs.createWriteStream(savePath));
+  const { stream: saveStream, path: savePath } = openSafeOutputWriteStream(
+    filename,
+    localPath,
+    "local_path"
+  );
+  await streamPipeline(response.body, saveStream);
 
   return savePath;
 }
@@ -9378,12 +9383,10 @@ async function markdownUpload(
     fileBuffer = Buffer.from(content, "base64");
     fileName = filename || "upload";
   } else if (filePath) {
-    // Local file mode
-    if (!fs.existsSync(filePath)) {
-      throw new Error(`File not found: ${filePath}`);
-    }
-    fileBuffer = fs.readFileSync(filePath);
-    fileName = path.basename(filePath);
+    // Local file mode — reject absolute/traversal/symlink escapes before reading
+    const { buffer, basename: safeBasename } = readSafeExistingFile(filePath, "file_path");
+    fileBuffer = buffer;
+    fileName = safeBasename;
   } else {
     throw new Error("Either file_path or content must be provided");
   }
@@ -9481,31 +9484,17 @@ async function downloadAttachment(
   // For non-image files, always save to disk.
   // For image files, only save to disk if local_path is explicitly provided.
   if (!mimeType || localPath) {
-    let savePath: string;
-    if (localPath) {
-      const normalizedLocalPath = path.normalize(localPath);
-      if (
-        path.isAbsolute(normalizedLocalPath) ||
-        normalizedLocalPath === ".." ||
-        normalizedLocalPath.startsWith(".." + path.sep) ||
-        normalizedLocalPath.includes(path.sep + ".." + path.sep)
-      ) {
-        throw new Error("Invalid local_path: directory traversal is not allowed.");
-      }
-      savePath = path.join(normalizedLocalPath, safeFilename);
-    } else {
-      savePath = safeFilename;
-    }
-    const dir = path.dirname(savePath);
-    if (!fs.existsSync(dir)) {
-      fs.mkdirSync(dir, { recursive: true });
-    }
-
-    // Stream directly to disk instead of buffering in memory
     if (!response.body) {
       throw new Error("No response body from GitLab");
     }
-    await streamPipeline(response.body, fs.createWriteStream(savePath));
+    const { stream: saveStream, path: savePath } = openSafeOutputWriteStream(
+      safeFilename,
+      localPath,
+      "local_path"
+    );
+
+    // Stream directly to disk instead of buffering in memory
+    await streamPipeline(response.body, saveStream);
     return { buffer: Buffer.alloc(0), filename: safeFilename, mimeType, savedPath: savePath };
   }
 
@@ -13003,7 +12992,9 @@ async function handleToolCall(params: any) {
         throw new Error(`Unknown tool: ${params.name}`);
     }
   } catch (error) {
-    logger.debug(params);
+    // Log tool name only — never dump raw params (may contain approval_password).
+    // Sensitive fields are also covered by REDACT_PATHS if arguments are logged elsewhere.
+    logger.debug({ tool: params.name }, "Tool call failed");
     if (error instanceof z.ZodError) {
       throw new Error(
         `Invalid arguments: ${error.errors

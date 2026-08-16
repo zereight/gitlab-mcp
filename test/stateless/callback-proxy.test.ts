@@ -425,6 +425,157 @@ describe("callback-proxy cross-pod flow (stateless)", () => {
     );
   });
 
+  test("failed PKCE does not burn the code; legitimate exchange still succeeds", async () => {
+    const s = secret();
+    const pod = makeProvider(loadMaterial(s));
+    const registered = await pod.clientsStore.registerClient!({
+      redirect_uris: [CLIENT_REDIRECT],
+      token_endpoint_auth_method: "none",
+    });
+    const correctVerifier = randomBytes(32).toString("base64url");
+    const correctChallenge = createHash("sha256")
+      .update(correctVerifier)
+      .digest("base64url");
+    const authorizeRes = makeAuthorizeRes();
+    await pod.authorize(
+      registered,
+      {
+        state: "s",
+        scopes: ["api"],
+        redirectUri: CLIENT_REDIRECT,
+        codeChallenge: correctChallenge,
+      },
+      authorizeRes as unknown as ExpressResponse
+    );
+    const proxyState = new URL(authorizeRes.redirectedTo!).searchParams.get("state")!;
+    const cbRes = makeFakeRes();
+    await pod.handleCallback(
+      fakeReq({ code: "gitlab-code", state: proxyState }) as unknown as ExpressRequest,
+      cbRes as unknown as ExpressResponse
+    );
+    const proxyCode = new URL(cbRes.redirectedTo!).searchParams.get("code")!;
+
+    const wrongVerifier = randomBytes(32).toString("base64url");
+    await assert.rejects(
+      () =>
+        pod.exchangeAuthorizationCode(
+          registered,
+          proxyCode,
+          wrongVerifier,
+          CLIENT_REDIRECT
+        ),
+      /PKCE verification failed/
+    );
+
+    const tokens = await pod.exchangeAuthorizationCode(
+      registered,
+      proxyCode,
+      correctVerifier,
+      CLIENT_REDIRECT
+    );
+    assert.equal(tokens.access_token, "gl-access-123");
+  });
+
+  test("successful exchange then replay is rejected on the same pod", async () => {
+    const s = secret();
+    const pod = makeProvider(loadMaterial(s));
+    const registered = await pod.clientsStore.registerClient!({
+      redirect_uris: [CLIENT_REDIRECT],
+      token_endpoint_auth_method: "none",
+    });
+    const verifier = randomBytes(32).toString("base64url");
+    const challenge = createHash("sha256").update(verifier).digest("base64url");
+    const authorizeRes = makeAuthorizeRes();
+    await pod.authorize(
+      registered,
+      {
+        state: "s",
+        scopes: ["api"],
+        redirectUri: CLIENT_REDIRECT,
+        codeChallenge: challenge,
+      },
+      authorizeRes as unknown as ExpressResponse
+    );
+    const proxyState = new URL(authorizeRes.redirectedTo!).searchParams.get("state")!;
+    const cbRes = makeFakeRes();
+    await pod.handleCallback(
+      fakeReq({ code: "gitlab-code", state: proxyState }) as unknown as ExpressRequest,
+      cbRes as unknown as ExpressResponse
+    );
+    const proxyCode = new URL(cbRes.redirectedTo!).searchParams.get("code")!;
+
+    const tokens = await pod.exchangeAuthorizationCode(
+      registered,
+      proxyCode,
+      verifier,
+      CLIENT_REDIRECT
+    );
+    assert.equal(tokens.access_token, "gl-access-123");
+
+    await assert.rejects(
+      () =>
+        pod.exchangeAuthorizationCode(
+          registered,
+          proxyCode,
+          verifier,
+          CLIENT_REDIRECT
+        ),
+      /Authorization code already used/
+    );
+  });
+
+  test("exchangeAuthorizationCode reports busy when replay cache is full", async () => {
+    const s = secret();
+    const pod = makeProvider(loadMaterial(s));
+    const registered = await pod.clientsStore.registerClient!({
+      redirect_uris: [CLIENT_REDIRECT],
+      token_endpoint_auth_method: "none",
+    });
+    const verifier = randomBytes(32).toString("base64url");
+    const challenge = createHash("sha256").update(verifier).digest("base64url");
+    const authorizeRes = makeAuthorizeRes();
+    await pod.authorize(
+      registered,
+      {
+        state: "s",
+        scopes: ["api"],
+        redirectUri: CLIENT_REDIRECT,
+        codeChallenge: challenge,
+      },
+      authorizeRes as unknown as ExpressResponse
+    );
+    const proxyState = new URL(authorizeRes.redirectedTo!).searchParams.get("state")!;
+    const cbRes = makeFakeRes();
+    await pod.handleCallback(
+      fakeReq({ code: "gitlab-code", state: proxyState }) as unknown as ExpressRequest,
+      cbRes as unknown as ExpressResponse
+    );
+    const proxyCode = new URL(cbRes.redirectedTo!).searchParams.get("code")!;
+
+    const cache = (
+      pod as unknown as {
+        _usedProxyCodes: {
+          tryReserve(key: string, ttlSeconds: number): unknown;
+          maxSize: number;
+        };
+      }
+    )._usedProxyCodes;
+    for (let i = 0; i < cache.maxSize; i++) {
+      cache.tryReserve(`fill-${i}`, 600);
+    }
+
+    await assert.rejects(
+      () =>
+        pod.exchangeAuthorizationCode(
+          registered,
+          proxyCode,
+          verifier,
+          CLIENT_REDIRECT
+        ),
+      /Authorization server busy/
+    );
+  });
+
   test("exchangeAuthorizationCode rejects wrong client_id", async () => {
     const s = secret();
     const pod = makeProvider(loadMaterial(s));
@@ -461,6 +612,14 @@ describe("callback-proxy cross-pod flow (stateless)", () => {
       () => pod.exchangeAuthorizationCode(r2, proxyCode, verifier, CLIENT_REDIRECT),
       /Invalid client for authorization code/
     );
+    // Failed binding must not burn the code for the legitimate client.
+    const tokens = await pod.exchangeAuthorizationCode(
+      r1,
+      proxyCode,
+      verifier,
+      CLIENT_REDIRECT
+    );
+    assert.equal(tokens.access_token, "gl-access-123");
   });
 
   test("exchangeAuthorizationCode rejects wrong redirect_uri", async () => {
@@ -500,6 +659,14 @@ describe("callback-proxy cross-pod flow (stateless)", () => {
         ),
       /Invalid redirect_uri for authorization code/
     );
+    // Failed binding must not burn the code for the legitimate client.
+    const tokens = await pod.exchangeAuthorizationCode(
+      registered,
+      proxyCode,
+      verifier,
+      CLIENT_REDIRECT
+    );
+    assert.equal(tokens.access_token, "gl-access-123");
   });
 
   test("stale state rejected at /callback", async () => {
@@ -548,6 +715,56 @@ describe("callback-proxy cross-pod flow (stateless)", () => {
       registered,
       proxyCode,
       verifier,
+      CLIENT_REDIRECT
+    );
+    assert.equal(tokens.access_token, "gl-access-123");
+  });
+
+  test("legacy: failed PKCE does not burn the code; legitimate exchange still succeeds", async () => {
+    const pod = makeProvider(null);
+    const registered = await pod.clientsStore.registerClient!({
+      redirect_uris: [CLIENT_REDIRECT],
+      token_endpoint_auth_method: "none",
+    });
+    const correctVerifier = randomBytes(32).toString("base64url");
+    const correctChallenge = createHash("sha256")
+      .update(correctVerifier)
+      .digest("base64url");
+    const aRes = makeAuthorizeRes();
+    await pod.authorize(
+      registered,
+      {
+        state: "s",
+        scopes: ["api"],
+        redirectUri: CLIENT_REDIRECT,
+        codeChallenge: correctChallenge,
+      },
+      aRes as unknown as ExpressResponse
+    );
+    const legacyState = new URL(aRes.redirectedTo!).searchParams.get("state")!;
+    const cbRes = makeFakeRes();
+    await pod.handleCallback(
+      fakeReq({ code: "g", state: legacyState }) as unknown as ExpressRequest,
+      cbRes as unknown as ExpressResponse
+    );
+    const proxyCode = new URL(cbRes.redirectedTo!).searchParams.get("code")!;
+
+    const wrongVerifier = randomBytes(32).toString("base64url");
+    await assert.rejects(
+      () =>
+        pod.exchangeAuthorizationCode(
+          registered,
+          proxyCode,
+          wrongVerifier,
+          CLIENT_REDIRECT
+        ),
+      /PKCE verification failed/
+    );
+
+    const tokens = await pod.exchangeAuthorizationCode(
+      registered,
+      proxyCode,
+      correctVerifier,
       CLIENT_REDIRECT
     );
     assert.equal(tokens.access_token, "gl-access-123");

@@ -1,3 +1,257 @@
+import fs from "node:fs";
+import path from "node:path";
+
+/**
+ * Reject absolute paths and directory-traversal sequences for user-supplied
+ * local filesystem paths (e.g. local_path / file_path tool arguments).
+ *
+ * Returns the normalized relative path on success. This is a lexical check
+ * only — callers that touch the filesystem must also use
+ * {@link resolveSafeExistingPath}, {@link resolveSafeOutputDir}, or
+ * {@link resolveSafeOutputFile}.
+ */
+export function assertSafeRelativePath(inputPath: string, label = "path"): string {
+  const normalized = path.normalize(inputPath);
+  if (
+    path.isAbsolute(normalized) ||
+    normalized === ".." ||
+    normalized.startsWith(".." + path.sep) ||
+    normalized.includes(path.sep + ".." + path.sep)
+  ) {
+    throw new Error(`Invalid ${label}: directory traversal is not allowed.`);
+  }
+  return normalized;
+}
+
+/** Snapshot and canonicalize the trusted base directory once per operation. */
+function resolveTrustedBaseDir(baseDir?: string): string {
+  const anchor = baseDir ?? process.cwd();
+  return fs.realpathSync(anchor);
+}
+
+function isInsideBase(candidate: string, baseReal: string): boolean {
+  const relative = path.relative(baseReal, candidate);
+  // "" = same path; absolute relative = different Windows volume root.
+  return relative === "" || (!relative.startsWith("..") && !path.isAbsolute(relative));
+}
+
+/**
+ * Walk each path component under baseReal and reject symbolic links so a
+ * repository-controlled symlink cannot escape the trusted base directory.
+ */
+function assertNoSymlinkComponents(baseReal: string, relative: string, label: string): void {
+  const parts = relative.split(path.sep).filter(part => part.length > 0 && part !== ".");
+  let current = baseReal;
+  for (const part of parts) {
+    const next = path.join(current, part);
+    let st: fs.Stats;
+    try {
+      st = fs.lstatSync(next);
+    } catch (err) {
+      const code = (err as NodeJS.ErrnoException).code;
+      if (code === "ENOENT") {
+        // Remaining components do not exist yet (typical for mkdir output dirs).
+        return;
+      }
+      throw err;
+    }
+    if (st.isSymbolicLink()) {
+      throw new Error(`Invalid ${label}: symbolic links are not allowed.`);
+    }
+    current = next;
+  }
+}
+
+/**
+ * Resolve a user-supplied relative path to an existing file/dir that is
+ * guaranteed to stay inside `baseDir` after symlink resolution.
+ */
+export function resolveSafeExistingPath(
+  inputPath: string,
+  label = "path",
+  baseDir?: string
+): string {
+  const relative = assertSafeRelativePath(inputPath, label);
+  const baseReal = resolveTrustedBaseDir(baseDir);
+  assertNoSymlinkComponents(baseReal, relative, label);
+
+  const absolute = path.resolve(baseReal, relative);
+  if (!isInsideBase(absolute, baseReal)) {
+    throw new Error(`Invalid ${label}: path escapes the allowed directory.`);
+  }
+  if (!fs.existsSync(absolute)) {
+    throw new Error(`File not found: ${relative}`);
+  }
+
+  const real = fs.realpathSync(absolute);
+  if (!isInsideBase(real, baseReal)) {
+    throw new Error(`Invalid ${label}: path escapes the allowed directory.`);
+  }
+  return real;
+}
+
+/**
+ * Resolve a user-supplied relative output directory under `baseDir`, creating
+ * it if needed. Rejects symlink components and verifies the final real path
+ * remains inside the base.
+ */
+export function resolveSafeOutputDir(
+  inputDir: string,
+  label = "local_path",
+  baseDir?: string
+): string {
+  const relative = assertSafeRelativePath(inputDir, label);
+  const baseReal = resolveTrustedBaseDir(baseDir);
+  assertNoSymlinkComponents(baseReal, relative, label);
+
+  const absolute = path.resolve(baseReal, relative);
+  // Reject escapes before mkdir so we never create dirs outside the base.
+  if (!isInsideBase(absolute, baseReal)) {
+    throw new Error(`Invalid ${label}: path escapes the allowed directory.`);
+  }
+
+  fs.mkdirSync(absolute, { recursive: true });
+
+  const real = fs.realpathSync(absolute);
+  if (!isInsideBase(real, baseReal)) {
+    throw new Error(`Invalid ${label}: path escapes the allowed directory.`);
+  }
+  return real;
+}
+
+/**
+ * Build a write destination under a trusted directory. Rejects an existing
+ * destination symlink so createWriteStream cannot follow it outside the base.
+ *
+ * When `inputDir` is omitted, the file is resolved under `baseDir` itself
+ * (still rejecting symlink destinations).
+ */
+export function resolveSafeOutputFile(
+  filename: string,
+  inputDir?: string,
+  label = "local_path",
+  baseDir?: string
+): string {
+  if (
+    !filename ||
+    filename === "." ||
+    filename === ".." ||
+    filename.includes("/") ||
+    filename.includes("\\") ||
+    filename.includes(path.sep)
+  ) {
+    throw new Error(`Invalid ${label}: directory separators are not allowed in filename.`);
+  }
+
+  const baseReal = resolveTrustedBaseDir(baseDir);
+  const dirReal = inputDir ? resolveSafeOutputDir(inputDir, label, baseReal) : baseReal;
+  const dest = path.join(dirReal, filename);
+
+  try {
+    const st = fs.lstatSync(dest);
+    if (st.isSymbolicLink()) {
+      throw new Error(`Invalid ${label}: symbolic links are not allowed.`);
+    }
+  } catch (err) {
+    const code = (err as NodeJS.ErrnoException).code;
+    if (code !== "ENOENT") {
+      throw err;
+    }
+  }
+
+  return dest;
+}
+
+const READ_OPEN_FLAGS = fs.constants.O_RDONLY | (fs.constants.O_NOFOLLOW ?? 0);
+const WRITE_OPEN_FLAGS =
+  fs.constants.O_WRONLY |
+  fs.constants.O_CREAT |
+  fs.constants.O_TRUNC |
+  (fs.constants.O_NOFOLLOW ?? 0);
+
+/**
+ * Validate and read a file in one step so callers never reuse a path string
+ * after a symlink swap (final-component TOCTOU mitigation via O_NOFOLLOW).
+ */
+export function readSafeExistingFile(
+  inputPath: string,
+  label = "path",
+  baseDir?: string
+): { buffer: Buffer; basename: string } {
+  const relative = assertSafeRelativePath(inputPath, label);
+  const baseReal = resolveTrustedBaseDir(baseDir);
+  assertNoSymlinkComponents(baseReal, relative, label);
+
+  const absolute = path.resolve(baseReal, relative);
+  if (!isInsideBase(absolute, baseReal)) {
+    throw new Error(`Invalid ${label}: path escapes the allowed directory.`);
+  }
+  if (!fs.existsSync(absolute)) {
+    throw new Error(`File not found: ${relative}`);
+  }
+
+  const fd = fs.openSync(absolute, READ_OPEN_FLAGS);
+  try {
+    const st = fs.fstatSync(fd);
+    if (st.isSymbolicLink()) {
+      throw new Error(`Invalid ${label}: symbolic links are not allowed.`);
+    }
+    const real = fs.realpathSync(absolute);
+    if (!isInsideBase(real, baseReal)) {
+      throw new Error(`Invalid ${label}: path escapes the allowed directory.`);
+    }
+    return { buffer: fs.readFileSync(fd), basename: path.basename(relative) };
+  } finally {
+    fs.closeSync(fd);
+  }
+}
+
+/**
+ * Validate an output destination and open a write stream immediately so the
+ * path is not handed back for a separate createWriteStream call.
+ */
+export function openSafeOutputWriteStream(
+  filename: string,
+  inputDir?: string,
+  label = "local_path",
+  baseDir?: string
+): { stream: fs.WriteStream; path: string } {
+  if (
+    !filename ||
+    filename === "." ||
+    filename === ".." ||
+    filename.includes("/") ||
+    filename.includes("\\") ||
+    filename.includes(path.sep)
+  ) {
+    throw new Error(`Invalid ${label}: directory separators are not allowed in filename.`);
+  }
+
+  const dirReal = inputDir
+    ? resolveSafeOutputDir(inputDir, label, baseDir)
+    : resolveTrustedBaseDir(baseDir);
+  const dest = path.join(dirReal, filename);
+
+  try {
+    const st = fs.lstatSync(dest);
+    if (st.isSymbolicLink()) {
+      throw new Error(`Invalid ${label}: symbolic links are not allowed.`);
+    }
+  } catch (err) {
+    const code = (err as NodeJS.ErrnoException).code;
+    if (code !== "ENOENT") {
+      throw err;
+    }
+  }
+
+  const fd = fs.openSync(dest, WRITE_OPEN_FLAGS, 0o666);
+  const stream = fs.createWriteStream(null as unknown as fs.PathLike, {
+    fd,
+    autoClose: true,
+  });
+  return { stream, path: dest };
+}
+
 /**
  * Estimate the number of merge commits that will be added based on the merge method.
  */
