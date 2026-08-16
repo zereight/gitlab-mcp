@@ -507,6 +507,133 @@ describe("MCP OAuth — createGitLabOAuthProvider", () => {
     }
   });
 
+  test("verifyAccessToken falls back to access_token query param when Bearer gets 401", async () => {
+    // Simulates a GitLab behind an edge cache that strips the Authorization
+    // header on /oauth/* (e.g. git.drupalcode.org behind Varnish): the
+    // Bearer-header request 401s, the RFC 6750 query-param retry succeeds.
+    const TOKEN = "tok+en/with?special=chars&more"; // exercises URL encoding
+    const requests: { url: string; authHeader: string | undefined }[] = [];
+
+    const { createServer } = await import("node:http");
+    const stub = createServer((req, res) => {
+      requests.push({ url: req.url!, authHeader: req.headers["authorization"] });
+      const url = new URL(req.url!, "http://localhost");
+      if (url.searchParams.get("access_token") === TOKEN) {
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(
+          JSON.stringify({
+            resource_owner_id: 7,
+            scopes: ["api"],
+            expires_in_seconds: 3600,
+            application: { uid: "app-uid-abc" },
+            created_at: Math.floor(Date.now() / 1000),
+          })
+        );
+      } else {
+        // Header-stripping edge: reject anything not using the query param
+        res.writeHead(401, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "invalid_token" }));
+      }
+    });
+
+    await new Promise<void>(resolve => stub.listen(0, "127.0.0.1", resolve));
+    const addr = stub.address() as { port: number };
+    const baseUrl = `http://127.0.0.1:${addr.port}`;
+
+    try {
+      const { createGitLabOAuthProvider } = await import("../oauth-proxy.js");
+      const provider = createGitLabOAuthProvider(baseUrl, "test-app-id");
+      const authInfo = await provider.verifyAccessToken(TOKEN);
+
+      assert.strictEqual(requests.length, 2, "exactly one retry after the 401");
+      assert.strictEqual(
+        requests[0].authHeader,
+        `Bearer ${TOKEN}`,
+        "first attempt sends the token as a Bearer Authorization header"
+      );
+      assert.ok(
+        !requests[0].url.includes("access_token="),
+        "first attempt does not use the query param"
+      );
+      assert.strictEqual(
+        requests[1].authHeader,
+        undefined,
+        "retry omits the Authorization header"
+      );
+      assert.ok(
+        requests[1].url.includes(`access_token=${encodeURIComponent(TOKEN)}`),
+        "retry carries the URL-encoded access_token query param"
+      );
+      assert.strictEqual(authInfo.token, TOKEN, "token preserved through the fallback path");
+      assert.strictEqual(authInfo.clientId, "app-uid-abc", "AuthInfo built from retry response");
+      console.log("  ✓ verifyAccessToken falls back to query param after Bearer 401");
+    } finally {
+      stub.close();
+    }
+  });
+
+  test("verifyAccessToken does not retry when the Bearer request succeeds", async () => {
+    let requestCount = 0;
+    const { createServer } = await import("node:http");
+    const stub = createServer((_req, res) => {
+      requestCount++;
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(
+        JSON.stringify({
+          resource_owner_id: 7,
+          scopes: ["api"],
+          expires_in_seconds: 3600,
+          application: { uid: "app-uid-abc" },
+          created_at: Math.floor(Date.now() / 1000),
+        })
+      );
+    });
+
+    await new Promise<void>(resolve => stub.listen(0, "127.0.0.1", resolve));
+    const addr = stub.address() as { port: number };
+    const baseUrl = `http://127.0.0.1:${addr.port}`;
+
+    try {
+      const { createGitLabOAuthProvider } = await import("../oauth-proxy.js");
+      const provider = createGitLabOAuthProvider(baseUrl, "test-app-id");
+      await provider.verifyAccessToken("good-token");
+
+      assert.strictEqual(requestCount, 1, "no retry on a 200 response");
+      console.log("  ✓ verifyAccessToken makes a single request on success");
+    } finally {
+      stub.close();
+    }
+  });
+
+  test("verifyAccessToken does not retry on non-401 errors", async () => {
+    let requestCount = 0;
+    const { createServer } = await import("node:http");
+    const stub = createServer((_req, res) => {
+      requestCount++;
+      res.writeHead(503, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ error: "service_unavailable" }));
+    });
+
+    await new Promise<void>(resolve => stub.listen(0, "127.0.0.1", resolve));
+    const addr = stub.address() as { port: number };
+    const baseUrl = `http://127.0.0.1:${addr.port}`;
+
+    try {
+      const { createGitLabOAuthProvider } = await import("../oauth-proxy.js");
+      const provider = createGitLabOAuthProvider(baseUrl, "test-app-id");
+
+      await assert.rejects(
+        () => provider.verifyAccessToken("tok"),
+        /invalid or expired/i,
+        "non-401 errors still reject"
+      );
+      assert.strictEqual(requestCount, 1, "the query-param fallback is 401-only");
+      console.log("  ✓ verifyAccessToken does not retry on non-401 errors");
+    } finally {
+      stub.close();
+    }
+  });
+
   test("verifyAccessToken maps GitLab token info to AuthInfo", async () => {
     const createdAt = Math.floor(Date.now() / 1000);
     const { createServer } = await import("node:http");
