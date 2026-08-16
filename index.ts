@@ -5808,7 +5808,13 @@ async function getMergeRequestApprovalState(
     method: "GET",
   });
 
-  if (approvalStateResponse.status === 404) {
+  // 404 when the endpoint is unavailable; 402/403 when the instance or namespace is
+  // not licensed for approval rules, which are a paid-tier feature.
+  if (
+    approvalStateResponse.status === 404 ||
+    approvalStateResponse.status === 402 ||
+    approvalStateResponse.status === 403
+  ) {
     return getMergeRequestApprovalsFallback(projectId, mergeRequestIid);
   }
 
@@ -5821,6 +5827,22 @@ async function getMergeRequestApprovalState(
     (parsedApprovalState.rules || []).flatMap(rule => rule.approved_by || [])
   );
   const approvedByUsernames = approvedByUsers.map(user => user.username);
+
+  // approval_state only reports approvals attributed to rules, so a project with no
+  // approval rules answers 200 with `rules: []` and yields no approvers even when
+  // someone has approved. Read /approvals in that case. A non-empty rules array means
+  // rules are in use and approval_state is authoritative, so no extra request is made
+  // there - including while an MR is still waiting for its first approval.
+  if ((parsedApprovalState.rules || []).length === 0) {
+    try {
+      const viaApprovals = await getMergeRequestApprovalsFallback(projectId, mergeRequestIid);
+      if ((viaApprovals.approved_by ?? []).length > 0) {
+        return viaApprovals;
+      }
+    } catch {
+      // /approvals unavailable as well - keep the approval_state answer below.
+    }
+  }
 
   return {
     ...parsedApprovalState,
