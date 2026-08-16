@@ -1564,7 +1564,10 @@ const BASE_HEADERS: Record<string, string> = {
 function buildAuthHeaders(): Record<string, string> {
   if (REMOTE_AUTHORIZATION || GITLAB_MCP_OAUTH) {
     const ctx = sessionAuthStore.getStore();
-    logger.debug({ context: ctx }, "buildAuthHeaders: session context");
+    logger.debug(
+      { sessionId: ctx?.sessionId, header: ctx?.header, apiUrl: ctx?.apiUrl },
+      "buildAuthHeaders: session context"
+    );
     if (ctx?.token) {
       return {
         [ctx.header]: ctx.header === "Authorization" ? `Bearer ${ctx.token}` : ctx.token,
@@ -1614,7 +1617,10 @@ function getEffectiveApiUrl(): string {
     if (ctx?.apiUrl) {
       return ctx.apiUrl;
     }
-    logger.warn({ ctx }, "getEffectiveApiUrl: No context or apiUrl found, falling back to default");
+    logger.warn(
+      { sessionId: ctx?.sessionId, header: ctx?.header, apiUrl: ctx?.apiUrl },
+      "getEffectiveApiUrl: No context or apiUrl found, falling back to default"
+    );
   }
   return GITLAB_API_URL;
 }
