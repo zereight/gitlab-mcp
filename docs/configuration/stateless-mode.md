@@ -118,7 +118,7 @@ re-authenticate.
 | --------------------- | ----------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
 | `client_id`           | Public by design. No new capability beyond registering their own client.                                     | None needed.                                                                                                 |
 | OAuth `state`         | Useless alone — GitLab's auth code is single-use.                                                            | Short TTL (10 min).                                                                                          |
-| Proxy `code`          | Contains GitLab access token.                                                                                | Short TTL (10 min) + PKCE `code_verifier` check at `/token` time.                                            |
+| Proxy `code`          | Contains GitLab access token.                                                                                | Short TTL (2 min) + PKCE `code_verifier` check at `/token` time.                                             |
 | `Mcp-Session-Id`      | Equivalent to presenting the bearer token.                                                                   | TLS mandatory. Log redaction recommended. Inactivity-window TTL (default 1 h).                                |
 | `OAUTH_STATELESS_SECRET` | Total forgery: can mint client_ids, sessions, pending auths, proxy codes; can decrypt any sealed value. | Treat as a top-tier bearer secret. K8s Secret with access audit; rotate on suspected compromise.            |
 
