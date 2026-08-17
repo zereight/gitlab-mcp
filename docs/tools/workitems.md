@@ -32,7 +32,7 @@ Modern unified API for issues, tasks, incidents, and other typed work items — 
 
 *📖 Read-only*
 
-Get a work item with full details including status, hierarchy, type, and widgets
+Get a work item with full details including status, hierarchy, type, and widgets. Use this for a known resource or result; choose the corresponding list or search tool when you need to discover multiple resources. It is read-only and does not mutate GitLab data; missing resources, invalid identifiers, insufficient permission, and rate limits are returned as errors. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented.
 
 **Parameters**
 
@@ -45,7 +45,7 @@ Get a work item with full details including status, hierarchy, type, and widgets
 
 *📖 Read-only*
 
-List work items with filters (type, state, search, assignees, labels)
+List work items with filters (type, state, search, assignees, labels). Use this for a collection of resources; choose the corresponding get tool when you already know the single resource to inspect. It is read-only and does not mutate GitLab data; missing resources, invalid identifiers, insufficient permission, and rate limits are returned as errors. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented.
 
 **Parameters**
 
@@ -64,7 +64,7 @@ List work items with filters (type, state, search, assignees, labels)
 
 *✏️ Writes*
 
-Create a work item (issue, task, incident, epic, etc.) with full field support
+Create a work item (issue, task, incident, epic, etc.) with full field support. Use this for a new resource or action; choose the corresponding update or edit tool when the resource already exists. It changes remote GitLab state and requires the necessary project or group permission; GitLab returns validation, conflict, permission, or rate-limit errors instead of silently applying an invalid request. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented.
 
 **Parameters**
 
@@ -89,7 +89,7 @@ Create a work item (issue, task, incident, epic, etc.) with full field support
 
 *✏️ Writes*
 
-Update a work item (title, description, labels, assignees, state, parent, custom fields, etc.)
+Update a work item (title, description, labels, assignees, state, parent, custom fields, etc.). Use this for an existing resource; choose the corresponding create tool for a new resource and a note tool for discussion-only text. It changes remote GitLab state and requires the necessary project or group permission; GitLab returns validation, conflict, permission, or rate-limit errors instead of silently applying an invalid request. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented.
 
 **Parameters**
 
@@ -126,7 +126,7 @@ Update a work item (title, description, labels, assignees, state, parent, custom
 
 *✏️ Writes*
 
-Convert a work item to a different type
+Convert a work item to a different type. Use this for the specific operation described; choose a sibling tool when you need a different resource or lifecycle action. It changes remote GitLab state and requires the necessary project or group permission; GitLab returns validation, conflict, permission, or rate-limit errors instead of silently applying an invalid request. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented.
 
 **Parameters**
 
@@ -140,7 +140,7 @@ Convert a work item to a different type
 
 *📖 Read-only*
 
-List available statuses for a work item type (Premium/Ultimate)
+List available statuses for a work item type (Premium/Ultimate). Use this for a collection of resources; choose the corresponding get tool when you already know the single resource to inspect. It is read-only and does not mutate GitLab data; missing resources, invalid identifiers, insufficient permission, and rate limits are returned as errors. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented.
 
 **Parameters**
 
@@ -153,7 +153,7 @@ List available statuses for a work item type (Premium/Ultimate)
 
 *📖 Read-only*
 
-List custom field definitions for a work item type
+List custom field definitions for a work item type. Use this for a collection of resources; choose the corresponding get tool when you already know the single resource to inspect. It is read-only and does not mutate GitLab data; missing resources, invalid identifiers, insufficient permission, and rate limits are returned as errors. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented.
 
 **Parameters**
 
@@ -166,7 +166,7 @@ List custom field definitions for a work item type
 
 *✏️ Writes*
 
-Move a work item to a different project
+Move a work item to a different project. Use this for the specific operation described; choose a sibling tool when you need a different resource or lifecycle action. It changes remote GitLab state and requires the necessary project or group permission; GitLab returns validation, conflict, permission, or rate-limit errors instead of silently applying an invalid request. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented.
 
 **Parameters**
 
@@ -180,7 +180,7 @@ Move a work item to a different project
 
 *📖 Read-only*
 
-List notes and discussions on a work item
+List notes and discussions on a work item. Use this for a collection of resources; choose the corresponding get tool when you already know the single resource to inspect. It is read-only and does not mutate GitLab data; missing resources, invalid identifiers, insufficient permission, and rate limits are returned as errors. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented.
 
 **Parameters**
 
@@ -196,7 +196,7 @@ List notes and discussions on a work item
 
 *✏️ Writes*
 
-Add a note to a work item (supports Markdown, internal notes, threads)
+Add a note to a work item (supports Markdown, internal notes, threads). Use this for a new resource or action; choose the corresponding update or edit tool when the resource already exists. It changes remote GitLab state and requires the necessary project or group permission; GitLab returns validation, conflict, permission, or rate-limit errors instead of silently applying an invalid request. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented.
 
 **Parameters**
 
@@ -212,7 +212,7 @@ Add a note to a work item (supports Markdown, internal notes, threads)
 
 *📖 Read-only*
 
-List all emoji reactions on a work item
+List all emoji reactions on a work item. Use this for a collection of resources; choose the corresponding get tool when you already know the single resource to inspect. It is read-only and does not mutate GitLab data; missing resources, invalid identifiers, insufficient permission, and rate limits are returned as errors. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented.
 
 **Parameters**
 
@@ -225,7 +225,7 @@ List all emoji reactions on a work item
 
 *📖 Read-only*
 
-List all emoji reactions on a work item note (comment, thread, or thread reply)
+List all emoji reactions on a work item note (comment, thread, or thread reply). Use this for a collection of resources; choose the corresponding get tool when you already know the single resource to inspect. It is read-only and does not mutate GitLab data; missing resources, invalid identifiers, insufficient permission, and rate limits are returned as errors. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented.
 
 **Parameters**
 
@@ -239,7 +239,7 @@ List all emoji reactions on a work item note (comment, thread, or thread reply)
 
 *✏️ Writes*
 
-Add an emoji reaction to a work item (e.g. thumbsup, rocket, eyes)
+Add an emoji reaction to a work item (e.g. thumbsup, rocket, eyes). Use this for a new resource or action; choose the corresponding update or edit tool when the resource already exists. It changes remote GitLab state and requires the necessary project or group permission; GitLab returns validation, conflict, permission, or rate-limit errors instead of silently applying an invalid request. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented.
 
 **Parameters**
 
@@ -253,7 +253,7 @@ Add an emoji reaction to a work item (e.g. thumbsup, rocket, eyes)
 
 *✏️ Writes*
 
-Remove an emoji reaction from a work item
+Remove an emoji reaction from a work item. Use this only after verifying the target; choose a get or list tool first when you need to inspect state without changing it. It changes or removes remote GitLab data and may be irreversible; it requires the necessary project or group permission and returns validation, conflict, permission, or rate-limit errors. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented.
 
 **Parameters**
 
@@ -267,7 +267,7 @@ Remove an emoji reaction from a work item
 
 *✏️ Writes*
 
-Add an emoji reaction to a work item note (comment, thread, or thread reply)
+Add an emoji reaction to a work item note (comment, thread, or thread reply). Use this for a new resource or action; choose the corresponding update or edit tool when the resource already exists. It changes remote GitLab state and requires the necessary project or group permission; GitLab returns validation, conflict, permission, or rate-limit errors instead of silently applying an invalid request. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented.
 
 **Parameters**
 
@@ -282,7 +282,7 @@ Add an emoji reaction to a work item note (comment, thread, or thread reply)
 
 *✏️ Writes*
 
-Remove an emoji reaction from a work item note (comment, thread, or thread reply)
+Remove an emoji reaction from a work item note (comment, thread, or thread reply). Use this only after verifying the target; choose a get or list tool first when you need to inspect state without changing it. It changes or removes remote GitLab data and may be irreversible; it requires the necessary project or group permission and returns validation, conflict, permission, or rate-limit errors. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented.
 
 **Parameters**
 
@@ -297,7 +297,7 @@ Remove an emoji reaction from a work item note (comment, thread, or thread reply
 
 *📖 Read-only*
 
-List timeline events for an incident
+List timeline events for an incident. Use this for a known resource or result; choose the corresponding list or search tool when you need to discover multiple resources. It is read-only and does not mutate GitLab data; missing resources, invalid identifiers, insufficient permission, and rate limits are returned as errors. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented.
 
 **Parameters**
 
@@ -310,7 +310,7 @@ List timeline events for an incident
 
 *✏️ Writes*
 
-Create a timeline event on an incident
+Create a timeline event on an incident. Use this for a new resource or action; choose the corresponding update or edit tool when the resource already exists. It changes remote GitLab state and requires the necessary project or group permission; GitLab returns validation, conflict, permission, or rate-limit errors instead of silently applying an invalid request. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented.
 
 **Parameters**
 

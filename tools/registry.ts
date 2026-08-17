@@ -1,4 +1,3 @@
-import { z } from "zod";
 import { zodToJsonSchema } from "zod-to-json-schema";
 import { toJSONSchema } from "../utils/schema.js";
 import {
@@ -8,6 +7,7 @@ import {
   SSE,
   STREAMABLE_HTTP,
 } from "../config.js";
+import { getToolDescription } from "./tool-descriptions.js";
 import {
   ApproveMergeRequestSchema,
   BulkPublishDraftNotesSchema,
@@ -1994,6 +1994,15 @@ export const ALL_TOOLSET_IDS: ReadonlySet<ToolsetId> = new Set(
 const discoverTool = allTools.find(t => t.name === "discover_tools");
 if (discoverTool) {
   discoverTool.description = `Discover and activate additional tool categories for this session. Available categories: ${[...ALL_TOOLSET_IDS].join(", ")}. Already-active categories are listed in the response.`;
+}
+
+for (const tool of allTools) {
+  tool.description = getToolDescription(
+    tool.name,
+    tool.description,
+    readOnlyTools.has(tool.name),
+    destructiveTools.has(tool.name)
+  );
 }
 
 export function parseEnabledToolsets(raw: string | undefined): ReadonlySet<ToolsetId> {

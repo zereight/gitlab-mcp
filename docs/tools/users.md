@@ -18,7 +18,7 @@ User lookup, the authenticated user (`whoami`), event streams, and markdown atta
 
 *📖 Read-only*
 
-Get GitLab user details by usernames
+Get GitLab user details by usernames. Use this for a known resource or result; choose the corresponding list or search tool when you need to discover multiple resources. It is read-only and does not mutate GitLab data; missing resources, invalid identifiers, insufficient permission, and rate limits are returned as errors. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented.
 
 **Parameters**
 
@@ -30,7 +30,7 @@ Get GitLab user details by usernames
 
 *📖 Read-only*
 
-Get user details by ID
+Get user details by ID. Use this for a known resource or result; choose the corresponding list or search tool when you need to discover multiple resources. It is read-only and does not mutate GitLab data; missing resources, invalid identifiers, insufficient permission, and rate limits are returned as errors. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented.
 
 **Parameters**
 
@@ -42,7 +42,7 @@ Get user details by ID
 
 *📖 Read-only*
 
-Get current authenticated user details
+Get current authenticated user details. Use this to identify the authenticated GitLab user; use `get_user` or `get_users` when looking up another user. It is read-only and returns the current user profile, while missing credentials or GitLab permission failures are reported as errors.
 
 **Parameters**
 
@@ -52,7 +52,7 @@ _No parameters._
 
 *📖 Read-only*
 
-List events for the authenticated user (before/after: YYYY-MM-DD)
+List events for the authenticated user (before/after: YYYY-MM-DD). Use this for a collection of resources; choose the corresponding get tool when you already know the single resource to inspect. It is read-only and does not mutate GitLab data; missing resources, invalid identifiers, insufficient permission, and rate limits are returned as errors. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented.
 
 **Parameters**
 
@@ -71,7 +71,7 @@ List events for the authenticated user (before/after: YYYY-MM-DD)
 
 *📖 Read-only*
 
-List events for a project (before/after: YYYY-MM-DD)
+List events for a project (before/after: YYYY-MM-DD). Use this for a known resource or result; choose the corresponding list or search tool when you need to discover multiple resources. It is read-only and does not mutate GitLab data; missing resources, invalid identifiers, insufficient permission, and rate limits are returned as errors. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented.
 
 **Parameters**
 
@@ -90,7 +90,7 @@ List events for a project (before/after: YYYY-MM-DD)
 
 *✏️ Writes*
 
-Upload a file for use in markdown content
+Upload a file for use in markdown content. Use this for the specific operation described; choose a sibling tool when you need a different resource or lifecycle action. It changes remote GitLab state and requires the necessary project or group permission; GitLab returns validation, conflict, permission, or rate-limit errors instead of silently applying an invalid request. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented.
 
 **Parameters**
 
@@ -103,7 +103,7 @@ Upload a file for use in markdown content
 
 *📖 Read-only*
 
-Download an uploaded file from a project (images returned as base64; use local_path to save to disk)
+Download an uploaded file from a project (images returned as base64; use local_path to save to disk). Use this to retrieve a previously uploaded project attachment; remote mode returns inline base64 for images or a download URL, while local mode can save to a path. It is read-only with respect to GitLab, requires project access, and returns the file content or an attachment/permission error.
 
 **Parameters**
 

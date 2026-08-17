@@ -17,7 +17,7 @@ List webhooks configured on projects or groups, and inspect recent webhook event
 
 *📖 Read-only*
 
-List webhooks for a project or group
+List webhooks for a project or group. Use this for a collection of resources; choose the corresponding get tool when you already know the single resource to inspect. It is read-only and does not mutate GitLab data; missing resources, invalid identifiers, insufficient permission, and rate limits are returned as errors. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented.
 
 **Parameters**
 
@@ -32,7 +32,7 @@ List webhooks for a project or group
 
 *📖 Read-only*
 
-List recent webhook events (past 7 days)
+List recent webhook events (past 7 days). Use this for a collection of resources; choose the corresponding get tool when you already know the single resource to inspect. It is read-only and does not mutate GitLab data; missing resources, invalid identifiers, insufficient permission, and rate limits are returned as errors. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented.
 
 **Parameters**
 
@@ -50,7 +50,7 @@ List recent webhook events (past 7 days)
 
 *📖 Read-only*
 
-Get full details of a specific webhook event
+Get full details of a specific webhook event. Use this for a known resource or result; choose the corresponding list or search tool when you need to discover multiple resources. It is read-only and does not mutate GitLab data; missing resources, invalid identifiers, insufficient permission, and rate limits are returned as errors. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented.
 
 **Parameters**
 

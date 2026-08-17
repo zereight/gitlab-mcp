@@ -18,7 +18,7 @@ Project search/creation/fork plus the Files API for reading and writing reposito
 
 *📖 Read-only*
 
-Search for GitLab projects
+Search for GitLab projects. Use this to discover matching content; choose a typed get or list tool when the target identifier is already known. It is read-only and does not mutate GitLab data; missing resources, invalid identifiers, insufficient permission, and rate limits are returned as errors. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented.
 
 **Parameters**
 
@@ -33,7 +33,7 @@ Search for GitLab projects
 
 *✏️ Writes*
 
-Create a new GitLab project
+Create a new GitLab project. Use this for a new resource or action; choose the corresponding update or edit tool when the resource already exists. It changes remote GitLab state and requires the necessary project or group permission; GitLab returns validation, conflict, permission, or rate-limit errors instead of silently applying an invalid request. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented.
 
 **Parameters**
 
@@ -49,7 +49,7 @@ Create a new GitLab project
 
 *📖 Read-only*
 
-Get contents of a file or directory from a GitLab project
+Get contents of a file or directory from a GitLab project. Use this for a known resource or result; choose the corresponding list or search tool when you need to discover multiple resources. It is read-only and does not mutate GitLab data; missing resources, invalid identifiers, insufficient permission, and rate limits are returned as errors. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented.
 
 **Parameters**
 
@@ -64,7 +64,7 @@ Get contents of a file or directory from a GitLab project
 
 *✏️ Writes*
 
-Push multiple files in a single commit
+Push multiple files in a single commit. Use this to commit several file changes atomically; use `create_or_update_file` when only one path is involved. The operation writes repository history on the selected branch, requires repository write permission, and returns the commit result or a validation, conflict, or protected-branch error.
 
 **Parameters**
 
@@ -79,7 +79,7 @@ Push multiple files in a single commit
 
 *✏️ Writes*
 
-Create or update a file in a GitLab project
+Create or update a file in a GitLab project. Use this for a single repository file when you know whether the target path is new or already exists; use `push_files` for a multi-file commit. The operation creates or updates remote content in a commit, requires repository write permission, and returns the commit result or a conflict/validation error.
 
 **Parameters**
 
@@ -98,7 +98,7 @@ Create or update a file in a GitLab project
 
 *✏️ Writes*
 
-Fork a project to your account or specified namespace
+Fork a project to your account or specified namespace. Use this to create a copy of an existing project in the current user's namespace or a permitted namespace; use `search_repositories` or `get_project` to inspect projects without copying them. The operation creates a new project, requires fork permission, and returns the forked project or a namespace/permission error.
 
 **Parameters**
 
@@ -111,7 +111,7 @@ Fork a project to your account or specified namespace
 
 *📖 Read-only*
 
-List files and directories in a repository
+List files and directories in a repository. Use this for a known resource or result; choose the corresponding list or search tool when you need to discover multiple resources. It is read-only and does not mutate GitLab data; missing resources, invalid identifiers, insufficient permission, and rate limits are returned as errors. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented.
 
 **Parameters**
 
