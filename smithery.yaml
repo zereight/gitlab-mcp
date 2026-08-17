@@ -1,21 +1,35 @@
-# Smithery configuration file: https://smithery.ai/docs/config#smitheryyaml
-
 startCommand:
   type: stdio
   configSchema:
-    # JSON Schema defining the configuration options for the MCP.
     type: object
     required:
       - gitlabPersonalAccessToken
     properties:
       gitlabPersonalAccessToken:
         type: string
-        description: Your GitLab personal access token.
+        description: GitLab Personal Access Token for local stdio use
       gitlabApiUrl:
         type: string
+        description: GitLab API base URL (e.g. https://gitlab.com/api/v4)
         default: https://gitlab.com/api/v4
-        description: "Your GitLab API URL. Default: https://gitlab.com/api/v4"
-  commandFunction:
-    # A function that produces the CLI command to start the MCP on stdio.
-    |-
-    (config) => ({ command: 'node', args: ['build/index.js'], env: { GITLAB_PERSONAL_ACCESS_TOKEN: config.gitlabPersonalAccessToken, GITLAB_API_URL: config.gitlabApiUrl } })
+      gitlabReadOnlyMode:
+        type: boolean
+        description: Set to true to expose only read-only tools and block write operations
+        default: false
+      gitlabToolsets:
+        type: string
+        description: Optional comma-separated list of toolsets to enable (e.g. projects,issues,merge_requests,pipelines)
+  commandFunction: |-
+    (config) => ({
+      command: 'npx',
+      args: ['-y', '@zereight/mcp-gitlab'],
+      env: {
+        GITLAB_PERSONAL_ACCESS_TOKEN: config.gitlabPersonalAccessToken,
+        ...(config.gitlabApiUrl ? { GITLAB_API_URL: config.gitlabApiUrl } : {}),
+        ...(config.gitlabReadOnlyMode !== undefined ? { GITLAB_READ_ONLY_MODE: String(config.gitlabReadOnlyMode) } : {}),
+        ...(config.gitlabToolsets ? { GITLAB_TOOLSETS: config.gitlabToolsets } : {})
+      }
+    })
+  exampleConfig:
+    gitlabPersonalAccessToken: glpat-dummy-token
+    gitlabApiUrl: https://gitlab.com/api/v4
