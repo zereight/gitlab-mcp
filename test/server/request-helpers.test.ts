@@ -3,6 +3,7 @@ import assert from "node:assert";
 import {
   isInitializationRequestBody,
   isUnauthenticatedDiscoveryRequestBody,
+  readAcceptHeader,
   readMcpSessionIdHeader,
   redactSessionIdForLog,
 } from "../../server/request-helpers.js";
@@ -50,5 +51,17 @@ describe("streamable request helpers", () => {
       undefined
     );
     assert.strictEqual(readMcpSessionIdHeader({ headers: {} }), undefined);
+  });
+
+  test("joins duplicate Accept headers so text/event-stream is not dropped", () => {
+    assert.strictEqual(
+      readAcceptHeader({ headers: { accept: "application/json, text/event-stream" } }),
+      "application/json, text/event-stream"
+    );
+    assert.strictEqual(
+      readAcceptHeader({ headers: { accept: ["application/json", "text/event-stream"] } }),
+      "application/json, text/event-stream"
+    );
+    assert.strictEqual(readAcceptHeader({ headers: {} }), "");
   });
 });

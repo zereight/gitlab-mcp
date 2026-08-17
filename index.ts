@@ -155,6 +155,7 @@ import { SERVER_VERSION } from "./server/version.js";
 import {
   isInitializationRequestBody,
   isUnauthenticatedDiscoveryRequestBody,
+  readAcceptHeader,
   readMcpSessionIdHeader,
   redactSessionIdForLog,
 } from "./server/request-helpers.js";
@@ -14209,7 +14210,7 @@ async function startStreamableHTTPServer(): Promise<void> {
   // Streamable HTTP GET endpoint for listening to server-sent events (SSE)
   app.get("/mcp", mcpRequestRateLimit, mcpBearerAuth, async (req: Request, res: Response) => {
     const sessionId = readMcpSessionIdHeader(req);
-    const acceptHeader = typeof req.headers.accept === "string" ? req.headers.accept : "";
+    const acceptHeader = readAcceptHeader(req);
 
     if (!acceptHeader.includes("text/event-stream")) {
       res.setHeader("Allow", "GET, POST, DELETE");
@@ -14230,7 +14231,7 @@ async function startStreamableHTTPServer(): Promise<void> {
     }
 
     if (OAUTH_STATELESS_MODE && STATELESS_MATERIAL && (REMOTE_AUTHORIZATION || GITLAB_MCP_OAUTH)) {
-      res.setHeader("Allow", "POST, DELETE");
+      res.setHeader("Allow", "POST");
       res.status(405).json({
         error: "Method Not Allowed",
         message:
@@ -14243,12 +14244,21 @@ async function startStreamableHTTPServer(): Promise<void> {
     if (!transport) {
       res.status(404).json({
         error: "Session not found",
-        message: `Session ${sessionId} not found or has expired.`,
       });
       return;
     }
 
     metrics.requestsProcessed++;
+
+    const usesSessionTimeouts = REMOTE_AUTHORIZATION || GITLAB_MCP_OAUTH;
+    if (usesSessionTimeouts) {
+      if (authBySession[sessionId]) {
+        authBySession[sessionId].lastUsed = Date.now();
+      }
+      // Listening on GET /mcp is session activity. Pause inactivity expiry for
+      // the life of the SSE stream so list_changed can still be pushed.
+      clearAuthTimeout(sessionId);
+    }
 
     const handleGetRequest = async () => {
       try {
@@ -14264,19 +14274,25 @@ async function startStreamableHTTPServer(): Promise<void> {
       }
     };
 
-    if ((REMOTE_AUTHORIZATION || GITLAB_MCP_OAUTH) && authBySession[sessionId]) {
-      const authData = authBySession[sessionId];
-      const ctx: SessionAuth = {
-        sessionId,
-        header: authData.header,
-        token: authData.token,
-        lastUsed: authData.lastUsed,
-        apiUrl: authData.apiUrl,
-        publicBaseUrl: authData.publicBaseUrl,
-      };
-      await sessionAuthStore.run(ctx, handleGetRequest);
-    } else {
-      await handleGetRequest();
+    try {
+      if (usesSessionTimeouts && authBySession[sessionId]) {
+        const authData = authBySession[sessionId];
+        const ctx: SessionAuth = {
+          sessionId,
+          header: authData.header,
+          token: authData.token,
+          lastUsed: authData.lastUsed,
+          apiUrl: authData.apiUrl,
+          publicBaseUrl: authData.publicBaseUrl,
+        };
+        await sessionAuthStore.run(ctx, handleGetRequest);
+      } else {
+        await handleGetRequest();
+      }
+    } finally {
+      if (usesSessionTimeouts && streamableTransports[sessionId]) {
+        setAuthTimeout(sessionId);
+      }
     }
   });
 

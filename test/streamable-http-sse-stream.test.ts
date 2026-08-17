@@ -302,10 +302,17 @@ describe("When Streamable HTTP server is running", () => {
 
       // Then: discover_tools succeeds and list_changed notification arrives on SSE stream
       assert.strictEqual(discoverResponse.status, 200, discoverResponse.text);
-      await Promise.race([
-        readPromise,
-        new Promise(resolve => setTimeout(resolve, 3000)),
-      ]);
+      let timeoutHandle: ReturnType<typeof setTimeout> | undefined;
+      try {
+        await Promise.race([
+          readPromise,
+          new Promise(resolve => {
+            timeoutHandle = setTimeout(resolve, 3000);
+          }),
+        ]);
+      } finally {
+        if (timeoutHandle) clearTimeout(timeoutHandle);
+      }
 
       abortController.abort();
       assert.ok(
@@ -330,6 +337,84 @@ describe("When Streamable HTTP server is running", () => {
       assert.ok(allowHeader?.includes("GET"), "Allow header must contain GET");
       assert.ok(allowHeader?.includes("POST"), "Allow header must contain POST");
       assert.ok(allowHeader?.includes("DELETE"), "Allow header must contain DELETE");
+    });
+  });
+});
+
+describe("When Streamable HTTP GET SSE is open", { timeout: 20_000 }, () => {
+  describe("with a short session timeout and no POST traffic", () => {
+    it("should keep the session alive for the life of the SSE stream", async () => {
+      const mockPort = await findMockServerPort();
+      const mockGitLab = new MockGitLabServer({
+        port: mockPort,
+        validTokens: [VALID_TOKEN],
+      });
+      await mockGitLab.start();
+
+      const port = await findAvailablePort(3740);
+      const timeoutServer = await launchServer({
+        mode: TransportMode.STREAMABLE_HTTP,
+        port,
+        timeout: 10_000,
+        env: {
+          STREAMABLE_HTTP: "true",
+          REMOTE_AUTHORIZATION: "true",
+          GITLAB_API_URL: `${mockGitLab.getUrl()}/api/v4`,
+          SESSION_TIMEOUT_SECONDS: "1",
+        },
+      });
+      const timeoutMcpUrl = `http://${HOST}:${port}/mcp`;
+
+      try {
+        // Given: an authenticated session with an open GET SSE stream
+        const initResponse = await postJsonRpc(
+          timeoutMcpUrl,
+          {
+            jsonrpc: "2.0",
+            id: 1,
+            method: "initialize",
+            params: {
+              protocolVersion: "2025-03-26",
+              capabilities: {},
+              clientInfo: { name: "sse-keepalive-client", version: "1.0.0" },
+            },
+          },
+          { "Private-Token": VALID_TOKEN }
+        );
+        const sessionId = initResponse.sessionId;
+        assert.ok(sessionId, "Session ID should be present");
+
+        const abortController = new AbortController();
+        const sseResponse = await fetch(timeoutMcpUrl, {
+          method: "GET",
+          headers: {
+            Accept: "text/event-stream",
+            "Mcp-Session-Id": sessionId,
+            "Private-Token": VALID_TOKEN,
+          },
+          signal: abortController.signal,
+        });
+        assert.strictEqual(sseResponse.status, 200);
+
+        // When: more than SESSION_TIMEOUT_SECONDS elapses with no POST
+        await new Promise(resolve => setTimeout(resolve, 2_000));
+
+        const listResponse = await postJsonRpc(
+          timeoutMcpUrl,
+          { jsonrpc: "2.0", id: 2, method: "tools/list", params: {} },
+          {
+            "mcp-session-id": sessionId,
+            "Private-Token": VALID_TOKEN,
+          }
+        );
+
+        // Then: the session is still alive
+        assert.strictEqual(listResponse.status, 200, listResponse.text);
+        abortController.abort();
+      } finally {
+        await cleanupServers([timeoutServer]);
+        await mockGitLab.stop();
+      }
     });
   });
 });
