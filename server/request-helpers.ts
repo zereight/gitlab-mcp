@@ -61,3 +61,16 @@ export function readMcpSessionIdHeader(req: {
   if (typeof raw !== "string") return undefined;
   return raw.length > 0 ? raw : undefined;
 }
+
+/**
+ * Normalize an `Accept` header. Duplicate Accept values surface as `string[]`
+ * in Node; joining them preserves `text/event-stream` if any value listed it.
+ */
+export function readAcceptHeader(req: {
+  headers: Record<string, string | string[] | undefined>;
+}): string {
+  const raw = req.headers.accept;
+  if (typeof raw === "string") return raw;
+  if (Array.isArray(raw)) return raw.filter(value => typeof value === "string").join(", ");
+  return "";
+}

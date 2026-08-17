@@ -155,6 +155,7 @@ import { SERVER_VERSION } from "./server/version.js";
 import {
   isInitializationRequestBody,
   isUnauthenticatedDiscoveryRequestBody,
+  readAcceptHeader,
   readMcpSessionIdHeader,
   redactSessionIdForLog,
 } from "./server/request-helpers.js";
@@ -647,7 +648,9 @@ function createServer(): McpServer {
     },
     {
       capabilities: {
-        tools: {},
+        tools: {
+          listChanged: true,
+        },
       },
     }
   );
@@ -14204,14 +14207,93 @@ async function startStreamableHTTPServer(): Promise<void> {
     }
   });
 
-  // Reject unsupported methods on /mcp
-  app.get("/mcp", (_req: Request, res: Response) => {
-    res.setHeader("Allow", "POST, DELETE");
-    res.status(405).json({
-      error: "Method Not Allowed",
-      message:
-        "GET /mcp is not supported when STREAMABLE_HTTP is enabled. Use POST to communicate with the MCP server.",
-    });
+  // Streamable HTTP GET endpoint for listening to server-sent events (SSE)
+  app.get("/mcp", mcpRequestRateLimit, mcpBearerAuth, async (req: Request, res: Response) => {
+    const sessionId = readMcpSessionIdHeader(req);
+    const acceptHeader = readAcceptHeader(req);
+
+    if (!acceptHeader.includes("text/event-stream")) {
+      res.setHeader("Allow", "GET, POST, DELETE");
+      res.status(406).json({
+        error: "Not Acceptable",
+        message: "Client must accept text/event-stream for GET /mcp",
+      });
+      return;
+    }
+
+    if (!sessionId) {
+      res.setHeader("Allow", "GET, POST, DELETE");
+      res.status(400).json({
+        error: "Bad Request",
+        message: "Mcp-Session-Id header is required for GET /mcp",
+      });
+      return;
+    }
+
+    if (OAUTH_STATELESS_MODE && STATELESS_MATERIAL && (REMOTE_AUTHORIZATION || GITLAB_MCP_OAUTH)) {
+      res.setHeader("Allow", "POST");
+      res.status(405).json({
+        error: "Method Not Allowed",
+        message:
+          "GET /mcp SSE stream is not supported in stateless mode. Use POST to communicate with the MCP server.",
+      });
+      return;
+    }
+
+    const transport = streamableTransports[sessionId];
+    if (!transport) {
+      res.status(404).json({
+        error: "Session not found",
+      });
+      return;
+    }
+
+    metrics.requestsProcessed++;
+
+    const usesSessionTimeouts = REMOTE_AUTHORIZATION || GITLAB_MCP_OAUTH;
+    if (usesSessionTimeouts) {
+      if (authBySession[sessionId]) {
+        authBySession[sessionId].lastUsed = Date.now();
+      }
+      // Listening on GET /mcp is session activity. Pause inactivity expiry for
+      // the life of the SSE stream so list_changed can still be pushed.
+      clearAuthTimeout(sessionId);
+    }
+
+    const handleGetRequest = async () => {
+      try {
+        await transport.handleRequest(req, res);
+      } catch (error) {
+        logger.error({ err: error }, "Streamable HTTP GET error");
+        if (!res.headersSent) {
+          res.status(500).json({
+            error: "Internal server error",
+            message: error instanceof Error ? error.message : "Unknown error",
+          });
+        }
+      }
+    };
+
+    try {
+      if (usesSessionTimeouts && authBySession[sessionId]) {
+        const authData = authBySession[sessionId];
+        const ctx: SessionAuth = {
+          sessionId,
+          header: authData.header,
+          token: authData.token,
+          lastUsed: authData.lastUsed,
+          apiUrl: authData.apiUrl,
+          publicBaseUrl: authData.publicBaseUrl,
+        };
+        await sessionAuthStore.run(ctx, handleGetRequest);
+      } else {
+        await handleGetRequest();
+      }
+    } finally {
+      if (usesSessionTimeouts && streamableTransports[sessionId]) {
+        setAuthTimeout(sessionId);
+      }
+    }
   });
 
   const getMetricsSnapshot = () => ({
@@ -14287,6 +14369,15 @@ async function startStreamableHTTPServer(): Promise<void> {
     } else {
       res.status(404).json({ error: "Session not found" });
     }
+  });
+
+  // Reject unsupported methods on /mcp
+  app.all("/mcp", (_req: Request, res: Response) => {
+    res.setHeader("Allow", "GET, POST, DELETE");
+    res.status(405).json({
+      error: "Method Not Allowed",
+      message: "Method Not Allowed. Use GET, POST, or DELETE to communicate with the MCP server.",
+    });
   });
 
   // Start server
