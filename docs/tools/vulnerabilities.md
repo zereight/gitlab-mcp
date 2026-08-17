@@ -18,7 +18,7 @@ AI-assisted vulnerability triage — list findings, inspect details, dismiss wit
 
 *📖 Read-only*
 
-List vulnerabilities for a project with optional state, severity, and report type filters (GraphQL-backed, cursor pagination)
+List vulnerabilities for a project with optional state, severity, and report type filters (GraphQL-backed, cursor pagination). Use this for a collection of resources; choose the corresponding get tool when you already know the single resource to inspect. It is read-only and does not mutate GitLab data; missing resources, invalid identifiers, insufficient permission, and rate limits are returned as errors. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented.
 
 **Parameters**
 
@@ -35,7 +35,7 @@ List vulnerabilities for a project with optional state, severity, and report typ
 
 *📖 Read-only*
 
-Get full details of a specific vulnerability
+Get full details of a specific vulnerability. Use this for a known resource or result; choose the corresponding list or search tool when you need to discover multiple resources. It is read-only and does not mutate GitLab data; missing resources, invalid identifiers, insufficient permission, and rate limits are returned as errors. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented.
 
 **Parameters**
 
@@ -47,7 +47,7 @@ Get full details of a specific vulnerability
 
 *✏️ Writes*
 
-Dismiss a vulnerability with a reason (acceptable_risk, false_positive, used_in_tests, mitigating_control, not_applicable) and optional comment
+Dismiss a vulnerability with a reason (acceptable_risk, false_positive, used_in_tests, mitigating_control, not_applicable) and optional comment. Use this for the specific operation described; choose a sibling tool when you need a different resource or lifecycle action. It changes remote GitLab state and requires the necessary project or group permission; GitLab returns validation, conflict, permission, or rate-limit errors instead of silently applying an invalid request. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented.
 
 **Parameters**
 
@@ -61,7 +61,7 @@ Dismiss a vulnerability with a reason (acceptable_risk, false_positive, used_in_
 
 *✏️ Writes*
 
-Confirm a vulnerability as a real finding requiring remediation
+Confirm a vulnerability as a real finding requiring remediation. Use this for the specific operation described; choose a sibling tool when you need a different resource or lifecycle action. It changes remote GitLab state and requires the necessary project or group permission; GitLab returns validation, conflict, permission, or rate-limit errors instead of silently applying an invalid request. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented.
 
 **Parameters**
 

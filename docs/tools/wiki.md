@@ -24,7 +24,7 @@ Project and group wiki page CRUD. Attachment uploads where supported.
 
 *📖 Read-only*
 
-List wiki pages in a project
+List wiki pages in a project. Use this for a collection of resources; choose the corresponding get tool when you already know the single resource to inspect. It is read-only and does not mutate GitLab data; missing resources, invalid identifiers, insufficient permission, and rate limits are returned as errors. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented.
 
 **Parameters**
 
@@ -40,7 +40,7 @@ List wiki pages in a project
 
 *📖 Read-only*
 
-Get details of a specific wiki page
+Get details of a specific wiki page. Use this for a known resource or result; choose the corresponding list or search tool when you need to discover multiple resources. It is read-only and does not mutate GitLab data; missing resources, invalid identifiers, insufficient permission, and rate limits are returned as errors. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented.
 
 **Parameters**
 
@@ -54,7 +54,7 @@ Get details of a specific wiki page
 
 *✏️ Writes*
 
-Create a wiki page in a project
+Create a wiki page in a project. Use this for a new resource or action; choose the corresponding update or edit tool when the resource already exists. It changes remote GitLab state and requires the necessary project or group permission; GitLab returns validation, conflict, permission, or rate-limit errors instead of silently applying an invalid request. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented.
 
 **Parameters**
 
@@ -69,7 +69,7 @@ Create a wiki page in a project
 
 *✏️ Writes*
 
-Update a wiki page in a project
+Update a wiki page in a project. Use this for an existing resource; choose the corresponding create tool for a new resource and a note tool for discussion-only text. It changes remote GitLab state and requires the necessary project or group permission; GitLab returns validation, conflict, permission, or rate-limit errors instead of silently applying an invalid request. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented.
 
 **Parameters**
 
@@ -85,7 +85,7 @@ Update a wiki page in a project
 
 *✏️ Writes*
 
-Delete a wiki page from a project
+Delete a wiki page from a project. Use this only after verifying the target; choose a get or list tool first when you need to inspect state without changing it. It changes or removes remote GitLab data and may be irreversible; it requires the necessary project or group permission and returns validation, conflict, permission, or rate-limit errors. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented.
 
 **Parameters**
 
@@ -98,7 +98,7 @@ Delete a wiki page from a project
 
 *📖 Read-only*
 
-List wiki pages in a group
+List wiki pages in a group. Use this for a collection of resources; choose the corresponding get tool when you already know the single resource to inspect. It is read-only and does not mutate GitLab data; missing resources, invalid identifiers, insufficient permission, and rate limits are returned as errors. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented.
 
 **Parameters**
 
@@ -114,7 +114,7 @@ List wiki pages in a group
 
 *📖 Read-only*
 
-Get details of a specific group wiki page
+Get details of a specific group wiki page. Use this for a known resource or result; choose the corresponding list or search tool when you need to discover multiple resources. It is read-only and does not mutate GitLab data; missing resources, invalid identifiers, insufficient permission, and rate limits are returned as errors. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented.
 
 **Parameters**
 
@@ -128,7 +128,7 @@ Get details of a specific group wiki page
 
 *✏️ Writes*
 
-Create a wiki page in a group
+Create a wiki page in a group. Use this for a new resource or action; choose the corresponding update or edit tool when the resource already exists. It changes remote GitLab state and requires the necessary project or group permission; GitLab returns validation, conflict, permission, or rate-limit errors instead of silently applying an invalid request. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented.
 
 **Parameters**
 
@@ -143,7 +143,7 @@ Create a wiki page in a group
 
 *✏️ Writes*
 
-Update a wiki page in a group
+Update a wiki page in a group. Use this for an existing resource; choose the corresponding create tool for a new resource and a note tool for discussion-only text. It changes remote GitLab state and requires the necessary project or group permission; GitLab returns validation, conflict, permission, or rate-limit errors instead of silently applying an invalid request. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented.
 
 **Parameters**
 
@@ -159,7 +159,7 @@ Update a wiki page in a group
 
 *✏️ Writes*
 
-Delete a wiki page from a group
+Delete a wiki page from a group. Use this only after verifying the target; choose a get or list tool first when you need to inspect state without changing it. It changes or removes remote GitLab data and may be irreversible; it requires the necessary project or group permission and returns validation, conflict, permission, or rate-limit errors. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented.
 
 **Parameters**
 

@@ -15,7 +15,7 @@ Validate `.gitlab-ci.yml` snippets and project pipeline configs.
 
 *📖 Read-only*
 
-Validate provided GitLab CI/CD YAML content for a project
+Validate provided GitLab CI/CD YAML content for a project. Use this to check configuration without applying it; choose a create or update tool only after validation succeeds. It is read-only and does not mutate GitLab data; missing resources, invalid identifiers, insufficient permission, and rate limits are returned as errors. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented.
 
 **Parameters**
 
@@ -31,7 +31,7 @@ Validate provided GitLab CI/CD YAML content for a project
 
 *📖 Read-only*
 
-Validate an existing .gitlab-ci.yml configuration for a project
+Validate an existing .gitlab-ci.yml configuration for a project. Use this to check configuration without applying it; choose a create or update tool only after validation succeeds. It is read-only and does not mutate GitLab data; missing resources, invalid identifiers, insufficient permission, and rate limits are returned as errors. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented.
 
 **Parameters**
 
@@ -47,7 +47,7 @@ Validate an existing .gitlab-ci.yml configuration for a project
 
 *📖 Read-only*
 
-List GitLab CI/CD Catalog resources/components visible to the user
+List GitLab CI/CD Catalog resources/components visible to the user. Use this for a collection of resources; choose the corresponding get tool when you already know the single resource to inspect. It is read-only and does not mutate GitLab data; missing resources, invalid identifiers, insufficient permission, and rate limits are returned as errors. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented.
 
 **Parameters**
 
@@ -66,7 +66,7 @@ List GitLab CI/CD Catalog resources/components visible to the user
 
 *📖 Read-only*
 
-Get details for a GitLab CI/CD Catalog resource, including versions and components
+Get details for a GitLab CI/CD Catalog resource, including versions and components. Use this for a known resource or result; choose the corresponding list or search tool when you need to discover multiple resources. It is read-only and does not mutate GitLab data; missing resources, invalid identifiers, insufficient permission, and rate limits are returned as errors. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented.
 
 **Parameters**
 

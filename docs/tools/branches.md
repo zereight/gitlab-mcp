@@ -26,7 +26,7 @@ Branch management, commit listing/inspection, file blame, and CI commit-status m
 
 *✏️ Writes*
 
-Create a new branch
+Create a new branch. Use this to create a branch from a branch, tag, or commit; use `get_branch` or `list_branches` to inspect branches and `protect_branch` to configure protection afterward. The operation changes remote repository state, requires branch-creation permission, and returns the new branch or a validation, missing-ref, protected-project, or already-exists error. `project_id` accepts a numeric ID or URL-encoded path, `branch` is the new name, and `ref` selects its starting revision.
 
 **Parameters**
 
@@ -40,7 +40,7 @@ Create a new branch
 
 *📖 Read-only*
 
-Get branch details (commit, protection status)
+Get branch details (commit, protection status). Use this for a known resource or result; choose the corresponding list or search tool when you need to discover multiple resources. It is read-only and does not mutate GitLab data; missing resources, invalid identifiers, insufficient permission, and rate limits are returned as errors. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented.
 
 **Parameters**
 
@@ -53,7 +53,7 @@ Get branch details (commit, protection status)
 
 *📖 Read-only*
 
-List branches in project with search filter
+List branches in project with search filter. Use this for a collection of resources; choose the corresponding get tool when you already know the single resource to inspect. It is read-only and does not mutate GitLab data; missing resources, invalid identifiers, insufficient permission, and rate limits are returned as errors. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented.
 
 **Parameters**
 
@@ -68,7 +68,7 @@ List branches in project with search filter
 
 *✏️ Writes*
 
-Delete branch from project
+Delete branch from project. Use this only after confirming the branch name and intended data loss; use `get_branch` or `list_branches` before deletion and never use it to remove branch protection. The operation permanently removes a remote branch, requires branch-delete permission, and returns the deletion result or a protected-branch, missing-resource, or permission error.
 
 **Parameters**
 
@@ -81,7 +81,7 @@ Delete branch from project
 
 *📖 Read-only*
 
-List protected branches in a project, supports search filter
+List protected branches in a project, supports search filter. Use this for a collection of resources; choose the corresponding get tool when you already know the single resource to inspect. It is read-only and does not mutate GitLab data; missing resources, invalid identifiers, insufficient permission, and rate limits are returned as errors. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented.
 
 **Parameters**
 
@@ -96,7 +96,7 @@ List protected branches in a project, supports search filter
 
 *📖 Read-only*
 
-Get details of a single protected branch (access levels, force push settings)
+Get details of a single protected branch (access levels, force push settings). Use this for a known resource or result; choose the corresponding list or search tool when you need to discover multiple resources. It is read-only and does not mutate GitLab data; missing resources, invalid identifiers, insufficient permission, and rate limits are returned as errors. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented.
 
 **Parameters**
 
@@ -109,7 +109,7 @@ Get details of a single protected branch (access levels, force push settings)
 
 *✏️ Writes*
 
-Protect a repository branch (set push/merge/unprotect access levels)
+Protect a repository branch (set push/merge/unprotect access levels). Use this to create or update protection rules for a branch or wildcard; use `get_protected_branch` to inspect existing rules first. The operation changes who may push, merge, or unprotect, may enable force-push or code-owner settings, requires maintainer-level permission, and returns the protection rule or a validation/permission error.
 
 **Parameters**
 
@@ -128,7 +128,7 @@ Protect a repository branch (set push/merge/unprotect access levels)
 
 *✏️ Writes*
 
-Remove protection from a previously protected branch
+Remove protection from a previously protected branch. Use this to remove protection from an existing branch; use `protect_branch` to change access levels without removing the rule. The operation changes repository security controls, requires permission to manage protected branches, and returns the result or an error when the branch is missing or policy forbids the change.
 
 **Parameters**
 
@@ -141,7 +141,7 @@ Remove protection from a previously protected branch
 
 *✏️ Writes*
 
-Change the default branch of a project
+Change the default branch of a project. Use this to change which branch GitLab treats as the project's default; use `create_branch` to create a branch rather than changing project defaults. The operation changes project settings and may affect clone, merge request, and CI defaults, requires project-maintainer permission, and returns the updated project or a validation/permission error.
 
 **Parameters**
 
@@ -154,7 +154,7 @@ Change the default branch of a project
 
 *📖 Read-only*
 
-List repository commits with filtering options
+List repository commits with filtering options. Use this for a collection of resources; choose the corresponding get tool when you already know the single resource to inspect. It is read-only and does not mutate GitLab data; missing resources, invalid identifiers, insufficient permission, and rate limits are returned as errors. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented.
 
 **Parameters**
 
@@ -178,7 +178,7 @@ List repository commits with filtering options
 
 *📖 Read-only*
 
-Get details of a specific commit
+Get details of a specific commit. Use this for a known resource or result; choose the corresponding list or search tool when you need to discover multiple resources. It is read-only and does not mutate GitLab data; missing resources, invalid identifiers, insufficient permission, and rate limits are returned as errors. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented.
 
 **Parameters**
 
@@ -192,7 +192,7 @@ Get details of a specific commit
 
 *📖 Read-only*
 
-Get changes/diffs of a specific commit
+Get changes/diffs of a specific commit. Use this for a known resource or result; choose the corresponding list or search tool when you need to discover multiple resources. It is read-only and does not mutate GitLab data; missing resources, invalid identifiers, insufficient permission, and rate limits are returned as errors. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented.
 
 **Parameters**
 
@@ -222,7 +222,7 @@ Get git blame for a file at a given ref. Each entry maps a contiguous range of s
 
 *📖 Read-only*
 
-List statuses for a commit
+List statuses for a commit. Use this for a collection of resources; choose the corresponding get tool when you already know the single resource to inspect. It is read-only and does not mutate GitLab data; missing resources, invalid identifiers, insufficient permission, and rate limits are returned as errors. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented.
 
 **Parameters**
 
@@ -244,7 +244,7 @@ List statuses for a commit
 
 *✏️ Writes*
 
-Create or update the status of a commit
+Create or update the status of a commit. Use this for a new resource or action; choose the corresponding update or edit tool when the resource already exists. It changes remote GitLab state and requires the necessary project or group permission; GitLab returns validation, conflict, permission, or rate-limit errors instead of silently applying an invalid request. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented.
 
 **Parameters**
 

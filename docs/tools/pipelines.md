@@ -33,7 +33,7 @@ Pipeline + job control (trigger, retry, cancel, play manual jobs, fetch logs/art
 
 *📖 Read-only*
 
-List pipelines with filtering options
+List pipelines with filtering options. Use this for a collection of resources; choose the corresponding get tool when you already know the single resource to inspect. It is read-only and does not mutate GitLab data; missing resources, invalid identifiers, insufficient permission, and rate limits are returned as errors. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented.
 
 **Parameters**
 
@@ -57,7 +57,7 @@ List pipelines with filtering options
 
 *📖 Read-only*
 
-Get details of a specific pipeline
+Get details of a specific pipeline. Use this for a known resource or result; choose the corresponding list or search tool when you need to discover multiple resources. It is read-only and does not mutate GitLab data; missing resources, invalid identifiers, insufficient permission, and rate limits are returned as errors. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented.
 
 **Parameters**
 
@@ -70,7 +70,7 @@ Get details of a specific pipeline
 
 *📖 Read-only*
 
-List deployments with filtering options
+List deployments with filtering options. Use this for a collection of resources; choose the corresponding get tool when you already know the single resource to inspect. It is read-only and does not mutate GitLab data; missing resources, invalid identifiers, insufficient permission, and rate limits are returned as errors. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented.
 
 **Parameters**
 
@@ -92,7 +92,7 @@ List deployments with filtering options
 
 *📖 Read-only*
 
-Get details of a specific deployment
+Get details of a specific deployment. Use this for a known resource or result; choose the corresponding list or search tool when you need to discover multiple resources. It is read-only and does not mutate GitLab data; missing resources, invalid identifiers, insufficient permission, and rate limits are returned as errors. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented.
 
 **Parameters**
 
@@ -105,7 +105,7 @@ Get details of a specific deployment
 
 *📖 Read-only*
 
-List environments in a project
+List environments in a project. Use this for a collection of resources; choose the corresponding get tool when you already know the single resource to inspect. It is read-only and does not mutate GitLab data; missing resources, invalid identifiers, insufficient permission, and rate limits are returned as errors. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented.
 
 **Parameters**
 
@@ -122,7 +122,7 @@ List environments in a project
 
 *📖 Read-only*
 
-Get details of a specific environment
+Get details of a specific environment. Use this for a known resource or result; choose the corresponding list or search tool when you need to discover multiple resources. It is read-only and does not mutate GitLab data; missing resources, invalid identifiers, insufficient permission, and rate limits are returned as errors. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented.
 
 **Parameters**
 
@@ -135,7 +135,7 @@ Get details of a specific environment
 
 *📖 Read-only*
 
-List all jobs in a specific pipeline
+List all jobs in a specific pipeline. Use this for a collection of resources; choose the corresponding get tool when you already know the single resource to inspect. It is read-only and does not mutate GitLab data; missing resources, invalid identifiers, insufficient permission, and rate limits are returned as errors. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented.
 
 **Parameters**
 
@@ -152,7 +152,7 @@ List all jobs in a specific pipeline
 
 *📖 Read-only*
 
-List trigger jobs (bridges) in a pipeline
+List trigger jobs (bridges) in a pipeline. Use this for a collection of resources; choose the corresponding get tool when you already know the single resource to inspect. It is read-only and does not mutate GitLab data; missing resources, invalid identifiers, insufficient permission, and rate limits are returned as errors. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented.
 
 **Parameters**
 
@@ -168,7 +168,7 @@ List trigger jobs (bridges) in a pipeline
 
 *📖 Read-only*
 
-Get details of a GitLab pipeline job number
+Get details of a GitLab pipeline job number. Use this for a known resource or result; choose the corresponding list or search tool when you need to discover multiple resources. It is read-only and does not mutate GitLab data; missing resources, invalid identifiers, insufficient permission, and rate limits are returned as errors. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented.
 
 **Parameters**
 
@@ -181,7 +181,7 @@ Get details of a GitLab pipeline job number
 
 *📖 Read-only*
 
-Get the output/trace of a pipeline job with optional pagination
+Get the output/trace of a pipeline job with optional pagination. Use this for a known resource or result; choose the corresponding list or search tool when you need to discover multiple resources. It is read-only and does not mutate GitLab data; missing resources, invalid identifiers, insufficient permission, and rate limits are returned as errors. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented.
 
 **Parameters**
 
@@ -196,7 +196,7 @@ Get the output/trace of a pipeline job with optional pagination
 
 *✏️ Writes*
 
-Create a new pipeline for a branch or tag
+Create a new pipeline for a branch or tag. Use this for a new resource or action; choose the corresponding update or edit tool when the resource already exists. It changes remote GitLab state and requires the necessary project or group permission; GitLab returns validation, conflict, permission, or rate-limit errors instead of silently applying an invalid request. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented.
 
 **Parameters**
 
@@ -211,7 +211,7 @@ Create a new pipeline for a branch or tag
 
 *✏️ Writes*
 
-Retry a failed or canceled pipeline
+Retry a failed or canceled pipeline. Use this for the specific operation described; choose a sibling tool when you need a different resource or lifecycle action. It changes remote GitLab state and requires the necessary project or group permission; GitLab returns validation, conflict, permission, or rate-limit errors instead of silently applying an invalid request. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented.
 
 **Parameters**
 
@@ -224,7 +224,7 @@ Retry a failed or canceled pipeline
 
 *✏️ Writes*
 
-Cancel a running pipeline
+Cancel a running pipeline. Use this for the specific operation described; choose a sibling tool when you need a different resource or lifecycle action. It changes remote GitLab state and requires the necessary project or group permission; GitLab returns validation, conflict, permission, or rate-limit errors instead of silently applying an invalid request. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented.
 
 **Parameters**
 
@@ -237,7 +237,7 @@ Cancel a running pipeline
 
 *✏️ Writes*
 
-Run a manual pipeline job
+Run a manual pipeline job. Use this for the specific operation described; choose a sibling tool when you need a different resource or lifecycle action. It changes remote GitLab state and requires the necessary project or group permission; GitLab returns validation, conflict, permission, or rate-limit errors instead of silently applying an invalid request. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented.
 
 **Parameters**
 
@@ -251,7 +251,7 @@ Run a manual pipeline job
 
 *✏️ Writes*
 
-Retry a failed or canceled pipeline job
+Retry a failed or canceled pipeline job. Use this for the specific operation described; choose a sibling tool when you need a different resource or lifecycle action. It changes remote GitLab state and requires the necessary project or group permission; GitLab returns validation, conflict, permission, or rate-limit errors instead of silently applying an invalid request. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented.
 
 **Parameters**
 
@@ -264,7 +264,7 @@ Retry a failed or canceled pipeline job
 
 *✏️ Writes*
 
-Cancel a running pipeline job
+Cancel a running pipeline job. Use this for the specific operation described; choose a sibling tool when you need a different resource or lifecycle action. It changes remote GitLab state and requires the necessary project or group permission; GitLab returns validation, conflict, permission, or rate-limit errors instead of silently applying an invalid request. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented.
 
 **Parameters**
 
@@ -278,7 +278,7 @@ Cancel a running pipeline job
 
 *📖 Read-only*
 
-List artifact files in a job's archive
+List artifact files in a job's archive. Use this for a collection of resources; choose the corresponding get tool when you already know the single resource to inspect. It is read-only and does not mutate GitLab data; missing resources, invalid identifiers, insufficient permission, and rate limits are returned as errors. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented.
 
 **Parameters**
 
@@ -293,7 +293,7 @@ List artifact files in a job's archive
 
 *📖 Read-only*
 
-Download job artifact archive (zip) and save to a local path
+Download job artifact archive (zip) and save to a local path. Use this to retrieve a pipeline job's artifact archive; remote HTTP mode returns a download URL while local mode saves the archive to a local path. It is read-only but may create a local file in stdio mode, requires job/project access, and returns the download result or an artifact/permission error.
 
 **Parameters**
 
@@ -307,7 +307,7 @@ Download job artifact archive (zip) and save to a local path
 
 *📖 Read-only*
 
-Get content of a single file from a job's artifacts
+Get content of a single file from a job's artifacts. Use this for a known resource or result; choose the corresponding list or search tool when you need to discover multiple resources. It is read-only and does not mutate GitLab data; missing resources, invalid identifiers, insufficient permission, and rate limits are returned as errors. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented.
 
 **Parameters**
 
