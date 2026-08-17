@@ -263,11 +263,18 @@ describe('GitLab MCP Server - Streamable HTTP Transport', () => {
     console.log('Client disconnected from Streamable HTTP server');
   });
 
-  test('should return 405 for GET /mcp', async () => {
+  test('should return 406 for GET /mcp without Accept: text/event-stream', async () => {
     const response = await fetch(`http://${HOST}:${port}/mcp`);
-    assert.strictEqual(response.status, 405, 'GET /mcp should respond with 405');
+    assert.strictEqual(response.status, 406, 'GET /mcp should respond with 406 when Accept header is missing text/event-stream');
     const body = await response.json();
-    assert.strictEqual(body?.error, 'Method Not Allowed');
+    assert.strictEqual(body?.error, 'Not Acceptable');
+  });
+
+  test('should return 405 for unsupported HTTP methods like PUT /mcp', async () => {
+    const response = await fetch(`http://${HOST}:${port}/mcp`, { method: 'PUT' });
+    assert.strictEqual(response.status, 405, 'PUT /mcp should respond with 405');
+    const allowHeader = response.headers.get('allow');
+    assert.ok(allowHeader?.includes('GET') && allowHeader?.includes('POST') && allowHeader?.includes('DELETE'), 'Allow header should contain GET, POST, DELETE');
   });
 
   test('should list tools via Streamable HTTP', async () => {
