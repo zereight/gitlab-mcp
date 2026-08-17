@@ -1,3 +1,25 @@
+# Smithery configuration file: https://smithery.ai/docs/config#smitheryyaml
+
+configSchema:
+  type: object
+  required:
+    - gitlabPersonalAccessToken
+  properties:
+    gitlabPersonalAccessToken:
+      type: string
+      description: GitLab Personal Access Token for local stdio use
+    gitlabApiUrl:
+      type: string
+      description: GitLab API base URL (e.g. https://gitlab.com/api/v4)
+      default: https://gitlab.com/api/v4
+    gitlabReadOnlyMode:
+      type: boolean
+      description: Set to true to expose only read-only tools and block write operations
+      default: false
+    gitlabToolsets:
+      type: string
+      description: Optional comma-separated list of toolsets to enable (e.g. projects,issues,merge_requests,pipelines)
+
 startCommand:
   type: stdio
   configSchema:
