@@ -132,9 +132,10 @@ describe("tag tools", () => {
       `/projects/${TEST_PROJECT_ID}/repository/tags`,
       (req, res) => {
         if (req.body.tag_name === "v-no-release") {
-          const tagWithoutRelease = { ...buildTag({ name: "v-no-release", message: null }) };
-          delete tagWithoutRelease.release;
-          res.json(tagWithoutRelease);
+          const tag = buildTag({ name: "v-no-release", message: null });
+          res.json(
+            Object.fromEntries(Object.entries(tag).filter(([key]) => key !== "release"))
+          );
           return;
         }
 
