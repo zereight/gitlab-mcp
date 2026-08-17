@@ -131,6 +131,13 @@ describe("tag tools", () => {
       "post",
       `/projects/${TEST_PROJECT_ID}/repository/tags`,
       (req, res) => {
+        if (req.body.tag_name === "v-no-release") {
+          const tagWithoutRelease = { ...buildTag({ name: "v-no-release", message: null }) };
+          delete tagWithoutRelease.release;
+          res.json(tagWithoutRelease);
+          return;
+        }
+
         assert.deepStrictEqual(req.body, {
           tag_name: TEST_TAG_NAME,
           ref: "main",
@@ -232,6 +239,21 @@ describe("tag tools", () => {
     assert.strictEqual(result.name, TEST_TAG_NAME);
     assert.strictEqual(result.release.description, "Release notes");
     assert.strictEqual(result.created_at, null);
+  });
+
+  test("create_tag succeeds when GitLab omits the release field", async () => {
+    const result = await callTool(
+      "create_tag",
+      {
+        project_id: TEST_PROJECT_ID,
+        tag_name: "v-no-release",
+        ref: "main",
+      },
+      env()
+    );
+
+    assert.strictEqual(result.name, "v-no-release");
+    assert.strictEqual(result.release, undefined);
   });
 
   test("delete_tag returns a success payload", async () => {
