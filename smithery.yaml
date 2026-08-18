@@ -43,8 +43,8 @@ startCommand:
         description: Optional comma-separated list of toolsets to enable (e.g. projects,issues,merge_requests,pipelines)
   commandFunction: |-
     (config) => ({
-      command: 'npx',
-      args: ['-y', '@zereight/mcp-gitlab'],
+      command: 'node',
+      args: ['build/index.js'],
       env: {
         GITLAB_PERSONAL_ACCESS_TOKEN: config.gitlabPersonalAccessToken,
         ...(config.gitlabApiUrl ? { GITLAB_API_URL: config.gitlabApiUrl } : {}),
