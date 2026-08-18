@@ -4071,7 +4071,7 @@ export const GitLabTagSchema = z.object({
       tag_name: z.string(),
       description: z.string(),
     })
-    .nullable(),
+    .nullish(),
   protected: z.boolean(),
   created_at: z.string().nullable(),
 });
