@@ -682,7 +682,8 @@ export class GitLabOAuth {
   }
 
   /**
-   * Device Authorization Grant (GitLab 17.1+). Does not open a browser.
+   * Device Authorization Grant (GitLab 17.9+; 17.2–17.8 need oauth2_device_grant_flow).
+   * Does not open a browser.
    * Stores the token with the same file format as the localhost callback flow.
    */
   async runDeviceFlowAsync(options?: {

@@ -62,7 +62,7 @@ PAT, OAuth, 읽기 전용 모드, 동적 API URL, 원격 인증을 지원하며 
 - **Cursor**: [Cursor 설정 가이드](./docs/clients/cursor.md)
 - **Factory AI Droid / OpenClaw / OpenCode 스타일 클라이언트**: [JSON 기반 MCP 클라이언트 설정 가이드](./docs/clients/json-clients.md)
 - **OAuth 브라우저 플로우 상세**: [OAuth2 인증 설정 가이드](./docs/auth/oauth-setup.md)
-- **localhost callback 없이 OAuth** (SSO, 원격 셸, 백그라운드 클라이언트): `zereight-mcp-gitlab auth`를 먼저 실행하세요 (GitLab 17.1+ device flow). 그다음 서버는 `GITLAB_USE_OAUTH=true`로 시작합니다. [독립 device-flow 커맨드](./docs/auth/oauth-setup.md#standalone-device-flow-auth-command)를 참고하세요.
+- **localhost callback 없이 OAuth** (SSO, 원격 셸, 백그라운드 클라이언트): `zereight-mcp-gitlab auth`를 먼저 실행하세요 (GitLab 17.9+ device flow; 17.2–17.8은 `oauth2_device_grant_flow` 필요). 그다음 서버는 `GITLAB_USE_OAUTH=true`로 시작합니다. [독립 device-flow 커맨드](./docs/auth/oauth-setup.md#standalone-device-flow-auth-command)를 참고하세요.
 
 가장 단순한 로컬 설정은 Personal Access Token으로 시작하세요. 브라우저 기반 로컬 인증은 OAuth2를 사용하세요. 원격 또는 멀티 유저 배포는 아래 MCP OAuth 및 원격 인증 섹션을 참고하세요.
 

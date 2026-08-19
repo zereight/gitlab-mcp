@@ -58,9 +58,10 @@ Subcommands are not MCP server flags. They run and exit without starting the MCP
 
 ### `auth`
 
-Run GitLab's OAuth Device Authorization Grant (GitLab 17.1+) and store a token
-at `~/.gitlab-mcp-token.json` (or `GITLAB_OAUTH_TOKEN_PATH`). This complements
-the existing localhost callback flow; it does not replace it.
+Run GitLab's OAuth Device Authorization Grant (GitLab 17.9+; 17.2–17.8 need
+`oauth2_device_grant_flow`) and store a token at `~/.gitlab-mcp-token.json`
+(or `GITLAB_OAUTH_TOKEN_PATH`). This complements the existing localhost
+callback flow; it does not replace it.
 
 ```bash
 zereight-mcp-gitlab auth --client-id YOUR_APP_ID
@@ -75,7 +76,8 @@ zereight-mcp-gitlab auth --help
 | `--token-path`  | `GITLAB_OAUTH_TOKEN_PATH`  | Token file path.                                 |
 
 After `auth` succeeds, start the MCP server with `GITLAB_USE_OAUTH=true` and the
-same client ID. See [OAuth2 Authentication Setup Guide](../auth/oauth-setup.md#standalone-device-flow-auth-command).
+same client ID. If you use `--token-path`, set `GITLAB_OAUTH_TOKEN_PATH` to the
+same path when you start the server. See [OAuth2 Authentication Setup Guide](../auth/oauth-setup.md#standalone-device-flow-auth-command).
 
 For the full list of configuration options, see
 [Environment Variables](../configuration/environment-variables.md).

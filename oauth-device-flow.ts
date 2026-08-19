@@ -87,13 +87,15 @@ function formatOauthError(errorCode: string, description?: string): string {
 function unsupportedDeviceFlowMessage(status: number): string {
   return (
     `Device authorization is not available on this GitLab instance (HTTP ${status}). ` +
-    "GitLab 17.1+ is required for `zereight-mcp-gitlab auth`. " +
+    "GitLab 17.9+ is required for `zereight-mcp-gitlab auth` " +
+    "(17.2–17.8 need oauth2_device_grant_flow). " +
     "Use a Personal Access Token (GITLAB_PERSONAL_ACCESS_TOKEN) instead."
   );
 }
 
 /**
- * RFC 8628 Device Authorization Grant against GitLab (17.1+).
+ * RFC 8628 Device Authorization Grant against GitLab (17.9+; 17.2–17.8 with
+ * oauth2_device_grant_flow).
  * Does not open a browser. Never logs device_code or tokens.
  */
 export async function runDeviceAuthorizationGrantAsync(

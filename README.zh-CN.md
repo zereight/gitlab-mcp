@@ -62,7 +62,7 @@
 - **Cursor**：[Cursor 设置指南](./docs/clients/cursor.md)
 - **Factory AI Droid / OpenClaw / OpenCode 风格客户端**：[基于 JSON 的 MCP 客户端设置指南](./docs/clients/json-clients.md)
 - **OAuth 浏览器流程详情**：[OAuth2 认证设置指南](./docs/auth/oauth-setup.md)
-- **无需 localhost callback 的 OAuth**（SSO、远程 shell、后台客户端）：先运行 `zereight-mcp-gitlab auth`（GitLab 17.1+ device flow），再以 `GITLAB_USE_OAUTH=true` 启动服务器。参见[独立 device-flow 命令](./docs/auth/oauth-setup.md#standalone-device-flow-auth-command)。
+- **无需 localhost callback 的 OAuth**（SSO、远程 shell、后台客户端）：先运行 `zereight-mcp-gitlab auth`（GitLab 17.9+ device flow；17.2–17.8 需 `oauth2_device_grant_flow`），再以 `GITLAB_USE_OAUTH=true` 启动服务器。参见[独立 device-flow 命令](./docs/auth/oauth-setup.md#standalone-device-flow-auth-command)。
 
 最简单的本地设置可以从 Personal Access Token 开始。基于浏览器的本地认证使用 OAuth2。远程或多用户部署请继续查看下面的 MCP OAuth 和远程授权部分。
 

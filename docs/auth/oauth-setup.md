@@ -146,7 +146,7 @@ If you're using a self-hosted GitLab instance, update the `GITLAB_API_URL`:
 
 ## Standalone device-flow auth command
 
-The localhost callback flow above is unchanged. For SSO browser profiles, remote shells, or background MCP clients, obtain a token first with a standalone command (GitLab **17.1+** Device Authorization Grant):
+The localhost callback flow above is unchanged. For SSO browser profiles, remote shells, or background MCP clients, obtain a token first with a standalone command (GitLab **17.9+** Device Authorization Grant; 17.2–17.8 require the `oauth2_device_grant_flow` feature flag):
 
 ```bash
 zereight-mcp-gitlab auth --client-id YOUR_APPLICATION_ID
@@ -167,7 +167,7 @@ What it does:
 3. The command polls until authorization completes
 4. The token is stored at the same path as the callback flow (`~/.gitlab-mcp-token.json` or `GITLAB_OAUTH_TOKEN_PATH`)
 
-Then start the MCP server with `GITLAB_USE_OAUTH=true` and the same `GITLAB_OAUTH_CLIENT_ID`. The server reuses and refreshes that token. It does **not** switch the server's default OAuth path to device flow.
+Then start the MCP server with `GITLAB_USE_OAUTH=true` and the same `GITLAB_OAUTH_CLIENT_ID`. If you used `--token-path`, set `GITLAB_OAUTH_TOKEN_PATH` to that path as well. The server reuses and refreshes that token. It does **not** switch the server's default OAuth path to device flow.
 
 A public (non-confidential) OAuth application is recommended. `GITLAB_OAUTH_REDIRECT_URI` is still required when creating the GitLab application, but device flow does not use the localhost callback.
 

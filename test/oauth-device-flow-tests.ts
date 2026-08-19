@@ -12,7 +12,7 @@ const GITLAB_URL = "https://gitlab.example";
 const CLIENT_ID = "test-client-id";
 const DEVICE_CODE = "device-code-not-for-stdout";
 const USER_CODE = "0A44L90H";
-const ACCESS_TOKEN = "glpat-device-flow-access-token";
+const ACCESS_TOKEN = "oauth-device-flow-access-token";
 const REFRESH_TOKEN = "refresh-token-device-flow";
 
 interface JsonResponse {
@@ -37,14 +37,20 @@ function jsonResponse(status: number, body: unknown): Response {
   });
 }
 
-function createFetchStub(plan: {
-  authorize: JsonResponse;
-  tokens: JsonResponse[];
-}): FetchImpl {
+function createFetchStub(
+  plan: {
+    authorize: JsonResponse;
+    tokens: JsonResponse[];
+  },
+  capture?: { authorizeBodies: string[] }
+): FetchImpl {
   const remainingTokens = [...plan.tokens];
-  return async input => {
+  return async (input, init) => {
     const url = requestUrl(input);
     if (url.includes("/oauth/authorize_device")) {
+      if (typeof init?.body === "string") {
+        capture?.authorizeBodies.push(init.body);
+      }
       return jsonResponse(plan.authorize.status, plan.authorize.body);
     }
     if (url.includes("/oauth/token")) {
@@ -97,6 +103,59 @@ function createOauthClient(tokenStoragePath: string): GitLabOAuth {
     scopes: ["api"],
     tokenStoragePath,
   });
+}
+
+function createAuthorizeCapture(): { authorizeBodies: string[] } {
+  return { authorizeBodies: [] };
+}
+
+function capturedAuthorizeScope(bodies: string[]): string | null {
+  if (bodies.length !== 1) {
+    return null;
+  }
+  const [body] = bodies;
+  if (body === undefined) {
+    return null;
+  }
+  return new URLSearchParams(body).get("scope");
+}
+
+async function runAuthCapturingScopeAsync(input: {
+  extraArgv?: string[];
+  env?: NodeJS.ProcessEnv;
+}): Promise<string | null> {
+  const tokenPath = createTempTokenPath();
+  const capture = createAuthorizeCapture();
+  const fetchImpl = createFetchStub(
+    {
+      authorize: { status: 200, body: deviceAuthorizationBody() },
+      tokens: [{ status: 200, body: successTokenBody() }],
+    },
+    capture
+  );
+
+  try {
+    await runAuthCommandAsync({
+      argv: [
+        "node",
+        "index.js",
+        "auth",
+        `--client-id=${CLIENT_ID}`,
+        `--api-url=${GITLAB_URL}`,
+        `--token-path=${tokenPath}`,
+        ...(input.extraArgv ?? []),
+      ],
+      env: input.env ?? {},
+      stdout: createStdoutBuffer().stdout,
+      fetchImpl,
+      sleepAsync: async () => {},
+    });
+    return capturedAuthorizeScope(capture.authorizeBodies);
+  } finally {
+    if (fs.existsSync(tokenPath)) {
+      fs.unlinkSync(tokenPath);
+    }
+  }
 }
 
 function createStdoutBuffer(): { stdout: { write(chunk: string): boolean }; text: () => string } {
@@ -189,6 +248,36 @@ describe("When reading the CLI command", () => {
         getPositionalCliCommand(["node", "/usr/local/bin/tsx", "index.ts", "auth", "--help"]),
         "auth"
       );
+    });
+  });
+
+  describe("with space-separated --api-url before auth", () => {
+    it("should skip the URL value and return auth", () => {
+      assert.equal(
+        getPositionalCliCommand([
+          "node",
+          "index.js",
+          "--api-url",
+          "https://gitlab.example/api/v4",
+          "auth",
+        ]),
+        "auth"
+      );
+    });
+  });
+
+  describe("with space-separated --client-id before auth", () => {
+    it("should skip the client id value and return auth", () => {
+      assert.equal(
+        getPositionalCliCommand(["node", "index.js", "--client-id", "app-id", "auth"]),
+        "auth"
+      );
+    });
+  });
+
+  describe("with -h before auth", () => {
+    it("should not consume auth as a help value", () => {
+      assert.equal(getPositionalCliCommand(["node", "index.js", "-h", "auth"]), "auth");
     });
   });
 });
@@ -410,9 +499,10 @@ describe("When running the auth command", () => {
         });
 
         const printed = out.text();
-        assert.match(printed, new RegExp(USER_CODE));
+        assert.equal(printed.includes(USER_CODE), true);
         assert.match(printed, /Token saved to/);
         assert.match(printed, /GITLAB_USE_OAUTH=true/);
+        assert.match(printed, /GITLAB_OAUTH_TOKEN_PATH/);
         assert.equal(printed.includes(DEVICE_CODE), false);
         assert.equal(printed.includes(ACCESS_TOKEN), false);
         assert.equal(fs.existsSync(tokenPath), true);
@@ -423,4 +513,38 @@ describe("When running the auth command", () => {
       }
     });
   });
+
+  describe("without a read-only flag", () => {
+    it("should request the api scope", async () => {
+      assert.equal(await runAuthCapturingScopeAsync({}), "api");
+    });
+  });
+
+  describe("with --permission-mode=readonly", () => {
+    it("should request the read_api scope", async () => {
+      assert.equal(
+        await runAuthCapturingScopeAsync({ extraArgv: ["--permission-mode=readonly"] }),
+        "read_api"
+      );
+    });
+  });
+
+  describe("with GITLAB_PERMISSION_MODE=readonly", () => {
+    it("should request the read_api scope", async () => {
+      assert.equal(
+        await runAuthCapturingScopeAsync({ env: { GITLAB_PERMISSION_MODE: "readonly" } }),
+        "read_api"
+      );
+    });
+  });
+
+  describe("with --read-only=true", () => {
+    it("should request the read_api scope", async () => {
+      assert.equal(
+        await runAuthCapturingScopeAsync({ extraArgv: ["--read-only=true"] }),
+        "read_api"
+      );
+    });
+  });
 });
+

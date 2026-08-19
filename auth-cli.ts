@@ -11,11 +11,13 @@ const DEFAULT_REDIRECT_URI = "http://127.0.0.1:8888/callback";
 
 export const AUTH_CLI_HELP = `Usage: zereight-mcp-gitlab auth [options]
 
-Run GitLab OAuth Device Authorization Grant (GitLab 17.1+) and store a token
-at the same path used by GITLAB_USE_OAUTH (default ~/.gitlab-mcp-token.json).
+Run GitLab OAuth Device Authorization Grant (GitLab 17.9+; 17.2–17.8 need
+oauth2_device_grant_flow) and store a token at the same path used by
+GITLAB_USE_OAUTH (default ~/.gitlab-mcp-token.json).
 
 This does not replace the local browser callback flow. After auth succeeds,
 start the MCP server with GITLAB_USE_OAUTH=true and GITLAB_OAUTH_CLIENT_ID.
+If you used --token-path, set GITLAB_OAUTH_TOKEN_PATH to the same path.
 
 Options:
   --client-id <id>     OAuth application ID (or GITLAB_OAUTH_CLIENT_ID)
@@ -60,7 +62,11 @@ function wantsHelp(argv: readonly string[]): boolean {
 }
 
 function isReadOnlyMode(argv: readonly string[], env: NodeJS.ProcessEnv): boolean {
-  return (readFlag(argv, "read-only") ?? env.GITLAB_READ_ONLY_MODE) === "true";
+  const readOnly = readFlag(argv, "read-only") ?? env.GITLAB_READ_ONLY_MODE;
+  if (readOnly === "true") {
+    return true;
+  }
+  return (readFlag(argv, "permission-mode") ?? env.GITLAB_PERMISSION_MODE) === "readonly";
 }
 
 export function gitlabOriginFromApiUrl(apiUrl: string): string {
@@ -114,6 +120,7 @@ export async function runAuthCommandAsync(input: AuthCliInput = {}): Promise<voi
 
   stdout.write(`Token saved to ${tokenPath}\n`);
   stdout.write(
-    "Start the MCP server with GITLAB_USE_OAUTH=true and the same GITLAB_OAUTH_CLIENT_ID.\n"
+    "Start the MCP server with GITLAB_USE_OAUTH=true and the same GITLAB_OAUTH_CLIENT_ID.\n" +
+      "If you used --token-path, set GITLAB_OAUTH_TOKEN_PATH to that path as well.\n"
   );
 }
