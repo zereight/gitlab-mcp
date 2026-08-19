@@ -1,4 +1,4 @@
-import { describe, test, before, after } from 'node:test';
+import { describe, test, it, before, after } from 'node:test';
 import assert from 'node:assert';
 import { spawn } from 'child_process';
 import { MockGitLabServer, findMockServerPort } from './utils/mock-gitlab-server.js';
@@ -9,6 +9,7 @@ import os from 'node:os';
 const MOCK_TOKEN = 'glpat-mock-token-12345';
 const TEST_PROJECT_ID = '123';
 const TEST_JOB_ID = '456';
+const NULL_MODE_JOB_ID = '457';
 const TEST_ENCODED_ARTIFACT_PATH = 'reports/report#1.txt';
 
 // Helper to run an MCP tool via the built server
@@ -135,6 +136,26 @@ describe('job artifacts tools', () => {
       }
     );
 
+    // GitLab.com can return mode/size as null on artifacts/tree entries (#661)
+    mockGitLab.addMockHandler('get', `/projects/${TEST_PROJECT_ID}/jobs/${NULL_MODE_JOB_ID}/artifacts/tree`, (req, res) => {
+      res.json([
+        {
+          name: 'report.xml',
+          path: 'report.xml',
+          type: 'file',
+          size: 1024,
+          mode: null,
+        },
+        {
+          name: 'logs',
+          path: 'logs',
+          type: 'directory',
+          size: null,
+          mode: '040755',
+        },
+      ]);
+    });
+
     // Add mock handler for 404 on non-existent artifact
     mockGitLab.addMockHandler('get', `/projects/${TEST_PROJECT_ID}/jobs/999/artifacts/tree`, (req, res) => {
       res.status(404).json({ message: 'Not Found' });
@@ -173,6 +194,26 @@ describe('job artifacts tools', () => {
     assert.strictEqual(result[0].size, 1024);
     assert.strictEqual(result[1].name, 'logs');
     assert.strictEqual(result[1].type, 'directory');
+  });
+
+  describe('When listing job artifacts', () => {
+    describe('with a null mode entry', () => {
+      it('should return the entries instead of failing', async () => {
+        const result = await callTool(
+          'list_job_artifacts',
+          { project_id: TEST_PROJECT_ID, job_id: NULL_MODE_JOB_ID },
+          {
+            GITLAB_API_URL: `${mockGitLabUrl}/api/v4`,
+            GITLAB_PERSONAL_ACCESS_TOKEN: MOCK_TOKEN,
+          }
+        );
+
+        assert.ok(Array.isArray(result), 'Response should be an array');
+        assert.strictEqual(result.length, 2);
+        assert.strictEqual(result[0].mode, null);
+        assert.strictEqual(result[1].size, null);
+      });
+    });
   });
 
   test('download_job_artifacts saves archive to disk', async () => {
