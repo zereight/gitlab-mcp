@@ -64,6 +64,7 @@ The server supports four authentication methods:
 - **Cursor**: see [Cursor Setup Guide](./docs/clients/cursor.md)
 - **Factory AI Droid / OpenClaw / OpenCode style clients**: see [JSON-Based MCP Clients Setup Guide](./docs/clients/json-clients.md)
 - **OAuth browser flow details**: see [OAuth2 Authentication Setup Guide](./docs/auth/oauth-setup.md)
+- **OAuth without a localhost callback** (SSO, remote shell, background clients): run `zereight-mcp-gitlab auth` (GitLab 17.1+ device flow), then start the server with `GITLAB_USE_OAUTH=true`. See [standalone device-flow command](./docs/auth/oauth-setup.md#standalone-device-flow-auth-command).
 
 For the simplest local setup, start with a Personal Access Token. For browser-based local auth, use OAuth2. For remote or multi-user deployments, continue to the MCP OAuth and Remote Authorization sections later in this README.
 
@@ -112,6 +113,8 @@ Some MCP clients (like GitHub Copilot CLI) have issues with environment variable
 - `--disable-version-check=true` - Disable the startup new-version notice (replaces `GITLAB_DISABLE_VERSION_CHECK`)
 
 CLI arguments take precedence over environment variables.
+
+`zereight-mcp-gitlab auth` is a subcommand (not an MCP server flag). It runs GitLab device flow and exits. See [CLI Arguments](./docs/getting-started/cli-arguments.md#auth).
 
 > **Fine-grained tool filtering:** use `GITLAB_PERMISSION_MODE=modify` to allow create/update while
 > blocking every delete tool (including delete mutations through `execute_graphql`), or

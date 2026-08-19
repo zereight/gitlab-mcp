@@ -10,6 +10,8 @@ import { promisify } from "util";
 import open from "open";
 import pkceChallenge from "pkce-challenge";
 import { createLogger } from "./utils/logger.js";
+import { runDeviceAuthorizationGrantAsync } from "./oauth-device-flow.js";
+import type { FetchImpl, DeviceUserCodeInfo } from "./oauth-device-flow.js";
 
 const logger = createLogger("gitlab-mcp-oauth");
 
@@ -677,6 +679,30 @@ export class GitLabOAuth {
       return false;
     }
     return !this.isTokenExpired(tokenData);
+  }
+
+  /**
+   * Device Authorization Grant (GitLab 17.1+). Does not open a browser.
+   * Stores the token with the same file format as the localhost callback flow.
+   */
+  async runDeviceFlowAsync(options?: {
+    fetchImpl?: FetchImpl;
+    sleepAsync?: (ms: number) => Promise<void>;
+    onUserCode?: (info: DeviceUserCodeInfo) => void;
+    now?: () => number;
+  }): Promise<TokenData> {
+    const tokenData = await runDeviceAuthorizationGrantAsync({
+      gitlabUrl: this.config.gitlabUrl,
+      clientId: this.config.clientId,
+      clientSecret: this.config.clientSecret,
+      scopes: this.config.scopes,
+      fetchImpl: options?.fetchImpl,
+      sleepAsync: options?.sleepAsync,
+      onUserCode: options?.onUserCode,
+      now: options?.now,
+    });
+    this.saveToken(tokenData);
+    return tokenData;
   }
 }
 

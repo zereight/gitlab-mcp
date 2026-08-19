@@ -59,7 +59,7 @@
     "test:consumer-smoke": "bash scripts/consumer-install-smoke.sh",
     "test:remote-auth": "npm run build && node --import tsx/esm --test --experimental-test-isolation=none test/remote-auth-simple-test.ts",
     "test:schema": "tsx test/schema-tests.ts && tsx test/test-json-schema.ts",
-    "test:oauth": "tsx test/oauth-tests.ts",
+    "test:oauth": "tsx test/oauth-tests.ts && node --import tsx/esm --test --experimental-test-isolation=none test/oauth-device-flow-tests.ts",
     "test:list-merge-requests": "npm run build && tsx test/test-list-merge-requests.ts",
     "test:approvals": "npm run build && tsx test/test-merge-request-approvals.ts",
     "lint": "eslint . --ext .ts",

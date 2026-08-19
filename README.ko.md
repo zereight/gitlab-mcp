@@ -62,6 +62,7 @@ PAT, OAuth, 읽기 전용 모드, 동적 API URL, 원격 인증을 지원하며 
 - **Cursor**: [Cursor 설정 가이드](./docs/clients/cursor.md)
 - **Factory AI Droid / OpenClaw / OpenCode 스타일 클라이언트**: [JSON 기반 MCP 클라이언트 설정 가이드](./docs/clients/json-clients.md)
 - **OAuth 브라우저 플로우 상세**: [OAuth2 인증 설정 가이드](./docs/auth/oauth-setup.md)
+- **localhost callback 없이 OAuth** (SSO, 원격 셸, 백그라운드 클라이언트): `zereight-mcp-gitlab auth`를 먼저 실행하세요 (GitLab 17.1+ device flow). 그다음 서버는 `GITLAB_USE_OAUTH=true`로 시작합니다. [독립 device-flow 커맨드](./docs/auth/oauth-setup.md#standalone-device-flow-auth-command)를 참고하세요.
 
 가장 단순한 로컬 설정은 Personal Access Token으로 시작하세요. 브라우저 기반 로컬 인증은 OAuth2를 사용하세요. 원격 또는 멀티 유저 배포는 아래 MCP OAuth 및 원격 인증 섹션을 참고하세요.
 
@@ -110,6 +111,8 @@ npm install -g @zereight/mcp-gitlab
 - `--disable-version-check=true` - 시작 시 신규 버전 알림 비활성화 (`GITLAB_DISABLE_VERSION_CHECK` 대체)
 
 CLI 인자는 환경 변수보다 우선합니다.
+
+`zereight-mcp-gitlab auth`는 MCP 서버 플래그가 아니라 서브커맨드입니다. GitLab device flow를 실행한 뒤 종료합니다. [CLI 인자](./docs/getting-started/cli-arguments.md#auth)를 참고하세요.
 
 > **세밀한 도구 필터링:** `GITLAB_PERMISSION_MODE=modify`로 생성/수정은 허용하고 모든 삭제 도구를
 > 차단하거나, `GITLAB_PERMISSION_MODE=readonly`로 읽기 전용으로 운영할 수 있습니다. 또한
