@@ -111,7 +111,8 @@ npm install -g @zereight/mcp-gitlab
 
 CLI 参数优先于环境变量。
 
-> **细粒度工具过滤：**使用 `GITLAB_PERMISSION_MODE=modify` 允许创建/更新并阻止所有删除工具，
+> **细粒度工具过滤：**使用 `GITLAB_PERMISSION_MODE=modify` 允许创建/更新并阻止所有删除工具
+> （包括通过 `execute_graphql` 的删除 mutation 以及 `push_files` 的 `delete`/`move`），
 > 或使用 `GITLAB_PERMISSION_MODE=readonly` 只读运行。还可以用
 > `GITLAB_TOOLSETS=<group,…>` 启用工具分组，用 `GITLAB_TOOLS=<tool,…>` 白名单启用单个工具
 > （例如：只读分组 + 少数几个写工具），用 `GITLAB_DENIED_TOOLS_REGEX` 按正则屏蔽工具。

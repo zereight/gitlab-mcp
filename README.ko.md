@@ -112,7 +112,7 @@ npm install -g @zereight/mcp-gitlab
 CLI 인자는 환경 변수보다 우선합니다.
 
 > **세밀한 도구 필터링:** `GITLAB_PERMISSION_MODE=modify`로 생성/수정은 허용하고 모든 삭제 도구를
-> 차단하거나, `GITLAB_PERMISSION_MODE=readonly`로 읽기 전용으로 운영할 수 있습니다. 또한
+> 차단하거나(`execute_graphql` 삭제 mutation과 `push_files`의 `delete`/`move` 포함), `GITLAB_PERMISSION_MODE=readonly`로 읽기 전용으로 운영할 수 있습니다. 또한
 > `GITLAB_TOOLSETS=<group,…>`로 도구 그룹을 활성화하고, `GITLAB_TOOLS=<tool,…>`로 개별 도구만
 > 허용하며(예: 읽기 도구 + 특정 쓰기 도구 몇 개), `GITLAB_DENIED_TOOLS_REGEX`로 패턴 차단할 수
 > 있습니다. 레거시 `USE_GITLAB_WIKI` / `USE_MILESTONE` / `USE_PIPELINE` 플래그는 하위 호환용으로만

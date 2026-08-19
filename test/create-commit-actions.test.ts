@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { FileOperationSchema } from "../schemas.js";
-import { toGitLabCommitActions } from "../utils/gitlab-commit-actions.js";
+import {
+  fileOperationsIncludeDeleteOrMove,
+  toGitLabCommitActions,
+} from "../utils/gitlab-commit-actions.js";
 
 function firstAction(actions: ReturnType<typeof toGitLabCommitActions>) {
   const entry = actions[0];
@@ -113,6 +116,28 @@ describe("When mapping file operations to GitLab commit actions", () => {
     it("should reject the FileOperation schema for create without content", () => {
       const parsed = FileOperationSchema.safeParse({ path: "a.txt" });
       assert.equal(parsed.success, false);
+    });
+  });
+});
+
+describe("When checking push_files actions against modify mode", () => {
+  describe("with delete or move entries", () => {
+    it("should treat delete as blocked", () => {
+      assert.equal(fileOperationsIncludeDeleteOrMove([{ action: "delete" }]), true);
+    });
+
+    it("should treat move as blocked", () => {
+      assert.equal(fileOperationsIncludeDeleteOrMove([{ action: "move" }]), true);
+    });
+  });
+
+  describe("with create or update entries", () => {
+    it("should allow omitted action", () => {
+      assert.equal(fileOperationsIncludeDeleteOrMove([{}]), false);
+    });
+
+    it("should allow update", () => {
+      assert.equal(fileOperationsIncludeDeleteOrMove([{ action: "update" }]), false);
     });
   });
 });

@@ -1706,7 +1706,7 @@ export const PushFilesSchema = ProjectParamsSchema.extend({
         .superRefine(refineCommitFileAction)
     )
     .describe(
-      "Array of files to push. Each entry defaults to action 'create'. Optional per-file action (create/update/delete/move) and encoding (text/base64) preserve existing callers."
+      "Array of files to push. Each entry defaults to action 'create'. Per-file fields: action (create/update/delete/move), encoding (text/base64; omitted uses GITLAB_REPO_FILE_ENCODING), previous_path (required for move). Content is required for create and update; omit content for delete, or for a move that should keep the original file. GITLAB_PERMISSION_MODE=modify rejects delete and move."
     ),
   commit_message: z.string().describe("Commit message"),
 });

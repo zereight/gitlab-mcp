@@ -175,6 +175,7 @@ import {
 import { resolveNestedWikiUpdateTitle } from "./utils/wiki-title.js";
 import {
   encodeRepoFilePayloadContent,
+  fileOperationsIncludeDeleteOrMove,
   toGitLabCommitActions,
   type RepoFileEncoding,
 } from "./utils/gitlab-commit-actions.js";
@@ -10220,6 +10221,12 @@ async function handleToolCall(params: any) {
 
       case "push_files": {
         const args = PushFilesSchema.parse(params.arguments);
+        if (
+          GITLAB_PERMISSION_MODE === "modify" &&
+          fileOperationsIncludeDeleteOrMove(args.files)
+        ) {
+          throw new Error("push_files does not allow delete or move actions in modify mode");
+        }
         const result = await createCommit(
           args.project_id,
           args.commit_message,

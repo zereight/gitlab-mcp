@@ -10,6 +10,12 @@ export type GitLabCommitAction = {
   encoding?: RepoFileEncoding;
 };
 
+export function fileOperationsIncludeDeleteOrMove(
+  files: ReadonlyArray<Pick<FileOperation, "action">>
+): boolean {
+  return files.some(file => file.action === "delete" || file.action === "move");
+}
+
 export function encodeRepoFilePayloadContent(
   content: string,
   globalEncoding: RepoFileEncoding

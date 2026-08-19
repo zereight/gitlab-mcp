@@ -64,7 +64,7 @@ Get contents of a file or directory from a GitLab project. Use this for a known 
 
 *✏️ Writes*
 
-Push multiple files in a single commit. Use this to commit several file changes atomically; use `create_or_update_file` when only one path is involved. Each file defaults to action `create`; optional per-file `action` (create/update/delete/move) and `encoding` (text/base64) are additive. The operation writes repository history on the selected branch, requires repository write permission, and returns the commit result or a validation, conflict, or protected-branch error.
+Push multiple files in a single commit. Use this to commit several file changes atomically; use `create_or_update_file` when only one path is involved. Each file defaults to action `create`; optional per-file `action` (create/update/delete/move) and `encoding` (text/base64) are additive. `GITLAB_PERMISSION_MODE=modify` rejects `delete` and `move`. The operation writes repository history on the selected branch, requires repository write permission, and returns the commit result or a validation, conflict, or protected-branch error.
 
 **Parameters**
 
@@ -72,7 +72,7 @@ Push multiple files in a single commit. Use this to commit several file changes 
 |---|---|:-:|---|
 | `project_id` | string | ✓ | Project ID or complete URL-encoded path to project |
 | `branch` | string | ✓ | Branch to push to |
-| `files` | array<object> | ✓ | Array of files to push. Each entry defaults to action 'create'. Optional per-file action (create/update/delete/move) and encoding (text/base64) preserve existing callers. |
+| `files` | array<object> | ✓ | Array of files to push. Each entry defaults to action 'create'. Per-file fields: action (create/update/delete/move), encoding (text/base64; omitted uses GITLAB_REPO_FILE_ENCODING), previous_path (required for move). Content is required for create and update; omit content for delete, or for a move that should keep the original file. GITLAB_PERMISSION_MODE=modify rejects delete and move. |
 | `commit_message` | string | ✓ | Commit message |
 
 ### `create_or_update_file`

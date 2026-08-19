@@ -186,6 +186,44 @@ describe("Permission Mode", { concurrency: 1 }, () => {
       }
     });
 
+    test("rejects push_files delete actions", async () => {
+      const client = await connectClient(server);
+      try {
+        await assert.rejects(
+          () =>
+            client.callTool("push_files", {
+              project_id: "1",
+              branch: "main",
+              commit_message: "m",
+              files: [{ file_path: "a.txt", action: "delete" }],
+            }),
+          (error: Error) => error.message.includes("delete or move actions in modify mode"),
+          "push_files delete should be rejected in modify mode"
+        );
+      } finally {
+        await client.disconnect();
+      }
+    });
+
+    test("rejects push_files move actions", async () => {
+      const client = await connectClient(server);
+      try {
+        await assert.rejects(
+          () =>
+            client.callTool("push_files", {
+              project_id: "1",
+              branch: "main",
+              commit_message: "m",
+              files: [{ file_path: "b.txt", action: "move", previous_path: "a.txt" }],
+            }),
+          (error: Error) => error.message.includes("delete or move actions in modify mode"),
+          "push_files move should be rejected in modify mode"
+        );
+      } finally {
+        await client.disconnect();
+      }
+    });
+
     test("does not apply the modify-mode guard to non-delete mutations", async () => {
       const client = await connectClient(server);
       try {
