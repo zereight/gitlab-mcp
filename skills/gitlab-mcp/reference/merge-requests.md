@@ -51,10 +51,11 @@ get_merge_request_approval_state -> check who approved, rules status
 ```
 merge_merge_request
   project_id: "my-group/my-project"
-  mergeRequestIid: 42
+  merge_request_iid: 42
+  sha: "<head commit from get_merge_request>"
   should_remove_source_branch: true
   squash: true
-  merge_when_pipeline_succeeds: true
+  auto_merge: true
 ```
 
 **Warning**: `merge_merge_request` is destructive - cannot be undone.
