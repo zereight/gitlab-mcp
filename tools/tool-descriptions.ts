@@ -12,9 +12,9 @@ const TOOL_GUIDANCE: Readonly<Record<string, string>> = {
   list_merge_request_pipelines:
     "Use this to inspect pipelines associated with one merge request; use `list_pipelines` for project-wide pipeline filtering. It is read-only and paginated, requires project access, and returns pipeline records or GitLab errors for invalid identifiers, missing resources, or rate limits.",
   create_or_update_file:
-    "Use this for a single repository file when you know whether the target path is new or already exists; use `push_files` for a multi-file commit. The operation creates or updates remote content in a commit, requires repository write permission, and returns the commit result or a conflict/validation error.",
+    "Use this for a single repository file when you know whether the target path is new or already exists; use `push_files` for a multi-file commit. Optional `encoding` (`text` or `base64`) defaults to `GITLAB_REPO_FILE_ENCODING` so existing callers stay unchanged. The operation creates or updates remote content in a commit, requires repository write permission, and returns the commit result or a conflict/validation error.",
   push_files:
-    "Use this to commit several file changes atomically; use `create_or_update_file` when only one path is involved. The operation writes repository history on the selected branch, requires repository write permission, and returns the commit result or a validation, conflict, or protected-branch error.",
+    "Use this to commit several file changes atomically; use `create_or_update_file` when only one path is involved. Each file defaults to action `create`; optional per-file `action` (create/update/delete/move) and `encoding` (text/base64) are additive. The operation writes repository history on the selected branch, requires repository write permission, and returns the commit result or a validation, conflict, or protected-branch error.",
   create_issue:
     "Use this to open a new issue; use `update_issue` for an existing issue and `create_issue_note` to add discussion without changing issue fields. The operation creates remote project data, requires issue creation permission, and returns the new issue or a validation, permission, or duplicate-related error.",
   create_merge_request:

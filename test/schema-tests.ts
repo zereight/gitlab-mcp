@@ -33,6 +33,8 @@ import {
   GitLabMarkdownUploadSchema,
   GitLabDependencyProxySchema,
   GitLabDependencyProxyBlobSchema,
+  PushFilesSchema,
+  CreateOrUpdateFileSchema,
 } from '../schemas.js';
 
 interface TestResult {
@@ -1711,6 +1713,206 @@ function runGitLabDependencyProxyBlobSchemaTests(): { passed: number; failed: nu
   return { passed, failed };
 }
 
+function runPushFilesSchemaTests(): { passed: number; failed: number } {
+  console.log('🧪 Testing PushFilesSchema / CreateOrUpdateFileSchema (per-file action + encoding)...');
+
+  const base = { project_id: '1', branch: 'main', commit_message: 'm' };
+
+  function record(name: string, ok: boolean, error?: string): TestResult {
+    const result: TestResult = { name, status: ok ? 'passed' : 'failed', error };
+    if (result.status === 'passed') {
+      console.log(`✅ ${result.name}`);
+    } else {
+      console.log(`❌ ${result.name}: ${result.error}`);
+    }
+    return result;
+  }
+
+  const results: TestResult[] = [];
+
+  {
+    const parsed = PushFilesSchema.safeParse({ ...base, files: [{ file_path: 'a.txt', content: 'hi' }] });
+    results.push(
+      record(
+        'schema:push_files:plain-text-default',
+        parsed.success &&
+          parsed.data.files[0]?.action === undefined &&
+          parsed.data.files[0]?.encoding === undefined,
+        parsed.success ? undefined : parsed.error.message
+      )
+    );
+  }
+
+  {
+    const parsed = PushFilesSchema.safeParse({
+      ...base,
+      files: [{ file_path: 'logo.png', content: 'aGk=', encoding: 'base64' }],
+    });
+    results.push(
+      record(
+        'schema:push_files:binary-base64',
+        parsed.success && parsed.data.files[0]?.encoding === 'base64',
+        parsed.success ? undefined : parsed.error.message
+      )
+    );
+  }
+
+  {
+    const parsed = PushFilesSchema.safeParse({
+      ...base,
+      files: [{ file_path: 'a.txt', content: 'new', action: 'update' }],
+    });
+    results.push(
+      record(
+        'schema:push_files:action-update',
+        parsed.success && parsed.data.files[0]?.action === 'update',
+        parsed.success ? undefined : parsed.error.message
+      )
+    );
+  }
+
+  {
+    const parsed = PushFilesSchema.safeParse({
+      ...base,
+      files: [{ file_path: 'a.txt', action: 'delete' }],
+    });
+    results.push(
+      record(
+        'schema:push_files:action-delete-content-optional',
+        parsed.success &&
+          parsed.data.files[0]?.action === 'delete' &&
+          parsed.data.files[0]?.content === undefined,
+        parsed.success ? undefined : parsed.error.message
+      )
+    );
+  }
+
+  {
+    const parsed = PushFilesSchema.safeParse({
+      ...base,
+      files: [{ file_path: 'b.txt', action: 'move', previous_path: 'a.txt' }],
+    });
+    results.push(
+      record(
+        'schema:push_files:action-move-previous-path',
+        parsed.success &&
+          parsed.data.files[0]?.action === 'move' &&
+          parsed.data.files[0]?.previous_path === 'a.txt',
+        parsed.success ? undefined : parsed.error.message
+      )
+    );
+  }
+
+  {
+    const parsed = PushFilesSchema.safeParse({
+      ...base,
+      files: [{ file_path: 'a.txt', content: 'hi', encoding: 'text' }],
+    });
+    results.push(
+      record(
+        'schema:push_files:explicit-text-encoding',
+        parsed.success && parsed.data.files[0]?.encoding === 'text',
+        parsed.success ? undefined : parsed.error.message
+      )
+    );
+  }
+
+  results.push(
+    record(
+      'schema:push_files:reject-create-without-content',
+      !PushFilesSchema.safeParse({ ...base, files: [{ file_path: 'a.txt' }] }).success,
+      'Expected schema validation to fail'
+    )
+  );
+
+  results.push(
+    record(
+      'schema:push_files:reject-update-without-content',
+      !PushFilesSchema.safeParse({ ...base, files: [{ file_path: 'a.txt', action: 'update' }] }).success,
+      'Expected schema validation to fail'
+    )
+  );
+
+  results.push(
+    record(
+      'schema:push_files:reject-move-without-previous-path',
+      !PushFilesSchema.safeParse({ ...base, files: [{ file_path: 'b.txt', action: 'move' }] }).success,
+      'Expected schema validation to fail'
+    )
+  );
+
+  results.push(
+    record(
+      'schema:push_files:reject-invalid-action',
+      !PushFilesSchema.safeParse({
+        ...base,
+        files: [{ file_path: 'a.txt', content: 'hi', action: 'copy' }],
+      }).success,
+      'Expected schema validation to fail'
+    )
+  );
+
+  results.push(
+    record(
+      'schema:push_files:reject-invalid-encoding',
+      !PushFilesSchema.safeParse({
+        ...base,
+        files: [{ file_path: 'a.txt', content: 'hi', encoding: 'utf16' }],
+      }).success,
+      'Expected schema validation to fail'
+    )
+  );
+
+  {
+    const parsed = CreateOrUpdateFileSchema.safeParse({
+      ...base,
+      file_path: 'a.txt',
+      content: 'hi',
+    });
+    results.push(
+      record(
+        'schema:create_or_update_file:plain-text-default',
+        parsed.success && parsed.data.encoding === undefined,
+        parsed.success ? undefined : parsed.error.message
+      )
+    );
+  }
+
+  {
+    const parsed = CreateOrUpdateFileSchema.safeParse({
+      ...base,
+      file_path: 'logo.png',
+      content: 'aGk=',
+      encoding: 'base64',
+    });
+    results.push(
+      record(
+        'schema:create_or_update_file:encoding-base64',
+        parsed.success && parsed.data.encoding === 'base64',
+        parsed.success ? undefined : parsed.error.message
+      )
+    );
+  }
+
+  results.push(
+    record(
+      'schema:create_or_update_file:reject-invalid-encoding',
+      !CreateOrUpdateFileSchema.safeParse({
+        ...base,
+        file_path: 'a.txt',
+        content: 'hi',
+        encoding: 'utf16',
+      }).success,
+      'Expected schema validation to fail'
+    )
+  );
+
+  const passed = results.filter(result => result.status === 'passed').length;
+  const failed = results.filter(result => result.status === 'failed').length;
+  console.log(`\nResults: ${passed} passed, ${failed} failed`);
+  return { passed, failed };
+}
+
 if (import.meta.url === `file://${process.argv[1]}`) {
   const getFileContentsResult = runGetFileContentsSchemaTests();
   const fileContentResult = runGitLabFileContentSchemaTests();
@@ -1731,9 +1933,10 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   const gitLabMarkdownUploadResult = runGitLabMarkdownUploadSchemaTests();
   const dependencyProxyResult = runGitLabDependencyProxySchemaTests();
   const dependencyProxyBlobResult = runGitLabDependencyProxyBlobSchemaTests();
+  const pushFilesResult = runPushFilesSchemaTests();
 
-  const totalPassed = getFileContentsResult.passed + fileContentResult.passed + createPipelineResult.passed + commitStatusResult.passed + createIssueNoteResult.passed + getMergeRequestResult.passed + listMergeRequestPipelinesResult.passed + gitLabMergeRequestResult.passed + emojiReactionResult.passed + repositorySchemaResult.passed + labelsCoercionResult.passed + approvedByUsernamesResult.passed + listLabelsResult.passed + treeItemResult.passed + repositoryTreeResult.passed + gitLabUserFullResult.passed + gitLabMarkdownUploadResult.passed + dependencyProxyResult.passed + dependencyProxyBlobResult.passed;
-  const totalFailed = getFileContentsResult.failed + fileContentResult.failed + createPipelineResult.failed + commitStatusResult.failed + createIssueNoteResult.failed + getMergeRequestResult.failed + listMergeRequestPipelinesResult.failed + gitLabMergeRequestResult.failed + emojiReactionResult.failed + repositorySchemaResult.failed + labelsCoercionResult.failed + approvedByUsernamesResult.failed + listLabelsResult.failed + treeItemResult.failed + repositoryTreeResult.failed + gitLabUserFullResult.failed + gitLabMarkdownUploadResult.failed + dependencyProxyResult.failed + dependencyProxyBlobResult.failed;
+  const totalPassed = getFileContentsResult.passed + fileContentResult.passed + createPipelineResult.passed + commitStatusResult.passed + createIssueNoteResult.passed + getMergeRequestResult.passed + listMergeRequestPipelinesResult.passed + gitLabMergeRequestResult.passed + emojiReactionResult.passed + repositorySchemaResult.passed + labelsCoercionResult.passed + approvedByUsernamesResult.passed + listLabelsResult.passed + treeItemResult.passed + repositoryTreeResult.passed + gitLabUserFullResult.passed + gitLabMarkdownUploadResult.passed + dependencyProxyResult.passed + dependencyProxyBlobResult.passed + pushFilesResult.passed;
+  const totalFailed = getFileContentsResult.failed + fileContentResult.failed + createPipelineResult.failed + commitStatusResult.failed + createIssueNoteResult.failed + getMergeRequestResult.failed + listMergeRequestPipelinesResult.failed + gitLabMergeRequestResult.failed + emojiReactionResult.failed + repositorySchemaResult.failed + labelsCoercionResult.failed + approvedByUsernamesResult.failed + listLabelsResult.failed + treeItemResult.failed + repositoryTreeResult.failed + gitLabUserFullResult.failed + gitLabMarkdownUploadResult.failed + dependencyProxyResult.failed + dependencyProxyBlobResult.failed + pushFilesResult.failed;
 
   console.log(`\nTotal Results: ${totalPassed} passed, ${totalFailed} failed`);
 
