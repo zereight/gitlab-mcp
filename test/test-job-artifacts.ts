@@ -1,4 +1,4 @@
-import { describe, test, it, before, after } from 'node:test';
+import { describe, test, before, after } from 'node:test';
 import assert from 'node:assert';
 import { spawn } from 'child_process';
 import { MockGitLabServer, findMockServerPort } from './utils/mock-gitlab-server.js';
@@ -196,24 +196,20 @@ describe('job artifacts tools', () => {
     assert.strictEqual(result[1].type, 'directory');
   });
 
-  describe('When listing job artifacts', () => {
-    describe('with a null mode entry', () => {
-      it('should return the entries instead of failing', async () => {
-        const result = await callTool(
-          'list_job_artifacts',
-          { project_id: TEST_PROJECT_ID, job_id: NULL_MODE_JOB_ID },
-          {
-            GITLAB_API_URL: `${mockGitLabUrl}/api/v4`,
-            GITLAB_PERSONAL_ACCESS_TOKEN: MOCK_TOKEN,
-          }
-        );
+  test('list_job_artifacts returns artifact entries when mode is null', async () => {
+    const result = await callTool(
+      'list_job_artifacts',
+      { project_id: TEST_PROJECT_ID, job_id: NULL_MODE_JOB_ID },
+      {
+        GITLAB_API_URL: `${mockGitLabUrl}/api/v4`,
+        GITLAB_PERSONAL_ACCESS_TOKEN: MOCK_TOKEN,
+      }
+    );
 
-        assert.ok(Array.isArray(result), 'Response should be an array');
-        assert.strictEqual(result.length, 2);
-        assert.strictEqual(result[0].mode, null);
-        assert.strictEqual(result[1].size, null);
-      });
-    });
+    assert.ok(Array.isArray(result), 'Response should be an array');
+    assert.strictEqual(result.length, 2);
+    assert.strictEqual(result[0].mode, null);
+    assert.strictEqual(result[1].size, null);
   });
 
   test('download_job_artifacts saves archive to disk', async () => {
