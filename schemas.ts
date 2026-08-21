@@ -2359,6 +2359,20 @@ export const ListMergeRequestsSchema = z
   })
   .merge(PaginationOptionsSchema);
 
+export const ListGroupMergeRequestsSchema = ListMergeRequestsSchema.omit({
+  project_id: true,
+}).extend({
+  group_id: z.coerce.string().describe("Group ID or URL-encoded path"),
+  non_archived: z.coerce
+    .boolean()
+    .optional()
+    .describe("Return merge requests from non-archived projects only. Defaults to true."),
+  source_project_id: z.coerce
+    .string()
+    .optional()
+    .describe("Return merge requests with the given source project ID"),
+});
+
 export const GetIssueSchema = z.object({
   project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
   issue_iid: z.coerce.string().describe("The internal ID of the project issue"),
@@ -3733,6 +3747,7 @@ export type CreateCommitStatusOptions = z.infer<typeof CreateCommitStatusSchema>
 export type MyIssuesOptions = z.infer<typeof MyIssuesSchema>;
 export type ListProjectMembersOptions = z.infer<typeof ListProjectMembersSchema>;
 export type ListGroupMembersOptions = z.infer<typeof ListGroupMembersSchema>;
+export type ListGroupMergeRequestsOptions = z.infer<typeof ListGroupMergeRequestsSchema>;
 export type GitLabProjectMember = z.infer<typeof GitLabProjectMemberSchema>;
 export type GroupIteration = z.infer<typeof GroupIteration>;
 export type ListGroupIterationsOptions = z.infer<typeof ListGroupIterationsSchema>;

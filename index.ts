@@ -435,6 +435,7 @@ import {
   type ListMergeRequestPipelinesOptions,
   ListMergeRequestPipelinesSchema,
   ListMergeRequestsSchema,
+  ListGroupMergeRequestsSchema,
   ListMergeRequestVersionsSchema,
   GetMergeRequestVersionSchema,
   GitLabMergeRequestVersionSchema,
@@ -2200,6 +2201,28 @@ async function markAllTodosDone(): Promise<void> {
 }
 
 /**
+ * Serialize merge request list filters onto a URL, honouring GitLab's per-parameter array forms
+ */
+function appendMergeRequestFilters(url: URL, options: Record<string, unknown>): void {
+  Object.entries(options).forEach(([key, value]) => {
+    if (value === undefined) {
+      return;
+    }
+
+    if (key === "labels" && Array.isArray(value)) {
+      url.searchParams.append(key, value.join(","));
+    } else if (key === "approved_by_usernames" && Array.isArray(value)) {
+      // GitLab expects array-bracket form: approved_by_usernames[]=alice&approved_by_usernames[]=bob
+      for (const v of value) {
+        url.searchParams.append(`${key}[]`, String(v));
+      }
+    } else {
+      url.searchParams.append(key, String(value));
+    }
+  });
+}
+
+/**
  * List merge requests globally or for a specific GitLab project
  *
  * @param {string} [projectId] - The ID or URL-encoded path of the project.
@@ -2217,22 +2240,34 @@ async function listMergeRequests(
     : `${getEffectiveApiUrl()}/merge_requests`;
   const url = new URL(endpoint);
 
-  // Add all query parameters
-  Object.entries(options).forEach(([key, value]) => {
-    if (value !== undefined) {
-      if (key === "labels" && Array.isArray(value)) {
-        // Handle array of labels
-        url.searchParams.append(key, value.join(","));
-      } else if (key === "approved_by_usernames" && Array.isArray(value)) {
-        // GitLab expects array-bracket form: approved_by_usernames[]=alice&approved_by_usernames[]=bob
-        for (const v of value) {
-          url.searchParams.append(`${key}[]`, String(v));
-        }
-      } else {
-        url.searchParams.append(key, String(value));
-      }
-    }
+  appendMergeRequestFilters(url, options);
+
+  const response = await fetch(url.toString(), {
+    ...getFetchConfig(),
   });
+
+  await handleGitLabError(response);
+  const data = await response.json();
+  return z.array(GitLabMergeRequestSchema).parse(data);
+}
+
+/**
+ * List merge requests across every project of a GitLab group and its subgroups
+ *
+ * @param {string} groupId - The ID or URL-encoded path of the group
+ * @param {Object} options - Optional filtering parameters
+ * @returns {Promise<GitLabMergeRequest[]>} List of merge requests
+ */
+async function listGroupMergeRequests(
+  groupId: string,
+  options: Omit<z.infer<typeof ListGroupMergeRequestsSchema>, "group_id"> = {}
+): Promise<GitLabMergeRequest[]> {
+  const decodedGroupId = decodeURIComponent(groupId);
+  const url = new URL(
+    `${getEffectiveApiUrl()}/groups/${encodeURIComponent(decodedGroupId)}/merge_requests`
+  );
+
+  appendMergeRequestFilters(url, options);
 
   const response = await fetch(url.toString(), {
     ...getFetchConfig(),
@@ -12049,6 +12084,19 @@ async function handleToolCall(params: any) {
         );
 
         const mergeRequests = await listMergeRequests(project_id, cleanedOptions);
+        return {
+          content: [{ type: "text", text: JSON.stringify(mergeRequests) }],
+        };
+      }
+
+      case "list_group_merge_requests": {
+        const { group_id, ...options } = ListGroupMergeRequestsSchema.parse(params.arguments);
+        const cleanedOptions = cleanMutuallyExclusiveIdUsernameOptions(
+          options,
+          LIST_MERGE_REQUESTS_ID_USERNAME_PAIRS
+        );
+
+        const mergeRequests = await listGroupMergeRequests(group_id, cleanedOptions);
         return {
           content: [{ type: "text", text: JSON.stringify(mergeRequests) }],
         };
