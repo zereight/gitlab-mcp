@@ -1,0 +1,40 @@
+name: Publish Alias Package
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Git tag to publish from (e.g. v2.1.52)
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  alias:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag }}
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22.22.2"
+          registry-url: "https://registry.npmjs.org/"
+      - name: Sync alias package version
+        run: node scripts/sync-alias-package-version.mjs
+      - name: Publish alias package
+        working-directory: packages/gitlab-mcp
+        run: |
+          for attempt in 1 2 3 4 5 6; do
+            if npx --yes npm@11.5.2 publish --access public --provenance; then
+              exit 0
+            fi
+            echo "Alias publish attempt ${attempt} failed; retrying in 20s..."
+            sleep 20
+          done
+          exit 1
