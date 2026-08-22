@@ -3978,8 +3978,8 @@ export const GitLabArtifactEntrySchema = z.object({
   name: z.string(),
   path: z.string(),
   type: z.enum(["file", "directory"]),
-  size: z.coerce.number().optional(),
-  mode: z.string().optional(),
+  size: z.coerce.number().nullish(),
+  mode: z.string().nullish(),
 });
 
 export const DownloadJobArtifactsSchema = z.object({
