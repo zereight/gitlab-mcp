@@ -65,7 +65,7 @@ jobs:
           exit 1
 
   sync-homebrew:
-    needs: alias
+    needs: npm
     runs-on: ubuntu-latest
     permissions:
       contents: write
