@@ -22,6 +22,7 @@ MR lifecycle — create, update, merge, approve, plus diff/conflict inspection a
 - [`update_merge_request`](#update_merge_request) — ✏️ Writes
 - [`create_merge_request`](#create_merge_request) — ✏️ Writes
 - [`list_merge_requests`](#list_merge_requests) — 📖 Read-only
+- [`list_group_merge_requests`](#list_group_merge_requests) — 📖 Read-only
 - [`get_branch_diffs`](#get_branch_diffs) — 📖 Read-only
 - [`mr_discussions`](#mr_discussions) — 📖 Read-only
 - [`create_merge_request_note`](#create_merge_request_note) — ✏️ Writes
@@ -358,6 +359,44 @@ List merge requests (without project_id: user's MRs; with project_id: project MR
 | `with_labels_details` | boolean |  | Return more details for each label |
 | `page` | number |  | Page number for pagination (default: 1) |
 | `per_page` | number |  | Number of items per page (max: 100, default: 20) |
+
+### `list_group_merge_requests`
+
+*📖 Read-only*
+
+List merge requests across all projects of a group and its subgroups. Use this for a collection of resources; choose the corresponding get tool when you already know the single resource to inspect. It is read-only and does not mutate GitLab data; missing resources, invalid identifiers, insufficient permission, and rate limits are returned as errors. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented.
+
+**Parameters**
+
+| Parameter | Type | Required | Description |
+|---|---|:-:|---|
+| `assignee_id` | string |  | Return MRs assigned to the given user ID (integer), 'none', or 'any'. Mutually exclusive with assignee_username. |
+| `assignee_username` | string |  | Returns merge requests assigned to the given username. Mutually exclusive with assignee_id. |
+| `author_id` | string |  | Returns merge requests created by the given user ID (integer). Mutually exclusive with author_username. |
+| `author_username` | string |  | Returns merge requests created by the given username. Mutually exclusive with author_id. |
+| `reviewer_id` | string |  | Returns merge requests which have the user as a reviewer. Must be an integer, 'none', or 'any'. Mutually exclusive with reviewer_username. |
+| `reviewer_username` | string |  | Returns merge requests which have the user as a reviewer by username. Mutually exclusive with reviewer_id. |
+| `approved_by_usernames` | array<string> |  | Returns merge requests approved by the given usernames (array). |
+| `created_after` | string |  | Return merge requests created after the given time |
+| `created_before` | string |  | Return merge requests created before the given time |
+| `updated_after` | string |  | Return merge requests updated after the given time |
+| `updated_before` | string |  | Return merge requests updated before the given time |
+| `labels` | array<string> |  | Array of label names |
+| `milestone` | string |  | Milestone title |
+| `scope` | enum (`created_by_me` \| `assigned_to_me` \| `all`) |  | Return merge requests from a specific scope |
+| `search` | string |  | Search for specific terms |
+| `state` | enum (`opened` \| `closed` \| `locked` \| `merged` \| `all`) |  | Return merge requests with a specific state |
+| `order_by` | enum (`created_at` \| `updated_at` \| `priority` \| `label_priority` \| `milestone_due` \| `popularity`) |  | Return merge requests ordered by the given field |
+| `sort` | enum (`asc` \| `desc`) |  | Return merge requests sorted in ascending or descending order |
+| `target_branch` | string |  | Return merge requests targeting a specific branch |
+| `source_branch` | string |  | Return merge requests from a specific source branch |
+| `wip` | enum (`yes` \| `no`) |  | Filter merge requests against their wip status |
+| `with_labels_details` | boolean |  | Return more details for each label |
+| `page` | number |  | Page number for pagination (default: 1) |
+| `per_page` | number |  | Number of items per page (max: 100, default: 20) |
+| `group_id` | string | ✓ | Group ID or URL-encoded path |
+| `non_archived` | boolean |  | Return merge requests from non-archived projects only. Defaults to true. |
+| `source_project_id` | string |  | Return merge requests with the given source project ID |
 
 ### `get_branch_diffs`
 
