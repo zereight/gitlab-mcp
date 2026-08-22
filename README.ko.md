@@ -13,8 +13,6 @@
 
 **에이전트 워크플로우에 최적화된 GitLab MCP** — stdio, SSE, Streamable HTTP를 통해 프로젝트, 머지 리퀘스트, 이슈, 파이프라인, 위키, 릴리스, 마일스톤 등을 관리할 수 있습니다.
 
-동일한 서버가 [`@zereight/gitlab-mcp`](https://www.npmjs.com/package/@zereight/gitlab-mcp) 이름으로도 배포됩니다 (npm 검색용 별칭).
-
 PAT, OAuth, 읽기 전용 모드, 동적 API URL, 원격 인증을 지원하며 VS Code, Claude, Cursor, Copilot 및 기타 MCP 클라이언트에서 사용할 수 있습니다.
 
 ### 왜 이 GitLab MCP를 사용하나요?
@@ -39,7 +37,7 @@ PAT, OAuth, 읽기 전용 모드, 동적 API URL, 원격 인증을 지원하며 
 
 [전체 비교 →](./docs/comparison/community-gitlab-mcp-a.md)
 
-빠른 시작: 아래에서 Personal Access Token 또는 OAuth2 설정 중 하나를 선택하고 `@zereight/mcp-gitlab`(또는 `@zereight/gitlab-mcp`)을 설치한 뒤 MCP 클라이언트 설정에서 `zereight-mcp-gitlab`을 사용하세요.
+빠른 시작: 아래에서 Personal Access Token 또는 OAuth2 설정 중 하나를 선택하고 `@zereight/mcp-gitlab`을 설치한 뒤 MCP 클라이언트 설정에서 `zereight-mcp-gitlab`을 사용하세요.
 
 ### 클라이언트 설정 가이드
 
@@ -92,12 +90,10 @@ brew tap zereight/gitlab-mcp https://github.com/zereight/gitlab-mcp
 brew install zereight/gitlab-mcp/zereight-mcp-gitlab
 ```
 
-npm으로 설치할 수도 있습니다 (두 패키지명 모두 동일한 서버입니다):
+npm으로 설치할 수도 있습니다:
 
 ```shell
 npm install -g @zereight/mcp-gitlab
-# 또는
-npm install -g @zereight/gitlab-mcp
 ```
 
 예시는 기존 `mcp-gitlab`보다 충돌 가능성이 낮은 `zereight-mcp-gitlab` 별칭을 사용합니다. MCP 클라이언트가 찾지 못하면 `which zereight-mcp-gitlab`의 절대 경로를 사용하세요.

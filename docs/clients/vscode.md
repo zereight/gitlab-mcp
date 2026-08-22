@@ -54,8 +54,6 @@ Read-only: set `GITLAB_PERMISSION_MODE` to `readonly` (or `modify` to block dele
 
 Regenerate the badge URL: `node scripts/generate-vscode-install-link.mjs`
 
-The same server is available as `@zereight/gitlab-mcp`.
-
 ## Where to put the config
 
 VS Code supports two MCP configuration locations:
@@ -76,8 +74,6 @@ Or with npm:
 
 ```bash
 npm install -g @zereight/mcp-gitlab
-# or
-npm install -g @zereight/gitlab-mcp
 ```
 
 If VS Code cannot find `zereight-mcp-gitlab`, use the absolute path from `which zereight-mcp-gitlab`.

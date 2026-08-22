@@ -39,8 +39,3 @@ Pick a CQRS-style community server when you want:
 - Version- or tier-aware schema filtering out of the box
 - Multi-instance YAML configuration today (before our POC ships)
 - Connection resilience patterns (disconnected mode, auto-reconnect)
-
-## Package names
-
-`@zereight/mcp-gitlab` and `@zereight/gitlab-mcp` are the same server. Use whichever name
-is easier to find on npm.

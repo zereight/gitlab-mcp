@@ -14,8 +14,6 @@
 
 **Agent-workflow-optimized GitLab MCP** — manage projects, merge requests, issues, pipelines, wiki, releases, tags, milestones, and more through stdio, SSE, and Streamable HTTP.
 
-Also published as [`@zereight/gitlab-mcp`](https://www.npmjs.com/package/@zereight/gitlab-mcp) (search-friendly alias for the same server).
-
 Supports PAT, OAuth, read-only mode, dynamic API URLs, and remote authorization for VS Code, Claude, Cursor, Copilot, and other MCP clients.
 
 ### Why use this GitLab MCP?
@@ -40,7 +38,7 @@ Supports PAT, OAuth, read-only mode, dynamic API URLs, and remote authorization 
 
 [Full comparison →](./docs/comparison/community-gitlab-mcp-a.md)
 
-Quick start: choose either Personal Access Token or OAuth2 setup below, install `@zereight/mcp-gitlab` (or `@zereight/gitlab-mcp`), and use `zereight-mcp-gitlab` in your MCP client configuration.
+Quick start: choose either Personal Access Token or OAuth2 setup below, install `@zereight/mcp-gitlab`, and use `zereight-mcp-gitlab` in your MCP client configuration.
 
 ### Client Setup Guides
 
@@ -93,12 +91,10 @@ brew tap zereight/gitlab-mcp https://github.com/zereight/gitlab-mcp
 brew install zereight/gitlab-mcp/zereight-mcp-gitlab
 ```
 
-Or with npm (either package name installs the same server):
+Or with npm:
 
 ```shell
 npm install -g @zereight/mcp-gitlab
-# or
-npm install -g @zereight/gitlab-mcp
 ```
 
 The examples use `zereight-mcp-gitlab`, a less collision-prone alias for the legacy `mcp-gitlab` binary. If your MCP client cannot find it, use the absolute path from `which zereight-mcp-gitlab`.

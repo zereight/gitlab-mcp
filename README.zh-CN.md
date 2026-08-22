@@ -13,8 +13,6 @@
 
 **面向 AI 代理工作流优化的 GitLab MCP** — 可通过 stdio、SSE 和 Streamable HTTP 管理项目、合并请求、议题、流水线、Wiki、发布、里程碑等。
 
-同一服务器也以 [`@zereight/gitlab-mcp`](https://www.npmjs.com/package/@zereight/gitlab-mcp) 名称发布（便于 npm 搜索的别名）。
-
 支持 PAT、OAuth、只读模式、动态 API URL 和远程授权，可用于 VS Code、Claude、Cursor、Copilot 以及其他 MCP 客户端。
 
 ### 为什么使用这个 GitLab MCP？
@@ -39,7 +37,7 @@
 
 [完整对比 →](./docs/comparison/community-gitlab-mcp-a.md)
 
-快速开始：在下面选择 Personal Access Token 或 OAuth2 设置，安装 `@zereight/mcp-gitlab`（或 `@zereight/gitlab-mcp`），并在 MCP 客户端配置中使用 `zereight-mcp-gitlab`。
+快速开始：在下面选择 Personal Access Token 或 OAuth2 设置，安装 `@zereight/mcp-gitlab`，并在 MCP 客户端配置中使用 `zereight-mcp-gitlab`。
 
 ### 客户端设置指南
 
@@ -92,12 +90,10 @@ brew tap zereight/gitlab-mcp https://github.com/zereight/gitlab-mcp
 brew install zereight/gitlab-mcp/zereight-mcp-gitlab
 ```
 
-也可以使用 npm 安装（两个包名安装的是同一服务器）：
+也可以使用 npm 安装：
 
 ```shell
 npm install -g @zereight/mcp-gitlab
-# 或
-npm install -g @zereight/gitlab-mcp
 ```
 
 示例使用 `zereight-mcp-gitlab`，这是比旧的 `mcp-gitlab` 更不容易冲突的别名。如果 MCP 客户端找不到它，请使用 `which zereight-mcp-gitlab` 输出的绝对路径。
