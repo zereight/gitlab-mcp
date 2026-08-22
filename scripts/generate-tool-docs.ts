@@ -338,7 +338,7 @@ function buildIndexPage(groupedToolsList: Array<[ToolsetId, string[]]>): string 
     "Permission modes control which tools are exposed:",
     "",
     "- `GITLAB_PERMISSION_MODE=readonly` — hides every write tool regardless of toggles.",
-    "- `GITLAB_PERMISSION_MODE=modify` — allows create/update but blocks all `delete_*` tools.",
+    "- `GITLAB_PERMISSION_MODE=modify` — allows create/update but blocks all `delete_*` tools, plus `push_files` `delete`/`move` actions.",
     "- `GITLAB_READ_ONLY_MODE=true` (deprecated) — same as `readonly`; prefer `GITLAB_PERMISSION_MODE=readonly`.",
     "",
     "See [Environment Variables](../configuration/environment-variables.md)",

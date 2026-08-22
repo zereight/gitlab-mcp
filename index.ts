@@ -173,6 +173,12 @@ import {
   graphqlQueryContainsDeleteOperation,
 } from "./utils/graphql-query.js";
 import { resolveNestedWikiUpdateTitle } from "./utils/wiki-title.js";
+import {
+  encodeRepoFilePayloadContent,
+  fileOperationsIncludeDeleteOrMove,
+  toGitLabCommitActions,
+  type RepoFileEncoding,
+} from "./utils/gitlab-commit-actions.js";
 import { redactSensitiveGitLabFields } from "./utils/redact-sensitive.js";
 import { checkForNewVersion } from "./utils/version-check.js";
 import { assertGitLabVersionAtLeast } from "./utils/gitlab-version-gate.js";
@@ -4795,13 +4801,6 @@ async function updateMergeRequestNote(
   return GitLabDiscussionNoteSchema.parse(data);
 }
 
-function encodeRepoFilePayloadContent(content: string): string {
-  if (GITLAB_REPO_FILE_ENCODING === "base64") {
-    return Buffer.from(content).toString("base64");
-  }
-  return content;
-}
-
 /**
  * Create or update a file in a GitLab project
  * 파일 생성 또는 업데이트
@@ -4822,7 +4821,8 @@ async function createOrUpdateFile(
   branch: string,
   previousPath?: string,
   last_commit_id?: string,
-  commit_id?: string
+  commit_id?: string,
+  encoding?: RepoFileEncoding
 ): Promise<GitLabCreateUpdateFileResponse> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const encodedPath = encodeURIComponent(filePath);
@@ -4830,11 +4830,15 @@ async function createOrUpdateFile(
     `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/repository/files/${encodedPath}`
   );
 
+  const resolvedEncoding = encoding ?? GITLAB_REPO_FILE_ENCODING;
   const body: Record<string, any> = {
     branch,
-    content: encodeRepoFilePayloadContent(content),
+    content:
+      encoding !== undefined
+        ? content
+        : encodeRepoFilePayloadContent(content, GITLAB_REPO_FILE_ENCODING),
     commit_message: commitMessage,
-    encoding: GITLAB_REPO_FILE_ENCODING,
+    encoding: resolvedEncoding,
     ...(previousPath ? { previous_path: previousPath } : {}),
   };
 
@@ -4916,12 +4920,7 @@ async function createCommit(
     body: JSON.stringify({
       branch,
       commit_message: message,
-      actions: actions.map(action => ({
-        action: "create",
-        file_path: action.path,
-        content: encodeRepoFilePayloadContent(action.content),
-        encoding: GITLAB_REPO_FILE_ENCODING,
-      })),
+      actions: toGitLabCommitActions(actions, GITLAB_REPO_FILE_ENCODING),
     }),
   });
 
@@ -10212,7 +10211,8 @@ async function handleToolCall(params: any) {
           args.branch,
           args.previous_path,
           args.last_commit_id,
-          args.commit_id
+          args.commit_id,
+          args.encoding
         );
         return {
           content: [{ type: "text", text: JSON.stringify(result) }],
@@ -10221,11 +10221,23 @@ async function handleToolCall(params: any) {
 
       case "push_files": {
         const args = PushFilesSchema.parse(params.arguments);
+        if (
+          GITLAB_PERMISSION_MODE === "modify" &&
+          fileOperationsIncludeDeleteOrMove(args.files)
+        ) {
+          throw new Error("push_files does not allow delete or move actions in modify mode");
+        }
         const result = await createCommit(
           args.project_id,
           args.commit_message,
           args.branch,
-          args.files.map(f => ({ path: f.file_path, content: f.content }))
+          args.files.map(f => ({
+            path: f.file_path,
+            content: f.content,
+            action: f.action,
+            encoding: f.encoding,
+            previous_path: f.previous_path,
+          }))
         );
         return {
           content: [{ type: "text", text: JSON.stringify(result) }],
