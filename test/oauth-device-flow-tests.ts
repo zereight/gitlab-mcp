@@ -288,6 +288,15 @@ describe("When converting a GitLab API URL", () => {
       assert.equal(gitlabOriginFromApiUrl("https://gitlab.com/api/v4"), "https://gitlab.com");
     });
   });
+
+  describe("with a trailing slash after /api/v4", () => {
+    it("should strip the suffix and trailing slash", () => {
+      assert.equal(
+        gitlabOriginFromApiUrl("https://gitlab.example/api/v4/"),
+        "https://gitlab.example"
+      );
+    });
+  });
 });
 
 describe("When running device authorization grant", () => {

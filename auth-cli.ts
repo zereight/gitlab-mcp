@@ -70,7 +70,7 @@ function isReadOnlyMode(argv: readonly string[], env: NodeJS.ProcessEnv): boolea
 }
 
 export function gitlabOriginFromApiUrl(apiUrl: string): string {
-  return apiUrl.replace(/\/api\/v4$/, "");
+  return apiUrl.replace(/\/api\/v4\/?$/, "");
 }
 
 export async function runAuthCommandAsync(input: AuthCliInput = {}): Promise<void> {

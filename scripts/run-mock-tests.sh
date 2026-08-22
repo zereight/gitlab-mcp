@@ -28,6 +28,7 @@ run_mock_tests 4 \
   \( -path 'test/utils/*.test.ts' \
   -o -path 'test/path-segment-encoding.test.ts' \
   -o -path 'test/nullish-tool-arguments-schema.test.ts' \
+  -o -name '*-schema.test.ts' \
   -o -path 'test/stateless/codec.test.ts' \
   -o -path 'test/stateless/client-id.test.ts' \
   -o -path 'test/stateless/config-ttl.test.ts' \
@@ -42,6 +43,7 @@ run_mock_tests 1 \
   ! -path 'test/utils/*' \
   ! -path 'test/path-segment-encoding.test.ts' \
   ! -path 'test/nullish-tool-arguments-schema.test.ts' \
+  ! -name '*-schema.test.ts' \
   ! -path 'test/stateless/codec.test.ts' \
   ! -path 'test/stateless/client-id.test.ts' \
   ! -path 'test/stateless/config-ttl.test.ts' \
