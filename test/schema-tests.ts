@@ -955,6 +955,22 @@ function runGitLabMergeRequestSchemaTests(): { passed: number; failed: number } 
       validate: (data: Record<string, any>) =>
         data.merge_user === undefined && data.merged_by === undefined,
     },
+    {
+      name: 'schema:gitlab_merge_request:preserves-sha',
+      input: {
+        ...baseMergeRequest,
+        sha: 'e82eb4a098e32c796079ca3915e07487fc4db24c',
+      },
+      validate: (data: Record<string, any>) =>
+        data.sha === 'e82eb4a098e32c796079ca3915e07487fc4db24c',
+    },
+    {
+      name: 'schema:gitlab_merge_request:allows-omitted-sha',
+      input: {
+        ...baseMergeRequest,
+      },
+      validate: (data: Record<string, any>) => data.sha === undefined,
+    },
   ];
 
   let passed = 0;

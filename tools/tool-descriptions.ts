@@ -1,6 +1,6 @@
 const TOOL_GUIDANCE: Readonly<Record<string, string>> = {
   merge_merge_request:
-    "Use this only after checking the merge request approval, conflict, and pipeline state; use `approve_merge_request` to approve rather than merge. The operation changes repository state and may squash commits, schedule auto-merge, or delete the source branch, so it requires merge permission and returns GitLab's merge result or a mergeability error.",
+    "Use this only after checking the merge request approval, conflict, and pipeline state; use `approve_merge_request` to approve rather than merge. The operation changes repository state and may squash commits, schedule auto-merge, or delete the source branch, so it requires merge permission and returns GitLab's merge result or a mergeability error. Pass `sha` from `get_merge_request` (`sha` or `diff_refs.head_sha`); GitLab 19.2+ groups may reject merges without it.",
   approve_merge_request:
     "Use this to record an approval on an existing merge request; it does not merge the request or change its source branch. The operation changes review state, may require re-authentication or approval permission, and returns the updated approval result or a permission/state error.",
   unapprove_merge_request:

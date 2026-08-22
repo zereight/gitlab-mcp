@@ -54,7 +54,7 @@ MR lifecycle — create, update, merge, approve, plus diff/conflict inspection a
 
 *✏️ Writes*
 
-Merge a merge request. Use this only after checking the merge request approval, conflict, and pipeline state; use `approve_merge_request` to approve rather than merge. The operation changes repository state and may squash commits, schedule auto-merge, or delete the source branch, so it requires merge permission and returns GitLab's merge result or a mergeability error.
+Merge a merge request. Use this only after checking the merge request approval, conflict, and pipeline state; use `approve_merge_request` to approve rather than merge. The operation changes repository state and may squash commits, schedule auto-merge, or delete the source branch, so it requires merge permission and returns GitLab's merge result or a mergeability error. Pass `sha` from `get_merge_request` (`sha` or `diff_refs.head_sha`); GitLab 19.2+ groups may reject merges without it.
 
 **Parameters**
 
@@ -62,6 +62,7 @@ Merge a merge request. Use this only after checking the merge request approval, 
 |---|---|:-:|---|
 | `project_id` | string | ✓ | Project ID or complete URL-encoded path to project |
 | `merge_request_iid` | string |  | The IID of a merge request |
+| `sha` | string |  | SHA of the source-branch HEAD from get_merge_request (`sha` or `diff_refs.head_sha`). If provided, GitLab merges only when HEAD still matches. GitLab 19.2+ groups may require this (Require a commit SHA on the merge requests API). |
 | `auto_merge` | boolean |  | If true, the merge request merges when the pipeline succeeds. |
 | `merge_commit_message` | string |  | Custom merge commit message |
 | `merge_when_pipeline_succeeds` | boolean |  | If true, the merge request merges when the pipeline succeeds. Deprecated in GitLab 17.11. Use `auto_merge` instead. |

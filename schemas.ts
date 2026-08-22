@@ -1290,6 +1290,7 @@ export const GitLabMergeRequestSchema = z.object({
   updated_at: z.string(),
   merged_at: z.string().nullable(),
   closed_at: z.string().nullable(),
+  sha: z.string().optional().describe("SHA of the head commit in the source branch"),
   merge_commit_sha: z.string().nullable(),
   merge_user: GitLabUserSchema.nullable()
     .optional()
@@ -2039,6 +2040,12 @@ export const UpdateMergeRequestSchema = MergeRequestParamsSchema.extend({
 
 export const MergeMergeRequestSchema = ProjectParamsSchema.extend({
   merge_request_iid: z.coerce.string().optional().describe("The IID of a merge request"),
+  sha: z
+    .string()
+    .optional()
+    .describe(
+      "SHA of the source-branch HEAD from get_merge_request (`sha` or `diff_refs.head_sha`). If provided, GitLab merges only when HEAD still matches. GitLab 19.2+ groups may require this (Require a commit SHA on the merge requests API)."
+    ),
   auto_merge: z.coerce
     .boolean()
     .optional()
