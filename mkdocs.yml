@@ -80,6 +80,10 @@ nav:
       - Environment Variables: configuration/environment-variables.md
       - Dynamic API URL: configuration/dynamic-api-url.md
       - Stateless Mode: configuration/stateless-mode.md
+      - Multi-Instance Design: configuration/multi-instance-design.md
+  - Comparisons:
+      - Overview: comparison/index.md
+      - GitLab MCP A: comparison/community-gitlab-mcp-a.md
   - Features:
       - Resolve Issue Thread: features/resolve-issue-thread.md
   - Tools:

@@ -1,5 +1,8 @@
 # GitLab MCP Server
 
+[![npm](https://img.shields.io/npm/v/@zereight/mcp-gitlab.svg)](https://www.npmjs.com/package/@zereight/mcp-gitlab)
+[![Install in VS Code](https://img.shields.io/badge/VS_Code-Install_GitLab_MCP-0098FF?style=flat-square&logo=visualstudiocode&logoColor=white)](vscode:mcp/install?%7B%22name%22%3A%22zereight.gitlab-mcp%22%2C%22type%22%3A%22stdio%22%2C%22command%22%3A%22npx%22%2C%22args%22%3A%5B%22-y%22%2C%22%40zereight%2Fmcp-gitlab%40latest%22%5D%2C%22env%22%3A%7B%22GITLAB_PERSONAL_ACCESS_TOKEN%22%3A%22%24%7Binput%3Agitlab-token%7D%22%2C%22GITLAB_API_URL%22%3A%22https%3A%2F%2Fgitlab.com%2Fapi%2Fv4%22%2C%22GITLAB_PERMISSION_MODE%22%3A%22full%22%7D%7D)
+
 [English](./README.md) | [한국어](./README.ko.md) | [简体中文](./README.zh-CN.md)
 
 📖 **[문서 →](https://zereight.github.io/gitlab-mcp/)** 설정 가이드, 환경 변수, 전체 도구 레퍼런스는 호스팅된 문서 사이트에서 확인할 수 있습니다.
@@ -8,19 +11,35 @@
 
 ## @zereight/mcp-gitlab
 
-AI 클라이언트를 위한 포괄적인 GitLab MCP 서버입니다. stdio, SSE, Streamable HTTP를 통해 프로젝트, 머지 리퀘스트, 이슈, 파이프라인, 위키, 릴리스, 마일스톤 등을 관리할 수 있습니다.
+**에이전트 워크플로우에 최적화된 GitLab MCP** — stdio, SSE, Streamable HTTP를 통해 프로젝트, 머지 리퀘스트, 이슈, 파이프라인, 위키, 릴리스, 마일스톤 등을 관리할 수 있습니다.
+
+동일한 서버가 [`@zereight/gitlab-mcp`](https://www.npmjs.com/package/@zereight/gitlab-mcp) 이름으로도 배포됩니다 (npm 검색용 별칭).
 
 PAT, OAuth, 읽기 전용 모드, 동적 API URL, 원격 인증을 지원하며 VS Code, Claude, Cursor, Copilot 및 기타 MCP 클라이언트에서 사용할 수 있습니다.
 
 ### 왜 이 GitLab MCP를 사용하나요?
 
-- 넓은 GitLab 지원 범위: 프로젝트, 저장소 탐색, 머지 리퀘스트, 이슈, 파이프라인, 위키, 릴리스, 라벨, 마일스톤 등
-- 유연한 인증: Personal Access Token, 로컬 OAuth2 브라우저 플로우, MCP OAuth 프록시, 요청별 원격 인증
-- 여러 전송 방식: 로컬 클라이언트용 stdio, 레거시 클라이언트용 SSE, 최신 원격 배포용 Streamable HTTP
-- 클라이언트 친화적 설정: Claude Code, Codex, Antigravity, OpenCode, Copilot, Cline, Roo Code, Cursor, Kilo Code, Amp Code 예시 제공
-- 셀프 호스팅 대응: 커스텀 GitLab 인스턴스, 프록시 설정, 동적 API URL 라우팅 지원
+- **217개 도구 + `discover_tools`** — 작은 toolset으로 시작하고, 런타임에 카테고리 활성화
+- **MR 2단계 리뷰** — `list_merge_request_changed_files` → 배치 `get_merge_request_file_diff`
+- **Agent Skill 내장** — `skills/gitlab-mcp/` 워크플로우 가이드
+- **유연한 인증** — Personal Access Token, 로컬 OAuth2 브라우저 플로우, MCP OAuth 프록시, 요청별 원격 인증
+- **여러 전송 방식** — 로컬 클라이언트용 stdio, 레거시 클라이언트용 SSE, 최신 원격 배포용 Streamable HTTP
+- **클라이언트 친화적 설정** — Claude Code, Codex, Antigravity, OpenCode, Copilot, Cline, Roo Code, Cursor, Kilo Code, Amp Code 예시 제공
+- **셀프 호스팅 대응** — 커스텀 GitLab 인스턴스, 프록시 설정, 동적 API URL 라우팅 지원
 
-빠른 시작: 아래에서 Personal Access Token 또는 OAuth2 설정 중 하나를 선택하고 `@zereight/mcp-gitlab`을 설치한 뒤 MCP 클라이언트 설정에서 `zereight-mcp-gitlab`을 사용하세요.
+### 비교 요약
+
+| | @zereight/mcp-gitlab | GitLab MCP A (커뮤니티 CQRS형) |
+|---|----------------------|--------------------------------|
+| **적합한 경우** | AI 에이전트 워크플로우 | 엔터프라이즈 멀티 인스턴스 / 그룹형 도구 |
+| **도구 모델** | ~217개 세분화 도구 + `discover_tools` | ~50–60개 `browse_*` / `manage_*` 그룹 도구 |
+| **MR 리뷰** | 2단계 배치 diff | 서버마다 다름 |
+| **Node.js** | >=18 | 보통 >=24 |
+| **라이선스** | MIT | 서버마다 다름 |
+
+[전체 비교 →](./docs/comparison/community-gitlab-mcp-a.md)
+
+빠른 시작: 아래에서 Personal Access Token 또는 OAuth2 설정 중 하나를 선택하고 `@zereight/mcp-gitlab`(또는 `@zereight/gitlab-mcp`)을 설치한 뒤 MCP 클라이언트 설정에서 `zereight-mcp-gitlab`을 사용하세요.
 
 ### 클라이언트 설정 가이드
 
@@ -73,10 +92,12 @@ brew tap zereight/gitlab-mcp https://github.com/zereight/gitlab-mcp
 brew install zereight/gitlab-mcp/zereight-mcp-gitlab
 ```
 
-npm으로 설치할 수도 있습니다:
+npm으로 설치할 수도 있습니다 (두 패키지명 모두 동일한 서버입니다):
 
 ```shell
 npm install -g @zereight/mcp-gitlab
+# 또는
+npm install -g @zereight/gitlab-mcp
 ```
 
 예시는 기존 `mcp-gitlab`보다 충돌 가능성이 낮은 `zereight-mcp-gitlab` 별칭을 사용합니다. MCP 클라이언트가 찾지 못하면 `which zereight-mcp-gitlab`의 절대 경로를 사용하세요.

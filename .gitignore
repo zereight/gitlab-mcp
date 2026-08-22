@@ -1,4 +1,6 @@
 node_modules
+packages/gitlab-mcp/node_modules
+packages/gitlab-mcp/package-lock.json
 .DS_Store
 build
 .local/

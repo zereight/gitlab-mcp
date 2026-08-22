@@ -31,6 +31,13 @@ jobs:
       # Trusted publishing needs npm >= 11.5. Avoid `npm install -g` (breaks arborist on this image).
       - name: Publish to npm
         run: npx --yes npm@11.5.2 publish --access public --provenance
+      - name: Sync alias package version
+        run: node scripts/sync-alias-package-version.mjs
+      - name: Publish alias package
+        working-directory: packages/gitlab-mcp
+        run: |
+          npm install --ignore-scripts --no-audit --no-fund
+          npx --yes npm@11.5.2 publish --access public --provenance
 
   sync-homebrew:
     needs: npm
