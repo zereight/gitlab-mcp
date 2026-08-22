@@ -94,6 +94,6 @@ If you are evaluating a switch in either direction:
 ## See also
 
 - [Comparison overview](index.md)
-- [discover_tools](../configuration/discover-tools.md) (coming soon)
+- [Environment variables](../configuration/environment-variables.md) (`GITLAB_TOOLSETS`, `GITLAB_TOOLS`)
 - [Multi-instance design](../configuration/multi-instance-design.md)
 - [VS Code setup](../clients/vscode.md)
