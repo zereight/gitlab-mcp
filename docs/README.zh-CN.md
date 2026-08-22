@@ -1,39 +1,58 @@
 # GitLab MCP Server
 
-[English](./README.md) | [한국어](./README.ko.md) | [简体中文](./README.zh-CN.md)
+[![npm](https://img.shields.io/npm/v/@zereight/mcp-gitlab.svg)](https://www.npmjs.com/package/@zereight/mcp-gitlab)
+[![Install in VS Code](https://img.shields.io/badge/VS_Code-Install_GitLab_MCP-0098FF?style=flat-square&logo=visualstudiocode&logoColor=white)](vscode:mcp/install?name=zereight.gitlab-mcp&config=%7B%22type%22%3A%22stdio%22%2C%22command%22%3A%22npx%22%2C%22args%22%3A%5B%22-y%22%2C%22%40zereight%2Fmcp-gitlab%40latest%22%5D%2C%22env%22%3A%7B%22GITLAB_API_URL%22%3A%22https%3A%2F%2Fgitlab.com%2Fapi%2Fv4%22%7D%7D)
+
+[English](../README.md) | [한국어](./README.ko.md) | [简体中文](./README.zh-CN.md)
 
 📖 **[文档 →](https://zereight.github.io/gitlab-mcp/)** 设置指南、环境变量和完整工具参考请查看托管文档站点。
 
-[![Star History Chart](./assets/star-history.png)](https://www.star-history.com/?repos=zereight%2Fgitlab-mcp&type=date&legend=top-left)
+[![Star History Chart](../assets/star-history.png)](https://www.star-history.com/?repos=zereight%2Fgitlab-mcp&type=date&legend=top-left)
 
 ## @zereight/mcp-gitlab
 
-这是面向 AI 客户端的完整 GitLab MCP 服务器。可通过 stdio、SSE 和 Streamable HTTP 管理项目、合并请求、议题、流水线、Wiki、发布、里程碑等。
+**面向 AI 代理工作流优化的 GitLab MCP** — 可通过 stdio、SSE 和 Streamable HTTP 管理项目、合并请求、议题、流水线、Wiki、发布、里程碑等。
+
+同一服务器也以 [`@zereight/gitlab-mcp`](https://www.npmjs.com/package/@zereight/gitlab-mcp) 名称发布（便于 npm 搜索的别名）。
 
 支持 PAT、OAuth、只读模式、动态 API URL 和远程授权，可用于 VS Code、Claude、Cursor、Copilot 以及其他 MCP 客户端。
 
 ### 为什么使用这个 GitLab MCP？
 
-- 覆盖范围广：项目、仓库浏览、合并请求、议题、流水线、Wiki、发布、标签、里程碑等
-- 认证灵活：Personal Access Token、本地 OAuth2 浏览器流程、MCP OAuth 代理、按请求远程授权
-- 多种传输方式：本地客户端使用 stdio，旧客户端使用 SSE，现代远程部署使用 Streamable HTTP
-- 客户端设置友好：提供 Claude Code、Codex、Antigravity、OpenCode、Copilot、Cline、Roo Code、Cursor、Kilo Code 和 Amp Code 示例
-- 适合自托管：支持自定义 GitLab 实例、代理设置和动态 API URL 路由
+- **217 个工具 + `discover_tools`** — 从小型 toolset 开始，运行时按需激活类别
+- **MR 两步审查** — `list_merge_request_changed_files` → 批量 `get_merge_request_file_diff`
+- **内置 Agent Skill** — `skills/gitlab-mcp/` 工作流指南
+- **认证灵活** — Personal Access Token、本地 OAuth2 浏览器流程、MCP OAuth 代理、按请求远程授权
+- **多种传输方式** — 本地客户端使用 stdio，旧客户端使用 SSE，现代远程部署使用 Streamable HTTP
+- **客户端设置友好** — 提供 Claude Code、Codex、Antigravity、OpenCode、Copilot、Cline、Roo Code、Cursor、Kilo Code 和 Amp Code 示例
+- **适合自托管** — 支持自定义 GitLab 实例、代理设置和动态 API URL 路由
 
-快速开始：在下面选择 Personal Access Token 或 OAuth2 设置，安装 `@zereight/mcp-gitlab`，并在 MCP 客户端配置中使用 `zereight-mcp-gitlab`。
+### 对比摘要
+
+| | @zereight/mcp-gitlab | GitLab MCP A（社区 CQRS 型） |
+|---|----------------------|------------------------------|
+| **更适合** | AI 代理工作流 | 企业多实例 / 分组工具 |
+| **工具模型** | ~217 个细粒度工具 + `discover_tools` | ~50–60 个 `browse_*` / `manage_*` 分组工具 |
+| **MR 审查** | 两步批量 diff | 因服务器而异 |
+| **Node.js** | >=18 | 通常 >=24 |
+| **许可证** | MIT | 因服务器而异 |
+
+[完整对比 →](./comparison/community-gitlab-mcp-a.md)
+
+快速开始：在下面选择 Personal Access Token 或 OAuth2 设置，安装 `@zereight/mcp-gitlab`（或 `@zereight/gitlab-mcp`），并在 MCP 客户端配置中使用 `zereight-mcp-gitlab`。
 
 ### 客户端设置指南
 
-- [Claude Code 设置指南](./docs/clients/claude-code.md)
-- [VS Code 设置指南](./docs/clients/vscode.md)
-- [GitHub Copilot 设置指南](./docs/clients/copilot.md)
-- [Codex 设置指南](./docs/clients/codex.md)
-- [Cursor 设置指南](./docs/clients/cursor.md)
-- [基于 JSON 的 MCP 客户端设置指南](./docs/clients/json-clients.md) - 适用于 Factory AI Droid、OpenClaw 和 OpenCode 风格客户端
-- [OAuth2 认证设置指南](./docs/auth/oauth-setup.md)
-- [环境变量参考](./docs/configuration/environment-variables.md)
-- [Stateless Mode — 多 Pod HPA](./docs/configuration/stateless-mode.md)
-- [自定义 Agent 与多 PAT 设置](./docs/auth/custom-agent-multiple-pat.md)
+- [Claude Code 设置指南](./clients/claude-code.md)
+- [VS Code 设置指南](./clients/vscode.md)
+- [GitHub Copilot 设置指南](./clients/copilot.md)
+- [Codex 设置指南](./clients/codex.md)
+- [Cursor 设置指南](./clients/cursor.md)
+- [基于 JSON 的 MCP 客户端设置指南](./clients/json-clients.md) - 适用于 Factory AI Droid、OpenClaw 和 OpenCode 风格客户端
+- [OAuth2 认证设置指南](./auth/oauth-setup.md)
+- [环境变量参考](./configuration/environment-variables.md)
+- [Stateless Mode — 多 Pod HPA](./configuration/stateless-mode.md)
+- [自定义 Agent 与多 PAT 设置](./auth/custom-agent-multiple-pat.md)
 
 ## 使用方法
 
@@ -55,14 +74,14 @@
 
 #### 快速设置路径
 
-- **Claude Code**：[Claude Code 设置指南](./docs/clients/claude-code.md)
-- **VS Code**：[VS Code 设置指南](./docs/clients/vscode.md)
-- **GitHub Copilot**：[GitHub Copilot 设置指南](./docs/clients/copilot.md)
-- **Codex**：[Codex 设置指南](./docs/clients/codex.md)
-- **Cursor**：[Cursor 设置指南](./docs/clients/cursor.md)
-- **Factory AI Droid / OpenClaw / OpenCode 风格客户端**：[基于 JSON 的 MCP 客户端设置指南](./docs/clients/json-clients.md)
-- **OAuth 浏览器流程详情**：[OAuth2 认证设置指南](./docs/auth/oauth-setup.md)
-- **无需 localhost callback 的 OAuth**（SSO、远程 shell、后台客户端）：先运行 `zereight-mcp-gitlab auth`（GitLab 17.9+ device flow；17.2–17.8 需 `oauth2_device_grant_flow`），再以 `GITLAB_USE_OAUTH=true` 启动服务器。参见[独立 device-flow 命令](./docs/auth/oauth-setup.md#standalone-device-flow-auth-command)。
+- **Claude Code**：[Claude Code 设置指南](./clients/claude-code.md)
+- **VS Code**：[VS Code 设置指南](./clients/vscode.md)
+- **GitHub Copilot**：[GitHub Copilot 设置指南](./clients/copilot.md)
+- **Codex**：[Codex 设置指南](./clients/codex.md)
+- **Cursor**：[Cursor 设置指南](./clients/cursor.md)
+- **Factory AI Droid / OpenClaw / OpenCode 风格客户端**：[基于 JSON 的 MCP 客户端设置指南](./clients/json-clients.md)
+- **OAuth 浏览器流程详情**：[OAuth2 认证设置指南](./auth/oauth-setup.md)
+- **无需 localhost callback 的 OAuth**（SSO、远程 shell、后台客户端）：先运行 `zereight-mcp-gitlab auth`（GitLab 17.9+ device flow；17.2–17.8 需 `oauth2_device_grant_flow`），再以 `GITLAB_USE_OAUTH=true` 启动服务器。参见[独立 device-flow 命令](./auth/oauth-setup.md#standalone-device-flow-auth-command)。
 
 最简单的本地设置可以从 Personal Access Token 开始。基于浏览器的本地认证使用 OAuth2。远程或多用户部署请继续查看下面的 MCP OAuth 和远程授权部分。
 
@@ -73,10 +92,12 @@ brew tap zereight/gitlab-mcp https://github.com/zereight/gitlab-mcp
 brew install zereight/gitlab-mcp/zereight-mcp-gitlab
 ```
 
-也可以使用 npm 安装：
+也可以使用 npm 安装（两个包名安装的是同一服务器）：
 
 ```shell
 npm install -g @zereight/mcp-gitlab
+# 或
+npm install -g @zereight/gitlab-mcp
 ```
 
 示例使用 `zereight-mcp-gitlab`，这是比旧的 `mcp-gitlab` 更不容易冲突的别名。如果 MCP 客户端找不到它，请使用 `which zereight-mcp-gitlab` 输出的绝对路径。
@@ -112,7 +133,7 @@ npm install -g @zereight/mcp-gitlab
 
 CLI 参数优先于环境变量。
 
-`zereight-mcp-gitlab auth` 是子命令，不是 MCP 服务器参数。它运行 GitLab device flow 后退出。参见 [CLI 参数](./docs/getting-started/cli-arguments.md#auth)。
+`zereight-mcp-gitlab auth` 是子命令，不是 MCP 服务器参数。它运行 GitLab device flow 后退出。参见 [CLI 参数](./getting-started/cli-arguments.md#auth)。
 
 > **细粒度工具过滤：**使用 `GITLAB_PERMISSION_MODE=modify` 允许创建/更新并阻止所有删除工具
 > （包括通过 `execute_graphql` 的删除 mutation 以及 `push_files` 的 `delete`/`move`），
@@ -120,8 +141,8 @@ CLI 参数优先于环境变量。
 > `GITLAB_TOOLSETS=<group,…>` 启用工具分组，用 `GITLAB_TOOLS=<tool,…>` 白名单启用单个工具
 > （例如：只读分组 + 少数几个写工具），用 `GITLAB_DENIED_TOOLS_REGEX` 按正则屏蔽工具。
 > 旧版 `USE_GITLAB_WIKI` / `USE_MILESTONE` / `USE_PIPELINE` 标志仅为向后兼容保留。
-> 参见 [Tools Reference](./docs/tools/index.md#feature-toggles) 和
-> [Environment Variables](./docs/configuration/environment-variables.md)。
+> 参见 [Tools Reference](./tools/index.md#feature-toggles) 和
+> [Environment Variables](./configuration/environment-variables.md)。
 
 #### SSE
 
@@ -298,7 +319,7 @@ Authorization: Bearer glpat-xxxxxxxxxxxxxxxxxxxx
 
 完整环境变量列表请查看专门的参考文档：
 
-- [环境变量参考](./docs/configuration/environment-variables.md)
+- [环境变量参考](./configuration/environment-variables.md)
 
 大多数用户只需要以下起始组合之一：
 
@@ -306,7 +327,7 @@ Authorization: Bearer glpat-xxxxxxxxxxxxxxxxxxxx
 - **本地 OAuth**：`GITLAB_USE_OAUTH=true`, `GITLAB_OAUTH_CLIENT_ID`, `GITLAB_OAUTH_REDIRECT_URI`, `GITLAB_API_URL`
 - **远程多用户 HTTP**：`STREAMABLE_HTTP=true`, `REMOTE_AUTHORIZATION=true`（或 `GITLAB_MCP_OAUTH=true`）, `MCP_TRUST_PROXY=true`（反向代理后）, `MAX_REQUESTS_PER_MINUTE=300`, `MCP_SERVER_URL` 或 `MCP_ALLOWED_HOSTS`, `HOST`, `PORT`
 - **并行运行多个部署**：为每个实例设置不同的 `MCP_SERVER_NAME`（例如 `gitlab-selfhosted-readonly`），以便在客户端、日志和遥测数据中区分它们
-- **多 Pod HPA（stateless）**：上述配置 + `OAUTH_STATELESS_MODE=true`, `OAUTH_STATELESS_SECRET`（所有 Pod 相同）。参见 [Stateless Mode](./docs/configuration/stateless-mode.md)。
+- **多 Pod HPA（stateless）**：上述配置 + `OAUTH_STATELESS_MODE=true`, `OAUTH_STATELESS_SECRET`（所有 Pod 相同）。参见 [Stateless Mode](./configuration/stateless-mode.md)。
 
 常用变量：
 
@@ -334,7 +355,7 @@ Authorization: Bearer glpat-xxxxxxxxxxxxxxxxxxxx
 - 传输和会话变量
 - 代理和 TLS 变量
 
-回调代理模式详情请参阅 [GitLab MCP OAuth Callback Proxy](./docs/auth/oauth-callback-proxy.md)。
+回调代理模式详情请参阅 [GitLab MCP OAuth Callback Proxy](./auth/oauth-callback-proxy.md)。
 
 ### 远程授权设置（多用户支持）
 
@@ -483,10 +504,10 @@ node build/index.js
 
 ## Agent Skill Files
 
-对于支持 skill/instruction 加载的 AI 代理（Claude Code、GitHub Copilot、Cursor 等），[`skills/gitlab-mcp/`](./skills/gitlab-mcp/) 中提供了预构建 skill 文件。
+对于支持 skill/instruction 加载的 AI 代理（Claude Code、GitHub Copilot、Cursor 等），[`skills/gitlab-mcp/`](../skills/gitlab-mcp/) 中提供了预构建 skill 文件。
 
-- **[SKILL.md](./skills/gitlab-mcp/SKILL.md)** — 核心指南，包含工具集概览、关键工作流和参数提示
-- **[reference/](./skills/gitlab-mcp/reference/)** — 代码审查、合并请求、议题、流水线和漏洞分类的详细工作流文档
+- **[SKILL.md](../skills/gitlab-mcp/SKILL.md)** — 核心指南，包含工具集概览、关键工作流和参数提示
+- **[reference/](../skills/gitlab-mcp/reference/)** — 代码审查、合并请求、议题、流水线和漏洞分类的详细工作流文档
 
 使用 `skills` CLI 安装：
 
@@ -498,7 +519,7 @@ npx skills add zereight/gitlab-mcp --skill gitlab-mcp-skill
 
 ## 工具 🛠️
 
-完整工具列表请参考英文 README 的 [Tools 部分](./README.md#tools-%EF%B8%8F)。当前服务器提供合并请求、议题、流水线、部署、环境、制品、里程碑、Wiki、仓库、发布、用户、事件、work item、webhook、代码搜索、CI/CD 变量、dependency proxy、漏洞分类和 GraphQL 执行相关工具。
+完整工具列表请参考英文 README 的 [Tools 部分](../README.md#tools-%EF%B8%8F)。当前服务器提供合并请求、议题、流水线、部署、环境、制品、里程碑、Wiki、仓库、发布、用户、事件、work item、webhook、代码搜索、CI/CD 变量、dependency proxy、漏洞分类和 GraphQL 执行相关工具。
 
 ### Wiki 页面标题与 slug
 

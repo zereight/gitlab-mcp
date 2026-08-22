@@ -1,39 +1,58 @@
 # GitLab MCP Server
 
-[English](./README.md) | [한국어](./README.ko.md) | [简体中文](./README.zh-CN.md)
+[![npm](https://img.shields.io/npm/v/@zereight/mcp-gitlab.svg)](https://www.npmjs.com/package/@zereight/mcp-gitlab)
+[![Install in VS Code](https://img.shields.io/badge/VS_Code-Install_GitLab_MCP-0098FF?style=flat-square&logo=visualstudiocode&logoColor=white)](vscode:mcp/install?name=zereight.gitlab-mcp&config=%7B%22type%22%3A%22stdio%22%2C%22command%22%3A%22npx%22%2C%22args%22%3A%5B%22-y%22%2C%22%40zereight%2Fmcp-gitlab%40latest%22%5D%2C%22env%22%3A%7B%22GITLAB_API_URL%22%3A%22https%3A%2F%2Fgitlab.com%2Fapi%2Fv4%22%7D%7D)
+
+[English](../README.md) | [한국어](./README.ko.md) | [简体中文](./README.zh-CN.md)
 
 📖 **[문서 →](https://zereight.github.io/gitlab-mcp/)** 설정 가이드, 환경 변수, 전체 도구 레퍼런스는 호스팅된 문서 사이트에서 확인할 수 있습니다.
 
-[![Star History Chart](./assets/star-history.png)](https://www.star-history.com/?repos=zereight%2Fgitlab-mcp&type=date&legend=top-left)
+[![Star History Chart](../assets/star-history.png)](https://www.star-history.com/?repos=zereight%2Fgitlab-mcp&type=date&legend=top-left)
 
 ## @zereight/mcp-gitlab
 
-AI 클라이언트를 위한 포괄적인 GitLab MCP 서버입니다. stdio, SSE, Streamable HTTP를 통해 프로젝트, 머지 리퀘스트, 이슈, 파이프라인, 위키, 릴리스, 마일스톤 등을 관리할 수 있습니다.
+**에이전트 워크플로우에 최적화된 GitLab MCP** — stdio, SSE, Streamable HTTP를 통해 프로젝트, 머지 리퀘스트, 이슈, 파이프라인, 위키, 릴리스, 마일스톤 등을 관리할 수 있습니다.
+
+동일한 서버가 [`@zereight/gitlab-mcp`](https://www.npmjs.com/package/@zereight/gitlab-mcp) 이름으로도 배포됩니다 (npm 검색용 별칭).
 
 PAT, OAuth, 읽기 전용 모드, 동적 API URL, 원격 인증을 지원하며 VS Code, Claude, Cursor, Copilot 및 기타 MCP 클라이언트에서 사용할 수 있습니다.
 
 ### 왜 이 GitLab MCP를 사용하나요?
 
-- 넓은 GitLab 지원 범위: 프로젝트, 저장소 탐색, 머지 리퀘스트, 이슈, 파이프라인, 위키, 릴리스, 라벨, 마일스톤 등
-- 유연한 인증: Personal Access Token, 로컬 OAuth2 브라우저 플로우, MCP OAuth 프록시, 요청별 원격 인증
-- 여러 전송 방식: 로컬 클라이언트용 stdio, 레거시 클라이언트용 SSE, 최신 원격 배포용 Streamable HTTP
-- 클라이언트 친화적 설정: Claude Code, Codex, Antigravity, OpenCode, Copilot, Cline, Roo Code, Cursor, Kilo Code, Amp Code 예시 제공
-- 셀프 호스팅 대응: 커스텀 GitLab 인스턴스, 프록시 설정, 동적 API URL 라우팅 지원
+- **217개 도구 + `discover_tools`** — 작은 toolset으로 시작하고, 런타임에 카테고리 활성화
+- **MR 2단계 리뷰** — `list_merge_request_changed_files` → 배치 `get_merge_request_file_diff`
+- **Agent Skill 내장** — `skills/gitlab-mcp/` 워크플로우 가이드
+- **유연한 인증** — Personal Access Token, 로컬 OAuth2 브라우저 플로우, MCP OAuth 프록시, 요청별 원격 인증
+- **여러 전송 방식** — 로컬 클라이언트용 stdio, 레거시 클라이언트용 SSE, 최신 원격 배포용 Streamable HTTP
+- **클라이언트 친화적 설정** — Claude Code, Codex, Antigravity, OpenCode, Copilot, Cline, Roo Code, Cursor, Kilo Code, Amp Code 예시 제공
+- **셀프 호스팅 대응** — 커스텀 GitLab 인스턴스, 프록시 설정, 동적 API URL 라우팅 지원
 
-빠른 시작: 아래에서 Personal Access Token 또는 OAuth2 설정 중 하나를 선택하고 `@zereight/mcp-gitlab`을 설치한 뒤 MCP 클라이언트 설정에서 `zereight-mcp-gitlab`을 사용하세요.
+### 비교 요약
+
+| | @zereight/mcp-gitlab | GitLab MCP A (커뮤니티 CQRS형) |
+|---|----------------------|--------------------------------|
+| **적합한 경우** | AI 에이전트 워크플로우 | 엔터프라이즈 멀티 인스턴스 / 그룹형 도구 |
+| **도구 모델** | ~217개 세분화 도구 + `discover_tools` | ~50–60개 `browse_*` / `manage_*` 그룹 도구 |
+| **MR 리뷰** | 2단계 배치 diff | 서버마다 다름 |
+| **Node.js** | >=18 | 보통 >=24 |
+| **라이선스** | MIT | 서버마다 다름 |
+
+[전체 비교 →](./comparison/community-gitlab-mcp-a.md)
+
+빠른 시작: 아래에서 Personal Access Token 또는 OAuth2 설정 중 하나를 선택하고 `@zereight/mcp-gitlab`(또는 `@zereight/gitlab-mcp`)을 설치한 뒤 MCP 클라이언트 설정에서 `zereight-mcp-gitlab`을 사용하세요.
 
 ### 클라이언트 설정 가이드
 
-- [Claude Code 설정 가이드](./docs/clients/claude-code.md)
-- [VS Code 설정 가이드](./docs/clients/vscode.md)
-- [GitHub Copilot 설정 가이드](./docs/clients/copilot.md)
-- [Codex 설정 가이드](./docs/clients/codex.md)
-- [Cursor 설정 가이드](./docs/clients/cursor.md)
-- [JSON 기반 MCP 클라이언트 설정 가이드](./docs/clients/json-clients.md) - Factory AI Droid, OpenClaw, OpenCode 스타일 클라이언트용
-- [OAuth2 인증 설정 가이드](./docs/auth/oauth-setup.md)
-- [환경 변수 레퍼런스](./docs/configuration/environment-variables.md)
-- [Stateless Mode — 멀티 Pod HPA](./docs/configuration/stateless-mode.md)
-- [커스텀 에이전트 및 다중 PAT 설정](./docs/auth/custom-agent-multiple-pat.md)
+- [Claude Code 설정 가이드](./clients/claude-code.md)
+- [VS Code 설정 가이드](./clients/vscode.md)
+- [GitHub Copilot 설정 가이드](./clients/copilot.md)
+- [Codex 설정 가이드](./clients/codex.md)
+- [Cursor 설정 가이드](./clients/cursor.md)
+- [JSON 기반 MCP 클라이언트 설정 가이드](./clients/json-clients.md) - Factory AI Droid, OpenClaw, OpenCode 스타일 클라이언트용
+- [OAuth2 인증 설정 가이드](./auth/oauth-setup.md)
+- [환경 변수 레퍼런스](./configuration/environment-variables.md)
+- [Stateless Mode — 멀티 Pod HPA](./configuration/stateless-mode.md)
+- [커스텀 에이전트 및 다중 PAT 설정](./auth/custom-agent-multiple-pat.md)
 
 ## 사용법
 
@@ -55,14 +74,14 @@ PAT, OAuth, 읽기 전용 모드, 동적 API URL, 원격 인증을 지원하며 
 
 #### 빠른 설정 경로
 
-- **Claude Code**: [Claude Code 설정 가이드](./docs/clients/claude-code.md)
-- **VS Code**: [VS Code 설정 가이드](./docs/clients/vscode.md)
-- **GitHub Copilot**: [GitHub Copilot 설정 가이드](./docs/clients/copilot.md)
-- **Codex**: [Codex 설정 가이드](./docs/clients/codex.md)
-- **Cursor**: [Cursor 설정 가이드](./docs/clients/cursor.md)
-- **Factory AI Droid / OpenClaw / OpenCode 스타일 클라이언트**: [JSON 기반 MCP 클라이언트 설정 가이드](./docs/clients/json-clients.md)
-- **OAuth 브라우저 플로우 상세**: [OAuth2 인증 설정 가이드](./docs/auth/oauth-setup.md)
-- **localhost callback 없이 OAuth** (SSO, 원격 셸, 백그라운드 클라이언트): `zereight-mcp-gitlab auth`를 먼저 실행하세요 (GitLab 17.9+ device flow; 17.2–17.8은 `oauth2_device_grant_flow` 필요). 그다음 서버는 `GITLAB_USE_OAUTH=true`로 시작합니다. [독립 device-flow 커맨드](./docs/auth/oauth-setup.md#standalone-device-flow-auth-command)를 참고하세요.
+- **Claude Code**: [Claude Code 설정 가이드](./clients/claude-code.md)
+- **VS Code**: [VS Code 설정 가이드](./clients/vscode.md)
+- **GitHub Copilot**: [GitHub Copilot 설정 가이드](./clients/copilot.md)
+- **Codex**: [Codex 설정 가이드](./clients/codex.md)
+- **Cursor**: [Cursor 설정 가이드](./clients/cursor.md)
+- **Factory AI Droid / OpenClaw / OpenCode 스타일 클라이언트**: [JSON 기반 MCP 클라이언트 설정 가이드](./clients/json-clients.md)
+- **OAuth 브라우저 플로우 상세**: [OAuth2 인증 설정 가이드](./auth/oauth-setup.md)
+- **localhost callback 없이 OAuth** (SSO, 원격 셸, 백그라운드 클라이언트): `zereight-mcp-gitlab auth`를 먼저 실행하세요 (GitLab 17.9+ device flow; 17.2–17.8은 `oauth2_device_grant_flow` 필요). 그다음 서버는 `GITLAB_USE_OAUTH=true`로 시작합니다. [독립 device-flow 커맨드](./auth/oauth-setup.md#standalone-device-flow-auth-command)를 참고하세요.
 
 가장 단순한 로컬 설정은 Personal Access Token으로 시작하세요. 브라우저 기반 로컬 인증은 OAuth2를 사용하세요. 원격 또는 멀티 유저 배포는 아래 MCP OAuth 및 원격 인증 섹션을 참고하세요.
 
@@ -73,10 +92,12 @@ brew tap zereight/gitlab-mcp https://github.com/zereight/gitlab-mcp
 brew install zereight/gitlab-mcp/zereight-mcp-gitlab
 ```
 
-npm으로 설치할 수도 있습니다:
+npm으로 설치할 수도 있습니다 (두 패키지명 모두 동일한 서버입니다):
 
 ```shell
 npm install -g @zereight/mcp-gitlab
+# 또는
+npm install -g @zereight/gitlab-mcp
 ```
 
 예시는 기존 `mcp-gitlab`보다 충돌 가능성이 낮은 `zereight-mcp-gitlab` 별칭을 사용합니다. MCP 클라이언트가 찾지 못하면 `which zereight-mcp-gitlab`의 절대 경로를 사용하세요.
@@ -112,15 +133,15 @@ npm install -g @zereight/mcp-gitlab
 
 CLI 인자는 환경 변수보다 우선합니다.
 
-`zereight-mcp-gitlab auth`는 MCP 서버 플래그가 아니라 서브커맨드입니다. GitLab device flow를 실행한 뒤 종료합니다. [CLI 인자](./docs/getting-started/cli-arguments.md#auth)를 참고하세요.
+`zereight-mcp-gitlab auth`는 MCP 서버 플래그가 아니라 서브커맨드입니다. GitLab device flow를 실행한 뒤 종료합니다. [CLI 인자](./getting-started/cli-arguments.md#auth)를 참고하세요.
 
 > **세밀한 도구 필터링:** `GITLAB_PERMISSION_MODE=modify`로 생성/수정은 허용하고 모든 삭제 도구를
 > 차단하거나(`execute_graphql` 삭제 mutation과 `push_files`의 `delete`/`move` 포함), `GITLAB_PERMISSION_MODE=readonly`로 읽기 전용으로 운영할 수 있습니다. 또한
 > `GITLAB_TOOLSETS=<group,…>`로 도구 그룹을 활성화하고, `GITLAB_TOOLS=<tool,…>`로 개별 도구만
 > 허용하며(예: 읽기 도구 + 특정 쓰기 도구 몇 개), `GITLAB_DENIED_TOOLS_REGEX`로 패턴 차단할 수
 > 있습니다. 레거시 `USE_GITLAB_WIKI` / `USE_MILESTONE` / `USE_PIPELINE` 플래그는 하위 호환용으로만
-> 유지됩니다. [Tools Reference](./docs/tools/index.md#feature-toggles)와
-> [Environment Variables](./docs/configuration/environment-variables.md)를 참고하세요.
+> 유지됩니다. [Tools Reference](./tools/index.md#feature-toggles)와
+> [Environment Variables](./configuration/environment-variables.md)를 참고하세요.
 
 #### SSE
 
@@ -297,7 +318,7 @@ Authorization: Bearer glpat-xxxxxxxxxxxxxxxxxxxx
 
 전체 환경 변수 목록은 전용 문서를 참고하세요.
 
-- [환경 변수 레퍼런스](./docs/configuration/environment-variables.md)
+- [환경 변수 레퍼런스](./configuration/environment-variables.md)
 
 대부분의 사용자는 아래 시작 조합 중 하나만 필요합니다.
 
@@ -305,7 +326,7 @@ Authorization: Bearer glpat-xxxxxxxxxxxxxxxxxxxx
 - **로컬 OAuth**: `GITLAB_USE_OAUTH=true`, `GITLAB_OAUTH_CLIENT_ID`, `GITLAB_OAUTH_REDIRECT_URI`, `GITLAB_API_URL`
 - **원격 멀티 유저 HTTP**: `STREAMABLE_HTTP=true`, `REMOTE_AUTHORIZATION=true`(또는 `GITLAB_MCP_OAUTH=true`), `MCP_TRUST_PROXY=true`(리버스 프록시 뒤), `MAX_REQUESTS_PER_MINUTE=300`, `MCP_SERVER_URL` 또는 `MCP_ALLOWED_HOSTS`, `HOST`, `PORT`
 - **여러 배포를 동시에 운영**: 배포마다 `MCP_SERVER_NAME`을 다르게 설정(예: `gitlab-selfhosted-readonly`)하면 클라이언트, 로그, 텔레메트리에서 서로 구분할 수 있습니다
-- **멀티 Pod HPA (stateless)**: 위 설정 + `OAUTH_STATELESS_MODE=true`, `OAUTH_STATELESS_SECRET`(모든 Pod에서 동일). [Stateless Mode](./docs/configuration/stateless-mode.md) 참고.
+- **멀티 Pod HPA (stateless)**: 위 설정 + `OAUTH_STATELESS_MODE=true`, `OAUTH_STATELESS_SECRET`(모든 Pod에서 동일). [Stateless Mode](./configuration/stateless-mode.md) 참고.
 
 자주 참조하는 변수:
 
@@ -333,7 +354,7 @@ Authorization: Bearer glpat-xxxxxxxxxxxxxxxxxxxx
 - 전송 및 세션 변수
 - 프록시 및 TLS 변수
 
-콜백 프록시 모드 상세는 [GitLab MCP OAuth Callback Proxy](./docs/auth/oauth-callback-proxy.md)를 참고하세요.
+콜백 프록시 모드 상세는 [GitLab MCP OAuth Callback Proxy](./auth/oauth-callback-proxy.md)를 참고하세요.
 
 ### 원격 인증 설정(멀티 유저 지원)
 
@@ -482,10 +503,10 @@ node build/index.js
 
 ## Agent Skill Files
 
-AI 에이전트가 skill/instruction 로딩을 지원하는 경우(Claude Code, GitHub Copilot, Cursor 등), [`skills/gitlab-mcp/`](./skills/gitlab-mcp/)에 미리 작성된 skill 파일을 사용할 수 있습니다.
+AI 에이전트가 skill/instruction 로딩을 지원하는 경우(Claude Code, GitHub Copilot, Cursor 등), [`skills/gitlab-mcp/`](../skills/gitlab-mcp/)에 미리 작성된 skill 파일을 사용할 수 있습니다.
 
-- **[SKILL.md](./skills/gitlab-mcp/SKILL.md)** — 도구셋 개요, 핵심 워크플로우, 파라미터 힌트를 담은 핵심 가이드
-- **[reference/](./skills/gitlab-mcp/reference/)** — 코드 리뷰, 머지 리퀘스트, 이슈, 파이프라인, 취약점 트리아지용 상세 워크플로우 문서
+- **[SKILL.md](../skills/gitlab-mcp/SKILL.md)** — 도구셋 개요, 핵심 워크플로우, 파라미터 힌트를 담은 핵심 가이드
+- **[reference/](../skills/gitlab-mcp/reference/)** — 코드 리뷰, 머지 리퀘스트, 이슈, 파이프라인, 취약점 트리아지용 상세 워크플로우 문서
 
 `skills` CLI로 설치:
 
@@ -497,7 +518,7 @@ AI 클라이언트에 skill 디렉터리를 등록하면 전체 ListTools 응답
 
 ## 도구 🛠️
 
-전체 도구 목록은 영어 README의 [Tools 섹션](./README.md#tools-%EF%B8%8F)을 참고하세요. 현재 서버는 머지 리퀘스트, 이슈, 파이프라인, 배포, 환경, 아티팩트, 마일스톤, 위키, 저장소, 릴리스, 사용자, 이벤트, work item, 웹훅, 코드 검색, CI/CD 변수, dependency proxy, 취약점 트리아지, GraphQL 실행 도구를 제공합니다.
+전체 도구 목록은 영어 README의 [Tools 섹션](../README.md#tools-%EF%B8%8F)을 참고하세요. 현재 서버는 머지 리퀘스트, 이슈, 파이프라인, 배포, 환경, 아티팩트, 마일스톤, 위키, 저장소, 릴리스, 사용자, 이벤트, work item, 웹훅, 코드 검색, CI/CD 변수, dependency proxy, 취약점 트리아지, GraphQL 실행 도구를 제공합니다.
 
 ### Wiki 페이지 제목과 slug
 

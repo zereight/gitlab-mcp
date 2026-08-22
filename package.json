@@ -30,7 +30,8 @@
     "zereight-mcp-gitlab": "build/index.js"
   },
   "files": [
-    "build"
+    "build",
+    "README.md"
   ],
   "repository": {
     "type": "git",
@@ -68,6 +69,7 @@
     "lint:fix": "eslint . --ext .ts --fix",
     "release": "bash scripts/release.sh",
     "release:mcp-registry": "bash scripts/publish_mcp_registry.sh",
+    "sync:alias-package": "node scripts/sync-alias-package-version.mjs",
     "format": "prettier --write \"**/*.{js,ts,json,md}\"",
     "format:check": "prettier --check \"**/*.{js,ts,json,md}\""
   },

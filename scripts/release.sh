@@ -17,10 +17,44 @@ if ! git diff --quiet || ! git diff --cached --quiet; then
   exit 1
 fi
 
+require_latest_main_branch() {
+  local current_branch
+  current_branch=$(git branch --show-current 2>/dev/null || echo "")
+
+  if [ "$current_branch" != "main" ]; then
+    echo "❌ Release must run from the main branch. Current branch: ${current_branch:-detached HEAD}"
+    echo "   Run: git checkout main && git pull origin main"
+    exit 1
+  fi
+
+  if ! git fetch --tags origin main >/dev/null 2>&1; then
+    echo "❌ Failed to fetch origin/main."
+    exit 1
+  fi
+
+  local head_sha origin_sha
+  head_sha=$(git rev-parse HEAD)
+  origin_sha=$(git rev-parse origin/main)
+
+  if [ "$head_sha" != "$origin_sha" ]; then
+    echo "❌ HEAD is not aligned with the latest origin/main."
+    echo "   Local HEAD:  $head_sha"
+    echo "   origin/main: $origin_sha"
+    if git merge-base --is-ancestor "$head_sha" "$origin_sha" 2>/dev/null; then
+      echo "   Local main is behind origin/main. Run: git pull origin main"
+    elif git merge-base --is-ancestor "$origin_sha" "$head_sha" 2>/dev/null; then
+      echo "   Local main is ahead of origin/main. Push or reset before releasing."
+    else
+      echo "   Local main has diverged from origin/main. Reconcile before releasing."
+    fi
+    exit 1
+  fi
+}
+
+require_latest_main_branch
+
 CURRENT_VERSION=$(node -p "require('./package.json').version")
 echo "Current version: $CURRENT_VERSION"
-
-git fetch --tags origin >/dev/null 2>&1 || true
 
 tag_exists() {
   git rev-parse -q --verify "refs/tags/$1" >/dev/null
