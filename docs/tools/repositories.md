@@ -64,7 +64,7 @@ Get contents of a file or directory from a GitLab project. Use this for a known 
 
 *✏️ Writes*
 
-Push multiple files in a single commit. Use this to commit several file changes atomically; use `create_or_update_file` when only one path is involved. The operation writes repository history on the selected branch, requires repository write permission, and returns the commit result or a validation, conflict, or protected-branch error.
+Push multiple files in a single commit. Use this to commit several file changes atomically; use `create_or_update_file` when only one path is involved. Each file defaults to action `create`; optional per-file `action` (create/update/delete/move) and `encoding` (text/base64) are additive. `GITLAB_PERMISSION_MODE=modify` rejects `delete` and `move`. The operation writes repository history on the selected branch, requires repository write permission, and returns the commit result or a validation, conflict, or protected-branch error.
 
 **Parameters**
 
@@ -72,14 +72,14 @@ Push multiple files in a single commit. Use this to commit several file changes 
 |---|---|:-:|---|
 | `project_id` | string | ✓ | Project ID or complete URL-encoded path to project |
 | `branch` | string | ✓ | Branch to push to |
-| `files` | array<object> | ✓ | Array of files to push |
+| `files` | array<object> | ✓ | Array of files to push. Each entry defaults to action 'create'. Per-file fields: action (create/update/delete/move), encoding (text/base64; omitted uses GITLAB_REPO_FILE_ENCODING), previous_path (required for move). Content is required for create and update; omit content for delete, or for a move that should keep the original file. GITLAB_PERMISSION_MODE=modify rejects delete and move. |
 | `commit_message` | string | ✓ | Commit message |
 
 ### `create_or_update_file`
 
 *✏️ Writes*
 
-Create or update a file in a GitLab project. Use this for a single repository file when you know whether the target path is new or already exists; use `push_files` for a multi-file commit. The operation creates or updates remote content in a commit, requires repository write permission, and returns the commit result or a conflict/validation error.
+Create or update a file in a GitLab project. Use this for a single repository file when you know whether the target path is new or already exists; use `push_files` for a multi-file commit. Optional `encoding` (`text` or `base64`) defaults to `GITLAB_REPO_FILE_ENCODING` so existing callers stay unchanged. The operation creates or updates remote content in a commit, requires repository write permission, and returns the commit result or a conflict/validation error.
 
 **Parameters**
 
@@ -93,6 +93,7 @@ Create or update a file in a GitLab project. Use this for a single repository fi
 | `previous_path` | string |  | Path of the file to move/rename |
 | `last_commit_id` | string |  | Last known file commit ID |
 | `commit_id` | string |  | Current file commit ID (for update operations) |
+| `encoding` | enum (`text` \| `base64`) |  | Content encoding. Use 'base64' for binary files (content must already be base64-encoded). When omitted, GITLAB_REPO_FILE_ENCODING applies. |
 
 ### `fork_repository`
 

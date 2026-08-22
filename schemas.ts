@@ -893,11 +893,41 @@ export const GitLabContentSchema = z.union([
   z.array(GitLabDirectoryContentSchema),
 ]);
 
+function refineCommitFileAction(
+  data: {
+    action?: "create" | "update" | "delete" | "move";
+    content?: string;
+    previous_path?: string;
+  },
+  ctx: z.RefinementCtx
+): void {
+  const action = data.action ?? "create";
+  if ((action === "create" || action === "update") && data.content === undefined) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: `content is required when action is '${action}'`,
+      path: ["content"],
+    });
+  }
+  if (action === "move" && (data.previous_path === undefined || data.previous_path.length === 0)) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "previous_path is required when action is 'move'",
+      path: ["previous_path"],
+    });
+  }
+}
+
 // Operation schemas
-export const FileOperationSchema = z.object({
-  path: z.string(),
-  content: z.string(),
-});
+export const FileOperationSchema = z
+  .object({
+    path: z.string(),
+    content: z.string().optional(),
+    action: z.enum(["create", "update", "delete", "move"]).optional(),
+    encoding: z.enum(["text", "base64"]).optional(),
+    previous_path: z.string().optional(),
+  })
+  .superRefine(refineCommitFileAction);
 
 // Tree and commit schemas
 export const GitLabTreeItemSchema = z.object({
@@ -1568,6 +1598,12 @@ export const CreateOrUpdateFileSchema = ProjectParamsSchema.extend({
   previous_path: z.string().optional().describe("Path of the file to move/rename"),
   last_commit_id: z.string().optional().describe("Last known file commit ID"),
   commit_id: z.string().optional().describe("Current file commit ID (for update operations)"),
+  encoding: z
+    .enum(["text", "base64"])
+    .optional()
+    .describe(
+      "Content encoding. Use 'base64' for binary files (content must already be base64-encoded). When omitted, GITLAB_REPO_FILE_ENCODING applies."
+    ),
 });
 
 export const SearchRepositoriesSchema = z
@@ -1643,12 +1679,35 @@ export const PushFilesSchema = ProjectParamsSchema.extend({
   branch: z.string().describe("Branch to push to"),
   files: z
     .array(
-      z.object({
-        file_path: z.string().describe("Path where to create the file"),
-        content: z.string().describe("Content of the file"),
-      })
+      z
+        .object({
+          file_path: z.string().describe("Path of the file in the repo"),
+          content: z
+            .string()
+            .optional()
+            .describe(
+              "File content. Required for create and update. Omit for delete, or for a move that should keep the original content. Base64-encoded when encoding is 'base64'."
+            ),
+          action: z
+            .enum(["create", "update", "delete", "move"])
+            .optional()
+            .describe("Commit action for this file. Defaults to 'create'."),
+          encoding: z
+            .enum(["text", "base64"])
+            .optional()
+            .describe(
+              "Use 'base64' for binary files (content must already be base64-encoded). When omitted, GITLAB_REPO_FILE_ENCODING applies."
+            ),
+          previous_path: z
+            .string()
+            .optional()
+            .describe("Previous path of the file. Required when action is 'move'."),
+        })
+        .superRefine(refineCommitFileAction)
     )
-    .describe("Array of files to push"),
+    .describe(
+      "Array of files to push. Each entry defaults to action 'create'. Per-file fields: action (create/update/delete/move), encoding (text/base64; omitted uses GITLAB_REPO_FILE_ENCODING), previous_path (required for move). Content is required for create and update; omit content for delete, or for a move that should keep the original file. GITLAB_PERMISSION_MODE=modify rejects delete and move."
+    ),
   commit_message: z.string().describe("Commit message"),
 });
 
