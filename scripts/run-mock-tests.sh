@@ -34,7 +34,8 @@ run_mock_tests 4 \
   -o -path 'test/stateless/config-ttl.test.ts' \
   -o -path 'test/stateless/session-id.test.ts' \
   -o -path 'test/stateless/callback-proxy.test.ts' \
-  -o -path 'test/stateless/consumed-proxy-code-cache.test.ts' \)
+  -o -path 'test/stateless/consumed-proxy-code-cache.test.ts' \
+  -o -path 'test/oauth-device-flow-tests.ts' \)
 
 # Server-spawning suites — sequential to avoid port races and node:test IPC flakes
 run_mock_tests 1 \
@@ -48,6 +49,7 @@ run_mock_tests 1 \
   ! -path 'test/stateless/config-ttl.test.ts' \
   ! -path 'test/stateless/session-id.test.ts' \
   ! -path 'test/stateless/callback-proxy.test.ts' \
-  ! -path 'test/stateless/consumed-proxy-code-cache.test.ts'
+  ! -path 'test/stateless/consumed-proxy-code-cache.test.ts' \
+  ! -path 'test/oauth-device-flow-tests.ts'
 
 tsx test/oauth-tests.ts

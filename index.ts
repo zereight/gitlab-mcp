@@ -138,6 +138,8 @@ import { URL } from "node:url";
 import { z } from "zod";
 
 import { initializeOAuthClient, GitLabOAuth } from "./oauth.js";
+import { getPositionalCliCommand } from "./cli-command.js";
+import { runAuthCommandAsync } from "./auth-cli.js";
 import { createGitLabOAuthProvider } from "./oauth-proxy.js";
 import { mcpAuthRouter } from "@modelcontextprotocol/sdk/server/auth/router.js";
 import rateLimit, { ipKeyGenerator } from "express-rate-limit";
@@ -1855,6 +1857,7 @@ if (GITLAB_MCP_OAUTH) {
 }
 
 if (
+  getPositionalCliCommand(process.argv) !== "auth" &&
   !REMOTE_AUTHORIZATION &&
   !GITLAB_MCP_OAUTH &&
   !USE_OAUTH &&
@@ -14543,8 +14546,23 @@ async function runServer() {
   }
 }
 
-// 下記の２行を追記
-runServer().catch(error => {
+async function main(): Promise<void> {
+  if (getPositionalCliCommand(process.argv) === "auth") {
+    try {
+      await runAuthCommandAsync();
+      process.exit(0);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      process.stderr.write(`${message}\n`);
+      logger.error({ err: error }, "auth command failed");
+      process.exit(1);
+    }
+  }
+
+  await runServer();
+}
+
+main().catch(error => {
   logger.fatal({ err: error }, "Fatal error in main()");
   process.exit(1);
 });
