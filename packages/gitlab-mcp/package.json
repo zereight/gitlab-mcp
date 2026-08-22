@@ -1,6 +1,6 @@
 {
   "name": "@zereight/gitlab-mcp",
-  "version": "2.1.51",
+  "version": "2.1.52",
   "description": "GitLab MCP server for projects, merge requests, issues, pipelines, and more — alias for @zereight/mcp-gitlab",
   "keywords": [
     "gitlab",
@@ -23,7 +23,7 @@
     "zereight-mcp-gitlab": "./bin/zereight-mcp-gitlab.js"
   },
   "dependencies": {
-    "@zereight/mcp-gitlab": "2.1.51"
+    "@zereight/mcp-gitlab": "2.1.52"
   },
   "repository": {
     "type": "git",

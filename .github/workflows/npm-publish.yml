@@ -31,16 +31,41 @@ jobs:
       # Trusted publishing needs npm >= 11.5. Avoid `npm install -g` (breaks arborist on this image).
       - name: Publish to npm
         run: npx --yes npm@11.5.2 publish --access public --provenance
+
+  alias:
+    needs: npm
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.release.tag_name }}
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22.22.2"
+          registry-url: "https://registry.npmjs.org/"
+      - name: Wait for main package on npm registry
+        run: sleep 30
       - name: Sync alias package version
         run: node scripts/sync-alias-package-version.mjs
       - name: Publish alias package
         working-directory: packages/gitlab-mcp
         run: |
-          npm install --ignore-scripts --no-audit --no-fund
-          npx --yes npm@11.5.2 publish --access public --provenance
+          for attempt in 1 2 3 4 5 6; do
+            if npx --yes npm@11.5.2 publish --access public --provenance; then
+              exit 0
+            fi
+            echo "Alias publish attempt ${attempt} failed; retrying in 20s..."
+            sleep 20
+          done
+          exit 1
 
   sync-homebrew:
-    needs: npm
+    needs: alias
     runs-on: ubuntu-latest
     permissions:
       contents: write
