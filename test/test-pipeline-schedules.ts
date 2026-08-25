@@ -168,10 +168,12 @@ describe("Pipeline schedule tools", () => {
   let baseEnv: NodeJS.ProcessEnv;
   let lastReceivedScope: string | undefined;
   let lastReceivedBody: Record<string, any> | undefined;
+  let lastReceivedQuery: Record<string, string> | undefined;
 
   // Read through a function so control-flow narrowing from the `= undefined`
   // reset before each call does not collapse the type to `never`.
   const capturedBody = (): Record<string, any> | undefined => lastReceivedBody;
+  const capturedQuery = (): Record<string, string> | undefined => lastReceivedQuery;
 
   const schedulesPath = `/projects/${TEST_PROJECT_ID}/pipeline_schedules`;
   const schedulePath = `${schedulesPath}/${TEST_SCHEDULE_ID}`;
@@ -205,7 +207,8 @@ describe("Pipeline schedule tools", () => {
       res.status(404).json({ message: "404 Not found" });
     });
 
-    mockServer.addMockHandler("get", `${schedulePath}/pipelines`, (_req, res) => {
+    mockServer.addMockHandler("get", `${schedulePath}/pipelines`, (req, res) => {
+      lastReceivedQuery = req.query as Record<string, string>;
       res.json([MOCK_SCHEDULE_PIPELINE]);
     });
 
@@ -338,6 +341,34 @@ describe("Pipeline schedule tools", () => {
     assert.strictEqual(result[0].source, "schedule");
   });
 
+  test("list_pipeline_schedule_pipelines forwards the endpoint's filters", async () => {
+    lastReceivedQuery = undefined;
+    await callToolJson(
+      "list_pipeline_schedule_pipelines",
+      {
+        project_id: TEST_PROJECT_ID,
+        pipeline_schedule_id: TEST_SCHEDULE_ID,
+        scope: "finished",
+        status: "success",
+        sort: "desc",
+        updated_after: "2026-08-01T00:00:00Z",
+        created_before: "2026-08-31T00:00:00Z",
+      },
+      baseEnv
+    );
+    // Express exposes req.query as a null-prototype object; spread to compare.
+    assert.deepStrictEqual(
+      { ...capturedQuery() },
+      {
+        scope: "finished",
+        status: "success",
+        sort: "desc",
+        updated_after: "2026-08-01T00:00:00Z",
+        created_before: "2026-08-31T00:00:00Z",
+      }
+    );
+  });
+
   // --- Mutations ---
 
   test("create_pipeline_schedule posts cron, description and ref", async () => {
@@ -374,6 +405,32 @@ describe("Pipeline schedule tools", () => {
       baseEnv
     );
     assert.strictEqual(capturedBody()?.active, false);
+  });
+
+  test("create_pipeline_schedule accepts non-string values inside an input array", async () => {
+    lastReceivedBody = undefined;
+    await callToolText(
+      "create_pipeline_schedule",
+      {
+        project_id: TEST_PROJECT_ID,
+        description: "Nightly build",
+        ref: "main",
+        cron: "0 1 * * *",
+        inputs: [
+          { name: "retries", value: 3 },
+          { name: "verbose", value: true },
+          { name: "targets", value: ["staging", 7, { region: "eu" }] },
+          { name: "matrix", value: { os: "linux" } },
+        ],
+      },
+      baseEnv
+    );
+    assert.deepStrictEqual(capturedBody()?.inputs, [
+      { name: "retries", value: 3 },
+      { name: "verbose", value: true },
+      { name: "targets", value: ["staging", 7, { region: "eu" }] },
+      { name: "matrix", value: { os: "linux" } },
+    ]);
   });
 
   test("update_pipeline_schedule sends only the supplied fields", async () => {

@@ -607,9 +607,19 @@ export const GitLabPipelineSchedulePlayResultSchema = z.object({
   message: z.string().optional(),
 });
 
+// GitLab CI/CD inputs are typed string, number, boolean, or array; array items
+// may themselves be scalars, sequences, or maps.
 const pipelineScheduleInputValue = z
-  .union([z.string(), z.number(), z.boolean(), z.array(z.string())])
-  .describe("The value of the input; a string, number, boolean, or array of strings");
+  .union([
+    z.string(),
+    z.number(),
+    z.boolean(),
+    z.array(z.unknown()),
+    z.record(z.string(), z.unknown()),
+  ])
+  .describe(
+    "The value of the input; a string, number, boolean, or array whose items may be scalars, sequences, or maps"
+  );
 
 // Schema for listing pipeline schedules
 export const ListPipelineSchedulesSchema = z
@@ -633,6 +643,45 @@ export const ListPipelineSchedulePipelinesSchema = z
   .object({
     project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
     pipeline_schedule_id: z.coerce.string().describe("The ID of the pipeline schedule"),
+    scope: z
+      .enum(["running", "pending", "finished", "branches", "tags"])
+      .optional()
+      .describe("The scope of pipelines"),
+    status: z
+      .enum([
+        "created",
+        "waiting_for_resource",
+        "preparing",
+        "waiting_for_callback",
+        "pending",
+        "running",
+        "success",
+        "failed",
+        "canceling",
+        "canceled",
+        "skipped",
+        "manual",
+        "scheduled",
+      ])
+      .optional()
+      .describe("The status of pipelines"),
+    sort: z.enum(["asc", "desc"]).optional().describe("Sort pipelines (default: asc)"),
+    updated_after: z
+      .string()
+      .optional()
+      .describe("Return pipelines updated after the specified ISO 8601 date"),
+    updated_before: z
+      .string()
+      .optional()
+      .describe("Return pipelines updated before the specified ISO 8601 date"),
+    created_after: z
+      .string()
+      .optional()
+      .describe("Return pipelines created after the specified ISO 8601 date"),
+    created_before: z
+      .string()
+      .optional()
+      .describe("Return pipelines created before the specified ISO 8601 date"),
   })
   .merge(PaginationOptionsSchema);
 
@@ -645,7 +694,7 @@ export const CreatePipelineScheduleSchema = z.object({
     .describe(
       "The branch or tag the scheduled pipeline runs on. Use the full ref (e.g. 'refs/heads/main') when a branch and tag share a name"
     ),
-  cron: z.string().describe("The cron schedule expression, for example '0 1 * * *'"),
+  cron: z.string().describe("The cron schedule expression, for example `0 1 * * *`"),
   cron_timezone: z
     .string()
     .optional()
@@ -675,7 +724,7 @@ export const UpdatePipelineScheduleSchema = z.object({
     .describe(
       "The new branch or tag the scheduled pipeline runs on. Use the full ref (e.g. 'refs/heads/main') when a branch and tag share a name"
     ),
-  cron: z.string().optional().describe("The new cron schedule expression, for example '0 1 * * *'"),
+  cron: z.string().optional().describe("The new cron schedule expression, for example `0 1 * * *`"),
   cron_timezone: z
     .string()
     .optional()
@@ -726,7 +775,9 @@ export const GetPipelineScheduleVariableSchema = z.object({
 export const CreatePipelineScheduleVariableSchema = z.object({
   project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
   pipeline_schedule_id: z.coerce.string().describe("The ID of the pipeline schedule"),
-  key: z.string().describe("The key of the variable (must match /[a-zA-Z0-9_]+/)"),
+  key: z
+    .string()
+    .describe("The key of the variable (max 255 characters, must match /[a-zA-Z0-9_]+/)"),
   value: z.string().describe("The value of the variable"),
   variable_type: z
     .enum(["env_var", "file"])

@@ -18,7 +18,7 @@ Supports PAT, OAuth, read-only mode, dynamic API URLs, and remote authorization 
 
 ### Why use this GitLab MCP?
 
-- **229 tools + `discover_tools`** — start with a small toolset; activate more at runtime without CQRS-style grouping
+- **228 tools + `discover_tools`** — start with a small toolset; activate more at runtime without CQRS-style grouping
 - **MR 2-step review** — `list_merge_request_changed_files` → batched `get_merge_request_file_diff`
 - **Agent Skill built in** — workflow guidance in `skills/gitlab-mcp/`
 - **Flexible auth** — Personal Access Token, local OAuth2 browser flow, MCP OAuth proxy, and per-request remote authorization
@@ -31,7 +31,7 @@ Supports PAT, OAuth, read-only mode, dynamic API URLs, and remote authorization 
 | | @zereight/mcp-gitlab | GitLab MCP A (community CQRS-style) |
 |---|----------------------|-------------------------------------|
 | **Best for** | AI agent workflows | Enterprise multi-instance / grouped tools |
-| **Tool model** | ~229 granular tools + `discover_tools` | ~50–60 grouped `browse_*` / `manage_*` tools |
+| **Tool model** | ~228 granular tools + `discover_tools` | ~50–60 grouped `browse_*` / `manage_*` tools |
 | **MR review** | 2-step batched diff | Varies |
 | **Node.js** | >=18 | Often >=24 |
 | **License** | MIT | Varies |
