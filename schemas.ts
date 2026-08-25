@@ -551,6 +551,208 @@ export const CancelPipelineSchema = z.object({
   pipeline_id: z.coerce.string().describe("The ID of the pipeline to cancel"),
 });
 
+// --- Pipeline schedule related schemas ---
+
+export const GitLabPipelineScheduleVariableSchema = z.object({
+  key: z.string(),
+  value: z.string().nullable(),
+  variable_type: z.enum(["env_var", "file"]).optional(),
+  raw: z.coerce.boolean().optional(),
+});
+
+export const GitLabPipelineScheduleSchema = z.object({
+  id: z.coerce.string(),
+  description: z.string(),
+  ref: z.string().nullable().optional(),
+  cron: z.string(),
+  cron_timezone: z.string().optional(),
+  next_run_at: z.string().nullable().optional(),
+  active: z.coerce.boolean(),
+  created_at: z.string(),
+  updated_at: z.string(),
+  owner: z
+    .object({
+      id: z.coerce.string(),
+      name: z.string().optional(),
+      username: z.string().optional(),
+      state: z.string().optional(),
+      avatar_url: z.string().nullable().optional(),
+      web_url: z.string().optional(),
+    })
+    .nullable()
+    .optional(),
+  last_pipeline: z
+    .object({
+      id: z.coerce.string(),
+      sha: z.string().optional(),
+      ref: z.string().optional(),
+      status: z.string().optional(),
+    })
+    .nullable()
+    .optional(),
+  // Only returned to Maintainers/Owners or the schedule owner.
+  variables: z.array(GitLabPipelineScheduleVariableSchema).optional(),
+  inputs: z
+    .array(
+      z.object({
+        name: z.string(),
+        value: z.unknown(),
+      })
+    )
+    .optional(),
+});
+
+// GitLab answers POST .../play with `{"message": "201 Created"}` rather than the pipeline.
+export const GitLabPipelineSchedulePlayResultSchema = z.object({
+  message: z.string().optional(),
+});
+
+const pipelineScheduleInputValue = z
+  .union([z.string(), z.number(), z.boolean(), z.array(z.string())])
+  .describe("The value of the input; a string, number, boolean, or array of strings");
+
+// Schema for listing pipeline schedules
+export const ListPipelineSchedulesSchema = z
+  .object({
+    project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
+    scope: z
+      .enum(["active", "inactive"])
+      .optional()
+      .describe("Return only active or only inactive pipeline schedules"),
+  })
+  .merge(PaginationOptionsSchema);
+
+// Schema for getting a specific pipeline schedule
+export const GetPipelineScheduleSchema = z.object({
+  project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
+  pipeline_schedule_id: z.coerce.string().describe("The ID of the pipeline schedule"),
+});
+
+// Schema for listing the pipelines a schedule has triggered
+export const ListPipelineSchedulePipelinesSchema = z
+  .object({
+    project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
+    pipeline_schedule_id: z.coerce.string().describe("The ID of the pipeline schedule"),
+  })
+  .merge(PaginationOptionsSchema);
+
+// Schema for creating a pipeline schedule
+export const CreatePipelineScheduleSchema = z.object({
+  project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
+  description: z.string().describe("The description of the pipeline schedule"),
+  ref: z
+    .string()
+    .describe(
+      "The branch or tag the scheduled pipeline runs on. Use the full ref (e.g. 'refs/heads/main') when a branch and tag share a name"
+    ),
+  cron: z.string().describe("The cron schedule expression, for example '0 1 * * *'"),
+  cron_timezone: z
+    .string()
+    .optional()
+    .describe("The time zone for the cron expression, for example 'UTC' (default) or 'Asia/Tokyo'"),
+  active: coerceBooleanString
+    .optional()
+    .describe("Whether the pipeline schedule is active (default: true)"),
+  inputs: z
+    .array(
+      z.object({
+        name: z.string().describe("The name of a 'spec:inputs' entry in the CI/CD configuration"),
+        value: pipelineScheduleInputValue,
+      })
+    )
+    .optional()
+    .describe("Inputs passed to the scheduled pipeline (requires GitLab 18.1 or later)"),
+});
+
+// Schema for updating a pipeline schedule
+export const UpdatePipelineScheduleSchema = z.object({
+  project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
+  pipeline_schedule_id: z.coerce.string().describe("The ID of the pipeline schedule to update"),
+  description: z.string().optional().describe("The new description of the pipeline schedule"),
+  ref: z
+    .string()
+    .optional()
+    .describe(
+      "The new branch or tag the scheduled pipeline runs on. Use the full ref (e.g. 'refs/heads/main') when a branch and tag share a name"
+    ),
+  cron: z.string().optional().describe("The new cron schedule expression, for example '0 1 * * *'"),
+  cron_timezone: z
+    .string()
+    .optional()
+    .describe("The new time zone for the cron expression, for example 'UTC' or 'Asia/Tokyo'"),
+  active: coerceBooleanString.optional().describe("Whether the pipeline schedule is active"),
+  inputs: z
+    .array(
+      z.object({
+        name: z.string().describe("The name of a 'spec:inputs' entry in the CI/CD configuration"),
+        value: pipelineScheduleInputValue.optional(),
+        destroy: coerceBooleanString
+          .optional()
+          .describe("Set to true to remove this input from the schedule"),
+      })
+    )
+    .optional()
+    .describe("Inputs to add, change, or remove (requires GitLab 18.1 or later)"),
+});
+
+// Schema for deleting a pipeline schedule
+export const DeletePipelineScheduleSchema = z.object({
+  project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
+  pipeline_schedule_id: z.coerce.string().describe("The ID of the pipeline schedule to delete"),
+});
+
+// Schema for running a pipeline schedule immediately
+export const PlayPipelineScheduleSchema = z.object({
+  project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
+  pipeline_schedule_id: z.coerce.string().describe("The ID of the pipeline schedule to run"),
+});
+
+// Schema for taking ownership of a pipeline schedule
+export const TakeOwnershipPipelineScheduleSchema = z.object({
+  project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
+  pipeline_schedule_id: z.coerce
+    .string()
+    .describe("The ID of the pipeline schedule to take ownership of"),
+});
+
+// Schema for getting a pipeline schedule variable
+export const GetPipelineScheduleVariableSchema = z.object({
+  project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
+  pipeline_schedule_id: z.coerce.string().describe("The ID of the pipeline schedule"),
+  key: z.string().describe("The key of the variable"),
+});
+
+// Schema for creating a pipeline schedule variable
+export const CreatePipelineScheduleVariableSchema = z.object({
+  project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
+  pipeline_schedule_id: z.coerce.string().describe("The ID of the pipeline schedule"),
+  key: z.string().describe("The key of the variable (must match /[a-zA-Z0-9_]+/)"),
+  value: z.string().describe("The value of the variable"),
+  variable_type: z
+    .enum(["env_var", "file"])
+    .optional()
+    .describe("The type of variable: 'env_var' (default) or 'file'"),
+});
+
+// Schema for updating a pipeline schedule variable
+export const UpdatePipelineScheduleVariableSchema = z.object({
+  project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
+  pipeline_schedule_id: z.coerce.string().describe("The ID of the pipeline schedule"),
+  key: z.string().describe("The key of the variable to update"),
+  value: z.string().describe("The new value of the variable"),
+  variable_type: z
+    .enum(["env_var", "file"])
+    .optional()
+    .describe("The type of variable: 'env_var' or 'file'"),
+});
+
+// Schema for deleting a pipeline schedule variable
+export const DeletePipelineScheduleVariableSchema = z.object({
+  project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
+  pipeline_schedule_id: z.coerce.string().describe("The ID of the pipeline schedule"),
+  key: z.string().describe("The key of the variable to delete"),
+});
+
 // Schema for the input parameters for pipeline job operations
 export const GetPipelineJobOutputSchema = z.object({
   project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
@@ -3765,6 +3967,33 @@ export type GetEnvironmentOptions = z.infer<typeof GetEnvironmentSchema>;
 export type CreatePipelineOptions = z.infer<typeof CreatePipelineSchema>;
 export type RetryPipelineOptions = z.infer<typeof RetryPipelineSchema>;
 export type CancelPipelineOptions = z.infer<typeof CancelPipelineSchema>;
+export type GitLabPipelineSchedule = z.infer<typeof GitLabPipelineScheduleSchema>;
+export type GitLabPipelineScheduleVariable = z.infer<typeof GitLabPipelineScheduleVariableSchema>;
+export type GitLabPipelineSchedulePlayResult = z.infer<
+  typeof GitLabPipelineSchedulePlayResultSchema
+>;
+export type ListPipelineSchedulesOptions = z.infer<typeof ListPipelineSchedulesSchema>;
+export type GetPipelineScheduleOptions = z.infer<typeof GetPipelineScheduleSchema>;
+export type ListPipelineSchedulePipelinesOptions = z.infer<
+  typeof ListPipelineSchedulePipelinesSchema
+>;
+export type CreatePipelineScheduleOptions = z.infer<typeof CreatePipelineScheduleSchema>;
+export type UpdatePipelineScheduleOptions = z.infer<typeof UpdatePipelineScheduleSchema>;
+export type DeletePipelineScheduleOptions = z.infer<typeof DeletePipelineScheduleSchema>;
+export type PlayPipelineScheduleOptions = z.infer<typeof PlayPipelineScheduleSchema>;
+export type TakeOwnershipPipelineScheduleOptions = z.infer<
+  typeof TakeOwnershipPipelineScheduleSchema
+>;
+export type GetPipelineScheduleVariableOptions = z.infer<typeof GetPipelineScheduleVariableSchema>;
+export type CreatePipelineScheduleVariableOptions = z.infer<
+  typeof CreatePipelineScheduleVariableSchema
+>;
+export type UpdatePipelineScheduleVariableOptions = z.infer<
+  typeof UpdatePipelineScheduleVariableSchema
+>;
+export type DeletePipelineScheduleVariableOptions = z.infer<
+  typeof DeletePipelineScheduleVariableSchema
+>;
 export type GitLabMilestones = z.infer<typeof GitLabMilestonesSchema>;
 export type GitLabGroupMilestones = z.infer<typeof GitLabGroupMilestonesSchema>;
 export type ListProjectMilestonesOptions = z.infer<typeof ListProjectMilestonesSchema>;
