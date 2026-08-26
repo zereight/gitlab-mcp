@@ -120,6 +120,8 @@ export const GitLabPipelineJobSchema = z.object({
   web_url: z.string().optional(),
   allow_failure: z.coerce.boolean().optional(),
   retried: z.coerce.boolean().optional(),
+  when: z.string().optional(),
+  needs: z.array(z.unknown()).optional(),
   tag_list: z.array(z.string()).optional(),
   runner: z
     .object({
@@ -261,6 +263,13 @@ export const ListPipelinesSchema = z
 export const GetPipelineSchema = z.object({
   project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
   pipeline_id: z.coerce.string().describe("The ID of the pipeline"),
+});
+
+export const GetPipelineVariablesSchema = GetPipelineSchema;
+export const PlayPipelineJobsSchema = z.object({
+  project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
+  job_ids: z.array(z.coerce.string()).min(1).describe("Job IDs to play, in dependency order"),
+  job_variables_attributes: z.array(z.object({ key: z.string(), value: z.string() })).optional(),
 });
 
 export const GitLabMergeRequestPipelineSchema = z.object({

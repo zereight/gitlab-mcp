@@ -7,6 +7,7 @@
 ```
 list_pipelines             -> list pipelines with filters (status, ref, source)
 get_pipeline               -> pipeline details (status, duration, coverage)
+get_pipeline_variables     -> variables configured on a pipeline
 list_pipeline_jobs         -> all jobs in a pipeline
 list_pipeline_trigger_jobs -> trigger/bridge jobs (downstream pipelines)
 get_pipeline_job           -> single job details
@@ -26,6 +27,7 @@ create_pipeline            -> trigger new pipeline for a branch/tag
 retry_pipeline             -> retry all failed jobs in a pipeline
 cancel_pipeline            -> cancel running pipeline
 play_pipeline_job          -> run a manual job
+play_pipeline_jobs         -> run multiple manual jobs sequentially
 retry_pipeline_job         -> retry a single failed job
 cancel_pipeline_job        -> cancel a single running job
 ```

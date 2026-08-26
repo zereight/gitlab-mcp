@@ -122,6 +122,8 @@ import {
   GetPipelineJobOutputSchema,
   PipelineJobControlSchema,
   GetPipelineSchema,
+  GetPipelineVariablesSchema,
+  PlayPipelineJobsSchema,
   GetProjectEventsSchema,
   GetProjectMilestoneSchema,
   GetProjectSchema,
@@ -784,6 +786,11 @@ export const allTools = [
     inputSchema: toJSONSchema(GetPipelineSchema),
   },
   {
+    name: "get_pipeline_variables",
+    description: "Get variables configured for a pipeline",
+    inputSchema: toJSONSchema(GetPipelineVariablesSchema),
+  },
+  {
     name: "list_deployments",
     description: "List deployments with filtering options",
     inputSchema: toJSONSchema(ListDeploymentsSchema),
@@ -862,6 +869,11 @@ export const allTools = [
     name: "play_pipeline_job",
     description: "Run a manual pipeline job",
     inputSchema: toJSONSchema(PlayPipelineJobSchema),
+  },
+  {
+    name: "play_pipeline_jobs",
+    description: "Play multiple manual pipeline jobs sequentially",
+    inputSchema: toJSONSchema(PlayPipelineJobsSchema),
   },
   {
     name: "retry_pipeline_job",
@@ -1798,6 +1810,7 @@ export const TOOLSET_DEFINITIONS: readonly ToolsetDefinition[] = [
     tools: new Set([
       "list_pipelines",
       "get_pipeline",
+      "get_pipeline_variables",
       "list_deployments",
       "get_deployment",
       "list_environments",
@@ -1810,6 +1823,7 @@ export const TOOLSET_DEFINITIONS: readonly ToolsetDefinition[] = [
       "retry_pipeline",
       "cancel_pipeline",
       "play_pipeline_job",
+      "play_pipeline_jobs",
       "retry_pipeline_job",
       "cancel_pipeline_job",
       "list_job_artifacts",
