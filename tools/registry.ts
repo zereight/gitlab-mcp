@@ -124,6 +124,11 @@ import {
   GetPipelineJobOutputSchema,
   PipelineJobControlSchema,
   GetPipelineSchema,
+  GetPipelineVariablesSchema,
+  UpdatePipelineMetadataSchema,
+  DeletePipelineSchema,
+  PipelineReportSchema,
+  PlayPipelineJobsSchema,
   GetProjectEventsSchema,
   GetProjectMilestoneSchema,
   GetProjectSchema,
@@ -800,6 +805,15 @@ export const allTools = [
     inputSchema: toJSONSchema(GetPipelineSchema),
   },
   {
+    name: "get_pipeline_variables",
+    description: "Get variables configured for a pipeline",
+    inputSchema: toJSONSchema(GetPipelineVariablesSchema),
+  },
+  { name: "get_pipeline_test_report", description: "Get pipeline test report", inputSchema: toJSONSchema(PipelineReportSchema) },
+  { name: "get_pipeline_test_report_summary", description: "Get pipeline test report summary", inputSchema: toJSONSchema(PipelineReportSchema) },
+  { name: "delete_pipeline", description: "Delete a pipeline", inputSchema: toJSONSchema(DeletePipelineSchema) },
+  { name: "update_pipeline_metadata", description: "Update pipeline metadata", inputSchema: toJSONSchema(UpdatePipelineMetadataSchema) },
+  {
     name: "list_deployments",
     description: "List deployments with filtering options",
     inputSchema: toJSONSchema(ListDeploymentsSchema),
@@ -939,6 +953,11 @@ export const allTools = [
     name: "play_pipeline_job",
     description: "Run a manual pipeline job",
     inputSchema: toJSONSchema(PlayPipelineJobSchema),
+  },
+  {
+    name: "play_pipeline_jobs",
+    description: "Play multiple manual pipeline jobs sequentially",
+    inputSchema: toJSONSchema(PlayPipelineJobsSchema),
   },
   {
     name: "retry_pipeline_job",
@@ -1504,6 +1523,9 @@ export const readOnlyTools = new Set([
   "list_project_members",
   "list_group_members",
   "get_pipeline",
+  "get_pipeline_variables",
+  "get_pipeline_test_report",
+  "get_pipeline_test_report_summary",
   "list_pipelines",
   "list_pipeline_schedules",
   "get_pipeline_schedule",
@@ -1590,6 +1612,7 @@ export const readOnlyTools = new Set([
 
 // Define which tools are destructive (data loss potential)
 export const destructiveTools = new Set([
+  "delete_pipeline",
   "delete_issue",
   "delete_issue_link",
   "delete_label",
@@ -1625,6 +1648,7 @@ export const destructiveTools = new Set([
 // Tools that permanently delete resources — blocked in "modify" permission mode.
 // Narrower than destructiveTools: merge/protect/push are modifications, not deletions.
 export const deleteTools = new Set([
+  "delete_pipeline",
   "delete_branch",
   "delete_draft_note",
   "delete_group_variable",
@@ -1692,6 +1716,12 @@ export const milestoneToolNames = new Set([
 export const pipelineToolNames = new Set([
   "list_pipelines",
   "get_pipeline",
+  "get_pipeline_variables",
+  "get_pipeline_test_report",
+  "get_pipeline_test_report_summary",
+  "delete_pipeline",
+  "update_pipeline_metadata",
+  "play_pipeline_jobs",
   "list_deployments",
   "get_deployment",
   "list_environments",
@@ -1919,6 +1949,11 @@ export const TOOLSET_DEFINITIONS: readonly ToolsetDefinition[] = [
     tools: new Set([
       "list_pipelines",
       "get_pipeline",
+      "get_pipeline_variables",
+      "get_pipeline_test_report",
+      "get_pipeline_test_report_summary",
+      "delete_pipeline",
+      "update_pipeline_metadata",
       "list_deployments",
       "get_deployment",
       "list_environments",
@@ -1943,6 +1978,7 @@ export const TOOLSET_DEFINITIONS: readonly ToolsetDefinition[] = [
       "update_pipeline_schedule_variable",
       "delete_pipeline_schedule_variable",
       "play_pipeline_job",
+      "play_pipeline_jobs",
       "retry_pipeline_job",
       "cancel_pipeline_job",
       "list_job_artifacts",

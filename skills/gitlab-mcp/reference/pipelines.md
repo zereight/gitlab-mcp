@@ -7,11 +7,22 @@
 ```
 list_pipelines             -> list pipelines with filters (status, ref, source)
 get_pipeline               -> pipeline details (status, duration, coverage)
+get_pipeline_variables     -> variables configured on a pipeline
+get_pipeline_test_report   -> full unit test report
+get_pipeline_test_report_summary -> summarized unit test report
+update_pipeline_metadata   -> rename a pipeline
+delete_pipeline            -> permanently delete a pipeline and related data
 list_pipeline_jobs         -> all jobs in a pipeline
 list_pipeline_trigger_jobs -> trigger/bridge jobs (downstream pipelines)
 get_pipeline_job           -> single job details
 get_pipeline_job_output    -> job log output (supports pagination for large logs)
 ```
+
+Inspection tools take `project_id` and `pipeline_id`; variables and test reports also accept
+`page` and `per_page`. Reading requires project pipeline access. `update_pipeline_metadata`
+also takes `name` and requires permission to administer pipelines. `delete_pipeline` requires
+the project Owner role and irreversibly deletes the pipeline plus related jobs, logs, artifacts,
+and triggers; child pipelines are not automatically deleted.
 
 ## Create & Control
 
@@ -26,6 +37,7 @@ create_pipeline            -> trigger new pipeline for a branch/tag
 retry_pipeline             -> retry all failed jobs in a pipeline
 cancel_pipeline            -> cancel running pipeline
 play_pipeline_job          -> run a manual job
+play_pipeline_jobs         -> run multiple manual jobs sequentially
 retry_pipeline_job         -> retry a single failed job
 cancel_pipeline_job        -> cancel a single running job
 ```
