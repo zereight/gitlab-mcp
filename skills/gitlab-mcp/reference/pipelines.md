@@ -37,9 +37,15 @@ create_pipeline            -> trigger new pipeline for a branch/tag
 retry_pipeline             -> retry all failed jobs in a pipeline
 cancel_pipeline            -> cancel running pipeline
 play_pipeline_job          -> run a manual job
+play_pipeline_jobs         -> run multiple manual jobs sequentially
 retry_pipeline_job         -> retry a single failed job
 cancel_pipeline_job        -> cancel a single running job
+erase_pipeline_job         -> erase a job log and artifacts
+wait_for_pipeline          -> poll until a pipeline reaches a terminal status
+wait_for_job               -> poll until a job reaches a terminal status
 ```
+
+`play_pipeline_job` and `retry_pipeline_job` accept `job_inputs` for typed manual-job inputs.
 
 ## Artifacts
 
