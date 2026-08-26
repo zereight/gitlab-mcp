@@ -12,6 +12,7 @@ import {
   ApproveMergeRequestSchema,
   BulkPublishDraftNotesSchema,
   CancelPipelineJobSchema,
+  ErasePipelineJobSchema,
   CancelPipelineSchema,
   ConvertWorkItemTypeSchema,
   CreateBranchSchema,
@@ -900,6 +901,7 @@ export const allTools = [
     description: "Cancel a running pipeline job",
     inputSchema: toJSONSchema(CancelPipelineJobSchema),
   },
+  { name: "erase_pipeline_job", description: "Erase a pipeline job", inputSchema: toJSONSchema(ErasePipelineJobSchema) },
   {
     name: "list_job_artifacts",
     description: "List artifact files in a job's archive",
@@ -1846,6 +1848,7 @@ export const TOOLSET_DEFINITIONS: readonly ToolsetDefinition[] = [
       "play_pipeline_jobs",
       "retry_pipeline_job",
       "cancel_pipeline_job",
+      "erase_pipeline_job",
       "list_job_artifacts",
       "download_job_artifacts",
       "get_job_artifact_file",

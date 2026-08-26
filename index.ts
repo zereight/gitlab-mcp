@@ -221,6 +221,7 @@ import {
 import {
   BulkPublishDraftNotesSchema,
   CancelPipelineJobSchema,
+  ErasePipelineJobSchema,
   CancelPipelineSchema,
   CreateBranchOptionsSchema,
   CreateBranchSchema,
@@ -7809,6 +7810,13 @@ async function cancelPipelineJob(
   return GitLabPipelineJobSchema.parse(data);
 }
 
+async function erasePipelineJob(projectId: string, jobId: number | string): Promise<unknown> {
+  projectId = decodeURIComponent(projectId);
+  const response = await fetch(`${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/jobs/${encodeGitLabPathSegment(jobId)}/erase`, { ...getFetchConfig(), method: "POST" });
+  await handleGitLabError(response);
+  return response.status === 204 ? { erased: true } : response.json();
+}
+
 /**
  * Get the repository tree for a project
  * @param {GetRepositoryTreeOptions} options - Options for the tree
@@ -12098,6 +12106,10 @@ async function handleToolCall(params: any) {
             },
           ],
         };
+      }
+      case "erase_pipeline_job": {
+        const { project_id, job_id } = ErasePipelineJobSchema.parse(params.arguments);
+        return { content: [{ type: "text", text: JSON.stringify(await erasePipelineJob(project_id, job_id)) }] };
       }
 
       case "list_job_artifacts": {

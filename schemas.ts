@@ -613,6 +613,7 @@ export const CancelPipelineJobSchema = z.object({
   job_id: z.coerce.string().describe("The ID of the job"),
   force: z.coerce.boolean().optional().describe("Force cancellation of the job"),
 });
+export const ErasePipelineJobSchema = PipelineJobControlSchema;
 
 // User schemas
 export const GitLabUserSchema = z.object({
