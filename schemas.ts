@@ -607,16 +607,10 @@ export const GitLabPipelineSchedulePlayResultSchema = z.object({
   message: z.string().optional(),
 });
 
-// GitLab CI/CD inputs are typed string, number, boolean, or array; array items
-// may themselves be scalars, sequences, or maps.
+// A CI/CD input is typed string, number, boolean, or array — a map is not a
+// top-level input type, though array items may themselves be maps or sequences.
 const pipelineScheduleInputValue = z
-  .union([
-    z.string(),
-    z.number(),
-    z.boolean(),
-    z.array(z.unknown()),
-    z.record(z.string(), z.unknown()),
-  ])
+  .union([z.string(), z.number(), z.boolean(), z.array(z.unknown())])
   .describe(
     "The value of the input; a string, number, boolean, or array whose items may be scalars, sequences, or maps"
   );
@@ -710,7 +704,9 @@ export const CreatePipelineScheduleSchema = z.object({
       })
     )
     .optional()
-    .describe("Inputs passed to the scheduled pipeline (requires GitLab 18.1 or later)"),
+    .describe(
+      'Inputs passed to the scheduled pipeline, each an object with `name` (a `spec:inputs` entry) and `value` (a string, number, boolean, or array) — for example [{"name": "deploy_strategy", "value": "blue-green"}]. Requires GitLab 18.1 or later'
+    ),
 });
 
 // Schema for updating a pipeline schedule
@@ -741,7 +737,9 @@ export const UpdatePipelineScheduleSchema = z.object({
       })
     )
     .optional()
-    .describe("Inputs to add, change, or remove (requires GitLab 18.1 or later)"),
+    .describe(
+      'Inputs to add or change, each an object with `name` and `value`; to remove one, pass its `name` with `destroy` set to true — for example [{"name": "deploy_strategy", "destroy": true}]. Requires GitLab 18.1 or later'
+    ),
 });
 
 // Schema for deleting a pipeline schedule
@@ -777,6 +775,8 @@ export const CreatePipelineScheduleVariableSchema = z.object({
   pipeline_schedule_id: z.coerce.string().describe("The ID of the pipeline schedule"),
   key: z
     .string()
+    .max(255)
+    .regex(/^[A-Za-z0-9_]+$/)
     .describe("The key of the variable (max 255 characters, must match /[a-zA-Z0-9_]+/)"),
   value: z.string().describe("The value of the variable"),
   variable_type: z

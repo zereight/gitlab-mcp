@@ -249,7 +249,7 @@ Cancel a running pipeline. Use this for the specific operation described; choose
 
 *📖 Read-only*
 
-List pipeline schedules in a project, optionally filtered to active or inactive. Use this to survey a project's scheduled pipelines and their `cron`, `next_run_at`, and `active` state, optionally narrowed with `scope` to `active` or `inactive`; use `list_pipelines` for pipelines that already ran and `get_pipeline_schedule` when the schedule ID is known. It is read-only and paginated, requires project access (the Maintainer or Owner role, or ownership of the schedule, to see its `variables` and `inputs`), and returns schedule records or an error when the project is missing or access is denied.
+List pipeline schedules in a project, optionally filtered to active or inactive. Use this to survey a project's scheduled pipelines and their `cron`, `next_run_at`, and `active` state, optionally narrowed with `scope` to `active` or `inactive`; use `list_pipelines` for pipelines that already ran and `get_pipeline_schedule` when the schedule ID is known. The list response carries no `variables` — call `get_pipeline_schedule` for those — and includes `inputs` only for Maintainers, Owners, or the schedule owner. It is read-only and paginated, requires project access, and returns schedule records or an error when the project is missing or access is denied.
 
 **Parameters**
 
@@ -311,7 +311,7 @@ Create a new pipeline schedule for a branch or tag. Use this to add a recurring 
 | `cron` | string | ✓ | The cron schedule expression, for example `0 1 * * *` |
 | `cron_timezone` | string |  | The time zone for the cron expression, for example 'UTC' (default) or 'Asia/Tokyo' |
 | `active` | boolean |  | Whether the pipeline schedule is active (default: true) |
-| `inputs` | array<object> |  | Inputs passed to the scheduled pipeline (requires GitLab 18.1 or later) |
+| `inputs` | array<object> |  | Inputs passed to the scheduled pipeline, each an object with `name` (a `spec:inputs` entry) and `value` (a string, number, boolean, or array) — for example [{"name": "deploy_strategy", "value": "blue-green"}]. Requires GitLab 18.1 or later |
 
 ### `update_pipeline_schedule`
 
@@ -330,7 +330,7 @@ Update an existing pipeline schedule. Use this to change an existing schedule's 
 | `cron` | string |  | The new cron schedule expression, for example `0 1 * * *` |
 | `cron_timezone` | string |  | The new time zone for the cron expression, for example 'UTC' or 'Asia/Tokyo' |
 | `active` | boolean |  | Whether the pipeline schedule is active |
-| `inputs` | array<object> |  | Inputs to add, change, or remove (requires GitLab 18.1 or later) |
+| `inputs` | array<object> |  | Inputs to add or change, each an object with `name` and `value`; to remove one, pass its `name` with `destroy` set to true — for example [{"name": "deploy_strategy", "destroy": true}]. Requires GitLab 18.1 or later |
 
 ### `delete_pipeline_schedule`
 

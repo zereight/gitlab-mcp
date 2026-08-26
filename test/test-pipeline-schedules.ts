@@ -420,7 +420,6 @@ describe("Pipeline schedule tools", () => {
           { name: "retries", value: 3 },
           { name: "verbose", value: true },
           { name: "targets", value: ["staging", 7, { region: "eu" }] },
-          { name: "matrix", value: { os: "linux" } },
         ],
       },
       baseEnv
@@ -429,8 +428,42 @@ describe("Pipeline schedule tools", () => {
       { name: "retries", value: 3 },
       { name: "verbose", value: true },
       { name: "targets", value: ["staging", 7, { region: "eu" }] },
-      { name: "matrix", value: { os: "linux" } },
     ]);
+  });
+
+  test("create_pipeline_schedule rejects a map as a top-level input value", async () => {
+    await assert.rejects(
+      () =>
+        callTool(
+          "create_pipeline_schedule",
+          {
+            project_id: TEST_PROJECT_ID,
+            description: "Nightly build",
+            ref: "main",
+            cron: "0 1 * * *",
+            inputs: [{ name: "matrix", value: { os: "linux" } }],
+          },
+          baseEnv
+        ),
+      /invalid|expected|value/i
+    );
+  });
+
+  test("create_pipeline_schedule_variable rejects an invalid key", async () => {
+    await assert.rejects(
+      () =>
+        callTool(
+          "create_pipeline_schedule_variable",
+          {
+            project_id: TEST_PROJECT_ID,
+            pipeline_schedule_id: TEST_SCHEDULE_ID,
+            key: "not-a-valid-key",
+            value: "x",
+          },
+          baseEnv
+        ),
+      /invalid|regex|pattern|key/i
+    );
   });
 
   test("update_pipeline_schedule sends only the supplied fields", async () => {
