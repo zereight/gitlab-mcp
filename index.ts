@@ -310,6 +310,9 @@ import {
   PipelineJobControlSchema,
   GetPipelineSchema,
   GetPipelineVariablesSchema,
+  UpdatePipelineMetadataSchema,
+  DeletePipelineSchema,
+  PipelineReportSchema,
   PlayPipelineJobsSchema,
   GetProjectMilestoneSchema,
   GetProjectSchema,
@@ -7121,6 +7124,28 @@ async function getPipelineVariables(projectId: string, pipelineId: number | stri
   return response.json();
 }
 
+async function getPipelineReport(projectId: string, pipelineId: number | string, summary = false): Promise<unknown> {
+  projectId = decodeURIComponent(projectId);
+  const endpoint = summary ? "test_report_summary" : "test_report";
+  const response = await fetch(`${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/pipelines/${encodeGitLabPathSegment(pipelineId)}/${endpoint}`, { ...getFetchConfig() });
+  await handleGitLabError(response);
+  return response.json();
+}
+
+async function deletePipeline(projectId: string, pipelineId: number | string): Promise<unknown> {
+  projectId = decodeURIComponent(projectId);
+  const response = await fetch(`${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/pipelines/${encodeGitLabPathSegment(pipelineId)}`, { ...getFetchConfig(), method: "DELETE" });
+  await handleGitLabError(response);
+  return response.status === 204 ? { deleted: true } : response.json();
+}
+
+async function updatePipelineMetadata(projectId: string, pipelineId: number | string, name: string): Promise<unknown> {
+  projectId = decodeURIComponent(projectId);
+  const response = await fetch(`${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/pipelines/${encodeGitLabPathSegment(pipelineId)}/metadata`, { ...getFetchConfig(), method: "PUT", body: JSON.stringify({ name }) });
+  await handleGitLabError(response);
+  return response.json();
+}
+
 /**
  * List deployments in a GitLab project
  *
@@ -11698,6 +11723,23 @@ async function handleToolCall(params: any) {
       case "get_pipeline_variables": {
         const { project_id, pipeline_id } = GetPipelineVariablesSchema.parse(params.arguments);
         return { content: [{ type: "text", text: JSON.stringify(await getPipelineVariables(project_id, pipeline_id)) }] };
+      }
+
+      case "get_pipeline_test_report": {
+        const { project_id, pipeline_id } = PipelineReportSchema.parse(params.arguments);
+        return { content: [{ type: "text", text: JSON.stringify(await getPipelineReport(project_id, pipeline_id)) }] };
+      }
+      case "get_pipeline_test_report_summary": {
+        const { project_id, pipeline_id } = PipelineReportSchema.parse(params.arguments);
+        return { content: [{ type: "text", text: JSON.stringify(await getPipelineReport(project_id, pipeline_id, true)) }] };
+      }
+      case "delete_pipeline": {
+        const { project_id, pipeline_id } = DeletePipelineSchema.parse(params.arguments);
+        return { content: [{ type: "text", text: JSON.stringify(await deletePipeline(project_id, pipeline_id)) }] };
+      }
+      case "update_pipeline_metadata": {
+        const { project_id, pipeline_id, name } = UpdatePipelineMetadataSchema.parse(params.arguments);
+        return { content: [{ type: "text", text: JSON.stringify(await updatePipelineMetadata(project_id, pipeline_id, name)) }] };
       }
 
       case "list_deployments": {

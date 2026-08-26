@@ -266,6 +266,11 @@ export const GetPipelineSchema = z.object({
 });
 
 export const GetPipelineVariablesSchema = GetPipelineSchema;
+export const UpdatePipelineMetadataSchema = GetPipelineSchema.extend({
+  name: z.string().min(1).describe("New pipeline name"),
+});
+export const DeletePipelineSchema = GetPipelineSchema;
+export const PipelineReportSchema = GetPipelineSchema;
 export const PlayPipelineJobsSchema = z.object({
   project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
   job_ids: z.array(z.coerce.string()).min(1).describe("Job IDs to play, in dependency order"),
