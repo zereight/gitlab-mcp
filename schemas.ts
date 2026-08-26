@@ -599,6 +599,25 @@ export const GetEnvironmentSchema = z.object({
   project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
   environment_id: z.coerce.string().describe("The ID of the environment"),
 });
+export const UpdateEnvironmentSchema = GetEnvironmentSchema.extend({
+  name: z.string().optional(), external_url: z.string().url().nullable().optional(),
+  tier: z.enum(["production", "staging", "testing", "development", "other"]).optional(),
+  auto_stop_setting: z.enum(["always", "with_action"]).optional(),
+});
+export const StopEnvironmentSchema = GetEnvironmentSchema.extend({ force: z.coerce.boolean().optional() });
+export const StopStaleEnvironmentsSchema = z.object({ project_id: z.coerce.string(), before: z.string() });
+export const DeleteReviewAppEnvironmentsSchema = z.object({
+  project_id: z.coerce.string(), before: z.string().optional(), limit: z.coerce.number().optional(),
+  dry_run: z.coerce.boolean().optional(),
+});
+export const PipelineTriggerIdSchema = z.object({ project_id: z.coerce.string(), trigger_id: z.coerce.string() });
+export const ListPipelineTriggersSchema = z.object({ project_id: z.coerce.string() });
+export const CreatePipelineTriggerSchema = z.object({ project_id: z.coerce.string(), description: z.string() });
+export const UpdatePipelineTriggerSchema = PipelineTriggerIdSchema.extend({ description: z.string() });
+export const TriggerPipelineSchema = z.object({
+  project_id: z.coerce.string(), token: z.string(), ref: z.string(),
+  variables: z.record(z.string()).optional(), inputs: z.record(z.unknown()).optional(),
+});
 
 // Schema for creating a new pipeline
 export const CreatePipelineSchema = z.object({
