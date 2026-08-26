@@ -271,6 +271,10 @@ export const UpdatePipelineMetadataSchema = GetPipelineSchema.extend({
 });
 export const DeletePipelineSchema = GetPipelineSchema;
 export const PipelineReportSchema = GetPipelineSchema;
+export const PipelineScheduleIdSchema = z.object({ project_id: z.coerce.string(), schedule_id: z.coerce.string() });
+export const ListPipelineSchedulesSchema = z.object({ project_id: z.coerce.string() }).merge(PaginationOptionsSchema);
+export const CreatePipelineScheduleSchema = z.object({ project_id: z.coerce.string(), description: z.string(), ref: z.string(), cron: z.string(), cron_timezone: z.string().optional(), active: z.coerce.boolean().optional(), inputs: z.record(z.unknown()).optional() });
+export const UpdatePipelineScheduleSchema = PipelineScheduleIdSchema.extend({ description: z.string().optional(), ref: z.string().optional(), cron: z.string().optional(), cron_timezone: z.string().optional(), active: z.coerce.boolean().optional(), inputs: z.record(z.unknown()).optional() });
 export const PlayPipelineJobsSchema = z.object({
   project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
   job_ids: z.array(z.coerce.string()).min(1).describe("Job IDs to play, in dependency order"),

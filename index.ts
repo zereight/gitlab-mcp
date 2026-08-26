@@ -313,6 +313,7 @@ import {
   UpdatePipelineMetadataSchema,
   DeletePipelineSchema,
   PipelineReportSchema,
+  PipelineScheduleIdSchema, ListPipelineSchedulesSchema, CreatePipelineScheduleSchema, UpdatePipelineScheduleSchema,
   PlayPipelineJobsSchema,
   GetProjectMilestoneSchema,
   GetProjectSchema,
@@ -7146,6 +7147,14 @@ async function updatePipelineMetadata(projectId: string, pipelineId: number | st
   return response.json();
 }
 
+async function pipelineScheduleRequest(projectId: string, path = "", method = "GET", body?: unknown): Promise<unknown> {
+  projectId = decodeURIComponent(projectId);
+  const response = await fetch(`${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/pipeline_schedules${path}`, { ...getFetchConfig(), method, body: body === undefined ? undefined : JSON.stringify(body) });
+  await handleGitLabError(response);
+  return response.status === 204 ? { success: true } : response.json();
+}
+async function listPipelineSchedules(projectId: string, options: Record<string, unknown>): Promise<unknown> { const query = new URLSearchParams(); for (const [k,v] of Object.entries(options)) if (v !== undefined) query.set(k, String(v)); return pipelineScheduleRequest(projectId, query.toString() ? `?${query}` : ""); }
+
 /**
  * List deployments in a GitLab project
  *
@@ -11740,6 +11749,27 @@ async function handleToolCall(params: any) {
       case "update_pipeline_metadata": {
         const { project_id, pipeline_id, name } = UpdatePipelineMetadataSchema.parse(params.arguments);
         return { content: [{ type: "text", text: JSON.stringify(await updatePipelineMetadata(project_id, pipeline_id, name)) }] };
+      }
+      case "list_pipeline_schedules": {
+        const { project_id, ...options } = ListPipelineSchedulesSchema.parse(params.arguments);
+        return { content: [{ type: "text", text: JSON.stringify(await listPipelineSchedules(project_id, options)) }] };
+      }
+      case "get_pipeline_schedule": {
+        const { project_id, schedule_id } = PipelineScheduleIdSchema.parse(params.arguments);
+        return { content: [{ type: "text", text: JSON.stringify(await pipelineScheduleRequest(project_id, `/${schedule_id}`)) }] };
+      }
+      case "create_pipeline_schedule": {
+        const { project_id, ...body } = CreatePipelineScheduleSchema.parse(params.arguments);
+        return { content: [{ type: "text", text: JSON.stringify(await pipelineScheduleRequest(project_id, "", "POST", body)) }] };
+      }
+      case "update_pipeline_schedule": {
+        const { project_id, schedule_id, ...body } = UpdatePipelineScheduleSchema.parse(params.arguments);
+        return { content: [{ type: "text", text: JSON.stringify(await pipelineScheduleRequest(project_id, `/${schedule_id}`, "PUT", body)) }] };
+      }
+      case "delete_pipeline_schedule": case "play_pipeline_schedule": case "take_pipeline_schedule_ownership": {
+        const { project_id, schedule_id } = PipelineScheduleIdSchema.parse(params.arguments);
+        const suffix = params.name === "delete_pipeline_schedule" ? `/${schedule_id}` : `/${schedule_id}/${params.name === "play_pipeline_schedule" ? "play" : "take_ownership"}`;
+        return { content: [{ type: "text", text: JSON.stringify(await pipelineScheduleRequest(project_id, suffix, params.name === "delete_pipeline_schedule" ? "DELETE" : "POST")) }] };
       }
 
       case "list_deployments": {
