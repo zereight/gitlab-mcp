@@ -309,6 +309,10 @@ import {
   GetGroupMilestoneMergeRequestsSchema,
   GetGroupMilestoneBurndownEventsSchema,
   GetDeploymentSchema,
+  CreateDeploymentSchema,
+  UpdateDeploymentSchema,
+  DeploymentApprovalSchema,
+  ListDeploymentMergeRequestsSchema,
   GetEnvironmentSchema,
   GetNamespaceSchema,
   // pipeline job schemas
@@ -7501,6 +7505,28 @@ async function getDeployment(
   return GitLabDeploymentSchema.parse(data);
 }
 
+async function deploymentRequest(
+  projectId: string,
+  path = "",
+  method = "GET",
+  body?: unknown,
+  query?: Record<string, unknown>
+): Promise<unknown> {
+  projectId = decodeURIComponent(projectId);
+  const url = new URL(
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/deployments${path}`
+  );
+  for (const [key, value] of Object.entries(query ?? {})) {
+    if (value !== undefined) url.searchParams.set(key, String(value));
+  }
+  const response = await fetch(url.toString(), {
+    ...getFetchConfig(), method,
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+  await handleGitLabError(response);
+  return response.status === 204 ? { success: true } : response.json();
+}
+
 /**
  * List environments in a GitLab project
  *
@@ -12462,6 +12488,31 @@ async function handleToolCall(params: any) {
         return {
           content: [{ type: "text", text: JSON.stringify(deployment) }],
         };
+      }
+
+      case "create_deployment": {
+        const { project_id, ...body } = CreateDeploymentSchema.parse(params.arguments);
+        return { content: [{ type: "text", text: JSON.stringify(await deploymentRequest(project_id, "", "POST", body)) }] };
+      }
+      case "update_deployment": {
+        const { project_id, deployment_id, ...body } = UpdateDeploymentSchema.parse(params.arguments);
+        return { content: [{ type: "text", text: JSON.stringify(await deploymentRequest(project_id, `/${deployment_id}`, "PUT", body)) }] };
+      }
+      case "delete_deployment": {
+        const { project_id, deployment_id } = GetDeploymentSchema.parse(params.arguments);
+        return { content: [{ type: "text", text: JSON.stringify(await deploymentRequest(project_id, `/${deployment_id}`, "DELETE")) }] };
+      }
+      case "list_deployment_merge_requests": {
+        const { project_id, deployment_id, ...query } = ListDeploymentMergeRequestsSchema.parse(params.arguments);
+        return { content: [{ type: "text", text: JSON.stringify(await deploymentRequest(project_id, `/${deployment_id}/merge_requests`, "GET", undefined, query)) }] };
+      }
+      case "approve_deployment": {
+        const { project_id, deployment_id, ...body } = DeploymentApprovalSchema.parse(params.arguments);
+        return { content: [{ type: "text", text: JSON.stringify(await deploymentRequest(project_id, `/${deployment_id}/approval`, "POST", body)) }] };
+      }
+      case "get_deployment_approvals": {
+        const { project_id, deployment_id } = GetDeploymentSchema.parse(params.arguments);
+        return { content: [{ type: "text", text: JSON.stringify(await deploymentRequest(project_id, `/${deployment_id}`)) }] };
       }
 
       case "list_environments": {

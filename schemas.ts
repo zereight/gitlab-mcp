@@ -513,6 +513,19 @@ export const GetDeploymentSchema = z.object({
   project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
   deployment_id: z.coerce.string().describe("The ID of the deployment"),
 });
+export const CreateDeploymentSchema = z.object({
+  project_id: z.coerce.string(), environment: z.string(), sha: z.string(), ref: z.string(),
+  tag: z.coerce.boolean(), status: z.enum(["created", "running", "success", "failed", "canceled", "blocked"]),
+});
+export const UpdateDeploymentSchema = GetDeploymentSchema.extend({
+  status: z.enum(["running", "success", "failed", "canceled"]),
+});
+export const DeploymentApprovalSchema = GetDeploymentSchema.extend({
+  status: z.enum(["approved", "rejected"]),
+  comment: z.string().optional(),
+  represented_as: z.string().optional(),
+});
+export const ListDeploymentMergeRequestsSchema = GetDeploymentSchema.merge(PaginationOptionsSchema);
 
 // Environment related schemas
 const GitLabEnvironmentLastDeploymentSchema = z.object({
