@@ -30,6 +30,20 @@ retry_pipeline_job         -> retry a single failed job
 cancel_pipeline_job        -> cancel a single running job
 ```
 
+## Pipeline Schedules
+
+```
+list_pipeline_schedules            -> list project schedules
+get_pipeline_schedule              -> inspect one schedule
+create_pipeline_schedule           -> create a cron schedule
+update_pipeline_schedule           -> update schedule settings or inputs
+delete_pipeline_schedule           -> delete a schedule
+play_pipeline_schedule             -> run a schedule immediately
+take_pipeline_schedule_ownership   -> transfer ownership to the current user
+list_pipeline_schedule_pipelines   -> list pipelines created by a schedule
+get/create/update/delete_pipeline_schedule_variable -> manage schedule variables
+```
+
 ## Artifacts
 
 ```

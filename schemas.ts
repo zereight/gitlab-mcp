@@ -263,6 +263,36 @@ export const GetPipelineSchema = z.object({
   pipeline_id: z.coerce.string().describe("The ID of the pipeline"),
 });
 
+export const PipelineScheduleIdSchema = z.object({
+  project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
+  schedule_id: z.coerce.string().describe("Pipeline schedule ID"),
+});
+export const ListPipelineSchedulesSchema = z.object({
+  project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
+  page: z.coerce.number().optional(),
+  per_page: z.coerce.number().optional(),
+});
+export const CreatePipelineScheduleSchema = z.object({
+  project_id: z.coerce.string(), description: z.string(), ref: z.string(), cron: z.string(),
+  cron_timezone: z.string().optional(), active: z.coerce.boolean().optional(),
+  inputs: z.record(z.unknown()).optional(),
+});
+export const UpdatePipelineScheduleSchema = PipelineScheduleIdSchema.extend({
+  description: z.string().optional(), ref: z.string().optional(), cron: z.string().optional(),
+  cron_timezone: z.string().optional(), active: z.coerce.boolean().optional(),
+  inputs: z.record(z.unknown()).optional(),
+});
+export const ListPipelineSchedulePipelinesSchema = PipelineScheduleIdSchema.extend({
+  status: z.string().optional(), scope: z.string().optional(), sort: z.enum(["asc", "desc"]).optional(),
+  updated_after: z.string().optional(), updated_before: z.string().optional(),
+  created_after: z.string().optional(), created_before: z.string().optional(),
+  page: z.coerce.number().optional(), per_page: z.coerce.number().optional(),
+});
+export const PipelineScheduleVariableSchema = PipelineScheduleIdSchema.extend({ key: z.string() });
+export const CreatePipelineScheduleVariableSchema = PipelineScheduleVariableSchema.extend({
+  value: z.string(), variable_type: z.enum(["env_var", "file"]).optional(),
+});
+export const UpdatePipelineScheduleVariableSchema = CreatePipelineScheduleVariableSchema;
 export const GitLabMergeRequestPipelineSchema = z.object({
   id: z.coerce.string(),
   sha: z.string(),
