@@ -20,6 +20,7 @@ docs/plans/
 
 # AI agent worktrees (local development only)
 .claude/worktrees/
+.claude/skills/gitlab-mcp-maintainer/
 # OpenWolf local context (session notes, anatomy, memory)
 .wolf/
 

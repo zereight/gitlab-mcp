@@ -5,7 +5,7 @@ description: Use this skill when working with the GitLab MCP server tools for me
 
 # gitlab-mcp
 
-GitLab MCP server providing 229 tools: 227 tools across 20 toolsets, plus `execute_graphql` and the always-available `discover_tools` meta-tool.
+GitLab MCP server providing 230 tools: 228 tools across 20 toolsets, plus `execute_graphql` and the always-available `discover_tools` meta-tool.
 
 For exact generated parameter tables, see `docs/tools/`. Use this file for workflow shape and high-signal parameter hints.
 
@@ -13,7 +13,7 @@ For exact generated parameter tables, see `docs/tools/`. Use this file for workf
 
 | Toolset | Default | Enable with |
 |---|---|---|
-| merge_requests (43 tools) | yes | - |
+| merge_requests (44 tools) | yes | - |
 | issues (24 tools) | yes | - |
 | repositories (7 tools) | yes | - |
 | branches (15 tools) | yes | - |
@@ -35,6 +35,9 @@ For exact generated parameter tables, see `docs/tools/`. Use this file for workf
 | vulnerabilities (4 tools) | no | `GITLAB_TOOLSETS=vulnerabilities` |
 
 Enable all: `GITLAB_TOOLSETS=all`. Use `GITLAB_TOOLS` to enable individual tools outside their toolset. `discover_tools` can list and activate opt-in categories for the current session. `execute_graphql` is not in a toolset; enable it explicitly with `GITLAB_TOOLS=execute_graphql`.
+
+The per-toolset counts above sum to 230 because `get_branch` and `list_branches` are each listed
+in both `merge_requests` and `branches`; the unique tool count across all toolsets is 228.
 
 ## Key Workflows
 

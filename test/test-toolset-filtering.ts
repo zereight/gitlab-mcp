@@ -30,7 +30,7 @@ const MCP_PORT_BASE = 3200;
 
 // Known tool counts per toolset (from TOOLSET_DEFINITIONS)
 const TOOLSET_TOOL_COUNTS: Record<string, number> = {
-  merge_requests: 41,
+  merge_requests: 42,
   issues: 24,
   repositories: 7,
   branches: 15,

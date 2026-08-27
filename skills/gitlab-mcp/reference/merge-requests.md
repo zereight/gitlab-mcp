@@ -20,6 +20,8 @@ get_merge_request           -> full MR details (by IID or branch name)
 list_merge_requests         -> list with filters (state, labels, author, etc.)
   - without project_id: current user's MRs across all projects
   - with project_id: MRs in that project
+list_group_merge_requests   -> MRs across every project of a group and its subgroups
+  - group_id required; same filters, plus non_archived and source_project_id
 get_merge_request_conflicts -> check for merge conflicts
 list_merge_request_pipelines -> list pipelines attached to an MR
 ```
