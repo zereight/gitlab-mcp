@@ -37,7 +37,7 @@ const TOOLSET_TOOL_COUNTS: Record<string, number> = {
   projects: 11,
   labels: 5,
   ci: 4,
-  pipelines: 19,
+  pipelines: 31,
   milestones: 17,
   wiki: 10,
   releases: 7,

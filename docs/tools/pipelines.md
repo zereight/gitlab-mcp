@@ -20,6 +20,18 @@ Pipeline + job control (trigger, retry, cancel, play manual jobs, fetch logs/art
 - [`create_pipeline`](#create_pipeline) — ✏️ Writes
 - [`retry_pipeline`](#retry_pipeline) — ✏️ Writes
 - [`cancel_pipeline`](#cancel_pipeline) — ✏️ Writes
+- [`list_pipeline_schedules`](#list_pipeline_schedules) — 📖 Read-only
+- [`get_pipeline_schedule`](#get_pipeline_schedule) — 📖 Read-only
+- [`list_pipeline_schedule_pipelines`](#list_pipeline_schedule_pipelines) — 📖 Read-only
+- [`create_pipeline_schedule`](#create_pipeline_schedule) — ✏️ Writes
+- [`update_pipeline_schedule`](#update_pipeline_schedule) — ✏️ Writes
+- [`delete_pipeline_schedule`](#delete_pipeline_schedule) — ✏️ Writes
+- [`play_pipeline_schedule`](#play_pipeline_schedule) — ✏️ Writes
+- [`take_ownership_pipeline_schedule`](#take_ownership_pipeline_schedule) — ✏️ Writes
+- [`get_pipeline_schedule_variable`](#get_pipeline_schedule_variable) — 📖 Read-only
+- [`create_pipeline_schedule_variable`](#create_pipeline_schedule_variable) — ✏️ Writes
+- [`update_pipeline_schedule_variable`](#update_pipeline_schedule_variable) — ✏️ Writes
+- [`delete_pipeline_schedule_variable`](#delete_pipeline_schedule_variable) — ✏️ Writes
 - [`play_pipeline_job`](#play_pipeline_job) — ✏️ Writes
 - [`retry_pipeline_job`](#retry_pipeline_job) — ✏️ Writes
 - [`cancel_pipeline_job`](#cancel_pipeline_job) — ✏️ Writes
@@ -232,6 +244,192 @@ Cancel a running pipeline. Use this for the specific operation described; choose
 |---|---|:-:|---|
 | `project_id` | string | ✓ | Project ID or URL-encoded path |
 | `pipeline_id` | string | ✓ | The ID of the pipeline to cancel |
+
+### `list_pipeline_schedules`
+
+*📖 Read-only*
+
+List pipeline schedules in a project, optionally filtered to active or inactive. Use this to survey a project's scheduled pipelines and their `cron`, `next_run_at`, and `active` state, optionally narrowed with `scope` to `active` or `inactive`; use `list_pipelines` for pipelines that already ran and `get_pipeline_schedule` when the schedule ID is known. The list response carries no `variables` — call `get_pipeline_schedule` for those — and includes `inputs` only for Maintainers, Owners, or the schedule owner. It is read-only and paginated, requires project access, and returns schedule records or an error when the project is missing or access is denied.
+
+**Parameters**
+
+| Parameter | Type | Required | Description |
+|---|---|:-:|---|
+| `project_id` | string | ✓ | Project ID or URL-encoded path |
+| `scope` | enum (`active` \| `inactive`) |  | Return only active or only inactive pipeline schedules |
+| `page` | number |  | Page number for pagination (default: 1) |
+| `per_page` | number |  | Number of items per page (max: 100, default: 20) |
+
+### `get_pipeline_schedule`
+
+*📖 Read-only*
+
+Get details of a specific pipeline schedule, including its variables and last pipeline. Use this to inspect one schedule's cron, owner, last pipeline, variables, and inputs; use `list_pipeline_schedules` to discover schedule IDs and `list_pipeline_schedule_pipelines` for the pipelines it produced. It is read-only, returns `variables` and `inputs` only to Maintainers, Owners, or the schedule owner, and returns the schedule or an error when the schedule is missing or access is denied.
+
+**Parameters**
+
+| Parameter | Type | Required | Description |
+|---|---|:-:|---|
+| `project_id` | string | ✓ | Project ID or URL-encoded path |
+| `pipeline_schedule_id` | string | ✓ | The ID of the pipeline schedule |
+
+### `list_pipeline_schedule_pipelines`
+
+*📖 Read-only*
+
+List the pipelines that a pipeline schedule has triggered. Use this to review the pipelines a schedule has actually triggered, for example to see whether the nightly run succeeded; use `get_pipeline` for one pipeline's full detail and `list_pipelines` for project-wide filtering. Narrow the result with `scope`, `status`, `sort`, and the `created_*` / `updated_*` date bounds. It is read-only and paginated, requires project access, and returns pipeline records or an error when the schedule is missing or access is denied.
+
+**Parameters**
+
+| Parameter | Type | Required | Description |
+|---|---|:-:|---|
+| `project_id` | string | ✓ | Project ID or URL-encoded path |
+| `pipeline_schedule_id` | string | ✓ | The ID of the pipeline schedule |
+| `scope` | enum (`running` \| `pending` \| `finished` \| `branches` \| `tags`) |  | The scope of pipelines |
+| `status` | enum (`created` \| `waiting_for_resource` \| `preparing` \| `waiting_for_callback` \| `pending` \| `running` \| `success` \| `failed` \| `canceling` \| `canceled` \| `skipped` \| `manual` \| `scheduled`) |  | The status of pipelines |
+| `sort` | enum (`asc` \| `desc`) |  | Sort pipelines (default: asc) |
+| `updated_after` | string |  | Return pipelines updated after the specified ISO 8601 date |
+| `updated_before` | string |  | Return pipelines updated before the specified ISO 8601 date |
+| `created_after` | string |  | Return pipelines created after the specified ISO 8601 date |
+| `created_before` | string |  | Return pipelines created before the specified ISO 8601 date |
+| `page` | number |  | Page number for pagination (default: 1) |
+| `per_page` | number |  | Number of items per page (max: 100, default: 20) |
+
+### `create_pipeline_schedule`
+
+*✏️ Writes*
+
+Create a new pipeline schedule for a branch or tag. Use this to add a recurring pipeline for a branch or tag; use `create_pipeline` to run a pipeline once now and `update_pipeline_schedule` once the schedule exists. `ref` accepts a short name or a full ref such as `refs/heads/main`, which you should prefer when a branch and tag share a name; `cron_timezone` defaults to `UTC` and `active` defaults to true. It creates remote CI configuration, requires the Developer, Maintainer, or Owner role plus permission to run pipelines on the target ref, and returns the new schedule or a validation, cron, ref, or permission error.
+
+**Parameters**
+
+| Parameter | Type | Required | Description |
+|---|---|:-:|---|
+| `project_id` | string | ✓ | Project ID or URL-encoded path |
+| `description` | string | ✓ | The description of the pipeline schedule |
+| `ref` | string | ✓ | The branch or tag the scheduled pipeline runs on. Use the full ref (e.g. 'refs/heads/main') when a branch and tag share a name |
+| `cron` | string | ✓ | The cron schedule expression, for example `0 1 * * *` |
+| `cron_timezone` | string |  | The time zone for the cron expression, for example 'UTC' (default) or 'Asia/Tokyo' |
+| `active` | boolean |  | Whether the pipeline schedule is active (default: true) |
+| `inputs` | array<object> |  | Inputs passed to the scheduled pipeline, each an object with `name` (a `spec:inputs` entry) and `value` (a string, number, boolean, or array) — for example [{"name": "deploy_strategy", "value": "blue-green"}]. Requires GitLab 18.1 or later |
+
+### `update_pipeline_schedule`
+
+*✏️ Writes*
+
+Update an existing pipeline schedule. Use this to change an existing schedule's cron, ref, description, inputs, or `active` flag; call `take_ownership_pipeline_schedule` first when the schedule belongs to another user, because GitLab rejects edits from non-owners. Every field is optional and GitLab reschedules the next run after the update. It changes remote CI configuration, requires the Developer, Maintainer, or Owner role and ownership of the schedule, and returns the updated schedule or a validation, cron, or permission error.
+
+**Parameters**
+
+| Parameter | Type | Required | Description |
+|---|---|:-:|---|
+| `project_id` | string | ✓ | Project ID or URL-encoded path |
+| `pipeline_schedule_id` | string | ✓ | The ID of the pipeline schedule to update |
+| `description` | string |  | The new description of the pipeline schedule |
+| `ref` | string |  | The new branch or tag the scheduled pipeline runs on. Use the full ref (e.g. 'refs/heads/main') when a branch and tag share a name |
+| `cron` | string |  | The new cron schedule expression, for example `0 1 * * *` |
+| `cron_timezone` | string |  | The new time zone for the cron expression, for example 'UTC' or 'Asia/Tokyo' |
+| `active` | boolean |  | Whether the pipeline schedule is active |
+| `inputs` | array<object> |  | Inputs to add or change, each an object with `name` and `value`; to remove one, pass its `name` with `destroy` set to true — for example [{"name": "deploy_strategy", "destroy": true}]. Requires GitLab 18.1 or later |
+
+### `delete_pipeline_schedule`
+
+*✏️ Writes*
+
+Delete a pipeline schedule. Use this only after confirming the schedule with `get_pipeline_schedule`; use `update_pipeline_schedule` with `active: false` to pause a schedule instead of removing it. The operation permanently removes the schedule and its variables, requires the Developer, Maintainer, or Owner role and ownership of the schedule, and returns a confirmation or a missing-resource or permission error.
+
+**Parameters**
+
+| Parameter | Type | Required | Description |
+|---|---|:-:|---|
+| `project_id` | string | ✓ | Project ID or URL-encoded path |
+| `pipeline_schedule_id` | string | ✓ | The ID of the pipeline schedule to delete |
+
+### `play_pipeline_schedule`
+
+*✏️ Writes*
+
+Run a pipeline schedule immediately. Use this to run a schedule's pipeline immediately without waiting for its cron; it does not shift `next_run_at`, so the regular cadence continues unchanged, and it does not modify the schedule itself. Use `create_pipeline` when you want a one-off pipeline that is unrelated to a schedule. It creates a pipeline on GitLab, requires ownership of the schedule and permission to run pipelines on its ref, is rate-limited to once per minute per schedule, and returns GitLab's acknowledgement message or a permission, rate-limit, or missing-schedule error.
+
+**Parameters**
+
+| Parameter | Type | Required | Description |
+|---|---|:-:|---|
+| `project_id` | string | ✓ | Project ID or URL-encoded path |
+| `pipeline_schedule_id` | string | ✓ | The ID of the pipeline schedule to run |
+
+### `take_ownership_pipeline_schedule`
+
+*✏️ Writes*
+
+Take ownership of a pipeline schedule. Use this to transfer a schedule's ownership to the authenticated user, which is the prerequisite for `update_pipeline_schedule` or `delete_pipeline_schedule` on someone else's schedule; it does not otherwise change the cron, ref, or variables. It changes remote ownership, requires the Maintainer or Owner role, and returns the schedule with its new owner or a permission or missing-schedule error.
+
+**Parameters**
+
+| Parameter | Type | Required | Description |
+|---|---|:-:|---|
+| `project_id` | string | ✓ | Project ID or URL-encoded path |
+| `pipeline_schedule_id` | string | ✓ | The ID of the pipeline schedule to take ownership of |
+
+### `get_pipeline_schedule_variable`
+
+*📖 Read-only*
+
+Get a single variable of a pipeline schedule. Use this to read one variable attached to a pipeline schedule by key; use `get_pipeline_schedule` to list every variable at once and `get_project_variable` for project-level CI/CD variables, which are a separate set. It is read-only, requires the Maintainer or Owner role or ownership of the schedule (GitLab 18.7 or later exposes this endpoint), and returns the variable or an error when the schedule, key, or permission is missing.
+
+**Parameters**
+
+| Parameter | Type | Required | Description |
+|---|---|:-:|---|
+| `project_id` | string | ✓ | Project ID or URL-encoded path |
+| `pipeline_schedule_id` | string | ✓ | The ID of the pipeline schedule |
+| `key` | string | ✓ | The key of the variable |
+
+### `create_pipeline_schedule_variable`
+
+*✏️ Writes*
+
+Create a variable for a pipeline schedule. Use this to attach a new variable to a pipeline schedule so its scheduled pipelines receive it; use `update_pipeline_schedule_variable` when the key already exists and `create_project_variable` for a project-wide variable. `variable_type` defaults to `env_var` and `key` is limited to 255 characters matching /[a-zA-Z0-9_]+/. It creates remote CI configuration, requires the Developer, Maintainer, or Owner role and ownership of the schedule, and returns the new variable or a validation, duplicate-key, or permission error.
+
+**Parameters**
+
+| Parameter | Type | Required | Description |
+|---|---|:-:|---|
+| `project_id` | string | ✓ | Project ID or URL-encoded path |
+| `pipeline_schedule_id` | string | ✓ | The ID of the pipeline schedule |
+| `key` | string | ✓ | The key of the variable (max 255 characters, must match /[a-zA-Z0-9_]+/) |
+| `value` | string | ✓ | The value of the variable |
+| `variable_type` | enum (`env_var` \| `file`) |  | The type of variable: 'env_var' (default) or 'file' |
+
+### `update_pipeline_schedule_variable`
+
+*✏️ Writes*
+
+Update a variable of a pipeline schedule. Use this to change the value or type of an existing pipeline schedule variable; use `create_pipeline_schedule_variable` when the key does not exist yet. It changes remote CI configuration that scheduled pipelines consume, requires the Developer, Maintainer, or Owner role and ownership of the schedule, and returns the updated variable or a missing-key, validation, or permission error.
+
+**Parameters**
+
+| Parameter | Type | Required | Description |
+|---|---|:-:|---|
+| `project_id` | string | ✓ | Project ID or URL-encoded path |
+| `pipeline_schedule_id` | string | ✓ | The ID of the pipeline schedule |
+| `key` | string | ✓ | The key of the variable to update |
+| `value` | string | ✓ | The new value of the variable |
+| `variable_type` | enum (`env_var` \| `file`) |  | The type of variable: 'env_var' or 'file' |
+
+### `delete_pipeline_schedule_variable`
+
+*✏️ Writes*
+
+Delete a variable from a pipeline schedule. Use this only after confirming the key with `get_pipeline_schedule` or `get_pipeline_schedule_variable`; use `update_pipeline_schedule_variable` to change a value without removing it. The operation permanently removes the variable from the schedule so later scheduled pipelines no longer receive it, requires the Developer, Maintainer, or Owner role and ownership of the schedule, and returns a confirmation or a missing-key or permission error.
+
+**Parameters**
+
+| Parameter | Type | Required | Description |
+|---|---|:-:|---|
+| `project_id` | string | ✓ | Project ID or URL-encoded path |
+| `pipeline_schedule_id` | string | ✓ | The ID of the pipeline schedule |
+| `key` | string | ✓ | The key of the variable to delete |
 
 ### `play_pipeline_job`
 

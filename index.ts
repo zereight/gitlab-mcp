@@ -373,6 +373,24 @@ import {
   GitLabDeploymentSchema,
   GitLabEnvironmentSchema,
   GitLabPipelineSchema,
+  type GitLabPipelineSchedule,
+  type GitLabPipelineScheduleVariable,
+  type GitLabPipelineSchedulePlayResult,
+  GitLabPipelineScheduleSchema,
+  GitLabPipelineScheduleVariableSchema,
+  GitLabPipelineSchedulePlayResultSchema,
+  ListPipelineSchedulesSchema,
+  GetPipelineScheduleSchema,
+  ListPipelineSchedulePipelinesSchema,
+  CreatePipelineScheduleSchema,
+  UpdatePipelineScheduleSchema,
+  DeletePipelineScheduleSchema,
+  PlayPipelineScheduleSchema,
+  TakeOwnershipPipelineScheduleSchema,
+  GetPipelineScheduleVariableSchema,
+  CreatePipelineScheduleVariableSchema,
+  UpdatePipelineScheduleVariableSchema,
+  DeletePipelineScheduleVariableSchema,
   type GitLabPipelineTriggerJob,
   GitLabPipelineTriggerJobSchema,
   type GitLabProject,
@@ -7704,6 +7722,349 @@ async function cancelPipeline(
 }
 
 /**
+ * List pipeline schedules in a GitLab project
+ *
+ * @param {string} projectId - The ID or URL-encoded path of the project
+ * @param {ListPipelineSchedulesOptions} options - Options for filtering pipeline schedules
+ * @returns {Promise<GitLabPipelineSchedule[]>} List of pipeline schedules
+ */
+async function listPipelineSchedules(
+  projectId: string,
+  options: Omit<z.infer<typeof ListPipelineSchedulesSchema>, "project_id"> = {}
+): Promise<GitLabPipelineSchedule[]> {
+  projectId = decodeURIComponent(projectId); // Decode project ID
+  const url = new URL(
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/pipeline_schedules`
+  );
+
+  Object.entries(options).forEach(([key, value]) => {
+    if (value !== undefined) {
+      url.searchParams.append(key, value.toString());
+    }
+  });
+
+  const response = await fetch(url.toString(), {
+    ...getFetchConfig(),
+  });
+
+  await handleGitLabError(response);
+  const data = await response.json();
+  return z.array(GitLabPipelineScheduleSchema).parse(data);
+}
+
+/**
+ * Get details of a specific pipeline schedule
+ *
+ * @param {string} projectId - The ID or URL-encoded path of the project
+ * @param {number|string} pipelineScheduleId - The ID of the pipeline schedule
+ * @returns {Promise<GitLabPipelineSchedule>} Pipeline schedule details
+ */
+async function getPipelineSchedule(
+  projectId: string,
+  pipelineScheduleId: number | string
+): Promise<GitLabPipelineSchedule> {
+  projectId = decodeURIComponent(projectId); // Decode project ID
+  const url = new URL(
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/pipeline_schedules/${encodeGitLabPathSegment(pipelineScheduleId)}`
+  );
+
+  const response = await fetch(url.toString(), {
+    ...getFetchConfig(),
+  });
+
+  await handleGitLabError(response);
+  const data = await response.json();
+  return GitLabPipelineScheduleSchema.parse(data);
+}
+
+/**
+ * List the pipelines triggered by a pipeline schedule
+ *
+ * @param {string} projectId - The ID or URL-encoded path of the project
+ * @param {number|string} pipelineScheduleId - The ID of the pipeline schedule
+ * @param {ListPipelineSchedulePipelinesOptions} options - Pagination options
+ * @returns {Promise<GitLabPipeline[]>} List of pipelines the schedule triggered
+ */
+async function listPipelineSchedulePipelines(
+  projectId: string,
+  pipelineScheduleId: number | string,
+  options: Omit<
+    z.infer<typeof ListPipelineSchedulePipelinesSchema>,
+    "project_id" | "pipeline_schedule_id"
+  > = {}
+): Promise<GitLabPipeline[]> {
+  projectId = decodeURIComponent(projectId); // Decode project ID
+  const url = new URL(
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/pipeline_schedules/${encodeGitLabPathSegment(pipelineScheduleId)}/pipelines`
+  );
+
+  Object.entries(options).forEach(([key, value]) => {
+    if (value !== undefined) {
+      url.searchParams.append(key, value.toString());
+    }
+  });
+
+  const response = await fetch(url.toString(), {
+    ...getFetchConfig(),
+  });
+
+  await handleGitLabError(response);
+  const data = await response.json();
+  return z.array(GitLabPipelineSchema).parse(data);
+}
+
+/**
+ * Create a new pipeline schedule
+ *
+ * @param {string} projectId - The ID or URL-encoded path of the project
+ * @param {CreatePipelineScheduleOptions} options - The schedule's cron, description, ref and options
+ * @returns {Promise<GitLabPipelineSchedule>} The created pipeline schedule
+ */
+async function createPipelineSchedule(
+  projectId: string,
+  options: Omit<z.infer<typeof CreatePipelineScheduleSchema>, "project_id">
+): Promise<GitLabPipelineSchedule> {
+  projectId = decodeURIComponent(projectId); // Decode project ID
+  const url = new URL(
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/pipeline_schedules`
+  );
+
+  const response = await fetch(url.toString(), {
+    ...getFetchConfig(),
+    method: "POST",
+    body: JSON.stringify(options),
+  });
+
+  await handleGitLabError(response);
+  const data = await response.json();
+  return GitLabPipelineScheduleSchema.parse(data);
+}
+
+/**
+ * Update an existing pipeline schedule
+ *
+ * @param {string} projectId - The ID or URL-encoded path of the project
+ * @param {number|string} pipelineScheduleId - The ID of the pipeline schedule to update
+ * @param {UpdatePipelineScheduleOptions} options - The fields to change
+ * @returns {Promise<GitLabPipelineSchedule>} The updated pipeline schedule
+ */
+async function updatePipelineSchedule(
+  projectId: string,
+  pipelineScheduleId: number | string,
+  options: Omit<z.infer<typeof UpdatePipelineScheduleSchema>, "project_id" | "pipeline_schedule_id">
+): Promise<GitLabPipelineSchedule> {
+  projectId = decodeURIComponent(projectId); // Decode project ID
+  const url = new URL(
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/pipeline_schedules/${encodeGitLabPathSegment(pipelineScheduleId)}`
+  );
+
+  const response = await fetch(url.toString(), {
+    ...getFetchConfig(),
+    method: "PUT",
+    body: JSON.stringify(options),
+  });
+
+  await handleGitLabError(response);
+  const data = await response.json();
+  return GitLabPipelineScheduleSchema.parse(data);
+}
+
+/**
+ * Delete a pipeline schedule
+ *
+ * @param {string} projectId - The ID or URL-encoded path of the project
+ * @param {number|string} pipelineScheduleId - The ID of the pipeline schedule to delete
+ * @returns {Promise<void>}
+ */
+async function deletePipelineSchedule(
+  projectId: string,
+  pipelineScheduleId: number | string
+): Promise<void> {
+  projectId = decodeURIComponent(projectId); // Decode project ID
+  const url = new URL(
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/pipeline_schedules/${encodeGitLabPathSegment(pipelineScheduleId)}`
+  );
+
+  const response = await fetch(url.toString(), {
+    ...getFetchConfig(),
+    method: "DELETE",
+  });
+
+  await handleGitLabError(response);
+}
+
+/**
+ * Run a pipeline schedule immediately, without changing its next scheduled run
+ *
+ * @param {string} projectId - The ID or URL-encoded path of the project
+ * @param {number|string} pipelineScheduleId - The ID of the pipeline schedule to run
+ * @returns {Promise<GitLabPipelineSchedulePlayResult>} GitLab's acknowledgement message
+ */
+async function playPipelineSchedule(
+  projectId: string,
+  pipelineScheduleId: number | string
+): Promise<GitLabPipelineSchedulePlayResult> {
+  projectId = decodeURIComponent(projectId); // Decode project ID
+  const url = new URL(
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/pipeline_schedules/${encodeGitLabPathSegment(pipelineScheduleId)}/play`
+  );
+
+  const response = await fetch(url.toString(), {
+    ...getFetchConfig(),
+    method: "POST",
+  });
+
+  await handleGitLabError(response);
+  const data = await response.json();
+  return GitLabPipelineSchedulePlayResultSchema.parse(data);
+}
+
+/**
+ * Take ownership of a pipeline schedule
+ *
+ * @param {string} projectId - The ID or URL-encoded path of the project
+ * @param {number|string} pipelineScheduleId - The ID of the pipeline schedule
+ * @returns {Promise<GitLabPipelineSchedule>} The pipeline schedule with its new owner
+ */
+async function takeOwnershipPipelineSchedule(
+  projectId: string,
+  pipelineScheduleId: number | string
+): Promise<GitLabPipelineSchedule> {
+  projectId = decodeURIComponent(projectId); // Decode project ID
+  const url = new URL(
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/pipeline_schedules/${encodeGitLabPathSegment(pipelineScheduleId)}/take_ownership`
+  );
+
+  const response = await fetch(url.toString(), {
+    ...getFetchConfig(),
+    method: "POST",
+  });
+
+  await handleGitLabError(response);
+  const data = await response.json();
+  return GitLabPipelineScheduleSchema.parse(data);
+}
+
+/**
+ * Get a single variable of a pipeline schedule
+ *
+ * @param {string} projectId - The ID or URL-encoded path of the project
+ * @param {number|string} pipelineScheduleId - The ID of the pipeline schedule
+ * @param {string} key - The key of the variable
+ * @returns {Promise<GitLabPipelineScheduleVariable>} The pipeline schedule variable
+ */
+async function getPipelineScheduleVariable(
+  projectId: string,
+  pipelineScheduleId: number | string,
+  key: string
+): Promise<GitLabPipelineScheduleVariable> {
+  projectId = decodeURIComponent(projectId); // Decode project ID
+  const url = new URL(
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/pipeline_schedules/${encodeGitLabPathSegment(pipelineScheduleId)}/variables/${encodeGitLabPathSegment(key)}`
+  );
+
+  const response = await fetch(url.toString(), {
+    ...getFetchConfig(),
+  });
+
+  await handleGitLabError(response);
+  const data = await response.json();
+  return GitLabPipelineScheduleVariableSchema.parse(data);
+}
+
+/**
+ * Create a variable for a pipeline schedule
+ *
+ * @param {string} projectId - The ID or URL-encoded path of the project
+ * @param {number|string} pipelineScheduleId - The ID of the pipeline schedule
+ * @param {CreatePipelineScheduleVariableOptions} options - The variable's key, value and type
+ * @returns {Promise<GitLabPipelineScheduleVariable>} The created pipeline schedule variable
+ */
+async function createPipelineScheduleVariable(
+  projectId: string,
+  pipelineScheduleId: number | string,
+  options: Omit<
+    z.infer<typeof CreatePipelineScheduleVariableSchema>,
+    "project_id" | "pipeline_schedule_id"
+  >
+): Promise<GitLabPipelineScheduleVariable> {
+  projectId = decodeURIComponent(projectId); // Decode project ID
+  const url = new URL(
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/pipeline_schedules/${encodeGitLabPathSegment(pipelineScheduleId)}/variables`
+  );
+
+  const response = await fetch(url.toString(), {
+    ...getFetchConfig(),
+    method: "POST",
+    body: JSON.stringify(options),
+  });
+
+  await handleGitLabError(response);
+  const data = await response.json();
+  return GitLabPipelineScheduleVariableSchema.parse(data);
+}
+
+/**
+ * Update a variable of a pipeline schedule
+ *
+ * @param {string} projectId - The ID or URL-encoded path of the project
+ * @param {number|string} pipelineScheduleId - The ID of the pipeline schedule
+ * @param {string} key - The key of the variable to update
+ * @param {UpdatePipelineScheduleVariableOptions} options - The new value and type
+ * @returns {Promise<GitLabPipelineScheduleVariable>} The updated pipeline schedule variable
+ */
+async function updatePipelineScheduleVariable(
+  projectId: string,
+  pipelineScheduleId: number | string,
+  key: string,
+  options: Omit<
+    z.infer<typeof UpdatePipelineScheduleVariableSchema>,
+    "project_id" | "pipeline_schedule_id" | "key"
+  >
+): Promise<GitLabPipelineScheduleVariable> {
+  projectId = decodeURIComponent(projectId); // Decode project ID
+  const url = new URL(
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/pipeline_schedules/${encodeGitLabPathSegment(pipelineScheduleId)}/variables/${encodeGitLabPathSegment(key)}`
+  );
+
+  const response = await fetch(url.toString(), {
+    ...getFetchConfig(),
+    method: "PUT",
+    body: JSON.stringify(options),
+  });
+
+  await handleGitLabError(response);
+  const data = await response.json();
+  return GitLabPipelineScheduleVariableSchema.parse(data);
+}
+
+/**
+ * Delete a variable from a pipeline schedule
+ *
+ * @param {string} projectId - The ID or URL-encoded path of the project
+ * @param {number|string} pipelineScheduleId - The ID of the pipeline schedule
+ * @param {string} key - The key of the variable to delete
+ * @returns {Promise<void>}
+ */
+async function deletePipelineScheduleVariable(
+  projectId: string,
+  pipelineScheduleId: number | string,
+  key: string
+): Promise<void> {
+  projectId = decodeURIComponent(projectId); // Decode project ID
+  const url = new URL(
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/pipeline_schedules/${encodeGitLabPathSegment(pipelineScheduleId)}/variables/${encodeGitLabPathSegment(key)}`
+  );
+
+  const response = await fetch(url.toString(), {
+    ...getFetchConfig(),
+    method: "DELETE",
+  });
+
+  await handleGitLabError(response);
+}
+
+/**
  * Run a manual job
  *
  * @param {string} projectId - The ID or URL-encoded path of the project
@@ -11991,6 +12352,172 @@ async function handleToolCall(params: any) {
             {
               type: "text",
               text: `Canceled pipeline #${pipeline.id}. Status: ${pipeline.status}\nWeb URL: ${pipeline.web_url}`,
+            },
+          ],
+        };
+      }
+
+      case "list_pipeline_schedules": {
+        const args = ListPipelineSchedulesSchema.parse(params.arguments);
+        const { project_id, ...options } = args;
+        const schedules = await listPipelineSchedules(project_id, options);
+        return {
+          content: [{ type: "text", text: JSON.stringify(schedules, null, 2) }],
+        };
+      }
+
+      case "get_pipeline_schedule": {
+        const { project_id, pipeline_schedule_id } = GetPipelineScheduleSchema.parse(
+          params.arguments
+        );
+        const schedule = await getPipelineSchedule(project_id, pipeline_schedule_id);
+        return {
+          content: [{ type: "text", text: JSON.stringify(schedule, null, 2) }],
+        };
+      }
+
+      case "list_pipeline_schedule_pipelines": {
+        const args = ListPipelineSchedulePipelinesSchema.parse(params.arguments);
+        const { project_id, pipeline_schedule_id, ...options } = args;
+        const pipelines = await listPipelineSchedulePipelines(
+          project_id,
+          pipeline_schedule_id,
+          options
+        );
+        return {
+          content: [{ type: "text", text: JSON.stringify(pipelines, null, 2) }],
+        };
+      }
+
+      case "create_pipeline_schedule": {
+        const args = CreatePipelineScheduleSchema.parse(params.arguments);
+        const { project_id, ...options } = args;
+        const schedule = await createPipelineSchedule(project_id, options);
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Created pipeline schedule #${schedule.id} "${schedule.description}" on ${schedule.ref} (cron: ${schedule.cron} ${schedule.cron_timezone ?? "UTC"}). Active: ${schedule.active}\nNext run: ${schedule.next_run_at ?? "not scheduled"}`,
+            },
+          ],
+        };
+      }
+
+      case "update_pipeline_schedule": {
+        const args = UpdatePipelineScheduleSchema.parse(params.arguments);
+        const { project_id, pipeline_schedule_id, ...options } = args;
+        const schedule = await updatePipelineSchedule(project_id, pipeline_schedule_id, options);
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Updated pipeline schedule #${schedule.id} "${schedule.description}" on ${schedule.ref} (cron: ${schedule.cron} ${schedule.cron_timezone ?? "UTC"}). Active: ${schedule.active}\nNext run: ${schedule.next_run_at ?? "not scheduled"}`,
+            },
+          ],
+        };
+      }
+
+      case "delete_pipeline_schedule": {
+        const { project_id, pipeline_schedule_id } = DeletePipelineScheduleSchema.parse(
+          params.arguments
+        );
+        await deletePipelineSchedule(project_id, pipeline_schedule_id);
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Deleted pipeline schedule #${pipeline_schedule_id}`,
+            },
+          ],
+        };
+      }
+
+      case "play_pipeline_schedule": {
+        const { project_id, pipeline_schedule_id } = PlayPipelineScheduleSchema.parse(
+          params.arguments
+        );
+        const result = await playPipelineSchedule(project_id, pipeline_schedule_id);
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Ran pipeline schedule #${pipeline_schedule_id} immediately; the next scheduled run is unchanged. GitLab responded: ${result.message ?? "accepted"}`,
+            },
+          ],
+        };
+      }
+
+      case "take_ownership_pipeline_schedule": {
+        const { project_id, pipeline_schedule_id } = TakeOwnershipPipelineScheduleSchema.parse(
+          params.arguments
+        );
+        const schedule = await takeOwnershipPipelineSchedule(project_id, pipeline_schedule_id);
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Took ownership of pipeline schedule #${schedule.id} "${schedule.description}". Owner: ${schedule.owner?.username ?? "unknown"}`,
+            },
+          ],
+        };
+      }
+
+      case "get_pipeline_schedule_variable": {
+        const { project_id, pipeline_schedule_id, key } = GetPipelineScheduleVariableSchema.parse(
+          params.arguments
+        );
+        const variable = await getPipelineScheduleVariable(project_id, pipeline_schedule_id, key);
+        return {
+          content: [{ type: "text", text: JSON.stringify(variable, null, 2) }],
+        };
+      }
+
+      case "create_pipeline_schedule_variable": {
+        const args = CreatePipelineScheduleVariableSchema.parse(params.arguments);
+        const { project_id, pipeline_schedule_id, ...options } = args;
+        const variable = await createPipelineScheduleVariable(
+          project_id,
+          pipeline_schedule_id,
+          options
+        );
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Created variable '${variable.key}' on pipeline schedule #${pipeline_schedule_id}`,
+            },
+          ],
+        };
+      }
+
+      case "update_pipeline_schedule_variable": {
+        const args = UpdatePipelineScheduleVariableSchema.parse(params.arguments);
+        const { project_id, pipeline_schedule_id, key, ...options } = args;
+        const variable = await updatePipelineScheduleVariable(
+          project_id,
+          pipeline_schedule_id,
+          key,
+          options
+        );
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Updated variable '${variable.key}' on pipeline schedule #${pipeline_schedule_id}`,
+            },
+          ],
+        };
+      }
+
+      case "delete_pipeline_schedule_variable": {
+        const { project_id, pipeline_schedule_id, key } =
+          DeletePipelineScheduleVariableSchema.parse(params.arguments);
+        await deletePipelineScheduleVariable(project_id, pipeline_schedule_id, key);
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Deleted variable '${key}' from pipeline schedule #${pipeline_schedule_id}`,
             },
           ],
         };
