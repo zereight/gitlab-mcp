@@ -658,8 +658,10 @@ const MCP_PROMPTS = [
     ],
     render: (args: Record<string, string>) =>
       `Triage vulnerabilities for project ${args.project_id ?? "<project_id>"}:\n` +
-      `1. Call list_vulnerabilities (or list_project_vulnerabilities) filtered to state=detected/confirmed.\n` +
-      `2. Group by severity (critical > high > medium > low) and by whether a fix is already available.\n` +
+      `1. Call list_project_vulnerabilities once with state=detected and once with state=confirmed ` +
+      `(the tool only accepts one state per call). Follow pageInfo.endCursor with the "after" ` +
+      `param while pageInfo.hasNextPage is true, and aggregate both states' results.\n` +
+      `2. Group the aggregated results by severity (critical > high > medium > low) and by whether a fix is already available.\n` +
       `3. Propose a remediation order, calling out any critical/high items with no available fix.`,
   },
 ] as const;
