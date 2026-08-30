@@ -13891,9 +13891,10 @@ async function startSSEServer(): Promise<void> {
  */
 async function startStreamableHTTPServer(): Promise<void> {
   const app = express();
-  const streamableTransports: {
-    [sessionId: string]: StreamableHTTPServerTransport;
-  } = {};
+  // Session IDs are untrusted map keys. A null prototype prevents inherited
+  // names such as "constructor" from masquerading as live transports.
+  const streamableTransports: Record<string, StreamableHTTPServerTransport> =
+    Object.create(null);
 
   const authTimeouts: Record<string, NodeJS.Timeout> = {};
 
@@ -14577,8 +14578,21 @@ async function startStreamableHTTPServer(): Promise<void> {
       ? staticMcpBearerAuth
       : (_req: Request, _res: Response, next: NextFunction) => next();
 
+  const rejectUnknownStatefulSession = (req: Request, res: Response, next: NextFunction) => {
+    const usesStatelessSessions =
+      OAUTH_STATELESS_MODE &&
+      STATELESS_MATERIAL &&
+      (REMOTE_AUTHORIZATION || GITLAB_MCP_OAUTH);
+    const sessionId = readMcpSessionIdHeader(req);
+    if (!usesStatelessSessions && sessionId && !streamableTransports[sessionId]) {
+      res.status(404).json({ error: "Session not found" });
+      return;
+    }
+    next();
+  };
+
   // Streamable HTTP endpoint - handles both session creation and message handling
-  app.post("/mcp", mcpRequestRateLimit, mcpBearerAuth, async (req: Request, res: Response) => {
+  app.post("/mcp", rejectUnknownStatefulSession, mcpRequestRateLimit, mcpBearerAuth, async (req: Request, res: Response) => {
     const sessionId = readMcpSessionIdHeader(req);
     const publicBaseUrl = getForwardedPublicBaseUrl(req, MCP_TRUST_PROXY);
 
@@ -14883,7 +14897,7 @@ async function startStreamableHTTPServer(): Promise<void> {
   });
 
   // Streamable HTTP GET endpoint for listening to server-sent events (SSE)
-  app.get("/mcp", mcpRequestRateLimit, mcpBearerAuth, async (req: Request, res: Response) => {
+  app.get("/mcp", rejectUnknownStatefulSession, mcpRequestRateLimit, mcpBearerAuth, async (req: Request, res: Response) => {
     const sessionId = readMcpSessionIdHeader(req);
     const acceptHeader = readAcceptHeader(req);
 
@@ -15017,7 +15031,7 @@ async function startStreamableHTTPServer(): Promise<void> {
   });
 
   // to delete a mcp server session explicitly
-  app.delete("/mcp", mcpRequestRateLimit, mcpBearerAuth, async (req: Request, res: Response) => {
+  app.delete("/mcp", rejectUnknownStatefulSession, mcpRequestRateLimit, mcpBearerAuth, async (req: Request, res: Response) => {
     const sessionId = readMcpSessionIdHeader(req);
 
     if (!sessionId) {

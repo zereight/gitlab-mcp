@@ -335,35 +335,23 @@ describe('Remote Authorization - Session Timeout', () => {
     await waitForSessionDecrease(mcpUrl, beforeTimeout);
     console.log('  ✓ Timeout closed transport and released active session slot');
 
-    // Step 3: Try to make request WITHOUT auth header - should fail with 401
-    try {
-      const response = await fetch(mcpUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'mcp-session-id': sessionId,
-        },
-        body: JSON.stringify({
-          jsonrpc: '2.0',
-          id: 1,
-          method: 'tools/list'
-        })
-      });
+    // Step 3: A stale stateful session must return the MCP re-initialization signal.
+    const response = await fetch(mcpUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'mcp-session-id': sessionId,
+      },
+      body: JSON.stringify({
+        jsonrpc: '2.0',
+        id: 1,
+        method: 'tools/list'
+      })
+    });
 
-      if (!response.ok) {
-        assert.strictEqual(response.status, 401, 'Should return 401 Unauthorized');
-        console.log(`  ✓ Request correctly failed with status ${response.status}`);
-        const body = await response.text();
-        console.log(`  ℹ️  Error: ${body.substring(0, 100)}...`);
-      } else {
-        assert.fail('Should have failed due to expired auth token');
-      }
-    } catch (error) {
-      // Network errors are also acceptable
-      assert.ok(error instanceof Error, 'Should throw error');
-      console.log('  ✓ Request correctly failed after timeout');
-      console.log(`  ℹ️  Error: ${error.message.substring(0, 100)}...`);
-    }
+    assert.strictEqual(response.status, 404, 'Should return 404 Session Not Found');
+    assert.deepStrictEqual(await response.json(), { error: 'Session not found' });
+    console.log('  ✓ Expired session returned 404 so the client can re-initialize');
 
     await clientWithAuth.disconnect();
   });
