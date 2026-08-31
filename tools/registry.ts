@@ -810,7 +810,7 @@ export const allTools = [
   },
   { name: "get_pipeline_test_report", description: "Get pipeline test report", inputSchema: toJSONSchema(PipelineReportSchema) },
   { name: "get_pipeline_test_report_summary", description: "Get pipeline test report summary", inputSchema: toJSONSchema(PipelineReportSchema) },
-  { name: "delete_pipeline", description: "Delete a pipeline", inputSchema: toJSONSchema(DeletePipelineSchema) },
+  { name: "delete_pipeline", description: "Delete a pipeline. Requires the project Owner role, cannot be undone, and does not automatically delete child pipelines.", inputSchema: toJSONSchema(DeletePipelineSchema) },
   { name: "update_pipeline_metadata", description: "Update pipeline metadata", inputSchema: toJSONSchema(UpdatePipelineMetadataSchema) },
   {
     name: "list_deployments",
