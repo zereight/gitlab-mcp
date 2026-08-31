@@ -14798,6 +14798,16 @@ async function startStreamableHTTPServer(): Promise<void> {
       try {
         let transport: StreamableHTTPServerTransport;
 
+        // Re-check session existence here, not just in rejectUnknownStreamableSession:
+        // the session can expire and close its transport while this request was
+        // waiting on rate-limit/auth checks above, which are async. Without this,
+        // a session id that expired mid-request would fall into the "no session"
+        // branch below and get a wrongly-issued new transport instead of a 404.
+        if (sessionId && !Object.prototype.hasOwnProperty.call(streamableTransports, sessionId)) {
+          res.status(404).json({ error: "Session not found" });
+          return;
+        }
+
         if (sessionId && streamableTransports[sessionId]) {
           // Reuse existing transport for ongoing session
           transport = streamableTransports[sessionId];
