@@ -9,6 +9,11 @@ Pipeline + job control (trigger, retry, cancel, play manual jobs, fetch logs/art
 
 - [`list_pipelines`](#list_pipelines) — 📖 Read-only
 - [`get_pipeline`](#get_pipeline) — 📖 Read-only
+- [`get_pipeline_variables`](#get_pipeline_variables) — 📖 Read-only
+- [`get_pipeline_test_report`](#get_pipeline_test_report) — 📖 Read-only
+- [`get_pipeline_test_report_summary`](#get_pipeline_test_report_summary) — 📖 Read-only
+- [`delete_pipeline`](#delete_pipeline) — ✏️ Writes
+- [`update_pipeline_metadata`](#update_pipeline_metadata) — ✏️ Writes
 - [`list_deployments`](#list_deployments) — 📖 Read-only
 - [`get_deployment`](#get_deployment) — 📖 Read-only
 - [`list_environments`](#list_environments) — 📖 Read-only
@@ -77,6 +82,78 @@ Get details of a specific pipeline. Use this for a known resource or result; cho
 |---|---|:-:|---|
 | `project_id` | string | ✓ | Project ID or URL-encoded path |
 | `pipeline_id` | string | ✓ | The ID of the pipeline |
+
+### `get_pipeline_variables`
+
+*📖 Read-only*
+
+Get variables configured for a pipeline. Use this for a known resource or result; choose the corresponding list or search tool when you need to discover multiple resources. It is read-only and does not mutate GitLab data; missing resources, invalid identifiers, insufficient permission, and rate limits are returned as errors. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented.
+
+**Parameters**
+
+| Parameter | Type | Required | Description |
+|---|---|:-:|---|
+| `project_id` | string | ✓ | Project ID or URL-encoded path |
+| `pipeline_id` | string | ✓ | The ID of the pipeline |
+| `page` | number |  | Page number for pagination (default: 1) |
+| `per_page` | number |  | Number of items per page (max: 100, default: 20) |
+
+### `get_pipeline_test_report`
+
+*📖 Read-only*
+
+Get pipeline test report. Use this for a known resource or result; choose the corresponding list or search tool when you need to discover multiple resources. It is read-only and does not mutate GitLab data; missing resources, invalid identifiers, insufficient permission, and rate limits are returned as errors. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented.
+
+**Parameters**
+
+| Parameter | Type | Required | Description |
+|---|---|:-:|---|
+| `project_id` | string | ✓ | Project ID or URL-encoded path |
+| `pipeline_id` | string | ✓ | The ID of the pipeline |
+| `page` | number |  | Page number for pagination (default: 1) |
+| `per_page` | number |  | Number of items per page (max: 100, default: 20) |
+
+### `get_pipeline_test_report_summary`
+
+*📖 Read-only*
+
+Get pipeline test report summary. Use this for a known resource or result; choose the corresponding list or search tool when you need to discover multiple resources. It is read-only and does not mutate GitLab data; missing resources, invalid identifiers, insufficient permission, and rate limits are returned as errors. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented.
+
+**Parameters**
+
+| Parameter | Type | Required | Description |
+|---|---|:-:|---|
+| `project_id` | string | ✓ | Project ID or URL-encoded path |
+| `pipeline_id` | string | ✓ | The ID of the pipeline |
+| `page` | number |  | Page number for pagination (default: 1) |
+| `per_page` | number |  | Number of items per page (max: 100, default: 20) |
+
+### `delete_pipeline`
+
+*✏️ Writes*
+
+Delete a pipeline. Use this only after verifying the target; choose a get or list tool first when you need to inspect state without changing it. It changes or removes remote GitLab data and may be irreversible; it requires the necessary project or group permission and returns validation, conflict, permission, or rate-limit errors. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented.
+
+**Parameters**
+
+| Parameter | Type | Required | Description |
+|---|---|:-:|---|
+| `project_id` | string | ✓ | Project ID or URL-encoded path |
+| `pipeline_id` | string | ✓ | The ID of the pipeline |
+
+### `update_pipeline_metadata`
+
+*✏️ Writes*
+
+Update pipeline metadata. Use this for an existing resource; choose the corresponding create tool for a new resource and a note tool for discussion-only text. It changes remote GitLab state and requires the necessary project or group permission; GitLab returns validation, conflict, permission, or rate-limit errors instead of silently applying an invalid request. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented.
+
+**Parameters**
+
+| Parameter | Type | Required | Description |
+|---|---|:-:|---|
+| `project_id` | string | ✓ | Project ID or URL-encoded path |
+| `pipeline_id` | string | ✓ | The ID of the pipeline |
+| `name` | string | ✓ | New pipeline name |
 
 ### `list_deployments`
 
