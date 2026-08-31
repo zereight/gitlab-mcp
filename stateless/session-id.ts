@@ -40,12 +40,15 @@ export interface SessionIdPayload extends StatelessBasePayload {
   t: string;
   /** Effective GitLab API URL for this session (supports dynamic routing). */
   u: string;
+  /** Project allowlist narrowed for this session, if any (dynamic project scope). */
+  p?: string[];
 }
 
 export interface MintSessionIdInput {
   header: SessionAuthHeader;
   token: string;
   apiUrl: string;
+  allowedProjectIds?: string[];
   now?: () => number;
 }
 
@@ -64,6 +67,9 @@ export function mintSessionId(
     h: input.header,
     t: input.token,
     u: input.apiUrl,
+    ...(input.allowedProjectIds && input.allowedProjectIds.length > 0
+      ? { p: input.allowedProjectIds }
+      : {}),
   };
   return seal(material, STATELESS_PURPOSES.SESSION_ID, payload);
 }
@@ -92,7 +98,9 @@ export function openSessionId(
         payload.h !== "JOB-TOKEN") ||
       typeof payload.t !== "string" ||
       payload.t.length === 0 ||
-      typeof payload.u !== "string"
+      typeof payload.u !== "string" ||
+      (payload.p !== undefined &&
+        (!Array.isArray(payload.p) || payload.p.some(id => typeof id !== "string")))
     ) {
       return null;
     }

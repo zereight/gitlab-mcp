@@ -3,6 +3,7 @@
 import {
   getConfig,
   ENABLE_DYNAMIC_API_URL,
+  ENABLE_DYNAMIC_PROJECT_SCOPE,
   GITLAB_AUTH_COOKIE_PATH,
   GITLAB_ALLOW_UNAUTHENTICATED_TOOL_DISCOVERY,
   GITLAB_CA_CERT_PATH,
@@ -1315,6 +1316,12 @@ function validateConfiguration(): void {
     errors.push("ENABLE_DYNAMIC_API_URL=true requires REMOTE_AUTHORIZATION=true");
   }
 
+  const enableDynamicProjectScope =
+    getConfig("enable-dynamic-project-scope", "ENABLE_DYNAMIC_PROJECT_SCOPE") === "true";
+  if (enableDynamicProjectScope && !remoteAuth) {
+    errors.push("ENABLE_DYNAMIC_PROJECT_SCOPE=true requires REMOTE_AUTHORIZATION=true");
+  }
+
   if (errors.length > 0) {
     logger.error("Configuration validation failed:");
     errors.forEach(err => logger.error(`  - ${err}`));
@@ -1637,6 +1644,7 @@ interface SessionAuth {
   lastUsed: number;
   apiUrl: string; // The API URL for the current request
   publicBaseUrl?: string;
+  allowedProjectIds?: string[]; // Session-narrowed project allowlist; undefined means env config
 }
 
 interface AuthData {
@@ -1645,6 +1653,7 @@ interface AuthData {
   lastUsed: number;
   apiUrl: string;
   publicBaseUrl?: string;
+  allowedProjectIds?: string[];
 }
 
 const sessionAuthStore = new AsyncLocalStorage<SessionAuth>();
@@ -1741,6 +1750,23 @@ function getEffectiveApiUrl(): string {
     );
   }
   return GITLAB_API_URL;
+}
+
+/**
+ * Get the effective project allowlist for the current request
+ * In REMOTE_AUTHORIZATION mode with ENABLE_DYNAMIC_PROJECT_SCOPE, reads the scope
+ * narrowed via the X-GitLab-Allowed-Project-Ids header from session context
+ * (already validated against GITLAB_ALLOWED_PROJECT_IDS by parseAuthHeaders)
+ * Otherwise, uses environment GITLAB_ALLOWED_PROJECT_IDS
+ */
+function getEffectiveAllowedProjectIds(): string[] {
+  if (ENABLE_DYNAMIC_PROJECT_SCOPE) {
+    const ctx = sessionAuthStore.getStore();
+    if (ctx?.allowedProjectIds && ctx.allowedProjectIds.length > 0) {
+      return ctx.allowedProjectIds;
+    }
+  }
+  return GITLAB_ALLOWED_PROJECT_IDS;
 }
 
 /**
@@ -2006,27 +2032,28 @@ async function handleGitLabError(response: UndiciResponse): Promise<void> {
  * @throws {Error} If GITLAB_ALLOWED_PROJECT_IDS is set and the requested project is not in the whitelist
  */
 function getEffectiveProjectId(projectId: string): string {
-  if (GITLAB_ALLOWED_PROJECT_IDS.length > 0) {
+  const allowedProjectIds = getEffectiveAllowedProjectIds();
+  if (allowedProjectIds.length > 0) {
     // If there's only one allowed project, use it as default
-    if (GITLAB_ALLOWED_PROJECT_IDS.length === 1 && !projectId) {
-      return GITLAB_ALLOWED_PROJECT_IDS[0];
+    if (allowedProjectIds.length === 1 && !projectId) {
+      return allowedProjectIds[0];
     }
 
     // If a project ID is provided, check if it's in the whitelist
-    if (projectId && !GITLAB_ALLOWED_PROJECT_IDS.includes(projectId)) {
+    if (projectId && !allowedProjectIds.includes(projectId)) {
       throw new Error(
-        `Access denied: Project ${projectId} is not in the allowed project list: ${GITLAB_ALLOWED_PROJECT_IDS.join(", ")}`
+        `Access denied: Project ${projectId} is not in the allowed project list: ${allowedProjectIds.join(", ")}`
       );
     }
 
     // If no project ID provided but we have multiple allowed projects, require an explicit choice
-    if (!projectId && GITLAB_ALLOWED_PROJECT_IDS.length > 1) {
+    if (!projectId && allowedProjectIds.length > 1) {
       throw new Error(
-        `Multiple projects allowed (${GITLAB_ALLOWED_PROJECT_IDS.join(", ")}). Please specify a project ID.`
+        `Multiple projects allowed (${allowedProjectIds.join(", ")}). Please specify a project ID.`
       );
     }
 
-    return projectId || GITLAB_ALLOWED_PROJECT_IDS[0];
+    return projectId || allowedProjectIds[0];
   }
   // Prioritize the passed projectId over GITLAB_PROJECT_ID to allow querying different projects
   if (projectId) {
@@ -2044,9 +2071,9 @@ function rejectIfProjectScopedDeployment(toolName: string): void {
       `${toolName} is not allowed when GITLAB_PROJECT_ID is set (server is locked to a single project)`
     );
   }
-  if (GITLAB_ALLOWED_PROJECT_IDS.length > 0) {
+  if (getEffectiveAllowedProjectIds().length > 0) {
     throw new Error(
-      `${toolName} is not allowed when GITLAB_ALLOWED_PROJECT_IDS is set (server access is restricted to configured projects)`
+      `${toolName} is not allowed while a project allowlist is in effect (GITLAB_ALLOWED_PROJECT_IDS or a session scope restricts access to configured projects)`
     );
   }
 }
@@ -3329,9 +3356,9 @@ async function resolveProjectOrGroupPath(
   const explicitKind = namespaceMatch?.[1]?.toLowerCase() as "group" | "project" | undefined;
   const requestedProjectId = namespaceMatch ? namespaceMatch[2] : decodedProjectId;
 
-  if (explicitKind === "group" && GITLAB_ALLOWED_PROJECT_IDS.length > 0) {
+  if (explicitKind === "group" && getEffectiveAllowedProjectIds().length > 0) {
     throw new Error(
-      "group:<id-or-path> cannot be used when GITLAB_ALLOWED_PROJECT_IDS is set, because the project allowlist does not cover groups"
+      "group:<id-or-path> cannot be used while a project allowlist is in effect (GITLAB_ALLOWED_PROJECT_IDS or a session scope), because the project allowlist does not cover groups"
     );
   }
 
@@ -3363,7 +3390,7 @@ async function resolveProjectOrGroupPath(
   if (
     projectResponse.status === 404 &&
     !explicitKind &&
-    GITLAB_ALLOWED_PROJECT_IDS.length === 0 &&
+    getEffectiveAllowedProjectIds().length === 0 &&
     !/^\d+$/.test(effectiveProjectId)
   ) {
     const groupUrl = new URL(
@@ -9643,19 +9670,20 @@ function assertVulnerabilityProjectAllowed(
   vulnerabilityId: string,
   project: { id?: string | null; fullPath?: string | null } | null | undefined
 ): void {
-  if (GITLAB_ALLOWED_PROJECT_IDS.length === 0) {
+  const allowedProjectIds = getEffectiveAllowedProjectIds();
+  if (allowedProjectIds.length === 0) {
     return;
   }
   const fullPath = project?.fullPath ?? undefined;
   const numericId = project?.id?.match(/^gid:\/\/gitlab\/Project\/(\d+)$/)?.[1];
   const allowed =
-    (fullPath !== undefined && GITLAB_ALLOWED_PROJECT_IDS.includes(fullPath)) ||
-    (numericId !== undefined && GITLAB_ALLOWED_PROJECT_IDS.includes(numericId));
+    (fullPath !== undefined && allowedProjectIds.includes(fullPath)) ||
+    (numericId !== undefined && allowedProjectIds.includes(numericId));
   if (!allowed) {
     throw new Error(
       `Access denied: Vulnerability ${vulnerabilityId} belongs to project ${
         fullPath ?? numericId ?? "unknown"
-      }, which is not in the allowed project list: ${GITLAB_ALLOWED_PROJECT_IDS.join(", ")}`
+      }, which is not in the allowed project list: ${allowedProjectIds.join(", ")}`
     );
   }
 }
@@ -9667,7 +9695,7 @@ function assertVulnerabilityProjectAllowed(
  * is not configured.
  */
 async function ensureVulnerabilityProjectAllowed(vulnerabilityId: string): Promise<void> {
-  if (GITLAB_ALLOWED_PROJECT_IDS.length === 0) {
+  if (getEffectiveAllowedProjectIds().length === 0) {
     return;
   }
   const data = await executeGraphQL<{
@@ -14052,8 +14080,37 @@ async function startStreamableHTTPServer(): Promise<void> {
     const privateToken = (req.headers["private-token"] as string | undefined) || "";
     const jobToken = (req.headers["job-token"] as string | undefined) || "";
     const dynamicApiUrl = (req.headers["x-gitlab-api-url"] as string | undefined)?.trim();
+    const requestedProjectScope = (
+      req.headers["x-gitlab-allowed-project-ids"] as string | undefined
+    )?.trim();
 
     let apiUrl = GITLAB_API_URL; // Default API URL
+    let allowedProjectIds: string[] | undefined;
+
+    // Only process the requested project scope if the feature is enabled
+    if (ENABLE_DYNAMIC_PROJECT_SCOPE && requestedProjectScope) {
+      const requested = requestedProjectScope
+        .split(",")
+        .map(id => id.trim())
+        .filter(Boolean);
+
+      if (requested.length === 0) {
+        logger.warn("Empty X-GitLab-Allowed-Project-Ids provided");
+        return null;
+      }
+
+      if (GITLAB_ALLOWED_PROJECT_IDS.length > 0) {
+        const outOfScope = requested.filter(id => !GITLAB_ALLOWED_PROJECT_IDS.includes(id));
+        if (outOfScope.length > 0) {
+          logger.warn(
+            `X-GitLab-Allowed-Project-Ids requested projects outside GITLAB_ALLOWED_PROJECT_IDS: ${outOfScope.join(", ")}`
+          );
+          return null; // Reject if the header tries to widen the configured allowlist
+        }
+      }
+
+      allowedProjectIds = requested;
+    }
 
     // Only process dynamic URL if the feature is enabled
     if (ENABLE_DYNAMIC_API_URL && dynamicApiUrl) {
@@ -14090,7 +14147,7 @@ async function startStreamableHTTPServer(): Promise<void> {
 
     // Validate token and return AuthData object
     if (token && header && validateToken(token)) {
-      return { header, token, lastUsed: Date.now(), apiUrl };
+      return { header, token, lastUsed: Date.now(), apiUrl, allowedProjectIds };
     }
 
     return null;
@@ -14242,6 +14299,7 @@ async function startStreamableHTTPServer(): Promise<void> {
       header: SessionAuthHeader;
       token: string;
       apiUrl: string;
+      allowedProjectIds?: string[];
     } | null = null;
     let freshAuthPresent = false;
     if (headerAuth) {
@@ -14267,6 +14325,7 @@ async function startStreamableHTTPServer(): Promise<void> {
         header: headerAuth.header,
         token: headerAuth.token,
         apiUrl: headerAuth.apiUrl,
+        allowedProjectIds: headerAuth.allowedProjectIds,
       };
       freshAuthPresent = true;
     } else if (GITLAB_MCP_OAUTH) {
@@ -14294,7 +14353,12 @@ async function startStreamableHTTPServer(): Promise<void> {
       if (looksLikeStatelessSessionId(incomingSid)) {
         const opened = openSessionId(material, incomingSid, sessionTtlSeconds);
         if (opened) {
-          effective = { header: opened.h, token: opened.t, apiUrl: opened.u };
+          effective = {
+            header: opened.h,
+            token: opened.t,
+            apiUrl: opened.u,
+            allowedProjectIds: opened.p,
+          };
           metrics.statelessAuthFromSealedSid++;
         } else {
           sidPresentedButInvalid = true;
@@ -14342,6 +14406,7 @@ async function startStreamableHTTPServer(): Promise<void> {
       header: effective.header,
       token: effective.token,
       apiUrl: effective.apiUrl,
+      allowedProjectIds: effective.allowedProjectIds,
     });
     if (freshAuthPresent) {
       metrics.statelessSidRotated++;
@@ -14365,6 +14430,7 @@ async function startStreamableHTTPServer(): Promise<void> {
       lastUsed: Date.now(),
       apiUrl: effective.apiUrl,
       publicBaseUrl: getForwardedPublicBaseUrl(req, MCP_TRUST_PROXY),
+      allowedProjectIds: effective.allowedProjectIds,
     };
 
     // Step 4: create a fresh transport per request.
@@ -14964,6 +15030,7 @@ async function startStreamableHTTPServer(): Promise<void> {
         lastUsed: authData.lastUsed,
         apiUrl: authData.apiUrl,
         publicBaseUrl: authData.publicBaseUrl,
+        allowedProjectIds: authData.allowedProjectIds,
       };
 
       // Run the entire request handling within AsyncLocalStorage context
