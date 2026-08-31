@@ -38,8 +38,12 @@ Pipeline + job control (trigger, retry, cancel, play manual jobs, fetch logs/art
 - [`update_pipeline_schedule_variable`](#update_pipeline_schedule_variable) — ✏️ Writes
 - [`delete_pipeline_schedule_variable`](#delete_pipeline_schedule_variable) — ✏️ Writes
 - [`play_pipeline_job`](#play_pipeline_job) — ✏️ Writes
+- [`play_pipeline_jobs`](#play_pipeline_jobs) — ✏️ Writes
 - [`retry_pipeline_job`](#retry_pipeline_job) — ✏️ Writes
 - [`cancel_pipeline_job`](#cancel_pipeline_job) — ✏️ Writes
+- [`erase_pipeline_job`](#erase_pipeline_job) — ✏️ Writes
+- [`wait_for_pipeline`](#wait_for_pipeline) — 📖 Read-only
+- [`wait_for_job`](#wait_for_job) — 📖 Read-only
 - [`list_job_artifacts`](#list_job_artifacts) — 📖 Read-only
 - [`download_job_artifacts`](#download_job_artifacts) — 📖 Read-only
 - [`get_job_artifact_file`](#get_job_artifact_file) — 📖 Read-only
@@ -521,6 +525,23 @@ Run a manual pipeline job. Use this for the specific operation described; choose
 | `project_id` | string | ✓ | Project ID or URL-encoded path |
 | `job_id` | string | ✓ | The ID of the job |
 | `job_variables_attributes` | array<object> |  | Custom job variables to use when running the job |
+| `job_inputs` | object |  | Typed job input values |
+
+### `play_pipeline_jobs`
+
+*✏️ Writes*
+
+Play multiple manual pipeline jobs sequentially. Use this for the specific operation described; choose a sibling tool when you need a different resource or lifecycle action. It changes remote GitLab state and requires the necessary project or group permission; GitLab returns validation, conflict, permission, or rate-limit errors instead of silently applying an invalid request. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented.
+
+**Parameters**
+
+| Parameter | Type | Required | Description |
+|---|---|:-:|---|
+| `project_id` | string | ✓ | Project ID or URL-encoded path |
+| `job_ids` | array<string> | ✓ | Job IDs to play, in dependency order |
+| `job_variables_attributes` | array<object> |  |  |
+| `timeout_seconds` | integer |  |  |
+| `poll_interval_seconds` | integer |  |  |
 
 ### `retry_pipeline_job`
 
@@ -534,6 +555,7 @@ Retry a failed or canceled pipeline job. Use this for the specific operation des
 |---|---|:-:|---|
 | `project_id` | string | ✓ | Project ID or URL-encoded path |
 | `job_id` | string | ✓ | The ID of the job |
+| `job_inputs` | object |  | Typed job input values |
 
 ### `cancel_pipeline_job`
 
@@ -548,6 +570,49 @@ Cancel a running pipeline job. Use this for the specific operation described; ch
 | `project_id` | string | ✓ | Project ID or URL-encoded path |
 | `job_id` | string | ✓ | The ID of the job |
 | `force` | boolean |  | Force cancellation of the job |
+
+### `erase_pipeline_job`
+
+*✏️ Writes*
+
+Erase a pipeline job log and artifacts. Use this for the specific operation described; choose a sibling tool when you need a different resource or lifecycle action. It changes or removes remote GitLab data and may be irreversible; it requires the necessary project or group permission and returns validation, conflict, permission, or rate-limit errors. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented.
+
+**Parameters**
+
+| Parameter | Type | Required | Description |
+|---|---|:-:|---|
+| `project_id` | string | ✓ | Project ID or URL-encoded path |
+| `job_id` | string | ✓ | The ID of the job |
+
+### `wait_for_pipeline`
+
+*📖 Read-only*
+
+Wait for a pipeline to reach a terminal status. Use this for the specific operation described; choose a sibling tool when you need a different resource or lifecycle action. It is read-only and does not mutate GitLab data; missing resources, invalid identifiers, insufficient permission, and rate limits are returned as errors. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented.
+
+**Parameters**
+
+| Parameter | Type | Required | Description |
+|---|---|:-:|---|
+| `project_id` | string | ✓ | Project ID or URL-encoded path |
+| `pipeline_id` | string | ✓ | The ID of the pipeline |
+| `timeout_seconds` | integer |  |  |
+| `poll_interval_seconds` | integer |  |  |
+
+### `wait_for_job`
+
+*📖 Read-only*
+
+Wait for a job to reach a terminal status. Use this for the specific operation described; choose a sibling tool when you need a different resource or lifecycle action. It is read-only and does not mutate GitLab data; missing resources, invalid identifiers, insufficient permission, and rate limits are returned as errors. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented.
+
+**Parameters**
+
+| Parameter | Type | Required | Description |
+|---|---|:-:|---|
+| `project_id` | string | ✓ | Project ID or URL-encoded path |
+| `job_id` | string | ✓ | The ID of the job |
+| `timeout_seconds` | integer |  |  |
+| `poll_interval_seconds` | integer |  |  |
 
 ### `list_job_artifacts`
 
