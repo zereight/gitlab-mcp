@@ -5,8 +5,54 @@ import { join } from "node:path";
 import { describe, test } from "node:test";
 import { checkForNewVersion, fetchLatestVersion, isNewerVersion } from "../../utils/version-check.js";
 
-function fetchReturning(status: number, body: unknown): typeof fetch {
-  return (async () => new Response(JSON.stringify(body), { status })) as unknown as typeof fetch;
+type FetchLike = (input: string | URL, init?: RequestInit) => Promise<Response>;
+
+type CapturedFetch = {
+  url: string;
+  authorization: string | null;
+  redirect: RequestRedirect | undefined;
+};
+
+function fetchReturning(status: number, body: unknown): FetchLike {
+  return async () => new Response(JSON.stringify(body), { status });
+}
+
+function fetchCapturing(calls: CapturedFetch[], status: number, body: unknown): FetchLike {
+  return async (url, init) => {
+    const headers = new Headers(init?.headers);
+    calls.push({
+      url: url.toString(),
+      authorization: headers.get("authorization"),
+      redirect: init?.redirect,
+    });
+    return new Response(JSON.stringify(body), { status });
+  };
+}
+
+function throwingResolver(): string {
+  throw new Error("npm not found");
+}
+
+async function withNpmrc(contents: string, run: () => Promise<void>): Promise<void> {
+  const configDir = mkdtempSync(join(tmpdir(), "gitlab-mcp-npmrc-"));
+  const userconfigPath = join(configDir, ".npmrc");
+  const globalconfigPath = join(configDir, "global.npmrc");
+  writeFileSync(userconfigPath, contents);
+  writeFileSync(globalconfigPath, "");
+
+  const previousUserconfig = process.env.NPM_CONFIG_USERCONFIG;
+  const previousGlobalconfig = process.env.NPM_CONFIG_GLOBALCONFIG;
+  process.env.NPM_CONFIG_USERCONFIG = userconfigPath;
+  process.env.NPM_CONFIG_GLOBALCONFIG = globalconfigPath;
+  try {
+    await run();
+  } finally {
+    if (previousUserconfig === undefined) delete process.env.NPM_CONFIG_USERCONFIG;
+    else process.env.NPM_CONFIG_USERCONFIG = previousUserconfig;
+    if (previousGlobalconfig === undefined) delete process.env.NPM_CONFIG_GLOBALCONFIG;
+    else process.env.NPM_CONFIG_GLOBALCONFIG = previousGlobalconfig;
+    rmSync(configDir, { recursive: true, force: true });
+  }
 }
 
 describe("When isNewerVersion compares versions", () => {
@@ -40,19 +86,15 @@ describe("When checkForNewVersion runs", () => {
   });
 
   test("should return null without fetching when current version is unknown", async () => {
-    let called = false;
-    const spyFetch = (async () => {
-      called = true;
-      return new Response("{}", { status: 200 });
-    }) as unknown as typeof fetch;
-    assert.equal(await checkForNewVersion("unknown", spyFetch), null);
-    assert.equal(called, false);
+    const calls: CapturedFetch[] = [];
+    assert.equal(await checkForNewVersion("unknown", fetchCapturing(calls, 200, {})), null);
+    assert.equal(calls.length, 0);
   });
 
   test("should return null on registry errors instead of throwing", async () => {
-    const failingFetch = (async () => {
+    const failingFetch: FetchLike = async () => {
       throw new Error("network down");
-    }) as unknown as typeof fetch;
+    };
     assert.equal(await checkForNewVersion("2.1.29", failingFetch), null);
     assert.equal(await checkForNewVersion("2.1.29", fetchReturning(500, {})), null);
   });
@@ -68,82 +110,141 @@ describe("When checkForNewVersion runs", () => {
 
 describe("When fetchLatestVersion resolves the registry", () => {
   test("should fetch from the resolved registry instead of a hardcoded one", async () => {
-    let requestedUrl: string | undefined;
-    const spyFetch = (async (url: string | URL) => {
-      requestedUrl = url.toString();
-      return new Response(JSON.stringify({ version: "2.1.31" }), { status: 200 });
-    }) as unknown as typeof fetch;
-
-    const latest = await fetchLatestVersion(spyFetch, 3000, () => "https://npm.internal.example/");
+    const calls: CapturedFetch[] = [];
+    const latest = await fetchLatestVersion(
+      fetchCapturing(calls, 200, { version: "2.1.31" }),
+      3000,
+      () => "https://npm.internal.example/"
+    );
     assert.equal(latest, "2.1.31");
-    assert.equal(requestedUrl, "https://npm.internal.example/@zereight/mcp-gitlab/latest");
+    assert.equal(calls[0]?.url, "https://npm.internal.example/@zereight/mcp-gitlab/latest");
   });
 
   test("should fall back to the public registry when the resolver throws", async () => {
-    let requestedUrl: string | undefined;
-    const spyFetch = (async (url: string | URL) => {
-      requestedUrl = url.toString();
-      return new Response(JSON.stringify({ version: "2.1.31" }), { status: 200 });
-    }) as unknown as typeof fetch;
-    const throwingResolver = () => {
-      throw new Error("npm not found");
-    };
-
-    const latest = await fetchLatestVersion(spyFetch, 3000, throwingResolver as unknown as () => string);
+    const calls: CapturedFetch[] = [];
+    const latest = await fetchLatestVersion(
+      fetchCapturing(calls, 200, { version: "2.1.31" }),
+      3000,
+      throwingResolver
+    );
     assert.equal(latest, null);
-    assert.equal(requestedUrl, undefined);
+    assert.equal(calls.length, 0);
   });
 
   test("should fall back to the public registry when the resolved value has no hostname", async () => {
-    let requestedUrl: string | undefined;
-    const spyFetch = (async (url: string | URL) => {
-      requestedUrl = url.toString();
-      return new Response(JSON.stringify({ version: "2.1.31" }), { status: 200 });
-    }) as unknown as typeof fetch;
-
-    const latest = await fetchLatestVersion(spyFetch, 3000, () => "https:///");
+    const calls: CapturedFetch[] = [];
+    const latest = await fetchLatestVersion(
+      fetchCapturing(calls, 200, { version: "2.1.31" }),
+      3000,
+      () => "https:///"
+    );
     assert.equal(latest, "2.1.31");
-    assert.equal(requestedUrl, "https://registry.npmjs.org/@zereight/mcp-gitlab/latest");
+    assert.equal(calls[0]?.url, "https://registry.npmjs.org/@zereight/mcp-gitlab/latest");
   });
 
   test("should fall back to the public registry when the resolved value has a query string", async () => {
-    let requestedUrl: string | undefined;
-    const spyFetch = (async (url: string | URL) => {
-      requestedUrl = url.toString();
-      return new Response(JSON.stringify({ version: "2.1.31" }), { status: 200 });
-    }) as unknown as typeof fetch;
-
-    const latest = await fetchLatestVersion(spyFetch, 3000, () => "https://registry.example/npm?tenant=a");
+    const calls: CapturedFetch[] = [];
+    const latest = await fetchLatestVersion(
+      fetchCapturing(calls, 200, { version: "2.1.31" }),
+      3000,
+      () => "https://registry.example/npm?tenant=a"
+    );
     assert.equal(latest, "2.1.31");
-    assert.equal(requestedUrl, "https://registry.npmjs.org/@zereight/mcp-gitlab/latest");
+    assert.equal(calls[0]?.url, "https://registry.npmjs.org/@zereight/mcp-gitlab/latest");
   });
 });
 
 describe("When resolving the registry from npm config", () => {
-  test("should prefer the @zereight-scoped registry over the unscoped one", async () => {
-    const configDir = mkdtempSync(join(tmpdir(), "gitlab-mcp-npmrc-"));
-    const configPath = join(configDir, ".npmrc");
-    writeFileSync(
-      configPath,
-      "registry=https://unscoped.example/\n@zereight:registry=https://scoped.example/\n"
-    );
+  describe("with a scoped @zereight:registry", () => {
+    test("should prefer the scoped registry over the unscoped one", async () => {
+      await withNpmrc(
+        "registry=https://unscoped.example/\n@zereight:registry=https://scoped.example/\n",
+        async () => {
+          const calls: CapturedFetch[] = [];
+          const latest = await fetchLatestVersion(fetchCapturing(calls, 200, { version: "2.1.31" }));
+          assert.equal(latest, "2.1.31");
+          assert.equal(calls[0]?.url, "https://scoped.example/@zereight/mcp-gitlab/latest");
+        }
+      );
+    });
+  });
+});
 
-    const previousUserconfig = process.env.NPM_CONFIG_USERCONFIG;
-    process.env.NPM_CONFIG_USERCONFIG = configPath;
-    try {
-      let requestedUrl: string | undefined;
-      const spyFetch = (async (url: string | URL) => {
-        requestedUrl = url.toString();
-        return new Response(JSON.stringify({ version: "2.1.31" }), { status: 200 });
-      }) as unknown as typeof fetch;
+describe("When fetchLatestVersion authenticates against a protected registry", () => {
+  describe("with a scoped _authToken in .npmrc", () => {
+    test("should send a Bearer token only to that HTTPS registry", async () => {
+      await withNpmrc(
+        [
+          "registry=https://unscoped.example/",
+          "@zereight:registry=https://scoped.example/",
+          "//scoped.example/:_authToken=scoped-registry-token",
+        ].join("\n"),
+        async () => {
+          const calls: CapturedFetch[] = [];
+          const latest = await fetchLatestVersion(fetchCapturing(calls, 200, { version: "2.1.31" }));
+          assert.equal(latest, "2.1.31");
+          assert.equal(calls[0]?.url, "https://scoped.example/@zereight/mcp-gitlab/latest");
+          assert.equal(calls[0]?.authorization, "Bearer scoped-registry-token");
+        }
+      );
+    });
 
-      const latest = await fetchLatestVersion(spyFetch);
-      assert.equal(latest, "2.1.31");
-      assert.equal(requestedUrl, "https://scoped.example/@zereight/mcp-gitlab/latest");
-    } finally {
-      if (previousUserconfig === undefined) delete process.env.NPM_CONFIG_USERCONFIG;
-      else process.env.NPM_CONFIG_USERCONFIG = previousUserconfig;
-      rmSync(configDir, { recursive: true, force: true });
-    }
+    test("should refuse to follow redirects when a token is attached", async () => {
+      await withNpmrc(
+        [
+          "@zereight:registry=https://scoped.example/",
+          "//scoped.example/:_authToken=scoped-registry-token",
+        ].join("\n"),
+        async () => {
+          const calls: CapturedFetch[] = [];
+          await fetchLatestVersion(fetchCapturing(calls, 200, { version: "2.1.31" }));
+          assert.equal(calls[0]?.redirect, "error");
+        }
+      );
+    });
+  });
+
+  describe("without a matching token", () => {
+    test("should omit Authorization", async () => {
+      await withNpmrc("@zereight:registry=https://scoped.example/\n", async () => {
+        const calls: CapturedFetch[] = [];
+        await fetchLatestVersion(fetchCapturing(calls, 200, { version: "2.1.31" }));
+        assert.equal(calls[0]?.authorization, null);
+        assert.equal(calls[0]?.redirect, undefined);
+      });
+    });
+  });
+
+  describe("with a token for a different host", () => {
+    test("should omit Authorization", async () => {
+      await withNpmrc(
+        [
+          "@zereight:registry=https://scoped.example/",
+          "//other.example/:_authToken=other-host-token",
+        ].join("\n"),
+        async () => {
+          const calls: CapturedFetch[] = [];
+          await fetchLatestVersion(fetchCapturing(calls, 200, { version: "2.1.31" }));
+          assert.equal(calls[0]?.authorization, null);
+        }
+      );
+    });
+  });
+
+  describe("when the registry is HTTP", () => {
+    test("should omit Authorization even if a token is configured", async () => {
+      await withNpmrc(
+        [
+          "@zereight:registry=http://insecure.example/",
+          "//insecure.example/:_authToken=http-registry-token",
+        ].join("\n"),
+        async () => {
+          const calls: CapturedFetch[] = [];
+          await fetchLatestVersion(fetchCapturing(calls, 200, { version: "2.1.31" }));
+          assert.equal(calls[0]?.url, "http://insecure.example/@zereight/mcp-gitlab/latest");
+          assert.equal(calls[0]?.authorization, null);
+        }
+      );
+    });
   });
 });
