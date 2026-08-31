@@ -411,7 +411,7 @@ describe("deployment and environment tools", () => {
         sha: "abc123",
         ref: "master",
         tag: false,
-        status: "created",
+        status: "running",
       },
       env
     );
