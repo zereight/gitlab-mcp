@@ -33,12 +33,16 @@ function throwingResolver(): string {
   throw new Error("npm not found");
 }
 
-async function withNpmrc(contents: string, run: () => Promise<void>): Promise<void> {
+async function withNpmrc(
+  contents: string,
+  run: () => Promise<void>,
+  globalContents = ""
+): Promise<void> {
   const configDir = mkdtempSync(join(tmpdir(), "gitlab-mcp-npmrc-"));
   const userconfigPath = join(configDir, ".npmrc");
   const globalconfigPath = join(configDir, "global.npmrc");
   writeFileSync(userconfigPath, contents);
-  writeFileSync(globalconfigPath, "");
+  writeFileSync(globalconfigPath, globalContents);
 
   const previousUserconfig = process.env.NPM_CONFIG_USERCONFIG;
   const previousGlobalconfig = process.env.NPM_CONFIG_GLOBALCONFIG;
@@ -212,6 +216,55 @@ describe("When fetchLatestVersion authenticates against a protected registry", (
         assert.equal(calls[0]?.authorization, null);
         assert.equal(calls[0]?.redirect, undefined);
       });
+    });
+  });
+
+  describe("when the token is on a parent registry path", () => {
+    test("should fall back to the host-level _authToken", async () => {
+      await withNpmrc(
+        [
+          "@zereight:registry=https://scoped.example/npm",
+          "//scoped.example/:_authToken=host-level-token",
+        ].join("\n"),
+        async () => {
+          const calls: CapturedFetch[] = [];
+          const latest = await fetchLatestVersion(fetchCapturing(calls, 200, { version: "2.1.31" }));
+          assert.equal(latest, "2.1.31");
+          assert.equal(calls[0]?.url, "https://scoped.example/npm/@zereight/mcp-gitlab/latest");
+          assert.equal(calls[0]?.authorization, "Bearer host-level-token");
+        }
+      );
+    });
+  });
+
+  describe("when both a path token and a host token exist", () => {
+    test("should prefer the more specific path token", async () => {
+      await withNpmrc(
+        [
+          "@zereight:registry=https://scoped.example/npm",
+          "//scoped.example/npm/:_authToken=path-token",
+          "//scoped.example/:_authToken=host-level-token",
+        ].join("\n"),
+        async () => {
+          const calls: CapturedFetch[] = [];
+          await fetchLatestVersion(fetchCapturing(calls, 200, { version: "2.1.31" }));
+          assert.equal(calls[0]?.authorization, "Bearer path-token");
+        }
+      );
+    });
+  });
+
+  describe("when the token is only in the global npmrc", () => {
+    test("should send a Bearer token from globalconfig", async () => {
+      await withNpmrc(
+        "@zereight:registry=https://scoped.example/\n",
+        async () => {
+          const calls: CapturedFetch[] = [];
+          await fetchLatestVersion(fetchCapturing(calls, 200, { version: "2.1.31" }));
+          assert.equal(calls[0]?.authorization, "Bearer global-registry-token");
+        },
+        "//scoped.example/:_authToken=global-registry-token\n"
+      );
     });
   });
 

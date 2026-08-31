@@ -69,18 +69,26 @@ async function resolveConfiguredRegistry(): Promise<string> {
   return DEFAULT_NPM_REGISTRY;
 }
 
-function authTokenConfigKey(registry: string): string | null {
-  if (!isUsableRegistryUrl(registry)) return null;
+function authTokenConfigKeys(registry: string): string[] {
+  if (!isUsableRegistryUrl(registry)) return [];
   const parsed = new URL(registry);
-  if (parsed.protocol !== "https:") return null;
-  const path = parsed.pathname.replace(/\/$/, "");
-  const key = `//${parsed.host}${path}/:_authToken`;
-  return AUTH_TOKEN_KEY_PATTERN.test(key) ? key : null;
+  if (parsed.protocol !== "https:") return [];
+  const keys: string[] = [];
+  let path = parsed.pathname.replace(/\/$/, "");
+  while (true) {
+    const key = `//${parsed.host}${path}/:_authToken`;
+    if (AUTH_TOKEN_KEY_PATTERN.test(key)) keys.push(key);
+    if (path === "") break;
+    const slash = path.lastIndexOf("/");
+    path = slash <= 0 ? "" : path.slice(0, slash);
+  }
+  return keys;
 }
 
-function npmrcCandidatePaths(): string[] {
+async function npmrcCandidatePaths(): Promise<string[]> {
   const paths: string[] = [];
-  const globalconfig = process.env.NPM_CONFIG_GLOBALCONFIG;
+  const configuredGlobal = process.env.NPM_CONFIG_GLOBALCONFIG;
+  const globalconfig = configuredGlobal || (await npmConfigGet("globalconfig"));
   if (globalconfig) paths.push(globalconfig);
   paths.push(process.env.NPM_CONFIG_USERCONFIG ?? join(homedir(), ".npmrc"));
   paths.push(join(process.cwd(), ".npmrc"));
@@ -125,21 +133,24 @@ async function readNpmrcFile(path: string): Promise<Map<string, string>> {
 }
 
 /**
- * Reads `//host[:port][/path]/:_authToken` from npmrc files.
+ * Reads `//host[:port][/path]/:_authToken` from npmrc files, then walks up
+ * parent paths to `//host/:_authToken`, matching npm-registry-fetch.
  * `npm config get` refuses to print protected auth keys, so this parses the
  * files npm itself would consult instead of asking the CLI.
  */
 async function resolveRegistryAuthToken(registry: string): Promise<string | null> {
-  const key = authTokenConfigKey(registry);
-  if (!key) return null;
+  const keys = authTokenConfigKeys(registry);
+  if (keys.length === 0) return null;
   const merged = new Map<string, string>();
-  for (const path of npmrcCandidatePaths()) {
+  for (const path of await npmrcCandidatePaths()) {
     const entries = await readNpmrcFile(path);
     for (const [entryKey, value] of entries) merged.set(entryKey, value);
   }
-  const token = merged.get(key);
-  if (!token) return null;
-  return token;
+  for (const key of keys) {
+    const token = merged.get(key);
+    if (token) return token;
+  }
+  return null;
 }
 
 function requestIsUnderRegistry(registry: string, requestUrl: string): boolean {
