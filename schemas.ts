@@ -616,7 +616,11 @@ export const CreatePipelineTriggerSchema = z.object({ project_id: z.coerce.strin
 export const UpdatePipelineTriggerSchema = PipelineTriggerIdSchema.extend({ description: z.string() });
 export const TriggerPipelineSchema = z.object({
   project_id: z.coerce.string(), token: z.string(), ref: z.string(),
-  variables: z.record(z.string()).optional(), inputs: z.record(z.unknown()).optional(),
+  variables: z.record(z.string()).optional(),
+  inputs: z
+    .record(z.unknown())
+    .optional()
+    .describe("Structured pipeline inputs; supported from GitLab 17.10 behind a feature flag and generally available from GitLab 18.1. Omit on older GitLab versions."),
 });
 
 // Schema for creating a new pipeline
@@ -2818,8 +2822,7 @@ export const ListGroupMergeRequestsSchema = ListMergeRequestsSchema.omit({
   project_id: true,
 }).extend({
   group_id: z.coerce.string().describe("Group ID or URL-encoded path"),
-  non_archived: z.coerce
-    .boolean()
+  non_archived: coerceBooleanString
     .optional()
     .describe("Return merge requests from non-archived projects only. Defaults to true."),
   source_project_id: z.coerce

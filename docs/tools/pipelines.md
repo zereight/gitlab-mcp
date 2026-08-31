@@ -466,7 +466,7 @@ Trigger a pipeline with a pipeline trigger token. Use this for the specific oper
 | `token` | string | ✓ |  |
 | `ref` | string | ✓ |  |
 | `variables` | object |  |  |
-| `inputs` | object |  |  |
+| `inputs` | object |  | Structured pipeline inputs; supported from GitLab 17.10 behind a feature flag and generally available from GitLab 18.1. Omit on older GitLab versions. |
 
 ### `list_pipeline_jobs`
 
