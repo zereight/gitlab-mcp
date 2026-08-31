@@ -106,8 +106,9 @@ Default:
 
 Security notes:
 
-- Only `initialize`, `notifications/initialized`, and `tools/list` may proceed without auth.
+- Only `initialize`, `notifications/initialized`, `tools/list`, and `server/discover` may proceed without auth.
 - `tools/call` and all GitLab API access still require request auth headers.
+- This is a compatibility pass-through for clients that send `server/discover`; it does not indicate MCP v2 support.
 - Tool names and schemas can reveal enabled server capabilities; enable this only when that metadata is safe to expose.
 
 ### `SESSION_TIMEOUT_SECONDS`

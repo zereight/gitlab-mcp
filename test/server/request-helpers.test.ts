@@ -28,11 +28,13 @@ describe("streamable request helpers", () => {
 
   test("allows only discovery methods in unauthenticated discovery bodies", () => {
     assert.strictEqual(isUnauthenticatedDiscoveryRequestBody({ method: "tools/list" }), true);
+    assert.strictEqual(isUnauthenticatedDiscoveryRequestBody({ method: "server/discover" }), true);
     assert.strictEqual(
       isUnauthenticatedDiscoveryRequestBody([
         { method: "initialize" },
         { method: "notifications/initialized" },
         { method: "tools/list" },
+        { method: "server/discover" },
       ]),
       true
     );
