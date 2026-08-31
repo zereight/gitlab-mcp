@@ -138,4 +138,20 @@ describe("Expired stateful session returns 404", { timeout: 20_000 }, () => {
     });
     assert.strictEqual(deleteResponse.status, 404, deleteResponse.text);
   });
+
+  test("a session id matching an inherited Object property still gets 404", async () => {
+    const { server, mcpUrl } = await launchExpiringSessionServer();
+    servers.push(server);
+
+    for (const sessionId of ["toString", "constructor", "__proto__", "hasOwnProperty"]) {
+      const response = await rawMcpRequest(
+        mcpUrl,
+        "POST",
+        { jsonrpc: "2.0", id: 2, method: "tools/list", params: {} },
+        { "mcp-session-id": sessionId }
+      );
+      assert.strictEqual(response.status, 404, `${sessionId}: ${response.text}`);
+      assert.strictEqual(response.data?.error, "Session not found");
+    }
+  });
 });

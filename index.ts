@@ -14589,7 +14589,10 @@ async function startStreamableHTTPServer(): Promise<void> {
       return;
     }
     const sessionId = readMcpSessionIdHeader(req);
-    if (sessionId && !streamableTransports[sessionId]) {
+    if (
+      sessionId &&
+      !Object.prototype.hasOwnProperty.call(streamableTransports, sessionId)
+    ) {
       res.status(404).json({ error: "Session not found" });
       return;
     }
