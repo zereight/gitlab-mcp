@@ -7,11 +7,22 @@ const DEFAULT_NPM_REGISTRY = "https://registry.npmjs.org";
 const PACKAGE_LATEST_PATH = "@zereight/mcp-gitlab/latest";
 const RELEASE_VERSION_PATTERN = /^\d+\.\d+\.\d+$/;
 
-/** A configured registry is only used when it parses as a valid HTTP(S) URL with a hostname. */
+/**
+ * A configured registry is only used when it parses as a plain HTTP(S) URL
+ * with a hostname. A query or fragment is rejected too: the package path is
+ * appended to this value with plain string concatenation below, so a query
+ * string like "?tenant=a" would swallow the appended path instead of the
+ * request reaching the intended endpoint.
+ */
 function isUsableRegistryUrl(registry: string): boolean {
   try {
     const parsed = new URL(registry);
-    return (parsed.protocol === "http:" || parsed.protocol === "https:") && parsed.hostname !== "";
+    return (
+      (parsed.protocol === "http:" || parsed.protocol === "https:") &&
+      parsed.hostname !== "" &&
+      parsed.search === "" &&
+      parsed.hash === ""
+    );
   } catch {
     return false;
   }

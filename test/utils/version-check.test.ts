@@ -105,6 +105,18 @@ describe("When fetchLatestVersion resolves the registry", () => {
     assert.equal(latest, "2.1.31");
     assert.equal(requestedUrl, "https://registry.npmjs.org/@zereight/mcp-gitlab/latest");
   });
+
+  test("should fall back to the public registry when the resolved value has a query string", async () => {
+    let requestedUrl: string | undefined;
+    const spyFetch = (async (url: string | URL) => {
+      requestedUrl = url.toString();
+      return new Response(JSON.stringify({ version: "2.1.31" }), { status: 200 });
+    }) as unknown as typeof fetch;
+
+    const latest = await fetchLatestVersion(spyFetch, 3000, () => "https://registry.example/npm?tenant=a");
+    assert.equal(latest, "2.1.31");
+    assert.equal(requestedUrl, "https://registry.npmjs.org/@zereight/mcp-gitlab/latest");
+  });
 });
 
 describe("When resolving the registry from npm config", () => {
