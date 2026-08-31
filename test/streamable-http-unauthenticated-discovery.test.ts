@@ -150,19 +150,49 @@ describe("Streamable HTTP unauthenticated tool discovery", { timeout: 20_000 }, 
     const { server, mcpUrl } = await launchRemoteAuthServer({
       GITLAB_ALLOW_UNAUTHENTICATED_TOOL_DISCOVERY: "true",
       MAX_SESSIONS: "1",
+      MAX_REQUESTS_PER_MINUTE: "1",
+      MCP_TRUST_PROXY: "true",
       SESSION_TIMEOUT_SECONDS: "1",
     });
     servers.push(server);
 
-    await initialize(mcpUrl);
+    const expiredSessionId = await initialize(mcpUrl);
     await new Promise(resolve => setTimeout(resolve, 2_000));
+
+    const expiredResponse = await rawMcpRequest(
+      mcpUrl,
+      { jsonrpc: "2.0", id: 2, method: "tools/list", params: {} },
+      { "mcp-session-id": expiredSessionId }
+    );
+    assert.strictEqual(expiredResponse.status, 404, expiredResponse.text);
+    assert.deepStrictEqual(expiredResponse.data, { error: "Session not found" });
 
     const healthResponse = await fetch(mcpUrl.replace("/mcp", "/health"));
     assert.strictEqual(healthResponse.status, 200);
 
-    const nextSession = await rawMcpRequest(mcpUrl, initializeBody);
+    const nextSession = await rawMcpRequest(mcpUrl, initializeBody, {
+      "x-forwarded-for": "192.0.2.10",
+    });
     assert.strictEqual(nextSession.status, 200, nextSession.text);
     assert.ok(nextSession.sessionId, "expired discovery session should free capacity");
+  });
+
+  test("rejects inherited object-property names as unknown session IDs", async () => {
+    const { server, mcpUrl } = await launchRemoteAuthServer({
+      GITLAB_ALLOW_UNAUTHENTICATED_TOOL_DISCOVERY: "true",
+    });
+    servers.push(server);
+
+    for (const sessionId of ["constructor", "toString", "__proto__"]) {
+      const response = await rawMcpRequest(
+        mcpUrl,
+        { jsonrpc: "2.0", id: 2, method: "tools/list", params: {} },
+        { "mcp-session-id": sessionId }
+      );
+
+      assert.strictEqual(response.status, 404, `${sessionId}: ${response.text}`);
+      assert.deepStrictEqual(response.data, { error: "Session not found" });
+    }
   });
 
   test("still blocks unauthenticated tools/call when discovery is enabled", async () => {
