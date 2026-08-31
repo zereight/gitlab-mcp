@@ -273,7 +273,11 @@ export const DeletePipelineSchema = GetPipelineSchema;
 export const PipelineReportSchema = GetPipelineSchema.merge(PaginationOptionsSchema);
 export const PlayPipelineJobsSchema = z.object({
   project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
-  job_ids: z.array(z.coerce.string()).min(1).describe("Job IDs to play, in dependency order"),
+  job_ids: z
+    .array(z.coerce.string())
+    .min(1)
+    .refine((jobIds) => new Set(jobIds).size === jobIds.length, "job_ids must not contain duplicates")
+    .describe("Job IDs to play, in dependency order"),
   job_variables_attributes: z.array(z.object({ key: z.string(), value: z.string() })).optional(),
   timeout_seconds: z.coerce.number().int().min(1).max(600).optional(),
   poll_interval_seconds: z.coerce.number().int().min(1).max(30).optional(),
