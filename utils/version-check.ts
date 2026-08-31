@@ -20,10 +20,15 @@ function isUsableRegistryUrl(registry: string): boolean {
 /** Resolves the npm registry to use, honoring `.npmrc` / `npm_config_registry` when available. */
 async function resolveConfiguredRegistry(): Promise<string> {
   try {
-    const { stdout } = await execFileAsync("npm", ["config", "get", "registry"], {
-      timeout: 5000,
-      windowsHide: true,
-    });
+    // On Windows "npm" resolves to npm.cmd, which execFile can't launch
+    // directly — route through cmd.exe instead. Command and args are fixed
+    // literals on both platforms, so this doesn't open a shell-injection surface.
+    const isWindows = process.platform === "win32";
+    const { stdout } = await execFileAsync(
+      isWindows ? "cmd.exe" : "npm",
+      isWindows ? ["/d", "/s", "/c", "npm", "config", "get", "registry"] : ["config", "get", "registry"],
+      { timeout: 5000, windowsHide: true }
+    );
     const registry = stdout.trim().replace(/\/$/, "");
     if (registry && registry !== "undefined") return registry;
   } catch {
