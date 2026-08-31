@@ -35,6 +35,7 @@ const REFERENCE_FIELD_ALLOWLIST = new Set([
   "page",
   "per_page",
   "pipeline_id",
+  "job_inputs",
   "project_id",
   "renamed_file",
 ]);
