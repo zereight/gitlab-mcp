@@ -7489,7 +7489,7 @@ async function getDeployment(
 ): Promise<GitLabDeployment> {
   projectId = decodeURIComponent(projectId);
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/deployments/${deploymentId}`
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/deployments/${encodeGitLabPathSegment(deploymentId)}`
   );
 
   const response = await fetch(url.toString(), {
@@ -12496,19 +12496,19 @@ async function handleToolCall(params: any) {
       }
       case "update_deployment": {
         const { project_id, deployment_id, ...body } = UpdateDeploymentSchema.parse(params.arguments);
-        return { content: [{ type: "text", text: JSON.stringify(await deploymentRequest(project_id, `/${deployment_id}`, "PUT", body)) }] };
+        return { content: [{ type: "text", text: JSON.stringify(await deploymentRequest(project_id, `/${encodeGitLabPathSegment(deployment_id)}`, "PUT", body)) }] };
       }
       case "delete_deployment": {
         const { project_id, deployment_id } = GetDeploymentSchema.parse(params.arguments);
-        return { content: [{ type: "text", text: JSON.stringify(await deploymentRequest(project_id, `/${deployment_id}`, "DELETE")) }] };
+        return { content: [{ type: "text", text: JSON.stringify(await deploymentRequest(project_id, `/${encodeGitLabPathSegment(deployment_id)}`, "DELETE")) }] };
       }
       case "list_deployment_merge_requests": {
         const { project_id, deployment_id, ...query } = ListDeploymentMergeRequestsSchema.parse(params.arguments);
-        return { content: [{ type: "text", text: JSON.stringify(await deploymentRequest(project_id, `/${deployment_id}/merge_requests`, "GET", undefined, query)) }] };
+        return { content: [{ type: "text", text: JSON.stringify(await deploymentRequest(project_id, `/${encodeGitLabPathSegment(deployment_id)}/merge_requests`, "GET", undefined, query)) }] };
       }
       case "approve_deployment": {
         const { project_id, deployment_id, ...body } = DeploymentApprovalSchema.parse(params.arguments);
-        return { content: [{ type: "text", text: JSON.stringify(await deploymentRequest(project_id, `/${deployment_id}/approval`, "POST", body)) }] };
+        return { content: [{ type: "text", text: JSON.stringify(await deploymentRequest(project_id, `/${encodeGitLabPathSegment(deployment_id)}/approval`, "POST", body)) }] };
       }
       case "list_environments": {
         const args = ListEnvironmentsSchema.parse(params.arguments);

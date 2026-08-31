@@ -36,8 +36,8 @@ For exact generated parameter tables, see `docs/tools/`. Use this file for workf
 
 Enable all: `GITLAB_TOOLSETS=all`. Use `GITLAB_TOOLS` to enable individual tools outside their toolset. `discover_tools` can list and activate opt-in categories for the current session. `execute_graphql` is not in a toolset; enable it explicitly with `GITLAB_TOOLS=execute_graphql`.
 
-The per-toolset counts above sum to 242 because `get_branch` and `list_branches` are each listed
-in both `merge_requests` and `branches`; the unique tool count across all toolsets is 240.
+The per-toolset counts above sum to 247 because `get_branch` and `list_branches` are each listed
+in both `merge_requests` and `branches`; the unique tool count across all toolsets is 245.
 
 ## Key Workflows
 
