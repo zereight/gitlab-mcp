@@ -515,7 +515,7 @@ export const GetDeploymentSchema = z.object({
 });
 export const CreateDeploymentSchema = z.object({
   project_id: z.coerce.string(), environment: z.string(), sha: z.string(), ref: z.string(),
-  tag: z.coerce.boolean(), status: z.enum(["created", "running", "success", "failed", "canceled", "blocked"]),
+  tag: z.boolean(), status: z.enum(["running", "success", "failed", "canceled"]),
 });
 export const UpdateDeploymentSchema = GetDeploymentSchema.extend({
   status: z.enum(["running", "success", "failed", "canceled"]),

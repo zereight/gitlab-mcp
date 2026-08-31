@@ -214,7 +214,7 @@ Create a deployment. Use this for a new resource or action; choose the correspon
 | `sha` | string | ✓ |  |
 | `ref` | string | ✓ |  |
 | `tag` | boolean | ✓ |  |
-| `status` | enum (`created` \| `running` \| `success` \| `failed` \| `canceled` \| `blocked`) | ✓ |  |
+| `status` | enum (`running` \| `success` \| `failed` \| `canceled`) | ✓ |  |
 
 ### `update_deployment`
 
