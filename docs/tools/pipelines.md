@@ -16,6 +16,11 @@ Pipeline + job control (trigger, retry, cancel, play manual jobs, fetch logs/art
 - [`update_pipeline_metadata`](#update_pipeline_metadata) — ✏️ Writes
 - [`list_deployments`](#list_deployments) — 📖 Read-only
 - [`get_deployment`](#get_deployment) — 📖 Read-only
+- [`create_deployment`](#create_deployment) — ✏️ Writes
+- [`update_deployment`](#update_deployment) — ✏️ Writes
+- [`delete_deployment`](#delete_deployment) — ✏️ Writes
+- [`list_deployment_merge_requests`](#list_deployment_merge_requests) — 📖 Read-only
+- [`approve_deployment`](#approve_deployment) — ✏️ Writes
 - [`list_environments`](#list_environments) — 📖 Read-only
 - [`get_environment`](#get_environment) — 📖 Read-only
 - [`list_pipeline_jobs`](#list_pipeline_jobs) — 📖 Read-only
@@ -185,7 +190,7 @@ List deployments with filtering options. Use this for a collection of resources;
 
 *📖 Read-only*
 
-Get details of a specific deployment. Use this for a known resource or result; choose the corresponding list or search tool when you need to discover multiple resources. It is read-only and does not mutate GitLab data; missing resources, invalid identifiers, insufficient permission, and rate limits are returned as errors. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented.
+Get deployment details, including approval status. Use this for a known resource or result; choose the corresponding list or search tool when you need to discover multiple resources. It is read-only and does not mutate GitLab data; missing resources, invalid identifiers, insufficient permission, and rate limits are returned as errors. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented.
 
 **Parameters**
 
@@ -193,6 +198,81 @@ Get details of a specific deployment. Use this for a known resource or result; c
 |---|---|:-:|---|
 | `project_id` | string | ✓ | Project ID or URL-encoded path |
 | `deployment_id` | string | ✓ | The ID of the deployment |
+
+### `create_deployment`
+
+*✏️ Writes*
+
+Create a deployment. Use this for a new resource or action; choose the corresponding update or edit tool when the resource already exists. It changes remote GitLab state and requires the necessary project or group permission; GitLab returns validation, conflict, permission, or rate-limit errors instead of silently applying an invalid request. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented.
+
+**Parameters**
+
+| Parameter | Type | Required | Description |
+|---|---|:-:|---|
+| `project_id` | string | ✓ |  |
+| `environment` | string | ✓ |  |
+| `sha` | string | ✓ |  |
+| `ref` | string | ✓ |  |
+| `tag` | boolean | ✓ |  |
+| `status` | enum (`created` \| `running` \| `success` \| `failed` \| `canceled` \| `blocked`) | ✓ |  |
+
+### `update_deployment`
+
+*✏️ Writes*
+
+Update a deployment status. Use this for an existing resource; choose the corresponding create tool for a new resource and a note tool for discussion-only text. It changes remote GitLab state and requires the necessary project or group permission; GitLab returns validation, conflict, permission, or rate-limit errors instead of silently applying an invalid request. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented.
+
+**Parameters**
+
+| Parameter | Type | Required | Description |
+|---|---|:-:|---|
+| `project_id` | string | ✓ | Project ID or URL-encoded path |
+| `deployment_id` | string | ✓ | The ID of the deployment |
+| `status` | enum (`running` \| `success` \| `failed` \| `canceled`) | ✓ |  |
+
+### `delete_deployment`
+
+*✏️ Writes*
+
+Delete a deployment. Use this only after verifying the target; choose a get or list tool first when you need to inspect state without changing it. It changes or removes remote GitLab data and may be irreversible; it requires the necessary project or group permission and returns validation, conflict, permission, or rate-limit errors. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented.
+
+**Parameters**
+
+| Parameter | Type | Required | Description |
+|---|---|:-:|---|
+| `project_id` | string | ✓ | Project ID or URL-encoded path |
+| `deployment_id` | string | ✓ | The ID of the deployment |
+
+### `list_deployment_merge_requests`
+
+*📖 Read-only*
+
+List merge requests shipped with a deployment. Use this for a collection of resources; choose the corresponding get tool when you already know the single resource to inspect. It is read-only and does not mutate GitLab data; missing resources, invalid identifiers, insufficient permission, and rate limits are returned as errors. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented.
+
+**Parameters**
+
+| Parameter | Type | Required | Description |
+|---|---|:-:|---|
+| `project_id` | string | ✓ | Project ID or URL-encoded path |
+| `deployment_id` | string | ✓ | The ID of the deployment |
+| `page` | number |  | Page number for pagination (default: 1) |
+| `per_page` | number |  | Number of items per page (max: 100, default: 20) |
+
+### `approve_deployment`
+
+*✏️ Writes*
+
+Approve or reject a protected-environment deployment. Use this for the specific operation described; choose a sibling tool when you need a different resource or lifecycle action. It changes remote GitLab state and requires the necessary project or group permission; GitLab returns validation, conflict, permission, or rate-limit errors instead of silently applying an invalid request. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented.
+
+**Parameters**
+
+| Parameter | Type | Required | Description |
+|---|---|:-:|---|
+| `project_id` | string | ✓ | Project ID or URL-encoded path |
+| `deployment_id` | string | ✓ | The ID of the deployment |
+| `status` | enum (`approved` \| `rejected`) | ✓ |  |
+| `comment` | string |  |  |
+| `represented_as` | string |  |  |
 
 ### `list_environments`
 
