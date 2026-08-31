@@ -59,13 +59,12 @@ download_job_artifacts     -> download full artifact archive (zip) to local_path
 
 ```
 list_deployments           -> list deployments with filters
-get_deployment             -> deployment details
+get_deployment             -> deployment details, including approval status
 create_deployment          -> create a deployment record
 update_deployment          -> update deployment status
 delete_deployment          -> delete a deployment
 list_deployment_merge_requests -> merge requests shipped by a deployment
 approve_deployment         -> approve or reject a protected deployment
-get_deployment_approvals   -> inspect deployment approval details
 list_environments          -> list project environments
 get_environment            -> environment details
 ```

@@ -70,7 +70,7 @@ async function callTool(
       env: {
         ...process.env,
         ...env,
-        GITLAB_READ_ONLY_MODE: "true",
+        GITLAB_READ_ONLY_MODE: env.GITLAB_READ_ONLY_MODE ?? "true",
         USE_PIPELINE: "true",
       },
     });
@@ -285,6 +285,38 @@ describe("deployment and environment tools", () => {
       }
     );
 
+    mockGitLab.addMockHandler("post", `/projects/${TEST_PROJECT_ID}/deployments`, (_req, res) => {
+      res.status(201).json({ id: "created-deployment", status: "created" });
+    });
+    mockGitLab.addMockHandler(
+      "put",
+      `/projects/${TEST_PROJECT_ID}/deployments/${TEST_DEPLOYMENT_ID}`,
+      (_req, res) => {
+        res.json({ id: TEST_DEPLOYMENT_ID, status: "success" });
+      }
+    );
+    mockGitLab.addMockHandler(
+      "delete",
+      `/projects/${TEST_PROJECT_ID}/deployments/${TEST_DEPLOYMENT_ID}`,
+      (_req, res) => {
+        res.status(204).send();
+      }
+    );
+    mockGitLab.addMockHandler(
+      "get",
+      `/projects/${TEST_PROJECT_ID}/deployments/${TEST_DEPLOYMENT_ID}/merge_requests`,
+      (_req, res) => {
+        res.json([{ iid: TEST_MERGE_REQUEST_IID, title: "Shipped change" }]);
+      }
+    );
+    mockGitLab.addMockHandler(
+      "post",
+      `/projects/${TEST_PROJECT_ID}/deployments/${TEST_DEPLOYMENT_ID}/approval`,
+      (_req, res) => {
+        res.json({ id: TEST_DEPLOYMENT_ID, status: "approved" });
+      }
+    );
+
     mockGitLab.addMockHandler("get", `/projects/${TEST_PROJECT_ID}/environments`, (req, res) => {
       res.json([
         {
@@ -362,6 +394,56 @@ describe("deployment and environment tools", () => {
     assert.strictEqual(result.id, TEST_DEPLOYMENT_ID);
     assert.strictEqual(result.ref, "master");
     assert.strictEqual(result.status, "success");
+  });
+
+  test("supports deployment lifecycle and approval operations", async () => {
+    const env = {
+      GITLAB_API_URL: `${mockGitLabUrl}/api/v4`,
+      GITLAB_PERSONAL_ACCESS_TOKEN: MOCK_TOKEN,
+      GITLAB_READ_ONLY_MODE: "false",
+    };
+
+    const created = await callTool(
+      "create_deployment",
+      {
+        project_id: TEST_PROJECT_ID,
+        environment: "stage",
+        sha: "abc123",
+        ref: "master",
+        tag: false,
+        status: "created",
+      },
+      env
+    );
+    assert.strictEqual(created.id, "created-deployment");
+
+    const updated = await callTool(
+      "update_deployment",
+      { project_id: TEST_PROJECT_ID, deployment_id: TEST_DEPLOYMENT_ID, status: "success" },
+      env
+    );
+    assert.strictEqual(updated.status, "success");
+
+    const mergeRequests = await callTool(
+      "list_deployment_merge_requests",
+      { project_id: TEST_PROJECT_ID, deployment_id: TEST_DEPLOYMENT_ID },
+      env
+    );
+    assert.strictEqual(mergeRequests[0].iid, TEST_MERGE_REQUEST_IID);
+
+    const approval = await callTool(
+      "approve_deployment",
+      { project_id: TEST_PROJECT_ID, deployment_id: TEST_DEPLOYMENT_ID, status: "approved" },
+      env
+    );
+    assert.strictEqual(approval.status, "approved");
+
+    const deleted = await callTool(
+      "delete_deployment",
+      { project_id: TEST_PROJECT_ID, deployment_id: TEST_DEPLOYMENT_ID },
+      env
+    );
+    assert.deepStrictEqual(deleted, { success: true });
   });
 
   test("list_environments returns environment list", async () => {

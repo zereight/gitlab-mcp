@@ -827,7 +827,7 @@ export const allTools = [
   },
   {
     name: "get_deployment",
-    description: "Get details of a specific deployment",
+    description: "Get deployment details, including approval status",
     inputSchema: toJSONSchema(GetDeploymentSchema),
   },
   { name: "create_deployment", description: "Create a deployment", inputSchema: toJSONSchema(CreateDeploymentSchema) },
@@ -835,7 +835,6 @@ export const allTools = [
   { name: "delete_deployment", description: "Delete a deployment", inputSchema: toJSONSchema(GetDeploymentSchema) },
   { name: "list_deployment_merge_requests", description: "List merge requests shipped with a deployment", inputSchema: toJSONSchema(ListDeploymentMergeRequestsSchema) },
   { name: "approve_deployment", description: "Approve or reject a protected-environment deployment", inputSchema: toJSONSchema(DeploymentApprovalSchema) },
-  { name: "get_deployment_approvals", description: "Get deployment details including approval status", inputSchema: toJSONSchema(GetDeploymentSchema) },
   {
     name: "list_environments",
     description: "List environments in a project",
@@ -1550,7 +1549,6 @@ export const readOnlyTools = new Set([
   "list_deployments",
   "get_deployment",
   "list_deployment_merge_requests",
-  "get_deployment_approvals",
   "list_environments",
   "get_environment",
   "list_pipeline_jobs",
@@ -1988,7 +1986,6 @@ export const TOOLSET_DEFINITIONS: readonly ToolsetDefinition[] = [
       "delete_deployment",
       "list_deployment_merge_requests",
       "approve_deployment",
-      "get_deployment_approvals",
       "list_environments",
       "get_environment",
       "list_pipeline_jobs",

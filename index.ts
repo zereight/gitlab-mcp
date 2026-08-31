@@ -12510,11 +12510,6 @@ async function handleToolCall(params: any) {
         const { project_id, deployment_id, ...body } = DeploymentApprovalSchema.parse(params.arguments);
         return { content: [{ type: "text", text: JSON.stringify(await deploymentRequest(project_id, `/${deployment_id}/approval`, "POST", body)) }] };
       }
-      case "get_deployment_approvals": {
-        const { project_id, deployment_id } = GetDeploymentSchema.parse(params.arguments);
-        return { content: [{ type: "text", text: JSON.stringify(await deploymentRequest(project_id, `/${deployment_id}`)) }] };
-      }
-
       case "list_environments": {
         const args = ListEnvironmentsSchema.parse(params.arguments);
         const { project_id, ...options } = args;
