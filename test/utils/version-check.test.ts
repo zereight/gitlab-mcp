@@ -268,6 +268,28 @@ describe("When fetchLatestVersion authenticates against a protected registry", (
     });
   });
 
+  describe("when the registry path contains underscores", () => {
+    test("should send a Bearer token for an Azure Artifacts-style registry path", async () => {
+      const registry =
+        "https://pkgs.dev.azure.com/org/_packaging/feed/npm/registry";
+      const authKey =
+        "//pkgs.dev.azure.com/org/_packaging/feed/npm/registry/:_authToken";
+      await withNpmrc(
+        [`@zereight:registry=${registry}`, `${authKey}=azure-feed-token`].join("\n"),
+        async () => {
+          const calls: CapturedFetch[] = [];
+          const latest = await fetchLatestVersion(fetchCapturing(calls, 200, { version: "2.1.31" }));
+          assert.equal(latest, "2.1.31");
+          assert.equal(
+            calls[0]?.url,
+            `${registry}/@zereight/mcp-gitlab/latest`
+          );
+          assert.equal(calls[0]?.authorization, "Bearer azure-feed-token");
+        }
+      );
+    });
+  });
+
   describe("with a token for a different host", () => {
     test("should omit Authorization", async () => {
       await withNpmrc(

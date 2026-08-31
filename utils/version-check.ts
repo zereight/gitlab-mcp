@@ -10,7 +10,7 @@ const DEFAULT_NPM_REGISTRY = "https://registry.npmjs.org";
 const PACKAGE_LATEST_PATH = "@zereight/mcp-gitlab/latest";
 const RELEASE_VERSION_PATTERN = /^\d+\.\d+\.\d+$/;
 const AUTH_TOKEN_KEY_PATTERN =
-  /^\/\/[-A-Za-z0-9.]+(?::\d+)?(?:\/[-A-Za-z0-9.]+)*\/:_authToken$/;
+  /^\/\/[-A-Za-z0-9.]+(?::\d+)?(?:\/[-A-Za-z0-9._]+)*\/:_authToken$/;
 const NPMRC_ENV_PATTERN = /\$\{([A-Za-z_]\w*)\}/g;
 
 type FetchLike = (input: string | URL, init?: RequestInit) => Promise<Response>;
