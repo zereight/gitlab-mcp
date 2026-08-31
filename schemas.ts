@@ -271,11 +271,6 @@ export const UpdatePipelineMetadataSchema = GetPipelineSchema.extend({
 });
 export const DeletePipelineSchema = GetPipelineSchema;
 export const PipelineReportSchema = GetPipelineSchema.merge(PaginationOptionsSchema);
-export const PlayPipelineJobsSchema = z.object({
-  project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
-  job_ids: z.array(z.coerce.string()).min(1).describe("Job IDs to play, in dependency order"),
-  job_variables_attributes: z.array(z.object({ key: z.string(), value: z.string() })).optional(),
-});
 
 export const GitLabMergeRequestPipelineSchema = z.object({
   id: z.coerce.string(),

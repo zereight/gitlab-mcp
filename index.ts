@@ -320,7 +320,6 @@ import {
   UpdatePipelineMetadataSchema,
   DeletePipelineSchema,
   PipelineReportSchema,
-  PlayPipelineJobsSchema,
   GetProjectMilestoneSchema,
   GetProjectSchema,
   type GetRepositoryTreeOptions,
@@ -8369,12 +8368,6 @@ async function playPipelineJob(
   return GitLabPipelineJobSchema.parse(data);
 }
 
-async function playPipelineJobs(projectId: string, jobIds: Array<number | string>, variables?: Array<{ key: string; value: string }>): Promise<GitLabPipelineJob[]> {
-  const jobs: GitLabPipelineJob[] = [];
-  for (const jobId of jobIds) jobs.push(await playPipelineJob(projectId, jobId, variables));
-  return jobs;
-}
-
 /**
  * Retry a job
  *
@@ -12846,12 +12839,6 @@ async function handleToolCall(params: any) {
             },
           ],
         };
-      }
-
-      case "play_pipeline_jobs": {
-        const { project_id, job_ids, job_variables_attributes } = PlayPipelineJobsSchema.parse(params.arguments);
-        const jobs = await playPipelineJobs(project_id, job_ids, job_variables_attributes);
-        return { content: [{ type: "text", text: JSON.stringify(jobs) }] };
       }
 
       case "retry_pipeline_job": {
