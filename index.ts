@@ -14577,8 +14577,32 @@ async function startStreamableHTTPServer(): Promise<void> {
       ? staticMcpBearerAuth
       : (_req: Request, _res: Response, next: NextFunction) => next();
 
+  // Stateful mode: a request carrying an Mcp-Session-Id that isn't (or is no
+  // longer) in streamableTransports must get the spec-mandated 404 before
+  // rate limiting or auth can mask that signal with an unrelated 429/401 —
+  // otherwise conforming clients can't tell to re-initialize. New sessions
+  // (no header at all) and stateless mode (its own 404 path, see
+  // hasStatelessSessionId above) are unaffected.
+  const rejectUnknownStreamableSession = (req: Request, res: Response, next: NextFunction) => {
+    if (OAUTH_STATELESS_MODE && STATELESS_MATERIAL && (REMOTE_AUTHORIZATION || GITLAB_MCP_OAUTH)) {
+      next();
+      return;
+    }
+    const sessionId = readMcpSessionIdHeader(req);
+    if (sessionId && !streamableTransports[sessionId]) {
+      res.status(404).json({ error: "Session not found" });
+      return;
+    }
+    next();
+  };
+
   // Streamable HTTP endpoint - handles both session creation and message handling
-  app.post("/mcp", mcpRequestRateLimit, mcpBearerAuth, async (req: Request, res: Response) => {
+  app.post(
+    "/mcp",
+    rejectUnknownStreamableSession,
+    mcpRequestRateLimit,
+    mcpBearerAuth,
+    async (req: Request, res: Response) => {
     const sessionId = readMcpSessionIdHeader(req);
     const publicBaseUrl = getForwardedPublicBaseUrl(req, MCP_TRUST_PROXY);
 
@@ -14880,10 +14904,16 @@ async function startStreamableHTTPServer(): Promise<void> {
       // Standard execution (no per-session auth or no session yet)
       await handleRequest();
     }
-  });
+  }
+  );
 
   // Streamable HTTP GET endpoint for listening to server-sent events (SSE)
-  app.get("/mcp", mcpRequestRateLimit, mcpBearerAuth, async (req: Request, res: Response) => {
+  app.get(
+    "/mcp",
+    rejectUnknownStreamableSession,
+    mcpRequestRateLimit,
+    mcpBearerAuth,
+    async (req: Request, res: Response) => {
     const sessionId = readMcpSessionIdHeader(req);
     const acceptHeader = readAcceptHeader(req);
 
@@ -14969,7 +14999,8 @@ async function startStreamableHTTPServer(): Promise<void> {
         setAuthTimeout(sessionId);
       }
     }
-  });
+  }
+  );
 
   const getMetricsSnapshot = () => ({
     ...metrics,
@@ -15017,34 +15048,40 @@ async function startStreamableHTTPServer(): Promise<void> {
   });
 
   // to delete a mcp server session explicitly
-  app.delete("/mcp", mcpRequestRateLimit, mcpBearerAuth, async (req: Request, res: Response) => {
-    const sessionId = readMcpSessionIdHeader(req);
+  app.delete(
+    "/mcp",
+    rejectUnknownStreamableSession,
+    mcpRequestRateLimit,
+    mcpBearerAuth,
+    async (req: Request, res: Response) => {
+      const sessionId = readMcpSessionIdHeader(req);
 
-    if (!sessionId) {
-      res.status(400).json({ error: "mcp-session-id header is required" });
-      return;
-    }
-
-    const transport = streamableTransports[sessionId];
-
-    if (transport) {
-      try {
-        await transport.close();
-        logger.info(`Explicitly closed session via DELETE request: ${sessionId}`);
-        if (REMOTE_AUTHORIZATION || GITLAB_MCP_OAUTH) {
-          cleanupSessionAuth(sessionId);
-          delete sessionRequestCounts[sessionId];
-          logger.info(`Session ${sessionId}: cleaned up auth mapping on DELETE`);
-        }
-        res.status(204).send();
-      } catch (error) {
-        logger.error({ err: error }, `Error closing session ${sessionId}`);
-        res.status(500).json({ error: "Failed to close session" });
+      if (!sessionId) {
+        res.status(400).json({ error: "mcp-session-id header is required" });
+        return;
       }
-    } else {
-      res.status(404).json({ error: "Session not found" });
+
+      const transport = streamableTransports[sessionId];
+
+      if (transport) {
+        try {
+          await transport.close();
+          logger.info(`Explicitly closed session via DELETE request: ${sessionId}`);
+          if (REMOTE_AUTHORIZATION || GITLAB_MCP_OAUTH) {
+            cleanupSessionAuth(sessionId);
+            delete sessionRequestCounts[sessionId];
+            logger.info(`Session ${sessionId}: cleaned up auth mapping on DELETE`);
+          }
+          res.status(204).send();
+        } catch (error) {
+          logger.error({ err: error }, `Error closing session ${sessionId}`);
+          res.status(500).json({ error: "Failed to close session" });
+        }
+      } else {
+        res.status(404).json({ error: "Session not found" });
+      }
     }
-  });
+  );
 
   // Reject unsupported methods on /mcp
   app.all("/mcp", (_req: Request, res: Response) => {
