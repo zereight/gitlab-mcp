@@ -90,4 +90,16 @@ describe("When fetchLatestVersion resolves the registry", () => {
     assert.equal(latest, null);
     assert.equal(requestedUrl, undefined);
   });
+
+  test("should fall back to the public registry when the resolved value has no hostname", async () => {
+    let requestedUrl: string | undefined;
+    const spyFetch = (async (url: string | URL) => {
+      requestedUrl = url.toString();
+      return new Response(JSON.stringify({ version: "2.1.31" }), { status: 200 });
+    }) as unknown as typeof fetch;
+
+    const latest = await fetchLatestVersion(spyFetch, 3000, () => "https:///");
+    assert.equal(latest, "2.1.31");
+    assert.equal(requestedUrl, "https://registry.npmjs.org/@zereight/mcp-gitlab/latest");
+  });
 });

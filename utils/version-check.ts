@@ -1,21 +1,31 @@
-import { execSync } from "node:child_process";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
+
+const execFileAsync = promisify(execFile);
 
 const DEFAULT_NPM_REGISTRY = "https://registry.npmjs.org";
 const PACKAGE_LATEST_PATH = "@zereight/mcp-gitlab/latest";
 const RELEASE_VERSION_PATTERN = /^\d+\.\d+\.\d+$/;
 
-/** Resolves the npm registry to use, honoring `.npmrc` / `npm_config_registry` when available. */
-function resolveConfiguredRegistry(): string {
+/** A configured registry is only used when it parses as a valid HTTP(S) URL with a hostname. */
+function isUsableRegistryUrl(registry: string): boolean {
   try {
-    const registry = execSync("npm config get registry", {
-      encoding: "utf8",
-      stdio: ["ignore", "pipe", "ignore"],
+    const parsed = new URL(registry);
+    return (parsed.protocol === "http:" || parsed.protocol === "https:") && parsed.hostname !== "";
+  } catch {
+    return false;
+  }
+}
+
+/** Resolves the npm registry to use, honoring `.npmrc` / `npm_config_registry` when available. */
+async function resolveConfiguredRegistry(): Promise<string> {
+  try {
+    const { stdout } = await execFileAsync("npm", ["config", "get", "registry"], {
       timeout: 5000,
       windowsHide: true,
-    })
-      .trim()
-      .replace(/\/$/, "");
-    if (registry && registry !== "undefined" && /^https?:\/\//.test(registry)) return registry;
+    });
+    const registry = stdout.trim().replace(/\/$/, "");
+    if (registry && registry !== "undefined") return registry;
   } catch {
     // npm unavailable or the lookup failed — fall back to the public registry.
   }
@@ -36,10 +46,12 @@ export function isNewerVersion(candidate: string, current: string): boolean {
 export async function fetchLatestVersion(
   fetchFn: typeof fetch = fetch,
   timeoutMs = 3000,
-  resolveRegistry: () => string = resolveConfiguredRegistry
+  resolveRegistry: () => string | Promise<string> = resolveConfiguredRegistry
 ): Promise<string | null> {
   try {
-    const registryLatestUrl = `${resolveRegistry().replace(/\/$/, "")}/${PACKAGE_LATEST_PATH}`;
+    const resolved = (await resolveRegistry()).replace(/\/$/, "");
+    const registry = isUsableRegistryUrl(resolved) ? resolved : DEFAULT_NPM_REGISTRY;
+    const registryLatestUrl = `${registry}/${PACKAGE_LATEST_PATH}`;
     const response = await fetchFn(registryLatestUrl, {
       signal: AbortSignal.timeout(timeoutMs),
       headers: { accept: "application/json" },
