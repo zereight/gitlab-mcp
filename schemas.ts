@@ -604,11 +604,11 @@ export const UpdateEnvironmentSchema = GetEnvironmentSchema.extend({
   tier: z.enum(["production", "staging", "testing", "development", "other"]).optional(),
   auto_stop_setting: z.enum(["always", "with_action"]).optional(),
 });
-export const StopEnvironmentSchema = GetEnvironmentSchema.extend({ force: z.coerce.boolean().optional() });
+export const StopEnvironmentSchema = GetEnvironmentSchema.extend({ force: coerceBooleanString.optional() });
 export const StopStaleEnvironmentsSchema = z.object({ project_id: z.coerce.string(), before: z.string() });
 export const DeleteReviewAppEnvironmentsSchema = z.object({
   project_id: z.coerce.string(), before: z.string().optional(), limit: z.coerce.number().optional(),
-  dry_run: z.coerce.boolean().optional(),
+  dry_run: coerceBooleanString.optional(),
 });
 export const PipelineTriggerIdSchema = z.object({ project_id: z.coerce.string(), trigger_id: z.coerce.string() });
 export const ListPipelineTriggersSchema = z.object({ project_id: z.coerce.string() });

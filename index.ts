@@ -7580,7 +7580,7 @@ async function getEnvironment(
 ): Promise<GitLabEnvironment> {
   projectId = decodeURIComponent(projectId);
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/environments/${environmentId}`
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/environments/${encodeGitLabPathSegment(environmentId)}`
   );
 
   const response = await fetch(url.toString(), {
@@ -12587,15 +12587,15 @@ async function handleToolCall(params: any) {
 
       case "update_environment": {
         const { project_id, environment_id, ...body } = UpdateEnvironmentSchema.parse(params.arguments);
-        return { content: [{ type: "text", text: JSON.stringify(await environmentRequest(project_id, `/${environment_id}`, "PUT", body)) }] };
+        return { content: [{ type: "text", text: JSON.stringify(await environmentRequest(project_id, `/${encodeGitLabPathSegment(environment_id)}`, "PUT", body)) }] };
       }
       case "delete_environment": {
         const { project_id, environment_id } = GetEnvironmentSchema.parse(params.arguments);
-        return { content: [{ type: "text", text: JSON.stringify(await environmentRequest(project_id, `/${environment_id}`, "DELETE")) }] };
+        return { content: [{ type: "text", text: JSON.stringify(await environmentRequest(project_id, `/${encodeGitLabPathSegment(environment_id)}`, "DELETE")) }] };
       }
       case "stop_environment": {
         const { project_id, environment_id, force } = StopEnvironmentSchema.parse(params.arguments);
-        return { content: [{ type: "text", text: JSON.stringify(await environmentRequest(project_id, `/${environment_id}/stop`, "POST", undefined, { force })) }] };
+        return { content: [{ type: "text", text: JSON.stringify(await environmentRequest(project_id, `/${encodeGitLabPathSegment(environment_id)}/stop`, "POST", undefined, { force })) }] };
       }
       case "stop_stale_environments": {
         const { project_id, before } = StopStaleEnvironmentsSchema.parse(params.arguments);
@@ -12611,7 +12611,7 @@ async function handleToolCall(params: any) {
       }
       case "get_pipeline_trigger": {
         const { project_id, trigger_id } = PipelineTriggerIdSchema.parse(params.arguments);
-        return { content: [{ type: "text", text: JSON.stringify(await pipelineTriggerRequest(project_id, `/${trigger_id}`)) }] };
+        return { content: [{ type: "text", text: JSON.stringify(await pipelineTriggerRequest(project_id, `/${encodeGitLabPathSegment(trigger_id)}`)) }] };
       }
       case "create_pipeline_trigger": {
         const { project_id, ...body } = CreatePipelineTriggerSchema.parse(params.arguments);
@@ -12619,11 +12619,11 @@ async function handleToolCall(params: any) {
       }
       case "update_pipeline_trigger": {
         const { project_id, trigger_id, ...body } = UpdatePipelineTriggerSchema.parse(params.arguments);
-        return { content: [{ type: "text", text: JSON.stringify(await pipelineTriggerRequest(project_id, `/${trigger_id}`, "PUT", body)) }] };
+        return { content: [{ type: "text", text: JSON.stringify(await pipelineTriggerRequest(project_id, `/${encodeGitLabPathSegment(trigger_id)}`, "PUT", body)) }] };
       }
       case "delete_pipeline_trigger": {
         const { project_id, trigger_id } = PipelineTriggerIdSchema.parse(params.arguments);
-        return { content: [{ type: "text", text: JSON.stringify(await pipelineTriggerRequest(project_id, `/${trigger_id}`, "DELETE")) }] };
+        return { content: [{ type: "text", text: JSON.stringify(await pipelineTriggerRequest(project_id, `/${encodeGitLabPathSegment(trigger_id)}`, "DELETE")) }] };
       }
       case "trigger_pipeline": {
         const { project_id, token, ref, variables, inputs } = TriggerPipelineSchema.parse(params.arguments);

@@ -4,7 +4,7 @@
 
 ## List & Inspect
 
-```
+```text
 list_pipelines             -> list pipelines with filters (status, ref, source)
 get_pipeline               -> pipeline details (status, duration, coverage)
 get_pipeline_variables     -> variables configured on a pipeline

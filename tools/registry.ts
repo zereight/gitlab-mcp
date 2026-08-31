@@ -1659,7 +1659,6 @@ export const destructiveTools = new Set([
   "delete_environment",
   "delete_review_app_environments",
   "delete_pipeline_trigger",
-  "stop_stale_environments",
   "delete_issue",
   "delete_issue_link",
   "delete_label",
