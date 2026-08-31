@@ -42,6 +42,13 @@ describe("streamable request helpers", () => {
       isUnauthenticatedDiscoveryRequestBody([{ method: "tools/list" }, { method: "call_tool" }]),
       false
     );
+    assert.strictEqual(
+      isUnauthenticatedDiscoveryRequestBody([
+        { method: "server/discover" },
+        { method: "tools/call" },
+      ]),
+      false
+    );
     assert.strictEqual(isUnauthenticatedDiscoveryRequestBody(undefined), false);
   });
 
