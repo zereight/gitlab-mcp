@@ -1620,7 +1620,8 @@ async function ensureSessionForRequest(): Promise<void> {
       redirect: "follow",
     });
     // 401 means auth failed but the request completed - cookies were still exchanged
-    initialSessionRequestMade = response.ok || response.status === 401;
+    // 403 means insufficient scope (e.g. missing User: Read) but auth is valid
+    initialSessionRequestMade = response.ok || response.status === 401 || response.status === 403;
   } catch {
     logger.debug("Session warmup request failed, will retry on next request");
   }
