@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
-import { checkForNewVersion, isNewerVersion } from "../../utils/version-check.js";
+import { checkForNewVersion, fetchLatestVersion, isNewerVersion } from "../../utils/version-check.js";
 
 function fetchReturning(status: number, body: unknown): typeof fetch {
   return (async () => new Response(JSON.stringify(body), { status })) as unknown as typeof fetch;
@@ -60,5 +60,34 @@ describe("When checkForNewVersion runs", () => {
       fetchReturning(200, { version: "2.2.0-beta.1" })
     );
     assert.equal(latest, null);
+  });
+});
+
+describe("When fetchLatestVersion resolves the registry", () => {
+  test("should fetch from the resolved registry instead of a hardcoded one", async () => {
+    let requestedUrl: string | undefined;
+    const spyFetch = (async (url: string | URL) => {
+      requestedUrl = url.toString();
+      return new Response(JSON.stringify({ version: "2.1.31" }), { status: 200 });
+    }) as unknown as typeof fetch;
+
+    const latest = await fetchLatestVersion(spyFetch, 3000, () => "https://npm.internal.example/");
+    assert.equal(latest, "2.1.31");
+    assert.equal(requestedUrl, "https://npm.internal.example/@zereight/mcp-gitlab/latest");
+  });
+
+  test("should fall back to the public registry when the resolver throws", async () => {
+    let requestedUrl: string | undefined;
+    const spyFetch = (async (url: string | URL) => {
+      requestedUrl = url.toString();
+      return new Response(JSON.stringify({ version: "2.1.31" }), { status: 200 });
+    }) as unknown as typeof fetch;
+    const throwingResolver = () => {
+      throw new Error("npm not found");
+    };
+
+    const latest = await fetchLatestVersion(spyFetch, 3000, throwingResolver as unknown as () => string);
+    assert.equal(latest, null);
+    assert.equal(requestedUrl, undefined);
   });
 });

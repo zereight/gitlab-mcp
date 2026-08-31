@@ -1,5 +1,26 @@
-const NPM_REGISTRY_LATEST_URL = "https://registry.npmjs.org/@zereight/mcp-gitlab/latest";
+import { execSync } from "node:child_process";
+
+const DEFAULT_NPM_REGISTRY = "https://registry.npmjs.org";
+const PACKAGE_LATEST_PATH = "@zereight/mcp-gitlab/latest";
 const RELEASE_VERSION_PATTERN = /^\d+\.\d+\.\d+$/;
+
+/** Resolves the npm registry to use, honoring `.npmrc` / `npm_config_registry` when available. */
+function resolveConfiguredRegistry(): string {
+  try {
+    const registry = execSync("npm config get registry", {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+      timeout: 5000,
+      windowsHide: true,
+    })
+      .trim()
+      .replace(/\/$/, "");
+    if (registry && registry !== "undefined" && /^https?:\/\//.test(registry)) return registry;
+  } catch {
+    // npm unavailable or the lookup failed — fall back to the public registry.
+  }
+  return DEFAULT_NPM_REGISTRY;
+}
 
 export function isNewerVersion(candidate: string, current: string): boolean {
   const parse = (version: string) => version.split(".").map(part => Number.parseInt(part, 10));
@@ -14,10 +35,12 @@ export function isNewerVersion(candidate: string, current: string): boolean {
 
 export async function fetchLatestVersion(
   fetchFn: typeof fetch = fetch,
-  timeoutMs = 3000
+  timeoutMs = 3000,
+  resolveRegistry: () => string = resolveConfiguredRegistry
 ): Promise<string | null> {
   try {
-    const response = await fetchFn(NPM_REGISTRY_LATEST_URL, {
+    const registryLatestUrl = `${resolveRegistry().replace(/\/$/, "")}/${PACKAGE_LATEST_PATH}`;
+    const response = await fetchFn(registryLatestUrl, {
       signal: AbortSignal.timeout(timeoutMs),
       headers: { accept: "application/json" },
     });
