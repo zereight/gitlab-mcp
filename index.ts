@@ -4,6 +4,7 @@ import {
   getConfig,
   ENABLE_DYNAMIC_API_URL,
   ENABLE_DYNAMIC_PROJECT_SCOPE,
+  ENABLE_STRICT_PROJECT_SCOPE,
   GITLAB_AUTH_COOKIE_PATH,
   GITLAB_ALLOW_UNAUTHENTICATED_TOOL_DISCOVERY,
   GITLAB_CA_CERT_PATH,
@@ -1770,6 +1771,38 @@ function getEffectiveAllowedProjectIds(): string[] {
 }
 
 /**
+ * Reject tools that cannot be limited to allowed projects when
+ * ENABLE_STRICT_PROJECT_SCOPE is set and an allowlist is in effect
+ */
+function rejectIfStrictProjectScope(toolName: string): void {
+  if (ENABLE_STRICT_PROJECT_SCOPE) {
+    rejectIfProjectScopedDeployment(toolName);
+  }
+}
+
+/**
+ * Filter a project listing down to the effective allowlist
+ * Applies only when ENABLE_STRICT_PROJECT_SCOPE is set and an allowlist is in effect
+ * Allowlist entries may be numeric IDs or full namespace paths
+ */
+function filterProjectsByAllowlist<T extends Pick<GitLabProject, "id" | "path_with_namespace">>(
+  projects: T[]
+): T[] {
+  if (!ENABLE_STRICT_PROJECT_SCOPE) {
+    return projects;
+  }
+  const allowedProjectIds = getEffectiveAllowedProjectIds();
+  if (allowedProjectIds.length === 0) {
+    return projects;
+  }
+  return projects.filter(
+    project =>
+      allowedProjectIds.includes(String(project.id)) ||
+      allowedProjectIds.includes(project.path_with_namespace)
+  );
+}
+
+/**
  * Get fetch configuration with proper client from pool
  * Uses connection pooling when dynamic API URLs are enabled
  */
@@ -2266,9 +2299,11 @@ async function listIssues(
   options: Omit<z.infer<typeof ListIssuesSchema>, "project_id"> = {}
 ): Promise<GitLabIssue[]> {
   let url: URL;
-  if (projectId) {
-    projectId = decodeURIComponent(projectId); // Decode project ID
-    const effectiveProjectId = getEffectiveProjectId(projectId);
+  if (projectId || (ENABLE_STRICT_PROJECT_SCOPE && getEffectiveAllowedProjectIds().length > 0)) {
+    // In strict scope, never fall back to the instance-wide endpoint;
+    // resolve the default project (or fail for a multi-project allowlist)
+    const decodedProjectId = projectId ? decodeURIComponent(projectId) : "";
+    const effectiveProjectId = getEffectiveProjectId(decodedProjectId);
     url = new URL(
       `${getEffectiveApiUrl()}/projects/${encodeURIComponent(effectiveProjectId)}/issues`
     );
@@ -2376,11 +2411,21 @@ async function listMergeRequests(
   projectId?: string,
   options: Omit<z.infer<typeof ListMergeRequestsSchema>, "project_id"> = {}
 ): Promise<GitLabMergeRequest[]> {
-  const decodedProjectId = projectId ? decodeURIComponent(projectId) : undefined;
-  const endpoint = decodedProjectId
-    ? `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(decodedProjectId))}/merge_requests`
-    : `${getEffectiveApiUrl()}/merge_requests`;
-  const url = new URL(endpoint);
+  const decodedProjectId = projectId ? decodeURIComponent(projectId) : "";
+  let url: URL;
+  if (
+    decodedProjectId ||
+    (ENABLE_STRICT_PROJECT_SCOPE && getEffectiveAllowedProjectIds().length > 0)
+  ) {
+    // In strict scope, never fall back to the instance-wide endpoint;
+    // resolve the default project (or fail for a multi-project allowlist)
+    const effectiveProjectId = getEffectiveProjectId(decodedProjectId);
+    url = new URL(
+      `${getEffectiveApiUrl()}/projects/${encodeURIComponent(effectiveProjectId)}/merge_requests`
+    );
+  } else {
+    url = new URL(`${getEffectiveApiUrl()}/merge_requests`);
+  }
 
   appendMergeRequestFilters(url, options);
 
@@ -5139,16 +5184,24 @@ async function searchProjects(
     throw new Error(`GitLab API error: ${response.status} ${response.statusText}\n${errorBody}`);
   }
 
-  const projects = (await response.json()) as GitLabRepository[];
+  const unfiltered = (await response.json()) as GitLabRepository[];
+  const projects = filterProjectsByAllowlist(unfiltered);
   const totalCount = response.headers.get("x-total");
   const totalPages = response.headers.get("x-total-pages");
 
   // GitLab API doesn't return these headers for results > 10,000
-  const count = totalCount ? Number.parseInt(totalCount, 10) : projects.length;
+  // Header counts are meaningless once the allowlist filter dropped results
+  const count =
+    projects.length === unfiltered.length && totalCount
+      ? Number.parseInt(totalCount, 10)
+      : projects.length;
 
   return GitLabSearchResponseSchema.parse({
     count,
-    total_pages: totalPages ? Number.parseInt(totalPages, 10) : Math.ceil(count / perPage),
+    total_pages:
+      projects.length === unfiltered.length && totalPages
+        ? Number.parseInt(totalPages, 10)
+        : Math.ceil(count / perPage),
     current_page: page,
     items: projects,
   });
@@ -6669,7 +6722,7 @@ async function listProjects(
 
   // Parse and return the data
   const data = await response.json();
-  return z.array(GitLabProjectSchema).parse(data);
+  return filterProjectsByAllowlist(z.array(GitLabProjectSchema).parse(data));
 }
 
 /**
@@ -6887,7 +6940,7 @@ async function listGroupProjects(
 
   await handleGitLabError(response);
   const projects = await response.json();
-  return GitLabProjectSchema.array().parse(projects);
+  return filterProjectsByAllowlist(GitLabProjectSchema.array().parse(projects));
 }
 
 // Webhook API helper functions
@@ -6900,6 +6953,7 @@ function buildWebhookBaseUrl(projectId?: string, groupId?: string): string {
     projectId = decodeURIComponent(projectId);
     return `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/hooks`;
   }
+  rejectIfStrictProjectScope("group webhooks");
   const decodedGroupId = decodeURIComponent(groupId!);
   return `${getEffectiveApiUrl()}/groups/${encodeURIComponent(decodedGroupId)}/hooks`;
 }
@@ -10674,6 +10728,7 @@ async function handleToolCall(params: any) {
       }
 
       case "search_code": {
+        rejectIfStrictProjectScope("search_code");
         const args = SearchCodeSchema.parse(params.arguments);
         const results = await searchBlobs({
           search: args.search,
@@ -10706,6 +10761,7 @@ async function handleToolCall(params: any) {
       }
 
       case "search_group_code": {
+        rejectIfStrictProjectScope("search_group_code");
         const args = SearchGroupCodeSchema.parse(params.arguments);
         const results = await searchBlobs({
           search: args.search,
@@ -11091,6 +11147,7 @@ async function handleToolCall(params: any) {
       }
 
       case "list_todos": {
+        rejectIfStrictProjectScope("list_todos");
         const args = ListTodosSchema.parse(params.arguments);
         const todos = await listTodos(args);
         return {
@@ -11099,6 +11156,7 @@ async function handleToolCall(params: any) {
       }
 
       case "mark_todo_done": {
+        rejectIfStrictProjectScope("mark_todo_done");
         const args = MarkTodoDoneSchema.parse(params.arguments);
         const todo = await markTodoDone(args.id);
         return {
@@ -11107,6 +11165,7 @@ async function handleToolCall(params: any) {
       }
 
       case "mark_all_todos_done": {
+        rejectIfStrictProjectScope("mark_all_todos_done");
         MarkAllTodosDoneSchema.parse(params.arguments);
         await markAllTodosDone();
         return {
@@ -11468,6 +11527,7 @@ async function handleToolCall(params: any) {
       }
 
       case "list_group_members": {
+        rejectIfStrictProjectScope("list_group_members");
         const args = ListGroupMembersSchema.parse(params.arguments);
         const { group_id, ...options } = args;
         const members = await listGroupMembers(group_id, options);
@@ -12142,6 +12202,7 @@ async function handleToolCall(params: any) {
       }
 
       case "list_group_wiki_pages": {
+        rejectIfStrictProjectScope("list_group_wiki_pages");
         const { group_id, page, per_page, with_content, render_html } =
           ListGroupWikiPagesSchema.parse(params.arguments);
         const wikiPages = await listGroupWikiPages(group_id, {
@@ -12156,6 +12217,7 @@ async function handleToolCall(params: any) {
       }
 
       case "get_group_wiki_page": {
+        rejectIfStrictProjectScope("get_group_wiki_page");
         const { group_id, slug, render_html } = GetGroupWikiPageSchema.parse(params.arguments);
         const wikiPage = await getGroupWikiPage(group_id, slug, render_html);
         return {
@@ -12164,6 +12226,7 @@ async function handleToolCall(params: any) {
       }
 
       case "create_group_wiki_page": {
+        rejectIfStrictProjectScope("create_group_wiki_page");
         const { group_id, title, content, format } = CreateGroupWikiPageSchema.parse(
           params.arguments
         );
@@ -12174,6 +12237,7 @@ async function handleToolCall(params: any) {
       }
 
       case "update_group_wiki_page": {
+        rejectIfStrictProjectScope("update_group_wiki_page");
         const { group_id, slug, title, content, format } = UpdateGroupWikiPageSchema.parse(
           params.arguments
         );
@@ -12184,6 +12248,7 @@ async function handleToolCall(params: any) {
       }
 
       case "delete_group_wiki_page": {
+        rejectIfStrictProjectScope("delete_group_wiki_page");
         const { group_id, slug } = DeleteGroupWikiPageSchema.parse(params.arguments);
         await deleteGroupWikiPage(group_id, slug);
         return {
@@ -12799,6 +12864,7 @@ async function handleToolCall(params: any) {
       }
 
       case "list_group_merge_requests": {
+        rejectIfStrictProjectScope("list_group_merge_requests");
         const { group_id, ...options } = ListGroupMergeRequestsSchema.parse(params.arguments);
         const cleanedOptions = cleanMutuallyExclusiveIdUsernameOptions(
           options,
@@ -12944,6 +13010,7 @@ async function handleToolCall(params: any) {
       }
 
       case "list_group_milestones": {
+        rejectIfStrictProjectScope("list_group_milestones");
         const { group_id, ...options } = ListGroupMilestonesSchema.parse(params.arguments);
         const milestones = await listGroupMilestones(group_id, options);
         return {
@@ -12957,6 +13024,7 @@ async function handleToolCall(params: any) {
       }
 
       case "get_group_milestone": {
+        rejectIfStrictProjectScope("get_group_milestone");
         const { group_id, milestone_id } = GetGroupMilestoneSchema.parse(params.arguments);
         const milestone = await getGroupMilestone(group_id, milestone_id);
         return {
@@ -12970,6 +13038,7 @@ async function handleToolCall(params: any) {
       }
 
       case "create_group_milestone": {
+        rejectIfStrictProjectScope("create_group_milestone");
         const { group_id, ...options } = CreateGroupMilestoneSchema.parse(params.arguments);
         const milestone = await createGroupMilestone(group_id, options);
         return {
@@ -12983,6 +13052,7 @@ async function handleToolCall(params: any) {
       }
 
       case "edit_group_milestone": {
+        rejectIfStrictProjectScope("edit_group_milestone");
         const { group_id, milestone_id, ...options } = EditGroupMilestoneSchema.parse(
           params.arguments
         );
@@ -12998,6 +13068,7 @@ async function handleToolCall(params: any) {
       }
 
       case "delete_group_milestone": {
+        rejectIfStrictProjectScope("delete_group_milestone");
         const { group_id, milestone_id } = DeleteGroupMilestoneSchema.parse(params.arguments);
         await deleteGroupMilestone(group_id, milestone_id);
         return {
@@ -13018,6 +13089,7 @@ async function handleToolCall(params: any) {
       }
 
       case "get_group_milestone_issue": {
+        rejectIfStrictProjectScope("get_group_milestone_issue");
         const { group_id, milestone_id, ...options } = GetGroupMilestoneIssuesSchema.parse(
           params.arguments
         );
@@ -13033,6 +13105,7 @@ async function handleToolCall(params: any) {
       }
 
       case "get_group_milestone_merge_requests": {
+        rejectIfStrictProjectScope("get_group_milestone_merge_requests");
         const { group_id, milestone_id, ...options } = GetGroupMilestoneMergeRequestsSchema.parse(
           params.arguments
         );
@@ -13052,6 +13125,7 @@ async function handleToolCall(params: any) {
       }
 
       case "get_group_milestone_burndown_events": {
+        rejectIfStrictProjectScope("get_group_milestone_burndown_events");
         const { group_id, milestone_id, ...options } =
           GetGroupMilestoneBurndownEventsSchema.parse(params.arguments);
         const events = await getGroupMilestoneBurndownEvents(group_id, milestone_id, options);
@@ -13117,6 +13191,7 @@ async function handleToolCall(params: any) {
       }
 
       case "list_group_iterations": {
+        rejectIfStrictProjectScope("list_group_iterations");
         const args = ListGroupIterationsSchema.parse(params.arguments);
         const iterations = await listGroupIterations(args.group_id, args);
         return {
@@ -13367,6 +13442,7 @@ async function handleToolCall(params: any) {
       }
 
       case "list_events": {
+        rejectIfStrictProjectScope("list_events");
         const args = ListEventsSchema.parse(params.arguments);
         const events = await listEvents(args);
         return {

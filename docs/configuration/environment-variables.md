@@ -240,6 +240,26 @@ X-GitLab-Allowed-Project-Ids: 42
 Private-Token: glpat-xxxxxxxxxxxxxxxxxxxx
 ```
 
+### `ENABLE_STRICT_PROJECT_SCOPE`
+
+Set to `true` to close the discovery gaps a project allowlist
+(`GITLAB_ALLOWED_PROJECT_IDS`, or the session scope under
+`ENABLE_DYNAMIC_PROJECT_SCOPE`) leaves open. Without this flag, the allowlist
+only restricts which projects tools may operate on — listings and searches
+still return everything the token can see.
+
+While an allowlist is in effect, strict scope:
+
+- filters `list_projects`, `list_group_projects`, and `search_repositories`
+  results down to the allowlist
+- routes `list_issues` and `list_merge_requests` without a `project_id` to the
+  allowed project instead of the instance-wide endpoint (a multi-project
+  allowlist requires an explicit `project_id`)
+- refuses instance-wide and group-wide tools that cannot be limited to allowed
+  projects: `search_code`, `search_group_code`, `list_events`, the todo tools,
+  group webhooks, and the group merge request, member, wiki, milestone, and
+  iteration tools
+
 ### `GITLAB_ALLOWED_HOSTS`
 
 Comma-separated additional hosts or GitLab base/API URLs allowed for

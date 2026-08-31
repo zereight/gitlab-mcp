@@ -42,6 +42,19 @@ describe("Dynamic project scope", { concurrency: 1 }, () => {
     before(async () => {
       const mockPort = await findMockServerPort();
       mockGitLab = new MockGitLabServer({ port: mockPort, validTokens: [MOCK_TOKEN] });
+      mockGitLab.addMockHandler("get", "/projects", (_req, res) => {
+        res.json(
+          ["1", "2", "3"].map(id => ({
+            id: Number(id),
+            name: `Project ${id}`,
+            path: `project-${id}`,
+            path_with_namespace: `group/project-${id}`,
+            description: null,
+            visibility: "private",
+            namespace: { id: 1, name: "Group", path: "group", kind: "group", full_path: "group" },
+          }))
+        );
+      });
       await mockGitLab.start();
 
       const mcpPort = await findAvailablePort(3200);
@@ -53,6 +66,7 @@ describe("Dynamic project scope", { concurrency: 1 }, () => {
           STREAMABLE_HTTP: "true",
           REMOTE_AUTHORIZATION: "true",
           ENABLE_DYNAMIC_PROJECT_SCOPE: "true",
+          ENABLE_STRICT_PROJECT_SCOPE: "true",
           GITLAB_API_URL: `${mockGitLab.getUrl()}/api/v4`,
           GITLAB_ALLOWED_PROJECT_IDS: "1,2",
         },
@@ -115,6 +129,69 @@ describe("Dynamic project scope", { concurrency: 1 }, () => {
       const client = await connectClient(mcpUrl);
       try {
         assert.strictEqual(await getProjectId(client, "2"), "2");
+      } finally {
+        await client.disconnect();
+      }
+    });
+
+    test("list_issues without project_id stays within the session scope", async () => {
+      const client = await connectClient(mcpUrl, "1");
+      try {
+        const result = await client.callTool("list_issues", {});
+        assert.ok(result.content, "Should have content");
+        const content = result.content[0];
+        assert.ok("text" in content, "Content should have text");
+        const issues = JSON.parse(content.text as string) as { web_url: string }[];
+        assert.ok(
+          issues.every(issue => issue.web_url.includes("/project/1/")),
+          "Should only return issues of the scoped project"
+        );
+      } finally {
+        await client.disconnect();
+      }
+    });
+
+    test("list_todos is refused under strict scope", async () => {
+      const client = await connectClient(mcpUrl, "1");
+      try {
+        await assert.rejects(
+          () => client.callTool("list_todos", {}),
+          /not allowed while a project allowlist is in effect/
+        );
+      } finally {
+        await client.disconnect();
+      }
+    });
+
+    test("list_projects is filtered to the session scope", async () => {
+      const client = await connectClient(mcpUrl, "1");
+      try {
+        const result = await client.callTool("list_projects", {});
+        assert.ok(result.content, "Should have content");
+        const content = result.content[0];
+        assert.ok("text" in content, "Content should have text");
+        const projects = JSON.parse(content.text as string) as { id: string }[];
+        assert.deepStrictEqual(
+          projects.map(project => project.id),
+          ["1"]
+        );
+      } finally {
+        await client.disconnect();
+      }
+    });
+
+    test("list_projects is filtered to the env allowlist without the header", async () => {
+      const client = await connectClient(mcpUrl);
+      try {
+        const result = await client.callTool("list_projects", {});
+        assert.ok(result.content, "Should have content");
+        const content = result.content[0];
+        assert.ok("text" in content, "Content should have text");
+        const projects = JSON.parse(content.text as string) as { id: string }[];
+        assert.deepStrictEqual(
+          projects.map(project => project.id),
+          ["1", "2"]
+        );
       } finally {
         await client.disconnect();
       }
