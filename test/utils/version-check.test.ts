@@ -1,4 +1,7 @@
 import assert from "node:assert/strict";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, test } from "node:test";
 import { checkForNewVersion, fetchLatestVersion, isNewerVersion } from "../../utils/version-check.js";
 
@@ -101,5 +104,34 @@ describe("When fetchLatestVersion resolves the registry", () => {
     const latest = await fetchLatestVersion(spyFetch, 3000, () => "https:///");
     assert.equal(latest, "2.1.31");
     assert.equal(requestedUrl, "https://registry.npmjs.org/@zereight/mcp-gitlab/latest");
+  });
+});
+
+describe("When resolving the registry from npm config", () => {
+  test("should prefer the @zereight-scoped registry over the unscoped one", async () => {
+    const configDir = mkdtempSync(join(tmpdir(), "gitlab-mcp-npmrc-"));
+    const configPath = join(configDir, ".npmrc");
+    writeFileSync(
+      configPath,
+      "registry=https://unscoped.example/\n@zereight:registry=https://scoped.example/\n"
+    );
+
+    const previousUserconfig = process.env.NPM_CONFIG_USERCONFIG;
+    process.env.NPM_CONFIG_USERCONFIG = configPath;
+    try {
+      let requestedUrl: string | undefined;
+      const spyFetch = (async (url: string | URL) => {
+        requestedUrl = url.toString();
+        return new Response(JSON.stringify({ version: "2.1.31" }), { status: 200 });
+      }) as unknown as typeof fetch;
+
+      const latest = await fetchLatestVersion(spyFetch);
+      assert.equal(latest, "2.1.31");
+      assert.equal(requestedUrl, "https://scoped.example/@zereight/mcp-gitlab/latest");
+    } finally {
+      if (previousUserconfig === undefined) delete process.env.NPM_CONFIG_USERCONFIG;
+      else process.env.NPM_CONFIG_USERCONFIG = previousUserconfig;
+      rmSync(configDir, { recursive: true, force: true });
+    }
   });
 });

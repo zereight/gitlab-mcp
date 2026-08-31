@@ -17,23 +17,36 @@ function isUsableRegistryUrl(registry: string): boolean {
   }
 }
 
-/** Resolves the npm registry to use, honoring `.npmrc` / `npm_config_registry` when available. */
-async function resolveConfiguredRegistry(): Promise<string> {
+/** Runs `npm config get <key>` and returns the trimmed value, or null if unavailable/unset. */
+async function npmConfigGet(key: string): Promise<string | null> {
   try {
     // On Windows "npm" resolves to npm.cmd, which execFile can't launch
     // directly — route through cmd.exe instead. Command and args are fixed
-    // literals on both platforms, so this doesn't open a shell-injection surface.
+    // literals (only `key` varies, and only with our own constant inputs), so
+    // this doesn't open a shell-injection surface.
     const isWindows = process.platform === "win32";
     const { stdout } = await execFileAsync(
       isWindows ? "cmd.exe" : "npm",
-      isWindows ? ["/d", "/s", "/c", "npm", "config", "get", "registry"] : ["config", "get", "registry"],
+      isWindows ? ["/d", "/s", "/c", "npm", "config", "get", key] : ["config", "get", key],
       { timeout: 5000, windowsHide: true }
     );
-    const registry = stdout.trim().replace(/\/$/, "");
-    if (registry && registry !== "undefined") return registry;
+    const value = stdout.trim().replace(/\/$/, "");
+    return value && value !== "undefined" ? value : null;
   } catch {
-    // npm unavailable or the lookup failed — fall back to the public registry.
+    return null;
   }
+}
+
+/**
+ * Resolves the npm registry to use, honoring `.npmrc` / `npm_config_registry`.
+ * Package-scoped config (`@zereight:registry`) takes precedence, matching how
+ * npm itself resolves the registry for a scoped package like this one.
+ */
+async function resolveConfiguredRegistry(): Promise<string> {
+  const scoped = await npmConfigGet("@zereight:registry");
+  if (scoped) return scoped;
+  const unscoped = await npmConfigGet("registry");
+  if (unscoped) return unscoped;
   return DEFAULT_NPM_REGISTRY;
 }
 
