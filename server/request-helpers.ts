@@ -32,7 +32,10 @@ export function isUnauthenticatedDiscoveryRequestBody(body: unknown): boolean {
     if (typeof m !== "object" || m === null) return false;
     const method = (m as { method?: unknown }).method;
     return (
-      method === "initialize" || method === "notifications/initialized" || method === "tools/list"
+      method === "initialize" ||
+      method === "notifications/initialized" ||
+      method === "tools/list" ||
+      method === "server/discover"
     );
   };
   if (Array.isArray(body)) return body.every(isDiscoveryMethod);

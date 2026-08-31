@@ -146,6 +146,27 @@ describe("Streamable HTTP unauthenticated tool discovery", { timeout: 20_000 }, 
     assert.ok(listResponse.data.result.tools.length > 0, "tools/list should not be empty");
   });
 
+  test("allows unauthenticated server/discover in individual and batch requests", async () => {
+    const { server, mcpUrl } = await launchRemoteAuthServer({
+      GITLAB_ALLOW_UNAUTHENTICATED_TOOL_DISCOVERY: "true",
+    });
+    servers.push(server);
+
+    const individual = await rawMcpRequest(mcpUrl, {
+      jsonrpc: "2.0",
+      id: 10,
+      method: "server/discover",
+      params: {},
+    });
+    assert.notStrictEqual(individual.status, 401, individual.text);
+
+    const batch = await rawMcpRequest(mcpUrl, [
+      { jsonrpc: "2.0", id: 11, method: "server/discover", params: {} },
+      { jsonrpc: "2.0", id: 12, method: "tools/list", params: {} },
+    ]);
+    assert.notStrictEqual(batch.status, 401, batch.text);
+  });
+
   test("expires unauthenticated discovery sessions and frees capacity", async () => {
     const { server, mcpUrl } = await launchRemoteAuthServer({
       GITLAB_ALLOW_UNAUTHENTICATED_TOOL_DISCOVERY: "true",
