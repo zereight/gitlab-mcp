@@ -152,19 +152,70 @@ describe("Streamable HTTP unauthenticated tool discovery", { timeout: 20_000 }, 
     });
     servers.push(server);
 
-    const individual = await rawMcpRequest(mcpUrl, {
+    const preInitDiscover = await rawMcpRequest(mcpUrl, {
       jsonrpc: "2.0",
       id: 10,
       method: "server/discover",
       params: {},
     });
-    assert.notStrictEqual(individual.status, 401, individual.text);
+    assert.strictEqual(preInitDiscover.status, 400, preInitDiscover.text);
+    assert.match(
+      preInitDiscover.data?.error?.message ?? "",
+      /Server not initialized/i,
+      "server/discover should pass the auth gate before MCP initialization errors"
+    );
 
-    const batch = await rawMcpRequest(mcpUrl, [
+    const sessionId = await initialize(mcpUrl);
+    const initialized = await rawMcpRequest(
+      mcpUrl,
+      { jsonrpc: "2.0", method: "notifications/initialized" },
+      { "mcp-session-id": sessionId }
+    );
+    assert.ok([200, 202, 204].includes(initialized.status), initialized.text);
+
+    const discoverResponse = await rawMcpRequest(
+      mcpUrl,
       { jsonrpc: "2.0", id: 11, method: "server/discover", params: {} },
-      { jsonrpc: "2.0", id: 12, method: "tools/list", params: {} },
+      { "mcp-session-id": sessionId }
+    );
+    assert.strictEqual(discoverResponse.status, 200, discoverResponse.text);
+    assert.strictEqual(discoverResponse.data?.id, 11);
+    assert.strictEqual(discoverResponse.data?.error?.code, -32601);
+    assert.match(discoverResponse.data?.error?.message ?? "", /Method not found/i);
+
+    const batchResponse = await rawMcpRequest(
+      mcpUrl,
+      [
+        { jsonrpc: "2.0", id: 12, method: "server/discover", params: {} },
+        { jsonrpc: "2.0", id: 13, method: "tools/list", params: {} },
+      ],
+      { "mcp-session-id": sessionId }
+    );
+    assert.strictEqual(batchResponse.status, 200, batchResponse.text);
+    assert.ok(Array.isArray(batchResponse.data.result?.tools), "batch tools/list should return tools");
+    assert.ok(batchResponse.data.result.tools.length > 0, "batch tools/list should not be empty");
+  });
+
+  test("rejects unauthenticated discovery batch when tools/call is included", async () => {
+    const { server, mcpUrl } = await launchRemoteAuthServer({
+      GITLAB_ALLOW_UNAUTHENTICATED_TOOL_DISCOVERY: "true",
+    });
+    servers.push(server);
+
+    const response = await rawMcpRequest(mcpUrl, [
+      { jsonrpc: "2.0", id: 20, method: "server/discover", params: {} },
+      {
+        jsonrpc: "2.0",
+        id: 21,
+        method: "tools/call",
+        params: {
+          name: "get_project",
+          arguments: { project_id: "123" },
+        },
+      },
     ]);
-    assert.notStrictEqual(batch.status, 401, batch.text);
+
+    assert.strictEqual(response.status, 401, response.text);
   });
 
   test("expires unauthenticated discovery sessions and frees capacity", async () => {
