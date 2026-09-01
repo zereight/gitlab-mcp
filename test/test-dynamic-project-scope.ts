@@ -42,7 +42,16 @@ describe("Dynamic project scope", { concurrency: 1 }, () => {
     before(async () => {
       const mockPort = await findMockServerPort();
       mockGitLab = new MockGitLabServer({ port: mockPort, validTokens: [MOCK_TOKEN] });
-      mockGitLab.addMockHandler("get", "/projects", (_req, res) => {
+      mockGitLab.addMockHandler("get", "/projects", (req, res) => {
+        if (req.query.search === "no-totals") {
+          const requestedPage = Number(req.query.page ?? "1");
+          if (requestedPage < 3) {
+            res.set("x-next-page", String(requestedPage + 1));
+          }
+        } else {
+          res.set("x-total", "3");
+          res.set("x-total-pages", "2");
+        }
         res.json(
           ["1", "2", "3"].map(id => ({
             id: Number(id),
@@ -178,6 +187,62 @@ describe("Dynamic project scope", { concurrency: 1 }, () => {
           () => client.callTool("list_todos", {}),
           /not allowed while a project allowlist is in effect/
         );
+      } finally {
+        await client.disconnect();
+      }
+    });
+
+    test("search_repositories keeps the unfiltered pagination totals", async () => {
+      const client = await connectClient(mcpUrl, "1");
+      try {
+        const result = await client.callTool("search_repositories", { search: "project" });
+        assert.ok(result.content, "Should have content");
+        const content = result.content[0];
+        assert.ok("text" in content, "Content should have text");
+        const search = JSON.parse(content.text as string) as {
+          count: number;
+          total_pages: number;
+          items: { id: string }[];
+        };
+        assert.deepStrictEqual(
+          search.items.map(item => item.id),
+          ["1"]
+        );
+        assert.strictEqual(search.count, 3, "count must reflect the unfiltered GitLab total");
+        assert.strictEqual(search.total_pages, 2, "total_pages must cover the unfiltered pages");
+      } finally {
+        await client.disconnect();
+      }
+    });
+
+    test("search_repositories follows next_page across all pages when totals are missing", async () => {
+      const client = await connectClient(mcpUrl, "1");
+      try {
+        let page: number | undefined = 1;
+        const visited: number[] = [];
+        while (page !== undefined) {
+          const result = await client.callTool("search_repositories", {
+            search: "no-totals",
+            page,
+          });
+          assert.ok(result.content, "Should have content");
+          const content = result.content[0];
+          assert.ok("text" in content, "Content should have text");
+          const search = JSON.parse(content.text as string) as {
+            total_pages?: number;
+            next_page?: number;
+            current_page: number;
+            items: { id: string }[];
+          };
+          assert.strictEqual(search.total_pages, undefined, "total_pages must stay unset");
+          assert.deepStrictEqual(
+            search.items.map(item => item.id),
+            ["1"]
+          );
+          visited.push(search.current_page);
+          page = search.next_page;
+        }
+        assert.deepStrictEqual(visited, [1, 2, 3], "next_page must make every page reachable");
       } finally {
         await client.disconnect();
       }

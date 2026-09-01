@@ -251,7 +251,9 @@ still return everything the token can see.
 While an allowlist is in effect, strict scope:
 
 - filters `list_projects`, `list_group_projects`, and `search_repositories`
-  results down to the allowlist
+  results down to the allowlist (`count` and `total_pages` deliberately keep
+  reflecting the unfiltered GitLab totals so pagination still covers every
+  page; callers can infer how many upstream matches exist, but never see them)
 - routes `list_issues` and `list_merge_requests` without a `project_id` to the
   allowed project instead of the instance-wide endpoint (a multi-project
   allowlist requires an explicit `project_id`)

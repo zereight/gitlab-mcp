@@ -5189,20 +5189,17 @@ async function searchProjects(
   const projects = filterProjectsByAllowlist(unfiltered);
   const totalCount = response.headers.get("x-total");
   const totalPages = response.headers.get("x-total-pages");
+  const nextPage = response.headers.get("x-next-page");
 
-  // GitLab API doesn't return these headers for results > 10,000
-  // Header counts are meaningless once the allowlist filter dropped results
-  const count =
-    projects.length === unfiltered.length && totalCount
-      ? Number.parseInt(totalCount, 10)
-      : projects.length;
+  // GitLab API doesn't return the total headers for results > 10,000
+  // Keep the unfiltered totals so callers paginate past pages the allowlist filter thinned out;
+  // without them, total_pages stays unset and next_page carries the continuation signal
+  const count = totalCount ? Number.parseInt(totalCount, 10) : projects.length;
 
   return GitLabSearchResponseSchema.parse({
     count,
-    total_pages:
-      projects.length === unfiltered.length && totalPages
-        ? Number.parseInt(totalPages, 10)
-        : Math.ceil(count / perPage),
+    total_pages: totalPages ? Number.parseInt(totalPages, 10) : undefined,
+    next_page: nextPage ? Number.parseInt(nextPage, 10) : undefined,
     current_page: page,
     items: projects,
   });
