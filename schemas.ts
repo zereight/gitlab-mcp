@@ -3845,6 +3845,24 @@ export const ListGroupIterationsSchema = z
   })
   .merge(PaginationOptionsSchema);
 
+export const GetGroupIterationSchema = z.object({
+  group_id: z.string().min(1).describe("Group ID or URL-encoded path"),
+  iteration_id: z.string().min(1).describe("Iteration ID, IID, or GraphQL GID"),
+});
+
+export const UpdateGroupIterationSchema = z.object({
+  group_id: z.string().min(1).describe("Group ID or URL-encoded path"),
+  iteration_id: z.string().min(1).describe("Iteration ID, IID, or GraphQL GID"),
+  title: z.string().optional().describe("New iteration title"),
+  description: z
+    .string()
+    .nullable()
+    .optional()
+    .describe("New iteration description; null clears it"),
+  start_date: z.string().optional().describe("New start date in YYYY-MM-DD format"),
+  due_date: z.string().optional().describe("New due date in YYYY-MM-DD format"),
+});
+
 // Events API schemas
 export const GitLabEventAuthorSchema = z.object({
   id: z.coerce.string(),
@@ -4097,6 +4115,8 @@ export type ListGroupMergeRequestsOptions = z.infer<typeof ListGroupMergeRequest
 export type GitLabProjectMember = z.infer<typeof GitLabProjectMemberSchema>;
 export type GroupIteration = z.infer<typeof GroupIteration>;
 export type ListGroupIterationsOptions = z.infer<typeof ListGroupIterationsSchema>;
+export type GetGroupIterationOptions = z.infer<typeof GetGroupIterationSchema>;
+export type UpdateGroupIterationOptions = z.infer<typeof UpdateGroupIterationSchema>;
 
 // Draft Notes type exports
 export type ListDraftNotesOptions = z.infer<typeof ListDraftNotesSchema>;

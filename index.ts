@@ -428,6 +428,8 @@ import {
   ListCommitsSchema,
   ListDraftNotesSchema,
   ListGroupIterationsSchema,
+  GetGroupIterationSchema,
+  UpdateGroupIterationSchema,
   ListGroupProjectsSchema,
   type GitLabCiVariable,
   GitLabCiVariableSchema,
@@ -9219,6 +9221,78 @@ async function listGroupIterations(
   return z.array(GroupIteration).parse(data);
 }
 
+function normalizeIterationLookupId(iterationId: string): string {
+  const decoded = decodeURIComponent(iterationId);
+  return decoded.startsWith("gid://gitlab/Iteration/") ? decoded.split("/").pop()! : decoded;
+}
+
+async function getGroupIteration(groupId: string, iterationId: string): Promise<GroupIteration> {
+  const targetId = normalizeIterationLookupId(iterationId);
+
+  for (let page = 1; ; page += 1) {
+    const iterations = await listGroupIterations(groupId, {
+      state: "all",
+      page,
+      per_page: 100,
+    });
+    const match = iterations.find(iteration => [iteration.id, iteration.iid].includes(targetId));
+    if (match) return match;
+    if (iterations.length < 100) break;
+  }
+
+  throw new Error(`Group iteration ${iterationId} was not found in group ${groupId}`);
+}
+
+async function updateGroupIteration(
+  groupId: string,
+  iterationId: string,
+  options: Omit<z.infer<typeof UpdateGroupIterationSchema>, "group_id" | "iteration_id">
+): Promise<GroupIteration> {
+  if (
+    options.title === undefined &&
+    options.description === undefined &&
+    options.start_date === undefined &&
+    options.due_date === undefined
+  ) {
+    throw new Error("Provide at least one iteration field to update");
+  }
+
+  const current = await getGroupIteration(groupId, iterationId);
+  const groupReference = /^group:/i.test(groupId) ? groupId : `group:${groupId}`;
+  const { path: groupPath } = await resolveProjectOrGroupPath(groupReference);
+  const input: Record<string, unknown> = {
+    groupPath,
+    id: `gid://gitlab/Iteration/${current.id}`,
+  };
+
+  if (options.title !== undefined) input.title = options.title;
+  if (options.description !== undefined) input.description = options.description;
+  if (options.start_date !== undefined) input.startDate = options.start_date;
+  if (options.due_date !== undefined) input.dueDate = options.due_date;
+
+  const mutation = `
+    mutation UpdateGroupIteration($input: UpdateIterationInput!) {
+      updateIteration(input: $input) {
+        iteration { id }
+        errors
+      }
+    }
+  `;
+  const data = await executeGraphQL<{
+    updateIteration: { iteration: { id: string } | null; errors: string[] };
+  }>(mutation, { input });
+  const result = data.updateIteration;
+
+  if (result.errors.length > 0) {
+    throw new Error(`Failed to update group iteration: ${result.errors.join(", ")}`);
+  }
+  if (!result.iteration) {
+    throw new Error("Failed to update group iteration: GitLab returned no iteration");
+  }
+
+  return getGroupIteration(groupId, current.id);
+}
+
 // --- CI/CD Variables ---
 
 async function listProjectVariables(
@@ -13039,6 +13113,23 @@ async function handleToolCall(params: any) {
         const iterations = await listGroupIterations(args.group_id, args);
         return {
           content: [{ type: "text", text: JSON.stringify(iterations) }],
+        };
+      }
+
+      case "get_group_iteration": {
+        const args = GetGroupIterationSchema.parse(params.arguments);
+        const iteration = await getGroupIteration(args.group_id, args.iteration_id);
+        return {
+          content: [{ type: "text", text: JSON.stringify(iteration) }],
+        };
+      }
+
+      case "update_group_iteration": {
+        const args = UpdateGroupIterationSchema.parse(params.arguments);
+        const { group_id, iteration_id, ...options } = args;
+        const iteration = await updateGroupIteration(group_id, iteration_id, options);
+        return {
+          content: [{ type: "text", text: JSON.stringify(iteration) }],
         };
       }
 
