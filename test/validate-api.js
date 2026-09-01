@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 
 // Simple API validation script for PR testing
-import fetch from "node-fetch";
 import dotenv from "dotenv";
 
 // .env 파일 로드

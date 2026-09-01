@@ -1,6 +1,7 @@
-import type { Agent } from "node:http";
+import { Readable } from "node:stream";
+import { pipeline } from "node:stream/promises";
 import type { Express, Request, Response } from "express";
-import type nodeFetch from "node-fetch";
+import { fetch as undiciFetch, type Dispatcher } from "undici";
 import { decryptDownloadToken } from "../utils/download-token.js";
 
 const DEFAULT_DOWNLOAD_TIMEOUT_MS = 120_000;
@@ -13,8 +14,8 @@ export interface DownloadProxyDependencies {
   encodeGitLabPathSegment: (value: unknown) => string;
   encodeGitLabPath: (value: string) => string;
   getEffectiveProjectId: (projectId: string) => string;
-  getAgentFunctionForUrl: (apiUrl: string) => (parsedURL: URL) => Agent;
-  fetch: typeof nodeFetch;
+  getDispatcherForUrl: (apiUrl: string) => Dispatcher;
+  fetch: typeof undiciFetch;
   logger: { error: (obj: unknown, message?: string) => void };
   downloadTimeoutMs?: number;
 }
@@ -182,10 +183,9 @@ export function registerDownloadProxy(app: Express, deps: DownloadProxyDependenc
     const timeout = setTimeout(() => controller.abort(), downloadTimeoutMs);
 
     try {
-      const agent = deps.getAgentFunctionForUrl(apiUrl);
       const gitlabResponse = await deps.fetch(gitlabUrl, {
         headers,
-        agent,
+        dispatcher: deps.getDispatcherForUrl(apiUrl),
         signal: controller.signal,
       });
 
@@ -204,11 +204,12 @@ export function registerDownloadProxy(app: Express, deps: DownloadProxyDependenc
       if (contentDisposition) res.setHeader("Content-Disposition", contentDisposition);
       if (contentLength) res.setHeader("Content-Length", contentLength);
 
-      if (gitlabResponse.body) {
-        gitlabResponse.body.pipe(res);
-      } else {
+      if (!gitlabResponse.body) {
         res.status(502).json({ error: "No response body from GitLab" });
+        return;
       }
+
+      await pipeline(Readable.fromWeb(gitlabResponse.body), res);
     } catch (error) {
       deps.logger.error({ err: error }, "Download proxy error");
       if (!res.headersSent) {
