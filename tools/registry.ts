@@ -168,6 +168,8 @@ import {
   ListEnvironmentsSchema,
   ListEventsSchema,
   ListGroupIterationsSchema,
+  GetGroupIterationSchema,
+  UpdateGroupIterationSchema,
   ListGroupMilestonesSchema,
   ListGroupProjectsSchema,
   ListGroupWikiPagesSchema,
@@ -1183,6 +1185,16 @@ export const allTools = [
     inputSchema: toJSONSchema(ListGroupIterationsSchema),
   },
   {
+    name: "get_group_iteration",
+    description: "Get a group iteration by ID, IID, or GraphQL GID",
+    inputSchema: toJSONSchema(GetGroupIterationSchema),
+  },
+  {
+    name: "update_group_iteration",
+    description: "Update a manual group iteration's title, description, or dates",
+    inputSchema: toJSONSchema(UpdateGroupIterationSchema),
+  },
+  {
     name: "upload_markdown",
     description: IS_REMOTE
       ? "Upload base64-encoded content for use in markdown"
@@ -2075,6 +2087,8 @@ export const TOOLSET_DEFINITIONS: readonly ToolsetDefinition[] = [
       "verify_namespace",
       "list_group_projects",
       "list_group_iterations",
+      "get_group_iteration",
+      "update_group_iteration",
       "health_check",
     ]),
   },
