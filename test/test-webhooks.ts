@@ -121,6 +121,15 @@ describe("When managing webhooks", () => {
     });
 
     mockServer.addMockHandler(
+      "put",
+      `/groups/${TEST_GROUP_ID}/hooks/${TEST_HOOK_ID}`,
+      (req, res) => {
+        lastUpdateBody = isRecord(req.body) ? req.body : undefined;
+        res.json({ ...MOCK_GROUP_HOOK, ...lastUpdateBody, id: TEST_HOOK_ID });
+      }
+    );
+
+    mockServer.addMockHandler(
       "delete",
       `/groups/${TEST_GROUP_ID}/hooks/${TEST_HOOK_ID}`,
       (req, res) => {
@@ -227,6 +236,29 @@ describe("When managing webhooks", () => {
       assert.strictEqual(lastCreateBody["member_events"], true);
       assert.ok(isRecord(result));
       assert.strictEqual(result["url"], "https://example.com/group-hook");
+    });
+  });
+
+  describe("with update_webhook on a group", () => {
+    test("should update a group webhook", async () => {
+      lastUpdateBody = undefined;
+      const result = await callTool(
+        "update_webhook",
+        {
+          group_id: TEST_GROUP_ID,
+          hook_id: TEST_HOOK_ID,
+          url: "https://example.com/group-hook-updated",
+          name: "Renamed Group Hook",
+        },
+        baseEnv
+      );
+
+      assert.deepStrictEqual(lastUpdateBody, {
+        url: "https://example.com/group-hook-updated",
+        name: "Renamed Group Hook",
+      });
+      assert.ok(isRecord(result));
+      assert.strictEqual(result.url, "https://example.com/group-hook-updated");
     });
   });
 

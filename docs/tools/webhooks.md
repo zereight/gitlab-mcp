@@ -1,6 +1,6 @@
 # Webhooks
 
-List webhooks configured on projects or groups, and inspect recent webhook events.
+Create, update, and delete project or group webhooks, and inspect recent webhook events.
 
 !!! note "Feature toggle"
     Opt-in. Enable via `GITLAB_TOOLSETS=webhooks` (or `GITLAB_TOOLSETS=all`), list individual tools in `GITLAB_TOOLS=`, or activate at runtime with the `discover_tools` MCP tool.
@@ -47,7 +47,7 @@ Create a webhook on a project or group. Use this for a new resource or action; c
 | `name` | string |  | Display name for the webhook |
 | `description` | string |  | Description of the webhook |
 | `token` | string |  | Secret token to validate received payloads. Not returned by GitLab in responses. |
-| `signing_token` | string |  | HMAC signing token for the webhook-signature header (whsec_… format). Not returned by GitLab in responses. |
+| `signing_token` | string |  | HMAC signing token in whsec_<base64> form, where the Base64 suffix encodes a 32-byte key. Used for the webhook-signature header. Not returned by GitLab in responses. |
 | `enable_ssl_verification` | boolean |  | Verify SSL when delivering the webhook |
 | `push_events` | boolean |  | Trigger on push events |
 | `push_events_branch_filter` | string |  | Only trigger push events for matching branches |
@@ -71,7 +71,7 @@ Create a webhook on a project or group. Use this for a new resource or action; c
 | `project_events` | boolean |  | Trigger on project events (group webhooks) |
 | `subgroup_events` | boolean |  | Trigger on subgroup events (group webhooks) |
 | `custom_webhook_template` | string |  | Custom JSON payload template for the webhook |
-| `custom_headers` | array<object> |  | Custom HTTP headers sent with the webhook |
+| `custom_headers` | array<object> |  | Custom HTTP headers sent with the webhook. Each item has key and value strings. |
 
 ### `update_webhook`
 
@@ -90,7 +90,7 @@ Update an existing project or group webhook. Use this for an existing resource; 
 | `name` | string |  | Display name for the webhook |
 | `description` | string |  | Description of the webhook |
 | `token` | string |  | Secret token to validate received payloads. Not returned by GitLab in responses. |
-| `signing_token` | string |  | HMAC signing token for the webhook-signature header (whsec_… format). Not returned by GitLab in responses. |
+| `signing_token` | string |  | HMAC signing token in whsec_<base64> form, where the Base64 suffix encodes a 32-byte key. Used for the webhook-signature header. Not returned by GitLab in responses. |
 | `enable_ssl_verification` | boolean |  | Verify SSL when delivering the webhook |
 | `push_events` | boolean |  | Trigger on push events |
 | `push_events_branch_filter` | string |  | Only trigger push events for matching branches |
@@ -114,7 +114,7 @@ Update an existing project or group webhook. Use this for an existing resource; 
 | `project_events` | boolean |  | Trigger on project events (group webhooks) |
 | `subgroup_events` | boolean |  | Trigger on subgroup events (group webhooks) |
 | `custom_webhook_template` | string |  | Custom JSON payload template for the webhook |
-| `custom_headers` | array<object> |  | Custom HTTP headers sent with the webhook |
+| `custom_headers` | array<object> |  | Custom HTTP headers sent with the webhook. Each item has key and value strings. |
 
 ### `delete_webhook`
 

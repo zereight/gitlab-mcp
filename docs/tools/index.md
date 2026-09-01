@@ -391,7 +391,7 @@ Project and group CI/CD variable CRUD. *(10 tools)*
 
 ### [Webhooks](webhooks.md)
 
-List webhooks configured on projects or groups, and inspect recent webhook events. *(6 tools)*
+Create, update, and delete project or group webhooks, and inspect recent webhook events. *(6 tools)*
 
 > Opt-in. Enable via `GITLAB_TOOLSETS=webhooks` (or `GITLAB_TOOLSETS=all`), list individual tools in `GITLAB_TOOLS=`, or activate at runtime with the `discover_tools` MCP tool.
 

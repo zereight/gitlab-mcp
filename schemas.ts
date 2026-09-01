@@ -4955,6 +4955,16 @@ export const CreateTimelineEventSchema = z.object({
 
 // --- Webhook schemas ---
 
+function hasExactlyOneWebhookScope(data: { project_id?: string; group_id?: string }): boolean {
+  const hasProject = Boolean(data.project_id);
+  const hasGroup = Boolean(data.group_id);
+  return (hasProject || hasGroup) && !(hasProject && hasGroup);
+}
+
+const EXACTLY_ONE_WEBHOOK_SCOPE = {
+  message: "Provide exactly one of project_id or group_id",
+};
+
 export const ListWebhooksSchema = z
   .object({
     project_id: z.coerce
@@ -4967,9 +4977,7 @@ export const ListWebhooksSchema = z
       .describe("Group ID or URL-encoded path. Provide either project_id or group_id, not both."),
   })
   .merge(PaginationOptionsSchema)
-  .refine(data => (data.project_id || data.group_id) && !(data.project_id && data.group_id), {
-    message: "Provide exactly one of project_id or group_id",
-  });
+  .refine(hasExactlyOneWebhookScope, EXACTLY_ONE_WEBHOOK_SCOPE);
 
 export const ListWebhookEventsSchema = z
   .object({
@@ -4997,9 +5005,7 @@ export const ListWebhookEventsSchema = z
     per_page: z.number().max(20).optional().default(20).describe("Number of events per page"),
     page: z.coerce.number().optional().describe("Page number for pagination"),
   })
-  .refine(data => (data.project_id || data.group_id) && !(data.project_id && data.group_id), {
-    message: "Provide exactly one of project_id or group_id",
-  });
+  .refine(hasExactlyOneWebhookScope, EXACTLY_ONE_WEBHOOK_SCOPE);
 
 export const GetWebhookEventSchema = z
   .object({
@@ -5020,9 +5026,7 @@ export const GetWebhookEventSchema = z
         "If known, the page where the event is located (from list_webhook_events). Skips auto-pagination and fetches only this page."
       ),
   })
-  .refine(data => (data.project_id || data.group_id) && !(data.project_id && data.group_id), {
-    message: "Provide exactly one of project_id or group_id",
-  });
+  .refine(hasExactlyOneWebhookScope, EXACTLY_ONE_WEBHOOK_SCOPE);
 
 const WebhookCustomHeaderSchema = z.object({
   key: z.string().min(1).describe("Custom header name"),
@@ -5041,7 +5045,7 @@ const WebhookMutationFields = {
     .string()
     .optional()
     .describe(
-      "HMAC signing token for the webhook-signature header (whsec_… format). Not returned by GitLab in responses."
+      "HMAC signing token in whsec_<base64> form, where the Base64 suffix encodes a 32-byte key. Used for the webhook-signature header. Not returned by GitLab in responses."
     ),
   enable_ssl_verification: z
     .boolean()
@@ -5093,7 +5097,7 @@ const WebhookMutationFields = {
   custom_headers: z
     .array(WebhookCustomHeaderSchema)
     .optional()
-    .describe("Custom HTTP headers sent with the webhook"),
+    .describe("Custom HTTP headers sent with the webhook. Each item has key and value strings."),
 };
 
 export const CreateWebhookSchema = z
@@ -5108,9 +5112,7 @@ export const CreateWebhookSchema = z
       .describe("Group ID or URL-encoded path. Provide either project_id or group_id, not both."),
     ...WebhookMutationFields,
   })
-  .refine(data => (data.project_id || data.group_id) && !(data.project_id && data.group_id), {
-    message: "Provide exactly one of project_id or group_id",
-  });
+  .refine(hasExactlyOneWebhookScope, EXACTLY_ONE_WEBHOOK_SCOPE);
 
 export const UpdateWebhookSchema = z
   .object({
@@ -5125,9 +5127,7 @@ export const UpdateWebhookSchema = z
     hook_id: z.coerce.number().describe("ID of the webhook to update"),
     ...WebhookMutationFields,
   })
-  .refine(data => (data.project_id || data.group_id) && !(data.project_id && data.group_id), {
-    message: "Provide exactly one of project_id or group_id",
-  });
+  .refine(hasExactlyOneWebhookScope, EXACTLY_ONE_WEBHOOK_SCOPE);
 
 export const DeleteWebhookSchema = z
   .object({
@@ -5141,9 +5141,7 @@ export const DeleteWebhookSchema = z
       .describe("Group ID or URL-encoded path. Provide either project_id or group_id, not both."),
     hook_id: z.coerce.number().describe("ID of the webhook to delete"),
   })
-  .refine(data => (data.project_id || data.group_id) && !(data.project_id && data.group_id), {
-    message: "Provide exactly one of project_id or group_id",
-  });
+  .refine(hasExactlyOneWebhookScope, EXACTLY_ONE_WEBHOOK_SCOPE);
 
 // Search code types
 export type GitLabSearchBlobResult = z.infer<typeof GitLabSearchBlobResultSchema>;

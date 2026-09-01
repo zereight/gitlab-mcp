@@ -6,21 +6,21 @@
 
 Provide either `project_id` or `group_id`.
 
-```
+```text
 list_webhooks
   project_id: "my-group/my-project"
 ```
 
 ## Create / Update / Delete
 
-```
+```text
 create_webhook
   project_id: "my-group/my-project"
   url: "https://example.com/hook"
   push_events: true
 ```
 
-```
+```text
 update_webhook
   project_id: "my-group/my-project"
   hook_id: 123
@@ -28,7 +28,7 @@ update_webhook
   issues_events: true
 ```
 
-```
+```text
 delete_webhook
   project_id: "my-group/my-project"
   hook_id: 123
@@ -40,7 +40,7 @@ Group hooks use `group_id` instead of `project_id`. `delete_webhook` is a delete
 
 GitLab exposes recent webhook events for the past 7 days.
 
-```
+```text
 list_webhook_events
   project_id: "my-group/my-project"
   webhook_id: 123
@@ -49,7 +49,7 @@ list_webhook_events
 
 Fetch full event details only after narrowing to the event ID.
 
-```
+```text
 get_webhook_event
   project_id: "my-group/my-project"
   webhook_id: 123
