@@ -59,7 +59,7 @@ download_job_artifacts     -> download full artifact archive (zip) to local_path
 
 ```
 list_deployments           -> list deployments with filters
-get_deployment             -> deployment details, including approval status
+get_deployment             -> deployment details, including approval_summary, approvals, and pending_approval_count when GitLab provides them
 create_deployment          -> create a deployment record
 update_deployment          -> update deployment status
 delete_deployment          -> delete a deployment

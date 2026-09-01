@@ -281,6 +281,45 @@ describe("deployment and environment tools", () => {
             stage: "deploy",
             pipeline: { id: "190349", status: "success", ref: "master", sha: "abc123" },
           },
+          pending_approval_count: 1,
+          approvals: [
+            {
+              user: {
+                id: "100",
+                username: "security-user-1",
+                name: "Security User",
+                state: "active",
+                web_url: "https://gitlab.example.com/security-user-1",
+              },
+              status: "approved",
+              created_at: "2026-02-20T16:33:00.000Z",
+              comment: "Looks good to me",
+            },
+          ],
+          approval_summary: {
+            rules: [
+              {
+                group_id: "134",
+                access_level: null,
+                access_level_description: "security-group",
+                required_approvals: 2,
+                deployment_approvals: [
+                  {
+                    user: {
+                      id: "100",
+                      username: "security-user-1",
+                      name: "Security User",
+                      state: "active",
+                      web_url: "https://gitlab.example.com/security-user-1",
+                    },
+                    status: "approved",
+                    created_at: "2026-02-20T16:33:00.000Z",
+                    comment: "Looks good to me",
+                  },
+                ],
+              },
+            ],
+          },
         });
       }
     );
@@ -394,6 +433,14 @@ describe("deployment and environment tools", () => {
     assert.strictEqual(result.id, TEST_DEPLOYMENT_ID);
     assert.strictEqual(result.ref, "master");
     assert.strictEqual(result.status, "success");
+    assert.strictEqual(result.pending_approval_count, 1);
+    assert.strictEqual(result.approvals[0].status, "approved");
+    assert.strictEqual(result.approvals[0].user.username, "security-user-1");
+    assert.strictEqual(result.approval_summary.rules[0].group_id, "134");
+    assert.strictEqual(
+      result.approval_summary.rules[0].deployment_approvals[0].comment,
+      "Looks good to me"
+    );
   });
 
   test("supports deployment lifecycle and approval operations", async () => {

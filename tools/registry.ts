@@ -827,7 +827,7 @@ export const allTools = [
   },
   {
     name: "get_deployment",
-    description: "Get deployment details, including approval status",
+    description: "Get deployment details, including approval_summary, approvals, and pending_approval_count when GitLab provides them",
     inputSchema: toJSONSchema(GetDeploymentSchema),
   },
   { name: "create_deployment", description: "Create a deployment", inputSchema: toJSONSchema(CreateDeploymentSchema) },
