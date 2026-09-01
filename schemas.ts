@@ -5024,6 +5024,127 @@ export const GetWebhookEventSchema = z
     message: "Provide exactly one of project_id or group_id",
   });
 
+const WebhookCustomHeaderSchema = z.object({
+  key: z.string().min(1).describe("Custom header name"),
+  value: z.string().describe("Custom header value"),
+});
+
+const WebhookMutationFields = {
+  url: z.string().url().describe("Webhook destination URL"),
+  name: z.string().optional().describe("Display name for the webhook"),
+  description: z.string().optional().describe("Description of the webhook"),
+  token: z
+    .string()
+    .optional()
+    .describe("Secret token to validate received payloads. Not returned by GitLab in responses."),
+  signing_token: z
+    .string()
+    .optional()
+    .describe(
+      "HMAC signing token for the webhook-signature header (whsec_… format). Not returned by GitLab in responses."
+    ),
+  enable_ssl_verification: z
+    .boolean()
+    .optional()
+    .describe("Verify SSL when delivering the webhook"),
+  push_events: z.boolean().optional().describe("Trigger on push events"),
+  push_events_branch_filter: z
+    .string()
+    .optional()
+    .describe("Only trigger push events for matching branches"),
+  branch_filter_strategy: z
+    .enum(["wildcard", "regex", "all_branches"])
+    .optional()
+    .describe("How push_events_branch_filter is interpreted"),
+  issues_events: z.boolean().optional().describe("Trigger on issue events"),
+  confidential_issues_events: z
+    .boolean()
+    .optional()
+    .describe("Trigger on confidential issue events"),
+  merge_requests_events: z.boolean().optional().describe("Trigger on merge request events"),
+  tag_push_events: z.boolean().optional().describe("Trigger on tag push events"),
+  note_events: z.boolean().optional().describe("Trigger on note/comment events"),
+  confidential_note_events: z
+    .boolean()
+    .optional()
+    .describe("Trigger on confidential note events"),
+  job_events: z.boolean().optional().describe("Trigger on job events"),
+  pipeline_events: z.boolean().optional().describe("Trigger on pipeline events"),
+  wiki_page_events: z.boolean().optional().describe("Trigger on wiki page events"),
+  deployment_events: z.boolean().optional().describe("Trigger on deployment events"),
+  feature_flag_events: z.boolean().optional().describe("Trigger on feature flag events"),
+  releases_events: z.boolean().optional().describe("Trigger on release events"),
+  milestone_events: z.boolean().optional().describe("Trigger on milestone events"),
+  resource_access_token_events: z
+    .boolean()
+    .optional()
+    .describe("Trigger on access token expiry events"),
+  resource_deploy_token_events: z
+    .boolean()
+    .optional()
+    .describe("Trigger on project deploy token expiry events (project webhooks)"),
+  member_events: z.boolean().optional().describe("Trigger on member events (group webhooks)"),
+  project_events: z.boolean().optional().describe("Trigger on project events (group webhooks)"),
+  subgroup_events: z.boolean().optional().describe("Trigger on subgroup events (group webhooks)"),
+  custom_webhook_template: z
+    .string()
+    .optional()
+    .describe("Custom JSON payload template for the webhook"),
+  custom_headers: z
+    .array(WebhookCustomHeaderSchema)
+    .optional()
+    .describe("Custom HTTP headers sent with the webhook"),
+};
+
+export const CreateWebhookSchema = z
+  .object({
+    project_id: z.coerce
+      .string()
+      .optional()
+      .describe("Project ID or URL-encoded path. Provide either project_id or group_id, not both."),
+    group_id: z.coerce
+      .string()
+      .optional()
+      .describe("Group ID or URL-encoded path. Provide either project_id or group_id, not both."),
+    ...WebhookMutationFields,
+  })
+  .refine(data => (data.project_id || data.group_id) && !(data.project_id && data.group_id), {
+    message: "Provide exactly one of project_id or group_id",
+  });
+
+export const UpdateWebhookSchema = z
+  .object({
+    project_id: z.coerce
+      .string()
+      .optional()
+      .describe("Project ID or URL-encoded path. Provide either project_id or group_id, not both."),
+    group_id: z.coerce
+      .string()
+      .optional()
+      .describe("Group ID or URL-encoded path. Provide either project_id or group_id, not both."),
+    hook_id: z.coerce.number().describe("ID of the webhook to update"),
+    ...WebhookMutationFields,
+  })
+  .refine(data => (data.project_id || data.group_id) && !(data.project_id && data.group_id), {
+    message: "Provide exactly one of project_id or group_id",
+  });
+
+export const DeleteWebhookSchema = z
+  .object({
+    project_id: z.coerce
+      .string()
+      .optional()
+      .describe("Project ID or URL-encoded path. Provide either project_id or group_id, not both."),
+    group_id: z.coerce
+      .string()
+      .optional()
+      .describe("Group ID or URL-encoded path. Provide either project_id or group_id, not both."),
+    hook_id: z.coerce.number().describe("ID of the webhook to delete"),
+  })
+  .refine(data => (data.project_id || data.group_id) && !(data.project_id && data.group_id), {
+    message: "Provide exactly one of project_id or group_id",
+  });
+
 // Search code types
 export type GitLabSearchBlobResult = z.infer<typeof GitLabSearchBlobResultSchema>;
 export type SearchCodeOptions = z.infer<typeof SearchCodeSchema>;

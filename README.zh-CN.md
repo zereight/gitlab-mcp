@@ -17,7 +17,7 @@
 
 ### 为什么使用这个 GitLab MCP？
 
-- **217 个工具 + `discover_tools`** — 从小型 toolset 开始，运行时按需激活类别
+- **232 个工具 + `discover_tools`** — 从小型 toolset 开始，运行时按需激活类别
 - **MR 两步审查** — `list_merge_request_changed_files` → 批量 `get_merge_request_file_diff`
 - **内置 Agent Skill** — `skills/gitlab-mcp/` 工作流指南
 - **认证灵活** — Personal Access Token、本地 OAuth2 浏览器流程、MCP OAuth 代理、按请求远程授权
@@ -30,7 +30,7 @@
 | | @zereight/mcp-gitlab | GitLab MCP A（社区 CQRS 型） |
 |---|----------------------|------------------------------|
 | **更适合** | AI 代理工作流 | 企业多实例 / 分组工具 |
-| **工具模型** | ~217 个细粒度工具 + `discover_tools` | ~50–60 个 `browse_*` / `manage_*` 分组工具 |
+| **工具模型** | ~232 个细粒度工具 + `discover_tools` | ~50–60 个 `browse_*` / `manage_*` 分组工具 |
 | **MR 审查** | 两步批量 diff | 因服务器而异 |
 | **Node.js** | >=18 | 通常 >=24 |
 | **许可证** | MIT | 因服务器而异 |

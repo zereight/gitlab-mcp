@@ -596,6 +596,9 @@ import {
   GetTimelineEventsSchema,
   CreateTimelineEventSchema,
   ListWebhooksSchema,
+  CreateWebhookSchema,
+  UpdateWebhookSchema,
+  DeleteWebhookSchema,
   ListWebhookEventsSchema,
   GetWebhookEventSchema,
   HealthCheckSchema,
@@ -6886,6 +6889,58 @@ async function listWebhooks(options: z.infer<typeof ListWebhooksSchema>): Promis
   const response = await fetch(url.toString(), { ...getFetchConfig() });
   await handleGitLabError(response);
   return (await response.json()) as unknown[];
+}
+
+function buildWebhookMutationBody(
+  options: z.infer<typeof CreateWebhookSchema> | z.infer<typeof UpdateWebhookSchema>
+): Record<string, unknown> {
+  const body: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(options)) {
+    if (key === "project_id" || key === "group_id" || key === "hook_id") continue;
+    if (value !== undefined) body[key] = value;
+  }
+  return body;
+}
+
+/**
+ * Create a webhook on a project or group
+ */
+async function createWebhook(options: z.infer<typeof CreateWebhookSchema>): Promise<unknown> {
+  const url = buildWebhookBaseUrl(options.project_id, options.group_id);
+  const response = await fetch(url, {
+    ...getFetchConfig(),
+    method: "POST",
+    body: JSON.stringify(buildWebhookMutationBody(options)),
+  });
+  await handleGitLabError(response);
+  return await response.json();
+}
+
+/**
+ * Update a webhook on a project or group
+ */
+async function updateWebhook(options: z.infer<typeof UpdateWebhookSchema>): Promise<unknown> {
+  const url = `${buildWebhookBaseUrl(options.project_id, options.group_id)}/${options.hook_id}`;
+  const response = await fetch(url, {
+    ...getFetchConfig(),
+    method: "PUT",
+    body: JSON.stringify(buildWebhookMutationBody(options)),
+  });
+  await handleGitLabError(response);
+  return await response.json();
+}
+
+/**
+ * Delete a webhook from a project or group
+ */
+async function deleteWebhook(options: z.infer<typeof DeleteWebhookSchema>): Promise<{ status: string; hook_id: number }> {
+  const url = `${buildWebhookBaseUrl(options.project_id, options.group_id)}/${options.hook_id}`;
+  const response = await fetch(url, {
+    ...getFetchConfig(),
+    method: "DELETE",
+  });
+  await handleGitLabError(response);
+  return { status: "deleted", hook_id: options.hook_id };
 }
 
 /**
@@ -13452,6 +13507,30 @@ async function handleToolCall(params: any) {
         const webhooks = await listWebhooks(args);
         return {
           content: [{ type: "text", text: JSON.stringify(webhooks) }],
+        };
+      }
+
+      case "create_webhook": {
+        const args = CreateWebhookSchema.parse(params.arguments);
+        const webhook = await createWebhook(args);
+        return {
+          content: [{ type: "text", text: JSON.stringify(webhook) }],
+        };
+      }
+
+      case "update_webhook": {
+        const args = UpdateWebhookSchema.parse(params.arguments);
+        const webhook = await updateWebhook(args);
+        return {
+          content: [{ type: "text", text: JSON.stringify(webhook) }],
+        };
+      }
+
+      case "delete_webhook": {
+        const args = DeleteWebhookSchema.parse(params.arguments);
+        const result = await deleteWebhook(args);
+        return {
+          content: [{ type: "text", text: JSON.stringify(result) }],
         };
       }
 
