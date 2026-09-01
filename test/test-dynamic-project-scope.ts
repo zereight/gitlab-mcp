@@ -113,6 +113,26 @@ describe("Dynamic project scope", { concurrency: 1 }, () => {
       assert.strictEqual(connected, false, "out-of-scope header must not initialize a session");
     });
 
+    test("empty header rejects the session", async () => {
+      const client = new CustomHeaderClient({
+        authorization: `Bearer ${MOCK_TOKEN}`,
+        [SCOPE_HEADER]: "  ",
+      });
+
+      let connected = false;
+      try {
+        await client.connect(mcpUrl);
+        connected = true;
+        await client.callTool("get_project", { project_id: "1" });
+      } catch {
+        // Expected: the session is rejected before any tool call is possible.
+      } finally {
+        await client.disconnect();
+      }
+
+      assert.strictEqual(connected, false, "an empty header must not initialize a session");
+    });
+
     test("scoped session refuses non-scopable tools", async () => {
       const client = await connectClient(mcpUrl, "1");
       try {

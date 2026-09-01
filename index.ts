@@ -14165,7 +14165,7 @@ async function startStreamableHTTPServer(): Promise<void> {
     let allowedProjectIds: string[] | undefined;
 
     // Only process the requested project scope if the feature is enabled
-    if (ENABLE_DYNAMIC_PROJECT_SCOPE && requestedProjectScope) {
+    if (ENABLE_DYNAMIC_PROJECT_SCOPE && requestedProjectScope !== undefined) {
       const requested = requestedProjectScope
         .split(",")
         .map(id => id.trim())
