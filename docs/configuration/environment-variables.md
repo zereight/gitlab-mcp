@@ -235,7 +235,7 @@ Notes:
 
 Example:
 
-```
+```text
 X-GitLab-Allowed-Project-Ids: 42
 Private-Token: glpat-xxxxxxxxxxxxxxxxxxxx
 ```
