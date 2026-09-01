@@ -987,6 +987,7 @@ function createServer(): McpServer {
           lastUsed: authData.lastUsed,
           apiUrl: authData.apiUrl,
           publicBaseUrl: authData.publicBaseUrl,
+          allowedProjectIds: authData.allowedProjectIds,
         };
         // Run the handler within the retrieved context
         const result = await sessionAuthStore.run(sessionContext, () =>
@@ -15194,6 +15195,7 @@ async function startStreamableHTTPServer(): Promise<void> {
           lastUsed: authData.lastUsed,
           apiUrl: authData.apiUrl,
           publicBaseUrl: authData.publicBaseUrl,
+          allowedProjectIds: authData.allowedProjectIds,
         };
         await sessionAuthStore.run(ctx, handleGetRequest);
       } else {
