@@ -43,7 +43,7 @@ GitLab exposes recent webhook events for the past 7 days.
 ```text
 list_webhook_events
   project_id: "my-group/my-project"
-  webhook_id: 123
+  hook_id: 123
   summary: true
 ```
 
@@ -52,6 +52,6 @@ Fetch full event details only after narrowing to the event ID.
 ```text
 get_webhook_event
   project_id: "my-group/my-project"
-  webhook_id: 123
+  hook_id: 123
   event_id: 456
 ```
