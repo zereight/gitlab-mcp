@@ -36,7 +36,7 @@ async function getProjectId(client: CustomHeaderClient, projectId: string): Prom
 describe("Dynamic project scope", { concurrency: 1 }, () => {
   describe("with GITLAB_ALLOWED_PROJECT_IDS set", () => {
     let mockGitLab: MockGitLabServer;
-    let servers: ServerInstance[] = [];
+    const servers: ServerInstance[] = [];
     let mcpUrl: string;
 
     before(async () => {
@@ -220,7 +220,7 @@ describe("Dynamic project scope", { concurrency: 1 }, () => {
 
   describe("without GITLAB_ALLOWED_PROJECT_IDS", () => {
     let mockGitLab: MockGitLabServer;
-    let servers: ServerInstance[] = [];
+    const servers: ServerInstance[] = [];
     let mcpUrl: string;
 
     before(async () => {
@@ -324,7 +324,7 @@ describe("Dynamic project scope", { concurrency: 1 }, () => {
 
   describe("with ENABLE_DYNAMIC_PROJECT_SCOPE disabled", () => {
     let mockGitLab: MockGitLabServer;
-    let servers: ServerInstance[] = [];
+    const servers: ServerInstance[] = [];
     let mcpUrl: string;
 
     before(async () => {
