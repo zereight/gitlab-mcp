@@ -4187,6 +4187,7 @@ async function updateWorkItem(
     due_date?: string;
     milestone_id?: string;
     iteration_id?: string;
+    remove_iteration?: boolean;
     confidential?: boolean;
     linked_items_to_add?: Array<{ project_id?: string; iid: number; link_type?: string }>;
     linked_items_to_remove?: Array<{ project_id?: string; iid: number }>;
@@ -4311,7 +4312,9 @@ async function updateWorkItem(
     variables.milestoneId = milestoneGID;
   }
 
-  if (options.iteration_id !== undefined) {
+  if (options.remove_iteration) {
+    inputParts.push("iterationWidget: { iterationId: null }");
+  } else if (options.iteration_id !== undefined) {
     const iterationGID = options.iteration_id.startsWith("gid://")
       ? options.iteration_id
       : `gid://gitlab/Iteration/${options.iteration_id}`;
@@ -4380,6 +4383,7 @@ async function updateWorkItem(
           ... on WorkItemWidgetHealthStatus { healthStatus }
           ... on WorkItemWidgetStartAndDueDate { startDate dueDate }
           ... on WorkItemWidgetMilestone { milestone { id title } }
+          ... on WorkItemWidgetIteration { iteration { id iid title } }
         }
       }
       errors
@@ -4504,6 +4508,7 @@ async function updateWorkItem(
   const healthStatusW = widgets.find((w: any) => w.__typename === "WorkItemWidgetHealthStatus");
   const datesW = widgets.find((w: any) => w.__typename === "WorkItemWidgetStartAndDueDate");
   const milestoneW = widgets.find((w: any) => w.__typename === "WorkItemWidgetMilestone");
+  const iterationW = widgets.find((w: any) => w.__typename === "WorkItemWidgetIteration");
 
   return {
     id: wi.id,
@@ -4521,6 +4526,7 @@ async function updateWorkItem(
     startDate: datesW?.startDate || null,
     dueDate: datesW?.dueDate || null,
     milestone: milestoneW?.milestone || null,
+    iteration: iterationW?.iteration || null,
     children_added: options.children_to_add?.length || 0,
     children_removed: options.children_to_remove?.length || 0,
     linked_items_added: options.linked_items_to_add?.length || 0,

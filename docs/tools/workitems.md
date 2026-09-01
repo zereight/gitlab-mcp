@@ -89,13 +89,13 @@ Create a work item (issue, task, incident, epic, etc.) with full field support. 
 
 *✏️ Writes*
 
-Update a work item (title, description, labels, assignees, state, parent, custom fields, etc.). Use this for an existing resource; choose the corresponding create tool for a new resource and a note tool for discussion-only text. It changes remote GitLab state and requires the necessary project or group permission; GitLab returns validation, conflict, permission, or rate-limit errors instead of silently applying an invalid request. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented.
+Update a work item (title, description, labels, assignees, state, parent, iteration, custom fields, etc.). Use remove_iteration to explicitly clear the iteration association. Use this for an existing resource; choose the corresponding create tool for a new resource and a note tool for discussion-only text. It changes remote GitLab state and requires the necessary project or group permission; GitLab returns validation, conflict, permission, or rate-limit errors instead of silently applying an invalid request. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented.
 
 **Parameters**
 
 | Parameter | Type | Required | Description |
 |---|---|:-:|---|
-| `project_id` | string | ✓ | Project ID, URL-encoded project path, group path, or explicit namespace prefix for ambiguous numeric IDs (e.g. 'group/subgroup', 'group:123', or 'project:123') |
+| `project_id` | string |  | Project ID, URL-encoded project path, group path, or explicit namespace prefix for ambiguous numeric IDs (e.g. 'group/subgroup', 'group:123', or 'project:123') |
 | `iid` | number | ✓ | The internal ID (IID) of the work item |
 | `title` | string |  | New title |
 | `description` | string |  | New description (Markdown supported) |
@@ -115,6 +115,7 @@ Update a work item (title, description, labels, assignees, state, parent, custom
 | `due_date` | string |  | Due date in YYYY-MM-DD format |
 | `milestone_id` | string |  | Milestone ID (GitLab global ID format, e.g. 'gid://gitlab/Milestone/123', or numeric ID) |
 | `iteration_id` | string |  | Iteration ID (e.g. 'gid://gitlab/Iteration/123' or numeric ID). Use list_group_iterations to find available iterations. |
+| `remove_iteration` | boolean |  | Set to true to remove the work item's iteration association. Mutually exclusive with iteration_id. |
 | `confidential` | boolean |  | Set confidentiality |
 | `linked_items_to_add` | array<object> |  | Work items to link |
 | `linked_items_to_remove` | array<object> |  | Linked work items to remove |

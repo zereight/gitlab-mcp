@@ -5080,6 +5080,12 @@ export const UpdateWorkItemSchema = WorkItemParamsSchema.extend({
     .describe(
       "Iteration ID (e.g. 'gid://gitlab/Iteration/123' or numeric ID). Use list_group_iterations to find available iterations."
     ),
+  remove_iteration: z.coerce
+    .boolean()
+    .optional()
+    .describe(
+      "Set to true to remove the work item's iteration association. Mutually exclusive with iteration_id."
+    ),
   confidential: z.coerce.boolean().optional().describe("Set confidentiality"),
   linked_items_to_add: z
     .array(
@@ -5142,6 +5148,8 @@ export const UpdateWorkItemSchema = WorkItemParamsSchema.extend({
     .enum(["TRIGGERED", "ACKNOWLEDGED", "RESOLVED", "IGNORED"])
     .optional()
     .describe("Incident only: set escalation status"),
+}).refine(args => !(args.remove_iteration && args.iteration_id !== undefined), {
+  message: "Provide either iteration_id or remove_iteration, not both",
 });
 
 export const ConvertWorkItemTypeSchema = z.object({
