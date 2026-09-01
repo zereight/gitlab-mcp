@@ -93,6 +93,10 @@ const TOOL_GUIDANCE: Readonly<Record<string, string>> = {
     "Use this to change the value or type of an existing pipeline schedule variable; use `create_pipeline_schedule_variable` when the key does not exist yet. It changes remote CI configuration that scheduled pipelines consume, requires the Developer, Maintainer, or Owner role and ownership of the schedule, and returns the updated variable or a missing-key, validation, or permission error.",
   delete_pipeline_schedule_variable:
     "Use this only after confirming the key with `get_pipeline_schedule` or `get_pipeline_schedule_variable`; use `update_pipeline_schedule_variable` to change a value without removing it. The operation permanently removes the variable from the schedule so later scheduled pipelines no longer receive it, requires the Developer, Maintainer, or Owner role and ownership of the schedule, and returns a confirmation or a missing-key or permission error.",
+  stop_stale_environments:
+    "Use this to stop eligible stale environments in a project. GitLab excludes protected environments, and this operation stops environments without deleting them. It requires the necessary project permission and returns the result or a validation, permission, or rate-limit error.",
+  delete_review_app_environments:
+    "Use this to clean up stopped review-app environments after verifying the scope. GitLab schedules deletion one week later rather than deleting environments immediately; `dry_run` defaults to `true`, so actual scheduling requires `dry_run: false`. It requires the necessary project permission and returns the cleanup result or a validation, permission, or rate-limit error.",
 };
 
 const PARAMETER_GUIDANCE =

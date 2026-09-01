@@ -327,7 +327,6 @@ Update an environment. Use this for an existing resource; choose the correspondi
 |---|---|:-:|---|
 | `project_id` | string | ✓ | Project ID or URL-encoded path |
 | `environment_id` | string | ✓ | The ID of the environment |
-| `name` | string |  |  |
 | `external_url` | string (uri) \| null |  |  |
 | `tier` | enum (`production` \| `staging` \| `testing` \| `development` \| `other`) |  |  |
 | `auto_stop_setting` | enum (`always` \| `with_action`) |  |  |
@@ -363,7 +362,7 @@ Stop an environment. Use this for the specific operation described; choose a sib
 
 *✏️ Writes*
 
-Stop stale environments. Use this for the specific operation described; choose a sibling tool when you need a different resource or lifecycle action. It changes remote GitLab state and requires the necessary project or group permission; GitLab returns validation, conflict, permission, or rate-limit errors instead of silently applying an invalid request. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented.
+Stop eligible stale environments; protected environments are excluded and environments are stopped, not deleted. Use this to stop eligible stale environments in a project. GitLab excludes protected environments, and this operation stops environments without deleting them. It requires the necessary project permission and returns the result or a validation, permission, or rate-limit error.
 
 **Parameters**
 
@@ -376,7 +375,7 @@ Stop stale environments. Use this for the specific operation described; choose a
 
 *✏️ Writes*
 
-Delete stopped review-app environments. Use this only after verifying the target; choose a get or list tool first when you need to inspect state without changing it. It changes or removes remote GitLab data and may be irreversible; it requires the necessary project or group permission and returns validation, conflict, permission, or rate-limit errors. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented.
+Schedule deletion of stopped review-app environments one week later; dry_run defaults to true and actual scheduling requires dry_run=false. Use this to clean up stopped review-app environments after verifying the scope. GitLab schedules deletion one week later rather than deleting environments immediately; `dry_run` defaults to `true`, so actual scheduling requires `dry_run: false`. It requires the necessary project permission and returns the cleanup result or a validation, permission, or rate-limit error.
 
 **Parameters**
 
@@ -385,7 +384,7 @@ Delete stopped review-app environments. Use this only after verifying the target
 | `project_id` | string | ✓ |  |
 | `before` | string |  |  |
 | `limit` | number |  |  |
-| `dry_run` | boolean |  |  |
+| `dry_run` | boolean |  | Preview the cleanup when true (default); set to false to schedule deletion one week later |
 
 ### `list_pipeline_triggers`
 

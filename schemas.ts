@@ -600,7 +600,7 @@ export const GetEnvironmentSchema = z.object({
   environment_id: z.coerce.string().describe("The ID of the environment"),
 });
 export const UpdateEnvironmentSchema = GetEnvironmentSchema.extend({
-  name: z.string().optional(), external_url: z.string().url().nullable().optional(),
+  external_url: z.string().url().nullable().optional(),
   tier: z.enum(["production", "staging", "testing", "development", "other"]).optional(),
   auto_stop_setting: z.enum(["always", "with_action"]).optional(),
 });
@@ -608,7 +608,9 @@ export const StopEnvironmentSchema = GetEnvironmentSchema.extend({ force: coerce
 export const StopStaleEnvironmentsSchema = z.object({ project_id: z.coerce.string(), before: z.string() });
 export const DeleteReviewAppEnvironmentsSchema = z.object({
   project_id: z.coerce.string(), before: z.string().optional(), limit: z.coerce.number().optional(),
-  dry_run: coerceBooleanString.optional(),
+  dry_run: coerceBooleanString
+    .optional()
+    .describe("Preview the cleanup when true (default); set to false to schedule deletion one week later"),
 });
 export const PipelineTriggerIdSchema = z.object({ project_id: z.coerce.string(), trigger_id: z.coerce.string() });
 export const ListPipelineTriggersSchema = z.object({ project_id: z.coerce.string() });
