@@ -539,9 +539,9 @@ Play multiple manual pipeline jobs sequentially. Use this for the specific opera
 |---|---|:-:|---|
 | `project_id` | string | ✓ | Project ID or URL-encoded path |
 | `job_ids` | array<string> | ✓ | Job IDs to play, in dependency order |
-| `job_variables_attributes` | array<object> |  |  |
-| `timeout_seconds` | integer |  |  |
-| `poll_interval_seconds` | integer |  |  |
+| `job_variables_attributes` | array<object> |  | Custom job variables to use when running each job |
+| `timeout_seconds` | integer |  | Maximum seconds to wait for each job to reach a terminal status (applied per job; total duration scales with the batch size) |
+| `poll_interval_seconds` | integer |  | Seconds between status polls while waiting for each job |
 
 ### `retry_pipeline_job`
 
@@ -596,8 +596,8 @@ Wait for a pipeline to reach a terminal status. Use this for the specific operat
 |---|---|:-:|---|
 | `project_id` | string | ✓ | Project ID or URL-encoded path |
 | `pipeline_id` | string | ✓ | The ID of the pipeline |
-| `timeout_seconds` | integer |  |  |
-| `poll_interval_seconds` | integer |  |  |
+| `timeout_seconds` | integer |  | Maximum seconds to wait for this pipeline to reach a terminal status |
+| `poll_interval_seconds` | integer |  | Seconds between status polls while waiting for this pipeline |
 
 ### `wait_for_job`
 
@@ -611,8 +611,8 @@ Wait for a job to reach a terminal status. Use this for the specific operation d
 |---|---|:-:|---|
 | `project_id` | string | ✓ | Project ID or URL-encoded path |
 | `job_id` | string | ✓ | The ID of the job |
-| `timeout_seconds` | integer |  |  |
-| `poll_interval_seconds` | integer |  |  |
+| `timeout_seconds` | integer |  | Maximum seconds to wait for this job to reach a terminal status |
+| `poll_interval_seconds` | integer |  | Seconds between status polls while waiting for this job |
 
 ### `list_job_artifacts`
 

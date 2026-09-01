@@ -278,9 +278,26 @@ export const PlayPipelineJobsSchema = z.object({
     .min(1)
     .refine((jobIds) => new Set(jobIds).size === jobIds.length, "job_ids must not contain duplicates")
     .describe("Job IDs to play, in dependency order"),
-  job_variables_attributes: z.array(z.object({ key: z.string(), value: z.string() })).optional(),
-  timeout_seconds: z.coerce.number().int().min(1).max(600).optional(),
-  poll_interval_seconds: z.coerce.number().int().min(1).max(30).optional(),
+  job_variables_attributes: z
+    .array(z.object({ key: z.string(), value: z.string() }))
+    .optional()
+    .describe("Custom job variables to use when running each job"),
+  timeout_seconds: z.coerce
+    .number()
+    .int()
+    .min(1)
+    .max(600)
+    .optional()
+    .describe(
+      "Maximum seconds to wait for each job to reach a terminal status (applied per job; total duration scales with the batch size)"
+    ),
+  poll_interval_seconds: z.coerce
+    .number()
+    .int()
+    .min(1)
+    .max(30)
+    .optional()
+    .describe("Seconds between status polls while waiting for each job"),
 });
 
 export const GitLabMergeRequestPipelineSchema = z.object({
@@ -873,12 +890,36 @@ export const CancelPipelineJobSchema = z.object({
 });
 export const ErasePipelineJobSchema = PipelineJobControlSchema;
 export const WaitForPipelineSchema = GetPipelineSchema.extend({
-  timeout_seconds: z.coerce.number().int().min(1).max(600).optional(),
-  poll_interval_seconds: z.coerce.number().int().min(1).max(30).optional(),
+  timeout_seconds: z.coerce
+    .number()
+    .int()
+    .min(1)
+    .max(600)
+    .optional()
+    .describe("Maximum seconds to wait for this pipeline to reach a terminal status"),
+  poll_interval_seconds: z.coerce
+    .number()
+    .int()
+    .min(1)
+    .max(30)
+    .optional()
+    .describe("Seconds between status polls while waiting for this pipeline"),
 });
 export const WaitForPipelineJobSchema = PipelineJobControlSchema.extend({
-  timeout_seconds: z.coerce.number().int().min(1).max(600).optional(),
-  poll_interval_seconds: z.coerce.number().int().min(1).max(30).optional(),
+  timeout_seconds: z.coerce
+    .number()
+    .int()
+    .min(1)
+    .max(600)
+    .optional()
+    .describe("Maximum seconds to wait for this job to reach a terminal status"),
+  poll_interval_seconds: z.coerce
+    .number()
+    .int()
+    .min(1)
+    .max(30)
+    .optional()
+    .describe("Seconds between status polls while waiting for this job"),
 });
 
 // User schemas
