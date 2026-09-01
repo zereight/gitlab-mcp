@@ -70,10 +70,22 @@ type TlsConnectOptions = {
 
 class ProtocolDispatcher extends Dispatcher {
   constructor(
-    private readonly httpDispatcher: Dispatcher,
-    private readonly httpsDispatcher: Dispatcher
+    private readonly httpDirect: Dispatcher,
+    private readonly httpsDirect: Dispatcher,
+    private readonly httpProxyDispatcher: Dispatcher,
+    private readonly httpsProxyDispatcher: Dispatcher,
+    private readonly noProxy: string | undefined
   ) {
     super();
+  }
+
+  dispatcherForOrigin(originText: string): Dispatcher {
+    const useHttps = originText.startsWith("https:");
+    const bypass = shouldBypassProxy(originText, this.noProxy);
+    if (bypass) {
+      return useHttps ? this.httpsDirect : this.httpDirect;
+    }
+    return useHttps ? this.httpsProxyDispatcher : this.httpProxyDispatcher;
   }
 
   override dispatch(
@@ -82,10 +94,7 @@ class ProtocolDispatcher extends Dispatcher {
   ): boolean {
     const origin = options.origin;
     const originText = origin instanceof URL ? origin.href : String(origin ?? "");
-    const dispatcher = originText.startsWith("https:")
-      ? this.httpsDispatcher
-      : this.httpDispatcher;
-    return dispatcher.dispatch(options, handler);
+    return this.dispatcherForOrigin(originText).dispatch(options, handler);
   }
 }
 
@@ -203,14 +212,22 @@ export class GitLabClientPool {
       }
     }
 
+    const httpDirect = createDispatcher(undefined, tls);
+    const httpsDirect = createDispatcher(undefined, tls);
+    const httpProxyDispatcher = createDispatcher(httpProxy, tls);
+    const httpsProxyDispatcher = createDispatcher(httpsProxy, tls);
     const bypassProxy = shouldBypassProxy(apiUrl, noProxy);
-    const httpDispatcher = createDispatcher(bypassProxy ? undefined : httpProxy, tls);
-    const httpsDispatcher = createDispatcher(bypassProxy ? undefined : httpsProxy, tls);
 
     return {
-      httpDispatcher,
-      httpsDispatcher,
-      dispatcher: new ProtocolDispatcher(httpDispatcher, httpsDispatcher),
+      httpDispatcher: bypassProxy ? httpDirect : httpProxyDispatcher,
+      httpsDispatcher: bypassProxy ? httpsDirect : httpsProxyDispatcher,
+      dispatcher: new ProtocolDispatcher(
+        httpDirect,
+        httpsDirect,
+        httpProxyDispatcher,
+        httpsProxyDispatcher,
+        noProxy
+      ),
     };
   }
 
@@ -230,6 +247,18 @@ export class GitLabClientPool {
    */
   public getDispatcherForUrl(apiUrl: string): Dispatcher {
     return this.getOrCreateDispatchersForUrl(apiUrl).dispatcher;
+  }
+
+  /**
+   * Which inner dispatcher would handle `originUrl` after following a redirect
+   * from `apiUrl`. Used to verify NO_PROXY is re-evaluated per origin.
+   */
+  public getDispatcherForOrigin(apiUrl: string, originUrl: string): Dispatcher {
+    const dispatcher = this.getOrCreateDispatchersForUrl(apiUrl).dispatcher;
+    if (dispatcher instanceof ProtocolDispatcher) {
+      return dispatcher.dispatcherForOrigin(originUrl);
+    }
+    return dispatcher;
   }
 
   private getOrCreateDispatchersForUrl(apiUrl: string): ClientDispatchers {

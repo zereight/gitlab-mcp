@@ -169,6 +169,34 @@ describe('NO_PROXY Pattern Matching', () => {
     assert.strictEqual(agent1.constructor.name, 'Agent', 'Should match case-insensitively (lowercase)');
     assert.strictEqual(agent2.constructor.name, 'Agent', 'Should match case-insensitively (uppercase)');
   });
+
+  test('should re-evaluate NO_PROXY for redirect origins', () => {
+    const pool = new GitLabClientPool({
+      httpProxy: 'http://proxy.example.com:8080',
+      httpsProxy: 'http://proxy.example.com:8080',
+      noProxy: 'gitlab.internal.com',
+    });
+
+    const proxyToBypass = pool.getDispatcherForOrigin(
+      'https://gitlab.external.com/api/v4',
+      'https://gitlab.internal.com/api/v4'
+    );
+    const bypassToProxy = pool.getDispatcherForOrigin(
+      'https://gitlab.internal.com/api/v4',
+      'https://gitlab.external.com/api/v4'
+    );
+
+    assert.strictEqual(
+      proxyToBypass.constructor.name,
+      'Agent',
+      'redirect onto NO_PROXY host should bypass'
+    );
+    assert.notStrictEqual(
+      bypassToProxy.constructor.name,
+      'Agent',
+      'redirect onto proxied host should use proxy'
+    );
+  });
 });
 
 console.log('✅ NO_PROXY tests completed');

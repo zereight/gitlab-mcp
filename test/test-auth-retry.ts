@@ -98,6 +98,15 @@ describe("isNonReplayableBody", () => {
   test("object with .read() returns true (stream-like)", () => {
     assert.strictEqual(isNonReplayableBody({ read: () => {} }), true);
   });
+
+  test("Web ReadableStream returns true", () => {
+    const stream = new ReadableStream({
+      start(controller) {
+        controller.close();
+      },
+    });
+    assert.strictEqual(isNonReplayableBody(stream), true);
+  });
 });
 
 describe("wrapWithAuthRetry", () => {
@@ -150,6 +159,30 @@ describe("wrapWithAuthRetry", () => {
     const wrapped = wrapWithAuthRetry(mockFetch(401), config);
     const res = await wrapped("http://example.com", {
       body: Readable.from([]),
+      duplex: "half",
+    });
+
+    assert.strictEqual(res.status, 401);
+    assert.strictEqual(refreshCalled, false);
+  });
+
+  test("401 with Web ReadableStream body skips retry", async () => {
+    let refreshCalled = false;
+    const config = makeConfig({
+      refreshToken: async () => {
+        refreshCalled = true;
+        return "tok";
+      },
+    });
+
+    const stream = new ReadableStream({
+      start(controller) {
+        controller.close();
+      },
+    });
+    const wrapped = wrapWithAuthRetry(mockFetch(401), config);
+    const res = await wrapped("http://example.com", {
+      body: stream,
       duplex: "half",
     });
 

@@ -37,7 +37,7 @@ Supports PAT, OAuth, read-only mode, dynamic API URLs, and remote authorization 
 | **Best for** | AI agent workflows | Enterprise multi-instance / grouped tools |
 | **Tool model** | ~229 granular tools + `discover_tools` | ~50–60 grouped `browse_*` / `manage_*` tools |
 | **MR review** | 2-step batched diff | Varies |
-| **Node.js** | >=18 | Often >=24 |
+| **Node.js** | >=18.17 | Often >=24 |
 | **License** | MIT | Varies |
 
 [Full comparison →](./docs/comparison/community-gitlab-mcp-a.md)

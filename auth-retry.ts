@@ -55,10 +55,15 @@ export function headersToPlainObject(headers: unknown): Record<string, string> {
 /**
  * Detect request bodies that cannot be replayed (streams).
  */
+function hasCallableMethod(body: object, name: string): boolean {
+  return name in body && typeof Reflect.get(body, name) === "function";
+}
+
 export function isNonReplayableBody(body: unknown): boolean {
   if (!body || typeof body !== "object") return false;
-  if ("pipe" in body && typeof body.pipe === "function") return true;
-  if ("read" in body && typeof body.read === "function") return true;
+  if (hasCallableMethod(body, "pipe")) return true;
+  if (hasCallableMethod(body, "read")) return true;
+  if (hasCallableMethod(body, "getReader")) return true;
   return false;
 }
 
