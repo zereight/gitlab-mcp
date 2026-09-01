@@ -103,7 +103,7 @@ Lean default starter set for common MR, issue, repository, branch, project, labe
 
 ### [Projects & Namespaces](projects.md)
 
-Project/namespace listing, member queries, group iterations, and server health. *(11 tools)*
+Project/namespace listing, member queries, group iterations, and server health. *(13 tools)*
 
 > Opt-in. Enable via `GITLAB_TOOLSETS=projects` (or `GITLAB_TOOLSETS=all`), list individual tools in `GITLAB_TOOLS=`, or activate at runtime with the `discover_tools` MCP tool. 4 of these tools (`get_project`, `list_projects`, `list_project_members`, `health_check`) are already enabled by default via `core`; the toggle applies to the rest.
 
@@ -119,6 +119,8 @@ Project/namespace listing, member queries, group iterations, and server health. 
 | [`verify_namespace`](projects.md#verify_namespace) | Verify if a namespace path exists. Use parent_id to scope the check to a specific parent namespace — required for nested namespaces where the same path may exist under different parents. | 📖 |
 | [`list_group_projects`](projects.md#list_group_projects) | List projects in a group. | 📖 |
 | [`list_group_iterations`](projects.md#list_group_iterations) | List group iterations with filtering options. | 📖 |
+| [`get_group_iteration`](projects.md#get_group_iteration) | Get a group iteration by ID, IID, or GraphQL GID. | 📖 |
+| [`update_group_iteration`](projects.md#update_group_iteration) | Update a manual group iteration's title, description, or dates. | ✏️ |
 | [`health_check`](projects.md#health_check) | Verify server status and authentication. Always reports the MCP server version (mcp_server_version). When authenticated, also reports the GitLab instance version from GET /api/v4/version (version, revision, enterprise). Version lookup failures do not fail the health check — those fields are omitted. | 📖 |
 
 ### [Projects & Files](repositories.md)
