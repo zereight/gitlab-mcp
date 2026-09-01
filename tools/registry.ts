@@ -1483,7 +1483,7 @@ export const allTools = [
   {
     name: "update_work_item",
     description:
-      "Update a work item (title, description, labels, assignees, state, parent, custom fields, etc.)",
+      "Update a work item (title, description, labels, assignees, state, parent, iteration, custom fields, etc.). Use remove_iteration to explicitly clear the iteration association.",
     inputSchema: toJSONSchema(UpdateWorkItemSchema),
   },
   {

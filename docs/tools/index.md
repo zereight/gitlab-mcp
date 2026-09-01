@@ -287,7 +287,7 @@ Modern unified API for issues, tasks, incidents, and other typed work items — 
 | [`get_work_item`](workitems.md#get_work_item) | Get a work item with full details including status, hierarchy, type, and widgets. To find resources, use the matching list or search tool. | 📖 |
 | [`list_work_items`](workitems.md#list_work_items) | List work items with filters (type, state, search, assignees, labels). For one known resource, use the matching get tool. | 📖 |
 | [`create_work_item`](workitems.md#create_work_item) | Create a work item (issue, task, incident, epic, etc.) with full field support. If the resource already exists, use the update tool. | ✏️ |
-| [`update_work_item`](workitems.md#update_work_item) | Update a work item (title, description, labels, assignees, state, parent, custom fields, etc.). Use the create tool for new resources and a note tool for comments. | ✏️ |
+| [`update_work_item`](workitems.md#update_work_item) | Update a work item (title, description, labels, assignees, state, parent, iteration, custom fields, etc.). Use remove_iteration to explicitly clear the iteration association. Use the create tool for new resources and a note tool for comments. | ✏️ |
 | [`convert_work_item_type`](workitems.md#convert_work_item_type) | Convert a work item to a different type. | ✏️ |
 | [`list_work_item_statuses`](workitems.md#list_work_item_statuses) | List available statuses for a work item type (Premium/Ultimate). | 📖 |
 | [`list_custom_field_definitions`](workitems.md#list_custom_field_definitions) | List custom field definitions for a work item type. | 📖 |
