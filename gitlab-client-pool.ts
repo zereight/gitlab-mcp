@@ -1,9 +1,8 @@
-import { Agent } from "http";
-import { Agent as HttpsAgent } from "https";
-import { HttpProxyAgent } from "http-proxy-agent";
-import { HttpsProxyAgent } from "https-proxy-agent";
+import fs from "node:fs";
+import http from "node:http";
+import type { AgentConnectOpts } from "agent-base";
 import { SocksProxyAgent } from "socks-proxy-agent";
-import fs from "fs";
+import { Agent, Dispatcher, ProxyAgent, buildConnector } from "undici";
 
 /**
  * Checks if a URL should bypass the proxy based on NO_PROXY patterns.
@@ -13,7 +12,7 @@ import fs from "fs";
  * - IP addresses (e.g., "127.0.0.1", "192.168.1.1")
  * - Wildcard "*" to bypass all proxies
  * - Port-specific matches (e.g., "example.com:8080")
- * 
+ *
  * @param url The URL to check
  * @param noProxy Comma-separated list of patterns from NO_PROXY
  * @returns true if the URL should bypass the proxy, false otherwise
@@ -23,7 +22,6 @@ function shouldBypassProxy(url: string, noProxy: string | undefined): boolean {
     return false;
   }
 
-  // Parse URL to get hostname and port
   let hostname: string;
   let port: string;
   let protocol: string;
@@ -31,43 +29,143 @@ function shouldBypassProxy(url: string, noProxy: string | undefined): boolean {
     const parsedUrl = new URL(url);
     hostname = parsedUrl.hostname.toLowerCase();
     protocol = parsedUrl.protocol;
-    // Use explicit port if provided, otherwise use default port based on protocol
-    port = parsedUrl.port || (protocol === 'https:' ? '443' : '80');
+    port = parsedUrl.port || (protocol === "https:" ? "443" : "80");
   } catch {
     return false;
   }
 
-  // Split NO_PROXY into patterns and trim whitespace
-  const patterns = noProxy.split(',').map(p => p.trim().toLowerCase()).filter(p => p.length > 0);
+  const patterns = noProxy
+    .split(",")
+    .map(p => p.trim().toLowerCase())
+    .filter(p => p.length > 0);
 
   for (const pattern of patterns) {
-    // Wildcard matches everything
-    if (pattern === '*') {
+    if (pattern === "*") {
       return true;
     }
 
-    // Handle port-specific patterns (e.g., "example.com:8080")
-    const [patternHost, patternPort] = pattern.split(':');
-    
-    // If pattern specifies a port, check if it matches
+    const [patternHost, patternPort] = pattern.split(":");
+
     if (patternPort && port !== patternPort) {
       continue;
     }
 
-    // Check for domain suffix match (e.g., ".example.com")
-    if (patternHost.startsWith('.')) {
+    if (patternHost.startsWith(".")) {
       const suffix = patternHost.substring(1);
-      if (hostname === suffix || hostname.endsWith('.' + suffix)) {
+      if (hostname === suffix || hostname.endsWith("." + suffix)) {
         return true;
       }
-    }
-    // Check for exact hostname match
-    else if (hostname === patternHost) {
+    } else if (hostname === patternHost) {
       return true;
     }
   }
 
   return false;
+}
+
+type TlsConnectOptions = {
+  rejectUnauthorized?: boolean;
+  ca?: Buffer;
+};
+
+class ProtocolDispatcher extends Dispatcher {
+  constructor(
+    private readonly httpDirect: Dispatcher,
+    private readonly httpsDirect: Dispatcher,
+    private readonly httpProxyDispatcher: Dispatcher,
+    private readonly httpsProxyDispatcher: Dispatcher,
+    private readonly noProxy: string | undefined
+  ) {
+    super();
+  }
+
+  dispatcherForOrigin(originText: string): Dispatcher {
+    const useHttps = originText.startsWith("https:");
+    const bypass = shouldBypassProxy(originText, this.noProxy);
+    if (bypass) {
+      return useHttps ? this.httpsDirect : this.httpDirect;
+    }
+    return useHttps ? this.httpsProxyDispatcher : this.httpProxyDispatcher;
+  }
+
+  override dispatch(
+    options: Dispatcher.DispatchOptions,
+    handler: Dispatcher.DispatchHandlers
+  ): boolean {
+    const origin = options.origin;
+    const originText = origin instanceof URL ? origin.href : String(origin ?? "");
+    return this.dispatcherForOrigin(originText).dispatch(options, handler);
+  }
+}
+
+function createSocksConnect(proxyUrl: string, tls: TlsConnectOptions): buildConnector.connector {
+  const socksAgent = new SocksProxyAgent(proxyUrl);
+
+  return (options, callback) => {
+    const port = Number(options.port);
+    const host = options.hostname;
+
+    const dummyReq = http.request({
+      hostname: "127.0.0.1",
+      port: 9,
+      path: "/",
+      method: "HEAD",
+      agent: false,
+    });
+    dummyReq.on("error", () => undefined);
+    dummyReq.destroy();
+
+    const connectThroughSocks = (connectOpts: AgentConnectOpts) => {
+      void socksAgent
+        .connect(dummyReq, connectOpts)
+        .then(socket => {
+          callback(null, socket);
+        })
+        .catch((error: unknown) => {
+          const err = error instanceof Error ? error : new Error("SOCKS connect failed");
+          callback(err, null);
+        });
+    };
+
+    if (options.protocol === "https:") {
+      connectThroughSocks({
+        secureEndpoint: true,
+        host,
+        port,
+        servername: options.servername,
+        rejectUnauthorized: tls.rejectUnauthorized,
+        ca: tls.ca,
+      });
+      return;
+    }
+
+    connectThroughSocks({
+      secureEndpoint: false,
+      host,
+      port,
+    });
+  };
+}
+
+function createDispatcher(proxyUrl: string | undefined, tls: TlsConnectOptions): Dispatcher {
+  const hasTls = tls.rejectUnauthorized === false || tls.ca !== undefined;
+
+  if (proxyUrl?.startsWith("socks")) {
+    return new Agent({ connect: createSocksConnect(proxyUrl, tls) });
+  }
+
+  if (proxyUrl) {
+    if (hasTls) {
+      return new ProxyAgent({ uri: proxyUrl, requestTls: tls });
+    }
+    return new ProxyAgent(proxyUrl);
+  }
+
+  if (hasTls) {
+    return new Agent({ connect: tls });
+  }
+
+  return new Agent();
 }
 
 export interface GitLabClientPoolOptions {
@@ -80,171 +178,136 @@ export interface GitLabClientPoolOptions {
   poolMaxSize?: number;
 }
 
-export interface ClientAgents {
-  httpAgent: Agent;
-  httpsAgent: HttpsAgent;
+export interface ClientDispatchers {
+  httpDispatcher: Dispatcher;
+  httpsDispatcher: Dispatcher;
+  dispatcher: Dispatcher;
 }
 
 /**
- * Manages a pool of HTTP/HTTPS agents for different GitLab API URLs.
+ * Manages a pool of undici dispatchers for different GitLab API URLs.
  * This allows the server to efficiently handle requests to multiple GitLab instances
- * by reusing agents and their underlying TCP connections.
+ * by reusing dispatchers and their underlying TCP connections.
  */
 export class GitLabClientPool {
-  private clients: Map<string, ClientAgents> = new Map();
+  private clients: Map<string, ClientDispatchers> = new Map();
   private options: GitLabClientPoolOptions;
 
   constructor(options: GitLabClientPoolOptions) {
     this.options = options;
-    // Initialization is now done on-demand
   }
 
-  /**
-   * Creates a pair of HTTP and HTTPS agents for a specific API URL,
-   * considering proxy and SSL/TLS settings.
-   * @param apiUrl The base URL for which to create the agents.
-   * @returns A `ClientAgents` object containing the configured agents.
-   */
-  private createAgentsForUrl(apiUrl: string): ClientAgents {
+  private createDispatchersForUrl(apiUrl: string): ClientDispatchers {
     const { httpProxy, httpsProxy, noProxy, rejectUnauthorized, caCertPath } = this.options;
 
-    let sslOptions: { rejectUnauthorized?: boolean; ca?: Buffer } = {};
+    const tls: TlsConnectOptions = {};
     if (rejectUnauthorized === false) {
-      sslOptions.rejectUnauthorized = false;
+      tls.rejectUnauthorized = false;
     } else if (caCertPath) {
       try {
-        sslOptions.ca = fs.readFileSync(caCertPath);
+        tls.ca = fs.readFileSync(caCertPath);
       } catch (error) {
         console.error(`Failed to read CA certificate from ${caCertPath}:`, error);
         throw new Error(`Failed to read CA certificate: ${caCertPath}`);
       }
     }
 
-    // Check if this URL should bypass the proxy
+    const httpDirect = createDispatcher(undefined, tls);
+    const httpsDirect = createDispatcher(undefined, tls);
+    const httpProxyDispatcher = createDispatcher(httpProxy, tls);
+    const httpsProxyDispatcher = createDispatcher(httpsProxy, tls);
     const bypassProxy = shouldBypassProxy(apiUrl, noProxy);
 
-    let httpAgent: Agent;
-    let httpsAgent: HttpsAgent;
-
-    // Configure HTTP agent with proxy if specified and not bypassed
-    if (httpProxy && !bypassProxy) {
-      httpAgent = httpProxy.startsWith("socks")
-        ? new SocksProxyAgent(httpProxy)
-        : new HttpProxyAgent(httpProxy);
-    } else {
-      httpAgent = new Agent({ keepAlive: true });
-    }
-
-    // Configure HTTPS agent with proxy and SSL options if specified and not bypassed
-    if (httpsProxy && !bypassProxy) {
-      httpsAgent = httpsProxy.startsWith("socks")
-        // The `as any` cast is used here to bypass a TypeScript type mismatch error.
-        // The `socks-proxy-agent` documentation indicates that TLS options like
-        // `rejectUnauthorized` and `ca` are valid in the constructor's options
-        // object, but the type definitions in this environment seem to disagree.
-        // This cast ensures the options are passed through at runtime.
-        ? new SocksProxyAgent(httpsProxy, sslOptions as any)
-        : new HttpsProxyAgent(httpsProxy, { ...sslOptions });
-    } else {
-      httpsAgent = new HttpsAgent({ ...sslOptions, keepAlive: true });
-    }
-
-    return { httpAgent, httpsAgent };
-  }
-
-  /**
-   * Retrieves the appropriate agent (HTTP or HTTPS) for a given API URL.
-   * If an agent for the URL does not exist, it creates and caches one.
-   * @param apiUrl The full URL of the request.
-   * @returns The corresponding `Agent` for the URL's protocol.
-   */
-  public getOrCreateAgentForUrl(apiUrl: string): Agent {
-    const agents = this.getOrCreateAgentsForUrl(apiUrl);
-    const url = new URL(apiUrl);
-    return url.protocol === "https:" ? agents.httpsAgent : agents.httpAgent;
-  }
-
-  /**
-   * Returns an agent-selection function for use with node-fetch's `agent` option.
-   * The returned function picks the correct HTTP or HTTPS agent based on the
-   * request URL's protocol. This is critical for self-hosted GitLab instances
-   * where the server may redirect between HTTP and HTTPS (e.g., when
-   * `external_url` differs from the actual internal protocol).
-   * @param apiUrl The base API URL used to look up or create the agent pair.
-   * @returns A function `(parsedURL: URL) => Agent` suitable for node-fetch.
-   */
-  public getAgentFunctionForUrl(apiUrl: string): (parsedURL: URL) => Agent {
-    const agents = this.getOrCreateAgentsForUrl(apiUrl);
-    return (parsedURL: URL) => {
-      return parsedURL.protocol === "https:" ? agents.httpsAgent : agents.httpAgent;
+    return {
+      httpDispatcher: bypassProxy ? httpDirect : httpProxyDispatcher,
+      httpsDispatcher: bypassProxy ? httpsDirect : httpsProxyDispatcher,
+      dispatcher: new ProtocolDispatcher(
+        httpDirect,
+        httpsDirect,
+        httpProxyDispatcher,
+        httpsProxyDispatcher,
+        noProxy
+      ),
     };
   }
 
   /**
-   * Ensures agents exist for the given API URL and returns the pair.
-   * @param apiUrl The full URL of the request.
-   * @returns The `ClientAgents` (both HTTP and HTTPS agents) for the URL.
+   * Retrieves the protocol-specific dispatcher for a given API URL.
+   * Used by NO_PROXY tests to distinguish Agent vs ProxyAgent.
    */
-  private getOrCreateAgentsForUrl(apiUrl: string): ClientAgents {
+  public getOrCreateAgentForUrl(apiUrl: string): Dispatcher {
+    const dispatchers = this.getOrCreateDispatchersForUrl(apiUrl);
     const url = new URL(apiUrl);
-    const baseUrl = `${url.protocol}//${url.host}${url.pathname.substring(0, url.pathname.lastIndexOf('/api/v4') + '/api/v4'.length)}`;
+    return url.protocol === "https:" ? dispatchers.httpsDispatcher : dispatchers.httpDispatcher;
+  }
+
+  /**
+   * Returns a dispatcher that picks HTTP vs HTTPS based on the request origin.
+   * Needed when a self-hosted GitLab redirects between HTTP and HTTPS.
+   */
+  public getDispatcherForUrl(apiUrl: string): Dispatcher {
+    return this.getOrCreateDispatchersForUrl(apiUrl).dispatcher;
+  }
+
+  /**
+   * Which inner dispatcher would handle `originUrl` after following a redirect
+   * from `apiUrl`. Used to verify NO_PROXY is re-evaluated per origin.
+   */
+  public getDispatcherForOrigin(apiUrl: string, originUrl: string): Dispatcher {
+    const dispatcher = this.getOrCreateDispatchersForUrl(apiUrl).dispatcher;
+    if (dispatcher instanceof ProtocolDispatcher) {
+      return dispatcher.dispatcherForOrigin(originUrl);
+    }
+    return dispatcher;
+  }
+
+  private getOrCreateDispatchersForUrl(apiUrl: string): ClientDispatchers {
+    const url = new URL(apiUrl);
+    const apiIndex = url.pathname.lastIndexOf("/api/v4");
+    const basePath =
+      apiIndex === -1 ? url.pathname : url.pathname.substring(0, apiIndex + "/api/v4".length);
+    const baseUrl = `${url.protocol}//${url.host}${basePath}`;
 
     if (!this.clients.has(baseUrl)) {
-      // Check pool size limit
       if (this.options.poolMaxSize !== undefined && this.clients.size >= this.options.poolMaxSize) {
-        throw new Error(`Server capacity reached: Connection pool is full (max ${this.options.poolMaxSize} instances). Please try again later.`);
+        throw new Error(
+          `Server capacity reached: Connection pool is full (max ${this.options.poolMaxSize} instances). Please try again later.`
+        );
       }
-      this.clients.set(baseUrl, this.createAgentsForUrl(baseUrl));
+      this.clients.set(baseUrl, this.createDispatchersForUrl(baseUrl));
     }
 
-    const agents = this.clients.get(baseUrl);
-    if (!agents) {
-      // This should not happen given the logic above, but it satisfies TypeScript
+    const dispatchers = this.clients.get(baseUrl);
+    if (!dispatchers) {
       throw new Error(`Failed to create or get client for URL: ${baseUrl}`);
     }
 
-    return agents;
+    return dispatchers;
   }
 
-  /**
-   * Retrieves the client agents for a specific base API URL.
-   * @param apiUrl The base API URL (e.g., "https://gitlab.com/api/v4").
-   * @returns The `ClientAgents` object or undefined if not found.
-   */
-  public getClient(apiUrl: string): ClientAgents | undefined {
+  public getClient(apiUrl: string): ClientDispatchers | undefined {
     return this.clients.get(apiUrl);
   }
 
-  /**
-   * Returns the default client agents, which corresponds to the first URL in the list.
-   * @returns The default `ClientAgents`.
-   */
-  public getDefaultClient(): ClientAgents {
+  public getDefaultClient(): ClientDispatchers {
     const defaultUrl = this.options.apiUrls?.[0];
     if (!defaultUrl) {
       throw new Error("No default API URL configured.");
     }
     if (!this.clients.has(defaultUrl)) {
-      this.clients.set(defaultUrl, this.createAgentsForUrl(defaultUrl));
+      this.clients.set(defaultUrl, this.createDispatchersForUrl(defaultUrl));
     }
-    return this.clients.get(defaultUrl)!;
+    const client = this.clients.get(defaultUrl);
+    if (!client) {
+      throw new Error("No default API URL configured.");
+    }
+    return client;
   }
 
-  /**
-   * Destroy all pooled agents and clear pool state.
-   * This should be called on graceful shutdown so sockets are closed
-   * and the process can exit cleanly.
-   */
   public closeAll(): void {
-    for (const [, agents] of this.clients) {
-      const destroyIfSupported = (agent: unknown) => {
-        if (agent && typeof (agent as { destroy?: () => void }).destroy === "function") {
-          (agent as { destroy: () => void }).destroy();
-        }
-      };
-
-      destroyIfSupported(agents.httpAgent);
-      destroyIfSupported(agents.httpsAgent);
+    for (const [, dispatchers] of this.clients) {
+      void dispatchers.httpDispatcher.destroy();
+      void dispatchers.httpsDispatcher.destroy();
     }
     this.clients.clear();
   }

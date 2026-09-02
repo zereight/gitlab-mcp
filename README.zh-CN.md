@@ -32,7 +32,7 @@
 | **更适合** | AI 代理工作流 | 企业多实例 / 分组工具 |
 | **工具模型** | ~217 个细粒度工具 + `discover_tools` | ~50–60 个 `browse_*` / `manage_*` 分组工具 |
 | **MR 审查** | 两步批量 diff | 因服务器而异 |
-| **Node.js** | >=18 | 通常 >=24 |
+| **Node.js** | >=18.17 | 通常 >=24 |
 | **许可证** | MIT | 因服务器而异 |
 
 [完整对比 →](./docs/comparison/community-gitlab-mcp-a.md)

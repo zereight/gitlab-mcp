@@ -6,33 +6,64 @@
  * reads env vars, etc.).
  */
 
-import nodeFetch, { Headers } from "node-fetch";
+import { fetch as undiciFetch, type RequestInit as UndiciRequestInit } from "undici";
+
+export type FetchFn = typeof undiciFetch;
+
+function isTupleArray(headers: unknown): headers is [string, string][] {
+  if (!Array.isArray(headers)) return false;
+  return headers.every(
+    entry =>
+      Array.isArray(entry) &&
+      entry.length >= 2 &&
+      typeof entry[0] === "string" &&
+      typeof entry[1] === "string"
+  );
+}
+
+function hasForEach(
+  headers: object
+): headers is { forEach: (callback: (value: string, key: string) => void) => void } {
+  return "forEach" in headers && typeof headers.forEach === "function";
+}
+
+function isPlainStringHeaders(headers: object): headers is Record<string, string> {
+  return Object.values(headers).every(value => typeof value === "string");
+}
 
 /**
  * Convert various header representations to a plain Record<string, string>.
  */
 export function headersToPlainObject(headers: unknown): Record<string, string> {
-  if (!headers) return {};
-  if (headers instanceof Headers) {
-    const obj: Record<string, string> = {};
-    headers.forEach((value, key) => { obj[key] = value; });
-    return obj;
-  }
-  if (Array.isArray(headers)) {
+  if (!headers || typeof headers !== "object") return {};
+  if (isTupleArray(headers)) {
     return Object.fromEntries(headers);
   }
-  return headers as Record<string, string>;
+  if (hasForEach(headers)) {
+    const obj: Record<string, string> = {};
+    headers.forEach((value, key) => {
+      obj[key] = value;
+    });
+    return obj;
+  }
+  if (isPlainStringHeaders(headers)) {
+    return headers;
+  }
+  return {};
 }
 
 /**
- * Detect request bodies that cannot be replayed (streams, FormData).
+ * Detect request bodies that cannot be replayed (streams).
  */
+function hasCallableMethod(body: object, name: string): boolean {
+  return name in body && typeof Reflect.get(body, name) === "function";
+}
+
 export function isNonReplayableBody(body: unknown): boolean {
-  if (!body) return false;
-  // Stream-like objects (has .pipe or .read)
-  if (typeof (body as any).pipe === "function" || typeof (body as any).read === "function") return true;
-  // form-data instances (duck-type check since FormData is dynamically imported)
-  if (typeof (body as any).getBuffer === "function" && typeof (body as any).getBoundary === "function") return true;
+  if (!body || typeof body !== "object") return false;
+  if (hasCallableMethod(body, "pipe")) return true;
+  if (hasCallableMethod(body, "read")) return true;
+  if (hasCallableMethod(body, "getReader")) return true;
   return false;
 }
 
@@ -49,30 +80,24 @@ export interface AuthRetryConfig {
  * On a 401, force-refreshes the OAuth token and retries the request once.
  * The retry calls baseFetch directly (not the wrapper), so infinite loops are impossible.
  * In non-OAuth mode, the wrapper is a transparent pass-through.
- *
- * When called without `config`, falls back to module globals in index.ts.
- * When called with `config` (tests), uses injected dependencies.
  */
-export function wrapWithAuthRetry(
-  baseFetch: typeof nodeFetch,
-  config: AuthRetryConfig,
-): typeof nodeFetch {
+export function wrapWithAuthRetry(baseFetch: FetchFn, config: AuthRetryConfig): FetchFn {
   let refreshLock: Promise<string> | null = null;
   const log = config.logger ?? { info: () => {}, error: () => {} };
 
-  return (async (url: any, options?: any) => {
+  const wrapped: FetchFn = async (url, options) => {
     const response = await baseFetch(url, options);
 
     if (response.status === 401 && config.isOAuthEnabled()) {
-      // Skip retry for non-replayable bodies (streams, FormData) since the first request consumed them
       if (isNonReplayableBody(options?.body)) {
-        log.info("Received 401 but request body is not replayable (stream/FormData), skipping retry.");
+        log.info(
+          "Received 401 but request body is not replayable (stream/FormData), skipping retry."
+        );
         return response;
       }
 
       log.info("Received 401, force-refreshing OAuth token and retrying...");
       try {
-        // Mutex: coalesce concurrent refresh attempts into a single in-flight request
         if (!refreshLock) {
           refreshLock = config.refreshToken(true).finally(() => {
             refreshLock = null;
@@ -81,7 +106,7 @@ export function wrapWithAuthRetry(
         const token = await refreshLock;
         config.onTokenRefreshed(token);
 
-        const retryOptions = {
+        const retryOptions: UndiciRequestInit = {
           ...options,
           headers: { ...headersToPlainObject(options?.headers), ...config.buildAuthHeaders() },
         };
@@ -92,5 +117,7 @@ export function wrapWithAuthRetry(
     }
 
     return response;
-  }) as typeof nodeFetch;
+  };
+
+  return wrapped;
 }

@@ -136,7 +136,7 @@ import fetchCookie from "fetch-cookie";
 import fs from "node:fs";
 import { pipeline as streamPipeline } from "node:stream/promises";
 import os from "node:os";
-import nodeFetch from "node-fetch";
+import { fetch as undiciFetch, File, FormData, type Dispatcher, type Response as UndiciResponse } from "undici";
 import path from "node:path";
 import { CookieJar, parse as parseCookie } from "tough-cookie";
 import { URL } from "node:url";
@@ -1541,7 +1541,7 @@ export {
   wrapWithAuthRetry,
   type AuthRetryConfig,
 } from "./auth-retry.js";
-import { wrapWithAuthRetry } from "./auth-retry.js";
+import { wrapWithAuthRetry, type FetchFn } from "./auth-retry.js";
 
 /** Build AuthRetryConfig from module globals (lazy — reads globals at call time). */
 function defaultAuthRetryConfig() {
@@ -1558,7 +1558,7 @@ function defaultAuthRetryConfig() {
 
 // Cookie jar and fetch - reloaded when cookie file changes
 let cookieJar: CookieJar | null = null;
-let fetch: typeof nodeFetch = wrapWithAuthRetry(nodeFetch, defaultAuthRetryConfig());
+let fetch: FetchFn = wrapWithAuthRetry(undiciFetch, defaultAuthRetryConfig());
 let lastCookieMtime = 0;
 let cookieReloadLock: Promise<void> | null = null; // Mutex to prevent parallel reloads
 // Auth proxies may redirect and set cookies on the first request. We make a throwaway
@@ -1583,7 +1583,7 @@ async function reloadCookiesIfChanged(): Promise<void> {
         const newJar = await createCookieJar();
         cookieJar = newJar;
         fetch = wrapWithAuthRetry(
-          newJar ? fetchCookie(nodeFetch, newJar) : nodeFetch,
+          newJar ? fetchCookie(undiciFetch, newJar) : undiciFetch,
           defaultAuthRetryConfig()
         );
         initialSessionRequestMade = false;
@@ -1593,7 +1593,7 @@ async function reloadCookiesIfChanged(): Promise<void> {
       if (cookieJar) {
         logger.info("Cookie file removed, clearing cached cookies");
         cookieJar = null;
-        fetch = wrapWithAuthRetry(nodeFetch, defaultAuthRetryConfig());
+        fetch = wrapWithAuthRetry(undiciFetch, defaultAuthRetryConfig());
         lastCookieMtime = 0;
         initialSessionRequestMade = false;
       }
@@ -1751,13 +1751,13 @@ function getEffectiveApiUrl(): string {
  * within the correct AsyncLocalStorage context, capturing the necessary auth
  * and API URL information for the current request.
  */
-const getFetchConfig = () => {
+const getFetchConfig = (): { headers: Record<string, string>; dispatcher: Dispatcher } => {
   const effectiveApiUrl = getEffectiveApiUrl();
-  const agent = clientPool.getAgentFunctionForUrl(effectiveApiUrl);
+  const dispatcher = clientPool.getDispatcherForUrl(effectiveApiUrl);
 
   return {
     headers: { ...BASE_HEADERS, ...buildAuthHeaders() },
-    agent: agent,
+    dispatcher,
   };
 };
 
@@ -1979,10 +1979,10 @@ if (
  * Utility function for handling GitLab API errors
  * API 에러 처리를 위한 유틸리티 함수 (Utility function for handling API errors)
  *
- * @param {import("node-fetch").Response} response - The response from GitLab API
+ * @param {Response} response - The response from GitLab API
  * @throws {Error} Throws an error with response details if the request failed
  */
-async function handleGitLabError(response: import("node-fetch").Response): Promise<void> {
+async function handleGitLabError(response: UndiciResponse): Promise<void> {
   if (!response.ok) {
     const errorBody = await response.text();
     // Check specifically for Rate Limit error
@@ -9911,19 +9911,18 @@ async function markdownUpload(
   }
 
   // Create form data
-  const FormData = (await import("form-data")).default;
   const form = new FormData();
-  form.append("file", fileBuffer, {
-    filename: fileName,
-    contentType: "application/octet-stream",
-  });
+  form.append(
+    "file",
+    new File([fileBuffer], fileName, { type: "application/octet-stream" })
+  );
 
   const url = new URL(
     `${getEffectiveApiUrl()}/projects/${encodeURIComponent(effectiveProjectId)}/uploads`
   );
 
   const defaultFetchConfig = getFetchConfig();
-  delete defaultFetchConfig.headers["Content-Type"]; // Let form-data set the correct Content-Type with boundary
+  delete defaultFetchConfig.headers["Content-Type"];
 
   const response = await fetch(url.toString(), {
     ...defaultFetchConfig,
@@ -13745,8 +13744,8 @@ function buildDownloadProxyDeps(): DownloadProxyDependencies {
     encodeGitLabPathSegment,
     encodeGitLabPath,
     getEffectiveProjectId,
-    getAgentFunctionForUrl: clientPool.getAgentFunctionForUrl.bind(clientPool),
-    fetch: nodeFetch,
+    getDispatcherForUrl: clientPool.getDispatcherForUrl.bind(clientPool),
+    fetch: undiciFetch,
     logger,
   };
 }

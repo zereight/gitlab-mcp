@@ -32,7 +32,7 @@ PAT, OAuth, 읽기 전용 모드, 동적 API URL, 원격 인증을 지원하며 
 | **적합한 경우** | AI 에이전트 워크플로우 | 엔터프라이즈 멀티 인스턴스 / 그룹형 도구 |
 | **도구 모델** | ~217개 세분화 도구 + `discover_tools` | ~50–60개 `browse_*` / `manage_*` 그룹 도구 |
 | **MR 리뷰** | 2단계 배치 diff | 서버마다 다름 |
-| **Node.js** | >=18 | 보통 >=24 |
+| **Node.js** | >=18.17 | 보통 >=24 |
 | **라이선스** | MIT | 서버마다 다름 |
 
 [전체 비교 →](./docs/comparison/community-gitlab-mcp-a.md)

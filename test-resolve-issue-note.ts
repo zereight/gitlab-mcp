@@ -4,8 +4,6 @@
  * issue discussion threads.
  */
 
-import fetch from "node-fetch";
-
 // GitLab API configuration (replace with actual values when testing)
 const GITLAB_API_URL = process.env.GITLAB_API_URL || "https://gitlab.com";
 const GITLAB_PERSONAL_ACCESS_TOKEN = process.env.GITLAB_TOKEN || "";

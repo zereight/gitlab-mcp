@@ -7,28 +7,26 @@
 
 import { describe, test } from "node:test";
 import assert from "node:assert";
-import nodeFetch, { Headers, Response } from "node-fetch";
+import { Readable } from "node:stream";
+import { Response } from "undici";
 import {
   headersToPlainObject,
   isNonReplayableBody,
   wrapWithAuthRetry,
   type AuthRetryConfig,
+  type FetchFn,
 } from "../auth-retry.js";
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-function mockFetch(status: number): typeof nodeFetch {
-  return (async () => new Response("", { status })) as any;
+function mockFetch(status: number): FetchFn {
+  return async () => new Response("", { status });
 }
 
-function mockFetchThenRetry(): typeof nodeFetch {
+function mockFetchThenRetry(): FetchFn {
   let callCount = 0;
-  return (async () => {
+  return async () => {
     callCount++;
     return new Response("", { status: callCount === 1 ? 401 : 200 });
-  }) as any;
+  };
 }
 
 function makeConfig(overrides?: Partial<AuthRetryConfig>): AuthRetryConfig {
@@ -40,10 +38,6 @@ function makeConfig(overrides?: Partial<AuthRetryConfig>): AuthRetryConfig {
     ...overrides,
   };
 }
-
-// ---------------------------------------------------------------------------
-// headersToPlainObject
-// ---------------------------------------------------------------------------
 
 describe("headersToPlainObject", () => {
   test("null returns empty object", () => {
@@ -80,10 +74,6 @@ describe("headersToPlainObject", () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// isNonReplayableBody
-// ---------------------------------------------------------------------------
-
 describe("isNonReplayableBody", () => {
   test("null returns false", () => {
     assert.strictEqual(isNonReplayableBody(null), false);
@@ -109,21 +99,15 @@ describe("isNonReplayableBody", () => {
     assert.strictEqual(isNonReplayableBody({ read: () => {} }), true);
   });
 
-  test("object with .getBuffer() and .getBoundary() returns true (FormData-like)", () => {
-    assert.strictEqual(
-      isNonReplayableBody({ getBuffer: () => {}, getBoundary: () => {} }),
-      true,
-    );
-  });
-
-  test("object with only .getBuffer() (no .getBoundary()) returns false", () => {
-    assert.strictEqual(isNonReplayableBody({ getBuffer: () => {} }), false);
+  test("Web ReadableStream returns true", () => {
+    const stream = new ReadableStream({
+      start(controller) {
+        controller.close();
+      },
+    });
+    assert.strictEqual(isNonReplayableBody(stream), true);
   });
 });
-
-// ---------------------------------------------------------------------------
-// wrapWithAuthRetry
-// ---------------------------------------------------------------------------
 
 describe("wrapWithAuthRetry", () => {
   test("non-401 response passes through unchanged", async () => {
@@ -174,7 +158,32 @@ describe("wrapWithAuthRetry", () => {
 
     const wrapped = wrapWithAuthRetry(mockFetch(401), config);
     const res = await wrapped("http://example.com", {
-      body: { pipe: () => {} } as any, // stream-like
+      body: Readable.from([]),
+      duplex: "half",
+    });
+
+    assert.strictEqual(res.status, 401);
+    assert.strictEqual(refreshCalled, false);
+  });
+
+  test("401 with Web ReadableStream body skips retry", async () => {
+    let refreshCalled = false;
+    const config = makeConfig({
+      refreshToken: async () => {
+        refreshCalled = true;
+        return "tok";
+      },
+    });
+
+    const stream = new ReadableStream({
+      start(controller) {
+        controller.close();
+      },
+    });
+    const wrapped = wrapWithAuthRetry(mockFetch(401), config);
+    const res = await wrapped("http://example.com", {
+      body: stream,
+      duplex: "half",
     });
 
     assert.strictEqual(res.status, 401);
@@ -188,32 +197,26 @@ describe("wrapWithAuthRetry", () => {
     const config = makeConfig({
       refreshToken: () => {
         refreshCount++;
-        return new Promise<string>((resolve) => {
+        return new Promise<string>(resolve => {
           resolveRefresh = resolve;
         });
       },
       buildAuthHeaders: () => ({ Authorization: "Bearer stamped" }),
     });
 
-    // Each call returns 401 first, then 200 on retry
     let callCount = 0;
-    const base: typeof nodeFetch = (async () => {
+    const base: FetchFn = async () => {
       callCount++;
-      // First two calls are the initial requests (both 401)
-      // Next two are the retries (both 200)
       return new Response("", { status: callCount <= 2 ? 401 : 200 });
-    }) as any;
+    };
 
     const wrapped = wrapWithAuthRetry(base, config);
 
-    // Fire two concurrent requests
     const p1 = wrapped("http://example.com/a");
     const p2 = wrapped("http://example.com/b");
 
-    // Wait a tick for both to hit the refresh path
-    await new Promise((r) => setTimeout(r, 10));
+    await new Promise(r => setTimeout(r, 10));
 
-    // Resolve the single pending refresh
     resolveRefresh("stamped-token");
 
     const [r1, r2] = await Promise.all([p1, p2]);
