@@ -120,7 +120,7 @@ const GROUP_META: Record<ToolsetId, GroupMeta> = {
   },
   webhooks: {
     title: "Webhooks",
-    blurb: "List webhooks configured on projects or groups, and inspect recent webhook events.",
+    blurb: "Create, update, and delete project or group webhooks, and inspect recent webhook events.",
   },
   search: {
     title: "Search",

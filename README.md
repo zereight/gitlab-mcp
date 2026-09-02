@@ -22,7 +22,7 @@ Supports PAT, OAuth, read-only mode, dynamic API URLs, and remote authorization 
 
 ### Why use this GitLab MCP?
 
-- **229 tools + `discover_tools`** — start with a small toolset; activate more at runtime without CQRS-style grouping
+- **232 tools + `discover_tools`** — start with a small toolset; activate more at runtime without CQRS-style grouping
 - **MR 2-step review** — `list_merge_request_changed_files` → batched `get_merge_request_file_diff`
 - **Agent Skill built in** — workflow guidance in `skills/gitlab-mcp/`
 - **Flexible auth** — Personal Access Token, local OAuth2 browser flow, MCP OAuth proxy, and per-request remote authorization
@@ -35,7 +35,7 @@ Supports PAT, OAuth, read-only mode, dynamic API URLs, and remote authorization 
 | | @zereight/mcp-gitlab | GitLab MCP A (community CQRS-style) |
 |---|----------------------|-------------------------------------|
 | **Best for** | AI agent workflows | Enterprise multi-instance / grouped tools |
-| **Tool model** | ~229 granular tools + `discover_tools` | ~50–60 grouped `browse_*` / `manage_*` tools |
+| **Tool model** | ~232 granular tools + `discover_tools` | ~50–60 grouped `browse_*` / `manage_*` tools |
 | **MR review** | 2-step batched diff | Varies |
 | **Node.js** | >=18.17 | Often >=24 |
 | **License** | MIT | Varies |
@@ -777,30 +777,33 @@ Register the skill directory in your AI client to get optimal tool usage guidanc
 204. `get_timeline_events` - List timeline events for an incident. Returns chronological events with notes, timestamps, and tags
 205. `create_timeline_event` - Create a timeline event on an incident. Supports tags: 'Start time', 'End time', 'Impact detected', 'Response initiated', 'Impact mitigated', 'Cause identified'
 206. `list_webhooks` - List all configured webhooks for a GitLab project or group. Provide either project_id or group_id
-207. `list_webhook_events` - List recent webhook events (past 7 days) for a project or group webhook. Use summary mode for overview, then get_webhook_event for full details
-208. `get_webhook_event` - Get full details of a specific webhook event by ID, including request/response payloads
-209. `search_code` - Search for code across all projects on the GitLab instance (requires advanced search or exact code search to be enabled)
-210. `search_project_code` - Search for code within a specific GitLab project (requires advanced search or exact code search to be enabled)
-211. `search_group_code` - Search for code within a specific GitLab group (requires advanced search or exact code search to be enabled)
-212. `list_project_variables` - List CI/CD variables for a project with optional environment scope filter
-213. `get_project_variable` - Get a single CI/CD variable from a project by key, with optional environment scope filter
-214. `create_project_variable` - Create a new CI/CD variable in a project
-215. `update_project_variable` - Update an existing CI/CD variable in a project, with optional filter to disambiguate by environment scope
-216. `delete_project_variable` - Delete a CI/CD variable from a project, with optional filter to disambiguate by environment scope
-217. `list_group_variables` - List CI/CD variables for a group with optional environment scope filter
-218. `get_group_variable` - Get a single CI/CD variable from a group by key, with optional environment scope filter
-219. `create_group_variable` - Create a new CI/CD variable in a group
-220. `update_group_variable` - Update an existing CI/CD variable in a group, with optional filter to disambiguate by environment scope
-221. `delete_group_variable` - Delete a CI/CD variable from a group, with optional filter to disambiguate by environment scope
-222. `get_dependency_proxy_settings` - Get dependency proxy settings for a group (enabled status, blob count, total size, image prefix, TTL policy)
-223. `update_dependency_proxy_settings` - Update dependency proxy settings for a group (enable/disable, credentials for authenticated Docker Hub pulls)
-224. `list_dependency_proxy_blobs` - List cached dependency proxy blobs for a group with cursor-based pagination
-225. `purge_dependency_proxy_cache` - Schedule purge of all cached dependency proxy blobs for a group
-226. `list_project_vulnerabilities` - List vulnerabilities for a project with optional state, severity, and report type filters (GraphQL-backed, cursor pagination)
-227. `get_vulnerability` - Get full details of a specific vulnerability
-228. `dismiss_vulnerability` - Dismiss a vulnerability with a reason (acceptable_risk, false_positive, used_in_tests, mitigating_control, not_applicable) and optional comment
-229. `confirm_vulnerability` - Confirm a vulnerability as a real finding requiring remediation
-230. `discover_tools` - Discover and activate additional tool categories for this session. Available categories: merge_requests, issues, repositories, branches, projects, labels, ci, groups, pipelines, milestones, wiki, releases, tags, users, workitems, webhooks, search, variables, dependency_proxy, vulnerabilities. Already-active categories are listed in the response.
+207. `create_webhook` - Create a webhook on a GitLab project or group
+208. `update_webhook` - Update an existing project or group webhook
+209. `delete_webhook` - Delete a project or group webhook
+210. `list_webhook_events` - List recent webhook events (past 7 days) for a project or group webhook. Use summary mode for overview, then get_webhook_event for full details
+211. `get_webhook_event` - Get full details of a specific webhook event by ID, including request/response payloads
+212. `search_code` - Search for code across all projects on the GitLab instance (requires advanced search or exact code search to be enabled)
+213. `search_project_code` - Search for code within a specific GitLab project (requires advanced search or exact code search to be enabled)
+214. `search_group_code` - Search for code within a specific GitLab group (requires advanced search or exact code search to be enabled)
+215. `list_project_variables` - List CI/CD variables for a project with optional environment scope filter
+216. `get_project_variable` - Get a single CI/CD variable from a project by key, with optional environment scope filter
+217. `create_project_variable` - Create a new CI/CD variable in a project
+218. `update_project_variable` - Update an existing CI/CD variable in a project, with optional filter to disambiguate by environment scope
+219. `delete_project_variable` - Delete a CI/CD variable from a project, with optional filter to disambiguate by environment scope
+220. `list_group_variables` - List CI/CD variables for a group with optional environment scope filter
+221. `get_group_variable` - Get a single CI/CD variable from a group by key, with optional environment scope filter
+222. `create_group_variable` - Create a new CI/CD variable in a group
+223. `update_group_variable` - Update an existing CI/CD variable in a group, with optional filter to disambiguate by environment scope
+224. `delete_group_variable` - Delete a CI/CD variable from a group, with optional filter to disambiguate by environment scope
+225. `get_dependency_proxy_settings` - Get dependency proxy settings for a group (enabled status, blob count, total size, image prefix, TTL policy)
+226. `update_dependency_proxy_settings` - Update dependency proxy settings for a group (enable/disable, credentials for authenticated Docker Hub pulls)
+227. `list_dependency_proxy_blobs` - List cached dependency proxy blobs for a group with cursor-based pagination
+228. `purge_dependency_proxy_cache` - Schedule purge of all cached dependency proxy blobs for a group
+229. `list_project_vulnerabilities` - List vulnerabilities for a project with optional state, severity, and report type filters (GraphQL-backed, cursor pagination)
+230. `get_vulnerability` - Get full details of a specific vulnerability
+231. `dismiss_vulnerability` - Dismiss a vulnerability with a reason (acceptable_risk, false_positive, used_in_tests, mitigating_control, not_applicable) and optional comment
+232. `confirm_vulnerability` - Confirm a vulnerability as a real finding requiring remediation
+233. `discover_tools` - Discover and activate additional tool categories for this session. Available categories: merge_requests, issues, repositories, branches, projects, labels, ci, groups, pipelines, milestones, wiki, releases, tags, users, workitems, webhooks, search, variables, dependency_proxy, vulnerabilities. Already-active categories are listed in the response.
 
 <!-- TOOLS-END -->
 
