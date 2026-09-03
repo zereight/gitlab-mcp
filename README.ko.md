@@ -96,6 +96,18 @@ npm으로 설치할 수도 있습니다:
 npm install -g @zereight/mcp-gitlab
 ```
 
+또는 Nix를 사용해 이 플레이크를 자신의 플레이크에 추가할 수 있습니다:
+
+```nix
+# flake.nix
+inputs.gitlab-mcp.url = "github:zereight/gitlab-mcp";
+
+# wherever you configure your MCP client:
+command = lib.getExe inputs.gitlab-mcp.packages.${system}.default;
+```
+
+스토어 경로는 lock 파일에 고정되며, `nix flake update gitlab-mcp`로 업데이트합니다.
+
 예시는 기존 `mcp-gitlab`보다 충돌 가능성이 낮은 `zereight-mcp-gitlab` 별칭을 사용합니다. MCP 클라이언트가 찾지 못하면 `which zereight-mcp-gitlab`의 절대 경로를 사용하세요.
 
 전역 설치를 쓰지 않으려면 `npx -y @zereight/mcp-gitlab@2.1.56`처럼 직전 안정 버전(문서가 권장하는 버전)으로 고정하세요. 항상 최신 버전을 원하면 `npx -y @zereight/mcp-gitlab@latest`를 사용하세요. 새 버전이 나오면 서버가 시작 시 stderr로 알려줍니다(`GITLAB_DISABLE_VERSION_CHECK=true`로 비활성화 가능).

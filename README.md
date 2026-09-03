@@ -101,6 +101,18 @@ Or with npm:
 npm install -g @zereight/mcp-gitlab
 ```
 
+Or with Nix, by adding this flake to your own:
+
+```nix
+# flake.nix
+inputs.gitlab-mcp.url = "github:zereight/gitlab-mcp";
+
+# wherever you configure your MCP client:
+command = lib.getExe inputs.gitlab-mcp.packages.${system}.default;
+```
+
+The store path is pinned by your lock file; update it with `nix flake update gitlab-mcp`.
+
 The examples use `zereight-mcp-gitlab`, a less collision-prone alias for the legacy `mcp-gitlab` binary. If your MCP client cannot find it, use the absolute path from `which zereight-mcp-gitlab`.
 
 No global install? Pin `npx` to the previous stable release (the version these docs recommend), for example `npx -y @zereight/mcp-gitlab@2.1.56`. If you always want the newest release, use `npx -y @zereight/mcp-gitlab@latest` instead. The server prints a notice to stderr on startup when a newer version is available (disable with `GITLAB_DISABLE_VERSION_CHECK=true`).
