@@ -3,6 +3,8 @@
 import {
   getConfig,
   ENABLE_DYNAMIC_API_URL,
+  ENABLE_DYNAMIC_PROJECT_SCOPE,
+  ENABLE_STRICT_PROJECT_SCOPE,
   GITLAB_AUTH_COOKIE_PATH,
   GITLAB_ALLOW_UNAUTHENTICATED_TOOL_DISCOVERY,
   GITLAB_CA_CERT_PATH,
@@ -985,6 +987,7 @@ function createServer(): McpServer {
           lastUsed: authData.lastUsed,
           apiUrl: authData.apiUrl,
           publicBaseUrl: authData.publicBaseUrl,
+          allowedProjectIds: authData.allowedProjectIds,
         };
         // Run the handler within the retrieved context
         const result = await sessionAuthStore.run(sessionContext, () =>
@@ -1315,6 +1318,12 @@ function validateConfiguration(): void {
     errors.push("ENABLE_DYNAMIC_API_URL=true requires REMOTE_AUTHORIZATION=true");
   }
 
+  const enableDynamicProjectScope =
+    getConfig("enable-dynamic-project-scope", "ENABLE_DYNAMIC_PROJECT_SCOPE") === "true";
+  if (enableDynamicProjectScope && !remoteAuth) {
+    errors.push("ENABLE_DYNAMIC_PROJECT_SCOPE=true requires REMOTE_AUTHORIZATION=true");
+  }
+
   if (errors.length > 0) {
     logger.error("Configuration validation failed:");
     errors.forEach(err => logger.error(`  - ${err}`));
@@ -1637,6 +1646,7 @@ interface SessionAuth {
   lastUsed: number;
   apiUrl: string; // The API URL for the current request
   publicBaseUrl?: string;
+  allowedProjectIds?: string[]; // Session-narrowed project allowlist; undefined means env config
 }
 
 interface AuthData {
@@ -1645,6 +1655,7 @@ interface AuthData {
   lastUsed: number;
   apiUrl: string;
   publicBaseUrl?: string;
+  allowedProjectIds?: string[];
 }
 
 const sessionAuthStore = new AsyncLocalStorage<SessionAuth>();
@@ -1741,6 +1752,55 @@ function getEffectiveApiUrl(): string {
     );
   }
   return GITLAB_API_URL;
+}
+
+/**
+ * Get the effective project allowlist for the current request
+ * In REMOTE_AUTHORIZATION mode with ENABLE_DYNAMIC_PROJECT_SCOPE, reads the scope
+ * narrowed via the X-GitLab-Allowed-Project-Ids header from session context
+ * (already validated against GITLAB_ALLOWED_PROJECT_IDS by parseAuthHeaders)
+ * Otherwise, uses environment GITLAB_ALLOWED_PROJECT_IDS
+ */
+function getEffectiveAllowedProjectIds(): string[] {
+  if (ENABLE_DYNAMIC_PROJECT_SCOPE) {
+    const ctx = sessionAuthStore.getStore();
+    if (ctx?.allowedProjectIds && ctx.allowedProjectIds.length > 0) {
+      return ctx.allowedProjectIds;
+    }
+  }
+  return GITLAB_ALLOWED_PROJECT_IDS;
+}
+
+/**
+ * Reject tools that cannot be limited to allowed projects when
+ * ENABLE_STRICT_PROJECT_SCOPE is set and an allowlist is in effect
+ */
+function rejectIfStrictProjectScope(toolName: string): void {
+  if (ENABLE_STRICT_PROJECT_SCOPE) {
+    rejectIfProjectScopedDeployment(toolName);
+  }
+}
+
+/**
+ * Filter a project listing down to the effective allowlist
+ * Applies only when ENABLE_STRICT_PROJECT_SCOPE is set and an allowlist is in effect
+ * Allowlist entries may be numeric IDs or full namespace paths
+ */
+function filterProjectsByAllowlist<T extends Pick<GitLabProject, "id" | "path_with_namespace">>(
+  projects: T[]
+): T[] {
+  if (!ENABLE_STRICT_PROJECT_SCOPE) {
+    return projects;
+  }
+  const allowedProjectIds = getEffectiveAllowedProjectIds();
+  if (allowedProjectIds.length === 0) {
+    return projects;
+  }
+  return projects.filter(
+    project =>
+      allowedProjectIds.includes(String(project.id)) ||
+      allowedProjectIds.includes(project.path_with_namespace)
+  );
 }
 
 /**
@@ -2006,27 +2066,28 @@ async function handleGitLabError(response: UndiciResponse): Promise<void> {
  * @throws {Error} If GITLAB_ALLOWED_PROJECT_IDS is set and the requested project is not in the whitelist
  */
 function getEffectiveProjectId(projectId: string): string {
-  if (GITLAB_ALLOWED_PROJECT_IDS.length > 0) {
+  const allowedProjectIds = getEffectiveAllowedProjectIds();
+  if (allowedProjectIds.length > 0) {
     // If there's only one allowed project, use it as default
-    if (GITLAB_ALLOWED_PROJECT_IDS.length === 1 && !projectId) {
-      return GITLAB_ALLOWED_PROJECT_IDS[0];
+    if (allowedProjectIds.length === 1 && !projectId) {
+      return allowedProjectIds[0];
     }
 
     // If a project ID is provided, check if it's in the whitelist
-    if (projectId && !GITLAB_ALLOWED_PROJECT_IDS.includes(projectId)) {
+    if (projectId && !allowedProjectIds.includes(projectId)) {
       throw new Error(
-        `Access denied: Project ${projectId} is not in the allowed project list: ${GITLAB_ALLOWED_PROJECT_IDS.join(", ")}`
+        `Access denied: Project ${projectId} is not in the allowed project list: ${allowedProjectIds.join(", ")}`
       );
     }
 
     // If no project ID provided but we have multiple allowed projects, require an explicit choice
-    if (!projectId && GITLAB_ALLOWED_PROJECT_IDS.length > 1) {
+    if (!projectId && allowedProjectIds.length > 1) {
       throw new Error(
-        `Multiple projects allowed (${GITLAB_ALLOWED_PROJECT_IDS.join(", ")}). Please specify a project ID.`
+        `Multiple projects allowed (${allowedProjectIds.join(", ")}). Please specify a project ID.`
       );
     }
 
-    return projectId || GITLAB_ALLOWED_PROJECT_IDS[0];
+    return projectId || allowedProjectIds[0];
   }
   // Prioritize the passed projectId over GITLAB_PROJECT_ID to allow querying different projects
   if (projectId) {
@@ -2044,9 +2105,9 @@ function rejectIfProjectScopedDeployment(toolName: string): void {
       `${toolName} is not allowed when GITLAB_PROJECT_ID is set (server is locked to a single project)`
     );
   }
-  if (GITLAB_ALLOWED_PROJECT_IDS.length > 0) {
+  if (getEffectiveAllowedProjectIds().length > 0) {
     throw new Error(
-      `${toolName} is not allowed when GITLAB_ALLOWED_PROJECT_IDS is set (server access is restricted to configured projects)`
+      `${toolName} is not allowed while a project allowlist is in effect (GITLAB_ALLOWED_PROJECT_IDS or a session scope restricts access to configured projects)`
     );
   }
 }
@@ -2239,9 +2300,11 @@ async function listIssues(
   options: Omit<z.infer<typeof ListIssuesSchema>, "project_id"> = {}
 ): Promise<GitLabIssue[]> {
   let url: URL;
-  if (projectId) {
-    projectId = decodeURIComponent(projectId); // Decode project ID
-    const effectiveProjectId = getEffectiveProjectId(projectId);
+  if (projectId || (ENABLE_STRICT_PROJECT_SCOPE && getEffectiveAllowedProjectIds().length > 0)) {
+    // In strict scope, never fall back to the instance-wide endpoint;
+    // resolve the default project (or fail for a multi-project allowlist)
+    const decodedProjectId = projectId ? decodeURIComponent(projectId) : "";
+    const effectiveProjectId = getEffectiveProjectId(decodedProjectId);
     url = new URL(
       `${getEffectiveApiUrl()}/projects/${encodeURIComponent(effectiveProjectId)}/issues`
     );
@@ -2349,11 +2412,21 @@ async function listMergeRequests(
   projectId?: string,
   options: Omit<z.infer<typeof ListMergeRequestsSchema>, "project_id"> = {}
 ): Promise<GitLabMergeRequest[]> {
-  const decodedProjectId = projectId ? decodeURIComponent(projectId) : undefined;
-  const endpoint = decodedProjectId
-    ? `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(decodedProjectId))}/merge_requests`
-    : `${getEffectiveApiUrl()}/merge_requests`;
-  const url = new URL(endpoint);
+  const decodedProjectId = projectId ? decodeURIComponent(projectId) : "";
+  let url: URL;
+  if (
+    decodedProjectId ||
+    (ENABLE_STRICT_PROJECT_SCOPE && getEffectiveAllowedProjectIds().length > 0)
+  ) {
+    // In strict scope, never fall back to the instance-wide endpoint;
+    // resolve the default project (or fail for a multi-project allowlist)
+    const effectiveProjectId = getEffectiveProjectId(decodedProjectId);
+    url = new URL(
+      `${getEffectiveApiUrl()}/projects/${encodeURIComponent(effectiveProjectId)}/merge_requests`
+    );
+  } else {
+    url = new URL(`${getEffectiveApiUrl()}/merge_requests`);
+  }
 
   appendMergeRequestFilters(url, options);
 
@@ -3329,9 +3402,9 @@ async function resolveProjectOrGroupPath(
   const explicitKind = namespaceMatch?.[1]?.toLowerCase() as "group" | "project" | undefined;
   const requestedProjectId = namespaceMatch ? namespaceMatch[2] : decodedProjectId;
 
-  if (explicitKind === "group" && GITLAB_ALLOWED_PROJECT_IDS.length > 0) {
+  if (explicitKind === "group" && getEffectiveAllowedProjectIds().length > 0) {
     throw new Error(
-      "group:<id-or-path> cannot be used when GITLAB_ALLOWED_PROJECT_IDS is set, because the project allowlist does not cover groups"
+      "group:<id-or-path> cannot be used while a project allowlist is in effect (GITLAB_ALLOWED_PROJECT_IDS or a session scope), because the project allowlist does not cover groups"
     );
   }
 
@@ -3363,7 +3436,7 @@ async function resolveProjectOrGroupPath(
   if (
     projectResponse.status === 404 &&
     !explicitKind &&
-    GITLAB_ALLOWED_PROJECT_IDS.length === 0 &&
+    getEffectiveAllowedProjectIds().length === 0 &&
     !/^\d+$/.test(effectiveProjectId)
   ) {
     const groupUrl = new URL(
@@ -5112,16 +5185,21 @@ async function searchProjects(
     throw new Error(`GitLab API error: ${response.status} ${response.statusText}\n${errorBody}`);
   }
 
-  const projects = (await response.json()) as GitLabRepository[];
+  const unfiltered = (await response.json()) as GitLabRepository[];
+  const projects = filterProjectsByAllowlist(unfiltered);
   const totalCount = response.headers.get("x-total");
   const totalPages = response.headers.get("x-total-pages");
+  const nextPage = response.headers.get("x-next-page");
 
-  // GitLab API doesn't return these headers for results > 10,000
+  // GitLab API doesn't return the total headers for results > 10,000
+  // Keep the unfiltered totals so callers paginate past pages the allowlist filter thinned out;
+  // without them, total_pages stays unset and next_page carries the continuation signal
   const count = totalCount ? Number.parseInt(totalCount, 10) : projects.length;
 
   return GitLabSearchResponseSchema.parse({
     count,
-    total_pages: totalPages ? Number.parseInt(totalPages, 10) : Math.ceil(count / perPage),
+    total_pages: totalPages ? Number.parseInt(totalPages, 10) : undefined,
+    next_page: nextPage ? Number.parseInt(nextPage, 10) : undefined,
     current_page: page,
     items: projects,
   });
@@ -6642,7 +6720,7 @@ async function listProjects(
 
   // Parse and return the data
   const data = await response.json();
-  return z.array(GitLabProjectSchema).parse(data);
+  return filterProjectsByAllowlist(z.array(GitLabProjectSchema).parse(data));
 }
 
 /**
@@ -6860,7 +6938,7 @@ async function listGroupProjects(
 
   await handleGitLabError(response);
   const projects = await response.json();
-  return GitLabProjectSchema.array().parse(projects);
+  return filterProjectsByAllowlist(GitLabProjectSchema.array().parse(projects));
 }
 
 // Webhook API helper functions
@@ -6873,6 +6951,7 @@ function buildWebhookBaseUrl(projectId?: string, groupId?: string): string {
     projectId = decodeURIComponent(projectId);
     return `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/hooks`;
   }
+  rejectIfStrictProjectScope("group webhooks");
   const decodedGroupId = decodeURIComponent(groupId!);
   return `${getEffectiveApiUrl()}/groups/${encodeURIComponent(decodedGroupId)}/hooks`;
 }
@@ -9643,19 +9722,20 @@ function assertVulnerabilityProjectAllowed(
   vulnerabilityId: string,
   project: { id?: string | null; fullPath?: string | null } | null | undefined
 ): void {
-  if (GITLAB_ALLOWED_PROJECT_IDS.length === 0) {
+  const allowedProjectIds = getEffectiveAllowedProjectIds();
+  if (allowedProjectIds.length === 0) {
     return;
   }
   const fullPath = project?.fullPath ?? undefined;
   const numericId = project?.id?.match(/^gid:\/\/gitlab\/Project\/(\d+)$/)?.[1];
   const allowed =
-    (fullPath !== undefined && GITLAB_ALLOWED_PROJECT_IDS.includes(fullPath)) ||
-    (numericId !== undefined && GITLAB_ALLOWED_PROJECT_IDS.includes(numericId));
+    (fullPath !== undefined && allowedProjectIds.includes(fullPath)) ||
+    (numericId !== undefined && allowedProjectIds.includes(numericId));
   if (!allowed) {
     throw new Error(
       `Access denied: Vulnerability ${vulnerabilityId} belongs to project ${
         fullPath ?? numericId ?? "unknown"
-      }, which is not in the allowed project list: ${GITLAB_ALLOWED_PROJECT_IDS.join(", ")}`
+      }, which is not in the allowed project list: ${allowedProjectIds.join(", ")}`
     );
   }
 }
@@ -9667,7 +9747,7 @@ function assertVulnerabilityProjectAllowed(
  * is not configured.
  */
 async function ensureVulnerabilityProjectAllowed(vulnerabilityId: string): Promise<void> {
-  if (GITLAB_ALLOWED_PROJECT_IDS.length === 0) {
+  if (getEffectiveAllowedProjectIds().length === 0) {
     return;
   }
   const data = await executeGraphQL<{
@@ -10646,6 +10726,7 @@ async function handleToolCall(params: any) {
       }
 
       case "search_code": {
+        rejectIfStrictProjectScope("search_code");
         const args = SearchCodeSchema.parse(params.arguments);
         const results = await searchBlobs({
           search: args.search,
@@ -10678,6 +10759,7 @@ async function handleToolCall(params: any) {
       }
 
       case "search_group_code": {
+        rejectIfStrictProjectScope("search_group_code");
         const args = SearchGroupCodeSchema.parse(params.arguments);
         const results = await searchBlobs({
           search: args.search,
@@ -11063,6 +11145,7 @@ async function handleToolCall(params: any) {
       }
 
       case "list_todos": {
+        rejectIfStrictProjectScope("list_todos");
         const args = ListTodosSchema.parse(params.arguments);
         const todos = await listTodos(args);
         return {
@@ -11071,6 +11154,7 @@ async function handleToolCall(params: any) {
       }
 
       case "mark_todo_done": {
+        rejectIfStrictProjectScope("mark_todo_done");
         const args = MarkTodoDoneSchema.parse(params.arguments);
         const todo = await markTodoDone(args.id);
         return {
@@ -11079,6 +11163,7 @@ async function handleToolCall(params: any) {
       }
 
       case "mark_all_todos_done": {
+        rejectIfStrictProjectScope("mark_all_todos_done");
         MarkAllTodosDoneSchema.parse(params.arguments);
         await markAllTodosDone();
         return {
@@ -11440,6 +11525,7 @@ async function handleToolCall(params: any) {
       }
 
       case "list_group_members": {
+        rejectIfStrictProjectScope("list_group_members");
         const args = ListGroupMembersSchema.parse(params.arguments);
         const { group_id, ...options } = args;
         const members = await listGroupMembers(group_id, options);
@@ -12114,6 +12200,7 @@ async function handleToolCall(params: any) {
       }
 
       case "list_group_wiki_pages": {
+        rejectIfStrictProjectScope("list_group_wiki_pages");
         const { group_id, page, per_page, with_content, render_html } =
           ListGroupWikiPagesSchema.parse(params.arguments);
         const wikiPages = await listGroupWikiPages(group_id, {
@@ -12128,6 +12215,7 @@ async function handleToolCall(params: any) {
       }
 
       case "get_group_wiki_page": {
+        rejectIfStrictProjectScope("get_group_wiki_page");
         const { group_id, slug, render_html } = GetGroupWikiPageSchema.parse(params.arguments);
         const wikiPage = await getGroupWikiPage(group_id, slug, render_html);
         return {
@@ -12136,6 +12224,7 @@ async function handleToolCall(params: any) {
       }
 
       case "create_group_wiki_page": {
+        rejectIfStrictProjectScope("create_group_wiki_page");
         const { group_id, title, content, format } = CreateGroupWikiPageSchema.parse(
           params.arguments
         );
@@ -12146,6 +12235,7 @@ async function handleToolCall(params: any) {
       }
 
       case "update_group_wiki_page": {
+        rejectIfStrictProjectScope("update_group_wiki_page");
         const { group_id, slug, title, content, format } = UpdateGroupWikiPageSchema.parse(
           params.arguments
         );
@@ -12156,6 +12246,7 @@ async function handleToolCall(params: any) {
       }
 
       case "delete_group_wiki_page": {
+        rejectIfStrictProjectScope("delete_group_wiki_page");
         const { group_id, slug } = DeleteGroupWikiPageSchema.parse(params.arguments);
         await deleteGroupWikiPage(group_id, slug);
         return {
@@ -12771,6 +12862,7 @@ async function handleToolCall(params: any) {
       }
 
       case "list_group_merge_requests": {
+        rejectIfStrictProjectScope("list_group_merge_requests");
         const { group_id, ...options } = ListGroupMergeRequestsSchema.parse(params.arguments);
         const cleanedOptions = cleanMutuallyExclusiveIdUsernameOptions(
           options,
@@ -12916,6 +13008,7 @@ async function handleToolCall(params: any) {
       }
 
       case "list_group_milestones": {
+        rejectIfStrictProjectScope("list_group_milestones");
         const { group_id, ...options } = ListGroupMilestonesSchema.parse(params.arguments);
         const milestones = await listGroupMilestones(group_id, options);
         return {
@@ -12929,6 +13022,7 @@ async function handleToolCall(params: any) {
       }
 
       case "get_group_milestone": {
+        rejectIfStrictProjectScope("get_group_milestone");
         const { group_id, milestone_id } = GetGroupMilestoneSchema.parse(params.arguments);
         const milestone = await getGroupMilestone(group_id, milestone_id);
         return {
@@ -12942,6 +13036,7 @@ async function handleToolCall(params: any) {
       }
 
       case "create_group_milestone": {
+        rejectIfStrictProjectScope("create_group_milestone");
         const { group_id, ...options } = CreateGroupMilestoneSchema.parse(params.arguments);
         const milestone = await createGroupMilestone(group_id, options);
         return {
@@ -12955,6 +13050,7 @@ async function handleToolCall(params: any) {
       }
 
       case "edit_group_milestone": {
+        rejectIfStrictProjectScope("edit_group_milestone");
         const { group_id, milestone_id, ...options } = EditGroupMilestoneSchema.parse(
           params.arguments
         );
@@ -12970,6 +13066,7 @@ async function handleToolCall(params: any) {
       }
 
       case "delete_group_milestone": {
+        rejectIfStrictProjectScope("delete_group_milestone");
         const { group_id, milestone_id } = DeleteGroupMilestoneSchema.parse(params.arguments);
         await deleteGroupMilestone(group_id, milestone_id);
         return {
@@ -12990,6 +13087,7 @@ async function handleToolCall(params: any) {
       }
 
       case "get_group_milestone_issue": {
+        rejectIfStrictProjectScope("get_group_milestone_issue");
         const { group_id, milestone_id, ...options } = GetGroupMilestoneIssuesSchema.parse(
           params.arguments
         );
@@ -13005,6 +13103,7 @@ async function handleToolCall(params: any) {
       }
 
       case "get_group_milestone_merge_requests": {
+        rejectIfStrictProjectScope("get_group_milestone_merge_requests");
         const { group_id, milestone_id, ...options } = GetGroupMilestoneMergeRequestsSchema.parse(
           params.arguments
         );
@@ -13024,6 +13123,7 @@ async function handleToolCall(params: any) {
       }
 
       case "get_group_milestone_burndown_events": {
+        rejectIfStrictProjectScope("get_group_milestone_burndown_events");
         const { group_id, milestone_id, ...options } =
           GetGroupMilestoneBurndownEventsSchema.parse(params.arguments);
         const events = await getGroupMilestoneBurndownEvents(group_id, milestone_id, options);
@@ -13089,6 +13189,7 @@ async function handleToolCall(params: any) {
       }
 
       case "list_group_iterations": {
+        rejectIfStrictProjectScope("list_group_iterations");
         const args = ListGroupIterationsSchema.parse(params.arguments);
         const iterations = await listGroupIterations(args.group_id, args);
         return {
@@ -13339,6 +13440,7 @@ async function handleToolCall(params: any) {
       }
 
       case "list_events": {
+        rejectIfStrictProjectScope("list_events");
         const args = ListEventsSchema.parse(params.arguments);
         const events = await listEvents(args);
         return {
@@ -14052,8 +14154,37 @@ async function startStreamableHTTPServer(): Promise<void> {
     const privateToken = (req.headers["private-token"] as string | undefined) || "";
     const jobToken = (req.headers["job-token"] as string | undefined) || "";
     const dynamicApiUrl = (req.headers["x-gitlab-api-url"] as string | undefined)?.trim();
+    const requestedProjectScope = (
+      req.headers["x-gitlab-allowed-project-ids"] as string | undefined
+    )?.trim();
 
     let apiUrl = GITLAB_API_URL; // Default API URL
+    let allowedProjectIds: string[] | undefined;
+
+    // Only process the requested project scope if the feature is enabled
+    if (ENABLE_DYNAMIC_PROJECT_SCOPE && requestedProjectScope !== undefined) {
+      const requested = requestedProjectScope
+        .split(",")
+        .map(id => id.trim())
+        .filter(Boolean);
+
+      if (requested.length === 0) {
+        logger.warn("Empty X-GitLab-Allowed-Project-Ids provided");
+        return null;
+      }
+
+      if (GITLAB_ALLOWED_PROJECT_IDS.length > 0) {
+        const outOfScope = requested.filter(id => !GITLAB_ALLOWED_PROJECT_IDS.includes(id));
+        if (outOfScope.length > 0) {
+          logger.warn(
+            `X-GitLab-Allowed-Project-Ids requested projects outside GITLAB_ALLOWED_PROJECT_IDS: ${outOfScope.join(", ")}`
+          );
+          return null; // Reject if the header tries to widen the configured allowlist
+        }
+      }
+
+      allowedProjectIds = requested;
+    }
 
     // Only process dynamic URL if the feature is enabled
     if (ENABLE_DYNAMIC_API_URL && dynamicApiUrl) {
@@ -14090,7 +14221,7 @@ async function startStreamableHTTPServer(): Promise<void> {
 
     // Validate token and return AuthData object
     if (token && header && validateToken(token)) {
-      return { header, token, lastUsed: Date.now(), apiUrl };
+      return { header, token, lastUsed: Date.now(), apiUrl, allowedProjectIds };
     }
 
     return null;
@@ -14242,6 +14373,7 @@ async function startStreamableHTTPServer(): Promise<void> {
       header: SessionAuthHeader;
       token: string;
       apiUrl: string;
+      allowedProjectIds?: string[];
     } | null = null;
     let freshAuthPresent = false;
     if (headerAuth) {
@@ -14267,6 +14399,7 @@ async function startStreamableHTTPServer(): Promise<void> {
         header: headerAuth.header,
         token: headerAuth.token,
         apiUrl: headerAuth.apiUrl,
+        allowedProjectIds: headerAuth.allowedProjectIds,
       };
       freshAuthPresent = true;
     } else if (GITLAB_MCP_OAUTH) {
@@ -14294,7 +14427,12 @@ async function startStreamableHTTPServer(): Promise<void> {
       if (looksLikeStatelessSessionId(incomingSid)) {
         const opened = openSessionId(material, incomingSid, sessionTtlSeconds);
         if (opened) {
-          effective = { header: opened.h, token: opened.t, apiUrl: opened.u };
+          effective = {
+            header: opened.h,
+            token: opened.t,
+            apiUrl: opened.u,
+            allowedProjectIds: opened.p,
+          };
           metrics.statelessAuthFromSealedSid++;
         } else {
           sidPresentedButInvalid = true;
@@ -14342,6 +14480,7 @@ async function startStreamableHTTPServer(): Promise<void> {
       header: effective.header,
       token: effective.token,
       apiUrl: effective.apiUrl,
+      allowedProjectIds: effective.allowedProjectIds,
     });
     if (freshAuthPresent) {
       metrics.statelessSidRotated++;
@@ -14365,6 +14504,7 @@ async function startStreamableHTTPServer(): Promise<void> {
       lastUsed: Date.now(),
       apiUrl: effective.apiUrl,
       publicBaseUrl: getForwardedPublicBaseUrl(req, MCP_TRUST_PROXY),
+      allowedProjectIds: effective.allowedProjectIds,
     };
 
     // Step 4: create a fresh transport per request.
@@ -14964,6 +15104,7 @@ async function startStreamableHTTPServer(): Promise<void> {
         lastUsed: authData.lastUsed,
         apiUrl: authData.apiUrl,
         publicBaseUrl: authData.publicBaseUrl,
+        allowedProjectIds: authData.allowedProjectIds,
       };
 
       // Run the entire request handling within AsyncLocalStorage context
@@ -15051,6 +15192,7 @@ async function startStreamableHTTPServer(): Promise<void> {
           lastUsed: authData.lastUsed,
           apiUrl: authData.apiUrl,
           publicBaseUrl: authData.publicBaseUrl,
+          allowedProjectIds: authData.allowedProjectIds,
         };
         await sessionAuthStore.run(ctx, handleGetRequest);
       } else {

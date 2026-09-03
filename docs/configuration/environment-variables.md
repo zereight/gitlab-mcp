@@ -205,6 +205,63 @@ Notes:
 - Uses the `X-GitLab-API-URL` request header in HTTP mode
 - The header URL must use an allowed host: any host in `GITLAB_API_URL`, plus any host in `GITLAB_ALLOWED_HOSTS`
 
+### `ENABLE_DYNAMIC_PROJECT_SCOPE`
+
+Set to `true` to allow a caller to narrow its own project allowlist per session
+via the `X-GitLab-Allowed-Project-Ids` request header (comma-separated project
+IDs or full paths).
+
+Notes:
+
+- Requires `REMOTE_AUTHORIZATION=true`
+- The header can only **narrow**, never widen. When `GITLAB_ALLOWED_PROJECT_IDS`
+  is set, every requested id must appear in it; a request naming anything outside
+  it is rejected with `401` rather than silently narrowed to the intersection.
+  The comparison is textual, so header entries must match the configured entries
+  verbatim — a numeric id does not match a path entry for the same project.
+- When `GITLAB_ALLOWED_PROJECT_IDS` is unset, the header narrows from "every
+  project the token can reach" to the listed ones.
+- The resulting scope behaves exactly like `GITLAB_ALLOWED_PROJECT_IDS` for that
+  session: a single id acts as the default project, tools that cannot be project
+  scoped (`execute_graphql`, `create_repository`, `create_group`,
+  `fork_repository`, the group variable and dependency proxy tools) are refused,
+  and `group:<id-or-path>` targets are refused.
+- In stateless mode the scope is sealed into the `Mcp-Session-Id` alongside the
+  token, so a caller cannot widen it by editing the sid.
+- The scope is only as trustworthy as the caller. This is intended for
+  deployments where one trusted process (an agent gateway, a chat bot with its
+  own per-room ACLs) fans out to several logical tenants and wants each tool call
+  bounded to that tenant's project — not as a defence against a hostile client.
+
+Example:
+
+```text
+X-GitLab-Allowed-Project-Ids: 42
+Private-Token: glpat-xxxxxxxxxxxxxxxxxxxx
+```
+
+### `ENABLE_STRICT_PROJECT_SCOPE`
+
+Set to `true` to close the discovery gaps a project allowlist
+(`GITLAB_ALLOWED_PROJECT_IDS`, or the session scope under
+`ENABLE_DYNAMIC_PROJECT_SCOPE`) leaves open. Without this flag, the allowlist
+only restricts which projects tools may operate on — listings and searches
+still return everything the token can see.
+
+While an allowlist is in effect, strict scope:
+
+- filters `list_projects`, `list_group_projects`, and `search_repositories`
+  results down to the allowlist (`count` and `total_pages` deliberately keep
+  reflecting the unfiltered GitLab totals so pagination still covers every
+  page; callers can infer how many upstream matches exist, but never see them)
+- routes `list_issues` and `list_merge_requests` without a `project_id` to the
+  allowed project instead of the instance-wide endpoint (a multi-project
+  allowlist requires an explicit `project_id`)
+- refuses instance-wide and group-wide tools that cannot be limited to allowed
+  projects: `search_code`, `search_group_code`, `list_events`, the todo tools,
+  group webhooks, and the group merge request, member, wiki, milestone, and
+  iteration tools
+
 ### `GITLAB_ALLOWED_HOSTS`
 
 Comma-separated additional hosts or GitLab base/API URLs allowed for
@@ -332,6 +389,9 @@ Behavior:
 
 - One project ID: acts like a default locked project
 - Multiple project IDs: restricts access to those projects only
+
+This is process-level and fixed at startup. To let a caller narrow the scope
+per session, see `ENABLE_DYNAMIC_PROJECT_SCOPE`.
 
 ### `GITLAB_READ_ONLY_MODE`
 

@@ -29,6 +29,34 @@ function load(current: string, previous?: string): StatelessKeyMaterial {
 }
 
 describe("mintSessionId / openSessionId", () => {
+  test("seals and restores a narrowed project scope", () => {
+    const s = secret();
+    const a = load(s);
+    const b = load(s);
+    const sid = mintSessionId(a, {
+      header: "Private-Token",
+      token: "glpat-ABCDEFG123456789-abcdef",
+      apiUrl: "https://gitlab.example.com/api/v4",
+      allowedProjectIds: ["42", "org/theorg"],
+    });
+    const opened = openSessionId(b, sid, 3600);
+    assert.ok(opened);
+    assert.deepEqual(opened!.p, ["42", "org/theorg"]);
+  });
+
+  test("omits the scope field when no scope was narrowed", () => {
+    const s = secret();
+    const m = load(s);
+    const sid = mintSessionId(m, {
+      header: "Private-Token",
+      token: "glpat-ABCDEFG123456789-abcdef",
+      apiUrl: "https://gitlab.example.com/api/v4",
+    });
+    const opened = openSessionId(m, sid, 3600);
+    assert.ok(opened);
+    assert.equal(opened!.p, undefined);
+  });
+
   test("roundtrips across pods", () => {
     const s = secret();
     const a = load(s);

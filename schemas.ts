@@ -1353,6 +1353,7 @@ export const GitLabCreateUpdateFileResponseSchema = z.object({
 export const GitLabSearchResponseSchema = z.object({
   count: z.coerce.number().optional(),
   total_pages: z.coerce.number().optional(),
+  next_page: z.coerce.number().optional(),
   current_page: z.coerce.number().optional(),
   items: z.array(GitLabRepositorySchema),
 });

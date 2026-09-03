@@ -121,6 +121,10 @@ export const GITLAB_OAUTH_ALLOWED_GROUPS = (() => {
 })();
 export const ENABLE_DYNAMIC_API_URL =
   getConfig("enable-dynamic-api-url", "ENABLE_DYNAMIC_API_URL") === "true";
+export const ENABLE_DYNAMIC_PROJECT_SCOPE =
+  getConfig("enable-dynamic-project-scope", "ENABLE_DYNAMIC_PROJECT_SCOPE") === "true";
+export const ENABLE_STRICT_PROJECT_SCOPE =
+  getConfig("enable-strict-project-scope", "ENABLE_STRICT_PROJECT_SCOPE") === "true";
 
 // ---------------------------------------------------------------------------
 // Stateless mode (multi-pod safe OAuth / session encoding)
