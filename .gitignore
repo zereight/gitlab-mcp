@@ -28,3 +28,7 @@ docs/plans/
 site/
 .venv-docs/
 .direnv/
+
+# nix build output
+result
+result-*
