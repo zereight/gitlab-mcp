@@ -1633,6 +1633,7 @@ export const destructiveTools = new Set([
   "delete_pipeline",
   "erase_pipeline_job",
   "delete_deployment",
+  "approve_deployment",
   "delete_issue",
   "delete_issue_link",
   "delete_label",
