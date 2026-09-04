@@ -434,6 +434,31 @@ export const GetCiCatalogResourceSchema = z.union([
 });
 
 // Deployment related schemas
+const GitLabDeploymentApprovalUserSchema = z.object({
+  id: z.coerce.string().optional(),
+  username: z.string().optional(),
+  name: z.string().optional(),
+  state: z.string().optional(),
+  avatar_url: z.string().nullable().optional(),
+  web_url: z.string().optional(),
+});
+
+const GitLabDeploymentApprovalSchema = z.object({
+  user: GitLabDeploymentApprovalUserSchema.optional(),
+  status: z.string().optional(),
+  created_at: z.string().optional(),
+  comment: z.string().nullable().optional(),
+});
+
+const GitLabDeploymentApprovalRuleSchema = z.object({
+  user_id: z.coerce.string().nullable().optional(),
+  group_id: z.coerce.string().nullable().optional(),
+  access_level: z.coerce.number().nullable().optional(),
+  access_level_description: z.string().nullable().optional(),
+  required_approvals: z.coerce.number().optional(),
+  deployment_approvals: z.array(GitLabDeploymentApprovalSchema).optional(),
+});
+
 export const GitLabDeploymentSchema = z.object({
   id: z.coerce.string(),
   iid: z.coerce.string().optional(),
@@ -481,6 +506,11 @@ export const GitLabDeploymentSchema = z.object({
     })
     .optional(),
   web_url: z.string().optional(),
+  pending_approval_count: z.coerce.number().optional(),
+  approvals: z.array(GitLabDeploymentApprovalSchema).optional(),
+  approval_summary: z
+    .object({ rules: z.array(GitLabDeploymentApprovalRuleSchema).optional() })
+    .optional(),
 });
 
 export const ListDeploymentsSchema = z
@@ -513,6 +543,19 @@ export const GetDeploymentSchema = z.object({
   project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
   deployment_id: z.coerce.string().describe("The ID of the deployment"),
 });
+export const CreateDeploymentSchema = z.object({
+  project_id: z.coerce.string(), environment: z.string(), sha: z.string(), ref: z.string(),
+  tag: z.boolean(), status: z.enum(["running", "success", "failed", "canceled"]),
+});
+export const UpdateDeploymentSchema = GetDeploymentSchema.extend({
+  status: z.enum(["running", "success", "failed", "canceled"]),
+});
+export const DeploymentApprovalSchema = GetDeploymentSchema.extend({
+  status: z.enum(["approved", "rejected"]),
+  comment: z.string().optional(),
+  represented_as: z.string().optional(),
+});
+export const ListDeploymentMergeRequestsSchema = GetDeploymentSchema.merge(PaginationOptionsSchema);
 
 // Environment related schemas
 const GitLabEnvironmentLastDeploymentSchema = z.object({
