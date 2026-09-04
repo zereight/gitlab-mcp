@@ -228,6 +228,7 @@ import {
 import {
   BulkPublishDraftNotesSchema,
   CancelPipelineJobSchema,
+  ErasePipelineJobSchema,
   CancelPipelineSchema,
   CreateBranchOptionsSchema,
   CreateBranchSchema,
@@ -320,6 +321,9 @@ import {
   UpdatePipelineMetadataSchema,
   DeletePipelineSchema,
   PipelineReportSchema,
+  WaitForPipelineSchema,
+  WaitForPipelineJobSchema,
+  PlayPipelineJobsSchema,
   GetProjectMilestoneSchema,
   GetProjectSchema,
   type GetRepositoryTreeOptions,
@@ -7369,7 +7373,8 @@ async function listPipelines(
  */
 async function getPipeline(
   projectId: string,
-  pipelineId: number | string
+  pipelineId: number | string,
+  signal?: AbortSignal
 ): Promise<GitLabPipeline> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
@@ -7378,6 +7383,7 @@ async function getPipeline(
 
   const response = await fetch(url.toString(), {
     ...getFetchConfig(),
+    signal,
   });
 
   if (response.status === 404) {
@@ -7641,7 +7647,8 @@ async function listPipelineTriggerJobs(
 
 async function getPipelineJob(
   projectId: string,
-  jobId: number | string
+  jobId: number | string,
+  signal?: AbortSignal
 ): Promise<GitLabPipelineJob> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
@@ -7650,6 +7657,7 @@ async function getPipelineJob(
 
   const response = await fetch(url.toString(), {
     ...getFetchConfig(),
+    signal,
   });
 
   if (response.status === 404) {
@@ -8345,7 +8353,8 @@ async function deletePipelineScheduleVariable(
 async function playPipelineJob(
   projectId: string,
   jobId: number | string,
-  variables?: Array<{ key: string; value: string }>
+  variables?: Array<{ key: string; value: string }>,
+  jobInputs?: Record<string, unknown>
 ): Promise<GitLabPipelineJob> {
   projectId = decodeURIComponent(projectId);
   const url = new URL(
@@ -8356,6 +8365,7 @@ async function playPipelineJob(
   if (variables && variables.length > 0) {
     body.job_variables_attributes = variables;
   }
+  if (jobInputs) body.job_inputs = jobInputs;
 
   const response = await fetch(url.toString(), {
     ...getFetchConfig(),
@@ -8368,6 +8378,27 @@ async function playPipelineJob(
   return GitLabPipelineJobSchema.parse(data);
 }
 
+async function playPipelineJobs(
+  projectId: string,
+  jobIds: Array<number | string>,
+  variables?: Array<{ key: string; value: string }>,
+  timeoutSeconds = 300,
+  pollIntervalSeconds = 5
+): Promise<GitLabPipelineJob[]> {
+  const jobs: GitLabPipelineJob[] = [];
+  for (const jobId of jobIds) {
+    const played = await playPipelineJob(projectId, jobId, variables);
+    const completed = await waitForStatus(
+      signal => getPipelineJob(projectId, played.id, signal),
+      TERMINAL_JOB_STATUSES,
+      timeoutSeconds,
+      pollIntervalSeconds
+    );
+    jobs.push(completed);
+  }
+  return jobs;
+}
+
 /**
  * Retry a job
  *
@@ -8377,7 +8408,8 @@ async function playPipelineJob(
  */
 async function retryPipelineJob(
   projectId: string,
-  jobId: number | string
+  jobId: number | string,
+  jobInputs?: Record<string, unknown>
 ): Promise<GitLabPipelineJob> {
   projectId = decodeURIComponent(projectId);
   const url = new URL(
@@ -8387,11 +8419,47 @@ async function retryPipelineJob(
   const response = await fetch(url.toString(), {
     ...getFetchConfig(),
     method: "POST",
+    body: jobInputs ? JSON.stringify({ job_inputs: jobInputs }) : undefined,
   });
 
   await handleGitLabError(response);
   const data = await response.json();
   return GitLabPipelineJobSchema.parse(data);
+}
+
+async function erasePipelineJob(projectId: string, jobId: number | string): Promise<unknown> {
+  projectId = decodeURIComponent(projectId);
+  const response = await fetch(
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/jobs/${encodeGitLabPathSegment(jobId)}/erase`,
+    { ...getFetchConfig(), method: "POST" }
+  );
+  await handleGitLabError(response);
+  return response.status === 204 ? { erased: true } : response.json();
+}
+
+const TERMINAL_PIPELINE_STATUSES = new Set(["success", "failed", "canceled", "skipped", "manual"]);
+const TERMINAL_JOB_STATUSES = new Set(["success", "failed", "canceled", "skipped", "manual"]);
+async function waitForStatus<T extends { status: string }>(
+  fetchStatus: (signal: AbortSignal) => Promise<T>,
+  terminalStatuses: Set<string>,
+  timeoutSeconds = 300,
+  pollIntervalSeconds = 5
+): Promise<T> {
+  const deadline = Date.now() + timeoutSeconds * 1000;
+  const fetchBeforeDeadline = async (): Promise<T> => {
+    const remaining = deadline - Date.now();
+    if (remaining <= 0) throw new Error("Timed out waiting for terminal status");
+    return fetchStatus(AbortSignal.timeout(remaining));
+  };
+  let value = await fetchBeforeDeadline();
+  while (!terminalStatuses.has(value.status)) {
+    const remaining = deadline - Date.now();
+    if (remaining <= 0) break;
+    await new Promise(resolve => setTimeout(resolve, Math.min(pollIntervalSeconds * 1000, remaining)));
+    value = await fetchBeforeDeadline();
+  }
+  if (!terminalStatuses.has(value.status)) throw new Error(`Timed out waiting for terminal status; last status: ${value.status}`);
+  return value;
 }
 
 /**
@@ -12827,10 +12895,10 @@ async function handleToolCall(params: any) {
       }
 
       case "play_pipeline_job": {
-        const { project_id, job_id, job_variables_attributes } = PlayPipelineJobSchema.parse(
+        const { project_id, job_id, job_variables_attributes, job_inputs } = PlayPipelineJobSchema.parse(
           params.arguments
         );
-        const job = await playPipelineJob(project_id, job_id, job_variables_attributes);
+        const job = await playPipelineJob(project_id, job_id, job_variables_attributes, job_inputs);
         return {
           content: [
             {
@@ -12841,9 +12909,15 @@ async function handleToolCall(params: any) {
         };
       }
 
+      case "play_pipeline_jobs": {
+        const { project_id, job_ids, job_variables_attributes, timeout_seconds, poll_interval_seconds } = PlayPipelineJobsSchema.parse(params.arguments);
+        const jobs = await playPipelineJobs(project_id, job_ids, job_variables_attributes, timeout_seconds, poll_interval_seconds);
+        return { content: [{ type: "text", text: JSON.stringify(jobs) }] };
+      }
+
       case "retry_pipeline_job": {
-        const { project_id, job_id } = RetryPipelineJobSchema.parse(params.arguments);
-        const job = await retryPipelineJob(project_id, job_id);
+        const { project_id, job_id, job_inputs } = RetryPipelineJobSchema.parse(params.arguments);
+        const job = await retryPipelineJob(project_id, job_id, job_inputs);
         return {
           content: [
             {
@@ -12865,6 +12939,23 @@ async function handleToolCall(params: any) {
             },
           ],
         };
+      }
+
+      case "erase_pipeline_job": {
+        const { project_id, job_id } = ErasePipelineJobSchema.parse(params.arguments);
+        return { content: [{ type: "text", text: JSON.stringify(await erasePipelineJob(project_id, job_id)) }] };
+      }
+
+      case "wait_for_pipeline": {
+        const { project_id, pipeline_id, timeout_seconds, poll_interval_seconds } = WaitForPipelineSchema.parse(params.arguments);
+        const pipeline = await waitForStatus(signal => getPipeline(project_id, pipeline_id, signal), TERMINAL_PIPELINE_STATUSES, timeout_seconds, poll_interval_seconds);
+        return { content: [{ type: "text", text: JSON.stringify(pipeline) }] };
+      }
+
+      case "wait_for_job": {
+        const { project_id, job_id, timeout_seconds, poll_interval_seconds } = WaitForPipelineJobSchema.parse(params.arguments);
+        const job = await waitForStatus(signal => getPipelineJob(project_id, job_id, signal), TERMINAL_JOB_STATUSES, timeout_seconds, poll_interval_seconds);
+        return { content: [{ type: "text", text: JSON.stringify(job) }] };
       }
 
       case "list_job_artifacts": {
