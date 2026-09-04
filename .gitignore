@@ -27,3 +27,8 @@ docs/plans/
 # MkDocs build artifacts
 site/
 .venv-docs/
+.direnv/
+
+# nix build output
+result
+result-*
