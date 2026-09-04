@@ -74,6 +74,9 @@ stop_stale_environments    -> stop environments older than a cutoff
 delete_review_app_environments -> clean up stopped review apps
 ```
 
+`stop_stale_environments` excludes protected environments and only stops (never deletes).
+`delete_review_app_environments` schedules deletion one week later and defaults to `dry_run: true`.
+
 ## Pipeline Triggers
 
 ```

@@ -12607,11 +12607,11 @@ async function handleToolCall(params: any) {
       }
       case "list_pipeline_triggers": {
         const { project_id } = ListPipelineTriggersSchema.parse(params.arguments);
-        return { content: [{ type: "text", text: JSON.stringify(await pipelineTriggerRequest(project_id)) }] };
+        return { content: [{ type: "text", text: JSON.stringify(redactSensitiveGitLabFields(await pipelineTriggerRequest(project_id))) }] };
       }
       case "get_pipeline_trigger": {
         const { project_id, trigger_id } = PipelineTriggerIdSchema.parse(params.arguments);
-        return { content: [{ type: "text", text: JSON.stringify(await pipelineTriggerRequest(project_id, `/${encodeGitLabPathSegment(trigger_id)}`)) }] };
+        return { content: [{ type: "text", text: JSON.stringify(redactSensitiveGitLabFields(await pipelineTriggerRequest(project_id, `/${encodeGitLabPathSegment(trigger_id)}`))) }] };
       }
       case "create_pipeline_trigger": {
         const { project_id, ...body } = CreatePipelineTriggerSchema.parse(params.arguments);
@@ -12619,7 +12619,7 @@ async function handleToolCall(params: any) {
       }
       case "update_pipeline_trigger": {
         const { project_id, trigger_id, ...body } = UpdatePipelineTriggerSchema.parse(params.arguments);
-        return { content: [{ type: "text", text: JSON.stringify(await pipelineTriggerRequest(project_id, `/${encodeGitLabPathSegment(trigger_id)}`, "PUT", body)) }] };
+        return { content: [{ type: "text", text: JSON.stringify(redactSensitiveGitLabFields(await pipelineTriggerRequest(project_id, `/${encodeGitLabPathSegment(trigger_id)}`, "PUT", body))) }] };
       }
       case "delete_pipeline_trigger": {
         const { project_id, trigger_id } = PipelineTriggerIdSchema.parse(params.arguments);
