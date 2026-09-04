@@ -314,6 +314,15 @@ import {
   DeploymentApprovalSchema,
   ListDeploymentMergeRequestsSchema,
   GetEnvironmentSchema,
+  UpdateEnvironmentSchema,
+  StopEnvironmentSchema,
+  StopStaleEnvironmentsSchema,
+  DeleteReviewAppEnvironmentsSchema,
+  PipelineTriggerIdSchema,
+  ListPipelineTriggersSchema,
+  CreatePipelineTriggerSchema,
+  UpdatePipelineTriggerSchema,
+  TriggerPipelineSchema,
   GetNamespaceSchema,
   // pipeline job schemas
   type GitLabCiLintResult,
@@ -7571,7 +7580,7 @@ async function getEnvironment(
 ): Promise<GitLabEnvironment> {
   projectId = decodeURIComponent(projectId);
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/environments/${environmentId}`
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/environments/${encodeGitLabPathSegment(environmentId)}`
   );
 
   const response = await fetch(url.toString(), {
@@ -7585,6 +7594,55 @@ async function getEnvironment(
   await handleGitLabError(response);
   const data = await response.json();
   return GitLabEnvironmentSchema.parse(data);
+}
+
+async function environmentRequest(
+  projectId: string,
+  path: string,
+  method: string,
+  body?: unknown,
+  query?: Record<string, unknown>
+): Promise<unknown> {
+  projectId = decodeURIComponent(projectId);
+  const url = new URL(`${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/environments${path}`);
+  for (const [key, value] of Object.entries(query ?? {})) if (value !== undefined) url.searchParams.set(key, String(value));
+  const response = await fetch(url.toString(), { ...getFetchConfig(), method, body: body === undefined ? undefined : JSON.stringify(body) });
+  await handleGitLabError(response);
+  return response.status === 204 ? { success: true } : response.json();
+}
+
+async function pipelineTriggerRequest(
+  projectId: string,
+  path = "",
+  method = "GET",
+  body?: unknown
+): Promise<unknown> {
+  projectId = decodeURIComponent(projectId);
+  const response = await fetch(
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/triggers${path}`,
+    { ...getFetchConfig(), method, body: body === undefined ? undefined : JSON.stringify(body) }
+  );
+  await handleGitLabError(response);
+  return response.status === 204 ? { success: true } : response.json();
+}
+
+async function triggerPipeline(
+  projectId: string,
+  token: string,
+  ref: string,
+  variables?: Record<string, string>,
+  inputs?: Record<string, unknown>
+): Promise<unknown> {
+  projectId = decodeURIComponent(projectId);
+  const url = new URL(`${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/trigger/pipeline`);
+  url.searchParams.set("token", token);
+  url.searchParams.set("ref", ref);
+  const body: Record<string, unknown> = {};
+  if (variables) body.variables = variables;
+  if (inputs) body.inputs = inputs;
+  const response = await fetch(url.toString(), { ...getFetchConfig(), method: "POST", body: Object.keys(body).length ? JSON.stringify(body) : undefined });
+  await handleGitLabError(response);
+  return response.json();
 }
 
 /**
@@ -12525,6 +12583,51 @@ async function handleToolCall(params: any) {
         return {
           content: [{ type: "text", text: JSON.stringify(environment) }],
         };
+      }
+
+      case "update_environment": {
+        const { project_id, environment_id, ...body } = UpdateEnvironmentSchema.parse(params.arguments);
+        return { content: [{ type: "text", text: JSON.stringify(await environmentRequest(project_id, `/${encodeGitLabPathSegment(environment_id)}`, "PUT", body)) }] };
+      }
+      case "delete_environment": {
+        const { project_id, environment_id } = GetEnvironmentSchema.parse(params.arguments);
+        return { content: [{ type: "text", text: JSON.stringify(await environmentRequest(project_id, `/${encodeGitLabPathSegment(environment_id)}`, "DELETE")) }] };
+      }
+      case "stop_environment": {
+        const { project_id, environment_id, force } = StopEnvironmentSchema.parse(params.arguments);
+        return { content: [{ type: "text", text: JSON.stringify(await environmentRequest(project_id, `/${encodeGitLabPathSegment(environment_id)}/stop`, "POST", undefined, { force })) }] };
+      }
+      case "stop_stale_environments": {
+        const { project_id, before } = StopStaleEnvironmentsSchema.parse(params.arguments);
+        return { content: [{ type: "text", text: JSON.stringify(await environmentRequest(project_id, "/stop_stale", "POST", undefined, { before })) }] };
+      }
+      case "delete_review_app_environments": {
+        const { project_id, ...query } = DeleteReviewAppEnvironmentsSchema.parse(params.arguments);
+        return { content: [{ type: "text", text: JSON.stringify(await environmentRequest(project_id, "/review_apps", "DELETE", undefined, query)) }] };
+      }
+      case "list_pipeline_triggers": {
+        const { project_id } = ListPipelineTriggersSchema.parse(params.arguments);
+        return { content: [{ type: "text", text: JSON.stringify(redactSensitiveGitLabFields(await pipelineTriggerRequest(project_id))) }] };
+      }
+      case "get_pipeline_trigger": {
+        const { project_id, trigger_id } = PipelineTriggerIdSchema.parse(params.arguments);
+        return { content: [{ type: "text", text: JSON.stringify(redactSensitiveGitLabFields(await pipelineTriggerRequest(project_id, `/${encodeGitLabPathSegment(trigger_id)}`))) }] };
+      }
+      case "create_pipeline_trigger": {
+        const { project_id, ...body } = CreatePipelineTriggerSchema.parse(params.arguments);
+        return { content: [{ type: "text", text: JSON.stringify(await pipelineTriggerRequest(project_id, "", "POST", body)) }] };
+      }
+      case "update_pipeline_trigger": {
+        const { project_id, trigger_id, ...body } = UpdatePipelineTriggerSchema.parse(params.arguments);
+        return { content: [{ type: "text", text: JSON.stringify(redactSensitiveGitLabFields(await pipelineTriggerRequest(project_id, `/${encodeGitLabPathSegment(trigger_id)}`, "PUT", body))) }] };
+      }
+      case "delete_pipeline_trigger": {
+        const { project_id, trigger_id } = PipelineTriggerIdSchema.parse(params.arguments);
+        return { content: [{ type: "text", text: JSON.stringify(await pipelineTriggerRequest(project_id, `/${encodeGitLabPathSegment(trigger_id)}`, "DELETE")) }] };
+      }
+      case "trigger_pipeline": {
+        const { project_id, token, ref, variables, inputs } = TriggerPipelineSchema.parse(params.arguments);
+        return { content: [{ type: "text", text: JSON.stringify(await triggerPipeline(project_id, token, ref, variables, inputs)) }] };
       }
 
       case "list_pipeline_jobs": {

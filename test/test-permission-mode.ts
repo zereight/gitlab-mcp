@@ -85,6 +85,7 @@ const MODIFY_SAMPLE_TOOLS = [
   "create_branch",
   "push_files",
   "merge_merge_request",
+  "stop_stale_environments",
 ];
 
 const READ_SAMPLE_TOOLS = ["list_issues", "get_project", "list_merge_requests"];

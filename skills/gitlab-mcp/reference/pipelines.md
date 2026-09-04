@@ -4,7 +4,7 @@
 
 ## List & Inspect
 
-```
+```text
 list_pipelines             -> list pipelines with filters (status, ref, source)
 get_pipeline               -> pipeline details (status, duration, coverage)
 get_pipeline_variables     -> variables configured on a pipeline
@@ -67,6 +67,21 @@ list_deployment_merge_requests -> merge requests shipped by a deployment
 approve_deployment         -> approve or reject a protected deployment
 list_environments          -> list project environments
 get_environment            -> environment details
+update_environment         -> update environment settings
+delete_environment         -> delete a stopped environment
+stop_environment           -> stop one environment
+stop_stale_environments    -> stop environments older than a cutoff
+delete_review_app_environments -> clean up stopped review apps
+```
+
+`stop_stale_environments` excludes protected environments and only stops (never deletes).
+`delete_review_app_environments` schedules deletion one week later and defaults to `dry_run: true`.
+
+## Pipeline Triggers
+
+```
+list/get/create/update/delete_pipeline_trigger -> manage project trigger tokens
+trigger_pipeline             -> run a pipeline with a trigger token
 ```
 
 ## Common Patterns
