@@ -34,7 +34,7 @@ const TOOLSET_TOOL_COUNTS: Record<string, number> = {
   issues: 24,
   repositories: 7,
   branches: 15,
-  projects: 11,
+  projects: 13,
   labels: 5,
   ci: 4,
   pipelines: 56,
@@ -100,7 +100,14 @@ const TOOLSET_SAMPLE_TOOLS: Record<string, string[]> = {
   issues: ["create_issue", "list_issues", "create_note", "list_todos"],
   repositories: ["search_repositories", "get_file_contents", "push_files"],
   branches: ["create_branch", "get_branch", "list_branches", "delete_branch", "list_commits", "list_commit_statuses", "create_commit_status"],
-  projects: ["get_project", "update_project", "list_namespaces", "list_group_iterations"],
+  projects: [
+    "get_project",
+    "update_project",
+    "list_namespaces",
+    "list_group_iterations",
+    "get_group_iteration",
+    "update_group_iteration",
+  ],
   labels: ["list_labels", "create_label"],
   ci: ["validate_ci_lint", "validate_project_ci_lint", "list_ci_catalog_resources", "get_ci_catalog_resource"],
   pipelines: ["list_pipelines", "create_pipeline", "cancel_pipeline_job", "list_deployments", "list_job_artifacts"],
@@ -451,6 +458,27 @@ describe("Toolset Filtering", { concurrency: 1 }, () => {
 
     test("returns correct count (read-only issues + discover_tools)", () => {
       assert.strictEqual(tools.length, readOnlyIssueTools.length + DISCOVER_TOOLS_COUNT);
+    });
+  });
+
+  describe("GITLAB_TOOLSETS=projects + GITLAB_READ_ONLY_MODE=true", () => {
+    let server: ServerInstance;
+    let tools: string[];
+
+    before(async () => {
+      const port = await nextMcpPort();
+      server = await launchMcpServer(mockGitLabUrl, port, {
+        GITLAB_TOOLSETS: "projects",
+        GITLAB_READ_ONLY_MODE: "true",
+      });
+      tools = await getToolNames(`http://${HOST}:${port}/mcp`);
+    });
+
+    after(() => cleanupServers([server]));
+
+    test("keeps get_group_iteration and excludes update_group_iteration", () => {
+      assert.ok(tools.includes("get_group_iteration"));
+      assert.ok(!tools.includes("update_group_iteration"));
     });
   });
 
