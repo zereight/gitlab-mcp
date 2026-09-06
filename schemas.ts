@@ -4586,7 +4586,7 @@ export const ListSnippetsSchema = z
       .coerce.string()
       .optional()
       .describe(
-        "Project ID or URL-encoded path. Omit to list personal snippets for the authenticated user."
+        "Project ID or URL-encoded path. Omit for personal snippets, or the configured project when GITLAB_PROJECT_ID / GITLAB_ALLOWED_PROJECT_IDS is set."
       ),
   })
   .merge(PaginationOptionsSchema);
@@ -4595,7 +4595,7 @@ export const GetSnippetSchema = z.object({
   project_id: z
     .coerce.string()
     .optional()
-    .describe("Project ID or URL-encoded path. Omit for personal snippets."),
+    .describe("Project ID or URL-encoded path. Omit for personal snippets, or the configured project when GITLAB_PROJECT_ID / GITLAB_ALLOWED_PROJECT_IDS is set."),
   snippet_id: z.coerce.number().describe("The snippet ID"),
   include_content: z
     .boolean()
@@ -4666,7 +4666,7 @@ export const CreateSnippetSchema = z
       .coerce.string()
       .optional()
       .describe(
-        "Project ID or URL-encoded path. Omit to create a personal snippet for the authenticated user."
+        "Project ID or URL-encoded path. Omit for a personal snippet, or the configured project when GITLAB_PROJECT_ID / GITLAB_ALLOWED_PROJECT_IDS is set."
       ),
     title: z.string().describe("Snippet title"),
     file_name: z
@@ -4717,7 +4717,7 @@ export const UpdateSnippetSchema = z
     project_id: z
       .coerce.string()
       .optional()
-      .describe("Project ID or URL-encoded path. Omit for personal snippets."),
+      .describe("Project ID or URL-encoded path. Omit for personal snippets, or the configured project when GITLAB_PROJECT_ID / GITLAB_ALLOWED_PROJECT_IDS is set."),
     snippet_id: z.coerce.number().describe("The snippet ID to update"),
     title: z.string().optional().describe("New title"),
     file_name: z
@@ -4775,7 +4775,7 @@ export const DeleteSnippetSchema = z.object({
   project_id: z
     .coerce.string()
     .optional()
-    .describe("Project ID or URL-encoded path. Omit for personal snippets."),
+    .describe("Project ID or URL-encoded path. Omit for personal snippets, or the configured project when GITLAB_PROJECT_ID / GITLAB_ALLOWED_PROJECT_IDS is set."),
   snippet_id: z.coerce.number().describe("The snippet ID to delete"),
 });
 

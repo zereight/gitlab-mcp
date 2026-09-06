@@ -1757,6 +1757,7 @@ export const deleteTools = new Set([
   "delete_pipeline_schedule_variable",
   "delete_project_variable",
   "delete_release",
+  "delete_snippet",
   "delete_tag",
   "delete_webhook",
   "delete_wiki_page",

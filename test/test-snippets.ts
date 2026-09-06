@@ -15,8 +15,10 @@ const TEST_NESTED_PATH_SNIPPET_ID = 103;
 const TEST_NO_VISIBILITY_SNIPPET_ID = 104;
 const TEST_NO_RAWURL_SNIPPET_ID = 105;
 const TEST_SINGLE_EXPLICIT_REF_SNIPPET_ID = 106;
+const TEST_SINGLE_FILENAME_REF_SNIPPET_ID = 107;
 const RAW_CONTENT = "console.log('hello world');\n";
 const SINGLE_REF_V2_CONTENT = "console.log('v2 branch');\n";
+const SINGLE_FILENAME_V3_CONTENT = "console.log('v3 filename fallback');\n";
 const MULTIFILE_A_CONTENT = "# policy\nbody A\n";
 const MULTIFILE_B_CONTENT = "# instructions\nbody B\n";
 
@@ -116,7 +118,7 @@ describe("snippet tools", () => {
   let deleteCalled = false;
 
   before(async () => {
-    const mockPort = await findMockServerPort(20000, 50);
+    const mockPort = await findMockServerPort();
     mockGitLab = new MockGitLabServer({
       port: mockPort,
       validTokens: [MOCK_TOKEN],
@@ -175,6 +177,31 @@ describe("snippet tools", () => {
       `/projects/${TEST_PROJECT_ID}/snippets/${TEST_SINGLE_EXPLICIT_REF_SNIPPET_ID}/files/v2/hello.js/raw`,
       (_req, res) => {
         res.type("text/plain").send(SINGLE_REF_V2_CONTENT);
+      }
+    );
+
+    // Single-file snippet with no files[] entries: path must resolve from file_name.
+    // No /raw handler is registered, so falling back to /raw fails the test.
+    mockGitLab.addMockHandler(
+      "get",
+      `/projects/${TEST_PROJECT_ID}/snippets/${TEST_SINGLE_FILENAME_REF_SNIPPET_ID}`,
+      (_req, res) => {
+        res.json(
+          buildSnippet({
+            id: TEST_SINGLE_FILENAME_REF_SNIPPET_ID,
+            title: "Single-file filename fallback snippet",
+            file_name: "app.js",
+            files: [],
+          })
+        );
+      }
+    );
+
+    mockGitLab.addMockHandler(
+      "get",
+      `/projects/${TEST_PROJECT_ID}/snippets/${TEST_SINGLE_FILENAME_REF_SNIPPET_ID}/files/v3/app.js/raw`,
+      (_req, res) => {
+        res.type("text/plain").send(SINGLE_FILENAME_V3_CONTENT);
       }
     );
 
@@ -585,6 +612,22 @@ describe("snippet tools", () => {
 
     assert.strictEqual(result.id, TEST_SINGLE_EXPLICIT_REF_SNIPPET_ID);
     assert.strictEqual(result.content, SINGLE_REF_V2_CONTENT);
+  });
+
+  test("get_snippet with include_content resolves single-file path from file_name", async () => {
+    const result = await callTool(
+      "get_snippet",
+      {
+        project_id: TEST_PROJECT_ID,
+        snippet_id: TEST_SINGLE_FILENAME_REF_SNIPPET_ID,
+        include_content: true,
+        ref: "v3",
+      },
+      env()
+    );
+
+    assert.strictEqual(result.id, TEST_SINGLE_FILENAME_REF_SNIPPET_ID);
+    assert.strictEqual(result.content, SINGLE_FILENAME_V3_CONTENT);
   });
 
   test("get_snippet with include_content fetches per-file raw for multi-file snippet", async () => {
