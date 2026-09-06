@@ -16,13 +16,14 @@ directly from `TOOLSET_DEFINITIONS` in
 
 | Status | Groups |
 |---|---|
-| **Default** — always exposed | [Projects & Namespaces](projects.md), [Projects & Files](repositories.md), [Branches & Commits](branches.md), [Groups](groups.md), [Merge Requests](merge-requests.md), [Issues](issues.md), [Labels](labels.md), [CI Lint](ci.md), [Users & Events](users.md) |
-| **Opt-in** — must be enabled | [Work Items](workitems.md), [Pipelines, Jobs & Deployments](pipelines.md) (also `USE_PIPELINE=true`), [Milestones](milestones.md) (also `USE_MILESTONE=true`), [Wiki](wiki.md) (also `USE_GITLAB_WIKI=true`), [Releases](releases.md), [Tags](tags.md), [Variables](variables.md), [Webhooks](webhooks.md), [Search](search.md), [Dependency Proxy](dependency-proxy.md), [Vulnerabilities](vulnerabilities.md), [Meta & GraphQL](meta.md) |
+| **Default** — always exposed | [Core](core.md) |
+| **Opt-in** — must be enabled | [Projects & Namespaces](projects.md), [Projects & Files](repositories.md), [Branches & Commits](branches.md), [Groups](groups.md), [Merge Requests](merge-requests.md), [Issues](issues.md), [Labels](labels.md), [Work Items](workitems.md), [CI Lint](ci.md), [Pipelines, Jobs & Deployments](pipelines.md) (also `USE_PIPELINE=true`), [Milestones](milestones.md) (also `USE_MILESTONE=true`), [Wiki](wiki.md) (also `USE_GITLAB_WIKI=true`), [Releases](releases.md), [Tags](tags.md), [Users & Events](users.md), [Variables](variables.md), [Webhooks](webhooks.md), [Search](search.md), [Dependency Proxy](dependency-proxy.md), [Vulnerabilities](vulnerabilities.md), [Meta & GraphQL](meta.md) |
 
 **How to enable opt-in groups** (any one is sufficient):
 
 - `GITLAB_TOOLSETS=<group,…>` — comma-separated toolset IDs.
 - `GITLAB_TOOLSETS=all` — enables every group.
+- `GITLAB_TOOLSETS=merge_requests,issues,repositories,branches,projects,labels,ci,groups,users` — restores the pre-lean default set.
 - `GITLAB_TOOLS=<tool,…>` — enables individual tools regardless of group.
 - `USE_PIPELINE=true` / `USE_MILESTONE=true` / `USE_GITLAB_WIKI=true` — legacy single-group flags (Pipelines, Milestones, Wiki only).
 - Call the `discover_tools` MCP tool at runtime to activate categories for the current session.
@@ -47,9 +48,53 @@ and [CLI Arguments](../getting-started/cli-arguments.md) for the full list.
 
 Each group has its own page with full parameter tables — click any tool name to jump to its details, or click the group title for the per-group view.
 
+### [Core](core.md)
+
+Lean default starter set for common MR, issue, repository, branch, project, label, and identity workflows. *(35 tools)*
+
+| Tool | What it does | R/W |
+|---|---|:-:|
+| [`list_merge_requests`](core.md#list_merge_requests) | List merge requests (without project_id: user's MRs; with project_id: project MRs). Use this for a collection of resources; choose the corresponding get tool when you already know the single resource to inspect. It is read-only and does not mutate GitLab data; missing resources, invalid identifiers, insufficient permission, and rate limits are returned as errors. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented. | 📖 |
+| [`get_merge_request`](core.md#get_merge_request) | Get details of a merge request (mergeRequestIid or branchName required). Set include_summaries=true for deployment/commit/approval summaries. Use this for a known resource or result; choose the corresponding list or search tool when you need to discover multiple resources. It is read-only and does not mutate GitLab data; missing resources, invalid identifiers, insufficient permission, and rate limits are returned as errors. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented. | 📖 |
+| [`get_merge_request_approval_state`](core.md#get_merge_request_approval_state) | Get merge request approval details including approvers. Use this to inspect approval rules and approvers before deciding whether a merge request can be merged; use `approve_merge_request` to change approval state. It is read-only and returns the approval-state response, while missing requests, unsupported GitLab versions, and permission failures are reported as errors. | 📖 |
+| [`list_merge_request_changed_files`](core.md#list_merge_request_changed_files) | List changed file paths in a merge request without diff content (mergeRequestIid or branchName required). Use this for a collection of resources; choose the corresponding get tool when you already know the single resource to inspect. It is read-only and does not mutate GitLab data; missing resources, invalid identifiers, insufficient permission, and rate limits are returned as errors. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented. | 📖 |
+| [`get_merge_request_file_diff`](core.md#get_merge_request_file_diff) | Get diffs for specific files from a merge request (mergeRequestIid or branchName required). Use this for a known resource or result; choose the corresponding list or search tool when you need to discover multiple resources. It is read-only and does not mutate GitLab data; missing resources, invalid identifiers, insufficient permission, and rate limits are returned as errors. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented. | 📖 |
+| [`list_merge_request_diffs`](core.md#list_merge_request_diffs) | List merge request diffs with pagination (mergeRequestIid or branchName required). Use this for a collection of resources; choose the corresponding get tool when you already know the single resource to inspect. It is read-only and does not mutate GitLab data; missing resources, invalid identifiers, insufficient permission, and rate limits are returned as errors. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented. | 📖 |
+| [`get_merge_request_diffs`](core.md#get_merge_request_diffs) | Get the changes/diffs of a merge request (mergeRequestIid or branchName required). Use this for a known resource or result; choose the corresponding list or search tool when you need to discover multiple resources. It is read-only and does not mutate GitLab data; missing resources, invalid identifiers, insufficient permission, and rate limits are returned as errors. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented. | 📖 |
+| [`mr_discussions`](core.md#mr_discussions) | List discussion items for a merge request. Use this to list complete discussion threads for a merge request; use `get_merge_request_notes` when only flat notes are needed. It is read-only and returns threaded discussion items, while invalid merge request identifiers, missing resources, and permission failures are reported as errors. | 📖 |
+| [`create_merge_request`](core.md#create_merge_request) | Create a new merge request. Use this to open a new merge request from an existing source branch to a target branch; use `update_merge_request` after it exists. The operation creates remote review state, requires project access, and returns the new merge request or a validation, permission, branch, or duplicate-related error. | ✏️ |
+| [`create_merge_request_thread`](core.md#create_merge_request_thread) | Create a new thread on a merge request. Use this to start a review thread on a merge request; use `create_merge_request_note` for an unthreaded note and `create_merge_request_discussion_note` to reply to an existing thread. The operation creates remote review content, requires note permission, and returns the discussion or a position/permission/validation error. | ✏️ |
+| [`resolve_merge_request_thread`](core.md#resolve_merge_request_thread) | Resolve a thread on a merge request. Use this to mark an existing merge request review thread resolved; use `update_merge_request_discussion_note` when the note text itself must change. The operation changes review state, requires permission to resolve discussions, and returns the updated discussion or a missing-thread/permission error. | ✏️ |
+| [`update_merge_request`](core.md#update_merge_request) | Update a merge request (mergeRequestIid or branchName required). Use this for an existing resource; choose the corresponding create tool for a new resource and a note tool for discussion-only text. It changes remote GitLab state and requires the necessary project or group permission; GitLab returns validation, conflict, permission, or rate-limit errors instead of silently applying an invalid request. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented. | ✏️ |
+| [`list_issues`](core.md#list_issues) | List issues (default: created by current user; use scope='all' for all). Use this for a collection of resources; choose the corresponding get tool when you already know the single resource to inspect. It is read-only and does not mutate GitLab data; missing resources, invalid identifiers, insufficient permission, and rate limits are returned as errors. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented. | 📖 |
+| [`my_issues`](core.md#my_issues) | List issues assigned to the authenticated user. Use this for the specific operation described; choose a sibling tool when you need a different resource or lifecycle action. It is read-only and does not mutate GitLab data; missing resources, invalid identifiers, insufficient permission, and rate limits are returned as errors. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented. | 📖 |
+| [`get_issue`](core.md#get_issue) | Get details of a specific issue. Returns a slim milestone by default; set full_response=true for the complete milestone object. Use this for a known resource or result; choose the corresponding list or search tool when you need to discover multiple resources. It is read-only and does not mutate GitLab data; missing resources, invalid identifiers, insufficient permission, and rate limits are returned as errors. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented. | 📖 |
+| [`create_issue`](core.md#create_issue) | Create a new issue. Use this to open a new issue; use `update_issue` for an existing issue and `create_issue_note` to add discussion without changing issue fields. The operation creates remote project data, requires issue creation permission, and returns the new issue or a validation, permission, or duplicate-related error. | ✏️ |
+| [`update_issue`](core.md#update_issue) | Update an issue. Returns a slim confirmation by default; set full_response=true for the complete updated issue object. Use this to change fields on an existing issue; use `update_issue_description_patch` for a targeted description edit that avoids sending the full body, and use `create_issue_note` for discussion. The operation mutates issue state, requires issue-edit permission, and returns the updated issue or a validation/permission/conflict error. | ✏️ |
+| [`create_issue_note`](core.md#create_issue_note) | Add a note to an issue, optionally replying to a discussion thread. Use this to add a note to an existing issue, optionally as a reply to a discussion; use `update_issue` for issue fields and `create_note` only when the generic endpoint is required. The operation creates remote discussion content, requires note permission, and returns the note or a missing-issue/thread/permission error. | ✏️ |
+| [`list_issue_discussions`](core.md#list_issue_discussions) | List discussions for an issue. Use this to inspect threaded discussions for an issue; use `list_issues` for issue records and `get_issue` for one issue's fields. It is read-only and returns discussion items, while invalid identifiers, missing issues, and permission failures are reported as errors. | 📖 |
+| [`update_issue_description_patch`](core.md#update_issue_description_patch) | Apply a patch (search/replace or unified diff) to an issue description. Reduces token usage by allowing small changes without sending the full description. Supports dry_run to preview changes and create_note to summarize updates. Use this for a targeted search/replace or unified-diff change to an issue description; use `dry_run` before applying an uncertain patch and `create_note` when an audit summary is wanted. It changes the issue description when not dry-running, requires issue-edit permission, and returns the patch result or a mismatch/validation/permission error. | ✏️ |
+| [`get_file_contents`](core.md#get_file_contents) | Get contents of a file or directory from a GitLab project. Use this for a known resource or result; choose the corresponding list or search tool when you need to discover multiple resources. It is read-only and does not mutate GitLab data; missing resources, invalid identifiers, insufficient permission, and rate limits are returned as errors. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented. | 📖 |
+| [`get_repository_tree`](core.md#get_repository_tree) | List files and directories in a repository. Use this for a known resource or result; choose the corresponding list or search tool when you need to discover multiple resources. It is read-only and does not mutate GitLab data; missing resources, invalid identifiers, insufficient permission, and rate limits are returned as errors. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented. | 📖 |
+| [`search_repositories`](core.md#search_repositories) | Search for GitLab projects. Use this to discover matching content; choose a typed get or list tool when the target identifier is already known. It is read-only and does not mutate GitLab data; missing resources, invalid identifiers, insufficient permission, and rate limits are returned as errors. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented. | 📖 |
+| [`get_branch`](core.md#get_branch) | Get branch details (commit, protection status). Use this for a known resource or result; choose the corresponding list or search tool when you need to discover multiple resources. It is read-only and does not mutate GitLab data; missing resources, invalid identifiers, insufficient permission, and rate limits are returned as errors. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented. | 📖 |
+| [`list_branches`](core.md#list_branches) | List branches in project with search filter. Use this for a collection of resources; choose the corresponding get tool when you already know the single resource to inspect. It is read-only and does not mutate GitLab data; missing resources, invalid identifiers, insufficient permission, and rate limits are returned as errors. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented. | 📖 |
+| [`list_commits`](core.md#list_commits) | List repository commits with filtering options. Use this for a collection of resources; choose the corresponding get tool when you already know the single resource to inspect. It is read-only and does not mutate GitLab data; missing resources, invalid identifiers, insufficient permission, and rate limits are returned as errors. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented. | 📖 |
+| [`get_commit`](core.md#get_commit) | Get details of a specific commit. Use this for a known resource or result; choose the corresponding list or search tool when you need to discover multiple resources. It is read-only and does not mutate GitLab data; missing resources, invalid identifiers, insufficient permission, and rate limits are returned as errors. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented. | 📖 |
+| [`get_commit_diff`](core.md#get_commit_diff) | Get changes/diffs of a specific commit. Use this for a known resource or result; choose the corresponding list or search tool when you need to discover multiple resources. It is read-only and does not mutate GitLab data; missing resources, invalid identifiers, insufficient permission, and rate limits are returned as errors. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented. | 📖 |
+| [`get_file_blame`](core.md#get_file_blame) | Get git blame for a file at a given ref. Each entry maps a contiguous range of source lines to the commit that last changed them (id, author, authored_date, message). Use range_start/range_end to limit blame to specific lines. | 📖 |
+| [`get_project`](core.md#get_project) | Get details of a specific project. Use this for a known resource or result; choose the corresponding list or search tool when you need to discover multiple resources. It is read-only and does not mutate GitLab data; missing resources, invalid identifiers, insufficient permission, and rate limits are returned as errors. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented. | 📖 |
+| [`list_projects`](core.md#list_projects) | List projects accessible by the current user. Use this for a collection of resources; choose the corresponding get tool when you already know the single resource to inspect. It is read-only and does not mutate GitLab data; missing resources, invalid identifiers, insufficient permission, and rate limits are returned as errors. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented. | 📖 |
+| [`list_project_members`](core.md#list_project_members) | List members of a GitLab project. Use this for a collection of resources; choose the corresponding get tool when you already know the single resource to inspect. It is read-only and does not mutate GitLab data; missing resources, invalid identifiers, insufficient permission, and rate limits are returned as errors. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented. | 📖 |
+| [`list_labels`](core.md#list_labels) | List labels for a project. Use this for a collection of resources; choose the corresponding get tool when you already know the single resource to inspect. It is read-only and does not mutate GitLab data; missing resources, invalid identifiers, insufficient permission, and rate limits are returned as errors. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented. | 📖 |
+| [`whoami`](core.md#whoami) | Get current authenticated user details. Use this to identify the authenticated GitLab user; use `get_user` or `get_users` when looking up another user. It is read-only and returns the current user profile, while missing credentials or GitLab permission failures are reported as errors. | 📖 |
+| [`health_check`](core.md#health_check) | Verify server status and authentication. When authenticated, also reports the GitLab instance version from GET /api/v4/version (version, revision, enterprise). Version lookup failures do not fail the health check — those fields are omitted. Use this to verify server connectivity and authentication before making GitLab requests; use `whoami` when the authenticated user's identity is the goal. It does not mutate GitLab state and returns server/authentication status plus GitLab version details when available. | 📖 |
+
 ### [Projects & Namespaces](projects.md)
 
 Project/namespace listing, member queries, group iterations, and server health. *(11 tools)*
+
+> Opt-in. Enable via `GITLAB_TOOLSETS=projects` (or `GITLAB_TOOLSETS=all`), list individual tools in `GITLAB_TOOLS=`, or activate at runtime with the `discover_tools` MCP tool.
 
 | Tool | What it does | R/W |
 |---|---|:-:|
@@ -69,6 +114,8 @@ Project/namespace listing, member queries, group iterations, and server health. 
 
 Project search/creation/fork plus the Files API for reading and writing repository content without shelling out to git. *(7 tools)*
 
+> Opt-in. Enable via `GITLAB_TOOLSETS=repositories` (or `GITLAB_TOOLSETS=all`), list individual tools in `GITLAB_TOOLS=`, or activate at runtime with the `discover_tools` MCP tool.
+
 | Tool | What it does | R/W |
 |---|---|:-:|
 | [`search_repositories`](repositories.md#search_repositories) | Search for GitLab projects. Use this to discover matching content; choose a typed get or list tool when the target identifier is already known. It is read-only and does not mutate GitLab data; missing resources, invalid identifiers, insufficient permission, and rate limits are returned as errors. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented. | 📖 |
@@ -82,6 +129,8 @@ Project search/creation/fork plus the Files API for reading and writing reposito
 ### [Branches & Commits](branches.md)
 
 Branch management, commit listing/inspection, file blame, and CI commit-status manipulation. *(15 tools)*
+
+> Opt-in. Enable via `GITLAB_TOOLSETS=branches` (or `GITLAB_TOOLSETS=all`), list individual tools in `GITLAB_TOOLS=`, or activate at runtime with the `discover_tools` MCP tool.
 
 | Tool | What it does | R/W |
 |---|---|:-:|
@@ -105,6 +154,8 @@ Branch management, commit listing/inspection, file blame, and CI commit-status m
 
 Create new groups and subgroups. *(1 tools)*
 
+> Opt-in. Enable via `GITLAB_TOOLSETS=groups` (or `GITLAB_TOOLSETS=all`), list individual tools in `GITLAB_TOOLS=`, or activate at runtime with the `discover_tools` MCP tool.
+
 | Tool | What it does | R/W |
 |---|---|:-:|
 | [`create_group`](groups.md#create_group) | Create new group or subgroup. Use this for a new resource or action; choose the corresponding update or edit tool when the resource already exists. It changes remote GitLab state and requires the necessary project or group permission; GitLab returns validation, conflict, permission, or rate-limit errors instead of silently applying an invalid request. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented. | ✏️ |
@@ -112,6 +163,8 @@ Create new groups and subgroups. *(1 tools)*
 ### [Merge Requests](merge-requests.md)
 
 MR lifecycle — create, update, merge, approve, plus diff/conflict inspection and the full discussion/note/draft API. *(44 tools)*
+
+> Opt-in. Enable via `GITLAB_TOOLSETS=merge_requests` (or `GITLAB_TOOLSETS=all`), list individual tools in `GITLAB_TOOLS=`, or activate at runtime with the `discover_tools` MCP tool.
 
 | Tool | What it does | R/W |
 |---|---|:-:|
@@ -164,6 +217,8 @@ MR lifecycle — create, update, merge, approve, plus diff/conflict inspection a
 
 Issue CRUD, links, discussions and notes, todos, and emoji reactions. *(24 tools)*
 
+> Opt-in. Enable via `GITLAB_TOOLSETS=issues` (or `GITLAB_TOOLSETS=all`), list individual tools in `GITLAB_TOOLS=`, or activate at runtime with the `discover_tools` MCP tool.
+
 | Tool | What it does | R/W |
 |---|---|:-:|
 | [`create_issue`](issues.md#create_issue) | Create a new issue. Use this to open a new issue; use `update_issue` for an existing issue and `create_issue_note` to add discussion without changing issue fields. The operation creates remote project data, requires issue creation permission, and returns the new issue or a validation, permission, or duplicate-related error. | ✏️ |
@@ -194,6 +249,8 @@ Issue CRUD, links, discussions and notes, todos, and emoji reactions. *(24 tools
 ### [Labels](labels.md)
 
 Project label CRUD. *(5 tools)*
+
+> Opt-in. Enable via `GITLAB_TOOLSETS=labels` (or `GITLAB_TOOLSETS=all`), list individual tools in `GITLAB_TOOLS=`, or activate at runtime with the `discover_tools` MCP tool.
 
 | Tool | What it does | R/W |
 |---|---|:-:|
@@ -233,6 +290,8 @@ Modern unified API for issues, tasks, incidents, and other typed work items — 
 ### [CI Lint](ci.md)
 
 Validate `.gitlab-ci.yml` snippets and project pipeline configs. *(4 tools)*
+
+> Opt-in. Enable via `GITLAB_TOOLSETS=ci` (or `GITLAB_TOOLSETS=all`), list individual tools in `GITLAB_TOOLS=`, or activate at runtime with the `discover_tools` MCP tool.
 
 | Tool | What it does | R/W |
 |---|---|:-:|
@@ -385,6 +444,8 @@ Tag listing, creation, deletion, and signature inspection. *(5 tools)*
 
 User lookup, the authenticated user (`whoami`), event streams, and markdown attachment upload/download. *(7 tools)*
 
+> Opt-in. Enable via `GITLAB_TOOLSETS=users` (or `GITLAB_TOOLSETS=all`), list individual tools in `GITLAB_TOOLS=`, or activate at runtime with the `discover_tools` MCP tool.
+
 | Tool | What it does | R/W |
 |---|---|:-:|
 | [`get_users`](users.md#get_users) | Get GitLab user details by usernames. Use this for a known resource or result; choose the corresponding list or search tool when you need to discover multiple resources. It is read-only and does not mutate GitLab data; missing resources, invalid identifiers, insufficient permission, and rate limits are returned as errors. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented. | 📖 |
@@ -476,7 +537,7 @@ Server diagnostics, tool discovery, and the GraphQL escape hatch. *(2 tools)*
 | Tool | What it does | R/W |
 |---|---|:-:|
 | [`execute_graphql`](meta.md#execute_graphql) | Execute a GitLab GraphQL query. Use this only when a supported GitLab REST tool does not cover the requested operation; prefer a typed tool when one exists. The query is sent directly to GitLab and can include mutations when permission allows, so callers must treat it as potentially state-changing and handle GraphQL errors in the returned response. | 📖 |
-| [`discover_tools`](meta.md#discover_tools) | Discover and activate additional tool categories for this session. Available categories: merge_requests, issues, repositories, branches, projects, labels, ci, groups, pipelines, milestones, wiki, releases, tags, users, workitems, webhooks, search, variables, dependency_proxy, vulnerabilities. Already-active categories are listed in the response. Use this when a needed opt-in category is not currently exposed; omit `category` to inspect available categories, then call it with a category to activate that group for the current session. It changes only the session's tool registry, returns the active-tool summary, and does not change GitLab data. | 📖 |
+| [`discover_tools`](meta.md#discover_tools) | Discover and activate additional tool categories for this session. Available categories: core, merge_requests, issues, repositories, branches, projects, labels, ci, groups, pipelines, milestones, wiki, releases, tags, users, workitems, webhooks, search, variables, dependency_proxy, vulnerabilities. Already-active categories are listed in the response. Use this when a needed opt-in category is not currently exposed; omit `category` to inspect available categories, then call it with a category to activate that group for the current session. It changes only the session's tool registry, returns the active-tool summary, and does not change GitLab data. | 📖 |
 
 ---
 

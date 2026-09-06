@@ -134,6 +134,8 @@ command = lib.getExe inputs.gitlab-mcp.packages.${system}.default;
 - `--api-url` - GitLab API URL (`GITLAB_API_URL` 대체)
 - `--read-only=true` - 읽기 전용 모드 활성화 (`GITLAB_READ_ONLY_MODE` 대체, deprecated — `--permission-mode=readonly` 권장)
 - `--permission-mode` - 권한 수준: `readonly`, `modify`(삭제 도구 비활성), `full` (`GITLAB_PERMISSION_MODE` 대체, 기본값 `full`)
+- `--toolsets=all` - 지정한 툴셋 활성화 (`GITLAB_TOOLSETS` 대체, 미설정 시 lean `core` 기본값 사용)
+- `--tools=list_issues` - 개별 도구 추가 (`GITLAB_TOOLS` 대체)
 - `--use-wiki=true` - 위키 API 활성화 (`USE_GITLAB_WIKI` 대체, 레거시 — `GITLAB_TOOLSETS=wiki` 권장)
 - `--use-milestone=true` - 마일스톤 API 활성화 (`USE_MILESTONE` 대체, 레거시 — `GITLAB_TOOLSETS=milestones` 권장)
 - `--use-pipeline=true` - 파이프라인 API 활성화 (`USE_PIPELINE` 대체, 레거시 — `GITLAB_TOOLSETS=pipelines` 권장)

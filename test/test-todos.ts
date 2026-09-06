@@ -221,10 +221,11 @@ describe("GitLab todos tools", () => {
     });
   });
 
-  test("todo tools are visible in the default issues toolset", async () => {
+  test("todo tools are visible when the issues toolset is enabled", async () => {
     const tools = await listToolNames({
       GITLAB_API_URL: `${mockGitLabUrl}/api/v4`,
       GITLAB_PERSONAL_ACCESS_TOKEN: MOCK_TOKEN,
+      GITLAB_TOOLSETS: "issues",
     });
 
     assert.ok(tools.includes("list_todos"));
@@ -232,10 +233,11 @@ describe("GitLab todos tools", () => {
     assert.ok(tools.includes("mark_all_todos_done"));
   });
 
-  test("read-only mode keeps list_todos and hides todo mutations", async () => {
+  test("read-only mode keeps list_todos and hides todo mutations when issues are enabled", async () => {
     const tools = await listToolNames({
       GITLAB_API_URL: `${mockGitLabUrl}/api/v4`,
       GITLAB_PERSONAL_ACCESS_TOKEN: MOCK_TOKEN,
+      GITLAB_TOOLSETS: "issues",
       GITLAB_READ_ONLY_MODE: "true",
     });
 
