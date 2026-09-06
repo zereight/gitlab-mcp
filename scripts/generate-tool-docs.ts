@@ -140,6 +140,11 @@ const GROUP_META: Record<ToolsetId, GroupMeta> = {
     blurb:
       "AI-assisted vulnerability triage — list findings, inspect details, dismiss with reason, or confirm for remediation. Backed by the GitLab GraphQL API; requires GitLab Ultimate.",
   },
+  snippets: {
+    title: "Snippets",
+    blurb:
+      "Snippet CRUD — list, get (with optional file content), create, update, and delete personal or project snippets.",
+  },
 };
 
 const GROUP_ORDER: ToolsetId[] = [
@@ -163,6 +168,7 @@ const GROUP_ORDER: ToolsetId[] = [
   "search",
   "dependency_proxy",
   "vulnerabilities",
+  "snippets",
 ];
 
 // --- Helpers --------------------------------------------------------------

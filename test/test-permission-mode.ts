@@ -76,6 +76,7 @@ const DELETE_SAMPLE_TOOLS = [
   "delete_group_milestone",
   "delete_project_variable",
   "delete_webhook",
+  "delete_snippet",
 ];
 
 const MODIFY_SAMPLE_TOOLS = [
