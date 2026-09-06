@@ -25,6 +25,10 @@ Optional Netscape cookie file path for cookie-based authentication.
 
 Set to `true` to enable local browser-based OAuth2 authentication.
 
+The token is acquired lazily on the first tool call (not at startup). If no
+stored token exists, the browser opens then; transient refresh failures fail
+that call instead of opening a browser.
+
 ### `GITLAB_OAUTH_CLIENT_ID`
 
 Client ID for local OAuth2 authentication.

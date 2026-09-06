@@ -144,7 +144,7 @@ import { CookieJar, parse as parseCookie } from "tough-cookie";
 import { URL } from "node:url";
 import { z } from "zod";
 
-import { initializeOAuthClient, GitLabOAuth } from "./oauth.js";
+import { createGitLabOAuthClient, ensureOAuthToken, GitLabOAuth } from "./oauth.js";
 import { getPositionalCliCommand } from "./cli-command.js";
 import { runAuthCommandAsync } from "./auth-cli.js";
 import { createGitLabOAuthProvider } from "./oauth-proxy.js";
@@ -1401,15 +1401,10 @@ export function hasStatelessSessionId(req: {
  * This avoids background timers that cause issues with multiple instances.
  */
 async function ensureValidOAuthToken(): Promise<void> {
-  if (!oauthClient) return;
-
-  if (oauthClient.hasValidToken()) return;
-
   try {
-    logger.info("OAuth token expired or missing, refreshing...");
-    const freshToken = await oauthClient.getAccessToken();
-    OAUTH_ACCESS_TOKEN = freshToken;
-    logger.info("OAuth token refreshed successfully");
+    await ensureOAuthToken(oauthClient, OAUTH_ACCESS_TOKEN, token => {
+      OAUTH_ACCESS_TOKEN = token;
+    });
   } catch (error) {
     logger.error({ err: error }, "Failed to refresh OAuth token");
     throw error;
@@ -15697,10 +15692,12 @@ async function runServer() {
       logger.info("Using OAuth authentication...");
       try {
         const gitlabBaseUrl = GITLAB_API_URL.replace(/\/api\/v4$/, "");
-        const oauthResult = await initializeOAuthClient(gitlabBaseUrl);
-        oauthClient = oauthResult.client;
-        OAUTH_ACCESS_TOKEN = oauthResult.accessToken;
-        logger.info("OAuth authentication successful");
+        // Construct the client synchronously (no network). The token is
+        // acquired lazily on the first tool call via ensureValidOAuthToken,
+        // by which point the network is ready. This avoids blocking startup
+        // and avoids opening a browser on transient boot-time network errors.
+        oauthClient = createGitLabOAuthClient(gitlabBaseUrl);
+        logger.info("OAuth enabled; token acquired lazily on first use.");
       } catch (error) {
         logger.error({ err: error }, "OAuth authentication failed");
         process.exit(1);
