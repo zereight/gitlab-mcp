@@ -54,7 +54,7 @@ Create a new issue. Use this to open a new issue; use `update_issue` for an exis
 
 *📖 Read-only*
 
-List issues (default: created by current user; use scope='all' for all). Use this for a collection of resources; choose the corresponding get tool when you already know the single resource to inspect. It is read-only and does not mutate GitLab data; missing resources, invalid identifiers, insufficient permission, and rate limits are returned as errors. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented.
+List issues (default: created by current user; use scope='all' for all). Use this for issue management: list GitLab issues, optionally scoped with `project_id`. Use `get_issue` when the issue iid is already known and `my_issues` for issues assigned to the current user. It is read-only and paginated, requires issue read permission, and returns issue records or GitLab errors for invalid identifiers, missing resources, or rate limits.
 
 **Parameters**
 
@@ -86,7 +86,7 @@ List issues (default: created by current user; use scope='all' for all). Use thi
 
 *📖 Read-only*
 
-List issues assigned to the authenticated user. Use this for the specific operation described; choose a sibling tool when you need a different resource or lifecycle action. It is read-only and does not mutate GitLab data; missing resources, invalid identifiers, insufficient permission, and rate limits are returned as errors. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented.
+List issues assigned to the authenticated user. Use this for issue management: list issues assigned to the authenticated user. Use `list_issues` for project-wide or author-scoped listing and `get_issue` for one issue. It is read-only and paginated, requires authentication, and returns assigned issue records or permission/rate-limit errors.
 
 **Parameters**
 
@@ -108,7 +108,7 @@ List issues assigned to the authenticated user. Use this for the specific operat
 
 *📖 Read-only*
 
-Get details of a specific issue. Returns a slim milestone by default; set full_response=true for the complete milestone object. Use this for a known resource or result; choose the corresponding list or search tool when you need to discover multiple resources. It is read-only and does not mutate GitLab data; missing resources, invalid identifiers, insufficient permission, and rate limits are returned as errors. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented.
+Get details of a specific issue. Returns a slim milestone by default; set full_response=true for the complete milestone object. Use this for issue management: inspect one issue's fields; use `list_issues` or `my_issues` to discover issues first. It is read-only, requires issue read permission, and returns the issue or an error when the identifier is invalid, the issue is missing, or access is denied.
 
 **Parameters**
 
