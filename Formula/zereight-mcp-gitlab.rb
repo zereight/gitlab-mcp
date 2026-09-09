@@ -1,8 +1,8 @@
 class ZereightMcpGitlab < Formula
   desc "GitLab Model Context Protocol server for AI clients"
   homepage "https://github.com/zereight/gitlab-mcp"
-  url "https://registry.npmjs.org/@zereight/mcp-gitlab/-/mcp-gitlab-2.1.60.tgz"
-  sha256 "0ad45931fd8ce55855a4e4fcc3c2b0d63b048540bf7d87695fa2956ec5e1f076"
+  url "https://registry.npmjs.org/@zereight/mcp-gitlab/-/mcp-gitlab-2.1.61.tgz"
+  sha256 "90d690f1e86e71f114dce57a89853f30d8684f42d9f0f87da319cdd61d0cce27"
   license "MIT"
 
   depends_on "node"
