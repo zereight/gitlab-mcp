@@ -14,6 +14,8 @@ Project/namespace listing, member queries, group iterations, and server health.
 - [`verify_namespace`](#verify_namespace) — 📖 Read-only
 - [`list_group_projects`](#list_group_projects) — 📖 Read-only
 - [`list_group_iterations`](#list_group_iterations) — 📖 Read-only
+- [`get_group_iteration`](#get_group_iteration) — 📖 Read-only
+- [`update_group_iteration`](#update_group_iteration) — ✏️ Writes
 - [`health_check`](#health_check) — 📖 Read-only
 
 ---
@@ -215,6 +217,36 @@ List group iterations with filtering options. Use this for a collection of resou
 | `updated_after` | string |  | Return only iterations updated after the given datetime. Expected in ISO 8601 format (2019-03-15T08:00:00Z). |
 | `page` | number |  | Page number for pagination (default: 1) |
 | `per_page` | number |  | Number of items per page (max: 100, default: 20) |
+
+### `get_group_iteration`
+
+*📖 Read-only*
+
+Get a group iteration by ID, IID, or GraphQL GID. Use this for a known resource or result; choose the corresponding list or search tool when you need to discover multiple resources. It is read-only and does not mutate GitLab data; missing resources, invalid identifiers, insufficient permission, and rate limits are returned as errors. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented.
+
+**Parameters**
+
+| Parameter | Type | Required | Description |
+|---|---|:-:|---|
+| `group_id` | string | ✓ | Group ID or URL-encoded path |
+| `iteration_id` | string | ✓ | Iteration ID, IID, or GraphQL GID |
+
+### `update_group_iteration`
+
+*✏️ Writes*
+
+Update a manual group iteration's title, description, or dates. Use this for an existing resource; choose the corresponding create tool for a new resource and a note tool for discussion-only text. It changes remote GitLab state and requires the necessary project or group permission; GitLab returns validation, conflict, permission, or rate-limit errors instead of silently applying an invalid request. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented.
+
+**Parameters**
+
+| Parameter | Type | Required | Description |
+|---|---|:-:|---|
+| `group_id` | string | ✓ | Group ID or URL-encoded path |
+| `iteration_id` | string | ✓ | Iteration ID, IID, or GraphQL GID |
+| `title` | string |  | New iteration title |
+| `description` | string \| null |  | New iteration description; null clears it |
+| `start_date` | string |  | New start date in YYYY-MM-DD format |
+| `due_date` | string |  | New due date in YYYY-MM-DD format |
 
 ### `health_check`
 

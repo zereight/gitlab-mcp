@@ -3986,6 +3986,24 @@ export const ListGroupIterationsSchema = z
   })
   .merge(PaginationOptionsSchema);
 
+export const GetGroupIterationSchema = z.object({
+  group_id: z.string().min(1).describe("Group ID or URL-encoded path"),
+  iteration_id: z.string().min(1).describe("Iteration ID, IID, or GraphQL GID"),
+});
+
+export const UpdateGroupIterationSchema = z.object({
+  group_id: z.string().min(1).describe("Group ID or URL-encoded path"),
+  iteration_id: z.string().min(1).describe("Iteration ID, IID, or GraphQL GID"),
+  title: z.string().optional().describe("New iteration title"),
+  description: z
+    .string()
+    .nullable()
+    .optional()
+    .describe("New iteration description; null clears it"),
+  start_date: z.string().optional().describe("New start date in YYYY-MM-DD format"),
+  due_date: z.string().optional().describe("New due date in YYYY-MM-DD format"),
+});
+
 // Events API schemas
 export const GitLabEventAuthorSchema = z.object({
   id: z.coerce.string(),
@@ -4238,6 +4256,8 @@ export type ListGroupMergeRequestsOptions = z.infer<typeof ListGroupMergeRequest
 export type GitLabProjectMember = z.infer<typeof GitLabProjectMemberSchema>;
 export type GroupIteration = z.infer<typeof GroupIteration>;
 export type ListGroupIterationsOptions = z.infer<typeof ListGroupIterationsSchema>;
+export type GetGroupIterationOptions = z.infer<typeof GetGroupIterationSchema>;
+export type UpdateGroupIterationOptions = z.infer<typeof UpdateGroupIterationSchema>;
 
 // Draft Notes type exports
 export type ListDraftNotesOptions = z.infer<typeof ListDraftNotesSchema>;
@@ -4802,6 +4822,12 @@ export const UpdateWorkItemSchema = WorkItemParamsSchema.extend({
     .describe(
       "Iteration ID (e.g. 'gid://gitlab/Iteration/123' or numeric ID). Use list_group_iterations to find available iterations."
     ),
+  remove_iteration: z.coerce
+    .boolean()
+    .optional()
+    .describe(
+      "Set to true to remove the work item's iteration association. Mutually exclusive with iteration_id."
+    ),
   confidential: z.coerce.boolean().optional().describe("Set confidentiality"),
   linked_items_to_add: z
     .array(
@@ -4864,6 +4890,8 @@ export const UpdateWorkItemSchema = WorkItemParamsSchema.extend({
     .enum(["TRIGGERED", "ACKNOWLEDGED", "RESOLVED", "IGNORED"])
     .optional()
     .describe("Incident only: set escalation status"),
+}).refine(args => !(args.remove_iteration && args.iteration_id !== undefined), {
+  message: "Provide either iteration_id or remove_iteration, not both",
 });
 
 export const ConvertWorkItemTypeSchema = z.object({
