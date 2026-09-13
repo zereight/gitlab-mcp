@@ -15644,6 +15644,7 @@ async function startStreamableHTTPServer(): Promise<void> {
     }
     res.status(isHealthy ? 200 : 503).json({
       status: isHealthy ? "healthy" : "degraded",
+      version: SERVER_VERSION,
       activeSessions,
       maxSessions: MAX_SESSIONS,
       uptime: process.uptime(),
