@@ -780,7 +780,7 @@ Register the skill directory in your AI client to get optimal tool usage guidanc
 195. `list_group_iterations` - List group iterations with filtering options
 196. `upload_markdown` - Upload a file for use in markdown content
 197. `download_attachment` - Download an uploaded file from a project (images returned as base64; use local_path to save to disk)
-198. `health_check` - Verify server status and authentication. When authenticated, also reports the GitLab instance version from GET /api/v4/version (version, revision, enterprise). Version lookup failures do not fail the health check — those fields are omitted.
+198. `health_check` - Verify server status and authentication. Always reports the MCP server version (mcp_server_version). When authenticated, also reports the GitLab instance version from GET /api/v4/version (version, revision, enterprise). Version lookup failures do not fail the health check — those fields are omitted.
 199. `list_events` - List events for the authenticated user (before/after: YYYY-MM-DD)
 200. `get_project_events` - List events for a project (before/after: YYYY-MM-DD)
 201. `list_releases` - List all releases for a project

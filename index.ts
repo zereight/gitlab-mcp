@@ -14090,6 +14090,7 @@ async function handleToolCall(params: any) {
                 status: authenticated ? "ok" : "error",
                 authenticated,
                 gitlab_url: getEffectiveApiUrl(),
+                mcp_server_version: SERVER_VERSION,
                 ...(versionMetadata ?? {}),
               }),
             },
