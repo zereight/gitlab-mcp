@@ -2409,7 +2409,11 @@ async function markAllTodosDone(): Promise<void> {
  */
 function appendMergeRequestFilters(url: URL, options: Record<string, unknown>): void {
   Object.entries(options).forEach(([key, value]) => {
-    if (value === undefined) {
+    if (
+      value === undefined ||
+      value === "" ||
+      (Array.isArray(value) && value.length === 0)
+    ) {
       return;
     }
 

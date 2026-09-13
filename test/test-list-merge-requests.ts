@@ -114,6 +114,49 @@ describe('list_merge_requests', () => {
     assert.strictEqual(mrs.length, 2, 'Should return 2 mock MRs');
   });
 
+  test('omits empty optional filters instead of sending mutually exclusive query parameters', async () => {
+    let capturedUrl: string | undefined;
+    mockGitLab.addMockHandler('get', '/merge_requests', (req, res) => {
+      capturedUrl = req.originalUrl;
+      const hasEmptyFilter = Object.values(req.query).some(value => value === '');
+
+      if (hasEmptyFilter) {
+        res.status(400).json({ message: 'empty filters are invalid' });
+        return;
+      }
+
+      res.json([]);
+    });
+
+    try {
+      const mrs = await callListMergeRequests(
+        {
+          assignee_id: '',
+          assignee_username: '',
+          author_id: '',
+          author_username: '',
+          reviewer_id: '',
+          reviewer_username: '',
+          milestone: '',
+          search: '',
+          target_branch: '',
+          source_branch: '',
+          labels: [],
+          approved_by_usernames: [],
+        },
+        {
+          GITLAB_API_URL: `${mockGitLabUrl}/api/v4`,
+          GITLAB_PERSONAL_ACCESS_TOKEN: MOCK_TOKEN,
+        }
+      );
+
+      assert.deepStrictEqual(mrs, []);
+      assert.strictEqual(capturedUrl, '/api/v4/merge_requests');
+    } finally {
+      mockGitLab.clearCustomHandlers();
+    }
+  });
+
   test('forwards approved_by_usernames in bracket-array form', async () => {
     let capturedUrl: string | undefined;
     mockGitLab.addMockHandler('get', '/merge_requests', (req, res) => {
