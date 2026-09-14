@@ -86,8 +86,8 @@ When adding a new tool:
 1. Define the input schema in `schemas.ts` — use `z.object({…}).describe(...)` on each field; the generated docs depend on those descriptions.
 2. Register it in `tools/registry.ts` — add to `allTools` with a `name`, `description`, and `inputSchema`, then add the name to the appropriate `TOOLSET_DEFINITIONS` entry.
 3. Implement the dispatch case in `index.ts` under the relevant `switch` block.
-4. Add a test under `test/`.
-5. Regenerate the [Tools Reference](tools/index.md) (`make tools-docs`).
+4. Add a test under `test/` that actually calls the tool (`callTool("name")` or equivalent).
+5. Regenerate the [Tools Reference](tools/index.md) and [tool invocation coverage](reference/tool-coverage.md) (`make tools-docs`).
 
 ## Testing
 
@@ -169,7 +169,7 @@ This site is generated from `docs/` with
 ```bash
 make serve         # preview locally at http://127.0.0.1:8000/gitlab-mcp/
 make build         # strict build (same as CI)
-make tools-docs    # regenerate per-group tool pages from tools/registry.ts
+make tools-docs    # regenerate tool pages + docs/reference/tool-coverage.md
 ```
 
 **When changing tools, schemas, or toolsets:**
@@ -184,7 +184,7 @@ make tools-docs
 and commit the regenerated files alongside your code change. The docs CI
 workflow rebuilds and deploys the site on every push to `main` that touches
 `docs/`, `mkdocs.yml`, `requirements-docs.txt`, `tools/registry.ts`,
-`schemas.ts`, or `scripts/generate-tool-docs.ts`.
+`schemas.ts`, `scripts/generate-tool-docs.ts`, or `scripts/generate-tool-coverage.ts`.
 
 **Hosted site (maintainers, one-time):** GitHub Pages must use
 **Build and deployment → Source: GitHub Actions**, not deploy from `main`.

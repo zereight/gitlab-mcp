@@ -211,9 +211,9 @@ Current test coverage:
 - ⏭️ Token refresh flow (requires valid refresh token)
 
 ### MCP Tools
-- ✅ All read-only operations
-- ⏭️ Write operations (would modify GitLab data)
-- ⏭️ Destructive operations (would delete GitLab data)
+See [tool invocation coverage](../docs/reference/tool-coverage.md) (generated).
+A tool counts only when a test sends it through MCP (`callTool` / `tools/call`).
+`test:live` is a REST smoke check, not tool coverage.
 
 ## Future Improvements
 

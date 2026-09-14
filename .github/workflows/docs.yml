@@ -10,6 +10,7 @@ on:
       - "tools/registry.ts"
       - "schemas.ts"
       - "scripts/generate-tool-docs.ts"
+      - "scripts/generate-tool-coverage.ts"
       - ".github/workflows/docs.yml"
   workflow_dispatch:
 

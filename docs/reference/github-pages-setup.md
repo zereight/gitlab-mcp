@@ -19,7 +19,8 @@ source (this is **not** stored in git):
 4. Trigger a deploy:
    - **Actions → Deploy Documentation → Run workflow**, or
    - Push a commit that touches `docs/`, `mkdocs.yml`, `requirements-docs.txt`,
-     `tools/registry.ts`, `schemas.ts`, or `scripts/generate-tool-docs.ts`.
+     `tools/registry.ts`, `schemas.ts`, `scripts/generate-tool-docs.ts`,
+     or `scripts/generate-tool-coverage.ts`.
 
 ## How deployment works
 
