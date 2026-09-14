@@ -1,38 +1,63 @@
 import { z } from "zod";
-import { zodToJsonSchema } from "zod-to-json-schema";
 
 /**
  * Convert a Zod schema to JSON Schema, fixing nullable/optional fields
  * so they are not marked as required, and extracting required fields from the Zod schema.
  */
 export const toJSONSchema = (schema: z.ZodTypeAny) => {
-  const jsonSchema = zodToJsonSchema(schema, { $refStrategy: "none" });
+  // Zod 4 native conversion. (zod-to-json-schema only understands Zod 3
+  // internals and silently emits an empty schema for Zod 4 schemas.)
+  // draft-7 keeps output closest to the previous converter; io:"input"
+  // describes tool arguments (preprocess/coerce evaluated input-side).
+  const jsonSchema = z.toJSONSchema(schema, { target: "draft-7", io: "input" }) as any;
 
+  // Public classes only (no _def access): works on both Zod 3 and Zod 4,
+  // whose internals differ (_def.typeName vs _zod.def.type).
   const isOptionalLikeField = (zodType: z.ZodTypeAny): boolean => {
-    const def = zodType._def as any;
-    const typeName = def?.typeName;
-
-    if (["ZodOptional", "ZodNullable", "ZodDefault", "ZodCatch"].includes(typeName)) {
+    if (
+      zodType instanceof z.ZodOptional ||
+      zodType instanceof z.ZodNullable ||
+      zodType instanceof z.ZodDefault ||
+      zodType instanceof z.ZodCatch
+    ) {
       return true;
     }
 
-    if (typeName === "ZodEffects") {
-      return isOptionalLikeField(def.schema);
+    // ZodEffects (v3 preprocess/refine/transform): unwrap the inner schema.
+    const ZodEffects = (z as any).ZodEffects;
+    if (
+      ZodEffects &&
+      zodType instanceof ZodEffects &&
+      typeof (zodType as any).innerType === "function"
+    ) {
+      return isOptionalLikeField((zodType as any).innerType());
     }
 
-    if (typeName === "ZodBranded") {
-      return isOptionalLikeField(def.type);
+    // ZodBranded: unwrap to the branded schema.
+    const ZodBranded = (z as any).ZodBranded;
+    if (
+      ZodBranded &&
+      zodType instanceof ZodBranded &&
+      typeof (zodType as any).unwrap === "function"
+    ) {
+      return isOptionalLikeField((zodType as any).unwrap());
     }
 
-    if (typeName === "ZodPipeline") {
-      return isOptionalLikeField(def.in);
+    // Pipes (v3 ZodPipeline / v4 ZodPipe/ZodPreprocess from preprocess/transform):
+    // optional-like when either side is optional-like.
+    const maybeIn = (zodType as any).in;
+    const maybeOut = (zodType as any).out;
+    if (maybeIn instanceof z.ZodType && maybeOut instanceof z.ZodType) {
+      return isOptionalLikeField(maybeIn) || isOptionalLikeField(maybeOut);
     }
 
     return false;
   };
 
-  // Extract required fields from Zod schema
-  const zodRequiredFields = (() => {
+  // Extract required fields from Zod schema (authoritative for the root object:
+  // the native converter marks defaulted fields as required, we keep the
+  // previous convention that defaulted/optional-like fields are not required).
+  const { zodRequiredFields, hasAuthoritativeRequired } = (() => {
     if (schema instanceof z.ZodObject) {
       const shape = schema.shape;
       const requiredFields: string[] = [];
@@ -45,9 +70,9 @@ export const toJSONSchema = (schema: z.ZodTypeAny) => {
         }
       });
 
-      return requiredFields;
+      return { zodRequiredFields: requiredFields, hasAuthoritativeRequired: true };
     }
-    return [];
+    return { zodRequiredFields: [] as string[], hasAuthoritativeRequired: false };
   })();
 
   // Post-process to fix nullable/optional fields and strip verbose keys
@@ -60,15 +85,12 @@ export const toJSONSchema = (schema: z.ZodTypeAny) => {
 
       // If this object has properties, process them
       if (obj.properties) {
-        const requiredSet = new Set<string>(obj.required || []);
-
-        // Add required fields extracted from Zod schema (only for root object)
-        if (isRoot) {
-          zodRequiredFields.forEach(field => {
-            if (obj.properties[field]) {
-              requiredSet.add(field);
-            }
-          });
+        let requiredSet: Set<string>;
+        if (isRoot && hasAuthoritativeRequired) {
+          // Zod shape is the source of truth at root level.
+          requiredSet = new Set(zodRequiredFields.filter(field => obj.properties[field]));
+        } else {
+          requiredSet = new Set<string>(obj.required || []);
         }
 
         Object.keys(obj.properties).forEach(key => {
@@ -79,6 +101,11 @@ export const toJSONSchema = (schema: z.ZodTypeAny) => {
           if (prop.anyOf && prop.anyOf.some((t: any) => t.type === "null")) {
             requiredSet.delete(key);
           } else if (Array.isArray(prop.type) && prop.type.includes("null")) {
+            requiredSet.delete(key);
+          }
+
+          // Fields with defaults are not required (previous converter semantics).
+          if (prop && typeof prop === "object" && "default" in prop) {
             requiredSet.delete(key);
           }
 
