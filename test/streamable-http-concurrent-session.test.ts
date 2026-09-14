@@ -176,6 +176,22 @@ describe("Streamable HTTP health check capacity logging", { timeout: 20_000 }, (
     if (mockGitLab) await mockGitLab.stop();
   });
 
+  test("reports server version when healthy", async () => {
+    const response = await fetch(`${baseUrl}/health`);
+    const body = (await response.json()) as {
+      status: string;
+      version: string;
+      activeSessions: number;
+      maxSessions: number;
+      uptime: number;
+    };
+
+    assert.strictEqual(response.status, 200);
+    assert.strictEqual(body.status, "healthy");
+    assert.strictEqual(body.version, PACKAGE_VERSION);
+    assert.strictEqual(body.activeSessions, 0);
+  });
+
   test("logs active session capacity when health check is degraded", async () => {
     const client = new CustomHeaderClient({ Authorization: `Bearer ${MOCK_TOKEN}` });
     await client.connect(mcpUrl);
