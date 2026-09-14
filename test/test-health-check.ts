@@ -1,9 +1,17 @@
 import { describe, test, before, after } from "node:test";
 import assert from "node:assert";
 import { spawn } from "child_process";
+import fs from "node:fs";
+import path, { dirname } from "node:path";
+import { fileURLToPath } from "node:url";
 import { MockGitLabServer, findMockServerPort } from "./utils/mock-gitlab-server.js";
 
 const MOCK_TOKEN = "glpat-mock-token-12345";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+const packageJsonPath = path.resolve(__dirname, "../package.json");
+const PACKAGE_VERSION = JSON.parse(fs.readFileSync(packageJsonPath, "utf8")).version;
 
 function createMockGitLabServer(port: number): MockGitLabServer {
   return new MockGitLabServer({
@@ -88,6 +96,7 @@ describe("When health_check runs", () => {
 
         assert.equal(result.status, "ok");
         assert.equal(result.authenticated, true);
+        assert.equal(result.mcp_server_version, PACKAGE_VERSION);
         assert.equal(result.version, "18.3.1-ee");
         assert.equal(result.revision, "abc1234");
         assert.equal(result.enterprise, true);
@@ -111,6 +120,7 @@ describe("When health_check runs", () => {
 
         assert.equal(result.status, "ok");
         assert.equal(result.authenticated, true);
+        assert.equal(result.mcp_server_version, PACKAGE_VERSION);
         assert.equal("version" in result, false);
         assert.equal("revision" in result, false);
         assert.equal("enterprise" in result, false);

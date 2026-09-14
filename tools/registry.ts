@@ -1193,7 +1193,7 @@ export const allTools = [
   {
     name: "health_check",
     description:
-      "Verify server status and authentication. When authenticated, also reports the GitLab instance version from GET /api/v4/version (version, revision, enterprise). Version lookup failures do not fail the health check — those fields are omitted.",
+      "Verify server status and authentication. Always reports the MCP server version (mcp_server_version). When authenticated, also reports the GitLab instance version from GET /api/v4/version (version, revision, enterprise). Version lookup failures do not fail the health check — those fields are omitted.",
     inputSchema: toJSONSchema(HealthCheckSchema),
   },
   {

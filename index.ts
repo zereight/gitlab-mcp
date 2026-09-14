@@ -14090,6 +14090,7 @@ async function handleToolCall(params: any) {
                 status: authenticated ? "ok" : "error",
                 authenticated,
                 gitlab_url: getEffectiveApiUrl(),
+                mcp_server_version: SERVER_VERSION,
                 ...(versionMetadata ?? {}),
               }),
             },
@@ -15643,6 +15644,7 @@ async function startStreamableHTTPServer(): Promise<void> {
     }
     res.status(isHealthy ? 200 : 503).json({
       status: isHealthy ? "healthy" : "degraded",
+      version: SERVER_VERSION,
       activeSessions,
       maxSessions: MAX_SESSIONS,
       uptime: process.uptime(),
