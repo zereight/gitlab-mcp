@@ -25,6 +25,7 @@ MR lifecycle — create, update, merge, approve, plus diff/conflict inspection a
 - [`list_group_merge_requests`](#list_group_merge_requests) — 📖 Read-only
 - [`get_branch_diffs`](#get_branch_diffs) — 📖 Read-only
 - [`mr_discussions`](#mr_discussions) — 📖 Read-only
+- [`get_merge_request_discussion`](#get_merge_request_discussion) — 📖 Read-only
 - [`create_merge_request_note`](#create_merge_request_note) — ✏️ Writes
 - [`update_merge_request_note`](#update_merge_request_note) — ✏️ Writes
 - [`delete_merge_request_note`](#delete_merge_request_note) — ✏️ Writes
@@ -428,6 +429,20 @@ List discussion items for a merge request. Use this to list complete discussion 
 | `merge_request_iid` | string | ✓ | The IID of a merge request |
 | `page` | number |  | Page number for pagination (default: 1) |
 | `per_page` | number |  | Number of items per page (max: 100, default: 20) |
+
+### `get_merge_request_discussion`
+
+*📖 Read-only*
+
+Get a single discussion item for a merge request. Use this to fetch one known merge request discussion by discussion identifier; use `mr_discussions` for a collection and `get_merge_request_note` for a flat note. It is read-only and returns the discussion item or an error for an invalid identifier, missing discussion, or insufficient permission.
+
+**Parameters**
+
+| Parameter | Type | Required | Description |
+|---|---|:-:|---|
+| `project_id` | string | ✓ | Project ID or complete URL-encoded path to project |
+| `merge_request_iid` | string | ✓ | The IID of a merge request |
+| `discussion_id` | string | ✓ | The ID of a thread |
 
 ### `create_merge_request_note`
 

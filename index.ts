@@ -602,6 +602,7 @@ import {
   type GitLabTagSignature,
   GetMergeRequestNotesSchema,
   GetMergeRequestNoteSchema,
+  GetMergeRequestDiscussionSchema,
   DeleteMergeRequestDiscussionNoteSchema,
   ResolveMergeRequestThreadSchema,
   GetWorkItemSchema,
@@ -4970,6 +4971,28 @@ async function getMergeRequestNote(
   await handleGitLabError(response);
   const data = await response.json();
   return GitLabDiscussionNoteSchema.parse(data);
+}
+
+async function getMergeRequestDiscussion(
+  projectId: string,
+  mergeRequestIid: string,
+  discussionId: string
+): Promise<GitLabDiscussion> {
+  projectId = decodeURIComponent(projectId); // Decode project ID
+  const url = new URL(
+    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(
+      getEffectiveProjectId(projectId)
+    )}/merge_requests/${encodeGitLabPathSegment(mergeRequestIid)}/discussions/${encodeGitLabPathSegment(discussionId)}`
+  );
+
+  const response = await fetch(url.toString(), {
+    ...getFetchConfig(),
+    method: "GET",
+  });
+
+  await handleGitLabError(response);
+  const data = await response.json();
+  return GitLabDiscussionSchema.parse(data);
 }
 
 async function getMergeRequestNotes(
@@ -11218,6 +11241,19 @@ async function handleToolCall(params: any) {
 
         return {
           content: [{ type: "text", text: JSON.stringify(note) }],
+        };
+      }
+
+      case "get_merge_request_discussion": {
+        const args = GetMergeRequestDiscussionSchema.parse(params.arguments);
+        const discussion = await getMergeRequestDiscussion(
+          args.project_id,
+          args.merge_request_iid,
+          args.discussion_id
+        );
+
+        return {
+          content: [{ type: "text", text: JSON.stringify(discussion) }],
         };
       }
 

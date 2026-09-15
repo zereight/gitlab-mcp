@@ -1910,6 +1910,11 @@ export const GetMergeRequestNoteSchema = ProjectParamsSchema.extend({
   note_id: z.coerce.string().describe("The ID of a thread note"),
 });
 
+export const GetMergeRequestDiscussionSchema = ProjectParamsSchema.extend({
+  merge_request_iid: z.coerce.string().describe("The IID of a merge request"),
+  discussion_id: z.coerce.string().describe("The ID of a thread"),
+});
+
 // Input schema for updating merge request notes
 export const UpdateMergeRequestNoteSchema = ProjectParamsSchema.extend({
   merge_request_iid: z.coerce.string().describe("The IID of a merge request"),
