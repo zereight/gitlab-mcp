@@ -7,6 +7,33 @@ Use an API URL, not the GitLab web root:
 - `https://gitlab.com/api/v4`
 - `https://your-gitlab.example.com/api/v4`
 
+## Response masking
+
+### `GITLAB_MASKING_ENABLED`
+
+Optional. Set to `true` to mask sensitive text in GitLab tool results and
+returned error messages. The default is `false`; when disabled, the existing
+response path is used and no masking configuration file is read.
+
+### `GITLAB_MASKING_CONFIG`
+
+Optional path to a JSON masking configuration. Relative paths are resolved from
+`GITLAB_MASKING_WORKSPACE_DIR` (or the server process working directory). When
+unset, the server looks for `.gitlab-mcp-mask.json` in that directory. Missing
+default files are allowed and only the built-in rules are used.
+
+### `GITLAB_MASKING_WORKSPACE_DIR`
+
+Optional directory used to resolve the masking configuration. This does not
+change the process working directory. For local stdio use, set it to the
+workspace directory when the MCP client does not set the server process cwd.
+
+The config file supports `keyword` rules for literal replacements and `regex`
+rules for pattern replacements. See `.gitlab-mcp-mask.example.json` in the
+repository. When masking is enabled, built-in rules cover GitLab token formats,
+IPv4, and IPv6; each can be disabled or given a custom replacement under
+`builtins`. Rules are loaded at startup; invalid configured files fail startup.
+
 ## Authentication
 
 ### `GITLAB_PERSONAL_ACCESS_TOKEN`

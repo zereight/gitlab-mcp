@@ -6,6 +6,7 @@ build
 .env.local
 .env.test
 .secrets
+.gitlab-mcp-mask.json
 coverage/
 *.log
 # ai

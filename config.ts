@@ -41,6 +41,16 @@ export const IS_OLD = getConfig("is-old", "GITLAB_IS_OLD") === "true";
 
 export const GITLAB_READ_ONLY_MODE = getConfig("read-only", "GITLAB_READ_ONLY_MODE") === "true";
 
+// Optional response masking. Disabled by default so existing deployments keep
+// the exact original response behavior unless explicitly opted in.
+export const GITLAB_MASKING_ENABLED =
+  getConfig("masking-enabled", "GITLAB_MASKING_ENABLED") === "true";
+export const GITLAB_MASKING_CONFIG = getConfig("masking-config", "GITLAB_MASKING_CONFIG");
+export const GITLAB_MASKING_WORKSPACE_DIR = getConfig(
+  "masking-workspace-dir",
+  "GITLAB_MASKING_WORKSPACE_DIR"
+);
+
 export type GitLabPermissionMode = "readonly" | "modify" | "full";
 const PERMISSION_MODES: readonly GitLabPermissionMode[] = ["readonly", "modify", "full"];
 export const GITLAB_PERMISSION_MODE: GitLabPermissionMode = (() => {
