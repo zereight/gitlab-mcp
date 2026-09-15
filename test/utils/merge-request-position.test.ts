@@ -62,7 +62,7 @@ describe("When omitIncompleteMergeRequestPosition runs", () => {
               position_type: "text",
             }),
           }),
-        /Expected string, received null/
+        /expected string, received null/i
       );
     });
   });

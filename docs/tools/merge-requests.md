@@ -528,10 +528,10 @@ Update a discussion note on a merge request. Use this for an existing resource; 
 
 | Parameter | Type | Required | Description |
 |---|---|:-:|---|
-| `project_id` | string |  | Project ID or complete URL-encoded path to project |
-| `merge_request_iid` | string |  | The IID of a merge request |
-| `discussion_id` | string |  | The ID of a thread |
-| `note_id` | string |  | The ID of a thread note |
+| `project_id` | string | ✓ | Project ID or complete URL-encoded path to project |
+| `merge_request_iid` | string | ✓ | The IID of a merge request |
+| `discussion_id` | string | ✓ | The ID of a thread |
+| `note_id` | string | ✓ | The ID of a thread note |
 | `body` | string |  | The content of the note or reply |
 | `resolved` | boolean |  | Resolve or unresolve the note |
 

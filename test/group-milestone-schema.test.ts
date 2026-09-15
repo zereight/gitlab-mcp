@@ -23,21 +23,23 @@ test("group milestone response keeps group_id and rejects missing group_id", () 
   assert.equal(parsed.group_id, "16");
   assert.equal("project_id" in parsed, false);
 
-  // Project schema coerces missing project_id to "undefined" — why group schema exists
-  const coerced = GitLabMilestonesSchema.parse({
-    id: 12,
-    iid: 3,
-    group_id: 16,
-    title: "10.0",
-    description: null,
-    due_date: null,
-    start_date: null,
-    state: "active",
-    updated_at: "2013-10-02T09:24:18Z",
-    created_at: "2013-10-02T09:24:18Z",
-    expired: false,
-  });
-  assert.equal(coerced.project_id, "undefined");
+  // Project schema rejects a group payload (missing project_id) — why group schema exists.
+  // (Zod 3 coerced the missing key to the string "undefined"; Zod 4 rejects it.)
+  assert.throws(() =>
+    GitLabMilestonesSchema.parse({
+      id: 12,
+      iid: 3,
+      group_id: 16,
+      title: "10.0",
+      description: null,
+      due_date: null,
+      start_date: null,
+      state: "active",
+      updated_at: "2013-10-02T09:24:18Z",
+      created_at: "2013-10-02T09:24:18Z",
+      expired: false,
+    })
+  );
 });
 
 test("group milestone issues schema accepts page and per_page", () => {
