@@ -879,7 +879,13 @@ function createServer(): McpServer {
         { tool: toolName, event: "tool_call_done", durationMs },
         `tool_call_done: ${toolName} (${durationMs}ms)`
       );
-      return maskingEngine ? maskingEngine.maskToolResult(result) : result;
+      const isPlainTextResult =
+        toolName === "get_pipeline_job_output" ||
+        toolName === "get_job_artifact_file" ||
+        (toolName === "download_release_asset" && !IS_REMOTE);
+      return maskingEngine
+        ? maskingEngine.maskToolResult(result, { textFormat: isPlainTextResult ? "plain" : "json" })
+        : result;
     };
 
     const logError = (error: unknown) => {
@@ -898,17 +904,54 @@ function createServer(): McpServer {
     };
 
     try {
-      const maskingScope = maskingPolicyResolver
-        ? getManagedMaskingProjectIds(
-            allTools.find(tool => tool.name === toolName)?.inputSchema,
-            request.params.arguments,
-            maskingPolicyResolver.managed ? () => getEffectiveProjectId("") : undefined
-          )
+      const authData =
+        (REMOTE_AUTHORIZATION || GITLAB_MCP_OAUTH) && sessionId
+          ? authBySession[sessionId]
+          : undefined;
+      const sessionContext: SessionAuth | undefined = authData
+        ? {
+            sessionId,
+            header: authData.header,
+            token: authData.token,
+            lastUsed: authData.lastUsed,
+            apiUrl: authData.apiUrl,
+            publicBaseUrl: authData.publicBaseUrl,
+            allowedProjectIds: authData.allowedProjectIds,
+          }
         : undefined;
-      maskingEngine = maskingPolicyResolver?.select({
-        gitlabInstance: getEffectiveApiUrl(),
-        ...maskingScope,
-      });
+      const selectMaskingPolicy = () => {
+        const isToolDiscovery = toolName === "discover_tools";
+        const inputSchema = allTools.find(tool => tool.name === toolName)?.inputSchema;
+        // Optional project fields can be filters on global queries. Only supply
+        // the default when the corresponding handler actually uses it.
+        const usesDefaultProject =
+          inputSchema?.required?.includes("project_id") ||
+          toolName === "get_file_contents" ||
+          (toolName === "my_issues" &&
+            (Boolean(GITLAB_PROJECT_ID) || getEffectiveAllowedProjectIds().length > 0)) ||
+          ((toolName === "list_issues" || toolName === "list_merge_requests") &&
+            ENABLE_STRICT_PROJECT_SCOPE &&
+            getEffectiveAllowedProjectIds().length > 0);
+        const maskingScope = maskingPolicyResolver
+          ? getManagedMaskingProjectIds(
+              inputSchema,
+              request.params.arguments,
+              maskingPolicyResolver.managed && usesDefaultProject
+                ? () => getEffectiveProjectId("")
+                : undefined
+            )
+          : undefined;
+        return maskingPolicyResolver?.select({
+          gitlabInstance: getEffectiveApiUrl(),
+          ...maskingScope,
+          // Tool discovery does not access GitLab data and must remain available
+          // under the default managed-policy setting.
+          allowBuiltinForUnscoped: isToolDiscovery,
+        });
+      };
+      maskingEngine = sessionContext
+        ? sessionAuthStore.run(sessionContext, selectMaskingPolicy)
+        : selectMaskingPolicy();
 
       // Handle discover_tools meta-tool directly (needs access to mcpServer and filteredTools)
       if (toolName === "discover_tools") {
@@ -1035,18 +1078,9 @@ function createServer(): McpServer {
         request.params.arguments = cleanArgs;
       }
 
-      if ((REMOTE_AUTHORIZATION || GITLAB_MCP_OAUTH) && sessionId && authBySession[sessionId]) {
-        const authData = authBySession[sessionId];
-        const sessionContext: SessionAuth = {
-          sessionId,
-          header: authData.header,
-          token: authData.token,
-          lastUsed: authData.lastUsed,
-          apiUrl: authData.apiUrl,
-          publicBaseUrl: authData.publicBaseUrl,
-          allowedProjectIds: authData.allowedProjectIds,
-        };
-        // Run the handler within the retrieved context
+      if (sessionContext) {
+        // Policy selection and the tool handler must use the same request-local
+        // API URL and project allowlist.
         const result = await sessionAuthStore.run(sessionContext, () =>
           handleToolCall(request.params)
         );

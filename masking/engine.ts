@@ -61,7 +61,10 @@ export interface MaskingEngine {
   readonly configPath?: string;
   maskText(text: string): string;
   maskValue<T>(value: T): T;
-  maskToolResult<T extends Record<string, unknown>>(result: T): T;
+  maskToolResult<T extends Record<string, unknown>>(
+    result: T,
+    options?: { textFormat?: "plain" | "json" }
+  ): T;
   maskError(error: unknown): unknown;
 }
 
@@ -83,7 +86,8 @@ const BUILTIN_RULES: MaskRule[] = [
   {
     id: "ipv6",
     type: "regex",
-    pattern: "(?<![A-Za-z0-9:])(?:[0-9A-Fa-f]{1,4}:){2,7}[0-9A-Fa-f]{0,4}(?![A-Za-z0-9:])",
+    pattern:
+      "(?<![0-9A-Fa-f:])(?:(?:[0-9A-Fa-f]{1,4}:){7}[0-9A-Fa-f]{1,4}|(?:[0-9A-Fa-f]{1,4}:){1,7}:|(?:[0-9A-Fa-f]{1,4}:){1,6}:[0-9A-Fa-f]{1,4}|(?:[0-9A-Fa-f]{1,4}:){1,5}(?::[0-9A-Fa-f]{1,4}){1,2}|(?:[0-9A-Fa-f]{1,4}:){1,4}(?::[0-9A-Fa-f]{1,4}){1,3}|(?:[0-9A-Fa-f]{1,4}:){1,3}(?::[0-9A-Fa-f]{1,4}){1,4}|(?:[0-9A-Fa-f]{1,4}:){1,2}(?::[0-9A-Fa-f]{1,4}){1,5}|[0-9A-Fa-f]{1,4}:(?:(?::[0-9A-Fa-f]{1,4}){1,6})|:(?:(?::[0-9A-Fa-f]{1,4}){1,7}|:))(?![0-9A-Fa-f:])",
     flags: "g",
     replacement: "[IP address]",
   },
@@ -167,7 +171,9 @@ function loadFile(configPath: string): MaskingFile | ManagedMaskingReference {
   if (isManagedReference(parsed)) {
     const value = parsed as Partial<ManagedMaskingReference>;
     if (value.version !== 2 || typeof value.policyGroup !== "string" || !value.policyGroup.trim()) {
-      throw new Error(`Managed masking config ${configPath} requires version 2 and a non-empty policyGroup`);
+      throw new Error(
+        `Managed masking config ${configPath} requires version 2 and a non-empty policyGroup`
+      );
     }
     return value as ManagedMaskingReference;
   }
@@ -192,32 +198,13 @@ function normalizeGitLabInstance(value: string): string {
   } catch {
     throw new Error(`Invalid managed masking GitLab instance: ${value}`);
   }
-  return `${url.protocol}//${url.host}${url.pathname.replace(new RegExp("/api/v4/?$"), "").replace(/[/]+$/, "")}`;
-}
-  /*
-  return `${url.protocol}//${url.host}${url.pathname.replace(/\\/api\\/v4\\/?$/, "").replace(/\\/+$/, "")}`;
-}
-
-*/
-/*
-function normalizeGitLabInstance(value: string): string {
-  let url: URL;
-  try {
-    url = new URL(value);
-  } catch {
-    throw new Error(`Invalid managed masking GitLab instance: ${value}`);
-  }
-  return `${url.protocol}//${url.host}${url.pathname.replace(/\\/api\\/v4\\/?$/, "").replace(/\\/+$/, "")}`;
+  return `${url.protocol}//${url.host}${url.pathname.replace(/\/api\/v4\/?$/, "").replace(/\/+$/, "")}`;
 }
 
 function isManagedReference(value: unknown): value is ManagedMaskingReference {
-  return Boolean(value && typeof value === "object" && (value as { mode?: unknown }).mode === "managed");
-}
-
-*/
-
-function isManagedReference(value: unknown): value is ManagedMaskingReference {
-  return Boolean(value && typeof value === "object" && (value as { mode?: unknown }).mode === "managed");
+  return Boolean(
+    value && typeof value === "object" && (value as { mode?: unknown }).mode === "managed"
+  );
 }
 
 function loadManagedPolicyFile(configPath: string): ManagedPolicyFile {
@@ -227,29 +214,43 @@ function loadManagedPolicyFile(configPath: string): ManagedPolicyFile {
   }
   const file = parsed as Partial<ManagedPolicyFile>;
   if (file.version !== 1) throw new Error("Unsupported managed masking policy version");
-  if (!file.policyGroups || typeof file.policyGroups !== "object" || Array.isArray(file.policyGroups)) {
+  if (
+    !file.policyGroups ||
+    typeof file.policyGroups !== "object" ||
+    Array.isArray(file.policyGroups)
+  ) {
     throw new Error("Managed masking policy file policyGroups must be an object");
   }
-  if (!Array.isArray(file.bindings)) throw new Error("Managed masking policy file bindings must be an array");
-  /*
-  if (file.unboundProjectBehavior !== undefined && file.unboundProjectBehavior !== "deny" && file.unboundProjectBehavior !== "builtin") {
-    throw new Error("Managed masking policy file unboundProjectBehavior must be \\"deny\\" or \\"builtin\\"");
-  }
-  */
-  if (file.unboundProjectBehavior !== undefined && file.unboundProjectBehavior !== "deny" && file.unboundProjectBehavior !== "builtin") {
-    throw new Error('Managed masking policy file unboundProjectBehavior must be "deny" or "builtin"');
+  if (!Array.isArray(file.bindings))
+    throw new Error("Managed masking policy file bindings must be an array");
+  if (
+    file.unboundProjectBehavior !== undefined &&
+    file.unboundProjectBehavior !== "deny" &&
+    file.unboundProjectBehavior !== "builtin"
+  ) {
+    throw new Error(
+      'Managed masking policy file unboundProjectBehavior must be "deny" or "builtin"'
+    );
   }
   for (const [name, policy] of Object.entries(file.policyGroups)) {
     if (!name.trim()) throw new Error("Managed masking policy group names must not be empty");
     validateMaskingFile(policy, `managed masking policy group ${name}`);
   }
   for (const binding of file.bindings) {
-    if (!binding || typeof binding !== "object" || typeof binding.gitlabInstance !== "string" || typeof binding.policyGroup !== "string" || !Array.isArray(binding.projectIds)) {
+    if (
+      !binding ||
+      typeof binding !== "object" ||
+      typeof binding.gitlabInstance !== "string" ||
+      typeof binding.policyGroup !== "string" ||
+      !Array.isArray(binding.projectIds)
+    ) {
       throw new Error("Invalid managed masking policy binding");
     }
     normalizeGitLabInstance(binding.gitlabInstance);
     if (!file.policyGroups[binding.policyGroup]) {
-      throw new Error(`Managed masking policy binding references unknown group: ${binding.policyGroup}`);
+      throw new Error(
+        `Managed masking policy binding references unknown group: ${binding.policyGroup}`
+      );
     }
     if (binding.projectIds.some(id => !Number.isSafeInteger(id) || id <= 0)) {
       throw new Error("Managed masking policy binding projectIds must be positive integers");
@@ -288,10 +289,24 @@ function maskStrings(value: unknown, mask: (text: string) => string, parentKey?:
 function maskJsonText(text: string, mask: (text: string) => string): string {
   try {
     const parsed = JSON.parse(text) as unknown;
-    return JSON.stringify(maskStrings(parsed, mask));
+    if (!parsed || typeof parsed !== "object") return mask(text);
   } catch {
     return mask(text);
   }
+  // Rewrite only JSON string values. Re-serializing the parsed object would
+  // change whitespace and lose precision in numeric values from GitLab.
+  let propertyKey: string | undefined;
+  return text.replace(/"(?:\\.|[^"\\])*"/g, (literal: string, offset: number) => {
+    const value = JSON.parse(literal) as string;
+    if (/^\s*:/.test(text.slice(offset + literal.length))) {
+      propertyKey = value;
+      return literal;
+    }
+    const masked = mask(value);
+    if (masked === value) return literal;
+    const isDownloadUrl = propertyKey === "download_url" && /:\s*$/.test(text.slice(0, offset));
+    return JSON.stringify(isDownloadUrl ? "[Download URL masked]" : masked);
+  });
 }
 
 function createMaskingEngineFromFile(file: MaskingFile, configPath?: string): MaskingEngine {
@@ -311,11 +326,23 @@ function createMaskingEngineFromFile(file: MaskingFile, configPath?: string): Ma
       }
     }
     if (matches.length === 0) return text;
-    matches.sort((a, b) => a.start - b.start || b.end - b.start - (a.end - a.start) || a.order - b.order);
+    matches.sort(
+      (a, b) => a.start - b.start || b.end - b.start - (a.end - a.start) || a.order - b.order
+    );
+    const coveredMatches: MaskMatch[] = [];
+    for (const match of matches) {
+      const previous = coveredMatches[coveredMatches.length - 1];
+      if (previous && match.start < previous.end) {
+        // Preserve the selected replacement, but cover the entire overlapping
+        // interval so a longer secret cannot survive behind a shorter match.
+        previous.end = Math.max(previous.end, match.end);
+      } else {
+        coveredMatches.push({ ...match });
+      }
+    }
     let output = "";
     let cursor = 0;
-    for (const match of matches) {
-      if (match.start < cursor) continue;
+    for (const match of coveredMatches) {
       output += text.slice(cursor, match.start) + match.replacement;
       cursor = match.end;
     }
@@ -325,15 +352,25 @@ function createMaskingEngineFromFile(file: MaskingFile, configPath?: string): Ma
     configPath,
     maskText,
     maskValue: <T>(value: T): T => maskStrings(value, maskText) as T,
-    maskToolResult: <T extends Record<string, unknown>>(result: T): T => {
+    maskToolResult: <T extends Record<string, unknown>>(
+      result: T,
+      options?: { textFormat?: "plain" | "json" }
+    ): T => {
       const output: Record<string, unknown> = { ...result };
-      if (Array.isArray(output.content)) output.content = output.content.map(item => {
-        if (!item || typeof item !== "object") return item;
-        const block = { ...(item as Record<string, unknown>) };
-        if (typeof block.text === "string") block.text = maskJsonText(block.text, maskText);
-        return block;
-      });
-      if (output.structuredContent !== undefined) output.structuredContent = maskStrings(output.structuredContent, maskText);
+      if (Array.isArray(output.content))
+        output.content = output.content.map(item => {
+          if (!item || typeof item !== "object") return item;
+          const block = { ...(item as Record<string, unknown>) };
+          if (typeof block.text === "string") {
+            block.text =
+              options?.textFormat === "plain"
+                ? maskText(block.text)
+                : maskJsonText(block.text, maskText);
+          }
+          return block;
+        });
+      if (output.structuredContent !== undefined)
+        output.structuredContent = maskStrings(output.structuredContent, maskText);
       return output as T;
     },
     maskError: (error: unknown): unknown => {
@@ -361,68 +398,12 @@ export function createMaskingEngine(options: {
     throw new Error(`Configured masking config does not exist: ${configPath}`);
   }
   const file = fs.existsSync(configPath) ? loadFile(configPath) : undefined;
-  if (isManagedReference(file)) throw new Error("Managed masking references require a managed policy resolver");
-  // User rules get first choice when they overlap a built-in rule. Matching is
-  // still performed against the original text so replacements never trigger a
-  // later rule (for example Example Corp -> Customer Corp -> Customer organization).
-  const localFile = file as MaskingFile | undefined;
-  const rules = [...(localFile?.rules ?? []), ...mergeBuiltinRules(localFile)].map(compileRule);
-  const maskedErrors = new WeakSet<object>();
-
-  const maskText = (text: string): string => {
-    const matches: MaskMatch[] = [];
-    for (const rule of rules) {
-      rule.expression.lastIndex = 0;
-      let match: RegExpExecArray | null;
-      while ((match = rule.expression.exec(text)) !== null) {
-        const start = match.index;
-        const end = start + match[0].length;
-        if (end === start) throw new Error(`mask rule ${rule.id} produced an empty match`);
-        matches.push({ start, end, replacement: rule.replacement, order: rule.order });
-        if (!rule.expression.global) break;
-      }
-    }
-    if (matches.length === 0) return text;
-    matches.sort(
-      (a, b) => a.start - b.start || b.end - b.start - (a.end - a.start) || a.order - b.order
-    );
-    let output = "";
-    let cursor = 0;
-    for (const match of matches) {
-      if (match.start < cursor) continue;
-      output += text.slice(cursor, match.start) + match.replacement;
-      cursor = match.end;
-    }
-    return output + text.slice(cursor);
-  };
-
-  return {
-    configPath: fs.existsSync(configPath) ? configPath : undefined,
-    maskText,
-    maskValue: <T>(value: T): T => maskStrings(value, maskText) as T,
-    maskToolResult: <T extends Record<string, unknown>>(result: T): T => {
-      const output: Record<string, unknown> = { ...result };
-      if (Array.isArray(output.content)) {
-        output.content = output.content.map(item => {
-          if (!item || typeof item !== "object") return item;
-          const block = { ...(item as Record<string, unknown>) };
-          if (typeof block.text === "string") block.text = maskJsonText(block.text, maskText);
-          return block;
-        });
-      }
-      if (output.structuredContent !== undefined)
-        output.structuredContent = maskStrings(output.structuredContent, maskText);
-      return output as T;
-    },
-    maskError: (error: unknown): unknown => {
-      if (error instanceof Error) {
-        if (maskedErrors.has(error)) return error;
-        error.message = maskText(error.message);
-        maskedErrors.add(error);
-      }
-      return error;
-    },
-  };
+  if (isManagedReference(file))
+    throw new Error("Managed masking references require a managed policy resolver");
+  return createMaskingEngineFromFile(
+    (file as MaskingFile | undefined) ?? {},
+    fs.existsSync(configPath) ? configPath : undefined
+  );
 }
 
 export interface MaskingPolicyResolver {
@@ -436,6 +417,7 @@ export interface MaskingPolicyResolver {
     gitlabInstance: string;
     projectIds?: readonly unknown[];
     hasProjectScope?: boolean;
+    allowBuiltinForUnscoped?: boolean;
   }): MaskingEngine;
 }
 
@@ -496,21 +478,28 @@ export function createMaskingPolicyResolver(options: {
 
   return {
     managed: true,
-    select: ({ gitlabInstance, projectIds = [], hasProjectScope = projectIds.length > 0 }) => {
+    select: ({
+      gitlabInstance,
+      projectIds = [],
+      hasProjectScope = projectIds.length > 0,
+      allowBuiltinForUnscoped = false,
+    }) => {
       const numericProjectIds = projectIds.map(projectId => {
         if (typeof projectId === "number" && Number.isSafeInteger(projectId) && projectId > 0) {
           return projectId;
         }
         if (typeof projectId === "string" && /^\d+$/.test(projectId)) {
           const numericProjectId = Number(projectId);
-          if (Number.isSafeInteger(numericProjectId) && numericProjectId > 0) return numericProjectId;
+          if (Number.isSafeInteger(numericProjectId) && numericProjectId > 0)
+            return numericProjectId;
         }
         throw new Error("Managed masking requires numeric project IDs");
       });
 
       if (numericProjectIds.length === 0) {
         if (hasProjectScope) throw new Error("Managed masking requires a project ID");
-        if (policyFile.unboundProjectBehavior === "builtin") return builtinEngine;
+        if (allowBuiltinForUnscoped || policyFile.unboundProjectBehavior === "builtin")
+          return builtinEngine;
         throw new Error("Managed masking policy does not cover this project-less tool");
       }
 
@@ -527,7 +516,9 @@ export function createMaskingPolicyResolver(options: {
       if (localGroup && group !== localGroup) {
         throw new Error("Managed masking policy group does not match the server project binding");
       }
-      return engines.get(group)!;
+      const engine = engines.get(group);
+      if (!engine) throw new Error(`Managed masking policy group is unavailable: ${group}`);
+      return engine;
     },
   };
 }
