@@ -138,6 +138,10 @@ command = lib.getExe inputs.gitlab-mcp.packages.${system}.default;
 - `--use-milestone=true` - 启用里程碑 API（替代 `USE_MILESTONE`，旧版 — 推荐 `GITLAB_TOOLSETS=milestones`）
 - `--use-pipeline=true` - 启用流水线 API（替代 `USE_PIPELINE`，旧版 — 推荐 `GITLAB_TOOLSETS=pipelines`）
 - `--disable-version-check=true` - 关闭启动时的新版本提示（替代 `GITLAB_DISABLE_VERSION_CHECK`）
+- `--masking-enabled=true` - 启用文本响应掩码（替代 `GITLAB_MASKING_ENABLED`）
+- `--masking-config` - 掩码配置文件路径（替代 `GITLAB_MASKING_CONFIG`）
+- `--masking-policy-file` - 受保护的托管策略文件路径（替代 `GITLAB_MASKING_POLICY_FILE`）
+- `--masking-workspace-dir` - 用于解析掩码文件的目录（替代 `GITLAB_MASKING_WORKSPACE_DIR`）
 
 CLI 参数优先于环境变量。
 

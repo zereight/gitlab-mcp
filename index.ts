@@ -193,7 +193,11 @@ import {
   type RepoFileEncoding,
 } from "./utils/gitlab-commit-actions.js";
 import { redactSensitiveGitLabFields } from "./utils/redact-sensitive.js";
-import { createMaskingPolicyResolver, type MaskingEngine } from "./masking/index.js";
+import {
+  createMaskingPolicyResolver,
+  getManagedMaskingProjectIds,
+  type MaskingEngine,
+} from "./masking/index.js";
 import { checkForNewVersion } from "./utils/version-check.js";
 import { assertGitLabVersionAtLeast } from "./utils/gitlab-version-gate.js";
 import {
@@ -867,11 +871,7 @@ function createServer(): McpServer {
     const sessionId = request.params.sessionId;
     const toolName = request.params.name;
     const start = Date.now();
-    const requestedProjectId = request.params.arguments?.project_id;
-    const maskingEngine: MaskingEngine | undefined = maskingPolicyResolver?.select({
-      gitlabInstance: getEffectiveApiUrl(),
-      projectId: requestedProjectId,
-    });
+    let maskingEngine: MaskingEngine | undefined;
 
     const logCompletion = (result: any) => {
       const durationMs = Date.now() - start;
@@ -898,6 +898,18 @@ function createServer(): McpServer {
     };
 
     try {
+      const maskingScope = maskingPolicyResolver
+        ? getManagedMaskingProjectIds(
+            allTools.find(tool => tool.name === toolName)?.inputSchema,
+            request.params.arguments,
+            maskingPolicyResolver.managed ? () => getEffectiveProjectId("") : undefined
+          )
+        : undefined;
+      maskingEngine = maskingPolicyResolver?.select({
+        gitlabInstance: getEffectiveApiUrl(),
+        ...maskingScope,
+      });
+
       // Handle discover_tools meta-tool directly (needs access to mcpServer and filteredTools)
       if (toolName === "discover_tools") {
         const category = request.params.arguments?.category?.trim()?.toLowerCase();

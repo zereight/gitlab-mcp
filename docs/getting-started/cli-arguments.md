@@ -47,6 +47,10 @@ No global install? Pin `npx` to the previous stable release and keep the server 
 | `--use-milestone=true` | `USE_MILESTONE`                | Enable milestone API tools.                         |
 | `--use-pipeline=true`  | `USE_PIPELINE`                 | Enable pipeline API tools.                          |
 | `--disable-version-check=true` | `GITLAB_DISABLE_VERSION_CHECK` | Disable the startup new-version notice.     |
+| `--masking-enabled=true` | `GITLAB_MASKING_ENABLED` | Enable text-response masking. |
+| `--masking-config` | `GITLAB_MASKING_CONFIG` | Path to a masking configuration file. |
+| `--masking-policy-file` | `GITLAB_MASKING_POLICY_FILE` | Path to a protected managed-policy file. |
+| `--masking-workspace-dir` | `GITLAB_MASKING_WORKSPACE_DIR` | Directory used to resolve masking files. |
 
 > **Deprecation notice:** `--read-only=true` and `GITLAB_READ_ONLY_MODE` are kept for
 > backward compatibility but will be removed in a future major version.

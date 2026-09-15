@@ -357,6 +357,9 @@ export function createMaskingEngine(options: {
   const configPath = options.configPath
     ? path.resolve(workspaceDir, options.configPath)
     : path.join(workspaceDir, ".gitlab-mcp-mask.json");
+  if (options.configPath && !fs.existsSync(configPath)) {
+    throw new Error(`Configured masking config does not exist: ${configPath}`);
+  }
   const file = fs.existsSync(configPath) ? loadFile(configPath) : undefined;
   if (isManagedReference(file)) throw new Error("Managed masking references require a managed policy resolver");
   // User rules get first choice when they overlap a built-in rule. Matching is
@@ -423,7 +426,17 @@ export function createMaskingEngine(options: {
 }
 
 export interface MaskingPolicyResolver {
-  select(options: { gitlabInstance: string; projectId?: unknown }): MaskingEngine;
+  readonly managed: boolean;
+  /**
+   * Select the policy for the projects that can affect a tool response. All
+   * project IDs must resolve to one policy group; otherwise a single response
+   * could be processed with the wrong policy.
+   */
+  select(options: {
+    gitlabInstance: string;
+    projectIds?: readonly unknown[];
+    hasProjectScope?: boolean;
+  }): MaskingEngine;
 }
 
 /**
@@ -442,6 +455,9 @@ export function createMaskingPolicyResolver(options: {
   const localConfigPath = options.configPath
     ? path.resolve(workspaceDir, options.configPath)
     : path.join(workspaceDir, ".gitlab-mcp-mask.json");
+  if (options.configPath && !fs.existsSync(localConfigPath)) {
+    throw new Error(`Configured masking config does not exist: ${localConfigPath}`);
+  }
   const localConfig = fs.existsSync(localConfigPath) ? loadFile(localConfigPath) : undefined;
   const localGroup = isManagedReference(localConfig) ? localConfig.policyGroup : undefined;
 
@@ -451,7 +467,7 @@ export function createMaskingPolicyResolver(options: {
       (localConfig as MaskingFile | undefined) ?? {},
       localConfigPath
     );
-    return { select: () => localEngine };
+    return { managed: false, select: () => localEngine };
   }
 
   const policyPath = path.resolve(workspaceDir, options.policyFilePath);
@@ -479,33 +495,39 @@ export function createMaskingPolicyResolver(options: {
   }
 
   return {
-    select: ({ gitlabInstance, projectId }) => {
-      const configuredProjectId =
-        typeof projectId === "number"
-          ? projectId
-          : typeof projectId === "string" && /^\\d+$/.test(projectId)
-            ? Number(projectId)
-            : undefined;
-      const numericProjectId =
-        configuredProjectId ??
-        (typeof projectId === "string" && Number.isSafeInteger(Number(projectId)) && Number(projectId) > 0
-          ? Number(projectId)
-          : undefined);
-      const group = numericProjectId
-        ? bindings.get(`${normalizeGitLabInstance(gitlabInstance)}#${numericProjectId}`)
-        : undefined;
-      if (group) {
-        if (localGroup && group !== localGroup) {
-          throw new Error("Managed masking policy group does not match the server project binding");
+    managed: true,
+    select: ({ gitlabInstance, projectIds = [], hasProjectScope = projectIds.length > 0 }) => {
+      const numericProjectIds = projectIds.map(projectId => {
+        if (typeof projectId === "number" && Number.isSafeInteger(projectId) && projectId > 0) {
+          return projectId;
         }
-        return engines.get(group)!;
+        if (typeof projectId === "string" && /^\d+$/.test(projectId)) {
+          const numericProjectId = Number(projectId);
+          if (Number.isSafeInteger(numericProjectId) && numericProjectId > 0) return numericProjectId;
+        }
+        throw new Error("Managed masking requires numeric project IDs");
+      });
+
+      if (numericProjectIds.length === 0) {
+        if (hasProjectScope) throw new Error("Managed masking requires a project ID");
+        if (policyFile.unboundProjectBehavior === "builtin") return builtinEngine;
+        throw new Error("Managed masking policy does not cover this project-less tool");
       }
-      if (policyFile.unboundProjectBehavior === "builtin") return builtinEngine;
-      throw new Error(
-        numericProjectId
-          ? "No managed masking policy is bound to this GitLab project"
-          : "Managed masking requires a numeric project_id"
-      );
+
+      const groups = new Set<string>();
+      for (const projectId of numericProjectIds) {
+        const group = bindings.get(`${normalizeGitLabInstance(gitlabInstance)}#${projectId}`);
+        if (!group) throw new Error("No managed masking policy is bound to this GitLab project");
+        groups.add(group);
+      }
+      if (groups.size !== 1) {
+        throw new Error("Managed masking does not allow a tool call to span policy groups");
+      }
+      const [group] = groups;
+      if (localGroup && group !== localGroup) {
+        throw new Error("Managed masking policy group does not match the server project binding");
+      }
+      return engines.get(group)!;
     },
   };
 }

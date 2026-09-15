@@ -20,7 +20,9 @@ response path is used and no masking configuration file is read.
 Optional path to a JSON masking configuration. Relative paths are resolved from
 `GITLAB_MASKING_WORKSPACE_DIR` (or the server process working directory). When
 unset, the server looks for `.gitlab-mcp-mask.json` in that directory. Missing
-default files are allowed and only the built-in rules are used.
+default files are allowed and only the built-in rules are used. If this variable
+is explicitly set, its file must exist; a missing or invalid file fails startup
+so a bad mount cannot silently disable custom rules.
 
 The file may also contain a version 2 managed-policy reference:
 
@@ -42,6 +44,14 @@ bound project uses the server-selected policy group. An unbound or project-less
 request is rejected by default, so a failed policy lookup cannot return an
 unmasked response.
 
+Managed bindings currently use numeric GitLab project IDs. A project path such
+as `group/project` is rejected. For tools that declare more than one project
+field, every referenced project must be bound to the same policy group. The
+server ignores undeclared `project_id` fields, preventing a global tool from
+selecting an unrelated policy. Project-less tools can use built-in rules only
+when `unboundProjectBehavior` is explicitly set to `builtin`; custom managed
+rules are never selected for them.
+
 ### `GITLAB_MASKING_WORKSPACE_DIR`
 
 Optional directory used to resolve the masking configuration. This does not
@@ -53,6 +63,16 @@ rules for pattern replacements. See `.gitlab-mcp-mask.example.json` in the
 repository. When masking is enabled, built-in rules cover GitLab token formats,
 IPv4, and IPv6; each can be disabled or given a custom replacement under
 `builtins`. Rules are loaded at startup; invalid configured files fail startup.
+
+### Text-response boundary
+
+Masking applies to MCP tool text blocks, JSON encoded in text blocks,
+`structuredContent`, and returned error messages. It is applied in stdio, SSE,
+and Streamable HTTP modes, including stateless HTTP requests.
+
+This release does not inspect files returned through download URLs, local files,
+image or other binary content, or base64-encoded payloads. Treat those outputs
+as outside the masking boundary.
 
 ## Authentication
 
