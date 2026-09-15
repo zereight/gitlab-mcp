@@ -1,4 +1,3 @@
-import { zodToJsonSchema } from "zod-to-json-schema";
 import { toJSONSchema } from "../utils/schema.js";
 import {
   USE_GITLAB_WIKI,
@@ -308,7 +307,7 @@ export const allTools = [
   {
     name: "execute_graphql",
     description: "Execute a GitLab GraphQL query",
-    inputSchema: zodToJsonSchema(ExecuteGraphQLSchema),
+    inputSchema: toJSONSchema(ExecuteGraphQLSchema),
   },
   {
     name: "create_or_update_file",
