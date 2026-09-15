@@ -19,6 +19,7 @@ import {
   GITLAB_READ_ONLY_MODE,
   GITLAB_MASKING_ENABLED,
   GITLAB_MASKING_CONFIG,
+  GITLAB_MASKING_POLICY_FILE,
   GITLAB_MASKING_WORKSPACE_DIR,
   GITLAB_PERMISSION_MODE,
   GITLAB_TOOLSETS_RAW,
@@ -192,7 +193,7 @@ import {
   type RepoFileEncoding,
 } from "./utils/gitlab-commit-actions.js";
 import { redactSensitiveGitLabFields } from "./utils/redact-sensitive.js";
-import { createMaskingEngine, type MaskingEngine } from "./masking/index.js";
+import { createMaskingPolicyResolver, type MaskingEngine } from "./masking/index.js";
 import { checkForNewVersion } from "./utils/version-check.js";
 import { assertGitLabVersionAtLeast } from "./utils/gitlab-version-gate.js";
 import {
@@ -649,9 +650,10 @@ const logger = createLogger();
 
 // Construct once at startup. When disabled this is undefined and the result
 // path below returns the original objects without reading a config file.
-const maskingEngine: MaskingEngine | undefined = createMaskingEngine({
+const maskingPolicyResolver = createMaskingPolicyResolver({
   enabled: GITLAB_MASKING_ENABLED,
   configPath: GITLAB_MASKING_CONFIG,
+  policyFilePath: GITLAB_MASKING_POLICY_FILE,
   workspaceDir: GITLAB_MASKING_WORKSPACE_DIR,
 });
 
@@ -865,6 +867,11 @@ function createServer(): McpServer {
     const sessionId = request.params.sessionId;
     const toolName = request.params.name;
     const start = Date.now();
+    const requestedProjectId = request.params.arguments?.project_id;
+    const maskingEngine: MaskingEngine | undefined = maskingPolicyResolver?.select({
+      gitlabInstance: getEffectiveApiUrl(),
+      projectId: requestedProjectId,
+    });
 
     const logCompletion = (result: any) => {
       const durationMs = Date.now() - start;
@@ -2094,11 +2101,11 @@ async function handleGitLabError(response: UndiciResponse): Promise<void> {
       logger.error("GitLab API Rate Limit Exceeded");
       logger.error("User API Key Rate limit exceeded. Please try again later.");
       const error = new Error(`GitLab API Rate Limit Exceeded: ${errorBody}`);
-      throw maskingEngine ? maskingEngine.maskError(error) : error;
+      throw error;
     } else {
       // Handle other API errors
       const error = new Error(`GitLab API error: ${response.status} ${response.statusText}\n${errorBody}`);
-      throw maskingEngine ? maskingEngine.maskError(error) : error;
+      throw error;
     }
   }
 }

@@ -22,6 +22,26 @@ Optional path to a JSON masking configuration. Relative paths are resolved from
 unset, the server looks for `.gitlab-mcp-mask.json` in that directory. Missing
 default files are allowed and only the built-in rules are used.
 
+The file may also contain a version 2 managed-policy reference:
+
+```json
+{ "version": 2, "mode": "managed", "policyGroup": "team-default" }
+```
+
+Managed references require `GITLAB_MASKING_POLICY_FILE`. They contain no rules;
+the server validates the requested group against its protected policy file.
+The repository includes `.gitlab-mcp-managed-policy.example.json` as a server
+policy-file template.
+
+### `GITLAB_MASKING_POLICY_FILE`
+
+Optional path to a server-owned JSON file defining managed policy groups and
+GitLab instance/project bindings. This is intended for HTTP deployments and
+must not be readable or writable by the Agent. When configured, a request for a
+bound project uses the server-selected policy group. An unbound or project-less
+request is rejected by default, so a failed policy lookup cannot return an
+unmasked response.
+
 ### `GITLAB_MASKING_WORKSPACE_DIR`
 
 Optional directory used to resolve the masking configuration. This does not

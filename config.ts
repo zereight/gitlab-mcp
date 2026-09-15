@@ -46,6 +46,11 @@ export const GITLAB_READ_ONLY_MODE = getConfig("read-only", "GITLAB_READ_ONLY_MO
 export const GITLAB_MASKING_ENABLED =
   getConfig("masking-enabled", "GITLAB_MASKING_ENABLED") === "true";
 export const GITLAB_MASKING_CONFIG = getConfig("masking-config", "GITLAB_MASKING_CONFIG");
+/** Server-owned policy groups and project bindings for managed response masking. */
+export const GITLAB_MASKING_POLICY_FILE = getConfig(
+  "masking-policy-file",
+  "GITLAB_MASKING_POLICY_FILE"
+);
 export const GITLAB_MASKING_WORKSPACE_DIR = getConfig(
   "masking-workspace-dir",
   "GITLAB_MASKING_WORKSPACE_DIR"
