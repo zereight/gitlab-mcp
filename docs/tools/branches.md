@@ -115,7 +115,7 @@ Protect a repository branch (set push/merge/unprotect access levels). Use this t
 
 | Parameter | Type | Required | Description |
 |---|---|:-:|---|
-| `project_id` | string |  | Project ID or complete URL-encoded path to project |
+| `project_id` | string | ✓ | Project ID or complete URL-encoded path to project |
 | `branch_name` | string | ✓ | Branch name or wildcard pattern to protect |
 | `name` | string |  | Deprecated alias for branch_name; prefer branch_name for consistency |
 | `push_access_level` | integer |  | Access level for pushing (0=No access, 30=Developer, 40=Maintainer, 60=Admin). GitLab default applies when omitted. |
@@ -212,7 +212,7 @@ Get git blame for a file at a given ref. Each entry maps a contiguous range of s
 
 | Parameter | Type | Required | Description |
 |---|---|:-:|---|
-| `project_id` | string |  | Project ID or complete URL-encoded path to project |
+| `project_id` | string | ✓ | Project ID or complete URL-encoded path to project |
 | `file_path` | string | ✓ | The full path of the file to blame, relative to repo root |
 | `ref` | string | ✓ | The name of branch, tag or commit (required by GitLab blame API) |
 | `range_start` | integer |  | First line of the blame range (inclusive, 1-based). Both range[start] and range[end] must be set together. |
