@@ -72,7 +72,9 @@ const BUILTIN_RULES: MaskRule[] = [
   {
     id: "gitlab-token",
     type: "regex",
-    pattern: "\\bgl(?:pat|rt|pt|ft|imt|agent)-[A-Za-z0-9_-]{20,}\\b",
+    // GitLab token prefixes documented at
+    // https://docs.gitlab.com/security/token_overview/#token-prefixes
+    pattern: "\\bgl(?:pat|rt|ptt|dt|cbt|soat|oas|agent|ft|imt)-[A-Za-z0-9_-]{20,}\\b",
     flags: "g",
     replacement: "[Token masked]",
   },

@@ -87,6 +87,29 @@ describe("response masking", () => {
     assert.equal(error instanceof Error && error.message, "Failed at [IP address]");
   });
 
+  test("masks every documented GitLab token prefix", () => {
+    const workspace = fs.mkdtempSync(path.join(os.tmpdir(), "gitlab-mask-"));
+    const engine = createMaskingEngine({ enabled: true, workspaceDir: workspace });
+    assert.ok(engine);
+    const suffix = "abcdefghijklmnopqrst";
+    const prefixes = [
+      "glpat",
+      "glrt",
+      "glptt",
+      "gldt",
+      "glcbt",
+      "glsoat",
+      "gloas",
+      "glagent",
+      "glft",
+      "glimt",
+    ];
+    assert.equal(
+      engine.maskText(prefixes.map(prefix => `${prefix}-${suffix}`).join(" ")),
+      prefixes.map(() => "[Token masked]").join(" ")
+    );
+  });
+
   test("covers the full union of overlapping secrets without merging adjacent matches", t => {
     const workspace = fs.mkdtempSync(path.join(os.tmpdir(), "gitlab-mask-"));
     const configPath = path.join(workspace, "rules.json");

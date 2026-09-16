@@ -20,10 +20,12 @@ import {
 
 async function startMaskingServer(
   t: TestContext,
-  options: { env?: Record<string, string>; builtinFallback?: boolean } = {}
+  options: { env?: Record<string, string>; builtinFallback?: boolean; managed?: boolean } = {}
 ) {
   const workspace = fs.mkdtempSync(path.join(os.tmpdir(), "gitlab-mask-integration-"));
   const policyPath = path.join(workspace, "policies.json");
+  const localConfigPath = path.join(workspace, ".gitlab-mcp-mask.json");
+  const managed = options.managed !== false;
   const requests: string[] = [];
   const api = http.createServer((req, res) => {
     const requestUrl = req.url ?? "";
@@ -91,6 +93,7 @@ async function startMaskingServer(
       api.closeAllConnections();
       await new Promise<void>(resolve => api.close(() => resolve()));
       if (fs.existsSync(policyPath)) fs.unlinkSync(policyPath);
+      if (fs.existsSync(localConfigPath)) fs.unlinkSync(localConfigPath);
       fs.rmdirSync(workspace);
     }
   });
@@ -99,23 +102,37 @@ async function startMaskingServer(
     api.listen(0, "127.0.0.1", resolve);
   });
   const apiUrl = `http://127.0.0.1:${(api.address() as AddressInfo).port}/api/v4`;
-  fs.writeFileSync(
-    policyPath,
-    JSON.stringify({
-      version: 1,
-      policyGroups: {
-        one: {
-          rules: [{ id: "one", type: "keyword", match: "ProjectOneSecret", replacement: "[one]" }],
+  if (managed) {
+    fs.writeFileSync(
+      policyPath,
+      JSON.stringify({
+        version: 1,
+        policyGroups: {
+          one: {
+            rules: [
+              { id: "one", type: "keyword", match: "ProjectOneSecret", replacement: "[one]" },
+            ],
+          },
+          two: {},
         },
-        two: {},
-      },
-      bindings: [
-        { gitlabInstance: apiUrl, projectIds: [12], policyGroup: "one" },
-        { gitlabInstance: apiUrl, projectIds: [13], policyGroup: "two" },
-      ],
-      ...(options.builtinFallback ? { unboundProjectBehavior: "builtin" } : {}),
-    })
-  );
+        bindings: [
+          { gitlabInstance: apiUrl, projectIds: [12], policyGroup: "one" },
+          { gitlabInstance: apiUrl, projectIds: [13], policyGroup: "two" },
+        ],
+        ...(options.builtinFallback ? { unboundProjectBehavior: "builtin" } : {}),
+      })
+    );
+  } else {
+    fs.writeFileSync(
+      localConfigPath,
+      JSON.stringify({
+        version: 1,
+        rules: [
+          { id: "local", type: "keyword", match: "ProjectOneSecret", replacement: "[local]" },
+        ],
+      })
+    );
+  }
   const transport = new StdioClientTransport({
     command: process.execPath,
     args: [path.resolve("build/index.js")],
@@ -126,7 +143,7 @@ async function startMaskingServer(
       GITLAB_API_URL: apiUrl,
       GITLAB_PROJECT_ID: "12",
       GITLAB_MASKING_ENABLED: "true",
-      GITLAB_MASKING_POLICY_FILE: policyPath,
+      ...(managed ? { GITLAB_MASKING_POLICY_FILE: policyPath } : {}),
       GITLAB_MASKING_WORKSPACE_DIR: workspace,
       GITLAB_DISABLE_VERSION_CHECK: "true",
       USE_PIPELINE: "true",
@@ -141,6 +158,15 @@ async function startMaskingServer(
 }
 
 describe("managed response masking at the MCP boundary", { timeout: 30_000 }, () => {
+  test("applies a local unmanaged configuration at the MCP boundary", async t => {
+    const { client } = await startMaskingServer(t, { managed: false });
+    const result = await client.callTool({
+      name: "get_pipeline_job_output",
+      arguments: { project_id: "12", job_id: "2" },
+    });
+    assert.match(JSON.stringify(result), /\[local\]/);
+  });
+
   test("rejects global queries despite a configured default project", async t => {
     const { client, requests } = await startMaskingServer(t);
     for (const name of ["list_issues", "list_merge_requests", "list_todos"]) {
@@ -334,5 +360,103 @@ describe("managed response masking at the MCP boundary", { timeout: 30_000 }, ()
     });
     const result = response?.result;
     assert.match(JSON.stringify(result), /\[dynamic\]/);
+  });
+
+  test("masks responses on the stateless HTTP path", async t => {
+    const workspace = fs.mkdtempSync(path.join(os.tmpdir(), "gitlab-mask-stateless-"));
+    const configPath = path.join(workspace, ".gitlab-mcp-mask.json");
+    const resources: { server?: ServerInstance } = {};
+    const api = http.createServer((req, res) => {
+      if (req.url === "/api/v4/user") {
+        res.setHeader("Content-Type", "application/json");
+        res.end(JSON.stringify({ id: 1, username: "masking-test" }));
+        return;
+      }
+      res.setHeader("Content-Type", "text/plain");
+      res.end("StatelessMaskingSecret\\n");
+    });
+    t.after(async () => {
+      if (resources.server) resources.server.kill();
+      api.closeAllConnections();
+      await new Promise<void>(resolve => api.close(() => resolve()));
+      fs.unlinkSync(configPath);
+      fs.rmdirSync(workspace);
+    });
+    await new Promise<void>((resolve, reject) => {
+      api.once("error", reject);
+      api.listen(0, "127.0.0.1", resolve);
+    });
+    const apiUrl = `http://127.0.0.1:${(api.address() as AddressInfo).port}/api/v4`;
+    fs.writeFileSync(
+      configPath,
+      JSON.stringify({
+        version: 1,
+        rules: [
+          {
+            id: "stateless",
+            type: "keyword",
+            match: "StatelessMaskingSecret",
+            replacement: "[stateless]",
+          },
+        ],
+      })
+    );
+    const port = await findAvailablePort(4000);
+    resources.server = await launchServer({
+      mode: TransportMode.STREAMABLE_HTTP,
+      port,
+      timeout: 10_000,
+      env: {
+        REMOTE_AUTHORIZATION: "true",
+        GITLAB_API_URL: apiUrl,
+        GITLAB_MASKING_ENABLED: "true",
+        GITLAB_MASKING_WORKSPACE_DIR: workspace,
+        GITLAB_DISABLE_VERSION_CHECK: "true",
+        OAUTH_STATELESS_MODE: "true",
+        OAUTH_STATELESS_SECRET: "stateless-response-masking-test-secret-1234567890",
+        USE_PIPELINE: "true",
+        LOG_LEVEL: "warn",
+      },
+    });
+    const headers: Record<string, string> = {
+      "content-type": "application/json",
+      accept: "application/json, text/event-stream",
+      "private-token": "masking-test-token-12345",
+    };
+    const post = async (body: object) => {
+      const response = await fetch(`http://${HOST}:${port}/mcp`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify(body),
+      });
+      const text = await response.text();
+      assert.equal(response.ok, true, text);
+      const sessionId = response.headers.get("mcp-session-id");
+      if (sessionId) headers["mcp-session-id"] = sessionId;
+      const data = text
+        .split("\n")
+        .reverse()
+        .find(line => line.startsWith("data: "))
+        ?.slice(6);
+      return data ? JSON.parse(data) : undefined;
+    };
+    await post({
+      jsonrpc: "2.0",
+      id: 1,
+      method: "initialize",
+      params: {
+        protocolVersion: "2025-03-26",
+        capabilities: {},
+        clientInfo: { name: "masking-test", version: "1.0.0" },
+      },
+    });
+    await post({ jsonrpc: "2.0", method: "notifications/initialized" });
+    const response = await post({
+      jsonrpc: "2.0",
+      id: 2,
+      method: "tools/call",
+      params: { name: "get_pipeline_job_output", arguments: { project_id: "12", job_id: "1" } },
+    });
+    assert.match(JSON.stringify(response?.result), /\[stateless\]/);
   });
 });

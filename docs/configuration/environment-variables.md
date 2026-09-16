@@ -66,8 +66,9 @@ workspace directory when the MCP client does not set the server process cwd.
 
 The config file supports `keyword` rules for literal replacements and `regex`
 rules for pattern replacements. See `.gitlab-mcp-mask.example.json` in the
-repository. When masking is enabled, built-in rules cover GitLab token formats,
-IPv4, and IPv6; each can be disabled or given a custom replacement under
+repository. When masking is enabled, built-in rules cover GitLab token prefixes
+`glpat-`, `glrt-`, `glptt-`, `gldt-`, `glcbt-`, `glsoat-`, `gloas-`,
+`glagent-`, `glft-`, and `glimt-`, plus IPv4 and IPv6; each can be disabled or given a custom replacement under
 `builtins`. Rules are loaded at startup; invalid configured files fail startup.
 
 Overlapping matches mask their entire combined interval, using the replacement

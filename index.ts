@@ -923,7 +923,10 @@ function createServer(): McpServer {
         const isToolDiscovery = toolName === "discover_tools";
         const inputSchema = allTools.find(tool => tool.name === toolName)?.inputSchema;
         // Optional project fields can be filters on global queries. Only supply
-        // the default when the corresponding handler actually uses it.
+        // the default when the corresponding handler actually uses it. Keep this
+        // list synchronized with getFileContents, listMyIssues, listIssues, and
+        // listMergeRequests: those are the handlers with optional project input
+        // that may call getEffectiveProjectId("") at runtime.
         const usesDefaultProject =
           inputSchema?.required?.includes("project_id") ||
           toolName === "get_file_contents" ||
