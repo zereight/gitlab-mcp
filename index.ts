@@ -17,6 +17,10 @@ import {
   GITLAB_POOL_MAX_SIZE,
   GITLAB_DISABLE_VERSION_CHECK,
   GITLAB_READ_ONLY_MODE,
+  GITLAB_MASKING_ENABLED,
+  GITLAB_MASKING_CONFIG,
+  GITLAB_MASKING_POLICY_FILE,
+  GITLAB_MASKING_WORKSPACE_DIR,
   GITLAB_PERMISSION_MODE,
   GITLAB_TOOLSETS_RAW,
   GITLAB_TOOLS_RAW,
@@ -189,6 +193,11 @@ import {
   type RepoFileEncoding,
 } from "./utils/gitlab-commit-actions.js";
 import { redactSensitiveGitLabFields } from "./utils/redact-sensitive.js";
+import {
+  createMaskingPolicyResolver,
+  getManagedMaskingProjectIds,
+  type MaskingEngine,
+} from "./masking/index.js";
 import { checkForNewVersion } from "./utils/version-check.js";
 import { assertGitLabVersionAtLeast } from "./utils/gitlab-version-gate.js";
 import {
@@ -644,6 +653,15 @@ import { createLogger } from "./utils/logger.js";
 
 const logger = createLogger();
 
+// Construct once at startup. When disabled this is undefined and the result
+// path below returns the original objects without reading a config file.
+const maskingPolicyResolver = createMaskingPolicyResolver({
+  enabled: GITLAB_MASKING_ENABLED,
+  configPath: GITLAB_MASKING_CONFIG,
+  policyFilePath: GITLAB_MASKING_POLICY_FILE,
+  workspaceDir: GITLAB_MASKING_WORKSPACE_DIR,
+});
+
 const SERVER_NAME = process.env.MCP_SERVER_NAME?.trim() || "zereight-gitlab-mcp-server";
 
 /**
@@ -854,6 +872,7 @@ function createServer(): McpServer {
     const sessionId = request.params.sessionId;
     const toolName = request.params.name;
     const start = Date.now();
+    let maskingEngine: MaskingEngine | undefined;
 
     const logCompletion = (result: any) => {
       const durationMs = Date.now() - start;
@@ -861,24 +880,83 @@ function createServer(): McpServer {
         { tool: toolName, event: "tool_call_done", durationMs },
         `tool_call_done: ${toolName} (${durationMs}ms)`
       );
-      return result;
+      const isPlainTextResult =
+        toolName === "get_pipeline_job_output" ||
+        toolName === "get_job_artifact_file" ||
+        (toolName === "download_release_asset" && !IS_REMOTE);
+      return maskingEngine
+        ? maskingEngine.maskToolResult(result, { textFormat: isPlainTextResult ? "plain" : "json" })
+        : result;
     };
 
     const logError = (error: unknown) => {
       const durationMs = Date.now() - start;
+      const safeError = maskingEngine ? maskingEngine.maskError(error) : error;
       logger.error(
         {
           tool: toolName,
           event: "tool_call_error",
           durationMs,
-          error: error instanceof Error ? error.message : String(error),
+          error: safeError instanceof Error ? safeError.message : String(safeError),
         },
         `tool_call_error: ${toolName} (${durationMs}ms)`
       );
-      throw error;
+      throw safeError;
     };
 
     try {
+      const authData =
+        (REMOTE_AUTHORIZATION || GITLAB_MCP_OAUTH) && sessionId
+          ? authBySession[sessionId]
+          : undefined;
+      const sessionContext: SessionAuth | undefined = authData
+        ? {
+            sessionId,
+            header: authData.header,
+            token: authData.token,
+            lastUsed: authData.lastUsed,
+            apiUrl: authData.apiUrl,
+            publicBaseUrl: authData.publicBaseUrl,
+            allowedProjectIds: authData.allowedProjectIds,
+          }
+        : undefined;
+      const selectMaskingPolicy = () => {
+        const isToolDiscovery = toolName === "discover_tools";
+        const inputSchema = allTools.find(tool => tool.name === toolName)?.inputSchema;
+        // Optional project fields can be filters on global queries. Only supply
+        // the default when the corresponding handler actually uses it. Keep this
+        // list synchronized with getFileContents, listMyIssues, listIssues, and
+        // listMergeRequests: those are the handlers with optional project input
+        // that may call getEffectiveProjectId("") at runtime.
+        const usesDefaultProject =
+          inputSchema?.required?.includes("project_id") ||
+          toolName === "get_file_contents" ||
+          (toolName === "my_issues" &&
+            (Boolean(GITLAB_PROJECT_ID) || getEffectiveAllowedProjectIds().length > 0)) ||
+          ((toolName === "list_issues" || toolName === "list_merge_requests") &&
+            ENABLE_STRICT_PROJECT_SCOPE &&
+            getEffectiveAllowedProjectIds().length > 0);
+        const maskingScope = maskingPolicyResolver
+          ? getManagedMaskingProjectIds(
+              inputSchema,
+              request.params.arguments,
+              maskingPolicyResolver.managed && usesDefaultProject
+                ? () => getEffectiveProjectId("")
+                : undefined
+            )
+          : undefined;
+        return maskingPolicyResolver?.select({
+          gitlabInstance: getEffectiveApiUrl(),
+          ...maskingScope,
+          // Tool discovery does not access GitLab data and must remain available
+          // under the default managed-policy setting.
+          allowBuiltinForUnscoped: isToolDiscovery,
+        });
+      };
+      maskingEngine = sessionContext
+        ? sessionAuthStore.run(sessionContext, selectMaskingPolicy)
+        : selectMaskingPolicy();
+
       // Handle discover_tools meta-tool directly (needs access to mcpServer and filteredTools)
       if (toolName === "discover_tools") {
         const category = request.params.arguments?.category?.trim()?.toLowerCase();
@@ -1004,18 +1082,9 @@ function createServer(): McpServer {
         request.params.arguments = cleanArgs;
       }
 
-      if ((REMOTE_AUTHORIZATION || GITLAB_MCP_OAUTH) && sessionId && authBySession[sessionId]) {
-        const authData = authBySession[sessionId];
-        const sessionContext: SessionAuth = {
-          sessionId,
-          header: authData.header,
-          token: authData.token,
-          lastUsed: authData.lastUsed,
-          apiUrl: authData.apiUrl,
-          publicBaseUrl: authData.publicBaseUrl,
-          allowedProjectIds: authData.allowedProjectIds,
-        };
-        // Run the handler within the retrieved context
+      if (sessionContext) {
+        // Policy selection and the tool handler must use the same request-local
+        // API URL and project allowlist.
         const result = await sessionAuthStore.run(sessionContext, () =>
           handleToolCall(request.params)
         );
@@ -2077,12 +2146,16 @@ async function handleGitLabError(response: UndiciResponse): Promise<void> {
     const errorBody = await response.text();
     // Check specifically for Rate Limit error
     if (response.status === 403 && errorBody.includes("User API Key Rate limit exceeded")) {
-      logger.error({ err: errorBody }, "GitLab API Rate Limit Exceeded");
+      // Do not log the upstream body here; it is masked on the error object
+      // before the common tool-call boundary returns/logs it.
+      logger.error("GitLab API Rate Limit Exceeded");
       logger.error("User API Key Rate limit exceeded. Please try again later.");
-      throw new Error(`GitLab API Rate Limit Exceeded: ${errorBody}`);
+      const error = new Error(`GitLab API Rate Limit Exceeded: ${errorBody}`);
+      throw error;
     } else {
       // Handle other API errors
-      throw new Error(`GitLab API error: ${response.status} ${response.statusText}\n${errorBody}`);
+      const error = new Error(`GitLab API error: ${response.status} ${response.statusText}\n${errorBody}`);
+      throw error;
     }
   }
 }

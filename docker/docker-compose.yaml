@@ -16,3 +16,9 @@ services:
       - SSE=${SSE}
       - SSE_AUTH_TOKEN=${SSE_AUTH_TOKEN}
       - HOST=${HOST}
+      - GITLAB_MASKING_ENABLED=${GITLAB_MASKING_ENABLED:-false}
+      - GITLAB_MASKING_CONFIG=${GITLAB_MASKING_CONFIG:-.gitlab-mcp-mask.json}
+      - GITLAB_MASKING_POLICY_FILE=${GITLAB_MASKING_POLICY_FILE}
+      - GITLAB_MASKING_WORKSPACE_DIR=/app/masking-config
+    volumes:
+      - ./masking-config:/app/masking-config:ro

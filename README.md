@@ -143,6 +143,10 @@ Some MCP clients (like GitHub Copilot CLI) have issues with environment variable
 - `--use-milestone=true` - Enable milestone API (replaces `USE_MILESTONE`, legacy — prefer `GITLAB_TOOLSETS=milestones`)
 - `--use-pipeline=true` - Enable pipeline API (replaces `USE_PIPELINE`, legacy — prefer `GITLAB_TOOLSETS=pipelines`)
 - `--disable-version-check=true` - Disable the startup new-version notice (replaces `GITLAB_DISABLE_VERSION_CHECK`)
+- `--masking-enabled=true` - Enable text-response masking (replaces `GITLAB_MASKING_ENABLED`)
+- `--masking-config` - Path to a masking configuration file (replaces `GITLAB_MASKING_CONFIG`)
+- `--masking-policy-file` - Path to a protected managed-policy file (replaces `GITLAB_MASKING_POLICY_FILE`)
+- `--masking-workspace-dir` - Directory used to resolve masking files (replaces `GITLAB_MASKING_WORKSPACE_DIR`)
 
 CLI arguments take precedence over environment variables.
 
