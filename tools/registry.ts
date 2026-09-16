@@ -1,4 +1,3 @@
-import { zodToJsonSchema } from "zod-to-json-schema";
 import { toJSONSchema } from "../utils/schema.js";
 import {
   USE_GITLAB_WIKI,
@@ -123,6 +122,7 @@ import {
   GetMergeRequestConflictsSchema,
   GetMergeRequestDiffsSchema,
   GetMergeRequestFileDiffSchema,
+  GetMergeRequestDiscussionSchema,
   GetMergeRequestNoteSchema,
   GetMergeRequestNotesSchema,
   GetMergeRequestSchema,
@@ -308,7 +308,7 @@ export const allTools = [
   {
     name: "execute_graphql",
     description: "Execute a GitLab GraphQL query",
-    inputSchema: zodToJsonSchema(ExecuteGraphQLSchema),
+    inputSchema: toJSONSchema(ExecuteGraphQLSchema),
   },
   {
     name: "create_or_update_file",
@@ -465,6 +465,11 @@ export const allTools = [
     name: "mr_discussions",
     description: "List discussion items for a merge request",
     inputSchema: toJSONSchema(ListMergeRequestDiscussionsSchema),
+  },
+  {
+    name: "get_merge_request_discussion",
+    description: "Get a single discussion item for a merge request",
+    inputSchema: toJSONSchema(GetMergeRequestDiscussionSchema),
   },
   {
     name: "delete_merge_request_discussion_note",
@@ -1193,7 +1198,7 @@ export const allTools = [
   {
     name: "health_check",
     description:
-      "Verify server status and authentication. When authenticated, also reports the GitLab instance version from GET /api/v4/version (version, revision, enterprise). Version lookup failures do not fail the health check — those fields are omitted.",
+      "Verify server status and authentication. Always reports the MCP server version (mcp_server_version). When authenticated, also reports the GitLab instance version from GET /api/v4/version (version, revision, enterprise). Version lookup failures do not fail the health check — those fields are omitted.",
     inputSchema: toJSONSchema(HealthCheckSchema),
   },
   {
@@ -1566,6 +1571,7 @@ export const readOnlyTools = new Set([
   "get_draft_note",
   "list_draft_notes",
   "mr_discussions",
+  "get_merge_request_discussion",
   "list_issues",
   "list_todos",
   "my_issues",
@@ -1911,6 +1917,7 @@ export const TOOLSET_DEFINITIONS: readonly ToolsetDefinition[] = [
       "list_group_merge_requests",
       "get_branch_diffs",
       "mr_discussions",
+      "get_merge_request_discussion",
       "create_merge_request_note",
       "update_merge_request_note",
       "delete_merge_request_note",

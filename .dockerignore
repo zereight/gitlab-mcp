@@ -3,6 +3,7 @@
 # Include specific files and directories
 !*.ts
 !mcp-server
+!masking
 !package-lock.json
 !package.json
 !server

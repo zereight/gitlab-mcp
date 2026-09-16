@@ -135,7 +135,7 @@ describe("update_project", () => {
             GITLAB_PERSONAL_ACCESS_TOKEN: MOCK_TOKEN,
           }
         ),
-      /Invalid enum value/
+      /(Invalid enum value|Invalid option)/
     );
   });
 

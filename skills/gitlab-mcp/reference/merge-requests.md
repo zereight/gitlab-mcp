@@ -84,6 +84,7 @@ delete_merge_request_note       -> remove comment
 
 ```
 mr_discussions                         -> list all discussions
+get_merge_request_discussion           -> fetch one discussion by id
 create_merge_request_discussion_note   -> reply to thread
 update_merge_request_discussion_note   -> edit reply
 delete_merge_request_discussion_note   -> remove reply

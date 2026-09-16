@@ -66,7 +66,7 @@ Update project settings such as description, visibility, default branch, and fea
 
 | Parameter | Type | Required | Description |
 |---|---|:-:|---|
-| `project_id` | string |  | Project ID or complete URL-encoded path to project |
+| `project_id` | string | ✓ | Project ID or complete URL-encoded path to project |
 | `name` | string |  | Project display name |
 | `path` | string |  | Project path/slug |
 | `description` | string |  | Project description |
@@ -220,7 +220,7 @@ List group iterations with filtering options. Use this for a collection of resou
 
 *📖 Read-only*
 
-Verify server status and authentication. When authenticated, also reports the GitLab instance version from GET /api/v4/version (version, revision, enterprise). Version lookup failures do not fail the health check — those fields are omitted. Use this to verify server connectivity and authentication before making GitLab requests; use `whoami` when the authenticated user's identity is the goal. It does not mutate GitLab state and returns server/authentication status plus GitLab version details when available.
+Verify server status and authentication. Always reports the MCP server version (mcp_server_version). When authenticated, also reports the GitLab instance version from GET /api/v4/version (version, revision, enterprise). Version lookup failures do not fail the health check — those fields are omitted. Use this to verify server connectivity and authentication before making GitLab requests; use `whoami` when the authenticated user's identity is the goal. It does not mutate GitLab state and returns server/authentication status plus GitLab version details when available.
 
 **Parameters**
 

@@ -1,6 +1,6 @@
 {
   "name": "@zereight/mcp-gitlab",
-  "version": "2.1.60",
+  "version": "2.1.62",
   "mcpName": "io.github.zereight/gitlab-mcp",
   "description": "GitLab MCP server for projects, merge requests, issues, pipelines, wiki, releases, and more",
   "keywords": [
@@ -86,8 +86,7 @@
     "tldts": "^6.1.86",
     "tough-cookie": "^5.1.2",
     "undici": "^6.28.0",
-    "zod": "^3.24.2",
-    "zod-to-json-schema": "3.24.5"
+    "zod": "^4.6.5"
   },
   "devDependencies": {
     "@types/express": "^5.0.2",

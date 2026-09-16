@@ -7,6 +7,87 @@ Use an API URL, not the GitLab web root:
 - `https://gitlab.com/api/v4`
 - `https://your-gitlab.example.com/api/v4`
 
+## Response masking
+
+### `GITLAB_MASKING_ENABLED`
+
+Optional. Set to `true` to mask sensitive text in GitLab tool results and
+returned error messages. The default is `false`; when disabled, the existing
+response path is used and no masking configuration file is read.
+
+### `GITLAB_MASKING_CONFIG`
+
+Optional path to a JSON masking configuration. Relative paths are resolved from
+`GITLAB_MASKING_WORKSPACE_DIR` (or the server process working directory). When
+unset, the server looks for `.gitlab-mcp-mask.json` in that directory. Missing
+default files are allowed and only the built-in rules are used. If this variable
+is explicitly set, its file must exist; a missing or invalid file fails startup
+so a bad mount cannot silently disable custom rules.
+
+The file may also contain a version 2 managed-policy reference:
+
+```json
+{ "version": 2, "mode": "managed", "policyGroup": "team-default" }
+```
+
+Managed references require `GITLAB_MASKING_POLICY_FILE`. They contain no rules;
+the server validates the requested group against its protected policy file.
+The repository includes `.gitlab-mcp-managed-policy.example.json` as a server
+policy-file template.
+
+### `GITLAB_MASKING_POLICY_FILE`
+
+Optional path to a server-owned JSON file defining managed policy groups and
+GitLab instance/project bindings. This is intended for HTTP deployments and
+must not be readable or writable by the Agent. When configured, a request for a
+bound project uses the server-selected policy group. An unbound or project-less
+request is rejected by default, so a failed policy lookup cannot return an
+unmasked response.
+
+Managed bindings currently use numeric GitLab project IDs. A project path such
+as `group/project` is rejected. For tools that declare more than one project
+field, every referenced project must be bound to the same policy group. The
+server ignores undeclared `project_id` fields, preventing a global tool from
+selecting an unrelated policy. Project-less tools can use built-in rules only
+when `unboundProjectBehavior` is explicitly set to `builtin`; custom managed
+rules are never selected for them.
+
+Omitted project filters on global queries (such as `list_issues`,
+`list_merge_requests`, and `list_todos`) do not select the configured default
+project's policy. A default project is included only when the tool handler
+actually uses it, including strict project-scoped queries. Tool discovery
+remains available with built-in masking even when project-less queries are denied.
+
+### `GITLAB_MASKING_WORKSPACE_DIR`
+
+Optional directory used to resolve the masking configuration. This does not
+change the process working directory. For local stdio use, set it to the
+workspace directory when the MCP client does not set the server process cwd.
+
+The config file supports `keyword` rules for literal replacements and `regex`
+rules for pattern replacements. See `.gitlab-mcp-mask.example.json` in the
+repository. When masking is enabled, built-in rules cover GitLab token prefixes
+`glpat-`, `glrt-`, `glptt-`, `gldt-`, `glcbt-`, `glsoat-`, `gloas-`,
+`glagent-`, `glft-`, and `glimt-`, plus IPv4 and IPv6; each can be disabled or given a custom replacement under
+`builtins`. Rules are loaded at startup; invalid configured files fail startup.
+
+Overlapping matches mask their entire combined interval, using the replacement
+of the earliest match (the longest match wins when start positions are equal).
+Replacement text is not matched again.
+
+### Text-response boundary
+
+Masking applies to MCP tool text blocks, JSON encoded in text blocks,
+`structuredContent`, and returned error messages. It is applied in stdio, SSE,
+and Streamable HTTP modes, including stateless HTTP requests.
+
+Plain text outputs preserve their formatting. For JSON text responses, only
+string values are rewritten; numeric values and JSON formatting are preserved.
+
+This release does not inspect files returned through download URLs, local files,
+image or other binary content, or base64-encoded payloads. Treat those outputs
+as outside the masking boundary.
+
 ## Authentication
 
 ### `GITLAB_PERSONAL_ACCESS_TOKEN`
@@ -627,11 +708,11 @@ Default:
 
 This single value is reused in three places (whichever limit is hit first wins):
 
-| Layer | Key | Routes |
-|-------|-----|--------|
-| Express middleware | Client IP | `POST` / `DELETE /mcp` |
-| Session handler | MCP session ID | Existing sessions when `REMOTE_AUTHORIZATION=true` or `GITLAB_MCP_OAUTH=true` |
-| Download proxy | Auth token | `GET /downloads/*` |
+| Layer              | Key            | Routes                                                                        |
+| ------------------ | -------------- | ----------------------------------------------------------------------------- |
+| Express middleware | Client IP      | `POST` / `DELETE /mcp`                                                        |
+| Session handler    | MCP session ID | Existing sessions when `REMOTE_AUTHORIZATION=true` or `GITLAB_MCP_OAUTH=true` |
+| Download proxy     | Auth token     | `GET /downloads/*`                                                            |
 
 When `MCP_TRUST_PROXY` is unset behind a reverse proxy, all clients share one IP
 bucket and the per-IP limit becomes the bottleneck for the whole deployment.
