@@ -241,10 +241,10 @@ Modify an existing issue thread note. Use this for an existing resource; choose 
 
 | Parameter | Type | Required | Description |
 |---|---|:-:|---|
-| `project_id` | string |  | Project ID or complete URL-encoded path to project |
-| `issue_iid` | string |  | The IID of an issue |
-| `discussion_id` | string |  | The ID of a thread |
-| `note_id` | string |  | The ID of a thread note |
+| `project_id` | string | ✓ | Project ID or complete URL-encoded path to project |
+| `issue_iid` | string | ✓ | The IID of an issue |
+| `discussion_id` | string | ✓ | The ID of a thread |
+| `note_id` | string | ✓ | The ID of a thread note |
 | `body` | string |  | The content of the note or reply |
 | `resolved` | boolean |  | Resolve or unresolve the note |
 

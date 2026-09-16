@@ -14361,7 +14361,7 @@ async function handleToolCall(params: any) {
     logger.debug({ tool: params.name }, "Tool call failed");
     if (error instanceof z.ZodError) {
       throw new Error(
-        `Invalid arguments: ${error.errors
+        `Invalid arguments: ${error.issues
           .map(e => `${e.path.join(".")}: ${e.message}`)
           .join(", ")}`
       );

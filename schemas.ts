@@ -618,9 +618,9 @@ export const CreatePipelineTriggerSchema = z.object({ project_id: z.coerce.strin
 export const UpdatePipelineTriggerSchema = PipelineTriggerIdSchema.extend({ description: z.string() });
 export const TriggerPipelineSchema = z.object({
   project_id: z.coerce.string(), token: z.string(), ref: z.string(),
-  variables: z.record(z.string()).optional(),
+  variables: z.record(z.string(), z.string()).optional(),
   inputs: z
-    .record(z.unknown())
+    .record(z.string(), z.unknown())
     .optional()
     .describe("Structured pipeline inputs; supported from GitLab 17.10 behind a feature flag and generally available from GitLab 18.1. Omit on older GitLab versions."),
 });
@@ -701,7 +701,9 @@ export const GitLabPipelineScheduleSchema = z.object({
     .array(
       z.object({
         name: z.string(),
-        value: z.unknown(),
+        // Optional: Zod 4 rejects a missing key on required unknown (Zod 3 accepted it),
+        // and schedule inputs is a new API surface (18.1+) whose response shape is still settling.
+        value: z.unknown().optional(),
       })
     )
     .optional(),
@@ -942,12 +944,12 @@ export const PlayPipelineJobSchema = z.object({
     )
     .optional()
     .describe("Custom job variables to use when running the job"),
-  job_inputs: z.record(z.unknown()).optional().describe("Typed job input values"),
+  job_inputs: z.record(z.string(), z.unknown()).optional().describe("Typed job input values"),
 });
 
 // Schema for retrying a job
 export const RetryPipelineJobSchema = PipelineJobControlSchema.extend({
-  job_inputs: z.record(z.unknown()).optional().describe("Typed job input values"),
+  job_inputs: z.record(z.string(), z.unknown()).optional().describe("Typed job input values"),
 });
 
 // Schema for canceling a job
@@ -1381,8 +1383,8 @@ export const GitLabCommitSchema = z.object({
       total: z.coerce.number().optional().nullable(),
     })
     .optional(), // Only present when with_stats=true
-  trailers: z.record(z.string()).optional().default({}), // Git trailers, may be empty object
-  extended_trailers: z.record(z.array(z.string())).optional().default({}), // Extended trailers, may be empty object
+  trailers: z.record(z.string(), z.string()).optional().default({}), // Git trailers, may be empty object
+  extended_trailers: z.record(z.string(), z.array(z.string())).optional().default({}), // Extended trailers, may be empty object
 });
 
 export const GitLabCommitStatusSchema = z
@@ -2385,8 +2387,7 @@ const MergeRequestParamsSchema = ProjectParamsSchema.extend({
       value => (value === undefined || value === null ? value : String(value)),
       z
         .string({
-          required_error: "project_id is required",
-          invalid_type_error: "project_id is required",
+          error: "project_id is required",
         })
         .refine(value => value === "" || value.trim().length > 0, "project_id is required")
         .transform(value => (value === "" ? value : value.trim()))
@@ -2568,8 +2569,7 @@ export const ListMergeRequestPipelinesSchema = ProjectParamsSchema.extend({
       value => (value === undefined || value === null ? value : String(value)),
       z
         .string({
-          required_error: "merge_request_iid is required",
-          invalid_type_error: "merge_request_iid is required",
+          error: "merge_request_iid is required",
         })
         .refine(value => value.trim().length > 0, "merge_request_iid is required")
         .transform(value => value.trim())
@@ -3197,7 +3197,7 @@ export const GitLabWikiPageSchema = z.object({
   slug: z.string(),
   format: z.string(),
   content: z.string().optional(),
-  front_matter: z.record(z.unknown()).optional(),
+  front_matter: z.record(z.string(), z.unknown()).optional(),
   created_at: z.string().optional(),
   updated_at: z.string().optional(),
 });
@@ -3420,7 +3420,7 @@ export const GitLabDraftNoteSchema = z
     merge_request_id: z.coerce.number().nullable().optional(),
     commit_id: z.string().nullable().optional(),
     discussion_id: z.string().nullable().optional(),
-    position: z.record(z.unknown()).nullable().optional(),
+    position: z.record(z.string(), z.unknown()).nullable().optional(),
     resolve_discussion: z.coerce.boolean().optional(),
   })
   .transform(data => ({
@@ -4259,7 +4259,10 @@ export type GetProjectEventsOptions = z.infer<typeof GetProjectEventsSchema>;
 // GraphQL generic execution schema
 export const ExecuteGraphQLSchema = z.object({
   query: z.string().describe("GraphQL query string"),
-  variables: z.record(z.any()).optional().describe("Variables object for the GraphQL query"),
+  variables: z
+    .record(z.string(), z.any())
+    .optional()
+    .describe("Variables object for the GraphQL query"),
 });
 export type ExecuteGraphQLOptions = z.infer<typeof ExecuteGraphQLSchema>;
 
@@ -4641,22 +4644,23 @@ export type GetTagSignatureOptions = z.infer<typeof GetTagSignatureSchema>;
 // --- Work item schemas (GraphQL-based) ---
 
 // Case-insensitive work item type enum (accepts "ISSUE", "Issue", "issue")
-const workItemTypeEnum = z
-  .string()
-  .transform(v => v.toLowerCase())
-  .pipe(
-    z.enum([
-      "issue",
-      "task",
-      "incident",
-      "test_case",
-      "epic",
-      "key_result",
-      "objective",
-      "requirement",
-      "ticket",
-    ])
-  );
+// Case-insensitive enum: lowercase the input, then validate against allowed values.
+// (z.preprocess form so the enum stays visible to JSON Schema conversion;
+// a transform().pipe() chain only exposes its input side as a plain string.)
+const workItemTypeEnum = z.preprocess(
+  v => (typeof v === "string" ? v.toLowerCase() : v),
+  z.enum([
+    "issue",
+    "task",
+    "incident",
+    "test_case",
+    "epic",
+    "key_result",
+    "objective",
+    "requirement",
+    "ticket",
+  ])
+);
 
 const NamespaceIdOrPathSchema = z.coerce
   .string()

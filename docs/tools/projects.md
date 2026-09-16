@@ -66,7 +66,7 @@ Update project settings such as description, visibility, default branch, and fea
 
 | Parameter | Type | Required | Description |
 |---|---|:-:|---|
-| `project_id` | string |  | Project ID or complete URL-encoded path to project |
+| `project_id` | string | ✓ | Project ID or complete URL-encoded path to project |
 | `name` | string |  | Project display name |
 | `path` | string |  | Project path/slug |
 | `description` | string |  | Project description |
