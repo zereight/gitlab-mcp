@@ -362,10 +362,14 @@ Entries are matched exactly, including a non-default port: list `minio.internal:
 to trust that host and port. Requests keep the GitLab credential headers
 (`Authorization`, `Private-Token`, `JOB-TOKEN`) only towards the host the request
 started on and towards these trusted hosts; any other redirect target, such as object
-storage, is fetched without them. A redirect that comes back to the host the request
-started on gets them back, and a redirect that would downgrade an HTTPS request to
-cleartext HTTP is refused outright — even for a trusted host — so credentials never
-travel unencrypted.
+storage, is fetched without them. Once a hop has been made without the credentials they
+stay off for the rest of the chain — including a redirect that comes back to the host
+the request started on, whose response the caller reads as the downloaded file.
+
+A redirect that would downgrade an HTTPS request to cleartext HTTP is refused outright,
+for every target including a trusted host. An instance that serves release assets from a
+plain-HTTP storage host on another hostname therefore has to serve that storage over
+HTTPS, or not redirect to it.
 
 The redirect target is resolved once for the address check and again when the
 connection is opened, so a name whose DNS answer changes between the two lookups is not

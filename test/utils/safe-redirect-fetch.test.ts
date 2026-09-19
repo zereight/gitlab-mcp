@@ -433,7 +433,7 @@ describe("credential headers across redirect hops", () => {
     assert.equal(calls[1].headers.Accept, "application/octet-stream");
   });
 
-  test("restores credentials when a redirect comes back to the initial origin", async () => {
+  test("keeps the credentials off a hop that returns to the initial origin", async () => {
     const calls: RecordedCall[] = [];
     const response = await fetchWithValidatedRedirects("http://127.0.0.1:1/start", {
       headers: credentials,
@@ -447,12 +447,26 @@ describe("credential headers across redirect hops", () => {
     );
     // The untrusted hop keeps the token out of the request...
     assert.equal(calls[1].headers["Private-Token"], undefined);
-    // ...and the hop back on the originating origin gets it back.
-    assert.equal(calls[2].headers.Authorization, "Bearer secret");
+    // ...and a target cannot get it back by bouncing the request to the origin, whose
+    // response the caller of this helper reads as the downloaded body.
+    assert.equal(calls[2].headers.Authorization, undefined);
+    assert.equal(calls[2].headers["Private-Token"], undefined);
+  });
+
+  test("restores credentials on a return to the origin only after a trusted hop", async () => {
+    const calls: RecordedCall[] = [];
+    await fetchWithValidatedRedirects("http://127.0.0.1:1/start", {
+      headers: credentials,
+      isTrustedRedirectHost: host => host === PUBLIC_HOST,
+      fetchImpl: stubRedirectChain([`http://${PUBLIC_HOST}/mid`, "http://127.0.0.1:1/file"], calls),
+    });
+
+    // The trusted hop already received the token, so the return hop may carry it too.
+    assert.equal(calls[1].headers["Private-Token"], "secret");
     assert.equal(calls[2].headers["Private-Token"], "secret");
   });
 
-  test("stays without credentials across untrusted hops and restores them on return", async () => {
+  test("stays without credentials across untrusted hops and returns without them", async () => {
     const calls: RecordedCall[] = [];
     await fetchWithValidatedRedirects("http://127.0.0.1:1/start", {
       headers: credentials,
@@ -464,6 +478,22 @@ describe("credential headers across redirect hops", () => {
 
     assert.equal(calls[1].headers["Private-Token"], undefined);
     assert.equal(calls[2].headers["Private-Token"], undefined);
+    assert.equal(calls[3].headers["Private-Token"], undefined);
+  });
+
+  test("a trusted hop after an untrusted one may carry the credentials again", async () => {
+    const calls: RecordedCall[] = [];
+    await fetchWithValidatedRedirects("http://127.0.0.1:1/start", {
+      headers: credentials,
+      isTrustedRedirectHost: host => host === "93.184.216.35",
+      fetchImpl: stubRedirectChain(
+        [`http://${PUBLIC_HOST}/mid`, "http://93.184.216.35/storage", "http://127.0.0.1:1/file"],
+        calls
+      ),
+    });
+
+    assert.equal(calls[1].headers["Private-Token"], undefined);
+    assert.equal(calls[2].headers["Private-Token"], "secret");
     assert.equal(calls[3].headers["Private-Token"], "secret");
   });
 });

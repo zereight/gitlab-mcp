@@ -290,9 +290,12 @@ async function assertRedirectTargetAllowed(
  *
  * Credential headers are withheld from any hop that leaves the initial origin
  * unless the destination is a trusted host, so redirects to object storage or any
- * other host cannot exfiltrate the GitLab token. A hop that comes back to the
- * initial origin gets them back, and a hop that would downgrade HTTPS to cleartext
- * HTTP is refused before the credentials are considered at all.
+ * other host cannot exfiltrate the GitLab token. Once withheld they stay withheld for
+ * the rest of the chain, including on a hop back to the initial origin: the response
+ * body is handed to the caller, so re-attaching the token there would let a redirect
+ * target turn this request into an authenticated read of a URL it chose. A hop that
+ * would downgrade HTTPS to cleartext HTTP is refused before the credentials are
+ * considered at all.
  *
  * Residual risk: the destination host is resolved twice — once for the check and
  * again when the connection is opened — so a DNS name with a short TTL can answer
@@ -318,6 +321,9 @@ export async function fetchWithValidatedRedirects(
   let currentUrl = url;
   let currentProtocol = new URL(url).protocol;
   let currentHeaders = options.headers;
+  // Set once a hop outside the origin has been followed without the credentials, so a
+  // later hop back to the origin cannot re-attach them.
+  let credentialsWithheld = false;
 
   for (let hop = 0; hop <= maxRedirects; hop++) {
     const response = await fetchImpl(currentUrl, {
@@ -360,16 +366,19 @@ export async function fetchWithValidatedRedirects(
       );
     }
 
-    // A hop that stays on the originating origin needs no destination check and
-    // keeps the credentials; a hop that returns to it gets the credentials back
-    // that an earlier untrusted hop dropped. Any other hop is evaluated once, so
-    // the trusted-host predicate runs exactly once per redirect.
+    // A hop that stays on the originating origin needs no destination check. It keeps
+    // the credentials only when they were not withheld on the way here: a target that
+    // sends the request back to the origin would otherwise receive an authenticated
+    // response — for a URL it chose — that the caller of this helper then reads as the
+    // downloaded body. A hop that returns after a *trusted* hop gets them back, because
+    // that hop already holds them.
     if (target.origin === initialOrigin) {
-      currentHeaders = options.headers;
+      currentHeaders = credentialsWithheld ? withoutCredentialHeaders(options) : options.headers;
     } else {
       const trusted = isTrustedRedirectTarget(target, options);
       await assertRedirectTargetAllowed(target, trusted, options);
       currentHeaders = trusted ? options.headers : withoutCredentialHeaders(options);
+      credentialsWithheld = !trusted;
     }
 
     currentUrl = target.toString();

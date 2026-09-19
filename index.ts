@@ -10772,9 +10772,12 @@ async function downloadReleaseAsset(
 
   const fetchConfig = getFetchConfig();
   const response = await fetchWithValidatedRedirects(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(effectiveProjectId)}/releases/${encodeGitLabPathSegment(tagName)}/downloads/${encodeGitLabPath(directAssetPath)}`,
+    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(effectiveProjectId)}/releases/${encodeGitLabPathSegment(tagName)}/downloads/${encodeGitLabPath(directAssetPath)}`,
     {
       ...fetchConfig,
+      // The wrapped client keeps the cookie jar and the OAuth 401 retry; the helper
+      // defaults to plain undici, which would drop a cookie-auth session mid-download.
+      fetchImpl: fetch,
       isTrustedRedirectHost: isTrustedGitLabRedirectHost,
     }
   );
