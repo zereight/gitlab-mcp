@@ -3532,7 +3532,9 @@ export const ListProjectMilestonesSchema = ProjectParamsSchema.extend({
   iids: z
     .array(z.coerce.number())
     .optional()
-    .describe("Return only the milestones having the given iid"),
+    .describe(
+      "Return only the milestones having the given iid. An empty array is treated as no filter and is left out of the request."
+    ),
   state: z
     .enum(["active", "closed"])
     .optional()
@@ -3606,7 +3608,9 @@ export const ListGroupMilestonesSchema = z
     iids: z
       .array(z.coerce.number())
       .optional()
-      .describe("Return only the milestones having the given iid"),
+      .describe(
+      "Return only the milestones having the given iid. An empty array is treated as no filter and is left out of the request."
+    ),
     state: z
       .enum(["active", "closed"])
       .optional()

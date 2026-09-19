@@ -188,4 +188,67 @@ describe('list_merge_requests', () => {
       mockGitLab.clearCustomHandlers();
     }
   });
+
+  test('drops blank entries inside array filters', async () => {
+    let capturedUrl: string | undefined;
+    mockGitLab.addMockHandler('get', '/merge_requests', (req, res) => {
+      capturedUrl = req.originalUrl;
+      res.json([]);
+    });
+
+    try {
+      await callListMergeRequests(
+        { labels: ['', '  ', 'bug'], approved_by_usernames: ['alice', ''] },
+        {
+          GITLAB_API_URL: `${mockGitLabUrl}/api/v4`,
+          GITLAB_PERSONAL_ACCESS_TOKEN: MOCK_TOKEN,
+        }
+      );
+
+      assert.ok(capturedUrl, 'Mock handler should have received a request');
+      // Parse the query so the assertion does not depend on parameter order
+      const params = new URL(capturedUrl!, 'http://localhost').searchParams;
+
+      assert.deepStrictEqual(
+        params.getAll('labels'),
+        ['bug'],
+        'Blank array entries should be dropped while non-blank ones are kept'
+      );
+      assert.deepStrictEqual(
+        params.getAll('approved_by_usernames[]'),
+        ['alice'],
+        'Blank array entries should be dropped while non-blank ones are kept'
+      );
+    } finally {
+      mockGitLab.clearCustomHandlers();
+    }
+  });
+
+  test('omits array filters whose entries are all blank', async () => {
+    let capturedUrl: string | undefined;
+    mockGitLab.addMockHandler('get', '/merge_requests', (req, res) => {
+      capturedUrl = req.originalUrl;
+      res.json([]);
+    });
+
+    try {
+      const mrs = await callListMergeRequests(
+        { labels: ['', ' '], approved_by_usernames: [''] },
+        {
+          GITLAB_API_URL: `${mockGitLabUrl}/api/v4`,
+          GITLAB_PERSONAL_ACCESS_TOKEN: MOCK_TOKEN,
+        }
+      );
+
+      assert.deepStrictEqual(mrs, []);
+      assert.ok(capturedUrl, 'Mock handler should have received a request');
+      assert.strictEqual(
+        new URL(capturedUrl!, 'http://localhost').search,
+        '',
+        'Array filters with only blank entries should not be serialized'
+      );
+    } finally {
+      mockGitLab.clearCustomHandlers();
+    }
+  });
 });

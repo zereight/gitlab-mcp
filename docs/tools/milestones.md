@@ -38,7 +38,7 @@ List milestones with filtering options. Use this for a collection of resources; 
 | Parameter | Type | Required | Description |
 |---|---|:-:|---|
 | `project_id` | string | ✓ | Project ID or complete URL-encoded path to project |
-| `iids` | array<number> |  | Return only the milestones having the given iid |
+| `iids` | array<number> |  | Return only the milestones having the given iid. An empty array is treated as no filter and is left out of the request. |
 | `state` | enum (`active` \| `closed`) |  | Return only active or closed milestones |
 | `title` | string |  | Return only milestones with a title matching the provided string |
 | `search` | string |  | Return only milestones with a title or description matching the provided string |
@@ -177,7 +177,7 @@ List group milestones with filtering options. Use this for a collection of resou
 | Parameter | Type | Required | Description |
 |---|---|:-:|---|
 | `group_id` | string | ✓ | Group ID or URL-encoded path |
-| `iids` | array<number> |  | Return only the milestones having the given iid |
+| `iids` | array<number> |  | Return only the milestones having the given iid. An empty array is treated as no filter and is left out of the request. |
 | `state` | enum (`active` \| `closed`) |  | Return only active or closed milestones |
 | `title` | string |  | Return only milestones with a title matching the provided string |
 | `search` | string |  | Return only milestones with a title or description matching the provided string |
