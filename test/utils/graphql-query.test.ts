@@ -254,4 +254,59 @@ describe("When graphqlQueryContainsDeleteOperation runs", () => {
       );
     });
   });
+
+  describe("with destructive mutations that are not named delete", () => {
+    test("should detect environmentStop", () => {
+      assert.equal(
+        graphqlQueryContainsDeleteOperation(
+          'mutation { environmentStop(input: { environmentId: "gid://gitlab/Environment/1" }) { errors } }'
+        ),
+        true
+      );
+    });
+
+    test("should detect pipelineCancel", () => {
+      assert.equal(
+        graphqlQueryContainsDeleteOperation("mutation { pipelineCancel(input: {}) { errors } }"),
+        true
+      );
+    });
+
+    test("should detect clusterAgentTokenRevoke", () => {
+      assert.equal(
+        graphqlQueryContainsDeleteOperation(
+          "mutation { clusterAgentTokenRevoke(input: {}) { errors } }"
+        ),
+        true
+      );
+    });
+
+    test("should detect aliased destructive mutations", () => {
+      assert.equal(
+        graphqlQueryContainsDeleteOperation(
+          "mutation { s: environmentStop(input: {}) { errors } }"
+        ),
+        true
+      );
+    });
+
+    test("should detect destructive mutations in multi-operation documents", () => {
+      assert.equal(
+        graphqlQueryContainsDeleteOperation(
+          "query A { project { id } } mutation B { environmentStop(input: {}) { errors } }"
+        ),
+        true
+      );
+    });
+
+    test("should still allow mutations without a destructive verb", () => {
+      for (const query of [
+        "mutation { issueMove(input: {}) { errors } }",
+        "mutation { mergeRequestMerge(input: {}) { errors } }",
+        "mutation { todoMarkDone(input: {}) { errors } }",
+      ]) {
+        assert.equal(graphqlQueryContainsDeleteOperation(query), false, query);
+      }
+    });
+  });
 });
