@@ -362,12 +362,18 @@ Entries are matched exactly, including a non-default port: list `minio.internal:
 to trust that host and port. Requests keep the GitLab credential headers
 (`Authorization`, `Private-Token`, `JOB-TOKEN`) only towards the host the request
 started on and towards these trusted hosts; any other redirect target, such as object
-storage, is fetched without them.
+storage, is fetched without them. A redirect that comes back to the host the request
+started on gets them back, and a redirect that would downgrade an HTTPS request to
+cleartext HTTP is refused outright — even for a trusted host — so credentials never
+travel unencrypted.
 
 The redirect target is resolved once for the address check and again when the
 connection is opened, so a name whose DNS answer changes between the two lookups is not
-covered by this validation. Downloads to arbitrary public hosts are allowed, which is
-required for GitLab object storage.
+covered by this validation. Pinning the connection to the checked address is not done
+here because `undici` derives the TLS `servername` from the request host: rewriting the
+request to an IP literal would drop hostname verification and bypass the per-origin
+proxy routing used for `HTTP_PROXY` / `NO_PROXY`. Downloads to arbitrary public hosts
+are allowed, which is required for GitLab object storage.
 
 ### `MCP_TRUST_PROXY`
 

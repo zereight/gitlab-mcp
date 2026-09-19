@@ -204,6 +204,11 @@ export interface FetchWithValidatedRedirectsOptions {
   isTrustedRedirectHost?: (host: string) => boolean;
 }
 
+/**
+ * Whether a hop's destination is an operator-declared GitLab host. Such a host is
+ * reachable even when it resolves to a private address and keeps receiving the
+ * request credentials.
+ */
 function isTrustedRedirectTarget(
   target: URL,
   options: FetchWithValidatedRedirectsOptions
@@ -227,6 +232,15 @@ function withoutCredentialHeaders(
   );
 }
 
+/**
+ * Refuses a hop whose address the server must never reach: anything that resolves
+ * to a non-public address, and any name that does not resolve at all. Trusted hosts
+ * are exempt, because an operator-declared GitLab instance may live on a private
+ * network.
+ *
+ * Runs on every redirect hop, so an upstream cannot steer the request to loopback,
+ * link-local instance metadata, or a private-range host.
+ */
 async function assertRedirectTargetAllowed(
   target: URL,
   trusted: boolean,
@@ -276,13 +290,22 @@ async function assertRedirectTargetAllowed(
  *
  * Credential headers are withheld from any hop that leaves the initial origin
  * unless the destination is a trusted host, so redirects to object storage or any
- * other host cannot exfiltrate the GitLab token.
+ * other host cannot exfiltrate the GitLab token. A hop that comes back to the
+ * initial origin gets them back, and a hop that would downgrade HTTPS to cleartext
+ * HTTP is refused before the credentials are considered at all.
  *
  * Residual risk: the destination host is resolved twice — once for the check and
  * again when the connection is opened — so a DNS name with a short TTL can answer
- * with a public address first and a non-public address on connect. The outbound
- * request is still unrestricted towards public addresses, which is required for
- * GitLab object storage.
+ * with a public address first and a non-public address on connect. Closing that
+ * window needs the connection to use the address that was validated, which is not
+ * reachable from here: rewriting the request origin to an IP literal drops the TLS
+ * `servername` (`undici` derives it from the request host) and would also bypass the
+ * proxy routing that `GitLabClientPool` applies per origin, so downloads through a
+ * proxy would break or lose hostname verification. The durable fix is a validating
+ * `connect.lookup` on the pool's own `Agent`s, which keeps the hostname as the
+ * origin; that covers every outbound request rather than this helper alone. The
+ * outbound request stays otherwise unrestricted towards public addresses, which
+ * GitLab object storage requires.
  */
 export async function fetchWithValidatedRedirects(
   url: string,
@@ -293,6 +316,7 @@ export async function fetchWithValidatedRedirects(
   const initialOrigin = new URL(url).origin;
 
   let currentUrl = url;
+  let currentProtocol = new URL(url).protocol;
   let currentHeaders = options.headers;
 
   for (let hop = 0; hop <= maxRedirects; hop++) {
@@ -327,16 +351,29 @@ export async function fetchWithValidatedRedirects(
       );
     }
 
+    // A downgrade would put the request — including any credential a trusted host
+    // keeps — on the wire in cleartext, so it is refused before the destination is
+    // evaluated and before any trust decision can re-enable the credentials.
+    if (currentProtocol === "https:" && target.protocol === "http:") {
+      throw new UnsafeRedirectError(
+        `Refusing to follow redirect from ${currentUrl} to cleartext ${target.toString()}`
+      );
+    }
+
     // A hop that stays on the originating origin needs no destination check and
-    // keeps the credentials. Any other hop is evaluated once, so the trusted-host
-    // predicate runs exactly once per redirect.
-    if (target.origin !== initialOrigin) {
+    // keeps the credentials; a hop that returns to it gets the credentials back
+    // that an earlier untrusted hop dropped. Any other hop is evaluated once, so
+    // the trusted-host predicate runs exactly once per redirect.
+    if (target.origin === initialOrigin) {
+      currentHeaders = options.headers;
+    } else {
       const trusted = isTrustedRedirectTarget(target, options);
       await assertRedirectTargetAllowed(target, trusted, options);
       currentHeaders = trusted ? options.headers : withoutCredentialHeaders(options);
     }
 
     currentUrl = target.toString();
+    currentProtocol = target.protocol;
   }
 
   throw new UnsafeRedirectError(`Too many redirects (limit ${maxRedirects})`);

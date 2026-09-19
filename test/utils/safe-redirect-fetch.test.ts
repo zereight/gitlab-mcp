@@ -53,6 +53,23 @@ function stubRedirectFetch(location: string | null, calls: RecordedCall[]): type
   return impl as unknown as typeof undiciFetch;
 }
 
+/**
+ * A fetch stub that walks a list of redirect locations: call N answers with
+ * `locations[N - 1]` and the call after the last location returns a body. Used to
+ * assert the header policy on chains longer than one hop.
+ */
+function stubRedirectChain(locations: string[], calls: RecordedCall[]): typeof undiciFetch {
+  const impl = async (input: string | URL, init?: { headers?: Record<string, string> }) => {
+    calls.push({ url: String(input), headers: { ...(init?.headers ?? {}) } });
+    const location = locations[calls.length - 1];
+    if (location) {
+      return new Response(null, { status: 302, headers: { location } });
+    }
+    return new Response("payload", { status: 200 });
+  };
+  return impl as unknown as typeof undiciFetch;
+}
+
 describe("safe redirect fetch", () => {
   before(async () => {
     server = http.createServer((req, res) => {
@@ -348,5 +365,105 @@ describe("credential headers across redirect hops", () => {
         error instanceof UnsafeRedirectError && error.message.includes("non-public address")
     );
     assert.equal(calls.length, 1);
+  });
+
+  const rejectsWithCleartext = (promise: () => Promise<unknown>) =>
+    assert.rejects(
+      promise,
+      (error: Error) => error instanceof UnsafeRedirectError && error.message.includes("cleartext")
+    );
+
+  test("refuses an https-to-http downgrade even for a trusted host", async () => {
+    const calls: RecordedCall[] = [];
+    await rejectsWithCleartext(() =>
+      fetchWithValidatedRedirects(`https://${PUBLIC_HOST}/start`, {
+        headers: credentials,
+        // Trust must not re-enable the credentials on a cleartext hop.
+        isTrustedRedirectHost: () => true,
+        fetchImpl: stubRedirectFetch(`http://${PUBLIC_HOST}/file`, calls),
+      })
+    );
+
+    assert.deepEqual(
+      calls.map(call => call.url),
+      [`https://${PUBLIC_HOST}/start`]
+    );
+  });
+
+  test("refuses a downgrade that happens after an earlier https hop", async () => {
+    const calls: RecordedCall[] = [];
+    await rejectsWithCleartext(() =>
+      fetchWithValidatedRedirects(`https://${PUBLIC_HOST}/start`, {
+        headers: credentials,
+        fetchImpl: stubRedirectChain(
+          [`https://${PUBLIC_HOST}/mid`, `http://${PUBLIC_HOST}/file`],
+          calls
+        ),
+      })
+    );
+
+    assert.deepEqual(
+      calls.map(call => call.url),
+      [`https://${PUBLIC_HOST}/start`, `https://${PUBLIC_HOST}/mid`]
+    );
+  });
+
+  test("follows an http-to-https upgrade and keeps credentials on a trusted host", async () => {
+    const calls: RecordedCall[] = [];
+    const response = await fetchWithValidatedRedirects(`http://${PUBLIC_HOST}/start`, {
+      headers: credentials,
+      isTrustedRedirectHost: host => host === PUBLIC_HOST,
+      fetchImpl: stubRedirectFetch(`https://${PUBLIC_HOST}/file`, calls),
+    });
+
+    assert.equal(response.status, 200);
+    assert.equal(calls[1].headers.Authorization, "Bearer secret");
+    assert.equal(calls[1].headers["Private-Token"], "secret");
+  });
+
+  test("treats a scheme change to an untrusted host as cross-origin", async () => {
+    const calls: RecordedCall[] = [];
+    await fetchWithValidatedRedirects(`http://${PUBLIC_HOST}/start`, {
+      headers: credentials,
+      fetchImpl: stubRedirectFetch(`https://${PUBLIC_HOST}/file`, calls),
+    });
+
+    assert.equal(calls[1].headers.Authorization, undefined);
+    assert.equal(calls[1].headers["Private-Token"], undefined);
+    assert.equal(calls[1].headers.Accept, "application/octet-stream");
+  });
+
+  test("restores credentials when a redirect comes back to the initial origin", async () => {
+    const calls: RecordedCall[] = [];
+    const response = await fetchWithValidatedRedirects("http://127.0.0.1:1/start", {
+      headers: credentials,
+      fetchImpl: stubRedirectChain([`http://${PUBLIC_HOST}/mid`, "http://127.0.0.1:1/file"], calls),
+    });
+
+    assert.equal(response.status, 200);
+    assert.deepEqual(
+      calls.map(call => call.url),
+      ["http://127.0.0.1:1/start", `http://${PUBLIC_HOST}/mid`, "http://127.0.0.1:1/file"]
+    );
+    // The untrusted hop keeps the token out of the request...
+    assert.equal(calls[1].headers["Private-Token"], undefined);
+    // ...and the hop back on the originating origin gets it back.
+    assert.equal(calls[2].headers.Authorization, "Bearer secret");
+    assert.equal(calls[2].headers["Private-Token"], "secret");
+  });
+
+  test("stays without credentials across untrusted hops and restores them on return", async () => {
+    const calls: RecordedCall[] = [];
+    await fetchWithValidatedRedirects("http://127.0.0.1:1/start", {
+      headers: credentials,
+      fetchImpl: stubRedirectChain(
+        [`http://${PUBLIC_HOST}/mid`, `http://${PUBLIC_HOST}/other`, "http://127.0.0.1:1/file"],
+        calls
+      ),
+    });
+
+    assert.equal(calls[1].headers["Private-Token"], undefined);
+    assert.equal(calls[2].headers["Private-Token"], undefined);
+    assert.equal(calls[3].headers["Private-Token"], "secret");
   });
 });
