@@ -290,6 +290,25 @@ describe("When graphqlQueryContainsDeleteOperation runs", () => {
       );
     });
 
+    test("should not treat an alias as a destructive mutation field", () => {
+      for (const query of [
+        "mutation { stop: issueSetSeverity(input: {}) { errors } }",
+        "mutation { revoke: issueSetSeverity(input: {}) { errors } }",
+        "mutation { terminate: updateIssue(input: {}) { issue { id } } }",
+      ]) {
+        assert.equal(graphqlQueryContainsDeleteOperation(query), false, query);
+      }
+    });
+
+    test("should still detect a destructive field hidden behind a harmless alias", () => {
+      for (const query of [
+        "mutation { harmless: environmentStop(input: {}) { errors } }",
+        "mutation { step: pipelineCancel(input: {}) { errors } }",
+      ]) {
+        assert.equal(graphqlQueryContainsDeleteOperation(query), true, query);
+      }
+    });
+
     test("should detect destructive mutations in multi-operation documents", () => {
       assert.equal(
         graphqlQueryContainsDeleteOperation(
