@@ -211,6 +211,8 @@ import {
 } from "./utils/bulk-publish-options.js";
 import {
   cleanMutuallyExclusiveIdUsernameOptions,
+  dropBlankArrayEntries,
+  isBlankFilterValue,
   LIST_MERGE_REQUESTS_ID_USERNAME_PAIRS,
   sanitizeToolArguments,
 } from "./utils/tool-args.js";
@@ -2414,20 +2416,25 @@ async function listIssues(
 
   // Add all query parameters
   Object.entries(options).forEach(([key, value]) => {
-    if (value !== undefined) {
-      const keys = ["labels", "assignee_username"];
-      if (keys.includes(key)) {
-        if (Array.isArray(value)) {
-          // Handle array of labels
-          value.forEach(label => {
-            url.searchParams.append(`${key}[]`, label.toString());
-          });
-        } else if (value) {
-          url.searchParams.append(`${key}[]`, value.toString());
-        }
+    // Drop blank entries inside arrays so ["", "bug"] behaves like the scalar guard below
+    const normalized = dropBlankArrayEntries(value);
+
+    if (isBlankFilterValue(normalized)) {
+      return;
+    }
+
+    const keys = ["labels", "assignee_username"];
+    if (keys.includes(key)) {
+      if (Array.isArray(normalized)) {
+        // Handle array of labels
+        normalized.forEach(label => {
+          url.searchParams.append(`${key}[]`, String(label));
+        });
       } else {
-        url.searchParams.append(key, String(value));
+        url.searchParams.append(`${key}[]`, String(normalized));
       }
+    } else {
+      url.searchParams.append(key, String(normalized));
     }
   });
 
@@ -2484,15 +2491,9 @@ async function markAllTodosDone(): Promise<void> {
 function appendMergeRequestFilters(url: URL, options: Record<string, unknown>): void {
   Object.entries(options).forEach(([key, value]) => {
     // Drop blank entries inside arrays so ["", "bug"] behaves like the scalar guard below
-    const normalized = Array.isArray(value)
-      ? value.filter((item) => !(typeof item === "string" && item.trim() === ""))
-      : value;
+    const normalized = dropBlankArrayEntries(value);
 
-    if (
-      normalized === undefined ||
-      (typeof normalized === "string" && normalized.trim() === "") ||
-      (Array.isArray(normalized) && normalized.length === 0)
-    ) {
+    if (isBlankFilterValue(normalized)) {
       return;
     }
 
@@ -8744,14 +8745,19 @@ async function listProjectMilestones(
   );
 
   Object.entries(options).forEach(([key, value]) => {
-    if (value !== undefined) {
-      if (key === "iids" && Array.isArray(value) && value.length > 0) {
-        value.forEach(iid => {
-          url.searchParams.append("iids[]", iid.toString());
-        });
-      } else if (value !== undefined) {
-        url.searchParams.append(key, value.toString());
-      }
+    // Drop blank entries inside arrays so they behave like the scalar blank guard below
+    const normalized = dropBlankArrayEntries(value);
+
+    if (isBlankFilterValue(normalized)) {
+      return;
+    }
+
+    if (key === "iids" && Array.isArray(normalized)) {
+      normalized.forEach(iid => {
+        url.searchParams.append("iids[]", String(iid));
+      });
+    } else {
+      url.searchParams.append(key, String(normalized));
     }
   });
 
@@ -8997,14 +9003,19 @@ async function listGroupMilestones(
   );
 
   Object.entries(options).forEach(([key, value]) => {
-    if (value !== undefined) {
-      if (key === "iids" && Array.isArray(value) && value.length > 0) {
-        value.forEach(iid => {
-          url.searchParams.append("iids[]", iid.toString());
-        });
-      } else {
-        url.searchParams.append(key, value.toString());
-      }
+    // Drop blank entries inside arrays so they behave like the scalar blank guard below
+    const normalized = dropBlankArrayEntries(value);
+
+    if (isBlankFilterValue(normalized)) {
+      return;
+    }
+
+    if (key === "iids" && Array.isArray(normalized)) {
+      normalized.forEach(iid => {
+        url.searchParams.append("iids[]", String(iid));
+      });
+    } else {
+      url.searchParams.append(key, String(normalized));
     }
   });
 

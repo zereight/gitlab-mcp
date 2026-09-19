@@ -205,9 +205,18 @@ describe('list_merge_requests', () => {
         }
       );
 
-      assert.strictEqual(
-        capturedUrl,
-        '/api/v4/merge_requests?approved_by_usernames%5B%5D=alice&labels=bug',
+      assert.ok(capturedUrl, 'Mock handler should have received a request');
+      // Parse the query so the assertion does not depend on parameter order
+      const params = new URL(capturedUrl!, 'http://localhost').searchParams;
+
+      assert.deepStrictEqual(
+        params.getAll('labels'),
+        ['bug'],
+        'Blank array entries should be dropped while non-blank ones are kept'
+      );
+      assert.deepStrictEqual(
+        params.getAll('approved_by_usernames[]'),
+        ['alice'],
         'Blank array entries should be dropped while non-blank ones are kept'
       );
     } finally {
@@ -232,9 +241,10 @@ describe('list_merge_requests', () => {
       );
 
       assert.deepStrictEqual(mrs, []);
+      assert.ok(capturedUrl, 'Mock handler should have received a request');
       assert.strictEqual(
-        capturedUrl,
-        '/api/v4/merge_requests',
+        new URL(capturedUrl!, 'http://localhost').search,
+        '',
         'Array filters with only blank entries should not be serialized'
       );
     } finally {

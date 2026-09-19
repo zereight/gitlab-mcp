@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 import {
   cleanMutuallyExclusiveIdUsernameOptions,
+  dropBlankArrayEntries,
+  isBlankFilterValue,
   LIST_MERGE_REQUESTS_ID_USERNAME_PAIRS,
   sanitizeToolArguments,
 } from "../../utils/tool-args.js";
@@ -145,5 +147,39 @@ describe("When cleanMutuallyExclusiveIdUsernameOptions runs", () => {
         reviewer_username: "carol",
       });
     });
+  });
+});
+
+describe("When dropBlankArrayEntries runs", () => {
+  test("should drop blank string entries and keep meaningful ones", () => {
+    assert.deepEqual(dropBlankArrayEntries(["", "  ", "bug"]), ["bug"]);
+    assert.deepEqual(dropBlankArrayEntries(["\t", "alice", ""]), ["alice"]);
+  });
+
+  test("should leave non-array values untouched", () => {
+    assert.equal(dropBlankArrayEntries("bug"), "bug");
+    assert.equal(dropBlankArrayEntries("  "), "  ");
+    assert.equal(dropBlankArrayEntries(undefined), undefined);
+    assert.equal(dropBlankArrayEntries(false), false);
+  });
+
+  test("should keep non-string array entries", () => {
+    assert.deepEqual(dropBlankArrayEntries([0, "bug", false]), [0, "bug", false]);
+  });
+});
+
+describe("When isBlankFilterValue runs", () => {
+  test("should treat undefined, blank strings and empty arrays as blank", () => {
+    assert.equal(isBlankFilterValue(undefined), true);
+    assert.equal(isBlankFilterValue(""), true);
+    assert.equal(isBlankFilterValue(" \t\n"), true);
+    assert.equal(isBlankFilterValue([]), true);
+  });
+
+  test("should keep meaningful values, including false and zero", () => {
+    assert.equal(isBlankFilterValue("bug"), false);
+    assert.equal(isBlankFilterValue(["bug"]), false);
+    assert.equal(isBlankFilterValue(0), false);
+    assert.equal(isBlankFilterValue(false), false);
   });
 });

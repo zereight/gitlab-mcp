@@ -144,4 +144,74 @@ describe("list_issues", () => {
       mockGitLab.clearCustomHandlers();
     }
   });
+
+  test("drops blank entries inside array filters", async () => {
+    let capturedUrl: string | undefined;
+    mockGitLab.addMockHandler("get", `/projects/${TEST_PROJECT_ID}/issues`, (req, res) => {
+      capturedUrl = req.originalUrl;
+      res.json([]);
+    });
+
+    try {
+      await callListIssues(
+        {
+          project_id: TEST_PROJECT_ID,
+          labels: ["", "  ", "bug"],
+          assignee_username: ["", "alice"],
+        },
+        {
+          GITLAB_API_URL: `${mockGitLabUrl}/api/v4`,
+          GITLAB_PERSONAL_ACCESS_TOKEN: MOCK_TOKEN,
+        }
+      );
+
+      assert.ok(capturedUrl, "Mock handler should have received a request");
+      const params = new URL(capturedUrl!, "http://localhost").searchParams;
+
+      assert.deepStrictEqual(
+        params.getAll("labels[]"),
+        ["bug"],
+        "Blank label entries should be dropped while non-blank ones are kept"
+      );
+      assert.deepStrictEqual(
+        params.getAll("assignee_username[]"),
+        ["alice"],
+        "Blank assignee_username entries should be dropped while non-blank ones are kept"
+      );
+    } finally {
+      mockGitLab.clearCustomHandlers();
+    }
+  });
+
+  test("omits array filters whose entries are all blank", async () => {
+    let capturedUrl: string | undefined;
+    mockGitLab.addMockHandler("get", `/projects/${TEST_PROJECT_ID}/issues`, (req, res) => {
+      capturedUrl = req.originalUrl;
+      res.json([]);
+    });
+
+    try {
+      const issues = await callListIssues(
+        {
+          project_id: TEST_PROJECT_ID,
+          labels: ["", " "],
+          assignee_username: [""],
+        },
+        {
+          GITLAB_API_URL: `${mockGitLabUrl}/api/v4`,
+          GITLAB_PERSONAL_ACCESS_TOKEN: MOCK_TOKEN,
+        }
+      );
+
+      assert.deepStrictEqual(issues, []);
+      assert.ok(capturedUrl, "Mock handler should have received a request");
+      assert.strictEqual(
+        new URL(capturedUrl!, "http://localhost").search,
+        "",
+        "Array filters with only blank entries should not be serialized"
+      );
+    } finally {
+      mockGitLab.clearCustomHandlers();
+    }
+  });
 });

@@ -29,6 +29,29 @@ export function sanitizeToolArguments(
   return result;
 }
 
+/**
+ * Drop blank string entries inside array filters so ["", "bug"] behaves like the scalar blank guard.
+ */
+export function dropBlankArrayEntries(value: unknown): unknown {
+  if (!Array.isArray(value)) {
+    return value;
+  }
+
+  return value.filter(item => !(typeof item === "string" && item.trim() === ""));
+}
+
+/**
+ * Blank filters must be omitted entirely instead of being serialized as empty query parameters
+ * such as `labels=`, `labels[]=` or `iids=`.
+ */
+export function isBlankFilterValue(value: unknown): boolean {
+  return (
+    value === undefined ||
+    (typeof value === "string" && value.trim() === "") ||
+    (Array.isArray(value) && value.length === 0)
+  );
+}
+
 export type IdUsernameOptionPair = readonly [idKey: string, usernameKey: string];
 
 /** Pairs where GitLab rejects sending both *_id and *_username query params. */
