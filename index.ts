@@ -200,6 +200,7 @@ import {
 } from "./masking/index.js";
 import { checkForNewVersion } from "./utils/version-check.js";
 import { assertGitLabVersionAtLeast } from "./utils/gitlab-version-gate.js";
+import { fetchWithValidatedRedirects } from "./utils/safe-redirect-fetch.js";
 import {
   parseGitLabVersionApiResponse,
   type GitLabInstanceVersionMetadata,
@@ -2072,6 +2073,15 @@ for (const { host, apiUrl } of [
     GITLAB_ALLOWED_API_URLS_BY_HOST.set(host, apiUrl);
   }
 }
+
+/**
+ * Redirects from the GitLab API to operator-declared GitLab hosts are followed even
+ * when the host resolves to a private address (self-hosted instances and their
+ * storage may live on an internal network). Every other redirect target must be public.
+ */
+const isTrustedGitLabRedirectHost = (host: string): boolean =>
+  GITLAB_ALLOWED_API_URLS_BY_HOST.has(host);
+
 const GITLAB_PROJECT_ID = process.env.GITLAB_PROJECT_ID;
 const GITLAB_ALLOWED_PROJECT_IDS =
   process.env.GITLAB_ALLOWED_PROJECT_IDS?.split(",")
@@ -10755,10 +10765,12 @@ async function downloadReleaseAsset(
 ): Promise<string> {
   const effectiveProjectId = getEffectiveProjectId(projectId);
 
-  const response = await fetch(
+  const fetchConfig = getFetchConfig();
+  const response = await fetchWithValidatedRedirects(
     `${getEffectiveApiUrl()}/projects/${encodeURIComponent(effectiveProjectId)}/releases/${encodeGitLabPathSegment(tagName)}/downloads/${encodeGitLabPath(directAssetPath)}`,
     {
-      ...getFetchConfig(),
+      ...fetchConfig,
+      isTrustedRedirectHost: isTrustedGitLabRedirectHost,
     }
   );
 
@@ -14441,6 +14453,7 @@ function buildDownloadProxyDeps(): DownloadProxyDependencies {
     getDispatcherForUrl: clientPool.getDispatcherForUrl.bind(clientPool),
     fetch: undiciFetch,
     logger,
+    isTrustedRedirectHost: isTrustedGitLabRedirectHost,
   };
 }
 

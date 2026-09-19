@@ -350,6 +350,13 @@ Comma-separated additional hosts or GitLab base/API URLs allowed for
 beyond those already listed in `GITLAB_API_URL`; do not repeat `GITLAB_API_URL`
 hosts here. Examples: `gitlab.example.com,https://gitlab.company.com:8443/api/v4`.
 
+Hosts listed here (and in `GITLAB_API_URL`) are also trusted as redirect targets for
+release-asset downloads. Downloads follow upstream redirects only when the destination
+is one of these hosts, or when it resolves to a public address; redirects to loopback,
+private, link-local (for example `169.254.169.254`) or otherwise non-public addresses
+are refused. Self-hosted instances whose downloads redirect to another host on a private
+network must list that host here.
+
 ### `MCP_TRUST_PROXY`
 
 Set to `true` when the MCP server runs behind a **trusted** reverse proxy.
