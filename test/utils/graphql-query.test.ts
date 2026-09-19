@@ -300,6 +300,25 @@ describe("When graphqlQueryContainsDeleteOperation runs", () => {
       }
     });
 
+    test("should not treat a spaced or comma-separated alias as a destructive field", () => {
+      for (const query of [
+        "mutation { stop : issueSetSeverity(input: {}) { errors } }",
+        "mutation { revoke,: issueSetSeverity(input: {}) { errors } }",
+        "mutation { terminate\n: updateIssue(input: {}) { issue { id } } }",
+      ]) {
+        assert.equal(graphqlQueryContainsDeleteOperation(query), false, query);
+      }
+    });
+
+    test("should still detect a destructive field after a spaced alias", () => {
+      assert.equal(
+        graphqlQueryContainsDeleteOperation(
+          "mutation { harmless : environmentStop(input: {}) { errors } }"
+        ),
+        true
+      );
+    });
+
     test("should still detect a destructive field hidden behind a harmless alias", () => {
       for (const query of [
         "mutation { harmless: environmentStop(input: {}) { errors } }",
