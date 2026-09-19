@@ -496,4 +496,35 @@ describe("credential headers across redirect hops", () => {
     assert.equal(calls[2].headers["Private-Token"], "secret");
     assert.equal(calls[3].headers["Private-Token"], "secret");
   });
+
+  test("uses the unauthenticated client once the credentials are withheld", async () => {
+    const authenticatedCalls: RecordedCall[] = [];
+    const unauthenticatedCalls: RecordedCall[] = [];
+    await fetchWithValidatedRedirects("http://127.0.0.1:1/start", {
+      headers: credentials,
+      // A client that can add credentials by itself (cookie jar, OAuth 401 retry) must
+      // not see a hop the helper stripped.
+      fetchImpl: stubRedirectChain(
+        [`http://${PUBLIC_HOST}/mid`, "http://127.0.0.1:1/file"],
+        authenticatedCalls
+      ),
+      // This stub answers from its own first call on, which is the untrusted hop.
+      unauthenticatedFetchImpl: stubRedirectChain(
+        ["http://127.0.0.1:1/file"],
+        unauthenticatedCalls
+      ),
+    });
+
+    assert.deepEqual(
+      authenticatedCalls.map(call => call.url),
+      ["http://127.0.0.1:1/start"]
+    );
+    assert.deepEqual(
+      unauthenticatedCalls.map(call => call.url),
+      [`http://${PUBLIC_HOST}/mid`, "http://127.0.0.1:1/file"]
+    );
+    assert.equal(unauthenticatedCalls[0].headers["Private-Token"], undefined);
+    // ...including the hop back to the origin, which the caller reads as the download.
+    assert.equal(unauthenticatedCalls[1].headers["Private-Token"], undefined);
+  });
 });

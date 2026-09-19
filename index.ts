@@ -10775,9 +10775,11 @@ async function downloadReleaseAsset(
     `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(effectiveProjectId)}/releases/${encodeGitLabPathSegment(tagName)}/downloads/${encodeGitLabPath(directAssetPath)}`,
     {
       ...fetchConfig,
-      // The wrapped client keeps the cookie jar and the OAuth 401 retry; the helper
-      // defaults to plain undici, which would drop a cookie-auth session mid-download.
+      // The wrapped client keeps the cookie jar and the OAuth 401 retry, which the real
+      // download needs. Both of those add credentials by themselves, so a hop whose
+      // credentials were withheld uses the plain client instead.
       fetchImpl: fetch,
+      unauthenticatedFetchImpl: undiciFetch,
       isTrustedRedirectHost: isTrustedGitLabRedirectHost,
     }
   );

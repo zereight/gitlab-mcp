@@ -184,7 +184,19 @@ export interface FetchWithValidatedRedirectsOptions {
   headers: Record<string, string>;
   dispatcher?: Dispatcher;
   signal?: AbortSignal;
+  /** Client used while the request still carries the credentials. Defaults to undici's. */
   fetchImpl?: typeof undiciFetch;
+  /**
+   * Client used for the hops whose credentials have been withheld. Defaults to
+   * {@link fetchImpl}.
+   *
+   * A client that adds credentials on its own has to be kept out of these hops: the
+   * cookie jar attaches the session cookie for the request origin, and the OAuth retry
+   * sets a fresh `Authorization` on a `401`, so either would put the secrets back on a
+   * URL the redirect target chose — the hop this helper strips them for. Pass the plain
+   * client here.
+   */
+  unauthenticatedFetchImpl?: typeof undiciFetch;
   maxRedirects?: number;
   /**
    * Header names withheld from redirect targets outside the initial origin unless
@@ -290,12 +302,12 @@ async function assertRedirectTargetAllowed(
  *
  * Credential headers are withheld from any hop that leaves the initial origin
  * unless the destination is a trusted host, so redirects to object storage or any
- * other host cannot exfiltrate the GitLab token. Once withheld they stay withheld for
- * the rest of the chain, including on a hop back to the initial origin: the response
- * body is handed to the caller, so re-attaching the token there would let a redirect
- * target turn this request into an authenticated read of a URL it chose. A hop that
- * would downgrade HTTPS to cleartext HTTP is refused before the credentials are
- * considered at all.
+ * other host cannot exfiltrate the GitLab token. A later hop to a trusted host gets
+ * them back — the allowlist is the policy — but a hop back to the initial origin does
+ * not, because the caller reads that response as the downloaded file: a redirect
+ * target could otherwise turn this request into an authenticated read of a URL it
+ * chose. A hop that would downgrade HTTPS to cleartext HTTP is refused before the
+ * credentials are considered at all.
  *
  * Residual risk: the destination host is resolved twice — once for the check and
  * again when the connection is opened — so a DNS name with a short TTL can answer
@@ -314,7 +326,8 @@ export async function fetchWithValidatedRedirects(
   url: string,
   options: FetchWithValidatedRedirectsOptions
 ): Promise<FetchResponse> {
-  const fetchImpl = options.fetchImpl ?? undiciFetch;
+  const authenticatedFetch = options.fetchImpl ?? undiciFetch;
+  const unauthenticatedFetch = options.unauthenticatedFetchImpl ?? authenticatedFetch;
   const maxRedirects = options.maxRedirects ?? DEFAULT_MAX_REDIRECTS;
   const initialOrigin = new URL(url).origin;
 
@@ -326,7 +339,9 @@ export async function fetchWithValidatedRedirects(
   let credentialsWithheld = false;
 
   for (let hop = 0; hop <= maxRedirects; hop++) {
-    const response = await fetchImpl(currentUrl, {
+    // A stripped hop must not go through a client that can add credentials again.
+    const hopFetch = credentialsWithheld ? unauthenticatedFetch : authenticatedFetch;
+    const response = await hopFetch(currentUrl, {
       method: "GET",
       headers: currentHeaders,
       dispatcher: options.dispatcher,
