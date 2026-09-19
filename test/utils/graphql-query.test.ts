@@ -216,6 +216,35 @@ describe("When graphqlQueryContainsDeleteOperation runs", () => {
       );
     });
 
+    test("should detect comma-prefixed delete mutations", () => {
+      assert.equal(
+        graphqlQueryContainsDeleteOperation(
+          ', mutation M { issueDelete(input: { iid: "1" }) { id } }'
+        ),
+        true
+      );
+    });
+
+    test("should detect comma-prefixed delete mutations without whitespace", () => {
+      assert.equal(
+        graphqlQueryContainsDeleteOperation(',mutation{issueDelete(input:{iid:"1"}){id}}'),
+        true
+      );
+    });
+
+    test("should detect delete mutations after a comma-separated query", () => {
+      assert.equal(
+        graphqlQueryContainsDeleteOperation(
+          "query HealthCheck { x }, mutation M { issueDelete(input: {}) { id } }"
+        ),
+        true
+      );
+    });
+
+    test("should allow comma-separated queries", () => {
+      assert.equal(graphqlQueryContainsDeleteOperation("query A { a }, query B { b }"), false);
+    });
+
     test("should conservatively block top-level fragment spreads in mutations", () => {
       assert.equal(
         graphqlQueryContainsDeleteOperation(
