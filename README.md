@@ -406,6 +406,17 @@ The reference document also covers:
 
 For callback proxy mode details, see [GitLab MCP OAuth Callback Proxy](./docs/auth/oauth-callback-proxy.md).
 
+#### SSE session limits
+
+`GET /sse` is subject to the same remote-transport controls as Streamable HTTP:
+
+- **Capacity:** at most `MAX_SESSIONS` concurrent SSE sessions (default 1000); further connections get `503`.
+- **Creation rate limit:** new connections are limited to `MAX_REQUESTS_PER_MINUTE` per client IP (default 60); excess connections get `429`.
+- **Idle timeout:** a session that receives no `POST /messages` request for `SESSION_TIMEOUT_SECONDS` (default 1 hour) is closed, so an idle client must reconnect instead of holding a capacity slot. Unlike Streamable HTTP, holding the SSE stream open does **not** count as activity.
+- `/health` returns `503` with `status: "degraded"` while the instance is at capacity.
+
+Tune these with [`MAX_SESSIONS`](./docs/configuration/environment-variables.md#max_sessions), `MAX_REQUESTS_PER_MINUTE`, and `SESSION_TIMEOUT_SECONDS`.
+
 ### Remote Authorization Setup (Multi-User Support)
 
 When using `REMOTE_AUTHORIZATION=true`, the MCP server can support multiple users, each with their own GitLab token passed via HTTP headers. This is useful for:
