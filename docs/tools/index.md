@@ -33,7 +33,7 @@ directly from `TOOLSET_DEFINITIONS` in
 Permission modes control which tools are exposed:
 
 - `GITLAB_PERMISSION_MODE=readonly` — hides every write tool regardless of toggles.
-- `GITLAB_PERMISSION_MODE=modify` — allows create/update but blocks all `delete_*` tools, plus `push_files` `delete`/`move` actions.
+- `GITLAB_PERMISSION_MODE=modify` — allows create/update but blocks all `delete_*` tools, plus `push_files` `delete`/`move` actions and destructive mutations (deletion and teardown verbs) through `execute_graphql`.
 - `GITLAB_READ_ONLY_MODE=true` (deprecated) — same as `readonly`; prefer `GITLAB_PERMISSION_MODE=readonly`.
 
 See [Environment Variables](../configuration/environment-variables.md)
