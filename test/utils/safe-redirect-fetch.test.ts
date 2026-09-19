@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import http from "node:http";
 import type { IncomingHttpHeaders } from "node:http";
 import { after, before, describe, test } from "node:test";
-import { Agent, fetch as undiciFetch } from "undici";
+import { Agent, fetch as undiciFetch, MockAgent } from "undici";
 import {
   fetchWithValidatedRedirects,
   isNonPublicAddress,
@@ -68,6 +68,15 @@ function stubRedirectChain(locations: string[], calls: RecordedCall[]): typeof u
     return new Response("payload", { status: 200 });
   };
   return impl as unknown as typeof undiciFetch;
+}
+
+/**
+ * Pass one injected client for both the hops that carry the credentials and the ones the
+ * helper strips. The stripped hops default to plain `undici`, so injecting only
+ * `fetchImpl` in a test would send the hop it wants to inspect to the network.
+ */
+function sameClientForEveryHop(stub: typeof undiciFetch) {
+  return { fetchImpl: stub, unauthenticatedFetchImpl: stub };
 }
 
 describe("safe redirect fetch", () => {
@@ -313,7 +322,7 @@ describe("credential headers across redirect hops", () => {
     const calls: RecordedCall[] = [];
     const response = await fetchWithValidatedRedirects("http://127.0.0.1:1/start", {
       headers: credentials,
-      fetchImpl: stubRedirectFetch(`http://${PUBLIC_HOST}/file`, calls),
+      ...sameClientForEveryHop(stubRedirectFetch(`http://${PUBLIC_HOST}/file`, calls)),
     });
 
     assert.equal(response.status, 200);
@@ -329,7 +338,7 @@ describe("credential headers across redirect hops", () => {
     await fetchWithValidatedRedirects("http://127.0.0.1:1/start", {
       headers: { ...credentials, "X-Gitlab-Session": "secret" },
       credentialHeaders: ["authorization", "private-token", "x-gitlab-session"],
-      fetchImpl: stubRedirectFetch(`http://${PUBLIC_HOST}/file`, calls),
+      ...sameClientForEveryHop(stubRedirectFetch(`http://${PUBLIC_HOST}/file`, calls)),
     });
 
     assert.equal(calls[1].headers["X-Gitlab-Session"], undefined);
@@ -425,7 +434,7 @@ describe("credential headers across redirect hops", () => {
     const calls: RecordedCall[] = [];
     await fetchWithValidatedRedirects(`http://${PUBLIC_HOST}/start`, {
       headers: credentials,
-      fetchImpl: stubRedirectFetch(`https://${PUBLIC_HOST}/file`, calls),
+      ...sameClientForEveryHop(stubRedirectFetch(`https://${PUBLIC_HOST}/file`, calls)),
     });
 
     assert.equal(calls[1].headers.Authorization, undefined);
@@ -437,7 +446,9 @@ describe("credential headers across redirect hops", () => {
     const calls: RecordedCall[] = [];
     const response = await fetchWithValidatedRedirects("http://127.0.0.1:1/start", {
       headers: credentials,
-      fetchImpl: stubRedirectChain([`http://${PUBLIC_HOST}/mid`, "http://127.0.0.1:1/file"], calls),
+      ...sameClientForEveryHop(
+        stubRedirectChain([`http://${PUBLIC_HOST}/mid`, "http://127.0.0.1:1/file"], calls)
+      ),
     });
 
     assert.equal(response.status, 200);
@@ -470,9 +481,11 @@ describe("credential headers across redirect hops", () => {
     const calls: RecordedCall[] = [];
     await fetchWithValidatedRedirects("http://127.0.0.1:1/start", {
       headers: credentials,
-      fetchImpl: stubRedirectChain(
-        [`http://${PUBLIC_HOST}/mid`, `http://${PUBLIC_HOST}/other`, "http://127.0.0.1:1/file"],
-        calls
+      ...sameClientForEveryHop(
+        stubRedirectChain(
+          [`http://${PUBLIC_HOST}/mid`, `http://${PUBLIC_HOST}/other`, "http://127.0.0.1:1/file"],
+          calls
+        )
       ),
     });
 
@@ -486,9 +499,11 @@ describe("credential headers across redirect hops", () => {
     await fetchWithValidatedRedirects("http://127.0.0.1:1/start", {
       headers: credentials,
       isTrustedRedirectHost: host => host === "93.184.216.35",
-      fetchImpl: stubRedirectChain(
-        [`http://${PUBLIC_HOST}/mid`, "http://93.184.216.35/storage", "http://127.0.0.1:1/file"],
-        calls
+      ...sameClientForEveryHop(
+        stubRedirectChain(
+          [`http://${PUBLIC_HOST}/mid`, "http://93.184.216.35/storage", "http://127.0.0.1:1/file"],
+          calls
+        )
       ),
     });
 
@@ -526,5 +541,34 @@ describe("credential headers across redirect hops", () => {
     assert.equal(unauthenticatedCalls[0].headers["Private-Token"], undefined);
     // ...including the hop back to the origin, which the caller reads as the download.
     assert.equal(unauthenticatedCalls[1].headers["Private-Token"], undefined);
+  });
+
+  test("falls back to the plain client for stripped hops when only fetchImpl is given", async () => {
+    const calls: RecordedCall[] = [];
+    // `undici`'s own client is observable through the dispatcher, so this asserts the
+    // default rather than trusting it: were the stripped hop routed to `fetchImpl`, the
+    // stub would answer and the mock pool would stay untouched.
+    const mockAgent = new MockAgent();
+    mockAgent.disableNetConnect();
+    mockAgent
+      .get(`http://${PUBLIC_HOST}`)
+      .intercept({ path: "/file", method: "GET" })
+      .reply(200, "from-plain-undici");
+
+    try {
+      const response = await fetchWithValidatedRedirects("http://127.0.0.1:1/start", {
+        headers: credentials,
+        dispatcher: mockAgent,
+        fetchImpl: stubRedirectFetch(`http://${PUBLIC_HOST}/file`, calls),
+      });
+
+      assert.equal(await response.text(), "from-plain-undici");
+      assert.deepEqual(
+        calls.map(call => call.url),
+        ["http://127.0.0.1:1/start"]
+      );
+    } finally {
+      await mockAgent.close();
+    }
   });
 });
