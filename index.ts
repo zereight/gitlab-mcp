@@ -14510,7 +14510,10 @@ async function startSSEServer(): Promise<void> {
     next();
   };
 
-  const transports: { [sessionId: string]: SSEServerTransport } = {};
+  // Session IDs are untrusted map keys (POST /messages?sessionId=). A null
+  // prototype prevents inherited names such as "constructor" from masquerading
+  // as live transports, matching the Streamable HTTP transport.
+  const transports: Record<string, SSEServerTransport> = Object.create(null);
   const sessionLastActivity = new Map<string, number>();
   let shuttingDown = false;
 
@@ -14539,6 +14542,17 @@ async function startSSEServer(): Promise<void> {
     },
   });
 
+  /**
+   * Reclaim SSE sessions that have not received a POST /messages request within
+   * the idle timeout.
+   *
+   * On /sse it is correct to idle-close an open GET: the stream alone is not
+   * proof of a live client, so a client that connects and never sends anything
+   * would otherwise hold a MAX_SESSIONS slot forever. This intentionally
+   * differs from the Streamable HTTP GET /mcp handler, which pauses inactivity
+   * expiry while its stream is open so list_changed can still be pushed - do
+   * not copy that rule here.
+   */
   const closeIdleSseSessions = () => {
     const now = Date.now();
     for (const [sessionId, lastActivity] of sessionLastActivity) {
@@ -14582,13 +14596,31 @@ async function startSSEServer(): Promise<void> {
         allowedHosts: [...effectiveHosts],
         allowedOrigins: [...effectiveHosts].flatMap(host => [`http://${host}`, `https://${host}`]),
       });
-      transports[transport.sessionId] = transport;
-      sessionLastActivity.set(transport.sessionId, Date.now());
+      const sessionId = transport.sessionId;
+      transports[sessionId] = transport;
+      sessionLastActivity.set(sessionId, Date.now());
       res.on("close", () => {
-        delete transports[transport.sessionId];
-        sessionLastActivity.delete(transport.sessionId);
+        delete transports[sessionId];
+        sessionLastActivity.delete(sessionId);
       });
-      await serverInstance.connect(transport);
+
+      try {
+        await serverInstance.connect(transport);
+      } catch (error) {
+        logger.error({ err: error, sessionId }, "SSE connection error");
+        // Release the capacity slot immediately instead of waiting for the
+        // client to disconnect or the idle sweep to run.
+        delete transports[sessionId];
+        sessionLastActivity.delete(sessionId);
+        if (!res.headersSent) {
+          res.status(500).json({
+            error: "Internal server error",
+            message: error instanceof Error ? error.message : "Unknown error",
+          });
+        } else {
+          res.end();
+        }
+      }
     }
   );
 
@@ -14606,10 +14638,21 @@ async function startSSEServer(): Promise<void> {
   registerDownloadProxy(app, buildDownloadProxyDeps());
 
   app.get("/health", (_: Request, res: Response) => {
-    res.status(200).json({
-      status: "healthy",
+    const activeSessions = Object.keys(transports).length;
+    const isHealthy = activeSessions < maxSessions;
+    if (!isHealthy) {
+      logger.warn(
+        { activeSessions, maxSessions },
+        "Health check degraded: active SSE session capacity reached"
+      );
+    }
+    res.status(isHealthy ? 200 : 503).json({
+      status: isHealthy ? "healthy" : "degraded",
       version: SERVER_VERSION,
       transport: TransportMode.SSE,
+      activeSessions,
+      maxSessions,
+      uptime: process.uptime(),
     });
   });
 

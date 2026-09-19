@@ -708,13 +708,14 @@ Default:
 
 - `60`
 
-This single value is reused in three places (whichever limit is hit first wins):
+This single value is reused in four places (whichever limit is hit first wins):
 
 | Layer              | Key            | Routes                                                                        |
 | ------------------ | -------------- | ----------------------------------------------------------------------------- |
 | Express middleware | Client IP      | `POST` / `DELETE /mcp`                                                        |
 | Session handler    | MCP session ID | Existing sessions when `REMOTE_AUTHORIZATION=true` or `GITLAB_MCP_OAUTH=true` |
 | Download proxy     | Auth token     | `GET /downloads/*`                                                            |
+| SSE connections    | Client IP      | New `GET /sse` connections (rejected with `429`)                              |
 
 When `MCP_TRUST_PROXY` is unset behind a reverse proxy, all clients share one IP
 bucket and the per-IP limit becomes the bottleneck for the whole deployment.
@@ -763,6 +764,9 @@ session expires or is closed. For the SSE transport this applies to new
 `GET /sse` connections, which are additionally rate-limited per client IP
 (`MAX_REQUESTS_PER_MINUTE`) and closed after `SESSION_TIMEOUT_SECONDS` without a
 `POST /messages` request.
+
+At capacity `/health` reports `503` with `status: "degraded"` on both remote
+transports, so orchestrator health checks stop routing new work to the instance.
 
 ## Network and TLS
 
