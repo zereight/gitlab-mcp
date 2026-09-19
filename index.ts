@@ -173,7 +173,11 @@ import {
   redactSessionIdForLog,
 } from "./server/request-helpers.js";
 export { readMcpSessionIdHeader } from "./server/request-helpers.js";
-import { normalizeGitLabApiUrl } from "./utils/url.js";
+import {
+  encodeGitLabPath,
+  encodeGitLabPathSegment,
+  normalizeGitLabApiUrl,
+} from "./utils/url.js";
 import {
   estimateMergeCommitCount,
   filterDiffsByPatterns,
@@ -2016,26 +2020,6 @@ function parseAllowedGitLabApiUrls(value: string): Array<{ host: string; apiUrl:
     .split(",")
     .map(toAllowedGitLabApiUrl)
     .filter((entry): entry is { host: string; apiUrl: string } => Boolean(entry));
-}
-
-function encodeGitLabPathSegment(value: unknown): string {
-  const segment = String(value);
-  let decodedSegment: string;
-  try {
-    decodedSegment = decodeURIComponent(segment);
-  } catch {
-    decodedSegment = segment;
-  }
-
-  if (decodedSegment === "." || decodedSegment === "..") {
-    throw new Error("GitLab URL path segments cannot be '.' or '..'");
-  }
-
-  return encodeURIComponent(decodedSegment);
-}
-
-function encodeGitLabPath(value: string): string {
-  return value.split("/").map(encodeGitLabPathSegment).join("/");
 }
 
 function resolveTrustedGitLabApiUrl(value: string): string {
