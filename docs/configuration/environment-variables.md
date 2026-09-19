@@ -505,6 +505,9 @@ Behavior:
   directly, and rejects delete/destroy/remove mutations sent through `execute_graphql`
 - Invalid values fail startup with an error
 - `GITLAB_DENIED_TOOLS_REGEX` and the tool policy variables still apply on top
+- `execute_graphql` also rejects mutations that tear down live resources with other
+  verbs (`prune`, `purge`, `erase`, `revoke`, `cancel`, `stop`, `terminate`,
+  `unprotect`, `disable`, `deactivate`, `drop`)
 
 ### `GITLAB_DISABLE_VERSION_CHECK`
 

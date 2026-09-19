@@ -104,7 +104,12 @@ export function graphqlQueryContainsWriteOperation(query: string): boolean {
   return false;
 }
 
-const DELETE_FIELD_PATTERN = /delete|destroy|remove|prune|purge/i;
+// Verbs that mark a mutation as destructive for GITLAB_PERMISSION_MODE=modify.
+// GitLab exposes many destructive mutations whose names do not contain "delete"
+// (environmentStop, pipelineCancel, clusterAgentTokenRevoke, ...), so the ban
+// covers teardown verbs as well as deletion verbs.
+const DESTRUCTIVE_FIELD_PATTERN =
+  /delete|destroy|remove|prune|purge|erase|revoke|cancel|stop|terminate|unprotect|disable|deactivate|drop/i;
 
 // Collects top-level selection field names (and aliases) of every mutation operation.
 // Content inside parentheses (arguments) is skipped so argument names like
@@ -152,6 +157,8 @@ function extractTopLevelMutationFields(normalized: string): string[] | null {
   return fields;
 }
 
+// Kept as `...DeleteOperation` for callers, but the guard now covers every
+// destructive mutation verb, not only delete-named ones.
 export function graphqlQueryContainsDeleteOperation(query: string): boolean {
   const normalized = stripGraphQLCommentsAndStrings(query).trim();
   if (!normalized || !/(?:^|[};]\s*)mutation\b/.test(normalized)) {
@@ -164,5 +171,5 @@ export function graphqlQueryContainsDeleteOperation(query: string): boolean {
     // could not be located (exotic syntax): be conservative and treat as delete
     return true;
   }
-  return fields.some(field => DELETE_FIELD_PATTERN.test(field));
+  return fields.some(field => DESTRUCTIVE_FIELD_PATTERN.test(field));
 }
