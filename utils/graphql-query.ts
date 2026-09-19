@@ -111,9 +111,18 @@ export function graphqlQueryContainsWriteOperation(query: string): boolean {
 const DESTRUCTIVE_FIELD_PATTERN =
   /delete|destroy|remove|prune|purge|erase|revoke|cancel|stop|terminate|unprotect|disable|deactivate|drop/i;
 
+// GraphQL treats whitespace and commas as insignificant, including between an
+// alias and its colon (`stop : field` and `stop,: field` are both aliases).
+function skipInsignificantGraphQL(source: string, index: number): number {
+  while (index < source.length && /[\s,]/.test(source[index])) {
+    index++;
+  }
+  return index;
+}
+
 // Collects top-level selection field names of every mutation operation. Aliases are
 // skipped: `stop: environmentStop(...)` must be judged by the field name, so a
-// harmless label on a harmless field (`stop: issueSetSeverity(...)`) is not mistaken
+// harmless label on a harmless field (`stop : issueSetSeverity(...)`) is not mistaken
 // for a destructive mutation. Content inside parentheses (arguments) is skipped so
 // argument names like removeSourceBranch do not count as delete fields. Returns null
 // when a top-level fragment spread is present, since the spread could hide a delete
@@ -147,9 +156,9 @@ function extractTopLevelMutationFields(normalized: string): string[] | null {
         }
       }
       if (current) {
-        // A `:` immediately after the token means the token is an alias, not the
-        // mutation field name, so it must not be tested against the verb pattern.
-        if (ch !== ":") {
+        // Only the actual field name is tested. Skip insignificant tokens so a
+        // teardown-verb alias does not look like a destructive mutation.
+        if (normalized[skipInsignificantGraphQL(normalized, i)] !== ":") {
           fields.push(current);
         }
         current = "";
