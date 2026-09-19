@@ -488,11 +488,11 @@ When set to `true` it takes precedence over `GITLAB_PERMISSION_MODE`.
 
 Permission level for the exposed tool surface. One of:
 
-| Value      | Read | Create/Update | Delete |
-| ---------- | ---- | ------------- | ------ |
-| `readonly` | ✅   | ❌            | ❌     |
-| `modify`   | ✅   | ✅            | ❌     |
-| `full`     | ✅   | ✅            | ✅     |
+| Value      | Read | Create/Update | Delete / teardown |
+| ---------- | ---- | ------------- | ----------------- |
+| `readonly` | ✅   | ❌            | ❌                |
+| `modify`   | ✅   | ✅            | ❌                |
+| `full`     | ✅   | ✅            | ✅                |
 
 Default: `full`
 
@@ -502,7 +502,10 @@ Behavior:
 
 - `readonly` is equivalent to `GITLAB_READ_ONLY_MODE=true`
 - `modify` hides all `delete_*` tools from `tools/list`, rejects them when called
-  directly, and rejects delete/destroy/remove mutations sent through `execute_graphql`
+  directly, and rejects destructive mutations sent through `execute_graphql`: any
+  top-level mutation field whose name contains a deletion verb (`delete`, `destroy`,
+  `remove`, `prune`, `purge`, `erase`) or a teardown verb (`revoke`, `cancel`, `stop`,
+  `terminate`, `unprotect`, `disable`, `deactivate`, `drop`)
 - Invalid values fail startup with an error
 - `GITLAB_DENIED_TOOLS_REGEX` and the tool policy variables still apply on top
 
