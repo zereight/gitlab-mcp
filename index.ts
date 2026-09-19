@@ -173,7 +173,11 @@ import {
   redactSessionIdForLog,
 } from "./server/request-helpers.js";
 export { readMcpSessionIdHeader } from "./server/request-helpers.js";
-import { normalizeGitLabApiUrl } from "./utils/url.js";
+import {
+  encodeGitLabPath,
+  encodeGitLabPathSegment,
+  normalizeGitLabApiUrl,
+} from "./utils/url.js";
 import {
   estimateMergeCommitCount,
   filterDiffsByPatterns,
@@ -2022,26 +2026,6 @@ function parseAllowedGitLabApiUrls(value: string): Array<{ host: string; apiUrl:
     .filter((entry): entry is { host: string; apiUrl: string } => Boolean(entry));
 }
 
-function encodeGitLabPathSegment(value: unknown): string {
-  const segment = String(value);
-  let decodedSegment: string;
-  try {
-    decodedSegment = decodeURIComponent(segment);
-  } catch {
-    decodedSegment = segment;
-  }
-
-  if (decodedSegment === "." || decodedSegment === "..") {
-    throw new Error("GitLab URL path segments cannot be '.' or '..'");
-  }
-
-  return encodeURIComponent(decodedSegment);
-}
-
-function encodeGitLabPath(value: string): string {
-  return value.split("/").map(encodeGitLabPathSegment).join("/");
-}
-
 function resolveTrustedGitLabApiUrl(value: string): string {
   const parsed = new URL(normalizeGitLabApiUrl(value));
 
@@ -2228,7 +2212,7 @@ async function forkProject(projectId: string, namespace?: string): Promise<GitLa
   projectId = decodeURIComponent(projectId); // Decode project ID
   const effectiveProjectId = getEffectiveProjectId(projectId);
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(effectiveProjectId)}/fork`
+    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(effectiveProjectId)}/fork`
   );
 
   if (namespace) {
@@ -2265,7 +2249,7 @@ async function createBranch(
   projectId = decodeURIComponent(projectId); // Decode project ID
   const effectiveProjectId = getEffectiveProjectId(projectId);
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(effectiveProjectId)}/repository/branches`
+    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(effectiveProjectId)}/repository/branches`
   );
 
   const response = await fetch(url.toString(), {
@@ -2291,7 +2275,7 @@ async function createBranch(
 async function getDefaultBranchRef(projectId: string): Promise<string> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const effectiveProjectId = getEffectiveProjectId(projectId);
-  const url = new URL(`${getEffectiveApiUrl()}/projects/${encodeURIComponent(effectiveProjectId)}`);
+  const url = new URL(`${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(effectiveProjectId)}`);
 
   const response = await fetch(url.toString(), {
     ...getFetchConfig(),
@@ -2318,7 +2302,7 @@ async function getFileContents(
 ): Promise<GitLabContent> {
   const decodedProjectId = projectId ? decodeURIComponent(projectId) : "";
   const effectiveProjectId = getEffectiveProjectId(decodedProjectId);
-  const encodedPath = encodeURIComponent(filePath);
+  const encodedPath = encodeGitLabPathSegment(filePath);
 
   // Fall back to default branch if ref is not provided
   if (!ref) {
@@ -2326,7 +2310,7 @@ async function getFileContents(
   }
 
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(effectiveProjectId)}/repository/files/${encodedPath}`
+    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(effectiveProjectId)}/repository/files/${encodedPath}`
   );
 
   url.searchParams.append("ref", ref);
@@ -2365,7 +2349,7 @@ async function createIssue(
   projectId = decodeURIComponent(projectId); // Decode project ID
   const effectiveProjectId = getEffectiveProjectId(projectId);
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(effectiveProjectId)}/issues`
+    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(effectiveProjectId)}/issues`
   );
 
   // Build request body, converting labels array to comma-separated string
@@ -2410,7 +2394,7 @@ async function listIssues(
     const decodedProjectId = projectId ? decodeURIComponent(projectId) : "";
     const effectiveProjectId = getEffectiveProjectId(decodedProjectId);
     url = new URL(
-      `${getEffectiveApiUrl()}/projects/${encodeURIComponent(effectiveProjectId)}/issues`
+      `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(effectiveProjectId)}/issues`
     );
   } else {
     url = new URL(`${getEffectiveApiUrl()}/issues`);
@@ -2530,7 +2514,7 @@ async function listMergeRequests(
     // resolve the default project (or fail for a multi-project allowlist)
     const effectiveProjectId = getEffectiveProjectId(decodedProjectId);
     url = new URL(
-      `${getEffectiveApiUrl()}/projects/${encodeURIComponent(effectiveProjectId)}/merge_requests`
+      `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(effectiveProjectId)}/merge_requests`
     );
   } else {
     url = new URL(`${getEffectiveApiUrl()}/merge_requests`);
@@ -2560,7 +2544,7 @@ async function listGroupMergeRequests(
 ): Promise<GitLabMergeRequest[]> {
   const decodedGroupId = decodeURIComponent(groupId);
   const url = new URL(
-    `${getEffectiveApiUrl()}/groups/${encodeURIComponent(decodedGroupId)}/merge_requests`
+    `${getEffectiveApiUrl()}/groups/${encodeGitLabPathSegment(decodedGroupId)}/merge_requests`
   );
 
   appendMergeRequestFilters(url, options);
@@ -2585,7 +2569,7 @@ async function listGroupMergeRequests(
 async function getIssue(projectId: string, issueIid: number | string): Promise<GitLabIssue> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/issues/${encodeGitLabPathSegment(issueIid)}`
+    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(getEffectiveProjectId(projectId))}/issues/${encodeGitLabPathSegment(issueIid)}`
   );
 
   const response = await fetch(url.toString(), {
@@ -2613,7 +2597,7 @@ async function updateIssue(
 ): Promise<GitLabIssue> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/issues/${encodeGitLabPathSegment(issueIid)}`
+    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(getEffectiveProjectId(projectId))}/issues/${encodeGitLabPathSegment(issueIid)}`
   );
 
   // Convert labels array to comma-separated string if present
@@ -2644,7 +2628,7 @@ async function updateIssue(
 async function deleteIssue(projectId: string, issueIid: number | string): Promise<void> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/issues/${encodeGitLabPathSegment(issueIid)}`
+    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(getEffectiveProjectId(projectId))}/issues/${encodeGitLabPathSegment(issueIid)}`
   );
 
   const response = await fetch(url.toString(), {
@@ -3520,7 +3504,7 @@ async function resolveProjectOrGroupPath(
 
   if (explicitKind === "group") {
     const groupUrl = new URL(
-      `${getEffectiveApiUrl()}/groups/${encodeURIComponent(effectiveProjectId)}`
+      `${getEffectiveApiUrl()}/groups/${encodeGitLabPathSegment(effectiveProjectId)}`
     );
     const groupResponse = await fetch(groupUrl.toString(), {
       ...getFetchConfig(),
@@ -3531,7 +3515,7 @@ async function resolveProjectOrGroupPath(
   }
 
   const projectUrl = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(effectiveProjectId)}`
+    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(effectiveProjectId)}`
   );
   const projectResponse = await fetch(projectUrl.toString(), {
     ...getFetchConfig(),
@@ -3548,7 +3532,7 @@ async function resolveProjectOrGroupPath(
     !/^\d+$/.test(effectiveProjectId)
   ) {
     const groupUrl = new URL(
-      `${getEffectiveApiUrl()}/groups/${encodeURIComponent(effectiveProjectId)}`
+      `${getEffectiveApiUrl()}/groups/${encodeGitLabPathSegment(effectiveProjectId)}`
     );
     const groupResponse = await fetch(groupUrl.toString(), {
       ...getFetchConfig(),
@@ -4466,7 +4450,7 @@ async function listIssueLinks(
 ): Promise<GitLabIssueWithLinkDetails[]> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/issues/${encodeGitLabPathSegment(issueIid)}/links`
+    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(getEffectiveProjectId(projectId))}/issues/${encodeGitLabPathSegment(issueIid)}/links`
   );
 
   const response = await fetch(url.toString(), {
@@ -4494,7 +4478,7 @@ async function getIssueLink(
 ): Promise<GitLabIssueLink> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(
+    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(
       getEffectiveProjectId(projectId)
     )}/issues/${encodeGitLabPathSegment(issueIid)}/links/${encodeGitLabPathSegment(issueLinkId)}`
   );
@@ -4529,7 +4513,7 @@ async function createIssueLink(
   projectId = decodeURIComponent(projectId); // Decode project ID
   targetProjectId = decodeURIComponent(targetProjectId); // Decode target project ID as well
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/issues/${encodeGitLabPathSegment(issueIid)}/links`
+    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(getEffectiveProjectId(projectId))}/issues/${encodeGitLabPathSegment(issueIid)}/links`
   );
 
   const response = await fetch(url.toString(), {
@@ -4563,7 +4547,7 @@ async function deleteIssueLink(
 ): Promise<void> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(
+    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(
       getEffectiveProjectId(projectId)
     )}/issues/${encodeGitLabPathSegment(issueIid)}/links/${encodeGitLabPathSegment(issueLinkId)}`
   );
@@ -4590,7 +4574,7 @@ async function createMergeRequest(
 ): Promise<GitLabMergeRequest> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/merge_requests`
+    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(getEffectiveProjectId(projectId))}/merge_requests`
   );
 
   const response = await fetch(url.toString(), {
@@ -4644,7 +4628,7 @@ async function listDiscussions(
 ): Promise<PaginatedDiscussionsResponse> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(
+    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(
       getEffectiveProjectId(projectId)
     )}/${resourceType}/${encodeGitLabPathSegment(resourceIid)}/discussions`
   );
@@ -4733,7 +4717,7 @@ async function deleteMergeRequestDiscussionNote(
 ): Promise<void> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(
+    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(
       getEffectiveProjectId(projectId)
     )}/merge_requests/${encodeGitLabPathSegment(mergeRequestIid)}/discussions/${encodeGitLabPathSegment(discussionId)}/notes/${encodeGitLabPathSegment(noteId)}`
   );
@@ -4770,7 +4754,7 @@ async function updateMergeRequestDiscussionNote(
 ): Promise<GitLabDiscussionNote> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(
+    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(
       getEffectiveProjectId(projectId)
     )}/merge_requests/${encodeGitLabPathSegment(mergeRequestIid)}/discussions/${encodeGitLabPathSegment(discussionId)}/notes/${encodeGitLabPathSegment(noteId)}`
   );
@@ -4830,7 +4814,7 @@ async function updateIssueNote(
 ): Promise<GitLabDiscussionNote> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(
+    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(
       getEffectiveProjectId(projectId)
     )}/issues/${encodeGitLabPathSegment(issueIid)}/discussions/${encodeGitLabPathSegment(discussionId)}/notes/${encodeGitLabPathSegment(noteId)}`
   );
@@ -4871,7 +4855,7 @@ async function createIssueNote(
   createdAt?: string
 ): Promise<GitLabDiscussionNote> {
   projectId = decodeURIComponent(projectId); // Decode project ID
-  const basePath = `${getEffectiveApiUrl()}/projects/${encodeURIComponent(
+  const basePath = `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(
     getEffectiveProjectId(projectId)
   )}/issues/${encodeGitLabPathSegment(issueIid)}`;
   const url = new URL(
@@ -4914,7 +4898,7 @@ async function createMergeRequestDiscussionNote(
 ): Promise<GitLabDiscussionNote> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(
+    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(
       getEffectiveProjectId(projectId)
     )}/merge_requests/${encodeGitLabPathSegment(mergeRequestIid)}/discussions/${encodeGitLabPathSegment(discussionId)}/notes`
   );
@@ -4942,7 +4926,7 @@ async function createMergeRequestNote(
 ): Promise<GitLabDiscussionNote> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(
+    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(
       getEffectiveProjectId(projectId)
     )}/merge_requests/${encodeGitLabPathSegment(mergeRequestIid)}/notes`
   );
@@ -4971,7 +4955,7 @@ async function deleteMergeRequestNote(
 ): Promise<void> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(
+    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(
       getEffectiveProjectId(projectId)
     )}/merge_requests/${encodeGitLabPathSegment(mergeRequestIid)}/notes/${encodeGitLabPathSegment(noteId)}`
   );
@@ -4996,7 +4980,7 @@ function buildAwardEmojiPath(
   opts?: { noteId?: string; discussionId?: string; awardId?: string }
 ): string {
   projectId = decodeURIComponent(projectId);
-  const pp = encodeURIComponent(getEffectiveProjectId(projectId));
+  const pp = encodeGitLabPathSegment(getEffectiveProjectId(projectId));
   let path = `${getEffectiveApiUrl()}/projects/${pp}/${entity}/${encodeGitLabPathSegment(entityIid)}`;
   if (opts?.noteId) {
     path = opts.discussionId
@@ -5039,7 +5023,7 @@ async function getMergeRequestNote(
 ): Promise<GitLabDiscussionNote> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(
+    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(
       getEffectiveProjectId(projectId)
     )}/merge_requests/${encodeGitLabPathSegment(mergeRequestIid)}/notes/${encodeGitLabPathSegment(noteId)}`
   );
@@ -5061,7 +5045,7 @@ async function getMergeRequestDiscussion(
 ): Promise<GitLabDiscussion> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(
+    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(
       getEffectiveProjectId(projectId)
     )}/merge_requests/${encodeGitLabPathSegment(mergeRequestIid)}/discussions/${encodeGitLabPathSegment(discussionId)}`
   );
@@ -5086,7 +5070,7 @@ async function getMergeRequestNotes(
 ): Promise<GitLabDiscussionNote[]> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(
+    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(
       getEffectiveProjectId(projectId)
     )}/merge_requests/${encodeGitLabPathSegment(mergeRequestIid)}/notes`
   );
@@ -5125,7 +5109,7 @@ async function updateMergeRequestNote(
 ): Promise<GitLabDiscussionNote> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(
+    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(
       getEffectiveProjectId(projectId)
     )}/merge_requests/${encodeGitLabPathSegment(mergeRequestIid)}/notes/${encodeGitLabPathSegment(noteId)}`
   );
@@ -5172,9 +5156,9 @@ async function createOrUpdateFile(
   encoding?: RepoFileEncoding
 ): Promise<GitLabCreateUpdateFileResponse> {
   projectId = decodeURIComponent(projectId); // Decode project ID
-  const encodedPath = encodeURIComponent(filePath);
+  const encodedPath = encodeGitLabPathSegment(filePath);
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/repository/files/${encodedPath}`
+    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(getEffectiveProjectId(projectId))}/repository/files/${encodedPath}`
   );
 
   const resolvedEncoding = encoding ?? GITLAB_REPO_FILE_ENCODING;
@@ -5258,7 +5242,7 @@ async function createCommit(
 ): Promise<GitLabCommit> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/repository/commits`
+    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(getEffectiveProjectId(projectId))}/repository/commits`
   );
 
   const response = await fetch(url.toString(), {
@@ -5353,7 +5337,7 @@ async function searchBlobs(params: {
   let basePath: string;
   if (params.project_id) {
     const decodedProjectId = decodeURIComponent(params.project_id);
-    const projectId = encodeURIComponent(getEffectiveProjectId(decodedProjectId));
+    const projectId = encodeGitLabPathSegment(getEffectiveProjectId(decodedProjectId));
     basePath = `${getEffectiveApiUrl()}/projects/${projectId}/search`;
   } else if (params.group_id) {
     basePath = `${getEffectiveApiUrl()}/groups/${encodeGitLabPathSegment(params.group_id)}/search`;
@@ -5447,14 +5431,14 @@ async function getMergeRequest(
 
   if (mergeRequestIid) {
     url = new URL(
-      `${getEffectiveApiUrl()}/projects/${encodeURIComponent(
+      `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(
         getEffectiveProjectId(projectId)
       )}/merge_requests/${encodeGitLabPathSegment(mergeRequestIid)}`
     );
     url.searchParams.append("include_diverged_commits_count", "true");
   } else if (branchName) {
     url = new URL(
-      `${getEffectiveApiUrl()}/projects/${encodeURIComponent(
+      `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(
         getEffectiveProjectId(projectId)
       )}/merge_requests?source_branch=${encodeURIComponent(branchName)}`
     );
@@ -5484,7 +5468,7 @@ async function getMergeRequestSourceCommitCount(
   mergeRequestIid: string
 ): Promise<number> {
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(
+    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(
       getEffectiveProjectId(projectId)
     )}/merge_requests/${encodeGitLabPathSegment(mergeRequestIid)}/commits`
   );
@@ -5528,7 +5512,7 @@ async function listMergeRequestPipelines(
 ): Promise<GitLabMergeRequestPipeline[]> {
   projectId = decodeURIComponent(projectId);
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(
+    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(
       getEffectiveProjectId(projectId)
     )}/merge_requests/${encodeGitLabPathSegment(mergeRequestIid)}/pipelines`
   );
@@ -5546,7 +5530,7 @@ async function listMergeRequestPipelines(
 
 async function getProjectMergeMethod(projectId: string): Promise<string | null> {
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}`
+    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(getEffectiveProjectId(projectId))}`
   );
   const response = await fetch(url.toString(), {
     ...getFetchConfig(),
@@ -5770,7 +5754,7 @@ async function getMergeRequestDiffs(
   }
 
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(
+    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(
       getEffectiveProjectId(projectId)
     )}/merge_requests/${encodeGitLabPathSegment(mergeRequestIid)}/changes`
   );
@@ -5817,7 +5801,7 @@ async function listMergeRequestDiffs(
   }
 
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(
+    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(
       getEffectiveProjectId(projectId)
     )}/merge_requests/${encodeGitLabPathSegment(mergeRequestIid)}/diffs`
   );
@@ -5870,7 +5854,7 @@ async function listMergeRequestChangedFiles(
   }
 
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(
+    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(
       getEffectiveProjectId(projectId)
     )}/merge_requests/${encodeGitLabPathSegment(mergeRequestIid)}/changes`
   );
@@ -5928,7 +5912,7 @@ async function getMergeRequestFileDiff(
 
   while (remaining.size > 0) {
     const url = new URL(
-      `${getEffectiveApiUrl()}/projects/${encodeURIComponent(
+      `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(
         getEffectiveProjectId(projectId)
       )}/merge_requests/${encodeGitLabPathSegment(mergeRequestIid)}/diffs`
     );
@@ -5989,7 +5973,7 @@ async function getBranchDiffs(
   projectId = decodeURIComponent(projectId); // Decode project ID
 
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/repository/compare`
+    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(getEffectiveProjectId(projectId))}/repository/compare`
   );
 
   url.searchParams.append("from", from);
@@ -6042,7 +6026,7 @@ async function updateMergeRequest(
   }
 
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/merge_requests/${encodeGitLabPathSegment(mergeRequestIid)}`
+    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(getEffectiveProjectId(projectId))}/merge_requests/${encodeGitLabPathSegment(mergeRequestIid)}`
   );
 
   const response = await fetch(url.toString(), {
@@ -6071,7 +6055,7 @@ async function mergeMergeRequest(
 ): Promise<GitLabMergeRequest> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/merge_requests/${encodeGitLabPathSegment(mergeRequestIid)}/merge`
+    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(getEffectiveProjectId(projectId))}/merge_requests/${encodeGitLabPathSegment(mergeRequestIid)}/merge`
   );
 
   const response = await fetch(url.toString(), {
@@ -6101,7 +6085,7 @@ async function approveMergeRequest(
 ): Promise<GitLabMergeRequestApprovalState> {
   projectId = decodeURIComponent(projectId);
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/merge_requests/${encodeGitLabPathSegment(mergeRequestIid)}/approve`
+    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(getEffectiveProjectId(projectId))}/merge_requests/${encodeGitLabPathSegment(mergeRequestIid)}/approve`
   );
 
   const body: Record<string, string> = {};
@@ -6135,7 +6119,7 @@ async function unapproveMergeRequest(
 ): Promise<GitLabMergeRequestApprovalState> {
   projectId = decodeURIComponent(projectId);
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/merge_requests/${encodeGitLabPathSegment(mergeRequestIid)}/unapprove`
+    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(getEffectiveProjectId(projectId))}/merge_requests/${encodeGitLabPathSegment(mergeRequestIid)}/unapprove`
   );
 
   const response = await fetch(url.toString(), {
@@ -6161,7 +6145,7 @@ async function getMergeRequestApprovalState(
 ): Promise<GitLabMergeRequestApprovalState> {
   projectId = decodeURIComponent(projectId);
   const approvalStateUrl = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/merge_requests/${encodeGitLabPathSegment(mergeRequestIid)}/approval_state`
+    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(getEffectiveProjectId(projectId))}/merge_requests/${encodeGitLabPathSegment(mergeRequestIid)}/approval_state`
   );
 
   const approvalStateResponse = await fetch(approvalStateUrl.toString(), {
@@ -6226,7 +6210,7 @@ async function getMergeRequestConflicts(
 ): Promise<Record<string, unknown>> {
   projectId = decodeURIComponent(projectId);
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/merge_requests/${encodeGitLabPathSegment(mergeRequestIid)}/conflicts`
+    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(getEffectiveProjectId(projectId))}/merge_requests/${encodeGitLabPathSegment(mergeRequestIid)}/conflicts`
   );
 
   const response = await fetch(url.toString(), {
@@ -6244,7 +6228,7 @@ async function getMergeRequestApprovalsFallback(
   mergeRequestIid: string | number
 ): Promise<GitLabMergeRequestApprovalState> {
   const approvalsUrl = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/merge_requests/${encodeGitLabPathSegment(mergeRequestIid)}/approvals`
+    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(getEffectiveProjectId(projectId))}/merge_requests/${encodeGitLabPathSegment(mergeRequestIid)}/approvals`
   );
 
   const approvalsResponse = await fetch(approvalsUrl.toString(), {
@@ -6325,7 +6309,7 @@ async function createNote(
   projectId = decodeURIComponent(projectId); // Decode project ID
   // ⚙️ Response type can be adjusted according to the GitLab API documentation
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(
+    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(
       getEffectiveProjectId(projectId)
     )}/${noteableType}s/${encodeGitLabPathSegment(noteableIid)}/notes` // Using plural form (issues/merge_requests) as per GitLab API documentation
   );
@@ -6357,7 +6341,7 @@ async function getDraftNote(
 ): Promise<GitLabDraftNote> {
   const effectiveProjectId = getEffectiveProjectId(decodeURIComponent(project_id));
   const response = await fetch(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(effectiveProjectId)}/merge_requests/${encodeGitLabPathSegment(merge_request_iid)}/draft_notes/${encodeGitLabPathSegment(draft_note_id)}`,
+    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(effectiveProjectId)}/merge_requests/${encodeGitLabPathSegment(merge_request_iid)}/draft_notes/${encodeGitLabPathSegment(draft_note_id)}`,
     { ...getFetchConfig() }
   );
 
@@ -6376,7 +6360,7 @@ async function listDraftNotes(
 ): Promise<GitLabDraftNote[]> {
   projectId = decodeURIComponent(projectId);
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(
+    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(
       getEffectiveProjectId(projectId)
     )}/merge_requests/${encodeGitLabPathSegment(mergeRequestIid)}/draft_notes`
   );
@@ -6415,7 +6399,7 @@ async function createDraftNote(
 ): Promise<GitLabDraftNote> {
   projectId = decodeURIComponent(projectId);
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(
+    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(
       getEffectiveProjectId(projectId)
     )}/merge_requests/${encodeGitLabPathSegment(mergeRequestIid)}/draft_notes`
   );
@@ -6466,7 +6450,7 @@ async function updateDraftNote(
 ): Promise<GitLabDraftNote> {
   projectId = decodeURIComponent(projectId);
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(
+    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(
       getEffectiveProjectId(projectId)
     )}/merge_requests/${encodeGitLabPathSegment(mergeRequestIid)}/draft_notes/${encodeGitLabPathSegment(draftNoteId)}`
   );
@@ -6511,7 +6495,7 @@ async function deleteDraftNote(
 ): Promise<void> {
   projectId = decodeURIComponent(projectId);
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(
+    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(
       getEffectiveProjectId(projectId)
     )}/merge_requests/${encodeGitLabPathSegment(mergeRequestIid)}/draft_notes/${encodeGitLabPathSegment(draftNoteId)}`
   );
@@ -6541,7 +6525,7 @@ async function publishDraftNote(
 ): Promise<GitLabDiscussionNote> {
   projectId = decodeURIComponent(projectId);
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(
+    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(
       getEffectiveProjectId(projectId)
     )}/merge_requests/${encodeGitLabPathSegment(mergeRequestIid)}/draft_notes/${encodeGitLabPathSegment(draftNoteId)}/publish`
   );
@@ -6624,7 +6608,7 @@ async function bulkPublishDraftNotes(
 ): Promise<GitLabDiscussionNote[]> {
   projectId = decodeURIComponent(projectId);
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(
+    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(
       getEffectiveProjectId(projectId)
     )}/merge_requests/${encodeGitLabPathSegment(mergeRequestIid)}/draft_notes/bulk_publish`
   );
@@ -6679,7 +6663,7 @@ async function resolveMergeRequestThread(
 ): Promise<void> {
   projectId = decodeURIComponent(projectId);
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(
+    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(
       getEffectiveProjectId(projectId)
     )}/merge_requests/${encodeGitLabPathSegment(mergeRequestIid)}/discussions/${encodeGitLabPathSegment(discussionId)}`
   );
@@ -6725,7 +6709,7 @@ async function createMergeRequestThread(
 ): Promise<GitLabDiscussion> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(
+    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(
       getEffectiveProjectId(projectId)
     )}/merge_requests/${encodeGitLabPathSegment(mergeRequestIid)}/discussions`
   );
@@ -6765,7 +6749,7 @@ async function listMergeRequestVersions(
 ): Promise<GitLabMergeRequestVersion[]> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(
+    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(
       getEffectiveProjectId(projectId)
     )}/merge_requests/${encodeGitLabPathSegment(mergeRequestIid)}/versions`
   );
@@ -6796,7 +6780,7 @@ async function getMergeRequestVersion(
 ): Promise<GitLabMergeRequestVersionDetail> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(
+    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(
       getEffectiveProjectId(projectId)
     )}/merge_requests/${encodeGitLabPathSegment(mergeRequestIid)}/versions/${encodeGitLabPathSegment(versionId)}`
   );
@@ -6855,7 +6839,7 @@ async function listLabels(
   projectId = decodeURIComponent(projectId); // Decode project ID
   // Construct the URL with project path
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/labels`
+    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(getEffectiveProjectId(projectId))}/labels`
   );
 
   // Add query parameters
@@ -6889,9 +6873,9 @@ async function getLabel(
 ): Promise<GitLabLabel> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(
+    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(
       getEffectiveProjectId(projectId)
-    )}/labels/${encodeURIComponent(String(labelId))}`
+    )}/labels/${encodeGitLabPathSegment(String(labelId))}`
   );
 
   // Add query parameters
@@ -6926,7 +6910,7 @@ async function createLabel(
   projectId = decodeURIComponent(projectId); // Decode project ID
   // Make the API request
   const response = await fetch(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/labels`,
+    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(getEffectiveProjectId(projectId))}/labels`,
     {
       ...getFetchConfig(),
       method: "POST",
@@ -6958,9 +6942,9 @@ async function updateLabel(
   projectId = decodeURIComponent(projectId); // Decode project ID
   // Make the API request
   const response = await fetch(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(
+    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(
       getEffectiveProjectId(projectId)
-    )}/labels/${encodeURIComponent(String(labelId))}`,
+    )}/labels/${encodeGitLabPathSegment(String(labelId))}`,
     {
       ...getFetchConfig(),
       method: "PUT",
@@ -6986,9 +6970,9 @@ async function deleteLabel(projectId: string, labelId: number | string): Promise
   projectId = decodeURIComponent(projectId); // Decode project ID
   // Make the API request
   const response = await fetch(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(
+    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(
       getEffectiveProjectId(projectId)
-    )}/labels/${encodeURIComponent(String(labelId))}`,
+    )}/labels/${encodeGitLabPathSegment(String(labelId))}`,
     {
       ...getFetchConfig(),
       method: "DELETE",
@@ -7009,7 +6993,7 @@ async function listGroupProjects(
   options: z.infer<typeof ListGroupProjectsSchema>
 ): Promise<GitLabProject[]> {
   const url = new URL(
-    `${getEffectiveApiUrl()}/groups/${encodeURIComponent(options.group_id)}/projects`
+    `${getEffectiveApiUrl()}/groups/${encodeGitLabPathSegment(options.group_id)}/projects`
   );
 
   // Add optional parameters to URL
@@ -7059,11 +7043,11 @@ async function listGroupProjects(
 function buildWebhookBaseUrl(projectId?: string, groupId?: string): string {
   if (projectId) {
     projectId = decodeURIComponent(projectId);
-    return `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/hooks`;
+    return `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(getEffectiveProjectId(projectId))}/hooks`;
   }
   rejectIfStrictProjectScope("group webhooks");
   const decodedGroupId = decodeURIComponent(groupId!);
-  return `${getEffectiveApiUrl()}/groups/${encodeURIComponent(decodedGroupId)}/hooks`;
+  return `${getEffectiveApiUrl()}/groups/${encodeGitLabPathSegment(decodedGroupId)}/hooks`;
 }
 
 /**
@@ -7206,7 +7190,7 @@ async function listWikiPages(
 ): Promise<GitLabWikiPage[]> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/wikis`
+    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(getEffectiveProjectId(projectId))}/wikis`
   );
   if (options.page) url.searchParams.append("page", options.page.toString());
   if (options.per_page) url.searchParams.append("per_page", options.per_page.toString());
@@ -7232,7 +7216,7 @@ async function getWikiPage(
 ): Promise<GitLabWikiPage> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/wikis/${encodeURIComponent(slug)}`
+    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(getEffectiveProjectId(projectId))}/wikis/${encodeGitLabPathSegment(slug)}`
   );
   if (renderHtml) url.searchParams.append("render_html", renderHtml.toString());
   const response = await fetch(url.toString(), { ...getFetchConfig() });
@@ -7254,7 +7238,7 @@ async function createWikiPage(
   const body: Record<string, any> = { title, content };
   if (format) body.format = format;
   const response = await fetch(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/wikis`,
+    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(getEffectiveProjectId(projectId))}/wikis`,
     {
       ...getFetchConfig(),
       method: "POST",
@@ -7289,7 +7273,7 @@ async function updateWikiPage(
   if (content) body.content = content;
   if (format) body.format = format;
   const response = await fetch(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/wikis/${encodeURIComponent(slug)}`,
+    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(getEffectiveProjectId(projectId))}/wikis/${encodeGitLabPathSegment(slug)}`,
     {
       ...getFetchConfig(),
       method: "PUT",
@@ -7307,7 +7291,7 @@ async function updateWikiPage(
 async function deleteWikiPage(projectId: string, slug: string): Promise<void> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const response = await fetch(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/wikis/${encodeURIComponent(slug)}`,
+    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(getEffectiveProjectId(projectId))}/wikis/${encodeGitLabPathSegment(slug)}`,
     {
       ...getFetchConfig(),
       method: "DELETE",
@@ -7324,7 +7308,7 @@ async function listGroupWikiPages(
   options: Omit<ListGroupWikiPagesOptions, "group_id"> = {}
 ): Promise<GitLabWikiPage[]> {
   groupId = decodeURIComponent(groupId); // Decode group ID
-  const url = new URL(`${getEffectiveApiUrl()}/groups/${encodeURIComponent(groupId)}/wikis`);
+  const url = new URL(`${getEffectiveApiUrl()}/groups/${encodeGitLabPathSegment(groupId)}/wikis`);
   if (options.page) url.searchParams.append("page", options.page.toString());
   if (options.per_page) url.searchParams.append("per_page", options.per_page.toString());
   if (options.with_content)
@@ -7349,7 +7333,7 @@ async function getGroupWikiPage(
 ): Promise<GitLabWikiPage> {
   groupId = decodeURIComponent(groupId); // Decode group ID
   const url = new URL(
-    `${getEffectiveApiUrl()}/groups/${encodeURIComponent(groupId)}/wikis/${encodeURIComponent(slug)}`
+    `${getEffectiveApiUrl()}/groups/${encodeGitLabPathSegment(groupId)}/wikis/${encodeGitLabPathSegment(slug)}`
   );
   if (renderHtml) url.searchParams.append("render_html", renderHtml.toString());
   const response = await fetch(url.toString(), { ...getFetchConfig() });
@@ -7371,7 +7355,7 @@ async function createGroupWikiPage(
   const body: Record<string, any> = { title, content };
   if (format) body.format = format;
   const response = await fetch(
-    `${getEffectiveApiUrl()}/groups/${encodeURIComponent(groupId)}/wikis`,
+    `${getEffectiveApiUrl()}/groups/${encodeGitLabPathSegment(groupId)}/wikis`,
     {
       ...getFetchConfig(),
       method: "POST",
@@ -7406,7 +7390,7 @@ async function updateGroupWikiPage(
   if (content) body.content = content;
   if (format) body.format = format;
   const response = await fetch(
-    `${getEffectiveApiUrl()}/groups/${encodeURIComponent(groupId)}/wikis/${encodeURIComponent(slug)}`,
+    `${getEffectiveApiUrl()}/groups/${encodeGitLabPathSegment(groupId)}/wikis/${encodeGitLabPathSegment(slug)}`,
     {
       ...getFetchConfig(),
       method: "PUT",
@@ -7424,7 +7408,7 @@ async function updateGroupWikiPage(
 async function deleteGroupWikiPage(groupId: string, slug: string): Promise<void> {
   groupId = decodeURIComponent(groupId); // Decode group ID
   const response = await fetch(
-    `${getEffectiveApiUrl()}/groups/${encodeURIComponent(groupId)}/wikis/${encodeURIComponent(slug)}`,
+    `${getEffectiveApiUrl()}/groups/${encodeGitLabPathSegment(groupId)}/wikis/${encodeGitLabPathSegment(slug)}`,
     {
       ...getFetchConfig(),
       method: "DELETE",
@@ -7446,7 +7430,7 @@ async function listPipelines(
 ): Promise<GitLabPipeline[]> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/pipelines`
+    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(getEffectiveProjectId(projectId))}/pipelines`
   );
 
   // Add all query parameters
@@ -7475,7 +7459,7 @@ async function getPipeline(
 ): Promise<GitLabPipeline> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/pipelines/${encodeGitLabPathSegment(pipelineId)}`
+    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(getEffectiveProjectId(projectId))}/pipelines/${encodeGitLabPathSegment(pipelineId)}`
   );
 
   const response = await fetch(url.toString(), {
@@ -7499,7 +7483,7 @@ async function getPipelineVariables(
   perPage?: number
 ): Promise<unknown> {
   projectId = decodeURIComponent(projectId);
-  const url = new URL(`${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/pipelines/${encodeGitLabPathSegment(pipelineId)}/variables`);
+  const url = new URL(`${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(getEffectiveProjectId(projectId))}/pipelines/${encodeGitLabPathSegment(pipelineId)}/variables`);
   if (page !== undefined) url.searchParams.set("page", String(page));
   if (perPage !== undefined) url.searchParams.set("per_page", String(perPage));
   const response = await fetch(url.toString(), { ...getFetchConfig() });
@@ -7516,7 +7500,7 @@ async function getPipelineReport(
 ): Promise<unknown> {
   projectId = decodeURIComponent(projectId);
   const endpoint = summary ? "test_report_summary" : "test_report";
-  const url = new URL(`${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/pipelines/${encodeGitLabPathSegment(pipelineId)}/${endpoint}`);
+  const url = new URL(`${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(getEffectiveProjectId(projectId))}/pipelines/${encodeGitLabPathSegment(pipelineId)}/${endpoint}`);
   if (page !== undefined) url.searchParams.set("page", String(page));
   if (perPage !== undefined) url.searchParams.set("per_page", String(perPage));
   const response = await fetch(url.toString(), { ...getFetchConfig() });
@@ -7526,14 +7510,14 @@ async function getPipelineReport(
 
 async function deletePipeline(projectId: string, pipelineId: number | string): Promise<unknown> {
   projectId = decodeURIComponent(projectId);
-  const response = await fetch(`${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/pipelines/${encodeGitLabPathSegment(pipelineId)}`, { ...getFetchConfig(), method: "DELETE" });
+  const response = await fetch(`${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(getEffectiveProjectId(projectId))}/pipelines/${encodeGitLabPathSegment(pipelineId)}`, { ...getFetchConfig(), method: "DELETE" });
   await handleGitLabError(response);
   return response.status === 204 ? { deleted: true } : response.json();
 }
 
 async function updatePipelineMetadata(projectId: string, pipelineId: number | string, name: string): Promise<unknown> {
   projectId = decodeURIComponent(projectId);
-  const response = await fetch(`${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/pipelines/${encodeGitLabPathSegment(pipelineId)}/metadata`, { ...getFetchConfig(), method: "PUT", body: JSON.stringify({ name }) });
+  const response = await fetch(`${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(getEffectiveProjectId(projectId))}/pipelines/${encodeGitLabPathSegment(pipelineId)}/metadata`, { ...getFetchConfig(), method: "PUT", body: JSON.stringify({ name }) });
   await handleGitLabError(response);
   return response.json();
 }
@@ -7551,7 +7535,7 @@ async function listDeployments(
 ): Promise<GitLabDeployment[]> {
   projectId = decodeURIComponent(projectId);
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/deployments`
+    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(getEffectiveProjectId(projectId))}/deployments`
   );
 
   appendFilterParams(url.searchParams, options);
@@ -7578,7 +7562,7 @@ async function getDeployment(
 ): Promise<GitLabDeployment> {
   projectId = decodeURIComponent(projectId);
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/deployments/${encodeGitLabPathSegment(deploymentId)}`
+    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(getEffectiveProjectId(projectId))}/deployments/${encodeGitLabPathSegment(deploymentId)}`
   );
 
   const response = await fetch(url.toString(), {
@@ -7603,7 +7587,7 @@ async function deploymentRequest(
 ): Promise<unknown> {
   projectId = decodeURIComponent(projectId);
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/deployments${path}`
+    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(getEffectiveProjectId(projectId))}/deployments${path}`
   );
   for (const [key, value] of Object.entries(query ?? {})) {
     if (value !== undefined) url.searchParams.set(key, String(value));
@@ -7629,7 +7613,7 @@ async function listEnvironments(
 ): Promise<GitLabEnvironment[]> {
   projectId = decodeURIComponent(projectId);
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/environments`
+    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(getEffectiveProjectId(projectId))}/environments`
   );
 
   appendFilterParams(url.searchParams, options);
@@ -7656,7 +7640,7 @@ async function getEnvironment(
 ): Promise<GitLabEnvironment> {
   projectId = decodeURIComponent(projectId);
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/environments/${encodeGitLabPathSegment(environmentId)}`
+    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(getEffectiveProjectId(projectId))}/environments/${encodeGitLabPathSegment(environmentId)}`
   );
 
   const response = await fetch(url.toString(), {
@@ -7680,7 +7664,7 @@ async function environmentRequest(
   query?: Record<string, unknown>
 ): Promise<unknown> {
   projectId = decodeURIComponent(projectId);
-  const url = new URL(`${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/environments${path}`);
+  const url = new URL(`${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(getEffectiveProjectId(projectId))}/environments${path}`);
   for (const [key, value] of Object.entries(query ?? {})) if (value !== undefined) url.searchParams.set(key, String(value));
   const response = await fetch(url.toString(), { ...getFetchConfig(), method, body: body === undefined ? undefined : JSON.stringify(body) });
   await handleGitLabError(response);
@@ -7695,7 +7679,7 @@ async function pipelineTriggerRequest(
 ): Promise<unknown> {
   projectId = decodeURIComponent(projectId);
   const response = await fetch(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/triggers${path}`,
+    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(getEffectiveProjectId(projectId))}/triggers${path}`,
     { ...getFetchConfig(), method, body: body === undefined ? undefined : JSON.stringify(body) }
   );
   await handleGitLabError(response);
@@ -7710,7 +7694,7 @@ async function triggerPipeline(
   inputs?: Record<string, unknown>
 ): Promise<unknown> {
   projectId = decodeURIComponent(projectId);
-  const url = new URL(`${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/trigger/pipeline`);
+  const url = new URL(`${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(getEffectiveProjectId(projectId))}/trigger/pipeline`);
   url.searchParams.set("token", token);
   url.searchParams.set("ref", ref);
   const body: Record<string, unknown> = {};
@@ -7736,7 +7720,7 @@ async function listPipelineJobs(
 ): Promise<GitLabPipelineJob[]> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/pipelines/${encodeGitLabPathSegment(pipelineId)}/jobs`
+    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(getEffectiveProjectId(projectId))}/pipelines/${encodeGitLabPathSegment(pipelineId)}/jobs`
   );
 
   // Add all query parameters
@@ -7770,7 +7754,7 @@ async function listPipelineTriggerJobs(
 ): Promise<GitLabPipelineTriggerJob[]> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/pipelines/${encodeGitLabPathSegment(pipelineId)}/bridges`
+    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(getEffectiveProjectId(projectId))}/pipelines/${encodeGitLabPathSegment(pipelineId)}/bridges`
   );
 
   // Add all query parameters
@@ -7796,7 +7780,7 @@ async function getPipelineJob(
 ): Promise<GitLabPipelineJob> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/jobs/${encodeGitLabPathSegment(jobId)}`
+    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(getEffectiveProjectId(projectId))}/jobs/${encodeGitLabPathSegment(jobId)}`
   );
 
   const response = await fetch(url.toString(), {
@@ -7832,7 +7816,7 @@ async function getPipelineJobOutput(
 ): Promise<string> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/jobs/${encodeGitLabPathSegment(jobId)}/trace`
+    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(getEffectiveProjectId(projectId))}/jobs/${encodeGitLabPathSegment(jobId)}/trace`
   );
 
   const response = await fetch(url.toString(), {
@@ -7883,7 +7867,7 @@ async function validateCiLint(
 ): Promise<GitLabCiLintResult> {
   projectId = decodeURIComponent(projectId);
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/ci/lint`
+    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(getEffectiveProjectId(projectId))}/ci/lint`
   );
 
   const response = await fetch(url.toString(), {
@@ -7903,7 +7887,7 @@ async function validateProjectCiLint(
 ): Promise<GitLabCiLintResult> {
   projectId = decodeURIComponent(projectId);
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/ci/lint`
+    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(getEffectiveProjectId(projectId))}/ci/lint`
   );
 
   appendFilterParams(url.searchParams, options);
@@ -7932,7 +7916,7 @@ async function listJobArtifacts(
 ): Promise<GitLabArtifactEntry[]> {
   projectId = decodeURIComponent(projectId);
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/jobs/${encodeGitLabPathSegment(jobId)}/artifacts/tree`
+    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(getEffectiveProjectId(projectId))}/jobs/${encodeGitLabPathSegment(jobId)}/artifacts/tree`
   );
 
   appendFilterParams(url.searchParams, options);
@@ -7969,7 +7953,7 @@ async function downloadJobArtifacts(
   const effectiveProjectId = getEffectiveProjectId(projectId);
 
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(effectiveProjectId)}/jobs/${encodeGitLabPathSegment(jobId)}/artifacts`
+    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(effectiveProjectId)}/jobs/${encodeGitLabPathSegment(jobId)}/artifacts`
   );
 
   const response = await fetch(url.toString(), {
@@ -8014,13 +7998,10 @@ async function getJobArtifactFile(
 ): Promise<string> {
   projectId = decodeURIComponent(projectId);
   const effectiveProjectId = getEffectiveProjectId(projectId);
-  const encodedArtifactPath = artifactPath
-    .split("/")
-    .map(segment => encodeGitLabPathSegment(segment))
-    .join("/");
+  const encodedArtifactPath = encodeGitLabPath(artifactPath);
 
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(effectiveProjectId)}/jobs/${encodeGitLabPathSegment(jobId)}/artifacts/${encodedArtifactPath}`
+    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(effectiveProjectId)}/jobs/${encodeGitLabPathSegment(jobId)}/artifacts/${encodedArtifactPath}`
   );
 
   const response = await fetch(url.toString(), {
@@ -8053,7 +8034,7 @@ async function createPipeline(
 ): Promise<GitLabPipeline> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/pipeline`
+    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(getEffectiveProjectId(projectId))}/pipeline`
   );
 
   const body: any = { ref };
@@ -8088,7 +8069,7 @@ async function retryPipeline(
 ): Promise<GitLabPipeline> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/pipelines/${encodeGitLabPathSegment(pipelineId)}/retry`
+    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(getEffectiveProjectId(projectId))}/pipelines/${encodeGitLabPathSegment(pipelineId)}/retry`
   );
 
   const response = await fetch(url.toString(), {
@@ -8114,7 +8095,7 @@ async function cancelPipeline(
 ): Promise<GitLabPipeline> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/pipelines/${encodeGitLabPathSegment(pipelineId)}/cancel`
+    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(getEffectiveProjectId(projectId))}/pipelines/${encodeGitLabPathSegment(pipelineId)}/cancel`
   );
 
   const response = await fetch(url.toString(), {
@@ -8140,7 +8121,7 @@ async function listPipelineSchedules(
 ): Promise<GitLabPipelineSchedule[]> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/pipeline_schedules`
+    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(getEffectiveProjectId(projectId))}/pipeline_schedules`
   );
 
   appendFilterParams(url.searchParams, options);
@@ -8167,7 +8148,7 @@ async function getPipelineSchedule(
 ): Promise<GitLabPipelineSchedule> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/pipeline_schedules/${encodeGitLabPathSegment(pipelineScheduleId)}`
+    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(getEffectiveProjectId(projectId))}/pipeline_schedules/${encodeGitLabPathSegment(pipelineScheduleId)}`
   );
 
   const response = await fetch(url.toString(), {
@@ -8197,7 +8178,7 @@ async function listPipelineSchedulePipelines(
 ): Promise<GitLabPipeline[]> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/pipeline_schedules/${encodeGitLabPathSegment(pipelineScheduleId)}/pipelines`
+    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(getEffectiveProjectId(projectId))}/pipeline_schedules/${encodeGitLabPathSegment(pipelineScheduleId)}/pipelines`
   );
 
   appendFilterParams(url.searchParams, options);
@@ -8224,7 +8205,7 @@ async function createPipelineSchedule(
 ): Promise<GitLabPipelineSchedule> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/pipeline_schedules`
+    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(getEffectiveProjectId(projectId))}/pipeline_schedules`
   );
 
   const response = await fetch(url.toString(), {
@@ -8253,7 +8234,7 @@ async function updatePipelineSchedule(
 ): Promise<GitLabPipelineSchedule> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/pipeline_schedules/${encodeGitLabPathSegment(pipelineScheduleId)}`
+    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(getEffectiveProjectId(projectId))}/pipeline_schedules/${encodeGitLabPathSegment(pipelineScheduleId)}`
   );
 
   const response = await fetch(url.toString(), {
@@ -8280,7 +8261,7 @@ async function deletePipelineSchedule(
 ): Promise<void> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/pipeline_schedules/${encodeGitLabPathSegment(pipelineScheduleId)}`
+    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(getEffectiveProjectId(projectId))}/pipeline_schedules/${encodeGitLabPathSegment(pipelineScheduleId)}`
   );
 
   const response = await fetch(url.toString(), {
@@ -8304,7 +8285,7 @@ async function playPipelineSchedule(
 ): Promise<GitLabPipelineSchedulePlayResult> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/pipeline_schedules/${encodeGitLabPathSegment(pipelineScheduleId)}/play`
+    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(getEffectiveProjectId(projectId))}/pipeline_schedules/${encodeGitLabPathSegment(pipelineScheduleId)}/play`
   );
 
   const response = await fetch(url.toString(), {
@@ -8330,7 +8311,7 @@ async function takeOwnershipPipelineSchedule(
 ): Promise<GitLabPipelineSchedule> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/pipeline_schedules/${encodeGitLabPathSegment(pipelineScheduleId)}/take_ownership`
+    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(getEffectiveProjectId(projectId))}/pipeline_schedules/${encodeGitLabPathSegment(pipelineScheduleId)}/take_ownership`
   );
 
   const response = await fetch(url.toString(), {
@@ -8358,7 +8339,7 @@ async function getPipelineScheduleVariable(
 ): Promise<GitLabPipelineScheduleVariable> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/pipeline_schedules/${encodeGitLabPathSegment(pipelineScheduleId)}/variables/${encodeGitLabPathSegment(key)}`
+    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(getEffectiveProjectId(projectId))}/pipeline_schedules/${encodeGitLabPathSegment(pipelineScheduleId)}/variables/${encodeGitLabPathSegment(key)}`
   );
 
   const response = await fetch(url.toString(), {
@@ -8388,7 +8369,7 @@ async function createPipelineScheduleVariable(
 ): Promise<GitLabPipelineScheduleVariable> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/pipeline_schedules/${encodeGitLabPathSegment(pipelineScheduleId)}/variables`
+    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(getEffectiveProjectId(projectId))}/pipeline_schedules/${encodeGitLabPathSegment(pipelineScheduleId)}/variables`
   );
 
   const response = await fetch(url.toString(), {
@@ -8422,7 +8403,7 @@ async function updatePipelineScheduleVariable(
 ): Promise<GitLabPipelineScheduleVariable> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/pipeline_schedules/${encodeGitLabPathSegment(pipelineScheduleId)}/variables/${encodeGitLabPathSegment(key)}`
+    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(getEffectiveProjectId(projectId))}/pipeline_schedules/${encodeGitLabPathSegment(pipelineScheduleId)}/variables/${encodeGitLabPathSegment(key)}`
   );
 
   const response = await fetch(url.toString(), {
@@ -8451,7 +8432,7 @@ async function deletePipelineScheduleVariable(
 ): Promise<void> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/pipeline_schedules/${encodeGitLabPathSegment(pipelineScheduleId)}/variables/${encodeGitLabPathSegment(key)}`
+    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(getEffectiveProjectId(projectId))}/pipeline_schedules/${encodeGitLabPathSegment(pipelineScheduleId)}/variables/${encodeGitLabPathSegment(key)}`
   );
 
   const response = await fetch(url.toString(), {
@@ -8478,7 +8459,7 @@ async function playPipelineJob(
 ): Promise<GitLabPipelineJob> {
   projectId = decodeURIComponent(projectId);
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/jobs/${encodeGitLabPathSegment(jobId)}/play`
+    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(getEffectiveProjectId(projectId))}/jobs/${encodeGitLabPathSegment(jobId)}/play`
   );
 
   const body: any = {};
@@ -8533,7 +8514,7 @@ async function retryPipelineJob(
 ): Promise<GitLabPipelineJob> {
   projectId = decodeURIComponent(projectId);
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/jobs/${encodeGitLabPathSegment(jobId)}/retry`
+    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(getEffectiveProjectId(projectId))}/jobs/${encodeGitLabPathSegment(jobId)}/retry`
   );
 
   const response = await fetch(url.toString(), {
@@ -8550,7 +8531,7 @@ async function retryPipelineJob(
 async function erasePipelineJob(projectId: string, jobId: number | string): Promise<unknown> {
   projectId = decodeURIComponent(projectId);
   const response = await fetch(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/jobs/${encodeGitLabPathSegment(jobId)}/erase`,
+    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(getEffectiveProjectId(projectId))}/jobs/${encodeGitLabPathSegment(jobId)}/erase`,
     { ...getFetchConfig(), method: "POST" }
   );
   await handleGitLabError(response);
@@ -8597,7 +8578,7 @@ async function cancelPipelineJob(
 ): Promise<GitLabPipelineJob> {
   projectId = decodeURIComponent(projectId);
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/jobs/${encodeGitLabPathSegment(jobId)}/cancel`
+    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(getEffectiveProjectId(projectId))}/jobs/${encodeGitLabPathSegment(jobId)}/cancel`
   );
 
   if (force !== undefined) {
@@ -8632,7 +8613,7 @@ async function getRepositoryTree(
   if (options.pagination) queryParams.append("pagination", options.pagination);
 
   const response = await fetch(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(
+    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(
       getEffectiveProjectId(options.project_id)
     )}/repository/tree?${queryParams.toString()}`,
     { ...getFetchConfig() }
@@ -8667,7 +8648,7 @@ async function listProjectMilestones(
 ): Promise<GitLabMilestones[]> {
   projectId = decodeURIComponent(projectId);
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/milestones`
+    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(getEffectiveProjectId(projectId))}/milestones`
   );
 
   Object.entries(options).forEach(([key, value]) => {
@@ -8707,7 +8688,7 @@ async function getProjectMilestone(
 ): Promise<GitLabMilestones> {
   projectId = decodeURIComponent(projectId);
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/milestones/${encodeGitLabPathSegment(milestoneId)}`
+    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(getEffectiveProjectId(projectId))}/milestones/${encodeGitLabPathSegment(milestoneId)}`
   );
 
   const response = await fetch(url.toString(), {
@@ -8730,7 +8711,7 @@ async function createProjectMilestone(
 ): Promise<GitLabMilestones> {
   projectId = decodeURIComponent(projectId);
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/milestones`
+    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(getEffectiveProjectId(projectId))}/milestones`
   );
 
   const response = await fetch(url.toString(), {
@@ -8757,7 +8738,7 @@ async function editProjectMilestone(
 ): Promise<GitLabMilestones> {
   projectId = decodeURIComponent(projectId);
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/milestones/${encodeGitLabPathSegment(milestoneId)}`
+    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(getEffectiveProjectId(projectId))}/milestones/${encodeGitLabPathSegment(milestoneId)}`
   );
 
   const response = await fetch(url.toString(), {
@@ -8782,7 +8763,7 @@ async function deleteProjectMilestone(
 ): Promise<void> {
   projectId = decodeURIComponent(projectId);
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/milestones/${encodeGitLabPathSegment(milestoneId)}`
+    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(getEffectiveProjectId(projectId))}/milestones/${encodeGitLabPathSegment(milestoneId)}`
   );
 
   const response = await fetch(url.toString(), {
@@ -8805,7 +8786,7 @@ async function getMilestoneIssues(
 ): Promise<GitLabIssue[]> {
   projectId = decodeURIComponent(projectId);
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/milestones/${encodeGitLabPathSegment(milestoneId)}/issues`
+    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(getEffectiveProjectId(projectId))}/milestones/${encodeGitLabPathSegment(milestoneId)}/issues`
   );
 
   appendFilterParams(url.searchParams, options);
@@ -8834,7 +8815,7 @@ async function getMilestoneMergeRequests(
 ): Promise<GitLabMergeRequest[]> {
   projectId = decodeURIComponent(projectId);
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(
+    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(
       getEffectiveProjectId(projectId)
     )}/milestones/${encodeGitLabPathSegment(milestoneId)}/merge_requests`
   );
@@ -8861,7 +8842,7 @@ async function promoteProjectMilestone(
 ): Promise<GitLabGroupMilestones> {
   projectId = decodeURIComponent(projectId);
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/milestones/${encodeGitLabPathSegment(milestoneId)}/promote`
+    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(getEffectiveProjectId(projectId))}/milestones/${encodeGitLabPathSegment(milestoneId)}/promote`
   );
 
   const response = await fetch(url.toString(), {
@@ -8889,7 +8870,7 @@ async function getMilestoneBurndownEvents(
 ): Promise<any[]> {
   projectId = decodeURIComponent(projectId);
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(
+    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(
       getEffectiveProjectId(projectId)
     )}/milestones/${encodeGitLabPathSegment(milestoneId)}/burndown_events`
   );
@@ -8913,7 +8894,7 @@ async function listGroupMilestones(
 ): Promise<GitLabGroupMilestones[]> {
   groupId = decodeURIComponent(groupId);
   const url = new URL(
-    `${getEffectiveApiUrl()}/groups/${encodeURIComponent(groupId)}/milestones`
+    `${getEffectiveApiUrl()}/groups/${encodeGitLabPathSegment(groupId)}/milestones`
   );
 
   Object.entries(options).forEach(([key, value]) => {
@@ -8950,7 +8931,7 @@ async function getGroupMilestone(
 ): Promise<GitLabGroupMilestones> {
   groupId = decodeURIComponent(groupId);
   const url = new URL(
-    `${getEffectiveApiUrl()}/groups/${encodeURIComponent(groupId)}/milestones/${encodeGitLabPathSegment(milestoneId)}`
+    `${getEffectiveApiUrl()}/groups/${encodeGitLabPathSegment(groupId)}/milestones/${encodeGitLabPathSegment(milestoneId)}`
   );
 
   const response = await fetch(url.toString(), {
@@ -8970,7 +8951,7 @@ async function createGroupMilestone(
 ): Promise<GitLabGroupMilestones> {
   groupId = decodeURIComponent(groupId);
   const url = new URL(
-    `${getEffectiveApiUrl()}/groups/${encodeURIComponent(groupId)}/milestones`
+    `${getEffectiveApiUrl()}/groups/${encodeGitLabPathSegment(groupId)}/milestones`
   );
 
   const response = await fetch(url.toString(), {
@@ -8993,7 +8974,7 @@ async function editGroupMilestone(
 ): Promise<GitLabGroupMilestones> {
   groupId = decodeURIComponent(groupId);
   const url = new URL(
-    `${getEffectiveApiUrl()}/groups/${encodeURIComponent(groupId)}/milestones/${encodeGitLabPathSegment(milestoneId)}`
+    `${getEffectiveApiUrl()}/groups/${encodeGitLabPathSegment(groupId)}/milestones/${encodeGitLabPathSegment(milestoneId)}`
   );
 
   const response = await fetch(url.toString(), {
@@ -9015,7 +8996,7 @@ async function deleteGroupMilestone(
 ): Promise<void> {
   groupId = decodeURIComponent(groupId);
   const url = new URL(
-    `${getEffectiveApiUrl()}/groups/${encodeURIComponent(groupId)}/milestones/${encodeGitLabPathSegment(milestoneId)}`
+    `${getEffectiveApiUrl()}/groups/${encodeGitLabPathSegment(groupId)}/milestones/${encodeGitLabPathSegment(milestoneId)}`
   );
 
   const response = await fetch(url.toString(), {
@@ -9038,7 +9019,7 @@ async function getGroupMilestoneIssues(
 ): Promise<GitLabIssue[]> {
   groupId = decodeURIComponent(groupId);
   const url = new URL(
-    `${getEffectiveApiUrl()}/groups/${encodeURIComponent(groupId)}/milestones/${encodeGitLabPathSegment(milestoneId)}/issues`
+    `${getEffectiveApiUrl()}/groups/${encodeGitLabPathSegment(groupId)}/milestones/${encodeGitLabPathSegment(milestoneId)}/issues`
   );
 
   appendFilterParams(url.searchParams, options);
@@ -9064,7 +9045,7 @@ async function getGroupMilestoneMergeRequests(
 ): Promise<GitLabMergeRequest[]> {
   groupId = decodeURIComponent(groupId);
   const url = new URL(
-    `${getEffectiveApiUrl()}/groups/${encodeURIComponent(groupId)}/milestones/${encodeGitLabPathSegment(milestoneId)}/merge_requests`
+    `${getEffectiveApiUrl()}/groups/${encodeGitLabPathSegment(groupId)}/milestones/${encodeGitLabPathSegment(milestoneId)}/merge_requests`
   );
 
   appendFilterParams(url.searchParams, options);
@@ -9090,7 +9071,7 @@ async function getGroupMilestoneBurndownEvents(
 ): Promise<any[]> {
   groupId = decodeURIComponent(groupId);
   const url = new URL(
-    `${getEffectiveApiUrl()}/groups/${encodeURIComponent(groupId)}/milestones/${encodeGitLabPathSegment(milestoneId)}/burndown_events`
+    `${getEffectiveApiUrl()}/groups/${encodeGitLabPathSegment(groupId)}/milestones/${encodeGitLabPathSegment(milestoneId)}/burndown_events`
   );
 
   appendFilterParams(url.searchParams, options);
@@ -9176,7 +9157,7 @@ async function listCommits(
 ): Promise<GitLabCommit[]> {
   projectId = decodeURIComponent(projectId);
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/repository/commits`
+    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(getEffectiveProjectId(projectId))}/repository/commits`
   );
 
   // Add query parameters
@@ -9216,7 +9197,7 @@ async function listCommits(
 async function getCommit(projectId: string, sha: string, stats?: boolean): Promise<GitLabCommit> {
   projectId = decodeURIComponent(projectId);
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/repository/commits/${encodeURIComponent(sha)}`
+    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(getEffectiveProjectId(projectId))}/repository/commits/${encodeGitLabPathSegment(sha)}`
   );
 
   if (stats) {
@@ -9248,7 +9229,7 @@ async function getCommitDiff(
   full_diff?: boolean
 ): Promise<GitLabMergeRequestDiff[]> {
   projectId = decodeURIComponent(projectId);
-  const baseUrl = `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/repository/commits/${encodeURIComponent(sha)}/diff`;
+  const baseUrl = `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(getEffectiveProjectId(projectId))}/repository/commits/${encodeGitLabPathSegment(sha)}/diff`;
 
   let allDiffs: GitLabMergeRequestDiff[] = [];
   let page = 1;
@@ -9303,7 +9284,7 @@ async function getFileBlame(
 ): Promise<GitLabBlameEntry[]> {
   projectId = decodeURIComponent(projectId);
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/repository/files/${encodeURIComponent(options.file_path)}/blame`
+    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(getEffectiveProjectId(projectId))}/repository/files/${encodeGitLabPathSegment(options.file_path)}/blame`
   );
   url.searchParams.append("ref", options.ref);
   if (options.range_start !== undefined && options.range_end !== undefined) {
@@ -9336,7 +9317,7 @@ async function listCommitStatuses(
 ): Promise<GitLabCommitStatus[]> {
   projectId = decodeURIComponent(projectId);
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/repository/commits/${encodeURIComponent(sha)}/statuses`
+    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(getEffectiveProjectId(projectId))}/repository/commits/${encodeGitLabPathSegment(sha)}/statuses`
   );
 
   appendFilterParams(url.searchParams, options);
@@ -9369,7 +9350,7 @@ async function createCommitStatus(
 
   projectId = decodeURIComponent(projectId);
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/statuses/${encodeURIComponent(sha)}`
+    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(getEffectiveProjectId(projectId))}/statuses/${encodeGitLabPathSegment(sha)}`
   );
 
   appendFilterParams(url.searchParams, options);
@@ -9477,7 +9458,7 @@ async function listProjectMembers(
   const effectiveProjectId = getEffectiveProjectId(projectId);
   const membersPath = options.include_inheritance ? "members/all" : "members";
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(effectiveProjectId)}/${membersPath}`
+    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(effectiveProjectId)}/${membersPath}`
   );
 
   // Add query parameters
@@ -9513,7 +9494,7 @@ async function listGroupMembers(
   groupId = decodeURIComponent(groupId);
   const membersPath = options.include_inheritance ? "members/all" : "members";
   const url = new URL(
-    `${getEffectiveApiUrl()}/groups/${encodeURIComponent(groupId)}/${membersPath}`
+    `${getEffectiveApiUrl()}/groups/${encodeGitLabPathSegment(groupId)}/${membersPath}`
   );
 
   if (options.query) url.searchParams.append("query", options.query);
@@ -9545,7 +9526,7 @@ async function listGroupIterations(
   options: Omit<z.infer<typeof ListGroupIterationsSchema>, "group_id"> = {}
 ): Promise<GroupIteration[]> {
   groupId = decodeURIComponent(groupId);
-  const url = new URL(`${getEffectiveApiUrl()}/groups/${encodeURIComponent(groupId)}/iterations`);
+  const url = new URL(`${getEffectiveApiUrl()}/groups/${encodeGitLabPathSegment(groupId)}/iterations`);
 
   // クエリパラメータの追加
   if (options.state) url.searchParams.append("state", options.state);
@@ -9578,7 +9559,7 @@ async function listProjectVariables(
 ): Promise<GitLabCiVariable[]> {
   projectId = decodeURIComponent(projectId);
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/variables`
+    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(getEffectiveProjectId(projectId))}/variables`
   );
   Object.entries(options).forEach(([key, value]) => {
     if (key === "filter" && typeof value === "object" && value !== null) {
@@ -9603,7 +9584,7 @@ async function getProjectVariable(
 ): Promise<GitLabCiVariable> {
   projectId = decodeURIComponent(projectId);
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/variables/${encodeURIComponent(key)}`
+    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(getEffectiveProjectId(projectId))}/variables/${encodeGitLabPathSegment(key)}`
   );
   if (filter?.environment_scope) {
     url.searchParams.append("filter[environment_scope]", filter.environment_scope);
@@ -9620,7 +9601,7 @@ async function createProjectVariable(
 ): Promise<GitLabCiVariable> {
   projectId = decodeURIComponent(projectId);
   const response = await fetch(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/variables`,
+    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(getEffectiveProjectId(projectId))}/variables`,
     { ...getFetchConfig(), method: "POST", body: JSON.stringify(options) }
   );
   await handleGitLabError(response);
@@ -9636,7 +9617,7 @@ async function updateProjectVariable(
   projectId = decodeURIComponent(projectId);
   const { filter, ...body } = options;
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/variables/${encodeURIComponent(key)}`
+    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(getEffectiveProjectId(projectId))}/variables/${encodeGitLabPathSegment(key)}`
   );
   if (filter?.environment_scope) {
     url.searchParams.append("filter[environment_scope]", filter.environment_scope);
@@ -9658,7 +9639,7 @@ async function deleteProjectVariable(
 ): Promise<void> {
   projectId = decodeURIComponent(projectId);
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/variables/${encodeURIComponent(key)}`
+    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(getEffectiveProjectId(projectId))}/variables/${encodeGitLabPathSegment(key)}`
   );
   if (filter?.environment_scope) {
     url.searchParams.append("filter[environment_scope]", filter.environment_scope);
@@ -9671,7 +9652,7 @@ async function listGroupVariables(
   groupId: string,
   options: Omit<z.infer<typeof ListGroupVariablesSchema>, "group_id"> = {}
 ): Promise<GitLabCiVariable[]> {
-  const encoded = encodeURIComponent(decodeURIComponent(groupId));
+  const encoded = encodeGitLabPathSegment(groupId);
   const url = new URL(`${getEffectiveApiUrl()}/groups/${encoded}/variables`);
   Object.entries(options).forEach(([key, value]) => {
     if (key === "filter" && typeof value === "object" && value !== null) {
@@ -9694,9 +9675,9 @@ async function getGroupVariable(
   key: string,
   filter?: { environment_scope: string }
 ): Promise<GitLabCiVariable> {
-  const encoded = encodeURIComponent(decodeURIComponent(groupId));
+  const encoded = encodeGitLabPathSegment(groupId);
   const url = new URL(
-    `${getEffectiveApiUrl()}/groups/${encoded}/variables/${encodeURIComponent(key)}`
+    `${getEffectiveApiUrl()}/groups/${encoded}/variables/${encodeGitLabPathSegment(key)}`
   );
   if (filter?.environment_scope) {
     url.searchParams.append("filter[environment_scope]", filter.environment_scope);
@@ -9711,7 +9692,7 @@ async function createGroupVariable(
   groupId: string,
   options: Omit<z.infer<typeof CreateGroupVariableSchema>, "group_id">
 ): Promise<GitLabCiVariable> {
-  const encoded = encodeURIComponent(decodeURIComponent(groupId));
+  const encoded = encodeGitLabPathSegment(groupId);
   const response = await fetch(`${getEffectiveApiUrl()}/groups/${encoded}/variables`, {
     ...getFetchConfig(),
     method: "POST",
@@ -9727,10 +9708,10 @@ async function updateGroupVariable(
   key: string,
   options: Omit<z.infer<typeof UpdateGroupVariableSchema>, "group_id" | "key">
 ): Promise<GitLabCiVariable> {
-  const encoded = encodeURIComponent(decodeURIComponent(groupId));
+  const encoded = encodeGitLabPathSegment(groupId);
   const { filter, ...body } = options;
   const url = new URL(
-    `${getEffectiveApiUrl()}/groups/${encoded}/variables/${encodeURIComponent(key)}`
+    `${getEffectiveApiUrl()}/groups/${encoded}/variables/${encodeGitLabPathSegment(key)}`
   );
   if (filter?.environment_scope) {
     url.searchParams.append("filter[environment_scope]", filter.environment_scope);
@@ -9750,9 +9731,9 @@ async function deleteGroupVariable(
   key: string,
   filter?: { environment_scope: string }
 ): Promise<void> {
-  const encoded = encodeURIComponent(decodeURIComponent(groupId));
+  const encoded = encodeGitLabPathSegment(groupId);
   const url = new URL(
-    `${getEffectiveApiUrl()}/groups/${encoded}/variables/${encodeURIComponent(key)}`
+    `${getEffectiveApiUrl()}/groups/${encoded}/variables/${encodeGitLabPathSegment(key)}`
   );
   if (filter?.environment_scope) {
     url.searchParams.append("filter[environment_scope]", filter.environment_scope);
@@ -9879,7 +9860,7 @@ async function listDependencyProxyBlobs(
 }
 
 async function purgeDependencyProxyCache(groupId: string): Promise<void> {
-  const encoded = encodeURIComponent(decodeURIComponent(groupId));
+  const encoded = encodeGitLabPathSegment(groupId);
   const url = new URL(`${getEffectiveApiUrl()}/groups/${encoded}/dependency_proxy/cache`);
   const response = await fetch(url.toString(), { ...getFetchConfig(), method: "DELETE" });
   await handleGitLabError(response);
@@ -9914,7 +9895,7 @@ async function resolveProjectFullPath(projectId: string): Promise<string> {
   if (!/^\d+$/.test(decoded)) {
     return decoded;
   }
-  const url = new URL(`${getEffectiveApiUrl()}/projects/${encodeURIComponent(decoded)}`);
+  const url = new URL(`${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(decoded)}`);
   const response = await fetch(url.toString(), { ...getFetchConfig() });
   await handleGitLabError(response);
   const project = (await response.json()) as { path_with_namespace?: string };
@@ -10319,7 +10300,7 @@ async function markdownUpload(
   );
 
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(effectiveProjectId)}/uploads`
+    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(effectiveProjectId)}/uploads`
   );
 
   const defaultFetchConfig = getFetchConfig();
@@ -10386,7 +10367,7 @@ async function downloadAttachment(
   const safeFilename = getSafeAttachmentFilename(filename);
 
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(effectiveProjectId)}/uploads/${encodeGitLabPathSegment(secret)}/${encodeGitLabPathSegment(safeFilename)}`
+    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(effectiveProjectId)}/uploads/${encodeGitLabPathSegment(secret)}/${encodeGitLabPathSegment(safeFilename)}`
   );
 
   const response = await fetch(url.toString(), {
@@ -10455,7 +10436,7 @@ async function getProjectEvents(
 ): Promise<GitLabEvent[]> {
   const effectiveProjectId = getEffectiveProjectId(projectId);
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(effectiveProjectId)}/events`
+    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(effectiveProjectId)}/events`
   );
 
   // Add all query parameters
@@ -10484,7 +10465,7 @@ async function listReleases(
 ): Promise<GitLabRelease[]> {
   const effectiveProjectId = getEffectiveProjectId(projectId);
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(effectiveProjectId)}/releases`
+    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(effectiveProjectId)}/releases`
   );
 
   // Add query parameters
@@ -10515,7 +10496,7 @@ async function getRelease(
 ): Promise<GitLabRelease> {
   const effectiveProjectId = getEffectiveProjectId(projectId);
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(effectiveProjectId)}/releases/${encodeGitLabPathSegment(tagName)}`
+    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(effectiveProjectId)}/releases/${encodeGitLabPathSegment(tagName)}`
   );
 
   if (includeHtmlDescription !== undefined) {
@@ -10546,7 +10527,7 @@ async function createRelease(
   const effectiveProjectId = getEffectiveProjectId(projectId);
 
   const response = await fetch(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(effectiveProjectId)}/releases`,
+    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(effectiveProjectId)}/releases`,
     {
       ...getFetchConfig(),
       method: "POST",
@@ -10576,7 +10557,7 @@ async function updateRelease(
   const effectiveProjectId = getEffectiveProjectId(projectId);
 
   const response = await fetch(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(effectiveProjectId)}/releases/${encodeGitLabPathSegment(tagName)}`,
+    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(effectiveProjectId)}/releases/${encodeGitLabPathSegment(tagName)}`,
     {
       ...getFetchConfig(),
       method: "PUT",
@@ -10601,7 +10582,7 @@ async function deleteRelease(projectId: string, tagName: string): Promise<GitLab
   const effectiveProjectId = getEffectiveProjectId(projectId);
 
   const response = await fetch(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(effectiveProjectId)}/releases/${encodeGitLabPathSegment(tagName)}`,
+    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(effectiveProjectId)}/releases/${encodeGitLabPathSegment(tagName)}`,
     {
       ...getFetchConfig(),
       method: "DELETE",
@@ -10624,7 +10605,7 @@ async function createReleaseEvidence(projectId: string, tagName: string): Promis
   const effectiveProjectId = getEffectiveProjectId(projectId);
 
   const response = await fetch(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(effectiveProjectId)}/releases/${encodeGitLabPathSegment(tagName)}/evidence`,
+    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(effectiveProjectId)}/releases/${encodeGitLabPathSegment(tagName)}/evidence`,
     {
       ...getFetchConfig(),
       method: "POST",
@@ -10650,7 +10631,7 @@ async function downloadReleaseAsset(
   const effectiveProjectId = getEffectiveProjectId(projectId);
 
   const response = await fetch(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(effectiveProjectId)}/releases/${encodeGitLabPathSegment(tagName)}/downloads/${encodeGitLabPath(directAssetPath)}`,
+    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(effectiveProjectId)}/releases/${encodeGitLabPathSegment(tagName)}/downloads/${encodeGitLabPath(directAssetPath)}`,
     {
       ...getFetchConfig(),
     }
@@ -10674,7 +10655,7 @@ async function listTags(
 ): Promise<GitLabTag[]> {
   const effectiveProjectId = getEffectiveProjectId(projectId);
   const url = new URL(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(effectiveProjectId)}/repository/tags`
+    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(effectiveProjectId)}/repository/tags`
   );
 
   appendFilterParams(url.searchParams, options);
@@ -10700,7 +10681,7 @@ async function getTag(projectId: string, tagName: string): Promise<GitLabTag> {
   const effectiveProjectId = getEffectiveProjectId(projectId);
 
   const response = await fetch(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(effectiveProjectId)}/repository/tags/${encodeURIComponent(tagName)}`,
+    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(effectiveProjectId)}/repository/tags/${encodeGitLabPathSegment(tagName)}`,
     {
       ...getFetchConfig(),
     }
@@ -10726,7 +10707,7 @@ async function createTag(
   const effectiveProjectId = getEffectiveProjectId(projectId);
 
   const response = await fetch(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(effectiveProjectId)}/repository/tags`,
+    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(effectiveProjectId)}/repository/tags`,
     {
       ...getFetchConfig(),
       method: "POST",
@@ -10750,7 +10731,7 @@ async function deleteTag(projectId: string, tagName: string): Promise<void> {
   const effectiveProjectId = getEffectiveProjectId(projectId);
 
   const response = await fetch(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(effectiveProjectId)}/repository/tags/${encodeURIComponent(tagName)}`,
+    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(effectiveProjectId)}/repository/tags/${encodeGitLabPathSegment(tagName)}`,
     {
       ...getFetchConfig(),
       method: "DELETE",
@@ -10771,7 +10752,7 @@ async function getTagSignature(projectId: string, tagName: string): Promise<GitL
   const effectiveProjectId = getEffectiveProjectId(projectId);
 
   const response = await fetch(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(effectiveProjectId)}/repository/tags/${encodeURIComponent(tagName)}/signature`,
+    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(effectiveProjectId)}/repository/tags/${encodeGitLabPathSegment(tagName)}/signature`,
     {
       ...getFetchConfig(),
     }
@@ -11681,7 +11662,7 @@ async function handleToolCall(params: any) {
       case "get_namespace": {
         const args = GetNamespaceSchema.parse(params.arguments);
         const url = new URL(
-          `${GITLAB_API_URL}/namespaces/${encodeURIComponent(args.namespace_id)}`
+          `${GITLAB_API_URL}/namespaces/${encodeGitLabPathSegment(args.namespace_id)}`
         );
 
         const response = await fetch(url.toString(), {
@@ -11699,7 +11680,7 @@ async function handleToolCall(params: any) {
 
       case "verify_namespace": {
         const args = VerifyNamespaceSchema.parse(params.arguments);
-        const url = new URL(`${GITLAB_API_URL}/namespaces/${encodeURIComponent(args.path)}/exists`);
+        const url = new URL(`${GITLAB_API_URL}/namespaces/${encodeGitLabPathSegment(args.path)}/exists`);
         if (args.parent_id !== undefined) url.searchParams.set("parent_id", String(args.parent_id));
 
         const response = await fetch(url.toString(), {
@@ -11724,7 +11705,7 @@ async function handleToolCall(params: any) {
         };
         const effectiveProjectId = getEffectiveProjectId(args.project_id);
         const url = new URL(
-          `${getEffectiveApiUrl()}/projects/${encodeURIComponent(effectiveProjectId)}`
+          `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(effectiveProjectId)}`
         );
 
         if (options.license) url.searchParams.append("license", "true");
@@ -11761,7 +11742,7 @@ async function handleToolCall(params: any) {
           Object.entries(updates).filter(([, value]) => value !== undefined)
         );
         const response = await fetch(
-          `${getEffectiveApiUrl()}/projects/${encodeURIComponent(effectiveProjectId)}`,
+          `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(effectiveProjectId)}`,
           {
             ...getFetchConfig(),
             method: "PUT",
@@ -11808,7 +11789,7 @@ async function handleToolCall(params: any) {
 
       case "get_user": {
         const args = GetUserSchema.parse(params.arguments);
-        const url = new URL(`${getEffectiveApiUrl()}/users/${encodeURIComponent(args.user_id)}`);
+        const url = new URL(`${getEffectiveApiUrl()}/users/${encodeGitLabPathSegment(args.user_id)}`);
 
         const response = await fetch(url.toString(), {
           ...getFetchConfig(),
@@ -14105,7 +14086,7 @@ async function handleToolCall(params: any) {
         const args = GetBranchSchema.parse(params.arguments);
         const projectId = decodeURIComponent(args.project_id);
         const url = new URL(
-          `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/repository/branches/${encodeURIComponent(args.branch_name)}`
+          `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(getEffectiveProjectId(projectId))}/repository/branches/${encodeGitLabPathSegment(args.branch_name)}`
         );
 
         const response = await fetch(url.toString(), {
@@ -14125,7 +14106,7 @@ async function handleToolCall(params: any) {
         const args = ListBranchesSchema.parse(params.arguments);
         const projectId = decodeURIComponent(args.project_id);
         const url = new URL(
-          `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/repository/branches`
+          `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(getEffectiveProjectId(projectId))}/repository/branches`
         );
 
         if (args.search) {
@@ -14155,7 +14136,7 @@ async function handleToolCall(params: any) {
         const args = DeleteBranchSchema.parse(params.arguments);
         const projectId = decodeURIComponent(args.project_id);
         const url = new URL(
-          `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/repository/branches/${encodeURIComponent(args.branch_name)}`
+          `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(getEffectiveProjectId(projectId))}/repository/branches/${encodeGitLabPathSegment(args.branch_name)}`
         );
 
         const response = await fetch(url.toString(), {
@@ -14175,7 +14156,7 @@ async function handleToolCall(params: any) {
         const projectId = decodeURIComponent(args.project_id);
         const effectiveProjectId = getEffectiveProjectId(projectId);
         const url = new URL(
-          `${getEffectiveApiUrl()}/projects/${encodeURIComponent(effectiveProjectId)}/protected_branches`
+          `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(effectiveProjectId)}/protected_branches`
         );
         if (args.search) url.searchParams.append("search", args.search);
         if (args.page) url.searchParams.append("page", String(args.page));
@@ -14197,7 +14178,7 @@ async function handleToolCall(params: any) {
         const projectId = decodeURIComponent(args.project_id);
         const effectiveProjectId = getEffectiveProjectId(projectId);
         const url = new URL(
-          `${getEffectiveApiUrl()}/projects/${encodeURIComponent(effectiveProjectId)}/protected_branches/${encodeURIComponent(args.branch_name)}`
+          `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(effectiveProjectId)}/protected_branches/${encodeGitLabPathSegment(args.branch_name)}`
         );
 
         const response = await fetch(url.toString(), {
@@ -14216,7 +14197,7 @@ async function handleToolCall(params: any) {
         const projectId = decodeURIComponent(args.project_id);
         const effectiveProjectId = getEffectiveProjectId(projectId);
         const url = new URL(
-          `${getEffectiveApiUrl()}/projects/${encodeURIComponent(effectiveProjectId)}/protected_branches`
+          `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(effectiveProjectId)}/protected_branches`
         );
 
         const body: Record<string, unknown> = { name: args.branch_name };
@@ -14247,7 +14228,7 @@ async function handleToolCall(params: any) {
         const projectId = decodeURIComponent(args.project_id);
         const effectiveProjectId = getEffectiveProjectId(projectId);
         const url = new URL(
-          `${getEffectiveApiUrl()}/projects/${encodeURIComponent(effectiveProjectId)}/protected_branches/${encodeURIComponent(args.branch_name)}`
+          `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(effectiveProjectId)}/protected_branches/${encodeGitLabPathSegment(args.branch_name)}`
         );
 
         const response = await fetch(url.toString(), {
@@ -14266,7 +14247,7 @@ async function handleToolCall(params: any) {
         const projectId = decodeURIComponent(args.project_id);
         const effectiveProjectId = getEffectiveProjectId(projectId);
         const url = new URL(
-          `${getEffectiveApiUrl()}/projects/${encodeURIComponent(effectiveProjectId)}`
+          `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(effectiveProjectId)}`
         );
 
         const response = await fetch(url.toString(), {
