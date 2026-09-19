@@ -2,6 +2,9 @@
 
 Complete catalog of every tool the GitLab MCP server exposes.
 
+Which of these have an MCP `tools/call` test is tracked in
+[Tool invocation coverage](../reference/tool-coverage.md).
+
 > **Setup first** — if you haven't connected your Personal Access Token or
 > OAuth credentials yet, follow one of the [client setup guides](../clients/claude-code.md)
 > or read [Getting Started](../getting-started/index.md). Tools listed below

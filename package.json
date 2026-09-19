@@ -65,6 +65,7 @@
     "lint": "eslint . --ext .ts",
     "check:runtime-deps": "node scripts/check-runtime-deps.mjs",
     "check:skill-sync": "tsx scripts/check-skill-sync.ts",
+    "docs:tools": "tsx scripts/generate-tool-docs.ts && tsx scripts/generate-tool-coverage.ts",
     "lint:fix": "eslint . --ext .ts --fix",
     "release": "bash scripts/release.sh",
     "release:mcp-registry": "bash scripts/publish_mcp_registry.sh",
