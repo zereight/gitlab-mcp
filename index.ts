@@ -2483,23 +2483,28 @@ async function markAllTodosDone(): Promise<void> {
  */
 function appendMergeRequestFilters(url: URL, options: Record<string, unknown>): void {
   Object.entries(options).forEach(([key, value]) => {
+    // Drop blank entries inside arrays so ["", "bug"] behaves like the scalar guard below
+    const normalized = Array.isArray(value)
+      ? value.filter((item) => !(typeof item === "string" && item.trim() === ""))
+      : value;
+
     if (
-      value === undefined ||
-      (typeof value === "string" && value.trim() === "") ||
-      (Array.isArray(value) && value.length === 0)
+      normalized === undefined ||
+      (typeof normalized === "string" && normalized.trim() === "") ||
+      (Array.isArray(normalized) && normalized.length === 0)
     ) {
       return;
     }
 
-    if (key === "labels" && Array.isArray(value)) {
-      url.searchParams.append(key, value.join(","));
-    } else if (key === "approved_by_usernames" && Array.isArray(value)) {
+    if (key === "labels" && Array.isArray(normalized)) {
+      url.searchParams.append(key, normalized.join(","));
+    } else if (key === "approved_by_usernames" && Array.isArray(normalized)) {
       // GitLab expects array-bracket form: approved_by_usernames[]=alice&approved_by_usernames[]=bob
-      for (const v of value) {
+      for (const v of normalized) {
         url.searchParams.append(`${key}[]`, String(v));
       }
     } else {
-      url.searchParams.append(key, String(value));
+      url.searchParams.append(key, String(normalized));
     }
   });
 }

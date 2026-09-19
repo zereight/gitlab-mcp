@@ -188,4 +188,57 @@ describe('list_merge_requests', () => {
       mockGitLab.clearCustomHandlers();
     }
   });
+
+  test('drops blank entries inside array filters', async () => {
+    let capturedUrl: string | undefined;
+    mockGitLab.addMockHandler('get', '/merge_requests', (req, res) => {
+      capturedUrl = req.originalUrl;
+      res.json([]);
+    });
+
+    try {
+      await callListMergeRequests(
+        { labels: ['', '  ', 'bug'], approved_by_usernames: ['alice', ''] },
+        {
+          GITLAB_API_URL: `${mockGitLabUrl}/api/v4`,
+          GITLAB_PERSONAL_ACCESS_TOKEN: MOCK_TOKEN,
+        }
+      );
+
+      assert.strictEqual(
+        capturedUrl,
+        '/api/v4/merge_requests?approved_by_usernames%5B%5D=alice&labels=bug',
+        'Blank array entries should be dropped while non-blank ones are kept'
+      );
+    } finally {
+      mockGitLab.clearCustomHandlers();
+    }
+  });
+
+  test('omits array filters whose entries are all blank', async () => {
+    let capturedUrl: string | undefined;
+    mockGitLab.addMockHandler('get', '/merge_requests', (req, res) => {
+      capturedUrl = req.originalUrl;
+      res.json([]);
+    });
+
+    try {
+      const mrs = await callListMergeRequests(
+        { labels: ['', ' '], approved_by_usernames: [''] },
+        {
+          GITLAB_API_URL: `${mockGitLabUrl}/api/v4`,
+          GITLAB_PERSONAL_ACCESS_TOKEN: MOCK_TOKEN,
+        }
+      );
+
+      assert.deepStrictEqual(mrs, []);
+      assert.strictEqual(
+        capturedUrl,
+        '/api/v4/merge_requests',
+        'Array filters with only blank entries should not be serialized'
+      );
+    } finally {
+      mockGitLab.clearCustomHandlers();
+    }
+  });
 });
