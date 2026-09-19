@@ -244,6 +244,40 @@ describe("Permission Mode", { concurrency: 1 }, () => {
         await client.disconnect();
       }
     });
+
+    test("does not apply the modify-mode guard when the alias looks destructive", async () => {
+      const client = await connectClient(server);
+      try {
+        // "stop" is only the caller-chosen label here; the field is issueSetSeverity.
+        await client.callTool("execute_graphql", {
+          query: "mutation { stop: issueSetSeverity(input: { severity: HIGH }) { errors } }",
+        });
+      } catch (error) {
+        assert.ok(error instanceof Error);
+        assert.ok(
+          !error.message.includes("modify mode"),
+          `an alias must not trigger the guard, got: ${error.message}`
+        );
+      } finally {
+        await client.disconnect();
+      }
+    });
+
+    test("rejects a destructive mutation hidden behind a harmless alias", async () => {
+      const client = await connectClient(server);
+      try {
+        await assert.rejects(
+          () =>
+            client.callTool("execute_graphql", {
+              query: "mutation { harmless: environmentStop(input: {}) { errors } }",
+            }),
+          (error: Error) => error.message.includes("delete mutations in modify mode"),
+          "a destructive field must be rejected even when aliased"
+        );
+      } finally {
+        await client.disconnect();
+      }
+    });
   });
 
   describe("readonly mode via GITLAB_PERMISSION_MODE", () => {
