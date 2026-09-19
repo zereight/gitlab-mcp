@@ -58,13 +58,30 @@ describe("safe redirect fetch", () => {
           res.writeHead(302, { location: "/loop" });
           res.end();
           return;
+        case "/echo-credential":
+          res.writeHead(200, { "content-type": "text/plain" });
+          res.end(String(req.headers["private-token"] ?? "none"));
+          return;
+        case "/same-origin-credential-redirect":
+          res.writeHead(302, { location: "/echo-credential" });
+          res.end();
+          return;
+        case "/cross-origin-credential-redirect":
+          res.writeHead(302, { location: `${secondOrigin}/echo-credential` });
+          res.end();
+          return;
         default:
           res.writeHead(404);
           res.end();
       }
     });
 
-    secondServer = http.createServer((_req, res) => {
+    secondServer = http.createServer((req, res) => {
+      if ((req.url ?? "") === "/echo-credential") {
+        res.writeHead(200, { "content-type": "text/plain" });
+        res.end(String(req.headers["private-token"] ?? "none"));
+        return;
+      }
       res.writeHead(200).end("second");
     });
 
@@ -146,6 +163,25 @@ describe("safe redirect fetch", () => {
     });
     assert.equal(response.status, 200);
     assert.equal(await response.text(), "second");
+  });
+
+  test("sends credential headers on same-origin redirects", async () => {
+    const response = await fetchWithValidatedRedirects(`${origin}/same-origin-credential-redirect`, {
+      headers: { "Private-Token": "glpat-secret", Accept: "application/octet-stream" },
+      dispatcher,
+    });
+    assert.equal(response.status, 200);
+    assert.equal(await response.text(), "glpat-secret");
+  });
+
+  test("strips credential headers when a redirect crosses origins", async () => {
+    const response = await fetchWithValidatedRedirects(`${origin}/cross-origin-credential-redirect`, {
+      headers: { "Private-Token": "glpat-secret", Accept: "application/octet-stream" },
+      dispatcher,
+      isTrustedRedirectHost: host => host === "127.0.0.1",
+    });
+    assert.equal(response.status, 200);
+    assert.equal(await response.text(), "none");
   });
 
   test("classifies address ranges", () => {
