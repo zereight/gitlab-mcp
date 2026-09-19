@@ -2411,7 +2411,7 @@ function appendMergeRequestFilters(url: URL, options: Record<string, unknown>): 
   Object.entries(options).forEach(([key, value]) => {
     if (
       value === undefined ||
-      value === "" ||
+      (typeof value === "string" && value.trim() === "") ||
       (Array.isArray(value) && value.length === 0)
     ) {
       return;
