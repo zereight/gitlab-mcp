@@ -155,10 +155,9 @@ CLI arguments take precedence over environment variables.
 > **Fine-grained tool filtering:** use `GITLAB_PERMISSION_MODE=modify` to allow create/update while
 > blocking every delete tool and the destructive teardown tools (`cancel_pipeline`,
 > `cancel_pipeline_job`, `stop_environment`, `stop_stale_environments`, `unprotect_branch`) —
-> including delete mutations through `execute_graphql` and `push_files` `delete`/`move` actions — or
-> `GITLAB_PERMISSION_MODE=readonly` for read-only access. The guard covers typed tools; GraphQL
-> teardown mutations such as `pipelineCancel` are not blocked yet
-> (see [#755](https://github.com/zereight/gitlab-mcp/pull/755)). You can also
+> including destructive mutations (deletion and teardown verbs) through `execute_graphql` and
+> `push_files` `delete`/`move` actions — or `GITLAB_PERMISSION_MODE=readonly` for read-only
+> access. You can also
 > enable toolset groups with `GITLAB_TOOLSETS=<group,…>`, allow-list individual tools with
 > `GITLAB_TOOLS=<tool,…>` (e.g. read-only groups plus a few specific write tools), and
 > deny-list by pattern with `GITLAB_DENIED_TOOLS_REGEX`. The legacy `USE_GITLAB_WIKI` /
