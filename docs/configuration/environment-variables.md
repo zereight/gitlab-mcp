@@ -194,7 +194,9 @@ Security notes:
 
 ### `SESSION_TIMEOUT_SECONDS`
 
-Per-session auth timeout in seconds when using remote authorization.
+Per-session auth timeout in seconds when using remote authorization. The SSE
+transport also closes connections that receive no `POST /messages` request for this
+long.
 
 Default:
 
@@ -750,14 +752,17 @@ from GitLab upstream API rate limits.
 ### `MAX_SESSIONS`
 
 Maximum concurrent MCP sessions on a single server instance (Streamable HTTP /
-remote authorization / MCP OAuth).
+remote authorization / MCP OAuth / SSE).
 
 Default:
 
 - `1000`
 
 When the limit is reached, new session creation is rejected until an existing
-session expires or is closed.
+session expires or is closed. For the SSE transport this applies to new
+`GET /sse` connections, which are additionally rate-limited per client IP
+(`MAX_REQUESTS_PER_MINUTE`) and closed after `SESSION_TIMEOUT_SECONDS` without a
+`POST /messages` request.
 
 ## Network and TLS
 

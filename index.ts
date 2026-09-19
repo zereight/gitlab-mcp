@@ -14511,27 +14511,92 @@ async function startSSEServer(): Promise<void> {
   };
 
   const transports: { [sessionId: string]: SSEServerTransport } = {};
+  const sessionLastActivity = new Map<string, number>();
   let shuttingDown = false;
 
-  app.get("/sse", rejectDnsRebinding, requireSseAuth, async (req: Request, res: Response) => {
-    const serverInstance = createServer();
-    const effectiveHosts = getEffectiveAllowedHosts(req);
-    const transport = new SSEServerTransport("/messages", res, {
-      enableDnsRebindingProtection: true,
-      allowedHosts: [...effectiveHosts],
-      allowedOrigins: [...effectiveHosts].flatMap(host => [`http://${host}`, `https://${host}`]),
-    });
-    transports[transport.sessionId] = transport;
-    res.on("close", () => {
-      delete transports[transport.sessionId];
-    });
-    await serverInstance.connect(transport);
+  // Mirror the Streamable HTTP controls so the SSE transport cannot be used to
+  // exhaust the process: a session cap, a per-IP creation rate limit and an idle
+  // timeout that closes connections which never send anything.
+  const maxSessions = Number.parseInt(process.env.MAX_SESSIONS || "1000", 10);
+  const maxSseConnectionsPerMinute = Number.parseInt(
+    process.env.MAX_REQUESTS_PER_MINUTE || "60",
+    10
+  );
+  const idleTimeoutMs = Math.max(SESSION_TIMEOUT_SECONDS, 1) * 1000;
+
+  const sseConnectionRateLimit = rateLimit({
+    windowMs: 60_000,
+    limit: maxSseConnectionsPerMinute,
+    keyGenerator: (req: Request) =>
+      ipKeyGenerator(normalizeProxyClientIpForRateLimit(req.ip ?? "")),
+    standardHeaders: true,
+    legacyHeaders: false,
+    handler: (_req: Request, res: Response) => {
+      res.status(429).json({
+        error: "Rate limit exceeded",
+        message: `Maximum ${maxSseConnectionsPerMinute} SSE connections per minute allowed`,
+      });
+    },
   });
+
+  const closeIdleSseSessions = () => {
+    const now = Date.now();
+    for (const [sessionId, lastActivity] of sessionLastActivity) {
+      if (now - lastActivity < idleTimeoutMs) continue;
+      const transport = transports[sessionId];
+      delete transports[sessionId];
+      sessionLastActivity.delete(sessionId);
+      logger.info(
+        { sessionId, event: "sse_session_idle_closed" },
+        `SSE session ${sessionId} closed after ${SESSION_TIMEOUT_SECONDS}s of inactivity`
+      );
+      if (transport) {
+        void transport.close().catch(error => {
+          logger.error({ err: error }, "Error closing idle SSE transport");
+        });
+      }
+    }
+  };
+
+  const idleSweep = setInterval(closeIdleSseSessions, Math.min(idleTimeoutMs, 60_000));
+  idleSweep.unref();
+
+  app.get(
+    "/sse",
+    rejectDnsRebinding,
+    requireSseAuth,
+    sseConnectionRateLimit,
+    async (req: Request, res: Response) => {
+      if (Object.keys(transports).length >= maxSessions) {
+        res.status(503).json({
+          error: "Server capacity reached",
+          message: `Maximum ${maxSessions} concurrent sessions allowed. Please try again later.`,
+        });
+        return;
+      }
+
+      const serverInstance = createServer();
+      const effectiveHosts = getEffectiveAllowedHosts(req);
+      const transport = new SSEServerTransport("/messages", res, {
+        enableDnsRebindingProtection: true,
+        allowedHosts: [...effectiveHosts],
+        allowedOrigins: [...effectiveHosts].flatMap(host => [`http://${host}`, `https://${host}`]),
+      });
+      transports[transport.sessionId] = transport;
+      sessionLastActivity.set(transport.sessionId, Date.now());
+      res.on("close", () => {
+        delete transports[transport.sessionId];
+        sessionLastActivity.delete(transport.sessionId);
+      });
+      await serverInstance.connect(transport);
+    }
+  );
 
   app.post("/messages", rejectDnsRebinding, requireSseAuth, async (req: Request, res: Response) => {
     const sessionId = req.query.sessionId as string;
     const transport = transports[sessionId];
     if (transport) {
+      sessionLastActivity.set(sessionId, Date.now());
       await transport.handlePostMessage(req, res);
     } else {
       res.status(400).send("No transport found for sessionId");
@@ -14557,6 +14622,7 @@ async function startSSEServer(): Promise<void> {
     if (shuttingDown) return;
     shuttingDown = true;
     logger.info(`${signal} received, shutting down SSE server...`);
+    clearInterval(idleSweep);
     httpServer.close(() => logger.info("SSE HTTP server closed"));
     await Promise.allSettled(
       Object.values(transports).map(async transport => {
