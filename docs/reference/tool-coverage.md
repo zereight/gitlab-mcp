@@ -279,7 +279,7 @@ A tool counts as invoked when a test sends that name through MCP (`callTool` / `
 
 <a id="milestones"></a>
 
-- [x] [`list_milestones`](../tools/milestones.md#list_milestones) — `test/test-empty-toolsets.ts`
+- [x] [`list_milestones`](../tools/milestones.md#list_milestones) — `test/test-empty-toolsets.ts`, `test/test-list-milestones.ts`
 - [x] [`get_milestone`](../tools/milestones.md#get_milestone) — `test/test-empty-toolsets.ts`
 - [x] [`create_milestone`](../tools/milestones.md#create_milestone) — `test/test-empty-toolsets.ts`
 - [x] [`edit_milestone`](../tools/milestones.md#edit_milestone) — `test/test-empty-toolsets.ts`
@@ -288,7 +288,7 @@ A tool counts as invoked when a test sends that name through MCP (`callTool` / `
 - [x] [`get_milestone_merge_requests`](../tools/milestones.md#get_milestone_merge_requests) — `test/test-empty-toolsets.ts`
 - [x] [`promote_milestone`](../tools/milestones.md#promote_milestone) — `test/test-empty-toolsets.ts`
 - [x] [`get_milestone_burndown_events`](../tools/milestones.md#get_milestone_burndown_events) — `test/test-empty-toolsets.ts`
-- [x] [`list_group_milestones`](../tools/milestones.md#list_group_milestones) — `test/test-empty-toolsets.ts`
+- [x] [`list_group_milestones`](../tools/milestones.md#list_group_milestones) — `test/test-empty-toolsets.ts`, `test/test-list-milestones.ts`
 - [x] [`get_group_milestone`](../tools/milestones.md#get_group_milestone) — `test/test-empty-toolsets.ts`
 - [x] [`create_group_milestone`](../tools/milestones.md#create_group_milestone) — `test/test-empty-toolsets.ts`
 - [x] [`edit_group_milestone`](../tools/milestones.md#edit_group_milestone) — `test/test-empty-toolsets.ts`
