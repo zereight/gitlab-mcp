@@ -78,6 +78,15 @@ const DELETE_SAMPLE_TOOLS = [
   "delete_webhook",
 ];
 
+// Destructive tools whose names do not start with `delete_`
+const DESTRUCTIVE_SAMPLE_TOOLS = [
+  "cancel_pipeline",
+  "cancel_pipeline_job",
+  "stop_environment",
+  "stop_stale_environments",
+  "unprotect_branch",
+];
+
 const MODIFY_SAMPLE_TOOLS = [
   "create_issue",
   "update_issue",
@@ -85,7 +94,6 @@ const MODIFY_SAMPLE_TOOLS = [
   "create_branch",
   "push_files",
   "merge_merge_request",
-  "stop_stale_environments",
 ];
 
 const READ_SAMPLE_TOOLS = ["list_issues", "get_project", "list_merge_requests"];
@@ -144,6 +152,36 @@ describe("Permission Mode", { concurrency: 1 }, () => {
         assert.ok(names.includes(name), `modify mode: expected "${name}" to be present`);
       }
       assert.ok(!names.some(n => n.startsWith("delete_")), "no delete_* tool should be listed");
+    });
+
+    test("hides destructive stop/cancel/unprotect tools", async () => {
+      const names = await getToolNames(server);
+      for (const name of DESTRUCTIVE_SAMPLE_TOOLS) {
+        assert.ok(!names.includes(name), `modify mode: expected "${name}" to be absent`);
+      }
+    });
+
+    test("rejects destructive stop/cancel/unprotect tool calls", async () => {
+      const client = await connectClient(server);
+      try {
+        await assert.rejects(
+          () => client.callTool("cancel_pipeline", { project_id: "1", pipeline_id: 1 }),
+          (error: Error) => error.message.includes("not allowed in modify mode"),
+          "cancel_pipeline should be rejected in modify mode"
+        );
+        await assert.rejects(
+          () => client.callTool("stop_environment", { project_id: "1", environment_id: 1 }),
+          (error: Error) => error.message.includes("not allowed in modify mode"),
+          "stop_environment should be rejected in modify mode"
+        );
+        await assert.rejects(
+          () => client.callTool("unprotect_branch", { project_id: "1", branch: "main" }),
+          (error: Error) => error.message.includes("not allowed in modify mode"),
+          "unprotect_branch should be rejected in modify mode"
+        );
+      } finally {
+        await client.disconnect();
+      }
     });
 
     test("hides purge_dependency_proxy_cache", async () => {

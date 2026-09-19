@@ -1760,6 +1760,13 @@ export const deleteTools = new Set([
   "delete_work_item_emoji_reaction",
   "delete_work_item_note_emoji_reaction",
   "purge_dependency_proxy_cache",
+  // Destructive teardown operations whose names do not start with `delete_`:
+  // stopping/cancelling live pipelines and environments, and removing branch protection.
+  "cancel_pipeline",
+  "cancel_pipeline_job",
+  "stop_environment",
+  "stop_stale_environments",
+  "unprotect_branch",
 ]);
 
 // Define which tools are related to wiki and can be toggled by USE_GITLAB_WIKI

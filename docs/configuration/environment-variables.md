@@ -502,7 +502,10 @@ Behavior:
 
 - `readonly` is equivalent to `GITLAB_READ_ONLY_MODE=true`
 - `modify` hides all `delete_*` tools from `tools/list`, rejects them when called
-  directly, and rejects delete/destroy/remove mutations sent through `execute_graphql`
+  directly, and rejects delete/destroy/remove mutations sent through `execute_graphql`.
+  Destructive tools whose names do not start with `delete_` are hidden as well:
+  `cancel_pipeline`, `cancel_pipeline_job`, `stop_environment`, `stop_stale_environments`,
+  `unprotect_branch`
 - Invalid values fail startup with an error
 - `GITLAB_DENIED_TOOLS_REGEX` and the tool policy variables still apply on top
 
