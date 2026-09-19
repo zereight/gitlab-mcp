@@ -9,8 +9,8 @@ A tool counts as invoked when a test sends that name through MCP (`callTool` / `
 | | |
 | --- | ---: |
 | Tools | 263 |
-| Invoked | 151 |
-| Coverage | 57.4% |
+| Invoked | 155 |
+| Coverage | 58.9% |
 
 ## By toolset
 
@@ -25,7 +25,7 @@ A tool counts as invoked when a test sends that name through MCP (`callTool` / `
 | [Labels](#labels) | 5 | 5 | 100.0% |
 | [Work Items](#workitems) | 3 | 18 | 16.7% |
 | [CI Lint](#ci) | 4 | 4 | 100.0% |
-| [Pipelines, Jobs & Deployments](#pipelines) | 26 | 56 | 46.4% |
+| [Pipelines, Jobs & Deployments](#pipelines) | 30 | 56 | 53.6% |
 | [Milestones](#milestones) | 17 | 17 | 100.0% |
 | [Wiki](#wiki) | 10 | 10 | 100.0% |
 | [Releases](#releases) | 7 | 7 | 100.0% |
@@ -78,7 +78,7 @@ A tool counts as invoked when a test sends that name through MCP (`callTool` / `
 - [x] [`list_protected_branches`](../tools/branches.md#list_protected_branches) — `test/test-protected-branches.ts`
 - [x] [`get_protected_branch`](../tools/branches.md#get_protected_branch) — `test/test-protected-branches.ts`
 - [x] [`protect_branch`](../tools/branches.md#protect_branch) — `test/test-protected-branches.ts`
-- [x] [`unprotect_branch`](../tools/branches.md#unprotect_branch) — `test/test-protected-branches.ts`
+- [x] [`unprotect_branch`](../tools/branches.md#unprotect_branch) — `test/test-permission-mode.ts`, `test/test-protected-branches.ts`
 - [x] [`update_default_branch`](../tools/branches.md#update_default_branch) — `test/test-protected-branches.ts`
 - [ ] [`list_commits`](../tools/branches.md#list_commits)
 - [ ] [`get_commit`](../tools/branches.md#get_commit)
@@ -236,8 +236,8 @@ A tool counts as invoked when a test sends that name through MCP (`callTool` / `
 - [x] [`get_environment`](../tools/pipelines.md#get_environment) — `test/test-deployment-tools.ts`
 - [ ] [`update_environment`](../tools/pipelines.md#update_environment)
 - [ ] [`delete_environment`](../tools/pipelines.md#delete_environment)
-- [ ] [`stop_environment`](../tools/pipelines.md#stop_environment)
-- [ ] [`stop_stale_environments`](../tools/pipelines.md#stop_stale_environments)
+- [x] [`stop_environment`](../tools/pipelines.md#stop_environment) — `test/test-permission-mode.ts`
+- [x] [`stop_stale_environments`](../tools/pipelines.md#stop_stale_environments) — `test/test-permission-mode.ts`
 - [ ] [`delete_review_app_environments`](../tools/pipelines.md#delete_review_app_environments)
 - [ ] [`list_pipeline_triggers`](../tools/pipelines.md#list_pipeline_triggers)
 - [ ] [`get_pipeline_trigger`](../tools/pipelines.md#get_pipeline_trigger)
@@ -251,7 +251,7 @@ A tool counts as invoked when a test sends that name through MCP (`callTool` / `
 - [x] [`get_pipeline_job_output`](../tools/pipelines.md#get_pipeline_job_output) — `test/response-masking.test.ts`
 - [ ] [`create_pipeline`](../tools/pipelines.md#create_pipeline)
 - [ ] [`retry_pipeline`](../tools/pipelines.md#retry_pipeline)
-- [ ] [`cancel_pipeline`](../tools/pipelines.md#cancel_pipeline)
+- [x] [`cancel_pipeline`](../tools/pipelines.md#cancel_pipeline) — `test/test-permission-mode.ts`
 - [x] [`list_pipeline_schedules`](../tools/pipelines.md#list_pipeline_schedules) — `test/test-pipeline-schedules.ts`
 - [x] [`get_pipeline_schedule`](../tools/pipelines.md#get_pipeline_schedule) — `test/test-pipeline-schedules.ts`
 - [x] [`list_pipeline_schedule_pipelines`](../tools/pipelines.md#list_pipeline_schedule_pipelines) — `test/test-pipeline-schedules.ts`
@@ -267,7 +267,7 @@ A tool counts as invoked when a test sends that name through MCP (`callTool` / `
 - [ ] [`play_pipeline_job`](../tools/pipelines.md#play_pipeline_job)
 - [ ] [`play_pipeline_jobs`](../tools/pipelines.md#play_pipeline_jobs)
 - [ ] [`retry_pipeline_job`](../tools/pipelines.md#retry_pipeline_job)
-- [ ] [`cancel_pipeline_job`](../tools/pipelines.md#cancel_pipeline_job)
+- [x] [`cancel_pipeline_job`](../tools/pipelines.md#cancel_pipeline_job) — `test/test-permission-mode.ts`
 - [ ] [`erase_pipeline_job`](../tools/pipelines.md#erase_pipeline_job)
 - [ ] [`wait_for_pipeline`](../tools/pipelines.md#wait_for_pipeline)
 - [ ] [`wait_for_job`](../tools/pipelines.md#wait_for_job)
