@@ -102,22 +102,30 @@ describe("When encodeGitLabPathSegment runs", () => {
     }
   });
 
+  describe("with a literal percent sign", () => {
+    test("should encode a percent that starts no escape instead of rejecting it", () => {
+      // decodeURIComponent throws for these too, but a percent sign is valid in a
+      // file or branch name. Only a broken escape next to a valid one is a payload
+      // the guard cannot inspect.
+      assert.equal(encodeGitLabPathSegment("report-100%.pdf"), "report-100%25.pdf");
+      assert.equal(encodeGitLabPathSegment("100%"), "100%25");
+      assert.equal(encodeGitLabPathSegment("bad%zz/path"), "bad%25zz%2Fpath");
+      // The encoded form of such a name decodes back to the literal sign.
+      assert.equal(encodeGitLabPathSegment("save%20100%25.txt"), "save%20100%25.txt");
+    });
+  });
+
   describe("with a value that cannot be decoded", () => {
-    test("should reject a malformed escape sequence instead of passing it through", () => {
-      // "%2E%2E%2F%ZZ" must not be treated as safe just because decodeURIComponent
-      // threw: the guard cannot inspect the value it hands to the server.
-      assert.throws(
-        () => encodeGitLabPathSegment("%2E%2E%2F%ZZ"),
-        /Cannot use value as a GitLab URL path segment/
-      );
-      assert.throws(
-        () => encodeGitLabPathSegment("bad%zz/path"),
-        /Cannot use value as a GitLab URL path segment/
-      );
-      assert.throws(
-        () => encodeGitLabPathSegment("100%"),
-        /Cannot use value as a GitLab URL path segment/
-      );
+    test("should reject a malformed escape sequence next to a valid one", () => {
+      // These must not be treated as safe just because decodeURIComponent threw:
+      // the valid escape may still hide a separator or a dot segment.
+      for (const payload of ["%2E%2E%2F%ZZ", "%2E%2E%2F%..", "%2E%GG"]) {
+        assert.throws(
+          () => encodeGitLabPathSegment(payload),
+          /Cannot use value as a GitLab URL path segment/,
+          payload
+        );
+      }
     });
 
     test("should reject a value with more encoding layers than it will unwrap", () => {

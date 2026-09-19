@@ -28,7 +28,11 @@ const rawPathSegmentPatterns = [
 
 test("GitLab URL path IDs are encoded before interpolation", () => {
   for (const pattern of rawPathSegmentPatterns) {
-    assert.equal(indexSource.includes(pattern), false, `${pattern} must use encodeGitLabPathSegment`);
+    assert.equal(
+      indexSource.includes(pattern),
+      false,
+      `${pattern} must use encodeGitLabPathSegment`
+    );
   }
 });
 
@@ -103,11 +107,18 @@ test("a slash-separated path cannot start outside its route prefix", () => {
   );
 });
 
-test("malformed percent-encoded segments are rejected, not passed through", () => {
-  // A guard cannot inspect a value it fails to decode: treating the decode failure
-  // as a plain value would forward it to the server unvalidated.
+test("a broken escape next to a valid one is rejected, not passed through", () => {
+  // A guard cannot inspect a value it fails to decode: "%2E%2E%2F%ZZ" still holds a
+  // real escape that may hide a separator, so it must not be forwarded unvalidated.
   assert.throws(
-    () => encodeGitLabPathSegment("bad%zz/path"),
+    () => encodeGitLabPathSegment("%2E%2E%2F%ZZ"),
     /Cannot use value as a GitLab URL path segment/
   );
+});
+
+test("a percent sign that starts no escape stays a literal character", () => {
+  // "bad%zz/path" cannot be decoded either, but it holds no escape at all, so the
+  // guard sees the entire value and the percent sign is encoded as data. Rejecting
+  // it would break every file or branch name containing "%".
+  assert.equal(encodeGitLabPathSegment("bad%zz/path"), "bad%25zz%2Fpath");
 });

@@ -45,12 +45,26 @@ const INVALID_PATH_MESSAGE =
   "Cannot use value as a GitLab URL path: it is empty or it has an empty, leading or trailing segment";
 
 /**
+ * A percent escape that actually decodes to a byte: `%` followed by two hex digits.
+ *
+ * `decodeURIComponent` also throws for a `%` that starts no escape, and a literal
+ * percent sign is valid in a file or branch name ("report-100%.pdf"), so the two
+ * failures have to be told apart before either is treated as a broken payload.
+ */
+const VALID_ESCAPE_PATTERN = /%[0-9a-fA-F]{2}/;
+
+/**
  * Percent-decode a value until decoding stops changing it.
  *
  * Returns null when the value cannot be reduced to a form that can be validated:
- * a malformed escape sequence, or more encoding layers than {@link MAX_DECODE_PASSES}.
- * A guard must not treat "could not inspect the value" as "safe", so both cases are
- * rejected by the callers rather than passed through.
+ * a malformed escape next to a valid one, or more encoding layers than
+ * {@link MAX_DECODE_PASSES}. A guard must not treat "could not inspect the value"
+ * as "safe", so both cases are rejected by the callers rather than passed through.
+ *
+ * A `%` that starts no valid escape is a literal character instead: the value is
+ * returned as it is and the encoder turns the sign into `%25`, so
+ * `get_file_contents("report-100%.pdf")` keeps working. Only a value that mixes a
+ * real escape with a broken one cannot be inspected, and that form is rejected.
  */
 function decodeFully(value: string): string | null {
   let current = value;
@@ -60,7 +74,11 @@ function decodeFully(value: string): string | null {
     try {
       decoded = decodeURIComponent(current);
     } catch {
-      return null;
+      // Undecodable. With a valid escape left in it the value cannot be inspected
+      // reliably (the escape may still hide a separator or a dot segment), so it
+      // fails closed; without one every `%` is literal and `current` — already
+      // decoded as far as it can be — is the form the server will see.
+      return VALID_ESCAPE_PATTERN.test(current) ? null : current;
     }
 
     if (decoded === current) {

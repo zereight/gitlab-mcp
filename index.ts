@@ -8058,10 +8058,7 @@ async function getJobArtifactFile(
 ): Promise<string> {
   projectId = decodeURIComponent(projectId);
   const effectiveProjectId = getEffectiveProjectId(projectId);
-  const encodedArtifactPath = artifactPath
-    .split("/")
-    .map(segment => encodeGitLabPathSegment(segment))
-    .join("/");
+  const encodedArtifactPath = encodeGitLabPath(artifactPath);
 
   const url = new URL(
     `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(effectiveProjectId)}/jobs/${encodeGitLabPathSegment(jobId)}/artifacts/${encodedArtifactPath}`
