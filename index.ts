@@ -2077,7 +2077,12 @@ for (const { host, apiUrl } of [
 /**
  * Redirects from the GitLab API to operator-declared GitLab hosts are followed even
  * when the host resolves to a private address (self-hosted instances and their
- * storage may live on an internal network). Every other redirect target must be public.
+ * storage may live on an internal network), and those hosts keep receiving the
+ * request credentials. Every other redirect target must resolve to a public
+ * address and is fetched without credentials.
+ *
+ * The lookup key is `URL.host`, which keeps a non-default port, matching how this
+ * map is built from GITLAB_API_URL / GITLAB_ALLOWED_HOSTS.
  */
 const isTrustedGitLabRedirectHost = (host: string): boolean =>
   GITLAB_ALLOWED_API_URLS_BY_HOST.has(host);

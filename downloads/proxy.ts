@@ -19,6 +19,10 @@ export interface DownloadProxyDependencies {
   fetch: typeof undiciFetch;
   logger: { error: (obj: unknown, message?: string) => void };
   downloadTimeoutMs?: number;
+  /**
+   * Called with `URL.host` (host plus a non-default port), the same key the
+   * GITLAB_API_URL / GITLAB_ALLOWED_HOSTS allowlist uses.
+   */
   isTrustedRedirectHost?: (host: string) => boolean;
 }
 

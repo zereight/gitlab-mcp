@@ -354,8 +354,20 @@ Hosts listed here (and in `GITLAB_API_URL`) are also trusted as redirect targets
 release-asset downloads. Downloads follow upstream redirects only when the destination
 is one of these hosts, or when it resolves to a public address; redirects to loopback,
 private, link-local (for example `169.254.169.254`) or otherwise non-public addresses
-are refused. Self-hosted instances whose downloads redirect to another host on a private
-network must list that host here.
+are refused, including when they are written as an equivalent IPv6 form such as
+`[::ffff:169.254.169.254]`. Self-hosted instances whose downloads redirect to another
+host on a private network must list that host here.
+
+Entries are matched exactly, including a non-default port: list `minio.internal:9000`
+to trust that host and port. Requests keep the GitLab credential headers
+(`Authorization`, `Private-Token`, `JOB-TOKEN`) only towards the host the request
+started on and towards these trusted hosts; any other redirect target, such as object
+storage, is fetched without them.
+
+The redirect target is resolved once for the address check and again when the
+connection is opened, so a name whose DNS answer changes between the two lookups is not
+covered by this validation. Downloads to arbitrary public hosts are allowed, which is
+required for GitLab object storage.
 
 ### `MCP_TRUST_PROXY`
 

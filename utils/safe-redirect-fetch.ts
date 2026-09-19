@@ -6,6 +6,19 @@ import { fetch as undiciFetch, type Dispatcher } from "undici";
 export const DEFAULT_MAX_REDIRECTS = 5;
 
 /**
+ * Request headers that carry GitLab credentials. They are sent to the origin the
+ * request started on and to operator-declared GitLab hosts, but never to any
+ * other redirect target (object storage, CDNs, arbitrary public hosts).
+ */
+export const CREDENTIAL_HEADERS: readonly string[] = [
+  "authorization",
+  "private-token",
+  "job-token",
+  "proxy-authorization",
+  "cookie",
+];
+
+/**
  * Thrown when an outbound request would follow a redirect to a destination the
  * server refuses to reach (non-public address, unsupported scheme, too many hops).
  */
@@ -20,6 +33,130 @@ const REDIRECT_STATUSES = new Set([301, 302, 303, 307, 308]);
 
 type FetchResponse = Awaited<ReturnType<typeof undiciFetch>>;
 
+/** Splits a dotted-quad into its four octets, or null when it is not one. */
+function parseIpv4Octets(value: string): number[] | null {
+  const parts = value.split(".");
+  if (parts.length !== 4) return null;
+
+  const octets: number[] = [];
+  for (const part of parts) {
+    if (!/^\d{1,3}$/.test(part)) return null;
+    const octet = Number.parseInt(part, 10);
+    if (octet > 255) return null;
+    octets.push(octet);
+  }
+  return octets;
+}
+
+/**
+ * Expands an IPv6 literal into its eight 16-bit groups, handling `::` compression
+ * and a trailing dotted-quad. Returns null when the literal cannot be expanded.
+ */
+function parseIpv6Groups(value: string): number[] | null {
+  const normalized = value.toLowerCase().replace(/^\[/, "").replace(/\]$/, "");
+  if (!normalized.includes(":")) return null;
+
+  const halves = normalized.split("::");
+  if (halves.length > 2) return null;
+
+  const toGroups = (text: string): number[] | null => {
+    if (!text) return [];
+    const tokens = text.split(":");
+    const groups: number[] = [];
+    for (const [index, token] of tokens.entries()) {
+      if (token.includes(".")) {
+        // A dotted-quad is only valid as the trailing token of the literal.
+        if (index !== tokens.length - 1) return null;
+        const octets = parseIpv4Octets(token);
+        if (!octets) return null;
+        groups.push((octets[0] << 8) | octets[1], (octets[2] << 8) | octets[3]);
+        continue;
+      }
+      if (!/^[0-9a-f]{1,4}$/.test(token)) return null;
+      groups.push(Number.parseInt(token, 16));
+    }
+    return groups;
+  };
+
+  const head = toGroups(halves[0]);
+  const tail = halves.length === 2 ? toGroups(halves[1]) : [];
+  if (!head || !tail) return null;
+
+  if (halves.length === 2) {
+    const zeroGroups = 8 - head.length - tail.length;
+    // `::` stands for at least one group.
+    if (zeroGroups < 1) return null;
+    return [...head, ...new Array<number>(zeroGroups).fill(0), ...tail];
+  }
+
+  return head.length === 8 ? head : null;
+}
+
+/**
+ * The IPv4 address embedded in an IPv6 transition/translation format, or null when
+ * the address does not carry one.
+ *
+ * These formats are unwrapped so the IPv4 policy below applies to them: the WHATWG
+ * URL parser canonicalizes `http://[::ffff:169.254.169.254]/` to the hex form
+ * `::ffff:a9fe:a9fe`, which a dotted-quad match alone would miss.
+ */
+function embeddedIpv4Octets(groups: number[]): number[] | null {
+  const [g0, g1, g2, g3, g4, g5, g6, g7] = groups;
+  const low32 = (): number[] => [(g6 >> 8) & 0xff, g6 & 0xff, (g7 >> 8) & 0xff, g7 & 0xff];
+
+  const leadingZeroGroups = g0 === 0 && g1 === 0 && g2 === 0 && g3 === 0;
+
+  // IPv4-mapped `::ffff:a.b.c.d` and IPv4-translated `::ffff:0:a.b.c.d`.
+  if (leadingZeroGroups && g4 === 0 && g5 === 0xffff) return low32();
+  if (leadingZeroGroups && g4 === 0xffff && g5 === 0) return low32();
+  // IPv4-compatible `::a.b.c.d` (deprecated; `::` and `::1` land here too).
+  if (leadingZeroGroups && g4 === 0 && g5 === 0) return low32();
+  // NAT64 well-known prefix `64:ff9b::/96` and local-use prefix `64:ff9b:1::/48`.
+  if (g0 === 0x64 && g1 === 0xff9b && (g2 === 0 || g2 === 1)) return low32();
+  // 6to4 `2002::/16`, which tunnels to the IPv4 address held by the next two groups.
+  if (g0 === 0x2002) {
+    return [(g1 >> 8) & 0xff, g1 & 0xff, (g2 >> 8) & 0xff, g2 & 0xff];
+  }
+
+  return null;
+}
+
+/** True for the IPv4 ranges that must never be reached by following a redirect. */
+function isNonPublicIpv4Octets(octets: number[]): boolean {
+  const [first, second] = octets;
+  return (
+    first === 0 ||
+    first === 10 ||
+    first === 127 ||
+    (first === 100 && second >= 64 && second <= 127) ||
+    (first === 169 && second === 254) ||
+    (first === 172 && second >= 16 && second <= 31) ||
+    (first === 192 && second === 168) ||
+    (first === 192 && second === 0) ||
+    (first === 198 && (second === 18 || second === 19)) ||
+    first >= 224
+  );
+}
+
+/**
+ * Classifies by parsed bits rather than by matching prefixes of the compressed
+ * string, so `fe80::/10` covers `fea0::` and `febf::`, and every address format
+ * carrying an embedded IPv4 address is judged by that address.
+ */
+function isNonPublicIpv6Groups(groups: number[]): boolean {
+  const embedded = embeddedIpv4Octets(groups);
+  if (embedded) return isNonPublicIpv4Octets(embedded);
+
+  const [first] = groups;
+  return (
+    (first & 0xffc0) === 0xfe80 || // fe80::/10 link-local
+    (first & 0xffc0) === 0xfec0 || // fec0::/10 site-local (deprecated)
+    (first & 0xfe00) === 0xfc00 || // fc00::/7 unique local
+    (first & 0xff00) === 0xff00 || // ff00::/8 multicast
+    (first & 0xff00) === 0x0000 // 0000::/8 reserved
+  );
+}
+
 /**
  * True for addresses that must never be reached by following a redirect:
  * unspecified, loopback, private, link-local (including cloud instance metadata),
@@ -29,41 +166,14 @@ export function isNonPublicAddress(address: string): boolean {
   const version = isIP(address);
 
   if (version === 4) {
-    const octets = address.split(".").map(part => Number.parseInt(part, 10));
-    if (octets.length !== 4 || octets.some(octet => Number.isNaN(octet))) {
-      return true;
-    }
-    const [first, second] = octets;
-    return (
-      first === 0 ||
-      first === 10 ||
-      first === 127 ||
-      (first === 100 && second >= 64 && second <= 127) ||
-      (first === 169 && second === 254) ||
-      (first === 172 && second >= 16 && second <= 31) ||
-      (first === 192 && second === 168) ||
-      (first === 192 && second === 0) ||
-      (first === 198 && (second === 18 || second === 19)) ||
-      first >= 224
-    );
+    const octets = parseIpv4Octets(address);
+    return octets ? isNonPublicIpv4Octets(octets) : true;
   }
 
   if (version === 6) {
-    const normalized = address.toLowerCase().replace(/^\[/, "").replace(/\]$/, "");
-    const mapped = /^::ffff:(\d+\.\d+\.\d+\.\d+)$/.exec(normalized);
-    if (mapped) {
-      return isNonPublicAddress(mapped[1]);
-    }
-    return (
-      normalized === "::" ||
-      normalized === "::1" ||
-      normalized === "0:0:0:0:0:0:0:0" ||
-      normalized === "0:0:0:0:0:0:0:1" ||
-      normalized.startsWith("fe80") ||
-      normalized.startsWith("fc") ||
-      normalized.startsWith("fd") ||
-      normalized.startsWith("ff")
-    );
+    const groups = parseIpv6Groups(address);
+    // Unparseable addresses fail closed.
+    return groups ? isNonPublicIpv6Groups(groups) : true;
   }
 
   // Not a literal address we understand — treat as unsafe.
@@ -77,32 +187,59 @@ export interface FetchWithValidatedRedirectsOptions {
   fetchImpl?: typeof undiciFetch;
   maxRedirects?: number;
   /**
-   * Hosts that may be reached even when they resolve to non-public addresses.
-   * Used for operator-declared GitLab hosts (GITLAB_API_URL / GITLAB_ALLOWED_HOSTS),
-   * which may legitimately live on a private network.
+   * Header names withheld from redirect targets outside the initial origin unless
+   * the target is a trusted host. Defaults to {@link CREDENTIAL_HEADERS}.
+   */
+  credentialHeaders?: readonly string[];
+  /**
+   * Called with `target.host` (host plus a non-default port) — the same key the
+   * `GITLAB_API_URL` / `GITLAB_ALLOWED_HOSTS` allowlist is built from, so
+   * `gitlab.internal:8443` matches a redirect to that host and port.
+   *
+   * A trusted host may be reached even when it resolves to a non-public address,
+   * because operator-declared GitLab instances and their storage may legitimately
+   * live on a private network. Trusted hosts also keep receiving the request
+   * credentials.
    */
   isTrustedRedirectHost?: (host: string) => boolean;
 }
 
+function isTrustedRedirectTarget(
+  target: URL,
+  options: FetchWithValidatedRedirectsOptions
+): boolean {
+  return options.isTrustedRedirectHost?.(target.host) === true;
+}
+
+/**
+ * The request headers stripped of every credential header. Used for redirect hops
+ * that leave the origin that issued the credentials, so a GitLab 302 to object
+ * storage (or any other host) cannot leak a token.
+ */
+function withoutCredentialHeaders(
+  options: FetchWithValidatedRedirectsOptions
+): Record<string, string> {
+  const credentialHeaders = new Set(
+    (options.credentialHeaders ?? CREDENTIAL_HEADERS).map(name => name.toLowerCase())
+  );
+  return Object.fromEntries(
+    Object.entries(options.headers).filter(([name]) => !credentialHeaders.has(name.toLowerCase()))
+  );
+}
+
 async function assertRedirectTargetAllowed(
   target: URL,
-  initialOrigin: string,
+  trusted: boolean,
   options: FetchWithValidatedRedirectsOptions
 ): Promise<void> {
-  if (target.origin === initialOrigin) {
+  if (trusted) {
     return;
   }
 
   const host = target.hostname.replace(/^\[/, "").replace(/\]$/, "");
-  if (options.isTrustedRedirectHost?.(host)) {
-    return;
-  }
-
   if (isIP(host)) {
     if (isNonPublicAddress(host)) {
-      throw new UnsafeRedirectError(
-        `Refusing to follow redirect to non-public address: ${host}`
-      );
+      throw new UnsafeRedirectError(`Refusing to follow redirect to non-public address: ${host}`);
     }
     return;
   }
@@ -130,11 +267,22 @@ async function assertRedirectTargetAllowed(
 /**
  * Perform a GET request that validates every redirect hop before following it.
  *
- * The HTTP client default follows redirects without re-validating the
- * destination, which lets an upstream response redirect the server to an
- * arbitrary host (including loopback and link-local addresses). This helper
- * fetches with `redirect: "manual"` and re-applies the destination check on
- * each `Location` value, mirroring the redirect policy used by the version check.
+ * The HTTP client default follows redirects without re-validating the destination,
+ * which lets an upstream response redirect the server to an arbitrary host
+ * (including loopback and link-local addresses). This helper fetches with
+ * `redirect: "manual"` and re-applies the destination check on each `Location`
+ * value, to every address form the URL parser can produce (compressed IPv6,
+ * IPv4-mapped, NAT64, ...).
+ *
+ * Credential headers are withheld from any hop that leaves the initial origin
+ * unless the destination is a trusted host, so redirects to object storage or any
+ * other host cannot exfiltrate the GitLab token.
+ *
+ * Residual risk: the destination host is resolved twice — once for the check and
+ * again when the connection is opened — so a DNS name with a short TTL can answer
+ * with a public address first and a non-public address on connect. The outbound
+ * request is still unrestricted towards public addresses, which is required for
+ * GitLab object storage.
  */
 export async function fetchWithValidatedRedirects(
   url: string,
@@ -145,11 +293,12 @@ export async function fetchWithValidatedRedirects(
   const initialOrigin = new URL(url).origin;
 
   let currentUrl = url;
+  let currentHeaders = options.headers;
 
   for (let hop = 0; hop <= maxRedirects; hop++) {
     const response = await fetchImpl(currentUrl, {
       method: "GET",
-      headers: options.headers,
+      headers: currentHeaders,
       dispatcher: options.dispatcher,
       signal: options.signal,
       redirect: "manual",
@@ -178,7 +327,15 @@ export async function fetchWithValidatedRedirects(
       );
     }
 
-    await assertRedirectTargetAllowed(target, initialOrigin, options);
+    // A hop that stays on the originating origin needs no destination check and
+    // keeps the credentials. Any other hop is evaluated once, so the trusted-host
+    // predicate runs exactly once per redirect.
+    if (target.origin !== initialOrigin) {
+      const trusted = isTrustedRedirectTarget(target, options);
+      await assertRedirectTargetAllowed(target, trusted, options);
+      currentHeaders = trusted ? options.headers : withoutCredentialHeaders(options);
+    }
+
     currentUrl = target.toString();
   }
 
