@@ -138,7 +138,7 @@ Some MCP clients (like GitHub Copilot CLI) have issues with environment variable
 - `--token` - GitLab Personal Access Token (replaces `GITLAB_PERSONAL_ACCESS_TOKEN`)
 - `--api-url` - GitLab API URL (replaces `GITLAB_API_URL`)
 - `--read-only=true` - Enable read-only mode (replaces `GITLAB_READ_ONLY_MODE`, deprecated — prefer `--permission-mode=readonly`)
-- `--permission-mode` - Permission level: `readonly`, `modify` (no delete tools), or `full` (replaces `GITLAB_PERMISSION_MODE`, default `full`)
+- `--permission-mode` - Permission level: `readonly`, `modify` (no delete or teardown tools), or `full` (replaces `GITLAB_PERMISSION_MODE`, default `full`)
 - `--use-wiki=true` - Enable wiki API (replaces `USE_GITLAB_WIKI`, legacy — prefer `GITLAB_TOOLSETS=wiki`)
 - `--use-milestone=true` - Enable milestone API (replaces `USE_MILESTONE`, legacy — prefer `GITLAB_TOOLSETS=milestones`)
 - `--use-pipeline=true` - Enable pipeline API (replaces `USE_PIPELINE`, legacy — prefer `GITLAB_TOOLSETS=pipelines`)
@@ -153,9 +153,12 @@ CLI arguments take precedence over environment variables.
 `zereight-mcp-gitlab auth` is a subcommand (not an MCP server flag). It runs GitLab device flow and exits. See [CLI Arguments](./docs/getting-started/cli-arguments.md#auth).
 
 > **Fine-grained tool filtering:** use `GITLAB_PERMISSION_MODE=modify` to allow create/update while
-> blocking every delete tool (including delete mutations through `execute_graphql` and
-> `push_files` `delete`/`move` actions), or
-> `GITLAB_PERMISSION_MODE=readonly` for read-only access. You can also
+> blocking every delete tool and the destructive teardown tools (`cancel_pipeline`,
+> `cancel_pipeline_job`, `stop_environment`, `stop_stale_environments`, `unprotect_branch`) —
+> including delete mutations through `execute_graphql` and `push_files` `delete`/`move` actions — or
+> `GITLAB_PERMISSION_MODE=readonly` for read-only access. The guard covers typed tools; GraphQL
+> teardown mutations such as `pipelineCancel` are not blocked yet
+> (see [#755](https://github.com/zereight/gitlab-mcp/pull/755)). You can also
 > enable toolset groups with `GITLAB_TOOLSETS=<group,…>`, allow-list individual tools with
 > `GITLAB_TOOLS=<tool,…>` (e.g. read-only groups plus a few specific write tools), and
 > deny-list by pattern with `GITLAB_DENIED_TOOLS_REGEX`. The legacy `USE_GITLAB_WIKI` /
