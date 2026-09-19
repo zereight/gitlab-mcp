@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 import {
+  appendFilterParam,
+  appendFilterParams,
   cleanMutuallyExclusiveIdUsernameOptions,
   dropBlankArrayEntries,
   isBlankFilterValue,
@@ -181,5 +183,41 @@ describe("When isBlankFilterValue runs", () => {
     assert.equal(isBlankFilterValue(["bug"]), false);
     assert.equal(isBlankFilterValue(0), false);
     assert.equal(isBlankFilterValue(false), false);
+  });
+});
+
+describe("When appendFilterParams runs", () => {
+  test("should omit blank scalars, blank array entries and empty arrays", () => {
+    const searchParams = new URLSearchParams();
+
+    appendFilterParams(searchParams, {
+      search: "",
+      ref: "  ",
+      labels: ["", "bug"],
+      iids: [],
+      omitted: undefined,
+    });
+
+    assert.deepEqual([...searchParams.entries()], [["labels", "bug"]]);
+  });
+
+  test("should keep booleans, zero and non-blank values", () => {
+    const searchParams = new URLSearchParams();
+
+    appendFilterParams(searchParams, { with_labels_details: false, page: 0, search: "bug" });
+
+    assert.deepEqual([...searchParams.entries()], [
+      ["with_labels_details", "false"],
+      ["page", "0"],
+      ["search", "bug"],
+    ]);
+  });
+
+  test("should append a single parameter without dropping a meaningful value", () => {
+    const searchParams = new URLSearchParams();
+
+    appendFilterParam(searchParams, "filter[environment_scope]", "production");
+
+    assert.deepEqual([...searchParams.entries()], [["filter[environment_scope]", "production"]]);
   });
 });

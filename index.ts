@@ -210,6 +210,8 @@ import {
   type BulkPublishDraftNotesBody,
 } from "./utils/bulk-publish-options.js";
 import {
+  appendFilterParam,
+  appendFilterParams,
   cleanMutuallyExclusiveIdUsernameOptions,
   dropBlankArrayEntries,
   isBlankFilterValue,
@@ -2450,11 +2452,7 @@ async function listIssues(
 async function listTodos(options: ListTodosOptions = {}): Promise<GitLabTodo[]> {
   const url = new URL(`${getEffectiveApiUrl()}/todos`);
 
-  Object.entries(options).forEach(([key, value]) => {
-    if (value !== undefined) {
-      url.searchParams.append(key, String(value));
-    }
-  });
+  appendFilterParams(url.searchParams, options);
 
   const response = await fetch(url.toString(), {
     ...getFetchConfig(),
@@ -5535,11 +5533,7 @@ async function listMergeRequestPipelines(
     )}/merge_requests/${encodeGitLabPathSegment(mergeRequestIid)}/pipelines`
   );
 
-  Object.entries(options).forEach(([key, value]) => {
-    if (value !== undefined) {
-      url.searchParams.append(key, value.toString());
-    }
-  });
+  appendFilterParams(url.searchParams, options);
 
   const response = await fetch(url.toString(), {
     ...getFetchConfig(),
@@ -6832,15 +6826,7 @@ async function listProjects(
 ): Promise<GitLabProject[]> {
   // Construct the query parameters
   const params = new URLSearchParams();
-  for (const [key, value] of Object.entries(options)) {
-    if (value !== undefined && value !== null) {
-      if (typeof value === "boolean") {
-        params.append(key, value ? "true" : "false");
-      } else {
-        params.append(key, String(value));
-      }
-    }
-  }
+  appendFilterParams(params, options);
 
   // Make the API request
   const response = await fetch(`${getEffectiveApiUrl()}/projects?${params.toString()}`, {
@@ -6873,15 +6859,7 @@ async function listLabels(
   );
 
   // Add query parameters
-  Object.entries(options).forEach(([key, value]) => {
-    if (value !== undefined) {
-      if (typeof value === "boolean") {
-        url.searchParams.append(key, value ? "true" : "false");
-      } else {
-        url.searchParams.append(key, String(value));
-      }
-    }
-  });
+  appendFilterParams(url.searchParams, options);
 
   // Make the API request
   const response = await fetch(url.toString(), {
@@ -7472,11 +7450,7 @@ async function listPipelines(
   );
 
   // Add all query parameters
-  Object.entries(options).forEach(([key, value]) => {
-    if (value !== undefined) {
-      url.searchParams.append(key, value.toString());
-    }
-  });
+  appendFilterParams(url.searchParams, options);
 
   const response = await fetch(url.toString(), {
     ...getFetchConfig(),
@@ -7580,11 +7554,7 @@ async function listDeployments(
     `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/deployments`
   );
 
-  Object.entries(options).forEach(([key, value]) => {
-    if (value !== undefined) {
-      url.searchParams.append(key, value.toString());
-    }
-  });
+  appendFilterParams(url.searchParams, options);
 
   const response = await fetch(url.toString(), {
     ...getFetchConfig(),
@@ -7662,11 +7632,7 @@ async function listEnvironments(
     `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/environments`
   );
 
-  Object.entries(options).forEach(([key, value]) => {
-    if (value !== undefined) {
-      url.searchParams.append(key, value.toString());
-    }
-  });
+  appendFilterParams(url.searchParams, options);
 
   const response = await fetch(url.toString(), {
     ...getFetchConfig(),
@@ -7774,15 +7740,7 @@ async function listPipelineJobs(
   );
 
   // Add all query parameters
-  Object.entries(options).forEach(([key, value]) => {
-    if (value !== undefined) {
-      if (typeof value === "boolean") {
-        url.searchParams.append(key, value ? "true" : "false");
-      } else {
-        url.searchParams.append(key, value.toString());
-      }
-    }
-  });
+  appendFilterParams(url.searchParams, options);
 
   const response = await fetch(url.toString(), {
     ...getFetchConfig(),
@@ -7816,15 +7774,7 @@ async function listPipelineTriggerJobs(
   );
 
   // Add all query parameters
-  Object.entries(options).forEach(([key, value]) => {
-    if (value !== undefined) {
-      if (typeof value === "boolean") {
-        url.searchParams.append(key, value ? "true" : "false");
-      } else {
-        url.searchParams.append(key, value.toString());
-      }
-    }
-  });
+  appendFilterParams(url.searchParams, options);
 
   const response = await fetch(url.toString(), {
     ...getFetchConfig(),
@@ -7956,15 +7906,7 @@ async function validateProjectCiLint(
     `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/ci/lint`
   );
 
-  Object.entries(options).forEach(([key, value]) => {
-    if (value !== undefined) {
-      if (typeof value === "boolean") {
-        url.searchParams.append(key, value ? "true" : "false");
-      } else {
-        url.searchParams.append(key, value.toString());
-      }
-    }
-  });
+  appendFilterParams(url.searchParams, options);
 
   const response = await fetch(url.toString(), {
     ...getFetchConfig(),
@@ -7993,15 +7935,7 @@ async function listJobArtifacts(
     `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/jobs/${encodeGitLabPathSegment(jobId)}/artifacts/tree`
   );
 
-  Object.entries(options).forEach(([key, value]) => {
-    if (value !== undefined) {
-      if (typeof value === "boolean") {
-        url.searchParams.append(key, value ? "true" : "false");
-      } else {
-        url.searchParams.append(key, value.toString());
-      }
-    }
-  });
+  appendFilterParams(url.searchParams, options);
 
   const response = await fetch(url.toString(), {
     ...getFetchConfig(),
@@ -8209,11 +8143,7 @@ async function listPipelineSchedules(
     `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/pipeline_schedules`
   );
 
-  Object.entries(options).forEach(([key, value]) => {
-    if (value !== undefined) {
-      url.searchParams.append(key, value.toString());
-    }
-  });
+  appendFilterParams(url.searchParams, options);
 
   const response = await fetch(url.toString(), {
     ...getFetchConfig(),
@@ -8270,11 +8200,7 @@ async function listPipelineSchedulePipelines(
     `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/pipeline_schedules/${encodeGitLabPathSegment(pipelineScheduleId)}/pipelines`
   );
 
-  Object.entries(options).forEach(([key, value]) => {
-    if (value !== undefined) {
-      url.searchParams.append(key, value.toString());
-    }
-  });
+  appendFilterParams(url.searchParams, options);
 
   const response = await fetch(url.toString(), {
     ...getFetchConfig(),
@@ -8882,11 +8808,7 @@ async function getMilestoneIssues(
     `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/milestones/${encodeGitLabPathSegment(milestoneId)}/issues`
   );
 
-  Object.entries(options).forEach(([key, value]) => {
-    if (value !== undefined) {
-      url.searchParams.append(key, String(value));
-    }
-  });
+  appendFilterParams(url.searchParams, options);
 
   const response = await fetch(url.toString(), {
     ...getFetchConfig(),
@@ -8917,11 +8839,7 @@ async function getMilestoneMergeRequests(
     )}/milestones/${encodeGitLabPathSegment(milestoneId)}/merge_requests`
   );
 
-  Object.entries(options).forEach(([key, value]) => {
-    if (value !== undefined) {
-      url.searchParams.append(key, String(value));
-    }
-  });
+  appendFilterParams(url.searchParams, options);
 
   const response = await fetch(url.toString(), {
     ...getFetchConfig(),
@@ -8976,11 +8894,7 @@ async function getMilestoneBurndownEvents(
     )}/milestones/${encodeGitLabPathSegment(milestoneId)}/burndown_events`
   );
 
-  Object.entries(options).forEach(([key, value]) => {
-    if (value !== undefined) {
-      url.searchParams.append(key, String(value));
-    }
-  });
+  appendFilterParams(url.searchParams, options);
 
   const response = await fetch(url.toString(), {
     ...getFetchConfig(),
@@ -9127,11 +9041,7 @@ async function getGroupMilestoneIssues(
     `${getEffectiveApiUrl()}/groups/${encodeURIComponent(groupId)}/milestones/${encodeGitLabPathSegment(milestoneId)}/issues`
   );
 
-  Object.entries(options).forEach(([key, value]) => {
-    if (value !== undefined) {
-      url.searchParams.append(key, String(value));
-    }
-  });
+  appendFilterParams(url.searchParams, options);
 
   const response = await fetch(url.toString(), {
     ...getFetchConfig(),
@@ -9157,11 +9067,7 @@ async function getGroupMilestoneMergeRequests(
     `${getEffectiveApiUrl()}/groups/${encodeURIComponent(groupId)}/milestones/${encodeGitLabPathSegment(milestoneId)}/merge_requests`
   );
 
-  Object.entries(options).forEach(([key, value]) => {
-    if (value !== undefined) {
-      url.searchParams.append(key, String(value));
-    }
-  });
+  appendFilterParams(url.searchParams, options);
 
   const response = await fetch(url.toString(), {
     ...getFetchConfig(),
@@ -9187,11 +9093,7 @@ async function getGroupMilestoneBurndownEvents(
     `${getEffectiveApiUrl()}/groups/${encodeURIComponent(groupId)}/milestones/${encodeGitLabPathSegment(milestoneId)}/burndown_events`
   );
 
-  Object.entries(options).forEach(([key, value]) => {
-    if (value !== undefined) {
-      url.searchParams.append(key, String(value));
-    }
-  });
+  appendFilterParams(url.searchParams, options);
 
   const response = await fetch(url.toString(), {
     ...getFetchConfig(),
@@ -9437,11 +9339,7 @@ async function listCommitStatuses(
     `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/repository/commits/${encodeURIComponent(sha)}/statuses`
   );
 
-  Object.entries(options).forEach(([key, value]) => {
-    if (value !== undefined) {
-      url.searchParams.append(key, value.toString());
-    }
-  });
+  appendFilterParams(url.searchParams, options);
 
   const response = await fetch(url.toString(), {
     ...getFetchConfig(),
@@ -9474,11 +9372,7 @@ async function createCommitStatus(
     `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/statuses/${encodeURIComponent(sha)}`
   );
 
-  Object.entries(options).forEach(([key, value]) => {
-    if (value !== undefined) {
-      url.searchParams.append(key, value.toString());
-    }
-  });
+  appendFilterParams(url.searchParams, options);
 
   const response = await fetch(url.toString(), {
     ...getFetchConfig(),
@@ -9687,16 +9581,14 @@ async function listProjectVariables(
     `${getEffectiveApiUrl()}/projects/${encodeURIComponent(getEffectiveProjectId(projectId))}/variables`
   );
   Object.entries(options).forEach(([key, value]) => {
-    if (value === undefined) return;
     if (key === "filter" && typeof value === "object" && value !== null) {
-      Object.entries(value as Record<string, string>).forEach(([fKey, fVal]) => {
-        url.searchParams.append(`filter[${fKey}]`, fVal);
+      Object.entries(value as Record<string, unknown>).forEach(([filterKey, filterValue]) => {
+        appendFilterParam(url.searchParams, `filter[${filterKey}]`, filterValue);
       });
-    } else if (typeof value === "boolean") {
-      url.searchParams.append(key, value ? "true" : "false");
-    } else {
-      url.searchParams.append(key, String(value));
+      return;
     }
+
+    appendFilterParam(url.searchParams, key, value);
   });
   const response = await fetch(url.toString(), getFetchConfig());
   await handleGitLabError(response);
@@ -9782,16 +9674,14 @@ async function listGroupVariables(
   const encoded = encodeURIComponent(decodeURIComponent(groupId));
   const url = new URL(`${getEffectiveApiUrl()}/groups/${encoded}/variables`);
   Object.entries(options).forEach(([key, value]) => {
-    if (value === undefined) return;
     if (key === "filter" && typeof value === "object" && value !== null) {
-      Object.entries(value as Record<string, string>).forEach(([fKey, fVal]) => {
-        url.searchParams.append(`filter[${fKey}]`, fVal);
+      Object.entries(value as Record<string, unknown>).forEach(([filterKey, filterValue]) => {
+        appendFilterParam(url.searchParams, `filter[${filterKey}]`, filterValue);
       });
-    } else if (typeof value === "boolean") {
-      url.searchParams.append(key, value ? "true" : "false");
-    } else {
-      url.searchParams.append(key, String(value));
+      return;
     }
+
+    appendFilterParam(url.searchParams, key, value);
   });
   const response = await fetch(url.toString(), getFetchConfig());
   await handleGitLabError(response);
@@ -10541,11 +10431,7 @@ async function listEvents(options: z.infer<typeof ListEventsSchema> = {}): Promi
   const url = new URL(`${getEffectiveApiUrl()}/events`);
 
   // Add all query parameters
-  Object.entries(options).forEach(([key, value]) => {
-    if (value !== undefined) {
-      url.searchParams.append(key, value.toString());
-    }
-  });
+  appendFilterParams(url.searchParams, options);
 
   const response = await fetch(url.toString(), { ...getFetchConfig() });
 
@@ -10573,11 +10459,7 @@ async function getProjectEvents(
   );
 
   // Add all query parameters
-  Object.entries(options).forEach(([key, value]) => {
-    if (value !== undefined) {
-      url.searchParams.append(key, value.toString());
-    }
-  });
+  appendFilterParams(url.searchParams, options);
 
   const response = await fetch(url.toString(), { ...getFetchConfig() });
 
@@ -10606,11 +10488,7 @@ async function listReleases(
   );
 
   // Add query parameters
-  Object.entries(options).forEach(([key, value]) => {
-    if (value !== undefined) {
-      url.searchParams.append(key, value.toString());
-    }
-  });
+  appendFilterParams(url.searchParams, options);
 
   const response = await fetch(url.toString(), {
     ...getFetchConfig(),
@@ -10799,11 +10677,7 @@ async function listTags(
     `${getEffectiveApiUrl()}/projects/${encodeURIComponent(effectiveProjectId)}/repository/tags`
   );
 
-  Object.entries(options).forEach(([key, value]) => {
-    if (value !== undefined) {
-      url.searchParams.append(key, value.toString());
-    }
-  });
+  appendFilterParams(url.searchParams, options);
 
   const response = await fetch(url.toString(), {
     ...getFetchConfig(),
@@ -12471,8 +12345,8 @@ async function handleToolCall(params: any) {
       }
 
       case "list_labels": {
-        const args = ListLabelsSchema.parse(params.arguments);
-        const labels = await listLabels(args.project_id, args);
+        const { project_id, ...options } = ListLabelsSchema.parse(params.arguments);
+        const labels = await listLabels(project_id, options);
         return {
           content: [{ type: "text", text: JSON.stringify(labels) }],
         };
