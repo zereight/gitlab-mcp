@@ -18,6 +18,35 @@ export class UnsafeRedirectError extends Error {
 
 const REDIRECT_STATUSES = new Set([301, 302, 303, 307, 308]);
 
+/**
+ * Headers that carry GitLab credentials. They are dropped when a redirect crosses
+ * to a different origin, because the HTTP client only strips a fixed set of standard
+ * authentication headers (`Authorization`, `Cookie`, `Host`, `Proxy-Authorization`)
+ * and would otherwise forward the custom `Private-Token` / `JOB-TOKEN` headers to the
+ * redirect target.
+ */
+export const DEFAULT_CREDENTIAL_HEADER_NAMES: readonly string[] = [
+  "private-token",
+  "job-token",
+  "authorization",
+  "cookie",
+];
+
+/** Returns a copy of `headers` without any credential header (case-insensitive). */
+export function stripCredentialHeaders(
+  headers: Record<string, string>,
+  credentialHeaderNames: readonly string[] = DEFAULT_CREDENTIAL_HEADER_NAMES
+): Record<string, string> {
+  const blocked = new Set(credentialHeaderNames.map(name => name.toLowerCase()));
+  const result: Record<string, string> = {};
+  for (const [key, value] of Object.entries(headers)) {
+    if (!blocked.has(key.toLowerCase())) {
+      result[key] = value;
+    }
+  }
+  return result;
+}
+
 type FetchResponse = Awaited<ReturnType<typeof undiciFetch>>;
 
 /**
@@ -82,6 +111,11 @@ export interface FetchWithValidatedRedirectsOptions {
    * which may legitimately live on a private network.
    */
   isTrustedRedirectHost?: (host: string) => boolean;
+  /**
+   * Header names treated as credentials and dropped when a redirect crosses to a
+   * different origin. Defaults to `DEFAULT_CREDENTIAL_HEADER_NAMES`.
+   */
+  credentialHeaderNames?: readonly string[];
 }
 
 async function assertRedirectTargetAllowed(
@@ -145,11 +179,12 @@ export async function fetchWithValidatedRedirects(
   const initialOrigin = new URL(url).origin;
 
   let currentUrl = url;
+  let currentHeaders = options.headers;
 
   for (let hop = 0; hop <= maxRedirects; hop++) {
     const response = await fetchImpl(currentUrl, {
       method: "GET",
-      headers: options.headers,
+      headers: currentHeaders,
       dispatcher: options.dispatcher,
       signal: options.signal,
       redirect: "manual",
@@ -179,6 +214,13 @@ export async function fetchWithValidatedRedirects(
     }
 
     await assertRedirectTargetAllowed(target, initialOrigin, options);
+
+    // A cross-origin hop must not carry GitLab credentials: the HTTP client strips
+    // only standard auth headers, so `Private-Token` and `JOB-TOKEN` would survive.
+    if (target.origin !== new URL(currentUrl).origin) {
+      currentHeaders = stripCredentialHeaders(currentHeaders, options.credentialHeaderNames);
+    }
+
     currentUrl = target.toString();
   }
 
