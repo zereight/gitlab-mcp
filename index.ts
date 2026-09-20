@@ -1921,6 +1921,22 @@ const getFetchConfig = (): { headers: Record<string, string>; dispatcher: Dispat
   };
 };
 
+/**
+ * Options for the download sinks that stream a file through `fetchWithValidatedRedirects`.
+ *
+ * GitLab answers a release asset, a job artifact or an uploaded file with a redirect to
+ * its object storage, so those hops leave the origin and must be validated. The client
+ * split matters as much as the headers: the wrapped client adds the cookie jar and a
+ * fresh `Authorization` on a `401`, so a hop whose credentials were withheld has to use
+ * plain undici instead.
+ */
+const downloadRedirectOptions = () => ({
+  ...getFetchConfig(),
+  fetchImpl: fetch,
+  unauthenticatedFetchImpl: undiciFetch,
+  isTrustedRedirectHost: isTrustedGitLabRedirectHost,
+});
+
 // Compute at startup
 const enabledToolsets = parseEnabledToolsets(GITLAB_TOOLSETS_RAW);
 const individuallyEnabledTools = parseIndividualTools(GITLAB_TOOLS_RAW);
@@ -8047,9 +8063,7 @@ async function downloadJobArtifacts(
     `${getEffectiveApiUrl()}/projects/${encodeURIComponent(effectiveProjectId)}/jobs/${encodeGitLabPathSegment(jobId)}/artifacts`
   );
 
-  const response = await fetch(url.toString(), {
-    ...getFetchConfig(),
-  });
+  const response = await fetchWithValidatedRedirects(url.toString(), downloadRedirectOptions());
 
   if (response.status === 404) {
     throw new Error(
@@ -8098,9 +8112,7 @@ async function getJobArtifactFile(
     `${getEffectiveApiUrl()}/projects/${encodeURIComponent(effectiveProjectId)}/jobs/${encodeGitLabPathSegment(jobId)}/artifacts/${encodedArtifactPath}`
   );
 
-  const response = await fetch(url.toString(), {
-    ...getFetchConfig(),
-  });
+  const response = await fetchWithValidatedRedirects(url.toString(), downloadRedirectOptions());
 
   if (response.status === 404) {
     throw new Error(`Artifact file not found: ${artifactPath}`);
@@ -10498,10 +10510,7 @@ async function downloadAttachment(
     `${getEffectiveApiUrl()}/projects/${encodeURIComponent(effectiveProjectId)}/uploads/${encodeGitLabPathSegment(secret)}/${encodeGitLabPathSegment(safeFilename)}`
   );
 
-  const response = await fetch(url.toString(), {
-    ...getFetchConfig(),
-    method: "GET",
-  });
+  const response = await fetchWithValidatedRedirects(url.toString(), downloadRedirectOptions());
 
   if (!response.ok) {
     await handleGitLabError(response);
@@ -10770,18 +10779,9 @@ async function downloadReleaseAsset(
 ): Promise<string> {
   const effectiveProjectId = getEffectiveProjectId(projectId);
 
-  const fetchConfig = getFetchConfig();
   const response = await fetchWithValidatedRedirects(
     `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(effectiveProjectId)}/releases/${encodeGitLabPathSegment(tagName)}/downloads/${encodeGitLabPath(directAssetPath)}`,
-    {
-      ...fetchConfig,
-      // The wrapped client keeps the cookie jar and the OAuth 401 retry, which the real
-      // download needs. Both of those add credentials by themselves, so a hop whose
-      // credentials were withheld uses the plain client instead.
-      fetchImpl: fetch,
-      unauthenticatedFetchImpl: undiciFetch,
-      isTrustedRedirectHost: isTrustedGitLabRedirectHost,
-    }
+    downloadRedirectOptions()
   );
 
   await handleGitLabError(response);

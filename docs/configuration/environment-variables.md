@@ -351,7 +351,8 @@ beyond those already listed in `GITLAB_API_URL`; do not repeat `GITLAB_API_URL`
 hosts here. Examples: `gitlab.example.com,https://gitlab.company.com:8443/api/v4`.
 
 Hosts listed here (and in `GITLAB_API_URL`) are also trusted as redirect targets for
-release-asset downloads. Downloads follow upstream redirects only when the destination
+downloads — release assets, job artifacts, job artifact files and uploaded attachments.
+Downloads follow upstream redirects only when the destination
 is one of these hosts, or when it resolves to a public address; redirects to loopback,
 private, link-local (for example `169.254.169.254`) or otherwise non-public addresses
 are refused, including when they are written as an equivalent IPv6 form such as
