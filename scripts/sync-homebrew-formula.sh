@@ -5,19 +5,42 @@ FORMULA_PATH="Formula/zereight-mcp-gitlab.rb"
 VERSION=$(node -p "require('./package.json').version")
 METADATA_URL="https://registry.npmjs.org/@zereight/mcp-gitlab/${VERSION}"
 
-if ! METADATA=$(curl -fsSL "$METADATA_URL"); then
-  echo "Error: failed to fetch npm metadata for @zereight/mcp-gitlab@${VERSION}."
-  echo "Publish to npm first, then rerun this script."
-  exit 1
-fi
+# A successful `npm publish` does not mean the registry can serve the version
+# yet: npm's CDN keeps returning 404 for a few minutes afterwards. `needs: npm`
+# in npm-publish.yml only guarantees the publish job finished, so poll until the
+# version is actually resolvable instead of failing on the first 404.
+WAIT_SECONDS="${HOMEBREW_SYNC_WAIT_SECONDS:-600}"
+POLL_SECONDS="${HOMEBREW_SYNC_POLL_SECONDS:-15}"
+
+tmp_metadata=$(mktemp)
+tmp_tarball=$(mktemp)
+trap 'rm -f "$tmp_metadata" "$tmp_tarball"' EXIT
+
+deadline=$((SECONDS + WAIT_SECONDS))
+while :; do
+  # --max-time keeps a stalled connection from hanging the whole retry loop.
+  http_status=$(curl -sS --connect-timeout 10 --max-time 30 -o "$tmp_metadata" -w '%{http_code}' "$METADATA_URL" 2>/dev/null) || http_status="000"
+
+  if [ "$http_status" = "200" ]; then
+    break
+  fi
+
+  if [ "$SECONDS" -ge "$deadline" ]; then
+    echo "Error: npm metadata for @zereight/mcp-gitlab@${VERSION} is still unavailable (HTTP ${http_status}) after ${WAIT_SECONDS}s."
+    echo "Publish to npm first, or raise HOMEBREW_SYNC_WAIT_SECONDS to wait longer."
+    exit 1
+  fi
+
+  echo "npm metadata for @zereight/mcp-gitlab@${VERSION} is not available yet (HTTP ${http_status}); retrying in ${POLL_SECONDS}s."
+  sleep "$POLL_SECONDS"
+done
+
+METADATA=$(cat "$tmp_metadata")
 
 TARBALL_URL=$(node -e "const dist=JSON.parse(process.argv[1]).dist; if (!dist?.tarball || !dist?.shasum) process.exit(1); console.log(dist.tarball)" "$METADATA")
 EXPECTED_SHASUM=$(node -e "console.log(JSON.parse(process.argv[1]).dist.shasum)" "$METADATA")
 
-tmp_tarball=$(mktemp)
-trap 'rm -f "$tmp_tarball"' EXIT
-
-if ! curl -fsSL "$TARBALL_URL" -o "$tmp_tarball"; then
+if ! curl -fsSL --connect-timeout 10 --max-time 120 "$TARBALL_URL" -o "$tmp_tarball"; then
   echo "Error: failed to download npm tarball for @zereight/mcp-gitlab@${VERSION}."
   exit 1
 fi
