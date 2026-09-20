@@ -101,7 +101,10 @@ export const LIST_MERGE_REQUESTS_ID_USERNAME_PAIRS: readonly IdUsernameOptionPai
  * have the blank guard drop the username too, leaving no filter at all.
  */
 function hasUsernameFilterValue(value: unknown): boolean {
-  if (value === undefined || value === null) {
+  // `undefined` needs no branch: isBlankFilterValue() already counts it as blank. `null`
+  // does not, and reporting it as a value would let the cleaner keep `assignee_id` while
+  // the serializer writes `assignee_username=null`.
+  if (value === null) {
     return false;
   }
 
