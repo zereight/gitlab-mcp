@@ -12,27 +12,60 @@ METADATA_URL="https://registry.npmjs.org/@zereight/mcp-gitlab/${VERSION}"
 WAIT_SECONDS="${HOMEBREW_SYNC_WAIT_SECONDS:-600}"
 POLL_SECONDS="${HOMEBREW_SYNC_POLL_SECONDS:-15}"
 
+# A zero poll interval would hammer the registry until the deadline. WAIT_SECONDS=0
+# stays valid and means "make one attempt, then fail".
+if ! [[ "$WAIT_SECONDS" =~ ^[0-9]+$ ]]; then
+  echo "Error: HOMEBREW_SYNC_WAIT_SECONDS must be a non-negative integer, got '${WAIT_SECONDS}'."
+  exit 1
+fi
+if ! [[ "$POLL_SECONDS" =~ ^[1-9][0-9]*$ ]]; then
+  echo "Error: HOMEBREW_SYNC_POLL_SECONDS must be a positive integer, got '${POLL_SECONDS}'."
+  exit 1
+fi
+
 tmp_metadata=$(mktemp)
 tmp_tarball=$(mktemp)
 trap 'rm -f "$tmp_metadata" "$tmp_tarball"' EXIT
 
+http_status=""
+fail_unavailable() {
+  echo "Error: npm metadata for @zereight/mcp-gitlab@${VERSION} is still unavailable (HTTP ${http_status:-no response}) after ${WAIT_SECONDS}s."
+  echo "Publish to npm first, or raise HOMEBREW_SYNC_WAIT_SECONDS to wait longer."
+  exit 1
+}
+
+# WAIT_SECONDS is a hard budget: the request timeout and every sleep are capped at
+# the time remaining, so a slow or stalled attempt cannot run past the deadline.
 deadline=$((SECONDS + WAIT_SECONDS))
+attempt=0
 while :; do
-  # --max-time keeps a stalled connection from hanging the whole retry loop.
-  http_status=$(curl -sS --connect-timeout 10 --max-time 30 -o "$tmp_metadata" -w '%{http_code}' "$METADATA_URL" 2>/dev/null) || http_status="000"
+  attempt=$((attempt + 1))
+  remaining=$((deadline - SECONDS))
+
+  # Always make one attempt; after that, stop as soon as the budget is spent.
+  if [ "$attempt" -gt 1 ] && [ "$remaining" -le 0 ]; then
+    fail_unavailable
+  fi
+
+  request_timeout=$((remaining < 30 ? remaining : 30))
+  if [ "$request_timeout" -lt 1 ]; then
+    request_timeout=1
+  fi
+
+  http_status=$(curl -sS --connect-timeout 10 --max-time "$request_timeout" -o "$tmp_metadata" -w '%{http_code}' "$METADATA_URL" 2>/dev/null) || http_status="000"
 
   if [ "$http_status" = "200" ]; then
     break
   fi
 
-  if [ "$SECONDS" -ge "$deadline" ]; then
-    echo "Error: npm metadata for @zereight/mcp-gitlab@${VERSION} is still unavailable (HTTP ${http_status}) after ${WAIT_SECONDS}s."
-    echo "Publish to npm first, or raise HOMEBREW_SYNC_WAIT_SECONDS to wait longer."
-    exit 1
+  remaining=$((deadline - SECONDS))
+  if [ "$remaining" -le 0 ]; then
+    fail_unavailable
   fi
 
-  echo "npm metadata for @zereight/mcp-gitlab@${VERSION} is not available yet (HTTP ${http_status}); retrying in ${POLL_SECONDS}s."
-  sleep "$POLL_SECONDS"
+  sleep_for=$((remaining < POLL_SECONDS ? remaining : POLL_SECONDS))
+  echo "npm metadata for @zereight/mcp-gitlab@${VERSION} is not available yet (HTTP ${http_status}); retrying in ${sleep_for}s."
+  sleep "$sleep_for"
 done
 
 METADATA=$(cat "$tmp_metadata")
