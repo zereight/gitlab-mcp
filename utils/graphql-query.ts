@@ -106,10 +106,10 @@ export function graphqlQueryContainsWriteOperation(query: string): boolean {
 
 // Verbs that mark a mutation as destructive for GITLAB_PERMISSION_MODE=modify.
 // GitLab exposes many destructive mutations whose names do not contain "delete"
-// (environmentStop, pipelineCancel, clusterAgentTokenRevoke, ...), so the ban
-// covers teardown verbs as well as deletion verbs.
+// (environmentStop, pipelineCancel, clusterAgentTokenRevoke, jobUnschedule, ...), so
+// the ban covers teardown verbs as well as deletion verbs.
 const DESTRUCTIVE_FIELD_PATTERN =
-  /delete|destroy|remove|prune|purge|erase|revoke|cancel|stop|terminate|unprotect|disable|deactivate|drop/i;
+  /delete|destroy|remove|prune|purge|erase|revoke|cancel|stop|terminate|unprotect|disable|deactivate|drop|unschedule/i;
 
 // GraphQL treats whitespace and commas as insignificant, including between an
 // alias and its colon (`stop : field` and `stop,: field` are both aliases).

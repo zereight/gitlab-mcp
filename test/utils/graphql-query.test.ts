@@ -281,6 +281,15 @@ describe("When graphqlQueryContainsDeleteOperation runs", () => {
       );
     });
 
+    test("should detect jobUnschedule", () => {
+      // GitLab moves the scheduled job to manual and clears its scheduled state, so it
+      // is a teardown action even though no teardown verb is part of its name.
+      assert.equal(
+        graphqlQueryContainsDeleteOperation("mutation { jobUnschedule(input: {}) { errors } }"),
+        true
+      );
+    });
+
     test("should detect aliased destructive mutations", () => {
       assert.equal(
         graphqlQueryContainsDeleteOperation(

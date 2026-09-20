@@ -362,6 +362,22 @@ describe("Permission Mode", { concurrency: 1 }, () => {
         await client.disconnect();
       }
     });
+    test("rejects jobUnschedule", async () => {
+      const client = await connectClient(server);
+      try {
+        await assert.rejects(
+          () =>
+            client.callTool("execute_graphql", {
+              query:
+                'mutation { jobUnschedule(input: { id: "gid://gitlab/Ci::Build/1" }) { errors } }',
+            }),
+          (error: Error) => error.message.includes("delete mutations in modify mode"),
+          "jobUnschedule must be rejected in modify mode"
+        );
+      } finally {
+        await client.disconnect();
+      }
+    });
   });
 
   describe("readonly mode via GITLAB_PERMISSION_MODE", () => {
