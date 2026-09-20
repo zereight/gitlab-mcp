@@ -133,6 +133,31 @@ describe("When cleanMutuallyExclusiveIdUsernameOptions runs", () => {
         assignee_username: [],
       });
     });
+
+    test("should keep assignee_id when assignee_username holds only blank entries", () => {
+      // The blank entries are dropped when the query is built, so counting them as a
+      // value here would delete the id filter and leave the request unfiltered.
+      const result = cleanMutuallyExclusiveIdUsernameOptions({
+        assignee_id: "7",
+        assignee_username: ["", "   "],
+      });
+
+      assert.deepEqual(result, {
+        assignee_id: "7",
+        assignee_username: ["", "   "],
+      });
+    });
+
+    test("should drop assignee_id when a username survives the blank entries", () => {
+      const result = cleanMutuallyExclusiveIdUsernameOptions({
+        assignee_id: "7",
+        assignee_username: ["", "bob"],
+      });
+
+      assert.deepEqual(result, {
+        assignee_username: ["", "bob"],
+      });
+    });
   });
 
   describe("with list_merge_requests reviewer filters", () => {
