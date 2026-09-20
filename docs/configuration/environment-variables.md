@@ -501,10 +501,11 @@ CLI: `--permission-mode`
 Behavior:
 
 - `readonly` is equivalent to `GITLAB_READ_ONLY_MODE=true`
-- `modify` blocks delete and teardown tools: it hides all `delete_*` tools plus the
-  destructive teardown verbs `cancel_pipeline`, `cancel_pipeline_job`, `stop_environment`,
-  `stop_stale_environments`, and `unprotect_branch` from `tools/list`, rejects them when
-  called directly, and rejects `push_files` `delete`/`move` actions
+- `modify` blocks delete and teardown tools: it hides all `delete_*` tools plus
+  `erase_pipeline_job`, `purge_dependency_proxy_cache`, and the destructive teardown verbs
+  `cancel_pipeline`, `cancel_pipeline_job`, `stop_environment`, `stop_stale_environments`,
+  and `unprotect_branch` from `tools/list`, rejects them when called directly, and rejects
+  `push_files` `delete`/`move` actions
 - `modify` also rejects delete-style mutations (`delete`/`destroy`/`remove`/`prune`/`purge`
   field names) sent through `execute_graphql`
 - Scope: the guard covers typed tools (the `tools/list` and `tools/call` paths) plus the
