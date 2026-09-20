@@ -153,7 +153,9 @@ export function registerDownloadProxy(app: Express, deps: DownloadProxyDependenc
             return;
           }
           const effectiveProjectId = deps.getEffectiveProjectId(decodeURIComponent(project_id));
-          gitlabUrl = `${apiUrl}/projects/${deps.encodeGitLabPathSegment(effectiveProjectId)}/uploads/${deps.encodeGitLabPathSegment(secret)}/${deps.encodeGitLabPath(filename)}`;
+          // The uploads route takes one filename segment; a slash inside the name must
+          // stay inside that segment instead of turning into another route level.
+          gitlabUrl = `${apiUrl}/projects/${deps.encodeGitLabPathSegment(effectiveProjectId)}/uploads/${deps.encodeGitLabPathSegment(secret)}/${deps.encodeGitLabPathSegment(filename)}`;
           break;
         }
         case "release-asset": {
