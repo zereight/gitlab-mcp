@@ -101,9 +101,16 @@ export const LIST_MERGE_REQUESTS_ID_USERNAME_PAIRS: readonly IdUsernameOptionPai
  * have the blank guard drop the username too, leaving no filter at all.
  */
 function hasUsernameFilterValue(value: unknown): boolean {
-  // `undefined` needs no branch: isBlankFilterValue() already counts it as blank. `null`
-  // does not, and reporting it as a value would let the cleaner keep `assignee_id` while
-  // the serializer writes `assignee_username=null`.
+  // `undefined` needs no branch: isBlankFilterValue() already counts it as blank.
+  //
+  // `null` is the one value where this predicate and the query builder do not agree, and
+  // the branch below does not close that gap — it picks a side. isBlankFilterValue(null)
+  // is false, so appendFilterParam writes `assignee_username=null`; returning false here
+  // keeps `assignee_id` alongside it, which is the id/username pair GitLab answers with a
+  // 400. It is kept because it preserves the old `Boolean(null) === false` behavior. The
+  // value cannot reach the tool path (`sanitizeToolArguments` drops top-level nulls), and
+  // treating null as blank in isBlankFilterValue() would change every list tool's query
+  // building, so that fix belongs in its own change.
   if (value === null) {
     return false;
   }
