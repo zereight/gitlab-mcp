@@ -116,6 +116,21 @@ test("a broken escape next to a valid one is rejected, not passed through", () =
   );
 });
 
+test("the artifact path goes through the shared multi-segment validator", () => {
+  // getJobArtifactFile() was the last call site that split the path itself. The
+  // hand-rolled version kept empty segments, so "a//b" reached the URL as an extra
+  // separator instead of being rejected like every other call site.
+  assert.ok(
+    indexSource.includes("const encodedArtifactPath = encodeGitLabPath(artifactPath);"),
+    "artifact paths must go through encodeGitLabPath"
+  );
+  assert.equal(
+    indexSource.includes(".map(segment => encodeGitLabPathSegment(segment))"),
+    false,
+    "artifact paths must not be split into segments by hand"
+  );
+});
+
 test("a percent sign that starts no escape stays a literal character", () => {
   // "bad%zz/path" cannot be decoded either, but it holds no escape at all, so the
   // guard sees the entire value and the percent sign is encoded as data. Rejecting
