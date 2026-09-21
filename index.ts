@@ -1494,7 +1494,7 @@ async function ensureValidOAuthToken(): Promise<void> {
   }
 }
 
-// Permission mode gate: readonly exposes only read tools; modify blocks delete tools; full allows all
+// Permission mode gate: readonly exposes only read tools; modify blocks delete/teardown tools; full allows all
 function isToolAllowedByPermissionMode(toolName: string): boolean {
   switch (GITLAB_PERMISSION_MODE) {
     case "readonly":
@@ -10848,7 +10848,7 @@ async function handleToolCall(params: any) {
       throw new Error(
         GITLAB_PERMISSION_MODE === "readonly"
           ? `${params.name} is not allowed in read-only mode`
-          : `${params.name} is not allowed in modify mode (delete operations are disabled)`
+          : `${params.name} is not allowed in modify mode (delete and teardown operations are disabled)`
       );
     }
 

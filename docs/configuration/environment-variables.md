@@ -488,11 +488,11 @@ When set to `true` it takes precedence over `GITLAB_PERMISSION_MODE`.
 
 Permission level for the exposed tool surface. One of:
 
-| Value      | Read | Create/Update | Delete |
-| ---------- | ---- | ------------- | ------ |
-| `readonly` | ✅   | ❌            | ❌     |
-| `modify`   | ✅   | ✅            | ❌     |
-| `full`     | ✅   | ✅            | ✅     |
+| Value      | Read | Create/Update | Delete/Teardown |
+| ---------- | ---- | ------------- | --------------- |
+| `readonly` | ✅   | ❌            | ❌              |
+| `modify`   | ✅   | ✅            | ❌              |
+| `full`     | ✅   | ✅            | ✅              |
 
 Default: `full`
 
@@ -501,8 +501,18 @@ CLI: `--permission-mode`
 Behavior:
 
 - `readonly` is equivalent to `GITLAB_READ_ONLY_MODE=true`
-- `modify` hides all `delete_*` tools from `tools/list`, rejects them when called
-  directly, and rejects delete/destroy/remove mutations sent through `execute_graphql`
+- `modify` blocks delete and teardown tools: it hides all `delete_*` tools plus
+  `erase_pipeline_job`, `purge_dependency_proxy_cache`, and the destructive teardown verbs
+  `cancel_pipeline`, `cancel_pipeline_job`, `stop_environment`, `stop_stale_environments`,
+  and `unprotect_branch` from `tools/list`, rejects them when called directly, and rejects
+  `push_files` `delete`/`move` actions
+- `modify` also rejects delete-style mutations (`delete`/`destroy`/`remove`/`prune`/`purge`
+  field names) sent through `execute_graphql`
+- Scope: the guard covers typed tools (the `tools/list` and `tools/call` paths) plus the
+  delete-style mutations listed above. GraphQL teardown mutations that carry no delete-style
+  name — for example `pipelineCancel` or `environmentStop` — are **not** blocked in `modify`
+  mode yet; widening `execute_graphql` coverage is tracked in
+  [PR #755](https://github.com/zereight/gitlab-mcp/pull/755)
 - Invalid values fail startup with an error
 - `GITLAB_DENIED_TOOLS_REGEX` and the tool policy variables still apply on top
 
