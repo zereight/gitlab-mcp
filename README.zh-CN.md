@@ -304,7 +304,7 @@ MCP 客户端配置：
 | `REMOTE_AUTHORIZATION`                                           | 是   | 设置为 `true` 以启用                                                                                                    |
 | `STREAMABLE_HTTP`                                                | 是   | 必须为 `true`                                                                                                           |
 | `ENABLE_DYNAMIC_API_URL`                                         | 可选 | 允许按请求通过 `X-GitLab-API-URL` 请求头指定 GitLab URL                                                                 |
-| `GITLAB_ALLOWED_HOSTS`                                           | 可选 | 允许的 `X-GitLab-API-URL` 主机逗号分隔列表；`GITLAB_API_URL` 中的主机始终允许                                          |
+| `GITLAB_ALLOWED_HOSTS`                                           | 可选 | 允许的 `X-GitLab-API-URL` 主机逗号分隔列表；`GITLAB_API_URL` 中的主机始终允许。也作为下载重定向目标（release 资产、job 工件、上传附件）受信任；私有网络主机请在此列出 |
 | `GITLAB_ALLOW_UNAUTHENTICATED_TOOL_DISCOVERY`                    | 可选 | 仅允许未认证的 `initialize`、`notifications/initialized`、`tools/list`、`server/discover`（工具调用仍需认证）                                |
 | `MCP_SERVER_URL` / `MCP_ALLOWED_HOSTS` / `MCP_ALLOWED_ORIGINS` | 可选 | 用于 DNS rebinding 防护的允许 `/mcp` 主机/来源值                                                                        |
 | `MCP_TRUST_PROXY`                                                | 可选 | 在反向代理后信任 `Forwarded` / `X-Forwarded-*` 请求头（下载 URL、Express `req.ip`、`/mcp` IP 速率限制、OAuth 速率限制） |
