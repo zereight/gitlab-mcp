@@ -34,8 +34,9 @@ fail_unavailable() {
   exit 1
 }
 
-# WAIT_SECONDS is a hard budget: the request timeout and every sleep are capped at
-# the time remaining, so a slow or stalled attempt cannot run past the deadline.
+# WAIT_SECONDS bounds the retries: after the first attempt, the request timeout and
+# every sleep are capped at the time remaining. The first attempt always gets the
+# full request timeout, so WAIT_SECONDS=0 still tolerates a slow registry response.
 deadline=$((SECONDS + WAIT_SECONDS))
 attempt=0
 while :; do
@@ -48,11 +49,11 @@ while :; do
   fi
 
   request_timeout=$((remaining < 30 ? remaining : 30))
-  if [ "$request_timeout" -lt 1 ]; then
-    request_timeout=1
+  if [ "$attempt" -eq 1 ]; then
+    request_timeout=30
   fi
 
-  http_status=$(curl -sS --connect-timeout 10 --max-time "$request_timeout" -o "$tmp_metadata" -w '%{http_code}' "$METADATA_URL" 2>/dev/null) || http_status="000"
+  http_status=$(curl -sS --connect-timeout 10 --max-time "$request_timeout" -o "$tmp_metadata" -w '%{http_code}' "$METADATA_URL") || http_status="000"
 
   if [ "$http_status" = "200" ]; then
     break
