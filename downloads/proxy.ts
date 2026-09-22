@@ -149,7 +149,7 @@ export function registerDownloadProxy(app: Express, deps: DownloadProxyDependenc
             return;
           }
           const effectiveProjectId = deps.getEffectiveProjectId(decodeURIComponent(project_id));
-          gitlabUrl = `${apiUrl}/projects/${encodeURIComponent(effectiveProjectId)}/jobs/${deps.encodeGitLabPathSegment(job_id)}/artifacts`;
+          gitlabUrl = `${apiUrl}/projects/${deps.encodeGitLabPathSegment(effectiveProjectId)}/jobs/${deps.encodeGitLabPathSegment(job_id)}/artifacts`;
           break;
         }
         case "attachment": {
@@ -159,7 +159,9 @@ export function registerDownloadProxy(app: Express, deps: DownloadProxyDependenc
             return;
           }
           const effectiveProjectId = deps.getEffectiveProjectId(decodeURIComponent(project_id));
-          gitlabUrl = `${apiUrl}/projects/${encodeURIComponent(effectiveProjectId)}/uploads/${deps.encodeGitLabPathSegment(secret)}/${deps.encodeGitLabPath(filename)}`;
+          // The uploads route takes one filename segment; a slash inside the name must
+          // stay inside that segment instead of turning into another route level.
+          gitlabUrl = `${apiUrl}/projects/${deps.encodeGitLabPathSegment(effectiveProjectId)}/uploads/${deps.encodeGitLabPathSegment(secret)}/${deps.encodeGitLabPathSegment(filename)}`;
           break;
         }
         case "release-asset": {
@@ -171,7 +173,7 @@ export function registerDownloadProxy(app: Express, deps: DownloadProxyDependenc
             return;
           }
           const effectiveProjectId = deps.getEffectiveProjectId(decodeURIComponent(project_id));
-          gitlabUrl = `${apiUrl}/projects/${encodeURIComponent(effectiveProjectId)}/releases/${encodeURIComponent(tag_name)}/downloads/${deps.encodeGitLabPath(direct_asset_path)}`;
+          gitlabUrl = `${apiUrl}/projects/${deps.encodeGitLabPathSegment(effectiveProjectId)}/releases/${deps.encodeGitLabPathSegment(tag_name)}/downloads/${deps.encodeGitLabPath(direct_asset_path)}`;
           break;
         }
         default:

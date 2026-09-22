@@ -37,6 +37,7 @@ const MINIMAL_PNG = Buffer.from(
 );
 
 const LARGE_FILE_TOKEN = 'glpat-largefile-test-token';
+const ATTACHMENT_TOKEN = 'glpat-attachment-test-token';
 
 const FAKE_ZIP = Buffer.from('PK\x03\x04fake-zip-content-for-testing');
 
@@ -73,7 +74,7 @@ describe('Remote Downloads - Download Proxy Endpoint', { timeout: 30_000 }, () =
     const mockPort = await findMockServerPort();
     mockGitLab = new MockGitLabServer({
       port: mockPort,
-      validTokens: [MOCK_TOKEN, LARGE_FILE_TOKEN],
+      validTokens: [MOCK_TOKEN, LARGE_FILE_TOKEN, ATTACHMENT_TOKEN],
     });
 
     // Mock artifact download
@@ -93,6 +94,14 @@ describe('Remote Downloads - Download Proxy Endpoint', { timeout: 30_000 }, () =
     mockGitLab.addMockHandler('get', `/projects/${TEST_PROJECT_ID}/uploads/${TEST_SECRET}/document.txt`, (_req, res) => {
       res.set('Content-Type', 'text/plain');
       res.send('hello document content');
+    });
+
+    // Mock attachment whose name contains a slash. The uploads route takes one filename
+    // segment, so the proxy has to request it as `nested%2Fdocument.txt`; a handler on
+    // `nested/document.txt` would match the wrong route shape and must not be hit.
+    mockGitLab.addMockHandler('get', `/projects/${TEST_PROJECT_ID}/uploads/${TEST_SECRET}/nested%2Fdocument.txt`, (_req, res) => {
+      res.set('Content-Type', 'text/plain');
+      res.send('nested document content');
     });
 
     // Mock large artifact (2MB) to verify streaming works for big files
@@ -180,6 +189,16 @@ describe('Remote Downloads - Download Proxy Endpoint', { timeout: 30_000 }, () =
     const buf = Buffer.from(await res.arrayBuffer());
     const expectedSize = 2 * 1024 * 1024;
     assert.strictEqual(buf.length, expectedSize, `Should receive full 2MB (got ${buf.length} bytes)`);
+  });
+
+  test('keeps a slash-bearing attachment filename inside one path segment', async () => {
+    const res = await fetch(
+      `http://${HOST}:${serverPort}/downloads/attachment?project_id=${TEST_PROJECT_ID}&secret=${TEST_SECRET}&filename=${encodeURIComponent('nested/document.txt')}`,
+      { headers: { 'Private-Token': ATTACHMENT_TOKEN } }
+    );
+
+    assert.strictEqual(res.status, 200, 'attachment proxy should route to one encoded segment');
+    assert.strictEqual(await res.text(), 'nested document content');
   });
 
   test('returns 429 after exceeding rate limit', async () => {
