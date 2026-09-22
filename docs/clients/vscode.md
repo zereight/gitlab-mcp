@@ -50,7 +50,7 @@ then restart the server. VS Code prompts for the PAT on first start and stores i
 
 Self-hosted GitLab: change `GITLAB_API_URL` to `https://your-host.example.com/api/v4`.
 
-Read-only: set `GITLAB_PERMISSION_MODE` to `readonly` (or `modify` to block delete tools).
+Read-only: set `GITLAB_PERMISSION_MODE` to `readonly` (or `modify` to block delete and teardown tools).
 
 Regenerate the badge URL: `node scripts/generate-vscode-install-link.mjs`
 

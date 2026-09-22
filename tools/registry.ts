@@ -1689,9 +1689,14 @@ export const readOnlyTools = new Set([
 export const destructiveTools = new Set([
   "delete_pipeline",
   "erase_pipeline_job",
+  // Teardown verbs without a `delete_` prefix tear down live pipelines/environments too.
+  "cancel_pipeline",
+  "cancel_pipeline_job",
   "delete_deployment",
   "approve_deployment",
   "delete_environment",
+  "stop_environment",
+  "stop_stale_environments",
   "delete_review_app_environments",
   "delete_pipeline_trigger",
   "delete_issue",
@@ -1726,8 +1731,10 @@ export const destructiveTools = new Set([
   "purge_dependency_proxy_cache",
 ]);
 
-// Tools that permanently delete resources — blocked in "modify" permission mode.
-// Narrower than destructiveTools: merge/protect/push are modifications, not deletions.
+// Tools blocked in "modify" permission mode: permanent deletions plus destructive
+// teardown verbs that do not start with `delete_` (see the comment inside).
+// Invariant: deleteTools is a subset of destructiveTools — every blocked tool is also
+// annotated with `destructiveHint`. Add new blocked tools to both sets.
 export const deleteTools = new Set([
   "delete_pipeline",
   "erase_pipeline_job",
@@ -1760,6 +1767,13 @@ export const deleteTools = new Set([
   "delete_work_item_emoji_reaction",
   "delete_work_item_note_emoji_reaction",
   "purge_dependency_proxy_cache",
+  // Destructive teardown operations whose names do not start with `delete_`:
+  // stopping/cancelling live pipelines and environments, and removing branch protection.
+  "cancel_pipeline",
+  "cancel_pipeline_job",
+  "stop_environment",
+  "stop_stale_environments",
+  "unprotect_branch",
 ]);
 
 // Define which tools are related to wiki and can be toggled by USE_GITLAB_WIKI

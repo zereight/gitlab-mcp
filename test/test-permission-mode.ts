@@ -8,6 +8,7 @@
 
 import { describe, test, after, before } from "node:test";
 import assert from "node:assert";
+import { allTools, deleteTools, destructiveTools } from "../tools/registry.js";
 import {
   launchServer,
   findAvailablePort,
@@ -67,6 +68,34 @@ async function getToolNames(server: ServerInstance): Promise<string[]> {
   return result.tools.map((t: { name: string }) => t.name);
 }
 
+/**
+ * Asserts that a query passes the modify-mode guard *and* is forwarded to GitLab. The mock
+ * server has no `/api/graphql` route, so the call comes back as a downstream
+ * "GraphQL request failed" — that failure is the evidence the guard let the query through,
+ * which a "does not throw" check alone would not provide.
+ */
+async function assertQueryReachesGitLab(server: ServerInstance, query: string): Promise<void> {
+  const client = await connectClient(server);
+  try {
+    let outcome: string;
+    try {
+      outcome = JSON.stringify(await client.callTool("execute_graphql", { query }));
+    } catch (error) {
+      outcome = error instanceof Error ? error.message : String(error);
+    }
+    assert.ok(
+      !outcome.includes("modify mode"),
+      `the guard must not fire for "${query}", got: ${outcome}`
+    );
+    assert.ok(
+      outcome.includes("GraphQL request failed"),
+      `"${query}" should be forwarded to GitLab after passing the guard, got: ${outcome}`
+    );
+  } finally {
+    await client.disconnect();
+  }
+}
+
 const DELETE_SAMPLE_TOOLS = [
   "delete_issue",
   "delete_branch",
@@ -78,6 +107,17 @@ const DELETE_SAMPLE_TOOLS = [
   "delete_webhook",
 ];
 
+// Destructive teardown tools whose names do not start with `delete_`. All five are listed
+// here (list-hiding) and exercised with explicit `callTool` literals below (call-rejection),
+// so the tool-coverage detector sees the call path too.
+const DESTRUCTIVE_SAMPLE_TOOLS = [
+  "cancel_pipeline",
+  "cancel_pipeline_job",
+  "stop_environment",
+  "stop_stale_environments",
+  "unprotect_branch",
+];
+
 const MODIFY_SAMPLE_TOOLS = [
   "create_issue",
   "update_issue",
@@ -85,10 +125,33 @@ const MODIFY_SAMPLE_TOOLS = [
   "create_branch",
   "push_files",
   "merge_merge_request",
-  "stop_stale_environments",
 ];
 
 const READ_SAMPLE_TOOLS = ["list_issues", "get_project", "list_merge_requests"];
+
+describe("Modify-mode deny list invariants", () => {
+  test("deleteTools is a subset of destructiveTools", () => {
+    for (const name of deleteTools) {
+      assert.ok(
+        destructiveTools.has(name),
+        `"${name}" is blocked in modify mode but missing from destructiveTools`
+      );
+    }
+  });
+
+  test("every blocked tool exists in the registry", () => {
+    const names = new Set(allTools.map(tool => tool.name));
+    for (const name of deleteTools) {
+      assert.ok(names.has(name), `"${name}" is in deleteTools but not in allTools`);
+    }
+  });
+
+  test("every destructive sample tool is in the modify-mode deny list", () => {
+    for (const name of DESTRUCTIVE_SAMPLE_TOOLS) {
+      assert.ok(deleteTools.has(name), `"${name}" should be blocked in modify mode`);
+    }
+  });
+});
 
 describe("Permission Mode", { concurrency: 1 }, () => {
   before(async () => {
@@ -118,7 +181,12 @@ describe("Permission Mode", { concurrency: 1 }, () => {
 
     test("exposes read, modify, and delete tools", async () => {
       const names = await getToolNames(server);
-      for (const name of [...READ_SAMPLE_TOOLS, ...MODIFY_SAMPLE_TOOLS, ...DELETE_SAMPLE_TOOLS]) {
+      for (const name of [
+        ...READ_SAMPLE_TOOLS,
+        ...MODIFY_SAMPLE_TOOLS,
+        ...DELETE_SAMPLE_TOOLS,
+        ...DESTRUCTIVE_SAMPLE_TOOLS,
+      ]) {
         assert.ok(names.includes(name), `full mode: expected "${name}" to be present`);
       }
     });
@@ -144,6 +212,50 @@ describe("Permission Mode", { concurrency: 1 }, () => {
         assert.ok(names.includes(name), `modify mode: expected "${name}" to be present`);
       }
       assert.ok(!names.some(n => n.startsWith("delete_")), "no delete_* tool should be listed");
+    });
+
+    test("hides destructive stop/cancel/unprotect tools", async () => {
+      const names = await getToolNames(server);
+      for (const name of DESTRUCTIVE_SAMPLE_TOOLS) {
+        assert.ok(!names.includes(name), `modify mode: expected "${name}" to be absent`);
+      }
+    });
+
+    test("rejects destructive stop/cancel/unprotect tool calls", async () => {
+      const client = await connectClient(server);
+      try {
+        await assert.rejects(
+          () => client.callTool("cancel_pipeline", { project_id: "1", pipeline_id: 1 }),
+          (error: Error) => error.message.includes("not allowed in modify mode"),
+          "cancel_pipeline should be rejected in modify mode"
+        );
+        await assert.rejects(
+          () => client.callTool("cancel_pipeline_job", { project_id: "1", job_id: 1 }),
+          (error: Error) => error.message.includes("not allowed in modify mode"),
+          "cancel_pipeline_job should be rejected in modify mode"
+        );
+        await assert.rejects(
+          () => client.callTool("stop_environment", { project_id: "1", environment_id: 1 }),
+          (error: Error) => error.message.includes("not allowed in modify mode"),
+          "stop_environment should be rejected in modify mode"
+        );
+        await assert.rejects(
+          () =>
+            client.callTool("stop_stale_environments", {
+              project_id: "1",
+              before: "2026-01-01T00:00:00Z",
+            }),
+          (error: Error) => error.message.includes("not allowed in modify mode"),
+          "stop_stale_environments should be rejected in modify mode"
+        );
+        await assert.rejects(
+          () => client.callTool("unprotect_branch", { project_id: "1", branch: "main" }),
+          (error: Error) => error.message.includes("not allowed in modify mode"),
+          "unprotect_branch should be rejected in modify mode"
+        );
+      } finally {
+        await client.disconnect();
+      }
     });
 
     test("hides purge_dependency_proxy_cache", async () => {
@@ -180,7 +292,7 @@ describe("Permission Mode", { concurrency: 1 }, () => {
             client.callTool("execute_graphql", {
               query: 'mutation { issueDelete(input: { projectPath: "g/p", iid: "1" }) { errors } }',
             }),
-          (error: Error) => error.message.includes("delete mutations in modify mode"),
+          (error: Error) => error.message.includes("destructive mutations in modify mode"),
           "delete mutation should be rejected in modify mode"
         );
       } finally {
@@ -227,18 +339,47 @@ describe("Permission Mode", { concurrency: 1 }, () => {
     });
 
     test("does not apply the modify-mode guard to non-delete mutations", async () => {
+      // issueSetSeverity writes, but nothing about it is destructive.
+      await assertQueryReachesGitLab(
+        server,
+        "mutation { issueSetSeverity(input: { severity: HIGH }) { errors } }"
+      );
+    });
+
+    test("does not apply the modify-mode guard when the alias looks destructive", async () => {
+      // "stop" is only the caller-chosen label here; the field is issueSetSeverity.
+      await assertQueryReachesGitLab(
+        server,
+        "mutation { stop: issueSetSeverity(input: { severity: HIGH }) { errors } }"
+      );
+    });
+
+    test("rejects a destructive mutation hidden behind a harmless alias", async () => {
       const client = await connectClient(server);
       try {
-        // The mock GitLab server has no GraphQL endpoint, so the call may fail
-        // downstream — but it must not fail with the modify-mode guard error.
-        await client.callTool("execute_graphql", {
-          query: "mutation { issueSetSeverity(input: { severity: HIGH }) { errors } }",
-        });
-      } catch (error) {
-        assert.ok(error instanceof Error);
-        assert.ok(
-          !error.message.includes("modify mode"),
-          `non-delete mutation should pass the guard, got: ${error.message}`
+        await assert.rejects(
+          () =>
+            client.callTool("execute_graphql", {
+              query: "mutation { harmless: environmentStop(input: {}) { errors } }",
+            }),
+          (error: Error) => error.message.includes("destructive mutations in modify mode"),
+          "a destructive field must be rejected even when aliased"
+        );
+      } finally {
+        await client.disconnect();
+      }
+    });
+    test("rejects jobUnschedule", async () => {
+      const client = await connectClient(server);
+      try {
+        await assert.rejects(
+          () =>
+            client.callTool("execute_graphql", {
+              query:
+                'mutation { jobUnschedule(input: { id: "gid://gitlab/Ci::Build/1" }) { errors } }',
+            }),
+          (error: Error) => error.message.includes("destructive mutations in modify mode"),
+          "jobUnschedule must be rejected in modify mode"
         );
       } finally {
         await client.disconnect();
