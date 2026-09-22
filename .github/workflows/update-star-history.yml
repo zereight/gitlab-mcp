@@ -23,7 +23,7 @@ jobs:
 
       - name: Generate chart
         env:
-          GH_TOKEN: ${{ secrets.STAR_HISTORY_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
         run: python scripts/generate-star-history.py
 
       - name: Open update PR
