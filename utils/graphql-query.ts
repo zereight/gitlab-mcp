@@ -110,9 +110,11 @@ const DELETE_FIELD_PATTERN = /delete|destroy|remove|prune|purge/i;
 // Content inside parentheses (arguments) is skipped so argument names like
 // removeSourceBranch do not count as delete fields. Returns null when a top-level
 // fragment spread is present, since the spread could hide a delete field.
+// Commas between operations are insignificant in GraphQL, so they are accepted as
+// operation separators alongside `;` and `}`.
 function extractTopLevelMutationFields(normalized: string): string[] | null {
   const fields: string[] = [];
-  const mutationRegex = /(?:^|[};]\s*)mutation\b[^({]*(?:\([^)]*\))?\s*\{/g;
+  const mutationRegex = /(?:^|[;},]\s*)mutation\b[^({]*(?:\([^)]*\))?\s*\{/g;
   let match: RegExpExecArray | null;
 
   while ((match = mutationRegex.exec(normalized)) !== null) {
@@ -154,7 +156,7 @@ function extractTopLevelMutationFields(normalized: string): string[] | null {
 
 export function graphqlQueryContainsDeleteOperation(query: string): boolean {
   const normalized = stripGraphQLCommentsAndStrings(query).trim();
-  if (!normalized || !/(?:^|[};]\s*)mutation\b/.test(normalized)) {
+  if (!normalized || !/(?:^|[;},]\s*)mutation\b/.test(normalized)) {
     return false;
   }
 
