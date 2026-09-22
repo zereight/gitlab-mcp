@@ -371,6 +371,17 @@ Authorization: Bearer glpat-xxxxxxxxxxxxxxxxxxxx
 
 回调代理模式详情请参阅 [GitLab MCP OAuth Callback Proxy](./docs/auth/oauth-callback-proxy.md)。
 
+#### SSE 会话限制
+
+`GET /sse` 与 Streamable HTTP 受到相同的远程传输控制：
+
+- **容量：** 并发 SSE 会话最多为 `MAX_SESSIONS` 个（默认 1000），超出的连接返回 `503`。
+- **创建速率限制：** 新连接按客户端 IP 受 `MAX_REQUESTS_PER_MINUTE` 限制（默认 60），超出的连接返回 `429`。
+- **空闲超时：** 在 `SESSION_TIMEOUT_SECONDS`（默认 1 小时）内没有 `POST /messages` 请求的会话会被关闭，因此空闲客户端必须重新连接，而不能一直占用容量槽位。与 Streamable HTTP 不同，保持 SSE 流打开**不**算作活动。
+- 实例达到容量时，`/health` 返回 `503` 和 `status: "degraded"`。
+
+可通过 [`MAX_SESSIONS`](./docs/configuration/environment-variables.md#max_sessions)、`MAX_REQUESTS_PER_MINUTE` 和 `SESSION_TIMEOUT_SECONDS` 调整这些限制。
+
 ### 远程授权设置（多用户支持）
 
 使用 `REMOTE_AUTHORIZATION=true` 时，MCP 服务器可以支持多个用户，每个用户通过 HTTP 请求头传入自己的 GitLab token。适用于：

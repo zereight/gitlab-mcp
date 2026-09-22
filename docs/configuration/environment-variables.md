@@ -194,7 +194,9 @@ Security notes:
 
 ### `SESSION_TIMEOUT_SECONDS`
 
-Per-session auth timeout in seconds when using remote authorization.
+Per-session auth timeout in seconds when using remote authorization. The SSE
+transport also closes connections that receive no `POST /messages` request for this
+long.
 
 Default:
 
@@ -713,13 +715,14 @@ Default:
 
 - `60`
 
-This single value is reused in three places (whichever limit is hit first wins):
+This single value is reused in four places (whichever limit is hit first wins):
 
 | Layer              | Key            | Routes                                                                        |
 | ------------------ | -------------- | ----------------------------------------------------------------------------- |
 | Express middleware | Client IP      | `POST` / `DELETE /mcp`                                                        |
 | Session handler    | MCP session ID | Existing sessions when `REMOTE_AUTHORIZATION=true` or `GITLAB_MCP_OAUTH=true` |
 | Download proxy     | Auth token     | `GET /downloads/*`                                                            |
+| SSE connections    | Client IP      | New `GET /sse` connections (rejected with `429`)                              |
 
 When `MCP_TRUST_PROXY` is unset behind a reverse proxy, all clients share one IP
 bucket and the per-IP limit becomes the bottleneck for the whole deployment.
@@ -757,14 +760,22 @@ from GitLab upstream API rate limits.
 ### `MAX_SESSIONS`
 
 Maximum concurrent MCP sessions on a single server instance (Streamable HTTP /
-remote authorization / MCP OAuth).
+remote authorization / MCP OAuth / SSE).
 
 Default:
 
 - `1000`
 
 When the limit is reached, new session creation is rejected until an existing
-session expires or is closed.
+session expires or is closed. For the SSE transport this applies to new
+`GET /sse` connections, which are additionally rate-limited per client IP
+(`MAX_REQUESTS_PER_MINUTE`) and closed after `SESSION_TIMEOUT_SECONDS` without a
+`POST /messages` request.
+
+At capacity `/health` reports `503` with `status: "degraded"` on both remote
+transports, so orchestrator health checks stop routing new work to the instance.
+Use `/health` as a readiness probe, not a liveness probe — a liveness restart at
+capacity drops every open session.
 
 ## Network and TLS
 

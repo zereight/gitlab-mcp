@@ -368,6 +368,17 @@ Authorization: Bearer glpat-xxxxxxxxxxxxxxxxxxxx
 
 콜백 프록시 모드 상세는 [GitLab MCP OAuth Callback Proxy](./docs/auth/oauth-callback-proxy.md)를 참고하세요.
 
+#### SSE 세션 제한
+
+`GET /sse`에는 Streamable HTTP와 동일한 원격 전송 제어가 적용됩니다.
+
+- **Capacity:** 동시 SSE 세션은 최대 `MAX_SESSIONS`개(기본 1000)이며, 초과 연결은 `503`을 받습니다.
+- **생성 rate limit:** 새 연결은 클라이언트 IP당 `MAX_REQUESTS_PER_MINUTE`(기본 60)로 제한되며, 초과 연결은 `429`를 받습니다.
+- **Idle timeout:** `SESSION_TIMEOUT_SECONDS`(기본 1시간) 동안 `POST /messages` 요청이 없는 세션은 종료됩니다. 따라서 유휴 클라이언트는 슬롯을 계속 점유하는 대신 다시 연결해야 합니다. Streamable HTTP와 달리 SSE 스트림을 열어 두는 것은 활동으로 간주되지 **않습니다**.
+- 용량이 가득 찬 동안 `/health`는 `503`과 `status: "degraded"`를 반환합니다.
+
+설정은 [`MAX_SESSIONS`](./docs/configuration/environment-variables.md#max_sessions), `MAX_REQUESTS_PER_MINUTE`, `SESSION_TIMEOUT_SECONDS`를 참고하세요.
+
 ### 원격 인증 설정(멀티 유저 지원)
 
 `REMOTE_AUTHORIZATION=true`를 사용하면 MCP 서버는 여러 사용자를 지원할 수 있습니다. 각 사용자는 HTTP 헤더로 자신의 GitLab 토큰을 전달합니다. 다음 경우 유용합니다.
