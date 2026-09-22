@@ -213,7 +213,7 @@ export interface FetchWithValidatedRedirectsOptions {
    * A trusted host may be reached even when it resolves to a non-public address,
    * because operator-declared GitLab instances and their storage may legitimately
    * live on a private network. Trusted hosts also keep receiving the request
-   * credentials.
+   * credentials, unless an earlier untrusted hop has already withheld them.
    */
   isTrustedRedirectHost?: (host: string) => boolean;
 }
@@ -221,7 +221,7 @@ export interface FetchWithValidatedRedirectsOptions {
 /**
  * Whether a hop's destination is an operator-declared GitLab host. Such a host is
  * reachable even when it resolves to a private address and keeps receiving the
- * request credentials.
+ * request credentials unless an earlier untrusted hop withheld them.
  */
 function isTrustedRedirectTarget(
   target: URL,
@@ -304,12 +304,10 @@ async function assertRedirectTargetAllowed(
  *
  * Credential headers are withheld from any hop that leaves the initial origin
  * unless the destination is a trusted host, so redirects to object storage or any
- * other host cannot exfiltrate the GitLab token. A later hop to a trusted host gets
- * them back — the allowlist is the policy — and so does a hop that returns to the
- * initial origin after such a trusted hop, because that hop already received them.
- * A hop back to the initial origin while they are still withheld does not: the caller
- * reads that response as the downloaded file, so an authenticated request there would
- * be one the redirect target chose. A hop that would downgrade HTTPS to cleartext HTTP
+ * other host cannot exfiltrate the GitLab token. Once withheld they stay off every
+ * later hop, including a hop to a trusted host or back to the initial origin: the
+ * caller reads that response as the downloaded file, so an authenticated request there
+ * would be one the redirect target chose. A hop that would downgrade HTTPS to cleartext HTTP
  * is refused before the credentials are considered at all.
  *
  * Residual risk: the destination host is resolved twice — once for the check and
@@ -390,15 +388,16 @@ export async function fetchWithValidatedRedirects(
     // the credentials only when they were not withheld on the way here: a target that
     // sends the request back to the origin would otherwise receive an authenticated
     // response — for a URL it chose — that the caller of this helper then reads as the
-    // downloaded body. A hop that returns after a *trusted* hop gets them back, because
-    // that hop already holds them.
+    // downloaded body. A hop that returns after only *trusted* hops keeps them.
     if (target.origin === initialOrigin) {
       currentHeaders = credentialsWithheld ? withoutCredentialHeaders(options) : options.headers;
     } else {
       const trusted = isTrustedRedirectTarget(target, options);
       await assertRedirectTargetAllowed(target, trusted, options);
-      currentHeaders = trusted ? options.headers : withoutCredentialHeaders(options);
-      credentialsWithheld = !trusted;
+      // Trust exempts the destination check but cannot undo a withhold: the untrusted
+      // hop chose this URL, and the caller reads its response as the download.
+      credentialsWithheld ||= !trusted;
+      currentHeaders = credentialsWithheld ? withoutCredentialHeaders(options) : options.headers;
     }
 
     currentUrl = target.toString();

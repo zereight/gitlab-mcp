@@ -494,7 +494,7 @@ describe("credential headers across redirect hops", () => {
     assert.equal(calls[3].headers["Private-Token"], undefined);
   });
 
-  test("a trusted hop after an untrusted one may carry the credentials again", async () => {
+  test("a trusted hop after an untrusted one stays without credentials", async () => {
     const calls: RecordedCall[] = [];
     await fetchWithValidatedRedirects("http://127.0.0.1:1/start", {
       headers: credentials,
@@ -507,9 +507,42 @@ describe("credential headers across redirect hops", () => {
       ),
     });
 
+    // The untrusted hop chose the trusted URL, so trust must not re-attach the token.
     assert.equal(calls[1].headers["Private-Token"], undefined);
-    assert.equal(calls[2].headers["Private-Token"], "secret");
-    assert.equal(calls[3].headers["Private-Token"], "secret");
+    assert.equal(calls[2].headers.Authorization, undefined);
+    assert.equal(calls[2].headers["Private-Token"], undefined);
+    assert.equal(calls[3].headers["Private-Token"], undefined);
+  });
+
+  test("an untrusted hop cannot re-attach credentials via a second trusted host", async () => {
+    const calls: RecordedCall[] = [];
+    await fetchWithValidatedRedirects("https://gitlab.a/start", {
+      headers: credentials,
+      isTrustedRedirectHost: host => host === "gitlab.a" || host === "gitlab.b",
+      ...sameClientForEveryHop(
+        stubRedirectChain([`https://${PUBLIC_HOST}/evil`, "https://gitlab.b/api/v4/user"], calls)
+      ),
+    });
+
+    assert.equal(calls[0].headers["Private-Token"], "secret");
+    assert.equal(calls[1].headers["Private-Token"], undefined);
+    assert.equal(calls[2].headers.Authorization, undefined);
+    assert.equal(calls[2].headers["Private-Token"], undefined);
+  });
+
+  test("an untrusted hop cannot re-attach credentials via a scheme change on the origin host", async () => {
+    const calls: RecordedCall[] = [];
+    await fetchWithValidatedRedirects("http://gitlab.a/start", {
+      headers: credentials,
+      isTrustedRedirectHost: host => host === "gitlab.a",
+      ...sameClientForEveryHop(
+        stubRedirectChain([`http://${PUBLIC_HOST}/evil`, "https://gitlab.a/api/v4/user"], calls)
+      ),
+    });
+
+    assert.equal(calls[1].headers["Private-Token"], undefined);
+    assert.equal(calls[2].headers.Authorization, undefined);
+    assert.equal(calls[2].headers["Private-Token"], undefined);
   });
 
   test("uses the unauthenticated client once the credentials are withheld", async () => {

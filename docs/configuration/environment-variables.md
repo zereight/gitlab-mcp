@@ -364,10 +364,8 @@ to trust that host and port. Requests keep the GitLab credential headers
 (`Authorization`, `Private-Token`, `JOB-TOKEN`) only towards the host the request
 started on and towards these trusted hosts; any other redirect target, such as object
 storage, is fetched without them. Once they have been withheld they stay off every later
-hop except a hop to a trusted host, which receives them anyway — and a hop that returns
-to the host the request started on after such a trusted hop keeps them too. A hop back
-to the host the request started on while the credentials are still withheld does not:
-the caller reads that response as the downloaded file, so an authenticated request there
+hop, including a hop to a trusted host or back to the host the request started on: the
+caller reads that response as the downloaded file, so an authenticated request there
 would be one the redirect target chose.
 
 A redirect that would downgrade an HTTPS request to cleartext HTTP is refused outright,
