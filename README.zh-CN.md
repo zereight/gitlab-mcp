@@ -149,10 +149,9 @@ CLI 参数优先于环境变量。
 
 > **细粒度工具过滤：**使用 `GITLAB_PERMISSION_MODE=modify` 允许创建/更新，同时阻止所有删除工具以及
 > 破坏性的拆除（teardown）工具（`cancel_pipeline`、`cancel_pipeline_job`、`stop_environment`、
-> `stop_stale_environments`、`unprotect_branch`）（包括通过 `execute_graphql` 的删除 mutation 以及
-> `push_files` 的 `delete`/`move`），或使用 `GITLAB_PERMISSION_MODE=readonly` 只读运行。该守卫目前仅
-> 覆盖 typed tool；像 `pipelineCancel` 这类名称不含 delete 的 GraphQL 拆除 mutation 尚未阻止
-> （参见 [#755](https://github.com/zereight/gitlab-mcp/pull/755)）。还可以用
+> `stop_stale_environments`、`unprotect_branch`）（包括通过 `execute_graphql` 的破坏性 mutation
+> —— 删除与拆除动词 —— 以及 `push_files` 的 `delete`/`move`），或使用
+> `GITLAB_PERMISSION_MODE=readonly` 只读运行。还可以用
 > `GITLAB_TOOLSETS=<group,…>` 启用工具分组，用 `GITLAB_TOOLS=<tool,…>` 白名单启用单个工具
 > （例如：只读分组 + 少数几个写工具），用 `GITLAB_DENIED_TOOLS_REGEX` 按正则屏蔽工具。
 > 旧版 `USE_GITLAB_WIKI` / `USE_MILESTONE` / `USE_PIPELINE` 标志仅为向后兼容保留。
