@@ -96,21 +96,13 @@ export const LIST_MERGE_REQUESTS_ID_USERNAME_PAIRS: readonly IdUsernameOptionPai
 /**
  * Whether a username filter actually selects anything.
  *
- * Judged the same way `appendFilterParam` judges it, so the two agree: a blank value is
- * not a value. Treating `[""]` or `"  "` as one here would drop the id filter and then
- * have the blank guard drop the username too, leaving no filter at all.
+ * Judged with the same helpers the list query serializers use, so the two agree: a blank
+ * value is not a value. Treating `[""]` or `"  "` as one here would drop the id filter and
+ * then have the blank guard drop the username too, leaving no filter at all.
  */
 function hasUsernameFilterValue(value: unknown): boolean {
-  // `undefined` needs no branch: isBlankFilterValue() already counts it as blank.
-  //
-  // `null` is the one value where this predicate and the query builder do not agree, and
-  // the branch below does not close that gap — it picks a side. isBlankFilterValue(null)
-  // is false, so appendFilterParam writes `assignee_username=null`; returning false here
-  // keeps `assignee_id` alongside it, which is the id/username pair GitLab answers with a
-  // 400. It is kept because it preserves the old `Boolean(null) === false` behavior. The
-  // value cannot reach the tool path (`sanitizeToolArguments` drops top-level nulls), and
-  // treating null as blank in isBlankFilterValue() would change every list tool's query
-  // building, so that fix belongs in its own change.
+  // null never reaches here from tools (sanitizeToolArguments strips it);
+  // keep the old Boolean(null) === false behavior.
   if (value === null) {
     return false;
   }
