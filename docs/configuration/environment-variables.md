@@ -506,13 +506,10 @@ Behavior:
   `cancel_pipeline`, `cancel_pipeline_job`, `stop_environment`, `stop_stale_environments`,
   and `unprotect_branch` from `tools/list`, rejects them when called directly, and rejects
   `push_files` `delete`/`move` actions
-- `modify` also rejects delete-style mutations (`delete`/`destroy`/`remove`/`prune`/`purge`
-  field names) sent through `execute_graphql`
-- Scope: the guard covers typed tools (the `tools/list` and `tools/call` paths) plus the
-  delete-style mutations listed above. GraphQL teardown mutations that carry no delete-style
-  name — for example `pipelineCancel` or `environmentStop` — are **not** blocked in `modify`
-  mode yet; widening `execute_graphql` coverage is tracked in
-  [PR #755](https://github.com/zereight/gitlab-mcp/pull/755)
+- `modify` also rejects destructive mutations sent through `execute_graphql`: any top-level
+  mutation field whose name contains a deletion verb (`delete`, `destroy`, `remove`, `prune`,
+  `purge`, `erase`) or a teardown verb (`revoke`, `cancel`, `stop`, `terminate`, `unprotect`,
+  `disable`, `deactivate`, `drop`, `unschedule`)
 - Invalid values fail startup with an error
 - `GITLAB_DENIED_TOOLS_REGEX` and the tool policy variables still apply on top
 

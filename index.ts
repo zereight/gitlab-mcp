@@ -10869,7 +10869,7 @@ async function handleToolCall(params: any) {
           GITLAB_PERMISSION_MODE === "modify" &&
           graphqlQueryContainsDeleteOperation(args.query)
         ) {
-          throw new Error("execute_graphql does not allow delete mutations in modify mode");
+          throw new Error("execute_graphql does not allow destructive mutations in modify mode");
         }
         const apiUrl = new URL(getEffectiveApiUrl());
         // Build GraphQL endpoint preserving any instance subpath (e.g. /gitlab)

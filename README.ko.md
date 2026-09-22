@@ -145,11 +145,10 @@ CLI 인자는 환경 변수보다 우선합니다.
 
 > **세밀한 도구 필터링:** `GITLAB_PERMISSION_MODE=modify`로 생성/수정은 허용하고 모든 삭제 도구와
 > 파괴적인 중단(teardown) 도구(`cancel_pipeline`, `cancel_pipeline_job`, `stop_environment`,
-> `stop_stale_environments`, `unprotect_branch`)를 차단하거나(`execute_graphql` 삭제 mutation과
-> `push_files`의 `delete`/`move` 포함), `GITLAB_PERMISSION_MODE=readonly`로 읽기 전용으로 운영할 수
-> 있습니다. 이 가드는 현재 typed tool만 대상으로 하며, `pipelineCancel`처럼 이름에 delete가 들어가지
-> 않는 GraphQL 중단 mutation은 아직 차단되지 않습니다
-> ([#755](https://github.com/zereight/gitlab-mcp/pull/755) 참고). 또한
+> `stop_stale_environments`, `unprotect_branch`)를 차단하거나(`execute_graphql`을 통한 파괴적
+> mutation — 삭제·중단 동사 — 과 `push_files`의 `delete`/`move` 포함),
+> `GITLAB_PERMISSION_MODE=readonly`로 읽기 전용으로 운영할 수
+> 있습니다. 또한
 > `GITLAB_TOOLSETS=<group,…>`로 도구 그룹을 활성화하고, `GITLAB_TOOLS=<tool,…>`로 개별 도구만
 > 허용하며(예: 읽기 도구 + 특정 쓰기 도구 몇 개), `GITLAB_DENIED_TOOLS_REGEX`로 패턴 차단할 수
 > 있습니다. 레거시 `USE_GITLAB_WIKI` / `USE_MILESTONE` / `USE_PIPELINE` 플래그는 하위 호환용으로만
