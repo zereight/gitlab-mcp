@@ -68,6 +68,34 @@ async function getToolNames(server: ServerInstance): Promise<string[]> {
   return result.tools.map((t: { name: string }) => t.name);
 }
 
+/**
+ * Asserts that a query passes the modify-mode guard *and* is forwarded to GitLab. The mock
+ * server has no `/api/graphql` route, so the call comes back as a downstream
+ * "GraphQL request failed" — that failure is the evidence the guard let the query through,
+ * which a "does not throw" check alone would not provide.
+ */
+async function assertQueryReachesGitLab(server: ServerInstance, query: string): Promise<void> {
+  const client = await connectClient(server);
+  try {
+    let outcome: string;
+    try {
+      outcome = JSON.stringify(await client.callTool("execute_graphql", { query }));
+    } catch (error) {
+      outcome = error instanceof Error ? error.message : String(error);
+    }
+    assert.ok(
+      !outcome.includes("modify mode"),
+      `the guard must not fire for "${query}", got: ${outcome}`
+    );
+    assert.ok(
+      outcome.includes("GraphQL request failed"),
+      `"${query}" should be forwarded to GitLab after passing the guard, got: ${outcome}`
+    );
+  } finally {
+    await client.disconnect();
+  }
+}
+
 const DELETE_SAMPLE_TOOLS = [
   "delete_issue",
   "delete_branch",
@@ -311,40 +339,19 @@ describe("Permission Mode", { concurrency: 1 }, () => {
     });
 
     test("does not apply the modify-mode guard to non-delete mutations", async () => {
-      const client = await connectClient(server);
-      try {
-        // The mock GitLab server has no GraphQL endpoint, so the call may fail
-        // downstream — but it must not fail with the modify-mode guard error.
-        await client.callTool("execute_graphql", {
-          query: "mutation { issueSetSeverity(input: { severity: HIGH }) { errors } }",
-        });
-      } catch (error) {
-        assert.ok(error instanceof Error);
-        assert.ok(
-          !error.message.includes("modify mode"),
-          `non-delete mutation should pass the guard, got: ${error.message}`
-        );
-      } finally {
-        await client.disconnect();
-      }
+      // issueSetSeverity writes, but nothing about it is destructive.
+      await assertQueryReachesGitLab(
+        server,
+        "mutation { issueSetSeverity(input: { severity: HIGH }) { errors } }"
+      );
     });
 
     test("does not apply the modify-mode guard when the alias looks destructive", async () => {
-      const client = await connectClient(server);
-      try {
-        // "stop" is only the caller-chosen label here; the field is issueSetSeverity.
-        await client.callTool("execute_graphql", {
-          query: "mutation { stop: issueSetSeverity(input: { severity: HIGH }) { errors } }",
-        });
-      } catch (error) {
-        assert.ok(error instanceof Error);
-        assert.ok(
-          !error.message.includes("modify mode"),
-          `an alias must not trigger the guard, got: ${error.message}`
-        );
-      } finally {
-        await client.disconnect();
-      }
+      // "stop" is only the caller-chosen label here; the field is issueSetSeverity.
+      await assertQueryReachesGitLab(
+        server,
+        "mutation { stop: issueSetSeverity(input: { severity: HIGH }) { errors } }"
+      );
     });
 
     test("rejects a destructive mutation hidden behind a harmless alias", async () => {
