@@ -93,12 +93,21 @@ export const LIST_MERGE_REQUESTS_ID_USERNAME_PAIRS: readonly IdUsernameOptionPai
   ["reviewer_id", "reviewer_username"],
 ];
 
+/**
+ * Whether a username filter actually selects anything.
+ *
+ * Judged with the same helpers the list query serializers use, so the two agree: a blank
+ * value is not a value. Treating `[""]` or `"  "` as one here would drop the id filter and
+ * then have the blank guard drop the username too, leaving no filter at all.
+ */
 function hasUsernameFilterValue(value: unknown): boolean {
-  if (Array.isArray(value)) {
-    return value.length > 0;
+  // null never reaches here from tools (sanitizeToolArguments strips it);
+  // keep the old Boolean(null) === false behavior.
+  if (value === null) {
+    return false;
   }
 
-  return Boolean(value);
+  return !isBlankFilterValue(dropBlankArrayEntries(value));
 }
 
 /**

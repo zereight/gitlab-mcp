@@ -194,7 +194,9 @@ Security notes:
 
 ### `SESSION_TIMEOUT_SECONDS`
 
-Per-session auth timeout in seconds when using remote authorization.
+Per-session auth timeout in seconds when using remote authorization. The SSE
+transport also closes connections that receive no `POST /messages` request for this
+long.
 
 Default:
 
@@ -349,6 +351,37 @@ Comma-separated additional hosts or GitLab base/API URLs allowed for
 `X-GitLab-API-URL` when `ENABLE_DYNAMIC_API_URL=true`. This is only for hosts
 beyond those already listed in `GITLAB_API_URL`; do not repeat `GITLAB_API_URL`
 hosts here. Examples: `gitlab.example.com,https://gitlab.company.com:8443/api/v4`.
+
+Hosts listed here (and in `GITLAB_API_URL`) are also trusted as redirect targets for
+downloads — release assets, job artifacts, job artifact files and uploaded attachments.
+Downloads follow upstream redirects only when the destination
+is one of these hosts, or when it resolves to a public address; redirects to loopback,
+private, link-local (for example `169.254.169.254`) or otherwise non-public addresses
+are refused, including when they are written as an equivalent IPv6 form such as
+`[::ffff:169.254.169.254]`. Self-hosted instances whose downloads redirect to another
+host on a private network must list that host here.
+
+Entries are matched exactly, including a non-default port: list `minio.internal:9000`
+to trust that host and port. Requests keep the GitLab credential headers
+(`Authorization`, `Private-Token`, `JOB-TOKEN`) only towards the host the request
+started on and towards these trusted hosts; any other redirect target, such as object
+storage, is fetched without them. Once they have been withheld they stay off every later
+hop, including a hop to a trusted host or back to the host the request started on: the
+caller reads that response as the downloaded file, so an authenticated request there
+would be one the redirect target chose.
+
+A redirect that would downgrade an HTTPS request to cleartext HTTP is refused outright,
+for every target including a trusted host. An instance that serves release assets from a
+plain-HTTP storage host on another hostname therefore has to serve that storage over
+HTTPS, or not redirect to it.
+
+The redirect target is resolved once for the address check and again when the
+connection is opened, so a name whose DNS answer changes between the two lookups is not
+covered by this validation. Pinning the connection to the checked address is not done
+here because `undici` derives the TLS `servername` from the request host: rewriting the
+request to an IP literal would drop hostname verification and bypass the per-origin
+proxy routing used for `HTTP_PROXY` / `NO_PROXY`. Downloads to arbitrary public hosts
+are allowed, which is required for GitLab object storage.
 
 ### `MCP_TRUST_PROXY`
 
@@ -713,13 +746,14 @@ Default:
 
 - `60`
 
-This single value is reused in three places (whichever limit is hit first wins):
+This single value is reused in four places (whichever limit is hit first wins):
 
 | Layer              | Key            | Routes                                                                        |
 | ------------------ | -------------- | ----------------------------------------------------------------------------- |
 | Express middleware | Client IP      | `POST` / `DELETE /mcp`                                                        |
 | Session handler    | MCP session ID | Existing sessions when `REMOTE_AUTHORIZATION=true` or `GITLAB_MCP_OAUTH=true` |
 | Download proxy     | Auth token     | `GET /downloads/*`                                                            |
+| SSE connections    | Client IP      | New `GET /sse` connections (rejected with `429`)                              |
 
 When `MCP_TRUST_PROXY` is unset behind a reverse proxy, all clients share one IP
 bucket and the per-IP limit becomes the bottleneck for the whole deployment.
@@ -757,14 +791,22 @@ from GitLab upstream API rate limits.
 ### `MAX_SESSIONS`
 
 Maximum concurrent MCP sessions on a single server instance (Streamable HTTP /
-remote authorization / MCP OAuth).
+remote authorization / MCP OAuth / SSE).
 
 Default:
 
 - `1000`
 
 When the limit is reached, new session creation is rejected until an existing
-session expires or is closed.
+session expires or is closed. For the SSE transport this applies to new
+`GET /sse` connections, which are additionally rate-limited per client IP
+(`MAX_REQUESTS_PER_MINUTE`) and closed after `SESSION_TIMEOUT_SECONDS` without a
+`POST /messages` request.
+
+At capacity `/health` reports `503` with `status: "degraded"` on both remote
+transports, so orchestrator health checks stop routing new work to the instance.
+Use `/health` as a readiness probe, not a liveness probe — a liveness restart at
+capacity drops every open session.
 
 ## Network and TLS
 

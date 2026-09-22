@@ -303,7 +303,7 @@ MCP 클라이언트 설정:
 | `REMOTE_AUTHORIZATION`                                           | 예   | 활성화하려면 `true`                                                                                                     |
 | `STREAMABLE_HTTP`                                                | 예   | 반드시 `true`                                                                                                           |
 | `ENABLE_DYNAMIC_API_URL`                                         | 선택 | 요청별 `X-GitLab-API-URL` 헤더 허용                                                                                     |
-| `GITLAB_ALLOWED_HOSTS`                                           | 선택 | 허용할 `X-GitLab-API-URL` 호스트의 쉼표 구분 목록; `GITLAB_API_URL` 호스트는 항상 허용                                  |
+| `GITLAB_ALLOWED_HOSTS`                                           | 선택 | 허용할 `X-GitLab-API-URL` 호스트의 쉼표 구분 목록; `GITLAB_API_URL` 호스트는 항상 허용. 다운로드 리다이렉트 대상(릴리즈 에셋, 잡 아티팩트, 업로드 첨부)으로도 신뢰되므로 사설망 호스트는 여기에 등록 |
 | `GITLAB_ALLOW_UNAUTHENTICATED_TOOL_DISCOVERY`                    | 선택 | 인증 없이 `initialize`, `notifications/initialized`, `tools/list`, `server/discover`만 허용(도구 호출은 여전히 인증 필요)                  |
 | `MCP_SERVER_URL` / `MCP_ALLOWED_HOSTS` / `MCP_ALLOWED_ORIGINS` | 선택 | DNS rebinding 방지를 위한 허용 `/mcp` 호스트/오리진 값                                                                  |
 | `MCP_TRUST_PROXY`                                                | 선택 | 리버스 프록시 뒤에서 `Forwarded` / `X-Forwarded-*` 헤더 신뢰(다운로드 URL, Express `req.ip`, `/mcp` IP rate limit, OAuth rate limit) |
@@ -367,6 +367,17 @@ Authorization: Bearer glpat-xxxxxxxxxxxxxxxxxxxx
 - 프록시 및 TLS 변수
 
 콜백 프록시 모드 상세는 [GitLab MCP OAuth Callback Proxy](./docs/auth/oauth-callback-proxy.md)를 참고하세요.
+
+#### SSE 세션 제한
+
+`GET /sse`에는 Streamable HTTP와 동일한 원격 전송 제어가 적용됩니다.
+
+- **Capacity:** 동시 SSE 세션은 최대 `MAX_SESSIONS`개(기본 1000)이며, 초과 연결은 `503`을 받습니다.
+- **생성 rate limit:** 새 연결은 클라이언트 IP당 `MAX_REQUESTS_PER_MINUTE`(기본 60)로 제한되며, 초과 연결은 `429`를 받습니다.
+- **Idle timeout:** `SESSION_TIMEOUT_SECONDS`(기본 1시간) 동안 `POST /messages` 요청이 없는 세션은 종료됩니다. 따라서 유휴 클라이언트는 슬롯을 계속 점유하는 대신 다시 연결해야 합니다. Streamable HTTP와 달리 SSE 스트림을 열어 두는 것은 활동으로 간주되지 **않습니다**.
+- 용량이 가득 찬 동안 `/health`는 `503`과 `status: "degraded"`를 반환합니다.
+
+설정은 [`MAX_SESSIONS`](./docs/configuration/environment-variables.md#max_sessions), `MAX_REQUESTS_PER_MINUTE`, `SESSION_TIMEOUT_SECONDS`를 참고하세요.
 
 ### 원격 인증 설정(멀티 유저 지원)
 

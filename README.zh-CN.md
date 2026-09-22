@@ -306,7 +306,7 @@ MCP 客户端配置：
 | `REMOTE_AUTHORIZATION`                                           | 是   | 设置为 `true` 以启用                                                                                                    |
 | `STREAMABLE_HTTP`                                                | 是   | 必须为 `true`                                                                                                           |
 | `ENABLE_DYNAMIC_API_URL`                                         | 可选 | 允许按请求通过 `X-GitLab-API-URL` 请求头指定 GitLab URL                                                                 |
-| `GITLAB_ALLOWED_HOSTS`                                           | 可选 | 允许的 `X-GitLab-API-URL` 主机逗号分隔列表；`GITLAB_API_URL` 中的主机始终允许                                          |
+| `GITLAB_ALLOWED_HOSTS`                                           | 可选 | 允许的 `X-GitLab-API-URL` 主机逗号分隔列表；`GITLAB_API_URL` 中的主机始终允许。也作为下载重定向目标（release 资产、job 工件、上传附件）受信任；私有网络主机请在此列出 |
 | `GITLAB_ALLOW_UNAUTHENTICATED_TOOL_DISCOVERY`                    | 可选 | 仅允许未认证的 `initialize`、`notifications/initialized`、`tools/list`、`server/discover`（工具调用仍需认证）                                |
 | `MCP_SERVER_URL` / `MCP_ALLOWED_HOSTS` / `MCP_ALLOWED_ORIGINS` | 可选 | 用于 DNS rebinding 防护的允许 `/mcp` 主机/来源值                                                                        |
 | `MCP_TRUST_PROXY`                                                | 可选 | 在反向代理后信任 `Forwarded` / `X-Forwarded-*` 请求头（下载 URL、Express `req.ip`、`/mcp` IP 速率限制、OAuth 速率限制） |
@@ -370,6 +370,17 @@ Authorization: Bearer glpat-xxxxxxxxxxxxxxxxxxxx
 - 代理和 TLS 变量
 
 回调代理模式详情请参阅 [GitLab MCP OAuth Callback Proxy](./docs/auth/oauth-callback-proxy.md)。
+
+#### SSE 会话限制
+
+`GET /sse` 与 Streamable HTTP 受到相同的远程传输控制：
+
+- **容量：** 并发 SSE 会话最多为 `MAX_SESSIONS` 个（默认 1000），超出的连接返回 `503`。
+- **创建速率限制：** 新连接按客户端 IP 受 `MAX_REQUESTS_PER_MINUTE` 限制（默认 60），超出的连接返回 `429`。
+- **空闲超时：** 在 `SESSION_TIMEOUT_SECONDS`（默认 1 小时）内没有 `POST /messages` 请求的会话会被关闭，因此空闲客户端必须重新连接，而不能一直占用容量槽位。与 Streamable HTTP 不同，保持 SSE 流打开**不**算作活动。
+- 实例达到容量时，`/health` 返回 `503` 和 `status: "degraded"`。
+
+可通过 [`MAX_SESSIONS`](./docs/configuration/environment-variables.md#max_sessions)、`MAX_REQUESTS_PER_MINUTE` 和 `SESSION_TIMEOUT_SECONDS` 调整这些限制。
 
 ### 远程授权设置（多用户支持）
 

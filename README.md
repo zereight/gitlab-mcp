@@ -333,7 +333,7 @@ the token to GitLab on behalf of the caller.
 | `REMOTE_AUTHORIZATION`                        | ✅       | Set to `true` to enable                                                                                                 |
 | `STREAMABLE_HTTP`                             | ✅       | Must be `true`                                                                                                          |
 | `ENABLE_DYNAMIC_API_URL`                      | optional | Allow per-request GitLab URL via `X-GitLab-API-URL` header                                                              |
-| `GITLAB_ALLOWED_HOSTS`                        | optional | Comma-separated allowed `X-GitLab-API-URL` hosts; `GITLAB_API_URL` hosts are always allowed                             |
+| `GITLAB_ALLOWED_HOSTS`                        | optional | Comma-separated allowed `X-GitLab-API-URL` hosts; `GITLAB_API_URL` hosts are always allowed. Also trusted as download redirect targets (release assets, job artifacts, uploaded attachments); list private-network hosts here |
 | `GITLAB_ALLOW_UNAUTHENTICATED_TOOL_DISCOVERY` | optional | Allow unauthenticated `initialize`, `notifications/initialized`, `tools/list`, and `server/discover` only (tool calls still require auth)  |
 | `MCP_SERVER_URL` / `MCP_ALLOWED_HOSTS` / `MCP_ALLOWED_ORIGINS` | optional | Allowed public `/mcp` host/origin values for DNS rebinding protection                                   |
 | `MCP_TRUST_PROXY`                             | optional | Trust `Forwarded` / `X-Forwarded-*` headers behind a reverse proxy (download URLs, Express `req.ip`, `/mcp` IP rate limits, OAuth rate limits) |
@@ -407,6 +407,17 @@ The reference document also covers:
 - proxy and TLS variables
 
 For callback proxy mode details, see [GitLab MCP OAuth Callback Proxy](./docs/auth/oauth-callback-proxy.md).
+
+#### SSE session limits
+
+`GET /sse` is subject to the same remote-transport controls as Streamable HTTP:
+
+- **Capacity:** at most `MAX_SESSIONS` concurrent SSE sessions (default 1000); further connections get `503`.
+- **Creation rate limit:** new connections are limited to `MAX_REQUESTS_PER_MINUTE` per client IP (default 60); excess connections get `429`.
+- **Idle timeout:** a session that receives no `POST /messages` request for `SESSION_TIMEOUT_SECONDS` (default 1 hour) is closed, so an idle client must reconnect instead of holding a capacity slot. Unlike Streamable HTTP, holding the SSE stream open does **not** count as activity.
+- `/health` returns `503` with `status: "degraded"` while the instance is at capacity.
+
+Tune these with [`MAX_SESSIONS`](./docs/configuration/environment-variables.md#max_sessions), `MAX_REQUESTS_PER_MINUTE`, and `SESSION_TIMEOUT_SECONDS`.
 
 ### Remote Authorization Setup (Multi-User Support)
 

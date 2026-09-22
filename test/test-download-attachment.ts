@@ -112,6 +112,14 @@ describe('download_attachment', () => {
       `/projects/${TEST_PROJECT_ID}/uploads/${TEST_SECRET}/document.txt`,
       (_req, res) => { res.set('Content-Type', 'text/plain').send('hello world'); }
     );
+
+    // GitLab redirects uploads to its object storage, so the hop after this response
+    // leaves the origin. The destination is a non-public address here.
+    mockGitLab.addMockHandler(
+      'get',
+      `/projects/${TEST_PROJECT_ID}/uploads/${TEST_SECRET}/redirected.txt`,
+      (_req, res) => { res.redirect('http://169.254.169.254/latest/meta-data/'); }
+    );
   });
 
   after(async () => {
@@ -194,6 +202,24 @@ describe('download_attachment', () => {
       );
 
     assert.ok(isRpcError || isContentError, 'Should return an error mentioning directory traversal');
+  });
+
+  test('a redirect to a non-public address is refused', async () => {
+    const raw = await callDownloadAttachment(
+      { project_id: TEST_PROJECT_ID, secret: TEST_SECRET, filename: 'redirected.txt' },
+      env
+    );
+
+    const mentionsRefusal = (text: string) => text.toLowerCase().includes('non-public address');
+    const isRpcError = typeof raw.error?.message === 'string' && mentionsRefusal(raw.error.message);
+    const isContentError =
+      Array.isArray(raw.result?.content) &&
+      raw.result.content.some(c => typeof c.text === 'string' && mentionsRefusal(c.text));
+
+    assert.ok(
+      isRpcError || isContentError,
+      `Should refuse the redirect instead of following it, got ${JSON.stringify(raw)}`
+    );
   });
 
   test('local_path through a symlink directory is rejected', async () => {

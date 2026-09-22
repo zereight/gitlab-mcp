@@ -204,6 +204,7 @@ import {
 } from "./masking/index.js";
 import { checkForNewVersion } from "./utils/version-check.js";
 import { assertGitLabVersionAtLeast } from "./utils/gitlab-version-gate.js";
+import { fetchWithValidatedRedirects } from "./utils/safe-redirect-fetch.js";
 import {
   parseGitLabVersionApiResponse,
   type GitLabInstanceVersionMetadata,
@@ -1928,6 +1929,22 @@ const getFetchConfig = (): { headers: Record<string, string>; dispatcher: Dispat
   };
 };
 
+/**
+ * Options for the download sinks that stream a file through `fetchWithValidatedRedirects`.
+ *
+ * GitLab answers a release asset, a job artifact or an uploaded file with a redirect to
+ * its object storage, so those hops leave the origin and must be validated. The client
+ * split matters as much as the headers: the wrapped client adds the cookie jar and a
+ * fresh `Authorization` on a `401`, so a hop whose credentials were withheld has to use
+ * plain undici instead.
+ */
+const downloadRedirectOptions = () => ({
+  ...getFetchConfig(),
+  fetchImpl: fetch,
+  unauthenticatedFetchImpl: undiciFetch,
+  isTrustedRedirectHost: isTrustedGitLabRedirectHost,
+});
+
 // Compute at startup
 const enabledToolsets = parseEnabledToolsets(GITLAB_TOOLSETS_RAW);
 const individuallyEnabledTools = parseIndividualTools(GITLAB_TOOLS_RAW);
@@ -2060,6 +2077,20 @@ for (const { host, apiUrl } of [
     GITLAB_ALLOWED_API_URLS_BY_HOST.set(host, apiUrl);
   }
 }
+
+/**
+ * Redirects from the GitLab API to operator-declared GitLab hosts are followed even
+ * when the host resolves to a private address (self-hosted instances and their
+ * storage may live on an internal network), and those hosts keep receiving the
+ * request credentials. Every other redirect target must resolve to a public
+ * address and is fetched without credentials.
+ *
+ * The lookup key is `URL.host`, which keeps a non-default port, matching how this
+ * map is built from GITLAB_API_URL / GITLAB_ALLOWED_HOSTS.
+ */
+const isTrustedGitLabRedirectHost = (host: string): boolean =>
+  GITLAB_ALLOWED_API_URLS_BY_HOST.has(host);
+
 const GITLAB_PROJECT_ID = process.env.GITLAB_PROJECT_ID;
 const GITLAB_ALLOWED_PROJECT_IDS =
   process.env.GITLAB_ALLOWED_PROJECT_IDS?.split(",")
@@ -7956,9 +7987,7 @@ async function downloadJobArtifacts(
     `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(effectiveProjectId)}/jobs/${encodeGitLabPathSegment(jobId)}/artifacts`
   );
 
-  const response = await fetch(url.toString(), {
-    ...getFetchConfig(),
-  });
+  const response = await fetchWithValidatedRedirects(url.toString(), downloadRedirectOptions());
 
   if (response.status === 404) {
     throw new Error(
@@ -8004,9 +8033,7 @@ async function getJobArtifactFile(
     `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(effectiveProjectId)}/jobs/${encodeGitLabPathSegment(jobId)}/artifacts/${encodedArtifactPath}`
   );
 
-  const response = await fetch(url.toString(), {
-    ...getFetchConfig(),
-  });
+  const response = await fetchWithValidatedRedirects(url.toString(), downloadRedirectOptions());
 
   if (response.status === 404) {
     throw new Error(`Artifact file not found: ${artifactPath}`);
@@ -10370,10 +10397,7 @@ async function downloadAttachment(
     `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(effectiveProjectId)}/uploads/${encodeGitLabPathSegment(secret)}/${encodeGitLabPathSegment(safeFilename)}`
   );
 
-  const response = await fetch(url.toString(), {
-    ...getFetchConfig(),
-    method: "GET",
-  });
+  const response = await fetchWithValidatedRedirects(url.toString(), downloadRedirectOptions());
 
   if (!response.ok) {
     await handleGitLabError(response);
@@ -10630,11 +10654,9 @@ async function downloadReleaseAsset(
 ): Promise<string> {
   const effectiveProjectId = getEffectiveProjectId(projectId);
 
-  const response = await fetch(
+  const response = await fetchWithValidatedRedirects(
     `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(effectiveProjectId)}/releases/${encodeGitLabPathSegment(tagName)}/downloads/${encodeGitLabPath(directAssetPath)}`,
-    {
-      ...getFetchConfig(),
-    }
+    downloadRedirectOptions()
   );
 
   await handleGitLabError(response);
@@ -14312,6 +14334,7 @@ function buildDownloadProxyDeps(): DownloadProxyDependencies {
     getDispatcherForUrl: clientPool.getDispatcherForUrl.bind(clientPool),
     fetch: undiciFetch,
     logger,
+    isTrustedRedirectHost: isTrustedGitLabRedirectHost,
   };
 }
 
@@ -14381,28 +14404,125 @@ async function startSSEServer(): Promise<void> {
     next();
   };
 
-  const transports: { [sessionId: string]: SSEServerTransport } = {};
+  // Session IDs are untrusted map keys (POST /messages?sessionId=). A null
+  // prototype prevents inherited names such as "constructor" from masquerading
+  // as live transports, matching the Streamable HTTP transport.
+  const transports: Record<string, SSEServerTransport> = Object.create(null);
+  const sessionLastActivity = new Map<string, number>();
   let shuttingDown = false;
 
-  app.get("/sse", rejectDnsRebinding, requireSseAuth, async (req: Request, res: Response) => {
-    const serverInstance = createServer();
-    const effectiveHosts = getEffectiveAllowedHosts(req);
-    const transport = new SSEServerTransport("/messages", res, {
-      enableDnsRebindingProtection: true,
-      allowedHosts: [...effectiveHosts],
-      allowedOrigins: [...effectiveHosts].flatMap(host => [`http://${host}`, `https://${host}`]),
-    });
-    transports[transport.sessionId] = transport;
-    res.on("close", () => {
-      delete transports[transport.sessionId];
-    });
-    await serverInstance.connect(transport);
+  // Mirror the Streamable HTTP controls so the SSE transport cannot be used to
+  // exhaust the process: a session cap, a per-IP creation rate limit and an idle
+  // timeout that closes connections which never send anything.
+  const maxSessions = Number.parseInt(process.env.MAX_SESSIONS || "1000", 10);
+  const maxSseConnectionsPerMinute = Number.parseInt(
+    process.env.MAX_REQUESTS_PER_MINUTE || "60",
+    10
+  );
+  const idleTimeoutMs = Math.max(SESSION_TIMEOUT_SECONDS, 1) * 1000;
+
+  const sseConnectionRateLimit = rateLimit({
+    windowMs: 60_000,
+    limit: maxSseConnectionsPerMinute,
+    keyGenerator: (req: Request) =>
+      ipKeyGenerator(normalizeProxyClientIpForRateLimit(req.ip ?? "")),
+    standardHeaders: true,
+    legacyHeaders: false,
+    handler: (_req: Request, res: Response) => {
+      res.status(429).json({
+        error: "Rate limit exceeded",
+        message: `Maximum ${maxSseConnectionsPerMinute} SSE connections per minute allowed`,
+      });
+    },
   });
+
+  /**
+   * Reclaim SSE sessions that have not received a POST /messages request within
+   * the idle timeout.
+   *
+   * On /sse it is correct to idle-close an open GET: the stream alone is not
+   * proof of a live client, so a client that connects and never sends anything
+   * would otherwise hold a MAX_SESSIONS slot forever. This intentionally
+   * differs from the Streamable HTTP GET /mcp handler, which pauses inactivity
+   * expiry while its stream is open so list_changed can still be pushed - do
+   * not copy that rule here.
+   */
+  const closeIdleSseSessions = () => {
+    const now = Date.now();
+    for (const [sessionId, lastActivity] of sessionLastActivity) {
+      if (now - lastActivity < idleTimeoutMs) continue;
+      const transport = transports[sessionId];
+      delete transports[sessionId];
+      sessionLastActivity.delete(sessionId);
+      logger.info(
+        { sessionId, event: "sse_session_idle_closed" },
+        `SSE session ${sessionId} closed after ${SESSION_TIMEOUT_SECONDS}s of inactivity`
+      );
+      if (transport) {
+        void transport.close().catch(error => {
+          logger.error({ err: error }, "Error closing idle SSE transport");
+        });
+      }
+    }
+  };
+
+  const idleSweep = setInterval(closeIdleSseSessions, Math.min(idleTimeoutMs, 60_000));
+  idleSweep.unref();
+
+  app.get(
+    "/sse",
+    rejectDnsRebinding,
+    requireSseAuth,
+    sseConnectionRateLimit,
+    async (req: Request, res: Response) => {
+      if (Object.keys(transports).length >= maxSessions) {
+        res.status(503).json({
+          error: "Server capacity reached",
+          message: `Maximum ${maxSessions} concurrent sessions allowed. Please try again later.`,
+        });
+        return;
+      }
+
+      const serverInstance = createServer();
+      const effectiveHosts = getEffectiveAllowedHosts(req);
+      const transport = new SSEServerTransport("/messages", res, {
+        enableDnsRebindingProtection: true,
+        allowedHosts: [...effectiveHosts],
+        allowedOrigins: [...effectiveHosts].flatMap(host => [`http://${host}`, `https://${host}`]),
+      });
+      const sessionId = transport.sessionId;
+      transports[sessionId] = transport;
+      sessionLastActivity.set(sessionId, Date.now());
+      res.on("close", () => {
+        delete transports[sessionId];
+        sessionLastActivity.delete(sessionId);
+      });
+
+      try {
+        await serverInstance.connect(transport);
+      } catch (error) {
+        logger.error({ err: error, sessionId }, "SSE connection error");
+        // Release the capacity slot immediately instead of waiting for the
+        // client to disconnect or the idle sweep to run.
+        delete transports[sessionId];
+        sessionLastActivity.delete(sessionId);
+        if (!res.headersSent) {
+          res.status(500).json({
+            error: "Internal server error",
+            message: error instanceof Error ? error.message : "Unknown error",
+          });
+        } else {
+          res.end();
+        }
+      }
+    }
+  );
 
   app.post("/messages", rejectDnsRebinding, requireSseAuth, async (req: Request, res: Response) => {
     const sessionId = req.query.sessionId as string;
     const transport = transports[sessionId];
     if (transport) {
+      sessionLastActivity.set(sessionId, Date.now());
       await transport.handlePostMessage(req, res);
     } else {
       res.status(400).send("No transport found for sessionId");
@@ -14412,10 +14532,21 @@ async function startSSEServer(): Promise<void> {
   registerDownloadProxy(app, buildDownloadProxyDeps());
 
   app.get("/health", (_: Request, res: Response) => {
-    res.status(200).json({
-      status: "healthy",
+    const activeSessions = Object.keys(transports).length;
+    const isHealthy = activeSessions < maxSessions;
+    if (!isHealthy) {
+      logger.warn(
+        { activeSessions, maxSessions },
+        "Health check degraded: active SSE session capacity reached"
+      );
+    }
+    res.status(isHealthy ? 200 : 503).json({
+      status: isHealthy ? "healthy" : "degraded",
       version: SERVER_VERSION,
       transport: TransportMode.SSE,
+      activeSessions,
+      maxSessions,
+      uptime: process.uptime(),
     });
   });
 
@@ -14428,6 +14559,7 @@ async function startSSEServer(): Promise<void> {
     if (shuttingDown) return;
     shuttingDown = true;
     logger.info(`${signal} received, shutting down SSE server...`);
+    clearInterval(idleSweep);
     httpServer.close(() => logger.info("SSE HTTP server closed"));
     await Promise.allSettled(
       Object.values(transports).map(async transport => {
