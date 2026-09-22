@@ -200,6 +200,7 @@ import {
 } from "./masking/index.js";
 import { checkForNewVersion } from "./utils/version-check.js";
 import { assertGitLabVersionAtLeast } from "./utils/gitlab-version-gate.js";
+import { fetchWithValidatedRedirects } from "./utils/safe-redirect-fetch.js";
 import {
   parseGitLabVersionApiResponse,
   type GitLabInstanceVersionMetadata,
@@ -1924,6 +1925,22 @@ const getFetchConfig = (): { headers: Record<string, string>; dispatcher: Dispat
   };
 };
 
+/**
+ * Options for the download sinks that stream a file through `fetchWithValidatedRedirects`.
+ *
+ * GitLab answers a release asset, a job artifact or an uploaded file with a redirect to
+ * its object storage, so those hops leave the origin and must be validated. The client
+ * split matters as much as the headers: the wrapped client adds the cookie jar and a
+ * fresh `Authorization` on a `401`, so a hop whose credentials were withheld has to use
+ * plain undici instead.
+ */
+const downloadRedirectOptions = () => ({
+  ...getFetchConfig(),
+  fetchImpl: fetch,
+  unauthenticatedFetchImpl: undiciFetch,
+  isTrustedRedirectHost: isTrustedGitLabRedirectHost,
+});
+
 // Compute at startup
 const enabledToolsets = parseEnabledToolsets(GITLAB_TOOLSETS_RAW);
 const individuallyEnabledTools = parseIndividualTools(GITLAB_TOOLS_RAW);
@@ -2076,6 +2093,20 @@ for (const { host, apiUrl } of [
     GITLAB_ALLOWED_API_URLS_BY_HOST.set(host, apiUrl);
   }
 }
+
+/**
+ * Redirects from the GitLab API to operator-declared GitLab hosts are followed even
+ * when the host resolves to a private address (self-hosted instances and their
+ * storage may live on an internal network), and those hosts keep receiving the
+ * request credentials. Every other redirect target must resolve to a public
+ * address and is fetched without credentials.
+ *
+ * The lookup key is `URL.host`, which keeps a non-default port, matching how this
+ * map is built from GITLAB_API_URL / GITLAB_ALLOWED_HOSTS.
+ */
+const isTrustedGitLabRedirectHost = (host: string): boolean =>
+  GITLAB_ALLOWED_API_URLS_BY_HOST.has(host);
+
 const GITLAB_PROJECT_ID = process.env.GITLAB_PROJECT_ID;
 const GITLAB_ALLOWED_PROJECT_IDS =
   process.env.GITLAB_ALLOWED_PROJECT_IDS?.split(",")
@@ -7972,9 +8003,7 @@ async function downloadJobArtifacts(
     `${getEffectiveApiUrl()}/projects/${encodeURIComponent(effectiveProjectId)}/jobs/${encodeGitLabPathSegment(jobId)}/artifacts`
   );
 
-  const response = await fetch(url.toString(), {
-    ...getFetchConfig(),
-  });
+  const response = await fetchWithValidatedRedirects(url.toString(), downloadRedirectOptions());
 
   if (response.status === 404) {
     throw new Error(
@@ -8023,9 +8052,7 @@ async function getJobArtifactFile(
     `${getEffectiveApiUrl()}/projects/${encodeURIComponent(effectiveProjectId)}/jobs/${encodeGitLabPathSegment(jobId)}/artifacts/${encodedArtifactPath}`
   );
 
-  const response = await fetch(url.toString(), {
-    ...getFetchConfig(),
-  });
+  const response = await fetchWithValidatedRedirects(url.toString(), downloadRedirectOptions());
 
   if (response.status === 404) {
     throw new Error(`Artifact file not found: ${artifactPath}`);
@@ -10389,10 +10416,7 @@ async function downloadAttachment(
     `${getEffectiveApiUrl()}/projects/${encodeURIComponent(effectiveProjectId)}/uploads/${encodeGitLabPathSegment(secret)}/${encodeGitLabPathSegment(safeFilename)}`
   );
 
-  const response = await fetch(url.toString(), {
-    ...getFetchConfig(),
-    method: "GET",
-  });
+  const response = await fetchWithValidatedRedirects(url.toString(), downloadRedirectOptions());
 
   if (!response.ok) {
     await handleGitLabError(response);
@@ -10649,11 +10673,9 @@ async function downloadReleaseAsset(
 ): Promise<string> {
   const effectiveProjectId = getEffectiveProjectId(projectId);
 
-  const response = await fetch(
-    `${getEffectiveApiUrl()}/projects/${encodeURIComponent(effectiveProjectId)}/releases/${encodeGitLabPathSegment(tagName)}/downloads/${encodeGitLabPath(directAssetPath)}`,
-    {
-      ...getFetchConfig(),
-    }
+  const response = await fetchWithValidatedRedirects(
+    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(effectiveProjectId)}/releases/${encodeGitLabPathSegment(tagName)}/downloads/${encodeGitLabPath(directAssetPath)}`,
+    downloadRedirectOptions()
   );
 
   await handleGitLabError(response);
@@ -14331,6 +14353,7 @@ function buildDownloadProxyDeps(): DownloadProxyDependencies {
     getDispatcherForUrl: clientPool.getDispatcherForUrl.bind(clientPool),
     fetch: undiciFetch,
     logger,
+    isTrustedRedirectHost: isTrustedGitLabRedirectHost,
   };
 }
 
