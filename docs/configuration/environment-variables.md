@@ -767,6 +767,8 @@ session expires or is closed. For the SSE transport this applies to new
 
 At capacity `/health` reports `503` with `status: "degraded"` on both remote
 transports, so orchestrator health checks stop routing new work to the instance.
+Use `/health` as a readiness probe, not a liveness probe — a liveness restart at
+capacity drops every open session.
 
 ## Network and TLS
 
