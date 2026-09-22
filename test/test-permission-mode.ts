@@ -264,7 +264,7 @@ describe("Permission Mode", { concurrency: 1 }, () => {
             client.callTool("execute_graphql", {
               query: 'mutation { issueDelete(input: { projectPath: "g/p", iid: "1" }) { errors } }',
             }),
-          (error: Error) => error.message.includes("delete mutations in modify mode"),
+          (error: Error) => error.message.includes("destructive mutations in modify mode"),
           "delete mutation should be rejected in modify mode"
         );
       } finally {
@@ -355,7 +355,7 @@ describe("Permission Mode", { concurrency: 1 }, () => {
             client.callTool("execute_graphql", {
               query: "mutation { harmless: environmentStop(input: {}) { errors } }",
             }),
-          (error: Error) => error.message.includes("delete mutations in modify mode"),
+          (error: Error) => error.message.includes("destructive mutations in modify mode"),
           "a destructive field must be rejected even when aliased"
         );
       } finally {
@@ -371,7 +371,7 @@ describe("Permission Mode", { concurrency: 1 }, () => {
               query:
                 'mutation { jobUnschedule(input: { id: "gid://gitlab/Ci::Build/1" }) { errors } }',
             }),
-          (error: Error) => error.message.includes("delete mutations in modify mode"),
+          (error: Error) => error.message.includes("destructive mutations in modify mode"),
           "jobUnschedule must be rejected in modify mode"
         );
       } finally {
