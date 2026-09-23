@@ -262,6 +262,18 @@ describe("managed response masking at the MCP boundary", { timeout: 30_000 }, ()
     );
   });
 
+  test("rejects invalid jmespath before the handler reaches GitLab", async t => {
+    const { client, requests } = await startMaskingServer(t, {
+      env: { ENABLE_STRICT_PROJECT_SCOPE: "true", GITLAB_ALLOWED_PROJECT_IDS: "12" },
+    });
+    const result = await client.callTool({
+      name: "list_issues",
+      arguments: { jmespath: "[[[" },
+    });
+    assert.equal(result.isError, true);
+    assert.deepEqual(requests, []);
+  });
+
   test("keeps optional default-project handlers available with their managed policy", async t => {
     const { client, requests } = await startMaskingServer(t);
     const fileResult = await client.callTool({

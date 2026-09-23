@@ -1,17 +1,33 @@
 import jmespath from "jmespath";
 
+declare module "jmespath" {
+  export function compile(expression: string): unknown;
+}
+
 /** MCP-only argument; stripped before GitLab handlers run (issue #766). */
 export const JMESPATH_TOOL_ARGUMENT = "jmespath";
 
 export const JMESPATH_TOOL_ARGUMENT_DESCRIPTION =
   "Optional JMESPath expression filtering the JSON result before return.";
 
-export function readJmespathExpression(args: Record<string, unknown> | undefined): string | undefined {
+export function readJmespathExpression(
+  args: Record<string, unknown> | undefined
+): string | undefined {
   if (!args) return undefined;
   const raw = args[JMESPATH_TOOL_ARGUMENT];
   if (typeof raw !== "string") return undefined;
   const trimmed = raw.trim();
   return trimmed.length > 0 ? trimmed : undefined;
+}
+
+/** Syntax check before the handler runs, so side-effecting tools never execute with a bad expression. */
+export function getJmespathSyntaxError(expression: string): string | undefined {
+  try {
+    jmespath.compile(expression);
+    return undefined;
+  } catch (error) {
+    return `Invalid jmespath expression: ${error instanceof Error ? error.message : String(error)}`;
+  }
 }
 
 export function omitJmespathArgument(args: Record<string, unknown>): Record<string, unknown> {
@@ -44,6 +60,14 @@ function prepareDataForJmespath(data: unknown, maskValue?: (value: unknown) => u
   return maskValue ? maskValue(data) : data;
 }
 
+function parseJson(text: string): { ok: true; value: unknown } | { ok: false } {
+  try {
+    return { ok: true, value: JSON.parse(text) };
+  } catch {
+    return { ok: false };
+  }
+}
+
 /** When false, return the tool result unchanged (masking still runs afterward). */
 export function shouldApplyJmespathFilter(
   result: ToolResultLike,
@@ -53,51 +77,35 @@ export function shouldApplyJmespathFilter(
   return Boolean(expression && !options?.skipJmespath && !result.isError);
 }
 
-/** Apply JMESPath to JSON serialized in text content blocks (and structuredContent when present). */
+/**
+ * Apply JMESPath to JSON serialized in text content blocks (and structuredContent when present).
+ * The handler has already run, so this never turns a result into an error: non-JSON text and
+ * evaluation failures return the original result.
+ */
 export function applyJmespathToToolResult<T extends ToolResultLike>(
   result: T,
   expression: string | undefined,
   options?: JmespathApplyOptions
 ): T {
-  if (!shouldApplyJmespathFilter(result, expression, options)) return result;
-  const expr = expression as string;
-  const { maskValue } = options ?? {};
+  if (!expression || !shouldApplyJmespathFilter(result, expression, options)) return result;
+  const maskValue = options?.maskValue;
+  const filter = (data: unknown) =>
+    applyJmespathFilter(prepareDataForJmespath(data, maskValue), expression);
 
   try {
-    const output: ToolResultLike = { ...result };
-
-    if (Array.isArray(output.content)) {
-      output.content = output.content.map(block => {
-        if (!isContentBlock(block) || block.type !== "text" || typeof block.text !== "string") {
-          return block;
-        }
-        let parsed: unknown;
-        try {
-          parsed = JSON.parse(block.text);
-        } catch {
-          throw new Error(
-            "jmespath was provided but tool result is not JSON text; omit jmespath or use a JSON-returning tool"
-          );
-        }
-        const filtered = applyJmespathFilter(prepareDataForJmespath(parsed, maskValue), expr);
-        return { ...block, text: JSON.stringify(filtered) };
-      });
-    }
-
-    if (output.structuredContent !== undefined) {
-      output.structuredContent = applyJmespathFilter(
-        prepareDataForJmespath(output.structuredContent, maskValue),
-        expr
-      );
-    }
-
-    return output as T;
-  } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Failed to apply jmespath filter to tool result";
-    return {
-      content: [{ type: "text", text: message }],
-      isError: true,
-    } as T;
+    const content = Array.isArray(result.content)
+      ? result.content.map(block => {
+          if (!isContentBlock(block) || block.type !== "text" || typeof block.text !== "string") {
+            return block;
+          }
+          const parsed = parseJson(block.text);
+          return parsed.ok ? { ...block, text: JSON.stringify(filter(parsed.value)) } : block;
+        })
+      : result.content;
+    return result.structuredContent === undefined
+      ? { ...result, content }
+      : { ...result, content, structuredContent: filter(result.structuredContent) };
+  } catch {
+    return result;
   }
 }

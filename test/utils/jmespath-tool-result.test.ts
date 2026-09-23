@@ -3,6 +3,7 @@ import { describe, test } from "node:test";
 import {
   applyJmespathFilter,
   applyJmespathToToolResult,
+  getJmespathSyntaxError,
   omitJmespathArgument,
   readJmespathExpression,
   shouldApplyJmespathFilter,
@@ -112,20 +113,18 @@ describe("jmespath tool result helpers", () => {
     );
   });
 
-  test("applyJmespathToToolResult returns isError for non-JSON text", () => {
-    const result = applyJmespathToToolResult(
-      { content: [{ type: "text", text: "done" }] },
-      "[].title"
-    );
-    assert.equal((result as { isError?: boolean }).isError, true);
-    assert.match(String((result.content as { text: string }[])[0].text), /not JSON text/);
+  test("applyJmespathToToolResult passes non-JSON success text through unchanged", () => {
+    const original = { content: [{ type: "text", text: "Created pipeline #1 for main." }] };
+    assert.deepEqual(applyJmespathToToolResult(original, "id"), original);
   });
 
-  test("applyJmespathToToolResult returns isError for invalid expressions", () => {
-    const result = applyJmespathToToolResult(
-      { content: [{ type: "text", text: JSON.stringify([{ a: 1 }]) }] },
-      "[[["
-    );
-    assert.equal((result as { isError?: boolean }).isError, true);
+  test("applyJmespathToToolResult returns the original result when evaluation fails", () => {
+    const original = { content: [{ type: "text", text: JSON.stringify({ title: 1 }) }] };
+    assert.deepEqual(applyJmespathToToolResult(original, "starts_with(title, `a`)"), original);
+  });
+
+  test("getJmespathSyntaxError rejects invalid expressions before execution", () => {
+    assert.match(getJmespathSyntaxError("[[[") ?? "", /Invalid jmespath expression/);
+    assert.equal(getJmespathSyntaxError("[].title"), undefined);
   });
 });

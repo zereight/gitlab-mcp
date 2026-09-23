@@ -225,6 +225,7 @@ import {
 } from "./utils/tool-args.js";
 import {
   applyJmespathToToolResult,
+  getJmespathSyntaxError,
   JMESPATH_TOOL_ARGUMENT,
   JMESPATH_TOOL_ARGUMENT_DESCRIPTION,
   omitJmespathArgument,
@@ -997,6 +998,16 @@ function createServer(): McpServer {
       maskingEngine = sessionContext
         ? sessionAuthStore.run(sessionContext, selectMaskingPolicy)
         : selectMaskingPolicy();
+
+      const jmespathSyntaxError = jmespathExpression
+        ? getJmespathSyntaxError(jmespathExpression)
+        : undefined;
+      if (jmespathSyntaxError) {
+        return logCompletion(
+          { content: [{ type: "text", text: jmespathSyntaxError }], isError: true },
+          { skipJmespath: true }
+        );
+      }
 
       // Handle discover_tools meta-tool directly (needs access to mcpServer and filteredTools)
       if (toolName === "discover_tools") {

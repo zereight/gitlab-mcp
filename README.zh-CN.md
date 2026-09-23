@@ -24,6 +24,7 @@
 - **多种传输方式** — 本地客户端使用 stdio，旧客户端使用 SSE，现代远程部署使用 Streamable HTTP
 - **客户端设置友好** — 提供 Claude Code、Codex、Antigravity、OpenCode、Copilot、Cline、Roo Code、Cursor、Kilo Code 和 Amp Code 示例
 - **适合自托管** — 支持自定义 GitLab 实例、代理设置和动态 API URL 路由
+- **JMESPath 结果过滤** — 在工具调用中传入可选的 `jmespath` 参数（见 `tools/list`），可在不改变 GitLab API 请求的情况下精简 JSON 结果；启用响应掩码时，JMESPath 作用于掩码后的数据
 
 ### 对比摘要
 
