@@ -224,6 +224,13 @@ import {
   sanitizeToolArguments,
 } from "./utils/tool-args.js";
 import {
+  applyJmespathToToolResult,
+  JMESPATH_TOOL_ARGUMENT,
+  JMESPATH_TOOL_ARGUMENT_DESCRIPTION,
+  omitJmespathArgument,
+  readJmespathExpression,
+} from "./utils/jmespath-tool-result.js";
+import {
   parseSearchReplaceBlocks,
   applySearchReplace,
   applyUnifiedDiff,
@@ -866,6 +873,20 @@ function createServer(): McpServer {
         };
       }
 
+      if (modified.inputSchema && typeof modified.inputSchema === "object") {
+        const properties =
+          modified.inputSchema.properties && typeof modified.inputSchema.properties === "object"
+            ? { ...modified.inputSchema.properties }
+            : {};
+        if (!(JMESPATH_TOOL_ARGUMENT in properties)) {
+          properties[JMESPATH_TOOL_ARGUMENT] = {
+            type: "string",
+            description: JMESPATH_TOOL_ARGUMENT_DESCRIPTION,
+          };
+          modified.inputSchema = { ...modified.inputSchema, properties };
+        }
+      }
+
       return modified;
     });
     // <<< END: Remove $schema for Gemini compatibility >>>
@@ -882,8 +903,11 @@ function createServer(): McpServer {
     const toolName = request.params.name;
     const start = Date.now();
     let maskingEngine: MaskingEngine | undefined;
+    const jmespathExpression = readJmespathExpression(
+      request.params.arguments as Record<string, unknown> | undefined
+    );
 
-    const logCompletion = (result: any) => {
+    const logCompletion = (result: any, completionOptions?: { skipJmespath?: boolean }) => {
       const durationMs = Date.now() - start;
       logger.info(
         { tool: toolName, event: "tool_call_done", durationMs },
@@ -893,9 +917,17 @@ function createServer(): McpServer {
         toolName === "get_pipeline_job_output" ||
         toolName === "get_job_artifact_file" ||
         (toolName === "download_release_asset" && !IS_REMOTE);
+      const filtered = applyJmespathToToolResult(result, jmespathExpression, {
+        ...completionOptions,
+        maskValue: maskingEngine
+          ? (value: unknown) => maskingEngine!.maskValue(value)
+          : undefined,
+      });
       return maskingEngine
-        ? maskingEngine.maskToolResult(result, { textFormat: isPlainTextResult ? "plain" : "json" })
-        : result;
+        ? maskingEngine.maskToolResult(filtered, {
+            textFormat: isPlainTextResult ? "plain" : "json",
+          })
+        : filtered;
     };
 
     const logError = (error: unknown) => {
@@ -1077,18 +1109,27 @@ function createServer(): McpServer {
             { tool: toolName, event: "tool_call_approval_required" },
             `Approval required: ${toolName}`
           );
-          return logCompletion({
-            content: [
-              {
-                type: "text",
-                text: `Tool "${toolName}" requires confirmation. This tool is marked as requiring approval before execution. Re-call with _confirmed: true to proceed.`,
-              },
-            ],
-          });
+          return logCompletion(
+            {
+              content: [
+                {
+                  type: "text",
+                  text: `Tool "${toolName}" requires confirmation. This tool is marked as requiring approval before execution. Re-call with _confirmed: true to proceed.`,
+                },
+              ],
+            },
+            { skipJmespath: true }
+          );
         }
         // Strip _confirmed from args before forwarding to handler
         const { _confirmed, ...cleanArgs } = request.params.arguments || {};
         request.params.arguments = cleanArgs;
+      }
+
+      if (request.params.arguments && typeof request.params.arguments === "object") {
+        request.params.arguments = omitJmespathArgument(
+          request.params.arguments as Record<string, unknown>
+        );
       }
 
       if (sessionContext) {

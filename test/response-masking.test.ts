@@ -230,6 +230,38 @@ describe("managed response masking at the MCP boundary", { timeout: 30_000 }, ()
     ]);
   });
 
+  test("applies jmespath to JSON tool results at the MCP boundary", async t => {
+    const { client } = await startMaskingServer(t, {
+      env: { ENABLE_STRICT_PROJECT_SCOPE: "true", GITLAB_ALLOWED_PROJECT_IDS: "12" },
+    });
+    const { tools } = await client.listTools();
+    const listMrs = tools.find(tool => tool.name === "list_merge_requests");
+    const jmespathSchema = (
+      listMrs?.inputSchema as { properties?: Record<string, { description?: string }> } | undefined
+    )?.properties?.jmespath;
+    assert.ok(jmespathSchema, "tools/list should inject optional jmespath on every tool schema");
+    assert.ok(
+      (jmespathSchema.description?.length ?? 0) < 120,
+      "jmespath schema description should stay short for tools/list token cost"
+    );
+    const result = await client.callTool({
+      name: "list_issues",
+      arguments: { jmespath: "[].title" },
+    });
+    const text = (result.content as { text: string }[])[0]?.text;
+    assert.deepEqual(JSON.parse(text), ["[one]"]);
+    const probe = await client.callTool({
+      name: "list_issues",
+      arguments: { jmespath: "[].starts_with(title, `ProjectOne`)" },
+    });
+    const probeText = (probe.content as { text: string }[])[0]?.text;
+    assert.deepEqual(
+      JSON.parse(probeText),
+      [false],
+      "jmespath must run on masked JSON so callers cannot probe hidden substrings"
+    );
+  });
+
   test("keeps optional default-project handlers available with their managed policy", async t => {
     const { client, requests } = await startMaskingServer(t);
     const fileResult = await client.callTool({

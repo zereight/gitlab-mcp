@@ -29,6 +29,7 @@ Supports PAT, OAuth, read-only mode, dynamic API URLs, and remote authorization 
 - **Multiple transports** — stdio for local clients, SSE for legacy clients, and Streamable HTTP for modern remote deployments
 - **Client-friendly setup** — examples for Claude Code, Codex, Antigravity, OpenCode, Copilot, Cline, Roo Code, Cursor, Kilo Code, and Amp Code
 - **Self-hosted ready** — works with custom GitLab instances, proxy settings, and dynamic API URL routing
+- **JMESPath result filtering** — optional `jmespath` on tool calls (see `tools/list`) shrinks JSON results without changing GitLab API requests; when response masking is enabled, JMESPath runs on masked data.
 
 ### How we compare
 
