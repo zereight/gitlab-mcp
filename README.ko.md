@@ -24,6 +24,7 @@ PAT, OAuth, 읽기 전용 모드, 동적 API URL, 원격 인증을 지원하며 
 - **여러 전송 방식** — 로컬 클라이언트용 stdio, 레거시 클라이언트용 SSE, 최신 원격 배포용 Streamable HTTP
 - **클라이언트 친화적 설정** — Claude Code, Codex, Antigravity, OpenCode, Copilot, Cline, Roo Code, Cursor, Kilo Code, Amp Code 예시 제공
 - **셀프 호스팅 대응** — 커스텀 GitLab 인스턴스, 프록시 설정, 동적 API URL 라우팅 지원
+- **JMESPath 결과 필터링** — 도구 호출에 선택적 `jmespath` 인자(`tools/list` 참고)를 넘기면 GitLab API 요청은 그대로 두고 JSON 결과만 줄여서 반환; 응답 마스킹이 켜져 있으면 마스킹된 데이터에 JMESPath가 적용됨
 
 ### 비교 요약
 
