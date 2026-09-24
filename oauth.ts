@@ -32,6 +32,29 @@ const pendingAuthRequests = new Map<
   }
 >();
 
+const OAUTH_REFRESH_TIMEOUT_MS = 10000;
+
+/**
+ * Decide whether a failed token-refresh response means the refresh token is
+ * genuinely dead (interactive re-login would fix it) versus a transient or
+ * configuration problem (where opening a browser is wrong).
+ *
+ * Returns true ONLY for a 400/401 whose JSON body has error "invalid_grant"
+ * or "invalid_token". Everything else — config errors (invalid_client,
+ * invalid_request), 5xx, 429, and non-JSON bodies — returns false.
+ */
+export function isAuthInvalidTokenResponse(status: number, bodyText: string): boolean {
+  if (status !== 400 && status !== 401) {
+    return false;
+  }
+  try {
+    const body = JSON.parse(bodyText) as { error?: string };
+    return body.error === "invalid_grant" || body.error === "invalid_token";
+  } catch {
+    return false;
+  }
+}
+
 interface TokenData {
   access_token: string;
   refresh_token?: string;
@@ -228,11 +251,15 @@ export class GitLabOAuth {
         "Content-Type": "application/x-www-form-urlencoded",
       },
       body: params.toString(),
+      signal: AbortSignal.timeout(OAUTH_REFRESH_TIMEOUT_MS),
     });
 
     if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Token refresh failed: ${response.status} ${errorText}`);
+      const bodyText = await response.text();
+      const authInvalid = isAuthInvalidTokenResponse(response.status, bodyText);
+      throw Object.assign(new Error(`Token refresh failed: ${response.status} ${bodyText}`), {
+        authInvalid,
+      });
     }
 
     const data = (await response.json()) as {
@@ -640,8 +667,13 @@ export class GitLabOAuth {
           tokenData = await this.refreshAccessToken(tokenData.refresh_token);
           this.saveToken(tokenData);
         } catch (error) {
-          logger.error({ err: error }, "Token refresh failed. Starting new OAuth flow...");
-          tokenData = await this.startOAuthFlow();
+          if ((error as { authInvalid?: boolean }).authInvalid === true) {
+            logger.error({ err: error }, "Refresh token invalid, starting new OAuth flow...");
+            tokenData = await this.startOAuthFlow();
+          } else {
+            logger.error({ err: error }, "Token refresh failed (transient/network), not opening browser.");
+            throw error;
+          }
         }
       } else {
         logger.info("No refresh token available. Starting new OAuth flow...");
@@ -708,11 +740,11 @@ export class GitLabOAuth {
 }
 
 /**
- * Create and initialize a GitLabOAuth client.
- * Performs initial authentication (triggers browser flow if needed).
- * Returns the client instance and the initial access token.
+ * Construct a GitLabOAuth client from environment configuration.
+ * Does NOT perform any network access — no token is acquired here.
+ * Throws if neither GITLAB_OAUTH_CLIENT_ID nor GITLAB_OAUTH_TOKEN_SCRIPT is set.
  */
-export async function initializeOAuthClient(gitlabUrl: string = "https://gitlab.com"): Promise<{ client: GitLabOAuth; accessToken: string }> {
+export function createGitLabOAuthClient(gitlabUrl: string = "https://gitlab.com"): GitLabOAuth {
   const clientId = process.env.GITLAB_OAUTH_CLIENT_ID;
   const clientSecret = process.env.GITLAB_OAUTH_CLIENT_SECRET;
   const redirectUri = process.env.GITLAB_OAUTH_REDIRECT_URI || "http://127.0.0.1:8888/callback";
@@ -725,7 +757,7 @@ export async function initializeOAuthClient(gitlabUrl: string = "https://gitlab.
     );
   }
 
-  const oauth = new GitLabOAuth({
+  return new GitLabOAuth({
     clientId: clientId || "external-token-script",
     clientSecret,
     redirectUri,
@@ -734,6 +766,43 @@ export async function initializeOAuthClient(gitlabUrl: string = "https://gitlab.
     tokenStoragePath,
     tokenScript,
   });
+}
+
+/**
+ * Ensure the caller holds a usable OAuth access token, delivering it via onToken.
+ * Returns cached token without network when still valid.
+ *
+ * NOTE: the fast path requires BOTH a held token and a valid stored token.
+ * Returning early on hasValidToken() alone would skip onToken after lazy
+ * startup (caller holds nothing yet) and leave requests unauthenticated.
+ */
+export async function ensureOAuthToken(
+  client: GitLabOAuth | null | undefined,
+  currentToken: string | null | undefined,
+  onToken: (token: string) => void
+): Promise<void> {
+  if (!client) return;
+
+  // Fast path: token already resolved for this process and still valid.
+  if (currentToken && client.hasValidToken()) return;
+
+  const needsRefresh = !client.hasValidToken();
+  if (needsRefresh) {
+    logger.info("OAuth token expired or missing, refreshing...");
+  }
+  onToken(await client.getAccessToken());
+  if (needsRefresh) {
+    logger.info("OAuth token refreshed successfully");
+  }
+}
+
+/**
+ * Create and initialize a GitLabOAuth client.
+ * Performs initial authentication (triggers browser flow if needed).
+ * Returns the client instance and the initial access token.
+ */
+export async function initializeOAuthClient(gitlabUrl: string = "https://gitlab.com"): Promise<{ client: GitLabOAuth; accessToken: string }> {
+  const oauth = createGitLabOAuthClient(gitlabUrl);
 
   // Single call: triggers browser flow if needed, or reads cached token
   const accessToken = await oauth.getAccessToken();
