@@ -95,6 +95,19 @@ describe("When a curated command is resolved", () => {
     });
   });
 
+  describe("with mr merge and --yes=false", () => {
+    it("should reject the inline value instead of merging", () => {
+      const resolved = resolve(
+        argv("mr", "merge", "--project-id", "123", "--mr-iid", "45", "--yes=false")
+      );
+
+      assert.equal(resolved.kind, "usage");
+      if (resolved.kind === "usage") {
+        assert.match(resolved.message, /--yes does not accept a value/);
+      }
+    });
+  });
+
   describe("with mr merge and no --yes", () => {
     it("should refuse until --yes is passed without dumping argument values", () => {
       const resolved = resolve(

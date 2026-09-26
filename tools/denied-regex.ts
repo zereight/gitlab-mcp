@@ -26,6 +26,10 @@ export function compileDeniedToolsRegex(pattern: string | undefined): DeniedTool
   }
 
   try {
+    // Operator config (CLI flag or env), not a remote request. The checks
+    // above bound length and nested quantifiers. main dismissed the same
+    // finding on the previous index.ts copy as a false positive.
+    // codeql[js/regex-injection]
     const regex = new RegExp(pattern);
     regex.test("sample_tool_name");
     return { regex, error: undefined };

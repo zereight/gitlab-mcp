@@ -136,6 +136,9 @@ export function parseArgv(argv: readonly string[]): ParsedArgv {
       continue;
     }
     if (flag.name === "yes") {
+      if (flag.inline !== undefined) {
+        throw new CliUsageError("--yes does not accept a value");
+      }
       yes = true;
       continue;
     }
