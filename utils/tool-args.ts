@@ -29,6 +29,57 @@ export function sanitizeToolArguments(
   return result;
 }
 
+/**
+ * Drop blank string entries inside array filters so ["", "bug"] behaves like the scalar blank guard.
+ */
+export function dropBlankArrayEntries(value: unknown): unknown {
+  if (!Array.isArray(value)) {
+    return value;
+  }
+
+  return value.filter(item => !(typeof item === "string" && item.trim() === ""));
+}
+
+/**
+ * Blank filters must be omitted entirely instead of being serialized as empty query parameters
+ * such as `labels=`, `labels[]=` or `iids=`.
+ */
+export function isBlankFilterValue(value: unknown): boolean {
+  return (
+    value === undefined ||
+    (typeof value === "string" && value.trim() === "") ||
+    (Array.isArray(value) && value.length === 0)
+  );
+}
+
+/**
+ * Append one query parameter, skipping blank filters and blank entries inside arrays.
+ * Booleans serialize as `true`/`false`, matching the inline branches this replaces.
+ */
+export function appendFilterParam(
+  searchParams: URLSearchParams,
+  key: string,
+  value: unknown
+): void {
+  const normalized = dropBlankArrayEntries(value);
+
+  if (isBlankFilterValue(normalized)) {
+    return;
+  }
+
+  searchParams.append(key, String(normalized));
+}
+
+/** Append every option as a query parameter while dropping blank filters. */
+export function appendFilterParams(
+  searchParams: URLSearchParams,
+  options: Record<string, unknown>
+): void {
+  for (const [key, value] of Object.entries(options)) {
+    appendFilterParam(searchParams, key, value);
+  }
+}
+
 export type IdUsernameOptionPair = readonly [idKey: string, usernameKey: string];
 
 /** Pairs where GitLab rejects sending both *_id and *_username query params. */
@@ -42,12 +93,21 @@ export const LIST_MERGE_REQUESTS_ID_USERNAME_PAIRS: readonly IdUsernameOptionPai
   ["reviewer_id", "reviewer_username"],
 ];
 
+/**
+ * Whether a username filter actually selects anything.
+ *
+ * Judged with the same helpers the list query serializers use, so the two agree: a blank
+ * value is not a value. Treating `[""]` or `"  "` as one here would drop the id filter and
+ * then have the blank guard drop the username too, leaving no filter at all.
+ */
 function hasUsernameFilterValue(value: unknown): boolean {
-  if (Array.isArray(value)) {
-    return value.length > 0;
+  // null never reaches here from tools (sanitizeToolArguments strips it);
+  // keep the old Boolean(null) === false behavior.
+  if (value === null) {
+    return false;
   }
 
-  return Boolean(value);
+  return !isBlankFilterValue(dropBlankArrayEntries(value));
 }
 
 /**

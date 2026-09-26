@@ -3,6 +3,7 @@ import { pipeline } from "node:stream/promises";
 import type { Express, Request, Response } from "express";
 import { fetch as undiciFetch, type Dispatcher } from "undici";
 import { decryptDownloadToken } from "../utils/download-token.js";
+import { fetchWithValidatedRedirects, UnsafeRedirectError } from "../utils/safe-redirect-fetch.js";
 
 const DEFAULT_DOWNLOAD_TIMEOUT_MS = 120_000;
 
@@ -18,6 +19,11 @@ export interface DownloadProxyDependencies {
   fetch: typeof undiciFetch;
   logger: { error: (obj: unknown, message?: string) => void };
   downloadTimeoutMs?: number;
+  /**
+   * Called with `URL.host` (host plus a non-default port), the same key the
+   * GITLAB_API_URL / GITLAB_ALLOWED_HOSTS allowlist uses.
+   */
+  isTrustedRedirectHost?: (host: string) => boolean;
 }
 
 function canonicalizeQueryParams(params: Record<string, string>): string {
@@ -143,7 +149,7 @@ export function registerDownloadProxy(app: Express, deps: DownloadProxyDependenc
             return;
           }
           const effectiveProjectId = deps.getEffectiveProjectId(decodeURIComponent(project_id));
-          gitlabUrl = `${apiUrl}/projects/${encodeURIComponent(effectiveProjectId)}/jobs/${deps.encodeGitLabPathSegment(job_id)}/artifacts`;
+          gitlabUrl = `${apiUrl}/projects/${deps.encodeGitLabPathSegment(effectiveProjectId)}/jobs/${deps.encodeGitLabPathSegment(job_id)}/artifacts`;
           break;
         }
         case "attachment": {
@@ -153,7 +159,9 @@ export function registerDownloadProxy(app: Express, deps: DownloadProxyDependenc
             return;
           }
           const effectiveProjectId = deps.getEffectiveProjectId(decodeURIComponent(project_id));
-          gitlabUrl = `${apiUrl}/projects/${encodeURIComponent(effectiveProjectId)}/uploads/${deps.encodeGitLabPathSegment(secret)}/${deps.encodeGitLabPath(filename)}`;
+          // The uploads route takes one filename segment; a slash inside the name must
+          // stay inside that segment instead of turning into another route level.
+          gitlabUrl = `${apiUrl}/projects/${deps.encodeGitLabPathSegment(effectiveProjectId)}/uploads/${deps.encodeGitLabPathSegment(secret)}/${deps.encodeGitLabPathSegment(filename)}`;
           break;
         }
         case "release-asset": {
@@ -165,7 +173,7 @@ export function registerDownloadProxy(app: Express, deps: DownloadProxyDependenc
             return;
           }
           const effectiveProjectId = deps.getEffectiveProjectId(decodeURIComponent(project_id));
-          gitlabUrl = `${apiUrl}/projects/${encodeURIComponent(effectiveProjectId)}/releases/${encodeURIComponent(tag_name)}/downloads/${deps.encodeGitLabPath(direct_asset_path)}`;
+          gitlabUrl = `${apiUrl}/projects/${deps.encodeGitLabPathSegment(effectiveProjectId)}/releases/${deps.encodeGitLabPathSegment(tag_name)}/downloads/${deps.encodeGitLabPath(direct_asset_path)}`;
           break;
         }
         default:
@@ -183,10 +191,12 @@ export function registerDownloadProxy(app: Express, deps: DownloadProxyDependenc
     const timeout = setTimeout(() => controller.abort(), downloadTimeoutMs);
 
     try {
-      const gitlabResponse = await deps.fetch(gitlabUrl, {
+      const gitlabResponse = await fetchWithValidatedRedirects(gitlabUrl, {
         headers,
         dispatcher: deps.getDispatcherForUrl(apiUrl),
         signal: controller.signal,
+        fetchImpl: deps.fetch,
+        isTrustedRedirectHost: deps.isTrustedRedirectHost,
       });
 
       if (!gitlabResponse.ok) {
@@ -213,9 +223,12 @@ export function registerDownloadProxy(app: Express, deps: DownloadProxyDependenc
     } catch (error) {
       deps.logger.error({ err: error }, "Download proxy error");
       if (!res.headersSent) {
-        const message = error instanceof Error && error.name === "AbortError"
-          ? "GitLab download timed out"
-          : "Failed to proxy download from GitLab";
+        const message =
+          error instanceof UnsafeRedirectError
+            ? `Refused upstream redirect: ${error.message}`
+            : error instanceof Error && error.name === "AbortError"
+              ? "GitLab download timed out"
+              : "Failed to proxy download from GitLab";
         res.status(502).json({ error: message });
       }
     } finally {

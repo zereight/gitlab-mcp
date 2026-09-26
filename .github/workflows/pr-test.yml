@@ -128,14 +128,14 @@ jobs:
     - name: Install Node dependencies
       run: npm ci --ignore-scripts
 
-    - name: Regenerate tool docs
-      run: npx tsx scripts/generate-tool-docs.ts
+    - name: Regenerate generated docs
+      run: npm run docs:tools
 
-    - name: Check for tool-docs drift
+    - name: Check for generated-docs drift
       run: |
-        if ! git diff --exit-code -- docs/tools/ || [ -n "$(git ls-files --others --exclude-standard -- docs/tools/)" ]; then
-          echo "::error::docs/tools/ is out of sync with tools/registry.ts. Run 'make tools-docs' and commit the result."
-          git status --porcelain -- docs/tools/
+        if ! git diff --exit-code -- docs/tools/ docs/reference/tool-coverage.md || [ -n "$(git ls-files --others --exclude-standard -- docs/tools/ docs/reference/tool-coverage.md)" ]; then
+          echo "::error::Generated docs are out of sync. Run 'make tools-docs' and commit the result."
+          git status --porcelain -- docs/tools/ docs/reference/tool-coverage.md
           exit 1
         fi
 

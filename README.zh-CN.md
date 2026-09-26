@@ -24,6 +24,7 @@
 - **多种传输方式** — 本地客户端使用 stdio，旧客户端使用 SSE，现代远程部署使用 Streamable HTTP
 - **客户端设置友好** — 提供 Claude Code、Codex、Antigravity、OpenCode、Copilot、Cline、Roo Code、Cursor、Kilo Code 和 Amp Code 示例
 - **适合自托管** — 支持自定义 GitLab 实例、代理设置和动态 API URL 路由
+- **JMESPath 结果过滤** — 在工具调用中传入可选的 `jmespath` 参数（见 `tools/list`），可在不改变 GitLab API 请求的情况下精简 JSON 结果；启用响应掩码时，JMESPath 作用于掩码后的数据
 
 ### 对比摘要
 
@@ -110,7 +111,7 @@ command = lib.getExe inputs.gitlab-mcp.packages.${system}.default;
 
 示例使用 `zereight-mcp-gitlab`，这是比旧的 `mcp-gitlab` 更不容易冲突的别名。如果 MCP 客户端找不到它，请使用 `which zereight-mcp-gitlab` 输出的绝对路径。
 
-如果不想全局安装，请将 `npx` 固定到上一个稳定版本（即文档推荐的版本），例如 `npx -y @zereight/mcp-gitlab@2.1.62`。如果始终想使用最新版本，请改用 `npx -y @zereight/mcp-gitlab@latest`。有新版本发布时，服务器会在启动时通过 stderr 提示（可用 `GITLAB_DISABLE_VERSION_CHECK=true` 关闭）。
+如果不想全局安装，请将 `npx` 固定到上一个稳定版本（即文档推荐的版本），例如 `npx -y @zereight/mcp-gitlab@2.1.65`。如果始终想使用最新版本，请改用 `npx -y @zereight/mcp-gitlab@latest`。有新版本发布时，服务器会在启动时通过 stderr 提示（可用 `GITLAB_DISABLE_VERSION_CHECK=true` 关闭）。
 
 #### 使用 CLI 参数（适用于环境变量有问题的客户端）
 
@@ -133,7 +134,7 @@ command = lib.getExe inputs.gitlab-mcp.packages.${system}.default;
 - `--token` - GitLab Personal Access Token（替代 `GITLAB_PERSONAL_ACCESS_TOKEN`）
 - `--api-url` - GitLab API URL（替代 `GITLAB_API_URL`）
 - `--read-only=true` - 启用只读模式（替代 `GITLAB_READ_ONLY_MODE`，已弃用 — 推荐 `--permission-mode=readonly`）
-- `--permission-mode` - 权限级别：`readonly`、`modify`（禁用删除工具）或 `full`（替代 `GITLAB_PERMISSION_MODE`，默认 `full`）
+- `--permission-mode` - 权限级别：`readonly`、`modify`（禁用删除/拆除工具）或 `full`（替代 `GITLAB_PERMISSION_MODE`，默认 `full`）
 - `--use-wiki=true` - 启用 Wiki API（替代 `USE_GITLAB_WIKI`，旧版 — 推荐 `GITLAB_TOOLSETS=wiki`）
 - `--use-milestone=true` - 启用里程碑 API（替代 `USE_MILESTONE`，旧版 — 推荐 `GITLAB_TOOLSETS=milestones`）
 - `--use-pipeline=true` - 启用流水线 API（替代 `USE_PIPELINE`，旧版 — 推荐 `GITLAB_TOOLSETS=pipelines`）
@@ -147,9 +148,11 @@ CLI 参数优先于环境变量。
 
 `zereight-mcp-gitlab auth` 是子命令，不是 MCP 服务器参数。它运行 GitLab device flow 后退出。参见 [CLI 参数](./docs/getting-started/cli-arguments.md#auth)。
 
-> **细粒度工具过滤：**使用 `GITLAB_PERMISSION_MODE=modify` 允许创建/更新并阻止所有删除工具
-> （包括通过 `execute_graphql` 的删除 mutation 以及 `push_files` 的 `delete`/`move`），
-> 或使用 `GITLAB_PERMISSION_MODE=readonly` 只读运行。还可以用
+> **细粒度工具过滤：**使用 `GITLAB_PERMISSION_MODE=modify` 允许创建/更新，同时阻止所有删除工具以及
+> 破坏性的拆除（teardown）工具（`cancel_pipeline`、`cancel_pipeline_job`、`stop_environment`、
+> `stop_stale_environments`、`unprotect_branch`）（包括通过 `execute_graphql` 的破坏性 mutation
+> —— 删除与拆除动词 —— 以及 `push_files` 的 `delete`/`move`），或使用
+> `GITLAB_PERMISSION_MODE=readonly` 只读运行。还可以用
 > `GITLAB_TOOLSETS=<group,…>` 启用工具分组，用 `GITLAB_TOOLS=<tool,…>` 白名单启用单个工具
 > （例如：只读分组 + 少数几个写工具），用 `GITLAB_DENIED_TOOLS_REGEX` 按正则屏蔽工具。
 > 旧版 `USE_GITLAB_WIKI` / `USE_MILESTONE` / `USE_PIPELINE` 标志仅为向后兼容保留。
@@ -304,7 +307,7 @@ MCP 客户端配置：
 | `REMOTE_AUTHORIZATION`                                           | 是   | 设置为 `true` 以启用                                                                                                    |
 | `STREAMABLE_HTTP`                                                | 是   | 必须为 `true`                                                                                                           |
 | `ENABLE_DYNAMIC_API_URL`                                         | 可选 | 允许按请求通过 `X-GitLab-API-URL` 请求头指定 GitLab URL                                                                 |
-| `GITLAB_ALLOWED_HOSTS`                                           | 可选 | 允许的 `X-GitLab-API-URL` 主机逗号分隔列表；`GITLAB_API_URL` 中的主机始终允许                                          |
+| `GITLAB_ALLOWED_HOSTS`                                           | 可选 | 允许的 `X-GitLab-API-URL` 主机逗号分隔列表；`GITLAB_API_URL` 中的主机始终允许。也作为下载重定向目标（release 资产、job 工件、上传附件）受信任；私有网络主机请在此列出 |
 | `GITLAB_ALLOW_UNAUTHENTICATED_TOOL_DISCOVERY`                    | 可选 | 仅允许未认证的 `initialize`、`notifications/initialized`、`tools/list`、`server/discover`（工具调用仍需认证）                                |
 | `MCP_SERVER_URL` / `MCP_ALLOWED_HOSTS` / `MCP_ALLOWED_ORIGINS` | 可选 | 用于 DNS rebinding 防护的允许 `/mcp` 主机/来源值                                                                        |
 | `MCP_TRUST_PROXY`                                                | 可选 | 在反向代理后信任 `Forwarded` / `X-Forwarded-*` 请求头（下载 URL、Express `req.ip`、`/mcp` IP 速率限制、OAuth 速率限制） |
@@ -368,6 +371,17 @@ Authorization: Bearer glpat-xxxxxxxxxxxxxxxxxxxx
 - 代理和 TLS 变量
 
 回调代理模式详情请参阅 [GitLab MCP OAuth Callback Proxy](./docs/auth/oauth-callback-proxy.md)。
+
+#### SSE 会话限制
+
+`GET /sse` 与 Streamable HTTP 受到相同的远程传输控制：
+
+- **容量：** 并发 SSE 会话最多为 `MAX_SESSIONS` 个（默认 1000），超出的连接返回 `503`。
+- **创建速率限制：** 新连接按客户端 IP 受 `MAX_REQUESTS_PER_MINUTE` 限制（默认 60），超出的连接返回 `429`。
+- **空闲超时：** 在 `SESSION_TIMEOUT_SECONDS`（默认 1 小时）内没有 `POST /messages` 请求的会话会被关闭，因此空闲客户端必须重新连接，而不能一直占用容量槽位。与 Streamable HTTP 不同，保持 SSE 流打开**不**算作活动。
+- 实例达到容量时，`/health` 返回 `503` 和 `status: "degraded"`。
+
+可通过 [`MAX_SESSIONS`](./docs/configuration/environment-variables.md#max_sessions)、`MAX_REQUESTS_PER_MINUTE` 和 `SESSION_TIMEOUT_SECONDS` 调整这些限制。
 
 ### 远程授权设置（多用户支持）
 

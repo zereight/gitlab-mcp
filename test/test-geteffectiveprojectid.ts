@@ -772,7 +772,10 @@ describe('GITLAB_ALLOWED_PROJECT_IDS guards repository and group mutators (allow
     ];
 
     for (const { name, args } of calls) {
-      await assert.rejects(client.callTool(name, args), /path segments/);
+      await assert.rejects(
+        client.callTool(name, args),
+        /Cannot use value as a GitLab URL path segment/
+      );
     }
   });
 });

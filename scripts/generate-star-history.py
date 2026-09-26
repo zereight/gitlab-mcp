@@ -35,8 +35,8 @@ def request_json(url: str):
     token = os.environ.get("GH_TOKEN") or os.environ.get("GITHUB_TOKEN")
     if token:
         req.add_header("Authorization", f"Bearer {token}")
-    req.add_header("Accept", "application/vnd.github.star+json")
-    req.add_header("X-GitHub-Api-Version", "2022-11-28")
+    req.add_header("Accept", "application/vnd.github+json")
+    req.add_header("X-GitHub-Api-Version", "2026-03-10")
     with urllib.request.urlopen(req, timeout=30) as res:
         return json.loads(res.read()), res.headers.get("Link", "")
 
@@ -49,14 +49,29 @@ def next_url(link: str) -> str | None:
 
 
 def fetch_stars(repo: str) -> list[dt.datetime]:
-    url = f"https://api.github.com/repos/{urllib.parse.quote(repo, safe='/')}/stargazers?per_page=100"
+    """Expand GitHub's privacy-safe weekly star history into chart points.
+
+    GitHub no longer exposes individual stargazer timestamps through the
+    listing endpoint. The history endpoint returns daily counts per week, so
+    use noon on each day as an approximate timestamp for each star.
+    """
+    url = f"https://api.github.com/repos/{urllib.parse.quote(repo, safe='/')}/stargazers/history?per_page=30"
     stars: list[dt.datetime] = []
     while url:
         data, link = request_json(url)
         for row in data:
-            starred_at = row.get("starred_at")
-            if starred_at:
-                stars.append(dt.datetime.fromisoformat(starred_at.replace("Z", "+00:00")))
+            week = row.get("week")
+            days = row.get("days")
+            if not isinstance(week, int) or not isinstance(days, list) or len(days) != 7:
+                raise SystemExit(f"Unexpected star history response for {repo}")
+            week_start = dt.datetime.fromtimestamp(week, tz=dt.timezone.utc)
+            for day, count in enumerate(days):
+                if not isinstance(count, int) or count < 0:
+                    raise SystemExit(f"Unexpected star history response for {repo}")
+                stars.extend(
+                    week_start + dt.timedelta(days=day, hours=12)
+                    for _ in range(count)
+                )
         url = next_url(link)
     if not stars:
         raise SystemExit(f"No stargazer timestamps returned for {repo}")
@@ -144,7 +159,7 @@ def draw(stars: list[dt.datetime]) -> None:
 
     OUT.parent.mkdir(parents=True, exist_ok=True)
     img.save(OUT)
-    print(f"wrote {OUT} from {len(stars)} stargazers")
+    print(f"wrote {OUT} from {len(stars)} stars")
 
 
 if __name__ == "__main__":

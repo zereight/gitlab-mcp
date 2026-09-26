@@ -3,6 +3,8 @@
  * It shows how to use the update_issue_note tool to resolve or unresolve
  * issue discussion threads.
  */
+import { encodeGitLabPathSegment } from "./utils/url.js";
+
 
 // GitLab API configuration (replace with actual values when testing)
 const GITLAB_API_URL = process.env.GITLAB_API_URL || "https://gitlab.com";
@@ -18,7 +20,7 @@ const NOTE_ID = process.env.NOTE_ID || "your-note-id";
 async function testResolveIssueNote() {
   try {
     const url = new URL(
-      `${GITLAB_API_URL}/api/v4/projects/${encodeURIComponent(
+      `${GITLAB_API_URL}/api/v4/projects/${encodeGitLabPathSegment(
         PROJECT_ID
       )}/issues/${ISSUE_IID}/discussions/${DISCUSSION_ID}/notes/${NOTE_ID}`
     );
@@ -54,7 +56,7 @@ async function testResolveIssueNote() {
 async function testUnresolveIssueNote() {
   try {
     const url = new URL(
-      `${GITLAB_API_URL}/api/v4/projects/${encodeURIComponent(
+      `${GITLAB_API_URL}/api/v4/projects/${encodeGitLabPathSegment(
         PROJECT_ID
       )}/issues/${ISSUE_IID}/discussions/${DISCUSSION_ID}/notes/${NOTE_ID}`
     );
@@ -90,7 +92,7 @@ async function testUnresolveIssueNote() {
 async function testUpdateIssueNoteBody() {
   try {
     const url = new URL(
-      `${GITLAB_API_URL}/api/v4/projects/${encodeURIComponent(
+      `${GITLAB_API_URL}/api/v4/projects/${encodeGitLabPathSegment(
         PROJECT_ID
       )}/issues/${ISSUE_IID}/discussions/${DISCUSSION_ID}/notes/${NOTE_ID}`
     );

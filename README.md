@@ -29,6 +29,7 @@ Supports PAT, OAuth, read-only mode, dynamic API URLs, and remote authorization 
 - **Multiple transports** — stdio for local clients, SSE for legacy clients, and Streamable HTTP for modern remote deployments
 - **Client-friendly setup** — examples for Claude Code, Codex, Antigravity, OpenCode, Copilot, Cline, Roo Code, Cursor, Kilo Code, and Amp Code
 - **Self-hosted ready** — works with custom GitLab instances, proxy settings, and dynamic API URL routing
+- **JMESPath result filtering** — optional `jmespath` on tool calls (see `tools/list`) shrinks JSON results without changing GitLab API requests; when response masking is enabled, JMESPath runs on masked data.
 
 ### How we compare
 
@@ -115,7 +116,7 @@ The store path is pinned by your lock file; update it with `nix flake update git
 
 The examples use `zereight-mcp-gitlab`, a less collision-prone alias for the legacy `mcp-gitlab` binary. If your MCP client cannot find it, use the absolute path from `which zereight-mcp-gitlab`.
 
-No global install? Pin `npx` to the previous stable release (the version these docs recommend), for example `npx -y @zereight/mcp-gitlab@2.1.62`. If you always want the newest release, use `npx -y @zereight/mcp-gitlab@latest` instead. The server prints a notice to stderr on startup when a newer version is available (disable with `GITLAB_DISABLE_VERSION_CHECK=true`).
+No global install? Pin `npx` to the previous stable release (the version these docs recommend), for example `npx -y @zereight/mcp-gitlab@2.1.65`. If you always want the newest release, use `npx -y @zereight/mcp-gitlab@latest` instead. The server prints a notice to stderr on startup when a newer version is available (disable with `GITLAB_DISABLE_VERSION_CHECK=true`).
 
 #### Using CLI Arguments (for clients with env var issues)
 
@@ -138,7 +139,7 @@ Some MCP clients (like GitHub Copilot CLI) have issues with environment variable
 - `--token` - GitLab Personal Access Token (replaces `GITLAB_PERSONAL_ACCESS_TOKEN`)
 - `--api-url` - GitLab API URL (replaces `GITLAB_API_URL`)
 - `--read-only=true` - Enable read-only mode (replaces `GITLAB_READ_ONLY_MODE`, deprecated — prefer `--permission-mode=readonly`)
-- `--permission-mode` - Permission level: `readonly`, `modify` (no delete tools), or `full` (replaces `GITLAB_PERMISSION_MODE`, default `full`)
+- `--permission-mode` - Permission level: `readonly`, `modify` (no delete or teardown tools), or `full` (replaces `GITLAB_PERMISSION_MODE`, default `full`)
 - `--use-wiki=true` - Enable wiki API (replaces `USE_GITLAB_WIKI`, legacy — prefer `GITLAB_TOOLSETS=wiki`)
 - `--use-milestone=true` - Enable milestone API (replaces `USE_MILESTONE`, legacy — prefer `GITLAB_TOOLSETS=milestones`)
 - `--use-pipeline=true` - Enable pipeline API (replaces `USE_PIPELINE`, legacy — prefer `GITLAB_TOOLSETS=pipelines`)
@@ -153,9 +154,11 @@ CLI arguments take precedence over environment variables.
 `zereight-mcp-gitlab auth` is a subcommand (not an MCP server flag). It runs GitLab device flow and exits. See [CLI Arguments](./docs/getting-started/cli-arguments.md#auth).
 
 > **Fine-grained tool filtering:** use `GITLAB_PERMISSION_MODE=modify` to allow create/update while
-> blocking every delete tool (including delete mutations through `execute_graphql` and
-> `push_files` `delete`/`move` actions), or
-> `GITLAB_PERMISSION_MODE=readonly` for read-only access. You can also
+> blocking every delete tool and the destructive teardown tools (`cancel_pipeline`,
+> `cancel_pipeline_job`, `stop_environment`, `stop_stale_environments`, `unprotect_branch`) —
+> including destructive mutations (deletion and teardown verbs) through `execute_graphql` and
+> `push_files` `delete`/`move` actions — or `GITLAB_PERMISSION_MODE=readonly` for read-only
+> access. You can also
 > enable toolset groups with `GITLAB_TOOLSETS=<group,…>`, allow-list individual tools with
 > `GITLAB_TOOLS=<tool,…>` (e.g. read-only groups plus a few specific write tools), and
 > deny-list by pattern with `GITLAB_DENIED_TOOLS_REGEX`. The legacy `USE_GITLAB_WIKI` /
@@ -331,7 +334,7 @@ the token to GitLab on behalf of the caller.
 | `REMOTE_AUTHORIZATION`                        | ✅       | Set to `true` to enable                                                                                                 |
 | `STREAMABLE_HTTP`                             | ✅       | Must be `true`                                                                                                          |
 | `ENABLE_DYNAMIC_API_URL`                      | optional | Allow per-request GitLab URL via `X-GitLab-API-URL` header                                                              |
-| `GITLAB_ALLOWED_HOSTS`                        | optional | Comma-separated allowed `X-GitLab-API-URL` hosts; `GITLAB_API_URL` hosts are always allowed                             |
+| `GITLAB_ALLOWED_HOSTS`                        | optional | Comma-separated allowed `X-GitLab-API-URL` hosts; `GITLAB_API_URL` hosts are always allowed. Also trusted as download redirect targets (release assets, job artifacts, uploaded attachments); list private-network hosts here |
 | `GITLAB_ALLOW_UNAUTHENTICATED_TOOL_DISCOVERY` | optional | Allow unauthenticated `initialize`, `notifications/initialized`, `tools/list`, and `server/discover` only (tool calls still require auth)  |
 | `MCP_SERVER_URL` / `MCP_ALLOWED_HOSTS` / `MCP_ALLOWED_ORIGINS` | optional | Allowed public `/mcp` host/origin values for DNS rebinding protection                                   |
 | `MCP_TRUST_PROXY`                             | optional | Trust `Forwarded` / `X-Forwarded-*` headers behind a reverse proxy (download URLs, Express `req.ip`, `/mcp` IP rate limits, OAuth rate limits) |
@@ -405,6 +408,17 @@ The reference document also covers:
 - proxy and TLS variables
 
 For callback proxy mode details, see [GitLab MCP OAuth Callback Proxy](./docs/auth/oauth-callback-proxy.md).
+
+#### SSE session limits
+
+`GET /sse` is subject to the same remote-transport controls as Streamable HTTP:
+
+- **Capacity:** at most `MAX_SESSIONS` concurrent SSE sessions (default 1000); further connections get `503`.
+- **Creation rate limit:** new connections are limited to `MAX_REQUESTS_PER_MINUTE` per client IP (default 60); excess connections get `429`.
+- **Idle timeout:** a session that receives no `POST /messages` request for `SESSION_TIMEOUT_SECONDS` (default 1 hour) is closed, so an idle client must reconnect instead of holding a capacity slot. Unlike Streamable HTTP, holding the SSE stream open does **not** count as activity.
+- `/health` returns `503` with `status: "degraded"` while the instance is at capacity.
+
+Tune these with [`MAX_SESSIONS`](./docs/configuration/environment-variables.md#max_sessions), `MAX_REQUESTS_PER_MINUTE`, and `SESSION_TIMEOUT_SECONDS`.
 
 ### Remote Authorization Setup (Multi-User Support)
 

@@ -109,6 +109,7 @@ nav:
       - Dependency Proxy: tools/dependency-proxy.md
       - Meta & GraphQL: tools/meta.md
   - Reference:
+      - Tool Invocation Coverage: reference/tool-coverage.md
       - GitHub Secrets Setup: reference/setup-github-secrets.md
       - Dependency Proxy Design: reference/dependency-proxy-design.md
       - Human CLI Design: reference/cli-usage-design.md
