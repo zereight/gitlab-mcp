@@ -260,6 +260,15 @@ describe("When reading the CLI command", () => {
     });
   });
 
+  describe("with --read-only false before a curated command", () => {
+    it("should skip the boolean literal and return mr", () => {
+      assert.equal(
+        getPositionalCliCommand(["node", "index.js", "--read-only", "false", "mr", "list"]),
+        "mr"
+      );
+    });
+  });
+
   describe("with space-separated --api-url before auth", () => {
     it("should skip the URL value and return auth", () => {
       assert.equal(

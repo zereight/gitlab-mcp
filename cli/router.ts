@@ -9,6 +9,7 @@ import {
   parseToolArgs,
   type OutputMode,
 } from "./args.js";
+import { liveCliExposure, type CliExposure } from "./exposure.js";
 import {
   canonicalGroup,
   findCuratedCommand,
@@ -38,6 +39,11 @@ export type CliResolution =
       readonly tableSpec: TableSpec | undefined;
     };
 
+export interface ResolveCliOptions {
+  readonly permissionMode?: GitLabPermissionMode;
+  readonly exposure?: CliExposure;
+}
+
 export function isCliInvocation(argv: readonly string[]): boolean {
   if (argvHasHelp(argv)) {
     return true;
@@ -51,10 +57,14 @@ export function isCliInvocation(argv: readonly string[]): boolean {
 
 export function resolveCli(
   argv: readonly string[],
-  options: { permissionMode?: GitLabPermissionMode } = {}
+  options: ResolveCliOptions = {}
 ): CliResolution {
   try {
-    return resolveCliUnsafe(argv, options.permissionMode ?? GITLAB_PERMISSION_MODE);
+    return resolveCliUnsafe(
+      argv,
+      options.permissionMode ?? GITLAB_PERMISSION_MODE,
+      options.exposure ?? liveCliExposure()
+    );
   } catch (error) {
     if (error instanceof CliUsageError) {
       return { kind: "usage", message: error.message };
@@ -63,7 +73,11 @@ export function resolveCli(
   }
 }
 
-function resolveCliUnsafe(argv: readonly string[], permissionMode: GitLabPermissionMode): CliResolution {
+function resolveCliUnsafe(
+  argv: readonly string[],
+  permissionMode: GitLabPermissionMode,
+  exposure: CliExposure
+): CliResolution {
   const parsed = parseArgv(argv);
   const [head, action, extra] = parsed.positionals;
 
@@ -99,6 +113,7 @@ function resolveCliUnsafe(argv: readonly string[], permissionMode: GitLabPermiss
       output: parsed.output ?? "json",
       yes: parsed.yes,
       permissionMode,
+      exposure,
       tableSpec: undefined,
     });
   }
@@ -142,6 +157,7 @@ function resolveCliUnsafe(argv: readonly string[], permissionMode: GitLabPermiss
     output: parsed.output ?? "table",
     yes: parsed.yes,
     permissionMode,
+    exposure,
     tableSpec: command.table,
   });
 }
@@ -154,10 +170,14 @@ function buildRun(input: {
   output: OutputMode;
   yes: boolean;
   permissionMode: GitLabPermissionMode;
+  exposure: CliExposure;
   tableSpec: TableSpec | undefined;
 }): CliResolution {
   if (input.toolName === "discover_tools") {
-    return { kind: "usage", message: "discover_tools is MCP-only; every registry tool is available via `tool <name>`" };
+    return {
+      kind: "usage",
+      message: "discover_tools is MCP-only; use `tool <name>` for registry tools allowed by the current filters",
+    };
   }
   const tool = allTools.find(entry => entry.name === input.toolName);
   if (tool === undefined) {
@@ -171,6 +191,11 @@ function buildRun(input: {
     extraArgs: input.extraArgs,
   });
 
+  const exposureMessage = input.exposure.exposureRefusal(input.toolName);
+  if (exposureMessage !== undefined) {
+    return { kind: "refused", message: exposureMessage };
+  }
+
   const permissionMessage = permissionRefusal(input.toolName, input.permissionMode);
   if (permissionMessage !== undefined) {
     return { kind: "refused", message: permissionMessage };
@@ -180,6 +205,13 @@ function buildRun(input: {
     return {
       kind: "refused",
       message: `Would run ${input.toolName} with arguments [${Object.keys(args).join(", ")}]. Re-run with --yes to proceed.`,
+    };
+  }
+
+  if (input.exposure.needsConfirmation(input.toolName) && !input.yes) {
+    return {
+      kind: "refused",
+      message: `${input.toolName} requires confirmation (GITLAB_TOOL_POLICY_APPROVE). Re-run with --yes to proceed.`,
     };
   }
 

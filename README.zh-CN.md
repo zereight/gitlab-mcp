@@ -148,6 +148,8 @@ CLI 参数优先于环境变量。
 
 `zereight-mcp-gitlab auth` 是子命令，不是 MCP 服务器参数。它运行 GitLab device flow 后退出。参见 [CLI 参数](./docs/getting-started/cli-arguments.md#auth)。
 
+同一二进制也是 `gh` 风格的 GitLab CLI（`tool <name>`，或 `mr list` 这类 curated 命令）。这些命令遵循与 MCP 服务器相同的 permission mode、toolsets、denied-tools regex 和 tool-policy 过滤器。破坏性工具以及 `GITLAB_TOOL_POLICY_APPROVE` 工具需要 `--yes`。参见 [Human CLI](./docs/getting-started/cli-arguments.md#human-cli)。
+
 > **细粒度工具过滤：**使用 `GITLAB_PERMISSION_MODE=modify` 允许创建/更新，同时阻止所有删除工具以及
 > 破坏性的拆除（teardown）工具（`cancel_pipeline`、`cancel_pipeline_job`、`stop_environment`、
 > `stop_stale_environments`、`unprotect_branch`）（包括通过 `execute_graphql` 的破坏性 mutation

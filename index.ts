@@ -153,6 +153,7 @@ import { getPositionalCliCommand } from "./cli-command.js";
 import { runAuthCommandAsync } from "./auth-cli.js";
 import { isCliInvocation, resolveCli } from "./cli/router.js";
 import { formatCliError, formatToolOutput } from "./cli/output.js";
+import { compileDeniedToolsRegex } from "./tools/denied-regex.js";
 import { createGitLabOAuthProvider } from "./oauth-proxy.js";
 import { mcpAuthRouter } from "@modelcontextprotocol/sdk/server/auth/router.js";
 import rateLimit, { ipKeyGenerator } from "express-rate-limit";
@@ -1566,38 +1567,13 @@ function isToolAllowedByPermissionMode(toolName: string): boolean {
 }
 
 const GITLAB_DENIED_TOOLS_REGEX = (() => {
-  const pattern = getConfig("denied-tools-regex", "GITLAB_DENIED_TOOLS_REGEX");
-  if (!pattern) return undefined;
-
-  // Reject patterns that are too long (potential ReDoS vector)
-  const MAX_PATTERN_LENGTH = 200;
-  if (pattern.length > MAX_PATTERN_LENGTH) {
-    logger.error(
-      `GITLAB_DENIED_TOOLS_REGEX pattern exceeds ${MAX_PATTERN_LENGTH} chars. Ignoring.`
-    );
-    return undefined;
+  const compiled = compileDeniedToolsRegex(
+    getConfig("denied-tools-regex", "GITLAB_DENIED_TOOLS_REGEX")
+  );
+  if (compiled.error) {
+    logger.error(compiled.error);
   }
-
-  // Reject patterns with nested quantifiers that can cause catastrophic backtracking (ReDoS)
-  // e.g., (a+)+, (a*)+, (a+)*, (a{1,})+
-  // Note: lookahead (?!), (?=), lookbehind (?<), and named groups (?<name>) are safe and allowed
-  const NESTED_QUANTIFIER_PATTERN = /(\(.*[+*?].*\)|\[.*\])[+*?]/;
-  if (NESTED_QUANTIFIER_PATTERN.test(pattern)) {
-    logger.error(
-      `GITLAB_DENIED_TOOLS_REGEX contains potentially unsafe nested quantifiers. Ignoring.`
-    );
-    return undefined;
-  }
-
-  try {
-    const regex = new RegExp(pattern);
-    // Dry-run against a sample string to catch immediate issues
-    regex.test("sample_tool_name");
-    return regex;
-  } catch {
-    logger.error(`Invalid GITLAB_DENIED_TOOLS_REGEX pattern: "${pattern}". Ignoring.`);
-    return undefined;
-  }
+  return compiled.regex;
 })();
 
 // ---------------------------------------------------------------------------
