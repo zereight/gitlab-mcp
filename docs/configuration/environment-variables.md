@@ -7,6 +7,20 @@ Use an API URL, not the GitLab web root:
 - `https://gitlab.com/api/v4`
 - `https://your-gitlab.example.com/api/v4`
 
+## Compact MCP results
+
+### `GITLAB_MCP_COMPACT_RESULTS`
+
+Optional. Set to `true` to replace oversized MCP tool replies with a JSON preview
+and a `zereight-mcp-gitlab tool …` command that prints the full payload in a
+terminal. Default `false` so existing clients keep the complete JSON. Human CLI
+commands are never compacted.
+
+### `GITLAB_MCP_COMPACT_RESULT_CHARS`
+
+Optional. Character threshold for compacting (default `4000`). Only used when
+`GITLAB_MCP_COMPACT_RESULTS=true`.
+
 ## Response masking
 
 ### `GITLAB_MASKING_ENABLED`

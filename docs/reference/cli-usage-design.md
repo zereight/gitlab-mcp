@@ -1,20 +1,28 @@
 # Human CLI Usage — Design Spec
 
 **Date:** 2026-09-17
-**Status:** Implemented (generic `tool` layer + curated phases 1–3)
-**Approach:** Two-layer CLI. A schema-driven generic `tool` layer covering all registry tools from day one, plus a curated resource-command layer for daily use. No new API surface, no new dependencies.
+**Status:** Implemented (generic `tool` layer + curated phases 1–3 + optional MCP compact)
+**Approach:** Same binary, two doors. MCP stays the agent path. The CLI prints the full tool payload on stdout so large GitLab results do not have to live in the model context.
 
 ---
 
-## Overview
+## Why this CLI exists
 
-The installed binary (`zereight-mcp-gitlab`) ships via npm and Homebrew. It still starts the MCP server when there is no CLI subcommand, and `auth` is unchanged. `index.ts` `main()` now also routes `tool <name>` and curated `<group> <action>` commands through `handleToolCall` so users can run GitLab operations from the shell without an MCP client.
+MCP `CallTool` replies are conversation tokens. Lists, diffs, and job logs are the expensive part. The CLI is the offload: run the same registry tool in a terminal and keep the chat on summaries.
+
+```text
+MCP client  ── CallTool ──> compact preview + `cli` command   (opt-in)
+terminal    ── tool/mr  ──> full unwrapped payload            (always)
+```
+
+`GITLAB_MCP_COMPACT_RESULTS` is **off by default**. Turning it on is the only MCP reply-shape change. Without that flag, tool JSON is unchanged. Human CLI is never compacted.
 
 Non-goals for this design:
 
 - No new GitLab API coverage. Every command maps to an existing tool in `tools/registry.ts`.
 - No interactive prompts in v1. Destructive commands take an explicit `--yes` flag instead.
 - No new runtime dependencies. Output rendering is hand-rolled.
+- Compact mode does not shrink ListTools schema tax. Shrink toolsets for that.
 
 ---
 

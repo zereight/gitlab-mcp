@@ -51,6 +51,8 @@ import {
   GITLAB_OAUTH_ALLOWED_GROUPS_RAW,
   GITLAB_ALLOWED_GROUPS_RAW,
   GITLAB_OAUTH_ALLOWED_GROUPS,
+  GITLAB_MCP_COMPACT_RESULTS,
+  GITLAB_MCP_COMPACT_RESULT_CHARS,
 } from "./config.js";
 
 /** True when the server is running in remote/network mode (SSE or StreamableHTTP transport). */
@@ -153,6 +155,7 @@ import { getPositionalCliCommand } from "./cli-command.js";
 import { runAuthCommandAsync } from "./auth-cli.js";
 import { isCliInvocation, resolveCli } from "./cli/router.js";
 import { formatCliError, formatToolOutput } from "./cli/output.js";
+import { compactMcpToolResult, readOwnRecord } from "./cli/compact-mcp-result.js";
 import { compileDeniedToolsRegex } from "./tools/denied-regex.js";
 import { createGitLabOAuthProvider } from "./oauth-proxy.js";
 import { mcpAuthRouter } from "@modelcontextprotocol/sdk/server/auth/router.js";
@@ -927,14 +930,21 @@ function createServer(): McpServer {
           ? (value: unknown) => maskingEngine!.maskValue(value)
           : undefined,
       });
-      return maskingEngine
+      const masked = maskingEngine
         ? maskingEngine.maskToolResult(filtered, {
             textFormat: isPlainTextResult ? "plain" : "json",
           })
         : filtered;
+      return compactMcpToolResult({
+        result: masked,
+        enabled: GITLAB_MCP_COMPACT_RESULTS,
+        maxChars: GITLAB_MCP_COMPACT_RESULT_CHARS,
+        toolName,
+        args: readOwnRecord(request.params.arguments),
+      });
     };
 
-    const logError = (error: unknown) => {
+    const logError = (error: unknown): never => {
       const durationMs = Date.now() - start;
       const safeError = maskingEngine ? maskingEngine.maskError(error) : error;
       logger.error(
@@ -1159,6 +1169,7 @@ function createServer(): McpServer {
       return logCompletion(result);
     } catch (error) {
       logError(error);
+      throw error;
     }
   });
 
