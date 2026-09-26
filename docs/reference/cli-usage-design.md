@@ -8,7 +8,7 @@
 
 ## Overview
 
-The installed binary (`zereight-mcp-gitlab`) already ships everywhere via npm and Homebrew, but today it only serves two roles: MCP server and the single `auth` subcommand. This spec designs a third role: a human-usable CLI in the style of `gh`, so installed users can run everyday GitLab operations from the shell without an MCP client.
+The installed binary (`zereight-mcp-gitlab`) ships via npm and Homebrew. It still starts the MCP server when there is no CLI subcommand, and `auth` is unchanged. `index.ts` `main()` now also routes `tool <name>` and curated `<group> <action>` commands through `handleToolCall` so users can run GitLab operations from the shell without an MCP client.
 
 Non-goals for this design:
 
@@ -22,7 +22,7 @@ Non-goals for this design:
 
 - `package.json` exposes two bin aliases (`mcp-gitlab`, `zereight-mcp-gitlab`) pointing at `build/index.js`.
 - `Formula/zereight-mcp-gitlab.rb` wraps the npm tarball and symlinks the bins, so the Homebrew install is already a shell-runnable binary.
-- `cli-command.ts` (`getPositionalCliCommand`) reads the first positional arg; `index.ts` `main()` branches to `runAuthCommandAsync()` for `auth` and to `runServer()` otherwise.
+- `cli-command.ts` (`getPositionalCliCommand`) reads the first positional arg. `index.ts` `main()` dispatches `auth`, `tool <name>`, and curated `<group> <action>` via `resolveCli`, then falls through to `runServer()` when there is no CLI command.
 - All other flags (`--token`, `--api-url`, `--permission-mode`, …) are server settings parsed in `config.ts`.
 - Tool inventory: 263 tools in `allTools`, grouped into 21 toolsets in `TOOLSET_DEFINITIONS`. Shared tools (e.g. `get_branch`, `list_branches`) resolve to the last-defined toolset via `TOOLSET_BY_TOOL_NAME` with a `console.warn`.
 
@@ -50,7 +50,7 @@ zereight-mcp-gitlab tool create_issue --args-json '{"project_id":"123","title":"
 - Tool name is exact (`snake_case`, as in the registry). No aliases, no fuzzy matching.
 - Flags mirror input-schema keys in kebab-case (`project_id` → `--project-id`). Required schema fields are required flags.
 - `--args-json '{...}'` is the escape hatch for nested objects and arrays.
-- `--output json` (default for this layer) prints the raw tool result. `--output table` picks the curated renderer when one exists for that tool, else falls back to JSON with a stderr note.
+- `--output json` (default for this layer) prints the unwrapped payload (`content[].text`, JSON-parsed when possible). `--output table` picks the curated renderer when one exists for that tool, else falls back to JSON with a stderr note.
 - `--help` after a tool name prints its description plus generated flag list from `toJSONSchema`.
 
 ### Curated layer: resource groups
@@ -146,7 +146,7 @@ Phase 3 curates the remaining groups on demand. Nothing is ever blocked: any too
 
 ## Output format
 
-- Curated commands default to `--output table`: one line per item for lists (`ID  STATE  TITLE`), key-value summary for single gets. `--output json` prints the raw tool result for scripting.
+- Curated commands default to `--output table`: one line per item for lists (`ID  STATE  TITLE`), key-value summary for single gets. `--output json` prints the unwrapped payload for scripting.
 - Generic `tool` commands default to `--output json`.
 - Human output goes to stdout; diagnostics, warnings, and the version notice go to stderr, so `... --output json | jq` stays clean.
 - Errors print a one-line message (`GitLab API error: 404 Not Found`) to stderr. Token and secret masking reuses `utils/redact-sensitive.ts`.

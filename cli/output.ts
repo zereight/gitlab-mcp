@@ -48,11 +48,13 @@ function unwrapToolText(result: unknown): string {
   if (!isRecord(result) || !Array.isArray(result.content)) {
     return stringifyUnknown(result);
   }
-  const first = result.content[0];
-  if (!isRecord(first) || typeof first.text !== "string") {
+  const textBlock = result.content.find(
+    item => isRecord(item) && typeof item.text === "string"
+  );
+  if (!isRecord(textBlock) || typeof textBlock.text !== "string") {
     return stringifyUnknown(result);
   }
-  return first.text;
+  return textBlock.text;
 }
 
 function jsonOrRaw(text: string): string {

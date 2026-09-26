@@ -41,6 +41,23 @@ describe("When formatToolOutput prints a tool result", () => {
     });
   });
 
+  describe("with a non-text content block first", () => {
+    it("should unwrap the first text payload", () => {
+      const formatted = formatToolOutput({
+        result: {
+          content: [
+            { type: "image", data: "xxx" },
+            { type: "text", text: JSON.stringify({ id: 2 }) },
+          ],
+        },
+        mode: "json",
+        tableSpec: undefined,
+      });
+
+      assert.equal(formatted.stdout, "{\"id\":2}\n");
+    });
+  });
+
   describe("with an API-style error object", () => {
     it("should mark the result as an error", () => {
       const formatted = formatToolOutput({
@@ -57,10 +74,11 @@ describe("When formatToolOutput prints a tool result", () => {
 describe("When formatCliError prints a thrown error", () => {
   describe("with a token in the message", () => {
     it("should redact the token", () => {
-      const text = formatCliError(new Error("auth failed glpat-abcdefghijklmnopqrstuvwxyz"));
+      const leaked = `glpat-${"notarealtokenvalue"}`;
+      const text = formatCliError(new Error(`auth failed ${leaked}`));
 
       assert.match(text, /\[REDACTED\]/);
-      assert.equal(text.includes("glpat-abcdefghijklmnopqrstuvwxyz"), false);
+      assert.equal(text.includes(leaked), false);
     });
   });
 });

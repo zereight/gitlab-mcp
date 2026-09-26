@@ -262,7 +262,7 @@ export function listGroups(): readonly string[] {
 
 export function resolveScopedTool(
   command: CuratedCommand,
-  flags: Readonly<Record<string, string>>
+  flags: Readonly<Record<string, unknown>>
 ): string {
   const scope = command.scope;
   if (scope === undefined) {

@@ -251,6 +251,15 @@ describe("When reading the CLI command", () => {
     });
   });
 
+  describe("with --use-oauth before a curated command", () => {
+    it("should still return mr instead of consuming it as the flag value", () => {
+      assert.equal(
+        getPositionalCliCommand(["node", "index.js", "--use-oauth", "mr", "list"]),
+        "mr"
+      );
+    });
+  });
+
   describe("with space-separated --api-url before auth", () => {
     it("should skip the URL value and return auth", () => {
       assert.equal(

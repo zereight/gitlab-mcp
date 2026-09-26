@@ -1,3 +1,5 @@
+import { BOOLEAN_CLI_FLAG_NAMES } from "./cli-boolean-flags.js";
+
 // Parse CLI arguments before anything else
 const args = process.argv.slice(2);
 export const cliArgs: Record<string, string> = {};
@@ -8,6 +10,8 @@ for (let i = 0; i < args.length; i++) {
     const [key, value] = arg.slice(2).split("=");
     if (value) {
       cliArgs[key] = value;
+    } else if (BOOLEAN_CLI_FLAG_NAMES.has(key)) {
+      cliArgs[key] = "true";
     } else if (i + 1 < args.length && !args[i + 1].startsWith("--")) {
       cliArgs[key] = args[++i];
     }
