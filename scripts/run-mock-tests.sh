@@ -35,7 +35,8 @@ run_mock_tests 4 \
   -o -path 'test/stateless/session-id.test.ts' \
   -o -path 'test/stateless/callback-proxy.test.ts' \
   -o -path 'test/stateless/consumed-proxy-code-cache.test.ts' \
-  -o -path 'test/oauth-device-flow-tests.ts' \)
+  -o -path 'test/oauth-device-flow-tests.ts' \
+  -o -path 'test/cli/*.test.ts' \)
 
 # Co-located unit tests for scripts/ helper modules — no MCP/mock server processes
 node --import tsx/esm --test --experimental-test-isolation=none scripts/tool-coverage/coverage.test.ts
@@ -53,6 +54,7 @@ run_mock_tests 1 \
   ! -path 'test/stateless/session-id.test.ts' \
   ! -path 'test/stateless/callback-proxy.test.ts' \
   ! -path 'test/stateless/consumed-proxy-code-cache.test.ts' \
-  ! -path 'test/oauth-device-flow-tests.ts'
+  ! -path 'test/oauth-device-flow-tests.ts' \
+  ! -path 'test/cli/*'
 
 tsx test/oauth-tests.ts

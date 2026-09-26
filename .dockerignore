@@ -9,6 +9,8 @@
 !server
 !stateless
 !tools
+!cli
+!cli/**
 !downloads
 !tsconfig.json
 !utils

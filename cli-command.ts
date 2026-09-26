@@ -1,5 +1,12 @@
+import { BOOLEAN_CLI_FLAG_NAMES, isBooleanFlagLiteral } from "./cli-boolean-flags.js";
+
 const SCRIPT_PATH_PATTERN = /\.(cjs|mjs|js|cts|mts|ts)$/;
-const FLAGS_WITHOUT_VALUE = new Set(["--help", "-h"]);
+const FLAGS_WITHOUT_VALUE = new Set([
+  "--help",
+  "-h",
+  "--yes",
+  ...[...BOOLEAN_CLI_FLAG_NAMES].map(name => `--${name}`),
+]);
 
 function isScriptPath(arg: string): boolean {
   return SCRIPT_PATH_PATTERN.test(arg);
@@ -19,11 +26,13 @@ export function getPositionalCliCommand(argv: readonly string[]): string | undef
       continue;
     }
     if (arg.startsWith("-")) {
-      if (
-        !FLAGS_WITHOUT_VALUE.has(arg) &&
-        i + 1 < args.length &&
-        !args[i + 1].startsWith("-")
-      ) {
+      if (FLAGS_WITHOUT_VALUE.has(arg)) {
+        if (BOOLEAN_CLI_FLAG_NAMES.has(arg.replace(/^--/, "")) && isBooleanFlagLiteral(args[i + 1])) {
+          i += 1;
+        }
+        continue;
+      }
+      if (i + 1 < args.length && !args[i + 1].startsWith("-")) {
         i += 1;
       }
       continue;

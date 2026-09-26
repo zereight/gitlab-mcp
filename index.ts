@@ -51,6 +51,8 @@ import {
   GITLAB_OAUTH_ALLOWED_GROUPS_RAW,
   GITLAB_ALLOWED_GROUPS_RAW,
   GITLAB_OAUTH_ALLOWED_GROUPS,
+  GITLAB_MCP_COMPACT_RESULTS,
+  GITLAB_MCP_COMPACT_RESULT_CHARS,
 } from "./config.js";
 
 /** True when the server is running in remote/network mode (SSE or StreamableHTTP transport). */
@@ -151,6 +153,10 @@ import { z } from "zod";
 import { initializeOAuthClient, GitLabOAuth } from "./oauth.js";
 import { getPositionalCliCommand } from "./cli-command.js";
 import { runAuthCommandAsync } from "./auth-cli.js";
+import { isCliInvocation, resolveCli } from "./cli/router.js";
+import { formatCliError, formatToolOutput } from "./cli/output.js";
+import { compactMcpToolResult, readOwnRecord } from "./cli/compact-mcp-result.js";
+import { compileDeniedToolsRegex } from "./tools/denied-regex.js";
 import { createGitLabOAuthProvider } from "./oauth-proxy.js";
 import { mcpAuthRouter } from "@modelcontextprotocol/sdk/server/auth/router.js";
 import rateLimit, { ipKeyGenerator } from "express-rate-limit";
@@ -924,14 +930,21 @@ function createServer(): McpServer {
           ? (value: unknown) => maskingEngine!.maskValue(value)
           : undefined,
       });
-      return maskingEngine
+      const masked = maskingEngine
         ? maskingEngine.maskToolResult(filtered, {
             textFormat: isPlainTextResult ? "plain" : "json",
           })
         : filtered;
+      return compactMcpToolResult({
+        result: masked,
+        enabled: GITLAB_MCP_COMPACT_RESULTS,
+        maxChars: GITLAB_MCP_COMPACT_RESULT_CHARS,
+        toolName,
+        args: readOwnRecord(request.params.arguments),
+      });
     };
 
-    const logError = (error: unknown) => {
+    const logError = (error: unknown): never => {
       const durationMs = Date.now() - start;
       const safeError = maskingEngine ? maskingEngine.maskError(error) : error;
       logger.error(
@@ -1156,6 +1169,7 @@ function createServer(): McpServer {
       return logCompletion(result);
     } catch (error) {
       logError(error);
+      throw error;
     }
   });
 
@@ -1564,38 +1578,13 @@ function isToolAllowedByPermissionMode(toolName: string): boolean {
 }
 
 const GITLAB_DENIED_TOOLS_REGEX = (() => {
-  const pattern = getConfig("denied-tools-regex", "GITLAB_DENIED_TOOLS_REGEX");
-  if (!pattern) return undefined;
-
-  // Reject patterns that are too long (potential ReDoS vector)
-  const MAX_PATTERN_LENGTH = 200;
-  if (pattern.length > MAX_PATTERN_LENGTH) {
-    logger.error(
-      `GITLAB_DENIED_TOOLS_REGEX pattern exceeds ${MAX_PATTERN_LENGTH} chars. Ignoring.`
-    );
-    return undefined;
+  const compiled = compileDeniedToolsRegex(
+    getConfig("denied-tools-regex", "GITLAB_DENIED_TOOLS_REGEX")
+  );
+  if (compiled.error) {
+    logger.error(compiled.error);
   }
-
-  // Reject patterns with nested quantifiers that can cause catastrophic backtracking (ReDoS)
-  // e.g., (a+)+, (a*)+, (a+)*, (a{1,})+
-  // Note: lookahead (?!), (?=), lookbehind (?<), and named groups (?<name>) are safe and allowed
-  const NESTED_QUANTIFIER_PATTERN = /(\(.*[+*?].*\)|\[.*\])[+*?]/;
-  if (NESTED_QUANTIFIER_PATTERN.test(pattern)) {
-    logger.error(
-      `GITLAB_DENIED_TOOLS_REGEX contains potentially unsafe nested quantifiers. Ignoring.`
-    );
-    return undefined;
-  }
-
-  try {
-    const regex = new RegExp(pattern);
-    // Dry-run against a sample string to catch immediate issues
-    regex.test("sample_tool_name");
-    return regex;
-  } catch {
-    logger.error(`Invalid GITLAB_DENIED_TOOLS_REGEX pattern: "${pattern}". Ignoring.`);
-    return undefined;
-  }
+  return compiled.regex;
 })();
 
 // ---------------------------------------------------------------------------
@@ -2191,7 +2180,7 @@ if (GITLAB_MCP_OAUTH) {
 }
 
 if (
-  getPositionalCliCommand(process.argv) !== "auth" &&
+  !isCliInvocation(process.argv) &&
   !REMOTE_AUTHORIZATION &&
   !GITLAB_MCP_OAUTH &&
   !USE_OAUTH &&
@@ -16010,7 +15999,16 @@ async function runServer() {
 }
 
 async function main(): Promise<void> {
-  if (getPositionalCliCommand(process.argv) === "auth") {
+  const cli = resolveCli(process.argv);
+  if (cli.kind === "help") {
+    process.stdout.write(cli.text);
+    process.exit(0);
+  }
+  if (cli.kind === "usage" || cli.kind === "refused") {
+    process.stderr.write(`${cli.message}\n`);
+    process.exit(2);
+  }
+  if (cli.kind === "auth" || getPositionalCliCommand(process.argv) === "auth") {
     try {
       await runAuthCommandAsync();
       process.exit(0);
@@ -16021,8 +16019,60 @@ async function main(): Promise<void> {
       process.exit(1);
     }
   }
+  if (cli.kind === "run") {
+    if (!hasCliCredentials()) {
+      process.stderr.write(
+        "Missing GitLab credentials. Set --token or GITLAB_PERSONAL_ACCESS_TOKEN, or run `auth` with GITLAB_USE_OAUTH=true.\n"
+      );
+      process.exit(2);
+    }
+    try {
+      const result = await handleToolCall({ name: cli.toolName, arguments: cli.args });
+      const masked = maskCliToolResult(cli.toolName, result);
+      const formatted = formatToolOutput({
+        result: masked,
+        mode: cli.output,
+        tableSpec: cli.tableSpec,
+      });
+      if (formatted.stderr) {
+        process.stderr.write(formatted.stderr);
+      }
+      process.stdout.write(formatted.stdout);
+      process.exit(formatted.isError ? 1 : 0);
+    } catch (error) {
+      process.stderr.write(formatCliError(error));
+      logger.error({ err: error }, "cli command failed");
+      process.exit(1);
+    }
+  }
 
   await runServer();
+}
+
+function hasCliCredentials(): boolean {
+  return Boolean(
+    GITLAB_PERSONAL_ACCESS_TOKEN || GITLAB_JOB_TOKEN || GITLAB_AUTH_COOKIE_PATH || USE_OAUTH
+  );
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function maskCliToolResult(toolName: string, result: unknown): unknown {
+  const gitlabInstance = getConfig("api-url", "GITLAB_API_URL") || "https://gitlab.com";
+  const engine = maskingPolicyResolver?.select({
+    gitlabInstance,
+    allowBuiltinForUnscoped: true,
+  });
+  if (!engine || !isRecord(result)) {
+    return result;
+  }
+  const isPlainText =
+    toolName === "get_pipeline_job_output" ||
+    toolName === "get_job_artifact_file" ||
+    (toolName === "download_release_asset" && !IS_REMOTE);
+  return engine.maskToolResult(result, { textFormat: isPlainText ? "plain" : "json" });
 }
 
 main().catch(error => {

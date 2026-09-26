@@ -51,6 +51,8 @@ No global install? Pin `npx` to the previous stable release and keep the server 
 | `--masking-config` | `GITLAB_MASKING_CONFIG` | Path to a masking configuration file. |
 | `--masking-policy-file` | `GITLAB_MASKING_POLICY_FILE` | Path to a protected managed-policy file. |
 | `--masking-workspace-dir` | `GITLAB_MASKING_WORKSPACE_DIR` | Directory used to resolve masking files. |
+| `--compact-results=true` | `GITLAB_MCP_COMPACT_RESULTS` | Truncate oversized MCP tool replies and attach a CLI command for the full payload. Off by default. |
+| `--compact-result-chars` | `GITLAB_MCP_COMPACT_RESULT_CHARS` | Size threshold in characters before a reply is compacted (default `4000`). |
 
 > **Deprecation notice:** `--read-only=true` and `GITLAB_READ_ONLY_MODE` are kept for
 > backward compatibility but will be removed in a future major version.
@@ -59,6 +61,49 @@ No global install? Pin `npx` to the previous stable release and keep the server 
 ## Subcommands
 
 Subcommands are not MCP server flags. They run and exit without starting the MCP server.
+
+### Human CLI
+
+The CLI is the full-payload path. MCP replies stay in the chat; this binary
+prints the complete tool result on stdout so a human can read lists, diffs, and
+job logs without stuffing them into the model context.
+
+Leave MCP compact **off** unless you want that split. With
+`GITLAB_MCP_COMPACT_RESULTS=true` (or `--compact-results`), an oversized MCP
+tool reply becomes a short preview plus a `zereight-mcp-gitlab tool …` command.
+Run that command in a terminal for the untruncated payload. Human CLI itself is
+never compacted.
+
+Every command maps to an existing registry tool — no new GitLab API surface.
+
+```bash
+zereight-mcp-gitlab tool list_issues --project-id 123 --state opened
+zereight-mcp-gitlab mr list --project-id 123 --state opened
+zereight-mcp-gitlab issue view --project-id 123 --issue-iid 9
+zereight-mcp-gitlab user whoami
+```
+
+| Layer | Form | Default output |
+| --- | --- | --- |
+| Generic | `tool <tool-name> [options]` | JSON |
+| Curated | `<group> <action> [options]` | table |
+
+- Flags are kebab-case schema keys (`project_id` → `--project-id`). Number and boolean fields are converted from the schema type (`--limit 10`, `--push-events false`). Nested objects and arrays use `--args-json '{...}'`.
+- Curated shorts: `--mr-iid`, `--issue-iid`, `--branch`, `--source`, `--target`.
+- Destructive tools (`delete_*`, `merge_merge_request`, `push_files`, …) require `--yes`. Without it the command prints what it would do and exits `2`.
+- Human CLI uses the same exposure filters as MCP: `GITLAB_TOOLSETS` / `GITLAB_TOOLS` / legacy wiki-milestone-pipeline flags, `GITLAB_DENIED_TOOLS_REGEX`, and `GITLAB_TOOL_POLICY_HIDDEN`. `GITLAB_TOOL_POLICY_APPROVE` tools also need `--yes`.
+- `--permission-mode=readonly` refuses writes with exit `2` before any network call.
+- Space-separated booleans keep their value (`--read-only false` stays off). Bare `--read-only` still means on. Do not write `--use-oauth mr` expecting `mr` to be the flag value.
+- Exit codes: `0` success, `1` API/auth/runtime failure, `2` usage or refused write.
+- Human tables go to stdout; diagnostics go to stderr so `... --output json | jq` stays clean.
+
+```bash
+zereight-mcp-gitlab --help
+zereight-mcp-gitlab mr --help
+zereight-mcp-gitlab tool get_merge_request --help
+```
+
+See [Human CLI Design](../reference/cli-usage-design.md) for the command catalog and phase list.
 
 ### `auth`
 

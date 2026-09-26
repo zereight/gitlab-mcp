@@ -1,3 +1,5 @@
+import { BOOLEAN_CLI_FLAG_NAMES, nextBooleanFlagValue } from "./cli-boolean-flags.js";
+
 // Parse CLI arguments before anything else
 const args = process.argv.slice(2);
 export const cliArgs: Record<string, string> = {};
@@ -8,6 +10,12 @@ for (let i = 0; i < args.length; i++) {
     const [key, value] = arg.slice(2).split("=");
     if (value) {
       cliArgs[key] = value;
+    } else if (BOOLEAN_CLI_FLAG_NAMES.has(key)) {
+      const parsed = nextBooleanFlagValue(args[i + 1]);
+      cliArgs[key] = parsed.value;
+      if (parsed.consumeNext) {
+        i += 1;
+      }
     } else if (i + 1 < args.length && !args[i + 1].startsWith("--")) {
       cliArgs[key] = args[++i];
     }
@@ -248,6 +256,15 @@ export const HOST = getConfig("host", "HOST") || "127.0.0.1";
 /** Default HTTP port for the MCP server. */
 const _PORT_DEFAULT = 3002;
 export const PORT = _intEnv("PORT", "port", _PORT_DEFAULT);
+
+/** When true, oversized MCP tool replies are replaced with a preview plus a CLI replay command. */
+export const GITLAB_MCP_COMPACT_RESULTS =
+  getConfig("compact-results", "GITLAB_MCP_COMPACT_RESULTS") === "true";
+export const GITLAB_MCP_COMPACT_RESULT_CHARS = _intEnv(
+  "GITLAB_MCP_COMPACT_RESULT_CHARS",
+  "compact-result-chars",
+  4000
+);
 
 // ---------------------------------------------------------------------------
 // Proxy configuration
