@@ -80,7 +80,9 @@ zereight-mcp-gitlab user whoami
 - Flags are kebab-case schema keys (`project_id` → `--project-id`). Nested objects and arrays use `--args-json '{...}'`.
 - Curated shorts: `--mr-iid`, `--issue-iid`, `--branch`, `--source`, `--target`.
 - Destructive tools (`delete_*`, `merge_merge_request`, `push_files`, …) require `--yes`. Without it the command prints what it would do and exits `2`.
+- Human CLI uses the same exposure filters as MCP: `GITLAB_TOOLSETS` / `GITLAB_TOOLS` / legacy wiki-milestone-pipeline flags, `GITLAB_DENIED_TOOLS_REGEX`, and `GITLAB_TOOL_POLICY_HIDDEN`. `GITLAB_TOOL_POLICY_APPROVE` tools also need `--yes`.
 - `--permission-mode=readonly` refuses writes with exit `2` before any network call.
+- Space-separated booleans keep their value (`--read-only false` stays off). Bare `--read-only` still means on. Do not write `--use-oauth mr` expecting `mr` to be the flag value.
 - Exit codes: `0` success, `1` API/auth/runtime failure, `2` usage or refused write.
 - Human tables go to stdout; diagnostics go to stderr so `... --output json | jq` stays clean.
 

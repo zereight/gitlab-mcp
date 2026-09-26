@@ -16,7 +16,7 @@ Usage:
 
 Global flags:
   --output table|json   Output format (table default for curated, json for tool)
-  --yes                 Confirm destructive commands
+  --yes                 Confirm destructive or approval-policy commands
   --args-json '{...}'   Nested/array arguments
   --token TOKEN         GitLab personal access token
   --api-url URL         GitLab API URL
@@ -25,7 +25,8 @@ Global flags:
 Groups:
 ${groups}
 
-Advanced: ${BINARY} tool <name> covers every registry tool. Curated commands are the daily path.
+Advanced: ${BINARY} tool <name> covers registry tools allowed by the current toolsets and filters. Curated commands are the daily path.
+Human CLI honors GITLAB_TOOLSETS, GITLAB_TOOLS, GITLAB_DENIED_TOOLS_REGEX, and tool-policy hidden/approve.
 `;
 }
 

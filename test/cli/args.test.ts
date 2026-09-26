@@ -69,6 +69,14 @@ describe("When parseArgv reads a command line", () => {
       assert.deepEqual(parsed.positionals, ["mr", "list"]);
     });
   });
+
+  describe("with --read-only false before a curated command", () => {
+    it("should keep false as the flag value and mr list as positionals", () => {
+      const parsed = parseArgv(argv("--read-only", "false", "mr", "list"));
+
+      assert.deepEqual(parsed.positionals, ["mr", "list"]);
+    });
+  });
 });
 
 describe("When parseToolArgs validates a real schema", () => {

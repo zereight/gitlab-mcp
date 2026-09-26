@@ -1,4 +1,4 @@
-import { BOOLEAN_CLI_FLAG_NAMES } from "./cli-boolean-flags.js";
+import { BOOLEAN_CLI_FLAG_NAMES, nextBooleanFlagValue } from "./cli-boolean-flags.js";
 
 // Parse CLI arguments before anything else
 const args = process.argv.slice(2);
@@ -11,7 +11,11 @@ for (let i = 0; i < args.length; i++) {
     if (value) {
       cliArgs[key] = value;
     } else if (BOOLEAN_CLI_FLAG_NAMES.has(key)) {
-      cliArgs[key] = "true";
+      const parsed = nextBooleanFlagValue(args[i + 1]);
+      cliArgs[key] = parsed.value;
+      if (parsed.consumeNext) {
+        i += 1;
+      }
     } else if (i + 1 < args.length && !args[i + 1].startsWith("--")) {
       cliArgs[key] = args[++i];
     }

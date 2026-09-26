@@ -153,6 +153,8 @@ CLI arguments take precedence over environment variables.
 
 `zereight-mcp-gitlab auth` is a subcommand (not an MCP server flag). It runs GitLab device flow and exits. See [CLI Arguments](./docs/getting-started/cli-arguments.md#auth).
 
+The same binary is also a `gh`-style GitLab CLI (`tool <name>` or curated forms such as `mr list`). Those commands honor the same permission mode, toolsets, denied-tools regex, and tool-policy filters as the MCP server. Destructive tools and `GITLAB_TOOL_POLICY_APPROVE` tools need `--yes`. See [Human CLI](./docs/getting-started/cli-arguments.md#human-cli).
+
 > **Fine-grained tool filtering:** use `GITLAB_PERMISSION_MODE=modify` to allow create/update while
 > blocking every delete tool and the destructive teardown tools (`cancel_pipeline`,
 > `cancel_pipeline_job`, `stop_environment`, `stop_stale_environments`, `unprotect_branch`) —

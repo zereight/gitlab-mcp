@@ -1,4 +1,4 @@
-import { BOOLEAN_CLI_FLAG_NAMES } from "../cli-boolean-flags.js";
+import { BOOLEAN_CLI_FLAG_NAMES, isBooleanFlagLiteral } from "../cli-boolean-flags.js";
 
 export class CliUsageError extends Error {
   readonly exitCode = 2;
@@ -140,6 +140,9 @@ export function parseArgv(argv: readonly string[]): ParsedArgv {
       continue;
     }
     if (BOOLEAN_CLI_FLAG_NAMES.has(flag.name) && flag.inline === undefined) {
+      if (isBooleanFlagLiteral(userArgs[i + 1])) {
+        i += 1;
+      }
       continue;
     }
 
