@@ -151,6 +151,8 @@ import { z } from "zod";
 import { initializeOAuthClient, GitLabOAuth } from "./oauth.js";
 import { getPositionalCliCommand } from "./cli-command.js";
 import { runAuthCommandAsync } from "./auth-cli.js";
+import { isCliInvocation, resolveCli } from "./cli/router.js";
+import { formatCliError, formatToolOutput } from "./cli/output.js";
 import { createGitLabOAuthProvider } from "./oauth-proxy.js";
 import { mcpAuthRouter } from "@modelcontextprotocol/sdk/server/auth/router.js";
 import rateLimit, { ipKeyGenerator } from "express-rate-limit";
@@ -2120,7 +2122,7 @@ if (GITLAB_MCP_OAUTH) {
 }
 
 if (
-  getPositionalCliCommand(process.argv) !== "auth" &&
+  !isCliInvocation(process.argv) &&
   !REMOTE_AUTHORIZATION &&
   !GITLAB_MCP_OAUTH &&
   !USE_OAUTH &&
@@ -15951,7 +15953,16 @@ async function runServer() {
 }
 
 async function main(): Promise<void> {
-  if (getPositionalCliCommand(process.argv) === "auth") {
+  const cli = resolveCli(process.argv);
+  if (cli.kind === "help") {
+    process.stdout.write(cli.text);
+    process.exit(0);
+  }
+  if (cli.kind === "usage" || cli.kind === "refused") {
+    process.stderr.write(`${cli.message}\n`);
+    process.exit(2);
+  }
+  if (cli.kind === "auth" || getPositionalCliCommand(process.argv) === "auth") {
     try {
       await runAuthCommandAsync();
       process.exit(0);
@@ -15962,8 +15973,48 @@ async function main(): Promise<void> {
       process.exit(1);
     }
   }
+  if (cli.kind === "run") {
+    try {
+      const result = await handleToolCall({ name: cli.toolName, arguments: cli.args });
+      const masked = maskCliToolResult(cli.toolName, result);
+      const formatted = formatToolOutput({
+        result: masked,
+        mode: cli.output,
+        tableSpec: cli.tableSpec,
+      });
+      if (formatted.stderr) {
+        process.stderr.write(formatted.stderr);
+      }
+      process.stdout.write(formatted.stdout);
+      process.exit(formatted.isError ? 1 : 0);
+    } catch (error) {
+      process.stderr.write(formatCliError(error));
+      logger.error({ err: error }, "cli command failed");
+      process.exit(1);
+    }
+  }
 
   await runServer();
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function maskCliToolResult(toolName: string, result: unknown): unknown {
+  const gitlabInstance = getConfig("api-url", "GITLAB_API_URL") || "https://gitlab.com";
+  const engine = maskingPolicyResolver?.select({
+    gitlabInstance,
+    allowBuiltinForUnscoped: true,
+  });
+  if (!engine || !isRecord(result)) {
+    return result;
+  }
+  const isPlainText =
+    toolName === "get_pipeline_job_output" ||
+    toolName === "get_job_artifact_file" ||
+    (toolName === "download_release_asset" && !IS_REMOTE);
+  return engine.maskToolResult(result, { textFormat: isPlainText ? "plain" : "json" });
 }
 
 main().catch(error => {
