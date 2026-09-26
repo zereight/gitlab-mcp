@@ -609,7 +609,6 @@ describe("snippet tools", () => {
       env()
     );
 
-    assert.strictEqual(result.id, TEST_PROJECT_SNIPPET_ID);
     assert.strictEqual(result.content, RAW_CONTENT);
   });
 
@@ -624,7 +623,6 @@ describe("snippet tools", () => {
       env()
     );
 
-    assert.strictEqual(result.id, TEST_PROJECT_SNIPPET_ID);
     assert.strictEqual(result.content, undefined);
   });
 

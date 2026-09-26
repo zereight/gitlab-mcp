@@ -9,10 +9,29 @@ import {
   TransportMode,
 } from "./utils/server-launcher.js";
 import { MockGitLabServer, findMockServerPort } from "./utils/mock-gitlab-server.js";
+import { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { CustomHeaderClient } from "./clients/custom-header-client.js";
 
 const MOCK_TOKEN = "glpat-dynamic-scope-token";
 const SCOPE_HEADER = "x-gitlab-allowed-project-ids";
+
+function parseToolJson(result: CallToolResult): unknown {
+  assert.ok(result.isError !== true, "tool should succeed");
+  const first = result.content[0];
+  assert.ok(first !== undefined && first.type === "text");
+  return JSON.parse(first.text);
+}
+
+function snippetTitleFrom(value: unknown): string {
+  if (value === null || typeof value !== "object" || !("title" in value)) {
+    assert.fail("expected a snippet object with title");
+  }
+  const title = value.title;
+  if (typeof title !== "string") {
+    assert.fail("expected snippet title to be a string");
+  }
+  return title;
+}
 
 async function connectClient(mcpUrl: string, scope?: string): Promise<CustomHeaderClient> {
   const headers: Record<string, string> = { authorization: `Bearer ${MOCK_TOKEN}` };
@@ -519,11 +538,12 @@ describe("Dynamic project scope", { concurrency: 1 }, () => {
       snippetHits.length = 0;
       const client = await connectClient(mcpUrl, "5");
       try {
-        await client.callTool("create_snippet", {
+        const result = await client.callTool("create_snippet", {
           title: "scoped create",
           file_name: "note.md",
           content: "hi",
         });
+        assert.strictEqual(snippetTitleFrom(parseToolJson(result)), "project snippet");
       } finally {
         await client.disconnect();
       }
@@ -538,10 +558,11 @@ describe("Dynamic project scope", { concurrency: 1 }, () => {
       snippetHits.length = 0;
       const client = await connectClient(mcpUrl, "5");
       try {
-        await client.callTool("update_snippet", {
+        const result = await client.callTool("update_snippet", {
           snippet_id: 42,
           title: "scoped update",
         });
+        assert.strictEqual(snippetTitleFrom(parseToolJson(result)), "updated project snippet");
       } finally {
         await client.disconnect();
       }
