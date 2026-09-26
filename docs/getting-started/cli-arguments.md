@@ -77,7 +77,7 @@ zereight-mcp-gitlab user whoami
 | Generic | `tool <tool-name> [options]` | JSON |
 | Curated | `<group> <action> [options]` | table |
 
-- Flags are kebab-case schema keys (`project_id` → `--project-id`). Nested objects and arrays use `--args-json '{...}'`.
+- Flags are kebab-case schema keys (`project_id` → `--project-id`). Number and boolean fields are converted from the schema type (`--limit 10`, `--push-events false`). Nested objects and arrays use `--args-json '{...}'`.
 - Curated shorts: `--mr-iid`, `--issue-iid`, `--branch`, `--source`, `--target`.
 - Destructive tools (`delete_*`, `merge_merge_request`, `push_files`, …) require `--yes`. Without it the command prints what it would do and exits `2`.
 - Human CLI uses the same exposure filters as MCP: `GITLAB_TOOLSETS` / `GITLAB_TOOLS` / legacy wiki-milestone-pipeline flags, `GITLAB_DENIED_TOOLS_REGEX`, and `GITLAB_TOOL_POLICY_HIDDEN`. `GITLAB_TOOL_POLICY_APPROVE` tools also need `--yes`.

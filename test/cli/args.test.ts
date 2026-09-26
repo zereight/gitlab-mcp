@@ -2,6 +2,11 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { allTools } from "../../tools/registry.js";
 import {
+  CreateWebhookSchema,
+  GetPipelineJobOutputSchema,
+  ProtectBranchSchema,
+} from "../../schemas.js";
+import {
   applyFlagAliases,
   CliUsageError,
   parseArgv,
@@ -133,6 +138,92 @@ describe("When parseToolArgs validates a real schema", () => {
             extraArgs: undefined,
           }),
         (error: unknown) => error instanceof CliUsageError && error.message === "Unknown flag: --nope"
+      );
+    });
+  });
+});
+
+describe("When parseToolArgs coerces scalar flags from the schema", () => {
+  describe("with a number flag", () => {
+    it("should pass a number that the tool schema accepts", () => {
+      const args = parseToolArgs({
+        schema: schemaFor("get_pipeline_job_output"),
+        flags: { project_id: "1", job_id: "9", limit: "10" },
+        argsJson: undefined,
+        extraArgs: undefined,
+      });
+
+      assert.equal(GetPipelineJobOutputSchema.safeParse(args).success, true);
+    });
+  });
+
+  describe("with a boolean flag", () => {
+    it("should pass a boolean that the tool schema accepts", () => {
+      const args = parseToolArgs({
+        schema: schemaFor("create_webhook"),
+        flags: { project_id: "1", url: "https://example.com/hook", push_events: "false" },
+        argsJson: undefined,
+        extraArgs: undefined,
+      });
+
+      assert.equal(CreateWebhookSchema.safeParse(args).success, true);
+    });
+  });
+
+  describe("with an integer flag", () => {
+    it("should pass an integer that the tool schema accepts", () => {
+      const args = parseToolArgs({
+        schema: schemaFor("protect_branch"),
+        flags: { project_id: "1", branch_name: "main", push_access_level: "40" },
+        argsJson: undefined,
+        extraArgs: undefined,
+      });
+
+      assert.equal(ProtectBranchSchema.safeParse(args).success, true);
+    });
+  });
+
+  describe("with a field that also accepts strings", () => {
+    it("should keep the raw string", () => {
+      const args = parseToolArgs({
+        schema: schemaFor("list_webhook_events"),
+        flags: { project_id: "1", hook_id: "2", status: "500" },
+        argsJson: undefined,
+        extraArgs: undefined,
+      });
+
+      assert.equal(args.status, "500");
+    });
+  });
+
+  describe("with a non-boolean value for a boolean flag", () => {
+    it("should throw a usage error", () => {
+      assert.throws(
+        () =>
+          parseToolArgs({
+            schema: schemaFor("create_webhook"),
+            flags: { project_id: "1", url: "https://example.com/hook", push_events: "yes" },
+            argsJson: undefined,
+            extraArgs: undefined,
+          }),
+        (error: unknown) =>
+          error instanceof CliUsageError && error.message === "--push-events must be true or false"
+      );
+    });
+  });
+
+  describe("with a fraction for an integer flag", () => {
+    it("should throw a usage error", () => {
+      assert.throws(
+        () =>
+          parseToolArgs({
+            schema: schemaFor("protect_branch"),
+            flags: { project_id: "1", branch_name: "main", push_access_level: "40.5" },
+            argsJson: undefined,
+            extraArgs: undefined,
+          }),
+        (error: unknown) =>
+          error instanceof CliUsageError && error.message === "--push-access-level must be an integer"
       );
     });
   });

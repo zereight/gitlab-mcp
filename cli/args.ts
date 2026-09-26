@@ -204,7 +204,7 @@ export function parseToolArgs(input: {
   const args: Record<string, unknown> = {};
   assignOwn(args, input.argsJson);
   for (const [key, value] of Object.entries(input.flags)) {
-    args[key] = value;
+    args[key] = coerceFlagValue(key, value, schema.properties?.[key]);
   }
   assignOwn(args, input.extraArgs);
 
@@ -220,6 +220,47 @@ export function parseToolArgs(input: {
   }
 
   return args;
+}
+
+type ScalarFlagType = "number" | "integer" | "boolean";
+
+function scalarFlagType(property: JsonSchemaProperty | undefined): ScalarFlagType | undefined {
+  const rawTypes = Array.isArray(property?.type) ? property.type : [property?.type];
+  const types = rawTypes.filter(type => type !== "null");
+  if (types.length !== 1) {
+    return undefined;
+  }
+  const [type] = types;
+  if (type === "number" || type === "integer" || type === "boolean") {
+    return type;
+  }
+  return undefined;
+}
+
+function coerceFlagValue(name: string, value: string, property: JsonSchemaProperty | undefined): unknown {
+  const type = scalarFlagType(property);
+  if (type === undefined) {
+    return value;
+  }
+  const flag = `--${snakeToKebab(name)}`;
+  if (type === "boolean") {
+    const normalized = value.toLowerCase();
+    if (normalized === "true" || normalized === "1") {
+      return true;
+    }
+    if (normalized === "false" || normalized === "0") {
+      return false;
+    }
+    throw new CliUsageError(`${flag} must be true or false`);
+  }
+  const parsed = value.trim() === "" ? Number.NaN : Number(value);
+  if (!Number.isFinite(parsed)) {
+    throw new CliUsageError(`${flag} must be a number`);
+  }
+  if (type === "integer" && !Number.isInteger(parsed)) {
+    throw new CliUsageError(`${flag} must be an integer`);
+  }
+  return parsed;
 }
 
 export function readObjectSchema(schema: unknown): JsonObjectSchema {
