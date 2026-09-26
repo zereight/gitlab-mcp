@@ -145,6 +145,11 @@ const GROUP_META: Record<ToolsetId, GroupMeta> = {
     blurb:
       "Query the Orbit SDLC knowledge graph (Beta; Premium/Ultimate). Graph queries consume GitLab credits; schema, status, and tool listing are free.",
   },
+  snippets: {
+    title: "Snippets",
+    blurb:
+      "Snippet CRUD — list, get (with optional file content), create, update, and delete personal or project snippets.",
+  },
 };
 
 const GROUP_ORDER: ToolsetId[] = [
@@ -169,6 +174,7 @@ const GROUP_ORDER: ToolsetId[] = [
   "dependency_proxy",
   "vulnerabilities",
   "orbit",
+  "snippets",
 ];
 
 // --- Helpers --------------------------------------------------------------

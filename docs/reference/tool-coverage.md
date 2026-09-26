@@ -8,9 +8,9 @@ A tool counts as invoked when a test sends that name through MCP (`callTool` / `
 
 | | |
 | --- | ---: |
-| Tools | 263 |
-| Invoked | 155 |
-| Coverage | 58.9% |
+| Tools | 268 |
+| Invoked | 160 |
+| Coverage | 59.7% |
 
 ## By toolset
 
@@ -37,6 +37,7 @@ A tool counts as invoked when a test sends that name through MCP (`callTool` / `
 | [Dependency Proxy](#dependency_proxy) | 4 | 4 | 100.0% |
 | [Vulnerabilities](#vulnerabilities) | 4 | 4 | 100.0% |
 | [GitLab Orbit](#orbit) | 4 | 4 | 100.0% |
+| [Snippets](#snippets) | 5 | 5 | 100.0% |
 | [Meta & GraphQL](#meta) | 2 | 2 | 100.0% |
 
 ## Projects & Namespaces
@@ -406,6 +407,16 @@ A tool counts as invoked when a test sends that name through MCP (`callTool` / `
 - [x] [`orbit_get_schema`](../tools/orbit.md#orbit_get_schema) — `test/test-orbit.ts`
 - [x] [`orbit_get_status`](../tools/orbit.md#orbit_get_status) — `test/test-orbit.ts`
 - [x] [`orbit_list_tools`](../tools/orbit.md#orbit_list_tools) — `test/test-orbit.ts`
+
+## Snippets
+
+<a id="snippets"></a>
+
+- [x] [`list_snippets`](../tools/snippets.md#list_snippets) — `test/test-dynamic-project-scope.ts`, `test/test-snippets.ts`
+- [x] [`get_snippet`](../tools/snippets.md#get_snippet) — `test/test-dynamic-project-scope.ts`, `test/test-snippets.ts`
+- [x] [`create_snippet`](../tools/snippets.md#create_snippet) — `test/test-snippets.ts`
+- [x] [`update_snippet`](../tools/snippets.md#update_snippet) — `test/test-snippets.ts`
+- [x] [`delete_snippet`](../tools/snippets.md#delete_snippet) — `test/test-dynamic-project-scope.ts`, `test/test-snippets.ts`
 
 ## Meta & GraphQL
 
