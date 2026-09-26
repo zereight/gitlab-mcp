@@ -2,6 +2,29 @@
 const args = process.argv.slice(2);
 export const cliArgs: Record<string, string> = {};
 
+// Must list every flag read below as `getConfig(...) === "true"`.
+const BOOLEAN_FLAGS = new Set([
+  "use-oauth",
+  "is-old",
+  "read-only",
+  "masking-enabled",
+  "use-wiki",
+  "use-milestone",
+  "use-pipeline",
+  "disable-version-check",
+  "sse",
+  "streamable-http",
+  "remote-auth",
+  "mcp-oauth",
+  "allow-unauthenticated-tool-discovery",
+  "mcp-trust-proxy",
+  "oauth-callback-proxy",
+  "enable-dynamic-api-url",
+  "enable-dynamic-project-scope",
+  "enable-strict-project-scope",
+  "oauth-stateless-mode",
+]);
+
 for (let i = 0; i < args.length; i++) {
   const arg = args[i];
   if (arg.startsWith("--")) {
@@ -10,6 +33,8 @@ for (let i = 0; i < args.length; i++) {
       cliArgs[key] = value;
     } else if (i + 1 < args.length && !args[i + 1].startsWith("--")) {
       cliArgs[key] = args[++i];
+    } else if (!arg.includes("=") && BOOLEAN_FLAGS.has(key)) {
+      cliArgs[key] = "true";
     }
   }
 }
