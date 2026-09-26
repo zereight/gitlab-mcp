@@ -10877,17 +10877,18 @@ async function executeGitLabGraphQL(query: string, variables: Record<string, unk
 /**
  * Build the snippets endpoint URL.
  *
- * When projectId is provided, or when project scoping is configured via
- * GITLAB_PROJECT_ID / GITLAB_ALLOWED_PROJECT_IDS, returns the project snippets
- * endpoint (routing through getEffectiveProjectId so the scope env is enforced).
- * Only falls back to the personal /snippets endpoint when neither is set.
+ * When projectId is provided, or when a project allowlist is in effect (env
+ * GITLAB_PROJECT_ID / GITLAB_ALLOWED_PROJECT_IDS or a session scope narrowed via
+ * X-GitLab-Allowed-Project-Ids), returns the project snippets endpoint — routing
+ * through getEffectiveProjectId so the effective scope is enforced. Only falls
+ * back to the personal /snippets endpoint when no scope is active at all.
  */
 function getSnippetsEndpoint(projectId?: string): string {
-  const scopeActive = GITLAB_ALLOWED_PROJECT_IDS.length > 0 || !!GITLAB_PROJECT_ID;
+  const scopeActive = getEffectiveAllowedProjectIds().length > 0 || !!GITLAB_PROJECT_ID;
   if (projectId || scopeActive) {
     const decoded = projectId ? decodeURIComponent(projectId) : "";
     const effectiveProjectId = getEffectiveProjectId(decoded);
-    return `${getEffectiveApiUrl()}/projects/${encodeURIComponent(effectiveProjectId)}/snippets`;
+    return `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(effectiveProjectId)}/snippets`;
   }
   return `${getEffectiveApiUrl()}/snippets`;
 }
@@ -10982,8 +10983,8 @@ async function getSnippetFileRawContent(
   ref: string,
   filePath: string
 ): Promise<string> {
-  const encodedRef = encodeURIComponent(ref);
-  const encodedPath = encodeURIComponent(filePath);
+  const encodedRef = encodeGitLabPathSegment(ref);
+  const encodedPath = encodeGitLabPathSegment(filePath);
   const url = `${getSnippetsEndpoint(projectId)}/${snippetId}/files/${encodedRef}/${encodedPath}/raw`;
   const response = await fetch(url, { ...getFetchConfig() });
   await handleGitLabError(response);
