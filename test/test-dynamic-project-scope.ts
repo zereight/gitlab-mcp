@@ -404,6 +404,14 @@ describe("Dynamic project scope", { concurrency: 1 }, () => {
         snippetHits.push("project:list");
         res.json([{ id: 42, title: "project snippet" }]);
       });
+      mockGitLab.addMockHandler("get", "/projects/5/snippets/42", (_req, res) => {
+        snippetHits.push("project:get");
+        res.json({ id: 42, title: "project snippet" });
+      });
+      mockGitLab.addMockHandler("get", "/snippets/42", (_req, res) => {
+        snippetHits.push("personal:get");
+        res.json({ id: 42, title: "personal snippet of the token owner" });
+      });
       mockGitLab.addMockHandler("delete", "/snippets/99", (_req, res) => {
         snippetHits.push("personal:delete");
         res.status(204).end();
@@ -467,6 +475,26 @@ describe("Dynamic project scope", { concurrency: 1 }, () => {
       assert.deepStrictEqual(
         snippetHits,
         ["project:delete"],
+        "must route to the scoped project, not the personal /snippets endpoint"
+      );
+    });
+
+    test("get_snippet without project_id stays within the session scope", async () => {
+      snippetHits.length = 0;
+      const client = await connectClient(mcpUrl, "5");
+      try {
+        const result = await client.callTool("get_snippet", { snippet_id: 42 });
+        assert.ok(result.content, "Should have content");
+        const content = result.content[0];
+        assert.ok("text" in content, "Content should have text");
+        const snippet = JSON.parse(content.text as string) as { title: string };
+        assert.strictEqual(snippet.title, "project snippet");
+      } finally {
+        await client.disconnect();
+      }
+      assert.deepStrictEqual(
+        snippetHits,
+        ["project:get"],
         "must route to the scoped project, not the personal /snippets endpoint"
       );
     });

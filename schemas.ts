@@ -4609,8 +4609,7 @@ export const GetSnippetSchema = z.object({
     .optional()
     .describe("Project ID or URL-encoded path. Omit for personal snippets, or the configured project when GITLAB_PROJECT_ID / GITLAB_ALLOWED_PROJECT_IDS is set."),
   snippet_id: z.coerce.number().describe("The snippet ID"),
-  include_content: z
-    .boolean()
+  include_content: coerceBooleanString
     .optional()
     .default(false)
     .describe("Whether to fetch the raw file content (default: false)"),
