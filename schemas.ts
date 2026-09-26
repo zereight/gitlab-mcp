@@ -1483,6 +1483,9 @@ export const GitLabDiffSchema = z.object({
   new_file: z.coerce.boolean(),
   renamed_file: z.coerce.boolean(),
   deleted_file: z.coerce.boolean(),
+  generated_file: z.coerce.boolean().optional(),
+  too_large: z.coerce.boolean().optional(),
+  collapsed: z.coerce.boolean().optional(),
 });
 
 // Response schemas for operations
