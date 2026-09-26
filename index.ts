@@ -10991,6 +10991,18 @@ async function getSnippetFileRawContent(
   return await response.text();
 }
 
+function snippetCreateFilesPayload(
+  options: Omit<z.infer<typeof CreateSnippetSchema>, "project_id">
+): Array<{ file_path: string; content: string }> {
+  if (options.files !== undefined && options.files.length > 0) {
+    return options.files;
+  }
+  if (options.file_name !== undefined && options.content !== undefined) {
+    return [{ file_path: options.file_name, content: options.content }];
+  }
+  throw new Error("Provide either files[] (multi-file) or both file_name and content (single-file)");
+}
+
 /**
  * Create a snippet — project-scoped if projectId is given, otherwise personal.
  */
@@ -10998,15 +11010,11 @@ async function createSnippet(
   projectId: string | undefined,
   options: Omit<z.infer<typeof CreateSnippetSchema>, "project_id">
 ): Promise<GitLabSnippet> {
-  const { title, file_name, content, files, description, visibility } = options;
-  const filesPayload =
-    files && files.length > 0
-      ? files
-      : [{ file_path: file_name as string, content: content as string }];
+  const { title, description, visibility } = options;
   const body: Record<string, unknown> = {
     title,
     visibility: visibility ?? "private",
-    files: filesPayload,
+    files: snippetCreateFilesPayload(options),
   };
   if (description !== undefined) {
     body.description = description;

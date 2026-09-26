@@ -598,6 +598,36 @@ describe("snippet tools", () => {
     assert.strictEqual(result.content, RAW_CONTENT);
   });
 
+  test("get_snippet with include_content string true fetches raw content", async () => {
+    const result = await callTool(
+      "get_snippet",
+      {
+        project_id: TEST_PROJECT_ID,
+        snippet_id: TEST_PROJECT_SNIPPET_ID,
+        include_content: "true",
+      },
+      env()
+    );
+
+    assert.strictEqual(result.id, TEST_PROJECT_SNIPPET_ID);
+    assert.strictEqual(result.content, RAW_CONTENT);
+  });
+
+  test("get_snippet with include_content string false skips raw content", async () => {
+    const result = await callTool(
+      "get_snippet",
+      {
+        project_id: TEST_PROJECT_ID,
+        snippet_id: TEST_PROJECT_SNIPPET_ID,
+        include_content: "false",
+      },
+      env()
+    );
+
+    assert.strictEqual(result.id, TEST_PROJECT_SNIPPET_ID);
+    assert.strictEqual(result.content, undefined);
+  });
+
   test("get_snippet with include_content uses explicit ref for single-file snippet", async () => {
     const result = await callTool(
       "get_snippet",

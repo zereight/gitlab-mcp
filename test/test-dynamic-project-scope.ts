@@ -420,6 +420,22 @@ describe("Dynamic project scope", { concurrency: 1 }, () => {
         snippetHits.push("project:delete");
         res.status(204).end();
       });
+      mockGitLab.addMockHandler("post", "/snippets", (_req, res) => {
+        snippetHits.push("personal:create");
+        res.json({ id: 99, title: "personal snippet of the token owner" });
+      });
+      mockGitLab.addMockHandler("post", "/projects/5/snippets", (_req, res) => {
+        snippetHits.push("project:create");
+        res.json({ id: 42, title: "project snippet" });
+      });
+      mockGitLab.addMockHandler("put", "/snippets/42", (_req, res) => {
+        snippetHits.push("personal:update");
+        res.json({ id: 42, title: "updated personal snippet" });
+      });
+      mockGitLab.addMockHandler("put", "/projects/5/snippets/42", (_req, res) => {
+        snippetHits.push("project:update");
+        res.json({ id: 42, title: "updated project snippet" });
+      });
       await mockGitLab.start();
 
       const mcpPort = await findAvailablePort(3200);
@@ -495,6 +511,43 @@ describe("Dynamic project scope", { concurrency: 1 }, () => {
       assert.deepStrictEqual(
         snippetHits,
         ["project:get"],
+        "must route to the scoped project, not the personal /snippets endpoint"
+      );
+    });
+
+    test("create_snippet without project_id stays within the session scope", async () => {
+      snippetHits.length = 0;
+      const client = await connectClient(mcpUrl, "5");
+      try {
+        await client.callTool("create_snippet", {
+          title: "scoped create",
+          file_name: "note.md",
+          content: "hi",
+        });
+      } finally {
+        await client.disconnect();
+      }
+      assert.deepStrictEqual(
+        snippetHits,
+        ["project:create"],
+        "must route to the scoped project, not the personal /snippets endpoint"
+      );
+    });
+
+    test("update_snippet without project_id stays within the session scope", async () => {
+      snippetHits.length = 0;
+      const client = await connectClient(mcpUrl, "5");
+      try {
+        await client.callTool("update_snippet", {
+          snippet_id: 42,
+          title: "scoped update",
+        });
+      } finally {
+        await client.disconnect();
+      }
+      assert.deepStrictEqual(
+        snippetHits,
+        ["project:update"],
         "must route to the scoped project, not the personal /snippets endpoint"
       );
     });
