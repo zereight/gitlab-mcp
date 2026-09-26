@@ -80,6 +80,8 @@ const GLOBAL_FLAG_NAMES = new Set([
   "pool-max-size",
   "api-url",
   "denied-tools-regex",
+  "compact-results",
+  "compact-result-chars",
 ]);
 
 interface JsonSchemaProperty {

@@ -257,6 +257,15 @@ export const HOST = getConfig("host", "HOST") || "127.0.0.1";
 const _PORT_DEFAULT = 3002;
 export const PORT = _intEnv("PORT", "port", _PORT_DEFAULT);
 
+/** When true, oversized MCP tool replies are replaced with a preview plus a CLI replay command. */
+export const GITLAB_MCP_COMPACT_RESULTS =
+  getConfig("compact-results", "GITLAB_MCP_COMPACT_RESULTS") === "true";
+export const GITLAB_MCP_COMPACT_RESULT_CHARS = _intEnv(
+  "GITLAB_MCP_COMPACT_RESULT_CHARS",
+  "compact-result-chars",
+  4000
+);
+
 // ---------------------------------------------------------------------------
 // Proxy configuration
 // ---------------------------------------------------------------------------

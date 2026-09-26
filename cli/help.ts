@@ -27,6 +27,7 @@ ${groups}
 
 Advanced: ${BINARY} tool <name> covers registry tools allowed by the current toolsets and filters. Curated commands are the daily path.
 Human CLI honors GITLAB_TOOLSETS, GITLAB_TOOLS, GITLAB_DENIED_TOOLS_REGEX, and tool-policy hidden/approve.
+MCP compact (server): --compact-results replaces oversized tool replies with a preview plus a CLI command for the full payload.
 `;
 }
 
