@@ -1,5 +1,12 @@
+import { BOOLEAN_CLI_FLAG_NAMES } from "./cli-boolean-flags.js";
+
 const SCRIPT_PATH_PATTERN = /\.(cjs|mjs|js|cts|mts|ts)$/;
-const FLAGS_WITHOUT_VALUE = new Set(["--help", "-h"]);
+const FLAGS_WITHOUT_VALUE = new Set([
+  "--help",
+  "-h",
+  "--yes",
+  ...[...BOOLEAN_CLI_FLAG_NAMES].map(name => `--${name}`),
+]);
 
 function isScriptPath(arg: string): boolean {
   return SCRIPT_PATH_PATTERN.test(arg);

@@ -61,6 +61,14 @@ describe("When parseArgv reads a command line", () => {
       assert.equal(Object.prototype.hasOwnProperty.call(parsed.argsJson, "__proto__"), false);
     });
   });
+
+  describe("with --use-oauth before a curated command", () => {
+    it("should keep mr list as positionals instead of consuming mr as the flag value", () => {
+      const parsed = parseArgv(argv("--use-oauth", "mr", "list"));
+
+      assert.deepEqual(parsed.positionals, ["mr", "list"]);
+    });
+  });
 });
 
 describe("When parseToolArgs validates a real schema", () => {

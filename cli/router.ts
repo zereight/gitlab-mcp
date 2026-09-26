@@ -128,7 +128,12 @@ function resolveCliUnsafe(argv: readonly string[], permissionMode: GitLabPermiss
   }
 
   const aliased = applyFlagAliases(parsed.toolFlags, command.flagAliases);
-  const toolName = resolveScopedTool(command, aliased);
+  const scopeArgs = {
+    ...(parsed.argsJson ?? {}),
+    ...aliased,
+    ...(command.extraArgs ?? {}),
+  };
+  const toolName = resolveScopedTool(command, scopeArgs);
   return buildRun({
     toolName,
     flags: aliased,
@@ -174,7 +179,7 @@ function buildRun(input: {
   if (destructiveTools.has(input.toolName) && !input.yes) {
     return {
       kind: "refused",
-      message: `Would run ${input.toolName} with ${JSON.stringify(args)}. Re-run with --yes to proceed.`,
+      message: `Would run ${input.toolName} with arguments [${Object.keys(args).join(", ")}]. Re-run with --yes to proceed.`,
     };
   }
 

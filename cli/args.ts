@@ -1,3 +1,5 @@
+import { BOOLEAN_CLI_FLAG_NAMES } from "../cli-boolean-flags.js";
+
 export class CliUsageError extends Error {
   readonly exitCode = 2;
 
@@ -19,7 +21,7 @@ export interface ParsedArgv {
 }
 
 const SCRIPT_PATH_PATTERN = /\.(cjs|mjs|js|cts|mts|ts)$/;
-const FLAGS_WITHOUT_VALUE = new Set(["help", "yes"]);
+const FLAGS_WITHOUT_VALUE = new Set(["help", "yes", ...BOOLEAN_CLI_FLAG_NAMES]);
 
 const GLOBAL_FLAG_NAMES = new Set([
   "help",
@@ -135,6 +137,9 @@ export function parseArgv(argv: readonly string[]): ParsedArgv {
     }
     if (flag.name === "yes") {
       yes = true;
+      continue;
+    }
+    if (BOOLEAN_CLI_FLAG_NAMES.has(flag.name) && flag.inline === undefined) {
       continue;
     }
 

@@ -16033,6 +16033,12 @@ async function main(): Promise<void> {
     }
   }
   if (cli.kind === "run") {
+    if (!hasCliCredentials()) {
+      process.stderr.write(
+        "Missing GitLab credentials. Set --token or GITLAB_PERSONAL_ACCESS_TOKEN, or run `auth` with GITLAB_USE_OAUTH=true.\n"
+      );
+      process.exit(2);
+    }
     try {
       const result = await handleToolCall({ name: cli.toolName, arguments: cli.args });
       const masked = maskCliToolResult(cli.toolName, result);
@@ -16054,6 +16060,12 @@ async function main(): Promise<void> {
   }
 
   await runServer();
+}
+
+function hasCliCredentials(): boolean {
+  return Boolean(
+    GITLAB_PERSONAL_ACCESS_TOKEN || GITLAB_JOB_TOKEN || GITLAB_AUTH_COOKIE_PATH || USE_OAUTH
+  );
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

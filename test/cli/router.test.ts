@@ -79,7 +79,7 @@ describe("When a curated command is resolved", () => {
   });
 
   describe("with mr merge and no --yes", () => {
-    it("should refuse until --yes is passed", () => {
+    it("should refuse until --yes is passed without dumping argument values", () => {
       const resolved = resolveCli(
         argv("mr", "merge", "--project-id", "123", "--mr-iid", "45")
       );
@@ -88,6 +88,22 @@ describe("When a curated command is resolved", () => {
       if (resolved.kind === "refused") {
         assert.match(resolved.message, /--yes/);
         assert.match(resolved.message, /merge_merge_request/);
+        assert.match(resolved.message, /project_id/);
+        assert.equal(resolved.message.includes("123"), false);
+      }
+    });
+  });
+
+  describe("with variable list scoped via --args-json", () => {
+    it("should call list_group_variables when group_id is only in JSON", () => {
+      const resolved = resolveCli(
+        argv("variable", "list", "--args-json", '{"group_id":"42"}')
+      );
+
+      assert.equal(resolved.kind, "run");
+      if (resolved.kind === "run") {
+        assert.equal(resolved.toolName, "list_group_variables");
+        assert.equal(resolved.args.group_id, "42");
       }
     });
   });
