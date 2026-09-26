@@ -1,6 +1,9 @@
 import { after, before, describe, test } from "node:test";
 import assert from "node:assert";
 import { Buffer } from "node:buffer";
+import fs from "node:fs";
+import path, { dirname } from "node:path";
+import { fileURLToPath } from "node:url";
 import {
   cleanupServers,
   findAvailablePort,
@@ -14,6 +17,11 @@ import { CustomHeaderClient } from "./clients/custom-header-client.js";
 
 const MOCK_TOKEN = "mock-concurrent-token-12345";
 const TEST_PROJECT_ID = "123";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+const packageJsonPath = path.resolve(__dirname, "../package.json");
+const PACKAGE_VERSION = JSON.parse(fs.readFileSync(packageJsonPath, "utf8")).version;
 
 function fileResponse(filePath: string, content: string) {
   return {
@@ -168,6 +176,22 @@ describe("Streamable HTTP health check capacity logging", { timeout: 20_000 }, (
     if (mockGitLab) await mockGitLab.stop();
   });
 
+  test("reports server version when healthy", async () => {
+    const response = await fetch(`${baseUrl}/health`);
+    const body = (await response.json()) as {
+      status: string;
+      version: string;
+      activeSessions: number;
+      maxSessions: number;
+      uptime: number;
+    };
+
+    assert.strictEqual(response.status, 200);
+    assert.strictEqual(body.status, "healthy");
+    assert.strictEqual(body.version, PACKAGE_VERSION);
+    assert.strictEqual(body.activeSessions, 0);
+  });
+
   test("logs active session capacity when health check is degraded", async () => {
     const client = new CustomHeaderClient({ Authorization: `Bearer ${MOCK_TOKEN}` });
     await client.connect(mcpUrl);
@@ -176,12 +200,14 @@ describe("Streamable HTTP health check capacity logging", { timeout: 20_000 }, (
       const response = await fetch(`${baseUrl}/health`);
       const body = (await response.json()) as {
         status: string;
+        version: string;
         activeSessions: number;
         maxSessions: number;
       };
 
       assert.strictEqual(response.status, 503);
       assert.strictEqual(body.status, "degraded");
+      assert.strictEqual(body.version, PACKAGE_VERSION);
       assert.strictEqual(body.activeSessions, 1);
       assert.strictEqual(body.maxSessions, 1);
 

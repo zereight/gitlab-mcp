@@ -10,6 +10,8 @@ const MOCK_TOKEN = 'glpat-mock-token-12345';
 const TEST_PROJECT_ID = '123';
 const TEST_JOB_ID = '456';
 const NULL_MODE_JOB_ID = '457';
+const REDIRECT_JOB_ID = '789';
+const REDIRECT_TARGET = 'http://169.254.169.254/latest/meta-data/';
 const TEST_ENCODED_ARTIFACT_PATH = 'reports/report#1.txt';
 
 // Helper to run an MCP tool via the built server
@@ -160,6 +162,19 @@ describe('job artifacts tools', () => {
     mockGitLab.addMockHandler('get', `/projects/${TEST_PROJECT_ID}/jobs/999/artifacts/tree`, (req, res) => {
       res.status(404).json({ message: 'Not Found' });
     });
+
+    // GitLab redirects artifact downloads to its object storage, so the hop after this
+    // response leaves the origin. The destination is a non-public address here.
+    mockGitLab.addMockHandler('get', `/projects/${TEST_PROJECT_ID}/jobs/${REDIRECT_JOB_ID}/artifacts`, (req, res) => {
+      res.redirect(REDIRECT_TARGET);
+    });
+    mockGitLab.addMockHandler(
+      'get',
+      `/projects/${TEST_PROJECT_ID}/jobs/${REDIRECT_JOB_ID}/artifacts/report.xml`,
+      (req, res) => {
+        res.redirect(REDIRECT_TARGET);
+      }
+    );
 
     await mockGitLab.start();
     mockGitLabUrl = mockGitLab.getUrl();
@@ -330,5 +345,35 @@ describe('job artifacts tools', () => {
     );
 
     assert.strictEqual(result, 'encoded artifact content');
+  });
+
+  test('download_job_artifacts refuses a redirect to a non-public address', async () => {
+    await assert.rejects(
+      () =>
+        callTool(
+          'download_job_artifacts',
+          { project_id: TEST_PROJECT_ID, job_id: REDIRECT_JOB_ID, local_path: tmpDir },
+          {
+            GITLAB_API_URL: `${mockGitLabUrl}/api/v4`,
+            GITLAB_PERSONAL_ACCESS_TOKEN: MOCK_TOKEN,
+          }
+        ),
+      (err: Error) => String(err.message || err).toLowerCase().includes('non-public address')
+    );
+  });
+
+  test('get_job_artifact_file refuses a redirect to a non-public address', async () => {
+    await assert.rejects(
+      () =>
+        callTool(
+          'get_job_artifact_file',
+          { project_id: TEST_PROJECT_ID, job_id: REDIRECT_JOB_ID, artifact_path: 'report.xml' },
+          {
+            GITLAB_API_URL: `${mockGitLabUrl}/api/v4`,
+            GITLAB_PERSONAL_ACCESS_TOKEN: MOCK_TOKEN,
+          }
+        ),
+      (err: Error) => String(err.message || err).toLowerCase().includes('non-public address')
+    );
   });
 });

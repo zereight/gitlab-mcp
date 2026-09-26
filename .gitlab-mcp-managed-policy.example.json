@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "policyGroups": {
+    "team-default": {
+      "builtins": {
+        "ipv4": { "replacement": "[IP address]" }
+      },
+      "rules": [
+        {
+          "id": "company-name",
+          "type": "keyword",
+          "match": "Example Corp",
+          "replacement": "[organization]"
+        }
+      ]
+    }
+  },
+  "bindings": [
+    {
+      "gitlabInstance": "https://gitlab.example.com",
+      "projectIds": [101, 102],
+      "policyGroup": "team-default"
+    }
+  ],
+  "unboundProjectBehavior": "deny"
+}

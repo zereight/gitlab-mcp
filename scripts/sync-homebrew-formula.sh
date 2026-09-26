@@ -5,19 +5,76 @@ FORMULA_PATH="Formula/zereight-mcp-gitlab.rb"
 VERSION=$(node -p "require('./package.json').version")
 METADATA_URL="https://registry.npmjs.org/@zereight/mcp-gitlab/${VERSION}"
 
-if ! METADATA=$(curl -fsSL "$METADATA_URL"); then
-  echo "Error: failed to fetch npm metadata for @zereight/mcp-gitlab@${VERSION}."
-  echo "Publish to npm first, then rerun this script."
+# A successful `npm publish` does not mean the registry can serve the version
+# yet: npm's CDN keeps returning 404 for a few minutes afterwards. `needs: npm`
+# in npm-publish.yml only guarantees the publish job finished, so poll until the
+# version is actually resolvable instead of failing on the first 404.
+WAIT_SECONDS="${HOMEBREW_SYNC_WAIT_SECONDS:-600}"
+POLL_SECONDS="${HOMEBREW_SYNC_POLL_SECONDS:-15}"
+
+# A zero poll interval would hammer the registry until the deadline. WAIT_SECONDS=0
+# stays valid and means "make one attempt, then fail".
+if ! [[ "$WAIT_SECONDS" =~ ^[0-9]+$ ]]; then
+  echo "Error: HOMEBREW_SYNC_WAIT_SECONDS must be a non-negative integer, got '${WAIT_SECONDS}'."
   exit 1
 fi
+if ! [[ "$POLL_SECONDS" =~ ^[1-9][0-9]*$ ]]; then
+  echo "Error: HOMEBREW_SYNC_POLL_SECONDS must be a positive integer, got '${POLL_SECONDS}'."
+  exit 1
+fi
+
+tmp_metadata=$(mktemp)
+tmp_tarball=$(mktemp)
+trap 'rm -f "$tmp_metadata" "$tmp_tarball"' EXIT
+
+http_status=""
+fail_unavailable() {
+  echo "Error: npm metadata for @zereight/mcp-gitlab@${VERSION} is still unavailable (HTTP ${http_status:-no response}) after ${WAIT_SECONDS}s."
+  echo "Publish to npm first, or raise HOMEBREW_SYNC_WAIT_SECONDS to wait longer."
+  exit 1
+}
+
+# WAIT_SECONDS bounds the retries: after the first attempt, the request timeout and
+# every sleep are capped at the time remaining. The first attempt always gets the
+# full request timeout, so WAIT_SECONDS=0 still tolerates a slow registry response.
+deadline=$((SECONDS + WAIT_SECONDS))
+attempt=0
+while :; do
+  attempt=$((attempt + 1))
+  remaining=$((deadline - SECONDS))
+
+  # Always make one attempt; after that, stop as soon as the budget is spent.
+  if [ "$attempt" -gt 1 ] && [ "$remaining" -le 0 ]; then
+    fail_unavailable
+  fi
+
+  request_timeout=$((remaining < 30 ? remaining : 30))
+  if [ "$attempt" -eq 1 ]; then
+    request_timeout=30
+  fi
+
+  http_status=$(curl -sS --connect-timeout 10 --max-time "$request_timeout" -o "$tmp_metadata" -w '%{http_code}' "$METADATA_URL") || http_status="000"
+
+  if [ "$http_status" = "200" ]; then
+    break
+  fi
+
+  remaining=$((deadline - SECONDS))
+  if [ "$remaining" -le 0 ]; then
+    fail_unavailable
+  fi
+
+  sleep_for=$((remaining < POLL_SECONDS ? remaining : POLL_SECONDS))
+  echo "npm metadata for @zereight/mcp-gitlab@${VERSION} is not available yet (HTTP ${http_status}); retrying in ${sleep_for}s."
+  sleep "$sleep_for"
+done
+
+METADATA=$(cat "$tmp_metadata")
 
 TARBALL_URL=$(node -e "const dist=JSON.parse(process.argv[1]).dist; if (!dist?.tarball || !dist?.shasum) process.exit(1); console.log(dist.tarball)" "$METADATA")
 EXPECTED_SHASUM=$(node -e "console.log(JSON.parse(process.argv[1]).dist.shasum)" "$METADATA")
 
-tmp_tarball=$(mktemp)
-trap 'rm -f "$tmp_tarball"' EXIT
-
-if ! curl -fsSL "$TARBALL_URL" -o "$tmp_tarball"; then
+if ! curl -fsSL --connect-timeout 10 --max-time 120 "$TARBALL_URL" -o "$tmp_tarball"; then
   echo "Error: failed to download npm tarball for @zereight/mcp-gitlab@${VERSION}."
   exit 1
 fi

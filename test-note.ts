@@ -3,6 +3,8 @@
  * with the fixed endpoint URL construction that uses plural resource names
  * (issues instead of issue, merge_requests instead of merge_request).
  */
+import { encodeGitLabPathSegment } from "./utils/url.js";
+
 
 // GitLab API configuration (replace with actual values when testing)
 const GITLAB_API_URL = process.env.GITLAB_API_URL || "https://gitlab.com";
@@ -14,7 +16,7 @@ async function testCreateIssueNote() {
   try {
     // Using plural form "issues" in the URL
     const url = new URL(
-      `${GITLAB_API_URL}/api/v4/projects/${encodeURIComponent(
+      `${GITLAB_API_URL}/api/v4/projects/${encodeGitLabPathSegment(
         PROJECT_ID
       )}/issues/${ISSUE_IID}/notes`
     );

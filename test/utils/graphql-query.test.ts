@@ -216,6 +216,35 @@ describe("When graphqlQueryContainsDeleteOperation runs", () => {
       );
     });
 
+    test("should detect comma-prefixed delete mutations", () => {
+      assert.equal(
+        graphqlQueryContainsDeleteOperation(
+          ', mutation M { issueDelete(input: { iid: "1" }) { id } }'
+        ),
+        true
+      );
+    });
+
+    test("should detect comma-prefixed delete mutations without whitespace", () => {
+      assert.equal(
+        graphqlQueryContainsDeleteOperation(',mutation{issueDelete(input:{iid:"1"}){id}}'),
+        true
+      );
+    });
+
+    test("should detect delete mutations after a comma-separated query", () => {
+      assert.equal(
+        graphqlQueryContainsDeleteOperation(
+          "query HealthCheck { x }, mutation M { issueDelete(input: {}) { id } }"
+        ),
+        true
+      );
+    });
+
+    test("should allow comma-separated queries", () => {
+      assert.equal(graphqlQueryContainsDeleteOperation("query A { a }, query B { b }"), false);
+    });
+
     test("should conservatively block top-level fragment spreads in mutations", () => {
       assert.equal(
         graphqlQueryContainsDeleteOperation(
@@ -223,6 +252,108 @@ describe("When graphqlQueryContainsDeleteOperation runs", () => {
         ),
         true
       );
+    });
+  });
+
+  describe("with destructive mutations that are not named delete", () => {
+    test("should detect environmentStop", () => {
+      assert.equal(
+        graphqlQueryContainsDeleteOperation(
+          'mutation { environmentStop(input: { environmentId: "gid://gitlab/Environment/1" }) { errors } }'
+        ),
+        true
+      );
+    });
+
+    test("should detect pipelineCancel", () => {
+      assert.equal(
+        graphqlQueryContainsDeleteOperation("mutation { pipelineCancel(input: {}) { errors } }"),
+        true
+      );
+    });
+
+    test("should detect clusterAgentTokenRevoke", () => {
+      assert.equal(
+        graphqlQueryContainsDeleteOperation(
+          "mutation { clusterAgentTokenRevoke(input: {}) { errors } }"
+        ),
+        true
+      );
+    });
+
+    test("should detect jobUnschedule", () => {
+      // GitLab moves the scheduled job to manual and clears its scheduled state, so it
+      // is a teardown action even though no teardown verb is part of its name.
+      assert.equal(
+        graphqlQueryContainsDeleteOperation("mutation { jobUnschedule(input: {}) { errors } }"),
+        true
+      );
+    });
+
+    test("should detect aliased destructive mutations", () => {
+      assert.equal(
+        graphqlQueryContainsDeleteOperation(
+          "mutation { s: environmentStop(input: {}) { errors } }"
+        ),
+        true
+      );
+    });
+
+    test("should not treat an alias as a destructive mutation field", () => {
+      for (const query of [
+        "mutation { stop: issueSetSeverity(input: {}) { errors } }",
+        "mutation { revoke: issueSetSeverity(input: {}) { errors } }",
+        "mutation { terminate: updateIssue(input: {}) { issue { id } } }",
+      ]) {
+        assert.equal(graphqlQueryContainsDeleteOperation(query), false, query);
+      }
+    });
+
+    test("should not treat a spaced or comma-separated alias as a destructive field", () => {
+      for (const query of [
+        "mutation { stop : issueSetSeverity(input: {}) { errors } }",
+        "mutation { revoke,: issueSetSeverity(input: {}) { errors } }",
+        "mutation { terminate\n: updateIssue(input: {}) { issue { id } } }",
+      ]) {
+        assert.equal(graphqlQueryContainsDeleteOperation(query), false, query);
+      }
+    });
+
+    test("should still detect a destructive field after a spaced alias", () => {
+      assert.equal(
+        graphqlQueryContainsDeleteOperation(
+          "mutation { harmless : environmentStop(input: {}) { errors } }"
+        ),
+        true
+      );
+    });
+
+    test("should still detect a destructive field hidden behind a harmless alias", () => {
+      for (const query of [
+        "mutation { harmless: environmentStop(input: {}) { errors } }",
+        "mutation { step: pipelineCancel(input: {}) { errors } }",
+      ]) {
+        assert.equal(graphqlQueryContainsDeleteOperation(query), true, query);
+      }
+    });
+
+    test("should detect destructive mutations in multi-operation documents", () => {
+      assert.equal(
+        graphqlQueryContainsDeleteOperation(
+          "query A { project { id } } mutation B { environmentStop(input: {}) { errors } }"
+        ),
+        true
+      );
+    });
+
+    test("should still allow mutations without a destructive verb", () => {
+      for (const query of [
+        "mutation { issueMove(input: {}) { errors } }",
+        "mutation { mergeRequestMerge(input: {}) { errors } }",
+        "mutation { todoMarkDone(input: {}) { errors } }",
+      ]) {
+        assert.equal(graphqlQueryContainsDeleteOperation(query), false, query);
+      }
     });
   });
 });

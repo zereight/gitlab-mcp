@@ -6,12 +6,12 @@
     "url": "https://github.com/zereight/gitlab-mcp",
     "source": "github"
   },
-  "version": "2.1.59",
+  "version": "2.1.66",
   "packages": [
     {
       "registryType": "npm",
       "identifier": "@zereight/mcp-gitlab",
-      "version": "2.1.59",
+      "version": "2.1.66",
       "transport": {
         "type": "stdio"
       },
@@ -113,6 +113,35 @@
         {
           "name": "GITLAB_CA_CERT_PATH",
           "description": "Optional path to a custom CA certificate file for self-managed GitLab instances.",
+          "isRequired": false,
+          "isSecret": false,
+          "format": "filepath"
+        },
+        {
+          "name": "GITLAB_MASKING_ENABLED",
+          "description": "Set to true to mask text tool results and returned errors using built-in or configured rules.",
+          "isRequired": false,
+          "isSecret": false,
+          "format": "string",
+          "default": "false"
+        },
+        {
+          "name": "GITLAB_MASKING_CONFIG",
+          "description": "Optional path to a response-masking JSON configuration file.",
+          "isRequired": false,
+          "isSecret": false,
+          "format": "filepath"
+        },
+        {
+          "name": "GITLAB_MASKING_POLICY_FILE",
+          "description": "Optional protected server-owned JSON file containing managed masking policies.",
+          "isRequired": false,
+          "isSecret": false,
+          "format": "filepath"
+        },
+        {
+          "name": "GITLAB_MASKING_WORKSPACE_DIR",
+          "description": "Directory used to resolve response-masking configuration paths.",
           "isRequired": false,
           "isSecret": false,
           "format": "filepath"

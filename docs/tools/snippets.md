@@ -48,7 +48,7 @@ Get a snippet's metadata. Set include_content=true to also fetch the raw file co
 
 *✏️ Writes*
 
-Create a snippet — project-scoped when project_id is given, otherwise a personal snippet. Supports single-file (file_name + content) or multi-file (files[]). Use this for a new resource or action; choose the corresponding update or edit tool when the resource already exists. It changes remote GitLab state and requires the necessary project or group permission; GitLab returns validation, conflict, permission, or rate-limit errors instead of silently applying an invalid request. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented.
+Create a snippet — project-scoped when project_id is given, otherwise a personal snippet. Requires title plus either file_name + content (single file) or files[] (multi-file); the two shapes cannot be mixed.
 
 **Parameters**
 

@@ -55,3 +55,13 @@ jobs:
           platforms: linux/amd64,linux/arm64
           push: true
           tags: ${{ github.event_name == 'release' && steps.meta-release.outputs.tags || steps.meta-manual.outputs.tags }}
+
+      - name: Update Docker Hub description
+        uses: peter-evans/dockerhub-description@1b9a80c056b620d92cedb9d9b5a223409c68ddfa # v5
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          repository: zereight050/gitlab-mcp
+          readme-filepath: ./docker/DOCKERHUB.md
+          short-description: GitLab MCP server for projects, merge requests, issues, pipelines, wiki, releases, and more
+          enable-url-completion: true

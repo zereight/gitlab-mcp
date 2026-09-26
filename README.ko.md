@@ -17,20 +17,21 @@ PAT, OAuth, 읽기 전용 모드, 동적 API URL, 원격 인증을 지원하며 
 
 ### 왜 이 GitLab MCP를 사용하나요?
 
-- **237개 도구 + `discover_tools`** — 작은 toolset으로 시작하고, 런타임에 카테고리 활성화
+- **266개 도구 + `discover_tools`** — 작은 toolset으로 시작하고, 런타임에 카테고리 활성화
 - **MR 2단계 리뷰** — `list_merge_request_changed_files` → 배치 `get_merge_request_file_diff`
 - **Agent Skill 내장** — `skills/gitlab-mcp/` 워크플로우 가이드
 - **유연한 인증** — Personal Access Token, 로컬 OAuth2 브라우저 플로우, MCP OAuth 프록시, 요청별 원격 인증
 - **여러 전송 방식** — 로컬 클라이언트용 stdio, 레거시 클라이언트용 SSE, 최신 원격 배포용 Streamable HTTP
 - **클라이언트 친화적 설정** — Claude Code, Codex, Antigravity, OpenCode, Copilot, Cline, Roo Code, Cursor, Kilo Code, Amp Code 예시 제공
 - **셀프 호스팅 대응** — 커스텀 GitLab 인스턴스, 프록시 설정, 동적 API URL 라우팅 지원
+- **JMESPath 결과 필터링** — 도구 호출에 선택적 `jmespath` 인자(`tools/list` 참고)를 넘기면 GitLab API 요청은 그대로 두고 JSON 결과만 줄여서 반환; 응답 마스킹이 켜져 있으면 마스킹된 데이터에 JMESPath가 적용됨
 
 ### 비교 요약
 
 | | @zereight/mcp-gitlab | GitLab MCP A (커뮤니티 CQRS형) |
 |---|----------------------|--------------------------------|
 | **적합한 경우** | AI 에이전트 워크플로우 | 엔터프라이즈 멀티 인스턴스 / 그룹형 도구 |
-| **도구 모델** | ~237개 세분화 도구 + `discover_tools` | ~50–60개 `browse_*` / `manage_*` 그룹 도구 |
+| **도구 모델** | ~266개 세분화 도구 + `discover_tools` | ~50–60개 `browse_*` / `manage_*` 그룹 도구 |
 | **MR 리뷰** | 2단계 배치 diff | 서버마다 다름 |
 | **Node.js** | >=18.17 | 보통 >=24 |
 | **라이선스** | MIT | 서버마다 다름 |
@@ -110,7 +111,7 @@ command = lib.getExe inputs.gitlab-mcp.packages.${system}.default;
 
 예시는 기존 `mcp-gitlab`보다 충돌 가능성이 낮은 `zereight-mcp-gitlab` 별칭을 사용합니다. MCP 클라이언트가 찾지 못하면 `which zereight-mcp-gitlab`의 절대 경로를 사용하세요.
 
-전역 설치를 쓰지 않으려면 `npx -y @zereight/mcp-gitlab@2.1.58`처럼 직전 안정 버전(문서가 권장하는 버전)으로 고정하세요. 항상 최신 버전을 원하면 `npx -y @zereight/mcp-gitlab@latest`를 사용하세요. 새 버전이 나오면 서버가 시작 시 stderr로 알려줍니다(`GITLAB_DISABLE_VERSION_CHECK=true`로 비활성화 가능).
+전역 설치를 쓰지 않으려면 `npx -y @zereight/mcp-gitlab@2.1.65`처럼 직전 안정 버전(문서가 권장하는 버전)으로 고정하세요. 항상 최신 버전을 원하면 `npx -y @zereight/mcp-gitlab@latest`를 사용하세요. 새 버전이 나오면 서버가 시작 시 stderr로 알려줍니다(`GITLAB_DISABLE_VERSION_CHECK=true`로 비활성화 가능).
 
 #### CLI 인자 사용하기(환경 변수 문제가 있는 클라이언트용)
 
@@ -133,7 +134,7 @@ command = lib.getExe inputs.gitlab-mcp.packages.${system}.default;
 - `--token` - GitLab Personal Access Token (`GITLAB_PERSONAL_ACCESS_TOKEN` 대체)
 - `--api-url` - GitLab API URL (`GITLAB_API_URL` 대체)
 - `--read-only=true` - 읽기 전용 모드 활성화 (`GITLAB_READ_ONLY_MODE` 대체, deprecated — `--permission-mode=readonly` 권장)
-- `--permission-mode` - 권한 수준: `readonly`, `modify`(삭제 도구 비활성), `full` (`GITLAB_PERMISSION_MODE` 대체, 기본값 `full`)
+- `--permission-mode` - 권한 수준: `readonly`, `modify`(삭제/중단 도구 비활성), `full` (`GITLAB_PERMISSION_MODE` 대체, 기본값 `full`)
 - `--use-wiki=true` - 위키 API 활성화 (`USE_GITLAB_WIKI` 대체, 레거시 — `GITLAB_TOOLSETS=wiki` 권장)
 - `--use-milestone=true` - 마일스톤 API 활성화 (`USE_MILESTONE` 대체, 레거시 — `GITLAB_TOOLSETS=milestones` 권장)
 - `--use-pipeline=true` - 파이프라인 API 활성화 (`USE_PIPELINE` 대체, 레거시 — `GITLAB_TOOLSETS=pipelines` 권장)
@@ -143,8 +144,12 @@ CLI 인자는 환경 변수보다 우선합니다.
 
 `zereight-mcp-gitlab auth`는 MCP 서버 플래그가 아니라 서브커맨드입니다. GitLab device flow를 실행한 뒤 종료합니다. [CLI 인자](./docs/getting-started/cli-arguments.md#auth)를 참고하세요.
 
-> **세밀한 도구 필터링:** `GITLAB_PERMISSION_MODE=modify`로 생성/수정은 허용하고 모든 삭제 도구를
-> 차단하거나(`execute_graphql` 삭제 mutation과 `push_files`의 `delete`/`move` 포함), `GITLAB_PERMISSION_MODE=readonly`로 읽기 전용으로 운영할 수 있습니다. 또한
+> **세밀한 도구 필터링:** `GITLAB_PERMISSION_MODE=modify`로 생성/수정은 허용하고 모든 삭제 도구와
+> 파괴적인 중단(teardown) 도구(`cancel_pipeline`, `cancel_pipeline_job`, `stop_environment`,
+> `stop_stale_environments`, `unprotect_branch`)를 차단하거나(`execute_graphql`을 통한 파괴적
+> mutation — 삭제·중단 동사 — 과 `push_files`의 `delete`/`move` 포함),
+> `GITLAB_PERMISSION_MODE=readonly`로 읽기 전용으로 운영할 수
+> 있습니다. 또한
 > `GITLAB_TOOLSETS=<group,…>`로 도구 그룹을 활성화하고, `GITLAB_TOOLS=<tool,…>`로 개별 도구만
 > 허용하며(예: 읽기 도구 + 특정 쓰기 도구 몇 개), `GITLAB_DENIED_TOOLS_REGEX`로 패턴 차단할 수
 > 있습니다. 레거시 `USE_GITLAB_WIKI` / `USE_MILESTONE` / `USE_PIPELINE` 플래그는 하위 호환용으로만
@@ -299,7 +304,7 @@ MCP 클라이언트 설정:
 | `REMOTE_AUTHORIZATION`                                           | 예   | 활성화하려면 `true`                                                                                                     |
 | `STREAMABLE_HTTP`                                                | 예   | 반드시 `true`                                                                                                           |
 | `ENABLE_DYNAMIC_API_URL`                                         | 선택 | 요청별 `X-GitLab-API-URL` 헤더 허용                                                                                     |
-| `GITLAB_ALLOWED_HOSTS`                                           | 선택 | 허용할 `X-GitLab-API-URL` 호스트의 쉼표 구분 목록; `GITLAB_API_URL` 호스트는 항상 허용                                  |
+| `GITLAB_ALLOWED_HOSTS`                                           | 선택 | 허용할 `X-GitLab-API-URL` 호스트의 쉼표 구분 목록; `GITLAB_API_URL` 호스트는 항상 허용. 다운로드 리다이렉트 대상(릴리즈 에셋, 잡 아티팩트, 업로드 첨부)으로도 신뢰되므로 사설망 호스트는 여기에 등록 |
 | `GITLAB_ALLOW_UNAUTHENTICATED_TOOL_DISCOVERY`                    | 선택 | 인증 없이 `initialize`, `notifications/initialized`, `tools/list`, `server/discover`만 허용(도구 호출은 여전히 인증 필요)                  |
 | `MCP_SERVER_URL` / `MCP_ALLOWED_HOSTS` / `MCP_ALLOWED_ORIGINS` | 선택 | DNS rebinding 방지를 위한 허용 `/mcp` 호스트/오리진 값                                                                  |
 | `MCP_TRUST_PROXY`                                                | 선택 | 리버스 프록시 뒤에서 `Forwarded` / `X-Forwarded-*` 헤더 신뢰(다운로드 URL, Express `req.ip`, `/mcp` IP rate limit, OAuth rate limit) |
@@ -363,6 +368,17 @@ Authorization: Bearer glpat-xxxxxxxxxxxxxxxxxxxx
 - 프록시 및 TLS 변수
 
 콜백 프록시 모드 상세는 [GitLab MCP OAuth Callback Proxy](./docs/auth/oauth-callback-proxy.md)를 참고하세요.
+
+#### SSE 세션 제한
+
+`GET /sse`에는 Streamable HTTP와 동일한 원격 전송 제어가 적용됩니다.
+
+- **Capacity:** 동시 SSE 세션은 최대 `MAX_SESSIONS`개(기본 1000)이며, 초과 연결은 `503`을 받습니다.
+- **생성 rate limit:** 새 연결은 클라이언트 IP당 `MAX_REQUESTS_PER_MINUTE`(기본 60)로 제한되며, 초과 연결은 `429`를 받습니다.
+- **Idle timeout:** `SESSION_TIMEOUT_SECONDS`(기본 1시간) 동안 `POST /messages` 요청이 없는 세션은 종료됩니다. 따라서 유휴 클라이언트는 슬롯을 계속 점유하는 대신 다시 연결해야 합니다. Streamable HTTP와 달리 SSE 스트림을 열어 두는 것은 활동으로 간주되지 **않습니다**.
+- 용량이 가득 찬 동안 `/health`는 `503`과 `status: "degraded"`를 반환합니다.
+
+설정은 [`MAX_SESSIONS`](./docs/configuration/environment-variables.md#max_sessions), `MAX_REQUESTS_PER_MINUTE`, `SESSION_TIMEOUT_SECONDS`를 참고하세요.
 
 ### 원격 인증 설정(멀티 유저 지원)
 

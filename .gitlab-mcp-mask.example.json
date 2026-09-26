@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "builtins": {
+    "gitlab-token": { "enabled": true, "replacement": "[Token masked]" },
+    "ipv4": { "enabled": true, "replacement": "[IP address]" },
+    "ipv6": { "enabled": true, "replacement": "[IP address]" }
+  },
+  "rules": [
+    {
+      "id": "our-company",
+      "type": "keyword",
+      "match": "Example Corp",
+      "replacement": "Our organization"
+    },
+    {
+      "id": "customer-company",
+      "type": "keyword",
+      "match": "Customer Corp",
+      "replacement": "Customer organization"
+    },
+    {
+      "id": "admin-entry",
+      "type": "keyword",
+      "match": "https://admin.internal.example",
+      "replacement": "[Admin portal]"
+    },
+    {
+      "id": "business-token",
+      "type": "regex",
+      "pattern": "\\b[A-Za-z0-9]{32}\\b",
+      "flags": "g",
+      "replacement": "[Token masked]"
+    }
+  ]
+}

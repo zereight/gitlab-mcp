@@ -1,4 +1,3 @@
-import { zodToJsonSchema } from "zod-to-json-schema";
 import { toJSONSchema } from "../utils/schema.js";
 import {
   USE_GITLAB_WIKI,
@@ -123,6 +122,7 @@ import {
   GetMergeRequestConflictsSchema,
   GetMergeRequestDiffsSchema,
   GetMergeRequestFileDiffSchema,
+  GetMergeRequestDiscussionSchema,
   GetMergeRequestNoteSchema,
   GetMergeRequestNotesSchema,
   GetMergeRequestSchema,
@@ -220,6 +220,10 @@ import {
   MergeMergeRequestSchema,
   MoveWorkItemSchema,
   MyIssuesSchema,
+  OrbitQuerySchema,
+  OrbitSchemaSchema,
+  OrbitStatusSchema,
+  OrbitToolsSchema,
   PlayPipelineJobSchema,
   PromoteProjectMilestoneSchema,
   PublishDraftNoteSchema,
@@ -309,7 +313,7 @@ export const allTools = [
   {
     name: "execute_graphql",
     description: "Execute a GitLab GraphQL query",
-    inputSchema: zodToJsonSchema(ExecuteGraphQLSchema),
+    inputSchema: toJSONSchema(ExecuteGraphQLSchema),
   },
   {
     name: "create_or_update_file",
@@ -466,6 +470,11 @@ export const allTools = [
     name: "mr_discussions",
     description: "List discussion items for a merge request",
     inputSchema: toJSONSchema(ListMergeRequestDiscussionsSchema),
+  },
+  {
+    name: "get_merge_request_discussion",
+    description: "Get a single discussion item for a merge request",
+    inputSchema: toJSONSchema(GetMergeRequestDiscussionSchema),
   },
   {
     name: "delete_merge_request_discussion_note",
@@ -1194,7 +1203,7 @@ export const allTools = [
   {
     name: "health_check",
     description:
-      "Verify server status and authentication. When authenticated, also reports the GitLab instance version from GET /api/v4/version (version, revision, enterprise). Version lookup failures do not fail the health check — those fields are omitted.",
+      "Verify server status and authentication. Always reports the MCP server version (mcp_server_version). When authenticated, also reports the GitLab instance version from GET /api/v4/version (version, revision, enterprise). Version lookup failures do not fail the health check — those fields are omitted.",
     inputSchema: toJSONSchema(HealthCheckSchema),
   },
   {
@@ -1285,7 +1294,7 @@ export const allTools = [
   {
     name: "create_snippet",
     description:
-      "Create a snippet — project-scoped when project_id is given, otherwise a personal snippet. Supports single-file (file_name + content) or multi-file (files[]).",
+      "Create a snippet — project-scoped when project_id is given, otherwise a personal snippet. Requires title plus either file_name + content (single file) or files[] (multi-file); the two shapes cannot be mixed.",
     inputSchema: toJSONSchema(CreateSnippetSchema),
   },
   {
@@ -1530,6 +1539,27 @@ export const allTools = [
     description: "Confirm a vulnerability as a real finding requiring remediation",
     inputSchema: toJSONSchema(ConfirmVulnerabilitySchema),
   },
+  // --- GitLab Orbit (knowledge graph) tools ---
+  {
+    name: "orbit_query",
+    description: "Execute a GitLab Orbit graph query over the indexed SDLC knowledge graph",
+    inputSchema: toJSONSchema(OrbitQuerySchema),
+  },
+  {
+    name: "orbit_get_schema",
+    description: "Fetch the current GitLab Orbit graph schema (node and edge types)",
+    inputSchema: toJSONSchema(OrbitSchemaSchema),
+  },
+  {
+    name: "orbit_get_status",
+    description: "Check GitLab Orbit indexing status for the enabled scope",
+    inputSchema: toJSONSchema(OrbitStatusSchema),
+  },
+  {
+    name: "orbit_list_tools",
+    description: "List the MCP tool definitions exposed by GitLab Orbit",
+    inputSchema: toJSONSchema(OrbitToolsSchema),
+  },
   // --- Meta tool: Dynamic tool discovery ---
   {
     name: "discover_tools",
@@ -1576,6 +1606,7 @@ export const readOnlyTools = new Set([
   "get_draft_note",
   "list_draft_notes",
   "mr_discussions",
+  "get_merge_request_discussion",
   "list_issues",
   "list_todos",
   "my_issues",
@@ -1685,15 +1716,24 @@ export const readOnlyTools = new Set([
   "list_dependency_proxy_blobs",
   "list_project_vulnerabilities",
   "get_vulnerability",
+  "orbit_query",
+  "orbit_get_schema",
+  "orbit_get_status",
+  "orbit_list_tools",
 ]);
 
 // Define which tools are destructive (data loss potential)
 export const destructiveTools = new Set([
   "delete_pipeline",
   "erase_pipeline_job",
+  // Teardown verbs without a `delete_` prefix tear down live pipelines/environments too.
+  "cancel_pipeline",
+  "cancel_pipeline_job",
   "delete_deployment",
   "approve_deployment",
   "delete_environment",
+  "stop_environment",
+  "stop_stale_environments",
   "delete_review_app_environments",
   "delete_pipeline_trigger",
   "delete_issue",
@@ -1729,8 +1769,10 @@ export const destructiveTools = new Set([
   "purge_dependency_proxy_cache",
 ]);
 
-// Tools that permanently delete resources — blocked in "modify" permission mode.
-// Narrower than destructiveTools: merge/protect/push are modifications, not deletions.
+// Tools blocked in "modify" permission mode: permanent deletions plus destructive
+// teardown verbs that do not start with `delete_` (see the comment inside).
+// Invariant: deleteTools is a subset of destructiveTools — every blocked tool is also
+// annotated with `destructiveHint`. Add new blocked tools to both sets.
 export const deleteTools = new Set([
   "delete_pipeline",
   "erase_pipeline_job",
@@ -1764,6 +1806,13 @@ export const deleteTools = new Set([
   "delete_work_item_emoji_reaction",
   "delete_work_item_note_emoji_reaction",
   "purge_dependency_proxy_cache",
+  // Destructive teardown operations whose names do not start with `delete_`:
+  // stopping/cancelling live pipelines and environments, and removing branch protection.
+  "cancel_pipeline",
+  "cancel_pipeline_job",
+  "stop_environment",
+  "stop_stale_environments",
+  "unprotect_branch",
 ]);
 
 // Define which tools are related to wiki and can be toggled by USE_GITLAB_WIKI
@@ -1887,7 +1936,8 @@ export type ToolsetId =
   | "search"
   | "variables"
   | "dependency_proxy"
-  | "vulnerabilities";
+  | "vulnerabilities"
+  | "orbit";
 
 export interface ToolsetDefinition {
   readonly id: ToolsetId;
@@ -1921,6 +1971,7 @@ export const TOOLSET_DEFINITIONS: readonly ToolsetDefinition[] = [
       "list_group_merge_requests",
       "get_branch_diffs",
       "mr_discussions",
+      "get_merge_request_discussion",
       "create_merge_request_note",
       "update_merge_request_note",
       "delete_merge_request_note",
@@ -2278,6 +2329,11 @@ export const TOOLSET_DEFINITIONS: readonly ToolsetDefinition[] = [
       "dismiss_vulnerability",
       "confirm_vulnerability",
     ]),
+  },
+  {
+    id: "orbit",
+    isDefault: false,
+    tools: new Set(["orbit_query", "orbit_get_schema", "orbit_get_status", "orbit_list_tools"]),
   },
 ] as const;
 

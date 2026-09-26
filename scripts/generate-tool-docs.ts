@@ -140,6 +140,11 @@ const GROUP_META: Record<ToolsetId, GroupMeta> = {
     blurb:
       "AI-assisted vulnerability triage — list findings, inspect details, dismiss with reason, or confirm for remediation. Backed by the GitLab GraphQL API; requires GitLab Ultimate.",
   },
+  orbit: {
+    title: "GitLab Orbit",
+    blurb:
+      "Query the Orbit SDLC knowledge graph (Beta; Premium/Ultimate). Graph queries consume GitLab credits; schema, status, and tool listing are free.",
+  },
   snippets: {
     title: "Snippets",
     blurb:
@@ -168,6 +173,7 @@ const GROUP_ORDER: ToolsetId[] = [
   "search",
   "dependency_proxy",
   "vulnerabilities",
+  "orbit",
   "snippets",
 ];
 
@@ -327,6 +333,9 @@ function buildIndexPage(groupedToolsList: Array<[ToolsetId, string[]]>): string 
     "",
     "Complete catalog of every tool the GitLab MCP server exposes.",
     "",
+    "Which of these have an MCP `tools/call` test is tracked in",
+    "[Tool invocation coverage](../reference/tool-coverage.md).",
+    "",
     "> **Setup first** — if you haven't connected your Personal Access Token or",
     "> OAuth credentials yet, follow one of the [client setup guides](../clients/claude-code.md)",
     "> or read [Getting Started](../getting-started/index.md). Tools listed below",
@@ -344,8 +353,10 @@ function buildIndexPage(groupedToolsList: Array<[ToolsetId, string[]]>): string 
     "Permission modes control which tools are exposed:",
     "",
     "- `GITLAB_PERMISSION_MODE=readonly` — hides every write tool regardless of toggles.",
-    "- `GITLAB_PERMISSION_MODE=modify` — allows create/update but blocks all `delete_*` tools, plus `push_files` `delete`/`move` actions.",
+    "- `GITLAB_PERMISSION_MODE=modify` — allows create/update but blocks delete and teardown tools: every `delete_*` tool, `erase_pipeline_job`, `purge_dependency_proxy_cache`, the destructive teardown verbs `cancel_pipeline`, `cancel_pipeline_job`, `stop_environment`, `stop_stale_environments`, `unprotect_branch`, plus `push_files` `delete`/`move` actions.",
     "- `GITLAB_READ_ONLY_MODE=true` (deprecated) — same as `readonly`; prefer `GITLAB_PERMISSION_MODE=readonly`.",
+    "",
+    "The `modify` guard applies to typed tools (`tools/list` and `tools/call`) and to destructive mutations sent through `execute_graphql`: any top-level mutation field whose name contains a deletion verb (`delete`, `destroy`, `remove`, `prune`, `purge`, `erase`) or a teardown verb (`revoke`, `cancel`, `stop`, `terminate`, `unprotect`, `disable`, `deactivate`, `drop`, `unschedule`). See [Environment Variables](../configuration/environment-variables.md#gitlab_permission_mode).",
     "",
     "See [Environment Variables](../configuration/environment-variables.md)",
     "and [CLI Arguments](../getting-started/cli-arguments.md) for the full list.",

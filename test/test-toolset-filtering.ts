@@ -30,7 +30,7 @@ const MCP_PORT_BASE = 3200;
 
 // Known tool counts per toolset (from TOOLSET_DEFINITIONS)
 const TOOLSET_TOOL_COUNTS: Record<string, number> = {
-  merge_requests: 42,
+  merge_requests: 43,
   issues: 24,
   repositories: 7,
   branches: 15,
@@ -51,6 +51,7 @@ const TOOLSET_TOOL_COUNTS: Record<string, number> = {
   variables: 10,
   dependency_proxy: 4,
   vulnerabilities: 4,
+  orbit: 4,
 };
 
 const LEGACY_PIPELINE_CI_TOOL_COUNT = 2;
@@ -81,6 +82,7 @@ const NON_DEFAULT_TOOLSETS = [
   "variables",
   "dependency_proxy",
   "vulnerabilities",
+  "orbit",
 ];
 
 // discover_tools meta-tool is always force-injected (Step 5.5)

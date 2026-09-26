@@ -17,8 +17,8 @@ install: $(VENV)/bin/activate ## Create .venv-docs and install docs dependencies
 	@$(PIP) install --quiet -r requirements-docs.txt
 	@echo "Docs environment ready."
 
-tools-docs: ## Regenerate docs/tools/*.md from tools/registry.ts
-	npx tsx scripts/generate-tool-docs.ts
+tools-docs: ## Regenerate docs/tools/*.md and docs/reference/tool-coverage.md
+	npm run docs:tools
 
 docs: tools-docs build ## Regenerate and build documentation
 

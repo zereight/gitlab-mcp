@@ -52,7 +52,7 @@ List work items with filters (type, state, search, assignees, labels). Use this 
 | Parameter | Type | Required | Description |
 |---|---|:-:|---|
 | `project_id` | string | ✓ | Project ID, URL-encoded project path, group path, or explicit namespace prefix for ambiguous numeric IDs (e.g. 'group/subgroup', 'group:123', or 'project:123') |
-| `types` | array<any> |  | Filter by work item types. If not set, returns all types. |
+| `types` | array<enum (`issue` \| `task` \| `incident` \| `test_case` \| `epic` \| `key_result` \| `objective` \| `requirement` \| `ticket`)> |  | Filter by work item types. If not set, returns all types. |
 | `state` | enum (`opened` \| `closed`) |  | Filter by state |
 | `search` | string |  | Search in title and description |
 | `assignee_usernames` | array<string> |  | Filter by assignee usernames |
@@ -72,7 +72,7 @@ Create a work item (issue, task, incident, epic, etc.) with full field support. 
 |---|---|:-:|---|
 | `project_id` | string | ✓ | Project ID, URL-encoded project path, group path, or explicit namespace prefix for ambiguous numeric IDs (e.g. 'group/subgroup', 'group:123', or 'project:123') |
 | `title` | string | ✓ | Title of the work item |
-| `type` | any |  | Type of work item to create. Defaults to 'issue'. |
+| `type` | enum (`issue` \| `task` \| `incident` \| `test_case` \| `epic` \| `key_result` \| `objective` \| `requirement` \| `ticket`) |  | Type of work item to create. Defaults to 'issue'. |
 | `description` | string |  | Description of the work item (Markdown supported) |
 | `labels` | array<string> |  | Array of label names to assign |
 | `assignee_usernames` | array<string> |  | Array of usernames to assign |
@@ -134,7 +134,7 @@ Convert a work item to a different type. Use this for the specific operation des
 |---|---|:-:|---|
 | `project_id` | string | ✓ | Project ID, URL-encoded project path, group path, or explicit namespace prefix for ambiguous numeric IDs (e.g. 'group/subgroup', 'group:123', or 'project:123') |
 | `iid` | number | ✓ | The internal ID of the work item |
-| `new_type` | any | ✓ | The target work item type to convert to |
+| `new_type` | enum (`issue` \| `task` \| `incident` \| `test_case` \| `epic` \| `key_result` \| `objective` \| `requirement` \| `ticket`) | ✓ | The target work item type to convert to |
 
 ### `list_work_item_statuses`
 
@@ -147,7 +147,7 @@ List available statuses for a work item type (Premium/Ultimate). Use this for a 
 | Parameter | Type | Required | Description |
 |---|---|:-:|---|
 | `project_id` | string | ✓ | Project ID, URL-encoded project path, group path, or explicit namespace prefix for ambiguous numeric IDs (e.g. 'group/subgroup', 'group:123', or 'project:123') |
-| `work_item_type` | any |  | The work item type to list available statuses for. Defaults to 'issue'. |
+| `work_item_type` | enum (`issue` \| `task` \| `incident` \| `test_case` \| `epic` \| `key_result` \| `objective` \| `requirement` \| `ticket`) |  | The work item type to list available statuses for. Defaults to 'issue'. |
 
 ### `list_custom_field_definitions`
 
@@ -160,7 +160,7 @@ List custom field definitions for a work item type. Use this for a collection of
 | Parameter | Type | Required | Description |
 |---|---|:-:|---|
 | `project_id` | string | ✓ | Project ID, URL-encoded project path, group path, or explicit namespace prefix for ambiguous numeric IDs (e.g. 'group/subgroup', 'group:123', or 'project:123') |
-| `work_item_type` | any |  | The work item type to list custom field definitions for. Defaults to 'issue'. |
+| `work_item_type` | enum (`issue` \| `task` \| `incident` \| `test_case` \| `epic` \| `key_result` \| `objective` \| `requirement` \| `ticket`) |  | The work item type to list custom field definitions for. Defaults to 'issue'. |
 
 ### `move_work_item`
 
