@@ -60,6 +60,38 @@ No global install? Pin `npx` to the previous stable release and keep the server 
 
 Subcommands are not MCP server flags. They run and exit without starting the MCP server.
 
+### Human CLI
+
+The installed binary is also a `gh`-style GitLab CLI. Every command maps to an
+existing tool in the registry — no new GitLab API surface.
+
+```bash
+zereight-mcp-gitlab tool list_issues --project-id 123 --state opened
+zereight-mcp-gitlab mr list --project-id 123 --state opened
+zereight-mcp-gitlab issue view --project-id 123 --issue-iid 9
+zereight-mcp-gitlab user whoami
+```
+
+| Layer | Form | Default output |
+| --- | --- | --- |
+| Generic | `tool <tool-name> [options]` | JSON |
+| Curated | `<group> <action> [options]` | table |
+
+- Flags are kebab-case schema keys (`project_id` → `--project-id`). Nested objects and arrays use `--args-json '{...}'`.
+- Curated shorts: `--mr-iid`, `--issue-iid`, `--branch`, `--source`, `--target`.
+- Destructive tools (`delete_*`, `merge_merge_request`, `push_files`, …) require `--yes`. Without it the command prints what it would do and exits `2`.
+- `--permission-mode=readonly` refuses writes with exit `2` before any network call.
+- Exit codes: `0` success, `1` API/auth/runtime failure, `2` usage or refused write.
+- Human tables go to stdout; diagnostics go to stderr so `... --output json | jq` stays clean.
+
+```bash
+zereight-mcp-gitlab --help
+zereight-mcp-gitlab mr --help
+zereight-mcp-gitlab tool get_merge_request --help
+```
+
+See [Human CLI Design](../reference/cli-usage-design.md) for the command catalog and phase list.
+
 ### `auth`
 
 Run GitLab's OAuth Device Authorization Grant (GitLab 17.9+; 17.2–17.8 need

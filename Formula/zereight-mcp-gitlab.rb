@@ -22,5 +22,9 @@ class ZereightMcpGitlab < Formula
 
     output = pipe_output(bin/"zereight-mcp-gitlab", json, 0)
     assert_match "zereight-gitlab-mcp-server", output
+
+    help = shell_output("#{bin}/zereight-mcp-gitlab --help")
+    assert_match "tool <tool-name>", help
+    assert_match "auth", help
   end
 end
