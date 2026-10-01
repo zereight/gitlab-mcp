@@ -414,8 +414,8 @@ A tool counts as invoked when a test sends that name through MCP (`callTool` / `
 
 - [x] [`list_snippets`](../tools/snippets.md#list_snippets) — `test/test-dynamic-project-scope.ts`, `test/test-snippets.ts`
 - [x] [`get_snippet`](../tools/snippets.md#get_snippet) — `test/test-dynamic-project-scope.ts`, `test/test-snippets.ts`
-- [x] [`create_snippet`](../tools/snippets.md#create_snippet) — `test/test-snippets.ts`
-- [x] [`update_snippet`](../tools/snippets.md#update_snippet) — `test/test-snippets.ts`
+- [x] [`create_snippet`](../tools/snippets.md#create_snippet) — `test/test-dynamic-project-scope.ts`, `test/test-snippets.ts`
+- [x] [`update_snippet`](../tools/snippets.md#update_snippet) — `test/test-dynamic-project-scope.ts`, `test/test-snippets.ts`
 - [x] [`delete_snippet`](../tools/snippets.md#delete_snippet) — `test/test-dynamic-project-scope.ts`, `test/test-snippets.ts`
 
 ## Meta & GraphQL
