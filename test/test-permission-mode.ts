@@ -44,6 +44,8 @@ async function launchMcpServer(extraEnv: Record<string, string> = {}): Promise<S
       REMOTE_AUTHORIZATION: "true",
       GITLAB_API_URL: `${mockGitLabUrl}/api/v4`,
       GITLAB_TOOLSETS: "all",
+      // execute_graphql is in no toolset; opt in so the guards under test are reachable.
+      GITLAB_TOOLS: "execute_graphql",
       ...extraEnv,
     },
   });
@@ -381,6 +383,89 @@ describe("Permission Mode", { concurrency: 1 }, () => {
           (error: Error) => error.message.includes("destructive mutations in modify mode"),
           "jobUnschedule must be rejected in modify mode"
         );
+      } finally {
+        await client.disconnect();
+      }
+    });
+  });
+
+  describe("call-time enforcement of list filters (modify mode)", () => {
+    const servers: ServerInstance[] = [];
+
+    after(() => cleanupServers(servers));
+
+    async function callOutcome(
+      server: ServerInstance,
+      name: string,
+      args: Record<string, unknown>
+    ): Promise<string> {
+      const client = await connectClient(server);
+      try {
+        return JSON.stringify(await client.callTool(name, args));
+      } catch (error) {
+        return error instanceof Error ? error.message : String(error);
+      } finally {
+        await client.disconnect();
+      }
+    }
+
+    test("rejects a regex-denied tool and an execute_graphql with no GITLAB_TOOLS entry", async () => {
+      const server = await launchMcpServer({
+        GITLAB_PERMISSION_MODE: "modify",
+        GITLAB_TOOLS: "",
+        GITLAB_DENIED_TOOLS_REGEX: "^merge_merge_request$",
+      });
+      servers.push(server);
+
+      const names = await getToolNames(server);
+      assert.ok(!names.includes("merge_merge_request"), "regex-denied tool must be unlisted");
+      assert.ok(!names.includes("execute_graphql"), "execute_graphql must be unlisted");
+
+      const merge = await callOutcome(server, "merge_merge_request", {
+        project_id: "1",
+        merge_request_iid: 1,
+      });
+      assert.ok(merge.includes("not available"), `merge_merge_request: ${merge}`);
+      const graphql = await callOutcome(server, "execute_graphql", {
+        query: "query { currentUser { id } }",
+      });
+      assert.ok(graphql.includes("not available"), `execute_graphql: ${graphql}`);
+    });
+
+    test("policy-hidden tool is unlisted but still callable", async () => {
+      const server = await launchMcpServer({
+        GITLAB_PERMISSION_MODE: "modify",
+        GITLAB_TOOL_POLICY_HIDDEN: "list_issues",
+      });
+      servers.push(server);
+
+      const names = await getToolNames(server);
+      assert.ok(!names.includes("list_issues"), "hidden tool must be unlisted");
+      const outcome = await callOutcome(server, "list_issues", { project_id: "1" });
+      assert.ok(!outcome.includes("not available"), `hidden tool must stay callable: ${outcome}`);
+    });
+
+    test("tool outside the enabled toolsets is rejected until discover_tools activates it", async () => {
+      const server = await launchMcpServer({
+        GITLAB_PERMISSION_MODE: "modify",
+        GITLAB_TOOLSETS: "issues",
+      });
+      servers.push(server);
+
+      const client = await connectClient(server);
+      try {
+        const before = await client
+          .callTool("list_pipelines", { project_id: "1" })
+          .then(r => JSON.stringify(r))
+          .catch((e: Error) => e.message);
+        assert.ok(before.includes("not available"), `before activation: ${before}`);
+
+        await client.callTool("discover_tools", { category: "pipelines" });
+        const after = await client
+          .callTool("list_pipelines", { project_id: "1" })
+          .then(r => JSON.stringify(r))
+          .catch((e: Error) => e.message);
+        assert.ok(!after.includes("not available"), `after activation: ${after}`);
       } finally {
         await client.disconnect();
       }

@@ -77,6 +77,7 @@ describe("Dynamic project scope", { concurrency: 1 }, () => {
           ENABLE_DYNAMIC_PROJECT_SCOPE: "true",
           ENABLE_STRICT_PROJECT_SCOPE: "true",
           GITLAB_API_URL: `${mockGitLab.getUrl()}/api/v4`,
+          GITLAB_TOOLS: "execute_graphql",
           GITLAB_ALLOWED_PROJECT_IDS: "1,2",
         },
       });
@@ -323,6 +324,7 @@ describe("Dynamic project scope", { concurrency: 1 }, () => {
           REMOTE_AUTHORIZATION: "true",
           ENABLE_DYNAMIC_PROJECT_SCOPE: "true",
           GITLAB_API_URL: `${mockGitLab.getUrl()}/api/v4`,
+          GITLAB_TOOLS: "execute_graphql",
         },
       });
       servers.push(server);

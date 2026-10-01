@@ -1009,6 +1009,17 @@ function createServer(): McpServer {
         );
       }
 
+      // Enforce list-time filtering on direct calls: clients can call names that tools/list omits.
+      // filteredTools is extended by discover_tools; hidden-policy tools stay callable by design.
+      // Permission-mode denials fall through so handleToolCall reports its mode-specific error.
+      if (
+        isToolAllowedByPermissionMode(toolName) &&
+        !hiddenToolSet.has(toolName) &&
+        !filteredTools.some(t => t.name === toolName)
+      ) {
+        throw new Error(`Tool "${toolName}" is not available on this server`);
+      }
+
       // Handle discover_tools meta-tool directly (needs access to mcpServer and filteredTools)
       if (toolName === "discover_tools") {
         const category = request.params.arguments?.category?.trim()?.toLowerCase();
