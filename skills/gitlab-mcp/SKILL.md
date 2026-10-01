@@ -5,7 +5,7 @@ description: Use this skill when working with the GitLab MCP server tools for me
 
 # gitlab-mcp
 
-GitLab MCP server providing 263 tools: 261 tools across 21 toolsets, plus `execute_graphql` and the always-available `discover_tools` meta-tool.
+GitLab MCP server providing 268 tools: 266 tools across 22 toolsets, plus `execute_graphql` and the always-available `discover_tools` meta-tool.
 
 For exact generated parameter tables, see `docs/tools/`. Use this file for workflow shape and high-signal parameter hints.
 
@@ -27,6 +27,7 @@ For exact generated parameter tables, see `docs/tools/`. Use this file for workf
 | wiki (10 tools) | no | `USE_GITLAB_WIKI=true` or `GITLAB_TOOLSETS=wiki` |
 | releases (7 tools) | no | `GITLAB_TOOLSETS=releases` |
 | tags (5 tools) | no | `GITLAB_TOOLSETS=tags` |
+| snippets (5 tools) | no | `GITLAB_TOOLSETS=snippets` |
 | workitems (18 tools) | no | `GITLAB_TOOLSETS=workitems` |
 | webhooks (6 tools) | no | `GITLAB_TOOLSETS=webhooks` |
 | search (3 tools) | no | `GITLAB_TOOLSETS=search` |
@@ -37,8 +38,8 @@ For exact generated parameter tables, see `docs/tools/`. Use this file for workf
 
 Enable all: `GITLAB_TOOLSETS=all`. Use `GITLAB_TOOLS` to enable individual tools outside their toolset. `discover_tools` can list and activate opt-in categories for the current session. `execute_graphql` is not in a toolset; enable it explicitly with `GITLAB_TOOLS=execute_graphql`.
 
-The per-toolset counts above sum to 263 because `get_branch` and `list_branches` are each listed
-in both `merge_requests` and `branches`; the unique tool count across all toolsets is 261.
+The per-toolset counts above sum to 268 because `get_branch` and `list_branches` are each listed
+in both `merge_requests` and `branches`; the unique tool count across all toolsets is 266.
 
 ## Key Workflows
 
@@ -121,7 +122,7 @@ Enable with `GITLAB_TOOLSETS=vulnerabilities` (requires GitLab Ultimate).
 
 ## Destructive Tools (require caution)
 
-`cancel_pipeline`, `cancel_pipeline_job`, `delete_branch`, `delete_deployment`, `approve_deployment`, `delete_draft_note`, `delete_environment`, `erase_pipeline_job`, `delete_group_milestone`, `delete_group_variable`, `delete_group_wiki_page`, `delete_issue`, `delete_issue_emoji_reaction`, `delete_issue_link`, `delete_issue_note_emoji_reaction`, `delete_label`, `delete_merge_request_discussion_note`, `delete_merge_request_emoji_reaction`, `delete_merge_request_note`, `delete_merge_request_note_emoji_reaction`, `delete_milestone`, `delete_pipeline`, `delete_pipeline_schedule`, `delete_pipeline_schedule_variable`, `delete_pipeline_trigger`, `delete_project_variable`, `delete_release`, `delete_review_app_environments`, `delete_tag`, `delete_webhook`, `delete_wiki_page`, `delete_work_item_emoji_reaction`, `delete_work_item_note_emoji_reaction`, `merge_merge_request`, `protect_branch`, `purge_dependency_proxy_cache`, `push_files`, `stop_environment`, `stop_stale_environments`, `unprotect_branch`, `update_default_branch`
+`cancel_pipeline`, `cancel_pipeline_job`, `delete_branch`, `delete_deployment`, `approve_deployment`, `delete_draft_note`, `delete_environment`, `erase_pipeline_job`, `delete_group_milestone`, `delete_group_variable`, `delete_group_wiki_page`, `delete_issue`, `delete_issue_emoji_reaction`, `delete_issue_link`, `delete_issue_note_emoji_reaction`, `delete_label`, `delete_merge_request_discussion_note`, `delete_merge_request_emoji_reaction`, `delete_merge_request_note`, `delete_merge_request_note_emoji_reaction`, `delete_milestone`, `delete_pipeline`, `delete_pipeline_schedule`, `delete_pipeline_schedule_variable`, `delete_pipeline_trigger`, `delete_project_variable`, `delete_release`, `delete_review_app_environments`, `delete_snippet`, `delete_tag`, `delete_webhook`, `delete_wiki_page`, `delete_work_item_emoji_reaction`, `delete_work_item_note_emoji_reaction`, `merge_merge_request`, `protect_branch`, `purge_dependency_proxy_cache`, `push_files`, `stop_environment`, `stop_stale_environments`, `unprotect_branch`, `update_default_branch`
 
 ## Advanced
 

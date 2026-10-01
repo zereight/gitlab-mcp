@@ -9,10 +9,29 @@ import {
   TransportMode,
 } from "./utils/server-launcher.js";
 import { MockGitLabServer, findMockServerPort } from "./utils/mock-gitlab-server.js";
+import { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { CustomHeaderClient } from "./clients/custom-header-client.js";
 
 const MOCK_TOKEN = "glpat-dynamic-scope-token";
 const SCOPE_HEADER = "x-gitlab-allowed-project-ids";
+
+function parseToolJson(result: CallToolResult): unknown {
+  assert.ok(result.isError !== true, "tool should succeed");
+  const first = result.content[0];
+  assert.ok(first !== undefined && first.type === "text");
+  return JSON.parse(first.text);
+}
+
+function snippetTitleFrom(value: unknown): string {
+  if (value === null || typeof value !== "object" || !("title" in value)) {
+    assert.fail("expected a snippet object with title");
+  }
+  const title = value.title;
+  if (typeof title !== "string") {
+    assert.fail("expected snippet title to be a string");
+  }
+  return title;
+}
 
 async function connectClient(mcpUrl: string, scope?: string): Promise<CustomHeaderClient> {
   const headers: Record<string, string> = { authorization: `Bearer ${MOCK_TOKEN}` };
@@ -384,6 +403,174 @@ describe("Dynamic project scope", { concurrency: 1 }, () => {
       } finally {
         await client.disconnect();
       }
+    });
+  });
+
+  describe("with session-scoped snippet tools", () => {
+    let mockGitLab: MockGitLabServer;
+    const servers: ServerInstance[] = [];
+    let mcpUrl: string;
+    const snippetHits: string[] = [];
+
+    before(async () => {
+      const mockPort = await findMockServerPort();
+      mockGitLab = new MockGitLabServer({ port: mockPort, validTokens: [MOCK_TOKEN] });
+      mockGitLab.addMockHandler("get", "/snippets", (_req, res) => {
+        snippetHits.push("personal:list");
+        res.json([{ id: 99, title: "personal snippet of the token owner" }]);
+      });
+      mockGitLab.addMockHandler("get", "/projects/5/snippets", (_req, res) => {
+        snippetHits.push("project:list");
+        res.json([{ id: 42, title: "project snippet" }]);
+      });
+      mockGitLab.addMockHandler("get", "/projects/5/snippets/42", (_req, res) => {
+        snippetHits.push("project:get");
+        res.json({ id: 42, title: "project snippet" });
+      });
+      mockGitLab.addMockHandler("get", "/snippets/42", (_req, res) => {
+        snippetHits.push("personal:get");
+        res.json({ id: 42, title: "personal snippet of the token owner" });
+      });
+      mockGitLab.addMockHandler("delete", "/snippets/99", (_req, res) => {
+        snippetHits.push("personal:delete");
+        res.status(204).end();
+      });
+      mockGitLab.addMockHandler("delete", "/projects/5/snippets/42", (_req, res) => {
+        snippetHits.push("project:delete");
+        res.status(204).end();
+      });
+      mockGitLab.addMockHandler("post", "/snippets", (_req, res) => {
+        snippetHits.push("personal:create");
+        res.json({ id: 99, title: "personal snippet of the token owner" });
+      });
+      mockGitLab.addMockHandler("post", "/projects/5/snippets", (_req, res) => {
+        snippetHits.push("project:create");
+        res.json({ id: 42, title: "project snippet" });
+      });
+      mockGitLab.addMockHandler("put", "/snippets/42", (_req, res) => {
+        snippetHits.push("personal:update");
+        res.json({ id: 42, title: "updated personal snippet" });
+      });
+      mockGitLab.addMockHandler("put", "/projects/5/snippets/42", (_req, res) => {
+        snippetHits.push("project:update");
+        res.json({ id: 42, title: "updated project snippet" });
+      });
+      await mockGitLab.start();
+
+      const mcpPort = await findAvailablePort(3200);
+      const server = await launchServer({
+        mode: TransportMode.STREAMABLE_HTTP,
+        port: mcpPort,
+        timeout: 5000,
+        env: {
+          STREAMABLE_HTTP: "true",
+          REMOTE_AUTHORIZATION: "true",
+          ENABLE_DYNAMIC_PROJECT_SCOPE: "true",
+          GITLAB_TOOLSETS: "snippets",
+          GITLAB_API_URL: `${mockGitLab.getUrl()}/api/v4`,
+        },
+      });
+      servers.push(server);
+      mcpUrl = `http://${HOST}:${mcpPort}/mcp`;
+    });
+
+    after(async () => {
+      cleanupServers(servers);
+      await mockGitLab?.stop();
+    });
+
+    test("list_snippets without project_id stays within the session scope", async () => {
+      snippetHits.length = 0;
+      const client = await connectClient(mcpUrl, "5");
+      try {
+        const result = await client.callTool("list_snippets", {});
+        assert.ok(result.content, "Should have content");
+        const content = result.content[0];
+        assert.ok("text" in content, "Content should have text");
+        const snippets = JSON.parse(content.text as string) as { title: string }[];
+        assert.strictEqual(snippets[0].title, "project snippet");
+      } finally {
+        await client.disconnect();
+      }
+      assert.deepStrictEqual(
+        snippetHits,
+        ["project:list"],
+        "must route to the scoped project, not the personal /snippets endpoint"
+      );
+    });
+
+    test("delete_snippet without project_id stays within the session scope", async () => {
+      snippetHits.length = 0;
+      const client = await connectClient(mcpUrl, "5");
+      try {
+        await client.callTool("delete_snippet", { snippet_id: 42 });
+      } finally {
+        await client.disconnect();
+      }
+      assert.deepStrictEqual(
+        snippetHits,
+        ["project:delete"],
+        "must route to the scoped project, not the personal /snippets endpoint"
+      );
+    });
+
+    test("get_snippet without project_id stays within the session scope", async () => {
+      snippetHits.length = 0;
+      const client = await connectClient(mcpUrl, "5");
+      try {
+        const result = await client.callTool("get_snippet", { snippet_id: 42 });
+        assert.ok(result.content, "Should have content");
+        const content = result.content[0];
+        assert.ok("text" in content, "Content should have text");
+        const snippet = JSON.parse(content.text as string) as { title: string };
+        assert.strictEqual(snippet.title, "project snippet");
+      } finally {
+        await client.disconnect();
+      }
+      assert.deepStrictEqual(
+        snippetHits,
+        ["project:get"],
+        "must route to the scoped project, not the personal /snippets endpoint"
+      );
+    });
+
+    test("create_snippet without project_id stays within the session scope", async () => {
+      snippetHits.length = 0;
+      const client = await connectClient(mcpUrl, "5");
+      try {
+        const result = await client.callTool("create_snippet", {
+          title: "scoped create",
+          file_name: "note.md",
+          content: "hi",
+        });
+        assert.strictEqual(snippetTitleFrom(parseToolJson(result)), "project snippet");
+      } finally {
+        await client.disconnect();
+      }
+      assert.deepStrictEqual(
+        snippetHits,
+        ["project:create"],
+        "must route to the scoped project, not the personal /snippets endpoint"
+      );
+    });
+
+    test("update_snippet without project_id stays within the session scope", async () => {
+      snippetHits.length = 0;
+      const client = await connectClient(mcpUrl, "5");
+      try {
+        const result = await client.callTool("update_snippet", {
+          snippet_id: 42,
+          title: "scoped update",
+        });
+        assert.strictEqual(snippetTitleFrom(parseToolJson(result)), "updated project snippet");
+      } finally {
+        await client.disconnect();
+      }
+      assert.deepStrictEqual(
+        snippetHits,
+        ["project:update"],
+        "must route to the scoped project, not the personal /snippets endpoint"
+      );
     });
   });
 

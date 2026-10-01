@@ -22,7 +22,7 @@ Supports PAT, OAuth, read-only mode, dynamic API URLs, and remote authorization 
 
 ### Why use this GitLab MCP?
 
-- **261 tools + `discover_tools`** — start with a small toolset; activate more at runtime without CQRS-style grouping
+- **266 tools + `discover_tools`** — start with a small toolset; activate more at runtime without CQRS-style grouping
 - **MR 2-step review** — `list_merge_request_changed_files` → batched `get_merge_request_file_diff`
 - **Agent Skill built in** — workflow guidance in `skills/gitlab-mcp/`
 - **Flexible auth** — Personal Access Token, local OAuth2 browser flow, MCP OAuth proxy, and per-request remote authorization
@@ -36,7 +36,7 @@ Supports PAT, OAuth, read-only mode, dynamic API URLs, and remote authorization 
 | | @zereight/mcp-gitlab | GitLab MCP A (community CQRS-style) |
 |---|----------------------|-------------------------------------|
 | **Best for** | AI agent workflows | Enterprise multi-instance / grouped tools |
-| **Tool model** | ~261 granular tools + `discover_tools` | ~50–60 grouped `browse_*` / `manage_*` tools |
+| **Tool model** | ~266 granular tools + `discover_tools` | ~50–60 grouped `browse_*` / `manage_*` tools |
 | **MR review** | 2-step batched diff | Varies |
 | **Node.js** | >=18.17 | Often >=24 |
 | **License** | MIT | Varies |
@@ -862,7 +862,12 @@ Register the skill directory in your AI client to get optimal tool usage guidanc
 259. `orbit_get_schema` - Fetch the current GitLab Orbit graph schema (node and edge types)
 260. `orbit_get_status` - Check GitLab Orbit indexing status for the enabled scope
 261. `orbit_list_tools` - List the MCP tool definitions exposed by GitLab Orbit
-262. `discover_tools` - Discover and activate additional tool categories for this session. Available categories: merge_requests, issues, repositories, branches, projects, labels, ci, groups, pipelines, milestones, wiki, releases, tags, users, workitems, webhooks, search, variables, dependency_proxy, vulnerabilities, orbit. Already-active categories are listed in the response.
+262. `list_snippets` - List snippets — project snippets when project_id is given, otherwise personal snippets
+263. `get_snippet` - Get a snippet's metadata. Set include_content=true to also fetch the raw file content.
+264. `create_snippet` - Create a snippet — project-scoped when project_id is given, otherwise a personal snippet. Requires title plus either file_name + content (single file) or files[] (multi-file); the two shapes cannot be mixed.
+265. `update_snippet` - Update an existing snippet (provide at least one field to change). For multi-file edits — renames, deletions, additions — pass files[] with action (create/update/delete/move) and previous_path. The file_name + content shortcut still works for single-file content replacement.
+266. `delete_snippet` - Delete a snippet
+267. `discover_tools` - Discover and activate additional tool categories for this session. Available categories: merge_requests, issues, repositories, branches, projects, labels, ci, groups, pipelines, milestones, wiki, releases, tags, snippets, users, workitems, webhooks, search, variables, dependency_proxy, vulnerabilities, orbit. Already-active categories are listed in the response.
 
 <!-- TOOLS-END -->
 

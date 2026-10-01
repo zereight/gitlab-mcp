@@ -105,6 +105,7 @@ const DELETE_SAMPLE_TOOLS = [
   "delete_group_milestone",
   "delete_project_variable",
   "delete_webhook",
+  "delete_snippet",
 ];
 
 // Destructive teardown tools whose names do not start with `delete_`. All five are listed
