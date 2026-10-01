@@ -127,7 +127,7 @@ process.stdin.on("end", () => {
 const fs = require("fs");
 const path = require("path");
 const version = process.argv[2];
-const roots = ["README.md", "README.ko.md", "README.zh-CN.md", "docs"];
+const roots = ["README.md", "README.ko.md", "README.zh-CN.md", "README.pt-BR.md", "docs"];
 
 function files(root) {
   if (!fs.existsSync(root)) return [];
@@ -487,7 +487,7 @@ elif [ -n "$REMOTE_TAG_EXISTS" ]; then
   preflight_registry_metadata
   build_docs
 
-  git add -u package.json package-lock.json README.md README.ko.md README.zh-CN.md docs
+  git add -u package.json package-lock.json README.md README.ko.md README.zh-CN.md README.pt-BR.md docs
   if [ -f server.json ]; then
     git add server.json
   fi
@@ -515,7 +515,7 @@ else
   preflight_registry_metadata
   build_docs
 
-  git add -u package.json package-lock.json README.md README.ko.md README.zh-CN.md docs
+  git add -u package.json package-lock.json README.md README.ko.md README.zh-CN.md README.pt-BR.md docs
   if [ -f server.json ]; then
     git add server.json
   fi
