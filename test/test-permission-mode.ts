@@ -394,6 +394,7 @@ describe("Permission Mode", { concurrency: 1 }, () => {
 
     after(() => cleanupServers(servers));
 
+    /** Calls a tool on a fresh client and returns the serialized result, or the error message. */
     async function callOutcome(
       server: ServerInstance,
       name: string,
@@ -443,6 +444,23 @@ describe("Permission Mode", { concurrency: 1 }, () => {
       assert.ok(!names.includes("list_issues"), "hidden tool must be unlisted");
       const outcome = await callOutcome(server, "list_issues", { project_id: "1" });
       assert.ok(!outcome.includes("not available"), `hidden tool must stay callable: ${outcome}`);
+    });
+
+    test("policy-hidden tool that is also regex-denied is rejected", async () => {
+      const server = await launchMcpServer({
+        GITLAB_PERMISSION_MODE: "modify",
+        GITLAB_TOOL_POLICY_HIDDEN: "list_issues",
+        GITLAB_DENIED_TOOLS_REGEX: "^list_issues$",
+      });
+      servers.push(server);
+
+      const names = await getToolNames(server);
+      assert.ok(!names.includes("list_issues"), "hidden tool must be unlisted");
+      const outcome = await callOutcome(server, "list_issues", { project_id: "1" });
+      assert.ok(
+        outcome.includes("not available"),
+        `regex denial must win over hidden exemption: ${outcome}`
+      );
     });
 
     test("tool outside the enabled toolsets is rejected until discover_tools activates it", async () => {
