@@ -22,6 +22,7 @@ import {
   GITLAB_MASKING_POLICY_FILE,
   GITLAB_MASKING_WORKSPACE_DIR,
   GITLAB_PERMISSION_MODE,
+  GITLAB_PERMISSION_MODE_RAW,
   GITLAB_TOOLSETS_RAW,
   GITLAB_TOOLS_RAW,
   HOST,
@@ -54,6 +55,7 @@ import {
   GITLAB_MCP_COMPACT_RESULTS,
   GITLAB_MCP_COMPACT_RESULT_CHARS,
 } from "./config.js";
+import { getDeprecatedEnvWarnings } from "./deprecated-env.js";
 
 /** True when the server is running in remote/network mode (SSE or StreamableHTTP transport). */
 const IS_REMOTE = SSE || STREAMABLE_HTTP;
@@ -16285,22 +16287,16 @@ async function runServer() {
     logger.info(`Configured GitLab API URLs: ${GITLAB_API_URLS.join(", ")}`);
     logger.info(`Default GitLab API URL: ${GITLAB_API_URL}`);
 
-    if (GITLAB_ALLOWED_GROUPS_RAW) {
-      if (GITLAB_OAUTH_ALLOWED_GROUPS_RAW) {
-        logger.warn(
-          "GITLAB_ALLOWED_GROUPS is set but ignored — GITLAB_OAUTH_ALLOWED_GROUPS takes precedence."
-        );
-      } else {
-        logger.warn(
-          "GITLAB_ALLOWED_GROUPS is deprecated. Use GITLAB_OAUTH_ALLOWED_GROUPS instead."
-        );
-      }
-    }
-
-    if (GITLAB_READ_ONLY_MODE) {
-      logger.warn(
-        "GITLAB_READ_ONLY_MODE is deprecated. Use GITLAB_PERMISSION_MODE=readonly or --permission-mode=readonly instead."
-      );
+    for (const warning of getDeprecatedEnvWarnings({
+      readOnlyMode: GITLAB_READ_ONLY_MODE,
+      permissionModeRaw: GITLAB_PERMISSION_MODE_RAW,
+      allowedGroupsRaw: GITLAB_ALLOWED_GROUPS_RAW,
+      oauthAllowedGroupsRaw: GITLAB_OAUTH_ALLOWED_GROUPS_RAW,
+      useWiki: USE_GITLAB_WIKI,
+      useMilestone: USE_MILESTONE,
+      usePipeline: USE_PIPELINE,
+    })) {
+      logger.warn(warning);
     }
 
     if (GITLAB_OAUTH_ALLOWED_GROUPS) {

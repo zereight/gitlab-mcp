@@ -73,8 +73,9 @@ export const GITLAB_MASKING_WORKSPACE_DIR = getConfig(
 
 export type GitLabPermissionMode = "readonly" | "modify" | "full";
 const PERMISSION_MODES: readonly GitLabPermissionMode[] = ["readonly", "modify", "full"];
+export const GITLAB_PERMISSION_MODE_RAW = getConfig("permission-mode", "GITLAB_PERMISSION_MODE");
 export const GITLAB_PERMISSION_MODE: GitLabPermissionMode = (() => {
-  const raw = getConfig("permission-mode", "GITLAB_PERMISSION_MODE");
+  const raw = GITLAB_PERMISSION_MODE_RAW;
   if (raw !== undefined && !PERMISSION_MODES.includes(raw as GitLabPermissionMode)) {
     throw new Error(
       `Invalid GITLAB_PERMISSION_MODE: "${raw}". Expected one of: ${PERMISSION_MODES.join(", ")}`
