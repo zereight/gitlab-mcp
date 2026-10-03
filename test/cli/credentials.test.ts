@@ -61,21 +61,45 @@ function getPort(server: http.Server): number {
   return address.port;
 }
 
-function runCliAsync(env: Record<string, string>): Promise<{ exitCode: number | null; stdout: string }> {
+function runCliAsync(env: Record<string, string>): Promise<{ exitCode: number | null; stdout: string; stderr: string }> {
   return new Promise((resolve, reject) => {
     const child = spawn(process.execPath, [CLI_ENTRY, "mr", "view", "--project-id", "g/p", "--mr-iid", "1"], {
       env,
-      stdio: ["ignore", "pipe", "ignore"],
+      stdio: ["ignore", "pipe", "pipe"],
       timeout: CLI_TIMEOUT_MS,
       killSignal: "SIGKILL",
     });
     let stdout = "";
+    let stderr = "";
     child.stdout.on("data", chunk => {
       stdout += String(chunk);
     });
+    child.stderr.on("data", chunk => {
+      stderr += String(chunk);
+    });
     child.on("error", reject);
-    child.on("close", exitCode => resolve({ exitCode, stdout }));
+    child.on("close", exitCode => resolve({ exitCode, stdout, stderr }));
   });
+}
+
+function buildOAuthEnv(apiUrl: string, tmpDir: string): Record<string, string> {
+  const tokenPath = path.join(tmpDir, "token.json");
+  fs.writeFileSync(
+    tokenPath,
+    JSON.stringify({
+      access_token: "oauth-cli-test",
+      refresh_token: "refresh",
+      expires_in: 7200,
+      created_at: Date.now(),
+      token_type: "Bearer",
+    })
+  );
+  return {
+    GITLAB_API_URL: apiUrl,
+    GITLAB_USE_OAUTH: "true",
+    GITLAB_OAUTH_CLIENT_ID: "client-id",
+    GITLAB_OAUTH_TOKEN_PATH: tokenPath,
+  };
 }
 
 async function runMrViewAgainstFakeGitLabAsync(
@@ -111,28 +135,38 @@ describe("When the human CLI runs without an MCP client", () => {
 
   describe("with an OAuth token stored by the auth command", () => {
     it("should send the stored token as a bearer credential", async () => {
-      const run = await runMrViewAgainstFakeGitLabAsync((apiUrl, tmpDir) => {
-        const tokenPath = path.join(tmpDir, "token.json");
-        fs.writeFileSync(
-          tokenPath,
-          JSON.stringify({
-            access_token: "oauth-cli-test",
-            refresh_token: "refresh",
-            expires_in: 7200,
-            created_at: Date.now(),
-            token_type: "Bearer",
-          })
-        );
-        return {
-          GITLAB_API_URL: apiUrl,
-          GITLAB_USE_OAUTH: "true",
-          GITLAB_OAUTH_CLIENT_ID: "client-id",
-          GITLAB_OAUTH_TOKEN_PATH: tokenPath,
-        };
-      });
+      const run = await runMrViewAgainstFakeGitLabAsync(buildOAuthEnv);
 
       assert.equal(run.exitCode, 0);
       assert.equal(run.authorization, "Bearer oauth-cli-test");
+    });
+  });
+
+  describe("with an OAuth token and GITLAB_IS_OLD enabled", () => {
+    it("should still send the token as a bearer credential", async () => {
+      const run = await runMrViewAgainstFakeGitLabAsync((apiUrl, tmpDir) => ({
+        ...buildOAuthEnv(apiUrl, tmpDir),
+        GITLAB_IS_OLD: "true",
+      }));
+
+      assert.equal(run.exitCode, 0);
+      assert.equal(run.authorization, "Bearer oauth-cli-test");
+    });
+  });
+
+  describe("with OAuth enabled against a cleartext remote URL", () => {
+    it("should refuse to run before any network call", async () => {
+      const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "gitlab-cli-credentials-"));
+      try {
+        const result = await runCliAsync(
+          buildCleanEnv(buildOAuthEnv("http://gitlab.example.invalid/api/v4", tmpDir))
+        );
+
+        assert.equal(result.exitCode, 1);
+        assert.match(result.stderr, /cleartext HTTP/);
+      } finally {
+        fs.rmSync(tmpDir, { recursive: true, force: true });
+      }
     });
   });
 

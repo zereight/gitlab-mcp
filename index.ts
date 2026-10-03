@@ -182,6 +182,7 @@ export { readMcpSessionIdHeader } from "./server/request-helpers.js";
 import {
   encodeGitLabPath,
   encodeGitLabPathSegment,
+  isCleartextRemoteUrl,
   normalizeGitLabApiUrl,
 } from "./utils/url.js";
 import {
@@ -1872,13 +1873,16 @@ function buildAuthHeaders(): Record<string, string> {
   // OAuth token takes priority over PAT when both are set.
   // NOTE: Changed in PR #400 — previously GITLAB_JOB_TOKEN had highest priority.
   // If both GITLAB_PERSONAL_ACCESS_TOKEN and GITLAB_JOB_TOKEN are set, PAT wins.
-  const token = OAUTH_ACCESS_TOKEN || GITLAB_PERSONAL_ACCESS_TOKEN;
-
-  if (IS_OLD && token) {
-    return { "Private-Token": String(token) };
+  // OAuth tokens always travel as `Authorization: Bearer`, even with GITLAB_IS_OLD: the HTTP
+  // client strips `Authorization` on cross-origin redirects but not `Private-Token`.
+  if (OAUTH_ACCESS_TOKEN) {
+    return { Authorization: `Bearer ${OAUTH_ACCESS_TOKEN}` };
   }
-  if (token) {
-    return { Authorization: `Bearer ${token}` };
+
+  if (GITLAB_PERSONAL_ACCESS_TOKEN) {
+    return IS_OLD
+      ? { "Private-Token": String(GITLAB_PERSONAL_ACCESS_TOKEN) }
+      : { Authorization: `Bearer ${GITLAB_PERSONAL_ACCESS_TOKEN}` };
   }
 
   // Fall back to CI job token
@@ -16249,6 +16253,12 @@ async function initializeServerByTransportMode(mode: TransportMode): Promise<voi
 function initOAuthClient(): void {
   if (!USE_OAUTH) {
     return;
+  }
+  if (isCleartextRemoteUrl(GITLAB_API_URL)) {
+    throw new Error(
+      `Refusing to send OAuth tokens over cleartext HTTP to ${GITLAB_API_URL}. ` +
+        "Use an https:// GITLAB_API_URL (http:// is only allowed for localhost)."
+    );
   }
   oauthClient = createGitLabOAuthClient(GITLAB_API_URL.replace(/\/api\/v4$/, ""));
 }

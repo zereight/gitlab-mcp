@@ -96,6 +96,7 @@ Writes are refused with exit code `2` before any network call.
 | Symptom | Cause | Fix |
 | --- | --- | --- |
 | `Missing GitLab credentials` (exit `2`) | No PAT and `GITLAB_USE_OAUTH` is not `true` | Set one of the two options above |
+| `Refusing to send OAuth tokens over cleartext HTTP` | OAuth is on and `GITLAB_API_URL` is `http://` to a non-localhost host | Use an `https://` URL (plain `http://` is only allowed for `localhost`) |
 | `401 Unauthorized` | Expired or under-scoped token | Create a new token or re-run `auth` |
 | `404 Not Found` on a project you can open | Wrong `GITLAB_API_URL`, or token lacks access | Check the URL ends with `/api/v4` and the token's scope |
 | Browser tries to open during a command | OAuth enabled but no stored token | Run `auth` first |
