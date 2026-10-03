@@ -143,7 +143,7 @@ describe("When managing webhooks", () => {
       GITLAB_API_URL: mockServer.getUrl() + "/api/v4",
       GITLAB_PERSONAL_ACCESS_TOKEN: MOCK_TOKEN,
       GITLAB_TOOLSETS: "webhooks",
-      GITLAB_READ_ONLY_MODE: "false",
+      GITLAB_PERMISSION_MODE: "full",
     };
   });
 

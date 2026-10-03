@@ -12,10 +12,11 @@ configSchema:
       type: string
       description: GitLab API base URL (e.g. https://gitlab.com/api/v4)
       default: https://gitlab.com/api/v4
-    gitlabReadOnlyMode:
-      type: boolean
-      description: Set to true to expose only read-only tools and block write operations
-      default: false
+    gitlabPermissionMode:
+      type: string
+      enum: [readonly, modify, full]
+      description: Permission mode. readonly hides every write tool, modify blocks delete and teardown tools, full allows everything
+      default: full
     gitlabToolsets:
       type: string
       description: Optional comma-separated list of toolsets to enable (e.g. projects,issues,merge_requests,pipelines)
@@ -38,10 +39,11 @@ startCommand:
         type: string
         description: GitLab API base URL (e.g. https://gitlab.com/api/v4)
         default: https://gitlab.com/api/v4
-      gitlabReadOnlyMode:
-        type: boolean
-        description: Set to true to expose only read-only tools and block write operations
-        default: false
+      gitlabPermissionMode:
+        type: string
+        enum: [readonly, modify, full]
+        description: Permission mode. readonly hides every write tool, modify blocks delete and teardown tools, full allows everything
+        default: full
       gitlabToolsets:
         type: string
         description: Optional comma-separated list of toolsets to enable (e.g. projects,issues,merge_requests,pipelines)
@@ -56,7 +58,7 @@ startCommand:
       env: {
         GITLAB_PERSONAL_ACCESS_TOKEN: config.gitlabPersonalAccessToken,
         ...(config.gitlabApiUrl ? { GITLAB_API_URL: config.gitlabApiUrl } : {}),
-        ...(config.gitlabReadOnlyMode !== undefined ? { GITLAB_READ_ONLY_MODE: String(config.gitlabReadOnlyMode) } : {}),
+        ...(config.gitlabPermissionMode ? { GITLAB_PERMISSION_MODE: config.gitlabPermissionMode } : {}),
         ...(config.gitlabToolsets ? { GITLAB_TOOLSETS: config.gitlabToolsets } : {}),
         ...(config.gitlabMaskingEnabled !== undefined ? { GITLAB_MASKING_ENABLED: String(config.gitlabMaskingEnabled) } : {})
       }

@@ -22,9 +22,9 @@ For exact generated parameter tables, see `docs/tools/`. Use this file for workf
 | ci (4 tools) | yes | - |
 | groups (1 tool) | yes | - |
 | users (7 tools) | yes | - |
-| pipelines (56 tools) | no | `USE_PIPELINE=true` or `GITLAB_TOOLSETS=pipelines` |
-| milestones (17 tools) | no | `USE_MILESTONE=true` or `GITLAB_TOOLSETS=milestones` |
-| wiki (10 tools) | no | `USE_GITLAB_WIKI=true` or `GITLAB_TOOLSETS=wiki` |
+| pipelines (56 tools) | no | `GITLAB_TOOLSETS=pipelines` |
+| milestones (17 tools) | no | `GITLAB_TOOLSETS=milestones` |
+| wiki (10 tools) | no | `GITLAB_TOOLSETS=wiki` |
 | releases (7 tools) | no | `GITLAB_TOOLSETS=releases` |
 | tags (5 tools) | no | `GITLAB_TOOLSETS=tags` |
 | snippets (5 tools) | no | `GITLAB_TOOLSETS=snippets` |

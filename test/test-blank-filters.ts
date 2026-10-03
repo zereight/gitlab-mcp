@@ -22,7 +22,7 @@ async function callTool(
         ...process.env,
         ...TOOLSET_ENV,
         ...env,
-        GITLAB_READ_ONLY_MODE: "true",
+        GITLAB_PERMISSION_MODE: "readonly",
       },
     });
 

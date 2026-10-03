@@ -133,11 +133,7 @@ command = lib.getExe inputs.gitlab-mcp.packages.${system}.default;
 
 - `--token` - GitLab Personal Access Token（替代 `GITLAB_PERSONAL_ACCESS_TOKEN`）
 - `--api-url` - GitLab API URL（替代 `GITLAB_API_URL`）
-- `--read-only=true` - 启用只读模式（替代 `GITLAB_READ_ONLY_MODE`，已弃用 — 推荐 `--permission-mode=readonly`）
 - `--permission-mode` - 权限级别：`readonly`、`modify`（禁用删除/拆除工具）或 `full`（替代 `GITLAB_PERMISSION_MODE`，默认 `full`）
-- `--use-wiki=true` - 启用 Wiki API（替代 `USE_GITLAB_WIKI`，旧版 — 推荐 `GITLAB_TOOLSETS=wiki`）
-- `--use-milestone=true` - 启用里程碑 API（替代 `USE_MILESTONE`，旧版 — 推荐 `GITLAB_TOOLSETS=milestones`）
-- `--use-pipeline=true` - 启用流水线 API（替代 `USE_PIPELINE`，旧版 — 推荐 `GITLAB_TOOLSETS=pipelines`）
 - `--disable-version-check=true` - 关闭启动时的新版本提示（替代 `GITLAB_DISABLE_VERSION_CHECK`）
 - `--masking-enabled=true` - 启用文本响应掩码（替代 `GITLAB_MASKING_ENABLED`）
 - `--masking-config` - 掩码配置文件路径（替代 `GITLAB_MASKING_CONFIG`）
@@ -159,7 +155,6 @@ CLI 参数优先于环境变量。
 > `GITLAB_PERMISSION_MODE=readonly` 只读运行。还可以用
 > `GITLAB_TOOLSETS=<group,…>` 启用工具分组，用 `GITLAB_TOOLS=<tool,…>` 白名单启用单个工具
 > （例如：只读分组 + 少数几个写工具），用 `GITLAB_DENIED_TOOLS_REGEX` 按正则屏蔽工具。
-> 旧版 `USE_GITLAB_WIKI` / `USE_MILESTONE` / `USE_PIPELINE` 标志仅为向后兼容保留。
 > 参见 [Tools Reference](./docs/tools/index.md#feature-toggles) 和
 > [Environment Variables](./docs/configuration/environment-variables.md)。
 
@@ -258,7 +253,7 @@ OpenCode、MCPJam、Claude.ai 等远程 MCP 客户端可能会在授权时发送
 | `STREAMABLE_HTTP`             | 是   | 必须为 `true`                                                                                               |
 | `GITLAB_OAUTH_CALLBACK_PROXY` | 可选 | 设置为 `true` 时使用 MCP 服务器固定的 `/callback` URL                                                       |
 | `GITLAB_OAUTH_SCOPES`         | 可选 | 逗号分隔的 scope（默认：`api,read_api,read_user`）                                                          |
-| `GITLAB_OAUTH_ALLOWED_GROUPS` | 可选 | 逗号分隔的 GitLab 群组完整路径 — 仅该群组及其子群组的成员可获取令牌（替代已废弃的 `GITLAB_ALLOWED_GROUPS`） |
+| `GITLAB_OAUTH_ALLOWED_GROUPS` | 可选 | 逗号分隔的 GitLab 群组完整路径 — 仅该群组及其子群组的成员可获取令牌 |
 
 当 `STREAMABLE_HTTP=true` 时，服务端 GitLab 凭据（`GITLAB_PERSONAL_ACCESS_TOKEN`、`GITLAB_JOB_TOKEN`、`GITLAB_AUTH_COOKIE_PATH` 或 `GITLAB_USE_OAUTH`）需要 `REMOTE_AUTHORIZATION=true`、`GITLAB_MCP_OAUTH=true` 或 `STREAMABLE_HTTP_AUTH_TOKEN`。
 
@@ -520,7 +515,7 @@ node build/index.js
 | `MCP_SERVER_URL`                            | 是   | MCP 服务器的公开 HTTPS URL                                                                                                               |
 | `GITLAB_API_URL`                            | 是   | GitLab 实例 API URL（例如 `https://gitlab.com/api/v4`）                                                                                  |
 | `STREAMABLE_HTTP`                           | 是   | 必须为 `true`（不支持 SSE）                                                                                                              |
-| `GITLAB_OAUTH_SCOPES`                       | 否   | 要请求的 GitLab scopes，以逗号分隔。默认值为 `api`，当 `GITLAB_READ_ONLY_MODE=true` 时为 `read_api`。预注册应用必须配置至少这些 scopes。 |
+| `GITLAB_OAUTH_SCOPES`                       | 否   | 要请求的 GitLab scopes，以逗号分隔。默认值为 `api`，当 `GITLAB_PERMISSION_MODE=readonly` 时为 `read_api`。预注册应用必须配置至少这些 scopes。 |
 | `OAUTH_REGISTER_RATE_LIMIT_PER_HOUR`        | 否   | Dynamic Client Registration（`POST /register`）的每客户端 IP rolling 限制。默认 `20`/小时，范围 `1`–`1000`。多个 IDE 窗口等导致注册被限流时可调高。与 GitLab API 限额无关。 |
 | `MCP_DANGEROUSLY_ALLOW_INSECURE_ISSUER_URL` | 否   | 仅用于本地 HTTP 开发                                                                                                                     |
 

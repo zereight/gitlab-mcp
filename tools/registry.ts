@@ -1,11 +1,5 @@
 import { toJSONSchema } from "../utils/schema.js";
-import {
-  USE_GITLAB_WIKI,
-  USE_MILESTONE,
-  USE_PIPELINE,
-  SSE,
-  STREAMABLE_HTTP,
-} from "../config.js";
+import { SSE, STREAMABLE_HTTP } from "../config.js";
 import { getToolDescription } from "./tool-descriptions.js";
 import {
   ApproveMergeRequestSchema,
@@ -1815,104 +1809,6 @@ export const deleteTools = new Set([
   "unprotect_branch",
 ]);
 
-// Define which tools are related to wiki and can be toggled by USE_GITLAB_WIKI
-export const wikiToolNames = new Set([
-  "list_wiki_pages",
-  "get_wiki_page",
-  "create_wiki_page",
-  "update_wiki_page",
-  "delete_wiki_page",
-  "list_group_wiki_pages",
-  "get_group_wiki_page",
-  "create_group_wiki_page",
-  "update_group_wiki_page",
-  "delete_group_wiki_page",
-  "upload_wiki_attachment",
-]);
-
-// Define which tools are related to milestones and can be toggled by USE_MILESTONE
-export const milestoneToolNames = new Set([
-  "list_milestones",
-  "get_milestone",
-  "create_milestone",
-  "edit_milestone",
-  "delete_milestone",
-  "get_milestone_issue",
-  "get_milestone_merge_requests",
-  "promote_milestone",
-  "get_milestone_burndown_events",
-  "list_group_milestones",
-  "get_group_milestone",
-  "create_group_milestone",
-  "edit_group_milestone",
-  "delete_group_milestone",
-  "get_group_milestone_issue",
-  "get_group_milestone_merge_requests",
-  "get_group_milestone_burndown_events",
-]);
-
-// Define which tools are related to pipelines and can be toggled by USE_PIPELINE
-export const pipelineToolNames = new Set([
-  "list_pipelines",
-  "get_pipeline",
-  "get_pipeline_variables",
-  "get_pipeline_test_report",
-  "get_pipeline_test_report_summary",
-  "delete_pipeline",
-  "update_pipeline_metadata",
-  "list_deployments",
-  "get_deployment",
-  "create_deployment",
-  "update_deployment",
-  "delete_deployment",
-  "list_deployment_merge_requests",
-  "approve_deployment",
-  "list_environments",
-  "get_environment",
-  "update_environment",
-  "delete_environment",
-  "stop_environment",
-  "stop_stale_environments",
-  "delete_review_app_environments",
-  "list_pipeline_triggers",
-  "get_pipeline_trigger",
-  "create_pipeline_trigger",
-  "update_pipeline_trigger",
-  "delete_pipeline_trigger",
-  "trigger_pipeline",
-  "list_pipeline_jobs",
-  "list_pipeline_trigger_jobs",
-  "get_pipeline_job",
-  "get_pipeline_job_output",
-  "play_pipeline_jobs",
-  "erase_pipeline_job",
-  "wait_for_pipeline",
-  "wait_for_job",
-  "validate_ci_lint",
-  "validate_project_ci_lint",
-  "create_pipeline",
-  "retry_pipeline",
-  "cancel_pipeline",
-  "list_pipeline_schedules",
-  "get_pipeline_schedule",
-  "list_pipeline_schedule_pipelines",
-  "create_pipeline_schedule",
-  "update_pipeline_schedule",
-  "delete_pipeline_schedule",
-  "play_pipeline_schedule",
-  "take_ownership_pipeline_schedule",
-  "get_pipeline_schedule_variable",
-  "create_pipeline_schedule_variable",
-  "update_pipeline_schedule_variable",
-  "delete_pipeline_schedule_variable",
-  "play_pipeline_job",
-  "retry_pipeline_job",
-  "cancel_pipeline_job",
-  "list_job_artifacts",
-  "download_job_artifacts",
-  "get_job_artifact_file",
-]);
-
 // --- Toolset definitions ---
 
 export type ToolsetId =
@@ -2411,20 +2307,6 @@ export function parseIndividualTools(raw: string | undefined): ReadonlySet<strin
     console.warn(`Unknown tool names in GITLAB_TOOLS (will be ignored): ${unknown.join(", ")}`);
   }
   return new Set(parsed);
-}
-
-export function buildFeatureFlagOverrides(): ReadonlySet<string> {
-  const overrides = new Set<string>();
-  if (USE_GITLAB_WIKI) {
-    for (const t of wikiToolNames) overrides.add(t);
-  }
-  if (USE_MILESTONE) {
-    for (const t of milestoneToolNames) overrides.add(t);
-  }
-  if (USE_PIPELINE) {
-    for (const t of pipelineToolNames) overrides.add(t);
-  }
-  return overrides;
 }
 
 export function isToolInEnabledToolset(

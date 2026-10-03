@@ -53,20 +53,12 @@
           "format": "string"
         },
         {
-          "name": "GITLAB_READ_ONLY_MODE",
-          "description": "Set to true to expose only read-only tools and block write operations.",
+          "name": "GITLAB_PERMISSION_MODE",
+          "description": "Permission level: readonly (no write tools), modify (no delete or teardown tools), or full.",
           "isRequired": false,
           "isSecret": false,
           "format": "string",
-          "default": "false"
-        },
-        {
-          "name": "USE_GITLAB_WIKI",
-          "description": "Set to true to enable GitLab wiki tools.",
-          "isRequired": false,
-          "isSecret": false,
-          "format": "string",
-          "default": "false"
+          "default": "full"
         },
         {
           "name": "GITLAB_TOOLSETS",

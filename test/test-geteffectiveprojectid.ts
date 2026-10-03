@@ -196,7 +196,7 @@ describe('getEffectiveProjectId - No GITLAB_ALLOWED_PROJECT_IDS', () => {
         REMOTE_AUTHORIZATION: 'true',
         GITLAB_API_URL: `${mockGitLabUrl}/api/v4`,
         GITLAB_PROJECT_ID: DEFAULT_PROJECT_ID,
-        GITLAB_READ_ONLY_MODE: 'false',
+        GITLAB_PERMISSION_MODE: 'full',
         GITLAB_TOOLSETS: 'all',
       }
     });
@@ -373,7 +373,7 @@ describe('getEffectiveProjectId - With single GITLAB_ALLOWED_PROJECT_IDS', () =>
         GITLAB_API_URL: `${mockGitLabUrl}/api/v4`,
         GITLAB_PROJECT_ID: DEFAULT_PROJECT_ID,
         GITLAB_ALLOWED_PROJECT_IDS: DEFAULT_PROJECT_ID,
-        GITLAB_READ_ONLY_MODE: 'true',
+        GITLAB_PERMISSION_MODE: 'readonly',
         GITLAB_TOOLSETS: 'all',
       }
     });
@@ -475,7 +475,7 @@ describe('getEffectiveProjectId - With multiple GITLAB_ALLOWED_PROJECT_IDS', () 
         REMOTE_AUTHORIZATION: 'true',
         GITLAB_API_URL: `${mockGitLabUrl}/api/v4`,
         GITLAB_ALLOWED_PROJECT_IDS: `${DEFAULT_PROJECT_ID},${OTHER_PROJECT_ID}`,
-        GITLAB_READ_ONLY_MODE: 'true',
+        GITLAB_PERMISSION_MODE: 'readonly',
       }
     });
     servers.push(server);
@@ -782,7 +782,7 @@ describe('GITLAB_ALLOWED_PROJECT_IDS guards repository and group mutators (allow
   });
 });
 
-describe('GITLAB_READ_ONLY_MODE enforces read-only for all write tools', () => {
+describe('GITLAB_PERMISSION_MODE=readonly enforces read-only for all write tools', () => {
   let mcpUrl: string;
   let mockGitLab: MockGitLabServer;
   let servers: ServerInstance[] = [];
@@ -805,7 +805,7 @@ describe('GITLAB_READ_ONLY_MODE enforces read-only for all write tools', () => {
       env: {
         REMOTE_AUTHORIZATION: 'true',
         GITLAB_API_URL: `${mockGitLabUrl}/api/v4`,
-        GITLAB_READ_ONLY_MODE: 'true',
+        GITLAB_PERMISSION_MODE: 'readonly',
       }
     });
     servers.push(server);

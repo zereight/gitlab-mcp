@@ -767,7 +767,7 @@ export function createGitLabOAuthClient(gitlabUrl: string = "https://gitlab.com"
     clientSecret,
     redirectUri,
     gitlabUrl,
-    scopes: [process.env.GITLAB_READ_ONLY_MODE === "true" ? "read_api" : "api"],
+    scopes: [process.env.GITLAB_PERMISSION_MODE === "readonly" ? "read_api" : "api"],
     tokenStoragePath,
     tokenScript,
   });

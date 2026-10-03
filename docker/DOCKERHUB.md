@@ -38,7 +38,7 @@ to container loopback and the published port stays unreachable.
 | `SSE`                            | `false`                      | Set `true` for legacy SSE transport                |
 | `HOST`                           | `127.0.0.1`                  | Set `0.0.0.0` inside containers                    |
 | `PORT`                           | `3002`                       | HTTP port for SSE / Streamable HTTP                |
-| `GITLAB_READ_ONLY_MODE`          | `false`                      | Set `true` to expose read-only tools               |
+| `GITLAB_PERMISSION_MODE`         | `full`                       | `readonly`, `modify`, or `full`                    |
 | `GITLAB_ALLOWED_PROJECT_IDS`     | —                            | Comma-separated project allowlist                  |
 | `REMOTE_AUTHORIZATION`           | `false`                      | Multi-user mode, each caller sends its own token   |
 

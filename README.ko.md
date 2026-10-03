@@ -133,11 +133,7 @@ command = lib.getExe inputs.gitlab-mcp.packages.${system}.default;
 
 - `--token` - GitLab Personal Access Token (`GITLAB_PERSONAL_ACCESS_TOKEN` 대체)
 - `--api-url` - GitLab API URL (`GITLAB_API_URL` 대체)
-- `--read-only=true` - 읽기 전용 모드 활성화 (`GITLAB_READ_ONLY_MODE` 대체, deprecated — `--permission-mode=readonly` 권장)
 - `--permission-mode` - 권한 수준: `readonly`, `modify`(삭제/중단 도구 비활성), `full` (`GITLAB_PERMISSION_MODE` 대체, 기본값 `full`)
-- `--use-wiki=true` - 위키 API 활성화 (`USE_GITLAB_WIKI` 대체, 레거시 — `GITLAB_TOOLSETS=wiki` 권장)
-- `--use-milestone=true` - 마일스톤 API 활성화 (`USE_MILESTONE` 대체, 레거시 — `GITLAB_TOOLSETS=milestones` 권장)
-- `--use-pipeline=true` - 파이프라인 API 활성화 (`USE_PIPELINE` 대체, 레거시 — `GITLAB_TOOLSETS=pipelines` 권장)
 - `--disable-version-check=true` - 시작 시 신규 버전 알림 비활성화 (`GITLAB_DISABLE_VERSION_CHECK` 대체)
 - `--compact-results=true` - 큰 MCP 도구 응답을 미리보기와 CLI 명령으로 바꿈 (`GITLAB_MCP_COMPACT_RESULTS` 대체, 기본 꺼짐)
 - `--compact-result-chars` - compact 임계값 문자 수 (`GITLAB_MCP_COMPACT_RESULT_CHARS` 대체, 기본 `4000`)
@@ -156,8 +152,7 @@ CLI 인자는 환경 변수보다 우선합니다.
 > 있습니다. 또한
 > `GITLAB_TOOLSETS=<group,…>`로 도구 그룹을 활성화하고, `GITLAB_TOOLS=<tool,…>`로 개별 도구만
 > 허용하며(예: 읽기 도구 + 특정 쓰기 도구 몇 개), `GITLAB_DENIED_TOOLS_REGEX`로 패턴 차단할 수
-> 있습니다. 레거시 `USE_GITLAB_WIKI` / `USE_MILESTONE` / `USE_PIPELINE` 플래그는 하위 호환용으로만
-> 유지됩니다. [Tools Reference](./docs/tools/index.md#feature-toggles)와
+> 있습니다. [Tools Reference](./docs/tools/index.md#feature-toggles)와
 > [Environment Variables](./docs/configuration/environment-variables.md)를 참고하세요.
 
 #### SSE
@@ -255,7 +250,7 @@ MCP 서버가 직접 로컬 브라우저 callback을 받을 때만 `GITLAB_OAUTH
 | `STREAMABLE_HTTP`             | 예   | 반드시 `true`                                                                                                                   |
 | `GITLAB_OAUTH_CALLBACK_PROXY` | 선택 | MCP 서버의 고정 `/callback` URL을 사용하려면 `true`                                                                             |
 | `GITLAB_OAUTH_SCOPES`         | 선택 | 쉼표로 구분된 scope 목록(기본값: `api,read_api,read_user`)                                                                      |
-| `GITLAB_OAUTH_ALLOWED_GROUPS` | 선택 | 쉼표로 구분된 GitLab 그룹 전체 경로 — 해당 그룹 및 하위 그룹 멤버만 토큰을 발급받을 수 있음 (기존 `GITLAB_ALLOWED_GROUPS` 대체) |
+| `GITLAB_OAUTH_ALLOWED_GROUPS` | 선택 | 쉼표로 구분된 GitLab 그룹 전체 경로 — 해당 그룹 및 하위 그룹 멤버만 토큰을 발급받을 수 있음 |
 
 `STREAMABLE_HTTP=true`일 때 서버 측 GitLab 자격 증명(`GITLAB_PERSONAL_ACCESS_TOKEN`, `GITLAB_JOB_TOKEN`, `GITLAB_AUTH_COOKIE_PATH`, 또는 `GITLAB_USE_OAUTH`)은 `REMOTE_AUTHORIZATION=true`, `GITLAB_MCP_OAUTH=true`, 또는 `STREAMABLE_HTTP_AUTH_TOKEN`이 필요합니다.
 
@@ -517,7 +512,7 @@ node build/index.js
 | `MCP_SERVER_URL`                            | 예     | MCP 서버의 공개 HTTPS URL                                                                                                                                                  |
 | `GITLAB_API_URL`                            | 예     | GitLab 인스턴스 API URL(예: `https://gitlab.com/api/v4`)                                                                                                                   |
 | `STREAMABLE_HTTP`                           | 예     | 반드시 `true`(SSE 미지원)                                                                                                                                                  |
-| `GITLAB_OAUTH_SCOPES`                       | 아니오 | 요청할 GitLab scope 목록(쉼표 구분). 기본값은 `api` 또는 `GITLAB_READ_ONLY_MODE=true`일 때 `read_api`입니다. 사전 등록 애플리케이션에 해당 scope가 설정되어 있어야 합니다. |
+| `GITLAB_OAUTH_SCOPES`                       | 아니오 | 요청할 GitLab scope 목록(쉼표 구분). 기본값은 `api` 또는 `GITLAB_PERMISSION_MODE=readonly`일 때 `read_api`입니다. 사전 등록 애플리케이션에 해당 scope가 설정되어 있어야 합니다. |
 | `OAUTH_REGISTER_RATE_LIMIT_PER_HOUR`        | 아니오 | Dynamic Client Registration(`POST /register`)의 클라이언트 IP당 rolling 한도. 기본 `20`/시간, 범위 `1`–`1000`. IDE 창 여러 개 등으로 등록이 막히면 올리세요. GitLab API 한도와 무관합니다. |
 | `MCP_DANGEROUSLY_ALLOW_INSECURE_ISSUER_URL` | 아니오 | 로컬 HTTP 개발에서만 `true`                                                                                                                                                |
 

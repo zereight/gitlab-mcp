@@ -260,10 +260,10 @@ describe("When reading the CLI command", () => {
     });
   });
 
-  describe("with --read-only false before a curated command", () => {
+  describe("with --use-oauth false before a curated command", () => {
     it("should skip the boolean literal and return mr", () => {
       assert.equal(
-        getPositionalCliCommand(["node", "index.js", "--read-only", "false", "mr", "list"]),
+        getPositionalCliCommand(["node", "index.js", "--use-oauth", "false", "mr", "list"]),
         "mr"
       );
     });
@@ -541,7 +541,7 @@ describe("When running the auth command", () => {
     });
   });
 
-  describe("without a read-only flag", () => {
+  describe("without a permission mode", () => {
     it("should request the api scope", async () => {
       assert.equal(await runAuthCapturingScopeAsync({}), "api");
     });
@@ -560,15 +560,6 @@ describe("When running the auth command", () => {
     it("should request the read_api scope", async () => {
       assert.equal(
         await runAuthCapturingScopeAsync({ env: { GITLAB_PERMISSION_MODE: "readonly" } }),
-        "read_api"
-      );
-    });
-  });
-
-  describe("with --read-only=true", () => {
-    it("should request the read_api scope", async () => {
-      assert.equal(
-        await runAuthCapturingScopeAsync({ extraArgv: ["--read-only=true"] }),
         "read_api"
       );
     });

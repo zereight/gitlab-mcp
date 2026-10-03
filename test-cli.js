@@ -8,7 +8,7 @@ process.argv = [
   'test-cli.js',
   '--token=glpat-test-token-123',
   '--api-url=https://gitlab.com/api/v4',
-  '--read-only=true'
+  '--permission-mode=readonly'
 ];
 
 console.log('Argumentos simulados:', process.argv.slice(2));
@@ -39,7 +39,7 @@ console.log('\n=== RESULTADOS ===');
 console.log('CLI Args parsed:', cliArgs);
 console.log('Token:', getConfig('token', 'GITLAB_PERSONAL_ACCESS_TOKEN'));
 console.log('API URL:', getConfig('api-url', 'GITLAB_API_URL'));
-console.log('Read Only:', getConfig('read-only', 'GITLAB_READ_ONLY_MODE'));
+console.log('Permission mode:', getConfig('permission-mode', 'GITLAB_PERMISSION_MODE'));
 
 console.log('\n=== CONFIGURACIÓN CORRECTA ===');
 console.log(`{

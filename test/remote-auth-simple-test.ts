@@ -98,7 +98,7 @@ describe('Remote Authorization - Basic Functionality', () => {
         STREAMABLE_HTTP: 'true',
         REMOTE_AUTHORIZATION: 'true',
         GITLAB_API_URL: `${mockGitLabUrl}/api/v4`,
-        GITLAB_READ_ONLY_MODE: 'true',
+        GITLAB_PERMISSION_MODE: 'readonly',
       }
     });
     servers.push(server);

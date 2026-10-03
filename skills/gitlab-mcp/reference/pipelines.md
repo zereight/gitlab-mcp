@@ -1,6 +1,6 @@
 # Pipeline Operations
 
-> **Opt-in toolset**: Enable with `USE_PIPELINE=true` or `GITLAB_TOOLSETS=pipelines`
+> **Opt-in toolset**: Enable with `GITLAB_TOOLSETS=pipelines`
 
 ## List & Inspect
 

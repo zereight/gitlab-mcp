@@ -133,11 +133,7 @@ Alguns clientes MCP, como o GitHub Copilot CLI, têm problemas com variáveis de
 
 - `--token` - GitLab Personal Access Token (substitui `GITLAB_PERSONAL_ACCESS_TOKEN`)
 - `--api-url` - URL da API do GitLab (substitui `GITLAB_API_URL`)
-- `--read-only=true` - ativa o modo somente leitura (substitui `GITLAB_READ_ONLY_MODE`, obsoleto — prefira `--permission-mode=readonly`)
 - `--permission-mode` - nível de permissão: `readonly`, `modify` (sem ferramentas de exclusão ou teardown) ou `full` (substitui `GITLAB_PERMISSION_MODE`, padrão `full`)
-- `--use-wiki=true` - ativa a API de Wiki (substitui `USE_GITLAB_WIKI`, legado — prefira `GITLAB_TOOLSETS=wiki`)
-- `--use-milestone=true` - ativa a API de milestones (substitui `USE_MILESTONE`, legado — prefira `GITLAB_TOOLSETS=milestones`)
-- `--use-pipeline=true` - ativa a API de pipelines (substitui `USE_PIPELINE`, legado — prefira `GITLAB_TOOLSETS=pipelines`)
 - `--disable-version-check=true` - desativa o aviso de nova versão na inicialização (substitui `GITLAB_DISABLE_VERSION_CHECK`)
 - `--masking-enabled=true` - ativa o mascaramento de respostas de texto (substitui `GITLAB_MASKING_ENABLED`)
 - `--masking-config` - caminho para um arquivo de configuração de mascaramento (substitui `GITLAB_MASKING_CONFIG`)
@@ -159,8 +155,7 @@ O mesmo binário também é uma CLI do GitLab no estilo `gh` (`tool <name>` ou f
 > ações `delete`/`move` do `push_files` — ou use `GITLAB_PERMISSION_MODE=readonly` para acesso somente leitura.
 > Também é possível habilitar grupos de ferramentas com `GITLAB_TOOLSETS=<group,…>`, permitir ferramentas individuais com
 > `GITLAB_TOOLS=<tool,…>` (por exemplo, grupos somente leitura mais algumas ferramentas específicas de escrita) e
-> bloquear por padrão usando `GITLAB_DENIED_TOOLS_REGEX`. As flags legadas `USE_GITLAB_WIKI` /
-> `USE_MILESTONE` / `USE_PIPELINE` são mantidas apenas para compatibilidade retroativa.
+> bloquear por padrão usando `GITLAB_DENIED_TOOLS_REGEX`.
 > Consulte a [Referência de ferramentas](./docs/tools/index.md#feature-toggles) e
 > [Variáveis de ambiente](./docs/configuration/environment-variables.md).
 
@@ -259,7 +254,7 @@ Use `GITLAB_OAUTH_REDIRECT_URI` somente quando o próprio servidor MCP receber o
 | `STREAMABLE_HTTP`             | sim         | Deve ser `true`                                                                                                                                                          |
 | `GITLAB_OAUTH_CALLBACK_PROXY` | opcional    | Defina como `true` para usar a URL `/callback` fixa do servidor MCP                                                                                                      |
 | `GITLAB_OAUTH_SCOPES`         | opcional    | Scopes separados por vírgula (padrão: `api,read_api,read_user`)                                                                                                          |
-| `GITLAB_OAUTH_ALLOWED_GROUPS` | opcional    | Caminhos completos de grupos GitLab separados por vírgula — apenas membros desses grupos e subgrupos podem obter um token (substitui o obsoleto `GITLAB_ALLOWED_GROUPS`) |
+| `GITLAB_OAUTH_ALLOWED_GROUPS` | opcional    | Caminhos completos de grupos GitLab separados por vírgula — apenas membros desses grupos e subgrupos podem obter um token |
 
 Quando `STREAMABLE_HTTP=true`, credenciais GitLab do lado do servidor (`GITLAB_PERSONAL_ACCESS_TOKEN`, `GITLAB_JOB_TOKEN`, `GITLAB_AUTH_COOKIE_PATH` ou `GITLAB_USE_OAUTH`) exigem `REMOTE_AUTHORIZATION=true`, `GITLAB_MCP_OAUTH=true` ou `STREAMABLE_HTTP_AUTH_TOKEN`.
 
@@ -521,7 +516,7 @@ Não é necessário definir `headers`. O Claude.ai obtém o token via OAuth.
 | `MCP_SERVER_URL`                            | sim         | URL HTTPS pública do servidor MCP                                                                                                                                                                                                                |
 | `GITLAB_API_URL`                            | sim         | URL da API da instância GitLab (por exemplo, `https://gitlab.com/api/v4`)                                                                                                                                                                        |
 | `STREAMABLE_HTTP`                           | sim         | Deve ser `true` (SSE não é suportado)                                                                                                                                                                                                            |
-| `GITLAB_OAUTH_SCOPES`                       | não         | Scopes do GitLab a solicitar, separados por vírgula. O padrão é `api`, ou `read_api` quando `GITLAB_READ_ONLY_MODE=true`. O aplicativo previamente registrado deve ter pelo menos esses scopes configurados.                                     |
+| `GITLAB_OAUTH_SCOPES`                       | não         | Scopes do GitLab a solicitar, separados por vírgula. O padrão é `api`, ou `read_api` quando `GITLAB_PERMISSION_MODE=readonly`. O aplicativo previamente registrado deve ter pelo menos esses scopes configurados.                                     |
 | `OAUTH_REGISTER_RATE_LIMIT_PER_HOUR`        | não         | Limite rolling de Dynamic Client Registration (`POST /register`) por IP do cliente. Padrão `20`/hora, intervalo `1`–`1000`. Aumente se múltiplas janelas de IDE estiverem atingindo o limite. Não está relacionado aos limites da API do GitLab. |
 | `MCP_DANGEROUSLY_ALLOW_INSECURE_ISSUER_URL` | não         | Apenas para desenvolvimento local via HTTP                                                                                                                                                                                                       |
 

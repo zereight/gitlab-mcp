@@ -51,10 +51,8 @@ codex mcp add gitlab \
 Optional extra environment variables:
 
 ```bash
---env GITLAB_READ_ONLY_MODE=true
---env USE_GITLAB_WIKI=true
---env USE_MILESTONE=true
---env USE_PIPELINE=true
+--env GITLAB_PERMISSION_MODE=readonly
+--env GITLAB_TOOLSETS=wiki,milestones,pipelines
 ```
 
 ## Option 2 — Configure with `config.toml`
@@ -73,7 +71,7 @@ command = "zereight-mcp-gitlab"
 [mcp_servers.gitlab.env]
 GITLAB_PERSONAL_ACCESS_TOKEN = "glpat-your-token"
 GITLAB_API_URL = "https://gitlab.com/api/v4"
-GITLAB_READ_ONLY_MODE = "false"
+GITLAB_PERMISSION_MODE = "full"
 ```
 
 ## Verifying the server

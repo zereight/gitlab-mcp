@@ -61,7 +61,7 @@ describe("Stateless Mcp-Session-Id — cross-pod integration", () => {
       STREAMABLE_HTTP: "true",
       REMOTE_AUTHORIZATION: "true",
       GITLAB_API_URL: `${mockUrl}/api/v4`,
-      GITLAB_READ_ONLY_MODE: "true",
+      GITLAB_PERMISSION_MODE: "readonly",
       OAUTH_STATELESS_MODE: "true",
       OAUTH_STATELESS_SECRET: sharedSecret,
     };
@@ -298,7 +298,7 @@ describe("Stateless Mcp-Session-Id — inactivity-TTL semantics", () => {
         STREAMABLE_HTTP: "true",
         REMOTE_AUTHORIZATION: "true",
         GITLAB_API_URL: `${mockUrl}/api/v4`,
-        GITLAB_READ_ONLY_MODE: "true",
+        GITLAB_PERMISSION_MODE: "readonly",
         OAUTH_STATELESS_MODE: "true",
         OAUTH_STATELESS_SECRET: sharedSecret,
         OAUTH_STATELESS_SESSION_TTL_SECONDS: String(TTL_SECONDS),

@@ -47,7 +47,7 @@ Recommended secure example:
       "env": {
         "GITLAB_PERSONAL_ACCESS_TOKEN": "${input:gitlab-token}",
         "GITLAB_API_URL": "https://gitlab.com/api/v4",
-        "GITLAB_READ_ONLY_MODE": "false"
+        "GITLAB_PERMISSION_MODE": "full"
       }
     }
   }

@@ -99,7 +99,7 @@ describe('Remote Authorization - Streamable HTTP with Authorization header', () 
         REMOTE_AUTHORIZATION: 'true',
         GITLAB_API_URL: `${GITLAB_API_URL}/api/v4`,
         GITLAB_PROJECT_ID: TEST_PROJECT_ID,
-        GITLAB_READ_ONLY_MODE: 'true',
+        GITLAB_PERMISSION_MODE: 'readonly',
         // Explicitly no GITLAB_PERSONAL_ACCESS_TOKEN
       }
     });
@@ -274,7 +274,7 @@ describe('Remote Authorization - Streamable HTTP with Private-Token header', () 
         REMOTE_AUTHORIZATION: 'true',
         GITLAB_API_URL: `${GITLAB_API_URL}/api/v4`,
         GITLAB_PROJECT_ID: TEST_PROJECT_ID,
-        GITLAB_READ_ONLY_MODE: 'true',
+        GITLAB_PERMISSION_MODE: 'readonly',
       }
     });
     servers.push(server);

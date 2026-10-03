@@ -35,7 +35,7 @@ async function callHealthCheckAsync(env: NodeJS.ProcessEnv): Promise<Record<stri
       env: {
         ...process.env,
         ...env,
-        USE_PIPELINE: "true",
+        GITLAB_TOOLSETS: "all",
       },
     });
 
