@@ -273,7 +273,7 @@ A tool counts as invoked when a test sends that name through MCP (`callTool` / `
 - [ ] [`wait_for_pipeline`](../tools/pipelines.md#wait_for_pipeline)
 - [ ] [`wait_for_job`](../tools/pipelines.md#wait_for_job)
 - [x] [`list_job_artifacts`](../tools/pipelines.md#list_job_artifacts) — `test/test-blank-filters.ts`, `test/test-job-artifacts.ts`
-- [x] [`download_job_artifacts`](../tools/pipelines.md#download_job_artifacts) — `test/test-job-artifacts.ts`, `test/test-remote-downloads.ts`
+- [x] [`download_job_artifacts`](../tools/pipelines.md#download_job_artifacts) — `test/oauth-download-url.test.ts`, `test/test-job-artifacts.ts`, `test/test-remote-downloads.ts`
 - [x] [`get_job_artifact_file`](../tools/pipelines.md#get_job_artifact_file) — `test/test-job-artifacts.ts`
 
 ## Milestones
