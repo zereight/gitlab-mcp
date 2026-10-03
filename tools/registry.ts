@@ -2402,6 +2402,19 @@ export const ALL_TOOLSET_IDS: ReadonlySet<ToolsetId> = new Set(
   TOOLSET_DEFINITIONS.map(d => d.id)
 );
 
+/**
+ * Smallest toolset containing the tool, i.e. the cheapest category to activate for it.
+ * Returns undefined for tools outside every toolset (e.g. `execute_graphql`) and unknown names.
+ */
+export function findSmallestToolsetForTool(toolName: string): ToolsetId | undefined {
+  const candidates = TOOLSET_DEFINITIONS.filter(d => d.tools.has(toolName));
+  const smallest = candidates.reduce<ToolsetDefinition | undefined>(
+    (best, d) => (best === undefined || d.tools.size < best.tools.size ? d : best),
+    undefined
+  );
+  return smallest?.id;
+}
+
 // Update discover_tools description with all known categories (must be after TOOLSET_DEFINITIONS)
 const discoverTool = allTools.find(t => t.name === "discover_tools");
 if (discoverTool) {
