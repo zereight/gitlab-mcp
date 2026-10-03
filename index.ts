@@ -16241,6 +16241,19 @@ async function initializeServerByTransportMode(mode: TransportMode): Promise<voi
 }
 
 /**
+ * Construct the OAuth client when OAuth is enabled. No network: the token is
+ * acquired lazily on the first tool call via ensureValidOAuthToken, which
+ * avoids blocking startup and opening a browser on transient boot-time errors.
+ * Shared by the MCP server and the human CLI.
+ */
+function initOAuthClient(): void {
+  if (!USE_OAUTH) {
+    return;
+  }
+  oauthClient = createGitLabOAuthClient(GITLAB_API_URL.replace(/\/api\/v4$/, ""));
+}
+
+/**
  * Initialize and run the server
  * Main entry point for server startup
  */
@@ -16253,12 +16266,7 @@ async function runServer() {
     if (USE_OAUTH) {
       logger.info("Using OAuth authentication...");
       try {
-        const gitlabBaseUrl = GITLAB_API_URL.replace(/\/api\/v4$/, "");
-        // Construct the client synchronously (no network). The token is
-        // acquired lazily on the first tool call via ensureValidOAuthToken,
-        // by which point the network is ready. This avoids blocking startup
-        // and avoids opening a browser on transient boot-time network errors.
-        oauthClient = createGitLabOAuthClient(gitlabBaseUrl);
+        initOAuthClient();
         logger.info("OAuth enabled; token acquired lazily on first use.");
       } catch (error) {
         logger.error({ err: error }, "OAuth authentication failed");
@@ -16341,6 +16349,7 @@ async function main(): Promise<void> {
       process.exit(2);
     }
     try {
+      initOAuthClient();
       const result = await handleToolCall({ name: cli.toolName, arguments: cli.args });
       const masked = maskCliToolResult(cli.toolName, result);
       const formatted = formatToolOutput({
