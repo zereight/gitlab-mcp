@@ -53,6 +53,8 @@ No global install? Pin `npx` to the previous stable release and keep the server 
 | `--masking-workspace-dir` | `GITLAB_MASKING_WORKSPACE_DIR` | Directory used to resolve masking files. |
 | `--compact-results=true` | `GITLAB_MCP_COMPACT_RESULTS` | Truncate oversized MCP tool replies and attach a CLI command for the full payload. Off by default. |
 | `--compact-result-chars` | `GITLAB_MCP_COMPACT_RESULT_CHARS` | Size threshold in characters before a reply is compacted (default `4000`). |
+| `--compact-tools` | `GITLAB_MCP_COMPACT_TOOLS` | Comma-separated tool names to compact when oversized, without enabling global compact mode. |
+| `--tool-profile` | `GITLAB_TOOL_PROFILE` | `full` (default) or `slim`. `slim` is ignored when `--toolsets` / `GITLAB_TOOLSETS` is set. |
 
 > **Deprecation notice:** `--read-only=true` and `GITLAB_READ_ONLY_MODE` are kept for
 > backward compatibility but will be removed in a future major version.

@@ -44,10 +44,10 @@
     "npm": ">=9.0.0"
   },
   "scripts": {
-    "build": "tsc && node -e \"require('fs').chmodSync('build/index.js', '755')\"",
+    "build": "node -e \"require('fs').rmSync('build',{recursive:true,force:true})\" && tsc -p tsconfig.build.json && node -e \"require('fs').chmodSync('build/index.js', '755')\"",
     "prepare": "npm run build",
     "dev": "npm run build && node build/index.js",
-    "watch": "tsc --watch",
+    "watch": "tsc -p tsconfig.build.json --watch",
     "deploy": "npm publish --access public",
     "changelog": "auto-changelog -p",
     "test": "npm run test:all",
