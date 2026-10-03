@@ -2,6 +2,9 @@
 
 Issue CRUD, links, discussions and notes, todos, and emoji reactions.
 
+!!! note "Feature toggle"
+    Opt-in. Enable via `GITLAB_TOOLSETS=issues` (or `GITLAB_TOOLSETS=all`), list individual tools in `GITLAB_TOOLS=`, or activate at runtime with the `discover_tools` MCP tool. 8 of these tools (`create_issue`, `list_issues`, `my_issues`, `get_issue`, `update_issue`, `update_issue_description_patch`, `create_issue_note`, `list_issue_discussions`) are already enabled by default via `core`; the toggle applies to the rest.
+
 ## Tools in this group
 
 - [`create_issue`](#create_issue) — ✏️ Writes

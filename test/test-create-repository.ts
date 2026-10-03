@@ -81,6 +81,7 @@ describe("When create_repository is called", () => {
           {
             GITLAB_API_URL: `${mockServer.getUrl()}/api/v4`,
             GITLAB_PERSONAL_ACCESS_TOKEN: MOCK_TOKEN,
+            GITLAB_TOOLSETS: "repositories",
           }
         );
 
@@ -109,6 +110,7 @@ describe("When create_repository is called", () => {
           {
             GITLAB_API_URL: `${mockServer.getUrl()}/api/v4`,
             GITLAB_PERSONAL_ACCESS_TOKEN: MOCK_TOKEN,
+            GITLAB_TOOLSETS: "repositories",
           }
         );
 
@@ -138,6 +140,7 @@ describe("When create_repository is called", () => {
           {
             GITLAB_API_URL: `${mockServer.getUrl()}/api/v4`,
             GITLAB_PERSONAL_ACCESS_TOKEN: MOCK_TOKEN,
+            GITLAB_TOOLSETS: "repositories",
           }
         );
 
