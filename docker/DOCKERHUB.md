@@ -4,7 +4,7 @@ Agent-workflow-optimized [GitLab MCP](https://github.com/zereight/gitlab-mcp) se
 projects, merge requests, issues, pipelines, wiki, releases, tags, milestones, and more from
 AI clients such as Claude Code, VS Code, Cursor, and Copilot.
 
-- 232 tools + `discover_tools` for on-demand activation
+- 267 tools + `discover_tools` for on-demand activation
 - Personal Access Token, OAuth2, read-only mode, and remote authorization
 - stdio, SSE, and Streamable HTTP transports
 - Works with gitlab.com and self-hosted instances

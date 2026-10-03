@@ -107,6 +107,9 @@ nav:
       - Webhooks: tools/webhooks.md
       - Search: tools/search.md
       - Dependency Proxy: tools/dependency-proxy.md
+      - Vulnerabilities: tools/vulnerabilities.md
+      - Orbit: tools/orbit.md
+      - Snippets: tools/snippets.md
       - Meta & GraphQL: tools/meta.md
   - Reference:
       - Tool Invocation Coverage: reference/tool-coverage.md
