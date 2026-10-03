@@ -53,6 +53,8 @@ import {
   GITLAB_OAUTH_ALLOWED_GROUPS,
   GITLAB_MCP_COMPACT_RESULTS,
   GITLAB_MCP_COMPACT_RESULT_CHARS,
+  GITLAB_MCP_COMPACT_TOOL_NAMES,
+  GITLAB_TOOL_PROFILE,
 } from "./config.js";
 
 /** True when the server is running in remote/network mode (SSE or StreamableHTTP transport). */
@@ -129,9 +131,9 @@ import {
 import type { SessionAuthHeader, StatelessKeyMaterial } from "./stateless/index.js";
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
+import type { SSEServerTransport as SseServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
+import type { StreamableHTTPServerTransport as StreamableTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
@@ -139,7 +141,7 @@ import {
   GetPromptRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
 import { AsyncLocalStorage } from "node:async_hooks";
-import express, { NextFunction, Request, Response } from "express";
+import type { NextFunction, Request, Response } from "express";
 import fetchCookie from "fetch-cookie";
 import fs from "node:fs";
 import { pipeline as streamPipeline } from "node:stream/promises";
@@ -158,8 +160,6 @@ import { formatCliError, formatToolOutput } from "./cli/output.js";
 import { compactMcpToolResult, readOwnRecord } from "./cli/compact-mcp-result.js";
 import { compileDeniedToolsRegex } from "./tools/denied-regex.js";
 import { createGitLabOAuthProvider } from "./oauth-proxy.js";
-import { mcpAuthRouter } from "@modelcontextprotocol/sdk/server/auth/router.js";
-import rateLimit, { ipKeyGenerator } from "express-rate-limit";
 import { normalizeProxyClientIpForRateLimit } from "./utils/proxy-client-ip.js";
 import {
   getForwardedPublicBaseUrl,
@@ -168,6 +168,7 @@ import {
 import { registerDownloadProxy } from "./downloads/proxy.js";
 import type { DownloadProxyDependencies } from "./downloads/proxy.js";
 import { createDownloadToken } from "./utils/download-token.js";
+import { loadRemoteHttpStack } from "./server/remote-http-stack.js";
 import { determineTransportMode, TransportMode } from "./server/transport-mode.js";
 import { formatPrometheusMetrics } from "./server/metrics.js";
 import { SERVER_VERSION } from "./server/version.js";
@@ -242,7 +243,6 @@ import {
   applySearchReplace,
   applyUnifiedDiff,
 } from "./utils/patch-helper.js";
-import { requireBearerAuth } from "@modelcontextprotocol/sdk/server/auth/middleware/bearerAuth.js";
 import { GitLabClientPool } from "./gitlab-client-pool.js";
 import {
   allTools,
@@ -257,6 +257,18 @@ import {
   ALL_TOOLSET_IDS,
   type ToolsetId,
 } from "./tools/registry.js";
+import { selectExposedTools } from "./tools/exposed-tools.js";
+import {
+  createListedToolsCache,
+  decorateToolsForList,
+  type ListedToolDecorationContext,
+} from "./tools/listed-tools.js";
+import {
+  isExcludedBySlimProfile,
+  isToolsetFullyActive,
+  shouldApplySlimToolProfile,
+} from "./tools/tool-profile.js";
+import { shouldCompactToolResult } from "./utils/compact-tool-allowlist.js";
 import {
   BulkPublishDraftNotesSchema,
   CancelPipelineJobSchema,
@@ -752,57 +764,27 @@ const MCP_PROMPTS = [
  */
 /** Builds an MCP server with the tool list filtered by toolsets, permission mode, and policy. */
 function createServer(): McpServer {
-  // Precompute filtered tool list once at server creation (Steps 1–5 are static)
-  // Step 1: Toolset filter — keep tools in enabled toolsets
-  const toolsAfterToolsets = allTools.filter(tool =>
-    isToolInEnabledToolset(tool.name, enabledToolsets)
-  );
-
-  // Step 2: Add GITLAB_TOOLS (individual tools bypass toolset filter)
-  const toolsetToolNames = new Set(toolsAfterToolsets.map(t => t.name));
-  const toolsAfterIndividual = [
-    ...toolsAfterToolsets,
-    ...allTools.filter(
-      tool => individuallyEnabledTools.has(tool.name) && !toolsetToolNames.has(tool.name)
-    ),
-  ];
-
-  // Step 3: Add legacy flag overrides (USE_PIPELINE, USE_MILESTONE, USE_GITLAB_WIKI)
-  const afterIndividualNames = new Set(toolsAfterIndividual.map(t => t.name));
-  const toolsAfterLegacy = [
-    ...toolsAfterIndividual,
-    ...allTools.filter(
-      tool => featureFlagOverrides.has(tool.name) && !afterIndividualNames.has(tool.name)
-    ),
-  ];
-
-  // Step 4: Permission mode filter (readonly / modify / full)
-  const toolsAfterReadOnly =
-    GITLAB_PERMISSION_MODE === "full"
-      ? toolsAfterLegacy
-      : toolsAfterLegacy.filter(tool => isToolAllowedByPermissionMode(tool.name));
-
-  // Step 5: Regex denial filter
-  let filteredTools = GITLAB_DENIED_TOOLS_REGEX
-    ? toolsAfterReadOnly.filter(tool => !GITLAB_DENIED_TOOLS_REGEX!.test(tool.name))
-    : [...toolsAfterReadOnly];
-
-  // Step 5.5: Always include discover_tools meta-tool (bypasses toolset filter)
-  const discoverTool = allTools.find(t => t.name === "discover_tools");
-  const filteredToolNames = new Set(filteredTools.map(t => t.name));
-  if (discoverTool && !filteredToolNames.has("discover_tools")) {
-    // Respect permission mode and regex denial filters
-    const passesPermissionMode = isToolAllowedByPermissionMode("discover_tools");
-    const passesRegex = !GITLAB_DENIED_TOOLS_REGEX?.test("discover_tools");
-    if (passesPermissionMode && passesRegex) {
-      filteredTools.push(discoverTool);
-    }
-  }
-
-  // Step 5.7: Remove hidden policy tools
-  if (hiddenToolSet.size > 0) {
-    filteredTools = filteredTools.filter(tool => !hiddenToolSet.has(tool.name));
-  }
+  const filteredTools = selectExposedTools({
+    tools: allTools,
+    isInEnabledToolset: toolName => isToolInEnabledToolset(toolName, enabledToolsets),
+    individuallyEnabledTools,
+    featureFlagOverrides,
+    isAllowedByPermissionMode: isToolAllowedByPermissionMode,
+    deniedToolsRegex: GITLAB_DENIED_TOOLS_REGEX,
+    hiddenToolNames: hiddenToolSet,
+    applySlimProfile,
+  });
+  const listedToolDecoration: ListedToolDecorationContext = {
+    readOnlyToolNames: readOnlyTools,
+    destructiveToolNames: destructiveTools,
+    approveToolNames: approveToolSet,
+    jmespathArgument: JMESPATH_TOOL_ARGUMENT,
+    jmespathArgumentDescription: JMESPATH_TOOL_ARGUMENT_DESCRIPTION,
+  };
+  const listedToolsCache: { revision: number } = { revision: 0 };
+  const decorateListedTools = (tools: readonly (typeof filteredTools)[number][]) =>
+    decorateToolsForList(tools, listedToolDecoration);
+  const getListedTools = createListedToolsCache(decorateListedTools);
 
   const mcpServer = new McpServer(
     {
@@ -848,66 +830,8 @@ function createServer(): McpServer {
   });
 
   mcpServer.server.setRequestHandler(ListToolsRequestSchema, async () => {
-    // Step 6: Gemini $schema cleanup + annotations (only dynamic step per request)
-    // <<< START: Remove $schema for Gemini compatibility >>>
-    const tools = filteredTools.map(tool => {
-      const modified: any = { ...tool };
-
-      // Safety net: remove $schema if present (toJSONSchema strips it for zod schemas,
-      // but manually-defined schemas like discover_tools may still have it)
-      if (
-        modified.inputSchema &&
-        typeof modified.inputSchema === "object" &&
-        modified.inputSchema !== null
-      ) {
-        if ("$schema" in modified.inputSchema) {
-          modified.inputSchema = { ...modified.inputSchema };
-          delete modified.inputSchema.$schema;
-        }
-      }
-
-      // Add MCP tool annotations
-      modified.annotations = {
-        ...(readOnlyTools.has(tool.name) ? { readOnlyHint: true } : {}),
-        ...(destructiveTools.has(tool.name) ? { destructiveHint: true } : {}),
-        ...(approveToolSet.has(tool.name) ? { confirmationHint: true } : {}),
-        openWorldHint: true,
-      };
-
-      // Inject _confirmed optional parameter for approve-policy tools
-      if (approveToolSet.has(tool.name) && modified.inputSchema?.properties) {
-        modified.inputSchema = {
-          ...modified.inputSchema,
-          properties: {
-            ...modified.inputSchema.properties,
-            _confirmed: {
-              type: "boolean",
-              description: "Set to true to confirm execution of this approval-required tool.",
-            },
-          },
-        };
-      }
-
-      if (modified.inputSchema && typeof modified.inputSchema === "object") {
-        const properties =
-          modified.inputSchema.properties && typeof modified.inputSchema.properties === "object"
-            ? { ...modified.inputSchema.properties }
-            : {};
-        if (!(JMESPATH_TOOL_ARGUMENT in properties)) {
-          properties[JMESPATH_TOOL_ARGUMENT] = {
-            type: "string",
-            description: JMESPATH_TOOL_ARGUMENT_DESCRIPTION,
-          };
-          modified.inputSchema = { ...modified.inputSchema, properties };
-        }
-      }
-
-      return modified;
-    });
-    // <<< END: Remove $schema for Gemini compatibility >>>
-
     return {
-      tools, // return tool list with $schema removed
+      tools: getListedTools(filteredTools, listedToolsCache.revision),
     };
   });
 
@@ -945,7 +869,11 @@ function createServer(): McpServer {
         : filtered;
       return compactMcpToolResult({
         result: masked,
-        enabled: GITLAB_MCP_COMPACT_RESULTS,
+        enabled: shouldCompactToolResult(
+          toolName,
+          GITLAB_MCP_COMPACT_RESULTS,
+          GITLAB_MCP_COMPACT_TOOL_NAMES
+        ),
         maxChars: GITLAB_MCP_COMPACT_RESULT_CHARS,
         toolName,
         args: readOwnRecord(request.params.arguments),
@@ -1085,8 +1013,9 @@ function createServer(): McpServer {
           });
         }
 
-        // Check if already fully active
-        const alreadyActive = [...toolsetDef.tools].every(t => currentToolNames.has(t));
+        const alreadyActive = isToolsetFullyActive(toolsetDef.tools, currentToolNames, toolName =>
+          isExcludedBySlimProfile(toolName, applySlimProfile, individuallyEnabledTools)
+        );
         if (alreadyActive) {
           return logCompletion({
             content: [
@@ -1106,6 +1035,7 @@ function createServer(): McpServer {
           if (!isToolAllowedByPermissionMode(tool.name)) continue;
           if (GITLAB_DENIED_TOOLS_REGEX?.test(tool.name)) continue;
           if (hiddenToolSet.has(tool.name)) continue;
+          if (isExcludedBySlimProfile(tool.name, applySlimProfile, individuallyEnabledTools)) continue;
           newTools.push(tool);
         }
 
@@ -1121,6 +1051,7 @@ function createServer(): McpServer {
         }
 
         filteredTools.push(...newTools);
+        listedToolsCache.revision += 1;
 
         // Notify client that tool list has changed
         try {
@@ -1631,6 +1562,16 @@ const hiddenToolSet = new Set(
       );
     }
   }
+  if (GITLAB_MCP_COMPACT_TOOL_NAMES.size > 0) {
+    const unknownCompactTools = [...GITLAB_MCP_COMPACT_TOOL_NAMES].filter(
+      name => !knownToolNames.has(name)
+    );
+    if (unknownCompactTools.length > 0) {
+      logger.warn(
+        `Unknown tool names in GITLAB_MCP_COMPACT_TOOLS (will be ignored): ${unknownCompactTools.join(", ")}`
+      );
+    }
+  }
   for (const name of hiddenToolSet) {
     if (!knownToolNames.has(name)) {
       logger.warn(
@@ -2007,6 +1948,10 @@ const downloadRedirectOptions = () => ({
 const enabledToolsets = parseEnabledToolsets(GITLAB_TOOLSETS_RAW);
 const individuallyEnabledTools = parseIndividualTools(GITLAB_TOOLS_RAW);
 const featureFlagOverrides = buildFeatureFlagOverrides();
+const applySlimProfile = shouldApplySlimToolProfile(GITLAB_TOOL_PROFILE, GITLAB_TOOLSETS_RAW);
+if (GITLAB_TOOL_PROFILE === "slim" && !applySlimProfile) {
+  logger.warn("GITLAB_TOOL_PROFILE=slim is ignored because GITLAB_TOOLSETS is set");
+}
 
 // Warn about potentially confusing configuration
 if (GITLAB_TOOLSETS_RAW && (USE_PIPELINE || USE_MILESTONE || USE_GITLAB_WIKI)) {
@@ -14695,6 +14640,7 @@ function buildDownloadProxyDeps(): DownloadProxyDependencies {
  * Start server with traditional SSE transport
  */
 async function startSSEServer(): Promise<void> {
+  const { express, rateLimit, ipKeyGenerator, SSEServerTransport } = await loadRemoteHttpStack();
   const app = express();
   const sseAuthToken = getConfig("sse-auth-token", "SSE_AUTH_TOKEN");
 
@@ -14760,7 +14706,7 @@ async function startSSEServer(): Promise<void> {
   // Session IDs are untrusted map keys (POST /messages?sessionId=). A null
   // prototype prevents inherited names such as "constructor" from masquerading
   // as live transports, matching the Streamable HTTP transport.
-  const transports: Record<string, SSEServerTransport> = Object.create(null);
+  const transports: Record<string, SseServerTransport> = Object.create(null);
   const sessionLastActivity = new Map<string, number>();
   let shuttingDown = false;
 
@@ -14939,10 +14885,18 @@ async function startSSEServer(): Promise<void> {
  * Start server with Streamable HTTP transport
  */
 async function startStreamableHTTPServer(): Promise<void> {
+  const {
+    express,
+    rateLimit,
+    ipKeyGenerator,
+    StreamableHTTPServerTransport,
+    mcpAuthRouter,
+    requireBearerAuth,
+  } = await loadRemoteHttpStack();
   const app = express();
   // Session IDs are untrusted map keys. A null prototype prevents inherited
   // names such as "constructor" from masquerading as live transports.
-  const streamableTransports: Record<string, StreamableHTTPServerTransport> =
+  const streamableTransports: Record<string, StreamableTransport> =
     Object.create(null);
 
   const authTimeouts: Record<string, NodeJS.Timeout> = {};
@@ -15870,7 +15824,7 @@ async function startStreamableHTTPServer(): Promise<void> {
     // Handle request with proper AsyncLocalStorage context
     const handleRequest = async () => {
       try {
-        let transport: StreamableHTTPServerTransport;
+        let transport: StreamableTransport;
 
         if (sessionId && streamableTransports[sessionId]) {
           // Reuse existing transport for ongoing session
