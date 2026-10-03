@@ -65,6 +65,8 @@ function computeToggleNote(id: ToolsetId, toolNames: readonly string[] = []): st
   return `Opt-in. Enable via \`GITLAB_TOOLSETS=${id}\` (or \`GITLAB_TOOLSETS=all\`), list individual tools in \`GITLAB_TOOLS=\`, or activate at runtime with the \`discover_tools\` MCP tool.${formatDefaultOverlapNote(toolNames)}`;
 }
 
+const META_GROUP_ID = "meta";
+
 const GROUP_META: Record<ToolsetId, GroupMeta> = {
   core: {
     title: "Core",
@@ -319,7 +321,8 @@ function buildGroupPage(id: ToolsetId, toolNames: string[]): string {
 function buildToggleSection(groupedToolsList: Array<[ToolsetId, string[]]>): string[] {
   const grouped = groupedToolsList.filter(([id]) => GROUP_META[id]);
   const defaults = grouped.filter(([id]) => isDefaultToolset(id));
-  const optins = grouped.filter(([id]) => !isDefaultToolset(id));
+  const optins = grouped.filter(([id]) => !isDefaultToolset(id) && (id as string) !== META_GROUP_ID);
+  const meta = grouped.filter(([id]) => (id as string) === META_GROUP_ID);
 
   const formatList = (items: Array<[ToolsetId, string[]]>): string =>
     items
@@ -336,6 +339,11 @@ function buildToggleSection(groupedToolsList: Array<[ToolsetId, string[]]>): str
     "|---|---|",
     `| **Default** — always exposed | ${formatList(defaults)} |`,
     `| **Opt-in** — must be enabled | ${formatList(optins)} |`,
+    ...(meta.length > 0
+      ? [
+          `| **Not a toolset** — \`discover_tools\` is always exposed; \`execute_graphql\` needs \`GITLAB_TOOLS\` | ${formatList(meta)} |`,
+        ]
+      : []),
     "",
     "**How to enable opt-in groups** (any one is sufficient):",
     "",
