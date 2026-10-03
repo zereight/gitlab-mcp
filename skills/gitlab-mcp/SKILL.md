@@ -13,7 +13,7 @@ For exact generated parameter tables, see `docs/tools/`. Use this file for workf
 
 | Toolset | Default | Enable with |
 |---|---|---|
-| core (35 tools) | yes | default lean starter set |
+| core (38 tools) | yes | default lean starter set |
 | merge_requests (45 tools) | no | `GITLAB_TOOLSETS=merge_requests` |
 | issues (24 tools) | no | `GITLAB_TOOLSETS=issues` |
 | repositories (7 tools) | no | `GITLAB_TOOLSETS=repositories` |
@@ -39,7 +39,7 @@ For exact generated parameter tables, see `docs/tools/`. Use this file for workf
 
 Enable all: `GITLAB_TOOLSETS=all`. Restore the pre-lean default with `GITLAB_TOOLSETS=merge_requests,issues,repositories,branches,projects,labels,ci,groups,users`. Use `GITLAB_TOOLS` to enable individual tools outside their toolset. `discover_tools` can list and activate opt-in categories for the current session. `execute_graphql` is not in a toolset; enable it explicitly with `GITLAB_TOOLS=execute_graphql`.
 
-The per-toolset counts above sum to 303 because the 35 `core` tools are each also listed
+The per-toolset counts above sum to 306 because the 38 `core` tools are each also listed
 in their full category (`get_branch` and `list_branches` additionally appear in both
 `merge_requests` and `branches`); the unique tool count across all toolsets is 266.
 

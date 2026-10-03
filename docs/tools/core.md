@@ -12,6 +12,9 @@ Lean default starter set for common MR, issue, repository, branch, project, labe
 - [`list_merge_request_diffs`](#list_merge_request_diffs) — 📖 Read-only
 - [`get_merge_request_diffs`](#get_merge_request_diffs) — 📖 Read-only
 - [`mr_discussions`](#mr_discussions) — 📖 Read-only
+- [`get_merge_request_discussion`](#get_merge_request_discussion) — 📖 Read-only
+- [`get_merge_request_note`](#get_merge_request_note) — 📖 Read-only
+- [`get_merge_request_notes`](#get_merge_request_notes) — 📖 Read-only
 - [`create_merge_request`](#create_merge_request) — ✏️ Writes
 - [`create_merge_request_thread`](#create_merge_request_thread) — ✏️ Writes
 - [`resolve_merge_request_thread`](#resolve_merge_request_thread) — ✏️ Writes
@@ -184,6 +187,51 @@ List discussion items for a merge request. Use this to list complete discussion 
 | `merge_request_iid` | string | ✓ | The IID of a merge request |
 | `page` | number |  | Page number for pagination (default: 1) |
 | `per_page` | number |  | Number of items per page (max: 100, default: 20) |
+
+### `get_merge_request_discussion`
+
+*📖 Read-only*
+
+Get a single discussion item for a merge request. Use this to fetch one known merge request discussion by discussion identifier; use `mr_discussions` for a collection and `get_merge_request_note` for a flat note. It is read-only and returns the discussion item or an error for an invalid identifier, missing discussion, or insufficient permission.
+
+**Parameters**
+
+| Parameter | Type | Required | Description |
+|---|---|:-:|---|
+| `project_id` | string | ✓ | Project ID or complete URL-encoded path to project |
+| `merge_request_iid` | string | ✓ | The IID of a merge request |
+| `discussion_id` | string | ✓ | The ID of a thread |
+
+### `get_merge_request_note`
+
+*📖 Read-only*
+
+Get a specific note for a merge request. Use this to fetch one known merge request note by note identifier; use `get_merge_request_notes` for a collection and `mr_discussions` for threaded context. It is read-only and returns the note object or an error for an invalid identifier, missing note, or insufficient permission.
+
+**Parameters**
+
+| Parameter | Type | Required | Description |
+|---|---|:-:|---|
+| `project_id` | string | ✓ | Project ID or complete URL-encoded path to project |
+| `merge_request_iid` | string | ✓ | The IID of a merge request |
+| `note_id` | string | ✓ | The ID of a thread note |
+
+### `get_merge_request_notes`
+
+*📖 Read-only*
+
+List notes for a merge request. Use this to list flat notes on a merge request; use `mr_discussions` when thread structure and resolution state are required. It is read-only and returns note records, while invalid identifiers, missing resources, and pagination or permission errors are reported by GitLab.
+
+**Parameters**
+
+| Parameter | Type | Required | Description |
+|---|---|:-:|---|
+| `project_id` | string | ✓ | Project ID or complete URL-encoded path to project |
+| `merge_request_iid` | string | ✓ | The IID of a merge request |
+| `sort` | enum (`asc` \| `desc`) |  | The sort order of the notes |
+| `order_by` | enum (`created_at` \| `updated_at`) |  | The field to sort the notes by |
+| `per_page` | number |  | Number of items per page |
+| `page` | number |  | Page number for pagination |
 
 ### `create_merge_request`
 
