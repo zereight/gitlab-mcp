@@ -129,7 +129,7 @@ zereight-mcp-gitlab auth --help
 
 After `auth` succeeds, start the MCP server (or run the [human CLI](./cli-without-mcp.md))
 with `GITLAB_USE_OAUTH=true` and the same client ID. If you use `--token-path`, set `GITLAB_OAUTH_TOKEN_PATH` to the
-same path when you start the server. See [OAuth2 Authentication Setup Guide](../auth/oauth-setup.md#standalone-device-flow-auth-command).
+same path when you start the MCP server or run the human CLI. See [OAuth2 Authentication Setup Guide](../auth/oauth-setup.md#standalone-device-flow-auth-command).
 
 For the full list of configuration options, see
 [Environment Variables](../configuration/environment-variables.md).

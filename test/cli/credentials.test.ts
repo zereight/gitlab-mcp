@@ -9,6 +9,7 @@ import { describe, it } from "node:test";
 
 const __dirname = path.dirname(url.fileURLToPath(import.meta.url));
 const CLI_ENTRY = path.resolve(__dirname, "../../build/index.js");
+const CLI_TIMEOUT_MS = 30_000;
 const MR_FIXTURE = {
   id: 1,
   iid: 1,
@@ -65,6 +66,8 @@ function runCliAsync(env: Record<string, string>): Promise<{ exitCode: number | 
     const child = spawn(process.execPath, [CLI_ENTRY, "mr", "view", "--project-id", "g/p", "--mr-iid", "1"], {
       env,
       stdio: ["ignore", "pipe", "ignore"],
+      timeout: CLI_TIMEOUT_MS,
+      killSignal: "SIGKILL",
     });
     let stdout = "";
     child.stdout.on("data", chunk => {
