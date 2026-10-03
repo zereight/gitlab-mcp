@@ -330,7 +330,12 @@ export class GitLabOAuth {
    * Uses a shared server if port is already in use
    */
   private async startOAuthFlow(): Promise<TokenData> {
-    const callbackPort = parseInt(new URL(this.config.redirectUri).port || "8888");
+    let callbackPort = 8888;
+    try {
+      callbackPort = parseInt(new URL(this.config.redirectUri).port || "8888", 10);
+    } catch {
+      // Fallback to default port on malformed redirectUri
+    }
     const requestId = crypto.randomUUID();
 
     // Check if port is already in use
@@ -768,6 +773,8 @@ export function createGitLabOAuthClient(gitlabUrl: string = "https://gitlab.com"
   });
 }
 
+const inFlightTokenPromises = new WeakMap<GitLabOAuth, Promise<string>>();
+
 /**
  * Ensure the caller holds a usable OAuth access token, delivering it via onToken.
  * Returns cached token without network when still valid.
@@ -775,6 +782,8 @@ export function createGitLabOAuthClient(gitlabUrl: string = "https://gitlab.com"
  * NOTE: the fast path requires BOTH a held token and a valid stored token.
  * Returning early on hasValidToken() alone would skip onToken after lazy
  * startup (caller holds nothing yet) and leave requests unauthenticated.
+ * Concurrent callers coalesce on an in-flight promise to avoid racing
+ * duplicate refresh requests (which would fail on token rotation).
  */
 export async function ensureOAuthToken(
   client: GitLabOAuth | null | undefined,
@@ -786,14 +795,26 @@ export async function ensureOAuthToken(
   // Fast path: token already resolved for this process and still valid.
   if (currentToken && client.hasValidToken()) return;
 
-  const needsRefresh = !client.hasValidToken();
-  if (needsRefresh) {
-    logger.info("OAuth token expired or missing, refreshing...");
+  let promise = inFlightTokenPromises.get(client);
+  if (!promise) {
+    const needsRefresh = !client.hasValidToken();
+    if (needsRefresh) {
+      logger.info("OAuth token expired or missing, refreshing...");
+    }
+    promise = (async () => {
+      const token = await client.getAccessToken();
+      if (needsRefresh) {
+        logger.info("OAuth token refreshed successfully");
+      }
+      return token;
+    })().finally(() => {
+      inFlightTokenPromises.delete(client);
+    });
+    inFlightTokenPromises.set(client, promise);
   }
-  onToken(await client.getAccessToken());
-  if (needsRefresh) {
-    logger.info("OAuth token refreshed successfully");
-  }
+
+  const token = await promise;
+  onToken(token);
 }
 
 /**

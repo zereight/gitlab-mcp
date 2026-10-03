@@ -208,4 +208,29 @@ describe("ensureOAuthToken", () => {
     });
     assert.deepStrictEqual(delivered, ["script-token-1"]);
   });
+
+  test("concurrent calls coalesce into a single refresh request", async () => {
+    const { url, bodies } = await startTokenServer(() => ({
+      status: 200,
+      json: {
+        access_token: "coalesced-token",
+        refresh_token: "new-refresh",
+        expires_in: 7200,
+        token_type: "Bearer",
+      },
+    }));
+    const file = makeTokenFile(expiredTokenFile);
+    const client = makeClient(file, url);
+    const deliveredA: string[] = [];
+    const deliveredB: string[] = [];
+
+    await Promise.all([
+      ensureOAuthToken(client, null, t => deliveredA.push(t)),
+      ensureOAuthToken(client, null, t => deliveredB.push(t)),
+    ]);
+
+    assert.deepStrictEqual(deliveredA, ["coalesced-token"]);
+    assert.deepStrictEqual(deliveredB, ["coalesced-token"]);
+    assert.strictEqual(bodies.length, 1);
+  });
 });
