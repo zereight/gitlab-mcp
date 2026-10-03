@@ -33,6 +33,13 @@ describe("When GITLAB_READ_ONLY_MODE is enabled", () => {
     });
   });
 
+  describe("with permission mode already readonly", () => {
+    test("should not warn about an override", () => {
+      const [warning] = warningsFor({ readOnlyMode: true, permissionModeRaw: "readonly" });
+      assert.doesNotMatch(warning, /OVERRIDES/);
+    });
+  });
+
   describe("with a conflicting permission mode", () => {
     test("should warn that it overrides the configured mode", () => {
       const [warning] = warningsFor({ readOnlyMode: true, permissionModeRaw: "full" });

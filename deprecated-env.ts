@@ -1,6 +1,6 @@
 export interface DeprecatedEnvInput {
   readOnlyMode: boolean;
-  /** Raw (unvalidated-as-effective) value of GITLAB_PERMISSION_MODE / --permission-mode. */
+  /** Value the user set for GITLAB_PERMISSION_MODE / --permission-mode, before GITLAB_READ_ONLY_MODE overrides it. */
   permissionModeRaw: string | undefined;
   allowedGroupsRaw: string | undefined;
   oauthAllowedGroupsRaw: string | undefined;
