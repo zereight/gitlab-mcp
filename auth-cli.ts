@@ -1,12 +1,12 @@
 import * as os from "os";
 import * as path from "path";
 import { parseCliArgs } from "./cli-boolean-flags.js";
-import { deprecatedEnvInputFromSources, getDeprecatedEnvWarnings } from "./deprecated-env.js";
 import { GitLabOAuth } from "./oauth.js";
 import { createLogger, flushStartupLogs } from "./utils/logger.js";
 import { stripUrlUserinfo } from "./utils/redact-url.js";
 import { apiUrlError, apiUrlUserinfoWarning } from "./utils/url.js";
 import type { FetchImpl } from "./oauth-device-flow.js";
+import { assertNoRemovedConfig } from "./removed-config.js";
 
 const logger = createLogger("gitlab-mcp-auth");
 
@@ -69,10 +69,6 @@ function isReadOnlyMode(
   parsedArgs: Readonly<Record<string, string>>,
   env: NodeJS.ProcessEnv
 ): boolean {
-  const readOnly = parsedArgs["read-only"] ?? env.GITLAB_READ_ONLY_MODE;
-  if (readOnly === "true") {
-    return true;
-  }
   return (parsedArgs["permission-mode"] ?? env.GITLAB_PERMISSION_MODE) === "readonly";
 }
 
@@ -86,18 +82,12 @@ export async function runAuthCommandAsync(input: AuthCliInput = {}): Promise<voi
   const stdout = input.stdout ?? process.stdout;
 
   const parsedArgs = parseCliArgs(argv.slice(2));
-  const warnings = getDeprecatedEnvWarnings(deprecatedEnvInputFromSources(parsedArgs, env));
-  for (const warning of warnings) {
-    logger.warn(warning);
-  }
-  if (warnings.length > 0) {
-    flushStartupLogs(logger);
-  }
-
   if (wantsHelp(argv)) {
     stdout.write(AUTH_CLI_HELP);
     return;
   }
+
+  assertNoRemovedConfig(env, argv);
 
   const clientId = readFlag(argv, "client-id") ?? env.GITLAB_OAUTH_CLIENT_ID;
   if (!clientId) {

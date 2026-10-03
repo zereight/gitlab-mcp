@@ -51,8 +51,8 @@ function callTool(
       env: {
         ...process.env,
         ...env,
-        GITLAB_READ_ONLY_MODE: "true",
-        USE_PIPELINE: "true",
+        GITLAB_PERMISSION_MODE: "readonly",
+        GITLAB_TOOLSETS: "core,pipelines",
         GITLAB_DISABLE_VERSION_CHECK: "true",
       },
     });

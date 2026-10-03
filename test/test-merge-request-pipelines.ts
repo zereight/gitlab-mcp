@@ -18,7 +18,7 @@ async function callTool(
       env: {
         ...process.env,
         ...env,
-        GITLAB_READ_ONLY_MODE: "true",
+        GITLAB_PERMISSION_MODE: "readonly",
       },
     });
 

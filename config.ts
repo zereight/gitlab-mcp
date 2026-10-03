@@ -1,5 +1,5 @@
 import { parseCliArgs } from "./cli-boolean-flags.js";
-import { deprecatedEnvInputFromSources, type DeprecatedEnvInput } from "./deprecated-env.js";
+import { assertNoRemovedConfig } from "./removed-config.js";
 import {
   readPersonalAccessTokenFile,
   resolvePersonalAccessToken,
@@ -9,6 +9,7 @@ import { parseCompactToolAllowlist } from "./utils/compact-tool-allowlist.js";
 import { createLogger, flushStartupLogs } from "./utils/logger.js";
 
 // Parse CLI arguments before anything else
+assertNoRemovedConfig(process.env, process.argv.slice(2));
 export const cliArgs: Record<string, string> = parseCliArgs(process.argv.slice(2));
 
 // Helper function to get config value (CLI args take precedence over env vars)
@@ -49,8 +50,6 @@ export const IS_OLD = getConfig("is-old", "GITLAB_IS_OLD") === "true";
 // Behavior flags
 // ---------------------------------------------------------------------------
 
-export const GITLAB_READ_ONLY_MODE = getConfig("read-only", "GITLAB_READ_ONLY_MODE") === "true";
-
 // Optional response masking. Disabled by default so existing deployments keep
 // the exact original response behavior unless explicitly opted in.
 export const GITLAB_MASKING_ENABLED =
@@ -70,26 +69,15 @@ export const GITLAB_DOWNLOAD_DIR = getConfig("download-dir", "GITLAB_DOWNLOAD_DI
 
 export type GitLabPermissionMode = "readonly" | "modify" | "full";
 const PERMISSION_MODES: readonly GitLabPermissionMode[] = ["readonly", "modify", "full"];
-export const GITLAB_PERMISSION_MODE_RAW = getConfig("permission-mode", "GITLAB_PERMISSION_MODE");
 export const GITLAB_PERMISSION_MODE: GitLabPermissionMode = (() => {
-  const raw = GITLAB_PERMISSION_MODE_RAW;
+  const raw = getConfig("permission-mode", "GITLAB_PERMISSION_MODE");
   if (raw !== undefined && !PERMISSION_MODES.includes(raw as GitLabPermissionMode)) {
     throw new Error(
       `Invalid GITLAB_PERMISSION_MODE: "${raw}". Expected one of: ${PERMISSION_MODES.join(", ")}`
     );
   }
-  // Legacy GITLAB_READ_ONLY_MODE=true always wins (most restrictive)
-  if (GITLAB_READ_ONLY_MODE) {
-    return "readonly";
-  }
   return (raw as GitLabPermissionMode | undefined) ?? "full";
 })();
-export const USE_GITLAB_WIKI_RAW = getConfig("use-wiki", "USE_GITLAB_WIKI");
-export const USE_GITLAB_WIKI = USE_GITLAB_WIKI_RAW === "true";
-export const USE_MILESTONE_RAW = getConfig("use-milestone", "USE_MILESTONE");
-export const USE_MILESTONE = USE_MILESTONE_RAW === "true";
-export const USE_PIPELINE_RAW = getConfig("use-pipeline", "USE_PIPELINE");
-export const USE_PIPELINE = USE_PIPELINE_RAW === "true";
 export const GITLAB_DISABLE_VERSION_CHECK =
   getConfig("disable-version-check", "GITLAB_DISABLE_VERSION_CHECK") === "true";
 /** https registry the startup version check queries instead of registry.npmjs.org. */
@@ -152,16 +140,12 @@ export const GITLAB_OAUTH_ALLOWED_REDIRECT_URIS_RAW = getConfig(
   "oauth-allowed-redirect-uris",
   "GITLAB_OAUTH_ALLOWED_REDIRECT_URIS"
 );
-/** @deprecated Use GITLAB_OAUTH_ALLOWED_GROUPS_RAW instead. Will be removed in v3.0.0. */
-export const GITLAB_ALLOWED_GROUPS_RAW = getConfig("allowed-groups", "GITLAB_ALLOWED_GROUPS");
 export const GITLAB_OAUTH_ALLOWED_GROUPS_RAW = getConfig(
   "oauth-allowed-groups",
   "GITLAB_OAUTH_ALLOWED_GROUPS"
 );
 export const GITLAB_OAUTH_ALLOWED_GROUPS = (() => {
-  const newVar = GITLAB_OAUTH_ALLOWED_GROUPS_RAW;
-  const oldVar = GITLAB_ALLOWED_GROUPS_RAW;
-  const raw = newVar ?? oldVar;
+  const raw = GITLAB_OAUTH_ALLOWED_GROUPS_RAW;
   if (!raw) return undefined;
   const groups = raw
     .split(",")
@@ -317,15 +301,6 @@ export const NODE_TLS_REJECT_UNAUTHORIZED = getConfig(
   "NODE_TLS_REJECT_UNAUTHORIZED"
 );
 export const GITLAB_CA_CERT_PATH = getConfig("ca-cert-path", "GITLAB_CA_CERT_PATH");
-
-/**
- * Snapshot of deprecated settings for startup warnings.
- * CLI flags win over env vars, matching getConfig, so the warning can name
- * the flag the user actually passed.
- */
-export function buildDeprecatedEnvInput(): DeprecatedEnvInput {
-  return deprecatedEnvInputFromSources(cliArgs, process.env);
-}
 
 const _poolMaxSizeRaw = getConfig("pool-max-size", "GITLAB_POOL_MAX_SIZE");
 export const GITLAB_POOL_MAX_SIZE = _poolMaxSizeRaw ? Number.parseInt(_poolMaxSizeRaw, 10) : 100;
