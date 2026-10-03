@@ -52,10 +52,8 @@ claude mcp add gitlab --transport stdio \
 
 Optional flags you can add as extra `--env` values:
 
-- `GITLAB_READ_ONLY_MODE=true`
-- `USE_GITLAB_WIKI=true`
-- `USE_MILESTONE=true`
-- `USE_PIPELINE=true`
+- `GITLAB_PERMISSION_MODE=readonly`
+- `GITLAB_TOOLSETS=wiki,milestones,pipelines`
 
 Useful management commands:
 
@@ -122,7 +120,7 @@ Create a `.mcp.json` file at your project root:
       "command": "zereight-mcp-gitlab",
       "env": {
         "GITLAB_API_URL": "https://gitlab.com/api/v4",
-        "GITLAB_READ_ONLY_MODE": "false"
+        "GITLAB_PERMISSION_MODE": "full"
       }
     }
   }

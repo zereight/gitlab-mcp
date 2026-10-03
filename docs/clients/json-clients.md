@@ -41,7 +41,7 @@ No global install? Pin `npx` to the previous stable release, for example use `co
   "env": {
     "GITLAB_PERSONAL_ACCESS_TOKEN": "glpat-your-token",
     "GITLAB_API_URL": "https://gitlab.com/api/v4",
-    "GITLAB_READ_ONLY_MODE": "false"
+    "GITLAB_PERMISSION_MODE": "full"
   }
 }
 ```

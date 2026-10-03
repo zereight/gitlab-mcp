@@ -368,7 +368,7 @@ You can combine OAuth with read-only mode:
   "env": {
     "GITLAB_USE_OAUTH": "true",
     "GITLAB_OAUTH_CLIENT_ID": "your_client_id",
-    "GITLAB_READ_ONLY_MODE": "true"
+    "GITLAB_PERMISSION_MODE": "readonly"
   }
 }
 ```

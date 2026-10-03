@@ -201,7 +201,7 @@ describe("dependency proxy tools", () => {
     return new Promise<void>((resolve, reject) => {
       const proc = spawn("node", ["build/index.js"], {
         stdio: ["pipe", "pipe", "pipe"],
-        env: { ...process.env, ...baseEnv, GITLAB_READ_ONLY_MODE: "true" },
+        env: { ...process.env, ...baseEnv, GITLAB_PERMISSION_MODE: "readonly" },
       });
       let output = "";
       proc.stdout?.on("data", (d: Buffer) => (output += d));

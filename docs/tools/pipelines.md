@@ -3,7 +3,7 @@
 Pipeline + job control (trigger, retry, cancel, play manual jobs, fetch logs/artifacts), and the deployments/environments view.
 
 !!! note "Feature toggle"
-    Opt-in. Enable via `GITLAB_TOOLSETS=pipelines` (or `GITLAB_TOOLSETS=all`), or use the legacy `USE_PIPELINE=true` flag for backward compatibility.
+    Opt-in. Enable via `GITLAB_TOOLSETS=pipelines` (or `GITLAB_TOOLSETS=all`), list individual tools in `GITLAB_TOOLS=`, or activate at runtime with the `discover_tools` MCP tool.
 
 ## Tools in this group
 

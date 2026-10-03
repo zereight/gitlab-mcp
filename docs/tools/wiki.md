@@ -3,7 +3,7 @@
 Project and group wiki page CRUD. Attachment uploads where supported.
 
 !!! note "Feature toggle"
-    Opt-in. Enable via `GITLAB_TOOLSETS=wiki` (or `GITLAB_TOOLSETS=all`), or use the legacy `USE_GITLAB_WIKI=true` flag for backward compatibility.
+    Opt-in. Enable via `GITLAB_TOOLSETS=wiki` (or `GITLAB_TOOLSETS=all`), list individual tools in `GITLAB_TOOLS=`, or activate at runtime with the `discover_tools` MCP tool.
 
 ## Tools in this group
 

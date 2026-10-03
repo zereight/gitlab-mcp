@@ -20,21 +20,19 @@ directly from `TOOLSET_DEFINITIONS` in
 | Status | Groups |
 |---|---|
 | **Default** — always exposed | [Projects & Namespaces](projects.md), [Projects & Files](repositories.md), [Branches & Commits](branches.md), [Groups](groups.md), [Merge Requests](merge-requests.md), [Issues](issues.md), [Labels](labels.md), [CI Lint](ci.md), [Users & Events](users.md) |
-| **Opt-in** — must be enabled | [Work Items](workitems.md), [Pipelines, Jobs & Deployments](pipelines.md) (also `USE_PIPELINE=true`), [Milestones](milestones.md) (also `USE_MILESTONE=true`), [Wiki](wiki.md) (also `USE_GITLAB_WIKI=true`), [Releases](releases.md), [Tags](tags.md), [Variables](variables.md), [Webhooks](webhooks.md), [Search](search.md), [Dependency Proxy](dependency-proxy.md), [Vulnerabilities](vulnerabilities.md), [GitLab Orbit](orbit.md), [Snippets](snippets.md), [Meta & GraphQL](meta.md) |
+| **Opt-in** — must be enabled | [Work Items](workitems.md), [Pipelines, Jobs & Deployments](pipelines.md), [Milestones](milestones.md), [Wiki](wiki.md), [Releases](releases.md), [Tags](tags.md), [Variables](variables.md), [Webhooks](webhooks.md), [Search](search.md), [Dependency Proxy](dependency-proxy.md), [Vulnerabilities](vulnerabilities.md), [GitLab Orbit](orbit.md), [Snippets](snippets.md), [Meta & GraphQL](meta.md) |
 
 **How to enable opt-in groups** (any one is sufficient):
 
 - `GITLAB_TOOLSETS=<group,…>` — comma-separated toolset IDs.
 - `GITLAB_TOOLSETS=all` — enables every group.
 - `GITLAB_TOOLS=<tool,…>` — enables individual tools regardless of group.
-- `USE_PIPELINE=true` / `USE_MILESTONE=true` / `USE_GITLAB_WIKI=true` — legacy single-group flags (Pipelines, Milestones, Wiki only).
 - Call the `discover_tools` MCP tool at runtime to activate categories for the current session.
 
 Permission modes control which tools are exposed:
 
 - `GITLAB_PERMISSION_MODE=readonly` — hides every write tool regardless of toggles.
 - `GITLAB_PERMISSION_MODE=modify` — allows create/update but blocks delete and teardown tools: every `delete_*` tool, `erase_pipeline_job`, `purge_dependency_proxy_cache`, the destructive teardown verbs `cancel_pipeline`, `cancel_pipeline_job`, `stop_environment`, `stop_stale_environments`, `unprotect_branch`, plus `push_files` `delete`/`move` actions.
-- `GITLAB_READ_ONLY_MODE=true` (deprecated) — same as `readonly`; prefer `GITLAB_PERMISSION_MODE=readonly`.
 
 The `modify` guard applies to typed tools (`tools/list` and `tools/call`) and to destructive mutations sent through `execute_graphql`: any top-level mutation field whose name contains a deletion verb (`delete`, `destroy`, `remove`, `prune`, `purge`, `erase`) or a teardown verb (`revoke`, `cancel`, `stop`, `terminate`, `unprotect`, `disable`, `deactivate`, `drop`, `unschedule`). See [Environment Variables](../configuration/environment-variables.md#gitlab_permission_mode).
 
@@ -251,7 +249,7 @@ Validate `.gitlab-ci.yml` snippets and project pipeline configs. *(4 tools)*
 
 Pipeline + job control (trigger, retry, cancel, play manual jobs, fetch logs/artifacts), and the deployments/environments view. *(56 tools)*
 
-> Opt-in. Enable via `GITLAB_TOOLSETS=pipelines` (or `GITLAB_TOOLSETS=all`), or use the legacy `USE_PIPELINE=true` flag for backward compatibility.
+> Opt-in. Enable via `GITLAB_TOOLSETS=pipelines` (or `GITLAB_TOOLSETS=all`), list individual tools in `GITLAB_TOOLS=`, or activate at runtime with the `discover_tools` MCP tool.
 
 | Tool | What it does | R/W |
 |---|---|:-:|
@@ -316,7 +314,7 @@ Pipeline + job control (trigger, retry, cancel, play manual jobs, fetch logs/art
 
 Project and group milestone CRUD plus associated issues/MRs and burndown events. *(17 tools)*
 
-> Opt-in. Enable via `GITLAB_TOOLSETS=milestones` (or `GITLAB_TOOLSETS=all`), or use the legacy `USE_MILESTONE=true` flag for backward compatibility.
+> Opt-in. Enable via `GITLAB_TOOLSETS=milestones` (or `GITLAB_TOOLSETS=all`), list individual tools in `GITLAB_TOOLS=`, or activate at runtime with the `discover_tools` MCP tool.
 
 | Tool | What it does | R/W |
 |---|---|:-:|
@@ -342,7 +340,7 @@ Project and group milestone CRUD plus associated issues/MRs and burndown events.
 
 Project and group wiki page CRUD. Attachment uploads where supported. *(10 tools)*
 
-> Opt-in. Enable via `GITLAB_TOOLSETS=wiki` (or `GITLAB_TOOLSETS=all`), or use the legacy `USE_GITLAB_WIKI=true` flag for backward compatibility.
+> Opt-in. Enable via `GITLAB_TOOLSETS=wiki` (or `GITLAB_TOOLSETS=all`), list individual tools in `GITLAB_TOOLS=`, or activate at runtime with the `discover_tools` MCP tool.
 
 | Tool | What it does | R/W |
 |---|---|:-:|

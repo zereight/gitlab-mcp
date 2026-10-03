@@ -41,11 +41,7 @@ No global install? Pin `npx` to the previous stable release and keep the server 
 | ---------------------- | ------------------------------ | --------------------------------------------------- |
 | `--token`              | `GITLAB_PERSONAL_ACCESS_TOKEN` | GitLab Personal Access Token.                       |
 | `--api-url`            | `GITLAB_API_URL`               | GitLab API URL (e.g., `https://gitlab.com/api/v4`). |
-| `--read-only=true`     | `GITLAB_READ_ONLY_MODE`        | Enable read-only mode (deprecated — prefer `--permission-mode=readonly`). |
 | `--permission-mode`    | `GITLAB_PERMISSION_MODE`       | `readonly`, `modify` (no delete or teardown tools), or `full`.  |
-| `--use-wiki=true`      | `USE_GITLAB_WIKI`              | Enable wiki API tools.                              |
-| `--use-milestone=true` | `USE_MILESTONE`                | Enable milestone API tools.                         |
-| `--use-pipeline=true`  | `USE_PIPELINE`                 | Enable pipeline API tools.                          |
 | `--disable-version-check=true` | `GITLAB_DISABLE_VERSION_CHECK` | Disable the startup new-version notice.     |
 | `--masking-enabled=true` | `GITLAB_MASKING_ENABLED` | Enable text-response masking. |
 | `--masking-config` | `GITLAB_MASKING_CONFIG` | Path to a masking configuration file. |
@@ -53,10 +49,6 @@ No global install? Pin `npx` to the previous stable release and keep the server 
 | `--masking-workspace-dir` | `GITLAB_MASKING_WORKSPACE_DIR` | Directory used to resolve masking files. |
 | `--compact-results=true` | `GITLAB_MCP_COMPACT_RESULTS` | Truncate oversized MCP tool replies and attach a CLI command for the full payload. Off by default. |
 | `--compact-result-chars` | `GITLAB_MCP_COMPACT_RESULT_CHARS` | Size threshold in characters before a reply is compacted (default `4000`). |
-
-> **Deprecation notice:** `--read-only=true` and `GITLAB_READ_ONLY_MODE` are kept for
-> backward compatibility but will be removed in a future major version.
-> Use `--permission-mode=readonly` or `GITLAB_PERMISSION_MODE=readonly` instead.
 
 ## Subcommands
 
@@ -91,9 +83,9 @@ zereight-mcp-gitlab user whoami
 - Flags are kebab-case schema keys (`project_id` → `--project-id`). Number and boolean fields are converted from the schema type (`--limit 10`, `--push-events false`). Nested objects and arrays use `--args-json '{...}'`.
 - Curated shorts: `--mr-iid`, `--issue-iid`, `--branch`, `--source`, `--target`.
 - Destructive tools (`delete_*`, `merge_merge_request`, `push_files`, …) require `--yes`. Without it the command prints what it would do and exits `2`.
-- Human CLI uses the same exposure filters as MCP: `GITLAB_TOOLSETS` / `GITLAB_TOOLS` / legacy wiki-milestone-pipeline flags, `GITLAB_DENIED_TOOLS_REGEX`, and `GITLAB_TOOL_POLICY_HIDDEN`. `GITLAB_TOOL_POLICY_APPROVE` tools also need `--yes`.
+- Human CLI uses the same exposure filters as MCP: `GITLAB_TOOLSETS` / `GITLAB_TOOLS`, `GITLAB_DENIED_TOOLS_REGEX`, and `GITLAB_TOOL_POLICY_HIDDEN`. `GITLAB_TOOL_POLICY_APPROVE` tools also need `--yes`.
 - `--permission-mode=readonly` refuses writes with exit `2` before any network call.
-- Space-separated booleans keep their value (`--read-only false` stays off). Bare `--read-only` still means on. Do not write `--use-oauth mr` expecting `mr` to be the flag value.
+- Space-separated booleans keep their value (`--use-oauth false` stays off). Bare `--use-oauth` still means on. Do not write `--use-oauth mr` expecting `mr` to be the flag value.
 - Exit codes: `0` success, `1` API/auth/runtime failure, `2` usage or refused write.
 - Human tables go to stdout; diagnostics go to stderr so `... --output json | jq` stays clean.
 

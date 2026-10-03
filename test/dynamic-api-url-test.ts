@@ -65,7 +65,7 @@ describe('Dynamic API URL - Multiple GitLab Instances', () => {
         STREAMABLE_HTTP: 'true',
         REMOTE_AUTHORIZATION: 'true',
         ENABLE_DYNAMIC_API_URL: 'true',
-        GITLAB_READ_ONLY_MODE: 'true',
+        GITLAB_PERMISSION_MODE: 'readonly',
       }
     });
     servers.push(server);

@@ -16,13 +16,11 @@ import {
   GITLAB_PERSONAL_ACCESS_TOKEN,
   GITLAB_POOL_MAX_SIZE,
   GITLAB_DISABLE_VERSION_CHECK,
-  GITLAB_READ_ONLY_MODE,
   GITLAB_MASKING_ENABLED,
   GITLAB_MASKING_CONFIG,
   GITLAB_MASKING_POLICY_FILE,
   GITLAB_MASKING_WORKSPACE_DIR,
   GITLAB_PERMISSION_MODE,
-  GITLAB_PERMISSION_MODE_RAW,
   GITLAB_TOOLSETS_RAW,
   GITLAB_TOOLS_RAW,
   HOST,
@@ -43,19 +41,13 @@ import {
   SSE,
   STREAMABLE_HTTP,
   MCP_TRUST_PROXY,
-  USE_GITLAB_WIKI,
-  USE_MILESTONE,
   USE_OAUTH,
-  USE_PIPELINE,
   GITLAB_TOOL_POLICY_APPROVE_RAW,
   GITLAB_TOOL_POLICY_HIDDEN_RAW,
-  GITLAB_OAUTH_ALLOWED_GROUPS_RAW,
-  GITLAB_ALLOWED_GROUPS_RAW,
   GITLAB_OAUTH_ALLOWED_GROUPS,
   GITLAB_MCP_COMPACT_RESULTS,
   GITLAB_MCP_COMPACT_RESULT_CHARS,
 } from "./config.js";
-import { getDeprecatedEnvWarnings } from "./deprecated-env.js";
 
 /** True when the server is running in remote/network mode (SSE or StreamableHTTP transport). */
 const IS_REMOTE = SSE || STREAMABLE_HTTP;
@@ -253,7 +245,6 @@ import {
   deleteTools,
   parseEnabledToolsets,
   parseIndividualTools,
-  buildFeatureFlagOverrides,
   isToolInEnabledToolset,
   TOOLSET_DEFINITIONS,
   ALL_TOOLSET_IDS,
@@ -769,27 +760,18 @@ function createServer(): McpServer {
     ),
   ];
 
-  // Step 3: Add legacy flag overrides (USE_PIPELINE, USE_MILESTONE, USE_GITLAB_WIKI)
-  const afterIndividualNames = new Set(toolsAfterIndividual.map(t => t.name));
-  const toolsAfterLegacy = [
-    ...toolsAfterIndividual,
-    ...allTools.filter(
-      tool => featureFlagOverrides.has(tool.name) && !afterIndividualNames.has(tool.name)
-    ),
-  ];
-
-  // Step 4: Permission mode filter (readonly / modify / full)
+  // Step 3: Permission mode filter (readonly / modify / full)
   const toolsAfterReadOnly =
     GITLAB_PERMISSION_MODE === "full"
-      ? toolsAfterLegacy
-      : toolsAfterLegacy.filter(tool => isToolAllowedByPermissionMode(tool.name));
+      ? toolsAfterIndividual
+      : toolsAfterIndividual.filter(tool => isToolAllowedByPermissionMode(tool.name));
 
-  // Step 5: Regex denial filter
+  // Step 4: Regex denial filter
   let filteredTools = GITLAB_DENIED_TOOLS_REGEX
     ? toolsAfterReadOnly.filter(tool => !GITLAB_DENIED_TOOLS_REGEX!.test(tool.name))
     : [...toolsAfterReadOnly];
 
-  // Step 5.5: Always include discover_tools meta-tool (bypasses toolset filter)
+  // Step 4.5: Always include discover_tools meta-tool (bypasses toolset filter)
   const discoverTool = allTools.find(t => t.name === "discover_tools");
   const filteredToolNames = new Set(filteredTools.map(t => t.name));
   if (discoverTool && !filteredToolNames.has("discover_tools")) {
@@ -801,7 +783,7 @@ function createServer(): McpServer {
     }
   }
 
-  // Step 5.7: Remove hidden policy tools
+  // Step 4.7: Remove hidden policy tools
   if (hiddenToolSet.size > 0) {
     filteredTools = filteredTools.filter(tool => !hiddenToolSet.has(tool.name));
   }
@@ -2008,16 +1990,8 @@ const downloadRedirectOptions = () => ({
 // Compute at startup
 const enabledToolsets = parseEnabledToolsets(GITLAB_TOOLSETS_RAW);
 const individuallyEnabledTools = parseIndividualTools(GITLAB_TOOLS_RAW);
-const featureFlagOverrides = buildFeatureFlagOverrides();
 
 // Warn about potentially confusing configuration
-if (GITLAB_TOOLSETS_RAW && (USE_PIPELINE || USE_MILESTONE || USE_GITLAB_WIKI)) {
-  logger.warn(
-    "GITLAB_TOOLSETS is set alongside legacy flags (USE_PIPELINE, USE_MILESTONE, USE_GITLAB_WIKI). " +
-      "Legacy flags add tools additively on top of the toolset selection and may produce unexpected results."
-  );
-}
-
 const MERGE_REQUEST_DEPLOYMENT_SUMMARY_LIMIT = 10;
 
 type GitLabMergeRequestDeploymentSummaryRecord = {
@@ -16286,18 +16260,6 @@ async function runServer() {
 
     logger.info(`Configured GitLab API URLs: ${GITLAB_API_URLS.join(", ")}`);
     logger.info(`Default GitLab API URL: ${GITLAB_API_URL}`);
-
-    for (const warning of getDeprecatedEnvWarnings({
-      readOnlyMode: GITLAB_READ_ONLY_MODE,
-      permissionModeRaw: GITLAB_PERMISSION_MODE_RAW,
-      allowedGroupsRaw: GITLAB_ALLOWED_GROUPS_RAW,
-      oauthAllowedGroupsRaw: GITLAB_OAUTH_ALLOWED_GROUPS_RAW,
-      useWiki: USE_GITLAB_WIKI,
-      useMilestone: USE_MILESTONE,
-      usePipeline: USE_PIPELINE,
-    })) {
-      logger.warn(warning);
-    }
 
     if (GITLAB_OAUTH_ALLOWED_GROUPS) {
       logger.info(`Group access control enabled for: ${GITLAB_OAUTH_ALLOWED_GROUPS.join(", ")}`);

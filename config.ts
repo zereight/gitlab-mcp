@@ -1,7 +1,9 @@
 import { BOOLEAN_CLI_FLAG_NAMES, nextBooleanFlagValue } from "./cli-boolean-flags.js";
+import { assertNoRemovedConfig } from "./removed-config.js";
 
 // Parse CLI arguments before anything else
 const args = process.argv.slice(2);
+assertNoRemovedConfig(process.env, args);
 export const cliArgs: Record<string, string> = {};
 
 for (let i = 0; i < args.length; i++) {
@@ -54,8 +56,6 @@ export const IS_OLD = getConfig("is-old", "GITLAB_IS_OLD") === "true";
 // Behavior flags
 // ---------------------------------------------------------------------------
 
-export const GITLAB_READ_ONLY_MODE = getConfig("read-only", "GITLAB_READ_ONLY_MODE") === "true";
-
 // Optional response masking. Disabled by default so existing deployments keep
 // the exact original response behavior unless explicitly opted in.
 export const GITLAB_MASKING_ENABLED =
@@ -73,23 +73,15 @@ export const GITLAB_MASKING_WORKSPACE_DIR = getConfig(
 
 export type GitLabPermissionMode = "readonly" | "modify" | "full";
 const PERMISSION_MODES: readonly GitLabPermissionMode[] = ["readonly", "modify", "full"];
-export const GITLAB_PERMISSION_MODE_RAW = getConfig("permission-mode", "GITLAB_PERMISSION_MODE");
 export const GITLAB_PERMISSION_MODE: GitLabPermissionMode = (() => {
-  const raw = GITLAB_PERMISSION_MODE_RAW;
+  const raw = getConfig("permission-mode", "GITLAB_PERMISSION_MODE");
   if (raw !== undefined && !PERMISSION_MODES.includes(raw as GitLabPermissionMode)) {
     throw new Error(
       `Invalid GITLAB_PERMISSION_MODE: "${raw}". Expected one of: ${PERMISSION_MODES.join(", ")}`
     );
   }
-  // Legacy GITLAB_READ_ONLY_MODE=true always wins (most restrictive)
-  if (GITLAB_READ_ONLY_MODE) {
-    return "readonly";
-  }
   return (raw as GitLabPermissionMode | undefined) ?? "full";
 })();
-export const USE_GITLAB_WIKI = getConfig("use-wiki", "USE_GITLAB_WIKI") === "true";
-export const USE_MILESTONE = getConfig("use-milestone", "USE_MILESTONE") === "true";
-export const USE_PIPELINE = getConfig("use-pipeline", "USE_PIPELINE") === "true";
 export const GITLAB_DISABLE_VERSION_CHECK =
   getConfig("disable-version-check", "GITLAB_DISABLE_VERSION_CHECK") === "true";
 
@@ -140,16 +132,12 @@ export const GITLAB_OAUTH_SCOPES = GITLAB_OAUTH_SCOPES_RAW
   : undefined;
 export const GITLAB_OAUTH_CALLBACK_PROXY =
   getConfig("oauth-callback-proxy", "GITLAB_OAUTH_CALLBACK_PROXY") === "true";
-/** @deprecated Use GITLAB_OAUTH_ALLOWED_GROUPS_RAW instead. Will be removed in the next major version. */
-export const GITLAB_ALLOWED_GROUPS_RAW = getConfig("allowed-groups", "GITLAB_ALLOWED_GROUPS");
 export const GITLAB_OAUTH_ALLOWED_GROUPS_RAW = getConfig(
   "oauth-allowed-groups",
   "GITLAB_OAUTH_ALLOWED_GROUPS"
 );
 export const GITLAB_OAUTH_ALLOWED_GROUPS = (() => {
-  const newVar = GITLAB_OAUTH_ALLOWED_GROUPS_RAW;
-  const oldVar = GITLAB_ALLOWED_GROUPS_RAW;
-  const raw = newVar ?? oldVar;
+  const raw = GITLAB_OAUTH_ALLOWED_GROUPS_RAW;
   if (!raw) return undefined;
   const groups = raw
     .split(",")

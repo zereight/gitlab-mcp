@@ -24,15 +24,6 @@ interface GroupMeta {
   blurb: string;
 }
 
-// Legacy single-group env flags that pre-date GITLAB_TOOLSETS.
-// Only three groups have these for backward compatibility; everything else
-// opt-in is configured via GITLAB_TOOLSETS / GITLAB_TOOLS / discover_tools.
-const LEGACY_TOGGLE_ENV: Partial<Record<ToolsetId, string>> = {
-  pipelines: "USE_PIPELINE",
-  milestones: "USE_MILESTONE",
-  wiki: "USE_GITLAB_WIKI",
-};
-
 function isDefaultToolset(id: ToolsetId): boolean {
   return TOOLSET_DEFINITIONS.find(d => d.id === id)?.isDefault ?? false;
 }
@@ -44,10 +35,6 @@ function computeToggleNote(id: ToolsetId): string | undefined {
   // discover_tools is always exposed; execute_graphql is opt-in via GITLAB_TOOLS.
   if ((id as string) === "meta") {
     return "Mixed availability. `discover_tools` is always exposed (the server re-adds it after every toolset filter). `execute_graphql` is not part of any toolset — enable it explicitly with `GITLAB_TOOLS=execute_graphql`. Tools excluded from the list (toolset / `GITLAB_TOOLS` / `GITLAB_DENIED_TOOLS_REGEX`) are also rejected on direct calls; `GITLAB_TOOL_POLICY_HIDDEN` tools stay callable unless they match `GITLAB_DENIED_TOOLS_REGEX`.";
-  }
-  const legacy = LEGACY_TOGGLE_ENV[id];
-  if (legacy) {
-    return `Opt-in. Enable via \`GITLAB_TOOLSETS=${id}\` (or \`GITLAB_TOOLSETS=all\`), or use the legacy \`${legacy}=true\` flag for backward compatibility.`;
   }
   return `Opt-in. Enable via \`GITLAB_TOOLSETS=${id}\` (or \`GITLAB_TOOLSETS=all\`), list individual tools in \`GITLAB_TOOLS=\`, or activate at runtime with the \`discover_tools\` MCP tool.`;
 }
@@ -200,7 +187,7 @@ type JsonSchema = {
 
 // Authoritative classification — uses the `readOnlyTools` set from
 // tools/registry.ts. That set is what the server itself consults to decide
-// which tools survive `GITLAB_READ_ONLY_MODE=true`, so the badges here
+// which tools survive `GITLAB_PERMISSION_MODE=readonly`, so the badges here
 // match real runtime behavior exactly (no prefix heuristics).
 function classify(name: string): "read" | "write" {
   return readOnlyTools.has(name) ? "read" : "write";
@@ -304,9 +291,7 @@ function buildToggleSection(groupedToolsList: Array<[ToolsetId, string[]]>): str
     items
       .map(([id]) => {
         const slug = id.replace(/_/g, "-");
-        const legacy = LEGACY_TOGGLE_ENV[id];
-        const suffix = legacy ? ` (also \`${legacy}=true\`)` : "";
-        return `[${GROUP_META[id].title}](${slug}.md)${suffix}`;
+        return `[${GROUP_META[id].title}](${slug}.md)`;
       })
       .join(", ");
 
@@ -321,8 +306,6 @@ function buildToggleSection(groupedToolsList: Array<[ToolsetId, string[]]>): str
     "- `GITLAB_TOOLSETS=<group,…>` — comma-separated toolset IDs.",
     "- `GITLAB_TOOLSETS=all` — enables every group.",
     "- `GITLAB_TOOLS=<tool,…>` — enables individual tools regardless of group.",
-    "- `USE_PIPELINE=true` / `USE_MILESTONE=true` / `USE_GITLAB_WIKI=true` —" +
-      " legacy single-group flags (Pipelines, Milestones, Wiki only).",
     "- Call the `discover_tools` MCP tool at runtime to activate categories" +
       " for the current session.",
   ];
@@ -355,7 +338,6 @@ function buildIndexPage(groupedToolsList: Array<[ToolsetId, string[]]>): string 
     "",
     "- `GITLAB_PERMISSION_MODE=readonly` — hides every write tool regardless of toggles.",
     "- `GITLAB_PERMISSION_MODE=modify` — allows create/update but blocks delete and teardown tools: every `delete_*` tool, `erase_pipeline_job`, `purge_dependency_proxy_cache`, the destructive teardown verbs `cancel_pipeline`, `cancel_pipeline_job`, `stop_environment`, `stop_stale_environments`, `unprotect_branch`, plus `push_files` `delete`/`move` actions.",
-    "- `GITLAB_READ_ONLY_MODE=true` (deprecated) — same as `readonly`; prefer `GITLAB_PERMISSION_MODE=readonly`.",
     "",
     "The `modify` guard applies to typed tools (`tools/list` and `tools/call`) and to destructive mutations sent through `execute_graphql`: any top-level mutation field whose name contains a deletion verb (`delete`, `destroy`, `remove`, `prune`, `purge`, `erase`) or a teardown verb (`revoke`, `cancel`, `stop`, `terminate`, `unprotect`, `disable`, `deactivate`, `drop`, `unschedule`). See [Environment Variables](../configuration/environment-variables.md#gitlab_permission_mode).",
     "",

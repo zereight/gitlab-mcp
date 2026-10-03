@@ -138,7 +138,7 @@ describe('Remote Downloads - Download Proxy Endpoint', { timeout: 30_000 }, () =
         MCP_TRUST_PROXY: 'false',
         MCP_SERVER_URL: '',
         GITLAB_API_URL: `${mockGitLab.getUrl()}/api/v4`,
-        USE_PIPELINE: 'true',
+        GITLAB_TOOLSETS: 'all',
         MAX_REQUESTS_PER_MINUTE: '2',
       },
     });
@@ -340,7 +340,7 @@ describe('Remote Downloads - Tool Behavior via MCP Protocol', { timeout: 60_000 
         MCP_TRUST_PROXY: 'true',
         MCP_SERVER_URL: '',
         GITLAB_API_URL: `${mockGitLab.getUrl()}/api/v4`,
-        USE_PIPELINE: 'true',
+        GITLAB_TOOLSETS: 'all',
       },
     });
 
