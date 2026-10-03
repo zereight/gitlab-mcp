@@ -18,7 +18,7 @@ import {
 } from "./utils/server-launcher.js";
 import { MockGitLabServer, findMockServerPort } from "./utils/mock-gitlab-server.js";
 import { CustomHeaderClient } from "./clients/custom-header-client.js";
-import { TOOLSET_DEFINITIONS } from "../tools/registry.js";
+import { TOOLSET_DEFINITIONS, findSmallestToolsetForTool } from "../tools/registry.js";
 
 const MOCK_TOKEN = "glpat-toolset-test-token";
 
@@ -654,6 +654,34 @@ describe("Toolset Filtering", { concurrency: 1 }, () => {
     test("includes the valid individual tool but ignores the unknown one", () => {
       assertContainsAll(tools, ["list_pipelines"], "valid individual tool");
       assertContainsNone(tools, ["nonexistent_tool_xyz"], "unknown tool");
+    });
+  });
+
+  // ---- 16. activation hint for tools outside the enabled toolsets ----
+
+  describe("When looking up the toolset to activate for a tool", () => {
+    describe("with a tool that only an opt-in toolset provides", () => {
+      test("should return that opt-in toolset", () => {
+        assert.strictEqual(findSmallestToolsetForTool("merge_merge_request"), "merge_requests");
+      });
+    });
+
+    describe("with a tool shared by core and a larger toolset", () => {
+      test("should return the smaller toolset", () => {
+        assert.strictEqual(findSmallestToolsetForTool("list_labels"), "labels");
+      });
+    });
+
+    describe("with a tool that belongs to no toolset", () => {
+      test("should return undefined", () => {
+        assert.strictEqual(findSmallestToolsetForTool("execute_graphql"), undefined);
+      });
+    });
+
+    describe("with an unknown tool name", () => {
+      test("should return undefined", () => {
+        assert.strictEqual(findSmallestToolsetForTool("nonexistent_tool_xyz"), undefined);
+      });
     });
   });
 });

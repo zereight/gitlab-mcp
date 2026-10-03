@@ -253,6 +253,7 @@ import {
   parseIndividualTools,
   buildFeatureFlagOverrides,
   isToolInEnabledToolset,
+  findSmallestToolsetForTool,
   TOOLSET_DEFINITIONS,
   ALL_TOOLSET_IDS,
   type ToolsetId,
@@ -746,6 +747,20 @@ const MCP_PROMPTS = [
 ] as const;
 
 /**
+ * Error text for a call to a tool that tools/list omits. Points to the toolset to enable
+ * only when activation would actually work: a regex-denied tool stays blocked even after
+ * `discover_tools`, so it gets no hint.
+ */
+function buildToolUnavailableMessage(toolName: string): string {
+  const base = `Tool "${toolName}" is not available on this server`;
+  const toolset = findSmallestToolsetForTool(toolName);
+  if (toolset === undefined || GITLAB_DENIED_TOOLS_REGEX?.test(toolName)) {
+    return base;
+  }
+  return `${base}. It belongs to the "${toolset}" toolset, which is not enabled: call discover_tools with category "${toolset}" or add "${toolset}" to GITLAB_TOOLSETS.`;
+}
+
+/**
  * Create a new MCP Server instance with request handlers registered.
  * Each transport connection gets its own Server instance to prevent
  * cross-client data leakage (GHSA-345p-7cg4-v4c7).
@@ -1041,7 +1056,7 @@ function createServer(): McpServer {
         !hiddenAndNotDenied &&
         !filteredTools.some(t => t.name === toolName)
       ) {
-        throw new Error(`Tool "${toolName}" is not available on this server`);
+        throw new Error(buildToolUnavailableMessage(toolName));
       }
 
       // Handle discover_tools meta-tool directly (needs access to mcpServer and filteredTools)

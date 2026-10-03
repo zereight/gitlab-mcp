@@ -434,6 +434,29 @@ describe("Permission Mode", { concurrency: 1 }, () => {
       assert.ok(graphql.includes("not available"), `execute_graphql: ${graphql}`);
     });
 
+    test("tool in a disabled toolset is rejected with a hint to activate that toolset", async () => {
+      const server = await launchMcpServer({
+        GITLAB_PERMISSION_MODE: "modify",
+        GITLAB_TOOLSETS: "issues",
+      });
+      servers.push(server);
+
+      const outcome = await callOutcome(server, "list_pipelines", { project_id: "1" });
+      assert.match(outcome, /discover_tools with category \\?"pipelines\\?"/);
+    });
+
+    test("regex-denied tool is rejected without an activation hint", async () => {
+      const server = await launchMcpServer({
+        GITLAB_PERMISSION_MODE: "modify",
+        GITLAB_TOOLSETS: "issues",
+        GITLAB_DENIED_TOOLS_REGEX: "^list_pipelines$",
+      });
+      servers.push(server);
+
+      const outcome = await callOutcome(server, "list_pipelines", { project_id: "1" });
+      assert.ok(!outcome.includes("discover_tools"), `must not suggest activation: ${outcome}`);
+    });
+
     test("policy-hidden tool is unlisted but still callable", async () => {
       const server = await launchMcpServer({
         GITLAB_PERMISSION_MODE: "modify",
