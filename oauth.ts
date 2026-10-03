@@ -10,6 +10,7 @@ import { promisify } from "util";
 import open from "open";
 import pkceChallenge from "pkce-challenge";
 import { createLogger } from "./utils/logger.js";
+import { GITLAB_PERMISSION_MODE, type GitLabPermissionMode } from "./config.js";
 import { runDeviceAuthorizationGrantAsync } from "./oauth-device-flow.js";
 import type { FetchImpl, DeviceUserCodeInfo } from "./oauth-device-flow.js";
 
@@ -744,6 +745,11 @@ export class GitLabOAuth {
   }
 }
 
+/** Read-only permission mode only needs the `read_api` scope; every other mode needs `api`. */
+export function getOAuthScopes(permissionMode: GitLabPermissionMode): string[] {
+  return [permissionMode === "readonly" ? "read_api" : "api"];
+}
+
 /**
  * Construct a GitLabOAuth client from environment configuration.
  * Does NOT perform any network access — no token is acquired here.
@@ -767,7 +773,7 @@ export function createGitLabOAuthClient(gitlabUrl: string = "https://gitlab.com"
     clientSecret,
     redirectUri,
     gitlabUrl,
-    scopes: [process.env.GITLAB_READ_ONLY_MODE === "true" ? "read_api" : "api"],
+    scopes: getOAuthScopes(GITLAB_PERMISSION_MODE),
     tokenStoragePath,
     tokenScript,
   });
