@@ -1,10 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import {
-  exposureRefusalMessage,
-  isToolExposed,
-  parseToolNameSet,
-} from "../../cli/exposure.js";
+import { exposureRefusalMessage, isToolExposed, parseToolNameSet } from "../../cli/exposure.js";
 import { compileDeniedToolsRegex } from "../../tools/denied-regex.js";
 import { parseEnabledToolsets } from "../../tools/registry.js";
 
@@ -129,10 +125,10 @@ describe("When exposureRefusalMessage explains a block", () => {
 describe("When parseToolNameSet reads a policy list", () => {
   describe("with comma-separated names", () => {
     it("should trim and drop empties", () => {
-      assert.deepEqual([...parseToolNameSet(" push_files, delete_issue , ")], [
-        "push_files",
-        "delete_issue",
-      ]);
+      assert.deepEqual(
+        [...parseToolNameSet(" push_files, delete_issue , ")],
+        ["push_files", "delete_issue"]
+      );
     });
   });
 });
@@ -143,6 +139,14 @@ describe("When compileDeniedToolsRegex validates a pattern", () => {
       const compiled = compileDeniedToolsRegex("(a+)+");
       assert.equal(compiled.regex, undefined);
       assert.match(String(compiled.error), /nested quantifiers/);
+    });
+  });
+
+  describe("with invalid characters", () => {
+    it("should reject unsafe characters", () => {
+      const compiled = compileDeniedToolsRegex("create_; rm -rf /");
+      assert.equal(compiled.regex, undefined);
+      assert.match(String(compiled.error), /invalid characters/);
     });
   });
 });

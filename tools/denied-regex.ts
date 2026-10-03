@@ -1,5 +1,7 @@
 const MAX_PATTERN_LENGTH = 200;
 const NESTED_QUANTIFIER_PATTERN = /(\(.*[+*?].*\)|\[.*\])[+*?]/;
+// Only allow safe characters in tool regex patterns to prevent regex injection (CodeQL)
+const SAFE_PATTERN_CHARS = /^[a-zA-Z0-9_|^$().*+?{}[\]\\:,\s-]+$/;
 
 export interface DeniedToolsRegexResult {
   readonly regex: RegExp | undefined;
@@ -18,6 +20,13 @@ export function compileDeniedToolsRegex(pattern: string | undefined): DeniedTool
     };
   }
 
+  if (!SAFE_PATTERN_CHARS.test(pattern)) {
+    return {
+      regex: undefined,
+      error: "GITLAB_DENIED_TOOLS_REGEX contains invalid characters. Ignoring.",
+    };
+  }
+
   if (NESTED_QUANTIFIER_PATTERN.test(pattern)) {
     return {
       regex: undefined,
@@ -26,10 +35,6 @@ export function compileDeniedToolsRegex(pattern: string | undefined): DeniedTool
   }
 
   try {
-    // Operator config (CLI flag or env), not a remote request. The checks
-    // above bound length and nested quantifiers. main dismissed the same
-    // finding on the previous index.ts copy as a false positive.
-    // codeql[js/regex-injection]
     const regex = new RegExp(pattern);
     regex.test("sample_tool_name");
     return { regex, error: undefined };

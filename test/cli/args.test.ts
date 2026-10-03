@@ -6,12 +6,7 @@ import {
   GetPipelineJobOutputSchema,
   ProtectBranchSchema,
 } from "../../schemas.js";
-import {
-  applyFlagAliases,
-  CliUsageError,
-  parseArgv,
-  parseToolArgs,
-} from "../../cli/args.js";
+import { applyFlagAliases, CliUsageError, parseArgv, parseToolArgs } from "../../cli/args.js";
 
 function argv(...args: string[]): string[] {
   return ["node", "index.js", ...args];
@@ -40,14 +35,7 @@ describe("When parseArgv reads a command line", () => {
   describe("with global flags mixed in", () => {
     it("should not treat --token --output --yes as tool flags", () => {
       const parsed = parseArgv(
-        argv(
-          "tool",
-          "whoami",
-          "--token",
-          "glpat-xxxxxxxxxxxxxxxxxxxx",
-          "--output=json",
-          "--yes"
-        )
+        argv("tool", "whoami", "--token", "glpat-xxxxxxxxxxxxxxxxxxxx", "--output=json", "--yes")
       );
 
       assert.equal(parsed.output, "json");
@@ -137,7 +125,8 @@ describe("When parseToolArgs validates a real schema", () => {
             argsJson: undefined,
             extraArgs: undefined,
           }),
-        (error: unknown) => error instanceof CliUsageError && error.message === "Unknown flag: --nope"
+        (error: unknown) =>
+          error instanceof CliUsageError && error.message === "Unknown flag: --nope"
       );
     });
   });
@@ -179,6 +168,7 @@ describe("When parseToolArgs coerces scalar flags from the schema", () => {
         extraArgs: undefined,
       });
 
+      assert.strictEqual(args.push_access_level, 40);
       assert.equal(ProtectBranchSchema.safeParse(args).success, true);
     });
   });
@@ -223,7 +213,8 @@ describe("When parseToolArgs coerces scalar flags from the schema", () => {
             extraArgs: undefined,
           }),
         (error: unknown) =>
-          error instanceof CliUsageError && error.message === "--push-access-level must be an integer"
+          error instanceof CliUsageError &&
+          error.message === "--push-access-level must be an integer"
       );
     });
   });
@@ -232,9 +223,12 @@ describe("When parseToolArgs coerces scalar flags from the schema", () => {
 describe("When applyFlagAliases rewrites curated shorts", () => {
   describe("with --mr-iid", () => {
     it("should map onto merge_request_iid", () => {
-      const mapped = applyFlagAliases({ mr_iid: "45", project_id: "123" }, {
-        mr_iid: "merge_request_iid",
-      });
+      const mapped = applyFlagAliases(
+        { mr_iid: "45", project_id: "123" },
+        {
+          mr_iid: "merge_request_iid",
+        }
+      );
 
       assert.equal(mapped.merge_request_iid, "45");
       assert.equal(mapped.project_id, "123");

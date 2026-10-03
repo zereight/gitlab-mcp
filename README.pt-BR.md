@@ -143,10 +143,14 @@ Alguns clientes MCP, como o GitHub Copilot CLI, têm problemas com variáveis de
 - `--masking-config` - caminho para um arquivo de configuração de mascaramento (substitui `GITLAB_MASKING_CONFIG`)
 - `--masking-policy-file` - caminho para um arquivo protegido de política gerenciada (substitui `GITLAB_MASKING_POLICY_FILE`)
 - `--masking-workspace-dir` - diretório usado para resolver arquivos de mascaramento (substitui `GITLAB_MASKING_WORKSPACE_DIR`)
+- `--compact-results=true` - trunca respostas muito grandes de ferramentas MCP e anexa um comando CLI para a carga completa (substitui `GITLAB_MCP_COMPACT_RESULTS`; desativado por padrão)
+- `--compact-result-chars` - limite de caracteres para compactação (substitui `GITLAB_MCP_COMPACT_RESULT_CHARS`; padrão `4000`)
 
 Os argumentos de CLI têm precedência sobre as variáveis de ambiente.
 
 `zereight-mcp-gitlab auth` é um subcomando, não uma flag do servidor MCP. Ele executa o device flow do GitLab e encerra. Veja [Argumentos de CLI](./docs/getting-started/cli-arguments.md#auth).
+
+O mesmo binário também é uma CLI do GitLab no estilo `gh` (`tool <name>` ou formas curadas como `mr list`). Use-o para ver a carga completa no terminal. As respostas do MCP permanecem no chat, a menos que você defina `GITLAB_MCP_COMPACT_RESULTS=true` (ou `--compact-results`), o que substitui respostas grandes de ferramentas por uma prévia e um comando CLI. A CLI humana nunca é compactada. Os mesmos filtros de permission mode, toolsets, denied-tools regex e tool-policy se aplicam. Ferramentas destrutivas e ferramentas com `GITLAB_TOOL_POLICY_APPROVE` exigem `--yes`. Consulte [CLI Humana](./docs/getting-started/cli-arguments.md#human-cli).
 
 > **Filtragem granular de ferramentas:** use `GITLAB_PERMISSION_MODE=modify` para permitir criação/atualização enquanto
 > bloqueia todas as ferramentas de exclusão e as ferramentas destrutivas de teardown (`cancel_pipeline`,
@@ -519,7 +523,7 @@ Não é necessário definir `headers`. O Claude.ai obtém o token via OAuth.
 | `STREAMABLE_HTTP`                           | sim         | Deve ser `true` (SSE não é suportado)                                                                                                                                                                                                            |
 | `GITLAB_OAUTH_SCOPES`                       | não         | Scopes do GitLab a solicitar, separados por vírgula. O padrão é `api`, ou `read_api` quando `GITLAB_READ_ONLY_MODE=true`. O aplicativo previamente registrado deve ter pelo menos esses scopes configurados.                                     |
 | `OAUTH_REGISTER_RATE_LIMIT_PER_HOUR`        | não         | Limite rolling de Dynamic Client Registration (`POST /register`) por IP do cliente. Padrão `20`/hora, intervalo `1`–`1000`. Aumente se múltiplas janelas de IDE estiverem atingindo o limite. Não está relacionado aos limites da API do GitLab. |
-| `MCP_DANGEROUSLY_ALLOW_INSECURE_ISSUER_URL` | não         | Apenas para desenvolvimento local via HTTP |
+| `MCP_DANGEROUSLY_ALLOW_INSECURE_ISSUER_URL` | não         | Apenas para desenvolvimento local via HTTP                                                                                                                                                                                                       |
 
 **Observações importantes:**
 
