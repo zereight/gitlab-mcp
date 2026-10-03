@@ -3,10 +3,7 @@ import { execFileSync } from "node:child_process";
 import * as path from "node:path";
 import * as url from "node:url";
 import { describe, it } from "node:test";
-import {
-  isBooleanFlagLiteral,
-  nextBooleanFlagValue,
-} from "../../cli-boolean-flags.js";
+import { isBooleanFlagLiteral, nextBooleanFlagValue } from "../../cli-boolean-flags.js";
 
 const __dirname = path.dirname(url.fileURLToPath(import.meta.url));
 const SNAPSHOT_PATH = path.resolve(__dirname, "load-config-snapshot.ts");
@@ -25,11 +22,11 @@ function loadConfig(argv: readonly string[]): BooleanConfigSnapshot {
   }
   delete childEnv.GITLAB_READ_ONLY_MODE;
   delete childEnv.GITLAB_USE_OAUTH;
-  const stdout = execFileSync(
-    process.execPath,
-    ["--import", "tsx/esm", SNAPSHOT_PATH, ...argv],
-    { env: childEnv, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }
-  );
+  const stdout = execFileSync(process.execPath, ["--import", "tsx/esm", SNAPSHOT_PATH, ...argv], {
+    env: childEnv,
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "pipe"],
+  });
   return readBooleanConfigSnapshot(JSON.parse(stdout));
 }
 
@@ -84,6 +81,27 @@ describe("When isBooleanFlagLiteral inspects a token", () => {
 });
 
 describe("When config.ts parses space-separated boolean flags", () => {
+  describe("with --read-only as the last argument", () => {
+    it("should turn read-only mode on", () => {
+      const cfg = loadConfig(["--read-only"]);
+      assert.equal(cfg.GITLAB_READ_ONLY_MODE, true);
+    });
+  });
+
+  describe("with --read-only followed by another flag", () => {
+    it("should turn read-only mode on", () => {
+      const cfg = loadConfig(["--read-only", "--use-pipeline"]);
+      assert.equal(cfg.GITLAB_READ_ONLY_MODE, true);
+    });
+  });
+
+  describe("with an empty --read-only= assignment", () => {
+    it("should leave read-only mode off", () => {
+      const cfg = loadConfig(["--read-only="]);
+      assert.equal(cfg.GITLAB_READ_ONLY_MODE, false);
+    });
+  });
+
   describe("with --read-only false", () => {
     it("should keep read-only off", () => {
       const cfg = loadConfig(["--read-only", "false"]);
