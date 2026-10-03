@@ -1,3 +1,5 @@
+import { BOOLEAN_CLI_FLAG_NAMES, nextBooleanFlagValue } from "./cli-boolean-flags.js";
+
 // Parse CLI arguments before anything else
 const args = process.argv.slice(2);
 export const cliArgs: Record<string, string> = {};
@@ -5,11 +7,24 @@ export const cliArgs: Record<string, string> = {};
 for (let i = 0; i < args.length; i++) {
   const arg = args[i];
   if (arg.startsWith("--")) {
-    const [key, value] = arg.slice(2).split("=");
-    if (value) {
-      cliArgs[key] = value;
-    } else if (i + 1 < args.length && !args[i + 1].startsWith("--")) {
-      cliArgs[key] = args[++i];
+    const eqIndex = arg.indexOf("=");
+    if (eqIndex !== -1) {
+      const key = arg.slice(2, eqIndex);
+      const value = arg.slice(eqIndex + 1);
+      if (value) {
+        cliArgs[key] = value;
+      }
+    } else {
+      const key = arg.slice(2);
+      if (BOOLEAN_CLI_FLAG_NAMES.has(key)) {
+        const parsed = nextBooleanFlagValue(args[i + 1]);
+        cliArgs[key] = parsed.value;
+        if (parsed.consumeNext) {
+          i += 1;
+        }
+      } else if (i + 1 < args.length && !args[i + 1].startsWith("--")) {
+        cliArgs[key] = args[++i];
+      }
     }
   }
 }
@@ -117,21 +132,28 @@ export const MCP_TRUST_PROXY = getConfig("mcp-trust-proxy", "MCP_TRUST_PROXY") =
 export const MCP_SERVER_URL = getConfig("mcp-server-url", "MCP_SERVER_URL");
 export const GITLAB_OAUTH_APP_ID = getConfig("oauth-app-id", "GITLAB_OAUTH_APP_ID");
 export const GITLAB_OAUTH_SCOPES_RAW = getConfig("oauth-scopes", "GITLAB_OAUTH_SCOPES");
-export const GITLAB_OAUTH_SCOPES =
-  GITLAB_OAUTH_SCOPES_RAW
-    ? GITLAB_OAUTH_SCOPES_RAW.split(",").map((s) => s.trim()).filter(Boolean)
-    : undefined;
+export const GITLAB_OAUTH_SCOPES = GITLAB_OAUTH_SCOPES_RAW
+  ? GITLAB_OAUTH_SCOPES_RAW.split(",")
+      .map(s => s.trim())
+      .filter(Boolean)
+  : undefined;
 export const GITLAB_OAUTH_CALLBACK_PROXY =
   getConfig("oauth-callback-proxy", "GITLAB_OAUTH_CALLBACK_PROXY") === "true";
 /** @deprecated Use GITLAB_OAUTH_ALLOWED_GROUPS_RAW instead. Will be removed in the next major version. */
 export const GITLAB_ALLOWED_GROUPS_RAW = getConfig("allowed-groups", "GITLAB_ALLOWED_GROUPS");
-export const GITLAB_OAUTH_ALLOWED_GROUPS_RAW = getConfig("oauth-allowed-groups", "GITLAB_OAUTH_ALLOWED_GROUPS");
+export const GITLAB_OAUTH_ALLOWED_GROUPS_RAW = getConfig(
+  "oauth-allowed-groups",
+  "GITLAB_OAUTH_ALLOWED_GROUPS"
+);
 export const GITLAB_OAUTH_ALLOWED_GROUPS = (() => {
   const newVar = GITLAB_OAUTH_ALLOWED_GROUPS_RAW;
   const oldVar = GITLAB_ALLOWED_GROUPS_RAW;
   const raw = newVar ?? oldVar;
   if (!raw) return undefined;
-  const groups = raw.split(",").map((g) => g.trim()).filter(Boolean);
+  const groups = raw
+    .split(",")
+    .map(g => g.trim())
+    .filter(Boolean);
   return groups.length > 0 ? groups : undefined;
 })();
 export const ENABLE_DYNAMIC_API_URL =
@@ -184,8 +206,7 @@ function _intEnv(
         `(got ${safeFallback}). Fix the caller in config.ts.`
     );
   }
-  const safe =
-    Number.isFinite(fallback) && fallback > 0 ? fallback : safeFallback;
+  const safe = Number.isFinite(fallback) && fallback > 0 ? fallback : safeFallback;
   const raw = getConfig(cliKey, name);
   if (!raw) return safe;
   const n = Number.parseInt(raw, 10);
@@ -248,6 +269,15 @@ export const HOST = getConfig("host", "HOST") || "127.0.0.1";
 /** Default HTTP port for the MCP server. */
 const _PORT_DEFAULT = 3002;
 export const PORT = _intEnv("PORT", "port", _PORT_DEFAULT);
+
+/** When true, oversized MCP tool replies are replaced with a preview plus a CLI replay command. */
+export const GITLAB_MCP_COMPACT_RESULTS =
+  getConfig("compact-results", "GITLAB_MCP_COMPACT_RESULTS") === "true";
+export const GITLAB_MCP_COMPACT_RESULT_CHARS = _intEnv(
+  "GITLAB_MCP_COMPACT_RESULT_CHARS",
+  "compact-result-chars",
+  4000
+);
 
 // ---------------------------------------------------------------------------
 // Proxy configuration
