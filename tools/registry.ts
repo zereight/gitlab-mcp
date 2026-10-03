@@ -2384,13 +2384,11 @@ export const TOOLSET_DEFINITIONS: readonly ToolsetDefinition[] = [
 // categories so users get a small starter surface without losing the ability
 // to enable complete categories later.
 export const TOOLSETS_BY_TOOL_NAME = new Map<string, Set<ToolsetId>>();
-export const TOOLSET_BY_TOOL_NAME = new Map<string, ToolsetId>();
 for (const def of TOOLSET_DEFINITIONS) {
   for (const tool of def.tools) {
     const toolsets = TOOLSETS_BY_TOOL_NAME.get(tool) ?? new Set<ToolsetId>();
     toolsets.add(def.id);
     TOOLSETS_BY_TOOL_NAME.set(tool, toolsets);
-    TOOLSET_BY_TOOL_NAME.set(tool, def.id);
   }
 }
 

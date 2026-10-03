@@ -33,7 +33,7 @@ Non-goals for this design:
 - `cli-command.ts` (`getPositionalCliCommand`) reads the first positional arg. `index.ts` `main()` dispatches `auth`, `tool <name>`, and curated `<group> <action>` via `resolveCli`, then falls through to `runServer()` when there is no CLI command.
 - All other flags (`--token`, `--api-url`, `--permission-mode`, …) are server settings parsed in `config.ts`. Boolean MCP flags accept `--flag`, `--flag=true`, or `--flag false`; they do not swallow the next positional command.
 - Human CLI refuses tools that MCP would not expose: toolsets / `GITLAB_TOOLS` / legacy flags, `GITLAB_DENIED_TOOLS_REGEX`, `GITLAB_TOOL_POLICY_HIDDEN`. `GITLAB_TOOL_POLICY_APPROVE` requires `--yes`.
-- Tool inventory: 263 tools in `allTools`, grouped into 21 toolsets in `TOOLSET_DEFINITIONS`. Shared tools (e.g. `get_branch`, `list_branches`) resolve to the last-defined toolset via `TOOLSET_BY_TOOL_NAME` with a `console.warn`.
+- Tool inventory: 263 tools in `allTools`, grouped into 21 toolsets in `TOOLSET_DEFINITIONS`. Shared tools (e.g. `get_branch`, `list_branches`) belong to several toolsets, tracked by `TOOLSETS_BY_TOOL_NAME`.
 
 ---
 

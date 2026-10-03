@@ -37,8 +37,21 @@ function isDefaultToolset(id: ToolsetId): boolean {
   return TOOLSET_DEFINITIONS.find(d => d.id === id)?.isDefault ?? false;
 }
 
+/** Tools of this group that are already exposed by a default toolset (e.g. `core`). */
+function findDefaultOverlap(toolNames: readonly string[]): string[] {
+  const defaults = TOOLSET_DEFINITIONS.filter(d => d.isDefault);
+  return toolNames.filter(name => defaults.some(d => d.tools.has(name)));
+}
+
+function formatDefaultOverlapNote(toolNames: readonly string[]): string {
+  const overlap = findDefaultOverlap(toolNames);
+  if (overlap.length === 0) return "";
+  const list = overlap.map(name => `\`${name}\``).join(", ");
+  return ` ${overlap.length} of these tools (${list}) are already enabled by default via \`core\`; the toggle applies to the rest.`;
+}
+
 /** Returns the availability note for a toolset group, or undefined when it is on by default. */
-function computeToggleNote(id: ToolsetId): string | undefined {
+function computeToggleNote(id: ToolsetId, toolNames: readonly string[] = []): string | undefined {
   if (isDefaultToolset(id)) return undefined;
   // Synthetic group for tools not in any TOOLSET_DEFINITIONS entry.
   // discover_tools is always exposed; execute_graphql is opt-in via GITLAB_TOOLS.
@@ -47,9 +60,9 @@ function computeToggleNote(id: ToolsetId): string | undefined {
   }
   const legacy = LEGACY_TOGGLE_ENV[id];
   if (legacy) {
-    return `Opt-in. Enable via \`GITLAB_TOOLSETS=${id}\` (or \`GITLAB_TOOLSETS=all\`), or use the legacy \`${legacy}=true\` flag for backward compatibility.`;
+    return `Opt-in. Enable via \`GITLAB_TOOLSETS=${id}\` (or \`GITLAB_TOOLSETS=all\`), or use the legacy \`${legacy}=true\` flag for backward compatibility.${formatDefaultOverlapNote(toolNames)}`;
   }
-  return `Opt-in. Enable via \`GITLAB_TOOLSETS=${id}\` (or \`GITLAB_TOOLSETS=all\`), list individual tools in \`GITLAB_TOOLS=\`, or activate at runtime with the \`discover_tools\` MCP tool.`;
+  return `Opt-in. Enable via \`GITLAB_TOOLSETS=${id}\` (or \`GITLAB_TOOLSETS=all\`), list individual tools in \`GITLAB_TOOLS=\`, or activate at runtime with the \`discover_tools\` MCP tool.${formatDefaultOverlapNote(toolNames)}`;
 }
 
 const GROUP_META: Record<ToolsetId, GroupMeta> = {
@@ -273,7 +286,7 @@ function toolSection(name: string, description: string, schema: JsonSchema | und
 function buildGroupPage(id: ToolsetId, toolNames: string[]): string {
   const meta = GROUP_META[id];
   const lines: string[] = [`# ${meta.title}`, "", meta.blurb, ""];
-  const toggle = computeToggleNote(id);
+  const toggle = computeToggleNote(id, toolNames);
   if (toggle) {
     lines.push(`!!! note "Feature toggle"`);
     lines.push(`    ${toggle}`);
@@ -391,7 +404,7 @@ function buildIndexPage(groupedToolsList: Array<[ToolsetId, string[]]>): string 
     lines.push("");
     lines.push(`${meta.blurb} *(${tools.length} tools)*`);
     lines.push("");
-    const toggle = computeToggleNote(id);
+    const toggle = computeToggleNote(id, tools);
     if (toggle) {
       lines.push(`> ${toggle}`);
       lines.push("");

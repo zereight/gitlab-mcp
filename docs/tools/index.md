@@ -99,7 +99,7 @@ Lean default starter set for common MR, issue, repository, branch, project, labe
 
 Project/namespace listing, member queries, group iterations, and server health. *(11 tools)*
 
-> Opt-in. Enable via `GITLAB_TOOLSETS=projects` (or `GITLAB_TOOLSETS=all`), list individual tools in `GITLAB_TOOLS=`, or activate at runtime with the `discover_tools` MCP tool.
+> Opt-in. Enable via `GITLAB_TOOLSETS=projects` (or `GITLAB_TOOLSETS=all`), list individual tools in `GITLAB_TOOLS=`, or activate at runtime with the `discover_tools` MCP tool. 4 of these tools (`get_project`, `list_projects`, `list_project_members`, `health_check`) are already enabled by default via `core`; the toggle applies to the rest.
 
 | Tool | What it does | R/W |
 |---|---|:-:|
@@ -119,7 +119,7 @@ Project/namespace listing, member queries, group iterations, and server health. 
 
 Project search/creation/fork plus the Files API for reading and writing repository content without shelling out to git. *(7 tools)*
 
-> Opt-in. Enable via `GITLAB_TOOLSETS=repositories` (or `GITLAB_TOOLSETS=all`), list individual tools in `GITLAB_TOOLS=`, or activate at runtime with the `discover_tools` MCP tool.
+> Opt-in. Enable via `GITLAB_TOOLSETS=repositories` (or `GITLAB_TOOLSETS=all`), list individual tools in `GITLAB_TOOLS=`, or activate at runtime with the `discover_tools` MCP tool. 3 of these tools (`search_repositories`, `get_file_contents`, `get_repository_tree`) are already enabled by default via `core`; the toggle applies to the rest.
 
 | Tool | What it does | R/W |
 |---|---|:-:|
@@ -135,7 +135,7 @@ Project search/creation/fork plus the Files API for reading and writing reposito
 
 Branch management, commit listing/inspection, file blame, and CI commit-status manipulation. *(15 tools)*
 
-> Opt-in. Enable via `GITLAB_TOOLSETS=branches` (or `GITLAB_TOOLSETS=all`), list individual tools in `GITLAB_TOOLS=`, or activate at runtime with the `discover_tools` MCP tool.
+> Opt-in. Enable via `GITLAB_TOOLSETS=branches` (or `GITLAB_TOOLSETS=all`), list individual tools in `GITLAB_TOOLS=`, or activate at runtime with the `discover_tools` MCP tool. 6 of these tools (`get_branch`, `list_branches`, `list_commits`, `get_commit`, `get_commit_diff`, `get_file_blame`) are already enabled by default via `core`; the toggle applies to the rest.
 
 | Tool | What it does | R/W |
 |---|---|:-:|
@@ -169,7 +169,7 @@ Create new groups and subgroups. *(1 tools)*
 
 MR lifecycle — create, update, merge, approve, plus diff/conflict inspection and the full discussion/note/draft API. *(45 tools)*
 
-> Opt-in. Enable via `GITLAB_TOOLSETS=merge_requests` (or `GITLAB_TOOLSETS=all`), list individual tools in `GITLAB_TOOLS=`, or activate at runtime with the `discover_tools` MCP tool.
+> Opt-in. Enable via `GITLAB_TOOLSETS=merge_requests` (or `GITLAB_TOOLSETS=all`), list individual tools in `GITLAB_TOOLS=`, or activate at runtime with the `discover_tools` MCP tool. 14 of these tools (`get_merge_request_approval_state`, `get_branch`, `list_branches`, `get_merge_request`, `get_merge_request_diffs`, `list_merge_request_changed_files`, `list_merge_request_diffs`, `get_merge_request_file_diff`, `update_merge_request`, `create_merge_request`, `list_merge_requests`, `mr_discussions`, `create_merge_request_thread`, `resolve_merge_request_thread`) are already enabled by default via `core`; the toggle applies to the rest.
 
 | Tool | What it does | R/W |
 |---|---|:-:|
@@ -223,7 +223,7 @@ MR lifecycle — create, update, merge, approve, plus diff/conflict inspection a
 
 Issue CRUD, links, discussions and notes, todos, and emoji reactions. *(24 tools)*
 
-> Opt-in. Enable via `GITLAB_TOOLSETS=issues` (or `GITLAB_TOOLSETS=all`), list individual tools in `GITLAB_TOOLS=`, or activate at runtime with the `discover_tools` MCP tool.
+> Opt-in. Enable via `GITLAB_TOOLSETS=issues` (or `GITLAB_TOOLSETS=all`), list individual tools in `GITLAB_TOOLS=`, or activate at runtime with the `discover_tools` MCP tool. 8 of these tools (`create_issue`, `list_issues`, `my_issues`, `get_issue`, `update_issue`, `update_issue_description_patch`, `create_issue_note`, `list_issue_discussions`) are already enabled by default via `core`; the toggle applies to the rest.
 
 | Tool | What it does | R/W |
 |---|---|:-:|
@@ -256,7 +256,7 @@ Issue CRUD, links, discussions and notes, todos, and emoji reactions. *(24 tools
 
 Project label CRUD. *(5 tools)*
 
-> Opt-in. Enable via `GITLAB_TOOLSETS=labels` (or `GITLAB_TOOLSETS=all`), list individual tools in `GITLAB_TOOLS=`, or activate at runtime with the `discover_tools` MCP tool.
+> Opt-in. Enable via `GITLAB_TOOLSETS=labels` (or `GITLAB_TOOLSETS=all`), list individual tools in `GITLAB_TOOLS=`, or activate at runtime with the `discover_tools` MCP tool. 1 of these tools (`list_labels`) are already enabled by default via `core`; the toggle applies to the rest.
 
 | Tool | What it does | R/W |
 |---|---|:-:|
@@ -450,7 +450,7 @@ Tag listing, creation, deletion, and signature inspection. *(5 tools)*
 
 User lookup, the authenticated user (`whoami`), event streams, and markdown attachment upload/download. *(7 tools)*
 
-> Opt-in. Enable via `GITLAB_TOOLSETS=users` (or `GITLAB_TOOLSETS=all`), list individual tools in `GITLAB_TOOLS=`, or activate at runtime with the `discover_tools` MCP tool.
+> Opt-in. Enable via `GITLAB_TOOLSETS=users` (or `GITLAB_TOOLSETS=all`), list individual tools in `GITLAB_TOOLS=`, or activate at runtime with the `discover_tools` MCP tool. 1 of these tools (`whoami`) are already enabled by default via `core`; the toggle applies to the rest.
 
 | Tool | What it does | R/W |
 |---|---|:-:|
