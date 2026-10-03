@@ -124,7 +124,7 @@ If you're using a self-hosted GitLab instance, update the `GITLAB_API_URL`:
 
 1. **Start the MCP server** (or restart Claude if using Claude Desktop)
 
-2. **When the server starts**, it will:
+2. **On the first tool call**, the server will:
 
    - Detect that no OAuth token exists
    - Start a local HTTP server on port 8888
@@ -287,7 +287,7 @@ To force re-authentication, delete the token file:
 rm ~/.gitlab-mcp-token.json
 ```
 
-Then restart the MCP server to go through the OAuth flow again.
+Then restart the MCP server and invoke any GitLab tool to go through the OAuth flow again.
 
 ## Revoking Access
 
