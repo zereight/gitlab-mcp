@@ -197,6 +197,7 @@ describe('getEffectiveProjectId - No GITLAB_ALLOWED_PROJECT_IDS', () => {
         GITLAB_API_URL: `${mockGitLabUrl}/api/v4`,
         GITLAB_PROJECT_ID: DEFAULT_PROJECT_ID,
         GITLAB_READ_ONLY_MODE: 'false',
+        GITLAB_TOOLSETS: 'all',
       }
     });
     servers.push(server);
@@ -373,6 +374,7 @@ describe('getEffectiveProjectId - With single GITLAB_ALLOWED_PROJECT_IDS', () =>
         GITLAB_PROJECT_ID: DEFAULT_PROJECT_ID,
         GITLAB_ALLOWED_PROJECT_IDS: DEFAULT_PROJECT_ID,
         GITLAB_READ_ONLY_MODE: 'true',
+        GITLAB_TOOLSETS: 'all',
       }
     });
     servers.push(server);
@@ -565,7 +567,7 @@ describe('GITLAB_PROJECT_ID guards repository and group mutators', () => {
         REMOTE_AUTHORIZATION: 'true',
         GITLAB_API_URL: `${mockGitLabUrl}/api/v4`,
         GITLAB_PROJECT_ID: DEFAULT_PROJECT_ID,
-        GITLAB_TOOLSETS: 'variables',
+        GITLAB_TOOLSETS: 'variables,repositories,groups,projects',
       }
     });
     servers.push(server);
@@ -667,7 +669,7 @@ describe('GITLAB_ALLOWED_PROJECT_IDS guards repository and group mutators (allow
         REMOTE_AUTHORIZATION: 'true',
         GITLAB_API_URL: `${mockGitLabUrl}/api/v4`,
         GITLAB_ALLOWED_PROJECT_IDS: DEFAULT_PROJECT_ID,
-        GITLAB_TOOLSETS: 'variables,merge_requests,issues,pipelines',
+        GITLAB_TOOLSETS: 'variables,merge_requests,issues,pipelines,repositories,groups,projects',
       }
     });
     servers.push(server);

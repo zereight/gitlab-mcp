@@ -37,12 +37,13 @@ function isDefaultToolset(id: ToolsetId): boolean {
   return TOOLSET_DEFINITIONS.find(d => d.id === id)?.isDefault ?? false;
 }
 
+/** Returns the availability note for a toolset group, or undefined when it is on by default. */
 function computeToggleNote(id: ToolsetId): string | undefined {
   if (isDefaultToolset(id)) return undefined;
   // Synthetic group for tools not in any TOOLSET_DEFINITIONS entry.
   // discover_tools is always exposed; execute_graphql is opt-in via GITLAB_TOOLS.
   if ((id as string) === "meta") {
-    return "Mixed availability. `discover_tools` is always exposed (the server re-adds it after every toolset filter). `execute_graphql` is not part of any toolset — enable it explicitly with `GITLAB_TOOLS=execute_graphql`.";
+    return "Mixed availability. `discover_tools` is always exposed (the server re-adds it after every toolset filter). `execute_graphql` is not part of any toolset — enable it explicitly with `GITLAB_TOOLS=execute_graphql`. Tools excluded from the list (toolset / `GITLAB_TOOLS` / `GITLAB_DENIED_TOOLS_REGEX`) are also rejected on direct calls; `GITLAB_TOOL_POLICY_HIDDEN` tools stay callable unless they match `GITLAB_DENIED_TOOLS_REGEX`.";
   }
   const legacy = LEGACY_TOGGLE_ENV[id];
   if (legacy) {

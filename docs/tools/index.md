@@ -504,7 +504,7 @@ Snippet CRUD — list, get (with optional file content), create, update, and del
 
 Server diagnostics, tool discovery, and the GraphQL escape hatch. *(2 tools)*
 
-> Mixed availability. `discover_tools` is always exposed (the server re-adds it after every toolset filter). `execute_graphql` is not part of any toolset — enable it explicitly with `GITLAB_TOOLS=execute_graphql`.
+> Mixed availability. `discover_tools` is always exposed (the server re-adds it after every toolset filter). `execute_graphql` is not part of any toolset — enable it explicitly with `GITLAB_TOOLS=execute_graphql`. Tools excluded from the list (toolset / `GITLAB_TOOLS` / `GITLAB_DENIED_TOOLS_REGEX`) are also rejected on direct calls; `GITLAB_TOOL_POLICY_HIDDEN` tools stay callable unless they match `GITLAB_DENIED_TOOLS_REGEX`.
 
 | Tool | What it does | R/W |
 |---|---|:-:|

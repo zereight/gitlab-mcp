@@ -744,6 +744,7 @@ const MCP_PROMPTS = [
  * Each transport connection gets its own Server instance to prevent
  * cross-client data leakage (GHSA-345p-7cg4-v4c7).
  */
+/** Builds an MCP server with the tool list filtered by toolsets, permission mode, and policy. */
 function createServer(): McpServer {
   // Precompute filtered tool list once at server creation (Steps 1–5 are static)
   // Step 1: Toolset filter — keep tools in enabled toolsets
@@ -1014,6 +1015,20 @@ function createServer(): McpServer {
           { content: [{ type: "text", text: jmespathSyntaxError }], isError: true },
           { skipJmespath: true }
         );
+      }
+
+      // Enforce list-time filtering on direct calls: clients can call names that tools/list omits.
+      // filteredTools is extended by discover_tools; hidden-policy tools stay callable by design,
+      // but GITLAB_DENIED_TOOLS_REGEX always wins over the hidden exemption.
+      // Permission-mode denials fall through so handleToolCall reports its mode-specific error.
+      const hiddenAndNotDenied =
+        hiddenToolSet.has(toolName) && !GITLAB_DENIED_TOOLS_REGEX?.test(toolName);
+      if (
+        isToolAllowedByPermissionMode(toolName) &&
+        !hiddenAndNotDenied &&
+        !filteredTools.some(t => t.name === toolName)
+      ) {
+        throw new Error(`Tool "${toolName}" is not available on this server`);
       }
 
       // Handle discover_tools meta-tool directly (needs access to mcpServer and filteredTools)

@@ -219,7 +219,7 @@ A tool counts as invoked when a test sends that name through MCP (`callTool` / `
 
 <a id="pipelines"></a>
 
-- [x] [`list_pipelines`](../tools/pipelines.md#list_pipelines) — `test/test-blank-filters.ts`
+- [x] [`list_pipelines`](../tools/pipelines.md#list_pipelines) — `test/test-blank-filters.ts`, `test/test-permission-mode.ts`
 - [ ] [`get_pipeline`](../tools/pipelines.md#get_pipeline)
 - [ ] [`get_pipeline_variables`](../tools/pipelines.md#get_pipeline_variables)
 - [ ] [`get_pipeline_test_report`](../tools/pipelines.md#get_pipeline_test_report)
@@ -423,4 +423,4 @@ A tool counts as invoked when a test sends that name through MCP (`callTool` / `
 <a id="meta"></a>
 
 - [x] [`execute_graphql`](../tools/meta.md#execute_graphql) — `test/test-dynamic-project-scope.ts`, `test/test-permission-mode.ts`
-- [x] [`discover_tools`](../tools/meta.md#discover_tools) — `test/streamable-http-sse-stream.test.ts`, `test/test-token-optimizations.ts`
+- [x] [`discover_tools`](../tools/meta.md#discover_tools) — `test/streamable-http-sse-stream.test.ts`, `test/test-permission-mode.ts`, `test/test-token-optimizations.ts`
