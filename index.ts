@@ -96,7 +96,8 @@ function buildDownloadUrl(type: string, params: Record<string, string>): string 
       if (GITLAB_JOB_TOKEN && !GITLAB_PERSONAL_ACCESS_TOKEN && !OAUTH_ACCESS_TOKEN) {
         header = "JOB-TOKEN";
         headerValue = String(staticToken);
-      } else if (IS_OLD) {
+      } else if (IS_OLD && !OAUTH_ACCESS_TOKEN) {
+        // OAuth tokens always use Bearer (see buildAuthHeaders)
         header = "Private-Token";
         headerValue = String(staticToken);
       } else {
