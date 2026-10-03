@@ -3,7 +3,7 @@
 User lookup, the authenticated user (`whoami`), event streams, and markdown attachment upload/download.
 
 !!! note "Feature toggle"
-    Opt-in. Enable via `GITLAB_TOOLSETS=users` (or `GITLAB_TOOLSETS=all`), list individual tools in `GITLAB_TOOLS=`, or activate at runtime with the `discover_tools` MCP tool.
+    Opt-in. Enable via `GITLAB_TOOLSETS=users` (or `GITLAB_TOOLSETS=all`), list individual tools in `GITLAB_TOOLS=`, or activate at runtime with the `discover_tools` MCP tool. 1 of these tools (`whoami`) are already enabled by default via `core`; the toggle applies to the rest.
 
 ## Tools in this group
 
