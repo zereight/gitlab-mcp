@@ -65,6 +65,7 @@ nav:
   - Getting Started:
       - Overview: getting-started/index.md
       - CLI Arguments: getting-started/cli-arguments.md
+      - CLI without MCP: getting-started/cli-without-mcp.md
   - Client Setup:
       - Claude Code: clients/claude-code.md
       - VS Code: clients/vscode.md
