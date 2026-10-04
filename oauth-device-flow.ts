@@ -23,6 +23,7 @@ const TokenResponseSchema = z.object({
   refresh_token: z.string().min(1).optional(),
   expires_in: z.number().positive().optional(),
   token_type: z.string().min(1).optional(),
+  scope: z.string().nullish(),
 });
 
 export interface DeviceFlowTokenData {
@@ -31,6 +32,18 @@ export interface DeviceFlowTokenData {
   expires_in?: number;
   created_at: number;
   token_type: string;
+  scopes: string[];
+}
+
+/** Granted scopes from a token response, or the scopes we requested when the response omits them. */
+export function grantedOAuthScopes(scopeField: unknown, fallback: readonly string[]): string[] {
+  if (typeof scopeField === "string") {
+    const scopes = scopeField.split(/\s+/).filter(scope => scope.length > 0);
+    if (scopes.length > 0) {
+      return scopes;
+    }
+  }
+  return [...fallback];
 }
 
 export interface DeviceUserCodeInfo {
@@ -198,6 +211,7 @@ export async function runDeviceAuthorizationGrantAsync(
         expires_in: token.data.expires_in,
         created_at: now(),
         token_type: token.data.token_type ?? "Bearer",
+        scopes: grantedOAuthScopes(token.data.scope, input.scopes),
       };
     }
 

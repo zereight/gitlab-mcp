@@ -11,7 +11,7 @@ import open from "open";
 import pkceChallenge from "pkce-challenge";
 import { createLogger } from "./utils/logger.js";
 import { GITLAB_PERMISSION_MODE, type GitLabPermissionMode } from "./config.js";
-import { runDeviceAuthorizationGrantAsync } from "./oauth-device-flow.js";
+import { grantedOAuthScopes, runDeviceAuthorizationGrantAsync } from "./oauth-device-flow.js";
 import type { FetchImpl, DeviceUserCodeInfo } from "./oauth-device-flow.js";
 
 const logger = createLogger("gitlab-mcp-oauth");
@@ -62,6 +62,8 @@ interface TokenData {
   expires_in?: number;
   created_at: number;
   token_type: string;
+  /** Scopes granted for this token. Absent on tokens written before scope tracking. */
+  scopes?: string[];
 }
 
 interface OAuthConfig {
@@ -213,12 +215,8 @@ export class GitLabOAuth {
       throw new Error(`Token exchange failed: ${response.status} ${errorText}`);
     }
 
-    const data = (await response.json()) as {
-      access_token: string;
-      refresh_token?: string;
-      expires_in?: number;
-      token_type: string;
-    };
+    const body: unknown = await response.json();
+    const data = readOAuthTokenBody(body, this.config.scopes);
 
     return {
       access_token: data.access_token,
@@ -226,6 +224,7 @@ export class GitLabOAuth {
       expires_in: data.expires_in,
       created_at: Date.now(),
       token_type: data.token_type,
+      scopes: data.scopes,
     };
   }
 
@@ -263,12 +262,8 @@ export class GitLabOAuth {
       });
     }
 
-    const data = (await response.json()) as {
-      access_token: string;
-      refresh_token?: string;
-      expires_in?: number;
-      token_type: string;
-    };
+    const body: unknown = await response.json();
+    const data = readOAuthTokenBody(body, this.config.scopes);
 
     return {
       access_token: data.access_token,
@@ -276,6 +271,7 @@ export class GitLabOAuth {
       expires_in: data.expires_in,
       created_at: Date.now(),
       token_type: data.token_type,
+      scopes: data.scopes,
     };
   }
 
@@ -306,7 +302,8 @@ export class GitLabOAuth {
       }
 
       const data = fs.readFileSync(this.tokenStoragePath, "utf8");
-      return JSON.parse(data) as TokenData;
+      const parsed: unknown = JSON.parse(data);
+      return parseStoredToken(parsed);
     } catch (error) {
       logger.error({ err: error }, "Failed to load token");
       return null;
@@ -661,21 +658,36 @@ export class GitLabOAuth {
     }
 
     let tokenData = this.loadToken();
+    const expectedScopes = this.config.scopes;
 
-    // If no token or expired (or forced), start OAuth flow or refresh
+    // Refresh cannot change GitLab scopes. A missing or different grant has to
+    // go through authorization again, or a readonly switch keeps an `api` token.
     if (!tokenData) {
       logger.info("No stored token found. Starting OAuth flow...");
-      tokenData = await this.startOAuthFlow();
+      tokenData = await this.authorizeMatchingScopes();
+    } else if (oauthTokenNeedsReauthorization(tokenData.scopes, expectedScopes)) {
+      logger.warn(
+        `Stored OAuth token scopes (${formatOAuthScopes(tokenData.scopes)}) do not match ` +
+          `${formatOAuthScopes(expectedScopes)} for the current permission mode. Starting a new authorization flow...`
+      );
+      tokenData = await this.authorizeMatchingScopes();
     } else if (force || this.isTokenExpired(tokenData)) {
       logger.info(force && !this.isTokenExpired(tokenData) ? "Force-refreshing OAuth token..." : "Token expired. Refreshing...");
       if (tokenData.refresh_token) {
         try {
           tokenData = await this.refreshAccessToken(tokenData.refresh_token);
           this.saveToken(tokenData);
+          if (oauthTokenNeedsReauthorization(tokenData.scopes, expectedScopes)) {
+            logger.warn(
+              `Refreshed OAuth token scopes (${formatOAuthScopes(tokenData.scopes)}) do not match ` +
+                `${formatOAuthScopes(expectedScopes)}. Starting a new authorization flow...`
+            );
+            tokenData = await this.authorizeMatchingScopes();
+          }
         } catch (error) {
-          if ((error as { authInvalid?: boolean }).authInvalid === true) {
+          if (isAuthInvalidError(error)) {
             logger.error({ err: error }, "Refresh token invalid, starting new OAuth flow...");
-            tokenData = await this.startOAuthFlow();
+            tokenData = await this.authorizeMatchingScopes();
           } else {
             logger.error({ err: error }, "Token refresh failed (transient/network), not opening browser.");
             throw error;
@@ -683,11 +695,25 @@ export class GitLabOAuth {
         }
       } else {
         logger.info("No refresh token available. Starting new OAuth flow...");
-        tokenData = await this.startOAuthFlow();
+        tokenData = await this.authorizeMatchingScopes();
       }
     }
 
     return tokenData.access_token;
+  }
+
+  /**
+   * Browser or device-callback login, rejected when GitLab grants a different scope.
+   */
+  private async authorizeMatchingScopes(): Promise<TokenData> {
+    const tokenData = await this.startOAuthFlow();
+    if (oauthTokenNeedsReauthorization(tokenData.scopes, this.config.scopes)) {
+      throw new Error(
+        `OAuth authorization granted scopes (${formatOAuthScopes(tokenData.scopes)}), ` +
+          `which do not match required scopes (${formatOAuthScopes(this.config.scopes)}).`
+      );
+    }
+    return tokenData;
   }
 
   /**
@@ -714,6 +740,9 @@ export class GitLabOAuth {
 
     const tokenData = this.loadToken();
     if (!tokenData) {
+      return false;
+    }
+    if (oauthTokenNeedsReauthorization(tokenData.scopes, this.config.scopes)) {
       return false;
     }
     return !this.isTokenExpired(tokenData);
@@ -748,6 +777,125 @@ export class GitLabOAuth {
 /** Read-only permission mode only needs the `read_api` scope; every other mode needs `api`. */
 export function getOAuthScopes(permissionMode: GitLabPermissionMode): string[] {
   return [permissionMode === "readonly" ? "read_api" : "api"];
+}
+
+/**
+ * True when a stored grant cannot be reused for the scopes this process requires.
+ * Missing scopes must be reauthorized: files written before scope tracking do not
+ * say whether the grant was `api` or `read_api`.
+ * Extra non-write scopes such as `read_user` stay valid, so a GitLab response
+ * that adds them does not force a login loop. A stored `api` scope is rejected
+ * when this process only asked for `read_api`.
+ */
+export function oauthTokenNeedsReauthorization(
+  storedScopes: readonly string[] | undefined,
+  expectedScopes: readonly string[]
+): boolean {
+  if (storedScopes === undefined || storedScopes.length === 0) {
+    return true;
+  }
+  const stored = new Set(storedScopes);
+  const expected = new Set(expectedScopes);
+  if (stored.has("api") && !expected.has("api")) {
+    return true;
+  }
+  for (const scope of expected) {
+    if (!stored.has(scope)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function formatOAuthScopes(scopes: readonly string[] | undefined): string {
+  if (scopes === undefined || scopes.length === 0) {
+    return "missing";
+  }
+  return scopes.map(scope => scope.replace(/[\r\n]/g, "")).join(" ");
+}
+
+function isAuthInvalidError(error: unknown): boolean {
+  if (typeof error !== "object" || error === null) {
+    return false;
+  }
+  return Reflect.get(error, "authInvalid") === true;
+}
+
+function readOAuthTokenBody(
+  value: unknown,
+  fallbackScopes: readonly string[]
+): {
+  access_token: string;
+  refresh_token?: string;
+  expires_in?: number;
+  token_type: string;
+  scopes: string[];
+} {
+  if (typeof value !== "object" || value === null) {
+    throw new Error("Token endpoint returned an invalid response.");
+  }
+  const accessToken = Reflect.get(value, "access_token");
+  const refreshToken = Reflect.get(value, "refresh_token");
+  const expiresIn = Reflect.get(value, "expires_in");
+  const tokenType = Reflect.get(value, "token_type");
+  const scope = Reflect.get(value, "scope");
+  if (typeof accessToken !== "string" || accessToken.length === 0) {
+    throw new Error("Token endpoint returned an invalid response.");
+  }
+  return {
+    access_token: accessToken,
+    refresh_token: typeof refreshToken === "string" ? refreshToken : undefined,
+    expires_in: typeof expiresIn === "number" ? expiresIn : undefined,
+    token_type: typeof tokenType === "string" && tokenType.length > 0 ? tokenType : "Bearer",
+    scopes: grantedOAuthScopes(scope, fallbackScopes),
+  };
+}
+
+function parseStoredToken(value: unknown): TokenData | null {
+  if (typeof value !== "object" || value === null) {
+    return null;
+  }
+  const accessToken = Reflect.get(value, "access_token");
+  const createdAt = Reflect.get(value, "created_at");
+  const tokenType = Reflect.get(value, "token_type");
+  const refreshToken = Reflect.get(value, "refresh_token");
+  const expiresIn = Reflect.get(value, "expires_in");
+  if (typeof accessToken !== "string" || accessToken.length === 0) {
+    return null;
+  }
+  if (typeof createdAt !== "number" || !Number.isFinite(createdAt)) {
+    return null;
+  }
+  const token: TokenData = {
+    access_token: accessToken,
+    created_at: createdAt,
+    token_type: typeof tokenType === "string" && tokenType.length > 0 ? tokenType : "Bearer",
+  };
+  if (typeof refreshToken === "string") {
+    token.refresh_token = refreshToken;
+  }
+  if (typeof expiresIn === "number") {
+    token.expires_in = expiresIn;
+  }
+  const scopes = parseStoredScopes(Reflect.get(value, "scopes"));
+  if (scopes !== undefined) {
+    token.scopes = scopes;
+  }
+  return token;
+}
+
+function parseStoredScopes(value: unknown): string[] | undefined {
+  if (!Array.isArray(value)) {
+    return undefined;
+  }
+  const scopes: string[] = [];
+  for (const item of value) {
+    if (typeof item !== "string" || item.trim() === "") {
+      return undefined;
+    }
+    scopes.push(item.trim());
+  }
+  return scopes.length > 0 ? scopes : undefined;
 }
 
 /**

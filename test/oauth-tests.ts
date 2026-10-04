@@ -174,6 +174,7 @@ async function testHasValidTokenWithToken(): Promise<void> {
     token_type: 'Bearer',
     created_at: Date.now(),
     expires_in: 7200, // 2 hours
+    scopes: ['api'],
   };
 
   fs.writeFileSync(TEST_TOKEN_PATH, JSON.stringify(tokenData), { mode: 0o600 });
@@ -199,6 +200,7 @@ async function testHasValidTokenExpired(): Promise<void> {
     token_type: 'Bearer',
     created_at: Date.now() - 10000000, // 2.7+ hours ago
     expires_in: 7200, // 2 hours
+    scopes: ['api'],
   };
 
   fs.writeFileSync(TEST_TOKEN_PATH, JSON.stringify(tokenData), { mode: 0o600 });

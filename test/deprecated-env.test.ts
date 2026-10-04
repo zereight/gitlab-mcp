@@ -8,9 +8,9 @@ function warningsFor(overrides: Partial<DeprecatedEnvInput>): string[] {
     permissionModeRaw: undefined,
     allowedGroupsRaw: undefined,
     oauthAllowedGroupsRaw: undefined,
-    useWiki: false,
-    useMilestone: false,
-    usePipeline: false,
+    useWikiRaw: undefined,
+    useMilestoneRaw: undefined,
+    usePipelineRaw: undefined,
     ...overrides,
   });
 }
@@ -67,11 +67,27 @@ describe("When GITLAB_ALLOWED_GROUPS is set", () => {
 describe("When legacy toolset flags are enabled", () => {
   describe("with all three flags", () => {
     test("should warn once per flag with its GITLAB_TOOLSETS replacement", () => {
-      const warnings = warningsFor({ useWiki: true, useMilestone: true, usePipeline: true });
+      const warnings = warningsFor({
+        useWikiRaw: "true",
+        useMilestoneRaw: "true",
+        usePipelineRaw: "true",
+      });
       assert.equal(warnings.length, 3);
       assert.match(warnings[0], /USE_GITLAB_WIKI.*GITLAB_TOOLSETS=wiki/);
       assert.match(warnings[1], /USE_MILESTONE.*GITLAB_TOOLSETS=milestones/);
       assert.match(warnings[2], /USE_PIPELINE.*GITLAB_TOOLSETS=pipelines/);
+    });
+  });
+});
+
+describe("When a legacy toolset flag is explicitly false", () => {
+  describe("with USE_GITLAB_WIKI=false", () => {
+    test("should warn to remove it without enabling the toolset", () => {
+      const [warning, ...rest] = warningsFor({ useWikiRaw: "false" });
+      assert.match(warning, /USE_GITLAB_WIKI is set to "false"/);
+      assert.match(warning, /does not enable the wiki toolset/);
+      assert.doesNotMatch(warning, /Use GITLAB_TOOLSETS=wiki instead/);
+      assert.equal(rest.length, 0);
     });
   });
 });

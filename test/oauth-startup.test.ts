@@ -26,6 +26,7 @@ const validTokenFile = {
   expires_in: 7200,
   created_at: Date.now(),
   token_type: "Bearer",
+  scopes: ["api"],
 };
 
 const expiredTokenFile = {
@@ -122,6 +123,32 @@ describe("isAuthInvalidTokenResponse", () => {
   });
 });
 
+describe("When a file-backed OAuth token is checked", () => {
+  describe("with no stored scopes", () => {
+    test("should not treat the token as valid", () => {
+      const withoutScopes = {
+        access_token: validTokenFile.access_token,
+        refresh_token: validTokenFile.refresh_token,
+        expires_in: validTokenFile.expires_in,
+        created_at: validTokenFile.created_at,
+        token_type: validTokenFile.token_type,
+      };
+      const client = makeClient(makeTokenFile(withoutScopes), "http://127.0.0.1:9");
+      assert.equal(client.hasValidToken(), false);
+    });
+  });
+
+  describe("with a different scope", () => {
+    test("should not treat the token as valid", () => {
+      const client = makeClient(
+        makeTokenFile({ ...validTokenFile, scopes: ["read_api"] }),
+        "http://127.0.0.1:9"
+      );
+      assert.equal(client.hasValidToken(), false);
+    });
+  });
+});
+
 describe("ensureOAuthToken", () => {
   test("null client is a no-op", async () => {
     const delivered: string[] = [];
@@ -173,8 +200,10 @@ describe("ensureOAuthToken", () => {
     assert.strictEqual(bodies.length, 1);
     assert.match(bodies[0], /grant_type=refresh_token/);
     assert.match(bodies[0], /refresh_token=cached-refresh-token/);
-    const saved = JSON.parse(fs.readFileSync(file, "utf8")) as { access_token: string };
-    assert.strictEqual(saved.access_token, "fresh-token");
+    const saved: unknown = JSON.parse(fs.readFileSync(file, "utf8"));
+    assert(typeof saved === "object" && saved !== null);
+    assert.strictEqual(Reflect.get(saved, "access_token"), "fresh-token");
+    assert.deepStrictEqual(Reflect.get(saved, "scopes"), ["api"]);
   });
 
   test("transient refresh failure propagates without opening a browser", async () => {

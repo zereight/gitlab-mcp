@@ -44,9 +44,12 @@ import {
   STREAMABLE_HTTP,
   MCP_TRUST_PROXY,
   USE_GITLAB_WIKI,
+  USE_GITLAB_WIKI_RAW,
   USE_MILESTONE,
+  USE_MILESTONE_RAW,
   USE_OAUTH,
   USE_PIPELINE,
+  USE_PIPELINE_RAW,
   GITLAB_TOOL_POLICY_APPROVE_RAW,
   GITLAB_TOOL_POLICY_HIDDEN_RAW,
   GITLAB_OAUTH_ALLOWED_GROUPS_RAW,
@@ -16292,9 +16295,9 @@ async function runServer() {
       permissionModeRaw: GITLAB_PERMISSION_MODE_RAW,
       allowedGroupsRaw: GITLAB_ALLOWED_GROUPS_RAW,
       oauthAllowedGroupsRaw: GITLAB_OAUTH_ALLOWED_GROUPS_RAW,
-      useWiki: USE_GITLAB_WIKI,
-      useMilestone: USE_MILESTONE,
-      usePipeline: USE_PIPELINE,
+      useWikiRaw: USE_GITLAB_WIKI_RAW,
+      useMilestoneRaw: USE_MILESTONE_RAW,
+      usePipelineRaw: USE_PIPELINE_RAW,
     })) {
       logger.warn(warning);
     }

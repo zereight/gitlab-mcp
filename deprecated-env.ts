@@ -1,12 +1,35 @@
+function shownEnvValue(rawValue: string): string {
+  const singleLine = rawValue.replace(/[\r\n]/g, " ");
+  if (singleLine.length <= 80) {
+    return singleLine;
+  }
+  return `${singleLine.slice(0, 77)}...`;
+}
+
+function legacyToolsetWarning(envName: string, rawValue: string, toolset: string): string {
+  if (rawValue === "true") {
+    return (
+      `${envName} is deprecated and will be removed in the next major version. ` +
+      `Use GITLAB_TOOLSETS=${toolset} instead.`
+    );
+  }
+  const shown = shownEnvValue(rawValue);
+  return (
+    `${envName} is set to "${shown}" and is deprecated. ` +
+    `This value does not enable the ${toolset} toolset. Remove it. ` +
+    `Set GITLAB_TOOLSETS=${toolset} only if you want those tools enabled.`
+  );
+}
+
 export interface DeprecatedEnvInput {
   readOnlyMode: boolean;
   /** Value the user set for GITLAB_PERMISSION_MODE / --permission-mode, before GITLAB_READ_ONLY_MODE overrides it. */
   permissionModeRaw: string | undefined;
   allowedGroupsRaw: string | undefined;
   oauthAllowedGroupsRaw: string | undefined;
-  useWiki: boolean;
-  useMilestone: boolean;
-  usePipeline: boolean;
+  useWikiRaw: string | undefined;
+  useMilestoneRaw: string | undefined;
+  usePipelineRaw: string | undefined;
 }
 
 /**
@@ -35,16 +58,14 @@ export function getDeprecatedEnvWarnings(input: DeprecatedEnvInput): string[] {
     );
   }
 
-  const legacyToolsetFlags: Array<[boolean, string, string]> = [
-    [input.useWiki, "USE_GITLAB_WIKI", "wiki"],
-    [input.useMilestone, "USE_MILESTONE", "milestones"],
-    [input.usePipeline, "USE_PIPELINE", "pipelines"],
+  const legacyToolsetFlags: Array<[string | undefined, string, string]> = [
+    [input.useWikiRaw, "USE_GITLAB_WIKI", "wiki"],
+    [input.useMilestoneRaw, "USE_MILESTONE", "milestones"],
+    [input.usePipelineRaw, "USE_PIPELINE", "pipelines"],
   ];
-  for (const [enabled, envName, toolset] of legacyToolsetFlags) {
-    if (enabled) {
-      warnings.push(
-        `${envName} is deprecated and will be removed in the next major version. Use GITLAB_TOOLSETS=${toolset} instead.`
-      );
+  for (const [rawValue, envName, toolset] of legacyToolsetFlags) {
+    if (rawValue !== undefined) {
+      warnings.push(legacyToolsetWarning(envName, rawValue, toolset));
     }
   }
 

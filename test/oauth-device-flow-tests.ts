@@ -5,7 +5,11 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { getPositionalCliCommand } from "../cli-command.js";
 import { gitlabOriginFromApiUrl, runAuthCommandAsync } from "../auth-cli.js";
-import { runDeviceAuthorizationGrantAsync, type FetchImpl } from "../oauth-device-flow.js";
+import {
+  grantedOAuthScopes,
+  runDeviceAuthorizationGrantAsync,
+  type FetchImpl,
+} from "../oauth-device-flow.js";
 import { GitLabOAuth } from "../oauth.js";
 
 const GITLAB_URL = "https://gitlab.example";
@@ -190,6 +194,7 @@ function readStoredToken(value: unknown): {
   expires_in?: number;
   created_at: number;
   token_type: string;
+  scopes: unknown;
 } {
   if (typeof value !== "object" || value === null) {
     throw new Error("token file is not an object");
@@ -199,6 +204,7 @@ function readStoredToken(value: unknown): {
   const expiresIn = Reflect.get(value, "expires_in");
   const createdAt = Reflect.get(value, "created_at");
   const tokenType = Reflect.get(value, "token_type");
+  const scopes = Reflect.get(value, "scopes");
   if (typeof accessToken !== "string") {
     throw new Error("access_token missing");
   }
@@ -214,6 +220,7 @@ function readStoredToken(value: unknown): {
     expires_in: typeof expiresIn === "number" ? expiresIn : undefined,
     created_at: createdAt,
     token_type: tokenType,
+    scopes,
   };
 }
 
@@ -453,6 +460,7 @@ describe("When device flow succeeds", () => {
         assert.equal(stored.expires_in, 7200);
         assert.equal(stored.token_type, "Bearer");
         assert.equal(typeof stored.created_at, "number");
+        assert.deepEqual(stored.scopes, ["api"]);
         assert.equal(fs.statSync(tokenPath).mode & 0o777, 0o600);
       } finally {
         if (fs.existsSync(tokenPath)) {
@@ -571,6 +579,20 @@ describe("When running the auth command", () => {
         await runAuthCapturingScopeAsync({ extraArgv: ["--read-only=true"] }),
         "read_api"
       );
+    });
+  });
+});
+
+describe("When reading granted OAuth scopes", () => {
+  describe("with a scope string", () => {
+    it("should split on whitespace", () => {
+      assert.deepEqual(grantedOAuthScopes("read_api api", ["api"]), ["read_api", "api"]);
+    });
+  });
+
+  describe("with no scope field", () => {
+    it("should keep the requested scopes", () => {
+      assert.deepEqual(grantedOAuthScopes(undefined, ["api"]), ["api"]);
     });
   });
 });
