@@ -3998,14 +3998,26 @@ export const ListGroupIterationsSchema = z
   })
   .merge(PaginationOptionsSchema);
 
+/**
+ * A required identifier that also accepts a numeric JSON value.
+ *
+ * `z.coerce.string()` would accept numbers too, but it turns a missing value into the
+ * string "undefined", so an omitted ID would pass validation. Converting only numbers
+ * keeps a missing or empty ID a validation error.
+ */
+const requiredIterationIdentifier = (description: string) =>
+  z
+    .preprocess(value => (typeof value === "number" ? String(value) : value), z.string().min(1))
+    .describe(description);
+
 export const GetGroupIterationSchema = z.object({
-  group_id: z.string().min(1).describe("Group ID or URL-encoded path"),
-  iteration_id: z.string().min(1).describe("Iteration ID, IID, or GraphQL GID"),
+  group_id: requiredIterationIdentifier("Group ID or URL-encoded path"),
+  iteration_id: requiredIterationIdentifier("Iteration ID, IID, or GraphQL GID"),
 });
 
 export const UpdateGroupIterationSchema = z.object({
-  group_id: z.string().min(1).describe("Group ID or URL-encoded path"),
-  iteration_id: z.string().min(1).describe("Iteration ID, IID, or GraphQL GID"),
+  group_id: requiredIterationIdentifier("Group ID or URL-encoded path"),
+  iteration_id: requiredIterationIdentifier("Iteration ID, IID, or GraphQL GID"),
   title: z.string().optional().describe("New iteration title"),
   description: z
     .string()

@@ -10,6 +10,16 @@ test("get group iteration accepts IDs, IIDs, and GIDs", () => {
   }
 });
 
+test("iteration schemas coerce numeric JSON IDs to strings", () => {
+  const get = GetGroupIterationSchema.parse({ group_id: 5, iteration_id: 53 });
+  assert.equal(get.group_id, "5");
+  assert.equal(get.iteration_id, "53");
+
+  const update = UpdateGroupIterationSchema.parse({ group_id: 5, iteration_id: 53, title: "S" });
+  assert.equal(update.group_id, "5");
+  assert.equal(update.iteration_id, "53");
+});
+
 test("update group iteration maps all supported fields", () => {
   const parsed = UpdateGroupIterationSchema.parse({
     group_id: "my/group",
