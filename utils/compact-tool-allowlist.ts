@@ -5,7 +5,7 @@ export function parseCompactToolAllowlist(raw: string | undefined): ReadonlySet<
   }
   const names = raw
     .split(",")
-    .map(name => name.trim().toLowerCase())
+    .map(name => name.trim())
     .filter(name => name.length > 0);
   return new Set(names);
 }

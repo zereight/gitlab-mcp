@@ -7,7 +7,7 @@ const SERVER_PATH = path.resolve("build/index.js");
 
 function serverEnv(overrides: Record<string, string>): Record<string, string> {
   return {
-    GITLAB_PERSONAL_ACCESS_TOKEN: "glpat-tool-profile-test-token",
+    GITLAB_PERSONAL_ACCESS_TOKEN: "test-token-tool-profile-0000",
     GITLAB_API_URL: "https://gitlab.example.com/api/v4",
     GITLAB_DISABLE_VERSION_CHECK: "true",
     LOG_FORMAT: "json",
@@ -61,7 +61,10 @@ describe("When the stdio server lists tools", () => {
         const second = await client.listTools();
         const issue = second.tools.find(tool => tool.name === "list_issues");
 
-        assert.equal(first.tools.some(tool => tool.name === "list_labels"), true);
+        assert.equal(
+          first.tools.some(tool => tool.name === "list_labels"),
+          true
+        );
         assert.equal(hasJmespathArgument(issue?.inputSchema), true);
       });
     });

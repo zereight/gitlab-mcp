@@ -20,6 +20,14 @@ describe("When parsing GITLAB_MCP_COMPACT_TOOLS", () => {
       assert.equal(names.has("get_merge_request_diffs"), true);
     });
   });
+
+  describe("with mixed-case names", () => {
+    it("should keep the original spelling", () => {
+      const names = parseCompactToolAllowlist(" Get_File_Contents ");
+
+      assert.equal(names.has("Get_File_Contents"), true);
+    });
+  });
 });
 
 describe("When deciding whether a tool result compacts", () => {
