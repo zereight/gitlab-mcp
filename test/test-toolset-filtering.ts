@@ -18,7 +18,12 @@ import {
 } from "./utils/server-launcher.js";
 import { MockGitLabServer, findMockServerPort } from "./utils/mock-gitlab-server.js";
 import { CustomHeaderClient } from "./clients/custom-header-client.js";
-import { TOOLSET_DEFINITIONS, findSmallestToolsetForTool } from "../tools/registry.js";
+import {
+  TOOLSET_DEFINITIONS,
+  advertisesReadOnly,
+  findSmallestToolsetForTool,
+  readOnlyTools,
+} from "../tools/registry.js";
 
 const MOCK_TOKEN = "glpat-toolset-test-token";
 
@@ -681,6 +686,34 @@ describe("Toolset Filtering", { concurrency: 1 }, () => {
     describe("with an unknown tool name", () => {
       test("should return undefined", () => {
         assert.strictEqual(findSmallestToolsetForTool("nonexistent_tool_xyz"), undefined);
+      });
+    });
+  });
+
+  describe("When advertising a read-only hint", () => {
+    describe("with execute_graphql", () => {
+      test("should not advertise read-only", () => {
+        assert.strictEqual(advertisesReadOnly("execute_graphql"), false);
+      });
+    });
+
+    describe("with a read-only tool", () => {
+      test("should advertise read-only", () => {
+        assert.strictEqual(advertisesReadOnly("get_issue"), true);
+      });
+    });
+
+    describe("with a write tool", () => {
+      test("should not advertise read-only", () => {
+        assert.strictEqual(advertisesReadOnly("create_issue"), false);
+      });
+    });
+  });
+
+  describe("When classifying execute_graphql for readonly mode", () => {
+    describe("with the permission-mode allowlist", () => {
+      test("should keep the tool listed", () => {
+        assert.ok(readOnlyTools.has("execute_graphql"));
       });
     });
   });

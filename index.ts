@@ -247,6 +247,7 @@ import {
 import { requireBearerAuth } from "@modelcontextprotocol/sdk/server/auth/middleware/bearerAuth.js";
 import { GitLabClientPool } from "./gitlab-client-pool.js";
 import {
+  advertisesReadOnly,
   allTools,
   readOnlyTools,
   destructiveTools,
@@ -885,7 +886,7 @@ function createServer(): McpServer {
 
       // Add MCP tool annotations
       modified.annotations = {
-        ...(readOnlyTools.has(tool.name) ? { readOnlyHint: true } : {}),
+        ...(advertisesReadOnly(tool.name) ? { readOnlyHint: true } : {}),
         ...(destructiveTools.has(tool.name) ? { destructiveHint: true } : {}),
         ...(approveToolSet.has(tool.name) ? { confirmationHint: true } : {}),
         openWorldHint: true,

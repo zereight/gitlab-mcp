@@ -7,14 +7,14 @@ Tools the MCP exposes that aren't tied to a specific GitLab feature group — se
 
 ## Tools in this group
 
-- [`execute_graphql`](#execute_graphql) — 📖 Read-only
+- [`execute_graphql`](#execute_graphql) — 📖✏️ Reads and writes
 - [`discover_tools`](#discover_tools) — 📖 Read-only
 
 ---
 
 ### `execute_graphql`
 
-*📖 Read-only*
+*📖✏️ Reads and writes*
 
 Execute a GitLab GraphQL query. Use this only when a supported GitLab REST tool does not cover the requested operation; prefer a typed tool when one exists. The query is sent directly to GitLab and can include mutations when permission allows, so callers must treat it as potentially state-changing and handle GraphQL errors in the returned response.
 

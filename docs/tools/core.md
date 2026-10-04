@@ -371,7 +371,7 @@ List issues assigned to the authenticated user. Use this for issue management: l
 
 *📖 Read-only*
 
-Get details of a specific issue. Returns a slim milestone by default; set full_response=true for the complete milestone object. Use this for issue management: inspect one issue's fields; use `list_issues` or `my_issues` to discover issues first. It is read-only, requires issue read permission, and returns the issue or an error when the identifier is invalid, the issue is missing, or access is denied.
+Get details of a specific issue. Returns the issue with a slim nested milestone by default; set full_response=true for the complete milestone object. Use this for issue management: inspect one issue's fields; use `list_issues` or `my_issues` to discover issues first. It is read-only, requires issue read permission, and returns the issue or an error when the identifier is invalid, the issue is missing, or access is denied.
 
 **Parameters**
 
@@ -379,7 +379,7 @@ Get details of a specific issue. Returns a slim milestone by default; set full_r
 |---|---|:-:|---|
 | `project_id` | string | ✓ | Project ID or URL-encoded path |
 | `issue_iid` | string | ✓ | The internal ID of the project issue |
-| `full_response` | boolean |  | If true, return the complete issue object including the full milestone description. Default returns a slim milestone (id, iid, title, state, web_url) to reduce token usage. |
+| `full_response` | boolean |  | If true, include the complete milestone object, including its description, on the returned issue. Default returns the issue with a slim milestone (id, iid, title, state, web_url) to reduce token usage. |
 
 ### `create_issue`
 

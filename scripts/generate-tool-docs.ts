@@ -11,7 +11,13 @@ import { writeFileSync, mkdirSync, readdirSync, unlinkSync, statSync } from "nod
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { allTools, readOnlyTools, TOOLSET_DEFINITIONS, type ToolsetId } from "../tools/registry.js";
+import {
+  advertisesReadOnly,
+  allTools,
+  readOnlyTools,
+  TOOLSET_DEFINITIONS,
+  type ToolsetId,
+} from "../tools/registry.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = join(__dirname, "..");
@@ -141,7 +147,8 @@ const GROUP_META: Record<ToolsetId, GroupMeta> = {
   },
   webhooks: {
     title: "Webhooks",
-    blurb: "Create, update, and delete project or group webhooks, and inspect recent webhook events.",
+    blurb:
+      "Create, update, and delete project or group webhooks, and inspect recent webhook events.",
   },
   search: {
     title: "Search",
@@ -221,14 +228,36 @@ type JsonSchema = {
 
 // Authoritative classification — uses the `readOnlyTools` set from
 // tools/registry.ts. That set is what the server itself consults to decide
-// which tools survive `GITLAB_READ_ONLY_MODE=true`, so the badges here
-// match real runtime behavior exactly (no prefix heuristics).
-function classify(name: string): "read" | "write" {
+// which tools survive `GITLAB_PERMISSION_MODE=readonly`. `execute_graphql`
+// stays in that set so queries still work, but it can mutate in other modes,
+// so it is labeled mixed instead of read-only.
+function classify(name: string): "read" | "write" | "mixed" {
+  if (readOnlyTools.has(name) && !advertisesReadOnly(name)) {
+    return "mixed";
+  }
   return readOnlyTools.has(name) ? "read" : "write";
 }
 
 function rwBadge(name: string): string {
-  return classify(name) === "read" ? "📖 Read-only" : "✏️ Writes";
+  const kind = classify(name);
+  if (kind === "mixed") {
+    return "📖✏️ Reads and writes";
+  }
+  if (kind === "read") {
+    return "📖 Read-only";
+  }
+  return "✏️ Writes";
+}
+
+function rwMarker(name: string): string {
+  const kind = classify(name);
+  if (kind === "mixed") {
+    return "📖✏️";
+  }
+  if (kind === "read") {
+    return "📖";
+  }
+  return "✏️";
 }
 
 function describeType(prop: JsonSchemaProp): string {
@@ -321,7 +350,9 @@ function buildGroupPage(id: ToolsetId, toolNames: string[]): string {
 function buildToggleSection(groupedToolsList: Array<[ToolsetId, string[]]>): string[] {
   const grouped = groupedToolsList.filter(([id]) => GROUP_META[id]);
   const defaults = grouped.filter(([id]) => isDefaultToolset(id));
-  const optins = grouped.filter(([id]) => !isDefaultToolset(id) && (id as string) !== META_GROUP_ID);
+  const optins = grouped.filter(
+    ([id]) => !isDefaultToolset(id) && (id as string) !== META_GROUP_ID
+  );
   const meta = grouped.filter(([id]) => (id as string) === META_GROUP_ID);
 
   const formatList = (items: Array<[ToolsetId, string[]]>): string =>
@@ -397,6 +428,7 @@ function buildIndexPage(groupedToolsList: Array<[ToolsetId, string[]]>): string 
     "| Marker | Meaning |",
     "|---|---|",
     "| 📖 | **Read-only** — fetches data, does not modify GitLab state. Safe to invoke freely. |",
+    "| 📖✏️ | **Reads and writes** — can query or mutate. `execute_graphql` stays available in readonly mode, which rejects its mutations and subscriptions. |",
     "| ✏️ | **Writes** — creates, updates, or deletes data on GitLab. Confirm intent before running. |",
     "",
     "## Browse by group",
@@ -423,7 +455,7 @@ function buildIndexPage(groupedToolsList: Array<[ToolsetId, string[]]>): string 
       const tool = allTools.find(t => t.name === name);
       if (!tool) continue;
       const desc = escapePipe(tool.description);
-      const marker = classify(name) === "read" ? "📖" : "✏️";
+      const marker = rwMarker(name);
       lines.push(`| [\`${name}\`](${slug}.md#${name}) | ${desc} | ${marker} |`);
     }
     lines.push("");

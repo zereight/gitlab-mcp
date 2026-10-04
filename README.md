@@ -677,7 +677,7 @@ Register the skill directory in your AI client to get optimal tool usage guidanc
 68. `delete_issue_note_emoji_reaction` - Remove an emoji reaction from an issue note. Pass discussion_id for discussion thread replies.
 69. `list_issues` - List issues (default: created by current user; use scope='all' for all)
 70. `my_issues` - List issues assigned to the authenticated user
-71. `get_issue` - Get details of a specific issue. Returns a slim milestone by default; set full_response=true for the complete milestone object
+71. `get_issue` - Get details of a specific issue. Returns the issue with a slim nested milestone by default; set full_response=true for the complete milestone object
 72. `update_issue` - Update an issue. Returns a slim confirmation by default; set full_response=true for the complete updated issue object
 73. `update_issue_description_patch` - Apply a patch (search/replace or unified diff) to an issue description. Reduces token usage by allowing small changes without sending the full description. Supports dry_run to preview changes and create_note to summarize updates.
 74. `delete_issue` - Delete an issue

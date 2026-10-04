@@ -637,7 +637,7 @@ export const allTools = [
   {
     name: "get_issue",
     description:
-      "Get details of a specific issue. Returns a slim milestone by default; set full_response=true for the complete milestone object",
+      "Get details of a specific issue. Returns the issue with a slim nested milestone by default; set full_response=true for the complete milestone object",
     inputSchema: toJSONSchema(GetIssueSchema),
   },
   {
@@ -1721,6 +1721,14 @@ export const readOnlyTools = new Set([
   "orbit_get_status",
   "orbit_list_tools",
 ]);
+
+// Stays in readOnlyTools so readonly mode can still run queries, but mutations
+// are allowed in other permission modes and rejected only at call time.
+const MIXED_ACCESS_TOOLS = new Set(["execute_graphql"]);
+
+export function advertisesReadOnly(toolName: string): boolean {
+  return readOnlyTools.has(toolName) && !MIXED_ACCESS_TOOLS.has(toolName);
+}
 
 // Define which tools are destructive (data loss potential)
 export const destructiveTools = new Set([
