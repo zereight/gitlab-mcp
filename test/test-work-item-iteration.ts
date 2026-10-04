@@ -124,6 +124,8 @@ describe("update_work_item iteration widget", () => {
     GITLAB_API_URL: `${mockServer.getUrl()}/api/v4`,
     GITLAB_PERSONAL_ACCESS_TOKEN: MOCK_TOKEN,
     GITLAB_PROJECT_ID: PROJECT_ID,
+    // workitems is not a default toolset, so the test enables it explicitly.
+    GITLAB_TOOLSETS: "workitems",
   });
 
   test("assigns an iteration by ID", async () => {
