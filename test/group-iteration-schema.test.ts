@@ -45,6 +45,28 @@ test("update group iteration supports clearing description", () => {
   assert.equal(parsed.description, null);
 });
 
+/**
+ * Names of the top-level fields a parse rejected. Asserting on the field rather than on
+ * the error text keeps these tests independent of the Zod version's wording.
+ */
+function rejectedFields(
+  schema: { safeParse: (input: unknown) => { success: boolean; error?: { issues: { path: PropertyKey[] }[] } } },
+  input: unknown
+): string[] {
+  const result = schema.safeParse(input);
+  assert.equal(result.success, false, "expected the input to be rejected");
+  return [...new Set(result.error!.issues.map(issue => String(issue.path[0])))].sort();
+}
+
 test("update group iteration requires group and iteration IDs", () => {
-  assert.throws(() => UpdateGroupIterationSchema.parse({ description: "Goal" }), /Required/);
+  assert.deepEqual(rejectedFields(UpdateGroupIterationSchema, { description: "Goal" }), [
+    "group_id",
+    "iteration_id",
+  ]);
+});
+
+test("iteration schemas reject an empty ID", () => {
+  assert.deepEqual(rejectedFields(GetGroupIterationSchema, { group_id: "", iteration_id: "53" }), [
+    "group_id",
+  ]);
 });
