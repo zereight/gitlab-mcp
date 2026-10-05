@@ -10168,7 +10168,8 @@ async function listGroupIterations(
 
 function normalizeIterationLookupId(iterationId: string): string {
   const decoded = decodeURIComponent(iterationId);
-  return decoded.startsWith("gid://gitlab/Iteration/") ? decoded.split("/").pop()! : decoded;
+  const prefix = "gid://gitlab/Iteration/";
+  return decoded.startsWith(prefix) ? decoded.slice(prefix.length) : decoded;
 }
 
 async function getGroupIteration(groupId: string, iterationId: string): Promise<GroupIteration> {
@@ -14820,6 +14821,7 @@ async function handleToolCall(params: any) {
       }
 
       case "get_group_iteration": {
+        rejectIfStrictProjectScope("get_group_iteration");
         const args = GetGroupIterationSchema.parse(params.arguments);
         const iteration = await getGroupIteration(args.group_id, args.iteration_id);
         return {
@@ -14828,6 +14830,7 @@ async function handleToolCall(params: any) {
       }
 
       case "update_group_iteration": {
+        rejectIfStrictProjectScope("update_group_iteration");
         const args = UpdateGroupIterationSchema.parse(params.arguments);
         const { group_id, iteration_id, ...options } = args;
         const iteration = await updateGroupIteration(group_id, iteration_id, options);

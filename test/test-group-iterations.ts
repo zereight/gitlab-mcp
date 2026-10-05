@@ -238,4 +238,25 @@ describe("group iteration tools", () => {
       /Manual iteration updates are not allowed/
     );
   });
+
+  test("rejects the group iteration tools while a project allowlist is in effect", async () => {
+    const strictEnv = {
+      ...env(),
+      ENABLE_STRICT_PROJECT_SCOPE: "true",
+      GITLAB_ALLOWED_PROJECT_IDS: "1",
+    };
+    const calls: [string, Record<string, unknown>][] = [
+      ["list_group_iterations", { group_id: GROUP_ID }],
+      ["get_group_iteration", { group_id: GROUP_ID, iteration_id: ITERATION_ID }],
+      ["update_group_iteration", { group_id: GROUP_ID, iteration_id: ITERATION_ID, title: "X" }],
+    ];
+
+    for (const [name, args] of calls) {
+      await assert.rejects(
+        () => callTool(name, args, strictEnv),
+        new RegExp(`${name} is not allowed while a project allowlist is in effect`)
+      );
+    }
+    assert.equal(mutationInput, undefined);
+  });
 });
