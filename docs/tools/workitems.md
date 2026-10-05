@@ -95,7 +95,7 @@ Update a work item (title, description, labels, assignees, state, parent, iterat
 
 | Parameter | Type | Required | Description |
 |---|---|:-:|---|
-| `project_id` | string |  | Project ID, URL-encoded project path, group path, or explicit namespace prefix for ambiguous numeric IDs (e.g. 'group/subgroup', 'group:123', or 'project:123') |
+| `project_id` | string | ✓ | Project ID, URL-encoded project path, group path, or explicit namespace prefix for ambiguous numeric IDs (e.g. 'group/subgroup', 'group:123', or 'project:123') |
 | `iid` | number | ✓ | The internal ID (IID) of the work item |
 | `title` | string |  | New title |
 | `description` | string |  | New description (Markdown supported) |

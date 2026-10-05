@@ -248,6 +248,8 @@ Update a manual group iteration's title, description, or dates. Use this for an 
 | `start_date` | string |  | New start date in YYYY-MM-DD format |
 | `due_date` | string |  | New due date in YYYY-MM-DD format |
 
+At least one of `title`, `description`, `start_date`, or `due_date` is required.
+
 ### `health_check`
 
 *📖 Read-only*
