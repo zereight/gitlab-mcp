@@ -16,6 +16,13 @@ Project/namespace listing, member queries, group iterations, and server health.
 - [`list_group_iterations`](#list_group_iterations) — 📖 Read-only
 - [`get_group_iteration`](#get_group_iteration) — 📖 Read-only
 - [`update_group_iteration`](#update_group_iteration) — ✏️ Writes
+- [`create_group_iteration`](#create_group_iteration) — ✏️ Writes
+- [`delete_group_iteration`](#delete_group_iteration) — ✏️ Writes
+- [`list_project_iterations`](#list_project_iterations) — 📖 Read-only
+- [`list_group_iteration_cadences`](#list_group_iteration_cadences) — 📖 Read-only
+- [`create_group_iteration_cadence`](#create_group_iteration_cadence) — ✏️ Writes
+- [`update_group_iteration_cadence`](#update_group_iteration_cadence) — ✏️ Writes
+- [`delete_group_iteration_cadence`](#delete_group_iteration_cadence) — ✏️ Writes
 - [`health_check`](#health_check) — 📖 Read-only
 
 ---
@@ -218,6 +225,8 @@ List group iterations with filtering options. Use this for a collection of resou
 | `page` | number |  | Page number for pagination (default: 1) |
 | `per_page` | number |  | Number of items per page (max: 100, default: 20) |
 
+To list the issues in an iteration, call `list_issues` with `iteration_id`. Without `project_id`, also pass `scope: "all"`, because GitLab's instance-wide issue list defaults to issues you created.
+
 ### `get_group_iteration`
 
 *📖 Read-only*
@@ -249,6 +258,137 @@ Update a manual group iteration's title, description, or dates. Use this for an 
 | `due_date` | string |  | New due date in YYYY-MM-DD format |
 
 At least one of `title`, `description`, `start_date`, or `due_date` is required.
+
+GitLab has no mutation to close an iteration. Its state (`upcoming`, `current`, `closed`) is derived from its dates, so an iteration closes once its due date has passed. To end one early, set `due_date`; to record when it closed, write that in `description`.
+
+### `create_group_iteration`
+
+*✏️ Writes*
+
+Create a group iteration, optionally in a given iteration cadence. Use this for a new resource or action; choose the corresponding update or edit tool when the resource already exists. It changes remote GitLab state and requires the necessary project or group permission; GitLab returns validation, conflict, permission, or rate-limit errors instead of silently applying an invalid request. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented.
+
+Calls GraphQL `iterationCreate` with only the fields you pass, then reads the new iteration back. GitLab decides what a valid iteration needs, for example its dates or a cadence.
+
+**Parameters**
+
+| Parameter | Type | Required | Description |
+|---|---|:-:|---|
+| `group_id` | string | ✓ | Group ID or URL-encoded path |
+| `title` | string |  | Iteration title |
+| `description` | string |  | Iteration description |
+| `start_date` | string |  | Start date in YYYY-MM-DD format |
+| `due_date` | string |  | Due date in YYYY-MM-DD format |
+| `iterations_cadence_id` | string |  | Iteration cadence ID or GraphQL GID (gid://gitlab/Iterations::Cadence/&lt;id&gt;) to assign the new iteration to. Use list_group_iteration_cadences to find it. |
+
+### `delete_group_iteration`
+
+*✏️ Writes*
+
+Delete a group iteration by ID, IID, or GraphQL GID. Use this only after verifying the target; choose a get or list tool first when you need to inspect state without changing it. It changes or removes remote GitLab data and may be irreversible; it requires the necessary project or group permission and returns validation, conflict, permission, or rate-limit errors. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented.
+
+**Parameters**
+
+| Parameter | Type | Required | Description |
+|---|---|:-:|---|
+| `group_id` | string | ✓ | Group ID or URL-encoded path |
+| `iteration_id` | string | ✓ | Iteration ID, IID, or GraphQL GID |
+
+### `list_project_iterations`
+
+*📖 Read-only*
+
+List the iterations available to a project with filtering options. Use this for a collection of resources; choose the corresponding get tool when you already know the single resource to inspect. It is read-only and does not mutate GitLab data; missing resources, invalid identifiers, insufficient permission, and rate limits are returned as errors. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented.
+
+**Parameters**
+
+| Parameter | Type | Required | Description |
+|---|---|:-:|---|
+| `state` | enum (`opened` \| `upcoming` \| `current` \| `closed` \| `all`) |  | Return opened, upcoming, current, closed, or all iterations. |
+| `search` | string |  | Return only iterations with a title matching the provided string. |
+| `search_in` | array<enum (`title` \| `cadence_title`)> |  | Fields in which fuzzy search should be performed with the query given in the argument search. The available options are title and cadence_title. Default is [title]. |
+| `include_ancestors` | boolean |  | Include iterations for group and its ancestors. Defaults to true. |
+| `include_descendants` | boolean |  | Include iterations for group and its descendants. Defaults to false. |
+| `updated_before` | string |  | Return only iterations updated before the given datetime. Expected in ISO 8601 format (2019-03-15T08:00:00Z). |
+| `updated_after` | string |  | Return only iterations updated after the given datetime. Expected in ISO 8601 format (2019-03-15T08:00:00Z). |
+| `page` | number |  | Page number for pagination (default: 1) |
+| `per_page` | number |  | Number of items per page (max: 100, default: 20) |
+| `project_id` | string | ✓ | Project ID or URL-encoded path |
+
+### `list_group_iteration_cadences`
+
+*📖 Read-only*
+
+List a group's iteration cadences with filtering options. Use this for a collection of resources; choose the corresponding get tool when you already know the single resource to inspect. It is read-only and does not mutate GitLab data; missing resources, invalid identifiers, insufficient permission, and rate limits are returned as errors. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented.
+
+GitLab exposes cadences only through GraphQL (`Group.iterationCadences`), so each `id` is a cadence GID, accepted as-is by the other iteration and cadence tools. Every page of results is fetched.
+
+**Parameters**
+
+| Parameter | Type | Required | Description |
+|---|---|:-:|---|
+| `group_id` | string | ✓ | Group ID or URL-encoded path |
+| `id` | string |  | Return only the cadence with this ID or GraphQL GID (gid://gitlab/Iterations::Cadence/&lt;id&gt;). |
+| `automatic` | boolean |  | Return only cadences that do (true) or do not (false) generate upcoming iterations automatically. |
+| `active` | boolean |  | Return only active (true) or inactive (false) cadences. |
+| `duration_in_weeks` | integer |  | Return only cadences whose iterations last this many weeks. |
+| `title` | string |  | Fuzzy search by cadence title. |
+| `include_ancestor_groups` | boolean |  | Include cadences from the group's ancestor groups. |
+
+### `create_group_iteration_cadence`
+
+*✏️ Writes*
+
+Create an iteration cadence in a group. Use this for a new resource or action; choose the corresponding update or edit tool when the resource already exists. It changes remote GitLab state and requires the necessary project or group permission; GitLab returns validation, conflict, permission, or rate-limit errors instead of silently applying an invalid request. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented.
+
+Calls GraphQL `iterationCadenceCreate`, where `automatic` and `active` are required.
+
+**Parameters**
+
+| Parameter | Type | Required | Description |
+|---|---|:-:|---|
+| `group_id` | string | ✓ | Group ID or URL-encoded path |
+| `automatic` | boolean | ✓ | Whether the cadence generates upcoming iterations automatically |
+| `active` | boolean | ✓ | Whether the cadence is active |
+| `title` | string |  | Cadence title |
+| `description` | string |  | Cadence description. Maximum length is 5000 characters. |
+| `duration_in_weeks` | integer |  | Duration in weeks of the iterations within the cadence |
+| `iterations_in_advance` | integer |  | Number of future iterations to schedule in addition to the current one |
+| `start_date` | string |  | Automation start date, as a date (YYYY-MM-DD) or ISO 8601 timestamp |
+| `roll_over` | boolean |  | Whether unfinished issues roll over to the next iteration |
+
+### `update_group_iteration_cadence`
+
+*✏️ Writes*
+
+Update an iteration cadence's title, description, schedule, or automation. Use this for an existing resource; choose the corresponding create tool for a new resource and a note tool for discussion-only text. It changes remote GitLab state and requires the necessary project or group permission; GitLab returns validation, conflict, permission, or rate-limit errors instead of silently applying an invalid request. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented.
+
+Calls GraphQL `iterationCadenceUpdate` with only the fields you pass.
+
+**Parameters**
+
+| Parameter | Type | Required | Description |
+|---|---|:-:|---|
+| `iteration_cadence_id` | string | ✓ | Iteration cadence ID or GraphQL GID (gid://gitlab/Iterations::Cadence/&lt;id&gt;) |
+| `automatic` | boolean |  | Whether the cadence generates upcoming iterations automatically |
+| `active` | boolean |  | Whether the cadence is active |
+| `title` | string |  | Cadence title |
+| `description` | string |  | Cadence description. Maximum length is 5000 characters. |
+| `duration_in_weeks` | integer |  | Duration in weeks of the iterations within the cadence |
+| `iterations_in_advance` | integer |  | Number of future iterations to schedule in addition to the current one |
+| `start_date` | string |  | Automation start date, as a date (YYYY-MM-DD) or ISO 8601 timestamp |
+| `roll_over` | boolean |  | Whether unfinished issues roll over to the next iteration |
+
+### `delete_group_iteration_cadence`
+
+*✏️ Writes*
+
+Delete an iteration cadence. Use this only after verifying the target; choose a get or list tool first when you need to inspect state without changing it. It changes or removes remote GitLab data and may be irreversible; it requires the necessary project or group permission and returns validation, conflict, permission, or rate-limit errors. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented.
+
+**Parameters**
+
+| Parameter | Type | Required | Description |
+|---|---|:-:|---|
+| `iteration_cadence_id` | string | ✓ | Iteration cadence ID or GraphQL GID (gid://gitlab/Iterations::Cadence/&lt;id&gt;) |
 
 ### `health_check`
 

@@ -34,7 +34,7 @@ const TOOLSET_TOOL_COUNTS: Record<string, number> = {
   issues: 24,
   repositories: 7,
   branches: 15,
-  projects: 13,
+  projects: 20,
   labels: 5,
   ci: 4,
   pipelines: 56,
@@ -111,6 +111,13 @@ const TOOLSET_SAMPLE_TOOLS: Record<string, string[]> = {
     "list_group_iterations",
     "get_group_iteration",
     "update_group_iteration",
+    "create_group_iteration",
+    "delete_group_iteration",
+    "list_project_iterations",
+    "list_group_iteration_cadences",
+    "create_group_iteration_cadence",
+    "update_group_iteration_cadence",
+    "delete_group_iteration_cadence",
   ],
   labels: ["list_labels", "create_label"],
   ci: ["validate_ci_lint", "validate_project_ci_lint", "list_ci_catalog_resources", "get_ci_catalog_resource"],
@@ -481,9 +488,25 @@ describe("Toolset Filtering", { concurrency: 1 }, () => {
 
     after(() => cleanupServers([server]));
 
-    test("keeps get_group_iteration and excludes update_group_iteration", () => {
-      assert.ok(tools.includes("get_group_iteration"));
-      assert.ok(!tools.includes("update_group_iteration"));
+    test("keeps the iteration read tools and excludes the iteration write tools", () => {
+      for (const name of [
+        "list_group_iterations",
+        "get_group_iteration",
+        "list_project_iterations",
+        "list_group_iteration_cadences",
+      ]) {
+        assert.ok(tools.includes(name), `${name} should stay in read-only mode`);
+      }
+      for (const name of [
+        "update_group_iteration",
+        "create_group_iteration",
+        "delete_group_iteration",
+        "create_group_iteration_cadence",
+        "update_group_iteration_cadence",
+        "delete_group_iteration_cadence",
+      ]) {
+        assert.ok(!tools.includes(name), `${name} should be hidden in read-only mode`);
+      }
     });
   });
 
