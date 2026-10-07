@@ -2228,13 +2228,6 @@ if (
   process.exit(1);
 }
 
-/**
- * Utility function for handling GitLab API errors
- * API 에러 처리를 위한 유틸리티 함수 (Utility function for handling API errors)
- *
- * @param {Response} response - The response from GitLab API
- * @throws {Error} Throws an error with response details if the request failed
- */
 class GitLabApiError extends Error {
   constructor(message: string) {
     super(message);
@@ -2242,6 +2235,13 @@ class GitLabApiError extends Error {
   }
 }
 
+/**
+ * Utility function for handling GitLab API errors
+ * API 에러 처리를 위한 유틸리티 함수 (Utility function for handling API errors)
+ *
+ * @param {Response} response - The response from GitLab API
+ * @throws {Error} Throws an error with response details if the request failed
+ */
 async function handleGitLabError(response: UndiciResponse): Promise<void> {
   if (!response.ok) {
     const errorBody = await response.text();

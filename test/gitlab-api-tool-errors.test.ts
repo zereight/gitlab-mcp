@@ -64,7 +64,6 @@ async function startServer(t: TestContext) {
     },
   });
   transport.stderr?.on("data", () => undefined);
-  await client.connect(transport);
 
   t.after(async () => {
     try {
@@ -74,6 +73,8 @@ async function startServer(t: TestContext) {
       await new Promise<void>(resolve => api.close(() => resolve()));
     }
   });
+
+  await client.connect(transport);
 
   return client;
 }
