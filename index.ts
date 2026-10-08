@@ -732,7 +732,7 @@ const MCP_PROMPTS = [
       `Review merge request !${args.merge_request_iid ?? "<iid>"} in project ${args.project_id ?? "<project_id>"}:\n` +
       `1. Call list_merge_request_changed_files to get the changed file list (use excluded_file_patterns for lockfiles/dist/generated files).\n` +
       `2. Call get_merge_request_file_diff in batches of 3-5 files, prioritizing source over config/tests.\n` +
-      `3. Leave findings with create_merge_request_thread (inline, position: new_path/new_line) or create_merge_request_note (general).\n` +
+      `3. Leave inline findings with create_merge_request_thread (position: new_path/new_line). For a general note, call discover_tools with category "merge_requests", then create_merge_request_note.\n` +
       `4. Summarize the review verdict in a final top-level note.`,
   },
   {
