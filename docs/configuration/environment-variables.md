@@ -18,8 +18,23 @@ commands are never compacted.
 
 ### `GITLAB_MCP_COMPACT_RESULT_CHARS`
 
-Optional. Character threshold for compacting (default `4000`). Only used when
-`GITLAB_MCP_COMPACT_RESULTS=true`.
+Optional. Character threshold for compacting (default `4000`). Used by global
+compact mode and by `GITLAB_MCP_COMPACT_TOOLS`.
+
+### `GITLAB_MCP_COMPACT_TOOLS`
+
+Optional. Comma-separated tool names whose oversized replies are compacted even
+when `GITLAB_MCP_COMPACT_RESULTS` is off. Replies at or under the character
+threshold stay intact. Unset means no extra tools are compacted, so existing
+clients keep full payloads.
+
+Example for the large read tools:
+
+```bash
+GITLAB_MCP_COMPACT_TOOLS=get_merge_request_diffs,get_file_contents,get_pipeline_job_output
+```
+
+CLI: `--compact-tools`
 
 ## Response masking
 
@@ -577,6 +592,17 @@ Set this in offline or air-gapped environments, or when you do not want the
 server to make any outbound request beyond your GitLab instance.
 
 ## Tool Exposure and Filtering
+
+### `GITLAB_TOOL_PROFILE`
+
+Optional initial tool list. Default `full` keeps today's default toolsets.
+
+`slim` drops draft-note, emoji-reaction, label, CI catalog, and `create_group`
+tools from the initial list. It does nothing when `GITLAB_TOOLSETS` is set.
+`discover_tools` will not add the omitted tools back. Name a specific tool in
+`GITLAB_TOOLS` to keep it. Invalid values fail startup.
+
+CLI: `--tool-profile`
 
 ### `GITLAB_TOOLSETS`
 

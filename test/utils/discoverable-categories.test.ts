@@ -69,6 +69,18 @@ describe("When listing discover_tools categories", () => {
     });
   });
 
+  describe("with a slim-excluded tool omitted", () => {
+    it("should mark the category active when every other tool is listed", () => {
+      const excluded = "list_labels";
+      const listed = new Set([...toolsetTools("core")].filter(name => name !== excluded));
+      const category = listDiscoverableCategories(listed, toolName => toolName === excluded).find(
+        item => item.id === "core"
+      );
+
+      assert.equal(category?.active, true);
+    });
+  });
+
   describe("with every tool in the category already listed", () => {
     it("should mark that category active", () => {
       const tools = toolsetTools("merge_requests");
