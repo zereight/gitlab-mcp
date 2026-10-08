@@ -2607,7 +2607,7 @@ export function isToolInEnabledToolset(
 /**
  * True only when every tool in the set is already exposed.
  * Partial overlap (for example `core` sharing names with `merge_requests`) is not active.
- * `isExcluded` covers tools that can never be listed (slim profile); those do not keep the toolset inactive.
+ * `isExcluded` covers tools the caller will not list; those do not keep the toolset inactive.
  * An empty set is fully active, matching `Array.prototype.every`.
  */
 export function isToolsetFullyActive(

@@ -269,6 +269,10 @@ import {
   ALL_TOOLSET_IDS,
   type ToolsetId,
 } from "./tools/registry.js";
+import {
+  buildUnavailableToolMessage,
+  isSkippedByDiscoverActivation,
+} from "./tools/discover-activation.js";
 import { selectExposedTools } from "./tools/exposed-tools.js";
 import {
   createListedToolsCache,
@@ -766,17 +770,18 @@ const MCP_PROMPTS = [
 ] as const;
 
 /**
- * Error text for a call to a tool that tools/list omits. Points to the toolset to enable
- * only when activation would actually work: a regex-denied tool stays blocked even after
- * `discover_tools`, so it gets no hint.
+ * Error text for a call to a tool that tools/list omits.
+ * Suggests `discover_tools` only when that call would add the tool.
+ * Regex-denied tools stay blocked, and slim-excluded tools are not activated.
  */
 function buildToolUnavailableMessage(toolName: string): string {
-  const base = `Tool "${toolName}" is not available on this server`;
-  const toolset = findSmallestToolsetForTool(toolName);
-  if (toolset === undefined || GITLAB_DENIED_TOOLS_REGEX?.test(toolName)) {
-    return base;
-  }
-  return `${base}. It belongs to the "${toolset}" toolset, which is not enabled: call discover_tools with category "${toolset}" or add "${toolset}" to GITLAB_TOOLSETS.`;
+  return buildUnavailableToolMessage({
+    toolName,
+    toolset: findSmallestToolsetForTool(toolName),
+    deniedByRegex: GITLAB_DENIED_TOOLS_REGEX?.test(toolName) === true,
+    excludedBySlimProfile: isExcludedFromToolsetListing(toolName),
+    enabledByCurrentToolsets: isToolInEnabledToolset(toolName, enabledToolsets),
+  });
 }
 
 /**
@@ -996,15 +1001,20 @@ function createServer(): McpServer {
       if (toolName === "discover_tools") {
         const category = request.params.arguments?.category?.trim()?.toLowerCase();
         const currentToolNames = new Set(filteredTools.map(t => t.name));
+        const isNotActivatable = (name: string): boolean =>
+          isSkippedByDiscoverActivation({
+            allowedByPermissionMode: isToolAllowedByPermissionMode(name),
+            deniedByRegex: GITLAB_DENIED_TOOLS_REGEX?.test(name) === true,
+            hidden: hiddenToolSet.has(name),
+            excludedBySlimProfile: isExcludedFromToolsetListing(name),
+          });
 
         if (!category) {
           // Fully listed only. Partial overlap with `core` must stay inactive so
-          // clients still call discover_tools to add the missing tools. Slim-excluded
-          // tools never appear in the list, so they do not keep a toolset inactive.
-          const categories = listDiscoverableCategories(
-            currentToolNames,
-            isExcludedFromToolsetListing
-          );
+          // clients still call discover_tools to add the missing tools. Tools this
+          // handler skips (slim profile, regex, permission mode, hidden) do not
+          // keep a toolset inactive.
+          const categories = listDiscoverableCategories(currentToolNames, isNotActivatable);
           return logCompletion({
             content: [
               {
@@ -1042,7 +1052,7 @@ function createServer(): McpServer {
         const alreadyActive = isToolsetFullyActive(
           toolsetDef.tools,
           currentToolNames,
-          isExcludedFromToolsetListing
+          isNotActivatable
         );
         if (alreadyActive) {
           return logCompletion({
@@ -1060,10 +1070,7 @@ function createServer(): McpServer {
         for (const tool of allTools) {
           if (!toolsetDef.tools.has(tool.name)) continue;
           if (currentToolNames.has(tool.name)) continue;
-          if (!isToolAllowedByPermissionMode(tool.name)) continue;
-          if (GITLAB_DENIED_TOOLS_REGEX?.test(tool.name)) continue;
-          if (hiddenToolSet.has(tool.name)) continue;
-          if (isExcludedFromToolsetListing(tool.name)) continue;
+          if (isNotActivatable(tool.name)) continue;
           newTools.push(tool);
         }
 

@@ -32,6 +32,48 @@ function serverEnv(overrides: Record<string, string>): Record<string, string> {
   };
 }
 
+function toolResultText(result: {
+  content: ReadonlyArray<{ type: string; text?: string }>;
+}): string {
+  return result.content.map(block => (block.type === "text" ? (block.text ?? "") : "")).join("\n");
+}
+
+async function callText(
+  client: StdioTestClient,
+  name: string,
+  args: Record<string, unknown> = {}
+): Promise<string> {
+  try {
+    const result = await client.callTool(name, args);
+    return toolResultText(result);
+  } catch (error) {
+    return error instanceof Error ? error.message : String(error);
+  }
+}
+
+function categoryIsActive(text: string, id: string): boolean {
+  const parsed: unknown = JSON.parse(text);
+  if (typeof parsed !== "object" || parsed === null || !("categories" in parsed)) {
+    throw new Error(`discover_tools response has no categories: ${text}`);
+  }
+  const categories: unknown = parsed.categories;
+  if (!Array.isArray(categories)) {
+    throw new Error(`discover_tools categories is not a list: ${text}`);
+  }
+  for (const category of categories) {
+    if (typeof category !== "object" || category === null) {
+      continue;
+    }
+    if (!("id" in category) || !("active" in category)) {
+      continue;
+    }
+    if (category.id === id && typeof category.active === "boolean") {
+      return category.active;
+    }
+  }
+  throw new Error(`missing category ${id}: ${text}`);
+}
+
 function hasJmespathArgument(schema: unknown): boolean {
   if (typeof schema !== "object" || schema === null || !("properties" in schema)) {
     return false;
@@ -87,6 +129,58 @@ describe("When the stdio server lists tools", () => {
 
         assert.equal(slimHolds, true);
       });
+    });
+
+    it("should explain a slim-excluded core tool without suggesting discover_tools", async () => {
+      await withServer(serverEnv({ GITLAB_TOOL_PROFILE: "slim" }), async client => {
+        const text = await callText(client, "list_labels", { project_id: "1" });
+        const explained =
+          text.includes("The slim tool profile excludes it.") &&
+          text.includes("GITLAB_TOOL_PROFILE=full") &&
+          !text.includes("discover_tools");
+
+        assert.equal(explained, true, text);
+      });
+    });
+
+    it("should explain a slim-excluded opt-in tool without suggesting discover_tools", async () => {
+      await withServer(serverEnv({ GITLAB_TOOL_PROFILE: "slim" }), async client => {
+        const text = await callText(client, "create_label", { project_id: "1", name: "bug" });
+        const explained =
+          text.includes("The slim tool profile excludes it.") &&
+          text.includes("GITLAB_TOOLSETS") &&
+          !text.includes("GITLAB_TOOL_PROFILE=full") &&
+          !text.includes("discover_tools");
+
+        assert.equal(explained, true, text);
+      });
+    });
+  });
+
+  describe("with readonly mode after the labels category is activated", () => {
+    it("should mark labels active", async () => {
+      await withServer(serverEnv({ GITLAB_PERMISSION_MODE: "readonly" }), async client => {
+        await client.callTool("discover_tools", { category: "labels" });
+        const text = await callText(client, "discover_tools");
+
+        assert.equal(categoryIsActive(text, "labels"), true);
+      });
+    });
+  });
+
+  describe("with a hidden tool inside an enabled toolset", () => {
+    it("should mark the category active", async () => {
+      await withServer(
+        serverEnv({
+          GITLAB_TOOLSETS: "labels",
+          GITLAB_TOOL_POLICY_HIDDEN: "create_label",
+        }),
+        async client => {
+          const text = await callText(client, "discover_tools");
+
+          assert.equal(categoryIsActive(text, "labels"), true);
+        }
+      );
     });
   });
 });
