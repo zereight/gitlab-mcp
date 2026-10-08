@@ -79,17 +79,3 @@ export function isExcludedBySlimProfile(
   }
   return SLIM_PROFILE_EXCLUDED_TOOLS.has(toolName);
 }
-
-export function isToolsetFullyActive(
-  toolNames: Iterable<string>,
-  activeToolNames: ReadonlySet<string>,
-  isExcluded: (toolName: string) => boolean
-): boolean {
-  for (const toolName of toolNames) {
-    if (activeToolNames.has(toolName) || isExcluded(toolName)) {
-      continue;
-    }
-    return false;
-  }
-  return true;
-}

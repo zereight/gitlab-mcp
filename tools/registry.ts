@@ -1,11 +1,5 @@
 import { toJSONSchema } from "../utils/schema.js";
-import {
-  USE_GITLAB_WIKI,
-  USE_MILESTONE,
-  USE_PIPELINE,
-  SSE,
-  STREAMABLE_HTTP,
-} from "../config.js";
+import { USE_GITLAB_WIKI, USE_MILESTONE, USE_PIPELINE, SSE, STREAMABLE_HTTP } from "../config.js";
 import { getToolDescription } from "./tool-descriptions.js";
 import {
   ApproveMergeRequestSchema,
@@ -413,22 +407,26 @@ export const allTools = [
   },
   {
     name: "get_merge_request_diffs",
-    description: "Get the changes/diffs of a merge request (mergeRequestIid or branchName required)",
+    description:
+      "Get the changes/diffs of a merge request (mergeRequestIid or branchName required)",
     inputSchema: toJSONSchema(GetMergeRequestDiffsSchema),
   },
   {
     name: "list_merge_request_changed_files",
-    description: "List changed file paths in a merge request without diff content (mergeRequestIid or branchName required)",
+    description:
+      "List changed file paths in a merge request without diff content (mergeRequestIid or branchName required)",
     inputSchema: toJSONSchema(ListMergeRequestChangedFilesSchema),
   },
   {
     name: "list_merge_request_diffs",
-    description: "List merge request diffs with pagination (mergeRequestIid or branchName required)",
+    description:
+      "List merge request diffs with pagination (mergeRequestIid or branchName required)",
     inputSchema: toJSONSchema(ListMergeRequestDiffsSchema),
   },
   {
     name: "get_merge_request_file_diff",
-    description: "Get diffs for specific files from a merge request (mergeRequestIid or branchName required)",
+    description:
+      "Get diffs for specific files from a merge request (mergeRequestIid or branchName required)",
     inputSchema: toJSONSchema(GetMergeRequestFileDiffSchema),
   },
   {
@@ -560,7 +558,8 @@ export const allTools = [
   },
   {
     name: "list_merge_request_note_emoji_reactions",
-    description: "List all emoji reactions on a merge request note. Pass discussion_id for discussion thread replies.",
+    description:
+      "List all emoji reactions on a merge request note. Pass discussion_id for discussion thread replies.",
     inputSchema: toJSONSchema(ListMergeRequestNoteEmojiReactionsSchema),
   },
   {
@@ -575,12 +574,14 @@ export const allTools = [
   },
   {
     name: "create_merge_request_note_emoji_reaction",
-    description: "Add an emoji reaction to a merge request note. Pass discussion_id for discussion thread replies.",
+    description:
+      "Add an emoji reaction to a merge request note. Pass discussion_id for discussion thread replies.",
     inputSchema: toJSONSchema(CreateMergeRequestNoteEmojiReactionSchema),
   },
   {
     name: "delete_merge_request_note_emoji_reaction",
-    description: "Remove an emoji reaction from a merge request note. Pass discussion_id for discussion thread replies.",
+    description:
+      "Remove an emoji reaction from a merge request note. Pass discussion_id for discussion thread replies.",
     inputSchema: toJSONSchema(DeleteMergeRequestNoteEmojiReactionSchema),
   },
   {
@@ -601,7 +602,8 @@ export const allTools = [
   },
   {
     name: "list_issue_note_emoji_reactions",
-    description: "List all emoji reactions on an issue note. Pass discussion_id for discussion thread replies.",
+    description:
+      "List all emoji reactions on an issue note. Pass discussion_id for discussion thread replies.",
     inputSchema: toJSONSchema(ListIssueNoteEmojiReactionsSchema),
   },
   {
@@ -616,12 +618,14 @@ export const allTools = [
   },
   {
     name: "create_issue_note_emoji_reaction",
-    description: "Add an emoji reaction to an issue note. Pass discussion_id for discussion thread replies.",
+    description:
+      "Add an emoji reaction to an issue note. Pass discussion_id for discussion thread replies.",
     inputSchema: toJSONSchema(CreateIssueNoteEmojiReactionSchema),
   },
   {
     name: "delete_issue_note_emoji_reaction",
-    description: "Remove an emoji reaction from an issue note. Pass discussion_id for discussion thread replies.",
+    description:
+      "Remove an emoji reaction from an issue note. Pass discussion_id for discussion thread replies.",
     inputSchema: toJSONSchema(DeleteIssueNoteEmojiReactionSchema),
   },
   {
@@ -637,7 +641,7 @@ export const allTools = [
   {
     name: "get_issue",
     description:
-      "Get details of a specific issue. Returns a slim milestone by default; set full_response=true for the complete milestone object",
+      "Get details of a specific issue. Returns the issue with a slim nested milestone by default; set full_response=true for the complete milestone object",
     inputSchema: toJSONSchema(GetIssueSchema),
   },
   {
@@ -701,17 +705,20 @@ export const allTools = [
   },
   {
     name: "list_namespaces",
-    description: "List all namespaces (users and groups) available to the current user. Filter by kind='group' for groups only.",
+    description:
+      "List all namespaces (users and groups) available to the current user. Filter by kind='group' for groups only.",
     inputSchema: toJSONSchema(ListNamespacesSchema),
   },
   {
     name: "get_namespace",
-    description: "Get details of a namespace (user or group) by ID or path. Groups are namespaces with kind='group'.",
+    description:
+      "Get details of a namespace (user or group) by ID or path. Groups are namespaces with kind='group'.",
     inputSchema: toJSONSchema(GetNamespaceSchema),
   },
   {
     name: "verify_namespace",
-    description: "Verify if a namespace path exists. Use parent_id to scope the check to a specific parent namespace — required for nested namespaces where the same path may exist under different parents.",
+    description:
+      "Verify if a namespace path exists. Use parent_id to scope the check to a specific parent namespace — required for nested namespaces where the same path may exist under different parents.",
     inputSchema: toJSONSchema(VerifyNamespaceSchema),
   },
   {
@@ -726,7 +733,8 @@ export const allTools = [
   },
   {
     name: "update_project",
-    description: "Update project settings such as description, visibility, default branch, and feature access levels",
+    description:
+      "Update project settings such as description, visibility, default branch, and feature access levels",
     inputSchema: toJSONSchema(UpdateProjectSchema),
   },
   {
@@ -839,10 +847,27 @@ export const allTools = [
     description: "Get variables configured for a pipeline",
     inputSchema: toJSONSchema(GetPipelineVariablesSchema),
   },
-  { name: "get_pipeline_test_report", description: "Get pipeline test report", inputSchema: toJSONSchema(PipelineReportSchema) },
-  { name: "get_pipeline_test_report_summary", description: "Get pipeline test report summary", inputSchema: toJSONSchema(PipelineReportSchema) },
-  { name: "delete_pipeline", description: "Delete a pipeline. Requires the project Owner role, cannot be undone, and does not automatically delete child pipelines.", inputSchema: toJSONSchema(DeletePipelineSchema) },
-  { name: "update_pipeline_metadata", description: "Update pipeline metadata", inputSchema: toJSONSchema(UpdatePipelineMetadataSchema) },
+  {
+    name: "get_pipeline_test_report",
+    description: "Get pipeline test report",
+    inputSchema: toJSONSchema(PipelineReportSchema),
+  },
+  {
+    name: "get_pipeline_test_report_summary",
+    description: "Get pipeline test report summary",
+    inputSchema: toJSONSchema(PipelineReportSchema),
+  },
+  {
+    name: "delete_pipeline",
+    description:
+      "Delete a pipeline. Requires the project Owner role, cannot be undone, and does not automatically delete child pipelines.",
+    inputSchema: toJSONSchema(DeletePipelineSchema),
+  },
+  {
+    name: "update_pipeline_metadata",
+    description: "Update pipeline metadata",
+    inputSchema: toJSONSchema(UpdatePipelineMetadataSchema),
+  },
   {
     name: "list_deployments",
     description: "List deployments with filtering options",
@@ -850,14 +875,35 @@ export const allTools = [
   },
   {
     name: "get_deployment",
-    description: "Get deployment details, including approval_summary, approvals, and pending_approval_count when GitLab provides them",
+    description:
+      "Get deployment details, including approval_summary, approvals, and pending_approval_count when GitLab provides them",
     inputSchema: toJSONSchema(GetDeploymentSchema),
   },
-  { name: "create_deployment", description: "Create a deployment", inputSchema: toJSONSchema(CreateDeploymentSchema) },
-  { name: "update_deployment", description: "Update a deployment status", inputSchema: toJSONSchema(UpdateDeploymentSchema) },
-  { name: "delete_deployment", description: "Delete a deployment", inputSchema: toJSONSchema(GetDeploymentSchema) },
-  { name: "list_deployment_merge_requests", description: "List merge requests shipped with a deployment", inputSchema: toJSONSchema(ListDeploymentMergeRequestsSchema) },
-  { name: "approve_deployment", description: "Approve or reject a protected-environment deployment", inputSchema: toJSONSchema(DeploymentApprovalSchema) },
+  {
+    name: "create_deployment",
+    description: "Create a deployment",
+    inputSchema: toJSONSchema(CreateDeploymentSchema),
+  },
+  {
+    name: "update_deployment",
+    description: "Update a deployment status",
+    inputSchema: toJSONSchema(UpdateDeploymentSchema),
+  },
+  {
+    name: "delete_deployment",
+    description: "Delete a deployment",
+    inputSchema: toJSONSchema(GetDeploymentSchema),
+  },
+  {
+    name: "list_deployment_merge_requests",
+    description: "List merge requests shipped with a deployment",
+    inputSchema: toJSONSchema(ListDeploymentMergeRequestsSchema),
+  },
+  {
+    name: "approve_deployment",
+    description: "Approve or reject a protected-environment deployment",
+    inputSchema: toJSONSchema(DeploymentApprovalSchema),
+  },
   {
     name: "list_environments",
     description: "List environments in a project",
@@ -868,17 +914,63 @@ export const allTools = [
     description: "Get details of a specific environment",
     inputSchema: toJSONSchema(GetEnvironmentSchema),
   },
-  { name: "update_environment", description: "Update an environment", inputSchema: toJSONSchema(UpdateEnvironmentSchema) },
-  { name: "delete_environment", description: "Delete a stopped environment", inputSchema: toJSONSchema(GetEnvironmentSchema) },
-  { name: "stop_environment", description: "Stop an environment", inputSchema: toJSONSchema(StopEnvironmentSchema) },
-  { name: "stop_stale_environments", description: "Stop eligible stale environments; protected environments are excluded and environments are stopped, not deleted", inputSchema: toJSONSchema(StopStaleEnvironmentsSchema) },
-  { name: "delete_review_app_environments", description: "Schedule deletion of stopped review-app environments one week later; dry_run defaults to true and actual scheduling requires dry_run=false", inputSchema: toJSONSchema(DeleteReviewAppEnvironmentsSchema) },
-  { name: "list_pipeline_triggers", description: "List project pipeline trigger tokens", inputSchema: toJSONSchema(ListPipelineTriggersSchema) },
-  { name: "get_pipeline_trigger", description: "Get a project pipeline trigger", inputSchema: toJSONSchema(PipelineTriggerIdSchema) },
-  { name: "create_pipeline_trigger", description: "Create a project pipeline trigger", inputSchema: toJSONSchema(CreatePipelineTriggerSchema) },
-  { name: "update_pipeline_trigger", description: "Update a project pipeline trigger", inputSchema: toJSONSchema(UpdatePipelineTriggerSchema) },
-  { name: "delete_pipeline_trigger", description: "Delete a project pipeline trigger", inputSchema: toJSONSchema(PipelineTriggerIdSchema) },
-  { name: "trigger_pipeline", description: "Trigger a pipeline with a pipeline trigger token", inputSchema: toJSONSchema(TriggerPipelineSchema) },
+  {
+    name: "update_environment",
+    description: "Update an environment",
+    inputSchema: toJSONSchema(UpdateEnvironmentSchema),
+  },
+  {
+    name: "delete_environment",
+    description: "Delete a stopped environment",
+    inputSchema: toJSONSchema(GetEnvironmentSchema),
+  },
+  {
+    name: "stop_environment",
+    description: "Stop an environment",
+    inputSchema: toJSONSchema(StopEnvironmentSchema),
+  },
+  {
+    name: "stop_stale_environments",
+    description:
+      "Stop eligible stale environments; protected environments are excluded and environments are stopped, not deleted",
+    inputSchema: toJSONSchema(StopStaleEnvironmentsSchema),
+  },
+  {
+    name: "delete_review_app_environments",
+    description:
+      "Schedule deletion of stopped review-app environments one week later; dry_run defaults to true and actual scheduling requires dry_run=false",
+    inputSchema: toJSONSchema(DeleteReviewAppEnvironmentsSchema),
+  },
+  {
+    name: "list_pipeline_triggers",
+    description: "List project pipeline trigger tokens",
+    inputSchema: toJSONSchema(ListPipelineTriggersSchema),
+  },
+  {
+    name: "get_pipeline_trigger",
+    description: "Get a project pipeline trigger",
+    inputSchema: toJSONSchema(PipelineTriggerIdSchema),
+  },
+  {
+    name: "create_pipeline_trigger",
+    description: "Create a project pipeline trigger",
+    inputSchema: toJSONSchema(CreatePipelineTriggerSchema),
+  },
+  {
+    name: "update_pipeline_trigger",
+    description: "Update a project pipeline trigger",
+    inputSchema: toJSONSchema(UpdatePipelineTriggerSchema),
+  },
+  {
+    name: "delete_pipeline_trigger",
+    description: "Delete a project pipeline trigger",
+    inputSchema: toJSONSchema(PipelineTriggerIdSchema),
+  },
+  {
+    name: "trigger_pipeline",
+    description: "Trigger a pipeline with a pipeline trigger token",
+    inputSchema: toJSONSchema(TriggerPipelineSchema),
+  },
   {
     name: "list_pipeline_jobs",
     description: "List all jobs in a specific pipeline",
@@ -916,7 +1008,8 @@ export const allTools = [
   },
   {
     name: "get_ci_catalog_resource",
-    description: "Get details for a GitLab CI/CD Catalog resource, including versions and components",
+    description:
+      "Get details for a GitLab CI/CD Catalog resource, including versions and components",
     inputSchema: toJSONSchema(GetCiCatalogResourceSchema),
   },
   {
@@ -1015,9 +1108,21 @@ export const allTools = [
     description: "Cancel a running pipeline job",
     inputSchema: toJSONSchema(CancelPipelineJobSchema),
   },
-  { name: "erase_pipeline_job", description: "Erase a pipeline job log and artifacts", inputSchema: toJSONSchema(ErasePipelineJobSchema) },
-  { name: "wait_for_pipeline", description: "Wait for a pipeline to reach a terminal status", inputSchema: toJSONSchema(WaitForPipelineSchema) },
-  { name: "wait_for_job", description: "Wait for a job to reach a terminal status", inputSchema: toJSONSchema(WaitForPipelineJobSchema) },
+  {
+    name: "erase_pipeline_job",
+    description: "Erase a pipeline job log and artifacts",
+    inputSchema: toJSONSchema(ErasePipelineJobSchema),
+  },
+  {
+    name: "wait_for_pipeline",
+    description: "Wait for a pipeline to reach a terminal status",
+    inputSchema: toJSONSchema(WaitForPipelineSchema),
+  },
+  {
+    name: "wait_for_job",
+    description: "Wait for a job to reach a terminal status",
+    inputSchema: toJSONSchema(WaitForPipelineJobSchema),
+  },
   {
     name: "list_job_artifacts",
     description: "List artifact files in a job's archive",
@@ -1039,7 +1144,8 @@ export const allTools = [
   },
   {
     name: "list_merge_requests",
-    description: "List merge requests (without project_id: user's MRs; with project_id: project MRs)",
+    description:
+      "List merge requests (without project_id: user's MRs; with project_id: project MRs)",
     inputSchema: toJSONSchema(ListMergeRequestsSchema),
   },
   {
@@ -1164,7 +1270,8 @@ export const allTools = [
   },
   {
     name: "get_file_blame",
-    description: "Get git blame for a file at a given ref. Each entry maps a contiguous range of source lines to the commit that last changed them (id, author, authored_date, message). Use range_start/range_end to limit blame to specific lines.",
+    description:
+      "Get git blame for a file at a given ref. Each entry maps a contiguous range of source lines to the commit that last changed them (id, author, authored_date, message). Use range_start/range_end to limit blame to specific lines.",
     inputSchema: toJSONSchema(GetFileBlameSchema),
   },
   {
@@ -1326,7 +1433,8 @@ export const allTools = [
   },
   {
     name: "update_work_item",
-    description: "Update a work item (title, description, labels, assignees, state, parent, custom fields, etc.)",
+    description:
+      "Update a work item (title, description, labels, assignees, state, parent, custom fields, etc.)",
     inputSchema: toJSONSchema(UpdateWorkItemSchema),
   },
   {
@@ -1387,7 +1495,8 @@ export const allTools = [
   },
   {
     name: "delete_work_item_note_emoji_reaction",
-    description: "Remove an emoji reaction from a work item note (comment, thread, or thread reply)",
+    description:
+      "Remove an emoji reaction from a work item note (comment, thread, or thread reply)",
     inputSchema: toJSONSchema(DeleteWorkItemNoteEmojiReactionSchema),
   },
   // --- Incident timeline event tools ---
@@ -1505,7 +1614,8 @@ export const allTools = [
   },
   {
     name: "update_dependency_proxy_settings",
-    description: "Update dependency proxy settings for a group (enable/disable, credentials for authenticated Docker Hub pulls)",
+    description:
+      "Update dependency proxy settings for a group (enable/disable, credentials for authenticated Docker Hub pulls)",
     inputSchema: toJSONSchema(UpdateDependencyProxySettingsSchema),
   },
   {
@@ -1521,7 +1631,8 @@ export const allTools = [
   // --- Vulnerability tools ---
   {
     name: "list_project_vulnerabilities",
-    description: "List vulnerabilities for a project with optional state, severity, and report type filters (GraphQL-backed, cursor pagination)",
+    description:
+      "List vulnerabilities for a project with optional state, severity, and report type filters (GraphQL-backed, cursor pagination)",
     inputSchema: toJSONSchema(ListProjectVulnerabilitiesSchema),
   },
   {
@@ -1531,7 +1642,8 @@ export const allTools = [
   },
   {
     name: "dismiss_vulnerability",
-    description: "Dismiss a vulnerability with a reason (acceptable_risk, false_positive, used_in_tests, mitigating_control, not_applicable) and optional comment",
+    description:
+      "Dismiss a vulnerability with a reason (acceptable_risk, false_positive, used_in_tests, mitigating_control, not_applicable) and optional comment",
     inputSchema: toJSONSchema(DismissVulnerabilitySchema),
   },
   {
@@ -1721,6 +1833,14 @@ export const readOnlyTools = new Set([
   "orbit_get_status",
   "orbit_list_tools",
 ]);
+
+// Stays in readOnlyTools so readonly mode can still run queries, but mutations
+// are allowed in other permission modes and rejected only at call time.
+const MIXED_ACCESS_TOOLS = new Set(["execute_graphql"]);
+
+export function advertisesReadOnly(toolName: string): boolean {
+  return readOnlyTools.has(toolName) && !MIXED_ACCESS_TOOLS.has(toolName);
+}
 
 // Define which tools are destructive (data loss potential)
 export const destructiveTools = new Set([
@@ -1916,6 +2036,7 @@ export const pipelineToolNames = new Set([
 // --- Toolset definitions ---
 
 export type ToolsetId =
+  | "core"
   | "merge_requests"
   | "issues"
   | "repositories"
@@ -1947,8 +2068,52 @@ export interface ToolsetDefinition {
 
 export const TOOLSET_DEFINITIONS: readonly ToolsetDefinition[] = [
   {
-    id: "merge_requests",
+    id: "core",
     isDefault: true,
+    tools: new Set([
+      "list_merge_requests",
+      "get_merge_request",
+      "get_merge_request_approval_state",
+      "list_merge_request_changed_files",
+      "get_merge_request_file_diff",
+      "list_merge_request_diffs",
+      "get_merge_request_diffs",
+      "mr_discussions",
+      "get_merge_request_discussion",
+      "get_merge_request_note",
+      "get_merge_request_notes",
+      "create_merge_request",
+      "create_merge_request_thread",
+      "resolve_merge_request_thread",
+      "update_merge_request",
+      "list_issues",
+      "my_issues",
+      "get_issue",
+      "create_issue",
+      "update_issue",
+      "create_issue_note",
+      "list_issue_discussions",
+      "update_issue_description_patch",
+      "get_file_contents",
+      "get_repository_tree",
+      "search_repositories",
+      "get_branch",
+      "list_branches",
+      "list_commits",
+      "get_commit",
+      "get_commit_diff",
+      "get_file_blame",
+      "get_project",
+      "list_projects",
+      "list_project_members",
+      "list_labels",
+      "whoami",
+      "health_check",
+    ]),
+  },
+  {
+    id: "merge_requests",
+    isDefault: false,
     tools: new Set([
       "merge_merge_request",
       "approve_merge_request",
@@ -1999,7 +2164,7 @@ export const TOOLSET_DEFINITIONS: readonly ToolsetDefinition[] = [
   },
   {
     id: "issues",
-    isDefault: true,
+    isDefault: false,
     tools: new Set([
       "create_issue",
       "list_issues",
@@ -2029,7 +2194,7 @@ export const TOOLSET_DEFINITIONS: readonly ToolsetDefinition[] = [
   },
   {
     id: "repositories",
-    isDefault: true,
+    isDefault: false,
     tools: new Set([
       "search_repositories",
       "create_repository",
@@ -2042,7 +2207,7 @@ export const TOOLSET_DEFINITIONS: readonly ToolsetDefinition[] = [
   },
   {
     id: "branches",
-    isDefault: true,
+    isDefault: false,
     tools: new Set([
       "create_branch",
       "get_branch",
@@ -2063,7 +2228,7 @@ export const TOOLSET_DEFINITIONS: readonly ToolsetDefinition[] = [
   },
   {
     id: "projects",
-    isDefault: true,
+    isDefault: false,
     tools: new Set([
       "get_project",
       "list_projects",
@@ -2080,18 +2245,12 @@ export const TOOLSET_DEFINITIONS: readonly ToolsetDefinition[] = [
   },
   {
     id: "labels",
-    isDefault: true,
-    tools: new Set([
-      "list_labels",
-      "get_label",
-      "create_label",
-      "update_label",
-      "delete_label",
-    ]),
+    isDefault: false,
+    tools: new Set(["list_labels", "get_label", "create_label", "update_label", "delete_label"]),
   },
   {
     id: "ci",
-    isDefault: true,
+    isDefault: false,
     tools: new Set([
       "validate_ci_lint",
       "validate_project_ci_lint",
@@ -2101,7 +2260,7 @@ export const TOOLSET_DEFINITIONS: readonly ToolsetDefinition[] = [
   },
   {
     id: "groups",
-    isDefault: true,
+    isDefault: false,
     tools: new Set(["create_group"]),
   },
   {
@@ -2221,13 +2380,7 @@ export const TOOLSET_DEFINITIONS: readonly ToolsetDefinition[] = [
   {
     id: "tags",
     isDefault: false,
-    tools: new Set([
-      "list_tags",
-      "get_tag",
-      "create_tag",
-      "delete_tag",
-      "get_tag_signature",
-    ]),
+    tools: new Set(["list_tags", "get_tag", "create_tag", "delete_tag", "get_tag_signature"]),
   },
   {
     id: "snippets",
@@ -2242,7 +2395,7 @@ export const TOOLSET_DEFINITIONS: readonly ToolsetDefinition[] = [
   },
   {
     id: "users",
-    isDefault: true,
+    isDefault: false,
     tools: new Set([
       "get_users",
       "get_user",
@@ -2337,16 +2490,16 @@ export const TOOLSET_DEFINITIONS: readonly ToolsetDefinition[] = [
   },
 ] as const;
 
-// Derived lookup: tool name → toolset ID
-export const TOOLSET_BY_TOOL_NAME = new Map<string, ToolsetId>();
+// Derived lookup: tool name → toolset IDs. Most tools belong to one category.
+// The default `core` toolset intentionally overlaps with the full opt-in
+// categories so users get a small starter surface without losing the ability
+// to enable complete categories later.
+export const TOOLSETS_BY_TOOL_NAME = new Map<string, Set<ToolsetId>>();
 for (const def of TOOLSET_DEFINITIONS) {
   for (const tool of def.tools) {
-    if (TOOLSET_BY_TOOL_NAME.has(tool)) {
-      console.warn(
-        `Tool "${tool}" is defined in multiple toolsets: "${TOOLSET_BY_TOOL_NAME.get(tool)}" and "${def.id}"`
-      );
-    }
-    TOOLSET_BY_TOOL_NAME.set(tool, def.id);
+    const toolsets = TOOLSETS_BY_TOOL_NAME.get(tool) ?? new Set<ToolsetId>();
+    toolsets.add(def.id);
+    TOOLSETS_BY_TOOL_NAME.set(tool, toolsets);
   }
 }
 
@@ -2354,9 +2507,20 @@ export const DEFAULT_TOOLSET_IDS: ReadonlySet<ToolsetId> = new Set(
   TOOLSET_DEFINITIONS.filter(d => d.isDefault).map(d => d.id)
 );
 
-export const ALL_TOOLSET_IDS: ReadonlySet<ToolsetId> = new Set(
-  TOOLSET_DEFINITIONS.map(d => d.id)
-);
+export const ALL_TOOLSET_IDS: ReadonlySet<ToolsetId> = new Set(TOOLSET_DEFINITIONS.map(d => d.id));
+
+/**
+ * Smallest toolset containing the tool, i.e. the cheapest category to activate for it.
+ * Returns undefined for tools outside every toolset (e.g. `execute_graphql`) and unknown names.
+ */
+export function findSmallestToolsetForTool(toolName: string): ToolsetId | undefined {
+  const candidates = TOOLSET_DEFINITIONS.filter(d => d.tools.has(toolName));
+  const smallest = candidates.reduce<ToolsetDefinition | undefined>(
+    (best, d) => (best === undefined || d.tools.size < best.tools.size ? d : best),
+    undefined
+  );
+  return smallest?.id;
+}
 
 // Update discover_tools description with all known categories (must be after TOOLSET_DEFINITIONS)
 const discoverTool = allTools.find(t => t.name === "discover_tools");
@@ -2431,8 +2595,51 @@ export function isToolInEnabledToolset(
   toolName: string,
   enabledToolsets: ReadonlySet<ToolsetId>
 ): boolean {
-  const toolsetId = TOOLSET_BY_TOOL_NAME.get(toolName);
+  const toolsetIds = TOOLSETS_BY_TOOL_NAME.get(toolName);
   // Tools not in any toolset (e.g. execute_graphql) are excluded by default
-  if (toolsetId === undefined) return false;
-  return enabledToolsets.has(toolsetId);
+  if (toolsetIds === undefined) return false;
+  for (const toolsetId of toolsetIds) {
+    if (enabledToolsets.has(toolsetId)) return true;
+  }
+  return false;
+}
+
+/**
+ * True only when every tool in the set is already exposed.
+ * Partial overlap (for example `core` sharing names with `merge_requests`) is not active.
+ * `isExcluded` covers tools the caller will not list; those do not keep the toolset inactive.
+ * An empty set is fully active, matching `Array.prototype.every`.
+ */
+export function isToolsetFullyActive(
+  tools: Iterable<string>,
+  currentToolNames: ReadonlySet<string>,
+  isExcluded?: (toolName: string) => boolean
+): boolean {
+  for (const toolName of tools) {
+    if (currentToolNames.has(toolName) || isExcluded?.(toolName)) {
+      continue;
+    }
+    return false;
+  }
+  return true;
+}
+
+export interface DiscoverableCategory {
+  readonly id: ToolsetId;
+  readonly toolCount: number;
+  readonly active: boolean;
+  readonly isDefault: boolean;
+}
+
+/** Category listing returned by `discover_tools` when no category argument is given. */
+export function listDiscoverableCategories(
+  currentToolNames: ReadonlySet<string>,
+  isExcluded?: (toolName: string) => boolean
+): DiscoverableCategory[] {
+  return TOOLSET_DEFINITIONS.map(def => ({
+    id: def.id,
+    toolCount: def.tools.size,
+    active: isToolsetFullyActive(def.tools, currentToolNames, isExcluded),
+    isDefault: def.isDefault,
+  }));
 }

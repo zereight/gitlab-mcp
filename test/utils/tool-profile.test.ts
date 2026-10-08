@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
+import { isToolsetFullyActive } from "../../tools/registry.js";
 import {
   isExcludedBySlimProfile,
-  isToolsetFullyActive,
   parseToolProfile,
   shouldApplySlimToolProfile,
   SLIM_PROFILE_EXCLUDED_TOOLS,

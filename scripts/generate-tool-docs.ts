@@ -11,7 +11,13 @@ import { writeFileSync, mkdirSync, readdirSync, unlinkSync, statSync } from "nod
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { allTools, readOnlyTools, TOOLSET_DEFINITIONS, type ToolsetId } from "../tools/registry.js";
+import {
+  advertisesReadOnly,
+  allTools,
+  readOnlyTools,
+  TOOLSET_DEFINITIONS,
+  type ToolsetId,
+} from "../tools/registry.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = join(__dirname, "..");
@@ -37,8 +43,21 @@ function isDefaultToolset(id: ToolsetId): boolean {
   return TOOLSET_DEFINITIONS.find(d => d.id === id)?.isDefault ?? false;
 }
 
+/** Tools of this group that are already exposed by a default toolset (e.g. `core`). */
+function findDefaultOverlap(toolNames: readonly string[]): string[] {
+  const defaults = TOOLSET_DEFINITIONS.filter(d => d.isDefault);
+  return toolNames.filter(name => defaults.some(d => d.tools.has(name)));
+}
+
+function formatDefaultOverlapNote(toolNames: readonly string[]): string {
+  const overlap = findDefaultOverlap(toolNames);
+  if (overlap.length === 0) return "";
+  const list = overlap.map(name => `\`${name}\``).join(", ");
+  return ` ${overlap.length} of these tools (${list}) are already enabled by default via \`core\`; the toggle applies to the rest.`;
+}
+
 /** Returns the availability note for a toolset group, or undefined when it is on by default. */
-function computeToggleNote(id: ToolsetId): string | undefined {
+function computeToggleNote(id: ToolsetId, toolNames: readonly string[] = []): string | undefined {
   if (isDefaultToolset(id)) return undefined;
   // Synthetic group for tools not in any TOOLSET_DEFINITIONS entry.
   // discover_tools is always exposed; execute_graphql is opt-in via GITLAB_TOOLS.
@@ -47,12 +66,19 @@ function computeToggleNote(id: ToolsetId): string | undefined {
   }
   const legacy = LEGACY_TOGGLE_ENV[id];
   if (legacy) {
-    return `Opt-in. Enable via \`GITLAB_TOOLSETS=${id}\` (or \`GITLAB_TOOLSETS=all\`), or use the legacy \`${legacy}=true\` flag for backward compatibility.`;
+    return `Opt-in. Enable via \`GITLAB_TOOLSETS=${id}\` (or \`GITLAB_TOOLSETS=all\`), or use the legacy \`${legacy}=true\` flag for backward compatibility.${formatDefaultOverlapNote(toolNames)}`;
   }
-  return `Opt-in. Enable via \`GITLAB_TOOLSETS=${id}\` (or \`GITLAB_TOOLSETS=all\`), list individual tools in \`GITLAB_TOOLS=\`, or activate at runtime with the \`discover_tools\` MCP tool.`;
+  return `Opt-in. Enable via \`GITLAB_TOOLSETS=${id}\` (or \`GITLAB_TOOLSETS=all\`), list individual tools in \`GITLAB_TOOLS=\`, or activate at runtime with the \`discover_tools\` MCP tool.${formatDefaultOverlapNote(toolNames)}`;
 }
 
+const META_GROUP_ID = "meta";
+
 const GROUP_META: Record<ToolsetId, GroupMeta> = {
+  core: {
+    title: "Core",
+    blurb:
+      "Lean default starter set for common MR, issue, repository, branch, project, label, and identity workflows.",
+  },
   merge_requests: {
     title: "Merge Requests",
     blurb:
@@ -121,7 +147,8 @@ const GROUP_META: Record<ToolsetId, GroupMeta> = {
   },
   webhooks: {
     title: "Webhooks",
-    blurb: "Create, update, and delete project or group webhooks, and inspect recent webhook events.",
+    blurb:
+      "Create, update, and delete project or group webhooks, and inspect recent webhook events.",
   },
   search: {
     title: "Search",
@@ -154,6 +181,7 @@ const GROUP_META: Record<ToolsetId, GroupMeta> = {
 };
 
 const GROUP_ORDER: ToolsetId[] = [
+  "core",
   "projects",
   "repositories",
   "branches",
@@ -200,14 +228,36 @@ type JsonSchema = {
 
 // Authoritative classification — uses the `readOnlyTools` set from
 // tools/registry.ts. That set is what the server itself consults to decide
-// which tools survive `GITLAB_READ_ONLY_MODE=true`, so the badges here
-// match real runtime behavior exactly (no prefix heuristics).
-function classify(name: string): "read" | "write" {
+// which tools survive `GITLAB_PERMISSION_MODE=readonly`. `execute_graphql`
+// stays in that set so queries still work, but it can mutate in other modes,
+// so it is labeled mixed instead of read-only.
+function classify(name: string): "read" | "write" | "mixed" {
+  if (readOnlyTools.has(name) && !advertisesReadOnly(name)) {
+    return "mixed";
+  }
   return readOnlyTools.has(name) ? "read" : "write";
 }
 
 function rwBadge(name: string): string {
-  return classify(name) === "read" ? "📖 Read-only" : "✏️ Writes";
+  const kind = classify(name);
+  if (kind === "mixed") {
+    return "📖✏️ Reads and writes";
+  }
+  if (kind === "read") {
+    return "📖 Read-only";
+  }
+  return "✏️ Writes";
+}
+
+function rwMarker(name: string): string {
+  const kind = classify(name);
+  if (kind === "mixed") {
+    return "📖✏️";
+  }
+  if (kind === "read") {
+    return "📖";
+  }
+  return "✏️";
 }
 
 function describeType(prop: JsonSchemaProp): string {
@@ -267,7 +317,7 @@ function toolSection(name: string, description: string, schema: JsonSchema | und
 function buildGroupPage(id: ToolsetId, toolNames: string[]): string {
   const meta = GROUP_META[id];
   const lines: string[] = [`# ${meta.title}`, "", meta.blurb, ""];
-  const toggle = computeToggleNote(id);
+  const toggle = computeToggleNote(id, toolNames);
   if (toggle) {
     lines.push(`!!! note "Feature toggle"`);
     lines.push(`    ${toggle}`);
@@ -287,7 +337,9 @@ function buildGroupPage(id: ToolsetId, toolNames: string[]): string {
   for (const name of toolNames) {
     const tool = allTools.find(t => t.name === name);
     if (!tool) {
-      throw new Error(`Tool '${name}' referenced in toolset '${id}' but missing from allTools registry`);
+      throw new Error(
+        `Tool '${name}' referenced in toolset '${id}' but missing from allTools registry`
+      );
     }
     lines.push(toolSection(name, tool.description, tool.inputSchema as JsonSchema));
   }
@@ -298,7 +350,10 @@ function buildGroupPage(id: ToolsetId, toolNames: string[]): string {
 function buildToggleSection(groupedToolsList: Array<[ToolsetId, string[]]>): string[] {
   const grouped = groupedToolsList.filter(([id]) => GROUP_META[id]);
   const defaults = grouped.filter(([id]) => isDefaultToolset(id));
-  const optins = grouped.filter(([id]) => !isDefaultToolset(id));
+  const optins = grouped.filter(
+    ([id]) => !isDefaultToolset(id) && (id as string) !== META_GROUP_ID
+  );
+  const meta = grouped.filter(([id]) => (id as string) === META_GROUP_ID);
 
   const formatList = (items: Array<[ToolsetId, string[]]>): string =>
     items
@@ -315,11 +370,17 @@ function buildToggleSection(groupedToolsList: Array<[ToolsetId, string[]]>): str
     "|---|---|",
     `| **Default** — always exposed | ${formatList(defaults)} |`,
     `| **Opt-in** — must be enabled | ${formatList(optins)} |`,
+    ...(meta.length > 0
+      ? [
+          `| **Not a toolset** — \`discover_tools\` is always exposed; \`execute_graphql\` needs \`GITLAB_TOOLS\` | ${formatList(meta)} |`,
+        ]
+      : []),
     "",
     "**How to enable opt-in groups** (any one is sufficient):",
     "",
     "- `GITLAB_TOOLSETS=<group,…>` — comma-separated toolset IDs.",
     "- `GITLAB_TOOLSETS=all` — enables every group.",
+    "- `GITLAB_TOOLSETS=merge_requests,issues,repositories,branches,projects,labels,ci,groups,users` — restores the pre-lean default set.",
     "- `GITLAB_TOOLS=<tool,…>` — enables individual tools regardless of group.",
     "- `USE_PIPELINE=true` / `USE_MILESTONE=true` / `USE_GITLAB_WIKI=true` —" +
       " legacy single-group flags (Pipelines, Milestones, Wiki only).",
@@ -367,6 +428,7 @@ function buildIndexPage(groupedToolsList: Array<[ToolsetId, string[]]>): string 
     "| Marker | Meaning |",
     "|---|---|",
     "| 📖 | **Read-only** — fetches data, does not modify GitLab state. Safe to invoke freely. |",
+    "| 📖✏️ | **Reads and writes** — can query or mutate. `execute_graphql` stays available in readonly mode, which rejects its mutations and subscriptions. |",
     "| ✏️ | **Writes** — creates, updates, or deletes data on GitLab. Confirm intent before running. |",
     "",
     "## Browse by group",
@@ -382,7 +444,7 @@ function buildIndexPage(groupedToolsList: Array<[ToolsetId, string[]]>): string 
     lines.push("");
     lines.push(`${meta.blurb} *(${tools.length} tools)*`);
     lines.push("");
-    const toggle = computeToggleNote(id);
+    const toggle = computeToggleNote(id, tools);
     if (toggle) {
       lines.push(`> ${toggle}`);
       lines.push("");
@@ -393,7 +455,7 @@ function buildIndexPage(groupedToolsList: Array<[ToolsetId, string[]]>): string 
       const tool = allTools.find(t => t.name === name);
       if (!tool) continue;
       const desc = escapePipe(tool.description);
-      const marker = classify(name) === "read" ? "📖" : "✏️";
+      const marker = rwMarker(name);
       lines.push(`| [\`${name}\`](${slug}.md#${name}) | ${desc} | ${marker} |`);
     }
     lines.push("");

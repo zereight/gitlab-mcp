@@ -2,7 +2,6 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { selectExposedTools, type ExposedToolSelection } from "../../tools/exposed-tools.js";
 import { allTools, isToolInEnabledToolset, parseEnabledToolsets } from "../../tools/registry.js";
-import { SLIM_PROFILE_EXCLUDED_TOOLS } from "../../tools/tool-profile.js";
 
 interface FixtureTool {
   readonly name: string;
@@ -47,26 +46,24 @@ function defaultExposed(
 
 describe("When selecting the default tool list", () => {
   describe("with the full profile", () => {
-    it("should keep tools that slim would drop", () => {
+    it("should keep core tools that slim would drop", () => {
       const exposed = new Set(names(defaultExposed(false)));
-      const kept = ["list_labels", "create_group", "discover_tools"].every(name =>
-        exposed.has(name)
-      );
+      const kept = ["list_labels", "discover_tools"].every(name => exposed.has(name));
 
       assert.equal(kept, true);
     });
   });
 
   describe("with the slim profile", () => {
-    it("should drop the slim denylist and nothing else from the default list", () => {
+    it("should drop only slim-excluded tools that the default list contains", () => {
       const full = defaultExposed(false);
       const slim = defaultExposed(true);
-      const removed = full.filter(tool => !slim.some(kept => kept.name === tool.name));
+      const removed = full
+        .filter(tool => !slim.some(kept => kept.name === tool.name))
+        .map(tool => tool.name)
+        .sort();
 
-      assert.deepEqual(
-        removed.map(tool => tool.name).sort(),
-        [...SLIM_PROFILE_EXCLUDED_TOOLS].sort()
-      );
+      assert.deepEqual(removed, ["list_labels"]);
     });
   });
 

@@ -269,6 +269,7 @@ describe("Tool Policy (Proposal F)", { concurrency: 1 }, () => {
     before(async () => {
       server = await launchMcp(mockGitLabUrl, {
         GITLAB_TOOLSETS: "issues",
+        GITLAB_TOOLS: "execute_graphql",
         GITLAB_TOOL_POLICY_APPROVE: "create_issue",
       });
       mcpUrl = `http://${HOST}:${server.port ?? 0}/mcp`;
@@ -339,6 +340,16 @@ describe("Tool Policy (Proposal F)", { concurrency: 1 }, () => {
         createIssue.annotations?.readOnlyHint,
         undefined,
         "create_issue should NOT have readOnlyHint"
+      );
+    });
+
+    test("readOnlyHint absent on execute_graphql", () => {
+      const graphql = tools.find((t: any) => t.name === "execute_graphql");
+      assert.ok(graphql, "execute_graphql should be listed");
+      assert.strictEqual(
+        graphql.annotations?.readOnlyHint,
+        undefined,
+        "execute_graphql can mutate, so it must not advertise readOnlyHint"
       );
     });
 

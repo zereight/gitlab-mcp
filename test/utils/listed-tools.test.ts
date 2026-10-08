@@ -109,6 +109,21 @@ describe("When tools/list is served again", () => {
       assert.equal(calls.count, 2);
     });
   });
+
+  describe("with a tool appended before the revision changes", () => {
+    it("should include the activated tool", () => {
+      const getListedTools = createListedToolsCache((tools: readonly NamedTool[]) =>
+        tools.map(tool => ({ name: tool.name }))
+      );
+      const source: NamedTool[] = [{ name: "get_issue" }];
+      getListedTools(source, 0);
+      source.push({ name: "merge_merge_request" });
+      const listed = getListedTools(source, 1);
+      const includesActivatedTool = listed.some(tool => tool.name === "merge_merge_request");
+
+      assert.equal(includesActivatedTool, true);
+    });
+  });
 });
 
 function isRecord(value: unknown): value is Record<string, unknown> {
