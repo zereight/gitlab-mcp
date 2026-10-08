@@ -118,6 +118,7 @@ describe("list_merge_request_pipelines", () => {
       {
         GITLAB_API_URL: `${mockGitLabUrl}/api/v4`,
         GITLAB_PERSONAL_ACCESS_TOKEN: MOCK_TOKEN,
+        GITLAB_TOOLSETS: "merge_requests",
       }
     );
 

@@ -116,7 +116,7 @@ The store path is pinned by your lock file; update it with `nix flake update git
 
 The examples use `zereight-mcp-gitlab`, a less collision-prone alias for the legacy `mcp-gitlab` binary. If your MCP client cannot find it, use the absolute path from `which zereight-mcp-gitlab`.
 
-No global install? Pin `npx` to the previous stable release (the version these docs recommend), for example `npx -y @zereight/mcp-gitlab@2.1.68`. If you always want the newest release, use `npx -y @zereight/mcp-gitlab@latest` instead. The server prints a notice to stderr on startup when a newer version is available (disable with `GITLAB_DISABLE_VERSION_CHECK=true`).
+No global install? Pin `npx` to the previous stable release (the version these docs recommend), for example `npx -y @zereight/mcp-gitlab@2.1.70`. If you always want the newest release, use `npx -y @zereight/mcp-gitlab@latest` instead. The server prints a notice to stderr on startup when a newer version is available (disable with `GITLAB_DISABLE_VERSION_CHECK=true`).
 
 #### Using CLI Arguments (for clients with env var issues)
 
@@ -140,6 +140,8 @@ Some MCP clients (like GitHub Copilot CLI) have issues with environment variable
 - `--api-url` - GitLab API URL (replaces `GITLAB_API_URL`)
 - `--read-only=true` - Enable read-only mode (replaces `GITLAB_READ_ONLY_MODE`, deprecated — prefer `--permission-mode=readonly`)
 - `--permission-mode` - Permission level: `readonly`, `modify` (no delete or teardown tools), or `full` (replaces `GITLAB_PERMISSION_MODE`, default `full`)
+- `--toolsets=all` - Enable named toolsets (replaces `GITLAB_TOOLSETS`; unset uses the lean `core` default)
+- `--tools=list_issues` - Add individual tools (replaces `GITLAB_TOOLS`)
 - `--use-wiki=true` - Enable wiki API (replaces `USE_GITLAB_WIKI`, legacy — prefer `GITLAB_TOOLSETS=wiki`)
 - `--use-milestone=true` - Enable milestone API (replaces `USE_MILESTONE`, legacy — prefer `GITLAB_TOOLSETS=milestones`)
 - `--use-pipeline=true` - Enable pipeline API (replaces `USE_PIPELINE`, legacy — prefer `GITLAB_TOOLSETS=pipelines`)
@@ -150,6 +152,8 @@ Some MCP clients (like GitHub Copilot CLI) have issues with environment variable
 - `--masking-workspace-dir` - Directory used to resolve masking files (replaces `GITLAB_MASKING_WORKSPACE_DIR`)
 - `--compact-results=true` - Truncate oversized MCP tool replies and attach a CLI command for the full payload (replaces `GITLAB_MCP_COMPACT_RESULTS`; default off)
 - `--compact-result-chars` - Character threshold for compacting (replaces `GITLAB_MCP_COMPACT_RESULT_CHARS`; default `4000`)
+- `--compact-tools` - Comma-separated tool names to compact when oversized, without turning global compact on (replaces `GITLAB_MCP_COMPACT_TOOLS`)
+- `--tool-profile` - `full` (default) or `slim`. `slim` drops draft notes, emoji reactions, labels, CI catalog tools, and `create_group` from the initial list. Ignored when `GITLAB_TOOLSETS` is set (replaces `GITLAB_TOOL_PROFILE`)
 
 CLI arguments take precedence over environment variables.
 
@@ -675,7 +679,7 @@ Register the skill directory in your AI client to get optimal tool usage guidanc
 68. `delete_issue_note_emoji_reaction` - Remove an emoji reaction from an issue note. Pass discussion_id for discussion thread replies.
 69. `list_issues` - List issues (default: created by current user; use scope='all' for all)
 70. `my_issues` - List issues assigned to the authenticated user
-71. `get_issue` - Get details of a specific issue. Returns a slim milestone by default; set full_response=true for the complete milestone object
+71. `get_issue` - Get details of a specific issue. Returns the issue with a slim nested milestone by default; set full_response=true for the complete milestone object
 72. `update_issue` - Update an issue. Returns a slim confirmation by default; set full_response=true for the complete updated issue object
 73. `update_issue_description_patch` - Apply a patch (search/replace or unified diff) to an issue description. Reduces token usage by allowing small changes without sending the full description. Supports dry_run to preview changes and create_note to summarize updates.
 74. `delete_issue` - Delete an issue

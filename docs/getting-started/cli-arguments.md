@@ -19,7 +19,7 @@ Or with npm:
 npm install -g @zereight/mcp-gitlab
 ```
 
-No global install? Pin `npx` to the previous stable release and keep the server flags after it, for example `npx -y @zereight/mcp-gitlab@2.1.68 --token=...`. Use `@zereight/mcp-gitlab@latest` if you always want the newest release.
+No global install? Pin `npx` to the previous stable release and keep the server flags after it, for example `npx -y @zereight/mcp-gitlab@2.1.70 --token=...`. Use `@zereight/mcp-gitlab@latest` if you always want the newest release.
 
 ## Example config
 
@@ -43,6 +43,8 @@ No global install? Pin `npx` to the previous stable release and keep the server 
 | `--api-url`            | `GITLAB_API_URL`               | GitLab API URL (e.g., `https://gitlab.com/api/v4`). |
 | `--read-only=true`     | `GITLAB_READ_ONLY_MODE`        | Enable read-only mode (deprecated — prefer `--permission-mode=readonly`). |
 | `--permission-mode`    | `GITLAB_PERMISSION_MODE`       | `readonly`, `modify` (no delete or teardown tools), or `full`.  |
+| `--toolsets=all`       | `GITLAB_TOOLSETS`              | Enable named toolsets. Unset uses lean `core`.      |
+| `--tools=list_issues`  | `GITLAB_TOOLS`                 | Add individual tools on top of enabled toolsets.    |
 | `--use-wiki=true`      | `USE_GITLAB_WIKI`              | Enable wiki API tools.                              |
 | `--use-milestone=true` | `USE_MILESTONE`                | Enable milestone API tools.                         |
 | `--use-pipeline=true`  | `USE_PIPELINE`                 | Enable pipeline API tools.                          |
@@ -53,6 +55,8 @@ No global install? Pin `npx` to the previous stable release and keep the server 
 | `--masking-workspace-dir` | `GITLAB_MASKING_WORKSPACE_DIR` | Directory used to resolve masking files. |
 | `--compact-results=true` | `GITLAB_MCP_COMPACT_RESULTS` | Truncate oversized MCP tool replies and attach a CLI command for the full payload. Off by default. |
 | `--compact-result-chars` | `GITLAB_MCP_COMPACT_RESULT_CHARS` | Size threshold in characters before a reply is compacted (default `4000`). |
+| `--compact-tools` | `GITLAB_MCP_COMPACT_TOOLS` | Comma-separated tool names to compact when oversized, without enabling global compact mode. |
+| `--tool-profile` | `GITLAB_TOOL_PROFILE` | `full` (default) or `slim`. `slim` is ignored when `--toolsets` / `GITLAB_TOOLSETS` is set. |
 
 > **Deprecation notice:** `--read-only=true` and `GITLAB_READ_ONLY_MODE` are kept for
 > backward compatibility but will be removed in a future major version.

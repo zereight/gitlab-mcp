@@ -1,4 +1,6 @@
 import { BOOLEAN_CLI_FLAG_NAMES, nextBooleanFlagValue } from "./cli-boolean-flags.js";
+import { parseToolProfile } from "./tools/tool-profile.js";
+import { parseCompactToolAllowlist } from "./utils/compact-tool-allowlist.js";
 
 // Parse CLI arguments before anything else
 const args = process.argv.slice(2);
@@ -73,8 +75,9 @@ export const GITLAB_MASKING_WORKSPACE_DIR = getConfig(
 
 export type GitLabPermissionMode = "readonly" | "modify" | "full";
 const PERMISSION_MODES: readonly GitLabPermissionMode[] = ["readonly", "modify", "full"];
+export const GITLAB_PERMISSION_MODE_RAW = getConfig("permission-mode", "GITLAB_PERMISSION_MODE");
 export const GITLAB_PERMISSION_MODE: GitLabPermissionMode = (() => {
-  const raw = getConfig("permission-mode", "GITLAB_PERMISSION_MODE");
+  const raw = GITLAB_PERMISSION_MODE_RAW;
   if (raw !== undefined && !PERMISSION_MODES.includes(raw as GitLabPermissionMode)) {
     throw new Error(
       `Invalid GITLAB_PERMISSION_MODE: "${raw}". Expected one of: ${PERMISSION_MODES.join(", ")}`
@@ -86,9 +89,12 @@ export const GITLAB_PERMISSION_MODE: GitLabPermissionMode = (() => {
   }
   return (raw as GitLabPermissionMode | undefined) ?? "full";
 })();
-export const USE_GITLAB_WIKI = getConfig("use-wiki", "USE_GITLAB_WIKI") === "true";
-export const USE_MILESTONE = getConfig("use-milestone", "USE_MILESTONE") === "true";
-export const USE_PIPELINE = getConfig("use-pipeline", "USE_PIPELINE") === "true";
+export const USE_GITLAB_WIKI_RAW = getConfig("use-wiki", "USE_GITLAB_WIKI");
+export const USE_GITLAB_WIKI = USE_GITLAB_WIKI_RAW === "true";
+export const USE_MILESTONE_RAW = getConfig("use-milestone", "USE_MILESTONE");
+export const USE_MILESTONE = USE_MILESTONE_RAW === "true";
+export const USE_PIPELINE_RAW = getConfig("use-pipeline", "USE_PIPELINE");
+export const USE_PIPELINE = USE_PIPELINE_RAW === "true";
 export const GITLAB_DISABLE_VERSION_CHECK =
   getConfig("disable-version-check", "GITLAB_DISABLE_VERSION_CHECK") === "true";
 
@@ -98,6 +104,9 @@ export const GITLAB_DISABLE_VERSION_CHECK =
 
 export const GITLAB_TOOLSETS_RAW = getConfig("toolsets", "GITLAB_TOOLSETS");
 export const GITLAB_TOOLS_RAW = getConfig("tools", "GITLAB_TOOLS");
+export const GITLAB_TOOL_PROFILE = parseToolProfile(
+  getConfig("tool-profile", "GITLAB_TOOL_PROFILE")
+);
 
 // Tool policy: comma-separated tool names
 // approve = exposed but requires confirmation; hidden = not exposed at all
@@ -273,6 +282,9 @@ export const PORT = _intEnv("PORT", "port", _PORT_DEFAULT);
 /** When true, oversized MCP tool replies are replaced with a preview plus a CLI replay command. */
 export const GITLAB_MCP_COMPACT_RESULTS =
   getConfig("compact-results", "GITLAB_MCP_COMPACT_RESULTS") === "true";
+export const GITLAB_MCP_COMPACT_TOOL_NAMES = parseCompactToolAllowlist(
+  getConfig("compact-tools", "GITLAB_MCP_COMPACT_TOOLS")
+);
 export const GITLAB_MCP_COMPACT_RESULT_CHARS = _intEnv(
   "GITLAB_MCP_COMPACT_RESULT_CHARS",
   "compact-result-chars",

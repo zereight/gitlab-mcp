@@ -81,6 +81,7 @@ describe("update_project", () => {
         {
           GITLAB_API_URL: `${mockServer.getUrl()}/api/v4`,
           GITLAB_PERSONAL_ACCESS_TOKEN: MOCK_TOKEN,
+          GITLAB_TOOLSETS: "projects",
         }
       );
 
@@ -116,6 +117,7 @@ describe("update_project", () => {
         {
           GITLAB_API_URL: `${mockServer.getUrl()}/api/v4`,
           GITLAB_PERSONAL_ACCESS_TOKEN: MOCK_TOKEN,
+          GITLAB_TOOLSETS: "projects",
         }
       );
 
@@ -133,6 +135,7 @@ describe("update_project", () => {
           {
             GITLAB_API_URL: "https://gitlab.example.com/api/v4",
             GITLAB_PERSONAL_ACCESS_TOKEN: MOCK_TOKEN,
+            GITLAB_TOOLSETS: "projects",
           }
         ),
       /(Invalid enum value|Invalid option)/
@@ -147,6 +150,7 @@ describe("update_project", () => {
           {
             GITLAB_API_URL: "https://gitlab.example.com/api/v4",
             GITLAB_PERSONAL_ACCESS_TOKEN: MOCK_TOKEN,
+            GITLAB_TOOLSETS: "projects",
           }
         ),
       /Provide at least one project setting/

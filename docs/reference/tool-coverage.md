@@ -9,14 +9,14 @@ A tool counts as invoked when a test sends that name through MCP (`callTool` / `
 | | |
 | --- | ---: |
 | Tools | 268 |
-| Invoked | 160 |
-| Coverage | 59.7% |
+| Invoked | 162 |
+| Coverage | 60.4% |
 
 ## By toolset
 
 | Toolset | Invoked | Total | Coverage |
 | --- | ---: | ---: | ---: |
-| [Projects & Namespaces](#projects) | 6 | 11 | 54.5% |
+| [Projects & Namespaces](#projects) | 8 | 11 | 72.7% |
 | [Projects & Files](#repositories) | 6 | 7 | 85.7% |
 | [Branches & Commits](#branches) | 6 | 15 | 40.0% |
 | [Groups](#groups) | 1 | 1 | 100.0% |
@@ -48,10 +48,10 @@ A tool counts as invoked when a test sends that name through MCP (`callTool` / `
 - [x] [`list_projects`](../tools/projects.md#list_projects) — `test/client-pool-test.ts`, `test/no-proxy-integration-test.ts`, `test/test-dynamic-project-scope.ts`
 - [x] [`update_project`](../tools/projects.md#update_project) — `test/test-update-project.ts`
 - [x] [`list_project_members`](../tools/projects.md#list_project_members) — `test/test-list-project-members.ts`
-- [x] [`list_group_members`](../tools/projects.md#list_group_members) — `test/test-list-group-members.ts`
+- [x] [`list_group_members`](../tools/projects.md#list_group_members) — `test/gitlab-api-tool-errors.test.ts`, `test/test-list-group-members.ts`
 - [ ] [`list_namespaces`](../tools/projects.md#list_namespaces)
-- [ ] [`get_namespace`](../tools/projects.md#get_namespace)
-- [ ] [`verify_namespace`](../tools/projects.md#verify_namespace)
+- [x] [`get_namespace`](../tools/projects.md#get_namespace) — `test/gitlab-api-tool-errors.test.ts`
+- [x] [`verify_namespace`](../tools/projects.md#verify_namespace) — `test/gitlab-api-tool-errors.test.ts`
 - [ ] [`list_group_projects`](../tools/projects.md#list_group_projects)
 - [ ] [`list_group_iterations`](../tools/projects.md#list_group_iterations)
 - [x] [`health_check`](../tools/projects.md#health_check) — `test/test-health-check.ts`
@@ -114,7 +114,7 @@ A tool counts as invoked when a test sends that name through MCP (`callTool` / `
 - [ ] [`list_merge_request_versions`](../tools/merge-requests.md#list_merge_request_versions)
 - [ ] [`get_merge_request_version`](../tools/merge-requests.md#get_merge_request_version)
 - [ ] [`update_merge_request`](../tools/merge-requests.md#update_merge_request)
-- [x] [`create_merge_request`](../tools/merge-requests.md#create_merge_request) — `test/response-masking.test.ts`
+- [x] [`create_merge_request`](../tools/merge-requests.md#create_merge_request) — `test/gitlab-api-tool-errors.test.ts`, `test/response-masking.test.ts`
 - [x] [`list_merge_requests`](../tools/merge-requests.md#list_merge_requests) — `test/remote-auth-tests.ts`, `test/response-masking.test.ts`, `test/test-all-transport-server.ts`, `test/test-list-merge-requests.ts`, `test/test-merge-request-approvals.ts`
 - [x] [`list_group_merge_requests`](../tools/merge-requests.md#list_group_merge_requests) — `test/response-masking.test.ts`, `test/test-list-group-merge-requests.ts`
 - [ ] [`get_branch_diffs`](../tools/merge-requests.md#get_branch_diffs)
@@ -423,4 +423,4 @@ A tool counts as invoked when a test sends that name through MCP (`callTool` / `
 <a id="meta"></a>
 
 - [x] [`execute_graphql`](../tools/meta.md#execute_graphql) — `test/test-dynamic-project-scope.ts`, `test/test-permission-mode.ts`
-- [x] [`discover_tools`](../tools/meta.md#discover_tools) — `test/streamable-http-sse-stream.test.ts`, `test/test-permission-mode.ts`, `test/test-token-optimizations.ts`
+- [x] [`discover_tools`](../tools/meta.md#discover_tools) — `test/streamable-http-sse-stream.test.ts`, `test/test-permission-mode.ts`, `test/test-token-optimizations.ts`, `test/utils/tool-profile-server.test.ts`

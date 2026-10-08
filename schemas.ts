@@ -2845,7 +2845,7 @@ export const GetIssueSchema = z.object({
   project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
   issue_iid: z.coerce.string().describe("The internal ID of the project issue"),
   full_response: flexibleBooleanOptional.describe(
-    "If true, return the complete issue object including the full milestone description. Default returns a slim milestone (id, iid, title, state, web_url) to reduce token usage."
+    "If true, include the complete milestone object, including its description, on the returned issue. Default returns the issue with a slim milestone (id, iid, title, state, web_url) to reduce token usage."
   ),
 });
 

@@ -22,6 +22,7 @@ import {
   GITLAB_MASKING_POLICY_FILE,
   GITLAB_MASKING_WORKSPACE_DIR,
   GITLAB_PERMISSION_MODE,
+  GITLAB_PERMISSION_MODE_RAW,
   GITLAB_TOOLSETS_RAW,
   GITLAB_TOOLS_RAW,
   HOST,
@@ -43,9 +44,12 @@ import {
   STREAMABLE_HTTP,
   MCP_TRUST_PROXY,
   USE_GITLAB_WIKI,
+  USE_GITLAB_WIKI_RAW,
   USE_MILESTONE,
+  USE_MILESTONE_RAW,
   USE_OAUTH,
   USE_PIPELINE,
+  USE_PIPELINE_RAW,
   GITLAB_TOOL_POLICY_APPROVE_RAW,
   GITLAB_TOOL_POLICY_HIDDEN_RAW,
   GITLAB_OAUTH_ALLOWED_GROUPS_RAW,
@@ -53,7 +57,10 @@ import {
   GITLAB_OAUTH_ALLOWED_GROUPS,
   GITLAB_MCP_COMPACT_RESULTS,
   GITLAB_MCP_COMPACT_RESULT_CHARS,
+  GITLAB_MCP_COMPACT_TOOL_NAMES,
+  GITLAB_TOOL_PROFILE,
 } from "./config.js";
+import { getDeprecatedEnvWarnings } from "./deprecated-env.js";
 
 /** True when the server is running in remote/network mode (SSE or StreamableHTTP transport). */
 const IS_REMOTE = SSE || STREAMABLE_HTTP;
@@ -130,9 +137,9 @@ import {
 import type { SessionAuthHeader, StatelessKeyMaterial } from "./stateless/index.js";
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
+import type { SSEServerTransport as SseServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
+import type { StreamableHTTPServerTransport as StreamableTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
@@ -140,12 +147,18 @@ import {
   GetPromptRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
 import { AsyncLocalStorage } from "node:async_hooks";
-import express, { NextFunction, Request, Response } from "express";
+import type { NextFunction, Request, Response } from "express";
 import fetchCookie from "fetch-cookie";
 import fs from "node:fs";
 import { pipeline as streamPipeline } from "node:stream/promises";
 import os from "node:os";
-import { fetch as undiciFetch, File, FormData, type Dispatcher, type Response as UndiciResponse } from "undici";
+import {
+  fetch as undiciFetch,
+  File,
+  FormData,
+  type Dispatcher,
+  type Response as UndiciResponse,
+} from "undici";
 import path from "node:path";
 import { CookieJar, parse as parseCookie } from "tough-cookie";
 import { URL } from "node:url";
@@ -159,8 +172,6 @@ import { formatCliError, formatToolOutput } from "./cli/output.js";
 import { compactMcpToolResult, readOwnRecord } from "./cli/compact-mcp-result.js";
 import { compileDeniedToolsRegex } from "./tools/denied-regex.js";
 import { createGitLabOAuthProvider } from "./oauth-proxy.js";
-import { mcpAuthRouter } from "@modelcontextprotocol/sdk/server/auth/router.js";
-import rateLimit, { ipKeyGenerator } from "express-rate-limit";
 import { normalizeProxyClientIpForRateLimit } from "./utils/proxy-client-ip.js";
 import {
   getForwardedPublicBaseUrl,
@@ -169,6 +180,7 @@ import {
 import { registerDownloadProxy } from "./downloads/proxy.js";
 import type { DownloadProxyDependencies } from "./downloads/proxy.js";
 import { createDownloadToken } from "./utils/download-token.js";
+import { loadRemoteHttpStack } from "./server/remote-http-stack.js";
 import { determineTransportMode, TransportMode } from "./server/transport-mode.js";
 import { formatPrometheusMetrics } from "./server/metrics.js";
 import { SERVER_VERSION } from "./server/version.js";
@@ -244,9 +256,9 @@ import {
   applySearchReplace,
   applyUnifiedDiff,
 } from "./utils/patch-helper.js";
-import { requireBearerAuth } from "@modelcontextprotocol/sdk/server/auth/middleware/bearerAuth.js";
 import { GitLabClientPool } from "./gitlab-client-pool.js";
 import {
+  advertisesReadOnly,
   allTools,
   readOnlyTools,
   destructiveTools,
@@ -255,10 +267,25 @@ import {
   parseIndividualTools,
   buildFeatureFlagOverrides,
   isToolInEnabledToolset,
+  findSmallestToolsetForTool,
+  isToolsetFullyActive,
+  listDiscoverableCategories,
   TOOLSET_DEFINITIONS,
   ALL_TOOLSET_IDS,
   type ToolsetId,
 } from "./tools/registry.js";
+import {
+  buildUnavailableToolMessage,
+  isSkippedByDiscoverActivation,
+} from "./tools/discover-activation.js";
+import { selectExposedTools } from "./tools/exposed-tools.js";
+import {
+  createListedToolsCache,
+  decorateToolsForList,
+  type ListedToolDecorationContext,
+} from "./tools/listed-tools.js";
+import { isExcludedBySlimProfile, shouldApplySlimToolProfile } from "./tools/tool-profile.js";
+import { shouldCompactToolResult } from "./utils/compact-tool-allowlist.js";
 import {
   BulkPublishDraftNotesSchema,
   CancelPipelineJobSchema,
@@ -714,7 +741,7 @@ const MCP_PROMPTS = [
       `Review merge request !${args.merge_request_iid ?? "<iid>"} in project ${args.project_id ?? "<project_id>"}:\n` +
       `1. Call list_merge_request_changed_files to get the changed file list (use excluded_file_patterns for lockfiles/dist/generated files).\n` +
       `2. Call get_merge_request_file_diff in batches of 3-5 files, prioritizing source over config/tests.\n` +
-      `3. Leave findings with create_merge_request_thread (inline, position: new_path/new_line) or create_merge_request_note (general).\n` +
+      `3. Leave inline findings with create_merge_request_thread (position: new_path/new_line). For a general note, call discover_tools with category "merge_requests", then create_merge_request_note.\n` +
       `4. Summarize the review verdict in a final top-level note.`,
   },
   {
@@ -748,63 +775,48 @@ const MCP_PROMPTS = [
 ] as const;
 
 /**
+ * Error text for a call to a tool that tools/list omits.
+ * Suggests `discover_tools` only when that call would add the tool.
+ * Regex-denied tools stay blocked, and slim-excluded tools are not activated.
+ */
+function buildToolUnavailableMessage(toolName: string): string {
+  return buildUnavailableToolMessage({
+    toolName,
+    toolset: findSmallestToolsetForTool(toolName),
+    deniedByRegex: GITLAB_DENIED_TOOLS_REGEX?.test(toolName) === true,
+    excludedBySlimProfile: isExcludedFromToolsetListing(toolName),
+    enabledByCurrentToolsets: isToolInEnabledToolset(toolName, enabledToolsets),
+  });
+}
+
+/**
  * Create a new MCP Server instance with request handlers registered.
  * Each transport connection gets its own Server instance to prevent
  * cross-client data leakage (GHSA-345p-7cg4-v4c7).
  */
 /** Builds an MCP server with the tool list filtered by toolsets, permission mode, and policy. */
 function createServer(): McpServer {
-  // Precompute filtered tool list once at server creation (Steps 1–5 are static)
-  // Step 1: Toolset filter — keep tools in enabled toolsets
-  const toolsAfterToolsets = allTools.filter(tool =>
-    isToolInEnabledToolset(tool.name, enabledToolsets)
-  );
-
-  // Step 2: Add GITLAB_TOOLS (individual tools bypass toolset filter)
-  const toolsetToolNames = new Set(toolsAfterToolsets.map(t => t.name));
-  const toolsAfterIndividual = [
-    ...toolsAfterToolsets,
-    ...allTools.filter(
-      tool => individuallyEnabledTools.has(tool.name) && !toolsetToolNames.has(tool.name)
-    ),
-  ];
-
-  // Step 3: Add legacy flag overrides (USE_PIPELINE, USE_MILESTONE, USE_GITLAB_WIKI)
-  const afterIndividualNames = new Set(toolsAfterIndividual.map(t => t.name));
-  const toolsAfterLegacy = [
-    ...toolsAfterIndividual,
-    ...allTools.filter(
-      tool => featureFlagOverrides.has(tool.name) && !afterIndividualNames.has(tool.name)
-    ),
-  ];
-
-  // Step 4: Permission mode filter (readonly / modify / full)
-  const toolsAfterReadOnly =
-    GITLAB_PERMISSION_MODE === "full"
-      ? toolsAfterLegacy
-      : toolsAfterLegacy.filter(tool => isToolAllowedByPermissionMode(tool.name));
-
-  // Step 5: Regex denial filter
-  let filteredTools = GITLAB_DENIED_TOOLS_REGEX
-    ? toolsAfterReadOnly.filter(tool => !GITLAB_DENIED_TOOLS_REGEX!.test(tool.name))
-    : [...toolsAfterReadOnly];
-
-  // Step 5.5: Always include discover_tools meta-tool (bypasses toolset filter)
-  const discoverTool = allTools.find(t => t.name === "discover_tools");
-  const filteredToolNames = new Set(filteredTools.map(t => t.name));
-  if (discoverTool && !filteredToolNames.has("discover_tools")) {
-    // Respect permission mode and regex denial filters
-    const passesPermissionMode = isToolAllowedByPermissionMode("discover_tools");
-    const passesRegex = !GITLAB_DENIED_TOOLS_REGEX?.test("discover_tools");
-    if (passesPermissionMode && passesRegex) {
-      filteredTools.push(discoverTool);
-    }
-  }
-
-  // Step 5.7: Remove hidden policy tools
-  if (hiddenToolSet.size > 0) {
-    filteredTools = filteredTools.filter(tool => !hiddenToolSet.has(tool.name));
-  }
+  const filteredTools = selectExposedTools({
+    tools: allTools,
+    isInEnabledToolset: toolName => isToolInEnabledToolset(toolName, enabledToolsets),
+    individuallyEnabledTools,
+    featureFlagOverrides,
+    isAllowedByPermissionMode: isToolAllowedByPermissionMode,
+    deniedToolsRegex: GITLAB_DENIED_TOOLS_REGEX,
+    hiddenToolNames: hiddenToolSet,
+    applySlimProfile,
+  });
+  const listedToolDecoration: ListedToolDecorationContext = {
+    readOnlyToolNames: new Set([...readOnlyTools].filter(toolName => advertisesReadOnly(toolName))),
+    destructiveToolNames: destructiveTools,
+    approveToolNames: approveToolSet,
+    jmespathArgument: JMESPATH_TOOL_ARGUMENT,
+    jmespathArgumentDescription: JMESPATH_TOOL_ARGUMENT_DESCRIPTION,
+  };
+  const listedToolsCache: { revision: number } = { revision: 0 };
+  const decorateListedTools = (tools: readonly (typeof filteredTools)[number][]) =>
+    decorateToolsForList(tools, listedToolDecoration);
+  const getListedTools = createListedToolsCache(decorateListedTools);
 
   const mcpServer = new McpServer(
     {
@@ -850,66 +862,8 @@ function createServer(): McpServer {
   });
 
   mcpServer.server.setRequestHandler(ListToolsRequestSchema, async () => {
-    // Step 6: Gemini $schema cleanup + annotations (only dynamic step per request)
-    // <<< START: Remove $schema for Gemini compatibility >>>
-    const tools = filteredTools.map(tool => {
-      const modified: any = { ...tool };
-
-      // Safety net: remove $schema if present (toJSONSchema strips it for zod schemas,
-      // but manually-defined schemas like discover_tools may still have it)
-      if (
-        modified.inputSchema &&
-        typeof modified.inputSchema === "object" &&
-        modified.inputSchema !== null
-      ) {
-        if ("$schema" in modified.inputSchema) {
-          modified.inputSchema = { ...modified.inputSchema };
-          delete modified.inputSchema.$schema;
-        }
-      }
-
-      // Add MCP tool annotations
-      modified.annotations = {
-        ...(readOnlyTools.has(tool.name) ? { readOnlyHint: true } : {}),
-        ...(destructiveTools.has(tool.name) ? { destructiveHint: true } : {}),
-        ...(approveToolSet.has(tool.name) ? { confirmationHint: true } : {}),
-        openWorldHint: true,
-      };
-
-      // Inject _confirmed optional parameter for approve-policy tools
-      if (approveToolSet.has(tool.name) && modified.inputSchema?.properties) {
-        modified.inputSchema = {
-          ...modified.inputSchema,
-          properties: {
-            ...modified.inputSchema.properties,
-            _confirmed: {
-              type: "boolean",
-              description: "Set to true to confirm execution of this approval-required tool.",
-            },
-          },
-        };
-      }
-
-      if (modified.inputSchema && typeof modified.inputSchema === "object") {
-        const properties =
-          modified.inputSchema.properties && typeof modified.inputSchema.properties === "object"
-            ? { ...modified.inputSchema.properties }
-            : {};
-        if (!(JMESPATH_TOOL_ARGUMENT in properties)) {
-          properties[JMESPATH_TOOL_ARGUMENT] = {
-            type: "string",
-            description: JMESPATH_TOOL_ARGUMENT_DESCRIPTION,
-          };
-          modified.inputSchema = { ...modified.inputSchema, properties };
-        }
-      }
-
-      return modified;
-    });
-    // <<< END: Remove $schema for Gemini compatibility >>>
-
     return {
-      tools, // return tool list with $schema removed
+      tools: getListedTools(filteredTools, listedToolsCache.revision),
     };
   });
 
@@ -936,9 +890,7 @@ function createServer(): McpServer {
         (toolName === "download_release_asset" && !IS_REMOTE);
       const filtered = applyJmespathToToolResult(result, jmespathExpression, {
         ...completionOptions,
-        maskValue: maskingEngine
-          ? (value: unknown) => maskingEngine!.maskValue(value)
-          : undefined,
+        maskValue: maskingEngine ? (value: unknown) => maskingEngine!.maskValue(value) : undefined,
       });
       const masked = maskingEngine
         ? maskingEngine.maskToolResult(filtered, {
@@ -947,14 +899,18 @@ function createServer(): McpServer {
         : filtered;
       return compactMcpToolResult({
         result: masked,
-        enabled: GITLAB_MCP_COMPACT_RESULTS,
+        enabled: shouldCompactToolResult(
+          toolName,
+          GITLAB_MCP_COMPACT_RESULTS,
+          GITLAB_MCP_COMPACT_TOOL_NAMES
+        ),
         maxChars: GITLAB_MCP_COMPACT_RESULT_CHARS,
         toolName,
         args: readOwnRecord(request.params.arguments),
       });
     };
 
-    const logError = (error: unknown): never => {
+    const logError = (error: unknown): unknown => {
       const durationMs = Date.now() - start;
       const safeError = maskingEngine ? maskingEngine.maskError(error) : error;
       logger.error(
@@ -966,7 +922,7 @@ function createServer(): McpServer {
         },
         `tool_call_error: ${toolName} (${durationMs}ms)`
       );
-      throw safeError;
+      return safeError;
     };
 
     try {
@@ -1043,27 +999,37 @@ function createServer(): McpServer {
         !hiddenAndNotDenied &&
         !filteredTools.some(t => t.name === toolName)
       ) {
-        throw new Error(`Tool "${toolName}" is not available on this server`);
+        throw new Error(buildToolUnavailableMessage(toolName));
       }
 
       // Handle discover_tools meta-tool directly (needs access to mcpServer and filteredTools)
       if (toolName === "discover_tools") {
         const category = request.params.arguments?.category?.trim()?.toLowerCase();
         const currentToolNames = new Set(filteredTools.map(t => t.name));
+        const isNotActivatable = (name: string): boolean =>
+          isSkippedByDiscoverActivation({
+            allowedByPermissionMode: isToolAllowedByPermissionMode(name),
+            deniedByRegex: GITLAB_DENIED_TOOLS_REGEX?.test(name) === true,
+            hidden: hiddenToolSet.has(name),
+            excludedBySlimProfile: isExcludedFromToolsetListing(name),
+          });
 
         if (!category) {
-          // List available categories with activation status
-          const categories = TOOLSET_DEFINITIONS.map(def => ({
-            id: def.id,
-            toolCount: def.tools.size,
-            active: [...def.tools].some(t => currentToolNames.has(t)),
-            isDefault: def.isDefault,
-          }));
+          // Fully listed only. Partial overlap with `core` must stay inactive so
+          // clients still call discover_tools to add the missing tools. Tools this
+          // handler skips (slim profile, regex, permission mode, hidden) do not
+          // keep a toolset inactive.
+          const categories = listDiscoverableCategories(currentToolNames, isNotActivatable);
           return logCompletion({
-            content: [{
-              type: "text",
-              text: JSON.stringify({ categories, hint: "Call discover_tools with a category name to activate it" }),
-            }],
+            content: [
+              {
+                type: "text",
+                text: JSON.stringify({
+                  categories,
+                  hint: "Call discover_tools with a category name to activate it",
+                }),
+              },
+            ],
           });
         }
 
@@ -1087,8 +1053,12 @@ function createServer(): McpServer {
           });
         }
 
-        // Check if already fully active
-        const alreadyActive = [...toolsetDef.tools].every(t => currentToolNames.has(t));
+        // Same predicate as the category listing `active` flag.
+        const alreadyActive = isToolsetFullyActive(
+          toolsetDef.tools,
+          currentToolNames,
+          isNotActivatable
+        );
         if (alreadyActive) {
           return logCompletion({
             content: [
@@ -1105,9 +1075,7 @@ function createServer(): McpServer {
         for (const tool of allTools) {
           if (!toolsetDef.tools.has(tool.name)) continue;
           if (currentToolNames.has(tool.name)) continue;
-          if (!isToolAllowedByPermissionMode(tool.name)) continue;
-          if (GITLAB_DENIED_TOOLS_REGEX?.test(tool.name)) continue;
-          if (hiddenToolSet.has(tool.name)) continue;
+          if (isNotActivatable(tool.name)) continue;
           newTools.push(tool);
         }
 
@@ -1123,6 +1091,7 @@ function createServer(): McpServer {
         }
 
         filteredTools.push(...newTools);
+        listedToolsCache.revision += 1;
 
         // Notify client that tool list has changed
         try {
@@ -1138,14 +1107,16 @@ function createServer(): McpServer {
         );
 
         return logCompletion({
-          content: [{
-            type: "text",
-            text: JSON.stringify({
-              activated: category,
-              addedTools: addedNames,
-              totalTools: filteredTools.length,
-            }),
-          }],
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify({
+                activated: category,
+                addedTools: addedNames,
+                totalTools: filteredTools.length,
+              }),
+            },
+          ],
         });
       }
 
@@ -1192,8 +1163,20 @@ function createServer(): McpServer {
       const result = await handleToolCall(request.params);
       return logCompletion(result);
     } catch (error) {
-      logError(error);
-      throw error;
+      const isGitLabApiError = error instanceof GitLabApiError;
+      const safeError = logError(error);
+      if (isGitLabApiError) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: safeError instanceof Error ? safeError.message : String(safeError),
+            },
+          ],
+          isError: true,
+        };
+      }
+      throw safeError;
     }
   });
 
@@ -1204,7 +1187,10 @@ function createServer(): McpServer {
  * Validate configuration at startup
  */
 function isLoopbackBindHost(host: string): boolean {
-  const normalized = host.trim().toLowerCase().replace(/^\[|\]$/g, "");
+  const normalized = host
+    .trim()
+    .toLowerCase()
+    .replace(/^\[|\]$/g, "");
   const isIpv4Loopback = /^127(?:\.\d{1,3}){3}$/.test(normalized);
   return (
     normalized === "localhost" ||
@@ -1215,7 +1201,10 @@ function isLoopbackBindHost(host: string): boolean {
 }
 
 function formatHostWithPort(host: string, port: number): string | null {
-  const normalized = host.trim().toLowerCase().replace(/^\[|\]$/g, "");
+  const normalized = host
+    .trim()
+    .toLowerCase()
+    .replace(/^\[|\]$/g, "");
   if (!normalized || normalized === "0.0.0.0" || normalized === "::") return null;
   if (normalized.includes(":")) return `[${normalized}]:${port}`;
   return `${normalized}:${port}`;
@@ -1381,7 +1370,9 @@ function validateConfiguration(): void {
   if (registerRateLimitStr) {
     const limit = Number(registerRateLimitStr);
     if (!Number.isInteger(limit) || limit < 1 || limit > 1000) {
-      errors.push(`OAUTH_REGISTER_RATE_LIMIT_PER_HOUR must be an integer between 1 and 1000, got: ${registerRateLimitStr}`);
+      errors.push(
+        `OAUTH_REGISTER_RATE_LIMIT_PER_HOUR must be an integer between 1 and 1000, got: ${registerRateLimitStr}`
+      );
     }
   }
 
@@ -1420,7 +1411,8 @@ function validateConfiguration(): void {
     }
   }
 
-  const mcpAllowedOrigins = getConfig("mcp-allowed-origins", "MCP_ALLOWED_ORIGINS")?.split(",") || [];
+  const mcpAllowedOrigins =
+    getConfig("mcp-allowed-origins", "MCP_ALLOWED_ORIGINS")?.split(",") || [];
   for (const origin of mcpAllowedOrigins) {
     if (origin.trim() && !toAllowedMcpOrigin(origin)) {
       errors.push(`MCP_ALLOWED_ORIGINS contains an invalid origin URL: ${origin.trim()}`);
@@ -1630,6 +1622,16 @@ const hiddenToolSet = new Set(
       logger.warn(
         { event: "unknown_approve_tool", name },
         `GITLAB_TOOL_POLICY_APPROVE contains unknown tool: "${name}"`
+      );
+    }
+  }
+  if (GITLAB_MCP_COMPACT_TOOL_NAMES.size > 0) {
+    const unknownCompactTools = [...GITLAB_MCP_COMPACT_TOOL_NAMES].filter(
+      name => !knownToolNames.has(name)
+    );
+    if (unknownCompactTools.length > 0) {
+      logger.warn(
+        `Unknown tool names in GITLAB_MCP_COMPACT_TOOLS (will be ignored): ${unknownCompactTools.join(", ")}`
       );
     }
   }
@@ -2012,6 +2014,14 @@ const downloadRedirectOptions = () => ({
 const enabledToolsets = parseEnabledToolsets(GITLAB_TOOLSETS_RAW);
 const individuallyEnabledTools = parseIndividualTools(GITLAB_TOOLS_RAW);
 const featureFlagOverrides = buildFeatureFlagOverrides();
+const applySlimProfile = shouldApplySlimToolProfile(GITLAB_TOOL_PROFILE, GITLAB_TOOLSETS_RAW);
+if (GITLAB_TOOL_PROFILE === "slim" && !applySlimProfile) {
+  logger.warn("GITLAB_TOOL_PROFILE=slim is ignored because GITLAB_TOOLSETS is set");
+}
+
+function isExcludedFromToolsetListing(toolName: string): boolean {
+  return isExcludedBySlimProfile(toolName, applySlimProfile, individuallyEnabledTools);
+}
 
 // Warn about potentially confusing configuration
 if (GITLAB_TOOLSETS_RAW && (USE_PIPELINE || USE_MILESTONE || USE_GITLAB_WIKI)) {
@@ -2216,6 +2226,13 @@ if (
   process.exit(1);
 }
 
+class GitLabApiError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "GitLabApiError";
+  }
+}
+
 /**
  * Utility function for handling GitLab API errors
  * API 에러 처리를 위한 유틸리티 함수 (Utility function for handling API errors)
@@ -2232,11 +2249,13 @@ async function handleGitLabError(response: UndiciResponse): Promise<void> {
       // before the common tool-call boundary returns/logs it.
       logger.error("GitLab API Rate Limit Exceeded");
       logger.error("User API Key Rate limit exceeded. Please try again later.");
-      const error = new Error(`GitLab API Rate Limit Exceeded: ${errorBody}`);
+      const error = new GitLabApiError(`GitLab API Rate Limit Exceeded: ${errorBody}`);
       throw error;
     } else {
       // Handle other API errors
-      const error = new Error(`GitLab API error: ${response.status} ${response.statusText}\n${errorBody}`);
+      const error = new GitLabApiError(
+        `GitLab API error: ${response.status} ${response.statusText}\n${errorBody}`
+      );
       throw error;
     }
   }
@@ -2320,7 +2339,7 @@ async function forkProject(projectId: string, namespace?: string): Promise<GitLa
 
   // Handle case where project already exists
   if (response.status === 409) {
-    throw new Error("Project already exists in the target namespace");
+    throw new GitLabApiError("Project already exists in the target namespace");
   }
 
   await handleGitLabError(response);
@@ -2369,7 +2388,9 @@ async function createBranch(
 async function getDefaultBranchRef(projectId: string): Promise<string> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   const effectiveProjectId = getEffectiveProjectId(projectId);
-  const url = new URL(`${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(effectiveProjectId)}`);
+  const url = new URL(
+    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(effectiveProjectId)}`
+  );
 
   const response = await fetch(url.toString(), {
     ...getFetchConfig(),
@@ -2415,7 +2436,7 @@ async function getFileContents(
 
   // Handle file not found
   if (response.status === 404) {
-    throw new Error(`File not found: ${filePath}`);
+    throw new GitLabApiError(`File not found: ${filePath}`);
   }
 
   await handleGitLabError(response);
@@ -2461,7 +2482,7 @@ async function createIssue(
   // Handle bad request
   if (response.status === 400) {
     const errorBody = await response.text();
-    throw new Error(`Invalid request: ${errorBody}`);
+    throw new GitLabApiError(`Invalid request: ${errorBody}`);
   }
 
   await handleGitLabError(response);
@@ -2761,7 +2782,7 @@ async function executeGraphQL<T = any>(
 
   if (!response.ok) {
     const errorBody = await response.text();
-    throw new Error(`GraphQL request failed (${response.status}): ${errorBody}`);
+    throw new GitLabApiError(`GraphQL request failed (${response.status}): ${errorBody}`);
   }
 
   const json: any = await response.json();
@@ -2825,9 +2846,12 @@ async function resolveNamesToIds(
   // One alias per label — exact title match via the `title` argument, includes ancestor
   // group labels, single round trip with no pagination needed.
   const varDefs = labelNames.map((_, i) => `$l${i}: String!`).join(", ");
-  const aliases = labelNames.map((_, i) =>
-    `l${i}: labels(title: $l${i}, includeAncestorGroups: true, first: 1) { nodes { id } }`
-  ).join(" ");
+  const aliases = labelNames
+    .map(
+      (_, i) =>
+        `l${i}: labels(title: $l${i}, includeAncestorGroups: true, first: 1) { nodes { id } }`
+    )
+    .join(" ");
   const rootField = namespaceKind === "group" ? "group" : "project";
 
   const data = await executeGraphQL<{
@@ -4692,12 +4716,14 @@ async function createMergeRequest(
 
   if (response.status === 400) {
     const errorBody = await response.text();
-    throw new Error(`Invalid request: ${errorBody}`);
+    throw new GitLabApiError(`Invalid request: ${errorBody}`);
   }
 
   if (!response.ok) {
     const errorBody = await response.text();
-    throw new Error(`GitLab API error: ${response.status} ${response.statusText}\n${errorBody}`);
+    throw new GitLabApiError(
+      `GitLab API error: ${response.status} ${response.statusText}\n${errorBody}`
+    );
   }
 
   const data = await response.json();
@@ -4822,7 +4848,9 @@ async function deleteMergeRequestDiscussionNote(
 
   if (!response.ok) {
     const errorText = await response.text();
-    throw new Error(`GitLab API error: ${response.status} ${response.statusText}\n${errorText}`);
+    throw new GitLabApiError(
+      `GitLab API error: ${response.status} ${response.statusText}\n${errorText}`
+    );
   }
 }
 
@@ -4953,7 +4981,9 @@ async function createIssueNote(
     getEffectiveProjectId(projectId)
   )}/issues/${encodeGitLabPathSegment(issueIid)}`;
   const url = new URL(
-    discussionId ? `${basePath}/discussions/${encodeGitLabPathSegment(discussionId)}/notes` : `${basePath}/notes`
+    discussionId
+      ? `${basePath}/discussions/${encodeGitLabPathSegment(discussionId)}/notes`
+      : `${basePath}/notes`
   );
 
   const payload: { body: string; created_at?: string } = { body };
@@ -5061,7 +5091,9 @@ async function deleteMergeRequestNote(
 
   if (!response.ok) {
     const errorText = await response.text();
-    throw new Error(`GitLab API error: ${response.status} ${response.statusText}\n${errorText}`);
+    throw new GitLabApiError(
+      `GitLab API error: ${response.status} ${response.statusText}\n${errorText}`
+    );
   }
 }
 
@@ -5311,7 +5343,9 @@ async function createOrUpdateFile(
 
   if (!response.ok) {
     const errorBody = await response.text();
-    throw new Error(`GitLab API error: ${response.status} ${response.statusText}\n${errorBody}`);
+    throw new GitLabApiError(
+      `GitLab API error: ${response.status} ${response.statusText}\n${errorBody}`
+    );
   }
 
   const data = await response.json();
@@ -5351,12 +5385,14 @@ async function createCommit(
 
   if (response.status === 400) {
     const errorBody = await response.text();
-    throw new Error(`Invalid request: ${errorBody}`);
+    throw new GitLabApiError(`Invalid request: ${errorBody}`);
   }
 
   if (!response.ok) {
     const errorBody = await response.text();
-    throw new Error(`GitLab API error: ${response.status} ${response.statusText}\n${errorBody}`);
+    throw new GitLabApiError(
+      `GitLab API error: ${response.status} ${response.statusText}\n${errorBody}`
+    );
   }
 
   const data = await response.json();
@@ -5390,7 +5426,9 @@ async function searchProjects(
 
   if (!response.ok) {
     const errorBody = await response.text();
-    throw new Error(`GitLab API error: ${response.status} ${response.statusText}\n${errorBody}`);
+    throw new GitLabApiError(
+      `GitLab API error: ${response.status} ${response.statusText}\n${errorBody}`
+    );
   }
 
   const unfiltered = (await response.json()) as GitLabRepository[];
@@ -5499,7 +5537,9 @@ async function createRepository(
 
   if (!response.ok) {
     const errorBody = await response.text();
-    throw new Error(`GitLab API error: ${response.status} ${response.statusText}\n${errorBody}`);
+    throw new GitLabApiError(
+      `GitLab API error: ${response.status} ${response.statusText}\n${errorBody}`
+    );
   }
 
   const data = await response.json();
@@ -6083,7 +6123,9 @@ async function getBranchDiffs(
 
   if (!response.ok) {
     const errorBody = await response.text();
-    throw new Error(`GitLab API error: ${response.status} ${response.statusText}\n${errorBody}`);
+    throw new GitLabApiError(
+      `GitLab API error: ${response.status} ${response.statusText}\n${errorBody}`
+    );
   }
 
   const data = await response.json();
@@ -6416,7 +6458,9 @@ async function createNote(
 
   if (!response.ok) {
     const errorText = await response.text();
-    throw new Error(`GitLab API error: ${response.status} ${response.statusText}\n${errorText}`);
+    throw new GitLabApiError(
+      `GitLab API error: ${response.status} ${response.statusText}\n${errorText}`
+    );
   }
 
   return await response.json();
@@ -6441,7 +6485,9 @@ async function getDraftNote(
 
   if (!response.ok) {
     const errorText = await response.text();
-    throw new Error(`GitLab API error: ${response.status} ${response.statusText}\n${errorText}`);
+    throw new GitLabApiError(
+      `GitLab API error: ${response.status} ${response.statusText}\n${errorText}`
+    );
   }
 
   const data = await response.json();
@@ -6466,7 +6512,9 @@ async function listDraftNotes(
 
   if (!response.ok) {
     const errorText = await response.text();
-    throw new Error(`GitLab API error: ${response.status} ${response.statusText}\n${errorText}`);
+    throw new GitLabApiError(
+      `GitLab API error: ${response.status} ${response.statusText}\n${errorText}`
+    );
   }
 
   const data = await response.json();
@@ -6517,7 +6565,9 @@ async function createDraftNote(
 
   if (!response.ok) {
     const errorText = await response.text();
-    throw new Error(`GitLab API error: ${response.status} ${response.statusText}\n${errorText}`);
+    throw new GitLabApiError(
+      `GitLab API error: ${response.status} ${response.statusText}\n${errorText}`
+    );
   }
 
   const data = await response.json();
@@ -6568,7 +6618,9 @@ async function updateDraftNote(
 
   if (!response.ok) {
     const errorText = await response.text();
-    throw new Error(`GitLab API error: ${response.status} ${response.statusText}\n${errorText}`);
+    throw new GitLabApiError(
+      `GitLab API error: ${response.status} ${response.statusText}\n${errorText}`
+    );
   }
 
   const data = await response.json();
@@ -6601,7 +6653,9 @@ async function deleteDraftNote(
 
   if (!response.ok) {
     const errorText = await response.text();
-    throw new Error(`GitLab API error: ${response.status} ${response.statusText}\n${errorText}`);
+    throw new GitLabApiError(
+      `GitLab API error: ${response.status} ${response.statusText}\n${errorText}`
+    );
   }
 }
 
@@ -6631,7 +6685,9 @@ async function publishDraftNote(
 
   if (!response.ok) {
     const errorText = await response.text();
-    throw new Error(`GitLab API error: ${response.status} ${response.statusText}\n${errorText}`);
+    throw new GitLabApiError(
+      `GitLab API error: ${response.status} ${response.statusText}\n${errorText}`
+    );
   }
 
   // Handle empty response (204 No Content) or successful response
@@ -6728,7 +6784,9 @@ async function bulkPublishDraftNotes(
 
   if (!response.ok) {
     const errorText = await response.text();
-    throw new Error(`GitLab API error: ${response.status} ${response.statusText}\n${errorText}`);
+    throw new GitLabApiError(
+      `GitLab API error: ${response.status} ${response.statusText}\n${errorText}`
+    );
   }
 
   // Handle empty response (204 No Content) or successful response
@@ -6773,7 +6831,9 @@ async function resolveMergeRequestThread(
 
   if (!response.ok) {
     const errorText = await response.text();
-    throw new Error(`GitLab API error: ${response.status} ${response.statusText}\n${errorText}`);
+    throw new GitLabApiError(
+      `GitLab API error: ${response.status} ${response.statusText}\n${errorText}`
+    );
   }
 }
 
@@ -7200,7 +7260,9 @@ async function updateWebhook(options: z.infer<typeof UpdateWebhookSchema>): Prom
 /**
  * Delete a webhook from a project or group
  */
-async function deleteWebhook(options: z.infer<typeof DeleteWebhookSchema>): Promise<{ status: string; hook_id: number }> {
+async function deleteWebhook(
+  options: z.infer<typeof DeleteWebhookSchema>
+): Promise<{ status: string; hook_id: number }> {
   const url = `${buildWebhookBaseUrl(options.project_id, options.group_id)}/${options.hook_id}`;
   const response = await fetch(url, {
     ...getFetchConfig(),
@@ -7290,8 +7352,7 @@ async function listWikiPages(
   if (options.per_page) url.searchParams.append("per_page", options.per_page.toString());
   if (options.with_content)
     url.searchParams.append("with_content", options.with_content.toString());
-  if (options.render_html)
-    url.searchParams.append("render_html", options.render_html.toString());
+  if (options.render_html) url.searchParams.append("render_html", options.render_html.toString());
   const response = await fetch(url.toString(), {
     ...getFetchConfig(),
   });
@@ -7407,8 +7468,7 @@ async function listGroupWikiPages(
   if (options.per_page) url.searchParams.append("per_page", options.per_page.toString());
   if (options.with_content)
     url.searchParams.append("with_content", options.with_content.toString());
-  if (options.render_html)
-    url.searchParams.append("render_html", options.render_html.toString());
+  if (options.render_html) url.searchParams.append("render_html", options.render_html.toString());
   const response = await fetch(url.toString(), {
     ...getFetchConfig(),
   });
@@ -7562,7 +7622,7 @@ async function getPipeline(
   });
 
   if (response.status === 404) {
-    throw new Error(`Pipeline not found`);
+    throw new GitLabApiError(`Pipeline not found`);
   }
 
   await handleGitLabError(response);
@@ -7577,7 +7637,9 @@ async function getPipelineVariables(
   perPage?: number
 ): Promise<unknown> {
   projectId = decodeURIComponent(projectId);
-  const url = new URL(`${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(getEffectiveProjectId(projectId))}/pipelines/${encodeGitLabPathSegment(pipelineId)}/variables`);
+  const url = new URL(
+    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(getEffectiveProjectId(projectId))}/pipelines/${encodeGitLabPathSegment(pipelineId)}/variables`
+  );
   if (page !== undefined) url.searchParams.set("page", String(page));
   if (perPage !== undefined) url.searchParams.set("per_page", String(perPage));
   const response = await fetch(url.toString(), { ...getFetchConfig() });
@@ -7594,7 +7656,9 @@ async function getPipelineReport(
 ): Promise<unknown> {
   projectId = decodeURIComponent(projectId);
   const endpoint = summary ? "test_report_summary" : "test_report";
-  const url = new URL(`${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(getEffectiveProjectId(projectId))}/pipelines/${encodeGitLabPathSegment(pipelineId)}/${endpoint}`);
+  const url = new URL(
+    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(getEffectiveProjectId(projectId))}/pipelines/${encodeGitLabPathSegment(pipelineId)}/${endpoint}`
+  );
   if (page !== undefined) url.searchParams.set("page", String(page));
   if (perPage !== undefined) url.searchParams.set("per_page", String(perPage));
   const response = await fetch(url.toString(), { ...getFetchConfig() });
@@ -7604,14 +7668,24 @@ async function getPipelineReport(
 
 async function deletePipeline(projectId: string, pipelineId: number | string): Promise<unknown> {
   projectId = decodeURIComponent(projectId);
-  const response = await fetch(`${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(getEffectiveProjectId(projectId))}/pipelines/${encodeGitLabPathSegment(pipelineId)}`, { ...getFetchConfig(), method: "DELETE" });
+  const response = await fetch(
+    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(getEffectiveProjectId(projectId))}/pipelines/${encodeGitLabPathSegment(pipelineId)}`,
+    { ...getFetchConfig(), method: "DELETE" }
+  );
   await handleGitLabError(response);
   return response.status === 204 ? { deleted: true } : response.json();
 }
 
-async function updatePipelineMetadata(projectId: string, pipelineId: number | string, name: string): Promise<unknown> {
+async function updatePipelineMetadata(
+  projectId: string,
+  pipelineId: number | string,
+  name: string
+): Promise<unknown> {
   projectId = decodeURIComponent(projectId);
-  const response = await fetch(`${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(getEffectiveProjectId(projectId))}/pipelines/${encodeGitLabPathSegment(pipelineId)}/metadata`, { ...getFetchConfig(), method: "PUT", body: JSON.stringify({ name }) });
+  const response = await fetch(
+    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(getEffectiveProjectId(projectId))}/pipelines/${encodeGitLabPathSegment(pipelineId)}/metadata`,
+    { ...getFetchConfig(), method: "PUT", body: JSON.stringify({ name }) }
+  );
   await handleGitLabError(response);
   return response.json();
 }
@@ -7664,7 +7738,7 @@ async function getDeployment(
   });
 
   if (response.status === 404) {
-    throw new Error(`Deployment not found`);
+    throw new GitLabApiError(`Deployment not found`);
   }
 
   await handleGitLabError(response);
@@ -7687,7 +7761,8 @@ async function deploymentRequest(
     if (value !== undefined) url.searchParams.set(key, String(value));
   }
   const response = await fetch(url.toString(), {
-    ...getFetchConfig(), method,
+    ...getFetchConfig(),
+    method,
     body: body === undefined ? undefined : JSON.stringify(body),
   });
   await handleGitLabError(response);
@@ -7742,7 +7817,7 @@ async function getEnvironment(
   });
 
   if (response.status === 404) {
-    throw new Error(`Environment not found`);
+    throw new GitLabApiError(`Environment not found`);
   }
 
   await handleGitLabError(response);
@@ -7758,9 +7833,16 @@ async function environmentRequest(
   query?: Record<string, unknown>
 ): Promise<unknown> {
   projectId = decodeURIComponent(projectId);
-  const url = new URL(`${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(getEffectiveProjectId(projectId))}/environments${path}`);
-  for (const [key, value] of Object.entries(query ?? {})) if (value !== undefined) url.searchParams.set(key, String(value));
-  const response = await fetch(url.toString(), { ...getFetchConfig(), method, body: body === undefined ? undefined : JSON.stringify(body) });
+  const url = new URL(
+    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(getEffectiveProjectId(projectId))}/environments${path}`
+  );
+  for (const [key, value] of Object.entries(query ?? {}))
+    if (value !== undefined) url.searchParams.set(key, String(value));
+  const response = await fetch(url.toString(), {
+    ...getFetchConfig(),
+    method,
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
   await handleGitLabError(response);
   return response.status === 204 ? { success: true } : response.json();
 }
@@ -7788,13 +7870,19 @@ async function triggerPipeline(
   inputs?: Record<string, unknown>
 ): Promise<unknown> {
   projectId = decodeURIComponent(projectId);
-  const url = new URL(`${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(getEffectiveProjectId(projectId))}/trigger/pipeline`);
+  const url = new URL(
+    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(getEffectiveProjectId(projectId))}/trigger/pipeline`
+  );
   url.searchParams.set("token", token);
   url.searchParams.set("ref", ref);
   const body: Record<string, unknown> = {};
   if (variables) body.variables = variables;
   if (inputs) body.inputs = inputs;
-  const response = await fetch(url.toString(), { ...getFetchConfig(), method: "POST", body: Object.keys(body).length ? JSON.stringify(body) : undefined });
+  const response = await fetch(url.toString(), {
+    ...getFetchConfig(),
+    method: "POST",
+    body: Object.keys(body).length ? JSON.stringify(body) : undefined,
+  });
   await handleGitLabError(response);
   return response.json();
 }
@@ -7825,7 +7913,7 @@ async function listPipelineJobs(
   });
 
   if (response.status === 404) {
-    throw new Error(`Pipeline not found`);
+    throw new GitLabApiError(`Pipeline not found`);
   }
 
   await handleGitLabError(response);
@@ -7859,7 +7947,7 @@ async function listPipelineTriggerJobs(
   });
 
   if (response.status === 404) {
-    throw new Error(`Pipeline not found`);
+    throw new GitLabApiError(`Pipeline not found`);
   }
 
   await handleGitLabError(response);
@@ -7883,7 +7971,7 @@ async function getPipelineJob(
   });
 
   if (response.status === 404) {
-    throw new Error(`Job not found`);
+    throw new GitLabApiError(`Job not found`);
   }
 
   await handleGitLabError(response);
@@ -7923,7 +8011,7 @@ async function getPipelineJobOutput(
   });
 
   if (response.status === 404) {
-    throw new Error(`Job trace not found or job is not finished yet`);
+    throw new GitLabApiError(`Job trace not found or job is not finished yet`);
   }
 
   await handleGitLabError(response);
@@ -8020,7 +8108,7 @@ async function listJobArtifacts(
   });
 
   if (response.status === 404) {
-    throw new Error(
+    throw new GitLabApiError(
       `Job artifacts not found. The job may not have produced artifacts or the job ID is invalid.`
     );
   }
@@ -8053,7 +8141,7 @@ async function downloadJobArtifacts(
   const response = await fetchWithValidatedRedirects(url.toString(), downloadRedirectOptions());
 
   if (response.status === 404) {
-    throw new Error(
+    throw new GitLabApiError(
       `Job artifacts not found. The job may not have produced artifacts or the job ID is invalid.`
     );
   }
@@ -8099,7 +8187,7 @@ async function getJobArtifactFile(
   const response = await fetchWithValidatedRedirects(url.toString(), downloadRedirectOptions());
 
   if (response.status === 404) {
-    throw new Error(`Artifact file not found: ${artifactPath}`);
+    throw new GitLabApiError(`Artifact file not found: ${artifactPath}`);
   }
 
   await handleGitLabError(response);
@@ -8646,10 +8734,13 @@ async function waitForStatus<T extends { status: string }>(
   while (!terminalStatuses.has(value.status)) {
     const remaining = deadline - Date.now();
     if (remaining <= 0) break;
-    await new Promise(resolve => setTimeout(resolve, Math.min(pollIntervalSeconds * 1000, remaining)));
+    await new Promise(resolve =>
+      setTimeout(resolve, Math.min(pollIntervalSeconds * 1000, remaining))
+    );
     value = await fetchBeforeDeadline();
   }
-  if (!terminalStatuses.has(value.status)) throw new Error(`Timed out waiting for terminal status; last status: ${value.status}`);
+  if (!terminalStatuses.has(value.status))
+    throw new Error(`Timed out waiting for terminal status; last status: ${value.status}`);
   return value;
 }
 
@@ -8710,11 +8801,11 @@ async function getRepositoryTree(
   );
 
   if (response.status === 404) {
-    throw new Error("Repository or path not found");
+    throw new GitLabApiError("Repository or path not found");
   }
 
   if (!response.ok) {
-    throw new Error(`Failed to get repository tree: ${response.statusText}`);
+    throw new GitLabApiError(`Failed to get repository tree: ${response.statusText}`);
   }
 
   const data = await response.json();
@@ -8898,10 +8989,7 @@ async function getMilestoneIssues(
 async function getMilestoneMergeRequests(
   projectId: string,
   milestoneId: number | string,
-  options: Omit<
-    z.infer<typeof GetMilestoneMergeRequestsSchema>,
-    "project_id" | "milestone_id"
-  > = {}
+  options: Omit<z.infer<typeof GetMilestoneMergeRequestsSchema>, "project_id" | "milestone_id"> = {}
 ): Promise<GitLabMergeRequest[]> {
   projectId = decodeURIComponent(projectId);
   const url = new URL(
@@ -9080,10 +9168,7 @@ async function editGroupMilestone(
 /**
  * Delete a milestone from a GitLab group
  */
-async function deleteGroupMilestone(
-  groupId: string,
-  milestoneId: number | string
-): Promise<void> {
+async function deleteGroupMilestone(groupId: string, milestoneId: number | string): Promise<void> {
   groupId = decodeURIComponent(groupId);
   const url = new URL(
     `${getEffectiveApiUrl()}/groups/${encodeGitLabPathSegment(groupId)}/milestones/${encodeGitLabPathSegment(milestoneId)}`
@@ -9102,10 +9187,7 @@ async function deleteGroupMilestone(
 async function getGroupMilestoneIssues(
   groupId: string,
   milestoneId: number | string,
-  options: Omit<
-    z.infer<typeof GetGroupMilestoneIssuesSchema>,
-    "group_id" | "milestone_id"
-  > = {}
+  options: Omit<z.infer<typeof GetGroupMilestoneIssuesSchema>, "group_id" | "milestone_id"> = {}
 ): Promise<GitLabIssue[]> {
   groupId = decodeURIComponent(groupId);
   const url = new URL(
@@ -9616,7 +9698,9 @@ async function listGroupIterations(
   options: Omit<z.infer<typeof ListGroupIterationsSchema>, "group_id"> = {}
 ): Promise<GroupIteration[]> {
   groupId = decodeURIComponent(groupId);
-  const url = new URL(`${getEffectiveApiUrl()}/groups/${encodeGitLabPathSegment(groupId)}/iterations`);
+  const url = new URL(
+    `${getEffectiveApiUrl()}/groups/${encodeGitLabPathSegment(groupId)}/iterations`
+  );
 
   // クエリパラメータの追加
   if (options.state) url.searchParams.append("state", options.state);
@@ -10300,10 +10384,7 @@ async function dismissVulnerability(
   return data.vulnerabilityDismiss.vulnerability;
 }
 
-async function confirmVulnerability(
-  vulnerabilityId: string,
-  comment?: string
-): Promise<unknown> {
+async function confirmVulnerability(vulnerabilityId: string, comment?: string): Promise<unknown> {
   await ensureVulnerabilityProjectAllowed(vulnerabilityId);
   const input: Record<string, string> = { id: toVulnerabilityGid(vulnerabilityId) };
   if (comment) input.comment = comment;
@@ -10384,10 +10465,7 @@ async function markdownUpload(
 
   // Create form data
   const form = new FormData();
-  form.append(
-    "file",
-    new File([fileBuffer], fileName, { type: "application/octet-stream" })
-  );
+  form.append("file", new File([fileBuffer], fileName, { type: "application/octet-stream" }));
 
   const url = new URL(
     `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(effectiveProjectId)}/uploads`
@@ -11004,7 +11082,9 @@ function snippetCreateFilesPayload(
   if (options.file_name !== undefined && options.content !== undefined) {
     return [{ file_path: options.file_name, content: options.content }];
   }
-  throw new Error("Provide either files[] (multi-file) or both file_name and content (single-file)");
+  throw new Error(
+    "Provide either files[] (multi-file) or both file_name and content (single-file)"
+  );
 }
 
 /**
@@ -11070,10 +11150,7 @@ async function updateSnippet(
 /**
  * Delete a snippet — project-scoped if projectId is given, otherwise personal.
  */
-async function deleteSnippet(
-  projectId: string | undefined,
-  snippetId: number
-): Promise<void> {
+async function deleteSnippet(projectId: string | undefined, snippetId: number): Promise<void> {
   const response = await fetch(`${getSnippetsEndpoint(projectId)}/${snippetId}`, {
     ...getFetchConfig(),
     method: "DELETE",
@@ -11361,10 +11438,7 @@ async function handleToolCall(params: any) {
 
       case "push_files": {
         const args = PushFilesSchema.parse(params.arguments);
-        if (
-          GITLAB_PERMISSION_MODE === "modify" &&
-          fileOperationsIncludeDeleteOrMove(args.files)
-        ) {
+        if (GITLAB_PERMISSION_MODE === "modify" && fileOperationsIncludeDeleteOrMove(args.files)) {
           throw new Error("push_files does not allow delete or move actions in modify mode");
         }
         const result = await createCommit(
@@ -11969,7 +12043,9 @@ async function handleToolCall(params: any) {
 
       case "verify_namespace": {
         const args = VerifyNamespaceSchema.parse(params.arguments);
-        const url = new URL(`${GITLAB_API_URL}/namespaces/${encodeGitLabPathSegment(args.path)}/exists`);
+        const url = new URL(
+          `${GITLAB_API_URL}/namespaces/${encodeGitLabPathSegment(args.path)}/exists`
+        );
         if (args.parent_id !== undefined) url.searchParams.set("parent_id", String(args.parent_id));
 
         const response = await fetch(url.toString(), {
@@ -12078,7 +12154,9 @@ async function handleToolCall(params: any) {
 
       case "get_user": {
         const args = GetUserSchema.parse(params.arguments);
-        const url = new URL(`${getEffectiveApiUrl()}/users/${encodeGitLabPathSegment(args.user_id)}`);
+        const url = new URL(
+          `${getEffectiveApiUrl()}/users/${encodeGitLabPathSegment(args.user_id)}`
+        );
 
         const response = await fetch(url.toString(), {
           ...getFetchConfig(),
@@ -12577,7 +12655,16 @@ async function handleToolCall(params: any) {
         const args = DeleteWorkItemEmojiReactionSchema.parse(params.arguments);
         const { workItemGID } = await resolveWorkItemGID(args.project_id, args.iid);
         const result = await removeGraphQLAwardEmoji(workItemGID, args.name);
-        return { content: [{ type: "text", text: JSON.stringify(result ?? { status: "success", message: "Work item emoji reaction removed" }) }] };
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(
+                result ?? { status: "success", message: "Work item emoji reaction removed" }
+              ),
+            },
+          ],
+        };
       }
 
       case "create_work_item_note_emoji_reaction": {
@@ -12589,7 +12676,16 @@ async function handleToolCall(params: any) {
       case "delete_work_item_note_emoji_reaction": {
         const args = DeleteWorkItemNoteEmojiReactionSchema.parse(params.arguments);
         const result = await removeGraphQLAwardEmoji(args.note_id, args.name);
-        return { content: [{ type: "text", text: JSON.stringify(result ?? { status: "success", message: "Work item note emoji reaction removed" }) }] };
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(
+                result ?? { status: "success", message: "Work item note emoji reaction removed" }
+              ),
+            },
+          ],
+        };
       }
 
       case "get_timeline_events": {
@@ -12673,8 +12769,9 @@ async function handleToolCall(params: any) {
       }
 
       case "list_wiki_pages": {
-        const { project_id, page, per_page, with_content, render_html } =
-          ListWikiPagesSchema.parse(params.arguments);
+        const { project_id, page, per_page, with_content, render_html } = ListWikiPagesSchema.parse(
+          params.arguments
+        );
         const wikiPages = await listWikiPages(project_id, {
           page,
           per_page,
@@ -12840,25 +12937,71 @@ async function handleToolCall(params: any) {
       }
 
       case "get_pipeline_variables": {
-        const { project_id, pipeline_id, page, per_page } = GetPipelineVariablesSchema.parse(params.arguments);
-        return { content: [{ type: "text", text: JSON.stringify(await getPipelineVariables(project_id, pipeline_id, page, per_page)) }] };
+        const { project_id, pipeline_id, page, per_page } = GetPipelineVariablesSchema.parse(
+          params.arguments
+        );
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(
+                await getPipelineVariables(project_id, pipeline_id, page, per_page)
+              ),
+            },
+          ],
+        };
       }
 
       case "get_pipeline_test_report": {
-        const { project_id, pipeline_id, page, per_page } = PipelineReportSchema.parse(params.arguments);
-        return { content: [{ type: "text", text: JSON.stringify(await getPipelineReport(project_id, pipeline_id, false, page, per_page)) }] };
+        const { project_id, pipeline_id, page, per_page } = PipelineReportSchema.parse(
+          params.arguments
+        );
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(
+                await getPipelineReport(project_id, pipeline_id, false, page, per_page)
+              ),
+            },
+          ],
+        };
       }
       case "get_pipeline_test_report_summary": {
-        const { project_id, pipeline_id, page, per_page } = PipelineReportSchema.parse(params.arguments);
-        return { content: [{ type: "text", text: JSON.stringify(await getPipelineReport(project_id, pipeline_id, true, page, per_page)) }] };
+        const { project_id, pipeline_id, page, per_page } = PipelineReportSchema.parse(
+          params.arguments
+        );
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(
+                await getPipelineReport(project_id, pipeline_id, true, page, per_page)
+              ),
+            },
+          ],
+        };
       }
       case "delete_pipeline": {
         const { project_id, pipeline_id } = DeletePipelineSchema.parse(params.arguments);
-        return { content: [{ type: "text", text: JSON.stringify(await deletePipeline(project_id, pipeline_id)) }] };
+        return {
+          content: [
+            { type: "text", text: JSON.stringify(await deletePipeline(project_id, pipeline_id)) },
+          ],
+        };
       }
       case "update_pipeline_metadata": {
-        const { project_id, pipeline_id, name } = UpdatePipelineMetadataSchema.parse(params.arguments);
-        return { content: [{ type: "text", text: JSON.stringify(await updatePipelineMetadata(project_id, pipeline_id, name)) }] };
+        const { project_id, pipeline_id, name } = UpdatePipelineMetadataSchema.parse(
+          params.arguments
+        );
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(await updatePipelineMetadata(project_id, pipeline_id, name)),
+            },
+          ],
+        };
       }
 
       case "list_deployments": {
@@ -12880,23 +13023,92 @@ async function handleToolCall(params: any) {
 
       case "create_deployment": {
         const { project_id, ...body } = CreateDeploymentSchema.parse(params.arguments);
-        return { content: [{ type: "text", text: JSON.stringify(await deploymentRequest(project_id, "", "POST", body)) }] };
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(await deploymentRequest(project_id, "", "POST", body)),
+            },
+          ],
+        };
       }
       case "update_deployment": {
-        const { project_id, deployment_id, ...body } = UpdateDeploymentSchema.parse(params.arguments);
-        return { content: [{ type: "text", text: JSON.stringify(await deploymentRequest(project_id, `/${encodeGitLabPathSegment(deployment_id)}`, "PUT", body)) }] };
+        const { project_id, deployment_id, ...body } = UpdateDeploymentSchema.parse(
+          params.arguments
+        );
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(
+                await deploymentRequest(
+                  project_id,
+                  `/${encodeGitLabPathSegment(deployment_id)}`,
+                  "PUT",
+                  body
+                )
+              ),
+            },
+          ],
+        };
       }
       case "delete_deployment": {
         const { project_id, deployment_id } = GetDeploymentSchema.parse(params.arguments);
-        return { content: [{ type: "text", text: JSON.stringify(await deploymentRequest(project_id, `/${encodeGitLabPathSegment(deployment_id)}`, "DELETE")) }] };
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(
+                await deploymentRequest(
+                  project_id,
+                  `/${encodeGitLabPathSegment(deployment_id)}`,
+                  "DELETE"
+                )
+              ),
+            },
+          ],
+        };
       }
       case "list_deployment_merge_requests": {
-        const { project_id, deployment_id, ...query } = ListDeploymentMergeRequestsSchema.parse(params.arguments);
-        return { content: [{ type: "text", text: JSON.stringify(await deploymentRequest(project_id, `/${encodeGitLabPathSegment(deployment_id)}/merge_requests`, "GET", undefined, query)) }] };
+        const { project_id, deployment_id, ...query } = ListDeploymentMergeRequestsSchema.parse(
+          params.arguments
+        );
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(
+                await deploymentRequest(
+                  project_id,
+                  `/${encodeGitLabPathSegment(deployment_id)}/merge_requests`,
+                  "GET",
+                  undefined,
+                  query
+                )
+              ),
+            },
+          ],
+        };
       }
       case "approve_deployment": {
-        const { project_id, deployment_id, ...body } = DeploymentApprovalSchema.parse(params.arguments);
-        return { content: [{ type: "text", text: JSON.stringify(await deploymentRequest(project_id, `/${encodeGitLabPathSegment(deployment_id)}/approval`, "POST", body)) }] };
+        const { project_id, deployment_id, ...body } = DeploymentApprovalSchema.parse(
+          params.arguments
+        );
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(
+                await deploymentRequest(
+                  project_id,
+                  `/${encodeGitLabPathSegment(deployment_id)}/approval`,
+                  "POST",
+                  body
+                )
+              ),
+            },
+          ],
+        };
       }
       case "list_environments": {
         const args = ListEnvironmentsSchema.parse(params.arguments);
@@ -12916,48 +13128,182 @@ async function handleToolCall(params: any) {
       }
 
       case "update_environment": {
-        const { project_id, environment_id, ...body } = UpdateEnvironmentSchema.parse(params.arguments);
-        return { content: [{ type: "text", text: JSON.stringify(await environmentRequest(project_id, `/${encodeGitLabPathSegment(environment_id)}`, "PUT", body)) }] };
+        const { project_id, environment_id, ...body } = UpdateEnvironmentSchema.parse(
+          params.arguments
+        );
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(
+                await environmentRequest(
+                  project_id,
+                  `/${encodeGitLabPathSegment(environment_id)}`,
+                  "PUT",
+                  body
+                )
+              ),
+            },
+          ],
+        };
       }
       case "delete_environment": {
         const { project_id, environment_id } = GetEnvironmentSchema.parse(params.arguments);
-        return { content: [{ type: "text", text: JSON.stringify(await environmentRequest(project_id, `/${encodeGitLabPathSegment(environment_id)}`, "DELETE")) }] };
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(
+                await environmentRequest(
+                  project_id,
+                  `/${encodeGitLabPathSegment(environment_id)}`,
+                  "DELETE"
+                )
+              ),
+            },
+          ],
+        };
       }
       case "stop_environment": {
         const { project_id, environment_id, force } = StopEnvironmentSchema.parse(params.arguments);
-        return { content: [{ type: "text", text: JSON.stringify(await environmentRequest(project_id, `/${encodeGitLabPathSegment(environment_id)}/stop`, "POST", undefined, { force })) }] };
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(
+                await environmentRequest(
+                  project_id,
+                  `/${encodeGitLabPathSegment(environment_id)}/stop`,
+                  "POST",
+                  undefined,
+                  { force }
+                )
+              ),
+            },
+          ],
+        };
       }
       case "stop_stale_environments": {
         const { project_id, before } = StopStaleEnvironmentsSchema.parse(params.arguments);
-        return { content: [{ type: "text", text: JSON.stringify(await environmentRequest(project_id, "/stop_stale", "POST", undefined, { before })) }] };
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(
+                await environmentRequest(project_id, "/stop_stale", "POST", undefined, { before })
+              ),
+            },
+          ],
+        };
       }
       case "delete_review_app_environments": {
         const { project_id, ...query } = DeleteReviewAppEnvironmentsSchema.parse(params.arguments);
-        return { content: [{ type: "text", text: JSON.stringify(await environmentRequest(project_id, "/review_apps", "DELETE", undefined, query)) }] };
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(
+                await environmentRequest(project_id, "/review_apps", "DELETE", undefined, query)
+              ),
+            },
+          ],
+        };
       }
       case "list_pipeline_triggers": {
         const { project_id } = ListPipelineTriggersSchema.parse(params.arguments);
-        return { content: [{ type: "text", text: JSON.stringify(redactSensitiveGitLabFields(await pipelineTriggerRequest(project_id))) }] };
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(
+                redactSensitiveGitLabFields(await pipelineTriggerRequest(project_id))
+              ),
+            },
+          ],
+        };
       }
       case "get_pipeline_trigger": {
         const { project_id, trigger_id } = PipelineTriggerIdSchema.parse(params.arguments);
-        return { content: [{ type: "text", text: JSON.stringify(redactSensitiveGitLabFields(await pipelineTriggerRequest(project_id, `/${encodeGitLabPathSegment(trigger_id)}`))) }] };
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(
+                redactSensitiveGitLabFields(
+                  await pipelineTriggerRequest(
+                    project_id,
+                    `/${encodeGitLabPathSegment(trigger_id)}`
+                  )
+                )
+              ),
+            },
+          ],
+        };
       }
       case "create_pipeline_trigger": {
         const { project_id, ...body } = CreatePipelineTriggerSchema.parse(params.arguments);
-        return { content: [{ type: "text", text: JSON.stringify(await pipelineTriggerRequest(project_id, "", "POST", body)) }] };
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(await pipelineTriggerRequest(project_id, "", "POST", body)),
+            },
+          ],
+        };
       }
       case "update_pipeline_trigger": {
-        const { project_id, trigger_id, ...body } = UpdatePipelineTriggerSchema.parse(params.arguments);
-        return { content: [{ type: "text", text: JSON.stringify(redactSensitiveGitLabFields(await pipelineTriggerRequest(project_id, `/${encodeGitLabPathSegment(trigger_id)}`, "PUT", body))) }] };
+        const { project_id, trigger_id, ...body } = UpdatePipelineTriggerSchema.parse(
+          params.arguments
+        );
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(
+                redactSensitiveGitLabFields(
+                  await pipelineTriggerRequest(
+                    project_id,
+                    `/${encodeGitLabPathSegment(trigger_id)}`,
+                    "PUT",
+                    body
+                  )
+                )
+              ),
+            },
+          ],
+        };
       }
       case "delete_pipeline_trigger": {
         const { project_id, trigger_id } = PipelineTriggerIdSchema.parse(params.arguments);
-        return { content: [{ type: "text", text: JSON.stringify(await pipelineTriggerRequest(project_id, `/${encodeGitLabPathSegment(trigger_id)}`, "DELETE")) }] };
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(
+                await pipelineTriggerRequest(
+                  project_id,
+                  `/${encodeGitLabPathSegment(trigger_id)}`,
+                  "DELETE"
+                )
+              ),
+            },
+          ],
+        };
       }
       case "trigger_pipeline": {
-        const { project_id, token, ref, variables, inputs } = TriggerPipelineSchema.parse(params.arguments);
-        return { content: [{ type: "text", text: JSON.stringify(await triggerPipeline(project_id, token, ref, variables, inputs)) }] };
+        const { project_id, token, ref, variables, inputs } = TriggerPipelineSchema.parse(
+          params.arguments
+        );
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(
+                await triggerPipeline(project_id, token, ref, variables, inputs)
+              ),
+            },
+          ],
+        };
       }
 
       case "list_pipeline_jobs": {
@@ -13160,7 +13506,9 @@ async function handleToolCall(params: any) {
           for (const version of resource?.versions?.nodes ?? []) {
             const components = version?.components?.nodes;
             if (Array.isArray(components)) {
-              version.components.nodes = components.filter(component => component?.name === args.component_name);
+              version.components.nodes = components.filter(
+                component => component?.name === args.component_name
+              );
             }
           }
         }
@@ -13374,9 +13722,8 @@ async function handleToolCall(params: any) {
       }
 
       case "play_pipeline_job": {
-        const { project_id, job_id, job_variables_attributes, job_inputs } = PlayPipelineJobSchema.parse(
-          params.arguments
-        );
+        const { project_id, job_id, job_variables_attributes, job_inputs } =
+          PlayPipelineJobSchema.parse(params.arguments);
         const job = await playPipelineJob(project_id, job_id, job_variables_attributes, job_inputs);
         return {
           content: [
@@ -13389,8 +13736,20 @@ async function handleToolCall(params: any) {
       }
 
       case "play_pipeline_jobs": {
-        const { project_id, job_ids, job_variables_attributes, timeout_seconds, poll_interval_seconds } = PlayPipelineJobsSchema.parse(params.arguments);
-        const jobs = await playPipelineJobs(project_id, job_ids, job_variables_attributes, timeout_seconds, poll_interval_seconds);
+        const {
+          project_id,
+          job_ids,
+          job_variables_attributes,
+          timeout_seconds,
+          poll_interval_seconds,
+        } = PlayPipelineJobsSchema.parse(params.arguments);
+        const jobs = await playPipelineJobs(
+          project_id,
+          job_ids,
+          job_variables_attributes,
+          timeout_seconds,
+          poll_interval_seconds
+        );
         return { content: [{ type: "text", text: JSON.stringify(jobs) }] };
       }
 
@@ -13422,18 +13781,34 @@ async function handleToolCall(params: any) {
 
       case "erase_pipeline_job": {
         const { project_id, job_id } = ErasePipelineJobSchema.parse(params.arguments);
-        return { content: [{ type: "text", text: JSON.stringify(await erasePipelineJob(project_id, job_id)) }] };
+        return {
+          content: [
+            { type: "text", text: JSON.stringify(await erasePipelineJob(project_id, job_id)) },
+          ],
+        };
       }
 
       case "wait_for_pipeline": {
-        const { project_id, pipeline_id, timeout_seconds, poll_interval_seconds } = WaitForPipelineSchema.parse(params.arguments);
-        const pipeline = await waitForStatus(signal => getPipeline(project_id, pipeline_id, signal), TERMINAL_PIPELINE_STATUSES, timeout_seconds, poll_interval_seconds);
+        const { project_id, pipeline_id, timeout_seconds, poll_interval_seconds } =
+          WaitForPipelineSchema.parse(params.arguments);
+        const pipeline = await waitForStatus(
+          signal => getPipeline(project_id, pipeline_id, signal),
+          TERMINAL_PIPELINE_STATUSES,
+          timeout_seconds,
+          poll_interval_seconds
+        );
         return { content: [{ type: "text", text: JSON.stringify(pipeline) }] };
       }
 
       case "wait_for_job": {
-        const { project_id, job_id, timeout_seconds, poll_interval_seconds } = WaitForPipelineJobSchema.parse(params.arguments);
-        const job = await waitForStatus(signal => getPipelineJob(project_id, job_id, signal), TERMINAL_JOB_STATUSES, timeout_seconds, poll_interval_seconds);
+        const { project_id, job_id, timeout_seconds, poll_interval_seconds } =
+          WaitForPipelineJobSchema.parse(params.arguments);
+        const job = await waitForStatus(
+          signal => getPipelineJob(project_id, job_id, signal),
+          TERMINAL_JOB_STATUSES,
+          timeout_seconds,
+          poll_interval_seconds
+        );
         return { content: [{ type: "text", text: JSON.stringify(job) }] };
       }
 
@@ -13462,7 +13837,15 @@ async function handleToolCall(params: any) {
           }
           const downloadUrl = buildDownloadUrl("job-artifacts", { project_id, job_id });
           return {
-            content: [{ type: "text", text: JSON.stringify({ download_url: downloadUrl, filename: `artifacts_job_${job_id}.zip` }) }],
+            content: [
+              {
+                type: "text",
+                text: JSON.stringify({
+                  download_url: downloadUrl,
+                  filename: `artifacts_job_${job_id}.zip`,
+                }),
+              },
+            ],
           };
         }
         const filePath = await downloadJobArtifacts(project_id, job_id, local_path);
@@ -13750,11 +14133,7 @@ async function handleToolCall(params: any) {
         const { group_id, milestone_id, ...options } = GetGroupMilestoneMergeRequestsSchema.parse(
           params.arguments
         );
-        const mergeRequests = await getGroupMilestoneMergeRequests(
-          group_id,
-          milestone_id,
-          options
-        );
+        const mergeRequests = await getGroupMilestoneMergeRequests(group_id, milestone_id, options);
         return {
           content: [
             {
@@ -13767,8 +14146,9 @@ async function handleToolCall(params: any) {
 
       case "get_group_milestone_burndown_events": {
         rejectIfStrictProjectScope("get_group_milestone_burndown_events");
-        const { group_id, milestone_id, ...options } =
-          GetGroupMilestoneBurndownEventsSchema.parse(params.arguments);
+        const { group_id, milestone_id, ...options } = GetGroupMilestoneBurndownEventsSchema.parse(
+          params.arguments
+        );
         const events = await getGroupMilestoneBurndownEvents(group_id, milestone_id, options);
         return {
           content: [
@@ -14076,7 +14456,12 @@ async function handleToolCall(params: any) {
             filename: args.filename,
           });
           return {
-            content: [{ type: "text", text: JSON.stringify({ download_url: downloadUrl, filename: args.filename }) }],
+            content: [
+              {
+                type: "text",
+                text: JSON.stringify({ download_url: downloadUrl, filename: args.filename }),
+              },
+            ],
           };
         }
 
@@ -14211,7 +14596,15 @@ async function handleToolCall(params: any) {
             direct_asset_path: args.direct_asset_path,
           });
           return {
-            content: [{ type: "text", text: JSON.stringify({ download_url: downloadUrl, filename: args.direct_asset_path.split("/").pop() || args.direct_asset_path }) }],
+            content: [
+              {
+                type: "text",
+                text: JSON.stringify({
+                  download_url: downloadUrl,
+                  filename: args.direct_asset_path.split("/").pop() || args.direct_asset_path,
+                }),
+              },
+            ],
           };
         }
         const assetContent = await downloadReleaseAsset(
@@ -14296,13 +14689,19 @@ async function handleToolCall(params: any) {
             if (args.ref !== undefined) {
               ref = args.ref;
             } else {
-              if (!firstFile.raw_url) throw new Error(`Snippet file "${firstFile.path}" has no raw_url`);
+              if (!firstFile.raw_url)
+                throw new Error(`Snippet file "${firstFile.path}" has no raw_url`);
               ref = extractSnippetRef(firstFile.raw_url, args.snippet_id, firstFile.path);
             }
             result.files = await Promise.all(
               files.map(async f => ({
                 ...f,
-                content: await getSnippetFileRawContent(args.project_id, args.snippet_id, ref, f.path),
+                content: await getSnippetFileRawContent(
+                  args.project_id,
+                  args.snippet_id,
+                  ref,
+                  f.path
+                ),
               }))
             );
           } else {
@@ -14316,10 +14715,7 @@ async function handleToolCall(params: any) {
                 filePath
               );
             } else {
-              result.content = await getSnippetRawContent(
-                args.project_id,
-                args.snippet_id
-              );
+              result.content = await getSnippetRawContent(args.project_id, args.snippet_id);
             }
           }
         }
@@ -14443,9 +14839,7 @@ async function handleToolCall(params: any) {
           const jobResponse = await fetch(jobUrl.toString(), getFetchConfig());
           authenticated = jobResponse.ok;
         }
-        const versionMetadata = authenticated
-          ? await fetchGitLabVersionMetadata()
-          : null;
+        const versionMetadata = authenticated ? await fetchGitLabVersionMetadata() : null;
         return {
           content: [
             {
@@ -14527,7 +14921,9 @@ async function handleToolCall(params: any) {
         await handleGitLabError(response);
 
         return {
-          content: [{ type: "text", text: JSON.stringify({ status: "deleted", branch: args.branch_name }) }],
+          content: [
+            { type: "text", text: JSON.stringify({ status: "deleted", branch: args.branch_name }) },
+          ],
         };
       }
 
@@ -14618,7 +15014,12 @@ async function handleToolCall(params: any) {
 
         await handleGitLabError(response);
         return {
-          content: [{ type: "text", text: JSON.stringify({ status: "unprotected", branch: args.branch_name }) }],
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify({ status: "unprotected", branch: args.branch_name }),
+            },
+          ],
         };
       }
 
@@ -14639,7 +15040,16 @@ async function handleToolCall(params: any) {
         await handleGitLabError(response);
         const data = await response.json();
         return {
-          content: [{ type: "text", text: JSON.stringify({ status: "updated", default_branch: args.default_branch, project: data }) }],
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify({
+                status: "updated",
+                default_branch: args.default_branch,
+                project: data,
+              }),
+            },
+          ],
         };
       }
 
@@ -14700,6 +15110,7 @@ function buildDownloadProxyDeps(): DownloadProxyDependencies {
  * Start server with traditional SSE transport
  */
 async function startSSEServer(): Promise<void> {
+  const { express, rateLimit, ipKeyGenerator, SSEServerTransport } = await loadRemoteHttpStack();
   const app = express();
   const sseAuthToken = getConfig("sse-auth-token", "SSE_AUTH_TOKEN");
 
@@ -14741,7 +15152,10 @@ async function startSSEServer(): Promise<void> {
     const forwardedHost = MCP_TRUST_PROXY ? getForwardedRequestHost(req, true) : undefined;
     const requestHosts = [host, forwardedHost].filter((value): value is string => Boolean(value));
 
-    if (requestHosts.length === 0 || !requestHosts.some(requestHost => effectiveHosts.has(requestHost))) {
+    if (
+      requestHosts.length === 0 ||
+      !requestHosts.some(requestHost => effectiveHosts.has(requestHost))
+    ) {
       res.status(403).json({ error: "Invalid Host header" });
       return;
     }
@@ -14765,7 +15179,7 @@ async function startSSEServer(): Promise<void> {
   // Session IDs are untrusted map keys (POST /messages?sessionId=). A null
   // prototype prevents inherited names such as "constructor" from masquerading
   // as live transports, matching the Streamable HTTP transport.
-  const transports: Record<string, SSEServerTransport> = Object.create(null);
+  const transports: Record<string, SseServerTransport> = Object.create(null);
   const sessionLastActivity = new Map<string, number>();
   let shuttingDown = false;
 
@@ -14944,11 +15358,18 @@ async function startSSEServer(): Promise<void> {
  * Start server with Streamable HTTP transport
  */
 async function startStreamableHTTPServer(): Promise<void> {
+  const {
+    express,
+    rateLimit,
+    ipKeyGenerator,
+    StreamableHTTPServerTransport,
+    mcpAuthRouter,
+    requireBearerAuth,
+  } = await loadRemoteHttpStack();
   const app = express();
   // Session IDs are untrusted map keys. A null prototype prevents inherited
   // names such as "constructor" from masquerading as live transports.
-  const streamableTransports: Record<string, StreamableHTTPServerTransport> =
-    Object.create(null);
+  const streamableTransports: Record<string, StreamableTransport> = Object.create(null);
 
   const authTimeouts: Record<string, NodeJS.Timeout> = {};
 
@@ -15150,7 +15571,11 @@ async function startStreamableHTTPServer(): Promise<void> {
     if (!(await validateAuthDataUpstream(authData))) {
       return "invalid";
     }
-    authBySession[targetSessionId] = withPublicBaseUrl(authData, publicBaseUrl, existing ?? current);
+    authBySession[targetSessionId] = withPublicBaseUrl(
+      authData,
+      publicBaseUrl,
+      existing ?? current
+    );
     setAuthTimeout(targetSessionId);
     return "stored";
   };
@@ -15560,9 +15985,7 @@ async function startStreamableHTTPServer(): Promise<void> {
     const rateLimitOptions = { keyGenerator: mcpRateLimitKeyGenerator };
     const parsedRegisterLimit = Number(process.env.OAUTH_REGISTER_RATE_LIMIT_PER_HOUR);
     const OAUTH_REGISTER_RATE_LIMIT_PER_HOUR =
-      Number.isInteger(parsedRegisterLimit) && parsedRegisterLimit >= 1
-        ? parsedRegisterLimit
-        : 20;
+      Number.isInteger(parsedRegisterLimit) && parsedRegisterLimit >= 1 ? parsedRegisterLimit : 20;
     const clientRegistrationRateLimitOptions = {
       ...rateLimitOptions,
       windowMs: 60 * 60 * 1000, // 1 hour
@@ -15672,9 +16095,7 @@ async function startStreamableHTTPServer(): Promise<void> {
 
   const rejectUnknownStatefulSession = (req: Request, res: Response, next: NextFunction) => {
     const usesStatelessSessions =
-      OAUTH_STATELESS_MODE &&
-      STATELESS_MATERIAL &&
-      (REMOTE_AUTHORIZATION || GITLAB_MCP_OAUTH);
+      OAUTH_STATELESS_MODE && STATELESS_MATERIAL && (REMOTE_AUTHORIZATION || GITLAB_MCP_OAUTH);
     const sessionId = readMcpSessionIdHeader(req);
     if (!usesStatelessSessions && sessionId && !streamableTransports[sessionId]) {
       res.status(404).json({ error: "Session not found" });
@@ -15684,89 +16105,46 @@ async function startStreamableHTTPServer(): Promise<void> {
   };
 
   // Streamable HTTP endpoint - handles both session creation and message handling
-  app.post("/mcp", rejectUnknownStatefulSession, mcpRequestRateLimit, mcpBearerAuth, async (req: Request, res: Response) => {
-    const sessionId = readMcpSessionIdHeader(req);
-    const publicBaseUrl = getForwardedPublicBaseUrl(req, MCP_TRUST_PROXY);
+  app.post(
+    "/mcp",
+    rejectUnknownStatefulSession,
+    mcpRequestRateLimit,
+    mcpBearerAuth,
+    async (req: Request, res: Response) => {
+      const sessionId = readMcpSessionIdHeader(req);
+      const publicBaseUrl = getForwardedPublicBaseUrl(req, MCP_TRUST_PROXY);
 
-    // Track request
-    metrics.requestsProcessed++;
+      // Track request
+      metrics.requestsProcessed++;
 
-    // Stateless-mode branch: bypass authBySession / streamableTransports
-    // entirely and derive the session auth from either the current request
-    // headers (init) or a sealed Mcp-Session-Id (subsequent requests).
-    // Rate limiting is disabled here because there is no shared counter.
-    if (OAUTH_STATELESS_MODE && STATELESS_MATERIAL && (REMOTE_AUTHORIZATION || GITLAB_MCP_OAUTH)) {
-      await handleStatelessMcpRequest(
-        req,
-        res,
-        STATELESS_MATERIAL,
-        OAUTH_STATELESS_SESSION_TTL_SECONDS
-      );
-      return;
-    }
-
-    const newRemoteAuthData = !sessionId && REMOTE_AUTHORIZATION ? parseAuthHeaders(req) : null;
-    let unauthenticatedDiscoveryRequested = false;
-    let remoteAuthValidatedForInit = false;
-    if (!sessionId && REMOTE_AUTHORIZATION) {
-      const allowUnauthenticatedDiscovery =
-        GITLAB_ALLOW_UNAUTHENTICATED_TOOL_DISCOVERY &&
-        isUnauthenticatedDiscoveryRequestBody(req.body);
-      unauthenticatedDiscoveryRequested = allowUnauthenticatedDiscovery && !newRemoteAuthData;
-
-      if (!newRemoteAuthData && !allowUnauthenticatedDiscovery) {
-        metrics.authFailures++;
-        res.status(401).json({
-          error: "Missing Private-Token, JOB-TOKEN, or Authorization header",
-          message:
-            "Remote authorization is enabled. Please provide Private-Token, JOB-TOKEN, or Authorization header.",
-        });
+      // Stateless-mode branch: bypass authBySession / streamableTransports
+      // entirely and derive the session auth from either the current request
+      // headers (init) or a sealed Mcp-Session-Id (subsequent requests).
+      // Rate limiting is disabled here because there is no shared counter.
+      if (
+        OAUTH_STATELESS_MODE &&
+        STATELESS_MATERIAL &&
+        (REMOTE_AUTHORIZATION || GITLAB_MCP_OAUTH)
+      ) {
+        await handleStatelessMcpRequest(
+          req,
+          res,
+          STATELESS_MATERIAL,
+          OAUTH_STATELESS_SESSION_TTL_SECONDS
+        );
         return;
       }
 
-      if (newRemoteAuthData && !(await validateAuthDataUpstream(newRemoteAuthData))) {
-        metrics.authFailures++;
-        res.status(401).json({
-          error: "Invalid GitLab authentication header",
-          message: "The provided GitLab token was rejected by the configured GitLab API.",
-        });
-        return;
-      }
-      if (newRemoteAuthData) {
-        remoteAuthValidatedForInit = true;
-      }
-    }
+      const newRemoteAuthData = !sessionId && REMOTE_AUTHORIZATION ? parseAuthHeaders(req) : null;
+      let unauthenticatedDiscoveryRequested = false;
+      let remoteAuthValidatedForInit = false;
+      if (!sessionId && REMOTE_AUTHORIZATION) {
+        const allowUnauthenticatedDiscovery =
+          GITLAB_ALLOW_UNAUTHENTICATED_TOOL_DISCOVERY &&
+          isUnauthenticatedDiscoveryRequestBody(req.body);
+        unauthenticatedDiscoveryRequested = allowUnauthenticatedDiscovery && !newRemoteAuthData;
 
-    // Rate limiting check for existing sessions
-    if ((REMOTE_AUTHORIZATION || GITLAB_MCP_OAUTH) && sessionId && !checkRateLimit(sessionId)) {
-      metrics.rejectedByRateLimit++;
-      res.status(429).json({
-        error: "Rate limit exceeded",
-        message: `Maximum ${MAX_REQUESTS_PER_MINUTE} requests per minute allowed`,
-      });
-      return;
-    }
-
-    // Capacity check for new sessions
-    if (!sessionId && Object.keys(streamableTransports).length >= MAX_SESSIONS) {
-      metrics.rejectedByCapacity++;
-      res.status(503).json({
-        error: "Server capacity reached",
-        message: `Maximum ${MAX_SESSIONS} concurrent sessions allowed. Please try again later.`,
-      });
-      return;
-    }
-
-    // Handle remote authorization: extract and store auth headers per session
-    if (REMOTE_AUTHORIZATION) {
-      const authData = parseAuthHeaders(req);
-      const allowUnauthenticatedDiscovery =
-        GITLAB_ALLOW_UNAUTHENTICATED_TOOL_DISCOVERY &&
-        isUnauthenticatedDiscoveryRequestBody(req.body);
-
-      if (sessionId && !authBySession[sessionId]) {
-        // New session: require auth headers unless public discovery was explicitly enabled.
-        if (!authData && !allowUnauthenticatedDiscovery) {
+        if (!newRemoteAuthData && !allowUnauthenticatedDiscovery) {
           metrics.authFailures++;
           res.status(401).json({
             error: "Missing Private-Token, JOB-TOKEN, or Authorization header",
@@ -15775,9 +16153,85 @@ async function startStreamableHTTPServer(): Promise<void> {
           });
           return;
         }
-        // Store auth only when provided. Public discovery intentionally leaves the session unauthenticated.
-        if (authData) {
-          const result = await storeValidatedSessionAuth(sessionId, authData, publicBaseUrl);
+
+        if (newRemoteAuthData && !(await validateAuthDataUpstream(newRemoteAuthData))) {
+          metrics.authFailures++;
+          res.status(401).json({
+            error: "Invalid GitLab authentication header",
+            message: "The provided GitLab token was rejected by the configured GitLab API.",
+          });
+          return;
+        }
+        if (newRemoteAuthData) {
+          remoteAuthValidatedForInit = true;
+        }
+      }
+
+      // Rate limiting check for existing sessions
+      if ((REMOTE_AUTHORIZATION || GITLAB_MCP_OAUTH) && sessionId && !checkRateLimit(sessionId)) {
+        metrics.rejectedByRateLimit++;
+        res.status(429).json({
+          error: "Rate limit exceeded",
+          message: `Maximum ${MAX_REQUESTS_PER_MINUTE} requests per minute allowed`,
+        });
+        return;
+      }
+
+      // Capacity check for new sessions
+      if (!sessionId && Object.keys(streamableTransports).length >= MAX_SESSIONS) {
+        metrics.rejectedByCapacity++;
+        res.status(503).json({
+          error: "Server capacity reached",
+          message: `Maximum ${MAX_SESSIONS} concurrent sessions allowed. Please try again later.`,
+        });
+        return;
+      }
+
+      // Handle remote authorization: extract and store auth headers per session
+      if (REMOTE_AUTHORIZATION) {
+        const authData = parseAuthHeaders(req);
+        const allowUnauthenticatedDiscovery =
+          GITLAB_ALLOW_UNAUTHENTICATED_TOOL_DISCOVERY &&
+          isUnauthenticatedDiscoveryRequestBody(req.body);
+
+        if (sessionId && !authBySession[sessionId]) {
+          // New session: require auth headers unless public discovery was explicitly enabled.
+          if (!authData && !allowUnauthenticatedDiscovery) {
+            metrics.authFailures++;
+            res.status(401).json({
+              error: "Missing Private-Token, JOB-TOKEN, or Authorization header",
+              message:
+                "Remote authorization is enabled. Please provide Private-Token, JOB-TOKEN, or Authorization header.",
+            });
+            return;
+          }
+          // Store auth only when provided. Public discovery intentionally leaves the session unauthenticated.
+          if (authData) {
+            const result = await storeValidatedSessionAuth(sessionId, authData, publicBaseUrl);
+            if (result === "invalid") {
+              metrics.authFailures++;
+              res.status(401).json({
+                error: "Invalid GitLab authentication header",
+                message: "The provided GitLab token was rejected by the configured GitLab API.",
+              });
+              return;
+            }
+            remoteAuthValidatedForInit = true;
+            if (result === "stored") {
+              logger.info(`Session ${sessionId}: stored ${authData.header} header`);
+            }
+          } else if (allowUnauthenticatedDiscovery) {
+            // Schedule cleanup for unauthenticated discovery sessions to prevent slot exhaustion
+            setAuthTimeout(sessionId);
+          }
+        } else if (sessionId && authData) {
+          const result = await storeValidatedSessionAuth(
+            sessionId,
+            authData,
+            publicBaseUrl,
+            authBySession[sessionId],
+            { skipIfUnchanged: true }
+          );
           if (result === "invalid") {
             metrics.authFailures++;
             res.status(401).json({
@@ -15788,276 +16242,166 @@ async function startStreamableHTTPServer(): Promise<void> {
           }
           remoteAuthValidatedForInit = true;
           if (result === "stored") {
-            logger.info(`Session ${sessionId}: stored ${authData.header} header`);
+            logger.debug(`Session ${sessionId}: updated ${authData.header} header`);
           }
-        } else if (allowUnauthenticatedDiscovery) {
-          // Schedule cleanup for unauthenticated discovery sessions to prevent slot exhaustion
+        } else if (sessionId && authBySession[sessionId]) {
+          // Existing session with stored auth: update last used time and reset timeout
+          authBySession[sessionId].lastUsed = Date.now();
+          updateSessionPublicBaseUrl(sessionId, publicBaseUrl);
           setAuthTimeout(sessionId);
-        }
-      } else if (sessionId && authData) {
-        const result = await storeValidatedSessionAuth(
-          sessionId,
-          authData,
-          publicBaseUrl,
-          authBySession[sessionId],
-          { skipIfUnchanged: true }
-        );
-        if (result === "invalid") {
-          metrics.authFailures++;
-          res.status(401).json({
-            error: "Invalid GitLab authentication header",
-            message: "The provided GitLab token was rejected by the configured GitLab API.",
-          });
-          return;
-        }
-        remoteAuthValidatedForInit = true;
-        if (result === "stored") {
-          logger.debug(`Session ${sessionId}: updated ${authData.header} header`);
-        }
-      } else if (sessionId && authBySession[sessionId]) {
-        // Existing session with stored auth: update last used time and reset timeout
-        authBySession[sessionId].lastUsed = Date.now();
-        updateSessionPublicBaseUrl(sessionId, publicBaseUrl);
-        setAuthTimeout(sessionId);
-      } else if (!sessionId && !authData) {
-        // First request without session - will fail in initialization
-      }
-    }
-
-    // MCP OAuth mode — either header auth (PAT/job token) or OAuth Bearer token.
-    // Header auth takes precedence: if Private-Token or JOB-TOKEN is present the
-    // OAuth middleware was bypassed and we store the raw token per-session.
-    // Otherwise req.auth is populated by requireBearerAuth; store the OAuth token.
-    if (GITLAB_MCP_OAUTH) {
-      const headerAuthData = hasHeaderAuth(req) ? parseAuthHeaders(req) : null;
-
-      if (headerAuthData) {
-        if (headerAuthData && sessionId) {
-          if (!authBySession[sessionId]) {
-            authBySession[sessionId] = withPublicBaseUrl(headerAuthData, publicBaseUrl);
-            logger.info(
-              `Session ${sessionId}: stored ${headerAuthData.header} header (header auth)`
-            );
-            setAuthTimeout(sessionId);
-          } else {
-            authBySession[sessionId] = withPublicBaseUrl(
-              headerAuthData,
-              publicBaseUrl,
-              authBySession[sessionId]
-            );
-            setAuthTimeout(sessionId);
-          }
-        }
-      } else {
-        const authInfo = req.auth;
-        if (authInfo?.token && sessionId) {
-          if (!authBySession[sessionId]) {
-            authBySession[sessionId] = {
-              header: "Authorization",
-              token: authInfo.token,
-              lastUsed: Date.now(),
-              apiUrl: GITLAB_API_URL,
-              publicBaseUrl,
-            };
-            logger.info(`Session ${sessionId}: stored OAuth token (client: ${authInfo.clientId})`);
-            setAuthTimeout(sessionId);
-          } else {
-            // Update token on every request — the client may have refreshed it
-            authBySession[sessionId].token = authInfo.token;
-            authBySession[sessionId].lastUsed = Date.now();
-            updateSessionPublicBaseUrl(sessionId, publicBaseUrl);
-            setAuthTimeout(sessionId);
-          }
+        } else if (!sessionId && !authData) {
+          // First request without session - will fail in initialization
         }
       }
-    }
 
-    // Handle request with proper AsyncLocalStorage context
-    const handleRequest = async () => {
-      try {
-        let transport: StreamableHTTPServerTransport;
+      // MCP OAuth mode — either header auth (PAT/job token) or OAuth Bearer token.
+      // Header auth takes precedence: if Private-Token or JOB-TOKEN is present the
+      // OAuth middleware was bypassed and we store the raw token per-session.
+      // Otherwise req.auth is populated by requireBearerAuth; store the OAuth token.
+      if (GITLAB_MCP_OAUTH) {
+        const headerAuthData = hasHeaderAuth(req) ? parseAuthHeaders(req) : null;
 
-        if (sessionId && streamableTransports[sessionId]) {
-          // Reuse existing transport for ongoing session
-          transport = streamableTransports[sessionId];
-
-          await transport.handleRequest(req, res, req.body);
-        } else {
-          // Create new transport for new session
-          transport = new StreamableHTTPServerTransport({
-            sessionIdGenerator: () => randomUUID(),
-            onsessioninitialized: (newSessionId: string) => {
-              streamableTransports[newSessionId] = transport;
-              metrics.totalSessions++;
-              metrics.activeSessions++;
-              logger.warn(`Streamable HTTP session initialized: ${newSessionId}`);
-
-              // Store auth for newly created session in remote mode
-              if (REMOTE_AUTHORIZATION && !authBySession[newSessionId]) {
-                const authData = parseAuthHeaders(req);
-                if (authData && remoteAuthValidatedForInit) {
-                  authBySession[newSessionId] = withPublicBaseUrl(authData, publicBaseUrl);
-                  logger.info(`Session ${newSessionId}: stored ${authData.header} header`);
-                  setAuthTimeout(newSessionId);
-                } else if (unauthenticatedDiscoveryRequested) {
-                  setAuthTimeout(newSessionId);
-                }
-              }
-
-              // Store OAuth token for newly created session in MCP OAuth mode.
-              // If Private-Token or JOB-TOKEN headers are present, prefer them.
-              if (GITLAB_MCP_OAUTH && !authBySession[newSessionId]) {
-                if (hasHeaderAuth(req)) {
-                  const authData = parseAuthHeaders(req);
-                  if (authData) {
-                    authBySession[newSessionId] = withPublicBaseUrl(authData, publicBaseUrl);
-                    logger.info(
-                      `Session ${newSessionId}: stored ${authData.header} header (header auth)`
-                    );
-                    setAuthTimeout(newSessionId);
-                  }
-                } else {
-                  const authInfo = req.auth;
-                  if (authInfo?.token) {
-                    authBySession[newSessionId] = {
-                      header: "Authorization",
-                      token: authInfo.token,
-                      lastUsed: Date.now(),
-                      apiUrl: GITLAB_API_URL,
-                      publicBaseUrl,
-                    };
-                    logger.info(
-                      `Session ${newSessionId}: stored OAuth token (client: ${authInfo.clientId})`
-                    );
-                    setAuthTimeout(newSessionId);
-                  }
-                }
-              }
-            },
-          });
-
-          // Set up cleanup handler when transport closes
-          transport.onclose = () => {
-            const sid = transport.sessionId;
-            if (sid && streamableTransports[sid]) {
-              logger.warn(`Streamable HTTP transport closed for session ${sid}, cleaning up`);
-              delete streamableTransports[sid];
-              metrics.activeSessions--;
-              if (REMOTE_AUTHORIZATION || GITLAB_MCP_OAUTH) {
-                cleanupSessionAuth(sid);
-                delete sessionRequestCounts[sid];
-                logger.info(`Session ${sid}: cleaned up auth mapping`);
-              }
+        if (headerAuthData) {
+          if (headerAuthData && sessionId) {
+            if (!authBySession[sessionId]) {
+              authBySession[sessionId] = withPublicBaseUrl(headerAuthData, publicBaseUrl);
+              logger.info(
+                `Session ${sessionId}: stored ${headerAuthData.header} header (header auth)`
+              );
+              setAuthTimeout(sessionId);
+            } else {
+              authBySession[sessionId] = withPublicBaseUrl(
+                headerAuthData,
+                publicBaseUrl,
+                authBySession[sessionId]
+              );
+              setAuthTimeout(sessionId);
             }
-          };
-
-          // Create a new Server instance per session to prevent
-          // cross-client data leakage (GHSA-345p-7cg4-v4c7)
-          const serverInstance = createServer();
-          await serverInstance.connect(transport);
-
-          // Handle the request - context is already set up in the outer handleRequest wrapper
-          await transport.handleRequest(req, res, req.body);
+          }
+        } else {
+          const authInfo = req.auth;
+          if (authInfo?.token && sessionId) {
+            if (!authBySession[sessionId]) {
+              authBySession[sessionId] = {
+                header: "Authorization",
+                token: authInfo.token,
+                lastUsed: Date.now(),
+                apiUrl: GITLAB_API_URL,
+                publicBaseUrl,
+              };
+              logger.info(
+                `Session ${sessionId}: stored OAuth token (client: ${authInfo.clientId})`
+              );
+              setAuthTimeout(sessionId);
+            } else {
+              // Update token on every request — the client may have refreshed it
+              authBySession[sessionId].token = authInfo.token;
+              authBySession[sessionId].lastUsed = Date.now();
+              updateSessionPublicBaseUrl(sessionId, publicBaseUrl);
+              setAuthTimeout(sessionId);
+            }
+          }
         }
-      } catch (error) {
-        logger.error({ err: error }, "Streamable HTTP error");
-        res.status(500).json({
-          error: "Internal server error",
-          message: error instanceof Error ? error.message : "Unknown error",
-        });
       }
-    };
 
-    // Execute with auth context in remote mode (REMOTE_AUTHORIZATION or GITLAB_MCP_OAUTH)
-    if ((REMOTE_AUTHORIZATION || GITLAB_MCP_OAUTH) && sessionId && authBySession[sessionId]) {
-      const authData = authBySession[sessionId];
-      const ctx: SessionAuth = {
-        sessionId,
-        header: authData.header,
-        token: authData.token,
-        lastUsed: authData.lastUsed,
-        apiUrl: authData.apiUrl,
-        publicBaseUrl: authData.publicBaseUrl,
-        allowedProjectIds: authData.allowedProjectIds,
-      };
+      // Handle request with proper AsyncLocalStorage context
+      const handleRequest = async () => {
+        try {
+          let transport: StreamableTransport;
 
-      // Run the entire request handling within AsyncLocalStorage context
-      await sessionAuthStore.run(ctx, handleRequest);
-    } else {
-      // Standard execution (no per-session auth or no session yet)
-      await handleRequest();
-    }
-  });
+          if (sessionId && streamableTransports[sessionId]) {
+            // Reuse existing transport for ongoing session
+            transport = streamableTransports[sessionId];
 
-  // Streamable HTTP GET endpoint for listening to server-sent events (SSE)
-  app.get("/mcp", rejectUnknownStatefulSession, mcpRequestRateLimit, mcpBearerAuth, async (req: Request, res: Response) => {
-    const sessionId = readMcpSessionIdHeader(req);
-    const acceptHeader = readAcceptHeader(req);
+            await transport.handleRequest(req, res, req.body);
+          } else {
+            // Create new transport for new session
+            transport = new StreamableHTTPServerTransport({
+              sessionIdGenerator: () => randomUUID(),
+              onsessioninitialized: (newSessionId: string) => {
+                streamableTransports[newSessionId] = transport;
+                metrics.totalSessions++;
+                metrics.activeSessions++;
+                logger.warn(`Streamable HTTP session initialized: ${newSessionId}`);
 
-    if (!acceptHeader.includes("text/event-stream")) {
-      res.setHeader("Allow", "GET, POST, DELETE");
-      res.status(406).json({
-        error: "Not Acceptable",
-        message: "Client must accept text/event-stream for GET /mcp",
-      });
-      return;
-    }
+                // Store auth for newly created session in remote mode
+                if (REMOTE_AUTHORIZATION && !authBySession[newSessionId]) {
+                  const authData = parseAuthHeaders(req);
+                  if (authData && remoteAuthValidatedForInit) {
+                    authBySession[newSessionId] = withPublicBaseUrl(authData, publicBaseUrl);
+                    logger.info(`Session ${newSessionId}: stored ${authData.header} header`);
+                    setAuthTimeout(newSessionId);
+                  } else if (unauthenticatedDiscoveryRequested) {
+                    setAuthTimeout(newSessionId);
+                  }
+                }
 
-    if (!sessionId) {
-      res.setHeader("Allow", "GET, POST, DELETE");
-      res.status(400).json({
-        error: "Bad Request",
-        message: "Mcp-Session-Id header is required for GET /mcp",
-      });
-      return;
-    }
+                // Store OAuth token for newly created session in MCP OAuth mode.
+                // If Private-Token or JOB-TOKEN headers are present, prefer them.
+                if (GITLAB_MCP_OAUTH && !authBySession[newSessionId]) {
+                  if (hasHeaderAuth(req)) {
+                    const authData = parseAuthHeaders(req);
+                    if (authData) {
+                      authBySession[newSessionId] = withPublicBaseUrl(authData, publicBaseUrl);
+                      logger.info(
+                        `Session ${newSessionId}: stored ${authData.header} header (header auth)`
+                      );
+                      setAuthTimeout(newSessionId);
+                    }
+                  } else {
+                    const authInfo = req.auth;
+                    if (authInfo?.token) {
+                      authBySession[newSessionId] = {
+                        header: "Authorization",
+                        token: authInfo.token,
+                        lastUsed: Date.now(),
+                        apiUrl: GITLAB_API_URL,
+                        publicBaseUrl,
+                      };
+                      logger.info(
+                        `Session ${newSessionId}: stored OAuth token (client: ${authInfo.clientId})`
+                      );
+                      setAuthTimeout(newSessionId);
+                    }
+                  }
+                }
+              },
+            });
 
-    if (OAUTH_STATELESS_MODE && STATELESS_MATERIAL && (REMOTE_AUTHORIZATION || GITLAB_MCP_OAUTH)) {
-      res.setHeader("Allow", "POST");
-      res.status(405).json({
-        error: "Method Not Allowed",
-        message:
-          "GET /mcp SSE stream is not supported in stateless mode. Use POST to communicate with the MCP server.",
-      });
-      return;
-    }
+            // Set up cleanup handler when transport closes
+            transport.onclose = () => {
+              const sid = transport.sessionId;
+              if (sid && streamableTransports[sid]) {
+                logger.warn(`Streamable HTTP transport closed for session ${sid}, cleaning up`);
+                delete streamableTransports[sid];
+                metrics.activeSessions--;
+                if (REMOTE_AUTHORIZATION || GITLAB_MCP_OAUTH) {
+                  cleanupSessionAuth(sid);
+                  delete sessionRequestCounts[sid];
+                  logger.info(`Session ${sid}: cleaned up auth mapping`);
+                }
+              }
+            };
 
-    const transport = streamableTransports[sessionId];
-    if (!transport) {
-      res.status(404).json({
-        error: "Session not found",
-      });
-      return;
-    }
+            // Create a new Server instance per session to prevent
+            // cross-client data leakage (GHSA-345p-7cg4-v4c7)
+            const serverInstance = createServer();
+            await serverInstance.connect(transport);
 
-    metrics.requestsProcessed++;
-
-    const usesSessionTimeouts = REMOTE_AUTHORIZATION || GITLAB_MCP_OAUTH;
-    if (usesSessionTimeouts) {
-      if (authBySession[sessionId]) {
-        authBySession[sessionId].lastUsed = Date.now();
-      }
-      // Listening on GET /mcp is session activity. Pause inactivity expiry for
-      // the life of the SSE stream so list_changed can still be pushed.
-      clearAuthTimeout(sessionId);
-    }
-
-    const handleGetRequest = async () => {
-      try {
-        await transport.handleRequest(req, res);
-      } catch (error) {
-        logger.error({ err: error }, "Streamable HTTP GET error");
-        if (!res.headersSent) {
+            // Handle the request - context is already set up in the outer handleRequest wrapper
+            await transport.handleRequest(req, res, req.body);
+          }
+        } catch (error) {
+          logger.error({ err: error }, "Streamable HTTP error");
           res.status(500).json({
             error: "Internal server error",
             message: error instanceof Error ? error.message : "Unknown error",
           });
         }
-      }
-    };
+      };
 
-    try {
-      if (usesSessionTimeouts && authBySession[sessionId]) {
+      // Execute with auth context in remote mode (REMOTE_AUTHORIZATION or GITLAB_MCP_OAUTH)
+      if ((REMOTE_AUTHORIZATION || GITLAB_MCP_OAUTH) && sessionId && authBySession[sessionId]) {
         const authData = authBySession[sessionId];
         const ctx: SessionAuth = {
           sessionId,
@@ -16068,16 +16412,115 @@ async function startStreamableHTTPServer(): Promise<void> {
           publicBaseUrl: authData.publicBaseUrl,
           allowedProjectIds: authData.allowedProjectIds,
         };
-        await sessionAuthStore.run(ctx, handleGetRequest);
+
+        // Run the entire request handling within AsyncLocalStorage context
+        await sessionAuthStore.run(ctx, handleRequest);
       } else {
-        await handleGetRequest();
-      }
-    } finally {
-      if (usesSessionTimeouts && streamableTransports[sessionId]) {
-        setAuthTimeout(sessionId);
+        // Standard execution (no per-session auth or no session yet)
+        await handleRequest();
       }
     }
-  });
+  );
+
+  // Streamable HTTP GET endpoint for listening to server-sent events (SSE)
+  app.get(
+    "/mcp",
+    rejectUnknownStatefulSession,
+    mcpRequestRateLimit,
+    mcpBearerAuth,
+    async (req: Request, res: Response) => {
+      const sessionId = readMcpSessionIdHeader(req);
+      const acceptHeader = readAcceptHeader(req);
+
+      if (!acceptHeader.includes("text/event-stream")) {
+        res.setHeader("Allow", "GET, POST, DELETE");
+        res.status(406).json({
+          error: "Not Acceptable",
+          message: "Client must accept text/event-stream for GET /mcp",
+        });
+        return;
+      }
+
+      if (!sessionId) {
+        res.setHeader("Allow", "GET, POST, DELETE");
+        res.status(400).json({
+          error: "Bad Request",
+          message: "Mcp-Session-Id header is required for GET /mcp",
+        });
+        return;
+      }
+
+      if (
+        OAUTH_STATELESS_MODE &&
+        STATELESS_MATERIAL &&
+        (REMOTE_AUTHORIZATION || GITLAB_MCP_OAUTH)
+      ) {
+        res.setHeader("Allow", "POST");
+        res.status(405).json({
+          error: "Method Not Allowed",
+          message:
+            "GET /mcp SSE stream is not supported in stateless mode. Use POST to communicate with the MCP server.",
+        });
+        return;
+      }
+
+      const transport = streamableTransports[sessionId];
+      if (!transport) {
+        res.status(404).json({
+          error: "Session not found",
+        });
+        return;
+      }
+
+      metrics.requestsProcessed++;
+
+      const usesSessionTimeouts = REMOTE_AUTHORIZATION || GITLAB_MCP_OAUTH;
+      if (usesSessionTimeouts) {
+        if (authBySession[sessionId]) {
+          authBySession[sessionId].lastUsed = Date.now();
+        }
+        // Listening on GET /mcp is session activity. Pause inactivity expiry for
+        // the life of the SSE stream so list_changed can still be pushed.
+        clearAuthTimeout(sessionId);
+      }
+
+      const handleGetRequest = async () => {
+        try {
+          await transport.handleRequest(req, res);
+        } catch (error) {
+          logger.error({ err: error }, "Streamable HTTP GET error");
+          if (!res.headersSent) {
+            res.status(500).json({
+              error: "Internal server error",
+              message: error instanceof Error ? error.message : "Unknown error",
+            });
+          }
+        }
+      };
+
+      try {
+        if (usesSessionTimeouts && authBySession[sessionId]) {
+          const authData = authBySession[sessionId];
+          const ctx: SessionAuth = {
+            sessionId,
+            header: authData.header,
+            token: authData.token,
+            lastUsed: authData.lastUsed,
+            apiUrl: authData.apiUrl,
+            publicBaseUrl: authData.publicBaseUrl,
+            allowedProjectIds: authData.allowedProjectIds,
+          };
+          await sessionAuthStore.run(ctx, handleGetRequest);
+        } else {
+          await handleGetRequest();
+        }
+      } finally {
+        if (usesSessionTimeouts && streamableTransports[sessionId]) {
+          setAuthTimeout(sessionId);
+        }
+      }
+    }
+  );
 
   const getMetricsSnapshot = () => ({
     ...metrics,
@@ -16126,34 +16569,40 @@ async function startStreamableHTTPServer(): Promise<void> {
   });
 
   // to delete a mcp server session explicitly
-  app.delete("/mcp", rejectUnknownStatefulSession, mcpRequestRateLimit, mcpBearerAuth, async (req: Request, res: Response) => {
-    const sessionId = readMcpSessionIdHeader(req);
+  app.delete(
+    "/mcp",
+    rejectUnknownStatefulSession,
+    mcpRequestRateLimit,
+    mcpBearerAuth,
+    async (req: Request, res: Response) => {
+      const sessionId = readMcpSessionIdHeader(req);
 
-    if (!sessionId) {
-      res.status(400).json({ error: "mcp-session-id header is required" });
-      return;
-    }
-
-    const transport = streamableTransports[sessionId];
-
-    if (transport) {
-      try {
-        await transport.close();
-        logger.info(`Explicitly closed session via DELETE request: ${sessionId}`);
-        if (REMOTE_AUTHORIZATION || GITLAB_MCP_OAUTH) {
-          cleanupSessionAuth(sessionId);
-          delete sessionRequestCounts[sessionId];
-          logger.info(`Session ${sessionId}: cleaned up auth mapping on DELETE`);
-        }
-        res.status(204).send();
-      } catch (error) {
-        logger.error({ err: error }, `Error closing session ${sessionId}`);
-        res.status(500).json({ error: "Failed to close session" });
+      if (!sessionId) {
+        res.status(400).json({ error: "mcp-session-id header is required" });
+        return;
       }
-    } else {
-      res.status(404).json({ error: "Session not found" });
+
+      const transport = streamableTransports[sessionId];
+
+      if (transport) {
+        try {
+          await transport.close();
+          logger.info(`Explicitly closed session via DELETE request: ${sessionId}`);
+          if (REMOTE_AUTHORIZATION || GITLAB_MCP_OAUTH) {
+            cleanupSessionAuth(sessionId);
+            delete sessionRequestCounts[sessionId];
+            logger.info(`Session ${sessionId}: cleaned up auth mapping on DELETE`);
+          }
+          res.status(204).send();
+        } catch (error) {
+          logger.error({ err: error }, `Error closing session ${sessionId}`);
+          res.status(500).json({ error: "Failed to close session" });
+        }
+      } else {
+        res.status(404).json({ error: "Session not found" });
+      }
     }
-  });
+  );
 
   // Reject unsupported methods on /mcp
   app.all("/mcp", (_req: Request, res: Response) => {
@@ -16304,22 +16753,16 @@ async function runServer() {
     logger.info(`Configured GitLab API URLs: ${GITLAB_API_URLS.join(", ")}`);
     logger.info(`Default GitLab API URL: ${GITLAB_API_URL}`);
 
-    if (GITLAB_ALLOWED_GROUPS_RAW) {
-      if (GITLAB_OAUTH_ALLOWED_GROUPS_RAW) {
-        logger.warn(
-          "GITLAB_ALLOWED_GROUPS is set but ignored — GITLAB_OAUTH_ALLOWED_GROUPS takes precedence."
-        );
-      } else {
-        logger.warn(
-          "GITLAB_ALLOWED_GROUPS is deprecated. Use GITLAB_OAUTH_ALLOWED_GROUPS instead."
-        );
-      }
-    }
-
-    if (GITLAB_READ_ONLY_MODE) {
-      logger.warn(
-        "GITLAB_READ_ONLY_MODE is deprecated. Use GITLAB_PERMISSION_MODE=readonly or --permission-mode=readonly instead."
-      );
+    for (const warning of getDeprecatedEnvWarnings({
+      readOnlyMode: GITLAB_READ_ONLY_MODE,
+      permissionModeRaw: GITLAB_PERMISSION_MODE_RAW,
+      allowedGroupsRaw: GITLAB_ALLOWED_GROUPS_RAW,
+      oauthAllowedGroupsRaw: GITLAB_OAUTH_ALLOWED_GROUPS_RAW,
+      useWikiRaw: USE_GITLAB_WIKI_RAW,
+      useMilestoneRaw: USE_MILESTONE_RAW,
+      usePipelineRaw: USE_PIPELINE_RAW,
+    })) {
+      logger.warn(warning);
     }
 
     if (GITLAB_OAUTH_ALLOWED_GROUPS) {

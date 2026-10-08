@@ -1,7 +1,7 @@
 {
   "serverInfo": {
     "name": "io.github.zereight/gitlab-mcp",
-    "version": "2.1.69"
+    "version": "2.2.0"
   },
   "authentication": {
     "required": true,
@@ -2997,7 +2997,7 @@
     },
     {
       "name": "get_issue",
-      "description": "Get details of a specific issue. Returns a slim milestone by default; set full_response=true for the complete milestone object. Use this for issue management: inspect one issue's fields; use `list_issues` or `my_issues` to discover issues first. It is read-only, requires issue read permission, and returns the issue or an error when the identifier is invalid, the issue is missing, or access is denied.",
+      "description": "Get details of a specific issue. Returns the issue with a slim nested milestone by default; set full_response=true for the complete milestone object. Use this for issue management: inspect one issue's fields; use `list_issues` or `my_issues` to discover issues first. It is read-only, requires issue read permission, and returns the issue or an error when the identifier is invalid, the issue is missing, or access is denied.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -3010,7 +3010,7 @@
             "description": "The internal ID of the project issue"
           },
           "full_response": {
-            "description": "If true, return the complete issue object including the full milestone description. Default returns a slim milestone (id, iid, title, state, web_url) to reduce token usage.",
+            "description": "If true, include the complete milestone object, including its description, on the returned issue. Default returns the issue with a slim milestone (id, iid, title, state, web_url) to reduce token usage.",
             "type": "boolean"
           }
         },
@@ -10657,7 +10657,7 @@
     },
     {
       "name": "discover_tools",
-      "description": "Discover and activate additional tool categories for this session. Available categories: merge_requests, issues, repositories, branches, projects, labels, ci, groups, pipelines, milestones, wiki, releases, tags, snippets, users, workitems, webhooks, search, variables, dependency_proxy, vulnerabilities, orbit. Already-active categories are listed in the response. Use this when a needed opt-in category is not currently exposed; omit `category` to inspect available categories, then call it with a category to activate that group for the current session. It changes only the session's tool registry, returns the active-tool summary, and does not change GitLab data.",
+      "description": "Discover and activate additional tool categories for this session. Available categories: core, merge_requests, issues, repositories, branches, projects, labels, ci, groups, pipelines, milestones, wiki, releases, tags, snippets, users, workitems, webhooks, search, variables, dependency_proxy, vulnerabilities, orbit. Already-active categories are listed in the response. Use this when a needed opt-in category is not currently exposed; omit `category` to inspect available categories, then call it with a category to activate that group for the current session. It changes only the session's tool registry, returns the active-tool summary, and does not change GitLab data.",
       "inputSchema": {
         "type": "object",
         "properties": {
