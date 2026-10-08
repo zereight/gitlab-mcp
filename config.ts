@@ -75,8 +75,9 @@ export const GITLAB_MASKING_WORKSPACE_DIR = getConfig(
 
 export type GitLabPermissionMode = "readonly" | "modify" | "full";
 const PERMISSION_MODES: readonly GitLabPermissionMode[] = ["readonly", "modify", "full"];
+export const GITLAB_PERMISSION_MODE_RAW = getConfig("permission-mode", "GITLAB_PERMISSION_MODE");
 export const GITLAB_PERMISSION_MODE: GitLabPermissionMode = (() => {
-  const raw = getConfig("permission-mode", "GITLAB_PERMISSION_MODE");
+  const raw = GITLAB_PERMISSION_MODE_RAW;
   if (raw !== undefined && !PERMISSION_MODES.includes(raw as GitLabPermissionMode)) {
     throw new Error(
       `Invalid GITLAB_PERMISSION_MODE: "${raw}". Expected one of: ${PERMISSION_MODES.join(", ")}`
@@ -88,9 +89,12 @@ export const GITLAB_PERMISSION_MODE: GitLabPermissionMode = (() => {
   }
   return (raw as GitLabPermissionMode | undefined) ?? "full";
 })();
-export const USE_GITLAB_WIKI = getConfig("use-wiki", "USE_GITLAB_WIKI") === "true";
-export const USE_MILESTONE = getConfig("use-milestone", "USE_MILESTONE") === "true";
-export const USE_PIPELINE = getConfig("use-pipeline", "USE_PIPELINE") === "true";
+export const USE_GITLAB_WIKI_RAW = getConfig("use-wiki", "USE_GITLAB_WIKI");
+export const USE_GITLAB_WIKI = USE_GITLAB_WIKI_RAW === "true";
+export const USE_MILESTONE_RAW = getConfig("use-milestone", "USE_MILESTONE");
+export const USE_MILESTONE = USE_MILESTONE_RAW === "true";
+export const USE_PIPELINE_RAW = getConfig("use-pipeline", "USE_PIPELINE");
+export const USE_PIPELINE = USE_PIPELINE_RAW === "true";
 export const GITLAB_DISABLE_VERSION_CHECK =
   getConfig("disable-version-check", "GITLAB_DISABLE_VERSION_CHECK") === "true";
 

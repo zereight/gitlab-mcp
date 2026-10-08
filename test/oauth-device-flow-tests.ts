@@ -5,7 +5,11 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { getPositionalCliCommand } from "../cli-command.js";
 import { gitlabOriginFromApiUrl, runAuthCommandAsync } from "../auth-cli.js";
-import { runDeviceAuthorizationGrantAsync, type FetchImpl } from "../oauth-device-flow.js";
+import {
+  grantedOAuthScopes,
+  runDeviceAuthorizationGrantAsync,
+  type FetchImpl,
+} from "../oauth-device-flow.js";
 import { GitLabOAuth } from "../oauth.js";
 
 const GITLAB_URL = "https://gitlab.example";
@@ -75,12 +79,13 @@ function deviceAuthorizationBody(interval = 5): unknown {
   };
 }
 
-function successTokenBody(): unknown {
+function successTokenBody(scope?: string): unknown {
   return {
     access_token: ACCESS_TOKEN,
     refresh_token: REFRESH_TOKEN,
     expires_in: 7200,
     token_type: "Bearer",
+    ...(scope === undefined ? {} : { scope }),
   };
 }
 
@@ -190,6 +195,7 @@ function readStoredToken(value: unknown): {
   expires_in?: number;
   created_at: number;
   token_type: string;
+  scopes: unknown;
 } {
   if (typeof value !== "object" || value === null) {
     throw new Error("token file is not an object");
@@ -199,6 +205,7 @@ function readStoredToken(value: unknown): {
   const expiresIn = Reflect.get(value, "expires_in");
   const createdAt = Reflect.get(value, "created_at");
   const tokenType = Reflect.get(value, "token_type");
+  const scopes = Reflect.get(value, "scopes");
   if (typeof accessToken !== "string") {
     throw new Error("access_token missing");
   }
@@ -214,6 +221,7 @@ function readStoredToken(value: unknown): {
     expires_in: typeof expiresIn === "number" ? expiresIn : undefined,
     created_at: createdAt,
     token_type: tokenType,
+    scopes,
   };
 }
 
@@ -408,6 +416,99 @@ describe("When the token endpoint returns access_denied", () => {
   });
 });
 
+describe("When GitLab grants scopes that readonly mode rejects", () => {
+  describe("with read_api requested and api also granted", () => {
+    it("should reject the token before returning it", async () => {
+      const fetchImpl = createFetchStub({
+        authorize: { status: 200, body: deviceAuthorizationBody() },
+        tokens: [{ status: 200, body: successTokenBody("read_api api") }],
+      });
+
+      await assert.rejects(
+        () =>
+          runDeviceAuthorizationGrantAsync({
+            gitlabUrl: GITLAB_URL,
+            clientId: CLIENT_ID,
+            scopes: ["read_api"],
+            fetchImpl,
+            sleepAsync: async () => {},
+          }),
+        /granted scopes \(read_api api\).*required scopes \(read_api\)/
+      );
+    });
+  });
+});
+
+describe("When a readonly device flow would save a disallowed api scope", () => {
+  describe("with no token file yet", () => {
+    it("should throw and not write a token file", async () => {
+      const tokenPath = createTempTokenPath();
+      const fetchImpl = createFetchStub({
+        authorize: { status: 200, body: deviceAuthorizationBody() },
+        tokens: [{ status: 200, body: successTokenBody("read_api api") }],
+      });
+
+      const oauth = new GitLabOAuth({
+        clientId: CLIENT_ID,
+        redirectUri: "http://127.0.0.1:8888/callback",
+        gitlabUrl: GITLAB_URL,
+        scopes: ["read_api"],
+        tokenStoragePath: tokenPath,
+      });
+
+      await assert.rejects(
+        () => oauth.runDeviceFlowAsync({ fetchImpl, sleepAsync: async () => {} }),
+        /required scopes \(read_api\)/
+      );
+      assert.equal(fs.existsSync(tokenPath), false);
+    });
+  });
+});
+
+describe("When GitLab omits a requested scope", () => {
+  describe("with only read_user granted", () => {
+    it("should reject the token", async () => {
+      const fetchImpl = createFetchStub({
+        authorize: { status: 200, body: deviceAuthorizationBody() },
+        tokens: [{ status: 200, body: successTokenBody("read_user") }],
+      });
+
+      await assert.rejects(
+        () =>
+          runDeviceAuthorizationGrantAsync({
+            gitlabUrl: GITLAB_URL,
+            clientId: CLIENT_ID,
+            scopes: ["read_api"],
+            fetchImpl,
+            sleepAsync: async () => {},
+          }),
+        /granted scopes \(read_user\)/
+      );
+    });
+  });
+});
+
+describe("When GitLab grants an extra non-write scope", () => {
+  describe("with read_user added to read_api", () => {
+    it("should return the granted scopes", async () => {
+      const fetchImpl = createFetchStub({
+        authorize: { status: 200, body: deviceAuthorizationBody() },
+        tokens: [{ status: 200, body: successTokenBody("read_api read_user") }],
+      });
+
+      const token = await runDeviceAuthorizationGrantAsync({
+        gitlabUrl: GITLAB_URL,
+        clientId: CLIENT_ID,
+        scopes: ["read_api"],
+        fetchImpl,
+        sleepAsync: async () => {},
+      });
+
+      assert.deepEqual(token.scopes, ["read_api", "read_user"]);
+    });
+  });
+});
+
 describe("When GitLab returns 404 for authorize_device", () => {
   describe("with a self-managed instance", () => {
     it("should tell the user to use a PAT", async () => {
@@ -437,7 +538,7 @@ describe("When device flow succeeds", () => {
       const tokenPath = createTempTokenPath();
       const fetchImpl = createFetchStub({
         authorize: { status: 200, body: deviceAuthorizationBody() },
-        tokens: [{ status: 200, body: successTokenBody() }],
+        tokens: [{ status: 200, body: successTokenBody("api") }],
       });
 
       try {
@@ -453,6 +554,7 @@ describe("When device flow succeeds", () => {
         assert.equal(stored.expires_in, 7200);
         assert.equal(stored.token_type, "Bearer");
         assert.equal(typeof stored.created_at, "number");
+        assert.deepEqual(stored.scopes, ["api"]);
         assert.equal(fs.statSync(tokenPath).mode & 0o777, 0o600);
       } finally {
         if (fs.existsSync(tokenPath)) {
@@ -575,3 +677,55 @@ describe("When running the auth command", () => {
   });
 });
 
+describe("When a device-flow token response omits scope", () => {
+  describe("with no previously recorded grant", () => {
+    it("should not write scopes into the token file", async () => {
+      const tokenPath = createTempTokenPath();
+      const fetchImpl = createFetchStub({
+        authorize: { status: 200, body: deviceAuthorizationBody() },
+        tokens: [{ status: 200, body: successTokenBody() }],
+      });
+
+      try {
+        const token = await createOauthClient(tokenPath).runDeviceFlowAsync({
+          fetchImpl,
+          sleepAsync: async () => {},
+        });
+        assert.equal(token.scopes, undefined);
+        const raw: unknown = JSON.parse(fs.readFileSync(tokenPath, "utf8"));
+        assert(typeof raw === "object" && raw !== null);
+        assert.equal(Object.hasOwn(raw, "scopes"), false);
+      } finally {
+        if (fs.existsSync(tokenPath)) {
+          fs.unlinkSync(tokenPath);
+        }
+      }
+    });
+  });
+});
+
+describe("When reading granted OAuth scopes", () => {
+  describe("with a scope string", () => {
+    it("should split on whitespace", () => {
+      assert.deepEqual(grantedOAuthScopes("read_api api"), ["read_api", "api"]);
+    });
+  });
+
+  describe("with no scope field", () => {
+    it("should leave the grant unknown", () => {
+      assert.equal(grantedOAuthScopes(undefined), undefined);
+    });
+  });
+
+  describe("with a blank scope field", () => {
+    it("should leave the grant unknown", () => {
+      assert.equal(grantedOAuthScopes("   "), undefined);
+    });
+  });
+
+  describe("with a recorded grant and no scope field", () => {
+    it("should keep the recorded grant", () => {
+      assert.deepEqual(grantedOAuthScopes(undefined, ["api", "read_user"]), ["api", "read_user"]);
+    });
+  });
+});
