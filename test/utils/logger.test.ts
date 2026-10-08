@@ -73,7 +73,7 @@ async function runProbe(logFormat: string | undefined, marker: string): Promise<
   child.stderr?.on("data", chunk => {
     stderrChunks.push(Buffer.from(chunk));
   });
-  const [code] = await once(child, "exit");
+  const [code] = await once(child, "close");
   return {
     stdout: Buffer.concat(stdoutChunks).toString("utf8"),
     stderr: Buffer.concat(stderrChunks).toString("utf8"),
