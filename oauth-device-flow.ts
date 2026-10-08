@@ -48,8 +48,10 @@ export function grantedOAuthScopes(scopeField: unknown, fallback: readonly strin
 
 /**
  * True when a stored grant cannot be reused for the scopes this process requires.
- * Missing scopes must be reauthorized: files written before scope tracking do not
- * say whether the grant was `api` or `read_api`.
+ * A missing or empty scope list is a pre-upgrade file. Those tokens keep working:
+ * a missing field is not a known `api` vs `read_api` mismatch, and forcing a
+ * browser login hangs headless and device-flow users. The next refresh records
+ * the scopes GitLab returns.
  * Extra non-write scopes such as `read_user` stay valid, so a GitLab response
  * that adds them does not force a login loop. A stored `api` scope is rejected
  * when this process only asked for `read_api`.
@@ -59,7 +61,7 @@ export function oauthTokenNeedsReauthorization(
   expectedScopes: readonly string[]
 ): boolean {
   if (storedScopes === undefined || storedScopes.length === 0) {
-    return true;
+    return false;
   }
   const stored = new Set(storedScopes);
   const expected = new Set(expectedScopes);

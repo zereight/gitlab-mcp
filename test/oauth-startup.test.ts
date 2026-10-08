@@ -54,14 +54,18 @@ function makeTokenFile(data: object): string {
   return file;
 }
 
-function makeClient(tokenStoragePath: string, gitlabUrl: string, extra?: { tokenScript?: string }): GitLabOAuth {
+function makeClient(
+  tokenStoragePath: string,
+  gitlabUrl: string,
+  extra?: { tokenScript?: string; scopes?: string[] }
+): GitLabOAuth {
   return new GitLabOAuth({
     clientId: "test-client",
     redirectUri: "http://127.0.0.1:8888/callback",
     gitlabUrl,
-    scopes: ["api"],
+    scopes: extra?.scopes ?? ["api"],
     tokenStoragePath,
-    ...extra,
+    tokenScript: extra?.tokenScript,
   });
 }
 
@@ -123,18 +127,27 @@ describe("isAuthInvalidTokenResponse", () => {
   });
 });
 
+function legacyTokenFile(createdAt: number): {
+  access_token: string;
+  refresh_token: string;
+  expires_in: number;
+  created_at: number;
+  token_type: string;
+} {
+  return {
+    access_token: validTokenFile.access_token,
+    refresh_token: validTokenFile.refresh_token,
+    expires_in: validTokenFile.expires_in,
+    created_at: createdAt,
+    token_type: validTokenFile.token_type,
+  };
+}
+
 describe("When a file-backed OAuth token is checked", () => {
   describe("with no stored scopes", () => {
-    test("should not treat the token as valid", () => {
-      const withoutScopes = {
-        access_token: validTokenFile.access_token,
-        refresh_token: validTokenFile.refresh_token,
-        expires_in: validTokenFile.expires_in,
-        created_at: validTokenFile.created_at,
-        token_type: validTokenFile.token_type,
-      };
-      const client = makeClient(makeTokenFile(withoutScopes), "http://127.0.0.1:9");
-      assert.equal(client.hasValidToken(), false);
+    test("should treat the legacy token as valid", () => {
+      const client = makeClient(makeTokenFile(legacyTokenFile(Date.now())), "http://127.0.0.1:9");
+      assert.equal(client.hasValidToken(), true);
     });
   });
 
@@ -144,6 +157,15 @@ describe("When a file-backed OAuth token is checked", () => {
         makeTokenFile({ ...validTokenFile, scopes: ["read_api"] }),
         "http://127.0.0.1:9"
       );
+      assert.equal(client.hasValidToken(), false);
+    });
+  });
+
+  describe("with a stored api scope", () => {
+    test("should not treat the token as valid for read_api", () => {
+      const client = makeClient(makeTokenFile(validTokenFile), "http://127.0.0.1:9", {
+        scopes: ["read_api"],
+      });
       assert.equal(client.hasValidToken(), false);
     });
   });
@@ -164,6 +186,15 @@ describe("ensureOAuthToken", () => {
   test("first call with valid cached token delivers it without network", async () => {
     // Closed port: any fetch attempt fails, proving the cached path is network-free.
     const client = makeClient(makeTokenFile(validTokenFile), "http://127.0.0.1:9");
+    const delivered: string[] = [];
+    await ensureOAuthToken(client, null, t => {
+      delivered.push(t);
+    });
+    assert.deepStrictEqual(delivered, ["cached-access-token"]);
+  });
+
+  test("legacy token without scopes is delivered without authorization", async () => {
+    const client = makeClient(makeTokenFile(legacyTokenFile(Date.now())), "http://127.0.0.1:9");
     const delivered: string[] = [];
     await ensureOAuthToken(client, null, t => {
       delivered.push(t);
@@ -203,6 +234,29 @@ describe("ensureOAuthToken", () => {
     const saved: unknown = JSON.parse(fs.readFileSync(file, "utf8"));
     assert(typeof saved === "object" && saved !== null);
     assert.strictEqual(Reflect.get(saved, "access_token"), "fresh-token");
+    assert.deepStrictEqual(Reflect.get(saved, "scopes"), ["api"]);
+  });
+
+  test("expired legacy token records scopes from the refresh response", async () => {
+    const { url } = await startTokenServer(() => ({
+      status: 200,
+      json: {
+        access_token: "fresh-token",
+        refresh_token: "fresh-refresh",
+        expires_in: 7200,
+        token_type: "Bearer",
+        scope: "api",
+      },
+    }));
+    const file = makeTokenFile(legacyTokenFile(Date.now() - 10 * 3600 * 1000));
+    const client = makeClient(file, url);
+    const delivered: string[] = [];
+    await ensureOAuthToken(client, null, t => {
+      delivered.push(t);
+    });
+    assert.deepStrictEqual(delivered, ["fresh-token"]);
+    const saved: unknown = JSON.parse(fs.readFileSync(file, "utf8"));
+    assert(typeof saved === "object" && saved !== null);
     assert.deepStrictEqual(Reflect.get(saved, "scopes"), ["api"]);
   });
 

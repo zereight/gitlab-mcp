@@ -34,14 +34,20 @@ describe("When a stored OAuth grant is reused", () => {
   });
 
   describe("with no stored scopes", () => {
-    test("should require a new authorization", () => {
-      assert.equal(oauthTokenNeedsReauthorization(undefined, ["api"]), true);
+    test("should keep the legacy token", () => {
+      assert.equal(oauthTokenNeedsReauthorization(undefined, ["api"]), false);
+    });
+  });
+
+  describe("with no stored scopes while readonly mode wants read_api", () => {
+    test("should keep the legacy token", () => {
+      assert.equal(oauthTokenNeedsReauthorization(undefined, ["read_api"]), false);
     });
   });
 
   describe("with an empty scope list", () => {
-    test("should require a new authorization", () => {
-      assert.equal(oauthTokenNeedsReauthorization([], ["read_api"]), true);
+    test("should keep the legacy token", () => {
+      assert.equal(oauthTokenNeedsReauthorization([], ["read_api"]), false);
     });
   });
 });

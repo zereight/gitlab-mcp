@@ -92,7 +92,6 @@ function buildOAuthEnv(apiUrl: string, tmpDir: string): Record<string, string> {
       expires_in: 7200,
       created_at: Date.now(),
       token_type: "Bearer",
-      scopes: ["api"],
     })
   );
   return {

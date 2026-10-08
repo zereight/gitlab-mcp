@@ -668,8 +668,9 @@ export class GitLabOAuth {
     let tokenData = this.loadToken();
     const expectedScopes = this.config.scopes;
 
-    // Refresh cannot change GitLab scopes. A missing or different grant has to
-    // go through authorization again, or a readonly switch keeps an `api` token.
+    // Refresh cannot change GitLab scopes. A stored grant that records a different
+    // scope has to be authorized again, or a readonly switch keeps an `api` token.
+    // Files written before scope tracking omit `scopes` and stay usable.
     if (!tokenData) {
       logger.info("No stored token found. Starting OAuth flow...");
       tokenData = await this.authorizeMatchingScopes();
