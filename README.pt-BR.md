@@ -148,7 +148,7 @@ Alguns clientes MCP, como o GitHub Copilot CLI, têm problemas com variáveis de
 - `--compact-results=true` - trunca respostas muito grandes de ferramentas MCP e anexa um comando CLI para a carga completa (substitui `GITLAB_MCP_COMPACT_RESULTS`; desativado por padrão)
 - `--compact-result-chars` - limite de caracteres para compactação (substitui `GITLAB_MCP_COMPACT_RESULT_CHARS`; padrão `4000`)
 - `--compact-tools` - nomes de ferramentas separados por vírgula para compactar quando a resposta for grande, sem ativar o compact global (substitui `GITLAB_MCP_COMPACT_TOOLS`)
-- `--tool-profile` - `full` (padrão) ou `slim`. `slim` remove draft notes, reações com emoji, labels, ferramentas do catálogo de CI e `create_group` da lista inicial. Ignorado quando `GITLAB_TOOLSETS` está definido (substitui `GITLAB_TOOL_PROFILE`)
+- `--tool-profile` - `full` (padrão) ou `slim`. `slim` remove draft notes, reações com emoji, labels, ferramentas do catálogo de CI e `create_group` da lista inicial. Ignorado apenas quando `GITLAB_TOOLSETS` tem um valor não em branco (substitui `GITLAB_TOOL_PROFILE`)
 
 Os argumentos de CLI têm precedência sobre as variáveis de ambiente.
 
