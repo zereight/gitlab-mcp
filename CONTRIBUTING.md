@@ -129,7 +129,7 @@ Conventions enforced by CI:
 
 - **No stray `console.log`** in `*.ts` (test files are exempt). Use proper logging.
 - **No `TODO` / `FIXME` / `XXX`** comments in committed code — open an issue instead.
-- **Strict TypeScript** — the build runs `tsc` with the settings in [`tsconfig.json`](tsconfig.json).
+- **Strict TypeScript** — `npm run build` emits with [`tsconfig.build.json`](tsconfig.build.json) (tests and scripts stay out of `build/`). `tsc --noEmit` still typechecks the full [`tsconfig.json`](tsconfig.json), including tests.
 
 ## Submitting changes
 

@@ -1,4 +1,6 @@
 import { BOOLEAN_CLI_FLAG_NAMES, nextBooleanFlagValue } from "./cli-boolean-flags.js";
+import { parseToolProfile } from "./tools/tool-profile.js";
+import { parseCompactToolAllowlist } from "./utils/compact-tool-allowlist.js";
 
 // Parse CLI arguments before anything else
 const args = process.argv.slice(2);
@@ -102,6 +104,9 @@ export const GITLAB_DISABLE_VERSION_CHECK =
 
 export const GITLAB_TOOLSETS_RAW = getConfig("toolsets", "GITLAB_TOOLSETS");
 export const GITLAB_TOOLS_RAW = getConfig("tools", "GITLAB_TOOLS");
+export const GITLAB_TOOL_PROFILE = parseToolProfile(
+  getConfig("tool-profile", "GITLAB_TOOL_PROFILE")
+);
 
 // Tool policy: comma-separated tool names
 // approve = exposed but requires confirmation; hidden = not exposed at all
@@ -277,6 +282,9 @@ export const PORT = _intEnv("PORT", "port", _PORT_DEFAULT);
 /** When true, oversized MCP tool replies are replaced with a preview plus a CLI replay command. */
 export const GITLAB_MCP_COMPACT_RESULTS =
   getConfig("compact-results", "GITLAB_MCP_COMPACT_RESULTS") === "true";
+export const GITLAB_MCP_COMPACT_TOOL_NAMES = parseCompactToolAllowlist(
+  getConfig("compact-tools", "GITLAB_MCP_COMPACT_TOOLS")
+);
 export const GITLAB_MCP_COMPACT_RESULT_CHARS = _intEnv(
   "GITLAB_MCP_COMPACT_RESULT_CHARS",
   "compact-result-chars",

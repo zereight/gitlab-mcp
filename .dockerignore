@@ -13,6 +13,7 @@
 !cli/**
 !downloads
 !tsconfig.json
+!tsconfig.build.json
 !utils
 !.npmrc
 # Ignore test files
