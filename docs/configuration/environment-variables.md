@@ -123,6 +123,19 @@ as outside the masking boundary.
 
 Default static GitLab Personal Access Token used in standard mode.
 
+### `GITLAB_IS_OLD`
+
+Optional. Set to `true` (or `--is-old=true`) to send Personal Access Tokens as
+`Private-Token` instead of `Authorization: Bearer`. Use this for older GitLab
+instances that do not accept Bearer PAT authentication. OAuth tokens still use
+`Authorization: Bearer`.
+
+> **Note:** With `GITLAB_IS_OLD=true`, ordinary API requests send the PAT in
+> `Private-Token` and follow redirects without the download path's credential
+> filtering. A cross-origin redirect from the configured GitLab server can
+> therefore expose the PAT. Prefer Bearer auth when your GitLab version
+> supports it.
+
 ### `GITLAB_JOB_TOKEN`
 
 Optional GitLab CI job token.
