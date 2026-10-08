@@ -240,6 +240,18 @@ format_contributors() {
   '
 }
 
+# github-actions[bot] only. dependabot[bot] is also type Bot, but those PRs
+# are dependency updates and must stay in the notes.
+is_bot_pr() {
+  local pr_json="$1"
+  local login
+  login=$(echo "$pr_json" | jq -r '.user.login // empty' 2>/dev/null || true)
+  if [ "$login" = "github-actions[bot]" ]; then
+    return 0
+  fi
+  return 1
+}
+
 format_pr_contributors() {
   local pr_numbers="$1"
   local fallback_range="$2"
@@ -260,6 +272,10 @@ format_pr_contributors() {
       local pr_data
       pr_data=$(gh api "repos/$REPO_OWNER/$REPO_NAME/pulls/$pr_num" 2>/dev/null || true)
       if [ -z "$pr_data" ]; then
+        continue
+      fi
+
+      if is_bot_pr "$pr_data"; then
         continue
       fi
 
@@ -336,6 +352,10 @@ generate_changelog_notes() {
     pr_data=$(gh api "repos/$REPO_OWNER/$REPO_NAME/pulls/$pr_num" 2>/dev/null || echo "")
     
     if [ -n "$pr_data" ]; then
+      if is_bot_pr "$pr_data"; then
+        continue
+      fi
+
       local pr_title pr_url pr_merged_at
       pr_title=$(echo "$pr_data" | jq -r '.title // empty' 2>/dev/null || echo "")
       pr_url=$(echo "$pr_data" | jq -r '.html_url // empty' 2>/dev/null || echo "")

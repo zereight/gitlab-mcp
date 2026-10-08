@@ -18,6 +18,22 @@ export function normalizeGitLabApiUrl(url: string): string {
   return normalizedUrl;
 }
 
+const LOOPBACK_HOSTNAMES = new Set(["localhost", "127.0.0.1", "[::1]"]);
+
+/**
+ * True when the URL is plain `http://` to a non-loopback host, i.e. credentials sent
+ * to it would cross the network in cleartext. Unparseable URLs return false (they are
+ * rejected by the config validation instead).
+ */
+export function isCleartextRemoteUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === "http:" && !LOOPBACK_HOSTNAMES.has(parsed.hostname);
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Dot segments anywhere in a decoded value, including after a percent-encoded
  * separator ("..%2F..%2Fuser" decodes to a path-traversal sequence).

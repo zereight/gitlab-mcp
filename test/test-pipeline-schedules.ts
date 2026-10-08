@@ -317,15 +317,13 @@ describe("Pipeline schedule tools", () => {
   });
 
   test("get_pipeline_schedule surfaces a 404 as an error", async () => {
-    await assert.rejects(
-      () =>
-        callToolJson(
-          "get_pipeline_schedule",
-          { project_id: TEST_PROJECT_ID, pipeline_schedule_id: MISSING_SCHEDULE_ID },
-          baseEnv
-        ),
-      /404/
+    const result = await callTool(
+      "get_pipeline_schedule",
+      { project_id: TEST_PROJECT_ID, pipeline_schedule_id: MISSING_SCHEDULE_ID },
+      baseEnv
     );
+    assert.strictEqual(result.isError, true);
+    assert.match(result.content?.[0]?.text ?? "", /404/);
   });
 
   test("list_pipeline_schedule_pipelines returns the triggered pipelines", async () => {

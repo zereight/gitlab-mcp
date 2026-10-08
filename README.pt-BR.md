@@ -111,7 +111,7 @@ O caminho no store é fixado pelo seu lock file; atualize-o com `nix flake updat
 
 Os exemplos usam `zereight-mcp-gitlab`, um alias com menor chance de conflito que o binário legado `mcp-gitlab`. Se o seu cliente MCP não o encontrar, use o caminho absoluto retornado por `which zereight-mcp-gitlab`.
 
-Não quer instalar globalmente? Fixe o `npx` na versão estável anterior (a versão recomendada por esta documentação), por exemplo `npx -y @zereight/mcp-gitlab@2.1.68`. Se quiser sempre a versão mais recente, use `npx -y @zereight/mcp-gitlab@latest`. O servidor exibe um aviso no stderr durante a inicialização quando existe uma versão mais nova disponível (desative com `GITLAB_DISABLE_VERSION_CHECK=true`).
+Não quer instalar globalmente? Fixe o `npx` na versão estável anterior (a versão recomendada por esta documentação), por exemplo `npx -y @zereight/mcp-gitlab@2.1.69`. Se quiser sempre a versão mais recente, use `npx -y @zereight/mcp-gitlab@latest`. O servidor exibe um aviso no stderr durante a inicialização quando existe uma versão mais nova disponível (desative com `GITLAB_DISABLE_VERSION_CHECK=true`).
 
 #### Usando argumentos de CLI (para clientes com problemas com variáveis de ambiente)
 
@@ -150,7 +150,7 @@ Os argumentos de CLI têm precedência sobre as variáveis de ambiente.
 
 `zereight-mcp-gitlab auth` é um subcomando, não uma flag do servidor MCP. Ele executa o device flow do GitLab e encerra. Veja [Argumentos de CLI](./docs/getting-started/cli-arguments.md#auth).
 
-O mesmo binário também é uma CLI do GitLab no estilo `gh` (`tool <name>` ou formas curadas como `mr list`). Use-o para ver a carga completa no terminal. As respostas do MCP permanecem no chat, a menos que você defina `GITLAB_MCP_COMPACT_RESULTS=true` (ou `--compact-results`), o que substitui respostas grandes de ferramentas por uma prévia e um comando CLI. A CLI humana nunca é compactada. Os mesmos filtros de permission mode, toolsets, denied-tools regex e tool-policy se aplicam. Ferramentas destrutivas e ferramentas com `GITLAB_TOOL_POLICY_APPROVE` exigem `--yes`. Consulte [CLI Humana](./docs/getting-started/cli-arguments.md#human-cli).
+O mesmo binário também é uma CLI do GitLab no estilo `gh` (`tool <name>` ou formas curadas como `mr list`). **Não é necessário registrar o MCP** — defina um PAT, ou execute `auth` e defina `GITLAB_USE_OAUTH=true`: veja [CLI sem MCP](./docs/getting-started/cli-without-mcp.md). Use-o para ver a carga completa no terminal. As respostas do MCP permanecem no chat, a menos que você defina `GITLAB_MCP_COMPACT_RESULTS=true` (ou `--compact-results`), o que substitui respostas grandes de ferramentas por uma prévia e um comando CLI. A CLI humana nunca é compactada. Os mesmos filtros de permission mode, toolsets, denied-tools regex e tool-policy se aplicam. Ferramentas destrutivas e ferramentas com `GITLAB_TOOL_POLICY_APPROVE` exigem `--yes`. Consulte [CLI Humana](./docs/getting-started/cli-arguments.md#human-cli).
 
 > **Filtragem granular de ferramentas:** use `GITLAB_PERMISSION_MODE=modify` para permitir criação/atualização enquanto
 > bloqueia todas as ferramentas de exclusão e as ferramentas destrutivas de teardown (`cancel_pipeline`,

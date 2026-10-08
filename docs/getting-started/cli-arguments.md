@@ -19,7 +19,7 @@ Or with npm:
 npm install -g @zereight/mcp-gitlab
 ```
 
-No global install? Pin `npx` to the previous stable release and keep the server flags after it, for example `npx -y @zereight/mcp-gitlab@2.1.68 --token=...`. Use `@zereight/mcp-gitlab@latest` if you always want the newest release.
+No global install? Pin `npx` to the previous stable release and keep the server flags after it, for example `npx -y @zereight/mcp-gitlab@2.1.69 --token=...`. Use `@zereight/mcp-gitlab@latest` if you always want the newest release.
 
 ## Example config
 
@@ -78,6 +78,9 @@ never compacted.
 
 Every command maps to an existing registry tool — no new GitLab API surface.
 
+You do not need an MCP client for this. For credentials (PAT or `auth`) see
+[CLI without MCP](./cli-without-mcp.md).
+
 ```bash
 zereight-mcp-gitlab tool list_issues --project-id 123 --state opened
 zereight-mcp-gitlab mr list --project-id 123 --state opened
@@ -126,9 +129,9 @@ zereight-mcp-gitlab auth --help
 | `--api-url`     | `GITLAB_API_URL`           | GitLab API URL; `/api/v4` is stripped to origin. |
 | `--token-path`  | `GITLAB_OAUTH_TOKEN_PATH`  | Token file path.                                 |
 
-After `auth` succeeds, start the MCP server with `GITLAB_USE_OAUTH=true` and the
-same client ID. If you use `--token-path`, set `GITLAB_OAUTH_TOKEN_PATH` to the
-same path when you start the server. See [OAuth2 Authentication Setup Guide](../auth/oauth-setup.md#standalone-device-flow-auth-command).
+After `auth` succeeds, start the MCP server (or run the [human CLI](./cli-without-mcp.md))
+with `GITLAB_USE_OAUTH=true` and the same client ID. If you use `--token-path`, set `GITLAB_OAUTH_TOKEN_PATH` to the
+same path when you start the MCP server or run the human CLI. See [OAuth2 Authentication Setup Guide](../auth/oauth-setup.md#standalone-device-flow-auth-command).
 
 For the full list of configuration options, see
 [Environment Variables](../configuration/environment-variables.md).
