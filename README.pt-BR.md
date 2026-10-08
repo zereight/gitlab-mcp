@@ -111,7 +111,7 @@ O caminho no store é fixado pelo seu lock file; atualize-o com `nix flake updat
 
 Os exemplos usam `zereight-mcp-gitlab`, um alias com menor chance de conflito que o binário legado `mcp-gitlab`. Se o seu cliente MCP não o encontrar, use o caminho absoluto retornado por `which zereight-mcp-gitlab`.
 
-Não quer instalar globalmente? Fixe o `npx` na versão estável anterior (a versão recomendada por esta documentação), por exemplo `npx -y @zereight/mcp-gitlab@2.1.68`. Se quiser sempre a versão mais recente, use `npx -y @zereight/mcp-gitlab@latest`. O servidor exibe um aviso no stderr durante a inicialização quando existe uma versão mais nova disponível (desative com `GITLAB_DISABLE_VERSION_CHECK=true`).
+Não quer instalar globalmente? Fixe o `npx` na versão estável anterior (a versão recomendada por esta documentação), por exemplo `npx -y @zereight/mcp-gitlab@2.1.69`. Se quiser sempre a versão mais recente, use `npx -y @zereight/mcp-gitlab@latest`. O servidor exibe um aviso no stderr durante a inicialização quando existe uma versão mais nova disponível (desative com `GITLAB_DISABLE_VERSION_CHECK=true`).
 
 #### Usando argumentos de CLI (para clientes com problemas com variáveis de ambiente)
 
