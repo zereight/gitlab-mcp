@@ -32,29 +32,56 @@ export interface DeviceFlowTokenData {
   expires_in?: number;
   created_at: number;
   token_type: string;
-  scopes: string[];
+  scopes?: string[];
 }
 
-/** Granted scopes from a token response, or the scopes we requested when the response omits them. */
-export function grantedOAuthScopes(scopeField: unknown, fallback: readonly string[]): string[] {
+/**
+ * Extra scopes that may accompany a matching grant without forcing a new login.
+ * Each one is read-only in GitLab's OAuth scope table. Write-capable scopes
+ * (`api`, `write_repository`, `sudo`, runner/admin scopes) and anything not
+ * listed here are unapproved and must be authorized again.
+ */
+const APPROVED_EXTRA_READ_SCOPES: ReadonlySet<string> = new Set([
+  "read_api",
+  "read_user",
+  "read_repository",
+  "read_registry",
+  "read_virtual_registry",
+  "read_observability",
+  "openid",
+  "profile",
+  "email",
+]);
+
+/**
+ * Scopes GitLab actually returned.
+ * A missing or blank `scope` field is not an observation. Keep a grant this
+ * process already recorded; otherwise leave the grant unknown instead of
+ * copying the scopes we requested.
+ */
+export function grantedOAuthScopes(
+  scopeField: unknown,
+  recordedScopes?: readonly string[]
+): string[] | undefined {
   if (typeof scopeField === "string") {
     const scopes = scopeField.split(/\s+/).filter(scope => scope.length > 0);
     if (scopes.length > 0) {
       return scopes;
     }
   }
-  return [...fallback];
+  if (recordedScopes !== undefined && recordedScopes.length > 0) {
+    return [...recordedScopes];
+  }
+  return undefined;
 }
 
 /**
  * True when a stored grant cannot be reused for the scopes this process requires.
  * A missing or empty scope list is a pre-upgrade file. Those tokens keep working:
- * a missing field is not a known `api` vs `read_api` mismatch, and forcing a
- * browser login hangs headless and device-flow users. The next refresh records
- * the scopes GitLab returns.
- * Extra non-write scopes such as `read_user` stay valid, so a GitLab response
- * that adds them does not force a login loop. A stored `api` scope is rejected
- * when this process only asked for `read_api`.
+ * a missing field is not a known mismatch, and forcing a browser login hangs
+ * headless and device-flow users. The next refresh records the scopes GitLab returns.
+ * Extra scopes stay valid only when they are on the approved read-only list, so a
+ * GitLab response that adds `read_user` does not force a login loop.
  */
 export function oauthTokenNeedsReauthorization(
   storedScopes: readonly string[] | undefined,
@@ -65,11 +92,13 @@ export function oauthTokenNeedsReauthorization(
   }
   const stored = new Set(storedScopes);
   const expected = new Set(expectedScopes);
-  if (stored.has("api") && !expected.has("api")) {
-    return true;
-  }
   for (const scope of expected) {
     if (!stored.has(scope)) {
+      return true;
+    }
+  }
+  for (const scope of stored) {
+    if (!expected.has(scope) && !APPROVED_EXTRA_READ_SCOPES.has(scope)) {
       return true;
     }
   }
@@ -94,7 +123,7 @@ export function oauthScopeMismatchError(
 }
 
 function assertGrantedScopesMatchRequest(
-  grantedScopes: readonly string[],
+  grantedScopes: readonly string[] | undefined,
   expectedScopes: readonly string[]
 ): void {
   if (oauthTokenNeedsReauthorization(grantedScopes, expectedScopes)) {
@@ -261,7 +290,7 @@ export async function runDeviceAuthorizationGrantAsync(
       if (!token.success) {
         throw new Error("Token endpoint returned an invalid response.");
       }
-      const scopes = grantedOAuthScopes(token.data.scope, input.scopes);
+      const scopes = grantedOAuthScopes(token.data.scope);
       assertGrantedScopesMatchRequest(scopes, input.scopes);
       return {
         access_token: token.data.access_token,
@@ -269,7 +298,7 @@ export async function runDeviceAuthorizationGrantAsync(
         expires_in: token.data.expires_in,
         created_at: now(),
         token_type: token.data.token_type ?? "Bearer",
-        scopes,
+        ...(scopes === undefined ? {} : { scopes }),
       };
     }
 

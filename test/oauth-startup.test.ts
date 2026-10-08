@@ -187,7 +187,31 @@ describe("When a file-backed OAuth token is checked", () => {
 
 describe("When refreshing an expired legacy token", () => {
   describe("with api granted for a read_api client", () => {
-    test("should leave the stored token unchanged", async () => {
+    test("should reject the rotated access token", async () => {
+      const callbackPort = await listenLoopbackAsync();
+      const { url } = await startTokenServer(() => ({
+        status: 200,
+        json: {
+          access_token: "rejected-api-token",
+          refresh_token: "rejected-refresh",
+          expires_in: 7200,
+          token_type: "Bearer",
+          scope: "api",
+        },
+      }));
+      const file = makeTokenFile(legacyTokenFile(Date.now() - 10 * 3600 * 1000));
+      const client = makeClient(file, url, {
+        scopes: ["read_api"],
+        redirectUri: `http://127.0.0.1:${callbackPort}/callback`,
+      });
+
+      await assert.rejects(
+        () => client.getAccessToken(),
+        /cannot connect to existing OAuth server/
+      );
+    });
+
+    test("should persist the rotated refresh token before reauthorization fails", async () => {
       const callbackPort = await listenLoopbackAsync();
       const { url, bodies } = await startTokenServer(() => ({
         status: 200,
@@ -199,8 +223,30 @@ describe("When refreshing an expired legacy token", () => {
           scope: "api",
         },
       }));
-      const original = legacyTokenFile(Date.now() - 10 * 3600 * 1000);
-      const file = makeTokenFile(original);
+      const file = makeTokenFile(legacyTokenFile(Date.now() - 10 * 3600 * 1000));
+      const client = makeClient(file, url, {
+        scopes: ["read_api"],
+        redirectUri: `http://127.0.0.1:${callbackPort}/callback`,
+      });
+
+      await assert.rejects(() => client.getAccessToken(), /cannot connect to existing OAuth server/);
+      assert.strictEqual(bodies.length, 1);
+
+      const saved: unknown = JSON.parse(fs.readFileSync(file, "utf8"));
+      assert(typeof saved === "object" && saved !== null);
+      assert.strictEqual(Reflect.get(saved, "refresh_token"), "rejected-refresh");
+      assert.deepStrictEqual(Reflect.get(saved, "scopes"), ["api"]);
+    });
+  });
+
+  describe("with a stored api grant for a read_api client", () => {
+    test("should reauthorize without using the refresh token", async () => {
+      const callbackPort = await listenLoopbackAsync();
+      const { url, bodies } = await startTokenServer(() => ({
+        status: 500,
+        json: { error: "should-not-refresh" },
+      }));
+      const file = makeTokenFile(validTokenFile);
       const client = makeClient(file, url, {
         scopes: ["read_api"],
         redirectUri: `http://127.0.0.1:${callbackPort}/callback`,
@@ -210,12 +256,10 @@ describe("When refreshing an expired legacy token", () => {
         () => client.getAccessToken(),
         /cannot connect to existing OAuth server/
       );
-      assert.strictEqual(bodies.length, 1);
-
+      assert.strictEqual(bodies.length, 0);
       const saved: unknown = JSON.parse(fs.readFileSync(file, "utf8"));
       assert(typeof saved === "object" && saved !== null);
-      assert.strictEqual(Reflect.get(saved, "access_token"), original.access_token);
-      assert.strictEqual(Object.hasOwn(saved, "scopes"), false);
+      assert.strictEqual(Reflect.get(saved, "access_token"), validTokenFile.access_token);
     });
   });
 });
@@ -284,6 +328,49 @@ describe("ensureOAuthToken", () => {
     assert(typeof saved === "object" && saved !== null);
     assert.strictEqual(Reflect.get(saved, "access_token"), "fresh-token");
     assert.deepStrictEqual(Reflect.get(saved, "scopes"), ["api"]);
+  });
+
+  test("expired legacy token does not invent scopes when refresh omits them", async () => {
+    const { url } = await startTokenServer(() => ({
+      status: 200,
+      json: {
+        access_token: "fresh-token",
+        refresh_token: "fresh-refresh",
+        expires_in: 7200,
+        token_type: "Bearer",
+      },
+    }));
+    const file = makeTokenFile(legacyTokenFile(Date.now() - 10 * 3600 * 1000));
+    const client = makeClient(file, url);
+    const delivered: string[] = [];
+    await ensureOAuthToken(client, null, t => {
+      delivered.push(t);
+    });
+    assert.deepStrictEqual(delivered, ["fresh-token"]);
+    const saved: unknown = JSON.parse(fs.readFileSync(file, "utf8"));
+    assert(typeof saved === "object" && saved !== null);
+    assert.strictEqual(Object.hasOwn(saved, "scopes"), false);
+  });
+
+  test("expired token keeps recorded scopes when refresh omits them", async () => {
+    const { url } = await startTokenServer(() => ({
+      status: 200,
+      json: {
+        access_token: "fresh-token",
+        refresh_token: "fresh-refresh",
+        expires_in: 7200,
+        token_type: "Bearer",
+      },
+    }));
+    const file = makeTokenFile({
+      ...expiredTokenFile,
+      scopes: ["api", "read_user"],
+    });
+    const client = makeClient(file, url);
+    await client.getAccessToken();
+    const saved: unknown = JSON.parse(fs.readFileSync(file, "utf8"));
+    assert(typeof saved === "object" && saved !== null);
+    assert.deepStrictEqual(Reflect.get(saved, "scopes"), ["api", "read_user"]);
   });
 
   test("expired legacy token records scopes from the refresh response", async () => {

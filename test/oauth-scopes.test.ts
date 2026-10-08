@@ -21,6 +21,45 @@ describe("When a stored OAuth grant is reused", () => {
     });
   });
 
+  describe("with an extra read_repository scope", () => {
+    test("should keep the token", () => {
+      assert.equal(
+        oauthTokenNeedsReauthorization(["read_api", "read_repository"], ["read_api"]),
+        false
+      );
+    });
+  });
+
+  describe("with an extra write_repository scope", () => {
+    test("should require a new authorization", () => {
+      assert.equal(
+        oauthTokenNeedsReauthorization(["read_api", "write_repository"], ["read_api"]),
+        true
+      );
+    });
+  });
+
+  describe("with an extra sudo scope", () => {
+    test("should require a new authorization", () => {
+      assert.equal(oauthTokenNeedsReauthorization(["read_api", "sudo"], ["read_api"]), true);
+    });
+  });
+
+  describe("with an unapproved scope", () => {
+    test("should require a new authorization", () => {
+      assert.equal(
+        oauthTokenNeedsReauthorization(["read_api", "not_a_gitlab_scope"], ["read_api"]),
+        true
+      );
+    });
+  });
+
+  describe("with write_repository beside api", () => {
+    test("should require a new authorization", () => {
+      assert.equal(oauthTokenNeedsReauthorization(["api", "write_repository"], ["api"]), true);
+    });
+  });
+
   describe("with api still granted in readonly mode", () => {
     test("should require a new authorization", () => {
       assert.equal(oauthTokenNeedsReauthorization(["read_api", "api"], ["read_api"]), true);

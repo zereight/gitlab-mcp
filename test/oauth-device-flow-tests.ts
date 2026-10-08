@@ -538,7 +538,7 @@ describe("When device flow succeeds", () => {
       const tokenPath = createTempTokenPath();
       const fetchImpl = createFetchStub({
         authorize: { status: 200, body: deviceAuthorizationBody() },
-        tokens: [{ status: 200, body: successTokenBody() }],
+        tokens: [{ status: 200, body: successTokenBody("api") }],
       });
 
       try {
@@ -677,16 +677,55 @@ describe("When running the auth command", () => {
   });
 });
 
+describe("When a device-flow token response omits scope", () => {
+  describe("with no previously recorded grant", () => {
+    it("should not write scopes into the token file", async () => {
+      const tokenPath = createTempTokenPath();
+      const fetchImpl = createFetchStub({
+        authorize: { status: 200, body: deviceAuthorizationBody() },
+        tokens: [{ status: 200, body: successTokenBody() }],
+      });
+
+      try {
+        const token = await createOauthClient(tokenPath).runDeviceFlowAsync({
+          fetchImpl,
+          sleepAsync: async () => {},
+        });
+        assert.equal(token.scopes, undefined);
+        const raw: unknown = JSON.parse(fs.readFileSync(tokenPath, "utf8"));
+        assert(typeof raw === "object" && raw !== null);
+        assert.equal(Object.hasOwn(raw, "scopes"), false);
+      } finally {
+        if (fs.existsSync(tokenPath)) {
+          fs.unlinkSync(tokenPath);
+        }
+      }
+    });
+  });
+});
+
 describe("When reading granted OAuth scopes", () => {
   describe("with a scope string", () => {
     it("should split on whitespace", () => {
-      assert.deepEqual(grantedOAuthScopes("read_api api", ["api"]), ["read_api", "api"]);
+      assert.deepEqual(grantedOAuthScopes("read_api api"), ["read_api", "api"]);
     });
   });
 
   describe("with no scope field", () => {
-    it("should keep the requested scopes", () => {
-      assert.deepEqual(grantedOAuthScopes(undefined, ["api"]), ["api"]);
+    it("should leave the grant unknown", () => {
+      assert.equal(grantedOAuthScopes(undefined), undefined);
+    });
+  });
+
+  describe("with a blank scope field", () => {
+    it("should leave the grant unknown", () => {
+      assert.equal(grantedOAuthScopes("   "), undefined);
+    });
+  });
+
+  describe("with a recorded grant and no scope field", () => {
+    it("should keep the recorded grant", () => {
+      assert.deepEqual(grantedOAuthScopes(undefined, ["api", "read_user"]), ["api", "read_user"]);
     });
   });
 });

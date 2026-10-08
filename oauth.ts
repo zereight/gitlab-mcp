@@ -224,7 +224,7 @@ export class GitLabOAuth {
     }
 
     const body: unknown = await response.json();
-    const data = readOAuthTokenBody(body, this.config.scopes);
+    const data = readOAuthTokenBody(body);
     const tokenData: TokenData = {
       access_token: data.access_token,
       refresh_token: data.refresh_token,
@@ -244,7 +244,10 @@ export class GitLabOAuth {
   /**
    * Refresh the access token using the refresh token
    */
-  private async refreshAccessToken(refreshToken: string): Promise<TokenData> {
+  private async refreshAccessToken(
+    refreshToken: string,
+    recordedScopes?: readonly string[]
+  ): Promise<TokenData> {
     const tokenUrl = `${this.config.gitlabUrl}/oauth/token`;
     const params = new URLSearchParams({
       client_id: this.config.clientId,
@@ -276,7 +279,7 @@ export class GitLabOAuth {
     }
 
     const body: unknown = await response.json();
-    const data = readOAuthTokenBody(body, this.config.scopes);
+    const data = readOAuthTokenBody(body, recordedScopes);
 
     return {
       access_token: data.access_token,
@@ -689,7 +692,7 @@ export class GitLabOAuth {
       logger.info(force && !this.isTokenExpired(tokenData) ? "Force-refreshing OAuth token..." : "Token expired. Refreshing...");
       if (tokenData.refresh_token) {
         try {
-          tokenData = await this.refreshAccessToken(tokenData.refresh_token);
+          tokenData = await this.refreshAccessToken(tokenData.refresh_token, tokenData.scopes);
         } catch (error) {
           if (isAuthInvalidError(error)) {
             logger.error({ err: error }, "Refresh token invalid, starting new OAuth flow...");
@@ -698,14 +701,18 @@ export class GitLabOAuth {
           logger.error({ err: error }, "Token refresh failed (transient/network), not opening browser.");
           throw error;
         }
+        // GitLab revokes the previous refresh token when this call succeeds.
+        // Persist the rotated grant before a browser retry so a failed or busy
+        // callback does not leave only the revoked token on disk. Callers still
+        // do not receive a mismatched access token: a recorded mismatch is
+        // rejected before refresh on the next start, and a later callback overwrites this file.
+        this.saveToken(tokenData);
         if (oauthTokenNeedsReauthorization(tokenData.scopes, expectedScopes)) {
           logger.warn(
             `Refreshed OAuth token scopes (${formatOAuthScopes(tokenData.scopes)}) do not match ` +
               `${formatOAuthScopes(expectedScopes)}. Starting a new authorization flow...`
           );
           tokenData = await this.authorizeMatchingScopes();
-        } else {
-          this.saveToken(tokenData);
         }
       } else {
         logger.info("No refresh token available. Starting new OAuth flow...");
@@ -799,13 +806,13 @@ function isAuthInvalidError(error: unknown): boolean {
 
 function readOAuthTokenBody(
   value: unknown,
-  fallbackScopes: readonly string[]
+  recordedScopes?: readonly string[]
 ): {
   access_token: string;
   refresh_token?: string;
   expires_in?: number;
   token_type: string;
-  scopes: string[];
+  scopes?: string[];
 } {
   if (typeof value !== "object" || value === null) {
     throw new Error("Token endpoint returned an invalid response.");
@@ -823,7 +830,7 @@ function readOAuthTokenBody(
     refresh_token: typeof refreshToken === "string" ? refreshToken : undefined,
     expires_in: typeof expiresIn === "number" ? expiresIn : undefined,
     token_type: typeof tokenType === "string" && tokenType.length > 0 ? tokenType : "Bearer",
-    scopes: grantedOAuthScopes(scope, fallbackScopes),
+    scopes: grantedOAuthScopes(scope, recordedScopes),
   };
 }
 
