@@ -147,6 +147,8 @@ command = lib.getExe inputs.gitlab-mcp.packages.${system}.default;
 - `--masking-workspace-dir` - 마스킹 파일 경로를 해석하는 기준 디렉터리 (`GITLAB_MASKING_WORKSPACE_DIR` 대체)
 - `--compact-results=true` - 큰 MCP 도구 응답을 미리보기와 CLI 명령으로 바꿈 (`GITLAB_MCP_COMPACT_RESULTS` 대체, 기본 꺼짐)
 - `--compact-result-chars` - compact 임계값 문자 수 (`GITLAB_MCP_COMPACT_RESULT_CHARS` 대체, 기본 `4000`)
+- `--compact-tools` - 전역 compact를 켜지 않고, 응답이 클 때 compact할 도구 이름을 쉼표로 지정 (`GITLAB_MCP_COMPACT_TOOLS` 대체)
+- `--tool-profile` - `full`(기본값) 또는 `slim`. `slim`은 draft note, 이모지 반응, 라벨, CI 카탈로그 도구와 `create_group`을 초기 목록에서 뺌. `GITLAB_TOOLSETS`에 공백이 아닌 값이 설정된 경우에만 무시됨 (`GITLAB_TOOL_PROFILE` 대체)
 
 CLI 인자는 환경 변수보다 우선합니다.
 
