@@ -2505,3 +2505,39 @@ export function isToolInEnabledToolset(
   }
   return false;
 }
+
+/**
+ * True only when every tool in the set is already exposed.
+ * Partial overlap (for example `core` sharing names with `merge_requests`) is not active.
+ * An empty set is fully active, matching `Array.prototype.every`.
+ */
+export function isToolsetFullyActive(
+  tools: ReadonlySet<string>,
+  currentToolNames: ReadonlySet<string>
+): boolean {
+  for (const toolName of tools) {
+    if (!currentToolNames.has(toolName)) {
+      return false;
+    }
+  }
+  return true;
+}
+
+export interface DiscoverableCategory {
+  readonly id: ToolsetId;
+  readonly toolCount: number;
+  readonly active: boolean;
+  readonly isDefault: boolean;
+}
+
+/** Category listing returned by `discover_tools` when no category argument is given. */
+export function listDiscoverableCategories(
+  currentToolNames: ReadonlySet<string>
+): DiscoverableCategory[] {
+  return TOOLSET_DEFINITIONS.map(def => ({
+    id: def.id,
+    toolCount: def.tools.size,
+    active: isToolsetFullyActive(def.tools, currentToolNames),
+    isDefault: def.isDefault,
+  }));
+}

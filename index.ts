@@ -257,6 +257,8 @@ import {
   buildFeatureFlagOverrides,
   isToolInEnabledToolset,
   findSmallestToolsetForTool,
+  isToolsetFullyActive,
+  listDiscoverableCategories,
   TOOLSET_DEFINITIONS,
   ALL_TOOLSET_IDS,
   type ToolsetId,
@@ -1068,13 +1070,9 @@ function createServer(): McpServer {
         const currentToolNames = new Set(filteredTools.map(t => t.name));
 
         if (!category) {
-          // List available categories with activation status
-          const categories = TOOLSET_DEFINITIONS.map(def => ({
-            id: def.id,
-            toolCount: def.tools.size,
-            active: [...def.tools].some(t => currentToolNames.has(t)),
-            isDefault: def.isDefault,
-          }));
+          // Fully listed only. Partial overlap with `core` must stay inactive so
+          // clients still call discover_tools to add the missing tools.
+          const categories = listDiscoverableCategories(currentToolNames);
           return logCompletion({
             content: [{
               type: "text",
@@ -1103,8 +1101,8 @@ function createServer(): McpServer {
           });
         }
 
-        // Check if already fully active
-        const alreadyActive = [...toolsetDef.tools].every(t => currentToolNames.has(t));
+        // Same predicate as the category listing `active` flag.
+        const alreadyActive = isToolsetFullyActive(toolsetDef.tools, currentToolNames);
         if (alreadyActive) {
           return logCompletion({
             content: [
