@@ -11,8 +11,16 @@ import open from "open";
 import pkceChallenge from "pkce-challenge";
 import { createLogger } from "./utils/logger.js";
 import { GITLAB_PERMISSION_MODE, type GitLabPermissionMode } from "./config.js";
-import { grantedOAuthScopes, runDeviceAuthorizationGrantAsync } from "./oauth-device-flow.js";
+import {
+  formatOAuthScopes,
+  grantedOAuthScopes,
+  oauthScopeMismatchError,
+  oauthTokenNeedsReauthorization,
+  runDeviceAuthorizationGrantAsync,
+} from "./oauth-device-flow.js";
 import type { FetchImpl, DeviceUserCodeInfo } from "./oauth-device-flow.js";
+
+export { oauthTokenNeedsReauthorization };
 
 const logger = createLogger("gitlab-mcp-oauth");
 
@@ -708,10 +716,7 @@ export class GitLabOAuth {
   private async authorizeMatchingScopes(): Promise<TokenData> {
     const tokenData = await this.startOAuthFlow();
     if (oauthTokenNeedsReauthorization(tokenData.scopes, this.config.scopes)) {
-      throw new Error(
-        `OAuth authorization granted scopes (${formatOAuthScopes(tokenData.scopes)}), ` +
-          `which do not match required scopes (${formatOAuthScopes(this.config.scopes)}).`
-      );
+      throw oauthScopeMismatchError(tokenData.scopes, this.config.scopes);
     }
     return tokenData;
   }
@@ -777,41 +782,6 @@ export class GitLabOAuth {
 /** Read-only permission mode only needs the `read_api` scope; every other mode needs `api`. */
 export function getOAuthScopes(permissionMode: GitLabPermissionMode): string[] {
   return [permissionMode === "readonly" ? "read_api" : "api"];
-}
-
-/**
- * True when a stored grant cannot be reused for the scopes this process requires.
- * Missing scopes must be reauthorized: files written before scope tracking do not
- * say whether the grant was `api` or `read_api`.
- * Extra non-write scopes such as `read_user` stay valid, so a GitLab response
- * that adds them does not force a login loop. A stored `api` scope is rejected
- * when this process only asked for `read_api`.
- */
-export function oauthTokenNeedsReauthorization(
-  storedScopes: readonly string[] | undefined,
-  expectedScopes: readonly string[]
-): boolean {
-  if (storedScopes === undefined || storedScopes.length === 0) {
-    return true;
-  }
-  const stored = new Set(storedScopes);
-  const expected = new Set(expectedScopes);
-  if (stored.has("api") && !expected.has("api")) {
-    return true;
-  }
-  for (const scope of expected) {
-    if (!stored.has(scope)) {
-      return true;
-    }
-  }
-  return false;
-}
-
-function formatOAuthScopes(scopes: readonly string[] | undefined): string {
-  if (scopes === undefined || scopes.length === 0) {
-    return "missing";
-  }
-  return scopes.map(scope => scope.replace(/[\r\n]/g, "")).join(" ");
 }
 
 function isAuthInvalidError(error: unknown): boolean {

@@ -46,6 +46,60 @@ export function grantedOAuthScopes(scopeField: unknown, fallback: readonly strin
   return [...fallback];
 }
 
+/**
+ * True when a stored grant cannot be reused for the scopes this process requires.
+ * Missing scopes must be reauthorized: files written before scope tracking do not
+ * say whether the grant was `api` or `read_api`.
+ * Extra non-write scopes such as `read_user` stay valid, so a GitLab response
+ * that adds them does not force a login loop. A stored `api` scope is rejected
+ * when this process only asked for `read_api`.
+ */
+export function oauthTokenNeedsReauthorization(
+  storedScopes: readonly string[] | undefined,
+  expectedScopes: readonly string[]
+): boolean {
+  if (storedScopes === undefined || storedScopes.length === 0) {
+    return true;
+  }
+  const stored = new Set(storedScopes);
+  const expected = new Set(expectedScopes);
+  if (stored.has("api") && !expected.has("api")) {
+    return true;
+  }
+  for (const scope of expected) {
+    if (!stored.has(scope)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+export function formatOAuthScopes(scopes: readonly string[] | undefined): string {
+  if (scopes === undefined || scopes.length === 0) {
+    return "missing";
+  }
+  return scopes.map(scope => scope.replace(/[\r\n]/g, "")).join(" ");
+}
+
+export function oauthScopeMismatchError(
+  grantedScopes: readonly string[] | undefined,
+  expectedScopes: readonly string[]
+): Error {
+  return new Error(
+    `OAuth authorization granted scopes (${formatOAuthScopes(grantedScopes)}), ` +
+      `which do not match required scopes (${formatOAuthScopes(expectedScopes)}).`
+  );
+}
+
+function assertGrantedScopesMatchRequest(
+  grantedScopes: readonly string[],
+  expectedScopes: readonly string[]
+): void {
+  if (oauthTokenNeedsReauthorization(grantedScopes, expectedScopes)) {
+    throw oauthScopeMismatchError(grantedScopes, expectedScopes);
+  }
+}
+
 export interface DeviceUserCodeInfo {
   userCode: string;
   verificationUri: string;
@@ -205,13 +259,15 @@ export async function runDeviceAuthorizationGrantAsync(
       if (!token.success) {
         throw new Error("Token endpoint returned an invalid response.");
       }
+      const scopes = grantedOAuthScopes(token.data.scope, input.scopes);
+      assertGrantedScopesMatchRequest(scopes, input.scopes);
       return {
         access_token: token.data.access_token,
         refresh_token: token.data.refresh_token,
         expires_in: token.data.expires_in,
         created_at: now(),
         token_type: token.data.token_type ?? "Bearer",
-        scopes: grantedOAuthScopes(token.data.scope, input.scopes),
+        scopes,
       };
     }
 
