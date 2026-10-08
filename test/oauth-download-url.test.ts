@@ -50,6 +50,7 @@ function buildServerEnv(port: number, tmpDir: string): Record<string, string> {
       expires_in: 7200,
       created_at: Date.now(),
       token_type: "Bearer",
+      scopes: ["api"],
     })
   );
   const env: Record<string, string> = {};
