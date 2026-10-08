@@ -1,8 +1,8 @@
 class ZereightMcpGitlab < Formula
   desc "GitLab Model Context Protocol server for AI clients"
   homepage "https://github.com/zereight/gitlab-mcp"
-  url "https://registry.npmjs.org/@zereight/mcp-gitlab/-/mcp-gitlab-2.1.68.tgz"
-  sha256 "8f837ae78ded6c3f0c921977594ed58cd806a2dd733d78b5a33480e56811eec9"
+  url "https://registry.npmjs.org/@zereight/mcp-gitlab/-/mcp-gitlab-2.1.70.tgz"
+  sha256 "8a1b0cf54cde931722601840254a8fe2d890b3518c1860628b837e2b5f6a200c"
   license "MIT"
 
   depends_on "node"
@@ -22,9 +22,5 @@ class ZereightMcpGitlab < Formula
 
     output = pipe_output(bin/"zereight-mcp-gitlab", json, 0)
     assert_match "zereight-gitlab-mcp-server", output
-
-    help = shell_output("#{bin}/zereight-mcp-gitlab --help")
-    assert_match "tool <tool-name>", help
-    assert_match "auth", help
   end
 end

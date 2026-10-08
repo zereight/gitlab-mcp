@@ -17,7 +17,7 @@ PAT, OAuth, 읽기 전용 모드, 동적 API URL, 원격 인증을 지원하며 
 
 ### 왜 이 GitLab MCP를 사용하나요?
 
-- **266개 도구 + `discover_tools`** — 작은 toolset으로 시작하고, 런타임에 카테고리 활성화
+- **267개 도구 + `discover_tools`** — 작은 toolset으로 시작하고, 런타임에 카테고리 활성화
 - **MR 2단계 리뷰** — `list_merge_request_changed_files` → 배치 `get_merge_request_file_diff`
 - **Agent Skill 내장** — `skills/gitlab-mcp/` 워크플로우 가이드
 - **유연한 인증** — Personal Access Token, 로컬 OAuth2 브라우저 플로우, MCP OAuth 프록시, 요청별 원격 인증
@@ -31,7 +31,7 @@ PAT, OAuth, 읽기 전용 모드, 동적 API URL, 원격 인증을 지원하며 
 | | @zereight/mcp-gitlab | GitLab MCP A (커뮤니티 CQRS형) |
 |---|----------------------|--------------------------------|
 | **적합한 경우** | AI 에이전트 워크플로우 | 엔터프라이즈 멀티 인스턴스 / 그룹형 도구 |
-| **도구 모델** | ~266개 세분화 도구 + `discover_tools` | ~50–60개 `browse_*` / `manage_*` 그룹 도구 |
+| **도구 모델** | ~267개 세분화 도구 + `discover_tools` | ~50–60개 `browse_*` / `manage_*` 그룹 도구 |
 | **MR 리뷰** | 2단계 배치 diff | 서버마다 다름 |
 | **Node.js** | >=18.17 | 보통 >=24 |
 | **라이선스** | MIT | 서버마다 다름 |
@@ -111,7 +111,7 @@ command = lib.getExe inputs.gitlab-mcp.packages.${system}.default;
 
 예시는 기존 `mcp-gitlab`보다 충돌 가능성이 낮은 `zereight-mcp-gitlab` 별칭을 사용합니다. MCP 클라이언트가 찾지 못하면 `which zereight-mcp-gitlab`의 절대 경로를 사용하세요.
 
-전역 설치를 쓰지 않으려면 `npx -y @zereight/mcp-gitlab@2.1.68`처럼 직전 안정 버전(문서가 권장하는 버전)으로 고정하세요. 항상 최신 버전을 원하면 `npx -y @zereight/mcp-gitlab@latest`를 사용하세요. 새 버전이 나오면 서버가 시작 시 stderr로 알려줍니다(`GITLAB_DISABLE_VERSION_CHECK=true`로 비활성화 가능).
+전역 설치를 쓰지 않으려면 `npx -y @zereight/mcp-gitlab@2.1.69`처럼 직전 안정 버전(문서가 권장하는 버전)으로 고정하세요. 항상 최신 버전을 원하면 `npx -y @zereight/mcp-gitlab@latest`를 사용하세요. 새 버전이 나오면 서버가 시작 시 stderr로 알려줍니다(`GITLAB_DISABLE_VERSION_CHECK=true`로 비활성화 가능).
 
 #### CLI 인자 사용하기(환경 변수 문제가 있는 클라이언트용)
 
@@ -139,6 +139,10 @@ command = lib.getExe inputs.gitlab-mcp.packages.${system}.default;
 - `--use-milestone=true` - 마일스톤 API 활성화 (`USE_MILESTONE` 대체, 레거시 — `GITLAB_TOOLSETS=milestones` 권장)
 - `--use-pipeline=true` - 파이프라인 API 활성화 (`USE_PIPELINE` 대체, 레거시 — `GITLAB_TOOLSETS=pipelines` 권장)
 - `--disable-version-check=true` - 시작 시 신규 버전 알림 비활성화 (`GITLAB_DISABLE_VERSION_CHECK` 대체)
+- `--masking-enabled=true` - 텍스트 응답 마스킹 활성화 (`GITLAB_MASKING_ENABLED` 대체)
+- `--masking-config` - 마스킹 설정 파일 경로 (`GITLAB_MASKING_CONFIG` 대체)
+- `--masking-policy-file` - 보호된 관리형 정책 파일 경로 (`GITLAB_MASKING_POLICY_FILE` 대체)
+- `--masking-workspace-dir` - 마스킹 파일 경로를 해석하는 기준 디렉터리 (`GITLAB_MASKING_WORKSPACE_DIR` 대체)
 - `--compact-results=true` - 큰 MCP 도구 응답을 미리보기와 CLI 명령으로 바꿈 (`GITLAB_MCP_COMPACT_RESULTS` 대체, 기본 꺼짐)
 - `--compact-result-chars` - compact 임계값 문자 수 (`GITLAB_MCP_COMPACT_RESULT_CHARS` 대체, 기본 `4000`)
 
@@ -146,7 +150,7 @@ CLI 인자는 환경 변수보다 우선합니다.
 
 `zereight-mcp-gitlab auth`는 MCP 서버 플래그가 아니라 서브커맨드입니다. GitLab device flow를 실행한 뒤 종료합니다. [CLI 인자](./docs/getting-started/cli-arguments.md#auth)를 참고하세요.
 
-같은 바이너리는 `gh` 스타일 GitLab CLI이기도 합니다 (`tool <name>` 또는 `mr list` 같은 curated 명령). 전체 페이로드는 터미널에서 이 CLI로 읽습니다. MCP 응답은 대화에 남습니다. `GITLAB_MCP_COMPACT_RESULTS=true`(또는 `--compact-results`)를 켜면 큰 도구 응답이 미리보기와 CLI 명령으로 바뀝니다. Human CLI 자체는 compact 되지 않습니다. permission mode, toolsets, denied-tools regex, tool-policy는 MCP와 같습니다. destructive 도구와 `GITLAB_TOOL_POLICY_APPROVE` 도구는 `--yes`가 필요합니다. [Human CLI](./docs/getting-started/cli-arguments.md#human-cli)를 참고하세요.
+같은 바이너리는 `gh` 스타일 GitLab CLI이기도 합니다 (`tool <name>` 또는 `mr list` 같은 curated 명령). **MCP 등록은 필요 없습니다** — PAT를 설정하거나, `auth`를 실행한 뒤 `GITLAB_USE_OAUTH=true`를 설정하면 됩니다: [MCP 없이 CLI 사용하기](./docs/getting-started/cli-without-mcp.md). 전체 페이로드는 터미널에서 이 CLI로 읽습니다. MCP 응답은 대화에 남습니다. `GITLAB_MCP_COMPACT_RESULTS=true`(또는 `--compact-results`)를 켜면 큰 도구 응답이 미리보기와 CLI 명령으로 바뀝니다. Human CLI 자체는 compact 되지 않습니다. permission mode, toolsets, denied-tools regex, tool-policy는 MCP와 같습니다. destructive 도구와 `GITLAB_TOOL_POLICY_APPROVE` 도구는 `--yes`가 필요합니다. [Human CLI](./docs/getting-started/cli-arguments.md#human-cli)를 참고하세요.
 
 > **세밀한 도구 필터링:** `GITLAB_PERMISSION_MODE=modify`로 생성/수정은 허용하고 모든 삭제 도구와
 > 파괴적인 중단(teardown) 도구(`cancel_pipeline`, `cancel_pipeline_job`, `stop_environment`,

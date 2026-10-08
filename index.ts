@@ -101,7 +101,8 @@ function buildDownloadUrl(type: string, params: Record<string, string>): string 
       if (GITLAB_JOB_TOKEN && !GITLAB_PERSONAL_ACCESS_TOKEN && !OAUTH_ACCESS_TOKEN) {
         header = "JOB-TOKEN";
         headerValue = String(staticToken);
-      } else if (IS_OLD) {
+      } else if (IS_OLD && !OAUTH_ACCESS_TOKEN) {
+        // OAuth tokens always use Bearer (see buildAuthHeaders)
         header = "Private-Token";
         headerValue = String(staticToken);
       } else {
@@ -187,6 +188,7 @@ export { readMcpSessionIdHeader } from "./server/request-helpers.js";
 import {
   encodeGitLabPath,
   encodeGitLabPathSegment,
+  isCleartextRemoteUrl,
   normalizeGitLabApiUrl,
 } from "./utils/url.js";
 import {
@@ -957,7 +959,7 @@ function createServer(): McpServer {
       });
     };
 
-    const logError = (error: unknown): never => {
+    const logError = (error: unknown): unknown => {
       const durationMs = Date.now() - start;
       const safeError = maskingEngine ? maskingEngine.maskError(error) : error;
       logger.error(
@@ -969,7 +971,7 @@ function createServer(): McpServer {
         },
         `tool_call_error: ${toolName} (${durationMs}ms)`
       );
-      throw safeError;
+      return safeError;
     };
 
     try {
@@ -1195,8 +1197,20 @@ function createServer(): McpServer {
       const result = await handleToolCall(request.params);
       return logCompletion(result);
     } catch (error) {
-      logError(error);
-      throw error;
+      const isGitLabApiError = error instanceof GitLabApiError;
+      const safeError = logError(error);
+      if (isGitLabApiError) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: safeError instanceof Error ? safeError.message : String(safeError),
+            },
+          ],
+          isError: true,
+        };
+      }
+      throw safeError;
     }
   });
 
@@ -1877,13 +1891,16 @@ function buildAuthHeaders(): Record<string, string> {
   // OAuth token takes priority over PAT when both are set.
   // NOTE: Changed in PR #400 — previously GITLAB_JOB_TOKEN had highest priority.
   // If both GITLAB_PERSONAL_ACCESS_TOKEN and GITLAB_JOB_TOKEN are set, PAT wins.
-  const token = OAUTH_ACCESS_TOKEN || GITLAB_PERSONAL_ACCESS_TOKEN;
-
-  if (IS_OLD && token) {
-    return { "Private-Token": String(token) };
+  // OAuth tokens always travel as `Authorization: Bearer`, even with GITLAB_IS_OLD: the HTTP
+  // client strips `Authorization` on cross-origin redirects but not `Private-Token`.
+  if (OAUTH_ACCESS_TOKEN) {
+    return { Authorization: `Bearer ${OAUTH_ACCESS_TOKEN}` };
   }
-  if (token) {
-    return { Authorization: `Bearer ${token}` };
+
+  if (GITLAB_PERSONAL_ACCESS_TOKEN) {
+    return IS_OLD
+      ? { "Private-Token": String(GITLAB_PERSONAL_ACCESS_TOKEN) }
+      : { Authorization: `Bearer ${GITLAB_PERSONAL_ACCESS_TOKEN}` };
   }
 
   // Fall back to CI job token
@@ -2216,6 +2233,13 @@ if (
   process.exit(1);
 }
 
+class GitLabApiError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "GitLabApiError";
+  }
+}
+
 /**
  * Utility function for handling GitLab API errors
  * API 에러 처리를 위한 유틸리티 함수 (Utility function for handling API errors)
@@ -2232,11 +2256,13 @@ async function handleGitLabError(response: UndiciResponse): Promise<void> {
       // before the common tool-call boundary returns/logs it.
       logger.error("GitLab API Rate Limit Exceeded");
       logger.error("User API Key Rate limit exceeded. Please try again later.");
-      const error = new Error(`GitLab API Rate Limit Exceeded: ${errorBody}`);
+      const error = new GitLabApiError(`GitLab API Rate Limit Exceeded: ${errorBody}`);
       throw error;
     } else {
       // Handle other API errors
-      const error = new Error(`GitLab API error: ${response.status} ${response.statusText}\n${errorBody}`);
+      const error = new GitLabApiError(
+        `GitLab API error: ${response.status} ${response.statusText}\n${errorBody}`
+      );
       throw error;
     }
   }
@@ -2320,7 +2346,7 @@ async function forkProject(projectId: string, namespace?: string): Promise<GitLa
 
   // Handle case where project already exists
   if (response.status === 409) {
-    throw new Error("Project already exists in the target namespace");
+    throw new GitLabApiError("Project already exists in the target namespace");
   }
 
   await handleGitLabError(response);
@@ -2415,7 +2441,7 @@ async function getFileContents(
 
   // Handle file not found
   if (response.status === 404) {
-    throw new Error(`File not found: ${filePath}`);
+    throw new GitLabApiError(`File not found: ${filePath}`);
   }
 
   await handleGitLabError(response);
@@ -2461,7 +2487,7 @@ async function createIssue(
   // Handle bad request
   if (response.status === 400) {
     const errorBody = await response.text();
-    throw new Error(`Invalid request: ${errorBody}`);
+    throw new GitLabApiError(`Invalid request: ${errorBody}`);
   }
 
   await handleGitLabError(response);
@@ -2761,7 +2787,7 @@ async function executeGraphQL<T = any>(
 
   if (!response.ok) {
     const errorBody = await response.text();
-    throw new Error(`GraphQL request failed (${response.status}): ${errorBody}`);
+    throw new GitLabApiError(`GraphQL request failed (${response.status}): ${errorBody}`);
   }
 
   const json: any = await response.json();
@@ -4692,12 +4718,12 @@ async function createMergeRequest(
 
   if (response.status === 400) {
     const errorBody = await response.text();
-    throw new Error(`Invalid request: ${errorBody}`);
+    throw new GitLabApiError(`Invalid request: ${errorBody}`);
   }
 
   if (!response.ok) {
     const errorBody = await response.text();
-    throw new Error(`GitLab API error: ${response.status} ${response.statusText}\n${errorBody}`);
+    throw new GitLabApiError(`GitLab API error: ${response.status} ${response.statusText}\n${errorBody}`);
   }
 
   const data = await response.json();
@@ -4822,7 +4848,7 @@ async function deleteMergeRequestDiscussionNote(
 
   if (!response.ok) {
     const errorText = await response.text();
-    throw new Error(`GitLab API error: ${response.status} ${response.statusText}\n${errorText}`);
+    throw new GitLabApiError(`GitLab API error: ${response.status} ${response.statusText}\n${errorText}`);
   }
 }
 
@@ -5061,7 +5087,7 @@ async function deleteMergeRequestNote(
 
   if (!response.ok) {
     const errorText = await response.text();
-    throw new Error(`GitLab API error: ${response.status} ${response.statusText}\n${errorText}`);
+    throw new GitLabApiError(`GitLab API error: ${response.status} ${response.statusText}\n${errorText}`);
   }
 }
 
@@ -5311,7 +5337,7 @@ async function createOrUpdateFile(
 
   if (!response.ok) {
     const errorBody = await response.text();
-    throw new Error(`GitLab API error: ${response.status} ${response.statusText}\n${errorBody}`);
+    throw new GitLabApiError(`GitLab API error: ${response.status} ${response.statusText}\n${errorBody}`);
   }
 
   const data = await response.json();
@@ -5351,12 +5377,12 @@ async function createCommit(
 
   if (response.status === 400) {
     const errorBody = await response.text();
-    throw new Error(`Invalid request: ${errorBody}`);
+    throw new GitLabApiError(`Invalid request: ${errorBody}`);
   }
 
   if (!response.ok) {
     const errorBody = await response.text();
-    throw new Error(`GitLab API error: ${response.status} ${response.statusText}\n${errorBody}`);
+    throw new GitLabApiError(`GitLab API error: ${response.status} ${response.statusText}\n${errorBody}`);
   }
 
   const data = await response.json();
@@ -5390,7 +5416,7 @@ async function searchProjects(
 
   if (!response.ok) {
     const errorBody = await response.text();
-    throw new Error(`GitLab API error: ${response.status} ${response.statusText}\n${errorBody}`);
+    throw new GitLabApiError(`GitLab API error: ${response.status} ${response.statusText}\n${errorBody}`);
   }
 
   const unfiltered = (await response.json()) as GitLabRepository[];
@@ -5499,7 +5525,7 @@ async function createRepository(
 
   if (!response.ok) {
     const errorBody = await response.text();
-    throw new Error(`GitLab API error: ${response.status} ${response.statusText}\n${errorBody}`);
+    throw new GitLabApiError(`GitLab API error: ${response.status} ${response.statusText}\n${errorBody}`);
   }
 
   const data = await response.json();
@@ -6083,7 +6109,7 @@ async function getBranchDiffs(
 
   if (!response.ok) {
     const errorBody = await response.text();
-    throw new Error(`GitLab API error: ${response.status} ${response.statusText}\n${errorBody}`);
+    throw new GitLabApiError(`GitLab API error: ${response.status} ${response.statusText}\n${errorBody}`);
   }
 
   const data = await response.json();
@@ -6416,7 +6442,7 @@ async function createNote(
 
   if (!response.ok) {
     const errorText = await response.text();
-    throw new Error(`GitLab API error: ${response.status} ${response.statusText}\n${errorText}`);
+    throw new GitLabApiError(`GitLab API error: ${response.status} ${response.statusText}\n${errorText}`);
   }
 
   return await response.json();
@@ -6441,7 +6467,7 @@ async function getDraftNote(
 
   if (!response.ok) {
     const errorText = await response.text();
-    throw new Error(`GitLab API error: ${response.status} ${response.statusText}\n${errorText}`);
+    throw new GitLabApiError(`GitLab API error: ${response.status} ${response.statusText}\n${errorText}`);
   }
 
   const data = await response.json();
@@ -6466,7 +6492,7 @@ async function listDraftNotes(
 
   if (!response.ok) {
     const errorText = await response.text();
-    throw new Error(`GitLab API error: ${response.status} ${response.statusText}\n${errorText}`);
+    throw new GitLabApiError(`GitLab API error: ${response.status} ${response.statusText}\n${errorText}`);
   }
 
   const data = await response.json();
@@ -6517,7 +6543,7 @@ async function createDraftNote(
 
   if (!response.ok) {
     const errorText = await response.text();
-    throw new Error(`GitLab API error: ${response.status} ${response.statusText}\n${errorText}`);
+    throw new GitLabApiError(`GitLab API error: ${response.status} ${response.statusText}\n${errorText}`);
   }
 
   const data = await response.json();
@@ -6568,7 +6594,7 @@ async function updateDraftNote(
 
   if (!response.ok) {
     const errorText = await response.text();
-    throw new Error(`GitLab API error: ${response.status} ${response.statusText}\n${errorText}`);
+    throw new GitLabApiError(`GitLab API error: ${response.status} ${response.statusText}\n${errorText}`);
   }
 
   const data = await response.json();
@@ -6601,7 +6627,7 @@ async function deleteDraftNote(
 
   if (!response.ok) {
     const errorText = await response.text();
-    throw new Error(`GitLab API error: ${response.status} ${response.statusText}\n${errorText}`);
+    throw new GitLabApiError(`GitLab API error: ${response.status} ${response.statusText}\n${errorText}`);
   }
 }
 
@@ -6631,7 +6657,7 @@ async function publishDraftNote(
 
   if (!response.ok) {
     const errorText = await response.text();
-    throw new Error(`GitLab API error: ${response.status} ${response.statusText}\n${errorText}`);
+    throw new GitLabApiError(`GitLab API error: ${response.status} ${response.statusText}\n${errorText}`);
   }
 
   // Handle empty response (204 No Content) or successful response
@@ -6728,7 +6754,7 @@ async function bulkPublishDraftNotes(
 
   if (!response.ok) {
     const errorText = await response.text();
-    throw new Error(`GitLab API error: ${response.status} ${response.statusText}\n${errorText}`);
+    throw new GitLabApiError(`GitLab API error: ${response.status} ${response.statusText}\n${errorText}`);
   }
 
   // Handle empty response (204 No Content) or successful response
@@ -6773,7 +6799,7 @@ async function resolveMergeRequestThread(
 
   if (!response.ok) {
     const errorText = await response.text();
-    throw new Error(`GitLab API error: ${response.status} ${response.statusText}\n${errorText}`);
+    throw new GitLabApiError(`GitLab API error: ${response.status} ${response.statusText}\n${errorText}`);
   }
 }
 
@@ -7562,7 +7588,7 @@ async function getPipeline(
   });
 
   if (response.status === 404) {
-    throw new Error(`Pipeline not found`);
+    throw new GitLabApiError(`Pipeline not found`);
   }
 
   await handleGitLabError(response);
@@ -7664,7 +7690,7 @@ async function getDeployment(
   });
 
   if (response.status === 404) {
-    throw new Error(`Deployment not found`);
+    throw new GitLabApiError(`Deployment not found`);
   }
 
   await handleGitLabError(response);
@@ -7742,7 +7768,7 @@ async function getEnvironment(
   });
 
   if (response.status === 404) {
-    throw new Error(`Environment not found`);
+    throw new GitLabApiError(`Environment not found`);
   }
 
   await handleGitLabError(response);
@@ -7825,7 +7851,7 @@ async function listPipelineJobs(
   });
 
   if (response.status === 404) {
-    throw new Error(`Pipeline not found`);
+    throw new GitLabApiError(`Pipeline not found`);
   }
 
   await handleGitLabError(response);
@@ -7859,7 +7885,7 @@ async function listPipelineTriggerJobs(
   });
 
   if (response.status === 404) {
-    throw new Error(`Pipeline not found`);
+    throw new GitLabApiError(`Pipeline not found`);
   }
 
   await handleGitLabError(response);
@@ -7883,7 +7909,7 @@ async function getPipelineJob(
   });
 
   if (response.status === 404) {
-    throw new Error(`Job not found`);
+    throw new GitLabApiError(`Job not found`);
   }
 
   await handleGitLabError(response);
@@ -7923,7 +7949,7 @@ async function getPipelineJobOutput(
   });
 
   if (response.status === 404) {
-    throw new Error(`Job trace not found or job is not finished yet`);
+    throw new GitLabApiError(`Job trace not found or job is not finished yet`);
   }
 
   await handleGitLabError(response);
@@ -8020,7 +8046,7 @@ async function listJobArtifacts(
   });
 
   if (response.status === 404) {
-    throw new Error(
+    throw new GitLabApiError(
       `Job artifacts not found. The job may not have produced artifacts or the job ID is invalid.`
     );
   }
@@ -8053,7 +8079,7 @@ async function downloadJobArtifacts(
   const response = await fetchWithValidatedRedirects(url.toString(), downloadRedirectOptions());
 
   if (response.status === 404) {
-    throw new Error(
+    throw new GitLabApiError(
       `Job artifacts not found. The job may not have produced artifacts or the job ID is invalid.`
     );
   }
@@ -8099,7 +8125,7 @@ async function getJobArtifactFile(
   const response = await fetchWithValidatedRedirects(url.toString(), downloadRedirectOptions());
 
   if (response.status === 404) {
-    throw new Error(`Artifact file not found: ${artifactPath}`);
+    throw new GitLabApiError(`Artifact file not found: ${artifactPath}`);
   }
 
   await handleGitLabError(response);
@@ -8710,11 +8736,11 @@ async function getRepositoryTree(
   );
 
   if (response.status === 404) {
-    throw new Error("Repository or path not found");
+    throw new GitLabApiError("Repository or path not found");
   }
 
   if (!response.ok) {
-    throw new Error(`Failed to get repository tree: ${response.statusText}`);
+    throw new GitLabApiError(`Failed to get repository tree: ${response.statusText}`);
   }
 
   const data = await response.json();
@@ -16246,6 +16272,25 @@ async function initializeServerByTransportMode(mode: TransportMode): Promise<voi
 }
 
 /**
+ * Construct the OAuth client when OAuth is enabled. No network: the token is
+ * acquired lazily on the first tool call via ensureValidOAuthToken, which
+ * avoids blocking startup and opening a browser on transient boot-time errors.
+ * Shared by the MCP server and the human CLI.
+ */
+function initOAuthClient(): void {
+  if (!USE_OAUTH) {
+    return;
+  }
+  if (isCleartextRemoteUrl(GITLAB_API_URL)) {
+    throw new Error(
+      `Refusing to send OAuth tokens over cleartext HTTP to ${GITLAB_API_URL}. ` +
+        "Use an https:// GITLAB_API_URL (http:// is only allowed for localhost)."
+    );
+  }
+  oauthClient = createGitLabOAuthClient(GITLAB_API_URL.replace(/\/api\/v4$/, ""));
+}
+
+/**
  * Initialize and run the server
  * Main entry point for server startup
  */
@@ -16258,12 +16303,7 @@ async function runServer() {
     if (USE_OAUTH) {
       logger.info("Using OAuth authentication...");
       try {
-        const gitlabBaseUrl = GITLAB_API_URL.replace(/\/api\/v4$/, "");
-        // Construct the client synchronously (no network). The token is
-        // acquired lazily on the first tool call via ensureValidOAuthToken,
-        // by which point the network is ready. This avoids blocking startup
-        // and avoids opening a browser on transient boot-time network errors.
-        oauthClient = createGitLabOAuthClient(gitlabBaseUrl);
+        initOAuthClient();
         logger.info("OAuth enabled; token acquired lazily on first use.");
       } catch (error) {
         logger.error({ err: error }, "OAuth authentication failed");
@@ -16340,6 +16380,7 @@ async function main(): Promise<void> {
       process.exit(2);
     }
     try {
+      initOAuthClient();
       const result = await handleToolCall({ name: cli.toolName, arguments: cli.args });
       const masked = maskCliToolResult(cli.toolName, result);
       const formatted = formatToolOutput({

@@ -65,6 +65,7 @@ nav:
   - Getting Started:
       - Overview: getting-started/index.md
       - CLI Arguments: getting-started/cli-arguments.md
+      - CLI without MCP: getting-started/cli-without-mcp.md
   - Client Setup:
       - Claude Code: clients/claude-code.md
       - VS Code: clients/vscode.md
@@ -107,6 +108,9 @@ nav:
       - Webhooks: tools/webhooks.md
       - Search: tools/search.md
       - Dependency Proxy: tools/dependency-proxy.md
+      - Vulnerabilities: tools/vulnerabilities.md
+      - Orbit: tools/orbit.md
+      - Snippets: tools/snippets.md
       - Meta & GraphQL: tools/meta.md
   - Reference:
       - Tool Invocation Coverage: reference/tool-coverage.md

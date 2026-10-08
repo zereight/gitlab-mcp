@@ -17,7 +17,7 @@
 
 ### 为什么使用这个 GitLab MCP？
 
-- **266 个工具 + `discover_tools`** — 从小型 toolset 开始，运行时按需激活类别
+- **267 个工具 + `discover_tools`** — 从小型 toolset 开始，运行时按需激活类别
 - **MR 两步审查** — `list_merge_request_changed_files` → 批量 `get_merge_request_file_diff`
 - **内置 Agent Skill** — `skills/gitlab-mcp/` 工作流指南
 - **认证灵活** — Personal Access Token、本地 OAuth2 浏览器流程、MCP OAuth 代理、按请求远程授权
@@ -31,7 +31,7 @@
 | | @zereight/mcp-gitlab | GitLab MCP A（社区 CQRS 型） |
 |---|----------------------|------------------------------|
 | **更适合** | AI 代理工作流 | 企业多实例 / 分组工具 |
-| **工具模型** | ~266 个细粒度工具 + `discover_tools` | ~50–60 个 `browse_*` / `manage_*` 分组工具 |
+| **工具模型** | ~267 个细粒度工具 + `discover_tools` | ~50–60 个 `browse_*` / `manage_*` 分组工具 |
 | **MR 审查** | 两步批量 diff | 因服务器而异 |
 | **Node.js** | >=18.17 | 通常 >=24 |
 | **许可证** | MIT | 因服务器而异 |
@@ -111,7 +111,7 @@ command = lib.getExe inputs.gitlab-mcp.packages.${system}.default;
 
 示例使用 `zereight-mcp-gitlab`，这是比旧的 `mcp-gitlab` 更不容易冲突的别名。如果 MCP 客户端找不到它，请使用 `which zereight-mcp-gitlab` 输出的绝对路径。
 
-如果不想全局安装，请将 `npx` 固定到上一个稳定版本（即文档推荐的版本），例如 `npx -y @zereight/mcp-gitlab@2.1.68`。如果始终想使用最新版本，请改用 `npx -y @zereight/mcp-gitlab@latest`。有新版本发布时，服务器会在启动时通过 stderr 提示（可用 `GITLAB_DISABLE_VERSION_CHECK=true` 关闭）。
+如果不想全局安装，请将 `npx` 固定到上一个稳定版本（即文档推荐的版本），例如 `npx -y @zereight/mcp-gitlab@2.1.69`。如果始终想使用最新版本，请改用 `npx -y @zereight/mcp-gitlab@latest`。有新版本发布时，服务器会在启动时通过 stderr 提示（可用 `GITLAB_DISABLE_VERSION_CHECK=true` 关闭）。
 
 #### 使用 CLI 参数（适用于环境变量有问题的客户端）
 
@@ -150,7 +150,7 @@ CLI 参数优先于环境变量。
 
 `zereight-mcp-gitlab auth` 是子命令，不是 MCP 服务器参数。它运行 GitLab device flow 后退出。参见 [CLI 参数](./docs/getting-started/cli-arguments.md#auth)。
 
-同一二进制也是 `gh` 风格的 GitLab CLI（`tool <name>`，或 `mr list` 这类 curated 命令）。完整结果在终端用 CLI 查看。MCP 回复仍进入对话。设置 `GITLAB_MCP_COMPACT_RESULTS=true`（或 `--compact-results`）后，过大的工具回复会变成预览加上 CLI 命令。Human CLI 本身不会被 compact。permission mode、toolsets、denied-tools regex 和 tool-policy 与 MCP 相同。破坏性工具以及 `GITLAB_TOOL_POLICY_APPROVE` 工具需要 `--yes`。参见 [Human CLI](./docs/getting-started/cli-arguments.md#human-cli)。
+同一二进制也是 `gh` 风格的 GitLab CLI（`tool <name>`，或 `mr list` 这类 curated 命令）。**无需注册 MCP**——设置 PAT，或运行 `auth` 后设置 `GITLAB_USE_OAUTH=true`：参见 [无需 MCP 使用 CLI](./docs/getting-started/cli-without-mcp.md)。完整结果在终端用 CLI 查看。MCP 回复仍进入对话。设置 `GITLAB_MCP_COMPACT_RESULTS=true`（或 `--compact-results`）后，过大的工具回复会变成预览加上 CLI 命令。Human CLI 本身不会被 compact。permission mode、toolsets、denied-tools regex 和 tool-policy 与 MCP 相同。破坏性工具以及 `GITLAB_TOOL_POLICY_APPROVE` 工具需要 `--yes`。参见 [Human CLI](./docs/getting-started/cli-arguments.md#human-cli)。
 
 > **细粒度工具过滤：**使用 `GITLAB_PERMISSION_MODE=modify` 允许创建/更新，同时阻止所有删除工具以及
 > 破坏性的拆除（teardown）工具（`cancel_pipeline`、`cancel_pipeline_job`、`stop_environment`、

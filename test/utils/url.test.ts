@@ -3,8 +3,25 @@ import { describe, test } from "node:test";
 import {
   encodeGitLabPath,
   encodeGitLabPathSegment,
+  isCleartextRemoteUrl,
   normalizeGitLabApiUrl,
 } from "../../utils/url.js";
+
+describe("When isCleartextRemoteUrl runs", () => {
+  test("should flag http to a remote host", () => {
+    assert.equal(isCleartextRemoteUrl("http://gitlab.example.com/api/v4"), true);
+  });
+
+  test("should allow https", () => {
+    assert.equal(isCleartextRemoteUrl("https://gitlab.example.com/api/v4"), false);
+  });
+
+  test("should allow http to loopback hosts", () => {
+    assert.equal(isCleartextRemoteUrl("http://127.0.0.1:8080/api/v4"), false);
+    assert.equal(isCleartextRemoteUrl("http://localhost/api/v4"), false);
+    assert.equal(isCleartextRemoteUrl("http://[::1]:3000/api/v4"), false);
+  });
+});
 
 describe("When normalizeGitLabApiUrl runs", () => {
   test("should default to gitlab.com", () => {
