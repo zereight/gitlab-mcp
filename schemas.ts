@@ -3998,6 +3998,152 @@ export const ListGroupIterationsSchema = z
   })
   .merge(PaginationOptionsSchema);
 
+/**
+ * A required identifier that also accepts a numeric JSON value.
+ *
+ * `z.coerce.string()` would accept numbers too, but it turns a missing value into the
+ * string "undefined", so an omitted ID would pass validation. Converting only numbers
+ * keeps a missing or empty ID a validation error.
+ */
+const requiredIterationIdentifier = (description: string) =>
+  z
+    .preprocess(value => (typeof value === "number" ? String(value) : value), z.string().min(1))
+    .describe(description);
+
+/** Same as {@link requiredIterationIdentifier}, for an optional identifier. */
+const optionalIterationIdentifier = (description: string) =>
+  z
+    .preprocess(
+      value => (typeof value === "number" ? String(value) : value),
+      z.string().min(1).optional()
+    )
+    .describe(description);
+
+export const GetGroupIterationSchema = z.object({
+  group_id: requiredIterationIdentifier("Group ID or URL-encoded path"),
+  iteration_id: requiredIterationIdentifier("Iteration ID, IID, or GraphQL GID"),
+});
+
+export const UpdateGroupIterationSchema = z.object({
+  group_id: requiredIterationIdentifier("Group ID or URL-encoded path"),
+  iteration_id: requiredIterationIdentifier("Iteration ID, IID, or GraphQL GID"),
+  title: z.string().optional().describe("New iteration title"),
+  description: z
+    .string()
+    .nullable()
+    .optional()
+    .describe("New iteration description; null clears it"),
+  start_date: z.string().optional().describe("New start date in YYYY-MM-DD format"),
+  due_date: z.string().optional().describe("New due date in YYYY-MM-DD format"),
+});
+
+export const CreateGroupIterationSchema = z.object({
+  group_id: requiredIterationIdentifier("Group ID or URL-encoded path"),
+  title: z.string().optional().describe("Iteration title"),
+  description: z.string().optional().describe("Iteration description"),
+  start_date: z.string().optional().describe("Start date in YYYY-MM-DD format"),
+  due_date: z.string().optional().describe("Due date in YYYY-MM-DD format"),
+  iterations_cadence_id: optionalIterationIdentifier(
+    "Iteration cadence ID or GraphQL GID (gid://gitlab/Iterations::Cadence/<id>) to assign the new iteration to. Use list_group_iteration_cadences to find it."
+  ),
+});
+
+export const DeleteGroupIterationSchema = z.object({
+  group_id: requiredIterationIdentifier("Group ID or URL-encoded path"),
+  iteration_id: requiredIterationIdentifier("Iteration ID, IID, or GraphQL GID"),
+});
+
+export const ListProjectIterationsSchema = ListGroupIterationsSchema.omit({
+  group_id: true,
+}).extend({
+  project_id: requiredIterationIdentifier("Project ID or URL-encoded path"),
+});
+
+export const GroupIterationCadence = z.object({
+  id: z.string(),
+  title: z.string(),
+  description: z.string().optional().nullable(),
+  automatic: z.boolean().optional().nullable(),
+  active: z.boolean().optional().nullable(),
+  start_date: z.string().optional().nullable(),
+  duration_in_weeks: z.number().optional().nullable(),
+  iterations_in_advance: z.number().optional().nullable(),
+  roll_over: z.boolean().optional().nullable(),
+});
+
+export const ListGroupIterationCadencesSchema = z.object({
+  group_id: requiredIterationIdentifier("Group ID or URL-encoded path"),
+  id: optionalIterationIdentifier(
+    "Return only the cadence with this ID or GraphQL GID (gid://gitlab/Iterations::Cadence/<id>)."
+  ),
+  automatic: flexibleBooleanOptional.describe(
+    "Return only cadences that do (true) or do not (false) generate upcoming iterations automatically."
+  ),
+  active: flexibleBooleanOptional.describe(
+    "Return only active (true) or inactive (false) cadences."
+  ),
+  duration_in_weeks: z.coerce
+    .number()
+    .int()
+    .optional()
+    .describe("Return only cadences whose iterations last this many weeks."),
+  title: z.string().optional().describe("Fuzzy search by cadence title."),
+  include_ancestor_groups: flexibleBooleanOptional.describe(
+    "Include cadences from the group's ancestor groups."
+  ),
+});
+
+const iterationCadenceFields = {
+  title: z.string().optional().describe("Cadence title"),
+  description: z
+    .string()
+    .optional()
+    .describe("Cadence description. Maximum length is 5000 characters."),
+  duration_in_weeks: z.coerce
+    .number()
+    .int()
+    .optional()
+    .describe("Duration in weeks of the iterations within the cadence"),
+  iterations_in_advance: z.coerce
+    .number()
+    .int()
+    .optional()
+    .describe("Number of future iterations to schedule in addition to the current one"),
+  start_date: z
+    .string()
+    .optional()
+    .describe("Automation start date, as a date (YYYY-MM-DD) or ISO 8601 timestamp"),
+  roll_over: flexibleBooleanOptional.describe(
+    "Whether unfinished issues roll over to the next iteration"
+  ),
+};
+
+export const CreateGroupIterationCadenceSchema = z.object({
+  group_id: requiredIterationIdentifier("Group ID or URL-encoded path"),
+  automatic: coerceBooleanString.describe(
+    "Whether the cadence generates upcoming iterations automatically"
+  ),
+  active: coerceBooleanString.describe("Whether the cadence is active"),
+  ...iterationCadenceFields,
+});
+
+export const UpdateGroupIterationCadenceSchema = z.object({
+  iteration_cadence_id: requiredIterationIdentifier(
+    "Iteration cadence ID or GraphQL GID (gid://gitlab/Iterations::Cadence/<id>)"
+  ),
+  automatic: flexibleBooleanOptional.describe(
+    "Whether the cadence generates upcoming iterations automatically"
+  ),
+  active: flexibleBooleanOptional.describe("Whether the cadence is active"),
+  ...iterationCadenceFields,
+});
+
+export const DeleteGroupIterationCadenceSchema = z.object({
+  iteration_cadence_id: requiredIterationIdentifier(
+    "Iteration cadence ID or GraphQL GID (gid://gitlab/Iterations::Cadence/<id>)"
+  ),
+});
+
 // Events API schemas
 export const GitLabEventAuthorSchema = z.object({
   id: z.coerce.string(),
@@ -4250,6 +4396,16 @@ export type ListGroupMergeRequestsOptions = z.infer<typeof ListGroupMergeRequest
 export type GitLabProjectMember = z.infer<typeof GitLabProjectMemberSchema>;
 export type GroupIteration = z.infer<typeof GroupIteration>;
 export type ListGroupIterationsOptions = z.infer<typeof ListGroupIterationsSchema>;
+export type GetGroupIterationOptions = z.infer<typeof GetGroupIterationSchema>;
+export type UpdateGroupIterationOptions = z.infer<typeof UpdateGroupIterationSchema>;
+export type CreateGroupIterationOptions = z.infer<typeof CreateGroupIterationSchema>;
+export type GroupIterationCadence = z.infer<typeof GroupIterationCadence>;
+export type ListGroupIterationCadencesOptions = z.infer<typeof ListGroupIterationCadencesSchema>;
+export type DeleteGroupIterationOptions = z.infer<typeof DeleteGroupIterationSchema>;
+export type ListProjectIterationsOptions = z.infer<typeof ListProjectIterationsSchema>;
+export type CreateGroupIterationCadenceOptions = z.infer<typeof CreateGroupIterationCadenceSchema>;
+export type UpdateGroupIterationCadenceOptions = z.infer<typeof UpdateGroupIterationCadenceSchema>;
+export type DeleteGroupIterationCadenceOptions = z.infer<typeof DeleteGroupIterationCadenceSchema>;
 
 // Draft Notes type exports
 export type ListDraftNotesOptions = z.infer<typeof ListDraftNotesSchema>;
@@ -5060,6 +5216,12 @@ export const UpdateWorkItemSchema = WorkItemParamsSchema.extend({
     .describe(
       "Iteration ID (e.g. 'gid://gitlab/Iteration/123' or numeric ID). Use list_group_iterations to find available iterations."
     ),
+  remove_iteration: z.coerce
+    .boolean()
+    .optional()
+    .describe(
+      "Set to true to remove the work item's iteration association. Mutually exclusive with iteration_id."
+    ),
   confidential: z.coerce.boolean().optional().describe("Set confidentiality"),
   linked_items_to_add: z
     .array(
@@ -5122,6 +5284,8 @@ export const UpdateWorkItemSchema = WorkItemParamsSchema.extend({
     .enum(["TRIGGERED", "ACKNOWLEDGED", "RESOLVED", "IGNORED"])
     .optional()
     .describe("Incident only: set escalation status"),
+}).refine(args => !(args.remove_iteration && args.iteration_id !== undefined), {
+  message: "Provide either iteration_id or remove_iteration, not both",
 });
 
 export const ConvertWorkItemTypeSchema = z.object({

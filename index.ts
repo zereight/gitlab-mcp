@@ -485,6 +485,16 @@ import {
   ListCommitsSchema,
   ListDraftNotesSchema,
   ListGroupIterationsSchema,
+  GetGroupIterationSchema,
+  UpdateGroupIterationSchema,
+  CreateGroupIterationSchema,
+  GroupIterationCadence,
+  ListGroupIterationCadencesSchema,
+  DeleteGroupIterationSchema,
+  ListProjectIterationsSchema,
+  CreateGroupIterationCadenceSchema,
+  UpdateGroupIterationCadenceSchema,
+  DeleteGroupIterationCadenceSchema,
   ListGroupProjectsSchema,
   type GitLabCiVariable,
   GitLabCiVariableSchema,
@@ -4206,6 +4216,7 @@ async function updateWorkItem(
     due_date?: string;
     milestone_id?: string;
     iteration_id?: string;
+    remove_iteration?: boolean;
     confidential?: boolean;
     linked_items_to_add?: Array<{ project_id?: string; iid: number; link_type?: string }>;
     linked_items_to_remove?: Array<{ project_id?: string; iid: number }>;
@@ -4330,7 +4341,9 @@ async function updateWorkItem(
     variables.milestoneId = milestoneGID;
   }
 
-  if (options.iteration_id !== undefined) {
+  if (options.remove_iteration) {
+    inputParts.push("iterationWidget: { iterationId: null }");
+  } else if (options.iteration_id !== undefined) {
     const iterationGID = options.iteration_id.startsWith("gid://")
       ? options.iteration_id
       : `gid://gitlab/Iteration/${options.iteration_id}`;
@@ -4399,6 +4412,7 @@ async function updateWorkItem(
           ... on WorkItemWidgetHealthStatus { healthStatus }
           ... on WorkItemWidgetStartAndDueDate { startDate dueDate }
           ... on WorkItemWidgetMilestone { milestone { id title } }
+          ... on WorkItemWidgetIteration { iteration { id iid title } }
         }
       }
       errors
@@ -4523,6 +4537,7 @@ async function updateWorkItem(
   const healthStatusW = widgets.find((w: any) => w.__typename === "WorkItemWidgetHealthStatus");
   const datesW = widgets.find((w: any) => w.__typename === "WorkItemWidgetStartAndDueDate");
   const milestoneW = widgets.find((w: any) => w.__typename === "WorkItemWidgetMilestone");
+  const iterationW = widgets.find((w: any) => w.__typename === "WorkItemWidgetIteration");
 
   return {
     id: wi.id,
@@ -4540,6 +4555,7 @@ async function updateWorkItem(
     startDate: datesW?.startDate || null,
     dueDate: datesW?.dueDate || null,
     milestone: milestoneW?.milestone || null,
+    iteration: iterationW?.iteration || null,
     children_added: options.children_to_add?.length || 0,
     children_removed: options.children_to_remove?.length || 0,
     linked_items_added: options.linked_items_to_add?.length || 0,
@@ -9638,7 +9654,28 @@ async function listGroupIterations(
 ): Promise<GroupIteration[]> {
   groupId = decodeURIComponent(groupId);
   const url = new URL(`${getEffectiveApiUrl()}/groups/${encodeGitLabPathSegment(groupId)}/iterations`);
+  return fetchIterations(url, options);
+}
 
+/**
+ * list project iterations (REST GET /projects/:id/iterations): the project's group
+ * iterations, with the same filters as the group endpoint.
+ */
+async function listProjectIterations(
+  projectId: string,
+  options: Omit<z.infer<typeof ListProjectIterationsSchema>, "project_id"> = {}
+): Promise<GroupIteration[]> {
+  projectId = decodeURIComponent(projectId);
+  const url = new URL(
+    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(getEffectiveProjectId(projectId))}/iterations`
+  );
+  return fetchIterations(url, options);
+}
+
+async function fetchIterations(
+  url: URL,
+  options: Omit<z.infer<typeof ListGroupIterationsSchema>, "group_id">
+): Promise<GroupIteration[]> {
   // クエリパラメータの追加
   if (options.state) url.searchParams.append("state", options.state);
   if (options.search) url.searchParams.append("search", options.search);
@@ -9660,6 +9697,354 @@ async function listGroupIterations(
 
   const data = await response.json();
   return z.array(GroupIteration).parse(data);
+}
+
+function normalizeIterationLookupId(iterationId: string): string {
+  const decoded = decodeURIComponent(iterationId);
+  const prefix = "gid://gitlab/Iteration/";
+  return decoded.startsWith(prefix) ? decoded.slice(prefix.length) : decoded;
+}
+
+async function getGroupIteration(groupId: string, iterationId: string): Promise<GroupIteration> {
+  const targetId = normalizeIterationLookupId(iterationId);
+
+  for (let page = 1; ; page += 1) {
+    const iterations = await listGroupIterations(groupId, {
+      state: "all",
+      page,
+      per_page: 100,
+    });
+    const match = iterations.find(iteration => [iteration.id, iteration.iid].includes(targetId));
+    if (match) return match;
+    if (iterations.length < 100) break;
+  }
+
+  throw new Error(`Group iteration ${iterationId} was not found in group ${groupId}`);
+}
+
+async function updateGroupIteration(
+  groupId: string,
+  iterationId: string,
+  options: Omit<z.infer<typeof UpdateGroupIterationSchema>, "group_id" | "iteration_id">
+): Promise<GroupIteration> {
+  if (
+    options.title === undefined &&
+    options.description === undefined &&
+    options.start_date === undefined &&
+    options.due_date === undefined
+  ) {
+    throw new Error("Provide at least one iteration field to update");
+  }
+
+  const current = await getGroupIteration(groupId, iterationId);
+  const input: Record<string, unknown> = {
+    groupPath: await resolveGroupPath(groupId),
+    id: `gid://gitlab/Iteration/${current.id}`,
+  };
+
+  if (options.title !== undefined) input.title = options.title;
+  if (options.description !== undefined) input.description = options.description;
+  if (options.start_date !== undefined) input.startDate = options.start_date;
+  if (options.due_date !== undefined) input.dueDate = options.due_date;
+
+  const mutation = `
+    mutation UpdateGroupIteration($input: UpdateIterationInput!) {
+      updateIteration(input: $input) {
+        iteration { id }
+        errors
+      }
+    }
+  `;
+  const data = await executeGraphQL<{
+    updateIteration: { iteration: { id: string } | null; errors: string[] };
+  }>(mutation, { input });
+  const result = data.updateIteration;
+
+  if (result.errors.length > 0) {
+    throw new Error(`Failed to update group iteration: ${result.errors.join(", ")}`);
+  }
+  if (!result.iteration) {
+    throw new Error("Failed to update group iteration: GitLab returned no iteration");
+  }
+
+  return getGroupIteration(groupId, current.id);
+}
+
+const ITERATION_CADENCE_GID_PREFIX = "gid://gitlab/Iterations::Cadence/";
+
+function normalizeIterationCadenceId(cadenceId: string): string {
+  const decoded = decodeURIComponent(cadenceId);
+  return decoded.startsWith("gid://") ? decoded : `${ITERATION_CADENCE_GID_PREFIX}${decoded}`;
+}
+
+async function resolveGroupPath(groupId: string): Promise<string> {
+  const groupReference = /^group:/i.test(groupId) ? groupId : `group:${groupId}`;
+  const { path } = await resolveProjectOrGroupPath(groupReference);
+  return path;
+}
+
+/**
+ * Create a group iteration with GraphQL iterationCreate. Fields map one-to-one onto the
+ * mutation input; GitLab validates them (for example, which cadence the iteration needs).
+ */
+async function createGroupIteration(
+  groupId: string,
+  options: Omit<z.infer<typeof CreateGroupIterationSchema>, "group_id">
+): Promise<GroupIteration> {
+  const input: Record<string, unknown> = { groupPath: await resolveGroupPath(groupId) };
+  if (options.title !== undefined) input.title = options.title;
+  if (options.description !== undefined) input.description = options.description;
+  if (options.start_date !== undefined) input.startDate = options.start_date;
+  if (options.due_date !== undefined) input.dueDate = options.due_date;
+  if (options.iterations_cadence_id !== undefined) {
+    input.iterationsCadenceId = normalizeIterationCadenceId(options.iterations_cadence_id);
+  }
+
+  const mutation = `
+    mutation CreateGroupIteration($input: iterationCreateInput!) {
+      iterationCreate(input: $input) {
+        iteration { id }
+        errors
+      }
+    }
+  `;
+  const data = await executeGraphQL<{
+    iterationCreate: { iteration: { id: string } | null; errors: string[] };
+  }>(mutation, { input });
+  const result = data.iterationCreate;
+
+  if (result.errors.length > 0) {
+    throw new Error(`Failed to create group iteration: ${result.errors.join(", ")}`);
+  }
+  if (!result.iteration) {
+    throw new Error("Failed to create group iteration: GitLab returned no iteration");
+  }
+
+  return getGroupIteration(groupId, normalizeIterationLookupId(result.iteration.id));
+}
+
+/** Delete a group iteration with GraphQL iterationDelete; it accepts an ID, IID, or GID. */
+async function deleteGroupIteration(groupId: string, iterationId: string): Promise<void> {
+  const current = await getGroupIteration(groupId, iterationId);
+  const mutation = `
+    mutation DeleteGroupIteration($id: IterationID!) {
+      iterationDelete(input: { id: $id }) {
+        errors
+      }
+    }
+  `;
+  const data = await executeGraphQL<{ iterationDelete: { errors: string[] } }>(mutation, {
+    id: `gid://gitlab/Iteration/${current.id}`,
+  });
+  if (data.iterationDelete.errors.length > 0) {
+    throw new Error(`Failed to delete group iteration: ${data.iterationDelete.errors.join(", ")}`);
+  }
+}
+
+const ITERATION_CADENCE_FIELDS = `
+  id title description automatic active startDate
+  durationInWeeks iterationsInAdvance rollOver
+`;
+
+type IterationCadenceNode = {
+  id: string;
+  title: string;
+  description?: string | null;
+  automatic?: boolean | null;
+  active?: boolean | null;
+  startDate?: string | null;
+  durationInWeeks?: number | null;
+  iterationsInAdvance?: number | null;
+  rollOver?: boolean | null;
+};
+
+function toGroupIterationCadence(node: IterationCadenceNode): GroupIterationCadence {
+  return GroupIterationCadence.parse({
+    id: node.id,
+    title: node.title,
+    description: node.description,
+    automatic: node.automatic,
+    active: node.active,
+    start_date: node.startDate,
+    duration_in_weeks: node.durationInWeeks,
+    iterations_in_advance: node.iterationsInAdvance,
+    roll_over: node.rollOver,
+  });
+}
+
+/**
+ * List a group's iteration cadences through GraphQL; GitLab has no REST endpoint for them.
+ * Returned IDs are cadence GIDs, accepted as-is by the other iteration and cadence tools.
+ */
+async function listGroupIterationCadences(
+  groupId: string,
+  options: Omit<z.infer<typeof ListGroupIterationCadencesSchema>, "group_id"> = {}
+): Promise<GroupIterationCadence[]> {
+  const groupPath = await resolveGroupPath(groupId);
+
+  const query = `
+    query GroupIterationCadences(
+      $fullPath: ID!
+      $id: IterationsCadenceID
+      $automatic: Boolean
+      $active: Boolean
+      $durationInWeeks: Int
+      $title: String
+      $includeAncestorGroups: Boolean
+      $after: String
+    ) {
+      group(fullPath: $fullPath) {
+        iterationCadences(
+          id: $id
+          automatic: $automatic
+          active: $active
+          durationInWeeks: $durationInWeeks
+          title: $title
+          includeAncestorGroups: $includeAncestorGroups
+          first: 100
+          after: $after
+        ) {
+          nodes { ${ITERATION_CADENCE_FIELDS} }
+          pageInfo { hasNextPage endCursor }
+        }
+      }
+    }
+  `;
+
+  const cadences: GroupIterationCadence[] = [];
+  let after: string | undefined;
+  do {
+    const data = await executeGraphQL<{
+      group: {
+        iterationCadences: {
+          nodes: IterationCadenceNode[];
+          pageInfo: { hasNextPage: boolean; endCursor: string | null };
+        };
+      } | null;
+    }>(query, {
+      fullPath: groupPath,
+      id: options.id !== undefined ? normalizeIterationCadenceId(options.id) : undefined,
+      automatic: options.automatic,
+      active: options.active,
+      durationInWeeks: options.duration_in_weeks,
+      title: options.title,
+      includeAncestorGroups: options.include_ancestor_groups,
+      after,
+    });
+
+    if (!data.group) {
+      throw new Error(`Group ${groupPath} was not found`);
+    }
+
+    const { nodes, pageInfo } = data.group.iterationCadences;
+    cadences.push(...nodes.map(toGroupIterationCadence));
+    after = pageInfo.hasNextPage && pageInfo.endCursor ? pageInfo.endCursor : undefined;
+  } while (after);
+
+  return cadences;
+}
+
+type IterationCadenceFieldOptions = Omit<
+  z.infer<typeof UpdateGroupIterationCadenceSchema>,
+  "iteration_cadence_id"
+>;
+
+/** Map the snake_case cadence fields onto the GraphQL cadence input, dropping unset ones. */
+function toIterationCadenceInput(options: IterationCadenceFieldOptions): Record<string, unknown> {
+  const input: Record<string, unknown> = {};
+  if (options.title !== undefined) input.title = options.title;
+  if (options.description !== undefined) input.description = options.description;
+  if (options.automatic !== undefined) input.automatic = options.automatic;
+  if (options.active !== undefined) input.active = options.active;
+  if (options.duration_in_weeks !== undefined) input.durationInWeeks = options.duration_in_weeks;
+  if (options.iterations_in_advance !== undefined) {
+    input.iterationsInAdvance = options.iterations_in_advance;
+  }
+  if (options.start_date !== undefined) input.startDate = options.start_date;
+  if (options.roll_over !== undefined) input.rollOver = options.roll_over;
+  return input;
+}
+
+/** Create a group iteration cadence with GraphQL iterationCadenceCreate. */
+async function createGroupIterationCadence(
+  groupId: string,
+  options: Omit<z.infer<typeof CreateGroupIterationCadenceSchema>, "group_id">
+): Promise<GroupIterationCadence> {
+  const input = {
+    groupPath: await resolveGroupPath(groupId),
+    ...toIterationCadenceInput(options),
+  };
+  const mutation = `
+    mutation CreateGroupIterationCadence($input: IterationCadenceCreateInput!) {
+      iterationCadenceCreate(input: $input) {
+        iterationCadence { ${ITERATION_CADENCE_FIELDS} }
+        errors
+      }
+    }
+  `;
+  const data = await executeGraphQL<{
+    iterationCadenceCreate: { iterationCadence: IterationCadenceNode | null; errors: string[] };
+  }>(mutation, { input });
+  const result = data.iterationCadenceCreate;
+
+  if (result.errors.length > 0) {
+    throw new Error(`Failed to create iteration cadence: ${result.errors.join(", ")}`);
+  }
+  if (!result.iterationCadence) {
+    throw new Error("Failed to create iteration cadence: GitLab returned no cadence");
+  }
+  return toGroupIterationCadence(result.iterationCadence);
+}
+
+/** Update an iteration cadence with GraphQL iterationCadenceUpdate. */
+async function updateGroupIterationCadence(
+  cadenceId: string,
+  options: IterationCadenceFieldOptions
+): Promise<GroupIterationCadence> {
+  const fields = toIterationCadenceInput(options);
+  if (Object.keys(fields).length === 0) {
+    throw new Error("Provide at least one iteration cadence field to update");
+  }
+
+  const mutation = `
+    mutation UpdateGroupIterationCadence($input: IterationCadenceUpdateInput!) {
+      iterationCadenceUpdate(input: $input) {
+        iterationCadence { ${ITERATION_CADENCE_FIELDS} }
+        errors
+      }
+    }
+  `;
+  const data = await executeGraphQL<{
+    iterationCadenceUpdate: { iterationCadence: IterationCadenceNode | null; errors: string[] };
+  }>(mutation, { input: { id: normalizeIterationCadenceId(cadenceId), ...fields } });
+  const result = data.iterationCadenceUpdate;
+
+  if (result.errors.length > 0) {
+    throw new Error(`Failed to update iteration cadence: ${result.errors.join(", ")}`);
+  }
+  if (!result.iterationCadence) {
+    throw new Error("Failed to update iteration cadence: GitLab returned no cadence");
+  }
+  return toGroupIterationCadence(result.iterationCadence);
+}
+
+/** Delete an iteration cadence with GraphQL iterationCadenceDestroy. */
+async function deleteGroupIterationCadence(cadenceId: string): Promise<void> {
+  const mutation = `
+    mutation DeleteGroupIterationCadence($id: IterationsCadenceID!) {
+      iterationCadenceDestroy(input: { id: $id }) {
+        errors
+      }
+    }
+  `;
+  const data = await executeGraphQL<{ iterationCadenceDestroy: { errors: string[] } }>(mutation, {
+    id: normalizeIterationCadenceId(cadenceId),
+  });
+  if (data.iterationCadenceDestroy.errors.length > 0) {
+    throw new Error(
+      `Failed to delete iteration cadence: ${data.iterationCadenceDestroy.errors.join(", ")}`
+    );
+  }
 }
 
 // --- CI/CD Variables ---
@@ -13858,6 +14243,109 @@ async function handleToolCall(params: any) {
         const iterations = await listGroupIterations(args.group_id, args);
         return {
           content: [{ type: "text", text: JSON.stringify(iterations) }],
+        };
+      }
+
+      case "get_group_iteration": {
+        rejectIfStrictProjectScope("get_group_iteration");
+        const args = GetGroupIterationSchema.parse(params.arguments);
+        const iteration = await getGroupIteration(args.group_id, args.iteration_id);
+        return {
+          content: [{ type: "text", text: JSON.stringify(iteration) }],
+        };
+      }
+
+      case "update_group_iteration": {
+        rejectIfStrictProjectScope("update_group_iteration");
+        const args = UpdateGroupIterationSchema.parse(params.arguments);
+        const { group_id, iteration_id, ...options } = args;
+        const iteration = await updateGroupIteration(group_id, iteration_id, options);
+        return {
+          content: [{ type: "text", text: JSON.stringify(iteration) }],
+        };
+      }
+
+      case "create_group_iteration": {
+        rejectIfStrictProjectScope("create_group_iteration");
+        const args = CreateGroupIterationSchema.parse(params.arguments);
+        const { group_id, ...options } = args;
+        const iteration = await createGroupIteration(group_id, options);
+        return {
+          content: [{ type: "text", text: JSON.stringify(iteration) }],
+        };
+      }
+
+      case "list_group_iteration_cadences": {
+        rejectIfStrictProjectScope("list_group_iteration_cadences");
+        const args = ListGroupIterationCadencesSchema.parse(params.arguments);
+        const { group_id, ...options } = args;
+        const cadences = await listGroupIterationCadences(group_id, options);
+        return {
+          content: [{ type: "text", text: JSON.stringify(cadences) }],
+        };
+      }
+
+      case "delete_group_iteration": {
+        rejectIfStrictProjectScope("delete_group_iteration");
+        const { group_id, iteration_id } = DeleteGroupIterationSchema.parse(params.arguments);
+        await deleteGroupIteration(group_id, iteration_id);
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(
+                { status: "success", message: "Group iteration deleted successfully" },
+                null,
+                2
+              ),
+            },
+          ],
+        };
+      }
+
+      case "list_project_iterations": {
+        const { project_id, ...options } = ListProjectIterationsSchema.parse(params.arguments);
+        const iterations = await listProjectIterations(project_id, options);
+        return {
+          content: [{ type: "text", text: JSON.stringify(iterations) }],
+        };
+      }
+
+      case "create_group_iteration_cadence": {
+        rejectIfStrictProjectScope("create_group_iteration_cadence");
+        const { group_id, ...options } = CreateGroupIterationCadenceSchema.parse(params.arguments);
+        const cadence = await createGroupIterationCadence(group_id, options);
+        return {
+          content: [{ type: "text", text: JSON.stringify(cadence) }],
+        };
+      }
+
+      case "update_group_iteration_cadence": {
+        rejectIfStrictProjectScope("update_group_iteration_cadence");
+        const { iteration_cadence_id, ...options } = UpdateGroupIterationCadenceSchema.parse(
+          params.arguments
+        );
+        const cadence = await updateGroupIterationCadence(iteration_cadence_id, options);
+        return {
+          content: [{ type: "text", text: JSON.stringify(cadence) }],
+        };
+      }
+
+      case "delete_group_iteration_cadence": {
+        rejectIfStrictProjectScope("delete_group_iteration_cadence");
+        const { iteration_cadence_id } = DeleteGroupIterationCadenceSchema.parse(params.arguments);
+        await deleteGroupIterationCadence(iteration_cadence_id);
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(
+                { status: "success", message: "Iteration cadence deleted successfully" },
+                null,
+                2
+              ),
+            },
+          ],
         };
       }
 
