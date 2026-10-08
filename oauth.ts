@@ -225,8 +225,7 @@ export class GitLabOAuth {
 
     const body: unknown = await response.json();
     const data = readOAuthTokenBody(body, this.config.scopes);
-
-    return {
+    const tokenData: TokenData = {
       access_token: data.access_token,
       refresh_token: data.refresh_token,
       expires_in: data.expires_in,
@@ -234,6 +233,12 @@ export class GitLabOAuth {
       token_type: data.token_type,
       scopes: data.scopes,
     };
+    // Throw before the callback writes the file. A stored token with no scopes
+    // stays valid; only a grant that records a mismatch is rejected.
+    if (oauthTokenNeedsReauthorization(tokenData.scopes, this.config.scopes)) {
+      throw oauthScopeMismatchError(tokenData.scopes, this.config.scopes);
+    }
+    return tokenData;
   }
 
   /**
@@ -685,22 +690,22 @@ export class GitLabOAuth {
       if (tokenData.refresh_token) {
         try {
           tokenData = await this.refreshAccessToken(tokenData.refresh_token);
-          this.saveToken(tokenData);
-          if (oauthTokenNeedsReauthorization(tokenData.scopes, expectedScopes)) {
-            logger.warn(
-              `Refreshed OAuth token scopes (${formatOAuthScopes(tokenData.scopes)}) do not match ` +
-                `${formatOAuthScopes(expectedScopes)}. Starting a new authorization flow...`
-            );
-            tokenData = await this.authorizeMatchingScopes();
-          }
         } catch (error) {
           if (isAuthInvalidError(error)) {
             logger.error({ err: error }, "Refresh token invalid, starting new OAuth flow...");
-            tokenData = await this.authorizeMatchingScopes();
-          } else {
-            logger.error({ err: error }, "Token refresh failed (transient/network), not opening browser.");
-            throw error;
+            return (await this.authorizeMatchingScopes()).access_token;
           }
+          logger.error({ err: error }, "Token refresh failed (transient/network), not opening browser.");
+          throw error;
+        }
+        if (oauthTokenNeedsReauthorization(tokenData.scopes, expectedScopes)) {
+          logger.warn(
+            `Refreshed OAuth token scopes (${formatOAuthScopes(tokenData.scopes)}) do not match ` +
+              `${formatOAuthScopes(expectedScopes)}. Starting a new authorization flow...`
+          );
+          tokenData = await this.authorizeMatchingScopes();
+        } else {
+          this.saveToken(tokenData);
         }
       } else {
         logger.info("No refresh token available. Starting new OAuth flow...");
