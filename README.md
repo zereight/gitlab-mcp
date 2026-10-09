@@ -801,7 +801,7 @@ Register the skill directory in your AI client to get optimal tool usage guidanc
 136. `list_pipeline_jobs` - List all jobs in a specific pipeline
 137. `list_pipeline_trigger_jobs` - List trigger jobs (bridges) in a pipeline
 138. `get_pipeline_job` - Get details of a GitLab pipeline job number
-139. `get_pipeline_job_output` - Get the output/trace of a pipeline job with optional pagination
+139. `get_pipeline_job_output` - Get a pipeline job trace, with end-based pagination or full-log substring/regex search
 140. `validate_ci_lint` - Validate provided GitLab CI/CD YAML content for a project
 141. `validate_project_ci_lint` - Validate an existing .gitlab-ci.yml configuration for a project
 142. `list_ci_catalog_resources` - List GitLab CI/CD Catalog resources/components visible to the user
