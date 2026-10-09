@@ -1163,7 +1163,10 @@ function createServer(): McpServer {
       const result = await handleToolCall(request.params);
       return logCompletion(result);
     } catch (error) {
-      const isRecoverableToolError = error instanceof GitLabApiError || error instanceof ToolInputError;
+      const isRecoverableToolError =
+        error instanceof GitLabApiError ||
+        error instanceof ToolInputError ||
+        error instanceof ProjectAccessDeniedError;
       const safeError = logError(error);
       if (isRecoverableToolError) {
         return {
@@ -2240,6 +2243,13 @@ class ToolInputError extends Error {
   }
 }
 
+class ProjectAccessDeniedError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "ProjectAccessDeniedError";
+  }
+}
+
 const MERGE_REQUEST_IDENTIFIER_REQUIRED =
   "Either merge_request_iid or source_branch must be provided";
 
@@ -2323,7 +2333,8 @@ async function authenticateWithJobTokenFallbackAsync(response: UndiciResponse): 
 /**
  * @param {string} projectId - The project ID parameter passed to the function
  * @returns {string} The project ID to use for the API call
- * @throws {Error} If GITLAB_ALLOWED_PROJECT_IDS is set and the requested project is not in the whitelist
+ * @throws {ProjectAccessDeniedError} If the requested project is outside the effective allowlist
+ * @throws {Error} If no project can be selected, or multiple allowed projects require an explicit ID
  */
 function getEffectiveProjectId(projectId: string): string {
   const allowedProjectIds = getEffectiveAllowedProjectIds();
@@ -2335,7 +2346,7 @@ function getEffectiveProjectId(projectId: string): string {
 
     // If a project ID is provided, check if it's in the whitelist
     if (projectId && !allowedProjectIds.includes(projectId)) {
-      throw new Error(
+      throw new ProjectAccessDeniedError(
         `Access denied: Project ${projectId} is not in the allowed project list: ${allowedProjectIds.join(", ")}`
       );
     }
@@ -10163,7 +10174,7 @@ function assertVulnerabilityProjectAllowed(
     (fullPath !== undefined && allowedProjectIds.includes(fullPath)) ||
     (numericId !== undefined && allowedProjectIds.includes(numericId));
   if (!allowed) {
-    throw new Error(
+    throw new ProjectAccessDeniedError(
       `Access denied: Vulnerability ${vulnerabilityId} belongs to project ${
         fullPath ?? numericId ?? "unknown"
       }, which is not in the allowed project list: ${allowedProjectIds.join(", ")}`
