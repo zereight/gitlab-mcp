@@ -229,6 +229,27 @@ describe("When GITLAB_READ_ONLY_MODE is set to a non-true value", () => {
   });
 });
 
+describe("When deprecated env warnings are returned", () => {
+  describe("with read-only, allowed-groups, and USE_* flags", () => {
+    test("should end every warning with the migration notice", () => {
+      const warnings = [
+        ...warningsFor({ readOnlyMode: true }),
+        ...warningsFor({ readOnlyRaw: "false" }),
+        ...warningsFor({ allowedGroupsRaw: "a" }),
+        ...warningsFor({ allowedGroupsRaw: "a", oauthAllowedGroupsRaw: "b" }),
+        ...warningsFor({ useWikiRaw: "true", useMilestoneRaw: "true", usePipelineRaw: "true" }),
+        ...warningsFor({ useWikiRaw: "false", useMilestoneRaw: "no", usePipelineRaw: "false" }),
+      ];
+      const suffix =
+        " See https://github.com/zereight/gitlab-mcp/issues/815 for migration details.";
+      assert.equal(
+        warnings.length >= 10 && warnings.every(warning => warning.endsWith(suffix)),
+        true
+      );
+    });
+  });
+});
+
 describe("When a deprecated env var is scheduled for removal", () => {
   describe("with GITLAB_READ_ONLY_MODE enabled", () => {
     test("should name v3.0.0", () => {

@@ -7,6 +7,7 @@ function shownEnvValue(rawValue: string): string {
 }
 
 const REMOVAL_VERSION = "v3.0.0";
+const DEPRECATION_NOTICE_URL = "https://github.com/zereight/gitlab-mcp/issues/815";
 
 // USE_PIPELINE exposes these two tools, but they live in the `ci` toolset, not `pipelines`.
 // Suggesting `ci` would also turn on catalog tools the flag does not expose.
@@ -206,5 +207,5 @@ export function getDeprecatedEnvWarnings(input: DeprecatedEnvInput): string[] {
     }
   }
 
-  return warnings;
+  return warnings.map(warning => `${warning} See ${DEPRECATION_NOTICE_URL} for migration details.`);
 }
