@@ -276,6 +276,15 @@ GitLab. Register `{MCP_SERVER_URL}/callback` in GitLab Admin.
 
 Public HTTPS MCP server base URL required for MCP OAuth mode.
 
+### `MCP_DANGEROUSLY_ALLOW_INSECURE_ISSUER_URL`
+
+Set to `true` to allow a non-HTTPS `MCP_SERVER_URL` when `GITLAB_MCP_OAUTH=true`
+and the hostname is not `localhost` or `127.0.0.1`.
+
+`http://localhost` and `http://127.0.0.1` are already accepted without this flag.
+Use it only for local HTTP development on another host. There is no CLI flag;
+the server reads this name from the environment directly.
+
 ### `GITLAB_OAUTH_APP_ID`
 
 Pre-registered GitLab OAuth application ID used by MCP OAuth mode.
@@ -536,6 +545,31 @@ GitLab API base URL.
 Default:
 
 - `https://gitlab.com/api/v4`
+
+### `GITLAB_GRAPHQL_URL`
+
+Optional GraphQL endpoint. When unset, the server derives it from `GITLAB_API_URL`:
+the origin, plus any path prefix before `/api/v4`, plus `/api/graphql`.
+
+There is no CLI flag; the server reads this name from the environment directly.
+
+### `GITLAB_REPO_FILE_ENCODING`
+
+Default content encoding for `create_or_update_file` and `push_files` when a call
+omits `encoding`.
+
+- `text` (default) — any value other than `base64` is treated as text
+- `base64` — file content is already base64-encoded
+
+CLI: `--repo-file-encoding`
+
+### `GITLAB_COMMIT_FILES_PER_PAGE`
+
+Stop threshold for `get_commit_diff` when `full_diff` is set. Pagination stops
+when a page returns fewer diffs than this value. Default `20`, matching GitLab's
+default commit-diff page size. The request does not send `per_page`.
+
+There is no CLI flag; the server reads this name from the environment directly.
 
 ### `GITLAB_PROJECT_ID`
 
@@ -865,6 +899,26 @@ At capacity `/health` reports `503` with `status: "degraded"` on both remote
 transports, so orchestrator health checks stop routing new work to the instance.
 Use `/health` as a readiness probe, not a liveness probe — a liveness restart at
 capacity drops every open session.
+
+## Download tokens
+
+Remote downloads mint an encrypted token. These settings are read from the
+environment directly (no CLI flags).
+
+### `DOWNLOAD_TOKEN_SECRET`
+
+Shared secret for download-token encryption. When set, the key is
+`SHA-256(secret)` so every replica can open tokens issued by the others.
+When unset, each process generates a random key; tokens then fail after a
+restart or on another pod.
+
+Set this for any multi-pod deployment that returns download URLs.
+
+### `DOWNLOAD_TOKEN_TTL`
+
+Download-token lifetime in seconds. Default `300`. `parseInt` takes the
+numeric prefix (`12abc` becomes `12`). Values with no numeric prefix, or
+values `<= 0`, fall back to `300`.
 
 ## Network and TLS
 

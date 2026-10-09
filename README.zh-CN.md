@@ -167,7 +167,7 @@ CLI 参数优先于环境变量。
 > 参见 [Tools Reference](./docs/tools/index.md#feature-toggles) 和
 > [Environment Variables](./docs/configuration/environment-variables.md)。
 
-#### SSE
+- sse
 
 ```shell
 docker run -i --rm \
@@ -196,7 +196,7 @@ docker run -i --rm \
 }
 ```
 
-#### Streamable HTTP
+- streamable-http
 
 ```shell
 docker run -i --rm \

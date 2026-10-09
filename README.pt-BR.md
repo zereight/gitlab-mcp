@@ -168,7 +168,7 @@ O mesmo binário também é uma CLI do GitLab no estilo `gh` (`tool <name>` ou f
 > Consulte a [Referência de ferramentas](./docs/tools/index.md#feature-toggles) e
 > [Variáveis de ambiente](./docs/configuration/environment-variables.md).
 
-#### SSE
+- sse
 
 ```shell
 docker run -i --rm \
@@ -197,7 +197,7 @@ docker run -i --rm \
 }
 ```
 
-#### Streamable HTTP
+- streamable-http
 
 ```shell
 docker run -i --rm \
