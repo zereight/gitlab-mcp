@@ -2261,6 +2261,49 @@ async function handleGitLabError(response: UndiciResponse): Promise<void> {
   }
 }
 
+const USER_API_INSUFFICIENT_SCOPE_MESSAGE =
+  "GitLab API error: 403 Forbidden on GET /api/v4/user (insufficient scope). The token was accepted, but read_user (classic PAT) or User API read (fine-grained User:Read) is required for whoami, my_issues, and other current-user tools.";
+
+const USER_API_HEALTH_WARNING =
+  "GET /api/v4/user returned 403 (insufficient scope). The token was accepted and other tools may still work. Grant read_user (classic) or User:Read (fine-grained) for whoami, my_issues, and version metadata.";
+
+function isGitLabUserApiRateLimitBody(errorBody: string): boolean {
+  return errorBody.includes("User API Key Rate limit exceeded");
+}
+
+async function throwUserApiScopeErrorUnlessRateLimitedAsync(
+  response: UndiciResponse
+): Promise<void> {
+  const errorBody = await response.clone().text();
+  if (isGitLabUserApiRateLimitBody(errorBody)) {
+    return;
+  }
+  throw new GitLabApiError(USER_API_INSUFFICIENT_SCOPE_MESSAGE);
+}
+
+async function authenticateWithJobTokenFallbackAsync(response: UndiciResponse): Promise<boolean> {
+  if (
+    response.ok ||
+    (response.status !== 401 && response.status !== 403) ||
+    !(GITLAB_JOB_TOKEN || usesJobTokenHeader())
+  ) {
+    return false;
+  }
+
+  const jobResponse = await fetch(`${getEffectiveApiUrl()}/job`, getFetchConfig());
+  return jobResponse.ok;
+}
+
+async function readUserApiHealthWarningAsync(
+  response: UndiciResponse
+): Promise<string | undefined> {
+  const errorBody = await response.text();
+  if (isGitLabUserApiRateLimitBody(errorBody)) {
+    return undefined;
+  }
+  return USER_API_HEALTH_WARNING;
+}
+
 /**
  * @param {string} projectId - The project ID parameter passed to the function
  * @returns {string} The project ID to use for the API call
@@ -9563,6 +9606,10 @@ async function getCurrentUser(): Promise<GitLabUser> {
     }
   }
 
+  if (response.status === 403) {
+    await throwUserApiScopeErrorUnlessRateLimitedAsync(response);
+  }
+
   await handleGitLabError(response);
   throw new Error(`GitLab API error: ${response.status} ${response.statusText}`);
 }
@@ -12178,6 +12225,10 @@ async function handleToolCall(params: any) {
         const response = await fetch(url.toString(), {
           ...getFetchConfig(),
         });
+
+        if (response.status === 403) {
+          await throwUserApiScopeErrorUnlessRateLimitedAsync(response);
+        }
 
         await handleGitLabError(response);
         const data = await response.json();
@@ -14829,17 +14880,16 @@ async function handleToolCall(params: any) {
         HealthCheckSchema.parse(params.arguments ?? {});
         const url = new URL(`${getEffectiveApiUrl()}/user`);
         const response = await fetch(url.toString(), getFetchConfig());
-        let authenticated = response.ok;
-        if (
-          !authenticated &&
-          (response.status === 401 || response.status === 403) &&
-          (GITLAB_JOB_TOKEN || usesJobTokenHeader())
-        ) {
-          const jobUrl = new URL(`${getEffectiveApiUrl()}/job`);
-          const jobResponse = await fetch(jobUrl.toString(), getFetchConfig());
-          authenticated = jobResponse.ok;
-        }
-        const versionMetadata = authenticated ? await fetchGitLabVersionMetadata() : null;
+        const jobAuthenticated = await authenticateWithJobTokenFallbackAsync(response);
+        // 403 on GET /user is a valid token with missing User API scope, not a dead PAT.
+        // Skip version metadata unless /user or the job-token fallback actually succeeded.
+        const userApiForbidden = !response.ok && !jobAuthenticated && response.status === 403;
+        const authenticated = response.ok || jobAuthenticated || userApiForbidden;
+        const userApiWarning = userApiForbidden
+          ? await readUserApiHealthWarningAsync(response)
+          : undefined;
+        const versionMetadata =
+          authenticated && !userApiForbidden ? await fetchGitLabVersionMetadata() : null;
         return {
           content: [
             {
@@ -14849,6 +14899,7 @@ async function handleToolCall(params: any) {
                 authenticated,
                 gitlab_url: getEffectiveApiUrl(),
                 mcp_server_version: SERVER_VERSION,
+                ...(userApiWarning ? { user_api_warning: userApiWarning } : {}),
                 ...(versionMetadata ?? {}),
               }),
             },

@@ -349,7 +349,7 @@ List issues (default: created by current user; use scope='all' for all). Use thi
 
 *📖 Read-only*
 
-List issues assigned to the authenticated user. Use this for issue management: list issues assigned to the authenticated user. Use `list_issues` for project-wide or author-scoped listing and `get_issue` for one issue. It is read-only and paginated, requires authentication, and returns assigned issue records or permission/rate-limit errors.
+List issues assigned to the authenticated user. Use this for issue management: list issues assigned to the authenticated user. Use `list_issues` for project-wide or author-scoped listing and `get_issue` for one issue. Resolving the current user requires classic read_user or fine-grained User:Read. It is read-only and paginated, requires authentication, and returns assigned issue records or permission/rate-limit errors.
 
 **Parameters**
 
@@ -695,7 +695,7 @@ List labels for a project. Use this for a collection of resources; choose the co
 
 *📖 Read-only*
 
-Get current authenticated user details. Use this to identify the authenticated GitLab user; use `get_user` or `get_users` when looking up another user. It is read-only and returns the current user profile, while missing credentials or GitLab permission failures are reported as errors.
+Get current authenticated user details. Use this to identify the authenticated GitLab user; use `get_user` or `get_users` when looking up another user. It requires classic read_user or fine-grained User:Read. It is read-only and returns the current user profile, while missing credentials or GitLab permission failures are reported as errors.
 
 **Parameters**
 
@@ -705,7 +705,7 @@ _No parameters._
 
 *📖 Read-only*
 
-Verify server status and authentication. Always reports the MCP server version (mcp_server_version). When authenticated, also reports the GitLab instance version from GET /api/v4/version (version, revision, enterprise). Version lookup failures do not fail the health check — those fields are omitted. Use this to verify server connectivity and authentication before making GitLab requests; use `whoami` when the authenticated user's identity is the goal. It does not mutate GitLab state and returns server/authentication status plus GitLab version details when available.
+Verify server status and authentication. Always reports the MCP server version (mcp_server_version). When authenticated, also reports the GitLab instance version from GET /api/v4/version (version, revision, enterprise). Version lookup failures do not fail the health check — those fields are omitted. Use this to verify server connectivity and authentication before making GitLab requests; use `whoami` when the authenticated user's identity is the goal. A 403 from GET /user means the token is accepted but User API scope is missing (read_user or fine-grained User:Read); the check stays ok, sets user_api_warning, and omits version metadata. It does not mutate GitLab state and returns server/authentication status plus GitLab version details when available.
 
 **Parameters**
 

@@ -20,7 +20,7 @@ const TOOL_GUIDANCE: Readonly<Record<string, string>> = {
   list_issues:
     "Use this for issue management: list GitLab issues, optionally scoped with `project_id`. Use `get_issue` when the issue iid is already known and `my_issues` for issues assigned to the current user. It is read-only and paginated, requires issue read permission, and returns issue records or GitLab errors for invalid identifiers, missing resources, or rate limits.",
   my_issues:
-    "Use this for issue management: list issues assigned to the authenticated user. Use `list_issues` for project-wide or author-scoped listing and `get_issue` for one issue. It is read-only and paginated, requires authentication, and returns assigned issue records or permission/rate-limit errors.",
+    "Use this for issue management: list issues assigned to the authenticated user. Use `list_issues` for project-wide or author-scoped listing and `get_issue` for one issue. Resolving the current user requires classic read_user or fine-grained User:Read. It is read-only and paginated, requires authentication, and returns assigned issue records or permission/rate-limit errors.",
   get_issue:
     "Use this for issue management: inspect one issue's fields; use `list_issues` or `my_issues` to discover issues first. It is read-only, requires issue read permission, and returns the issue or an error when the identifier is invalid, the issue is missing, or access is denied.",
   create_merge_request:
@@ -74,9 +74,9 @@ const TOOL_GUIDANCE: Readonly<Record<string, string>> = {
   discover_tools:
     "Use this when a needed opt-in category is not currently exposed; omit `category` to inspect available categories, then call it with a category to activate that group for the current session. It changes only the session's tool registry, returns the active-tool summary, and does not change GitLab data.",
   health_check:
-    "Use this to verify server connectivity and authentication before making GitLab requests; use `whoami` when the authenticated user's identity is the goal. It does not mutate GitLab state and returns server/authentication status plus GitLab version details when available.",
+    "Use this to verify server connectivity and authentication before making GitLab requests; use `whoami` when the authenticated user's identity is the goal. A 403 from GET /user means the token is accepted but User API scope is missing (read_user or fine-grained User:Read); the check stays ok, sets user_api_warning, and omits version metadata. It does not mutate GitLab state and returns server/authentication status plus GitLab version details when available.",
   whoami:
-    "Use this to identify the authenticated GitLab user; use `get_user` or `get_users` when looking up another user. It is read-only and returns the current user profile, while missing credentials or GitLab permission failures are reported as errors.",
+    "Use this to identify the authenticated GitLab user; use `get_user` or `get_users` when looking up another user. It requires classic read_user or fine-grained User:Read. It is read-only and returns the current user profile, while missing credentials or GitLab permission failures are reported as errors.",
   list_pipeline_schedules:
     "Use this to survey a project's scheduled pipelines and their `cron`, `next_run_at`, and `active` state, optionally narrowed with `scope` to `active` or `inactive`; use `list_pipelines` for pipelines that already ran and `get_pipeline_schedule` when the schedule ID is known. The list response carries no `variables` — call `get_pipeline_schedule` for those — and includes `inputs` only for Maintainers, Owners, or the schedule owner. It is read-only and paginated, requires project access, and returns schedule records or an error when the project is missing or access is denied.",
   get_pipeline_schedule:
