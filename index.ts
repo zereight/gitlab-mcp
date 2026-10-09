@@ -2287,7 +2287,8 @@ async function throwUserApiScopeErrorUnlessRateLimitedAsync(
   response: UndiciResponse
 ): Promise<void> {
   const errorBody = await response.clone().text();
-  if (isGitLabUserApiRateLimitBody(errorBody)) {
+  // Rate-limit and other 403s keep the upstream body via handleGitLabError.
+  if (isGitLabUserApiRateLimitBody(errorBody) || !isGitLabInsufficientUserScopeBody(errorBody)) {
     return;
   }
   throw new GitLabApiError(USER_API_INSUFFICIENT_SCOPE_MESSAGE);

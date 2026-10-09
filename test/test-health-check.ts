@@ -396,4 +396,54 @@ describe("When current-user tools call GET /user", () => {
       }
     });
   });
+
+  describe("with a 403 that is not insufficient_scope", () => {
+    test("should preserve the upstream body for whoami", async () => {
+      const mockPort = await findMockServerPort();
+      const mockGitLab = createMockGitLabServer(mockPort);
+      forbidCurrentUserForOtherReason(mockGitLab);
+      await mockGitLab.start();
+
+      try {
+        const result = await callToolAsync(
+          {
+            ...baseEnv(mockGitLab.getUrl()),
+            GITLAB_TOOLSETS: "users",
+          },
+          "whoami"
+        );
+
+        assert.equal(result.isError, true);
+        assert.match(result.text, /GitLab API error: 403/);
+        assert.match(result.text, /"message":"403 Forbidden"/);
+        assert.doesNotMatch(result.text, /insufficient scope/);
+      } finally {
+        await mockGitLab.stop();
+      }
+    });
+
+    test("should preserve the upstream body for my_issues", async () => {
+      const mockPort = await findMockServerPort();
+      const mockGitLab = createMockGitLabServer(mockPort);
+      forbidCurrentUserForOtherReason(mockGitLab);
+      await mockGitLab.start();
+
+      try {
+        const result = await callToolAsync(
+          {
+            ...baseEnv(mockGitLab.getUrl()),
+            GITLAB_TOOLSETS: "issues",
+          },
+          "my_issues"
+        );
+
+        assert.equal(result.isError, true);
+        assert.match(result.text, /GitLab API error: 403/);
+        assert.match(result.text, /"message":"403 Forbidden"/);
+        assert.doesNotMatch(result.text, /insufficient scope/);
+      } finally {
+        await mockGitLab.stop();
+      }
+    });
+  });
 });
