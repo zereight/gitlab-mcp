@@ -217,6 +217,7 @@ import {
   type RepoFileEncoding,
 } from "./utils/gitlab-commit-actions.js";
 import { redactSensitiveGitLabFields } from "./utils/redact-sensitive.js";
+import { classifyHealthCheckTransportError } from "./utils/health-check-transport-error.js";
 import {
   createMaskingPolicyResolver,
   getManagedMaskingProjectIds,
@@ -6783,6 +6784,29 @@ async function publishDraftNote(
       noteable_type: "MergeRequest",
     } as any;
   }
+}
+
+function healthCheckTransportErrorResult(error: unknown) {
+  const failure = classifyHealthCheckTransportError(error);
+  return {
+    content: [
+      {
+        type: "text",
+        text: JSON.stringify({
+          status: "error",
+          authenticated: false,
+          gitlab_url: getEffectiveApiUrl(),
+          mcp_server_version: SERVER_VERSION,
+          error: {
+            kind: failure.kind,
+            code: failure.code,
+            message: failure.message,
+            ...(failure.hint !== undefined ? { hint: failure.hint } : {}),
+          },
+        }),
+      },
+    ],
+  };
 }
 
 async function fetchGitLabVersionMetadata(): Promise<GitLabInstanceVersionMetadata | null> {
@@ -14895,7 +14919,13 @@ async function handleToolCall(params: any) {
       case "health_check": {
         HealthCheckSchema.parse(params.arguments ?? {});
         const url = new URL(`${getEffectiveApiUrl()}/user`);
-        const response = await fetch(url.toString(), getFetchConfig());
+        const fetchConfig = getFetchConfig();
+        let response: UndiciResponse;
+        try {
+          response = await fetch(url.toString(), fetchConfig);
+        } catch (error: unknown) {
+          return healthCheckTransportErrorResult(error);
+        }
         const jobAuthenticated = await authenticateWithJobTokenFallbackAsync(response);
         // insufficient_scope and insufficient_granular_scope mean the token was accepted
         // but User API scope is missing.
