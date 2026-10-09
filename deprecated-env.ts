@@ -6,10 +6,25 @@ function shownEnvValue(rawValue: string): string {
   return `${singleLine.slice(0, 77)}...`;
 }
 
+// USE_PIPELINE exposes these two tools, but they live in the `ci` toolset, not `pipelines`.
+// Suggesting `ci` would also turn on catalog tools the flag does not expose.
+const LEGACY_TOOLS_OUTSIDE_NAMED_TOOLSET: Readonly<Record<string, string>> = {
+  pipelines: "validate_ci_lint,validate_project_ci_lint",
+};
+
+function legacyToolsetReplacement(toolset: string): string {
+  const toolsets = `GITLAB_TOOLSETS=core,${toolset}`;
+  const extraTools = LEGACY_TOOLS_OUTSIDE_NAMED_TOOLSET[toolset];
+  if (extraTools === undefined) {
+    return toolsets;
+  }
+  return `${toolsets} and GITLAB_TOOLS=${extraTools}`;
+}
+
 function legacyToolsetWarning(envName: string, rawValue: string, toolset: string): string {
   // An explicit GITLAB_TOOLSETS list replaces the default toolsets; it does not merge.
   // Legacy USE_* flags add tools on top of defaults, so the hint must keep `core`.
-  const replacement = `GITLAB_TOOLSETS=core,${toolset}`;
+  const replacement = legacyToolsetReplacement(toolset);
   if (rawValue === "true") {
     return (
       `${envName} is deprecated and will be removed in the next major version. ` +

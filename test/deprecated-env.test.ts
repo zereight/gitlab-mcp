@@ -64,6 +64,18 @@ describe("When GITLAB_ALLOWED_GROUPS is set", () => {
   });
 });
 
+describe("When USE_PIPELINE is enabled", () => {
+  describe("with the flag set to true", () => {
+    test("should name the CI lint tools the pipelines toolset omits", () => {
+      const [warning] = warningsFor({ usePipelineRaw: "true" });
+      assert.match(
+        warning,
+        /Use GITLAB_TOOLSETS=core,pipelines and GITLAB_TOOLS=validate_ci_lint,validate_project_ci_lint instead/
+      );
+    });
+  });
+});
+
 describe("When legacy toolset flags are enabled", () => {
   describe("with all three flags", () => {
     test("should warn once per flag with its GITLAB_TOOLSETS replacement", () => {
@@ -81,6 +93,16 @@ describe("When legacy toolset flags are enabled", () => {
 });
 
 describe("When a legacy toolset flag is explicitly false", () => {
+  describe("with USE_PIPELINE=false", () => {
+    test("should keep the CI lint tools in the optional replacement", () => {
+      const [warning] = warningsFor({ usePipelineRaw: "false" });
+      assert.match(
+        warning,
+        /Set GITLAB_TOOLSETS=core,pipelines and GITLAB_TOOLS=validate_ci_lint,validate_project_ci_lint only if you want those tools in addition to core/
+      );
+    });
+  });
+
   describe("with USE_GITLAB_WIKI=false", () => {
     test("should warn to remove it without enabling the toolset", () => {
       const [warning, ...rest] = warningsFor({ useWikiRaw: "false" });
