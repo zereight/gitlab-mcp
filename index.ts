@@ -217,7 +217,10 @@ import {
   type RepoFileEncoding,
 } from "./utils/gitlab-commit-actions.js";
 import { redactSensitiveGitLabFields } from "./utils/redact-sensitive.js";
-import { classifyHealthCheckTransportError } from "./utils/health-check-transport-error.js";
+import {
+  classifyHealthCheckTransportError,
+  redactGitLabUrlCredentials,
+} from "./utils/health-check-transport-error.js";
 import {
   createMaskingPolicyResolver,
   getManagedMaskingProjectIds,
@@ -1164,7 +1167,8 @@ function createServer(): McpServer {
       const result = await handleToolCall(request.params);
       return logCompletion(result);
     } catch (error) {
-      const isRecoverableToolError = error instanceof GitLabApiError || error instanceof ToolInputError;
+      const isRecoverableToolError =
+        error instanceof GitLabApiError || error instanceof ToolInputError;
       const safeError = logError(error);
       if (isRecoverableToolError) {
         return {
@@ -6795,7 +6799,7 @@ function healthCheckTransportErrorResult(error: unknown) {
         text: JSON.stringify({
           status: "error",
           authenticated: false,
-          gitlab_url: getEffectiveApiUrl(),
+          gitlab_url: redactGitLabUrlCredentials(getEffectiveApiUrl()),
           mcp_server_version: SERVER_VERSION,
           error: {
             kind: failure.kind,
@@ -14942,7 +14946,7 @@ async function handleToolCall(params: any) {
               text: JSON.stringify({
                 status: authenticated ? "ok" : "error",
                 authenticated,
-                gitlab_url: getEffectiveApiUrl(),
+                gitlab_url: redactGitLabUrlCredentials(getEffectiveApiUrl()),
                 mcp_server_version: SERVER_VERSION,
                 ...(insufficientUserScope ? { user_api_warning: USER_API_HEALTH_WARNING } : {}),
                 ...(versionMetadata ?? {}),

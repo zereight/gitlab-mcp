@@ -110,9 +110,39 @@ function combineMessages(outer: string | null, inner: string | null): string {
   return outer ?? inner ?? "";
 }
 
+/**
+ * Removes userinfo from a GitLab API URL before it is returned to the client.
+ * A password with an unencoded slash is not a valid WHATWG URL, so that form
+ * uses the same text redaction as transport error messages.
+ */
+export function redactGitLabUrlCredentials(url: string): string {
+  try {
+    const parsed = new URL(url);
+    if (parsed.username.length === 0 && parsed.password.length === 0) {
+      return url;
+    }
+    parsed.username = "";
+    parsed.password = "";
+    return parsed.toString();
+  } catch {
+    return redactUrlUserinfoInText(url);
+  }
+}
+
+function redactUrlUserinfoInText(message: string): string {
+  return message.replace(/\b[a-z][a-z0-9+.-]*:\/\/[^\s]+/gi, urlToken => {
+    const schemeIndex = urlToken.indexOf("://");
+    const rest = urlToken.slice(schemeIndex + 3);
+    const atIndex = rest.lastIndexOf("@");
+    if (atIndex <= 0) {
+      return urlToken;
+    }
+    return `${urlToken.slice(0, schemeIndex + 3)}[REDACTED]@${rest.slice(atIndex + 1)}`;
+  });
+}
+
 function redactCredentials(message: string): string {
-  return message
-    .replace(/\/\/[^/\s@]+(?::[^/\s@]*)?@/g, "//[REDACTED]@")
+  return redactUrlUserinfoInText(message)
     .replace(/\bBearer\s+\S+/gi, "Bearer [REDACTED]")
     .replace(/\b((?:private|job)-token|authorization)\b\s*[:=]\s*\S+/gi, "$1: [REDACTED]")
     .replace(

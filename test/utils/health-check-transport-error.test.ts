@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
-import { classifyHealthCheckTransportError } from "../../utils/health-check-transport-error.js";
+import {
+  classifyHealthCheckTransportError,
+  redactGitLabUrlCredentials,
+} from "../../utils/health-check-transport-error.js";
 
 const TLS_CODES_WITHOUT_PREFIX = [
   "UNABLE_TO_VERIFY_LEAF_SIGNATURE",
@@ -238,6 +241,29 @@ describe("When classifyHealthCheckTransportError runs", () => {
     });
   });
 
+  describe("with a slash inside URL userinfo", () => {
+    test("should redact the password through the last @", () => {
+      const result = classifyHealthCheckTransportError({
+        code: "ECONNREFUSED",
+        message: "request to https://oauth:p/ss@gitlab.example/api/v4/user failed",
+      });
+
+      assert.equal(result.message.includes("p/ss"), false);
+      assert.match(result.message, /https:\/\/\[REDACTED\]@gitlab\.example\/api\/v4\/user/);
+    });
+  });
+
+  describe("with an encoded at-sign inside URL userinfo", () => {
+    test("should redact the encoded password", () => {
+      const result = classifyHealthCheckTransportError({
+        code: "ECONNREFUSED",
+        message: "request to https://user:sec%40ret@gitlab.example/api/v4 failed",
+      });
+
+      assert.equal(result.message.includes("sec%40ret"), false);
+    });
+  });
+
   describe("with a non-tls failure", () => {
     test("should omit the CA hint", () => {
       const result = classifyHealthCheckTransportError({
@@ -246,6 +272,35 @@ describe("When classifyHealthCheckTransportError runs", () => {
       });
 
       assert.equal("hint" in result, false);
+    });
+  });
+});
+
+describe("When redactGitLabUrlCredentials runs", () => {
+  describe("with URL-encoded userinfo", () => {
+    test("should return the URL without credentials", () => {
+      assert.equal(
+        redactGitLabUrlCredentials("https://user:p%2Fss@gitlab.example/api/v4"),
+        "https://gitlab.example/api/v4"
+      );
+    });
+  });
+
+  describe("with an unencoded slash in the password", () => {
+    test("should redact userinfo even though the URL parser rejects it", () => {
+      assert.equal(
+        redactGitLabUrlCredentials("https://user:p/ss@gitlab.example/api/v4"),
+        "https://[REDACTED]@gitlab.example/api/v4"
+      );
+    });
+  });
+
+  describe("with no userinfo", () => {
+    test("should keep the URL unchanged", () => {
+      assert.equal(
+        redactGitLabUrlCredentials("http://127.0.0.1:9/api/v4"),
+        "http://127.0.0.1:9/api/v4"
+      );
     });
   });
 });
