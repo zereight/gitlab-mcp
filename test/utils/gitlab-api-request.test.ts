@@ -204,6 +204,48 @@ describe("When executing gitlab_api_request", () => {
     });
   });
 
+  describe("with a non-JSON success body", () => {
+    it("should redact a plain-text token before returning it", async () => {
+      const result = await executeGitLabApiRequestAsync({
+        args: { path: "projects/5/repository/files/note/raw" },
+        apiBaseUrl: API_BASE,
+        permissionMode: "full",
+        allowedProjectIds: [],
+        fetchConfig: () => ({ headers: {} }),
+        fetchImpl: async () => new Response("token: plain-secret\nkeep", { status: 200 }),
+      });
+
+      assert.equal(result.content[0].text.includes("plain-secret"), false);
+      assert.match(result.content[0].text, /keep/);
+    });
+  });
+
+  describe("with a non-JSON error body", () => {
+    it("should redact import_url text in the error", async () => {
+      await assert.rejects(
+        () =>
+          executeGitLabApiRequestAsync({
+            args: { path: "projects/5" },
+            apiBaseUrl: API_BASE,
+            permissionMode: "full",
+            allowedProjectIds: [],
+            fetchConfig: () => ({ headers: {} }),
+            fetchImpl: async () =>
+              new Response("import_url=https://user:pass@example.com/repo.git", {
+                status: 500,
+                statusText: "Error",
+              }),
+          }),
+        (error: unknown) => {
+          assert.ok(error instanceof GitLabApiRequestHttpError);
+          assert.equal(error.message.includes("user:pass"), false);
+          assert.match(error.message, /500/);
+          return true;
+        }
+      );
+    });
+  });
+
   describe("with a non-2xx JSON body", () => {
     it("should raise a status error without the token field", async () => {
       await assert.rejects(
