@@ -714,6 +714,7 @@ Examples:
 > Use `GITLAB_TOOLSETS=core,pipelines` and `GITLAB_TOOLS=validate_ci_lint,validate_project_ci_lint`
 > instead. Those two lint tools live in the `ci` toolset, not `pipelines`. If you already set
 > `GITLAB_TOOLSETS`, append `pipelines` to your existing list instead of replacing it.
+> If `GITLAB_TOOLS` is already set, append `validate_ci_lint,validate_project_ci_lint` instead of replacing that list.
 
 > **Deprecation notice:** The `USE_*` flags are kept for backward compatibility only, cover
 > just three toolsets, and will be removed in the next major (v3.0.0). Only `true` enables the

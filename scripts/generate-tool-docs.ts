@@ -50,6 +50,13 @@ function legacyToolsetReplacement(id: ToolsetId): string {
   return toolsets;
 }
 
+function legacyToolsAppendNote(id: ToolsetId): string {
+  if (id !== "pipelines") {
+    return "";
+  }
+  return ` If \`GITLAB_TOOLS\` is already set, append \`${LEGACY_PIPELINE_TOOLS}\` instead of replacing that list.`;
+}
+
 function isDefaultToolset(id: ToolsetId): boolean {
   return TOOLSET_DEFINITIONS.find(d => d.id === id)?.isDefault ?? false;
 }
@@ -79,7 +86,8 @@ function computeToggleNote(id: ToolsetId, toolNames: readonly string[] = []): st
   if (legacy) {
     return (
       `Opt-in. Enable via ${legacyToolsetReplacement(id)} (or \`GITLAB_TOOLSETS=all\`). ` +
-      `If you already set \`GITLAB_TOOLSETS\`, append \`${id}\` to your existing list instead of replacing it. ` +
+      `If you already set \`GITLAB_TOOLSETS\`, append \`${id}\` to your existing list instead of replacing it.` +
+      `${legacyToolsAppendNote(id)} ` +
       `\`${legacy}=true\` is deprecated (removed in next major (v3.0.0)).` +
       formatDefaultOverlapNote(toolNames)
     );
@@ -403,7 +411,8 @@ function buildToggleSection(groupedToolsList: Array<[ToolsetId, string[]]>): str
     "- `USE_PIPELINE`, `USE_MILESTONE`, and `USE_GITLAB_WIKI` are deprecated (removed in next major (v3.0.0))." +
       " Use `GITLAB_TOOLSETS=core,pipelines` and `GITLAB_TOOLS=validate_ci_lint,validate_project_ci_lint`," +
       " `GITLAB_TOOLSETS=core,milestones`, or `GITLAB_TOOLSETS=core,wiki`." +
-      " If you already set `GITLAB_TOOLSETS`, append the toolset to your existing list instead of replacing it.",
+      " If you already set `GITLAB_TOOLSETS`, append the toolset to your existing list instead of replacing it." +
+      " If `GITLAB_TOOLS` is already set, append `validate_ci_lint,validate_project_ci_lint` instead of replacing that list.",
     "- Call the `discover_tools` MCP tool at runtime to activate categories" +
       " for the current session.",
   ];

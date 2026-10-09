@@ -137,9 +137,9 @@ command = lib.getExe inputs.gitlab-mcp.packages.${system}.default;
 - `--permission-mode` - 权限级别：`readonly`、`modify`（禁用删除/拆除工具）或 `full`（替代 `GITLAB_PERMISSION_MODE`，默认 `full`）
 - `--toolsets=all` - 启用指定工具集（替代 `GITLAB_TOOLSETS`；未设置时使用精简 `core` 默认值）
 - `--tools=list_issues` - 添加单个工具（替代 `GITLAB_TOOLS`）
-- `--use-wiki=true` - Deprecated (removed in next major (v3.0.0))；请改用 `GITLAB_TOOLSETS=core,wiki`（替代 `USE_GITLAB_WIKI`）
-- `--use-milestone=true` - Deprecated (removed in next major (v3.0.0))；请改用 `GITLAB_TOOLSETS=core,milestones`（替代 `USE_MILESTONE`）
-- `--use-pipeline=true` - Deprecated (removed in next major (v3.0.0))；请改用 `GITLAB_TOOLSETS=core,pipelines` 和 `GITLAB_TOOLS=validate_ci_lint,validate_project_ci_lint`（替代 `USE_PIPELINE`）
+- `--use-wiki=true` - Deprecated (removed in next major (v3.0.0))；请改用 `--toolsets=core,wiki`（替代 `USE_GITLAB_WIKI`）
+- `--use-milestone=true` - Deprecated (removed in next major (v3.0.0))；请改用 `--toolsets=core,milestones`（替代 `USE_MILESTONE`）
+- `--use-pipeline=true` - Deprecated (removed in next major (v3.0.0))；请改用 `--toolsets=core,pipelines` 和 `--tools=validate_ci_lint,validate_project_ci_lint`（替代 `USE_PIPELINE`）
 - `--disable-version-check=true` - 关闭启动时的新版本提示（替代 `GITLAB_DISABLE_VERSION_CHECK`）
 - `--masking-enabled=true` - 启用文本响应掩码（替代 `GITLAB_MASKING_ENABLED`）
 - `--masking-config` - 掩码配置文件路径（替代 `GITLAB_MASKING_CONFIG`）

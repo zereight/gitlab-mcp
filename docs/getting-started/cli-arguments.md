@@ -45,9 +45,9 @@ No global install? Pin `npx` to the previous stable release and keep the server 
 | `--permission-mode`    | `GITLAB_PERMISSION_MODE`       | `readonly`, `modify` (no delete or teardown tools), or `full`.  |
 | `--toolsets=all`       | `GITLAB_TOOLSETS`              | Enable named toolsets. Unset uses lean `core`.      |
 | `--tools=list_issues`  | `GITLAB_TOOLS`                 | Add individual tools on top of enabled toolsets.    |
-| `--use-wiki=true`      | `USE_GITLAB_WIKI`              | Deprecated (removed in next major (v3.0.0)); use `GITLAB_TOOLSETS=core,wiki` instead. |
-| `--use-milestone=true` | `USE_MILESTONE`                | Deprecated (removed in next major (v3.0.0)); use `GITLAB_TOOLSETS=core,milestones` instead. |
-| `--use-pipeline=true`  | `USE_PIPELINE`                 | Deprecated (removed in next major (v3.0.0)); use `GITLAB_TOOLSETS=core,pipelines` and `GITLAB_TOOLS=validate_ci_lint,validate_project_ci_lint` instead. |
+| `--use-wiki=true`      | `USE_GITLAB_WIKI`              | Deprecated (removed in next major (v3.0.0)); use `--toolsets=core,wiki` or `GITLAB_TOOLSETS=core,wiki` instead. |
+| `--use-milestone=true` | `USE_MILESTONE`                | Deprecated (removed in next major (v3.0.0)); use `--toolsets=core,milestones` or `GITLAB_TOOLSETS=core,milestones` instead. |
+| `--use-pipeline=true`  | `USE_PIPELINE`                 | Deprecated (removed in next major (v3.0.0)); use `--toolsets=core,pipelines` or `GITLAB_TOOLSETS=core,pipelines`, and `--tools=validate_ci_lint,validate_project_ci_lint` or `GITLAB_TOOLS=validate_ci_lint,validate_project_ci_lint`. Append those tools to an existing list instead of replacing it. |
 | `--disable-version-check=true` | `GITLAB_DISABLE_VERSION_CHECK` | Disable the startup new-version notice.     |
 | `--masking-enabled=true` | `GITLAB_MASKING_ENABLED` | Enable text-response masking. |
 | `--masking-config` | `GITLAB_MASKING_CONFIG` | Path to a masking configuration file. |
@@ -61,10 +61,12 @@ No global install? Pin `npx` to the previous stable release and keep the server 
 > **Deprecation notice:** `--read-only=true` / `GITLAB_READ_ONLY_MODE`, `--use-wiki=true` /
 > `USE_GITLAB_WIKI`, `--use-milestone=true` / `USE_MILESTONE`, and `--use-pipeline=true` /
 > `USE_PIPELINE` are kept for backward compatibility but are deprecated (removed in next major (v3.0.0)).
-> Use `--permission-mode=readonly` (or `GITLAB_PERMISSION_MODE=readonly`), `GITLAB_TOOLSETS=core,wiki`,
-> `GITLAB_TOOLSETS=core,milestones`, and `GITLAB_TOOLSETS=core,pipelines` plus
-> `GITLAB_TOOLS=validate_ci_lint,validate_project_ci_lint`. If you already set `GITLAB_TOOLSETS`,
-> append the toolset to your existing list instead of replacing it.
+> Use `--permission-mode=readonly` (or `GITLAB_PERMISSION_MODE=readonly`), `--toolsets=core,wiki`
+> (or `GITLAB_TOOLSETS=core,wiki`), `--toolsets=core,milestones` (or `GITLAB_TOOLSETS=core,milestones`),
+> and `--toolsets=core,pipelines` (or `GITLAB_TOOLSETS=core,pipelines`) plus
+> `--tools=validate_ci_lint,validate_project_ci_lint` (or `GITLAB_TOOLS=validate_ci_lint,validate_project_ci_lint`).
+> If you already set `GITLAB_TOOLSETS` or `--toolsets`, append the toolset to your existing list instead of replacing it.
+> If `GITLAB_TOOLS` or `--tools` is already set, append `validate_ci_lint,validate_project_ci_lint` instead of replacing that list.
 
 ## Subcommands
 

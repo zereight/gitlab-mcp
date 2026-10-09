@@ -29,7 +29,7 @@ directly from `TOOLSET_DEFINITIONS` in
 - `GITLAB_TOOLSETS=all` — enables every group.
 - `GITLAB_TOOLSETS=merge_requests,issues,repositories,branches,projects,labels,ci,groups,users` — restores the pre-lean default set.
 - `GITLAB_TOOLS=<tool,…>` — enables individual tools regardless of group.
-- `USE_PIPELINE`, `USE_MILESTONE`, and `USE_GITLAB_WIKI` are deprecated (removed in next major (v3.0.0)). Use `GITLAB_TOOLSETS=core,pipelines` and `GITLAB_TOOLS=validate_ci_lint,validate_project_ci_lint`, `GITLAB_TOOLSETS=core,milestones`, or `GITLAB_TOOLSETS=core,wiki`. If you already set `GITLAB_TOOLSETS`, append the toolset to your existing list instead of replacing it.
+- `USE_PIPELINE`, `USE_MILESTONE`, and `USE_GITLAB_WIKI` are deprecated (removed in next major (v3.0.0)). Use `GITLAB_TOOLSETS=core,pipelines` and `GITLAB_TOOLS=validate_ci_lint,validate_project_ci_lint`, `GITLAB_TOOLSETS=core,milestones`, or `GITLAB_TOOLSETS=core,wiki`. If you already set `GITLAB_TOOLSETS`, append the toolset to your existing list instead of replacing it. If `GITLAB_TOOLS` is already set, append `validate_ci_lint,validate_project_ci_lint` instead of replacing that list.
 - Call the `discover_tools` MCP tool at runtime to activate categories for the current session.
 
 Permission modes control which tools are exposed:
@@ -315,7 +315,7 @@ Validate `.gitlab-ci.yml` snippets and project pipeline configs. *(4 tools)*
 
 Pipeline + job control (trigger, retry, cancel, play manual jobs, fetch logs/artifacts), and the deployments/environments view. *(56 tools)*
 
-> Opt-in. Enable via `GITLAB_TOOLSETS=core,pipelines` and `GITLAB_TOOLS=validate_ci_lint,validate_project_ci_lint` (or `GITLAB_TOOLSETS=all`). If you already set `GITLAB_TOOLSETS`, append `pipelines` to your existing list instead of replacing it. `USE_PIPELINE=true` is deprecated (removed in next major (v3.0.0)).
+> Opt-in. Enable via `GITLAB_TOOLSETS=core,pipelines` and `GITLAB_TOOLS=validate_ci_lint,validate_project_ci_lint` (or `GITLAB_TOOLSETS=all`). If you already set `GITLAB_TOOLSETS`, append `pipelines` to your existing list instead of replacing it. If `GITLAB_TOOLS` is already set, append `validate_ci_lint,validate_project_ci_lint` instead of replacing that list. `USE_PIPELINE=true` is deprecated (removed in next major (v3.0.0)).
 
 | Tool | What it does | R/W |
 |---|---|:-:|
