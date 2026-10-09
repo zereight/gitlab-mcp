@@ -16,13 +16,11 @@ import {
   GITLAB_PERSONAL_ACCESS_TOKEN,
   GITLAB_POOL_MAX_SIZE,
   GITLAB_DISABLE_VERSION_CHECK,
-  GITLAB_READ_ONLY_MODE,
   GITLAB_MASKING_ENABLED,
   GITLAB_MASKING_CONFIG,
   GITLAB_MASKING_POLICY_FILE,
   GITLAB_MASKING_WORKSPACE_DIR,
   GITLAB_PERMISSION_MODE,
-  GITLAB_PERMISSION_MODE_RAW,
   GITLAB_TOOLSETS_RAW,
   GITLAB_TOOLS_RAW,
   HOST,
@@ -44,21 +42,17 @@ import {
   STREAMABLE_HTTP,
   MCP_TRUST_PROXY,
   USE_GITLAB_WIKI,
-  USE_GITLAB_WIKI_RAW,
   USE_MILESTONE,
-  USE_MILESTONE_RAW,
   USE_OAUTH,
   USE_PIPELINE,
-  USE_PIPELINE_RAW,
   GITLAB_TOOL_POLICY_APPROVE_RAW,
   GITLAB_TOOL_POLICY_HIDDEN_RAW,
-  GITLAB_OAUTH_ALLOWED_GROUPS_RAW,
-  GITLAB_ALLOWED_GROUPS_RAW,
   GITLAB_OAUTH_ALLOWED_GROUPS,
   GITLAB_MCP_COMPACT_RESULTS,
   GITLAB_MCP_COMPACT_RESULT_CHARS,
   GITLAB_MCP_COMPACT_TOOL_NAMES,
   GITLAB_TOOL_PROFILE,
+  buildDeprecatedEnvInput,
 } from "./config.js";
 import { getDeprecatedEnvWarnings } from "./deprecated-env.js";
 
@@ -1528,6 +1522,19 @@ let oauthClient: GitLabOAuth | null = null;
  * switch to signed/sealed opaque values instead of per-pod in-memory caches.
  */
 let STATELESS_MATERIAL: StatelessKeyMaterial | null = null;
+
+let hasEmittedDeprecatedEnvWarnings = false;
+
+function emitDeprecatedEnvWarnings(): void {
+  if (hasEmittedDeprecatedEnvWarnings) {
+    return;
+  }
+  hasEmittedDeprecatedEnvWarnings = true;
+  for (const warning of getDeprecatedEnvWarnings(buildDeprecatedEnvInput())) {
+    logger.warn(warning);
+  }
+}
+
 try {
   // Drive enablement from the already-resolved config flag so the CLI flag
   // (--oauth-stateless-mode) is honored. Re-reading env.OAUTH_STATELESS_MODE
@@ -1541,6 +1548,7 @@ try {
     console.error("[gitlab-mcp] stateless OAuth mode enabled");
   }
 } catch (err) {
+  emitDeprecatedEnvWarnings();
   // eslint-disable-next-line no-console -- startup failure must be visible
   console.error(`[gitlab-mcp] failed to load stateless secret: ${(err as Error).message}`);
   process.exit(1);
@@ -2183,11 +2191,13 @@ const GITLAB_REPO_FILE_ENCODING =
 if (REMOTE_AUTHORIZATION) {
   // Remote authorization mode: token comes from HTTP headers
   if (SSE) {
+    emitDeprecatedEnvWarnings();
     logger.error("REMOTE_AUTHORIZATION=true is not compatible with SSE transport mode");
     logger.error("Please use STREAMABLE_HTTP=true instead");
     process.exit(1);
   }
   if (!STREAMABLE_HTTP) {
+    emitDeprecatedEnvWarnings();
     logger.error("REMOTE_AUTHORIZATION=true requires STREAMABLE_HTTP=true");
     logger.error("Set STREAMABLE_HTTP=true to enable remote authorization");
     process.exit(1);
@@ -2197,11 +2207,13 @@ if (REMOTE_AUTHORIZATION) {
 
 if (GITLAB_MCP_OAUTH) {
   if (SSE) {
+    emitDeprecatedEnvWarnings();
     logger.error("GITLAB_MCP_OAUTH=true is not compatible with SSE transport mode");
     logger.error("Please use STREAMABLE_HTTP=true instead");
     process.exit(1);
   }
   if (!STREAMABLE_HTTP) {
+    emitDeprecatedEnvWarnings();
     logger.error("GITLAB_MCP_OAUTH=true requires STREAMABLE_HTTP=true");
     logger.error("Set STREAMABLE_HTTP=true to enable MCP OAuth");
     process.exit(1);
@@ -2220,7 +2232,9 @@ if (
   !GITLAB_JOB_TOKEN &&
   !GITLAB_AUTH_COOKIE_PATH
 ) {
-  // Standard mode: token must be in environment (unless using OAuth)
+  // Standard mode: token must be in environment (unless using OAuth).
+  // This exit runs before runServer(), so warnings have to be printed here too.
+  emitDeprecatedEnvWarnings();
   logger.error("GITLAB_PERSONAL_ACCESS_TOKEN environment variable is not set");
   logger.info("Either set GITLAB_PERSONAL_ACCESS_TOKEN or enable OAuth with GITLAB_USE_OAUTH=true");
   process.exit(1);
@@ -16785,6 +16799,10 @@ function initOAuthClient(): void {
  */
 async function runServer() {
   try {
+    // Print before validateConfiguration(), which process.exit()s on failure.
+    // logger.warn goes to stderr; stdio transport owns stdout for JSON-RPC.
+    emitDeprecatedEnvWarnings();
+
     // Validate configuration before starting server
     validateConfiguration();
 
@@ -16819,18 +16837,6 @@ async function runServer() {
     logger.info(`Configured GitLab API URLs: ${GITLAB_API_URLS.join(", ")}`);
     logger.info(`Default GitLab API URL: ${GITLAB_API_URL}`);
 
-    for (const warning of getDeprecatedEnvWarnings({
-      readOnlyMode: GITLAB_READ_ONLY_MODE,
-      permissionModeRaw: GITLAB_PERMISSION_MODE_RAW,
-      allowedGroupsRaw: GITLAB_ALLOWED_GROUPS_RAW,
-      oauthAllowedGroupsRaw: GITLAB_OAUTH_ALLOWED_GROUPS_RAW,
-      useWikiRaw: USE_GITLAB_WIKI_RAW,
-      useMilestoneRaw: USE_MILESTONE_RAW,
-      usePipelineRaw: USE_PIPELINE_RAW,
-    })) {
-      logger.warn(warning);
-    }
-
     if (GITLAB_OAUTH_ALLOWED_GROUPS) {
       logger.info(`Group access control enabled for: ${GITLAB_OAUTH_ALLOWED_GROUPS.join(", ")}`);
     }
@@ -16847,6 +16853,7 @@ async function main(): Promise<void> {
     process.exit(0);
   }
   if (cli.kind === "usage" || cli.kind === "refused") {
+    emitDeprecatedEnvWarnings();
     process.stderr.write(`${cli.message}\n`);
     process.exit(2);
   }
@@ -16862,6 +16869,7 @@ async function main(): Promise<void> {
     }
   }
   if (cli.kind === "run") {
+    emitDeprecatedEnvWarnings();
     if (!hasCliCredentials()) {
       process.stderr.write(
         "Missing GitLab credentials. Set --token or GITLAB_PERSONAL_ACCESS_TOKEN, or run `auth` with GITLAB_USE_OAUTH=true.\n"

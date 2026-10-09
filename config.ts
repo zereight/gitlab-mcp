@@ -1,4 +1,5 @@
 import { BOOLEAN_CLI_FLAG_NAMES, nextBooleanFlagValue } from "./cli-boolean-flags.js";
+import type { DeprecatedEnvInput } from "./deprecated-env.js";
 import { parseToolProfile } from "./tools/tool-profile.js";
 import { parseCompactToolAllowlist } from "./utils/compact-tool-allowlist.js";
 
@@ -148,7 +149,7 @@ export const GITLAB_OAUTH_SCOPES = GITLAB_OAUTH_SCOPES_RAW
   : undefined;
 export const GITLAB_OAUTH_CALLBACK_PROXY =
   getConfig("oauth-callback-proxy", "GITLAB_OAUTH_CALLBACK_PROXY") === "true";
-/** @deprecated Use GITLAB_OAUTH_ALLOWED_GROUPS_RAW instead. Will be removed in the next major version. */
+/** @deprecated Use GITLAB_OAUTH_ALLOWED_GROUPS_RAW instead. Will be removed in v3.0.0. */
 export const GITLAB_ALLOWED_GROUPS_RAW = getConfig("allowed-groups", "GITLAB_ALLOWED_GROUPS");
 export const GITLAB_OAUTH_ALLOWED_GROUPS_RAW = getConfig(
   "oauth-allowed-groups",
@@ -303,5 +304,30 @@ export const NODE_TLS_REJECT_UNAUTHORIZED = getConfig(
   "NODE_TLS_REJECT_UNAUTHORIZED"
 );
 export const GITLAB_CA_CERT_PATH = getConfig("ca-cert-path", "GITLAB_CA_CERT_PATH");
+
+/**
+ * Snapshot of deprecated settings for startup warnings.
+ * CLI flags win over env vars, matching getConfig, so the warning can name
+ * the flag the user actually passed.
+ */
+export function buildDeprecatedEnvInput(): DeprecatedEnvInput {
+  return {
+    readOnlyMode: GITLAB_READ_ONLY_MODE,
+    readOnlyRaw: getConfig("read-only", "GITLAB_READ_ONLY_MODE"),
+    readOnlyFromCli: Boolean(cliArgs["read-only"]),
+    permissionModeRaw: GITLAB_PERMISSION_MODE_RAW,
+    allowedGroupsRaw: GITLAB_ALLOWED_GROUPS_RAW,
+    allowedGroupsFromCli: Boolean(cliArgs["allowed-groups"]),
+    oauthAllowedGroupsRaw: GITLAB_OAUTH_ALLOWED_GROUPS_RAW,
+    useWikiRaw: USE_GITLAB_WIKI_RAW,
+    useWikiFromCli: Boolean(cliArgs["use-wiki"]),
+    useMilestoneRaw: USE_MILESTONE_RAW,
+    useMilestoneFromCli: Boolean(cliArgs["use-milestone"]),
+    usePipelineRaw: USE_PIPELINE_RAW,
+    usePipelineFromCli: Boolean(cliArgs["use-pipeline"]),
+    toolsetsRaw: GITLAB_TOOLSETS_RAW,
+  };
+}
+
 const _poolMaxSizeRaw = getConfig("pool-max-size", "GITLAB_POOL_MAX_SIZE");
 export const GITLAB_POOL_MAX_SIZE = _poolMaxSizeRaw ? Number.parseInt(_poolMaxSizeRaw, 10) : 100;
