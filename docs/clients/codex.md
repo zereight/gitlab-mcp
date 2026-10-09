@@ -51,11 +51,12 @@ codex mcp add gitlab \
 Optional extra environment variables:
 
 ```bash
---env GITLAB_READ_ONLY_MODE=true
---env USE_GITLAB_WIKI=true
---env USE_MILESTONE=true
---env USE_PIPELINE=true
+--env GITLAB_PERMISSION_MODE=readonly
+--env GITLAB_TOOLSETS=core,wiki,milestones,pipelines
+--env GITLAB_TOOLS=validate_ci_lint,validate_project_ci_lint
 ```
+
+`GITLAB_TOOLS` keeps the two CI lint tools that deprecated `USE_PIPELINE=true` exposed; they live in the `ci` toolset, not `pipelines`. If you already set `GITLAB_TOOLSETS`, append `wiki`, `milestones`, and `pipelines` to your existing list instead of replacing it.
 
 ## Option 2 — Configure with `config.toml`
 
@@ -73,7 +74,6 @@ command = "zereight-mcp-gitlab"
 [mcp_servers.gitlab.env]
 GITLAB_PERSONAL_ACCESS_TOKEN = "glpat-your-token"
 GITLAB_API_URL = "https://gitlab.com/api/v4"
-GITLAB_READ_ONLY_MODE = "false"
 ```
 
 ## Verifying the server

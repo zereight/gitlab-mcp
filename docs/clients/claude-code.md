@@ -52,10 +52,11 @@ claude mcp add gitlab --transport stdio \
 
 Optional flags you can add as extra `--env` values:
 
-- `GITLAB_READ_ONLY_MODE=true`
-- `USE_GITLAB_WIKI=true`
-- `USE_MILESTONE=true`
-- `USE_PIPELINE=true`
+- `GITLAB_PERMISSION_MODE=readonly`
+- `GITLAB_TOOLSETS=core,wiki,milestones,pipelines`
+- `GITLAB_TOOLS=validate_ci_lint,validate_project_ci_lint`
+
+`GITLAB_TOOLS` keeps the two CI lint tools that deprecated `USE_PIPELINE=true` exposed; they live in the `ci` toolset, not `pipelines`. If you already set `GITLAB_TOOLSETS`, append `wiki`, `milestones`, and `pipelines` to your existing list instead of replacing it.
 
 Useful management commands:
 
@@ -121,8 +122,7 @@ Create a `.mcp.json` file at your project root:
     "gitlab": {
       "command": "zereight-mcp-gitlab",
       "env": {
-        "GITLAB_API_URL": "https://gitlab.com/api/v4",
-        "GITLAB_READ_ONLY_MODE": "false"
+        "GITLAB_API_URL": "https://gitlab.com/api/v4"
       }
     }
   }

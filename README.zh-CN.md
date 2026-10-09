@@ -133,13 +133,13 @@ command = lib.getExe inputs.gitlab-mcp.packages.${system}.default;
 
 - `--token` - GitLab Personal Access Token（替代 `GITLAB_PERSONAL_ACCESS_TOKEN`）
 - `--api-url` - GitLab API URL（替代 `GITLAB_API_URL`）
-- `--read-only=true` - 启用只读模式（替代 `GITLAB_READ_ONLY_MODE`，已弃用 — 推荐 `--permission-mode=readonly`）
+- `--read-only=true` - Deprecated (removed in next major (v3.0.0))；请改用 `--permission-mode=readonly`（替代 `GITLAB_READ_ONLY_MODE`）
 - `--permission-mode` - 权限级别：`readonly`、`modify`（禁用删除/拆除工具）或 `full`（替代 `GITLAB_PERMISSION_MODE`，默认 `full`）
 - `--toolsets=all` - 启用指定工具集（替代 `GITLAB_TOOLSETS`；未设置时使用精简 `core` 默认值）
 - `--tools=list_issues` - 添加单个工具（替代 `GITLAB_TOOLS`）
-- `--use-wiki=true` - 启用 Wiki API（替代 `USE_GITLAB_WIKI`，旧版 — 推荐 `GITLAB_TOOLSETS=wiki`）
-- `--use-milestone=true` - 启用里程碑 API（替代 `USE_MILESTONE`，旧版 — 推荐 `GITLAB_TOOLSETS=milestones`）
-- `--use-pipeline=true` - 启用流水线 API（替代 `USE_PIPELINE`，旧版 — 推荐 `GITLAB_TOOLSETS=pipelines`）
+- `--use-wiki=true` - Deprecated (removed in next major (v3.0.0))；请改用 `GITLAB_TOOLSETS=core,wiki`（替代 `USE_GITLAB_WIKI`）
+- `--use-milestone=true` - Deprecated (removed in next major (v3.0.0))；请改用 `GITLAB_TOOLSETS=core,milestones`（替代 `USE_MILESTONE`）
+- `--use-pipeline=true` - Deprecated (removed in next major (v3.0.0))；请改用 `GITLAB_TOOLSETS=core,pipelines` 和 `GITLAB_TOOLS=validate_ci_lint,validate_project_ci_lint`（替代 `USE_PIPELINE`）
 - `--disable-version-check=true` - 关闭启动时的新版本提示（替代 `GITLAB_DISABLE_VERSION_CHECK`）
 - `--masking-enabled=true` - 启用文本响应掩码（替代 `GITLAB_MASKING_ENABLED`）
 - `--masking-config` - 掩码配置文件路径（替代 `GITLAB_MASKING_CONFIG`）
@@ -149,6 +149,8 @@ command = lib.getExe inputs.gitlab-mcp.packages.${system}.default;
 - `--compact-result-chars` - compact 字符阈值（替代 `GITLAB_MCP_COMPACT_RESULT_CHARS`，默认 `4000`）
 - `--compact-tools` - 以逗号分隔的工具名，仅在回复过大时对这些工具进行 compact，而不开启全局 compact（替代 `GITLAB_MCP_COMPACT_TOOLS`）
 - `--tool-profile` - `full`（默认）或 `slim`。`slim` 会从初始列表中移除 draft note、表情回应、标签、CI 目录工具以及 `create_group`。仅当 `GITLAB_TOOLSETS` 设置为非空白值时忽略（替代 `GITLAB_TOOL_PROFILE`）
+
+如果已经设置了 `GITLAB_TOOLSETS`，请把 `wiki`、`milestones` 或 `pipelines` 追加到现有列表，不要整段替换。显式列表会替换默认的 `core` toolset，不会合并。
 
 CLI 参数优先于环境变量。
 
@@ -163,7 +165,11 @@ CLI 参数优先于环境变量。
 > `GITLAB_PERMISSION_MODE=readonly` 只读运行。还可以用
 > `GITLAB_TOOLSETS=<group,…>` 启用工具分组，用 `GITLAB_TOOLS=<tool,…>` 白名单启用单个工具
 > （例如：只读分组 + 少数几个写工具），用 `GITLAB_DENIED_TOOLS_REGEX` 按正则屏蔽工具。
-> 旧版 `USE_GITLAB_WIKI` / `USE_MILESTONE` / `USE_PIPELINE` 标志仅为向后兼容保留。
+> 旧版 `USE_GITLAB_WIKI` / `USE_MILESTONE` / `USE_PIPELINE` 已弃用
+> （Deprecated, removed in next major (v3.0.0)）。
+> 请改用 `GITLAB_TOOLSETS=core,wiki`、`core,milestones` 或 `core,pipelines`
+> （`USE_PIPELINE` 还需要 `GITLAB_TOOLS=validate_ci_lint,validate_project_ci_lint`）。
+> 如果已经设置了 `GITLAB_TOOLSETS`，请把 toolset 追加到现有列表，不要整段替换。
 > 参见 [Tools Reference](./docs/tools/index.md#feature-toggles) 和
 > [Environment Variables](./docs/configuration/environment-variables.md)。
 
@@ -175,7 +181,7 @@ docker run -i --rm \
   -e GITLAB_PERSONAL_ACCESS_TOKEN=your_gitlab_token \
   -e GITLAB_API_URL="https://gitlab.com/api/v4" \
   -e GITLAB_PERMISSION_MODE=readonly \
-  -e GITLAB_TOOLSETS=wiki,milestones,pipelines \
+  -e GITLAB_TOOLSETS=core,wiki,milestones,pipelines \
   -e SSE=true \
   -e SSE_AUTH_TOKEN=your_mcp_sse_token \
   -p 3333:3002 \
@@ -204,7 +210,7 @@ docker run -i --rm \
   -e REMOTE_AUTHORIZATION=true \
   -e GITLAB_API_URL="https://gitlab.com/api/v4" \
   -e GITLAB_PERMISSION_MODE=readonly \
-  -e GITLAB_TOOLSETS=wiki,milestones,pipelines \
+  -e GITLAB_TOOLSETS=core,wiki,milestones,pipelines \
   -e STREAMABLE_HTTP=true \
   -p 3333:3002 \
   zereight050/gitlab-mcp
@@ -524,7 +530,7 @@ node build/index.js
 | `MCP_SERVER_URL`                            | 是   | MCP 服务器的公开 HTTPS URL                                                                                                               |
 | `GITLAB_API_URL`                            | 是   | GitLab 实例 API URL（例如 `https://gitlab.com/api/v4`）                                                                                  |
 | `STREAMABLE_HTTP`                           | 是   | 必须为 `true`（不支持 SSE）                                                                                                              |
-| `GITLAB_OAUTH_SCOPES`                       | 否   | 要请求的 GitLab scopes，以逗号分隔。默认值为 `api`，当 `GITLAB_READ_ONLY_MODE=true` 时为 `read_api`。预注册应用必须配置至少这些 scopes。 |
+| `GITLAB_OAUTH_SCOPES`                       | 否   | 要请求的 GitLab scopes，以逗号分隔。默认值为 `api`；有效 permission mode 为 `readonly` 时为 `read_api`。预注册应用必须配置至少这些 scopes。 |
 | `OAUTH_REGISTER_RATE_LIMIT_PER_HOUR`        | 否   | Dynamic Client Registration（`POST /register`）的每客户端 IP rolling 限制。默认 `20`/小时，范围 `1`–`1000`。多个 IDE 窗口等导致注册被限流时可调高。与 GitLab API 限额无关。 |
 | `MCP_DANGEROUSLY_ALLOW_INSECURE_ISSUER_URL` | 否   | 仅用于本地 HTTP 开发                                                                                                                     |
 

@@ -3,7 +3,7 @@
 Project and group milestone CRUD plus associated issues/MRs and burndown events.
 
 !!! note "Feature toggle"
-    Opt-in. Enable via `GITLAB_TOOLSETS=milestones` (or `GITLAB_TOOLSETS=all`), or use the legacy `USE_MILESTONE=true` flag for backward compatibility.
+    Opt-in. Enable via `GITLAB_TOOLSETS=core,milestones` (or `GITLAB_TOOLSETS=all`). If you already set `GITLAB_TOOLSETS`, append `milestones` to your existing list instead of replacing it. `USE_MILESTONE=true` is deprecated (removed in next major (v3.0.0)).
 
 ## Tools in this group
 

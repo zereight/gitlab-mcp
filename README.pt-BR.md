@@ -133,13 +133,13 @@ Alguns clientes MCP, como o GitHub Copilot CLI, têm problemas com variáveis de
 
 - `--token` - GitLab Personal Access Token (substitui `GITLAB_PERSONAL_ACCESS_TOKEN`)
 - `--api-url` - URL da API do GitLab (substitui `GITLAB_API_URL`)
-- `--read-only=true` - ativa o modo somente leitura (substitui `GITLAB_READ_ONLY_MODE`, obsoleto — prefira `--permission-mode=readonly`)
+- `--read-only=true` - Deprecated (removed in next major (v3.0.0)); use `--permission-mode=readonly` (substitui `GITLAB_READ_ONLY_MODE`)
 - `--permission-mode` - nível de permissão: `readonly`, `modify` (sem ferramentas de exclusão ou teardown) ou `full` (substitui `GITLAB_PERMISSION_MODE`, padrão `full`)
 - `--toolsets=all` - ativa toolsets nomeados (substitui `GITLAB_TOOLSETS`; sem valor usa o padrão enxuto `core`)
 - `--tools=list_issues` - adiciona ferramentas individuais (substitui `GITLAB_TOOLS`)
-- `--use-wiki=true` - ativa a API de Wiki (substitui `USE_GITLAB_WIKI`, legado — prefira `GITLAB_TOOLSETS=wiki`)
-- `--use-milestone=true` - ativa a API de milestones (substitui `USE_MILESTONE`, legado — prefira `GITLAB_TOOLSETS=milestones`)
-- `--use-pipeline=true` - ativa a API de pipelines (substitui `USE_PIPELINE`, legado — prefira `GITLAB_TOOLSETS=pipelines`)
+- `--use-wiki=true` - Deprecated (removed in next major (v3.0.0)); use `GITLAB_TOOLSETS=core,wiki` (substitui `USE_GITLAB_WIKI`)
+- `--use-milestone=true` - Deprecated (removed in next major (v3.0.0)); use `GITLAB_TOOLSETS=core,milestones` (substitui `USE_MILESTONE`)
+- `--use-pipeline=true` - Deprecated (removed in next major (v3.0.0)); use `GITLAB_TOOLSETS=core,pipelines` e `GITLAB_TOOLS=validate_ci_lint,validate_project_ci_lint` (substitui `USE_PIPELINE`)
 - `--disable-version-check=true` - desativa o aviso de nova versão na inicialização (substitui `GITLAB_DISABLE_VERSION_CHECK`)
 - `--masking-enabled=true` - ativa o mascaramento de respostas de texto (substitui `GITLAB_MASKING_ENABLED`)
 - `--masking-config` - caminho para um arquivo de configuração de mascaramento (substitui `GITLAB_MASKING_CONFIG`)
@@ -149,6 +149,8 @@ Alguns clientes MCP, como o GitHub Copilot CLI, têm problemas com variáveis de
 - `--compact-result-chars` - limite de caracteres para compactação (substitui `GITLAB_MCP_COMPACT_RESULT_CHARS`; padrão `4000`)
 - `--compact-tools` - nomes de ferramentas separados por vírgula para compactar quando a resposta for grande, sem ativar o compact global (substitui `GITLAB_MCP_COMPACT_TOOLS`)
 - `--tool-profile` - `full` (padrão) ou `slim`. `slim` remove draft notes, reações com emoji, labels, ferramentas do catálogo de CI e `create_group` da lista inicial. Ignorado apenas quando `GITLAB_TOOLSETS` tem um valor não em branco (substitui `GITLAB_TOOL_PROFILE`)
+
+Se você já definiu `GITLAB_TOOLSETS`, acrescente `wiki`, `milestones` ou `pipelines` à lista existente em vez de substituí-la. Uma lista explícita substitui o toolset padrão `core`; ela não é mesclada.
 
 Os argumentos de CLI têm precedência sobre as variáveis de ambiente.
 
@@ -164,7 +166,10 @@ O mesmo binário também é uma CLI do GitLab no estilo `gh` (`tool <name>` ou f
 > Também é possível habilitar grupos de ferramentas com `GITLAB_TOOLSETS=<group,…>`, permitir ferramentas individuais com
 > `GITLAB_TOOLS=<tool,…>` (por exemplo, grupos somente leitura mais algumas ferramentas específicas de escrita) e
 > bloquear por padrão usando `GITLAB_DENIED_TOOLS_REGEX`. As flags legadas `USE_GITLAB_WIKI` /
-> `USE_MILESTONE` / `USE_PIPELINE` são mantidas apenas para compatibilidade retroativa.
+> `USE_MILESTONE` / `USE_PIPELINE` estão deprecated (removed in next major (v3.0.0)).
+> Use `GITLAB_TOOLSETS=core,wiki`, `core,milestones` ou `core,pipelines`
+> (`USE_PIPELINE` também precisa de `GITLAB_TOOLS=validate_ci_lint,validate_project_ci_lint`).
+> Se você já definiu `GITLAB_TOOLSETS`, acrescente o toolset à lista existente em vez de substituí-la.
 > Consulte a [Referência de ferramentas](./docs/tools/index.md#feature-toggles) e
 > [Variáveis de ambiente](./docs/configuration/environment-variables.md).
 
@@ -176,7 +181,7 @@ docker run -i --rm \
   -e GITLAB_PERSONAL_ACCESS_TOKEN=your_gitlab_token \
   -e GITLAB_API_URL="https://gitlab.com/api/v4" \
   -e GITLAB_PERMISSION_MODE=readonly \
-  -e GITLAB_TOOLSETS=wiki,milestones,pipelines \
+  -e GITLAB_TOOLSETS=core,wiki,milestones,pipelines \
   -e SSE=true \
   -e SSE_AUTH_TOKEN=your_mcp_sse_token \
   -p 3333:3002 \
@@ -205,7 +210,7 @@ docker run -i --rm \
   -e REMOTE_AUTHORIZATION=true \
   -e GITLAB_API_URL="https://gitlab.com/api/v4" \
   -e GITLAB_PERMISSION_MODE=readonly \
-  -e GITLAB_TOOLSETS=wiki,milestones,pipelines \
+  -e GITLAB_TOOLSETS=core,wiki,milestones,pipelines \
   -e STREAMABLE_HTTP=true \
   -p 3333:3002 \
   zereight050/gitlab-mcp
@@ -525,7 +530,7 @@ Não é necessário definir `headers`. O Claude.ai obtém o token via OAuth.
 | `MCP_SERVER_URL`                            | sim         | URL HTTPS pública do servidor MCP                                                                                                                                                                                                                |
 | `GITLAB_API_URL`                            | sim         | URL da API da instância GitLab (por exemplo, `https://gitlab.com/api/v4`)                                                                                                                                                                        |
 | `STREAMABLE_HTTP`                           | sim         | Deve ser `true` (SSE não é suportado)                                                                                                                                                                                                            |
-| `GITLAB_OAUTH_SCOPES`                       | não         | Scopes do GitLab a solicitar, separados por vírgula. O padrão é `api`, ou `read_api` quando `GITLAB_READ_ONLY_MODE=true`. O aplicativo previamente registrado deve ter pelo menos esses scopes configurados.                                     |
+| `GITLAB_OAUTH_SCOPES`                       | não         | Scopes do GitLab a solicitar, separados por vírgula. O padrão é `api`, ou `read_api` quando o permission mode efetivo é `readonly`. O aplicativo previamente registrado deve ter pelo menos esses scopes configurados.                                     |
 | `OAUTH_REGISTER_RATE_LIMIT_PER_HOUR`        | não         | Limite rolling de Dynamic Client Registration (`POST /register`) por IP do cliente. Padrão `20`/hora, intervalo `1`–`1000`. Aumente se múltiplas janelas de IDE estiverem atingindo o limite. Não está relacionado aos limites da API do GitLab. |
 | `MCP_DANGEROUSLY_ALLOW_INSECURE_ISSUER_URL` | não         | Apenas para desenvolvimento local via HTTP                                                                                                                                                                                                       |
 

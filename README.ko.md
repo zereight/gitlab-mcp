@@ -133,13 +133,13 @@ command = lib.getExe inputs.gitlab-mcp.packages.${system}.default;
 
 - `--token` - GitLab Personal Access Token (`GITLAB_PERSONAL_ACCESS_TOKEN` 대체)
 - `--api-url` - GitLab API URL (`GITLAB_API_URL` 대체)
-- `--read-only=true` - 읽기 전용 모드 활성화 (`GITLAB_READ_ONLY_MODE` 대체, deprecated — `--permission-mode=readonly` 권장)
+- `--read-only=true` - Deprecated (removed in next major (v3.0.0)); `--permission-mode=readonly`를 사용 (`GITLAB_READ_ONLY_MODE` 대체)
 - `--permission-mode` - 권한 수준: `readonly`, `modify`(삭제/중단 도구 비활성), `full` (`GITLAB_PERMISSION_MODE` 대체, 기본값 `full`)
 - `--toolsets=all` - 지정한 툴셋 활성화 (`GITLAB_TOOLSETS` 대체, 미설정 시 lean `core` 기본값 사용)
 - `--tools=list_issues` - 개별 도구 추가 (`GITLAB_TOOLS` 대체)
-- `--use-wiki=true` - 위키 API 활성화 (`USE_GITLAB_WIKI` 대체, 레거시 — `GITLAB_TOOLSETS=wiki` 권장)
-- `--use-milestone=true` - 마일스톤 API 활성화 (`USE_MILESTONE` 대체, 레거시 — `GITLAB_TOOLSETS=milestones` 권장)
-- `--use-pipeline=true` - 파이프라인 API 활성화 (`USE_PIPELINE` 대체, 레거시 — `GITLAB_TOOLSETS=pipelines` 권장)
+- `--use-wiki=true` - Deprecated (removed in next major (v3.0.0)); `GITLAB_TOOLSETS=core,wiki`를 사용 (`USE_GITLAB_WIKI` 대체)
+- `--use-milestone=true` - Deprecated (removed in next major (v3.0.0)); `GITLAB_TOOLSETS=core,milestones`를 사용 (`USE_MILESTONE` 대체)
+- `--use-pipeline=true` - Deprecated (removed in next major (v3.0.0)); `GITLAB_TOOLSETS=core,pipelines`와 `GITLAB_TOOLS=validate_ci_lint,validate_project_ci_lint`를 사용 (`USE_PIPELINE` 대체)
 - `--disable-version-check=true` - 시작 시 신규 버전 알림 비활성화 (`GITLAB_DISABLE_VERSION_CHECK` 대체)
 - `--masking-enabled=true` - 텍스트 응답 마스킹 활성화 (`GITLAB_MASKING_ENABLED` 대체)
 - `--masking-config` - 마스킹 설정 파일 경로 (`GITLAB_MASKING_CONFIG` 대체)
@@ -149,6 +149,8 @@ command = lib.getExe inputs.gitlab-mcp.packages.${system}.default;
 - `--compact-result-chars` - compact 임계값 문자 수 (`GITLAB_MCP_COMPACT_RESULT_CHARS` 대체, 기본 `4000`)
 - `--compact-tools` - 전역 compact를 켜지 않고, 응답이 클 때 compact할 도구 이름을 쉼표로 지정 (`GITLAB_MCP_COMPACT_TOOLS` 대체)
 - `--tool-profile` - `full`(기본값) 또는 `slim`. `slim`은 draft note, 이모지 반응, 라벨, CI 카탈로그 도구와 `create_group`을 초기 목록에서 뺌. `GITLAB_TOOLSETS`에 공백이 아닌 값이 설정된 경우에만 무시됨 (`GITLAB_TOOL_PROFILE` 대체)
+
+이미 `GITLAB_TOOLSETS`를 설정했다면 목록을 바꾸지 말고 `wiki`, `milestones`, `pipelines`를 기존 목록에 추가하세요. 명시적 목록은 기본 `core` toolset을 대체하며, 합쳐지지 않습니다.
 
 CLI 인자는 환경 변수보다 우선합니다.
 
@@ -164,8 +166,12 @@ CLI 인자는 환경 변수보다 우선합니다.
 > 있습니다. 또한
 > `GITLAB_TOOLSETS=<group,…>`로 도구 그룹을 활성화하고, `GITLAB_TOOLS=<tool,…>`로 개별 도구만
 > 허용하며(예: 읽기 도구 + 특정 쓰기 도구 몇 개), `GITLAB_DENIED_TOOLS_REGEX`로 패턴 차단할 수
-> 있습니다. 레거시 `USE_GITLAB_WIKI` / `USE_MILESTONE` / `USE_PIPELINE` 플래그는 하위 호환용으로만
-> 유지됩니다. [Tools Reference](./docs/tools/index.md#feature-toggles)와
+> 있습니다. 레거시 `USE_GITLAB_WIKI` / `USE_MILESTONE` / `USE_PIPELINE` 플래그는
+> deprecated (removed in next major (v3.0.0))입니다.
+> `GITLAB_TOOLSETS=core,wiki`, `core,milestones`, `core,pipelines`를 사용하세요
+> (`USE_PIPELINE`은 `GITLAB_TOOLS=validate_ci_lint,validate_project_ci_lint`도 필요).
+> 이미 `GITLAB_TOOLSETS`를 설정했다면 toolset을 기존 목록에 추가하고, 목록 전체를 바꾸지 마세요.
+> [Tools Reference](./docs/tools/index.md#feature-toggles)와
 > [Environment Variables](./docs/configuration/environment-variables.md)를 참고하세요.
 
 - sse
@@ -176,7 +182,7 @@ docker run -i --rm \
   -e GITLAB_PERSONAL_ACCESS_TOKEN=your_gitlab_token \
   -e GITLAB_API_URL="https://gitlab.com/api/v4" \
   -e GITLAB_PERMISSION_MODE=readonly \
-  -e GITLAB_TOOLSETS=wiki,milestones,pipelines \
+  -e GITLAB_TOOLSETS=core,wiki,milestones,pipelines \
   -e SSE=true \
   -e SSE_AUTH_TOKEN=your_mcp_sse_token \
   -p 3333:3002 \
@@ -205,7 +211,7 @@ docker run -i --rm \
   -e REMOTE_AUTHORIZATION=true \
   -e GITLAB_API_URL="https://gitlab.com/api/v4" \
   -e GITLAB_PERMISSION_MODE=readonly \
-  -e GITLAB_TOOLSETS=wiki,milestones,pipelines \
+  -e GITLAB_TOOLSETS=core,wiki,milestones,pipelines \
   -e STREAMABLE_HTTP=true \
   -p 3333:3002 \
   zereight050/gitlab-mcp
@@ -525,7 +531,7 @@ node build/index.js
 | `MCP_SERVER_URL`                            | 예     | MCP 서버의 공개 HTTPS URL                                                                                                                                                  |
 | `GITLAB_API_URL`                            | 예     | GitLab 인스턴스 API URL(예: `https://gitlab.com/api/v4`)                                                                                                                   |
 | `STREAMABLE_HTTP`                           | 예     | 반드시 `true`(SSE 미지원)                                                                                                                                                  |
-| `GITLAB_OAUTH_SCOPES`                       | 아니오 | 요청할 GitLab scope 목록(쉼표 구분). 기본값은 `api` 또는 `GITLAB_READ_ONLY_MODE=true`일 때 `read_api`입니다. 사전 등록 애플리케이션에 해당 scope가 설정되어 있어야 합니다. |
+| `GITLAB_OAUTH_SCOPES`                       | 아니오 | 요청할 GitLab scope 목록(쉼표 구분). 기본값은 `api`이며, 유효 permission mode가 `readonly`일 때 `read_api`입니다. 사전 등록 애플리케이션에 해당 scope가 설정되어 있어야 합니다. |
 | `OAUTH_REGISTER_RATE_LIMIT_PER_HOUR`        | 아니오 | Dynamic Client Registration(`POST /register`)의 클라이언트 IP당 rolling 한도. 기본 `20`/시간, 범위 `1`–`1000`. IDE 창 여러 개 등으로 등록이 막히면 올리세요. GitLab API 한도와 무관합니다. |
 | `MCP_DANGEROUSLY_ALLOW_INSECURE_ISSUER_URL` | 아니오 | 로컬 HTTP 개발에서만 `true`                                                                                                                                                |
 

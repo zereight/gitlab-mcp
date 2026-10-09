@@ -20,7 +20,7 @@ directly from `TOOLSET_DEFINITIONS` in
 | Status | Groups |
 |---|---|
 | **Default** — always exposed | [Core](core.md) |
-| **Opt-in** — must be enabled | [Projects & Namespaces](projects.md), [Projects & Files](repositories.md), [Branches & Commits](branches.md), [Groups](groups.md), [Merge Requests](merge-requests.md), [Issues](issues.md), [Labels](labels.md), [Work Items](workitems.md), [CI Lint](ci.md), [Pipelines, Jobs & Deployments](pipelines.md) (also `USE_PIPELINE=true`), [Milestones](milestones.md) (also `USE_MILESTONE=true`), [Wiki](wiki.md) (also `USE_GITLAB_WIKI=true`), [Releases](releases.md), [Tags](tags.md), [Users & Events](users.md), [Variables](variables.md), [Webhooks](webhooks.md), [Search](search.md), [Dependency Proxy](dependency-proxy.md), [Vulnerabilities](vulnerabilities.md), [GitLab Orbit](orbit.md), [Snippets](snippets.md) |
+| **Opt-in** — must be enabled | [Projects & Namespaces](projects.md), [Projects & Files](repositories.md), [Branches & Commits](branches.md), [Groups](groups.md), [Merge Requests](merge-requests.md), [Issues](issues.md), [Labels](labels.md), [Work Items](workitems.md), [CI Lint](ci.md), [Pipelines, Jobs & Deployments](pipelines.md) (legacy `USE_PIPELINE=true` is deprecated; removed in next major (v3.0.0)), [Milestones](milestones.md) (legacy `USE_MILESTONE=true` is deprecated; removed in next major (v3.0.0)), [Wiki](wiki.md) (legacy `USE_GITLAB_WIKI=true` is deprecated; removed in next major (v3.0.0)), [Releases](releases.md), [Tags](tags.md), [Users & Events](users.md), [Variables](variables.md), [Webhooks](webhooks.md), [Search](search.md), [Dependency Proxy](dependency-proxy.md), [Vulnerabilities](vulnerabilities.md), [GitLab Orbit](orbit.md), [Snippets](snippets.md) |
 | **Not a toolset** — `discover_tools` is always exposed; `execute_graphql` needs `GITLAB_TOOLS` | [Meta & GraphQL](meta.md) |
 
 **How to enable opt-in groups** (any one is sufficient):
@@ -29,14 +29,14 @@ directly from `TOOLSET_DEFINITIONS` in
 - `GITLAB_TOOLSETS=all` — enables every group.
 - `GITLAB_TOOLSETS=merge_requests,issues,repositories,branches,projects,labels,ci,groups,users` — restores the pre-lean default set.
 - `GITLAB_TOOLS=<tool,…>` — enables individual tools regardless of group.
-- `USE_PIPELINE=true` / `USE_MILESTONE=true` / `USE_GITLAB_WIKI=true` — legacy single-group flags (Pipelines, Milestones, Wiki only).
+- `USE_PIPELINE`, `USE_MILESTONE`, and `USE_GITLAB_WIKI` are deprecated (removed in next major (v3.0.0)). Use `GITLAB_TOOLSETS=core,pipelines` and `GITLAB_TOOLS=validate_ci_lint,validate_project_ci_lint`, `GITLAB_TOOLSETS=core,milestones`, or `GITLAB_TOOLSETS=core,wiki`. If you already set `GITLAB_TOOLSETS`, append the toolset to your existing list instead of replacing it.
 - Call the `discover_tools` MCP tool at runtime to activate categories for the current session.
 
 Permission modes control which tools are exposed:
 
 - `GITLAB_PERMISSION_MODE=readonly` — hides every write tool regardless of toggles.
 - `GITLAB_PERMISSION_MODE=modify` — allows create/update but blocks delete and teardown tools: every `delete_*` tool, `erase_pipeline_job`, `purge_dependency_proxy_cache`, the destructive teardown verbs `cancel_pipeline`, `cancel_pipeline_job`, `stop_environment`, `stop_stale_environments`, `unprotect_branch`, plus `push_files` `delete`/`move` actions.
-- `GITLAB_READ_ONLY_MODE=true` (deprecated) — same as `readonly`; prefer `GITLAB_PERMISSION_MODE=readonly`.
+- `GITLAB_READ_ONLY_MODE=true` is deprecated (removed in next major (v3.0.0)) — same as `readonly`; use `GITLAB_PERMISSION_MODE=readonly` instead.
 
 The `modify` guard applies to typed tools (`tools/list` and `tools/call`) and to destructive mutations sent through `execute_graphql`: any top-level mutation field whose name contains a deletion verb (`delete`, `destroy`, `remove`, `prune`, `purge`, `erase`) or a teardown verb (`revoke`, `cancel`, `stop`, `terminate`, `unprotect`, `disable`, `deactivate`, `drop`, `unschedule`). See [Environment Variables](../configuration/environment-variables.md#gitlab_permission_mode).
 
@@ -315,7 +315,7 @@ Validate `.gitlab-ci.yml` snippets and project pipeline configs. *(4 tools)*
 
 Pipeline + job control (trigger, retry, cancel, play manual jobs, fetch logs/artifacts), and the deployments/environments view. *(56 tools)*
 
-> Opt-in. Enable via `GITLAB_TOOLSETS=pipelines` (or `GITLAB_TOOLSETS=all`), or use the legacy `USE_PIPELINE=true` flag for backward compatibility.
+> Opt-in. Enable via `GITLAB_TOOLSETS=core,pipelines` and `GITLAB_TOOLS=validate_ci_lint,validate_project_ci_lint` (or `GITLAB_TOOLSETS=all`). If you already set `GITLAB_TOOLSETS`, append `pipelines` to your existing list instead of replacing it. `USE_PIPELINE=true` is deprecated (removed in next major (v3.0.0)).
 
 | Tool | What it does | R/W |
 |---|---|:-:|
@@ -380,7 +380,7 @@ Pipeline + job control (trigger, retry, cancel, play manual jobs, fetch logs/art
 
 Project and group milestone CRUD plus associated issues/MRs and burndown events. *(17 tools)*
 
-> Opt-in. Enable via `GITLAB_TOOLSETS=milestones` (or `GITLAB_TOOLSETS=all`), or use the legacy `USE_MILESTONE=true` flag for backward compatibility.
+> Opt-in. Enable via `GITLAB_TOOLSETS=core,milestones` (or `GITLAB_TOOLSETS=all`). If you already set `GITLAB_TOOLSETS`, append `milestones` to your existing list instead of replacing it. `USE_MILESTONE=true` is deprecated (removed in next major (v3.0.0)).
 
 | Tool | What it does | R/W |
 |---|---|:-:|
@@ -406,7 +406,7 @@ Project and group milestone CRUD plus associated issues/MRs and burndown events.
 
 Project and group wiki page CRUD. Attachment uploads where supported. *(10 tools)*
 
-> Opt-in. Enable via `GITLAB_TOOLSETS=wiki` (or `GITLAB_TOOLSETS=all`), or use the legacy `USE_GITLAB_WIKI=true` flag for backward compatibility.
+> Opt-in. Enable via `GITLAB_TOOLSETS=core,wiki` (or `GITLAB_TOOLSETS=all`). If you already set `GITLAB_TOOLSETS`, append `wiki` to your existing list instead of replacing it. `USE_GITLAB_WIKI=true` is deprecated (removed in next major (v3.0.0)).
 
 | Tool | What it does | R/W |
 |---|---|:-:|

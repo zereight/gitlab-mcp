@@ -14,7 +14,7 @@ configSchema:
       default: https://gitlab.com/api/v4
     gitlabReadOnlyMode:
       type: boolean
-      description: Set to true to expose only read-only tools and block write operations
+      description: Deprecated (removed in next major (v3.0.0)); use GITLAB_PERMISSION_MODE=readonly instead
       default: false
     gitlabToolsets:
       type: string
@@ -40,7 +40,7 @@ startCommand:
         default: https://gitlab.com/api/v4
       gitlabReadOnlyMode:
         type: boolean
-        description: Set to true to expose only read-only tools and block write operations
+        description: Deprecated (removed in next major (v3.0.0)); use GITLAB_PERMISSION_MODE=readonly instead
         default: false
       gitlabToolsets:
         type: string
