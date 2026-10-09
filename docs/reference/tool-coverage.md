@@ -44,7 +44,7 @@ A tool counts as invoked when a test sends that name through MCP (`callTool` / `
 
 <a id="projects"></a>
 
-- [x] [`get_project`](../tools/projects.md#get_project) — `test/dynamic-routing-tests.ts`, `test/multi-server-test.ts`, `test/remote-auth-tests.ts`, `test/streamable-http-unauthenticated-discovery.test.ts`, `test/test-all-transport-server.ts`, `test/test-dynamic-project-scope.ts`, `test/test-geteffectiveprojectid.ts`
+- [x] [`get_project`](../tools/projects.md#get_project) — `test/allowed-project-access-denied.test.ts`, `test/dynamic-routing-tests.ts`, `test/multi-server-test.ts`, `test/remote-auth-tests.ts`, `test/streamable-http-unauthenticated-discovery.test.ts`, `test/test-all-transport-server.ts`, `test/test-dynamic-project-scope.ts`, `test/test-geteffectiveprojectid.ts`
 - [x] [`list_projects`](../tools/projects.md#list_projects) — `test/client-pool-test.ts`, `test/no-proxy-integration-test.ts`, `test/test-dynamic-project-scope.ts`
 - [x] [`update_project`](../tools/projects.md#update_project) — `test/test-update-project.ts`
 - [x] [`list_project_members`](../tools/projects.md#list_project_members) — `test/test-list-project-members.ts`
