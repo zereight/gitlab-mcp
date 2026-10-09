@@ -116,6 +116,33 @@ function rateLimitCurrentUser(mockGitLab: MockGitLabServer): void {
   });
 }
 
+function forbidCurrentUserForOtherReason(mockGitLab: MockGitLabServer): void {
+  mockGitLab.addMockHandler("get", "/user", (_req, res) => {
+    res.status(403).json({ message: "403 Forbidden" });
+  });
+}
+
+function jobTokenEnv(mockGitLabUrl: string): NodeJS.ProcessEnv {
+  return {
+    ...baseEnv(mockGitLabUrl),
+    // Empty string clears an inherited PAT. Deleting the key would not, because spawn
+    // copies process.env before the test env.
+    GITLAB_PERSONAL_ACCESS_TOKEN: "",
+    GITLAB_JOB_TOKEN: MOCK_TOKEN,
+  };
+}
+
+function captureJobTokenHeader(mockGitLab: MockGitLabServer): {
+  jobTokenHeader?: string | string[];
+} {
+  const captured: { jobTokenHeader?: string | string[] } = {};
+  mockGitLab.addMockHandler("get", "/job", (req, res) => {
+    captured.jobTokenHeader = req.headers["job-token"];
+    res.status(200).json({ id: 9 });
+  });
+  return captured;
+}
+
 describe("When health_check runs", () => {
   describe("with authenticated mock GitLab", () => {
     test("should include GitLab instance version metadata", async () => {
@@ -190,17 +217,13 @@ describe("When health_check runs", () => {
       mockGitLab.addMockHandler("get", "/user", (_req, res) => {
         res.status(401).json({ message: "401 Unauthorized" });
       });
-      mockGitLab.addMockHandler("get", "/job", (_req, res) => {
-        res.status(200).json({ id: 9 });
-      });
+      const capturedJob = captureJobTokenHeader(mockGitLab);
       await mockGitLab.start();
 
       try {
-        const result = await callHealthCheckAsync({
-          ...baseEnv(mockGitLab.getUrl()),
-          GITLAB_JOB_TOKEN: MOCK_TOKEN,
-        });
+        const result = await callHealthCheckAsync(jobTokenEnv(mockGitLab.getUrl()));
 
+        assert.equal(capturedJob.jobTokenHeader, MOCK_TOKEN);
         assert.equal(result.status, "ok");
         assert.equal(result.authenticated, true);
         assert.equal(result.version, "18.3.1-ee");
@@ -240,17 +263,13 @@ describe("When health_check runs", () => {
       const mockPort = await findMockServerPort();
       const mockGitLab = createMockGitLabServer(mockPort);
       forbidCurrentUser(mockGitLab);
-      mockGitLab.addMockHandler("get", "/job", (_req, res) => {
-        res.status(200).json({ id: 9 });
-      });
+      const capturedJob = captureJobTokenHeader(mockGitLab);
       await mockGitLab.start();
 
       try {
-        const result = await callHealthCheckAsync({
-          ...baseEnv(mockGitLab.getUrl()),
-          GITLAB_JOB_TOKEN: MOCK_TOKEN,
-        });
+        const result = await callHealthCheckAsync(jobTokenEnv(mockGitLab.getUrl()));
 
+        assert.equal(capturedJob.jobTokenHeader, MOCK_TOKEN);
         assert.equal(result.status, "ok");
         assert.equal(result.authenticated, true);
         assert.equal(result.version, "18.3.1-ee");
@@ -262,7 +281,7 @@ describe("When health_check runs", () => {
       }
     });
 
-    test("should stay authenticated without a scope warning when /user is rate limited", async () => {
+    test("should stay unauthenticated when /user is rate limited", async () => {
       const mockPort = await findMockServerPort();
       const mockGitLab = createMockGitLabServer(mockPort);
       rateLimitCurrentUser(mockGitLab);
@@ -271,8 +290,28 @@ describe("When health_check runs", () => {
       try {
         const result = await callHealthCheckAsync(baseEnv(mockGitLab.getUrl()));
 
-        assert.equal(result.status, "ok");
-        assert.equal(result.authenticated, true);
+        assert.equal(result.status, "error");
+        assert.equal(result.authenticated, false);
+        assert.equal(result.mcp_server_version, PACKAGE_VERSION);
+        assert.equal("user_api_warning" in result, false);
+        assert.equal("version" in result, false);
+      } finally {
+        await mockGitLab.stop();
+      }
+    });
+
+    test("should stay unauthenticated when /user 403 is not insufficient_scope", async () => {
+      const mockPort = await findMockServerPort();
+      const mockGitLab = createMockGitLabServer(mockPort);
+      forbidCurrentUserForOtherReason(mockGitLab);
+      await mockGitLab.start();
+
+      try {
+        const result = await callHealthCheckAsync(baseEnv(mockGitLab.getUrl()));
+
+        assert.equal(result.status, "error");
+        assert.equal(result.authenticated, false);
+        assert.equal(result.mcp_server_version, PACKAGE_VERSION);
         assert.equal("user_api_warning" in result, false);
         assert.equal("version" in result, false);
       } finally {

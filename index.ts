@@ -2271,6 +2271,18 @@ function isGitLabUserApiRateLimitBody(errorBody: string): boolean {
   return errorBody.includes("User API Key Rate limit exceeded");
 }
 
+function isGitLabInsufficientUserScopeBody(errorBody: string): boolean {
+  return errorBody.includes("insufficient_scope");
+}
+
+async function isInsufficientUserScopeForbiddenAsync(response: UndiciResponse): Promise<boolean> {
+  if (response.status !== 403) {
+    return false;
+  }
+  const errorBody = await response.text();
+  return isGitLabInsufficientUserScopeBody(errorBody);
+}
+
 async function throwUserApiScopeErrorUnlessRateLimitedAsync(
   response: UndiciResponse
 ): Promise<void> {
@@ -2292,16 +2304,6 @@ async function authenticateWithJobTokenFallbackAsync(response: UndiciResponse): 
 
   const jobResponse = await fetch(`${getEffectiveApiUrl()}/job`, getFetchConfig());
   return jobResponse.ok;
-}
-
-async function readUserApiHealthWarningAsync(
-  response: UndiciResponse
-): Promise<string | undefined> {
-  const errorBody = await response.text();
-  if (isGitLabUserApiRateLimitBody(errorBody)) {
-    return undefined;
-  }
-  return USER_API_HEALTH_WARNING;
 }
 
 /**
@@ -14881,15 +14883,13 @@ async function handleToolCall(params: any) {
         const url = new URL(`${getEffectiveApiUrl()}/user`);
         const response = await fetch(url.toString(), getFetchConfig());
         const jobAuthenticated = await authenticateWithJobTokenFallbackAsync(response);
-        // 403 on GET /user is a valid token with missing User API scope, not a dead PAT.
-        // Skip version metadata unless /user or the job-token fallback actually succeeded.
-        const userApiForbidden = !response.ok && !jobAuthenticated && response.status === 403;
-        const authenticated = response.ok || jobAuthenticated || userApiForbidden;
-        const userApiWarning = userApiForbidden
-          ? await readUserApiHealthWarningAsync(response)
-          : undefined;
+        // Only insufficient_scope means the token was accepted but User API scope is missing.
+        // Rate-limit and authentication-ban 403s stay unauthenticated.
+        const insufficientUserScope =
+          !jobAuthenticated && (await isInsufficientUserScopeForbiddenAsync(response));
+        const authenticated = response.ok || jobAuthenticated || insufficientUserScope;
         const versionMetadata =
-          authenticated && !userApiForbidden ? await fetchGitLabVersionMetadata() : null;
+          authenticated && !insufficientUserScope ? await fetchGitLabVersionMetadata() : null;
         return {
           content: [
             {
@@ -14899,7 +14899,7 @@ async function handleToolCall(params: any) {
                 authenticated,
                 gitlab_url: getEffectiveApiUrl(),
                 mcp_server_version: SERVER_VERSION,
-                ...(userApiWarning ? { user_api_warning: userApiWarning } : {}),
+                ...(insufficientUserScope ? { user_api_warning: USER_API_HEALTH_WARNING } : {}),
                 ...(versionMetadata ?? {}),
               }),
             },
