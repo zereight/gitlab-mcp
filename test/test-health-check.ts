@@ -110,6 +110,12 @@ function forbidCurrentUser(mockGitLab: MockGitLabServer): void {
   });
 }
 
+function forbidCurrentUserGranular(mockGitLab: MockGitLabServer): void {
+  mockGitLab.addMockHandler("get", "/user", (_req, res) => {
+    res.status(403).json({ error: "insufficient_granular_scope", scope: "user" });
+  });
+}
+
 function rateLimitCurrentUser(mockGitLab: MockGitLabServer): void {
   mockGitLab.addMockHandler("get", "/user", (_req, res) => {
     res.status(403).json({ message: "User API Key Rate limit exceeded" });
@@ -281,6 +287,30 @@ describe("When health_check runs", () => {
       }
     });
 
+    test("should report authenticated with a user API warning for insufficient_granular_scope", async () => {
+      const mockPort = await findMockServerPort();
+      const mockGitLab = createMockGitLabServer(mockPort);
+      forbidCurrentUserGranular(mockGitLab);
+      await mockGitLab.start();
+
+      try {
+        const result = await callHealthCheckAsync(baseEnv(mockGitLab.getUrl()));
+
+        assert.equal(result.status, "ok");
+        assert.equal(result.authenticated, true);
+        assert.equal(result.mcp_server_version, PACKAGE_VERSION);
+        assert.equal(typeof result.user_api_warning, "string");
+        assert.match(String(result.user_api_warning), /403/);
+        assert.match(String(result.user_api_warning), /insufficient scope/);
+        assert.match(String(result.user_api_warning), /read_user/);
+        assert.equal("version" in result, false);
+        assert.equal("revision" in result, false);
+        assert.equal("enterprise" in result, false);
+      } finally {
+        await mockGitLab.stop();
+      }
+    });
+
     test("should stay unauthenticated when /user is rate limited", async () => {
       const mockPort = await findMockServerPort();
       const mockGitLab = createMockGitLabServer(mockPort);
@@ -368,6 +398,31 @@ describe("When current-user tools call GET /user", () => {
         assert.match(result.text, /insufficient scope/);
         assert.match(result.text, /read_user/);
         assert.match(result.text, /my_issues/);
+      } finally {
+        await mockGitLab.stop();
+      }
+    });
+
+    test("should tell whoami that read_user or User API read is required for insufficient_granular_scope", async () => {
+      const mockPort = await findMockServerPort();
+      const mockGitLab = createMockGitLabServer(mockPort);
+      forbidCurrentUserGranular(mockGitLab);
+      await mockGitLab.start();
+
+      try {
+        const result = await callToolAsync(
+          {
+            ...baseEnv(mockGitLab.getUrl()),
+            GITLAB_TOOLSETS: "users",
+          },
+          "whoami"
+        );
+
+        assert.equal(result.isError, true);
+        assert.match(result.text, /GET \/api\/v4\/user/);
+        assert.match(result.text, /insufficient scope/);
+        assert.match(result.text, /read_user/);
+        assert.match(result.text, /User:Read/);
       } finally {
         await mockGitLab.stop();
       }

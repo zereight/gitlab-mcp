@@ -2272,7 +2272,10 @@ function isGitLabUserApiRateLimitBody(errorBody: string): boolean {
 }
 
 function isGitLabInsufficientUserScopeBody(errorBody: string): boolean {
-  return errorBody.includes("insufficient_scope");
+  // Fine-grained PATs use insufficient_granular_scope, which does not contain insufficient_scope.
+  return (
+    errorBody.includes("insufficient_granular_scope") || errorBody.includes("insufficient_scope")
+  );
 }
 
 async function isInsufficientUserScopeForbiddenAsync(response: UndiciResponse): Promise<boolean> {
@@ -14884,7 +14887,8 @@ async function handleToolCall(params: any) {
         const url = new URL(`${getEffectiveApiUrl()}/user`);
         const response = await fetch(url.toString(), getFetchConfig());
         const jobAuthenticated = await authenticateWithJobTokenFallbackAsync(response);
-        // Only insufficient_scope means the token was accepted but User API scope is missing.
+        // insufficient_scope and insufficient_granular_scope mean the token was accepted
+        // but User API scope is missing.
         // Rate-limit and authentication-ban 403s stay unauthenticated.
         const insufficientUserScope =
           !jobAuthenticated && (await isInsufficientUserScopeForbiddenAsync(response));
