@@ -106,7 +106,7 @@ A tool counts as invoked when a test sends that name through MCP (`callTool` / `
 - [ ] [`list_branches`](../tools/merge-requests.md#list_branches)
 - [ ] [`get_merge_request_conflicts`](../tools/merge-requests.md#get_merge_request_conflicts)
 - [x] [`list_merge_request_pipelines`](../tools/merge-requests.md#list_merge_request_pipelines) — `test/test-merge-request-pipelines.ts`
-- [x] [`get_merge_request`](../tools/merge-requests.md#get_merge_request) — `test/test-deployment-tools.ts`
+- [x] [`get_merge_request`](../tools/merge-requests.md#get_merge_request) — `test/gitlab-api-tool-errors.test.ts`, `test/test-deployment-tools.ts`
 - [x] [`get_merge_request_diffs`](../tools/merge-requests.md#get_merge_request_diffs) — `test/test-mr-diffs-filter.ts`
 - [x] [`list_merge_request_changed_files`](../tools/merge-requests.md#list_merge_request_changed_files) — `test/test-mr-file-diffs.ts`
 - [ ] [`list_merge_request_diffs`](../tools/merge-requests.md#list_merge_request_diffs)

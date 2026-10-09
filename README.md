@@ -634,15 +634,15 @@ Register the skill directory in your AI client to get optimal tool usage guidanc
 23. `protect_branch` - Protect a repository branch (set push/merge/unprotect access levels)
 24. `unprotect_branch` - Remove protection from a previously protected branch
 25. `update_default_branch` - Change the default branch of a project
-26. `get_merge_request` - Get details of a merge request (mergeRequestIid or branchName required). Set include_summaries=true for deployment/commit/approval summaries
-27. `get_merge_request_diffs` - Get the changes/diffs of a merge request (mergeRequestIid or branchName required)
-28. `list_merge_request_changed_files` - List changed file paths in a merge request without diff content (mergeRequestIid or branchName required)
-29. `list_merge_request_diffs` - List merge request diffs with pagination (mergeRequestIid or branchName required)
-30. `get_merge_request_file_diff` - Get diffs for specific files from a merge request (mergeRequestIid or branchName required)
+26. `get_merge_request` - Get details of a merge request (merge_request_iid or source_branch required). Set include_summaries=true for deployment/commit/approval summaries
+27. `get_merge_request_diffs` - Get the changes/diffs of a merge request (merge_request_iid or source_branch required)
+28. `list_merge_request_changed_files` - List changed file paths in a merge request without diff content (merge_request_iid or source_branch required)
+29. `list_merge_request_diffs` - List merge request diffs with pagination (merge_request_iid or source_branch required)
+30. `get_merge_request_file_diff` - Get diffs for specific files from a merge request (merge_request_iid or source_branch required)
 31. `list_merge_request_versions` - List all versions of a merge request
 32. `get_merge_request_version` - Get a specific version of a merge request
 33. `get_branch_diffs` - Get diffs between two branches or commits
-34. `update_merge_request` - Update a merge request (mergeRequestIid or branchName required)
+34. `update_merge_request` - Update a merge request (merge_request_iid or source_branch required)
 35. `create_note` - Create a new note (comment) to an issue or merge request
 36. `create_merge_request_thread` - Create a new thread on a merge request
 37. `resolve_merge_request_thread` - Resolve a thread on a merge request

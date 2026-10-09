@@ -114,7 +114,7 @@ Enable with `GITLAB_TOOLSETS=vulnerabilities` (requires GitLab Ultimate).
 - **project_id**: numeric ID or URL-encoded path (`group%2Fsubgroup%2Fproject`)
 - **namespace_id**: numeric namespace ID for `create_repository`; use `list_namespaces`/`verify_namespace` first
 - **parent_id**: scope subgroup creation or `verify_namespace` for nested groups
-- **MR lookup**: provide `mergeRequestIid` OR `branchName` (not both)
+- **MR lookup**: provide `merge_request_iid` or `source_branch`
 - **list_issues**: default scope = created by current user. Use `scope: "all"` for all issues
 - **list_merge_requests**: without project_id returns user's MRs across all projects
 - **CI catalog resource lookup**: provide exactly one of `id` or `full_path`

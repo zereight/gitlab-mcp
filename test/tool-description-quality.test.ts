@@ -64,4 +64,14 @@ describe("When MCP tool descriptions are exposed", () => {
       assert.doesNotMatch(tool.description, /group_id/);
     });
   });
+
+  describe("with get_merge_request", () => {
+    it("should name the merge request lookup fields exactly as exposed by the schema", () => {
+      const tool = getExposedTool("get_merge_request");
+
+      assert.match(tool.description, /merge_request_iid/);
+      assert.match(tool.description, /source_branch/);
+      assert.doesNotMatch(tool.description, /mergeRequestIid|branchName/);
+    });
+  });
 });
