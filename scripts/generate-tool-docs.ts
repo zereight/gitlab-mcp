@@ -43,6 +43,10 @@ function isDefaultToolset(id: ToolsetId): boolean {
   return TOOLSET_DEFINITIONS.find(d => d.id === id)?.isDefault ?? false;
 }
 
+function isExplicitOnlyToolset(id: ToolsetId): boolean {
+  return TOOLSET_DEFINITIONS.find(definition => definition.id === id)?.explicitOnly === true;
+}
+
 /** Tools of this group that are already exposed by a default toolset (e.g. `core`). */
 function findDefaultOverlap(toolNames: readonly string[]): string[] {
   const defaults = TOOLSET_DEFINITIONS.filter(d => d.isDefault);
@@ -59,6 +63,9 @@ function formatDefaultOverlapNote(toolNames: readonly string[]): string {
 /** Returns the availability note for a toolset group, or undefined when it is on by default. */
 function computeToggleNote(id: ToolsetId, toolNames: readonly string[] = []): string | undefined {
   if (isDefaultToolset(id)) return undefined;
+  if (isExplicitOnlyToolset(id)) {
+    return `Explicit opt-in only. Enable by listing \`${id}\` in \`GITLAB_TOOLSETS\` (for example \`GITLAB_TOOLSETS=${id}\` or \`GITLAB_TOOLSETS=core,${id}\`). \`GITLAB_TOOLSETS=all\`, \`discover_tools\`, \`GITLAB_TOOLS\`, legacy \`USE_*\` flags, and \`GITLAB_TOOL_PROFILE\` do not enable it.`;
+  }
   // Synthetic group for tools not in any TOOLSET_DEFINITIONS entry.
   // discover_tools is always exposed; execute_graphql is opt-in via GITLAB_TOOLS.
   if ((id as string) === "meta") {
@@ -178,6 +185,11 @@ const GROUP_META: Record<ToolsetId, GroupMeta> = {
     blurb:
       "Snippet CRUD — list, get (with optional file content), create, update, and delete personal or project snippets.",
   },
+  api: {
+    title: "Raw API",
+    blurb:
+      "Explicit opt-in escape hatch for one GitLab REST call under /api/v4. Not part of core, not enabled by GITLAB_TOOLSETS=all, and not activatable with discover_tools.",
+  },
 };
 
 const GROUP_ORDER: ToolsetId[] = [
@@ -204,6 +216,7 @@ const GROUP_ORDER: ToolsetId[] = [
   "vulnerabilities",
   "orbit",
   "snippets",
+  "api",
 ];
 
 // --- Helpers --------------------------------------------------------------
@@ -317,6 +330,17 @@ function toolSection(name: string, description: string, schema: JsonSchema | und
 function buildGroupPage(id: ToolsetId, toolNames: string[]): string {
   const meta = GROUP_META[id];
   const lines: string[] = [`# ${meta.title}`, "", meta.blurb, ""];
+  if (isExplicitOnlyToolset(id)) {
+    lines.push(`!!! danger "Raw API escape hatch"`);
+    lines.push(
+      `    \`gitlab_api_request\` bypasses \`GITLAB_ALLOWED_GROUPS\` and other group restrictions, project allowlists, tool-level restrictions (\`GITLAB_TOOLS\`, \`GITLAB_DENIED_TOOLS_REGEX\` on other tools), and individual tool safety checks. The full token permission scope is exposed. Prompt injection in GitLab content can drive this tool. Operators who rely on these restrictions must NOT enable it.`
+    );
+    lines.push("    ");
+    lines.push(
+      `    \`GITLAB_ALLOWED_PROJECT_IDS\` and a session project scope are checked only for \`/projects/:id\` and \`/projects/:id/...\`. Endpoints such as \`/search\`, \`/users\`, \`/groups/:id\`, \`/runners\`, and the \`/projects\` collection are not constrained. \`GITLAB_PROJECT_ID\` and OAuth group allowlists are not enforced.`
+    );
+    lines.push("");
+  }
   const toggle = computeToggleNote(id, toolNames);
   if (toggle) {
     lines.push(`!!! note "Feature toggle"`);
@@ -350,8 +374,12 @@ function buildGroupPage(id: ToolsetId, toolNames: string[]): string {
 function buildToggleSection(groupedToolsList: Array<[ToolsetId, string[]]>): string[] {
   const grouped = groupedToolsList.filter(([id]) => GROUP_META[id]);
   const defaults = grouped.filter(([id]) => isDefaultToolset(id));
+  const explicit = grouped.filter(
+    ([id]) => isExplicitOnlyToolset(id) && (id as string) !== META_GROUP_ID
+  );
   const optins = grouped.filter(
-    ([id]) => !isDefaultToolset(id) && (id as string) !== META_GROUP_ID
+    ([id]) =>
+      !isDefaultToolset(id) && !isExplicitOnlyToolset(id) && (id as string) !== META_GROUP_ID
   );
   const meta = grouped.filter(([id]) => (id as string) === META_GROUP_ID);
 
@@ -370,6 +398,11 @@ function buildToggleSection(groupedToolsList: Array<[ToolsetId, string[]]>): str
     "|---|---|",
     `| **Default** — always exposed | ${formatList(defaults)} |`,
     `| **Opt-in** — must be enabled | ${formatList(optins)} |`,
+    ...(explicit.length > 0
+      ? [
+          `| **Explicit opt-in** — not included in \`all\` or \`discover_tools\` | ${formatList(explicit)} |`,
+        ]
+      : []),
     ...(meta.length > 0
       ? [
           `| **Not a toolset** — \`discover_tools\` is always exposed; \`execute_graphql\` needs \`GITLAB_TOOLS\` | ${formatList(meta)} |`,
@@ -379,9 +412,9 @@ function buildToggleSection(groupedToolsList: Array<[ToolsetId, string[]]>): str
     "**How to enable opt-in groups** (any one is sufficient):",
     "",
     "- `GITLAB_TOOLSETS=<group,…>` — comma-separated toolset IDs.",
-    "- `GITLAB_TOOLSETS=all` — enables every group.",
+    "- `GITLAB_TOOLSETS=all` — enables every group except explicit-only toolsets (`api`).",
     "- `GITLAB_TOOLSETS=merge_requests,issues,repositories,branches,projects,labels,ci,groups,users` — restores the pre-lean default set.",
-    "- `GITLAB_TOOLS=<tool,…>` — enables individual tools regardless of group.",
+    "- `GITLAB_TOOLS=<tool,…>` — enables individual tools regardless of group, except explicit-only tools such as `gitlab_api_request`.",
     "- `USE_PIPELINE=true` / `USE_MILESTONE=true` / `USE_GITLAB_WIKI=true` —" +
       " legacy single-group flags (Pipelines, Milestones, Wiki only).",
     "- Call the `discover_tools` MCP tool at runtime to activate categories" +
@@ -414,7 +447,7 @@ function buildIndexPage(groupedToolsList: Array<[ToolsetId, string[]]>): string 
     "",
     "Permission modes control which tools are exposed:",
     "",
-    "- `GITLAB_PERMISSION_MODE=readonly` — hides every write tool regardless of toggles.",
+    "- `GITLAB_PERMISSION_MODE=readonly` — hides every write tool regardless of toggles. Mixed tools (`execute_graphql`, `gitlab_api_request`) stay listed; their handlers reject writes.",
     "- `GITLAB_PERMISSION_MODE=modify` — allows create/update but blocks delete and teardown tools: every `delete_*` tool, `erase_pipeline_job`, `purge_dependency_proxy_cache`, the destructive teardown verbs `cancel_pipeline`, `cancel_pipeline_job`, `stop_environment`, `stop_stale_environments`, `unprotect_branch`, plus `push_files` `delete`/`move` actions.",
     "- `GITLAB_READ_ONLY_MODE=true` (deprecated) — same as `readonly`; prefer `GITLAB_PERMISSION_MODE=readonly`.",
     "",
@@ -428,7 +461,7 @@ function buildIndexPage(groupedToolsList: Array<[ToolsetId, string[]]>): string 
     "| Marker | Meaning |",
     "|---|---|",
     "| 📖 | **Read-only** — fetches data, does not modify GitLab state. Safe to invoke freely. |",
-    "| 📖✏️ | **Reads and writes** — can query or mutate. `execute_graphql` stays available in readonly mode, which rejects its mutations and subscriptions. |",
+    "| 📖✏️ | **Reads and writes** — can query or mutate. `execute_graphql` and `gitlab_api_request` stay available in readonly mode, which rejects their writes. |",
     "| ✏️ | **Writes** — creates, updates, or deletes data on GitLab. Confirm intent before running. |",
     "",
     "## Browse by group",

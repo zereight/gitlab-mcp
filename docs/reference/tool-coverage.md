@@ -8,9 +8,9 @@ A tool counts as invoked when a test sends that name through MCP (`callTool` / `
 
 | | |
 | --- | ---: |
-| Tools | 268 |
-| Invoked | 163 |
-| Coverage | 60.8% |
+| Tools | 269 |
+| Invoked | 164 |
+| Coverage | 61.0% |
 
 ## By toolset
 
@@ -38,6 +38,7 @@ A tool counts as invoked when a test sends that name through MCP (`callTool` / `
 | [Vulnerabilities](#vulnerabilities) | 4 | 4 | 100.0% |
 | [GitLab Orbit](#orbit) | 4 | 4 | 100.0% |
 | [Snippets](#snippets) | 5 | 5 | 100.0% |
+| [Raw API](#api) | 1 | 1 | 100.0% |
 | [Meta & GraphQL](#meta) | 2 | 2 | 100.0% |
 
 ## Projects & Namespaces
@@ -418,9 +419,15 @@ A tool counts as invoked when a test sends that name through MCP (`callTool` / `
 - [x] [`update_snippet`](../tools/snippets.md#update_snippet) — `test/test-dynamic-project-scope.ts`, `test/test-snippets.ts`
 - [x] [`delete_snippet`](../tools/snippets.md#delete_snippet) — `test/test-dynamic-project-scope.ts`, `test/test-snippets.ts`
 
+## Raw API
+
+<a id="api"></a>
+
+- [x] [`gitlab_api_request`](../tools/api.md#gitlab_api_request) — `test/test-gitlab-api-request.ts`
+
 ## Meta & GraphQL
 
 <a id="meta"></a>
 
 - [x] [`execute_graphql`](../tools/meta.md#execute_graphql) — `test/test-dynamic-project-scope.ts`, `test/test-permission-mode.ts`
-- [x] [`discover_tools`](../tools/meta.md#discover_tools) — `test/streamable-http-sse-stream.test.ts`, `test/test-permission-mode.ts`, `test/test-token-optimizations.ts`, `test/utils/tool-profile-server.test.ts`
+- [x] [`discover_tools`](../tools/meta.md#discover_tools) — `test/streamable-http-sse-stream.test.ts`, `test/test-gitlab-api-request.ts`, `test/test-permission-mode.ts`, `test/test-token-optimizations.ts`, `test/utils/tool-profile-server.test.ts`

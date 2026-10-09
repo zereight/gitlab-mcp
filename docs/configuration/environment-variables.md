@@ -623,6 +623,8 @@ Behavior:
   mutation field whose name contains a deletion verb (`delete`, `destroy`, `remove`, `prune`,
   `purge`, `erase`) or a teardown verb (`revoke`, `cancel`, `stop`, `terminate`, `unprotect`,
   `disable`, `deactivate`, `drop`, `unschedule`)
+- `gitlab_api_request`, when the `api` toolset is explicitly enabled, stays listed in `readonly`
+  and `modify`. The handler allows only `GET` in `readonly` and rejects `DELETE` in `modify`
 - Invalid values fail startup with an error
 - `GITLAB_DENIED_TOOLS_REGEX` and the tool policy variables still apply on top
 
@@ -660,8 +662,17 @@ For agent-specific tool surfaces, see
 
 Special values:
 
-- `all` — enable every toolset.
+- `all` — enable every toolset except the explicit-only `api` toolset.
 - `GITLAB_TOOLSETS=merge_requests,issues,repositories,branches,projects,labels,ci,groups,users` — restores the pre-lean default set.
+- `api` — enable `gitlab_api_request`. This id is **not** included in `all`. `discover_tools`, `GITLAB_TOOLS=gitlab_api_request`, legacy `USE_*` flags, and `GITLAB_TOOL_PROFILE` do not enable it. CLI: `--toolsets=api` (same `--toolsets` flag as the other ids).
+
+!!! danger "gitlab_api_request bypasses other restrictions"
+
+    `gitlab_api_request` bypasses `GITLAB_ALLOWED_GROUPS` and other group restrictions, project allowlists, tool-level restrictions (`GITLAB_TOOLS`, `GITLAB_DENIED_TOOLS_REGEX` on other tools), and individual tool safety checks. The full token permission scope is exposed. Prompt injection in GitLab content can drive this tool. Operators who rely on these restrictions must NOT enable the `api` toolset.
+
+    `GITLAB_ALLOWED_PROJECT_IDS` and a session project scope (`ENABLE_DYNAMIC_PROJECT_SCOPE`) are checked only for `/projects/:id` and `/projects/:id/...`. Endpoints such as `/search`, `/users`, `/groups/:id`, `/runners`, and the `/projects` collection are not constrained. `GITLAB_PROJECT_ID` and OAuth group allowlists (`GITLAB_OAUTH_ALLOWED_GROUPS` / `GITLAB_ALLOWED_GROUPS`, which are checked at login) are not enforced by this tool.
+
+    When the toolset is enabled the server logs a startup warning. `GITLAB_PERMISSION_MODE=readonly` (and legacy `GITLAB_READ_ONLY_MODE=true`) still lists the tool but the handler allows only `GET`. `modify` rejects `DELETE`. `GITLAB_DENIED_TOOLS_REGEX` and `GITLAB_TOOL_POLICY_APPROVE` still apply to `gitlab_api_request` itself.
 
 ### `GITLAB_TOOLS`
 

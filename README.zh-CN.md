@@ -17,7 +17,7 @@
 
 ### 为什么使用这个 GitLab MCP？
 
-- **268 个工具：toolset 中 266 个 + `execute_graphql` + `discover_tools`** — 从小型 toolset 开始，运行时按需激活类别
+- **269 个工具：toolset 中 267 个 + `execute_graphql` + `discover_tools`** — 从小型 toolset 开始，运行时按需激活类别
 - **MR 两步审查** — `list_merge_request_changed_files` → 批量 `get_merge_request_file_diff`
 - **内置 Agent Skill** — `skills/gitlab-mcp/` 工作流指南
 - **认证灵活** — Personal Access Token、本地 OAuth2 浏览器流程、MCP OAuth 代理、按请求远程授权
@@ -31,7 +31,7 @@
 | | @zereight/mcp-gitlab | GitLab MCP A（社区 CQRS 型） |
 |---|----------------------|------------------------------|
 | **更适合** | AI 代理工作流 | 企业多实例 / 分组工具 |
-| **工具模型** | 268 个工具：toolset 中 266 个 + `execute_graphql` + `discover_tools` | ~50–60 个 `browse_*` / `manage_*` 分组工具 |
+| **工具模型** | 269 个工具：toolset 中 267 个 + `execute_graphql` + `discover_tools` | ~50–60 个 `browse_*` / `manage_*` 分组工具 |
 | **MR 审查** | 两步批量 diff | 因服务器而异 |
 | **Node.js** | >=18.17 | 通常 >=24 |
 | **许可证** | MIT | 因服务器而异 |
@@ -135,7 +135,7 @@ command = lib.getExe inputs.gitlab-mcp.packages.${system}.default;
 - `--api-url` - GitLab API URL（替代 `GITLAB_API_URL`）
 - `--read-only=true` - 启用只读模式（替代 `GITLAB_READ_ONLY_MODE`，已弃用 — 推荐 `--permission-mode=readonly`）
 - `--permission-mode` - 权限级别：`readonly`、`modify`（禁用删除/拆除工具）或 `full`（替代 `GITLAB_PERMISSION_MODE`，默认 `full`）
-- `--toolsets=all` - 启用指定工具集（替代 `GITLAB_TOOLSETS`；未设置时使用精简 `core` 默认值）
+- `--toolsets=all` - 启用指定工具集，但不包括必须显式列出的 `api`（替代 `GITLAB_TOOLSETS`；未设置时使用精简 `core` 默认值）。`gitlab_api_request` 需要 `--toolsets=api`
 - `--tools=list_issues` - 添加单个工具（替代 `GITLAB_TOOLS`）
 - `--use-wiki=true` - 启用 Wiki API（替代 `USE_GITLAB_WIKI`，旧版 — 推荐 `GITLAB_TOOLSETS=wiki`）
 - `--use-milestone=true` - 启用里程碑 API（替代 `USE_MILESTONE`，旧版 — 推荐 `GITLAB_TOOLSETS=milestones`）
@@ -166,6 +166,10 @@ CLI 参数优先于环境变量。
 > 旧版 `USE_GITLAB_WIKI` / `USE_MILESTONE` / `USE_PIPELINE` 标志仅为向后兼容保留。
 > 参见 [Tools Reference](./docs/tools/index.md#feature-toggles) 和
 > [Environment Variables](./docs/configuration/environment-variables.md)。
+
+> [!CAUTION]
+> `gitlab_api_request`（`api` 工具集）会绕过 `GITLAB_ALLOWED_GROUPS` 及其他群组限制、项目允许列表、工具级限制（`GITLAB_TOOLS`、作用在其他工具上的 `GITLAB_DENIED_TOOLS_REGEX`）以及各个工具自己的安全检查。令牌的完整权限范围都会暴露。提示注入可以驱动这个工具。依赖这些限制的运维人员不得启用它。
+> 只有在 `GITLAB_TOOLSETS` 中显式写入 `api` 时才会启用（`GITLAB_TOOLSETS=all`、`discover_tools`、`GITLAB_TOOLS`、旧版 `USE_*`、`GITLAB_TOOL_PROFILE` 都不会）。`GITLAB_ALLOWED_PROJECT_IDS` 只检查 `/projects/:id` 路径。`/search`、`/users`、`/groups/:id`、`/runners` 等端点不受约束。`GITLAB_PROJECT_ID` 和 OAuth 群组允许列表不会被此工具强制执行。
 
 - sse
 
