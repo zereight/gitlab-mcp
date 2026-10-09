@@ -916,8 +916,9 @@ Set this for any multi-pod deployment that returns download URLs.
 
 ### `DOWNLOAD_TOKEN_TTL`
 
-Download-token lifetime in seconds. Default `300`. Non-numeric, zero, and
-negative values fall back to `300`.
+Download-token lifetime in seconds. Default `300`. `parseInt` takes the
+numeric prefix (`12abc` becomes `12`). Values with no numeric prefix, or
+values `<= 0`, fall back to `300`.
 
 ## Network and TLS
 
