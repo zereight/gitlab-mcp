@@ -109,6 +109,7 @@ Make sure those pass locally before pushing.
 ```bash
 GITLAB_PERSONAL_ACCESS_TOKEN=glpat-xxxx \
 GITLAB_API_URL=https://gitlab.com/api/v4 \
+TEST_PROJECT_ID=<sandbox project id> \
   npm run test:live
 ```
 
