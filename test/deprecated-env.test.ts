@@ -64,6 +64,18 @@ describe("When GITLAB_ALLOWED_GROUPS is set", () => {
   });
 });
 
+describe("When USE_PIPELINE is enabled", () => {
+  describe("with the flag set to true", () => {
+    test("should name the CI lint tools the pipelines toolset omits", () => {
+      const [warning] = warningsFor({ usePipelineRaw: "true" });
+      assert.match(
+        warning,
+        /Use GITLAB_TOOLSETS=core,pipelines and GITLAB_TOOLS=validate_ci_lint,validate_project_ci_lint instead/
+      );
+    });
+  });
+});
+
 describe("When legacy toolset flags are enabled", () => {
   describe("with all three flags", () => {
     test("should warn once per flag with its GITLAB_TOOLSETS replacement", () => {
@@ -73,20 +85,32 @@ describe("When legacy toolset flags are enabled", () => {
         usePipelineRaw: "true",
       });
       assert.equal(warnings.length, 3);
-      assert.match(warnings[0], /USE_GITLAB_WIKI.*GITLAB_TOOLSETS=wiki/);
-      assert.match(warnings[1], /USE_MILESTONE.*GITLAB_TOOLSETS=milestones/);
-      assert.match(warnings[2], /USE_PIPELINE.*GITLAB_TOOLSETS=pipelines/);
+      assert.match(warnings[0], /USE_GITLAB_WIKI.*GITLAB_TOOLSETS=core,wiki/);
+      assert.match(warnings[1], /USE_MILESTONE.*GITLAB_TOOLSETS=core,milestones/);
+      assert.match(warnings[2], /USE_PIPELINE.*GITLAB_TOOLSETS=core,pipelines/);
     });
   });
 });
 
 describe("When a legacy toolset flag is explicitly false", () => {
+  describe("with USE_PIPELINE=false", () => {
+    test("should keep the CI lint tools in the optional replacement", () => {
+      const [warning] = warningsFor({ usePipelineRaw: "false" });
+      assert.match(
+        warning,
+        /Set GITLAB_TOOLSETS=core,pipelines and GITLAB_TOOLS=validate_ci_lint,validate_project_ci_lint only if you want those tools in addition to core/
+      );
+    });
+  });
+
   describe("with USE_GITLAB_WIKI=false", () => {
     test("should warn to remove it without enabling the toolset", () => {
       const [warning, ...rest] = warningsFor({ useWikiRaw: "false" });
       assert.match(warning, /USE_GITLAB_WIKI is set to "false"/);
       assert.match(warning, /does not enable the wiki toolset/);
-      assert.doesNotMatch(warning, /Use GITLAB_TOOLSETS=wiki instead/);
+      assert.match(warning, /GITLAB_TOOLSETS=core,wiki/);
+      assert.match(warning, /in addition to core/);
+      assert.doesNotMatch(warning, /Use GITLAB_TOOLSETS=core,wiki instead/);
       assert.equal(rest.length, 0);
     });
   });
