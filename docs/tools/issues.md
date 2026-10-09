@@ -89,7 +89,7 @@ List issues (default: created by current user; use scope='all' for all). Use thi
 
 *📖 Read-only*
 
-List issues assigned to the authenticated user. Use this for issue management: list issues assigned to the authenticated user. Use `list_issues` for project-wide or author-scoped listing and `get_issue` for one issue. It is read-only and paginated, requires authentication, and returns assigned issue records or permission/rate-limit errors.
+List issues assigned to the authenticated user. Use this for issue management: list issues assigned to the authenticated user. Use `list_issues` for project-wide or author-scoped listing and `get_issue` for one issue. Resolving the current user requires classic read_user or fine-grained User:Read. It is read-only and paginated, requires authentication, and returns assigned issue records or permission/rate-limit errors.
 
 **Parameters**
 

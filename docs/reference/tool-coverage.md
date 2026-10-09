@@ -9,8 +9,8 @@ A tool counts as invoked when a test sends that name through MCP (`callTool` / `
 | | |
 | --- | ---: |
 | Tools | 268 |
-| Invoked | 162 |
-| Coverage | 60.4% |
+| Invoked | 163 |
+| Coverage | 60.8% |
 
 ## By toolset
 
@@ -30,7 +30,7 @@ A tool counts as invoked when a test sends that name through MCP (`callTool` / `
 | [Wiki](#wiki) | 10 | 10 | 100.0% |
 | [Releases](#releases) | 7 | 7 | 100.0% |
 | [Tags](#tags) | 5 | 5 | 100.0% |
-| [Users & Events](#users) | 3 | 7 | 42.9% |
+| [Users & Events](#users) | 4 | 7 | 57.1% |
 | [Variables](#variables) | 10 | 10 | 100.0% |
 | [Webhooks](#webhooks) | 3 | 6 | 50.0% |
 | [Search](#search) | 3 | 3 | 100.0% |
@@ -150,7 +150,7 @@ A tool counts as invoked when a test sends that name through MCP (`callTool` / `
 
 - [x] [`create_issue`](../tools/issues.md#create_issue) — `test/test-permission-mode.ts`, `test/test-token-optimizations.ts`
 - [x] [`list_issues`](../tools/issues.md#list_issues) — `test/dynamic-api-url-allowlist.test.ts`, `test/response-masking.test.ts`, `test/test-dynamic-project-scope.ts`, `test/test-list-issues.ts`, `test/test-token-optimizations.ts`
-- [x] [`my_issues`](../tools/issues.md#my_issues) — `test/response-masking.test.ts`
+- [x] [`my_issues`](../tools/issues.md#my_issues) — `test/response-masking.test.ts`, `test/test-health-check.ts`
 - [x] [`get_issue`](../tools/issues.md#get_issue) — `test/test-issue-description-patch.ts`, `test/test-update-issue-slim.ts`
 - [x] [`update_issue`](../tools/issues.md#update_issue) — `test/test-update-issue-slim.ts`
 - [x] [`update_issue_description_patch`](../tools/issues.md#update_issue_description_patch) — `test/test-issue-description-patch.ts`
@@ -341,7 +341,7 @@ A tool counts as invoked when a test sends that name through MCP (`callTool` / `
 
 - [ ] [`get_users`](../tools/users.md#get_users)
 - [ ] [`get_user`](../tools/users.md#get_user)
-- [ ] [`whoami`](../tools/users.md#whoami)
+- [x] [`whoami`](../tools/users.md#whoami) — `test/test-health-check.ts`
 - [x] [`list_events`](../tools/users.md#list_events) — `test/test-blank-filters.ts`
 - [ ] [`get_project_events`](../tools/users.md#get_project_events)
 - [x] [`upload_markdown`](../tools/users.md#upload_markdown) — `test/test-remote-downloads.ts`, `test/test-upload-markdown.ts`

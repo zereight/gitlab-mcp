@@ -2261,6 +2261,55 @@ async function handleGitLabError(response: UndiciResponse): Promise<void> {
   }
 }
 
+const USER_API_INSUFFICIENT_SCOPE_MESSAGE =
+  "GitLab API error: 403 Forbidden on GET /api/v4/user (insufficient scope). The token was accepted, but read_user (classic PAT) or User API read (fine-grained User:Read) is required for whoami, my_issues, and other current-user tools.";
+
+const USER_API_HEALTH_WARNING =
+  "GET /api/v4/user returned 403 (insufficient scope). The token was accepted and other tools may still work. Grant read_user (classic) or User:Read (fine-grained) for whoami, my_issues, and version metadata.";
+
+function isGitLabUserApiRateLimitBody(errorBody: string): boolean {
+  return errorBody.includes("User API Key Rate limit exceeded");
+}
+
+function isGitLabInsufficientUserScopeBody(errorBody: string): boolean {
+  // Fine-grained PATs use insufficient_granular_scope, which does not contain insufficient_scope.
+  return (
+    errorBody.includes("insufficient_granular_scope") || errorBody.includes("insufficient_scope")
+  );
+}
+
+async function isInsufficientUserScopeForbiddenAsync(response: UndiciResponse): Promise<boolean> {
+  if (response.status !== 403) {
+    return false;
+  }
+  const errorBody = await response.text();
+  return isGitLabInsufficientUserScopeBody(errorBody);
+}
+
+async function throwUserApiScopeErrorUnlessRateLimitedAsync(
+  response: UndiciResponse
+): Promise<void> {
+  const errorBody = await response.clone().text();
+  // Rate-limit and other 403s keep the upstream body via handleGitLabError.
+  if (isGitLabUserApiRateLimitBody(errorBody) || !isGitLabInsufficientUserScopeBody(errorBody)) {
+    return;
+  }
+  throw new GitLabApiError(USER_API_INSUFFICIENT_SCOPE_MESSAGE);
+}
+
+async function authenticateWithJobTokenFallbackAsync(response: UndiciResponse): Promise<boolean> {
+  if (
+    response.ok ||
+    (response.status !== 401 && response.status !== 403) ||
+    !(GITLAB_JOB_TOKEN || usesJobTokenHeader())
+  ) {
+    return false;
+  }
+
+  const jobResponse = await fetch(`${getEffectiveApiUrl()}/job`, getFetchConfig());
+  return jobResponse.ok;
+}
+
 /**
  * @param {string} projectId - The project ID parameter passed to the function
  * @returns {string} The project ID to use for the API call
@@ -9563,6 +9612,10 @@ async function getCurrentUser(): Promise<GitLabUser> {
     }
   }
 
+  if (response.status === 403) {
+    await throwUserApiScopeErrorUnlessRateLimitedAsync(response);
+  }
+
   await handleGitLabError(response);
   throw new Error(`GitLab API error: ${response.status} ${response.statusText}`);
 }
@@ -12178,6 +12231,10 @@ async function handleToolCall(params: any) {
         const response = await fetch(url.toString(), {
           ...getFetchConfig(),
         });
+
+        if (response.status === 403) {
+          await throwUserApiScopeErrorUnlessRateLimitedAsync(response);
+        }
 
         await handleGitLabError(response);
         const data = await response.json();
@@ -14829,17 +14886,15 @@ async function handleToolCall(params: any) {
         HealthCheckSchema.parse(params.arguments ?? {});
         const url = new URL(`${getEffectiveApiUrl()}/user`);
         const response = await fetch(url.toString(), getFetchConfig());
-        let authenticated = response.ok;
-        if (
-          !authenticated &&
-          (response.status === 401 || response.status === 403) &&
-          (GITLAB_JOB_TOKEN || usesJobTokenHeader())
-        ) {
-          const jobUrl = new URL(`${getEffectiveApiUrl()}/job`);
-          const jobResponse = await fetch(jobUrl.toString(), getFetchConfig());
-          authenticated = jobResponse.ok;
-        }
-        const versionMetadata = authenticated ? await fetchGitLabVersionMetadata() : null;
+        const jobAuthenticated = await authenticateWithJobTokenFallbackAsync(response);
+        // insufficient_scope and insufficient_granular_scope mean the token was accepted
+        // but User API scope is missing.
+        // Rate-limit and authentication-ban 403s stay unauthenticated.
+        const insufficientUserScope =
+          !jobAuthenticated && (await isInsufficientUserScopeForbiddenAsync(response));
+        const authenticated = response.ok || jobAuthenticated || insufficientUserScope;
+        const versionMetadata =
+          authenticated && !insufficientUserScope ? await fetchGitLabVersionMetadata() : null;
         return {
           content: [
             {
@@ -14849,6 +14904,7 @@ async function handleToolCall(params: any) {
                 authenticated,
                 gitlab_url: getEffectiveApiUrl(),
                 mcp_server_version: SERVER_VERSION,
+                ...(insufficientUserScope ? { user_api_warning: USER_API_HEALTH_WARNING } : {}),
                 ...(versionMetadata ?? {}),
               }),
             },
