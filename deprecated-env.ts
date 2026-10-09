@@ -7,17 +7,20 @@ function shownEnvValue(rawValue: string): string {
 }
 
 function legacyToolsetWarning(envName: string, rawValue: string, toolset: string): string {
+  // An explicit GITLAB_TOOLSETS list replaces the default toolsets; it does not merge.
+  // Legacy USE_* flags add tools on top of defaults, so the hint must keep `core`.
+  const replacement = `GITLAB_TOOLSETS=core,${toolset}`;
   if (rawValue === "true") {
     return (
       `${envName} is deprecated and will be removed in the next major version. ` +
-      `Use GITLAB_TOOLSETS=${toolset} instead.`
+      `Use ${replacement} instead.`
     );
   }
   const shown = shownEnvValue(rawValue);
   return (
     `${envName} is set to "${shown}" and is deprecated. ` +
     `This value does not enable the ${toolset} toolset. Remove it. ` +
-    `Set GITLAB_TOOLSETS=${toolset} only if you want those tools enabled.`
+    `Set ${replacement} only if you want those tools in addition to core.`
   );
 }
 
