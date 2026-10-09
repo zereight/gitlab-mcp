@@ -16,6 +16,10 @@ configSchema:
       type: boolean
       description: Set to true to expose only read-only tools and block write operations
       default: false
+    gitlabPermissionMode:
+      type: string
+      enum: [readonly, modify, full]
+      description: Permission level for exposed tools (readonly = read-only tools only, modify = no delete/teardown tools, full = all; default full). Replaces the deprecated gitlabReadOnlyMode / GITLAB_READ_ONLY_MODE.
     gitlabToolsets:
       type: string
       description: Optional comma-separated list of toolsets to enable (e.g. projects,issues,merge_requests,pipelines)
@@ -42,6 +46,10 @@ startCommand:
         type: boolean
         description: Set to true to expose only read-only tools and block write operations
         default: false
+      gitlabPermissionMode:
+        type: string
+        enum: [readonly, modify, full]
+        description: Permission level for exposed tools (readonly = read-only tools only, modify = no delete/teardown tools, full = all; default full). Replaces the deprecated gitlabReadOnlyMode / GITLAB_READ_ONLY_MODE.
       gitlabToolsets:
         type: string
         description: Optional comma-separated list of toolsets to enable (e.g. projects,issues,merge_requests,pipelines)
@@ -57,6 +65,7 @@ startCommand:
         GITLAB_PERSONAL_ACCESS_TOKEN: config.gitlabPersonalAccessToken,
         ...(config.gitlabApiUrl ? { GITLAB_API_URL: config.gitlabApiUrl } : {}),
         ...(config.gitlabReadOnlyMode !== undefined ? { GITLAB_READ_ONLY_MODE: String(config.gitlabReadOnlyMode) } : {}),
+        ...(config.gitlabPermissionMode ? { GITLAB_PERMISSION_MODE: config.gitlabPermissionMode } : {}),
         ...(config.gitlabToolsets ? { GITLAB_TOOLSETS: config.gitlabToolsets } : {}),
         ...(config.gitlabMaskingEnabled !== undefined ? { GITLAB_MASKING_ENABLED: String(config.gitlabMaskingEnabled) } : {})
       }
