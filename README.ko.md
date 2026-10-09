@@ -168,7 +168,7 @@ CLI 인자는 환경 변수보다 우선합니다.
 > 유지됩니다. [Tools Reference](./docs/tools/index.md#feature-toggles)와
 > [Environment Variables](./docs/configuration/environment-variables.md)를 참고하세요.
 
-#### SSE
+- sse
 
 ```shell
 docker run -i --rm \
@@ -197,7 +197,7 @@ docker run -i --rm \
 }
 ```
 
-#### Streamable HTTP
+- streamable-http
 
 ```shell
 docker run -i --rm \

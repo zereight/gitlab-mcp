@@ -876,7 +876,7 @@ Register the skill directory in your AI client to get optimal tool usage guidanc
 265. `create_snippet` - Create a snippet — project-scoped when project_id is given, otherwise a personal snippet. Requires title plus either file_name + content (single file) or files[] (multi-file); the two shapes cannot be mixed.
 266. `update_snippet` - Update an existing snippet (provide at least one field to change). For multi-file edits — renames, deletions, additions — pass files[] with action (create/update/delete/move) and previous_path. The file_name + content shortcut still works for single-file content replacement.
 267. `delete_snippet` - Delete a snippet
-268. `discover_tools` - Discover and activate additional tool categories for this session. Available categories: merge_requests, issues, repositories, branches, projects, labels, ci, groups, pipelines, milestones, wiki, releases, tags, snippets, users, workitems, webhooks, search, variables, dependency_proxy, vulnerabilities, orbit. Already-active categories are listed in the response.
+268. `discover_tools` - Discover and activate additional tool categories for this session. Available categories: core, merge_requests, issues, repositories, branches, projects, labels, ci, groups, pipelines, milestones, wiki, releases, tags, snippets, users, workitems, webhooks, search, variables, dependency_proxy, vulnerabilities, orbit. Already-active categories are listed in the response.
 
 <!-- TOOLS-END -->
 
