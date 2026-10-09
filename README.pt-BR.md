@@ -36,7 +36,7 @@ Suporta PAT, OAuth, modo somente leitura, URLs de API dinâmicas e autorização
 
 ### Por que usar este GitLab MCP?
 
-- **274 ferramentas: 272 em toolsets + `execute_graphql` + `discover_tools`** — comece com um toolset pequeno e ative mais categorias em tempo de execução
+- **275 ferramentas: 273 em toolsets + `execute_graphql` + `discover_tools`** — comece com um toolset pequeno e ative mais categorias em tempo de execução
 - **Revisão de MR em 2 etapas** — `list_merge_request_changed_files` → `get_merge_request_file_diff` em lote
 - **Agent Skill integrado** — orientação de workflows em `skills/gitlab-mcp/`
 - **Autenticação flexível** — Personal Access Token, fluxo OAuth2 local no navegador, proxy MCP OAuth e autorização remota por requisição
@@ -50,7 +50,7 @@ Suporta PAT, OAuth, modo somente leitura, URLs de API dinâmicas e autorização
 |                           | @zereight/mcp-gitlab                                                    | GitLab MCP A (comunidade, estilo CQRS)                    | Servidor MCP oficial do GitLab                                                                                                                                 |
 | ------------------------- | ----------------------------------------------------------------------- | --------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Mais indicado para**    | Workflows de agentes de IA                                              | Múltiplas instâncias corporativas / ferramentas agrupadas | Integrado ao GitLab, sem instalação separada                                                                                                                   |
-| **Modelo de ferramentas** | 274 ferramentas: 272 em toolsets + `execute_graphql` + `discover_tools` | ~50–60 ferramentas agrupadas `browse_*` / `manage_*`      | Toolsets escolhidos por cabeçalho HTTP                                                                                                                         |
+| **Modelo de ferramentas** | 275 ferramentas: 273 em toolsets + `execute_graphql` + `discover_tools` | ~50–60 ferramentas agrupadas `browse_*` / `manage_*`      | Toolsets escolhidos por cabeçalho HTTP                                                                                                                         |
 | **Revisão de MR**         | Diff em lote em 2 etapas                                                | Varia                                                     | `get_merge_request` com diffs                                                                                                                                  |
 | **Node.js**               | >=18.17                                                                 | Frequentemente >=24                                       | Node.js 20+ para stdio via `mcp-remote`                                                                                                                        |
 | **Licença**               | MIT                                                                     | Varia                                                     | Parte do GitLab                                                                                                                                                |
@@ -162,7 +162,7 @@ Alguns clientes MCP, como o GitHub Copilot CLI, têm problemas com variáveis de
 - `--api-url` - URL da API do GitLab (substitui `GITLAB_API_URL`)
 - `--read-only=true` - Deprecated (removed in next major (v3.0.0)); use `--permission-mode=readonly` (substitui `GITLAB_READ_ONLY_MODE`)
 - `--permission-mode` - nível de permissão: `readonly`, `modify` (sem ferramentas de exclusão ou teardown) ou `full` (substitui `GITLAB_PERMISSION_MODE`, padrão `full`)
-- `--toolsets=all` - ativa toolsets nomeados (substitui `GITLAB_TOOLSETS`; sem valor usa o padrão enxuto `core`)
+- `--toolsets=all` - ativa toolsets nomeados, exceto o toolset explícito `api` (substitui `GITLAB_TOOLSETS`; sem valor usa o padrão enxuto `core`). `gitlab_api_request` exige `--toolsets=api`
 - `--tools=list_issues` - adiciona ferramentas individuais (substitui `GITLAB_TOOLS`)
 - `--use-wiki=true` - Deprecated (removed in next major (v3.0.0)); use `--toolsets=core,wiki` (substitui `USE_GITLAB_WIKI`)
 - `--use-milestone=true` - Deprecated (removed in next major (v3.0.0)); use `--toolsets=core,milestones` (substitui `USE_MILESTONE`)
@@ -201,6 +201,10 @@ O mesmo binário também é uma CLI do GitLab no estilo `gh` (`tool <name>` ou f
 > Se `GITLAB_TOOLS` não estiver definido, defina `GITLAB_TOOLS=validate_ci_lint,validate_project_ci_lint`. Se já estiver definido, acrescente `validate_ci_lint,validate_project_ci_lint` à lista existente em vez de substituí-la.
 > Consulte a [Referência de ferramentas](./docs/tools/index.md#feature-toggles) e
 > [Variáveis de ambiente](./docs/configuration/environment-variables.md).
+
+> [!CAUTION]
+> `gitlab_api_request` (toolset `api`) ignora `GITLAB_ALLOWED_GROUPS` e outras restrições de grupo, allowlists de projeto, restrições por ferramenta (`GITLAB_TOOLS`, `GITLAB_DENIED_TOOLS_REGEX` nas outras ferramentas) e as checagens de segurança de cada ferramenta. O escopo completo do token fica exposto. Prompt injection pode acionar esta ferramenta. Operadores que dependem dessas restrições NÃO devem habilitá-la.
+> Ela só liga quando `api` está listado em `GITLAB_TOOLSETS` (`GITLAB_TOOLSETS=all`, `discover_tools`, `GITLAB_TOOLS`, flags legadas `USE_*` e `GITLAB_TOOL_PROFILE` não ligam). `GITLAB_ALLOWED_PROJECT_IDS` vale só para caminhos `/projects/:id`. Endpoints como `/search`, `/users`, `/groups/:id` e `/runners` não são restringidos. `GITLAB_PROJECT_ID` e allowlists de grupo OAuth não são aplicados por esta ferramenta.
 
 - sse
 

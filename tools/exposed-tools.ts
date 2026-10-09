@@ -9,24 +9,36 @@ export interface ExposedToolSelection<T extends { readonly name: string }> {
   readonly deniedToolsRegex: RegExp | undefined;
   readonly hiddenToolNames: ReadonlySet<string>;
   readonly applySlimProfile: boolean;
+  /**
+   * When false, GITLAB_TOOLS and legacy USE_* flags cannot add the tool.
+   * Explicit-only tools stay off unless their toolset is already selected.
+   */
+  readonly isAdditiveEnablementAllowed?: (toolName: string) => boolean;
 }
 
 export function selectExposedTools<T extends { readonly name: string }>(
   input: ExposedToolSelection<T>
 ): T[] {
+  const additiveAllowed = input.isAdditiveEnablementAllowed ?? (() => true);
   const toolsAfterToolsets = input.tools.filter(tool => input.isInEnabledToolset(tool.name));
   const toolsetToolNames = new Set(toolsAfterToolsets.map(tool => tool.name));
   const toolsAfterIndividual = [
     ...toolsAfterToolsets,
     ...input.tools.filter(
-      tool => input.individuallyEnabledTools.has(tool.name) && !toolsetToolNames.has(tool.name)
+      tool =>
+        input.individuallyEnabledTools.has(tool.name) &&
+        !toolsetToolNames.has(tool.name) &&
+        additiveAllowed(tool.name)
     ),
   ];
   const afterIndividualNames = new Set(toolsAfterIndividual.map(tool => tool.name));
   const toolsAfterLegacy = [
     ...toolsAfterIndividual,
     ...input.tools.filter(
-      tool => input.featureFlagOverrides.has(tool.name) && !afterIndividualNames.has(tool.name)
+      tool =>
+        input.featureFlagOverrides.has(tool.name) &&
+        !afterIndividualNames.has(tool.name) &&
+        additiveAllowed(tool.name)
     ),
   ];
   const toolsAfterPermission = toolsAfterLegacy.filter(tool =>

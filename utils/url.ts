@@ -154,3 +154,94 @@ export function encodeGitLabPath(value: string): string {
 
   return segments.map(encodeGitLabPathSegment).join("/");
 }
+
+const ABSOLUTE_URL_PATTERN = /^[a-zA-Z][a-zA-Z0-9+.-]*:/;
+
+function looksLikeAbsoluteApiReference(value: string): boolean {
+  return value.includes("://") || value.startsWith("//") || ABSOLUTE_URL_PATTERN.test(value);
+}
+
+/**
+ * Normalize a caller path so it can only name a resource under `/api/v4`.
+ * Rejects absolute URLs, protocol-relative hosts, backslashes, dot segments
+ * (including percent-encoded ones), and control characters. A single leading
+ * or trailing slash is removed so `/projects/1` and `projects/1` are the same
+ * relative path.
+ */
+export function normalizeGitLabApiRelativePath(rawPath: string): string {
+  const trimmed = rawPath.trim();
+  if (trimmed.length === 0) {
+    throw new Error("GitLab API path is empty");
+  }
+  if (
+    CONTROL_CHARACTER_PATTERN.test(trimmed) ||
+    trimmed.includes("\\") ||
+    looksLikeAbsoluteApiReference(trimmed)
+  ) {
+    throw new Error(
+      "GitLab API path must be a relative path under /api/v4 (absolute URLs, protocol-relative hosts, backslashes, and control characters are rejected)"
+    );
+  }
+
+  const withoutLeadingSlash = trimmed.startsWith("/") ? trimmed.slice(1) : trimmed;
+  const relative = withoutLeadingSlash.endsWith("/")
+    ? withoutLeadingSlash.slice(0, -1)
+    : withoutLeadingSlash;
+  if (relative.length === 0 || relative.startsWith("/")) {
+    throw new Error("GitLab API path must be a relative path under /api/v4");
+  }
+
+  const decoded = decodeFully(relative);
+  if (
+    decoded === null ||
+    CONTROL_CHARACTER_PATTERN.test(decoded) ||
+    decoded.includes("\\") ||
+    looksLikeAbsoluteApiReference(decoded)
+  ) {
+    throw new Error(
+      "GitLab API path must be a relative path under /api/v4 (absolute URLs, protocol-relative hosts, backslashes, and control characters are rejected)"
+    );
+  }
+
+  // encodeGitLabPath rejects `.` / `..` segments, including percent-encoded forms.
+  encodeGitLabPath(relative);
+  return relative;
+}
+
+/**
+ * Resolve `rawPath` against the configured GitLab API base (`.../api/v4`).
+ * The result is the same origin and stays under that base path.
+ */
+export function resolveGitLabApiRequestUrl(apiBase: string, rawPath: string): URL {
+  const relative = normalizeGitLabApiRelativePath(rawPath);
+  const encoded = encodeGitLabPath(relative);
+  const base = new URL(apiBase.endsWith("/") ? apiBase : `${apiBase}/`);
+  const resolved = new URL(encoded, base);
+
+  if (resolved.origin !== base.origin || resolved.username !== "" || resolved.password !== "") {
+    throw new Error("GitLab API path escapes the configured API origin");
+  }
+
+  const basePath = base.pathname.endsWith("/") ? base.pathname : `${base.pathname}/`;
+  const staysUnderBase =
+    resolved.pathname === base.pathname.replace(/\/$/, "") ||
+    resolved.pathname.startsWith(basePath);
+  if (!staysUnderBase || resolved.search !== "" || resolved.hash !== "") {
+    throw new Error("GitLab API path escapes the configured /api/v4 base");
+  }
+
+  return resolved;
+}
+
+/** Project id from `projects/:id` or `projects/:id/...`. Other paths return undefined. */
+export function readProjectIdFromApiRelativePath(relativePath: string): string | undefined {
+  const match = /^projects\/([^/]+)(?:\/|$)/.exec(relativePath);
+  if (!match) {
+    return undefined;
+  }
+  try {
+    return decodeURIComponent(match[1]);
+  } catch {
+    throw new Error("GitLab API path has an invalid project id encoding");
+  }
+}

@@ -54,6 +54,7 @@ export const GROUP_ORDER = [
   "vulnerabilities",
   "orbit",
   "snippets",
+  "api",
 ];
 
 export const GROUP_TITLE: Record<string, string> = {
@@ -79,6 +80,7 @@ export const GROUP_TITLE: Record<string, string> = {
   vulnerabilities: "Vulnerabilities",
   orbit: "GitLab Orbit",
   snippets: "Snippets",
+  api: "Raw API",
   meta: "Meta & GraphQL",
 };
 
