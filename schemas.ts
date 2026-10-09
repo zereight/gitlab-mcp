@@ -918,11 +918,52 @@ export const GetPipelineJobOutputSchema = z.object({
   limit: z
     .number()
     .optional()
-    .describe("Maximum number of lines to return from the end of the log (default/max: 1000)"),
+    .describe(
+      "Maximum number of lines to return from the end of the log (default/max: 1000). Ignored when pattern is set."
+    ),
   offset: z
     .number()
     .optional()
-    .describe("Number of lines to skip from the end of the log (default: 0)"),
+    .describe(
+      "Number of lines to skip from the end of the log (default: 0). Ignored when pattern is set."
+    ),
+  pattern: z
+    .string()
+    .max(500)
+    .optional()
+    .describe(
+      "Substring to search for in the full job log. When set, the full log is searched and limit and offset are ignored. Empty is treated as omitted. Maximum 500 characters."
+    ),
+  regex: z
+    .boolean()
+    .optional()
+    .describe(
+      "When true, treat pattern as a JavaScript regular expression. Invalid expressions return an error. Default: false."
+    ),
+  case_sensitive: z
+    .boolean()
+    .optional()
+    .describe(
+      "Match case when true. Default: false (case-insensitive). Used only when pattern is set."
+    ),
+  context_lines: z.coerce
+    .number()
+    .int()
+    .min(0)
+    .max(50)
+    .optional()
+    .describe(
+      "Lines of context before and after each match (default: 5, maximum: 50). Overlapping windows are merged. Used only when pattern is set."
+    ),
+  max_matches: z.coerce
+    .number()
+    .int()
+    .min(1)
+    .max(100)
+    .optional()
+    .describe(
+      "Maximum number of matches to return (default: 20, maximum: 100). total_matches still counts every hit and truncated is true when more exist. Used only when pattern is set."
+    ),
 });
 
 // Schema for pipeline job control operations
