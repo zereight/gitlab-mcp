@@ -3,7 +3,12 @@ import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
 import path from "node:path";
 import { describe, test } from "node:test";
-import { getDeprecatedEnvWarnings, type DeprecatedEnvInput } from "../deprecated-env.js";
+import { parseCliArgs } from "../cli-boolean-flags.js";
+import {
+  deprecatedEnvInputFromSources,
+  getDeprecatedEnvWarnings,
+  type DeprecatedEnvInput,
+} from "../deprecated-env.js";
 
 function warningsFor(overrides: Partial<DeprecatedEnvInput>): string[] {
   return getDeprecatedEnvWarnings({
@@ -199,6 +204,32 @@ describe("When GITLAB_TOOLSETS is already set", () => {
       assert.doesNotMatch(warning, /in addition to core/);
     });
   });
+
+  describe("with USE_PIPELINE=true and GITLAB_TOOLS already set", () => {
+    test("should append the lint tools to the existing list", () => {
+      const [warning] = warningsFor({
+        usePipelineRaw: "true",
+        toolsetsRaw: "issues",
+        toolsRaw: "list_issues",
+      });
+      assert.match(warning, /GITLAB_TOOLS=list_issues,validate_ci_lint,validate_project_ci_lint/);
+    });
+  });
+});
+
+describe("When GITLAB_TOOLS is already set and GITLAB_TOOLSETS is not", () => {
+  describe("with USE_PIPELINE=true", () => {
+    test("should keep core in the toolset hint and append the lint tools", () => {
+      const [warning] = warningsFor({
+        usePipelineRaw: "true",
+        toolsRaw: "list_issues",
+      });
+      assert.match(
+        warning,
+        /Use GITLAB_TOOLSETS=core,pipelines and GITLAB_TOOLS=list_issues,validate_ci_lint,validate_project_ci_lint instead/
+      );
+    });
+  });
 });
 
 describe("When GITLAB_READ_ONLY_MODE is set to a non-true value", () => {
@@ -209,7 +240,8 @@ describe("When GITLAB_READ_ONLY_MODE is set to a non-true value", () => {
         permissionModeRaw: "full",
       });
       assert.match(warning, /GITLAB_READ_ONLY_MODE is set to "false"/);
-      assert.match(warning, /ignored and unneeded/);
+      assert.match(warning, /does not enable legacy read-only mode/);
+      assert.match(warning, /GITLAB_PERMISSION_MODE or --permission-mode/);
       assert.match(warning, /Remove it/);
       assert.match(warning, /will be removed in v3\.0\.0/);
       assert.doesNotMatch(warning, /OVERRIDES/);
@@ -346,6 +378,23 @@ function runBuiltServer(
   });
 }
 
+function hasCompleteInitializeResponse(stdout: string): boolean {
+  const finishedLines = stdout.endsWith("\n")
+    ? stdout.split("\n").filter(line => line.length > 0)
+    : stdout.split("\n").slice(0, -1);
+  return finishedLines.some(line => {
+    try {
+      const parsed: unknown = JSON.parse(line);
+      if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+        return false;
+      }
+      return "jsonrpc" in parsed && parsed.jsonrpc === "2.0" && "id" in parsed && parsed.id === 1;
+    } catch {
+      return false;
+    }
+  });
+}
+
 function isJsonRpcMessage(value: unknown): boolean {
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
     return false;
@@ -361,6 +410,29 @@ function assertStdoutIsJsonRpc(stdout: string): void {
     assert.equal(isJsonRpcMessage(parsed), true);
   }
 }
+
+describe("When deprecatedEnvInputFromSources reads a command snapshot", () => {
+  describe("with a CLI flag and a conflicting injected env", () => {
+    test("should use the CLI value", () => {
+      const input = deprecatedEnvInputFromSources(parseCliArgs(["auth", "--use-pipeline=false"]), {
+        USE_PIPELINE: "true",
+      });
+
+      assert.equal(input.usePipelineRaw, "false");
+      assert.equal(input.usePipelineFromCli, true);
+    });
+  });
+
+  describe("with GITLAB_TOOLS only in the injected env", () => {
+    test("should copy that tools list", () => {
+      const input = deprecatedEnvInputFromSources(parseCliArgs(["auth"]), {
+        GITLAB_TOOLS: "list_issues",
+      });
+
+      assert.equal(input.toolsRaw, "list_issues");
+    });
+  });
+});
 
 describe("When configuration validation fails", () => {
   describe("with a CLI flag and no credentials", () => {
@@ -504,7 +576,7 @@ describe("When the stdio server handles initialize", () => {
         {
           stdin: initialize,
           stopWhen: captured =>
-            captured.stdout.includes('"jsonrpc"') &&
+            hasCompleteInitializeResponse(captured.stdout) &&
             captured.stderr.includes("USE_PIPELINE is deprecated"),
         }
       );

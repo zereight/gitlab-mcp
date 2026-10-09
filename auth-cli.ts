@@ -1,7 +1,7 @@
 import * as os from "os";
 import * as path from "path";
-import { buildDeprecatedEnvInput } from "./config.js";
-import { getDeprecatedEnvWarnings } from "./deprecated-env.js";
+import { parseCliArgs } from "./cli-boolean-flags.js";
+import { deprecatedEnvInputFromSources, getDeprecatedEnvWarnings } from "./deprecated-env.js";
 import { GitLabOAuth } from "./oauth.js";
 import { createLogger } from "./utils/logger.js";
 import type { FetchImpl } from "./oauth-device-flow.js";
@@ -85,7 +85,9 @@ export async function runAuthCommandAsync(input: AuthCliInput = {}): Promise<voi
     return;
   }
 
-  for (const warning of getDeprecatedEnvWarnings(buildDeprecatedEnvInput())) {
+  for (const warning of getDeprecatedEnvWarnings(
+    deprecatedEnvInputFromSources(parseCliArgs(argv.slice(2)), env)
+  )) {
     logger.warn(warning);
   }
 

@@ -1,36 +1,10 @@
-import { BOOLEAN_CLI_FLAG_NAMES, nextBooleanFlagValue } from "./cli-boolean-flags.js";
-import type { DeprecatedEnvInput } from "./deprecated-env.js";
+import { parseCliArgs } from "./cli-boolean-flags.js";
+import { deprecatedEnvInputFromSources, type DeprecatedEnvInput } from "./deprecated-env.js";
 import { parseToolProfile } from "./tools/tool-profile.js";
 import { parseCompactToolAllowlist } from "./utils/compact-tool-allowlist.js";
 
 // Parse CLI arguments before anything else
-const args = process.argv.slice(2);
-export const cliArgs: Record<string, string> = {};
-
-for (let i = 0; i < args.length; i++) {
-  const arg = args[i];
-  if (arg.startsWith("--")) {
-    const eqIndex = arg.indexOf("=");
-    if (eqIndex !== -1) {
-      const key = arg.slice(2, eqIndex);
-      const value = arg.slice(eqIndex + 1);
-      if (value) {
-        cliArgs[key] = value;
-      }
-    } else {
-      const key = arg.slice(2);
-      if (BOOLEAN_CLI_FLAG_NAMES.has(key)) {
-        const parsed = nextBooleanFlagValue(args[i + 1]);
-        cliArgs[key] = parsed.value;
-        if (parsed.consumeNext) {
-          i += 1;
-        }
-      } else if (i + 1 < args.length && !args[i + 1].startsWith("--")) {
-        cliArgs[key] = args[++i];
-      }
-    }
-  }
-}
+export const cliArgs: Record<string, string> = parseCliArgs(process.argv.slice(2));
 
 // Helper function to get config value (CLI args take precedence over env vars)
 export function getConfig(cliKey: string, envKey: string): string | undefined;
@@ -311,22 +285,7 @@ export const GITLAB_CA_CERT_PATH = getConfig("ca-cert-path", "GITLAB_CA_CERT_PAT
  * the flag the user actually passed.
  */
 export function buildDeprecatedEnvInput(): DeprecatedEnvInput {
-  return {
-    readOnlyMode: GITLAB_READ_ONLY_MODE,
-    readOnlyRaw: getConfig("read-only", "GITLAB_READ_ONLY_MODE"),
-    readOnlyFromCli: Boolean(cliArgs["read-only"]),
-    permissionModeRaw: GITLAB_PERMISSION_MODE_RAW,
-    allowedGroupsRaw: GITLAB_ALLOWED_GROUPS_RAW,
-    allowedGroupsFromCli: Boolean(cliArgs["allowed-groups"]),
-    oauthAllowedGroupsRaw: GITLAB_OAUTH_ALLOWED_GROUPS_RAW,
-    useWikiRaw: USE_GITLAB_WIKI_RAW,
-    useWikiFromCli: Boolean(cliArgs["use-wiki"]),
-    useMilestoneRaw: USE_MILESTONE_RAW,
-    useMilestoneFromCli: Boolean(cliArgs["use-milestone"]),
-    usePipelineRaw: USE_PIPELINE_RAW,
-    usePipelineFromCli: Boolean(cliArgs["use-pipeline"]),
-    toolsetsRaw: GITLAB_TOOLSETS_RAW,
-  };
+  return deprecatedEnvInputFromSources(cliArgs, process.env);
 }
 
 const _poolMaxSizeRaw = getConfig("pool-max-size", "GITLAB_POOL_MAX_SIZE");

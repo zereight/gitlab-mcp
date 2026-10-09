@@ -33,15 +33,36 @@ function settingName(envName: string, cliFlag: string, fromCli: boolean): string
   return envName;
 }
 
+function gitlabToolsAssignment(extraTools: string, toolsRaw: string | undefined): string {
+  const existing = explicitToolsets(toolsRaw);
+  if (existing === undefined) {
+    return `GITLAB_TOOLS=${extraTools}`;
+  }
+  const names = existing
+    .split(",")
+    .map(part => part.trim())
+    .filter(part => part.length > 0);
+  const merged = extraTools.split(",").reduce<string[]>((current, tool) => {
+    if (current.includes(tool)) {
+      return current;
+    }
+    return [...current, tool];
+  }, names);
+  return `GITLAB_TOOLS=${merged.join(",")}`;
+}
+
 function legacyToolsetHint(
   toolset: string,
   toolsetsRaw: string | undefined,
+  toolsRaw: string | undefined,
   optional: boolean
 ): string {
   const extraTools = LEGACY_TOOLS_OUTSIDE_NAMED_TOOLSET[toolset];
+  const toolsAssignment =
+    extraTools === undefined ? undefined : gitlabToolsAssignment(extraTools, toolsRaw);
   const listed = explicitToolsets(toolsetsRaw);
   if (listed !== undefined) {
-    const extra = extraTools === undefined ? "" : ` and set GITLAB_TOOLS=${extraTools}`;
+    const extra = toolsAssignment === undefined ? "" : ` and set ${toolsAssignment}`;
     const shown = shownEnvValue(listed);
     if (optional) {
       return (
@@ -57,7 +78,7 @@ function legacyToolsetHint(
   // only when the user has not set GITLAB_TOOLSETS.
   const toolsets = `GITLAB_TOOLSETS=core,${toolset}`;
   const replacement =
-    extraTools === undefined ? toolsets : `${toolsets} and GITLAB_TOOLS=${extraTools}`;
+    toolsAssignment === undefined ? toolsets : `${toolsets} and ${toolsAssignment}`;
   if (optional) {
     return `Set ${replacement} only if you want those tools in addition to core`;
   }
@@ -70,20 +91,21 @@ function legacyToolsetWarning(
   fromCli: boolean,
   rawValue: string,
   toolset: string,
-  toolsetsRaw: string | undefined
+  toolsetsRaw: string | undefined,
+  toolsRaw: string | undefined
 ): string {
   const name = settingName(envName, cliFlag, fromCli);
   if (rawValue === "true") {
     return (
       `${name} is deprecated and will be removed in ${REMOVAL_VERSION}. ` +
-      `${legacyToolsetHint(toolset, toolsetsRaw, false)}.`
+      `${legacyToolsetHint(toolset, toolsetsRaw, toolsRaw, false)}.`
     );
   }
   const shown = shownEnvValue(rawValue);
   return (
     `${name} is set to "${shown}" and is deprecated and will be removed in ${REMOVAL_VERSION}. ` +
     `This value does not enable the ${toolset} toolset. Remove it. ` +
-    `${legacyToolsetHint(toolset, toolsetsRaw, true)}.`
+    `${legacyToolsetHint(toolset, toolsetsRaw, toolsRaw, true)}.`
   );
 }
 
@@ -105,6 +127,8 @@ export interface DeprecatedEnvInput {
   usePipelineFromCli?: boolean;
   /** Effective GITLAB_TOOLSETS / --toolsets value when the user set one. */
   toolsetsRaw?: string;
+  /** Effective GITLAB_TOOLS / --tools value when the user set one. */
+  toolsRaw?: string;
 }
 
 function readOnlyRawValue(input: DeprecatedEnvInput): string | undefined {
@@ -135,7 +159,7 @@ function readOnlyWarning(input: DeprecatedEnvInput): string | undefined {
   }
   return (
     `${name} is set to "${shownEnvValue(raw)}" and is deprecated and will be removed in ${REMOVAL_VERSION}. ` +
-    "This value is ignored and unneeded. Remove it."
+    "This value does not enable legacy read-only mode. The effective permission mode comes from GITLAB_PERMISSION_MODE or --permission-mode. Remove it."
   );
 }
 
@@ -201,11 +225,64 @@ export function getDeprecatedEnvWarnings(input: DeprecatedEnvInput): string[] {
           flag.fromCli,
           flag.rawValue,
           flag.toolset,
-          input.toolsetsRaw
+          input.toolsetsRaw,
+          input.toolsRaw
         )
       );
     }
   }
 
   return warnings.map(warning => `${warning} See ${DEPRECATION_NOTICE_URL} for migration details.`);
+}
+
+function readSuppliedSetting(
+  parsedArgs: Readonly<Record<string, string>>,
+  env: NodeJS.ProcessEnv,
+  cliKey: string,
+  envKey: string
+): string | undefined {
+  return parsedArgs[cliKey] || env[envKey];
+}
+
+/**
+ * Warning snapshot for one command. CLI flags in `parsedArgs` win over `env`,
+ * matching getConfig, and neither source is read from the process globals.
+ */
+export function deprecatedEnvInputFromSources(
+  parsedArgs: Readonly<Record<string, string>>,
+  env: NodeJS.ProcessEnv
+): DeprecatedEnvInput {
+  const readOnlyRaw = readSuppliedSetting(parsedArgs, env, "read-only", "GITLAB_READ_ONLY_MODE");
+  return {
+    readOnlyMode: readOnlyRaw === "true",
+    readOnlyRaw,
+    readOnlyFromCli: Boolean(parsedArgs["read-only"]),
+    permissionModeRaw: readSuppliedSetting(
+      parsedArgs,
+      env,
+      "permission-mode",
+      "GITLAB_PERMISSION_MODE"
+    ),
+    allowedGroupsRaw: readSuppliedSetting(
+      parsedArgs,
+      env,
+      "allowed-groups",
+      "GITLAB_ALLOWED_GROUPS"
+    ),
+    allowedGroupsFromCli: Boolean(parsedArgs["allowed-groups"]),
+    oauthAllowedGroupsRaw: readSuppliedSetting(
+      parsedArgs,
+      env,
+      "oauth-allowed-groups",
+      "GITLAB_OAUTH_ALLOWED_GROUPS"
+    ),
+    useWikiRaw: readSuppliedSetting(parsedArgs, env, "use-wiki", "USE_GITLAB_WIKI"),
+    useWikiFromCli: Boolean(parsedArgs["use-wiki"]),
+    useMilestoneRaw: readSuppliedSetting(parsedArgs, env, "use-milestone", "USE_MILESTONE"),
+    useMilestoneFromCli: Boolean(parsedArgs["use-milestone"]),
+    usePipelineRaw: readSuppliedSetting(parsedArgs, env, "use-pipeline", "USE_PIPELINE"),
+    usePipelineFromCli: Boolean(parsedArgs["use-pipeline"]),
+    toolsetsRaw: readSuppliedSetting(parsedArgs, env, "toolsets", "GITLAB_TOOLSETS"),
+    toolsRaw: readSuppliedSetting(parsedArgs, env, "tools", "GITLAB_TOOLS"),
+  };
 }
