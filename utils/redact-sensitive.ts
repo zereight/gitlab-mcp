@@ -25,3 +25,18 @@ export function redactSensitiveGitLabFields<T>(data: T): T {
   }
   return data;
 }
+
+const SENSITIVE_ASSIGNMENT_PATTERN =
+  /(["']?\b(?:runners_token|import_url|token)\b["']?\s*[:=]\s*)(?:"[^"\r\n]*"|'[^'\r\n]*'|\S+)/gi;
+
+const GITLAB_TOKEN_PATTERN = /\bgl(?:pat|dt|rt|pt|ft|oas|soat)-[A-Za-z0-9._-]+/gi;
+
+/**
+ * Redacts the same secret fields when GitLab returns a non-JSON body.
+ * JSON responses keep using {@link redactSensitiveGitLabFields}.
+ */
+export function redactSensitiveGitLabText(text: string): string {
+  return text
+    .replace(SENSITIVE_ASSIGNMENT_PATTERN, "$1[REDACTED]")
+    .replace(GITLAB_TOKEN_PATTERN, "[REDACTED]");
+}

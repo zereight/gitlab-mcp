@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
-import { redactSensitiveGitLabFields } from "../../utils/redact-sensitive.js";
+import {
+  redactSensitiveGitLabFields,
+  redactSensitiveGitLabText,
+} from "../../utils/redact-sensitive.js";
 
 describe("When redactSensitiveGitLabFields runs", () => {
   describe("with a project response containing credentials", () => {
@@ -33,6 +36,41 @@ describe("When redactSensitiveGitLabFields runs", () => {
     test("should return the value as-is", () => {
       assert.equal(redactSensitiveGitLabFields(null), null);
       assert.equal(redactSensitiveGitLabFields("raw"), "raw");
+    });
+  });
+});
+
+describe("When redactSensitiveGitLabText runs", () => {
+  describe("with a token assignment", () => {
+    test("should redact the assigned value", () => {
+      assert.equal(redactSensitiveGitLabText("token: plain-secret"), "token: [REDACTED]");
+    });
+  });
+
+  describe("with an import_url assignment", () => {
+    test("should redact the URL value", () => {
+      assert.equal(
+        redactSensitiveGitLabText("import_url=https://user:pass@example.com/repo.git"),
+        "import_url=[REDACTED]"
+      );
+    });
+  });
+
+  describe("with a GitLab token prefix and no field name", () => {
+    test("should redact the token", () => {
+      assert.equal(
+        redactSensitiveGitLabText("see glpat-abcdefghijklmnopqrstuvwxyz"),
+        "see [REDACTED]"
+      );
+    });
+  });
+
+  describe("with ordinary text", () => {
+    test("should leave the text unchanged", () => {
+      assert.equal(
+        redactSensitiveGitLabText("token is not a secret here"),
+        "token is not a secret here"
+      );
     });
   });
 });

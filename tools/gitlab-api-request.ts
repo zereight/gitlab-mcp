@@ -1,7 +1,10 @@
 import type { RequestInit as UndiciRequestInit } from "undici";
 import { z } from "zod";
 
-import { redactSensitiveGitLabFields } from "../utils/redact-sensitive.js";
+import {
+  redactSensitiveGitLabFields,
+  redactSensitiveGitLabText,
+} from "../utils/redact-sensitive.js";
 import {
   normalizeGitLabApiRelativePath,
   readProjectIdFromApiRelativePath,
@@ -174,7 +177,7 @@ function formatHttpError(status: number, statusText: string, rawBody: string): s
     redactSensitiveGitLabFields(parsed);
     return `GitLab API error: ${status} ${statusText}\n${JSON.stringify(parsed)}`;
   } catch {
-    return `GitLab API error: ${status} ${statusText}\n${rawBody}`;
+    return `GitLab API error: ${status} ${statusText}\n${redactSensitiveGitLabText(rawBody)}`;
   }
 }
 
@@ -188,7 +191,7 @@ function formatSuccessBody(rawBody: string): string {
     redactSensitiveGitLabFields(parsed);
     return JSON.stringify(parsed, null, 2);
   } catch {
-    return rawBody;
+    return redactSensitiveGitLabText(rawBody);
   }
 }
 
