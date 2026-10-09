@@ -31,7 +31,7 @@ list_merge_request_pipelines -> list pipelines attached to an MR
 ```
 update_merge_request
   project_id: "my-group/my-project"
-  mergeRequestIid: 42
+  merge_request_iid: 42
   title: "Updated title"
   state_event: "close"  # or "reopen"
   assignee_ids: [123, 456]

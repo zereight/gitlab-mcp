@@ -1163,9 +1163,9 @@ function createServer(): McpServer {
       const result = await handleToolCall(request.params);
       return logCompletion(result);
     } catch (error) {
-      const isGitLabApiError = error instanceof GitLabApiError;
+      const isRecoverableToolError = error instanceof GitLabApiError || error instanceof ToolInputError;
       const safeError = logError(error);
-      if (isGitLabApiError) {
+      if (isRecoverableToolError) {
         return {
           content: [
             {
@@ -2232,6 +2232,16 @@ class GitLabApiError extends Error {
     this.name = "GitLabApiError";
   }
 }
+
+class ToolInputError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "ToolInputError";
+  }
+}
+
+const MERGE_REQUEST_IDENTIFIER_REQUIRED =
+  "Either merge_request_iid or source_branch must be provided";
 
 /**
  * Utility function for handling GitLab API errors
@@ -5626,7 +5636,7 @@ async function getMergeRequest(
       )}/merge_requests?source_branch=${encodeURIComponent(branchName)}`
     );
   } else {
-    throw new Error("Either mergeRequestIid or branchName must be provided");
+    throw new ToolInputError(MERGE_REQUEST_IDENTIFIER_REQUIRED);
   }
 
   const response = await fetch(url.toString(), {
@@ -5928,7 +5938,7 @@ async function getMergeRequestDiffs(
 ): Promise<GitLabMergeRequestDiff[]> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   if (!mergeRequestIid && !branchName) {
-    throw new Error("Either mergeRequestIid or branchName must be provided");
+    throw new ToolInputError(MERGE_REQUEST_IDENTIFIER_REQUIRED);
   }
 
   if (branchName && !mergeRequestIid) {
@@ -5975,7 +5985,7 @@ async function listMergeRequestDiffs(
 ): Promise<any> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   if (!mergeRequestIid && !branchName) {
-    throw new Error("Either mergeRequestIid or branchName must be provided");
+    throw new ToolInputError(MERGE_REQUEST_IDENTIFIER_REQUIRED);
   }
 
   if (branchName && !mergeRequestIid) {
@@ -6028,7 +6038,7 @@ async function listMergeRequestChangedFiles(
 ): Promise<any[]> {
   projectId = decodeURIComponent(projectId);
   if (!mergeRequestIid && !branchName) {
-    throw new Error("Either mergeRequestIid or branchName must be provided");
+    throw new ToolInputError(MERGE_REQUEST_IDENTIFIER_REQUIRED);
   }
 
   if (branchName && !mergeRequestIid) {
@@ -6078,7 +6088,7 @@ async function getMergeRequestFileDiff(
 ): Promise<any[]> {
   projectId = decodeURIComponent(projectId);
   if (!mergeRequestIid && !branchName) {
-    throw new Error("Either mergeRequestIid or branchName must be provided");
+    throw new ToolInputError(MERGE_REQUEST_IDENTIFIER_REQUIRED);
   }
 
   if (branchName && !mergeRequestIid) {
@@ -6202,7 +6212,7 @@ async function updateMergeRequest(
 ): Promise<GitLabMergeRequest> {
   projectId = decodeURIComponent(projectId); // Decode project ID
   if (!mergeRequestIid && !branchName) {
-    throw new Error("Either mergeRequestIid or branchName must be provided");
+    throw new ToolInputError(MERGE_REQUEST_IDENTIFIER_REQUIRED);
   }
 
   if (branchName && !mergeRequestIid) {

@@ -402,31 +402,31 @@ export const allTools = [
   {
     name: "get_merge_request",
     description:
-      "Get details of a merge request (mergeRequestIid or branchName required). Set include_summaries=true for deployment/commit/approval summaries",
+      "Get details of a merge request (merge_request_iid or source_branch required). Set include_summaries=true for deployment/commit/approval summaries",
     inputSchema: toJSONSchema(GetMergeRequestSchema),
   },
   {
     name: "get_merge_request_diffs",
     description:
-      "Get the changes/diffs of a merge request (mergeRequestIid or branchName required)",
+      "Get the changes/diffs of a merge request (merge_request_iid or source_branch required)",
     inputSchema: toJSONSchema(GetMergeRequestDiffsSchema),
   },
   {
     name: "list_merge_request_changed_files",
     description:
-      "List changed file paths in a merge request without diff content (mergeRequestIid or branchName required)",
+      "List changed file paths in a merge request without diff content (merge_request_iid or source_branch required)",
     inputSchema: toJSONSchema(ListMergeRequestChangedFilesSchema),
   },
   {
     name: "list_merge_request_diffs",
     description:
-      "List merge request diffs with pagination (mergeRequestIid or branchName required)",
+      "List merge request diffs with pagination (merge_request_iid or source_branch required)",
     inputSchema: toJSONSchema(ListMergeRequestDiffsSchema),
   },
   {
     name: "get_merge_request_file_diff",
     description:
-      "Get diffs for specific files from a merge request (mergeRequestIid or branchName required)",
+      "Get diffs for specific files from a merge request (merge_request_iid or source_branch required)",
     inputSchema: toJSONSchema(GetMergeRequestFileDiffSchema),
   },
   {
@@ -446,7 +446,7 @@ export const allTools = [
   },
   {
     name: "update_merge_request",
-    description: "Update a merge request (mergeRequestIid or branchName required)",
+    description: "Update a merge request (merge_request_iid or source_branch required)",
     inputSchema: toJSONSchema(UpdateMergeRequestSchema),
   },
   {

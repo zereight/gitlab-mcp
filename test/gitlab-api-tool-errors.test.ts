@@ -133,4 +133,25 @@ describe("GitLab API tool errors", () => {
     assert.notEqual(recovery.isError, true);
     assert.deepEqual(JSON.parse(resultText(recovery)), { exists: true, suggests: [] });
   });
+
+  test("returns missing merge request identifiers as a tool error", async t => {
+    const client = await startServer(t);
+
+    const invalidMergeRequest = await client.callTool({
+      name: "get_merge_request",
+      arguments: { project_id: "123", mergeRequestIid: 7102 },
+    });
+    assert.equal(invalidMergeRequest.isError, true);
+    assert.match(
+      resultText(invalidMergeRequest),
+      /Either merge_request_iid or source_branch must be provided/
+    );
+
+    const recovery = await client.callTool({
+      name: "verify_namespace",
+      arguments: { path: "core" },
+    });
+    assert.notEqual(recovery.isError, true);
+    assert.deepEqual(JSON.parse(resultText(recovery)), { exists: true, suggests: [] });
+  });
 });

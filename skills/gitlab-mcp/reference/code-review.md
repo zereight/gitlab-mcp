@@ -10,7 +10,7 @@ This avoids loading the entire diff payload at once.
 ```
 list_merge_request_changed_files
   project_id: "my-group/my-project"
-  mergeRequestIid: 42
+  merge_request_iid: 42
 ```
 
 Returns file paths with metadata:
@@ -29,7 +29,7 @@ excluded_file_patterns: ["*.lock", "*.min.js", "dist/**"]
 ```
 get_merge_request_file_diff
   project_id: "my-group/my-project"
-  mergeRequestIid: 42
+  merge_request_iid: 42
   file_paths: ["src/api.ts", "src/utils.ts", "src/types.ts"]
 ```
 
@@ -47,7 +47,7 @@ For large MRs (20+ files), prioritize reviewing:
 ```
 create_merge_request_thread
   project_id: "my-group/my-project"
-  mergeRequestIid: 42
+  merge_request_iid: 42
   body: "Consider using a const here"
   position:
     new_path: "src/api.ts"
@@ -59,7 +59,7 @@ Reply to existing threads:
 ```
 create_merge_request_discussion_note
   project_id: "my-group/my-project"
-  mergeRequestIid: 42
+  merge_request_iid: 42
   discussion_id: "abc123"
   body: "Good point, updated"
 ```
@@ -73,7 +73,7 @@ create_draft_note -> create_draft_note -> create_draft_note
   ... repeat for each comment ...
 bulk_publish_draft_notes
   project_id: "my-group/my-project"
-  mergeRequestIid: 42
+  merge_request_iid: 42
 ```
 
 This mimics GitHub's "pending review" pattern - all comments appear simultaneously.
@@ -83,7 +83,7 @@ This mimics GitHub's "pending review" pattern - all comments appear simultaneous
 ```
 resolve_merge_request_thread
   project_id: "my-group/my-project"
-  mergeRequestIid: 42
+  merge_request_iid: 42
   discussion_id: "abc123"
   resolved: true
 ```
