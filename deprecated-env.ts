@@ -33,10 +33,15 @@ function settingName(envName: string, cliFlag: string, fromCli: boolean): string
   return envName;
 }
 
-function gitlabToolsAssignment(extraTools: string, toolsRaw: string | undefined): string {
+function gitlabToolsAssignment(
+  extraTools: string,
+  toolsRaw: string | undefined,
+  toolsFromCli: boolean
+): string {
+  const prefix = toolsFromCli ? "--tools=" : "GITLAB_TOOLS=";
   const existing = explicitToolsets(toolsRaw);
   if (existing === undefined) {
-    return `GITLAB_TOOLS=${extraTools}`;
+    return `${prefix}${extraTools}`;
   }
   const names = existing
     .split(",")
@@ -48,34 +53,39 @@ function gitlabToolsAssignment(extraTools: string, toolsRaw: string | undefined)
     }
     return [...current, tool];
   }, names);
-  return `GITLAB_TOOLS=${merged.join(",")}`;
+  return `${prefix}${merged.join(",")}`;
 }
 
 function legacyToolsetHint(
   toolset: string,
   toolsetsRaw: string | undefined,
+  toolsetsFromCli: boolean,
   toolsRaw: string | undefined,
+  toolsFromCli: boolean,
   optional: boolean
 ): string {
   const extraTools = LEGACY_TOOLS_OUTSIDE_NAMED_TOOLSET[toolset];
   const toolsAssignment =
-    extraTools === undefined ? undefined : gitlabToolsAssignment(extraTools, toolsRaw);
+    extraTools === undefined
+      ? undefined
+      : gitlabToolsAssignment(extraTools, toolsRaw, toolsFromCli);
   const listed = explicitToolsets(toolsetsRaw);
+  const toolsetsLabel = toolsetsFromCli && listed !== undefined ? "--toolsets" : "GITLAB_TOOLSETS";
   if (listed !== undefined) {
     const extra = toolsAssignment === undefined ? "" : ` and set ${toolsAssignment}`;
     const shown = shownEnvValue(listed);
     if (optional) {
       return (
-        `Add \`${toolset}\` to the existing GITLAB_TOOLSETS list ("${shown}")${extra} ` +
+        `Add \`${toolset}\` to the existing ${toolsetsLabel} list ("${shown}")${extra} ` +
         "only if you want those tools"
       );
     }
-    return `Add \`${toolset}\` to the existing GITLAB_TOOLSETS list ("${shown}")${extra} instead`;
+    return `Add \`${toolset}\` to the existing ${toolsetsLabel} list ("${shown}")${extra} instead`;
   }
 
-  // An explicit GITLAB_TOOLSETS list replaces the default toolsets; it does not merge.
+  // An explicit toolset list replaces the default toolsets; it does not merge.
   // Legacy USE_* flags add tools on top of defaults, so the hint must keep `core`
-  // only when the user has not set GITLAB_TOOLSETS.
+  // only when the user has not set a toolset list.
   const toolsets = `GITLAB_TOOLSETS=core,${toolset}`;
   const replacement =
     toolsAssignment === undefined ? toolsets : `${toolsets} and ${toolsAssignment}`;
@@ -92,20 +102,22 @@ function legacyToolsetWarning(
   rawValue: string,
   toolset: string,
   toolsetsRaw: string | undefined,
-  toolsRaw: string | undefined
+  toolsetsFromCli: boolean,
+  toolsRaw: string | undefined,
+  toolsFromCli: boolean
 ): string {
   const name = settingName(envName, cliFlag, fromCli);
   if (rawValue === "true") {
     return (
       `${name} is deprecated and will be removed in ${REMOVAL_VERSION}. ` +
-      `${legacyToolsetHint(toolset, toolsetsRaw, toolsRaw, false)}.`
+      `${legacyToolsetHint(toolset, toolsetsRaw, toolsetsFromCli, toolsRaw, toolsFromCli, false)}.`
     );
   }
   const shown = shownEnvValue(rawValue);
   return (
     `${name} is set to "${shown}" and is deprecated and will be removed in ${REMOVAL_VERSION}. ` +
     `This value does not enable the ${toolset} toolset. Remove it. ` +
-    `${legacyToolsetHint(toolset, toolsetsRaw, toolsRaw, true)}.`
+    `${legacyToolsetHint(toolset, toolsetsRaw, toolsetsFromCli, toolsRaw, toolsFromCli, true)}.`
   );
 }
 
@@ -127,8 +139,12 @@ export interface DeprecatedEnvInput {
   usePipelineFromCli?: boolean;
   /** Effective GITLAB_TOOLSETS / --toolsets value when the user set one. */
   toolsetsRaw?: string;
+  /** True when toolsetsRaw came from --toolsets, which wins over GITLAB_TOOLSETS. */
+  toolsetsFromCli?: boolean;
   /** Effective GITLAB_TOOLS / --tools value when the user set one. */
   toolsRaw?: string;
+  /** True when toolsRaw came from --tools, which wins over GITLAB_TOOLS. */
+  toolsFromCli?: boolean;
 }
 
 function readOnlyRawValue(input: DeprecatedEnvInput): string | undefined {
@@ -226,7 +242,9 @@ export function getDeprecatedEnvWarnings(input: DeprecatedEnvInput): string[] {
           flag.rawValue,
           flag.toolset,
           input.toolsetsRaw,
-          input.toolsRaw
+          input.toolsetsFromCli === true,
+          input.toolsRaw,
+          input.toolsFromCli === true
         )
       );
     }
@@ -283,6 +301,8 @@ export function deprecatedEnvInputFromSources(
     usePipelineRaw: readSuppliedSetting(parsedArgs, env, "use-pipeline", "USE_PIPELINE"),
     usePipelineFromCli: Boolean(parsedArgs["use-pipeline"]),
     toolsetsRaw: readSuppliedSetting(parsedArgs, env, "toolsets", "GITLAB_TOOLSETS"),
+    toolsetsFromCli: Boolean(parsedArgs["toolsets"]),
     toolsRaw: readSuppliedSetting(parsedArgs, env, "tools", "GITLAB_TOOLS"),
+    toolsFromCli: Boolean(parsedArgs["tools"]),
   };
 }

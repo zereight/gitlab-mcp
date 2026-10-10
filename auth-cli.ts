@@ -63,12 +63,15 @@ function wantsHelp(argv: readonly string[]): boolean {
   return argv.includes("--help") || argv.includes("-h");
 }
 
-function isReadOnlyMode(argv: readonly string[], env: NodeJS.ProcessEnv): boolean {
-  const readOnly = readFlag(argv, "read-only") ?? env.GITLAB_READ_ONLY_MODE;
+function isReadOnlyMode(
+  parsedArgs: Readonly<Record<string, string>>,
+  env: NodeJS.ProcessEnv
+): boolean {
+  const readOnly = parsedArgs["read-only"] ?? env.GITLAB_READ_ONLY_MODE;
   if (readOnly === "true") {
     return true;
   }
-  return (readFlag(argv, "permission-mode") ?? env.GITLAB_PERMISSION_MODE) === "readonly";
+  return (parsedArgs["permission-mode"] ?? env.GITLAB_PERMISSION_MODE) === "readonly";
 }
 
 export function gitlabOriginFromApiUrl(apiUrl: string): string {
@@ -85,9 +88,8 @@ export async function runAuthCommandAsync(input: AuthCliInput = {}): Promise<voi
     return;
   }
 
-  for (const warning of getDeprecatedEnvWarnings(
-    deprecatedEnvInputFromSources(parseCliArgs(argv.slice(2)), env)
-  )) {
+  const parsedArgs = parseCliArgs(argv.slice(2));
+  for (const warning of getDeprecatedEnvWarnings(deprecatedEnvInputFromSources(parsedArgs, env))) {
     logger.warn(warning);
   }
 
@@ -102,7 +104,7 @@ export async function runAuthCommandAsync(input: AuthCliInput = {}): Promise<voi
     env.GITLAB_OAUTH_TOKEN_PATH ??
     path.join(os.homedir(), ".gitlab-mcp-token.json");
   const gitlabUrl = gitlabOriginFromApiUrl(apiUrl);
-  const scopes = [isReadOnlyMode(argv, env) ? "read_api" : "api"];
+  const scopes = [isReadOnlyMode(parsedArgs, env) ? "read_api" : "api"];
 
   const oauth = new GitLabOAuth({
     clientId,

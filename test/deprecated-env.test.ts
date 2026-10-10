@@ -217,6 +217,38 @@ describe("When GITLAB_TOOLSETS is already set", () => {
   });
 });
 
+describe("When --tools supplies the tool list", () => {
+  describe("with USE_PIPELINE=true", () => {
+    test("should tell the user to append the lint tools to that flag", () => {
+      const [warning] = warningsFor({
+        usePipelineRaw: "true",
+        toolsRaw: "list_issues",
+        toolsFromCli: true,
+      });
+      assert.match(warning, /--tools=list_issues,validate_ci_lint,validate_project_ci_lint/);
+      assert.doesNotMatch(warning, /GITLAB_TOOLS=/);
+    });
+  });
+});
+
+describe("When --toolsets supplies the toolset list", () => {
+  describe("with USE_PIPELINE=true", () => {
+    test("should tell the user to add pipelines to that flag", () => {
+      const [warning] = warningsFor({
+        usePipelineRaw: "true",
+        toolsetsRaw: "issues",
+        toolsetsFromCli: true,
+        toolsRaw: "list_issues",
+        toolsFromCli: true,
+      });
+      assert.match(warning, /existing --toolsets list \("issues"\)/);
+      assert.match(warning, /--tools=list_issues,validate_ci_lint,validate_project_ci_lint/);
+      assert.doesNotMatch(warning, /GITLAB_TOOLSETS/);
+      assert.doesNotMatch(warning, /GITLAB_TOOLS=/);
+    });
+  });
+});
+
 describe("When GITLAB_TOOLS is already set and GITLAB_TOOLSETS is not", () => {
   describe("with USE_PIPELINE=true", () => {
     test("should keep core in the toolset hint and append the lint tools", () => {

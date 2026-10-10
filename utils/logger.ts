@@ -32,6 +32,7 @@ interface PrettyOptions {
   readonly colorize: boolean;
   readonly levelFirst: boolean;
   readonly destination: number;
+  readonly sync: boolean;
 }
 
 function isPrettyFactory(value: unknown): value is (options: PrettyOptions) => DestinationStream {
@@ -54,7 +55,15 @@ function isPrettyModule(
  */
 function createPrettyStream(): DestinationStream {
   const loaded: unknown = require("pino-pretty");
-  const options: PrettyOptions = { colorize: true, levelFirst: true, destination: 2 };
+  // sync: the async destination can flush a later line before an earlier one
+  // when the process exits immediately, which hides deprecation warnings
+  // behind the fatal error they are supposed to precede.
+  const options: PrettyOptions = {
+    colorize: true,
+    levelFirst: true,
+    destination: 2,
+    sync: true,
+  };
   if (isPrettyFactory(loaded)) {
     return loaded(options);
   }
@@ -85,7 +94,7 @@ export function createLogger(name?: string): Logger {
     },
   };
   if (isJson) {
-    return pino(options, pino.destination(2));
+    return pino(options, pino.destination({ dest: 2, sync: true }));
   }
   return pino(options, createPrettyStream());
 }
