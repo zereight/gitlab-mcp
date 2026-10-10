@@ -65,6 +65,12 @@ describe("When redactSensitiveGitLabText runs", () => {
     });
   });
 
+  describe("with an escaped quote inside a quoted token", () => {
+    test("should redact the whole quoted value", () => {
+      assert.equal(redactSensitiveGitLabText('token: "ab\\"cd"'), "token: [REDACTED]");
+    });
+  });
+
   describe("with ordinary text", () => {
     test("should leave the text unchanged", () => {
       assert.equal(

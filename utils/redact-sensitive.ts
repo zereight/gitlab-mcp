@@ -27,7 +27,7 @@ export function redactSensitiveGitLabFields<T>(data: T): T {
 }
 
 const SENSITIVE_ASSIGNMENT_PATTERN =
-  /(["']?\b(?:runners_token|import_url|token)\b["']?\s*[:=]\s*)(?:"[^"\r\n]*"|'[^'\r\n]*'|\S+)/gi;
+  /(["']?\b(?:runners_token|import_url|token)\b["']?\s*[:=]\s*)(?:"(?:[^"\\\r\n]|\\.)*"|'(?:[^'\\\r\n]|\\.)*'|\S+)/gi;
 
 const GITLAB_TOKEN_PATTERN = /\bgl(?:pat|dt|rt|pt|ft|oas|soat)-[A-Za-z0-9._-]+/gi;
 
