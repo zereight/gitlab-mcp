@@ -711,9 +711,14 @@ import {
   createHash,
   timingSafeEqual,
 } from "node:crypto";
-import { createLogger, flushStartupLogs } from "./utils/logger.js";
+import { createLogger, flushBufferedLogs, flushStartupLogs } from "./utils/logger.js";
 
 const logger = createLogger();
+
+function exitAfterFlush(code: number): never {
+  flushBufferedLogs(logger);
+  process.exit(code);
+}
 
 // Construct once at startup. When disabled this is undefined and the result
 // path below returns the original objects without reading a config file.
@@ -925,6 +930,7 @@ function createServer(): McpServer {
         },
         `tool_call_error: ${toolName} (${durationMs}ms)`
       );
+      flushBufferedLogs(logger);
       return safeError;
     };
 
@@ -1519,7 +1525,7 @@ function validateConfiguration(): void {
   if (errors.length > 0) {
     logger.error("Configuration validation failed:");
     errors.forEach(err => logger.error(`  - ${err}`));
-    process.exit(1);
+    exitAfterFlush(1);
   }
 
   logger.info("Configuration validation passed");
@@ -2210,13 +2216,13 @@ if (REMOTE_AUTHORIZATION) {
     emitDeprecatedEnvWarnings();
     logger.error("REMOTE_AUTHORIZATION=true is not compatible with SSE transport mode");
     logger.error("Please use STREAMABLE_HTTP=true instead");
-    process.exit(1);
+    exitAfterFlush(1);
   }
   if (!STREAMABLE_HTTP) {
     emitDeprecatedEnvWarnings();
     logger.error("REMOTE_AUTHORIZATION=true requires STREAMABLE_HTTP=true");
     logger.error("Set STREAMABLE_HTTP=true to enable remote authorization");
-    process.exit(1);
+    exitAfterFlush(1);
   }
   logger.info("Remote authorization enabled: tokens will be read from HTTP headers");
 }
@@ -2226,13 +2232,13 @@ if (GITLAB_MCP_OAUTH) {
     emitDeprecatedEnvWarnings();
     logger.error("GITLAB_MCP_OAUTH=true is not compatible with SSE transport mode");
     logger.error("Please use STREAMABLE_HTTP=true instead");
-    process.exit(1);
+    exitAfterFlush(1);
   }
   if (!STREAMABLE_HTTP) {
     emitDeprecatedEnvWarnings();
     logger.error("GITLAB_MCP_OAUTH=true requires STREAMABLE_HTTP=true");
     logger.error("Set STREAMABLE_HTTP=true to enable MCP OAuth");
-    process.exit(1);
+    exitAfterFlush(1);
   }
   logger.info(
     "MCP OAuth enabled: GitLab OAuth proxy active (Private-Token/JOB-TOKEN headers bypass OAuth)"
@@ -2253,7 +2259,7 @@ if (
   emitDeprecatedEnvWarnings();
   logger.error("GITLAB_PERSONAL_ACCESS_TOKEN environment variable is not set");
   logger.info("Either set GITLAB_PERSONAL_ACCESS_TOKEN or enable OAuth with GITLAB_USE_OAUTH=true");
-  process.exit(1);
+  exitAfterFlush(1);
 }
 
 class GitLabApiError extends Error {
@@ -16957,7 +16963,7 @@ async function runServer() {
         logger.info("OAuth enabled; token acquired lazily on first use.");
       } catch (error) {
         logger.error({ err: error }, "OAuth authentication failed");
-        process.exit(1);
+        exitAfterFlush(1);
       }
     }
 
@@ -16985,7 +16991,7 @@ async function runServer() {
     }
   } catch (error) {
     logger.error({ err: error }, "Error initializing server");
-    process.exit(1);
+    exitAfterFlush(1);
   }
 }
 
@@ -17008,7 +17014,7 @@ async function main(): Promise<void> {
       const message = error instanceof Error ? error.message : String(error);
       process.stderr.write(`${message}\n`);
       logger.error({ err: error }, "auth command failed");
-      process.exit(1);
+      exitAfterFlush(1);
     }
   }
   if (cli.kind === "run") {
@@ -17036,7 +17042,7 @@ async function main(): Promise<void> {
     } catch (error) {
       process.stderr.write(formatCliError(error));
       logger.error({ err: error }, "cli command failed");
-      process.exit(1);
+      exitAfterFlush(1);
     }
   }
 
@@ -17071,5 +17077,5 @@ function maskCliToolResult(toolName: string, result: unknown): unknown {
 
 main().catch(error => {
   logger.fatal({ err: error }, "Fatal error in main()");
-  process.exit(1);
+  exitAfterFlush(1);
 });

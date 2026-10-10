@@ -131,12 +131,21 @@ function rememberStartupFlush(logger: Logger, flushSync: () => void): void {
  * Block until startup warnings already passed to this logger reach stderr.
  * Steady-state logs stay buffered and are flushed asynchronously.
  */
-export function flushStartupLogs(logger: Logger): void {
+function flushDestination(logger: Logger): void {
   const flush = startupFlushes.get(logger);
   if (flush === undefined) {
     return;
   }
   flush();
+}
+
+export function flushStartupLogs(logger: Logger): void {
+  flushDestination(logger);
+}
+
+/** Write buffered lines now. Info logs stay buffered until this or process exit. */
+export function flushBufferedLogs(logger: Logger): void {
+  flushDestination(logger);
 }
 
 /**

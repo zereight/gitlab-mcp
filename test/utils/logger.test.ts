@@ -41,6 +41,17 @@ process.stderr.write("BEFORE_BUFFERED_LOG\\n");
 process.exit(0);
 `;
 
+const FATAL_PROBE_SOURCE = `
+import { createLogger, flushBufferedLogs } from "./utils/logger.ts";
+
+const marker = process.env.PROBE_MARKER ?? "";
+const logger = createLogger("probe");
+logger.error(marker);
+flushBufferedLogs(logger);
+process.stderr.write("AFTER_FATAL_LOG\\n");
+process.exit(1);
+`;
+
 interface ProbeResult {
   readonly stdout: string;
   readonly stderr: string;
@@ -152,6 +163,34 @@ describe("When startup warnings are flushed", () => {
       assert.equal(probe.code, 0);
       assert.ok(warningAt >= 0);
       assert.ok(afterAt > warningAt);
+    });
+  });
+});
+
+describe("When a fatal log is flushed before exit", () => {
+  describe("with LOG_FORMAT=json", () => {
+    it("should write the error before a later stderr line", async () => {
+      const probe = await runProbe("json", JSON_MARKER, FATAL_PROBE_SOURCE);
+      const errorAt = probe.stderr.indexOf(JSON_MARKER);
+      const afterAt = probe.stderr.indexOf("AFTER_FATAL_LOG");
+
+      assert.equal(probe.code, 1);
+      assert.equal(probe.stdout, "");
+      assert.ok(errorAt >= 0);
+      assert.ok(afterAt > errorAt);
+    });
+  });
+
+  describe("with LOG_FORMAT unset", () => {
+    it("should write the error before a later stderr line", async () => {
+      const probe = await runProbe(undefined, PRETTY_MARKER, FATAL_PROBE_SOURCE);
+      const errorAt = probe.stderr.indexOf(PRETTY_MARKER);
+      const afterAt = probe.stderr.indexOf("AFTER_FATAL_LOG");
+
+      assert.equal(probe.code, 1);
+      assert.equal(probe.stdout, "");
+      assert.ok(errorAt >= 0);
+      assert.ok(afterAt > errorAt);
     });
   });
 });
