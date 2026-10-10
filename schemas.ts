@@ -4565,6 +4565,65 @@ export const GetTagSignatureSchema = z.object({
   tag_name: z.string().describe("The name of the tag"),
 });
 
+// Protected tags: https://docs.gitlab.com/api/protected_tags/
+// Recognized create access levels are 0 (No access), 30 (Developer), and 40 (Maintainer).
+const protectedTagAccessLevel = z.coerce
+  .number()
+  .int()
+  .refine(level => [0, 30, 40].includes(level), {
+    message: "Access level must be one of 0 (No access), 30 (Developer), or 40 (Maintainer)",
+  });
+
+export const ListProtectedTagsSchema = ProjectParamsSchema.merge(PaginationOptionsSchema);
+
+export const GetProtectedTagSchema = ProjectParamsSchema.extend({
+  tag_name: z.string().describe("Name of the protected tag or wildcard"),
+});
+
+export const ProtectTagSchema = z.preprocess(
+  input => {
+    if (typeof input !== "object" || input === null) {
+      return input;
+    }
+    const args = { ...(input as Record<string, unknown>) };
+    if (!args.tag_name && args.name) {
+      args.tag_name = args.name;
+    }
+    return args;
+  },
+  ProjectParamsSchema.extend({
+    tag_name: z.string().describe("Tag name or wildcard pattern to protect (for example v*)"),
+    name: z
+      .string()
+      .optional()
+      .describe("Deprecated alias for tag_name; prefer tag_name for consistency"),
+    create_access_level: protectedTagAccessLevel
+      .optional()
+      .describe(
+        "Access level allowed to create matching tags (0=No access, 30=Developer, 40=Maintainer). GitLab default is 40 when omitted."
+      ),
+  })
+);
+
+export const UnprotectTagSchema = ProjectParamsSchema.extend({
+  tag_name: z.string().describe("Name of the protected tag or wildcard to unprotect"),
+});
+
+export const GitLabProtectedTagAccessLevelSchema = z.object({
+  id: z.number().optional(),
+  access_level: z.number().nullable().optional(),
+  access_level_description: z.string().optional(),
+  deploy_key_id: z.number().nullable().optional(),
+  // GitLab returns null for role-based access levels (not user-/group-specific)
+  user_id: z.number().nullable().optional(),
+  group_id: z.number().nullable().optional(),
+});
+
+export const GitLabProtectedTagSchema = z.object({
+  name: z.string(),
+  create_access_levels: z.array(GitLabProtectedTagAccessLevelSchema).optional(),
+});
+
 export const GitLabTagSchema = z.object({
   name: z.string(),
   message: z.string().nullable(),
