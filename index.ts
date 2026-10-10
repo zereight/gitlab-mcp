@@ -702,7 +702,7 @@ import {
   createHash,
   timingSafeEqual,
 } from "node:crypto";
-import { createLogger } from "./utils/logger.js";
+import { createLogger, flushStartupLogs } from "./utils/logger.js";
 
 const logger = createLogger();
 
@@ -1530,8 +1530,12 @@ function emitDeprecatedEnvWarnings(): void {
     return;
   }
   hasEmittedDeprecatedEnvWarnings = true;
-  for (const warning of getDeprecatedEnvWarnings(buildDeprecatedEnvInput())) {
+  const warnings = getDeprecatedEnvWarnings(buildDeprecatedEnvInput());
+  for (const warning of warnings) {
     logger.warn(warning);
+  }
+  if (warnings.length > 0) {
+    flushStartupLogs(logger);
   }
 }
 

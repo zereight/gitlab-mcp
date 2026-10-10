@@ -26,6 +26,10 @@ function explicitToolsets(raw: string | undefined): string | undefined {
   return trimmed;
 }
 
+function isAllToolsets(raw: string): boolean {
+  return raw.trim().toLowerCase() === "all";
+}
+
 function settingName(envName: string, cliFlag: string, fromCli: boolean): string {
   if (fromCli) {
     return `\`--${cliFlag}\` (${envName})`;
@@ -72,8 +76,13 @@ function legacyToolsetHint(
   const listed = explicitToolsets(toolsetsRaw);
   const toolsetsLabel = toolsetsFromCli && listed !== undefined ? "--toolsets" : "GITLAB_TOOLSETS";
   if (listed !== undefined) {
-    const extra = toolsAssignment === undefined ? "" : ` and set ${toolsAssignment}`;
     const shown = shownEnvValue(listed);
+    // parseEnabledToolsets treats only the exact value "all" as every toolset.
+    // "all,pipelines" is not "all"; unknown token "all" is dropped and pipelines remains.
+    if (isAllToolsets(listed)) {
+      return `Keep the existing ${toolsetsLabel} value ("${shown}") and remove the deprecated setting`;
+    }
+    const extra = toolsAssignment === undefined ? "" : ` and set ${toolsAssignment}`;
     if (optional) {
       return (
         `Add \`${toolset}\` to the existing ${toolsetsLabel} list ("${shown}")${extra} ` +

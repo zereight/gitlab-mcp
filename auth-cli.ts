@@ -3,7 +3,7 @@ import * as path from "path";
 import { parseCliArgs } from "./cli-boolean-flags.js";
 import { deprecatedEnvInputFromSources, getDeprecatedEnvWarnings } from "./deprecated-env.js";
 import { GitLabOAuth } from "./oauth.js";
-import { createLogger } from "./utils/logger.js";
+import { createLogger, flushStartupLogs } from "./utils/logger.js";
 import type { FetchImpl } from "./oauth-device-flow.js";
 
 const logger = createLogger("gitlab-mcp-auth");
@@ -89,8 +89,12 @@ export async function runAuthCommandAsync(input: AuthCliInput = {}): Promise<voi
   }
 
   const parsedArgs = parseCliArgs(argv.slice(2));
-  for (const warning of getDeprecatedEnvWarnings(deprecatedEnvInputFromSources(parsedArgs, env))) {
+  const warnings = getDeprecatedEnvWarnings(deprecatedEnvInputFromSources(parsedArgs, env));
+  for (const warning of warnings) {
     logger.warn(warning);
+  }
+  if (warnings.length > 0) {
+    flushStartupLogs(logger);
   }
 
   const clientId = readFlag(argv, "client-id") ?? env.GITLAB_OAUTH_CLIENT_ID;

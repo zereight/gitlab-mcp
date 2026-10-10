@@ -217,6 +217,49 @@ describe("When GITLAB_TOOLSETS is already set", () => {
   });
 });
 
+describe("When GITLAB_TOOLSETS is all", () => {
+  describe("with USE_PIPELINE=true", () => {
+    test("should keep all and should not append a toolset", () => {
+      const [warning] = warningsFor({
+        usePipelineRaw: "true",
+        toolsetsRaw: "all",
+      });
+      assert.match(warning, /Keep the existing GITLAB_TOOLSETS value \("all"\)/);
+      assert.match(warning, /remove the deprecated setting/);
+      assert.doesNotMatch(warning, /all,pipelines/);
+      assert.doesNotMatch(warning, /GITLAB_TOOLS=/);
+    });
+  });
+
+  describe("with --toolsets=ALL", () => {
+    test("should name the flag and keep that value", () => {
+      const [warning] = warningsFor({
+        usePipelineRaw: "true",
+        toolsetsRaw: "ALL",
+        toolsetsFromCli: true,
+      });
+      assert.match(warning, /Keep the existing --toolsets value \("ALL"\)/);
+      assert.doesNotMatch(warning, /all,pipelines/);
+      assert.doesNotMatch(warning, /GITLAB_TOOLS=/);
+    });
+  });
+});
+
+describe("When GITLAB_TOOLSETS is all,issues", () => {
+  describe("with USE_PIPELINE=true", () => {
+    test("should append pipelines because the value is not all", () => {
+      const [warning] = warningsFor({
+        usePipelineRaw: "true",
+        toolsetsRaw: "all,issues",
+      });
+      assert.match(
+        warning,
+        /Add `pipelines` to the existing GITLAB_TOOLSETS list \("all,issues"\)/
+      );
+    });
+  });
+});
+
 describe("When --tools supplies the tool list", () => {
   describe("with USE_PIPELINE=true", () => {
     test("should tell the user to append the lint tools to that flag", () => {
