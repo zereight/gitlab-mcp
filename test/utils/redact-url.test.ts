@@ -161,6 +161,24 @@ describe("When redactUrlSecretsInText runs", () => {
       assert.equal(redactUrlSecretsInText("localhost:3000 a@b.com"), "localhost:3000 a@b.com");
     });
   });
+
+  describe("with a special scheme and no slashes", () => {
+    it("should redact the userinfo", () => {
+      assert.equal(
+        redactUrlSecretsInText("https:user:pass@gitlab.example"),
+        "https:[REDACTED]@gitlab.example"
+      );
+    });
+  });
+
+  describe("with a special scheme, no slashes, and a path", () => {
+    it("should redact the userinfo and keep the path", () => {
+      assert.equal(
+        redactUrlSecretsInText("http:u:p@host/path"),
+        "http:[REDACTED]@host/path"
+      );
+    });
+  });
 });
 
 describe("When redactGitLabUrlCredentials runs", () => {
@@ -178,6 +196,24 @@ describe("When redactGitLabUrlCredentials runs", () => {
       assert.equal(
         redactGitLabUrlCredentials("https://user:pa ss@gitlab.example:bad/api/v4"),
         "https://[REDACTED]@gitlab.example:bad/api/v4"
+      );
+    });
+  });
+
+  describe("with a special scheme and no slashes", () => {
+    it("should strip the userinfo", () => {
+      assert.equal(
+        redactGitLabUrlCredentials("https:user:pass@gitlab.example"),
+        "https://gitlab.example/"
+      );
+    });
+  });
+
+  describe("with a special scheme, no slashes, and a path", () => {
+    it("should strip the userinfo and keep the path", () => {
+      assert.equal(
+        redactGitLabUrlCredentials("http:u:p@host/path"),
+        "http://host/path"
       );
     });
   });

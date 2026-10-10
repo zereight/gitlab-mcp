@@ -97,11 +97,13 @@ function tryParseUrl(value: string): URL | null {
 function splitAuthorityUserinfo(
   url: string
 ): { readonly scheme: string; readonly afterAt: string } | null {
-  const schemeSeparator = url.indexOf("://");
-  if (schemeSeparator < 0) {
+  // WHATWG special schemes still expose userinfo for "https:user:pass@host".
+  const schemeMatch = /^([a-z][a-z0-9+.-]*:)(\/\/)?/i.exec(url);
+  if (schemeMatch === null) {
     return null;
   }
-  const rest = url.slice(schemeSeparator + 3);
+  const schemeEnd = schemeMatch[0].length;
+  const rest = url.slice(schemeEnd);
   const slash = rest.indexOf("/");
   const query = rest.indexOf("?");
   const hash = rest.indexOf("#");
@@ -113,7 +115,7 @@ function splitAuthorityUserinfo(
     return null;
   }
   return {
-    scheme: url.slice(0, schemeSeparator + 3),
+    scheme: url.slice(0, schemeEnd),
     afterAt: `${authority.slice(atIndex + 1)}${rest.slice(authorityEnd)}`,
   };
 }
