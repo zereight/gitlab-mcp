@@ -7,7 +7,11 @@ export const JOB_LOG_DEFAULT_MAX_MATCHES = 20;
 export const JOB_LOG_MAX_MATCHES = 100;
 export const JOB_LOG_MAX_LINE_LENGTH = 4000;
 export const JOB_LOG_SEARCH_BUDGET_MS = 1000;
+// Per-IP rate limits do not cap workers. This does, for the whole process.
+export const JOB_LOG_MAX_ACTIVE_SEARCHES = 2;
 
+// Headroom for a ~100MB trace and its cleaned copies, still a hard heap cap.
+const JOB_LOG_WORKER_MAX_OLD_GENERATION_MB = 1024;
 const ANSI_ESCAPE_CHARACTER = String.fromCharCode(0x1b);
 const ANSI_ESCAPE_PATTERN = new RegExp(
   `${ANSI_ESCAPE_CHARACTER}(?:[@-Z\\\\-_]|\\[[0-?]*[ -/]*[@-~])`,
@@ -16,31 +20,117 @@ const ANSI_ESCAPE_PATTERN = new RegExp(
 const SECTION_MARKER_PATTERN = /\r?section_(?:start|end):[^\r\n]*\r?/g;
 const SEARCH_BUDGET_MESSAGE =
   "Job log search exceeded the time limit. Use a simpler pattern or turn regex off.";
+const SEARCH_CAPACITY_MESSAGE = "Job log search is already running at capacity. Retry shortly.";
+const SEARCH_FAILED_MESSAGE = "Job log search failed.";
 
-// Evaluated in a worker so one catastrophic pattern cannot block the server.
-// The parent is ESM, so this program is ESM too. The pattern arrives in
-// workerData and is never interpolated into the source.
-const REGEX_MATCH_WORKER_SOURCE = `
-import { parentPort, workerData } from "node:worker_threads";
-if (parentPort === null) {
-  throw new Error("job log search worker has no parent port");
-}
-const expression = new RegExp(workerData.pattern, workerData.flags);
-const startedAt = Date.now();
-const matches = [];
-let timedOut = false;
-for (let index = 0; index < workerData.lines.length; index += 1) {
-  if (Date.now() - startedAt > workerData.budgetMs) {
-    timedOut = true;
-    break;
-  }
-  expression.lastIndex = 0;
-  if (expression.test(workerData.lines[index])) {
-    matches.push(index);
-  }
-}
-parentPort.postMessage(timedOut ? { timeout: true } : { matches });
-`;
+// The parent is ESM, so this program is ESM too. Pattern and log arrive in
+// workerData and are never interpolated into the source.
+const SEARCH_WORKER_SOURCE = [
+  'import { parentPort, workerData } from "node:worker_threads";',
+  "if (parentPort === null) {",
+  '  throw new Error("job log search worker has no parent port");',
+  "}",
+  "const ansiPattern = new RegExp(workerData.ansiSource, workerData.ansiFlags);",
+  "const sectionPattern = new RegExp(workerData.sectionSource, workerData.sectionFlags);",
+  "const trailingCarriageReturn = /\\r+$/g;",
+  "function cleanLine(line, maxLineLength) {",
+  "  ansiPattern.lastIndex = 0;",
+  "  sectionPattern.lastIndex = 0;",
+  "  trailingCarriageReturn.lastIndex = 0;",
+  '  const withoutAnsi = line.replace(ansiPattern, "");',
+  '  const withoutMarkers = withoutAnsi.replace(sectionPattern, "");',
+  '  const normalized = withoutMarkers.replace(trailingCarriageReturn, "");',
+  "  if (normalized.length <= maxLineLength) {",
+  "    return { text: normalized, truncated: false };",
+  "  }",
+  "  return { text: normalized.slice(0, maxLineLength), truncated: true };",
+  "}",
+  "function overBudget(startedAt, budgetMs) {",
+  "  return Date.now() - startedAt > budgetMs;",
+  "}",
+  "function mergeWindows(matchIndexes, contextLines, lineCount, maxMatches) {",
+  "  const limited = matchIndexes.slice(0, maxMatches);",
+  "  const windows = [];",
+  "  for (const index of limited) {",
+  "    const start = Math.max(0, index - contextLines);",
+  "    const end = Math.min(lineCount - 1, index + contextLines);",
+  "    const lineNumber = index + 1;",
+  "    const previous = windows[windows.length - 1];",
+  "    if (previous !== undefined && start <= previous.end) {",
+  "      previous.end = Math.max(previous.end, end);",
+  "      previous.matchLines.push(lineNumber);",
+  "      continue;",
+  "    }",
+  "    windows.push({ start, end, matchLines: [lineNumber] });",
+  "  }",
+  "  return { windows, shownMatches: limited.length };",
+  "}",
+  "function runSearch(data) {",
+  "  const startedAt = Date.now();",
+  '  const rawLines = data.log.split("\\n");',
+  "  const cleaned = [];",
+  "  let linesTruncated = false;",
+  "  for (let index = 0; index < rawLines.length; index += 1) {",
+  "    if (overBudget(startedAt, data.budgetMs)) {",
+  "      return { timeout: true };",
+  "    }",
+  "    const line = cleanLine(rawLines[index], data.maxLineLength);",
+  "    if (line.truncated) {",
+  "      linesTruncated = true;",
+  "    }",
+  "    cleaned.push(line.text);",
+  "  }",
+  "  const expression = data.regex ? new RegExp(data.pattern, data.flags) : null;",
+  "  const needle = data.caseSensitive ? data.pattern : data.pattern.toLowerCase();",
+  "  const matchIndexes = [];",
+  "  for (let index = 0; index < cleaned.length; index += 1) {",
+  "    if (overBudget(startedAt, data.budgetMs)) {",
+  "      return { timeout: true };",
+  "    }",
+  "    const line = cleaned[index];",
+  "    let matched = false;",
+  "    if (expression !== null) {",
+  "      expression.lastIndex = 0;",
+  "      matched = expression.test(line);",
+  "    } else {",
+  "      const haystack = data.caseSensitive ? line : line.toLowerCase();",
+  "      matched = haystack.includes(needle);",
+  "    }",
+  "    if (matched) {",
+  "      matchIndexes.push(index);",
+  "    }",
+  "  }",
+  "  const merged = mergeWindows(matchIndexes, data.contextLines, cleaned.length, data.maxMatches);",
+  "  const fragments = merged.windows.map(matchWindow => {",
+  "    const lines = [];",
+  "    for (let offset = matchWindow.start; offset <= matchWindow.end; offset += 1) {",
+  "      lines.push({ lineNumber: offset + 1, text: cleaned[offset] });",
+  "    }",
+  "    return {",
+  "      startLine: matchWindow.start + 1,",
+  "      endLine: matchWindow.end + 1,",
+  "      matchLines: matchWindow.matchLines,",
+  "      lines,",
+  "    };",
+  "  });",
+  "  return {",
+  "    result: {",
+  "      totalLines: cleaned.length,",
+  "      totalMatches: matchIndexes.length,",
+  "      shownMatches: merged.shownMatches,",
+  "      truncated: matchIndexes.length > merged.shownMatches,",
+  "      contextLines: data.contextLines,",
+  "      linesTruncated,",
+  "      fragments,",
+  "    },",
+  "  };",
+  "}",
+  "try {",
+  "  parentPort.postMessage(runSearch(workerData));",
+  "} catch {",
+  "  parentPort.postMessage({ failed: true });",
+  "}",
+].join("\n");
 
 export class JobLogSearchError extends Error {
   constructor(message: string) {
@@ -79,26 +169,7 @@ export interface JobLogSearchResult {
   readonly fragments: readonly JobLogFragment[];
 }
 
-interface CleanedLine {
-  readonly text: string;
-  readonly truncated: boolean;
-}
-
-interface MatchWindow {
-  start: number;
-  end: number;
-  matchLines: number[];
-}
-
-export function cleanJobLogLine(line: string): CleanedLine {
-  const withoutAnsi = line.replace(ANSI_ESCAPE_PATTERN, "");
-  const withoutMarkers = withoutAnsi.replace(SECTION_MARKER_PATTERN, "");
-  const normalized = withoutMarkers.replace(/\r+$/g, "");
-  if (normalized.length <= JOB_LOG_MAX_LINE_LENGTH) {
-    return { text: normalized, truncated: false };
-  }
-  return { text: normalized.slice(0, JOB_LOG_MAX_LINE_LENGTH), truncated: true };
-}
+let activeSearchWorkers = 0;
 
 function clampInteger(
   value: number | undefined,
@@ -125,56 +196,109 @@ function assertPatternLength(pattern: string): void {
   }
 }
 
-function matchSubstringLines(
-  lines: readonly string[],
-  pattern: string,
-  caseSensitive: boolean
-): number[] {
-  const needle = caseSensitive ? pattern : pattern.toLowerCase();
-  const matchIndexes: number[] = [];
-  const startedAt = Date.now();
-  for (const [index, line] of lines.entries()) {
-    if (Date.now() - startedAt > JOB_LOG_SEARCH_BUDGET_MS) {
-      throw new JobLogSearchError(SEARCH_BUDGET_MESSAGE);
-    }
-    const haystack = caseSensitive ? line : line.toLowerCase();
-    if (haystack.includes(needle)) {
-      matchIndexes.push(index);
-    }
+function compileRegExp(pattern: string, flags: string): RegExp {
+  try {
+    return new RegExp(pattern, flags);
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
+    throw new JobLogSearchError(`Invalid regular expression: ${detail}`);
   }
-  return matchIndexes;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
 }
 
 function isTimeoutMessage(value: unknown): value is { timeout: true } {
+  return isRecord(value) && value.timeout === true;
+}
+
+function isFragmentLine(value: unknown): value is JobLogFragmentLine {
+  if (!isRecord(value)) {
+    return false;
+  }
+  return typeof value.lineNumber === "number" && typeof value.text === "string";
+}
+
+function isFragment(value: unknown): value is JobLogFragment {
+  if (!isRecord(value)) {
+    return false;
+  }
+  const matchLines = value.matchLines;
+  const lines = value.lines;
   return (
-    typeof value === "object" && value !== null && "timeout" in value && value.timeout === true
+    typeof value.startLine === "number" &&
+    typeof value.endLine === "number" &&
+    Array.isArray(matchLines) &&
+    matchLines.every(item => typeof item === "number") &&
+    Array.isArray(lines) &&
+    lines.every(isFragmentLine)
   );
 }
 
-function isMatchesMessage(value: unknown): value is { matches: number[] } {
-  if (typeof value !== "object" || value === null || !("matches" in value)) {
+function isSearchResult(value: unknown): value is JobLogSearchResult {
+  if (!isRecord(value)) {
     return false;
   }
-  const matches = value.matches;
-  return Array.isArray(matches) && matches.every(item => typeof item === "number");
+  const fragments = value.fragments;
+  return (
+    typeof value.totalLines === "number" &&
+    typeof value.totalMatches === "number" &&
+    typeof value.shownMatches === "number" &&
+    typeof value.truncated === "boolean" &&
+    typeof value.contextLines === "number" &&
+    typeof value.linesTruncated === "boolean" &&
+    Array.isArray(fragments) &&
+    fragments.every(isFragment)
+  );
 }
 
-function matchRegexLinesAsync(
-  lines: readonly string[],
-  pattern: string,
-  flags: string
-): Promise<number[]> {
-  if (lines.length === 0) {
-    return Promise.resolve([]);
+function isResultMessage(value: unknown): value is { result: JobLogSearchResult } {
+  return isRecord(value) && isSearchResult(value.result);
+}
+
+function acquireSearchWorkerSlot(): void {
+  if (activeSearchWorkers >= JOB_LOG_MAX_ACTIVE_SEARCHES) {
+    throw new JobLogSearchError(SEARCH_CAPACITY_MESSAGE);
   }
+  activeSearchWorkers += 1;
+}
+
+function releaseSearchWorkerSlot(): void {
+  activeSearchWorkers -= 1;
+}
+
+interface JobLogWorkerInput {
+  readonly log: string;
+  readonly pattern: string;
+  readonly regex: boolean;
+  readonly caseSensitive: boolean;
+  readonly flags: string;
+  readonly contextLines: number;
+  readonly maxMatches: number;
+}
+
+function executeJobLogSearch(input: JobLogWorkerInput): Promise<JobLogSearchResult> {
   return new Promise((resolve, reject) => {
-    const worker = new Worker(REGEX_MATCH_WORKER_SOURCE, {
+    const worker = new Worker(SEARCH_WORKER_SOURCE, {
       eval: true,
+      resourceLimits: {
+        maxOldGenerationSizeMb: JOB_LOG_WORKER_MAX_OLD_GENERATION_MB,
+      },
       workerData: {
-        lines,
-        pattern,
-        flags,
+        log: input.log,
+        pattern: input.pattern,
+        regex: input.regex,
+        caseSensitive: input.caseSensitive,
+        flags: input.flags,
+        contextLines: input.contextLines,
+        maxMatches: input.maxMatches,
         budgetMs: JOB_LOG_SEARCH_BUDGET_MS,
+        maxLineLength: JOB_LOG_MAX_LINE_LENGTH,
+        ansiSource: ANSI_ESCAPE_PATTERN.source,
+        ansiFlags: ANSI_ESCAPE_PATTERN.flags,
+        sectionSource: SECTION_MARKER_PATTERN.source,
+        sectionFlags: SECTION_MARKER_PATTERN.flags,
       },
     });
     let settled = false;
@@ -184,8 +308,11 @@ function matchRegexLinesAsync(
       }
       settled = true;
       clearTimeout(timer);
-      void worker.terminate();
-      action();
+      try {
+        worker.terminate().then(action, action);
+      } catch {
+        action();
+      }
     };
     const timer = setTimeout(() => {
       finish(() => {
@@ -199,56 +326,31 @@ function matchRegexLinesAsync(
         });
         return;
       }
-      if (isMatchesMessage(message)) {
+      if (isResultMessage(message)) {
         finish(() => {
-          resolve(message.matches);
+          resolve(message.result);
         });
         return;
       }
       finish(() => {
-        reject(new JobLogSearchError("Job log search failed."));
+        reject(new JobLogSearchError(SEARCH_FAILED_MESSAGE));
       });
     });
     worker.once("error", () => {
       finish(() => {
-        reject(new JobLogSearchError("Job log search failed."));
+        reject(new JobLogSearchError(SEARCH_FAILED_MESSAGE));
+      });
+    });
+    worker.once("exit", () => {
+      // Message delivery can be queued behind exit. Yield once so a result
+      // posted before the worker stopped is not reported as a failure.
+      setImmediate(() => {
+        finish(() => {
+          reject(new JobLogSearchError(SEARCH_FAILED_MESSAGE));
+        });
       });
     });
   });
-}
-
-function compileRegExp(pattern: string, flags: string): RegExp {
-  try {
-    return new RegExp(pattern, flags);
-  } catch (error) {
-    const detail = error instanceof Error ? error.message : String(error);
-    throw new JobLogSearchError(`Invalid regular expression: ${detail}`);
-  }
-}
-
-function mergeMatchWindows(
-  matchIndexes: readonly number[],
-  contextLines: number,
-  lineCount: number,
-  maxMatches: number
-): { readonly windows: readonly MatchWindow[]; readonly shownMatches: number } {
-  const limited = matchIndexes.slice(0, maxMatches);
-  const windows: MatchWindow[] = [];
-
-  for (const index of limited) {
-    const start = Math.max(0, index - contextLines);
-    const end = Math.min(lineCount - 1, index + contextLines);
-    const lineNumber = index + 1;
-    const previous = windows[windows.length - 1];
-    if (previous !== undefined && start <= previous.end) {
-      previous.end = Math.max(previous.end, end);
-      previous.matchLines.push(lineNumber);
-      continue;
-    }
-    windows.push({ start, end, matchLines: [lineNumber] });
-  }
-
-  return { windows, shownMatches: limited.length };
 }
 
 export async function searchJobLog(
@@ -274,43 +376,25 @@ export async function searchJobLog(
   );
   const regex = input.regex === true;
   const caseSensitive = input.caseSensitive === true;
-  const rawLines = log.split("\n");
-  const cleaned = rawLines.map(line => cleanJobLogLine(line));
-  const linesTruncated = cleaned.some(line => line.truncated);
-  const texts = cleaned.map(line => line.text);
   const flags = caseSensitive ? "" : "i";
   if (regex) {
     compileRegExp(input.pattern, flags);
   }
-  const matchIndexes = regex
-    ? await matchRegexLinesAsync(texts, input.pattern, flags)
-    : matchSubstringLines(texts, input.pattern, caseSensitive);
 
-  const { windows, shownMatches } = mergeMatchWindows(
-    matchIndexes,
-    contextLines,
-    cleaned.length,
-    maxMatches
-  );
-  const fragments = windows.map(window => ({
-    startLine: window.start + 1,
-    endLine: window.end + 1,
-    matchLines: window.matchLines,
-    lines: cleaned.slice(window.start, window.end + 1).map((line, offset) => ({
-      lineNumber: window.start + offset + 1,
-      text: line.text,
-    })),
-  }));
-
-  return {
-    totalLines: cleaned.length,
-    totalMatches: matchIndexes.length,
-    shownMatches,
-    truncated: matchIndexes.length > shownMatches,
-    contextLines,
-    linesTruncated,
-    fragments,
-  };
+  acquireSearchWorkerSlot();
+  try {
+    return await executeJobLogSearch({
+      log,
+      pattern: input.pattern,
+      regex,
+      caseSensitive,
+      flags,
+      contextLines,
+      maxMatches,
+    });
+  } finally {
+    releaseSearchWorkerSlot();
+  }
 }
 
 export function formatJobLogSearch(
