@@ -112,6 +112,7 @@ nav:
       - Vulnerabilities: tools/vulnerabilities.md
       - Orbit: tools/orbit.md
       - Snippets: tools/snippets.md
+      - Raw API: tools/api.md
       - Meta & GraphQL: tools/meta.md
   - Reference:
       - Tool Invocation Coverage: reference/tool-coverage.md

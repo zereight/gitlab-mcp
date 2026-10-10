@@ -17,7 +17,7 @@ Suporta PAT, OAuth, modo somente leitura, URLs de API dinâmicas e autorização
 
 ### Por que usar este GitLab MCP?
 
-- **268 ferramentas: 266 em toolsets + `execute_graphql` + `discover_tools`** — comece com um toolset pequeno e ative mais categorias em tempo de execução
+- **269 ferramentas: 267 em toolsets + `execute_graphql` + `discover_tools`** — comece com um toolset pequeno e ative mais categorias em tempo de execução
 - **Revisão de MR em 2 etapas** — `list_merge_request_changed_files` → `get_merge_request_file_diff` em lote
 - **Agent Skill integrado** — orientação de workflows em `skills/gitlab-mcp/`
 - **Autenticação flexível** — Personal Access Token, fluxo OAuth2 local no navegador, proxy MCP OAuth e autorização remota por requisição
@@ -31,7 +31,7 @@ Suporta PAT, OAuth, modo somente leitura, URLs de API dinâmicas e autorização
 |                           | @zereight/mcp-gitlab                           | GitLab MCP A (comunidade, estilo CQRS)                    |
 | ------------------------- | ---------------------------------------------- | --------------------------------------------------------- |
 | **Mais indicado para**    | Workflows de agentes de IA                     | Múltiplas instâncias corporativas / ferramentas agrupadas |
-| **Modelo de ferramentas** | 268 ferramentas: 266 em toolsets + `execute_graphql` + `discover_tools` | ~50–60 ferramentas agrupadas `browse_*` / `manage_*`      |
+| **Modelo de ferramentas** | 269 ferramentas: 267 em toolsets + `execute_graphql` + `discover_tools` | ~50–60 ferramentas agrupadas `browse_*` / `manage_*`      |
 | **Revisão de MR**         | Diff em lote em 2 etapas                       | Varia                                                     |
 | **Node.js**               | >=18.17                                        | Frequentemente >=24                                       |
 | **Licença**               | MIT                                            | Varia                                                     |
@@ -135,7 +135,7 @@ Alguns clientes MCP, como o GitHub Copilot CLI, têm problemas com variáveis de
 - `--api-url` - URL da API do GitLab (substitui `GITLAB_API_URL`)
 - `--read-only=true` - ativa o modo somente leitura (substitui `GITLAB_READ_ONLY_MODE`, obsoleto — prefira `--permission-mode=readonly`)
 - `--permission-mode` - nível de permissão: `readonly`, `modify` (sem ferramentas de exclusão ou teardown) ou `full` (substitui `GITLAB_PERMISSION_MODE`, padrão `full`)
-- `--toolsets=all` - ativa toolsets nomeados (substitui `GITLAB_TOOLSETS`; sem valor usa o padrão enxuto `core`)
+- `--toolsets=all` - ativa toolsets nomeados, exceto o toolset explícito `api` (substitui `GITLAB_TOOLSETS`; sem valor usa o padrão enxuto `core`). `gitlab_api_request` exige `--toolsets=api`
 - `--tools=list_issues` - adiciona ferramentas individuais (substitui `GITLAB_TOOLS`)
 - `--use-wiki=true` - ativa a API de Wiki (substitui `USE_GITLAB_WIKI`, legado — prefira `GITLAB_TOOLSETS=wiki`)
 - `--use-milestone=true` - ativa a API de milestones (substitui `USE_MILESTONE`, legado — prefira `GITLAB_TOOLSETS=milestones`)
@@ -167,6 +167,10 @@ O mesmo binário também é uma CLI do GitLab no estilo `gh` (`tool <name>` ou f
 > `USE_MILESTONE` / `USE_PIPELINE` são mantidas apenas para compatibilidade retroativa.
 > Consulte a [Referência de ferramentas](./docs/tools/index.md#feature-toggles) e
 > [Variáveis de ambiente](./docs/configuration/environment-variables.md).
+
+> [!CAUTION]
+> `gitlab_api_request` (toolset `api`) ignora `GITLAB_ALLOWED_GROUPS` e outras restrições de grupo, allowlists de projeto, restrições por ferramenta (`GITLAB_TOOLS`, `GITLAB_DENIED_TOOLS_REGEX` nas outras ferramentas) e as checagens de segurança de cada ferramenta. O escopo completo do token fica exposto. Prompt injection pode acionar esta ferramenta. Operadores que dependem dessas restrições NÃO devem habilitá-la.
+> Ela só liga quando `api` está listado em `GITLAB_TOOLSETS` (`GITLAB_TOOLSETS=all`, `discover_tools`, `GITLAB_TOOLS`, flags legadas `USE_*` e `GITLAB_TOOL_PROFILE` não ligam). `GITLAB_ALLOWED_PROJECT_IDS` vale só para caminhos `/projects/:id`. Endpoints como `/search`, `/users`, `/groups/:id` e `/runners` não são restringidos. `GITLAB_PROJECT_ID` e allowlists de grupo OAuth não são aplicados por esta ferramenta.
 
 - sse
 

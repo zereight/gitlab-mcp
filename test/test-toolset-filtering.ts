@@ -55,8 +55,10 @@ function uniqueToolCount(toolsetIds: readonly string[]): number {
 }
 
 const DEFAULT_TOOL_COUNT = uniqueToolCount(DEFAULT_TOOLSETS) + DISCOVER_TOOLS_COUNT;
-const ALL_TOOLSET_TOOL_COUNT =
-  uniqueToolCount(TOOLSET_DEFINITIONS.map(def => def.id)) + DISCOVER_TOOLS_COUNT;
+const BULK_TOOLSET_IDS = TOOLSET_DEFINITIONS.filter(def => def.explicitOnly !== true).map(
+  def => def.id
+);
+const ALL_TOOLSET_TOOL_COUNT = uniqueToolCount(BULK_TOOLSET_IDS) + DISCOVER_TOOLS_COUNT;
 
 // Representative tools per toolset for spot-checking
 const TOOLSET_SAMPLE_TOOLS: Record<string, string[]> = {
@@ -291,8 +293,8 @@ describe("Toolset Filtering", { concurrency: 1 }, () => {
       }
     });
 
-    test("still excludes execute_graphql", () => {
-      assertContainsNone(tools, ["execute_graphql"], "unassigned");
+    test("still excludes execute_graphql and the explicit-only api tool", () => {
+      assertContainsNone(tools, ["execute_graphql", "gitlab_api_request"], "not in all");
     });
   });
 

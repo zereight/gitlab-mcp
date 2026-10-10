@@ -268,12 +268,18 @@ import {
   buildFeatureFlagOverrides,
   isToolInEnabledToolset,
   findSmallestToolsetForTool,
+  isExplicitOnlyToolsetId,
+  isExplicitToolsetOnlyTool,
   isToolsetFullyActive,
   listDiscoverableCategories,
   TOOLSET_DEFINITIONS,
-  ALL_TOOLSET_IDS,
-  type ToolsetId,
+  DISCOVERABLE_TOOLSET_IDS,
 } from "./tools/registry.js";
+import {
+  executeGitLabApiRequestAsync,
+  GitLabApiRequestHttpError,
+  GitLabApiRequestInputError,
+} from "./tools/gitlab-api-request.js";
 import {
   buildUnavailableToolMessage,
   isSkippedByDiscoverActivation,
@@ -780,12 +786,14 @@ const MCP_PROMPTS = [
  * Regex-denied tools stay blocked, and slim-excluded tools are not activated.
  */
 function buildToolUnavailableMessage(toolName: string): string {
+  const toolset = findSmallestToolsetForTool(toolName);
   return buildUnavailableToolMessage({
     toolName,
-    toolset: findSmallestToolsetForTool(toolName),
+    toolset,
     deniedByRegex: GITLAB_DENIED_TOOLS_REGEX?.test(toolName) === true,
     excludedBySlimProfile: isExcludedFromToolsetListing(toolName),
     enabledByCurrentToolsets: isToolInEnabledToolset(toolName, enabledToolsets),
+    explicitToolsetOnly: toolset !== undefined && isExplicitOnlyToolsetId(toolset),
   });
 }
 
@@ -805,6 +813,7 @@ function createServer(): McpServer {
     deniedToolsRegex: GITLAB_DENIED_TOOLS_REGEX,
     hiddenToolNames: hiddenToolSet,
     applySlimProfile,
+    isAdditiveEnablementAllowed: toolName => !isExplicitToolsetOnlyTool(toolName),
   });
   const listedToolDecoration: ListedToolDecorationContext = {
     readOnlyToolNames: new Set([...readOnlyTools].filter(toolName => advertisesReadOnly(toolName))),
@@ -1033,12 +1042,30 @@ function createServer(): McpServer {
           });
         }
 
-        if (!ALL_TOOLSET_IDS.has(category as ToolsetId)) {
+        if (isExplicitOnlyToolsetId(category)) {
           return logCompletion({
             content: [
               {
                 type: "text",
-                text: `Unknown category "${category}". Available: ${[...ALL_TOOLSET_IDS].join(", ")}`,
+                text: `Category "${category}" cannot be activated with discover_tools. Add "${category}" to GITLAB_TOOLSETS. GITLAB_TOOLSETS=all does not enable it.`,
+              },
+            ],
+            isError: true,
+          });
+        }
+
+        let discoverableCategory = false;
+        for (const id of DISCOVERABLE_TOOLSET_IDS) {
+          if (id === category) {
+            discoverableCategory = true;
+          }
+        }
+        if (!discoverableCategory) {
+          return logCompletion({
+            content: [
+              {
+                type: "text",
+                text: `Unknown category "${category}". Available: ${[...DISCOVERABLE_TOOLSET_IDS].join(", ")}`,
               },
             ],
             isError: true,
@@ -2031,6 +2058,23 @@ if (GITLAB_TOOLSETS_RAW && (USE_PIPELINE || USE_MILESTONE || USE_GITLAB_WIKI)) {
   logger.warn(
     "GITLAB_TOOLSETS is set alongside legacy flags (USE_PIPELINE, USE_MILESTONE, USE_GITLAB_WIKI). " +
       "Legacy flags add tools additively on top of the toolset selection and may produce unexpected results."
+  );
+}
+
+if (enabledToolsets.has("api")) {
+  logger.warn(
+    "gitlab_api_request is enabled because GITLAB_TOOLSETS lists api. " +
+      "This tool can bypass tool allowlists (GITLAB_TOOLS, GITLAB_TOOLSETS selection, GITLAB_DENIED_TOOLS_REGEX for other tools), " +
+      "group and project restrictions, and per-tool safety checks. It exposes the full token scope."
+  );
+}
+
+const ignoredExplicitTools = [...individuallyEnabledTools].filter(
+  name => isExplicitToolsetOnlyTool(name) && !isToolInEnabledToolset(name, enabledToolsets)
+);
+if (ignoredExplicitTools.length > 0) {
+  logger.warn(
+    `GITLAB_TOOLS names ${ignoredExplicitTools.join(", ")}, but that tool is enabled only when its toolset is listed in GITLAB_TOOLSETS. The GITLAB_TOOLS entry is ignored.`
   );
 }
 
@@ -11337,6 +11381,27 @@ async function handleToolCall(params: any) {
           clearTimeout(timeout);
         }
       }
+      case "gitlab_api_request": {
+        try {
+          return await executeGitLabApiRequestAsync({
+            args: params.arguments,
+            apiBaseUrl: getEffectiveApiUrl(),
+            permissionMode: GITLAB_PERMISSION_MODE,
+            allowedProjectIds: getEffectiveAllowedProjectIds(),
+            fetchImpl: fetch,
+            fetchConfig: getFetchConfig,
+          });
+        } catch (error) {
+          if (error instanceof GitLabApiRequestInputError) {
+            throw new ToolInputError(error.message);
+          }
+          if (error instanceof GitLabApiRequestHttpError) {
+            throw new GitLabApiError(error.message);
+          }
+          throw error;
+        }
+      }
+
       case "fork_repository": {
         rejectIfProjectScopedDeployment("fork_repository");
         const forkArgs = ForkRepositorySchema.parse(params.arguments);

@@ -1,7 +1,7 @@
 {
   "serverInfo": {
     "name": "io.github.zereight/gitlab-mcp",
-    "version": "2.2.0"
+    "version": "2.2.1"
   },
   "authentication": {
     "required": true,
@@ -10656,8 +10656,46 @@
       }
     },
     {
+      "name": "gitlab_api_request",
+      "description": "DANGER: bypasses group and project restrictions, tool allowlists (GITLAB_TOOLS and GITLAB_DENIED_TOOLS_REGEX on other tools), and individual tool safety checks. The full token scope is exposed. Send one GitLab REST call under /api/v4. Readonly mode allows GET only, and modify mode rejects DELETE. Enable it only by listing api in GITLAB_TOOLSETS; all, discover_tools, and GITLAB_TOOLS do not. Prompt injection can drive this tool, so operators who rely on group, project, or tool restrictions must not enable it. GITLAB_ALLOWED_PROJECT_IDS is enforced only for /projects/:id paths; other endpoints are not constrained.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "method": {
+            "description": "HTTP method. Defaults to GET. Non-GET requires a permission mode that allows writes. DELETE is rejected in modify mode.",
+            "type": "string",
+            "enum": [
+              "GET",
+              "POST",
+              "PUT",
+              "PATCH",
+              "DELETE"
+            ]
+          },
+          "path": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Path relative to /api/v4, such as projects/1 or /projects/1/issues. Absolute URLs are rejected."
+          },
+          "query": {
+            "description": "Query string parameters. Arrays are repeated as separate keys.",
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            }
+          },
+          "body": {
+            "description": "JSON request body for POST, PUT, PATCH, and DELETE. Rejected on GET."
+          }
+        },
+        "required": [
+          "path"
+        ]
+      }
+    },
+    {
       "name": "discover_tools",
-      "description": "Discover and activate additional tool categories for this session. Available categories: core, merge_requests, issues, repositories, branches, projects, labels, ci, groups, pipelines, milestones, wiki, releases, tags, snippets, users, workitems, webhooks, search, variables, dependency_proxy, vulnerabilities, orbit. Already-active categories are listed in the response. Use this when a needed opt-in category is not currently exposed; omit `category` to inspect available categories, then call it with a category to activate that group for the current session. It changes only the session's tool registry, returns the active-tool summary, and does not change GitLab data.",
+      "description": "Discover and activate additional tool categories for this session. Available categories: core, merge_requests, issues, repositories, branches, projects, labels, ci, groups, pipelines, milestones, wiki, releases, tags, snippets, users, workitems, webhooks, search, variables, dependency_proxy, vulnerabilities, orbit. Already-active categories are listed in the response. Explicit-only toolsets are omitted; list them in GITLAB_TOOLSETS. Use this when a needed opt-in category is not currently exposed; omit `category` to inspect available categories, then call it with a category to activate that group for the current session. It changes only the session's tool registry, returns the active-tool summary, and does not change GitLab data.",
       "inputSchema": {
         "type": "object",
         "properties": {

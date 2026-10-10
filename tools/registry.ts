@@ -269,6 +269,7 @@ import {
   DismissVulnerabilitySchema,
   ConfirmVulnerabilitySchema,
 } from "../schemas.js";
+import { GitLabApiRequestSchema } from "./gitlab-api-request.js";
 
 const IS_REMOTE = SSE || STREAMABLE_HTTP;
 
@@ -1672,6 +1673,13 @@ export const allTools = [
     description: "List the MCP tool definitions exposed by GitLab Orbit",
     inputSchema: toJSONSchema(OrbitToolsSchema),
   },
+  // --- Explicit opt-in raw API. Not in `all` and not activatable via discover_tools. ---
+  {
+    name: "gitlab_api_request",
+    description:
+      "DANGER: bypasses group and project restrictions, tool allowlists (GITLAB_TOOLS and GITLAB_DENIED_TOOLS_REGEX on other tools), and individual tool safety checks. The full token scope is exposed.",
+    inputSchema: toJSONSchema(GitLabApiRequestSchema),
+  },
   // --- Meta tool: Dynamic tool discovery ---
   {
     name: "discover_tools",
@@ -1699,6 +1707,8 @@ export const readOnlyTools = new Set([
   "search_project_code",
   "search_group_code",
   "execute_graphql",
+  // Mixed-access: listed in readonly so GET still works. Writes are rejected in the handler.
+  "gitlab_api_request",
   "get_file_contents",
   "get_merge_request",
   "get_merge_request_diffs",
@@ -1836,7 +1846,7 @@ export const readOnlyTools = new Set([
 
 // Stays in readOnlyTools so readonly mode can still run queries, but mutations
 // are allowed in other permission modes and rejected only at call time.
-const MIXED_ACCESS_TOOLS = new Set(["execute_graphql"]);
+const MIXED_ACCESS_TOOLS = new Set(["execute_graphql", "gitlab_api_request"]);
 
 export function advertisesReadOnly(toolName: string): boolean {
   return readOnlyTools.has(toolName) && !MIXED_ACCESS_TOOLS.has(toolName);
@@ -1887,6 +1897,9 @@ export const destructiveTools = new Set([
   "delete_pipeline_schedule",
   "delete_pipeline_schedule_variable",
   "purge_dependency_proxy_cache",
+  // Can DELETE (and other writes). Hint is true; modify mode still lists the tool and
+  // the handler rejects DELETE. Putting it in deleteTools would hide GET/POST too.
+  "gitlab_api_request",
 ]);
 
 // Tools blocked in "modify" permission mode: permanent deletions plus destructive
@@ -2058,11 +2071,17 @@ export type ToolsetId =
   | "variables"
   | "dependency_proxy"
   | "vulnerabilities"
-  | "orbit";
+  | "orbit"
+  | "api";
 
 export interface ToolsetDefinition {
   readonly id: ToolsetId;
   readonly isDefault: boolean;
+  /**
+   * Enabled only when this id is written in GITLAB_TOOLSETS.
+   * Excluded from `GITLAB_TOOLSETS=all` and from `discover_tools`.
+   */
+  readonly explicitOnly?: boolean;
   readonly tools: ReadonlySet<string>;
 }
 
@@ -2488,6 +2507,12 @@ export const TOOLSET_DEFINITIONS: readonly ToolsetDefinition[] = [
     isDefault: false,
     tools: new Set(["orbit_query", "orbit_get_schema", "orbit_get_status", "orbit_list_tools"]),
   },
+  {
+    id: "api",
+    isDefault: false,
+    explicitOnly: true,
+    tools: new Set(["gitlab_api_request"]),
+  },
 ] as const;
 
 // Derived lookup: tool name → toolset IDs. Most tools belong to one category.
@@ -2509,6 +2534,33 @@ export const DEFAULT_TOOLSET_IDS: ReadonlySet<ToolsetId> = new Set(
 
 export const ALL_TOOLSET_IDS: ReadonlySet<ToolsetId> = new Set(TOOLSET_DEFINITIONS.map(d => d.id));
 
+/** Toolsets `GITLAB_TOOLSETS=all` and `discover_tools` may enable. Excludes explicitOnly. */
+export const DISCOVERABLE_TOOLSET_IDS: ReadonlySet<ToolsetId> = new Set(
+  TOOLSET_DEFINITIONS.filter(definition => definition.explicitOnly !== true).map(
+    definition => definition.id
+  )
+);
+
+export function isExplicitOnlyToolsetId(id: string): boolean {
+  return TOOLSET_DEFINITIONS.some(
+    definition => definition.id === id && definition.explicitOnly === true
+  );
+}
+
+/** True when every toolset that contains the tool is explicit-only. */
+export function isExplicitToolsetOnlyTool(toolName: string): boolean {
+  const toolsetIds = TOOLSETS_BY_TOOL_NAME.get(toolName);
+  if (toolsetIds === undefined || toolsetIds.size === 0) {
+    return false;
+  }
+  for (const toolsetId of toolsetIds) {
+    if (!isExplicitOnlyToolsetId(toolsetId)) {
+      return false;
+    }
+  }
+  return true;
+}
+
 /**
  * Smallest toolset containing the tool, i.e. the cheapest category to activate for it.
  * Returns undefined for tools outside every toolset (e.g. `execute_graphql`) and unknown names.
@@ -2525,7 +2577,7 @@ export function findSmallestToolsetForTool(toolName: string): ToolsetId | undefi
 // Update discover_tools description with all known categories (must be after TOOLSET_DEFINITIONS)
 const discoverTool = allTools.find(t => t.name === "discover_tools");
 if (discoverTool) {
-  discoverTool.description = `Discover and activate additional tool categories for this session. Available categories: ${[...ALL_TOOLSET_IDS].join(", ")}. Already-active categories are listed in the response.`;
+  discoverTool.description = `Discover and activate additional tool categories for this session. Available categories: ${[...DISCOVERABLE_TOOLSET_IDS].join(", ")}. Already-active categories are listed in the response. Explicit-only toolsets are omitted; list them in GITLAB_TOOLSETS.`;
 }
 
 for (const tool of allTools) {
@@ -2543,7 +2595,7 @@ export function parseEnabledToolsets(raw: string | undefined): ReadonlySet<Tools
   }
   const trimmed = raw.trim().toLowerCase();
   if (trimmed === "all") {
-    return ALL_TOOLSET_IDS;
+    return DISCOVERABLE_TOOLSET_IDS;
   }
   const selected = new Set(
     trimmed
@@ -2636,7 +2688,7 @@ export function listDiscoverableCategories(
   currentToolNames: ReadonlySet<string>,
   isExcluded?: (toolName: string) => boolean
 ): DiscoverableCategory[] {
-  return TOOLSET_DEFINITIONS.map(def => ({
+  return TOOLSET_DEFINITIONS.filter(def => def.explicitOnly !== true).map(def => ({
     id: def.id,
     toolCount: def.tools.size,
     active: isToolsetFullyActive(def.tools, currentToolNames, isExcluded),

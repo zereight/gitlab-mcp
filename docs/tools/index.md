@@ -21,20 +21,21 @@ directly from `TOOLSET_DEFINITIONS` in
 |---|---|
 | **Default** — always exposed | [Core](core.md) |
 | **Opt-in** — must be enabled | [Projects & Namespaces](projects.md), [Projects & Files](repositories.md), [Branches & Commits](branches.md), [Groups](groups.md), [Merge Requests](merge-requests.md), [Issues](issues.md), [Labels](labels.md), [Work Items](workitems.md), [CI Lint](ci.md), [Pipelines, Jobs & Deployments](pipelines.md) (also `USE_PIPELINE=true`), [Milestones](milestones.md) (also `USE_MILESTONE=true`), [Wiki](wiki.md) (also `USE_GITLAB_WIKI=true`), [Releases](releases.md), [Tags](tags.md), [Users & Events](users.md), [Variables](variables.md), [Webhooks](webhooks.md), [Search](search.md), [Dependency Proxy](dependency-proxy.md), [Vulnerabilities](vulnerabilities.md), [GitLab Orbit](orbit.md), [Snippets](snippets.md) |
+| **Explicit opt-in** — not included in `all` or `discover_tools` | [Raw API](api.md) |
 | **Not a toolset** — `discover_tools` is always exposed; `execute_graphql` needs `GITLAB_TOOLS` | [Meta & GraphQL](meta.md) |
 
 **How to enable opt-in groups** (any one is sufficient):
 
 - `GITLAB_TOOLSETS=<group,…>` — comma-separated toolset IDs.
-- `GITLAB_TOOLSETS=all` — enables every group.
+- `GITLAB_TOOLSETS=all` — enables every group except explicit-only toolsets (`api`).
 - `GITLAB_TOOLSETS=merge_requests,issues,repositories,branches,projects,labels,ci,groups,users` — restores the pre-lean default set.
-- `GITLAB_TOOLS=<tool,…>` — enables individual tools regardless of group.
+- `GITLAB_TOOLS=<tool,…>` — enables individual tools regardless of group, except explicit-only tools such as `gitlab_api_request`.
 - `USE_PIPELINE=true` / `USE_MILESTONE=true` / `USE_GITLAB_WIKI=true` — legacy single-group flags (Pipelines, Milestones, Wiki only).
 - Call the `discover_tools` MCP tool at runtime to activate categories for the current session.
 
 Permission modes control which tools are exposed:
 
-- `GITLAB_PERMISSION_MODE=readonly` — hides every write tool regardless of toggles.
+- `GITLAB_PERMISSION_MODE=readonly` — hides every write tool regardless of toggles. Mixed tools (`execute_graphql`, `gitlab_api_request`) stay listed; their handlers reject writes.
 - `GITLAB_PERMISSION_MODE=modify` — allows create/update but blocks delete and teardown tools: every `delete_*` tool, `erase_pipeline_job`, `purge_dependency_proxy_cache`, the destructive teardown verbs `cancel_pipeline`, `cancel_pipeline_job`, `stop_environment`, `stop_stale_environments`, `unprotect_branch`, plus `push_files` `delete`/`move` actions.
 - `GITLAB_READ_ONLY_MODE=true` (deprecated) — same as `readonly`; prefer `GITLAB_PERMISSION_MODE=readonly`.
 
@@ -48,7 +49,7 @@ and [CLI Arguments](../getting-started/cli-arguments.md) for the full list.
 | Marker | Meaning |
 |---|---|
 | 📖 | **Read-only** — fetches data, does not modify GitLab state. Safe to invoke freely. |
-| 📖✏️ | **Reads and writes** — can query or mutate. `execute_graphql` stays available in readonly mode, which rejects its mutations and subscriptions. |
+| 📖✏️ | **Reads and writes** — can query or mutate. `execute_graphql` and `gitlab_api_request` stay available in readonly mode, which rejects their writes. |
 | ✏️ | **Writes** — creates, updates, or deletes data on GitLab. Confirm intent before running. |
 
 ## Browse by group
@@ -566,6 +567,16 @@ Snippet CRUD — list, get (with optional file content), create, update, and del
 | [`update_snippet`](snippets.md#update_snippet) | Update an existing snippet (provide at least one field to change). For multi-file edits — renames, deletions, additions — pass files[] with action (create/update/delete/move) and previous_path. The file_name + content shortcut still works for single-file content replacement. | ✏️ |
 | [`delete_snippet`](snippets.md#delete_snippet) | Delete a snippet. Use this only after verifying the target; choose a get or list tool first when you need to inspect state without changing it. It changes or removes remote GitLab data and may be irreversible; it requires the necessary project or group permission and returns validation, conflict, permission, or rate-limit errors. When `project_id` or `group_id` is accepted, provide the numeric ID or complete URL-encoded path described by the schema; use required identifiers and pagination fields exactly as documented. | ✏️ |
 
+### [Raw API](api.md)
+
+Explicit opt-in escape hatch for one GitLab REST call under /api/v4. Not part of core, not enabled by GITLAB_TOOLSETS=all, and not activatable with discover_tools. *(1 tools)*
+
+> Explicit opt-in only. Enable by listing `api` in `GITLAB_TOOLSETS` (for example `GITLAB_TOOLSETS=api` or `GITLAB_TOOLSETS=core,api`). `GITLAB_TOOLSETS=all`, `discover_tools`, `GITLAB_TOOLS`, legacy `USE_*` flags, and `GITLAB_TOOL_PROFILE` do not enable it.
+
+| Tool | What it does | R/W |
+|---|---|:-:|
+| [`gitlab_api_request`](api.md#gitlab_api_request) | DANGER: bypasses group and project restrictions, tool allowlists (GITLAB_TOOLS and GITLAB_DENIED_TOOLS_REGEX on other tools), and individual tool safety checks. The full token scope is exposed. Send one GitLab REST call under /api/v4. Readonly mode allows GET only, and modify mode rejects DELETE. Enable it only by listing api in GITLAB_TOOLSETS; all, discover_tools, and GITLAB_TOOLS do not. Prompt injection can drive this tool, so operators who rely on group, project, or tool restrictions must not enable it. GITLAB_ALLOWED_PROJECT_IDS is enforced only for /projects/:id paths; other endpoints are not constrained. | 📖✏️ |
+
 ### [Meta & GraphQL](meta.md)
 
 Server diagnostics, tool discovery, and the GraphQL escape hatch. *(2 tools)*
@@ -575,7 +586,7 @@ Server diagnostics, tool discovery, and the GraphQL escape hatch. *(2 tools)*
 | Tool | What it does | R/W |
 |---|---|:-:|
 | [`execute_graphql`](meta.md#execute_graphql) | Execute a GitLab GraphQL query. Use this only when a supported GitLab REST tool does not cover the requested operation; prefer a typed tool when one exists. The query is sent directly to GitLab and can include mutations when permission allows, so callers must treat it as potentially state-changing and handle GraphQL errors in the returned response. | 📖✏️ |
-| [`discover_tools`](meta.md#discover_tools) | Discover and activate additional tool categories for this session. Available categories: core, merge_requests, issues, repositories, branches, projects, labels, ci, groups, pipelines, milestones, wiki, releases, tags, snippets, users, workitems, webhooks, search, variables, dependency_proxy, vulnerabilities, orbit. Already-active categories are listed in the response. Use this when a needed opt-in category is not currently exposed; omit `category` to inspect available categories, then call it with a category to activate that group for the current session. It changes only the session's tool registry, returns the active-tool summary, and does not change GitLab data. | 📖 |
+| [`discover_tools`](meta.md#discover_tools) | Discover and activate additional tool categories for this session. Available categories: core, merge_requests, issues, repositories, branches, projects, labels, ci, groups, pipelines, milestones, wiki, releases, tags, snippets, users, workitems, webhooks, search, variables, dependency_proxy, vulnerabilities, orbit. Already-active categories are listed in the response. Explicit-only toolsets are omitted; list them in GITLAB_TOOLSETS. Use this when a needed opt-in category is not currently exposed; omit `category` to inspect available categories, then call it with a category to activate that group for the current session. It changes only the session's tool registry, returns the active-tool summary, and does not change GitLab data. | 📖 |
 
 ---
 
