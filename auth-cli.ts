@@ -1,7 +1,9 @@
 import * as os from "os";
 import * as path from "path";
+import { parseCliArgs } from "./cli-boolean-flags.js";
+import { deprecatedEnvInputFromSources, getDeprecatedEnvWarnings } from "./deprecated-env.js";
 import { GitLabOAuth } from "./oauth.js";
-import { createLogger } from "./utils/logger.js";
+import { createLogger, flushStartupLogs } from "./utils/logger.js";
 import type { FetchImpl } from "./oauth-device-flow.js";
 
 const logger = createLogger("gitlab-mcp-auth");
@@ -61,12 +63,15 @@ function wantsHelp(argv: readonly string[]): boolean {
   return argv.includes("--help") || argv.includes("-h");
 }
 
-function isReadOnlyMode(argv: readonly string[], env: NodeJS.ProcessEnv): boolean {
-  const readOnly = readFlag(argv, "read-only") ?? env.GITLAB_READ_ONLY_MODE;
+function isReadOnlyMode(
+  parsedArgs: Readonly<Record<string, string>>,
+  env: NodeJS.ProcessEnv
+): boolean {
+  const readOnly = parsedArgs["read-only"] ?? env.GITLAB_READ_ONLY_MODE;
   if (readOnly === "true") {
     return true;
   }
-  return (readFlag(argv, "permission-mode") ?? env.GITLAB_PERMISSION_MODE) === "readonly";
+  return (parsedArgs["permission-mode"] ?? env.GITLAB_PERMISSION_MODE) === "readonly";
 }
 
 export function gitlabOriginFromApiUrl(apiUrl: string): string {
@@ -77,6 +82,15 @@ export async function runAuthCommandAsync(input: AuthCliInput = {}): Promise<voi
   const argv = input.argv ?? process.argv;
   const env = input.env ?? process.env;
   const stdout = input.stdout ?? process.stdout;
+
+  const parsedArgs = parseCliArgs(argv.slice(2));
+  const warnings = getDeprecatedEnvWarnings(deprecatedEnvInputFromSources(parsedArgs, env));
+  for (const warning of warnings) {
+    logger.warn(warning);
+  }
+  if (warnings.length > 0) {
+    flushStartupLogs(logger);
+  }
 
   if (wantsHelp(argv)) {
     stdout.write(AUTH_CLI_HELP);
@@ -94,7 +108,7 @@ export async function runAuthCommandAsync(input: AuthCliInput = {}): Promise<voi
     env.GITLAB_OAUTH_TOKEN_PATH ??
     path.join(os.homedir(), ".gitlab-mcp-token.json");
   const gitlabUrl = gitlabOriginFromApiUrl(apiUrl);
-  const scopes = [isReadOnlyMode(argv, env) ? "read_api" : "api"];
+  const scopes = [isReadOnlyMode(parsedArgs, env) ? "read_api" : "api"];
 
   const oauth = new GitLabOAuth({
     clientId,
