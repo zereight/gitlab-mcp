@@ -15,7 +15,7 @@ delete_pipeline            -> permanently delete a pipeline and related data
 list_pipeline_jobs         -> all jobs in a pipeline
 list_pipeline_trigger_jobs -> trigger/bridge jobs (downstream pipelines)
 get_pipeline_job           -> single job details
-get_pipeline_job_output    -> job log output (supports pagination for large logs)
+get_pipeline_job_output    -> job log output (end pagination, or full-log substring/regex search)
 ```
 
 Inspection tools take `project_id` and `pipeline_id`; variables and test reports also accept

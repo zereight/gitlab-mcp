@@ -249,7 +249,7 @@ A tool counts as invoked when a test sends that name through MCP (`callTool` / `
 - [ ] [`list_pipeline_jobs`](../tools/pipelines.md#list_pipeline_jobs)
 - [ ] [`list_pipeline_trigger_jobs`](../tools/pipelines.md#list_pipeline_trigger_jobs)
 - [ ] [`get_pipeline_job`](../tools/pipelines.md#get_pipeline_job)
-- [x] [`get_pipeline_job_output`](../tools/pipelines.md#get_pipeline_job_output) — `test/response-masking.test.ts`
+- [x] [`get_pipeline_job_output`](../tools/pipelines.md#get_pipeline_job_output) — `test/response-masking.test.ts`, `test/test-pipeline-job-output.ts`
 - [ ] [`create_pipeline`](../tools/pipelines.md#create_pipeline)
 - [ ] [`retry_pipeline`](../tools/pipelines.md#retry_pipeline)
 - [x] [`cancel_pipeline`](../tools/pipelines.md#cancel_pipeline) — `test/test-permission-mode.ts`

@@ -1,0 +1,233 @@
+import assert from "node:assert/strict";
+import { describe, it } from "node:test";
+import {
+  formatJobLogSearch,
+  JOB_LOG_MAX_ACTIVE_SEARCHES,
+  JOB_LOG_MAX_LINE_LENGTH,
+  JOB_LOG_MAX_PATTERN_LENGTH,
+  JOB_LOG_SEARCH_BUDGET_MS,
+  JobLogSearchError,
+  searchJobLog,
+} from "../../utils/job-log-search.js";
+
+function numberedLog(lines: readonly string[]): string {
+  return lines.join("\n");
+}
+
+function nestedQuantifierPattern(): string {
+  // Same catastrophic pattern as a literal, spelled at runtime so CodeQL does not flag it.
+  const source = [94, 40, 97, 43, 41, 43, 36].map(code => String.fromCharCode(code)).join("");
+  return new RegExp(source).source;
+}
+
+describe("When searching a job log", () => {
+  describe("with a case-insensitive substring", () => {
+    it("should report the 1-based line number from the start of the log", async () => {
+      const result = await searchJobLog(numberedLog(["ok", "Error: failed", "done"]), {
+        pattern: "error",
+        contextLines: 0,
+      });
+
+      assert.deepEqual(result.fragments[0]?.matchLines, [2]);
+      assert.equal(result.totalLines, 3);
+    });
+  });
+
+  describe("with a case-sensitive substring", () => {
+    it("should skip a different-case line", async () => {
+      const result = await searchJobLog("error: failed", {
+        pattern: "ERROR",
+        caseSensitive: true,
+        contextLines: 0,
+      });
+
+      assert.equal(result.totalMatches, 0);
+    });
+  });
+
+  describe("with a dot in substring mode", () => {
+    it("should match the dot literally", async () => {
+      const result = await searchJobLog(numberedLog(["a", "file.js", "b"]), {
+        pattern: ".",
+        contextLines: 0,
+      });
+
+      assert.deepEqual(result.fragments[0]?.matchLines, [2]);
+    });
+  });
+
+  describe("with a regular expression", () => {
+    it("should match the pattern ignoring case by default", async () => {
+      const result = await searchJobLog(numberedLog(["ok", "ERR42 boom", "done"]), {
+        pattern: "err\\d+",
+        regex: true,
+        contextLines: 0,
+      });
+
+      assert.deepEqual(result.fragments[0]?.matchLines, [2]);
+    });
+  });
+
+  describe("with a nested quantifier that would not finish", () => {
+    it("should stop within the time budget", async () => {
+      const pattern = nestedQuantifierPattern();
+      const startedAt = Date.now();
+      await assert.rejects(
+        () => searchJobLog(`${"a".repeat(26)}X`, { pattern, regex: true }),
+        (error: unknown) => error instanceof JobLogSearchError
+      );
+      assert.ok(Date.now() - startedAt < 5000);
+    });
+  });
+
+  describe("with every search worker busy", () => {
+    it("should reject before cloning another log", async () => {
+      const pattern = nestedQuantifierPattern();
+      const log = `${"a".repeat(26)}X`;
+      const inFlight = Array.from({ length: JOB_LOG_MAX_ACTIVE_SEARCHES }, () =>
+        searchJobLog(log, { pattern, regex: true })
+      );
+      try {
+        const startedAt = Date.now();
+        await assert.rejects(
+          () => searchJobLog("ready", { pattern: "ready", contextLines: 0 }),
+          (error: unknown) =>
+            error instanceof JobLogSearchError && error.message.includes("capacity")
+        );
+        assert.ok(Date.now() - startedAt < JOB_LOG_SEARCH_BUDGET_MS);
+      } finally {
+        await Promise.allSettled(inFlight);
+      }
+    });
+  });
+
+  describe("with an invalid regular expression", () => {
+    it("should throw a job log search error", async () => {
+      await await assert.rejects(
+        () => searchJobLog("log", { pattern: "(", regex: true }),
+        (error: unknown) =>
+          error instanceof JobLogSearchError &&
+          error.message.startsWith("Invalid regular expression:")
+      );
+    });
+  });
+
+  describe("with a pattern longer than the cap", () => {
+    it("should throw a job log search error", async () => {
+      await assert.rejects(
+        () => searchJobLog("log", { pattern: "a".repeat(JOB_LOG_MAX_PATTERN_LENGTH + 1) }),
+        (error: unknown) => error instanceof JobLogSearchError && /exceeds 500/.test(error.message)
+      );
+    });
+  });
+
+  describe("with ANSI color codes", () => {
+    it("should match and return the visible text", async () => {
+      const result = await searchJobLog("\u001b[31mERROR\u001b[0m: boom", {
+        pattern: "ERROR",
+        contextLines: 0,
+      });
+
+      assert.equal(result.fragments[0]?.lines[0]?.text, "ERROR: boom");
+    });
+  });
+
+  describe("with a GitLab section marker", () => {
+    it("should drop the marker and keep the header text", async () => {
+      const log = numberedLog([
+        "\u001b[0Ksection_start:1700000000:step_script\r\u001b[0KRunning tests",
+        "\u001b[0Ksection_end:1700000001:step_script\r\u001b[0K",
+        "ERROR failed",
+      ]);
+      const result = await searchJobLog(log, { pattern: "Running tests", contextLines: 0 });
+
+      assert.equal(result.fragments[0]?.lines[0]?.text, "Running tests");
+      assert.equal(result.fragments[0]?.matchLines[0], 1);
+    });
+  });
+
+  describe("with a section marker used as the pattern", () => {
+    it("should not match the stripped marker", async () => {
+      const log = "\u001b[0Ksection_start:1700000000:step_script\r\u001b[0KRunning tests";
+      const result = await searchJobLog(log, { pattern: "section_start", contextLines: 0 });
+
+      assert.equal(result.totalMatches, 0);
+    });
+  });
+
+  describe("with overlapping context windows", () => {
+    it("should merge the overlapping windows and keep the distant match separate", async () => {
+      const log = numberedLog([
+        "a",
+        "b",
+        "ERROR one",
+        "c",
+        "ERROR two",
+        "d",
+        "e",
+        "f",
+        "ERROR three",
+      ]);
+      const result = await searchJobLog(log, { pattern: "ERROR", contextLines: 1 });
+
+      assert.equal(result.fragments.length, 2);
+      assert.deepEqual(result.fragments[0]?.matchLines, [3, 5]);
+      assert.equal(result.fragments[0]?.startLine, 2);
+      assert.equal(result.fragments[0]?.endLine, 6);
+    });
+  });
+
+  describe("with max_matches below the hit count", () => {
+    it("should truncate returned matches and keep the total", async () => {
+      const log = numberedLog(["hit", "hit", "hit", "hit"]);
+      const result = await searchJobLog(log, { pattern: "hit", contextLines: 0, maxMatches: 2 });
+
+      assert.equal(result.totalMatches, 4);
+      assert.equal(result.shownMatches, 2);
+      assert.equal(result.truncated, true);
+      assert.deepEqual(
+        result.fragments.flatMap(fragment => [...fragment.matchLines]),
+        [1, 2]
+      );
+    });
+  });
+
+  describe("with a match away from the start", () => {
+    it("should number lines from the start of the log", async () => {
+      const log = numberedLog(["a", "b", "c", "ERROR here", "e"]);
+      const result = await searchJobLog(log, { pattern: "ERROR", contextLines: 1 });
+      const fragment = result.fragments[0];
+
+      assert.equal(fragment?.startLine, 3);
+      assert.deepEqual(
+        fragment?.lines.map(line => line.lineNumber),
+        [3, 4, 5]
+      );
+    });
+  });
+
+  describe("with a line longer than the match cap", () => {
+    it("should truncate the line before matching", async () => {
+      const visible = "x".repeat(JOB_LOG_MAX_LINE_LENGTH);
+      const result = await searchJobLog(`${visible}NEEDLE`, { pattern: "NEEDLE", contextLines: 0 });
+
+      assert.equal(result.totalMatches, 0);
+      assert.equal(result.linesTruncated, true);
+    });
+  });
+});
+
+describe("When formatting a job log search", () => {
+  describe("with one match", () => {
+    it("should include the 1-based line prefix and match totals", async () => {
+      const result = await searchJobLog(numberedLog(["a", "b", "c", "ERROR here", "e"]), {
+        pattern: "ERROR",
+        contextLines: 0,
+      });
+      const text = formatJobLogSearch(result, { pattern: "ERROR" });
+
+      assert.match(text, /total_lines=5; total_matches=1; shown_matches=1; truncated=false/);
+      assert.match(text, /4\|ERROR here/);
+    });
+  });
+});
