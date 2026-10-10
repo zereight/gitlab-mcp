@@ -8084,7 +8084,7 @@ async function getPipelineJobOutput(
   const fullTrace = await response.text();
   const pattern = query.pattern;
   if (pattern !== undefined && pattern.length > 0) {
-    return `${JOB_TRACE_NOTICE}\n\n${formatPipelineJobSearch(fullTrace, query, pattern)}`;
+    return `${JOB_TRACE_NOTICE}\n\n${await formatPipelineJobSearch(fullTrace, query, pattern)}`;
   }
 
   const { limit, offset } = query;
@@ -8112,13 +8112,13 @@ async function getPipelineJobOutput(
   return `${JOB_TRACE_NOTICE}\n\n${result}`;
 }
 
-function formatPipelineJobSearch(
+async function formatPipelineJobSearch(
   fullTrace: string,
   query: PipelineJobTraceQuery,
   pattern: string
-): string {
+): Promise<string> {
   try {
-    const search = searchJobLog(fullTrace, {
+    const search = await searchJobLog(fullTrace, {
       pattern,
       regex: query.regex,
       caseSensitive: query.caseSensitive,
