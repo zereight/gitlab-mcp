@@ -17,7 +17,7 @@ Suporta PAT, OAuth, modo somente leitura, URLs de API dinâmicas e autorização
 
 ### Por que usar este GitLab MCP?
 
-- **268 ferramentas: 266 em toolsets + `execute_graphql` + `discover_tools`** — comece com um toolset pequeno e ative mais categorias em tempo de execução
+- **270 ferramentas: 268 em toolsets + `execute_graphql` + `discover_tools`** — comece com um toolset pequeno e ative mais categorias em tempo de execução
 - **Revisão de MR em 2 etapas** — `list_merge_request_changed_files` → `get_merge_request_file_diff` em lote
 - **Agent Skill integrado** — orientação de workflows em `skills/gitlab-mcp/`
 - **Autenticação flexível** — Personal Access Token, fluxo OAuth2 local no navegador, proxy MCP OAuth e autorização remota por requisição
@@ -31,7 +31,7 @@ Suporta PAT, OAuth, modo somente leitura, URLs de API dinâmicas e autorização
 |                           | @zereight/mcp-gitlab                           | GitLab MCP A (comunidade, estilo CQRS)                    |
 | ------------------------- | ---------------------------------------------- | --------------------------------------------------------- |
 | **Mais indicado para**    | Workflows de agentes de IA                     | Múltiplas instâncias corporativas / ferramentas agrupadas |
-| **Modelo de ferramentas** | 268 ferramentas: 266 em toolsets + `execute_graphql` + `discover_tools` | ~50–60 ferramentas agrupadas `browse_*` / `manage_*`      |
+| **Modelo de ferramentas** | 270 ferramentas: 268 em toolsets + `execute_graphql` + `discover_tools` | ~50–60 ferramentas agrupadas `browse_*` / `manage_*`      |
 | **Revisão de MR**         | Diff em lote em 2 etapas                       | Varia                                                     |
 | **Node.js**               | >=18.17                                        | Frequentemente >=24                                       |
 | **Licença**               | MIT                                            | Varia                                                     |

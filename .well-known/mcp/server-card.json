@@ -10656,6 +10656,78 @@
       }
     },
     {
+      "name": "list_project_runners",
+      "description": "List runners available to a project. Use this when a job is stuck pending with no matching runner and you need the runners a project can use, including ancestor group runners and allowed instance runners. Filter with type, status, paused, and tag_list; the list payload has id, description, runner_type, status, and paused, but not tags — call `get_runner` for tag_list, run_untagged, locked, and access_level. It is read-only and paginated, requires Maintainer or Auditor access on the project, and never returns a runner registration token (runners_token) or runner authentication token.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "description": "Project ID or URL-encoded path"
+          },
+          "type": {
+            "description": "Runner type: instance_type, group_type, or project_type",
+            "type": "string",
+            "enum": [
+              "instance_type",
+              "group_type",
+              "project_type"
+            ]
+          },
+          "status": {
+            "description": "Runner status: online, offline, stale, or never_contacted. active and paused are deprecated; use the paused filter instead. offline may also include stale runners",
+            "type": "string",
+            "enum": [
+              "online",
+              "offline",
+              "stale",
+              "never_contacted",
+              "active",
+              "paused"
+            ]
+          },
+          "paused": {
+            "description": "true returns only runners ignoring new jobs; false returns only runners accepting new jobs",
+            "type": "boolean"
+          },
+          "tag_list": {
+            "description": "Runner tags that must match. Sent to GitLab as a comma-separated tag_list",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "page": {
+            "description": "Page number for pagination (default: 1)",
+            "type": "number"
+          },
+          "per_page": {
+            "description": "Number of items per page (max: 100, default: 20)",
+            "type": "number"
+          }
+        },
+        "required": [
+          "project_id"
+        ]
+      }
+    },
+    {
+      "name": "get_runner",
+      "description": "Get one runner by ID. Use this after list_project_runners when you already have a runner ID and need tag_list, run_untagged, locked, and access_level to explain a stuck pending job. Instance runner details are visible to authenticated users; group and project runners follow GitLab's role checks for that runner. It is read-only and never returns a runner registration token (runners_token) or runner authentication token. token_expires_at is expiry metadata, not the token.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "runner_id": {
+            "type": "string",
+            "description": "The ID of the runner"
+          }
+        },
+        "required": [
+          "runner_id"
+        ]
+      }
+    },
+    {
       "name": "discover_tools",
       "description": "Discover and activate additional tool categories for this session. Available categories: core, merge_requests, issues, repositories, branches, projects, labels, ci, groups, pipelines, milestones, wiki, releases, tags, snippets, users, workitems, webhooks, search, variables, dependency_proxy, vulnerabilities, orbit. Already-active categories are listed in the response. Use this when a needed opt-in category is not currently exposed; omit `category` to inspect available categories, then call it with a category to activate that group for the current session. It changes only the session's tool registry, returns the active-tool summary, and does not change GitLab data.",
       "inputSchema": {

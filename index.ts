@@ -566,6 +566,8 @@ import {
   ListDeploymentsSchema,
   type ListEnvironmentsOptions,
   ListEnvironmentsSchema,
+  ListProjectRunnersSchema,
+  GetRunnerSchema,
   type ListPipelineTriggerJobsOptions,
   ListPipelineTriggerJobsSchema,
   type ValidateCiLintOptions,
@@ -7895,6 +7897,40 @@ async function getEnvironment(
   return GitLabEnvironmentSchema.parse(data);
 }
 
+async function listProjectRunners(
+  projectId: string,
+  options: Omit<z.infer<typeof ListProjectRunnersSchema>, "project_id">
+): Promise<unknown> {
+  const decodedProjectId = decodeURIComponent(projectId);
+  const url = new URL(
+    `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(getEffectiveProjectId(decodedProjectId))}/runners`
+  );
+
+  appendFilterParams(url.searchParams, options);
+
+  const response = await fetch(url.toString(), {
+    ...getFetchConfig(),
+  });
+
+  await handleGitLabError(response);
+  return redactSensitiveGitLabFields(await response.json());
+}
+
+async function getRunner(runnerId: string): Promise<unknown> {
+  const url = new URL(`${getEffectiveApiUrl()}/runners/${encodeGitLabPathSegment(runnerId)}`);
+
+  const response = await fetch(url.toString(), {
+    ...getFetchConfig(),
+  });
+
+  if (response.status === 404) {
+    throw new GitLabApiError("Runner not found");
+  }
+
+  await handleGitLabError(response);
+  return redactSensitiveGitLabFields(await response.json());
+}
+
 async function environmentRequest(
   projectId: string,
   path: string,
@@ -13202,6 +13238,22 @@ async function handleToolCall(params: any) {
         const environment = await getEnvironment(project_id, environment_id);
         return {
           content: [{ type: "text", text: JSON.stringify(environment) }],
+        };
+      }
+
+      case "list_project_runners": {
+        const { project_id, ...options } = ListProjectRunnersSchema.parse(params.arguments);
+        const runners = await listProjectRunners(project_id, options);
+        return {
+          content: [{ type: "text", text: JSON.stringify(runners) }],
+        };
+      }
+
+      case "get_runner": {
+        const { runner_id } = GetRunnerSchema.parse(params.arguments);
+        const runner = await getRunner(runner_id);
+        return {
+          content: [{ type: "text", text: JSON.stringify(runner) }],
         };
       }
 

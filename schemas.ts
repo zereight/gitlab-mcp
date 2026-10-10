@@ -265,6 +265,38 @@ export const GetPipelineSchema = z.object({
   pipeline_id: z.coerce.string().describe("The ID of the pipeline"),
 });
 
+// https://docs.gitlab.com/api/runners/#list-all-of-a-projects-runners
+export const ListProjectRunnersSchema = z
+  .object({
+    project_id: z.coerce.string().describe("Project ID or URL-encoded path"),
+    type: z
+      .enum(["instance_type", "group_type", "project_type"])
+      .optional()
+      .describe("Runner type: instance_type, group_type, or project_type"),
+    status: z
+      .enum(["online", "offline", "stale", "never_contacted", "active", "paused"])
+      .optional()
+      .describe(
+        "Runner status: online, offline, stale, or never_contacted. active and paused are deprecated; use the paused filter instead. offline may also include stale runners"
+      ),
+    paused: z
+      .boolean()
+      .optional()
+      .describe(
+        "true returns only runners ignoring new jobs; false returns only runners accepting new jobs"
+      ),
+    tag_list: z
+      .array(z.string())
+      .optional()
+      .describe("Runner tags that must match. Sent to GitLab as a comma-separated tag_list"),
+  })
+  .merge(PaginationOptionsSchema);
+
+// https://docs.gitlab.com/api/runners/#retrieve-runners-details
+export const GetRunnerSchema = z.object({
+  runner_id: z.coerce.string().describe("The ID of the runner"),
+});
+
 export const GetPipelineVariablesSchema = GetPipelineSchema.merge(PaginationOptionsSchema);
 export const UpdatePipelineMetadataSchema = GetPipelineSchema.extend({
   name: z.string().min(1).describe("New pipeline name"),

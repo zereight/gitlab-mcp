@@ -77,6 +77,18 @@ delete_review_app_environments -> clean up stopped review apps
 `stop_stale_environments` excludes protected environments and only stops (never deletes).
 `delete_review_app_environments` schedules deletion one week later and defaults to `dry_run: true`.
 
+## Runners
+
+```text
+list_project_runners -> runners available to a project (type, status, paused, tag_list)
+get_runner           -> one runner: tag_list, run_untagged, locked, access_level
+```
+
+`list_project_runners` calls GET /projects/:id/runners. The list payload includes id,
+description, runner_type, status, and paused, and does not include tags. Call `get_runner`
+(GET /runners/:id) when a job is stuck pending because no runner tag matches. Both tools
+drop runner registration tokens and runner authentication tokens from the result.
+
 ## Pipeline Triggers
 
 ```
