@@ -78,6 +78,7 @@ import {
 } from "./stateless/index.js";
 import type { StatelessKeyMaterial } from "./stateless/index.js";
 import { createLogger } from "./utils/logger.js";
+import { redactUrlSecretsInText } from "./utils/redact-url.js";
 
 const logger = createLogger("gitlab-mcp-oauth-proxy");
 
@@ -266,7 +267,9 @@ class GitLabOAuthServerProvider implements OAuthServerProvider {
       throw new Error("callbackUrl is required when callbackProxyEnabled is true");
     }
     if (callbackProxyEnabled) {
-      logger.info(`Callback proxy mode enabled — fixed callback URL: ${callbackUrl}`);
+      logger.info(
+        `Callback proxy mode enabled — fixed callback URL: ${redactUrlSecretsInText(callbackUrl)}`
+      );
     }
     if (stateless) {
       logger.info(

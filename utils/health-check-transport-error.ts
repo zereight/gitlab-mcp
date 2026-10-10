@@ -8,6 +8,10 @@
  * on the TypeError and stores it on `cause.code` (errno there is numeric).
  */
 
+import { redactGitLabUrlCredentials, redactUrlSecretsInText } from "./redact-url.js";
+
+export { redactGitLabUrlCredentials };
+
 export type HealthCheckTransportErrorKind = "tls" | "dns" | "timeout" | "network";
 
 export interface HealthCheckTransportError {
@@ -110,50 +114,10 @@ function combineMessages(outer: string | null, inner: string | null): string {
   return outer ?? inner ?? "";
 }
 
-/**
- * Removes userinfo from a GitLab API URL before it is returned to the client.
- * A password with an unencoded slash is not a valid WHATWG URL, so that form
- * uses the same text redaction as transport error messages.
- */
-const SENSITIVE_QUERY_PATTERN =
-  /([?&](?:access_token|private_token|job_token|password|token)=)[^&\s#]+/gi;
-
-export function redactGitLabUrlCredentials(url: string): string {
-  try {
-    const parsed = new URL(url);
-    const hadUserinfo = parsed.username.length > 0 || parsed.password.length > 0;
-    if (hadUserinfo) {
-      parsed.username = "";
-      parsed.password = "";
-    }
-    const serialized = hadUserinfo ? parsed.toString() : url;
-    return redactSensitiveQuery(serialized);
-  } catch {
-    return redactSensitiveQuery(redactUrlUserinfoInText(url));
-  }
-}
-
-function redactSensitiveQuery(url: string): string {
-  return url.replace(SENSITIVE_QUERY_PATTERN, "$1[REDACTED]");
-}
-
-function redactUrlUserinfoInText(message: string): string {
-  return message.replace(/\b[a-z][a-z0-9+.-]*:\/\/[^\s]+/gi, urlToken => {
-    const schemeIndex = urlToken.indexOf("://");
-    const rest = urlToken.slice(schemeIndex + 3);
-    const atIndex = rest.lastIndexOf("@");
-    if (atIndex <= 0) {
-      return urlToken;
-    }
-    return `${urlToken.slice(0, schemeIndex + 3)}[REDACTED]@${rest.slice(atIndex + 1)}`;
-  });
-}
-
 function redactCredentials(message: string): string {
-  return redactUrlUserinfoInText(message)
+  return redactUrlSecretsInText(message)
     .replace(/\bBearer\s+\S+/gi, "Bearer [REDACTED]")
     .replace(/\b((?:private|job)-token|authorization)\b\s*[:=]\s*\S+/gi, "$1: [REDACTED]")
-    .replace(SENSITIVE_QUERY_PATTERN, "$1[REDACTED]")
     .replace(/\bgl(?:pat|dt|rt|pt|ft|oas|soat)-[A-Za-z0-9._-]+/gi, "[REDACTED]");
 }
 
