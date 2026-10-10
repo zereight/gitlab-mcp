@@ -32,7 +32,7 @@ export function redactGitLabUrlCredentials(url: string): string {
  * because the value is returned to the client as a URL.
  */
 export function redactUrlSecretsInText(text: string): string {
-  return redactSensitiveQuery(redactUrlUserinfoInText(text));
+  return redactSensitiveQuery(redactUrlUserinfoInText(redactParseableUrlUserinfo(text)));
 }
 
 function redactSensitiveQuery(url: string): string {
@@ -62,13 +62,60 @@ function redactUrlUserinfoInText(message: string): string {
   );
   return withoutCompactUserinfo.replace(
     /\b([a-z][a-z0-9+.-]*:\/\/)([^\s/:@.]+(?::[^\s/:@.]+)+(?:\s+[^\s/:@.]+)+)@/gi,
-    (match, scheme: string, userinfo: string) => {
-      if (looksLikeHostPort(userinfo)) {
+    (match: string, scheme: string, userinfo: string, offset: number, source: string) => {
+      if (looksLikeHostPort(userinfo, source.slice(offset + match.length))) {
         return match;
       }
       return `${scheme}[REDACTED]@`;
     }
   );
+}
+
+function redactParseableUrlUserinfo(text: string): string {
+  const trimmed = text.trim();
+  const parsed = tryParseUrl(trimmed);
+  if (parsed === null || (parsed.username.length === 0 && parsed.password.length === 0)) {
+    return text;
+  }
+  const split = splitAuthorityUserinfo(trimmed);
+  if (split === null) {
+    return text;
+  }
+  const leadingLength = text.length - text.trimStart().length;
+  const trailing = text.slice(text.trimEnd().length);
+  return `${text.slice(0, leadingLength)}${split.scheme}[REDACTED]@${split.afterAt}${trailing}`;
+}
+
+function tryParseUrl(value: string): URL | null {
+  try {
+    return new URL(value);
+  } catch {
+    return null;
+  }
+}
+
+function splitAuthorityUserinfo(
+  url: string
+): { readonly scheme: string; readonly afterAt: string } | null {
+  const schemeSeparator = url.indexOf("://");
+  if (schemeSeparator < 0) {
+    return null;
+  }
+  const rest = url.slice(schemeSeparator + 3);
+  const slash = rest.indexOf("/");
+  const query = rest.indexOf("?");
+  const hash = rest.indexOf("#");
+  const ends = [slash, query, hash].filter(index => index >= 0);
+  const authorityEnd = ends.length === 0 ? rest.length : Math.min(...ends);
+  const authority = rest.slice(0, authorityEnd);
+  const atIndex = authority.lastIndexOf("@");
+  if (atIndex <= 0) {
+    return null;
+  }
+  return {
+    scheme: url.slice(0, schemeSeparator + 3),
+    afterAt: `${authority.slice(atIndex + 1)}${rest.slice(authorityEnd)}`,
+  };
 }
 
 function redactCompactUserinfo(urlToken: string): string {
@@ -81,8 +128,9 @@ function redactCompactUserinfo(urlToken: string): string {
   return `${urlToken.slice(0, schemeIndex + 3)}[REDACTED]@${rest.slice(atIndex + 1)}`;
 }
 
-// "user:pa ss@host" is a password with a space. "localhost:3000 a@b.com" is a host, then an email.
-function looksLikeHostPort(userinfo: string): boolean {
+// "user:pa ss@host" is a password. "localhost:3000 a@b.com" is a host, then an email.
+// A numeric port counts only when one token follows it and the text after "@" is an email domain.
+function looksLikeHostPort(userinfo: string, afterAt: string): boolean {
   const colon = userinfo.indexOf(":");
   if (colon <= 0) {
     return false;
@@ -94,7 +142,15 @@ function looksLikeHostPort(userinfo: string): boolean {
     return false;
   }
   if (/^\d+$/.test(port)) {
-    return true;
+    const remainder = userinfo.slice(colon + 1 + port.length).trim();
+    const firstTokenEnd = afterAt.search(/\s/);
+    const firstToken = firstTokenEnd === -1 ? afterAt : afterAt.slice(0, firstTokenEnd);
+    return (
+      remainder.length > 0 &&
+      !/\s/.test(remainder) &&
+      firstToken.length > 0 &&
+      !/[/:@]/.test(firstToken)
+    );
   }
   return host.toLowerCase() === "localhost";
 }

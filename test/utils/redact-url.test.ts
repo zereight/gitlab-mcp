@@ -93,22 +93,22 @@ describe("When redactUrlSecretsInText runs", () => {
   describe("with a host and a later email", () => {
     it("should leave a numeric port untouched", () => {
       assert.equal(
-        redactUrlSecretsInText("https://registry:5000 a@b.com"),
-        "https://registry:5000 a@b.com"
+        redactUrlSecretsInText("see https://registry:5000 a@b.com"),
+        "see https://registry:5000 a@b.com"
       );
     });
 
     it("should leave a localhost port untouched", () => {
       assert.equal(
-        redactUrlSecretsInText("https://localhost:bad a@b.com"),
-        "https://localhost:bad a@b.com"
+        redactUrlSecretsInText("see https://localhost:bad a@b.com"),
+        "see https://localhost:bad a@b.com"
       );
     });
 
     it("should leave a dotted host untouched", () => {
       assert.equal(
-        redactUrlSecretsInText("https://gitlab.example:443 a@b.com"),
-        "https://gitlab.example:443 a@b.com"
+        redactUrlSecretsInText("see https://gitlab.example:443 a@b.com"),
+        "see https://gitlab.example:443 a@b.com"
       );
     });
   });
@@ -119,6 +119,46 @@ describe("When redactUrlSecretsInText runs", () => {
         redactUrlSecretsInText("see https://gitlab.example/api failed, ping @oncall"),
         "see https://gitlab.example/api failed, ping @oncall"
       );
+    });
+  });
+
+  describe("with a space in the username", () => {
+    it("should redact the userinfo", () => {
+      assert.equal(
+        redactUrlSecretsInText("https://my user:s3cret@gitlab.example/api/v4"),
+        "https://[REDACTED]@gitlab.example/api/v4"
+      );
+    });
+  });
+
+  describe("with a space inside the password", () => {
+    it("should redact the userinfo", () => {
+      assert.equal(
+        redactUrlSecretsInText("https://admin:1234 secret@gitlab.example/api/v4"),
+        "https://[REDACTED]@gitlab.example/api/v4"
+      );
+    });
+
+    it("should redact the userinfo when the URL has no path", () => {
+      assert.equal(
+        redactUrlSecretsInText("https://admin:1234 secret@gitlab.example"),
+        "https://[REDACTED]@gitlab.example"
+      );
+    });
+  });
+
+  describe("with a numeric prefix before the rest of the password", () => {
+    it("should redact the userinfo", () => {
+      assert.equal(
+        redactUrlSecretsInText("https://admin:12345 678@host:bad/api"),
+        "https://[REDACTED]@host:bad/api"
+      );
+    });
+  });
+
+  describe("with a host, a port, and an email", () => {
+    it("should leave the text unchanged", () => {
+      assert.equal(redactUrlSecretsInText("localhost:3000 a@b.com"), "localhost:3000 a@b.com");
     });
   });
 });
