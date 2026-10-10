@@ -675,6 +675,12 @@ describe("When running the auth command", () => {
       );
     });
   });
+
+  describe("with a bare --read-only flag", () => {
+    it("should request the read_api scope", async () => {
+      assert.equal(await runAuthCapturingScopeAsync({ extraArgv: ["--read-only"] }), "read_api");
+    });
+  });
 });
 
 describe("When a device-flow token response omits scope", () => {
