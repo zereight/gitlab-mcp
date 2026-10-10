@@ -8,8 +8,13 @@ services:
       - GITLAB_API_URL=${GITLAB_API_URL}
       - GITLAB_PROJECT_ID=${GITLAB_PROJECT_ID}
       - GITLAB_ALLOWED_PROJECT_IDS=${GITLAB_ALLOWED_PROJECT_IDS}
-      # Replaces deprecated GITLAB_READ_ONLY_MODE, USE_GITLAB_WIKI, USE_MILESTONE, and USE_PIPELINE
-      # (removed in next major (v3.0.0)). Include core in GITLAB_TOOLSETS; append to an existing list.
+      # Deprecated (removed in next major (v3.0.0)). Keep passing these so an existing
+      # .env still enforces readonly mode and wiki/milestone/pipeline tools. Prefer the
+      # replacements below; include core in GITLAB_TOOLSETS and append to an existing list.
+      - GITLAB_READ_ONLY_MODE=${GITLAB_READ_ONLY_MODE}
+      - USE_GITLAB_WIKI=${USE_GITLAB_WIKI}
+      - USE_MILESTONE=${USE_MILESTONE}
+      - USE_PIPELINE=${USE_PIPELINE}
       - GITLAB_PERMISSION_MODE=${GITLAB_PERMISSION_MODE}
       - GITLAB_TOOLSETS=${GITLAB_TOOLSETS}
       - GITLAB_TOOLS=${GITLAB_TOOLS}

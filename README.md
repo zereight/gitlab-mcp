@@ -174,8 +174,9 @@ The same binary is also a `gh`-style GitLab CLI (`tool <name>` or curated forms 
 > deny-list by pattern with `GITLAB_DENIED_TOOLS_REGEX`. The legacy `USE_GITLAB_WIKI` /
 > `USE_MILESTONE` / `USE_PIPELINE` flags are deprecated (removed in next major (v3.0.0)).
 > Use `GITLAB_TOOLSETS=core,wiki`, `core,milestones`, or `core,pipelines`
-> (`USE_PIPELINE` also needs `GITLAB_TOOLS=validate_ci_lint,validate_project_ci_lint`).
+> (`USE_PIPELINE` also needs `validate_ci_lint,validate_project_ci_lint` appended to an existing `GITLAB_TOOLS` list instead of replacing it).
 > If you already set `GITLAB_TOOLSETS`, append the toolset to your existing list instead of replacing it.
+> If you already set `GITLAB_TOOLS`, append `validate_ci_lint,validate_project_ci_lint` instead of replacing that list.
 > See [Tools Reference](./docs/tools/index.md#feature-toggles) and
 > [Environment Variables](./docs/configuration/environment-variables.md).
 

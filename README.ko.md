@@ -169,8 +169,9 @@ CLI 인자는 환경 변수보다 우선합니다.
 > 있습니다. 레거시 `USE_GITLAB_WIKI` / `USE_MILESTONE` / `USE_PIPELINE` 플래그는
 > deprecated (removed in next major (v3.0.0))입니다.
 > `GITLAB_TOOLSETS=core,wiki`, `core,milestones`, `core,pipelines`를 사용하세요
-> (`USE_PIPELINE`은 `GITLAB_TOOLS=validate_ci_lint,validate_project_ci_lint`도 필요).
+> (`USE_PIPELINE`은 기존 `GITLAB_TOOLS` 목록에 `validate_ci_lint,validate_project_ci_lint`를 추가해야 하며, 그 목록을 통째로 바꾸면 안 됩니다).
 > 이미 `GITLAB_TOOLSETS`를 설정했다면 toolset을 기존 목록에 추가하고, 목록 전체를 바꾸지 마세요.
+> 이미 `GITLAB_TOOLS`를 설정했다면 `validate_ci_lint,validate_project_ci_lint`를 기존 목록에 추가하고, 목록 전체를 바꾸지 마세요.
 > [Tools Reference](./docs/tools/index.md#feature-toggles)와
 > [Environment Variables](./docs/configuration/environment-variables.md)를 참고하세요.
 

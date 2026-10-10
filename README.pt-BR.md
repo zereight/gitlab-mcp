@@ -168,8 +168,9 @@ O mesmo binário também é uma CLI do GitLab no estilo `gh` (`tool <name>` ou f
 > bloquear por padrão usando `GITLAB_DENIED_TOOLS_REGEX`. As flags legadas `USE_GITLAB_WIKI` /
 > `USE_MILESTONE` / `USE_PIPELINE` estão deprecated (removed in next major (v3.0.0)).
 > Use `GITLAB_TOOLSETS=core,wiki`, `core,milestones` ou `core,pipelines`
-> (`USE_PIPELINE` também precisa de `GITLAB_TOOLS=validate_ci_lint,validate_project_ci_lint`).
+> (`USE_PIPELINE` também precisa acrescentar `validate_ci_lint,validate_project_ci_lint` à lista `GITLAB_TOOLS` existente em vez de substituí-la).
 > Se você já definiu `GITLAB_TOOLSETS`, acrescente o toolset à lista existente em vez de substituí-la.
+> Se você já definiu `GITLAB_TOOLS`, acrescente `validate_ci_lint,validate_project_ci_lint` à lista existente em vez de substituí-la.
 > Consulte a [Referência de ferramentas](./docs/tools/index.md#feature-toggles) e
 > [Variáveis de ambiente](./docs/configuration/environment-variables.md).
 
