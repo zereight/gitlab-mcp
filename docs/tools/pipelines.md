@@ -924,10 +924,11 @@ List runners available to a project. Use this when a job is stuck pending with n
 
 *📖 Read-only*
 
-Get one runner by ID. Use this after list_project_runners when you already have a runner ID and need tag_list, run_untagged, locked, and access_level to explain a stuck pending job. Instance runner details are visible to authenticated users; group and project runners follow GitLab's role checks for that runner. It is read-only and never returns a runner registration token (runners_token) or runner authentication token. token_expires_at is expiry metadata, not the token.
+Get one runner by ID. Use this after list_project_runners when you already have a runner ID and need tag_list, run_untagged, locked, and access_level to explain a stuck pending job. Instance runner details are visible to authenticated users; group and project runners follow GitLab's role checks for that runner. When GITLAB_ALLOWED_PROJECT_IDS or a session project scope is active, the runner must appear on an allowed project's runner list before details are returned — pass project_id when more than one project is allowed — projects outside that allowlist are omitted, and groups are omitted because a project allowlist cannot verify them. It is read-only and never returns a runner registration token (runners_token) or runner authentication token. token_expires_at is expiry metadata, not the token.
 
 **Parameters**
 
 | Parameter | Type | Required | Description |
 |---|---|:-:|---|
 | `runner_id` | string | ✓ | The ID of the runner |
+| `project_id` | string |  | Project ID or URL-encoded path used to verify the runner is on that project's runner list. Required when GITLAB_ALLOWED_PROJECT_IDS or a session project scope lists more than one project. |

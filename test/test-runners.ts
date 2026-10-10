@@ -34,11 +34,13 @@ function readRecord(value: unknown): Record<string, unknown> {
   return record;
 }
 
-function runnerEnv(apiUrl: string): NodeJS.ProcessEnv {
+function runnerEnv(apiUrl: string, allowedProjectIds = ""): NodeJS.ProcessEnv {
   return {
     GITLAB_API_URL: `${apiUrl}/api/v4`,
     GITLAB_PERSONAL_ACCESS_TOKEN: MOCK_TOKEN,
     GITLAB_TOOLSETS: "pipelines",
+    GITLAB_PROJECT_ID: "",
+    GITLAB_ALLOWED_PROJECT_IDS: allowedProjectIds,
   };
 }
 
@@ -357,6 +359,265 @@ describe("When getting a runner", { concurrency: false }, () => {
       assert.equal(runner.access_level, "ref_protected");
       assert.equal(runner.token_expires_at, "2025-01-01T00:00:00.000Z");
       assertNoRunnerSecrets(result.payload);
+    });
+  });
+});
+
+const ALLOWED_PROJECT = {
+  id: 123,
+  name: "allowed",
+  path_with_namespace: "group/allowed",
+};
+const OTHER_PROJECT = {
+  id: 999,
+  name: "other",
+  path_with_namespace: "other/secret",
+};
+const PATH_ALLOWLIST = "group/allowed";
+
+interface RunnerListPage {
+  runners: Array<{ id: number }>;
+  nextPage?: string;
+}
+
+function errorText(payload: unknown): string {
+  return typeof payload === "string" ? payload : JSON.stringify(payload);
+}
+
+describe("When a project allowlist gates get_runner", { concurrency: false }, () => {
+  const lookupState: {
+    pages: RunnerListPage[];
+    listUrls: string[];
+    detailCalls: number;
+  } = {
+    pages: [],
+    listUrls: [],
+    detailCalls: 0,
+  };
+  let mockGitLab: MockGitLabServer;
+  let mockGitLabUrl = "";
+
+  function useRunnerPages(pages: RunnerListPage[]): void {
+    lookupState.pages = pages;
+    lookupState.listUrls = [];
+    lookupState.detailCalls = 0;
+  }
+
+  function handleProjectRunners(
+    req: { originalUrl: string; query: Record<string, unknown> },
+    res: { json: (body: unknown) => void; set: (name: string, value: string) => void }
+  ): void {
+    lookupState.listUrls.push(req.originalUrl);
+    const pageValue = req.query.page;
+    const pageText = typeof pageValue === "string" ? pageValue : "1";
+    const page = Number.parseInt(pageText, 10);
+    const entry = lookupState.pages[page - 1];
+    if (!entry) {
+      res.json([]);
+      return;
+    }
+    if (entry.nextPage !== undefined) {
+      res.set("x-next-page", entry.nextPage);
+    }
+    res.json(entry.runners);
+  }
+
+  before(async () => {
+    const port = await findMockServerPort();
+    mockGitLab = new MockGitLabServer({ port, validTokens: [MOCK_TOKEN] });
+    mockGitLab.addMockHandler("get", `/projects/${TEST_PROJECT_ID}/runners`, (req, res) => {
+      handleProjectRunners(req, res);
+    });
+    mockGitLab.addMockHandler(
+      "get",
+      `/projects/${PATH_ALLOWLIST.replace("/", "%2F")}/runners`,
+      (req, res) => {
+        handleProjectRunners(req, res);
+      }
+    );
+    mockGitLab.addMockHandler("get", `/runners/${TEST_RUNNER_ID}`, (_req, res) => {
+      lookupState.detailCalls += 1;
+      res.json({
+        id: 8,
+        description: "docker-runner",
+        runner_type: "instance_type",
+        status: "online",
+        paused: false,
+        tag_list: ["docker", "linux"],
+        run_untagged: false,
+        locked: true,
+        access_level: "ref_protected",
+        token_expires_at: "2025-01-01T00:00:00.000Z",
+        token: RUNNER_AUTH_TOKEN,
+        runners_token: REGISTRATION_TOKEN,
+        projects: [ALLOWED_PROJECT, OTHER_PROJECT],
+        groups: [{ id: 5, full_path: "other" }],
+      });
+    });
+    await mockGitLab.start();
+    mockGitLabUrl = mockGitLab.getUrl();
+  });
+
+  after(async () => {
+    await mockGitLab.stop();
+  });
+
+  describe("with the runner listed for the allowed project", () => {
+    it("should return scheduling fields after verifying project membership", async () => {
+      useRunnerPages([{ runners: [{ id: 8 }] }]);
+      const result = await callTool(
+        "get_runner",
+        { runner_id: TEST_RUNNER_ID, project_id: TEST_PROJECT_ID },
+        runnerEnv(mockGitLabUrl, TEST_PROJECT_ID)
+      );
+      const runner = readRecord(result.payload);
+
+      assert.equal(result.isError, false);
+      assert.deepEqual(runner.tag_list, ["docker", "linux"]);
+      assert.equal(runner.access_level, "ref_protected");
+      assert.equal(lookupState.detailCalls, 1);
+      assertNoRunnerSecrets(result.payload);
+    });
+  });
+
+  describe("with projects and groups outside the allowlist", () => {
+    it("should omit those projects and groups", async () => {
+      useRunnerPages([{ runners: [{ id: 8 }] }]);
+      const result = await callTool(
+        "get_runner",
+        { runner_id: TEST_RUNNER_ID, project_id: TEST_PROJECT_ID },
+        runnerEnv(mockGitLabUrl, TEST_PROJECT_ID)
+      );
+      const runner = readRecord(result.payload);
+
+      assert.equal(result.isError, false);
+      assert.deepEqual(runner.projects, [ALLOWED_PROJECT]);
+      assert.equal(Object.hasOwn(runner, "groups"), false);
+    });
+  });
+
+  describe("with an allowlist entry that is a project path", () => {
+    it("should keep the project whose path is allowed", async () => {
+      useRunnerPages([{ runners: [{ id: 8 }] }]);
+      const result = await callTool(
+        "get_runner",
+        { runner_id: TEST_RUNNER_ID },
+        runnerEnv(mockGitLabUrl, PATH_ALLOWLIST)
+      );
+      const runner = readRecord(result.payload);
+
+      assert.equal(result.isError, false);
+      assert.deepEqual(runner.projects, [ALLOWED_PROJECT]);
+      assert.equal(lookupState.listUrls.length, 1);
+    });
+  });
+
+  describe("with the runner absent from the allowed project", () => {
+    it("should reject the call before reading runner details", async () => {
+      useRunnerPages([{ runners: [{ id: 1 }] }]);
+      const result = await callTool(
+        "get_runner",
+        { runner_id: TEST_RUNNER_ID, project_id: TEST_PROJECT_ID },
+        runnerEnv(mockGitLabUrl, TEST_PROJECT_ID)
+      );
+
+      assert.equal(result.isError, true);
+      assert.match(errorText(result.payload), /Runner not found/);
+      assert.equal(lookupState.detailCalls, 0);
+    });
+  });
+
+  describe("with more than one allowed project and no project_id", () => {
+    it("should reject the call before querying GitLab", async () => {
+      useRunnerPages([{ runners: [{ id: 8 }] }]);
+      const result = await callTool(
+        "get_runner",
+        { runner_id: TEST_RUNNER_ID },
+        runnerEnv(mockGitLabUrl, `${TEST_PROJECT_ID},456`)
+      );
+
+      assert.equal(result.isError, true);
+      assert.match(errorText(result.payload), /Multiple projects allowed/);
+      assert.deepEqual(lookupState.listUrls, []);
+      assert.equal(lookupState.detailCalls, 0);
+    });
+  });
+
+  describe("with a project_id outside the allowlist", () => {
+    it("should deny access before querying GitLab", async () => {
+      useRunnerPages([{ runners: [{ id: 8 }] }]);
+      const result = await callTool(
+        "get_runner",
+        { runner_id: TEST_RUNNER_ID, project_id: "999" },
+        runnerEnv(mockGitLabUrl, TEST_PROJECT_ID)
+      );
+
+      assert.equal(result.isError, true);
+      assert.match(errorText(result.payload), /Access denied/);
+      assert.deepEqual(lookupState.listUrls, []);
+      assert.equal(lookupState.detailCalls, 0);
+    });
+  });
+
+  describe("with a single allowed project and no project_id", () => {
+    it("should verify the runner against that project", async () => {
+      useRunnerPages([{ runners: [{ id: 8 }] }]);
+      const result = await callTool(
+        "get_runner",
+        { runner_id: TEST_RUNNER_ID },
+        runnerEnv(mockGitLabUrl, TEST_PROJECT_ID)
+      );
+      const listUrl = new URL(lookupState.listUrls[0] ?? "", "http://127.0.0.1");
+
+      assert.equal(result.isError, false);
+      assert.equal(listUrl.pathname, `/api/v4/projects/${TEST_PROJECT_ID}/runners`);
+      assert.equal(listUrl.searchParams.get("per_page"), "100");
+    });
+  });
+
+  describe("with the runner on a later page", () => {
+    it("should follow pagination before returning details", async () => {
+      useRunnerPages([{ runners: [{ id: 1 }], nextPage: "2" }, { runners: [{ id: 8 }] }]);
+      const result = await callTool(
+        "get_runner",
+        { runner_id: TEST_RUNNER_ID, project_id: TEST_PROJECT_ID },
+        runnerEnv(mockGitLabUrl, TEST_PROJECT_ID)
+      );
+
+      assert.equal(result.isError, false);
+      assert.equal(lookupState.listUrls.length, 2);
+      assert.equal(lookupState.detailCalls, 1);
+    });
+  });
+
+  describe("with project_id and no allowlist", () => {
+    it("should reject a runner that project cannot use before reading details", async () => {
+      useRunnerPages([{ runners: [{ id: 1 }] }]);
+      const result = await callTool(
+        "get_runner",
+        { runner_id: TEST_RUNNER_ID, project_id: TEST_PROJECT_ID },
+        runnerEnv(mockGitLabUrl)
+      );
+
+      assert.equal(result.isError, true);
+      assert.match(errorText(result.payload), /Runner not found/);
+      assert.equal(lookupState.detailCalls, 0);
+    });
+  });
+
+  describe("with project_id and no allowlist when the runner is listed", () => {
+    it("should return projects and groups from runner details", async () => {
+      useRunnerPages([{ runners: [{ id: 8 }] }]);
+      const result = await callTool(
+        "get_runner",
+        { runner_id: TEST_RUNNER_ID, project_id: TEST_PROJECT_ID },
+        runnerEnv(mockGitLabUrl)
+      );
+      const runner = readRecord(result.payload);
+
+      assert.equal(result.isError, false);
+      assert.deepEqual(runner.projects, [ALLOWED_PROJECT, OTHER_PROJECT]);
+      assert.deepEqual(runner.groups, [{ id: 5, full_path: "other" }]);
     });
   });
 });

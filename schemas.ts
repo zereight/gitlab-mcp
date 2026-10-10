@@ -295,6 +295,12 @@ export const ListProjectRunnersSchema = z
 // https://docs.gitlab.com/api/runners/#retrieve-runners-details
 export const GetRunnerSchema = z.object({
   runner_id: z.coerce.string().describe("The ID of the runner"),
+  project_id: z.coerce
+    .string()
+    .optional()
+    .describe(
+      "Project ID or URL-encoded path used to verify the runner is on that project's runner list. Required when GITLAB_ALLOWED_PROJECT_IDS or a session project scope lists more than one project."
+    ),
 });
 
 export const GetPipelineVariablesSchema = GetPipelineSchema.merge(PaginationOptionsSchema);

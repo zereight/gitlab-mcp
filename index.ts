@@ -7916,7 +7916,131 @@ async function listProjectRunners(
   return redactSensitiveGitLabFields(await response.json());
 }
 
-async function getRunner(runnerId: string): Promise<unknown> {
+const PROJECT_RUNNER_LOOKUP_PAGE_SIZE = 100;
+const MAX_PROJECT_RUNNER_LOOKUP_PAGES = 100;
+
+function isJsonObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function runnerEntryId(entry: unknown): string | undefined {
+  if (!isJsonObject(entry)) {
+    return undefined;
+  }
+  const id = entry.id;
+  if (typeof id === "number" && Number.isFinite(id)) {
+    return String(id);
+  }
+  if (typeof id === "string" && id !== "") {
+    return id;
+  }
+  return undefined;
+}
+
+function projectIsInAllowlist(project: unknown, allowedProjectIds: readonly string[]): boolean {
+  if (!isJsonObject(project)) {
+    return false;
+  }
+  const id = project.id;
+  const pathWithNamespace = project.path_with_namespace;
+  const idText =
+    typeof id === "number" && Number.isFinite(id)
+      ? String(id)
+      : typeof id === "string"
+        ? id
+        : undefined;
+  return (
+    (idText !== undefined && allowedProjectIds.includes(idText)) ||
+    (typeof pathWithNamespace === "string" && allowedProjectIds.includes(pathWithNamespace))
+  );
+}
+
+/**
+ * GET /runners/:id is not project-scoped. Instance runner details are visible to
+ * any authenticated user and can list projects outside GITLAB_ALLOWED_PROJECT_IDS.
+ * Keep only projects on the effective allowlist, and drop groups because a group
+ * path cannot be checked against a project allowlist.
+ */
+function restrictRunnerDetailsToAllowlist(
+  runner: unknown,
+  allowedProjectIds: readonly string[]
+): unknown {
+  if (!isJsonObject(runner)) {
+    return runner;
+  }
+  const restricted: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(runner)) {
+    if (key === "groups") {
+      continue;
+    }
+    if (key === "projects" && Array.isArray(value)) {
+      restricted.projects = value.filter(project =>
+        projectIsInAllowlist(project, allowedProjectIds)
+      );
+      continue;
+    }
+    restricted[key] = value;
+  }
+  return restricted;
+}
+
+/**
+ * Confirm the runner is among the runners available to an allowed project.
+ * GitLab has no single-runner project read; membership is the paginated
+ * GET /projects/:id/runners list, which includes ancestor group runners and
+ * allowed instance runners. Fail closed when the list cannot be fully scanned.
+ */
+async function assertRunnerAvailableToProject(projectId: string, runnerId: string): Promise<void> {
+  const effectiveProjectId = getEffectiveProjectId(decodeURIComponent(projectId));
+  let page = 1;
+
+  while (page <= MAX_PROJECT_RUNNER_LOOKUP_PAGES) {
+    const url = new URL(
+      `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(effectiveProjectId)}/runners`
+    );
+    url.searchParams.set("per_page", String(PROJECT_RUNNER_LOOKUP_PAGE_SIZE));
+    url.searchParams.set("page", String(page));
+
+    const response = await fetch(url.toString(), {
+      ...getFetchConfig(),
+    });
+    await handleGitLabError(response);
+    const data: unknown = await response.json();
+    if (!Array.isArray(data)) {
+      throw new GitLabApiError(
+        `Could not verify runner ${runnerId} against project ${effectiveProjectId}`
+      );
+    }
+    if (data.some(entry => runnerEntryId(entry) === runnerId)) {
+      return;
+    }
+
+    const nextPageHeader = response.headers.get("x-next-page");
+    if (!nextPageHeader) {
+      throw new GitLabApiError("Runner not found");
+    }
+    const nextPage = Number.parseInt(nextPageHeader, 10);
+    if (!Number.isFinite(nextPage) || nextPage <= page) {
+      throw new ProjectAccessDeniedError(
+        `Access denied: Runner ${runnerId} could not be verified against project ${effectiveProjectId}`
+      );
+    }
+    page = nextPage;
+  }
+
+  throw new ProjectAccessDeniedError(
+    `Access denied: Runner ${runnerId} could not be verified against project ${effectiveProjectId}`
+  );
+}
+
+async function getRunner(runnerId: string, projectId?: string): Promise<unknown> {
+  const allowedProjectIds = getEffectiveAllowedProjectIds();
+  const decodedProjectId =
+    projectId === undefined || projectId.trim() === "" ? undefined : decodeURIComponent(projectId);
+  if (allowedProjectIds.length > 0 || decodedProjectId !== undefined) {
+    await assertRunnerAvailableToProject(getEffectiveProjectId(decodedProjectId ?? ""), runnerId);
+  }
+
   const url = new URL(`${getEffectiveApiUrl()}/runners/${encodeGitLabPathSegment(runnerId)}`);
 
   const response = await fetch(url.toString(), {
@@ -7928,7 +8052,11 @@ async function getRunner(runnerId: string): Promise<unknown> {
   }
 
   await handleGitLabError(response);
-  return redactSensitiveGitLabFields(await response.json());
+  const details = redactSensitiveGitLabFields(await response.json());
+  if (allowedProjectIds.length === 0) {
+    return details;
+  }
+  return restrictRunnerDetailsToAllowlist(details, allowedProjectIds);
 }
 
 async function environmentRequest(
@@ -13250,8 +13378,8 @@ async function handleToolCall(params: any) {
       }
 
       case "get_runner": {
-        const { runner_id } = GetRunnerSchema.parse(params.arguments);
-        const runner = await getRunner(runner_id);
+        const { runner_id, project_id } = GetRunnerSchema.parse(params.arguments);
+        const runner = await getRunner(runner_id, project_id);
         return {
           content: [{ type: "text", text: JSON.stringify(runner) }],
         };

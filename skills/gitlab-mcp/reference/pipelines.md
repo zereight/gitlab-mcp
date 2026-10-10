@@ -86,8 +86,11 @@ get_runner           -> one runner: tag_list, run_untagged, locked, access_level
 
 `list_project_runners` calls GET /projects/:id/runners. The list payload includes id,
 description, runner_type, status, and paused, and does not include tags. Call `get_runner`
-(GET /runners/:id) when a job is stuck pending because no runner tag matches. Both tools
-drop runner registration tokens and runner authentication tokens from the result.
+(GET /runners/:id) when a job is stuck pending because no runner tag matches. When
+GITLAB_ALLOWED_PROJECT_IDS or a session project scope is active, `get_runner` first
+confirms the runner is on an allowed project's runner list, omits projects outside that
+allowlist, and omits groups because a project allowlist cannot verify them. Both tools drop runner registration tokens and runner
+authentication tokens from the result.
 
 ## Pipeline Triggers
 
