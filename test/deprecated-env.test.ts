@@ -4,6 +4,7 @@ import { existsSync } from "node:fs";
 import path from "node:path";
 import { describe, test } from "node:test";
 import { parseCliArgs } from "../cli-boolean-flags.js";
+import { globalHelpText } from "../cli/help.js";
 import {
   deprecatedEnvInputFromSources,
   getDeprecatedEnvWarnings,
@@ -600,6 +601,18 @@ describe("When the human CLI runs", () => {
       assert.match(result.stderr, /`--use-wiki` \(USE_GITLAB_WIKI\)/);
       assert.match(result.stderr, /Remove it/);
       assert.doesNotMatch(result.stdout, /deprecated/);
+    });
+  });
+});
+
+describe("When --help is requested", () => {
+  describe("with USE_PIPELINE=true", () => {
+    test("should write the warning to stderr and only the help text to stdout", async () => {
+      requireBuiltServer();
+      const result = await runBuiltServer(["--help"], spawnEnv({ USE_PIPELINE: "true" }));
+      assert.equal(result.code, 0);
+      assert.equal(result.stdout, globalHelpText());
+      assert.match(result.stderr, /USE_PIPELINE is deprecated and will be removed in v3\.0\.0/);
     });
   });
 });

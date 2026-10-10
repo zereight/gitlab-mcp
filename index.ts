@@ -16998,6 +16998,7 @@ async function runServer() {
 async function main(): Promise<void> {
   const cli = resolveCli(process.argv);
   if (cli.kind === "help") {
+    emitDeprecatedEnvWarnings();
     process.stdout.write(cli.text);
     process.exit(0);
   }
