@@ -10,6 +10,7 @@ import { promisify } from "util";
 import open from "open";
 import pkceChallenge from "pkce-challenge";
 import { createLogger } from "./utils/logger.js";
+import { redactUrlSecretsInText } from "./utils/redact-url.js";
 import { GITLAB_PERMISSION_MODE, type GitLabPermissionMode } from "./config.js";
 import {
   formatOAuthScopes,
@@ -423,10 +424,10 @@ export class GitLabOAuth {
             // Open browser for this new request
             const authUrl = await this.getAuthorizationUrl(newState);
             logger.info("Opening browser for new authentication request...");
-            logger.info(`If browser doesn't open, visit: ${authUrl}`);
+            logger.info(`If browser doesn't open, visit: ${redactUrlSecretsInText(authUrl)}`);
             open(authUrl).catch(err => {
               logger.error({ err }, "Failed to open browser");
-              logger.info(`Please manually open: ${authUrl}`);
+              logger.info(`Please manually open: ${redactUrlSecretsInText(authUrl)}`);
             });
 
             // Wait for the auth to complete
@@ -591,10 +592,10 @@ export class GitLabOAuth {
         logger.info(`Shared OAuth callback server listening on port ${callbackPort}`);
         const authUrl = await this.getAuthorizationUrl(state);
         logger.info("Opening browser for authentication...");
-        logger.info(`If browser doesn't open, visit: ${authUrl}`);
+        logger.info(`If browser doesn't open, visit: ${redactUrlSecretsInText(authUrl)}`);
         open(authUrl).catch(err => {
           logger.error({ err }, "Failed to open browser");
-          logger.info(`Please manually open: ${authUrl}`);
+          logger.info(`Please manually open: ${redactUrlSecretsInText(authUrl)}`);
         });
       });
 
