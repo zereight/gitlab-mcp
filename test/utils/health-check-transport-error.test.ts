@@ -303,4 +303,26 @@ describe("When redactGitLabUrlCredentials runs", () => {
       );
     });
   });
+
+  describe("with a private_token query parameter", () => {
+    test("should redact the token and keep the rest of the URL", () => {
+      assert.equal(
+        redactGitLabUrlCredentials(
+          "https://gitlab.example/api/v4/user?private_token=glpat-supersecret&page=1"
+        ),
+        "https://gitlab.example/api/v4/user?private_token=[REDACTED]&page=1"
+      );
+    });
+  });
+
+  describe("with userinfo and an access_token query parameter", () => {
+    test("should redact both", () => {
+      assert.equal(
+        redactGitLabUrlCredentials(
+          "https://user:secret@gitlab.example/api/v4?access_token=glpat-supersecret"
+        ),
+        "https://gitlab.example/api/v4?access_token=[REDACTED]"
+      );
+    });
+  });
 });

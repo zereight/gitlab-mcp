@@ -115,18 +115,26 @@ function combineMessages(outer: string | null, inner: string | null): string {
  * A password with an unencoded slash is not a valid WHATWG URL, so that form
  * uses the same text redaction as transport error messages.
  */
+const SENSITIVE_QUERY_PATTERN =
+  /([?&](?:access_token|private_token|job_token|password|token)=)[^&\s#]+/gi;
+
 export function redactGitLabUrlCredentials(url: string): string {
   try {
     const parsed = new URL(url);
-    if (parsed.username.length === 0 && parsed.password.length === 0) {
-      return url;
+    const hadUserinfo = parsed.username.length > 0 || parsed.password.length > 0;
+    if (hadUserinfo) {
+      parsed.username = "";
+      parsed.password = "";
     }
-    parsed.username = "";
-    parsed.password = "";
-    return parsed.toString();
+    const serialized = hadUserinfo ? parsed.toString() : url;
+    return redactSensitiveQuery(serialized);
   } catch {
-    return redactUrlUserinfoInText(url);
+    return redactSensitiveQuery(redactUrlUserinfoInText(url));
   }
+}
+
+function redactSensitiveQuery(url: string): string {
+  return url.replace(SENSITIVE_QUERY_PATTERN, "$1[REDACTED]");
 }
 
 function redactUrlUserinfoInText(message: string): string {
@@ -145,10 +153,7 @@ function redactCredentials(message: string): string {
   return redactUrlUserinfoInText(message)
     .replace(/\bBearer\s+\S+/gi, "Bearer [REDACTED]")
     .replace(/\b((?:private|job)-token|authorization)\b\s*[:=]\s*\S+/gi, "$1: [REDACTED]")
-    .replace(
-      /([?&](?:access_token|private_token|job_token|password|token)=)[^&\s]+/gi,
-      "$1[REDACTED]"
-    )
+    .replace(SENSITIVE_QUERY_PATTERN, "$1[REDACTED]")
     .replace(/\bgl(?:pat|dt|rt|pt|ft|oas|soat)-[A-Za-z0-9._-]+/gi, "[REDACTED]");
 }
 
