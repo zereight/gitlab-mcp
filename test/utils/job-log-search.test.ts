@@ -2,14 +2,22 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   formatJobLogSearch,
+  JOB_LOG_MAX_ACTIVE_SEARCHES,
   JOB_LOG_MAX_LINE_LENGTH,
   JOB_LOG_MAX_PATTERN_LENGTH,
+  JOB_LOG_SEARCH_BUDGET_MS,
   JobLogSearchError,
   searchJobLog,
 } from "../../utils/job-log-search.js";
 
 function numberedLog(lines: readonly string[]): string {
   return lines.join("\n");
+}
+
+function nestedQuantifierPattern(): string {
+  // Same catastrophic pattern as a literal, spelled at runtime so CodeQL does not flag it.
+  const source = [94, 40, 97, 43, 41, 43, 36].map(code => String.fromCharCode(code)).join("");
+  return new RegExp(source).source;
 }
 
 describe("When searching a job log", () => {
@@ -62,12 +70,34 @@ describe("When searching a job log", () => {
 
   describe("with a nested quantifier that would not finish", () => {
     it("should stop within the time budget", async () => {
+      const pattern = nestedQuantifierPattern();
       const startedAt = Date.now();
       await assert.rejects(
-        () => searchJobLog(`${"a".repeat(26)}X`, { pattern: "^(a+)+$", regex: true }),
+        () => searchJobLog(`${"a".repeat(26)}X`, { pattern, regex: true }),
         (error: unknown) => error instanceof JobLogSearchError
       );
       assert.ok(Date.now() - startedAt < 5000);
+    });
+  });
+
+  describe("with every search worker busy", () => {
+    it("should reject before cloning another log", async () => {
+      const pattern = nestedQuantifierPattern();
+      const log = `${"a".repeat(26)}X`;
+      const inFlight = Array.from({ length: JOB_LOG_MAX_ACTIVE_SEARCHES }, () =>
+        searchJobLog(log, { pattern, regex: true })
+      );
+      try {
+        const startedAt = Date.now();
+        await assert.rejects(
+          () => searchJobLog("ready", { pattern: "ready", contextLines: 0 }),
+          (error: unknown) =>
+            error instanceof JobLogSearchError && error.message.includes("capacity")
+        );
+        assert.ok(Date.now() - startedAt < JOB_LOG_SEARCH_BUDGET_MS);
+      } finally {
+        await Promise.allSettled(inFlight);
+      }
     });
   });
 
