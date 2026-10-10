@@ -20,6 +20,38 @@ logger.flush(() => {
 });
 `;
 
+const STARTUP_PROBE_SOURCE = `
+import { createLogger, flushStartupLogs } from "./utils/logger.ts";
+
+const marker = process.env.PROBE_MARKER ?? "";
+const logger = createLogger("probe");
+logger.warn(marker);
+flushStartupLogs(logger);
+process.stderr.write("AFTER_STARTUP_WARNING\\n");
+process.exit(0);
+`;
+
+const ASYNC_PROBE_SOURCE = `
+import { createLogger } from "./utils/logger.ts";
+
+const marker = process.env.PROBE_MARKER ?? "";
+const logger = createLogger("probe");
+logger.info(marker);
+process.stderr.write("BEFORE_BUFFERED_LOG\\n");
+process.exit(0);
+`;
+
+const FATAL_PROBE_SOURCE = `
+import { createLogger, flushBufferedLogs } from "./utils/logger.ts";
+
+const marker = process.env.PROBE_MARKER ?? "";
+const logger = createLogger("probe");
+logger.error(marker);
+flushBufferedLogs(logger);
+process.stderr.write("AFTER_FATAL_LOG\\n");
+process.exit(1);
+`;
+
 interface ProbeResult {
   readonly stdout: string;
   readonly stderr: string;
@@ -55,10 +87,14 @@ function isJsonLogLine(text: string, marker: string): boolean {
   }
 }
 
-async function runProbe(logFormat: string | undefined, marker: string): Promise<ProbeResult> {
+async function runProbe(
+  logFormat: string | undefined,
+  marker: string,
+  source: string = PROBE_SOURCE
+): Promise<ProbeResult> {
   const child = spawn(
     process.execPath,
-    ["--import", "tsx/esm", "--input-type=module", "-e", PROBE_SOURCE],
+    ["--import", "tsx/esm", "--input-type=module", "-e", source],
     {
       cwd: REPO_ROOT,
       env: probeEnv(logFormat, marker),
@@ -101,6 +137,86 @@ describe("When createLogger writes a record", () => {
       assert.equal(probe.code, 0);
       assert.equal(probe.stdout, "");
       assert.equal(readable, true);
+    });
+  });
+});
+
+describe("When startup warnings are flushed", () => {
+  describe("with LOG_FORMAT=json", () => {
+    it("should write the warning before a later stderr line", async () => {
+      const probe = await runProbe("json", JSON_MARKER, STARTUP_PROBE_SOURCE);
+      const warningAt = probe.stderr.indexOf(JSON_MARKER);
+      const afterAt = probe.stderr.indexOf("AFTER_STARTUP_WARNING");
+
+      assert.equal(probe.code, 0);
+      assert.ok(warningAt >= 0);
+      assert.ok(afterAt > warningAt);
+    });
+  });
+
+  describe("with LOG_FORMAT unset", () => {
+    it("should write the warning before a later stderr line", async () => {
+      const probe = await runProbe(undefined, PRETTY_MARKER, STARTUP_PROBE_SOURCE);
+      const warningAt = probe.stderr.indexOf(PRETTY_MARKER);
+      const afterAt = probe.stderr.indexOf("AFTER_STARTUP_WARNING");
+
+      assert.equal(probe.code, 0);
+      assert.ok(warningAt >= 0);
+      assert.ok(afterAt > warningAt);
+    });
+  });
+});
+
+describe("When a fatal log is flushed before exit", () => {
+  describe("with LOG_FORMAT=json", () => {
+    it("should write the error before a later stderr line", async () => {
+      const probe = await runProbe("json", JSON_MARKER, FATAL_PROBE_SOURCE);
+      const errorAt = probe.stderr.indexOf(JSON_MARKER);
+      const afterAt = probe.stderr.indexOf("AFTER_FATAL_LOG");
+
+      assert.equal(probe.code, 1);
+      assert.equal(probe.stdout, "");
+      assert.ok(errorAt >= 0);
+      assert.ok(afterAt > errorAt);
+    });
+  });
+
+  describe("with LOG_FORMAT unset", () => {
+    it("should write the error before a later stderr line", async () => {
+      const probe = await runProbe(undefined, PRETTY_MARKER, FATAL_PROBE_SOURCE);
+      const errorAt = probe.stderr.indexOf(PRETTY_MARKER);
+      const afterAt = probe.stderr.indexOf("AFTER_FATAL_LOG");
+
+      assert.equal(probe.code, 1);
+      assert.equal(probe.stdout, "");
+      assert.ok(errorAt >= 0);
+      assert.ok(afterAt > errorAt);
+    });
+  });
+});
+
+describe("When a steady-state log is not flushed", () => {
+  describe("with LOG_FORMAT=json", () => {
+    it("should leave that log behind a direct stderr write", async () => {
+      const probe = await runProbe("json", JSON_MARKER, ASYNC_PROBE_SOURCE);
+      const logAt = probe.stderr.indexOf(JSON_MARKER);
+      const beforeAt = probe.stderr.indexOf("BEFORE_BUFFERED_LOG");
+
+      assert.equal(probe.code, 0);
+      assert.ok(beforeAt >= 0);
+      assert.ok(logAt > beforeAt);
+    });
+  });
+
+  describe("with LOG_FORMAT unset", () => {
+    it("should leave that log behind a direct stderr write", async () => {
+      const probe = await runProbe(undefined, PRETTY_MARKER, ASYNC_PROBE_SOURCE);
+      const logAt = probe.stderr.indexOf(PRETTY_MARKER);
+      const beforeAt = probe.stderr.indexOf("BEFORE_BUFFERED_LOG");
+
+      assert.equal(probe.code, 0);
+      assert.ok(beforeAt >= 0);
+      assert.ok(logAt > beforeAt);
     });
   });
 });

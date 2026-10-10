@@ -16,13 +16,11 @@ import {
   GITLAB_PERSONAL_ACCESS_TOKEN,
   GITLAB_POOL_MAX_SIZE,
   GITLAB_DISABLE_VERSION_CHECK,
-  GITLAB_READ_ONLY_MODE,
   GITLAB_MASKING_ENABLED,
   GITLAB_MASKING_CONFIG,
   GITLAB_MASKING_POLICY_FILE,
   GITLAB_MASKING_WORKSPACE_DIR,
   GITLAB_PERMISSION_MODE,
-  GITLAB_PERMISSION_MODE_RAW,
   GITLAB_TOOLSETS_RAW,
   GITLAB_TOOLS_RAW,
   HOST,
@@ -44,21 +42,17 @@ import {
   STREAMABLE_HTTP,
   MCP_TRUST_PROXY,
   USE_GITLAB_WIKI,
-  USE_GITLAB_WIKI_RAW,
   USE_MILESTONE,
-  USE_MILESTONE_RAW,
   USE_OAUTH,
   USE_PIPELINE,
-  USE_PIPELINE_RAW,
   GITLAB_TOOL_POLICY_APPROVE_RAW,
   GITLAB_TOOL_POLICY_HIDDEN_RAW,
-  GITLAB_OAUTH_ALLOWED_GROUPS_RAW,
-  GITLAB_ALLOWED_GROUPS_RAW,
   GITLAB_OAUTH_ALLOWED_GROUPS,
   GITLAB_MCP_COMPACT_RESULTS,
   GITLAB_MCP_COMPACT_RESULT_CHARS,
   GITLAB_MCP_COMPACT_TOOL_NAMES,
   GITLAB_TOOL_PROFILE,
+  buildDeprecatedEnvInput,
 } from "./config.js";
 import { getDeprecatedEnvWarnings } from "./deprecated-env.js";
 
@@ -717,9 +711,14 @@ import {
   createHash,
   timingSafeEqual,
 } from "node:crypto";
-import { createLogger } from "./utils/logger.js";
+import { createLogger, flushBufferedLogs, flushStartupLogs } from "./utils/logger.js";
 
 const logger = createLogger();
+
+function exitAfterFlush(code: number): never {
+  flushBufferedLogs(logger);
+  process.exit(code);
+}
 
 // Construct once at startup. When disabled this is undefined and the result
 // path below returns the original objects without reading a config file.
@@ -931,6 +930,7 @@ function createServer(): McpServer {
         },
         `tool_call_error: ${toolName} (${durationMs}ms)`
       );
+      flushBufferedLogs(logger);
       return safeError;
     };
 
@@ -1525,7 +1525,7 @@ function validateConfiguration(): void {
   if (errors.length > 0) {
     logger.error("Configuration validation failed:");
     errors.forEach(err => logger.error(`  - ${err}`));
-    process.exit(1);
+    exitAfterFlush(1);
   }
 
   logger.info("Configuration validation passed");
@@ -1540,6 +1540,23 @@ let oauthClient: GitLabOAuth | null = null;
  * switch to signed/sealed opaque values instead of per-pod in-memory caches.
  */
 let STATELESS_MATERIAL: StatelessKeyMaterial | null = null;
+
+let hasEmittedDeprecatedEnvWarnings = false;
+
+function emitDeprecatedEnvWarnings(): void {
+  if (hasEmittedDeprecatedEnvWarnings) {
+    return;
+  }
+  hasEmittedDeprecatedEnvWarnings = true;
+  const warnings = getDeprecatedEnvWarnings(buildDeprecatedEnvInput());
+  for (const warning of warnings) {
+    logger.warn(warning);
+  }
+  if (warnings.length > 0) {
+    flushStartupLogs(logger);
+  }
+}
+
 try {
   // Drive enablement from the already-resolved config flag so the CLI flag
   // (--oauth-stateless-mode) is honored. Re-reading env.OAUTH_STATELESS_MODE
@@ -1553,6 +1570,7 @@ try {
     console.error("[gitlab-mcp] stateless OAuth mode enabled");
   }
 } catch (err) {
+  emitDeprecatedEnvWarnings();
   // eslint-disable-next-line no-console -- startup failure must be visible
   console.error(`[gitlab-mcp] failed to load stateless secret: ${(err as Error).message}`);
   process.exit(1);
@@ -2195,28 +2213,32 @@ const GITLAB_REPO_FILE_ENCODING =
 if (REMOTE_AUTHORIZATION) {
   // Remote authorization mode: token comes from HTTP headers
   if (SSE) {
+    emitDeprecatedEnvWarnings();
     logger.error("REMOTE_AUTHORIZATION=true is not compatible with SSE transport mode");
     logger.error("Please use STREAMABLE_HTTP=true instead");
-    process.exit(1);
+    exitAfterFlush(1);
   }
   if (!STREAMABLE_HTTP) {
+    emitDeprecatedEnvWarnings();
     logger.error("REMOTE_AUTHORIZATION=true requires STREAMABLE_HTTP=true");
     logger.error("Set STREAMABLE_HTTP=true to enable remote authorization");
-    process.exit(1);
+    exitAfterFlush(1);
   }
   logger.info("Remote authorization enabled: tokens will be read from HTTP headers");
 }
 
 if (GITLAB_MCP_OAUTH) {
   if (SSE) {
+    emitDeprecatedEnvWarnings();
     logger.error("GITLAB_MCP_OAUTH=true is not compatible with SSE transport mode");
     logger.error("Please use STREAMABLE_HTTP=true instead");
-    process.exit(1);
+    exitAfterFlush(1);
   }
   if (!STREAMABLE_HTTP) {
+    emitDeprecatedEnvWarnings();
     logger.error("GITLAB_MCP_OAUTH=true requires STREAMABLE_HTTP=true");
     logger.error("Set STREAMABLE_HTTP=true to enable MCP OAuth");
-    process.exit(1);
+    exitAfterFlush(1);
   }
   logger.info(
     "MCP OAuth enabled: GitLab OAuth proxy active (Private-Token/JOB-TOKEN headers bypass OAuth)"
@@ -2232,10 +2254,12 @@ if (
   !GITLAB_JOB_TOKEN &&
   !GITLAB_AUTH_COOKIE_PATH
 ) {
-  // Standard mode: token must be in environment (unless using OAuth)
+  // Standard mode: token must be in environment (unless using OAuth).
+  // This exit runs before runServer(), so warnings have to be printed here too.
+  emitDeprecatedEnvWarnings();
   logger.error("GITLAB_PERSONAL_ACCESS_TOKEN environment variable is not set");
   logger.info("Either set GITLAB_PERSONAL_ACCESS_TOKEN or enable OAuth with GITLAB_USE_OAUTH=true");
-  process.exit(1);
+  exitAfterFlush(1);
 }
 
 class GitLabApiError extends Error {
@@ -16924,6 +16948,10 @@ function initOAuthClient(): void {
  */
 async function runServer() {
   try {
+    // Print before validateConfiguration(), which process.exit()s on failure.
+    // logger.warn goes to stderr; stdio transport owns stdout for JSON-RPC.
+    emitDeprecatedEnvWarnings();
+
     // Validate configuration before starting server
     validateConfiguration();
 
@@ -16935,7 +16963,7 @@ async function runServer() {
         logger.info("OAuth enabled; token acquired lazily on first use.");
       } catch (error) {
         logger.error({ err: error }, "OAuth authentication failed");
-        process.exit(1);
+        exitAfterFlush(1);
       }
     }
 
@@ -16958,34 +16986,24 @@ async function runServer() {
     logger.info(`Configured GitLab API URLs: ${GITLAB_API_URLS.join(", ")}`);
     logger.info(`Default GitLab API URL: ${GITLAB_API_URL}`);
 
-    for (const warning of getDeprecatedEnvWarnings({
-      readOnlyMode: GITLAB_READ_ONLY_MODE,
-      permissionModeRaw: GITLAB_PERMISSION_MODE_RAW,
-      allowedGroupsRaw: GITLAB_ALLOWED_GROUPS_RAW,
-      oauthAllowedGroupsRaw: GITLAB_OAUTH_ALLOWED_GROUPS_RAW,
-      useWikiRaw: USE_GITLAB_WIKI_RAW,
-      useMilestoneRaw: USE_MILESTONE_RAW,
-      usePipelineRaw: USE_PIPELINE_RAW,
-    })) {
-      logger.warn(warning);
-    }
-
     if (GITLAB_OAUTH_ALLOWED_GROUPS) {
       logger.info(`Group access control enabled for: ${GITLAB_OAUTH_ALLOWED_GROUPS.join(", ")}`);
     }
   } catch (error) {
     logger.error({ err: error }, "Error initializing server");
-    process.exit(1);
+    exitAfterFlush(1);
   }
 }
 
 async function main(): Promise<void> {
   const cli = resolveCli(process.argv);
   if (cli.kind === "help") {
+    emitDeprecatedEnvWarnings();
     process.stdout.write(cli.text);
     process.exit(0);
   }
   if (cli.kind === "usage" || cli.kind === "refused") {
+    emitDeprecatedEnvWarnings();
     process.stderr.write(`${cli.message}\n`);
     process.exit(2);
   }
@@ -16997,10 +17015,11 @@ async function main(): Promise<void> {
       const message = error instanceof Error ? error.message : String(error);
       process.stderr.write(`${message}\n`);
       logger.error({ err: error }, "auth command failed");
-      process.exit(1);
+      exitAfterFlush(1);
     }
   }
   if (cli.kind === "run") {
+    emitDeprecatedEnvWarnings();
     if (!hasCliCredentials()) {
       process.stderr.write(
         "Missing GitLab credentials. Set --token or GITLAB_PERSONAL_ACCESS_TOKEN, or run `auth` with GITLAB_USE_OAUTH=true.\n"
@@ -17024,7 +17043,7 @@ async function main(): Promise<void> {
     } catch (error) {
       process.stderr.write(formatCliError(error));
       logger.error({ err: error }, "cli command failed");
-      process.exit(1);
+      exitAfterFlush(1);
     }
   }
 
@@ -17059,5 +17078,5 @@ function maskCliToolResult(toolName: string, result: unknown): unknown {
 
 main().catch(error => {
   logger.fatal({ err: error }, "Fatal error in main()");
-  process.exit(1);
+  exitAfterFlush(1);
 });
