@@ -433,6 +433,7 @@ import {
   GitLabForkSchema,
   GitLabBranchSchema,
   GitLabProtectedBranchSchema,
+  GitLabProtectedTagSchema,
   GitLabGroupSchema,
   type GitLabIssue,
   type GitLabIssueLink,
@@ -657,6 +658,10 @@ import {
   CreateTagSchema,
   DeleteTagSchema,
   GetTagSignatureSchema,
+  ListProtectedTagsSchema,
+  GetProtectedTagSchema,
+  ProtectTagSchema,
+  UnprotectTagSchema,
   GitLabTagSchema,
   GitLabTagSignatureSchema,
   type GitLabTag,
@@ -14743,6 +14748,96 @@ async function handleToolCall(params: any) {
         const signature = await getTagSignature(args.project_id, args.tag_name);
         return {
           content: [{ type: "text", text: JSON.stringify(signature) }],
+        };
+      }
+
+      case "list_protected_tags": {
+        const args = ListProtectedTagsSchema.parse(params.arguments);
+        const projectId = decodeURIComponent(args.project_id);
+        const effectiveProjectId = getEffectiveProjectId(projectId);
+        const url = new URL(
+          `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(effectiveProjectId)}/protected_tags`
+        );
+        if (args.page) url.searchParams.append("page", String(args.page));
+        if (args.per_page) url.searchParams.append("per_page", String(args.per_page));
+
+        const response = await fetch(url.toString(), {
+          ...getFetchConfig(),
+        });
+
+        await handleGitLabError(response);
+        const data = z.array(GitLabProtectedTagSchema).parse(await response.json());
+        return {
+          content: [{ type: "text", text: JSON.stringify(data) }],
+        };
+      }
+
+      case "get_protected_tag": {
+        const args = GetProtectedTagSchema.parse(params.arguments);
+        const projectId = decodeURIComponent(args.project_id);
+        const effectiveProjectId = getEffectiveProjectId(projectId);
+        const url = new URL(
+          `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(effectiveProjectId)}/protected_tags/${encodeGitLabPathSegment(args.tag_name)}`
+        );
+
+        const response = await fetch(url.toString(), {
+          ...getFetchConfig(),
+        });
+
+        await handleGitLabError(response);
+        const data = GitLabProtectedTagSchema.parse(await response.json());
+        return {
+          content: [{ type: "text", text: JSON.stringify(data) }],
+        };
+      }
+
+      case "protect_tag": {
+        const args = ProtectTagSchema.parse(params.arguments);
+        const projectId = decodeURIComponent(args.project_id);
+        const effectiveProjectId = getEffectiveProjectId(projectId);
+        const url = new URL(
+          `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(effectiveProjectId)}/protected_tags`
+        );
+
+        const body: Record<string, unknown> = { name: args.tag_name };
+        if (args.create_access_level !== undefined) {
+          body.create_access_level = args.create_access_level;
+        }
+
+        const response = await fetch(url.toString(), {
+          ...getFetchConfig(),
+          method: "POST",
+          body: JSON.stringify(body),
+        });
+
+        await handleGitLabError(response);
+        const data = GitLabProtectedTagSchema.parse(await response.json());
+        return {
+          content: [{ type: "text", text: JSON.stringify(data) }],
+        };
+      }
+
+      case "unprotect_tag": {
+        const args = UnprotectTagSchema.parse(params.arguments);
+        const projectId = decodeURIComponent(args.project_id);
+        const effectiveProjectId = getEffectiveProjectId(projectId);
+        const url = new URL(
+          `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(effectiveProjectId)}/protected_tags/${encodeGitLabPathSegment(args.tag_name)}`
+        );
+
+        const response = await fetch(url.toString(), {
+          ...getFetchConfig(),
+          method: "DELETE",
+        });
+
+        await handleGitLabError(response);
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify({ status: "unprotected", tag: args.tag_name }),
+            },
+          ],
         };
       }
 
