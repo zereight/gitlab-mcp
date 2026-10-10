@@ -117,7 +117,7 @@ const GROUP_META: Record<ToolsetId, GroupMeta> = {
   pipelines: {
     title: "Pipelines, Jobs & Deployments",
     blurb:
-      "Pipeline + job control (trigger, retry, cancel, play manual jobs, fetch logs/artifacts), and the deployments/environments view.",
+      "Pipeline + job control (trigger, retry, cancel, play manual jobs, fetch logs/artifacts), project runners, and the deployments/environments view.",
   },
   milestones: {
     title: "Milestones",

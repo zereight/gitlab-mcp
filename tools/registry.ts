@@ -134,6 +134,7 @@ import {
   GetPipelineJobOutputSchema,
   PipelineJobControlSchema,
   GetPipelineSchema,
+  GetRunnerSchema,
   GetPipelineVariablesSchema,
   UpdatePipelineMetadataSchema,
   DeletePipelineSchema,
@@ -204,6 +205,7 @@ import {
   ListProjectMembersSchema,
   ListProjectMilestonesSchema,
   ListProjectsSchema,
+  ListProjectRunnersSchema,
   ListReleasesSchema,
   ListTagsSchema,
   ListProtectedTagsSchema,
@@ -1696,6 +1698,16 @@ export const allTools = [
     description: "List the MCP tool definitions exposed by GitLab Orbit",
     inputSchema: toJSONSchema(OrbitToolsSchema),
   },
+  {
+    name: "list_project_runners",
+    description: "List runners available to a project",
+    inputSchema: toJSONSchema(ListProjectRunnersSchema),
+  },
+  {
+    name: "get_runner",
+    description: "Get one runner by ID",
+    inputSchema: toJSONSchema(GetRunnerSchema),
+  },
   // --- Meta tool: Dynamic tool discovery ---
   {
     name: "discover_tools",
@@ -1779,6 +1791,8 @@ export const readOnlyTools = new Set([
   "list_pipeline_trigger_jobs",
   "get_pipeline_job",
   "get_pipeline_job_output",
+  "list_project_runners",
+  "get_runner",
   "wait_for_pipeline",
   "wait_for_job",
   "validate_ci_lint",
@@ -2060,6 +2074,8 @@ export const pipelineToolNames = new Set([
   "list_job_artifacts",
   "download_job_artifacts",
   "get_job_artifact_file",
+  "list_project_runners",
+  "get_runner",
 ]);
 
 // --- Toolset definitions ---
@@ -2352,6 +2368,8 @@ export const TOOLSET_DEFINITIONS: readonly ToolsetDefinition[] = [
       "list_job_artifacts",
       "download_job_artifacts",
       "get_job_artifact_file",
+      "list_project_runners",
+      "get_runner",
     ]),
   },
   {

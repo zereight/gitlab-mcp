@@ -1,6 +1,6 @@
 # Pipelines, Jobs & Deployments
 
-Pipeline + job control (trigger, retry, cancel, play manual jobs, fetch logs/artifacts), and the deployments/environments view.
+Pipeline + job control (trigger, retry, cancel, play manual jobs, fetch logs/artifacts), project runners, and the deployments/environments view.
 
 !!! note "Feature toggle"
     Opt-in. Enable via `GITLAB_TOOLSETS=pipelines` (or `GITLAB_TOOLSETS=all`), or use the legacy `USE_PIPELINE=true` flag for backward compatibility.
@@ -63,6 +63,8 @@ Pipeline + job control (trigger, retry, cancel, play manual jobs, fetch logs/art
 - [`list_job_artifacts`](#list_job_artifacts) — 📖 Read-only
 - [`download_job_artifacts`](#download_job_artifacts) — 📖 Read-only
 - [`get_job_artifact_file`](#get_job_artifact_file) — 📖 Read-only
+- [`list_project_runners`](#list_project_runners) — 📖 Read-only
+- [`get_runner`](#get_runner) — 📖 Read-only
 
 ---
 
@@ -899,3 +901,34 @@ Get content of a single file from a job's artifacts. Use this for a known resour
 | `project_id` | string | ✓ | Project ID or URL-encoded path |
 | `job_id` | string | ✓ | The ID of the job |
 | `artifact_path` | string | ✓ | Path to the file within the artifacts archive |
+
+### `list_project_runners`
+
+*📖 Read-only*
+
+List runners available to a project. Use this when a job is stuck pending with no matching runner and you need the runners a project can use, including ancestor group runners and allowed instance runners. Filter with type, status, paused, and tag_list; the list payload has id, description, runner_type, status, and paused, but not tags — call `get_runner` for tag_list, run_untagged, locked, and access_level. It is read-only and paginated, requires Maintainer or Auditor access on the project, and never returns a runner registration token (runners_token) or runner authentication token.
+
+**Parameters**
+
+| Parameter | Type | Required | Description |
+|---|---|:-:|---|
+| `project_id` | string | ✓ | Project ID or URL-encoded path |
+| `type` | enum (`instance_type` \| `group_type` \| `project_type`) |  | Runner type: instance_type, group_type, or project_type |
+| `status` | enum (`online` \| `offline` \| `stale` \| `never_contacted` \| `active` \| `paused`) |  | Runner status: online, offline, stale, or never_contacted. active and paused are deprecated; use the paused filter instead. offline may also include stale runners |
+| `paused` | boolean |  | true returns only runners ignoring new jobs; false returns only runners accepting new jobs |
+| `tag_list` | array<string> |  | Runner tags that must match. Sent to GitLab as a comma-separated tag_list |
+| `page` | number |  | Page number for pagination (default: 1) |
+| `per_page` | number |  | Number of items per page (max: 100, default: 20) |
+
+### `get_runner`
+
+*📖 Read-only*
+
+Get one runner by ID. Use this after list_project_runners when you already have a runner ID and need tag_list, run_untagged, locked, and access_level to explain a stuck pending job. Instance runner details are visible to authenticated users; group and project runners follow GitLab's role checks for that runner. When GITLAB_ALLOWED_PROJECT_IDS or a session project scope is active, the runner must appear on an allowed project's runner list before details are returned — pass project_id when more than one project is allowed — projects outside that allowlist are omitted, and groups are omitted because a project allowlist cannot verify them. GITLAB_PROJECT_ID alone is only the default project for that membership check when project_id is omitted. It does not omit other projects or groups. It is read-only and never returns a runner registration token (runners_token) or runner authentication token. token_expires_at is expiry metadata, not the token.
+
+**Parameters**
+
+| Parameter | Type | Required | Description |
+|---|---|:-:|---|
+| `runner_id` | string | ✓ | The ID of the runner |
+| `project_id` | string |  | Project ID or URL-encoded path used to verify the runner is on that project's runner list. Required when GITLAB_ALLOWED_PROJECT_IDS or a session project scope lists more than one project. |
