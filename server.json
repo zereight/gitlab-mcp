@@ -54,7 +54,7 @@
         },
         {
           "name": "GITLAB_READ_ONLY_MODE",
-          "description": "Set to true to expose only read-only tools and block write operations.",
+          "description": "Deprecated (removed in next major (v3.0.0)); use GITLAB_PERMISSION_MODE=readonly instead.",
           "isRequired": false,
           "isSecret": false,
           "format": "string",
@@ -62,7 +62,7 @@
         },
         {
           "name": "USE_GITLAB_WIKI",
-          "description": "Set to true to enable GitLab wiki tools.",
+          "description": "Deprecated (removed in next major (v3.0.0)); use GITLAB_TOOLSETS=core,wiki instead. If you already set GITLAB_TOOLSETS, append wiki to your existing list instead of replacing it.",
           "isRequired": false,
           "isSecret": false,
           "format": "string",
