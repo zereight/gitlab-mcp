@@ -6,8 +6,26 @@ import dotenv from "dotenv";
 // .env 파일 로드
 dotenv.config();
 
-const GITLAB_API_URL = process.env.GITLAB_API_URL || "https://gitlab.com";
-const GITLAB_TOKEN = process.env.GITLAB_TOKEN_TEST || process.env.GITLAB_TOKEN;
+const DEFAULT_GITLAB_API_URL = "https://gitlab.com";
+
+// Host only. Call sites append `/api/v4`. Accept the same forms as
+// utils/url.ts normalizeGitLabApiUrl: with or without a trailing `/api/v4`.
+function normalizeGitLabApiBase(rawUrl) {
+  const trimmed = (rawUrl ?? "").trim().replace(/\/+$/, "");
+  if (!trimmed) {
+    return DEFAULT_GITLAB_API_URL;
+  }
+  const withoutVersion = trimmed.endsWith("/api/v4")
+    ? trimmed.slice(0, -"/api/v4".length).replace(/\/+$/, "")
+    : trimmed;
+  return withoutVersion || DEFAULT_GITLAB_API_URL;
+}
+
+const GITLAB_API_URL = normalizeGitLabApiBase(process.env.GITLAB_API_URL || DEFAULT_GITLAB_API_URL);
+const GITLAB_TOKEN =
+  process.env.GITLAB_TOKEN_TEST ||
+  process.env.GITLAB_TOKEN ||
+  process.env.GITLAB_PERSONAL_ACCESS_TOKEN;
 const TEST_PROJECT_ID = process.env.TEST_PROJECT_ID;
 
 async function validateGitLabAPI() {
@@ -15,7 +33,9 @@ async function validateGitLabAPI() {
 
   if (!GITLAB_TOKEN) {
     console.warn("⚠️  No GitLab token provided. Skipping API validation.");
-    console.log("Set GITLAB_TOKEN_TEST or GITLAB_TOKEN to enable API validation.\n");
+    console.log(
+      "Set GITLAB_TOKEN_TEST, GITLAB_TOKEN, or GITLAB_PERSONAL_ACCESS_TOKEN to enable API validation.\n"
+    );
     return true;
   }
 
@@ -74,7 +94,7 @@ async function validateGitLabAPI() {
 
       if (test.validate(data)) {
         console.log(`✅ ${test.name} - PASSED\n`);
-        
+
         // If we found pipelines, save the first one for additional testing
         if (test.name === "List pipelines" && data.length > 0) {
           firstPipelineId = data[0].id;
@@ -93,7 +113,7 @@ async function validateGitLabAPI() {
   // Test pipeline-specific endpoints if we have a pipeline ID
   if (firstPipelineId) {
     console.log(`Found pipeline #${firstPipelineId}, testing pipeline-specific endpoints...\n`);
-    
+
     const pipelineTests = [
       {
         name: `Get pipeline #${firstPipelineId} details`,
@@ -159,4 +179,4 @@ validateGitLabAPI()
     process.exit(1);
   });
 
-export { validateGitLabAPI };
+export { normalizeGitLabApiBase, validateGitLabAPI };

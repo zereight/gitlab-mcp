@@ -617,7 +617,7 @@ Behavior:
 - `modify` blocks delete and teardown tools: it hides all `delete_*` tools plus
   `erase_pipeline_job`, `purge_dependency_proxy_cache`, and the destructive teardown verbs
   `cancel_pipeline`, `cancel_pipeline_job`, `stop_environment`, `stop_stale_environments`,
-  and `unprotect_branch` from `tools/list`, rejects them when called directly, and rejects
+  `unprotect_branch`, and `unprotect_tag` from `tools/list`, rejects them when called directly, and rejects
   `push_files` `delete`/`move` actions
 - `modify` also rejects destructive mutations sent through `execute_graphql`: any top-level
   mutation field whose name contains a deletion verb (`delete`, `destroy`, `remove`, `prune`,

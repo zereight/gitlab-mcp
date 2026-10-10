@@ -407,16 +407,20 @@ describe('getEffectiveProjectId - With single GITLAB_ALLOWED_PROJECT_IDS', () =>
   });
 
   test('should reject access to non-allowed project', async () => {
-    try {
-      await client.callTool('get_project', {
-        project_id: OTHER_PROJECT_ID
-      });
-      assert.fail('Should have rejected access to non-allowed project');
-    } catch (error) {
-      assert.ok(error instanceof Error);
-      assert.ok(error.message.includes('Access denied'), 'Should indicate access denied');
-      console.log('  ✓ Correctly rejected access to non-allowed project');
-    }
+    const result = await client.callTool('get_project', {
+      project_id: OTHER_PROJECT_ID
+    });
+
+    assert.strictEqual(result.isError, true, 'Should return an allowlist tool error');
+    assert.ok(result.content, 'Should have content');
+    const content = result.content[0];
+    assert.ok('text' in content, 'Content should have text');
+    assert.ok(content.text.includes('Access denied'), 'Should indicate access denied');
+    assert.ok(
+      content.text.includes('is not in the allowed project list'),
+      'Should name the allowlist'
+    );
+    console.log('  ✓ Correctly rejected access to non-allowed project');
   });
 
   test('should reject explicit group IDs when GITLAB_ALLOWED_PROJECT_IDS is set', async () => {
@@ -739,14 +743,18 @@ describe('GITLAB_ALLOWED_PROJECT_IDS guards repository and group mutators (allow
   });
 
   test('should enforce the project allowlist for get_draft_note', async () => {
-    await assert.rejects(
-      client.callTool('get_draft_note', {
-        project_id: OTHER_PROJECT_ID,
-        merge_request_iid: '1',
-        draft_note_id: '1',
-      }),
-      /Access denied/
-    );
+    const result = await client.callTool('get_draft_note', {
+      project_id: OTHER_PROJECT_ID,
+      merge_request_iid: '1',
+      draft_note_id: '1',
+    });
+
+    assert.strictEqual(result.isError, true, 'Should return an allowlist tool error');
+    assert.ok(result.content, 'Should have content');
+    const content = result.content[0];
+    assert.ok('text' in content, 'Content should have text');
+    assert.match(content.text, /Access denied/);
+    assert.match(content.text, /allowed project list/);
   });
 
   test('should reject dot path segments before making GitLab requests', async () => {

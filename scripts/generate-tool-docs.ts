@@ -157,7 +157,7 @@ const GROUP_META: Record<ToolsetId, GroupMeta> = {
   },
   tags: {
     title: "Tags",
-    blurb: "Tag listing, creation, deletion, and signature inspection.",
+    blurb: "Tag listing, creation, deletion, signature inspection, and protected tag rules.",
   },
   users: {
     title: "Users & Events",
@@ -444,7 +444,7 @@ function buildIndexPage(groupedToolsList: Array<[ToolsetId, string[]]>): string 
     "Permission modes control which tools are exposed:",
     "",
     "- `GITLAB_PERMISSION_MODE=readonly` — hides every write tool regardless of toggles.",
-    "- `GITLAB_PERMISSION_MODE=modify` — allows create/update but blocks delete and teardown tools: every `delete_*` tool, `erase_pipeline_job`, `purge_dependency_proxy_cache`, the destructive teardown verbs `cancel_pipeline`, `cancel_pipeline_job`, `stop_environment`, `stop_stale_environments`, `unprotect_branch`, plus `push_files` `delete`/`move` actions.",
+    "- `GITLAB_PERMISSION_MODE=modify` — allows create/update but blocks delete and teardown tools: every `delete_*` tool, `erase_pipeline_job`, `purge_dependency_proxy_cache`, the destructive teardown verbs `cancel_pipeline`, `cancel_pipeline_job`, `stop_environment`, `stop_stale_environments`, `unprotect_branch`, `unprotect_tag`, plus `push_files` `delete`/`move` actions.",
     "- `GITLAB_READ_ONLY_MODE=true` is deprecated (removed in next major (v3.0.0)) — same as `readonly`; use `GITLAB_PERMISSION_MODE=readonly` instead.",
     "",
     "The `modify` guard applies to typed tools (`tools/list` and `tools/call`) and to destructive mutations sent through `execute_graphql`: any top-level mutation field whose name contains a deletion verb (`delete`, `destroy`, `remove`, `prune`, `purge`, `erase`) or a teardown verb (`revoke`, `cancel`, `stop`, `terminate`, `unprotect`, `disable`, `deactivate`, `drop`, `unschedule`). See [Environment Variables](../configuration/environment-variables.md#gitlab_permission_mode).",

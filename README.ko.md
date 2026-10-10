@@ -17,7 +17,7 @@ PAT, OAuth, 읽기 전용 모드, 동적 API URL, 원격 인증을 지원하며 
 
 ### 왜 이 GitLab MCP를 사용하나요?
 
-- **268개 도구: toolset 266개 + `execute_graphql` + `discover_tools`** — 작은 toolset으로 시작하고, 런타임에 카테고리 활성화
+- **272개 도구: toolset 270개 + `execute_graphql` + `discover_tools`** — 작은 toolset으로 시작하고, 런타임에 카테고리 활성화
 - **MR 2단계 리뷰** — `list_merge_request_changed_files` → 배치 `get_merge_request_file_diff`
 - **Agent Skill 내장** — `skills/gitlab-mcp/` 워크플로우 가이드
 - **유연한 인증** — Personal Access Token, 로컬 OAuth2 브라우저 플로우, MCP OAuth 프록시, 요청별 원격 인증
@@ -31,7 +31,7 @@ PAT, OAuth, 읽기 전용 모드, 동적 API URL, 원격 인증을 지원하며 
 | | @zereight/mcp-gitlab | GitLab MCP A (커뮤니티 CQRS형) |
 |---|----------------------|--------------------------------|
 | **적합한 경우** | AI 에이전트 워크플로우 | 엔터프라이즈 멀티 인스턴스 / 그룹형 도구 |
-| **도구 모델** | 268개 도구: toolset 266개 + `execute_graphql` + `discover_tools` | ~50–60개 `browse_*` / `manage_*` 그룹 도구 |
+| **도구 모델** | 272개 도구: toolset 270개 + `execute_graphql` + `discover_tools` | ~50–60개 `browse_*` / `manage_*` 그룹 도구 |
 | **MR 리뷰** | 2단계 배치 diff | 서버마다 다름 |
 | **Node.js** | >=18.17 | 보통 >=24 |
 | **라이선스** | MIT | 서버마다 다름 |
@@ -160,7 +160,7 @@ CLI 인자는 환경 변수보다 우선합니다.
 
 > **세밀한 도구 필터링:** `GITLAB_PERMISSION_MODE=modify`로 생성/수정은 허용하고 모든 삭제 도구와
 > 파괴적인 중단(teardown) 도구(`cancel_pipeline`, `cancel_pipeline_job`, `stop_environment`,
-> `stop_stale_environments`, `unprotect_branch`)를 차단하거나(`execute_graphql`을 통한 파괴적
+> `stop_stale_environments`, `unprotect_branch`, `unprotect_tag`)를 차단하거나(`execute_graphql`을 통한 파괴적
 > mutation — 삭제·중단 동사 — 과 `push_files`의 `delete`/`move` 포함),
 > `GITLAB_PERMISSION_MODE=readonly`로 읽기 전용으로 운영할 수
 > 있습니다. 또한
