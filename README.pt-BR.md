@@ -171,7 +171,7 @@ O mesmo binário também é uma CLI do GitLab no estilo `gh` (`tool <name>` ou f
 > Use `GITLAB_TOOLSETS=core,wiki`, `core,milestones` ou `core,pipelines`
 > (`USE_PIPELINE` também precisa acrescentar `validate_ci_lint,validate_project_ci_lint` à lista `GITLAB_TOOLS` existente em vez de substituí-la).
 > Se você já definiu `GITLAB_TOOLSETS`, acrescente o toolset à lista existente em vez de substituí-la.
-> Se você já definiu `GITLAB_TOOLS`, acrescente `validate_ci_lint,validate_project_ci_lint` à lista existente em vez de substituí-la.
+> Se `GITLAB_TOOLS` não estiver definido, defina `GITLAB_TOOLS=validate_ci_lint,validate_project_ci_lint`. Se já estiver definido, acrescente `validate_ci_lint,validate_project_ci_lint` à lista existente em vez de substituí-la.
 > Consulte a [Referência de ferramentas](./docs/tools/index.md#feature-toggles) e
 > [Variáveis de ambiente](./docs/configuration/environment-variables.md).
 

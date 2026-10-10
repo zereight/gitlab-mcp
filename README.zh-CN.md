@@ -170,7 +170,7 @@ CLI 参数优先于环境变量。
 > 请改用 `GITLAB_TOOLSETS=core,wiki`、`core,milestones` 或 `core,pipelines`
 > （`USE_PIPELINE` 还需要把 `validate_ci_lint,validate_project_ci_lint` 追加到现有 `GITLAB_TOOLS`，不要整段替换）。
 > 如果已经设置了 `GITLAB_TOOLSETS`，请把 toolset 追加到现有列表，不要整段替换。
-> 如果已经设置了 `GITLAB_TOOLS`，请把 `validate_ci_lint,validate_project_ci_lint` 追加到现有列表，不要整段替换。
+> 如果未设置 `GITLAB_TOOLS`，请设置 `GITLAB_TOOLS=validate_ci_lint,validate_project_ci_lint`。如果已经设置，请把 `validate_ci_lint,validate_project_ci_lint` 追加到现有列表，不要整段替换。
 > 参见 [Tools Reference](./docs/tools/index.md#feature-toggles) 和
 > [Environment Variables](./docs/configuration/environment-variables.md)。
 

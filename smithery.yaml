@@ -15,7 +15,6 @@ configSchema:
     gitlabReadOnlyMode:
       type: boolean
       description: Deprecated (removed in next major (v3.0.0)); use GITLAB_PERMISSION_MODE=readonly instead
-      default: false
     gitlabToolsets:
       type: string
       description: Optional comma-separated list of toolsets to enable (e.g. projects,issues,merge_requests,pipelines)
@@ -41,7 +40,6 @@ startCommand:
       gitlabReadOnlyMode:
         type: boolean
         description: Deprecated (removed in next major (v3.0.0)); use GITLAB_PERMISSION_MODE=readonly instead
-        default: false
       gitlabToolsets:
         type: string
         description: Optional comma-separated list of toolsets to enable (e.g. projects,issues,merge_requests,pipelines)
