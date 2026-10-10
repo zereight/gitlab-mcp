@@ -33,7 +33,7 @@ Non-goals for this design:
 - `cli-command.ts` (`getPositionalCliCommand`) reads the first positional arg. `index.ts` `main()` dispatches `auth`, `tool <name>`, and curated `<group> <action>` via `resolveCli`, then falls through to `runServer()` when there is no CLI command.
 - All other flags (`--token`, `--api-url`, `--permission-mode`, …) are server settings parsed in `config.ts`. Boolean MCP flags accept `--flag`, `--flag=true`, or `--flag false`; they do not swallow the next positional command.
 - Human CLI refuses tools that MCP would not expose: toolsets / `GITLAB_TOOLS` / legacy flags, `GITLAB_DENIED_TOOLS_REGEX`, `GITLAB_TOOL_POLICY_HIDDEN`. `GITLAB_TOOL_POLICY_APPROVE` requires `--yes`.
-- Tool inventory: 270 tools in `allTools` (268 toolset tools plus `execute_graphql` and `discover_tools`), grouped into 23 toolsets in `TOOLSET_DEFINITIONS`. Shared tools (e.g. `get_branch`, `list_branches`) belong to several toolsets, tracked by `TOOLSETS_BY_TOOL_NAME`.
+- Tool inventory: 274 tools in `allTools` (272 toolset tools plus `execute_graphql` and `discover_tools`), grouped into 23 toolsets in `TOOLSET_DEFINITIONS`. Shared tools (e.g. `get_branch`, `list_branches`) belong to several toolsets, tracked by `TOOLSETS_BY_TOOL_NAME`.
 
 ---
 
@@ -43,7 +43,7 @@ Two layers. The generic layer guarantees full coverage with zero per-tool code. 
 
 ```text
 zereight-mcp-gitlab auth ...                        # unchanged
-zereight-mcp-gitlab tool <tool-name> [options]      # generic, all 270 tools
+zereight-mcp-gitlab tool <tool-name> [options]      # generic, all 274 tools
 zereight-mcp-gitlab <group> <action> [options]      # curated, phased rollout
 zereight-mcp-gitlab --help | <group> --help         # generated help
 ```

@@ -4603,6 +4603,85 @@ export const GetTagSignatureSchema = z.object({
   tag_name: z.string().describe("The name of the tag"),
 });
 
+// Protected tags: https://docs.gitlab.com/api/protected_tags/
+// Recognized create access levels are 0 (No access), 30 (Developer), and 40 (Maintainer).
+const protectedTagAccessLevel = z.coerce
+  .number()
+  .int()
+  .refine(level => [0, 30, 40].includes(level), {
+    message: "Access level must be one of 0 (No access), 30 (Developer), or 40 (Maintainer)",
+  });
+
+export const ListProtectedTagsSchema = ProjectParamsSchema.merge(PaginationOptionsSchema);
+
+export const GetProtectedTagSchema = ProjectParamsSchema.extend({
+  tag_name: z.string().describe("Name of the protected tag or wildcard"),
+});
+
+function resolveProtectedTagName(tagName: string | undefined, name: string | undefined): string {
+  if (tagName) {
+    return tagName;
+  }
+  if (name) {
+    return name;
+  }
+  return "";
+}
+
+// tag_name and name are both optional in the published JSON Schema so clients
+// that validate before the call can send either field. superRefine still
+// requires one of them, and the transform copies name onto tag_name.
+export const ProtectTagSchema = ProjectParamsSchema.extend({
+  tag_name: z
+    .string()
+    .optional()
+    .describe(
+      "Tag name or wildcard pattern to protect (for example v*). Required unless name is set."
+    ),
+  name: z
+    .string()
+    .optional()
+    .describe("Alias for tag_name. Required unless tag_name is set."),
+  create_access_level: protectedTagAccessLevel
+    .optional()
+    .describe(
+      "Access level allowed to create matching tags (0=No access, 30=Developer, 40=Maintainer). GitLab default is 40 when omitted."
+    ),
+})
+  .superRefine((data, ctx) => {
+    if (!data.tag_name && !data.name) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Either tag_name or name is required",
+        path: ["tag_name"],
+      });
+    }
+  })
+  .transform(data => ({
+    project_id: data.project_id,
+    tag_name: resolveProtectedTagName(data.tag_name, data.name),
+    create_access_level: data.create_access_level,
+  }));
+
+export const UnprotectTagSchema = ProjectParamsSchema.extend({
+  tag_name: z.string().describe("Name of the protected tag or wildcard to unprotect"),
+});
+
+export const GitLabProtectedTagAccessLevelSchema = z.object({
+  id: z.number().optional(),
+  access_level: z.number().nullable().optional(),
+  access_level_description: z.string().optional(),
+  deploy_key_id: z.number().nullable().optional(),
+  // GitLab returns null for role-based access levels (not user-/group-specific)
+  user_id: z.number().nullable().optional(),
+  group_id: z.number().nullable().optional(),
+});
+
+export const GitLabProtectedTagSchema = z.object({
+  name: z.string(),
+  create_access_levels: z.array(GitLabProtectedTagAccessLevelSchema).optional(),
+});
+
 export const GitLabTagSchema = z.object({
   name: z.string(),
   message: z.string().nullable(),

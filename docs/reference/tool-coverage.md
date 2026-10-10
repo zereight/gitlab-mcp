@@ -8,9 +8,9 @@ A tool counts as invoked when a test sends that name through MCP (`callTool` / `
 
 | | |
 | --- | ---: |
-| Tools | 270 |
-| Invoked | 165 |
-| Coverage | 61.1% |
+| Tools | 274 |
+| Invoked | 169 |
+| Coverage | 61.7% |
 
 ## By toolset
 
@@ -29,7 +29,7 @@ A tool counts as invoked when a test sends that name through MCP (`callTool` / `
 | [Milestones](#milestones) | 17 | 17 | 100.0% |
 | [Wiki](#wiki) | 10 | 10 | 100.0% |
 | [Releases](#releases) | 7 | 7 | 100.0% |
-| [Tags](#tags) | 5 | 5 | 100.0% |
+| [Tags](#tags) | 9 | 9 | 100.0% |
 | [Users & Events](#users) | 4 | 7 | 57.1% |
 | [Variables](#variables) | 10 | 10 | 100.0% |
 | [Webhooks](#webhooks) | 3 | 6 | 50.0% |
@@ -336,6 +336,10 @@ A tool counts as invoked when a test sends that name through MCP (`callTool` / `
 - [x] [`create_tag`](../tools/tags.md#create_tag) — `test/test-tags.ts`
 - [x] [`delete_tag`](../tools/tags.md#delete_tag) — `test/test-tags.ts`
 - [x] [`get_tag_signature`](../tools/tags.md#get_tag_signature) — `test/test-tags.ts`
+- [x] [`list_protected_tags`](../tools/tags.md#list_protected_tags) — `test/test-protected-tags.ts`
+- [x] [`get_protected_tag`](../tools/tags.md#get_protected_tag) — `test/test-protected-tags.ts`
+- [x] [`protect_tag`](../tools/tags.md#protect_tag) — `test/test-permission-mode.ts`, `test/test-protected-tags.ts`
+- [x] [`unprotect_tag`](../tools/tags.md#unprotect_tag) — `test/test-permission-mode.ts`, `test/test-protected-tags.ts`
 
 ## Users & Events
 

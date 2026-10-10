@@ -17,7 +17,7 @@
 
 ### 为什么使用这个 GitLab MCP？
 
-- **270 个工具：toolset 中 268 个 + `execute_graphql` + `discover_tools`** — 从小型 toolset 开始，运行时按需激活类别
+- **274 个工具：toolset 中 272 个 + `execute_graphql` + `discover_tools`** — 从小型 toolset 开始，运行时按需激活类别
 - **MR 两步审查** — `list_merge_request_changed_files` → 批量 `get_merge_request_file_diff`
 - **内置 Agent Skill** — `skills/gitlab-mcp/` 工作流指南
 - **认证灵活** — Personal Access Token、本地 OAuth2 浏览器流程、MCP OAuth 代理、按请求远程授权
@@ -31,7 +31,7 @@
 | | @zereight/mcp-gitlab | GitLab MCP A（社区 CQRS 型） |
 |---|----------------------|------------------------------|
 | **更适合** | AI 代理工作流 | 企业多实例 / 分组工具 |
-| **工具模型** | 270 个工具：toolset 中 268 个 + `execute_graphql` + `discover_tools` | ~50–60 个 `browse_*` / `manage_*` 分组工具 |
+| **工具模型** | 274 个工具：toolset 中 272 个 + `execute_graphql` + `discover_tools` | ~50–60 个 `browse_*` / `manage_*` 分组工具 |
 | **MR 审查** | 两步批量 diff | 因服务器而异 |
 | **Node.js** | >=18.17 | 通常 >=24 |
 | **许可证** | MIT | 因服务器而异 |
@@ -158,7 +158,7 @@ CLI 参数优先于环境变量。
 
 > **细粒度工具过滤：**使用 `GITLAB_PERMISSION_MODE=modify` 允许创建/更新，同时阻止所有删除工具以及
 > 破坏性的拆除（teardown）工具（`cancel_pipeline`、`cancel_pipeline_job`、`stop_environment`、
-> `stop_stale_environments`、`unprotect_branch`）（包括通过 `execute_graphql` 的破坏性 mutation
+> `stop_stale_environments`、`unprotect_branch`、`unprotect_tag`）（包括通过 `execute_graphql` 的破坏性 mutation
 > —— 删除与拆除动词 —— 以及 `push_files` 的 `delete`/`move`），或使用
 > `GITLAB_PERMISSION_MODE=readonly` 只读运行。还可以用
 > `GITLAB_TOOLSETS=<group,…>` 启用工具分组，用 `GITLAB_TOOLS=<tool,…>` 白名单启用单个工具

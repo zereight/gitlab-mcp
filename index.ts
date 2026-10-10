@@ -218,6 +218,10 @@ import {
 } from "./utils/gitlab-commit-actions.js";
 import { redactSensitiveGitLabFields } from "./utils/redact-sensitive.js";
 import {
+  classifyHealthCheckTransportError,
+  redactGitLabUrlCredentials,
+} from "./utils/health-check-transport-error.js";
+import {
   createMaskingPolicyResolver,
   getManagedMaskingProjectIds,
   type MaskingEngine,
@@ -433,6 +437,7 @@ import {
   GitLabForkSchema,
   GitLabBranchSchema,
   GitLabProtectedBranchSchema,
+  GitLabProtectedTagSchema,
   GitLabGroupSchema,
   type GitLabIssue,
   type GitLabIssueLink,
@@ -659,6 +664,10 @@ import {
   CreateTagSchema,
   DeleteTagSchema,
   GetTagSignatureSchema,
+  ListProtectedTagsSchema,
+  GetProtectedTagSchema,
+  ProtectTagSchema,
+  UnprotectTagSchema,
   GitLabTagSchema,
   GitLabTagSignatureSchema,
   type GitLabTag,
@@ -6796,6 +6805,29 @@ async function publishDraftNote(
       noteable_type: "MergeRequest",
     } as any;
   }
+}
+
+function healthCheckTransportErrorResult(error: unknown) {
+  const failure = classifyHealthCheckTransportError(error);
+  return {
+    content: [
+      {
+        type: "text",
+        text: JSON.stringify({
+          status: "error",
+          authenticated: false,
+          gitlab_url: redactGitLabUrlCredentials(getEffectiveApiUrl()),
+          mcp_server_version: SERVER_VERSION,
+          error: {
+            kind: failure.kind,
+            code: failure.code,
+            message: failure.message,
+            ...(failure.hint !== undefined ? { hint: failure.hint } : {}),
+          },
+        }),
+      },
+    ],
+  };
 }
 
 async function fetchGitLabVersionMetadata(): Promise<GitLabInstanceVersionMetadata | null> {
@@ -14926,6 +14958,96 @@ async function handleToolCall(params: any) {
         };
       }
 
+      case "list_protected_tags": {
+        const args = ListProtectedTagsSchema.parse(params.arguments);
+        const projectId = decodeURIComponent(args.project_id);
+        const effectiveProjectId = getEffectiveProjectId(projectId);
+        const url = new URL(
+          `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(effectiveProjectId)}/protected_tags`
+        );
+        if (args.page) url.searchParams.append("page", String(args.page));
+        if (args.per_page) url.searchParams.append("per_page", String(args.per_page));
+
+        const response = await fetch(url.toString(), {
+          ...getFetchConfig(),
+        });
+
+        await handleGitLabError(response);
+        const data = z.array(GitLabProtectedTagSchema).parse(await response.json());
+        return {
+          content: [{ type: "text", text: JSON.stringify(data) }],
+        };
+      }
+
+      case "get_protected_tag": {
+        const args = GetProtectedTagSchema.parse(params.arguments);
+        const projectId = decodeURIComponent(args.project_id);
+        const effectiveProjectId = getEffectiveProjectId(projectId);
+        const url = new URL(
+          `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(effectiveProjectId)}/protected_tags/${encodeGitLabPathSegment(args.tag_name)}`
+        );
+
+        const response = await fetch(url.toString(), {
+          ...getFetchConfig(),
+        });
+
+        await handleGitLabError(response);
+        const data = GitLabProtectedTagSchema.parse(await response.json());
+        return {
+          content: [{ type: "text", text: JSON.stringify(data) }],
+        };
+      }
+
+      case "protect_tag": {
+        const args = ProtectTagSchema.parse(params.arguments);
+        const projectId = decodeURIComponent(args.project_id);
+        const effectiveProjectId = getEffectiveProjectId(projectId);
+        const url = new URL(
+          `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(effectiveProjectId)}/protected_tags`
+        );
+
+        const body: Record<string, unknown> = { name: args.tag_name };
+        if (args.create_access_level !== undefined) {
+          body.create_access_level = args.create_access_level;
+        }
+
+        const response = await fetch(url.toString(), {
+          ...getFetchConfig(),
+          method: "POST",
+          body: JSON.stringify(body),
+        });
+
+        await handleGitLabError(response);
+        const data = GitLabProtectedTagSchema.parse(await response.json());
+        return {
+          content: [{ type: "text", text: JSON.stringify(data) }],
+        };
+      }
+
+      case "unprotect_tag": {
+        const args = UnprotectTagSchema.parse(params.arguments);
+        const projectId = decodeURIComponent(args.project_id);
+        const effectiveProjectId = getEffectiveProjectId(projectId);
+        const url = new URL(
+          `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(effectiveProjectId)}/protected_tags/${encodeGitLabPathSegment(args.tag_name)}`
+        );
+
+        const response = await fetch(url.toString(), {
+          ...getFetchConfig(),
+          method: "DELETE",
+        });
+
+        await handleGitLabError(response);
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify({ status: "unprotected", tag: args.tag_name }),
+            },
+          ],
+        };
+      }
+
       case "list_snippets": {
         const args = ListSnippetsSchema.parse(params.arguments);
         const { project_id, ...options } = args;
@@ -15086,7 +15208,13 @@ async function handleToolCall(params: any) {
       case "health_check": {
         HealthCheckSchema.parse(params.arguments ?? {});
         const url = new URL(`${getEffectiveApiUrl()}/user`);
-        const response = await fetch(url.toString(), getFetchConfig());
+        const fetchConfig = getFetchConfig();
+        let response: UndiciResponse;
+        try {
+          response = await fetch(url.toString(), fetchConfig);
+        } catch (error: unknown) {
+          return healthCheckTransportErrorResult(error);
+        }
         const jobAuthenticated = await authenticateWithJobTokenFallbackAsync(response);
         // insufficient_scope and insufficient_granular_scope mean the token was accepted
         // but User API scope is missing.
@@ -15103,7 +15231,7 @@ async function handleToolCall(params: any) {
               text: JSON.stringify({
                 status: authenticated ? "ok" : "error",
                 authenticated,
-                gitlab_url: getEffectiveApiUrl(),
+                gitlab_url: redactGitLabUrlCredentials(getEffectiveApiUrl()),
                 mcp_server_version: SERVER_VERSION,
                 ...(insufficientUserScope ? { user_api_warning: USER_API_HEALTH_WARNING } : {}),
                 ...(versionMetadata ?? {}),
