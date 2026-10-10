@@ -9,16 +9,19 @@ const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..
 const SECRET_USER = "fakeuser";
 const SECRET_PASSWORD = "fakepass";
 const SECRET_QUERY = "fakesecret123";
+const SLASHLESS_PASSWORD = "slashless-pass";
+const DEFAULT_STARTUP_API_URL = `https://${SECRET_USER}:${SECRET_PASSWORD}@gitlab.example.com/api/v4?private_token=${SECRET_QUERY}`;
+const SLASHLESS_LIST_API_URL = `https://gitlab.example/api/v4,https:slashless-user:${SLASHLESS_PASSWORD}@other.example`;
 
 interface StartupLogs {
   readonly stdout: string;
   readonly stderr: string;
 }
 
-function startupEnv(): Record<string, string> {
+function startupEnv(apiUrl: string): Record<string, string> {
   const env: Record<string, string> = {
     GITLAB_PERSONAL_ACCESS_TOKEN: "glpat-fakefakefake",
-    GITLAB_API_URL: `https://${SECRET_USER}:${SECRET_PASSWORD}@gitlab.example.com/api/v4?private_token=${SECRET_QUERY}`,
+    GITLAB_API_URL: apiUrl,
     GITLAB_DISABLE_VERSION_CHECK: "true",
     LOG_LEVEL: "info",
   };
@@ -31,10 +34,12 @@ function startupEnv(): Record<string, string> {
   return env;
 }
 
-async function captureStartupLogsAsync(): Promise<StartupLogs> {
+async function captureStartupLogsAsync(
+  apiUrl: string = DEFAULT_STARTUP_API_URL
+): Promise<StartupLogs> {
   const child = spawn(process.execPath, [path.join(REPO_ROOT, "build/index.js")], {
     cwd: REPO_ROOT,
-    env: startupEnv(),
+    env: startupEnv(apiUrl),
     stdio: ["pipe", "pipe", "pipe"],
   });
   const stdoutChunks: Buffer[] = [];
@@ -142,6 +147,25 @@ describe("When the stdio server starts", () => {
       const logs = await captureStartupLogsAsync();
 
       assert.equal(logs.stdout, "");
+    });
+  });
+
+  describe("with a later slashless URL in GITLAB_API_URL", () => {
+    it("should redact each configured URL", async () => {
+      const logs = await captureStartupLogsAsync(SLASHLESS_LIST_API_URL);
+
+      assert.equal(
+        logs.stderr.includes(
+          "Configured GitLab API URLs: https://gitlab.example/api/v4, https:[REDACTED]@other.example/api/v4"
+        ),
+        true
+      );
+    });
+
+    it("should omit the slashless password from stderr", async () => {
+      const logs = await captureStartupLogsAsync(SLASHLESS_LIST_API_URL);
+
+      assert.equal(logs.stderr.includes(SLASHLESS_PASSWORD), false);
     });
   });
 });

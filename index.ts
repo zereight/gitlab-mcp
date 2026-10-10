@@ -16969,7 +16969,7 @@ async function runServer() {
     }
 
     logger.info(
-      `Configured GitLab API URLs: ${redactUrlSecretsInText(GITLAB_API_URLS.join(", "))}`
+      `Configured GitLab API URLs: ${GITLAB_API_URLS.map(redactUrlSecretsInText).join(", ")}`
     );
     logger.info(`Default GitLab API URL: ${redactUrlSecretsInText(GITLAB_API_URL)}`);
 
