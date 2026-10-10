@@ -8069,7 +8069,14 @@ async function getRunner(runnerId: string, projectId?: string): Promise<unknown>
   const allowedProjectIds = getEffectiveAllowedProjectIds();
   const decodedProjectId =
     projectId === undefined || projectId.trim() === "" ? undefined : decodeURIComponent(projectId);
-  if (allowedProjectIds.length > 0 || decodedProjectId !== undefined) {
+  // GITLAB_PROJECT_ID is the default project, same as getEffectiveProjectId.
+  // It is not an allowlist, so runner details stay unfiltered unless
+  // GITLAB_ALLOWED_PROJECT_IDS is set.
+  if (
+    allowedProjectIds.length > 0 ||
+    decodedProjectId !== undefined ||
+    Boolean(GITLAB_PROJECT_ID)
+  ) {
     await assertRunnerAvailableToProject(getEffectiveProjectId(decodedProjectId ?? ""), runnerId);
   }
 

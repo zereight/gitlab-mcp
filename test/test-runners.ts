@@ -430,7 +430,7 @@ describe("When a project allowlist gates get_runner", { concurrency: false }, ()
     });
     mockGitLab.addMockHandler(
       "get",
-      `/projects/${PATH_ALLOWLIST.replace("/", "%2F")}/runners`,
+      `/projects/${encodeURIComponent(PATH_ALLOWLIST)}/runners`,
       (req, res) => {
         handleProjectRunners(req, res);
       }
@@ -618,6 +618,52 @@ describe("When a project allowlist gates get_runner", { concurrency: false }, ()
       assert.equal(result.isError, false);
       assert.deepEqual(runner.projects, [ALLOWED_PROJECT, OTHER_PROJECT]);
       assert.deepEqual(runner.groups, [{ id: 5, full_path: "other" }]);
+    });
+  });
+
+  describe("with GITLAB_PROJECT_ID and no allowlist", () => {
+    describe("when project_id is omitted and the runner is not on that project", () => {
+      it("should reject the call before reading runner details", async () => {
+        useRunnerPages([{ runners: [{ id: 1 }] }]);
+        const result = await callTool(
+          "get_runner",
+          { runner_id: TEST_RUNNER_ID },
+          { ...runnerEnv(mockGitLabUrl), GITLAB_PROJECT_ID: TEST_PROJECT_ID }
+        );
+
+        assert.equal(result.isError, true);
+        assert.match(errorText(result.payload), /Runner not found/);
+        assert.equal(lookupState.detailCalls, 0);
+      });
+    });
+
+    describe("when project_id is omitted and the runner is listed", () => {
+      it("should verify the runner against GITLAB_PROJECT_ID", async () => {
+        useRunnerPages([{ runners: [{ id: 8 }] }]);
+        const result = await callTool(
+          "get_runner",
+          { runner_id: TEST_RUNNER_ID },
+          { ...runnerEnv(mockGitLabUrl), GITLAB_PROJECT_ID: TEST_PROJECT_ID }
+        );
+        const listUrl = new URL(lookupState.listUrls[0] ?? "", "http://127.0.0.1");
+
+        assert.equal(result.isError, false);
+        assert.equal(listUrl.pathname, `/api/v4/projects/${TEST_PROJECT_ID}/runners`);
+      });
+
+      it("should return projects and groups from runner details", async () => {
+        useRunnerPages([{ runners: [{ id: 8 }] }]);
+        const result = await callTool(
+          "get_runner",
+          { runner_id: TEST_RUNNER_ID },
+          { ...runnerEnv(mockGitLabUrl), GITLAB_PROJECT_ID: TEST_PROJECT_ID }
+        );
+        const runner = readRecord(result.payload);
+
+        assert.equal(result.isError, false);
+        assert.deepEqual(runner.projects, [ALLOWED_PROJECT, OTHER_PROJECT]);
+        assert.deepEqual(runner.groups, [{ id: 5, full_path: "other" }]);
+      });
     });
   });
 });
