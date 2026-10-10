@@ -15070,7 +15070,12 @@ async function handleToolCall(params: any) {
         } catch (error: unknown) {
           return healthCheckTransportErrorResult(error);
         }
-        const jobAuthenticated = await authenticateWithJobTokenFallbackAsync(response);
+        let jobAuthenticated: boolean;
+        try {
+          jobAuthenticated = await authenticateWithJobTokenFallbackAsync(response);
+        } catch (error: unknown) {
+          return healthCheckTransportErrorResult(error);
+        }
         // insufficient_scope and insufficient_granular_scope mean the token was accepted
         // but User API scope is missing.
         // Rate-limit and authentication-ban 403s stay unauthenticated.
