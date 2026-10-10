@@ -38,7 +38,7 @@ const TOOL_GUIDANCE: Readonly<Record<string, string>> = {
   protect_tag:
     "Use this to protect a tag or wildcard such as `v*` so protected CI/CD variables reach tag pipelines; use `get_protected_tag` or `list_protected_tags` to inspect existing rules first. The operation changes who may create matching tags, requires maintainer-level permission, and returns the protection rule or a validation/permission error.",
   unprotect_tag:
-    "Use this to remove protection from an existing tag or wildcard; use `protect_tag` to change the create access level without removing the rule. The operation changes repository security controls, requires permission to manage protected tags, and returns the result or an error when the tag is missing or policy forbids the change.",
+    "Use this to remove protection from an existing tag or wildcard. To change the create access level, use `unprotect_tag` first, then `protect_tag`; `protect_tag` creates a rule and does not update an existing rule. This change is unavailable in `modify` mode because `unprotect_tag` is blocked there. The operation changes repository security controls, requires permission to manage protected tags, and returns the result or an error when the tag is missing or policy forbids the change.",
   update_default_branch:
     "Use this to change which branch GitLab treats as the project's default; use `create_branch` to create a branch rather than changing project defaults. The operation changes project settings and may affect clone, merge request, and CI defaults, requires project-maintainer permission, and returns the updated project or a validation/permission error.",
   create_note:

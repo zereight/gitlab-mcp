@@ -8351,11 +8351,11 @@
             "description": "Project ID or complete URL-encoded path to project"
           },
           "tag_name": {
-            "type": "string",
-            "description": "Tag name or wildcard pattern to protect (for example v*)"
+            "description": "Tag name or wildcard pattern to protect (for example v*). Required unless name is set.",
+            "type": "string"
           },
           "name": {
-            "description": "Deprecated alias for tag_name; prefer tag_name for consistency",
+            "description": "Alias for tag_name. Required unless tag_name is set.",
             "type": "string"
           },
           "create_access_level": {
@@ -8366,14 +8366,13 @@
           }
         },
         "required": [
-          "project_id",
-          "tag_name"
+          "project_id"
         ]
       }
     },
     {
       "name": "unprotect_tag",
-      "description": "Remove protection from a previously protected tag or wildcard. Use this to remove protection from an existing tag or wildcard; use `protect_tag` to change the create access level without removing the rule. The operation changes repository security controls, requires permission to manage protected tags, and returns the result or an error when the tag is missing or policy forbids the change.",
+      "description": "Remove protection from a previously protected tag or wildcard. Use this to remove protection from an existing tag or wildcard. To change the create access level, use `unprotect_tag` first, then `protect_tag`; `protect_tag` creates a rule and does not update an existing rule. This change is unavailable in `modify` mode because `unprotect_tag` is blocked there. The operation changes repository security controls, requires permission to manage protected tags, and returns the result or an error when the tag is missing or policy forbids the change.",
       "inputSchema": {
         "type": "object",
         "properties": {

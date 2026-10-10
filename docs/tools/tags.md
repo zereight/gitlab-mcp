@@ -128,15 +128,15 @@ Protect a repository tag or wildcard (set who can create it). Use this to protec
 | Parameter | Type | Required | Description |
 |---|---|:-:|---|
 | `project_id` | string | ✓ | Project ID or complete URL-encoded path to project |
-| `tag_name` | string | ✓ | Tag name or wildcard pattern to protect (for example v*) |
-| `name` | string |  | Deprecated alias for tag_name; prefer tag_name for consistency |
+| `tag_name` | string |  | Tag name or wildcard pattern to protect (for example v*). Required unless name is set. |
+| `name` | string |  | Alias for tag_name. Required unless tag_name is set. |
 | `create_access_level` | integer |  | Access level allowed to create matching tags (0=No access, 30=Developer, 40=Maintainer). GitLab default is 40 when omitted. |
 
 ### `unprotect_tag`
 
 *✏️ Writes*
 
-Remove protection from a previously protected tag or wildcard. Use this to remove protection from an existing tag or wildcard; use `protect_tag` to change the create access level without removing the rule. The operation changes repository security controls, requires permission to manage protected tags, and returns the result or an error when the tag is missing or policy forbids the change.
+Remove protection from a previously protected tag or wildcard. Use this to remove protection from an existing tag or wildcard. To change the create access level, use `unprotect_tag` first, then `protect_tag`; `protect_tag` creates a rule and does not update an existing rule. This change is unavailable in `modify` mode because `unprotect_tag` is blocked there. The operation changes repository security controls, requires permission to manage protected tags, and returns the result or an error when the tag is missing or policy forbids the change.
 
 **Parameters**
 

@@ -1,6 +1,8 @@
-import { after, before, describe, test } from "node:test";
+import { after, before, describe, it, test } from "node:test";
 import assert from "node:assert";
 import { spawn } from "child_process";
+import { ProtectTagSchema } from "../schemas.js";
+import { toJSONSchema } from "../utils/schema.js";
 import { MockGitLabServer, findMockServerPort } from "./utils/mock-gitlab-server.js";
 
 const MOCK_TOKEN = "glpat-mock-token-protected-tags";
@@ -84,6 +86,44 @@ async function callTool(
     );
   });
 }
+
+describe("When publishing protect_tag", () => {
+  describe("with the name alias", () => {
+    it("should leave tag_name and name optional", () => {
+      const schema = toJSONSchema(ProtectTagSchema);
+      const required = Array.isArray(schema.required) ? schema.required : [];
+
+      assert.equal(required.includes("tag_name"), false);
+      assert.equal(required.includes("name"), false);
+    });
+
+    it("should still require project_id", () => {
+      const schema = toJSONSchema(ProtectTagSchema);
+      const required = Array.isArray(schema.required) ? schema.required : [];
+
+      assert.equal(required.includes("project_id"), true);
+    });
+  });
+});
+
+describe("When parsing protect_tag arguments", () => {
+  describe("with only name", () => {
+    it("should copy name onto tag_name", () => {
+      const parsed = ProtectTagSchema.parse({ project_id: "123", name: "v*" });
+
+      assert.equal(parsed.tag_name, "v*");
+    });
+  });
+
+  describe("with neither tag_name nor name", () => {
+    it("should reject the arguments", () => {
+      assert.throws(
+        () => ProtectTagSchema.parse({ project_id: "123" }),
+        /Either tag_name or name is required/
+      );
+    });
+  });
+});
 
 describe("protected tag tools", () => {
   let mockGitLab: MockGitLabServer;
