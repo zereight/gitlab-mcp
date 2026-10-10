@@ -139,7 +139,7 @@ command = lib.getExe inputs.gitlab-mcp.packages.${system}.default;
 - `--tools=list_issues` - 개별 도구 추가 (`GITLAB_TOOLS` 대체)
 - `--use-wiki=true` - Deprecated (removed in next major (v3.0.0)); `--toolsets=core,wiki`를 사용 (`USE_GITLAB_WIKI` 대체)
 - `--use-milestone=true` - Deprecated (removed in next major (v3.0.0)); `--toolsets=core,milestones`를 사용 (`USE_MILESTONE` 대체)
-- `--use-pipeline=true` - Deprecated (removed in next major (v3.0.0)); `--toolsets=core,pipelines`와 `--tools=validate_ci_lint,validate_project_ci_lint`를 사용 (`USE_PIPELINE` 대체)
+- `--use-pipeline=true` - Deprecated (removed in next major (v3.0.0)); `--toolsets=core,pipelines`를 사용하고, 기존 `--tools` 목록에 `validate_ci_lint,validate_project_ci_lint`를 추가하세요. 목록이 없으면 `--tools=validate_ci_lint,validate_project_ci_lint`를 설정하세요 (`USE_PIPELINE` 대체)
 - `--disable-version-check=true` - 시작 시 신규 버전 알림 비활성화 (`GITLAB_DISABLE_VERSION_CHECK` 대체)
 - `--masking-enabled=true` - 텍스트 응답 마스킹 활성화 (`GITLAB_MASKING_ENABLED` 대체)
 - `--masking-config` - 마스킹 설정 파일 경로 (`GITLAB_MASKING_CONFIG` 대체)
@@ -150,7 +150,7 @@ command = lib.getExe inputs.gitlab-mcp.packages.${system}.default;
 - `--compact-tools` - 전역 compact를 켜지 않고, 응답이 클 때 compact할 도구 이름을 쉼표로 지정 (`GITLAB_MCP_COMPACT_TOOLS` 대체)
 - `--tool-profile` - `full`(기본값) 또는 `slim`. `slim`은 draft note, 이모지 반응, 라벨, CI 카탈로그 도구와 `create_group`을 초기 목록에서 뺌. `GITLAB_TOOLSETS`에 공백이 아닌 값이 설정된 경우에만 무시됨 (`GITLAB_TOOL_PROFILE` 대체)
 
-이미 `GITLAB_TOOLSETS`를 설정했다면 목록을 바꾸지 말고 `wiki`, `milestones`, `pipelines`를 기존 목록에 추가하세요. 명시적 목록은 기본 `core` toolset을 대체하며, 합쳐지지 않습니다.
+이미 `GITLAB_TOOLSETS` 또는 `--toolsets`를 설정했다면 목록을 바꾸지 말고 `wiki`, `milestones`, `pipelines`를 기존 목록에 추가하세요. 이미 `GITLAB_TOOLS` 또는 `--tools`를 설정했다면 `validate_ci_lint`와 `validate_project_ci_lint`를 그 목록에 추가하세요. 명시적 목록은 기본 `core` toolset을 대체하며, 합쳐지지 않습니다.
 
 CLI 인자는 환경 변수보다 우선합니다.
 

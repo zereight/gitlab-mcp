@@ -139,7 +139,7 @@ command = lib.getExe inputs.gitlab-mcp.packages.${system}.default;
 - `--tools=list_issues` - 添加单个工具（替代 `GITLAB_TOOLS`）
 - `--use-wiki=true` - Deprecated (removed in next major (v3.0.0))；请改用 `--toolsets=core,wiki`（替代 `USE_GITLAB_WIKI`）
 - `--use-milestone=true` - Deprecated (removed in next major (v3.0.0))；请改用 `--toolsets=core,milestones`（替代 `USE_MILESTONE`）
-- `--use-pipeline=true` - Deprecated (removed in next major (v3.0.0))；请改用 `--toolsets=core,pipelines` 和 `--tools=validate_ci_lint,validate_project_ci_lint`（替代 `USE_PIPELINE`）
+- `--use-pipeline=true` - Deprecated (removed in next major (v3.0.0))；请改用 `--toolsets=core,pipelines`，并把 `validate_ci_lint,validate_project_ci_lint` 追加到现有 `--tools` 列表（如果还没有该列表，则设置 `--tools=validate_ci_lint,validate_project_ci_lint`）（替代 `USE_PIPELINE`）
 - `--disable-version-check=true` - 关闭启动时的新版本提示（替代 `GITLAB_DISABLE_VERSION_CHECK`）
 - `--masking-enabled=true` - 启用文本响应掩码（替代 `GITLAB_MASKING_ENABLED`）
 - `--masking-config` - 掩码配置文件路径（替代 `GITLAB_MASKING_CONFIG`）
@@ -150,7 +150,7 @@ command = lib.getExe inputs.gitlab-mcp.packages.${system}.default;
 - `--compact-tools` - 以逗号分隔的工具名，仅在回复过大时对这些工具进行 compact，而不开启全局 compact（替代 `GITLAB_MCP_COMPACT_TOOLS`）
 - `--tool-profile` - `full`（默认）或 `slim`。`slim` 会从初始列表中移除 draft note、表情回应、标签、CI 目录工具以及 `create_group`。仅当 `GITLAB_TOOLSETS` 设置为非空白值时忽略（替代 `GITLAB_TOOL_PROFILE`）
 
-如果已经设置了 `GITLAB_TOOLSETS`，请把 `wiki`、`milestones` 或 `pipelines` 追加到现有列表，不要整段替换。显式列表会替换默认的 `core` toolset，不会合并。
+如果已经设置了 `GITLAB_TOOLSETS` 或 `--toolsets`，请把 `wiki`、`milestones` 或 `pipelines` 追加到该列表，不要整段替换。如果已经设置了 `GITLAB_TOOLS` 或 `--tools`，请把 `validate_ci_lint` 和 `validate_project_ci_lint` 追加到该列表，不要整段替换。显式列表会替换默认的 `core` toolset，不会合并。
 
 CLI 参数优先于环境变量。
 
