@@ -1,35 +1,10 @@
-import { BOOLEAN_CLI_FLAG_NAMES, nextBooleanFlagValue } from "./cli-boolean-flags.js";
+import { parseCliArgs } from "./cli-boolean-flags.js";
+import { deprecatedEnvInputFromSources, type DeprecatedEnvInput } from "./deprecated-env.js";
 import { parseToolProfile } from "./tools/tool-profile.js";
 import { parseCompactToolAllowlist } from "./utils/compact-tool-allowlist.js";
 
 // Parse CLI arguments before anything else
-const args = process.argv.slice(2);
-export const cliArgs: Record<string, string> = {};
-
-for (let i = 0; i < args.length; i++) {
-  const arg = args[i];
-  if (arg.startsWith("--")) {
-    const eqIndex = arg.indexOf("=");
-    if (eqIndex !== -1) {
-      const key = arg.slice(2, eqIndex);
-      const value = arg.slice(eqIndex + 1);
-      if (value) {
-        cliArgs[key] = value;
-      }
-    } else {
-      const key = arg.slice(2);
-      if (BOOLEAN_CLI_FLAG_NAMES.has(key)) {
-        const parsed = nextBooleanFlagValue(args[i + 1]);
-        cliArgs[key] = parsed.value;
-        if (parsed.consumeNext) {
-          i += 1;
-        }
-      } else if (i + 1 < args.length && !args[i + 1].startsWith("--")) {
-        cliArgs[key] = args[++i];
-      }
-    }
-  }
-}
+export const cliArgs: Record<string, string> = parseCliArgs(process.argv.slice(2));
 
 // Helper function to get config value (CLI args take precedence over env vars)
 export function getConfig(cliKey: string, envKey: string): string | undefined;
@@ -148,7 +123,7 @@ export const GITLAB_OAUTH_SCOPES = GITLAB_OAUTH_SCOPES_RAW
   : undefined;
 export const GITLAB_OAUTH_CALLBACK_PROXY =
   getConfig("oauth-callback-proxy", "GITLAB_OAUTH_CALLBACK_PROXY") === "true";
-/** @deprecated Use GITLAB_OAUTH_ALLOWED_GROUPS_RAW instead. Will be removed in the next major version. */
+/** @deprecated Use GITLAB_OAUTH_ALLOWED_GROUPS_RAW instead. Will be removed in v3.0.0. */
 export const GITLAB_ALLOWED_GROUPS_RAW = getConfig("allowed-groups", "GITLAB_ALLOWED_GROUPS");
 export const GITLAB_OAUTH_ALLOWED_GROUPS_RAW = getConfig(
   "oauth-allowed-groups",
@@ -303,5 +278,15 @@ export const NODE_TLS_REJECT_UNAUTHORIZED = getConfig(
   "NODE_TLS_REJECT_UNAUTHORIZED"
 );
 export const GITLAB_CA_CERT_PATH = getConfig("ca-cert-path", "GITLAB_CA_CERT_PATH");
+
+/**
+ * Snapshot of deprecated settings for startup warnings.
+ * CLI flags win over env vars, matching getConfig, so the warning can name
+ * the flag the user actually passed.
+ */
+export function buildDeprecatedEnvInput(): DeprecatedEnvInput {
+  return deprecatedEnvInputFromSources(cliArgs, process.env);
+}
+
 const _poolMaxSizeRaw = getConfig("pool-max-size", "GITLAB_POOL_MAX_SIZE");
 export const GITLAB_POOL_MAX_SIZE = _poolMaxSizeRaw ? Number.parseInt(_poolMaxSizeRaw, 10) : 100;

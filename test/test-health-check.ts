@@ -2,6 +2,7 @@ import { describe, test, before, after } from "node:test";
 import assert from "node:assert";
 import { spawn } from "child_process";
 import fs from "node:fs";
+import net from "node:net";
 import path, { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { MockGitLabServer, findMockServerPort } from "./utils/mock-gitlab-server.js";
@@ -126,6 +127,30 @@ function forbidCurrentUserForOtherReason(mockGitLab: MockGitLabServer): void {
   mockGitLab.addMockHandler("get", "/user", (_req, res) => {
     res.status(403).json({ message: "403 Forbidden" });
   });
+}
+
+function reserveClosedPortAsync(): Promise<number> {
+  return new Promise((resolve, reject) => {
+    const server = net.createServer();
+    server.once("error", reject);
+    server.listen(0, "127.0.0.1", () => {
+      const address = server.address();
+      if (address === null || typeof address === "string") {
+        server.close();
+        reject(new Error("failed to reserve a closed local port"));
+        return;
+      }
+      const { port } = address;
+      server.close(error => {
+        if (error) reject(error);
+        else resolve(port);
+      });
+    });
+  });
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 function jobTokenEnv(mockGitLabUrl: string): NodeJS.ProcessEnv {
@@ -347,6 +372,38 @@ describe("When health_check runs", () => {
       } finally {
         await mockGitLab.stop();
       }
+    });
+  });
+
+  describe("when the GitLab API refuses the connection", () => {
+    test("should return a structured network error instead of a protocol error", async () => {
+      const port = await reserveClosedPortAsync();
+      const gitlabUrl = `http://127.0.0.1:${port}/api/v4`;
+
+      const result = await callToolAsync(
+        {
+          ...baseEnv(`http://127.0.0.1:${port}`),
+          GITLAB_DISABLE_VERSION_CHECK: "true",
+          HTTP_PROXY: "",
+          HTTPS_PROXY: "",
+          GITLAB_CA_CERT_PATH: "",
+        },
+        "health_check"
+      );
+
+      assert.equal(result.isError, false);
+      assert.equal(result.text.includes(MOCK_TOKEN), false);
+      const parsed: unknown = JSON.parse(result.text);
+      if (!isRecord(parsed) || !isRecord(parsed.error)) {
+        throw new Error("health_check result is missing the error object");
+      }
+      assert.equal(parsed.status, "error");
+      assert.equal(parsed.authenticated, false);
+      assert.equal(parsed.gitlab_url, gitlabUrl);
+      assert.equal(parsed.mcp_server_version, PACKAGE_VERSION);
+      assert.equal(parsed.error.kind, "network");
+      assert.equal(parsed.error.code, "ECONNREFUSED");
+      assert.equal(String(parsed.error.message).includes("\n"), false);
     });
   });
 });

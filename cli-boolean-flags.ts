@@ -42,3 +42,38 @@ export function nextBooleanFlagValue(nextToken: string | undefined): {
   }
   return { value: "true", consumeNext: false };
 }
+
+/** Same flag parse as startup config: CLI values only, positionals ignored. */
+export function parseCliArgs(argv: readonly string[]): Record<string, string> {
+  const parsed: Record<string, string> = {};
+  for (let index = 0; index < argv.length; index++) {
+    const arg = argv[index];
+    if (!arg.startsWith("--")) {
+      continue;
+    }
+    const eqIndex = arg.indexOf("=");
+    if (eqIndex !== -1) {
+      const key = arg.slice(2, eqIndex);
+      const value = arg.slice(eqIndex + 1);
+      if (value) {
+        parsed[key] = value;
+      }
+      continue;
+    }
+    const key = arg.slice(2);
+    if (BOOLEAN_CLI_FLAG_NAMES.has(key)) {
+      const next = nextBooleanFlagValue(argv[index + 1]);
+      parsed[key] = next.value;
+      if (next.consumeNext) {
+        index += 1;
+      }
+      continue;
+    }
+    const next = argv[index + 1];
+    if (next !== undefined && !next.startsWith("--")) {
+      index += 1;
+      parsed[key] = next;
+    }
+  }
+  return parsed;
+}

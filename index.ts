@@ -16,13 +16,11 @@ import {
   GITLAB_PERSONAL_ACCESS_TOKEN,
   GITLAB_POOL_MAX_SIZE,
   GITLAB_DISABLE_VERSION_CHECK,
-  GITLAB_READ_ONLY_MODE,
   GITLAB_MASKING_ENABLED,
   GITLAB_MASKING_CONFIG,
   GITLAB_MASKING_POLICY_FILE,
   GITLAB_MASKING_WORKSPACE_DIR,
   GITLAB_PERMISSION_MODE,
-  GITLAB_PERMISSION_MODE_RAW,
   GITLAB_TOOLSETS_RAW,
   GITLAB_TOOLS_RAW,
   HOST,
@@ -44,21 +42,17 @@ import {
   STREAMABLE_HTTP,
   MCP_TRUST_PROXY,
   USE_GITLAB_WIKI,
-  USE_GITLAB_WIKI_RAW,
   USE_MILESTONE,
-  USE_MILESTONE_RAW,
   USE_OAUTH,
   USE_PIPELINE,
-  USE_PIPELINE_RAW,
   GITLAB_TOOL_POLICY_APPROVE_RAW,
   GITLAB_TOOL_POLICY_HIDDEN_RAW,
-  GITLAB_OAUTH_ALLOWED_GROUPS_RAW,
-  GITLAB_ALLOWED_GROUPS_RAW,
   GITLAB_OAUTH_ALLOWED_GROUPS,
   GITLAB_MCP_COMPACT_RESULTS,
   GITLAB_MCP_COMPACT_RESULT_CHARS,
   GITLAB_MCP_COMPACT_TOOL_NAMES,
   GITLAB_TOOL_PROFILE,
+  buildDeprecatedEnvInput,
 } from "./config.js";
 import { getDeprecatedEnvWarnings } from "./deprecated-env.js";
 
@@ -217,6 +211,11 @@ import {
   type RepoFileEncoding,
 } from "./utils/gitlab-commit-actions.js";
 import { redactSensitiveGitLabFields } from "./utils/redact-sensitive.js";
+import {
+  classifyHealthCheckTransportError,
+  redactGitLabUrlCredentials,
+} from "./utils/health-check-transport-error.js";
+import { redactUrlSecretsInText } from "./utils/redact-url.js";
 import {
   createMaskingPolicyResolver,
   getManagedMaskingProjectIds,
@@ -433,6 +432,7 @@ import {
   GitLabForkSchema,
   GitLabBranchSchema,
   GitLabProtectedBranchSchema,
+  GitLabProtectedTagSchema,
   GitLabGroupSchema,
   type GitLabIssue,
   type GitLabIssueLink,
@@ -657,6 +657,10 @@ import {
   CreateTagSchema,
   DeleteTagSchema,
   GetTagSignatureSchema,
+  ListProtectedTagsSchema,
+  GetProtectedTagSchema,
+  ProtectTagSchema,
+  UnprotectTagSchema,
   GitLabTagSchema,
   GitLabTagSignatureSchema,
   type GitLabTag,
@@ -708,9 +712,14 @@ import {
   createHash,
   timingSafeEqual,
 } from "node:crypto";
-import { createLogger } from "./utils/logger.js";
+import { createLogger, flushBufferedLogs, flushStartupLogs } from "./utils/logger.js";
 
 const logger = createLogger();
+
+function exitAfterFlush(code: number): never {
+  flushBufferedLogs(logger);
+  process.exit(code);
+}
 
 // Construct once at startup. When disabled this is undefined and the result
 // path below returns the original objects without reading a config file.
@@ -922,6 +931,7 @@ function createServer(): McpServer {
         },
         `tool_call_error: ${toolName} (${durationMs}ms)`
       );
+      flushBufferedLogs(logger);
       return safeError;
     };
 
@@ -1163,7 +1173,10 @@ function createServer(): McpServer {
       const result = await handleToolCall(request.params);
       return logCompletion(result);
     } catch (error) {
-      const isRecoverableToolError = error instanceof GitLabApiError || error instanceof ToolInputError;
+      const isRecoverableToolError =
+        error instanceof GitLabApiError ||
+        error instanceof ToolInputError ||
+        error instanceof ProjectAccessDeniedError;
       const safeError = logError(error);
       if (isRecoverableToolError) {
         return {
@@ -1392,7 +1405,9 @@ function validateConfiguration(): void {
       try {
         new URL(url.trim());
       } catch {
-        errors.push(`GITLAB_API_URL contains an invalid URL: ${url.trim()}`);
+        errors.push(
+          `GITLAB_API_URL contains an invalid URL: ${redactUrlSecretsInText(url.trim())}`
+        );
       }
     }
   }
@@ -1513,7 +1528,7 @@ function validateConfiguration(): void {
   if (errors.length > 0) {
     logger.error("Configuration validation failed:");
     errors.forEach(err => logger.error(`  - ${err}`));
-    process.exit(1);
+    exitAfterFlush(1);
   }
 
   logger.info("Configuration validation passed");
@@ -1528,6 +1543,23 @@ let oauthClient: GitLabOAuth | null = null;
  * switch to signed/sealed opaque values instead of per-pod in-memory caches.
  */
 let STATELESS_MATERIAL: StatelessKeyMaterial | null = null;
+
+let hasEmittedDeprecatedEnvWarnings = false;
+
+function emitDeprecatedEnvWarnings(): void {
+  if (hasEmittedDeprecatedEnvWarnings) {
+    return;
+  }
+  hasEmittedDeprecatedEnvWarnings = true;
+  const warnings = getDeprecatedEnvWarnings(buildDeprecatedEnvInput());
+  for (const warning of warnings) {
+    logger.warn(warning);
+  }
+  if (warnings.length > 0) {
+    flushStartupLogs(logger);
+  }
+}
+
 try {
   // Drive enablement from the already-resolved config flag so the CLI flag
   // (--oauth-stateless-mode) is honored. Re-reading env.OAUTH_STATELESS_MODE
@@ -1541,6 +1573,7 @@ try {
     console.error("[gitlab-mcp] stateless OAuth mode enabled");
   }
 } catch (err) {
+  emitDeprecatedEnvWarnings();
   // eslint-disable-next-line no-console -- startup failure must be visible
   console.error(`[gitlab-mcp] failed to load stateless secret: ${(err as Error).message}`);
   process.exit(1);
@@ -1861,7 +1894,11 @@ function buildAuthHeaders(): Record<string, string> {
   if (REMOTE_AUTHORIZATION || GITLAB_MCP_OAUTH) {
     const ctx = sessionAuthStore.getStore();
     logger.debug(
-      { sessionId: ctx?.sessionId, header: ctx?.header, apiUrl: ctx?.apiUrl },
+      {
+        sessionId: ctx?.sessionId,
+        header: ctx?.header,
+        apiUrl: ctx?.apiUrl === undefined ? undefined : redactUrlSecretsInText(ctx.apiUrl),
+      },
       "buildAuthHeaders: session context"
     );
     if (ctx?.token) {
@@ -1917,7 +1954,11 @@ function getEffectiveApiUrl(): string {
       return ctx.apiUrl;
     }
     logger.warn(
-      { sessionId: ctx?.sessionId, header: ctx?.header, apiUrl: ctx?.apiUrl },
+      {
+        sessionId: ctx?.sessionId,
+        header: ctx?.header,
+        apiUrl: ctx?.apiUrl === undefined ? undefined : redactUrlSecretsInText(ctx.apiUrl),
+      },
       "getEffectiveApiUrl: No context or apiUrl found, falling back to default"
     );
   }
@@ -2183,28 +2224,32 @@ const GITLAB_REPO_FILE_ENCODING =
 if (REMOTE_AUTHORIZATION) {
   // Remote authorization mode: token comes from HTTP headers
   if (SSE) {
+    emitDeprecatedEnvWarnings();
     logger.error("REMOTE_AUTHORIZATION=true is not compatible with SSE transport mode");
     logger.error("Please use STREAMABLE_HTTP=true instead");
-    process.exit(1);
+    exitAfterFlush(1);
   }
   if (!STREAMABLE_HTTP) {
+    emitDeprecatedEnvWarnings();
     logger.error("REMOTE_AUTHORIZATION=true requires STREAMABLE_HTTP=true");
     logger.error("Set STREAMABLE_HTTP=true to enable remote authorization");
-    process.exit(1);
+    exitAfterFlush(1);
   }
   logger.info("Remote authorization enabled: tokens will be read from HTTP headers");
 }
 
 if (GITLAB_MCP_OAUTH) {
   if (SSE) {
+    emitDeprecatedEnvWarnings();
     logger.error("GITLAB_MCP_OAUTH=true is not compatible with SSE transport mode");
     logger.error("Please use STREAMABLE_HTTP=true instead");
-    process.exit(1);
+    exitAfterFlush(1);
   }
   if (!STREAMABLE_HTTP) {
+    emitDeprecatedEnvWarnings();
     logger.error("GITLAB_MCP_OAUTH=true requires STREAMABLE_HTTP=true");
     logger.error("Set STREAMABLE_HTTP=true to enable MCP OAuth");
-    process.exit(1);
+    exitAfterFlush(1);
   }
   logger.info(
     "MCP OAuth enabled: GitLab OAuth proxy active (Private-Token/JOB-TOKEN headers bypass OAuth)"
@@ -2220,10 +2265,12 @@ if (
   !GITLAB_JOB_TOKEN &&
   !GITLAB_AUTH_COOKIE_PATH
 ) {
-  // Standard mode: token must be in environment (unless using OAuth)
+  // Standard mode: token must be in environment (unless using OAuth).
+  // This exit runs before runServer(), so warnings have to be printed here too.
+  emitDeprecatedEnvWarnings();
   logger.error("GITLAB_PERSONAL_ACCESS_TOKEN environment variable is not set");
   logger.info("Either set GITLAB_PERSONAL_ACCESS_TOKEN or enable OAuth with GITLAB_USE_OAUTH=true");
-  process.exit(1);
+  exitAfterFlush(1);
 }
 
 class GitLabApiError extends Error {
@@ -2237,6 +2284,13 @@ class ToolInputError extends Error {
   constructor(message: string) {
     super(message);
     this.name = "ToolInputError";
+  }
+}
+
+class ProjectAccessDeniedError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "ProjectAccessDeniedError";
   }
 }
 
@@ -2323,7 +2377,8 @@ async function authenticateWithJobTokenFallbackAsync(response: UndiciResponse): 
 /**
  * @param {string} projectId - The project ID parameter passed to the function
  * @returns {string} The project ID to use for the API call
- * @throws {Error} If GITLAB_ALLOWED_PROJECT_IDS is set and the requested project is not in the whitelist
+ * @throws {ProjectAccessDeniedError} If the requested project is outside the effective allowlist
+ * @throws {Error} If no project can be selected, or multiple allowed projects require an explicit ID
  */
 function getEffectiveProjectId(projectId: string): string {
   const allowedProjectIds = getEffectiveAllowedProjectIds();
@@ -2335,7 +2390,7 @@ function getEffectiveProjectId(projectId: string): string {
 
     // If a project ID is provided, check if it's in the whitelist
     if (projectId && !allowedProjectIds.includes(projectId)) {
-      throw new Error(
+      throw new ProjectAccessDeniedError(
         `Access denied: Project ${projectId} is not in the allowed project list: ${allowedProjectIds.join(", ")}`
       );
     }
@@ -6785,6 +6840,29 @@ async function publishDraftNote(
   }
 }
 
+function healthCheckTransportErrorResult(error: unknown) {
+  const failure = classifyHealthCheckTransportError(error);
+  return {
+    content: [
+      {
+        type: "text",
+        text: JSON.stringify({
+          status: "error",
+          authenticated: false,
+          gitlab_url: redactGitLabUrlCredentials(getEffectiveApiUrl()),
+          mcp_server_version: SERVER_VERSION,
+          error: {
+            kind: failure.kind,
+            code: failure.code,
+            message: failure.message,
+            ...(failure.hint !== undefined ? { hint: failure.hint } : {}),
+          },
+        }),
+      },
+    ],
+  };
+}
+
 async function fetchGitLabVersionMetadata(): Promise<GitLabInstanceVersionMetadata | null> {
   try {
     const response = await fetch(`${getEffectiveApiUrl()}/version`, {
@@ -10163,7 +10241,7 @@ function assertVulnerabilityProjectAllowed(
     (fullPath !== undefined && allowedProjectIds.includes(fullPath)) ||
     (numericId !== undefined && allowedProjectIds.includes(numericId));
   if (!allowed) {
-    throw new Error(
+    throw new ProjectAccessDeniedError(
       `Access denied: Vulnerability ${vulnerabilityId} belongs to project ${
         fullPath ?? numericId ?? "unknown"
       }, which is not in the allowed project list: ${allowedProjectIds.join(", ")}`
@@ -11293,7 +11371,7 @@ async function handleToolCall(params: any) {
         const controller = new AbortController();
         const timeoutMs = 45000;
         const timeout = setTimeout(() => controller.abort(), timeoutMs);
-        logger.info({ endpoint: graphqlUrl }, "execute_graphql request");
+        logger.info({ endpoint: redactUrlSecretsInText(graphqlUrl) }, "execute_graphql request");
         try {
           const response = await fetch(graphqlUrl, {
             ...getFetchConfig(),
@@ -14735,6 +14813,96 @@ async function handleToolCall(params: any) {
         };
       }
 
+      case "list_protected_tags": {
+        const args = ListProtectedTagsSchema.parse(params.arguments);
+        const projectId = decodeURIComponent(args.project_id);
+        const effectiveProjectId = getEffectiveProjectId(projectId);
+        const url = new URL(
+          `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(effectiveProjectId)}/protected_tags`
+        );
+        if (args.page) url.searchParams.append("page", String(args.page));
+        if (args.per_page) url.searchParams.append("per_page", String(args.per_page));
+
+        const response = await fetch(url.toString(), {
+          ...getFetchConfig(),
+        });
+
+        await handleGitLabError(response);
+        const data = z.array(GitLabProtectedTagSchema).parse(await response.json());
+        return {
+          content: [{ type: "text", text: JSON.stringify(data) }],
+        };
+      }
+
+      case "get_protected_tag": {
+        const args = GetProtectedTagSchema.parse(params.arguments);
+        const projectId = decodeURIComponent(args.project_id);
+        const effectiveProjectId = getEffectiveProjectId(projectId);
+        const url = new URL(
+          `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(effectiveProjectId)}/protected_tags/${encodeGitLabPathSegment(args.tag_name)}`
+        );
+
+        const response = await fetch(url.toString(), {
+          ...getFetchConfig(),
+        });
+
+        await handleGitLabError(response);
+        const data = GitLabProtectedTagSchema.parse(await response.json());
+        return {
+          content: [{ type: "text", text: JSON.stringify(data) }],
+        };
+      }
+
+      case "protect_tag": {
+        const args = ProtectTagSchema.parse(params.arguments);
+        const projectId = decodeURIComponent(args.project_id);
+        const effectiveProjectId = getEffectiveProjectId(projectId);
+        const url = new URL(
+          `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(effectiveProjectId)}/protected_tags`
+        );
+
+        const body: Record<string, unknown> = { name: args.tag_name };
+        if (args.create_access_level !== undefined) {
+          body.create_access_level = args.create_access_level;
+        }
+
+        const response = await fetch(url.toString(), {
+          ...getFetchConfig(),
+          method: "POST",
+          body: JSON.stringify(body),
+        });
+
+        await handleGitLabError(response);
+        const data = GitLabProtectedTagSchema.parse(await response.json());
+        return {
+          content: [{ type: "text", text: JSON.stringify(data) }],
+        };
+      }
+
+      case "unprotect_tag": {
+        const args = UnprotectTagSchema.parse(params.arguments);
+        const projectId = decodeURIComponent(args.project_id);
+        const effectiveProjectId = getEffectiveProjectId(projectId);
+        const url = new URL(
+          `${getEffectiveApiUrl()}/projects/${encodeGitLabPathSegment(effectiveProjectId)}/protected_tags/${encodeGitLabPathSegment(args.tag_name)}`
+        );
+
+        const response = await fetch(url.toString(), {
+          ...getFetchConfig(),
+          method: "DELETE",
+        });
+
+        await handleGitLabError(response);
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify({ status: "unprotected", tag: args.tag_name }),
+            },
+          ],
+        };
+      }
+
       case "list_snippets": {
         const args = ListSnippetsSchema.parse(params.arguments);
         const { project_id, ...options } = args;
@@ -14895,7 +15063,13 @@ async function handleToolCall(params: any) {
       case "health_check": {
         HealthCheckSchema.parse(params.arguments ?? {});
         const url = new URL(`${getEffectiveApiUrl()}/user`);
-        const response = await fetch(url.toString(), getFetchConfig());
+        const fetchConfig = getFetchConfig();
+        let response: UndiciResponse;
+        try {
+          response = await fetch(url.toString(), fetchConfig);
+        } catch (error: unknown) {
+          return healthCheckTransportErrorResult(error);
+        }
         const jobAuthenticated = await authenticateWithJobTokenFallbackAsync(response);
         // insufficient_scope and insufficient_granular_scope mean the token was accepted
         // but User API scope is missing.
@@ -14912,7 +15086,7 @@ async function handleToolCall(params: any) {
               text: JSON.stringify({
                 status: authenticated ? "ok" : "error",
                 authenticated,
-                gitlab_url: getEffectiveApiUrl(),
+                gitlab_url: redactGitLabUrlCredentials(getEffectiveApiUrl()),
                 mcp_server_version: SERVER_VERSION,
                 ...(insufficientUserScope ? { user_api_warning: USER_API_HEALTH_WARNING } : {}),
                 ...(versionMetadata ?? {}),
@@ -15553,7 +15727,9 @@ async function startStreamableHTTPServer(): Promise<void> {
         apiUrl = resolveTrustedGitLabApiUrl(dynamicApiUrl);
       } catch (error) {
         const reason = error instanceof Error ? error.message : "Invalid X-GitLab-API-URL";
-        logger.warn(`Invalid X-GitLab-API-URL provided: ${dynamicApiUrl}. ${reason}`);
+        logger.warn(
+          `Invalid X-GitLab-API-URL provided: ${redactUrlSecretsInText(dynamicApiUrl)}. ${reason}`
+        );
         return null; // Reject if URL is malformed or not allowed
       }
     }
@@ -16772,7 +16948,7 @@ function initOAuthClient(): void {
   }
   if (isCleartextRemoteUrl(GITLAB_API_URL)) {
     throw new Error(
-      `Refusing to send OAuth tokens over cleartext HTTP to ${GITLAB_API_URL}. ` +
+      `Refusing to send OAuth tokens over cleartext HTTP to ${redactUrlSecretsInText(GITLAB_API_URL)}. ` +
         "Use an https:// GITLAB_API_URL (http:// is only allowed for localhost)."
     );
   }
@@ -16785,6 +16961,10 @@ function initOAuthClient(): void {
  */
 async function runServer() {
   try {
+    // Print before validateConfiguration(), which process.exit()s on failure.
+    // logger.warn goes to stderr; stdio transport owns stdout for JSON-RPC.
+    emitDeprecatedEnvWarnings();
+
     // Validate configuration before starting server
     validateConfiguration();
 
@@ -16796,7 +16976,7 @@ async function runServer() {
         logger.info("OAuth enabled; token acquired lazily on first use.");
       } catch (error) {
         logger.error({ err: error }, "OAuth authentication failed");
-        process.exit(1);
+        exitAfterFlush(1);
       }
     }
 
@@ -16816,37 +16996,29 @@ async function runServer() {
       });
     }
 
-    logger.info(`Configured GitLab API URLs: ${GITLAB_API_URLS.join(", ")}`);
-    logger.info(`Default GitLab API URL: ${GITLAB_API_URL}`);
-
-    for (const warning of getDeprecatedEnvWarnings({
-      readOnlyMode: GITLAB_READ_ONLY_MODE,
-      permissionModeRaw: GITLAB_PERMISSION_MODE_RAW,
-      allowedGroupsRaw: GITLAB_ALLOWED_GROUPS_RAW,
-      oauthAllowedGroupsRaw: GITLAB_OAUTH_ALLOWED_GROUPS_RAW,
-      useWikiRaw: USE_GITLAB_WIKI_RAW,
-      useMilestoneRaw: USE_MILESTONE_RAW,
-      usePipelineRaw: USE_PIPELINE_RAW,
-    })) {
-      logger.warn(warning);
-    }
+    logger.info(
+      `Configured GitLab API URLs: ${GITLAB_API_URLS.map(redactUrlSecretsInText).join(", ")}`
+    );
+    logger.info(`Default GitLab API URL: ${redactUrlSecretsInText(GITLAB_API_URL)}`);
 
     if (GITLAB_OAUTH_ALLOWED_GROUPS) {
       logger.info(`Group access control enabled for: ${GITLAB_OAUTH_ALLOWED_GROUPS.join(", ")}`);
     }
   } catch (error) {
     logger.error({ err: error }, "Error initializing server");
-    process.exit(1);
+    exitAfterFlush(1);
   }
 }
 
 async function main(): Promise<void> {
   const cli = resolveCli(process.argv);
   if (cli.kind === "help") {
+    emitDeprecatedEnvWarnings();
     process.stdout.write(cli.text);
     process.exit(0);
   }
   if (cli.kind === "usage" || cli.kind === "refused") {
+    emitDeprecatedEnvWarnings();
     process.stderr.write(`${cli.message}\n`);
     process.exit(2);
   }
@@ -16858,10 +17030,11 @@ async function main(): Promise<void> {
       const message = error instanceof Error ? error.message : String(error);
       process.stderr.write(`${message}\n`);
       logger.error({ err: error }, "auth command failed");
-      process.exit(1);
+      exitAfterFlush(1);
     }
   }
   if (cli.kind === "run") {
+    emitDeprecatedEnvWarnings();
     if (!hasCliCredentials()) {
       process.stderr.write(
         "Missing GitLab credentials. Set --token or GITLAB_PERSONAL_ACCESS_TOKEN, or run `auth` with GITLAB_USE_OAUTH=true.\n"
@@ -16885,7 +17058,7 @@ async function main(): Promise<void> {
     } catch (error) {
       process.stderr.write(formatCliError(error));
       logger.error({ err: error }, "cli command failed");
-      process.exit(1);
+      exitAfterFlush(1);
     }
   }
 
@@ -16920,5 +17093,5 @@ function maskCliToolResult(toolName: string, result: unknown): unknown {
 
 main().catch(error => {
   logger.fatal({ err: error }, "Fatal error in main()");
-  process.exit(1);
+  exitAfterFlush(1);
 });

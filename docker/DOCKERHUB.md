@@ -4,7 +4,7 @@ Agent-workflow-optimized [GitLab MCP](https://github.com/zereight/gitlab-mcp) se
 projects, merge requests, issues, pipelines, wiki, releases, tags, milestones, and more from
 AI clients such as Claude Code, VS Code, Cursor, and Copilot.
 
-- 268 tools: 266 in toolsets + `execute_graphql` + `discover_tools` for on-demand activation
+- 272 tools: 270 in toolsets + `execute_graphql` + `discover_tools` for on-demand activation
 - Personal Access Token, OAuth2, read-only mode, and remote authorization
 - stdio, SSE, and Streamable HTTP transports
 - Works with gitlab.com and self-hosted instances
@@ -38,7 +38,9 @@ to container loopback and the published port stays unreachable.
 | `SSE`                            | `false`                      | Set `true` for legacy SSE transport                |
 | `HOST`                           | `127.0.0.1`                  | Set `0.0.0.0` inside containers                    |
 | `PORT`                           | `3002`                       | HTTP port for SSE / Streamable HTTP                |
-| `GITLAB_READ_ONLY_MODE`          | `false`                      | Set `true` to expose read-only tools               |
+| `GITLAB_PERMISSION_MODE`         | `full`                       | `readonly`, `modify`, or `full`                    |
+| `GITLAB_TOOLSETS`                | lean `core` when unset       | Comma-separated toolset IDs. Append to an existing list instead of replacing it. |
+| `GITLAB_READ_ONLY_MODE`          | `false`                      | Deprecated (removed in next major (v3.0.0)); use `GITLAB_PERMISSION_MODE=readonly` instead |
 | `GITLAB_ALLOWED_PROJECT_IDS`     | —                            | Comma-separated project allowlist                  |
 | `REMOTE_AUTHORIZATION`           | `false`                      | Multi-user mode, each caller sends its own token   |
 

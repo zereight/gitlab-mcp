@@ -110,8 +110,8 @@ const DELETE_SAMPLE_TOOLS = [
   "delete_snippet",
 ];
 
-// Destructive teardown tools whose names do not start with `delete_`. All five are listed
-// here (list-hiding) and exercised with explicit `callTool` literals below (call-rejection),
+// Destructive teardown tools whose names do not start with `delete_`. Listed here
+// (list-hiding) and exercised with explicit `callTool` literals below (call-rejection),
 // so the tool-coverage detector sees the call path too.
 const DESTRUCTIVE_SAMPLE_TOOLS = [
   "cancel_pipeline",
@@ -119,6 +119,7 @@ const DESTRUCTIVE_SAMPLE_TOOLS = [
   "stop_environment",
   "stop_stale_environments",
   "unprotect_branch",
+  "unprotect_tag",
 ];
 
 const MODIFY_SAMPLE_TOOLS = [
@@ -128,6 +129,8 @@ const MODIFY_SAMPLE_TOOLS = [
   "create_branch",
   "push_files",
   "merge_merge_request",
+  "protect_branch",
+  "protect_tag",
 ];
 
 const READ_SAMPLE_TOOLS = ["list_issues", "get_project", "list_merge_requests"];
@@ -255,6 +258,11 @@ describe("Permission Mode", { concurrency: 1 }, () => {
           () => client.callTool("unprotect_branch", { project_id: "1", branch: "main" }),
           (error: Error) => error.message.includes("not allowed in modify mode"),
           "unprotect_branch should be rejected in modify mode"
+        );
+        await assert.rejects(
+          () => client.callTool("unprotect_tag", { project_id: "1", tag_name: "v*" }),
+          (error: Error) => error.message.includes("not allowed in modify mode"),
+          "unprotect_tag should be rejected in modify mode"
         );
       } finally {
         await client.disconnect();
@@ -542,6 +550,16 @@ describe("Permission Mode", { concurrency: 1 }, () => {
           () => client.callTool("create_issue", { project_id: "1", title: "t" }),
           (error: Error) => error.message.includes("not allowed in read-only mode"),
           "create_issue should be rejected in readonly mode"
+        );
+        await assert.rejects(
+          () => client.callTool("protect_tag", { project_id: "1", tag_name: "v*" }),
+          (error: Error) => error.message.includes("not allowed in read-only mode"),
+          "protect_tag should be rejected in readonly mode"
+        );
+        await assert.rejects(
+          () => client.callTool("unprotect_tag", { project_id: "1", tag_name: "v*" }),
+          (error: Error) => error.message.includes("not allowed in read-only mode"),
+          "unprotect_tag should be rejected in readonly mode"
         );
       } finally {
         await client.disconnect();

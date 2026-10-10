@@ -15,6 +15,14 @@ import { CustomHeaderClient } from "./clients/custom-header-client.js";
 const MOCK_TOKEN = "glpat-dynamic-scope-token";
 const SCOPE_HEADER = "x-gitlab-allowed-project-ids";
 
+function assertProjectAllowlistDenial(result: CallToolResult): void {
+  assert.strictEqual(result.isError, true);
+  const first = result.content[0];
+  assert.ok(first !== undefined && first.type === "text");
+  assert.match(first.text, /Access denied/);
+  assert.match(first.text, /allowed project list/);
+}
+
 function parseToolJson(result: CallToolResult): unknown {
   assert.ok(result.isError !== true, "tool should succeed");
   const first = result.content[0];
@@ -113,10 +121,8 @@ describe("Dynamic project scope", { concurrency: 1 }, () => {
       const client = await connectClient(mcpUrl, "1");
       try {
         assert.strictEqual(await getProjectId(client, ""), "1");
-        await assert.rejects(
-          () => client.callTool("get_project", { project_id: "2" }),
-          /Access denied/
-        );
+        const denied = await client.callTool("get_project", { project_id: "2" });
+        assertProjectAllowlistDenial(denied);
       } finally {
         await client.disconnect();
       }
@@ -359,10 +365,8 @@ describe("Dynamic project scope", { concurrency: 1 }, () => {
       const client = await connectClient(mcpUrl, "7");
       try {
         assert.strictEqual(await getProjectId(client, ""), "7");
-        await assert.rejects(
-          () => client.callTool("get_project", { project_id: "8" }),
-          /Access denied/
-        );
+        const denied = await client.callTool("get_project", { project_id: "8" });
+        assertProjectAllowlistDenial(denied);
         await assert.rejects(
           () => client.callTool("execute_graphql", { query: "query { currentUser { id } }" }),
           /not allowed while a project allowlist is in effect/
@@ -384,10 +388,8 @@ describe("Dynamic project scope", { concurrency: 1 }, () => {
     test("scoped session cannot reach vulnerabilities of other projects", async () => {
       const client = await connectClient(mcpUrl, "7");
       try {
-        await assert.rejects(
-          () => client.callTool("get_vulnerability", { vulnerability_id: "42" }),
-          /Access denied/
-        );
+        const denied = await client.callTool("get_vulnerability", { vulnerability_id: "42" });
+        assertProjectAllowlistDenial(denied);
       } finally {
         await client.disconnect();
       }
