@@ -55,6 +55,27 @@ const mockVulnerabilityList = [
   },
 ];
 
+function isAllowlistToolError(
+  result: unknown
+): result is { isError: true; content: { text: string }[] } {
+  if (result === null || typeof result !== "object" || !("isError" in result)) {
+    return false;
+  }
+  if (result.isError !== true || !("content" in result) || !Array.isArray(result.content)) {
+    return false;
+  }
+  const block = result.content[0];
+  return (
+    block !== null && typeof block === "object" && "text" in block && typeof block.text === "string"
+  );
+}
+
+function assertAllowlistToolError(result: unknown): void {
+  assert.ok(isAllowlistToolError(result), "expected an isError tool result");
+  assert.match(result.content[0].text, /Access denied/);
+  assert.match(result.content[0].text, /allowed project list/);
+}
+
 async function callTool(
   toolName: string,
   args: Record<string, any>,
@@ -89,17 +110,21 @@ async function callTool(
         const response = JSON.parse(line);
         if (response.error) {
           reject(response.error);
-        } else {
-          const content = response.result?.content?.[0]?.text;
-          if (content) {
-            try {
-              resolve(JSON.parse(content));
-            } catch {
-              resolve(content);
-            }
-          } else {
-            resolve(response.result);
+          return;
+        }
+        if (response.result?.isError === true) {
+          resolve(response.result);
+          return;
+        }
+        const content = response.result?.content?.[0]?.text;
+        if (content) {
+          try {
+            resolve(JSON.parse(content));
+          } catch {
+            resolve(content);
           }
+        } else {
+          resolve(response.result);
         }
       } catch (e) {
         reject(e);
@@ -517,22 +542,13 @@ describe("vulnerability tools", () => {
   // GITLAB_ALLOWED_PROJECT_IDS tests: the mock vulnerability belongs to
   // project 456 (test-group/test-project), so an allowlist of "999" must
   // deny all id-only vulnerability tools.
-  const assertAccessDenied = (err: any) => {
-    const msg = typeof err === "string" ? err : err?.message || JSON.stringify(err);
-    assert.ok(msg.includes("Access denied"), `Expected allowlist rejection, got: ${msg}`);
-    return true;
-  };
-
   test("allowlist: get_vulnerability is rejected for a vulnerability outside allowed projects", async () => {
-    await assert.rejects(
-      () =>
-        callTool(
-          "get_vulnerability",
-          { vulnerability_id: TEST_VULNERABILITY_ID },
-          { ...baseEnv(), GITLAB_ALLOWED_PROJECT_IDS: "999" }
-        ),
-      assertAccessDenied
+    const result = await callTool(
+      "get_vulnerability",
+      { vulnerability_id: TEST_VULNERABILITY_ID },
+      { ...baseEnv(), GITLAB_ALLOWED_PROJECT_IDS: "999" }
     );
+    assertAllowlistToolError(result);
   });
 
   test("allowlist: get_vulnerability succeeds when project is allowed by numeric ID", async () => {
@@ -556,15 +572,12 @@ describe("vulnerability tools", () => {
   test("allowlist: dismiss_vulnerability is rejected before the mutation is sent", async () => {
     lastDismissInput = null;
 
-    await assert.rejects(
-      () =>
-        callTool(
-          "dismiss_vulnerability",
-          { vulnerability_id: TEST_VULNERABILITY_ID, reason: "false_positive" },
-          { ...baseEnv(), GITLAB_ALLOWED_PROJECT_IDS: "999" }
-        ),
-      assertAccessDenied
+    const result = await callTool(
+      "dismiss_vulnerability",
+      { vulnerability_id: TEST_VULNERABILITY_ID, reason: "false_positive" },
+      { ...baseEnv(), GITLAB_ALLOWED_PROJECT_IDS: "999" }
     );
+    assertAllowlistToolError(result);
     assert.strictEqual(
       lastDismissInput,
       null,
@@ -575,15 +588,12 @@ describe("vulnerability tools", () => {
   test("allowlist: confirm_vulnerability is rejected before the mutation is sent", async () => {
     lastConfirmInput = null;
 
-    await assert.rejects(
-      () =>
-        callTool(
-          "confirm_vulnerability",
-          { vulnerability_id: TEST_VULNERABILITY_ID },
-          { ...baseEnv(), GITLAB_ALLOWED_PROJECT_IDS: "999" }
-        ),
-      assertAccessDenied
+    const result = await callTool(
+      "confirm_vulnerability",
+      { vulnerability_id: TEST_VULNERABILITY_ID },
+      { ...baseEnv(), GITLAB_ALLOWED_PROJECT_IDS: "999" }
     );
+    assertAllowlistToolError(result);
     assert.strictEqual(
       lastConfirmInput,
       null,

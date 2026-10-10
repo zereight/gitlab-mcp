@@ -54,7 +54,9 @@ import {
   GetProtectedBranchSchema,
   ListProtectedBranchesSchema,
   ProtectBranchSchema,
+  ProtectTagSchema,
   UnprotectBranchSchema,
+  UnprotectTagSchema,
   UpdateDefaultBranchSchema,
   DeleteDraftNoteSchema,
   DeleteGroupMilestoneSchema,
@@ -146,6 +148,7 @@ import {
   GetRepositoryTreeSchema,
   GetTagSchema,
   GetTagSignatureSchema,
+  GetProtectedTagSchema,
   GetTimelineEventsSchema,
   GetUsersSchema,
   GetUserSchema,
@@ -203,6 +206,7 @@ import {
   ListProjectsSchema,
   ListReleasesSchema,
   ListTagsSchema,
+  ListProtectedTagsSchema,
   ListWebhookEventsSchema,
   ListWebhooksSchema,
   ListWikiPagesSchema,
@@ -1385,6 +1389,26 @@ export const allTools = [
     description: "Get the X.509 signature of a signed tag (404 if unsigned)",
     inputSchema: toJSONSchema(GetTagSignatureSchema),
   },
+  {
+    name: "list_protected_tags",
+    description: "List protected tags in a project",
+    inputSchema: toJSONSchema(ListProtectedTagsSchema),
+  },
+  {
+    name: "get_protected_tag",
+    description: "Get details of a single protected tag or wildcard (create access levels)",
+    inputSchema: toJSONSchema(GetProtectedTagSchema),
+  },
+  {
+    name: "protect_tag",
+    description: "Protect a repository tag or wildcard (set who can create it)",
+    inputSchema: toJSONSchema(ProtectTagSchema),
+  },
+  {
+    name: "unprotect_tag",
+    description: "Remove protection from a previously protected tag or wildcard",
+    inputSchema: toJSONSchema(UnprotectTagSchema),
+  },
   // --- Snippet tools ---
   {
     name: "list_snippets",
@@ -1801,6 +1825,8 @@ export const readOnlyTools = new Set([
   "list_tags",
   "get_tag",
   "get_tag_signature",
+  "list_protected_tags",
+  "get_protected_tag",
   "list_snippets",
   "get_snippet",
   "get_merge_request_approval_state",
@@ -1879,6 +1905,8 @@ export const destructiveTools = new Set([
   "delete_branch",
   "unprotect_branch",
   "protect_branch",
+  "unprotect_tag",
+  "protect_tag",
   "update_default_branch",
   "merge_merge_request",
   "push_files",
@@ -1927,12 +1955,13 @@ export const deleteTools = new Set([
   "delete_work_item_note_emoji_reaction",
   "purge_dependency_proxy_cache",
   // Destructive teardown operations whose names do not start with `delete_`:
-  // stopping/cancelling live pipelines and environments, and removing branch protection.
+  // stopping/cancelling live pipelines and environments, and removing branch or tag protection.
   "cancel_pipeline",
   "cancel_pipeline_job",
   "stop_environment",
   "stop_stale_environments",
   "unprotect_branch",
+  "unprotect_tag",
 ]);
 
 // Define which tools are related to wiki and can be toggled by USE_GITLAB_WIKI
@@ -2380,7 +2409,17 @@ export const TOOLSET_DEFINITIONS: readonly ToolsetDefinition[] = [
   {
     id: "tags",
     isDefault: false,
-    tools: new Set(["list_tags", "get_tag", "create_tag", "delete_tag", "get_tag_signature"]),
+    tools: new Set([
+      "list_tags",
+      "get_tag",
+      "create_tag",
+      "delete_tag",
+      "get_tag_signature",
+      "list_protected_tags",
+      "get_protected_tag",
+      "protect_tag",
+      "unprotect_tag",
+    ]),
   },
   {
     id: "snippets",

@@ -22,7 +22,7 @@ Supports PAT, OAuth, read-only mode, dynamic API URLs, and remote authorization 
 
 ### Why use this GitLab MCP?
 
-- **268 tools: 266 in toolsets + `execute_graphql` + `discover_tools`** — start with a small toolset; activate more at runtime without CQRS-style grouping
+- **272 tools: 270 in toolsets + `execute_graphql` + `discover_tools`** — start with a small toolset; activate more at runtime without CQRS-style grouping
 - **MR 2-step review** — `list_merge_request_changed_files` → batched `get_merge_request_file_diff`
 - **Agent Skill built in** — workflow guidance in `skills/gitlab-mcp/`
 - **Flexible auth** — Personal Access Token, local OAuth2 browser flow, MCP OAuth proxy, and per-request remote authorization
@@ -36,7 +36,7 @@ Supports PAT, OAuth, read-only mode, dynamic API URLs, and remote authorization 
 | | @zereight/mcp-gitlab | GitLab MCP A (community CQRS-style) |
 |---|----------------------|-------------------------------------|
 | **Best for** | AI agent workflows | Enterprise multi-instance / grouped tools |
-| **Tool model** | 268 tools: 266 in toolsets + `execute_graphql` + `discover_tools` | ~50–60 grouped `browse_*` / `manage_*` tools |
+| **Tool model** | 272 tools: 270 in toolsets + `execute_graphql` + `discover_tools` | ~50–60 grouped `browse_*` / `manage_*` tools |
 | **MR review** | 2-step batched diff | Varies |
 | **Node.js** | >=18.17 | Often >=24 |
 | **License** | MIT | Varies |
@@ -163,7 +163,8 @@ The same binary is also a `gh`-style GitLab CLI (`tool <name>` or curated forms 
 
 > **Fine-grained tool filtering:** use `GITLAB_PERMISSION_MODE=modify` to allow create/update while
 > blocking every delete tool and the destructive teardown tools (`cancel_pipeline`,
-> `cancel_pipeline_job`, `stop_environment`, `stop_stale_environments`, `unprotect_branch`) —
+> `cancel_pipeline_job`, `stop_environment`, `stop_stale_environments`, `unprotect_branch`,
+> `unprotect_tag`) —
 > including destructive mutations (deletion and teardown verbs) through `execute_graphql` and
 > `push_files` `delete`/`move` actions — or `GITLAB_PERMISSION_MODE=readonly` for read-only
 > access. You can also
@@ -822,61 +823,65 @@ Register the skill directory in your AI client to get optimal tool usage guidanc
 211. `create_tag` - Create a new repository tag
 212. `delete_tag` - Delete a repository tag
 213. `get_tag_signature` - Get the X.509 signature of a signed tag (404 if unsigned)
-214. `get_work_item` - Get a work item with full details including status, hierarchy, type, and widgets
-215. `list_work_items` - List work items with filters (type, state, search, assignees, labels)
-216. `create_work_item` - Create a work item (issue, task, incident, epic, etc.) with full field support
-217. `update_work_item` - Update a work item (title, description, labels, assignees, state, parent, custom fields, etc.)
-218. `convert_work_item_type` - Convert a work item to a different type
-219. `list_work_item_statuses` - List available statuses for a work item type (Premium/Ultimate)
-220. `list_custom_field_definitions` - List custom field definitions for a work item type
-221. `move_work_item` - Move a work item to a different project
-222. `list_work_item_notes` - List notes and discussions on a work item
-223. `create_work_item_note` - Add a note to a work item (supports Markdown, internal notes, threads)
-224. `list_work_item_emoji_reactions` - List all emoji reactions on a work item
-225. `list_work_item_note_emoji_reactions` - List all emoji reactions on a work item note (comment, thread, or thread reply)
-226. `create_work_item_emoji_reaction` - Add an emoji reaction to a work item (e.g. thumbsup, rocket, eyes)
-227. `delete_work_item_emoji_reaction` - Remove an emoji reaction from a work item
-228. `create_work_item_note_emoji_reaction` - Add an emoji reaction to a work item note (comment, thread, or thread reply)
-229. `delete_work_item_note_emoji_reaction` - Remove an emoji reaction from a work item note (comment, thread, or thread reply)
-230. `get_timeline_events` - List timeline events for an incident
-231. `create_timeline_event` - Create a timeline event on an incident
-232. `list_webhooks` - List webhooks for a project or group
-233. `create_webhook` - Create a webhook on a project or group
-234. `update_webhook` - Update an existing project or group webhook
-235. `delete_webhook` - Delete a project or group webhook
-236. `list_webhook_events` - List recent webhook events (past 7 days)
-237. `get_webhook_event` - Get full details of a specific webhook event
-238. `search_code` - Search for code across all projects (requires advanced search or Zoekt)
-239. `search_project_code` - Search for code within a specific project (requires advanced search or Zoekt)
-240. `search_group_code` - Search for code within a specific group (requires advanced search or Zoekt)
-241. `list_project_variables` - List CI/CD variables for a project
-242. `get_project_variable` - Get a single CI/CD variable from a project
-243. `create_project_variable` - Create a CI/CD variable for a project
-244. `update_project_variable` - Update an existing CI/CD variable in a project
-245. `delete_project_variable` - Delete a CI/CD variable from a project
-246. `list_group_variables` - List CI/CD variables for a group
-247. `get_group_variable` - Get a single CI/CD variable from a group
-248. `create_group_variable` - Create a CI/CD variable for a group
-249. `update_group_variable` - Update an existing CI/CD variable in a group
-250. `delete_group_variable` - Delete a CI/CD variable from a group
-251. `get_dependency_proxy_settings` - Get dependency proxy settings for a group
-252. `update_dependency_proxy_settings` - Update dependency proxy settings for a group (enable/disable, credentials for authenticated Docker Hub pulls)
-253. `list_dependency_proxy_blobs` - List cached dependency proxy blobs for a group
-254. `purge_dependency_proxy_cache` - Schedule purge of all cached dependency proxy blobs for a group
-255. `list_project_vulnerabilities` - List vulnerabilities for a project with optional state, severity, and report type filters (GraphQL-backed, cursor pagination)
-256. `get_vulnerability` - Get full details of a specific vulnerability
-257. `dismiss_vulnerability` - Dismiss a vulnerability with a reason (acceptable_risk, false_positive, used_in_tests, mitigating_control, not_applicable) and optional comment
-258. `confirm_vulnerability` - Confirm a vulnerability as a real finding requiring remediation
-259. `orbit_query` - Execute a GitLab Orbit graph query over the indexed SDLC knowledge graph
-260. `orbit_get_schema` - Fetch the current GitLab Orbit graph schema (node and edge types)
-261. `orbit_get_status` - Check GitLab Orbit indexing status for the enabled scope
-262. `orbit_list_tools` - List the MCP tool definitions exposed by GitLab Orbit
-263. `list_snippets` - List snippets — project snippets when project_id is given, otherwise personal snippets
-264. `get_snippet` - Get a snippet's metadata. Set include_content=true to also fetch the raw file content.
-265. `create_snippet` - Create a snippet — project-scoped when project_id is given, otherwise a personal snippet. Requires title plus either file_name + content (single file) or files[] (multi-file); the two shapes cannot be mixed.
-266. `update_snippet` - Update an existing snippet (provide at least one field to change). For multi-file edits — renames, deletions, additions — pass files[] with action (create/update/delete/move) and previous_path. The file_name + content shortcut still works for single-file content replacement.
-267. `delete_snippet` - Delete a snippet
-268. `discover_tools` - Discover and activate additional tool categories for this session. Available categories: core, merge_requests, issues, repositories, branches, projects, labels, ci, groups, pipelines, milestones, wiki, releases, tags, snippets, users, workitems, webhooks, search, variables, dependency_proxy, vulnerabilities, orbit. Already-active categories are listed in the response.
+214. `list_protected_tags` - List protected tags in a project
+215. `get_protected_tag` - Get details of a single protected tag or wildcard (create access levels)
+216. `protect_tag` - Protect a repository tag or wildcard (set who can create it)
+217. `unprotect_tag` - Remove protection from a previously protected tag or wildcard
+218. `get_work_item` - Get a work item with full details including status, hierarchy, type, and widgets
+219. `list_work_items` - List work items with filters (type, state, search, assignees, labels)
+220. `create_work_item` - Create a work item (issue, task, incident, epic, etc.) with full field support
+221. `update_work_item` - Update a work item (title, description, labels, assignees, state, parent, custom fields, etc.)
+222. `convert_work_item_type` - Convert a work item to a different type
+223. `list_work_item_statuses` - List available statuses for a work item type (Premium/Ultimate)
+224. `list_custom_field_definitions` - List custom field definitions for a work item type
+225. `move_work_item` - Move a work item to a different project
+226. `list_work_item_notes` - List notes and discussions on a work item
+227. `create_work_item_note` - Add a note to a work item (supports Markdown, internal notes, threads)
+228. `list_work_item_emoji_reactions` - List all emoji reactions on a work item
+229. `list_work_item_note_emoji_reactions` - List all emoji reactions on a work item note (comment, thread, or thread reply)
+230. `create_work_item_emoji_reaction` - Add an emoji reaction to a work item (e.g. thumbsup, rocket, eyes)
+231. `delete_work_item_emoji_reaction` - Remove an emoji reaction from a work item
+232. `create_work_item_note_emoji_reaction` - Add an emoji reaction to a work item note (comment, thread, or thread reply)
+233. `delete_work_item_note_emoji_reaction` - Remove an emoji reaction from a work item note (comment, thread, or thread reply)
+234. `get_timeline_events` - List timeline events for an incident
+235. `create_timeline_event` - Create a timeline event on an incident
+236. `list_webhooks` - List webhooks for a project or group
+237. `create_webhook` - Create a webhook on a project or group
+238. `update_webhook` - Update an existing project or group webhook
+239. `delete_webhook` - Delete a project or group webhook
+240. `list_webhook_events` - List recent webhook events (past 7 days)
+241. `get_webhook_event` - Get full details of a specific webhook event
+242. `search_code` - Search for code across all projects (requires advanced search or Zoekt)
+243. `search_project_code` - Search for code within a specific project (requires advanced search or Zoekt)
+244. `search_group_code` - Search for code within a specific group (requires advanced search or Zoekt)
+245. `list_project_variables` - List CI/CD variables for a project
+246. `get_project_variable` - Get a single CI/CD variable from a project
+247. `create_project_variable` - Create a CI/CD variable for a project
+248. `update_project_variable` - Update an existing CI/CD variable in a project
+249. `delete_project_variable` - Delete a CI/CD variable from a project
+250. `list_group_variables` - List CI/CD variables for a group
+251. `get_group_variable` - Get a single CI/CD variable from a group
+252. `create_group_variable` - Create a CI/CD variable for a group
+253. `update_group_variable` - Update an existing CI/CD variable in a group
+254. `delete_group_variable` - Delete a CI/CD variable from a group
+255. `get_dependency_proxy_settings` - Get dependency proxy settings for a group
+256. `update_dependency_proxy_settings` - Update dependency proxy settings for a group (enable/disable, credentials for authenticated Docker Hub pulls)
+257. `list_dependency_proxy_blobs` - List cached dependency proxy blobs for a group
+258. `purge_dependency_proxy_cache` - Schedule purge of all cached dependency proxy blobs for a group
+259. `list_project_vulnerabilities` - List vulnerabilities for a project with optional state, severity, and report type filters (GraphQL-backed, cursor pagination)
+260. `get_vulnerability` - Get full details of a specific vulnerability
+261. `dismiss_vulnerability` - Dismiss a vulnerability with a reason (acceptable_risk, false_positive, used_in_tests, mitigating_control, not_applicable) and optional comment
+262. `confirm_vulnerability` - Confirm a vulnerability as a real finding requiring remediation
+263. `orbit_query` - Execute a GitLab Orbit graph query over the indexed SDLC knowledge graph
+264. `orbit_get_schema` - Fetch the current GitLab Orbit graph schema (node and edge types)
+265. `orbit_get_status` - Check GitLab Orbit indexing status for the enabled scope
+266. `orbit_list_tools` - List the MCP tool definitions exposed by GitLab Orbit
+267. `list_snippets` - List snippets — project snippets when project_id is given, otherwise personal snippets
+268. `get_snippet` - Get a snippet's metadata. Set include_content=true to also fetch the raw file content.
+269. `create_snippet` - Create a snippet — project-scoped when project_id is given, otherwise a personal snippet. Requires title plus either file_name + content (single file) or files[] (multi-file); the two shapes cannot be mixed.
+270. `update_snippet` - Update an existing snippet (provide at least one field to change). For multi-file edits — renames, deletions, additions — pass files[] with action (create/update/delete/move) and previous_path. The file_name + content shortcut still works for single-file content replacement.
+271. `delete_snippet` - Delete a snippet
+272. `discover_tools` - Discover and activate additional tool categories for this session. Available categories: core, merge_requests, issues, repositories, branches, projects, labels, ci, groups, pipelines, milestones, wiki, releases, tags, snippets, users, workitems, webhooks, search, variables, dependency_proxy, vulnerabilities, orbit. Already-active categories are listed in the response.
 
 <!-- TOOLS-END -->
 
