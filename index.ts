@@ -221,6 +221,7 @@ import {
   classifyHealthCheckTransportError,
   redactGitLabUrlCredentials,
 } from "./utils/health-check-transport-error.js";
+import { redactUrlSecretsInText } from "./utils/redact-url.js";
 import {
   createMaskingPolicyResolver,
   getManagedMaskingProjectIds,
@@ -1404,7 +1405,9 @@ function validateConfiguration(): void {
       try {
         new URL(url.trim());
       } catch {
-        errors.push(`GITLAB_API_URL contains an invalid URL: ${url.trim()}`);
+        errors.push(
+          `GITLAB_API_URL contains an invalid URL: ${redactUrlSecretsInText(url.trim())}`
+        );
       }
     }
   }
@@ -1873,7 +1876,11 @@ function buildAuthHeaders(): Record<string, string> {
   if (REMOTE_AUTHORIZATION || GITLAB_MCP_OAUTH) {
     const ctx = sessionAuthStore.getStore();
     logger.debug(
-      { sessionId: ctx?.sessionId, header: ctx?.header, apiUrl: ctx?.apiUrl },
+      {
+        sessionId: ctx?.sessionId,
+        header: ctx?.header,
+        apiUrl: ctx?.apiUrl === undefined ? undefined : redactUrlSecretsInText(ctx.apiUrl),
+      },
       "buildAuthHeaders: session context"
     );
     if (ctx?.token) {
@@ -1929,7 +1936,11 @@ function getEffectiveApiUrl(): string {
       return ctx.apiUrl;
     }
     logger.warn(
-      { sessionId: ctx?.sessionId, header: ctx?.header, apiUrl: ctx?.apiUrl },
+      {
+        sessionId: ctx?.sessionId,
+        header: ctx?.header,
+        apiUrl: ctx?.apiUrl === undefined ? undefined : redactUrlSecretsInText(ctx.apiUrl),
+      },
       "getEffectiveApiUrl: No context or apiUrl found, falling back to default"
     );
   }
@@ -11336,7 +11347,7 @@ async function handleToolCall(params: any) {
         const controller = new AbortController();
         const timeoutMs = 45000;
         const timeout = setTimeout(() => controller.abort(), timeoutMs);
-        logger.info({ endpoint: graphqlUrl }, "execute_graphql request");
+        logger.info({ endpoint: redactUrlSecretsInText(graphqlUrl) }, "execute_graphql request");
         try {
           const response = await fetch(graphqlUrl, {
             ...getFetchConfig(),
@@ -15692,7 +15703,9 @@ async function startStreamableHTTPServer(): Promise<void> {
         apiUrl = resolveTrustedGitLabApiUrl(dynamicApiUrl);
       } catch (error) {
         const reason = error instanceof Error ? error.message : "Invalid X-GitLab-API-URL";
-        logger.warn(`Invalid X-GitLab-API-URL provided: ${dynamicApiUrl}. ${reason}`);
+        logger.warn(
+          `Invalid X-GitLab-API-URL provided: ${redactUrlSecretsInText(dynamicApiUrl)}. ${reason}`
+        );
         return null; // Reject if URL is malformed or not allowed
       }
     }
@@ -16911,7 +16924,7 @@ function initOAuthClient(): void {
   }
   if (isCleartextRemoteUrl(GITLAB_API_URL)) {
     throw new Error(
-      `Refusing to send OAuth tokens over cleartext HTTP to ${GITLAB_API_URL}. ` +
+      `Refusing to send OAuth tokens over cleartext HTTP to ${redactUrlSecretsInText(GITLAB_API_URL)}. ` +
         "Use an https:// GITLAB_API_URL (http:// is only allowed for localhost)."
     );
   }
@@ -16955,8 +16968,10 @@ async function runServer() {
       });
     }
 
-    logger.info(`Configured GitLab API URLs: ${GITLAB_API_URLS.join(", ")}`);
-    logger.info(`Default GitLab API URL: ${GITLAB_API_URL}`);
+    logger.info(
+      `Configured GitLab API URLs: ${GITLAB_API_URLS.map(redactUrlSecretsInText).join(", ")}`
+    );
+    logger.info(`Default GitLab API URL: ${redactUrlSecretsInText(GITLAB_API_URL)}`);
 
     for (const warning of getDeprecatedEnvWarnings({
       readOnlyMode: GITLAB_READ_ONLY_MODE,
