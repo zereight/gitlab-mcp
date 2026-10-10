@@ -3,6 +3,7 @@ import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
 import path from "node:path";
 import { describe, test } from "node:test";
+import { AUTH_CLI_HELP } from "../auth-cli.js";
 import { parseCliArgs } from "../cli-boolean-flags.js";
 import { globalHelpText } from "../cli/help.js";
 import {
@@ -612,6 +613,18 @@ describe("When --help is requested", () => {
       const result = await runBuiltServer(["--help"], spawnEnv({ USE_PIPELINE: "true" }));
       assert.equal(result.code, 0);
       assert.equal(result.stdout, globalHelpText());
+      assert.match(result.stderr, /USE_PIPELINE is deprecated and will be removed in v3\.0\.0/);
+    });
+  });
+});
+
+describe("When auth --help is requested", () => {
+  describe("with USE_PIPELINE=true", () => {
+    test("should write the warning to stderr and the auth help text to stdout", async () => {
+      requireBuiltServer();
+      const result = await runBuiltServer(["auth", "--help"], spawnEnv({ USE_PIPELINE: "true" }));
+      assert.equal(result.code, 0);
+      assert.equal(result.stdout, AUTH_CLI_HELP);
       assert.match(result.stderr, /USE_PIPELINE is deprecated and will be removed in v3\.0\.0/);
     });
   });

@@ -83,11 +83,6 @@ export async function runAuthCommandAsync(input: AuthCliInput = {}): Promise<voi
   const env = input.env ?? process.env;
   const stdout = input.stdout ?? process.stdout;
 
-  if (wantsHelp(argv)) {
-    stdout.write(AUTH_CLI_HELP);
-    return;
-  }
-
   const parsedArgs = parseCliArgs(argv.slice(2));
   const warnings = getDeprecatedEnvWarnings(deprecatedEnvInputFromSources(parsedArgs, env));
   for (const warning of warnings) {
@@ -95,6 +90,11 @@ export async function runAuthCommandAsync(input: AuthCliInput = {}): Promise<voi
   }
   if (warnings.length > 0) {
     flushStartupLogs(logger);
+  }
+
+  if (wantsHelp(argv)) {
+    stdout.write(AUTH_CLI_HELP);
+    return;
   }
 
   const clientId = readFlag(argv, "client-id") ?? env.GITLAB_OAUTH_CLIENT_ID;
