@@ -2,6 +2,7 @@ import { describe, test, before, after } from "node:test";
 import assert from "node:assert";
 import { spawn } from "child_process";
 import fs from "node:fs";
+import http from "node:http";
 import net from "node:net";
 import path, { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -151,6 +152,48 @@ function reserveClosedPortAsync(): Promise<number> {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function listenForUser401ThenCloseAsync(): Promise<{
+  apiUrl: string;
+  closeAsync: () => Promise<void>;
+}> {
+  return new Promise((resolve, reject) => {
+    const server = http.createServer((req, res) => {
+      const pathOnly = (req.url ?? "").split("?")[0];
+      if (pathOnly.endsWith("/user")) {
+        server.close();
+        res.writeHead(401, {
+          "content-type": "application/json",
+          connection: "close",
+        });
+        res.end(JSON.stringify({ message: "401 Unauthorized" }));
+        return;
+      }
+      res.writeHead(500, { connection: "close" });
+      res.end();
+    });
+    server.once("error", reject);
+    server.listen(0, "127.0.0.1", () => {
+      const address = server.address();
+      if (address === null || typeof address === "string") {
+        reject(new Error("failed to bind the job-token fallback server"));
+        return;
+      }
+      const apiUrl = `http://127.0.0.1:${address.port}/api/v4`;
+      resolve({
+        apiUrl,
+        closeAsync: () =>
+          new Promise(done => {
+            if (!server.listening) {
+              done();
+              return;
+            }
+            server.close(() => done());
+          }),
+      });
+    });
+  });
 }
 
 function jobTokenEnv(mockGitLabUrl: string): NodeJS.ProcessEnv {
@@ -404,6 +447,44 @@ describe("When health_check runs", () => {
       assert.equal(parsed.error.kind, "network");
       assert.equal(parsed.error.code, "ECONNREFUSED");
       assert.equal(String(parsed.error.message).includes("\n"), false);
+    });
+  });
+
+  describe("when a job token is configured and GET /job refuses the connection", () => {
+    test("should return a structured network error with a redacted URL", async () => {
+      const opened = await listenForUser401ThenCloseAsync();
+      const secret = "glpat-job-fallback-secret";
+
+      try {
+        const result = await callToolAsync(
+          {
+            ...jobTokenEnv(opened.apiUrl.replace(/\/api\/v4$/, "")),
+            GITLAB_JOB_TOKEN: secret,
+            GITLAB_DISABLE_VERSION_CHECK: "true",
+            HTTP_PROXY: "",
+            HTTPS_PROXY: "",
+            GITLAB_CA_CERT_PATH: "",
+          },
+          "health_check"
+        );
+
+        assert.equal(result.isError, false);
+        assert.equal(result.text.includes(secret), false);
+        const parsed: unknown = JSON.parse(result.text);
+        if (!isRecord(parsed) || !isRecord(parsed.error)) {
+          throw new Error("health_check result is missing the error object");
+        }
+        assert.equal(parsed.status, "error");
+        assert.equal(parsed.authenticated, false);
+        assert.equal(parsed.gitlab_url, opened.apiUrl);
+        assert.equal(parsed.mcp_server_version, PACKAGE_VERSION);
+        assert.equal(parsed.error.kind, "network");
+        assert.equal(parsed.error.code, "ECONNREFUSED");
+        assert.equal(String(parsed.error.message).includes(secret), false);
+        assert.equal(String(parsed.error.message).includes("\n"), false);
+      } finally {
+        await opened.closeAsync();
+      }
     });
   });
 });

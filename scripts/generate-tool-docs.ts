@@ -39,6 +39,24 @@ const LEGACY_TOGGLE_ENV: Partial<Record<ToolsetId, string>> = {
   wiki: "USE_GITLAB_WIKI",
 };
 
+// USE_PIPELINE also exposes these two tools, but they live in `ci`, not `pipelines`.
+const LEGACY_PIPELINE_TOOLS = "validate_ci_lint,validate_project_ci_lint";
+
+function legacyToolsetReplacement(id: ToolsetId): string {
+  const toolsets = `\`GITLAB_TOOLSETS=core,${id}\``;
+  if (id === "pipelines") {
+    return `${toolsets} and \`GITLAB_TOOLS=${LEGACY_PIPELINE_TOOLS}\``;
+  }
+  return toolsets;
+}
+
+function legacyToolsAppendNote(id: ToolsetId): string {
+  if (id !== "pipelines") {
+    return "";
+  }
+  return ` If \`GITLAB_TOOLS\` is already set, append \`${LEGACY_PIPELINE_TOOLS}\` instead of replacing that list.`;
+}
+
 function isDefaultToolset(id: ToolsetId): boolean {
   return TOOLSET_DEFINITIONS.find(d => d.id === id)?.isDefault ?? false;
 }
@@ -66,7 +84,13 @@ function computeToggleNote(id: ToolsetId, toolNames: readonly string[] = []): st
   }
   const legacy = LEGACY_TOGGLE_ENV[id];
   if (legacy) {
-    return `Opt-in. Enable via \`GITLAB_TOOLSETS=${id}\` (or \`GITLAB_TOOLSETS=all\`), or use the legacy \`${legacy}=true\` flag for backward compatibility.${formatDefaultOverlapNote(toolNames)}`;
+    return (
+      `Opt-in. Enable via ${legacyToolsetReplacement(id)} (or \`GITLAB_TOOLSETS=all\`). ` +
+      `If you already set \`GITLAB_TOOLSETS\`, append \`${id}\` to your existing list instead of replacing it.` +
+      `${legacyToolsAppendNote(id)} ` +
+      `\`${legacy}=true\` is deprecated (removed in next major (v3.0.0)).` +
+      formatDefaultOverlapNote(toolNames)
+    );
   }
   return `Opt-in. Enable via \`GITLAB_TOOLSETS=${id}\` (or \`GITLAB_TOOLSETS=all\`), list individual tools in \`GITLAB_TOOLS=\`, or activate at runtime with the \`discover_tools\` MCP tool.${formatDefaultOverlapNote(toolNames)}`;
 }
@@ -360,7 +384,9 @@ function buildToggleSection(groupedToolsList: Array<[ToolsetId, string[]]>): str
       .map(([id]) => {
         const slug = id.replace(/_/g, "-");
         const legacy = LEGACY_TOGGLE_ENV[id];
-        const suffix = legacy ? ` (also \`${legacy}=true\`)` : "";
+        const suffix = legacy
+          ? ` (legacy \`${legacy}=true\` is deprecated; removed in next major (v3.0.0))`
+          : "";
         return `[${GROUP_META[id].title}](${slug}.md)${suffix}`;
       })
       .join(", ");
@@ -382,8 +408,11 @@ function buildToggleSection(groupedToolsList: Array<[ToolsetId, string[]]>): str
     "- `GITLAB_TOOLSETS=all` — enables every group.",
     "- `GITLAB_TOOLSETS=merge_requests,issues,repositories,branches,projects,labels,ci,groups,users` — restores the pre-lean default set.",
     "- `GITLAB_TOOLS=<tool,…>` — enables individual tools regardless of group.",
-    "- `USE_PIPELINE=true` / `USE_MILESTONE=true` / `USE_GITLAB_WIKI=true` —" +
-      " legacy single-group flags (Pipelines, Milestones, Wiki only).",
+    "- `USE_PIPELINE`, `USE_MILESTONE`, and `USE_GITLAB_WIKI` are deprecated (removed in next major (v3.0.0))." +
+      " Use `GITLAB_TOOLSETS=core,pipelines` and `GITLAB_TOOLS=validate_ci_lint,validate_project_ci_lint`," +
+      " `GITLAB_TOOLSETS=core,milestones`, or `GITLAB_TOOLSETS=core,wiki`." +
+      " If you already set `GITLAB_TOOLSETS`, append the toolset to your existing list instead of replacing it." +
+      " If `GITLAB_TOOLS` is already set, append `validate_ci_lint,validate_project_ci_lint` instead of replacing that list.",
     "- Call the `discover_tools` MCP tool at runtime to activate categories" +
       " for the current session.",
   ];
@@ -416,7 +445,7 @@ function buildIndexPage(groupedToolsList: Array<[ToolsetId, string[]]>): string 
     "",
     "- `GITLAB_PERMISSION_MODE=readonly` — hides every write tool regardless of toggles.",
     "- `GITLAB_PERMISSION_MODE=modify` — allows create/update but blocks delete and teardown tools: every `delete_*` tool, `erase_pipeline_job`, `purge_dependency_proxy_cache`, the destructive teardown verbs `cancel_pipeline`, `cancel_pipeline_job`, `stop_environment`, `stop_stale_environments`, `unprotect_branch`, `unprotect_tag`, plus `push_files` `delete`/`move` actions.",
-    "- `GITLAB_READ_ONLY_MODE=true` (deprecated) — same as `readonly`; prefer `GITLAB_PERMISSION_MODE=readonly`.",
+    "- `GITLAB_READ_ONLY_MODE=true` is deprecated (removed in next major (v3.0.0)) — same as `readonly`; use `GITLAB_PERMISSION_MODE=readonly` instead.",
     "",
     "The `modify` guard applies to typed tools (`tools/list` and `tools/call`) and to destructive mutations sent through `execute_graphql`: any top-level mutation field whose name contains a deletion verb (`delete`, `destroy`, `remove`, `prune`, `purge`, `erase`) or a teardown verb (`revoke`, `cancel`, `stop`, `terminate`, `unprotect`, `disable`, `deactivate`, `drop`, `unschedule`). See [Environment Variables](../configuration/environment-variables.md#gitlab_permission_mode).",
     "",

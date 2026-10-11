@@ -307,8 +307,8 @@ members of any matching group receive a `401 Access Denied` response.
 
 Requires `GITLAB_MCP_OAUTH=true`.
 
-> **Deprecation notice:** The old name `GITLAB_ALLOWED_GROUPS` is still accepted but will be
-> removed in a future major version. Migrate to `GITLAB_OAUTH_ALLOWED_GROUPS`.
+> **Deprecation notice:** The old name `GITLAB_ALLOWED_GROUPS` is still accepted but is
+> deprecated (removed in next major (v3.0.0)). Migrate to `GITLAB_OAUTH_ALLOWED_GROUPS`.
 
 Examples:
 
@@ -591,8 +591,8 @@ per session, see `ENABLE_DYNAMIC_PROJECT_SCOPE`.
 
 Set to `true` to expose only read-only tools.
 
-> **Deprecation notice:** `GITLAB_READ_ONLY_MODE` and `--read-only=true` are kept for
-> backward compatibility but will be removed in a future major version.
+> **Deprecation notice:** `GITLAB_READ_ONLY_MODE` and `--read-only=true` are deprecated
+> (removed in next major (v3.0.0)).
 > Use `GITLAB_PERMISSION_MODE=readonly` or `--permission-mode=readonly` instead.
 
 When set to `true` it takes precedence over `GITLAB_PERMISSION_MODE`.
@@ -613,7 +613,7 @@ CLI: `--permission-mode`
 
 Behavior:
 
-- `readonly` is equivalent to `GITLAB_READ_ONLY_MODE=true`
+- `readonly` matches the legacy `GITLAB_READ_ONLY_MODE=true` behavior (deprecated; removed in next major (v3.0.0))
 - `modify` blocks delete and teardown tools: it hides all `delete_*` tools plus
   `erase_pipeline_job`, `purge_dependency_proxy_cache`, and the destructive teardown verbs
   `cancel_pipeline`, `cancel_pipeline_job`, `stop_environment`, `stop_stale_environments`,
@@ -698,19 +698,31 @@ Examples:
 
 ### `USE_GITLAB_WIKI`
 
-Legacy additive flag for wiki-related tools. Prefer `GITLAB_TOOLSETS=wiki`.
+> **Deprecated** (removed in next major (v3.0.0)). Legacy additive flag for wiki-related tools.
+> Use `GITLAB_TOOLSETS=core,wiki` instead. If you already set `GITLAB_TOOLSETS`, append `wiki`
+> to your existing list instead of replacing it.
 
 ### `USE_MILESTONE`
 
-Legacy additive flag for milestone-related tools. Prefer `GITLAB_TOOLSETS=milestones`.
+> **Deprecated** (removed in next major (v3.0.0)). Legacy additive flag for milestone-related tools.
+> Use `GITLAB_TOOLSETS=core,milestones` instead. If you already set `GITLAB_TOOLSETS`, append
+> `milestones` to your existing list instead of replacing it.
 
 ### `USE_PIPELINE`
 
-Legacy additive flag for pipeline-related tools. Prefer `GITLAB_TOOLSETS=pipelines`.
+> **Deprecated** (removed in next major (v3.0.0)). Legacy additive flag for pipeline-related tools.
+> Use `GITLAB_TOOLSETS=core,pipelines` and `GITLAB_TOOLS=validate_ci_lint,validate_project_ci_lint`
+> instead. Those two lint tools live in the `ci` toolset, not `pipelines`. If you already set
+> `GITLAB_TOOLSETS`, append `pipelines` to your existing list instead of replacing it.
+> If `GITLAB_TOOLS` is already set, append `validate_ci_lint,validate_project_ci_lint` instead of replacing that list.
 
-> **Deprecation notice:** The `USE_*` flags are kept for backward compatibility only and cover
-> just three toolsets. Use `GITLAB_TOOLSETS` (groups) and `GITLAB_TOOLS` (individual tools)
-> instead.
+> **Deprecation notice:** The `USE_*` flags are kept for backward compatibility only, cover
+> just three toolsets, and will be removed in the next major (v3.0.0). Only `true` enables the
+> extra tools. Any other value, including `false`, does not enable that toolset — remove the
+> variable, and set the replacement above only if you want those tools in addition to `core`.
+> Use `GITLAB_TOOLSETS` (include `core` so the default starter set stays enabled) and `GITLAB_TOOLS`
+> (individual tools) instead. An explicit `GITLAB_TOOLSETS` list replaces the default toolsets;
+> it does not merge.
 
 ## Logging
 
