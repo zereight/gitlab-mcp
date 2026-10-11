@@ -906,7 +906,7 @@ Get content of a single file from a job's artifacts. Use this for a known resour
 
 *📖 Read-only*
 
-List runners available to a project. Use this when a job is stuck pending with no matching runner and you need the runners a project can use, including ancestor group runners and allowed instance runners. Filter with type, status, paused, and tag_list; the list payload has id, description, runner_type, status, and paused, but not tags — call `get_runner` for tag_list, run_untagged, locked, and access_level. It is read-only and paginated, requires Maintainer or Auditor access on the project, and never returns a runner registration token (runners_token) or runner authentication token.
+List runners available to a project. Use this when a job is stuck pending with no matching runner and you need the runners a project can use, including ancestor group runners and allowed instance runners. Filter with type, status, paused, and tag_list; the list payload includes id, description, runner_type, status, and paused (among other non-secret GitLab runner fields) but not tags — call `get_runner` for tag_list, run_untagged, locked, and access_level. It is read-only and paginated, requires Maintainer or Auditor access on the project, and never returns a runner registration token (runners_token) or runner authentication token.
 
 **Parameters**
 
