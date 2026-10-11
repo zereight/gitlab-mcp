@@ -5,7 +5,7 @@ description: Use this skill when working with the GitLab MCP server tools for me
 
 # gitlab-mcp
 
-GitLab MCP server providing 272 tools: 270 tools across 23 toolsets, plus `execute_graphql` and the always-available `discover_tools` meta-tool.
+GitLab MCP server providing 274 tools: 272 tools across 23 toolsets, plus `execute_graphql` and the always-available `discover_tools` meta-tool.
 
 For exact generated parameter tables, see `docs/tools/`. Use this file for workflow shape and high-signal parameter hints.
 
@@ -23,7 +23,7 @@ For exact generated parameter tables, see `docs/tools/`. Use this file for workf
 | ci (4 tools) | no | `GITLAB_TOOLSETS=ci` |
 | groups (1 tool) | no | `GITLAB_TOOLSETS=groups` |
 | users (7 tools) | no | `GITLAB_TOOLSETS=users` |
-| pipelines (56 tools) | no | `GITLAB_TOOLSETS=core,pipelines` (deprecated `USE_PIPELINE`; if `GITLAB_TOOLS` is unset, set `GITLAB_TOOLS=validate_ci_lint,validate_project_ci_lint`, otherwise append those tools instead of replacing the list) |
+| pipelines (58 tools) | no | `GITLAB_TOOLSETS=core,pipelines` (deprecated `USE_PIPELINE`; if `GITLAB_TOOLS` is unset, set `GITLAB_TOOLS=validate_ci_lint,validate_project_ci_lint`, otherwise append those tools instead of replacing the list) |
 | milestones (17 tools) | no | `GITLAB_TOOLSETS=core,milestones` (deprecated `USE_MILESTONE`) |
 | wiki (10 tools) | no | `GITLAB_TOOLSETS=core,wiki` (deprecated `USE_GITLAB_WIKI`) |
 | releases (7 tools) | no | `GITLAB_TOOLSETS=releases` |
@@ -39,9 +39,9 @@ For exact generated parameter tables, see `docs/tools/`. Use this file for workf
 
 Enable all: `GITLAB_TOOLSETS=all`. Restore the pre-lean default with `GITLAB_TOOLSETS=merge_requests,issues,repositories,branches,projects,labels,ci,groups,users`. Use `GITLAB_TOOLS` to enable individual tools outside their toolset. `discover_tools` can list and activate opt-in categories for the current session. `execute_graphql` is not in a toolset; enable it explicitly with `GITLAB_TOOLS=execute_graphql`. `USE_GITLAB_WIKI`, `USE_MILESTONE`, and `USE_PIPELINE` are deprecated (removed in next major (v3.0.0)). If you already set `GITLAB_TOOLSETS`, append the toolset to your existing list instead of replacing it. If `GITLAB_TOOLS` is unset, set `GITLAB_TOOLS=validate_ci_lint,validate_project_ci_lint`. If it is already set, append those two tools instead of replacing that list.
 
-The per-toolset counts above sum to 310 because the 38 `core` tools are each also listed
+The per-toolset counts above sum to 312 because the 38 `core` tools are each also listed
 in their full category (`get_branch` and `list_branches` additionally appear in both
-`merge_requests` and `branches`); the unique tool count across all toolsets is 270.
+`merge_requests` and `branches`); the unique tool count across all toolsets is 272.
 
 ## Key Workflows
 

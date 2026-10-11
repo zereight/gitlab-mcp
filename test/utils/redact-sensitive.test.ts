@@ -21,6 +21,28 @@ describe("When redactSensitiveGitLabFields runs", () => {
     });
   });
 
+  describe("with a runner response that nests project credentials", () => {
+    test("should remove token and runners_token at every level", () => {
+      const data = {
+        id: 8,
+        tag_list: ["docker"],
+        token: "glrt-secret",
+        token_expires_at: "2025-01-01T00:00:00.000Z",
+        projects: [{ id: 1, name: "demo", runners_token: "GR1348941secret", token: "nested-auth" }],
+      };
+
+      const result = redactSensitiveGitLabFields(data);
+      const serialized = JSON.stringify(result);
+
+      assert.equal(serialized.includes("glrt-secret"), false);
+      assert.equal(serialized.includes("GR1348941secret"), false);
+      assert.equal(serialized.includes("nested-auth"), false);
+      assert.equal(result.token_expires_at, "2025-01-01T00:00:00.000Z");
+      assert.deepEqual(result.tag_list, ["docker"]);
+      assert.equal(result.projects[0].name, "demo");
+    });
+  });
+
   describe("with a response that has no sensitive fields", () => {
     test("should return the object unchanged", () => {
       const data = { id: 1, name: "safe" };

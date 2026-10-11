@@ -8,9 +8,9 @@ A tool counts as invoked when a test sends that name through MCP (`callTool` / `
 
 | | |
 | --- | ---: |
-| Tools | 272 |
-| Invoked | 167 |
-| Coverage | 61.4% |
+| Tools | 274 |
+| Invoked | 169 |
+| Coverage | 61.7% |
 
 ## By toolset
 
@@ -25,7 +25,7 @@ A tool counts as invoked when a test sends that name through MCP (`callTool` / `
 | [Labels](#labels) | 5 | 5 | 100.0% |
 | [Work Items](#workitems) | 3 | 18 | 16.7% |
 | [CI Lint](#ci) | 4 | 4 | 100.0% |
-| [Pipelines, Jobs & Deployments](#pipelines) | 30 | 56 | 53.6% |
+| [Pipelines, Jobs & Deployments](#pipelines) | 32 | 58 | 55.2% |
 | [Milestones](#milestones) | 17 | 17 | 100.0% |
 | [Wiki](#wiki) | 10 | 10 | 100.0% |
 | [Releases](#releases) | 7 | 7 | 100.0% |
@@ -275,6 +275,8 @@ A tool counts as invoked when a test sends that name through MCP (`callTool` / `
 - [x] [`list_job_artifacts`](../tools/pipelines.md#list_job_artifacts) — `test/test-blank-filters.ts`, `test/test-job-artifacts.ts`
 - [x] [`download_job_artifacts`](../tools/pipelines.md#download_job_artifacts) — `test/oauth-download-url.test.ts`, `test/test-job-artifacts.ts`, `test/test-remote-downloads.ts`
 - [x] [`get_job_artifact_file`](../tools/pipelines.md#get_job_artifact_file) — `test/test-job-artifacts.ts`
+- [x] [`list_project_runners`](../tools/pipelines.md#list_project_runners) — `test/test-runners.ts`
+- [x] [`get_runner`](../tools/pipelines.md#get_runner) — `test/test-runners.ts`
 
 ## Milestones
 
