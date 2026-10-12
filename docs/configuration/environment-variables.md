@@ -123,6 +123,20 @@ as outside the masking boundary.
 
 Default static GitLab Personal Access Token used in standard mode.
 
+A non-empty value overrides `GITLAB_PERSONAL_ACCESS_TOKEN_FILE`.
+
+### `GITLAB_PERSONAL_ACCESS_TOKEN_FILE`
+
+Optional path to a file that holds the personal access token.
+
+The server reads the file once during startup. It trims leading and trailing whitespace, including newlines. It does not read the file again on later requests.
+
+If `GITLAB_PERSONAL_ACCESS_TOKEN` or `--token` is non-empty, that inline value wins. The server ignores this file and writes a warning to stderr. It does not open the file.
+
+If the inline value is empty and this variable is set, startup stops when the file is missing, cannot be read, or is empty after trim. The error includes the path and a cause code such as `ENOENT`, `EACCES`, or `EMPTY`. The error does not include the file contents.
+
+This variable only fills the personal access token. It does not change the precedence of `GITLAB_JOB_TOKEN`, OAuth, `GITLAB_AUTH_COOKIE_PATH`, or remote authorization.
+
 ### `GITLAB_IS_OLD`
 
 Optional. Set to `true` (or `--is-old=true`) to send Personal Access Tokens as
@@ -962,7 +976,7 @@ Maximum GitLab client pool size.
 
 ## Simple local PAT setup
 
-- `GITLAB_PERSONAL_ACCESS_TOKEN`
+- `GITLAB_PERSONAL_ACCESS_TOKEN` or `GITLAB_PERSONAL_ACCESS_TOKEN_FILE`
 - `GITLAB_API_URL`
 
 ## Local OAuth setup

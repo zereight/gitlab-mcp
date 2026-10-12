@@ -7,12 +7,12 @@ This page helps you pick the right **authentication method** and the right
 
 The server supports four ways to authenticate against GitLab.
 
-| Method                     | When to use it                                                     | Config                         |
-| -------------------------- | ------------------------------------------------------------------ | ------------------------------ |
-| **Personal Access Token**  | Simplest setup for local/desktop use.                              | `GITLAB_PERSONAL_ACCESS_TOKEN` |
-| **OAuth2 — Local Browser** | Better security for local clients (Claude Desktop, VS Code).       | `GITLAB_USE_OAUTH=true`        |
-| **OAuth2 — MCP Proxy**     | Remote MCP clients such as Claude.ai.                              | `GITLAB_MCP_OAUTH=true`        |
-| **Remote Authorization**   | Multi-user deployments where each caller provides their own token. | `REMOTE_AUTHORIZATION=true`    |
+| Method                     | When to use it                                                     | Config                                                                |
+| -------------------------- | ------------------------------------------------------------------ | --------------------------------------------------------------------- |
+| **Personal Access Token**  | Simplest setup for local/desktop use.                              | `GITLAB_PERSONAL_ACCESS_TOKEN` or `GITLAB_PERSONAL_ACCESS_TOKEN_FILE` |
+| **OAuth2 — Local Browser** | Better security for local clients (Claude Desktop, VS Code).       | `GITLAB_USE_OAUTH=true`                                               |
+| **OAuth2 — MCP Proxy**     | Remote MCP clients such as Claude.ai.                              | `GITLAB_MCP_OAUTH=true`                                               |
+| **Remote Authorization**   | Multi-user deployments where each caller provides their own token. | `REMOTE_AUTHORIZATION=true`                                           |
 
 ### Decision flow
 
@@ -21,7 +21,7 @@ The server supports four ways to authenticate against GitLab.
     - **Local desktop, single user** → Personal Access Token or OAuth Local.
     - **Remote single tenant (e.g., Claude.ai)** → OAuth MCP Proxy.
     - **Remote multi-tenant (each user has their own GitLab token)** → Remote Authorization.
-    - **Docker / containers** → Personal Access Token (OAuth needs a browser).
+    - **Docker / containers** → Personal Access Token, or `GITLAB_PERSONAL_ACCESS_TOKEN_FILE` when the token is mounted as a file (OAuth needs a browser).
 
 Full guides:
 

@@ -1,7 +1,12 @@
 import { parseCliArgs } from "./cli-boolean-flags.js";
 import { deprecatedEnvInputFromSources, type DeprecatedEnvInput } from "./deprecated-env.js";
+import {
+  readPersonalAccessTokenFile,
+  resolvePersonalAccessToken,
+} from "./personal-access-token.js";
 import { parseToolProfile } from "./tools/tool-profile.js";
 import { parseCompactToolAllowlist } from "./utils/compact-tool-allowlist.js";
+import { createLogger, flushStartupLogs } from "./utils/logger.js";
 
 // Parse CLI arguments before anything else
 export const cliArgs: Record<string, string> = parseCliArgs(process.argv.slice(2));
@@ -21,7 +26,20 @@ export function getConfig(
 // Authentication
 // ---------------------------------------------------------------------------
 
-export const GITLAB_PERSONAL_ACCESS_TOKEN = getConfig("token", "GITLAB_PERSONAL_ACCESS_TOKEN");
+function warnIgnoredPersonalAccessTokenFile(message: string): void {
+  const startupLogger = createLogger();
+  startupLogger.warn(message);
+  flushStartupLogs(startupLogger);
+}
+
+// Read once at module load. Later auth checks use this constant and do not reopen the file.
+export const GITLAB_PERSONAL_ACCESS_TOKEN = resolvePersonalAccessToken({
+  cliToken: cliArgs.token,
+  envToken: process.env.GITLAB_PERSONAL_ACCESS_TOKEN,
+  filePath: process.env.GITLAB_PERSONAL_ACCESS_TOKEN_FILE,
+  readFile: readPersonalAccessTokenFile,
+  warn: warnIgnoredPersonalAccessTokenFile,
+});
 export const GITLAB_JOB_TOKEN = getConfig("job-token", "GITLAB_JOB_TOKEN");
 export const GITLAB_AUTH_COOKIE_PATH = getConfig("cookie-path", "GITLAB_AUTH_COOKIE_PATH");
 export const USE_OAUTH = getConfig("use-oauth", "GITLAB_USE_OAUTH") === "true";

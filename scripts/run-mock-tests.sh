@@ -39,6 +39,7 @@ run_mock_tests 4 \
   -o -path 'test/deprecated-env.test.ts' \
   -o -path 'test/oauth-scopes.test.ts' \
   -o -path 'test/oauth-device-flow-tests.ts' \
+  -o -path 'test/personal-access-token-file.test.ts' \
   -o -path 'test/cli/*.test.ts' \)
 
 # Co-located unit tests for scripts/ helper modules — no MCP/mock server processes
@@ -61,6 +62,7 @@ run_mock_tests 1 \
   ! -path 'test/deprecated-env.test.ts' \
   ! -path 'test/oauth-scopes.test.ts' \
   ! -path 'test/oauth-device-flow-tests.ts' \
+  ! -path 'test/personal-access-token-file.test.ts' \
   ! -path 'test/cli/*'
 
 tsx test/oauth-tests.ts

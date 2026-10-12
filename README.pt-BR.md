@@ -90,7 +90,7 @@ O servidor suporta quatro métodos de autenticação.
 
 **Para uso local/desktop** (mais comum):
 
-1. **Personal Access Token** (`GITLAB_PERSONAL_ACCESS_TOKEN`) — configuração mais simples
+1. **Personal Access Token** (`GITLAB_PERSONAL_ACCESS_TOKEN` ou `GITLAB_PERSONAL_ACCESS_TOKEN_FILE`) — configuração mais simples
 2. **OAuth2 — navegador local** (`GITLAB_USE_OAUTH`) — recomendado para maior segurança
 
 **Para implantações em servidor/remotas**:

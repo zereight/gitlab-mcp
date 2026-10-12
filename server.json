@@ -18,10 +18,17 @@
       "environmentVariables": [
         {
           "name": "GITLAB_PERSONAL_ACCESS_TOKEN",
-          "description": "GitLab personal access token for local stdio use. One of this token, GITLAB_JOB_TOKEN, GITLAB_AUTH_COOKIE_PATH, or GITLAB_USE_OAUTH=true must be set. Create a token with the GitLab scopes the tools need, such as api or read_api.",
+          "description": "GitLab personal access token for local stdio use. A non-empty value overrides GITLAB_PERSONAL_ACCESS_TOKEN_FILE. One of this token, GITLAB_PERSONAL_ACCESS_TOKEN_FILE, GITLAB_JOB_TOKEN, GITLAB_AUTH_COOKIE_PATH, or GITLAB_USE_OAUTH=true must be set. Create a token with the GitLab scopes the tools need, such as api or read_api.",
           "isRequired": false,
           "isSecret": true,
           "format": "string"
+        },
+        {
+          "name": "GITLAB_PERSONAL_ACCESS_TOKEN_FILE",
+          "description": "Path to a file that contains the personal access token. Read once at startup and trimmed. Ignored when GITLAB_PERSONAL_ACCESS_TOKEN or --token is non-empty. A missing, unreadable, or empty file stops startup. Does not replace job token, OAuth, cookie, or remote authorization.",
+          "isRequired": false,
+          "isSecret": false,
+          "format": "filepath"
         },
         {
           "name": "GITLAB_JOB_TOKEN",
