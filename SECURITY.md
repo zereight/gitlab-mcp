@@ -31,7 +31,7 @@ See [`GITLAB_PERMISSION_MODE`](docs/configuration/environment-variables.md#gitla
 
 `GITLAB_ALLOWED_PROJECT_IDS` is an optional comma-separated list of project ids. The list is fixed when the process starts. One id acts as a locked default project. Multiple ids restrict tool access to those projects.
 
-Without `ENABLE_STRICT_PROJECT_SCOPE=true`, that allowlist limits which projects tools may operate on. Listings and searches can still return everything the token can see. With the flag, the server filters `list_projects`, `list_group_projects`, and `search_repositories` down to the allowlist. `count` and `total_pages` stay the unfiltered GitLab totals. The flag also refuses instance-wide and group-wide tools that it cannot limit to the allowlist.
+Without `ENABLE_STRICT_PROJECT_SCOPE=true`, that allowlist limits which projects tools may operate on. Listings and searches can still return everything the token can see. With the flag, the server filters `list_projects`, `list_group_projects`, and `search_repositories` down to the allowlist. On `search_repositories`, `count` and `total_pages` stay the unfiltered GitLab totals when GitLab sends `x-total` and `x-total-pages`. If GitLab omits `x-total`, `count` is the length of the filtered page. If GitLab omits `x-total-pages`, the response omits `total_pages`. The flag also refuses instance-wide and group-wide tools when `GITLAB_ALLOWED_PROJECT_IDS`, a session project scope, or `GITLAB_PROJECT_ID` is set. It cannot limit those tools to those projects.
 
 See [`GITLAB_ALLOWED_PROJECT_IDS`](docs/configuration/environment-variables.md#gitlab_allowed_project_ids) and [`ENABLE_STRICT_PROJECT_SCOPE`](docs/configuration/environment-variables.md#enable_strict_project_scope).
 
